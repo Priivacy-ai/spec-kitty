@@ -248,8 +248,16 @@ red that is **NOT your change**. Before treating a failure as yours, classify it
 3. **Stale-install false reds** — code that shells out to `spec-kitty` (e.g. the
    `merge-driver-*` commands) only fires after `pip install -e .`; a stale install reports
    false reds until you reinstall.
+4. **Stale-venv false reds** — a `ModuleNotFoundError` (or other import failure) for a
+   package that *is* declared and pinned (`pyproject.toml` / `uv.lock`) usually means the
+   local `.venv` was never (re)synced to that pin, not a real regression. Re-run
+   `uv sync --frozen --all-extras` and retry before recording the failure as pre-existing or
+   unrelated — a stale venv is indistinguishable from real breakage in raw pytest output
+   (spec-kitty-planning#648: a PR's `## Tests run` excluded a whole test file over exactly
+   this; a clean `uv sync --frozen --all-extras` reproduced 1621/1621 passing, no exclusion
+   needed).
 Only failures that are red on your branch **and** green on the base are yours to fold. Never
-green-wash category 1, and never misattribute categories 2–3 to your own work. Full policy:
+green-wash category 1, and never misattribute categories 2–4 to your own work. Full policy:
 [docs/development/testing/testing-flakiness.md](docs/development/testing/testing-flakiness.md#test-run-baseline-red-gotcha).
 
 ## Code Style
