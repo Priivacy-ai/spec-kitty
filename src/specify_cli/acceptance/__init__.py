@@ -32,6 +32,7 @@ from specify_cli.task_utils import (
 from specify_cli.task_utils.support import TaskCliError
 from specify_cli.runtime.resolver import resolve_configured_artifact_name
 from specify_cli.upgrade.pre30_guard import check_pre30_layout
+from specify_cli.validators.paths import _normalize_path_token
 
 # WP04 (coord-authority-trio-degod-01KX7094) split: pure lane-gate/workflow-evidence
 # checks live in ``gates_core`` (T022), pure WP-summary/path-convention helpers live
@@ -1181,14 +1182,17 @@ def collect_feature_summary(
     except MissionError:
         mission = None
 
-    path_violations, path_convention_warning = evaluate_path_conventions(
+    path_violations, path_convention_warning, dedup_tokens = evaluate_path_conventions(
         mission,
         repo_root,
         feature_dir,
         planning_read_dir,
         strict_metadata=strict_metadata,
-        optional_missing_to_dedup=missing_optional,
     )
+    if dedup_tokens:
+        # FR-002: apply the dedup query result explicitly — evaluate_path_conventions
+        # is a pure query and never mutates our list itself (summary_core.py).
+        missing_optional = [entry for entry in missing_optional if _normalize_path_token(entry) not in dedup_tokens]
 
     warnings = build_warnings(
         missing_optional=missing_optional,

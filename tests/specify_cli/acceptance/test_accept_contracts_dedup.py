@@ -6,12 +6,14 @@
 ``contracts/`` in strict mode used to surface it twice, contradictorily: once
 as a non-blocking ``optional_missing`` warning, once as a blocking
 ``path_violations`` entry. ``evaluate_path_conventions`` (summary_core.py)
-gains an ``optional_missing_to_dedup`` keyword parameter that mutates the
-caller's ``missing_optional`` list in place, dropping any entry whose
-normalized token also resolved as a genuine artifact-tagged ``missing_paths``
-entry — but ONLY inside the ``strict_metadata=True`` branch, and ONLY for
-tokens that are real declared-artifact matches (never a basename collision,
-never a build/repo-root placeholder).
+returns a ``dedup_tokens`` frozenset as its third element — the normalized
+tokens whose entries also resolved as a genuine artifact-tagged
+``missing_paths`` entry — but ONLY inside the ``strict_metadata=True``
+branch, and ONLY for tokens that are real declared-artifact matches (never a
+basename collision, never a build/repo-root placeholder). The function is a
+pure query (landing #3783 fold): it never mutates a caller-owned list, so the
+caller (``acceptance.collect_feature_summary``) applies ``dedup_tokens`` to
+its own ``missing_optional`` explicitly.
 
 Four tests pin this (plan.md's WP2 revert-test row, plus a tasks-phase
 addition — see WP02's own task file, T009, for the TASKS-FRESH-003 /
@@ -19,12 +21,12 @@ TASKS-FRESH3-001 provenance of test (d)):
 
 * Test (a) -- dedup + pass/fail boundary, via the real ``collect_feature_summary``
   entry point on a genuine software-dev-shaped fixture (so WP01's
-  ``missing_paths_feature_relative`` population is exercised for real, not
+  ``missing_artifact_tokens`` population is exercised for real, not
   hand-set on a mock).
 * Test (b) -- the duplicate "Optional artifacts missing" console print is
   gone; the line appears at most once.
-* Test (c) -- lenient mode (``strict_metadata=False``) never touches the
-  dedup list at all.
+* Test (c) -- lenient mode (``strict_metadata=False``) always returns an
+  empty ``dedup_tokens`` set.
 * Test (d) -- the ``artifact_tokens`` membership filter itself: a genuine
   collision (d-i), a filter-presence regression guard (d-ii), and a
   full-token-vs-basename regression guard (d-iii).
@@ -199,15 +201,17 @@ def test_optional_artifacts_missing_prints_at_most_once(monkeypatch: pytest.Monk
 # ---------------------------------------------------------------------------
 
 
-def test_lenient_mode_never_mutates_optional_missing_to_dedup(
+def test_lenient_mode_returns_no_dedup_tokens(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    """FR-008 guard: the mutation fires only inside the strict_metadata branch.
+    """FR-008 guard: the dedup token set is populated only inside the
+    strict_metadata branch.
 
-    Pre-fix (red): ``evaluate_path_conventions`` doesn't accept
-    ``optional_missing_to_dedup`` at all, so this call is a ``TypeError``.
-    Post-fix (green): in lenient mode the parameter is accepted but never
-    consulted -- ``optional_missing_to_dedup`` comes back byte-identical.
+    ``evaluate_path_conventions`` is a pure query (WP01 fold, landing #3783):
+    it never mutates a caller-owned list. In lenient mode
+    (``strict_metadata=False``) the returned ``dedup_tokens`` set must be
+    empty -- a caller applying it to its own ``missing_optional`` list has
+    nothing to remove.
     """
     mission = SimpleNamespace(
         config=SimpleNamespace(
@@ -220,25 +224,23 @@ def test_lenient_mode_never_mutates_optional_missing_to_dedup(
         "specify_cli.acceptance.summary_core.validate_mission_paths",
         lambda *_a, **_k: SimpleNamespace(
             missing_paths=["contracts/"],
-            missing_paths_feature_relative=["contracts"],
+            missing_artifact_tokens=["contracts"],
             format_errors=lambda: "missing contracts/",
             format_warnings=lambda: "missing contracts/ (advisory)",
         ),
     )
-    optional_missing_to_dedup = ["contracts"]
 
-    violations, warning = evaluate_path_conventions(
+    violations, warning, dedup_tokens = evaluate_path_conventions(
         mission,
         tmp_path,
         tmp_path,
         tmp_path,
         strict_metadata=False,
-        optional_missing_to_dedup=optional_missing_to_dedup,
     )
 
     assert violations == []
     assert warning == "missing contracts/ (advisory)"
-    assert optional_missing_to_dedup == ["contracts"]
+    assert dedup_tokens == frozenset()
 
 
 # ---------------------------------------------------------------------------
@@ -256,12 +258,12 @@ def _mission_with_optional(*optional: str) -> SimpleNamespace:
     )
 
 
-def _patch_path_result(monkeypatch: pytest.MonkeyPatch, missing_paths_feature_relative: list[str]) -> None:
+def _patch_path_result(monkeypatch: pytest.MonkeyPatch, missing_artifact_tokens: list[str]) -> None:
     monkeypatch.setattr(
         "specify_cli.acceptance.summary_core.validate_mission_paths",
         lambda *_a, **_k: SimpleNamespace(
             missing_paths=["placeholder"],
-            missing_paths_feature_relative=missing_paths_feature_relative,
+            missing_artifact_tokens=missing_artifact_tokens,
             format_errors=lambda: "placeholder",
         ),
     )
@@ -272,27 +274,25 @@ def test_membership_filter_di_genuine_collision_outcome(
 ) -> None:
     """(d-i): outcome check for a genuine collision -- NOT a filter-presence guard.
 
-    Both ``missing_paths_feature_relative`` entries normalize to the same
-    string ("contracts"), one standing in for the real artifact-tagged branch
-    and one for an absolute-path placeholder that happens to collide. A
-    filter-omitted implementation would produce the identical ``[]`` outcome
-    here (see (d-ii) for the case that actually distinguishes filter-present
-    from filter-absent).
+    Both ``missing_artifact_tokens`` entries normalize to the same string
+    ("contracts"), one standing in for the real artifact-tagged branch and one
+    for an absolute-path placeholder that happens to collide. A
+    filter-omitted implementation would produce the identical
+    ``frozenset({"contracts"})`` outcome here (see (d-ii) for the case that
+    actually distinguishes filter-present from filter-absent).
     """
     mission = _mission_with_optional("contracts")
     _patch_path_result(monkeypatch, ["contracts", "contracts"])
 
-    optional_missing_to_dedup = ["contracts"]
-    evaluate_path_conventions(
+    _violations, _warning, dedup_tokens = evaluate_path_conventions(
         mission,
         tmp_path,
         tmp_path,
         tmp_path,
         strict_metadata=True,
-        optional_missing_to_dedup=optional_missing_to_dedup,
     )
 
-    assert optional_missing_to_dedup == []
+    assert dedup_tokens == frozenset({"contracts"})
 
 
 def test_membership_filter_dii_filter_presence_regression_guard(
@@ -300,28 +300,27 @@ def test_membership_filter_dii_filter_presence_regression_guard(
 ) -> None:
     """(d-ii): the actual filter-presence regression guard (TASKS-FRESH-003).
 
-    ``"contracts"`` is a genuine artifact_tokens member (SHOULD be removed);
-    ``"build-secrets"`` stands in for a build/repo-root or absolute-branch
-    placeholder that is NOT a member (should survive). Only a correct,
-    filter-present implementation that actually reaches the dedup code
-    produces exactly ``["build-secrets"]`` -- an early return (never reaching
-    the dedup) leaves both entries; a filter-omitted implementation removes
-    both (since both appear in ``missing_paths_feature_relative``).
+    ``"contracts"`` is a genuine artifact_tokens member (SHOULD be in the
+    dedup set); ``"build-secrets"`` stands in for a build/repo-root or
+    absolute-branch placeholder that is NOT a member (should be excluded).
+    Only a correct, filter-present implementation that actually reaches the
+    dedup code produces exactly ``frozenset({"contracts"})`` -- an early
+    return (never reaching the dedup) yields an empty set; a filter-omitted
+    implementation includes both (since both appear in
+    ``missing_artifact_tokens``).
     """
     mission = _mission_with_optional("contracts")
     _patch_path_result(monkeypatch, ["contracts", "build-secrets"])
 
-    optional_missing_to_dedup = ["contracts", "build-secrets"]
-    evaluate_path_conventions(
+    _violations, _warning, dedup_tokens = evaluate_path_conventions(
         mission,
         tmp_path,
         tmp_path,
         tmp_path,
         strict_metadata=True,
-        optional_missing_to_dedup=optional_missing_to_dedup,
     )
 
-    assert optional_missing_to_dedup == ["build-secrets"]
+    assert dedup_tokens == frozenset({"contracts"})
 
 
 def test_membership_filter_diii_full_token_vs_basename_guard(
@@ -331,22 +330,21 @@ def test_membership_filter_diii_full_token_vs_basename_guard(
 
     ``"docs/contracts"`` and ``"api/contracts"`` share a final path segment
     but are distinct full tokens. Only the true full-token match
-    (``"docs/contracts"``) should be removed; a basename-reducing
+    (``"docs/contracts"``) should end up in the dedup set; a basename-reducing
     implementation (``Path(t).name``) would collapse both to ``"contracts"``
-    and incorrectly remove both, producing ``[]`` instead of
-    ``["api/contracts"]``.
+    and incorrectly include both, producing
+    ``frozenset({"docs/contracts", "api/contracts"})`` instead of
+    ``frozenset({"docs/contracts"})``.
     """
     mission = _mission_with_optional("docs/contracts")
     _patch_path_result(monkeypatch, ["docs/contracts", "api/contracts"])
 
-    optional_missing_to_dedup = ["docs/contracts", "api/contracts"]
-    evaluate_path_conventions(
+    _violations, _warning, dedup_tokens = evaluate_path_conventions(
         mission,
         tmp_path,
         tmp_path,
         tmp_path,
         strict_metadata=True,
-        optional_missing_to_dedup=optional_missing_to_dedup,
     )
 
-    assert optional_missing_to_dedup == ["api/contracts"]
+    assert dedup_tokens == frozenset({"docs/contracts"})
