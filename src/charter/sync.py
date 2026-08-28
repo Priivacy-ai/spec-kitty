@@ -18,9 +18,12 @@ upgrader) still call them for canonical-root resolution and the
 anything; it always reports ``synced=False`` / ``files_written=[]``.
 """
 
+import functools
 import logging
+import warnings
 from dataclasses import dataclass, field, replace
 from pathlib import Path
+from typing import Any
 
 from charter._io import load_charter_file
 from charter.bundle import CANONICAL_MANIFEST, CHARTER_YAML
@@ -33,6 +36,7 @@ from charter.schemas import (
 )
 
 __all__ = [
+    "LegacyGovernanceKeyWarning",
     "SyncResult",
     "ensure_charter_bundle_fresh",
     "load_directives_config",
@@ -230,6 +234,72 @@ def _load_charter_yaml_section(repo_root: Path, section: str) -> object | None:
     return document.get(section)
 
 
+#: The retired/canonical governance selection-key pair (CR-01,
+#: ``kitty-specs/retire-doctrine-term-01M0JMK9/inventory.md`` line 163).
+#: Unlike the migration script's tokens (``scripts/migrate_charter_
+#: interview_answers.py``), these are ordinary literals: `charter.yaml`'s
+#: `governance:` section is hand-authored config, not the scanned governing-
+#: term surface the WP04 shrink-only guard polices, and a compat SHIM must
+#: literally recognize the legacy key to read it.
+_LEGACY_GOVERNANCE_SELECTION_KEY = "doctrine"
+_CANONICAL_GOVERNANCE_SELECTION_KEY = "charter"
+
+
+class LegacyGovernanceKeyWarning(UserWarning):
+    """Emitted once per process when ``charter.yaml``'s ``governance:``
+    section still carries the retired ``doctrine:`` selection key instead
+    of the canonical ``charter:`` key (CR-01)."""
+
+
+@functools.lru_cache(maxsize=1)
+def _warn_legacy_governance_key_once() -> None:
+    """Emit the CR-01 compat warning exactly once per process.
+
+    Gated by ``lru_cache`` (precedent: ``charter.compiler.
+    _legacy_activation_keys``) rather than the ``warnings`` module's own
+    de-dup filter, because callers -- including this project's own test
+    suite -- may run under a stricter ``filterwarnings`` configuration that
+    would turn a *repeated* warning into a hard failure instead of a silent
+    de-dup. Tests reset this gate via ``_warn_legacy_governance_key_once.
+    cache_clear()`` (precedent: ``resolve_canonical_repo_root.cache_clear()``
+    in ``tests/charter/conftest.py``).
+    """
+    warnings.warn(
+        f"charter.yaml governance section uses the legacy "
+        f"'{_LEGACY_GOVERNANCE_SELECTION_KEY}' key; reading it as "
+        f"'{_CANONICAL_GOVERNANCE_SELECTION_KEY}'. Run `spec-kitty charter "
+        "sync` (or hand-edit charter.yaml) to adopt the canonical key.",
+        LegacyGovernanceKeyWarning,
+        stacklevel=3,
+    )
+
+
+def _apply_legacy_governance_selection_key_compat(
+    governance_data: dict[str, Any],
+) -> dict[str, Any]:
+    """Dict-level CR-01 compat: map legacy ``doctrine`` -> canonical ``charter``.
+
+    Applied to the RAW dict returned by ``_load_charter_yaml_section``
+    BEFORE ``GovernanceConfig.model_validate`` -- a pydantic ``Field(alias=
+    ...)`` would remap silently and defeat the warn-once contract (SC-002,
+    research.md Seam 2: "Silent pydantic alias fails warn-once").
+
+    When both keys are present the canonical value wins and the legacy
+    value is discarded WITHOUT a warning: an operator who has already
+    migrated should not be nagged about stale legacy data they no longer
+    read.
+    """
+    if _LEGACY_GOVERNANCE_SELECTION_KEY not in governance_data:
+        return governance_data
+    result = dict(governance_data)
+    legacy_value = result.pop(_LEGACY_GOVERNANCE_SELECTION_KEY)
+    if _CANONICAL_GOVERNANCE_SELECTION_KEY in result:
+        return result
+    _warn_legacy_governance_key_once()
+    result[_CANONICAL_GOVERNANCE_SELECTION_KEY] = legacy_value
+    return result
+
+
 def load_governance_config(repo_root: Path) -> GovernanceConfig:
     """Load governance config from ``charter.yaml``'s ``governance:`` section.
 
@@ -260,6 +330,8 @@ def load_governance_config(repo_root: Path) -> GovernanceConfig:
     if governance_data is None:
         logger.info("charter.yaml governance section not found. Using empty governance config.")
         return GovernanceConfig()
+    if isinstance(governance_data, dict):
+        governance_data = _apply_legacy_governance_selection_key_compat(governance_data)
     return GovernanceConfig.model_validate(governance_data)
 
 

@@ -94,7 +94,7 @@ def test_prune_keeps_populated_new_selected_fields() -> None:
 
 def test_round_trip_through_emit_yaml(tmp_path: Path) -> None:
     governance = GovernanceConfig(
-        doctrine=DoctrineSelectionConfig(
+        charter=DoctrineSelectionConfig(
             selected_styleguides=["caveman-comments"],
             selected_toolguides=["ruff-strict"],
         )
@@ -114,9 +114,9 @@ def test_round_trip_through_emit_yaml(tmp_path: Path) -> None:
     assert "selected_mission_step_contracts" not in text
 
     data = YAML(typ="safe").load(text)
-    doctrine = data["doctrine"]
-    assert doctrine["selected_styleguides"] == ["caveman-comments"]
-    assert doctrine["selected_toolguides"] == ["ruff-strict"]
+    charter = data["charter"]
+    assert charter["selected_styleguides"] == ["caveman-comments"]
+    assert charter["selected_toolguides"] == ["ruff-strict"]
 
 
 def test_governance_config_carries_activations_field(tmp_path: Path) -> None:
