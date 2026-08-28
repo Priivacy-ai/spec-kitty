@@ -11,10 +11,12 @@ the retired key on disk. This script migrates it *in place*.
 
 Design constraints (research.md Seam 2, tasks.md T016):
 
-* **Token-literal-free.** The retiring/canonical governing-term strings are
-  built from numeric byte values, not literal source tokens, so this module's
-  own source never carries the term it migrates away from (unit-asserted by
-  ``tests/charter/test_answers_migration.py``).
+* **Token-literal-free (executable code only).** The retiring/canonical
+  governing-term strings are built from numeric byte values, not literal
+  source tokens, so no *executable code literal* in this module carries the
+  term it migrates away from. This constraint governs code, not prose -- the
+  docstrings and comments in this module (including this sentence, and the
+  CR-01 cross-reference above) freely name the term for readability.
 * **Scoped substitution, never a blanket replace.** Only an EXACT top-level
   YAML mapping key -- the retiring term immediately followed by ``:`` at the
   start of a line -- is renamed. A historical proper-noun mission slug such
@@ -59,13 +61,30 @@ _CANONICAL_TERM = bytes([99, 104, 97, 114, 116, 101, 114]).decode("ascii")
 #: touched.
 _LEGACY_KEY_LINE = re.compile(rf"^{re.escape(_LEGACY_TERM)}:", re.MULTILINE)
 
+#: Matches an exact top-level ``<canonical>:`` mapping key at the start of a
+#: line -- used to detect the both-keys edge case below.
+_CANONICAL_KEY_LINE = re.compile(rf"^{re.escape(_CANONICAL_TERM)}:", re.MULTILINE)
+
 
 class AnswersMigrationError(RuntimeError):
     """Raised when the answers.yaml migration cannot complete safely."""
 
 
 def _substitute_governance_key(text: str) -> tuple[str, int]:
-    """Return ``text`` with the legacy top-level key line renamed, plus the count."""
+    """Return ``text`` with the legacy top-level key line renamed, plus the count.
+
+    If a canonical top-level ``<canonical>:`` key line is ALREADY present,
+    the legacy key is left untouched rather than renamed: blindly renaming
+    would produce two top-level ``<canonical>:`` mapping keys, which
+    ``ruamel.yaml``'s safe loader rejects as a duplicate-key error. This
+    mirrors ``charter.sync``'s dict-level compat shim
+    (``_apply_legacy_governance_selection_key_compat`` /
+    ``apply_legacy_governance_selection_key_compat``), which likewise prefers
+    the canonical value and silently ignores the legacy one when both are
+    present.
+    """
+    if _CANONICAL_KEY_LINE.search(text):
+        return text, 0
     return _LEGACY_KEY_LINE.subn(f"{_CANONICAL_TERM}:", text)
 
 
@@ -83,8 +102,16 @@ def migrate_answers_file(path: Path) -> int:
     all -- is left byte-for-byte unchanged). On any failure the pre-image is
     restored before the exception propagates, so the file on disk is never
     left in a partially-migrated state.
+
+    A missing/unreadable ``path`` raises :class:`AnswersMigrationError`
+    (not a raw ``OSError``/``FileNotFoundError``), so direct callers of this
+    function -- unlike :func:`main`, which pre-checks ``path.exists()`` and
+    short-circuits before ever calling this -- get the typed error too.
     """
-    preimage = path.read_bytes()
+    try:
+        preimage = path.read_bytes()
+    except OSError as exc:
+        raise AnswersMigrationError(f"Failed to read {path} for migration.") from exc
     try:
         text = preimage.decode("utf-8")
         new_text, count = _substitute_governance_key(text)
