@@ -341,6 +341,39 @@ class TestAuthStatusCommand:
         assert "at_xyz_ignore" not in result.stdout
         assert "rt_xyz_ignore" not in result.stdout
 
+    def test_authenticated_path_strips_terminal_controls_from_saas_identity_bytes(self):
+        """Hostile SaaS identity fields cannot emit terminal control bytes (#700)."""
+        safe_name = "Zoë Ölafsdóttir 日本語 🐱"
+        hostile_suffix = "\x1b[2J\x1b]0;x\x07\x1b"
+        session = _make_session(
+            email=f"{safe_name}{hostile_suffix}",
+            name=f"{safe_name}{hostile_suffix}",
+            teams=[
+                Team(
+                    id="tm_hostile",
+                    name=f"{safe_name}{hostile_suffix}",
+                    role=f"admin{hostile_suffix}",
+                )
+            ],
+            default_team_id="tm_hostile",
+        )
+        session.session_id = f"session{hostile_suffix}"
+        mock_storage = _mock_storage_returning(session, backend="file")
+
+        with patch(
+            "specify_cli.auth.secure_storage.SecureStorage.from_environment",
+            return_value=mock_storage,
+        ):
+            reset_token_manager()
+            result = runner.invoke(app, ["status"])
+
+        emitted = result.stdout_bytes
+        assert result.exit_code == 0, result.stdout
+        assert safe_name.encode("utf-8") in emitted
+        assert b"\x1b" not in emitted
+        assert b"[2J" not in emitted
+        assert b"]0;x" not in emitted
+
     def test_authenticated_path_minutes_branch(self):
         """Access token with 600s remaining must render minutes, not hours."""
         session = _make_session(

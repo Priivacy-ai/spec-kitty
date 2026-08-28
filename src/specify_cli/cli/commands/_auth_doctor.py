@@ -56,7 +56,7 @@ from typing import Any, Literal
 
 from rich.console import Console
 from rich.markup import escape
-from specify_cli.cli.console import console
+from specify_cli.cli.console import console, sanitize_terminal_text
 
 from kernel.clock import datetime, now_utc
 
@@ -543,8 +543,10 @@ def _render_identity_section(report: DoctorReport, console: Console) -> None:
         console.print("  [red]X Not authenticated[/red]")
         console.print("  Run [bold]spec-kitty auth login[/bold] to authenticate.")
     else:
-        console.print(f"  User:           {report.session.user_email}")
-        console.print(f"  Session ID:     {report.session.session_id}")
+        user_email = report.session.user_email or UNKNOWN_DISPLAY
+        session_id = report.session.session_id or UNKNOWN_DISPLAY
+        console.print(f"  User:           {escape(sanitize_terminal_text(user_email))}")
+        console.print(f"  Session ID:     {escape(sanitize_terminal_text(session_id))}")
     console.print()
 
 
@@ -575,7 +577,8 @@ def _render_storage_section(report: DoctorReport, console: Console) -> None:
         console.print("  (no session)")
     else:
         console.print(
-            f"  Backend:        {format_storage_backend(report.session.storage_backend)}"
+            "  Backend:        "
+            f"{escape(sanitize_terminal_text(format_storage_backend(report.session.storage_backend)))}"
         )
         if report.session.in_memory_drift:
             console.print(
@@ -600,7 +603,8 @@ def _render_lock_section(lock: LockSummary, console: Console) -> None:
             )
         if lock.age_s is not None:
             console.print(f"  Age:            {lock.age_s:.1f}s")
-        console.print(f"  Host:           {lock.holder_host}")
+        holder_host = lock.holder_host or UNKNOWN_DISPLAY
+        console.print(f"  Host:           {escape(sanitize_terminal_text(holder_host))}")
         if lock.stuck:
             console.print(
                 f"  [red]Stuck (age > {lock.stuck_threshold_s:.1f}s)[/red]"
@@ -623,7 +627,8 @@ def _render_findings_section(report: DoctorReport, console: Console) -> None:
             color = severity_color[finding.severity]
             console.print(
                 f"  [[{color}]{finding.severity}[/{color}]] "
-                f"{finding.id}: {finding.summary}"
+                f"{escape(sanitize_terminal_text(finding.id))}: "
+                f"{escape(sanitize_terminal_text(finding.summary))}"
             )
             if finding.remediation_command is not None:
                 description = (
@@ -631,7 +636,11 @@ def _render_findings_section(report: DoctorReport, console: Console) -> None:
                     if finding.remediation_description
                     else ""
                 )
-                console.print(f"      Run: {finding.remediation_command}{description}")
+                command = escape(sanitize_terminal_text(finding.remediation_command))
+                console.print(
+                    "      Run: "
+                    f"{command}{escape(sanitize_terminal_text(description))}"
+                )
 
 
 def render_report_json(report: DoctorReport) -> str:
@@ -721,8 +730,8 @@ def _render_server_status(status: ServerSessionStatus) -> None:
     """Render the optional server-session block in human output."""
     console.print("[bold]Server Session[/bold]")
     if status.active:
-        sid = status.session_id or UNKNOWN_DISPLAY
-        console.print(f"  Status:  [green]active[/green] (session: {sid})")
+        sid = sanitize_terminal_text(status.session_id or UNKNOWN_DISPLAY)
+        console.print(f"  Status:  [green]active[/green] (session: {escape(sid)})")
     else:
         reason = status.error or "unknown"
         if reason == "re-authenticate":
@@ -735,7 +744,10 @@ def _render_server_status(status: ServerSessionStatus) -> None:
             # names the resolved-config source and may contain a literal
             # `[sync]`-shaped substring (#182) — unescaped, Rich markup
             # either drops the bracketed text or raises MarkupError.
-            console.print(f"  Status:  [yellow]check failed[/yellow] — {escape(reason)}")
+            console.print(
+                "  Status:  [yellow]check failed[/yellow] — "
+                f"{escape(sanitize_terminal_text(reason))}"
+            )
     console.print()
 
 

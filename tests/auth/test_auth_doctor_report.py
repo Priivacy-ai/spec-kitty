@@ -31,10 +31,12 @@ from pathlib import Path
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
+import typer
 from rich.console import Console
 
 from specify_cli.auth.server_target import OverrideMode, ResolvedServerTarget
 from specify_cli.auth.session import StoredSession, Team
+from specify_cli.cli.commands import auth as auth_commands
 from specify_cli.cli.commands import _auth_doctor
 from specify_cli.cli.commands._auth_doctor import (
     DoctorReport,
@@ -159,6 +161,69 @@ def test_renders_authenticated_no_findings(monkeypatch: pytest.MonkeyPatch) -> N
     ):
         assert section in rendered, f"section {section!r} missing from rendered output"
     assert "No problems detected." in rendered
+
+
+def test_doctor_impl_strips_terminal_controls_from_emitted_identity_bytes(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """The live doctor renderer never writes SaaS control sequences (#700)."""
+    safe_identity = "Zoë Ölafsdóttir 日本語 🐱"
+    hostile_suffix = "\x1b[2J\x1b]0;x\x07\x1b"
+    session = _make_session(
+        refresh_token_expires_at=now_utc() + timedelta(days=30)
+    )
+    session.email = f"{safe_identity}{hostile_suffix}"
+    session.session_id = f"session{hostile_suffix}"
+    _patch_state(monkeypatch, session=session)
+    buf = io.StringIO()
+    monkeypatch.setattr(
+        _auth_doctor,
+        "console",
+        Console(file=buf, width=120, record=False, force_terminal=False),
+    )
+
+    exit_code = doctor_impl(
+        json_output=False,
+        unstick_lock=False,
+        stuck_threshold=60.0,
+    )
+
+    emitted = buf.getvalue().encode("utf-8")
+    assert exit_code == 0
+    assert safe_identity.encode("utf-8") in emitted
+    assert b"\x1b" not in emitted
+    assert b"[2J" not in emitted
+    assert b"]0;x" not in emitted
+
+
+def test_doctor_shell_strips_terminal_controls_from_unexpected_error(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """The auth shell keeps unexpected backend error text terminal-safe (#700)."""
+    buf = io.StringIO()
+    monkeypatch.setattr(
+        auth_commands,
+        "console",
+        Console(file=buf, width=120, record=False, force_terminal=False),
+    )
+
+    def _raise_unexpected_error(**_kwargs: object) -> int:
+        raise RuntimeError("Zoë Ölafsdóttir 日本語 🐱\x1b[2J\x1b]0;x\x07\x1b")
+
+    monkeypatch.setattr(_auth_doctor, "doctor_impl", _raise_unexpected_error)
+
+    with pytest.raises(typer.Exit) as raised:
+        auth_commands.doctor(
+            json_output=False,
+            unstick_lock=False,
+            stuck_threshold=60.0,
+            server=False,
+        )
+
+    emitted = buf.getvalue().encode("utf-8")
+    assert raised.value.exit_code == 2
+    assert "Zoë Ölafsdóttir 日本語 🐱".encode() in emitted
+    assert b"\x1b" not in emitted
 
 
 def test_renders_unauthenticated(monkeypatch: pytest.MonkeyPatch) -> None:

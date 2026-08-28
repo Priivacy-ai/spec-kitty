@@ -34,7 +34,7 @@ from __future__ import annotations
 from kernel.clock import UTC, datetime, now_utc
 from rich.markup import escape
 
-from specify_cli.cli.console import console
+from specify_cli.cli.console import console, sanitize_terminal_text
 
 from specify_cli.auth import get_token_manager
 from specify_cli.auth.errors import ConfigurationError
@@ -95,7 +95,7 @@ def status_impl() -> None:
     console.print()
 
     _print_storage_backend(session)
-    console.print(f"  Session ID:     {session.session_id}")
+    console.print(f"  Session ID:     {escape(sanitize_terminal_text(session.session_id))}")
     console.print(f"  Last used:      {_format_iso(session.last_used_at)}")
     console.print(f"  Auth method:    {format_auth_method(session.auth_method)}")
 
@@ -130,7 +130,11 @@ def _print_saas_target(session: StoredSession) -> None:
     # attacker- or fat-finger-controlled) — unescaped, Rich markup either
     # drops the bracketed text or raises MarkupError out of console.print,
     # which would violate this module's own never-fail invariant (#182).
-    console.print(f"  SaaS:           {escape(target.resolved_server_url)} [dim]{escape(format_saas_provenance(target))}[/dim]")
+    console.print(
+        "  SaaS:           "
+        f"{escape(sanitize_terminal_text(target.resolved_server_url))} "
+        f"[dim]{escape(sanitize_terminal_text(format_saas_provenance(target)))}[/dim]"
+    )
     _print_session_issuer(session.issuer_url)
     warning = format_saas_mismatch_warning(
         session.issuer_url,
@@ -138,23 +142,23 @@ def _print_saas_target(session: StoredSession) -> None:
         resolved_server_url=target.resolved_server_url,
     )
     if warning is not None:
-        console.print(f"  [yellow]{escape(warning)}[/yellow]")
+        console.print(f"  [yellow]{escape(sanitize_terminal_text(warning))}[/yellow]")
 
 
 def _print_session_issuer(issuer_url: str | None) -> None:
     """Print where the stored session was minted, when the session knows it."""
     if issuer_url is None:
         return
-    console.print(f"  Session SaaS:   {escape(_normalize_endpoint(issuer_url))} [dim](authenticated session)[/dim]")
+    console.print(f"  Session SaaS:   {escape(sanitize_terminal_text(_normalize_endpoint(issuer_url)))} [dim](authenticated session)[/dim]")
 
 
 def _print_identity(session: StoredSession) -> None:
     """Print the authenticated user's identity block."""
     if session.name and session.name != session.email:
-        console.print(f"  User:           {session.email} ({session.name})")
+        console.print(f"  User:           {escape(sanitize_terminal_text(session.email))} ({escape(sanitize_terminal_text(session.name))})")
     else:
-        console.print(f"  User:           {session.email}")
-    console.print(f"  User ID:        {session.user_id}")
+        console.print(f"  User:           {escape(sanitize_terminal_text(session.email))}")
+    console.print(f"  User ID:        {escape(sanitize_terminal_text(session.user_id))}")
 
 
 def _print_teams(session: StoredSession) -> None:
@@ -171,7 +175,7 @@ def _print_teams(session: StoredSession) -> None:
         if is_default:
             marker_parts.append("default")
         marker = f" [dim]({', '.join(marker_parts)})[/dim]" if marker_parts else ""
-        console.print(f"    - {team.name} ({team.role}){marker}")
+        console.print(f"    - {escape(sanitize_terminal_text(team.name))} ({escape(sanitize_terminal_text(team.role))}){marker}")
 
 
 def _print_token_expiry(session: StoredSession) -> None:
@@ -197,7 +201,7 @@ def _print_token_expiry(session: StoredSession) -> None:
 def _print_storage_backend(session: StoredSession) -> None:
     """Print the storage backend with a user-friendly label."""
     label = format_storage_backend(session.storage_backend)
-    console.print(f"  Storage:        {label}")
+    console.print(f"  Storage:        {escape(sanitize_terminal_text(label))}")
 
 
 # ---------------------------------------------------------------------------
