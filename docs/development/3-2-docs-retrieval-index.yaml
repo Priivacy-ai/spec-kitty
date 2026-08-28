@@ -6239,7 +6239,7 @@ pages:
   - path: "docs/context/charter.md"
     title: "Context: Charter"
     divio_type: "none"
-    abstract: "Glossary context for the canonical Charter governing term (glossary authority 3) plus the Doctrine domain model and artifact taxonomy: how reusable governance knowledge is structured into composable behavior and constraints."
+    abstract: "Glossary context for the canonical Charter governing term (glossary authority 3) plus the Doctrine domain model and artifact taxonomy for governance behavior and constraints."
     anchors:
     - {slug: "context-charter", text: "Context: Charter", level: 2}
     - {slug: "charter", text: "charter", level: 3}
