@@ -399,13 +399,20 @@ def _render_cascade_activation(
 
     # FR-004: fires ONLY when the cascade resolved zero activatable targets
     # AND at least one referenced node was specifically kind-filtered --
-    # never for a source with zero referenced nodes at all, and never for a
-    # pure scope-narrowing case where every referenced node is
-    # activatable-kind but excluded by a narrow --cascade <scope> (that case
-    # is already fully communicated by the `Skipped (out of scope)` lines
-    # above, SC-007). Deliberately NOT the broader "zero landed in
-    # `activated`" condition, which would also fire for pure scope-narrowing.
-    if not result.activated and bool(result.not_cascaded_kind_filtered):
+    # never for a source with zero referenced nodes at all, and never when any
+    # referenced node was scope-narrowed. The `not result.skipped_by_scope`
+    # clause covers both the pure scope-narrowing case (every referenced node
+    # is activatable-kind but excluded by a narrow --cascade <scope>) AND the
+    # mixed case (some scope-narrowed, some kind-filtered): in either the
+    # `Skipped (out of scope)` lines above already tell the full story (SC-007),
+    # and the "every referenced node was kind-filtered" summary would be a
+    # falsehood the moment a scope-skipped node exists. Deliberately NOT the
+    # broader "zero landed in `activated`" condition.
+    if (
+        not result.activated
+        and not result.skipped_by_scope
+        and result.not_cascaded_kind_filtered
+    ):
         console.print(CASCADE_ZERO_ACTIVATABLE_TARGETS_MESSAGE)
 
 
