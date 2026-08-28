@@ -238,3 +238,25 @@ def test_wedged_status_lock_yields_bounded_busy_failure_not_a_hang(tmp_path: Pat
             holder.terminate()
             holder.join(timeout=10)
         parent.close()
+
+
+def test_in_queue_status_lock_timeout_is_bounded_only_when_queue_held(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The status-lock bound (#3773 item 1) is scoped to the queue-held path.
+
+    The unbounded-hang hazard exists only while the checkout-wide verdict queue
+    is held (there a wedged ``feature_status_lock`` holder would wedge every
+    other verdict save, and the timeout is translated into a truthful busy
+    envelope). Off the queue -- the ``--no-auto-commit`` and ``local_only``
+    feedback paths, which have no such translation -- the acquisition keeps its
+    historical unbounded (-1) wait so a rare contention never becomes an
+    envelope-less error. This pins that scoping decision at the helper.
+    """
+    from specify_cli.review import cycle
+
+    monkeypatch.setattr(cycle, "verdict_save_queue_is_held", lambda _repo: True)
+    assert cycle._in_queue_status_lock_timeout(tmp_path) == DEFAULT_VERDICT_SAVE_TIMEOUT_SECONDS
+
+    monkeypatch.setattr(cycle, "verdict_save_queue_is_held", lambda _repo: False)
+    assert cycle._in_queue_status_lock_timeout(tmp_path) == -1.0
