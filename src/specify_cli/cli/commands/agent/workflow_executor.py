@@ -646,7 +646,16 @@ def implement_check_dependency_gate(
     if self_lane not in (Lane.PLANNED, Lane.CLAIMED):
         return
 
-    readiness = dependency_readiness_for_wp(normalized_wp_id, wp_meta.dependencies, dependency_lanes)
+    # Thread per-dependency provenance (the reduced snapshot state dicts) into
+    # the gate so a canceled-with-operator-provenance dependency counts as
+    # resolved (FR-009). Collapsing to the lane-only map here would make the
+    # provenance-aware authority inert at the CLI claim path (pedro HIGH).
+    readiness = dependency_readiness_for_wp(
+        normalized_wp_id,
+        wp_meta.dependencies,
+        dependency_lanes,
+        provenance=dependency_snapshot.work_packages,
+    )
     if not readiness.satisfied:
         blocked = ", ".join(readiness.unsatisfied)
         print(
