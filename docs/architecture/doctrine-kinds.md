@@ -7,7 +7,7 @@ type: explanation
 audience: docs/context/audience/internal/lead-developer.md
 related:
 - docs/development/how-to/create-a-doctrine-artifact.md
-- docs/context/doctrine.md
+- docs/context/charter.md
 - docs/architecture/org-doctrine-layer.md
 - docs/guides/how-to/governance/setup-governance.md
 - docs/architecture/doctrine-projection-and-delivery.md
@@ -372,6 +372,6 @@ drift guard binds each separately so the two are never conflated.
 - For how built-in, org, and project doctrine layers combine and override each other, see
   [Understanding the Org Doctrine Layer](org-doctrine-layer.md).
 - For the canonical glossary definitions these purpose statements are grounded in, see the
-  [doctrine context glossary](../context/doctrine.md) and the
+  [doctrine context glossary](../context/charter.md) and the
   [Agent Profile](../context/identity.md#agent-profile) /
   [step contract](../context/orchestration.md#step-contract) entries.

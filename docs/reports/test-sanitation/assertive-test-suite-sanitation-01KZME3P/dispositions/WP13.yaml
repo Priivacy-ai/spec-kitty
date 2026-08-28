@@ -1467,7 +1467,7 @@ dispositions:
     oracle: Live kind-keyed mappings are total or explicitly exempt; mixed key domains fail closed.
     contract_claim: Live kind-keyed mappings are total or explicitly exempt; mixed key domains fail closed.
     authority:
-    - docs/context/doctrine.md
+    - docs/context/charter.md
     - docs/adr/3.x/2026-07-21-1-glossary-first-order-doctrine-artefact.md
     scanner_kinds:
     - ast
@@ -1499,7 +1499,7 @@ dispositions:
   evidence:
     profile: structural
     authority_evidence:
-    - reference: docs/context/doctrine.md
+    - reference: docs/context/charter.md
       result: Live kind-keyed mappings are total or explicitly exempt; mixed key domains fail closed.
     corpus:
       description: All Python modules under the live doctrine DRG package plus injected mapping snippets.
@@ -1747,7 +1747,7 @@ dispositions:
     contract_claim: Doctrine collection emits stable pack/version/health/selection data and records malformed or crashing
       inputs honestly.
     authority:
-    - docs/context/doctrine.md
+    - docs/context/charter.md
     - kitty-specs/assertive-test-suite-sanitation-01KZME3P/spec.md#FR-003
     scanner_kinds:
     - ast
@@ -1778,7 +1778,7 @@ dispositions:
   evidence:
     profile: structural
     authority_evidence:
-    - reference: docs/context/doctrine.md
+    - reference: docs/context/charter.md
       result: Doctrine collection emits stable pack/version/health/selection data and records malformed or crashing inputs
         honestly.
     corpus:
