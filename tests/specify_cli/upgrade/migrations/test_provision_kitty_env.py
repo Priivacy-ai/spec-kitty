@@ -8,6 +8,8 @@ instance against a synthetic project, never through the upgrade pipeline.
 
 from __future__ import annotations
 
+import os
+import sys
 from pathlib import Path
 
 import pytest
@@ -19,6 +21,8 @@ from specify_cli.upgrade.migrations.m_3_2_8_provision_kitty_env import (
     MIGRATION_ID,
     NEVER_SEED_VARS,
     ProvisionKittyEnvMigration,
+    _read_ignore_file_text,
+    _write_ignore_file_text,
 )
 from specify_cli.upgrade.registry import MigrationRegistry
 
@@ -311,6 +315,116 @@ class TestIgnoreCoverage:
         assert "node_modules/" in lines
         assert "*.log" in lines
         assert ".kittify/.kitty.env" in lines
+
+
+# ---------------------------------------------------------------------------
+# #656: FIFO/non-regular-file ignore files must fail closed, never hang.
+#
+# A FIFO substituted for .gitignore/.claudeignore hangs a bare
+# path.read_text()/write_text() forever: open() on a FIFO blocks until a
+# peer connects unless O_NONBLOCK is set. `@pytest.mark.timeout(5)` turns a
+# regression back into "this test hangs" into "this test fails fast"
+# instead of freezing the whole suite.
+#
+# Asserted as ``OSError`` (the stable builtin base), not the module's own
+# ``NonRegularIgnoreFileError``: sibling tests in this directory call
+# ``auto_discover_migrations()``, which -- per this module's own __init__.py
+# reload guard -- can ``importlib.reload()`` this migration module mid-run
+# and mint a fresh, distinct ``NonRegularIgnoreFileError`` class object.
+# Depending on test order, the instance actually raised may fail an
+# ``isinstance`` check against the class object this file imported at
+# collection time. ``OSError`` itself is never reloaded, so it is immune to
+# that ordering hazard while still proving the fail-closed contract.
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.skipif(sys.platform == "win32", reason="os.mkfifo is POSIX-only")
+class TestNonRegularIgnoreFiles:
+    @staticmethod
+    def _provision_then_swap_for_fifo(tmp_path: Path, ignore_filename: str) -> None:
+        """Run apply() once so every OTHER precondition is satisfied, then
+        replace one ignore file with a FIFO -- so detect()'s ``or``-chain
+        actually reaches the ignore-file check under test instead of
+        short-circuiting on an earlier (still-missing) precondition."""
+        migration = ProvisionKittyEnvMigration()
+        migration.apply(tmp_path, dry_run=False)
+        ignore_path = tmp_path / ignore_filename
+        ignore_path.unlink()
+        os.mkfifo(ignore_path)
+
+    @pytest.mark.timeout(5)
+    def test_detect_rejects_fifo_gitignore_without_hanging(self, tmp_path: Path) -> None:
+        self._provision_then_swap_for_fifo(tmp_path, ".gitignore")
+        migration = ProvisionKittyEnvMigration()
+
+        with pytest.raises(OSError):
+            migration.detect(tmp_path)
+
+    @pytest.mark.timeout(5)
+    def test_detect_rejects_fifo_claudeignore_without_hanging(self, tmp_path: Path) -> None:
+        self._provision_then_swap_for_fifo(tmp_path, ".claudeignore")
+        migration = ProvisionKittyEnvMigration()
+
+        with pytest.raises(OSError):
+            migration.detect(tmp_path)
+
+    @pytest.mark.timeout(5)
+    def test_can_apply_rejects_fifo_gitignore_without_hanging(self, tmp_path: Path) -> None:
+        self._provision_then_swap_for_fifo(tmp_path, ".gitignore")
+        migration = ProvisionKittyEnvMigration()
+
+        with pytest.raises(OSError):
+            migration.can_apply(tmp_path)
+
+    @pytest.mark.timeout(5)
+    def test_apply_rejects_fifo_claudeignore_without_hanging(self, tmp_path: Path) -> None:
+        # First apply() satisfies every OTHER precondition (env file, config
+        # pointer, .gitignore), so a second apply() call reaches the
+        # .claudeignore write step (_append_claudeignore_entry) directly --
+        # apply() re-checks _claudeignore_missing_entry unconditionally, not
+        # gated behind detect().
+        migration = ProvisionKittyEnvMigration()
+        migration.apply(tmp_path, dry_run=False)
+        claudeignore = tmp_path / ".claudeignore"
+        claudeignore.unlink()
+        os.mkfifo(claudeignore)
+
+        with pytest.raises(OSError):
+            migration.apply(tmp_path, dry_run=False)
+
+    @pytest.mark.timeout(5)
+    def test_read_ignore_file_text_rejects_fifo_without_hanging(self, tmp_path: Path) -> None:
+        fifo_path = tmp_path / ".gitignore"
+        os.mkfifo(fifo_path)
+
+        with pytest.raises(OSError):
+            _read_ignore_file_text(fifo_path)
+
+    @pytest.mark.timeout(5)
+    def test_write_ignore_file_text_rejects_fifo_without_hanging(self, tmp_path: Path) -> None:
+        fifo_path = tmp_path / ".claudeignore"
+        os.mkfifo(fifo_path)
+
+        with pytest.raises(OSError):
+            _write_ignore_file_text(fifo_path, "irrelevant\n")
+
+    def test_read_ignore_file_text_rejects_symlink(self, tmp_path: Path) -> None:
+        target = tmp_path / "real.gitignore"
+        target.write_text("node_modules/\n", encoding="utf-8")
+        link = tmp_path / ".gitignore"
+        link.symlink_to(target)
+
+        with pytest.raises(OSError):
+            _read_ignore_file_text(link)
+
+    def test_read_ignore_file_text_returns_empty_string_for_missing_file(self, tmp_path: Path) -> None:
+        assert _read_ignore_file_text(tmp_path / "does-not-exist") == ""
+
+    def test_write_then_read_ignore_file_text_round_trips_on_a_regular_file(self, tmp_path: Path) -> None:
+        path = tmp_path / ".claudeignore"
+        _write_ignore_file_text(path, "node_modules/\n*.log\n")
+
+        assert _read_ignore_file_text(path) == "node_modules/\n*.log\n"
 
 
 # ---------------------------------------------------------------------------
