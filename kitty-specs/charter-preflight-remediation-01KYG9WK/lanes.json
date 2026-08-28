@@ -1,0 +1,133 @@
+{
+  "version": 1,
+  "mission_slug": "charter-preflight-remediation-01KYG9WK",
+  "mission_id": "01KYG9WK0WTZ03JHVKDDGW8GCN",
+  "mission_branch": "kitty/mission-charter-preflight-remediation-01KYG9WK",
+  "target_branch": "fix/charter-preflight-remediation",
+  "lanes": [
+    {
+      "lane_id": "lane-a",
+      "wp_ids": [
+        "WP01"
+      ],
+      "write_scope": [
+        "tests/architectural/test_remediation_effectiveness.py",
+        "tests/specify_cli/charter_preflight/_fixtures.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "legacy-cleanup",
+        "tracker-integration",
+        "workspace"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-b",
+      "wp_ids": [
+        "WP02"
+      ],
+      "write_scope": [
+        "src/specify_cli/charter_runtime/freshness/computer.py",
+        "tests/specify_cli/charter_freshness/test_computer.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "legacy-cleanup",
+        "tracker-integration",
+        "workspace"
+      ],
+      "depends_on_lanes": [
+        "lane-a"
+      ],
+      "parallel_group": 1
+    },
+    {
+      "lane_id": "lane-c",
+      "wp_ids": [
+        "WP03"
+      ],
+      "write_scope": [
+        "src/specify_cli/charter_runtime/preflight/result.py",
+        "src/specify_cli/charter_runtime/preflight/runner.py",
+        "tests/specify_cli/charter_preflight/test_runner.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "legacy-cleanup"
+      ],
+      "depends_on_lanes": [
+        "lane-b"
+      ],
+      "parallel_group": 2
+    },
+    {
+      "lane_id": "lane-d",
+      "wp_ids": [
+        "WP04"
+      ],
+      "write_scope": [
+        "src/charter/bundle.py",
+        "src/charter/context.py",
+        "src/specify_cli/cli/commands/charter/_common.py",
+        "src/specify_cli/cli/commands/charter/_status_collectors.py",
+        "src/specify_cli/cli/commands/charter/context.py",
+        "src/specify_cli/cli/commands/charter/resynthesize.py",
+        "src/specify_cli/cli/commands/charter/status.py",
+        "src/specify_cli/cli/commands/charter_bundle.py",
+        "tests/charter/test_charter_presence_seam.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "legacy-cleanup",
+        "tracker-integration"
+      ],
+      "depends_on_lanes": [
+        "lane-c"
+      ],
+      "parallel_group": 3
+    },
+    {
+      "lane_id": "lane-e",
+      "wp_ids": [
+        "WP05"
+      ],
+      "write_scope": [
+        "src/specify_cli/charter_runtime/preflight/cli.py",
+        "tests/specify_cli/charter_preflight/test_cli.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "legacy-cleanup"
+      ],
+      "depends_on_lanes": [
+        "lane-d"
+      ],
+      "parallel_group": 4
+    },
+    {
+      "lane_id": "lane-f",
+      "wp_ids": [
+        "WP06"
+      ],
+      "write_scope": [
+        "tests/architectural/test_charter_blocking_envelope.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "legacy-cleanup"
+      ],
+      "depends_on_lanes": [
+        "lane-e"
+      ],
+      "parallel_group": 5
+    }
+  ],
+  "computed_at": "2026-07-26T23:31:26.832223+00:00",
+  "computed_from": "dependency_graph+ownership",
+  "planning_artifact_wps": []
+}

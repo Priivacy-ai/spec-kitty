@@ -1,0 +1,35 @@
+{
+  "accept_commit": "39ad61d3648dc658d8ef7f4d83a934b74d151f4c",
+  "acceptance_history": [
+    {
+      "accept_commit": "39ad61d3648dc658d8ef7f4d83a934b74d151f4c",
+      "acceptance_mode": "pr",
+      "accepted_at": "2026-07-27T17:32:53.669488+00:00",
+      "accepted_by": "jeroennouws",
+      "accepted_from_commit": "94d1aef969f70db3c275e0a9b68476530ec1fef1"
+    }
+  ],
+  "acceptance_mode": "pr",
+  "accepted_at": "2026-07-27T17:32:53.669488+00:00",
+  "accepted_by": "jeroennouws",
+  "accepted_from_commit": "94d1aef969f70db3c275e0a9b68476530ec1fef1",
+  "baseline_merge_commit": "1aed89411b50203c8dbd9b284d70cc8fefbf32fa",
+  "coordination_branch": "kitty/mission-charter-preflight-remediation-01KYG9WK",
+  "created_at": "2026-07-26T22:49:16.573115+00:00",
+  "flattened": false,
+  "friendly_name": "Charter Preflight Remediation Authority",
+  "mission_id": "01KYG9WK0WTZ03JHVKDDGW8GCN",
+  "mission_number": null,
+  "mission_slug": "charter-preflight-remediation-01KYG9WK",
+  "mission_type": "software-dev",
+  "pr_bound": true,
+  "purpose_context": "A project carrying the older multi-file charter bundle is refused at the implement gate and told to run a command that cannot possibly fix it, while every other diagnostic reports the project healthy. The operator has no way out and no way to see why. This mission makes a gate's own remediation provably able to clear the check that emitted it, and gives 'does the charter exist' a single answer instead of two that disagree.",
+  "purpose_tldr": "An operator blocked by the charter preflight gate can always follow its own advice to become unblocked, and every diagnostic agrees with the gate about whether the charter exists.",
+  "slug": "charter-preflight-remediation-01KYG9WK",
+  "status_phase": "1",
+  "target_branch": "fix/charter-preflight-remediation",
+  "topology": "coord",
+  "vcs": "git",
+  "vcs_locked_at": "2026-07-26T23:43:36.793392+00:00",
+  "baseline_merge_commit_note": "Corrected post-merge (mission review D1). The field previously held e7796366fdbbe75a795f8c5dd3e1564801ecaa76 -- a MID-MISSION commit ('write the approving review artifacts the tooling cannot'), not a pre-mission baseline. Diffing against it produced a near-empty, self-referential diff. This value is `git merge-base kitty/mission-charter-preflight-remediation-01KYG9WK main`, verified independently by the mission reviewer."
+}

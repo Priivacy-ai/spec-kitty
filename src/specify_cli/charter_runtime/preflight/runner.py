@@ -7,13 +7,18 @@ that:
    the current freshness payload.
 2. Translates each :class:`FreshnessSubState` into a
    :class:`CharterPreflightCheck`.
-3. Optionally runs the safe refresh sequence
-   (``charter sync`` → ``charter synthesize`` → ``charter bundle
-   validate``) when the caller passes ``auto_refresh=True`` AND the
-   worktree has no uncommitted generated artifacts (FR-008).
+3. Optionally runs the safe refresh sequence (the freshness-computed
+   ``charter_source`` remediation — ``charter generate`` or
+   ``upgrade --yes``, never a hardcoded ``charter sync``, H1/#2831 — →
+   ``charter synthesize`` → ``charter bundle validate``) when the caller
+   passes ``auto_refresh=True`` AND the worktree has no uncommitted
+   generated artifacts (FR-008). See :func:`_attempt_auto_refresh`'s
+   docstring for why step one is no longer ``charter sync``.
 4. Returns a frozen :class:`CharterPreflightResult` whose
-   ``blocked_reason`` always points the operator at one exact recovery
-   command.
+   ``blocked_reason`` names one exact recovery command for every check that
+   has one — and, for a check on the declared exemption set (no effective
+   self-service remediation, C-EFF-2), names the check and explains why
+   instead of fabricating a command it cannot act on (R-006).
 
 Boundary heal semantics (WP04, charter-synthesize-reconciliation-01KZJQN6):
 the ``charter synthesize`` call inside the refresh sequence is invoked
@@ -42,6 +47,7 @@ failure produces a result with a sensible ``blocked_reason``.
 from __future__ import annotations
 
 import os
+import shlex
 import subprocess
 from pathlib import Path
 from typing import TYPE_CHECKING, cast
@@ -116,10 +122,14 @@ _DIRTY_SCOPE_PATHS: tuple[str, ...] = (
     ".kittify/doctrine/",
 )
 
-# Shared prefix for the three refresh-sequence subprocess commands (#2157a
-# campsite — S1192).  The tails differ (``sync`` / ``synthesize`` /
-# ``bundle validate``), so only the common ``["spec-kitty", "charter"]``
-# tokens are hoisted; each call site appends its own tail.
+# Shared prefix for the refresh-sequence subprocess commands that always
+# stay under ``spec-kitty charter`` (#2157a campsite — S1192): ``synthesize``
+# and ``bundle validate``. The tails differ, so only the common
+# ``["spec-kitty", "charter"]`` tokens are hoisted; each call site appends
+# its own tail. The step-one command (H1, #2831) is NOT built from this
+# prefix — it is `shlex.split` straight from the freshness computer's own
+# `remediation` string, which may or may not sit under `charter` (e.g.
+# `spec-kitty upgrade --yes`).
 _SPEC_KITTY_CHARTER_PREFIX: tuple[str, ...] = ("spec-kitty", "charter")
 
 
@@ -338,21 +348,39 @@ def _derive_blocked_reason(checks: list[CharterPreflightCheck]) -> str:
     ``checks`` order so a single pass surfaces the whole remediation list.
 
     Per-check formatting is unchanged from the prior single-check behaviour
-    (``"<name> <state>; run `<remediation>`"``) — for exactly one
-    non-passing check this still returns that identical single-line string;
-    for multiple, the lines are joined with a newline into one string (the
-    ``blocked_reason`` field stays a single ``str`` — see the output-shape
-    pin in ``result.py``).
+    for a check that names a remediation (``"<name> <state>; run
+    `<remediation>`"``) — for exactly one non-passing check this still
+    returns that identical single-line string; for multiple, the lines are
+    joined with a newline into one string (the ``blocked_reason`` field
+    stays a single ``str`` — see the output-shape pin in ``result.py``).
+
+    R-006 / C-EFF-2: a check with ``remediation is None`` used to have a
+    default command (``spec-kitty charter status``, itself a pure reporter
+    that cannot change any check's state) fabricated in its place — the
+    same defect class as BC-2, sitting on the default path. That backfill is
+    gone: see :func:`_blocked_reason_line`.
     """
-    lines = [
-        f"{check.name} {check.state}; run `{check.remediation or 'spec-kitty charter status'}`"
-        for check in checks
-        if check.state not in _PASS_STATES
-    ]
+    lines = [_blocked_reason_line(check) for check in checks if check.state not in _PASS_STATES]
     if not lines:
         # Should not happen — callers only enter this path when passed=False.
-        return "charter preflight failed; run `spec-kitty charter status`"
+        return "charter preflight failed; no non-passing check found (internal inconsistency)"
     return "\n".join(lines)
+
+
+def _blocked_reason_line(check: CharterPreflightCheck) -> str:
+    """Compose one ``blocked_reason`` line for a single non-passing check.
+
+    When the check names a remediation, the operator is shown the exact
+    command (unchanged from prior behaviour). When ``remediation`` is
+    ``None`` the check is a declared exemption (C-EFF-2) — the operator
+    still learns which check failed, its state, and why (``check.detail``),
+    but no command is manufactured in its place (R-006). This must not
+    degrade to a silent or empty line — the diagnostic stays, only the
+    fabricated command goes.
+    """
+    if check.remediation:
+        return f"{check.name} {check.state}; run `{check.remediation}`"
+    return f"{check.name} {check.state}: {check.detail}"
 
 
 # ---------------------------------------------------------------------------
@@ -483,8 +511,29 @@ def _attempt_auto_refresh(
 
     The sequence is:
 
-    1. ``spec-kitty charter sync`` — skipped iff both ``charter_source``
-       and ``synced_bundle`` are already ``fresh``.
+    1. The freshness-computed ``charter_source`` remediation — skipped iff
+       both ``charter_source`` and ``synced_bundle`` are already ``fresh``.
+       H1 (#2831 HIGH finding): this used to be a hardcoded
+       ``spec-kitty charter sync``, but ``charter sync`` is a pure
+       staleness reporter (``src/charter/sync.py``'s own docstring: "it
+       always reports ``synced=False`` / ``files_written=[]``") that can
+       never create or repair ``charter.yaml`` — so for a missing or
+       invalid ``charter_source`` this step always failed and the sequence
+       stopped here, never reaching ``synthesize``/``bundle validate`` (a
+       real F2 legacy-bundle probe: auto-refresh ran only ``sync``, exited
+       1, left every state unchanged). This step now runs whatever command
+       :func:`~specify_cli.charter_runtime.freshness.computer.compute_freshness`
+       already derived for ``charter_source`` (H3's F1/F2-aware
+       ``remediation`` — ``spec-kitty charter generate --no-from-interview``
+       for "no charter at all", ``spec-kitty upgrade --yes`` for a legacy
+       bundle) — the same command the non-refresh blocking path shows the
+       operator, so auto-refresh can never claim to have "tried" something
+       the operator's own ``blocked_reason`` already proves is a no-op.
+       When ``remediation`` is ``None`` (the ``invalid``/cascading-``stale``
+       exempt states, C-EFF-2 — no write path repairs broken or
+       non-bundle-shaped YAML), no command is attempted; the sequence stops
+       and surfaces the check's own detail, exactly like the non-refresh
+       blocking path does for the same exempt states.
     2. ``spec-kitty charter synthesize`` — skipped iff ``synthesized_drg``
        is already ``fresh``.
     3. ``spec-kitty charter bundle validate`` — always run when we reach
@@ -530,9 +579,29 @@ def _attempt_auto_refresh(
     drg_fresh = freshness.synthesized_drg.state == "fresh"
 
     if not (source_fresh and bundle_fresh):
-        sync_cmd = [*_SPEC_KITTY_CHARTER_PREFIX, "sync"]
-        ok, reason = _run_refresh_step(sync_cmd, repo_root, timeout_secs)
-        actions.append(" ".join(sync_cmd))
+        # H1 (#2831 HIGH finding): run the SAME command the freshness
+        # computer already derived for this exact state — never a
+        # hardcoded `charter sync` (a pure staleness reporter that can
+        # never create/repair `charter.yaml`, see this function's
+        # docstring). `synced_bundle` mirrors `charter_source`'s F1/F2
+        # answer whenever it differs from fresh, so `charter_source`'s
+        # remediation is authoritative here; the `or` is a defensive
+        # fallback only.
+        source_remediation = freshness.charter_source.remediation or freshness.synced_bundle.remediation
+        if source_remediation is None:
+            # Exempt state (`invalid` charter.yaml / cascading `stale`
+            # synced_bundle, C-EFF-2) — no command can repair this. Stop
+            # here rather than run something known to be a no-op.
+            return CharterPreflightResult(
+                passed=False,
+                checks=initial_checks,
+                auto_refresh_applied=True,
+                auto_refresh_actions=actions,
+                blocked_reason=_derive_blocked_reason(initial_checks),
+            )
+        source_cmd = shlex.split(source_remediation)
+        ok, reason = _run_refresh_step(source_cmd, repo_root, timeout_secs)
+        actions.append(source_remediation)
         if not ok:
             return CharterPreflightResult(
                 passed=False,

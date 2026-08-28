@@ -520,6 +520,29 @@ _The 3.2.6rc2 candidate shipped 2026-08-20 (rc1 shipped 2026-08-12)._
   and `spec-kitty doctor doctrine` surfaces any unresolved entries. The 44 dead
   references were triaged (delete / repoint / migrate) so the shipped population
   is 100% resolvable.
+- **Charter preflight remediations can now actually clear the check they name,
+  including for a legacy-bundle project, instead of sending the operator in a
+  circle (`#2831`).** An operator on a project carrying the pre-consolidation
+  legacy bundle (`governance.yaml`/`directives.yaml`/`metadata.yaml`/
+  `references.yaml`, no `charter.yaml`) was told to run `spec-kitty charter
+  sync` — a documented pure staleness reporter (`src/charter/sync.py`: "it
+  always reports `synced=False` / `files_written=[]`") that clears nothing, so
+  the gate refused identically with no way out. Three fixes: (1) the blocking
+  `charter_source`/`synced_bundle` `missing`-state remediation now names
+  `spec-kitty upgrade --yes` for a real legacy bundle — which reaches
+  `ConsolidateCharterBundleMigration` and composes `charter.yaml` FROM the
+  legacy content — instead of the content-discarding `spec-kitty charter
+  generate --no-from-interview` both shapes previously shared; a project with
+  no charter at all still gets the generate command, since there is nothing to
+  preserve. (2) `spec-kitty charter preflight --auto-refresh`'s refresh
+  sequence no longer opens with a hardcoded `charter sync` — step one now runs
+  whichever of the above commands the freshness computer already derived,
+  so auto-refresh can genuinely repair a missing/legacy charter source instead
+  of failing on step one every time. (3) `charter status`/preflight now
+  reports a `charter.yaml` that parses as YAML but is not a real charter
+  bundle — an empty mapping, or a `schema_version` outside the supported
+  `2.x.x` series — as `invalid` rather than `fresh`, so a downstream consumer
+  that would reject the same file no longer sees preflight green it first.
 
 - **A hand-authored project-tier agent profile now becomes a reference-graph node
   the charter cascade can reach — before, it loaded and validated but was
