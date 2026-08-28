@@ -237,6 +237,7 @@ class TestBranchContextCommand:
         self,
         mock_locate: Mock,
         tmp_path: Path,
+        monkeypatch: pytest.MonkeyPatch,
     ) -> None:
         """Do not treat a feature branch as primary just because origin/HEAD is absent."""
         mock_locate.return_value = tmp_path
@@ -252,6 +253,14 @@ class TestBranchContextCommand:
         subprocess.run(["git", "add", "README.md"], cwd=tmp_path, check=True)
         subprocess.run(["git", "commit", "-m", "Initial"], cwd=tmp_path, check=True, capture_output=True)
         subprocess.run(["git", "switch", "-c", "feat/checkout-upsell"], cwd=tmp_path, check=True, capture_output=True)
+
+        # ``branch-context`` resolves branch identity from the invoking checkout
+        # (``resolve_checkout_identity(Path.cwd(), ...)``), NOT from the mocked
+        # ``locate_project_root`` (which re-anchors linked worktrees to the
+        # primary checkout for shared metadata reads). The test must therefore
+        # run *inside* the repo it built, or the command reads the ambient
+        # checkout's branch instead of ``feat/checkout-upsell``.
+        monkeypatch.chdir(tmp_path)
 
         result = runner.invoke(app, ["branch-context", "--json"])
 
