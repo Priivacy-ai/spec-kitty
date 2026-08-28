@@ -113687,7 +113687,7 @@ dispositions:
     proof; delete positive shape, history, prose, and advisory assertions.
   candidate:
     authority:
-    - docs/context/charter.md
+    - docs/context/doctrine.md
     - docs/adr/3.x/2026-07-21-1-glossary-first-order-doctrine-artefact.md
     base_nodes: 10
     base_source_units: 10
@@ -113751,7 +113751,7 @@ dispositions:
     - tests/doctrine/drg/test_kind_mapping_totality.py
   evidence:
     authority_evidence:
-    - reference: docs/context/charter.md
+    - reference: docs/context/doctrine.md
       result: Live kind-keyed mappings are total or explicitly exempt; mixed key domains
         fail closed.
     causal_probe:
@@ -114007,7 +114007,7 @@ dispositions:
     proof; delete positive shape, history, prose, and advisory assertions.
   candidate:
     authority:
-    - docs/context/charter.md
+    - docs/context/doctrine.md
     - kitty-specs/assertive-test-suite-sanitation-01KZME3P/spec.md#FR-003
     base_nodes: 29
     base_source_units: 27
@@ -114086,7 +114086,7 @@ dispositions:
     - tests/specify_cli/cli/commands/test_doctrine_collect.py
   evidence:
     authority_evidence:
-    - reference: docs/context/charter.md
+    - reference: docs/context/doctrine.md
       result: Doctrine collection emits stable pack/version/health/selection data
         and records malformed or crashing inputs honestly.
     causal_probe:
