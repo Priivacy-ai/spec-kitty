@@ -70,20 +70,57 @@ from typer.core import TyperGroup
 # so that _JSONErrorGroup works regardless of the installed typer version.
 try:
     from typer import _click as _typer_click_module  # type: ignore[attr-defined]
-    _CLICK_USAGE_ERRORS: tuple[type, ...] = (
-        click.UsageError,
-        _typer_click_module.exceptions.UsageError,
+    # typer 0.27.2 (2026-08-28) restructured ``typer._click.exceptions`` so
+    # ``Abort`` (and potentially ``UsageError``) is no longer re-exported there —
+    # accessing it raises ``AttributeError``, NOT ``ImportError``. Resolve each
+    # symbol defensively so a future typer reshuffle degrades to click-only
+    # instead of crashing every CLI invocation at import time.
+    _typer_exceptions = _typer_click_module.exceptions
+    _CLICK_USAGE_ERRORS: tuple[type, ...] = tuple(
+        exc
+        for exc in (click.UsageError, getattr(_typer_exceptions, "UsageError", None))
+        if exc is not None
     )
-    _CLICK_ABORTS: tuple[type, ...] = (click.Abort, _typer_click_module.exceptions.Abort)
-except ImportError:
+    _CLICK_ABORTS: tuple[type, ...] = tuple(
+        exc
+        for exc in (click.Abort, getattr(_typer_exceptions, "Abort", None))
+        if exc is not None
+    )
+except (ImportError, AttributeError):
     _CLICK_USAGE_ERRORS = (click.UsageError,)
     _CLICK_ABORTS = (click.Abort,)
 
 
 _CLICK = typer_core._click if hasattr(typer_core, "_click") else typer_core.click
-_USAGE_ERROR = getattr(_CLICK, "UsageError", _CLICK.exceptions.UsageError)
-_ABORT = getattr(_CLICK, "Abort", _CLICK.exceptions.Abort)
-_EXIT = getattr(_CLICK, "Exit", _CLICK.exceptions.Exit)
+
+
+def _resolve_click_exc(name: str) -> type:
+    """Resolve a click/typer exception class robustly across typer versions.
+
+    typer 0.27.2 (2026-08-28) dropped ``Abort``/``Exit`` from
+    ``typer._click.exceptions``, so the previous
+    ``getattr(_CLICK, name, _CLICK.exceptions.<name>)`` form crashed at import
+    (the eager default raised ``AttributeError``). Search the vendored module,
+    its ``exceptions`` submodule, the ``typer`` top level, and finally the
+    standalone ``click`` package / its ``exceptions`` so a symbol relocation
+    degrades gracefully instead of breaking every CLI invocation.
+    """
+    for holder in (
+        _CLICK,
+        getattr(_CLICK, "exceptions", None),
+        typer,
+        click,
+        click.exceptions,
+    ):
+        symbol = getattr(holder, name, None) if holder is not None else None
+        if symbol is not None:
+            return symbol
+    raise AttributeError(f"Cannot resolve click exception class {name!r}")
+
+
+_USAGE_ERROR = _resolve_click_exc("UsageError")
+_ABORT = _resolve_click_exc("Abort")
+_EXIT = _resolve_click_exc("Exit")
 
 
 class _JSONErrorGroup(TyperGroup):
