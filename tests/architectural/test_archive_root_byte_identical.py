@@ -44,6 +44,22 @@ _ARCHIVE_ROOTS: tuple[str, ...] = (
     ".kittify/missions/",
 )
 
+# Append-only exceptions carved out of the immutable-archive freeze
+# (2026-08-28, mission charter-authority-flip-01M14RB3 landing pass, #3664):
+# the canonical rename-reconcile spine (``scripts/docs/rename_reconcile.py``'s
+# ``DEFAULT_OCCURRENCE_MAP``) lives under ``kitty-specs/`` but is a *living*
+# cross-mission registry, NOT a frozen proof artifact — every doc-rename
+# mission is REQUIRED to append its move here or the ``build`` job's
+# rename-reconcile gate reds (see main's own ``docs(landing): declare docs/plans
+# curation moves on the reconcile spine`` and ``docs(plans): register the
+# domains/ plan moves on the canonical rename-reconcile spine``). Appending a
+# new move line is this file's designed use, not the "editing an archived
+# artifact to fix a stale line" that NFR-002 forbids, so it is exempt from the
+# byte-freeze while every other pre-existing archived file stays frozen.
+_APPEND_ONLY_SPINE_EXCEPTIONS: frozenset[str] = frozenset(
+    {"kitty-specs/common-docs-convergence-01KZMTR9/occurrence_map.yaml"}
+)
+
 
 def _run_git(args: list[str]) -> subprocess.CompletedProcess[str]:
     return subprocess.run(
@@ -91,6 +107,10 @@ def test_no_preexisting_archived_file_was_modified() -> None:
         if len(parts) < 2:
             continue
         status, path = parts[0], parts[-1]
+        # The append-only rename-reconcile spine is exempt: appending a move
+        # line to it is a required repo-wide contract, not an archive edit.
+        if path in _APPEND_ONLY_SPINE_EXCEPTIONS:
+            continue
         # An ADD of a path that did not exist at the base is M1's own new
         # content and is allowed. Anything else touching a pre-existing file
         # (Modify, Delete, Rename source) is a violation.
