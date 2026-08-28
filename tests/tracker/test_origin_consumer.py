@@ -1,9 +1,11 @@
 """Tests for tracker/origin_consumer.py and observer wiring (T015, FR-005, FR-006).
 
-Covers all three T015 projections:
-  1. Dossier sync — fire_dossier_sync is called during mission creation.
-  2. SaaS fan-out — fire_lifecycle_saas_fanout is called via emit_mission_created_local.
-  3. Origin binding end-to-end — with consume_pending_origin_impl registered as the
+Covers the remaining T015 projections (the former dossier-sync projection,
+T015.1, was removed by issue #677 along with the dead
+``fire_dossier_sync``/``register_dossier_sync_handler`` fan-out seam it
+exercised — that registry had no production registrants):
+  1. SaaS fan-out — fire_lifecycle_saas_fanout is called via emit_mission_created_local.
+  2. Origin binding end-to-end — with consume_pending_origin_impl registered as the
      REAL consumer (as it is in production), a mission creation populates
      MissionCreationResult.origin_binding_* and clears the pending origin.
 
@@ -12,7 +14,6 @@ Tests call reset_origin_consumer() in teardown to prevent state bleed.
 
 from __future__ import annotations
 
-import subprocess
 from pathlib import Path
 from typing import Any
 from unittest.mock import patch, MagicMock
@@ -27,9 +28,9 @@ from specify_cli.core.adapters import (
 from specify_cli.tracker.origin_consumer import consume_pending_origin_impl
 
 
-# This file's end-to-end binding tests shell out to real `git` via subprocess,
-# so it carries `git_repo` (CI's -m git_repo gate selects it) alongside the
-# integration category marker (marker-correctness Rule 1).
+# This file carries `git_repo` (CI's -m git_repo gate selects it) alongside the
+# integration category marker (marker-correctness Rule 1) for its origin-binding
+# tests, which model `repo_root`/feature-dir paths under a mission's git checkout.
 pytestmark = [pytest.mark.integration, pytest.mark.git_repo]
 
 # ---------------------------------------------------------------------------
@@ -225,68 +226,6 @@ def test_consumer_qualified_name_is_stable() -> None:
     key = f"{module}.{qualname}"
     assert "tracker" in key, f"Qualified name should contain 'tracker': {key}"
     assert "consume_pending_origin_impl" in key
-
-
-# ---------------------------------------------------------------------------
-# T015.1 — Dossier sync: fire_dossier_sync is called during mission creation
-# ---------------------------------------------------------------------------
-
-
-def test_dossier_sync_fires_during_mission_creation(tmp_path: Path) -> None:
-    """fire_dossier_sync is called once during a successful mission creation.
-
-    This test verifies that WP02's replacement of the direct
-    ``sync.dossier_pipeline`` import with ``status.adapters.fire_dossier_sync``
-    preserved the dossier-sync side effect.
-    """
-    from specify_cli.core.mission_creation import create_mission_core
-
-    # Set up minimal git repo
-    kittify = tmp_path / ".kittify"
-    kittify.mkdir()
-    (kittify / "config.yaml").write_text("mission_type_activations:\n  - software-dev\n", encoding="utf-8")
-    (tmp_path / "kitty-specs").mkdir()
-    subprocess.run(["git", "init"], cwd=tmp_path, capture_output=True, check=True)
-    subprocess.run(
-        ["git", "config", "user.email", "test@test.com"],
-        cwd=tmp_path,
-        capture_output=True,
-        check=True,
-    )
-    subprocess.run(
-        ["git", "config", "user.name", "Test"],
-        cwd=tmp_path,
-        capture_output=True,
-        check=True,
-    )
-    subprocess.run(
-        ["git", "commit", "-m", "init", "--allow-empty"],
-        cwd=tmp_path,
-        capture_output=True,
-        check=True,
-    )
-
-    _CORE = "specify_cli.core.mission_creation"
-    mock_dossier = MagicMock()
-
-    with (
-        patch(f"{_CORE}.locate_project_root", return_value=tmp_path),
-        patch(f"{_CORE}.is_worktree_context", return_value=False),
-        patch(f"{_CORE}.is_git_repo", return_value=True),
-        patch(f"{_CORE}.get_current_branch", return_value="main"),
-        patch("specify_cli.status.fire_dossier_sync", mock_dossier),
-        patch(f"{_CORE}._commit_feature_file"),
-    ):
-        result = create_mission_core(
-            tmp_path,
-            "dossier-test-feature",
-            friendly_name="Dossier Test",
-            purpose_tldr="Test dossier sync fires.",
-            purpose_context="Verify fire_dossier_sync is called during mission creation.",
-        )
-
-    assert result is not None
-    mock_dossier.assert_called_once()
 
 
 # ---------------------------------------------------------------------------
