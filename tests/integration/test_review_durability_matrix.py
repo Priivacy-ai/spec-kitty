@@ -2265,6 +2265,28 @@ def _sc004_ownership_refusal_is_causal(
     return _sc004_refusal_left_no_authority(repo, mission, expected, result, events)
 
 
+def _sc004_state_refusal_is_causal(
+    repo: Path,
+    mission: str,
+    expected: dict[str, tuple[str, str]],
+    result: _Sc004Result,
+    events: Sequence[StatusEvent],
+) -> bool:
+    """Prove a typed invalid-transition refusal emitted neither authority."""
+    expected_wp = expected[result.reviewer][0]
+    current_events = [event for event in events if event.wp_id == expected_wp]
+    if not current_events or (
+        _sc004_refusal_kind(
+            result,
+            authoritative_lane=current_events[-1].to_lane.value,
+            requested_lane=Lane.PLANNED.value,
+        )
+        != "state_refusal"
+    ):
+        return False
+    return _sc004_refusal_left_no_authority(repo, mission, expected, result, events)
+
+
 def _sc004_missing_evidence_refusal(
     repo: Path,
     mission: str,
@@ -2440,7 +2462,9 @@ def _sc004_refusal_is_causal(
         return _sc004_missing_evidence_refusal(
             repo, mission, expected, result, events
         )
-    return kind == "state_refusal"
+    if kind == "state_refusal":
+        return _sc004_state_refusal_is_causal(repo, mission, expected, result, events)
+    return False
 
 
 def _sc004_oracle(
