@@ -17,6 +17,7 @@ from charter.resolver import DEFAULT_TOOL_REGISTRY
 
 __all__ = [
     "CharterInterview",
+    "InterviewAnswersRegressionError",
     "LocalSupportDeclaration",
     "MINIMAL_QUESTION_ORDER",
     "QUESTION_ORDER",
@@ -395,13 +396,126 @@ def read_interview_answers(path: Path, *, unsafe: bool = False) -> CharterInterv
     return CharterInterview.from_dict(data)
 
 
-def write_interview_answers(path: Path, interview: CharterInterview) -> None:
-    """Persist interview answers to YAML."""
+#: Top-level list fields ``CharterInterview.to_dict()`` emits directly --
+#: and therefore the only fields a write can silently reset to empty. Every
+#: OTHER list-shaped key that may exist on disk (e.g. ``selected_
+#: styleguides``, added by a schema generation this dataclass has not
+#: caught up with) is not modeled here at all, so :func:`write_interview_
+#: answers`'s merge carries it forward untouched and it can never regress
+#: through this writer.
+_KNOWN_REGRESSION_GUARDED_LIST_FIELDS: tuple[str, ...] = (
+    "selected_paradigms",
+    "selected_directives",
+    "selected_tactics",
+    "available_tools",
+)
+
+
+class InterviewAnswersRegressionError(RuntimeError):
+    """Raised by :func:`write_interview_answers` (``fail_closed_on_regression=
+    True``) when persisting ``interview`` would silently drop or reset data
+    already recorded on disk at ``path``.
+
+    ``CharterInterview`` models only a subset of ``answers.yaml``'s keys --
+    schema growth over time (e.g. ``selected_styleguides``/``template_set``)
+    has outpaced the dataclass. The writer therefore merges onto whatever is
+    already on disk rather than overwriting it wholesale, so those unmodeled
+    keys always survive untouched regardless of this flag. This exception is
+    the other half of that data-integrity contract, for callers (e.g. the
+    answers-migration tooling) that additionally want a hard failure rather
+    than a silent write when a *modeled* selection or answer would be wiped
+    out -- see :func:`_guard_against_regression`.
+    """
+
+
+def _read_raw_answers_dict(path: Path) -> dict[str, Any]:
+    """Load ``path`` as a plain dict, tolerating a missing/malformed file.
+
+    Mirrors :func:`read_interview_answers`'s resilience contract: a missing
+    file, or one that fails to parse or does not decode to a mapping,
+    degrades to ``{}`` rather than raising -- the writer treats "nothing on
+    disk yet" the same as "empty answers".
+    """
+    if not path.exists():
+        return {}
+    yaml = YAML(typ="safe")
+    try:
+        data = yaml.load(path.read_text(encoding="utf-8"))
+    except Exception:  # noqa: BLE001 -- degrade to empty, mirrors read_interview_answers
+        return {}
+    return data if isinstance(data, dict) else {}
+
+
+def _guard_against_regression(existing: dict[str, Any], new: dict[str, Any]) -> None:
+    """Fail closed if ``new`` would drop or reset data recorded in ``existing``.
+
+    Two mutation shapes are rejected:
+
+    * **Default-reset** -- a known selection list (:data:`_KNOWN_
+      REGRESSION_GUARDED_LIST_FIELDS`, e.g. ``selected_tactics``) that was
+      previously non-empty and would become empty/absent.
+    * **Deletion** -- an ``answers`` entry that previously carried a real
+      value and would become missing or empty.
+    """
+    for field_name in _KNOWN_REGRESSION_GUARDED_LIST_FIELDS:
+        old_value = existing.get(field_name)
+        new_value = new.get(field_name)
+        if isinstance(old_value, list) and old_value and not new_value:
+            raise InterviewAnswersRegressionError(
+                f"Refusing to write '{field_name}': would drop "
+                f"{len(old_value)} existing selection(s) with no replacement."
+            )
+
+    existing_answers = existing.get("answers")
+    if not isinstance(existing_answers, dict):
+        return
+    new_answers = new.get("answers")
+    new_answers_dict = new_answers if isinstance(new_answers, dict) else {}
+    for key, old_answer in existing_answers.items():
+        if old_answer and not new_answers_dict.get(key):
+            raise InterviewAnswersRegressionError(
+                f"Refusing to write answers: existing answer {key!r} would "
+                "be dropped or emptied."
+            )
+
+
+def write_interview_answers(
+    path: Path,
+    interview: CharterInterview,
+    *,
+    fail_closed_on_regression: bool = False,
+) -> None:
+    """Persist interview answers to YAML.
+
+    Merges onto whatever is already at ``path`` rather than overwriting it
+    wholesale: ``CharterInterview`` models only a subset of the file's keys
+    (e.g. ``selected_styleguides``/``template_set`` have no dataclass
+    field), so a naive re-serialize would silently drop them on every write
+    that round-trips through :func:`read_interview_answers`. This merge is
+    unconditional and always on.
+
+    ``fail_closed_on_regression`` additionally raises :class:`
+    InterviewAnswersRegressionError` instead of persisting a change that
+    would drop or reset a previously-recorded *modeled* selection or answer
+    (see :func:`_guard_against_regression`). It defaults to ``False``
+    because the interactive interview flow legitimately starts each session
+    from :func:`default_interview` and may intentionally narrow a prior
+    selection (e.g. a user deselecting a tactic) -- callers that want the
+    stricter round-trip contract (the answers-migration tooling, in
+    particular) opt in explicitly.
+    """
+    new_data = interview.to_dict()
+    existing_data = _read_raw_answers_dict(path)
+    if fail_closed_on_regression:
+        _guard_against_regression(existing_data, new_data)
+
+    merged: dict[str, Any] = {**existing_data, **new_data}
+
     path.parent.mkdir(parents=True, exist_ok=True)
     yaml = YAML()
     yaml.default_flow_style = False
     with path.open("w", encoding="utf-8") as handle:
-        yaml.dump(interview.to_dict(), handle)
+        yaml.dump(merged, handle)
 
 
 def apply_org_charter_pre_fill_to_answers(

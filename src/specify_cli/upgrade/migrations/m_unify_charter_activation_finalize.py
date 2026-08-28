@@ -229,12 +229,24 @@ def _compose_charter_yaml_document(
         DirectivesConfig,
         GovernanceConfig,
     )
+    from charter.sync import (  # noqa: PLC0415 -- lazy charter import (C-002)
+        _apply_legacy_governance_selection_key_compat,
+    )
 
     charter_dir = _charter_dir(project_path)
     governance_data = _load_yaml_mapping(charter_dir / _GOVERNANCE_YAML)
     directives_data = _load_yaml_mapping(charter_dir / _DIRECTIVES_YAML)
     references_data = _load_yaml_mapping(charter_dir / _REFERENCES_YAML)
 
+    # CR-01 (charter-authority-flip-01M14RB3 WP03): the retired standalone
+    # governance.yaml this migration reads predates the doctrine -> charter
+    # selection-key rename, so it may still carry the legacy key. Apply the
+    # same dict-level compat the canonical loader uses (charter.sync.
+    # load_governance_config) before validating -- otherwise pydantic's
+    # default extra="ignore" would silently drop the whole selection block
+    # instead of failing loud, defeating this function's own "schema drift
+    # fails loud here" contract.
+    governance_data = _apply_legacy_governance_selection_key_compat(governance_data)
     governance = GovernanceConfig.model_validate(governance_data)
     directives = DirectivesConfig.model_validate(directives_data)
     catalog = CharterCatalog(

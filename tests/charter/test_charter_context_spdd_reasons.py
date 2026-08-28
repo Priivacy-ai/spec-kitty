@@ -370,7 +370,7 @@ class TestParadigmRoundTrip:
         # write it into charter.yaml's governance: section the way the
         # hand-authored charter would carry it.
         gov = GovernanceConfig(
-            doctrine=DoctrineSelectionConfig(
+            charter=DoctrineSelectionConfig(
                 selected_paradigms=["structured-prompt-driven-development"],
             )
         )
@@ -462,7 +462,7 @@ class TestSelectedTacticsRoundTrip:
         #    -- this is the same data the extractor used to scrape back out
         #    of the rendered markdown.
         governance = GovernanceConfig(
-            doctrine=DoctrineSelectionConfig(
+            charter=DoctrineSelectionConfig(
                 selected_paradigms=compiled.selected_paradigms,
                 selected_directives=compiled.selected_directives,
                 selected_tactics=compiled.selected_tactics,
@@ -470,7 +470,7 @@ class TestSelectedTacticsRoundTrip:
                 template_set=compiled.template_set,
             )
         )
-        assert "reasons-canvas-fill" in governance.doctrine.selected_tactics
+        assert "reasons-canvas-fill" in governance.charter.selected_tactics
 
         # 4. Write charter.yaml's governance: section the way the
         #    hand-authored charter would carry it, then let the activation

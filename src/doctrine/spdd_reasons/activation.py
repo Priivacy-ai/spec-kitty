@@ -110,11 +110,22 @@ def _compute_active(charter_yaml_path: Path) -> bool:
 
 
 def _governance_selects_pack(governance: Any) -> bool:
-    """Inspect charter.yaml's ``governance:`` section for any SPDD/REASONS selector."""
+    """Inspect charter.yaml's ``governance:`` section for any SPDD/REASONS selector.
+
+    CR-01 (``charter-authority-flip-01M14RB3`` WP03) renames the selection
+    key from ``doctrine`` to the canonical ``charter``. This module reads
+    ``charter.yaml`` as a raw dict rather than through ``charter.sync.
+    load_governance_config`` -- it lives in ``src/doctrine/``, which the
+    layering rule (``kernel <- doctrine <- charter <- specify_cli``, module
+    docstring above) forbids from importing ``charter`` -- so it carries its
+    own narrow compat read of both keys rather than the warn-once shim.
+    """
     if not isinstance(governance, dict):
         return False
 
-    doctrine = governance.get("doctrine")
+    doctrine = governance.get("charter")
+    if not isinstance(doctrine, dict):
+        doctrine = governance.get("doctrine")
     if not isinstance(doctrine, dict):
         return False
 
