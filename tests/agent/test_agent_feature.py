@@ -1244,7 +1244,12 @@ requirement_refs:
             # but a linked worktree (``.git`` is a pointer file → foreign) is
             # refused with CHECKOUT_WRITE_OWNERSHIP_REFUSED. Pin a self-owned
             # identity so the test is deterministic regardless of the worktree it
-            # runs in.
+            # runs in. This only removes the incidental ownership gate so the
+            # requirement-refs parse under test is reachable — the ownership-refusal
+            # behaviour itself is guarded separately by
+            # ``tests/specify_cli/core/test_checkout_identity.py`` (and the
+            # architectural fail-closed single-channel tests), which this pin does
+            # not weaken.
             patch(
                 "specify_cli.cli.commands.agent.mission_finalize.resolve_checkout_identity",
                 return_value=CheckoutIdentity(
@@ -1306,6 +1311,13 @@ class TestSetupPlanCommand:
     # branch the worktree running the test happened to be on — green in a ``main``
     # CI checkout, red in any non-``main`` worktree. Pin ``get_current_branch`` to
     # ``main`` so the resolution is deterministic.
+    #
+    # This is a scaffold-shape test: with the pin, ``current_branch == "main"`` is a
+    # tautology, NOT the branch-honesty guard. The real invoking-vs-primary
+    # derivation contract (FR-006/#3124) is verified separately by
+    # ``tests/specify_cli/cli/commands/agent/test_setup_plan_branch_match.py``,
+    # which uses real ``git worktree add`` lanes with ``get_current_branch``
+    # deliberately UNPATCHED.
     @patch("specify_cli.cli.commands.agent.mission.get_current_branch", return_value="main")
     @patch("specify_cli.cli.commands.agent.mission.locate_project_root")
     @patch("specify_cli.cli.commands.agent.mission._find_feature_directory")

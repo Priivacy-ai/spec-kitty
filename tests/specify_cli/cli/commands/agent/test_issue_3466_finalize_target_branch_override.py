@@ -134,7 +134,10 @@ def _run_finalize_with_override(
     # sees an owned checkout — as it does in a ``main`` CI checkout. Without the
     # chdir the invoking cwd is whatever worktree runs the suite, so a linked
     # worktree is refused with CHECKOUT_WRITE_OWNERSHIP_REFUSED (green on CI's
-    # own checkout, red in any linked worktree).
+    # own checkout, red in any linked worktree). This is a shared helper: the
+    # chdir is inert for the callers that assert exit-1 revert/error paths (they
+    # never reach the ownership gate) — it only un-blocks the ``exit_code == 0``
+    # callers, and their git-state assertions already pass an explicit ``cwd=repo``.
     with (
         contextlib.chdir(repo),
         patch(
