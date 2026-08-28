@@ -381,4 +381,9 @@ def test_module_has_no_daemon_or_status_event_dependencies() -> None:
         "kernel.git_topology",
         "math",
         "pathlib",
+        # #3773 item 4: the mkdir/acquire/translate-Timeout sequence shared
+        # with specify_cli.status.locking now lives in one place. It carries
+        # no status/cli coupling of its own (see that module's docstring),
+        # so it does not violate the intent this allowlist guards.
+        "specify_cli.core.checkout_file_lock",
     }

@@ -20,11 +20,11 @@ from pathlib import Path
 from filelock import FileLock, Timeout
 
 from kernel.git_topology import git_common_dir
+from specify_cli.core.checkout_file_lock import LOCK_DIRECTORY, acquire_or_raise
 
 DEFAULT_VERDICT_SAVE_TIMEOUT_SECONDS = 10.0
 """Default maximum wait for the checkout-wide verdict-save queue."""
 
-_LOCK_DIRECTORY = "spec-kitty-locks"
 _LOCK_FILENAME = "review-verdict-save.lock"
 _HELD_QUEUE_PATHS: ContextVar[frozenset[Path]] = ContextVar(
     "spec_kitty_held_verdict_save_queue_paths",
@@ -63,7 +63,7 @@ def verdict_save_queue_path(repository: Path) -> Path:
     every worktree and Mission sharing Git state converges on this path while
     independent clones remain independent.
     """
-    return git_common_dir(repository) / _LOCK_DIRECTORY / _LOCK_FILENAME
+    return git_common_dir(repository) / LOCK_DIRECTORY / _LOCK_FILENAME
 
 
 def verdict_save_queue_is_held(repository: Path) -> bool:
@@ -106,12 +106,13 @@ def acquire_verdict_save_queue(
     if lock_path in held_paths:
         raise VerdictSaveReentrant(lock_path)
 
-    lock_path.parent.mkdir(parents=True, exist_ok=True)
     lock = FileLock(str(lock_path))
-    try:
-        lock.acquire(timeout=timeout_seconds)
-    except Timeout as exc:
-        raise VerdictSaveBusy(lock_path, timeout_seconds) from exc
+    acquire_or_raise(
+        lock,
+        lock_path,
+        timeout_seconds=timeout_seconds,
+        build_timeout_error=lambda: VerdictSaveBusy(lock_path, timeout_seconds),
+    )
 
     token = _HELD_QUEUE_PATHS.set(held_paths | {lock_path})
     try:
@@ -122,6 +123,13 @@ def acquire_verdict_save_queue(
 
 
 __all__ = [
+    # Re-exported: the shared ``acquire_or_raise`` primitive (see
+    # ``specify_cli.core.checkout_file_lock``) is the only place this module's
+    # own code catches ``filelock.Timeout`` now, but ``Timeout`` stays a public
+    # name here so callers (and this module's own test double for ``FileLock``)
+    # can still raise/reference the exact type this module's ``FileLock``
+    # construction site will produce on contention.
+    "Timeout",
     "VerdictSaveBusy",
     "acquire_verdict_save_queue",
 ]
