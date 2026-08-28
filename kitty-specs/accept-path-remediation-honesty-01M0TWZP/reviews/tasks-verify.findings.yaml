@@ -1,0 +1,140 @@
+schema: review-findings/v1
+complete: true
+phase: tasks
+lens_group: verify
+mission: accept-path-remediation-honesty-01M0TWZP
+findings:
+  - id: TASKS-VERIFY-001
+    lens: "WP04 fixture is the maintainer-binding deliverable, not folded into 'add tests'"
+    severity: 4
+    title: "WP04's Assertion 3 (--json internal consistency) cannot fail even if WP02's dedup fix is reverted — not independently falsifiable"
+    evidence:
+      - artifact: "tasks/WP04-red-first-tests.md § Subtask T014, Assertion 3: 'assert `optional_missing` and `path_violations` in the JSON reflect the identical single-severity resolution as Assertion 2's summary-object check (same fact appears in exactly the same one of the two fields, matching what the object-level check found)'"
+      - artifact: "tasks/WP04-red-first-tests.md § Subtask T015 (reversibility check) only enumerates Assertion 1 (pre-WP1 red) and Assertion 2 (pre-WP2 red); Assertion 3 is never mentioned in the reversibility check at all"
+      - artifact: "plan.md § 'Test strategy per Acceptance Scenario' table, row 'US2 | 4 (--json internal consistency) | WP2 + WP4 | WP4 fixture assertion 3' — attributes this as WP2-fix coverage"
+      - code: "src/specify_cli/cli/commands/accept.py:796 — `print(json.dumps(_with_advisories(summary.to_dict(), [provenance_note]), indent=2))`"
+      - code: "src/specify_cli/acceptance/__init__.py:430,432 — `AcceptanceSummary.to_dict()` returns `\"optional_missing\": self.optional_missing, ... \"path_violations\": self.path_violations` — i.e. the JSON payload is a direct read of the same object attributes the console/summary-object path (Assertion 2) already reads. There is no separate JSON-specific computation anywhere in the codebase for these two fields."
+    claim: >
+      Given the JSON payload is literally `summary.to_dict()` reading the same
+      `optional_missing`/`path_violations` attributes Assertion 2 already checks, a
+      WP02 revert makes "contracts" appear in BOTH fields identically in the console/object
+      path AND the JSON path — the two stay "consistent" (both wrong the same way) whether
+      or not the dedup fix is present. Assertion 3, as specified ("JSON matches the
+      object-level check"), is therefore structurally guaranteed to pass regardless of
+      WP02's correctness — it can only ever fail if `to_dict()` itself diverges from the
+      object's own attributes, which is a bug class unrelated to FR-002/WP02. WP04's own
+      T015 implicitly confirms this: it defines concrete red-before/green-after evidence
+      for Assertions 1 and 2 but never claims (or attempts) the same for Assertion 3. This
+      means User Story 2 / Acceptance Scenario 4 ("`--json` internal consistency" — FR-002's
+      Edge Case) has no genuine red-first test anywhere in WP01-WP04, violating NFR-001's
+      "every FR above (001-007) has at least one test that demonstrably fails against the
+      pre-fix code" for this specific scenario, even though the test-strategy table claims
+      it is covered.
+    remediation: >
+      Rewrite WP04 T014's Assertion 3 to independently assert the "exactly one of
+      optional_missing/path_violations" property directly on the parsed `--json` payload
+      (mirroring Assertion 2's check, applied to the JSON dict's own `optional_missing`/
+      `path_violations` keys) instead of comparing JSON output to the object-level result.
+      Then update T015's reversibility check to include Assertion 3's own pre-WP2 red
+      state (it will flip red->green in lockstep with Assertion 2, since both now read the
+      same underlying fields, but at least the test can genuinely fail for the FR-002 defect
+      rather than being structurally incapable of failing). Update plan.md's test-strategy
+      table row for US2/Scenario 4 accordingly if the assertion's mechanics change.
+
+  - id: TASKS-VERIFY-002
+    lens: "missing_paths_feature_relative propagation correctness"
+    severity: 3
+    title: "WP02's T009 leaves the real-vs-mocked fixture choice ambiguous, which determines whether WP01's population logic is ever exercised before WP04"
+    evidence:
+      - artifact: "tasks/WP01-resolved-path-correctness.md § Subtask T003 and T004 — neither asserts on `PathValidationResult.missing_paths_feature_relative` directly; plan.md's WP1 section states explicitly this is deferred: 'this revert test does not need to assert on it directly — its correctness is exercised by WP2's revert test below'"
+      - artifact: "tasks/WP02-stop-double-reporting.md § Subtask T009, step 1: 'on a `software-dev`-shaped fixture (or via the real `collect_feature_summary` entry point) with `contracts/` missing...' — presents a hand-built/mocked fixture and the real entry point as interchangeable options"
+      - code: "tests/specify_cli/acceptance/test_acceptance_cores.py:235-260 — the existing sibling class `TestEvaluatePathConventions` (which T009's own phrasing 'software-dev-shaped fixture' echoes) exclusively uses `SimpleNamespace`/`monkeypatch.setattr(...validate_mission_paths, lambda *_a, **_k: SimpleNamespace(missing_paths=[...], format_errors=...))` mocks — none of which would carry a `missing_paths_feature_relative` attribute unless the test author manually adds it by hand"
+      - artifact: "tasks/WP04-red-first-tests.md § Objective / Context: FR-007 explicitly forbids a hand-built `PathValidationResult`/`AcceptanceSummary` stand-in, so WP04's Assertion 2 is the one guaranteed real-entry-point exercise of WP01's artifact-tagged-branch population logic — but WP04's fixture only covers the artifact-tagged branch (the `contracts/` case); no WP anywhere asserts on `missing_paths_feature_relative`'s populated value for the build/repo-root (`else:`) or absolute-path (`if candidate.is_absolute():`) branches"
+    claim: >
+      If a WP02 implementer follows the existing test-file convention T009's own wording
+      points to ('software-dev-shaped fixture', matching `TestEvaluatePathConventions`'s
+      established SimpleNamespace-mock style) rather than the real `collect_feature_summary`
+      entry point, T009 would hand-construct `path_result.missing_paths_feature_relative`
+      directly to make the dedup fire — testing only WP02's consumption/filtering logic, not
+      WP01's actual per-branch population code. Combined with WP01's own tests deliberately
+      not asserting on the field (by design, deferred to WP02), a real population bug in
+      WP01's artifact-tagged branch could then slip past both WP01's and WP02's tests
+      undetected, with WP04's mandatory-real-entry-point fixture as the *only* backstop — and
+      even that backstop only covers the artifact-tagged branch. A population bug specific to
+      the build/repo-root or absolute-path branches' placeholder values is never asserted on
+      anywhere in WP01-WP04 (though such a bug is low-*consequence* today because WP02's
+      `artifact_tokens` membership filter structurally excludes those placeholders from the
+      comparison regardless of their value — see TASKS-VERIFY-004 for the related gap in
+      testing that exclusion itself).
+    remediation: >
+      Tighten tasks/WP02-stop-double-reporting.md T009 step 1 to require the real
+      `collect_feature_summary` (or `accept` CLI) entry point for at least the primary dedup
+      test — drop the "software-dev-shaped fixture" mocked alternative as an equally valid
+      option, or explicitly note that if a mocked fixture is used instead, WP01's T003/T004
+      must add a direct assertion on `missing_paths_feature_relative`'s value for the
+      branch(es) that mocked test would otherwise bypass. Independently, add one explicit
+      assertion in WP01's T003 (artifact-tagged) and T004 (build/repo-root) on
+      `missing_paths_feature_relative`'s populated content for their respective branch — cheap
+      given the fixtures already exist — closing the gap regardless of how WP02 chooses to
+      build its fixture.
+
+  - id: TASKS-VERIFY-003
+    lens: "Baseline captured before the first change so pre-existing reds are not attributed to this mission"
+    severity: 3
+    title: "No WP's Definition of Done re-runs the full 180-test baseline surface plan.md commits to — only the 3 named pinned node IDs"
+    evidence:
+      - artifact: "plan.md § 'Baseline honesty': 'tests/specify_cli/acceptance/, tests/specify_cli/cli/commands/test_accept_warnings_render.py, tests/agent/test_validators_unit.py, tests/characterization/test_trio_json_envelope.py -> 180 passed, 0 failed on this checkout at mission start... any red discovered later belongs to this mission'"
+      - artifact: "tasks/WP01-resolved-path-correctness.md § Definition of Done — 'The three SC-005 pinned tests ... remain green, unmodified (NFR-002)' is the only baseline-adjacent check listed; no mention of the full 4-directory/file baseline surface"
+      - artifact: "tasks/WP02-stop-double-reporting.md § Definition of Done — same pattern, only the 3 pinned tests named"
+      - artifact: "tasks/WP03-honest-remediation-text.md § Definition of Done — same pattern"
+      - artifact: "tasks/WP04-red-first-tests.md § Definition of Done — 'The three SC-005 pinned tests remain green, unmodified (NFR-002) — this WP adds a new test file and does not touch any existing test' — again only the 3 pinned tests, and even this WP (the mission's final one) never requires re-running the full declared baseline surface"
+      - code: "verified directly: `.venv/bin/python -m pytest tests/specify_cli/acceptance/ tests/specify_cli/cli/commands/test_accept_warnings_render.py tests/agent/test_validators_unit.py tests/characterization/test_trio_json_envelope.py -q` -> 180 passed in 23.07s on this checkout, confirming plan.md's baseline claim is accurate as of tasks-phase review (no finding on the baseline number itself)"
+    claim: >
+      plan.md's own baseline-honesty commitment is to the FULL 180-test surface across four
+      directories/files, not merely the 3 named SC-005 pins ("any red discovered later
+      belongs to this mission" implies the whole surface is the accountability boundary). Yet
+      every WP's Definition of Done narrows the re-verification gate to only the 3 pinned node
+      IDs. Since the full baseline command completes in ~23s (confirmed above) and this
+      mission's own plan.md already scoped exactly these 4 test locations as "the" affected
+      surface (not the ~17,000-test full suite the charter otherwise discourages running
+      per-WP), there is no cost reason for the narrower gate. As specified, a WP could
+      introduce a regression in one of the other 177 baseline tests within
+      `tests/specify_cli/acceptance/` or `tests/agent/test_validators_unit.py` (both of which
+      WP01-WP04 directly edit) and no WP-level Definition of Done would catch it before the
+      mission reaches integration/review — deferring detection later than the WP boundary
+      where charter Standing Order 4's "reproduce RED-FIRST... require live evidence" bites
+      hardest.
+    remediation: >
+      Add one line to each WP's Definition of Done (at minimum WP04's, as the mission's final
+      gate before FR-007's fixture is complete) requiring a full re-run of the exact baseline
+      command named in plan.md's Baseline honesty section
+      (`tests/specify_cli/acceptance/ tests/specify_cli/cli/commands/test_accept_warnings_render.py
+      tests/agent/test_validators_unit.py tests/characterization/test_trio_json_envelope.py`)
+      and confirming 0 failed (with the passed count now >= 180, accounting for WP04's new
+      test file), not merely the 3 named pinned node IDs.
+
+  - id: TASKS-VERIFY-004
+    lens: "missing_paths_feature_relative propagation correctness"
+    severity: 2
+    title: "WP02's artifact_tokens membership-filter (the defense against a future basename/token collision) has no dedicated collision-scenario test anywhere in WP01-WP04"
+    evidence:
+      - artifact: "tasks/WP02-stop-double-reporting.md § Context / T006 — 'Rather than comparing basenames/last-path-components (which cannot distinguish two future dual-declared tokens sharing a final segment, e.g. a hypothetical `docs/contracts` optional artifact vs. an unrelated `api/contracts` declared path)... Structurally exclude the placeholder entries first' — describes the membership-filter's defensive purpose in detail"
+      - artifact: "tasks/WP02-stop-double-reporting.md § Risks — 'Basename-only collision risk avoided by design: ... do not simplify to a basename comparison for expedience' — flags the risk as real but names no test that would catch a regression to the simpler (wrong) comparison"
+      - artifact: "tasks/WP02-stop-double-reporting.md § Subtask T009 — all three revert tests use the single `contracts/` dual-declared fixture only; none constructs a synthetic mission with two distinct tokens sharing a final path segment"
+    claim: >
+      In the only fixture ever tested (`contracts/`, dual-declared, no other missing path in
+      scope), a naive basename/full-list comparison (skipping the `artifact_tokens` membership
+      filter entirely) would produce the identical pass/fail result as the correct,
+      membership-filtered implementation — because there is no second, colliding token present
+      to distinguish the two approaches. This means a future refactor that quietly simplifies
+      WP02's exclusion logic to "just compare `missing_paths_feature_relative` entries against
+      `optional_missing` directly" (dropping the `artifact_tokens` recomputation) would pass
+      every test named in WP01-WP04 while silently reintroducing the exact collision risk the
+      Risks section calls out as something to actively resist.
+    remediation: >
+      Add one additional unit test in WP02 (alongside T006's or T009's existing fixtures) using
+      a synthetic `MissionConfig` that declares an artifact token and a distinct, non-artifact
+      declared path sharing a final path segment (e.g. artifact `docs/contracts` vs. build path
+      `api/contracts`), asserting the dedup does NOT cross-match them — directly exercising the
+      `artifact_tokens` membership filter's stated defensive purpose rather than leaving it
+      correct-by-inspection-only.
