@@ -8,7 +8,7 @@ from typing import TYPE_CHECKING
 
 from packaging.version import Version
 
-from specify_cli.gitignore_manager import IgnoreFilePathError
+from specify_cli.gitignore_manager import GitignorePathError
 
 if TYPE_CHECKING:
     from .migrations.base import BaseMigration
@@ -98,7 +98,7 @@ class MigrationRegistry:
                 detect_path = Path(project_path) if isinstance(project_path, str) else project_path
                 try:
                     migration_needed = migration.detect(detect_path)
-                except IgnoreFilePathError as exc:
+                except GitignorePathError as exc:
                     # A symlinked `.gitignore`/`.claudeignore` makes detect()
                     # fail closed rather than follow it (gitignore_manager.py)
                     # -- treat that as "cannot safely determine" instead of

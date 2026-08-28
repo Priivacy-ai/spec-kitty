@@ -5,7 +5,7 @@ from pathlib import Path
 
 import pytest
 
-from specify_cli.gitignore_manager import IgnoreFilePathError
+from specify_cli.gitignore_manager import GitignorePathError
 from specify_cli.upgrade.migrations.m_2_0_9_state_gitignore import (
     StateGitignoreMigration,
     _NEW_RUNTIME_ENTRIES,
@@ -114,7 +114,7 @@ def test_detect_rejects_symlinked_gitignore(tmp_path: Path, migration):
     (tmp_path / ".gitignore").symlink_to(outside_target)
 
     try:
-        with pytest.raises(IgnoreFilePathError):
+        with pytest.raises(GitignorePathError):
             migration.detect(tmp_path)
     finally:
         outside_target.unlink(missing_ok=True)

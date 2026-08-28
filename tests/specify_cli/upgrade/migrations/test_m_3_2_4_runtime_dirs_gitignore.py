@@ -15,7 +15,7 @@ from pathlib import Path
 
 import pytest
 
-from specify_cli.gitignore_manager import IgnoreFilePathError
+from specify_cli.gitignore_manager import GitignorePathError
 from specify_cli.upgrade.migrations import auto_discover_migrations
 from specify_cli.upgrade.registry import MigrationRegistry
 from specify_cli.upgrade.migrations.m_3_2_4_runtime_dirs_gitignore_backfill import (
@@ -81,7 +81,7 @@ def test_detect_rejects_symlinked_gitignore(tmp_path: Path) -> None:
     (tmp_path / ".gitignore").symlink_to(outside_target)
 
     try:
-        with pytest.raises(IgnoreFilePathError):
+        with pytest.raises(GitignorePathError):
             RuntimeDirsGitignoreBackfillMigration().detect(tmp_path)
     finally:
         outside_target.unlink(missing_ok=True)

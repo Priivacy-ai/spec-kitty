@@ -2,7 +2,7 @@
 pipeline (issue #626, PR #636 squad MAJOR).
 
 `read_ignore_file_text()` (`gitignore_manager.py`) fails closed with
-`IgnoreFilePathError` when an ignore file is a symlink rather than following
+`GitignorePathError` when an ignore file is a symlink rather than following
 it. That guard is correct, but nothing in the migration call chain used to
 catch it -- so `detect()`/`apply()` raising propagated as an unhandled
 crash of `spec-kitty upgrade` for any project whose `.gitignore` happens to
@@ -25,7 +25,7 @@ from kernel.clock import now_utc
 from typer.testing import CliRunner
 
 from specify_cli.cli.commands.upgrade import upgrade
-from specify_cli.gitignore_manager import IgnoreFilePathError
+from specify_cli.gitignore_manager import GitignorePathError
 from specify_cli.upgrade.metadata import ProjectMetadata
 from specify_cli.upgrade.migrations.base import BaseMigration, MigrationResult
 from specify_cli.upgrade.registry import MigrationRegistry
@@ -47,11 +47,11 @@ class _DetectRaisesMigration(BaseMigration):
     """
 
     migration_id = "0.0.1_detect_raises"
-    description = "detect() raises IgnoreFilePathError, like a symlinked ignore file"
+    description = "detect() raises GitignorePathError, like a symlinked ignore file"
     target_version = "0.0.1"
 
     def detect(self, project_path: Path) -> bool:  # noqa: ARG002
-        raise IgnoreFilePathError("<project>/.gitignore is a symlink; refusing to read through it")
+        raise GitignorePathError("<project>/.gitignore is a symlink; refusing to read through it")
 
     def can_apply(self, project_path: Path) -> tuple[bool, str]:  # noqa: ARG002
         return False, "detect() could not run"
@@ -64,7 +64,7 @@ class _ApplyRaisesMigration(BaseMigration):
     """Simulates detect() succeeding, then apply() hitting a symlink swapped in."""
 
     migration_id = "0.0.1_apply_raises"
-    description = "apply() raises IgnoreFilePathError after detect() returned True"
+    description = "apply() raises GitignorePathError after detect() returned True"
     target_version = "0.0.1"
 
     def detect(self, project_path: Path) -> bool:  # noqa: ARG002
@@ -74,7 +74,7 @@ class _ApplyRaisesMigration(BaseMigration):
         return True, ""
 
     def apply(self, project_path: Path, dry_run: bool = False) -> MigrationResult:  # noqa: ARG002
-        raise IgnoreFilePathError("<project>/.gitignore is a symlink; refusing to read through it")
+        raise GitignorePathError("<project>/.gitignore is a symlink; refusing to read through it")
 
 
 @pytest.fixture()

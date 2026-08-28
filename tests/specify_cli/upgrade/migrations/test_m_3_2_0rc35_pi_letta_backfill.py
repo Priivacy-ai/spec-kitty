@@ -13,7 +13,7 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from specify_cli.gitignore_manager import IgnoreFilePathError
+from specify_cli.gitignore_manager import GitignorePathError
 from specify_cli.skills import command_installer, manifest_store
 from specify_cli.skills.command_installer import CANONICAL_COMMANDS
 from specify_cli.upgrade.migrations.m_3_2_0rc35_pi_letta_backfill import (
@@ -121,7 +121,7 @@ def test_detect_rejects_symlinked_gitignore(tmp_path: Path) -> None:
 
     migration = PiLettaBackfillMigration()
     try:
-        with pytest.raises(IgnoreFilePathError):
+        with pytest.raises(GitignorePathError):
             migration.detect(project)
     finally:
         outside_target.unlink(missing_ok=True)

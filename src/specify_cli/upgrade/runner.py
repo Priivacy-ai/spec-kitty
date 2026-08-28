@@ -15,7 +15,7 @@ from packaging.version import InvalidVersion, Version
 from rich.console import Console
 
 from specify_cli.core.constants import KITTIFY_DIR, WORKTREES_DIR
-from specify_cli.gitignore_manager import IgnoreFilePathError
+from specify_cli.gitignore_manager import GitignorePathError
 from specify_cli.migration.schema_version import (
     REQUIRED_SCHEMA_VERSION,
     get_project_schema_version,
@@ -279,7 +279,7 @@ class MigrationRunner:
 
         # Check if migration is needed via detection. A symlinked
         # `.gitignore`/`.claudeignore` makes detect() fail closed with
-        # IgnoreFilePathError (gitignore_manager.py) rather than follow the
+        # GitignorePathError (gitignore_manager.py) rather than follow the
         # symlink. Treat that as a migration FAILURE, not a skip: a "skip"
         # here would report the upgrade as successful and let
         # _finalize_main_metadata bump metadata.version/schema_version past
@@ -290,7 +290,7 @@ class MigrationRunner:
         # next `spec-kitty upgrade` retries once the symlink is gone.
         try:
             migration_needed = migration.detect(self.project_path)
-        except IgnoreFilePathError as exc:
+        except GitignorePathError as exc:
             if not dry_run:
                 self._record_migration_result(
                     metadata,
@@ -341,7 +341,7 @@ class MigrationRunner:
         # migration failure, not an unhandled crash.
         try:
             result = migration.apply(self.project_path, dry_run=dry_run)
-        except IgnoreFilePathError as exc:
+        except GitignorePathError as exc:
             return (
                 MigrationResult(
                     success=False,
@@ -442,13 +442,13 @@ class MigrationRunner:
 
                 # Same fail-closed handling as the main checkout in
                 # _apply_migration: a symlinked ignore file makes detect()
-                # raise IgnoreFilePathError rather than follow it. Record it
+                # raise GitignorePathError rather than follow it. Record it
                 # as a failure, not a skip -- a "skip" record would be
                 # indistinguishable from "not applicable" and could read as
                 # settled, when the migration was never actually evaluated.
                 try:
                     migration_needed = migration.detect(worktree)
-                except IgnoreFilePathError as exc:
+                except GitignorePathError as exc:
                     result["errors"].append(
                         f"Worktree {worktree.name}: Cannot safely detect {migration.migration_id}: {exc}"
                     )
@@ -483,7 +483,7 @@ class MigrationRunner:
 
                 try:
                     migration_result = migration.apply(worktree, dry_run=dry_run)
-                except IgnoreFilePathError as exc:
+                except GitignorePathError as exc:
                     result["errors"].append(
                         f"Worktree {worktree.name}: Cannot apply {migration.migration_id}: {exc}"
                     )

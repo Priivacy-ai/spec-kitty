@@ -23,7 +23,7 @@ from specify_cli.gitignore_manager import (  # noqa: E402
     RUNTIME_PROTECTED_ENTRIES,
     AgentDirectory,
     GitignoreManager,
-    IgnoreFilePathError,
+    GitignorePathError,
     ProtectionResult,
     read_ignore_file_text,
 )
@@ -407,7 +407,7 @@ class TestReadIgnoreFileText:
         path = temp_dir / ".gitignore"
         path.symlink_to(outside_target)
         try:
-            with pytest.raises(IgnoreFilePathError):
+            with pytest.raises(GitignorePathError):
                 read_ignore_file_text(path)
         finally:
             outside_target.unlink(missing_ok=True)
@@ -419,7 +419,7 @@ class TestReadIgnoreFileText:
         path = temp_dir / ".gitignore"
         path.symlink_to(missing_target)
         try:
-            with pytest.raises(IgnoreFilePathError):
+            with pytest.raises(GitignorePathError):
                 read_ignore_file_text(path)
         finally:
             path.unlink(missing_ok=True)
