@@ -44,6 +44,10 @@ closed — so the "known reds" below are already a different set than a month ag
 - **Stale-install false reds.** Commands that shell out to `spec-kitty` (e.g.
   the `merge-driver-*` commands) only reflect your working tree after
   `pip install -e .` / `uv pip install -e .`. Re-install after every rebase.
+- **Stale-venv false reds.** A `ModuleNotFoundError` for a package that is
+  declared and pinned usually means the `.venv` was never (re)synced, not a
+  real regression — run `uv sync --frozen --all-extras` before recording it
+  as pre-existing (spec-kitty-planning#648).
 - **The `pr:deferred` / `pr:skip-ci` labels skip nearly every required PR
   workflow — a green check can mean "not run," not "passed."** Most
   `.github/workflows/*.yml` job `if:` conditions include
