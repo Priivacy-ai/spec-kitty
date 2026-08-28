@@ -11,6 +11,7 @@ from specify_cli.mission import Mission
 __all__ = [
     "PathValidationError",
     "PathValidationResult",
+    "artifact_tokens_for_mission",
     "suggest_directory_creation",
     "validate_mission_paths",
 ]
@@ -33,6 +34,7 @@ class PathValidationResult:
     required_paths: dict[str, str]
     existing_paths: list[str] = field(default_factory=list)
     missing_paths: list[str] = field(default_factory=list)
+    missing_paths_feature_relative: list[str] = field(default_factory=list)
     warnings: list[str] = field(default_factory=list)
     suggestions: list[str] = field(default_factory=list)
 
@@ -130,6 +132,19 @@ def _normalize_path_token(token: str) -> str:
     return str(token).strip().strip("/")
 
 
+def artifact_tokens_for_mission(mission: Mission) -> set[str]:
+    """Return the normalized set of a mission's declared artifact tokens.
+
+    Defensive: a real ``MissionConfig`` always carries ``artifacts``, but a
+    partial mock/config may not — treat its absence as "no artifact paths"
+    (the same fallback ``validate_mission_paths`` already applies).
+    """
+    artifacts = getattr(mission.config, "artifacts", None)
+    required = getattr(artifacts, "required", ()) or ()
+    optional = getattr(artifacts, "optional", ()) or ()
+    return {_normalize_path_token(name) for name in (*required, *optional)}
+
+
 def validate_mission_paths(
     mission: Mission,
     project_root: Path,
@@ -181,31 +196,44 @@ def validate_mission_paths(
     # feature_dir is supplied and we are not in research's path_prefix mode.
     artifact_tokens: set[str] = set()
     if feature_dir is not None and not path_prefix:
-        # Defensive: a real ``MissionConfig`` always carries ``artifacts``, but a
-        # partial mock/config may not — treat its absence as "no artifact paths"
-        # (all paths resolve at the repo root, the pre-feature_dir behaviour).
-        artifacts = getattr(mission.config, "artifacts", None)
-        required = getattr(artifacts, "required", ()) or ()
-        optional = getattr(artifacts, "optional", ()) or ()
-        artifact_tokens = {
-            _normalize_path_token(name) for name in (*required, *optional)
-        }
+        artifact_tokens = artifact_tokens_for_mission(mission)
 
     for key, relative_path in required_paths.items():
         candidate = Path(relative_path)
+        is_artifact_tagged = False
         if candidate.is_absolute():
             full_path = candidate
         elif _normalize_path_token(declared[key]) in artifact_tokens:
             # Mission artifact → resolve on the mission's primary surface.
             full_path = feature_dir / candidate  # type: ignore[operator]
+            is_artifact_tagged = True
         else:
             full_path = project_root / candidate
         if full_path.exists():
             result.existing_paths.append(relative_path)
             continue
 
-        result.missing_paths.append(relative_path)
-        result.warnings.append(f"{mission.name} expects {key} path: {relative_path} (not found)")
+        # Report the resolved location actually tested above, not the bare
+        # declared token (#3085a) — otherwise remediation names a different,
+        # untested directory (e.g. the repo root instead of feature_dir).
+        try:
+            resolved = full_path.relative_to(project_root).as_posix()
+        except ValueError:
+            resolved = str(full_path)
+        if relative_path.endswith("/") and not resolved.endswith("/"):
+            resolved += "/"
+
+        result.missing_paths.append(resolved)
+        result.warnings.append(f"{mission.name} expects {key} path: {resolved} (not found)")
+        if is_artifact_tagged:
+            # Real feature_dir-relative token, straight from the declared path —
+            # `resolved` above is project_root-relative and can't recover this.
+            result.missing_paths_feature_relative.append(_normalize_path_token(relative_path))
+        else:
+            # Placeholder: not feature_dir-relative (build/repo-root or
+            # absolute branch). WP2 excludes these via an artifact_tokens
+            # membership check rather than relying on non-collision.
+            result.missing_paths_feature_relative.append(_normalize_path_token(resolved))
 
     if result.missing_paths:
         result.suggestions = suggest_directory_creation(result.missing_paths)

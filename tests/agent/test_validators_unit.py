@@ -282,6 +282,81 @@ def test_non_artifact_path_stays_repo_root_even_with_feature_dir(tmp_path: Path)
     assert result.existing_paths == ["tests/"]
 
 
+def test_missing_artifact_tagged_path_reports_resolved_feature_relative_location(
+    tmp_path: Path,
+) -> None:
+    """Case A (WP01 T003): a missing, mission-artifact-tagged path (``contracts/``)
+    must be reported — in ``missing_paths``, ``suggestions``, AND ``warnings`` — as
+    the resolved ``feature_dir``-relative location that was actually tested, not the
+    bare declared token (#3085a). ``missing_paths_feature_relative`` must carry the
+    real feature_dir-relative token for this branch.
+    """
+    project_root = tmp_path / "repo"
+    project_root.mkdir(parents=True)
+    (project_root / "src").mkdir()
+    feature_dir = project_root / "kitty-specs" / "some-slug"
+    feature_dir.mkdir(parents=True)
+    # NOTE: contracts/ deliberately absent under feature_dir.
+
+    mission = _MissionStub(
+        "Software Dev Kitty",
+        {"workspace": "src/", "deliverables": "contracts/"},
+        optional_artifacts=("contracts/",),
+    )
+
+    result = validate_mission_paths(
+        mission, project_root, strict=False, feature_dir=feature_dir
+    )
+
+    resolved = "kitty-specs/some-slug/contracts/"
+    bare_token = "contracts/"
+
+    assert result.missing_paths == [resolved]
+    assert bare_token not in result.missing_paths
+
+    assert any(resolved in suggestion for suggestion in result.suggestions)
+    # The old (buggy) suggestion named the bare token alone — assert that
+    # exact wrong-directory remedy is gone, not merely that a substring match
+    # happens to appear (the fixed resolved string legitimately ends with the
+    # bare token as a path segment: ".../contracts/").
+    assert f"mkdir -p {bare_token}" not in result.suggestions
+
+    assert any(resolved in warning for warning in result.warnings)
+    assert not any(bare_token in warning and resolved not in warning for warning in result.warnings)
+
+    # T002: the new field carries the real feature_dir-relative token (stripped).
+    assert result.missing_paths_feature_relative == ["contracts"]
+
+
+def test_missing_build_path_stays_project_root_relative_unchanged(
+    tmp_path: Path,
+) -> None:
+    """Case B (WP01 T004): a missing, NON-artifact-tagged build/repo-root path
+    (``tests/``) must keep reporting the exact same project_root-relative string as
+    before this fix — a regression guard that the artifact-tagged branch's namespace
+    change (Case A) does not leak into the build/repo-root branch.
+    """
+    project_root = tmp_path / "repo"
+    project_root.mkdir(parents=True)
+    feature_dir = project_root / "kitty-specs" / "some-slug"
+    feature_dir.mkdir(parents=True)
+    # NOTE: tests/ deliberately absent at project_root.
+
+    mission = _MissionStub("Software Dev Kitty", {"tests": "tests/"})
+
+    result = validate_mission_paths(
+        mission, project_root, strict=False, feature_dir=feature_dir
+    )
+
+    expected = "tests/"  # unchanged pre-WP1 value for this branch/fixture
+
+    assert result.missing_paths == [expected]
+    assert any(expected in warning for warning in result.warnings)
+
+    # T002: build/repo-root branch gets the placeholder value (== resolved).
+    assert result.missing_paths_feature_relative == ["tests"]
+
+
 def test_suggest_directory_creation_handles_files_and_dirs() -> None:
     suggestions = suggest_directory_creation(["src/", "tests/", "README.md", "scripts"])
     joined = "Create directories in one go" in suggestions[0]
