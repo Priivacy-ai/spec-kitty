@@ -10,6 +10,7 @@ The glossary uses a Markdown table format:
 """
 from __future__ import annotations
 
+import functools
 import re
 import subprocess
 from pathlib import Path
@@ -76,10 +77,36 @@ def test_all_slice_f_terms_are_canonical_in_doctrine_context() -> None:
 # ---------------------------------------------------------------------------
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
-#: The commit WP02 branched its work from (before this WP's edits landed).
-#: Used only to diff-check the SHAPE of this WP's own referrer edits below --
-#: not a live runtime dependency.
-_WP02_BASE_COMMIT = "7b0c2d3ed53cd47ad50e4f75da84c7b9ca4c3044"
+
+
+@functools.lru_cache(maxsize=1)
+def _resolve_wp02_base_commit() -> str | None:
+    """The commit WP02 branched its work from, resolved dynamically.
+
+    Used only to diff-check the SHAPE of this WP's own referrer edits below --
+    not a live runtime dependency. Originally pinned to a literal SHA
+    (``7b0c2d3ed53cd47ad50e4f75da84c7b9ca4c3044``), but a squash-merge onto a
+    landing PR rewrites history and orphans any commit pinned before the
+    squash -- that SHA is unreachable post-squash (``git show <sha>:...``
+    exits 128). Resolved instead as ``git merge-base upstream/main HEAD``,
+    the mission's true base on its lane, the same convention
+    ``tests/architectural/_home_pin_gate.py``'s ``HISTORY_REF`` uses.
+
+    Returns ``None`` (rather than raising) if ``upstream/main`` cannot be
+    resolved locally (e.g. a shallow clone with no ``upstream`` remote
+    configured) -- callers skip rather than false-red, mirroring
+    ``tests/architectural/test_charter_owner_map_executed.py``'s
+    ``_git_diff_is_empty`` shallow-clone guard.
+    """
+    result = subprocess.run(
+        ["git", "merge-base", "upstream/main", "HEAD"],
+        cwd=REPO_ROOT,
+        capture_output=True,
+        text=True,
+    )
+    if result.returncode != 0:
+        return None
+    return result.stdout.strip()
 
 _AGENT_PROFILE_NAMES = [
     "architect-alphonso",
@@ -145,10 +172,10 @@ _ADR_WITH_INTENTIONAL_BOTH_NAMES = (
 )
 
 
-def _git_show(rel_path: str) -> str:
-    """Return *rel_path*'s content at WP02's base commit (pre-rename)."""
+def _git_show(rel_path: str, base_commit: str) -> str:
+    """Return *rel_path*'s content at *base_commit* (WP02's pre-rename base)."""
     result = subprocess.run(
-        ["git", "show", f"{_WP02_BASE_COMMIT}:{rel_path}"],
+        ["git", "show", f"{base_commit}:{rel_path}"],
         cwd=REPO_ROOT,
         capture_output=True,
         text=True,
@@ -210,9 +237,15 @@ def test_wp02_referrer_diffs_are_exactly_the_path_token() -> None:
     -- no other doctrine-bearing content is touched (no double-funding the
     later-wave content classes M2/M4/M5 own; occurrence_map.yaml's referrer
     exceptions block)."""
+    base_commit = _resolve_wp02_base_commit()
+    if base_commit is None:
+        pytest.skip(
+            "upstream/main not resolvable in this checkout (likely a shallow "
+            "clone with no upstream remote) -- cannot resolve WP02's base commit"
+        )
     violations: list[str] = []
     for rel_path in WP02_PATH_TOKEN_ONLY_REFERRERS:
-        old_lines = _git_show(rel_path).splitlines()
+        old_lines = _git_show(rel_path, base_commit).splitlines()
         new_lines = (REPO_ROOT / rel_path).read_text(encoding="utf-8").splitlines()
         if len(old_lines) != len(new_lines):
             violations.append(f"{rel_path}: line count changed ({len(old_lines)} -> {len(new_lines)})")
@@ -233,10 +266,16 @@ def test_wp02_owned_referrers_flip_at_least_one_line() -> None:
     the hand-edit set, except the one ADR that legitimately narrates both the
     pre- and post-rename name in its own before/after sentence (see
     ``_ADR_WITH_INTENTIONAL_BOTH_NAMES``), must have actually changed."""
+    base_commit = _resolve_wp02_base_commit()
+    if base_commit is None:
+        pytest.skip(
+            "upstream/main not resolvable in this checkout (likely a shallow "
+            "clone with no upstream remote) -- cannot resolve WP02's base commit"
+        )
     unchanged: list[str] = []
     for rel_path in WP02_PATH_TOKEN_ONLY_REFERRERS:
         if rel_path == _ADR_WITH_INTENTIONAL_BOTH_NAMES:
             continue
-        if _git_show(rel_path) == (REPO_ROOT / rel_path).read_text(encoding="utf-8"):
+        if _git_show(rel_path, base_commit) == (REPO_ROOT / rel_path).read_text(encoding="utf-8"):
             unchanged.append(rel_path)
     assert not unchanged, f"Expected a path-token flip that never landed: {unchanged}"
