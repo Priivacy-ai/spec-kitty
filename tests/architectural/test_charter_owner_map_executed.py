@@ -8,14 +8,21 @@ Asserts the M1 owner actions M1 itself performs:
     ``docs/context/charter.md`` (T004);
   - ``docs/context/doctrine.md`` -> ``docs/context/charter.md`` (OC-40).
 
-H4 (squad finding): ``.kittify/charter/graph.yml``,
-``.kittify/charter/context-state.json`` and
+H4 (squad finding): ``.kittify/charter/graph.yml`` and
 ``.kittify/charter/synthesis-manifest.yaml`` are **verify-no-op**, not
 resynthesised -- M1 raises no owner action against them at all. This test
 pins that they are byte-identical to the WP01 base commit
 (``7b0c2d3ed53cd47ad50e4f75da84c7b9ca4c3044``, recorded in
 ``kitty-specs/charter-authority-flip-01M14RB3/tasks/WP01-glossary-quartet-parity.md``),
 so a future edit that "helpfully" resynthesises them is caught immediately.
+
+``.kittify/charter/context-state.json`` is deliberately NOT part of this
+check: it is gitignored runtime state (``.gitignore`` line 91), never
+tracked at any commit -- ``git ls-tree upstream/main --
+.kittify/charter/context-state.json`` returns nothing, and it may not even
+exist on disk in a given checkout. H4's "M1 raised no owner action" claim
+is a statement about a TRACKED artifact's git history; it cannot apply to
+untracked runtime state, which has no history to diff against.
 """
 
 from __future__ import annotations
@@ -46,9 +53,11 @@ _CHARTER_MD_PATH = _REPO_ROOT / "docs" / "context" / "charter.md"
 #: commit, proving M1 raised no owner action against them.
 _WP01_BASE_COMMIT = "7b0c2d3ed53cd47ad50e4f75da84c7b9ca4c3044"
 
+#: ``context-state.json`` is deliberately excluded here (see module
+#: docstring): it is gitignored runtime state, never tracked at any commit,
+#: so H4's "byte-identical to the WP01 base commit" check cannot apply to it.
 _H4_VERIFY_NO_OP_FILES: tuple[Path, ...] = (
     _REPO_ROOT / ".kittify" / "charter" / "graph.yml",
-    _REPO_ROOT / ".kittify" / "charter" / "context-state.json",
     _REPO_ROOT / ".kittify" / "charter" / "synthesis-manifest.yaml",
 )
 
