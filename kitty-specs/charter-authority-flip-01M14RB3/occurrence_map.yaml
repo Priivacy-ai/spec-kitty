@@ -89,9 +89,9 @@ exceptions:
     action: rename
     field_path: "regenerate"
     reason: "2 generated lockfiles (3-2-page-inventory.yaml + 3-2-docs-retrieval-index.yaml) — REGENERATED (not hand-edited) to pick up the path move; OC-26 content class is M5-owned."
-  - path: "docs/reports/test-sanitation/**/raw/*.json"
+  - path: "docs/reports/test-sanitation/**"
     action: do_not_change
-    reason: "M2 squad finding: base-census.json / head-census.json / dispositions.yaml are FROZEN immutable proof snapshots — accept the archived path token; do NOT mutate census evidence."
+    reason: "Pre-merge squad P-MED3: a COMPLETED mission's proof dossier (raw census json AND dispositions*.yaml) is frozen historical evidence. WP02's re-point of the dispositions file-references was REVERTED for archive-immutability consistency (cf. the methodology.md revert). Accept the archived docs/context/doctrine.md token; do NOT mutate."
 
 # Structural file relocation (OC-40): the one M1-owned path rename.
 moves:

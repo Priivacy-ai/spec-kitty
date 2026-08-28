@@ -123,8 +123,6 @@ WP02_PATH_TOKEN_ONLY_REFERRERS: tuple[str, ...] = (
     "docs/plans/engineering-notes/drg-completeness-2843-research.md",
     "docs/plans/initiatives/2026-04-mission-nomenclature-reconciliation/README.md",
     "docs/plans/refactor/slice-f-mission-debrief.md",
-    "docs/reports/test-sanitation/assertive-test-suite-sanitation-01KZME3P/dispositions.yaml",
-    "docs/reports/test-sanitation/assertive-test-suite-sanitation-01KZME3P/dispositions/WP13.yaml",
     "src/doctrine/README.md",
     "src/doctrine/directives/README.md",
     "src/doctrine/paradigms/README.md",
