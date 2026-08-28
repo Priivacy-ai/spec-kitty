@@ -1789,11 +1789,14 @@ _CATEGORY_C_CHARTER_FACADE_FORWARD_API_01KZPDSR: frozenset[SymbolKey] = frozense
 # bare_name, no live collision):
 #
 # * ``charter.interview::InterviewAnswersRegressionError`` -- raised by
-#   ``write_interview_answers(..., fail_closed_on_regression=True)``; the only
-#   caller that opts into the stricter flag is the answers-migration tooling
-#   (``scripts/migrate_charter_interview_answers.py``, outside `src/`), and
-#   ``tests/charter/test_answers_migration.py`` asserts on it directly. Public
-#   by design so that external/future migration callers can catch it.
+#   ``write_interview_answers(..., fail_closed_on_regression=True)``. That
+#   opt-in flag has no production caller today: the only caller is
+#   ``tests/charter/test_answers_migration.py`` (which asserts on the error
+#   directly), and the answers-migration script
+#   ``scripts/migrate_charter_interview_answers.py`` deliberately does NOT use
+#   this writer at all -- it does byte-preserving anchored substitution to
+#   survive the archive-freeze gate. So this is test-only forward public API,
+#   exposed by design so that future/external migration callers can catch it.
 # * ``charter.sync::LegacyGovernanceKeyWarning`` -- the ``UserWarning`` subclass
 #   ``_warn_legacy_governance_key_once()`` raises internally (same module, so
 #   invisible to the cross-file caller graph); ``tests/charter/
