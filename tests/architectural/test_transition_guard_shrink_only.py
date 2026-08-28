@@ -35,6 +35,21 @@ lives under ``kitty-specs/`` (or anywhere tracked) — M6's later deletion of th
 guard therefore never surfaces as a ``D`` entry under an archive root, keeping
 ``test_archive_root_byte_identical`` green at M6.
 
+**Fail-closed under CI, skip-only locally.** The 4 baseline-dependent gate
+tests need :data:`_MISSION_BASE_REV` present in the checkout's object DB. A
+shallow (depth-1) checkout — the GitHub Actions default — never has it, which
+previously made every one of the 4 gates silently SKIP in the only CI job that
+collects this module (the ``corpus`` marker pole in ``module-packs.yml``),
+leaving only the baseline-independent teeth test running: the ratchet never
+actually fired in CI. ``module-packs.yml`` now fetches full history
+(``fetch-depth: 0``, mirroring ``ci-quality.yml`` / ``docs-build-pr.yml``), so
+the baseline should always be reachable there. As a second line of defense,
+:func:`_require_baseline` still distinguishes the two environments: under a
+genuine local shallow clone (no ``CI`` env var) it skips, but under CI
+(``CI=true``) an unreachable baseline now FAILS the gate outright instead of
+skipping, so a future checkout regression cannot silently reintroduce the
+false-green.
+
 **Four fixed exclusion roots** (``DM-01M0P6C8C7Q6SPBT412V39RPN0``): the immutable
 historical-record roots ``kitty-specs/``,
 ``.kittify/migrations/mission-state/quarantine/``, ``kitty-ops/`` and
@@ -75,6 +90,7 @@ Four assertions close the non-vacuity gap (mirroring
 
 from __future__ import annotations
 
+import os
 import re
 import subprocess
 from collections import Counter
@@ -152,11 +168,17 @@ _CR01_CONTROL_PATHS: frozenset[str] = frozenset(
     }
 )
 
-# The authority glossaries whose ``surface: <token>`` governing line M1 retires.
-# Anchors assertion 2 (baseline is real) and assertion 3 (shrank to zero).
-_AUTHORITY_GLOSSARIES: tuple[str, ...] = (
+# The authority surfaces whose governing marker M1 retires: the two glossaries'
+# ``surface: <token>`` line, and the Charter-Bundle selection key's bare
+# ``<token>:`` mapping line in ``.kittify/charter/charter.yaml``. Anchors
+# assertion 2 (baseline is real) and assertion 3 (shrank to zero on all three —
+# a hard zero-surviving pin, stronger than the module-wide ``count > baseline``
+# shrink-only rule, which a bare re-add of the identical baseline coordinate
+# would pass vacuously: 1 > 1 is False).
+_AUTHORITY_ZERO_PIN_SURFACES: tuple[str, ...] = (
     ".kittify/glossaries/spec_kitty_core.yaml",
     "packs/built-in/glossary_packs/spec-kitty-core.glossary-pack.yaml",
+    ".kittify/charter/charter.yaml",
 )
 
 # This guard and its sibling WP04 test must never be scanned (belt-and-suspenders
@@ -185,6 +207,28 @@ def _run_git(args: list[str]) -> subprocess.CompletedProcess[str]:
 def _baseline_is_reachable() -> bool:
     """True when the mission base commit is present in this checkout's object DB."""
     return _run_git(["cat-file", "-e", f"{_MISSION_BASE_REV}^{{commit}}"]).returncode == 0
+
+
+def _require_baseline() -> None:
+    """Entry gate for the 4 baseline-dependent gate tests.
+
+    Local dev with a genuinely shallow clone: skip — the mission base commit
+    was never fetched and that is an environment limitation, not a finding.
+    Under CI (``CI=true``): FAIL CLOSED — a CI checkout that cannot see the
+    baseline must not silently skip the shrink-only ratchet. This is the fix
+    for the false-green where ``module-packs.yml``'s depth-1 checkout made
+    every one of these tests skip instead of run.
+    """
+    if _baseline_is_reachable():
+        return
+    if os.environ.get("CI") == "true":
+        pytest.fail(
+            f"mission base commit {_MISSION_BASE_REV} not reachable in this CI "
+            "checkout — the checkout step must fetch full history "
+            "(fetch-depth: 0) so the shrink-only ratchet can run instead of "
+            "silently skipping"
+        )
+    pytest.skip(f"mission base commit {_MISSION_BASE_REV} not reachable in this checkout")
 
 
 def _census(rev: str | None) -> Census:
@@ -254,21 +298,18 @@ def _assert_baseline_detects_governing_occurrences(baseline: Census) -> None:
         "pass the no-widening gate vacuously; the mission base MUST carry the "
         "retired governing term on its authority surfaces"
     )
-    on_authority = sum(len(baseline.get(path, Counter())) for path in _AUTHORITY_GLOSSARIES)
+    on_authority = sum(len(baseline.get(path, Counter())) for path in _AUTHORITY_ZERO_PIN_SURFACES)
     assert on_authority > 0, (
         "the baseline census detected no governing marker on the authority "
-        f"glossaries {_AUTHORITY_GLOSSARIES} — the census is not actually "
+        f"surfaces {_AUTHORITY_ZERO_PIN_SURFACES} — the census is not actually "
         "detecting the retired governing surface, so shrink is meaningless"
     )
 
 
-@pytest.mark.skipif(
-    not _baseline_is_reachable(),
-    reason=f"mission base commit {_MISSION_BASE_REV} not reachable in this checkout",
-)
 def test_governing_term_footprint_does_not_widen() -> None:
     """Assertion 1 (the real gate): no governing coordinate outside the baseline
     or a registered CR-01/control path."""
+    _require_baseline()
     baseline = _census(_MISSION_BASE_REV)
     current = _census(None)
     violations = _widening_violations(baseline, current, _CR01_CONTROL_PATHS)
@@ -282,25 +323,19 @@ def test_governing_term_footprint_does_not_widen() -> None:
     )
 
 
-@pytest.mark.skipif(
-    not _baseline_is_reachable(),
-    reason=f"mission base commit {_MISSION_BASE_REV} not reachable in this checkout",
-)
 def test_baseline_detects_real_governing_occurrences() -> None:
     """Assertion 2 (concrete floor): the baseline is non-empty and detects the
     authority-surface governing markers — see
     :func:`_assert_baseline_detects_governing_occurrences`."""
+    _require_baseline()
     _assert_baseline_detects_governing_occurrences(_census(_MISSION_BASE_REV))
 
 
-@pytest.mark.skipif(
-    not _baseline_is_reachable(),
-    reason=f"mission base commit {_MISSION_BASE_REV} not reachable in this checkout",
-)
 def test_authority_footprint_shrank() -> None:
     """Assertion 3 (shrink actually happened): the governing footprint is strictly
-    smaller than the baseline and zero on the authority glossaries — proving
+    smaller than the baseline and zero on the authority surfaces — proving
     WP01–WP03 truly removed the governing term rather than no-op'd."""
+    _require_baseline()
     baseline = _census(_MISSION_BASE_REV)
     current = _census(None)
     assert _total(current) < _total(baseline), (
@@ -310,12 +345,14 @@ def test_authority_footprint_shrank() -> None:
     )
     surviving = {
         path: dict(current.get(path, Counter()))
-        for path in _AUTHORITY_GLOSSARIES
+        for path in _AUTHORITY_ZERO_PIN_SURFACES
         if current.get(path)
     }
     assert not surviving, (
-        "the retired governing surface still survives on an authority glossary: "
-        f"{surviving} — the M1 flip (T005/T005a) did not fully retire it"
+        "the retired governing surface still survives on an authority surface: "
+        f"{surviving} — the M1 flip (T005/T005a) did not fully retire it, or the "
+        "Charter-Bundle selection key was re-widened (weaker count>baseline rule "
+        "would miss a bare re-add of the identical coordinate)"
     )
 
 
@@ -332,14 +369,63 @@ def test_guard_has_teeth() -> None:
         _assert_baseline_detects_governing_occurrences({})
 
     # (b) a synthetic widening on an authority surface must be flagged.
-    baseline: Census = {_AUTHORITY_GLOSSARIES[0]: Counter({"basehash": 1})}
+    baseline: Census = {_AUTHORITY_ZERO_PIN_SURFACES[0]: Counter({"basehash": 1})}
     doctored: Census = {
-        _AUTHORITY_GLOSSARIES[0]: Counter({"basehash": 1, "reintroduced": 1}),
+        _AUTHORITY_ZERO_PIN_SURFACES[0]: Counter({"basehash": 1, "reintroduced": 1}),
     }
     violations = _widening_violations(baseline, doctored, _CR01_CONTROL_PATHS)
     assert violations, (
         "the no-widening gate did not flag a synthetic governing coordinate "
         "re-introduced into an authority surface — the gate is vacuous"
+    )
+
+
+def test_charter_bundle_zero_pin_catches_synthetic_reintroduction() -> None:
+    """FR: the Charter-Bundle selection-key path
+    (``.kittify/charter/charter.yaml``) must be a hard zero-surviving pin, not
+    left to the weaker module-wide ``count > baseline`` shrink-only rule.
+
+    The module-wide rule alone is insufficient here: the baseline still
+    carries the bare ``doctrine:`` selection-key marker at that path (count 1),
+    so a synthetic re-add restoring the identical coordinate is 1 > 1 == False
+    — ``_widening_violations`` would pass it silently. The zero-pin in
+    :func:`test_authority_footprint_shrank` closes that gap by asserting
+    :data:`_AUTHORITY_ZERO_PIN_SURFACES` are empty on the CURRENT census,
+    regardless of what the baseline held.
+    """
+    charter_bundle_path = ".kittify/charter/charter.yaml"
+    assert charter_bundle_path in _AUTHORITY_ZERO_PIN_SURFACES, (
+        f"{charter_bundle_path!r} must be registered in "
+        "_AUTHORITY_ZERO_PIN_SURFACES so a re-added `doctrine:` selection-key "
+        "line is caught even when it merely restores the baseline coordinate"
+    )
+
+    # Synthetic re-introduction: the baseline held exactly one `doctrine:`
+    # selection-key occurrence at this path, and the (hypothetical) current
+    # tree re-adds the byte-identical line — same line-hash, same count.
+    baseline: Census = {charter_bundle_path: Counter({"selection-key-hash": 1})}
+    reintroduced: Census = {charter_bundle_path: Counter({"selection-key-hash": 1})}
+
+    # The bare module-wide shrink-only rule alone would miss this (1 > 1 is
+    # False) — proving why a dedicated zero-pin is required.
+    assert not _widening_violations(baseline, reintroduced, _CR01_CONTROL_PATHS), (
+        "expected the bare count>baseline rule to miss an identical-coordinate "
+        "reintroduction — if this now fails, the shared widening rule changed "
+        "shape and this regression test needs re-deriving"
+    )
+
+    # The dedicated zero-pin used by test_authority_footprint_shrank DOES catch
+    # it: any surviving coordinate on a registered authority surface is fatal,
+    # independent of what the baseline held.
+    surviving = {
+        path: dict(reintroduced.get(path, Counter()))
+        for path in _AUTHORITY_ZERO_PIN_SURFACES
+        if reintroduced.get(path)
+    }
+    assert surviving == {charter_bundle_path: {"selection-key-hash": 1}}, (
+        "the zero-pin failed to catch the synthetic re-added `doctrine:` "
+        f"selection-key coordinate at {charter_bundle_path!r} — the gate is "
+        "vacuous for this surface"
     )
 
 
@@ -355,14 +441,11 @@ def test_cr01_control_allowlist_is_a_ceiling_not_a_floor() -> None:
     )
 
 
-@pytest.mark.skipif(
-    not _baseline_is_reachable(),
-    reason=f"mission base commit {_MISSION_BASE_REV} not reachable in this checkout",
-)
 def test_cr01_control_paths_are_currently_real() -> None:
     """Every registered control path exists AND still carries a governing
     coordinate — a stale entry (fixed/deleted) must be REMOVED, not left masking
     the ratchet (the staleness half of the ceiling guard above)."""
+    _require_baseline()
     current = _census(None)
     for control in sorted(_CR01_CONTROL_PATHS):
         assert (REPO_ROOT / control).is_file(), (
