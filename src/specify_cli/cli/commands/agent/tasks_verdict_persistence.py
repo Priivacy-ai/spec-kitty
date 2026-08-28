@@ -217,6 +217,40 @@ class VerdictRevertError(RuntimeError):
     """
 
 
+class VerdictRevertCompoundFailure(RuntimeError):
+    """#3773 item 2: the ``_do_move_task`` call-site wrapper around a failed
+    :func:`revert_committed_verdict_write` -- a transition-emit failure
+    (``execute_error``) followed by a compensator failure (``VerdictRevertError``,
+    including the ``VerdictSaveBusy``-driven queue-busy case) trying to undo it.
+
+    Distinct from :class:`VerdictRevertError`: that class reports ONLY the
+    compensator's own failure, from inside ``tasks_verdict_persistence.py``,
+    which has no visibility into the ORIGINAL ``execute_error`` that triggered
+    the revert attempt in the first place -- only ``_do_move_task`` (in
+    ``tasks_move_task.py``) sees both, so only it can compose the combined
+    message. This class exists so that combined message still carries a
+    STRUCTURED durability signal, not just prose: ``revert_committed_verdict_
+    write`` is only ever invoked -- and only ever raises -- when its ``signal``
+    argument was already durably persisted (both of ``revert_committed_
+    verdict_write`` and ``_revert_committed_verdict_write_held`` no-op-return
+    before attempting anything otherwise), so ``signal.outcome.verdict_durably_
+    persisted`` is always ``True`` here by construction -- this is a COMPOUND
+    failure (the write itself succeeded and stayed committed; only the
+    compensating undo failed), never a "was it durable" ambiguity. Carrying
+    ``signal`` (rather than hand-writing ``True``) keeps this envelope shape
+    identical to :class:`VerdictPersistenceFailure`'s -- both read every field
+    off a :class:`VerdictDurabilitySignal`'s ``.outcome`` -- so a machine
+    consumer parses one shape for every verdict-outcome-carrying error instead
+    of a bespoke one for this specific compound path. This class does NOT
+    soften the failure: ``_do_move_task`` still re-raises to a non-zero exit
+    (``typer.Exit(1)``) exactly as the plain ``RuntimeError`` it replaces did.
+    """
+
+    def __init__(self, message: str, *, signal: VerdictDurabilitySignal) -> None:
+        self.signal = signal
+        super().__init__(message)
+
+
 def _resolve_verdict_commit_router(
     st: _MoveTaskState, ports: TasksPorts
 ) -> tuple[CoordCommitRouter | None, str | None]:

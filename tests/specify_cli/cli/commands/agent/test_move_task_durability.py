@@ -36,7 +36,7 @@ import subprocess
 import threading
 import time
 from collections.abc import Callable, Iterator, Sequence
-from contextlib import contextmanager
+from contextlib import AbstractContextManager, contextmanager
 from dataclasses import dataclass, field
 from pathlib import Path
 
@@ -2029,6 +2029,80 @@ def test_execute_failure_with_failed_revert_surfaces_a_compound_error(
     payload = json.loads(capsys.readouterr().out.strip().splitlines()[-1])
     assert "simulated unrelated execute failure" in payload["error"]
     assert "simulated revert-commit failure" in payload["error"]
+    # #3773 item 2: this compound path must carry a STRUCTURED durability
+    # field, not just prose -- the write itself genuinely landed (real
+    # ``_mt_finalize_plan`` ran before the stubbed revert failure), only the
+    # compensating undo failed.
+    assert payload["result"] == "error"
+    assert payload["verdict_durably_persisted"] is True
+    assert payload["durability_classification"] == "durable"
+    assert payload["evidence_ref"] is not None
+
+
+def test_execute_failure_with_revert_queue_busy_surfaces_durably_persisted_true(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """#3773 item 2: the SPECIFIC compound shape the hardening item names --
+    ``revert_committed_verdict_write`` catches ``VerdictSaveBusy`` while
+    trying to acquire the checkout-wide queue for the REVERT itself (a
+    genuine, real transition-emit failure via ``_FaultInjectableCoordRouter``,
+    not a stubbed ``_mt_execute``/``revert_committed_verdict_write``).
+
+    The original verdict write already landed durably (the real writer runs
+    to completion before the emit fails); only the compensator's OWN queue
+    acquisition is faulted, so ``revert_committed_verdict_write`` never even
+    reaches its unlink/commit step. The resulting compound-failure envelope
+    must still be fail-loud (non-zero exit, ``result: error``) AND carry a
+    structured ``verdict_durably_persisted: true`` -- a machine consumer must
+    not have to infer "the verdict is actually safe" from prose alone.
+    """
+    repo = tmp_path
+    feature_dir = _setup_fixture(repo)
+    coord = _FaultInjectableCoordRouter(write_dir=feature_dir, emit_should_fail=True)
+    ports = _fake_ports(feature_dir, coord)
+
+    real_acquire = _tvp.acquire_verdict_save_queue
+    calls: list[Path] = []
+
+    def _acquire_then_busy(
+        repository: Path, *, timeout_seconds: float = 10.0
+    ) -> AbstractContextManager[Path]:
+        calls.append(repository)
+        if len(calls) == 1:
+            # The ORIGINAL write's own queue acquisition -- must succeed for
+            # real, so the write is genuinely durable by the time the
+            # transition-emit failure (and the revert attempt) happens.
+            # ``no-any-return``: same pre-existing artifact as this file's
+            # other ``real_*(...)`` forwarders (e.g. ``_observing_create``
+            # above) -- ``[[tool.mypy.overrides]] follow_imports = "skip"``
+            # for ``specify_cli.*`` makes this cross-module call resolve to
+            # ``Any`` only when this test file is type-checked in isolation.
+            return real_acquire(repository, timeout_seconds=timeout_seconds)  # type: ignore[no-any-return]
+        raise VerdictSaveBusy(repo / ".git" / "busy.lock", 10.0)
+
+    monkeypatch.setattr(_tvp, "acquire_verdict_save_queue", _acquire_then_busy)
+
+    with pytest.raises(typer.Exit) as exc_info:
+        _run_move(repo, ports=ports, note="Review passed", approval_ref="approval:WP01")
+    assert exc_info.value.exit_code == 1
+    assert len(calls) == 2, "expected exactly one write-queue and one revert-queue acquisition"
+
+    payload = json.loads(capsys.readouterr().out.strip().splitlines()[-1])
+    assert payload["result"] == "error"
+    assert "T047: simulated transition-emit failure" in payload["error"]
+    assert "could not acquire" in payload["error"]
+    assert payload["verdict_durably_persisted"] is True
+    assert payload["durability_classification"] == "durable"
+    assert payload["evidence_ref"] is not None
+    assert payload["destination_ref"] is not None
+
+    # Not merely a claimed durability: the write is REALLY still on disk and
+    # committed at HEAD -- the compensator never got to attempt the delete,
+    # since queue acquisition failed before that step.
+    wp_dir = _wp_dir(repo)
+    assert (wp_dir / "review-cycle-2.md").exists()
+    relpath = f"kitty-specs/{_MISSION}/tasks/{_WP_ID}-test/review-cycle-2.md"
+    assert _git_head_has_file(repo, relpath)
 
 
 # ---------------------------------------------------------------------------
