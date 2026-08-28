@@ -155,7 +155,8 @@ _TASKS_STATUS_CMD: tuple[str, ...] = (  # WP07 (wave2) — 23 symbols (#2816: +g
 
 # WP05 (wave2): grown to 75 via WP09, +1 (_binding_role_for_lane) = 76,
 # -1 (_mt_pre_review_gate_verdict retired, WP04) = 75, +1 (#2573 human
-# status observer) = 76.
+# status observer) = 76, +1 (#3590 WP01 _mt_hop_reason_source) = 77 on the
+# experimental convergence base (whose seam retains later native symbols).
 _TASKS_MOVE_TASK: tuple[str, ...] = (
     # (#2513/#2160: +uncheck/clear-markers/reset-rollback; #2573: +gate
     # skip-reason pair; WP07 #2649: +param-object + commit/uncheck degod helpers;
@@ -188,6 +189,9 @@ _TASKS_MOVE_TASK: tuple[str, ...] = (
     "_mt_current_event_lane",
     "_mt_hop_review_result",
     "_mt_hop_actor",
+    # #3590 WP01 (operator-authored cancellation provenance): the reason_source
+    # resolver feeding the status-event hop — a native move-task seam def.
+    "_mt_hop_reason_source",
     "_mt_emit_transitions",
     # WP10 (wp-runtime-state-eviction, closeout reconciliation): the god-write
     # cut (WP06/WP07, FR-006/FR-007/FR-008) DELETED the frontmatter-writing
@@ -438,7 +442,7 @@ def test_no_required_symbol_duplicated_in_survey() -> None:
     assert total_declared == len(SYMBOL_TO_MODULE)
 
 
-def test_guard_covers_full_162_symbol_surface() -> None:
+def test_guard_covers_full_163_symbol_surface() -> None:
     """Traceability pin: the guard's total symbol count matches the sum of
     the 6 seams' counts recorded in the seam files' own docstrings at
     authoring time (8 + 15 + 20 + 21 + 65 + 13 = 142). A change here is
@@ -535,7 +539,10 @@ def test_guard_covers_full_162_symbol_surface() -> None:
     163 -> 161.
     #2573 then added ``_mt_human_gate_status_observer`` as the presentation-only
     status callback for the pre-review gate (tasks_move_task 75 -> 76):
-    161 -> 162."""
+    161 -> 162. #3590 WP01 (operator-authored cancellation provenance) added
+    ``_mt_hop_reason_source`` — the reason_source resolver feeding the
+    status-event hop, a native move-task seam def: 162 -> 163 on the
+    experimental convergence base."""
     # TODO(under-investigation, operator-flagged): the operator doubts this
     # consolidated compat guard earns its ROI. Every seam-local symbol addition
     # costs a three-part edit — register in the per-seam tuple, add an identity
@@ -543,4 +550,4 @@ def test_guard_covers_full_162_symbol_surface() -> None:
     # low incremental regression-catch value over the identity-re-export guard
     # alone. Revisit whether the golden-count ratchet should be relaxed or
     # dropped (see M4 #3578 integration, which paid this tax for 4 helpers).
-    assert len(SYMBOL_TO_MODULE) == 162  # golden-count: cardinality-is-contract
+    assert len(SYMBOL_TO_MODULE) == 163  # golden-count: cardinality-is-contract

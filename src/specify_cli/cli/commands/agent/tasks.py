@@ -438,6 +438,7 @@ from specify_cli.cli.commands.agent.tasks_move_task import (
     _mt_gather_late_facts as _mt_gather_late_facts,
     _mt_gather_review_facts as _mt_gather_review_facts,
     _mt_hop_actor as _mt_hop_actor,
+    _mt_hop_reason_source as _mt_hop_reason_source,
     _mt_hop_review_result as _mt_hop_review_result,
     _mt_issue_matrix_facts as _mt_issue_matrix_facts,
     _mt_output as _mt_output,
