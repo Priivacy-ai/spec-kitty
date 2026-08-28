@@ -1,0 +1,18 @@
+{
+  "coordination_branch": "kitty/mission-mission-completion-terminal-state-01M129MV",
+  "created_at": "2026-08-27T19:02:46.820483+00:00",
+  "flattened": false,
+  "friendly_name": "Mission Completion Terminal State",
+  "mission_id": "01M129MVS3R9H4FX92KRDKM8ES",
+  "mission_number": null,
+  "mission_slug": "mission-completion-terminal-state-01M129MV",
+  "mission_type": "software-dev",
+  "pr_bound": true,
+  "purpose_context": "A mission can currently reach a state it cannot honestly complete: the planner can author 'action' work packages whose completion is not a code change, and the accept gate refuses a work package that was deliberately canceled during a replan even though 'canceled' is defined as terminal. This mission makes canceled-with-a-recorded-reason an accepted ending (audit retained, reported separately) and has the planner warn when it authors work whose success can only be proven after integration, so operators are never forced to fake completion or leave a merged mission permanently unfinished.",
+  "purpose_tldr": "Let a deliberately-canceled work package be a valid mission ending, and stop the planner from authoring work that can never honestly finish.",
+  "slug": "mission-completion-terminal-state-01M129MV",
+  "target_branch": "fix/mission-completion-terminal-state",
+  "topology": "coord",
+  "vcs": "git",
+  "source_description": "3.2.6 closeout slice: GitHub #2945 (accept rejects canceled WPs) + #3590 (tasks authors WPs with no honest terminal state)."
+}
