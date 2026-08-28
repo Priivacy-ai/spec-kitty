@@ -27,6 +27,7 @@ untracked runtime state, which has no history to diff against.
 
 from __future__ import annotations
 
+import functools
 import subprocess
 from pathlib import Path
 
@@ -47,11 +48,35 @@ _REPO_ROOT = _repo_root()
 _DOCTRINE_MD_PATH = _REPO_ROOT / "docs" / "context" / "doctrine.md"
 _CHARTER_MD_PATH = _REPO_ROOT / "docs" / "context" / "charter.md"
 
-#: WP01's own recorded base commit (tasks/WP01-glossary-quartet-parity.md
-#: frontmatter `base_commit`) -- the point M1 branched from. H4's three
-#: verify-no-op files must be byte-identical to their content at this
-#: commit, proving M1 raised no owner action against them.
-_WP01_BASE_COMMIT = "7b0c2d3ed53cd47ad50e4f75da84c7b9ca4c3044"
+@functools.lru_cache(maxsize=1)
+def _resolve_wp01_base_commit() -> str | None:
+    """The point M1 branched from, resolved dynamically as the mission's true
+    base on its lane (``git merge-base upstream/main HEAD``).
+
+    Originally pinned to WP01's recorded literal base SHA
+    (``7b0c2d3ed53cd47ad50e4f75da84c7b9ca4c3044``,
+    tasks/WP01-glossary-quartet-parity.md frontmatter `base_commit`). But a
+    squash-merge onto a landing PR rewrites history and orphans any commit
+    pinned before the squash, so that SHA is unreachable post-squash --
+    ``git cat-file -e`` fails and the H4 diff below silently skips in EVERY
+    landed checkout, leaving the verify-no-op guard toothless. Resolving the
+    merge-base restores real teeth (same convention as
+    ``tests/glossary/test_canonical_promotion.py``'s
+    ``_resolve_wp02_base_commit`` and ``_home_pin_gate.py``'s ``HISTORY_REF``).
+
+    Returns ``None`` if ``upstream/main`` cannot be resolved locally (e.g. a
+    shallow clone with no ``upstream`` remote) -- callers skip rather than
+    false-red, consistent with ``_git_diff_is_empty``'s shallow-clone guard.
+    """
+    result = subprocess.run(
+        ["git", "merge-base", "upstream/main", "HEAD"],
+        cwd=_REPO_ROOT,
+        capture_output=True,
+        text=True,
+    )
+    if result.returncode != 0:
+        return None
+    return result.stdout.strip()
 
 #: ``context-state.json`` is deliberately excluded here (see module
 #: docstring): it is gitignored runtime state, never tracked at any commit,
@@ -122,14 +147,21 @@ def test_doctrine_md_moved_to_charter_md() -> None:
 def test_h4_verify_no_op_files_unchanged_by_m1(target: Path) -> None:
     assert target.exists(), f"{target} unexpectedly missing -- H4 expects this file untouched, not deleted"
 
-    is_empty = _git_diff_is_empty(_REPO_ROOT, _WP01_BASE_COMMIT, target)
+    base_commit = _resolve_wp01_base_commit()
+    if base_commit is None:
+        pytest.skip(
+            "WP01 base commit (merge-base upstream/main HEAD) not resolvable in "
+            "this checkout (likely a shallow clone / no upstream remote) -- "
+            "cannot verify H4 no-op via git diff"
+        )
+    is_empty = _git_diff_is_empty(_REPO_ROOT, base_commit, target)
     if is_empty is None:
         pytest.skip(
-            f"WP01 base commit {_WP01_BASE_COMMIT} not resolvable in this checkout "
+            f"WP01 base commit {base_commit} not resolvable in this checkout "
             "(likely a shallow clone) -- cannot verify H4 no-op via git diff"
         )
     assert is_empty, (
         f"{target.relative_to(_REPO_ROOT)} differs from its content at WP01 base commit "
-        f"{_WP01_BASE_COMMIT} -- H4 requires M1 to raise NO owner action on this file "
+        f"{base_commit} -- H4 requires M1 to raise NO owner action on this file "
         "(no resynthesis), only verify-no-op"
     )
