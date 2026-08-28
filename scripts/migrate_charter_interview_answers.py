@@ -93,6 +93,13 @@ def _write_bytes(path: Path, data: bytes) -> None:
     path.write_bytes(data)
 
 
+def _restore_bytes(path: Path, preimage: bytes) -> None:
+    """Seam over the pre-image restore write, separate from :func:`_write_bytes`
+    so a test can inject a *restore*-time failure independently of the forward
+    write."""
+    path.write_bytes(preimage)
+
+
 def migrate_answers_file(path: Path) -> int:
     """Migrate ``path`` in place; return the number of keys renamed.
 
@@ -120,7 +127,14 @@ def migrate_answers_file(path: Path) -> int:
         _write_bytes(path, new_text.encode("utf-8"))
         return count
     except Exception as exc:
-        path.write_bytes(preimage)
+        try:
+            _restore_bytes(path, preimage)
+        except OSError as restore_exc:
+            raise AnswersMigrationError(
+                f"Failed to migrate {path}, and restoring its pre-image also "
+                f"failed ({restore_exc!r}); the file may be left in a "
+                "partially-migrated state."
+            ) from exc
         raise AnswersMigrationError(
             f"Failed to migrate {path}; pre-image restored byte-for-byte."
         ) from exc
