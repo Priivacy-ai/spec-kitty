@@ -1181,7 +1181,14 @@ def collect_feature_summary(
     except MissionError:
         mission = None
 
-    path_violations, path_convention_warning = evaluate_path_conventions(mission, repo_root, feature_dir, planning_read_dir, strict_metadata=strict_metadata)
+    path_violations, path_convention_warning = evaluate_path_conventions(
+        mission,
+        repo_root,
+        feature_dir,
+        planning_read_dir,
+        strict_metadata=strict_metadata,
+        optional_missing_to_dedup=missing_optional,
+    )
 
     warnings = build_warnings(
         missing_optional=missing_optional,
