@@ -299,7 +299,7 @@ spec-kitty charter context --action specify --json
 
 ## Visual Communication (recommended)
 
-Apply the visual doctrine<!-- glossary:glossary:doctrine --> when a non-trivial actor flow, domain lifecycle,
+Apply the visual doctrine when a non-trivial actor flow, domain lifecycle,
 rule, or concept boundary is clearer visually. Load `spk-doctrine-show-me` and
 add the smallest useful diagram. Prefer an inline Mermaid diagram; use PlantUML
 only when its richer layout or DSL materially helps. Keep the visual focused on
