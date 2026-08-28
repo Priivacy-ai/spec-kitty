@@ -113,9 +113,40 @@ def test_create_feature_on_2x_with_main_also_existing(tmp_path, monkeypatch):
     assert meta["target_branch"] == "2.x"
 
 
+def _head_commit_subject(repo: Path) -> str:
+    """Return the subject line of the current HEAD commit."""
+    return run_command(["git", "log", "-1", "--format=%s"], cwd=repo, capture=True)[1].strip()
+
+
+def _assert_protected_branch_refusal(result, repo: Path, protected_branch: str) -> None:
+    """Assert a structured protected-branch refusal that names the --start-branch remedy.
+
+    The coord-primary-partition-lock guard refuses to land planning artifacts on
+    a protected primary branch; the sanctioned flow is ``--start-branch``. This
+    helper keeps the two primary-branch cases (main/master) asserting the same
+    shipped contract without duplicating the literal error substrings. It also
+    confirms the guard blocked the commit (HEAD is unchanged) — the load-bearing
+    invariant, distinct from whether the untracked scaffold is swept from disk.
+    """
+    assert result.exit_code != 0, f"Create on protected '{protected_branch}' must be refused: {result.output}"
+    payload = json.loads(result.output)
+    error = payload["error"]
+    assert "protected branch" in error, error
+    assert protected_branch in error, error
+    assert "--start-branch" in error, error
+    # The guard blocked the meta.json commit: no mission commit lands on the branch.
+    assert _head_commit_subject(repo) == "Initial", _head_commit_subject(repo)
+
+
 @pytest.mark.usefixtures("_git_identity")
-def test_create_feature_on_main_records_target_branch(tmp_path, monkeypatch):
-    """create on main records target_branch='main'."""
+def test_create_feature_on_main_refused_by_protected_branch_guard(tmp_path, monkeypatch):
+    """create on the protected primary branch 'main' is refused (must use --start-branch).
+
+    The coord-primary-partition-lock guard (see mission_creation.py WP02) forbids
+    landing planning artifacts on a protected branch. Recording ``main`` as the
+    target by committing meta.json onto ``main`` was the pre-guard behavior; the
+    shipped contract now refuses it and points at the ``--start-branch`` flow.
+    """
     # Arrange
     from typer.testing import CliRunner
     from specify_cli.cli.commands.agent.mission import app
@@ -129,16 +160,12 @@ def test_create_feature_on_main_records_target_branch(tmp_path, monkeypatch):
     runner = CliRunner()
     result = runner.invoke(app, ["create", "test-feature", "--json"])
     # Assert
-    assert result.exit_code == 0, f"Command failed: {result.output}"
-    slugs = _get_mission_slugs(repo)
-    assert len(slugs) == 1
-    meta = _read_meta(repo, slugs[0])
-    assert meta["target_branch"] == "main"
+    _assert_protected_branch_refusal(result, repo, "main")
 
 
 @pytest.mark.usefixtures("_git_identity")
-def test_create_feature_on_master_records_target_branch(tmp_path, monkeypatch):
-    """create on master records target_branch='master'."""
+def test_create_feature_on_master_refused_by_protected_branch_guard(tmp_path, monkeypatch):
+    """create on the protected primary branch 'master' is refused (must use --start-branch)."""
     # Arrange
     from typer.testing import CliRunner
     from specify_cli.cli.commands.agent.mission import app
@@ -152,11 +179,7 @@ def test_create_feature_on_master_records_target_branch(tmp_path, monkeypatch):
     runner = CliRunner()
     result = runner.invoke(app, ["create", "test-feature", "--json"])
     # Assert
-    assert result.exit_code == 0, f"Command failed: {result.output}"
-    slugs = _get_mission_slugs(repo)
-    assert len(slugs) == 1
-    meta = _read_meta(repo, slugs[0])
-    assert meta["target_branch"] == "master"
+    _assert_protected_branch_refusal(result, repo, "master")
 
 
 @pytest.mark.usefixtures("_git_identity")
@@ -186,23 +209,39 @@ def test_create_feature_on_custom_branch_records_target_branch(tmp_path, monkeyp
 
 
 @pytest.mark.usefixtures("_git_identity")
-def test_create_feature_with_explicit_target_branch_flag(tmp_path, monkeypatch):
-    """--target-branch flag overrides current branch."""
+def test_create_feature_target_branch_mismatch_is_refused(tmp_path, monkeypatch):
+    """--target-branch pointing away from the checkout is refused (no create-time split-brain).
+
+    Pre-guard, ``--target-branch 2.x`` while parked on another branch recorded
+    ``2.x`` yet committed meta.json onto the checkout branch — the create-time
+    split-brain the coord-primary-partition-lock WP02 fix closed
+    (mission_creation.py:198-209). The shipped contract now refuses the mismatch:
+    the meta.json commit must land on the resolved target branch, so the operator
+    must be checked out on it.
+    """
     from typer.testing import CliRunner
     from specify_cli.cli.commands.agent.mission import app
 
     repo = _init_repo(tmp_path, "main")
     _setup_kittify(repo)
+    # A non-protected feature branch keeps the default topology single_branch, so
+    # the refusal is the crisp safe_commit branch-coherence error (no coordination
+    # branch is involved) rather than the protected-branch guard.
+    run_command(["git", "checkout", "-b", "feat/target-mismatch"], cwd=repo)
     monkeypatch.chdir(repo)
 
     runner = CliRunner()
     result = runner.invoke(app, ["create", "test-feature", "--json", "--target-branch", "2.x"])
 
-    assert result.exit_code == 0, f"Command failed: {result.output}"
-    slugs = _get_mission_slugs(repo)
-    assert len(slugs) == 1
-    meta = _read_meta(repo, slugs[0])
-    assert meta["target_branch"] == "2.x"
+    assert result.exit_code != 0, f"target/checkout mismatch must be refused: {result.output}"
+    payload = json.loads(result.output)
+    # A structured error is surfaced (the meta.json commit is refused rather than
+    # silently landing on the wrong branch); we assert the load-bearing invariant
+    # rather than a brittle message substring.
+    assert payload["error"], payload
+    # The split-brain is closed by construction: the guard blocked the commit, so
+    # no mission commit lands on the checkout branch (HEAD unchanged from Initial).
+    assert _head_commit_subject(repo) == "Initial", _head_commit_subject(repo)
 
 
 @pytest.mark.usefixtures("_git_identity")

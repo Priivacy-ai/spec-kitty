@@ -237,9 +237,15 @@ class TestBranchContextCommand:
         self,
         mock_locate: Mock,
         tmp_path: Path,
+        monkeypatch: pytest.MonkeyPatch,
     ) -> None:
         """Do not treat a feature branch as primary just because origin/HEAD is absent."""
         mock_locate.return_value = tmp_path
+        # branch-context resolves branch identity from the invoking checkout
+        # (Path.cwd()), not from the mocked project root — it is invocation-owned
+        # state (see mission_branch_context.py). Run from inside the test repo so
+        # the real git resolution under test reads this repo's branch.
+        monkeypatch.chdir(tmp_path)
         subprocess.run(
             ["git", "init", "--initial-branch=main"],
             cwd=tmp_path,

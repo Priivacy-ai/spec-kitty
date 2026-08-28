@@ -70,13 +70,20 @@ def test_mission_slug_with_uppercase_rejected():
 
 
 def test_valid_kebab_case_slugs_accepted(tmp_path, monkeypatch):
-    """Valid kebab-case slugs should be accepted."""
+    """Valid kebab-case slugs should be accepted.
+
+    Slug format is the behavior under test, so the repo is created on a
+    non-protected feature branch: the coord-primary-partition-lock guard refuses
+    to land planning artifacts on a protected primary branch, and that refusal
+    would mask whether the slug itself was accepted. Creating on a feature branch
+    keeps this test scoped to slug validation (a valid slug creates the mission).
+    """
     # Arrange
     monkeypatch.chdir(tmp_path)
     subprocess.run(["git", "init"], cwd=tmp_path, check=True, capture_output=True)
     subprocess.run(["git", "config", "user.email", "test@example.com"], cwd=tmp_path, check=True, capture_output=True)
     subprocess.run(["git", "config", "user.name", "Test User"], cwd=tmp_path, check=True, capture_output=True)
-    subprocess.run(["git", "checkout", "-b", "main"], cwd=tmp_path, check=True, capture_output=True)
+    subprocess.run(["git", "checkout", "-b", "feat/slug-validation"], cwd=tmp_path, check=True, capture_output=True)
     kittify_dir = tmp_path / ".kittify"
     kittify_dir.mkdir()
     (kittify_dir / "config.yaml").write_text(
