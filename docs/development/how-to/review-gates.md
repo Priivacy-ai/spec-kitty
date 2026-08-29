@@ -325,8 +325,9 @@ aggregator's exemption is draft-*flag*-only -- not title-based -- so a
 **non-draft** PR that still carries a WIP prefix is a contradiction the gate
 rejects by design: requesting review while WIP-titled must not pass. To land,
 either drop the `WIP` / `[WIP]` prefix from the title, or keep the PR in draft
-until it is ready. (See the `DRAFT_GATED_JOBS` note in
-[`.github/workflows/ci-quality.yml`](../../../.github/workflows/ci-quality.yml).)
+until it is ready. (See the `DRAFT_GATED_JOBS` note that used to live in
+`.github/workflows/ci-quality.yml`, deleted per PROGRAM.md §2 / planning#57 —
+this repo runs no GitHub Actions.)
 
 ## PR body style: consumer-focused BLUF
 

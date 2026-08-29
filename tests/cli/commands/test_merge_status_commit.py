@@ -27,7 +27,7 @@ from specify_cli.cli.commands.merge import (
 )
 from specify_cli.merge.config import MergeStrategy
 
-pytestmark = pytest.mark.git_repo
+pytestmark = [pytest.mark.integration, pytest.mark.git_repo]
 
 
 # ---------------------------------------------------------------------------

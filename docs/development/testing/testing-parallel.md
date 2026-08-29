@@ -2,7 +2,7 @@
 title: Running the test suite in parallel
 description: 'How to run the Spec Kitty test suite in parallel locally and in CI: the one correct command, why it is shaped that way, and reproducing the coverage-neutrality gates.'
 doc_status: active
-updated: '2026-07-31'
+updated: '2026-08-27'
 audience: docs/context/audience/internal/lead-developer.md
 type: how-to
 related:
@@ -25,15 +25,19 @@ see the [test-flakiness handling policy](testing-flakiness.md).
 
 ## The local command
 
+Do not hand-roll a broad pytest invocation — `make test-fast` and `make test-full`
+already encode the parallel/serial split below, and a hand-rolled command drifts
+out of date the moment that split changes:
+
 ```bash
-PWHEADLESS=1 pytest tests/ -n auto --dist loadfile -p no:cacheprovider
-# daemon/real-port tests run serially:
-PWHEADLESS=1 pytest tests/sync/test_orphan_sweep.py -n0 -q
+make test-fast    # fast tier of the typical blast-radius directories (target <2 min)
+make test-full    # everything, parallel + serial passes — CI's target, not PR validation
 ```
 
-The first command runs the bulk of the suite across worker processes. The second
-command runs the daemon/real-port tests serially. Run both; the parallel command
-deliberately leaves the serial-only tests for the second pass.
+`make test-full` runs the bulk of the suite across worker processes, then gives
+each parallel-unsafe family (`stress`, `timing`, …) its own dedicated serial
+pass — see [AGENTS.md](../../../AGENTS.md#commands) for the exact pass
+breakdown and the PR-validation test policy.
 
 ## Why `--dist loadfile` (never bare `--dist load`)
 
