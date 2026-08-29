@@ -17,11 +17,23 @@ The contract surface is twofold:
    the verify run. The test exercises a small helper that refuses to
    "promote" without that artifact, mirroring the behavior the workflow
    enforces.
+
+Retired (planning#57): the 4 LIVE checks formerly in section 1 above
+(``test_release_workflow_declares_downstream_consumer_verify_job``,
+``test_release_workflow_promote_needs_downstream_consumer_verify``,
+``test_release_workflow_verify_job_runs_downstream_scenario``,
+``test_release_workflow_verify_job_uploads_artifact``, plus the
+``_load_yaml_text`` helper and ``_RELEASE_WORKFLOW`` constant) asserted the
+workflow-side half of FR-026 against the real
+``.github/workflows/release.yml`` — the leftover pre-programme GitHub
+Actions YAML deleted per PROGRAM.md §2. With no workflow YAML left to parse,
+that half has no remaining subject matter and was removed with the file.
+Section 2's local promotion-refusal contract never read a workflow file and
+stays as the authoritative FR-026 guard on the artifact-gate behavior.
 """
 from __future__ import annotations
 
 import json
-import re
 from pathlib import Path
 
 import pytest
@@ -30,110 +42,9 @@ pytestmark = [pytest.mark.integration]
 
 
 _REPO_ROOT = Path(__file__).resolve().parents[2]
-_RELEASE_WORKFLOW = _REPO_ROOT / ".github" / "workflows" / "release.yml"
 _VERIFICATION_ARTIFACT = (
     _REPO_ROOT / ".kittify" / "release" / "downstream-verified.json"
 )
-
-
-def _load_yaml_text() -> str:
-    """Read the release workflow as raw text.
-
-    We deliberately avoid PyYAML to dodge an indirect dep; the assertions
-    are token-level and ASCII-safe.
-    """
-    return _RELEASE_WORKFLOW.read_text(encoding="utf-8")
-
-
-def test_release_workflow_declares_downstream_consumer_verify_job() -> None:
-    """``release.yml`` MUST declare a ``downstream-consumer-verify`` job."""
-    text = _load_yaml_text()
-    # Job declarations live under the top-level ``jobs:`` map. The job
-    # appears as a 2-space-indented key.
-    assert re.search(r"^\s{2}downstream-consumer-verify:\s*$", text, re.MULTILINE), (
-        ".github/workflows/release.yml does not declare a "
-        "`downstream-consumer-verify` job. FR-026 requires a job that runs "
-        "the downstream consumer suite before stable promotion. See "
-        "kitty-specs/stability-and-hygiene-hardening-2026-04-01KQ4ARB/"
-        "tasks/WP05-package-contracts.md#t029 for guidance."
-    )
-
-
-def test_release_workflow_promote_needs_downstream_consumer_verify() -> None:
-    """The promotion / PyPI publish job MUST list ``downstream-consumer-verify`` in needs."""
-    text = _load_yaml_text()
-    # Find the PyPI / promote job. We accept either a job named ``promote``
-    # or the historical ``publish-pypi`` name.
-    promote_block_match = re.search(
-        r"^\s{2}(promote|publish-pypi):\s*\n(?P<body>(?:^\s{4,}.*\n?)+)",
-        text,
-        re.MULTILINE,
-    )
-    assert promote_block_match, (
-        "Could not locate a `promote` or `publish-pypi` job in "
-        ".github/workflows/release.yml. FR-026 requires a promotion stage "
-        "whose `needs:` includes downstream-consumer-verify."
-    )
-    body = promote_block_match.group("body")
-    # ``needs:`` may be inline (``needs: foo``) or a YAML list spanning
-    # multiple lines (``needs:\n  - foo\n  - bar``). Capture either shape.
-    inline_match = re.search(r"^\s{4}needs:[ \t]+(\S.*)$", body, re.MULTILINE)
-    list_match = re.search(
-        r"^\s{4}needs:[ \t]*\n(?P<items>(?:\s{6,}-\s.+\n?)+)",
-        body,
-        re.MULTILINE,
-    )
-    if inline_match:
-        needs_value = inline_match.group(1).strip()
-    elif list_match:
-        needs_value = list_match.group("items")
-    else:
-        pytest.fail(
-            "Promotion job is missing a `needs:` declaration. It must depend "
-            "on `downstream-consumer-verify` per FR-026."
-        )
-    assert "downstream-consumer-verify" in needs_value, (
-        f"Promotion job needs={needs_value!r} does not include "
-        "`downstream-consumer-verify`. FR-026 requires the verify job to "
-        "be a hard dependency of stable promotion."
-    )
-
-
-def test_release_workflow_verify_job_runs_downstream_scenario() -> None:
-    """The verify job MUST execute the downstream-consumer scenario suite."""
-    text = _load_yaml_text()
-    # Pull just the verify job's body so we don't false-match elsewhere.
-    block_match = re.search(
-        r"^\s{2}downstream-consumer-verify:\s*\n(?P<body>(?:^\s{4,}.*\n?)+)",
-        text,
-        re.MULTILINE,
-    )
-    assert block_match, "downstream-consumer-verify job body not found."
-    body = block_match.group("body")
-    # The scenario file referenced in the WP plan.
-    needle = "spec-kitty-end-to-end-testing/scenarios/contract_drift_caught.py"
-    assert needle in body, (
-        "downstream-consumer-verify job does not invoke the contract-drift "
-        f"scenario suite ({needle}). The verify job must actually run the "
-        "downstream consumer scenarios it gates promotion on."
-    )
-
-
-def test_release_workflow_verify_job_uploads_artifact() -> None:
-    """The verify job MUST upload a verification artifact for the gate to consume."""
-    text = _load_yaml_text()
-    block_match = re.search(
-        r"^\s{2}downstream-consumer-verify:\s*\n(?P<body>(?:^\s{4,}.*\n?)+)",
-        text,
-        re.MULTILINE,
-    )
-    assert block_match, "downstream-consumer-verify job body not found."
-    body = block_match.group("body")
-    assert "actions/upload-artifact" in body, (
-        "downstream-consumer-verify job must upload a verification "
-        "artifact (actions/upload-artifact) so reviewers can audit the "
-        "evidence backing a stable promotion."
-    )
 
 
 # ---------------------------------------------------------------------------
