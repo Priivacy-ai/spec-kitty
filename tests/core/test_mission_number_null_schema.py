@@ -198,7 +198,6 @@ def test_create_mission_core_writes_null_mission_number(tmp_path: Path) -> None:
         patch("specify_cli.core.mission_creation.is_git_repo", return_value=True),
         patch("specify_cli.core.mission_creation.get_current_branch", return_value="main"),
         patch("specify_cli.core.mission_creation.safe_commit", return_value=True),
-        patch("specify_cli.status.fire_dossier_sync"),
     ):
         # Provide a real tmp_path as repo_root so file creation works
         # but without a real git repo
@@ -234,7 +233,6 @@ def test_create_mission_core_mission_number_field_is_none_in_result(tmp_path: Pa
         patch("specify_cli.core.mission_creation.is_git_repo", return_value=True),
         patch("specify_cli.core.mission_creation.get_current_branch", return_value="main"),
         patch("specify_cli.core.mission_creation.safe_commit", return_value=True),
-        patch("specify_cli.status.fire_dossier_sync"),
     ):
         result = create_mission_core(
             tmp_path,
@@ -260,7 +258,6 @@ def test_new_mission_feature_dir_uses_human_slug_mid8(tmp_path: Path) -> None:
         patch("specify_cli.core.mission_creation.is_git_repo", return_value=True),
         patch("specify_cli.core.mission_creation.get_current_branch", return_value="main"),
         patch("specify_cli.core.mission_creation.safe_commit", return_value=True),
-        patch("specify_cli.status.fire_dossier_sync"),
     ):
         result = create_mission_core(
             tmp_path,

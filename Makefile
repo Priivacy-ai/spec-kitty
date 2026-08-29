@@ -1,6 +1,6 @@
 .DEFAULT_GOAL := help
 
-.PHONY: help dev-setup lint typecheck test-fast test-full
+.PHONY: help dev-setup lint format-check typecheck test-fast test-full
 
 help: ## Show available targets
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | \
@@ -12,6 +12,13 @@ dev-setup: ## Sync deps and install all slash commands for configured agents
 
 lint: ## Run ruff linter
 	uv run ruff check src/
+
+# Convenience only -- the enforced copy of this check lives in
+# tests/architectural/test_ruff_format_enforcement.py (part of `make
+# test-full`), so a red gate is never silent regardless of whether anyone
+# runs this target locally (#558).
+format-check: ## Run ruff formatter check on the whole repo (issue #473's gate)
+	uv run ruff format --check .
 
 typecheck: ## Run targeted mypy strict type checking
 	uv run mypy --strict src/specify_cli/runtime/agent_commands.py

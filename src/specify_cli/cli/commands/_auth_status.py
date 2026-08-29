@@ -151,9 +151,9 @@ def _print_session_issuer(issuer_url: str | None) -> None:
 def _print_identity(session: StoredSession) -> None:
     """Print the authenticated user's identity block."""
     if session.name and session.name != session.email:
-        console.print(f"  User:           {session.email} ({session.name})")
+        console.print(f"  User:           {escape(session.email)} ({escape(session.name)})")
     else:
-        console.print(f"  User:           {session.email}")
+        console.print(f"  User:           {escape(session.email)}")
     console.print(f"  User ID:        {session.user_id}")
 
 
@@ -171,7 +171,7 @@ def _print_teams(session: StoredSession) -> None:
         if is_default:
             marker_parts.append("default")
         marker = f" [dim]({', '.join(marker_parts)})[/dim]" if marker_parts else ""
-        console.print(f"    - {team.name} ({team.role}){marker}")
+        console.print(f"    - {escape(team.name)} ({team.role}){marker}")
 
 
 def _print_token_expiry(session: StoredSession) -> None:

@@ -36,7 +36,6 @@ from specify_cli.lanes.branch_naming import (
     worktree_dir_name,
 )
 from specify_cli.status import emit as _emit
-from specify_cli.status.adapters import fire_dossier_sync
 from specify_cli.status.models import (
     CurrentWpState,
     DoneEvidence,
@@ -385,14 +384,11 @@ def _fallback_emit_single(
     mission_slug: str,
     *,
     ensure_sync_daemon: bool,
-    sync_dossier: bool,
 ) -> StatusEvent:
     """Single-event non-transactional fallback (FR-004 rows 7-8)."""
 
     def _primary() -> StatusEvent:
-        event = _emit.emit_status_transition(
-            request, ensure_sync_daemon=ensure_sync_daemon, sync_dossier=sync_dossier
-        )
+        event = _emit.emit_status_transition(request, ensure_sync_daemon=ensure_sync_daemon)
         _tombstone_lane_workspace_context_on_cancel(
             repo_root=identity.repo_root,
             mission_slug=mission_slug,
@@ -407,7 +403,6 @@ def _fallback_emit_single(
         event = _emit.emit_status_transition(
             replace(request, feature_dir=coord_fd, mission_dir=None),
             ensure_sync_daemon=ensure_sync_daemon,
-            sync_dossier=sync_dossier,
         )
         # Rollback-symmetry (FR-004): a commit failure truncates the just-emitted
         # event back rather than stranding it uncommitted on the coord worktree.
@@ -446,14 +441,13 @@ def _fallback_emit_batch(
     mission_slug: str,
     *,
     ensure_sync_daemon: bool,
-    sync_dossier: bool,
 ) -> list[StatusEvent]:
     """Same-WP batch non-transactional fallback (FR-004 rows 7-8)."""
 
     def _primary() -> list[StatusEvent]:
         # Local annotation re-narrows the cross-module (``Any``) emit result.
         events: list[StatusEvent] = _emit.emit_status_transition_batch(
-            requests, ensure_sync_daemon=ensure_sync_daemon, sync_dossier=sync_dossier
+            requests, ensure_sync_daemon=ensure_sync_daemon
         )
         return events
 
@@ -463,7 +457,6 @@ def _fallback_emit_batch(
         events: list[StatusEvent] = _emit.emit_status_transition_batch(
             [replace(req, feature_dir=coord_fd, mission_dir=None) for req in requests],
             ensure_sync_daemon=ensure_sync_daemon,
-            sync_dossier=sync_dossier,
         )
         # Rollback-symmetry (FR-004): a commit failure truncates the just-emitted
         # batch back rather than stranding it uncommitted on the coord worktree.
@@ -954,19 +947,6 @@ def _deferred_resolved_binding_fan_out(
     return emit
 
 
-def _defer_dossier_sync(
-    txn: BookkeepingTransaction,
-    *,
-    feature_dir: Path,
-    mission_slug: str,
-    repo_root: Path | None,
-    sync_dossier: bool,
-) -> None:
-    if not sync_dossier or repo_root is None:
-        return
-    txn.defer_outbound(lambda: fire_dossier_sync(feature_dir, mission_slug, repo_root))
-
-
 def _read_events_from_transaction_target(
     identity: _TransactionIdentity,
     mission_slug: str,
@@ -1308,7 +1288,6 @@ def emit_status_transition_transactional(
     request: TransitionRequest,
     *,
     ensure_sync_daemon: bool = True,
-    sync_dossier: bool = True,
     operation: str | None = None,
     capability: GuardCapability = GuardCapability.STANDARD,
 ) -> StatusEvent:
@@ -1337,7 +1316,6 @@ def emit_status_transition_transactional(
             request,
             mission_slug,
             ensure_sync_daemon=ensure_sync_daemon,
-            sync_dossier=sync_dossier,
         )
 
     # WP04/FR-004: BookkeepingTransaction.acquire requires str for its lock/path
@@ -1392,13 +1370,6 @@ def emit_status_transition_transactional(
             mission_slug=mission_slug,
             repo_root=request.repo_root,
             ensure_sync_daemon=ensure_sync_daemon,
-        )
-        _defer_dossier_sync(
-            txn,
-            feature_dir=txn.feature_dir,
-            mission_slug=mission_slug,
-            repo_root=request.repo_root,
-            sync_dossier=sync_dossier,
         )
         _tombstone_lane_workspace_context_on_cancel(
             repo_root=identity.repo_root,
@@ -1530,7 +1501,6 @@ def emit_status_transition_batch_transactional(
     requests: list[TransitionRequest],
     *,
     ensure_sync_daemon: bool = True,
-    sync_dossier: bool = True,
     operation: str | None = None,
     capability: GuardCapability = GuardCapability.STANDARD,
 ) -> list[StatusEvent]:
@@ -1556,7 +1526,6 @@ def emit_status_transition_batch_transactional(
             requests,
             mission_slug,
             ensure_sync_daemon=ensure_sync_daemon,
-            sync_dossier=sync_dossier,
         )
 
     # WP04/FR-004: explicit legacy fallback for transaction lock only (not event field).
@@ -1650,12 +1619,4 @@ def emit_status_transition_batch_transactional(
                 ensure_sync_daemon=ensure_sync_daemon,
             )
 
-        repo_root = next((request.repo_root for request in requests if request.repo_root is not None), None)
-        _defer_dossier_sync(
-            txn,
-            feature_dir=txn.feature_dir,
-            mission_slug=mission_slug,
-            repo_root=repo_root,
-            sync_dossier=sync_dossier,
-        )
         return [event for event, _request in built]

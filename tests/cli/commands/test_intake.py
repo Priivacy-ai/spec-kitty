@@ -176,6 +176,34 @@ def test_intake_from_subdir_writes_to_repo_root(tmp_path: Path, monkeypatch: pyt
     assert not (subdir / ".kittify" / MISSION_BRIEF_FILENAME).exists()
 
 
+def test_intake_ignores_stray_ancestor_kittify_marker(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A `.kittify/` in an ancestor directory must not divert repo-root
+    resolution away from the project root's own marker.
+
+    Nested entirely under `tmp_path` (rather than `tmp_path.parent`, which is
+    pytest's shared base temp dir) so planting the stray marker can't leak
+    into sibling tests. See #411.
+    """
+    ancestor = tmp_path / "ancestor"
+    ancestor.mkdir()
+    (ancestor / ".kittify").mkdir()
+    project_root = ancestor / "project"
+    project_root.mkdir()
+    (project_root / ".kittify").mkdir()
+    monkeypatch.chdir(project_root)
+    plan_file = project_root / "PLAN.md"
+    plan_file.write_text(PLAN_CONTENT)
+
+    result = runner.invoke(app, ["intake", str(plan_file)], catch_exceptions=False)
+
+    assert result.exit_code == 0
+    assert (project_root / ".kittify" / MISSION_BRIEF_FILENAME).exists()
+    assert (project_root / ".kittify" / BRIEF_SOURCE_FILENAME).exists()
+    assert not (ancestor / ".kittify" / MISSION_BRIEF_FILENAME).exists()
+
+
 def test_intake_show_reports_invalid_source_yaml(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """--show fails loud when the provenance YAML is malformed."""
     monkeypatch.chdir(tmp_path)
