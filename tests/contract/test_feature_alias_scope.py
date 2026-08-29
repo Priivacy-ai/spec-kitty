@@ -172,8 +172,8 @@ def test_no_doctrine_source_passes_feature_to_inscope_commands() -> None:
 
     Authority: spec.md FR-003.  Research note R3.
     """
-    doctrine_root = REPO_ROOT / "src" / "doctrine"
-    assert doctrine_root.exists(), f"src/doctrine/ not found at {doctrine_root}"
+    doctrine_root = REPO_ROOT / "src" / "charter" / "offering"
+    assert doctrine_root.exists(), f"src/charter/offering/ not found at {doctrine_root}"
 
     # Build a pattern that catches lines containing both --feature and an
     # in-scope command name.  We match each in-scope command name individually
