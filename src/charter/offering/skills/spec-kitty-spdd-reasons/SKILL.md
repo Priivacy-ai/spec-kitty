@@ -73,7 +73,7 @@ Three branches:
 Programmatic (preferred):
 
 ```python
-from doctrine.spdd_reasons.activation import is_spdd_reasons_active
+from charter.offering.spdd_reasons.activation import is_spdd_reasons_active
 
 active = is_spdd_reasons_active(repo_root)
 ```

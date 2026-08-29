@@ -48,7 +48,7 @@ jobs:
             --timeout=240 --timeout-method=signal \
             -n auto --dist loadfile \
             --durations=50 \
-            --cov=src/doctrine \
+            --cov=src/charter/offering \
             --cov-report=xml:out/reports/coverage/coverage-fast-corpus.xml
       - name: "Upload fast-corpus coverage"
         if: always()

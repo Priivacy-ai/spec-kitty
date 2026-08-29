@@ -43,7 +43,7 @@ jobs:
             --timeout=240 --timeout-method=signal \
             -n auto --dist loadfile \
             --durations=50 \
-            --cov=doctrine --cov=charter \
+            --cov=charter.offering --cov=charter \
             --cov-report=term-missing \
             --cov-report=xml:out/reports/coverage/coverage-fast-doctrine.xml \
             --junitxml=out/reports/xunit-reports/xunit-result-fast-doctrine-${{ github.run_id }}.xml
