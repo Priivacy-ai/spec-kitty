@@ -810,6 +810,107 @@ def test_lenient_downgrades_path_conventions_to_warning(
     assert any("expects" in warning for warning in lenient.warnings)
 
 
+def _software_dev_fake_mission() -> "object":
+    from types import SimpleNamespace
+
+    return SimpleNamespace(
+        name="Software Dev Kitty",
+        config=SimpleNamespace(
+            paths={"workspace": "src", "tests": "tests", "deliverables": "contracts"}
+        ),
+    )
+
+
+def _set_path_conventions(repo_root: Path, override: dict[str, str] | str) -> None:
+    """Inject ``project.path_conventions`` into the repo's ``.kittify/config.yaml`` (round-trip safe)."""
+    from ruamel.yaml import YAML
+
+    config_path = repo_root / ".kittify" / "config.yaml"
+    config_path.parent.mkdir(parents=True, exist_ok=True)
+    yaml = YAML()
+    data = yaml.load(config_path) if config_path.exists() else None
+    if not isinstance(data, dict):
+        data = {}
+    project = data.get("project")
+    if not isinstance(project, dict):
+        project = {}
+        data["project"] = project
+    project["path_conventions"] = override
+    with config_path.open("w", encoding="utf-8") as handle:
+        yaml.dump(data, handle)
+
+
+def test_no_override_still_blocks_strict(feature_repo: Path, mission_slug: str) -> None:
+    """NFR-001 / SC-002: with NO ``path_conventions`` override, a layout mismatch still blocks under
+    strict accept, byte-for-byte the pre-mission behavior — the exact ``path_violations`` payload and the
+    full ``format_errors()`` string (naming the honest ``--lenient`` lever, never a bare required mkdir)."""
+    from unittest.mock import patch
+
+    fake_mission = _software_dev_fake_mission()
+    with patch("specify_cli.acceptance.get_mission_for_feature", return_value=fake_mission):
+        strict = acc.collect_feature_summary(
+            feature_repo, mission_slug, strict_metadata=True, mutate_matrix=False
+        )
+
+    assert strict.path_violations  # blocking preserved
+    joined = "\n".join(strict.path_violations)
+    assert "expects" in joined
+    assert "src" in joined  # the declared, un-overridden workspace is still demanded
+    assert "--lenient" in joined  # honest lever preserved (#3783 contract, C-009)
+    assert "required by the active mission. Create them before continuing" not in joined  # fake-green line stays gone
+
+
+def test_override_accepts_non_src_layout(feature_repo: Path, mission_slug: str) -> None:
+    """FR-003 / SC-001: an ``apps/`` layout with a declared override is honored — the ``src`` workspace
+    demand disappears because the override remaps it to the (existing) ``apps/`` directory."""
+    from unittest.mock import patch
+
+    (feature_repo / "apps").mkdir(exist_ok=True)
+    _set_path_conventions(feature_repo, {"workspace": "apps"})
+
+    fake_mission = _software_dev_fake_mission()
+    with patch("specify_cli.acceptance.get_mission_for_feature", return_value=fake_mission):
+        strict = acc.collect_feature_summary(
+            feature_repo, mission_slug, strict_metadata=True, mutate_matrix=False
+        )
+
+    joined = "\n".join(strict.path_violations)
+    # workspace was remapped to apps/ (which exists) → the 'src' workspace demand is gone.
+    assert "src" not in joined
+
+
+def test_override_read_exactly_once_per_accept_run(feature_repo: Path, mission_slug: str) -> None:
+    """NFR-002: the override config is read at most once per accept run (no per-key filesystem re-read)."""
+    from unittest.mock import patch
+
+    fake_mission = _software_dev_fake_mission()
+    with patch("specify_cli.acceptance.get_mission_for_feature", return_value=fake_mission), patch(
+        "specify_cli.acceptance.summary_core.load_project_path_conventions", return_value={}
+    ) as spy:
+        acc.collect_feature_summary(
+            feature_repo, mission_slug, strict_metadata=True, mutate_matrix=False
+        )
+
+    assert spy.call_count == 1
+
+
+def test_malformed_override_fails_closed(feature_repo: Path, mission_slug: str) -> None:
+    """SC-007 / FR-008: a malformed ``path_conventions`` section fails closed with a typed, actionable
+    error — not a silent ignore, and (via the typed exception) not an uncaught traceback."""
+    from unittest.mock import patch
+
+    from specify_cli.config.path_conventions import PathConventionsConfigError
+
+    _set_path_conventions(feature_repo, "not-a-mapping")
+
+    fake_mission = _software_dev_fake_mission()
+    with patch("specify_cli.acceptance.get_mission_for_feature", return_value=fake_mission):
+        with pytest.raises(PathConventionsConfigError, match="must be a mapping"):
+            acc.collect_feature_summary(
+                feature_repo, mission_slug, strict_metadata=True, mutate_matrix=False
+            )
+
+
 # --- Direct canonical-surface unit coverage (restored from #2167 review) -----
 # These three exercise the canonical ``specify_cli.acceptance`` / ``task_utils``
 # functions directly — they were never coupled to the retired standalone tasks
