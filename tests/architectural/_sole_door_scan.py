@@ -68,8 +68,10 @@ SOLE_DOOR_REL_PATH = "src/charter/resolver.py"
 UNIFIED_BUILDER_REL_PATH = "src/charter/doctrine_service_builder.py"
 #: The doctrine layer owns the wrapped subject (Gate 1/Gate 2's shared
 #: rationale: the raw charter.offering.service.DoctrineService construction inside
-#: doctrine/service.py IS the thing the sole door wraps, not a bypass of it).
-DOCTRINE_LAYER_PREFIX = "src/doctrine/"
+#: offering/service.py IS the thing the sole door wraps, not a bypass of it).
+#: Relocated (mission charter-code-topology-01M152G1): the doctrine layer
+#: moved from ``src/doctrine/`` to ``src/charter/offering/``.
+DOCTRINE_LAYER_PREFIX = "src/charter/offering/"
 
 #: Files entitled to construct a watched doctrine class natively. Shared by
 #: Gate 1 (AgentProfileRepository) and Gate 2 (DoctrineService), which each

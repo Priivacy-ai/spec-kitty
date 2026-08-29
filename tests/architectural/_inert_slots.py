@@ -73,7 +73,12 @@ __all__ = [
 ALLOWLIST: frozenset[str] = frozenset()
 
 _SRC = "src"
-_DOCTRINE = "doctrine"
+#: Relocated doctrine source root (mission ``charter-code-topology-01M152G1``):
+#: ``src/doctrine/`` moved to ``src/charter/offering/``; ``src/doctrine.py`` is
+#: a legacy-import compat shim (a module, not a package) and carries no
+#: schemas, models, or templates of its own.
+_CHARTER = "charter"
+_OFFERING = "offering"
 _PACKS = "packs"
 _BUILT_IN = "built-in"
 _SCHEMAS = "schemas"
@@ -145,7 +150,7 @@ def _iter_schema_slot_names(node: object) -> Iterator[str]:
 
 
 def _schema_slots(root: Path) -> Iterator[InertSlot]:
-    schemas = root / _SRC / _DOCTRINE / _SCHEMAS
+    schemas = root / _SRC / _CHARTER / _OFFERING / _SCHEMAS
     for path in sorted(schemas.glob(_SCHEMA_GLOB)):
         if path.name in _NON_DOCTRINE_SCHEMAS:
             continue
@@ -187,7 +192,7 @@ def _iter_model_field_names(tree: ast.Module) -> Iterator[str]:
 
 
 def _model_slots(root: Path) -> Iterator[InertSlot]:
-    doctrine = root / _SRC / _DOCTRINE
+    doctrine = root / _SRC / _CHARTER / _OFFERING
     if not doctrine.is_dir():
         return
     for path in sorted(doctrine.rglob(_MODELS_FILENAME)):
@@ -216,9 +221,12 @@ def _producer_roots(root: Path) -> list[Path]:
     harvesting all of ``src/``. ``packs/built-in`` is where the doctrine artefacts
     now physically live; scanning it restores the *same* producer set the move
     displaced, no more. The slot walks are deliberately left pointed at
-    ``src/doctrine/`` alone — schemas and models did not move.
+    ``src/charter/offering/`` alone — schemas and models did not move relative
+    to each other, only the whole doctrine tree relocated wholesale from
+    ``src/doctrine/`` to ``src/charter/offering/`` (mission
+    ``charter-code-topology-01M152G1``).
     """
-    candidates = (root / _SRC / _DOCTRINE, root / _PACKS / _BUILT_IN)
+    candidates = (root / _SRC / _CHARTER / _OFFERING, root / _PACKS / _BUILT_IN)
     return [base for base in candidates if base.is_dir()]
 
 
@@ -238,11 +246,11 @@ def _artefact_producers(root: Path) -> set[str]:
     Walks both doctrine roots (see :func:`_producer_roots`) — the artefacts now live
     under ``packs/built-in/`` after the relocation, while a few still-authored trees
     (missions, templates, workflows, the routing catalog) remain under
-    ``src/doctrine/``. Excludes ``src/doctrine/schemas/``: the generated schemas are
-    what is being checked, and admitting them makes every schema property
-    self-producing.
+    ``src/charter/offering/``. Excludes ``src/charter/offering/schemas/``: the
+    generated schemas are what is being checked, and admitting them makes every
+    schema property self-producing.
     """
-    schemas = root / _SRC / _DOCTRINE / _SCHEMAS
+    schemas = root / _SRC / _CHARTER / _OFFERING / _SCHEMAS
     produced: set[str] = set()
     for base in _producer_roots(root):
         for path in sorted(base.rglob("*")):

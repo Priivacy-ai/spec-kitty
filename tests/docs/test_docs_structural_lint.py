@@ -831,7 +831,7 @@ def test_schema_properties_match_lintconfig_fields() -> None:
     added.
     """
     yaml = YAML(typ="safe")
-    schema_path = _REPO_ROOT / "src/doctrine/schemas/styleguide.schema.yaml"
+    schema_path = _REPO_ROOT / "src/charter/offering/schemas/styleguide.schema.yaml"
     with schema_path.open(encoding="utf-8") as handle:
         schema = yaml.load(handle)
     props = set(schema["definitions"]["structural_lint_config"]["properties"])

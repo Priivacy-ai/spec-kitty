@@ -115,7 +115,7 @@ from charter.offering.artifact_kinds import ArtifactKind
 
 pytestmark = [pytest.mark.architectural, pytest.mark.fast]
 
-_SCHEMAS_DIR = Path(__file__).resolve().parents[2] / "src" / "doctrine" / "schemas"
+_SCHEMAS_DIR = Path(__file__).resolve().parents[2] / "src" / "charter" / "offering" / "schemas"
 
 #: (schema filename, ``definitions`` key) for each of the four ``<kind>_reference.type``
 #: enums. Order matches the docstring table above.

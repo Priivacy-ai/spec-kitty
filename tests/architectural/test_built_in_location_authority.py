@@ -126,7 +126,9 @@ _REPO_ROOT = Path(__file__).resolve().parents[2]
 
 #: The single-authority module: only file permitted to construct a built-in
 #: path join (both `built_in_dir` and `built_in_root` live here -- C2.1/C3.1).
-_AUTHORITY_FILE = Path("src/doctrine/pack_paths.py")
+#: Relocated from ``src/doctrine/pack_paths.py`` by
+#: charter-code-topology-01M152G1 (MAP-000 / CR-06).
+_AUTHORITY_FILE = Path("src/charter/offering/pack_paths.py")
 
 #: Narrow, exact (file, lineno) allowlist for known pre-existing non-authority
 #: joins -- see the module docstring "Known pre-existing exemption" section
@@ -208,17 +210,26 @@ _KNOWN_JOIN_ALLOWLIST: frozenset[tuple[Path, int]] = frozenset(
         # joins against a caller-supplied `repo_root` (a local dev checkout
         # to copy FROM), not this installation's own built-in tier. See
         # module docstring class 2.
-        (Path("src/specify_cli/template/manager.py"), 52),
+        # FRESHENED (charter-code-topology-01M152G1 landing): line 52 -> 53,
+        # a doctrine-relocation comment (R-12) was added directly above this
+        # join; the join itself is unchanged.
+        (Path("src/specify_cli/template/manager.py"), 53),
         # src/specify_cli/template/manager.py::get_local_repo_root::_is_template_root --
         # content-sniffs a caller-supplied `override_path`/checkout root, not
         # this installation's own built-in tier. See module docstring class 2.
-        (Path("src/specify_cli/template/manager.py"), 165),
+        # FRESHENED (charter-code-topology-01M152G1 landing): line 165 -> 166;
+        # the sibling AGENTS.md sniff line above it now reads
+        # `src/charter/offering/templates/AGENTS.md` (relocated from
+        # `src/doctrine/templates/`), pushing this join down one line.
+        (Path("src/specify_cli/template/manager.py"), 166),
         # src/charter/neutrality/lint.py::_default_scan_roots -- scans a
         # caller-supplied `repo_root` (tmp_path-rooted in tests; see
         # tests/charter/test_neutrality_lint.py::test_default_scan_roots_include_relocated_builtin_missions),
         # not this installation's own built-in tier. See module docstring
         # class 2.
-        (Path("src/charter/neutrality/lint.py"), 353),
+        # FRESHENED (charter-code-topology-01M152G1 landing): line 353 -> 362;
+        # behaviour-preserving, same caller-supplied-root join.
+        (Path("src/charter/neutrality/lint.py"), 362),
     }
 )
 
