@@ -224,8 +224,26 @@ def _guard_session_issuer(session: Any, target: Any) -> None:
     if _normalize_endpoint(issuer_url) == _normalize_endpoint(target.resolved_server_url):
         return
     raise SaasAuthError(
-        f"Session is for {_normalize_endpoint(issuer_url)}; the resolved server now points at {target.resolved_server_url} — run `spec-kitty auth login --force`"
+        f"Session is for {_normalize_endpoint(issuer_url)}; {_saas_source_name(target)} now points at "
+        f"{target.resolved_server_url} — run spec-kitty auth login --force"
     )
+
+
+def _saas_source_name(target: Any) -> str:
+    """Name the configuration source ``target.resolved_server_url`` came from.
+
+    Mirrors ``specify_cli.cli.commands._auth_status.saas_source_name``
+    (#300) so this refusal names the same override source ``spec-kitty auth
+    status`` would — duplicated locally, like ``_normalize_endpoint`` above,
+    so this module does not reach into a CLI-presentation module's helper.
+    """
+    from specify_cli.auth.server_target import SAAS_URL_ENV_VAR  # noqa: PLC0415
+
+    if target.env_server_url is not None:
+        return str(SAAS_URL_ENV_VAR)
+    if target.configured_server_url is not None:
+        return "config.toml [sync].server_url"
+    return "the default endpoint"
 
 
 def _normalize_endpoint(url: str) -> str:
