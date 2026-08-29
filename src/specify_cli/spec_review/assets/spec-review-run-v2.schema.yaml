@@ -1,0 +1,109 @@
+$schema: https://json-schema.org/draft/2020-12/schema
+$id: spec-kitty/spec-review-run/v2
+title: PaidSpecReviewRun
+type: object
+additionalProperties: false
+required:
+  - schema
+  - run_id
+  - mission
+  - spec_sha256
+  - transport
+  - requested_model_route
+  - actual_model
+  - rubric_version
+  - started_at
+  - completed_at
+  - status
+  - diagnostic_code
+  - findings
+  - summary
+  - paid_pricing
+properties:
+  schema:
+    const: spec-review-run/v2
+  run_id:
+    type: string
+    pattern: '^[A-Za-z0-9_-]+$'
+  mission:
+    type: string
+  spec_sha256:
+    type: string
+    pattern: '^[a-f0-9]{64}$'
+  transport:
+    const: opencode-loopback
+  requested_model_route:
+    const: openrouter/z-ai/glm-5.3
+  actual_model:
+    type: string
+    minLength: 1
+    maxLength: 200
+  rubric_version:
+    type: string
+  started_at:
+    type: string
+    format: date-time
+  completed_at:
+    type: string
+    format: date-time
+  status:
+    enum: [completed, provider_error, timeout, invalid_output]
+  diagnostic_code:
+    type: [string, 'null']
+  findings:
+    type: array
+    maxItems: 100
+  summary:
+    type: object
+    additionalProperties: false
+    required: [total, severity_1, severity_2, severity_3, severity_4, severity_5]
+    properties:
+      total: {type: integer, minimum: 0, maximum: 100}
+      severity_1: {type: integer, minimum: 0, maximum: 100}
+      severity_2: {type: integer, minimum: 0, maximum: 100}
+      severity_3: {type: integer, minimum: 0, maximum: 100}
+      severity_4: {type: integer, minimum: 0, maximum: 100}
+      severity_5: {type: integer, minimum: 0, maximum: 100}
+  paid_pricing:
+    type: object
+    additionalProperties: false
+    required:
+      - route
+      - max_estimated_cost_usd
+      - prices
+      - limit
+      - advertised_max_estimate_usd
+      - metadata_sha256
+    properties:
+      route:
+        const: openrouter/z-ai/glm-5.3
+      max_estimated_cost_usd:
+        type: string
+      prices:
+        type: object
+        minProperties: 2
+        additionalProperties:
+          type: string
+      limit:
+        type: object
+        additionalProperties: false
+        required: [context, output]
+        properties:
+          context: {type: integer, minimum: 1}
+          output: {type: integer, minimum: 1}
+      advertised_max_estimate_usd:
+        type: string
+      metadata_sha256:
+        type: string
+        pattern: '^[a-f0-9]{64}$'
+allOf:
+  - if:
+      properties:
+        status: {const: completed}
+    then:
+      properties:
+        diagnostic_code: {type: 'null'}
+    else:
+      properties:
+        diagnostic_code: {type: string, minLength: 1}
+        findings: {maxItems: 0}

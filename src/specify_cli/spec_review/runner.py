@@ -13,14 +13,20 @@ from typing import Final, Protocol, TypeVar
 from urllib.parse import quote, urlsplit
 from urllib.request import Request, urlopen
 
+from .models import PaidPricingDisclosure
+
 
 MODEL_NOT_FREE: Final = "SPEC_REVIEW_MODEL_NOT_FREE"
+PAID_PRICING_REFUSED: Final = "SPEC_REVIEW_PAID_PRICING_REFUSED"
+PAID_PRICING_DRIFT: Final = "SPEC_REVIEW_PAID_PRICING_DRIFT"
+PAID_GLM53_ROUTE: Final = "openrouter/z-ai/glm-5.3"
 AUTH_REQUIRED: Final = "SPEC_REVIEW_AUTH_REQUIRED"
 LOOPBACK_PROVIDER_ERROR: Final = "SPEC_REVIEW_PROVIDER_ERROR"
 LOOPBACK_TIMEOUT: Final = "SPEC_REVIEW_TIMEOUT"
 LOOPBACK_INVALID_OUTPUT: Final = "SPEC_REVIEW_INVALID_OUTPUT"
 LOOPBACK_CLEANUP_FAILED: Final = "SPEC_REVIEW_SESSION_CLEANUP_FAILED"
 LOOPBACK_RESPONSE_LIMIT: Final = 2 * 1024 * 1024
+MODEL_METADATA_LIMIT: Final = 2 * 1024 * 1024
 DISABLED_TOOLS: Final = {
     "bash": False,
     "edit": False,
@@ -52,6 +58,8 @@ class PricingPermit:
 
     route: str
     _issuer: object
+    paid_pricing: PaidPricingDisclosure | None = None
+    max_prompt_bytes: int | None = None
 
 
 class ModelNotFreeError(RuntimeError):
@@ -61,6 +69,15 @@ class ModelNotFreeError(RuntimeError):
         super().__init__(f"{MODEL_NOT_FREE}: {route}")
         self.route = route
         self.code = MODEL_NOT_FREE
+
+
+class PaidPricingError(ModelNotFreeError):
+    """Fail-closed paid metadata or local-threshold refusal."""
+
+    def __init__(self, route: str, code: str = PAID_PRICING_REFUSED) -> None:
+        super().__init__(route)
+        self.args = (f"{code}: {route}",)
+        self.code = code
 
 
 class LoopbackTransportError(RuntimeError):
@@ -370,6 +387,28 @@ class OpenCodeLoopbackRunner:
         self._pricing_probe.require_free(route)
         return PricingPermit(route=route, _issuer=self._permit_issuer)
 
+    def authorize_paid(
+        self,
+        expected: PaidPricingDisclosure,
+        *,
+        max_prompt_bytes: int = 1,
+    ) -> PricingPermit:
+        """Re-probe an exact paid quote and bind an unchanged same-runner permit."""
+        if expected.route != PAID_GLM53_ROUTE or max_prompt_bytes <= 0:
+            raise PaidPricingError(expected.route)
+        current = self._pricing_probe.quote_paid(
+            expected.route,
+            max_estimated_cost_usd=expected.max_estimated_cost_usd,
+        )
+        if current != expected:
+            raise PaidPricingError(expected.route, PAID_PRICING_DRIFT)
+        return PricingPermit(
+            route=expected.route,
+            _issuer=self._permit_issuer,
+            paid_pricing=expected,
+            max_prompt_bytes=max_prompt_bytes,
+        )
+
     def run(
         self,
         *,
@@ -380,6 +419,8 @@ class OpenCodeLoopbackRunner:
         """Run only with a same-runner permit, then delete the session on every later path."""
         if permit._issuer is not self._permit_issuer:
             raise ModelNotFreeError(permit.route)
+        if permit.max_prompt_bytes is not None and len(prompt) > permit.max_prompt_bytes:
+            raise PaidPricingError(permit.route)
         try:
             session_id = self._session_client.create_session()
         except Exception:
@@ -397,7 +438,7 @@ class OpenCodeLoopbackRunner:
 
 
 class OpenCodePricingProbe:
-    """Read cached OpenCode model metadata without a model invocation or refresh."""
+    """Read OpenCode model metadata without invoking the selected model."""
 
     def __init__(
         self,
@@ -412,9 +453,56 @@ class OpenCodePricingProbe:
 
     def check(self, route: str) -> PricingVerdict:
         """Accept only an exact route whose complete advertised cost tree is zero."""
+        document = self._read_exact_model(route)
+        if document is None or not _zero_cost(document.get("cost")):
+            return PricingVerdict(route, False, MODEL_NOT_FREE)
+        return PricingVerdict(route, True, "OK")
+
+    def require_free(self, route: str) -> None:
+        """Raise before the caller can construct/send a review prompt."""
+        if not self.check(route).is_free:
+            raise ModelNotFreeError(route)
+
+    def quote_paid(
+        self,
+        route: str,
+        *,
+        max_estimated_cost_usd: str,
+    ) -> PaidPricingDisclosure:
+        """Return one canonical paid quote or refuse all incomplete metadata."""
+        if route != PAID_GLM53_ROUTE:
+            raise PaidPricingError(route)
+        document = self._read_exact_model(route)
+        if document is None:
+            raise PaidPricingError(route)
+        price_leaves = _paid_price_leaves(document.get("cost"))
+        limits = document.get("limit")
+        if price_leaves is None or not isinstance(limits, dict):
+            raise PaidPricingError(route)
+        context_limit = limits.get("context")
+        output_limit = limits.get("output")
+        if (
+            isinstance(context_limit, bool)
+            or not isinstance(context_limit, int)
+            or isinstance(output_limit, bool)
+            or not isinstance(output_limit, int)
+        ):
+            raise PaidPricingError(route)
+        try:
+            return PaidPricingDisclosure.create(
+                route=route,
+                max_estimated_cost_usd=max_estimated_cost_usd,
+                price_leaves=price_leaves,
+                context_limit=context_limit,
+                output_limit=output_limit,
+            )
+        except ValueError:
+            raise PaidPricingError(route) from None
+
+    def _read_exact_model(self, route: str) -> dict[str, object] | None:
         provider, separator, model_id = route.partition("/")
         if not provider or not separator or not model_id:
-            return PricingVerdict(route, False, MODEL_NOT_FREE)
+            return None
         try:
             completed = self._run_process(
                 [self._executable, *self._command_prefix, "models", provider, "--verbose", "--pure"],
@@ -425,18 +513,10 @@ class OpenCodePricingProbe:
                 timeout=10,
             )
         except (OSError, subprocess.TimeoutExpired):
-            return PricingVerdict(route, False, MODEL_NOT_FREE)
-        if completed.returncode != 0:
-            return PricingVerdict(route, False, MODEL_NOT_FREE)
-        document = _model_document(completed.stdout, route)
-        if document is None or not _zero_cost(document.get("cost")):
-            return PricingVerdict(route, False, MODEL_NOT_FREE)
-        return PricingVerdict(route, True, "OK")
-
-    def require_free(self, route: str) -> None:
-        """Raise before the caller can construct/send a review prompt."""
-        if not self.check(route).is_free:
-            raise ModelNotFreeError(route)
+            return None
+        if completed.returncode != 0 or len(completed.stdout) > MODEL_METADATA_LIMIT:
+            return None
+        return _model_document(completed.stdout, route)
 
 
 def _model_document(payload: bytes, route: str) -> dict[str, object] | None:
@@ -486,3 +566,25 @@ def _zero_cost(value: object) -> bool:
         return False
 
     return visit(value) and bool(leaves)
+
+
+def _paid_price_leaves(value: object) -> tuple[tuple[str, str], ...] | None:
+    """Flatten only the known OpenCode input/output/cache advertised cost shape."""
+    if not isinstance(value, dict) or not value or not set(value) <= {"input", "output", "cache"}:
+        return None
+    leaves: list[tuple[str, str]] = []
+    for key in ("input", "output"):
+        raw = value.get(key)
+        if isinstance(raw, bool) or not isinstance(raw, (int, float)):
+            return None
+        leaves.append((key, str(raw)))
+    cache = value.get("cache")
+    if cache is not None:
+        if not isinstance(cache, dict) or not cache or not set(cache) <= {"read", "write"}:
+            return None
+        for key in sorted(cache):
+            raw = cache[key]
+            if isinstance(raw, bool) or not isinstance(raw, (int, float)):
+                return None
+            leaves.append((f"cache.{key}", str(raw)))
+    return tuple(leaves)

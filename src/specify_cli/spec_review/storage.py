@@ -122,7 +122,7 @@ def _publish_exclusive(final_path: Path, content: str) -> None:
 def _serialize_run(run: SpecReviewRun) -> str:
     """Emit plain YAML scalars/maps, never Python datetime or enum tags."""
     assert run.summary is not None  # guaranteed by SpecReviewRun.__post_init__
-    document = {
+    document: dict[str, object] = {
         "schema": run.schema,
         "run_id": run.run_id,
         "mission": run.mission,
@@ -156,4 +156,6 @@ def _serialize_run(run: SpecReviewRun) -> str:
             "severity_5": run.summary.severity_5,
         },
     }
+    if run.paid_pricing is not None:
+        document["paid_pricing"] = run.paid_pricing.consent_document()
     return yaml.safe_dump(document, allow_unicode=True, sort_keys=False)

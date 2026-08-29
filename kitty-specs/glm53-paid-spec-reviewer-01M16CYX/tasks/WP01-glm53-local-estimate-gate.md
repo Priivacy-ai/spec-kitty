@@ -26,7 +26,10 @@ history:
 - at: '2026-08-29T09:33:00Z'
   actor: codex
   action: Пакет сформирован после согласования исправленного денежного контракта
-agent_profile: python-pedro
+- at: '2026-08-29T10:06:03Z'
+  actor: codex
+  action: Реализация и локальные проверки завершены; пакет передан на ревью
+agent_profile: reviewer-renata
 authoritative_surface: src/specify_cli/spec_review/
 create_intent:
 - src/specify_cli/spec_review/assets/spec-review-run-v2.schema.yaml
@@ -43,7 +46,7 @@ owned_files:
 - tests/specify_cli/spec_review/
 - tests/integration/test_spec_review_integration.py
 - docs/guides/spec-review.md
-role: implementer
+role: reviewer
 tags:
 - glm53
 - cost-control

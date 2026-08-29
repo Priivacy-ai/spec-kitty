@@ -13,7 +13,7 @@ from typer.testing import CliRunner
 from charter.hasher import hash_content
 from specify_cli.cli.commands.spec_review import spec_review
 from specify_cli.context.mission_resolver import ResolvedMission
-from specify_cli.spec_review.models import ReviewStatus, ReviewSummary
+from specify_cli.spec_review.models import PaidPricingDisclosure, ReviewStatus, ReviewSummary
 from specify_cli.spec_review.service import SpecReviewOutcome, prepare_default_disclosure
 
 
@@ -39,12 +39,61 @@ def _setup_cli(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> tuple[typer.T
 
 def test_preview_prints_manifest_and_stops_before_external_run(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     app, _mission = _setup_cli(tmp_path, monkeypatch)
+    monkeypatch.setattr(
+        "specify_cli.cli.commands.spec_review.OpenCodePricingProbe",
+        lambda: (_ for _ in ()).throw(AssertionError("free preview must not probe pricing")),
+    )
 
     result = CliRunner().invoke(app, ["--mission", "demo", "--preview"])
 
     assert result.exit_code == 0, result.output
     assert "Digest согласия:" in result.output
     assert "pricing, prompt и модель не запускались" in result.output
+
+
+def test_paid_preview_uses_only_metadata_quote_and_never_builds_server(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    app, _mission = _setup_cli(tmp_path, monkeypatch)
+    calls: list[tuple[str, str]] = []
+    quote = PaidPricingDisclosure.create(
+        route="openrouter/z-ai/glm-5.3",
+        max_estimated_cost_usd="2",
+        price_leaves=(("input", "1.2"), ("output", "4")),
+        context_limit=1_000_000,
+        output_limit=100_000,
+    )
+
+    class Probe:
+        def quote_paid(self, route: str, *, max_estimated_cost_usd: str) -> PaidPricingDisclosure:
+            calls.append((route, max_estimated_cost_usd))
+            return quote
+
+    monkeypatch.setattr("specify_cli.cli.commands.spec_review.OpenCodePricingProbe", Probe)
+    monkeypatch.setattr(
+        "specify_cli.cli.commands.spec_review._build_service",
+        lambda *args: (_ for _ in ()).throw(AssertionError("paid preview must not build a server")),
+    )
+
+    result = CliRunner().invoke(
+        app,
+        [
+            "--mission",
+            "demo",
+            "--model",
+            "openrouter/z-ai/glm-5.3",
+            "--max-estimated-cost-usd",
+            "2",
+            "--preview",
+        ],
+    )
+
+    assert result.exit_code == 0, result.output
+    assert calls == [("openrouter/z-ai/glm-5.3", "2")]
+    assert "Advertised maximum estimate: 1.600000 USD" in result.output
+    assert "prompt, сессия и модель не запускались" in result.output
+    assert "не provider-side cap" in result.output
 
 
 def test_noninteractive_execution_requires_exact_digest(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:

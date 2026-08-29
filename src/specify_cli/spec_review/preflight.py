@@ -8,7 +8,7 @@ from pathlib import Path
 import re
 from typing import Final
 
-from .models import DisclosureComponent, DisclosureManifest
+from .models import DisclosureComponent, DisclosureManifest, PaidPricingDisclosure
 
 
 MAX_SPEC_BYTES: Final = 256 * 1024
@@ -173,6 +173,7 @@ def build_disclosure(
     rubric: ReviewRubric,
     response_schema: ReviewResponseSchema,
     prompt_template: ReviewPromptTemplate,
+    paid_pricing: PaidPricingDisclosure | None = None,
 ) -> PreflightDisclosure:
     """Inspect only canonical `spec.md` and produce a consent-bound manifest."""
     path = _canonical_spec_path(context)
@@ -187,6 +188,7 @@ def build_disclosure(
         response_schema=response_schema.manifest_component,
         prompt_template=prompt_template.manifest_component,
         rubric_version=rubric.manifest_version,
+        paid_pricing=paid_pricing,
     )
     return PreflightDisclosure(
         context=context,
@@ -215,6 +217,7 @@ def confirm_and_load_spec(disclosure: PreflightDisclosure, consent_manifest_sha2
         response_schema=disclosure.response_schema.manifest_component,
         prompt_template=disclosure.prompt_template.manifest_component,
         rubric_version=disclosure.rubric.manifest_version,
+        paid_pricing=disclosure.manifest.paid_pricing,
     )
     if current.manifest_sha256 != disclosure.manifest.manifest_sha256:
         raise PreflightRefusal(PreflightDiagnostic.MANIFEST_DRIFT, path)

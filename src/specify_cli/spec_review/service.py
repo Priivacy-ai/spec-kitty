@@ -10,7 +10,15 @@ from typing import Protocol
 from kernel.clock import datetime, now_utc
 from mission_runtime import MissionArtifactKind, placement_seam
 
-from .models import DiagnosticCode, DisclosureManifest, ReviewResponse, ReviewStatus, ReviewSummary, SpecReviewRun
+from .models import (
+    DiagnosticCode,
+    DisclosureManifest,
+    PaidPricingDisclosure,
+    ReviewResponse,
+    ReviewStatus,
+    ReviewSummary,
+    SpecReviewRun,
+)
 from .parser import InvalidReviewResponse, parse_review_response_bytes
 from .preflight import (
     MissionSpecContext,
@@ -25,7 +33,6 @@ from .preflight import (
 )
 from .prompt import build_prompt
 from .runner import (
-    MODEL_NOT_FREE,
     AuthRequiredError,
     InvalidProviderResponseError,
     LoopbackTimeoutError,
@@ -46,6 +53,13 @@ class ReviewRunner(Protocol):
     """Runner ordering surface: authorization is intentionally separate from prompt use."""
 
     def authorize(self, route: str) -> PricingPermit: ...
+
+    def authorize_paid(
+        self,
+        expected: PaidPricingDisclosure,
+        *,
+        max_prompt_bytes: int,
+    ) -> PricingPermit: ...
 
     def run(
         self,
@@ -92,6 +106,7 @@ def prepare_default_disclosure(
     repo_root: Path,
     mission_slug: str,
     model_route: str = DEFAULT_MODEL_ROUTE,
+    paid_pricing: PaidPricingDisclosure | None = None,
 ) -> DisclosureManifest:
     """Create a metadata-only preview without pricing, prompt construction, or model use."""
     rubric, response_schema, prompt_template = load_default_review_materials()
@@ -103,6 +118,7 @@ def prepare_default_disclosure(
         rubric=rubric,
         response_schema=response_schema,
         prompt_template=prompt_template,
+        paid_pricing=paid_pricing,
     ).manifest
     return manifest
 
@@ -120,6 +136,7 @@ class SpecReviewService:
         prompt_template: ReviewPromptTemplate,
         runner: ReviewRunner,
         model_route: str = DEFAULT_MODEL_ROUTE,
+        paid_pricing: PaidPricingDisclosure | None = None,
         store: Callable[..., StoredSpecReview] = store_spec_review,
     ) -> None:
         self._repo_root = repo_root
@@ -129,6 +146,7 @@ class SpecReviewService:
         self._prompt_template = prompt_template
         self._runner = runner
         self._model_route = model_route
+        self._paid_pricing = paid_pricing
         self._store = store
 
     def prepare(self) -> DisclosureManifest:
@@ -145,9 +163,20 @@ class SpecReviewService:
             return SpecReviewOutcome(exit_code=2, diagnostic_code="SPEC_REVIEW_CONSENT_REQUIRED", manifest=disclosure.manifest, status=ReviewStatus.REFUSED)
         assert confirm_digest is not None
         try:
-            permit = self._runner.authorize(self._model_route)
-        except ModelNotFreeError:
-            return SpecReviewOutcome(exit_code=4, diagnostic_code=MODEL_NOT_FREE, manifest=disclosure.manifest, status=ReviewStatus.REFUSED)
+            if disclosure.manifest.paid_pricing is None:
+                permit = self._runner.authorize(self._model_route)
+            else:
+                permit = self._runner.authorize_paid(
+                    disclosure.manifest.paid_pricing,
+                    max_prompt_bytes=_max_prompt_bytes(disclosure.manifest),
+                )
+        except ModelNotFreeError as error:
+            return SpecReviewOutcome(
+                exit_code=4,
+                diagnostic_code=error.code,
+                manifest=disclosure.manifest,
+                status=ReviewStatus.REFUSED,
+            )
         try:
             snapshot = confirm_and_load_spec(disclosure, confirm_digest)
         except PreflightRefusal:
@@ -168,6 +197,13 @@ class SpecReviewService:
                     line_count=snapshot.line_count,
                     source_text=snapshot.text,
                 ),
+            )
+        except ModelNotFreeError as error:
+            return SpecReviewOutcome(
+                exit_code=4,
+                diagnostic_code=error.code,
+                manifest=disclosure.manifest,
+                status=ReviewStatus.REFUSED,
             )
         except AuthRequiredError:
             return self._store_failure(disclosure.manifest, started_at, ReviewStatus.PROVIDER_ERROR, DiagnosticCode.AUTH_REQUIRED, 4)
@@ -257,7 +293,13 @@ class SpecReviewService:
             rubric=self._rubric,
             response_schema=self._response_schema,
             prompt_template=self._prompt_template,
+            paid_pricing=self._paid_pricing,
         )
+
+
+def _max_prompt_bytes(manifest: DisclosureManifest) -> int:
+    """Return a consent-derived integrity ceiling, never a billable-token estimate."""
+    return 6 * manifest.total_payload_bytes + 4096
 
 
 def _mission_spec_context(repo_root: Path, mission_slug: str) -> MissionSpecContext:

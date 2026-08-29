@@ -5,16 +5,36 @@ from __future__ import annotations
 from dataclasses import replace
 from pathlib import Path
 import subprocess
+from typing import cast
 
 import pytest
 import typer
 from typer.testing import CliRunner
+import yaml
+from jsonschema import validate
 
+from mission_runtime import CommitTarget
 from kernel.clock import UTC, datetime
 from specify_cli.cli.commands.spec_review import spec_review
 from specify_cli.spec_review import models
-from specify_cli.spec_review.models import DisclosureComponent, DisclosureManifest, ReviewStatus, SpecReviewRun
-from specify_cli.spec_review.runner import OpenCodeLoopbackRunner, OpenCodePricingProbe
+from specify_cli.spec_review.models import (
+    DisclosureComponent,
+    DisclosureManifest,
+    PaidPricingDisclosure,
+    ReviewResponse,
+    ReviewStatus,
+    SpecReviewRun,
+)
+from specify_cli.spec_review.preflight import ReviewPromptTemplate, ReviewResponseSchema, ReviewRubric
+from specify_cli.spec_review.runner import (
+    PAID_PRICING_DRIFT,
+    OpenCodeLoopbackRunner,
+    OpenCodePricingProbe,
+    PaidPricingError,
+    PricingPermit,
+)
+from specify_cli.spec_review.service import SpecReviewService
+from specify_cli.spec_review.storage import StoredSpecReview
 from specify_cli.spec_review.storage import _serialize_run
 
 
@@ -145,6 +165,32 @@ def test_paid_probe_requires_complete_exact_metadata_and_computes_quote() -> Non
         ).quote_paid(PAID_ROUTE, max_estimated_cost_usd="2")
 
 
+@pytest.mark.parametrize(
+    "payload",
+    [
+        _paid_model().replace(b'"cache":{"read":0.12}}', b'"cache":{"read":0.12},"other":1}'),
+        _paid_model().replace(b'"input":1.2', b'"input":-1.2'),
+        _paid_model().replace(b'"output":100000', b'"other":100000'),
+        _paid_model() + _paid_model(),
+    ],
+    ids=["unknown-price-leaf", "negative-price", "missing-output-limit", "duplicate-route"],
+)
+def test_paid_probe_refuses_ambiguous_or_incomplete_metadata(payload: bytes) -> None:
+    probe = OpenCodePricingProbe(run_process=lambda *args, **kwargs: _completed(payload))
+
+    with pytest.raises(PaidPricingError):
+        probe.quote_paid(PAID_ROUTE, max_estimated_cost_usd="2")
+
+
+def test_paid_probe_refuses_estimate_above_local_threshold_and_other_paid_routes() -> None:
+    probe = OpenCodePricingProbe(run_process=lambda *args, **kwargs: _completed(_paid_model()))
+
+    with pytest.raises(PaidPricingError):
+        probe.quote_paid(PAID_ROUTE, max_estimated_cost_usd="1")
+    with pytest.raises(PaidPricingError):
+        probe.quote_paid("openrouter/other-paid-model", max_estimated_cost_usd="5")
+
+
 def test_paid_execution_refuses_metadata_drift_before_session_creation() -> None:
     preview_probe = OpenCodePricingProbe(run_process=lambda *args, **kwargs: _completed(_paid_model()))
     quote_paid = getattr(preview_probe, "quote_paid", None)
@@ -178,6 +224,37 @@ def test_paid_execution_refuses_metadata_drift_before_session_creation() -> None
 
     with pytest.raises(RuntimeError):
         authorize_paid(preview_quote)
+
+    assert events == []
+
+
+def test_paid_execution_refuses_prompt_larger_than_authorized_bound_before_session() -> None:
+    probe = OpenCodePricingProbe(run_process=lambda *args, **kwargs: _completed(_paid_model()))
+    quote = probe.quote_paid(PAID_ROUTE, max_estimated_cost_usd="2")
+    events: list[str] = []
+
+    class SessionClient:
+        def create_session(self) -> str:
+            events.append("create")
+            return "session"
+
+        def send_review(self, session_id: str, *, route: str, prompt: bytes) -> bytes:
+            events.append("send")
+            return b"{}"
+
+        def delete_session(self, session_id: str) -> bool:
+            events.append("delete")
+            return True
+
+        def close(self) -> bool:
+            events.append("close")
+            return True
+
+    runner = OpenCodeLoopbackRunner(probe, SessionClient())
+    permit = runner.authorize_paid(quote, max_prompt_bytes=3)
+
+    with pytest.raises(PaidPricingError):
+        runner.run(permit=permit, prompt=b"four", validate_response=lambda payload: payload)
 
     assert events == []
 
@@ -222,3 +299,102 @@ summary:
 
     assert _serialize_run(run) == expected
     assert "paid_pricing" not in expected
+
+
+def test_paid_service_authorizes_before_prompt_and_persists_v2_provenance(tmp_path: Path) -> None:
+    mission = tmp_path / "kitty-specs" / "demo"
+    mission.mkdir(parents=True)
+    (mission / "spec.md").write_text("# Synthetic\nOnly public data.\n", encoding="utf-8")
+    paid = cast(PaidPricingDisclosure, _paid_disclosure())
+    events: list[str] = []
+    stored_runs: list[SpecReviewRun] = []
+
+    class Runner:
+        def authorize(self, route: str) -> PricingPermit:
+            raise AssertionError("free authorization must not run")
+
+        def authorize_paid(
+            self,
+            expected: PaidPricingDisclosure,
+            *,
+            max_prompt_bytes: int,
+        ) -> PricingPermit:
+            events.append("authorize_paid")
+            assert expected == paid
+            assert max_prompt_bytes > 0
+            return PricingPermit(expected.route, self, expected, max_prompt_bytes)
+
+        def run(self, **kwargs: object) -> ReviewResponse:
+            events.append("run")
+            return ReviewResponse.create(())
+
+    def store(**kwargs: object) -> StoredSpecReview:
+        stored_runs.append(cast(SpecReviewRun, kwargs["run"]))
+        return StoredSpecReview(tmp_path / "paid.yaml", "run-paid", CommitTarget("codex/demo"))
+
+    service = SpecReviewService(
+        repo_root=tmp_path,
+        mission_slug="demo",
+        rubric=ReviewRubric(version="v1", serialized=b"rubric", scanner_version="v1"),
+        response_schema=ReviewResponseSchema(version="v1", serialized=b"schema"),
+        prompt_template=ReviewPromptTemplate(version="v1", serialized=b"template"),
+        runner=Runner(),
+        model_route=PAID_ROUTE,
+        paid_pricing=paid,
+        store=store,
+    )
+
+    outcome = service.execute(confirm_digest=service.prepare().manifest_sha256, preview=False)
+
+    assert outcome.exit_code == 0
+    assert events == ["authorize_paid", "run"]
+    assert stored_runs[0].schema == "spec-review-run/v2"
+    document = yaml.safe_load(_serialize_run(stored_runs[0]))
+    assert document["paid_pricing"] == paid.consent_document()
+    schema_path = Path(__file__).resolve().parents[3] / "src/specify_cli/spec_review/assets/spec-review-run-v2.schema.yaml"
+    schema = yaml.safe_load(schema_path.read_text(encoding="utf-8"))
+    validate(document, schema)
+    assert schema["properties"]["schema"]["const"] == "spec-review-run/v2"
+    assert "paid_pricing" in schema["required"]
+
+
+def test_paid_service_reports_quote_drift_before_prompt(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    mission = tmp_path / "kitty-specs" / "demo"
+    mission.mkdir(parents=True)
+    (mission / "spec.md").write_text("# Synthetic\nOnly public data.\n", encoding="utf-8")
+    paid = cast(PaidPricingDisclosure, _paid_disclosure())
+
+    class Runner:
+        def authorize(self, route: str) -> PricingPermit:
+            raise AssertionError("free authorization must not run")
+
+        def authorize_paid(
+            self,
+            expected: PaidPricingDisclosure,
+            *,
+            max_prompt_bytes: int,
+        ) -> PricingPermit:
+            raise PaidPricingError(expected.route, PAID_PRICING_DRIFT)
+
+        def run(self, **kwargs: object) -> ReviewResponse:
+            raise AssertionError("run must not start")
+
+    monkeypatch.setattr(
+        "specify_cli.spec_review.service.build_prompt",
+        lambda **kwargs: (_ for _ in ()).throw(AssertionError("prompt must not be built")),
+    )
+    service = SpecReviewService(
+        repo_root=tmp_path,
+        mission_slug="demo",
+        rubric=ReviewRubric(version="v1", serialized=b"rubric", scanner_version="v1"),
+        response_schema=ReviewResponseSchema(version="v1", serialized=b"schema"),
+        prompt_template=ReviewPromptTemplate(version="v1", serialized=b"template"),
+        runner=Runner(),
+        model_route=PAID_ROUTE,
+        paid_pricing=paid,
+    )
+
+    outcome = service.execute(confirm_digest=service.prepare().manifest_sha256, preview=False)
+
+    assert outcome.exit_code == 4
+    assert outcome.diagnostic_code == PAID_PRICING_DRIFT
