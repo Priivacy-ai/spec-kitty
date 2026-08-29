@@ -43,6 +43,7 @@ from pathlib import Path
 from typing import Any
 
 import typer
+from rich.markup import escape
 
 from specify_cli.cli.console import console
 from specify_cli.saas_client.auth import load_auth_context
@@ -86,7 +87,7 @@ def _gateway_for(cwd: Path) -> resolution.SaasCapabilityGateway:
     try:
         ctx = load_auth_context(repo_root=cwd)
     except SaasAuthError as exc:
-        _fail(f"nothing configured to authenticate with ({exc}). Run `spec-kitty auth login` first.")
+        _fail(f"nothing configured to authenticate with ({escape(str(exc))}). Run `spec-kitty auth login` first.")
     return resolution.SaasCapabilityGateway(ctx.saas_url, ctx.token, team_slug=ctx.team_slug)
 
 
