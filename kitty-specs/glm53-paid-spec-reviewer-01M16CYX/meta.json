@@ -1,13 +1,13 @@
 {
   "created_at": "2026-08-29T09:17:40.063285+00:00",
   "flattened": false,
-  "friendly_name": "glm53 paid spec reviewer",
+  "friendly_name": "Платный opt-in ревьюер GLM 5.3",
   "mission_id": "01M16CYXTSKX0XZK7YGK3HW8E3",
   "mission_number": null,
   "mission_slug": "glm53-paid-spec-reviewer-01M16CYX",
   "mission_type": "software-dev",
-  "purpose_context": "This mission advances glm53 paid spec reviewer on codex/glm53-paid-spec-reviewer so stakeholders can track the work from mission creation onward.",
-  "purpose_tldr": "glm53 paid spec reviewer",
+  "purpose_context": "Добавить точный маршрут GLM 5.3 для ручного ревью спецификаций только с подтверждённым пределом стоимости одного запуска, не меняя бесплатный fail-closed режим.",
+  "purpose_tldr": "Платный GLM 5.3 только с явным cost cap",
   "slug": "glm53-paid-spec-reviewer-01M16CYX",
   "target_branch": "codex/glm53-paid-spec-reviewer",
   "topology": "single_branch"
