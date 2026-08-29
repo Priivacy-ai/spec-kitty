@@ -1,4 +1,5 @@
 {
+  "accept_commit": "fd8c4d58e93c7d0bf9b61af2029d4f077527c402",
   "acceptance_history": [
     {
       "accept_commit": "bb7436a32df0c15ca7e267da73c1c5ea0757d505",
@@ -15,6 +16,7 @@
       "accepted_from_commit": "c22210431bbab32a20e037e630f21ac36f67de99"
     },
     {
+      "accept_commit": "fd8c4d58e93c7d0bf9b61af2029d4f077527c402",
       "acceptance_mode": "pr",
       "accepted_at": "2026-08-29T11:46:19.634083+00:00",
       "accepted_by": "Руслан",
