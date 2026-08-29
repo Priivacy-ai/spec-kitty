@@ -1,9 +1,7 @@
-"""Workflow-coherence invariants (FR-003/FR-005/FR-008/FR-011, WP04).
+"""Workflow-coherence relation primitives (FR-003/FR-005/FR-008/FR-011, WP04).
 
-These bind the delivery-topology relations this mission owns, over the SAME
-parsed model as the marker invariant (``_gate_coverage.WorkflowModel``), so the
-worst failure mode of the whole CI topology — a red suite coexisting with a
-green aggregator (the phantom-``needs:`` class) — cannot silently return:
+These bound the delivery-topology relations this mission owns, over the SAME
+parsed model as the marker invariant (``_gate_coverage.WorkflowModel``):
 
   FR-003a  every ``needs.<job>.result`` read is declared in that job's ``needs:``
   FR-003b  every dorny filter output (except the ``any_src`` probe) is consumed
@@ -19,19 +17,33 @@ green aggregator (the phantom-``needs:`` class) — cannot silently return:
            (Decision 8 two-authority rule; ``quarantine-visibility`` stays out of
            the blocking set, C-005)
 
-Every relation is a PARSED relation (C-002): job renames / YAML reordering that
-preserve behaviour never red. Each has a fixture fault-injection proof.
+Retired (planning#57): this programme's ``.github/workflows/*.yml`` were the
+leftover pre-programme GitHub Actions YAML deleted per PROGRAM.md §2 ("All
+private. No GitHub Actions... Nothing on GitHub enforces anything"). The
+"live" half of this module asserted each relation above against those five
+real files (``_ci_quality_model`` / ``_quality_gate_run_text`` /
+``_decision_step`` / ``_tracked_paths`` and the ten ``test_*_live`` functions
+that used them) — with no workflow YAML left on disk to parse, that half has
+no remaining subject matter and was removed with the files, the same norm
+this repo's ``_gate_coverage.py`` already applied when ``drift-detector.yml``
+was retired.
+
+WHAT REMAINS: the pure relation primitives below (``needs_declaration_violations``,
+``unconsumed_filter_groups``, ``glob_is_live``, ``critical_path_backed_by``,
+``parse_job_groups``) never read a real workflow file — each is exercised only
+against a ``WorkflowModel`` built from FIXTURE YAML (``_workflow_fixtures``) or
+literal data constructed in-line by the ``test_faultinjection_*`` tests, so
+they keep proving each relation actually reds on a planted violation
+regardless of whether any workflow YAML exists on disk.
 """
 
 from __future__ import annotations
 
 import fnmatch
 import re
-import subprocess
 from typing import TYPE_CHECKING
 
 import pytest
-import yaml
 
 from tests.architectural import _gate_coverage as gc
 from tests.architectural._workflow_fixtures import filter_workflow, write_workflow
@@ -41,9 +53,6 @@ if TYPE_CHECKING:
 
 pytestmark = [pytest.mark.architectural, pytest.mark.git_repo]
 
-_CI_QUALITY = gc.WORKFLOWS_DIR / "ci-quality.yml"
-_TOJSON_NEEDS = "${{ toJSON(needs) }}"
-_DECISION_STEP = "Evaluate quality-gate decision"
 # ``"job-name": [ "grp", ... ]`` rows of the JOB_GROUPS heredoc (FR-011).
 _JOB_GROUPS_ROW_RE = re.compile(r'"([\w-]+)":\s*\[([^\]]*)\]')
 _QUOTED_RE = re.compile(r'"([\w-]+)"')
@@ -117,181 +126,6 @@ def parse_job_groups(quality_gate_run_text: str) -> dict[str, set[str]]:
     assert match, "JOB_GROUPS table not found in the quality-gate decision step"
     return {row.group(1): set(_QUOTED_RE.findall(row.group(2))) for row in _JOB_GROUPS_ROW_RE.finditer(match.group(1))}
 
-
-def parsed_blocking_gating(model: gc.WorkflowModel) -> dict[str, set[str]]:
-    """Job -> the dorny filter groups its ``if:`` gates on, for BLOCKING jobs only."""
-    filter_names = set(model.filter_groups) - {"any_src"}
-    blocking = set(model.job_needs["quality-gate"])
-    mapping = {job: set(model.job_gating_groups.get(job, frozenset())) & filter_names for job in blocking}
-    return {job: groups for job, groups in mapping.items() if groups}
-
-
-# ---------------------------------------------------------------------------
-# Live fixtures.
-# ---------------------------------------------------------------------------
-
-
-def _ci_quality_model() -> gc.WorkflowModel:
-    return gc.load_workflow_model(_CI_QUALITY)
-
-
-def _quality_gate_run_text() -> str:
-    data = yaml.safe_load(_CI_QUALITY.read_text(encoding="utf-8"))
-    steps = data["jobs"]["quality-gate"]["steps"]
-    return "\n".join(str(step["run"]) for step in steps if "run" in step)
-
-
-def _decision_step() -> dict[str, object]:
-    data = yaml.safe_load(_CI_QUALITY.read_text(encoding="utf-8"))
-    return next(step for step in data["jobs"]["quality-gate"]["steps"] if step.get("name") == _DECISION_STEP)
-
-
-def _tracked_paths() -> set[str]:
-    result = subprocess.run(
-        ["git", "ls-files"],
-        cwd=gc.REPO_ROOT,
-        capture_output=True,
-        text=True,
-        check=True,
-    )
-    return set(result.stdout.splitlines())
-
-
-# ---------------------------------------------------------------------------
-# FR-003a / FR-003b / FR-003c live (all four suite-running workflows).
-# ---------------------------------------------------------------------------
-
-
-def test_needs_result_reads_are_declared_live() -> None:
-    """FR-003a: no phantom ``needs.<job>.result`` read in any suite workflow."""
-    for name in gc.WORKFLOW_FILES:
-        model = gc.load_workflow_model(gc.WORKFLOWS_DIR / name)
-        violations = needs_declaration_violations(model)
-        assert not violations, f"{name}:\n" + "\n".join(violations)
-
-
-def test_every_filter_group_is_consumed_live() -> None:
-    """FR-003b: every named filter group gates >=1 job (the ``any_src`` probe excepted)."""
-    for name in gc.WORKFLOW_FILES:
-        model = gc.load_workflow_model(gc.WORKFLOWS_DIR / name)
-        unconsumed = unconsumed_filter_groups(model)
-        assert not unconsumed, f"{name}: unconsumed filter groups {sorted(unconsumed)}"
-
-
-# Single named, justified exception (mission ci-scoping-gate-reliability
-# #3008): ``.kittify/release/downstream-verified.json`` is a release.yml-
-# GENERATED artifact (``.github/workflows/release.yml`` writes it at
-# ``:323`` and uploads it as the ``downstream-verified`` artifact; consumed
-# by ``tests/integration/test_release_gate_downstream_consumer.py``) --
-# never committed to git by design, so ``git ls-files``-based liveness can
-# never observe it. It is a real, live-in-production glob; only this
-# `FR-003c` tracked-file proxy is structurally blind to it. A single named
-# constant, not a general allowlist: any OTHER dead glob still fails below.
-_GENERATED_ARTIFACT_GLOB_EXCEPTIONS = frozenset({".kittify/release/downstream-verified.json"})
-
-
-def test_every_filter_glob_is_live() -> None:
-    """FR-003c: no dead filter glob (KNOWN FLOOR: WP03 FR-004(e) removed the stale ones)."""
-    tracked = _tracked_paths()
-    for name in gc.WORKFLOW_FILES:
-        model = gc.load_workflow_model(gc.WORKFLOWS_DIR / name)
-        dead = [
-            (group, glob)
-            for group, globs in model.filter_groups.items()
-            for glob in globs
-            if glob not in _GENERATED_ARTIFACT_GLOB_EXCEPTIONS and not glob_is_live(glob, tracked)
-        ]
-        assert not dead, f"{name}: dead filter globs (WP03-feedback if live) {dead}"
-
-
-# ---------------------------------------------------------------------------
-# FR-003d live: quality-gate consumes toJSON(needs), zero literal result reads.
-# ---------------------------------------------------------------------------
-
-
-def test_quality_gate_consumes_tojson_needs_not_literal_reads() -> None:
-    """FR-003d: the aggregator's blocking authority is ``needs:`` via ``toJSON``.
-
-    A literal ``needs.<job>.result`` read reappearing for quality-gate is the
-    re-enumeration drift WP03's rewrite removed — model the toJSON form directly.
-    """
-    model = _ci_quality_model()
-    assert model.needs_result_reads["quality-gate"] == frozenset(), (
-        "quality-gate must read ZERO literal needs.<job>.result — membership in "
-        f"needs: is the sole blocking authority; found: "
-        f"{sorted(model.needs_result_reads['quality-gate'])}"
-    )
-    step = _decision_step()
-    env = step.get("env")
-    assert isinstance(env, dict) and env.get("NEEDS_JSON") == _TOJSON_NEEDS, (
-        "the decision step must consume the full needs context via NEEDS_JSON: ${{ toJSON(needs) }}"
-    )
-
-
-def test_quality_gate_decision_step_pins_shell_bash() -> None:
-    """FR-011 wiring (belt-and-suspenders): pipefail must be on, or the gate is vacuous.
-
-    Without ``shell: bash`` the decision script's ``| tee`` swallows its non-zero
-    exit (the blocker WP03 caught and fixed). Pin it here too so the mission's
-    core guarantee has a second guard beyond the path-filters / release suites.
-    """
-    assert _decision_step().get("shell") == "bash"
-
-
-# ---------------------------------------------------------------------------
-# FR-005 live: diff-cover critical paths backed by a --cov emitter.
-# ---------------------------------------------------------------------------
-
-
-def test_diff_cover_critical_paths_are_cov_backed_live() -> None:
-    """FR-005: every critical-path entry has a ``--cov`` ancestor-or-equal target."""
-    model = _ci_quality_model()
-    cov_targets: set[str] = set()
-    for targets in model.cov_targets.values():
-        cov_targets |= targets
-    unbacked = [entry for entry in model.diff_cover_critical_paths if critical_path_backed_by(entry, cov_targets) is None]
-    assert not unbacked, f"unbacked critical-path entries (vacuous gate): {unbacked}"
-
-
-# ---------------------------------------------------------------------------
-# FR-008 live: workflow-set completeness.
-# ---------------------------------------------------------------------------
-
-
-def test_pytest_workflow_set_equals_model_allowlist() -> None:
-    """FR-008: a fifth suite-running workflow must enter the model (fail-closed)."""
-    assert gc.discover_pytest_workflows() == frozenset(gc.WORKFLOW_FILES)
-
-
-# ---------------------------------------------------------------------------
-# FR-011 live: JOB_GROUPS table == parsed job-if gating + C-005 pin.
-# ---------------------------------------------------------------------------
-
-
-def test_job_groups_table_equals_parsed_if_gating_live() -> None:
-    """FR-011 (Decision 8): the aggregator's job->group table == the parsed if-gates."""
-    model = _ci_quality_model()
-    table = parse_job_groups(_quality_gate_run_text())
-    parsed = parsed_blocking_gating(model)
-    assert table == parsed, (
-        "quality-gate JOB_GROUPS drifted from the parsed job-`if:` gating "
-        f"(Decision 8). only-in-table={set(table) - set(parsed)}, "
-        f"only-in-parsed={set(parsed) - set(table)}, "
-        f"value-diffs={{j: (table[j], parsed[j]) for j in set(table) & set(parsed) if table[j] != parsed[j]}}"
-    )
-
-
-def test_quarantine_visibility_is_not_blocking_live() -> None:
-    """C-005 pin: the quarantine job must never enter the blocking aggregator set."""
-    model = _ci_quality_model()
-    assert "quarantine-visibility" not in model.job_needs["quality-gate"]
-
-
-def test_quality_gate_decision_data_blocks_present_live() -> None:
-    """The greppable data anchors WP03 left stay present (they feed the decision script)."""
-    run_text = _quality_gate_run_text()
-    assert "DRAFT_GATED_JOBS" in run_text
-    assert "RELEASE_REQUIRED_JOBS" in run_text
 
 
 # ---------------------------------------------------------------------------
