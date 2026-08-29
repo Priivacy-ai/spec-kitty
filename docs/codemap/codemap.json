@@ -1,9 +1,9 @@
 {
   "schema_version": "codemap/v1",
-  "mission": "ox-alpha-spec-reviewer-01M0N82A",
-  "generated_at_utc": "2026-08-26T14:31:19Z",
-  "source_head": "77be0a84d46b267aa280fe5a28293374282d4e29",
-  "generator": "best-step-ci-help-test-refresh/v1",
+  "mission": "glm53-paid-spec-reviewer-01M16CYX",
+  "generated_at_utc": "2026-08-29T10:06:03Z",
+  "source_head": "4d82f191dec04d25c80db293a0d81a28d5d9b46d",
+  "generator": "glm53-paid-spec-reviewer/v1",
   "digest_mode": "sha256(text normalized to UTF-8 with LF line endings)",
   "audience": "Spec Kitty core maintainers and WP implementers",
   "ordering": {
@@ -33,7 +33,7 @@
   "summary": {
     "present_nodes": 30,
     "planned_nodes": 0,
-    "edges": 42,
+    "edges": 43,
     "historical_review_files": 546,
     "historical_spec_review_files": 0
   },
@@ -98,6 +98,14 @@
       "algorithm": "SHA-256 of LF-joined '<LF-normalized-file-sha256>  <POSIX-path>\\n' records sorted by path"
     },
     {
+      "path": "kitty-specs/glm53-paid-spec-reviewer-01M16CYX/plan.md",
+      "sha256": "6ec38d90ca4f4a97464a03a9ad2f75b603ae85799fb3d142abac8979958d2148"
+    },
+    {
+      "path": "kitty-specs/glm53-paid-spec-reviewer-01M16CYX/spec.md",
+      "sha256": "506e9c993a49fbc07d31d36c123957d52b7a03615ab98154919391dcaa06dc7e"
+    },
+    {
       "path": "kitty-specs/ox-alpha-spec-reviewer-01M0N82A/plan.md",
       "sha256": "6d8842753a17606122d017d926527c088c090b25624b115ae335729d51a7d7da"
     },
@@ -143,7 +151,7 @@
     },
     {
       "path": "src/specify_cli/cli/commands/spec_review.py",
-      "sha256": "3c0b8dbf94d425d716323400c2e2ade008960525e8bb711d7b732b381d108333"
+      "sha256": "d494d6dfce23be24f29f9d5cea8870d347a25ca0a07ef2bfa9654ae713e2191a"
     },
     {
       "path": "src/specify_cli/cli/selector_resolution.py",
@@ -162,8 +170,12 @@
       "sha256": "217e8e3661c493ffd0449067e1dd665c1362fe0bfd375ad537e20edb71695751"
     },
     {
+      "path": "src/specify_cli/spec_review/assets/spec-review-run-v2.schema.yaml",
+      "sha256": "b918b769a31fbe3b4304d8d2bb6d7998a63d32e4c00af77bd9b48feb9c1ce27f"
+    },
+    {
       "path": "src/specify_cli/spec_review/models.py",
-      "sha256": "60c68c522bc0dec8be3dffa6e875f8e2298996380b63a50bac0328a5c3dcd7e5"
+      "sha256": "5d272256446750778c0dcb3aa72d5d58c4b43b1424dbfc7d3f956187caec52ec"
     },
     {
       "path": "src/specify_cli/spec_review/parser.py",
@@ -171,7 +183,7 @@
     },
     {
       "path": "src/specify_cli/spec_review/preflight.py",
-      "sha256": "d5379434057a64aff2414d29f3b10f2866831befa50d4b3f17e4ee8d2f323219"
+      "sha256": "df495041714a757d9d9b99d551456efc8cfb8f809ce0101b643a8ff6cc602879"
     },
     {
       "path": "src/specify_cli/spec_review/prompt.py",
@@ -179,15 +191,15 @@
     },
     {
       "path": "src/specify_cli/spec_review/runner.py",
-      "sha256": "c7c9c66a3a463aae25ab84578e0109879041cbe5fd9302f6c26d37782496d46e"
+      "sha256": "c925ec96a4e86e6635b6cbe66eec6147fe6cd3e8972d671c794c04eb179616a9"
     },
     {
       "path": "src/specify_cli/spec_review/service.py",
-      "sha256": "821e5bdedeb42af6637805441202b7deb97ec7518743e02871aa07f060e38509"
+      "sha256": "8d3afca6a37a0ee9720f0101bcc6e58f13bbf4995e74aaf79d2e2710ad701d79"
     },
     {
       "path": "src/specify_cli/spec_review/storage.py",
-      "sha256": "d7fb9d9ac49fbd730b2b5228948639811bdb28f53e05e7e7c2d808dc4f79a6fe"
+      "sha256": "120ef1698d174da080ffa008cb4279d2dabc63736d10e595bcadc7be06466c81"
     },
     {
       "path": "tests/architectural/_baselines.yaml",
@@ -259,11 +271,15 @@
     },
     {
       "path": "tests/specify_cli/spec_review/test_cli_preview.py",
-      "sha256": "7db222a09868da82b5c3c627529428d94c0756cfd90059fdcda6010053a843f9"
+      "sha256": "18404107932f9755b8cd113c46ad013fa91baaf548d8cbed8119fd0efd197a6f"
     },
     {
       "path": "tests/specify_cli/spec_review/test_models.py",
       "sha256": "23dd2d88572d4857d52535c0408d9045bf957e99262567526a01af3b4a78df30"
+    },
+    {
+      "path": "tests/specify_cli/spec_review/test_paid_cost_gate_acceptance.py",
+      "sha256": "632ec368160e7e5c4c52af7393f09c7e248c410ccce004d4554b72254fe57690"
     },
     {
       "path": "tests/specify_cli/spec_review/test_parser.py",
@@ -599,15 +615,15 @@
       "path": "src/specify_cli/cli/commands/spec_review.py",
       "symbol": "spec_review command adapter",
       "callers": ["P02-root-command-registry as a top-level leaf"],
-      "effects": ["resolve the selected mission", "render disclosure and consent UX", "delegate the use case to P28-spec-review-service", "preserve existing review command semantics"],
+      "effects": ["validate the exact paid route and local estimate threshold before mission resolution", "render free or paid disclosure and consent UX", "run a metadata-only paid quote preview without prompt, session or model call", "delegate execution to P28-spec-review-service", "preserve existing free-route semantics"],
       "coverage": {
         "classification": "covered",
-        "tests": ["tests/specify_cli/spec_review/test_cli_preview.py", "tests/integration/test_spec_review_integration.py"],
-        "note": "CLI preview, direct Click metadata for leaf compatibility, and fast-path import behavior are executable contracts."
+        "tests": ["tests/specify_cli/spec_review/test_cli_preview.py", "tests/specify_cli/spec_review/test_paid_cost_gate_acceptance.py", "tests/integration/test_spec_review_integration.py"],
+        "note": "CLI tests pin free preview compatibility, paid threshold validation before mission resolution, metadata-only quoting, and zero session/model calls."
       },
       "requirements": ["FR-001", "FR-003", "FR-009", "FR-010", "FR-012", "C-004"],
       "concerns": ["IC-05", "IC-06"],
-      "authority": "kitty-specs/ox-alpha-spec-reviewer-01M0N82A/plan.md"
+      "authority": "kitty-specs/glm53-paid-spec-reviewer-01M16CYX/plan.md"
     },
     {
       "id": "P22-spec-review-package",
@@ -635,15 +651,15 @@
       "path": "src/specify_cli/spec_review/models.py",
       "symbol": "typed review models",
       "callers": ["P24-spec-review-preflight", "P25-spec-review-prompt", "P27-spec-review-parser", "P28-spec-review-service", "P29-spec-review-storage"],
-      "effects": ["define trusted host-owned provenance separately from untrusted model findings", "bound statuses, findings and summaries"],
+      "effects": ["define trusted host-owned provenance separately from untrusted model findings", "validate and canonicalize the consent-bound GLM 5.3 advertised-cost quote with Decimal arithmetic", "keep free manifest bytes on v1 while paid provenance uses v2", "bound statuses, findings and summaries"],
       "coverage": {
         "classification": "covered",
-        "tests": ["tests/specify_cli/spec_review/test_models.py", "tests/specify_cli/spec_review/test_parser.py", "tests/specify_cli/spec_review/test_service.py", "tests/specify_cli/spec_review/test_storage.py"],
-        "note": "Schemas, models and round-trip behavior have direct tests."
+        "tests": ["tests/specify_cli/spec_review/test_models.py", "tests/specify_cli/spec_review/test_paid_cost_gate_acceptance.py", "tests/specify_cli/spec_review/test_parser.py", "tests/specify_cli/spec_review/test_service.py", "tests/specify_cli/spec_review/test_storage.py"],
+        "note": "Direct tests cover the conservative estimate formula, metadata fingerprint, paid consent digest, free golden digest, and v1/v2 run provenance."
       },
       "requirements": ["FR-002", "FR-007", "FR-010", "NFR-001", "NFR-004"],
       "concerns": ["IC-02"],
-      "authority": "kitty-specs/ox-alpha-spec-reviewer-01M0N82A/plan.md"
+      "authority": "kitty-specs/glm53-paid-spec-reviewer-01M16CYX/plan.md"
     },
     {
       "id": "P24-spec-review-preflight",
@@ -653,15 +669,15 @@
       "path": "src/specify_cli/spec_review/preflight.py",
       "symbol": "preflight and immutable input snapshot",
       "callers": ["P28-spec-review-service"],
-      "effects": ["resolve only canonical spec.md", "reject containment, size and sensitive-marker violations", "produce disclosure digests without exposing matched values", "prevent runner invocation before consent"],
+      "effects": ["resolve only canonical spec.md", "reject containment, size and sensitive-marker violations", "bind the optional paid quote and local threshold into the disclosure digest", "preserve the byte-identical free disclosure document", "prevent runner invocation before consent"],
       "coverage": {
         "classification": "covered",
-        "tests": ["tests/specify_cli/spec_review/test_preflight.py", "tests/specify_cli/spec_review/test_cli_preview.py", "tests/integration/test_spec_review_integration.py"],
-        "note": "Boundary, TOCTOU, zero-runner-call and the 256 KiB performance budget have direct tests."
+        "tests": ["tests/specify_cli/spec_review/test_preflight.py", "tests/specify_cli/spec_review/test_cli_preview.py", "tests/specify_cli/spec_review/test_paid_cost_gate_acceptance.py", "tests/integration/test_spec_review_integration.py"],
+        "note": "Boundary, TOCTOU, free golden compatibility, paid quote binding, zero-runner-call and the 256 KiB performance budget have direct tests."
       },
       "requirements": ["FR-001", "FR-002", "FR-003", "FR-004", "FR-011", "NFR-001", "NFR-002", "NFR-007", "C-005"],
       "concerns": ["IC-01"],
-      "authority": "kitty-specs/ox-alpha-spec-reviewer-01M0N82A/plan.md"
+      "authority": "kitty-specs/glm53-paid-spec-reviewer-01M16CYX/plan.md"
     },
     {
       "id": "P25-spec-review-prompt",
@@ -685,19 +701,19 @@
       "id": "P26-spec-review-runner",
       "status": "present",
       "kind": "external_process_adapter",
-      "label": "OpenCode subprocess runner",
+      "label": "OpenCode pricing and loopback runner",
       "path": "src/specify_cli/spec_review/runner.py",
       "symbol": "typed runner protocol and OpenCode adapter",
       "callers": ["P28-spec-review-service only after consent"],
-      "effects": ["spawn OpenCode with argv and shell disabled", "send prompt only through stdin", "bound raw streams in memory", "terminate the process tree on timeout", "never read auth storage"],
+      "effects": ["read one exact bounded OpenCode model metadata record", "fail closed on unknown paid cost leaves, missing limits, duplicate route, over-threshold estimate or quote drift", "bind a same-runner paid permit and prompt-byte integrity ceiling before session creation", "spawn the loopback server with argv and shell disabled", "send prompt only through the loopback API", "bound raw streams in memory", "terminate the process tree on timeout", "never read auth storage"],
       "coverage": {
         "classification": "covered",
-        "tests": ["tests/specify_cli/spec_review/test_runner.py", "tests/architectural/test_egress_consent_boundary.py"],
-        "note": "Contract tests cover the transport; the architectural gate pins its network seam behind the service consent boundary. Live model smoke remains opt-in and outside normal CI."
+        "tests": ["tests/specify_cli/spec_review/test_runner.py", "tests/specify_cli/spec_review/test_paid_cost_gate_acceptance.py", "tests/architectural/test_egress_consent_boundary.py"],
+        "note": "Offline contracts cover pricing refusal, quote drift, prompt integrity and transport cleanup; the architecture gate pins network egress behind service consent. Live model smoke remains separately authorized."
       },
       "requirements": ["FR-005", "FR-006", "FR-010", "NFR-001", "NFR-003", "NFR-005", "NFR-006", "C-001", "C-002", "C-003"],
       "concerns": ["IC-03"],
-      "authority": "kitty-specs/ox-alpha-spec-reviewer-01M0N82A/plan.md"
+      "authority": "kitty-specs/glm53-paid-spec-reviewer-01M16CYX/plan.md"
     },
     {
       "id": "P27-spec-review-parser",
@@ -725,15 +741,15 @@
       "path": "src/specify_cli/spec_review/service.py",
       "symbol": "manual review use case",
       "callers": ["P21-spec-review-command"],
-      "effects": ["resolve the Mission input through the canonical topology-aware read path", "sequence preflight, consent, prompt, runner, parser and storage", "build host-owned run provenance", "leave Mission and WP lifecycle unchanged", "return stable advisory diagnostics"],
+      "effects": ["resolve the Mission input through the canonical topology-aware read path", "sequence free authorization or paid quote re-probe before prompt construction", "refuse paid metadata drift and integrity-bound failures before session creation", "sequence preflight, consent, prompt, runner, parser and storage", "build host-owned v1 or v2 run provenance", "leave Mission and WP lifecycle unchanged", "return stable advisory diagnostics"],
       "coverage": {
         "classification": "covered",
-        "tests": ["tests/specify_cli/spec_review/test_service.py", "tests/specify_cli/spec_review/test_cli_preview.py", "tests/integration/test_spec_review_integration.py"],
-        "note": "Orchestration, no-run-before-consent and non-mutation behavior have direct tests."
+        "tests": ["tests/specify_cli/spec_review/test_service.py", "tests/specify_cli/spec_review/test_cli_preview.py", "tests/specify_cli/spec_review/test_paid_cost_gate_acceptance.py", "tests/integration/test_spec_review_integration.py"],
+        "note": "Orchestration tests pin no-run-before-consent, paid re-probe-before-prompt, v2 provenance, and non-mutation behavior."
       },
       "requirements": ["FR-001", "FR-003", "FR-007", "FR-008", "FR-009", "FR-010", "FR-012", "SC-001", "SC-004"],
       "concerns": ["IC-05"],
-      "authority": "kitty-specs/ox-alpha-spec-reviewer-01M0N82A/plan.md"
+      "authority": "kitty-specs/glm53-paid-spec-reviewer-01M16CYX/plan.md"
     },
     {
       "id": "P29-spec-review-storage",
@@ -743,15 +759,15 @@
       "path": "src/specify_cli/spec_review/storage.py",
       "symbol": "exclusive spec-review-run writer",
       "callers": ["P28-spec-review-service after an external start"],
-      "effects": ["request P30-spec-review-artifact-kind through P17-artifact-surface-resolver", "write reviews/spec-review-<run-id>.yaml atomically and exclusively", "repeat containment and reparse or symlink checks", "never overwrite historical review files"],
+      "effects": ["request P30-spec-review-artifact-kind through P17-artifact-surface-resolver", "serialize byte-compatible free v1 runs or paid v2 runs with consent-bound pricing provenance", "write reviews/spec-review-<run-id>.yaml atomically and exclusively", "repeat containment and reparse or symlink checks", "never overwrite historical review files"],
       "coverage": {
         "classification": "covered",
-        "tests": ["tests/specify_cli/spec_review/test_storage.py", "tests/mission_runtime/test_spec_review_artifact_placement.py"],
-        "note": "WP03 owns topology, concurrent create and path attack tests."
+        "tests": ["tests/specify_cli/spec_review/test_storage.py", "tests/specify_cli/spec_review/test_paid_cost_gate_acceptance.py", "tests/mission_runtime/test_spec_review_artifact_placement.py"],
+        "note": "Storage tests cover topology, concurrent create, path attacks, free YAML golden compatibility and the paid v2 schema."
       },
       "requirements": ["FR-008", "FR-009", "FR-012", "SC-003", "SC-005"],
       "concerns": ["IC-04"],
-      "authority": "kitty-specs/ox-alpha-spec-reviewer-01M0N82A/plan.md"
+      "authority": "kitty-specs/glm53-paid-spec-reviewer-01M16CYX/plan.md"
     },
     {
       "id": "P30-spec-review-artifact-kind",
@@ -802,7 +818,7 @@
     {"id": "E27", "from": "P21-spec-review-command", "to": "P28-spec-review-service", "relation": "calls", "status": "present", "evidence": "src/specify_cli/cli/commands/spec_review.py"},
     {"id": "E28", "from": "P28-spec-review-service", "to": "P24-spec-review-preflight", "relation": "runs_before_consent", "status": "present", "evidence": "src/specify_cli/spec_review/service.py and test_service.py"},
     {"id": "E29", "from": "P28-spec-review-service", "to": "P25-spec-review-prompt", "relation": "builds_after_consent_recheck", "status": "present", "evidence": "src/specify_cli/spec_review/service.py and test_service.py"},
-    {"id": "E30", "from": "P28-spec-review-service", "to": "P26-spec-review-runner", "relation": "calls_after_consent", "status": "present", "evidence": "src/specify_cli/spec_review/service.py and test_service.py"},
+    {"id": "E30", "from": "P28-spec-review-service", "to": "P26-spec-review-runner", "relation": "authorizes_before_prompt_and_runs_after_consent", "status": "present", "evidence": "src/specify_cli/spec_review/service.py and test_paid_cost_gate_acceptance.py"},
     {"id": "E31", "from": "P28-spec-review-service", "to": "P27-spec-review-parser", "relation": "validates_bounded_output_with", "status": "present", "evidence": "src/specify_cli/spec_review/service.py and test_parser.py"},
     {"id": "E32", "from": "P28-spec-review-service", "to": "P29-spec-review-storage", "relation": "persists_after_external_start", "status": "present", "evidence": "src/specify_cli/spec_review/service.py and test_service.py"},
     {"id": "E33", "from": "P24-spec-review-preflight", "to": "P23-spec-review-models", "relation": "produces_disclosure_model", "status": "present", "evidence": "src/specify_cli/spec_review/preflight.py"},
@@ -814,7 +830,8 @@
     {"id": "E39", "from": "P29-spec-review-storage", "to": "P17-artifact-surface-resolver", "relation": "resolves_filesystem_surface_through", "status": "present", "evidence": "src/specify_cli/spec_review/storage.py"},
     {"id": "E40", "from": "P30-spec-review-artifact-kind", "to": "P12-mission-artifact-kind", "relation": "extends_enum_and_primary_partition", "status": "present", "evidence": "src/mission_runtime/artifacts.py"},
     {"id": "E41", "from": "P13-mission-file-classifier", "to": "P30-spec-review-artifact-kind", "relation": "classifies_filename_only", "status": "present", "evidence": "src/mission_runtime/artifacts.py"},
-    {"id": "E42", "from": "P30-spec-review-artifact-kind", "to": "P20-historical-review-convention", "relation": "must_not_reclassify", "status": "present_guard", "evidence": "tests/mission_runtime/test_spec_review_artifact_placement.py"}
+    {"id": "E42", "from": "P30-spec-review-artifact-kind", "to": "P20-historical-review-convention", "relation": "must_not_reclassify", "status": "present_guard", "evidence": "tests/mission_runtime/test_spec_review_artifact_placement.py"},
+    {"id": "E43", "from": "P21-spec-review-command", "to": "P26-spec-review-runner", "relation": "quotes_paid_metadata_before_disclosure", "status": "present", "evidence": "src/specify_cli/cli/commands/spec_review.py and test_cli_preview.py"}
   ],
   "planned_module_questions": {
     "who_calls": "The root registry calls the thin CLI adapter; the adapter calls spec_review.service; service alone sequences preflight, prompt, runner, parser and storage; storage alone calls the mission_runtime placement seam.",
