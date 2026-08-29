@@ -1,12 +1,12 @@
 """No :class:`NodeKind` may vanish at a kind-dispatch boundary (WP03, FR-003/SC-002).
 
-Two sites dispatch on :class:`~doctrine.drg.models.NodeKind` and drop what they
+Two sites dispatch on :class:`~charter.offering.drg.models.NodeKind` and drop what they
 do not name:
 
 ===========================================  ==============  ============
 Site                                         Shape           Kinds lost
 ===========================================  ==============  ============
-``doctrine.drg.query.resolve_transitive_refs``  16 buckets filled, 10 read out   6
+``charter.offering.drg.query.resolve_transitive_refs``  16 buckets filled, 10 read out   6
 ``charter.context._classify_artifact_urns``     4 branches, no ``else``          12
 ===========================================  ==============  ============
 
@@ -74,9 +74,9 @@ from typing import cast
 
 import pytest
 
-from doctrine.drg.loader import load_graph_or_dir
-from doctrine.drg.models import DRGGraph, DRGNode, NodeKind, Relation
-from doctrine.drg.query import ResolveTransitiveRefsResult, resolve_transitive_refs
+from charter.offering.drg.loader import load_graph_or_dir
+from charter.offering.drg.models import DRGGraph, DRGNode, NodeKind, Relation
+from charter.offering.drg.query import ResolveTransitiveRefsResult, resolve_transitive_refs
 from tests.doctrine._builtin_inventory import shipped_builtin_node_count
 
 pytestmark = [pytest.mark.doctrine, pytest.mark.fast, pytest.mark.corpus]
@@ -185,7 +185,7 @@ def _every_id_readable_from(result: ResolveTransitiveRefsResult) -> set[str]:
 
 
 # ---------------------------------------------------------------------------
-# Site 1 -- doctrine.drg.query.resolve_transitive_refs
+# Site 1 -- charter.offering.drg.query.resolve_transitive_refs
 # ---------------------------------------------------------------------------
 
 
@@ -428,7 +428,7 @@ def test_the_legacy_field_table_covers_every_named_field() -> None:
     """
     from dataclasses import fields
 
-    from doctrine.drg.query import _KIND_BY_LEGACY_FIELD, ResolveTransitiveRefsResult
+    from charter.offering.drg.query import _KIND_BY_LEGACY_FIELD, ResolveTransitiveRefsResult
 
     named = {f.name for f in fields(ResolveTransitiveRefsResult)} - {"unresolved", "by_kind"}
 

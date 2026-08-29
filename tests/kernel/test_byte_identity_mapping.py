@@ -113,7 +113,7 @@ REGISTRY: dict[str, RegisteredSite] = {
     # onto the door's `from_epoch(mtime).isoformat()` -- `from_epoch` is
     # defined as exactly `datetime.fromtimestamp(value, tz=UTC)` (WP04), so
     # this is a byte-identical delegation, not a reformat.
-    "doctrine.versioning.migrate_v1_to_v2#produced_at": RegisteredSite(
+    "charter.offering.versioning.migrate_v1_to_v2#produced_at": RegisteredSite(
         producer=lambda: from_epoch(_FIXED_INSTANT.timestamp()).isoformat(),
         prior_signature=lambda instant: datetime.fromtimestamp(instant.timestamp(), tz=UTC).isoformat(),
     ),

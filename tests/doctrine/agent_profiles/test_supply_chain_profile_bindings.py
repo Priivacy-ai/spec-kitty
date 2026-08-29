@@ -19,9 +19,9 @@ from __future__ import annotations
 
 import pytest
 
-from doctrine.agent_profiles.profile import AgentProfile
-from doctrine.agent_profiles.repository import AgentProfileRepository
-from doctrine.directives.repository import DirectiveRepository
+from charter.offering.agent_profiles.profile import AgentProfile
+from charter.offering.agent_profiles.repository import AgentProfileRepository
+from charter.offering.directives.repository import DirectiveRepository
 
 pytestmark = [pytest.mark.fast, pytest.mark.doctrine, pytest.mark.corpus]
 

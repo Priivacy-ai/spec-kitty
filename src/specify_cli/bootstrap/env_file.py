@@ -197,7 +197,7 @@ def _read_config_env_file_pointer(repo_root: Path | None) -> str | None:
     choke the ~30 config readers") -- a targeted scan for the TOP-LEVEL
     (zero-indent -- i.e. not nested under ``doctrine:`` or any other
     section) ``env_file:`` key, stdlib-only. This keeps the key outside
-    ``doctrine.drg.org_pack_config.PackRegistry``'s ``extra="forbid"``
+    ``charter.offering.drg.org_pack_config.PackRegistry``'s ``extra="forbid"``
     model, which validates only the ``doctrine.org`` subsection of this same
     file (``src/doctrine/drg/org_pack_config.py:307``) -- a sibling
     top-level key is invisible to it.

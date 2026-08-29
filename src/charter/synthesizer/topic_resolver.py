@@ -23,7 +23,7 @@ from dataclasses import dataclass
 from typing import Any, Literal
 from collections.abc import Mapping, Sequence
 
-from doctrine.drg.models import NodeKind
+from charter.offering.drg.models import NodeKind
 
 from .errors import TopicSelectorUnresolvedError
 from .interview_mapping import canonicalize_interview_section_label

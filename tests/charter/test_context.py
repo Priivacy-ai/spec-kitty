@@ -125,7 +125,7 @@ def _setup_fixture_repo(tmp_path: Path) -> None:
 def _write_graph_fixture(tmp_path: Path) -> None:
     from io import StringIO
 
-    from doctrine.drg.models import DRGGraph
+    from charter.offering.drg.models import DRGGraph
     from ruamel.yaml import YAML
 
     yaml = YAML(typ="safe")
@@ -159,7 +159,7 @@ class TestBuildContextV2:
 
         from io import StringIO
 
-        from doctrine.drg.models import DRGGraph
+        from charter.offering.drg.models import DRGGraph
         from ruamel.yaml import YAML
 
         yaml = YAML(typ="safe")
@@ -174,7 +174,7 @@ class TestBuildContextV2:
         with (
             patch("charter._drg_helpers.load_validated_graph", return_value=mock_graph),
             patch("charter.catalog.resolve_doctrine_root", return_value=tmp_path),
-            patch("doctrine.drg.validator.assert_valid"),  # fixture may not pass full validation
+            patch("charter.offering.drg.validator.assert_valid"),  # fixture may not pass full validation
         ):
             return build_charter_context(
                 tmp_path,
@@ -212,9 +212,9 @@ class TestBuildContextV2:
         patched_load_graph = _write_graph_fixture(tmp_path)
 
         with (
-            patch("doctrine.drg.loader.load_graph", side_effect=patched_load_graph),
+            patch("charter.offering.drg.loader.load_graph", side_effect=patched_load_graph),
             patch("charter.catalog.resolve_doctrine_root", return_value=tmp_path),
-            patch("doctrine.drg.validator.assert_valid"),
+            patch("charter.offering.drg.validator.assert_valid"),
         ):
             # First load: depth=None -> state decides -> 2 (bootstrap)
             first = build_charter_context(tmp_path, action="implement", depth=None, mark_loaded=True)
@@ -252,7 +252,7 @@ class TestBuildContextV2:
 
         from io import StringIO
 
-        from doctrine.drg.models import DRGGraph
+        from charter.offering.drg.models import DRGGraph
         from ruamel.yaml import YAML
 
         yaml = YAML(typ="safe")
@@ -262,7 +262,7 @@ class TestBuildContextV2:
         with (
             patch("charter._drg_helpers.load_validated_graph", return_value=mock_graph),
             patch("charter.catalog.resolve_doctrine_root", return_value=tmp_path),
-            patch("doctrine.drg.validator.assert_valid"),
+            patch("charter.offering.drg.validator.assert_valid"),
         ):
             payload = build_charter_context_json(
                 tmp_path, action="custom-action", mission_type="software-dev"
@@ -341,9 +341,9 @@ class TestBuildContextV2:
         patched_load_graph = _write_graph_fixture(tmp_path)
 
         with (
-            patch("doctrine.drg.loader.load_graph", side_effect=patched_load_graph),
+            patch("charter.offering.drg.loader.load_graph", side_effect=patched_load_graph),
             patch("charter.catalog.resolve_doctrine_root", return_value=tmp_path),
-            patch("doctrine.drg.validator.assert_valid"),
+            patch("charter.offering.drg.validator.assert_valid"),
         ):
             result = build_charter_context(
                 tmp_path,
@@ -396,7 +396,7 @@ class TestBuildContextV2:
 
         from io import StringIO
 
-        from doctrine.drg.models import DRGGraph
+        from charter.offering.drg.models import DRGGraph
         from ruamel.yaml import YAML
 
         yaml = YAML(typ="safe")
@@ -407,7 +407,7 @@ class TestBuildContextV2:
             # so the sharded fragment layout does not duplicate the fixture.
             patch("charter._drg_helpers.load_validated_graph", return_value=mock_graph),
             patch("charter.catalog.resolve_doctrine_root", return_value=tmp_path),
-            patch("doctrine.drg.validator.assert_valid"),
+            patch("charter.offering.drg.validator.assert_valid"),
             patch("charter.sync.ensure_charter_bundle_fresh", return_value=None),
         ):
             result = build_charter_context(
@@ -481,7 +481,7 @@ class TestBuildContextV2:
 
         from io import StringIO
 
-        from doctrine.drg.models import DRGGraph
+        from charter.offering.drg.models import DRGGraph
         from ruamel.yaml import YAML
 
         yaml = YAML(typ="safe")
@@ -490,7 +490,7 @@ class TestBuildContextV2:
         with (
             patch("charter._drg_helpers.load_validated_graph", return_value=mock_graph),
             patch("charter.catalog.resolve_doctrine_root", return_value=tmp_path),
-            patch("doctrine.drg.validator.assert_valid"),
+            patch("charter.offering.drg.validator.assert_valid"),
             patch("charter.sync.ensure_charter_bundle_fresh", return_value=None),
         ):
             result = build_charter_context(
@@ -568,7 +568,7 @@ class TestBuildContextV2:
 
         from io import StringIO
 
-        from doctrine.drg.models import DRGGraph
+        from charter.offering.drg.models import DRGGraph
         from ruamel.yaml import YAML
 
         yaml = YAML(typ="safe")
@@ -579,9 +579,9 @@ class TestBuildContextV2:
             return mock_graph
 
         with (
-            patch("doctrine.drg.loader.load_graph", side_effect=patched_load_graph),
+            patch("charter.offering.drg.loader.load_graph", side_effect=patched_load_graph),
             patch("charter.catalog.resolve_doctrine_root", return_value=tmp_path),
-            patch("doctrine.drg.validator.assert_valid"),
+            patch("charter.offering.drg.validator.assert_valid"),
         ):
             result = build_charter_context(tmp_path, action="implement", depth=2)
 
@@ -602,7 +602,7 @@ class TestBuildContextV2:
 
         from io import StringIO
 
-        from doctrine.drg.models import DRGGraph
+        from charter.offering.drg.models import DRGGraph
         from ruamel.yaml import YAML
 
         yaml = YAML(typ="safe")
@@ -613,9 +613,9 @@ class TestBuildContextV2:
             return mock_graph
 
         with (
-            patch("doctrine.drg.loader.load_graph", side_effect=patched_load_graph),
+            patch("charter.offering.drg.loader.load_graph", side_effect=patched_load_graph),
             patch("charter.catalog.resolve_doctrine_root", return_value=tmp_path),
-            patch("doctrine.drg.validator.assert_valid"),
+            patch("charter.offering.drg.validator.assert_valid"),
         ):
             result = build_charter_context(tmp_path, action="implement", depth=2)
 
@@ -634,7 +634,7 @@ class TestBuildContextV2:
 
         from io import StringIO
 
-        from doctrine.drg.models import DRGGraph
+        from charter.offering.drg.models import DRGGraph
         from ruamel.yaml import YAML
 
         yaml = YAML(typ="safe")
@@ -645,9 +645,9 @@ class TestBuildContextV2:
             return mock_graph
 
         with (
-            patch("doctrine.drg.loader.load_graph", side_effect=patched_load_graph),
+            patch("charter.offering.drg.loader.load_graph", side_effect=patched_load_graph),
             patch("charter.catalog.resolve_doctrine_root", return_value=tmp_path),
-            patch("doctrine.drg.validator.assert_valid"),
+            patch("charter.offering.drg.validator.assert_valid"),
         ):
             result = build_charter_context(tmp_path, action="implement", depth=2)
 
@@ -670,9 +670,9 @@ class TestBuildContextV2:
         patched_load_graph = _write_graph_fixture(tmp_path)
 
         with (
-            patch("doctrine.drg.loader.load_graph", side_effect=patched_load_graph),
+            patch("charter.offering.drg.loader.load_graph", side_effect=patched_load_graph),
             patch("charter.catalog.resolve_doctrine_root", return_value=tmp_path),
-            patch("doctrine.drg.validator.assert_valid"),
+            patch("charter.offering.drg.validator.assert_valid"),
         ):
             result = build_charter_context(tmp_path, action="implement", depth=2)
 
@@ -942,7 +942,7 @@ def test_action_doctrine_keys_off_meta_json_not_template_set(tmp_path: Path) -> 
     """
     from io import StringIO
 
-    from doctrine.drg.models import DRGGraph
+    from charter.offering.drg.models import DRGGraph
     from ruamel.yaml import YAML
 
     _setup_fixture_repo(tmp_path)  # governance.yaml: template_set=software-dev-default
@@ -961,7 +961,7 @@ def test_action_doctrine_keys_off_meta_json_not_template_set(tmp_path: Path) -> 
         # the sharded fragment layout does not duplicate the fixture on merge.
         patch("charter._drg_helpers.load_validated_graph", return_value=mock_graph),
         patch("charter.catalog.resolve_doctrine_root", return_value=tmp_path),
-        patch("doctrine.drg.validator.assert_valid"),
+        patch("charter.offering.drg.validator.assert_valid"),
     ):
         result = build_charter_context(
             tmp_path,
@@ -1183,7 +1183,7 @@ def test_build_doctrine_service_prefers_repo_src_overlay(
 
     monkeypatch.setattr("charter.catalog.resolve_doctrine_root", lambda: built_in_root)
     monkeypatch.setattr("charter.context.infer_repo_languages", lambda repo_root: ["python", "typescript"])
-    monkeypatch.setattr("doctrine.service.DoctrineService", StubDoctrineService)
+    monkeypatch.setattr("charter.offering.service.DoctrineService", StubDoctrineService)
 
     service = _build_doctrine_service(tmp_path)
 
@@ -1260,7 +1260,7 @@ def test_build_doctrine_service_uses_compiled_charter_languages_end_to_end(
         )
 
     monkeypatch.setattr("charter.catalog.resolve_doctrine_root", lambda: built_in_root)
-    monkeypatch.setattr("doctrine.service.DoctrineService", StubDoctrineService)
+    monkeypatch.setattr("charter.offering.service.DoctrineService", StubDoctrineService)
 
     service = _build_doctrine_service(tmp_path)
 

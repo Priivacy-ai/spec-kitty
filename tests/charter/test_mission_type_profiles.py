@@ -31,8 +31,8 @@ from charter.mission_type_profiles import (
     resolve_mission_type_context,
 )
 from charter.pack_context import PackContext
-from doctrine.base import DoctrineLayerCollisionWarning
-from doctrine.missions.mission_type_repository import MissionTypeRepository
+from charter.offering.base import DoctrineLayerCollisionWarning
+from charter.offering.missions.mission_type_repository import MissionTypeRepository
 
 
 pytestmark = [pytest.mark.unit, pytest.mark.git_repo]

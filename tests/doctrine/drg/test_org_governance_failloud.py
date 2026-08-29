@@ -8,14 +8,14 @@ into the DRG nor caught (a total no-op). This module pins the net-new behaviour
 as delivered on the SAME path the runtime consumers (``mission_step_contracts``
 executor and ``charter.action_doctrine_bundle``) use:
 
-* :func:`doctrine.drg.org_governance.collect_org_governance_scope_edges` +
-  :func:`doctrine.drg.org_pack_loader._collect_governance_scope_edges` mint the
+* :func:`charter.offering.drg.org_governance.collect_org_governance_scope_edges` +
+  :func:`charter.offering.drg.org_pack_loader._collect_governance_scope_edges` mint the
   org-tier ``mission_type --scope--> <artifact>`` edges so a selection reaches
   the merged DRG (T014); and
 * :func:`charter._drg_helpers.load_validated_graph` runs
-  :func:`doctrine.drg.validator.assert_valid` on the fully-merged graph, whose
-  :func:`~doctrine.drg.validator.validate_dangling_references` escalates a
-  dangling governance-scope target to :class:`~doctrine.drg.validator.DRGValidationError`
+  :func:`charter.offering.drg.validator.assert_valid` on the fully-merged graph, whose
+  :func:`~charter.offering.drg.validator.validate_dangling_references` escalates a
+  dangling governance-scope target to :class:`~charter.offering.drg.validator.DRGValidationError`
   naming the offending node. No separate governance-scope guard is needed: a bad
   ``selected_*`` becomes an ordinary dangling scope edge that the existing merged-
   graph validation already raises on.
@@ -37,8 +37,8 @@ import yaml
 
 from charter._drg_helpers import load_validated_graph
 from charter.drg import load_org_drg
-from doctrine.drg.models import Relation
-from doctrine.drg.validator import DRGValidationError
+from charter.offering.drg.models import Relation
+from charter.offering.drg.validator import DRGValidationError
 
 pytestmark = [pytest.mark.unit, pytest.mark.corpus]
 
@@ -164,7 +164,7 @@ class TestOrgGovernanceScopeEdgeMinting:
     def test_org_loader_mints_scope_edge_for_selection(self, tmp_path: Path) -> None:
         """``load_org_pack`` projects a ``selected_*`` entry into a
         ``mission_type --scope--> <artifact>`` fragment edge (T014)."""
-        from doctrine.drg.org_pack_loader import load_org_pack
+        from charter.offering.drg.org_pack_loader import load_org_pack
 
         pack_root = tmp_path / "pack"
         _write_org_pack(pack_root, [_VALID_PROFILE])
@@ -186,7 +186,7 @@ class TestOrgGovernanceScopeEdgeMinting:
         """A fictional ``selected_*`` is still minted -- it becomes a dangling
         scope edge in the fragment, which the merged-graph validation (not a
         pre-merge single-pack read) then raises on."""
-        from doctrine.drg.org_pack_loader import load_org_pack
+        from charter.offering.drg.org_pack_loader import load_org_pack
 
         pack_root = tmp_path / "pack"
         _write_org_pack(pack_root, [_FICTIONAL_PROFILE])

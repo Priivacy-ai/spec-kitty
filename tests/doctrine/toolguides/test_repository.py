@@ -5,7 +5,7 @@ from pathlib import Path
 import pytest
 from ruamel.yaml import YAML
 
-from doctrine.toolguides.repository import ToolguideRepository
+from charter.offering.toolguides.repository import ToolguideRepository
 pytestmark = [pytest.mark.fast, pytest.mark.doctrine]
 
 
@@ -46,7 +46,7 @@ class TestToolguideRepository:
         assert repo.list_all() == []
 
     def test_save_writes_valid_yaml(self, tmp_path: Path, sample_toolguide_data: dict) -> None:
-        from doctrine.toolguides.models import Toolguide
+        from charter.offering.toolguides.models import Toolguide
 
         project_dir = tmp_path / "project"
         repo = ToolguideRepository(built_in_dir=tmp_path / "empty", project_dir=project_dir)
@@ -62,7 +62,7 @@ class TestToolguideRepository:
         assert data["id"] == "test-toolguide"
 
     def test_save_raises_without_project_dir(self, tmp_path: Path, sample_toolguide_data: dict) -> None:
-        from doctrine.toolguides.models import Toolguide
+        from charter.offering.toolguides.models import Toolguide
 
 
         repo = ToolguideRepository(built_in_dir=tmp_path / "empty")

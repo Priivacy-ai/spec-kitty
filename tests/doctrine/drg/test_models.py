@@ -14,7 +14,7 @@ import json
 import pydantic
 import pytest
 
-from doctrine.drg.models import RELATION_DESCRIPTIONS, DRGNode, NodeKind, Relation
+from charter.offering.drg.models import RELATION_DESCRIPTIONS, DRGNode, NodeKind, Relation
 
 pytestmark = [pytest.mark.fast, pytest.mark.doctrine]
 

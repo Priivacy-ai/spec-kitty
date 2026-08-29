@@ -3,8 +3,8 @@
 import pytest
 from pydantic import ValidationError
 
-from doctrine.artifact_kinds import ArtifactKind
-from doctrine.procedures.models import (
+from charter.offering.artifact_kinds import ArtifactKind
+from charter.offering.procedures.models import (
     ActorRole,
     Procedure,
     ProcedureStep,

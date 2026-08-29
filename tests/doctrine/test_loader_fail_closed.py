@@ -2,11 +2,11 @@
 
 After the relocation mission flattened the built-in DRG fragments out of
 ``src/doctrine/`` into ``packs/built-in/``, :func:`built_in_graph_source`
-resolves through the shared :func:`doctrine.pack_paths.built_in_root` seam
+resolves through the shared :func:`charter.offering.pack_paths.built_in_root` seam
 (mission ``doctrine-built-in-seam-consolidation-01KYW3TX``, WP01, routed the
 loader's bare ``resolve_pack_root("built-in")`` call through this authority).
 That seam is deliberately fail-closed: when no ``packs/built-in/`` root can be
-located it raises :class:`~doctrine.pack_paths.PackRootNotFound`.
+located it raises :class:`~charter.offering.pack_paths.PackRootNotFound`.
 
 These tests pin that the loader *propagates* the failure rather than
 re-swallowing it into an empty/partial graph (the old ``except -> Path(__file__)``
@@ -18,11 +18,11 @@ from __future__ import annotations
 
 import pytest
 
-from doctrine.drg.loader import (
+from charter.offering.drg.loader import (
     built_in_graph_source,
     load_built_in_graph,
 )
-from doctrine.pack_paths import PackRootNotFound
+from charter.offering.pack_paths import PackRootNotFound
 from tests.doctrine._builtin_inventory import shipped_builtin_node_count
 
 pytestmark = [pytest.mark.fast, pytest.mark.doctrine, pytest.mark.corpus]
@@ -45,7 +45,7 @@ def test_built_in_graph_source_propagates_pack_root_not_found(
 ) -> None:
     """``built_in_graph_source`` must NOT swallow ``PackRootNotFound``."""
     monkeypatch.setattr(
-        "doctrine.drg.loader.built_in_root",
+        "charter.offering.drg.loader.built_in_root",
         _raise_pack_root_not_found,
     )
     with pytest.raises(PackRootNotFound):
@@ -61,7 +61,7 @@ def test_load_built_in_graph_fails_closed_when_pack_root_missing(
     propagates ``PackRootNotFound`` rather than degrading to a ``0/0`` graph.
     """
     monkeypatch.setattr(
-        "doctrine.drg.loader.built_in_root",
+        "charter.offering.drg.loader.built_in_root",
         _raise_pack_root_not_found,
     )
     with pytest.raises(PackRootNotFound):

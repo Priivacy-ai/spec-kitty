@@ -16,8 +16,8 @@ from pathlib import Path
 import pytest
 from ruamel.yaml import YAML
 
-from doctrine.agent_profiles.repository import AgentProfileRepository
-from doctrine.tactics.repository import TacticRepository
+from charter.offering.agent_profiles.repository import AgentProfileRepository
+from charter.offering.tactics.repository import TacticRepository
 
 pytestmark = [pytest.mark.fast, pytest.mark.doctrine]
 

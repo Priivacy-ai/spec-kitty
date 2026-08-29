@@ -37,7 +37,7 @@ from charter.context_contract import (
     CONTEXT_CONTRACT_TOP_LEVEL_KEYS,
     CONTEXT_SCHEMA_VERSION,
 )
-from doctrine.drg.models import DRGEdge, DRGGraph, DRGNode, NodeKind, Relation
+from charter.offering.drg.models import DRGEdge, DRGGraph, DRGNode, NodeKind, Relation
 
 pytestmark = [pytest.mark.fast]
 

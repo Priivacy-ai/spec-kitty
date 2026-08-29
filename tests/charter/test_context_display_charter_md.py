@@ -47,7 +47,7 @@ from charter import context as context_module
 from charter.context import CharterContextResult, build_charter_context
 from charter.context_renderers.section_bodies import render_critical_section_bodies
 from charter.compact import extract_section_anchors, render_compact_view
-from doctrine.drg.models import DRGGraph
+from charter.offering.drg.models import DRGGraph
 
 # Uses subprocess `git init` (see below), so it must carry ``git_repo`` and
 # must NOT be ``fast`` (fast excludes subprocess users) per the marker-correctness
@@ -159,7 +159,7 @@ def _build_bootstrap_context(tmp_path: Path, *, charter_md: str | None) -> Chart
     with (
         patch("charter._drg_helpers.load_validated_graph", return_value=mock_graph),
         patch("charter.catalog.resolve_doctrine_root", return_value=tmp_path),
-        patch("doctrine.drg.validator.assert_valid"),
+        patch("charter.offering.drg.validator.assert_valid"),
     ):
         return build_charter_context(
             tmp_path,

@@ -1,10 +1,10 @@
 """Behavioural loader↔resolver recursion-parity gate (WP05 / T026, T027, T028).
 
 Binds the two authorities that #3490/#3426 let drift: the loader
-(``doctrine.base``/``doctrine.agent_profiles``) and the charter-activation
+(``charter.offering.base``/``charter.offering.agent_profiles``) and the charter-activation
 resolver (``charter.kind_vocabulary``) must discover the *same* nested overlay
 artifacts, for every kind, because both derive recursion from the single
-``doctrine.discovery_recursion`` authority (C-001, FR-002). The gate:
+``charter.offering.discovery_recursion`` authority (C-001, FR-002). The gate:
 
 * asserts the resolver discovers a nested org artifact for EVERY kind (T026);
 * cross-checks loader↔resolver agreement on representative kinds (T026);
@@ -23,8 +23,8 @@ from ruamel.yaml import YAML
 
 from charter import kind_vocabulary
 from charter.kind_vocabulary import _iter_artifact_paths
-from doctrine.artifact_kinds import ArtifactKind
-from doctrine.discovery_recursion import overlay_scan_is_recursive
+from charter.offering.artifact_kinds import ArtifactKind
+from charter.offering.discovery_recursion import overlay_scan_is_recursive
 
 pytestmark = [pytest.mark.fast, pytest.mark.doctrine]
 
@@ -81,7 +81,7 @@ def test_authority_is_recursive_for_every_kind() -> None:
 
 
 def test_loader_and_resolver_agree_for_nested_tactic(tmp_path: Path) -> None:
-    from doctrine.tactics.repository import TacticRepository
+    from charter.offering.tactics.repository import TacticRepository
 
     pack = tmp_path / "orgpack"
     built_in = tmp_path / "built-in"
@@ -113,7 +113,7 @@ def test_loader_and_resolver_agree_for_nested_tactic(tmp_path: Path) -> None:
 
 
 def test_loader_and_resolver_agree_for_nested_agent_profile(tmp_path: Path) -> None:
-    from doctrine.agent_profiles.repository import AgentProfileRepository
+    from charter.offering.agent_profiles.repository import AgentProfileRepository
 
     pack = tmp_path / "orgpack"
     _write_id(pack / "agent_profiles" / "team" / "x.agent.yaml", "unused")  # placeholder path
@@ -186,7 +186,7 @@ def test_nested_builtin_component_stays_in_parity(tmp_path: Path) -> None:
     while the loader still loaded it. The immediate-child scoping keeps deep
     ``built-in`` components discoverable, so loader and resolver agree.
     """
-    from doctrine.tactics.repository import TacticRepository
+    from charter.offering.tactics.repository import TacticRepository
 
     pack = tmp_path / "orgpack"
     built_in = tmp_path / "built-in"
@@ -256,7 +256,7 @@ def test_no_base_repository_reoverrides_project_scan_non_recursively() -> None:
     favour of the recursive base; a subclass that re-adds one -- recursive or not
     -- must fail here so the loader cannot silently diverge from the resolver.
     """
-    from doctrine.base import BaseDoctrineRepository
+    from charter.offering.base import BaseDoctrineRepository
 
     offenders = [
         cls.__name__

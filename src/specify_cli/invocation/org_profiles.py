@@ -18,7 +18,7 @@ This resolver builds that activation-aware service via
 and reads its already-gated ``agent_profiles`` mapping.  It then narrows the
 result to org-provenance members by consulting the inner repository's
 ``get_provenance`` / ``get_source_path`` (provenance lives on the repository,
-not on :class:`~doctrine.agent_profiles.profile.AgentProfile`).
+not on :class:`~charter.offering.agent_profiles.profile.AgentProfile`).
 
 Fail-closed (NFR-004)
 ---------------------

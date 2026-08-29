@@ -264,7 +264,7 @@ def _resolve_runtime_contract_for_step(
     """
     try:
         from charter.drg import resolve_org_dirs
-        from doctrine.missions.step_contracts import (
+        from charter.offering.missions.step_contracts import (
             MissionStepContractRepository,
         )
         from specify_cli.mission_loader.contract_synthesis import synthesize_contracts

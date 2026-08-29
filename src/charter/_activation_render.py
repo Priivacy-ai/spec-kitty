@@ -51,7 +51,7 @@ Layer rule
 ``src/charter/`` MUST NOT import from ``specify_cli`` (C-001, hard
 ratchet pinned by ``tests/architectural/test_layer_rules.py``).  This
 module stays self-contained accordingly; the
-:class:`doctrine.service.DoctrineService` instance is passed in by the
+:class:`charter.offering.service.DoctrineService` instance is passed in by the
 caller rather than constructed here.
 """
 
@@ -67,7 +67,7 @@ from charter.context_renderers.fetch_stanza import (
     fetch_stanza_lines,
     format_selector,
 )
-from doctrine.artifact_kinds import (
+from charter.offering.artifact_kinds import (
     CHARTER_ACTIVATABLE_PLURAL_TO_SINGULAR,
     CHARTER_ACTIVATABLE_SINGULAR_TO_PLURAL,
 )
@@ -143,7 +143,7 @@ def render_activation_stanza(
         WP08 — WP05 ships the renderer that consumes the merged list
         regardless of how many sources contributed).
     service:
-        A :class:`doctrine.service.DoctrineService` (or compatible) used
+        A :class:`charter.offering.service.DoctrineService` (or compatible) used
         to disambiguate the ``artifact_kind`` when an entry omits it.
         May be ``None`` -- in which case kind inference is skipped and
         entries without a declared ``artifact_kind`` are rendered with
@@ -285,7 +285,7 @@ def _singular_kind(plural_kind: str) -> str:
     addition doesn't crash the renderer.
 
     Derived from the single charter-activatable kind authority
-    (:data:`doctrine.artifact_kinds.CHARTER_ACTIVATABLE_PLURAL_TO_SINGULAR`,
+    (:data:`charter.offering.artifact_kinds.CHARTER_ACTIVATABLE_PLURAL_TO_SINGULAR`,
     FR-004) — no local plural↔singular kind dict.  The prior local literal had
     drifted two kinds behind (missing ``glossary_packs`` and ``anti_patterns``),
     so ``_singular_kind("glossary_packs")`` failed open and rendered the plural
@@ -305,7 +305,7 @@ def _infer_kind(artifact_id: str, service: object) -> str | None:
     (``contracts/activation-registry.md`` -> "Failure Modes").
 
     The kind inference walks the 8 canonical
-    :class:`doctrine.service.DoctrineService` properties via
+    :class:`charter.offering.service.DoctrineService` properties via
     :data:`_KIND_TO_PROPERTY`.  Each property is expected to expose a
     membership-test surface (``__contains__`` / ``get`` / iterable of
     ids) -- we try them in turn so we stay compatible with whatever

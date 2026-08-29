@@ -137,7 +137,7 @@ def test_runtime_resolver_nudge_renders_real_runtime_path(tmp_path: pathlib.Path
 def test_doctrine_resolver_nudge_renders_real_runtime_path(tmp_path: pathlib.Path) -> None:
     """Mirror assertion for the doctrine package's resolver nudge."""
     fake_home = tmp_path / "doctrine-runtime-home"
-    output = _capture_nudge("doctrine.resolver", fake_home)
+    output = _capture_nudge("charter.offering.resolver", fake_home)
     assert str(fake_home) in output, (
         f"Doctrine resolver nudge did not render the real runtime path.\n"
         f"Expected substring: {fake_home}\n"
@@ -150,7 +150,7 @@ def test_doctrine_resolver_nudge_renders_real_runtime_path(tmp_path: pathlib.Pat
 
 @pytest.mark.parametrize(
     "module_name",
-    ["specify_cli.runtime.resolver", "doctrine.resolver"],
+    ["specify_cli.runtime.resolver", "charter.offering.resolver"],
 )
 def test_resolver_nudge_is_suppressed_for_json_invocations(
     tmp_path: pathlib.Path,

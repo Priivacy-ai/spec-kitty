@@ -52,8 +52,8 @@ from charter.mission_type_profiles import (
     UnknownMissionTypeError,
     resolve_mission_type_context,
 )
-from doctrine.missions.action_index import ActionIndex, load_action_index
-from doctrine.missions.repository import MissionTemplateRepository
+from charter.offering.missions.action_index import ActionIndex, load_action_index
+from charter.offering.missions.repository import MissionTemplateRepository
 
 pytestmark = [pytest.mark.fast, pytest.mark.doctrine, pytest.mark.corpus]
 
@@ -89,7 +89,7 @@ def _provision_all_builtin_mission_types(tmp_path: Path) -> None:
 #: On-disk root of the shipped mission doctrine (``packs/built-in/missions``,
 #: relocated from ``src/doctrine/missions`` by mission
 #: doctrine-consumer-surface-missions-extraction-01KZ6G6H, FR-005). The
-#: retired ``Path(doctrine.missions.__file__).resolve().parent`` construction
+#: retired ``Path(charter.offering.missions.__file__).resolve().parent`` construction
 #: would resolve to the now data-less ``.py``-only package directory instead.
 MISSIONS_ROOT: Path = MissionTemplateRepository.default_missions_root()
 

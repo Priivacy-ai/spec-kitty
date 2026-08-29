@@ -11,10 +11,10 @@ These tests verify:
 
 import pytest
 
-from doctrine.artifact_kinds import ArtifactKind
-from doctrine.missions.step_contracts import MissionStepContract
-from doctrine.missions.step_contracts import MissionStepContractRepository
-from doctrine.service import DoctrineService
+from charter.offering.artifact_kinds import ArtifactKind
+from charter.offering.missions.step_contracts import MissionStepContract
+from charter.offering.missions.step_contracts import MissionStepContractRepository
+from charter.offering.service import DoctrineService
 
 
 SOFTWARE_DEV_ACTIONS = ("specify", "plan", "implement", "review")

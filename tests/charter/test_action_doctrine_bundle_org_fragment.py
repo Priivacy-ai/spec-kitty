@@ -22,7 +22,7 @@ import yaml
 
 from charter.action_doctrine_bundle import _load_action_doctrine_bundle
 from charter.drg import resolve_existing_org_roots
-from doctrine.drg.validator import DRGValidationError
+from charter.offering.drg.validator import DRGValidationError
 
 pytestmark = pytest.mark.fast
 

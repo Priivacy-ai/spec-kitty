@@ -35,8 +35,8 @@ from charter.schemas import (
     DirectivesConfig,
     GovernanceConfig,
 )
-from doctrine.pack_paths import built_in_dir
-from doctrine.provenance import to_portable_source_path
+from charter.offering.pack_paths import built_in_dir
+from charter.offering.provenance import to_portable_source_path
 
 logger = logging.getLogger(__name__)
 
@@ -293,7 +293,7 @@ def resolve_config_activated_roots(
 if TYPE_CHECKING:
     # WP03 (charter-sole-door-bypass-closure-01KZ3WAA, FR-002/T011): this name
     # now denotes the activation-aware wrapper, not the raw
-    # ``doctrine.service.DoctrineService``. Every real caller already passes
+    # ``charter.offering.service.DoctrineService``. Every real caller already passes
     # (or, after this WP, receives from :func:`_default_doctrine_service`) a
     # wrapped instance -- ``generate.py``/``pack.py`` via
     # ``_build_doctrine_service_with_org_layer``, this module via the change
@@ -898,7 +898,7 @@ def _default_doctrine_service(repo_root: Path | None) -> DoctrineService:
     and byte-identical behaviour to the pre-Phase-3 default (R-2 mitigation).
 
     WP03 (charter-sole-door-bypass-closure-01KZ3WAA, FR-002/T011): this used
-    to construct a raw, unwrapped ``doctrine.service.DoctrineService``
+    to construct a raw, unwrapped ``charter.offering.service.DoctrineService``
     directly -- one of the six original FR-002 violation sites. When
     *repo_root* is available, construction now routes through WP01's single
     unified builder, :func:`charter.doctrine_service_builder.
@@ -940,7 +940,7 @@ def _default_doctrine_service(repo_root: Path | None) -> DoctrineService:
         return build_activation_aware_doctrine_service(repo_root)
 
     from charter.resolver import DoctrineService as _ActivationAwareDoctrineService
-    from doctrine.service import DoctrineService as _RawDoctrineService
+    from charter.offering.service import DoctrineService as _RawDoctrineService
 
     # No built_in_root kwarg: repositories self-resolve packs/built-in/<kind>
     # via the built_in_dir seam (default None is behaviour-preserving here;
@@ -1210,10 +1210,10 @@ def _resolve_transitive_reference_graph(
     """
     from charter._drg_helpers import load_validated_graph
     from charter.drg import filter_graph_by_activation
-    from doctrine.drg.loader import load_built_in_graph
-    from doctrine.drg.models import Relation
-    from doctrine.drg.query import ResolveTransitiveRefsResult, resolve_transitive_refs
-    from doctrine.drg.validator import assert_valid
+    from charter.offering.drg.loader import load_built_in_graph
+    from charter.offering.drg.models import Relation
+    from charter.offering.drg.query import ResolveTransitiveRefsResult, resolve_transitive_refs
+    from charter.offering.drg.validator import assert_valid
 
     start_urns = {f"directive:{directive_id}" for directive_id in directives} | set(direct_root_urns)
     if not start_urns:
@@ -1438,7 +1438,7 @@ def _doctrine_yaml_reference(
     """Build a CharterReference from a raw YAML asset (the CATALOG source caller).
 
     ``source_path`` is normalized through the shared portable-provenance seam
-    (:func:`doctrine.provenance.to_portable_source_path`, C-PRV-1/2/6): a
+    (:func:`charter.offering.provenance.to_portable_source_path`, C-PRV-1/2/6): a
     built-in-pack path becomes a ``${SPEC_KITTY_PACKS_ROOT}/built-in/...``
     token, an in-tree path becomes repo-relative, and anything else stays
     absolute. This is one of exactly two normalizer call sites
@@ -1491,7 +1491,7 @@ def _template_reference(*, mission: str, template_set: str) -> CharterReference:
     than a stale ``doctrine_root / "missions"`` literal naming the
     pre-relocation location.
     """
-    from doctrine.missions import MissionTemplateRepository
+    from charter.offering.missions import MissionTemplateRepository
 
     repo = MissionTemplateRepository.default()
     config = repo.get_mission_config(mission)

@@ -87,18 +87,25 @@ def evaluable():
 
 @pytest.fixture(scope="session")
 def landscape():
-    """2.x C4 landscape: kernel <- doctrine <- charter <- glossary/runtime/mission_runtime <- specify_cli.
+    """2.x C4 landscape: kernel <- charter <- glossary/runtime/mission_runtime <- specify_cli.
 
     Each layer includes both the ``src.``-prefixed module path (local source)
     and the bare module name (as seen when the package is installed), so that
     imports resolved through either path are correctly attributed.
+
+    Note (charter-code-topology-01M152G1, S5): the former top-level
+    ``doctrine`` layer was dropped. ``src/doctrine`` relocated to
+    ``src/charter/offering`` (S2a), so the offering/activation split is now
+    an intra-``charter`` sub-package boundary, not a separate landscape
+    layer/LayerRule. A single-file ``src/doctrine.py`` deprecation shim
+    (CR-06) still lets legacy ``import doctrine`` callers resolve, but it is
+    compatibility surface, not an architectural layer — it is intentionally
+    left unmapped here so it does not resurrect a phantom "doctrine" layer.
     """
     return (
         LayeredArchitecture()
         .layer("kernel")  # type: ignore[attr-defined]
         .containing_modules(["src.kernel", "kernel"])
-        .layer("doctrine")
-        .containing_modules(["src.doctrine", "doctrine"])
         .layer("charter")
         .containing_modules(["src.charter", "charter"])
         .layer("glossary")

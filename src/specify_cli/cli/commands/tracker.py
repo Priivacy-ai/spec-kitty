@@ -28,6 +28,7 @@ from specify_cli.tracker.config import (
     REMOVED_PROVIDERS,
     SAAS_PROVIDERS,
     TrackerProjectConfig,
+    _warn_legacy_ownership_key_once,
     load_tracker_config,
     require_repo_root,
 )
@@ -419,12 +420,30 @@ def _service(*, allow_unbound: bool = False, root: Path | None = None) -> Tracke
     return TrackerService(repo_root)
 
 
-def _doctrine_modes() -> tuple[str, ...]:
+def _ownership_modes() -> tuple[str, ...]:
     return (
         "external_authoritative",
         "spec_kitty_authoritative",
         "split_ownership",
     )
+
+
+def _resolve_ownership_mode(ownership_mode: str | None, doctrine_mode: str | None) -> str:
+    """CR-03: canonical ``--ownership-mode`` wins; legacy ``--doctrine-mode`` warns once.
+
+    Precedent (CR-01, ``apply_legacy_governance_selection_key_compat``): when
+    both flags are passed, the canonical one wins silently -- an operator who
+    already adopted ``--ownership-mode`` is never nagged about a stale
+    ``--doctrine-mode`` they also happened to pass. ``--doctrine-mode`` is a
+    hidden, deprecated alias (``cli/commands/tracker.py`` ``bind_command``);
+    neither flag passed falls back to the documented default.
+    """
+    if ownership_mode is not None:
+        return ownership_mode
+    if doctrine_mode is not None:
+        _warn_legacy_ownership_key_once()
+        return doctrine_mode
+    return "external_authoritative"
 
 
 def _run_or_exit(fn):  # type: ignore[no-untyped-def]
@@ -621,10 +640,16 @@ def bind_command(
         "--workspace",
         help="Provider workspace/team/project identifier (local providers only)",
     ),
-    doctrine_mode: str = typer.Option(
-        "external_authoritative",
+    ownership_mode: str | None = typer.Option(
+        None,
+        "--ownership-mode",
+        help="Ownership mode: external_authoritative | spec_kitty_authoritative | split_ownership",
+    ),
+    doctrine_mode: str | None = typer.Option(
+        None,
         "--doctrine-mode",
-        help="Doctrine mode: external_authoritative | spec_kitty_authoritative | split_ownership",
+        hidden=True,
+        help="Deprecated: use --ownership-mode instead.",
     ),
     field_owners: list[str] = typer.Option(
         [],
@@ -696,11 +721,12 @@ def bind_command(
                 )
                 raise typer.Exit(code=1)
 
-            mode = doctrine_mode.strip().lower()
-            if mode not in set(_doctrine_modes()):
+            resolved_mode_raw = _resolve_ownership_mode(ownership_mode, doctrine_mode)
+            mode = resolved_mode_raw.strip().lower()
+            if mode not in set(_ownership_modes()):
                 raise TrackerServiceError(
-                    f"Invalid doctrine mode '{doctrine_mode}'. "
-                    f"Expected one of: {', '.join(_doctrine_modes())}"
+                    f"Invalid ownership mode '{resolved_mode_raw}'. "
+                    f"Expected one of: {', '.join(_ownership_modes())}"
                 )
 
             parsed_field_owners = parse_kv_pairs(field_owners)
@@ -709,16 +735,16 @@ def bind_command(
             config = _service().bind(
                 provider=provider_normalized,
                 workspace=workspace,
-                doctrine_mode=mode,
-                doctrine_field_owners=parsed_field_owners,
+                ownership_mode=mode,
+                ownership_field_owners=parsed_field_owners,
                 credentials=parsed_credentials,
             )
 
             typer.echo("Tracker binding saved")
             typer.echo(f"- provider: {config.provider}")
             typer.echo(f"- workspace: {config.workspace}")
-            typer.echo(f"- doctrine_mode: {config.doctrine_mode}")
-            typer.echo(f"- field_owners: {len(config.doctrine_field_owners)}")
+            typer.echo(f"- ownership_mode: {config.ownership_mode}")
+            typer.echo(f"- field_owners: {len(config.ownership_field_owners)}")
             typer.echo(f"- credentials_saved: {'yes' if bool(parsed_credentials) else 'no'}")
             return
 
@@ -896,7 +922,11 @@ def status_command(
         # Local-specific fields
         else:
             typer.echo(f"- workspace: {payload.get('workspace')}")
-            typer.echo(f"- doctrine_mode: {payload.get('doctrine_mode')}")
+            # CR-03: read the canonical key; `local_service.status()` emits
+            # both `ownership_mode` and the legacy `doctrine_mode` alias
+            # (same value) for downstream-contract compat -- see its
+            # docstring.
+            typer.echo(f"- ownership_mode: {payload.get('ownership_mode', payload.get('doctrine_mode'))}")
             typer.echo(f"- db_path: {payload.get('db_path')}")
             typer.echo(f"- issue_count: {payload.get('issue_count')}")
             typer.echo(f"- mapping_count: {payload.get('mapping_count')}")

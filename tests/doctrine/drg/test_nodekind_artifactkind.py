@@ -4,8 +4,8 @@ from __future__ import annotations
 
 import pytest
 
-from doctrine.artifact_kinds import ArtifactKind
-from doctrine.drg.models import DRGNode, NodeKind
+from charter.offering.artifact_kinds import ArtifactKind
+from charter.offering.drg.models import DRGNode, NodeKind
 
 
 pytestmark = [pytest.mark.fast]

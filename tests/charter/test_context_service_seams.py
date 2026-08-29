@@ -243,7 +243,7 @@ class TestBuildDoctrineService:
         built_in_root.mkdir()
         with (
             patch("charter.catalog.resolve_doctrine_root", return_value=built_in_root),
-            patch("doctrine.service.DoctrineService", _StubDoctrineService),
+            patch("charter.offering.service.DoctrineService", _StubDoctrineService),
             patch("charter.context.infer_repo_languages", return_value=["python"]),
         ):
             _build_doctrine_service(tmp_path, org_roots=None)
@@ -261,7 +261,7 @@ class TestBuildDoctrineService:
         org_root = tmp_path / "org"
         with (
             patch("charter.catalog.resolve_doctrine_root", return_value=built_in_root),
-            patch("doctrine.service.DoctrineService", _StubDoctrineService),
+            patch("charter.offering.service.DoctrineService", _StubDoctrineService),
             patch("charter.context.infer_repo_languages", return_value=["python"]),
         ):
             _build_doctrine_service(tmp_path, org_roots=[org_root])

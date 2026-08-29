@@ -18,12 +18,12 @@ Pre-fix, both tactics dangle:
 These tests assert resolution via two independent, non-fakeable routes:
 
 1. Real DRG traversal over the shipped ``src/doctrine/graph.yaml``
-   (:func:`doctrine.drg.query.resolve_transitive_refs`) starting from an
+   (:func:`charter.offering.drg.query.resolve_transitive_refs`) starting from an
    activated directive -- proves the graph edge exists, not just that a
    string appears somewhere.
 2. The real charter compiler (:func:`charter.compiler.compile_charter`)
    against the project's own interview answers and a real
-   ``doctrine.service.DoctrineService`` rooted at ``src/doctrine`` -- proves
+   ``charter.offering.service.DoctrineService`` rooted at ``src/doctrine`` -- proves
    the resolved reference carries the tactic's actual body (``purpose``),
    which is what ``charter context`` surfaces downstream, not merely an id
    string dropped into ``references.yaml`` by hand.
@@ -37,11 +37,11 @@ import pytest
 
 from charter.compiler import compile_charter
 from charter.interview import read_interview_answers
-from doctrine.drg.loader import load_built_in_graph
-from doctrine.drg.models import DRGGraph, Relation
-from doctrine.drg.query import resolve_transitive_refs
-from doctrine.drg.validator import assert_valid
-from doctrine.service import DoctrineService
+from charter.offering.drg.loader import load_built_in_graph
+from charter.offering.drg.models import DRGGraph, Relation
+from charter.offering.drg.query import resolve_transitive_refs
+from charter.offering.drg.validator import assert_valid
+from charter.offering.service import DoctrineService
 
 pytestmark = [pytest.mark.fast, pytest.mark.doctrine]
 

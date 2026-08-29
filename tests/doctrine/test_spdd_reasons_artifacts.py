@@ -10,8 +10,8 @@ from __future__ import annotations
 
 import pytest
 
-from doctrine.pack_paths import resolve_pack_root
-from doctrine.service import DoctrineService
+from charter.offering.pack_paths import resolve_pack_root
+from charter.offering.service import DoctrineService
 
 from tests.doctrine.conftest import DOCTRINE_SOURCE_ROOT
 

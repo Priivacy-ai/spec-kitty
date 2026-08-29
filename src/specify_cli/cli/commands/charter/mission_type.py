@@ -37,7 +37,7 @@ from charter.mission_type_profiles import (
 
 if TYPE_CHECKING:
     from charter.pack_context import PackContext
-    from doctrine.missions.models import MissionType
+    from charter.offering.missions.models import MissionType
 
 __all__ = [
     "charter_mission_type_app",
@@ -104,6 +104,30 @@ def resolve_mission_type_source_layer(mission_type_id: str, repo_root: Path) -> 
     )
 
 
+#: CR-02 (mission ``charter-code-topology-01M152G1`` S4): the placeholder
+#: rendered in the ACTION SEQUENCE column for an ``--include-inactive`` row
+#: that is not activated. Such a type is *deliberately* not resolved through
+#: :func:`~charter.mission_type_profiles.resolve_mission_type_context` --
+#: that resolver hard-fails on a non-activated built-in type by design (the
+#: FR-006 activation-subset gate), so this command must not call it for
+#: exactly the rows ``--include-inactive`` adds.
+_NOT_ACTIVATED_ACTION_SEQUENCE = "(not activated)"
+
+
+def _resolve_action_sequence_or_report(repo_root: Path, mt_id: str) -> list[str]:
+    """Resolve *mt_id*'s action sequence, or print+exit on an empty one.
+
+    Isolates the ``MissionTypeEmptyActionSequenceError`` handling shared by
+    every activated row so the caller loop stays flat (CL-003/NFR-002: an
+    empty action sequence must never render as a quiet ``[]`` row).
+    """
+    try:
+        return list(resolve_mission_type_context(repo_root, mission_type=mt_id).action_sequence)
+    except MissionTypeEmptyActionSequenceError as exc:
+        console.print(f"[red]Error:[/red] {exc}")
+        raise typer.Exit(1) from exc
+
+
 @charter_mission_type_app.command("list")
 def charter_mission_type_list(
     json_output: bool = typer.Option(
@@ -111,14 +135,31 @@ def charter_mission_type_list(
         "--json",
         help="Output as JSON.",
     ),
+    include_inactive: bool = typer.Option(
+        False,
+        "--include-inactive",
+        help=(
+            "Also list mission types registered in the built-in/org/project "
+            "layers but NOT activated for this project (activation-blind). "
+            "The canonical replacement for `spec-kitty doctrine mission-type "
+            "list` (CR-02, mission charter-code-topology-01M152G1 S4)."
+        ),
+    ),
 ) -> None:
-    """List activated mission types for the current project (FR-016).
+    """List mission types for the current project (FR-016).
 
-    Returns only mission types that are explicitly activated in this
-    project's charter.  To see all doctrine-layer types regardless of
-    activation state, use ``spec-kitty doctrine mission-type list``.
+    By default, returns only mission types that are explicitly activated in
+    this project's charter. Pass ``--include-inactive`` to also see every
+    type registered in the built-in/org/project layers regardless of
+    activation state -- the deprecated ``spec-kitty doctrine mission-type
+    list`` group covered this before CR-02; this flag is its canonical
+    replacement, not a straight alias (activation state still distinguishes
+    the two row classes -- see ACTION SEQUENCE below).
 
-    Output columns (table): ID, SOURCE, DISPLAY NAME, ACTION SEQUENCE.
+    Output columns (table): ID, SOURCE, DISPLAY NAME, ACTION SEQUENCE. A
+    non-activated ``--include-inactive`` row shows ``(not activated)`` in
+    ACTION SEQUENCE: resolving a real action sequence requires activation
+    (the FR-006 gate), so there is nothing to compute for it.
     """
     repo_root = Path.cwd()
     activated_ids = existing_mission_types(repo_root)
@@ -139,8 +180,17 @@ def charter_mission_type_list(
         console.print(f"[red]Error:[/red] {exc}")
         raise typer.Exit(1) from exc
 
+    activated_id_set = set(activated_ids)
+    # Preserves the pre-CR-02 row order (activated ids, in their own order)
+    # and appends any inactive ids -- sorted for determinism, since the
+    # roster dict has no declared order guarantee of its own -- only when
+    # `--include-inactive` was passed.
+    ordered_ids = list(activated_ids)
+    if include_inactive:
+        ordered_ids.extend(sorted(set(roster) - activated_id_set))
+
     rows: list[dict[str, object]] = []
-    for mt_id in activated_ids:
+    for mt_id in ordered_ids:
         mt = roster.get(mt_id)
         if mt is None:
             # Activated but unresolvable in any layer -- WP05's own
@@ -153,16 +203,11 @@ def charter_mission_type_list(
             console.print(f"[red]Error:[/red] {err}")
             raise typer.Exit(1)
 
-        try:
-            action_seq = list(
-                resolve_mission_type_context(repo_root, mission_type=mt_id).action_sequence
-            )
-        except MissionTypeEmptyActionSequenceError as exc:
-            # CL-003/NFR-002: an empty action sequence must never render as a
-            # quiet `[]` row -- surface it loudly, same as every other new
-            # seam this mission adds.
-            console.print(f"[red]Error:[/red] {exc}")
-            raise typer.Exit(1) from exc
+        is_activated = mt_id in activated_id_set
+        if is_activated:
+            action_seq: list[str] | str = _resolve_action_sequence_or_report(repo_root, mt_id)
+        else:
+            action_seq = _NOT_ACTIVATED_ACTION_SEQUENCE
 
         rows.append(
             {
@@ -170,6 +215,7 @@ def charter_mission_type_list(
                 "source_layer": resolve_mission_type_source_layer(mt_id, repo_root),
                 "display_name": mt.display_name,
                 "action_sequence": action_seq,
+                "activated": is_activated,
             }
         )
 

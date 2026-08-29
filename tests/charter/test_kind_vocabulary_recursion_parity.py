@@ -18,7 +18,7 @@ from charter.kind_vocabulary import (
     UnknownArtifactIdError,
     resolve_artifact_urn,
 )
-from doctrine.artifact_kinds import ArtifactKind
+from charter.offering.artifact_kinds import ArtifactKind
 
 pytestmark = [pytest.mark.fast, pytest.mark.unit]
 
@@ -89,7 +89,7 @@ def test_nested_project_tactic_resolves(tmp_path: Path) -> None:
 
 def test_resolver_matches_loader_for_nested_org_tactic(tmp_path: Path) -> None:
     """The resolver discovers exactly what the loader discovers for a nested org tactic."""
-    from doctrine.tactics.repository import TacticRepository
+    from charter.offering.tactics.repository import TacticRepository
 
     pack = tmp_path / "orgpack"
     built_in = tmp_path / "built-in"

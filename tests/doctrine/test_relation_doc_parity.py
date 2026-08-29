@@ -35,7 +35,7 @@ import re
 
 import pytest
 
-from doctrine.drg.models import RELATION_DESCRIPTIONS, Relation
+from charter.offering.drg.models import RELATION_DESCRIPTIONS, Relation
 from tests.doctrine.conftest import REPO_ROOT
 
 pytestmark = [pytest.mark.fast, pytest.mark.doctrine]

@@ -147,7 +147,7 @@ def _seed_project_graph(repo: Path) -> Path:
 
     Matches ``test_freshness_activation_visibility.py``'s own local helper:
     a bare ``schema_version``/``nodes``/``edges`` document is REJECTED by
-    ``doctrine.drg.models.DRGGraph`` (``generated_at``/``generated_by`` are
+    ``charter.offering.drg.models.DRGGraph`` (``generated_at``/``generated_by`` are
     required) once ``charter.consistency_check``'s graph-kind-parity check
     pydantic-validates it via ``load_validated_graph``.
     """

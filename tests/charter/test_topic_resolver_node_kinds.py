@@ -26,7 +26,7 @@ import importlib
 import pytest
 
 from charter.synthesizer import topic_resolver
-from doctrine.drg.models import NodeKind
+from charter.offering.drg.models import NodeKind
 
 #: The six kinds the retired hand-literal in ``topic_resolver`` dropped.
 _PREVIOUSLY_DROPPED: tuple[str, ...] = (
@@ -59,7 +59,7 @@ def test_synthetic_nodekind_member_is_recognized_at_gate() -> None:
     Reverting ``_DRG_NODE_KINDS`` to a hand literal makes this fail — a literal
     cannot contain a member that did not exist when it was written.
     """
-    models_mod = importlib.import_module("doctrine.drg.models")
+    models_mod = importlib.import_module("charter.offering.drg.models")
     real = models_mod.NodeKind
     fake = _make_extended_nodekind(real, "synthetic_kind")
     urn = "synthetic_kind:demo"
@@ -99,5 +99,5 @@ def test_previously_dropped_kind_resolves_at_gate(kind_value: str) -> None:
 
 def test_resolver_set_matches_merge_twin() -> None:
     """Cross-module SSOT pin: both derivations of the kind set agree."""
-    merge_mod = importlib.import_module("doctrine.drg.merge")
+    merge_mod = importlib.import_module("charter.offering.drg.merge")
     assert topic_resolver._DRG_NODE_KINDS == merge_mod._NODE_KIND_PREFIXES

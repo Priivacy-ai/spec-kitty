@@ -14,7 +14,7 @@ from pathlib import Path
 
 import pytest
 
-from doctrine.drg.loader import built_in_graph_source
+from charter.offering.drg.loader import built_in_graph_source
 from specify_cli.calibration.walker import (
     _REQUIRED_SCOPE,
     CalibrationFinding,

@@ -279,7 +279,7 @@ def test_apply_absent_key_preserves_real_builtins_not_bare_list(tmp_path: Path) 
 
 def test_resolve_selected_id_to_stem_already_stem() -> None:
     from charter.catalog import resolve_doctrine_root
-    from doctrine.artifact_kinds import ArtifactKind
+    from charter.offering.artifact_kinds import ArtifactKind
 
     doctrine_root = resolve_doctrine_root()
     stem = resolve_selected_id_to_stem(
@@ -290,7 +290,7 @@ def test_resolve_selected_id_to_stem_already_stem() -> None:
 
 def test_resolve_selected_id_to_stem_canonical_form() -> None:
     from charter.catalog import resolve_doctrine_root
-    from doctrine.artifact_kinds import ArtifactKind
+    from charter.offering.artifact_kinds import ArtifactKind
 
     doctrine_root = resolve_doctrine_root()
     stem = resolve_selected_id_to_stem(
@@ -301,7 +301,7 @@ def test_resolve_selected_id_to_stem_canonical_form() -> None:
 
 def test_resolve_selected_id_to_stem_unresolvable_returns_none() -> None:
     from charter.catalog import resolve_doctrine_root
-    from doctrine.artifact_kinds import ArtifactKind
+    from charter.offering.artifact_kinds import ArtifactKind
 
     doctrine_root = resolve_doctrine_root()
     stem = resolve_selected_id_to_stem(

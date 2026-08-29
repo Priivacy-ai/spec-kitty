@@ -213,8 +213,8 @@ def test_clean_venv_install_imports_and_resolves_built_in(
     probe = (
         "import json, sys\n"
         "from pathlib import Path\n"
-        "import doctrine  # noqa: F401 — import must succeed from the wheel\n"
-        "from doctrine.pack_paths import resolve_pack_root\n"
+        "import charter.offering  # noqa: F401 — import must succeed from the wheel\n"
+        "from charter.offering.pack_paths import resolve_pack_root\n"
         "root = resolve_pack_root('built-in')\n"
         "assert root.is_dir(), f'pack root not a dir: {root}'\n"
         "# Fail-closed contract: never resolve into a src/doctrine/ tree.\n"

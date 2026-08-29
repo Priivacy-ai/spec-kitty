@@ -35,7 +35,7 @@ from charter.pack_context import (
     PackContext,
     _BUILTIN_ARTIFACT_KINDS,
 )
-from doctrine.missions.mission_type_repository import builtin_mission_type_id_set
+from charter.offering.missions.mission_type_repository import builtin_mission_type_id_set
 
 
 pytestmark = [pytest.mark.fast]
@@ -212,15 +212,16 @@ def test_pack_roots_is_tuple(tmp_path: Path) -> None:
 
 
 def test_pack_roots_contains_builtin_root(tmp_path: Path) -> None:
-    """pack_roots[0] must point at the built-in doctrine root (src/doctrine/)."""
+    """pack_roots[0] must point at the built-in offer catalogue root (src/charter/offering/, relocated from src/doctrine/ in M2 charter-code-topology)."""
     _write_config(tmp_path, _MINIMAL_CONFIG)
     ctx = PackContext.from_config(tmp_path)
 
     assert len(ctx.pack_roots) >= 1
     builtin = ctx.pack_roots[0]
-    # The built-in doctrine root is src/doctrine/ which exists on disk.
+    # The built-in offer catalogue root is src/charter/offering/ (relocated from
+    # src/doctrine/ in M2); the packaged pack root is its `built_in` data dir.
     assert builtin.exists()
-    assert builtin.name == "doctrine"
+    assert builtin.name == "offering"
 
 
 # ---------------------------------------------------------------------------
@@ -265,7 +266,7 @@ def test_activated_kinds_defaults_to_all_builtin_when_key_absent(tmp_path: Path)
     # FR-001/FR-011 (asset-kind mission): templates + assets are node-declarable
     # org-pack DRG kinds added to the default set in lockstep with
     # ``charter.activations._ALLOWED_KINDS`` and
-    # ``doctrine.drg.org_pack_loader._ORG_DRG_CANONICAL_KINDS``.
+    # ``charter.offering.drg.org_pack_loader._ORG_DRG_CANONICAL_KINDS``.
     assert {"templates", "assets"} <= ctx.activated_kinds
 
 
@@ -312,8 +313,8 @@ def test_org_pack_names_and_roots_populated(tmp_path: Path) -> None:
 
     assert "acme-pack" in ctx.org_pack_names
     # pack_roots has the built-in root first, then the org pack root
-    assert [p.name for p in ctx.pack_roots] == ["doctrine", pack_dir.name]
-    assert ctx.pack_roots[0].name == "doctrine"  # built-in
+    assert [p.name for p in ctx.pack_roots] == ["offering", pack_dir.name]
+    assert ctx.pack_roots[0].name == "offering"  # built-in
     assert ctx.pack_roots[1] == pack_dir
 
 
@@ -556,7 +557,7 @@ def test_from_config_unset_pack_env_var_propagates_fail_closed(
     resolution-time ``OrgPackEnvVarUnsetError`` re-raises (never swallowed into
     a silent empty registry that would drop the pack's governance).
     """
-    from doctrine.drg.org_pack_config import OrgPackEnvVarUnsetError  # noqa: PLC0415
+    from charter.offering.drg.org_pack_config import OrgPackEnvVarUnsetError  # noqa: PLC0415
 
     monkeypatch.delenv("SPEC_KITTY_PACK_HOME_FIXTURE_UNSET", raising=False)
     content = f"""\
@@ -581,7 +582,7 @@ def test_from_config_subdir_escape_propagates_fail_closed(tmp_path: Path) -> Non
     condition — ``PackContext.from_config`` must propagate ``OrgPackSubdirEscapeError``
     instead of silently returning a context with the escaping pack dropped.
     """
-    from doctrine.drg.org_pack_config import OrgPackSubdirEscapeError  # noqa: PLC0415
+    from charter.offering.drg.org_pack_config import OrgPackSubdirEscapeError  # noqa: PLC0415
 
     # Create a pack root and an outside directory, then a symlink inside
     # the pack root pointing outside (the same pattern as TestSymlinkEscape).

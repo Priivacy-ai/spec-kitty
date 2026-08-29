@@ -13,7 +13,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from doctrine.spdd_reasons.template_renderer import (
+from charter.offering.spdd_reasons.template_renderer import (
     REASONS_BLOCK_END,
     REASONS_BLOCK_START,
     process_spdd_blocks,

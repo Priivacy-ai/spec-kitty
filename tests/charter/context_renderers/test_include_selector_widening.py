@@ -15,8 +15,8 @@ import pytest
 from charter.context_renderers.template_include import (
     _render_doctrine_artifact_include,
 )
-from doctrine.artifact_kinds import CHARTER_ACTIVATABLE_KINDS, ArtifactKind
-from doctrine.glossary_packs.models import GlossaryPack, GlossaryTerm
+from charter.offering.artifact_kinds import CHARTER_ACTIVATABLE_KINDS, ArtifactKind
+from charter.offering.glossary_packs.models import GlossaryPack, GlossaryTerm
 
 pytestmark = [pytest.mark.fast, pytest.mark.unit]
 

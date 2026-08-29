@@ -263,8 +263,8 @@ class TestNoNullPlanting:
         service.bind(
             provider="beads",
             workspace="ws",
-            doctrine_mode="external_authoritative",
-            doctrine_field_owners={},
+            ownership_mode="external_authoritative",
+            ownership_field_owners={},
             credentials={},
         )
         text = (tmp_path / ".kittify" / "config.yaml").read_text(encoding="utf-8")
@@ -500,8 +500,8 @@ class TestSiteA2LocalBranchUnitLevel:
             service.bind(
                 provider="beads",
                 workspace="ws2",
-                doctrine_mode="external_authoritative",
-                doctrine_field_owners={},
+                ownership_mode="external_authoritative",
+                ownership_field_owners={},
                 credentials={},
             )
 

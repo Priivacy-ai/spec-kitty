@@ -26,7 +26,7 @@ from charter.mission_type_profile_repository import (
     MissionTypeProfileRepository,
     builtin_missions_root,
 )
-from doctrine.missions.repository import MissionTemplateRepository
+from charter.offering.missions.repository import MissionTemplateRepository
 
 pytestmark = [pytest.mark.unit]
 

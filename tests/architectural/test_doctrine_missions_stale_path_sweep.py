@@ -16,7 +16,7 @@ Location" table).
 This is intentionally *not* a blind ``fragment not in content`` check (that
 shape lives in ``test_claudemd_has_no_stale_mission_steps_source_path``
 above, scoped to CLAUDE.md only). ``src/doctrine/missions/`` is not wholly
-retired: it is still the real, live location of the ``doctrine.missions``
+retired: it is still the real, live location of the ``charter.offering.missions``
 Python package (``primitives.py``, ``repository.py``, ``models.py``, etc. —
 see ``packs/built-in/missions/README.md``'s "Python Utilities" section,
 which correctly and currently points there). A blind substring ban would
@@ -77,7 +77,7 @@ def test_no_stale_doctrine_missions_data_path_in_active_doctrine_prose() -> None
     """packs/** and src/doctrine/skills/** must not reference retired
     src/doctrine/missions/ data paths; the canonical data home is
     packs/built-in/missions/. References that still resolve on disk (the
-    surviving doctrine.missions Python modules) are exempt.
+    surviving charter.offering.missions Python modules) are exempt.
     """
     violations: list[str] = []
     for path in _iter_scan_files():

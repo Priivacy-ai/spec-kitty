@@ -17,7 +17,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING, cast
 
 if TYPE_CHECKING:
-    import doctrine.service as _doctrine_service_module
+    import charter.offering.service as _doctrine_service_module
 
     from charter.scope import CharterScope
 
@@ -196,7 +196,7 @@ def build_charter_context(
         the three-layer (built-in + org + project) DRG overlay is used and the
         ``DoctrineService`` is constructed with the org layer included.
         Charter-layer callers leave this as ``None``; ``specify_cli`` callers
-        resolve the value via :func:`doctrine.drg.org_pack_config.resolve_org_roots`
+        resolve the value via :func:`charter.offering.drg.org_pack_config.resolve_org_roots`
         and pass it explicitly (preserving the kernel <- doctrine <- charter <-
         specify_cli dependency direction).
     scope:
@@ -371,19 +371,19 @@ def build_charter_context_include(
     """Render one fetch-deferred governance selector.
 
     The selector kind is routed through the canonical
-    :meth:`~doctrine.artifact_kinds.ArtifactKind.from_operator_token` resolver
+    :meth:`~charter.offering.artifact_kinds.ArtifactKind.from_operator_token` resolver
     (WP01), so hyphenated operator tokens such as ``agent-profile`` and
     ``mission-step-contract`` resolve to their canonical underscore kinds
     without a per-surface kind table (R-009 / CC-4). The two non-artifact
     selectors — ``section`` (a charter heading) and ``artifact`` (the
     best-effort activation selector) — are handled before the canonical
     resolver. ``template:<mission>/<name>`` resolves through WP18's
-    :func:`doctrine.template_catalog.resolve_template_by_id` (FR-034).
+    :func:`charter.offering.template_catalog.resolve_template_by_id` (FR-034).
 
     Unknown selector kinds fail closed with the canonical vocabulary error
     raised by :meth:`ArtifactKind.from_operator_token` (no silent fallback).
     """
-    from doctrine.artifact_kinds import ArtifactKind
+    from charter.offering.artifact_kinds import ArtifactKind
 
     kind, separator, identifier = selector.partition(":")
     kind = kind.strip().lower()

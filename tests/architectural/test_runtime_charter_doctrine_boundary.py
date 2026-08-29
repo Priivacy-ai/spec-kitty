@@ -57,7 +57,7 @@ def _rel_to_repo(path: Path) -> str:
 
 
 def test_boundary_predicate_has_prohibited_and_compliant_controls() -> None:
-    assert _has_module_level_doctrine_import("from doctrine.resolver import resolve_profile\n")
+    assert _has_module_level_doctrine_import("from charter.offering.resolver import resolve_profile\n")
     assert not _has_module_level_doctrine_import("from charter.profiles import resolve_profile\n")
 
 
@@ -126,7 +126,7 @@ _LAZY_BASELINE_ALLOWLIST: frozenset[str] = frozenset(
         # doctrine import that this mission deliberately did not route through a
         # charter facade:
         #   - ``_doctrine_asset.py`` / ``_doctrine_collect.py`` / ``doctrine.py``:
-        #     the sole-door ``doctrine.service`` construction sites (already wrapped
+        #     the sole-door ``charter.offering.service`` construction sites (already wrapped
         #     + test-locked) and the TICKETED-BASELINE paths ``drg.override_policy``
         #     / ``drg.migration.hand_authored_overlay`` (doorless management internals).
         #   - ``bundles/codex.py``: bare ``import doctrine`` for package-metadata

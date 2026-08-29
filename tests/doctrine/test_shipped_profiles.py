@@ -16,10 +16,10 @@ import pytest
 from pytest_benchmark.fixture import BenchmarkFixture
 from ruamel.yaml import YAML
 
-from doctrine.agent_profiles.profile import AgentProfile, Role
-from doctrine.agent_profiles.repository import AgentProfileRepository
-from doctrine.agent_profiles.validation import validate_agent_profile_yaml
-from doctrine.pack_paths import resolve_pack_root
+from charter.offering.agent_profiles.profile import AgentProfile, Role
+from charter.offering.agent_profiles.repository import AgentProfileRepository
+from charter.offering.agent_profiles.validation import validate_agent_profile_yaml
+from charter.offering.pack_paths import resolve_pack_root
 from tests.doctrine._builtin_inventory import builtin_profile_ids
 
 pytestmark = [pytest.mark.fast, pytest.mark.doctrine, pytest.mark.corpus]
@@ -38,7 +38,7 @@ MISSION_RUNTIME_DIRS = (
 )
 # The Python-package README (``src/doctrine/agent_profiles/README.md``) was NOT
 # relocated; the built-in-pack README moved to the flattened pack dir.
-AGENT_PROFILES_README = REPO_ROOT / "src" / "doctrine" / "agent_profiles" / "README.md"
+AGENT_PROFILES_README = REPO_ROOT / "src" / "charter" / "offering" / "agent_profiles" / "README.md"
 BUILT_IN_README = BUILT_IN_DIR / "README.md"
 
 # Derived from the shipped ``packs/built-in/agent_profiles/*.agent.yaml`` source

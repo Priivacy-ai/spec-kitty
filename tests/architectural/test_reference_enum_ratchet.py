@@ -111,7 +111,7 @@ import pytest
 import yaml
 
 import scripts.generate_schemas as gs
-from doctrine.artifact_kinds import ArtifactKind
+from charter.offering.artifact_kinds import ArtifactKind
 
 pytestmark = [pytest.mark.architectural, pytest.mark.fast]
 

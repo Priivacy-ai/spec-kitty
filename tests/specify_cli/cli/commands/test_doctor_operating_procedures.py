@@ -33,7 +33,7 @@ def test_clean_built_in_tree_reports_present_and_empty() -> None:
 def test_unresolved_entry_flips_healthy_and_records_finding(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    from doctrine.agent_profiles import operating_procedures as opmod
+    from charter.offering.agent_profiles import operating_procedures as opmod
 
     fake = opmod.UnresolvedOpProc(
         profile_id="synthetic-profile",
@@ -69,7 +69,7 @@ def test_scan_error_is_recorded_not_raised(monkeypatch: pytest.MonkeyPatch) -> N
 
     monkeypatch.setattr(_doctrine_collect, "load_built_in_graph", _boom, raising=False)
     # The function imports load_built_in_graph locally; patch at its source.
-    from doctrine.drg import loader
+    from charter.offering.drg import loader
 
     monkeypatch.setattr(loader, "load_built_in_graph", _boom)
     report = DoctrineHealthReport()

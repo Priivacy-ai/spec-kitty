@@ -19,9 +19,9 @@ from pathlib import Path
 
 import pytest
 
-from doctrine.drg.models import NodeKind
-from doctrine.resolver import ResolutionTier
-from doctrine.template_catalog import (
+from charter.offering.drg.models import NodeKind
+from charter.offering.resolver import ResolutionTier
+from charter.offering.template_catalog import (
     TemplateRef,
     TierRoot,
     discover_templates,
@@ -247,13 +247,28 @@ def test_resolve_by_id_raises_for_missing_template(tmp_path: Path) -> None:
 
 
 def test_template_catalog_has_no_upward_imports() -> None:
-    import doctrine.template_catalog as mod
+    """charter.offering.template_catalog must not import charter's activation layer.
+
+    Mission ``charter-code-topology-01M152G1`` relocated the top-level
+    ``doctrine`` package to ``src/charter/offering``, so an in-layer sibling
+    import (``charter.offering.resolver`` / ``charter.offering.drg.models``)
+    now textually starts with ``"charter"`` too. Import lines are matched
+    per-line and exempted when they target ``charter.offering`` itself
+    (same self-reference exemption as
+    ``test_charter_offering_does_not_import_activation.py``); any import of
+    ``charter.<non-offering>`` still fails this test.
+    """
+    import charter.offering.template_catalog as mod
 
     source = Path(mod.__file__).read_text(encoding="utf-8")
-    assert "import charter" not in source
-    assert "from charter" not in source
-    assert "import specify_cli" not in source
-    assert "from specify_cli" not in source
+    for line in source.splitlines():
+        stripped = line.strip()
+        if stripped.startswith("import charter.offering") or stripped.startswith("from charter.offering"):
+            continue
+        assert not stripped.startswith("import charter"), f"upward import: {line!r}"
+        assert not stripped.startswith("from charter"), f"upward import: {line!r}"
+        assert "import specify_cli" not in stripped
+        assert "from specify_cli" not in stripped
 
 
 def test_template_ref_is_frozen() -> None:

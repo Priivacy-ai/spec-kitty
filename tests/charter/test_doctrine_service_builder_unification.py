@@ -42,7 +42,7 @@ from ruamel.yaml import YAML
 from charter.doctrine_service_builder import (
     build_activation_aware_doctrine_service as charter_builder,
 )
-from doctrine.drg.org_pack_config import OrgPackConfig, PackRegistry, save_pack_registry
+from charter.offering.drg.org_pack_config import OrgPackConfig, PackRegistry, save_pack_registry
 from specify_cli.doctrine_service_factory import (
     build_activation_aware_doctrine_service as specify_cli_builder,
 )
@@ -282,7 +282,7 @@ def test_bare_project_admits_language_scoped_builtin_profiles(tmp_path: Path) ->
     and NO interview transcript (``.kittify/charter/interview/answers.yaml``)
     has no active-language *signal at all* -- ``infer_repo_languages`` must
     resolve this to ``None`` ("unknown"), not an explicitly empty list.
-    ``doctrine.shared.scoping.applies_to_languages_match`` treats ``None`` as
+    ``charter.offering.shared.scoping.applies_to_languages_match`` treats ``None`` as
     admit-all and an empty active set as admit-none for scoped artifacts, so
     conflating "no signal" with "explicitly no languages" silently drops
     every language-scoped built-in profile from the catalog.

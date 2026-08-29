@@ -1,14 +1,14 @@
 """Invariance assertions for the WP04 extractor re-point (mission-step-authority).
 
-``extract_mission_type_edges`` (``doctrine.drg.migration.extractor``) was
+``extract_mission_type_edges`` (``charter.offering.drg.migration.extractor``) was
 re-pointed from a raw ``data.get("action_sequence")`` YAML read to the WP02
-projection seam (``doctrine.missions.step_projection.project_action_sequence``,
+projection seam (``charter.offering.missions.step_projection.project_action_sequence``,
 resolved builtin-only via ``MissionStepRepository``). This module pins the
 three invariants that re-point must hold (T012, FR-004/FR-010):
 
 1. **DRG 0-delta (NFR-002)** -- the regenerated graph still counts 280 nodes /
    757 edges / 10 orphans, and is byte-identical to the shipped graph
-   (:func:`~doctrine.drg.loader.load_built_in_graph`).
+   (:func:`~charter.offering.drg.loader.load_built_in_graph`).
 2. **No edge for non-sequence steps** -- a step with ``in_action_sequence:
    false`` (``retrospect``, and software-dev's other 6 non-sequence steps)
    never mints a ``mission_type --requires--> action`` edge.
@@ -24,14 +24,14 @@ from typing import Any
 
 import pytest
 
-from doctrine.drg.loader import load_built_in_graph
-from doctrine.drg.migration.extractor import extract_mission_type_edges, generate_graph
-from doctrine.drg.migration.hand_authored_overlay import (
+from charter.offering.drg.loader import load_built_in_graph
+from charter.offering.drg.migration.extractor import extract_mission_type_edges, generate_graph
+from charter.offering.drg.migration.hand_authored_overlay import (
     HAND_AUTHORED_EDGES,
     generate_reference_graph_with_overlay,
 )
-from doctrine.drg.models import Relation
-from doctrine.missions.mission_step_repository import MissionStepRepository
+from charter.offering.drg.models import Relation
+from charter.offering.missions.mission_step_repository import MissionStepRepository
 from tests.doctrine._builtin_inventory import (
     pure_builtin_node_count,
     shipped_builtin_node_count,
@@ -40,7 +40,7 @@ from tests.doctrine._builtin_inventory import (
 pytestmark = [pytest.mark.doctrine, pytest.mark.fast, pytest.mark.corpus]
 
 _REPO_ROOT: Path = Path(__file__).resolve().parents[4]
-DOCTRINE_ROOT: Path = _REPO_ROOT / "src" / "doctrine"
+DOCTRINE_ROOT: Path = _REPO_ROOT / "src" / "charter" / "offering"
 
 #: HISTORICAL LEDGER (#3234). The node/edge counts below are now DERIVED from the
 #: ``packs/built-in`` filesystem inventory (see ``_EXPECTED_NODE_COUNT`` at the end
@@ -77,7 +77,7 @@ DOCTRINE_ROOT: Path = _REPO_ROOT / "src" / "doctrine"
 #: with no ordinary ``tactic_refs``/``references``) adds one orphan of its own
 #: in a PURE regeneration -- its only edges are the hand-authored
 #: ``reconciles_tension`` edges the extractor cannot mint (see
-#: ``doctrine.drg.migration.hand_authored_overlay``). So a bare
+#: ``charter.offering.drg.migration.hand_authored_overlay``). So a bare
 #: ``generate_graph`` run yields 289 - 6 + 1 = 284 nodes,
 #: 765 - 10 = 755 edges, 11 - 1 + 2 = 12 orphans.
 #:
@@ -916,7 +916,7 @@ _INTENTIONAL_ORPHANS: frozenset[str] = (
 
 #: The pure-extractor figure (22) and the shipped-graph figure (21) differ by
 #: exactly this ONE node, and by nothing else: the hand-authored overlay
-#: (``doctrine.drg.migration.hand_authored_overlay``) carries edges the
+#: (``charter.offering.drg.migration.hand_authored_overlay``) carries edges the
 #: extractor has no frontmatter mechanism to mint, and the sole survivor lands on
 #: ``asset:common-docs-structural-lint`` (``asset.graph.yaml`` ships ``edges: []``
 #: so an asset can never be an edge source in the pure graph).

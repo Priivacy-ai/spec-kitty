@@ -19,15 +19,15 @@ from typing import Any
 import pytest
 from pydantic import ValidationError
 
-from doctrine.agent_profiles.profile import AgentProfile, Specialization
-from doctrine.agent_profiles.schema_models import (
+from charter.offering.agent_profiles.profile import AgentProfile, Specialization
+from charter.offering.agent_profiles.schema_models import (
     AgentProfileSchema,
     AgentSpecialization,
 )
-from doctrine.paradigms.models import Paradigm
-from doctrine.procedures.models import Procedure, ProcedureStep
-from doctrine.styleguides.models import Styleguide
-from doctrine.tactics.models import Tactic, TacticStep
+from charter.offering.paradigms.models import Paradigm
+from charter.offering.procedures.models import Procedure, ProcedureStep
+from charter.offering.styleguides.models import Styleguide
+from charter.offering.tactics.models import Tactic, TacticStep
 
 pytestmark = [pytest.mark.fast, pytest.mark.doctrine]
 

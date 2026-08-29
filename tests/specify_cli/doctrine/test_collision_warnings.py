@@ -1,4 +1,4 @@
-"""Unit tests for :class:`doctrine.base.DoctrineLayerCollisionWarning`
+"""Unit tests for :class:`charter.offering.base.DoctrineLayerCollisionWarning`
 coverage across artifact kinds (Mission B WP06 T029 / FR-014).
 
 Mission A wired the collision-warning surface for directives, tactics,
@@ -21,7 +21,7 @@ from pathlib import Path
 
 import pytest
 
-from doctrine.base import DoctrineLayerCollisionWarning
+from charter.offering.base import DoctrineLayerCollisionWarning
 
 
 pytestmark = [pytest.mark.unit, pytest.mark.fast]
@@ -40,7 +40,7 @@ def _write(path: Path, body: str) -> None:
 def test_styleguide_org_collision_warning_names_id_and_kind(
     tmp_path: Path,
 ) -> None:
-    from doctrine.styleguides.repository import StyleguideRepository
+    from charter.offering.styleguides.repository import StyleguideRepository
 
     built_in = tmp_path / "shipped"
     org = tmp_path / "org"
@@ -85,7 +85,7 @@ def test_styleguide_org_collision_warning_names_id_and_kind(
 def test_procedure_org_collision_warning_names_id_and_kind(
     tmp_path: Path,
 ) -> None:
-    from doctrine.procedures.repository import ProcedureRepository
+    from charter.offering.procedures.repository import ProcedureRepository
 
     built_in = tmp_path / "shipped"
     org = tmp_path / "org"
@@ -121,7 +121,7 @@ def test_procedure_org_collision_warning_names_id_and_kind(
 def test_toolguide_org_collision_warning_names_id_and_kind(
     tmp_path: Path,
 ) -> None:
-    from doctrine.toolguides.repository import ToolguideRepository
+    from charter.offering.toolguides.repository import ToolguideRepository
 
     built_in = tmp_path / "shipped"
     org = tmp_path / "org"

@@ -1,6 +1,6 @@
 """Behavioral tests for MissionTemplateRepository and value objects.
 
-Targets mutation-prone areas in doctrine.missions.repository:
+Targets mutation-prone areas in charter.offering.missions.repository:
 - list_missions: root-dir guard, mission.yaml existence filter, sorted output
 - get_command_template / get_content_template: path construction, None on absent
 - list_command_templates / list_content_templates: extension filtering, README exclusion
@@ -15,7 +15,7 @@ from pathlib import Path
 
 import pytest
 
-from doctrine.missions.repository import (
+from charter.offering.missions.repository import (
     MalformedManifestError,
     MissionTemplateRepository,
 )

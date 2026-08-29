@@ -13,7 +13,7 @@ Design (FR-013..016, data model §6, contracts C3.2/C3.3/C3.4)
 * :class:`CascadeScope` is an explicit value object. ``--cascade all`` parses to
   :data:`CascadeScope.ALL` (the all-kind shorthand); ``--cascade
   agent-profile,tactic`` parses to an explicit ``frozenset`` of
-  :class:`~doctrine.artifact_kinds.ArtifactKind`. **Absence** of ``--cascade``
+  :class:`~charter.offering.artifact_kinds.ArtifactKind`. **Absence** of ``--cascade``
   parses to ``None`` and **never** means all (Contract C3.3). The scope string is
   never collapsed to a bool.
 
@@ -60,8 +60,8 @@ from collections import deque
 from dataclasses import dataclass, field
 from typing import ClassVar
 
-from doctrine.artifact_kinds import CHARTER_ACTIVATABLE_KINDS, ArtifactKind
-from doctrine.drg.models import DRGEdge, DRGGraph, Relation
+from charter.offering.artifact_kinds import CHARTER_ACTIVATABLE_KINDS, ArtifactKind
+from charter.offering.drg.models import DRGEdge, DRGGraph, Relation
 
 __all__ = [
     "REFERENCE_RELATIONS",
@@ -80,7 +80,7 @@ __all__ = [
 #: canonical reference model, so cascade traversal is opt-in by this relation set
 #: rather than per-kind logic. ``REQUIRES`` (hard dependency) and ``SUGGESTS``
 #: (soft recommendation) are the legacy charter-resolver reference set
-#: (see :func:`doctrine.drg.query.resolve_transitive_refs`). ``REFINES`` (#2079)
+#: (see :func:`charter.offering.drg.query.resolve_transitive_refs`). ``REFINES`` (#2079)
 #: is followed too: a refinement is a traversable reference at least as
 #: load-bearing as a suggestion, so activating an artifact cascades to what it
 #: refines — this is the wiring that keeps ``REFINES`` from being born inert.
@@ -210,7 +210,7 @@ class CascadeScope:
         ValueError
             If a kind token is not a known operator kind token (the message
             lists the valid tokens). ``mission-type`` raises the distinct
-            :class:`~doctrine.artifact_kinds.MissionTypeNotAnArtifactKind`
+            :class:`~charter.offering.artifact_kinds.MissionTypeNotAnArtifactKind`
             (a ``ValueError`` subclass) since it is not an artifact kind.
         """
         if raw is None:
@@ -272,7 +272,7 @@ def _referenced_artifacts(
     action hop via ``scope``/``instantiates``), filtered twice: non-artifact nodes
     (actions, glossary) are dropped because :func:`_kind_of` returns ``None``, and
     artifact-kind nodes are then partitioned by the canonical
-    :data:`~doctrine.artifact_kinds.CHARTER_ACTIVATABLE_KINDS` set (ADR
+    :data:`~charter.offering.artifact_kinds.CHARTER_ACTIVATABLE_KINDS` set (ADR
     2026-08-20-1) into ``activatable`` and ``kind_filtered``. The closure still
     *reaches* the kind-filtered nodes — traversal reach and candidacy are separate
     concerns — but this is the single shared seam (C-002) that collects them

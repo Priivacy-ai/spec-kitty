@@ -10,7 +10,7 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from doctrine.model_task_routing.evaluator import RoutingCandidate, RoutingRecommendation
+from charter.offering.model_task_routing.evaluator import RoutingCandidate, RoutingRecommendation
 from specify_cli.invocation.errors import InvocationWriteError, ProfileNotFoundError
 from specify_cli.invocation.executor import InvocationPayload, ProfileInvocationExecutor
 from specify_cli.invocation.writer import EVENTS_DIR

@@ -542,7 +542,7 @@ def test_resolve_governance_for_profile_populates_graph_artifacts_and_normalizes
     doctrine_service.agent_profiles.resolve_profile.return_value = profile
 
     # Post-WP03: monkeypatch charter.resolver.resolve_transitive_refs; its
-    # result is a :class:`doctrine.drg.query.ResolveTransitiveRefsResult`
+    # result is a :class:`charter.offering.drg.query.ResolveTransitiveRefsResult`
     # look-alike (SimpleNamespace is structurally compatible here).
     monkeypatch_graph = SimpleNamespace(
         tactics=["TACTIC_001"],

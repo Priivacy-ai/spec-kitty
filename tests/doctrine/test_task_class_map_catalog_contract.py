@@ -22,7 +22,7 @@ from __future__ import annotations
 
 import pytest
 
-from doctrine.model_task_routing.loader import default_catalog_path, load
+from charter.offering.model_task_routing.loader import default_catalog_path, load
 from specify_cli.invocation.task_class_map import known_verbs, task_type_for_verb
 
 pytestmark = [pytest.mark.doctrine, pytest.mark.fast]

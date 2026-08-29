@@ -227,7 +227,7 @@ def test_provision_copies_fixture_pack_verbatim_not_disk_roster(
     data = _load_config(config_file)
     assert data["mission_type_activations"] == fixture_types
 
-    from doctrine.missions.mission_type_repository import (
+    from charter.offering.missions.mission_type_repository import (
         builtin_mission_type_id_set,
     )
 

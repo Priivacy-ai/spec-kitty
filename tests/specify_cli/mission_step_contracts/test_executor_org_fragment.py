@@ -24,8 +24,8 @@ import yaml
 
 from charter.drg import load_org_drg, resolve_existing_org_roots
 from charter.mission_steps import MissionStepContract, MissionStepContractStep
-from doctrine.drg.org_pack_loader import OrgPackSchemaError
-from doctrine.drg.validator import DRGValidationError
+from charter.offering.drg.org_pack_loader import OrgPackSchemaError
+from charter.offering.drg.validator import DRGValidationError
 from specify_cli.mission_step_contracts.executor import (
     StepContractExecutionContext,
     StepContractExecutor,
@@ -208,7 +208,7 @@ def test_org_governance_selection_fails_loud_on_executor_path(
     fix). The executor builds its graph through
     ``_load_graph_degrading_malformed_org_pack`` ->
     :func:`charter._drg_helpers.load_validated_graph`, whose ``assert_valid``
-    raises :class:`~doctrine.drg.validator.DRGValidationError` naming the dangling
+    raises :class:`~charter.offering.drg.validator.DRGValidationError` naming the dangling
     target -- no dedicated governance-scope guard needed. Driven here through the
     production graph-build path (no injected ``graph``), so the merged-graph
     validation is the real escalation exercised; the stub invocation executor is

@@ -1,13 +1,22 @@
 # DORMANT PACKAGING GROUNDWORK: this manifest is not yet built, published, or
 # consumed by CI or by any runtime import path -- it exists ahead of the
-# planned kernel -> doctrine -> charter wheel cutover (#3101). See
+# planned kernel -> charter wheel cutover (#3101). See
 # docs/adr/3.x/2026-08-02-1-charter-wheel-assessment.md for the full
 # rationale, risk assessment, and closure test.
+#
+# Note (charter-code-topology-01M152G1, S5): the landscape collapsed from
+# kernel <- doctrine <- charter <- specify_cli to kernel <- charter <-
+# specify_cli (src/doctrine relocated to src/charter/offering, S2a). The
+# sibling dormant spec-kitty-doctrine wheel this file's comments used to
+# cross-reference (src/charter/offering/pyproject.toml + hatch_build.py, née
+# src/doctrine/...) was DELETED outright per MAP-BUILD -- it was never built
+# or published by any CI job. This kernel wheel manifest is unaffected and
+# stays dormant groundwork for a future kernel <- charter cutover.
 
 [project]
 name = "spec-kitty-kernel"
 version = "1.0.0"
-description = "Zero-dependency shared primitives for Spec Kitty (kernel <- doctrine <- charter <- specify_cli)"
+description = "Zero-dependency shared primitives for Spec Kitty (kernel <- charter <- specify_cli)"
 requires-python = ">=3.11"
 license = { text = "MIT" }
 authors = [{ name = "Spec Kitty Contributors" }]
@@ -23,9 +32,12 @@ build-backend = "hatchling.build"
 # pyproject.toml, where `packages = ["src/kernel", ...]` is resolved
 # relative to the repo root and correctly names the top-level "kernel"
 # package. `sources` renames every file under this root to live under a
-# "kernel/" prefix in the wheel; `include` selects the whole tree. See
-# src/doctrine/pyproject.toml and src/doctrine/hatch_build.py for the
-# fuller writeup of this same root-relative-packages pitfall (WP12).
+# "kernel/" prefix in the wheel; `include` selects the whole tree. This
+# root-relative-packages pitfall (WP12) was originally documented alongside
+# the sibling dormant spec-kitty-doctrine wheel manifest, which is now
+# deleted (charter-code-topology-01M152G1, S5, MAP-BUILD) -- see git history
+# at src/doctrine/pyproject.toml (pre-S2a) / src/charter/offering/pyproject.toml
+# (pre-S5) for the fuller writeup if ever needed again.
 sources = { "" = "kernel" }
 include = ["**/*"]
 exclude = [

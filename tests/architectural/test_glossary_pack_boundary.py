@@ -119,10 +119,10 @@ def test_guard_flags_injected_runtime_glossary_import(source: str) -> None:
 @pytest.mark.parametrize(
     "source",
     [
-        "import doctrine.glossary_packs\n",
+        "import charter.offering.glossary_packs\n",
         "from glossary_packs import GlossaryPack\n",
         "from glossary_packs.models import GlossaryTerm\n",
-        "from doctrine.glossary_packs.repository import GlossaryPackRepository\n",
+        "from charter.offering.glossary_packs.repository import GlossaryPackRepository\n",
     ],
 )
 def test_guard_does_not_flag_glossary_packs_sibling_package(source: str) -> None:
