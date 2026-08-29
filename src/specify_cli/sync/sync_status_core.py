@@ -39,6 +39,7 @@ from typing import Any
 
 from kernel.clock import parse_iso
 
+from specify_cli.auth.verdict import HealthVerdict
 from specify_cli.core.saas_sync_config import SAAS_SYNC_ENV_VAR
 
 # ---------------------------------------------------------------------------
@@ -126,7 +127,7 @@ class StatusFacts:
     config_file: str
     queue_size: int
     body_queue_count: int
-    auth_ok: bool
+    auth_verdict: HealthVerdict
     daemon_status: Any
     connection_status: str | None
     connection_note: str | None
@@ -183,10 +184,22 @@ def _daemon_rows(daemon_status: Any) -> list[StatusRow]:
     return rows
 
 
+#: Colour per verdict state — the row can never read green while the verdict is
+#: not ``ok`` (#3723 rule 3: the row is derived from the verdict, not asserted).
+_VERDICT_COLOR: dict[str, str] = {"ok": "green", "unknown": "yellow", "fail": "red"}
+
+
 def _auth_and_server_rows(facts: StatusFacts) -> list[StatusRow]:
-    """Auth-state, resolved server URL, and config-file rows."""
+    """Auth-state, resolved server URL, and config-file rows.
+
+    The Auth row is rendered from ``facts.auth_verdict``: its headline is derived
+    from the verdict state and always followed by the verdict's evidence, so the
+    row can never claim ``Authenticated`` without naming why (#3723 rules 1 & 3).
+    """
     if facts.saas_enabled:
-        auth_text = "[green]Authenticated[/green]" if facts.auth_ok else "[yellow]Not authenticated[/yellow]"
+        verdict = facts.auth_verdict
+        color = _VERDICT_COLOR[verdict.state]
+        auth_text = f"[{color}]{verdict.headline}[/{color}] ({verdict.evidence})"
     else:
         auth_text = "[dim]Disabled by feature flag[/dim]"
     return [

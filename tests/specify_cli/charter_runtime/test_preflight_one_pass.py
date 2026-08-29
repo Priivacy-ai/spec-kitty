@@ -51,9 +51,16 @@ Covers:
   gate (``check_analysis_report_current``, #2157b) is a different subsystem
   and must not be touched by this fix.
 - ``test_refresh_command_prefix_is_hoisted_shared_constant``: campsite
-  (S1192) -- the three refresh commands share a hoisted
+  (S1192) -- the ``spec-kitty charter``-rooted refresh commands
+  (``synthesize`` / ``bundle validate``) share a hoisted
   ``["spec-kitty", "charter"]`` prefix constant instead of repeating the
-  literal (their tails differ).
+  literal (their tails differ). H1 (#2831 HIGH finding) moved the refresh
+  sequence's step one off a hardcoded ``charter sync`` (a pure staleness
+  reporter that can never create/repair ``charter.yaml``) onto the
+  freshness-computed ``charter_source`` remediation instead -- which may or
+  may not sit under this same prefix (``spec-kitty upgrade --yes`` does
+  not) -- so this constant is no longer shared by all refresh-sequence
+  commands, only the two that always do.
 """
 
 from __future__ import annotations
@@ -134,12 +141,28 @@ def test_blocked_reason_enumerates_all_non_passing_checks(tmp_path: Path) -> Non
 
     assert result.blocked_reason is not None
     for check in non_passing:
-        remediation = check.remediation or "spec-kitty charter status"
-        expected_line = f"{check.name} {check.state}; run `{remediation}`"
+        # Mirrors ``runner._blocked_reason_line``. The previous form here was
+        # ``check.remediation or "spec-kitty charter status"`` — the very
+        # backfill #2831/R-006 removed. ``charter status`` is itself a pure
+        # reporter that cannot change any check's state, so substituting it for
+        # a declared exemption handed the operator a fabricated command on the
+        # DEFAULT path: the same defect this mission fixes, one layer down.
+        # Two of these three checks (charter_source invalid, synced_bundle
+        # stale) are now exempt (C-EFF-2) and carry no command, so a fallback
+        # here would re-assert the removed behaviour and pass vacuously.
+        expected_line = (
+            f"{check.name} {check.state}; run `{check.remediation}`"
+            if check.remediation
+            else f"{check.name} {check.state}: {check.detail}"
+        )
         assert expected_line in result.blocked_reason, (
             f"expected {check.name!r} to be enumerated in blocked_reason, "
             f"got: {result.blocked_reason!r}"
         )
+    # The exemption must not cost the operator the diagnostic — every
+    # non-passing check is still named, with or without a command.
+    for check in non_passing:
+        assert check.name in result.blocked_reason
 
 
 # ---------------------------------------------------------------------------
@@ -182,10 +205,24 @@ def test_multi_failure_per_check_verdicts_pinned(tmp_path: Path) -> None:
     result = run_charter_preflight(tmp_path, auto_refresh=False)
 
     by_name = {c.name: c for c in result.checks}
+    # #2831 / C-EFF-2: these two states were pinned here to `spec-kitty charter
+    # sync`, a documented pure staleness reporter that never writes charter.yaml
+    # — so following it changed nothing and the gate refused identically. Both
+    # were then proved genuinely unremediable: the fixture's charter.yaml is
+    # unparseable, and every write path in the codebase merges through a
+    # round-trip YAML parse, so no command can repair it. They are declared
+    # exemptions and now emit NO command rather than naming one that cannot
+    # help. The detail carries the operator's actual next step (restore from
+    # VCS or hand-repair) instead.
     assert by_name["charter_source"].state == "invalid"
-    assert by_name["charter_source"].remediation == "spec-kitty charter sync"
+    assert by_name["charter_source"].remediation is None
+    assert "restore" in (by_name["charter_source"].detail or "")
     assert by_name["synced_bundle"].state == "stale"
-    assert by_name["synced_bundle"].remediation == "spec-kitty charter sync"
+    assert by_name["synced_bundle"].remediation is None
+    assert "restore" in (by_name["synced_bundle"].detail or "")
+    # Unchanged: a genuinely remediable state still names its command, which is
+    # what keeps this test a per-check verdict pin rather than a blanket
+    # "nothing has a remediation any more".
     assert by_name["synthesized_drg"].state == "missing"
     assert by_name["synthesized_drg"].remediation == "spec-kitty charter synthesize"
 
@@ -307,7 +344,9 @@ def test_c004_fence_analysis_report_not_invoked(tmp_path: Path, monkeypatch: pyt
 
 
 def test_refresh_command_prefix_is_hoisted_shared_constant() -> None:
-    """The three refresh commands (``sync`` / ``synthesize`` /
-    ``bundle validate``) share a hoisted ``["spec-kitty", "charter"]``
-    prefix constant instead of each repeating the literal."""
+    """The ``synthesize`` / ``bundle validate`` refresh commands share a
+    hoisted ``["spec-kitty", "charter"]`` prefix constant instead of each
+    repeating the literal. Step one (H1, #2831) is built from the freshness
+    computer's own ``remediation`` string instead — see this module's
+    docstring."""
     assert list(runner_module._SPEC_KITTY_CHARTER_PREFIX) == ["spec-kitty", "charter"]

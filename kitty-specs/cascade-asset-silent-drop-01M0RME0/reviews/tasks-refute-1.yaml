@@ -1,0 +1,16 @@
+# review-refute/v1 — canonical format for refuter-batch verdicts.
+schema: review-refute/v1
+complete: true
+phase: tasks
+batch: 1
+verdicts:
+  - id: TASKS-DECOMP-001
+    verdict: confirmed
+    reason: >
+      Live-verified against the actual repo: WP03's frontmatter omits FR-005a while
+      wps.yaml and tasks.md both list it; running the real _declared_ids() function
+      from src/specify_cli/requirement_mapping.py against this mission's actual
+      spec.md returns FR-005 but not FR-005a, proving the coverage-gate regex is
+      genuinely blind to letter-suffixed FR ids; mission_finalize.py lines confirmed
+      (888/1124, off-by-one on the finding's cited 889 is immaterial); WP03's prompt
+      body substantively covers FR-005a in Context, a dedicated subtask, and DoD.

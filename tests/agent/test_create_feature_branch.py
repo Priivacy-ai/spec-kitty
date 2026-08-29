@@ -123,6 +123,12 @@ def test_create_feature_on_main_records_target_branch(tmp_path, monkeypatch):
     repo = _init_repo(tmp_path, "main")
     _setup_kittify(repo)
     monkeypatch.chdir(repo)
+    # Creating on a protected ``main`` branch commits meta.json to it; the
+    # documented operator escape hatch is the ONE sanctioned waiver (the test
+    # repo IS the solo operator who owns main). Without it, safe_commit rightly
+    # refuses the protected-branch commit (#3673 made this refusal fail loud
+    # instead of the pre-fix contextlib.suppress that let it silently succeed).
+    monkeypatch.setenv("SPEC_KITTY_ALLOW_PROTECTED_BRANCH_COMMITS", "1")
     # Assumption check
     assert (repo / ".kittify").exists()
     # Act
@@ -146,6 +152,9 @@ def test_create_feature_on_master_records_target_branch(tmp_path, monkeypatch):
     repo = _init_repo(tmp_path, "master")
     _setup_kittify(repo)
     monkeypatch.chdir(repo)
+    # ``master`` is a protected branch too; same operator-owned-repo waiver as
+    # the ``main`` case above (see that test for the #3673 rationale).
+    monkeypatch.setenv("SPEC_KITTY_ALLOW_PROTECTED_BRANCH_COMMITS", "1")
     # Assumption check
     assert (repo / ".kittify").exists()
     # Act
@@ -186,23 +195,39 @@ def test_create_feature_on_custom_branch_records_target_branch(tmp_path, monkeyp
 
 
 @pytest.mark.usefixtures("_git_identity")
-def test_create_feature_with_explicit_target_branch_flag(tmp_path, monkeypatch):
-    """--target-branch flag overrides current branch."""
+def test_create_feature_target_branch_not_checked_out_fails_loud(tmp_path, monkeypatch):
+    """``--target-branch X`` requires the invoking checkout to be on X — fail-loud otherwise.
+
+    ``--target-branch`` names where planning artifacts land (``planning_branch =
+    target_branch`` in ``mission_creation.py``), not merely a merge-target label.
+    On ``main`` with ``--target-branch 2.x`` the placement seam routes the
+    ``meta.json`` commit to ``2.x`` and ``safe_commit`` refuses because HEAD is
+    still ``main`` — surfacing the actionable "checkout 2.x first" remedy. The
+    modern way to create a mission on a different branch is ``--start-branch``
+    (switch first), not this flag.
+
+    Regression guard for #3673: pre-fix, this commit was wrapped in
+    ``contextlib.suppress(Exception)``, so the refusal was swallowed and create
+    "succeeded" (exit 0) with ``target_branch=2.x`` written to disk but never
+    committed. This test used to assert that silent success; #3673 made the
+    refusal fail loud, and this guard now pins the loud behavior.
+    """
     from typer.testing import CliRunner
     from specify_cli.cli.commands.agent.mission import app
 
     repo = _init_repo(tmp_path, "main")
     _setup_kittify(repo)
+    # ``2.x`` exists as a real branch so the refusal is the actionable
+    # "checkout 2.x first" message — not the topology-mint error you get when the
+    # target branch does not exist at all (a distinct, message-quality concern).
+    run_command(["git", "branch", "2.x"], cwd=repo)
     monkeypatch.chdir(repo)
 
     runner = CliRunner()
     result = runner.invoke(app, ["create", "test-feature", "--json", "--target-branch", "2.x"])
 
-    assert result.exit_code == 0, f"Command failed: {result.output}"
-    slugs = _get_mission_slugs(repo)
-    assert len(slugs) == 1
-    meta = _read_meta(repo, slugs[0])
-    assert meta["target_branch"] == "2.x"
+    assert result.exit_code != 0, f"Expected fail-loud refusal, got success: {result.output}"
+    assert "expected '2.x'" in result.output, result.output
 
 
 @pytest.mark.usefixtures("_git_identity")

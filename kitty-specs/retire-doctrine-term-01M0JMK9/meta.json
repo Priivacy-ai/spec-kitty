@@ -1,0 +1,32 @@
+{
+  "accept_commit": "1f9ed1805ab927a1a004dd5dfde9ea8f5f205956",
+  "acceptance_history": [
+    {
+      "accept_commit": "1f9ed1805ab927a1a004dd5dfde9ea8f5f205956",
+      "acceptance_mode": "pr",
+      "accepted_at": "2026-08-23T00:39:33.489555+00:00",
+      "accepted_by": "claude/orchestrator",
+      "accepted_from_commit": "250c76732bbf5fe80c65a33d06336d1d9add1fdb"
+    }
+  ],
+  "acceptance_mode": "pr",
+  "accepted_at": "2026-08-23T00:39:33.489555+00:00",
+  "accepted_by": "claude/orchestrator",
+  "accepted_from_commit": "250c76732bbf5fe80c65a33d06336d1d9add1fdb",
+  "baseline_merge_commit": "bf7e2012e0140333a8e5d79ef227064bf6b288b7",
+  "created_at": "2026-08-21T17:06:18.253177+00:00",
+  "flattened": true,
+  "friendly_name": "Retire the Doctrine Term",
+  "mission_id": "01M0JMK90CFFDKA4RCCTQK9675",
+  "mission_number": 196,
+  "mission_slug": "retire-doctrine-term-01M0JMK9",
+  "mission_type": "software-dev",
+  "pr_bound": true,
+  "purpose_context": "The operator requires complete retirement of the case-insensitive token 'doctrine' from Spec Kitty's current tree. This planning-only mission produces the ADR, complete content-and-path occurrence inventory, ordering/methodology analysis, and stacked M1-M6 mission plan. M1 updates the Charter and glossary authority; M2-M5 remove all public, internal, path, installed, generated, and current-tree historical uses; M6 removes temporary compatibility machinery and proves zero content and pathname occurrences in current HEAD. Product renames execute only in downstream missions.",
+  "purpose_tldr": "Plan complete current-tree extinction of 'doctrine': M1 updates the Charter, M2-M5 remove every use and path, and M6 proves exact zero.",
+  "slug": "retire-doctrine-term-01M0JMK9",
+  "status_phase": "1",
+  "target_branch": "feat/retire-doctrine-term",
+  "topology": "single_branch",
+  "vcs": "git"
+}

@@ -53,6 +53,10 @@ from specify_cli.core.vcs import (
 from specify_cli.sync.queue import QueueStats
 from specify_cli.sync.http_status import GATEWAY_STATUSES
 from specify_cli.auth.config import EXAMPLE_HOSTED_SAAS_URL
+from specify_cli.auth.session import (
+    TeamSlugResolutionError,
+    resolve_team_slug,
+)
 from specify_cli.core.saas_sync_config import saas_sync_opt_in_recorded_message
 from kernel.clock import now_utc_iso
 from specify_cli.sync.feature_flags import (
@@ -1084,9 +1088,41 @@ def routes() -> None:
     console.print()
 
 
+def _report_team_resolution_error(exc: TeamSlugResolutionError) -> None:
+    """Print an actionable recovery message for an unresolved ``sync share`` team.
+
+    Fail-closed rendering for :class:`TeamSlugResolutionError`: the user is told
+    why the handle did not resolve and shown the exact slugs they can share into
+    (``spec-kitty auth status`` displays the same slugs).
+    """
+    if exc.reason == "not_shareable":
+        console.print(
+            f"[red]Error:[/red] Team '{exc.token}' is a private teamspace and "
+            "cannot be a share destination."
+        )
+    elif exc.reason == "ambiguous":
+        console.print(
+            f"[red]Error:[/red] Team name '{exc.token}' is ambiguous. "
+            "Pass the team slug instead."
+        )
+    else:
+        console.print(f"[red]Error:[/red] Unknown team '{exc.token}'.")
+
+    if exc.shareable:
+        console.print("  Shareable teams:")
+        for team in exc.shareable:
+            console.print(f"    - {team.name} [dim]slug: {team.slug}[/dim]")
+    else:
+        console.print("  No shareable teams are available for this account.")
+
+
 @app.command()
 def share(
-    team_slug: str = typer.Argument(..., help="Team slug to share this repository into."),
+    team_slug: str = typer.Argument(
+        ...,
+        help="Team name or slug to share this repository into "
+        "(see `spec-kitty auth status`).",
+    ),
 ) -> None:
     """Share the current repository from Private Teamspace into a team."""
     from specify_cli.sync.sharing_client import RepositorySharingClientError
@@ -1103,46 +1139,77 @@ def share(
     )
 
     routing = _require_active_checkout()
-    _require_authenticated_session(command_name="sync share")
+    session = _require_authenticated_session(command_name="sync share")
+
+    try:
+        destination_slug = resolve_team_slug(session.teams, team_slug)
+    except TeamSlugResolutionError as exc:
+        _report_team_resolution_error(exc)
+        raise typer.Exit(1) from exc
 
     if routing.project_uuid is None:
         console.print("[red]Error:[/red] Current checkout has no project UUID. Run `spec-kitty init` first.")
         raise typer.Exit(1)
 
+    # The 404 self-heal (#3564) materializes this checkout in Private Teamspace
+    # and retries. The retry can still 404 for a few seconds until the newly
+    # emitted BuildRegistered is visible server-side (#3699); that recoverable
+    # race must reach the operator as an actionable line, not a raw traceback.
+    # The outer ``finally`` runs deterministic teardown on every exit path so a
+    # clean ``typer.Exit`` — not an aborted stack unwind — drives the WebSocket
+    # disconnect, removing the "Task was destroyed but it is pending!" symptom.
     try:
-        response = request_repository_share(
-            source_project_uuid=routing.project_uuid,
-            destination_team_slug=team_slug,
-        )
-    except RepositorySharingClientError as exc:
-        if exc.status_code == 404:
-            if not routing.effective_sync_enabled:
-                console.print("[red]Error:[/red] This checkout is opted out of SaaS sync. Run `spec-kitty sync opt-in` first.")
-                raise typer.Exit(1) from None
-            try:
-                _materialize_private_source_project()
-            except Exception as materialize_error:
-                console.print(f"[red]Error:[/red] Could not materialize this checkout in Private Teamspace: {materialize_error}")
-                raise typer.Exit(1) from materialize_error
+        try:
             response = request_repository_share(
                 source_project_uuid=routing.project_uuid,
-                destination_team_slug=team_slug,
+                destination_team_slug=destination_slug,
             )
+        except RepositorySharingClientError as exc:
+            if exc.status_code == 404:
+                if not routing.effective_sync_enabled:
+                    console.print("[red]Error:[/red] This checkout is opted out of SaaS sync. Run `spec-kitty sync opt-in` first.")
+                    raise typer.Exit(1) from None
+                try:
+                    _materialize_private_source_project()
+                except Exception as materialize_error:
+                    console.print(f"[red]Error:[/red] Could not materialize this checkout in Private Teamspace: {materialize_error}")
+                    raise typer.Exit(1) from materialize_error
+                try:
+                    response = request_repository_share(
+                        source_project_uuid=routing.project_uuid,
+                        destination_team_slug=destination_slug,
+                    )
+                except RepositorySharingClientError as retry_exc:
+                    console.print(
+                        "[yellow]Registering this project in Private Teamspace.[/yellow] "
+                        f"Run [bold]spec-kitty sync share {team_slug}[/bold] again in a moment."
+                    )
+                    raise typer.Exit(1) from retry_exc
+            else:
+                console.print(f"[red]Error:[/red] {exc}")
+                raise typer.Exit(1) from exc
+
+        share_data = response.get("share") or {}
+        share_state = share_data.get("state", "unknown")
+        repo_label = routing.repo_slug or routing.project_slug or routing.project_uuid
+        if share_state == "shared":
+            console.print(f"[green]✓[/green] Shared [cyan]{repo_label}[/cyan] to [cyan]{destination_slug}[/cyan].")
         else:
-            console.print(f"[red]Error:[/red] {exc}")
-            raise typer.Exit(1) from exc
+            console.print(f"[yellow]✓[/yellow] Share request recorded for [cyan]{destination_slug}[/cyan].")
 
-    share_data = response.get("share") or {}
-    share_state = share_data.get("state", "unknown")
-    if share_state == "shared":
-        console.print(f"[green]✓[/green] Shared [cyan]{routing.repo_slug or routing.project_slug or routing.project_uuid}[/cyan] to [cyan]{team_slug}[/cyan].")
-    else:
-        console.print(f"[yellow]✓[/yellow] Share request recorded for [cyan]{team_slug}[/cyan].")
+        if response.get("auto_approved"):
+            console.print("[dim]Team policy auto-approved the repository share.[/dim]")
+        elif share_state == "pending_approval":
+            console.print("[dim]Waiting for a team admin to approve the repository.[/dim]")
+    finally:
+        from specify_cli.sync.runtime import get_runtime
 
-    if response.get("auto_approved"):
-        console.print("[dim]Team policy auto-approved the repository share.[/dim]")
-    elif share_state == "pending_approval":
-        console.print("[dim]Waiting for a team admin to approve the repository.[/dim]")
+        # Idempotent (no-op when nothing started); awaits the WebSocket
+        # disconnect synchronously via ``SyncRuntime.stop`` so teardown never
+        # races the interpreter exit. Suppress teardown errors so they can't
+        # mask the command's own exit status.
+        with contextlib.suppress(Exception):
+            get_runtime().stop()
 
 
 @app.command()
@@ -3228,6 +3295,7 @@ def _gather_status_facts(check_connection: bool) -> StatusFacts:
     ``sync.<name>`` monkeypatch still intercepts (INV-4).
     """
     from specify_cli.auth import get_token_manager
+    from specify_cli.auth.verdict import evaluate_auth_verdict
     from specify_cli.sync.config import SyncConfig
     from specify_cli.sync.daemon import get_sync_daemon_status, scan_sync_daemons
     from specify_cli.sync.owner import (
@@ -3253,6 +3321,11 @@ def _gather_status_facts(check_connection: bool) -> StatusFacts:
         _LOG.debug("project-store status unavailable: %s", exc)
 
     tm = get_token_manager()
+    # ``sync status`` is offline (no server probe), so the verdict is derived from
+    # the local session + clock: it resolves ``unknown`` — never a false green —
+    # when the access token is expired and the refresh chain cannot be proven
+    # offline (#3723).
+    auth_verdict = evaluate_auth_verdict(tm.get_current_session(), now_utc())
     daemon_status = get_sync_daemon_status()
 
     queue_size = 0 if local_report is None else int(local_report["event_journal"]["retained_event_count"])
@@ -3286,7 +3359,7 @@ def _gather_status_facts(check_connection: bool) -> StatusFacts:
         config_file=str(config.config_file),
         queue_size=queue_size,
         body_queue_count=body_queue_count,
-        auth_ok=tm.is_authenticated,
+        auth_verdict=auth_verdict,
         daemon_status=daemon_status,
         connection_status=connection_status,
         connection_note=connection_note,

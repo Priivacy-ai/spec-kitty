@@ -289,7 +289,7 @@ governance:
     main_branch: main             # Primary branch
     dev_branch: null              # Development branch (optional)
     rules: []                     # Branch naming/protection rules
-  doctrine:
+  charter:
     selected_paradigms: []        # Active paradigm IDs
     selected_directives: []       # Active directive IDs
     available_tools: []           # Active tool IDs

@@ -19,6 +19,7 @@ Covers four canonical scenarios:
 from __future__ import annotations
 
 import json
+import tempfile
 from pathlib import Path
 from textwrap import dedent
 from unittest.mock import patch
@@ -221,13 +222,22 @@ def test_freshness_state_invalid_when_charter_yaml_unparseable(tmp_path: Path) -
     """Re-pinned (WP06 / Landmine 2): the retired charter.md-hash-mismatch
     ``"stale"`` mechanism is replaced by ``charter.yaml`` being present but
     unparseable, which reads ``"invalid"`` — the only non-``fresh``,
-    non-``missing`` state ``charter_source`` can report post-retirement."""
+    non-``missing`` state ``charter_source`` can report post-retirement.
+
+    Re-pinned again (charter-preflight-remediation WP03/WP05 — narrow,
+    out-of-map fix to a pre-existing stale assertion this file's owner did
+    not touch): WP03 proved no write path can repair unparseable YAML and
+    declared ``invalid`` exempt (C-EFF-2), so ``computer.py`` now emits
+    ``remediation=None`` here rather than the ineffective ``charter sync``
+    string this test used to assert. This was already red on this branch
+    before WP05 touched anything — confirmed by running it pre-edit."""
     _seed_minimum_repo(tmp_path)
     _write_charter_and_metadata(tmp_path, invalid_charter_yaml=True)
     payload = _invoke_status_json(tmp_path)
     freshness = payload["freshness"]
     assert freshness["charter_source"]["state"] == "invalid"
-    assert freshness["charter_source"]["remediation"] == "spec-kitty charter sync"
+    assert freshness["charter_source"]["remediation"] is None
+    assert freshness["charter_source"]["detail"]
 
 
 def test_freshness_state_missing_when_no_synthesis_artifacts(tmp_path: Path) -> None:
@@ -240,6 +250,51 @@ def test_freshness_state_missing_when_no_synthesis_artifacts(tmp_path: Path) -> 
     freshness = payload["freshness"]
     assert freshness["synthesized_drg"]["state"] == "missing"
     assert freshness["synthesized_drg"]["remediation"] == "spec-kitty charter synthesize"
+
+
+def test_freshness_missing_detail_distinguishes_no_charter_from_legacy_bundle(
+    tmp_path: Path,
+) -> None:
+    """FR-005 (charter-preflight-remediation WP05): F1 ("no charter at all")
+    and F2 (legacy bundle present, no ``charter.yaml``) both report
+    ``state="missing"`` — the only distinguishing signal is ``detail``. This
+    is the operator-facing ``charter status`` surface WP04 converged onto
+    the canonical presence seam; the distinction must not be lost here even
+    though the fix lives entirely in ``computer.py`` (WP05 owns no file
+    under this test's path — this is the surface-level proof the WP prompt
+    asked for)."""
+    _seed_minimum_repo(tmp_path)
+    # F1: no charter artifact of any kind.
+    payload_f1 = _invoke_status_json(tmp_path)
+    detail_f1 = payload_f1["freshness"]["charter_source"]["detail"]
+    assert detail_f1
+    assert "no charter at all" in detail_f1
+
+    with tempfile.TemporaryDirectory() as f2_dir:
+        f2_repo = Path(f2_dir)
+        _seed_minimum_repo(f2_repo)
+        charter_dir = f2_repo / ".kittify" / "charter"
+        charter_dir.mkdir(parents=True, exist_ok=True)
+        for name in ("governance.yaml", "directives.yaml", "metadata.yaml"):
+            (charter_dir / name).write_text("schema_version: '1'\n", encoding="utf-8")
+        payload_f2 = _invoke_status_json(f2_repo)
+        detail_f2 = payload_f2["freshness"]["charter_source"]["detail"]
+
+    assert detail_f2
+    assert "no charter at all" not in detail_f2
+    assert "legacy charter bundle" in detail_f2
+    # WP05 cycle 2 (review-cycle-1.md Issue 1 — BLOCKING): this fixture
+    # seeds only three of the four legacy files (no ``references.yaml``) —
+    # the detail must name only what is actually on disk, not overclaim the
+    # fourth file is present too.
+    assert "governance.yaml" in detail_f2
+    assert "directives.yaml" in detail_f2
+    assert "metadata.yaml" in detail_f2
+    assert "references.yaml" not in detail_f2
+    assert detail_f1 != detail_f2
+    # Both remain the same non-blocking-eligible state; only detail differs.
+    assert payload_f1["freshness"]["charter_source"]["state"] == "missing"
+    assert payload_f2["freshness"]["charter_source"]["state"] == "missing"
 
 
 def test_freshness_state_built_in_only_when_manifest_marks_it(tmp_path: Path) -> None:

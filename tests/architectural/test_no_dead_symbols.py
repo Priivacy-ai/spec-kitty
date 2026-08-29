@@ -295,8 +295,10 @@ _CATEGORY_B_GRANDFATHERED_LEGACY: frozenset[SymbolKey] = frozenset(
         SymbolKey(
             "DaemonSummary", "17ddc7a066a9d721be767b753f6c5ecdc4dcdeca46754c67a49ef0322c1b82ab", source_module="specify_cli.cli.commands._auth_doctor"
         ),  # specify_cli.cli.commands._auth_doctor::DaemonSummary
+        # hash refreshed (#3723): DoctorReport gained the ``auth_verdict:
+        # HealthVerdict`` field so the honest auth verdict rides the report.
         SymbolKey(
-            "DoctorReport", "3083b579d7782d2eaf3940307c5813b06ee421abfbe971d9f50355a7bd19158b", source_module="specify_cli.cli.commands._auth_doctor"
+            "DoctorReport", "bcb87616333b6591b924b2fcb4f8c77d3d169d8ebcf1f30268ed2ee517428617", source_module="specify_cli.cli.commands._auth_doctor"
         ),  # specify_cli.cli.commands._auth_doctor::DoctorReport
         SymbolKey(
             "Finding", "d47a46e21c6dc7c48f4654c3c1e88ca76cc25ae2b81b9efaaaea90649e8b2065", source_module="specify_cli.cli.commands._auth_doctor"
@@ -310,15 +312,17 @@ _CATEGORY_B_GRANDFATHERED_LEGACY: frozenset[SymbolKey] = frozenset(
             "SessionSummary", "465b7c32684be07566e692b5ef249e2585ccb568f9b2ffe36fd88ba4ed872e74", source_module="specify_cli.cli.commands._auth_doctor"
         ),  # specify_cli.cli.commands._auth_doctor::SessionSummary
         # specify_cli.cli.commands._auth_doctor::assemble_report (hash refreshed
-        # kernel-clock-single-door PR #3305: body now calls kernel.clock.now_utc()
-        # instead of datetime.now(UTC), per the clock single-door migration)
+        # #3723: body now computes the auth verdict + accepts a server_probe so
+        # an expired-access session reads unknown/fail rather than a false green)
         SymbolKey(
-            "assemble_report", "4632c1fdf5f64e3614e930f1210c9784552a50eda1d201189c089020986e19fa", source_module="specify_cli.cli.commands._auth_doctor"
+            "assemble_report", "06ff9c93db5232f2212eddb7497dc48b803c03cdce3c5a11b41c709c68063797", source_module="specify_cli.cli.commands._auth_doctor"
         ),  # specify_cli.cli.commands._auth_doctor::assemble_report
         # specify_cli.cli.commands._auth_doctor::compute_exit_code
         SymbolKey("compute_exit_code", "060144b6c7b405770cc41179f7c74273e8618e6271027c42794a87f567516179", source_module="specify_cli.cli.commands._auth_doctor"),
+        # hash refreshed (#3723): "No problems detected." is now gated on a
+        # confirmed ``auth_verdict.state == 'ok'`` (never on finding-emptiness alone)
         SymbolKey(
-            "render_report", "719c4b8b25a0a7b9e613e559e60abacbdef6ad4ab04788e9b956b7d788ad13fb", source_module="specify_cli.cli.commands._auth_doctor"
+            "render_report", "19e9dbc747149473867462a519c6d739f51697c20ea65d5c581666e074d10dd8", source_module="specify_cli.cli.commands._auth_doctor"
         ),  # specify_cli.cli.commands._auth_doctor::render_report
         # specify_cli.cli.commands._auth_doctor::render_report_json
         SymbolKey("render_report_json", "909a351e28d3aa72e41d2986c624b5ac2eb10476fa7010667fb4d1a76993cf8e", source_module="specify_cli.cli.commands._auth_doctor"),
@@ -740,8 +744,18 @@ _CATEGORY_B_GRANDFATHERED_LEGACY: frozenset[SymbolKey] = frozenset(
         SymbolKey("MigrationDiscoveryError", "541864310809d0a9f476f2963151b6468ced74b86082c66d0e0e3e420cbd133f", source_module="specify_cli.upgrade.migrations"),
         # specify_cli.validators.csv_schema::CSVSchemaValidation
         SymbolKey("CSVSchemaValidation", "9492562d2a8ff78e95fe51a2eb532a7046b2c26e8a04281d800551d07ccb8b9c", source_module="specify_cli.validators.csv_schema"),
+        # re-pinned 2026-08-28 (landing #3783 SHIP-WITH-FOLDS): the
+        # missing_paths_feature_relative field was renamed to
+        # missing_artifact_tokens and its placeholder-branch population
+        # dropped (dead weight -- the sole consumer's artifact_tokens
+        # membership filter could never let a placeholder entry through), which
+        # changed the dataclass body and its content-tier body_hash again;
+        # still a public result type returned by validate_mission_paths with
+        # no src/ importer-by-name, so the allowlist decision is unchanged —
+        # hash-only re-pin, no new FR-303 ticket needed for an
+        # already-allowlisted symbol.
         SymbolKey(
-            "PathValidationResult", "0c06a5f97dbf0bd590850ce8c7bb5067852f3edfbcbf7dc58dcec264b37e55da", source_module="specify_cli.validators.paths"
+            "PathValidationResult", "0d1a15a99129e28b1216f120e7a9c73d470b36df5dd1a0907d289e410681356a", source_module="specify_cli.validators.paths"
         ),  # specify_cli.validators.paths::PathValidationResult
         # specify_cli.validators.paths::suggest_directory_creation
         SymbolKey("suggest_directory_creation", "43ab52fd99963aff65a61cac707bfa4e7460fb71e515f636c9e79960290f90f7", source_module="specify_cli.validators.paths"),
@@ -952,8 +966,17 @@ _CATEGORY_C_ORG_DOCTRINE_CLOSEOUT: frozenset[SymbolKey] = frozenset(
         SymbolKey(
             "ActivationPlan", "49697a5e9d4ea41ac9531c0b4bb6605a8aa71bf116e0dfbf1af2eee33a935a53", source_module="charter.activation_engine"
         ),  # charter.activation_engine::ActivationPlan
+        # Re-pinned 2026-08-24 (#3705): WP04 added the ``not_cascaded_kind_filtered``
+        # field to this dataclass so ``charter deactivate --cascade`` can report the
+        # kind-filtered nodes it previously dropped in silence (C-002 symmetry). The
+        # allowlist is content-hash keyed, so a legitimate body change drifts the pin
+        # and the gate reports the symbol as un-allowlisted. Category C is re-derived
+        # each cycle by design, so this is a re-pin, not a new exemption: the symbol's
+        # status is unchanged (still no src/ importer -- it is the public return type
+        # of ``deactivation_plan()``, consumed by the CLI layer and tests).
+        # Prior hash: 527c491b7df6c1369bc3f4c7491626817a5a3a2ede574ffe4527168fde17bf43
         SymbolKey(
-            "DeactivationPlan", "527c491b7df6c1369bc3f4c7491626817a5a3a2ede574ffe4527168fde17bf43", source_module="charter.cascade"
+            "DeactivationPlan", "ea81133908c5385ae013a8057ac7f863386247ba90b64e212b54be895d7e1615", source_module="charter.cascade"
         ),  # charter.cascade::DeactivationPlan
         SymbolKey(
             "REFERENCE_RELATIONS", "95fca0816d6568e68a953c321ec3ca6c5a45a7903f064fdbcb4d87bc1558632b", source_module="charter.cascade"
@@ -1887,6 +1910,44 @@ _CATEGORY_C_CHARTER_FACADE_FORWARD_API_01KZPDSR: frozenset[SymbolKey] = frozense
 )
 
 
+# ---------- C. charter-authority-flip (01M14RB3) forward public API (#3664) ----------
+# Two intentional public symbols landed by the doctrine->charter governing-term
+# flip that have no cross-file `src/` caller yet, both content-tier (unique
+# bare_name, no live collision):
+#
+# * ``charter.interview::InterviewAnswersRegressionError`` -- raised by
+#   ``write_interview_answers(..., fail_closed_on_regression=True)``. That
+#   opt-in flag has no production caller today: the only caller is
+#   ``tests/charter/test_answers_migration.py`` (which asserts on the error
+#   directly), and the answers-migration script
+#   ``scripts/migrate_charter_interview_answers.py`` deliberately does NOT use
+#   this writer at all -- it does byte-preserving anchored substitution to
+#   survive the archive-freeze gate. So this is test-only forward public API,
+#   exposed by design so that future/external migration callers can catch it.
+# * ``charter.sync::LegacyGovernanceKeyWarning`` -- the ``UserWarning`` subclass
+#   ``_warn_legacy_governance_key_once()`` raises internally (same module, so
+#   invisible to the cross-file caller graph); ``tests/charter/
+#   test_governance_key_compat.py`` asserts on it via ``pytest.warns(...)``.
+#   Public by design so any consumer can filter/assert on the specific
+#   warning class rather than a bare ``UserWarning``.
+_CATEGORY_C_CHARTER_AUTHORITY_FLIP_FORWARD_API: frozenset[SymbolKey] = frozenset(
+    {
+        # charter.interview::InterviewAnswersRegressionError
+        SymbolKey(
+            "InterviewAnswersRegressionError",
+            "af534399168d1c78dd7722884aeffc6366eb378779c8dfe91a2545843e1518c2",
+            source_module="charter.interview",
+        ),
+        # charter.sync::LegacyGovernanceKeyWarning
+        SymbolKey(
+            "LegacyGovernanceKeyWarning",
+            "3558fe165f51db3ae52de1abf6c15ce0ececf072f8ac8871cb98c3bbd8d9a1e6",
+            source_module="charter.sync",
+        ),
+    }
+)
+
+
 # Aggregate. The gate consults this; the per-category frozensets are
 # the surface introspected by the ratchet-baseline meta-test
 # (``tests/architectural/test_ratchet_baselines.py``). Entries are
@@ -1923,6 +1984,7 @@ _SYMBOL_ALLOWLIST: frozenset[SymbolKey] = (
     | _CATEGORY_C_DELIVERY_RAIL_FORWARD_API
     | _CATEGORY_C_DOCTRINE_API_SURFACE_BRIDGE_3179
     | _CATEGORY_C_CHARTER_FACADE_FORWARD_API_01KZPDSR
+    | _CATEGORY_C_CHARTER_AUTHORITY_FLIP_FORWARD_API
 )
 
 

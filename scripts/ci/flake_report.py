@@ -75,6 +75,11 @@ TIMING_NODEIDS: frozenset[str] = frozenset(
         "test_nfr_002_timing_200_missions",
         "test_sweep_enumeration_perf_1k_files",
         "test_run_consistency_check_completes_within_budget",
+        # Retained as a benign classifier hint after #3787 retired the
+        # check_nfr_003_latency gate: no test by this node-id exists any more,
+        # but the flake-report golden fixture pins this TIMING set, so removing
+        # the string would destabilise that (separate mission's) fixture for no
+        # runtime gain — it never matches a live node again.
         "check_nfr_003_latency",
     }
 )

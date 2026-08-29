@@ -1294,8 +1294,41 @@ def implement(
                 actor=agent,
             )
 
-        _ensure_workspace_materialized(workspace, normalized_wp_id, _create_workspace)
+        # FR-005/#3281 (C-006): a retry over an already-materialized lane
+        # worktree re-enters the allocator's idempotent reuse-path self-heal
+        # instead of the prior bare `workspace.exists: return` short-circuit.
+        from specify_cli.lanes.implement_support import reenter_lane_self_heal
+
+        def _reenter_self_heal() -> None:
+            reenter_lane_self_heal(main_repo_root, mission_slug, normalized_wp_id)
+
+        _ensure_workspace_materialized(workspace, normalized_wp_id, _create_workspace, _reenter_self_heal)
         workspace_path = workspace.worktree_path
+
+        # Seam C-005 (#3281/FR-007): the claim-ancestry gate runs HERE --
+        # POST-materialize (after the self-heal above re-runs the planning-
+        # commit + dependency-tip merges), keyed on the MERGED tip, BEFORE any
+        # claim status event is emitted below. Never move this above
+        # ``_ensure_workspace_materialized`` (or before it in the call
+        # sequence) -- evaluating ancestry against a pre-merge HEAD deadlocks
+        # an already-approved same-mission dependency that simply has not
+        # been merged into this lane's worktree yet.
+        from specify_cli.lanes.implement_support import resolve_claim_ancestry_gate
+
+        # The predicate's dependency-status lookup reads the STATUS event log,
+        # which is a DIFFERENT surface than the PRIMARY ``feature_dir`` above
+        # (WORK_PACKAGE_TASK) for coord-topology missions -- reuse the same
+        # coord-aware resolver ``implement_claim_transition`` below consults.
+        status_feature_dir = _canonical_status_feature_dir(main_repo_root, mission_slug)
+        ancestry = resolve_claim_ancestry_gate(
+            main_repo_root, mission_slug, status_feature_dir, normalized_wp_id, workspace_path
+        )
+        if not ancestry.ok:
+            print(
+                f"Error: cannot claim {normalized_wp_id}: ancestry could not be "
+                f"established after self-heal for: {', '.join(ancestry.missing_refs)}"
+            )
+            raise typer.Exit(1)
 
         subtask_ids = [str(item) for item in wp_meta.subtasks if isinstance(item, str)]
         subtask_cmd = " ".join(subtask_ids) if subtask_ids else "<subtask-ids>"

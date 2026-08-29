@@ -31,6 +31,17 @@ from specify_cli.cli.console import console
 
 from specify_cli.auth import get_token_manager
 from specify_cli.auth.session import StoredSession
+from specify_cli.auth.verdict import HealthVerdict, evaluate_auth_verdict
+
+
+# Banner colour + status glyph per verdict state. The banner text itself is the
+# verdict's derived headline, so it can never contradict the token-expiry detail
+# printed below it (#3723 rule 3).
+_VERDICT_STYLE: dict[str, tuple[str, str]] = {
+    "ok": ("green", "+"),
+    "unknown": ("yellow", "?"),
+    "fail": ("red", "X"),
+}
 
 
 # Mapping from the StorageBackend literal (see session.py) to a
@@ -58,21 +69,17 @@ def status_impl() -> None:
     tm = get_token_manager()
     session = tm.get_current_session()
 
-    if session is None:
-        console.print("[red]X Not authenticated[/red]")
-        console.print(
-            "  Run [bold]spec-kitty auth login[/bold] to authenticate."
-        )
+    # ``auth status`` is offline (no server probe), so the verdict resolves
+    # ``unknown`` — never a false green — for an expired access token whose
+    # refresh chain cannot be proven offline (#3723).
+    verdict = evaluate_auth_verdict(session, now_utc())
+    _print_banner(verdict)
+
+    if session is None or verdict.state == "fail":
+        verb = "authenticate" if session is None else "re-authenticate"
+        console.print(f"  Run [bold]spec-kitty auth login[/bold] to {verb}.")
         return
 
-    if session.is_refresh_token_expired():
-        console.print("[red]X Session expired (refresh token expired)[/red]")
-        console.print(
-            "  Run [bold]spec-kitty auth login[/bold] to re-authenticate."
-        )
-        return
-
-    console.print("[green]+ Authenticated[/green]")
     console.print()
 
     _print_identity(session)
@@ -95,6 +102,13 @@ def status_impl() -> None:
 # ---------------------------------------------------------------------------
 
 
+def _print_banner(verdict: HealthVerdict) -> None:
+    """Print the status banner — headline derived from the verdict, plus its
+    evidence, so the summary can never contradict the detail (#3723)."""
+    color, glyph = _VERDICT_STYLE[verdict.state]
+    console.print(f"[{color}]{glyph} {verdict.headline}[/{color}] ({verdict.evidence})")
+
+
 def _print_identity(session: StoredSession) -> None:
     """Print the authenticated user's identity block."""
     if session.name and session.name != session.email:
@@ -114,11 +128,15 @@ def _print_teams(session: StoredSession) -> None:
         is_default = team.id == session.default_team_id
         marker_parts: list[str] = []
         if team.is_private_teamspace:
-            marker_parts.append("private")
+            # The server refuses the Private Teamspace as a share destination,
+            # so surface it as not shareable next to the slug (#3731).
+            marker_parts.append("private, not shareable")
         if is_default:
             marker_parts.append("default")
         marker = f" [dim]({', '.join(marker_parts)})[/dim]" if marker_parts else ""
-        console.print(f"    - {team.name} ({team.role}){marker}")
+        console.print(
+            f"    - {team.name} [dim]slug: {team.slug}[/dim] ({team.role}){marker}"
+        )
 
 
 def _print_token_expiry(session: StoredSession) -> None:

@@ -1,0 +1,106 @@
+schema: review-findings/v1
+complete: true
+phase: tasks
+lens_group: fresh
+mission: cascade-asset-silent-drop-01M0RME0
+round: 2
+findings:
+  - id: TASKS-FRESH2-001
+    lens: "dual-system divergence mapping (Debugger Debbie / differential matrix: artifact prose vs. live source)"
+    severity: 2
+    title: WP03 swaps the line-number attribution of doctrine_root/org_roots against the live source
+    evidence:
+      - artifact: "tasks/WP03-no-cascade-warning-path.md § Subtask T015 step 1 (\"doctrine_root and org_roots are already local variables in this function (computed at activate.py:397 and 406)\")"
+      - code: "src/specify_cli/cli/commands/charter/activate.py:397 (org_roots = resolve_org_root_chain(repo_root))"
+      - code: "src/specify_cli/cli/commands/charter/activate.py:406 (doctrine_root = resolve_doctrine_root())"
+    claim: >
+      Round 2's new ID-resolution instruction in WP03 T015 pairs the two variable names with the two
+      line numbers in the order they are written ("doctrine_root and org_roots ... at 397 and 406"),
+      implying doctrine_root is computed at line 397 and org_roots at 406. Reading the live
+      `_render_no_cascade_warning` body shows the reverse: `org_roots = resolve_org_root_chain(repo_root)`
+      is the line-397 statement and `doctrine_root = resolve_doctrine_root()` is the line-406 statement.
+      Both line numbers are individually correct and both variables are genuinely local to the function,
+      so an implementer who looks at both lines will still find both variables — the swap doesn't block
+      correct implementation, but it is a factual contradiction against the live source in text this
+      round explicitly added to close exactly this class of gap.
+    remediation: >
+      In WP03 T015 step 1, reorder to "org_roots and doctrine_root are already local variables in this
+      function (computed at activate.py:397 and 406 respectively)" — or simply drop the per-name line
+      attribution and keep the range citation, since the surrounding paragraph already names both call
+      sites correctly.
+
+  - id: TASKS-FRESH2-002
+    lens: "structural completeness (Debugger Debbie / hypothesis-driven: does the subtask-level completion
+      criterion match the RED test it is supposed to turn GREEN)"
+    severity: 2
+    title: WP02 T010 and WP03 T015's per-subtask Validation lines were not updated when their sibling RED-first subtasks (T008, T012) grew a new test
+    evidence:
+      - artifact: "tasks/WP02-activation-report-rendering.md § Subtask T010 (\"**Validation**: T008's three tests now pass (GREEN).\")"
+      - artifact: "tasks/WP02-activation-report-rendering.md § Subtask T008 (now \"Confirm all four assertions are RED\" / \"four new test functions\")"
+      - artifact: "tasks/WP03-no-cascade-warning-path.md § Subtask T015 (\"**Validation**: T012's first test now passes (GREEN).\")"
+      - artifact: "tasks/WP03-no-cascade-warning-path.md § Subtask T012 (now \"Confirm all three are RED\" / \"three new test functions\")"
+    claim: >
+      Round 2 added a fourth RED-first test to WP02's T008 (the ID-resolution assertion) and a third
+      RED-first test to WP03's T012 (same). The implementation subtasks that actually make those new
+      tests GREEN are T010 (WP02, since the ID-resolution call was added into T010's own step 1) and
+      T015 (WP03, same reasoning) — T009/T013/T014 do not touch rendering. Round 2 correctly updated
+      each WP's top-level "Definition of Done" and "Reviewer Guidance" sections to require the new
+      test, but left T010's and T015's own **Validation** lines referencing the pre-round-2 test counts
+      ("T008's three tests" / "T012's first test") unchanged. An implementer working subtask-by-subtask
+      and treating each subtask's stated Validation line as its completion bar could mark T010/T015 done
+      after only the old test subset goes green, deferring discovery of a still-red 4th/3rd test to the
+      WP-level DoD check (a real but late safety net, not a gap that reaches merge).
+    remediation: >
+      Update WP02 T010's Validation to "T008's four tests now pass (GREEN)" and WP03 T015's Validation
+      to "T012's first and third tests now pass (GREEN)" (T012's second test depends on T014's guard
+      fix as before) — matching the DoD/Reviewer Guidance sections that were already corrected.
+
+  - id: TASKS-FRESH2-003
+    lens: "trace-based observability (Debugger Debbie / verifying every cited line number against live source)"
+    severity: 1
+    title: The new org-pack-fixture docstring citation is off by one line, repeated identically in three WP files
+    evidence:
+      - artifact: "tasks/WP02-activation-report-rendering.md § Subtask T008 step 4 (\"per `_drg_id_to_config_id`'s docstring, `activate.py:122-152`\")"
+      - artifact: "tasks/WP03-no-cascade-warning-path.md § Subtask T012 step 3 (same citation)"
+      - artifact: "tasks/WP04-deactivation-side-symmetry.md § Subtask T017 step 3 (same citation)"
+      - code: "src/specify_cli/cli/commands/charter/activate.py:122 (blank line) / :123 (def _drg_id_to_config_id()"
+    claim: >
+      All three of round 2's newly-added ID-resolution test instructions cite the same range,
+      `activate.py:122-152`, for `_drg_id_to_config_id`'s definition and docstring. Line 122 in the
+      live file is a blank line; the `def _drg_id_to_config_id(` statement itself starts at line 123.
+      Purely cosmetic — a reader who opens the file at 122 lands one blank line above the function and
+      finds it immediately — but it is a fresh inaccuracy introduced three times in this round's new
+      text, not present before round 2.
+    remediation: >
+      Change the three citations to `activate.py:123-152` (or `123-153` if the trailing blank line
+      after the fallback `except` block should be included).
+
+  - id: TASKS-FRESH2-004
+    lens: "hypothesis-driven falsification (Debugger Debbie / is the ID-resolution guarantee achievable
+      for every kind the new tests could plausibly target, not just the one fixture used)"
+    severity: 1
+    title: "The DoD language \"renders the RESOLVED config-stem ID ... never the raw DRG bare ID\" cannot hold for template-kind nodes, which the new tests never exercise to confirm this is understood"
+    evidence:
+      - code: "src/doctrine/artifact_kinds.py:107 (_PATTERNS[\"template\"] = \"\" — \"Returns an empty string for TEMPLATE (no dedicated extension)\")"
+      - code: "src/charter/kind_vocabulary.py:302-304 (_iter_artifact_paths: `pattern = kind.glob_pattern; if not pattern: return []`)"
+      - code: "src/specify_cli/cli/commands/charter/activate.py:145-151 (_drg_id_to_config_id falls back to the raw drg_id on UnknownArtifactIdError/ValueError)"
+      - artifact: "tasks/WP02-activation-report-rendering.md § Definition of Done (\"never the raw DRG bare ID\")"
+      - artifact: "tasks/WP03-no-cascade-warning-path.md § Definition of Done (same wording)"
+      - artifact: "tasks/WP04-deactivation-side-symmetry.md § Definition of Done (same wording)"
+    claim: >
+      Because `ArtifactKind.TEMPLATE.glob_pattern` is the empty string, `_iter_artifact_paths` always
+      returns `[]` for kind `"template"`, so `resolve_config_id`/`resolve_artifact_urn` can never
+      resolve a template artifact and `_drg_id_to_config_id`'s except-fallback always fires, returning
+      the raw bare DRG id unchanged. This is pre-existing, intentional behavior (the docstring already
+      documents the fallback), not a round-2 defect — but round 2's new DoD phrasing across all three
+      WPs ("never the raw DRG bare ID") reads as an unconditional guarantee about the rendered output,
+      and none of the three new ID-resolution tests (all built on an `asset`-kind fixture, per every
+      cited example) exercise the template-kind case where that guarantee is structurally unfalsifiable
+      by the code as written. A reviewer applying the DoD text literally to a template-kind manual test
+      case would flag a false regression.
+    remediation: >
+      Either add one sentence to each WP's DoD clarifying the guarantee is "the resolved ID when
+      resolution succeeds; the documented raw-ID fallback for kinds with no on-disk artifact file
+      (template) is unaffected," or narrow the DoD wording to "passes the bare ID through
+      `_drg_id_to_config_id`/`resolve_config_id` rather than skipping resolution" so it describes the
+      call-path guarantee rather than an output-content guarantee that template kind cannot meet.

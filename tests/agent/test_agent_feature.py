@@ -13,6 +13,7 @@ from ulid import ULID
 
 from specify_cli.cli.commands.agent.mission import CommitToBranchResult, app
 from specify_cli.coordination.commit_router import CommitRouterResult
+from specify_cli.core.checkout_identity import CheckoutIdentity, Intent
 
 pytestmark = [pytest.mark.integration, pytest.mark.git_repo]
 
@@ -237,6 +238,7 @@ class TestBranchContextCommand:
         self,
         mock_locate: Mock,
         tmp_path: Path,
+        monkeypatch: pytest.MonkeyPatch,
     ) -> None:
         """Do not treat a feature branch as primary just because origin/HEAD is absent."""
         mock_locate.return_value = tmp_path
@@ -252,6 +254,14 @@ class TestBranchContextCommand:
         subprocess.run(["git", "add", "README.md"], cwd=tmp_path, check=True)
         subprocess.run(["git", "commit", "-m", "Initial"], cwd=tmp_path, check=True, capture_output=True)
         subprocess.run(["git", "switch", "-c", "feat/checkout-upsell"], cwd=tmp_path, check=True, capture_output=True)
+
+        # ``branch-context`` resolves branch identity from the invoking checkout
+        # (``resolve_checkout_identity(Path.cwd(), ...)``), NOT from the mocked
+        # ``locate_project_root`` (which re-anchors linked worktrees to the
+        # primary checkout for shared metadata reads). The test must therefore
+        # run *inside* the repo it built, or the command reads the ambient
+        # checkout's branch instead of ``feat/checkout-upsell``.
+        monkeypatch.chdir(tmp_path)
 
         result = runner.invoke(app, ["branch-context", "--json"])
 
@@ -1231,6 +1241,29 @@ requirement_refs:
                 "specify_cli.cli.commands.agent.mission._show_branch_context",
                 return_value=(None, "main"),
             ),
+            # ``finalize-tasks`` enforces write-ownership via
+            # ``resolve_checkout_identity(Path.cwd(), Intent.WRITE)`` — it refuses
+            # unless the invoking checkout owns its canonical target. That reads
+            # the AMBIENT checkout, not the mocked ``locate_project_root``: green
+            # in a ``main`` CI checkout (its ``.git`` is a directory → self-owned),
+            # but a linked worktree (``.git`` is a pointer file → foreign) is
+            # refused with CHECKOUT_WRITE_OWNERSHIP_REFUSED. Pin a self-owned
+            # identity so the test is deterministic regardless of the worktree it
+            # runs in. This only removes the incidental ownership gate so the
+            # requirement-refs parse under test is reachable — the ownership-refusal
+            # behaviour itself is guarded separately by
+            # ``tests/specify_cli/core/test_checkout_identity.py`` (and the
+            # architectural fail-closed single-channel tests), which this pin does
+            # not weaken.
+            patch(
+                "specify_cli.cli.commands.agent.mission_finalize.resolve_checkout_identity",
+                return_value=CheckoutIdentity(
+                    invoking_root=tmp_path,
+                    canonical_target=tmp_path,
+                    is_owner=True,
+                    intent=Intent.WRITE,
+                ),
+            ),
             patch(
                 "specify_cli.coordination.commit_router.commit_for_mission",
                 return_value=CommitRouterResult(
@@ -1276,6 +1309,21 @@ class TestSetupPlanCommand:
             lambda *args, **kwargs: GitPreflightResult(repo_root=tmp_path),
         )
 
+    # ``setup-plan`` resolves the invoking checkout's branch via
+    # ``get_current_branch(resolve_checkout_identity(Path.cwd()).invoking_root)``
+    # (the FR-006/#3124 honest branch-match), NOT the mocked ``_show_branch_context``.
+    # That reads the AMBIENT checkout, so ``current_branch`` came out as whatever
+    # branch the worktree running the test happened to be on — green in a ``main``
+    # CI checkout, red in any non-``main`` worktree. Pin ``get_current_branch`` to
+    # ``main`` so the resolution is deterministic.
+    #
+    # This is a scaffold-shape test: with the pin, ``current_branch == "main"`` is a
+    # tautology, NOT the branch-honesty guard. The real invoking-vs-primary
+    # derivation contract (FR-006/#3124) is verified separately by
+    # ``tests/specify_cli/cli/commands/agent/test_setup_plan_branch_match.py``,
+    # which uses real ``git worktree add`` lanes with ``get_current_branch``
+    # deliberately UNPATCHED.
+    @patch("specify_cli.cli.commands.agent.mission.get_current_branch", return_value="main")
     @patch("specify_cli.cli.commands.agent.mission.locate_project_root")
     @patch("specify_cli.cli.commands.agent.mission._find_feature_directory")
     @patch("specify_cli.cli.commands.agent.mission._show_branch_context", return_value=(None, "main"))
@@ -1286,6 +1334,7 @@ class TestSetupPlanCommand:
         mock_show_branch: Mock,
         mock_find: Mock,
         mock_locate: Mock,
+        mock_get_current_branch: Mock,
         tmp_path: Path,
     ) -> None:
         """Should scaffold plan template and output JSON format."""

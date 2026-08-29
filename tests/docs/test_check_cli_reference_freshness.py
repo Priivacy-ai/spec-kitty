@@ -622,9 +622,9 @@ class TestCli:
 def test_real_typer_app_visible_count_within_tolerance() -> None:
     """The walker against the live ``specify_cli.app`` should match audit.
 
-    Baseline re-pinned 2026-08-26 at 276 visible after the intentionally public
-    ``spec-review`` leaf joined the audited CLI tree. Tolerance: ±10% on the
-    visible count (248..304) to allow natural growth.
+    Baseline re-pinned 2026-08-29 at 277 visible, measured against the merged
+    live app after ``spec-review`` joined the current upstream command tree.
+    Tolerance: ±10% on the visible count (250..304) to allow natural growth.
     """
     os.environ["SPEC_KITTY_ENABLE_SAAS_SYNC"] = "1"
     os.environ["SPEC_KITTY_NO_UPGRADE_CHECK"] = "1"
@@ -646,9 +646,8 @@ def test_real_typer_app_visible_count_within_tolerance() -> None:
     entries = walk(app)
     visible = [e for e in entries if not e.hidden]
     deprecated = [e for e in entries if e.deprecated]
-    assert 248 <= len(visible) <= 304, (
+    assert 250 <= len(visible) <= 304, (
         f"visible count {len(visible)} is outside the ±10% tolerance band "
-        "around the 2026-08-26 audited baseline of 276 after spec-review "
-        "joined the public CLI tree"
+        "around the 2026-08-29 merged-app audit baseline of 277"
     )
     assert len(deprecated) >= 1

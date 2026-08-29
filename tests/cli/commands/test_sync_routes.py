@@ -71,8 +71,14 @@ def _session() -> StoredSession:
         email="robert@example.com",
         name="Robert",
         teams=[
-            Team(id="private-team", name="Robert Private Teamspace", role="owner", is_private_teamspace=True),
-            Team(id="product-team", name="Product Team", role="member"),
+            Team(
+                id="private-team",
+                name="Robert Private Teamspace",
+                role="owner",
+                is_private_teamspace=True,
+                slug="private-team",
+            ),
+            Team(id="product-team", name="Product Team", role="member", slug="product-team"),
         ],
         default_team_id="private-team",
         access_token="access",
@@ -176,6 +182,108 @@ def test_share_command_retries_after_materializing_private_source(monkeypatch: p
     mock_materialize.assert_called_once_with()
     assert "Share request recorded" in result.stdout
     assert "Waiting for a team admin" in result.stdout
+
+
+def _share_routing() -> object:
+    return type(
+        "Routing",
+        (),
+        {
+            "repo_root": None,
+            "repo_slug": "acme/spec-kitty",
+            "project_uuid": "11111111-1111-1111-1111-111111111111",
+            "project_slug": "spec-kitty-local",
+            "build_id": "build-123",
+            "effective_sync_enabled": True,
+        },
+    )()
+
+
+def test_share_command_accepts_team_name_and_resolves_slug(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """#3731: a user may pass the team *name* the CLI displays; it resolves to the slug."""
+    fake_tm = Mock()
+    fake_tm.get_current_session.return_value = _session()
+    monkeypatch.setattr(sync_module, "is_saas_sync_enabled", lambda: True)
+    monkeypatch.setattr("specify_cli.auth.get_token_manager", lambda: fake_tm)
+    monkeypatch.setattr(
+        "specify_cli.sync.routing.resolve_checkout_sync_routing",
+        lambda start=None: _share_routing(),
+    )
+
+    captured: dict[str, object] = {}
+
+    def _request_share(**kwargs: object) -> dict[str, object]:
+        captured.update(kwargs)
+        return {"share": {"state": "shared"}, "auto_approved": False}
+
+    monkeypatch.setattr(
+        "specify_cli.sync.sharing_client.request_repository_share_sync",
+        _request_share,
+    )
+
+    result = runner.invoke(sync_module.app, ["share", "Product Team"])
+
+    assert result.exit_code == 0, result.stdout
+    # The display name resolved to the canonical slug before the server call.
+    assert captured["destination_team_slug"] == "product-team"
+    assert "product-team" in result.stdout
+
+
+def test_share_command_unresolved_name_lists_shareable_and_exits(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """#3731: an unknown handle fails closed, listing shareable teams, without calling the server."""
+    fake_tm = Mock()
+    fake_tm.get_current_session.return_value = _session()
+    monkeypatch.setattr(sync_module, "is_saas_sync_enabled", lambda: True)
+    monkeypatch.setattr("specify_cli.auth.get_token_manager", lambda: fake_tm)
+    monkeypatch.setattr(
+        "specify_cli.sync.routing.resolve_checkout_sync_routing",
+        lambda start=None: _share_routing(),
+    )
+
+    request_share = Mock()
+    monkeypatch.setattr(
+        "specify_cli.sync.sharing_client.request_repository_share_sync",
+        request_share,
+    )
+
+    result = runner.invoke(sync_module.app, ["share", "no-such-team"])
+
+    assert result.exit_code == 1
+    request_share.assert_not_called()
+    assert "Unknown team 'no-such-team'" in result.stdout
+    # The shareable team's slug is offered as recovery; the private one is not.
+    assert "product-team" in result.stdout
+    assert "private-team" not in result.stdout
+
+
+def test_share_command_private_teamspace_is_not_shareable(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """#3731: targeting the Private Teamspace fails closed locally, not at the server."""
+    fake_tm = Mock()
+    fake_tm.get_current_session.return_value = _session()
+    monkeypatch.setattr(sync_module, "is_saas_sync_enabled", lambda: True)
+    monkeypatch.setattr("specify_cli.auth.get_token_manager", lambda: fake_tm)
+    monkeypatch.setattr(
+        "specify_cli.sync.routing.resolve_checkout_sync_routing",
+        lambda start=None: _share_routing(),
+    )
+
+    request_share = Mock()
+    monkeypatch.setattr(
+        "specify_cli.sync.sharing_client.request_repository_share_sync",
+        request_share,
+    )
+
+    result = runner.invoke(sync_module.app, ["share", "private-team"])
+
+    assert result.exit_code == 1
+    request_share.assert_not_called()
+    assert "private teamspace" in result.stdout
 
 
 def test_share_command_requires_persisted_project_uuid(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -837,3 +945,100 @@ def test_oversized_classifier_requires_wholesale_transient_rejection() -> None:
     assert sync_module._batch_is_oversized(content_rejection) is False
     assert sync_module._batch_is_oversized(partial_413) is False
     assert sync_module._batch_is_oversized(generic_transient) is False
+
+
+def _share_routing_stub() -> object:
+    return type(
+        "Routing",
+        (),
+        {
+            "repo_root": None,
+            "repo_slug": "acme/spec-kitty",
+            "project_uuid": "11111111-1111-1111-1111-111111111111",
+            "project_slug": "spec-kitty-local",
+            "build_id": "build-123",
+            "effective_sync_enabled": True,
+        },
+    )()
+
+
+def test_share_command_reports_actionable_message_on_double_404(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """#3699: when materialization is not yet visible server-side, the retry
+    still 404s. That recoverable race must surface as an actionable line and a
+    clean ``typer.Exit(1)`` — never the raw ``RepositorySharingClientError``
+    traceback the operator saw on first-run share."""
+    fake_tm = Mock()
+    fake_tm.get_current_session.return_value = _session()
+    monkeypatch.setattr(sync_module, "is_saas_sync_enabled", lambda: True)
+    monkeypatch.setattr("specify_cli.auth.get_token_manager", lambda: fake_tm)
+    monkeypatch.setattr(
+        "specify_cli.sync.routing.resolve_checkout_sync_routing",
+        lambda start=None: _share_routing_stub(),
+    )
+
+    from specify_cli.sync.sharing_client import RepositorySharingClientError
+
+    calls = {"count": 0}
+
+    def _always_404(**_kwargs: object) -> dict[str, object]:
+        calls["count"] += 1
+        raise RepositorySharingClientError("Unknown private source project.", status_code=404)
+
+    with patch.object(sync_module, "_materialize_private_source_project") as mock_materialize:
+        monkeypatch.setattr(
+            "specify_cli.sync.sharing_client.request_repository_share_sync",
+            _always_404,
+        )
+        result = runner.invoke(sync_module.app, ["share", "product-team"])
+
+    assert result.exit_code == 1, result.stdout
+    # Graceful, chosen exit — not an uncaught client error bubbling as a traceback.
+    assert not isinstance(result.exception, RepositorySharingClientError)
+    assert isinstance(result.exception, SystemExit)
+    assert "Traceback" not in result.stdout
+    # First call 404 → materialize → retry also 404.
+    assert calls["count"] == 2
+    mock_materialize.assert_called_once_with()
+    # The actionable, self-heal-aware line the fix prints.
+    assert "again in a moment" in result.stdout
+    assert "spec-kitty sync share product-team" in result.stdout
+
+
+def test_share_error_path_stops_runtime_teardown(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """#3699: the ``Task was destroyed but it is pending!`` symptom is the
+    WebSocket disconnect being skipped when a traceback aborts orderly
+    teardown. The ``finally`` must drive ``SyncRuntime.stop`` (which awaits the
+    disconnect) on the error path too, not only on success."""
+    fake_tm = Mock()
+    fake_tm.get_current_session.return_value = _session()
+    monkeypatch.setattr(sync_module, "is_saas_sync_enabled", lambda: True)
+    monkeypatch.setattr("specify_cli.auth.get_token_manager", lambda: fake_tm)
+    monkeypatch.setattr(
+        "specify_cli.sync.routing.resolve_checkout_sync_routing",
+        lambda start=None: _share_routing_stub(),
+    )
+
+    from specify_cli.sync.sharing_client import RepositorySharingClientError
+
+    def _always_404(**_kwargs: object) -> dict[str, object]:
+        raise RepositorySharingClientError("Unknown private source project.", status_code=404)
+
+    stop_calls = {"count": 0}
+    fake_runtime = SimpleNamespace(stop=lambda: stop_calls.__setitem__("count", stop_calls["count"] + 1))
+    monkeypatch.setattr("specify_cli.sync.runtime.get_runtime", lambda: fake_runtime)
+
+    with patch.object(sync_module, "_materialize_private_source_project"):
+        monkeypatch.setattr(
+            "specify_cli.sync.sharing_client.request_repository_share_sync",
+            _always_404,
+        )
+        result = runner.invoke(sync_module.app, ["share", "product-team"])
+
+    # Error path still exits 1 ...
+    assert result.exit_code == 1, result.stdout
+    # ... and deterministic teardown (which awaits the disconnect) still ran.
+    assert stop_calls["count"] == 1

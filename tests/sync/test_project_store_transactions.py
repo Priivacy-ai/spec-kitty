@@ -6,6 +6,7 @@ import multiprocessing
 import os
 import sqlite3
 import threading
+import time
 from pathlib import Path
 from typing import Any
 
@@ -446,6 +447,121 @@ def test_independent_processes_serialize_shared_uuid_writes(
         )
         == 2
     )
+
+
+def test_busy_timeout_bounds_the_wait_under_contention(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """#3625: a competing writer waits up to the timeout, then fails — never hangs.
+
+    ``busy_timeout`` (project_store.py) turns a contended ``BEGIN IMMEDIATE``
+    into a *bounded* wait instead of an immediate ``ProjectStoreLockedError``.
+    This pins that: while one unit_of_work holds the write lock, a second
+    acquisition with a small timeout blocks for roughly the timeout and then
+    raises — it must neither raise instantly (proving the pragma is in force)
+    nor block forever (proving the wait is bounded).
+    """
+    monkeypatch.setenv("SPEC_KITTY_HOME", str(tmp_path / "runtime"))
+    holder_store = ProjectSyncStore(PROJECT_UUID)
+    waiter_store = ProjectSyncStore(PROJECT_UUID)
+    with holder_store.unit_of_work():
+        pass  # establish the store (WAL + schema) before contending
+
+    holder_entered = threading.Event()
+    release_holder = threading.Event()
+    failures: list[BaseException] = []
+
+    def holder() -> None:
+        try:
+            with holder_store.unit_of_work() as unit:
+                unit.execute(
+                    "INSERT INTO capture_sequences (project_uuid, next_sequence) VALUES (?, 1)",
+                    (PROJECT_UUID,),
+                )
+                holder_entered.set()
+                assert release_holder.wait(timeout=10)
+        except BaseException as exc:  # pragma: no cover - asserted below
+            failures.append(exc)
+
+    holder_thread = threading.Thread(target=holder)
+    holder_thread.start()
+    assert holder_entered.wait(timeout=5)
+
+    wait_budget = 0.5
+    started = time.monotonic()
+    with (
+        pytest.raises(ProjectStoreLockedError),
+        waiter_store.unit_of_work(lock_timeout_seconds=wait_budget),
+    ):
+        pytest.fail("a held write lock must never expose a second unit of work")
+    elapsed = time.monotonic() - started
+
+    release_holder.set()
+    holder_thread.join(timeout=5)
+    assert not holder_thread.is_alive()
+    assert failures == []
+
+    # It WAITED (bounded by busy_timeout) rather than failing instantly...
+    assert elapsed >= wait_budget * 0.5
+    # ...and the wait was BOUNDED — no indefinite hang.
+    assert elapsed < 5.0
+
+
+class _RecordingConnection:
+    """Delegates to a real sqlite3 connection, logging executed SQL text."""
+
+    def __init__(self, real: sqlite3.Connection, log: list[str]) -> None:
+        self._real = real
+        self._log = log
+
+    def execute(self, sql: str, *args: Any, **kwargs: Any) -> sqlite3.Cursor:
+        self._log.append(sql)
+        return self._real.execute(sql, *args, **kwargs)
+
+    def __getattr__(self, name: str) -> Any:
+        return getattr(self._real, name)
+
+
+def _first_index_containing(statements: list[str], needle: str) -> int:
+    for index, statement in enumerate(statements):
+        if needle in statement.lower():
+            return index
+    raise AssertionError(f"no executed statement contained {needle!r}: {statements}")
+
+
+def test_busy_timeout_pragma_precedes_begin_immediate(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """#3625 ordering guard: ``PRAGMA busy_timeout`` must run before ``BEGIN IMMEDIATE``.
+
+    The bounded-wait guarantee only holds if the timeout pragma is installed
+    on the connection before the transaction attempts to acquire the write
+    lock. This records the actual statement order on a live connection and
+    fails if a refactor reorders the pragma after ``BEGIN IMMEDIATE``.
+    """
+    monkeypatch.setenv("SPEC_KITTY_HOME", str(tmp_path / "runtime"))
+    store = ProjectSyncStore(PROJECT_UUID)
+    with store.unit_of_work():
+        pass  # initialize first, so the recording captures the steady-state path
+
+    statements: list[str] = []
+    real_connect = sqlite3.connect
+
+    def recording_connect(*args: Any, **kwargs: Any) -> Any:
+        return _RecordingConnection(real_connect(*args, **kwargs), statements)
+
+    monkeypatch.setattr(
+        "specify_cli.sync.project_store.sqlite3.connect",
+        recording_connect,
+    )
+    with store.unit_of_work():
+        pass
+
+    busy_index = _first_index_containing(statements, "busy_timeout")
+    begin_index = _first_index_containing(statements, "begin immediate")
+    assert busy_index < begin_index
 
 
 def test_unit_of_work_accepts_only_store_derived_connection_lifecycle() -> None:

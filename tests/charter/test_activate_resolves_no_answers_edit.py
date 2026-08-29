@@ -222,7 +222,7 @@ class TestSpddActivationDoesNotFlip:
         # keeps covering the same activation path without the retired
         # scraper.
         governance = GovernanceConfig(
-            doctrine=DoctrineSelectionConfig(
+            charter=DoctrineSelectionConfig(
                 selected_paradigms=interview.selected_paradigms,
                 selected_directives=interview.selected_directives,
                 selected_tactics=compiled.selected_tactics,

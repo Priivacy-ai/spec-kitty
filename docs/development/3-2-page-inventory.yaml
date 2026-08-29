@@ -1040,7 +1040,19 @@
   owning_workstream: none
   current_target: true
   notes: null
+- path: docs/adr/3.x/2026-08-22-2-retire-doctrine-term-charter-is-the-canonical-vocabulary.md
+  tag: current
+  divio_type: none
+  owning_workstream: none
+  current_target: true
+  notes: null
 - path: docs/adr/3.x/2026-08-22-spec-review-is-primary-planning-evidence.md
+  tag: current
+  divio_type: none
+  owning_workstream: none
+  current_target: true
+  notes: null
+- path: docs/adr/3.x/2026-08-28-1-project-path-convention-override-precedes-doctrine.md
   tag: current
   divio_type: none
   owning_workstream: none
@@ -1964,6 +1976,12 @@
   owning_workstream: none
   current_target: true
   notes: null
+- path: docs/context/charter.md
+  tag: current
+  divio_type: none
+  owning_workstream: none
+  current_target: true
+  notes: null
 - path: docs/context/configuration-project-structure.md
   tag: current
   divio_type: none
@@ -1973,12 +1991,6 @@
 - path: docs/context/contextive-glossaries.md
   tag: current
   divio_type: how-to
-  owning_workstream: none
-  current_target: true
-  notes: null
-- path: docs/context/doctrine.md
-  tag: current
-  divio_type: none
   owning_workstream: none
   current_target: true
   notes: null

@@ -725,7 +725,14 @@ def test_check_composed_action_guard_delegates_to_cores_and_io(
 ) -> None:
     from runtime.next.runtime_bridge_io import ArtifactPresenceSnapshot
 
-    def _fake_gather(feature_dir: Path, *, mission_family: str, step_id: str, legacy_step_id: str | None = None) -> Any:
+    def _fake_gather(
+        feature_dir: Path,
+        *,
+        mission_family: str,
+        step_id: str,
+        legacy_step_id: str | None = None,
+        repo_root: Path | None = None,
+    ) -> Any:
         return ArtifactPresenceSnapshot(
             present_artifacts=frozenset(),
             status_facts={},
@@ -752,7 +759,14 @@ def test_check_composed_action_guard_uses_live_lookup_for_should_advance_wp_step
 
     captured: dict[str, Any] = {}
 
-    def _fake_gather(feature_dir: Path, *, mission_family: str, step_id: str, legacy_step_id: str | None = None) -> Any:
+    def _fake_gather(
+        feature_dir: Path,
+        *,
+        mission_family: str,
+        step_id: str,
+        legacy_step_id: str | None = None,
+        repo_root: Path | None = None,
+    ) -> Any:
         return ArtifactPresenceSnapshot(
             present_artifacts=frozenset(),
             status_facts={},
@@ -790,7 +804,14 @@ def test_check_composed_action_guard_warns_for_unregistered_mission_family(
 
     from runtime.next.runtime_bridge_io import ArtifactPresenceSnapshot
 
-    def _fake_gather(feature_dir: Path, *, mission_family: str, step_id: str, legacy_step_id: str | None = None) -> Any:
+    def _fake_gather(
+        feature_dir: Path,
+        *,
+        mission_family: str,
+        step_id: str,
+        legacy_step_id: str | None = None,
+        repo_root: Path | None = None,
+    ) -> Any:
         return ArtifactPresenceSnapshot(
             present_artifacts=frozenset(),
             status_facts={},
@@ -820,7 +841,14 @@ def test_check_composed_action_guard_does_not_thread_wp_advance_ready_for_non_wp
 
     captured: dict[str, Any] = {}
 
-    def _fake_gather(feature_dir: Path, *, mission_family: str, step_id: str, legacy_step_id: str | None = None) -> Any:
+    def _fake_gather(
+        feature_dir: Path,
+        *,
+        mission_family: str,
+        step_id: str,
+        legacy_step_id: str | None = None,
+        repo_root: Path | None = None,
+    ) -> Any:
         return ArtifactPresenceSnapshot(
             present_artifacts=frozenset(),
             status_facts={},
@@ -962,9 +990,18 @@ def test_dispatch_via_composition_uses_live_lookup_for_check_composed_action_gua
     from runtime.next import runtime_bridge as rb
 
     calls: list[str] = []
+    repo_roots_seen: list[Path | None] = []
 
-    def _spy_guard(action: str, feature_dir: Path, *, mission: str = "software-dev", legacy_step_id: str | None = None) -> list[str]:
+    def _spy_guard(
+        action: str,
+        feature_dir: Path,
+        *,
+        mission: str = "software-dev",
+        legacy_step_id: str | None = None,
+        repo_root: Path | None = None,
+    ) -> list[str]:
         calls.append(action)
+        repo_roots_seen.append(repo_root)
         return ["patched-failure"]
 
     monkeypatch.setattr(rb, "_check_composed_action_guard", _spy_guard)
@@ -986,6 +1023,10 @@ def test_dispatch_via_composition_uses_live_lookup_for_check_composed_action_gua
 
     assert calls == ["specify"]
     assert failures == ["patched-failure"]
+    # #3704 WP03: the live-lookup dispatch path must thread the caller's
+    # ``repo_root`` through to ``_check_composed_action_guard`` unchanged --
+    # not merely swallow it, since this is exactly the seam WP03 threaded.
+    assert repo_roots_seen == [tmp_path]
 
 
 def test_dispatch_via_composition_warns_on_unresolved_delegation_candidates(

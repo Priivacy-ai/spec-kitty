@@ -2998,6 +2998,29 @@ pages:
     - {slug: "consequences", text: "Consequences", level: 2}
     - {slug: "alternatives-considered", text: "Alternatives considered", level: 2}
     - {slug: "references", text: "References", level: 2}
+  - path: "docs/adr/3.x/2026-08-22-2-retire-doctrine-term-charter-is-the-canonical-vocabulary.md"
+    title: "ADR: Retire the doctrine term — Charter is the canonical vocabulary"
+    divio_type: "none"
+    abstract: "Retires the `doctrine` term for `charter` across the repo outside the immutable kitty-specs archive and in installations; M1 makes it effective, M2–M5 execute, M6 proves zero."
+    anchors:
+    - {slug: "context-and-problem-statement", text: "Context and Problem Statement", level: 2}
+    - {slug: "decision-drivers", text: "Decision Drivers", level: 2}
+    - {slug: "considered-options", text: "Considered Options", level: 2}
+    - {slug: "decision-outcome", text: "Decision Outcome", level: 2}
+    - {slug: "canonical-vocabulary", text: "Canonical vocabulary", level: 3}
+    - {slug: "explicit-operator-override-effective-at-i1", text: "Explicit operator override (effective at I1)", level: 3}
+    - {slug: "complete-scope-and-owners", text: "Complete scope and owners", level: 3}
+    - {slug: "fixed-seams-and-identifier-mappings", text: "Fixed seams and identifier mappings", level: 3}
+    - {slug: "m1-charter-authority-update-per-artifact-owner-map", text: "M1 — Charter authority update (per-artifact owner map)", level: 3}
+    - {slug: "m2-m6-execution-summary", text: "M2–M6 — execution summary", level: 3}
+    - {slug: "guard-and-exact-terminal-audit", text: "Guard and exact terminal audit", level: 3}
+    - {slug: "consequences", text: "Consequences", level: 3}
+    - {slug: "confirmation", text: "Confirmation", level: 3}
+    - {slug: "pros-and-cons-of-the-options", text: "Pros and Cons of the Options", level: 2}
+    - {slug: "a-user-facing-rename-only", text: "A. User-facing rename only", level: 3}
+    - {slug: "b-complete-extinction-outside-the-immutable-archive-chosen", text: "B. Complete extinction outside the immutable archive (chosen)", level: 3}
+    - {slug: "c-hard-break-now", text: "C. Hard break now", level: 3}
+    - {slug: "more-information", text: "More Information", level: 2}
   - path: "docs/adr/3.x/2026-08-22-spec-review-is-primary-planning-evidence.md"
     title: "ADR: результаты ревью спецификации — PRIMARY planning evidence"
     divio_type: "none"
@@ -3008,6 +3031,27 @@ pages:
     - {slug: "lifecycle-ownership", text: "Lifecycle и ownership", level: 2}
     - {slug: "section-3", text: "Альтернативы", level: 2}
     - {slug: "section-4", text: "Последствия", level: 2}
+  - path: "docs/adr/3.x/2026-08-28-1-project-path-convention-override-precedes-doctrine.md"
+    title: "ADR: A project path_conventions override precedes the doctrine default, without changing the blocking policy"
+    divio_type: "none"
+    abstract: "A project path_conventions override remaps resolved accept directories ahead of the mission-type doctrine default, leaving the #3783 blocking policy unchanged."
+    anchors:
+    - {slug: "context-and-problem-statement", text: "Context and Problem Statement", level: 2}
+    - {slug: "decision-drivers", text: "Decision Drivers", level: 2}
+    - {slug: "decision-outcome", text: "Decision Outcome", level: 2}
+    - {slug: "precedence-order-per-key", text: "Precedence order (per key)", level: 3}
+    - {slug: "remap-only", text: "Remap-only", level: 3}
+    - {slug: "deliberate-non-reversal-of-3783", text: "Deliberate non-reversal of #3783", level: 3}
+    - {slug: "why-deliverables-is-excluded-the-value-artifact-token-coupling-c-010", text: "Why `deliverables` is excluded — the value ↔ artifact-token coupling (C-010)", level: 3}
+    - {slug: "fail-closed-scope", text: "Fail-closed scope", level: 3}
+    - {slug: "layout-auto-detection-2744-is-the-deliberate-next-step", text: "Layout auto-detection (#2744) is the deliberate next step", level: 3}
+    - {slug: "considered-options", text: "Considered Options", level: 2}
+    - {slug: "consequences", text: "Consequences", level: 2}
+    - {slug: "positive", text: "Positive", level: 3}
+    - {slug: "negative", text: "Negative", level: 3}
+    - {slug: "neutral", text: "Neutral", level: 3}
+    - {slug: "confirmation", text: "Confirmation", level: 2}
+    - {slug: "more-information", text: "More Information", level: 2}
   - path: "docs/adr/3.x/README.md"
     title: "3.x ADRs"
     divio_type: "none"
@@ -3114,6 +3158,7 @@ pages:
     - {slug: "spec-kitty-agent-tasks-finalize-tasks", text: "spec-kitty agent tasks finalize-tasks", level: 2}
     - {slug: "spec-kitty-agent-tasks-list-dependents", text: "spec-kitty agent tasks list-dependents", level: 2}
     - {slug: "spec-kitty-agent-tasks-list-tasks", text: "spec-kitty agent tasks list-tasks", level: 2}
+    - {slug: "spec-kitty-agent-tasks-check-terminability", text: "spec-kitty agent tasks check-terminability", level: 2}
     - {slug: "spec-kitty-agent-tasks-map-requirements", text: "spec-kitty agent tasks map-requirements", level: 2}
     - {slug: "spec-kitty-agent-tasks-mark-status", text: "spec-kitty agent tasks mark-status", level: 2}
     - {slug: "spec-kitty-agent-tasks-move-task", text: "spec-kitty agent tasks move-task", level: 2}
@@ -6223,37 +6268,13 @@ pages:
     - {slug: "bootstrap-vs-compact-context", text: "Bootstrap vs Compact Context", level: 2}
     - {slug: "key-governance-files", text: "Key Governance Files", level: 2}
     - {slug: "see-also", text: "See Also", level: 2}
-  - path: "docs/context/configuration-project-structure.md"
-    title: "Context: Configuration and Project Structure"
+  - path: "docs/context/charter.md"
+    title: "Context: Charter"
     divio_type: "none"
-    abstract: "Glossary context defining where policy, runtime configuration, and mission artifacts live in a Spec Kitty project (.kittify/, kitty-specs/, and related terms)."
+    abstract: "Glossary context for the canonical Charter governing term (glossary authority 3) plus the Doctrine domain model and artifact taxonomy for governance behavior and constraints."
     anchors:
-    - {slug: "context-configuration-and-project-structure", text: "Context: Configuration and Project Structure", level: 2}
-    - {slug: "kittify", text: "`.kittify/`", level: 3}
-    - {slug: "kitty-specs", text: "`kitty-specs/`", level: 3}
-    - {slug: "worktrees", text: "`.worktrees/`", level: 3}
-    - {slug: "glossary", text: "`glossary/`", level: 3}
-    - {slug: "bootstrap-candidate", text: "Bootstrap (Candidate)", level: 3}
-    - {slug: "project-charter", text: "Project Charter", level: 3}
-    - {slug: "charter-library", text: "Charter Library", level: 3}
-  - path: "docs/context/contextive-glossaries.md"
-    title: "Contextive Glossary Integration"
-    divio_type: "how-to"
-    abstract: "How Spec Kitty generates Contextive-compatible YAML glossaries from the canonical glossary markdown, giving IDE users in-editor term hover panels without duplication."
-    anchors:
-    - {slug: "how-it-works", text: "How it works", level: 2}
-    - {slug: "running-the-generator", text: "Running the generator", level: 2}
-    - {slug: "where-the-mapping-lives", text: "Where the mapping lives", level: 2}
-    - {slug: "adding-a-new-scope-mapping", text: "Adding a new scope mapping", level: 2}
-    - {slug: "available-context-slugs", text: "Available context slugs", level: 2}
-    - {slug: "ci-enforcement", text: "CI enforcement", level: 2}
-    - {slug: "do-not-edit-generated-files", text: "Do not edit generated files", level: 2}
-  - path: "docs/context/doctrine.md"
-    title: "Context: Doctrine"
-    divio_type: "none"
-    abstract: "Glossary context for the Doctrine domain model and artifact taxonomy: how reusable governance knowledge is structured into composable behavior and constraints."
-    anchors:
-    - {slug: "context-doctrine", text: "Context: Doctrine", level: 2}
+    - {slug: "context-charter", text: "Context: Charter", level: 2}
+    - {slug: "charter", text: "charter", level: 3}
     - {slug: "doctrine-domain", text: "Doctrine Domain", level: 3}
     - {slug: "guideline", text: "Guideline", level: 3}
     - {slug: "paradigm", text: "Paradigm", level: 3}
@@ -6307,6 +6328,31 @@ pages:
     - {slug: "symbol-level-dead-code", text: "Symbol-level Dead Code", level: 3}
     - {slug: "catalog-miss", text: "Catalog Miss", level: 3}
     - {slug: "all-declaration-convention", text: "`__all__` Declaration Convention", level: 3}
+  - path: "docs/context/configuration-project-structure.md"
+    title: "Context: Configuration and Project Structure"
+    divio_type: "none"
+    abstract: "Glossary context defining where policy, runtime configuration, and mission artifacts live in a Spec Kitty project (.kittify/, kitty-specs/, and related terms)."
+    anchors:
+    - {slug: "context-configuration-and-project-structure", text: "Context: Configuration and Project Structure", level: 2}
+    - {slug: "kittify", text: "`.kittify/`", level: 3}
+    - {slug: "kitty-specs", text: "`kitty-specs/`", level: 3}
+    - {slug: "worktrees", text: "`.worktrees/`", level: 3}
+    - {slug: "glossary", text: "`glossary/`", level: 3}
+    - {slug: "bootstrap-candidate", text: "Bootstrap (Candidate)", level: 3}
+    - {slug: "project-charter", text: "Project Charter", level: 3}
+    - {slug: "charter-library", text: "Charter Library", level: 3}
+  - path: "docs/context/contextive-glossaries.md"
+    title: "Contextive Glossary Integration"
+    divio_type: "how-to"
+    abstract: "How Spec Kitty generates Contextive-compatible YAML glossaries from the canonical glossary markdown, giving IDE users in-editor term hover panels without duplication."
+    anchors:
+    - {slug: "how-it-works", text: "How it works", level: 2}
+    - {slug: "running-the-generator", text: "Running the generator", level: 2}
+    - {slug: "where-the-mapping-lives", text: "Where the mapping lives", level: 2}
+    - {slug: "adding-a-new-scope-mapping", text: "Adding a new scope mapping", level: 2}
+    - {slug: "available-context-slugs", text: "Available context slugs", level: 2}
+    - {slug: "ci-enforcement", text: "CI enforcement", level: 2}
+    - {slug: "do-not-edit-generated-files", text: "Do not edit generated files", level: 2}
   - path: "docs/context/dossier.md"
     title: "Context: Dossier"
     divio_type: "none"

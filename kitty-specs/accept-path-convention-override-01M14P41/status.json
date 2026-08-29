@@ -1,0 +1,60 @@
+{
+  "event_count": 21,
+  "last_event_id": "01M14VYXPSTN1AW55F4T9XT2WV",
+  "materialized_at": "2026-08-28T19:01:19.705712+00:00",
+  "mission_number": "",
+  "mission_slug": "accept-path-convention-override-01M14P41",
+  "mission_type": "",
+  "summary": {
+    "approved": 0,
+    "blocked": 0,
+    "canceled": 0,
+    "claimed": 0,
+    "done": 3,
+    "for_review": 0,
+    "in_progress": 0,
+    "in_review": 0,
+    "planned": 0
+  },
+  "work_packages": {
+    "WP01": {
+      "actor": "merge",
+      "agent": "claude",
+      "force_count": 0,
+      "lane": "done",
+      "last_event_id": "01M14VYV78XA42JAM67AK8P8C9",
+      "last_transition_at": "2026-08-28T19:01:17.160658+00:00",
+      "review_result": {
+        "reference": "WP01 approved (reviewer-renata: 12/12 contracts + DoD green, 58 tests); issue-matrix fully dispositioned",
+        "reviewer": "Stijn Dejongh",
+        "verdict": "approved"
+      },
+      "shell_pid": 2788930,
+      "shell_pid_created_at": "1787940047.65"
+    },
+    "WP02": {
+      "actor": "merge",
+      "force_count": 0,
+      "lane": "done",
+      "last_event_id": "01M14VYWFHXG1JM8BWTJMVPB3S",
+      "last_transition_at": "2026-08-28T19:01:18.449918+00:00",
+      "review_result": {
+        "reference": "TEST-ONLY confirmed (zero src edits across range). FR-004/T008 asserts resolved required_paths[key]==override AND !=doctrine default at validate_mission_paths seam for research/plan/documentation, reading real mission.yaml defaults; wiring test proves config override reaches path_overrides. FR-005/T009 Go internal/ accepts with override, asserts src never fabricated/reported. C-010/T010 deliverables dropped by reader, routing NOT flipped (contracts/ still routes to feature_dir, path_violations==[]), override x path_prefix pinned to deliverables-root/experiments/. NFR-004b/T011 single-caller guard outside tests/architectural/, set-equality (not len()==N); grep confirms sole src caller is evaluate_path_conventions. 9 passed, ruff clean.",
+        "reviewer": "Stijn Dejongh",
+        "verdict": "approved"
+      }
+    },
+    "WP03": {
+      "actor": "merge",
+      "force_count": 0,
+      "lane": "done",
+      "last_event_id": "01M14VYXPSTN1AW55F4T9XT2WV",
+      "last_transition_at": "2026-08-28T19:01:19.705712+00:00",
+      "review_result": {
+        "reference": "PASS: scope clean (only acceptance/__init__.py + new test; summary_core.py & validators/paths.py untouched -> tripwire clear). Fallback guard load-bearing: _optional_artifact_tokens uses getattr(mission.config,'artifacts',None) mirroring validators/paths.py:160; #3783 test_lenient_downgrades_path_conventions_to_warning GREEN (artifacts-less SimpleNamespace, no AttributeError). C-003 severity verified end-to-end: test_contracts_stays_blocking_after_config_driven_fold asserts missing contracts/ stays BLOCKING path_violations, deduped from optional_missing, XOR channel. FR-006/SC-004: optional set from software-dev mission.yaml artifacts.optional incl checklists/ (was omitted by hardcoded list). Dead-symbol green (QUICKSTART/DATA_MODEL/RESEARCH_FILE referenced via _FALLBACK_OPTIONAL_ARTIFACTS). Tests: new 6 + #3783 + 192 acceptance + dead-symbol all green; ruff clean; 2 mypy errors pre-existing baseline at 328/867, none added.",
+        "reviewer": "Stijn Dejongh",
+        "verdict": "approved"
+      }
+    }
+  }
+}

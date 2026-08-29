@@ -27,6 +27,7 @@ from specify_cli.core.git_ops import run_command
 from specify_cli.merge._constants import _STATUS_EVENTS_FILENAME, logger
 from specify_cli.merge.git_probes import path_is_under_worktrees
 from specify_cli.merge.state import MergeState, save_state
+from specify_cli.status_lanes import has_operator_provenance, is_acceptable_ending
 from mission_runtime import MissionArtifactKind, placement_seam, resolve_placement_only
 
 if TYPE_CHECKING:
@@ -34,6 +35,55 @@ if TYPE_CHECKING:
 
 # Lanes treated as "pre-approved" for the approved-replay emission.
 _PRE_APPROVED_LANE_VALUES = frozenset({"planned", "claimed", "in_progress", "for_review"})
+
+_CANCELED_LANE_VALUE = "canceled"
+
+
+def acceptably_canceled_wp_ids(repo_root: Path, mission_slug: str) -> set[str]:
+    """WP IDs at an acceptable *canceled* ending on the COORD status surface.
+
+    The single merge-side authority (FR-004 / FR-009) for excluding canceled WPs
+    from BOTH per-WP done/review derivations — ``executor.py``'s ``all_wp_ids``
+    (feeding the review-artifact consistency gate, the evidence gate, the
+    canonical-history guard, and ``wp_order``) and the independent per-lane loop
+    in :func:`_record_merged_wps_done_for_merge`.
+
+    Reduces the coordination status surface once and returns the WP IDs whose
+    canonical lane is ``canceled`` with operator-authored provenance — an
+    acceptable mission ending per
+    :func:`~specify_cli.status_lanes.is_acceptable_ending` that carries no review
+    artifact and is never ``done``, so it must NOT be driven through the invalid
+    ``canceled -> done`` bookkeeping. A canceled WP WITHOUT operator provenance is
+    deliberately NOT returned: it is not an acceptable ending and must still fail
+    the merge loudly (directive 044 — the predicate is the sole authority; this
+    reader never redefines acceptability). Returns an empty set when the coord
+    event log is absent or unreadable — there is then no canceled WP to exclude,
+    and the downstream done-state assertions stay authoritative.
+    """
+    from specify_cli.status import read_events, reduce
+    from specify_cli.status.store import StoreError
+
+    try:
+        surface_path = resolve_status_surface(repo_root, mission_slug)
+        snapshot = reduce(read_events(surface_path.parent))
+    except (FileNotFoundError, StoreError):
+        # Fail-open: an unresolvable/absent/corrupt coord surface yields no
+        # canceled WP to exclude. The downstream ``_assert_merged_wps_reached_done``
+        # (and the review-artifact/evidence gates) remain the authoritative
+        # check and will surface a genuinely-missing surface loudly there.
+        return set()
+
+    excluded: set[str] = set()
+    for wp_id, wp_snapshot in snapshot.work_packages.items():
+        lane = str(wp_snapshot.get("lane", "")) if isinstance(wp_snapshot, dict) else ""
+        if lane != _CANCELED_LANE_VALUE:
+            continue
+        provenance = has_operator_provenance(
+            wp_snapshot if isinstance(wp_snapshot, dict) else None
+        )
+        if is_acceptable_ending(lane, has_provenance=provenance):
+            excluded.add(wp_id)
+    return excluded
 
 
 def _resolve_merge_actor(repo_root: Path) -> str:
@@ -663,8 +713,22 @@ def _record_merged_wps_done_for_merge(
         merge_state=merge_state,
         repo_root=main_repo,
     )
+    # FR-004 / FR-009: a canceled WP with operator provenance is an acceptable
+    # mission ending that carries no review artifact and never reaches ``done`` —
+    # it must NOT be driven through the invalid ``canceled -> done`` transition
+    # here (which would corrupt the honest-ending record this bookkeeping
+    # protects). This is the SECOND independent per-WP derivation the exclusion
+    # must reach (the first is ``executor.py``'s ``all_wp_ids``). The cancellation
+    # audit record is untouched — the WP is simply skipped, not re-transitioned.
+    excluded_canceled = acceptably_canceled_wp_ids(main_repo, mission_slug)
     for lane in lanes_manifest.lanes:  # type: ignore[attr-defined]
         for wp_id in lane.wp_ids:
+            if wp_id in excluded_canceled:
+                console.print(
+                    f"  [dim]Skipping {wp_id} (canceled with provenance — "
+                    "acceptable ending, excluded from done)[/dim]"
+                )
+                continue
             if wp_id in completed_set:
                 console.print(f"  [dim]Skipping {wp_id} (already recorded as done)[/dim]")
                 continue
@@ -682,6 +746,7 @@ def _record_merged_wps_done_for_merge(
 
 
 __all__ = [
+    "acceptably_canceled_wp_ids",
     "_resolve_merge_actor",
     "_has_transition_to",
     "_mark_wp_merged_done",

@@ -21,7 +21,15 @@ jobs:
   fast-tests-corpus:
     runs-on: blacksmith-4vcpu-ubuntu-2404
     steps:
+      # fetch-depth: 0 so the shrink-only ratchet in
+      # tests/architectural/test_transition_guard_shrink_only.py (carried by the
+      # `corpus` marker collected here) can reach its mission-base rev — a
+      # shallow depth-1 checkout leaves that commit absent and the guard's 4
+      # baseline-dependent gate tests fail closed instead of running (mirrors
+      # the fetch-depth: 0 pattern in ci-quality.yml / docs-build-pr.yml).
       - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
       - uses: astral-sh/setup-uv@v8.1.0
         with:
           python-version: '3.12'

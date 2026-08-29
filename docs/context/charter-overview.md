@@ -127,7 +127,7 @@ Declare supporting docs under `governance.doctrine.governance_references` in `ch
 
 ```yaml
 governance:
-  doctrine:
+  charter:
     governance_references:
       - spec/constitution.md
 ```

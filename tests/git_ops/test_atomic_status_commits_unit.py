@@ -19,6 +19,7 @@ from unittest.mock import Mock, patch
 
 import pytest
 
+from kernel.git_topology import NotAGitRepositoryError
 from tests.lane_test_utils import write_single_lane_manifest
 from specify_cli.cli.commands.agent import tasks as tasks_cli
 from specify_cli.cli.commands.agent import workflow
@@ -192,14 +193,26 @@ class TestFeatureStatusLock:
 
         assert lock_path == repo / ".git" / "spec-kitty-locks" / "017-test-feature.status.lock"
 
-    def test_lock_falls_back_to_dot_git_when_common_dir_is_empty(self, tmp_path: Path) -> None:
-        """Empty git-common-dir output should fall back to repo/.git."""
+    def test_lock_falls_back_to_dot_git_when_git_topology_probe_fails(
+        self, tmp_path: Path
+    ) -> None:
+        """A failed git-common-dir probe should fall back to repo/.git.
+
+        #3773 item 4 converged this resolver onto the canonical
+        ``kernel.git_topology.git_common_dir`` probe (the same one
+        ``specify_cli.review.verdict_commit_queue`` uses), retiring the
+        hand-rolled ``subprocess.run(["git", "rev-parse", ...])`` call this
+        test used to patch directly. The observable contract this test pins
+        is unchanged: when the probe cannot resolve a common dir (empty
+        output, a non-repo path, git missing, ...), the lock path still falls
+        back to ``repo/.git`` instead of raising.
+        """
         repo = tmp_path / "test-repo"
         repo.mkdir()
 
         with patch(
-            "specify_cli.status.locking.subprocess.run",
-            return_value=Mock(returncode=0, stdout="\n"),
+            "specify_cli.status.locking.git_common_dir",
+            side_effect=NotAGitRepositoryError(repo),
         ):
             lock_path = feature_status_lock_path(repo, "017-test-feature")
 

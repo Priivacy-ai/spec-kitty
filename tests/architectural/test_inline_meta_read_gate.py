@@ -317,8 +317,15 @@ FLOOR_MARGIN = 2
 # through ``load_meta_fail_closed``. Live rises 146 -> 150; floor raised
 # 143 -> 146, the lowest permitted value within the four-site margin
 # (``146 <= 146 < 150``).
+# RAISED 2026-08-28 (#3712 landing / #3773): the verdict-durability fix added
+# one routed ``load_meta_fail_closed(identity.feature_dir)`` call site (the
+# committed-annotation path for stored ``LANES`` missions). Live rises
+# 150 -> 151; floor raised 146 -> 147, again the lowest permitted value within
+# the four-site margin (``147 <= 147 < 151``). Measured directly via
+# ``pytest tests/architectural/test_inline_meta_read_gate.py::test_routed_load_meta_floor``
+# on the integrated PR tip.
 ROUTED_LOAD_META_FLOOR_MARGIN = 4
-ROUTED_LOAD_META_FLOOR = 146
+ROUTED_LOAD_META_FLOOR = 147
 
 
 # --------------------------------------------------------------------------- #

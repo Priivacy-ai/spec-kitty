@@ -78,7 +78,7 @@ _DEFAULT_GOVERNANCE_YAML_GOLDEN = (
     "  main_branch: main\n"
     "  dev_branch:\n"
     "  rules: []\n"
-    "doctrine:\n"
+    "charter:\n"
     "  selected_paradigms: []\n"
     "  selected_directives: []\n"
     "  selected_tactics: []\n"

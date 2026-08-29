@@ -29,10 +29,11 @@ on:
       - '.github/workflows/ci-quality.yml'
       # The other suite-running workflows (mission ci-suite-map-bind FR-012):
       # an edit to any of them must re-run the architectural guard suite,
-      # which asserts the parsed gate model over all four workflow files.
+      # which asserts the complete parsed gate model.
       - '.github/workflows/ci-windows.yml'
       - '.github/workflows/drift-detector.yml'
       - '.github/workflows/release.yml'
+      - '.github/workflows/review-verdict-durability.yml'
       - '.github/workflows/release-readiness.yml'
       - '.github/workflows/check-spec-kitty-events-alignment.yml'
       # corpus (#3008 Gate 0, mission ci-scoping-gate-reliability): the
@@ -78,6 +79,7 @@ on:
       - '.github/workflows/ci-windows.yml'
       - '.github/workflows/drift-detector.yml'
       - '.github/workflows/release.yml'
+      - '.github/workflows/review-verdict-durability.yml'
       - '.github/workflows/release-readiness.yml'
       - '.github/workflows/check-spec-kitty-events-alignment.yml'
       # corpus (#3008 Gate 0, mission ci-scoping-gate-reliability): mirrors
@@ -326,6 +328,7 @@ jobs:
               - '.github/workflows/ci-windows.yml'
               - '.github/workflows/drift-detector.yml'
               - '.github/workflows/release.yml'
+              - '.github/workflows/review-verdict-durability.yml'
               - 'src/kernel/**'
               - 'src/doctrine/**'
               # PAIRED with the 'src/specify_cli/egress.py' entry in the `sync`
@@ -1985,6 +1988,15 @@ jobs:
             ignore_args: ''
             marker_extra: ''
           - shard: misc
+            # tests/glossary added 2026-08-28 (mission charter-authority-flip-01M14RB3
+            # landing pass, #3664): WP02 gave tests/glossary/test_canonical_promotion.py
+            # its first pytest.mark.architectural-marked tests. Before this,
+            # tests/glossary was collected by NO integration-tier shard here (unlike
+            # the fast tier's whole-tree-minus-ignore `core-misc` shard in
+            # fast-tests-core-misc, this job's shards are all explicit path lists), so
+            # an architectural/integration/git_repo-marked test under tests/glossary
+            # had no live replacement route for the retired #3284 catch-all — closes
+            # that gap the same way every other small directory in this list does.
             paths: >-
               tests/_factories
               tests/_support
@@ -1999,6 +2011,7 @@ jobs:
               tests/cross_branch
               tests/doctor
               tests/dossier
+              tests/glossary
               tests/init
               tests/migration
               tests/mission_runtime
@@ -3331,7 +3344,7 @@ jobs:
         continue-on-error: true
 
       # Critical-path modules: kernel, doctrine, charter, status, mission detection,
-      # dashboard, merge, next.
+      # dashboard, merge, next, and review-verdict durability.
       # Coverage effort is proportional to risk — keep critical-path changes
       # on the established 90% floor and use the full-diff step as advisory.
       - name: "diff-coverage (critical-path, enforced)"
@@ -3369,6 +3382,12 @@ jobs:
             'src/specify_cli/merge/*'
             'src/runtime/next/*'
             'src/mission_runtime/*'
+            # Review verdict durability issue 3235 critical write path
+            'src/specify_cli/review/verdict_commit_queue.py'
+            'src/specify_cli/review/artifacts.py'
+            'src/specify_cli/review/cycle.py'
+            'src/specify_cli/cli/commands/agent/tasks_move_task.py'
+            'src/specify_cli/cli/commands/agent/tasks_verdict_persistence.py'
           )
 
           coverage_reports=()
@@ -4069,17 +4088,13 @@ jobs:
           print('OK: doctor doctrine reports no skipped profiles, no org_drg errors, no skipped glossary packs')
           "
 
-      - name: NFR-003 latency regression gate
-        # Compares the median wall-clock of `spec-kitty next` across 5 runs
-        # against the pinned pre-cutover baseline in
-        # kitty-specs/shared-package-boundary-cutover-01KQ22DS/nfr-003-baseline.json
-        # and fails the build if regression > 20%.
-        run: |
-          /tmp/clean-venv/bin/python ${{ github.workspace }}/scripts/check_nfr_003_latency.py \
-            --python /tmp/clean-venv/bin/python \
-            --fixture /tmp/fixture \
-            --baseline ${{ github.workspace }}/kitty-specs/shared-package-boundary-cutover-01KQ22DS/nfr-003-baseline.json \
-            --runs 5
+      # The single-shot NFR-003 wall-clock latency ceiling that used to live here
+      # was retired (#3787): a fresh-process `spec-kitty next` median on a shared
+      # runner false-redded on runner variance and had been ratcheted up four
+      # times. The `next` cold-start signal now runs statistically and off the
+      # PR-blocking path in .github/workflows/performance.yml (next domain leg);
+      # the structural clean-wheel smoke check above ("Run spec-kitty next
+      # against fixture mission") is retained as the blocking gate.
 
   # ---------------------------------------------------------------------------
   # consumer-compatibility: validates the CI-built wheel against the private

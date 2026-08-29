@@ -44,6 +44,7 @@ from charter.kind_vocabulary import ArtifactKind, MissionTypeNotAnArtifactKind
 
 from specify_cli.cli.commands.charter.activate import (
     RESYNTHESIZE_HELP,
+    _render_kind_filtered_line,
     render_pack_config_error,
     run_full_synthesize,
     validate_pack_config,
@@ -192,6 +193,27 @@ def _render_cascade_deactivation(
             f"[yellow]Skipped (shared artifact)[/yellow]: {skip.urn} "
             f"(still referenced by {skip.referencing_active_urn})"
         )
+
+    # FR-007 (issue #3705): the deactivation-side half of C-002's
+    # cross-command symmetry (ADR 2026-08-20-1 Symmetry section) -- render
+    # the kind-filtered nodes `deactivation_plan` collected via the shared
+    # `_referenced_artifacts` seam instead of silently dropping them, via the
+    # SAME shared helper `activate.py`'s cascade-activation and no-cascade
+    # warning render paths already use (FR-009), so the wording is identical
+    # and never re-coined here. Resolves each URN's bare id to its
+    # config-stem id FIRST, the SAME `resolve_config_id(...)` call (with the
+    # same fallback) the `plan.deactivate` loop above already makes -- never
+    # the raw bare id from `urn.partition(":")` alone.
+    for urn in sorted(plan.not_cascaded_kind_filtered):
+        kind_value, _, _ = urn.partition(":")
+        kind_token = ArtifactKind(kind_value).operator_token
+        try:
+            config_id = resolve_config_id(
+                urn, doctrine_root=doctrine_root, org_roots=org_roots, layer_roots=layer_roots
+            )
+        except (UnknownArtifactIdError, ValueError):
+            config_id = urn.partition(":")[2]
+        _render_kind_filtered_line(kind_token, config_id)
 
 
 def deactivate_cmd(

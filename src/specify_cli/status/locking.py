@@ -8,13 +8,15 @@ the same planning repo paths, so these writes need an inter-process lock.
 
 from __future__ import annotations
 
-import subprocess
 import threading
 from contextlib import contextmanager
 from pathlib import Path
 from collections.abc import Iterator
 
-from filelock import FileLock, Timeout
+from filelock import FileLock
+
+from kernel.git_topology import GitTopologyError, git_common_dir
+from specify_cli.core.checkout_file_lock import LOCK_DIRECTORY, acquire_or_raise
 
 _thread_state = threading.local()
 
@@ -33,33 +35,29 @@ def _get_thread_locks() -> dict[str, tuple[FileLock, int]]:
 
 
 def _git_common_dir(repo_root: Path) -> Path:
-    """Resolve the git common dir shared by the repo and its worktrees."""
-    result = subprocess.run(
-        ["git", "rev-parse", "--git-common-dir"],
-        cwd=repo_root,
-        capture_output=True,
-        text=True,
-        encoding="utf-8",
-        errors="replace",
-        check=False,
-    )
-    if result.returncode != 0:
-        return repo_root / ".git"
+    """Resolve the git common dir shared by the repo and its worktrees.
 
-    common_dir = result.stdout.strip()
-    if not common_dir:
+    Delegates to the canonical :func:`kernel.git_topology.git_common_dir`
+    probe -- the same resolver ``specify_cli.review.verdict_commit_queue``
+    uses -- so this lock and the checkout-wide verdict-save queue converge on
+    the identical, symlink-canonicalized common dir for a given checkout
+    (worktree indirection collapsed the same way for both). Falls back to
+    ``<repo_root>/.git`` when the probe cannot resolve a common dir at all
+    (``repo_root`` is not a git repository, or git could not be invoked) --
+    this function's historical contract, preserved so a transient git failure
+    degrades status locking to a still-functional per-directory lock instead
+    of raising.
+    """
+    try:
+        return git_common_dir(repo_root)
+    except GitTopologyError:
         return repo_root / ".git"
-
-    resolved = Path(common_dir)
-    if not resolved.is_absolute():
-        resolved = (repo_root / resolved).resolve()
-    return resolved
 
 
 def feature_status_lock_path(repo_root: Path, mission_slug: str) -> Path:
     """Return the per-feature lock file path under the git common dir."""
     common_dir = _git_common_dir(repo_root)
-    return common_dir / "spec-kitty-locks" / f"{mission_slug}.status.lock"
+    return common_dir / LOCK_DIRECTORY / f"{mission_slug}.status.lock"
 
 
 @contextmanager
@@ -76,7 +74,6 @@ def feature_status_lock(
     safely wrap a larger transaction around helpers that also acquire the lock.
     """
     lock_path = feature_status_lock_path(repo_root, mission_slug)
-    lock_path.parent.mkdir(parents=True, exist_ok=True)
 
     held_locks = _get_thread_locks()
     lock_key = str(lock_path)
@@ -92,12 +89,14 @@ def feature_status_lock(
         return
 
     lock = FileLock(str(lock_path), timeout=timeout)
-    try:
-        lock.acquire()
-    except Timeout as exc:
-        raise FeatureStatusLockTimeoutError(
+    acquire_or_raise(
+        lock,
+        lock_path,
+        timeout_seconds=timeout,
+        build_timeout_error=lambda: FeatureStatusLockTimeoutError(
             f"Timed out acquiring feature status lock for {mission_slug}: {lock_path}"
-        ) from exc
+        ),
+    )
 
     held_locks[lock_key] = (lock, 1)
     try:

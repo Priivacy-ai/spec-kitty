@@ -4,7 +4,7 @@ description: 'Glossary context for orchestration: lifecycle and runtime orchestr
 doc_status: active
 updated: '2026-08-24'
 related:
-- docs/context/doctrine.md
+- docs/context/charter.md
 - docs/context/identity.md
 - docs/context/system-events.md
 - docs/context/technology-foundations.md
@@ -116,7 +116,7 @@ Terms describing lifecycle and runtime orchestration semantics.
 | **Context** | Orchestration |
 | **Status** | canonical |
 | **Applicable to** | `1.x`, `2.x` |
-| **Related terms** | [Mission Type](#mission-type), [step contract](#step-contract), [Procedure](./doctrine.md#procedure) |
+| **Related terms** | [Mission Type](#mission-type), [step contract](#step-contract), [Procedure](./charter.md#procedure) |
 
 ---
 
@@ -128,7 +128,7 @@ Terms describing lifecycle and runtime orchestration semantics.
 | **Context** | Orchestration |
 | **Status** | canonical |
 | **Applicable to** | `1.x`, `2.x` |
-| **Related terms** | [Mission Action](#mission-action), [Mission-Runtime YAML](#mission-runtime-yaml), [Procedure](./doctrine.md#procedure) |
+| **Related terms** | [Mission Action](#mission-action), [Mission-Runtime YAML](#mission-runtime-yaml), [Procedure](./charter.md#procedure) |
 
 ---
 
@@ -140,7 +140,7 @@ Terms describing lifecycle and runtime orchestration semantics.
 | **Context** | Orchestration |
 | **Status** | canonical (generic prose only) |
 | **Applicable to** | `1.x`, `2.x` |
-| **Rule** | Use [Mission Type](#mission-type), [Mission Action](#mission-action), [step contract](#step-contract), or [Procedure](./doctrine.md#procedure) when precision matters. |
+| **Rule** | Use [Mission Type](#mission-type), [Mission Action](#mission-action), [step contract](#step-contract), or [Procedure](./charter.md#procedure) when precision matters. |
 
 ---
 

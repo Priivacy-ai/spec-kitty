@@ -70,6 +70,83 @@ def _summary_with_lanes(tmp_path: Path, lanes: dict[str, list[str]]) -> Acceptan
     )
 
 
+def _summary_with_states(
+    tmp_path: Path,
+    lanes: dict[str, list[str]],
+    *,
+    provenance: dict[str, bool] | None = None,
+) -> AcceptanceSummary:
+    """Like :func:`_summary_with_lanes`, but carries per-WP operator provenance.
+
+    WP06 / T023: the provenance-free ``_summary_with_lanes`` builds no
+    ``work_packages``, so every ``canceled`` WP reads as synthetic. This variant
+    materializes a :class:`WorkPackageState` per WP with the operator-provenance
+    flag, exercising the command-level acceptable-ending decision (FR-001/FR-003)
+    that ``AcceptanceSummary`` makes per-WP.
+    """
+    from specify_cli.acceptance.summary_core import WorkPackageState
+
+    provenance = provenance or {}
+    full_lanes = {lane: list(lanes.get(lane, [])) for lane in LANES}
+    work_packages = [
+        WorkPackageState(
+            work_package_id=wp_id,
+            lane=lane,
+            title=wp_id,
+            path=f"tasks/{wp_id}.md",
+            has_lane_entry=True,
+            latest_lane=lane,
+            metadata={"agent": "test-agent"},
+            has_operator_provenance=provenance.get(wp_id, False),
+        )
+        for lane, wp_ids in full_lanes.items()
+        for wp_id in wp_ids
+    ]
+    summary = _summary_with_lanes(tmp_path, lanes)
+    object.__setattr__(summary, "work_packages", work_packages)
+    return summary
+
+
+def test_approved_plus_operator_cancellation_is_eligible(tmp_path: Path) -> None:
+    """T023: approved + operator-canceled -> acceptance eligible (FR-001/FR-009).
+
+    The operator cancellation is an acceptable ending, so ``all_done`` holds and
+    the canceled WP is NOT surfaced as a lane blocker; only the surviving
+    ``approved`` WP counts as delivered work.
+    """
+    summary = _summary_with_states(
+        tmp_path,
+        {"approved": ["WP01"], "canceled": ["WP02"]},
+        provenance={"WP02": True},
+    )
+
+    assert summary.all_done is True
+    outstanding = summary.outstanding()
+    assert "lane_blockers" not in outstanding
+    assert "delivered_nothing" not in outstanding
+
+
+def test_synthetic_cancellation_stays_a_blocker(tmp_path: Path) -> None:
+    """T023: a synthetic cancellation stays a blocker with the FR-003 diagnostic.
+
+    Provenance-free cancellation must not be usable to skip work silently: the
+    blocker names the WP and states operator-authored cancellation provenance is
+    required.
+    """
+    summary = _summary_with_states(
+        tmp_path,
+        {"approved": ["WP01"], "canceled": ["WP02"]},
+        provenance={"WP02": False},
+    )
+
+    assert summary.all_done is False
+    blockers = summary.outstanding()["lane_blockers"]
+    assert len(blockers) == 1
+    assert "WP02: canonical lane is 'canceled'" in blockers[0]
+    assert "operator-authored cancellation provenance required" in blockers[0]
+    assert "approved or done" in blockers[0]
+
+
 @pytest.mark.parametrize("lane", ["in_review", "blocked", "canceled"])
 def test_acceptance_summary_all_done_rejects_non_accepted_ready_lanes(tmp_path: Path, lane: str) -> None:
     summary = _summary_with_lanes(tmp_path, {"approved": ["WP01"], lane: ["WP02"]})
@@ -83,7 +160,15 @@ def test_acceptance_summary_all_done_rejects_non_accepted_ready_lanes(tmp_path: 
     [
         ("in_review", "complete the review"),
         ("blocked", "resolve the blocker"),
-        ("canceled", "reopen or replace it"),
+        # WP06 / T023: evolve the interim assertion to the FINAL FR-003 behavior.
+        # WP02 widened the canceled blocker into a SUPERSET ("operator-authored
+        # cancellation provenance required — reopen or replace it … approved or
+        # done") to keep this suite green while deferring the assertion's
+        # evolution to WP06. The canceled row now pins the FR-003 core — a
+        # synthetic cancellation must name the missing operator provenance, not
+        # merely offer generic "reopen or replace it" guidance (which is still
+        # asserted present, below, so nothing is weakened).
+        ("canceled", "operator-authored cancellation provenance required"),
     ],
 )
 def test_acceptance_summary_reports_actionable_lane_blockers(
@@ -100,6 +185,11 @@ def test_acceptance_summary_reports_actionable_lane_blockers(
     assert f"WP02: canonical lane is '{lane}'" in outstanding["lane_blockers"][0]
     assert expected_action in outstanding["lane_blockers"][0]
     assert "approved or done" in outstanding["lane_blockers"][0]
+    if lane == "canceled":
+        # The retained actionable guidance is NOT dropped by the FR-003
+        # strengthening above — both the provenance demand and the
+        # reopen/replace recovery hint must coexist.
+        assert "reopen or replace it" in outstanding["lane_blockers"][0]
     assert any(item.check == "lane_blockers" and expected_action in item.detail for item in failed_checks)
     assert any(item["check"] == "lane_blockers" and expected_action in item["detail"] for item in payload["failed_checks"])
 

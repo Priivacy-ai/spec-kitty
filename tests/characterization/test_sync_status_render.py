@@ -18,6 +18,7 @@ import pytest
 from types import SimpleNamespace
 from typing import Any
 
+from specify_cli.auth.verdict import HealthVerdict
 from specify_cli.sync.sync_status_core import (
     StatusFacts,
     build_boundary_sections,
@@ -27,6 +28,8 @@ from specify_cli.sync.sync_status_core import (
     derive_auth_recovery_pending,
     evaluate_boundary_coherence,
 )
+
+_OK_VERDICT = HealthVerdict(state="ok", evidence="access valid 15m; refresh valid 30d")
 
 
 def _daemon(**overrides: Any) -> SimpleNamespace:
@@ -75,7 +78,7 @@ def _facts(**overrides: Any) -> StatusFacts:
         "config_file": "/cfg.toml",
         "queue_size": 0,
         "body_queue_count": 0,
-        "auth_ok": True,
+        "auth_verdict": _OK_VERDICT,
         "daemon_status": _daemon(),
         "connection_status": None,
         "connection_note": None,
@@ -109,8 +112,9 @@ def test_status_rows_queue_empty_and_saas_enabled() -> None:
     rows = _rowmap(build_status_rows(_facts(queue_size=0, saas_enabled=True)))
     assert rows["Queue"] == "[green]0 event(s)[/green]"
     assert rows["SaaS Sync"] == "[green]Enabled[/green]"
-    # SaaS enabled + authenticated -> Authenticated row.
-    assert rows["Auth"] == "[green]Authenticated[/green]"
+    # SaaS enabled + ok verdict -> green Authenticated row that NAMES its evidence
+    # (#3723 rule 1): the row can never claim green without the token window.
+    assert rows["Auth"] == "[green]Authenticated[/green] (access valid 15m; refresh valid 30d)"
     assert rows["Server URL"] == "https://s"
     assert rows["Config File"] == "/cfg.toml"
 
@@ -121,15 +125,50 @@ def test_status_rows_queue_nonzero_is_yellow() -> None:
 
 
 def test_status_rows_saas_disabled_and_auth_flag_off() -> None:
-    rows = _rowmap(build_status_rows(_facts(saas_enabled=False, auth_ok=True)))
+    rows = _rowmap(build_status_rows(_facts(saas_enabled=False, auth_verdict=_OK_VERDICT)))
     assert "Disabled" in rows["SaaS Sync"]
-    # When the feature flag is off, auth_ok is ignored and the row is the flag note.
+    # When the feature flag is off, the verdict is ignored and the row is the flag note.
     assert rows["Auth"] == "[dim]Disabled by feature flag[/dim]"
 
 
 def test_status_rows_saas_enabled_but_unauthenticated() -> None:
-    rows = _rowmap(build_status_rows(_facts(saas_enabled=True, auth_ok=False)))
-    assert rows["Auth"] == "[yellow]Not authenticated[/yellow]"
+    fail_verdict = HealthVerdict(state="fail", evidence="no active session")
+    rows = _rowmap(build_status_rows(_facts(saas_enabled=True, auth_verdict=fail_verdict)))
+    assert rows["Auth"] == "[red]Not authenticated[/red] (no active session)"
+
+
+def test_status_rows_auth_unknown_is_yellow_and_never_green() -> None:
+    """#3723: an expired-access session whose refresh chain is unproven offline
+    renders ``unknown`` — a yellow, evidence-bearing row — never a green claim."""
+    unknown = HealthVerdict(
+        state="unknown",
+        evidence="access token expired; refresh chain not verified offline",
+    )
+    rows = _rowmap(build_status_rows(_facts(saas_enabled=True, auth_verdict=unknown)))
+    assert rows["Auth"] == (
+        "[yellow]Cannot verify[/yellow] "
+        "(access token expired; refresh chain not verified offline)"
+    )
+    assert "green" not in rows["Auth"]
+
+
+def test_status_rows_auth_states_map_to_three_distinct_texts() -> None:
+    ok_text = _rowmap(build_status_rows(_facts(auth_verdict=_OK_VERDICT)))["Auth"]
+    unknown_text = _rowmap(
+        build_status_rows(
+            _facts(auth_verdict=HealthVerdict(state="unknown", evidence="unproven"))
+        )
+    )["Auth"]
+    fail_text = _rowmap(
+        build_status_rows(
+            _facts(auth_verdict=HealthVerdict(state="fail", evidence="no active session"))
+        )
+    )["Auth"]
+    # The three states must each render a distinct row (pairwise distinct, not a
+    # golden-count on the collection size).
+    assert ok_text != unknown_text
+    assert unknown_text != fail_text
+    assert ok_text != fail_text
 
 
 def test_status_rows_daemon_running_with_endpoints() -> None:

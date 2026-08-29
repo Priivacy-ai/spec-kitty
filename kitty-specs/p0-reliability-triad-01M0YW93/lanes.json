@@ -1,0 +1,70 @@
+{
+  "version": 1,
+  "mission_slug": "p0-reliability-triad-01M0YW93",
+  "mission_id": "01M0YW93C7H11HKZQQA357DX9T",
+  "mission_branch": "kitty/mission-p0-reliability-triad-01M0YW93",
+  "target_branch": "fix/p0-reliability-triad",
+  "lanes": [
+    {
+      "lane_id": "lane-a",
+      "wp_ids": [
+        "WP01"
+      ],
+      "write_scope": [
+        "src/specify_cli/cli/commands/upgrade.py",
+        "tests/specify_cli/upgrade/test_upgrade_provisions_mission_type_activations.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "legacy-cleanup"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-b",
+      "wp_ids": [
+        "WP02"
+      ],
+      "write_scope": [
+        "src/specify_cli/lanes/stale_check.py",
+        "tests/lanes/test_merge.py",
+        "tests/lanes/test_stale_check.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-c",
+      "wp_ids": [
+        "WP03"
+      ],
+      "write_scope": [
+        "src/specify_cli/cli/commands/agent/workflow.py",
+        "src/specify_cli/cli/commands/agent/workflow_executor.py",
+        "src/specify_cli/lanes/implement_support.py",
+        "src/specify_cli/lanes/worktree_allocator.py",
+        "src/specify_cli/orchestrator_api/commands.py",
+        "tests/integration/test_wp_integrity_p0_repro.py",
+        "tests/lanes/test_worktree_allocator_atomicity.py",
+        "tests/specify_cli/cli/commands/agent/test_claim_ancestry_gate.py",
+        "tests/specify_cli/cli/commands/agent/test_implement_single_resolution.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "legacy-cleanup",
+        "workspace"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    }
+  ],
+  "computed_at": "2026-08-26T12:28:41.237644+00:00",
+  "computed_from": "dependency_graph+ownership",
+  "planning_artifact_wps": [],
+  "planning_commit_sha": "770100f11c4c18fc8c61a4d97f45b0a3e6baf2d2"
+}
