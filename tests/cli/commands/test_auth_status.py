@@ -428,6 +428,40 @@ class TestAuthStatusCommand:
         assert "legacy session" in result.stdout
 
 
+class TestAuthStatusHostileSessionEnums:
+    """#527: unknown enum fallthroughs must not become Rich markup.
+
+    These values are local session-file fields rather than SaaS payloads, but a
+    tampered or replayed file can still put markup-shaped bytes in them.
+    """
+
+    def test_hostile_auth_method_does_not_crash_and_renders_literally(self):
+        session = _make_session(auth_method="x[/]y")
+        mock_storage = _mock_storage_returning(session, backend="file")
+        with patch(
+            "specify_cli.auth.secure_storage.SecureStorage.from_environment",
+            return_value=mock_storage,
+        ):
+            reset_token_manager()
+            result = runner.invoke(app, ["status"])
+
+        assert result.exit_code == 0, result.stdout
+        assert "Unknown (x[/]y)" in _flat(result.stdout)
+
+    def test_hostile_storage_backend_does_not_crash_and_renders_literally(self):
+        session = _make_session(storage_backend="f[/]x")
+        mock_storage = _mock_storage_returning(session, backend="file")
+        with patch(
+            "specify_cli.auth.secure_storage.SecureStorage.from_environment",
+            return_value=mock_storage,
+        ):
+            reset_token_manager()
+            result = runner.invoke(app, ["status"])
+
+        assert result.exit_code == 0, result.stdout
+        assert "Unknown (f[/]x)" in _flat(result.stdout)
+
+
 # ---------------------------------------------------------------------------
 # SaaS endpoint line (#176) — pure formatters
 # ---------------------------------------------------------------------------

@@ -97,7 +97,7 @@ def status_impl() -> None:
     _print_storage_backend(session)
     console.print(f"  Session ID:     {session.session_id}")
     console.print(f"  Last used:      {_format_iso(session.last_used_at)}")
-    console.print(f"  Auth method:    {format_auth_method(session.auth_method)}")
+    console.print(f"  Auth method:    {escape(format_auth_method(session.auth_method))}")
 
 
 # ---------------------------------------------------------------------------
@@ -196,7 +196,7 @@ def _print_token_expiry(session: StoredSession) -> None:
 
 def _print_storage_backend(session: StoredSession) -> None:
     """Print the storage backend with a user-friendly label."""
-    label = format_storage_backend(session.storage_backend)
+    label = escape(format_storage_backend(session.storage_backend))
     console.print(f"  Storage:        {label}")
 
 
