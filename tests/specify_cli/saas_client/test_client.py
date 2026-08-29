@@ -455,19 +455,24 @@ def test_no_session_at_all_falls_through_to_the_refusal(tmp_path: Path, monkeypa
         load_auth_context(repo_root=tmp_path)
 
 
-def test_explicit_url_pairs_with_the_session_token(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, _no_env_auth: None) -> None:
-    """SPEC_KITTY_SAAS_URL stays authoritative for the target when it is set;
-    the session only ever supplies the missing bearer."""
+def test_oauth_bridge_uses_the_resolved_target_not_a_stale_env_copy(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, _no_env_auth: None) -> None:
+    """The OAuth-bridged saas_url must come from ``_resolved_server_target``,
+    never from a separately-read copy of ``SPEC_KITTY_SAAS_URL`` — even
+    though the two usually agree in practice, since ``resolve_server_target``
+    already puts env over config itself (``server_target.py:151``).
+
+    ``SPEC_KITTY_SAAS_URL`` is set here to a value that differs from
+    ``_bridge_env``'s target double (``https://team.example``) specifically
+    so the assertion below discriminates: it fails if the bridge falls back
+    to reading the env var directly instead of trusting the resolved target.
+    Proven by mutation: reintroducing #206's pass-1 bug
+    (``saas_url=url or bridged.saas_url`` at ``auth.py:82``) prefers the env
+    copy whenever it is set, which this would now catch (#235)."""
     monkeypatch.setenv("SPEC_KITTY_SAAS_URL", "https://env.example")
     _bridge_env(monkeypatch, _ScriptedSessionManager(_oauth_session()))
 
-    class _Target:
-        resolved_server_url = "https://env.example"
-
-    monkeypatch.setattr(saas_auth_module, "_resolved_server_target", lambda: _Target())
-
     ctx = load_auth_context(repo_root=tmp_path)
-    assert ctx.saas_url == "https://env.example"
+    assert ctx.saas_url == "https://team.example"
     assert ctx.token == "access-v1"
 
 
