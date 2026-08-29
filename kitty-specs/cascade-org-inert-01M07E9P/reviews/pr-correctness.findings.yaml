@@ -1,15 +1,15 @@
 lens: correctness
 coverage:
   surfaces_checked:
-    - "src/charter/context.py (build_charter_context_json T018 swap to _resolve_action_bundle)"
+    - "src/charter/activation/context.py (build_charter_context_json T018 swap to _resolve_action_bundle)"
     - "src/specify_cli/cli/commands/charter/_layer_roots.py (new resolve_org_root_chain, and its interaction with the unchanged single-Path resolve_layer_roots)"
     - "src/specify_cli/cli/commands/charter/activate.py (_source_urn/_drg_id_to_config_id org_roots threading, new _activate_cascade_target fallback loop, _render_cascade_activation/_render_no_cascade_warning org_roots threading, T017 call site)"
     - "src/specify_cli/cli/commands/charter/context.py (T017 CLI-level org_root truncation removal)"
     - "src/specify_cli/cli/commands/charter/deactivate.py (_source_urn/_active_urns/_render_cascade_deactivation org_roots threading)"
     - "src/specify_cli/dossier/rebaseline.py (_derive_repo_root, Indexer(repo_root=...) threading)"
-    - "charter.action_doctrine_bundle._resolve_action_bundle / _load_action_doctrine_bundle (pre-existing, not in diff, but load-bearing for T018 -- read to confirm org_root=None genuinely widens to the full chain)"
-    - "charter.kind_vocabulary.resolve_artifact_urn/resolve_config_id/_org_scan_dirs (pre-existing org_roots seam that activate.py/deactivate.py now actually reach)"
-    - "charter._drg_helpers.load_validated_graph (pre-existing org_roots param; confirmed org_roots=[] means 'no org layer', distinct from omitting the arg)"
+    - "charter.activation.action_doctrine_bundle._resolve_action_bundle / _load_action_doctrine_bundle (pre-existing, not in diff, but load-bearing for T018 -- read to confirm org_root=None genuinely widens to the full chain)"
+    - "charter.activation.kind_vocabulary.resolve_artifact_urn/resolve_config_id/_org_scan_dirs (pre-existing org_roots seam that activate.py/deactivate.py now actually reach)"
+    - "charter.activation._drg_helpers.load_validated_graph (pre-existing org_roots param; confirmed org_roots=[] means 'no org layer', distinct from omitting the arg)"
     - "specify_cli.dossier.indexer.Indexer.__init__ / manifest.py ManifestRegistry.load_manifest (confirmed repo_root=None is a safe no-op fallback, matching pre-fix behavior)"
     - "CharterPackManager.activate/deactivate (confirmed plan/commit non-mutating-on-failure seam makes _activate_cascade_target's multi-attempt retry safe, and confirmed deactivate() does not need the same retry loop since it validates against the active list, not the availability catalog)"
   tests_run: >-
@@ -18,7 +18,7 @@ coverage:
     tests/specify_cli/cli/commands/charter/test_org_cascade_chain.py -q
     -> 36 passed, 91s. Additionally wrote and ran a throwaway, repo-external
     script (/tmp/.../pr3534-check/verify_t017.py, never touching any workspace
-    file) that calls charter.context.build_charter_context/build_charter_context_json
+    file) that calls charter.activation.context.build_charter_context/build_charter_context_json
     directly, reusing test_context_org_chain.py's own fixture builders, once with
     org_root=org_roots[0] (simulating the CLI's pre-T017 truncated call) and once
     with org_root=None (the actual post-T017 CLI call shape). Confirmed empirically:
@@ -54,7 +54,7 @@ findings:
       build_charter_context/build_charter_context_json; pass org_root=None
       instead" (see context.py lines ~97/122/141 in the diff). But
       tests/charter/test_context_org_chain.py's _render_both() helper (lines
-      172-199) calls charter.context.build_charter_context and
+      172-199) calls charter.activation.context.build_charter_context and
       build_charter_context_json DIRECTLY, with org_root=None passed as a
       hardcoded literal -- it never imports or invokes
       specify_cli.cli.commands.charter.context.context() (the actual typer

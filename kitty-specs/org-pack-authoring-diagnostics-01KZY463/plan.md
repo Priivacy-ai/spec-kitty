@@ -25,7 +25,7 @@ reports clean, and part of the pack is inert or destructive at runtime:
 - **FR-004**: `validate_pack` gains a keyword-only `check_drg_root: bool = True` parameter and a
   new check: a pack with `drg/*.graph.yaml` fragments and no pack-root `*.graph.yaml` gets a
   `category="drg_root_graph_missing"` error, because the runtime
-  (`src/charter/_drg_helpers.py:load_validated_graph`) reads the pack root, not `drg/`. Per
+  (`src/charter/activation/_drg_helpers.py:load_validated_graph`) reads the pack root, not `drg/`. Per
   operator ruling #2 (`reviews/plan.ruling.md`), the two other `validate_pack()` callers are
   carved out, or not, separately: `pack_assembler.py`'s internal round-trip check keeps its
   unconditional `check_drg_root=False`, a structural guarantee about its own write paths.
@@ -70,7 +70,7 @@ surface in scope.
 `pack validate` already schema-scans, so no new I/O class is introduced, only one additional
 pass over files already being read.
 **Constraints**: C-001 (FR-001 is documentation-only, touches no code), C-002 (no
-`src/charter/_drg_helpers.py` change), C-003 (no fifth surface — exactly the four FRs), C-004
+`src/charter/activation/_drg_helpers.py` change), C-003 (no fifth surface — exactly the four FRs), C-004
 (targeted test packages, not the full suite).
 **Scale/Scope**: Three source files touched for code (`pack_validator.py`, `pack_assembler.py`,
 `doctrine.py`), one doc file for FR-001, four existing test files extended, one changelog entry
@@ -607,7 +607,7 @@ with Lane B.
 
 **Sibling-mission write-scope check (explicit, not silently assumed)**: sibling mission
 `org-pack-drg-root-graph-guard-01KZY0QT` (issue #3384) is concurrently in spec phase on
-`src/charter/_drg_helpers.py:87`. That file is **not** touched by this mission in any FR — C-002
+`src/charter/activation/_drg_helpers.py:87`. That file is **not** touched by this mission in any FR — C-002
 explicitly forbids it, and this plan's FR-004 design (a `pack_validator.py`-only additive check)
 was chosen specifically to avoid that surface. Checked directly: no overlap exists between this
 mission's touched-file set (`pack_validator.py`, `pack_assembler.py`, `doctrine.py`, the one

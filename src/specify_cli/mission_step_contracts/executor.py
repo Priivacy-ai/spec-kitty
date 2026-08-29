@@ -15,9 +15,9 @@ from pathlib import Path
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from charter.pack_context import PackContext
+    from charter.activation.pack_context import PackContext
 
-from charter._drg_helpers import load_validated_graph
+from charter.activation._drg_helpers import load_validated_graph
 from charter.drg import (
     ArtifactKind,
     DRGGraph,
@@ -294,7 +294,7 @@ class StepContractExecutor:
         "no contribution from that pack" instead of letting it crash
         composition.
 
-        Mirrors ``charter.action_doctrine_bundle._resolve_action_bundle``'s
+        Mirrors ``charter.activation.action_doctrine_bundle._resolve_action_bundle``'s
         established handling of the same ``load_validated_graph(...,
         org_roots=...)`` call: a configured org pack whose on-disk DRG layout
         does not conform to ``load_graph_or_dir`` (no ``graph.yaml``/
@@ -374,7 +374,7 @@ class StepContractExecutor:
         )
 
         try:
-            from charter.pack_context import PackContext  # noqa: PLC0415
+            from charter.activation.pack_context import PackContext  # noqa: PLC0415
 
             return PackContext.from_config(repo_root)
         except (OrgPackEnvVarUnsetError, OrgPackSubdirEscapeError):

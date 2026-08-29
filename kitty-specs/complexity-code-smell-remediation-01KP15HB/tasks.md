@@ -42,7 +42,7 @@
 | T029 | Make `mission.py` a thin shim re-exporting `app` from `mission_type.py` | WP05 | [P] independent | [D] |
 | T030 | Quality gate: ruff + mypy + pytest green on WP05 | WP05 | — | [D] |
 | T031 | Guard `workflow.py` call to `top_level_implement()` against OptionInfo leakage; redirect charter import; add programmatic regression test (#571) | WP01 | [P] independent of T001–T006 | [D] |
-| T032 | Characterize and decompose S3776-violating functions in `src/charter/catalog.py` (#594) | WP03 | — | [D] |
+| T032 | Characterize and decompose S3776-violating functions in `src/charter/activation/catalog.py` (#594) | WP03 | — | [D] |
 
 ---
 

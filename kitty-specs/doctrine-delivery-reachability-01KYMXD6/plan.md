@@ -197,7 +197,7 @@ C-001-legal in all three directions.
 
 | Violation | Why Needed | Simpler Alternative Rejected Because |
 |-----------|------------|-------------------------------------|
-| Four concerns land in `src/charter/context.py` (3,227 lines) | The bundle, the slot table, the render and the reference block all live there; splitting the module is a different mission with its own blast radius | Extracting a resolution surface first would double this mission's diff and put a refactor on the critical path of B1's unblock. **Bounded response**: no concern may *grow* `context.py` net — each extracts the logic it touches into a named helper, so the module shrinks or holds flat |
+| Four concerns land in `src/charter/activation/context.py` (3,227 lines) | The bundle, the slot table, the render and the reference block all live there; splitting the module is a different mission with its own blast radius | Extracting a resolution surface first would double this mission's diff and put a refactor on the critical path of B1's unblock. **Bounded response**: no concern may *grow* `context.py` net — each extracts the logic it touches into a named helper, so the module shrinks or holds flat |
 | The writer registry is hosted in `specify_cli`, the top layer, rather than beside the derived helper in `doctrine` | A registry naming charter and specify_cli members cannot live in `doctrine` — it reds `test_layer_rules.py:282` and `:293`, two of this mission's own named gates. `charter` fares no better (`:311`). Only the top layer can statically hold all members | Import-time self-registration is the obvious alternative and is **worse**: membership becomes import-order-dependent, which re-opens the "a writer that never joins is invisible" gap the contract already concedes. Tests are not layered, and the precedent exists — `tests/doctrine/.../test_model_strictness_roundtrip.py:542` already imports `specify_cli.migration` |
 | Four named sets rather than one: two channels × two depths on the action side | Reach without delivery is this mission's defect class (C-008), so each channel must be measured where it delivers. Compact is the steady state and the stricter action-channel depth | A single unioned set was the original plan and is **unsound** — three independent lenses showed it certifies artefacts that no channel renders. The d=1↔d=2 spread turned out to be 7 nodes rather than 49, so the two *depths* are cheap; the two *channels* are what carry the cost, and they are not optional |
 
@@ -214,7 +214,7 @@ C-001-legal in all three directions.
 - **Relevant requirements**: FR-001, FR-002; SC-004, SC-009; C-006, C-010
 - **Affected surfaces**: `src/doctrine/drg/migration/extractor.py` (derived helper + registry anchor),
   `src/doctrine/drg/models.py` (`DRGGraph.model_config`), `src/doctrine/drg/merge.py`
-  (`_bridge_org_edge_to_drg_edge`), `src/charter/synthesizer/project_drg.py`,
+  (`_bridge_org_edge_to_drg_edge`), `src/charter/activation/synthesizer/project_drg.py`,
   `src/specify_cli/migration/rewrite_opposed_by.py`, `src/charter/drg.py` (new facade),
   `tests/doctrine/drg/test_model_strictness_roundtrip.py`,
   `tests/charter/synthesizer/test_project_drg.py`
@@ -255,7 +255,7 @@ C-001-legal in all three directions.
   hosting it once in `artifact_kinds.py` instead of four hand-maintained copies.
 - **Relevant requirements**: FR-006, FR-007; C-001, C-010
 - **Affected surfaces**: `src/doctrine/artifact_kinds.py`, `src/doctrine/service.py:19`,
-  `src/charter/kind_vocabulary.py:79`, `src/charter/pack_manager.py:136`,
+  `src/charter/activation/kind_vocabulary.py:79`, `src/charter/activation/pack_manager.py:136`,
   `src/specify_cli/cli/commands/doctrine.py:442`, `tests/doctrine/drg/test_kind_mapping_totality.py`
 - **Sequencing/depends-on**: none
 - **Risks** (revised post-squad):
@@ -331,7 +331,7 @@ C-001-legal in all three directions.
 
 - **Purpose**: One activation store; absence means empty, not "all built-ins".
 - **Relevant requirements**: FR-017, FR-018; SC-007; NFR-001, NFR-006
-- **Affected surfaces**: `src/charter/pack_context.py` (`_read_activated_*`,
+- **Affected surfaces**: `src/charter/activation/pack_context.py` (`_read_activated_*`,
   `_load_charter_activation_source`), `.kittify/config.yaml` surface, a new upgrade migration,
   `tests/doctrine/drg/migration/test_extractor_projection.py::_charter_activated_urns`
 - **Also owns (moved from the dissolved IC-07)**: the **fail-closed policy** (FR-012's error half,
@@ -368,9 +368,9 @@ C-001-legal in all three directions.
 - **Purpose**: Make resolution and delivery the same thing — every kind the bundle resolves appears in
   the rendered context, on every load.
 - **Relevant requirements**: FR-009, FR-010, FR-011; SC-001, SC-002; NFR-003, NFR-006
-- **Affected surfaces**: `src/charter/context.py` (`_ActionDoctrineBundle`,
-  `_ACTION_BUNDLE_SLOT_BY_KIND`, `_render_bootstrap_text`, the compact returns), `src/charter/compact.py`,
-  `src/charter/resolver.py`
+- **Affected surfaces**: `src/charter/activation/context.py` (`_ActionDoctrineBundle`,
+  `_ACTION_BUNDLE_SLOT_BY_KIND`, `_render_bootstrap_text`, the compact returns), `src/charter/activation/compact.py`,
+  `src/charter/activation/resolver.py`
 - **Also owns (moved from the dissolved IC-07)**: the **mission-type grain** at `workflow.py:738` and
   `workflow_executor.py:459`. It selects the bundle IC-06 delivers and is inert without it, exactly as
   `resolver.py`'s `[]` literals are. Keeping it downstream would let IC-06 pass SC-001 through a test
@@ -432,7 +432,7 @@ C-001-legal in all three directions.
   implement loop on every work package, so they are a first-class entry vector — but only
   profile-cited **directives and tactics** render today.
 - **Relevant requirements**: FR-020, FR-016 (profile-channel set); SC-001, SC-005; C-008
-- **Affected surfaces**: `src/charter/context.py:2745-2764` (`_render_profile_sections`),
+- **Affected surfaces**: `src/charter/activation/context.py:2745-2764` (`_render_profile_sections`),
   `_render_profile_directives` / `_render_profile_tactics` (`:2757-2758`), the profile resolution path
   in `AgentProfileRepository`, and the profile-channel reachability helper
 - **Sequencing/depends-on**: IC-04 (the channel's named set); parallel with IC-06 — different render
@@ -456,7 +456,7 @@ C-001-legal in all three directions.
 - **Purpose**: Every emitted pointer opens; composition varies by action instead of being exhausted by
   a fixed kind order.
 - **Relevant requirements**: FR-013, FR-014; SC-006
-- **Affected surfaces**: `src/charter/context.py:1169` and `:1531`,
+- **Affected surfaces**: `src/charter/activation/context.py:1169` and `:1531`,
   `_filter_references_for_action:1484`, `_LIBRARY` path resolution
 - **Sequencing/depends-on**: **none — parallel with IC-06.** The first revision declared IC-06, but
   `references` is sourced from the `charter.yaml` catalog and passed in, not derived from the bundle
@@ -514,7 +514,7 @@ Four files are claimed by two or more concerns. This is how lane execution split
 
 | File | Claimants | Resolution |
 |---|---|---|
-| `src/charter/context.py` | IC-06, IC-07, IC-08 | Three concerns in a 3,227-line module under a shared no-net-growth constraint. Assign one lane or serialize |
+| `src/charter/activation/context.py` | IC-06, IC-07, IC-08 | Three concerns in a 3,227-line module under a shared no-net-growth constraint. Assign one lane or serialize |
 | `src/doctrine/service.py` | IC-02 (`_PROJECT_KIND_DIRS`), IC-03 (`assets` property) | Land IC-02 wholly first, or give IC-03 only the `asset` rows |
 | `src/specify_cli/cli/commands/doctrine.py` | IC-02 (`:431`, `:442`, `:464`), IC-03 (asset subcommands) | Same |
 | `tests/doctrine/drg/migration/test_extractor_projection.py` | IC-04 (renames the set), IC-05 (repoints `_charter_activated_urns`) | One 604-line file, one lane |

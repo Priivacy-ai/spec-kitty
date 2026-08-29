@@ -23,7 +23,7 @@ from unittest.mock import patch
 
 import pytest
 
-from charter.mission_type_profiles import ResolvedMissionType
+from charter.activation.mission_type_profiles import ResolvedMissionType
 from specify_cli.core.mission_creation import create_mission_core
 from specify_cli.runtime.resolver import TemplateConfigurationError
 
@@ -192,7 +192,7 @@ def test_template_configuration_failure_emits_no_lifecycle_events(tmp_path: Path
         patch(f"{_CORE_MODULE}.is_git_repo", return_value=True),
         patch(f"{_CORE_MODULE}.get_current_branch", return_value="main"),
         patch(
-            "charter.mission_type_profiles.resolve_mission_type_context",
+            "charter.activation.mission_type_profiles.resolve_mission_type_context",
             return_value=invalid_context,
         ),
         pytest.raises(TemplateConfigurationError),

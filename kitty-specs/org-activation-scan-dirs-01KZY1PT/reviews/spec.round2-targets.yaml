@@ -22,10 +22,10 @@ findings:
       - artifact: "spec.md:114-119 (unchanged 'Net effect' paragraph, part of the still-authoritative Problem-restated section)"
       - artifact: "spec.md:178-186 (new Acceptance Scenario 5, added by this revision)"
       - artifact: "spec.md:138-141 (revised 'Why this priority', narrowed by this revision)"
-      - code: "src/charter/pack_manager.py:601-616 (CharterPackManager.activate calls plan_activation with default_ids = _load_default_pack().get(yaml_key, []))"
-      - code: "src/charter/pack_manager.py:511-518 (_load_default_pack reads the STATIC shipped src/charter/packs/default.yaml)"
-      - code: "src/charter/packs/default.yaml:1-3 ('Default charter pack — shipped with spec-kitty. Contains all built-in artifact IDs across all 9 activation kinds.')"
-      - code: "src/charter/activation_engine.py:255-266 (FR-021: when the kind has no explicit activation set, default_ids are materialized into the plan before the requested artifact_id is appended)"
+      - code: "src/charter/activation/pack_manager.py:601-616 (CharterPackManager.activate calls plan_activation with default_ids = _load_default_pack().get(yaml_key, []))"
+      - code: "src/charter/activation/pack_manager.py:511-518 (_load_default_pack reads the STATIC shipped src/charter/activation/packs/default.yaml)"
+      - code: "src/charter/activation/packs/default.yaml:1-3 ('Default charter pack — shipped with spec-kitty. Contains all built-in artifact IDs across all 9 activation kinds.')"
+      - code: "src/charter/activation/activation_engine.py:255-266 (FR-021: when the kind has no explicit activation set, default_ids are materialized into the plan before the requested artifact_id is appended)"
     claim: >
       The unchanged 'Net effect' paragraph (untouched by round 1) says: "activating
       *any single* built-in or project artifact by stem silently evicts **every** org-pack

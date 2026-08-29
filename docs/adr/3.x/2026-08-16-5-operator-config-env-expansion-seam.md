@@ -68,7 +68,7 @@ Concretely, as shipped:
   resolved path. `.kitty.env` may set `SPEC_KITTY_PACKS_ROOT` as a per-machine *resolution*
   override; because provenance stores the symbol, the machine path is never baked in. The
   emit side runs through one shared path→token normalizer consumed by both carriers — the
-  charter catalog source (`src/charter/compiler.py`) and the agent-profile manifest source
+  charter catalog source (`src/charter/activation/compiler.py`) and the agent-profile manifest source
   (`src/specify_cli/tool_surface/profiles/projection.py`) — so the two emit sites cannot
   drift. An idempotent heal migration
   (`src/specify_cli/upgrade/migrations/m_3_2_7_heal_provenance_paths.py`) rewrites existing

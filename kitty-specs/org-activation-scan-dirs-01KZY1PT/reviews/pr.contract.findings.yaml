@@ -14,16 +14,16 @@ findings:
       so that CI ratchet test will fail on this branch
     evidence:
       - artifact: "diff origin/main...HEAD"
-      - code: "src/charter/kind_vocabulary.py:224 (post-diff: `legacy = flat / \"built-in\"`, a `<path> / \"built-in\"` filesystem-join BinOp)"
-      - code: "tests/architectural/test_built_in_location_authority.py:206 (`_KNOWN_JOIN_ALLOWLIST` entry: `(Path(\"src/charter/kind_vocabulary.py\"), 206)` -- pinned to the OLD line, last refreshed 2026-08-11 per the entry's own comment: \"the join was extracted out of _scan_roots into _org_scan_dirs ... moving it from line 183 to 206\")"
+      - code: "src/charter/activation/kind_vocabulary.py:224 (post-diff: `legacy = flat / \"built-in\"`, a `<path> / \"built-in\"` filesystem-join BinOp)"
+      - code: "tests/architectural/test_built_in_location_authority.py:206 (`_KNOWN_JOIN_ALLOWLIST` entry: `(Path(\"src/charter/activation/kind_vocabulary.py\"), 206)` -- pinned to the OLD line, last refreshed 2026-08-11 per the entry's own comment: \"the join was extracted out of _scan_roots into _org_scan_dirs ... moving it from line 183 to 206\")"
       - code: "tests/architectural/test_built_in_location_authority.py:270-298 (_find_builtin_joins: flags any `ast.BinOp` with `op=Div` whose right operand is the `ast.Constant` \"built-in\" -- explicitly designed to catch variable-indirected joins like `flat / \"built-in\"`, not just the direct `root / kind.plural / \"built-in\"` chain)"
       - code: "tests/architectural/test_built_in_location_authority.py:305-325 (test_no_builtin_path_joins_outside_pack_paths_authority: `remaining = sorted(lineno for lineno in offending_lines if (rel, lineno) not in _KNOWN_JOIN_ALLOWLIST)`; fails if `remaining` is non-empty)"
-      - artifact: "empirical AST verification (python3, no pytest/uv invocation, no tree mutation): parsed the current src/charter/kind_vocabulary.py with the stdlib ast module and re-implemented the test's exact BinOp/Constant('built-in') detection -- confirmed the sole offending join in this file is now at line 224, not 206"
+      - artifact: "empirical AST verification (python3, no pytest/uv invocation, no tree mutation): parsed the current src/charter/activation/kind_vocabulary.py with the stdlib ast module and re-implemented the test's exact BinOp/Constant('built-in') detection -- confirmed the sole offending join in this file is now at line 224, not 206"
     claim: >-
       Pre-diff, `_org_scan_dirs` built its one candidate directory as a
       single chained join `root / kind.plural / \"built-in\"` at line 206 of
-      origin/main:src/charter/kind_vocabulary.py (confirmed via `git show
-      origin/main:src/charter/kind_vocabulary.py | grep -n "candidate = root"`
+      origin/main:src/charter/activation/kind_vocabulary.py (confirmed via `git show
+      origin/main:src/charter/activation/kind_vocabulary.py | grep -n "candidate = root"`
       -> line 206), which is exactly the line the architectural ratchet's
       `_KNOWN_JOIN_ALLOWLIST` names as the one deliberately-exempted
       org-tier "built-in" join in this file. The diff splits that single
@@ -50,8 +50,8 @@ findings:
     remediation: >-
       Update the `_KNOWN_JOIN_ALLOWLIST` entry in
       tests/architectural/test_built_in_location_authority.py from
-      `(Path("src/charter/kind_vocabulary.py"), 206)` to
-      `(Path("src/charter/kind_vocabulary.py"), 224)` (the new location of
+      `(Path("src/charter/activation/kind_vocabulary.py"), 206)` to
+      `(Path("src/charter/activation/kind_vocabulary.py"), 224)` (the new location of
       the `flat / "built-in"` join), and refresh the adjacent "FRESHENED"
       comment to record this mission's landing and the new rationale (the
       join now reads the pre-existing `flat` variable rather than

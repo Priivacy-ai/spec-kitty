@@ -25,9 +25,9 @@ create_intent:
 execution_mode: code_change
 mission_id: 01KZJQN68SWZ7T1YKGDB4Q4EVH
 owned_files:
-- src/charter/synthesizer/interview_mapping.py
-- src/charter/synthesizer/targets.py
-- src/charter/synthesizer/project_drg.py
+- src/charter/activation/synthesizer/interview_mapping.py
+- src/charter/activation/synthesizer/targets.py
+- src/charter/activation/synthesizer/project_drg.py
 - tests/charter/synthesizer/test_edge_wiring.py
 tags: []
 tracker_refs: []

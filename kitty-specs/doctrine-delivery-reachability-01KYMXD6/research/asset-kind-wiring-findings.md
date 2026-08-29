@@ -106,7 +106,7 @@ algorithm.**
 project tier silently becomes `.kittify/doctrine/assets/` (plural), diverging from the singular
 convention of the four mapped kinds. Adding `"assets": "asset"` is *literally half* of #3038's
 proposed fix. **#3038's second half is orthogonal**: `_KIND_TO_NODE_KIND`
-(`src/charter/synthesizer/project_drg.py:44-62`) governs charter-synthesis targets, not general
+(`src/charter/activation/synthesizer/project_drg.py:44-62`) governs charter-synthesis targets, not general
 project-tier discovery. Nothing in asset resolution touches it.
 
 **#3036 is orthogonal.** Verified by inspection (no mutation):
@@ -120,7 +120,7 @@ No asset code path is involved; the two proceed in parallel.
 ## 6. Blast radius — zero, if scoped to resolve-not-auto-install
 
 Built-in doctrine is **package data, not project-installed**. A `path` / `list` command resolves
-inside site-packages via `resolve_doctrine_root()` (`src/charter/catalog.py:153-179`,
+inside site-packages via `resolve_doctrine_root()` (`src/charter/activation/catalog.py:153-179`,
 `importlib.resources` first, dev-layout fallback). **No upgrade migration is required and nothing
 new lands in any consumer project on upgrade.**
 

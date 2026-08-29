@@ -17,7 +17,7 @@ findings:
       project (this repository). No new directory, no new package — one function edited in place, two
       test files (one extended, one new) ..."'
   - artifact: plan.md § Campsite-Clean Scope — "the implementing WP must update this docstring sentence"
-      (the `_scan_roots` docstring at `src/charter/kind_vocabulary.py:158-160`)
+      (the `_scan_roots` docstring at `src/charter/activation/kind_vocabulary.py:158-160`)
   claim: 'This is the same defect class rounds 1 and 2 already fixed twice elsewhere (Project Structure''s
     tree comment itself, and The Seam''s "Production surface" bullet): a summary sentence claiming only
     `_org_scan_dirs` is edited, contradicting the mandatory `_scan_roots` docstring edit established in
@@ -44,10 +44,10 @@ findings:
     is a third, still-unpatched echo of the same production-edit-count contradiction
   evidence:
   - artifact: 'plan.md § Technical Context — "**Scale/Scope**: One function (`_org_scan_dirs`), ~5 LOC
-      changed in one file (`src/charter/kind_vocabulary.py`), plus test changes in exactly two test files
+      changed in one file (`src/charter/activation/kind_vocabulary.py`), plus test changes in exactly two test files
       ..."'
   - artifact: plan.md § Campsite-Clean Scope — "the implementing WP must update this docstring sentence"
-      (the `_scan_roots` docstring at `src/charter/kind_vocabulary.py:158-160`)
+      (the `_scan_roots` docstring at `src/charter/activation/kind_vocabulary.py:158-160`)
   - artifact: plan.md § The Seam (round-3 fixed) — "`_org_scan_dirs` (`:200-209`) is the sole *behavioral*
       edit ... `_scan_roots`'s docstring is also edited, though"
   claim: 'Same defect class as PLAN-FRESH3-001 and the two prior rounds'' findings, in a fourth location:
@@ -65,7 +65,7 @@ findings:
 
     '
   remediation: 'Append a clause to Scale/Scope acknowledging the docstring edit, e.g.: "One function''s
-    behavior changed (`_org_scan_dirs`), ~5 LOC, in one file (`src/charter/kind_vocabulary.py`) — plus
+    behavior changed (`_org_scan_dirs`), ~5 LOC, in one file (`src/charter/activation/kind_vocabulary.py`) — plus
     a docstring-only update to that function''s caller (`_scan_roots`, see Campsite-Clean Scope) in the
     same file — plus test changes in exactly two test files ..."
 

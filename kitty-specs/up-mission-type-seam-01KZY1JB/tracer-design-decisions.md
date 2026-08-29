@@ -21,7 +21,7 @@ Considered three shapes for making mission-type resolution project-aware:
   assertions in that gate — a "new" unaccounted-for inert slot, and a "stale" baseline row with
   no matching producer. Confirmed this would happen before rejecting the option, not assumed.
 - **(c) Add a new, separate, module-level layered lookup**, entered at
-  `resolve_mission_type_context` (`src/charter/mission_type_profiles.py`), keyed on
+  `resolve_mission_type_context` (`src/charter/activation/mission_type_profiles.py`), keyed on
   `(mission_types_dirs, pack_context)`, reusing the existing `_PackContextLike` structural
   `Protocol` already defined in `doctrine.missions.mission_step_repository` for exactly this
   purpose (it exists there specifically so a sibling module can build a project-scoped cache key

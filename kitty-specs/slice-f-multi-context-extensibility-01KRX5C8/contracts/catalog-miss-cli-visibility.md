@@ -4,7 +4,7 @@
 > Closes: FR-130, FR-131, FR-132 + NFR-006 | Companions: [charter-scope-resolution.md](charter-scope-resolution.md)
 > Data model: [../data-model.md §8](../data-model.md#8-catalogmissevent--logging-payload-extension-fr-131)
 
-The catalog-miss CLI visibility contract closes RISK-3 (Mission B): operator-visible warning surface for catalog misses caused by typo'd or missing charter selections. Today the `_LOGGER.warning(...)` path in `charter._catalog_miss` is silently dropped because the spec-kitty CLI installs no log handler.
+The catalog-miss CLI visibility contract closes RISK-3 (Mission B): operator-visible warning surface for catalog misses caused by typo'd or missing charter selections. Today the `_LOGGER.warning(...)` path in `charter.activation._catalog_miss` is silently dropped because the spec-kitty CLI installs no log handler.
 
 ---
 
@@ -56,7 +56,7 @@ logging.captureWarnings(True)
 
 The handler MUST be installed at process startup so subprocess invocations (FR-132 test) see warnings on stderr.
 
-### Catalog-miss emission contract — `src/charter/_catalog_miss.py`
+### Catalog-miss emission contract — `src/charter/activation/_catalog_miss.py`
 
 The existing `_LOGGER.warning(message, extra=extra)` call site MUST emit the following fields in `extra=` (FR-131):
 

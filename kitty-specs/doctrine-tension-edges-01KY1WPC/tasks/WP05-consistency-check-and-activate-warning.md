@@ -29,13 +29,13 @@ history:
   actor: system
   action: Prompt generated via /spec-kitty.tasks
 agent_profile: python-pedro
-authoritative_surface: src/charter/consistency_check.py
+authoritative_surface: src/charter/activation/consistency_check.py
 create_intent:
 - tests/charter/test_tension_unreconciled.py
 execution_mode: code_change
 model: ''
 owned_files:
-- src/charter/consistency_check.py
+- src/charter/activation/consistency_check.py
 - src/specify_cli/cli/commands/charter/_app.py
 - tests/charter/test_consistency_check.py
 - tests/charter/test_tension_unreconciled.py
@@ -55,7 +55,7 @@ Use the `/ad-hoc-profile-load` skill to load the agent profile specified in the 
 - **Role**: `{{role}}`
 - **Agent/tool**: `{{agent}}`
 
-If no profile is specified, run `spec-kitty agent profile list` and select the best match for `task_type: implement` and `authoritative_surface: src/charter/consistency_check.py`.
+If no profile is specified, run `spec-kitty agent profile list` and select the best match for `task_type: implement` and `authoritative_surface: src/charter/activation/consistency_check.py`.
 
 ---
 
@@ -80,7 +80,7 @@ Done means (per `contracts/tension-finding.md` and spec.md US1/US2/SC-001/SC-002
 
 ## Context & Constraints
 
-- `ConsistencyReport` currently has: `coherent`, `unknown_references`, `missing_from_doctrine`, `kind_violations`, `reference_id_divergences`, `graph_kind_gaps`, `verification_errors`, `suggestions`, plus a `to_json()` method — verified by reading `src/charter/consistency_check.py` directly. Add `unreconciled_tensions` alongside these; update `to_json()` to include it.
+- `ConsistencyReport` currently has: `coherent`, `unknown_references`, `missing_from_doctrine`, `kind_violations`, `reference_id_divergences`, `graph_kind_gaps`, `verification_errors`, `suggestions`, plus a `to_json()` method — verified by reading `src/charter/activation/consistency_check.py` directly. Add `unreconciled_tensions` alongside these; update `to_json()` to include it.
 - **NFR-001's trap**: "a no-op checker returning `[]` fails this requirement" is written into the spec precisely because it's an easy way to accidentally ship something that looks done (no crashes, tests for the "no finding" case pass) but never actually fires. Write the positive-finding test (T029) before or alongside the implementation, not after — this is the recommended red-first order for exactly this reason.
 - This WP depends on WP01 (relations exist) and WP02 (the built-in reconciler + tension edges exist — required for SC-002's before/after assertion to have something real to remove/restore) only. No technical dependency on WP04: this WP's scan only ever looks at `in_tension_with`/`reconciles_tension` edges among directive/tactic nodes, never `rejects` edges or `anti_pattern` nodes — WP04's activation-filter wiring is orthogonal, and this WP can run in parallel with it.
 
@@ -98,11 +98,11 @@ Implementation command: `spec-kitty agent action implement WP05 --agent <name>` 
 
 - **Purpose**: The data shape both this WP's surfaces (consistency-check, activate) and `contracts/tension-finding.md` are built around.
 - **Steps**:
-  1. In `src/charter/consistency_check.py`, add a `TensionFinding` dataclass (frozen): `pair: tuple[str, str]` (sorted URN pair) and `resolution_paths: tuple[str, str] = ("deactivate one side", "activate a reconciler")` — match `contracts/tension-finding.md`'s exact strings, they are asserted verbatim by SC-001.
+  1. In `src/charter/activation/consistency_check.py`, add a `TensionFinding` dataclass (frozen): `pair: tuple[str, str]` (sorted URN pair) and `resolution_paths: tuple[str, str] = ("deactivate one side", "activate a reconciler")` — match `contracts/tension-finding.md`'s exact strings, they are asserted verbatim by SC-001.
   2. Add `unreconciled_tensions: list[TensionFinding] = field(default_factory=list)` to `ConsistencyReport`.
   3. Update `to_json()` to serialize the new field per the JSON shape in `contracts/tension-finding.md` (`type: "tension_unreconciled"`, `pair`, `resolution_paths`).
   4. **Do not** add `unreconciled_tensions` to whatever computation currently produces the `coherent` boolean — read that reduction logic and confirm it stays untouched (NFR-001).
-- **Files**: `src/charter/consistency_check.py`
+- **Files**: `src/charter/activation/consistency_check.py`
 - **Parallel?**: No — everything else in this WP builds on this shape.
 
 ### Subtask T025 – Implement the tension scan
@@ -112,14 +112,14 @@ Implementation command: `spec-kitty agent action implement WP05 --agent <name>` 
   1. Over the activation-filtered graph, find every edge with `relation == Relation.IN_TENSION_WITH` where both endpoints are in the active set (reuse whatever activation-filtering entry point the rest of `consistency_check.py` already uses — do not re-implement activation filtering here).
   2. Key each finding on the sorted URN pair (`tuple(sorted((source, target)))`) so a pair authored in either direction, or discovered from either traversal order, dedupes to exactly one entry (Edge Case: symmetric authoring drift).
   3. Do NOT compute any transitive closure — only ever look at declared `IN_TENSION_WITH` edges directly; `A⋈B` + `B⋈C` must never synthesize or flag `A⋈C` (INV-002). This should fall out naturally from only iterating declared edges — do not add any reachability/closure step.
-- **Files**: `src/charter/consistency_check.py`
+- **Files**: `src/charter/activation/consistency_check.py`
 - **Parallel?**: No — sequential with T026/T027 (same function, being built up).
 
 ### Subtask T026 – Implement the reconciliation check
 
 - **Purpose**: FR-002/FR-009 — a pair is resolved only when BOTH sides are bridged.
 - **Steps**: For each candidate pair from T025, check whether any currently-active artefact has a `reconciles_tension` edge to **both** `pair[0]` and `pair[1]`. If yes, the pair is resolved and produces no finding. If only one side has a `reconciles_tension` edge from some active artefact (even the same one), the pair is still unreconciled (US2 sc2 — half-reconciled does not resolve).
-- **Files**: `src/charter/consistency_check.py`
+- **Files**: `src/charter/activation/consistency_check.py`
 - **Parallel?**: No — sequential after T025.
 - **Notes**: "Any active artefact" — not necessarily the same reconciler for both edges in principle, though in practice (per WP02) `reconcile-change-scope-tensions` supplies both. Implement the general rule (both sides bridged by *some* active reconciler(s), not necessarily one specific one) since spec.md's Edge Cases (N-way / reconciler-in-tension) implies generality, not a single-reconciler special case.
 
@@ -127,7 +127,7 @@ Implementation command: `spec-kitty agent action implement WP05 --agent <name>` 
 
 - **Purpose**: FR-009 — "the DRG load fails closed into verification_errors (not swallowed)."
 - **Steps**: Wrap the tension scan (T025/T026) so that any exception during graph load/traversal appends a descriptive entry to `verification_errors` and does NOT result in `unreconciled_tensions` silently being `[]`. If `consistency_check.py` has an existing try/except pattern for this (check how `graph_kind_gaps` or another field's computation handles its own failure mode), mirror it exactly rather than inventing a new error-handling shape.
-- **Files**: `src/charter/consistency_check.py`
+- **Files**: `src/charter/activation/consistency_check.py`
 - **Parallel?**: No — wraps T025/T026.
 
 ### Subtask T028 – Add the `charter activate` warning

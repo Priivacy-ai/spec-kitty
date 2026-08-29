@@ -10,7 +10,7 @@ This is a refactor/correctness mission, not a schema mission — no new persiste
 - **Invariant (target)**: `set(RELATION_DESCRIPTIONS) == set(Relation)` and every value is a non-empty string (enforced by `tests/doctrine/drg/test_models.py`, converted from a `== {3}` pin).
 - **Emission status** (drives the descriptions, not edges): `applies`=1 edge, `scope`=157 edges (contested — describe distinctly, `applies desc != scope desc`); `vocabulary`/`refines`/`delegates_to`=0 edges everywhere (dormant); `enhances`/`overrides`/`replaces`=0 in built-in **by design** (org-pack overlay relations). No edges are rewired (C-006).
 
-### `PackContext.activated_<kind>` — `src/charter/pack_context.py`
+### `PackContext.activated_<kind>` — `src/charter/activation/pack_context.py`
 - **Holds**: config **stems** (e.g. `001-architectural-integrity-standard`), three-state (`None` = default-allow; empty frozenset = allow-none; populated = allow-listed). **Unchanged by this mission** (the gate resolves at read time; the field stays stems).
 - **Roots**: `PackContext` carries the doctrine/org roots the resolver needs (used at `consistency_check.py:940`).
 

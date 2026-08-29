@@ -11,7 +11,7 @@
         "WP01"
       ],
       "write_scope": [
-        "src/charter/compiler.py",
+        "src/charter/activation/compiler.py",
         "tests/charter/test_compiler_documentation_policy.py"
       ],
       "predicted_surfaces": [
@@ -43,7 +43,7 @@
         "WP06"
       ],
       "write_scope": [
-        "src/charter/pack_manager.py",
+        "src/charter/activation/pack_manager.py",
         "src/specify_cli/cli/commands/charter/_layer_roots.py",
         "tests/specify_cli/cli/commands/charter/test_activation_layout.py"
       ],
@@ -78,7 +78,7 @@
         "WP03"
       ],
       "write_scope": [
-        "src/charter/context.py",
+        "src/charter/activation/context.py",
         "src/specify_cli/invocation/registry.py",
         "tests/charter/test_context_org_governance.py",
         "tests/specify_cli/invocation/test_registry_org_visibility.py"

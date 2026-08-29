@@ -168,7 +168,7 @@ python -m pytest tests/doctrine/ -q 2>&1 | tail -10
 python -c "
 from pathlib import Path
 from doctrine.service import DoctrineService
-from charter.catalog import resolve_doctrine_root
+from charter.activation.catalog import resolve_doctrine_root
 root = resolve_doctrine_root()
 svc = DoctrineService(shipped_root=root)
 print('directives:', len(svc.directives.list_all()))

@@ -26,7 +26,7 @@ Adding `ProjectContext`, `OperationalContext`, and `ContextPreconditionError` to
 **Resolution required**: FR-040 must designate a distinct package for the charter invocation context types. Options:
 - `src/specify_cli/charter_context/` — new package with no existing claims
 - `src/specify_cli/invocation/` — parallel to the charter module's name
-- Instruct callers to import directly from `charter.invocation_context` (no re-export layer needed; `specify_cli.*` is allowed to import `charter.*`)
+- Instruct callers to import directly from `charter.activation.invocation_context` (no re-export layer needed; `specify_cli.*` is allowed to import `charter.*`)
 
 Do NOT extend `src/specify_cli/context/__init__.py` to include charter types. The existing package's semantics must remain coherent.
 
@@ -60,11 +60,11 @@ This is a `PackContext`-shaped protocol, not a `ProjectContext`-shaped one. An i
 
 ---
 
-### B-3. Plan.md project structure omits `src/charter/invocation_context.py` and `src/specify_cli/context/factory.py`
+### B-3. Plan.md project structure omits `src/charter/activation/invocation_context.py` and `src/specify_cli/context/factory.py`
 
 **Files**: `plan.md` §Project Structure Source Code tree, `spec.md` FR-040
 
-`spec.md` FR-040 is a **Must** requirement that creates `src/charter/invocation_context.py` and a factory module under `src/specify_cli/context/`. The `plan.md` project structure section lists every new source file explicitly but **neither file appears**. The plan tree under `src/charter/` shows:
+`spec.md` FR-040 is a **Must** requirement that creates `src/charter/activation/invocation_context.py` and a factory module under `src/specify_cli/context/`. The `plan.md` project structure section lists every new source file explicitly but **neither file appears**. The plan tree under `src/charter/` shows:
 
 ```
 ├── packs/
@@ -77,7 +77,7 @@ No `invocation_context.py`. The `src/specify_cli/` tree shows no `context/factor
 
 An implementer following the plan would miss both files entirely. The wiring tables in `research.md` (§2) reference `ProjectContext` threading but give no entry point telling the implementer where to create these modules. FR-040 is isolated from the plan's build output.
 
-**Resolution required**: Add `src/charter/invocation_context.py` and the factory module (wherever it is decided to live after resolving B-1) to the plan's project structure tree. Add corresponding test files (`tests/charter/test_invocation_context.py`, `tests/specify_cli/test_project_context_factory.py`).
+**Resolution required**: Add `src/charter/activation/invocation_context.py` and the factory module (wherever it is decided to live after resolving B-1) to the plan's project structure tree. Add corresponding test files (`tests/charter/test_invocation_context.py`, `tests/specify_cli/test_project_context_factory.py`).
 
 ---
 
@@ -107,7 +107,7 @@ policy = load_org_charter_policies(repo_root)  # line 2332 — no pack_context
 `data-model.md` §OperationalContext explicitly states:
 > "`OperationalContext` is **specced but not wired** in this mission — it is reserved for future context-aware activation filtering."
 
-If `OperationalContext` is defined in `src/charter/invocation_context.py` and exported in `__all__`, the dead-symbols test (`test_no_dead_symbols.py`) will immediately flag it as a dead symbol — because the test scans all `__all__` entries and checks for non-test `src/` callers. There are none.
+If `OperationalContext` is defined in `src/charter/activation/invocation_context.py` and exported in `__all__`, the dead-symbols test (`test_no_dead_symbols.py`) will immediately flag it as a dead symbol — because the test scans all `__all__` entries and checks for non-test `src/` callers. There are none.
 
 FR-024 says "12 newly-introduced symbols… are either wired to production call sites or **explicitly added to the allowlist with justification**." The spec does not enumerate what these 12 symbols are and does not name `OperationalContext` specifically, but `OperationalContext` plus its guard methods (`require_active_profile`, `require_active_role`) would be at least 3 of them.
 
@@ -138,7 +138,7 @@ Step 4 implies there is already an activation set to add to. `data-model.md` §C
 But this materialization logic appears **only** in the data model's service description, not in the contract that implementers consult for the command behavior. An implementer writing `CharterPackManager.activate()` against only the contract would produce a `KeyError` or write a single-element list when the key is absent — not a properly initialized default set.
 
 **Resolution required**: Add a step between current steps 3 and 4 in `charter-activate-cli.md`:
-> "3.5. If `activated_<kind>` key is absent in config.yaml: materialize the initial activation set from `src/charter/packs/default.yaml` for that kind before adding `id`."
+> "3.5. If `activated_<kind>` key is absent in config.yaml: materialize the initial activation set from `src/charter/activation/packs/default.yaml` for that kind before adding `id`."
 
 ---
 
@@ -148,12 +148,12 @@ But this materialization logic appears **only** in the data model's service desc
 
 **Files**: `data-model.md` §Module Ownership, `spec.md` FR-040
 
-Even if B-1 is resolved by using a distinct package (e.g., `specify_cli.charter_context`), the data-model's description of the re-export pattern — "`specify_cli.*` functions import from `specify_cli.context` for construction and from `charter.invocation_context` for type annotations" — describes **two separate import paths for the same type**. This is unnecessary complexity.
+Even if B-1 is resolved by using a distinct package (e.g., `specify_cli.charter_context`), the data-model's description of the re-export pattern — "`specify_cli.*` functions import from `specify_cli.context` for construction and from `charter.activation.invocation_context` for type annotations" — describes **two separate import paths for the same type**. This is unnecessary complexity.
 
 If `specify_cli.*` modules need `ProjectContext`, they should import it from one place. Since `specify_cli` is allowed to import `charter.*` directly, callers can simply write:
 
 ```python
-from charter.invocation_context import ProjectContext
+from charter.activation.invocation_context import ProjectContext
 ```
 
 There is no need for a `specify_cli`-layer re-export unless the factory functions (`build_project_context`) need to be co-located. The re-export layer adds an indirection with no architectural value unless `charter.*` is being replaced or mocked at the `specify_cli` boundary.
@@ -186,7 +186,7 @@ The `m_3_2_7` precedent uses a single sentinel key (`mission_type_activations`) 
 
 ### S-3. Behavioral asymmetry between `activated_kinds`/`activated_mission_types` and new per-kind fields on empty-list handling
 
-**Files**: `spec.md` FR-039, `src/charter/pack_context.py:196–212`, `data-model.md` §CharterPack Invariant
+**Files**: `spec.md` FR-039, `src/charter/activation/pack_context.py:196–212`, `data-model.md` §CharterPack Invariant
 
 FR-039 correctly removes the `and raw` guard for **new** per-kind readers. But the **existing** readers retain it:
 
@@ -290,7 +290,7 @@ The latter is simpler but must be stated explicitly.
 
 ### M-1. `activated_mission_types` is `frozenset[str]` (not `frozenset[str] | None`) — the None-state invariant does not apply to mission-type
 
-**Files**: `src/charter/pack_context.py:87`, `data-model.md` §PackContext
+**Files**: `src/charter/activation/pack_context.py:87`, `data-model.md` §PackContext
 
 `PackContext.activated_mission_types` is typed `frozenset[str]` — it can never be `None`. The new per-kind fields (`activated_directives` etc.) will be `frozenset[str] | None`. The deactivate contract (step 3) says "if the activation field for `kind` is absent: exit 1." For `mission-type` specifically, this guard can never trigger because `from_config()` always returns a populated frozenset (defaulting to `_BUILTIN_MISSION_TYPE_IDS` when the key is absent).
 
@@ -312,7 +312,7 @@ FR-007 uses `--cascade all|<kind>[,<kind>...]` where `<kind>` is an activation k
 
 **Files**: `src/charter/drg.py:81`, `spec.md` FR-024
 
-`src/charter/drg.py:81` exports `"PackContext"` in `__all__`. No `src/` file imports `PackContext` from `charter.drg`; the natural import is from `charter.pack_context`. This is a dead re-export that the dead-symbols test likely flags. FR-024 says wire or allowlist 12 symbols; this symbol is a candidate for clean removal (remove from `__all__`) rather than allowlisting. The specification does not decide its fate.
+`src/charter/drg.py:81` exports `"PackContext"` in `__all__`. No `src/` file imports `PackContext` from `charter.drg`; the natural import is from `charter.activation.pack_context`. This is a dead re-export that the dead-symbols test likely flags. FR-024 says wire or allowlist 12 symbols; this symbol is a candidate for clean removal (remove from `__all__`) rather than allowlisting. The specification does not decide its fate.
 
 ---
 
@@ -356,9 +356,9 @@ FR-023 reads: "The `m_3_2_7_activate_builtin_mission_types` migration (WP12) is 
 
 5. **`from_repo()` factory safety in `charter.*`**: `ProjectContext.from_repo(repo_root)` calling `PackContext.from_config(repo_root)` is a same-package call (both in `charter.*`). No layer violation. `from_repo()` can resolve `org_root` by calling `doctrine.drg.org_pack_config.resolve_org_roots()` (charter→doctrine direction, allowed). `specs_dir` and `architecture_dir` are pure `Path` operations. VERIFIED safe.
 
-6. **No circular import risk in the proposed layout**: `charter.invocation_context` imports `charter.pack_context` (same package). `specify_cli.charter_context` (or whatever the factory package becomes) imports `charter.invocation_context` (specify_cli→charter, allowed). `charter.*` does not import `specify_cli.*` (confirmed by grep). No cycle.
+6. **No circular import risk in the proposed layout**: `charter.activation.invocation_context` imports `charter.activation.pack_context` (same package). `specify_cli.charter_context` (or whatever the factory package becomes) imports `charter.activation.invocation_context` (specify_cli→charter, allowed). `charter.*` does not import `specify_cli.*` (confirmed by grep). No cycle.
 
-7. **Layer rule: `specify_cli.*` importing `charter.*` is the correct direction**: `test_layer_rules.py` enforces `kernel ← doctrine ← charter ← specify_cli`. `specify_cli.context.factory` importing `charter.invocation_context` is architecturally correct. VERIFIED.
+7. **Layer rule: `specify_cli.*` importing `charter.*` is the correct direction**: `test_layer_rules.py` enforces `kernel ← doctrine ← charter ← specify_cli`. `specify_cli.context.factory` importing `charter.activation.invocation_context` is architecturally correct. VERIFIED.
 
 8. **`m_3_2_8` migration version is valid**: `m_3_2_7` is the last migration; `m_3_2_8` is a valid patch-bump (micro increment by 1). Migration chain integrity test will pass for this version. VERIFIED.
 

@@ -224,6 +224,6 @@ Both files must exist and pass validation when the mission ships.
 If you encounter a diagnostic code, the human-readable explanation is documented next to the code:
 
 - `MISSION_REVIEW_*` → [`src/specify_cli/cli/commands/review/ERROR_CODES.md`](../../src/specify_cli/cli/commands/review/ERROR_CODES.md)
-- `CHARTER_ENCODING_*` → [`src/charter/ERROR_CODES.md`](../../src/charter/ERROR_CODES.md)
+- `CHARTER_ENCODING_*` → [`src/charter/activation/ERROR_CODES.md`](../../src/charter/activation/ERROR_CODES.md)
 
 The `StrEnum` class docstring in the corresponding `_diagnostics.py` module names the file path. Drift between the enum and the doc is caught by `tests/.../test_diagnostic_codes_documented.py` (NFR-008 enforcement).

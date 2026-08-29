@@ -48,7 +48,7 @@ Confirmed present in `spec.md` (read on this lane):
    `git grep -nE 'primary (target|ref)' -- src tests docs` on the lane base
    returns **60** occurrences, including:
    - **C-004 do-not-touch** unrelated uses — e.g. the charter-synthesizer
-     `primary target` (`src/charter/synthesizer/orchestrator.py`,
+     `primary target` (`src/charter/activation/synthesizer/orchestrator.py`,
      `synthesize_pipeline.py`), which is explicitly out of scope.
    - The **Sense-D glossary entry itself** (`docs/context/orchestration.md:519,523`)
      which *intentionally names* the retired aliases in order to forbid them

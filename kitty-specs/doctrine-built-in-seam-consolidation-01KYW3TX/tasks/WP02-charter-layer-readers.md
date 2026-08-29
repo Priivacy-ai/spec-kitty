@@ -24,12 +24,12 @@ create_intent: []
 execution_mode: code_change
 model: claude-sonnet-4-6
 owned_files:
-- src/charter/catalog.py
-- src/charter/compiler.py
-- src/charter/kind_vocabulary.py
-- src/charter/doctrine_service_builder.py
-- src/charter/context_renderers/bootstrap_text.py
-- src/charter/resolver.py
+- src/charter/activation/catalog.py
+- src/charter/activation/compiler.py
+- src/charter/activation/kind_vocabulary.py
+- src/charter/activation/doctrine_service_builder.py
+- src/charter/activation/context_renderers/bootstrap_text.py
+- src/charter/activation/resolver.py
 role: implementer
 tags: []
 tracker_refs: []
@@ -50,7 +50,7 @@ sites (FR-003 slice), route `bootstrap_text.py`'s root call through `built_in_ro
 two operator-facing error strings in `resolver.py` that name dead paths (FR-009).
 
 Read first: `../plan.md` IC-02/IC-03/IC-04 (the charter surfaces), `../spec.md` (FR-002/003/006/009),
-`../contracts/built-in-location-authority.md` (C1.6). Ground in `src/charter/catalog.py:74` (the
+`../contracts/built-in-location-authority.md` (C1.6). Ground in `src/charter/activation/catalog.py:74` (the
 `built_in_root = resolve_pack_root("built-in")` variable, joined at :80/:89/:102/:111/:120/:129/:138).
 
 **Do NOT** own `pack_manager.py` (WP05) or `context.py` (WP06). **Do NOT** "repoint" any architectural
@@ -60,18 +60,18 @@ authorities must exist first.
 ## Subtasks
 
 ### T005 — Route the variable-indirected catalog + compiler + kind-vocabulary joins (FR-002)
-- `src/charter/catalog.py`: line 74 binds `built_in_root = resolve_pack_root("built-in")`, then joins it
+- `src/charter/activation/catalog.py`: line 74 binds `built_in_root = resolve_pack_root("built-in")`, then joins it
   per-kind at :80/:89/:102/:111/:120/:129/:138 (7 kinds: paradigms, directives, tactics, styleguides,
   toolguides, procedures, agent_profiles). Replace the local variable + hand joins with `built_in_dir(<kind>)`
   calls (one per kind), removing the `built_in_root` local. This is the variable-indirected form the
   ratchet must catch — after this, `catalog.py` derives no built-in path itself.
-- `src/charter/compiler.py`: the inline join sites `compiler.py:842/843/934` **and `compiler.py:873`**
+- `src/charter/activation/compiler.py`: the inline join sites `compiler.py:842/843/934` **and `compiler.py:873`**
   → `built_in_dir(<kind>)`. Line 873 is a live BinOp
   `resolve_pack_root("built-in") / "styleguides" / "python-implementation.styleguide.yaml"` (an
   `.exists()`-guarded reference read) — route it as
   `built_in_dir(ArtifactKind.STYLEGUIDE) / "python-implementation.styleguide.yaml"`. Missing it leaves a
   join WP04's ratchet reds; the surrounding `doctrine_root` template reference stays as-is.
-- `src/charter/kind_vocabulary.py`: the inline join (`kind_vocabulary.py:170` per IC-01) → `built_in_dir(<kind>)`.
+- `src/charter/activation/kind_vocabulary.py`: the inline join (`kind_vocabulary.py:170` per IC-01) → `built_in_dir(<kind>)`.
 Pass canonical `ArtifactKind` members. Grep each file afterwards for any surviving `"built-in"` join.
 
 ### T006 — Remove the nested dual-read fallbacks (FR-006)
@@ -91,7 +91,7 @@ fallback is deferred to #3101 (out of scope).
   `built_in_root()` (FR-001b / C1.6).
 
 ### T008 — Repoint operator-facing error strings (FR-009)
-`src/charter/resolver.py:187,250`: shipped operator-facing error text names dead
+`src/charter/activation/resolver.py:187,250`: shipped operator-facing error text names dead
 `src/doctrine/<kind>/built-in/` paths. Repoint to the current `packs/built-in/<kind>/` locations so an
 operator who opens the named path finds it exists (US2 acceptance #3). These are user-visible strings —
 governed by `occurrence_map.yaml` `user_facing_strings: rename_if_user_visible`. Keep the message intent;

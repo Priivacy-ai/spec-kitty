@@ -41,7 +41,7 @@ The proposal conflates **three distinct authority surfaces** that recorded doctr
 The operator's instinct splits across axes:
 - **Resolving authority** ("charter.yaml authoritative for resolving; charter.md never a resolving input") → **EXTENSION / already intended.** Confirmed by #2772, #2773 "intended effect", and the recorded lean.
 - **Authoring direction** ("charter.md generated *from* charter.yaml") → **REVERSAL of a documented invariant.** `docs/context/charter-overview.md:20`: "charter.md is the runtime policy **source**… synthesis **reads that file**"; `docs/context/governance-files.md`: charter.md = Human, edit-directly = Yes; YAML "derived only from charter.md."
-- **Merging the A activation ledger into charter.yaml** → **NEW ground.** ADR 2026-07-15-1 (Proposed) routes "what is active" to `config` + `src/charter/packs/default.yaml`, *not* the compiled bundle.
+- **Merging the A activation ledger into charter.yaml** → **NEW ground.** ADR 2026-07-15-1 (Proposed) routes "what is active" to `config` + `src/charter/activation/packs/default.yaml`, *not* the compiled bundle.
 
 **Governance risk of folding into #2773: HIGH** — changing the single canonical *authoring* source (prose→structured) is a structural-boundary change requiring an ADR; it contradicts #2773's own C-001 ("charter.md remains authored") and the "curated reference" framing #2772/#2773 pin.
 

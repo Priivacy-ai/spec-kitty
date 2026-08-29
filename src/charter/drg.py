@@ -50,8 +50,8 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from charter.catalog import resolve_doctrine_root
-from charter.kind_vocabulary import (
+from charter.activation.catalog import resolve_doctrine_root
+from charter.activation.kind_vocabulary import (
     MissionTypeNotAnArtifactKind,
     UnknownArtifactIdError,
     resolve_artifact_urn,
@@ -64,7 +64,7 @@ from charter.kind_vocabulary import (
 # identity is unchanged: ``charter.offering.api.ArtifactKind is
 # charter.offering.artifact_kinds.ArtifactKind`` (mission ``doctrine-public-api-surface``
 # WP03, FR-003 / NFR-002 / contract C1).
-from charter.pack_context import PackContext
+from charter.activation.pack_context import PackContext
 from charter.offering.api import ArtifactKind
 from charter.offering.base import DoctrineLayerCollisionWarning
 from charter.offering.drg import (
@@ -291,7 +291,7 @@ _MISSION_STEP_SINGULAR_KINDS: frozenset[str] = frozenset({"mission_step_contract
 #: entry, which is declared for enum completeness but never matches a real
 #: file). ``PackContext.activated_anti_patterns`` therefore already holds
 #: the canonical/direct artifact id, not a config stem needing resolution —
-#: routing it through :func:`charter.kind_vocabulary.resolve_artifact_urn`
+#: routing it through :func:`charter.activation.kind_vocabulary.resolve_artifact_urn`
 #: would always raise :class:`UnknownArtifactIdError` and silently drop
 #: every anti-pattern node. This mirrors the reference tension-scan's
 #: ``_CLI_KIND_TO_DRG_SINGULAR`` (``consistency_check.py:89-99``), which
@@ -395,7 +395,7 @@ def _resolve_activated_urns_by_kind(
     Called once per :func:`filter_graph_by_activation` invocation -- never
     per node -- so resolution is O(kinds x stems), not O(nodes x stems x
     filesystem-walk). ``doctrine_root`` is sourced from
-    :func:`charter.catalog.resolve_doctrine_root` (the same source the
+    :func:`charter.activation.catalog.resolve_doctrine_root` (the same source the
     surviving compiler ``references.yaml`` projection uses), never
     ``pack_context.pack_roots[0]`` (research.md D2 install-layout guard).
     """
@@ -496,7 +496,7 @@ def filter_graph_by_activation(
     * Per-kind activated-ID sets (e.g. :attr:`PackContext.activated_directives`)
       hold config **stems**; WP01 resolves them to canonical URNs once per
       call (:func:`_resolve_activated_urns_by_kind`) via
-      :func:`charter.kind_vocabulary.resolve_artifact_urn` and compares on
+      :func:`charter.activation.kind_vocabulary.resolve_artifact_urn` and compares on
       the node's full URN -- see ``contracts/activation-gate-contract.md``.
     * Edges are kept only when both endpoints survive node filtering. This
       preserves the graph invariant that an edge always points to a node in

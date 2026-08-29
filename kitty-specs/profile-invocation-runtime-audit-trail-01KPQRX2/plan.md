@@ -72,7 +72,7 @@ Charter present at `/Users/robert/spec-kitty-dev/charter5/spec-kitty/.kittify/ch
 
 ### KD-1 · Package location — new `src/specify_cli/invocation/` package
 
-All executor, router, record, writer, registry, and propagator code lives under `src/specify_cli/invocation/`. This package depends on `src/doctrine/agent_profiles/` (profiles) and `src/charter/context.py` (governance context), following the existing dependency direction (`specify_cli` → `doctrine` → `charter`).
+All executor, router, record, writer, registry, and propagator code lives under `src/specify_cli/invocation/`. This package depends on `src/doctrine/agent_profiles/` (profiles) and `src/charter/activation/context.py` (governance context), following the existing dependency direction (`specify_cli` → `doctrine` → `charter`).
 
 No changes are made to `src/specify_cli/next/` (the mission-advancement loop). The executor is an orthogonal surface — it handles profile invocations, not mission step orchestration.
 
@@ -100,7 +100,7 @@ No changes are made to `src/specify_cli/next/` (the mission-advancement loop). T
 
 ### KD-3 · Governance context assembly — action-scoped bootstrap, profile param reserved
 
-The executor calls `build_charter_context(repo_root, profile=profile_id, action=action, mark_loaded=False)` from `src/charter/context.py`.
+The executor calls `build_charter_context(repo_root, profile=profile_id, action=action, mark_loaded=False)` from `src/charter/activation/context.py`.
 
 **Critical 3.2 constraint**: `build_charter_context` currently has `_ = profile` (line 79 of `context.py`) — the profile parameter is accepted but silently ignored. Context is action-scoped only. Bootstrap actions (`implement`, `review`, `plan`, `specify`) receive full DRG-backed context; all other canonical action tokens (e.g., `analyze`, `curate`, `coordinate`, `design`) receive `mode="compact"` with generic governance text. Profile-specific DRG filtering is a future enhancement, not part of 3.2.
 
@@ -238,7 +238,7 @@ tests/specify_cli/invocation/fixtures/  # NEW — test fixtures
 
 **R-0-1 — ULID dependency confirmed**: `python-ulid` is already present (confirmed via `src/specify_cli/status/models.py` ULID import). No new dependency needed.
 
-**R-0-2 — `build_charter_context` API confirmed callable**: `src/charter/context.py::build_charter_context(repo_root, *, profile, action, mark_loaded, depth)` → `CharterContextResult`. The `profile` parameter accepts `str | None` and is passed to DRG filtering. Confirmed the function does not produce side effects that interfere with first-load state when `mark_loaded=False`.
+**R-0-2 — `build_charter_context` API confirmed callable**: `src/charter/activation/context.py::build_charter_context(repo_root, *, profile, action, mark_loaded, depth)` → `CharterContextResult`. The `profile` parameter accepts `str | None` and is passed to DRG filtering. Confirmed the function does not produce side effects that interfere with first-load state when `mark_loaded=False`.
 
 **R-0-3 — `AgentProfileRepository` constructor confirmed**: `AgentProfileRepository(shipped_dir=Path, project_dir=Path | None, active_languages=...)` — project-local override path is already supported. Repository loads project profiles from `<project_dir>/<profile_id>.agent.yaml` and merges them with shipped profiles by matching `profile-id`. Fallback to shipped-only is graceful when `project_dir` does not exist.
 

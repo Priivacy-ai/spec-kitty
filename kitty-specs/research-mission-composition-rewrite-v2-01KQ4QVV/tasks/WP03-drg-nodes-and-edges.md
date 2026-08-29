@@ -62,7 +62,7 @@ spec-kitty agent action implement WP03 --agent <name>
 
 - `kitty-specs/research-mission-composition-rewrite-v2-01KQ4QVV/plan.md` — D2 (DRG authoring) + per-action edge map
 - `src/doctrine/graph.yaml` — read software-dev nodes (lines 5-18) + surrounding edges
-- `src/charter/_drg_helpers.py:19-39` — `load_validated_graph()` and `assert_valid()`
+- `src/charter/activation/_drg_helpers.py:19-39` — `load_validated_graph()` and `assert_valid()`
 - **`src/doctrine/drg/query.py:79` — `resolve_context()`. THIS is the resolver composition uses.** Do NOT use `src/specify_cli/next/_internal_runtime/engine.resolve_context` — that is a different function on a different surface and proves nothing about DRG resolution.
 - **`src/specify_cli/mission_step_contracts/executor.py:151-153` — the canonical composition call site**: `resolve_context(graph, action_urn, depth=context.resolution_depth)`. Mirror this exactly in T014.
 - v1 attempt at `attempt/research-composition-mission-100-broken` — note that v1 did NOT add graph nodes; you cannot copy from v1 here.
@@ -128,7 +128,7 @@ spec-kitty agent action implement WP03 --agent <name>
 **Steps**:
 1. Run:
    ```bash
-   uv run python -c "from charter._drg_helpers import load_validated_graph; from pathlib import Path; g = load_validated_graph(Path('.')); print('VALID', len(g.nodes), 'nodes')"
+   uv run python -c "from charter.activation._drg_helpers import load_validated_graph; from pathlib import Path; g = load_validated_graph(Path('.')); print('VALID', len(g.nodes), 'nodes')"
    ```
 2. Expected: `VALID <N>` with N greater than baseline. No exception.
 3. If `assert_valid()` raises (cycles, missing target nodes), fix the offending edge in T012 and rerun.
@@ -143,7 +143,7 @@ spec-kitty agent action implement WP03 --agent <name>
 2. Run:
    ```python
    from pathlib import Path
-   from charter._drg_helpers import load_validated_graph
+   from charter.activation._drg_helpers import load_validated_graph
    from doctrine.drg.query import resolve_context  # <-- THE composition resolver
 
    g = load_validated_graph(Path('.'))

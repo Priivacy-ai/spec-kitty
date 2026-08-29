@@ -22,20 +22,20 @@ history:
 agent_profile: python-pedro
 authoritative_surface: src/charter/context_renderers/
 create_intent:
-- src/charter/context_renderers/template_include.py
-- src/charter/context_renderers/selection_block.py
-- src/charter/context_renderers/activation_block.py
-- src/charter/context_renderers/bootstrap_text.py
-- src/charter/context_renderers/compact_governance.py
+- src/charter/activation/context_renderers/template_include.py
+- src/charter/activation/context_renderers/selection_block.py
+- src/charter/activation/context_renderers/activation_block.py
+- src/charter/activation/context_renderers/bootstrap_text.py
+- src/charter/activation/context_renderers/compact_governance.py
 - tests/charter/test_context_render_seams.py
 execution_mode: code_change
 model: claude-sonnet-4-6
 owned_files:
-- src/charter/context_renderers/template_include.py
-- src/charter/context_renderers/selection_block.py
-- src/charter/context_renderers/activation_block.py
-- src/charter/context_renderers/bootstrap_text.py
-- src/charter/context_renderers/compact_governance.py
+- src/charter/activation/context_renderers/template_include.py
+- src/charter/activation/context_renderers/selection_block.py
+- src/charter/activation/context_renderers/activation_block.py
+- src/charter/activation/context_renderers/bootstrap_text.py
+- src/charter/activation/context_renderers/compact_governance.py
 - tests/charter/test_context_render_seams.py
 role: implementer
 tags: []

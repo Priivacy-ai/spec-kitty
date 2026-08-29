@@ -48,7 +48,7 @@ Pinned in `_CATEGORY_C_DELIVERY_RAIL_FORWARD_API` @ `tests/architectural/test_no
 The 10th rail symbol `profile_channel_reachable` IS wired (`repository.py:875`) — the retirement template.
 
 ### Delivery-bundle scaffolding
-- `_ActionDoctrineBundle` — `src/charter/context.py:121-150`; `bridge_urns` field (l.150) built at
+- `_ActionDoctrineBundle` — `src/charter/activation/context.py:121-150`; `bridge_urns` field (l.150) built at
   `context.py:1129/1139-1151` = every URN visited during `resolve_context` (incl. excluded kinds like
   paradigm) → pass-through hops usable as reference sources without entering the eager set.
 - `build_disclosure_payload` — `charter/progressive_disclosure.py:267-317`; `inline_urns =
@@ -119,7 +119,7 @@ The 10th rail symbol `profile_channel_reachable` IS wired (`repository.py:875`) 
 - DOCUMENT level NOT unified: `graph_document_to_dict` @ `extractor.py:1424` is the SOLE `DOCUMENT_WRITERS`
   member (`registry.py:171-176`). The two named sites hand-restate the 5 top-level keys:
   `rewrite_opposed_by._write_graph` (`src/specify_cli/migration/rewrite_opposed_by.py:368-380`) and
-  `project_drg._serialize_graph` (`src/charter/synthesizer/project_drg.py:86-104`) → a NEW top-level
+  `project_drg._serialize_graph` (`src/charter/activation/synthesizer/project_drg.py:86-104`) → a NEW top-level
   DRGGraph field drops silently at both; neither is a DocumentWriter member.
 - **THIRD, WORSE, UNNAMED site: `pack_assembler.py:495-501`** — restates 5 keys AND bypasses
   `model_to_graph_dict` via raw `.model_dump()` → drops `FIELDS_WITHHELD_FROM_GRAPH_OUTPUT` (emits
@@ -157,7 +157,7 @@ The 10th rail symbol `profile_channel_reachable` IS wired (`repository.py:875`) 
   `_ACTION_BUNDLE_DELIVERY_BY_KIND`, `_kind_delivery`, `action_bundle_bucket`, `action_bundle_gate`,
   `_classify_artifact_urns`. **HAVE external test importers** (`test_action_bundle_delivery.py`,
   `test_context_display_charter_md.py`, `test_unknown_kind_fails_loudly.py`) → extract only with a
-  re-export shim from `charter.context` OR same-PR test-import updates.
+  re-export shim from `charter.activation.context` OR same-PR test-import updates.
 - bridge_urns / requires-closure cadence (`context.py:145-150, 1090/1129/1150, 1202, 1238`) thread BOTH
   slices → the two extractions are not fully independent; sequence after WP01's cadence is final.
 

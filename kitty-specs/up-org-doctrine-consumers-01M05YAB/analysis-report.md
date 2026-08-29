@@ -76,7 +76,7 @@ the lane agent having read tasks.md's separate "Lockstep pairs" section.
 
 ## 2. WP04 → WP05 file-collision dependency — confirmed non-functional in both prompts
 
-Both `src/charter/mission_type_profiles.py` and `tests/charter/test_mission_type_profiles.py`
+Both `src/charter/activation/mission_type_profiles.py` and `tests/charter/test_mission_type_profiles.py`
 appear in both WP04's and WP05's `owned_files`. WP04's prompt has a dedicated "File-collision
 note (why WP05 depends on this WP)" section stating explicitly "Do not treat this as evidence
 FR-008 needs anything from FR-004's governance-slot logic — it doesn't," and refusing a
@@ -89,7 +89,7 @@ warn against "optimising" the pair into parallel execution.
 - `owned_files` are pairwise disjoint across all five WPs **except** the deliberate WP04/WP05
   overlap on `mission_type_profiles.py` / its test file, which is resolved by the WP04→WP05
   dependency edge (not a violation — the two are sequential, not concurrent).
-- `create_intent` is correct in every WP: `src/charter/org_expected_artifacts.py` and
+- `create_intent` is correct in every WP: `src/charter/activation/org_expected_artifacts.py` and
   `tests/charter/test_org_expected_artifacts.py` (WP05) are the only two files anywhere in the
   mission's `create_intent` fields, and both are confirmed absent from the current checkout
   (genuinely new). Every other file referenced in every WP's `owned_files` (executor.py,

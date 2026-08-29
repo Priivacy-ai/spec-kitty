@@ -11,8 +11,8 @@ findings:
     title: "New golden-parity regression class in test_runtime_seam.py cannot fail even when WP04's PackContext-threading is fully reverted"
     evidence:
       - code: "tests/runtime/test_runtime_seam.py:184-233"
-      - code: "src/charter/mission_type_profiles.py:917-925 (_resolve_action_slot, calls resolve_layered_mission_types)"
-      - code: "src/charter/mission_type_profiles.py:1036 (_resolve_template_set_slot, threads pack_context)"
+      - code: "src/charter/activation/mission_type_profiles.py:917-925 (_resolve_action_slot, calls resolve_layered_mission_types)"
+      - code: "src/charter/activation/mission_type_profiles.py:1036 (_resolve_template_set_slot, threads pack_context)"
     claim: >
       `TestGoldenParityUnaffectedByPackContextThreading.test_builtin_type_unaffected_by_real_pack_context_with_org_root`
       (parametrized over the 4 built-in mission types) constructs a real
@@ -28,7 +28,7 @@ findings:
 
       Verified empirically in a disposable worktree
       (`git worktree add --detach /tmp/pr-tests-check HEAD`): with
-      `src/charter/mission_type_profiles.py` edited so `_resolve_action_slot`
+      `src/charter/activation/mission_type_profiles.py` edited so `_resolve_action_slot`
       calls `MissionTypeRepository.default()` instead of
       `resolve_layered_mission_types(mission_types_dirs, pack_context)`, and
       `_resolve_template_set_slot` calls
@@ -75,7 +75,7 @@ findings:
       - code: "src/doctrine/missions/mission_type_repository.py:453-478 (resolve_layered_mission_types, @functools.cache keyed on (mission_types_dirs, pack_context))"
     claim: >
       Every other new/changed test file that patches
-      `charter.pack_context.PackContext.from_config` and then drives
+      `charter.activation.pack_context.PackContext.from_config` and then drives
       resolution through the module-level `resolve_layered_mission_types`
       cache also calls `MissionTypeRepository.cache_clear()` (or the
       doctrine-layer test file's own `setup_method`/`teardown_method`
@@ -92,7 +92,7 @@ findings:
       pytest's per-test-unique `tmp_path`, so no two tests in this file (or
       in the wider suite) can ever construct an *equal* `PackContext` and
       collide on the same cache entry — confirmed by reading
-      `src/charter/pack_context.py:100` (`@dataclass(frozen=True)`) and
+      `src/charter/activation/pack_context.py:100` (`@dataclass(frozen=True)`) and
       `resolve_layered_mission_types`'s `@functools.cache` signature. That
       is an incidental, not a designed, protection: it silently depends on
       every future test in this file continuing to derive 100% of the

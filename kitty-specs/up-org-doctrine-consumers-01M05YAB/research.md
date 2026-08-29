@@ -36,7 +36,7 @@ already-imported `doctrine` module.
 ## R-02: FR-002's single-path `org_root` — inline or shared helper?
 
 **Decision**: Inline in `executor.py`'s `execute()` method, following the exact first-match pattern
-D-000(2) names: iterate `charter.org_pack_discovery._enumerate_org_pack_paths(repo_root)`, take the
+D-000(2) names: iterate `charter.activation.org_pack_discovery._enumerate_org_pack_paths(repo_root)`, take the
 first `candidate.exists()`.
 
 **Rationale**: The spec's FR-003 only mandates a shared helper for the **list**-shaped `org_dirs`
@@ -49,7 +49,7 @@ auditable against its cited reference implementation.
 
 **Verified**: `_enumerate_org_pack_paths` is exported (present in `org_pack_discovery.py`'s
 `__all__`, line 31) despite its underscore prefix, and is already imported cross-module by
-`action_doctrine_bundle.py` (`from charter.org_pack_discovery import (_enumerate_org_pack_paths,)`).
+`action_doctrine_bundle.py` (`from charter.activation.org_pack_discovery import (_enumerate_org_pack_paths,)`).
 Cross-module import of this specific private-named-but-public-exported function is established
 precedent, not a new pattern this mission introduces.
 
@@ -70,7 +70,7 @@ sites call it with `"mission_step_contracts"`.
 
 ## R-04: FR-008's shared helper — new module, not a `MissionTemplateRepository` method
 
-**Decision**: New module `src/charter/org_expected_artifacts.py`, not a new method on
+**Decision**: New module `src/charter/activation/org_expected_artifacts.py`, not a new method on
 `MissionTemplateRepository`.
 
 **Rationale**: C-003 is explicit: "FR-008 adds a narrow, additive org-file check alongside the

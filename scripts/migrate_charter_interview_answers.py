@@ -4,7 +4,7 @@ governance selection-key vocabulary (FR-005, mission
 
 CR-01 (``kitty-specs/retire-doctrine-term-01M0JMK9/inventory.md`` line 163)
 retires the governing-term selection key on ``charter.yaml``'s ``governance:``
-section (``doctrine:`` -> ``charter:``, ``src/charter/schemas.py:209``). Some
+section (``doctrine:`` -> ``charter:``, ``src/charter/activation/schemas.py:209``). Some
 projects' ``.kittify/charter/interview/answers.yaml`` -- a companion artifact
 that historically mirrored the same nested selection shape -- may still carry
 the retired key on disk. This script migrates it *in place*.
@@ -77,7 +77,7 @@ def _substitute_governance_key(text: str) -> tuple[str, int]:
     the legacy key is left untouched rather than renamed: blindly renaming
     would produce two top-level ``<canonical>:`` mapping keys, which
     ``ruamel.yaml``'s safe loader rejects as a duplicate-key error. This
-    mirrors ``charter.sync``'s dict-level compat shim
+    mirrors ``charter.activation.sync``'s dict-level compat shim
     (``_apply_legacy_governance_selection_key_compat`` /
     ``apply_legacy_governance_selection_key_compat``), which likewise prefers
     the canonical value and silently ignores the legacy one when both are

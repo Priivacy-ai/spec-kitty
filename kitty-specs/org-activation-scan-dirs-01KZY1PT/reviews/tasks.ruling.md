@@ -30,8 +30,8 @@ waiting on the upstream parser fix or (c) an unscoped bypass.
 `spec.md:124` — removed only the `FR-021 ` token from the phrase `` `CharterPackManager.activate`'s
 FR-021 default-pack materialization `` → `` `CharterPackManager.activate`'s default-pack
 materialization ``. Every `file:line` citation in the surrounding sentence
-(`src/charter/pack_manager.py:601-616`, `src/charter/activation_engine.py:257-268`,
-`src/charter/pack_manager.py:511-518`) is unchanged. The sentence's meaning, its scope claim
+(`src/charter/activation/pack_manager.py:601-616`, `src/charter/activation/activation_engine.py:257-268`,
+`src/charter/activation/pack_manager.py:511-518`) is unchanged. The sentence's meaning, its scope claim
 ("not an org-specific gap... the same exclusion would equally apply to an unlisted built-in or
 project artifact"), and its "not a defect this mission changes" framing are unchanged — this is a
 **semantically inert** edit made for tooling reasons only, not a content revision of the

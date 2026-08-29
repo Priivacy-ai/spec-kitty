@@ -40,7 +40,7 @@ The plan's stated fix is incomplete. Without a Protocol or override, the mypy ga
 
 **3. `_load_action_doctrine_bundle` and `build_charter_context` have no `pack_context` parameter — threading it requires API changes to multiple callers.**
 
-`src/charter/context.py:488-545`: `_load_action_doctrine_bundle` takes `(repo_root, action, effective_depth, org_root)` — no `pack_context`. Called from lines 234 and 2452.
+`src/charter/activation/context.py:488-545`: `_load_action_doctrine_bundle` takes `(repo_root, action, effective_depth, org_root)` — no `pack_context`. Called from lines 234 and 2452.
 
 `build_charter_context` at line 114 has signature `(repo_root, *, profile, action, mark_loaded, depth, org_root, scope)` — also no `pack_context`. This function is imported and called from at least `invocation/executor.py` and `cli/commands/agent/workflow.py`.
 
@@ -81,7 +81,7 @@ The plan addresses the 12 new symbols but does not mention removing the stale `M
 
 **7. `_read_activated_kinds` empty-list edge case contradicts the data model invariant.**
 
-`src/charter/pack_context.py:196-199`:
+`src/charter/activation/pack_context.py:196-199`:
 ```python
 raw = data.get("activated_kinds")
 if isinstance(raw, list) and raw:  # "and raw" silently treats [] as absent
@@ -101,7 +101,7 @@ return _BUILTIN_ARTIFACT_KINDS
 
 **9. `StepContractExecutor` at `executor.py:142` has no `pack_context`; its production caller `runtime_bridge.py:1325` is not in the plan.**
 
-`runtime_bridge.py:1325`: `result = StepContractExecutor(repo_root=repo_root).execute(...)`. Adding pack_context filtering at `executor.py:170` requires adding `pack_context` to `StepContractExecutor.__init__` and updating `runtime_bridge.py:1325` to pass `PackContext.from_config(repo_root)`. The `runtime_bridge.py` is in `specify_cli` and CAN import `charter.pack_context` (layer safe). But `runtime_bridge.py` is not identified in the plan as a file requiring changes.
+`runtime_bridge.py:1325`: `result = StepContractExecutor(repo_root=repo_root).execute(...)`. Adding pack_context filtering at `executor.py:170` requires adding `pack_context` to `StepContractExecutor.__init__` and updating `runtime_bridge.py:1325` to pass `PackContext.from_config(repo_root)`. The `runtime_bridge.py` is in `specify_cli` and CAN import `charter.activation.pack_context` (layer safe). But `runtime_bridge.py` is not identified in the plan as a file requiring changes.
 
 ---
 
@@ -130,13 +130,13 @@ return _BUILTIN_ARTIFACT_KINDS
 - `context.py:523` calls `load_validated_graph(repo_root, org_root=org_root)` — correct line, correct function name
 - `reference_resolver.py:40` calls `load_validated_graph(repo_root)` — correct
 - `compiler.py:499` calls `load_validated_graph(repo_root)` — correct
-- `mission_step_repository.py:43` contains `from charter.pack_context import PackContext` inside `TYPE_CHECKING` — confirmed; `test_doctrine_does_not_import_charter` currently fails because of it
+- `mission_step_repository.py:43` contains `from charter.activation.pack_context import PackContext` inside `TYPE_CHECKING` — confirmed; `test_doctrine_does_not_import_charter` currently fails because of it
 - `load_org_charter_policies` at `org_charter.py:462` has `pack_context: PackContext | None = None` — confirmed optional
 - `MissionStepRepository` has zero production callers in `src/` — confirmed by grep and dead-symbols test
 - `filter_graph_by_activation` has zero production callers — confirmed by grep and dead-symbols test
 - `src/charter/packs/` directory does NOT exist yet — confirmed
 - `PackContext.from_config()` does NOT import from `specify_cli.*` — confirmed; uses only ruamel.yaml and `doctrine.drg.org_pack_config`
-- `charter.pack_manager.py` CAN write to config.yaml without importing `specify_cli.*` — layer safe confirmed
+- `charter.activation.pack_manager.py` CAN write to config.yaml without importing `specify_cli.*` — layer safe confirmed
 - m_3_2_7 migration pattern (ruamel.yaml round-trip, `preserve_quotes=True`, `detect()` requiring config.yaml) — correctly described in research.md
 - `activated_kinds` read by `_read_activated_kinds` in `pack_context.py:190-199` — confirmed; new per-kind keys absent from `from_config()` and `PackContext` dataclass
 - `mission_steps.py` re-export: `MissionStepRepository` NOT exported — confirmed

@@ -108,7 +108,7 @@ or a `specify_cli` profile-resolution helper) — it must not create a cycle.
 
 - **Purpose**: Render the operator's `documentation_policy` answer into the generated charter directive instead of a hardcoded string.
 - **Relevant requirements**: FR-001, FR-002.
-- **Affected surfaces**: `src/charter/compiler.py` (directive builder, ~line 942-944).
+- **Affected surfaces**: `src/charter/activation/compiler.py` (directive builder, ~line 942-944).
 - **Sequencing/depends-on**: none (self-contained).
 - **Risks**: must preserve the empty-answer branch; mirror the `risk_boundaries` shape exactly; single sink (charter.md Project Directives) — no `directives.yaml` ripple.
 
@@ -124,7 +124,7 @@ or a `specify_cli` profile-resolution helper) — it must not create a cycle.
 
 - **Purpose**: `ProfileRegistry` (routing catalog) and the governance-context repo include the **activation-admitted** org subset, **merged onto** their existing project layer (`.kittify/profiles`) — not by passing raw `org_dirs` into `AgentProfileRepository`.
 - **Relevant requirements**: FR-004, FR-005, NFR-002, C-008.
-- **Affected surfaces**: `src/specify_cli/invocation/registry.py`, `src/charter/context.py` (`_DEFAULT_AGENT_PROFILE_REPO` / context-building path — note it already has the `_build_activation_aware_doctrine_service` precedent for `charter context --include`).
+- **Affected surfaces**: `src/specify_cli/invocation/registry.py`, `src/charter/activation/context.py` (`_DEFAULT_AGENT_PROFILE_REPO` / context-building path — note it already has the `_build_activation_aware_doctrine_service` precedent for `charter context --include`).
 - **Sequencing/depends-on**: IC-02.
 - **Risks**: routed-but-context-empty half-fix if only registry is fixed; **must NOT splice raw `org_dirs`** (would bypass de-activation); prove with the TWO-regime live assertion (admitted visible / de-activated hidden).
 
@@ -148,7 +148,7 @@ or a `specify_cli` profile-resolution helper) — it must not create a cycle.
 
 - **Purpose**: Make `charter activate/deactivate agent-profile <id>` resolve org packs from the **same** layout runtime uses, so activating a runtime-resolvable org profile no longer fails "Unknown agent-profile ID" (folded layout split-brain).
 - **Relevant requirements**: FR-013.
-- **Affected surfaces**: `src/specify_cli/cli/commands/charter/_layer_roots.py:24-26` (the `(org_root / "doctrine").is_dir()` gate that rejects flat packs), `src/charter/pack_manager.py:_scan_layer_dirs:566-567` (org-layer branch scans `<pack>/doctrine/<plural>/org/`). Reference contract: `src/doctrine/drg/org_pack_config.py:resolve_org_roots` + `DoctrineService._org_dirs` (flat `<pack>/<plural>/`).
+- **Affected surfaces**: `src/specify_cli/cli/commands/charter/_layer_roots.py:24-26` (the `(org_root / "doctrine").is_dir()` gate that rejects flat packs), `src/charter/activation/pack_manager.py:_scan_layer_dirs:566-567` (org-layer branch scans `<pack>/doctrine/<plural>/org/`). Reference contract: `src/doctrine/drg/org_pack_config.py:resolve_org_roots` + `DoctrineService._org_dirs` (flat `<pack>/<plural>/`).
 - **Sequencing/depends-on**: independent of IC-02..05 but completes the #2156 end-to-end story for activation-list projects; verify before Lane B's two-regime proof.
 - **Canonical layout (operator-decided 2026-06-27)**: `<pack>/agent_profiles/` (the flat runtime layout) is canonical. The **charter activation subsystem** is the offender — its `<pack>/doctrine/<plural>/org/` nesting is the mess to remove (unification, not parity).
 - **Approach (post-tasks squad — BINDING)**: implement a **layout-tolerant resolver — flat preferred, nested fallback** — as the DEFAULT, NOT a hard cutover. A hard cutover turns the non-owned `tests/charter/test_pack_manager_catalog.py` (≥6 nested fixtures) RED out-of-ownership. Tolerant-default makes flat work (FR-013) while keeping existing nested fixtures green.

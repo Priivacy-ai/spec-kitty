@@ -10,14 +10,14 @@ Covers:
 * T016 — validator intent-aware parity for the newly-covered kinds via
   fragment edges.
 * T017 — mission-type universe expansion (FR-032, decision locked); lockstep
-  drift guard against ``charter.activations._ALLOWED_KINDS``.
+  drift guard against ``charter.activation.activations._ALLOWED_KINDS``.
 * T018 — topology field-merge semantics for step contracts / mission types.
 
 Note: the T-numbers above are from the ``org-doctrine-profile-integrity-
 activation-closure`` mission that authored this file. Mission
 ``glossary-pack-doctrine-kind-01KY30SW`` WP04/T022 later extended
 ``test_lockstep_drift_guard_against_allowed_kinds`` to a genuine three-way
-equality (adding ``charter.pack_context._BUILTIN_ARTIFACT_KINDS`` as the
+equality (adding ``charter.activation.pack_context._BUILTIN_ARTIFACT_KINDS`` as the
 third mirror) and added the sibling
 ``test_glossary_packs_ship_active_by_default`` positive default-on
 assertion — see those tests' own docstrings for the RED-first rationale.
@@ -422,8 +422,8 @@ def test_template_and_asset_fragment_nodes_validate_but_do_not_augment() -> None
 def test_lockstep_drift_guard_against_allowed_kinds() -> None:
     """FR-032 / glossary-pack-doctrine-kind WP04 (T022) three-way lockstep:
 
-        org-pack universe == ``charter.activations._ALLOWED_KINDS`` ∪ mission-type
-                           == ``charter.pack_context._BUILTIN_ARTIFACT_KINDS``
+        org-pack universe == ``charter.activation.activations._ALLOWED_KINDS`` ∪ mission-type
+                           == ``charter.activation.pack_context._BUILTIN_ARTIFACT_KINDS``
 
     This is the contract-test sweep the spec requires: none of the three
     mirrors (org-pack DRG universe, the activation-allowed set, and the
@@ -438,8 +438,8 @@ def test_lockstep_drift_guard_against_allowed_kinds() -> None:
     still ship inactive-by-default. This test closes that hole by making the
     equality genuinely three-way.
     """
-    from charter.activations import _ALLOWED_KINDS
-    from charter.pack_context import _BUILTIN_ARTIFACT_KINDS
+    from charter.activation.activations import _ALLOWED_KINDS
+    from charter.activation.pack_context import _BUILTIN_ARTIFACT_KINDS
 
     # Canonical forms only (drop the loader's backward-compat alias for the
     # comparison): the org-pack universe must equal the activation allowed set
@@ -459,8 +459,8 @@ def test_lockstep_drift_guard_against_allowed_kinds() -> None:
     # plural vocabulary as ``_ALLOWED_KINDS`` (no mission-step rename needed
     # here) so a bare equality is the correct — and strictest — guard.
     assert _BUILTIN_ARTIFACT_KINDS == _ALLOWED_KINDS, (
-        "charter.pack_context._BUILTIN_ARTIFACT_KINDS has drifted from "
-        "charter.activations._ALLOWED_KINDS. A kind present in one but not "
+        "charter.activation.pack_context._BUILTIN_ARTIFACT_KINDS has drifted from "
+        "charter.activation.activations._ALLOWED_KINDS. A kind present in one but not "
         "the other means either an activatable kind can never be the "
         "default-on set, or a kind ships default-on without being a "
         "documented activatable kind.\n"
@@ -473,7 +473,7 @@ def test_glossary_packs_ship_active_by_default() -> None:
     """Positive default-on assertion (T022, squad F3 RED-first anchor).
 
     ``"glossary_packs"`` must be a member of
-    ``charter.pack_context._BUILTIN_ARTIFACT_KINDS`` — the list consulted
+    ``charter.activation.pack_context._BUILTIN_ARTIFACT_KINDS`` — the list consulted
     when a project's ``.kittify/config.yaml`` (or ``charter.yaml``) has no
     explicit ``activated_kinds`` key. Without this membership, the built-in
     ``spec-kitty-core`` glossary pack would resolve as a DRG node (WP03) but
@@ -489,7 +489,7 @@ def test_glossary_packs_ship_active_by_default() -> None:
     after — the demonstrable RED-before-wiring-commit evidence the DoD
     requires.
     """
-    from charter.pack_context import _BUILTIN_ARTIFACT_KINDS
+    from charter.activation.pack_context import _BUILTIN_ARTIFACT_KINDS
 
     assert "glossary_packs" in _BUILTIN_ARTIFACT_KINDS
 

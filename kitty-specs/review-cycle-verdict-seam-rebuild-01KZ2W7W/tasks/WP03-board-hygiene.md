@@ -115,7 +115,7 @@ Read in full before starting:
   `test_excluded_builtin_absent_from_routing_and_context` (around line 124),
   and `test_no_activation_key_admits_all_builtins_in_routing` (around line
   144, currently passing — do not break it).
-- `src/charter/context.py`'s `build_charter_context` and
+- `src/charter/activation/context.py`'s `build_charter_context` and
   `src/specify_cli/invocation/registry.py`'s `ProfileRegistry` — the two
   surfaces this test's docstring says must "AGREE on built-in activation";
   `ProfileRegistry.list_all()` is the routing-side source of truth this WP's
@@ -229,7 +229,7 @@ Read in full before starting:
         happens to fit with no margin — state in the Activity Log what margin
         the chosen approach leaves, or confirm the structured-resolution
         approach was used instead (preferred).
-  - [ ] `src/charter/context.py` and `src/specify_cli/invocation/registry.py`
+  - [ ] `src/charter/activation/context.py` and `src/specify_cli/invocation/registry.py`
         are unmodified unless a structured accessor genuinely does not exist
         yet and this WP's scope is judged to require adding one — if so, keep
         that addition minimal and call it out explicitly in the PR, since it

@@ -422,7 +422,7 @@ pytest tests/specify_cli/next/test_workflow_registry.py -v
 
 **Substantive review checks:**
 
-- Confirm `src/doctrine/workflows/software-dev-default.workflow.yaml` declares the exact same six-action sequence as today's hardcoded sequence (`specify → plan → tasks → implement → review → merge`) — REJECT if any action name differs from `ALLOWED_ACTIONS` in Mission B's activation registry (cross-check against `src/charter/activations.py::ALLOWED_ACTIONS`).
+- Confirm `src/doctrine/workflows/software-dev-default.workflow.yaml` declares the exact same six-action sequence as today's hardcoded sequence (`specify → plan → tasks → implement → review → merge`) — REJECT if any action name differs from `ALLOWED_ACTIONS` in Mission B's activation registry (cross-check against `src/charter/activation/activations.py::ALLOWED_ACTIONS`).
 - Confirm `merge` has `terminal: true` and empty `next`.
 - Confirm `UnknownWorkflowError` message NAMES the unknown id AND lists available workflows (FR-015 binding — REJECT silent fallback).
 - Confirm `workflow_schema.py` declares `__all__` per WP02's convention.

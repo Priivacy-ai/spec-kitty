@@ -178,7 +178,7 @@ finding surfaced by WP06:
    Vocabulary table is stale (lists 'template' instead of 'procedure')"**. WP06 found that root
    `CLAUDE.md`'s doctrine-kind table lists `template` as one of the 8 charter-activatable kinds;
    the actual 8th kind is `procedure` (verified against `src/doctrine/artifact_kinds.py`'s
-   `CHARTER_KIND_TOKENS`, `src/charter/kind_vocabulary.py`, and a live
+   `CHARTER_KIND_TOKENS`, `src/charter/activation/kind_vocabulary.py`, and a live
    `from doctrine.artifact_kinds import CHARTER_KIND_TOKENS` check). `template`/`asset` are
    distinct, non-charter-activatable `ArtifactKind` members. `CLAUDE.md` is outside this
    mission's `docs/`-scoped remit to edit directly, so it is tracked as a follow-up instead. This

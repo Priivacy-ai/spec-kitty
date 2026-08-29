@@ -61,7 +61,7 @@ exceptions:
 # `doctrine` surface, fold its "body of governance artifacts" meaning into the single
 # canonical `charter` term, and drop the "and doctrine" self-reference in charter's
 # definition. `test_glossary_authority_parity` pins EXACTLY ONE `charter` surface.
-  - path: "src/charter/schemas.py"
+  - path: "src/charter/activation/schemas.py"
     action: do_not_change
     field_path: "DoctrineSelectionConfig"
     reason: "Value CLASS name stays (renamed in M2). Only the FIELD key GovernanceConfig.doctrine -> .charter flips (code_symbols rename applies to the field, this exception protects the class)."

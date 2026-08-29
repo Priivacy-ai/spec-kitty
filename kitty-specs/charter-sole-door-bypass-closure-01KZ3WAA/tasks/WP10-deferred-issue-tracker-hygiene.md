@@ -123,7 +123,7 @@ requires.
   specific items this mission must not slip past silently.
 - **Steps**: Add one `CHANGELOG.md` entry (under `[Unreleased]` or the current in-progress version, matching
   the file's existing convention) stating explicitly:
-  1. `charter.resolver.DoctrineService` now activation-gates all 9 charter-activatable `ArtifactKind`
+  1. `charter.activation.resolver.DoctrineService` now activation-gates all 9 charter-activatable `ArtifactKind`
      members (up from 3) plus the `mission-type` token via `resolve_mission_type_context()` — a project
      that activates a subset of a newly-gated kind's packs will see a narrower result than before this
      mission.

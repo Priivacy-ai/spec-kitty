@@ -50,7 +50,7 @@ description: "Work package task list — Org-Charter Activations Runtime Wiring"
 
 - **FR-004 double-swallow trap (load-bearing)**: the org read is a SEPARATE call in `_render_activation_block`; folding it into `_load_governance_activations` (own `except: return []`, `:2652`) OR placing it after the `except` (`:2692`) swallows the validation raise. Place the union before the `if not activations: return ""` short-circuit (`:2680`) so the org-only case renders (SC-001).
 - Text stanza only (C-004) — do NOT touch `build_charter_context_json` `directives`/`tactics` arrays or compact-mode rendering (deferred; spec Deferred Items).
-- Layer boundary (C-001): `charter` must not import `specify_cli.doctrine.org_charter`; the shared key lives in `charter.activations` (down-layer), the reader raw-scans YAML like the precedent.
+- Layer boundary (C-001): `charter` must not import `specify_cli.doctrine.org_charter`; the shared key lives in `charter.activation.activations` (down-layer), the reader raw-scans YAML like the precedent.
 
 ### Parallel Opportunities
 

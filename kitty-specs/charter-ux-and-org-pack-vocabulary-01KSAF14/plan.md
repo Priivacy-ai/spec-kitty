@@ -21,7 +21,7 @@ Technical approach:
 ## Technical Context
 
 **Language/Version**: Python 3.11+ (existing spec-kitty toolchain)
-**Primary Dependencies**: typer (CLI), ruamel.yaml (YAML), pydantic (schema models), rich (console rendering); existing `doctrine.drg` and `charter.synthesizer` packages
+**Primary Dependencies**: typer (CLI), ruamel.yaml (YAML), pydantic (schema models), rich (console rendering); existing `doctrine.drg` and `charter.activation.synthesizer` packages
 **Storage**: Filesystem only — `kitty-specs/<mission>/`, `.kittify/charter/*`, `.kittify/doctrine/graph.yaml`, `src/doctrine/*/built-in/*.yaml`
 **Testing**: pytest (unit + integration + architectural); existing test patterns under `tests/specify_cli/charter_lint/`, `tests/specify_cli/doctrine/`, `tests/integration/test_charter_*`, `tests/architectural/`
 **Target Platform**: Linux/macOS/Windows 10+ (DIR-001 cross-platform)

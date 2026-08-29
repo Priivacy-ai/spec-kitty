@@ -17,7 +17,7 @@ coverage:
     in-scope files (clean). Two items are not "verified true": R1-001 (a claim that
     is factually false — one of the 36) and R1-002 (a claim that is imprecise but
     substantively correct, counted as verified since its underlying assertion holds).
-    Split of the 36: 12 claims in src/charter/context.py, _layer_roots.py,
+    Split of the 36: 12 claims in src/charter/activation/context.py, _layer_roots.py,
     activate.py, deactivate.py, and the CLI context.py (about _resolve_action_bundle
     org-root widening semantics, _org_scan_dirs/_layer_scan_dirs single-Path-vs-chain
     behaviour, the charter.drg re-export boundary, CharterPackManager.activate's

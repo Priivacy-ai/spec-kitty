@@ -1,6 +1,6 @@
 ---
 affected_files:
-  - path: src/charter/mission_type_profiles.py
+  - path: src/charter/activation/mission_type_profiles.py
   - path: src/specify_cli/next/prompt_builder.py
   - path: tests/missions/test_mission_type_profile_resolution.py
   - path: tests/integration/test_mission_type_profile_live_wiring.py
@@ -33,7 +33,7 @@ The cycle-1 BLOCKER (dead code — `resolve_governance` had zero callers in `src
 ### 1. Cycle-2 delta is narrow (4 files, +271/-12)
 
 ```
-src/charter/mission_type_profiles.py               |   8 +-
+src/charter/activation/mission_type_profiles.py               |   8 +-
 src/specify_cli/next/prompt_builder.py             |  50 +++++
 tests/integration/test_mission_type_profile_live_wiring.py | 205 +++++++++++++++++++++
 tests/missions/test_mission_type_profile_resolution.py     |  20 +-
@@ -43,33 +43,33 @@ No unrelated files touched. The cycle-1 substance (loader, YAMLs, hard-fail) is 
 
 ### 2. Rename complete — namespace collision resolved
 
-- `resolve_governance` (the old name) appears **zero** times in `src/charter/mission_type_profiles.py`.
+- `resolve_governance` (the old name) appears **zero** times in `src/charter/activation/mission_type_profiles.py`.
 - `resolve_mission_type_governance` appears 3+ times in the module (public API name, `__all__`, docstring back-references).
-- The bare name `resolve_governance` now unambiguously resolves to `charter.resolver.resolve_governance` (the pre-existing function), so the collision is gone.
+- The bare name `resolve_governance` now unambiguously resolves to `charter.activation.resolver.resolve_governance` (the pre-existing function), so the collision is gone.
 - The cycle-1 ATDD test file references the new name only.
 
 ### 3. Live caller verification (CRITICAL — cycle-1 blocker)
 
 ```
 $ rg "resolve_mission_type_governance" src/
-src/charter/mission_type_profiles.py:    "resolve_mission_type_governance",
-src/charter/mission_type_profiles.py:    ... (docstring back-references)
-src/charter/mission_type_profiles.py:def resolve_mission_type_governance(repo_root: Path, feature_dir: Path) -> GovernancePayload:
+src/charter/activation/mission_type_profiles.py:    "resolve_mission_type_governance",
+src/charter/activation/mission_type_profiles.py:    ... (docstring back-references)
+src/charter/activation/mission_type_profiles.py:def resolve_mission_type_governance(repo_root: Path, feature_dir: Path) -> GovernancePayload:
 src/specify_cli/next/prompt_builder.py:    resolve_mission_type_governance,
-src/specify_cli/next/prompt_builder.py:    The mission-type resolver (``charter.mission_type_profiles.resolve_mission_type_governance``)
+src/specify_cli/next/prompt_builder.py:    The mission-type resolver (``charter.activation.mission_type_profiles.resolve_mission_type_governance``)
 src/specify_cli/next/prompt_builder.py:        payload = resolve_mission_type_governance(repo_root, feature_dir)
 ```
 
-**Hits OUTSIDE `src/charter/mission_type_profiles.py`:** 3 hits in `src/specify_cli/next/prompt_builder.py`. The dead-code blocker is closed.
+**Hits OUTSIDE `src/charter/activation/mission_type_profiles.py`:** 3 hits in `src/specify_cli/next/prompt_builder.py`. The dead-code blocker is closed.
 
 ### 4. Wiring is correct
 
 `src/specify_cli/next/prompt_builder.py`:
-- **Line 15–16:** Imports `resolve_mission_type_governance` and `UnknownMissionTypeError` from `charter.mission_type_profiles`.
+- **Line 15–16:** Imports `resolve_mission_type_governance` and `UnknownMissionTypeError` from `charter.activation.mission_type_profiles`.
 - **Line 155:** `_build_wp_prompt` calls `_mission_type_governance_lines(repo_root, feature_dir)` FIRST.
 - **Line 156:** Then calls `_governance_context(...)` (existing pipeline) — preserves the "runs first, contributes its selections to the union" cycle-1 directive.
 - **Line 310–313:** `UnknownMissionTypeError` is explicitly **re-raised** (FR-011 hard-fail contract — no silent fallback to `software-dev-default`).
-- **Line 314–315:** Generic `Exception` swallowed defensively so the downstream `charter.resolver.resolve_governance` can surface its own diagnostics. Defensible — the hard-fail surface (the only thing the FR-011 contract pins) is preserved.
+- **Line 314–315:** Generic `Exception` swallowed defensively so the downstream `charter.activation.resolver.resolve_governance` can surface its own diagnostics. Defensible — the hard-fail surface (the only thing the FR-011 contract pins) is preserved.
 - **Line 306–307:** When `feature_dir/meta.json` is absent, returns `None` (back-compat for the 23 pre-existing fixture tests in `test_wp_prompt_governance_contract.py` that predate WP08 wiring). The 23 tests stay green — confirmed below.
 
 ### 5. Integration test is a real end-to-end test
@@ -101,7 +101,7 @@ TOTAL: 92 passed, 0 failed
 ### 7. Ruff clean
 
 ```
-$ ruff check src/charter/mission_type_profiles.py src/specify_cli/next/prompt_builder.py \
+$ ruff check src/charter/activation/mission_type_profiles.py src/specify_cli/next/prompt_builder.py \
              tests/missions/test_mission_type_profile_resolution.py \
              tests/integration/test_mission_type_profile_live_wiring.py
 All checks passed!
@@ -110,7 +110,7 @@ All checks passed!
 ### 8. Layer rule satisfied
 
 ```
-$ rg "^from specify_cli" src/charter/mission_type_profiles.py
+$ rg "^from specify_cli" src/charter/activation/mission_type_profiles.py
 (no output)
 ```
 

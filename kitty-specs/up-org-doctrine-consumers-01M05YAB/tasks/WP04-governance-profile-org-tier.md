@@ -25,7 +25,7 @@ create_intent: []
 execution_mode: code_change
 model: claude-sonnet-5
 owned_files:
-- src/charter/mission_type_profiles.py
+- src/charter/activation/mission_type_profiles.py
 - tests/charter/test_mission_type_profiles.py
 role: implementer
 tags: []
@@ -45,7 +45,7 @@ Use the `/ad-hoc-profile-load` skill to load the agent profile specified in the 
 ## ⚠️ File-collision note (why WP05 depends on this WP)
 
 **WP05 depends on this WP (WP04) purely because both edit
-`src/charter/mission_type_profiles.py` (and its test module,
+`src/charter/activation/mission_type_profiles.py` (and its test module,
 `tests/charter/test_mission_type_profiles.py`) — a file collision, not a functional
 dependency.** FR-004 (this WP) and FR-008 (WP05) are unrelated in behavior; `resolve_org_dirs`
 (WP01) is the only thing WP05 actually needs from this WP's family of changes, and WP01 already
@@ -91,7 +91,7 @@ def _mission_type_profile_repository(
     ``doctrine/base.py`` stack.
     ...
     """
-    from charter.mission_type_profile_repository import (
+    from charter.activation.mission_type_profile_repository import (
         MissionTypeProfileRepository,
     )
 
@@ -101,7 +101,7 @@ def _mission_type_profile_repository(
 ```
 
 `MissionTypeProfileRepository.for_project` **already accepts** `org_dirs: list[Path] | None =
-None` (`src/charter/mission_type_profile_repository.py:99-113`) — this is caller-side threading
+None` (`src/charter/activation/mission_type_profile_repository.py:99-113`) — this is caller-side threading
 only, exactly like FR-001. You are not modifying `MissionTypeProfileRepository` itself.
 
 Change the `repo_root is not None` branch to:
@@ -185,7 +185,7 @@ pytest tests/charter/test_mission_type_profiles.py -v
 pytest tests/architectural/test_layer_rules.py tests/architectural/ -k "sole_door" -q
 ```
 
-`src/charter/mission_type_profiles.py` is in the enforced critical-path `diff-cover
+`src/charter/activation/mission_type_profiles.py` is in the enforced critical-path `diff-cover
 --fail-under=90` gate (`src/charter/*`). Per NFR-005, zero new allowlist/suppression entries
 are permitted in the sole-door or layer-rule architectural suites — this WP introduces no new
 cross-layer import direction (charter → doctrine is already established), so these gates should

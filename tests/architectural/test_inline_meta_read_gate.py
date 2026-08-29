@@ -974,7 +974,7 @@ def test_read_source_base_direct_open_call() -> None:
 
 
 def test_read_source_base_traces_named_assignment() -> None:
-    """The ``src/charter/_io.py`` shape: a two-hop ``meta_text = meta_path.read_text()``."""
+    """The ``src/charter/activation/_io.py`` shape: a two-hop ``meta_text = meta_path.read_text()``."""
     call, fn = _fn_with_call(
         "def f(feature_dir):\n    meta_path = feature_dir / 'meta.json'\n    meta_text = meta_path.read_text(encoding='utf-8')\n    return json.loads(meta_text)\n"
     )

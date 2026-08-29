@@ -45,7 +45,7 @@ What you should see afterwards:
 │   ├── styleguides/
 │   │   └── <slug>.styleguide.yaml                  # NEW — styleguide artifacts
 │   └── graph.yaml                                  # NEW — project DRG overlay (path already read
-│                                                   #         by src/charter/_drg_helpers.py)
+│                                                   #         by src/charter/activation/_drg_helpers.py)
 └── charter/                                        # pre-existing tree — synthesis bookkeeping added
     ├── charter.md                                  # unchanged (human-authored)
     ├── governance.yaml                             # unchanged (derived from charter.md)

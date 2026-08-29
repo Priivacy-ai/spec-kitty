@@ -8,4 +8,4 @@ results:
     reason: The Seam's Production surface bullet now says _org_scan_dirs is the "sole behavioral edit", explicitly notes _scan_roots's docstring at :158-160 is also edited, and cross-references Campsite-Clean Scope, matching Project Structure and no longer contradicting the docstring mandate.
   - id: PLAN-FRESH2-002
     status: resolved
-    reason: Both citations of _resolve_graph_kind_parity_stem in The Seam now consistently read ":815-819", matching the try/resolve/except/append block verified at src/charter/consistency_check.py:814-819.
+    reason: Both citations of _resolve_graph_kind_parity_stem in The Seam now consistently read ":815-819", matching the try/resolve/except/append block verified at src/charter/activation/consistency_check.py:814-819.

@@ -29,12 +29,12 @@ create_intent:
 execution_mode: code_change
 model: ''
 owned_files:
-- src/charter/synthesizer/project_drg.py
-- src/charter/consistency_check.py
-- src/charter/_activation_render.py
-- src/charter/context.py
-- src/charter/pack_manager.py
-- src/charter/kind_vocabulary.py
+- src/charter/activation/synthesizer/project_drg.py
+- src/charter/activation/consistency_check.py
+- src/charter/activation/_activation_render.py
+- src/charter/activation/context.py
+- src/charter/activation/pack_manager.py
+- src/charter/activation/kind_vocabulary.py
 - src/specify_cli/cli/commands/charter/list_cmd.py
 - tests/charter/test_drg_filtering.py
 - tests/charter/test_kind_cascade_exhaustive.py
@@ -91,19 +91,19 @@ Done when:
 - **Steps**: replace the `member is not ArtifactKind.TEMPLATE` filter with `member not in
   _NON_AUGMENTATION_ELIGIBLE_KINDS` (or a shared predicate). Verify ASSET no longer gets an unqualified
   `asset:<identifier>` probe. This is a comprehension the totality guard won't catch — cover it with a direct test.
-- **Files**: `src/charter/context.py`.
+- **Files**: `src/charter/activation/context.py`.
 
 ### T023 – `pack_manager` + `kind_vocabulary` partials
 - **Steps**: confirm `YAML_KEY_MAP` (derived from `CHARTER_KIND_TOKENS`) auto-excludes template/asset; ensure the
   `.get`-partials `_PROJECT_KIND_DIRS`/`_ID_FIELD_BY_KIND` in both `pack_manager.py` and `kind_vocabulary.py`
   remain None-safe for the new members (no raising access, no crash).
-- **Files**: `src/charter/pack_manager.py`, `src/charter/kind_vocabulary.py`.
+- **Files**: `src/charter/activation/pack_manager.py`, `src/charter/activation/kind_vocabulary.py`.
 
 ### T024 – Node-kind map + consistency + render
 - **Steps**: change `project_drg::_KIND_TO_NODE_KIND` from a raising subscript to `.get` (unknown → skip/None,
   documented); verify `consistency_check.py` and `_activation_render.py` don't crash/drop for template/asset.
-- **Files**: `src/charter/synthesizer/project_drg.py`, `src/charter/consistency_check.py`,
-  `src/charter/_activation_render.py`.
+- **Files**: `src/charter/activation/synthesizer/project_drg.py`, `src/charter/activation/consistency_check.py`,
+  `src/charter/activation/_activation_render.py`.
 
 ### T025 – `_KIND_ORDER` + filtering coverage
 - **Steps**: confirm `list_cmd::_KIND_ORDER` excludes template/asset (derived from `CHARTER_KIND_TOKENS`); add

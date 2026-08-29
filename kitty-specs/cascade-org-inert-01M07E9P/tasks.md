@@ -192,8 +192,8 @@ T017 In `src/specify_cli/cli/commands/charter/context.py`'s `context()` CLI comm
 to `build_charter_context`/`build_charter_context_json`; pass `org_root=None` through instead. Keep
 the separately-computed full `org_roots` list unchanged for `load_org_charter_json_block(org_roots)`
 (a different, already-correct consumer — do not touch that call).
-T018 In `src/charter/context.py::build_charter_context_json`: swap the internal call from the
-private `_load_action_doctrine_bundle` to `charter.action_doctrine_bundle._resolve_action_bundle`
+T018 In `src/charter/activation/context.py::build_charter_context_json`: swap the internal call from the
+private `_load_action_doctrine_bundle` to `charter.activation.action_doctrine_bundle._resolve_action_bundle`
 (mirroring what `build_charter_context`, the plain-text path, already does at line ~270).
 T019 [depends on T017, T018] **Empirical proof subtask, not optional**: write the red-first test
 for FR-002 AC2 such that it is run THREE times during development — (i) with neither T017 nor T018
@@ -212,11 +212,11 @@ UNCHANGED behavior, not a new requirement).
 
 ### Implementation Notes
 
-- `mypy --strict` baseline: ALREADY CHECKED LIVE by plan.md — `src/charter/context.py` carries 6
+- `mypy --strict` baseline: ALREADY CHECKED LIVE by plan.md — `src/charter/activation/context.py` carries 6
   pre-existing `no-any-return` errors (lines 250/336/342/351/365/376) and
   `cli/commands/charter/context.py:19` carries 1 pre-existing `untyped-decorator` error, both
   unrelated to T017/T018's edit sites. Run `uvx --with-requirements pyproject.toml mypy --strict
-  src/charter/context.py src/specify_cli/cli/commands/charter/context.py` before AND after this
+  src/charter/activation/context.py src/specify_cli/cli/commands/charter/context.py` before AND after this
   WP's changes and confirm the count does not grow.
 
 ### Parallel Opportunities

@@ -412,7 +412,7 @@ fixed by f18e3a28). Ensure the programmatic call path is robust and tested (FR-0
 
 **File**: `src/specify_cli/cli/commands/agent/workflow.py`
 **Also update**: The `from specify_cli.charter.context import build_charter_context` import in
-this file should be redirected to `from charter.context import build_charter_context` as part of
+this file should be redirected to `from charter.activation.context import build_charter_context` as part of
 this task (charter import clean-up coordinated with WP05 T026).
 
 **Background**: When `agent action implement` calls `top_level_implement()` as a Python
@@ -427,7 +427,7 @@ explicitly; this task extends that guard to cover all optional parameters.
 from specify_cli.charter.context import build_charter_context
 
 # After
-from charter.context import build_charter_context
+from charter.activation.context import build_charter_context
 ```
 
 **Step 2 — Audit all `top_level_implement()` call sites in `workflow.py`**:
@@ -507,7 +507,7 @@ was missed during T003 or T006. Fix the missed migration; do not patch the test.
 - [ ] `GuardContext` dataclass exists in `status/transitions.py` and is exported from `status/__init__.py`
 - [ ] `validate_transition` and `_run_guard` accept `(from_lane, to_lane, ctx: GuardContext)`
 - [ ] All 10 `validate_transition` call-site files construct `GuardContext(...)` explicitly
-- [ ] `workflow.py` imports `build_charter_context` from `charter.context` (not `specify_cli.charter.context`)
+- [ ] `workflow.py` imports `build_charter_context` from `charter.activation.context` (not `specify_cli.charter.context`)
 - [ ] All `top_level_implement()` call sites in `workflow.py` pass optional params as explicit Python values (not OptionInfo defaults)
 - [ ] Regression test for programmatic `top_level_implement()` call exists and passes
 - [ ] `ruff check src/` — zero violations

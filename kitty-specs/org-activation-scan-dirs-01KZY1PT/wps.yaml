@@ -3,7 +3,7 @@ work_packages:
     title: "_org_scan_dirs flat-layout fix, red-first"
     dependencies: []
     owned_files:
-      - "src/charter/kind_vocabulary.py"
+      - "src/charter/activation/kind_vocabulary.py"
       - "tests/charter/test_kind_vocabulary_scan_roots.py"
       - "tests/charter/test_org_scan_dirs_activation_regression.py"
     create_intent:

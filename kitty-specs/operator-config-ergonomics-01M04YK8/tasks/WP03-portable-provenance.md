@@ -35,7 +35,7 @@ execution_mode: code_change
 model: claude-sonnet-4-6
 owned_files:
 - src/doctrine/provenance.py
-- src/charter/compiler.py
+- src/charter/activation/compiler.py
 - src/specify_cli/tool_surface/profiles/projection.py
 - src/specify_cli/tool_surface/profiles/_paths.py
 - src/specify_cli/upgrade/migrations/m_3_2_7_heal_provenance_paths.py

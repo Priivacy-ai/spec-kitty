@@ -4,7 +4,7 @@ import pytest
 import tempfile
 from pathlib import Path
 
-from charter.schemas import (
+from charter.activation.schemas import (
     BranchStrategyConfig,
     CommitConfig,
     Directive,

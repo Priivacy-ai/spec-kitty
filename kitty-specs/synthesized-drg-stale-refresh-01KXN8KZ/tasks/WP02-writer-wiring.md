@@ -41,9 +41,9 @@ create_intent: []
 execution_mode: code_change
 model: claude-sonnet-5
 owned_files:
-- src/charter/synthesizer/write_pipeline.py
-- src/charter/synthesizer/resynthesize_pipeline.py
-- src/charter/synthesizer/project_drg.py
+- src/charter/activation/synthesizer/write_pipeline.py
+- src/charter/activation/synthesizer/resynthesize_pipeline.py
+- src/charter/activation/synthesizer/project_drg.py
 - tests/charter/synthesizer/test_write_pipeline.py
 - tests/charter/synthesizer/test_orchestrator_resynthesize.py
 - tests/integration/test_charter_synthesize_built_in_only.py
@@ -149,7 +149,7 @@ passes (T012). Both go GREEN at WP02, independent of the reader.
 - The three tracer files — append implementation notes as you work.
 
 **Out-of-map edit (intentional, one line)**: this WP makes a ONE-LINE change
-to `src/charter/synthesizer/manifest.py` — bumping `schema_version`'s default
+to `src/charter/activation/synthesizer/manifest.py` — bumping `schema_version`'s default
 `"2"`→`"3"` (the field + widened `Literal` were added in WP01). `manifest.py`
 is NOT in WP02's `owned_files` (WP01 owns it). This edit is deliberately
 out-of-map because it MUST land in the SAME commit as the
@@ -211,7 +211,7 @@ dropped. And the existing built_in_only tests seed `bundle_content_hash=None`
      — drop the `"schema_version": "2"` literal (model default `"3"` applies).
      `repo_root` is already resolved (`write_pipeline.py:494-497`).
   3. Add the two imports to the module import block (match the existing
-     absolute-import style, e.g. `from charter.synthesizer._constants import
+     absolute-import style, e.g. `from charter.activation.synthesizer._constants import
      GRAPH_FILENAME` at `write_pipeline.py:41`; use `from charter.bundle
      import compute_bundle_content_hash`).
   4. Leave the no-op-stability skip-write logic (`:692-711`,
@@ -237,7 +237,7 @@ dropped. And the existing built_in_only tests seed `bundle_content_hash=None`
      _repo_root)` — `_repo_root` is in scope at `:367`.
   4. Grep for any test calling `_rewrite_manifest` directly and update its
      arg list.
-- **Files**: `src/charter/synthesizer/resynthesize_pipeline.py`
+- **Files**: `src/charter/activation/synthesizer/resynthesize_pipeline.py`
 - **Parallel?**: Yes, alongside T010, once T008 sets the pattern.
 
 ### Subtask T010 – Fix `project_drg.apply_post_condition` (BLOCKER-1)
@@ -262,7 +262,7 @@ dropped. And the existing built_in_only tests seed `bundle_content_hash=None`
   3. Do NOT call `compute_bundle_content_hash` here (data-model.md — this
      site "preserves unchanged via `model_copy`"; recomputing would be dead
      work since the reader short-circuits on `built_in_only`).
-- **Files**: `src/charter/synthesizer/project_drg.py`
+- **Files**: `src/charter/activation/synthesizer/project_drg.py`
 - **Parallel?**: Yes, alongside T009.
 
 ### Subtask T011 – Red-first: writer-side field==helper assertion (WP02 gate)
@@ -361,12 +361,12 @@ pytest tests/integration/test_charter_synthesize_built_in_only.py -q
 pytest tests/architectural/test_no_op_stable_writes.py -q   # keep green (not owned)
 # reader untouched — these stay at their WP01-base state (no WP02 change):
 pytest tests/specify_cli/charter_freshness/test_computer.py -q
-mypy --strict src/charter/synthesizer/write_pipeline.py \
-    src/charter/synthesizer/resynthesize_pipeline.py \
-    src/charter/synthesizer/project_drg.py
-ruff check src/charter/synthesizer/write_pipeline.py \
-    src/charter/synthesizer/resynthesize_pipeline.py \
-    src/charter/synthesizer/project_drg.py \
+mypy --strict src/charter/activation/synthesizer/write_pipeline.py \
+    src/charter/activation/synthesizer/resynthesize_pipeline.py \
+    src/charter/activation/synthesizer/project_drg.py
+ruff check src/charter/activation/synthesizer/write_pipeline.py \
+    src/charter/activation/synthesizer/resynthesize_pipeline.py \
+    src/charter/activation/synthesizer/project_drg.py \
     tests/charter/synthesizer/test_write_pipeline.py \
     tests/charter/synthesizer/test_orchestrator_resynthesize.py \
     tests/integration/test_charter_synthesize_built_in_only.py

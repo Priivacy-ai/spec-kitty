@@ -315,7 +315,7 @@ the `_SINGULAR_TO_PLURAL` fix (search for `FR-028` in WP08's body). Do not edit
 **Requirement**: FR-020
 
 **Purpose**: `src/doctrine/missions/mission_step_repository.py` imports
-`PackContext` from `charter.pack_context` under `TYPE_CHECKING`. This violates
+`PackContext` from `charter.activation.pack_context` under `TYPE_CHECKING`. This violates
 architectural rule C-004: `doctrine` must not import from `charter`. The fix is to
 replace the concrete import with a narrow structural `Protocol` defined inline in
 the doctrine module.
@@ -330,7 +330,7 @@ the doctrine module.
    ```python
    from typing import TYPE_CHECKING
    if TYPE_CHECKING:
-       from charter.pack_context import PackContext
+       from charter.activation.pack_context import PackContext
    ```
 
 2. Before removing it, grep all `PackContext` and `pack_context.` usages in the file
@@ -360,7 +360,7 @@ the doctrine module.
    # DELETE these lines:
    from typing import TYPE_CHECKING
    if TYPE_CHECKING:
-       from charter.pack_context import PackContext
+       from charter.activation.pack_context import PackContext
    ```
    If `TYPE_CHECKING` is used elsewhere in the file for other purposes, remove only
    the `charter` import line inside the block, not the block itself.

@@ -58,7 +58,7 @@ un-migrated imports:
 3. `doctrine.drg.override_policy` — untouched by charter → keep INTERNAL.
 4. `doctrine.drg.migration.hand_authored_overlay.write_reference_graph_with_overlay` → keep INTERNAL.
 5. `doctrine.missions.repository.MissionsRootNotFound` → pair into a `charter.missions` facade.
-6. **Raw `doctrine.service.DoctrineService` bypass** — 5 sites (`_doctrine_asset.py`, `_doctrine_collect.py`) construct it directly, sidestepping the activation-aware sole door (`charter.resolver.DoctrineService`). Governance leak; fix onto `charter.doctrine_service_builder`.
+6. **Raw `doctrine.service.DoctrineService` bypass** — 5 sites (`_doctrine_asset.py`, `_doctrine_collect.py`) construct it directly, sidestepping the activation-aware sole door (`charter.activation.resolver.DoctrineService`). Governance leak; fix onto `charter.activation.doctrine_service_builder`.
 
 ### Cluster map (charter-facade coverage)
 

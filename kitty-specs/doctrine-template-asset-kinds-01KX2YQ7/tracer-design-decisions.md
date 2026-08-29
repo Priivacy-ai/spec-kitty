@@ -38,7 +38,7 @@ Mission `doctrine-template-asset-kinds-01KX2YQ7` · #2495 (P0) + #2469. **Append
 - **D10 — path-containment** (Paula, highest-priority): ASSET is the FIRST kind whose path resolves to bytes; `../../etc/passwd`
   unguarded today. Manifest path must be relative + normalise under `assets/<pack>/`; escape/absolute → hard-fail `asset_path_escape`.
 - **D11 — mime validation**: type/subtype shape + path-extension consistency (`mimetypes.guess_type`); "requires mime" ≠ non-empty.
-- **D12 — LOCKSTEP charter mirrors.** `_ORG_DRG_CANONICAL_KINDS == charter.activations._ALLOWED_KINDS ∪ {mission_types}` is a
+- **D12 — LOCKSTEP charter mirrors.** `_ORG_DRG_CANONICAL_KINDS == charter.activation.activations._ALLOWED_KINDS ∪ {mission_types}` is a
   drift-guard test (`test_org_pack_augmentation.py:362-384`) — GUARANTEED RED on FR-001 unless `_ALLOWED_KINDS` + `pack_context._BUILTIN_ARTIFACT_KINDS` move in lockstep. Also: `_OrgDRGNode` has `extra="forbid"` + no `mime` field → FR-006 unimplementable until extended.
 - **D13 — C-005 upgraded to a TOTALITY guard.** The only existing new-member guard (`test_nodekind_artifactkind` subset check)
   doesn't guard the mapping tables. New test: every `dict[ArtifactKind…]`/`dict[NodeKind…]` table is total.

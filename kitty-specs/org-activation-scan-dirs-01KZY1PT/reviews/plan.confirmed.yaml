@@ -11,11 +11,11 @@ findings:
   evidence:
   - artifact: plan.md § Charter Check ('Single canonical authority... Pass')
   - artifact: plan.md § The Seam ('No CLI surface. `charter activate` itself... is unchanged')
-  - code: 'src/charter/pack_manager.py:238-256 (_resolve_org_layer_dir, docstring: ''FR-013 unifies the
+  - code: 'src/charter/activation/pack_manager.py:238-256 (_resolve_org_layer_dir, docstring: ''FR-013 unifies the
       charter activation subsystem with runtime, which resolves org packs from the flat <pack>/<plural>/
       layout... Flat is therefore the canonical, preferred layout. The legacy nested <pack>/doctrine/<plural>/org/
       layout is kept as a fallback'')'
-  - code: src/charter/kind_vocabulary.py:219-228 (_layer_scan_dirs / _layer_candidate_dir, org layer resolves
+  - code: src/charter/activation/kind_vocabulary.py:219-228 (_layer_scan_dirs / _layer_candidate_dir, org layer resolves
       to <root>/doctrine/<plural>/org — a third, distinct shape)
   - code: src/charter/drg.py:376,397 (_resolve_activated_urns_for_kind calls resolve_artifact_urn with
       org_roots only, never layer_roots)
@@ -59,7 +59,7 @@ findings:
   - artifact: plan.md § Campsite-Clean Scope ('no other adjacent Sonar/lint debt on the touched surface
       was found that would change that conclusion')
   - artifact: plan.md § The Seam ('Its caller (`_scan_roots`, `:142-180`)... are unchanged')
-  - code: 'src/charter/kind_vocabulary.py:158-160 (_scan_roots docstring: ''``org_roots`` preserves the
+  - code: 'src/charter/activation/kind_vocabulary.py:158-160 (_scan_roots docstring: ''``org_roots`` preserves the
       legacy package-shaped root contract where each root contributes ``<root>/<plural>/built-in`` --
       this nested layout is still live for org packs'')'
   claim: '`_scan_roots` (the immediate caller of `_org_scan_dirs`, cited by the plan''s "The Seam" section
@@ -142,16 +142,16 @@ findings:
       directory — the defect and its fix are fully contained in one resolution helper."
   - artifact: plan.md § Red-First Discipline / § Test Placement Decision — FR-002's regression test is
       scoped only to the `filter_graph_by_activation` / drg.py path
-  - code: src/charter/kind_vocabulary.py:179 (_scan_roots extends with _org_scan_dirs) — confirmed via
+  - code: src/charter/activation/kind_vocabulary.py:179 (_scan_roots extends with _org_scan_dirs) — confirmed via
       grep this is the only call site of _org_scan_dirs, so that narrow claim holds
-  - code: 'src/charter/compiler.py:112-142 (_resolve_config_activated_ids) — the set-comprehension calls
+  - code: 'src/charter/activation/compiler.py:112-142 (_resolve_config_activated_ids) — the set-comprehension calls
       resolve_artifact_urn(...) with no try/except; its own docstring states plainly: "A stem that cannot
       be resolved to a canonical id ... raises UnknownArtifactIdError ... rather than being silently dropped"'
-  - code: 'src/charter/compiler.py:187 (_resolve_config_activated_roots) — `org_roots: list[Path] | None
+  - code: 'src/charter/activation/compiler.py:187 (_resolve_config_activated_roots) — `org_roots: list[Path] | None
       = list(pack_context.pack_roots[1:]) if pack_context is not None else None`, threaded into every
       _resolve_config_activated_ids call for every activated kind (directives, paradigms, tactics, styleguides,
       toolguides, procedures, agent_profiles)'
-  - code: src/charter/consistency_check.py:744-748 and :815-817 — two more resolve_artifact_urn call sites
+  - code: src/charter/activation/consistency_check.py:744-748 and :815-817 — two more resolve_artifact_urn call sites
       inside the config<->graph parity guard, both passed real org_roots (caught narrowly, not swallowed
       into a false 'nothing wrong' result)
   claim: '_org_scan_dirs is indeed called from exactly one place (_scan_roots), so the plan''s narrowest
@@ -244,7 +244,7 @@ findings:
     The plan''s own "either/or" framing therefore offers, as a live possibility for FR-002''s own test,
     a failure mode that cannot occur given FR-002''s own constraint, and never states which one is actually
     correct — exactly the vagueness a red-first step is supposed to eliminate. (Separately, `pack_manager.CharterPackManager.activate`''s
-    own ID-validation step, `list_available` → `_resolve_org_layer_dir` (src/charter/pack_manager.py:238-253),
+    own ID-validation step, `list_available` → `_resolve_org_layer_dir` (src/charter/activation/pack_manager.py:238-253),
     already resolves the flat org layout correctly via a wholly different scan path than `_org_scan_dirs`,
     so the `activate()` write itself succeeds pre-fix — it is only the later `filter_graph_by_activation`
     step, going through `_org_scan_dirs`, that drops the node. This confirms the round trip''s only reachable

@@ -26,11 +26,11 @@ history:
   event: created
   actor: claude
 agent_profile: python-pedro
-authoritative_surface: src/charter/pack_manager.py
+authoritative_surface: src/charter/activation/pack_manager.py
 execution_mode: code_change
 owned_files:
-- src/charter/packs/default.yaml
-- src/charter/pack_manager.py
+- src/charter/activation/packs/default.yaml
+- src/charter/activation/pack_manager.py
 - tests/charter/test_pack_manager.py
 role: implementer
 tags: []
@@ -42,8 +42,8 @@ tags: []
 
 This WP introduces two new production artifacts:
 
-1. `src/charter/packs/default.yaml` — the canonical list of all built-in artifact IDs across all 9 activation kinds. Shipped with spec-kitty; consumed by `CharterPackManager` as the source of truth for "what the default activation set looks like."
-2. `src/charter/pack_manager.py` — `CharterPackManager` with five public methods: `activate()`, `deactivate()`, `list_activated()`, `list_available()`, and `merge_defaults()`. Also defines the `YAML_KEY_MAP` constant, `ActivationResult`, and `MergeResult` value objects.
+1. `src/charter/activation/packs/default.yaml` — the canonical list of all built-in artifact IDs across all 9 activation kinds. Shipped with spec-kitty; consumed by `CharterPackManager` as the source of truth for "what the default activation set looks like."
+2. `src/charter/activation/pack_manager.py` — `CharterPackManager` with five public methods: `activate()`, `deactivate()`, `list_activated()`, `list_available()`, and `merge_defaults()`. Also defines the `YAML_KEY_MAP` constant, `ActivationResult`, and `MergeResult` value objects.
 
 `CharterPackManager` reads and writes `.kittify/config.yaml` using `ruamel.yaml` round-trip mode (preserves comments and formatting). Every method takes `ctx: ProjectContext` as its first parameter.
 
@@ -57,8 +57,8 @@ This WP introduces two new production artifacts:
 
 Before touching any file, read:
 
-1. `src/charter/pack_context.py` — understand `PackContext` fields (`activated_directives`, `activated_tactics`, etc.) and how `from_config()` parses `.kittify/config.yaml`. `CharterPackManager` will write to the same file.
-2. `src/charter/invocation_context.py` (WP03 output) — understand `ProjectContext.require_repo_root()` and `require_pack_context()`. All manager methods call these.
+1. `src/charter/activation/pack_context.py` — understand `PackContext` fields (`activated_directives`, `activated_tactics`, etc.) and how `from_config()` parses `.kittify/config.yaml`. `CharterPackManager` will write to the same file.
+2. `src/charter/activation/invocation_context.py` (WP03 output) — understand `ProjectContext.require_repo_root()` and `require_pack_context()`. All manager methods call these.
 3. `src/charter/packs/` — directory does not yet exist; you will create it in T015.
 4. Any existing ruamel.yaml usage in the codebase for the standard round-trip pattern:
 
@@ -70,15 +70,15 @@ Pick one of those files and read the round-trip import pattern (typically `from 
 
 ---
 
-## T015 — Create `src/charter/packs/default.yaml`
+## T015 — Create `src/charter/activation/packs/default.yaml`
 
 **Goal**: A YAML file listing all built-in artifact IDs for all 9 activation kinds. This file is the "factory default" state that `CharterPackManager.activate()` materializes when a kind is absent from `config.yaml`.
 
 ### Step-by-step
 
 1. Create the directory `src/charter/packs/` (new).
-2. Create `src/charter/packs/__init__.py` as an empty file so the directory is a proper Python package (required for `importlib.resources` access in later WPs if needed, and for consistent layout).
-3. Create `src/charter/packs/default.yaml` with the following content. The IDs are derived from the built-in doctrine files by stripping the type-suffix and extension (e.g. `001-architectural-integrity-standard.directive.yaml` → `001-architectural-integrity-standard`):
+2. Create `src/charter/activation/packs/__init__.py` as an empty file so the directory is a proper Python package (required for `importlib.resources` access in later WPs if needed, and for consistent layout).
+3. Create `src/charter/activation/packs/default.yaml` with the following content. The IDs are derived from the built-in doctrine files by stripping the type-suffix and extension (e.g. `001-architectural-integrity-standard.directive.yaml` → `001-architectural-integrity-standard`):
 
 ```yaml
 # Default charter pack — shipped with spec-kitty.
@@ -301,7 +301,7 @@ activated_mission_step_contracts:
 # YAML is parseable
 python -c "
 import yaml
-with open('src/charter/packs/default.yaml') as f:
+with open('src/charter/activation/packs/default.yaml') as f:
     data = yaml.safe_load(f)
 kinds = ['mission_type_activations', 'activated_directives', 'activated_tactics',
          'activated_styleguides', 'activated_toolguides', 'activated_paradigms',
@@ -317,7 +317,7 @@ print('OK —', {k: len(v) for k, v in data.items()})
 
 ---
 
-## T016 — Create `src/charter/pack_manager.py` — value objects + YAML_KEY_MAP
+## T016 — Create `src/charter/activation/pack_manager.py` — value objects + YAML_KEY_MAP
 
 **Goal**: Create the module with `ActivationResult`, `MergeResult`, `YAML_KEY_MAP`, and the `CharterPackManager` class skeleton (method signatures with `raise NotImplementedError` stubs for any not yet implemented).
 
@@ -333,7 +333,7 @@ from typing import TYPE_CHECKING
 from ruamel.yaml import YAML
 
 if TYPE_CHECKING:
-    from charter.invocation_context import ProjectContext
+    from charter.activation.invocation_context import ProjectContext
 
 __all__ = [
     "ActivationResult",
@@ -456,8 +456,8 @@ class CharterPackManager:
 
 ```bash
 cd /home/stijn/Documents/_code/SDD/fork/spec-kitty
-python -c "from charter.pack_manager import YAML_KEY_MAP, ActivationResult, MergeResult, CharterPackManager; print('import OK')"
-python -c "from charter.pack_manager import YAML_KEY_MAP; assert len(YAML_KEY_MAP) == 9, len(YAML_KEY_MAP); print('YAML_KEY_MAP OK')"
+python -c "from charter.activation.pack_manager import YAML_KEY_MAP, ActivationResult, MergeResult, CharterPackManager; print('import OK')"
+python -c "from charter.activation.pack_manager import YAML_KEY_MAP; assert len(YAML_KEY_MAP) == 9, len(YAML_KEY_MAP); print('YAML_KEY_MAP OK')"
 ```
 
 ---
@@ -641,7 +641,7 @@ def deactivate(
 
 ```bash
 cd /home/stijn/Documents/_code/SDD/fork/spec-kitty
-python -m mypy src/charter/pack_manager.py --strict 2>&1 | head -20
+python -m mypy src/charter/activation/pack_manager.py --strict 2>&1 | head -20
 ```
 
 ---
@@ -772,9 +772,9 @@ def merge_defaults(
 
 ```bash
 cd /home/stijn/Documents/_code/SDD/fork/spec-kitty
-python -m mypy src/charter/pack_manager.py --strict 2>&1 | head -20
+python -m mypy src/charter/activation/pack_manager.py --strict 2>&1 | head -20
 python -c "
-from charter.pack_manager import CharterPackManager, YAML_KEY_MAP
+from charter.activation.pack_manager import CharterPackManager, YAML_KEY_MAP
 mgr = CharterPackManager()
 # Verify all 5 methods exist and are callable
 assert callable(mgr.activate)
@@ -807,8 +807,8 @@ from pathlib import Path
 import pytest
 import yaml
 
-from charter.invocation_context import ProjectContext
-from charter.pack_manager import (
+from charter.activation.invocation_context import ProjectContext
+from charter.activation.pack_manager import (
     ActivationResult,
     CharterPackManager,
     MergeResult,
@@ -1062,9 +1062,9 @@ python -m pytest tests/charter/test_pack_manager.py -x -v 2>&1 | tail -40
 
 All of the following must hold before this WP is marked `for_review`:
 
-1. `src/charter/packs/default.yaml` exists with all 9 activation-kind keys populated from built-in doctrine.
-2. `src/charter/packs/__init__.py` exists (empty).
-3. `src/charter/pack_manager.py` defines `ActivationResult`, `MergeResult`, `YAML_KEY_MAP` (9 entries), and `CharterPackManager` with all 5 public methods implemented.
+1. `src/charter/activation/packs/default.yaml` exists with all 9 activation-kind keys populated from built-in doctrine.
+2. `src/charter/activation/packs/__init__.py` exists (empty).
+3. `src/charter/activation/pack_manager.py` defines `ActivationResult`, `MergeResult`, `YAML_KEY_MAP` (9 entries), and `CharterPackManager` with all 5 public methods implemented.
 4. `YAML_KEY_MAP["mission-type"] == "mission_type_activations"` (the outlier mapping is explicit, not computed).
 5. `tests/charter/test_pack_manager.py` exists and all tests pass.
 6. `ruamel.yaml` round-trip is used for all writes; config.yaml comments are preserved (verified by the comment-preservation test in T019).
@@ -1079,7 +1079,7 @@ cd /home/stijn/Documents/_code/SDD/fork/spec-kitty
 python -m pytest tests/charter/test_pack_manager.py -x -q
 
 # 2. mypy strict on both new modules
-python -m mypy src/charter/pack_manager.py --strict
+python -m mypy src/charter/activation/pack_manager.py --strict
 
 # 3. ruff
 cd src && ruff check charter/pack_manager.py && ruff check charter/packs/
@@ -1088,7 +1088,7 @@ cd ..
 # 4. default.yaml is valid and has 9 keys
 python -c "
 import yaml
-with open('src/charter/packs/default.yaml') as f:
+with open('src/charter/activation/packs/default.yaml') as f:
     data = yaml.safe_load(f)
 expected = {
     'mission_type_activations', 'activated_directives', 'activated_tactics',
@@ -1102,7 +1102,7 @@ print('default.yaml OK')
 
 # 5. YAML_KEY_MAP has exactly 9 entries with correct mission-type outlier
 python -c "
-from charter.pack_manager import YAML_KEY_MAP
+from charter.activation.pack_manager import YAML_KEY_MAP
 assert len(YAML_KEY_MAP) == 9
 assert YAML_KEY_MAP['mission-type'] == 'mission_type_activations'
 print('YAML_KEY_MAP OK')

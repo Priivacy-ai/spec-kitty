@@ -148,7 +148,7 @@ Current measured surfaces after WP02 calibration should satisfy these. This test
 **Purpose**: Structural audit confirming that no per-action filtering logic exists anywhere.
 
 **Steps**:
-1. Add a test that scans `src/charter/context.py` for `build_context_v2`:
+1. Add a test that scans `src/charter/activation/context.py` for `build_context_v2`:
    - Parse the function body with `ast`
    - Assert no `if` statements that compare `action` to specific action name strings
    - Assert no dict/set of action names used for filtering

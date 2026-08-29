@@ -161,7 +161,7 @@ finishing.
 
 3. **`CharterTemplateResolver._tier_to_origin` needs an `ORG` entry** — this was WP02's job
    (FR-012), already landed by the time this WP starts. You do not need to touch
-   `src/charter/template_resolver.py` in this WP.
+   `src/charter/activation/template_resolver.py` in this WP.
 
 ## Branch Strategy
 

@@ -20,7 +20,7 @@ relationship, and conflating them is what made the earlier reading hazardous:
   into a DRG edge. These move to the authored-edge tier.
 * ``GOVERNANCE`` — ``directive-references`` / ``context-sources.*`` on agent
   profiles. These produce **zero** DRG edges but seed the charter governance
-  closure (``src/charter/resolver.py`` reads ``profile.directive_references`` as the
+  closure (``src/charter/activation/resolver.py`` reads ``profile.directive_references`` as the
   transitive-resolution seed set). Deleting them empties profile-routed prompts
   while every graph-shaped assertion stays green. They are NOT relationship
   residue and must not be swept into the migration.

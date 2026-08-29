@@ -11,7 +11,7 @@
         "WP01"
       ],
       "write_scope": [
-        "src/charter/kind_vocabulary.py"
+        "src/charter/activation/kind_vocabulary.py"
       ],
       "predicted_surfaces": [
         "artifact-rendering",
@@ -26,7 +26,7 @@
         "WP02"
       ],
       "write_scope": [
-        "src/charter/compiler.py",
+        "src/charter/activation/compiler.py",
         "src/specify_cli/cli/commands/charter/_synthesis.py",
         "src/specify_cli/cli/commands/charter/generate.py"
       ],
@@ -45,7 +45,7 @@
         "WP06"
       ],
       "write_scope": [
-        "src/charter/activation_engine.py"
+        "src/charter/activation/activation_engine.py"
       ],
       "predicted_surfaces": [
         "api",
@@ -116,7 +116,7 @@
         "WP05"
       ],
       "write_scope": [
-        "src/charter/consistency_check.py"
+        "src/charter/activation/consistency_check.py"
       ],
       "predicted_surfaces": [
         "legacy-cleanup"

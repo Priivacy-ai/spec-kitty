@@ -61,9 +61,9 @@ def _build_asset_repository() -> AssetRepository:
 
     WP03 (charter-sole-door-bypass-closure-01KZ3WAA, FR-002/T012): the raw
     inner service is always routed through the sanctioned
-    ``charter.resolver.DoctrineService`` wrapper (normal, activation-aware
+    ``charter.activation.resolver.DoctrineService`` wrapper (normal, activation-aware
     construction — a real ``PackContext`` when *repo_root* is available) so
-    no code outside ``charter.resolver``/the unified builder constructs
+    no code outside ``charter.activation.resolver``/the unified builder constructs
     ``charter.offering.service.DoctrineService`` directly (NFR-001). ``.assets`` is a
     non-charter-activatable kind (``ArtifactKind.ASSET`` is excluded via
     ``_NON_AUGMENTATION_ELIGIBLE_KINDS``), so it has no gated property on the
@@ -74,8 +74,8 @@ def _build_asset_repository() -> AssetRepository:
     overlay, no org packs) is unchanged.
     """
     from charter.offering.service import DoctrineService as RawDoctrineService
-    from charter.resolver import DoctrineService as ActivationAwareDoctrineService
-    from charter.pack_context import PackContext
+    from charter.activation.resolver import DoctrineService as ActivationAwareDoctrineService
+    from charter.activation.pack_context import PackContext
     from specify_cli.core.paths import locate_project_root
 
     project_root: Path | None = None
@@ -83,7 +83,7 @@ def _build_asset_repository() -> AssetRepository:
     pack_context: PackContext | None = None
     repo_root = locate_project_root()
     if repo_root is not None:
-        from charter._doctrine_paths import resolve_project_root
+        from charter.activation._doctrine_paths import resolve_project_root
         from charter.drg import resolve_org_roots
 
         project_root = resolve_project_root(repo_root)

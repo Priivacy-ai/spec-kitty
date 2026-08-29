@@ -19,7 +19,7 @@ authoritative_surface: src/charter/evidence/
 create_intent: []
 execution_mode: code_change
 owned_files:
-- src/charter/evidence/orchestrator.py
+- src/charter/activation/evidence/orchestrator.py
 role: implementer
 tags: []
 agent: "claude:opus:reviewer-renata:reviewer"
@@ -37,7 +37,7 @@ One `isinstance` guard fixes a schema-drift crash that reds THREE charter tests 
 **Authoritative grounding**: [`research.md` §3](../research.md), [`data-model.md` LM-2, LM-9, LM-10](../data-model.md).
 
 ## Context / grounding (verified on main)
-- Crash: `load_url_list_from_config` in `src/charter/evidence/orchestrator.py` does
+- Crash: `load_url_list_from_config` in `src/charter/activation/evidence/orchestrator.py` does
   `charter_cfg = config.get("charter") or {}` then `charter_cfg.get("synthesis_inputs")` → **`'str' object has no
   attribute 'get'`**, because post-#2773 `.kittify/config.yaml`'s `charter:` key holds a **path string**
   (`.kittify/charter/charter.yaml`), not a dict. `synthesis_inputs`/`url_list` has no live config home now.

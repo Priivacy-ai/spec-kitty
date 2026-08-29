@@ -83,7 +83,7 @@ The *mechanism* for mission-aware governance landed; the *content* did not. But 
 ## 6. Mission-type key canonicalization (paula)
 
 - **No single chokepoint** for the `mission_type` key (it's excluded from `kind_vocabulary`). Read raw at `mission_type_profiles.py:380` and again at `specify_cli/mission.py:556`.
-- Route through **one** `canonicalize_mission_type()` in `charter.mission_type_profiles` (already owns `CANONICAL_MISSION_TYPES`); make both readers consume it. Don't add a second normalizer.
+- Route through **one** `canonicalize_mission_type()` in `charter.activation.mission_type_profiles` (already owns `CANONICAL_MISSION_TYPES`); make both readers consume it. Don't add a second normalizer.
 
 ## 7. Mechanism gaps if we go the `governance_refs` route (daphne)
 

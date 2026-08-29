@@ -14,7 +14,7 @@ Squad cadence at every planning point-cut (pre-spec, post-spec, post-tasks). Mod
   2. **Compact mode renders no activations** — bootstrap-only. → regression test forces bootstrap.
   3. **FR-004 raise swallowed by `_render_activation_block`'s `except`** — must sit pre-`try`.
   4. Drop `_fold_policies` byte-parity claim → first-seen union.
-  5–6. Layering move CONFIRMED clean (org_charter already imports `charter.activations`).
+  5–6. Layering move CONFIRMED clean (org_charter already imports `charter.activation.activations`).
 - **paula (sizing)** — UNDERSIZED ~1.5–2× on the unresolved surface question → resolved to text-stanza (option a, 1 WP). Named the fakeable red-first seams (`render_activation_stanza`/`resolve_for_context`) → NFR-001 forbidden-entry-points. Flagged the accreting third rescan copy → FR-006.
 
 ## Round 3 — Post-tasks (opus anti-laziness + sonnet Sonar census) → WP01 rev 2 (10 subtasks)

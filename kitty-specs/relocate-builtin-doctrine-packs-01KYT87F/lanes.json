@@ -74,7 +74,7 @@
         "WP04"
       ],
       "write_scope": [
-        "src/charter/catalog.py",
+        "src/charter/activation/catalog.py",
         "src/doctrine/agent_profiles/repository.py",
         "src/doctrine/assets/repository.py",
         "src/doctrine/directives/repository.py",

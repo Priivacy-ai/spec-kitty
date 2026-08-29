@@ -24,8 +24,8 @@ findings:
     title: "mission-type show crashes uncaught on the exact CL-003 empty-action-sequence case it was built to guard against"
     evidence:
       - code: "src/specify_cli/cli/commands/mission_type.py:1450-1462"
-      - code: "src/charter/mission_type_profiles.py:194-256"
-      - code: "src/charter/mission_type_profiles.py:259-305"
+      - code: "src/charter/activation/mission_type_profiles.py:194-256"
+      - code: "src/charter/activation/mission_type_profiles.py:259-305"
       - code: "src/specify_cli/cli/commands/charter/mission_type.py:151-160"
     claim: >
       `show_mission_type` (`spec-kitty mission-type show <id>`) calls
@@ -56,11 +56,11 @@ findings:
     verdict_source: "pr.refute-1.yaml"
     title: "charter activate mission-type silently swallows malformed-YAML and unreadable-directory failures in the very org/project layers WP05 newly wired in, masking them as a generic 'unknown ID'"
     evidence:
-      - code: "src/charter/pack_manager.py:317-338"
-      - code: "src/charter/pack_manager.py:361-377"
-      - code: "src/charter/pack_manager.py:778-840"
+      - code: "src/charter/activation/pack_manager.py:317-338"
+      - code: "src/charter/activation/pack_manager.py:361-377"
+      - code: "src/charter/activation/pack_manager.py:778-840"
       - code: "src/doctrine/missions/mission_type_repository.py:358-394"
-      - code: "src/charter/pack_manager.py:618-643"
+      - code: "src/charter/activation/pack_manager.py:618-643"
     claim: >
       WP05's `_resolve_layer_candidate` (pack_manager.py:317-338) wires org/project
       mission-type directories into `CharterPackManager.list_available_detailed`
@@ -99,8 +99,8 @@ findings:
     title: "New golden-parity regression class in test_runtime_seam.py cannot fail even when WP04's PackContext-threading is fully reverted"
     evidence:
       - code: "tests/runtime/test_runtime_seam.py:184-233"
-      - code: "src/charter/mission_type_profiles.py:917-925 (_resolve_action_slot, calls resolve_layered_mission_types)"
-      - code: "src/charter/mission_type_profiles.py:1036 (_resolve_template_set_slot, threads pack_context)"
+      - code: "src/charter/activation/mission_type_profiles.py:917-925 (_resolve_action_slot, calls resolve_layered_mission_types)"
+      - code: "src/charter/activation/mission_type_profiles.py:1036 (_resolve_template_set_slot, threads pack_context)"
     claim: >
       `TestGoldenParityUnaffectedByPackContextThreading.test_builtin_type_unaffected_by_real_pack_context_with_org_root`
       (parametrized over the 4 built-in mission types) constructs a real `PackContext` whose
@@ -137,26 +137,26 @@ findings:
     evidence:
       - code: "src/specify_cli/cli/commands/charter/mission_type.py:106"
       - code: "src/specify_cli/cli/commands/charter/mission_type.py:84"
-      - code: "src/charter/mission_type_profiles.py:827"
-      - code: "src/charter/mission_type_profiles.py:73-82"
+      - code: "src/charter/activation/mission_type_profiles.py:827"
+      - code: "src/charter/activation/mission_type_profiles.py:73-82"
     claim: >
       `resolve_mission_type_source_layer` (mission_type.py:97-114) does `from
-      charter.mission_type_profiles import _resolve_action_sequence_layer` — a
-      leading-underscore symbol, absent from `charter.mission_type_profiles.__all__`, never
+      charter.activation.mission_type_profiles import _resolve_action_sequence_layer` — a
+      leading-underscore symbol, absent from `charter.activation.mission_type_profiles.__all__`, never
       re-exported through any charter facade. This is inconsistent with the pattern the SAME
       function applies one line above (`resolve_layered_roster`, mission_type.py:76-94),
       which reaches `resolve_layered_mission_types` only via the `charter.missions` facade
       door WP07 deliberately widened for that purpose — confirmed by grep that
       `charter.missions` re-exports `resolve_layered_mission_types` but never
       `_resolve_action_sequence_layer`. No existing gate catches this (layer-direction test
-      passes regardless since `charter.mission_type_profiles` is a charter module;
+      passes regardless since `charter.activation.mission_type_profiles` is a charter module;
       events/tracker private-import test only guards a different package; ruff's selected
       rules don't include a private-member-import check). A future refactor or removal of
       `_resolve_action_sequence_layer` would have no signal that `specify_cli` depends on it
       directly.
     remediation: >
       Rename `_resolve_action_sequence_layer` to a public name (e.g.
-      `resolve_action_sequence_layer`) in src/charter/mission_type_profiles.py and add it to
+      `resolve_action_sequence_layer`) in src/charter/activation/mission_type_profiles.py and add it to
       that module's `__all__`, then update both the in-module caller
       (mission_type_profiles.py:949) and the cross-module caller (mission_type.py:106) to the
       new public name.
@@ -208,14 +208,14 @@ findings:
       - code: "tests/doctrine/missions/test_mission_type_repository.py (TestLayeredMissionTypesCacheKeyAndClear.setup_method/teardown_method — same discipline at the doctrine layer)"
       - code: "src/doctrine/missions/mission_type_repository.py:453-478 (resolve_layered_mission_types, @functools.cache keyed on (mission_types_dirs, pack_context))"
     claim: >
-      Every other new/changed test file that patches `charter.pack_context.PackContext.from_config`
+      Every other new/changed test file that patches `charter.activation.pack_context.PackContext.from_config`
       and then drives resolution through the module-level `resolve_layered_mission_types`
       cache also calls `MissionTypeRepository.cache_clear()` before and/or after the patched
       call. `tests/charter/test_mission_type_profiles.py`'s `TestPackContextProjection`,
       `TestEmptyActionSequenceLoudFail`, and `TestMissionCreatePropagatesEmptyActionSequenceError`
       classes do the same patch-and-resolve dance but never call `cache_clear()` anywhere in
       the file — confirmed by grep, zero matches. Correctness currently survives only because
-      `PackContext` is a frozen, field-hashed dataclass (src/charter/pack_context.py:100-101)
+      `PackContext` is a frozen, field-hashed dataclass (src/charter/activation/pack_context.py:100-101)
       and every test's fields derive from pytest's per-test-unique `tmp_path`, so no two tests
       in this file can construct an *equal* `PackContext` and collide on a cache entry — an
       incidental, not designed, protection that a future test reusing a fixed/shared root
@@ -232,10 +232,10 @@ findings:
     severity: 1
     verdict: confirmed
     verdict_source: "pr.refute-1.yaml"
-    title: "MissionTypeEmptyActionSequenceError is imported by name from two other src/ modules but is missing from charter.mission_type_profiles.__all__"
+    title: "MissionTypeEmptyActionSequenceError is imported by name from two other src/ modules but is missing from charter.activation.mission_type_profiles.__all__"
     evidence:
-      - code: "src/charter/mission_type_profiles.py:73-82"
-      - code: "src/charter/mission_type_profiles.py:259"
+      - code: "src/charter/activation/mission_type_profiles.py:73-82"
+      - code: "src/charter/activation/mission_type_profiles.py:259"
       - code: "src/specify_cli/cli/commands/charter/mission_type.py:32"
       - code: "src/specify_cli/cli/commands/charter/activate.py:184"
     claim: >
@@ -243,10 +243,10 @@ findings:
       by explicit name from mission_type.py:32 and referenced in activate.py:184's
       `except UnknownMissionTypeError` handler comment — a genuinely public,
       cross-module-depended-on symbol — yet it was never added to
-      `charter.mission_type_profiles.__all__` (lines 73-83, which lists `UnknownMissionTypeError`
+      `charter.activation.mission_type_profiles.__all__` (lines 73-83, which lists `UnknownMissionTypeError`
       and 8 others but omits it). `from module import Name` works regardless of `__all__`, so
       this has no runtime effect, but leaves the module's documented public contract silently
       out of sync with what other modules actually depend on.
     remediation: >
-      Add `"MissionTypeEmptyActionSequenceError"` to `charter.mission_type_profiles.__all__`,
+      Add `"MissionTypeEmptyActionSequenceError"` to `charter.activation.mission_type_profiles.__all__`,
       alongside `UnknownMissionTypeError`, which it mirrors.

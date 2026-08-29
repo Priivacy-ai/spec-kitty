@@ -42,7 +42,7 @@ for — and the WP's own tests mask it. Details below.
    (`freshness/computer.py:451-494`, `charter.bundle.compute_bundle_content_hash`).
 4. WP06's `generate` (step 4) rewrites `charter.yaml`'s `catalog` and **does
    NOT re-stamp the synthesis manifest** (verified: `generate.py` and
-   `charter.compiler.write_compiled_charter` contain no manifest/
+   `charter.activation.compiler.write_compiled_charter` contain no manifest/
    `bundle_content_hash`/synthesize write).
 5. Therefore the post-refresh recompute (step 5) sees
    `stored_hash != current_hash` → `synthesized_drg = "stale"` →
@@ -76,7 +76,7 @@ generate --no-from-interview` runs against one repo produced three different
 an already-generated repo degrades 4 language-scoped styleguide/toolguide
 `title`/`summary` strings to `"Definition unavailable in bundled doctrine"`
 (`id`/`kind`/`source_path` stable). This is genuinely **pre-existing** in
-`charter.compiler` (reproduced with plain `generate`, zero WP06 code) — the
+`charter.activation.compiler` (reproduced with plain `generate`, zero WP06 code) — the
 implementer flagged it and its commit message correctly recommends a tracker
 issue, and the unit test's activated-id-SET comparison correctly works around
 it without masking (that part is good).
@@ -125,7 +125,7 @@ resulting `passed`/`synthesized_drg` state.
 2. Add end-to-end coverage through `_attempt_auto_refresh`/`run_charter_preflight`
    with a **real** `generate` on a non-`built_in_only` stale repo; do not stub
    generate to a no-op in the success assertion.
-3. File the pre-existing `charter.compiler` generate-degradation defect as a
+3. File the pre-existing `charter.activation.compiler` generate-degradation defect as a
    tracker issue (as the commit message already recommends) and confirm the
    heal path does not silently degrade the catalog on repeat heals.
 

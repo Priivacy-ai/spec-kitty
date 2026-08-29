@@ -1,7 +1,7 @@
 # Contract: `charter sync` cross-link emission
 
 **Mission**: `wp-prompt-governance-payload-01KRR8HS`
-**Surface**: `charter.sync.sync` (via `charter.extractor.Extractor._extract_directives`)
+**Surface**: `charter.activation.sync.sync` (via `charter.extractor.Extractor._extract_directives`)
 **FRs covered**: FR-006
 **ATDD anchors**: `TestCharterDirectiveNamespaceCrossLink::test_charter_sync_emits_cross_link_when_body_cites_catalog_id`
 

@@ -11,10 +11,10 @@ Consolidated from paula-patterns (consumer/writer surface), architect-alphonso (
 The keystone below was RESOLVED by the operator: **charter.yaml is the project charter and OWNS activation** (relocate `activated_*` out of `.kittify/config.yaml`), pack-shaped, overlaying `default.yaml` (layer-0). ADR 2026-07-18-1 §Decision Outcome points 1–2 updated; spec C-005 flipped + C-008 fence added; FR-012/013/014 + US7 + SC-008 added. This EXPANDS the mission with an activation-engine WP.
 
 **New surface to add (WP-cluster ~"WP-I activation relocation", tidy-first BEFORE or WITH WP-A schema):**
-- `src/charter/pack_manager.py` — `commit_plan` (activation writer, `:448/519`), `merge_defaults` (`:703-755`, second writer), `_save_config` → re-point activation WRITE to `charter.yaml`.
-- `src/charter/pack_context.py` — `PackContext.from_config` (`:230-271`, activation READ + `_BUILTIN_*` fallback) → read activation from `charter.yaml`; keep the fail-closed contract (`:223-241`); resolve absent key from `default.yaml` (`load_default_pack_activation_ids`).
+- `src/charter/activation/pack_manager.py` — `commit_plan` (activation writer, `:448/519`), `merge_defaults` (`:703-755`, second writer), `_save_config` → re-point activation WRITE to `charter.yaml`.
+- `src/charter/activation/pack_context.py` — `PackContext.from_config` (`:230-271`, activation READ + `_BUILTIN_*` fallback) → read activation from `charter.yaml`; keep the fail-closed contract (`:223-241`); resolve absent key from `default.yaml` (`load_default_pack_activation_ids`).
 - `.kittify/config.yaml` — remove `activated_*` section (keep `agents:` + non-doctrine); migration moves it into `charter.yaml`.
-- Overlay: `charter.yaml` = project-tier charter overlaying layer-0 `src/charter/packs/default.yaml` (existing `pack_roots` overlay / `DoctrineLayerCollisionWarning`, ADR 2026-05-16-1).
+- Overlay: `charter.yaml` = project-tier charter overlaying layer-0 `src/charter/activation/packs/default.yaml` (existing `pack_roots` overlay / `DoctrineLayerCollisionWarning`, ADR 2026-05-16-1).
 - The `charter.yaml.activation`/`activated_*` section uses the SAME vocabulary as `default.yaml` (`activated_kinds`, `mission_type_activations`, `activated_directives/tactics/...`).
 - **Behavior-preserving:** the activation-parity + DRG-filter suites (`tests/doctrine/test_activation_parity_guard.py`, `filter_graph_by_activation` tests, `tests/**/test_pack_context*.py`, `test_activation_engine*.py`) must stay green — this is a surface relocation, not a semantics change.
 - **Fenced OUT (C-008):** ADR 2026-07-15-1 runtime activation-gating + first-class DRG nodes for mission_type/gate/asset.
@@ -31,7 +31,7 @@ The keystone below was RESOLVED by the operator: **charter.yaml is the project c
 `_compute_charter_source` (`computer.py:270`) + `hasher.py:45,58` + `sync.py:342-343,387-388` compare charter.md SHA vs `metadata.yaml::charter_hash`. Inverted, charter.md is a never-resolving companion → this staleness mechanism is the OLD model. Retire `charter_source` staleness or re-home the hash externally (synthesis manifest already holds `bundle_content_hash`). A hash of charter.yaml cannot live inside charter.yaml (chicken-egg). WP-E.
 
 ## charter.yaml schema (from the real field shapes)
-Reuse existing pydantic models as nested sub-models of a new `CharterYaml` (`src/charter/schemas.py`):
+Reuse existing pydantic models as nested sub-models of a new `CharterYaml` (`src/charter/activation/schemas.py`):
 ```yaml
 schema_version: "2.0.0"
 governance: {...}      # verbatim GovernanceConfig (schemas.py:124): testing/quality/commits/performance/branch_strategy/doctrine{selected_*,available_tools,template_set,authority_paths,governance_references}/activations[]/enforcement{}
@@ -44,11 +44,11 @@ metadata: {generated_at, bundle_schema_version: 2}   # keep bundle_schema_versio
 Manifest bump (`bundle.py`): `SCHEMA_VERSION "1.0.0"→"2.0.0"`; `BUNDLE_CONTENT_HASH_FILES (4)→("charter.yaml",)` (single point re-targeting the #2732 hash — feeds write stampers `write_pipeline.py:685`/`resynthesize_pipeline.py:205` + reader `computer.py:475` via one recipe). **New `charter.yaml` filename = ONE shared constant** consumed by bundle/sync/compiler/consistency_check/migration (do NOT re-scatter — the four names are today duplicated in `bundle.py:36-51` Path-form + `sync.py:43-44` str-form; unify).
 
 ## Consumers the spec's FRs MISSED (add to FR-005 re-point set — split-brain hazards)
-- `src/charter/mission_type_profiles.py:966 _project_has_doctrine_overrides` → `governance.yaml`, **DECISION** (mission-type hard-fail gate). Bypasses loaders.
+- `src/charter/activation/mission_type_profiles.py:966 _project_has_doctrine_overrides` → `governance.yaml`, **DECISION** (mission-type hard-fail gate). Bypasses loaders.
 - `src/doctrine/spdd_reasons/activation.py:36-37,62 _governance_selects_pack` → `governance.yaml`+`directives.yaml`, **DECISION** (SPDD pack activation). Has a cache (`clear_activation_cache`) to invalidate.
 - `src/doctrine/versioning.py:166 read_bundle_schema_version` → `metadata.yaml` schema-version gate — repoint to charter.yaml.
-- `src/charter/sync.py:224 post_save_hook` — auto-syncs on charter.md write; must be REMOVED with the scrape (nothing to scrape post-retirement).
-- `src/charter/compact.py` (section anchors) — ensure in the display WP owned_files (FR-008 named context.py, not compact.py).
+- `src/charter/activation/sync.py:224 post_save_hook` — auto-syncs on charter.md write; must be REMOVED with the scrape (nothing to scrape post-retirement).
+- `src/charter/activation/compact.py` (section anchors) — ensure in the display WP owned_files (FR-008 named context.py, not compact.py).
 - `src/specify_cli/cli/commands/charter_bundle.py:68-78 _OUT_OF_SCOPE_WARNINGS` special-cases references.yaml — update with the moot-stopgap cleanup.
 
 ## Two chokepoint loaders (re-pointing these covers most decision reads)

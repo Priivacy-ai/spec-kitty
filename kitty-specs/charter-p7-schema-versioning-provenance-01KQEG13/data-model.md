@@ -16,7 +16,7 @@
 
 **Storage location**: `.kittify/charter/metadata.yaml` key `bundle_schema_version` (new integer field alongside existing `schema_version: "1.0.0"` string).
 
-**Model change** (`src/charter/schemas.py`, `ExtractionMetadata`):
+**Model change** (`src/charter/activation/schemas.py`, `ExtractionMetadata`):
 ```python
 class ExtractionMetadata(BaseModel):
     schema_version: str = "1.0.0"        # unchanged
@@ -32,7 +32,7 @@ class ExtractionMetadata(BaseModel):
 
 ## 2. ProvenanceEntry v2
 
-**Module**: `src/charter/synthesizer/synthesize_pipeline.py`  
+**Module**: `src/charter/activation/synthesizer/synthesize_pipeline.py`  
 **Storage**: `.kittify/charter/provenance/<kind>-<slug>.yaml`  
 **Change**: `schema_version` bumps from `Literal["1"]` to `Literal["2"]`. Six new/promoted fields.
 
@@ -77,7 +77,7 @@ Validation during bundle validate: sentinel-valued fields produce a **warning** 
 
 ## 3. SynthesisManifest v2
 
-**Module**: `src/charter/synthesizer/manifest.py`  
+**Module**: `src/charter/activation/synthesizer/manifest.py`  
 **Storage**: `.kittify/charter/synthesis-manifest.yaml`  
 **Change**: `schema_version` bumps from `Literal["1"]` to `Literal["2"]`. Two new fields.
 
@@ -168,7 +168,7 @@ Public API:
 
 ## 6. ExtractionMetadata (updated)
 
-**Module**: `src/charter/schemas.py`
+**Module**: `src/charter/activation/schemas.py`
 
 The `ExtractionMetadata` Pydantic model gains one new optional field `bundle_schema_version: int | None = None`. The extractor (`src/charter/extractor.py`) stamps `bundle_schema_version = CURRENT_BUNDLE_SCHEMA_VERSION` (imported from `doctrine.versioning`) when writing `metadata.yaml` during `charter sync`.
 

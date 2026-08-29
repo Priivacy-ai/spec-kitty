@@ -36,8 +36,8 @@ execution_mode: code_change
 model: ''
 owned_files:
 - src/doctrine/artifact_kinds.py
-- src/charter/kind_vocabulary.py
-- src/charter/pack_manager.py
+- src/charter/activation/kind_vocabulary.py
+- src/charter/activation/pack_manager.py
 - src/specify_cli/cli/commands/doctrine.py
 - tests/doctrine/drg/test_kind_mapping_totality.py
 - tests/doctrine/test_artifact_kinds.py
@@ -87,8 +87,8 @@ may exist. There are four:
 |---|---|---|---|
 | `src/doctrine/service.py:19` | `dict[str, str]` | **plural** strings | **No — invisible** |
 | `src/specify_cli/cli/commands/doctrine.py:442` | `dict[str, str]` | singular strings | **No — invisible** |
-| `src/charter/kind_vocabulary.py:79` | `dict[ArtifactKind, str]` | enum | Yes, but **exempted** |
-| `src/charter/pack_manager.py:136` | `dict[ArtifactKind, str]` | enum | Yes, but **exempted** |
+| `src/charter/activation/kind_vocabulary.py:79` | `dict[ArtifactKind, str]` | enum | Yes, but **exempted** |
+| `src/charter/activation/pack_manager.py:136` | `dict[ArtifactKind, str]` | enum | Yes, but **exempted** |
 
 The guard's AST scan matches only `EnumName.MEMBER` attribute keys, so the two string-keyed copies are
 **not discovered at all** — a different and worse failure than exemption. All four are `.get(x, …)`

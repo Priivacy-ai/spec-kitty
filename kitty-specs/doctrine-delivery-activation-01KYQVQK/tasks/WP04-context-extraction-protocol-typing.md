@@ -24,15 +24,15 @@ history:
 agent_profile: python-pedro
 authoritative_surface: src/charter/context_renderers/
 create_intent:
-- src/charter/context_renderers/reference_pointers.py
-- src/charter/context_renderers/delivery_table.py
+- src/charter/activation/context_renderers/reference_pointers.py
+- src/charter/activation/context_renderers/delivery_table.py
 - src/charter/repository_protocol.py
 execution_mode: code_change
 model: ''
 owned_files:
-- src/charter/context.py
-- src/charter/context_renderers/reference_pointers.py
-- src/charter/context_renderers/delivery_table.py
+- src/charter/activation/context.py
+- src/charter/activation/context_renderers/reference_pointers.py
+- src/charter/activation/context_renderers/delivery_table.py
 - src/charter/repository_protocol.py
 role: implementer
 tags: []
@@ -78,7 +78,7 @@ Use language identifiers in code blocks: ````python`, ````bash`
 
 ## Objectives & Success Criteria
 
-`src/charter/context.py` is a 3528-line module. This WP does two behaviour-preserving things to it,
+`src/charter/activation/context.py` is a 3528-line module. This WP does two behaviour-preserving things to it,
 both sliced from larger backlog tickets so they land as a bounded, reviewable unit:
 
 1. **Extract two independent helper groups** to `context_renderers/` sibling modules — the
@@ -137,8 +137,8 @@ both sliced from larger backlog tickets so they land as a bounded, reviewable un
     `action_bundle_gate`, `_classify_artifact_urns`) **has three external test importers**:
     `tests/charter/test_action_bundle_delivery.py`, `tests/charter/test_context_display_charter_md.py`,
     and `tests/doctrine/drg/test_unknown_kind_fails_loudly.py` (all confirmed importing these
-    symbols from `charter.context` directly — verified in the live tree). You MUST either
-    re-export these names from `charter.context` after moving them, or update all three test
+    symbols from `charter.activation.context` directly — verified in the live tree). You MUST either
+    re-export these names from `charter.activation.context` after moving them, or update all three test
     files' import statements in the **same PR** — do not leave a half-moved state where the
     module has moved but nothing still resolves the old import path.
 - **Protocol typing scope (WP01/IC-08 boundary, must NOT expand)**: the 12 ignore sites are:
@@ -190,12 +190,12 @@ both sliced from larger backlog tickets so they land as a bounded, reviewable un
      lands): `_filter_references_for_action`, `_reference_source_index`,
      `_resolve_reference_source`, `_distribute_references_across_kinds`,
      `_select_reference_pointers`, and the module-global `_REFERENCE_SOURCE_INDEX_CACHE`.
-  2. Create `src/charter/context_renderers/reference_pointers.py`. Move all five functions and the
+  2. Create `src/charter/activation/context_renderers/reference_pointers.py`. Move all five functions and the
      cache dict verbatim (function bodies unchanged — this is a location move, not a rewrite).
      Add a module docstring following the style of `authority_paths.py` (purpose, when it's
      called, any design notes worth preserving from the original `context.py` docstrings/comments).
   3. In `context.py`, replace the moved definitions with an import from the new sibling module
-     (`from charter.context_renderers.reference_pointers import _select_reference_pointers` or
+     (`from charter.activation.context_renderers.reference_pointers import _select_reference_pointers` or
      however the single call site at `context.py:1350` needs it — since these are private
      (`_`-prefixed) helpers with a single internal caller, import only what's actually called from
      `context.py`; you do not need to keep the intermediate private helpers importable from
@@ -203,13 +203,13 @@ both sliced from larger backlog tickets so they land as a bounded, reviewable un
   4. Confirm no other module imports these private names directly (grep the whole tree, not just
      `tests/`, since they're private and *should* have zero external importers per the ledger —
      verify that claim rather than assuming it).
-- **Files**: `src/charter/context.py` (remove ~200 lines), `src/charter/context_renderers/reference_pointers.py` (new).
+- **Files**: `src/charter/activation/context.py` (remove ~200 lines), `src/charter/activation/context_renderers/reference_pointers.py` (new).
 - **Parallel?**: Sequential with T017 within this WP (both touch `context.py`); can be done before
   or after T017 since the two slices are non-overlapping regions of the file — pick whichever
   order minimizes merge conflicts with your own working copy.
 - **Validation**: `uv run pytest tests/charter/ -k "reference" -q` (or the closest existing test
   path covering reference-pointer rendering — identify it during implementation) green;
-  `uv run mypy --strict src/charter/context_renderers/reference_pointers.py` clean.
+  `uv run mypy --strict src/charter/activation/context_renderers/reference_pointers.py` clean.
 - **Notes**: The cache is the one subtlety here — it MUST move with the functions (not stay behind
   as a `context.py`-level global that the moved functions reach back into). A `context.py` import
   of the new module's cache object for any external reason would be a smell; there shouldn't be one.
@@ -217,35 +217,35 @@ both sliced from larger backlog tickets so they land as a bounded, reviewable un
 ### T017 – Extract delivery-table helpers to `context_renderers/delivery_table.py` + re-export shim
 
 - **Purpose**: Move the delivery-table helper group, preserving the three external test import
-  paths via either a re-export shim in `charter.context` or same-PR test-import updates (your
+  paths via either a re-export shim in `charter.activation.context` or same-PR test-import updates (your
   choice — pick whichever keeps the diff smaller and clearer; document which you chose).
 - **Steps**:
   1. Confirm the current line span: `_KindDelivery` (NamedTuple), `_ACTION_BUNDLE_DELIVERY_BY_KIND`
      (module-level dict), `_kind_delivery`, `action_bundle_bucket`, `action_bundle_gate`,
      `_classify_artifact_urns`.
-  2. Create `src/charter/context_renderers/delivery_table.py`. Move all six symbols verbatim, with
+  2. Create `src/charter/activation/context_renderers/delivery_table.py`. Move all six symbols verbatim, with
      a module docstring explaining the NodeKind delivery-table concept (the existing docstrings on
      `_KindDelivery` and `_ACTION_BUNDLE_DELIVERY_BY_KIND` already explain the `slot`/`gate`
      semantics — carry that explanation over, don't lose it).
   3. Decide your external-consumer strategy:
      - **Option A (re-export shim)**: in `context.py`, after removing the definitions, add
-       `from charter.context_renderers.delivery_table import (action_bundle_bucket,
+       `from charter.activation.context_renderers.delivery_table import (action_bundle_bucket,
        action_bundle_gate, _classify_artifact_urns, _KindDelivery, _ACTION_BUNDLE_DELIVERY_BY_KIND,
        _kind_delivery)` (or the subset actually needed at both internal call sites and the external
-       test import paths) so `from charter.context import action_bundle_bucket` continues to
+       test import paths) so `from charter.activation.context import action_bundle_bucket` continues to
        resolve. Simpler for consumers, but keeps `context.py`'s public surface unchanged (arguably
        against the spirit of the extraction).
      - **Option B (update the 3 test files)**: change
        `tests/charter/test_action_bundle_delivery.py`,
        `tests/charter/test_context_display_charter_md.py`, and
        `tests/doctrine/drg/test_unknown_kind_fails_loudly.py` to import from
-       `charter.context_renderers.delivery_table` instead of `charter.context`. Cleaner long-term,
+       `charter.activation.context_renderers.delivery_table` instead of `charter.activation.context`. Cleaner long-term,
        but touches test files outside this WP's `owned_files` list — if you choose this option,
        add those three test files to a note in your PR description explaining the necessary
        cross-file import-path update (small, mechanical, behaviour-preserving).
   4. Whichever option you pick, verify ALL THREE test files still pass without modification to
      their assertions (only import lines may change under Option B).
-- **Files**: `src/charter/context.py`, `src/charter/context_renderers/delivery_table.py` (new).
+- **Files**: `src/charter/activation/context.py`, `src/charter/activation/context_renderers/delivery_table.py` (new).
 - **Parallel?**: Sequential with T016 within this WP.
 - **Validation**:
   `uv run pytest tests/charter/test_action_bundle_delivery.py tests/charter/test_context_display_charter_md.py tests/doctrine/drg/test_unknown_kind_fails_loudly.py -q`
@@ -287,15 +287,15 @@ both sliced from larger backlog tickets so they land as a bounded, reviewable un
      genuine type discrepancy worth understanding before suppressing it again.
   5. Confirm the final diff removes all 12 `# type: ignore[attr-defined]` occurrences and adds
      none — grep for the string in both files before declaring this subtask done.
-- **Files**: `src/charter/repository_protocol.py` (new), `src/charter/context.py` (10 sites),
-  `src/charter/progressive_disclosure.py` (2 sites — documented type-only cross-boundary edit,
+- **Files**: `src/charter/repository_protocol.py` (new), `src/charter/activation/context.py` (10 sites),
+  `src/charter/activation/progressive_disclosure.py` (2 sites — documented type-only cross-boundary edit,
   not in this WP's `owned_files`).
 - **Parallel?**: Do this after T016/T017 land, since the extraction moves code around inside
   `context.py` and you don't want to be retyping call sites that are about to move to a different
   file (some of the 10 `context.py` ignore sites may end up inside `context_renderers/` after
   T016/T017 — verify their final location before applying the Protocol type there).
 - **Validation**:
-  `uv run mypy --strict src/charter/context.py src/charter/context_renderers/reference_pointers.py src/charter/context_renderers/delivery_table.py src/charter/repository_protocol.py src/charter/progressive_disclosure.py`
+  `uv run mypy --strict src/charter/activation/context.py src/charter/activation/context_renderers/reference_pointers.py src/charter/activation/context_renderers/delivery_table.py src/charter/repository_protocol.py src/charter/activation/progressive_disclosure.py`
   clean, zero `# type: ignore[attr-defined]` remaining across those files.
 - **Notes**: If any of the 12 sites turns out, on inspection, to need a materially different
   Protocol shape (e.g. a third method), prefer widening the single `ArtifactRepository` Protocol
@@ -332,11 +332,11 @@ both sliced from larger backlog tickets so they land as a bounded, reviewable un
 - [ ] Reference-pointer helpers (`_filter_references_for_action`, `_reference_source_index`,
       `_resolve_reference_source`, `_distribute_references_across_kinds`,
       `_select_reference_pointers`) and their module cache (`_REFERENCE_SOURCE_INDEX_CACHE`) live
-      in `src/charter/context_renderers/reference_pointers.py`; `context.py` imports what it needs
+      in `src/charter/activation/context_renderers/reference_pointers.py`; `context.py` imports what it needs
       from there.
 - [ ] Delivery-table helpers (`_KindDelivery`, `_ACTION_BUNDLE_DELIVERY_BY_KIND`, `_kind_delivery`,
       `action_bundle_bucket`, `action_bundle_gate`, `_classify_artifact_urns`) live in
-      `src/charter/context_renderers/delivery_table.py`; the three external test importers
+      `src/charter/activation/context_renderers/delivery_table.py`; the three external test importers
       (`test_action_bundle_delivery.py`, `test_context_display_charter_md.py`,
       `test_unknown_kind_fails_loudly.py`) resolve correctly via a re-export shim or updated
       import paths (documented choice).
@@ -349,9 +349,9 @@ both sliced from larger backlog tickets so they land as a bounded, reviewable un
 - [ ] `uv run pytest tests/charter/test_action_bundle_delivery.py tests/charter/test_context_display_charter_md.py tests/doctrine/drg/test_unknown_kind_fails_loudly.py -q` — green.
 - [ ] `uv run pytest tests/charter/ -k "reference or context_renderers or disclosure" -q` — green
       (adjust the `-k` filter to the actual test modules in your checkout; confirm real coverage).
-- [ ] `uv run mypy --strict src/charter/context.py src/charter/context_renderers/reference_pointers.py src/charter/context_renderers/delivery_table.py src/charter/repository_protocol.py src/charter/progressive_disclosure.py` — clean, 0 `# type: ignore[attr-defined]` remaining.
-- [ ] `uv run ruff check src/charter/context.py src/charter/context_renderers/ src/charter/repository_protocol.py src/charter/progressive_disclosure.py` — clean.
-- [ ] `grep -rn "type: ignore\[attr-defined\]" src/charter/context.py src/charter/progressive_disclosure.py` — zero matches.
+- [ ] `uv run mypy --strict src/charter/activation/context.py src/charter/activation/context_renderers/reference_pointers.py src/charter/activation/context_renderers/delivery_table.py src/charter/repository_protocol.py src/charter/activation/progressive_disclosure.py` — clean, 0 `# type: ignore[attr-defined]` remaining.
+- [ ] `uv run ruff check src/charter/activation/context.py src/charter/context_renderers/ src/charter/repository_protocol.py src/charter/activation/progressive_disclosure.py` — clean.
+- [ ] `grep -rn "type: ignore\[attr-defined\]" src/charter/activation/context.py src/charter/activation/progressive_disclosure.py` — zero matches.
 - [ ] No test's *expected output/assertions* changed — only import paths, if Option B was chosen
       for the delivery-table shim.
 - [ ] **Do NOT run the full `tests/architectural/` or `tests/charter/` suite locally** — targeted

@@ -29,11 +29,11 @@ execution_mode: code_change
 owned_files:
 - src/doctrine/drg/loader.py
 - src/doctrine/drg/__init__.py
-- src/charter/_drg_helpers.py
-- src/charter/synthesizer/validation_gate.py
-- src/charter/synthesizer/project_drg.py
-- src/charter/synthesizer/resynthesize_pipeline.py
-- src/charter/synthesizer/write_pipeline.py
+- src/charter/activation/_drg_helpers.py
+- src/charter/activation/synthesizer/validation_gate.py
+- src/charter/activation/synthesizer/project_drg.py
+- src/charter/activation/synthesizer/resynthesize_pipeline.py
+- src/charter/activation/synthesizer/write_pipeline.py
 - tests/doctrine/drg/test_loader_multifile.py
 role: implementer
 tags: []
@@ -146,7 +146,7 @@ Add `load_graph_or_dir` to:
 
 ## Subtask T003 — Update `_drg_helpers.load_validated_graph()`
 
-**File**: `src/charter/_drg_helpers.py`
+**File**: `src/charter/activation/_drg_helpers.py`
 
 **Purpose**: Replace `load_graph(doctrine_root / "graph.yaml")` and
 `load_graph(project_path) if project_path.exists() else None` with `load_graph_or_dir`
@@ -180,10 +180,10 @@ signature so WP03's changes are additive.
 ## Subtask T004 — Update synthesizer pipeline call sites
 
 **Files** (four files, multiple sites each):
-- `src/charter/synthesizer/validation_gate.py` line 61
-- `src/charter/synthesizer/project_drg.py` line 240
-- `src/charter/synthesizer/resynthesize_pipeline.py` lines 450 and 547
-- `src/charter/synthesizer/write_pipeline.py` line 516
+- `src/charter/activation/synthesizer/validation_gate.py` line 61
+- `src/charter/activation/synthesizer/project_drg.py` line 240
+- `src/charter/activation/synthesizer/resynthesize_pipeline.py` lines 450 and 547
+- `src/charter/activation/synthesizer/write_pipeline.py` line 516
 
 **Pattern**: Replace `path / "doctrine" / "graph.yaml"` or `staging_dir / "doctrine" / "graph.yaml"`
 constructions with `load_graph_or_dir(path / "doctrine")` or

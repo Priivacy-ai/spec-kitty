@@ -46,7 +46,7 @@ shipping a **third** manifest format. Two pack manifests already ship and **disa
 | Manifest | Where | What it records | Gap vs. the proposal |
 |---|---|---|---|
 | `pack-manifest.yaml` (org doctrine packs) | `src/specify_cli/doctrine/snapshot.py:157-180` | `pack_version`, `source_*`, **`artifact_counts`** (per-kind counts, `:195-212`); normative per `…/contracts/pack-layout.md:23,102-109` | counts, not enumerated; **no lineage**; not written for built-in or git-managed packs (`pack-layout.md:104-107`) |
-| `synthesis-manifest.yaml` (charter/project bundle) | `src/charter/synthesizer/manifest.py:46-112` | **enumerated `artifacts:[{kind, slug, path, provenance_path, content_hash}]`** + `manifest_hash` self-integrity (`:107`), `bundle_content_hash`, `schema_version`, `mission_id` | already *is* the "constituent parts" model — but charter-only |
+| `synthesis-manifest.yaml` (charter/project bundle) | `src/charter/activation/synthesizer/manifest.py:46-112` | **enumerated `artifacts:[{kind, slug, path, provenance_path, content_hash}]`** + `manifest_hash` self-integrity (`:107`), `bundle_content_hash`, `schema_version`, `mission_id` | already *is* the "constituent parts" model — but charter-only |
 
 **The built-in pack has no pack-level manifest at all** — `packs/built-in/*.graph.yaml`
 carry only `schema_version`/`generated_at`/`generated_by` headers
@@ -60,7 +60,7 @@ manifest anywhere.
   `artifacts[]` (charter only). A surfacing/unification problem, not greenfield.
 - **Parent/lineage** is already modeled twice: pack→pack via `extends:` on
   `OrgCharterPolicy` (`src/specify_cli/doctrine/org_charter.py:147-155`), resolved
-  with cycle detection by `src/charter/org_extends.py::resolve_extends_order`; and
+  with cycle detection by `src/charter/activation/org_extends.py::resolve_extends_order`; and
   profile-level via the `specializes_from` DRG edge
   (`src/doctrine/drg/validator.py:50-51`). A manifest `parent_pack` field **must
   delegate** to `org_extends.py` — a second walker trips the C-005 no-parallel-
@@ -72,7 +72,7 @@ This is exactly what the proposal names. A charter pack is not a yaml+md pair; i
 `charter.yaml` + `charter.md` + `graph.yml` + `synthesis-manifest.yaml` +
 `provenance/`. And the binding to a doctrine pack exists only **per-activation** as
 `doctrine_pack_id` in the `(activation_context, doctrine_pack_id, artifact_id,
-artifact_kind)` 4-tuple (`src/charter/activations.py:241,305`). There is **no single
+artifact_kind)` 4-tuple (`src/charter/activation/activations.py:241,305`). There is **no single
 pack-level "this charter accompanies doctrine pack Y" pointer** — a real, unfilled gap.
 
 ## Recommended design

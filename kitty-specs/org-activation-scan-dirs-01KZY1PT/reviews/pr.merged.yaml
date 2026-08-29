@@ -22,7 +22,7 @@ findings:
       before or after this diff
     evidence:
       - artifact: "diff origin/main...HEAD"
-      - code: "src/charter/kind_vocabulary.py:206-217 (_org_scan_dirs docstring: 'the legacy <root>/<plural>/built-in layout ... kept only for backward compatibility')"
+      - code: "src/charter/activation/kind_vocabulary.py:206-217 (_org_scan_dirs docstring: 'the legacy <root>/<plural>/built-in layout ... kept only for backward compatibility')"
       - code: "src/doctrine/service.py:47-55 (DoctrineService._org_dirs returns [root / artifact for root in self._org_roots] -- one flat dir per root, no built-in-subdir concept at all)"
       - code: "src/doctrine/base.py:153-159 (_project_scan default is non-recursive `project_dir.glob(self._glob)`; no subclass in src/doctrine/*.py overrides it, verified via grep)"
       - code: "src/doctrine/base.py:227-260 (_apply_overlay_layer, used for both org and project layers, calls self._project_scan(overlay_dir) -- so org dirs are ALWAYS scanned non-recursively, never via rglob)"
@@ -42,7 +42,7 @@ findings:
       every kind, not just some. The live loader has therefore NEVER read
       an org pack's nested built-in/ subdirectory, either before or after
       this diff (confirmed the pre-diff _org_scan_dirs already made the
-      identical unverified claim -- origin/main:src/charter/kind_vocabulary.py:200-209
+      identical unverified claim -- origin/main:src/charter/activation/kind_vocabulary.py:200-209
       said "this nested layout is still live for org packs", which was
       already false). kind_vocabulary.py's resolve_artifact_urn /
       resolve_config_id now assert (and the new tests pin as contractual
@@ -93,9 +93,9 @@ findings:
       documented and tested contract
     evidence:
       - artifact: "diff origin/main...HEAD"
-      - code: "src/charter/kind_vocabulary.py:203-227 (_org_scan_dirs: for root in org_roots: appends (flat, False) then (legacy, True) -- interleaved per root, not grouped flat-then-legacy globally)"
-      - code: "src/charter/kind_vocabulary.py:249-268 (_iter_artifact_paths iterates _scan_roots()'s dirs in order, sorted(matches) applied only within each scan_dir, not globally)"
-      - code: "src/charter/kind_vocabulary.py:271-318 (resolve_artifact_urn returns on the first _config_stem match in that combined, per-scan-dir-ordered list)"
+      - code: "src/charter/activation/kind_vocabulary.py:203-227 (_org_scan_dirs: for root in org_roots: appends (flat, False) then (legacy, True) -- interleaved per root, not grouped flat-then-legacy globally)"
+      - code: "src/charter/activation/kind_vocabulary.py:249-268 (_iter_artifact_paths iterates _scan_roots()'s dirs in order, sorted(matches) applied only within each scan_dir, not globally)"
+      - code: "src/charter/activation/kind_vocabulary.py:271-318 (resolve_artifact_urn returns on the first _config_stem match in that combined, per-scan-dir-ordered list)"
       - code: "tests/charter/test_kind_vocabulary_scan_roots.py:203-232 (test_same_config_stem_precedence_flat_wins exercises only a SINGLE org root -- 'never a result that depends on incidental scan order' is asserted but not tested for >1 org root)"
       - artifact: "empirical repro: resolve_artifact_urn(DIRECTIVE, stem, org_roots=[rootA, rootB]) with rootA having only <rootA>/directives/built-in/<stem>.directive.yaml (id: DIRECTIVE_LEGACY_A) and rootB having only <rootB>/directives/<stem>.directive.yaml (id: DIRECTIVE_FLAT_B, flat) returns 'directive:DIRECTIVE_LEGACY_A' -- the legacy entry from the earlier root wins over the flat entry from the later root"
     claim: >-
@@ -112,7 +112,7 @@ findings:
       only actually established for a same-config-stem collision within one
       org root. multi-org-root configuration is a real, live shape in this
       codebase (PackContext.org_roots = pack_roots[1:], consumed by
-      src/charter/consistency_check.py and src/charter/drg.py, both of
+      src/charter/activation/consistency_check.py and src/charter/drg.py, both of
       which call resolve_artifact_urn with a multi-element org_roots list),
       so this is not a purely hypothetical edge case: with two org packs,
       one still using the legacy nested built-in/ layout and another using
@@ -145,16 +145,16 @@ findings:
       so that CI ratchet test will fail on this branch
     evidence:
       - artifact: "diff origin/main...HEAD"
-      - code: "src/charter/kind_vocabulary.py:224 (post-diff: `legacy = flat / \"built-in\"`, a `<path> / \"built-in\"` filesystem-join BinOp)"
-      - code: "tests/architectural/test_built_in_location_authority.py:206 (`_KNOWN_JOIN_ALLOWLIST` entry: `(Path(\"src/charter/kind_vocabulary.py\"), 206)` -- pinned to the OLD line, last refreshed 2026-08-11 per the entry's own comment: \"the join was extracted out of _scan_roots into _org_scan_dirs ... moving it from line 183 to 206\")"
+      - code: "src/charter/activation/kind_vocabulary.py:224 (post-diff: `legacy = flat / \"built-in\"`, a `<path> / \"built-in\"` filesystem-join BinOp)"
+      - code: "tests/architectural/test_built_in_location_authority.py:206 (`_KNOWN_JOIN_ALLOWLIST` entry: `(Path(\"src/charter/activation/kind_vocabulary.py\"), 206)` -- pinned to the OLD line, last refreshed 2026-08-11 per the entry's own comment: \"the join was extracted out of _scan_roots into _org_scan_dirs ... moving it from line 183 to 206\")"
       - code: "tests/architectural/test_built_in_location_authority.py:270-298 (_find_builtin_joins: flags any `ast.BinOp` with `op=Div` whose right operand is the `ast.Constant` \"built-in\" -- explicitly designed to catch variable-indirected joins like `flat / \"built-in\"`, not just the direct `root / kind.plural / \"built-in\"` chain)"
       - code: "tests/architectural/test_built_in_location_authority.py:305-325 (test_no_builtin_path_joins_outside_pack_paths_authority: `remaining = sorted(lineno for lineno in offending_lines if (rel, lineno) not in _KNOWN_JOIN_ALLOWLIST)`; fails if `remaining` is non-empty)"
-      - artifact: "empirical AST verification (python3, no pytest/uv invocation, no tree mutation): parsed the current src/charter/kind_vocabulary.py with the stdlib ast module and re-implemented the test's exact BinOp/Constant('built-in') detection -- confirmed the sole offending join in this file is now at line 224, not 206"
+      - artifact: "empirical AST verification (python3, no pytest/uv invocation, no tree mutation): parsed the current src/charter/activation/kind_vocabulary.py with the stdlib ast module and re-implemented the test's exact BinOp/Constant('built-in') detection -- confirmed the sole offending join in this file is now at line 224, not 206"
     claim: >-
       Pre-diff, `_org_scan_dirs` built its one candidate directory as a
       single chained join `root / kind.plural / "built-in"` at line 206 of
-      origin/main:src/charter/kind_vocabulary.py (confirmed via `git show
-      origin/main:src/charter/kind_vocabulary.py | grep -n "candidate = root"`
+      origin/main:src/charter/activation/kind_vocabulary.py (confirmed via `git show
+      origin/main:src/charter/activation/kind_vocabulary.py | grep -n "candidate = root"`
       -> line 206), which is exactly the line the architectural ratchet's
       `_KNOWN_JOIN_ALLOWLIST` names as the one deliberately-exempted
       org-tier "built-in" join in this file. The diff splits that single
@@ -181,8 +181,8 @@ findings:
     remediation: >-
       Update the `_KNOWN_JOIN_ALLOWLIST` entry in
       tests/architectural/test_built_in_location_authority.py from
-      `(Path("src/charter/kind_vocabulary.py"), 206)` to
-      `(Path("src/charter/kind_vocabulary.py"), 224)` (the new location of
+      `(Path("src/charter/activation/kind_vocabulary.py"), 206)` to
+      `(Path("src/charter/activation/kind_vocabulary.py"), 224)` (the new location of
       the `flat / "built-in"` join), and refresh the adjacent "FRESHENED"
       comment to record this mission's landing and the new rationale (the
       join now reads the pre-existing `flat` variable rather than
@@ -198,7 +198,7 @@ findings:
     severity: 2
     title: "test_neither_dir_present_returns_empty_list does not regress under a function-body-only revert -- non-discriminating, and duplicates pre-existing coverage"
     evidence:
-      - artifact: "empirical: git diff against src/charter/kind_vocabulary.py, function body only, reverted to origin/main shape (candidate = root / kind.plural / \"built-in\"; if candidate.is_dir(): dirs.append((candidate, True))), then restored"
+      - artifact: "empirical: git diff against src/charter/activation/kind_vocabulary.py, function body only, reverted to origin/main shape (candidate = root / kind.plural / \"built-in\"; if candidate.is_dir(): dirs.append((candidate, True))), then restored"
       - code: "tests/charter/test_kind_vocabulary_scan_roots.py:225-227 (test_neither_dir_present_returns_empty_list)"
       - artifact: "command: uv run pytest tests/charter/test_kind_vocabulary_scan_roots.py tests/charter/test_org_scan_dirs_activation_regression.py -q -- outcome with body reverted: '........FFFF.F.....FF' -> 7 failed, 14 passed. test_neither_dir_present_returns_empty_list is NOT among the 7 failures (test_existing_org_built_in_dir_returned, test_flat_only_dir_returned_non_recursive, test_flat_only_resolves_via_resolve_artifact_urn_without_raising, test_legacy_only_dir_returned_recursive, test_same_config_stem_precedence_flat_wins, and the two activation-regression tests all failed; test_neither_dir_present_returns_empty_list stayed green)"
       - code: "tests/charter/test_kind_vocabulary_scan_roots.py:127-131 (pre-existing, untouched by this diff: test_none_org_roots_returns_empty_list, test_missing_org_built_in_dir_skipped -- both already cover the 'root missing/empty' case and also pass under both the pre-fix and post-fix bodies)"

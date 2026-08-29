@@ -1,7 +1,7 @@
 """FR-002 / C-001 — characterization pins for the ``charter context`` prose-presence gate.
 
 WP01 (doctrine-charter-split-unification-01KZ0SRB). The gate in
-``charter.context.build_charter_context``::
+``charter.activation.context.build_charter_context``::
 
     if not charter_yaml_path.exists() and not charter_path.exists():
 
@@ -53,7 +53,7 @@ from unittest.mock import patch
 
 import pytest
 
-from charter.context import build_charter_context
+from charter.activation.context import build_charter_context
 from tests.charter.test_context import (
     _CHARTER_YAML,
     _GOVERNANCE_YAML,
@@ -61,7 +61,7 @@ from tests.charter.test_context import (
 )
 
 if TYPE_CHECKING:
-    from charter.context import CharterContextResult
+    from charter.activation.context import CharterContextResult
 
 pytestmark = [pytest.mark.integration, pytest.mark.git_repo]
 
@@ -140,7 +140,7 @@ def _build(tmp_path: Path) -> CharterContextResult:
     flipping the "charter.yaml absent" precondition that cells (b) and (c)
     depend on.
     """
-    from charter.sync import SyncResult
+    from charter.activation.sync import SyncResult
     from charter.offering.drg.models import DRGGraph
     from ruamel.yaml import YAML
 
@@ -155,9 +155,9 @@ def _build(tmp_path: Path) -> CharterContextResult:
     )
 
     with (
-        patch("charter.sync.ensure_charter_bundle_fresh", return_value=sync_result),
-        patch("charter._drg_helpers.load_validated_graph", return_value=mock_graph),
-        patch("charter.catalog.resolve_doctrine_root", return_value=tmp_path),
+        patch("charter.activation.sync.ensure_charter_bundle_fresh", return_value=sync_result),
+        patch("charter.activation._drg_helpers.load_validated_graph", return_value=mock_graph),
+        patch("charter.activation.catalog.resolve_doctrine_root", return_value=tmp_path),
         patch("charter.offering.drg.validator.assert_valid"),
     ):
         return build_charter_context(tmp_path, action="implement", depth=2, mission_type="software-dev")

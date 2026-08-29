@@ -12,7 +12,7 @@ uv run pytest tests/charter/ -k "activation and (stem or canonical)" -q
 uv run pytest tests/charter/ tests/doctrine/ -q
 
 # Gates
-uv run ruff check src/charter/drg.py src/charter/consistency_check.py
+uv run ruff check src/charter/drg.py src/charter/activation/consistency_check.py
 uv run python -m mypy --strict src/charter
 ```
 

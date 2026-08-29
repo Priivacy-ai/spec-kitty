@@ -141,7 +141,7 @@ foundational seam (IC-01).
   (`src/doctrine/missions/mission_type_repository.py`,
   `tests/doctrine/missions/test_mission_type_repository.py`,
   `tests/charter/test_charter_import_time_io.py`) stay disjoint from WP05's
-  (`src/charter/pack_manager.py`, `tests/charter/test_pack_manager.py`) — do not reach into
+  (`src/charter/activation/pack_manager.py`, `tests/charter/test_pack_manager.py`) — do not reach into
   `pack_manager.py` even for a "quick fix."
 
 ## Branch Strategy

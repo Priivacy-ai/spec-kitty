@@ -109,7 +109,7 @@ No Charter Check violations — table intentionally empty.
 ### IC-01 — Fetch-stanza when-clause normalization (US2 / #3082)
 - **Purpose**: Make generated `When you …` disclosure lines grammatical for all clause shapes without breaking the closed-verb prompt-governance contract.
 - **Relevant requirements**: FR-001; NFR-003; SC-003.
-- **Affected surfaces**: `src/charter/context_renderers/fetch_stanza.py`; `tests/specify_cli/next/test_wp_prompt_governance_contract.py` (per-stanza assertion helper).
+- **Affected surfaces**: `src/charter/activation/context_renderers/fetch_stanza.py`; `tests/specify_cli/next/test_wp_prompt_governance_contract.py` (per-stanza assertion helper).
 - **Sequencing/depends-on**: none (isolated; lands early — feeds the US3 parity baseline).
 - **Risks**: `_WHEN_DOING_RE` is a closed 6-verb set — normalize into it; widening the regex is a documented contract change, avoided by default.
 

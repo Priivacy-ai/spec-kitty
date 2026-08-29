@@ -5,7 +5,7 @@ No persistent DB. Four YAML surfaces + their relationships.
 ## Surface: Activation ledger (AUTHORITY)
 
 - **File**: `.kittify/config.yaml` → `activated_directives` / `activated_tactics` / `activated_procedures` / `activated_paradigms` / `activated_styleguides` / `activated_toolguides` (per-kind lists of config-stems).
-- **Role**: THE single activation authority (FR-001). Written only via `charter.activation_engine.commit_plan`.
+- **Role**: THE single activation authority (FR-001). Written only via `charter.activation.activation_engine.commit_plan`.
 - **Read by**: `PackContext.from_config` (runtime, today) AND — after this mission — the derivation (`compiler`/`synthesizer`).
 
 ## Surface: Interview record

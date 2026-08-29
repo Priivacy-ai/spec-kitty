@@ -72,7 +72,7 @@ Required (for the spec):
 2. **Red-first characterization test** proving `filter_graph_by_activation` drops a stem≠canonical
    directive node under a populated list (against the real corpus, not hermetic `id==stem` fixtures).
 3. **One canonical-URN-aware gate** via a single stem→canonical resolver (home
-   `charter.kind_vocabulary`, where `resolve_artifact_urn` lives). Siting (resolve-in-filter vs
+   `charter.activation.kind_vocabulary`, where `resolve_artifact_urn` lives). Siting (resolve-in-filter vs
    resolve-at-`PackContext` vs resolve-at-gate-boundary) is a `/plan` design decision.
 4. **Collapse workarounds honestly:** delete the tension-scan reimplementation
    (`_node_is_tension_scan_active`/`_build_tension_active_urns`/`_resolve_activated_urns_for_kind`)

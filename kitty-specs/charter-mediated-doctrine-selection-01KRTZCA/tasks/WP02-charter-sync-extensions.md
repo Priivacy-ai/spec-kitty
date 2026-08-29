@@ -20,7 +20,7 @@ authoritative_surface: src/charter/extractor.py
 execution_mode: code_change
 owned_files:
 - src/charter/extractor.py
-- src/charter/sync.py
+- src/charter/activation/sync.py
 - tests/charter/test_extractor_selection.py
 - tests/charter/test_extractor_activations.py
 role: implementer
@@ -114,7 +114,7 @@ def _apply_activations_block(
     activations_raw = parsed_yaml.get("activations")
     if not isinstance(activations_raw, list):
         return
-    from charter.activations import ActivationEntry
+    from charter.activation.activations import ActivationEntry
     entries: list[ActivationEntry] = []
     for item in activations_raw:
         if not isinstance(item, dict):
@@ -135,7 +135,7 @@ Call the new method from the same code path that currently calls `_apply_selecti
 
 ### T008 — Add `activations` field to `GovernanceConfig`
 
-**File**: `src/charter/schemas.py`
+**File**: `src/charter/activation/schemas.py`
 
 Add the top-level field:
 
@@ -145,7 +145,7 @@ class GovernanceConfig(BaseModel):
     activations: list["ActivationEntry"] = Field(default_factory=list)
 ```
 
-Import `ActivationEntry` via `from charter.activations import ActivationEntry` (`schemas.py` already lives in `src/charter/`; same-package import).
+Import `ActivationEntry` via `from charter.activation.activations import ActivationEntry` (`schemas.py` already lives in `src/charter/`; same-package import).
 
 Extend `_OPTIONAL_EMPTY_OMIT_KEYS` with `"activations"` so an empty list omits the block from `governance.yaml`.
 

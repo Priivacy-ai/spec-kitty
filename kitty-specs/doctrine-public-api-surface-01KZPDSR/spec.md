@@ -116,7 +116,7 @@ just style — but it is a bounded, well-identified fix riding on the same work.
 
 **Acceptance Scenarios**:
 
-1. **Given** the raw-construction sites (census: 5, e.g. `_doctrine_asset.py:93`, `_doctrine_collect.py:209/314/468/920`), **When** the mission completes, **Then** each obtains its service via `charter.doctrine_service_builder.build_activation_aware_doctrine_service` (or the `charter.resolver.DoctrineService` wrapper). This is construction-routing, **not** an identity re-export — `charter.resolver.DoctrineService` is a deliberate activation-aware wrapper and must never be added to the facade identity table.
+1. **Given** the raw-construction sites (census: 5, e.g. `_doctrine_asset.py:93`, `_doctrine_collect.py:209/314/468/920`), **When** the mission completes, **Then** each obtains its service via `charter.activation.doctrine_service_builder.build_activation_aware_doctrine_service` (or the `charter.activation.resolver.DoctrineService` wrapper). This is construction-routing, **not** an identity re-export — `charter.activation.resolver.DoctrineService` is a deliberate activation-aware wrapper and must never be added to the facade identity table.
 
 ---
 

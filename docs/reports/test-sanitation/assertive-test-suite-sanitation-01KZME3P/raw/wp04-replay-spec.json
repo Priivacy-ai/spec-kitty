@@ -341,7 +341,7 @@
         "nodeid": "tests/specify_cli/mission_step_contracts/test_executor.py::test_charter_mission_steps_facade_reexports_step_inputs"
       },
       {
-        "authority": "charter.pack_manager.CharterPackManager.list_available",
+        "authority": "charter.activation.pack_manager.CharterPackManager.list_available",
         "binding": "CharterPackManager.list_available",
         "contract": "fixtures=['manager', 'ctx']; concrete_inputs=[\"manager.list_available('directive')\"]; asserted_observables=['assert isinstance(result, frozenset)', 'assert len(result) > 0']",
         "fault": "replace the named live authority at test call time with AssertionError(WP04_REPLAY_FAULT), or the explicit wrong value/module/export action",
@@ -349,7 +349,7 @@
         "nodeid": "tests/charter/test_pack_manager_catalog.py::TestListAvailableBuiltIn::test_returns_frozenset_for_directive"
       },
       {
-        "authority": "charter.pack_manager.CharterPackManager.list_available",
+        "authority": "charter.activation.pack_manager.CharterPackManager.list_available",
         "binding": "CharterPackManager.list_available",
         "contract": "fixtures=['manager', 'ctx']; concrete_inputs=[\"pytest.raises('Unknown activation kind')\", \"manager.list_available('bogus-kind')\"]; asserted_observables=[\"pytest.raises(ValueError, match='Unknown activation kind')\"]",
         "fault": "replace the named live authority at test call time with AssertionError(WP04_REPLAY_FAULT), or the explicit wrong value/module/export action",
@@ -357,7 +357,7 @@
         "nodeid": "tests/charter/test_pack_manager_catalog.py::TestListAvailableBuiltIn::test_unknown_kind_raises_value_error"
       },
       {
-        "authority": "charter.pack_manager.scan_builtin_cross_grain_duplicates",
+        "authority": "charter.activation.pack_manager.scan_builtin_cross_grain_duplicates",
         "binding": "scan_builtin_cross_grain_duplicates",
         "contract": "fixtures=[]; concrete_inputs=[]; asserted_observables=['assert set(scanned) == set(builtin_mission_type_ids())']",
         "fault": "replace the named live authority at test call time with AssertionError(WP04_REPLAY_FAULT), or the explicit wrong value/module/export action",

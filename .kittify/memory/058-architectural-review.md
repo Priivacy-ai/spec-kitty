@@ -19,7 +19,7 @@ reviewer: architect
 
 **Verified**: `src/doctrine/` currently has zero imports from `specify_cli` or `charter`. This must be preserved.
 
-**HiC Decision**: **(B) — `CharterTemplateResolver` in `src/charter/template_resolver.py`**. Charter is the concretization of doctrine into local context-aware legislation. The 5-tier override chain is "how project context modifies doctrine defaults" — that's charter by definition.
+**HiC Decision**: **(B) — `CharterTemplateResolver` in `src/charter/activation/template_resolver.py`**. Charter is the concretization of doctrine into local context-aware legislation. The 5-tier override chain is "how project context modifies doctrine defaults" — that's charter by definition.
 
 **Corrected dependency model** (per HiC): `kernel` is the true zero-dependency root. `doctrine` depends only on `kernel`. `charter` depends on `doctrine` + `kernel` + may import `specify_cli.runtime`. `specify_cli` depends on all three.
 

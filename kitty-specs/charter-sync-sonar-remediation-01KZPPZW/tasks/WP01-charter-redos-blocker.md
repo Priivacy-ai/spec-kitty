@@ -26,7 +26,7 @@ create_intent:
 - tests/charter/context_renderers/test_token_budget_sonar.py
 execution_mode: code_change
 owned_files:
-- src/charter/context_renderers/token_budget.py
+- src/charter/activation/context_renderers/token_budget.py
 role: implementer
 tags: []
 tracker_refs: []
@@ -40,7 +40,7 @@ tracker_refs: []
 
 ## Objective (P1 — the BLOCKER)
 
-`src/charter/context_renderers/token_budget.py` has two Sonar findings:
+`src/charter/activation/context_renderers/token_budget.py` has two Sonar findings:
 - **`S8786` (BLOCKER) at `:308`** — a regex with **super-linear backtracking** (ReDoS-class). Simplify it to
   linear time WITHOUT changing what it matches.
 - **`S3776` at `:365`** (cognitive complexity 28) — reduce to ≤15 via tested helper extraction.
@@ -66,7 +66,7 @@ Refetch exact lines: `curl -s "https://sonarcloud.io/api/issues/search?component
   behavior identical.
 
 ## Gates
-- `ruff check --select C901 src/charter/context_renderers/token_budget.py` → zero.
+- `ruff check --select C901 src/charter/activation/context_renderers/token_budget.py` → zero.
 - `ruff check` + `mypy` on the file → clean, no added suppressions (NFR-002).
 - `PYTHONPATH=$PWD/src PWHEADLESS=1 python -m pytest tests/charter/ -k "token_budget" -p no:cacheprovider -q` → green.
 

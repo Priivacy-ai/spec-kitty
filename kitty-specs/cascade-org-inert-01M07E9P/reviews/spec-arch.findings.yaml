@@ -14,7 +14,7 @@ findings:
       - code: "src/specify_cli/cli/commands/charter/activate.py:447"
       - code: "src/specify_cli/cli/commands/charter/deactivate.py:221"
       - code: "src/specify_cli/cli/commands/charter/list_cmd.py:165,200,219,48-77"
-      - code: "src/charter/pack_manager.py:779-816 (list_available_detailed signature: layer_roots: dict[str, Path] | None)"
+      - code: "src/charter/activation/pack_manager.py:779-816 (list_available_detailed signature: layer_roots: dict[str, Path] | None)"
     claim: >
       FR-001's title says it will "widen resolve_layer_roots past its first-match break," and
       User Story 3 frames the need purely in terms of `_drg_id_to_config_id` (consumed by
@@ -24,7 +24,7 @@ findings:
       `charter list --all` / `--all-layers` command). The third call site feeds
       `layer_roots["org"]` into `_template_tier_roots` (list_cmd.py:64,77) and into
       `CharterPackManager.list_available_detailed(..., layer_roots=layer_roots)`
-      (src/charter/pack_manager.py:779-816), whose documented signature is
+      (src/charter/activation/pack_manager.py:779-816), whose documented signature is
       `layer_roots: dict[str, Path] | None` — a single Path per layer, not a list. FR-001's ACs
       (User Story 3's Independent Test, AC2, SC-001) only exercise `_drg_id_to_config_id`'s
       cascade-ID-mapping use; they never test `charter list --all-layers` over a 2-pack chain,
@@ -55,9 +55,9 @@ findings:
       - code: "src/specify_cli/cli/commands/charter/context.py:84-85 (org_root = org_roots[0] if org_roots else None)"
       - code: "src/specify_cli/cli/commands/charter/context.py:113-119 (build_charter_context(..., org_root=org_root))"
       - code: "src/specify_cli/cli/commands/charter/context.py:128-134 (build_charter_context_json(..., org_root=org_root))"
-      - code: "src/charter/context.py:270-276 (build_charter_context calls _resolve_action_bundle with org_root=org_root)"
-      - code: "src/charter/context.py:467-476 (build_charter_context_json calls _load_action_doctrine_bundle directly)"
-      - code: "src/charter/action_doctrine_bundle.py:96-99 (\"An explicit org_root override ... is honoured verbatim and does not widen into the chain\")"
+      - code: "src/charter/activation/context.py:270-276 (build_charter_context calls _resolve_action_bundle with org_root=org_root)"
+      - code: "src/charter/activation/context.py:467-476 (build_charter_context_json calls _load_action_doctrine_bundle directly)"
+      - code: "src/charter/activation/action_doctrine_bundle.py:96-99 (\"An explicit org_root override ... is honoured verbatim and does not widen into the chain\")"
     claim: >
       User Story 4's priority rationale states the JSON-path bug "does not affect the plain
       `charter context` human-readable path." This is contradicted by the code: the CLI command
@@ -65,10 +65,10 @@ findings:
       `org_root = org_roots[0] if org_roots else None` and passes that SAME truncated value into
       BOTH `build_charter_context` (plain-text, line 117) and `build_charter_context_json`
       (JSON, line 132). `build_charter_context` already routes through `_resolve_action_bundle`
-      (src/charter/context.py:270) — the "already-fixed" wrapper the spec cites as the target
+      (src/charter/activation/context.py:270) — the "already-fixed" wrapper the spec cites as the target
       for FR-002 — but `_resolve_action_bundle` only self-resolves the full org-pack chain when
       its caller passes `org_root=None`; an explicit (already-truncated) `org_root` is "honoured
-      verbatim and does not widen into the chain" (src/charter/action_doctrine_bundle.py:96-99,
+      verbatim and does not widen into the chain" (src/charter/activation/action_doctrine_bundle.py:96-99,
       docstring). So the plain-text path is truncated to pack 1 TODAY, by the same root cause,
       despite already using the "correct" wrapper — and FR-002's AC5-recommended fix (swap
       `build_charter_context_json`'s internal call from `_load_action_doctrine_bundle` to

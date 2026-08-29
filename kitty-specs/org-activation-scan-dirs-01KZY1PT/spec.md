@@ -37,7 +37,7 @@ progress in parallel. This mission is **#3385 only**.
   (`.kittify/charter/charter.md`), step 3 — Locality of Change — is what governs here: edits
   stay close to the specific problem, and `_built_in_scan_dir`/`_layer_scan_dirs` are not
   broken and are not the cited defect (`_org_scan_dirs` is). Both functions already sit in the
-  one file smallest-viable-diff selects for this change (`src/charter/kind_vocabulary.py`), so
+  one file smallest-viable-diff selects for this change (`src/charter/activation/kind_vocabulary.py`), so
   touching them would not grow the file set at all — the reason to leave them alone is that
   they are not the problem this mission exists to fix, not that editing them would expand
   scope. Deferred, not silently folded in.
@@ -51,7 +51,7 @@ documented, expected way to use activation.
 **Problem, restated in this mission's own words (verified independently at checkout HEAD
 `ab0a0b9b5b5e6803775e45bebd66d1cc8d3b68dc`, byte-identical to issue #3385's citation)**:
 
-`charter.kind_vocabulary._org_scan_dirs` (`src/charter/kind_vocabulary.py:200-209`) is:
+`charter.activation.kind_vocabulary._org_scan_dirs` (`src/charter/activation/kind_vocabulary.py:200-209`) is:
 
 ```python
 def _org_scan_dirs(
@@ -88,7 +88,7 @@ no real org pack uses. Three independent sources agree the real layout is **flat
 **The failure mechanism, cited by file:line, independently re-walked in this checkout**:
 
 - `charter activate directive <stem>` writes the `activated_directives` key (the pattern
-  computed at `src/charter/pack_manager.py:126`,
+  computed at `src/charter/activation/pack_manager.py:126`,
   `f"activated_{ArtifactKind.from_operator_token(token).plural}"`) into `.kittify/config.yaml`
   — the exact key that arms the per-artifact-ID gate.
 - `filter_graph_by_activation` calls `_resolve_activated_urns_by_kind`
@@ -96,12 +96,12 @@ no real org pack uses. Three independent sources agree the real layout is **flat
   (`:333-381`) once per kind. For every stem in the activated set it calls
   `resolve_artifact_urn(kind_enum, stem, doctrine_root=doctrine_root, org_roots=org_roots)`
   (`:374-377`).
-- `resolve_artifact_urn` (`src/charter/kind_vocabulary.py:253+`) walks `_scan_roots`
+- `resolve_artifact_urn` (`src/charter/activation/kind_vocabulary.py:253+`) walks `_scan_roots`
   (`:142-180`), which appends `_built_in_scan_dir(kind)` then extends with
   `_org_scan_dirs(kind, org_roots)` (`:176-179`). Because `_org_scan_dirs` only looks under
   `.../built-in/`, a flat-layout org pack contributes **zero** scan directories, so
   `resolve_artifact_urn` cannot find the org artifact at any stem and raises
-  `UnknownArtifactIdError` (`src/charter/kind_vocabulary.py:85`).
+  `UnknownArtifactIdError` (`src/charter/activation/kind_vocabulary.py:85`).
 - Back in `_resolve_activated_urns_for_kind`, that `UnknownArtifactIdError` is caught and
   swallowed (`src/charter/drg.py:379-380`, `except UnknownArtifactIdError: continue  #
   Skip-with-report`), so the org artifact's URN never enters the resolved-URN set for that
@@ -121,10 +121,10 @@ that was never itself explicitly activated — the per-artifact-ID gate in `_nod
 step 3 (`src/charter/drg.py:467-473`) excludes ANY URN absent from the resolved-activation set
 once that set is armed (non-`None`), symmetrically for org, built-in, and project artifacts alike
 — it is not an org-specific gap in `default.yaml`'s enumeration. `CharterPackManager.activate`'s
-default-pack materialization (`src/charter/pack_manager.py:601-616`,
-`plan_activation`'s `if current is None:` branch, `src/charter/activation_engine.py:257-268`)
+default-pack materialization (`src/charter/activation/pack_manager.py:601-616`,
+`plan_activation`'s `if current is None:` branch, `src/charter/activation/activation_engine.py:257-268`)
 seeds an unset activation set from the STATIC shipped `default.yaml`
-(`src/charter/pack_manager.py:511-518`, `src/charter/packs/default.yaml`) rather than enumerating
+(`src/charter/activation/pack_manager.py:511-518`, `src/charter/activation/packs/default.yaml`) rather than enumerating
 every artifact on disk — but the same exclusion would equally apply to an unlisted built-in or
 project artifact, not only to org ones. This mission makes the org pack's *own* stem always
 resolve when explicitly activated; it does not change the gate's general selectivity — see
@@ -224,7 +224,7 @@ same test, never a single commit that adds a test already green).
    `ab0a0b9b5`), **When** the new regression test (User Story 1's Independent Test, made
    concrete as a pytest test) runs, **Then** it fails — the org directive is absent from the
    filtered graph / `UnknownArtifactIdError` is raised.
-2. **Given** the mission head with the `src/charter/kind_vocabulary.py:200-209` fix applied,
+2. **Given** the mission head with the `src/charter/activation/kind_vocabulary.py:200-209` fix applied,
    **When** the same test runs unmodified, **Then** it passes.
 
 ### User Story 3 - Once #3384 lands, two things about its fix get checked (Priority: P3, contingent)
@@ -249,7 +249,7 @@ the follow-up check has a fixed target):
 
 1. **Given** #3384's fix merged and an org root with no root-level `*.graph.yaml`, **When** the
    action-doctrine bundle loader's collapse-to-empty-bundle path
-   (`src/charter/action_doctrine_bundle.py:152-156`, today `# … collapse it to an empty bundle
+   (`src/charter/activation/action_doctrine_bundle.py:152-156`, today `# … collapse it to an empty bundle
    and log a WARNING (WP04)`) is exercised, **Then** record whether the surfaced diagnostic is a
    named exception/diagnostic type (e.g. a dedicated `OrgGraphRootMissing`-style class) or
    remains a bare `_LOGGER.warning(...)` call — this mission takes no position on which #3384
@@ -257,7 +257,7 @@ the follow-up check has a fixed target):
 2. **Given** #3384's fix merged and DRG fragments placed under `<org_root>/drg/*.graph.yaml`
    (a location `_RECOGNISED_ARTIFACT_DIRS`, `src/specify_cli/doctrine/snapshot.py:38-50`,
    already names as a recognised org-pack subdirectory), **When** `load_validated_graph`
-   (`src/charter/_drg_helpers.py:55-97`, read-only reference — not modified by this mission)
+   (`src/charter/activation/_drg_helpers.py:55-97`, read-only reference — not modified by this mission)
    resolves the org layer, **Then** record whether those fragments are found. **Current
    evidence, gathered read-only and not acted on**: `load_graph_or_dir`
    (`src/doctrine/drg/loader.py:81-107`) globs `*.graph.yaml` directly under the path it is
@@ -289,7 +289,7 @@ the follow-up check has a fixed target):
   would silently accept a layout the live loader does not, reopening a smaller version of the
   same source-of-truth divergence this defect is about.
 - **No opportunistic cleanup of `_built_in_scan_dir` / `_layer_scan_dirs`.** Both sit in
-  `src/charter/kind_vocabulary.py` next to `_org_scan_dirs` and are not touched — see
+  `src/charter/activation/kind_vocabulary.py` next to `_org_scan_dirs` and are not touched — see
   Clarifications, `RECONCILE_CHANGE_SCOPE_TENSIONS`.
 - **Same-config-stem file present in both the flat and legacy directories.** Per FR-001's
   precedence rule, the flat-layout file wins (Acceptance Scenario 4) — a deliberate, documented
@@ -303,7 +303,7 @@ the follow-up check has a fixed target):
 
 | ID | Title | Requirement | User Story | Priority | Status |
 | --- | --- | --- | --- | --- | --- |
-| FR-001 | `_org_scan_dirs` scans both the flat and legacy org layouts | `_org_scan_dirs` (`src/charter/kind_vocabulary.py:200-209`) returns a scan entry for `<root>/<plural>` (flat, `recursive=False`, matching `DoctrineService._org_dirs` / `BaseDoctrineRepository`'s non-recursive org glob) **and**, where it separately exists on disk, `<root>/<plural>/built-in` (`recursive=True`, unchanged from today), for every configured org root, with the flat entry ordered before the legacy entry in the returned list. Neither directory existing is not an error — the function returns fewer entries, never raises. **Precedence rule**: when a same-config-stem artifact file exists under both `<root>/<plural>` and `<root>/<plural>/built-in` for one org root, the flat-layout file wins — `resolve_artifact_urn` (`:253+`) is first-match-wins over `_scan_roots`'s output, so ordering the flat entry first makes this a deliberate, documented choice (flat is the canonical/current layout; legacy is kept only for backward compatibility) rather than an accidental list-order artifact. See Acceptance Scenario 4. | User Story 1 | High | Open |
+| FR-001 | `_org_scan_dirs` scans both the flat and legacy org layouts | `_org_scan_dirs` (`src/charter/activation/kind_vocabulary.py:200-209`) returns a scan entry for `<root>/<plural>` (flat, `recursive=False`, matching `DoctrineService._org_dirs` / `BaseDoctrineRepository`'s non-recursive org glob) **and**, where it separately exists on disk, `<root>/<plural>/built-in` (`recursive=True`, unchanged from today), for every configured org root, with the flat entry ordered before the legacy entry in the returned list. Neither directory existing is not an error — the function returns fewer entries, never raises. **Precedence rule**: when a same-config-stem artifact file exists under both `<root>/<plural>` and `<root>/<plural>/built-in` for one org root, the flat-layout file wins — `resolve_artifact_urn` (`:253+`) is first-match-wins over `_scan_roots`'s output, so ordering the flat entry first makes this a deliberate, documented choice (flat is the canonical/current layout; legacy is kept only for backward compatibility) rather than an accidental list-order artifact. See Acceptance Scenario 4. | User Story 1 | High | Open |
 | FR-002 | Red-first regression test at the activation-filter level | A new pytest regression test proves an org-pack artifact (flat layout) is present in `filter_graph_by_activation`'s output after `charter activate directive <org-directive-stem>` activates the org artifact's **own** config-stem (the full `activate()` → `filter_graph_by_activation()` round trip, not a direct `resolve_artifact_urn()` call). The fixture must also declare the org directive as a DRG node in a root-level `*.graph.yaml` — test-fixture data only, not a change to `_drg_helpers.py` (C-002) — since `filter_graph_by_activation` only ever operates on nodes already present in the merged graph, and DRG nodes come from `*.graph.yaml` fragments, never synthesized from `*.directive.yaml` files. The test is authored to fail against the pre-fix `_org_scan_dirs` body and to pass against the post-fix body (both runs recorded by the implementing WP). | User Story 2 | High | Open |
 | FR-003 | Existing unit-level `_org_scan_dirs` tests updated for the new contract | `TestOrgScanDirsHelper` in `tests/charter/test_kind_vocabulary_scan_roots.py` (currently `test_none_org_roots_returns_empty_list`, `test_missing_org_built_in_dir_skipped`, `test_existing_org_built_in_dir_returned` — the last of which today pins the **old**, phantom-layout-only behavior) is extended to cover: only the flat dir present, only the legacy `built-in/` dir present, both present (both returned), neither present (empty list), and a same-config-stem file present under both directories asserting `resolve_artifact_urn` returns the flat-layout file's URN (FR-001's precedence rule) — without deleting the pre-existing legacy-shape coverage. This is unit-level coverage of `_org_scan_dirs`/`resolve_artifact_urn`; unlike FR-002's activation-filter-level test, it needs no DRG-graph (`*.graph.yaml`) fixture. | User Story 1 | High | Open |
 
@@ -320,22 +320,22 @@ completion (SC-005).
 
 | ID | Title | Verification Criterion | User Story | Priority | Status |
 | --- | --- | --- | --- | --- | --- |
-| VC-001 | Named-diagnostic check for the D1 collapse path | Once issue #3384's fix lands, verify whether the collapse-to-empty-bundle path at `src/charter/action_doctrine_bundle.py:152-156` surfaces a named diagnostic (not a bare `logging.WARNING`) when an org pack has no root-level `*.graph.yaml`. This mission records the finding; it does not implement a change to make it true. | User Story 3 | Low | Open |
+| VC-001 | Named-diagnostic check for the D1 collapse path | Once issue #3384's fix lands, verify whether the collapse-to-empty-bundle path at `src/charter/activation/action_doctrine_bundle.py:152-156` surfaces a named diagnostic (not a bare `logging.WARNING`) when an org pack has no root-level `*.graph.yaml`. This mission records the finding; it does not implement a change to make it true. | User Story 3 | Low | Open |
 | VC-002 | `<org_root>/drg` alternative-location check | Once issue #3384's fix lands, verify whether DRG fragments placed at `<org_root>/drg/*.graph.yaml` (a location `_RECOGNISED_ARTIFACT_DIRS` already names, `src/specify_cli/doctrine/snapshot.py:38-50`) are read as an alternative to `<org_root>/*.graph.yaml`. Pre-fix evidence (read-only, `src/doctrine/drg/loader.py:81-107`): they currently are not, because `load_graph_or_dir`'s glob is non-recursive at the given path. This mission records the finding; it does not implement a change to make it true. | User Story 3 | Low | Open |
 
 ### Constraints
 
 | ID | Title | Constraint | Category | Priority | Status |
 | --- | --- | --- | --- | --- | --- |
-| C-001 | Bounded file set (smallest-viable-diff) | Production change is confined to `src/charter/kind_vocabulary.py` (the ~5 LOC `_org_scan_dirs` body). Test changes are confined to `tests/charter/test_kind_vocabulary_scan_roots.py` (unit level, FR-003) plus one new or extended test module for the activation-filter-level regression (FR-002) — e.g. alongside `tests/charter/` coverage for `filter_graph_by_activation` / `_resolve_activated_urns_for_kind`. No other production file is touched. | Technical | High | Open |
-| C-002 | No D1 production code | `src/charter/_drg_helpers.py` and any other code path implementing #3384's fix are read-only evidence sources for this mission. No commit in this mission changes `_drg_helpers.py`'s behavior or competes with the `org-pack-drg-root-graph-guard` mission's fix. | Technical | High | Open |
+| C-001 | Bounded file set (smallest-viable-diff) | Production change is confined to `src/charter/activation/kind_vocabulary.py` (the ~5 LOC `_org_scan_dirs` body). Test changes are confined to `tests/charter/test_kind_vocabulary_scan_roots.py` (unit level, FR-003) plus one new or extended test module for the activation-filter-level regression (FR-002) — e.g. alongside `tests/charter/` coverage for `filter_graph_by_activation` / `_resolve_activated_urns_for_kind`. No other production file is touched. | Technical | High | Open |
+| C-002 | No D1 production code | `src/charter/activation/_drg_helpers.py` and any other code path implementing #3384's fix are read-only evidence sources for this mission. No commit in this mission changes `_drg_helpers.py`'s behavior or competes with the `org-pack-drg-root-graph-guard` mission's fix. | Technical | High | Open |
 | C-003 | No opportunistic refactor of neighboring scan helpers | `_built_in_scan_dir` and `_layer_scan_dirs` (same file as `_org_scan_dirs`) are not modified, renamed, or restructured by this mission even though they sit in the touched file. | Technical | Medium | Open |
 | C-004 | Red-first, not retry-to-green | FR-002's regression test must be shown red against the pre-fix code before the fix commit, per Standing Order #4 and `C-011`. A test authored already-green against the fix is not acceptable evidence. | Process | High | Open |
 | C-005 | No new suppressions | `ruff` and `mypy --strict` stay clean on touched files; no new `# type: ignore` / `# noqa`. | Technical | High | Open |
 
 ### Key Entities
 
-- **`_org_scan_dirs`** (`src/charter/kind_vocabulary.py:200-209`) — the function this mission
+- **`_org_scan_dirs`** (`src/charter/activation/kind_vocabulary.py:200-209`) — the function this mission
   fixes.
 - **`_scan_roots`** (`:142-180`) — the caller that combines `_built_in_scan_dir` and
   `_org_scan_dirs` into the `(Path, bool)` list `_iter_artifact_paths` walks.
@@ -374,7 +374,7 @@ completion (SC-005).
   pre-existing `test_existing_org_built_in_dir_returned` case (legacy shape) still passes
   unmodified in behavior (still returns the legacy dir), only its assertion about what else is
   returned may change if a flat dir is also present in that fixture.
-- **SC-004**: `ruff check` and `mypy --strict` are clean on `src/charter/kind_vocabulary.py` and
+- **SC-004**: `ruff check` and `mypy --strict` are clean on `src/charter/activation/kind_vocabulary.py` and
   every touched test file, with no new suppressions.
 - **SC-005** *(contingent, tracked for a later pass, not gating this mission's completion)*: once
   #3384 merges, VC-001 and VC-002's findings are recorded (as a follow-up note, issue comment, or
@@ -384,7 +384,7 @@ completion (SC-005).
 
 - **Issue #3384 itself** (the org-graph root-`*.graph.yaml` requirement and its collapse-to-empty
   action-doctrine-bundle consequence). Owned by the `org-pack-drg-root-graph-guard` mission.
-  This mission only reads `src/charter/_drg_helpers.py` and related loader code for evidence
+  This mission only reads `src/charter/activation/_drg_helpers.py` and related loader code for evidence
   (Clarifications; C-002).
 - **The typo/unknown-stem swallow** in `_resolve_activated_urns_for_kind`
   (`src/charter/drg.py:379-380`, `except UnknownArtifactIdError: continue`). A genuinely
@@ -393,7 +393,7 @@ completion (SC-005).
   specifically) and is not addressed here (see Edge Cases).
 - **Refactoring `_built_in_scan_dir` or `_layer_scan_dirs`.** Same file, not broken, deliberately
   left untouched per `RECONCILE_CHANGE_SCOPE_TENSIONS` (C-003).
-- **Any change to the `activated_*` config-key computation** (`src/charter/pack_manager.py:126`)
+- **Any change to the `activated_*` config-key computation** (`src/charter/activation/pack_manager.py:126`)
   or to `_node_is_activated`'s gate logic (`src/charter/drg.py:409-475`) — both are cited as
   mechanism evidence, neither is modified; the defect is fully closed by making
   `_org_scan_dirs` find what is really on disk.
@@ -411,7 +411,7 @@ completion (SC-005).
   real org pack in this codebase's fixtures or docs uses the `built-in/`-nested shape as its
   sole layout.
 - The `(Path, bool)` recursive-flag contract already established by `_scan_roots` /
-  `_iter_artifact_paths` (`src/charter/kind_vocabulary.py:142-250`) is the correct integration
+  `_iter_artifact_paths` (`src/charter/activation/kind_vocabulary.py:142-250`) is the correct integration
   point; the fix adds entries to the list this contract already consumes, rather than
   introducing a new resolution path.
 - A fixture org pack for FR-002/FR-003 can be constructed under `tmp_path` in the existing test

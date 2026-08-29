@@ -30,7 +30,7 @@ available_tools: []
 activations: []                    # list[ActivationEntry] — see activation-registry.md
 ```
 
-### Pydantic shape (`charter.mission_type_profiles.MissionTypeProfile`)
+### Pydantic shape (`charter.activation.mission_type_profiles.MissionTypeProfile`)
 
 | Field | Type | Required | Default |
 |-------|------|----------|---------|
@@ -45,7 +45,7 @@ Pydantic `model_config = ConfigDict(extra="forbid")`.
 ### Loader call
 
 ```python
-from charter.mission_type_profiles import load_profile
+from charter.activation.mission_type_profiles import load_profile
 
 profile = load_profile("documentation")   # MissionTypeProfile | None
 ```
@@ -55,7 +55,7 @@ Returns `None` if the file does not exist.
 ### Resolver call
 
 ```python
-from charter.mission_type_profiles import resolve_governance
+from charter.activation.mission_type_profiles import resolve_governance
 
 payload = resolve_governance(repo_root, feature_dir)
 # payload.text -> rendered governance text for the mission

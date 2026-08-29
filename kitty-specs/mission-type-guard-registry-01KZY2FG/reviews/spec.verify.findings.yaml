@@ -10,13 +10,13 @@ findings:
     severity: 4
     title: "doctor mission-type's 'unknown' state, if built on the cited UnknownMissionTypeError precedent, is blind in exactly the governed projects (like this repo) most likely to run it"
     evidence:
-      - artifact: "spec.md § FR-008 (\"matches the UnknownMissionTypeError FR-006/SC-003 distinction already made at src/charter/mission_type_profiles.py:193-210\")"
+      - artifact: "spec.md § FR-008 (\"matches the UnknownMissionTypeError FR-006/SC-003 distinction already made at src/charter/activation/mission_type_profiles.py:193-210\")"
       - artifact: "spec.md § User Story 4, Acceptance Scenario 1 (fixture-tree test)"
       - artifact: "spec.md § Out of Scope, item 1 (the doctrine-override hatch, independently named as a real, distinct, deferred defect)"
-      - code: "src/charter/mission_type_profiles.py:737-738 — `if not is_registered and not has_override: raise UnknownMissionTypeError(...)` (governance slot; the ONLY raise site for a genuinely unregistered type)"
-      - code: "src/charter/mission_type_profiles.py:788-789 — `_resolve_action_slot`: `if not is_registered: return []` (never raises for an unregistered type, override or not)"
-      - code: "src/charter/mission_type_profiles.py:1041 — `_project_has_doctrine_overrides`: True whenever `charter.yaml`'s `governance.doctrine` has any non-empty `selected_<kind>` list"
-      - code: "src/charter/mission_type_profiles.py:582-583 — `registered = existing_mission_types(repo_root); is_registered = type_key in registered` (this check IS override-hatch-independent)"
+      - code: "src/charter/activation/mission_type_profiles.py:737-738 — `if not is_registered and not has_override: raise UnknownMissionTypeError(...)` (governance slot; the ONLY raise site for a genuinely unregistered type)"
+      - code: "src/charter/activation/mission_type_profiles.py:788-789 — `_resolve_action_slot`: `if not is_registered: return []` (never raises for an unregistered type, override or not)"
+      - code: "src/charter/activation/mission_type_profiles.py:1041 — `_project_has_doctrine_overrides`: True whenever `charter.yaml`'s `governance.doctrine` has any non-empty `selected_<kind>` list"
+      - code: "src/charter/activation/mission_type_profiles.py:582-583 — `registered = existing_mission_types(repo_root); is_registered = type_key in registered` (this check IS override-hatch-independent)"
     claim: >
       FR-008 directs `doctor mission-type`'s taxonomy to match the existing
       `UnknownMissionTypeError` distinction, and the Out-of-Scope section separately,

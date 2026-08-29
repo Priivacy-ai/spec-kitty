@@ -28,9 +28,9 @@ discipline holds; cross-IC lanes parallelize safely.
 the charter layer. **Decision:** re-author a pure-data `RetrospectiveGovernance` sub-model **into**
 `charter/schemas.py` (bool / `Literal` / nested permissions — zero `specify_cli` import; the existing
 `specify_cli.retrospective.policy.RetrospectivePolicy` is **not** imported upward). Emitter (FR-005b) stays
-in-layer via `charter.sync.load_governance_config` (`sync.py:233`) feeding `write_compiled_charter`
+in-layer via `charter.activation.sync.load_governance_config` (`sync.py:233`) feeding `write_compiled_charter`
 (`compiler.py:441`/`:601`). Resolver (FR-005c) is a **downward** import: `specify_cli/retrospective/{policy,mode,gate}.py`
-imports `charter.charter_yaml_io.load_charter_yaml` + `charter.bundle`, reads `governance.retrospective` as a
+imports `charter.activation.charter_yaml_io.load_charter_yaml` + `charter.bundle`, reads `governance.retrospective` as a
 dict, and feeds it as highest-precedence through the existing `_apply_block_to_policy` (`policy.py:381`).
 **Refinement (must fold):** the omit-when-empty pruner `_prune_optional_empties` (`schemas.py:346`) is
 **list-only** (`isinstance(value, list) and not value`) — it will **not** omit an empty `retrospective`

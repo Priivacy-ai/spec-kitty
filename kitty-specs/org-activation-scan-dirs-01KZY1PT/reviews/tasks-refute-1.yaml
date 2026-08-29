@@ -17,7 +17,7 @@ verdicts:
   - id: TASKS-VERIFY-002
     verdict: confirmed
     reason: >-
-      Verified against current code — `_resolve_org_root` (src/charter/_drg_helpers.py:39-51)
+      Verified against current code — `_resolve_org_root` (src/charter/activation/_drg_helpers.py:39-51)
       is a hardcoded no-op returning `None` by its own docstring, `action_doctrine_bundle.py:165`
       is the only call site anywhere in src/ or tests/ that passes a non-`None` `org_root=` into
       `load_validated_graph`, no test in the repo does so (confirmed by grep across tests/), and

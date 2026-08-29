@@ -402,7 +402,7 @@ permitted_exceptions:
   - pattern: "src/specify_cli/upgrade/migrations/m_3_1_1_charter_rename.py"
     reason: "Spec C-006 carve-out: migration is allowed to carry legacy strings for historical upgrades."
     owner_wp: WP01
-  - pattern: "src/charter/catalog.py"
+  - pattern: "src/charter/activation/catalog.py"
     reason: "`include_proposed` parameter on load_doctrine_catalog() is removed in WP03, not WP01."
     owner_wp: WP01
   - pattern: "src/doctrine/_reference/"

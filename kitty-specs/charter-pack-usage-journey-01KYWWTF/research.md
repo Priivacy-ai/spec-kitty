@@ -16,7 +16,7 @@ the generated `implement`/`review` prompts *require* — `src/doctrine/missions/
 the sections *resolve* (produce them) or make the surface *stop advertising* them?
 
 **Investigation (this plan phase)**:
-- The selector engine is `src/charter/context_renderers/section_bodies.py::render_critical_section_include`
+- The selector engine is `src/charter/activation/context_renderers/section_bodies.py::render_critical_section_include`
   (`:282`). It calls `_extract_section_body(charter_content, heading)` (`:184`) where `heading` ∈
   `{"Terminology Canon", "Code Review Checklist"}` (`ACTION_CRITICAL_SECTIONS` for `implement`/`review`,
   `:34-46`). `charter_content` is the **`charter.md` prose** — so this correctly stays on the prose/section

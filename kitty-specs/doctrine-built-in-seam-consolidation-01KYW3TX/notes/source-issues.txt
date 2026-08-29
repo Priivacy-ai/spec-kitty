@@ -49,14 +49,14 @@ Correctness is fine (the two reads are pure and consistent), but this is **redun
 labels: ['tech-debt']
 ## Problem
 
-PR #3099's context.py de-god (#2532) intentionally kept a ~60-symbol **private re-export block** at the top of `src/charter/context.py` (lines ~25-146, a run of `from <sibling> import _x as _x`) so that ~62 pre-existing test import sites (`from charter.context import _x`) keep resolving after the leaf clusters moved to sibling modules.
+PR #3099's context.py de-god (#2532) intentionally kept a ~60-symbol **private re-export block** at the top of `src/charter/activation/context.py` (lines ~25-146, a run of `from <sibling> import _x as _x`) so that ~62 pre-existing test import sites (`from charter.activation.context import _x`) keep resolving after the leaf clusters moved to sibling modules.
 
-The block is explicitly labelled an orchestration shim (`# ⚠️ ORCHESTRATION SHIM (#2532 de-godding complete — do NOT add new responsibilities here)`, `src/charter/context.py:2`) and is guarded, but **there is no ticket to migrate those test imports to their leaf homes and delete the block**. A transitional re-export with no removal ticket becomes permanent drift — the exact god-module smell #2532 set out to remove, re-introduced one indirection layer up.
+The block is explicitly labelled an orchestration shim (`# ⚠️ ORCHESTRATION SHIM (#2532 de-godding complete — do NOT add new responsibilities here)`, `src/charter/activation/context.py:2`) and is guarded, but **there is no ticket to migrate those test imports to their leaf homes and delete the block**. A transitional re-export with no removal ticket becomes permanent drift — the exact god-module smell #2532 set out to remove, re-introduced one indirection layer up.
 
 ## Evidence
 
-- `src/charter/context.py:2-6` — the shim banner.
-- `src/charter/context.py:
+- `src/charter/activation/context.py:2-6` — the shim banner.
+- `src/charter/activation/context.py:
 
 ================================================================================
 
@@ -69,14 +69,14 @@ The charter activation-key vocabulary — which `config.yaml` root key
 hand across independent sites instead of being consumed from one authority,
 and the copies have already drifted:
 
-- `charter.pack_manager.YAML_KEY_MAP` — the derived authority, built from
+- `charter.activation.pack_manager.YAML_KEY_MAP` — the derived authority, built from
   `doctrine.artifact_kinds.CHARTER_KIND_TOKENS`. Lists **9** per-kind
   `activated_*` keys, including `activated_glossary_packs`.
 - `specify_cli.charter_pack_registry.PER_KIND_ACTIVATION_KEYS` — derives
   from `YAML_KEY_MAP` but explicitly filters out `activated_glossary_packs`
   (and `mission_type_activations`) via a hand-maintained
   `_NON_PACK_ACTIVATION_KEYS` exclusion set, landing on **8** keys.
-- `charter.charter_yaml_io._ACTIVATION_KEYS` — a separately hand-written
+- `charter.activation.charter_yaml_io._ACTIVATION_KEYS` — a separately hand-written
   tuple that special-cases `activated_glossary_packs` with its own inline
   comment 
 

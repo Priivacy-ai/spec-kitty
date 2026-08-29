@@ -33,7 +33,7 @@ execution_mode: code_change
 owned_files:
 - src/specify_cli/cli/commands/agent/mission.py
 - src/specify_cli/cli/commands/agent/workflow.py
-- src/charter/exceptions.py
+- src/charter/activation/exceptions.py
 - tests/specify_cli/test_charter_lifecycle_gates.py
 role: implementer
 tags: []
@@ -133,7 +133,7 @@ is loaded but before any artifact is written.
 
 2. Import `ProjectContext` at the top of the module (after other charter imports):
    ```python
-   from charter.invocation_context import ProjectContext
+   from charter.activation.invocation_context import ProjectContext
    ```
    Check first whether it is already imported:
    ```bash
@@ -203,7 +203,7 @@ WP file (the `locate_work_package` call at approximately line 901) but **before*
        wp.frontmatter.get("agent_profile") if hasattr(wp, "frontmatter") else None
    )
    if _wp_profile:
-       from charter.invocation_context import ProjectContext  # noqa: PLC0415
+       from charter.activation.invocation_context import ProjectContext  # noqa: PLC0415
        _pack_ctx = ProjectContext.from_repo(main_repo_root).require_pack_context()
        _activated = _pack_ctx.activated_agent_profiles
        if _activated is not None and _wp_profile not in _activated:
@@ -229,7 +229,7 @@ created on disk, when the WP's profile is not activated.
 
 ### T046 — Wire hard-fail on non-activated artifact lookup (FR-019)
 
-**File**: `src/charter/exceptions.py` (new file — this WP owns it)
+**File**: `src/charter/activation/exceptions.py` (new file — this WP owns it)
 
 WP08 wires `filter_graph_by_activation` into the DRG resolution paths. After that
 filtering, any artifact directly requested but absent from the filtered graph must
@@ -239,7 +239,7 @@ raise `CharterActivationError` (not return silently).
 The `filter_graph_by_activation` call sites (WP08 T035–T038) are the insertion
 points; T046 adds the hard-fail guard after each filter call.
 
-1. **Create `src/charter/exceptions.py`** (WP10 owns this file). Define:
+1. **Create `src/charter/activation/exceptions.py`** (WP10 owns this file). Define:
    ```python
    """Charter-layer activation exceptions."""
 
@@ -261,21 +261,21 @@ points; T046 adds the hard-fail guard after each filter call.
    grep -rn "CharterActivationError" src/charter/ --include="*.py" | head -5
    ```
    If it already exists in another file (e.g., from a prior attempt), remove the
-   duplicate and ensure `src/charter/exceptions.py` is the single definition.
+   duplicate and ensure `src/charter/activation/exceptions.py` is the single definition.
 
 3. **Export from `src/charter/__init__.py`** (check first whether it uses `__all__`):
    ```bash
    grep -n "CharterActivationError\|from .exceptions\|__all__" src/charter/__init__.py | head -10
    ```
-   Add `from charter.exceptions import CharterActivationError` and include it in
+   Add `from charter.activation.exceptions import CharterActivationError` and include it in
    `__all__` if that module uses explicit exports.
 
-4. **Wire the hard-fail guard** into the DRG resolution path in `src/charter/context.py`
+4. **Wire the hard-fail guard** into the DRG resolution path in `src/charter/activation/context.py`
    (owned by WP08, so read-only for WP10 — add calls at the places WP08 T035 has
    already inserted `filter_graph_by_activation`). The guard fires ONLY when a
    specific artifact is directly requested (not during traversal of the full graph):
    ```python
-   from charter.exceptions import CharterActivationError
+   from charter.activation.exceptions import CharterActivationError
 
    filtered_graph = filter_graph_by_activation(raw_graph, pack_context)
    artifact_node = _find_node_in_graph(filtered_graph, artifact_id)
@@ -289,12 +289,12 @@ points; T046 adds the hard-fail guard after each filter call.
                f"Resolution: spec-kitty charter activate {kind} {artifact_id}"
            )
    ```
-   Adapt the attribute lookup to use `YAML_KEY_MAP` from `charter.pack_manager` if
+   Adapt the attribute lookup to use `YAML_KEY_MAP` from `charter.activation.pack_manager` if
    the per-kind attribute name differs. The guard only fires when `activated_ids is not None`
    (explicit restriction). When `None`, the artifact is considered available.
 
-   **IMPORTANT**: WP10 owns `src/charter/exceptions.py` but does NOT own
-   `src/charter/context.py` (owned by WP08). To comply with ownership, the call
+   **IMPORTANT**: WP10 owns `src/charter/activation/exceptions.py` but does NOT own
+   `src/charter/activation/context.py` (owned by WP08). To comply with ownership, the call
    site in `context.py` should be part of WP08 T035's scope. Add a comment in T046
    for the reviewer: "if `context.py` changes are needed, coordinate with WP08's
    implementer or add as a follow-on in WP08's scope."
@@ -399,7 +399,7 @@ After completing all subtasks, run these in order:
 # 1. Static analysis
 cd src && ruff check ../src/specify_cli/cli/commands/agent/mission.py \
                      ../src/specify_cli/cli/commands/agent/workflow.py \
-                     ../src/charter/context.py
+                     ../src/charter/activation/context.py
 
 # 2. Type checking on touched files
 cd src && python -m mypy --strict \

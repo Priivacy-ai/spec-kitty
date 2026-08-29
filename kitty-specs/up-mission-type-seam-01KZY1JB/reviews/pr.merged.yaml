@@ -19,13 +19,13 @@ findings:
     evidence:
       - code: "src/specify_cli/cli/commands/charter/mission_type.py:106"
       - code: "src/specify_cli/cli/commands/charter/mission_type.py:84"
-      - code: "src/charter/mission_type_profiles.py:827"
-      - code: "src/charter/mission_type_profiles.py:73-82"
+      - code: "src/charter/activation/mission_type_profiles.py:827"
+      - code: "src/charter/activation/mission_type_profiles.py:73-82"
     claim: >
       `resolve_mission_type_source_layer` (src/specify_cli/cli/commands/charter/mission_type.py:97-114)
-      does `from charter.mission_type_profiles import _resolve_action_sequence_layer` — a
-      leading-underscore symbol never listed in `charter.mission_type_profiles.__all__`
-      (src/charter/mission_type_profiles.py:73-82) and never re-exported through any charter
+      does `from charter.activation.mission_type_profiles import _resolve_action_sequence_layer` — a
+      leading-underscore symbol never listed in `charter.activation.mission_type_profiles.__all__`
+      (src/charter/activation/mission_type_profiles.py:73-82) and never re-exported through any charter
       facade. This is inconsistent with the pattern the SAME function applies one line above
       it (`resolve_layered_roster`, mission_type.py:76-94), which reaches
       `resolve_layered_mission_types` only via the `charter.missions` facade door WP07
@@ -39,7 +39,7 @@ findings:
       `specify_cli` now depends on it directly.
     remediation: >
       Rename `_resolve_action_sequence_layer` to a public name (e.g.
-      `resolve_action_sequence_layer`) in src/charter/mission_type_profiles.py and add it to
+      `resolve_action_sequence_layer`) in src/charter/activation/mission_type_profiles.py and add it to
       that module's `__all__`, then update both the in-module caller
       (mission_type_profiles.py:949) and the cross-module caller (mission_type.py:106) to the
       new public name.
@@ -48,10 +48,10 @@ findings:
     source_group: boundary
     lens: "facade widening / public-surface hygiene"
     severity: 1
-    title: "MissionTypeEmptyActionSequenceError is imported by name from two other src/ modules but is missing from charter.mission_type_profiles.__all__"
+    title: "MissionTypeEmptyActionSequenceError is imported by name from two other src/ modules but is missing from charter.activation.mission_type_profiles.__all__"
     evidence:
-      - code: "src/charter/mission_type_profiles.py:73-82"
-      - code: "src/charter/mission_type_profiles.py:259"
+      - code: "src/charter/activation/mission_type_profiles.py:73-82"
+      - code: "src/charter/activation/mission_type_profiles.py:259"
       - code: "src/specify_cli/cli/commands/charter/mission_type.py:32"
       - code: "src/specify_cli/cli/commands/charter/activate.py"
     claim: >
@@ -60,13 +60,13 @@ findings:
       referenced in `src/specify_cli/cli/commands/charter/activate.py`'s
       `except UnknownMissionTypeError` handler comment, i.e. it is a genuinely public,
       cross-module-depended-on symbol, yet it was never added to
-      `charter.mission_type_profiles.__all__`. `from module import Name` works regardless of
+      `charter.activation.mission_type_profiles.__all__`. `from module import Name` works regardless of
       `__all__`, so this has no runtime effect, but it leaves the module's own documented
       public contract silently out of sync with what other modules actually depend on — the
       same category of drift `__all__` exists to prevent for `UnknownMissionTypeError`, the
       class this new error was deliberately modeled on.
     remediation: >
-      Add `"MissionTypeEmptyActionSequenceError"` to `charter.mission_type_profiles.__all__`,
+      Add `"MissionTypeEmptyActionSequenceError"` to `charter.activation.mission_type_profiles.__all__`,
       alongside `UnknownMissionTypeError`, which it mirrors.
 
   - id: PR-CONTRACT-001
@@ -76,8 +76,8 @@ findings:
     title: "mission-type show crashes uncaught on the exact CL-003 empty-action-sequence case it was built to guard against"
     evidence:
       - code: "src/specify_cli/cli/commands/mission_type.py:1450-1462"
-      - code: "src/charter/mission_type_profiles.py:194-256"
-      - code: "src/charter/mission_type_profiles.py:259-305"
+      - code: "src/charter/activation/mission_type_profiles.py:194-256"
+      - code: "src/charter/activation/mission_type_profiles.py:259-305"
       - code: "src/specify_cli/cli/commands/charter/mission_type.py:151-160"
     claim: >
       `show_mission_type` (`spec-kitty mission-type show <id>`, one of WP07's four CLI
@@ -112,11 +112,11 @@ findings:
     severity: 4
     title: "charter activate mission-type silently swallows malformed-YAML and unreadable-directory failures in the very org/project layers WP05 newly wired in, masking them as a generic 'unknown ID'"
     evidence:
-      - code: "src/charter/pack_manager.py:317-338"
-      - code: "src/charter/pack_manager.py:361-377"
-      - code: "src/charter/pack_manager.py:778-840"
+      - code: "src/charter/activation/pack_manager.py:317-338"
+      - code: "src/charter/activation/pack_manager.py:361-377"
+      - code: "src/charter/activation/pack_manager.py:778-840"
       - code: "src/doctrine/missions/mission_type_repository.py:358-394"
-      - code: "src/charter/pack_manager.py:618-643"
+      - code: "src/charter/activation/pack_manager.py:618-643"
     claim: >
       WP05 (`_resolve_layer_candidate`, pack_manager.py:317-338) newly wires org/project
       mission-type directories into `CharterPackManager.list_available_detailed`
@@ -195,8 +195,8 @@ findings:
     title: "New golden-parity regression class in test_runtime_seam.py cannot fail even when WP04's PackContext-threading is fully reverted"
     evidence:
       - code: "tests/runtime/test_runtime_seam.py:184-233"
-      - code: "src/charter/mission_type_profiles.py:917-925 (_resolve_action_slot, calls resolve_layered_mission_types)"
-      - code: "src/charter/mission_type_profiles.py:1036 (_resolve_template_set_slot, threads pack_context)"
+      - code: "src/charter/activation/mission_type_profiles.py:917-925 (_resolve_action_slot, calls resolve_layered_mission_types)"
+      - code: "src/charter/activation/mission_type_profiles.py:1036 (_resolve_template_set_slot, threads pack_context)"
     claim: >
       `TestGoldenParityUnaffectedByPackContextThreading.test_builtin_type_unaffected_by_real_pack_context_with_org_root`
       (parametrized over the 4 built-in mission types) constructs a real `PackContext` whose
@@ -205,7 +205,7 @@ findings:
       scans to `[]`, the test's assertions hold identically whether WP04's PackContext-
       threading exists or not. Verified empirically in a disposable worktree
       (`git worktree add --detach /tmp/pr-tests-check HEAD`): with
-      `src/charter/mission_type_profiles.py` edited so `_resolve_action_slot` calls
+      `src/charter/activation/mission_type_profiles.py` edited so `_resolve_action_slot` calls
       `MissionTypeRepository.default()` instead of
       `resolve_layered_mission_types(mission_types_dirs, pack_context)`, and
       `_resolve_template_set_slot` calls
@@ -242,7 +242,7 @@ findings:
       - code: "tests/doctrine/missions/test_mission_type_repository.py (TestLayeredMissionTypesCacheKeyAndClear.setup_method/teardown_method — same discipline at the doctrine layer)"
       - code: "src/doctrine/missions/mission_type_repository.py:453-478 (resolve_layered_mission_types, @functools.cache keyed on (mission_types_dirs, pack_context))"
     claim: >
-      Every other new/changed test file that patches `charter.pack_context.PackContext.from_config`
+      Every other new/changed test file that patches `charter.activation.pack_context.PackContext.from_config`
       and then drives resolution through the module-level `resolve_layered_mission_types`
       cache also calls `MissionTypeRepository.cache_clear()` (or the doctrine-layer test
       file's own setup/teardown equivalent) before and/or after the patched call.

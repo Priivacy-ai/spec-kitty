@@ -26,11 +26,11 @@ history:
 authoritative_surface: src/charter/synthesizer/
 execution_mode: code_change
 owned_files:
-- src/charter/synthesizer/synthesize_pipeline.py
-- src/charter/synthesizer/manifest.py
-- src/charter/synthesizer/provenance.py
-- src/charter/synthesizer/write_pipeline.py
-- src/charter/synthesizer/resynthesize_pipeline.py
+- src/charter/activation/synthesizer/synthesize_pipeline.py
+- src/charter/activation/synthesizer/manifest.py
+- src/charter/activation/synthesizer/provenance.py
+- src/charter/activation/synthesizer/write_pipeline.py
+- src/charter/activation/synthesizer/resynthesize_pipeline.py
 - tests/charter/synthesizer/test_provenance.py
 - tests/charter/synthesizer/test_manifest.py
 - tests/charter/synthesizer/test_adapter_contract.py
@@ -88,7 +88,7 @@ WP01 works on the versioning registry. WP03 depends on both WP01 and WP02.
 
 ### T008 — Bump ProvenanceEntry to v2
 
-**File**: `src/charter/synthesizer/synthesize_pipeline.py`
+**File**: `src/charter/activation/synthesizer/synthesize_pipeline.py`
 
 Read the full file first. Locate `ProvenanceEntry`. Apply these changes:
 
@@ -118,11 +118,11 @@ Validation check (Pydantic v2):
 - `synthesis_run_id: str = Field(..., min_length=1)` — same
 - `corpus_snapshot_id: str` with no default — `None` raises `ValidationError`
 
-Run `mypy --strict src/charter/synthesizer/synthesize_pipeline.py` after.
+Run `mypy --strict src/charter/activation/synthesizer/synthesize_pipeline.py` after.
 
 ### T009 — Bump SynthesisManifest to v2
 
-**File**: `src/charter/synthesizer/manifest.py`
+**File**: `src/charter/activation/synthesizer/manifest.py`
 
 Read the full file first. Locate `SynthesisManifest`. Apply:
 
@@ -136,11 +136,11 @@ Read the full file first. Locate `SynthesisManifest`. Apply:
 
 Validate: `SynthesisManifest(synthesizer_version="", ...)` must raise `ValidationError`.
 
-Run `mypy --strict src/charter/synthesizer/manifest.py` after.
+Run `mypy --strict src/charter/activation/synthesizer/manifest.py` after.
 
 ### T010 — Update `provenance.py` to stamp `produced_at` at write time
 
-**File**: `src/charter/synthesizer/provenance.py`
+**File**: `src/charter/activation/synthesizer/provenance.py`
 
 Read the full file. Find `dump_yaml()` (or whatever function writes the provenance sidecar to disk).
 
@@ -152,7 +152,7 @@ Ensure the YAML output for a provenance sidecar includes `produced_at` as a top-
 
 ### T011 — Update `write_pipeline.py` `promote()`
 
-**File**: `src/charter/synthesizer/write_pipeline.py`
+**File**: `src/charter/activation/synthesizer/write_pipeline.py`
 
 Read the full file. Find all locations where `ProvenanceEntry(...)` is constructed (the `promote()` function, or equivalent). Update each construction site:
 
@@ -187,7 +187,7 @@ Also update `SynthesisManifest(...)` construction to pass `synthesizer_version` 
 
 ```python
 import hashlib
-from charter.synthesizer.synthesize_pipeline import canonical_yaml  # adjust import path
+from charter.activation.synthesizer.synthesize_pipeline import canonical_yaml  # adjust import path
 
 # Build manifest without hash first:
 manifest_data = dict(
@@ -211,11 +211,11 @@ manifest = SynthesisManifest(
 )
 ```
 
-Run `mypy --strict src/charter/synthesizer/write_pipeline.py` after.
+Run `mypy --strict src/charter/activation/synthesizer/write_pipeline.py` after.
 
 ### T012 — Update `resynthesize_pipeline.py`
 
-**File**: `src/charter/synthesizer/resynthesize_pipeline.py`
+**File**: `src/charter/activation/synthesizer/resynthesize_pipeline.py`
 
 Apply the same `ProvenanceEntry` v2 construction changes as T011. The `resynthesize_pipeline` reads an existing bundle and re-synthesizes selected artifacts; it constructs new provenance entries for re-synthesized artifacts.
 
@@ -224,7 +224,7 @@ Check:
 - Use `list(source.source_urns)` for `source_input_ids` (same as write_pipeline).
 - Use `corpus_id or "(none)"` for `corpus_snapshot_id`.
 
-Run `mypy --strict src/charter/synthesizer/resynthesize_pipeline.py` after.
+Run `mypy --strict src/charter/activation/synthesizer/resynthesize_pipeline.py` after.
 
 ### T013 — Update YAML sidecar fixtures
 

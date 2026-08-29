@@ -54,7 +54,7 @@
         "WP06"
       ],
       "write_scope": [
-        "src/charter/mission_type_profiles.py",
+        "src/charter/activation/mission_type_profiles.py",
         "tests/charter/test_mission_type_profiles.py"
       ],
       "predicted_surfaces": [

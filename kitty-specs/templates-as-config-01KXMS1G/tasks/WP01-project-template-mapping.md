@@ -31,7 +31,7 @@ create_intent: []
 execution_mode: code_change
 model: ''
 owned_files:
-- src/charter/mission_type_profiles.py
+- src/charter/activation/mission_type_profiles.py
 - tests/charter/test_resolved_mission_type_context.py
 - tests/doctrine/missions/test_mission_type_repository.py
 role: implementer
@@ -138,7 +138,7 @@ Before implementation, inspect the status event stream for `review_ref`. If this
   3. Expose the public value via `cached_property`; neutral context returns null without a thunk.
   4. Copy/freeze the repository result so a consumer cannot mutate cached doctrine model state.
   5. Update comments/docstrings that still call the slot reserved, but avoid touching unrelated legacy profile-string documentation.
-- **Files**: `src/charter/mission_type_profiles.py`.
+- **Files**: `src/charter/activation/mission_type_profiles.py`.
 - **Parallel?**: No; depends on T002's red contract.
 - **Notes**: Keep ordering deterministic. Python dict insertion order is acceptable only if the source/copy path is deterministic and tests prove it.
 
@@ -151,7 +151,7 @@ Before implementation, inspect the status event stream for `review_ref`. If this
   3. Preserve explicit null exactly.
   4. Ensure unknown/unactivated behavior continues to follow existing resolver policy before the mapping thunk is exposed.
   5. Confirm no read of `MissionTypeProfile.template_set`, charter compiler default, or `software-dev-default` contributes to the mapping.
-- **Files**: `src/charter/mission_type_profiles.py`.
+- **Files**: `src/charter/activation/mission_type_profiles.py`.
 - **Parallel?**: No; completes T003.
 - **Validation**: A project/profile string override must not change the artifact mapping asserted in context tests.
 
@@ -175,7 +175,7 @@ Before implementation, inspect the status event stream for `review_ref`. If this
   1. Run the two owned pytest modules.
   2. Run any immediately adjacent existing mission-type resolution test needed to catch import/activation regressions.
   3. Run Ruff on changed files.
-  4. Run mypy strict using the repository's scoped invocation for `src/charter/mission_type_profiles.py`.
+  4. Run mypy strict using the repository's scoped invocation for `src/charter/activation/mission_type_profiles.py`.
   5. Run the owned tests with pytest-cov XML output and then `diff-cover coverage.xml --compare-branch <resolved-lane-base> --fail-under=90` (or the repository-equivalent changed/new-code command).
   6. Inspect any uncovered changed production line; add a behavior-focused test or explain why the line is excluded by repository policy rather than weakening the threshold.
   7. Inspect the diff for profile-string leakage, eager reads, version edits, or non-owned changes.
@@ -237,7 +237,7 @@ Append entries oldest to newest using `YYYY-MM-DDTHH:MM:SSZ – agent_id – act
 
 Status is managed in `status.events.jsonl`; use Spec Kitty task movement commands rather than editing status frontmatter.
 - 2026-07-16T07:31:12Z – codex:gpt-5:python-pedro:implementer – shell_pid=6396 – Assigned agent via action command
-- 2026-07-16T07:34:23Z – codex:gpt-5:python-pedro:implementer – shell_pid=6396 – T001 campsite baseline complete before RED: owned files clean; uv run --extra test pytest -q tests/charter/test_resolved_mission_type_context.py tests/doctrine/missions/test_mission_type_repository.py => 44 passed, 3 existing DoctrineLayerCollisionWarning warnings; uv run --extra lint ruff check <owned files> => passed; uv run --extra lint mypy --strict src/charter/mission_type_profiles.py => passed. No domain-matched litter required behavior-preserving edits; frozen warning baseline=3 with no-growth constraint.
+- 2026-07-16T07:34:23Z – codex:gpt-5:python-pedro:implementer – shell_pid=6396 – T001 campsite baseline complete before RED: owned files clean; uv run --extra test pytest -q tests/charter/test_resolved_mission_type_context.py tests/doctrine/missions/test_mission_type_repository.py => 44 passed, 3 existing DoctrineLayerCollisionWarning warnings; uv run --extra lint ruff check <owned files> => passed; uv run --extra lint mypy --strict src/charter/activation/mission_type_profiles.py => passed. No domain-matched litter required behavior-preserving edits; frozen warning baseline=3 with no-growth constraint.
 - 2026-07-16T07:37:44Z – codex:gpt-5:python-pedro:implementer – shell_pid=6396 – T002 RED evidence: targeted repository/context contract run produced 6 expected failures and 18 passes. Failures prove software-dev ResolvedMissionType.template_set remains None/eager field and lacks doctrine-backed lazy cache; repository exact/null assertions already pass. No fixture/setup failures.
 - 2026-07-16T07:44:52Z – codex:gpt-5:python-pedro:implementer – shell_pid=6396 – T003-T006 GREEN evidence: immutable MappingProxyType projection is wired through resolve_mission_type_context to the doctrine MissionTypeRepository only; neutral/non-software/unregistered values remain null; profile-string override cannot author mappings. Owned pytest => 55 passed with 4 intentional DoctrineLayerCollisionWarning warnings; adjacent resolver pytest => 32 passed; diff-scoped Ruff => exit 0; scoped mypy --strict => exit 0; diff-cover => 15 changed production lines, 0 missing, 100%; hot-path p95 test remains below 100ms and proves template_set is not cached until accessed; caller grep confirms thunk wiring.
 - 2026-07-16T08:09:02Z – codex:gpt-5:python-pedro:implementer – shell_pid=6396 – Ready for review: exact doctrine mapping/null semantics, lazy immutable caching, 55 owned + 32 adjacent tests, Ruff/mypy clean, diff-cover 100%. Forced only because guard misclassified unrelated untracked analysis-report.md as WP01-owned.

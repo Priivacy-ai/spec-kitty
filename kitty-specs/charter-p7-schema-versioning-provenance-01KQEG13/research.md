@@ -15,14 +15,14 @@
 
 All four are shipped in the same `spec-kitty-cli` wheel. `src/doctrine/` already exists; `src/doctrine/versioning.py` is a new file, not a new package.
 
-### `src/charter/schemas.py` — `ExtractionMetadata`
+### `src/charter/activation/schemas.py` — `ExtractionMetadata`
 The `ExtractionMetadata` Pydantic model represents `.kittify/charter/metadata.yaml` content. It currently has:
 - `schema_version: str = "1.0.0"` — YAML document format version (semver string, extraction-format concern)
 - `extracted_at`, `charter_hash`, `source_path`, `extraction_mode`, `sections_parsed`
 
 **Decision**: Add `bundle_schema_version: int | None = None` as a new optional integer field. The existing `schema_version` semver string is retained (it tracks the extraction YAML format). The new integer tracks overall bundle compatibility for the upgrade pipeline.
 
-### `src/charter/synthesizer/synthesize_pipeline.py` — `ProvenanceEntry`
+### `src/charter/activation/synthesizer/synthesize_pipeline.py` — `ProvenanceEntry`
 Current Phase 3 baseline (v1):
 - `schema_version: Literal["1"] = "1"` — per-sidecar format version
 - `artifact_urn`, `artifact_kind`, `artifact_slug` — identity
@@ -49,7 +49,7 @@ Fields promoted/added in Phase 7 (v2):
 
 **Note on `bundle_hash`**: The spec requires "bundle/manifest hash where applicable". This is satisfied by `synthesis_run_id` (links the sidecar to the manifest unambiguously) combined with `manifest_hash` on `SynthesisManifest`. A direct circular hash on the sidecar would require a two-pass write that would break NFR-006 byte-stability.
 
-### `src/charter/synthesizer/manifest.py` — `SynthesisManifest`
+### `src/charter/activation/synthesizer/manifest.py` — `SynthesisManifest`
 Current v1:
 - `schema_version: Literal["1"] = "1"`
 - `mission_id: str | None`, `created_at: str`, `run_id: str`
@@ -61,7 +61,7 @@ Phase 7 (v2) additions:
 - `synthesizer_version: str` — mandatory, from `specify_cli.__version__`
 - `manifest_hash: str` — mandatory, SHA-256 of `canonical_yaml(manifest_without_manifest_hash_field)`
 
-### `src/charter/synthesizer/write_pipeline.py` — `promote()`
+### `src/charter/activation/synthesizer/write_pipeline.py` — `promote()`
 The write pipeline assembles provenance entries in memory and then calls `dump_provenance`. The `run_id` is available from `staging_dir.run_id`. The `synthesizer_version` is available from `specify_cli.__version__`. The `produced_at` is stamped at write time in `provenance.dump_yaml`. The `manifest_hash` is computed after the manifest dict is assembled but before the YAML bytes are written.
 
 ### `src/specify_cli/__init__.py` — version export

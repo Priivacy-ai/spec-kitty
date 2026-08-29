@@ -7,7 +7,7 @@ Covers:
 
 * T014(a) — C-A3: a brand-new ``spec-kitty init`` writes an explicit,
   non-empty ``mission_type_activations`` copied from
-  ``src/charter/packs/default.yaml``.
+  ``src/charter/activation/packs/default.yaml``.
 * T014(b) — C-A4: a broken install missing ``default.yaml`` fails closed
   with an actionable error, both at the helper level and through the ``init``
   CLI command.

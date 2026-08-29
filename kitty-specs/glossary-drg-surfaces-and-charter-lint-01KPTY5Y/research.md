@@ -57,15 +57,15 @@ SemanticCheckEvaluated:
 
 ## 4. `ensure_charter_bundle_fresh` hook point (WP5.5)
 
-**Decision**: `ensure_charter_bundle_fresh` is imported from `charter.sync` (a sibling package). The function signature is called at the top of `charter compile` and other charter commands. WP5.5 hooks entity page generation into this function by:
-- Adding a post-bundle hook in `charter.sync.ensure_charter_bundle_fresh()` — OR
+**Decision**: `ensure_charter_bundle_fresh` is imported from `charter.activation.sync` (a sibling package). The function signature is called at the top of `charter compile` and other charter commands. WP5.5 hooks entity page generation into this function by:
+- Adding a post-bundle hook in `charter.activation.sync.ensure_charter_bundle_fresh()` — OR
 - Calling `regenerate_entity_pages(repo_root)` immediately after `ensure_charter_bundle_fresh()` returns in every code path that calls it.
 
 The second option is safer (no modification to `charter` package internals): add a `generate_glossary_entity_pages(repo_root)` call in `src/specify_cli/cli/commands/charter.py` at the call sites of `ensure_charter_bundle_fresh`.
 
 **Output path**: `.kittify/charter/compiled/glossary/<term-id>.md` (gitignored, build artifact).
 
-**Source files**: `src/specify_cli/cli/commands/charter.py` (lines 83+), `charter.sync` (external package)
+**Source files**: `src/specify_cli/cli/commands/charter.py` (lines 83+), `charter.activation.sync` (external package)
 
 ---
 

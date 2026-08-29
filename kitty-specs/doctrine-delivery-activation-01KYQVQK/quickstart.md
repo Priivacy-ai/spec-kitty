@@ -38,7 +38,7 @@ uv run spec-kitty doctrine validate 2>&1 | tail -20   # graph loads clean
 ```bash
 # #3075 writer discovery gate + registration + Protocol typing:
 uv run pytest tests/architectural/test_drg_writer_discovery.py -q
-uv run mypy --strict src/charter/progressive_disclosure.py src/charter/context.py   # 0 ignores
+uv run mypy --strict src/charter/activation/progressive_disclosure.py src/charter/activation/context.py   # 0 ignores
 # #3062 schema-error UX + asset source-path:
 uv run pytest tests/doctrine/assets/ -q -k "source_path"
 uv run spec-kitty doctrine validate   # a bad top-level key → structured issue, not a traceback

@@ -34,13 +34,13 @@ execution_mode: code_change
 mission_id: 01KPE222CD1MMCYEGB3ZCY51VR
 mission_slug: phase-3-charter-synthesizer-pipeline-01KPE222
 owned_files:
-- src/charter/synthesizer/__init__.py
-- src/charter/synthesizer/adapter.py
-- src/charter/synthesizer/errors.py
-- src/charter/synthesizer/fixture_adapter.py
-- src/charter/synthesizer/orchestrator.py
-- src/charter/synthesizer/path_guard.py
-- src/charter/synthesizer/request.py
+- src/charter/activation/synthesizer/__init__.py
+- src/charter/activation/synthesizer/adapter.py
+- src/charter/activation/synthesizer/errors.py
+- src/charter/activation/synthesizer/fixture_adapter.py
+- src/charter/activation/synthesizer/orchestrator.py
+- src/charter/activation/synthesizer/path_guard.py
+- src/charter/activation/synthesizer/request.py
 - architecture/adrs/2026-04-17-1-charter-synthesizer-adapter-seam.md
 - architecture/adrs/2026-04-17-2-charter-synthesizer-atomicity.md
 - tests/charter/synthesizer/__init__.py
@@ -80,7 +80,7 @@ Read before writing code:
 
 ### T001 — Scaffold package + errors taxonomy
 
-**Files**: `src/charter/synthesizer/__init__.py`, `src/charter/synthesizer/errors.py`
+**Files**: `src/charter/activation/synthesizer/__init__.py`, `src/charter/activation/synthesizer/errors.py`
 
 Create the package. `__init__.py` re-exports only what downstream WPs need publicly (`SynthesisAdapter`, `AdapterOutput`, `SynthesisRequest`, `SynthesisTarget`, `PathGuardViolation`, `FixtureAdapterMissingError`, `SynthesisError`).
 
@@ -102,7 +102,7 @@ Each class is a `@dataclass` exception; include `__str__` that renders a terse h
 
 ### T002 — `request.py` [P]
 
-**Files**: `src/charter/synthesizer/request.py`
+**Files**: `src/charter/activation/synthesizer/request.py`
 
 Define `SynthesisRequest` and `SynthesisTarget` as frozen dataclasses per data-model.md §E-1 / §E-2. Include:
 - `SynthesisTarget` validation: `slug` matches `^[a-z][a-z0-9-]*$`; for `kind == "directive"` the `artifact_id` matches `^[A-Z][A-Z0-9_-]*$` and MUST NOT start with `DIRECTIVE_` (that prefix is reserved for shipped directives).
@@ -113,7 +113,7 @@ Define `SynthesisRequest` and `SynthesisTarget` as frozen dataclasses per data-m
 
 ### T003 — `adapter.py` [P]
 
-**Files**: `src/charter/synthesizer/adapter.py`
+**Files**: `src/charter/activation/synthesizer/adapter.py`
 
 Define `SynthesisAdapter` as a `Protocol` (runtime-checkable) with exactly:
 ```python
@@ -126,11 +126,11 @@ def generate_batch(self, requests: Sequence[SynthesisRequest]) -> Sequence[Adapt
 
 `AdapterOutput` is a frozen dataclass per data-model.md §E-3. No retry policy, no prompt templating, no model parameters — those belong inside adapter implementations. This file is the frozen seam; changes require an ADR amendment.
 
-Ensure `contracts/adapter.py` (already in the mission dir) and `src/charter/synthesizer/adapter.py` expose structurally identical shapes; add a conformance test in T008 that proves it.
+Ensure `contracts/adapter.py` (already in the mission dir) and `src/charter/activation/synthesizer/adapter.py` expose structurally identical shapes; add a conformance test in T008 that proves it.
 
 ### T004 — `path_guard.py` [P]
 
-**Files**: `src/charter/synthesizer/path_guard.py`
+**Files**: `src/charter/activation/synthesizer/path_guard.py`
 
 Implement `PathGuard` as the sole write seam for all synthesizer code:
 - Methods: `replace(src, dst)`, `write_text(path, text)`, `write_bytes(path, data)`, `mkdir(path, parents=True, exist_ok=True)`.
@@ -141,7 +141,7 @@ Write a lint-style regression test (T008, `test_path_guard.py`) that greps `src/
 
 ### T005 — `fixture_adapter.py`
 
-**Files**: `src/charter/synthesizer/fixture_adapter.py`
+**Files**: `src/charter/activation/synthesizer/fixture_adapter.py`
 
 Fixture adapter with layout `tests/charter/fixtures/synthesizer/<kind>/<slug>/<blake3-short>.<kind>.yaml` (short = first 16 hex chars of blake3-256 over normalized bytes from T002). The `.<kind>.yaml` suffix matches the shipped repository glob so fixtures round-trip through the same loaders.
 
@@ -154,7 +154,7 @@ This module lives in `src/` (not `tests/`) so integration tests can import it, b
 
 ### T006 — `orchestrator.py` skeleton
 
-**Files**: `src/charter/synthesizer/orchestrator.py`
+**Files**: `src/charter/activation/synthesizer/orchestrator.py`
 
 Skeleton dispatcher with public entry points:
 ```python
@@ -208,9 +208,9 @@ Both ADRs must cross-reference this mission and the Phase 3 EPIC.
 
 Review in this order per `review-intent-and-risk-first`:
 1. ADR-1 (adapter seam) and ADR-2 (atomicity) — if these are wrong, nothing else matters.
-2. `src/charter/synthesizer/adapter.py` — Protocol fidelity vs `contracts/adapter.py`.
-3. `src/charter/synthesizer/request.py::normalize_request_for_hash` — deterministic byte output is load-bearing for WP05's idempotency claims.
-4. `src/charter/synthesizer/path_guard.py` — does every possible bypass route hit the guard?
+2. `src/charter/activation/synthesizer/adapter.py` — Protocol fidelity vs `contracts/adapter.py`.
+3. `src/charter/activation/synthesizer/request.py::normalize_request_for_hash` — deterministic byte output is load-bearing for WP05's idempotency claims.
+4. `src/charter/activation/synthesizer/path_guard.py` — does every possible bypass route hit the guard?
 5. `orchestrator.py` skeleton — late-bound imports keep WP02/WP05 ownership clean.
 6. Tests — do the negative cases actually exercise the failure mode, not just the happy path?
 

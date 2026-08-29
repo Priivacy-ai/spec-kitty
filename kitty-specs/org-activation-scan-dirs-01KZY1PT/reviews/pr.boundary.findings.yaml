@@ -14,7 +14,7 @@ findings:
       before or after this diff
     evidence:
       - artifact: "diff origin/main...HEAD"
-      - code: "src/charter/kind_vocabulary.py:206-217 (_org_scan_dirs docstring: 'the legacy <root>/<plural>/built-in layout ... kept only for backward compatibility')"
+      - code: "src/charter/activation/kind_vocabulary.py:206-217 (_org_scan_dirs docstring: 'the legacy <root>/<plural>/built-in layout ... kept only for backward compatibility')"
       - code: "src/doctrine/service.py:47-55 (DoctrineService._org_dirs returns [root / artifact for root in self._org_roots] -- one flat dir per root, no built-in-subdir concept at all)"
       - code: "src/doctrine/base.py:153-159 (_project_scan default is non-recursive `project_dir.glob(self._glob)`; no subclass in src/doctrine/*.py overrides it, verified via grep)"
       - code: "src/doctrine/base.py:227-260 (_apply_overlay_layer, used for both org and project layers, calls self._project_scan(overlay_dir) -- so org dirs are ALWAYS scanned non-recursively, never via rglob)"
@@ -34,7 +34,7 @@ findings:
       every kind, not just some. The live loader has therefore NEVER read
       an org pack's nested built-in/ subdirectory, either before or after
       this diff (confirmed the pre-diff _org_scan_dirs already made the
-      identical unverified claim -- origin/main:src/charter/kind_vocabulary.py:200-209
+      identical unverified claim -- origin/main:src/charter/activation/kind_vocabulary.py:200-209
       said "this nested layout is still live for org packs", which was
       already false). kind_vocabulary.py's resolve_artifact_urn /
       resolve_config_id now assert (and the new tests pin as contractual
@@ -84,9 +84,9 @@ findings:
       documented and tested contract
     evidence:
       - artifact: "diff origin/main...HEAD"
-      - code: "src/charter/kind_vocabulary.py:203-227 (_org_scan_dirs: for root in org_roots: appends (flat, False) then (legacy, True) -- interleaved per root, not grouped flat-then-legacy globally)"
-      - code: "src/charter/kind_vocabulary.py:249-268 (_iter_artifact_paths iterates _scan_roots()'s dirs in order, sorted(matches) applied only within each scan_dir, not globally)"
-      - code: "src/charter/kind_vocabulary.py:271-318 (resolve_artifact_urn returns on the first _config_stem match in that combined, per-scan-dir-ordered list)"
+      - code: "src/charter/activation/kind_vocabulary.py:203-227 (_org_scan_dirs: for root in org_roots: appends (flat, False) then (legacy, True) -- interleaved per root, not grouped flat-then-legacy globally)"
+      - code: "src/charter/activation/kind_vocabulary.py:249-268 (_iter_artifact_paths iterates _scan_roots()'s dirs in order, sorted(matches) applied only within each scan_dir, not globally)"
+      - code: "src/charter/activation/kind_vocabulary.py:271-318 (resolve_artifact_urn returns on the first _config_stem match in that combined, per-scan-dir-ordered list)"
       - code: "tests/charter/test_kind_vocabulary_scan_roots.py:203-232 (test_same_config_stem_precedence_flat_wins exercises only a SINGLE org root -- 'never a result that depends on incidental scan order' is asserted but not tested for >1 org root)"
       - artifact: "empirical repro: resolve_artifact_urn(DIRECTIVE, stem, org_roots=[rootA, rootB]) with rootA having only <rootA>/directives/built-in/<stem>.directive.yaml (id: DIRECTIVE_LEGACY_A) and rootB having only <rootB>/directives/<stem>.directive.yaml (id: DIRECTIVE_FLAT_B, flat) returns 'directive:DIRECTIVE_LEGACY_A' -- the legacy entry from the earlier root wins over the flat entry from the later root"
     claim: >-
@@ -103,7 +103,7 @@ findings:
       only actually established for a same-config-stem collision within one
       org root. multi-org-root configuration is a real, live shape in this
       codebase (PackContext.org_roots = pack_roots[1:], consumed by
-      src/charter/consistency_check.py and src/charter/drg.py, both of
+      src/charter/activation/consistency_check.py and src/charter/drg.py, both of
       which call resolve_artifact_urn with a multi-element org_roots list),
       so this is not a purely hypothetical edge case: with two org packs,
       one still using the legacy nested built-in/ layout and another using

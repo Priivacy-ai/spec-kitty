@@ -605,7 +605,7 @@ def _build_prompt_or_error(
     # blocked branch in ``_map_runtime_decision``.
     _is_composed_action = False
     try:
-        from charter.mission_type_profiles import (  # noqa: PLC0415
+        from charter.activation.mission_type_profiles import (  # noqa: PLC0415
             resolve_mission_type_context,
         )
 

@@ -29,8 +29,8 @@ authoritative_surface: src/doctrine/service.py
 execution_mode: code_change
 owned_files:
 - src/doctrine/service.py
-- src/charter/compiler.py
-- src/charter/reference_resolver.py
+- src/charter/activation/compiler.py
+- src/charter/activation/reference_resolver.py
 - tests/doctrine/test_service_org_layer.py
 role: implementer
 tags: []
@@ -169,7 +169,7 @@ The artifact directory key for each repository:
 
 ## Subtask T013 — Update `compiler.py` and `reference_resolver.py`
 
-**Files**: `src/charter/compiler.py`, `src/charter/reference_resolver.py`
+**Files**: `src/charter/activation/compiler.py`, `src/charter/activation/reference_resolver.py`
 
 Both files have an inline `graph_path = doctrine_root / "graph.yaml"` → `load_graph(graph_path)`
 call that bypasses `_drg_helpers.py`. Replace these with `load_graph_or_dir(doctrine_root)`
@@ -193,7 +193,7 @@ Apply the same change to `reference_resolver.py` line 38.
 
 ## Subtask T014 — Add `_resolve_org_root()` to `_drg_helpers.py`
 
-**File**: `src/charter/_drg_helpers.py`
+**File**: `src/charter/activation/_drg_helpers.py`
 
 Add a helper that reads `DoctrineOrgConfig` from `config.yaml` and returns the org snapshot
 path if configured and present:
@@ -283,7 +283,7 @@ def load_validated_graph(repo_root: Path, org_root: Path | None = None) -> DRGGr
 ## Activity Log
 
 - 2026-05-15T13:12:37Z – claude:sonnet-4-6:python-pedro:implementer – shell_pid=547333 – Started implementation via action command
-- 2026-05-15T13:27:50Z – claude:sonnet-4-6:python-pedro:implementer – shell_pid=547333 – Three-layer DRG merge in DoctrineService + load_validated_graph; charter._drg_helpers._resolve_org_root kept inert to respect layered-architecture invariant (specify_cli resolves org_root and passes explicitly). 16 new tests pass.
+- 2026-05-15T13:27:50Z – claude:sonnet-4-6:python-pedro:implementer – shell_pid=547333 – Three-layer DRG merge in DoctrineService + load_validated_graph; charter.activation._drg_helpers._resolve_org_root kept inert to respect layered-architecture invariant (specify_cli resolves org_root and passes explicitly). 16 new tests pass.
 - 2026-05-15T13:28:49Z – codex:gpt-4o:reviewer-renata:reviewer – shell_pid=567019 – Started review via action command
 - 2026-05-15T13:31:27Z – codex:gpt-4o:reviewer-renata:reviewer – shell_pid=567019 – Review passed: three-layer DRG merge wired through DoctrineService; 16 new tests + 1604 doctrine tests pass; charter boundary preserved via inert_resolve_org_root stub
 - 2026-05-16T04:29:33Z – codex:gpt-4o:reviewer-renata:reviewer – shell_pid=567019 – Done override: Mission merged via squash commit 9c2c26a0 to feat/org-doctrine-layer

@@ -108,7 +108,7 @@ Two distinct problems, both in classes the inventory itself elevates:
    This is a **third must-fix-together pair (R-09 ↔ `bootstrap.py`)**, and the summary's "two
    required-together pairs" line currently loses it.
 
-### B-4 `src/charter/neutrality/lint.py::_default_scan_roots()` (lines 336-338)
+### B-4 `src/charter/activation/neutrality/lint.py::_default_scan_roots()` (lines 336-338)
 
 ```python
 roots: list[Path] = [repo_root / "src" / "doctrine"]
@@ -162,7 +162,7 @@ these rows as authority, so they need correcting rather than deleting:
    641-line 5-tier resolver, and it consumes `get_package_asset_root()` at **:317** and **:631** to
    build the `PACKAGE_DEFAULT` tier. `stay` is the right decision; the `current_path_assumption`
    is wrong.
-2. **`src/charter/compiler.py`**, inside the consolidated charter row whose rationale reads "No
+2. **`src/charter/activation/compiler.py`**, inside the consolidated charter row whose rationale reads "No
    independent path/root construction in any of these files": line **1316** is
    `mission_path = repo._mission_config_path(mission) or (doctrine_root / "missions" / mission /
    "mission.yaml")` — a stale `or`-fallback that post-move yields a nonexistent path into a
@@ -178,7 +178,7 @@ these rows as authority, so they need correcting rather than deleting:
    (`package_root / mission / "command-templates"` in `_resolve_mission_command_templates_dir`) is
    a second missions-data read in the same file. No scope loss (file already owned), but the row
    should name both sites.
-6. **`src/charter/action_grain.py`** — the row says "confirmed no independent path construction
+6. **`src/charter/activation/action_grain.py`** — the row says "confirmed no independent path construction
    elsewhere in the file". Line **212** is `MissionTypeRepository(root / "mission_types")`.
    `stay` is right (`root` comes from the promoted authority), the claim is not.
 7. **`src/specify_cli/template/manager.py`** — R-12/R-13 name two sites; there is a third at
@@ -197,7 +197,7 @@ these rows as authority, so they need correcting rather than deleting:
 
 ## Part 4b — one more "bug found, not fixed" worth recording
 
-`src/charter/pack_context.py:240` sets `pack_roots[0] = Path(__file__).parent.parent / "doctrine"`
+`src/charter/activation/pack_context.py:240` sets `pack_roots[0] = Path(__file__).parent.parent / "doctrine"`
 (i.e. `src/doctrine`), while `mission_step_repository.py:363-367` de-duplicates the built-in pack
 root as `self._builtin_root.parent`. Today that is `src/doctrine/missions` — it never equals
 `src/doctrine`, so the skip **never fires** and the org layer scans the nonexistent

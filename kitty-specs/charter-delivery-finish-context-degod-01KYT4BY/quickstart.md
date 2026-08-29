@@ -22,7 +22,7 @@ With `--profile architect-alphonso` on the same repo → specialist still resolv
 ```bash
 uv run pytest tests/charter/test_context*.py tests/charter/test_reference_block.py tests/charter/test_activation_consumers.py -q  # parity + seam unit tests
 uv run pytest tests/architectural/test_layer_rules.py tests/architectural/test_no_dead_symbols.py -q                              # regression guards
-wc -l src/charter/context.py                                                                                                       # ≤ 500 (stretch 400)
+wc -l src/charter/activation/context.py                                                                                                       # ≤ 500 (stretch 400)
 ```
 Expect: byte-parity on the non-trivial corpus; each seam module exists + imported from its home; cycle dissolved.
 

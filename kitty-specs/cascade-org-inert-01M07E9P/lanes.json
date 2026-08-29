@@ -48,7 +48,7 @@
         "WP03"
       ],
       "write_scope": [
-        "src/charter/context.py",
+        "src/charter/activation/context.py",
         "tests/charter/test_context_org_chain.py"
       ],
       "predicted_surfaces": [

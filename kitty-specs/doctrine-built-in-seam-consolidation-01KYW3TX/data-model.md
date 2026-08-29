@@ -22,9 +22,9 @@ This mission has no persisted-data schema; the "model" is the **resolution autho
 
 ## Entity: Activation-key vocabulary authority
 
-- **Home**: `src/charter/pack_manager.py` — `YAML_KEY_MAP` (derived from `doctrine.artifact_kinds.CHARTER_KIND_TOKENS`).
+- **Home**: `src/charter/activation/pack_manager.py` — `YAML_KEY_MAP` (derived from `doctrine.artifact_kinds.CHARTER_KIND_TOKENS`).
 - **Derived consumers** (must be set-equal to the authority):
-  - `src/charter/charter_yaml_io.py` `_ACTIVATION_KEYS`
+  - `src/charter/activation/charter_yaml_io.py` `_ACTIVATION_KEYS`
   - `src/specify_cli/upgrade/migrations/m_unify_charter_activation_finalize.py` `ACTIVATION_KEYS`
 - **Invariant**: all consumers derive from `YAML_KEY_MAP` (via a cheap exported plain-tuple); a guard test asserts set-equality. The live drift (`activated_glossary_packs` missing from the migration copy) is closed.
 

@@ -6,7 +6,7 @@ batch: 1
 verdicts:
   - id: PR-BOUNDARY-001
     verdict: confirmed
-    reason: "mission_type.py:106 does `from charter.mission_type_profiles import _resolve_action_sequence_layer` (defined at mission_type_profiles.py:827, underscore-prefixed, absent from __all__ at lines 73-83) while the line above (84) reaches the equivalent roster only via the `charter.missions` facade, which re-exports `resolve_layered_mission_types` but never `_resolve_action_sequence_layer` — confirmed by grep of src/charter/missions.py."
+    reason: "mission_type.py:106 does `from charter.activation.mission_type_profiles import _resolve_action_sequence_layer` (defined at mission_type_profiles.py:827, underscore-prefixed, absent from __all__ at lines 73-83) while the line above (84) reaches the equivalent roster only via the `charter.missions` facade, which re-exports `resolve_layered_mission_types` but never `_resolve_action_sequence_layer` — confirmed by grep of src/charter/missions.py."
   - id: PR-BOUNDARY-002
     verdict: confirmed
     reason: "`class MissionTypeEmptyActionSequenceError(ValueError)` is defined at mission_type_profiles.py:259, is imported by explicit name at mission_type.py:32 and referenced in a comment at charter/activate.py:184, yet __all__ (mission_type_profiles.py:73-83) lists only UnknownMissionTypeError and 8 other names, omitting it."

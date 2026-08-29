@@ -34,8 +34,8 @@ create_intent: []
 execution_mode: code_change
 model: claude-sonnet-5
 owned_files:
-- src/charter/context.py
-- src/charter/scope_router.py
+- src/charter/activation/context.py
+- src/charter/activation/scope_router.py
 - tests/charter/test_context.py
 role: implementer
 tags: []

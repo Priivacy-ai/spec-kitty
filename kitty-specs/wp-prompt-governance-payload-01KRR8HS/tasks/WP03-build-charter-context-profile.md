@@ -18,10 +18,10 @@ subtasks:
 - T013
 agent: "codex:gpt-4o:reviewer-renata:reviewer"
 agent_profile: python-pedro
-authoritative_surface: src/charter/context.py
+authoritative_surface: src/charter/activation/context.py
 execution_mode: code_change
 owned_files:
-- src/charter/context.py
+- src/charter/activation/context.py
 - tests/charter/test_context_profile.py
 role: implementer
 history: []
@@ -31,8 +31,8 @@ shell_pid: "1135895"
 
 ## Objective
 
-Make the `profile=` parameter of `charter.context.build_charter_context` load-bearing.
-Today the implementation at `src/charter/context.py:92` discards it with `_ = profile`.
+Make the `profile=` parameter of `charter.activation.context.build_charter_context` load-bearing.
+Today the implementation at `src/charter/activation/context.py:92` discards it with `_ = profile`.
 After this WP, passing a known agent-profile ID causes the resolver to look up the
 profile's `directive_references` and `tactic_references` against the doctrine catalog
 and emit two new sections in `CharterContextResult.text`:
@@ -59,7 +59,7 @@ called from `_governance_context` (WP06 will add the call site that actually sup
 mission's central architectural pivot (plan.md §"The C-001-clean profile-resolution
 path") is that profile lookup is a `doctrine`-layer operation —
 `doctrine.agent_profiles.AgentProfileRepository` is **below** `charter` in the layer
-order, so `charter.context` is permitted to import it without violating ADR
+order, so `charter.activation.context` is permitted to import it without violating ADR
 `2026-03-27-1`.
 
 This WP delivers the **resolver-side** of FR-002 / FR-004. The **wiring side** (extracting
@@ -77,9 +77,9 @@ WP06.
 
 ---
 
-## Subtask T009 — Replace `_ = profile` with a real lookup at `src/charter/context.py:92`
+## Subtask T009 — Replace `_ = profile` with a real lookup at `src/charter/activation/context.py:92`
 
-**File**: `src/charter/context.py`
+**File**: `src/charter/activation/context.py`
 
 Locate the `_ = profile` discard near line 92 in `build_charter_context`. Replace with:
 
@@ -94,7 +94,7 @@ applicable) so it can drive the two new sections.
 
 ## Subtask T010 — Add `_load_agent_profile(profile_id)` helper
 
-**File**: `src/charter/context.py`
+**File**: `src/charter/activation/context.py`
 
 Add a small helper, centralising the single import site of `doctrine.agent_profiles`:
 
@@ -117,7 +117,7 @@ from `doctrine`, which is below it.
 
 ## Subtask T011 — Add `_render_profile_directives(profile, service)`
 
-**File**: `src/charter/context.py`
+**File**: `src/charter/activation/context.py`
 
 ```python
 def _render_profile_directives(
@@ -155,7 +155,7 @@ raise.
 
 ## Subtask T012 — Add `_render_profile_tactics(profile, service)`
 
-**File**: `src/charter/context.py`
+**File**: `src/charter/activation/context.py`
 
 Same structural pattern as T011, for `profile.tactic_references` against
 `service.tactics`. The fetch stanza uses `--include tactic:<id>` and the when-doing
@@ -181,12 +181,12 @@ back to `apply a code change`.
 
 ## Definition of Done
 
-- [ ] `_ = profile` is removed from `src/charter/context.py`; the parameter drives behaviour.
+- [ ] `_ = profile` is removed from `src/charter/activation/context.py`; the parameter drives behaviour.
 - [ ] `_load_agent_profile`, `_render_profile_directives`, `_render_profile_tactics` exist and are unit-tested.
 - [ ] `tests/charter/test_context_profile.py` passes (6 tests).
 - [ ] ATDD test `test_implement_action_context_includes_profile_directive_references_when_profile_known` passes.
 - [ ] ATDD test `test_python_pedro_directive_010_referenced_in_implement_prompt` passes.
-- [ ] `tests/architectural/test_layer_rules.py` (8 tests) still passes — the new `doctrine.agent_profiles` import in `charter.context` is allowed under C-001.
+- [ ] `tests/architectural/test_layer_rules.py` (8 tests) still passes — the new `doctrine.agent_profiles` import in `charter.activation.context` is allowed under C-001.
 - [ ] All 14 currently-passing ATDD tests remain green.
 - [ ] When `profile=None`, `result.text` is byte-identical to pre-WP output (NFR-005).
 
@@ -225,6 +225,6 @@ Check that:
 ## Activity Log
 
 - 2026-05-16T12:21:19Z – claude:opus-4-7:python-pedro:implementer – shell_pid=1117321 – Started implementation via action command
-- 2026-05-16T12:36:14Z – claude:opus-4-7:python-pedro:implementer – shell_pid=1117321 – WP03 (python-pedro): build_charter_context(profile=) is now load-bearing. Replaced_ = profile at src/charter/context.py:92 with AgentProfileRepository-backed resolution; added _load_agent_profile,_render_profile_directives, _render_profile_tactics helpers. Both bootstrap and compact render paths now surface Profile-Cited Directives (<id>): and Profile-Cited Tactics (<id>): sections, each entry either inline body or fetch+when-doing stanza. New tests: tests/charter/test_context_profile.py (12 pass). ATDD target test_implement_action_context_includes_profile_directive_references_when_profile_known green. Architecture layer rules: 8/8 green. ruff + mypy clean on touched files.
+- 2026-05-16T12:36:14Z – claude:opus-4-7:python-pedro:implementer – shell_pid=1117321 – WP03 (python-pedro): build_charter_context(profile=) is now load-bearing. Replaced_ = profile at src/charter/activation/context.py:92 with AgentProfileRepository-backed resolution; added _load_agent_profile,_render_profile_directives, _render_profile_tactics helpers. Both bootstrap and compact render paths now surface Profile-Cited Directives (<id>): and Profile-Cited Tactics (<id>): sections, each entry either inline body or fetch+when-doing stanza. New tests: tests/charter/test_context_profile.py (12 pass). ATDD target test_implement_action_context_includes_profile_directive_references_when_profile_known green. Architecture layer rules: 8/8 green. ruff + mypy clean on touched files.
 - 2026-05-16T12:36:48Z – codex:gpt-4o:reviewer-renata:reviewer – shell_pid=1135895 – Started review via action command
 - 2026-05-16T12:38:42Z – codex:gpt-4o:reviewer-renata:reviewer – shell_pid=1135895 – Review passed:_ = profile replaced with AgentProfileRepository-backed _load_agent_profile;_render_profile_directives/_render_profile_tactics emit canonical 'Profile-Cited Directives/Tactics (<id>):' sections in both bootstrap and compact paths; unknown profile and unknown directive id degrade gracefully; profile=None byte-identical (NFR-005); 12/12 unit tests green; target ATDD test_implement_action_context_includes_profile_directive_references_when_profile_known passes; ATDD baseline 15p/8f (+1 from 14/9 baseline, zero regression); architectural layer rules 8/8; C-001 clean (zero specify_cli imports in charter/context.py, only new cross-layer import is doctrine.agent_profiles which is below charter).

@@ -46,7 +46,7 @@ Mutmut patterns match **dotted module names**, not file paths:
 ```bash
 # correct
 uv run mutmut run "specify_cli.compat*"
-uv run mutmut run "charter._drg_helpers"
+uv run mutmut run "charter.activation._drg_helpers"
 
 # wrong (file paths do not match)
 uv run mutmut run "src/specify_cli/compat/*"

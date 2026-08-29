@@ -11,7 +11,7 @@
         "WP01"
       ],
       "write_scope": [
-        "src/charter/progressive_disclosure.py",
+        "src/charter/activation/progressive_disclosure.py",
         "src/doctrine/agent_profiles/repository.py",
         "src/doctrine/drg/reachability.py"
       ],
@@ -28,7 +28,7 @@
         "WP05"
       ],
       "write_scope": [
-        "src/charter/synthesizer/project_drg.py",
+        "src/charter/activation/synthesizer/project_drg.py",
         "src/specify_cli/doctrine/pack_assembler.py",
         "src/specify_cli/drg_writers/registry.py",
         "src/specify_cli/migration/rewrite_opposed_by.py",
@@ -109,9 +109,9 @@
         "WP04"
       ],
       "write_scope": [
-        "src/charter/context.py",
-        "src/charter/context_renderers/delivery_table.py",
-        "src/charter/context_renderers/reference_pointers.py",
+        "src/charter/activation/context.py",
+        "src/charter/activation/context_renderers/delivery_table.py",
+        "src/charter/activation/context_renderers/reference_pointers.py",
         "src/charter/repository_protocol.py"
       ],
       "predicted_surfaces": [

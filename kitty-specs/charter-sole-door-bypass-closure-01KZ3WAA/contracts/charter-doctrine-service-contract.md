@@ -1,4 +1,4 @@
-# Contract: `charter.resolver.DoctrineService` public surface (post-mission)
+# Contract: `charter.activation.resolver.DoctrineService` public surface (post-mission)
 
 This is the internal contract every in-scope call site (FR-001/002/003) must construct/consume against.
 Not a network API — an internal Python object contract, enforced by the FR-007 gates.
@@ -6,7 +6,7 @@ Not a network API — an internal Python object contract, enforced by the FR-007
 ## Construction
 
 Exactly one path constructs the activation-aware instance: the unified builder (FR-008). No call site
-outside `src/charter/resolver.py` and that one builder constructs `doctrine.service.DoctrineService`
+outside `src/charter/activation/resolver.py` and that one builder constructs `doctrine.service.DoctrineService`
 directly (NFR-001).
 
 ```
@@ -35,7 +35,7 @@ moved, renamed, or duplicated.
 ## Explicitly NOT on this class
 
 - `mission_types` — no property exists, and none is added. The `mission-type` token is gated separately by
-  `charter.mission_type_profiles.resolve_mission_type_context()` (see the sibling contract file — NOT by
+  `charter.activation.mission_type_profiles.resolve_mission_type_context()` (see the sibling contract file — NOT by
   editing `MissionTypeProfileRepository`'s own file, per a post-tasks squad ownership-boundary correction).
   Do not add a `mission_types` property here as a shortcut; that would contradict R (D4)'s finding that the
   token has no matching raw-service property to filter.
@@ -59,7 +59,7 @@ moved, renamed, or duplicated.
 
 ## Lineage/mutation accessor semantics (pinned — post-plan squad, was previously under-specified)
 
-The new public accessor `charter.resolver.DoctrineService` gains for `projection.py`/`runtime_bridge_io.py`/
+The new public accessor `charter.activation.resolver.DoctrineService` gains for `projection.py`/`runtime_bridge_io.py`/
 `registry.py`/`org_profiles.py` (FR-001, FR-010) has two semantic questions that do NOT have a default and
 must not be left for tasks-time improvisation:
 

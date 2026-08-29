@@ -12,7 +12,7 @@
       ],
       "write_scope": [
         "packs/built-in/pack-manifest.yaml",
-        "src/charter/synthesizer/manifest.py",
+        "src/charter/activation/synthesizer/manifest.py",
         "src/specify_cli/doctrine/builtin_manifest.py",
         "src/specify_cli/doctrine/pack_manifest.py",
         "src/specify_cli/doctrine/snapshot.py",

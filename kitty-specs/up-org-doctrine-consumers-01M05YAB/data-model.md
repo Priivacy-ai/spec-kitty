@@ -25,7 +25,7 @@ Declaration order matters: later entries override earlier ones for the same arti
 org_root: Path | None  # exactly one path, or None (no org contribution)
 ```
 
-Consumed by `charter._drg_helpers.load_validated_graph(repo_root, org_root=None)`. Structurally
+Consumed by `charter.activation._drg_helpers.load_validated_graph(repo_root, org_root=None)`. Structurally
 distinct from `org_dirs` — see spec D-000(2) and `research.md` R-02.
 
 ## New function signature: `IC-01`'s shared `org_dirs` helper
@@ -37,7 +37,7 @@ def resolve_org_dirs(repo_root: Path, subdir: str) -> list[Path]:
     """Existing-path-filtered, declaration-ordered org directories for *subdir*.
 
     Filters non-existent org-pack roots before joining *subdir* (mirrors
-    charter.doctrine_service_builder._self_resolve_existing_org_roots), so a
+    charter.activation.doctrine_service_builder._self_resolve_existing_org_roots), so a
     stale local_path config entry degrades to "no org contribution" cleanly.
     """
 ```
@@ -81,7 +81,7 @@ not contradict it.
 ## New shape: FR-008's org-file-check helper
 
 ```python
-# src/charter/org_expected_artifacts.py (new module)
+# src/charter/activation/org_expected_artifacts.py (new module)
 
 def resolve_org_expected_artifacts(
     org_roots: list[Path], mission_type: str

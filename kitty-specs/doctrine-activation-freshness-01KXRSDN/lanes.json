@@ -48,7 +48,7 @@
         "WP03"
       ],
       "write_scope": [
-        "src/charter/consistency_check.py",
+        "src/charter/activation/consistency_check.py",
         "src/specify_cli/charter_runtime/freshness/computer.py",
         "tests/specify_cli/charter_runtime/test_freshness_activation_visibility.py"
       ],

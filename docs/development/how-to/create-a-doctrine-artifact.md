@@ -138,7 +138,7 @@ spec-kitty charter activate tactic example-driven-api-design
 ```
 
 This is a fast, config-only write to `.kittify/config.yaml`'s `activated_tactics` list (see
-`plan_activation`/`commit_plan` in `src/charter/activation_engine.py`) — it does not by itself
+`plan_activation`/`commit_plan` in `src/charter/activation/activation_engine.py`) — it does not by itself
 regenerate the derived bundle. If your new tactic references other artifacts (via a `references`
 field) that are not yet activated, the command warns you and suggests `--cascade`:
 

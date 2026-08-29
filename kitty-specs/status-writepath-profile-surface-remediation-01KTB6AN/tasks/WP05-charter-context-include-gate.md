@@ -22,11 +22,11 @@ history:
   actor: system
   action: Prompt generated via /spec-kitty.tasks
 agent_profile: python-pedro
-authoritative_surface: src/charter/context.py
+authoritative_surface: src/charter/activation/context.py
 execution_mode: code_change
 model: ''
 owned_files:
-- src/charter/context.py
+- src/charter/activation/context.py
 - tests/charter/test_context_include_activation.py
 role: implementer
 tags: []
@@ -49,9 +49,9 @@ Use the `/ad-hoc-profile-load` skill to load `python-pedro` (role `implementer`)
 
 ## Context & Constraints
 
-- **Corrected scope (dialectic review)**: `_build_doctrine_service` is at `src/charter/context.py:1235`, returns a plain `DoctrineService(**kwargs)` with **no** `PackContext`, and has **6 callers** (lines 333/352/863/1373/2620 + `_maybe_build_doctrine_service@2887`). **Do not blanket-wrap it.**
+- **Corrected scope (dialectic review)**: `_build_doctrine_service` is at `src/charter/activation/context.py:1235`, returns a plain `DoctrineService(**kwargs)` with **no** `PackContext`, and has **6 callers** (lines 333/352/863/1373/2620 + `_maybe_build_doctrine_service@2887`). **Do not blanket-wrap it.**
 - Add a **scoped** helper and route only the agent-profile include branch through it. The module already imports `PackContext` and constructs one in a different function near line 244 — construct a fresh `PackContext.from_config(repo_root)` locally in the new helper.
-- This change lives entirely in `charter.*` (it cannot import `specify_cli`), so it builds its own wrapped service via `charter.resolver.DoctrineService` directly (not the WP03 factory).
+- This change lives entirely in `charter.*` (it cannot import `specify_cli`), so it builds its own wrapped service via `charter.activation.resolver.DoctrineService` directly (not the WP03 factory).
 
 ## Branch Strategy
 
@@ -61,8 +61,8 @@ Use the `/ad-hoc-profile-load` skill to load `python-pedro` (role `implementer`)
 
 ### Subtask T023 – Scoped wrapped helper
 
-- **Steps**: add `_build_activation_aware_doctrine_service(repo_root, *, org_roots=None)` in `charter/context.py` that builds the inner service (same kwargs as `_build_doctrine_service`) and wraps it with `charter.resolver.DoctrineService(inner, pack_context=PackContext.from_config(repo_root))`.
-- **Files**: `src/charter/context.py`
+- **Steps**: add `_build_activation_aware_doctrine_service(repo_root, *, org_roots=None)` in `charter/context.py` that builds the inner service (same kwargs as `_build_doctrine_service`) and wraps it with `charter.activation.resolver.DoctrineService(inner, pack_context=PackContext.from_config(repo_root))`.
+- **Files**: `src/charter/activation/context.py`
 
 ### Subtask T024 – Route the agent-profile include branch
 

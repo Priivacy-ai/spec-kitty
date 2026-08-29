@@ -49,7 +49,7 @@ and **silently vanishes at model level**; only the generated `agent-profile.sche
 `additionalProperties: false` catches it, and only where the schema validator actually runs.
 **This is the single most likely way this design ships inert.**
 
-**[HIGH]** `src/charter/schemas.py:286` — `CharterYaml.model_config = ConfigDict(frozen=True,
+**[HIGH]** `src/charter/activation/schemas.py:286` — `CharterYaml.model_config = ConfigDict(frozen=True,
 extra="forbid")`. A `creed:` key at the root of `.kittify/charter/charter.yaml` is **rejected
 today**. **Recommendation:** add a typed `creed: CreedConfig | None = None`. Do **not** route it
 through the untyped `overrides: dict[str, Any]` escape hatch at `:305` — that reproduces the
@@ -110,7 +110,7 @@ readings: (a) **add** `impacts` alongside `in_tension_with`, or (b) **replace** 
 additive and cheap — no new `Relation` member, so `RELATION_DESCRIPTIONS` completeness and
 `test_relation_doc_parity` do **not** fire, and `DRGEdge.reason` already establishes
 free-text-on-edge precedent. (b) trips both, plus `scan_unreconciled_tensions()`
-(`src/charter/consistency_check.py:977`) and requires an ADR superseding `2026-07-21-1`.
+(`src/charter/activation/consistency_check.py:977`) and requires an ADR superseding `2026-07-21-1`.
 **Pick (a) explicitly and say so in the doc.**
 
 **[MEDIUM]** Pre-existing kind-universe divergence — **ten** lists: `ArtifactKind` = 12;

@@ -3,7 +3,7 @@
 ## Specify phase (2026-08-13)
 
 This mission is the **D2** half of a two-defect P0 pair (`up-org-pack-load-integrity`):
-`_org_scan_dirs` (`src/charter/kind_vocabulary.py:200-209`) scans only
+`_org_scan_dirs` (`src/charter/activation/kind_vocabulary.py:200-209`) scans only
 `<org_root>/<plural>/built-in/`, a layout no real org pack uses, so any `charter activate` call
 silently evicts every org-pack artifact of that kind from the filtered DRG. The sibling defect,
 **D1** (issue #3384 — org-graph load requires a root-level `*.graph.yaml`), is owned by a

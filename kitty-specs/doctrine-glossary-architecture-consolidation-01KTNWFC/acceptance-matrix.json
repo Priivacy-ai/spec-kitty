@@ -76,7 +76,7 @@
     },
     {
       "criterion_id": "FR-008",
-      "description": "org-charter extends: canonical charter.org_extends resolver (fail-closed cycle/missing-base), parallel DFS deleted, legacy contract preserved.",
+      "description": "org-charter extends: canonical charter.activation.org_extends resolver (fail-closed cycle/missing-base), parallel DFS deleted, legacy contract preserved.",
       "proof_type": "automated_test",
       "evidence": "WP08 approved: reframe adjudicated legitimate (activation_engine has zero extends notion); 216 tests; layer purity verified; contract example round-trips vs shipped model.",
       "pass_fail": "pass",

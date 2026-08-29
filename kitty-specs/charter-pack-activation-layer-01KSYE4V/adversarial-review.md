@@ -27,25 +27,25 @@
 
 **6. `filter_graph_by_activation` wired (Predecessor significant issue #7)**
 `grep src/ -r filter_graph_by_activation --include="*.py" | grep -v "__all__"` returns 5 non-test, non-`__all__` production call sites:
-- `src/charter/context.py:729`
-- `src/charter/reference_resolver.py:67`
-- `src/charter/compiler.py:561`
+- `src/charter/activation/context.py:729`
+- `src/charter/activation/reference_resolver.py:67`
+- `src/charter/activation/compiler.py:561`
 - `src/specify_cli/mission_step_contracts/executor.py:178`
-- `src/charter/consistency_check.py:192`
+- `src/charter/activation/consistency_check.py:192`
 
 All call sites pass `pack_context` to the filter. FR-031–FR-035 satisfied.
 
 **7. `MissionStepRepository` wired to production (Predecessor significant issue #8)**
-`src/charter/mission_steps.py:26` imports `MissionStepRepository` from `doctrine.missions.mission_step_repository` and re-exports it in `__all__`. `src/charter/resolver.py:444` calls `MissionStepRepository.default().resolve_all_for_mission_type()`. FR-016 satisfied.
+`src/charter/mission_steps.py:26` imports `MissionStepRepository` from `doctrine.missions.mission_step_repository` and re-exports it in `__all__`. `src/charter/activation/resolver.py:444` calls `MissionStepRepository.default().resolve_all_for_mission_type()`. FR-016 satisfied.
 
 **8. FR-039 `and raw` guard removed**
-`src/charter/pack_context.py` `_read_activated_kinds` and `_read_activated_mission_types` both use `if isinstance(raw, list): return frozenset(...)` with no `and raw` guard. An explicit `[]` in config.yaml now maps to `frozenset()` (full restriction), not `None` (all built-ins). The deleted test `test_empty_activated_kinds_uses_builtin_fallback` is confirmed absent.
+`src/charter/activation/pack_context.py` `_read_activated_kinds` and `_read_activated_mission_types` both use `if isinstance(raw, list): return frozenset(...)` with no `and raw` guard. An explicit `[]` in config.yaml now maps to `frozenset()` (full restriction), not `None` (all built-ins). The deleted test `test_empty_activated_kinds_uses_builtin_fallback` is confirmed absent.
 
 **9. Per-kind `activated_*` fields on PackContext**
-All 8 new fields are present in `src/charter/pack_context.py`: `activated_directives`, `activated_tactics`, `activated_styleguides`, `activated_toolguides`, `activated_paradigms`, `activated_procedures`, `activated_agent_profiles`, `activated_mission_step_contracts`. Each is `frozenset[str] | None` with `None` default (three-state semantics). `from_config()` reads all 8.
+All 8 new fields are present in `src/charter/activation/pack_context.py`: `activated_directives`, `activated_tactics`, `activated_styleguides`, `activated_toolguides`, `activated_paradigms`, `activated_procedures`, `activated_agent_profiles`, `activated_mission_step_contracts`. Each is `frozenset[str] | None` with `None` default (three-state semantics). `from_config()` reads all 8.
 
 **10. `ProjectContext` and `ContextPreconditionError` shipped and wired**
-`src/charter/invocation_context.py` defines `ProjectContext`, `OperationalContext`, `ContextPreconditionError`, and `build_operational_context`. `ProjectContext.from_repo()` is called from 11 distinct `src/` locations: `org_charter.py`, `org_layer.py`, `doctor.py`, `workflow.py`, `mission.py`, `generate.py`, `consistency_check.py`, `activate.py`, `deactivate.py`, `list_cmd.py`, `pack.py`. `require_pack_context()` is confirmed at 7 non-test call sites.
+`src/charter/activation/invocation_context.py` defines `ProjectContext`, `OperationalContext`, `ContextPreconditionError`, and `build_operational_context`. `ProjectContext.from_repo()` is called from 11 distinct `src/` locations: `org_charter.py`, `org_layer.py`, `doctor.py`, `workflow.py`, `mission.py`, `generate.py`, `consistency_check.py`, `activate.py`, `deactivate.py`, `list_cmd.py`, `pack.py`. `require_pack_context()` is confirmed at 7 non-test call sites.
 
 **11. Charter CLI commands registered and wired**
 `src/specify_cli/cli/commands/charter/_app.py` registers `activate`, `deactivate`, `list`, and `pack` via `charter_app.add_typer`. `docs/reference/cli-commands.md` was updated in the remediation commit. Architectural gate `test_visible_paths_match_reference` passes.
@@ -54,7 +54,7 @@ All 8 new fields are present in `src/charter/pack_context.py`: `activated_direct
 `src/charter/drg.py:591`: `"mission_step_contract": "mission_step_contracts"`. Correct.
 
 **13. Default charter pack ships (FR-001)**
-`src/charter/packs/default.yaml` exists, contains all 9 activation kinds, and lists all built-in artifact IDs. `src/charter/packs/__init__.py` has `__all__: list[str] = []` (fixed in remediation commit).
+`src/charter/activation/packs/default.yaml` exists, contains all 9 activation kinds, and lists all built-in artifact IDs. `src/charter/activation/packs/__init__.py` has `__all__: list[str] = []` (fixed in remediation commit).
 
 **14. Upgrade migration `m_3_2_8` ships (FR-002/FR-003)**
 `src/specify_cli/upgrade/migrations/m_3_2_8_default_charter_pack.py` implements `detect()`, `can_apply()`, and `apply()` with backup-before-write via `shutil.copy`. `apply()` backs up `.kittify/charter/charter.md` to `.kittify/charter/backups/charter-{timestamp}.md` before writing (C-008, NFR-002). Test at `tests/upgrade/test_m_3_2_8_default_charter_pack.py` has `pytestmark = pytest.mark.upgrade`.
@@ -63,10 +63,10 @@ All 8 new fields are present in `src/charter/pack_context.py`: `activated_direct
 `src/specify_cli/cli/commands/agent/mission.py:2224–2244` guards `finalize-tasks` with profile activation check before any write. `src/specify_cli/cli/commands/agent/workflow.py:914–935` guards `agent action implement` before any worktree creation (C-006 ordering). Both raise `CharterActivationError` (not just print) when the check fails.
 
 **16. `CharterActivationError` defined and raised**
-`src/charter/exceptions.py` defines the error. It is raised at both lifecycle gate call-sites (`mission.py:2240`, `workflow.py:931`). `tests/specify_cli/test_charter_lifecycle_gates.py::TestCharterActivationErrorRaised` verifies the raise.
+`src/charter/activation/exceptions.py` defines the error. It is raised at both lifecycle gate call-sites (`mission.py:2240`, `workflow.py:931`). `tests/specify_cli/test_charter_lifecycle_gates.py::TestCharterActivationErrorRaised` verifies the raise.
 
 **17. DR-based filter wiring (Pattern A) verified**
-`src/charter/context.py:729`, `src/charter/compiler.py:561`, `src/charter/reference_resolver.py:67`, `src/specify_cli/mission_step_contracts/executor.py:178` all call `filter_graph_by_activation(graph, pack_context)` after DRG load. The guard `if pack_context is not None` is correct (allows test isolation via `None`).
+`src/charter/activation/context.py:729`, `src/charter/activation/compiler.py:561`, `src/charter/activation/reference_resolver.py:67`, `src/specify_cli/mission_step_contracts/executor.py:178` all call `filter_graph_by_activation(graph, pack_context)` after DRG load. The guard `if pack_context is not None` is correct (allows test isolation via `None`).
 
 **18. `require_pack_context()` at minimum 3 distinct call sites (spec criterion 10)**
 `org_charter.py:664`, `org_layer.py:168`, `doctor.py:2336` cover the 3 required patterns. The `workflow.py` and `mission.py` gates add two more.
@@ -85,7 +85,7 @@ Enumerates built-in, org, and project mission types regardless of activation sta
 The docstring accurately documents *intent* (DRG resolution chain), and the implementation (`_collect_built_in_mission_types()` only) is a known scope-deferral. This is no longer an overclaim — the docstring correctly describes the planned behavior and points users to the activated-view command. VERIFIED ACCEPTABLE.
 
 **22. Dead symbol remediation complete for core wired symbols**
-Stale allowlist entries for `charter.consistency_check::run_consistency_check`, `charter.drg::filter_graph_by_activation`, `charter.invocation_context::ProjectContext`, and `doctrine.missions.mission_step_repository::MissionStepRepository` were removed from `test_no_dead_symbols.py` in the remediation commit. Verified.
+Stale allowlist entries for `charter.activation.consistency_check::run_consistency_check`, `charter.drg::filter_graph_by_activation`, `charter.activation.invocation_context::ProjectContext`, and `doctrine.missions.mission_step_repository::MissionStepRepository` were removed from `test_no_dead_symbols.py` in the remediation commit. Verified.
 
 **23. Test fixture cleanup and marker corrections**
 `tests/upgrade/test_m_3_2_8_default_charter_pack.py` has `pytestmark = pytest.mark.upgrade`. `tests/architectural/test_no_tracked_test_feature_missions.py` and `tests/charter/test_mission_type_profiles.py` have `git_repo` marker. `test_doctor_restart_daemon.py` uses `unit` not `fast`. All verified.
@@ -98,7 +98,7 @@ Stale allowlist entries for `charter.consistency_check::run_consistency_check`, 
 
 **BLOCK-1 — FR-006 "no-cascade warning" not implemented**
 
-**File**: `src/charter/pack_manager.py` (module docstring + `activate()` method)
+**File**: `src/charter/activation/pack_manager.py` (module docstring + `activate()` method)
 
 The CLI contract (`contracts/charter-activate-cli.md`, behavior step 6) requires:
 > "If `--cascade` is absent: emit a warning listing cross-kind references from `id` that were NOT cascaded, with hint to use `--cascade`."
@@ -110,7 +110,7 @@ The current implementation emits a warning ONLY when `cascade=True` is passed, a
 - Absent `--cascade` → currently: silence. Required: warn about what could have been cascaded.
 - Present `--cascade` → currently: warn "not implemented." Required: actually cascade.
 
-The module docstring at `src/charter/pack_manager.py:16–21` states:
+The module docstring at `src/charter/activation/pack_manager.py:16–21` states:
 ```
 FR-008 (warn on no-cascade) is satisfied by this warning; FR-006 and FR-007 are explicitly deferred to a follow-on mission.
 ```
@@ -156,7 +156,7 @@ The `_baselines.yaml` tracks `category_c_wp_in_flight_charter_pack_activation: 6
 
 **SIG-1 — FR-006/FR-007 cascade is unimplemented but spec marks both as Must**
 
-**Files**: `src/charter/pack_manager.py:16–21`, `src/specify_cli/cli/commands/charter/activate.py:50–85`
+**Files**: `src/charter/activation/pack_manager.py:16–21`, `src/specify_cli/cli/commands/charter/activate.py:50–85`
 
 The spec (FR-006, FR-007) marks cascade activate logic as **Must** priority. The current implementation accepts `--cascade <scope>` but does nothing with it except warn. The cascade flag is parsed as `bool(cascade)` in the activate CLI (line 50), collapsing `--cascade directive` and `--cascade agent-profile,tactic` both to `True`. The actual kind-scoped cascade semantics of FR-007 are not implemented.
 
@@ -170,7 +170,7 @@ Note: BLOCK-1 above covers the no-cascade warning (FR-006, when `--cascade` is a
 
 **SIG-2 — FR-008 deactivation cascade not implemented**
 
-**File**: `src/charter/pack_manager.py:319–322`
+**File**: `src/charter/activation/pack_manager.py:319–322`
 
 FR-008 requires: "`--cascade all|<kind>` on `charter deactivate` cascades deactivation to artifacts exclusively referenced by the deactivated artifact; shared artifacts are left untouched and listed as skipped."
 
@@ -196,13 +196,13 @@ The current `activate_cmd` calls `CharterPackManager().activate(ctx_project, kin
 
 **SIG-4 — `ConsistencyReport` allowlisted but has no direct src/ importer**
 
-**File**: `tests/architectural/test_no_dead_symbols.py:416`, `src/charter/consistency_check.py`
+**File**: `tests/architectural/test_no_dead_symbols.py:416`, `src/charter/activation/consistency_check.py`
 
-`charter.consistency_check::ConsistencyReport` is in `_CATEGORY_C_WP_IN_FLIGHT_CHARTER_SCOPE` (line 416) with the comment "no src/ caller yet — remains allowlisted." 
+`charter.activation.consistency_check::ConsistencyReport` is in `_CATEGORY_C_WP_IN_FLIGHT_CHARTER_SCOPE` (line 416) with the comment "no src/ caller yet — remains allowlisted." 
 
 The `pack.py` command calls `run_consistency_check(ctx)` (lazy import) and uses the result to check `report.coherent` and iterate `report.unknown_references`, etc. — but it never imports `ConsistencyReport` by name. The type is used only through duck typing.
 
-The dead-symbol gate permits this because `ast.walk` finds the `from charter.consistency_check import run_consistency_check` import, which confirms the module is live, and the `_symbol_has_caller` check uses submodule-prefix logic. However `ConsistencyReport` specifically has no `from charter.consistency_check import ConsistencyReport` anywhere in `src/`.
+The dead-symbol gate permits this because `ast.walk` finds the `from charter.activation.consistency_check import run_consistency_check` import, which confirms the module is live, and the `_symbol_has_caller` check uses submodule-prefix logic. However `ConsistencyReport` specifically has no `from charter.activation.consistency_check import ConsistencyReport` anywhere in `src/`.
 
 **Impact**: The allowlist entry is technically correct (the symbol has no direct src/ importer), but the documentation comment should note that `run_consistency_check` IS wired and returns a `ConsistencyReport`. This is informational — not a gate failure.
 
@@ -210,7 +210,7 @@ The dead-symbol gate permits this because `ast.walk` finds the `from charter.con
 
 **SIG-5 — OperationalContext family: 4 symbols deferred with no follow-on tracking**
 
-**File**: `src/charter/invocation_context.py`, `tests/architectural/test_no_dead_symbols.py:407–413`
+**File**: `src/charter/activation/invocation_context.py`, `tests/architectural/test_no_dead_symbols.py:407–413`
 
 `OperationalContext`, `build_operational_context`, `require_active_profile`, `require_active_role` are defined, exported, and allowlisted. The stub factory `build_operational_context()` returns an all-None `OperationalContext`. No production call site for any of these 4 symbols exists in `src/`.
 
@@ -246,7 +246,7 @@ __all__ = ["charter_activate_app", "activate_cmd"]
 
 **MIN-3 — `pack_manager.py` misattributes FR-008 in the cascade deferral comment**
 
-**File**: `src/charter/pack_manager.py:20`
+**File**: `src/charter/activation/pack_manager.py:20`
 
 The comment says "FR-008 (warn on no-cascade) is satisfied by this warning." However, the spec's FR-008 is about deactivation cascade semantics, not a "warn on no-cascade" behavior. FR-006 is the "warn on no-cascade" requirement. The comment should read "FR-006" not "FR-008."
 

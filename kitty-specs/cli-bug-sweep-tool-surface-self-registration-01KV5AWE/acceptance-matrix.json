@@ -28,7 +28,7 @@
       "criterion_id": "FR-003",
       "description": "doctrine_kind_subdir returns singular subdir names matching .gitignore whitelist",
       "proof_type": "automated_test",
-      "evidence": "WP02 T005+T006: src/charter/synthesizer/artifact_naming.py returns directive/tactic/styleguide; callers in write_pipeline.py and staging.py updated. mypy --strict and ruff clean.",
+      "evidence": "WP02 T005+T006: src/charter/activation/synthesizer/artifact_naming.py returns directive/tactic/styleguide; callers in write_pipeline.py and staging.py updated. mypy --strict and ruff clean.",
       "pass_fail": "pass",
       "verified_by": "reviewer-renata",
       "verified_at": "2026-06-15T13:30:00+00:00",

@@ -29,7 +29,7 @@ execution_mode: code_change
 model: ''
 owned_files:
 - src/specify_cli/migration/rewrite_opposed_by.py
-- src/charter/synthesizer/project_drg.py
+- src/charter/activation/synthesizer/project_drg.py
 - src/specify_cli/doctrine/pack_assembler.py
 - src/specify_cli/drg_writers/registry.py
 - tests/specify_cli/drg_writers/test_registry_completeness.py
@@ -112,7 +112,7 @@ Use language identifiers in code blocks: ````python`, ````bash`
   (`extractor.py:1379`, itself field-derived and empty-value-aware via `_FIELDS_OMITTED_WHEN_EMPTY`). A
   top-level field added to `DRGGraph` later is emitted automatically — no writer needs editing.
 - **MAPPING level is already unified** — do not touch it. `MAPPING_WRITERS` (`registry.py:153-169`) already
-  has 3 members (`extractor`, `charter.synthesizer.project_drg`, `specify_cli.migration.rewrite_opposed_by`),
+  has 3 members (`extractor`, `charter.activation.synthesizer.project_drg`, `specify_cli.migration.rewrite_opposed_by`),
   all wrapping `model_to_graph_dict`, covered by the existing non-vacuous mutation battery in
   `tests/specify_cli/drg_writers/test_registry_completeness.py` (T004-T007 from the parent
   `doctrine-delivery-reachability` mission). This WP is scoped to the **DOCUMENT** level only.
@@ -123,7 +123,7 @@ Use language identifiers in code blocks: ````python`, ````bash`
      `payload = {"schema_version": ..., "generated_at": ..., "generated_by": ..., "nodes": [...], "edges": [...]}`
      using its already-canonical `_node_to_dict`/`_edge_to_dict` helpers for the node/edge entries, but
      restates the 5 document-level keys itself.
-  2. `src/charter/synthesizer/project_drg.py:_serialize_graph` (lines 86-104) — same shape.
+  2. `src/charter/activation/synthesizer/project_drg.py:_serialize_graph` (lines 86-104) — same shape.
   3. `src/specify_cli/doctrine/pack_assembler.py`, inside `_copy_drg_fragments` (def at line 443; the
      force-dedup fragment-pruning path at lines 495-501) — **the third, worse, unnamed site**: restates the
      5 keys AND bypasses the mapping funnel entirely via raw `n.model_dump()` / `e.model_dump()` (NOT
@@ -143,7 +143,7 @@ Use language identifiers in code blocks: ````python`, ````bash`
     environment. Add `from doctrine.drg.migration.extractor import graph_document_to_dict` inside that same
     guarded block — do not introduce a hard top-level dependency this file doesn't already have.
 - **Registry hosting layer constraint** (`registry.py:19-25` docstring): the registry lives in
-  `src/specify_cli/` (the top layer) because a `Final` tuple naming both `charter.synthesizer.project_drg`
+  `src/specify_cli/` (the top layer) because a `Final` tuple naming both `charter.activation.synthesizer.project_drg`
   and `specify_cli.migration.rewrite_opposed_by` cannot live in `doctrine` or `charter` without reversing an
   import-layer edge. Members are wired **explicitly** — no self-registration by design, so a writer that
   never joins the tuple is invisible to the completeness gate (exactly the blind spot this WP closes with a
@@ -215,7 +215,7 @@ Use language identifiers in code blocks: ````python`, ````bash`
      list. Remove the now-dead `n.model_dump()` / `e.model_dump()` calls entirely.
   4. Grep the three touched files afterward for any remaining `.model_dump()` or hand-typed
      `{"schema_version": ...}`-shaped literal outside the new call — there should be none.
-- **Files**: `src/specify_cli/migration/rewrite_opposed_by.py`, `src/charter/synthesizer/project_drg.py`,
+- **Files**: `src/specify_cli/migration/rewrite_opposed_by.py`, `src/charter/activation/synthesizer/project_drg.py`,
   `src/specify_cli/doctrine/pack_assembler.py`.
 - **Parallel?**: Yes — file-disjoint from the core lane (WP01-WP04); genuinely parallel per the registry's
   own docstring.
@@ -233,7 +233,7 @@ Use language identifiers in code blocks: ````python`, ````bash`
   1. In `registry.py`, grow `DOCUMENT_WRITERS` (currently 1 member, lines 171-176) to 4 members using the
      existing `_FunctionDocumentWriter(name=..., document_fn=...)` adapter shape (same pattern as the
      existing `extractor._dump_graph_document` member). Follow the `MAPPING_WRITERS` naming convention
-     already established (`"specify_cli.migration.rewrite_opposed_by"`, `"charter.synthesizer.project_drg"`)
+     already established (`"specify_cli.migration.rewrite_opposed_by"`, `"charter.activation.synthesizer.project_drg"`)
      and add a fourth name for pack_assembler (`"specify_cli.doctrine.pack_assembler"`).
   2. Each `document_fn` needs an addressable, importable callable per module. If T020 inlined
      `graph_document_to_dict(graph)` directly inside `_write_graph`/`_serialize_graph`/
@@ -317,7 +317,7 @@ Use language identifiers in code blocks: ````python`, ````bash`
 uv run pytest tests/specify_cli/drg_writers/test_registry_completeness.py -q
 uv run pytest tests/architectural/test_drg_writer_discovery.py -q
 uv run pytest tests/architectural/test_drg_writer_discovery.py -q -k "self_mutation or dict_literal or model_dump"
-uv run ruff check src/specify_cli/migration/rewrite_opposed_by.py src/charter/synthesizer/project_drg.py src/specify_cli/doctrine/pack_assembler.py src/specify_cli/drg_writers/registry.py tests/architectural/test_drg_writer_discovery.py
+uv run ruff check src/specify_cli/migration/rewrite_opposed_by.py src/charter/activation/synthesizer/project_drg.py src/specify_cli/doctrine/pack_assembler.py src/specify_cli/drg_writers/registry.py tests/architectural/test_drg_writer_discovery.py
 uv run mypy --strict src/specify_cli/drg_writers/registry.py
 ```
 

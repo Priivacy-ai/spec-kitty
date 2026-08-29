@@ -127,9 +127,9 @@ findings:
       is inside _resolve_template_set_slot, not the action-sequence resolver
     evidence:
       - artifact: "spec.md § CL-004 (docstring correction, 'Corroborating' sentence)"
-      - code: "src/charter/mission_type_profiles.py:762 (def _resolve_action_slot, spans 762-807)"
-      - code: "src/charter/mission_type_profiles.py:841 (def _resolve_template_set_slot, spans 841-886)"
-      - code: "src/charter/mission_type_profiles.py:858-860 (the pack_context=None / 'pre-cutover parity contract' text, inside _resolve_template_set_slot's docstring)"
+      - code: "src/charter/activation/mission_type_profiles.py:762 (def _resolve_action_slot, spans 762-807)"
+      - code: "src/charter/activation/mission_type_profiles.py:841 (def _resolve_template_set_slot, spans 841-886)"
+      - code: "src/charter/activation/mission_type_profiles.py:858-860 (the pack_context=None / 'pre-cutover parity contract' text, inside _resolve_template_set_slot's docstring)"
     claim: >-
       CL-004 states, as corroboration for the docstring fix, that
       "mission_type_profiles.py:859-860 states action-sequence resolution
@@ -214,7 +214,7 @@ findings:
       - artifact: "spec.md § FR-004"
       - artifact: "spec.md § User Story 2, Acceptance Scenario 1"
       - artifact: "spec.md § User Story 2, Acceptance Scenario 2 ('mission creation refuses with the same class of error')"
-      - code: "src/charter/mission_type_profiles.py:800 (existing precedent: `raise UnknownMissionTypeError(mission_type, registered_ids=registered)` for an analogous 'configuration inconsistency' case in the same module)"
+      - code: "src/charter/activation/mission_type_profiles.py:800 (existing precedent: `raise UnknownMissionTypeError(mission_type, registered_ids=registered)` for an analogous 'configuration inconsistency' case in the same module)"
     claim: >
       FR-004 and User Story 2's Acceptance Scenario 1 require the resolver to "raise a named error
       identifying the mission-type id and the layer it was resolved from," with the message example

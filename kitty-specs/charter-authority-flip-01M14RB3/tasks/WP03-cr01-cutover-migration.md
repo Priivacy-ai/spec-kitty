@@ -29,11 +29,11 @@ create_intent:
 execution_mode: code_change
 model: ''
 owned_files:
-- src/charter/sync.py
-- src/charter/schemas.py
-- src/charter/resolver.py
-- src/charter/org_pack_discovery.py
-- src/charter/interview.py
+- src/charter/activation/sync.py
+- src/charter/activation/schemas.py
+- src/charter/activation/resolver.py
+- src/charter/activation/org_pack_discovery.py
+- src/charter/activation/interview.py
 - src/specify_cli/cli/commands/charter/_status_collectors.py
 - .kittify/charter/charter.yaml
 role: implementer

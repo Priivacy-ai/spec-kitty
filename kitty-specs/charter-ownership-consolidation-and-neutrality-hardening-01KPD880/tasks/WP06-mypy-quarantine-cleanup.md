@@ -34,11 +34,11 @@ tags: []
 
 ## Objective
 
-Remove the stale `specify_cli.charter.context` entry from the `[[tool.mypy.overrides]]` "Transitional quarantine" block in `pyproject.toml`. The entry names a submodule that never existed at that path — the canonical module is `charter.context`. Gate the cleanup on a passing `mypy --strict` run against the canonical file (R-008).
+Remove the stale `specify_cli.charter.context` entry from the `[[tool.mypy.overrides]]` "Transitional quarantine" block in `pyproject.toml`. The entry names a submodule that never existed at that path — the canonical module is `charter.activation.context`. Gate the cleanup on a passing `mypy --strict` run against the canonical file (R-008).
 
 ## Context
 
-Research note R-002 identified that `pyproject.toml` ships a "Transitional quarantine" block with an entry for `specify_cli.charter.context` that disables strict checks. Because that module never existed, the entry is dead configuration. Removing it (a) tidies the config, (b) removes a misleading signal that `specify_cli.charter.context` is a real surface, and (c) restores strict checking coverage for the canonical `charter.context` file (NFR-003).
+Research note R-002 identified that `pyproject.toml` ships a "Transitional quarantine" block with an entry for `specify_cli.charter.context` that disables strict checks. Because that module never existed, the entry is dead configuration. Removing it (a) tidies the config, (b) removes a misleading signal that `specify_cli.charter.context` is a real surface, and (c) restores strict checking coverage for the canonical `charter.activation.context` file (NFR-003).
 
 Research note R-008 warned that if `charter/context.py` has latent strict-mode errors, removing the quarantine will surface them. The sequencing below addresses this: run the strict check FIRST, fix or re-scope, THEN remove the line.
 
@@ -48,12 +48,12 @@ Planning base branch is `main`; merge target is `main`. Execution worktree path 
 
 ## Implementation Sketch
 
-### Subtask T021 — Run `mypy --strict src/charter/context.py` and record diagnostics
+### Subtask T021 — Run `mypy --strict src/charter/activation/context.py` and record diagnostics
 
 From worktree root:
 
 ```bash
-mypy --strict src/charter/context.py 2>&1 | tee /tmp/mypy-context-strict.txt
+mypy --strict src/charter/activation/context.py 2>&1 | tee /tmp/mypy-context-strict.txt
 ```
 
 Expected outcomes:
@@ -67,19 +67,19 @@ Record the raw diagnostic output in the PR body for reviewer traceability. The f
 
 If T021 surfaced errors, the choice is:
 
-**Preferred**: fix each strict error in `src/charter/context.py` directly. Small-scope fixes only — do not refactor this file beyond what mypy requires. Typical fixes:
+**Preferred**: fix each strict error in `src/charter/activation/context.py` directly. Small-scope fixes only — do not refactor this file beyond what mypy requires. Typical fixes:
 
 - Add explicit `Optional[...]` annotations where `None` defaults are used.
 - Add `-> None` to procedures.
 - Narrow `Any` returns from `json.loads` / `yaml.safe_load` with `cast(...)`.
 
-**Fallback**: if strict fixes are larger than a focused one-WP edit can absorb, **rename** the quarantine entry from `specify_cli.charter.context` to `charter.context`, with a `TODO(charter-strict-cleanup)` comment and a GitHub issue filed for follow-up. Do NOT leave the stale `specify_cli.charter.context` name in place — that keeps the dead-config problem alive.
+**Fallback**: if strict fixes are larger than a focused one-WP edit can absorb, **rename** the quarantine entry from `specify_cli.charter.context` to `charter.activation.context`, with a `TODO(charter-strict-cleanup)` comment and a GitHub issue filed for follow-up. Do NOT leave the stale `specify_cli.charter.context` name in place — that keeps the dead-config problem alive.
 
 **NEVER** expand the quarantine block beyond the single renamed entry. This WP shrinks the quarantine; it does not add new entries.
 
 ### Subtask T023 — Remove the stale line and verify
 
-If T021/T022 confirms `charter.context` is clean under `--strict`:
+If T021/T022 confirms `charter.activation.context` is clean under `--strict`:
 
 1. Open `pyproject.toml`. Locate the `[[tool.mypy.overrides]]` block labeled "Transitional quarantine" (line ~238 per baseline audit).
 2. Remove the specific entry for `specify_cli.charter.context`.
@@ -95,7 +95,7 @@ python -c "import tomllib; tomllib.loads(open('pyproject.toml').read())"
 mypy --no-incremental --help > /dev/null
 
 # strict check still passes on the canonical file
-mypy --strict src/charter/context.py
+mypy --strict src/charter/activation/context.py
 
 # full project mypy still passes
 mypy src/
@@ -111,7 +111,7 @@ Commit message should name the removed module path explicitly so a reviewer can 
 
 ## Definition of Done
 
-- [ ] `mypy --strict src/charter/context.py` returns zero errors.
+- [ ] `mypy --strict src/charter/activation/context.py` returns zero errors.
 - [ ] `pyproject.toml` no longer contains an override entry naming `specify_cli.charter.context`.
 - [ ] `pyproject.toml` parses cleanly under `tomllib.loads`.
 - [ ] `mypy src/` (the project-default run) continues to pass.
@@ -130,12 +130,12 @@ Commit message should name the removed module path explicitly so a reviewer can 
 - [ ] The removed line names exactly `specify_cli.charter.context`, not a broader pattern.
 - [ ] No new quarantine entries were introduced.
 - [ ] `pyproject.toml` still parses (reviewer can run `python -c "import tomllib; tomllib.loads(open('pyproject.toml').read())"` locally).
-- [ ] The PR body includes the `mypy --strict src/charter/context.py` output or records that it was clean.
-- [ ] If the fallback path was chosen (rename to `charter.context`), a follow-up GitHub issue is linked.
+- [ ] The PR body includes the `mypy --strict src/charter/activation/context.py` output or records that it was clean.
+- [ ] If the fallback path was chosen (rename to `charter.activation.context`), a follow-up GitHub issue is linked.
 
 ## Activity Log
 
 - 2026-04-17T09:28:44Z – claude:sonnet-4-6:implementer:implementer – shell_pid=7815 – Assigned agent via action command
-- 2026-04-17T09:36:09Z – claude:sonnet-4-6:implementer:implementer – shell_pid=7815 – Ready: stale quarantine removed; strict mypy clean on charter.context (5 context.py errors fixed with minimal-scope type annotations)
+- 2026-04-17T09:36:09Z – claude:sonnet-4-6:implementer:implementer – shell_pid=7815 – Ready: stale quarantine removed; strict mypy clean on charter.activation.context (5 context.py errors fixed with minimal-scope type annotations)
 - 2026-04-17T09:39:53Z – claude:opus-4-6:reviewer:reviewer – shell_pid=9880 – Started review via action command
 - 2026-04-17T09:41:29Z – claude:opus-4-6:reviewer:reviewer – shell_pid=9880 – Review passed: stale specify_cli.charter.context quarantine removed; context.py has 0 strict errors; no new quarantine entries; mypy src/ improved from 95 to 89 errors (no new errors introduced)

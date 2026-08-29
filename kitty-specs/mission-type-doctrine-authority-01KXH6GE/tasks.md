@@ -35,10 +35,10 @@ tests in the join (WP12).
   `regenerate-graph --check`, run once after WP01 + WP06/07/08 land.
 
 **Single-file ownership invariants (no-overlap by construction):**
-`src/charter/mission_type_profiles.py` → WP03 (WP05 adds `id` to `MissionTypeProfile`, WP10 populates
+`src/charter/activation/mission_type_profiles.py` → WP03 (WP05 adds `id` to `MissionTypeProfile`, WP10 populates
 the `expected_artifacts` slot — both **sequential, recorded out-of-map** edits **serialized** behind
 WP03: WP05←WP03 and WP10←WP03+WP05, so the two out-of-map edits never run in parallel);
-`src/charter/context.py` → WP04; `src/doctrine/base.py` → WP05;
+`src/charter/activation/context.py` → WP04; `src/doctrine/base.py` → WP05;
 `src/doctrine/missions/step_contracts.py` → WP11; `src/doctrine/graph.yaml` → WP12.
 **Coordination resolved (post-squad):** `src/specify_cli/cli/commands/mission_type.py` is owned by **WP01**
 (governance_refs display removal). WP03 now **migrates** the `resolve_action_sequence` caller at `:1477`

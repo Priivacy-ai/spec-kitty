@@ -6,7 +6,7 @@
 ## WP → IC mapping & lanes
 
 The 7-IC-grouping from the post-plan squad is realized as **5 WPs**, refined so `owned_files`
-never overlap: IC-07's union logic is extracted into a **new `src/charter/action_grain.py`**
+never overlap: IC-07's union logic is extracted into a **new `src/charter/activation/action_grain.py`**
 module (WP02), so `mission_type_profiles.py` is owned by **WP03 alone** (IC-06+IC-10+IC-12), and
 the gate (WP04) + reconciled tests (WP05) **reuse** that one module — killing the second source.
 **IC-03 (mission-type cascade) is deferred** to S0-continuation (cosmetic without edges).
@@ -14,8 +14,8 @@ the gate (WP04) + reconciled tests (WP05) **reuse** that one module — killing 
 | WP | ICs | Lane | Depends on | Owns (no overlap) |
 |----|-----|------|------------|-------------------|
 | WP01 | IC-01, IC-02 | DRG | — | `src/doctrine/drg/{models.py, migration/extractor.py}`, `graph.yaml` + DRG tests |
-| WP02 | IC-07 (+IC-11 spike) | Resolver-helper | — | **new** `src/charter/action_grain.py` + its test |
-| WP03 | IC-06, IC-10, IC-12 | Resolver-core | WP02 | `src/charter/mission_type_profiles.py` + its unit tests |
+| WP02 | IC-07 (+IC-11 spike) | Resolver-helper | — | **new** `src/charter/activation/action_grain.py` + its test |
+| WP03 | IC-06, IC-10, IC-12 | Resolver-core | WP02 | `src/charter/activation/mission_type_profiles.py` + its unit tests |
 | WP04 | IC-04, IC-05, IC-11 | Gate | WP02 | **new** `tests/doctrine/drg/test_cross_grain_integrity.py` |
 | WP05 | IC-08, IC-09 | Test | WP03 | the 3 existing test-union / NFR files |
 

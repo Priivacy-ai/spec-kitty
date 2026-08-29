@@ -29,14 +29,14 @@ history:
   actor: system
   action: Prompt generated via /spec-kitty.tasks
 agent_profile: python-pedro
-authoritative_surface: src/charter/context.py
+authoritative_surface: src/charter/activation/context.py
 create_intent:
 - tests/charter/test_action_bundle_delivery.py
 execution_mode: code_change
 model: ''
 owned_files:
-- src/charter/context.py
-- src/charter/resolver.py
+- src/charter/activation/context.py
+- src/charter/activation/resolver.py
 - tests/charter/test_action_bundle_delivery.py
 - tests/charter/test_context.py
 role: implementer
@@ -132,7 +132,7 @@ Planning base and merge target `feat/doctrine-delivery-reachability`. Depends on
 authority) and WP08 (the reachability measure the gate intersects with). `spec-kitty implement WP10`
 resolves the workspace.
 
-**File-ownership note**: `src/charter/context.py` is shared with WP11, WP12, WP13. You own the
+**File-ownership note**: `src/charter/activation/context.py` is shared with WP11, WP12, WP13. You own the
 bundle/classification/gate; WP11 owns render + every-load; WP12 owns the profile render; WP13 owns the
 reference block. Under the no-net-growth constraint, extract helpers rather than growing the module.
 

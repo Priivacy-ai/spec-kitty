@@ -25,13 +25,13 @@ history:
   agent: system
   shell_pid: ''
   action: Prompt generated via /spec-kitty.tasks
-authoritative_surface: src/charter/compiler.py
+authoritative_surface: src/charter/activation/compiler.py
 create_intent:
 - tests/charter/test_config_sourced_derivation.py
 execution_mode: code_change
 mission_id: 01KX5SJ9P0HXTVWZDJ121JBP60
 owned_files:
-- src/charter/compiler.py
+- src/charter/activation/compiler.py
 - src/specify_cli/cli/commands/charter/_synthesis.py
 - src/specify_cli/cli/commands/charter/generate.py
 tags: []
@@ -53,7 +53,7 @@ Do not touch code until the profile is loaded and acknowledged.
 
 ## Objective
 Repoint the compiled-reference-set + graph derivation from `answers.selected_*` to `config.activated_*` (via the WP01 resolver), in BOTH derivation paths the squad found:
-1. `src/charter/compiler.py` — `compile_charter`/`_build_references` (`:84-149`) reads `interview.selected_paradigms/directives/tactics` → the references.yaml roots.
+1. `src/charter/activation/compiler.py` — `compile_charter`/`_build_references` (`:84-149`) reads `interview.selected_paradigms/directives/tactics` → the references.yaml roots.
 2. `src/specify_cli/cli/commands/charter/_synthesis.py` (`:41-70`) — builds interview_snapshot/drg_snapshot from `answers.selected_*` → the project graph layer.
 Plus `generate.py` (`:294-300`) which calls `compile_charter`.
 

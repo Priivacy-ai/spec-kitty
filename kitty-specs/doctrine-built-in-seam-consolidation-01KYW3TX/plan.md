@@ -132,7 +132,7 @@ one added surface (the arch-ratchet test) is a guard, not a runtime path.
 
 - **Purpose**: finish the residual repoints and kill the false-green class: the glossary-gate fixture and the profile-inheritance vacuous-pass fixture, plus shipped operator error strings; add the anti-vacuity assertion. (The org-pack collision RED is owned by IC-02, not here.)
 - **Relevant requirements**: FR-008, FR-009, NFR-003 (anti-vacuity), C-006 (keep forbidden-pattern guards).
-- **Affected surfaces**: `tests/glossary/test_gate_terms.py`, `tests/doctrine/test_profile_inheritance.py`, `src/charter/resolver.py:187,250` (operator-facing error strings).
+- **Affected surfaces**: `tests/glossary/test_gate_terms.py`, `tests/doctrine/test_profile_inheritance.py`, `src/charter/activation/resolver.py:187,250` (operator-facing error strings).
 - **Sequencing/depends-on**: IC-02 (the param drop lands first).
 - **Risks**: must NOT touch the architectural guard tests that name the old path as a forbidden pattern (occurrence_map exceptions).
 
@@ -150,15 +150,15 @@ one added surface (the arch-ratchet test) is a guard, not a runtime path.
 
 - **Purpose**: derive the activation-key vocabulary from `YAML_KEY_MAP` everywhere, replacing hand-written copies, and fix the live migration drift that drops `activated_glossary_packs`.
 - **Relevant requirements**: FR-010, SC-005, C-004 (lands before Mission 2's resolver retarget).
-- **Affected surfaces**: `src/charter/pack_manager.py` (SSOT), `src/charter/charter_yaml_io.py`, `src/specify_cli/upgrade/migrations/m_unify_charter_activation_finalize.py`; set-equality guard test.
+- **Affected surfaces**: `src/charter/activation/pack_manager.py` (SSOT), `src/charter/activation/charter_yaml_io.py`, `src/specify_cli/upgrade/migrations/m_unify_charter_activation_finalize.py`; set-equality guard test.
 - **Sequencing/depends-on**: none (independent surface).
 - **Risks**: respect the migration's no-heavy-import constraint (export a cheap plain-tuple constant, not the pydantic-heavy import).
 
 ### IC-06 — Context.py re-export shim retirement (severable)
 
-- **Purpose**: re-point the ~62 `from charter.context import _x` test imports to their leaf modules and delete the FR-009 re-export block; no production behaviour change.
+- **Purpose**: re-point the ~62 `from charter.activation.context import _x` test imports to their leaf modules and delete the FR-009 re-export block; no production behaviour change.
 - **Relevant requirements**: FR-011.
-- **Affected surfaces**: `src/charter/context.py:25-145`; ~36 test files.
+- **Affected surfaces**: `src/charter/activation/context.py:25-145`; ~36 test files.
 - **Sequencing/depends-on**: none (fully independent, test-only).
 - **Risks**: multi-line import statements are the only hazard; the public `__all__` surface stays.
 

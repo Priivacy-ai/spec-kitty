@@ -60,7 +60,7 @@ Read `spec.md` (FR-007, SC-004, User Story 4) before starting.
 
 **Verified staleness** (re-confirm against your checkout): `implement.md` (lines 10, 27, 29, 39, 41) and `review.md` (lines 10, 26, 28, 38, 40) both reference `spec-kitty constitution context --action .../--json` and raw construction. Both files were last touched well before the PR #3175 sole-door landing — that landing changed production `src/` construction sites, not these dogfood overrides.
 
-**The canonical pattern to model**: `charter.doctrine_service_builder.build_activation_aware_doctrine_service(repo_root)` — find the current canonical templates these files override and compare.
+**The canonical pattern to model**: `charter.activation.doctrine_service_builder.build_activation_aware_doctrine_service(repo_root)` — find the current canonical templates these files override and compare.
 
 ## Branch Strategy
 

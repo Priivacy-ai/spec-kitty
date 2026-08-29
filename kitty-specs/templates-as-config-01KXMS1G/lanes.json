@@ -11,7 +11,7 @@
         "WP01"
       ],
       "write_scope": [
-        "src/charter/mission_type_profiles.py",
+        "src/charter/activation/mission_type_profiles.py",
         "tests/charter/test_resolved_mission_type_context.py",
         "tests/doctrine/missions/test_mission_type_repository.py"
       ],

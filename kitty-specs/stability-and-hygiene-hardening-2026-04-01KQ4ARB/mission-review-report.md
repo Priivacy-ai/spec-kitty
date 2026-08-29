@@ -66,7 +66,7 @@ Verdict: **PASS WITH NOTES**.
 | FR-031 | Tracker bidirectional retry | WP06 | `tests/integration/test_tracker_bidirectional_retry.py`; `sync/tracker_client_glue.py` new | ADEQUATE | — |
 | FR-032 | Spec ceremony fail-loud uninitialized | WP07 | `tests/integration/test_assert_initialized.py` (per status notes); `src/specify_cli/workspace/assert_initialized.py` new | ADEQUATE | Wired into `lifecycle.{specify,plan,tasks}` |
 | FR-033 | Branch-strategy gate for PR-bound missions | WP07 | `tests/integration/test_branch_strategy_gate.py`; `cli/commands/_branch_strategy_gate.py` new | ADEQUATE | — |
-| FR-034 | Charter compact preserves directives + section anchors | WP07 | `tests/contract/test_charter_compact_includes_section_anchors.py`; `src/charter/compact.py` new (227 lines) | ADEQUATE | — |
+| FR-034 | Charter compact preserves directives + section anchors | WP07 | `tests/contract/test_charter_compact_includes_section_anchors.py`; `src/charter/activation/compact.py` new (227 lines) | ADEQUATE | — |
 | FR-035 | Legacy `--feature` aliases hidden | WP07 | `tests/integration/test_legacy_feature_alias_hidden.py`; `src/specify_cli/missions/_legacy_aliases.py` new | ADEQUATE | Terminology-guards green |
 | FR-036 | Local custom mission loader hygiene audit | WP07 | `tests/missions/test_local_custom_mission_loader_post_merge.py` (per matrix) | ADEQUATE | Verdict captured as `verified-already-fixed` |
 | FR-037 | Issue traceability matrix | WP08 | `kitty-specs/<slug>/issue-matrix.md` (55 rows; every row has verdict + evidence_ref) | ADEQUATE — see DRIFT-2 | Summary table claims 54; actual 55 |

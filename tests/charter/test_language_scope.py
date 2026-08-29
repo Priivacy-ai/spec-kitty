@@ -5,8 +5,8 @@ from pathlib import Path
 import pytest
 from ruamel.yaml import YAML
 
-from charter.interview import apply_answer_overrides, default_interview, write_interview_answers
-from charter.language_scope import extract_declared_languages, infer_repo_languages
+from charter.activation.interview import apply_answer_overrides, default_interview, write_interview_answers
+from charter.activation.language_scope import extract_declared_languages, infer_repo_languages
 
 pytestmark = pytest.mark.fast
 

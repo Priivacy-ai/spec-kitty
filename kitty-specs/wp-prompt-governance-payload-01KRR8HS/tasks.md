@@ -67,16 +67,16 @@ The 14 currently-passing tests MUST remain green throughout (no regression).
 
 | ID | Description | WP | Parallel |
 |---|---|---|---|
-| T001 | Add `references: list[str] = []` to `charter.schemas.Directive` | WP01 | | [D] |
-| T002 | Add `authority_paths: list[str] = []` to `charter.schemas.DoctrineSelectionConfig` | WP01 | [D] |
+| T001 | Add `references: list[str] = []` to `charter.activation.schemas.Directive` | WP01 | | [D] |
+| T002 | Add `authority_paths: list[str] = []` to `charter.activation.schemas.DoctrineSelectionConfig` | WP01 | [D] |
 | T003 | Schema round-trip + backward-compat tests for the two new fields | WP01 | [D] |
 | T004 | Add `DIRECTIVE_\d{3}` / tactic-id detection regex helper in `charter.extractor` | WP02 | | [D] |
 | T005 | Extend `Extractor._extract_directives` to populate `Directive.references` from detected citations | WP02 | | [D] |
 | T006 | Extend `Extractor._merge_doctrine_selection` to read `authority_paths:` from fenced YAML blocks | WP02 | [D] |
 | T007 | Extend the same site to persist `template_set:` and `available_tools:` from the YAML block (FR-007) | WP02 | [D] |
 | T008 | Unit tests in `tests/charter/test_sync_references.py` (citation detection, authority_paths/template_set extraction, no-citation no-error) | WP02 | [D] |
-| T009 | Replace `_ = profile` at `src/charter/context.py:92` with a real profile lookup helper | WP03 | | [D] |
-| T010 | Add `_load_agent_profile(profile_id)` helper in `charter.context` delegating to `doctrine.agent_profiles.AgentProfileRepository` | WP03 | | [D] |
+| T009 | Replace `_ = profile` at `src/charter/activation/context.py:92` with a real profile lookup helper | WP03 | | [D] |
+| T010 | Add `_load_agent_profile(profile_id)` helper in `charter.activation.context` delegating to `doctrine.agent_profiles.AgentProfileRepository` | WP03 | | [D] |
 | T011 | Add `_render_profile_directives(profile, service)` renderer | WP03 | | [D] |
 | T012 | Add `_render_profile_tactics(profile, service)` renderer | WP03 | [D] |
 | T013 | Unit tests in `tests/charter/test_context_profile.py` (known profile, unknown profile graceful skip, empty references) | WP03 | [D] |
@@ -133,7 +133,7 @@ WP07 (charter dogfood) depends only on WP02 (the sync side), so it can land any 
 **FRs**: FR-006 (partial), FR-008 (partial), NFR-005
 **Subtasks**: T001, T002, T003
 **Agent profile**: python-pedro
-**Owned**: `src/charter/schemas.py`, `tests/charter/test_schemas_additive_fields.py`
+**Owned**: `src/charter/activation/schemas.py`, `tests/charter/test_schemas_additive_fields.py`
 
 Pure schema change. See [tasks/WP01-schema-extensions.md](tasks/WP01-schema-extensions.md).
 
@@ -145,7 +145,7 @@ Pure schema change. See [tasks/WP01-schema-extensions.md](tasks/WP01-schema-exte
 **FRs**: FR-006, FR-007, FR-008, NFR-005
 **Subtasks**: T004, T005, T006, T007, T008
 **Agent profile**: python-pedro
-**Owned**: `src/charter/extractor.py`, `src/charter/sync.py`
+**Owned**: `src/charter/extractor.py`, `src/charter/activation/sync.py`
 
 Detects `DIRECTIVE_NNN` citations and reads fenced YAML resolver-input declarations.
 See [tasks/WP02-charter-sync-extensions.md](tasks/WP02-charter-sync-extensions.md).
@@ -158,7 +158,7 @@ See [tasks/WP02-charter-sync-extensions.md](tasks/WP02-charter-sync-extensions.m
 **FRs**: FR-002, FR-004 (resolver side), NFR-004
 **Subtasks**: T009, T010, T011, T012, T013
 **Agent profile**: python-pedro
-**Owned**: `src/charter/context.py`
+**Owned**: `src/charter/activation/context.py`
 
 Profile lookup via doctrine layer; emits profile-cited directives/tactics sections.
 See [tasks/WP03-build-charter-context-profile.md](tasks/WP03-build-charter-context-profile.md).
@@ -171,7 +171,7 @@ See [tasks/WP03-build-charter-context-profile.md](tasks/WP03-build-charter-conte
 **FRs**: FR-001, FR-003, NFR-004
 **Subtasks**: T014, T015, T016, T017, T018
 **Agent profile**: python-pedro
-**Owned**: `src/charter/context.py`
+**Owned**: `src/charter/activation/context.py`
 
 Two new rendered sections: `Project authority paths:` and
 `Action-Critical Charter Sections (<action>):`.
@@ -185,7 +185,7 @@ See [tasks/WP04-authority-paths-and-section-bodies.md](tasks/WP04-authority-path
 **FRs**: NFR-001, NFR-002
 **Subtasks**: T019, T020, T021, T022
 **Agent profile**: python-pedro
-**Owned**: `src/charter/context.py`, `scripts/measure-wp-prompt.py`
+**Owned**: `src/charter/activation/context.py`, `scripts/measure-wp-prompt.py`
 
 Auto-substitute longest bodies with fetch stanzas under 32 000 char budget.
 See [tasks/WP05-token-budget-and-fetch-substitution.md](tasks/WP05-token-budget-and-fetch-substitution.md).

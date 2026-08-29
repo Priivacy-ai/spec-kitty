@@ -4714,7 +4714,7 @@ dispositions:
       kind: replayable-live-authority-injection
       fault: replace the named live authority at test call time with AssertionError(WP04_REPLAY_FAULT), or the explicit
         wrong value/module/export action
-      authority_violated: charter.pack_manager.CharterPackManager.list_available
+      authority_violated: charter.activation.pack_manager.CharterPackManager.list_available
       act_reached: true
       intended_oracle: fixtures=['manager', 'ctx']; concrete_inputs=["pytest.raises('Unknown activation kind')",
         "manager.list_available('bogus-kind')"]; asserted_observables=["pytest.raises(ValueError, match='Unknown
@@ -8608,12 +8608,12 @@ dispositions:
       live_callables: &id133
       - MissionTypeProfile
       callable_authorities: &id134
-      - charter.mission_type_profiles.MissionTypeProfile
+      - charter.activation.mission_type_profiles.MissionTypeProfile
       asserted_observables: &id135
       - assert profile.mission_type == 'compliance-audit'
       distinguishing_fault: 'At concrete input {''fixtures'': [], ''decorators'': [], ''executable_statements'':
         ["profile = MissionTypeProfile(mission_type=''compliance-audit'')", "assert profile.mission_type == ''compliance-audit''"]},
-        replace live authority charter.mission_type_profiles.MissionTypeProfile with an exception/wrong return;
+        replace live authority charter.activation.mission_type_profiles.MissionTypeProfile with an exception/wrong return;
         expected oracle is assert profile.mission_type == ''compliance-audit'''
     - member: tests/charter/test_mission_type_profiles.py::TestMissionTypeProfileOpenStr.test_arbitrary_string_accepted
       source_span:
@@ -8630,12 +8630,12 @@ dispositions:
       live_callables: &id137
       - MissionTypeProfile
       callable_authorities: &id138
-      - charter.mission_type_profiles.MissionTypeProfile
+      - charter.activation.mission_type_profiles.MissionTypeProfile
       asserted_observables: &id139
       - assert profile.mission_type == 'compliance-audit'
       distinguishing_fault: 'At concrete input {''fixtures'': [], ''decorators'': [], ''executable_statements'':
         ["profile = MissionTypeProfile(mission_type=''compliance-audit'')", "assert profile.mission_type == ''compliance-audit''"]},
-        replace live authority charter.mission_type_profiles.MissionTypeProfile with an exception/wrong return;
+        replace live authority charter.activation.mission_type_profiles.MissionTypeProfile with an exception/wrong return;
         expected oracle is assert profile.mission_type == ''compliance-audit'''
     concrete_divergence_axes: []
     residual_equivalence: Source-derived input, callable, asserted observable, and fault are identical. Final cycle
@@ -8646,9 +8646,9 @@ dispositions:
     - left: tests/charter/test_action_sequence_dispatch.py::TestMissionTypeProfileNoLiteralConstraint.test_custom_mission_type_succeeds_at_model_time
       right: source-derived-member-contract
       result: '{"asserted_observables": ["assert profile.mission_type == ''compliance-audit''"], "callable_authorities":
-        ["charter.mission_type_profiles.MissionTypeProfile"], "distinguishing_fault": "At concrete input {''fixtures'':
+        ["charter.activation.mission_type_profiles.MissionTypeProfile"], "distinguishing_fault": "At concrete input {''fixtures'':
         [], ''decorators'': [], ''executable_statements'': [\"profile = MissionTypeProfile(mission_type=''compliance-audit'')\",
-        \"assert profile.mission_type == ''compliance-audit''\"]}, replace live authority charter.mission_type_profiles.MissionTypeProfile
+        \"assert profile.mission_type == ''compliance-audit''\"]}, replace live authority charter.activation.mission_type_profiles.MissionTypeProfile
         with an exception/wrong return; expected oracle is assert profile.mission_type == ''compliance-audit''",
         "input_boundary": {"decorators": [], "executable_statements": ["profile = MissionTypeProfile(mission_type=''compliance-audit'')",
         "assert profile.mission_type == ''compliance-audit''"], "fixtures": []}, "live_callables": ["MissionTypeProfile"],
@@ -8660,15 +8660,15 @@ dispositions:
       asserted_observables: *id135
       distinguishing_fault: 'At concrete input {''fixtures'': [], ''decorators'': [], ''executable_statements'':
         ["profile = MissionTypeProfile(mission_type=''compliance-audit'')", "assert profile.mission_type == ''compliance-audit''"]},
-        replace live authority charter.mission_type_profiles.MissionTypeProfile with an exception/wrong return;
+        replace live authority charter.activation.mission_type_profiles.MissionTypeProfile with an exception/wrong return;
         expected oracle is assert profile.mission_type == ''compliance-audit'''
       test_source_sha256: 0d5f0a5d09f4a90b3855e63f1446cc8f9839f0780f4212e03a5172c5f5153bf1
     - left: tests/charter/test_mission_type_profiles.py::TestMissionTypeProfileOpenStr.test_arbitrary_string_accepted
       right: source-derived-member-contract
       result: '{"asserted_observables": ["assert profile.mission_type == ''compliance-audit''"], "callable_authorities":
-        ["charter.mission_type_profiles.MissionTypeProfile"], "distinguishing_fault": "At concrete input {''fixtures'':
+        ["charter.activation.mission_type_profiles.MissionTypeProfile"], "distinguishing_fault": "At concrete input {''fixtures'':
         [], ''decorators'': [], ''executable_statements'': [\"profile = MissionTypeProfile(mission_type=''compliance-audit'')\",
-        \"assert profile.mission_type == ''compliance-audit''\"]}, replace live authority charter.mission_type_profiles.MissionTypeProfile
+        \"assert profile.mission_type == ''compliance-audit''\"]}, replace live authority charter.activation.mission_type_profiles.MissionTypeProfile
         with an exception/wrong return; expected oracle is assert profile.mission_type == ''compliance-audit''",
         "input_boundary": {"decorators": [], "executable_statements": ["profile = MissionTypeProfile(mission_type=''compliance-audit'')",
         "assert profile.mission_type == ''compliance-audit''"], "fixtures": []}, "live_callables": ["MissionTypeProfile"],
@@ -8680,7 +8680,7 @@ dispositions:
       asserted_observables: *id139
       distinguishing_fault: 'At concrete input {''fixtures'': [], ''decorators'': [], ''executable_statements'':
         ["profile = MissionTypeProfile(mission_type=''compliance-audit'')", "assert profile.mission_type == ''compliance-audit''"]},
-        replace live authority charter.mission_type_profiles.MissionTypeProfile with an exception/wrong return;
+        replace live authority charter.activation.mission_type_profiles.MissionTypeProfile with an exception/wrong return;
         expected oracle is assert profile.mission_type == ''compliance-audit'''
       test_source_sha256: b4b0523c982ffd712aeaca20d2269d582530858d3259b395583ccdb8b5fe1eda
     causal_probe:
@@ -11802,7 +11802,7 @@ dispositions:
       kind: replayable-live-authority-injection
       fault: replace the named live authority at test call time with AssertionError(WP04_REPLAY_FAULT), or the explicit
         wrong value/module/export action
-      authority_violated: charter.pack_manager.CharterPackManager.list_available
+      authority_violated: charter.activation.pack_manager.CharterPackManager.list_available
       act_reached: true
       intended_oracle: fixtures=['manager', 'ctx']; concrete_inputs=["manager.list_available('directive')"]; asserted_observables=['assert
         isinstance(result, frozenset)', 'assert len(result) > 0']
@@ -12173,7 +12173,7 @@ dispositions:
       - resolve_project_root
       callable_authorities: &id190
       - kittify_doctrine.mkdir
-      - charter._doctrine_paths.resolve_project_root
+      - charter.activation._doctrine_paths.resolve_project_root
       asserted_observables: &id191
       - assert result == kittify_doctrine
       distinguishing_fault: 'At concrete input {''fixtures'': [''tmp_path''], ''decorators'': [], ''executable_statements'':
@@ -12200,7 +12200,7 @@ dispositions:
       - resolve_project_root
       callable_authorities: &id194
       - kittify_doctrine.mkdir
-      - charter._doctrine_paths.resolve_project_root
+      - charter.activation._doctrine_paths.resolve_project_root
       asserted_observables: &id195
       - assert result == kittify_doctrine
       distinguishing_fault: 'At concrete input {''fixtures'': [''tmp_path''], ''decorators'': [], ''executable_statements'':
@@ -12216,7 +12216,7 @@ dispositions:
     - left: tests/charter/synthesizer/test_charter_compile_project_root.py::TestResolveProjectRoot.test_empty_kittify_doctrine_still_resolves
       right: source-derived-member-contract
       result: '{"asserted_observables": ["assert result == kittify_doctrine"], "callable_authorities": ["kittify_doctrine.mkdir",
-        "charter._doctrine_paths.resolve_project_root"], "distinguishing_fault": "At concrete input {''fixtures'':
+        "charter.activation._doctrine_paths.resolve_project_root"], "distinguishing_fault": "At concrete input {''fixtures'':
         [''tmp_path''], ''decorators'': [], ''executable_statements'': [\"kittify_doctrine = tmp_path / ''.kittify''
         / ''doctrine''\", ''kittify_doctrine.mkdir(parents=True)'', ''result = resolve_project_root(tmp_path)'',
         ''assert result == kittify_doctrine'']}, replace live authority kittify_doctrine.mkdir with an exception/wrong
@@ -12237,7 +12237,7 @@ dispositions:
     - left: tests/charter/synthesizer/test_charter_compile_project_root.py::TestResolveProjectRoot.test_returns_kittify_doctrine_when_present
       right: source-derived-member-contract
       result: '{"asserted_observables": ["assert result == kittify_doctrine"], "callable_authorities": ["kittify_doctrine.mkdir",
-        "charter._doctrine_paths.resolve_project_root"], "distinguishing_fault": "At concrete input {''fixtures'':
+        "charter.activation._doctrine_paths.resolve_project_root"], "distinguishing_fault": "At concrete input {''fixtures'':
         [''tmp_path''], ''decorators'': [], ''executable_statements'': [\"kittify_doctrine = tmp_path / ''.kittify''
         / ''doctrine''\", ''kittify_doctrine.mkdir(parents=True)'', ''result = resolve_project_root(tmp_path)'',
         ''assert result == kittify_doctrine'']}, replace live authority kittify_doctrine.mkdir with an exception/wrong
@@ -13335,7 +13335,7 @@ dispositions:
       kind: replayable-live-authority-injection
       fault: replace the named live authority at test call time with AssertionError(WP04_REPLAY_FAULT), or the explicit
         wrong value/module/export action
-      authority_violated: charter.pack_manager.scan_builtin_cross_grain_duplicates
+      authority_violated: charter.activation.pack_manager.scan_builtin_cross_grain_duplicates
       act_reached: true
       intended_oracle: fixtures=[]; concrete_inputs=[]; asserted_observables=['assert set(scanned) == set(builtin_mission_type_ids())']
       intended_oracle_failed: true

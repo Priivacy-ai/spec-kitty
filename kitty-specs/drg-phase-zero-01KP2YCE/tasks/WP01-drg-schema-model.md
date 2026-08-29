@@ -60,7 +60,7 @@ Key design decisions:
 - 8 edge relations: `requires`, `suggests`, `applies`, `scope`, `vocabulary`, `instantiates`, `replaces`, `delegates_to`
 - `schema_version: "1.0"` in the YAML document
 
-This package is strictly doctrine-graph infrastructure. It does NOT contain charter-specific assembly policy (profile x action x depth expansion). That lives in `src/charter/context.py`.
+This package is strictly doctrine-graph infrastructure. It does NOT contain charter-specific assembly policy (profile x action x depth expansion). That lives in `src/charter/activation/context.py`.
 
 ## Branch Strategy
 

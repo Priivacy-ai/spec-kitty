@@ -368,9 +368,9 @@ metadata).
 | 7 | 3 | `067-runtime-recovery-and-audit-safety/` | `src/specify_cli/missions/software-dev/` |
 | 8 | 3 | `065-tasks-and-lane-stabilization/` | `src/specify_cli/missions/software-dev/` |
 | 9 | 3 | `unified-charter-bundle-chokepoint-01KP5Q2G/` | `src/specify_cli/upgrade/migrations/` |
-| 10 | 3 | `phase-3-charter-synthesizer-pipeline-01KPE222/` | `src/charter/synthesizer/synthesize_pipeline.py` |
-| 11 | 3 | `phase-3-charter-synthesizer-pipeline-01KPE222/` | `src/charter/synthesizer/errors.py` |
-| 12 | 3 | `phase-3-charter-synthesizer-pipeline-01KPE222/` | `src/charter/synthesizer/write_pipeline.py` |
+| 10 | 3 | `phase-3-charter-synthesizer-pipeline-01KPE222/` | `src/charter/activation/synthesizer/synthesize_pipeline.py` |
+| 11 | 3 | `phase-3-charter-synthesizer-pipeline-01KPE222/` | `src/charter/activation/synthesizer/errors.py` |
+| 12 | 3 | `phase-3-charter-synthesizer-pipeline-01KPE222/` | `src/charter/activation/synthesizer/write_pipeline.py` |
 | 13 | 3 | `005-refactor-mission-system/` | `src/specify_cli/cli/commands/` |
 | 14 | 3 | `008-unified-python-cli/` | `src/specify_cli/upgrade/migrations/` |
 | 15 | 3 | `004-modular-code-refactoring/` | `src/specify_cli/cli/commands/` |

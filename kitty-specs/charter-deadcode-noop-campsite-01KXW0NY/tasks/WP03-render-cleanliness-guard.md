@@ -48,7 +48,7 @@ production change is expected — this guard prevents the fix from silently regr
 
 ## Context / grounding
 
-- At HEAD, `src/charter/context.py::build_charter_context` writes only
+- At HEAD, `src/charter/activation/context.py::build_charter_context` writes only
   `.kittify/charter/context-state.json` (via `_write_state`, `context.py:2896`), which is gitignored
   (`.gitignore:88`). It no longer writes tracked doctrine (sync retired by #2773).
 - **LM-1 — the masking landmine:** this working checkout has a local `.git/info/exclude` entry

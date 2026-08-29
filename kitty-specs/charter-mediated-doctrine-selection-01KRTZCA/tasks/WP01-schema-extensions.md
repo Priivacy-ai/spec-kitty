@@ -24,11 +24,11 @@ agent: "claude:opus-4-7:reviewer-renata:reviewer"
 shell_pid: "1637106"
 history: []
 agent_profile: python-pedro
-authoritative_surface: src/charter/schemas.py
+authoritative_surface: src/charter/activation/schemas.py
 execution_mode: code_change
 owned_files:
-- src/charter/schemas.py
-- src/charter/activations.py
+- src/charter/activation/schemas.py
+- src/charter/activation/activations.py
 - tests/charter/test_schemas_selection.py
 - tests/charter/test_activations.py
 role: implementer
@@ -47,7 +47,7 @@ Scope your governance context to Python implementation before proceeding.
 
 ## Objective
 
-Extend the selection schemas so every artifact kind exposed by `DoctrineService` is addressable from both the project charter (`selected_<kind>`) and an org pack (`required_<kind>`). Introduce the new `charter.activations` module carrying `ActivationEntry`, the closed vocabularies, and the resolver. Preserve NFR-005 byte-stability by extending `_OPTIONAL_EMPTY_OMIT_KEYS`.
+Extend the selection schemas so every artifact kind exposed by `DoctrineService` is addressable from both the project charter (`selected_<kind>`) and an org pack (`required_<kind>`). Introduce the new `charter.activation.activations` module carrying `ActivationEntry`, the closed vocabularies, and the resolver. Preserve NFR-005 byte-stability by extending `_OPTIONAL_EMPTY_OMIT_KEYS`.
 
 This WP unblocks all downstream selection / activation work. It is purely additive; nothing existing breaks.
 
@@ -55,9 +55,9 @@ This WP unblocks all downstream selection / activation work. It is purely additi
 
 ## Context
 
-Today's schemas (`src/charter/schemas.py:DoctrineSelectionConfig` and `src/specify_cli/doctrine/org_charter.py:OrgCharterPolicy`) cover only 3 of the 8 artifact kinds that `doctrine.service.DoctrineService` exposes as properties. The architectural test `test_artifact_selection_completeness.py` was added at commit `bd95f1f5` to pin the parity rule; it fails today on 5 missing `selected_<kind>` fields and 7 missing `required_<kind>` fields.
+Today's schemas (`src/charter/activation/schemas.py:DoctrineSelectionConfig` and `src/specify_cli/doctrine/org_charter.py:OrgCharterPolicy`) cover only 3 of the 8 artifact kinds that `doctrine.service.DoctrineService` exposes as properties. The architectural test `test_artifact_selection_completeness.py` was added at commit `bd95f1f5` to pin the parity rule; it fails today on 5 missing `selected_<kind>` fields and 7 missing `required_<kind>` fields.
 
-The activation registry (`charter.activations`) does not yet exist. `test_activation_registry_schema.py` was added at `bd95f1f5` and fails today on `ImportError`.
+The activation registry (`charter.activation.activations`) does not yet exist. `test_activation_registry_schema.py` was added at `bd95f1f5` and fails today on `ImportError`.
 
 See:
 - [plan.md §2.1, §2.2, §2.5](../plan.md)
@@ -80,7 +80,7 @@ See:
 
 ### T001 — Extend `DoctrineSelectionConfig`
 
-**File**: `src/charter/schemas.py`
+**File**: `src/charter/activation/schemas.py`
 
 Add five new fields to `DoctrineSelectionConfig`:
 
@@ -111,9 +111,9 @@ required_mission_step_contracts: list[str] = Field(default_factory=list)
 activations: list["ActivationEntry"] = Field(default_factory=list)
 ```
 
-Import `ActivationEntry` from `charter.activations` (allowed — `specify_cli` may import from `charter`). Keep `extra="forbid"` to catch typos.
+Import `ActivationEntry` from `charter.activation.activations` (allowed — `specify_cli` may import from `charter`). Keep `extra="forbid"` to catch typos.
 
-### T003 — Create `src/charter/activations.py`
+### T003 — Create `src/charter/activation/activations.py`
 
 NEW module:
 
@@ -139,7 +139,7 @@ ALLOWED_MISSION_TYPES: frozenset[str] = frozenset(
 ALLOWED_ACTIONS: frozenset[str] = frozenset(
     {
         "specify", "plan", "tasks", "implement", "review", "merge", "accept",
-        "charter.interview", "charter.generate", "charter.context",
+        "charter.activation.interview", "charter.generate", "charter.activation.context",
     }
 )
 _ALLOWED_KINDS: frozenset[str] = frozenset(
@@ -209,7 +209,7 @@ def resolve_for_context(
 
 ### T004 — Extend `_OPTIONAL_EMPTY_OMIT_KEYS`
 
-**File**: `src/charter/schemas.py`
+**File**: `src/charter/activation/schemas.py`
 
 Add the 5 new keys to the existing allow-list so empty `governance.yaml` outputs stay byte-identical pre-/post-mission (NFR-005):
 
@@ -260,7 +260,7 @@ The following tests turn green (or stay green) with this WP:
 
 | Risk | Mitigation |
 |------|------------|
-| `OrgCharterPolicy` importing `ActivationEntry` from `charter.activations` introduces a layering question | `specify_cli` is allowed to import from `charter` (audit + ADR confirm). Verified by `test_layer_rules.py`. |
+| `OrgCharterPolicy` importing `ActivationEntry` from `charter.activation.activations` introduces a layering question | `specify_cli` is allowed to import from `charter` (audit + ADR confirm). Verified by `test_layer_rules.py`. |
 | Adding fields silently breaks an existing fixture | `_OPTIONAL_EMPTY_OMIT_KEYS` extension preserves byte-stability; the 23-test ATDD suite is the regression gate. |
 | Pydantic field_validator runs before model_config and fails on `extra="forbid"` extras | Validator order is field-level → model-level; `extra="forbid"` applies before validators. Test with explicit invalid-key fixture. |
 
@@ -271,11 +271,11 @@ The following tests turn green (or stay green) with this WP:
 - Verify the 5 new `selected_<kind>` field names match `DoctrineService` properties exactly (no `selected_styleguide` singular slip).
 - Verify `_OPTIONAL_EMPTY_OMIT_KEYS` carries all 5 new keys so byte-stability holds.
 - Verify the activation Pydantic validators reject `mission_type="dev"` and `action="compile"` (the canonical ATDD assertions).
-- Verify no `from doctrine.*` import lands in `charter.activations` (it doesn't need any).
+- Verify no `from doctrine.*` import lands in `charter.activation.activations` (it doesn't need any).
 
 ## Activity Log
 
 - 2026-05-17T16:23:50Z – claude:opus-4-7:python-pedro:implementer – shell_pid=1612262 – Assigned agent via action command
-- 2026-05-17T16:34:01Z – claude:opus-4-7:python-pedro:implementer – shell_pid=1612262 – Schema extensions land: 5 selected_<kind> parity fields on DoctrineSelectionConfig, ActivationEntry + ALLOWED_MISSION_TYPES/ALLOWED_ACTIONS/REGISTERED_TRIGGERS surface in src/charter/activations.py, _OPTIONAL_EMPTY_OMIT_KEYS extended, GovernanceConfig.activations field added. 4/4 test_activation_registry_schema and 1/3 test_artifact_selection_completeness (the WP01 target) now green; remaining 2 belong to WP06 T002. layer-rules 9/9 still passing; full architectural suite 117 pass / 2 known WP06 failures.
+- 2026-05-17T16:34:01Z – claude:opus-4-7:python-pedro:implementer – shell_pid=1612262 – Schema extensions land: 5 selected_<kind> parity fields on DoctrineSelectionConfig, ActivationEntry + ALLOWED_MISSION_TYPES/ALLOWED_ACTIONS/REGISTERED_TRIGGERS surface in src/charter/activation/activations.py, _OPTIONAL_EMPTY_OMIT_KEYS extended, GovernanceConfig.activations field added. 4/4 test_activation_registry_schema and 1/3 test_artifact_selection_completeness (the WP01 target) now green; remaining 2 belong to WP06 T002. layer-rules 9/9 still passing; full architectural suite 117 pass / 2 known WP06 failures.
 - 2026-05-17T16:34:46Z – claude:opus-4-7:reviewer-renata:reviewer – shell_pid=1637106 – Started review via action command
 - 2026-05-17T16:37:33Z – claude:opus-4-7:reviewer-renata:reviewer – shell_pid=1637106 – Review passed: 5 selected_<kind> fields + GovernanceConfig.activations + ActivationEntry model + 22 unit tests. ATDD: 4/4 activation_registry green; 1/3 selection_completeness green (other 2 WP06-bound, correctly scoped per WP frontmatter). Layer rule intact (zero specify_cli imports). ALLOWED_ACTIONS=10 / REGISTERED_TRIGGERS=14 frozensets match data-model.md §7 formula (the '15' in the prose text is being patched in parallel). Wildcards any/generic accepted via isolated_ACTION_WILDCARDS. Plural_ALLOWED_KINDS matches DoctrineService property names. Ruff clean.

@@ -55,7 +55,7 @@ kitty-specs/loop-reliability-ci-red-burndown-01KXWWD6/
 src/specify_cli/review/pre_review_gate.py                 # WP01 (#2534) — is_consumer_repo seam
 src/specify_cli/cli/commands/agent/tasks_move_task.py     # WP01 (#2534) — calm reason (3way)
 src/specify_cli/sync/daemon.py                            # WP02 (#2573b) — _daemon_start_skip_reason honors disable env
-src/charter/evidence/orchestrator.py                      # WP04 (#2807) — isinstance guard (clears 3 reds)
+src/charter/activation/evidence/orchestrator.py                      # WP04 (#2807) — isinstance guard (clears 3 reds)
 .github/workflows/ci-quality.yml                          # WP06 (#2812) — add `platform` to the loader-coverage if-guard
 
 tests/review/test_pre_review_gate_engine.py               # WP01 — red-first unit (from fix branch)
@@ -109,7 +109,7 @@ tests/runtime/test_resolve_by_urn.py                      # WP06 (#2812) — cle
 - **Purpose**: one `isinstance` guard clears `test_phase3_dry_run_evidence_smoke`, the orchestrator dry-run test,
   AND `test_charter_epic_golden_path`.
 - **Relevant requirements**: FR-004; NFR-001.
-- **Affected surfaces**: `src/charter/evidence/orchestrator.py:95-96` — guard `config["charter"]` being a path
+- **Affected surfaces**: `src/charter/activation/evidence/orchestrator.py:95-96` — guard `config["charter"]` being a path
   string post-#2773 (`if not isinstance(charter_cfg, dict): charter_cfg = {}`) + fix the stale docstring (`:82`).
 - **Sequencing/depends-on**: none.
 - **Risks**: **defer** the `url_list`→charter.yaml re-wire to a separate issue (C-005) — NOT required to clear

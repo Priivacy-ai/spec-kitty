@@ -31,18 +31,18 @@ history:
   actor: planner
   event: created
 agent_profile: implementer-ivan
-authoritative_surface: src/charter/_io.py
+authoritative_surface: src/charter/activation/_io.py
 execution_mode: code_change
 mission_id: 01KRC57CNW5JCVBRV8RAQ2ARXZ
 mission_slug: review-merge-gate-hardening-3-2-x-01KRC57C
 owned_files:
 - pyproject.toml
-- src/charter/_io.py
-- src/charter/_diagnostics.py
-- src/charter/compiler.py
-- src/charter/sync.py
-- src/charter/interview.py
-- src/charter/ERROR_CODES.md
+- src/charter/activation/_io.py
+- src/charter/activation/_diagnostics.py
+- src/charter/activation/compiler.py
+- src/charter/activation/sync.py
+- src/charter/activation/interview.py
+- src/charter/activation/ERROR_CODES.md
 - tests/charter/test_encoding_chokepoint.py
 - tests/charter/test_unsafe_bypass.py
 - tests/charter/test_provenance_dual_storage.py
@@ -75,7 +75,7 @@ Reference contracts:
 
 The charter subsystem has 18 `read_text(encoding="utf-8")` call sites across 8 modules. The audit in `research.md` R-7 confirms only three are real **ingest boundaries** (external sources entering the system): `compiler.py:594`, `sync.py:151`, `interview.py:283,398`. The other five are re-reads of files already normalized through an ingest — they remain unchanged in this WP.
 
-The chokepoint sits at `src/charter/_io.py` and exposes `load_charter_file()` / `load_charter_bytes()`. Detection order: BOM sniff → strict UTF-8 → `charset-normalizer` ≥ 0.85 confidence → fail with `CHARTER_ENCODING_AMBIGUOUS`. The `--unsafe` flag bypasses the fail with the highest-confidence candidate; the bypass is recorded in provenance.
+The chokepoint sits at `src/charter/activation/_io.py` and exposes `load_charter_file()` / `load_charter_bytes()`. Detection order: BOM sniff → strict UTF-8 → `charset-normalizer` ≥ 0.85 confidence → fail with `CHARTER_ENCODING_AMBIGUOUS`. The `--unsafe` flag bypasses the fail with the highest-confidence candidate; the bypass is recorded in provenance.
 
 Provenance has dual storage per HiC decision: per-mission (`kitty-specs/<mission>/.encoding-provenance.jsonl`) preferred, centralized (`.kittify/encoding-provenance/global.jsonl`) for non-mission-scoped content. Same record schema; no duplication.
 
@@ -115,11 +115,11 @@ Provenance has dual storage per HiC decision: per-mission (`kitty-specs/<mission
 
 **Steps**:
 
-1. Create `src/charter/_diagnostics.py`:
+1. Create `src/charter/activation/_diagnostics.py`:
    ```python
    """Charter-encoding diagnostic codes.
 
-   See: src/charter/ERROR_CODES.md (hand-maintained mirror until the
+   See: src/charter/activation/ERROR_CODES.md (hand-maintained mirror until the
    code-to-docs flow envisioned in GitHub #645 ships).
    """
 
@@ -131,24 +131,24 @@ Provenance has dual storage per HiC decision: per-mission (`kitty-specs/<mission
        NOT_NORMALIZED = "CHARTER_ENCODING_NOT_NORMALIZED"
    ```
 
-**Files**: `src/charter/_diagnostics.py` (new)
+**Files**: `src/charter/activation/_diagnostics.py` (new)
 
 **Validation**:
 - [ ] mypy strict passes.
 - [ ] StrEnum members match `data-model.md` §3.
 
-### T034 — Create `src/charter/_io.py` (the chokepoint)
+### T034 — Create `src/charter/activation/_io.py` (the chokepoint)
 
 **Purpose**: the single ingestion boundary. Returns `CharterContent`; writes provenance; raises with `CHARTER_ENCODING_AMBIGUOUS` when detection fails (and `--unsafe` is not set).
 
 **Steps**:
 
-1. Create `src/charter/_io.py` per the contract in `contracts/charter-io-chokepoint.md`:
+1. Create `src/charter/activation/_io.py` per the contract in `contracts/charter-io-chokepoint.md`:
    ```python
    """Single ingestion chokepoint for charter content.
 
    Detects source encoding, records provenance, normalizes to UTF-8.
-   See: src/charter/ERROR_CODES.md
+   See: src/charter/activation/ERROR_CODES.md
    """
 
    from __future__ import annotations
@@ -261,7 +261,7 @@ Provenance has dual storage per HiC decision: per-mission (`kitty-specs/<mission
 2. Implement `_build_provenance_record()` per `data-model.md` §3 (`event_id` via ULID, `at` ISO-8601 UTC, `mission_id` resolved from `<mission>/meta.json` when path is per-mission).
 3. Implement `_build_ambiguous_body()` to produce the operator-facing diagnostic body per `contracts/charter-io-chokepoint.md` (named file, candidate list with confidences, mixed-content signal description, three remediation options including `--unsafe`).
 
-**Files**: `src/charter/_io.py` (new)
+**Files**: `src/charter/activation/_io.py` (new)
 
 **Validation**:
 - [ ] mypy strict passes.
@@ -273,13 +273,13 @@ Provenance has dual storage per HiC decision: per-mission (`kitty-specs/<mission
 
 **Steps**:
 
-1. **`src/charter/compiler.py:594`**: change `yaml.load(path.read_text(encoding="utf-8"))` → `yaml.load(load_charter_file(path).text)`. Add the import at the top: `from ._io import load_charter_file`.
-2. **`src/charter/sync.py:151`**: change `charter_path.read_text("utf-8")` → `load_charter_file(charter_path).text`. Add the import.
-3. **`src/charter/interview.py:283 and 398`**: same pattern at both locations.
+1. **`src/charter/activation/compiler.py:594`**: change `yaml.load(path.read_text(encoding="utf-8"))` → `yaml.load(load_charter_file(path).text)`. Add the import at the top: `from ._io import load_charter_file`.
+2. **`src/charter/activation/sync.py:151`**: change `charter_path.read_text("utf-8")` → `load_charter_file(charter_path).text`. Add the import.
+3. **`src/charter/activation/interview.py:283 and 398`**: same pattern at both locations.
 4. **Do NOT modify** `context.py`, `hasher.py`, `language_scope.py`, `compact.py`, `neutrality/lint.py`. These are re-reads of normalized files; they remain explicit UTF-8.
 5. If implementation reveals a 4th ingest site (e.g., a code path that ingests bytes from the SaaS payload without going through `sync.py`), STOP and surface it for scope review — do not silently retrofit it.
 
-**Files**: `src/charter/compiler.py`, `src/charter/sync.py`, `src/charter/interview.py`
+**Files**: `src/charter/activation/compiler.py`, `src/charter/activation/sync.py`, `src/charter/activation/interview.py`
 
 **Validation**:
 - [ ] All 3 sites use `load_charter_file()`.
@@ -314,8 +314,8 @@ Provenance has dual storage per HiC decision: per-mission (`kitty-specs/<mission
 
 **Steps**:
 
-1. Create `src/charter/ERROR_CODES.md` per the layout in `data-model.md` §5. Two sections: `CHARTER_ENCODING_AMBIGUOUS`, `CHARTER_ENCODING_NOT_NORMALIZED`. Each with "When it fires", "JSON stability", "Remediation", "Body example".
-2. Update `src/charter/_diagnostics.py` class docstring to reference `src/charter/ERROR_CODES.md` explicitly (already in T033's template).
+1. Create `src/charter/activation/ERROR_CODES.md` per the layout in `data-model.md` §5. Two sections: `CHARTER_ENCODING_AMBIGUOUS`, `CHARTER_ENCODING_NOT_NORMALIZED`. Each with "When it fires", "JSON stability", "Remediation", "Body example".
+2. Update `src/charter/activation/_diagnostics.py` class docstring to reference `src/charter/activation/ERROR_CODES.md` explicitly (already in T033's template).
 3. **Glossary entries delegated to WP03**. In WP06's PR description, list the glossary entries this WP requires:
    - `encoding chokepoint`
    - `encoding provenance`
@@ -323,7 +323,7 @@ Provenance has dual storage per HiC decision: per-mission (`kitty-specs/<mission
 
    WP03's implementer reads this list and adds the entries when authoring `.kittify/glossaries/spec_kitty_core.yaml` (which WP03 owns). Use the canonical definitions in `data-model.md` §6.
 
-**Files**: `src/charter/ERROR_CODES.md` (new). **Do NOT touch the glossary file** — that's WP03's territory.
+**Files**: `src/charter/activation/ERROR_CODES.md` (new). **Do NOT touch the glossary file** — that's WP03's territory.
 
 **Validation**:
 - [ ] Section count in ERROR_CODES.md == StrEnum member count (2).

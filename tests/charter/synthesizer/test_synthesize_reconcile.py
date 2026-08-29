@@ -31,21 +31,21 @@ from typing import Any, cast
 import pytest
 from ruamel.yaml import YAML
 
-from charter.synthesizer import (
+from charter.activation.synthesizer import (
     FixtureAdapter,
     SynthesisRequest,
     SynthesisTarget,
     synthesize,
 )
-from charter.synthesizer.manifest import (
+from charter.activation.synthesizer.manifest import (
     MANIFEST_PATH,
     ManifestArtifactEntry,
     SynthesisManifest,
     finalize_manifest,
     load_yaml as load_manifest,
 )
-from charter.synthesizer.synthesize_pipeline import canonical_yaml
-from charter.synthesizer.reconcile import (
+from charter.activation.synthesizer.synthesize_pipeline import canonical_yaml
+from charter.activation.synthesizer.reconcile import (
     ManifestDelta,
     ManifestEntryRef,
     NodeOrEdgeRef,
@@ -58,7 +58,7 @@ from charter.synthesizer.reconcile import (
     apply_prune,
     reconcile_synthesis,
 )
-from charter.synthesizer.project_drg import apply_post_condition
+from charter.activation.synthesizer.project_drg import apply_post_condition
 from charter.offering.drg.loader import DRGLoadError
 from charter.offering.drg.models import DRGGraph
 

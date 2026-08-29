@@ -62,13 +62,13 @@ Confirmed live at this HEAD: `src/doctrine/artifact_kinds.py:124-143` defines
 `TOOLGUIDE`, `PARADIGM`, `PROCEDURE`, `AGENT_PROFILE`, `MISSION_STEP_CONTRACT`, `TEMPLATE`,
 `ASSET`, `GLOSSARY_PACK`, `ANTI_PATTERN`) — **no `MISSION_TYPE` member exists today.**
 `MissionTypeNotAnArtifactKind` is defined at `src/doctrine/artifact_kinds.py:40` and is
-re-exported by `src/charter/kind_vocabulary.py` (import at line 51, `__all__` entry at line 78).
+re-exported by `src/charter/activation/kind_vocabulary.py` (import at line 51, `__all__` entry at line 78).
 Its purpose, per the module's own kind-normalization contract, is to keep the operator-facing
 token `"mission-type"` out of the charter-activatable `ArtifactKind` vocabulary while it remains
 a `CHARTER_KIND_TOKENS` member — i.e. mission types are activatable but are deliberately **not**
 a doctrine artifact kind. This mission does not add a `MISSION_TYPE` enum member, does not touch
 `MissionTypeNotAnArtifactKind`, and does not widen `ALLOWED_MISSION_TYPES`
-(`src/charter/activations.py:95`, an import-time-constrained frozenset — spec C-003). Promoting
+(`src/charter/activation/activations.py:95`, an import-time-constrained frozenset — spec C-003). Promoting
 mission-type to a first-class `ArtifactKind` is the separate, larger, currently-unstarted
 upstream effort tracked by the sequencing ADR: issue
 [#2468](https://github.com/Priivacy-ai/spec-kitty/issues/2468), blocked on the keystone pack-split
@@ -114,8 +114,8 @@ recursively, would descend into a per-type subdirectory (e.g.
 `.kittify/doctrine/mission_types/<type>/governance-profile.yaml`) and mint a bogus available
 mission type literally named `governance-profile`. This is a real trap in the live scanning code,
 not a hypothetical one: `CharterPackManager.list_available_detailed`
-(`src/charter/pack_manager.py:756`) uses `scan_dir.rglob(glob)` universally for every
-charter-activatable kind (the `rglob` call itself is at `src/charter/pack_manager.py:809`), so
+(`src/charter/activation/pack_manager.py:756`) uses `scan_dir.rglob(glob)` universally for every
+charter-activatable kind (the `rglob` call itself is at `src/charter/activation/pack_manager.py:809`), so
 any subdirectory content matching the glob resolves as a top-level available artifact id.
 
 This mission's flat CL-005 shape **structurally avoids** the trap rather than fixing the

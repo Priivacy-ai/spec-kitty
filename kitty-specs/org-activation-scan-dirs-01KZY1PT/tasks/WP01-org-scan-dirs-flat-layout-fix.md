@@ -18,12 +18,12 @@ subtasks:
 - T005
 - T006
 history: []
-authoritative_surface: src/charter/kind_vocabulary.py
+authoritative_surface: src/charter/activation/kind_vocabulary.py
 create_intent:
 - tests/charter/test_org_scan_dirs_activation_regression.py
 execution_mode: code_change
 owned_files:
-- src/charter/kind_vocabulary.py
+- src/charter/activation/kind_vocabulary.py
 - tests/charter/test_kind_vocabulary_scan_roots.py
 - tests/charter/test_org_scan_dirs_activation_regression.py
 tags: []
@@ -31,7 +31,7 @@ tags: []
 
 ## Objective
 
-Make `charter.kind_vocabulary._org_scan_dirs` (`src/charter/kind_vocabulary.py:200-209`)
+Make `charter.activation.kind_vocabulary._org_scan_dirs` (`src/charter/activation/kind_vocabulary.py:200-209`)
 scan the flat org-pack layout (`<root>/<plural>`) that every real org pack uses, in
 addition to the legacy `<root>/<plural>/built-in` layout it already scans — closing the
 defect where activating an org pack's own artifact by its own config-stem silently fails
@@ -42,7 +42,7 @@ the activation-filter level (FR-002) and extend the existing unit-level coverage
 
 This is the **entire mission**: one work package, one PR, topology `single_branch`,
 target `main`. There is no WP02 and none should be created — `spec.md`'s C-001 bounds the
-production change to `src/charter/kind_vocabulary.py` (the ~5 LOC `_org_scan_dirs` body)
+production change to `src/charter/activation/kind_vocabulary.py` (the ~5 LOC `_org_scan_dirs` body)
 and confines test changes to exactly the two files this WP owns. Do not touch
 `_built_in_scan_dir` or `_layer_scan_dirs` in the same file — they sit next to
 `_org_scan_dirs` but are not broken and are not the cited defect; touching them is
@@ -87,7 +87,7 @@ plan.md's "Red-First Discipline (WP Sequencing)" section exactly — reproduced 
 do not have to re-derive it:
 
 1. Author the FR-002 activation-filter-level regression test (Subtask T001) against the
-   **pre-fix** `src/charter/kind_vocabulary.py`.
+   **pre-fix** `src/charter/activation/kind_vocabulary.py`.
 2. Run it and confirm red (Subtask T002). The expected pre-fix failure is,
    unconditionally, the assertion that the org directive's node is **absent** from
    `filter_graph_by_activation`'s output graph. Because FR-002 constrains this test to the
@@ -159,17 +159,17 @@ misattributable to #3284/#3283's pre-existing baseline red on `main`.
    <org-directive-stem>` round trip for the org directive's **own** config-stem (or the
    equivalent programmatic `plan_activation`/`commit_activation` call) — not a direct
    `resolve_artifact_urn` call. Note that `CharterPackManager.activate()`'s own
-   artifact-availability check (`_resolve_org_layer_dir`, `src/charter/pack_manager.py`)
+   artifact-availability check (`_resolve_org_layer_dir`, `src/charter/activation/pack_manager.py`)
    is an independent resolution path that already checks the flat `<root>/<plural>`
    layout first and is unaffected by this mission's `_org_scan_dirs` fix — a successful
    `charter activate` call by itself proves nothing about step 6 below; step 6's graph
    assertion is what actually exercises the fix.
 6. Name the mechanism that merges the org pack's `*.graph.yaml` DRG fragment (added in
    step 4) into the graph `filter_graph_by_activation` operates on: call
-   `charter._drg_helpers.load_validated_graph(repo_root, org_root=<org_root>)` — passing
+   `charter.activation._drg_helpers.load_validated_graph(repo_root, org_root=<org_root>)` — passing
    `org_root` **explicitly** — to obtain that merged graph. This is required because
    `load_validated_graph`'s own `org_root` fallback, `_resolve_org_root`
-   (`src/charter/_drg_helpers.py:39-51`), is a permanent no-op that always returns
+   (`src/charter/activation/_drg_helpers.py:39-51`), is a permanent no-op that always returns
    `None` by design (the charter layer cannot import `specify_cli`'s config
    resolution); omitting the explicit `org_root` argument silently drops the org DRG
    node from the merged graph entirely, regardless of whether the `_org_scan_dirs` fix
@@ -182,11 +182,11 @@ misattributable to #3284/#3283's pre-existing baseline red on `main`.
    doctrine.drg.loader.load_graph_or_dir(org_root))` — bypassing `load_validated_graph`
    entirely, which sidesteps the `org_root` fallback problem by construction (it never
    calls `_resolve_org_root` at all); this is a hand-reproduction of
-   `load_validated_graph`'s own internal implementation (`src/charter/_drg_helpers.py`),
+   `load_validated_graph`'s own internal implementation (`src/charter/activation/_drg_helpers.py`),
    not an instance of any test file's pattern; **OR (2)** call
    `load_validated_graph(repo_root, org_root=<org_root>)` directly — the primary
    instruction already given above — while optionally also patching
-   `charter._drg_helpers.load_built_in_graph`, in the style
+   `charter.activation._drg_helpers.load_built_in_graph`, in the style
    `tests/charter/test_merged_graph_on_live_path.py` uses (that file always calls
    `load_validated_graph(tmp_path)` itself and only patches `load_built_in_graph` to
    substitute a fixture built-in layer), and do this only if you also want to substitute
@@ -234,7 +234,7 @@ scan entry.
 **Purpose**: Close the defect with the minimal, spec-pinned change.
 
 **Steps**:
-1. In `src/charter/kind_vocabulary.py`, edit `_org_scan_dirs` (`:200-209`) to return, for
+1. In `src/charter/activation/kind_vocabulary.py`, edit `_org_scan_dirs` (`:200-209`) to return, for
    every configured org root:
    - **First**, `<root>/<kind.plural>` (flat) if it exists, with `recursive=False` —
      matching `DoctrineService._org_dirs` / `BaseDoctrineRepository`'s non-recursive org
@@ -259,11 +259,11 @@ scan entry.
    cited defect.
 3. No new import is needed — `pathlib.Path` is already imported in this file.
 
-**Files**: `src/charter/kind_vocabulary.py` (~5 LOC behavioral change in
+**Files**: `src/charter/activation/kind_vocabulary.py` (~5 LOC behavioral change in
 `_org_scan_dirs`, plus a docstring-only edit in `_scan_roots`).
 
-**Validation**: `ruff check src/charter/kind_vocabulary.py` and
-`mypy --strict src/charter/kind_vocabulary.py` are clean, no new suppressions (C-005,
+**Validation**: `ruff check src/charter/activation/kind_vocabulary.py` and
+`mypy --strict src/charter/activation/kind_vocabulary.py` are clean, no new suppressions (C-005,
 SC-004). Do not run the test suite as "done" yet — proceed to T004.
 
 ### Subtask T004: Re-run FR-002 test, confirm green
@@ -361,13 +361,13 @@ diff shape, before opening the PR.
    pytest tests/charter tests/specify_cli/charter_freshness tests/specify_cli/charter_lint tests/specify_cli/charter_preflight -m "fast and not windows_ci and not timing" --cov=charter --cov-fail-under=55
    ```
 2. Confirm diff-coverage: every changed line/branch in
-   `src/charter/kind_vocabulary.py` (flat-present, legacy-present, both-present,
+   `src/charter/activation/kind_vocabulary.py` (flat-present, legacy-present, both-present,
    neither-present, same-stem-precedence branches) is exercised by FR-002 and FR-003
    together — `src/charter/*` is on the CI `diff-coverage` job's critical-path allowlist
    with a 90%-on-changed-lines floor; this is the binding coverage bar for this diff, not
    the 55% module-level floor above.
-3. Run `ruff check src/charter/kind_vocabulary.py tests/charter/test_kind_vocabulary_scan_roots.py tests/charter/test_org_scan_dirs_activation_regression.py` and
-   `mypy --strict src/charter/kind_vocabulary.py` — advisory in CI (`continue-on-error:
+3. Run `ruff check src/charter/activation/kind_vocabulary.py tests/charter/test_kind_vocabulary_scan_roots.py tests/charter/test_org_scan_dirs_activation_regression.py` and
+   `mypy --strict src/charter/activation/kind_vocabulary.py` — advisory in CI (`continue-on-error:
    true`) but a house rule here: zero issues expected, no new suppressions (C-005).
 4. Run `ruff check src tests --select TID251` — enforced, no `continue-on-error`; expected
    clean (no raw `hashlib.sha256`, no direct `click.exceptions.*` catches anywhere near a
@@ -401,7 +401,7 @@ diff shape, before opening the PR.
       `tests/charter/test_org_scan_dirs_activation_regression.py`,
       `-m "fast and not windows_ci and not timing"`) was re-run immediately before the fix
       commit, confirming no #3284/#3283 noise is present on this surface.
-- [ ] `_org_scan_dirs` (`src/charter/kind_vocabulary.py:200-209`) returns the flat entry
+- [ ] `_org_scan_dirs` (`src/charter/activation/kind_vocabulary.py:200-209`) returns the flat entry
       (`recursive=False`) ordered first, then the legacy `built-in` entry
       (`recursive=True`) where each exists; neither existing returns `[]`, never raises
       (FR-001).
@@ -418,7 +418,7 @@ diff shape, before opening the PR.
       tests/specify_cli/charter_freshness tests/specify_cli/charter_lint
       tests/specify_cli/charter_preflight`, `-m "fast and not windows_ci and not
       timing"`) is green.
-- [ ] Diff-coverage on `src/charter/kind_vocabulary.py`'s changed lines meets the 90%
+- [ ] Diff-coverage on `src/charter/activation/kind_vocabulary.py`'s changed lines meets the 90%
       critical-path floor (every branch of the fix exercised by FR-002 + FR-003).
 - [ ] `ruff check` and `mypy --strict` are clean on all three owned files, zero new
       suppressions (C-005, SC-004).
@@ -473,7 +473,7 @@ diff shape, before opening the PR.
 - **Ordering regression.** If the fix's list-building accidentally puts the legacy entry
   before the flat entry, the same-stem precedence test (T005) will catch it, but be
   deliberate about ordering when writing the fix in T003.
-- **Graph-merge never wired to `org_root`.** `charter._drg_helpers.load_validated_graph`'s
+- **Graph-merge never wired to `org_root`.** `charter.activation._drg_helpers.load_validated_graph`'s
   `org_root` argument defaults to `_resolve_org_root`, a permanent no-op that always
   returns `None`; the only call site anywhere in `src/` that ever passes a real
   `org_root=` is `action_doctrine_bundle.py:165`. If T001 builds the graph passed into
@@ -502,7 +502,7 @@ diff shape, before opening the PR.
 - Confirm the `_scan_roots` docstring update landed and accurately reflects the new
   two-entry contract, not just the flat addition in isolation.
 - Confirm no file outside `owned_files` changed, and no commit touches
-  `src/charter/_drg_helpers.py` or any other #3384-owned surface (C-002).
+  `src/charter/activation/_drg_helpers.py` or any other #3384-owned surface (C-002).
 - Confirm the PR body or WP notes record the deferred VC-001/VC-002/consumer-coverage
   items above as explicit non-goals, not silently dropped.
 

@@ -50,7 +50,7 @@ maintainability fixes, not topology changes) — implementers confirm `ruff`/`my
 
 ### IC-01 — Charter ReDoS BLOCKER (FR-001, NFR-003, SC-003)
 
-- Simplify `src/charter/context_renderers/token_budget.py:308` regex to remove super-linear backtracking.
+- Simplify `src/charter/activation/context_renderers/token_budget.py:308` regex to remove super-linear backtracking.
 - Add a characterization test: the new regex matches EXACTLY the same inputs (representative + adversarial
   backtracking inputs) as the old one, and runs linear-time. Own this file (+ its test) alone → highest priority.
 

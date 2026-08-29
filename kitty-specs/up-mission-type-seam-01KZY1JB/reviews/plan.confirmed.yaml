@@ -14,8 +14,8 @@ findings:
     title: "Plan's Summary misdescribes the mission's own \"dominant risk\" mechanism, contradicting the exact code it cites"
     evidence:
       - artifact: "plan.md § Summary, paragraph 1"
-      - code: "src/charter/mission_type_profiles.py:788-799 (guard + raise)"
-      - code: "src/charter/mission_type_profiles.py:807 (return list(mission.action_sequence or []) — only reachable when mission is not None)"
+      - code: "src/charter/activation/mission_type_profiles.py:788-799 (guard + raise)"
+      - code: "src/charter/activation/mission_type_profiles.py:807 (return list(mission.action_sequence or []) — only reachable when mission is not None)"
     claim: >
       The plan's Summary states that today, for "a genuinely-registered-but-unprojected type,"
       execution "falls through to `list(mission.action_sequence or [])` at line 807, and
@@ -38,9 +38,9 @@ findings:
       for one of the seam's two twin functions
     evidence:
       - artifact: "plan.md § Summary; plan.md § IC-02"
-      - code: "src/charter/mission_type_profiles.py:762-767 (_resolve_action_slot signature — no pack_context parameter)"
-      - code: "src/charter/mission_type_profiles.py:793 (repo = MissionTypeRepository.default())"
-      - code: "src/charter/mission_type_profiles.py:876-878 (_resolve_template_set_slot genuinely hardcodes pack_context=None)"
+      - code: "src/charter/activation/mission_type_profiles.py:762-767 (_resolve_action_slot signature — no pack_context parameter)"
+      - code: "src/charter/activation/mission_type_profiles.py:793 (repo = MissionTypeRepository.default())"
+      - code: "src/charter/activation/mission_type_profiles.py:876-878 (_resolve_template_set_slot genuinely hardcodes pack_context=None)"
     claim: >
       "Both hardcode pack_context=None" is only true for _resolve_template_set_slot.
       _resolve_action_slot's builtin-only-ness comes from calling the zero-arg

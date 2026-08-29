@@ -20,7 +20,7 @@
 
 ## Blocking Issue: `resolve_mission_steps` is dead code (Anti-Pattern #1)
 
-`charter.resolver.resolve_mission_steps` is exported in `__all__` but has **no production caller** anywhere in `src/`. Every search confirms this:
+`charter.activation.resolver.resolve_mission_steps` is exported in `__all__` but has **no production caller** anywhere in `src/`. Every search confirms this:
 
 ```
 grep -r "resolve_mission_steps" src/ --include="*.py"
@@ -28,7 +28,7 @@ grep -r "resolve_mission_steps" src/ --include="*.py"
 ```
 
 The dead-symbol architectural test (`tests/architectural/test_no_dead_symbols.py`) now flags
-`charter.resolver::resolve_mission_steps` as a newly dead symbol. The test was already failing
+`charter.activation.resolver::resolve_mission_steps` as a newly dead symbol. The test was already failing
 on the base branch for other reasons (WP07, WP06 symbols not yet wired), but WP09 adds one
 more dead symbol that was not present before.
 

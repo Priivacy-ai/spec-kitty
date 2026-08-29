@@ -86,7 +86,7 @@ def resolve_org_expected_artifacts(
     """<org_root>/<mission_type>/expected-artifacts.yaml, later org_roots override earlier."""
 ```
 
-- **Location**: `src/charter/org_expected_artifacts.py` (new module).
+- **Location**: `src/charter/activation/org_expected_artifacts.py` (new module).
 - **Input contract**: `org_roots` is the caller's own existence-filtered list of org roots (see
   `data-model.md` — this is **not** `resolve_org_dirs`'s subdir-joined output; the caller passes
   raw org roots and this function does the per-root `<mission_type>` join itself, since

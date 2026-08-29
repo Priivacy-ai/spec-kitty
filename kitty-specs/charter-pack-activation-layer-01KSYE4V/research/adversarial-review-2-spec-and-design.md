@@ -37,7 +37,7 @@ An implementer cannot determine from this document whether `CharterPackManager.a
 
 **Files**: `spec.md` FR-040, `data-model.md` §OperationalContext
 
-FR-040 text: "A new `src/charter/invocation_context.py` module is created defining `ProjectContext`, `OperationalContext`, and `ContextPreconditionError`; a `src/specify_cli/context/` package re-exports these types and provides population factories."
+FR-040 text: "A new `src/charter/activation/invocation_context.py` module is created defining `ProjectContext`, `OperationalContext`, and `ContextPreconditionError`; a `src/specify_cli/context/` package re-exports these types and provides population factories."
 
 `data-model.md` §OperationalContext says: "`OperationalContext` is **specced but not wired** in this mission — it is reserved for future context-aware activation filtering."
 
@@ -202,7 +202,7 @@ The data-model acknowledges this: "This is deterministic and independent of the 
 
 **Round 1 finding (S14) remains open and unchanged.**
 
-`data-model.md` line 36: "Existing Pydantic dataclass in `src/charter/pack_context.py`."
+`data-model.md` line 36: "Existing Pydantic dataclass in `src/charter/activation/pack_context.py`."
 
 The implementation uses `@dataclass(frozen=True)` from stdlib, not Pydantic. The distinction matters for: field validators, `model_config`, `model_validate`, JSON serialization, error messages on invalid input. An implementer who adds new fields using Pydantic `Field()` decorators or `@validator` will introduce a dependency mismatch.
 
@@ -296,7 +296,7 @@ The following items from the Round 1 adversarial review have been resolved in th
 
 - **Round 1 Minor #13** (duplicate success criteria numbering): Success criteria now run 1–14 with no duplicates. RESOLVED.
 
-- **Round 1 Minor #16** (`CharterPackManager.activate` materialization source unspecified): `data-model.md` now explicitly states "The source is `src/charter/packs/default.yaml`." PARTIALLY RESOLVED — but see S-6 above for the residual gap (third-party artifact loss not addressed).
+- **Round 1 Minor #16** (`CharterPackManager.activate` materialization source unspecified): `data-model.md` now explicitly states "The source is `src/charter/activation/packs/default.yaml`." PARTIALLY RESOLVED — but see S-6 above for the residual gap (third-party artifact loss not addressed).
 
 - **C-004 fix / mypy Protocol requirement** (from architecture review): FR-020 now explicitly states "a narrow `ProjectContextProtocol` defined in `doctrine.*` replaces the direct `PackContext` annotation, satisfying both pytestarch and mypy strict." RESOLVED at spec level.
 

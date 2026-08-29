@@ -15,7 +15,7 @@ Technical approach (one line per WP):
 - **WP03 #985**: introduce `--mode {lightweight|post-merge}` with auto-detect default from `meta.json.baseline_merge_commit`; enforce the audit-derived `issue-matrix.md` schema; record Gate 1–4 with command/exit-code/result; remediate the 6 existing matrices on `main` with auto-normalize-or-fail-loud.
 - **WP04 #983**: short-circuit mission-number assignment when `meta.json.mission_number` already equals the computed value; persist `mission_number_baked: true` on the merge-state so `--resume` skips the step; cover with a regression simulating partial-merge resume.
 - **WP05 #984**: audit `_ensure_target_branch_checked_out`, `get_main_repo_root`, and sibling resolvers; route read-only status commands through current-worktree resolution; fail loudly when the command intentionally does not support detached worktrees.
-- **WP06 #644 (narrowed)**: new `src/charter/_io.py :: load_charter_file()` applied to three ingest boundaries (`interview.py`, `sync.py`, `compiler.py`); `charset-normalizer` promoted to direct dep `>=3.4,<4`; hard-fail on ambiguous encoding with `--unsafe` bypass; dual-storage `.encoding-provenance.jsonl` (per-mission preferred; centralized for non-mission-scoped content).
+- **WP06 #644 (narrowed)**: new `src/charter/activation/_io.py :: load_charter_file()` applied to three ingest boundaries (`interview.py`, `sync.py`, `compiler.py`); `charset-normalizer` promoted to direct dep `>=3.4,<4`; hard-fail on ambiguous encoding with `--unsafe` bypass; dual-storage `.encoding-provenance.jsonl` (per-mission preferred; centralized for non-mission-scoped content).
 - **WP07 (refactor)**: mechanical split of `src/specify_cli/cli/commands/review.py` into a package (`commands/review/__init__.py` + `_lane_gate.py`, `_dead_code.py`, `_ble001_audit.py`, `_report.py`, `_diagnostics.py`, `_issue_matrix.py`); preserves `review_mission()` import path; behavioral neutrality enforced by NFR-005.
 - **WP08 (migration)**: `spec-kitty migrate charter-encoding` scans every existing mission's charter content, detects non-UTF-8 encodings, normalizes-with-provenance or fails-loud per file; idempotent (NFR-006); produces JSON-stable summary report.
 
@@ -139,7 +139,7 @@ tests/
 └── spec_kitty_core.yaml                 # FR-034 additions (new canonical terms)
 ```
 
-**Structure Decision**: Single-project Python CLI. WP07 introduces a package directory at `src/specify_cli/cli/commands/review/` to replace the current single-file `review.py`. WP06 introduces a new internal package `src/charter/_io.py` co-located with existing charter modules. No new top-level packages; no new test top-level dirs (added sub-dirs under existing `tests/` are conventional).
+**Structure Decision**: Single-project Python CLI. WP07 introduces a package directory at `src/specify_cli/cli/commands/review/` to replace the current single-file `review.py`. WP06 introduces a new internal package `src/charter/activation/_io.py` co-located with existing charter modules. No new top-level packages; no new test top-level dirs (added sub-dirs under existing `tests/` are conventional).
 
 ## Phase Execution
 

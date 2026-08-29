@@ -50,7 +50,7 @@ validation crash. The confirmed contract:
 
 The canonical doctrine anchor is ADR `2026-07-26-3`, whose posture is warn/report, not
 hard-block. The mission introduces a NEW `ReconciliationConflict` (in
-`src/charter/synthesizer/reconcile.py`) **modeled after** — not reusing — the DRG
+`src/charter/activation/synthesizer/reconcile.py`) **modeled after** — not reusing — the DRG
 typed-conflict shape in `src/doctrine/drg/merge.py`. That `OrgDRGConflict`/`
 _CONFLICT_REMEDIATIONS` model belongs to the org-pack fragment-merge subsystem (its `kind`
 is a closed `Literal` with no `duplicate_triple`, and it carries no `backing_artifact`/
@@ -261,7 +261,7 @@ low-frequency but same root cause.
 
 | ID | Title | Constraint | Category | Priority | Status |
 |----|-------|------------|----------|----------|--------|
-| C-001 | Anchor to the DRG conflict *shape* (model after, don't reuse) | Behavior conforms to ADR `2026-07-26-3`'s warn/report posture (hard-fail reserved). The mission introduces a NEW `ReconciliationConflict` in `src/charter/synthesizer/reconcile.py` **modeled after** the `src/doctrine/drg/merge.py` typed-conflict/remediation shape — `merge.py` is the org-pack fragment-merge subsystem (closed `kind` Literal, no `duplicate_triple`, no `backing_artifact`/`remediation`) and is NOT reused or edited; the synthesize path's `validate_graph` returns `list[str]`, so this is net-new translation. ADR `2026-05-16-1` applies only as the field-grain non-destruction precedent. | Technical | High | Open |
+| C-001 | Anchor to the DRG conflict *shape* (model after, don't reuse) | Behavior conforms to ADR `2026-07-26-3`'s warn/report posture (hard-fail reserved). The mission introduces a NEW `ReconciliationConflict` in `src/charter/activation/synthesizer/reconcile.py` **modeled after** the `src/doctrine/drg/merge.py` typed-conflict/remediation shape — `merge.py` is the org-pack fragment-merge subsystem (closed `kind` Literal, no `duplicate_triple`, no `backing_artifact`/`remediation`) and is NOT reused or edited; the synthesize path's `validate_graph` returns `list[str]`, so this is net-new translation. ADR `2026-05-16-1` applies only as the field-grain non-destruction precedent. | Technical | High | Open |
 | C-002 | Reuse canonical reconciliation | Preservation reuses the existing `resynthesize` primitives — `_merge_project_overlay` (graph) AND `_rewrite_manifest` (manifest) — not a parallel hand-rolled merge. | Technical | High | Open |
 | C-003 | P0 spine independently landable | The P0 spine (FR-001..009 + the committed test) — which now includes the non-destructive boundary heal (FR-008) — must be shippable even if the folded slices (FR-010..014) run long; the P2/P3 work must not gate the release-blocker. | Business | High | Open |
 | C-004 | Same-PR test + remediation | The red-first reproduction test and the remediation ship in the same pull request (test not marked `regression`/`quarantine`). | Technical | High | Open |

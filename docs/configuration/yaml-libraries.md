@@ -51,7 +51,7 @@ PyYAML's `yaml.safe_load` is a single-call read with no write path. It is approp
 | `src/specify_cli/frontmatter.py` | 17–18, 31 | `from ruamel.yaml import YAML, CommentedMap` | `FrontmatterManager` — read and write WP frontmatter files in place (rule 1: always use ruamel.yaml; rule 4: preserve comments) |
 | `src/doctrine/yaml_utils.py` | 21 | `from ruamel.yaml import YAML` | `canonical_yaml()` — deterministic sorted-key serializer for hashing; uses ruamel for consistent output |
 | `src/doctrine/drg/loader.py` | 12–13 | `from ruamel.yaml import YAML, YAMLError` | Doctrine relationship graph (DRG) loader — round-trip parse |
-| `src/charter/pack_manager.py` | 63–64 | `YAML(); yaml.preserve_quotes = True` | `_load_config()` / `_save_config()` — read + write `.kittify/config.yaml` in `CharterPackManager` |
+| `src/charter/activation/pack_manager.py` | 63–64 | `YAML(); yaml.preserve_quotes = True` | `_load_config()` / `_save_config()` — read + write `.kittify/config.yaml` in `CharterPackManager` |
 | `src/specify_cli/review/artifacts.py` | 21 | `from ruamel.yaml import YAML` | Review artifact serialization — preserve existing frontmatter style |
 
 ### 2.2 PyYAML `safe_load` sites (read-only)
@@ -78,7 +78,7 @@ PyYAML's `yaml.safe_load` is a single-call read with no write path. It is approp
 **The same `.kittify/config.yaml` data is read via two different libraries:**
 
 - `src/doctrine/drg/org_pack_config.py` (line 33–36): uses **ruamel.yaml** with `preserve_quotes=True`. This is the **write** path — `save_pack_registry()` writes back via the same ruamel instance.
-- `src/charter/pack_manager.py` (line 286–326): uses **ruamel.yaml** for reads *and* writes (`_load_config()` / `_save_config()`). This is consistent with the criterion.
+- `src/charter/activation/pack_manager.py` (line 286–326): uses **ruamel.yaml** for reads *and* writes (`_load_config()` / `_save_config()`). This is consistent with the criterion.
 
 However, several *other* callers read `config.yaml`-class data via PyYAML `safe_load`:
 

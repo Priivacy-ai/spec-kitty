@@ -85,7 +85,7 @@ Collapse the **12 byte-identical** isoformat `_now_utc` copies into **one** cano
 ### T025 — Triage the cross-package copies
 - Byte-identical isoformat copies exist **across package boundaries**: `src/glossary/events.py:217`,
   `src/runtime/next/_internal_runtime/retrospective_terminus.py:65`, and
-  **`src/charter/evidence/code_reader.py:108`** (squad-found; was missing from the plan). Do NOT silently
+  **`src/charter/activation/evidence/code_reader.py:108`** (squad-found; was missing from the plan). Do NOT silently
   stop at 12: for each, either point it at the shared helper (if import direction allows) or record it
   **OUT with a one-line rationale** (import-direction). Not in this WP's owned files — document the decision
   in the review; do not reach out to edit them here.

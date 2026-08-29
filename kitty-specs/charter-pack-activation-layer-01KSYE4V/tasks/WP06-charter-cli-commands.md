@@ -96,7 +96,7 @@ through `CharterPackManager`, closing the reader gap (FR-014).
 The nine activation kinds (CLI names): `directive`, `tactic`, `styleguide`,
 `toolguide`, `paradigm`, `procedure`, `agent-profile`, `mission-step-contract`,
 `mission-type`. Their mapping to `config.yaml` keys lives in
-`charter.pack_manager.YAML_KEY_MAP` (delivered by WP04).
+`charter.activation.pack_manager.YAML_KEY_MAP` (delivered by WP04).
 
 **ATDD rule**: Every subtask that changes existing behavior MUST update or delete the
 affected tests in the same subtask.
@@ -149,8 +149,8 @@ FR-004, FR-005, FR-006, FR-007, FR-008, FR-009, FR-010, FR-014
    from pathlib import Path
    import typer
    from rich.console import Console
-   from charter.pack_manager import CharterPackManager, YAML_KEY_MAP
-   from charter.invocation_context import ProjectContext
+   from charter.activation.pack_manager import CharterPackManager, YAML_KEY_MAP
+   from charter.activation.invocation_context import ProjectContext
 
    __all__ = ["charter_activate_app", "activate_cmd"]
 
@@ -232,8 +232,8 @@ Expected: all tests pass with no references to `--action-sequence` or override f
 
 2. Refactor the function body so that instead of writing an override YAML file it calls:
    ```python
-   from charter.pack_manager import CharterPackManager
-   from charter.invocation_context import ProjectContext
+   from charter.activation.pack_manager import CharterPackManager
+   from charter.activation.invocation_context import ProjectContext
 
    ctx = ProjectContext.from_repo(repo_root)
    CharterPackManager().activate(ctx, "mission-type", mission_type_id, cascade=False)
@@ -283,8 +283,8 @@ Expected: passes.
    from pathlib import Path
    import typer
    from rich.console import Console
-   from charter.pack_manager import CharterPackManager, YAML_KEY_MAP
-   from charter.invocation_context import ProjectContext
+   from charter.activation.pack_manager import CharterPackManager, YAML_KEY_MAP
+   from charter.activation.invocation_context import ProjectContext
 
    __all__ = ["charter_deactivate_app", "deactivate_cmd"]
 
@@ -368,8 +368,8 @@ shadow the Python built-in `list`, causing subtle import failures.
    import typer
    from rich.console import Console
    from rich.table import Table
-   from charter.pack_manager import CharterPackManager
-   from charter.invocation_context import ProjectContext
+   from charter.activation.pack_manager import CharterPackManager
+   from charter.activation.invocation_context import ProjectContext
 
    __all__ = ["charter_list_app", "list_cmd"]
 
@@ -459,7 +459,7 @@ Expected: `import ok`.
    from pathlib import Path
    import typer
    from rich.console import Console
-   from charter.invocation_context import ProjectContext
+   from charter.activation.invocation_context import ProjectContext
 
    __all__ = ["charter_pack_app"]
 
@@ -476,7 +476,7 @@ Expected: `import ok`.
        repo_root: Path = typer.Option(Path("."), hidden=True),
    ) -> None:
        """Run consistency check against activated doctrine artifacts (FR-011)."""
-       from charter.consistency_check import run_consistency_check
+       from charter.activation.consistency_check import run_consistency_check
        ctx = ProjectContext.from_repo(repo_root)
        report = run_consistency_check(ctx)
        if json_output:

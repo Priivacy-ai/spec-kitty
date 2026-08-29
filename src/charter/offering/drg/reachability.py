@@ -54,7 +54,7 @@ __all__ = [
 #: why the two channels cannot be folded: profiles carry zero outbound ``scope``
 #: (R-3), so a ``resolve_context`` seed measures zero at any depth. The consumer
 #: layer surfaces each ``suggests`` edge's ``when`` as a link (see
-#: ``charter.progressive_disclosure.profile_channel_references``); this node-level
+#: ``charter.activation.progressive_disclosure.profile_channel_references``); this node-level
 #: walk stays edge-agnostic.
 PROFILE_CHANNEL_RELATIONS: frozenset[Relation] = frozenset(
     {Relation.REQUIRES, Relation.SPECIALIZES_FROM, Relation.SUGGESTS}

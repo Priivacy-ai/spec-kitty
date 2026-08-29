@@ -29,11 +29,11 @@ history:
 agent_profile: python-pedro
 authoritative_surface: src/charter/
 create_intent:
-- src/charter/mission_type_profile_repository.py
+- src/charter/activation/mission_type_profile_repository.py
 execution_mode: code_change
 model: claude-sonnet-5
 owned_files:
-- src/charter/mission_type_profile_repository.py
+- src/charter/activation/mission_type_profile_repository.py
 - src/doctrine/base.py
 role: implementer
 tags: []
@@ -75,7 +75,7 @@ rule: `doctrine ↛ charter`), and sets the `id == mission_type` invariant that 
 - **T025 — add `id`.** Add `id: str` to `MissionTypeProfile` (in `charter/mission_type_profiles.py`,
   out-of-map/sequential behind the WP03 dep). Add `id: software-dev` to the shipped
   `software-dev/governance-profile.yaml`. Keep `extra="forbid"` satisfied.
-- **T026 — repository subclass.** Create `src/charter/mission_type_profile_repository.py` with a
+- **T026 — repository subclass.** Create `src/charter/activation/mission_type_profile_repository.py` with a
   `BaseDoctrineRepository[MissionTypeProfile]` subclass. It **must** live under `charter/` (the base is
   importable charter → doctrine; the reverse is forbidden) — verify `test_layer_rules.py` stays green.
 - **T027 — wire the overlay.** Wire the subclass through `doctrine/base.py`'s builtin → org → project

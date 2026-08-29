@@ -58,10 +58,10 @@ findings:
     severity: 2
     title: "UnregisteredMissionFamilyError and UnknownMissionTypeError have no code-level cross-reference despite the plan's own FR-008 classifier explicitly reusing the sibling exception's branch logic"
     evidence:
-      - artifact: "plan.md § Seam & Module Placement — `Add class UnregisteredMissionFamilyError(ValueError) — a new, local exception, deliberately NOT importing or reusing charter.mission_type_profiles.UnknownMissionTypeError. Two independent reasons: (1) this module's own zero-dependency-leaf invariant forbids importing charter at all; (2) the two exceptions answer different questions at different layers...`"
+      - artifact: "plan.md § Seam & Module Placement — `Add class UnregisteredMissionFamilyError(ValueError) — a new, local exception, deliberately NOT importing or reusing charter.activation.mission_type_profiles.UnknownMissionTypeError. Two independent reasons: (1) this module's own zero-dependency-leaf invariant forbids importing charter at all; (2) the two exceptions answer different questions at different layers...`"
       - artifact: "plan.md § Seam & Module Placement (FR-008 taxonomy classifier) — `Registered, but repo.get(key) is None → state activated-unresolvable (this is the exact branch _resolve_action_slot in charter/mission_type_profiles.py already hits at its own raise UnknownMissionTypeError(...) call, line 799 ... reused here as a read-only classification instead of a raise).`"
       - code: "src/runtime/next/runtime_bridge_cores.py:1-9 (module docstring) — 'may import stdlib, Lane/decision types, and nothing else... Every function here is pure: no filesystem, no git, no meta.json reads' — confirms the zero-dependency-leaf claim is real (verified: current imports are stdlib + `runtime.next.decision` only, no architectural gate/test enforces this beyond the docstring convention itself)."
-      - code: "src/charter/mission_type_profiles.py:193-256 (`class UnknownMissionTypeError(ValueError)`) — also a `ValueError` subclass carrying an offending mission-type-ish string (`mission_type_id`) with message-building distinguishing 'unknown' vs 'activated but has no loadable profile,' the same two-way distinction the new FR-008 taxonomy re-derives independently."
+      - code: "src/charter/activation/mission_type_profiles.py:193-256 (`class UnknownMissionTypeError(ValueError)`) — also a `ValueError` subclass carrying an offending mission-type-ish string (`mission_type_id`) with message-building distinguishing 'unknown' vs 'activated but has no loadable profile,' the same two-way distinction the new FR-008 taxonomy re-derives independently."
     claim: >
       The plan's reasoning for NOT reusing `UnknownMissionTypeError` is sound and independently
       verified: (a) `runtime_bridge_cores.py`'s zero-dependency-leaf invariant is real (confirmed
@@ -81,7 +81,7 @@ findings:
       to check for a parallel update.
     remediation: >
       Add a one-line cross-reference comment to `UnregisteredMissionFamilyError`'s docstring in
-      `runtime_bridge_cores.py` (e.g. "Sibling concept: charter.mission_type_profiles.
+      `runtime_bridge_cores.py` (e.g. "Sibling concept: charter.activation.mission_type_profiles.
       UnknownMissionTypeError — same shape (ValueError carrying the offending string), different
       layer (runtime guard-family dispatch vs charter mission-type resolution); intentionally not
       unified, see plan.md's Seam & Module Placement for the two-independent-reasons rationale").

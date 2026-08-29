@@ -28,7 +28,7 @@ authoritative_surface: src/specify_cli/doctrine/org_charter.py
 execution_mode: code_change
 owned_files:
 - src/specify_cli/doctrine/org_charter.py
-- src/charter/interview.py
+- src/charter/activation/interview.py
 - tests/specify_cli/doctrine/test_org_charter.py
 role: implementer
 tags: []
@@ -96,7 +96,7 @@ When multiple packs declare `org-charter.yaml`, they are merged in pack declarat
 (later pack wins on `interview_defaults` key collision; `required_directives` are unioned;
 `governance_policies` are concatenated and deduplicated by `field` + `value`).
 
-The charter interview (`src/charter/interview.py`) loads answers from
+The charter interview (`src/charter/activation/interview.py`) loads answers from
 `.kittify/charter/interview/answers.yaml`. Pre-fill injects org defaults into that file
 before the interactive prompts, so they appear as pre-selected but modifiable.
 
@@ -155,7 +155,7 @@ def load_org_charter_policies(repo_root: Path) -> OrgCharterPolicy:
 
 ## Subtask T043 — Charter interview pre-fill
 
-**Files**: `src/charter/interview.py` (modify), `src/specify_cli/doctrine/org_charter.py` (add helper)
+**Files**: `src/charter/activation/interview.py` (modify), `src/specify_cli/doctrine/org_charter.py` (add helper)
 
 **Purpose**: Before the interactive interview starts, inject org charter defaults into the
 interview answers so they appear pre-filled but remain modifiable.

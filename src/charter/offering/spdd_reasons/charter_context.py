@@ -13,7 +13,7 @@ context.md:
 | review     | Comparison surface (R, O, N, S)                    |
 
 Activation is decided by ``is_spdd_reasons_active(repo_root)``. This helper
-itself does NOT re-check activation — the caller in ``charter.context`` owns
+itself does NOT re-check activation — the caller in ``charter.activation.context`` owns
 that gate (single source of truth, C-002).
 """
 

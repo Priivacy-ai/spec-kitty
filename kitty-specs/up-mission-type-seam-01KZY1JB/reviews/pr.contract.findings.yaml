@@ -11,8 +11,8 @@ findings:
     title: "mission-type show crashes uncaught on the exact CL-003 empty-action-sequence case it was built to guard against"
     evidence:
       - code: "src/specify_cli/cli/commands/mission_type.py:1450-1462"
-      - code: "src/charter/mission_type_profiles.py:194-256"
-      - code: "src/charter/mission_type_profiles.py:259-305"
+      - code: "src/charter/activation/mission_type_profiles.py:194-256"
+      - code: "src/charter/activation/mission_type_profiles.py:259-305"
       - code: "src/specify_cli/cli/commands/charter/mission_type.py:151-160"
     claim: >
       `show_mission_type` (`spec-kitty mission-type show <id>`, one of WP07's four
@@ -54,14 +54,14 @@ findings:
     severity: 4
     title: "charter activate mission-type silently swallows malformed-YAML and unreadable-directory failures in the very org/project layers WP05 newly wired in, masking them as a generic 'unknown ID'"
     evidence:
-      - code: "src/charter/pack_manager.py:317-338"
-      - code: "src/charter/pack_manager.py:361-377"
-      - code: "src/charter/pack_manager.py:778-840"
+      - code: "src/charter/activation/pack_manager.py:317-338"
+      - code: "src/charter/activation/pack_manager.py:361-377"
+      - code: "src/charter/activation/pack_manager.py:778-840"
       - code: "src/doctrine/missions/mission_type_repository.py:358-394"
-      - code: "src/charter/pack_manager.py:618-643"
+      - code: "src/charter/activation/pack_manager.py:618-643"
     claim: >
       WP05 (`_resolve_layer_candidate`, pack_manager.py:317-338, confirmed by
-      `git diff origin/main...HEAD -- src/charter/pack_manager.py`) newly wires
+      `git diff origin/main...HEAD -- src/charter/activation/pack_manager.py`) newly wires
       org/project mission-type directories into `CharterPackManager.list_available_detailed`
       (pack_manager.py:778-840) — the availability catalog `activate()`
       (pack_manager.py:618-643, via `manager.activate(...)` in `activate_cmd`)

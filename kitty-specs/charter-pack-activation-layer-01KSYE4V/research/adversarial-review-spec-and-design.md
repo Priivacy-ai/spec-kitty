@@ -43,7 +43,7 @@ The entire Pattern-A wiring (directives, tactics, styleguides, toolguides) would
 
 **3. The three-state invariant (`None` / empty frozenset / non-empty frozenset) is broken by the existing `from_config()` implementation**
 
-Files: `data-model.md` §CharterPack Invariant, `src/charter/pack_context.py` lines 196–199 and 209–212
+Files: `data-model.md` §CharterPack Invariant, `src/charter/activation/pack_context.py` lines 196–199 and 209–212
 
 `data-model.md` declares: "An empty `frozenset` means 'nothing activated for this kind' (explicit restriction to empty set)." This is described as one of three distinct states.
 
@@ -103,7 +103,7 @@ FR-001: "A default charter pack … listing all artifacts available in the built
 
 The upgrade algorithm in `research.md` writes to `activated_kinds` and `mission_type_activations` only. It does not write to `activated_directives`, `activated_tactics`, etc. After migration, every per-kind field is `None` — meaning "all built-ins available" by the data-model invariant.
 
-Success criterion 1 says "`charter list` confirms all built-in artifacts across all nine activation kinds are activated." If per-kind fields are `None`, `charter list` would show "All built-ins (default)" for each kind, not an enumerated list. The `src/charter/packs/default.yaml` is described as containing full artifact lists, but the migration algorithm reads it only to write to `activated_kinds` — it does not write individual artifact IDs from it.
+Success criterion 1 says "`charter list` confirms all built-in artifacts across all nine activation kinds are activated." If per-kind fields are `None`, `charter list` would show "All built-ins (default)" for each kind, not an enumerated list. The `src/charter/activation/packs/default.yaml` is described as containing full artifact lists, but the migration algorithm reads it only to write to `activated_kinds` — it does not write individual artifact IDs from it.
 
 ---
 
@@ -153,11 +153,11 @@ Behavior step 3 checks: "Is the referenced artifact in the activated set?" It do
 
 **13. Duplicate success criteria numbering**: `spec.md` has two items labeled `10.` and two labeled `11.`.
 
-**14. `data-model.md` describes `PackContext` as "Pydantic frozen dataclass"**: `src/charter/pack_context.py:67` uses stdlib `@dataclass(frozen=True)`, not Pydantic. Different mechanics for defaults, field ordering, constructor generation.
+**14. `data-model.md` describes `PackContext` as "Pydantic frozen dataclass"**: `src/charter/activation/pack_context.py:67` uses stdlib `@dataclass(frozen=True)`, not Pydantic. Different mechanics for defaults, field ordering, constructor generation.
 
 **15. `mission_step_contract` → `"mission_steps"` naming gap in `drg.py` vs `pack_context.py`**: `drg.py:592` `_SINGULAR_TO_PLURAL` maps to `"mission_steps"`; `pack_context.py:58` `_BUILTIN_ARTIFACT_KINDS` contains `"mission_step_contracts"`. Ownerless `mission_step_contract` nodes silently drop in default mode. Spec inherits this defect without addressing it.
 
-**16. `CharterPackManager.activate` flow materializes "all built-ins" from unspecified source**: "If None: initialize to all built-ins, then add." Which list is "all built-ins"? `DoctrineService.<repo>.list()` at activation time? `src/charter/packs/default.yaml`? These could differ if the doctrine pack changes. Unspecified.
+**16. `CharterPackManager.activate` flow materializes "all built-ins" from unspecified source**: "If None: initialize to all built-ins, then add." Which list is "all built-ins"? `DoctrineService.<repo>.list()` at activation time? `src/charter/activation/packs/default.yaml`? These could differ if the doctrine pack changes. Unspecified.
 
 **17. Wiring acceptance criteria grep commands are underspecified**: Item 5 says grep must return "at least one" non-test caller, but research.md identifies 4 call sites. Item 6's grep cannot be expressed as a simple string search — requires static analysis, not grep.
 

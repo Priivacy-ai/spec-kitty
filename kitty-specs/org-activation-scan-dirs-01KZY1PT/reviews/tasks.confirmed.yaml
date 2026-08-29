@@ -13,7 +13,7 @@ findings:
     evidence:
       - artifact: "spec.md § User Story 1, Acceptance Scenarios, item 2"
       - artifact: "tasks/WP01-org-scan-dirs-flat-layout-fix.md § Subtask T005, step 2 (bullet list) and § \"Which test proves which scenario\""
-      - code: "src/charter/kind_vocabulary.py:200-209 (_org_scan_dirs, the function under test)"
+      - code: "src/charter/activation/kind_vocabulary.py:200-209 (_org_scan_dirs, the function under test)"
     claim: >
       spec.md's Acceptance Scenario 2 requires a direct call —
       `resolve_artifact_urn(ArtifactKind.DIRECTIVE, <org-directive-stem>,
@@ -56,16 +56,16 @@ findings:
       - artifact: "tasks/WP01-org-scan-dirs-flat-layout-fix.md § Subtask T001, steps 3-6"
       - artifact: "plan.md § Red-First Discipline (WP Sequencing), step 2"
       - artifact: "tasks/WP01-org-scan-dirs-flat-layout-fix.md § Risks (\"Red run misattributed as UnknownArtifactIdError\") — refuter notes this content lives in WP01.md's Risks section, not plan.md's (plan.md has no Risks heading); quoted content itself is verbatim accurate"
-      - code: "src/charter/_drg_helpers.py:39-51 (_resolve_org_root — charter-layer implementation always returns None) and :55-97 (load_validated_graph, org_root: Path | None = None parameter)"
-      - code: "src/charter/action_doctrine_bundle.py:152-165 (the only call site anywhere in src/ or tests/ that passes a non-None org_root= into load_validated_graph, and the sole place filter_graph_by_activation is chained after it on a live graph)"
-      - code: "src/charter/pack_manager.py:238-253 (_resolve_org_layer_dir — already checks the flat `root / kind.plural` layout FIRST, falling back to the legacy nested shape; CharterPackManager.activate()'s own artifact-availability check, an entirely different, already-flat-tolerant resolution path from _org_scan_dirs)"
+      - code: "src/charter/activation/_drg_helpers.py:39-51 (_resolve_org_root — charter-layer implementation always returns None) and :55-97 (load_validated_graph, org_root: Path | None = None parameter)"
+      - code: "src/charter/activation/action_doctrine_bundle.py:152-165 (the only call site anywhere in src/ or tests/ that passes a non-None org_root= into load_validated_graph, and the sole place filter_graph_by_activation is chained after it on a live graph)"
+      - code: "src/charter/activation/pack_manager.py:238-253 (_resolve_org_layer_dir — already checks the flat `root / kind.plural` layout FIRST, falling back to the legacy nested shape; CharterPackManager.activate()'s own artifact-availability check, an entirely different, already-flat-tolerant resolution path from _org_scan_dirs)"
     claim: >
       T001 instructs "Register the fixture org root and run the full `charter activate
       directive <org-directive-stem>` round trip ... Assert the org directive's node is
       present in the graph returned by `filter_graph_by_activation`" but does not say which
       function produces the graph passed to `filter_graph_by_activation`, nor that the org
       pack's DRG fragment (the root-level `*.graph.yaml`) is merged into that graph ONLY when
-      `org_root` is passed EXPLICITLY to `charter._drg_helpers.load_validated_graph` — the
+      `org_root` is passed EXPLICITLY to `charter.activation._drg_helpers.load_validated_graph` — the
       charter-layer `_resolve_org_root` helper it otherwise falls back to is a permanent no-op
       (always returns `None`, by its own docstring). Grepping the full tree shows exactly one
       call site anywhere (`action_doctrine_bundle.py:165`, itself a C-002 read-only,
@@ -74,7 +74,7 @@ findings:
       fixture files T001 cites as its convention model
       (`test_org_activations_resolution.py`, `test_org_activations_reach_context.py`), both of
       which bypass the real graph merge entirely via
-      `patch("charter._drg_helpers.load_validated_graph", ...)`. Separately,
+      `patch("charter.activation._drg_helpers.load_validated_graph", ...)`. Separately,
       `CharterPackManager.activate()` (invoked by the `charter activate directive <stem>` round
       trip T001 specifies) validates the artifact id via
       `list_available`/`_scan_layer_dirs`/`_resolve_org_layer_dir` — a THIRD, independent
@@ -95,7 +95,7 @@ findings:
       test precedent for this exact wiring anywhere in the suite.
     remediation: >
       Add an explicit step to T001 (or a cross-reference to plan.md) naming the mechanism: call
-      `charter._drg_helpers.load_validated_graph(repo_root, org_root=<org_root>)` (or build the
+      `charter.activation._drg_helpers.load_validated_graph(repo_root, org_root=<org_root>)` (or build the
       merge directly via `doctrine.drg.loader.load_built_in_graph()` +
       `load_graph_or_dir(org_root)` + `merge_layers(...)`, mirroring
       `tests/charter/test_merged_graph_on_live_path.py`'s existing patching style) to obtain the

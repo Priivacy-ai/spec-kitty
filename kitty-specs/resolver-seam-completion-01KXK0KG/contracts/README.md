@@ -7,7 +7,7 @@ invariants**, verified by tests rather than schema files:
 - **Cross-grain disjointness (FR-013)** — the doctrine-integrity gate
   `tests/doctrine/drg/test_cross_grain_integrity.py` (all shipped type×action pairs
   are disjoint; a purpose-authored collision MUST fail) with its non-vacuity twin.
-- **Single union authority (C-002)** — `src/charter/action_grain.py` is the sole
+- **Single union authority (C-002)** — `src/charter/activation/action_grain.py` is the sole
   home of the type⊕action union; the two former test-side unions now read
   `bundle.governance`.
 - **Activation gating byte-identical (C-001)** — `existing_mission_types` /

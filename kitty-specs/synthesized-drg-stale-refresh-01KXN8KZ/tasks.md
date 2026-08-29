@@ -59,10 +59,10 @@ is per-field, not a pop-list.
 
 ### Included Subtasks
 
-- [x] T001 [P] Add `bundle_content_hash` field + widen `schema_version: Literal["2","3"]` (keep default `"2"`) in `src/charter/synthesizer/manifest.py`
+- [x] T001 [P] Add `bundle_content_hash` field + widen `schema_version: Literal["2","3"]` (keep default `"2"`) in `src/charter/activation/synthesizer/manifest.py`
 - [x] T002 [P] Pure UNWIRED `compute_bundle_content_hash` + `BUNDLE_CONTENT_HASH_FILES` (C1: catch `OSError` AND `UnicodeDecodeError` → `None`) in `src/charter/bundle.py`
-- [x] T003 Extract `finalize_manifest()` in `src/charter/synthesizer/manifest.py`
-- [x] T004 Generalize `verify_manifest_hash` fallback (per-field `_raw_field_names` subset) in `src/charter/synthesizer/manifest.py`
+- [x] T003 Extract `finalize_manifest()` in `src/charter/activation/synthesizer/manifest.py`
+- [x] T004 Generalize `verify_manifest_hash` fallback (per-field `_raw_field_names` subset) in `src/charter/activation/synthesizer/manifest.py`
 - [x] T005 Route `_fresh_seed_manifest_text` through `finalize_manifest` in `src/specify_cli/cli/commands/charter/_fresh_doctrine.py`
 - [x] T006 Intra-WP shim/parity tests (incl. the DISCRIMINATING per-field tamper fixture) + production fresh-seed pin in `tests/charter/synthesizer/test_manifest.py`, `tests/integration/test_charter_synthesize_fresh.py`
 - [x] T007 [P] Helper unit tests (missing-file→None, **non-UTF-8→None**, happy path) in NEW `tests/charter/test_bundle_content_hash.py`

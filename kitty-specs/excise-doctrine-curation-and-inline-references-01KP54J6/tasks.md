@@ -43,14 +43,14 @@ No WP can start until its predecessor is merged to `main`.
 | T007 | Author `occurrences/WP02.yaml`; run R-1 inline-vs-graph audit | WP02 | | [D] |
 | T008 | Patch `src/doctrine/graph.yaml` with any missing edges (additive-only) | WP02 | | [D] |
 | T009 | Strip `tactic_refs:` from 13 shipped artifact YAMLs | WP02 | | [D] |
-| T010 | Remove inline ref fields from schemas + Pydantic models + `src/charter/schemas.py` | WP02 | [P] with T009 | [D] |
+| T010 | Remove inline ref fields from schemas + Pydantic models + `src/charter/activation/schemas.py` | WP02 | [P] with T009 | [D] |
 | T011 | Update model and consistency tests to assert fields are absent | WP02 | | [D] |
 | T012 | Delete R-1 script, run gates, update `occurrences/index.yaml` | WP02 | | [D] |
 | T013 | Capture NFR-002b baseline; add `resolve_transitive_refs()` in `src/doctrine/drg/query.py` using live `DRGGraph`/`Relation`/`walk_edges` API; equivalence test suite vs legacy resolver | WP03 | | [D] |
 | T014 | Add `InlineReferenceRejectedError` (incl. procedures step-level scan) to 7 per-kind validators + negative-fixture test suite covering top-level AND step-level rejection | WP03 | [P] with T013 | [D] |
 | T015 | Add `_load_validated_graph` helper (twin packages); flip `resolver.py`/`compiler.py` (twins) to `resolve_transitive_refs` with `{REQUIRES, SUGGESTS}`; add live-path regression test | WP03 | | [D] |
 | T016 | Flip 5 call sites to `build_context_v2`; rename `build_context_v2` → `build_charter_context`; delete legacy; update re-exports; NFR-002b byte-parity check against baseline | WP03 | | [D] |
-| T017 | Delete `src/charter/reference_resolver.py`; remove `include_proposed` from `src/charter/catalog.py` + callers | WP03 | | [D] |
+| T017 | Delete `src/charter/activation/reference_resolver.py`; remove `include_proposed` from `src/charter/activation/catalog.py` + callers | WP03 | | [D] |
 | T018 | Rewrite `tests/charter/test_context.py` (inherits NFR-002a reachability parity); add `test_shipped_graph_valid.py` (cycle-detection rehome); delete `test_context_parity.py`/`test_reference_resolver.py`/`test_cycle_detection.py`/`test_shipped_doctrine_cycle_free.py` only after replacement green; update `test_artifact_kinds.py`/`test_resolver.py`/`test_compiler.py`/`test_workflow_charter_context.py`; finalize occurrence artifacts | WP03 | | [D] |
 
 The `[P]` markers indicate subtasks that can run in parallel within the same WP (different concerns, no shared files). All WP-level sequencing is strict.
@@ -111,18 +111,18 @@ FR-001, FR-002, FR-003, FR-004, FR-012 (partial — templates scope), FR-013 (cu
 
 ### Summary
 
-**Goal**: Remove `tactic_refs`, `paradigm_refs`, `applies_to` from every shipped artifact YAML, every artifact schema, every Pydantic model, and from `src/charter/schemas.py :: Directive`. Before stripping YAML fields, audit `src/doctrine/graph.yaml` for missing edges that inline `tactic_refs:` implicitly encoded and add them atomically in the same PR. After this WP merges, the only source of truth for cross-artifact relationships is `graph.yaml` edges.
+**Goal**: Remove `tactic_refs`, `paradigm_refs`, `applies_to` from every shipped artifact YAML, every artifact schema, every Pydantic model, and from `src/charter/activation/schemas.py :: Directive`. Before stripping YAML fields, audit `src/doctrine/graph.yaml` for missing edges that inline `tactic_refs:` implicitly encoded and add them atomically in the same PR. After this WP merges, the only source of truth for cross-artifact relationships is `graph.yaml` edges.
 
 **Priority**: P0 — blocks WP03.
 
-**Independent test**: `grep -R "tactic_refs\|paradigm_refs\|applies_to" src/doctrine src/charter/schemas.py` returns zero hits (outside explicit carve-outs documented in `occurrences/index.yaml`). All existing tests pass. `assert_valid()` on the merged graph still succeeds.
+**Independent test**: `grep -R "tactic_refs\|paradigm_refs\|applies_to" src/doctrine src/charter/activation/schemas.py` returns zero hits (outside explicit carve-outs documented in `occurrences/index.yaml`). All existing tests pass. `assert_valid()` on the merged graph still succeeds.
 
 ### Included subtasks
 
 - [x] T007 Author `occurrences/WP02.yaml`; add + run `scripts/r1_inline_vs_graph_audit.py`; generate missing-edges list (WP02)
 - [x] T008 Patch `src/doctrine/graph.yaml` with any missing edges (additive-only) (WP02)
 - [x] T009 Strip `tactic_refs:` from 13 shipped artifact YAMLs (8 directives, 3 paradigms, 2 procedures) (WP02)
-- [x] T010 Remove inline ref fields from 3 schemas + 7 Pydantic model files + strip `applies_to` from `src/charter/schemas.py :: Directive` (WP02)
+- [x] T010 Remove inline ref fields from 3 schemas + 7 Pydantic model files + strip `applies_to` from `src/charter/activation/schemas.py :: Directive` (WP02)
 - [x] T011 Update model and consistency tests to assert fields are absent (WP02)
 - [x] T012 Delete R-1 script, run gates, update `occurrences/index.yaml` (WP02)
 
@@ -158,7 +158,7 @@ FR-005, FR-006, FR-007, FR-013 (model/consistency test scope), FR-015 (WP02 arti
 
 ### Summary
 
-**Goal**: (1) Add the DRG-backed replacement function `resolve_transitive_refs()` in `src/doctrine/drg/query.py` with a behavioral-equivalence proof against the legacy resolver. (2) Make every per-kind `validation.py` reject inline ref fields with `InlineReferenceRejectedError`. (3) Flip `resolver.py` + `compiler.py` (twin packages) to the DRG helper. (4) Flip the five `build_charter_context()` call sites to `build_context_v2()`, then rename `build_context_v2` → `build_charter_context`, delete the legacy implementation, and update re-exports. (5) Delete `src/charter/reference_resolver.py` and remove `include_proposed` from `src/charter/catalog.py`. (6) Rewrite `tests/charter/test_context.py` as a single-builder suite and delete parity + legacy resolver tests only after replacement coverage is green.
+**Goal**: (1) Add the DRG-backed replacement function `resolve_transitive_refs()` in `src/doctrine/drg/query.py` with a behavioral-equivalence proof against the legacy resolver. (2) Make every per-kind `validation.py` reject inline ref fields with `InlineReferenceRejectedError`. (3) Flip `resolver.py` + `compiler.py` (twin packages) to the DRG helper. (4) Flip the five `build_charter_context()` call sites to `build_context_v2()`, then rename `build_context_v2` → `build_charter_context`, delete the legacy implementation, and update re-exports. (5) Delete `src/charter/activation/reference_resolver.py` and remove `include_proposed` from `src/charter/activation/catalog.py`. (6) Rewrite `tests/charter/test_context.py` as a single-builder suite and delete parity + legacy resolver tests only after replacement coverage is green.
 
 **Priority**: P0 — completes Phase 1 of EPIC #461.
 
@@ -175,9 +175,9 @@ FR-005, FR-006, FR-007, FR-013 (model/consistency test scope), FR-015 (WP02 arti
 
 - [x] T013 Add `resolve_transitive_refs()` in `src/doctrine/drg/query.py` + `tests/doctrine/drg/test_resolve_transitive_refs.py` (including behavioral-equivalence suite against legacy resolver) (WP03)
 - [x] T014 Add `InlineReferenceRejectedError` to 7 per-kind `validation.py` files + `tests/doctrine/test_inline_ref_rejection.py` with one negative fixture per kind (WP03)
-- [x] T015 Flip `src/charter/resolver.py`, `src/charter/compiler.py`, and their `src/specify_cli/charter/*` twins to use `resolve_transitive_refs`; add `tests/charter/test_merged_graph_on_live_path.py` (WP03)
+- [x] T015 Flip `src/charter/activation/resolver.py`, `src/charter/activation/compiler.py`, and their `src/specify_cli/charter/*` twins to use `resolve_transitive_refs`; add `tests/charter/test_merged_graph_on_live_path.py` (WP03)
 - [x] T016 Flip 5 `build_charter_context` call sites to `build_context_v2` (intermediate); rename `build_context_v2` → `build_charter_context`; delete legacy implementation; update re-exports; flip call sites back to canonical name (WP03)
-- [x] T017 Delete `src/charter/reference_resolver.py`; remove `include_proposed` from `src/charter/catalog.py` + update all callers (WP03)
+- [x] T017 Delete `src/charter/activation/reference_resolver.py`; remove `include_proposed` from `src/charter/activation/catalog.py` + update all callers (WP03)
 - [x] T018 Rewrite `tests/charter/test_context.py` as single-builder suite; delete `tests/charter/test_context_parity.py` + `tests/charter/test_reference_resolver.py` (only after replacement green); author `occurrences/WP03.yaml`; finalize `occurrences/index.yaml` (WP03)
 
 ### Implementation sketch

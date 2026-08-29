@@ -16,10 +16,10 @@
 ## R-0-2 — `build_charter_context` programmatic API
 
 **Decision**: The executor calls `build_charter_context(repo_root, profile=profile_id, action=action, mark_loaded=False)` directly.
-**Evidence**: `src/charter/context.py::build_charter_context` accepts `profile: str | None`, `action: str`, `mark_loaded: bool = True`, `depth: int | None = None`. Returns `CharterContextResult(action, mode, first_load, text, references_count, depth)`. The function is importable without a CLI subprocess.
+**Evidence**: `src/charter/activation/context.py::build_charter_context` accepts `profile: str | None`, `action: str`, `mark_loaded: bool = True`, `depth: int | None = None`. Returns `CharterContextResult(action, mode, first_load, text, references_count, depth)`. The function is importable without a CLI subprocess.
 **Critical detail**: `mark_loaded=False` must be set. The function updates `.kittify/charter/context-state.json` when `mark_loaded=True`, recording which actions have had their "first load". Invocations must not poison this state — the `specify`/`plan`/`implement`/`review` flows depend on first-load detection for bootstrap vs compact context switching.
 **Degraded mode**: when no charter is present (`mode="missing"`), `result.text` is an empty string. The executor treats this as `governance_context_available=False` and returns a partial `InvocationPayload` with a warning. The `InvocationRecord` is still written.
-**Implication for plan**: executor imports `from charter.context import build_charter_context`. No CLI subprocess shelling.
+**Implication for plan**: executor imports `from charter.activation.context import build_charter_context`. No CLI subprocess shelling.
 
 ---
 

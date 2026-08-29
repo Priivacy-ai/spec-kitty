@@ -21,10 +21,10 @@ subtasks:
 agent: "claude:sonnet-4-6:reviewer-renata:reviewer"
 history: []
 agent_profile: python-pedro
-authoritative_surface: src/charter/resolver.py
+authoritative_surface: src/charter/activation/resolver.py
 execution_mode: code_change
 owned_files:
-- src/charter/resolver.py
+- src/charter/activation/resolver.py
 - src/charter/__init__.py
 - tests/charter/test_resolver.py
 - tests/charter/test_alias_deleted_regression.py
@@ -45,7 +45,7 @@ Scope governance context to Python implementation before reading anything else.
 
 ## Objective
 
-Per **HiC §5a.1 (binding, C-003)** — clean removal, no `DeprecationWarning`, no sunset docstring. DELETE the `resolve_governance = resolve_project_governance` alias from `src/charter/resolver.py` and its export from `src/charter/__init__.py`. Migrate every test fixture using the legacy name to import the canonical `resolve_project_governance`. Land a regression test asserting `from charter import resolve_governance` raises `ImportError`.
+Per **HiC §5a.1 (binding, C-003)** — clean removal, no `DeprecationWarning`, no sunset docstring. DELETE the `resolve_governance = resolve_project_governance` alias from `src/charter/activation/resolver.py` and its export from `src/charter/__init__.py`. Migrate every test fixture using the legacy name to import the canonical `resolve_project_governance`. Land a regression test asserting `from charter import resolve_governance` raises `ImportError`.
 
 The architect's full-monty rationale (HiC verbatim in C-003): preventing "confusing paths in place". User impact is structurally limited (Assumption 4 — no out-of-tree consumers).
 
@@ -61,8 +61,8 @@ Verbatim HiC rationale (C-003):
 
 Specific source locations from the debrief audit:
 
-- `src/charter/resolver.py:325-326` — the alias assignment itself
-- `src/charter/resolver.py:198` — the "Deprecated alias" docstring
+- `src/charter/activation/resolver.py:325-326` — the alias assignment itself
+- `src/charter/activation/resolver.py:198` — the "Deprecated alias" docstring
 - `src/charter/__init__.py:73` — `resolve_governance` in the import block
 - `src/charter/__init__.py:124` — `resolve_governance` in `__all__`
 - `tests/charter/test_resolver.py:14` — test fixture importing the legacy name
@@ -132,7 +132,7 @@ def test_resolver_module_does_not_define_alias() -> None:
     from charter import resolver
     assert not hasattr(resolver, "resolve_governance"), (
         "resolve_governance alias is meant to be DELETED per HiC §5a.1 (C-003); "
-        "found it still defined in charter.resolver. "
+        "found it still defined in charter.activation.resolver. "
         "Clean removal — no shim, no DeprecationWarning."
     )
 
@@ -158,9 +158,9 @@ def test_no_test_fixture_still_imports_legacy_alias() -> None:
 
 ### T018 — DELETE the alias
 
-**File:** `src/charter/resolver.py`
+**File:** `src/charter/activation/resolver.py`
 
-Delete lines 325-326 (the `resolve_governance = resolve_project_governance` assignment). Delete the "Deprecated alias" docstring at line 198 (or wherever the docstring currently resides). Verify with `rg "resolve_governance" src/charter/resolver.py` — should return 0 matches.
+Delete lines 325-326 (the `resolve_governance = resolve_project_governance` assignment). Delete the "Deprecated alias" docstring at line 198 (or wherever the docstring currently resides). Verify with `rg "resolve_governance" src/charter/activation/resolver.py` — should return 0 matches.
 
 **Edge case:** if the docstring is interleaved with other comment blocks (e.g. one big module-level docstring section), remove only the alias-related lines.
 
@@ -227,7 +227,7 @@ The following tests turn GREEN with this WP:
 
 FR coverage:
 
-- ✅ FR-100 — alias DELETED in `src/charter/resolver.py`
+- ✅ FR-100 — alias DELETED in `src/charter/activation/resolver.py`
 - ✅ FR-101 — export removed from `src/charter/__init__.py`
 - ✅ FR-102 — all test fixtures migrated to canonical `resolve_project_governance`
 - ✅ FR-103 — `from charter import resolve_governance` raises `ImportError`, asserted by regression test
@@ -244,7 +244,7 @@ AC coverage:
 1. **An out-of-tree consumer imports `resolve_governance`** — would break. Mitigation: Assumption 4 documents no out-of-tree consumers exist; HiC §5a.1 accepted user impact. Internal-only API.
 2. **`rg` is not installed on a contributor's machine** (T017's `test_no_test_fixture_still_imports_legacy_alias`). Mitigation: skip the test with `pytest.importorskip` if `rg` missing, OR rewrite using `pathlib.Path.rglob` + `read_text()` (preferred). Use the pure-Python implementation to keep CI portable.
 3. **WP02 lands after WP04 and re-introduces `resolve_governance` in some `__all__` declaration** by accident. Mitigation: WP02's review checklist explicitly verifies `resolve_governance` does NOT appear in any new `__all__`. The regression test catches it if it slips through.
-4. **A site uses `getattr(charter, "resolve_governance")` dynamically** — not caught by static `rg`. Mitigation: T017's `test_resolver_module_does_not_define_alias` exercises `hasattr(charter.resolver, "resolve_governance")` directly. Any dynamic site that depends on the alias will fail at runtime with `AttributeError`.
+4. **A site uses `getattr(charter, "resolve_governance")` dynamically** — not caught by static `rg`. Mitigation: T017's `test_resolver_module_does_not_define_alias` exercises `hasattr(charter.activation.resolver, "resolve_governance")` directly. Any dynamic site that depends on the alias will fail at runtime with `AttributeError`.
 5. **An IDE auto-import config lingers and re-suggests `resolve_governance`** to future contributors. Mitigation: the `__init__.py::__all__` change removes the name from `from charter import *` and from IDE auto-import suggestions sourced from `__all__`.
 
 ---
@@ -267,7 +267,7 @@ pytest tests/charter/test_alias_deleted_regression.py -v
 
 **Substantive review checks:**
 
-- Confirm `src/charter/resolver.py` no longer contains `resolve_governance` (verify by `rg "resolve_governance" src/charter/resolver.py` — empty result).
+- Confirm `src/charter/activation/resolver.py` no longer contains `resolve_governance` (verify by `rg "resolve_governance" src/charter/activation/resolver.py` — empty result).
 - Confirm `src/charter/__init__.py` no longer imports or exports `resolve_governance`.
 - Confirm `tests/` no longer references `resolve_governance` outside the regression test file.
 - Confirm NO `DeprecationWarning` or sunset docstring was added anywhere (C-003 binding — clean removal, not deprecation). Reject if any deprecation shim slipped in.

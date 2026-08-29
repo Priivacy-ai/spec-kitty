@@ -35,7 +35,7 @@
   [pythonbugs:S2583] src/specify_cli/compat/remediation.py:445  Fix this condition that always evaluates to true.
 
 # BLOCKER (7)
-  [python:S3516] src/charter/pack_manager.py:559  Refactor this method to not always return the same value.
+  [python:S3516] src/charter/activation/pack_manager.py:559  Refactor this method to not always return the same value.
   [python:S3516] src/specify_cli/cli/commands/_command_surface_doctor.py:164  Refactor this method to not always return the same value.
   [python:S3516] src/specify_cli/core/file_lock.py:271  Refactor this method to not always return the same value.
   [python:S3516] src/specify_cli/status/reducer.py:751  Refactor this method to not always return the same value.
@@ -60,15 +60,15 @@
 
   ## charter (35): {'python:S3776': 26, 'python:S1192': 8, 'python:S5779': 1}
        3  src/specify_cli/cli/commands/charter/_status_collectors.py
-       3  src/charter/context_renderers/profile_sections.py
+       3  src/charter/activation/context_renderers/profile_sections.py
        2  src/specify_cli/cli/commands/charter/pack.py
-       2  src/charter/context.py
+       2  src/charter/activation/context.py
        2  src/specify_cli/cli/commands/charter/list_cmd.py
        2  src/specify_cli/cli/commands/charter/lint.py
-       1  src/charter/context_renderers/token_budget.py
-       1  src/charter/kind_vocabulary.py
-       1  src/charter/pack_manager.py
-       1  src/charter/context_renderers/artifact_bodies.py
+       1  src/charter/activation/context_renderers/token_budget.py
+       1  src/charter/activation/kind_vocabulary.py
+       1  src/charter/activation/pack_manager.py
+       1  src/charter/activation/context_renderers/artifact_bodies.py
 
   ## sync (19): {'python:S1192': 9, 'python:S3776': 7, 'python:S8572': 2, 'python:S5779': 1}
        4  src/specify_cli/sync/__init__.py

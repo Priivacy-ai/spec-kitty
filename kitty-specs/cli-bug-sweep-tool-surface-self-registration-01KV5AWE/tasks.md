@@ -79,8 +79,8 @@
 
 **Implementation sketch**:
 1. Run `git rm` on all 7 `.kittify/charter/provenance/*.yaml` sidecar files listed in spec.md.
-2. In `src/charter/synthesizer/artifact_naming.py`, change `doctrine_kind_subdir()` to return `"directive"`, `"tactic"`, `"styleguide"` (singular). Read the current implementation first.
-3. Grep for `doctrine_kind_subdir(` in `src/charter/synthesizer/write_pipeline.py` and fix any hardcoded plural-dir strings (`directives/`, `tactics/`, `styleguides/`) at lines ~174, ~206, ~584.
+2. In `src/charter/activation/synthesizer/artifact_naming.py`, change `doctrine_kind_subdir()` to return `"directive"`, `"tactic"`, `"styleguide"` (singular). Read the current implementation first.
+3. Grep for `doctrine_kind_subdir(` in `src/charter/activation/synthesizer/write_pipeline.py` and fix any hardcoded plural-dir strings (`directives/`, `tactics/`, `styleguides/`) at lines ~174, ~206, ~584.
 4. In `src/charter/bundle.py`, add an early-exit in `validate_synthesis_state()` after loading the manifest: if `manifest.built_in_only is True and not manifest.artifacts`, return success immediately without checking for sidecar files.
 5. Add a test in `tests/specify_cli/charter/` that seeds a temp repo with `synthesis-manifest.yaml` containing `built_in_only: true` and `artifacts: []` (no sidecar files, no artifact files) and asserts that `validate_synthesis_state()` returns no errors.
 

@@ -58,7 +58,7 @@
         "WP05"
       ],
       "write_scope": [
-        "src/charter/_catalog_miss.py",
+        "src/charter/activation/_catalog_miss.py",
         "src/doctrine/shared/scoping.py",
         "src/specify_cli/cli/commands/doctrine.py"
       ],
@@ -76,9 +76,9 @@
         "WP02"
       ],
       "write_scope": [
-        "src/charter/context.py",
+        "src/charter/activation/context.py",
         "src/charter/drg.py",
-        "src/charter/pack_context.py",
+        "src/charter/activation/pack_context.py",
         "src/specify_cli/charter_runtime/lint/checks/org_layer.py",
         "src/specify_cli/cli/commands/doctor.py",
         "src/specify_cli/doctrine/config.py",

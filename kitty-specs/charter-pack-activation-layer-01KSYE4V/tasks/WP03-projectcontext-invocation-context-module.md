@@ -26,10 +26,10 @@ history:
   event: created
   actor: claude
 agent_profile: python-pedro
-authoritative_surface: src/charter/invocation_context.py
+authoritative_surface: src/charter/activation/invocation_context.py
 execution_mode: code_change
 owned_files:
-- src/charter/invocation_context.py
+- src/charter/activation/invocation_context.py
 - tests/charter/test_invocation_context.py
 - tests/architectural/test_no_dead_symbols.py
 role: implementer
@@ -40,7 +40,7 @@ tags: []
 
 ## Overview
 
-This WP introduces `src/charter/invocation_context.py`, the canonical invocation-context module for the `charter.*` package. It defines three dataclasses: `ContextPreconditionError`, `ProjectContext`, and `OperationalContext`. `ProjectContext` provides a `from_repo()` factory that produces fully-populated instances from a repository root path. Guard methods on both context types raise `ContextPreconditionError` (not `ValueError`) when a required field is absent.
+This WP introduces `src/charter/activation/invocation_context.py`, the canonical invocation-context module for the `charter.*` package. It defines three dataclasses: `ContextPreconditionError`, `ProjectContext`, and `OperationalContext`. `ProjectContext` provides a `from_repo()` factory that produces fully-populated instances from a repository root path. Guard methods on both context types raise `ContextPreconditionError` (not `ValueError`) when a required field is absent.
 
 `OperationalContext` is specced here but not wired to any production call site — it is an in-flight stub whose symbols are explicitly allowlisted in the dead-symbol architectural test so the ratchet does not reject them.
 
@@ -54,20 +54,20 @@ This WP introduces `src/charter/invocation_context.py`, the canonical invocation
 
 Before touching any file in this WP, read:
 
-1. `src/charter/pack_context.py` — understand `PackContext` and its `from_config()` factory (produced by WP02). `ProjectContext.from_repo()` calls `PackContext.from_config()`. Do not import `PackContext` at the module level to avoid circular imports (use `TYPE_CHECKING`).
+1. `src/charter/activation/pack_context.py` — understand `PackContext` and its `from_config()` factory (produced by WP02). `ProjectContext.from_repo()` calls `PackContext.from_config()`. Do not import `PackContext` at the module level to avoid circular imports (use `TYPE_CHECKING`).
 2. `tests/architectural/test_no_dead_symbols.py` lines 395–495 — understand the category-C in-flight allowlist mechanism and the `_SYMBOL_ALLOWLIST` aggregate.
 3. `tests/architectural/_baselines.yaml` lines 112–141 — understand the ratchet baseline format; `category_c_wp_in_flight_charter_scope` must be bumped from 0 to 4.
 4. `src/specify_cli/context/` (list only, do not modify) — confirm this is the existing `MissionContext` identity package. It must not be touched.
 
 ---
 
-## T011 — Create `src/charter/invocation_context.py` class bodies
+## T011 — Create `src/charter/activation/invocation_context.py` class bodies
 
 **Goal**: Define the three classes with correct `@dataclass(frozen=True)` declarations, field types, `__all__`, and `TYPE_CHECKING`-gated import for `PackContext`.
 
 ### Step-by-step
 
-1. Create `src/charter/invocation_context.py` (new file).
+1. Create `src/charter/activation/invocation_context.py` (new file).
 
 2. Write the module header exactly as follows — the `from __future__ import annotations` line is mandatory because `OperationalContext.tech_stack` uses `frozenset[str]` which requires the postponed-evaluation semantics under Python 3.11, and because the `TYPE_CHECKING` guard for `PackContext` relies on annotation strings:
 
@@ -79,7 +79,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from charter.pack_context import PackContext
+    from charter.activation.pack_context import PackContext
 ```
 
 3. Define `ContextPreconditionError`. It must be a `@dataclass(frozen=True)` subclass of `RuntimeError`, not a plain `Exception`. The frozen dataclass pattern requires calling `object.__setattr__` via the generated `__init__`, which `@dataclass` handles automatically:
@@ -155,13 +155,13 @@ __all__ = [
 
 ```bash
 # File must exist
-test -f src/charter/invocation_context.py && echo OK
+test -f src/charter/activation/invocation_context.py && echo OK
 
 # No specify_cli imports
-grep -n "from specify_cli\|import specify_cli" src/charter/invocation_context.py && echo "VIOLATION" || echo "clean"
+grep -n "from specify_cli\|import specify_cli" src/charter/activation/invocation_context.py && echo "VIOLATION" || echo "clean"
 
 # __all__ must be present
-grep -n "__all__" src/charter/invocation_context.py
+grep -n "__all__" src/charter/activation/invocation_context.py
 ```
 
 ---
@@ -185,7 +185,7 @@ def from_repo(cls, repo_root: Path) -> ProjectContext:
     ``specs_dir`` and ``architecture_dir`` are set only when the
     corresponding directories exist on disk.
     """
-    from charter.pack_context import PackContext  # runtime import — avoids circular
+    from charter.activation.pack_context import PackContext  # runtime import — avoids circular
 
     try:
         from doctrine.drg.org_pack_config import resolve_org_roots
@@ -277,7 +277,7 @@ def build_operational_context() -> OperationalContext:
 
 ```bash
 cd /home/stijn/Documents/_code/SDD/fork/spec-kitty
-python -m mypy src/charter/invocation_context.py --strict 2>&1 | head -30
+python -m mypy src/charter/activation/invocation_context.py --strict 2>&1 | head -30
 ```
 
 Expected: zero errors. If you see `error: Need type annotation for "pack_context"` it means the `TYPE_CHECKING` guard is not in place correctly — re-check the import block.
@@ -312,15 +312,15 @@ _CATEGORY_C_WP_IN_FLIGHT_CHARTER_SCOPE: frozenset[str] = frozenset()
 # specced, wiring deferred to follow-on mission (charter-pack-activation-layer WP03)
 _CATEGORY_C_WP_IN_FLIGHT_CHARTER_SCOPE: frozenset[str] = frozenset(
     {
-        "charter.invocation_context::OperationalContext",
-        "charter.invocation_context::build_operational_context",
-        "charter.invocation_context::OperationalContext.require_active_profile",
-        "charter.invocation_context::OperationalContext.require_active_role",
+        "charter.activation.invocation_context::OperationalContext",
+        "charter.activation.invocation_context::build_operational_context",
+        "charter.activation.invocation_context::OperationalContext.require_active_profile",
+        "charter.activation.invocation_context::OperationalContext.require_active_role",
     }
 )
 ```
 
-   Note: `ProjectContext` and its guard methods are NOT in this allowlist because `from_repo()` is a production-use factory that will be called by `specify_cli.*` code importing from `charter.invocation_context`. The dead-symbol scanner considers a symbol "live" when it appears in any `import` statement in the `src/` tree — `from_repo` will be exercised immediately once any caller in `specify_cli` imports `ProjectContext`. Only the `OperationalContext` family needs the stub treatment.
+   Note: `ProjectContext` and its guard methods are NOT in this allowlist because `from_repo()` is a production-use factory that will be called by `specify_cli.*` code importing from `charter.activation.invocation_context`. The dead-symbol scanner considers a symbol "live" when it appears in any `import` statement in the `src/` tree — `from_repo` will be exercised immediately once any caller in `specify_cli` imports `ProjectContext`. Only the `OperationalContext` family needs the stub treatment.
 
 3. Verify the `_SYMBOL_ALLOWLIST` aggregate at line 485 already includes `_CATEGORY_C_WP_IN_FLIGHT_CHARTER_SCOPE` — it does (confirmed from file read). No change needed there.
 
@@ -378,7 +378,7 @@ from __future__ import annotations
 import pytest
 from pathlib import Path
 
-from charter.invocation_context import (
+from charter.activation.invocation_context import (
     ContextPreconditionError,
     OperationalContext,
     ProjectContext,
@@ -567,12 +567,12 @@ python -m pytest tests/charter/test_invocation_context.py -x -v 2>&1 | tail -40
 
 All of the following must hold before this WP is marked `for_review`:
 
-1. `src/charter/invocation_context.py` exists with `ProjectContext`, `OperationalContext`, `ContextPreconditionError`, `build_operational_context`, and `__all__`.
+1. `src/charter/activation/invocation_context.py` exists with `ProjectContext`, `OperationalContext`, `ContextPreconditionError`, `build_operational_context`, and `__all__`.
 2. `tests/charter/test_invocation_context.py` exists and covers all the cases listed in T014.
 3. `tests/architectural/test_no_dead_symbols.py` line 405 has the four-symbol frozenset (not `frozenset()`).
 4. `tests/architectural/_baselines.yaml` has `category_c_wp_in_flight_charter_scope: 4` with justification comment.
 5. `src/specify_cli/context/` is untouched (run `git diff src/specify_cli/context/` — must be empty).
-6. No `from specify_cli` or `import specify_cli` appears anywhere in `src/charter/invocation_context.py`.
+6. No `from specify_cli` or `import specify_cli` appears anywhere in `src/charter/activation/invocation_context.py`.
 
 ### Final validation commands
 
@@ -589,14 +589,14 @@ python -m pytest tests/architectural/test_no_dead_symbols.py -x -q
 python -m pytest tests/architectural/test_ratchet_baselines.py -x -q
 
 # 4. mypy strict on the new module
-python -m mypy src/charter/invocation_context.py --strict
+python -m mypy src/charter/activation/invocation_context.py --strict
 
 # 5. ruff
 cd src && ruff check charter/invocation_context.py
 cd ..
 
 # 6. No specify_cli imports in authoritative surface
-grep -n "specify_cli" src/charter/invocation_context.py && echo "VIOLATION" || echo "OK"
+grep -n "specify_cli" src/charter/activation/invocation_context.py && echo "VIOLATION" || echo "OK"
 
 # 7. specify_cli/context/ untouched
 git diff src/specify_cli/context/

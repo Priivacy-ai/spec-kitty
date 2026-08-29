@@ -27,7 +27,7 @@
 | T017 | Validate edge count >= inline field count | WP02 | | [D] |
 | T018 | Unit tests for extractor, calibrator, normalizer | WP02 | | [D] |
 | T019 | Implement DRG query primitives (`walk_edges`, `resolve_context`) | WP03 | | [D] |
-| T020 | Implement `build_context_v2()` in `src/charter/context.py` | WP03 | | [D] |
+| T020 | Implement `build_context_v2()` in `src/charter/activation/context.py` | WP03 | | [D] |
 | T021 | Unit tests for query primitives against fixture graphs | WP03 | | [D] |
 | T022 | Verify no per-action filtering logic in `build_context_v2` | WP03 | | [D] |
 | T023 | Create test matrix generator (profile x action x depth) | WP04 | | [D] |
@@ -142,7 +142,7 @@ WP01 (DRG schema + model) ─┐                   │
 
 **Included subtasks**:
 - [x] T019 Implement DRG query primitives (`walk_edges`, `resolve_context`) (WP03)
-- [x] T020 Implement `build_context_v2()` in `src/charter/context.py` (WP03)
+- [x] T020 Implement `build_context_v2()` in `src/charter/activation/context.py` (WP03)
 - [x] T021 Unit tests for query primitives against fixture graphs (WP03)
 - [x] T022 Verify no per-action filtering logic in `build_context_v2` (WP03)
 

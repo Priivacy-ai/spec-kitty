@@ -25,7 +25,7 @@ Technical approach:
 ## Technical Context
 
 **Language/Version**: Python 3.11+ (existing spec-kitty toolchain).
-**Primary Dependencies**: typer, ruamel.yaml, pydantic, rich; existing `doctrine.drg`, `charter.compiler`, `specify_cli.charter_*` packages; pytest + pytest-asyncio; gh CLI (for DIR-012 issue assignment).
+**Primary Dependencies**: typer, ruamel.yaml, pydantic, rich; existing `doctrine.drg`, `charter.activation.compiler`, `specify_cli.charter_*` packages; pytest + pytest-asyncio; gh CLI (for DIR-012 issue assignment).
 **Storage**: Filesystem only — `kitty-specs/<slug>/`, `.kittify/`, `architecture/3.x/adr/`, `docs/reference/`.
 **Testing**: pytest (unit + integration + architectural); `tests/sync/`, `tests/tasks/`, `tests/test_dashboard/`, `tests/doctrine/`, `tests/specify_cli/charter_*/`.
 **Target Platform**: Linux/macOS/Windows 10+ (DIR-001 cross-platform).

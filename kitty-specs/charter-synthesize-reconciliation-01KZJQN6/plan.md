@@ -117,7 +117,7 @@ already exist and are relocated into the synthesize path.
 
 - **Purpose**: Make `orchestrator.synthesize` reconcile the emitted overlay + manifest against the on-disk overlay + manifest (reuse `_merge_project_overlay` + `_rewrite_manifest`), preserving backed content and returning a reconciliation-delta envelope; default drops nothing.
 - **Relevant requirements**: FR-001, FR-002, FR-004, FR-005, FR-009; NFR-001, NFR-002.
-- **Affected surfaces**: `src/charter/synthesizer/orchestrator.py` (`_validation_callback`), `write_pipeline.py` (`promote(..., manifest_override=…)`), `resynthesize_pipeline.py` (extract/share primitives), `project_drg.py`.
+- **Affected surfaces**: `src/charter/activation/synthesizer/orchestrator.py` (`_validation_callback`), `write_pipeline.py` (`promote(..., manifest_override=…)`), `resynthesize_pipeline.py` (extract/share primitives), `project_drg.py`.
 - **Sequencing/depends-on**: none (foundation).
 - **Risks**: preserving on-disk content re-injects nodes/edges that bypass `emit_project_layer`'s additive guard → hand-off to IC-02; must keep no-op re-synthesis byte-stable for graph AND manifest; do NOT bake a `--prune` default into the library signature (breaks existing `synthesize(request, adapter, repo_root)` callers incl. `activate`).
 
@@ -126,7 +126,7 @@ already exist and are relocated into the synthesize path.
 - **Purpose**: Run the additive-collision / dangling-endpoint check over the merged (preserved + emitted) overlay and translate a *pre-existing preserved-content* conflict into a `ReconciliationConflict` report (new object in `reconcile.py`, modeled after — not reusing — the DRG typed-conflict shape); only a *new-emit* collision remains a hard error.
 - **Net-new, not reuse**: the synthesize path's `validate_graph` returns `list[str]`, and `OrgDRGConflict`/`_CONFLICT_REMEDIATIONS` in `src/doctrine/drg/merge.py` are produced by the org-pack fragment-merge subsystem (closed `kind` Literal, no `duplicate_triple`, no `backing_artifact`/`remediation`). Translating string-formatted validator output into the typed `ReconciliationConflict` is therefore net-new work, not a call into `merge.py`.
 - **Relevant requirements**: FR-006, FR-014; NFR-003; C-001.
-- **Affected surfaces**: `src/charter/synthesizer/validation_gate.py`, `project_drg.py`; `reconcile.py` (WP01's `ReconciliationConflict` + reconciliation remediation vocabulary); `src/doctrine/drg/loader.py` / `validator.py` (extract structured duplicate/dangling helpers — see IC-08/WP02). `src/doctrine/drg/merge.py` is NOT reused or edited.
+- **Affected surfaces**: `src/charter/activation/synthesizer/validation_gate.py`, `project_drg.py`; `reconcile.py` (WP01's `ReconciliationConflict` + reconciliation remediation vocabulary); `src/doctrine/drg/loader.py` / `validator.py` (extract structured duplicate/dangling helpers — see IC-08/WP02). `src/doctrine/drg/merge.py` is NOT reused or edited.
 - **Sequencing/depends-on**: IC-01.
 - **Risks**: correctly attributing conflict provenance (new vs preserved); a since-removed built-in endpoint makes a preserved edge dangle — must report, not `ProjectDRGValidationError`.
 
@@ -166,7 +166,7 @@ already exist and are relocated into the synthesize path.
 
 - **Purpose**: Populate `source_urns` for the currently-empty consumer-pack interview sections so synthesize emits the charter-relevant edges those sections declare, and the DRG lint stops flagging generated directives — emitting **no** edge where no evidence exists.
 - **Relevant requirements**: FR-012; NFR-007; SC-004.
-- **Affected surfaces**: `src/charter/synthesizer/interview_mapping.py`, `targets.py`, `project_drg.py` (edge derivation from `source_urns`).
+- **Affected surfaces**: `src/charter/activation/synthesizer/interview_mapping.py`, `targets.py`, `project_drg.py` (edge derivation from `source_urns`).
 - **Sequencing/depends-on**: IC-01.
 - **Risks**: fabricating wrong relationships is worse than an orphan node — the rule must be conservative (edge only where a section declares an upstream URN); assert the negative (no fabrication) as well as the positive.
 

@@ -12,7 +12,7 @@ Mostly small fixes + one rebase. The "data model" is the surfaces changing and t
 | `src/specify_cli/sync/daemon.py` | `_daemon_start_skip_reason` honors disable envs (`:1038`) | IC-02 | product |
 | `tests/sync/test_daemon_sync_disable_env.py` | repro flips green | IC-02 | test |
 | `tests/sync/conftest.py` | copy the #2794 `_isolate` sync-toggle fixture | IC-03 | test |
-| `src/charter/evidence/orchestrator.py` | `isinstance` guard @ `:95-96` + docstring `:82` | IC-04 | product-ish (clears 3 reds) |
+| `src/charter/activation/evidence/orchestrator.py` | `isinstance` guard @ `:95-96` + docstring `:82` | IC-04 | product-ish (clears 3 reds) |
 | `tests/charter/test_bundle_contract.py` | seed `charter.yaml` in `_init_fixture` | IC-05 | test |
 | `tests/adversarial/test_distribution.py` | skip-when-logged-out env-guard (`:237`) | IC-05 | test |
 | `tests/runtime/test_resolve_by_urn.py` | clear `resolver.__warningregistry__` | IC-06 | test |

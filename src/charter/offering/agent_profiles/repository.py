@@ -880,7 +880,7 @@ class AgentProfileRepository:
 
         Exposed read-only so the charter render layer can project the profile
         channel's ``suggests`` deliveries (``when`` clauses live on graph edges,
-        surfaced by ``charter.progressive_disclosure.profile_channel_references``)
+        surfaced by ``charter.activation.progressive_disclosure.profile_channel_references``)
         against the *same* graph this repository walked — the doctrine layer holds
         the graph but must not import the charter projection (layer direction:
         charter → doctrine).

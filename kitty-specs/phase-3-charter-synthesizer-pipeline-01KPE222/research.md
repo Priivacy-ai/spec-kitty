@@ -12,7 +12,7 @@ This document resolves every open planning question raised in `plan.md` so that 
 
 ### Decision
 
-Drive target selection from a **static mapping table** kept in `src/charter/synthesizer/interview_mapping.py`. The table binds each interview-question identifier (and/or interview section) to one or more `(artifact_kind, slug_template)` pairs, plus an optional `requires_nonempty_answer` flag that gates target emission.
+Drive target selection from a **static mapping table** kept in `src/charter/activation/synthesizer/interview_mapping.py`. The table binds each interview-question identifier (and/or interview section) to one or more `(artifact_kind, slug_template)` pairs, plus an optional `requires_nonempty_answer` flag that gates target emission.
 
 Concretely (illustrative — authoritative table lives in the code, not this doc):
 
@@ -36,7 +36,7 @@ Concretely (illustrative — authoritative table lives in the code, not this doc
 
 ### Alternatives considered
 
-- **Dynamic inference from interview schema metadata**: attractive but currently the interview schema (`src/charter/interview.py`) does not tag questions with artifact-kind hints. Retrofitting the schema would be a scope expansion. Rejected for this tranche; leaves a clean upgrade path later.
+- **Dynamic inference from interview schema metadata**: attractive but currently the interview schema (`src/charter/activation/interview.py`) does not tag questions with artifact-kind hints. Retrofitting the schema would be a scope expansion. Rejected for this tranche; leaves a clean upgrade path later.
 - **Adapter-owned target selection**: adapters proposing their own targets. Rejected — it's the orchestrator's job to stay deterministic, and adapter-owned selection leaks prompt-shaping / product decisions into the generation step. Violates KD-3's seam-narrowness invariant.
 
 ### Test coverage
@@ -52,7 +52,7 @@ Concretely (illustrative — authoritative table lives in the code, not this doc
 Synthesized **content** lives under `.kittify/doctrine/`; synthesis **bookkeeping** lives under `.kittify/charter/`. This matches the trees that existing consumers already recognise:
 
 - `DirectiveRepository`, `TacticRepository`, `StyleguideRepository` each resolve `project_root/<artifact-subdir>/*.<kind>.yaml` via the existing repository glob. `DoctrineService._project_dir(artifact)` returns `project_root / artifact`, so pointing `project_root` at `.kittify/doctrine/` is all the wiring that is needed.
-- `src/charter/_drg_helpers.py` already reads the project DRG overlay from `.kittify/doctrine/graph.yaml` (verified on current `main`). No loader change is needed for the project graph.
+- `src/charter/activation/_drg_helpers.py` already reads the project DRG overlay from `.kittify/doctrine/graph.yaml` (verified on current `main`). No loader change is needed for the project graph.
 
 Directory layout:
 
@@ -215,7 +215,7 @@ Test `test_fixture_adapter.py::test_normalization_invariance` locks rules 1–4 
 
 **Yes — existing `src/doctrine/drg/validator.py :: validate_graph()` returns a `list[str]` of error messages that already includes the dangling URN, duplicate edge tuple, or cycle path in the message text.** This is sufficient for structured-error surfacing provided we wrap the validator call in a small helper that parses / re-emits structured errors.
 
-Our wrapper (in `src/charter/synthesizer/project_drg.py`) calls `validate_graph`, and on any non-empty error list raises `ProjectDRGValidationError(errors=[...], merged_graph=...)`. Orchestration catches this and surfaces it to the CLI with full error detail.
+Our wrapper (in `src/charter/activation/synthesizer/project_drg.py`) calls `validate_graph`, and on any non-empty error list raises `ProjectDRGValidationError(errors=[...], merged_graph=...)`. Orchestration catches this and surfaces it to the CLI with full error detail.
 
 We do **not** extend `src/doctrine/drg/validator.py` — preserves KD-1's "no new code under doctrine" constraint.
 
@@ -234,7 +234,7 @@ We do **not** extend `src/doctrine/drg/validator.py` — preserves KD-1's "no ne
 
 ### Decision
 
-Extend the project-root candidate list inside both `src/charter/compiler.py::_default_doctrine_service` and `src/charter/context.py::_build_doctrine_service` to prepend `.kittify/doctrine/` before the existing `repo_root/src/doctrine` and `repo_root/doctrine` candidates. Discovery remains the existing "first candidate whose directory exists wins" semantics, so:
+Extend the project-root candidate list inside both `src/charter/activation/compiler.py::_default_doctrine_service` and `src/charter/activation/context.py::_build_doctrine_service` to prepend `.kittify/doctrine/` before the existing `repo_root/src/doctrine` and `repo_root/doctrine` candidates. Discovery remains the existing "first candidate whose directory exists wins" semantics, so:
 
 - **Legacy project (no `.kittify/doctrine/`)**: falls through to the existing shipped-layer candidates — byte-identical behaviour to 3.x today.
 - **Post-synthesis project (`.kittify/doctrine/` exists)**: `DoctrineService` uses it as the project layer, and synthesized artifacts flow into `charter context` via the existing aggregation path.

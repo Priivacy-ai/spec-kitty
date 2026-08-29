@@ -23,12 +23,12 @@ history:
   actor: system
   action: Prompt generated during /spec-kitty.tasks
 agent_profile: python-pedro
-authoritative_surface: src/charter/mission_type_profiles.py
+authoritative_surface: src/charter/activation/mission_type_profiles.py
 create_intent: []
 execution_mode: code_change
 model: ''
 owned_files:
-- src/charter/mission_type_profiles.py
+- src/charter/activation/mission_type_profiles.py
 - tests/charter/test_mission_type_profiles.py
 - tests/runtime/test_runtime_seam.py
 role: implementer
@@ -51,7 +51,7 @@ before parsing the rest of this prompt.
 
 ## Objectives & Success Criteria
 
-`resolve_mission_type_context` (`src/charter/mission_type_profiles.py`, live-verify — plan.md
+`resolve_mission_type_context` (`src/charter/activation/mission_type_profiles.py`, live-verify — plan.md
 cites `516-618`) already constructs a `PackContext` one call-frame down
 (`existing_mission_types()` → `PackContext.from_config(repo_root)`, live-verify — plan.md cites
 line `507`). Keep that object and thread it into both projection slots — WP03's new layered
@@ -174,7 +174,7 @@ Two structurally different edits, both FR-002:
   `resolve_all_for_mission_type` signature already accepts a `pack_context` parameter (it does —
   this is the sibling module's already-live pattern) so no change is needed on that side. Confirm
   T010's org-pack real-projection test now passes.
-- **Files**: `src/charter/mission_type_profiles.py`.
+- **Files**: `src/charter/activation/mission_type_profiles.py`.
 - **Parallel?**: Can proceed alongside T009 (different function in the same file, but land together
   for review coherence) — both are sequenced after T010's RED commit.
 
@@ -187,7 +187,7 @@ Two structurally different edits, both FR-002:
   `mission_types_dirs`/`pack_context` the caller supplies; confirm `resolve_mission_type_context`
   passes its own already-constructed `PackContext` through to this call. Confirm T010's
   full-replace-precedence test now passes.
-- **Files**: `src/charter/mission_type_profiles.py`.
+- **Files**: `src/charter/activation/mission_type_profiles.py`.
 - **Parallel?**: Can proceed alongside T008 — both are sequenced after T010's RED commit.
 - **Notes**: Do NOT add the new `MissionTypeEmptyActionSequenceError` raise site in this WP — that
   is WP06's job, sequenced as its own red-first/green-fix pair. This WP's job is only making the

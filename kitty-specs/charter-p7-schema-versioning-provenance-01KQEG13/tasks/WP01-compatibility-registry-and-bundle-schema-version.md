@@ -32,7 +32,7 @@ authoritative_surface: src/doctrine/
 execution_mode: code_change
 owned_files:
 - src/doctrine/versioning.py
-- src/charter/schemas.py
+- src/charter/activation/schemas.py
 - src/charter/extractor.py
 - tests/doctrine/__init__.py
 - tests/doctrine/test_versioning.py
@@ -224,7 +224,7 @@ Note: `_register_migration(1, migrate_v1_to_v2)` must remain present so WP03 can
 
 ### T005 — Add `bundle_schema_version` to `ExtractionMetadata`
 
-**File**: `src/charter/schemas.py`
+**File**: `src/charter/activation/schemas.py`
 
 Locate the `ExtractionMetadata` Pydantic model. Read the full file before editing. Add one optional field:
 
@@ -234,7 +234,7 @@ bundle_schema_version: int | None = None
 
 Placement: after the existing fields (do not change field order of pre-existing fields). The field must be optional with `None` default so existing bundles without the field continue to parse without error (AC #6 from plan).
 
-Run `mypy --strict src/charter/schemas.py` after the edit.
+Run `mypy --strict src/charter/activation/schemas.py` after the edit.
 
 ### T006 — Stamp `bundle_schema_version` in `extractor.py`
 
@@ -288,10 +288,10 @@ Must show ≥90% line coverage.
 ## Definition of Done
 
 - [ ] `src/doctrine/versioning.py` created with all public symbols: constants, `BundleCompatibilityStatus`, `BundleCompatibilityResult`, `MigrationResult`, `check_bundle_compatibility()`, `get_bundle_schema_version()`, `run_migration()`, `migrate_v1_to_v2()` stub
-- [ ] `src/charter/schemas.py` — `ExtractionMetadata` has `bundle_schema_version: int | None = None`
+- [ ] `src/charter/activation/schemas.py` — `ExtractionMetadata` has `bundle_schema_version: int | None = None`
 - [ ] `src/charter/extractor.py` — stamps `bundle_schema_version=CURRENT_BUNDLE_SCHEMA_VERSION` in metadata.yaml
 - [ ] `tests/doctrine/test_versioning.py` passes and achieves ≥90% coverage
-- [ ] `mypy --strict src/doctrine/versioning.py src/charter/schemas.py src/charter/extractor.py` — zero errors
+- [ ] `mypy --strict src/doctrine/versioning.py src/charter/activation/schemas.py src/charter/extractor.py` — zero errors
 - [ ] No changes to any file outside `owned_files`
 
 ## Risks

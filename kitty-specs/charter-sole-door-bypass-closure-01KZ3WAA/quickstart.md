@@ -6,7 +6,7 @@ diff.
 ## 1. Zero raw construction outside the factory
 
 **Corrected post-plan squad**: a plain `grep` on the literal text `DoctrineService(` cannot distinguish the
-forbidden raw class from the sanctioned wrapper (`charter.resolver.DoctrineService(inner, pack_context=None)`
+forbidden raw class from the sanctioned wrapper (`charter.activation.resolver.DoctrineService(inner, pack_context=None)`
 shares the substring), and a whole-file `grep -v` on the two `.kittify/profiles` files would hide a
 genuinely new bypass added elsewhere in the same file. The commands below are a coarse manual sanity check
 only — the real gate (FR-007/NFR-001) resolves each site's bound import via AST, not text. Expect these
@@ -15,17 +15,17 @@ commands to need per-run judgement, not a clean zero:
 ```bash
 # AgentProfileRepository: real zero-tolerance surface is 2 sites (the .kittify/profiles exclusions,
 # confirmed by reading the match, not by filename)
-grep -rn "AgentProfileRepository(" src/ --include='*.py' | grep -v "src/charter/resolver.py" \
-  | grep -v "src/charter/doctrine_service_builder.py" | grep -v "src/specify_cli/doctrine_service_factory.py"
+grep -rn "AgentProfileRepository(" src/ --include='*.py' | grep -v "src/charter/activation/resolver.py" \
+  | grep -v "src/charter/activation/doctrine_service_builder.py" | grep -v "src/specify_cli/doctrine_service_factory.py"
 # Manually confirm every remaining match is registry.py:48 or profiles_cmd.py:83, constructing against
 # .kittify/profiles — any other match is a real regression.
 
 # doctrine.service.DoctrineService: exclude src/doctrine/ (the raw service's own repo construction,
 # not a bypass) and the doc/skill markdown that also matches the literal string
 grep -rn "DoctrineService(" src/ --include='*.py' | grep -v "^src/doctrine/" \
-  | grep -v "src/charter/resolver.py" | grep -v "src/charter/doctrine_service_builder.py" \
+  | grep -v "src/charter/activation/resolver.py" | grep -v "src/charter/activation/doctrine_service_builder.py" \
   | grep -v "src/specify_cli/doctrine_service_factory.py"
-# Manually confirm every remaining match is charter.resolver.DoctrineService(..., pack_context=None) — the
+# Manually confirm every remaining match is charter.activation.resolver.DoctrineService(..., pack_context=None) — the
 # sanctioned unfiltered-diagnostic mode (FR-002) — not a raw doctrine.service.DoctrineService(...) call.
 ```
 

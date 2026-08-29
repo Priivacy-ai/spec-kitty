@@ -21,8 +21,8 @@ from pathlib import Path
 
 import pytest
 
-from charter.compiler import resolve_config_activated_roots
-from charter.pack_context import CharterPackConfigError, charter_activated_urns
+from charter.activation.compiler import resolve_config_activated_roots
+from charter.activation.pack_context import CharterPackConfigError, charter_activated_urns
 
 
 pytestmark = [pytest.mark.fast]
@@ -157,7 +157,7 @@ def test_wholly_unconfigured_project_keeps_builtins_convenience(tmp_path: Path) 
     among them) stays genuinely absent, so the "wholly unconfigured w.r.t.
     paradigms/directives" scenario this test actually pins is unchanged.
     """
-    from charter.catalog import load_doctrine_catalog
+    from charter.activation.catalog import load_doctrine_catalog
 
     # No activated_* keys written -> wholly unconfigured w.r.t. paradigms/
     # directives (the FR-018 boundary under test). Only mission_type_activations

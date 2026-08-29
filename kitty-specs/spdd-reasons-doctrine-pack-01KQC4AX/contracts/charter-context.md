@@ -2,7 +2,7 @@
 
 ## Surface
 
-`spec-kitty charter context --action <action> --json` (existing CLI command). Powered by `src/charter/context.py:build_charter_context()`.
+`spec-kitty charter context --action <action> --json` (existing CLI command). Powered by `src/charter/activation/context.py:build_charter_context()`.
 
 ## Behavior change
 
@@ -11,7 +11,7 @@
 
 ## Implementation seam
 
-In `src/charter/context.py`, after `_append_action_doctrine_lines()` (line 537), add a single optional call:
+In `src/charter/activation/context.py`, after `_append_action_doctrine_lines()` (line 537), add a single optional call:
 
 ```python
 if is_spdd_reasons_active(self.repo_root):

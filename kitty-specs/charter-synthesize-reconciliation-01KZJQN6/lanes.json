@@ -11,10 +11,10 @@
         "WP01"
       ],
       "write_scope": [
-        "src/charter/synthesizer/orchestrator.py",
-        "src/charter/synthesizer/reconcile.py",
-        "src/charter/synthesizer/resynthesize_pipeline.py",
-        "src/charter/synthesizer/write_pipeline.py",
+        "src/charter/activation/synthesizer/orchestrator.py",
+        "src/charter/activation/synthesizer/reconcile.py",
+        "src/charter/activation/synthesizer/resynthesize_pipeline.py",
+        "src/charter/activation/synthesizer/write_pipeline.py",
         "tests/charter/synthesizer/test_synthesize_node_preservation.py",
         "tests/charter/synthesizer/test_synthesize_reconcile.py"
       ],
@@ -32,7 +32,7 @@
         "WP02"
       ],
       "write_scope": [
-        "src/charter/synthesizer/validation_gate.py",
+        "src/charter/activation/synthesizer/validation_gate.py",
         "tests/charter/synthesizer/test_synthesize_conflict_routing.py"
       ],
       "predicted_surfaces": [
@@ -71,9 +71,9 @@
         "WP07"
       ],
       "write_scope": [
-        "src/charter/synthesizer/interview_mapping.py",
-        "src/charter/synthesizer/project_drg.py",
-        "src/charter/synthesizer/targets.py",
+        "src/charter/activation/synthesizer/interview_mapping.py",
+        "src/charter/activation/synthesizer/project_drg.py",
+        "src/charter/activation/synthesizer/targets.py",
         "tests/charter/synthesizer/test_edge_wiring.py"
       ],
       "predicted_surfaces": [

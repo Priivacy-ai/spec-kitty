@@ -24,7 +24,7 @@ description: "Work package task list for Doctrine Governance Fidelity"
 ### Included Subtasks
 
 - [x] T001 Add a RED test driving `charter generate --from-interview` asserting a seeded `documentation_policy` sentinel appears in `charter.md` (and the risk sentinel still appears).
-- [x] T002 Interpolate `documentation_policy` at `src/charter/compiler.py:944` using the `risk_boundaries` shape (`{index}. Keep documentation synchronized with workflow and behavior changes: {docs}`).
+- [x] T002 Interpolate `documentation_policy` at `src/charter/activation/compiler.py:944` using the `risk_boundaries` shape (`{index}. Keep documentation synchronized with workflow and behavior changes: {docs}`).
 - [x] T003 Add a focused test for the empty-`documentation_policy` branch (no directive line emitted).
 
 ### Dependencies

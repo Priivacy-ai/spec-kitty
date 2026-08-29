@@ -33,10 +33,10 @@
         "WP02"
       ],
       "write_scope": [
-        "src/charter/compact.py",
-        "src/charter/compiler.py",
-        "src/charter/context.py",
-        "src/charter/language_scope.py",
+        "src/charter/activation/compact.py",
+        "src/charter/activation/compiler.py",
+        "src/charter/activation/context.py",
+        "src/charter/activation/language_scope.py",
         "tests/charter/test_language_scope.py"
       ],
       "predicted_surfaces": [

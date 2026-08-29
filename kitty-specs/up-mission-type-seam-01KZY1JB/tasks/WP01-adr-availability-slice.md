@@ -62,7 +62,7 @@ of:
 1. **This mission does not promote mission-type to a first-class `ArtifactKind` member.**
    Confirm live before writing: `grep -n "class ArtifactKind" -A 30 src/doctrine/artifact_kinds.py`
    has no `MISSION_TYPE` member today, and `grep -n "MissionTypeNotAnArtifactKind"
-   src/charter/kind_vocabulary.py` shows the exception exists specifically to keep
+   src/charter/activation/kind_vocabulary.py` shows the exception exists specifically to keep
    `"mission-type"` out of the charter-activatable `ArtifactKind` vocabulary while remaining a
    `CHARTER_KIND_TOKENS` member. That promotion is a separate, larger, currently-unstarted
    upstream effort — issue [#2468](https://github.com/Priivacy-ai/spec-kitty/issues/2468), blocked
@@ -89,7 +89,7 @@ of:
    alternative and why: `.kittify/doctrine/mission_types/` was considered and rejected because that
    directory shape, scanned recursively, would descend into a per-type `governance-profile.yaml`
    subdirectory and mint a bogus available mission type literally named `governance-profile` — a
-   real trap in the live scanning code (`src/charter/pack_manager.py`'s `list_available_detailed`,
+   real trap in the live scanning code (`src/charter/activation/pack_manager.py`'s `list_available_detailed`,
    which uses `scan_dir.rglob(glob)` universally for other kinds), not a hypothetical one, though
    this mission's flat CL-005 shape structurally avoids it rather than fixing the underlying
    `rglob` behavior (that fix is out of scope — see WP05's prompt).
@@ -139,7 +139,7 @@ of:
      invent a new one).
   2. Verify, live, the two source-code claims in the Objectives section above (`ArtifactKind` enum
      has no `MISSION_TYPE` member; `MissionTypeNotAnArtifactKind` exists in
-     `src/charter/kind_vocabulary.py`). Cite the actual line numbers you find, not the ones in this
+     `src/charter/activation/kind_vocabulary.py`). Cite the actual line numbers you find, not the ones in this
      prompt (they will drift).
   3. Draft the ADR with frontmatter: `title`, `description` (one sentence, per the repo's ADR
      convention), `status: Accepted` (this ADR records a decision already made and being executed,

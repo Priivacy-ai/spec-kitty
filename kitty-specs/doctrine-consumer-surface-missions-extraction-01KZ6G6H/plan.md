@@ -17,7 +17,7 @@ Relocate the `missions/` doctrine tree's **data content** from `src/doctrine/mis
 **Project Type**: Single project (existing monorepo Python CLI; no frontend/mobile surface touched)
 **Performance Goals**: Not a hot-path change — path resolution runs once per CLI invocation (init, mission-type enumeration), not in a loop. No explicit throughput target; NFR bar is "no user-observable slowdown," not a numeric threshold.
 **Constraints**: Per spec C-001–C-003 — no wheel publish in this mission (`src/kernel`/`src/doctrine`/`src/charter` remain bundled in the root wheel); `change_mode: bulk_edit` governs the relocation (occurrence map + `moves:` block required before implementation); named issues #3179/#2986/#3022/#2468/#2652 explicitly out of scope.
-**Scale/Scope**: Cross-layer but bounded — touches `src/kernel/paths.py`, `src/doctrine/pack_paths.py`, `src/doctrine/missions/**` (data subdirectories relocated; `.py` logic modules stay), `packs/built-in/missions/**` (new), `packs/built-in/agent_profiles/doctrine-daphne.agent.yaml` (current path, post `relocate-builtin-doctrine-packs-01KYT87F`), `src/charter/mission_type_profiles.py`, `src/doctrine/drg/migration/extractor.py` (`_missions_root()`), `packs/built-in/mission_type.graph.yaml`/`mission_step_contract.graph.yaml` (regenerated), `.kittify/overrides/missions/software-dev/command-templates/{implement,review}.md`, `tests/architectural/test_no_dead_doctrine_paths.py` (split), plus every identified reader of `missions/` content across `specify_cli`/`runtime`/upgrade migrations (exact set is FR-003's own deliverable — this plan does not presuppose the count).
+**Scale/Scope**: Cross-layer but bounded — touches `src/kernel/paths.py`, `src/doctrine/pack_paths.py`, `src/doctrine/missions/**` (data subdirectories relocated; `.py` logic modules stay), `packs/built-in/missions/**` (new), `packs/built-in/agent_profiles/doctrine-daphne.agent.yaml` (current path, post `relocate-builtin-doctrine-packs-01KYT87F`), `src/charter/activation/mission_type_profiles.py`, `src/doctrine/drg/migration/extractor.py` (`_missions_root()`), `packs/built-in/mission_type.graph.yaml`/`mission_step_contract.graph.yaml` (regenerated), `.kittify/overrides/missions/software-dev/command-templates/{implement,review}.md`, `tests/architectural/test_no_dead_doctrine_paths.py` (split), plus every identified reader of `missions/` content across `specify_cli`/`runtime`/upgrade migrations (exact set is FR-003's own deliverable — this plan does not presuppose the count).
 
 ## Charter Check
 
@@ -172,7 +172,7 @@ tests/architectural/
 
 - **Purpose**: Add a red-first reproduction test for the actual activated-but-unresolvable-profile scenario (the existing test doesn't cover it), then fix `UnknownMissionTypeError`'s self-contradictory message.
 - **Relevant requirements**: FR-006, SC-003.
-- **Affected surfaces**: `src/charter/mission_type_profiles.py`, `tests/charter/test_mission_type_profiles.py` (new reproduction test).
+- **Affected surfaces**: `src/charter/activation/mission_type_profiles.py`, `tests/charter/test_mission_type_profiles.py` (new reproduction test).
 - **Sequencing/depends-on**: none — fully independent of every other IC.
 - **Risks**: Low; a docstring already documents the exact reproduction (per debugger-debbie's squad finding), reducing this to a small, well-understood fix.
 

@@ -169,7 +169,7 @@ rmdir tests/specify_cli/charter/ 2>/dev/null || true
 
 ### Exception 2: `tests/charter/test_sync_paths.py`
 
-The C-005 exception in this file is the `import_module("specify_cli.charter")` call and the test that asserts `specify_cli.charter.sync` is the same callable as `charter.sync`. Read the file first to understand the exact scope:
+The C-005 exception in this file is the `import_module("specify_cli.charter")` call and the test that asserts `specify_cli.charter.sync` is the same callable as `charter.activation.sync`. Read the file first to understand the exact scope:
 ```bash
 grep -n "specify_cli" tests/charter/test_sync_paths.py
 ```
@@ -308,7 +308,7 @@ Remove the `src/specify_cli/charter/` entries; keep the `src/charter/` entries.
 |------|-----------|------------|
 | Unexpected non-test caller found at T008 | Low | Hard stop at T008 grep gate; report and investigate before any deletion |
 | T010 removes too many lines from test_chokepoint_coverage.py | Medium | Read the file carefully; only remove `specify_cli/charter/` path entries; canonical `charter/` entries stay |
-| `test_sync_paths.py` has canonical content mixed with legacy content | Medium | Read the full test function before deleting; keep any test that validates canonical `charter.sync` behaviour |
+| `test_sync_paths.py` has canonical content mixed with legacy content | Medium | Read the full test function before deleting; keep any test that validates canonical `charter.activation.sync` behaviour |
 | Shim deletion breaks `tests/specify_cli/charter/test_no_new_legacy_modules.py` | Low | Delete the file if its sole purpose is shim-directory enumeration; check first |
 
 ---

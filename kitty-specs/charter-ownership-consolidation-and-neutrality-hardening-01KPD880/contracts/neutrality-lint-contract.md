@@ -15,8 +15,8 @@ A single pytest module at `tests/charter/test_neutrality_lint.py` MUST implement
 
 ### Inputs
 
-- `src/charter/neutrality/banned_terms.yaml` — v1 schema per C-4.
-- `src/charter/neutrality/language_scoped_allowlist.yaml` — v1 schema per C-5.
+- `src/charter/activation/neutrality/banned_terms.yaml` — v1 schema per C-4.
+- `src/charter/activation/neutrality/language_scoped_allowlist.yaml` — v1 schema per C-5.
 - All files under the following scan roots (initial configuration; extensible via lint config):
   - `src/doctrine/` — **primary bias surface**; shipped doctrine artifacts (agent profiles, styleguides, toolguides) are where Python/pytest leakage has historically occurred. Scanning this root is load-bearing for FR-008.
   - `src/charter/` (excluding `src/charter/neutrality/` itself to avoid self-match)
@@ -49,7 +49,7 @@ STALE ALLOWLIST ENTRIES:
 
 Remediation for each HIT:
   (a) Remove the banned term from the file, OR
-  (b) Add the file's path to src/charter/neutrality/language_scoped_allowlist.yaml
+  (b) Add the file's path to src/charter/activation/neutrality/language_scoped_allowlist.yaml
       if the file is INTENTIONALLY language-scoped.
 
 Remediation for STALE entries:

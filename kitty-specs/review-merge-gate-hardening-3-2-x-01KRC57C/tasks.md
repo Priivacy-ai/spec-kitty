@@ -42,11 +42,11 @@
 | T030 | Implement fail-loud path: if a status command cannot serve from a detached worktree, emit diagnostic naming the constraint (FR-014) | WP05 |  |
 | T031 | Regression fixture with two worktrees + divergent `status.events.jsonl`; from each worktree, `agent tasks status --json` reflects its own events (FR-015) | WP05 |  |
 | T032 | Promote `charset-normalizer` to direct dep in `pyproject.toml` pinned `>=3.4,<4`; verify `uv.lock` resolves cleanly | WP06 | [P] |
-| T033 | Create `src/charter/_diagnostics.py` with `CharterEncodingDiagnostic` StrEnum; class docstring references `ERROR_CODES.md` | WP06 | [P] |
-| T034 | Create `src/charter/_io.py` exposing `load_charter_file()` and `load_charter_bytes()`; detection order per contract; provenance write to dual-storage routing (FR-016, FR-017, FR-022) | WP06 |  |
+| T033 | Create `src/charter/activation/_diagnostics.py` with `CharterEncodingDiagnostic` StrEnum; class docstring references `ERROR_CODES.md` | WP06 | [P] |
+| T034 | Create `src/charter/activation/_io.py` exposing `load_charter_file()` and `load_charter_bytes()`; detection order per contract; provenance write to dual-storage routing (FR-016, FR-017, FR-022) | WP06 |  |
 | T035 | Retrofit 3 ingest sites: `compiler.py:594`, `sync.py:151`, `interview.py:283,398` (NFR-004 budget) | WP06 |  |
 | T036 | Implement `--unsafe` bypass on the loader; record `bypass_used: true` in provenance (FR-021) | WP06 |  |
-| T037 | Author `src/charter/ERROR_CODES.md` (FR-033, NFR-008); add glossary entries for encoding chokepoint, encoding provenance, unsafe bypass (FR-034) | WP06 | [P] |
+| T037 | Author `src/charter/activation/ERROR_CODES.md` (FR-033, NFR-008); add glossary entries for encoding chokepoint, encoding provenance, unsafe bypass (FR-034) | WP06 | [P] |
 | T038 | Regression tests covering cp1252 ingest, mixed-content AMBIGUOUS, `--unsafe` bypass, per-mission vs centralized routing | WP06 |  |
 | T039 | Create `spec-kitty migrate charter-encoding` subcommand at `src/specify_cli/cli/commands/migrate/charter_encoding.py` | WP08 |  | [D] |
 | T040 | Implement corpus scan: inventory `kitty-specs/*/charter/*` + `.kittify/charter/*` (extensions `.yaml`, `.md`, `.txt`); detect encoding via WP06 chokepoint per file | WP08 |  | [D] |
@@ -281,11 +281,11 @@ T028 in parallel with audit prep; T029 sequenced after T028 (uses the helper); T
 #### Subtasks
 
 - [x] T032 [P] Promote `charset-normalizer` to direct dep in `pyproject.toml` pinned `>=3.4,<4`; verify `uv.lock` resolves cleanly (WP06)
-- [x] T033 [P] Create `src/charter/_diagnostics.py` with `CharterEncodingDiagnostic` StrEnum; class docstring references `ERROR_CODES.md` (WP06)
-- [x] T034 Create `src/charter/_io.py` exposing `load_charter_file()` and `load_charter_bytes()`; detection order per contract; provenance write to dual-storage routing (FR-016, FR-017, FR-022) (WP06)
+- [x] T033 [P] Create `src/charter/activation/_diagnostics.py` with `CharterEncodingDiagnostic` StrEnum; class docstring references `ERROR_CODES.md` (WP06)
+- [x] T034 Create `src/charter/activation/_io.py` exposing `load_charter_file()` and `load_charter_bytes()`; detection order per contract; provenance write to dual-storage routing (FR-016, FR-017, FR-022) (WP06)
 - [x] T035 Retrofit 3 ingest sites: `compiler.py:594`, `sync.py:151`, `interview.py:283,398` (NFR-004 budget) (WP06)
 - [x] T036 Implement `--unsafe` bypass on the loader; record `bypass_used: true` in provenance (FR-021) (WP06)
-- [x] T037 [P] Author `src/charter/ERROR_CODES.md` (FR-033, NFR-008); add glossary entries for encoding chokepoint, encoding provenance, unsafe bypass (FR-034) (WP06)
+- [x] T037 [P] Author `src/charter/activation/ERROR_CODES.md` (FR-033, NFR-008); add glossary entries for encoding chokepoint, encoding provenance, unsafe bypass (FR-034) (WP06)
 - [x] T038 Regression tests covering cp1252 ingest, mixed-content AMBIGUOUS, `--unsafe` bypass, per-mission vs centralized routing (WP06)
 
 #### Risks

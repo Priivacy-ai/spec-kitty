@@ -20,7 +20,7 @@ Reason for the dependency: the fix this issue prescribes threads
 `doctrine.drg.org_pack_config.resolve_existing_org_roots` into three call sites. That
 module/function is **verified absent** from `src/doctrine/drg/org_pack_config.py` on `main`
 (confirmed via `git show main:src/doctrine/drg/org_pack_config.py`, which does not define
-`resolve_existing_org_roots`) — it is introduced by #3520/#3525's commits. `src/charter/_drg_helpers.py`
+`resolve_existing_org_roots`) — it is introduced by #3520/#3525's commits. `src/charter/activation/_drg_helpers.py`
 (which *consumes* the symbol, and is where `load_validated_graph` and `_resolve_org_root` live)
 also changes substantially between `main` and this branch, so both files are worth diffing — but
 only `org_pack_config.py` is where the symbol itself is missing. This mission cannot be built
@@ -45,7 +45,7 @@ Three consequences, stated explicitly so no reviewer or future agent has to redi
 
 **Malformed-org-pack degrade behavior (formerly "Item 4", scoped as a fourth functional requirement in an earlier draft and since retired) is explicitly
 NOT this mission's responsibility.** An earlier draft of this spec scoped a fourth item: the
-asymmetry in `src/charter/_drg_helpers.py::load_validated_graph` between the project branch's
+asymmetry in `src/charter/activation/_drg_helpers.py::load_validated_graph` between the project branch's
 lenient `has_graph_files` pre-check and the org branch's bare `.exists()` guard, and the resulting
 whole-bundle silent collapse when a configured org pack has no loadable graph (live-reproduced
 during this mission's own investigation: `directive_ids=0, tactic_ids=0, styleguide_ids=0,
@@ -56,8 +56,8 @@ root load and surface malformed org content", mission `org-pack-drg-root-graph-g
 closes [#3384](https://github.com/Priivacy-ai/spec-kitty/issues/3384)) — verified OPEN via `gh pr
 view 3401`; its own description states "An org pack with no loadable graph now degrades to 'no org
 DRG layer' instead of raising a swallowed `DRGLoadError` — the same guard the project layer already
-applied," and its implementation touches exactly `src/charter/_drg_helpers.py` and
-`src/charter/action_doctrine_bundle.py` (comment-only) — the same seam this mission's now-retired
+applied," and its implementation touches exactly `src/charter/activation/_drg_helpers.py` and
+`src/charter/activation/action_doctrine_bundle.py` (comment-only) — the same seam this mission's now-retired
 fourth requirement would have touched.
 
 **Deliberately not duplicated here**, per this mission's own Governing Principles (single canonical
@@ -178,7 +178,7 @@ pack #2 or later in a configured chain is silently wrong or fails.
 cascade renderers — `src/specify_cli/cli/commands/charter/list_cmd.py:165` (inside `charter list
 --all-layers`), which feeds `layer_roots["org"]` into both `_template_tier_roots` (list_cmd.py:64,
 77) and `CharterPackManager.list_available_detailed(..., layer_roots=layer_roots)`
-(`src/charter/pack_manager.py:784`, documented signature `layer_roots: dict[str, Path] | None` —
+(`src/charter/activation/pack_manager.py:784`, documented signature `layer_roots: dict[str, Path] | None` —
 one `Path` per layer, not a list). This mission does **not** widen `charter list --all-layers`'s
 own multi-pack display — that is a separate, display-only concern (pack-2+ availability rendering
 in `charter list`, not cascade-activation correctness) and out of issue #3527's filed scope; fixing
@@ -190,7 +190,7 @@ the existing `roots["org"]` key holding a single representative `Path` (pack 1, 
 `roots["org_chain"]: list[Path]`) that only the two cascade call sites and `_drg_id_to_config_id`
 consume. This mirrors the established `effective_org_root` (back-compat single value) /
 `effective_org_roots` (full chain) dual-field pattern already used by
-`charter.action_doctrine_bundle._resolve_action_bundle`. A follow-up issue should be filed by the
+`charter.activation.action_doctrine_bundle._resolve_action_bundle`. A follow-up issue should be filed by the
 plan or implementation phase to widen `charter list --all-layers` to the full chain later; this
 mission's SC list and regression tests do not cover `list_cmd.py`'s own multi-pack *display*, only
 that it does not regress (still shows pack 1, same as before).
@@ -238,10 +238,10 @@ JSON-output-only. It originates in the CLI command itself —
 org_roots[0] if org_roots else None` and passes that SAME truncated value into **both**
 `build_charter_context` (plain-text, line 117) and `build_charter_context_json` (JSON, line 132).
 `build_charter_context` already routes through `_resolve_action_bundle`
-(`src/charter/context.py:270`) — the established self-resolving wrapper — but `_resolve_action_bundle`
+(`src/charter/activation/context.py:270`) — the established self-resolving wrapper — but `_resolve_action_bundle`
 only self-resolves the full chain when its caller passes `org_root=None`; an *explicit*
 (already-truncated) `org_root` is "honoured verbatim and does not widen into the chain"
-(`src/charter/action_doctrine_bundle.py:96-99`, docstring). So **the plain-text path is truncated
+(`src/charter/activation/action_doctrine_bundle.py:96-99`, docstring). So **the plain-text path is truncated
 to pack 1 today too**, by the same root cause, despite already using the "correct" wrapper.
 `build_charter_context_json` has a SECOND, independent defect on top of this: it calls the
 private `_load_action_doctrine_bundle` directly (bypassing `_resolve_action_bundle` entirely), so
@@ -391,7 +391,7 @@ deliberately not spelled out anywhere in this document — see the note below.
    artifacts that were referenced but excluded by scope — proving the DRG it warns from now
    contains org-pack nodes at all (pre-fix, it structurally could not, since org roots were never
    loaded).
-6. `_resolve_org_root` in `src/charter/_drg_helpers.py` is **not modified** by this fix — it
+6. `_resolve_org_root` in `src/charter/activation/_drg_helpers.py` is **not modified** by this fix — it
    remains intentionally inert per its own docstring and the architectural boundary enforced by
    `tests/architectural/test_layer_rules.py`. The fix is entirely in the three CLI-layer callers
    and `resolve_layer_roots`.
@@ -416,8 +416,8 @@ deliberately not spelled out anywhere in this document — see the note below.
    `build_charter_context_json`, and instead passes `org_root=None` through (the separately-held
    full `org_roots` list is still passed unchanged to `load_org_charter_json_block(org_roots)`,
    which is unaffected by this change and already correct); AND
-   (b) `src/charter/context.py::build_charter_context_json` swaps its internal call from the
-   private `_load_action_doctrine_bundle` to `charter.action_doctrine_bundle._resolve_action_bundle`
+   (b) `src/charter/activation/context.py::build_charter_context_json` swaps its internal call from the
+   private `_load_action_doctrine_bundle` to `charter.activation.action_doctrine_bundle._resolve_action_bundle`
    (mirroring what `build_charter_context`, the plain-text path, already does).
    Change (a) alone fixes the plain-text path (since it already routes through
    `_resolve_action_bundle`, whose self-resolution only engages when it receives `org_root=None`)
@@ -437,7 +437,7 @@ deliberately not spelled out anywhere in this document — see the note below.
 **FR-002 Design Notes / Recommendations** *(not acceptance criteria — guidance for the plan phase, not independently testable pass/fail assertions)*
 
 - This mission recommends routing `build_charter_context_json`'s call path through
-  `charter.action_doctrine_bundle._resolve_action_bundle` instead of calling the private
+  `charter.activation.action_doctrine_bundle._resolve_action_bundle` instead of calling the private
   `_load_action_doctrine_bundle` directly. Rationale: (a) it is the charter's own
   reconcile-don't-duplicate / single-canonical-authority principle — `_resolve_action_bundle`
   already *is* the established self-resolving wrapper for exactly this "caller did not supply an
@@ -518,11 +518,11 @@ deliberately not spelled out anywhere in this document — see the note below.
 
 | ID | Title | Constraint | Category | Priority | Status |
 |----|-------|------------|----------|----------|--------|
-| C-001 | `_resolve_org_root` stays inert | `src/charter/_drg_helpers.py::_resolve_org_root` must NOT be modified to resolve org roots itself. It is intentionally inert by design (its own docstring) to keep the `charter` package free of `specify_cli` imports, enforced by `tests/architectural/test_layer_rules.py`. All fixes belong in the `specify_cli`-layer callers. | Technical | High | Open |
+| C-001 | `_resolve_org_root` stays inert | `src/charter/activation/_drg_helpers.py::_resolve_org_root` must NOT be modified to resolve org roots itself. It is intentionally inert by design (its own docstring) to keep the `charter` package free of `specify_cli` imports, enforced by `tests/architectural/test_layer_rules.py`. All fixes belong in the `specify_cli`-layer callers. | Technical | High | Open |
 | C-002 | Shared-reference safety preserved | Cascade deactivation must continue to skip (never remove) artifacts still referenced by another active artifact (existing C-005 contract), now correctly extended across the full org-pack chain rather than accidentally correct only because org packs were invisible before. | Technical | High | Open |
 | C-003 | No stale/unverifiable numbers in spec or plan artifacts | Do not cite specific doctrine counts (e.g. "21 directives / 69 tactics") from any unrelated, unverifiable probe. Only the mechanism and defect class demonstrated by this mission's own live repro (see Grounding) may be cited with numbers, and only the `0 0 0 0 0` result that repro actually produced. | Technical | Medium | Open |
 | C-004 | D2 stays closed | R&D finding D2 (`charter/kind_vocabulary.py::_org_scan_dirs` scanning a legacy `<root>/<plural>/built-in` path) is confirmed fixed upstream on this branch. This mission must not resurrect or re-file it. | Technical | Low | Open |
-| C-006 | Item 4 (retired fourth FR) not duplicated | The malformed-org-pack whole-bundle-collapse defect (formerly this mission's Item 4) is confirmed fixed in open PR #3401 (`org-pack-drg-root-graph-guard-01KZY0QT`, closes #3384), touching `src/charter/_drg_helpers.py` and `src/charter/action_doctrine_bundle.py`. This mission must NOT independently implement per-root-degrade logic for that defect anywhere it touches `load_validated_graph`/`_load_action_doctrine_bundle` — doing so would create a second, conflicting fix on the same lines #3401 already owns. See "Out of Scope". NOTE: numbered C-006, not C-005 — this spec's User Story 2 / C-002 already use "C-005" to refer to an external, pre-existing shared-reference-safety contract from elsewhere in the codebase, unrelated to this mission's own Constraints table; reusing "C-005" here would collide with that reference within this same document. | Technical | High | Open |
+| C-006 | Item 4 (retired fourth FR) not duplicated | The malformed-org-pack whole-bundle-collapse defect (formerly this mission's Item 4) is confirmed fixed in open PR #3401 (`org-pack-drg-root-graph-guard-01KZY0QT`, closes #3384), touching `src/charter/activation/_drg_helpers.py` and `src/charter/activation/action_doctrine_bundle.py`. This mission must NOT independently implement per-root-degrade logic for that defect anywhere it touches `load_validated_graph`/`_load_action_doctrine_bundle` — doing so would create a second, conflicting fix on the same lines #3401 already owns. See "Out of Scope". NOTE: numbered C-006, not C-005 — this spec's User Story 2 / C-002 already use "C-005" to refer to an external, pre-existing shared-reference-safety contract from elsewhere in the codebase, unrelated to this mission's own Constraints table; reusing "C-005" here would collide with that reference within this same document. | Technical | High | Open |
 
 ### Key Entities
 
@@ -534,7 +534,7 @@ deliberately not spelled out anywhere in this document — see the note below.
   directories (`resolve_org_roots`, plural) versus the existence-filtered subset
   (`resolve_existing_org_roots`). A chain may have 0, 1, or N packs; each pack may be healthy or
   malformed (exists but has no graph fragment).
-- **Cascade activation/deactivation plan**: the `charter.cascade` module's computed set of
+- **Cascade activation/deactivation plan**: the `charter.activation.cascade` module's computed set of
   artifacts to activate/deactivate/skip, derived by walking the DRG from a source/target URN. Its
   correctness is entirely downstream of whether the DRG it walks contains the org-pack nodes.
 - **Action-doctrine bundle**: the per-action set of `directive_ids`/`tactic_ids`/`styleguide_ids`/
@@ -576,7 +576,7 @@ authored).
 This mission's investigation confirmed the whole-bundle-collapse mechanism with a real, working
 repro on this branch (not inferred from prose): a fake org-pack directory with a `directives/`
 subdir but no `graph.yaml`/`*.graph.yaml` fragment, passed to
-`charter.action_doctrine_bundle._load_action_doctrine_bundle`, produced
+`charter.activation.action_doctrine_bundle._load_action_doctrine_bundle`, produced
 `directive_ids=0, tactic_ids=0, styleguide_ids=0, toolguide_ids=0, procedure_ids=0` — all five
 doctrine-kind counts collapsed to zero, with only a WARNING-level log line, no exception surfaced
 to the caller. Per C-003, no other doctrine counts (e.g. from an unrelated probe) are cited

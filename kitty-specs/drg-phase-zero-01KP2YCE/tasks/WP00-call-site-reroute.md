@@ -33,7 +33,7 @@ tags: []
 
 ## Objective
 
-Document the behavioral delta between the canonical `src/charter/context.py` and the legacy `src/specify_cli/charter/context.py`, confirm the canonical path is the correct parity oracle for WP04, and document what Phase 1's reroute will change in live prompt behavior.
+Document the behavioral delta between the canonical `src/charter/activation/context.py` and the legacy `src/specify_cli/charter/context.py`, confirm the canonical path is the correct parity oracle for WP04, and document what Phase 1's reroute will change in live prompt behavior.
 
 **No production code is changed in this WP.** The two implementations have materially different behavior (canonical has depth semantics, action doctrine injection, and guideline rendering; legacy does not). Rerouting callers would change live prompt output and is Phase 1 scope.
 
@@ -42,9 +42,9 @@ Document the behavioral delta between the canonical `src/charter/context.py` and
 Three callers exist:
 - `src/specify_cli/next/prompt_builder.py:13` -- imports from `specify_cli.charter.context` (legacy)
 - `src/specify_cli/cli/commands/agent/workflow.py:20` -- imports from `specify_cli.charter.context` (legacy)
-- `src/specify_cli/cli/commands/charter.py:13` -- imports from `charter.context` (canonical)
+- `src/specify_cli/cli/commands/charter.py:13` -- imports from `charter.activation.context` (canonical)
 
-The canonical implementation (`src/charter/context.py`) has:
+The canonical implementation (`src/charter/activation/context.py`) has:
 - `depth` parameter (1=compact, 2=bootstrap+action doctrine, 3=extended+styleguides)
 - Action doctrine injection via `_append_action_doctrine_lines()` (directives, tactics, guidelines)
 - Action-filtered reference docs via `_filter_references_for_action()`
@@ -70,7 +70,7 @@ The legacy implementation (`src/specify_cli/charter/context.py`) has:
 **Steps**:
 1. Create `kitty-specs/drg-phase-zero-01KP2YCE/research/call-site-delta.md`
 2. For each bootstrap action (`specify`, `plan`, `implement`, `review`):
-   a. Call the canonical `charter.context.build_charter_context(repo_root, action=action, depth=d)` for depths 1, 2, 3
+   a. Call the canonical `charter.activation.context.build_charter_context(repo_root, action=action, depth=d)` for depths 1, 2, 3
    b. Call the legacy `specify_cli.charter.context.build_charter_context(repo_root, action=action)` (no depth parameter)
    c. Document:
       - Which artifact IDs (directives, tactics) appear in each output

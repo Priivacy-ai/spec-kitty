@@ -5,7 +5,7 @@ from pathlib import Path
 
 import pytest
 
-from charter.compiler import CompiledCharter, write_compiled_charter
+from charter.activation.compiler import CompiledCharter, write_compiled_charter
 
 pytestmark = pytest.mark.fast
 

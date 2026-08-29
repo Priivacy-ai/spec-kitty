@@ -46,7 +46,7 @@ Make `config.activated_*` the single activation authority; the compiled referenc
 - **Requirements**: FR-001, C-006 · **Independent test**: 25-directive stem↔canonical parity fixture + malformed-stem-rejected non-vacuity test green.
 - **Prompt**: [tasks/WP01-id-parity-foundation.md](tasks/WP01-id-parity-foundation.md) (~4 subtasks)
 
-- [x] T001 Stem→canonical resolver over config.activated_* (reuse/harden `charter.kind_vocabulary.resolve_config_id`) (WP01)
+- [x] T001 Stem→canonical resolver over config.activated_* (reuse/harden `charter.activation.kind_vocabulary.resolve_config_id`) (WP01)
 - [x] T002 Reject-not-drop on a malformed/unresolvable stem (WP01)
 - [x] T003 25-directive stem↔canonical parity fixture (WP01)
 - [x] T004 Non-vacuity test: a malformed stem is rejected, not silently dropped (WP01)

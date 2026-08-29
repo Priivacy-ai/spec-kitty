@@ -1,7 +1,7 @@
 # Contract — `doctor doctrine` cross-grain integrity check (IC-3 / #2666)
 
 **Location:** `src/specify_cli/cli/commands/doctor.py` (`doctrine_check`), consuming
-`charter.action_grain.scan_builtin_cross_grain_duplicates`.
+`charter.activation.action_grain.scan_builtin_cross_grain_duplicates`.
 
 ## Behavior
 
@@ -15,7 +15,7 @@
 
 ## `__all__` coupling (C-003)
 
-`scan_builtin_cross_grain_duplicates` is re-added to `__all__` in `src/charter/action_grain.py` in the SAME
+`scan_builtin_cross_grain_duplicates` is re-added to `__all__` in `src/charter/activation/action_grain.py` in the SAME
 change as this wiring — the CI dead-symbol gate
 (`tests/architectural/test_no_dead_symbols.py::test_no_public_symbol_in_all_is_unimported`, arch_shard_1)
 only passes once a real `src/` importer exists.

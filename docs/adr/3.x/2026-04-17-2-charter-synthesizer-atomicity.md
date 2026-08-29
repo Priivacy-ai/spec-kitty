@@ -133,7 +133,7 @@ On any FAILED transition, the staging dir is renamed to `.staging/<runid>.failed
 
 ## Path Guard Implementation Note
 
-`src/charter/synthesizer/path_guard.py` wraps every filesystem write method used by the synthesizer (`write_text`, `write_bytes`, `replace`, `mkdir`, `rmtree`, `rename`). A lint-style test (`test_path_guard.py`) greps `src/charter/synthesizer/` for direct write primitives (`open(..., 'w')`, `Path.write_text`, `Path.write_bytes`, `shutil.move`, `os.replace`, `os.rename`) outside `path_guard.py` and fails if any are found. This makes path-guard bypass a CI regression (R-10).
+`src/charter/activation/synthesizer/path_guard.py` wraps every filesystem write method used by the synthesizer (`write_text`, `write_bytes`, `replace`, `mkdir`, `rmtree`, `rename`). A lint-style test (`test_path_guard.py`) greps `src/charter/synthesizer/` for direct write primitives (`open(..., 'w')`, `Path.write_text`, `Path.write_bytes`, `shutil.move`, `os.replace`, `os.rename`) outside `path_guard.py` and fails if any are found. This makes path-guard bypass a CI regression (R-10).
 
 ---
 

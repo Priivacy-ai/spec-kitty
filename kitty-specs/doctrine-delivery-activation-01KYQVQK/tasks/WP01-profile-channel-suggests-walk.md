@@ -32,7 +32,7 @@ execution_mode: code_change
 model: ''
 owned_files:
 - src/doctrine/drg/reachability.py
-- src/charter/progressive_disclosure.py
+- src/charter/activation/progressive_disclosure.py
 - src/doctrine/agent_profiles/repository.py
 role: implementer
 tags: []
@@ -95,7 +95,7 @@ By the end of this WP:
 2. A charter-layer projection surfaces each `suggests` edge's `when` clause (or `STATED_DEFAULT_WHEN`
    when absent) for every artefact the profile channel reaches by `suggests` — reusing
    `link_references`, never re-walking the graph.
-3. The profile render path (`_render_profile_sections` in `src/charter/context.py`, and its
+3. The profile render path (`_render_profile_sections` in `src/charter/activation/context.py`, and its
    `context_renderers/profile_sections.py` siblings) delivers this suggests-reached doctrine — across
    the kinds it now reaches (paradigm/styleguide/directive/tactic/toolguide/procedure), not just
    procedures — as `when`-labelled **links**, never inlined bodies (NFR-003).
@@ -142,7 +142,7 @@ By the end of this WP:
   etc.). A per-reached-node `edges_from(reached, SUGGESTS)` therefore **misses** those edges entirely
   and would surface no `when` for the headline families. You MUST instead reuse
   `link_references(merged, roots=profile_seeds, delivered=<kind-filtered reached set>,
-  bridge_urns=reached ∪ seeds)` (`src/charter/progressive_disclosure.py:110-154`, verified live at
+  bridge_urns=reached ∪ seeds)` (`src/charter/activation/progressive_disclosure.py:110-154`, verified live at
   time of writing). Note `reached ∪ seeds == visited` (the walk's own return value before you strip
   seeds) — so this is **no second walk**, just reusing values you already computed. Do NOT author a
   bespoke projection or a `reachability_delivery/`-style copy of `link_references` (C-002: the 10
@@ -150,8 +150,8 @@ By the end of this WP:
   `requires_closure`, `partition_delivery`, `STATED_DEFAULT_WHEN`, etc. — are consumed as internal
   helpers of that module, not re-derived).
 - **R-M7 (MANDATORY placement)**: the profile-channel `when`-projection function lands in
-  `src/charter/progressive_disclosure.py` (a sibling function beside `link_references`) — **NOT**
-  inline in `src/charter/context.py`. `context.py` is a 3528-line module already flagged for
+  `src/charter/activation/progressive_disclosure.py` (a sibling function beside `link_references`) — **NOT**
+  inline in `src/charter/activation/context.py`. `context.py` is a 3528-line module already flagged for
   extraction (IC-08/WP04, sequenced *after* this WP); growing it further here works against that plan.
   A minimal `context.py` touch (a kind-delivery table entry + the call site) is acceptable and
   documented as an out-of-map edit below — do not go further than that.
@@ -162,7 +162,7 @@ By the end of this WP:
     `walk_edges(graph, seed_set, set(PROFILE_CHANNEL_RELATIONS), max_depth=None)` then returns
     `visited - seed_set`.
   - `link_references(merged, roots, delivered_urns, *, bridge_urns=())` —
-    `src/charter/progressive_disclosure.py:110-154` — iterates `sources = roots ∪ delivered ∪
+    `src/charter/activation/progressive_disclosure.py:110-154` — iterates `sources = roots ∪ delivered ∪
     bridge_urns`, keeps `(bare_id(target), relation)` deduped, for every edge whose target is in
     `delivered`. This is your projection primitive.
   - `edge_to_reference(edge)` — `progressive_disclosure.py:52-68` — projects one `DRGEdge` to
@@ -178,14 +178,14 @@ By the end of this WP:
     `urn.startswith("procedure:")`, returns bare sorted ids with **no relation/when surfaced**. This is
     the method you widen (or the method whose sibling you add) for C4 (kind delivery).
   - **Render-path precedent to extend**, `render_profile_procedures(profile, service)` —
-    `src/charter/context_renderers/profile_sections.py:220-247` — the ONLY existing renderer that
+    `src/charter/activation/context_renderers/profile_sections.py:220-247` — the ONLY existing renderer that
     consumes the profile channel; it calls `profile_channel_procedure_ids` and renders via
     `render_profile_selector_refs(..., when_clause=<static string>, body_fn=format_inline_named_body)`.
     Note this reuses a **static** `when_clause` per selector kind, not a per-edge `when` — your new
     suggests-delivery rendering needs the **per-edge** `when` from the T002 projection, so plan to add
     a distinct renderer (or extend `render_profile_selector_refs` to accept a per-entry `when`
     override) rather than force-fitting the existing static-when path.
-  - `_render_profile_sections(profile, service)` — `src/charter/context.py:3046-3072` — composes
+  - `_render_profile_sections(profile, service)` — `src/charter/activation/context.py:3046-3072` — composes
     `(_render_profile_directives, _render_profile_tactics, _render_profile_styleguides,
     _render_profile_toolguides, _render_profile_procedures)`. Its own docstring says: *"Unattested
     kinds (asset/anti-pattern/paradigm) are C-007 deferrals and contribute no section."* **This is
@@ -274,7 +274,7 @@ By the end of this WP:
 - **Purpose**: Surface each `suggests` edge's `when` clause as the delivered artefact's applicability
   condition, without a second walk and without discarding the seed-sourced edges (D11).
 - **Steps**:
-  1. Add a new function to `src/charter/progressive_disclosure.py` — e.g.
+  1. Add a new function to `src/charter/activation/progressive_disclosure.py` — e.g.
      `profile_channel_references(merged, seeds, delivered_urns) -> list[dict[str, str | None]]` (name
      is your call; keep it consistent with the module's existing naming, and export it via `__all__`
      if `context_renderers/profile_sections.py` needs to import it directly — check whether the render
@@ -301,7 +301,7 @@ By the end of this WP:
   5. Confirm dedup: `link_references` already dedups on `(bare_id(target), relation.value)` — this
      satisfies C5 (dedup across diamonds/multiple source profiles) with no extra work; write a test
      (T005/A4) proving it rather than trusting the docstring blind.
-- **Files**: `src/charter/progressive_disclosure.py`.
+- **Files**: `src/charter/activation/progressive_disclosure.py`.
 - **Parallel?**: Can be developed in parallel with T003's render-layer scaffolding, but T003's actual
   wiring depends on this function's final signature — coordinate within the same commit if convenient
   rather than sequencing as two separate commits.
@@ -331,7 +331,7 @@ By the end of this WP:
      use. Keep `profile_channel_procedure_ids` itself working unchanged (it may become a thin filter
      over the new method, or stay as-is if you add a parallel method — your call, but do not regress
      its existing behaviour or its callers).
-  3. Add a new renderer in `src/charter/context_renderers/profile_sections.py` (sibling to
+  3. Add a new renderer in `src/charter/activation/context_renderers/profile_sections.py` (sibling to
      `render_profile_procedures`) that: (a) gets the suggests-reached, kind-filtered URNs for the
      profile; (b) calls T002's projection to get `(id, relation, when, reason)` per artefact; (c)
      renders each as a link/fetch stanza carrying the **per-edge `when`** (NOT the static
@@ -348,10 +348,10 @@ By the end of this WP:
      `{requires, specializes_from}` subset — reason through this carefully and document your resolution
      in a code comment, since the contract's diamond example (C5) is exactly this case).
   5. Register the new renderer in `_render_profile_sections`'s `section_renderers` tuple
-     (`src/charter/context.py:3057-3063`) — this is the one documented out-of-map `context.py` edit
+     (`src/charter/activation/context.py:3057-3063`) — this is the one documented out-of-map `context.py` edit
      (see Context & Constraints above).
 - **Files**: `src/doctrine/agent_profiles/repository.py`, `src/charter/context_renderers/
-  profile_sections.py`, `src/charter/context.py` (one-line tuple registration only, documented
+  profile_sections.py`, `src/charter/activation/context.py` (one-line tuple registration only, documented
   out-of-map edit).
 - **Parallel?**: Sequenced after T001/T002 land (needs both the widened walk and the projection).
 - **Notes**: `render_profile_selector_refs`'s catalog-miss / budget / fetch-stanza machinery
@@ -473,9 +473,9 @@ By the end of this WP:
   `context-state.json`, that is the known WP07 hermeticity issue — check whether WP07 has landed on
   your base; if not, note the false-red explicitly rather than treating it as your own regression, per
   the CLAUDE.md baseline-red gotcha.)
-- **Lint/type**: `ruff check src/doctrine/drg/reachability.py src/charter/progressive_disclosure.py
-  src/doctrine/agent_profiles/repository.py src/charter/context_renderers/profile_sections.py
-  src/charter/context.py` and `mypy --strict` over the same files — zero new issues, zero new
+- **Lint/type**: `ruff check src/doctrine/drg/reachability.py src/charter/activation/progressive_disclosure.py
+  src/doctrine/agent_profiles/repository.py src/charter/activation/context_renderers/profile_sections.py
+  src/charter/activation/context.py` and `mypy --strict` over the same files — zero new issues, zero new
   suppressions (NFR-005).
 
 ## Risks & Mitigations

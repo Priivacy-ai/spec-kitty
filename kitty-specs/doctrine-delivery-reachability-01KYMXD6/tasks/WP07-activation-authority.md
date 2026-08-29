@@ -30,7 +30,7 @@ history:
   actor: system
   action: Prompt generated via /spec-kitty.tasks
 agent_profile: python-pedro
-authoritative_surface: src/charter/pack_context.py
+authoritative_surface: src/charter/activation/pack_context.py
 create_intent:
 - src/specify_cli/upgrade/migrations/m_3_2_x_normalize_activation_absence.py
 - tests/specify_cli/upgrade/test_normalize_activation_absence.py
@@ -38,8 +38,8 @@ create_intent:
 execution_mode: code_change
 model: ''
 owned_files:
-- src/charter/pack_context.py
-- src/charter/compiler.py
+- src/charter/activation/pack_context.py
+- src/charter/activation/compiler.py
 - src/specify_cli/upgrade/migrations/m_3_2_x_normalize_activation_absence.py
 - tests/specify_cli/upgrade/test_normalize_activation_absence.py
 - tests/charter/test_activation_authority.py

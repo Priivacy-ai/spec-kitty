@@ -6,7 +6,7 @@ kitty-specs/<mission>/contracts/ so reviewers can lock the exact shape of the
 seam before WP3.1 implementation begins. Changes to this contract after
 WP3.1 lands require an ADR amendment (per KD-6 and DIRECTIVE_003).
 
-Implementation target: src/charter/synthesizer/adapter.py
+Implementation target: src/charter/activation/synthesizer/adapter.py
 
 Key decisions locked here (see plan.md §Key Decisions):
 - KD-3: Synchronous Protocol with a mandatory `generate` and an optional

@@ -16,7 +16,7 @@ FR-002's fix has two independent parts:
   truncated value into `build_charter_context` / `build_charter_context_json`; pass
   `org_root=None` instead so the callee's own widening logic applies.
 - **T018**: route `build_charter_context_json` through
-  `charter.action_doctrine_bundle._resolve_action_bundle` (the same self-widening wrapper
+  `charter.activation.action_doctrine_bundle._resolve_action_bundle` (the same self-widening wrapper
   `build_charter_context` already used), instead of the private
   `_load_action_doctrine_bundle`, which never widens regardless of what `org_root` it is
   given.

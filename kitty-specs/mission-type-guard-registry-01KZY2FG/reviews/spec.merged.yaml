@@ -132,13 +132,13 @@ findings:
     severity: 4
     title: "doctor mission-type's 'unknown' state, if built on the cited UnknownMissionTypeError precedent, is blind in exactly the governed projects (like this repo) most likely to run it"
     evidence:
-      - artifact: "spec.md § FR-008 (cites UnknownMissionTypeError FR-006/SC-003 distinction at src/charter/mission_type_profiles.py:193-210)"
+      - artifact: "spec.md § FR-008 (cites UnknownMissionTypeError FR-006/SC-003 distinction at src/charter/activation/mission_type_profiles.py:193-210)"
       - artifact: "spec.md § User Story 4, Acceptance Scenario 1"
       - artifact: "spec.md § Out of Scope, item 1 (the doctrine-override hatch)"
-      - code: "src/charter/mission_type_profiles.py:737-738 — raise UnknownMissionTypeError only when has_override is False"
-      - code: "src/charter/mission_type_profiles.py:788-789 — _resolve_action_slot never raises regardless of override"
-      - code: "src/charter/mission_type_profiles.py:1041 — _project_has_doctrine_overrides True whenever charter.yaml has any governance selection"
-      - code: "src/charter/mission_type_profiles.py:582-583 — override-hatch-independent membership check"
+      - code: "src/charter/activation/mission_type_profiles.py:737-738 — raise UnknownMissionTypeError only when has_override is False"
+      - code: "src/charter/activation/mission_type_profiles.py:788-789 — _resolve_action_slot never raises regardless of override"
+      - code: "src/charter/activation/mission_type_profiles.py:1041 — _project_has_doctrine_overrides True whenever charter.yaml has any governance selection"
+      - code: "src/charter/activation/mission_type_profiles.py:582-583 — override-hatch-independent membership check"
     claim: >
       Tracing the actual raise site confirms UnknownMissionTypeError is raised only when
       has_override is False. This repo's own charter documents 15 activated doctrine artifacts —

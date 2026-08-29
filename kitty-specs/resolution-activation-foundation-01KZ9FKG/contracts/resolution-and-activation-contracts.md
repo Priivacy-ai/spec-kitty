@@ -64,7 +64,7 @@ acceptance test pins (ATDD-first). Revised for DR-1 (unified resolver). "Door" =
 ## C-A6 — Behavior parity at the activation authority (NFR-003; SC-004)
 
 - **Given** a normally-provisioned project under default env,
-- **When** the set returned by the **activation authority** (`charter.mission_type_profiles.existing_mission_types` / drg gating at `mission_type_profiles.py:498`, `charter/drg.py:441,471`) and the resolved mission-asset paths are compared before vs after the mission,
+- **When** the set returned by the **activation authority** (`charter.activation.mission_type_profiles.existing_mission_types` / drg gating at `mission_type_profiles.py:498`, `charter/drg.py:441,471`) and the resolved mission-asset paths are compared before vs after the mission,
 - **Then** both are identical (0 diff). **Explicitly NOT measured via `list_available_missions`/`_build_discovery_context`** (fenced unchanged by C-003 — measuring there is a guaranteed no-op).
 
 ## C-S1 — Scope fence (C-001, C-003; SC-005)

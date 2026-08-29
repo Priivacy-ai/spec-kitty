@@ -27,13 +27,13 @@ history:
 agent_profile: python-pedro
 authoritative_surface: src/charter/
 create_intent:
-- src/charter/org_expected_artifacts.py
+- src/charter/activation/org_expected_artifacts.py
 - tests/charter/test_org_expected_artifacts.py
 execution_mode: code_change
 model: claude-sonnet-5
 owned_files:
-- src/charter/org_expected_artifacts.py
-- src/charter/mission_type_profiles.py
+- src/charter/activation/org_expected_artifacts.py
+- src/charter/activation/mission_type_profiles.py
 - src/specify_cli/dossier/manifest.py
 - tests/charter/test_mission_type_profiles.py
 - tests/charter/test_org_expected_artifacts.py
@@ -55,7 +55,7 @@ Use the `/ad-hoc-profile-load` skill to load the agent profile specified in the 
 
 ## ⚠️ File-collision note (why this WP depends on WP04)
 
-**This WP depends on WP04 purely because both edit `src/charter/mission_type_profiles.py` (and
+**This WP depends on WP04 purely because both edit `src/charter/activation/mission_type_profiles.py` (and
 its test module) — a file collision, not a functional dependency.** FR-008 (this WP) does not
 need anything FR-004 (WP04) implements; it only needs `resolve_org_dirs` from WP01, which WP04
 does not gate. The dependency exists so `owned_files` stays non-overlapping between two
@@ -124,7 +124,7 @@ def resolve_org_expected_artifacts(
     """<org_root>/<mission_type>/expected-artifacts.yaml, later org_roots override earlier."""
 ```
 
-- **Location**: new module `src/charter/org_expected_artifacts.py`.
+- **Location**: new module `src/charter/activation/org_expected_artifacts.py`.
 - **Precedence within `org_roots`**: **last-existing-match wins** — the more common
   `org_dirs`-style later-wins convention (NFR-003), **not** first-match. This is deliberately
   different from FR-002's DRG `org_root` resolution (which is first-match, an inherited C-004
@@ -205,7 +205,7 @@ def load_manifest(
 
 ### T021 — Implement `resolve_org_expected_artifacts` (new module)
 
-Create `src/charter/org_expected_artifacts.py` implementing the C-4 contract exactly:
+Create `src/charter/activation/org_expected_artifacts.py` implementing the C-4 contract exactly:
 last-existing-match-wins precedence over `org_roots`, whole-file read (parse the YAML mapping,
 no merging), returns `None` when no org root has a matching file for `mission_type`. Use
 `ruamel.yaml` to parse, matching `MissionTemplateRepository`'s existing parsing approach (check
@@ -331,7 +331,7 @@ do not improvise around it if a command refuses, flag it instead.
   accept "the happy-path org override works" as sufficient — the cache-key fix (T023/T024/T027)
   is the part most likely to hide a real bug (stale results shadowing across projects) if
   under-tested, and it is easy to skip since FR-008's own spec text does not mention it at all.
-- `src/charter/org_expected_artifacts.py` and `src/charter/mission_type_profiles.py` are in the
+- `src/charter/activation/org_expected_artifacts.py` and `src/charter/activation/mission_type_profiles.py` are in the
   enforced critical-path `diff-cover --fail-under=90` gate (`src/charter/*`).
   `src/specify_cli/dossier/manifest.py` is **not** critical-path and has no dedicated coverage
   job — same caveat as WP02/WP03's non-critical-path files: red-first tests (NFR-001) are the

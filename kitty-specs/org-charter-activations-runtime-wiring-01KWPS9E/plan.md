@@ -5,7 +5,7 @@
 
 ## Summary
 
-Wire the already-parsed-and-folded org-pack `activations:` registry into the runtime charter-context render so consumers surface org-declared action-scoped activations without hand-copying. The fix is a **resolve-time org∪project union** at `_render_activation_block` (`charter/context.py`), mirroring the proven `required_<kind>` → `selected_<kind>` precedent (`_read_org_required_selections`/`_load_doctrine_selection`). It (1) relocates the 4-tuple identity key down into `charter.activations` and extracts a shared `_iter_org_charter_docs` reader so no third hand-rolled rescan copy accrues, (2) unions validated org activations into the text stanza pre-`except`, and (3) installs a bootstrap-mode-forced, refactor-stable regression invariant against the recurring "merged-but-never-rendered" class (#1465/#1242/#2365). Scope is the **text stanza only** (parity with project activations); structured-JSON and compact-mode surfacing are explicitly deferred (C-004).
+Wire the already-parsed-and-folded org-pack `activations:` registry into the runtime charter-context render so consumers surface org-declared action-scoped activations without hand-copying. The fix is a **resolve-time org∪project union** at `_render_activation_block` (`charter/context.py`), mirroring the proven `required_<kind>` → `selected_<kind>` precedent (`_read_org_required_selections`/`_load_doctrine_selection`). It (1) relocates the 4-tuple identity key down into `charter.activation.activations` and extracts a shared `_iter_org_charter_docs` reader so no third hand-rolled rescan copy accrues, (2) unions validated org activations into the text stanza pre-`except`, and (3) installs a bootstrap-mode-forced, refactor-stable regression invariant against the recurring "merged-but-never-rendered" class (#1465/#1242/#2365). Scope is the **text stanza only** (parity with project activations); structured-JSON and compact-mode surfacing are explicitly deferred (C-004).
 
 ## Technical Context
 
@@ -23,8 +23,8 @@ Wire the already-parsed-and-folded org-pack `activations:` registry into the run
 
 *GATE: Must pass before Phase 0 research. Re-check after Phase 1 design.*
 
-- **Single canonical authority** ✅ — consolidates dedup identity into ONE shared function (`charter.activations`) and org-charter reading into ONE shared iterator; removes duplication rather than adding a parallel path.
-- **Architectural alignment / layering** ✅ — honors ADR 2026-03-27-1 (`kernel ← doctrine ← charter ← specify_cli`); the shared key moves *down* to `charter.activations`, `org_charter` imports it upward (already imports `ActivationEntry` from there). No `charter → specify_cli` import introduced.
+- **Single canonical authority** ✅ — consolidates dedup identity into ONE shared function (`charter.activation.activations`) and org-charter reading into ONE shared iterator; removes duplication rather than adding a parallel path.
+- **Architectural alignment / layering** ✅ — honors ADR 2026-03-27-1 (`kernel ← doctrine ← charter ← specify_cli`); the shared key moves *down* to `charter.activation.activations`, `org_charter` imports it upward (already imports `ActivationEntry` from there). No `charter → specify_cli` import introduced.
 - **ATDD-first / red-first** ✅ — NFR-001 mandates red-first through the pre-existing bootstrap entry point, forbidding the green-before-and-after seams (`render_activation_stanza`/`resolve_for_context`).
 - **No new shadow paths** ✅ — resolve-time union only; `governance.yaml` stays project-pure (NFR-002), matching the `required_<kind>` precedent and the 3.2.x milestone goal.
 - **Terminology** ✅ — no `feature`/legacy terms introduced; doctrine/charter prose only.
@@ -56,7 +56,7 @@ src/charter/                  # charter layer (zero specify_cli imports — veri
 │                             #   refactor _read_org_required_selections (context.py:732) onto reader
 └── _activation_render.py     # unchanged (render_activation_stanza) — confirm no edit needed
 src/specify_cli/doctrine/
-└── org_charter.py            # re-import identity key from charter.activations (single caller :450)
+└── org_charter.py            # re-import identity key from charter.activation.activations (single caller :450)
 
 tests/
 ├── charter/

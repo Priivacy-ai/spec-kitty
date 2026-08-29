@@ -65,9 +65,9 @@ each new feature layered on top of these functions increases the debt interest.
 | FR-004 | The bare `raise ValueError(...)` at `specify_cli/status/wp_metadata.py:194` is replaced with `raise ValueError(...) from err` to preserve the exception chain. | Proposed |
 | FR-005 | The exception class `FeatureStatusLockTimeout` in `specify_cli/status/locking.py` is renamed to `FeatureStatusLockTimeoutError`. All import sites are updated. | Proposed |
 | FR-006 | The `_extract_governance` method in `src/charter/extractor.py` has a measured cyclomatic complexity of ≤ 10 with no `# noqa` suppression. | Proposed |
-| FR-007 | The `resolve_governance` function in `src/charter/resolver.py` is decomposed into independently callable helpers, reducing measured cyclomatic complexity of the parent function to ≤ 8. | Proposed |
-| FR-008 | The `_build_references_from_service` function in `src/charter/compiler.py` has ≤ 5 parameters and ≤ 12 branches. | Proposed |
-| FR-009 | Named constants replace magic-number depth comparisons (2, 3) in `src/charter/context.py`. | Proposed |
+| FR-007 | The `resolve_governance` function in `src/charter/activation/resolver.py` is decomposed into independently callable helpers, reducing measured cyclomatic complexity of the parent function to ≤ 8. | Proposed |
+| FR-008 | The `_build_references_from_service` function in `src/charter/activation/compiler.py` has ≤ 5 parameters and ≤ 12 branches. | Proposed |
+| FR-009 | Named constants replace magic-number depth comparisons (2, 3) in `src/charter/activation/context.py`. | Proposed |
 | FR-010 | The `else: if` anti-pattern in `src/charter/parser.py:170` is replaced with `elif`. | Proposed |
 | FR-011 | The seven doctrine sub-repository classes (`directives`, `tactics`, `paradigms`, `styleguides`, `mission_step_contracts`, `toolguides`, `procedures`) share a common `_load()` implementation with no duplication, each measuring CC ≤ 4. | Proposed |
 | FR-012 | The exception class `CurationAborted` in `src/doctrine/curation/workflow.py` is renamed to `CurationAbortedError`. All import sites are updated. | Proposed |
@@ -77,7 +77,7 @@ each new feature layered on top of these functions increases the debt interest.
 | FR-016 | `src/specify_cli/missions/__init__.py` imports `PrimitiveExecutionContext` and `execute_with_glossary` directly from `doctrine.missions`; the intermediate shim files `primitives.py` and `glossary_hook.py` inside `specify_cli/missions/` are deleted. | Proposed |
 | FR-017 | `src/specify_cli/cli/commands/mission.py` is a thin shim re-exporting `app` from `mission_type.py`. No duplicate command logic remains in `mission.py`. | Proposed |
 | FR-018 | The `workflow.py` call to `top_level_implement()` passes all optional parameters as explicit Python values (not typer `OptionInfo` objects). A regression test calls `top_level_implement()` programmatically (not via subprocess) and asserts the workspace path is returned. (Addresses #571.) | Proposed |
-| FR-019 | High-complexity functions in `src/charter/catalog.py` reporting Sonar S3776 violations are decomposed into independently callable helpers, with measured cyclomatic complexity ≤ 10 per function. No `# noqa: C901` suppressions added. (Addresses #594.) | Proposed |
+| FR-019 | High-complexity functions in `src/charter/activation/catalog.py` reporting Sonar S3776 violations are decomposed into independently callable helpers, with measured cyclomatic complexity ≤ 10 per function. No `# noqa: C901` suppressions added. (Addresses #594.) | Proposed |
 
 ---
 
@@ -244,4 +244,4 @@ spec-kitty charter context --action implement --json
 | `FeatureStatusLockTimeoutError` | `specify_cli/status/locking.py` (rename) | Renamed from `FeatureStatusLockTimeout` |
 | `CurationAbortedError` | `doctrine/curation/workflow.py` (rename) | Renamed from `CurationAborted` |
 | `_extract_governance` | `src/charter/extractor.py` | Dispatch-table refactor, CC 28 → ≤ 10 |
-| `resolve_governance` | `src/charter/resolver.py` | Decomposed into helpers (conditional on C-001) |
+| `resolve_governance` | `src/charter/activation/resolver.py` | Decomposed into helpers (conditional on C-001) |

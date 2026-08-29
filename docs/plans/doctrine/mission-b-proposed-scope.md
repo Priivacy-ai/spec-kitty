@@ -60,7 +60,7 @@ Dependency order. Each WP has explicit ATDD candidates from the pre-flight's flo
 
 - `src/charter/profiles.py` — proxies `AgentProfile`, `AgentProfileRepository`, `Role`, `DEFAULT_ROLE_CAPABILITIES`
 - `src/charter/mission_steps.py` — proxies `MissionStepContract`, `MissionStep`, `MissionStepContractRepository`
-- `src/charter/drg.py` — proxies `DRGEdge`, `DRGGraph`, `DRGNode`, `Relation`, `NodeKind`, `load_graph`, `merge_layers`, `resolve_context`, `ResolvedContext` (publishes what `charter._drg_helpers` already wraps internally)
+- `src/charter/drg.py` — proxies `DRGEdge`, `DRGGraph`, `DRGNode`, `Relation`, `NodeKind`, `load_graph`, `merge_layers`, `resolve_context`, `ResolvedContext` (publishes what `charter.activation._drg_helpers` already wraps internally)
 - `src/charter/primitives.py` — proxies `PrimitiveExecutionContext`, `execute_with_glossary`
 - `src/charter/resolution.py` — proxies `ResolutionResult`, `ResolutionTier`
 - `src/charter/versioning.py` — proxies `check_bundle_compatibility`, `get_bundle_schema_version`

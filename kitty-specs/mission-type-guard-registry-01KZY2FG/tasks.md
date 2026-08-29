@@ -23,7 +23,7 @@ the `_GUARD_TABLES` registry (FR-001/FR-006), `plan`'s own guard table plus the 
 `spec-kitty doctor mission-type --json [--fail-on ...]` (FR-007–FR-009), and tests for all of
 the above (FR-010, FR-011). **Out of scope, and no WP below touches any of it**: the
 project-wide doctrine-override hatch (`_project_has_doctrine_overrides`,
-`src/charter/mission_type_profiles.py:1041`), the two divergent meta readers
+`src/charter/activation/mission_type_profiles.py:1041`), the two divergent meta readers
 (`mission_type_profiles.py:681` vs `mission.py:542`), the dashboard's silent
 `"software-dev"` default (`dashboard/handlers/features.py:68`), the unverified wider ~22-site
 census, any roster/validation check inside `validate_meta`/`write_meta` (C-004), and modeling
@@ -138,7 +138,7 @@ genuinely small, ~10 lines total across 3 files (`runtime_bridge_io.py`,
 `runtime_bridge_composition.py`, `runtime_bridge.py`), each a one-call-site change; T003 alone,
 in `runtime_bridge_cores.py`, adds a new `_GUARD_TABLES` dict, a new
 `UnregisteredMissionFamilyError` exception class (carrying a mandated cross-reference docstring —
-this codebase's own analogous exception, `charter.mission_type_profiles.UnknownMissionTypeError`,
+this codebase's own analogous exception, `charter.activation.mission_type_profiles.UnknownMissionTypeError`,
 runs 13 lines, a concrete size anchor), a new `evaluate_guards_strict` function, the new ~5-way
 `_evaluate_plan_guards` function, and a rewritten `evaluate_guards` — five new/changed symbols in
 one file, realistically 40-60 new/changed lines, not "~10 lines." WP02's `_mission_type_audit.py`

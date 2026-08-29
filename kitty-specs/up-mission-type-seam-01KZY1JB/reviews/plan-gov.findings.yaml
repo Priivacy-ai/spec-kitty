@@ -11,7 +11,7 @@ findings:
     title: "Plan's Summary misdescribes the mission's own \"dominant risk\" mechanism, contradicting the exact code it cites"
     evidence:
       - artifact: "plan.md § Summary, paragraph 1"
-      - code: "src/charter/mission_type_profiles.py:788-799"
+      - code: "src/charter/activation/mission_type_profiles.py:788-799"
     claim: >
       The plan's Summary states that today, for "a genuinely-registered-but-unprojected type,"
       _resolve_action_slot's `if not is_registered: return []` guard (line 788-789) "never even

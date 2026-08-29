@@ -20,7 +20,7 @@ from specify_cli.task_utils import TaskCliError
 
 def default_interview(*args: Any, **kwargs: Any) -> Any:
     """Patchable lazy wrapper for default charter interview generation."""
-    from charter.interview import default_interview as _default_interview
+    from charter.activation.interview import default_interview as _default_interview
 
     return _default_interview(*args, **kwargs)
 

@@ -16,7 +16,7 @@
 | T003 | Inspect golden-path helpers (`_parse_first_json_object`, `_run_next_and_assert_lifecycle`) and the synthesizer-call path in the E2E | WP01 | [D] |
 | T004 | Author `verification-evidence.md` with results, FR-009/FR-010 disposition, and any escalation flags | WP01 | | [D] |
 | T005 | Refactor `charter synthesize --json` branch in `src/specify_cli/cli/commands/charter.py` to keep stdout strict-JSON, emit contracted envelope fields, source `written_artifacts` from staged entries, drive dry-run from same source, and eliminate user-visible `PROJECT_000` | WP02 | | [D] |
-| T006 | Extend `src/charter/synthesizer/write_pipeline.py` staged-artifact return shape **only if** WP01/T005 inspection shows the existing return is insufficient | WP02 | | [D] |
+| T006 | Extend `src/charter/activation/synthesizer/write_pipeline.py` staged-artifact return shape **only if** WP01/T005 inspection shows the existing return is insufficient | WP02 | | [D] |
 | T007 | Add/harden regression test in `tests/integration/test_json_envelope_strict.py` proving `json.loads(stdout)` succeeds when evidence warnings exist | WP02 | [D] |
 | T008 | Add/harden assertions in `tests/agent/cli/commands/test_charter_synthesize_cli.py` covering the four contracted envelope fields | WP02 | [D] |
 | T009 | Add/harden assertions in `tests/integration/test_charter_synthesize_fresh.py` covering envelope shape on fresh-project seed | WP02 | [D] |

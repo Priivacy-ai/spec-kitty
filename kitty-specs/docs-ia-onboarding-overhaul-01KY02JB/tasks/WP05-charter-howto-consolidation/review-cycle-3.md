@@ -22,7 +22,7 @@ Cycle 3 fixed all three remaining locations. This review independently re-verifi
 - Read the current full `docs/guides/troubleshoot-charter.md`.
 - Re-checked each of the three previously-flagged locations against
   `src/specify_cli/cli/commands/charter/synthesize.py` (or `_synthesis.py`) and
-  `src/charter/sync.py` directly — confirmed no failure branch checks `charter.md`'s existence
+  `src/charter/activation/sync.py` directly — confirmed no failure branch checks `charter.md`'s existence
   (the real gate is `charter.yaml`), confirmed `charter.yaml` is the sole content-hash input for
   the DRG payload (editing `charter.md` has no effect), and confirmed the dead `charter sync`
   step was removed from the §5 fix sequence.

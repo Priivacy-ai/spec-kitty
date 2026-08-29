@@ -89,7 +89,7 @@ The legacy `src/specify_cli/missions/research/mission.yaml` and `src/doctrine/mi
 
 **Rationale (code evidence)**:
 
-- `load_validated_graph()` at `src/charter/_drg_helpers.py:19-39` loads `<doctrine_root>/graph.yaml` and validates via `assert_valid()`. No extractor builds this file from action bundles; it is hand-authored.
+- `load_validated_graph()` at `src/charter/activation/_drg_helpers.py:19-39` loads `<doctrine_root>/graph.yaml` and validates via `assert_valid()`. No extractor builds this file from action bundles; it is hand-authored.
 - The five existing software-dev action nodes at `src/doctrine/graph.yaml:5-18` use exactly this `urn` / `kind` / `label` shape. Edges use `relation: scope` pointing at directive and tactic URNs.
 - `resolve_context()` at `src/specify_cli/next/_internal_runtime/engine.py:962-1019` walks the graph from the action URN to populate `artifact_urns`. With no node, `artifact_urns` is empty (this is the v1 P1 finding).
 - Directives `003-decision-documentation-requirement`, `010-specification-fidelity-requirement`, `037-living-documentation-sync` and tactics `adr-drafting-workflow`, `premortem-risk-identification`, `requirements-validation-workflow` are confirmed shipped (resolved cleanly during the v1 attempt's WP02 audit; preserved here).

@@ -10,7 +10,7 @@ markdown checkbox. Rows below are reference only.
 paula-patterns) after first generation — see each WP's Activity Log / History for what changed and why.
 Headline fixes: (1) **CRITICAL** — WP02/WP03/WP04's `dependencies: []` frontmatter never actually declared
 WP01, despite the prose saying so everywhere (found independently by 3 of 4 delegates); (2) former WP07
-merged into WP01 (both edited `src/charter/resolver.py`; the split forced an awkward 3-lane serialization
+merged into WP01 (both edited `src/charter/activation/resolver.py`; the split forced an awkward 3-lane serialization
 for no benefit); (3) the durability-gate WP (former WP09) had 2 of its 5 gates moved to the WPs whose
 surface they actually guard (WP04 absorbed Gate 5, WP06 absorbed Gate 4); (4) several accessor method names,
 line-number citations, and one WP's core premise were corrected after independent verification against the
@@ -20,7 +20,7 @@ live code.
 
 | ID | Description | WP | Parallel |
 |----|---|----|----|
-| T001 | Implement the pinned `agent_profile_repository` accessor on `charter.resolver.DoctrineService` | WP01 | |
+| T001 | Implement the pinned `agent_profile_repository` accessor on `charter.activation.resolver.DoctrineService` | WP01 | |
 | T002 | Unify the two named builder functions into one (`active_languages` always computed, `org_roots` always self-resolved) | WP01 | |
 | T003 | Retarget `org_layer.py:244,275` and `generate.py:56` onto the unified builder; fix fail-open `except ImportError: pass` | WP01 | |
 | T004 | Regression test: unified builder identical output across ALL 9 gated properties (one pass, not staged) | WP01 | |
@@ -39,7 +39,7 @@ live code.
 | T015 | Migrate `registry.py:64` off `._inner.agent_profiles` onto WP01's accessor (`get_provenance`) | WP04 | [P] |
 | T016 | Migrate `org_profiles.py:117` off `._inner.agent_profiles` onto WP01's accessor (`get_provenance`) | WP04 | [P] |
 | T017 | Gate 5 (absorbed): mission-wide zero-tolerance `._inner`-on-doctrine-service gate, self-mutation proven, true-negative tested | WP04 | |
-| T018 | Add resolution methods (distinct names, no collision) to `charter.resolver.DoctrineService` | WP05 | |
+| T018 | Add resolution methods (distinct names, no collision) to `charter.activation.resolver.DoctrineService` | WP05 | |
 | T019 | Resolve the construction-contract mismatch for `CharterTemplateResolver`'s one real caller (`repo_root` vs `missions_root`) | WP05 | |
 | T020 | Retarget `CharterTemplateResolver` (thin delegate or retire in favour of direct factory use) | WP05 | |
 | T021 | Regression test: tier resolution via factory matches the old direct-call result | WP05 | |
@@ -117,7 +117,7 @@ nothing outside `src/charter/**` ever imported it).
 **Requirements**: FR-003.
 **Independent test**: tier resolution via the factory matches the old `CharterTemplateResolver` result;
 `doctrine/resolver.py` itself is untouched.
-**Subtasks**: T018-T021. **Dependencies**: WP01 (T018 adds methods to `src/charter/resolver.py`, WP01's
+**Subtasks**: T018-T021. **Dependencies**: WP01 (T018 adds methods to `src/charter/activation/resolver.py`, WP01's
 sole declared owner — a sequenced, dependency-gated out-of-map edit).
 **Estimated size**: ~340 lines.
 **Risks**: pick new method names — do NOT reuse `CharterTemplateResolver`'s existing
@@ -185,7 +185,7 @@ WP08 (independent)
 WP10 (fully independent, any time)
 ```
 
-`src/charter/resolver.py` is edited by WP01 (sole declared owner: accessor, builder unification, 6
+`src/charter/activation/resolver.py` is edited by WP01 (sole declared owner: accessor, builder unification, 6
 mechanical properties) and WP05 (tier-axis methods, a sequenced, dependency-gated out-of-map edit — WP05
 depends on WP01, never parallel with it). The former 3-way split (WP01/WP05/WP07) was consolidated to
 WP01+WP05 after a post-tasks squad found the split added a serialization stage for no benefit.

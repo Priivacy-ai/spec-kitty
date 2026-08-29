@@ -22,9 +22,9 @@ create_intent:
 - tests/charter/test_context_display_charter_md.py
 execution_mode: code_change
 owned_files:
-- src/charter/context.py
-- src/charter/compact.py
-- src/charter/context_renderers/section_bodies.py
+- src/charter/activation/context.py
+- src/charter/activation/compact.py
+- src/charter/activation/context_renderers/section_bodies.py
 - tests/charter/test_context_display_charter_md.py
 role: implementer
 tags: []

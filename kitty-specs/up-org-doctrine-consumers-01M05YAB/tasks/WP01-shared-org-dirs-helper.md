@@ -112,7 +112,7 @@ them is a mistake the mission's own spec had to explicitly correct once (see spe
   this is an existing, unchanged merge semantic your helper must preserve, not something you
   implement yourself (the merge happens inside `BaseDoctrineRepository`, not in your function).
 - **Single-path shape** (`org_root: Path | None`) — consumed by
-  `charter._drg_helpers.load_validated_graph(repo_root, org_root=...)`. This is **not** your
+  `charter.activation._drg_helpers.load_validated_graph(repo_root, org_root=...)`. This is **not** your
   concern in this WP. WP02 resolves it inline (first-match pattern, mirroring
   `charter/action_doctrine_bundle.py:_resolve_action_bundle` lines ~90-97) — it is deliberately
   **not** a shared helper, because the spec's FR-003 only mandates one for the list shape. Do
@@ -136,7 +136,7 @@ def resolve_org_dirs(repo_root: Path, subdir: str) -> list[Path]:
   earlier" for a same-id collision; NFR-003).
 - **Non-guarantee**: Does **not** check whether `<root>/<subdir>` itself exists — only the org
   **root** is existence-filtered before joining. This mirrors
-  `charter.doctrine_service_builder._self_resolve_existing_org_roots` (lines 142-152):
+  `charter.activation.doctrine_service_builder._self_resolve_existing_org_roots` (lines 142-152):
   existence filtering happens at the org-root level, not the joined-subdirectory level. A
   caller passing the result into a `BaseDoctrineRepository` subclass relies on that
   repository's own load-time missing-directory tolerance (existing, unchanged behavior).
@@ -166,7 +166,7 @@ def resolve_org_dirs(repo_root: Path, subdir: str) -> list[Path]:
     """Existing-path-filtered, declaration-ordered org directories for *subdir*.
 
     Filters non-existent org-pack roots before joining *subdir* (mirrors
-    charter.doctrine_service_builder._self_resolve_existing_org_roots), so a
+    charter.activation.doctrine_service_builder._self_resolve_existing_org_roots), so a
     stale local_path config entry degrades to "no org contribution" cleanly
     rather than raising.
     """

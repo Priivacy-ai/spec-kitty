@@ -34,9 +34,9 @@ owned_files:
 - src/doctrine/spdd_reasons/__init__.py
 - src/doctrine/spdd_reasons/activation.py
 - src/doctrine/spdd_reasons/charter_context.py
-- src/charter/context.py
+- src/charter/activation/context.py
 - src/charter/bundle.py
-- src/charter/synthesizer/targets.py
+- src/charter/activation/synthesizer/targets.py
 - tests/charter/test_charter_context_spdd_reasons.py
 - tests/charter/__init__.py
 - tests/charter/fixtures/spdd_inactive/.gitkeep
@@ -78,13 +78,13 @@ Charter selection of the new paradigm/tactics/directive must flow through to `go
 - [contracts/charter-context.md](../contracts/charter-context.md) — charter-context injection contract.
 
 ### Code seams (verified)
-- `src/charter/context.py:build_charter_context()` line 69 — public entry.
-- `src/charter/context.py:_load_action_doctrine_bundle()` lines 213–249 — DRG resolution.
-- `src/charter/context.py:_render_action_scoped()` lines 507–555 — composes "Action Doctrine" output.
-- `src/charter/context.py:_append_action_doctrine_lines()` line 537 — directive/tactic line emission. Inject the SPDD/REASONS subsection right after this call.
+- `src/charter/activation/context.py:build_charter_context()` line 69 — public entry.
+- `src/charter/activation/context.py:_load_action_doctrine_bundle()` lines 213–249 — DRG resolution.
+- `src/charter/activation/context.py:_render_action_scoped()` lines 507–555 — composes "Action Doctrine" output.
+- `src/charter/activation/context.py:_append_action_doctrine_lines()` line 537 — directive/tactic line emission. Inject the SPDD/REASONS subsection right after this call.
 - `src/charter/bundle.py` lines 33–42 — writes governance.yaml, directives.yaml, metadata.yaml, synthesis-manifest.yaml.
-- `src/charter/synthesizer/targets.py` lines 1–80 — `SynthesisTarget` construction; kind ordering; artifact filename suffixes.
-- `src/charter/synthesizer/write_pipeline.py` lines 1–28 — atomic write pipeline.
+- `src/charter/activation/synthesizer/targets.py` lines 1–80 — `SynthesisTarget` construction; kind ordering; artifact filename suffixes.
+- `src/charter/activation/synthesizer/write_pipeline.py` lines 1–28 — atomic write pipeline.
 
 ### Action scoping (from spec FR-009)
 | Action | Canvas content surfaced in charter-context guidance |
@@ -113,7 +113,7 @@ def is_spdd_reasons_active(repo_root: Path) -> bool:
 ```
 
 Implementation rules (per `contracts/activation.md`):
-- Read `.kittify/charter/governance.yaml` and/or `.kittify/charter/directives.yaml` via existing charter loaders. Look at how `src/charter/context.py` reads these files; reuse the same loader.
+- Read `.kittify/charter/governance.yaml` and/or `.kittify/charter/directives.yaml` via existing charter loaders. Look at how `src/charter/activation/context.py` reads these files; reuse the same loader.
 - Returns `False` if `.kittify/charter/` is absent (no error).
 - Propagates loader exceptions on malformed YAML.
 - May cache per-process for the lifetime of one CLI invocation. MUST NOT persist across invocations.
@@ -122,7 +122,7 @@ Write unit tests in `tests/charter/test_charter_context_spdd_reasons.py::TestAct
 
 ### T009 — Extend `build_charter_context()` to inject SPDD/REASONS guidance
 
-**Edit**: `src/charter/context.py` (only at the seam — keep changes minimal).
+**Edit**: `src/charter/activation/context.py` (only at the seam — keep changes minimal).
 
 Add:
 
@@ -167,7 +167,7 @@ For each action emit 3–6 short bullets. Action-scoped content per the FR-009 t
 **Goal**: When a project's charter selects `structured-prompt-driven-development` (paradigm), it must appear in `.kittify/charter/governance.yaml` (or wherever paradigms are recorded) so that `is_spdd_reasons_active()` can detect it.
 
 Steps:
-1. Read `src/charter/synthesizer/targets.py` lines 1–80. Identify the kind set it supports. If `paradigm` is already a first-class kind, no change is required.
+1. Read `src/charter/activation/synthesizer/targets.py` lines 1–80. Identify the kind set it supports. If `paradigm` is already a first-class kind, no change is required.
 2. If paradigm is missing, add minimal target plumbing — only enough to round-trip selection through synthesis. Do NOT change kind ordering for existing kinds. Do NOT introduce new schemas.
 3. Read `src/charter/bundle.py` lines 33–42. Ensure paradigms are written to one of the four output files; if not, add to `governance.yaml` (most natural location).
 4. If a charter test suite exists for synthesis (search `tests/charter/test_synthesizer*.py`), add a single round-trip test asserting paradigm selection survives.
@@ -225,7 +225,7 @@ For inactive baselines: capture the current output once, write it to a `*.expect
 ## Reviewer guidance
 
 - Confirm `is_spdd_reasons_active()` lives in `src/doctrine/spdd_reasons/activation.py` and has no other side effects.
-- Confirm the only edits to `src/charter/context.py` are the import + single conditional call.
+- Confirm the only edits to `src/charter/activation/context.py` are the import + single conditional call.
 - Confirm inactive output is byte-identical to baseline. If a single newline differs, investigate.
 - Confirm activation detection works for ANY of the four selectors (paradigm OR tactic OR tactic OR directive), per spec FR-009.
 

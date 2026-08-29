@@ -36,7 +36,7 @@ WP07; WP08 is fully independent.
 | T019 | Set-equality guard test (both vocab lists == derived authority) | WP05 | FR-010 |
 | T020 | Route the `pack_manager.py:658` join → `built_in_dir`; leave the 5 marker sites | WP05 | FR-002 |
 | T032 | End-to-end finalize-migration test: activated glossary pack survives onto charter.yaml | WP05 | FR-010 |
-| T021 | Inventory private `charter.context` symbols → leaf-module map | WP06 | FR-011 |
+| T021 | Inventory private `charter.activation.context` symbols → leaf-module map | WP06 | FR-011 |
 | T022 | Repoint imports/patches in the 17 owned test files (mind multi-line blocks) | WP06 | FR-011 |
 | T023 | Delete the `context.py` re-export block; keep the public surface | WP06 | FR-011 |
 | T024 | Migrate nested-tmp `built_in_root=` group → `SPEC_KITTY_PACKS_ROOT` / flat | WP07 | FR-003 |
@@ -135,16 +135,16 @@ acyclic; WP08 is independent.
 
 ## WP06 — context.py shim shrink (severable, test-only)
 
-- **Summary**: Census `src/` + `tests/` for private `charter.context` importers; repoint the DELETE-set
+- **Summary**: Census `src/` + `tests/` for private `charter.activation.context` importers; repoint the DELETE-set
   (test-only) importers to leaf modules and remove only those re-exports; **retain** every re-export a
   production function-local cycle-breaker imports; public surface unchanged.
-- **Implementation sketch**: census → retain/delete split; rewrite `from charter.context import _x` →
+- **Implementation sketch**: census → retain/delete split; rewrite `from charter.activation.context import _x` →
   `from <leaf> import _x` for DELETE-set; keep RETAIN-set (e.g. `_build_doctrine_service`,
   `_render_profile_sections`, `_iter_org_charter_docs`, `_read_org_required_selections`,
-  `_default_agent_profile_repository`, …) and RETAIN-set patch targets on `charter.context`; keep `__all__`.
+  `_default_agent_profile_repository`, …) and RETAIN-set patch targets on `charter.activation.context`; keep `__all__`.
 - **Reference rows**: T021 repo-wide census (WP06) · T022 repoint DELETE-set in owned tests (WP06) · T023 remove DELETE-set re-exports only (WP06)
 - **Dependencies**: **WP07** (repoints the two `_render_profile_sections` test importers first). No production importer file is edited.
-- **Risks**: deleting a production-imported private (census guards it); repointing a RETAIN-set patch target off `charter.context`; multi-line imports.
+- **Risks**: deleting a production-imported private (census guards it); repointing a RETAIN-set patch target off `charter.activation.context`; multi-line imports.
 - **Estimated size**: 18 files (1 src, 17 tests), 3 subtasks, M — mechanical but wide; a shrink, not a wholesale delete.
 
 ## WP07 — Relocation-completeness + param-test migration

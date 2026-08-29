@@ -12,7 +12,7 @@ Each entity below has: purpose, shape, validation rules, and the spec requiremen
 
 **Purpose**: Describes a single pattern the neutrality lint rejects in generic-scoped doctrine artifacts.
 
-**Shape** (YAML entry under `src/charter/neutrality/banned_terms.yaml:terms`):
+**Shape** (YAML entry under `src/charter/activation/neutrality/banned_terms.yaml:terms`):
 
 ```yaml
 - id: PY-001                      # unique, stable, human-readable; prefix indicates language family
@@ -40,7 +40,7 @@ Each entity below has: purpose, shape, validation rules, and the spec requiremen
 
 **Purpose**: Declares a doctrine artifact path (or path prefix) as intentionally language-scoped, exempting it from the banned-terms lint.
 
-**Shape** (YAML entry under `src/charter/neutrality/language_scoped_allowlist.yaml:paths`):
+**Shape** (YAML entry under `src/charter/activation/neutrality/language_scoped_allowlist.yaml:paths`):
 
 ```yaml
 - path: "src/charter/profiles/python/README.md"
@@ -94,7 +94,7 @@ The earlier draft assumption that the allowlist ships empty was incorrect — it
 
 **Purpose**: In-memory value type produced by the lint scanner; consumed by the pytest assertion to produce actionable diagnostics.
 
-**Shape** (Python dataclass, `src/charter/neutrality/lint.py`):
+**Shape** (Python dataclass, `src/charter/activation/neutrality/lint.py`):
 
 ```python
 from dataclasses import dataclass
@@ -171,8 +171,8 @@ Submodule shims (`compiler.py`, `interview.py`, `resolver.py`) MAY carry informa
 ```python
 # tests/charter/test_charter_ownership_invariant.py — executable spec of the invariant
 CANONICAL_OWNERS: dict[str, str] = {
-    "build_charter_context": "src/charter/context.py",
-    "ensure_charter_bundle_fresh": "src/charter/sync.py",
+    "build_charter_context": "src/charter/activation/context.py",
+    "ensure_charter_bundle_fresh": "src/charter/activation/sync.py",
 }
 ```
 

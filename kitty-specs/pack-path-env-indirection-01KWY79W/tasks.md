@@ -14,7 +14,7 @@
 | T005 | Add regression + new test coverage for WP01 (env-var, tilde, absolute, unset, round-trip, subdir-escape-guard) | WP01 | |
 | T006 | Document `SPEC_KITTY_PACK_HOME` in `docs/api/environment-variables.md` and `docs/guides/create-an-org-doctrine-pack.md` | WP01 | [P] |
 | T007 | Run doctrine test subset + ruff/mypy for WP01 surfaces | WP01 | |
-| T008 | Persist structured `languages` field on the compiled charter at compile time (`src/charter/compiler.py`) | WP02 | |
+| T008 | Persist structured `languages` field on the compiled charter at compile time (`src/charter/activation/compiler.py`) | WP02 | |
 | T009 | Update `infer_repo_languages` resolution to read the structured field first, interview-transcript as pre-compile fallback only | WP02 | |
 | T010 | Verify `context.py`/`compact.py` consumers work correctly against the corrected resolution (read-path only) | WP02 | [P] |
 | T011 | Invert `test_infer_repo_languages_prefers_interview_answers` (red-first), add disagreement + structured-field test cases | WP02 | |

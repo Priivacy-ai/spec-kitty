@@ -29,8 +29,8 @@
         "WP02"
       ],
       "write_scope": [
-        "src/charter/activations.py",
-        "src/charter/pack_context.py",
+        "src/charter/activation/activations.py",
+        "src/charter/activation/pack_context.py",
         "src/doctrine/drg/org_pack_loader.py",
         "tests/charter/test_pack_context.py",
         "tests/doctrine/test_org_pack_augmentation.py"
@@ -89,12 +89,12 @@
         "WP06"
       ],
       "write_scope": [
-        "src/charter/_activation_render.py",
-        "src/charter/consistency_check.py",
-        "src/charter/context.py",
-        "src/charter/kind_vocabulary.py",
-        "src/charter/pack_manager.py",
-        "src/charter/synthesizer/project_drg.py",
+        "src/charter/activation/_activation_render.py",
+        "src/charter/activation/consistency_check.py",
+        "src/charter/activation/context.py",
+        "src/charter/activation/kind_vocabulary.py",
+        "src/charter/activation/pack_manager.py",
+        "src/charter/activation/synthesizer/project_drg.py",
         "src/specify_cli/cli/commands/charter/list_cmd.py",
         "tests/charter/test_drg_filtering.py",
         "tests/charter/test_kind_cascade_exhaustive.py"

@@ -25,7 +25,7 @@ NFR-001):
   drops it).
 - ``test_root_divergence_follows_resolve_doctrine_root``: install-layout
   guard (research.md D2) -- the gate must source ``doctrine_root`` from
-  ``charter.catalog.resolve_doctrine_root()``, never
+  ``charter.activation.catalog.resolve_doctrine_root()``, never
   ``pack_context.pack_roots[0]``.
 - ``test_resolution_is_batched_once_not_per_node``: proves the stem-to-
   canonical resolution is hoisted once per filter call (O(kinds)), not
@@ -49,11 +49,12 @@ from pathlib import Path
 
 import pytest
 
-from charter import drg as drg_module
-from charter.catalog import resolve_doctrine_root
-from charter.drg import filter_graph_by_activation, load_built_in_graph
-from charter.kind_vocabulary import MissionTypeNotAnArtifactKind
-from charter.pack_context import PackContext
+from charter.activation import drg_activation as drg_module
+from charter.activation.catalog import resolve_doctrine_root
+from charter.drg import load_built_in_graph
+from charter.activation.drg_activation import filter_graph_by_activation
+from charter.activation.kind_vocabulary import MissionTypeNotAnArtifactKind
+from charter.activation.pack_context import PackContext
 
 pytestmark = [pytest.mark.unit]
 

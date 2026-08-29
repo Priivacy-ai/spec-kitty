@@ -19,8 +19,8 @@ findings:
       - artifact: "spec.md § User Story 2, Acceptance Scenario 1 (reuses US1's Independent Test)"
       - code: "src/charter/drg.py:467-473 (_node_is_activated Step 3, per-artifact-ID gate)"
       - code: "src/charter/drg.py:372-378 (_resolve_activated_urns_for_kind iterates only stems already IN activated_ids)"
-      - code: "src/charter/activation_engine.py:257-274 (plan_activation, FR-021: materializes a fixed default pack + the one requested stem, not a dynamic org-aware set)"
-      - code: "src/charter/pack_manager.py:512-520 (_load_default_pack reads a static, built-in-only src/charter/packs/default.yaml)"
+      - code: "src/charter/activation/activation_engine.py:257-274 (plan_activation, FR-021: materializes a fixed default pack + the one requested stem, not a dynamic org-aware set)"
+      - code: "src/charter/activation/pack_manager.py:512-520 (_load_default_pack reads a static, built-in-only src/charter/activation/packs/default.yaml)"
       - code: "tests/charter/test_drg_activation_gate.py:209-216 (test_non_activated_directive_is_still_excluded — existing, currently-passing test proving a populated activated_directives set excludes any node whose stem/URN is not itself a member, regardless of source)"
     claim: >-
       The mission's central Acceptance Scenario 1 (P1, "the whole defect")
@@ -43,7 +43,7 @@ findings:
       per FR-021 (activation_engine.py:257-274), activating one directive
       with no prior explicit set materializes the static, built-in-only
       default pack (`_load_default_pack()`, pack_manager.py:512-520, backed
-      by src/charter/packs/default.yaml — "Contains all built-in artifact
+      by src/charter/activation/packs/default.yaml — "Contains all built-in artifact
       IDs") plus the single requested stem. The org stem is never added, so
       `resolve_artifact_urn` is never even called on it via this path — the
       swallowed-`UnknownArtifactIdError` mechanism the spec's own narrative
@@ -101,7 +101,7 @@ findings:
     evidence:
       - artifact: "spec.md § User Story 1, Acceptance Scenario 1 (fixture: only `<org_root>/directives/<org-directive>.directive.yaml`)"
       - artifact: "spec.md § User Story 3, Acceptance Scenario 2 (this mission's own finding: `<org_root>/drg/*.graph.yaml` is NOT read by the current loader)"
-      - code: "src/charter/_drg_helpers.py:78-96 (load_validated_graph merges built-in graph with load_graph_or_dir(org_root) — a *.graph.yaml-driven merge, not derived from scanning *.directive.yaml artifact files)"
+      - code: "src/charter/activation/_drg_helpers.py:78-96 (load_validated_graph merges built-in graph with load_graph_or_dir(org_root) — a *.graph.yaml-driven merge, not derived from scanning *.directive.yaml artifact files)"
       - code: "packs/built-in/directive.graph.yaml (built-in directive nodes are explicitly declared graph fragments, confirming nodes are never auto-synthesized from artifact YAML)"
       - code: "docs/guides/how-to/governance/create-an-org-doctrine-pack.md:58-66 (documented canonical org-pack layout places DRG fragments under a `drg/` subdirectory)"
     claim: >-

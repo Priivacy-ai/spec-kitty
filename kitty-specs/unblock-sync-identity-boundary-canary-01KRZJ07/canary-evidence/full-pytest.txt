@@ -1667,11 +1667,11 @@ ______ TestSynthesizeEntryPoint.test_synthesize_returns_synthesis_result _______
 tests/charter/synthesizer/test_orchestrator_synthesize.py:199: in test_synthesize_returns_synthesis_result
     result = synthesize(full_request, adapter=adapter)
              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-src/charter/synthesizer/orchestrator.py:169: in synthesize
+src/charter/activation/synthesizer/orchestrator.py:169: in synthesize
     _write_pipeline.promote(
-src/charter/synthesizer/write_pipeline.py:425: in promote
+src/charter/activation/synthesizer/write_pipeline.py:425: in promote
     guard.write_bytes(staged_content_path, yaml_bytes, caller="write_pipeline.promote[content]")
-src/charter/synthesizer/path_guard.py:102: in write_bytes
+src/charter/activation/synthesizer/path_guard.py:102: in write_bytes
     path.write_bytes(data)
 /opt/homebrew/Cellar/python@3.14/3.14.4_1/Frameworks/Python.framework/Versions/3.14/lib/python3.14/pathlib/__init__.py:796: in write_bytes
     with self.open(mode='wb') as f:
@@ -1681,9 +1681,9 @@ src/charter/synthesizer/path_guard.py:102: in write_bytes
            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 E   FileNotFoundError: [Errno 2] No such file or directory: '/private/tmp/sk-merged-canary/.kittify/charter/.staging/01KPE222CD1MMCYEGB3ZCY51VR/doctrine/tactics/testing-philosophy-tactic.tactic.yaml'
 _______ TestSynthesizeEntryPoint.test_synthesize_result_has_target_kind ________
-src/charter/synthesizer/write_pipeline.py:489: in promote
+src/charter/activation/synthesizer/write_pipeline.py:489: in promote
     guard.replace(staged_content, live_content, caller="write_pipeline.promote[content-replace]")
-src/charter/synthesizer/path_guard.py:117: in replace
+src/charter/activation/synthesizer/path_guard.py:117: in replace
     os.replace(src, dst)
 E   FileNotFoundError: [Errno 2] No such file or directory: '/private/tmp/sk-merged-canary/.kittify/charter/.staging/01KPE222CD1MMCYEGB3ZCY51VR/doctrine/directives/001-mission-type-scope-directive.directive.yaml' -> '/private/tmp/sk-merged-canary/.kittify/doctrine/directives/001-mission-type-scope-directive.directive.yaml'
 
@@ -1691,11 +1691,11 @@ The above exception was the direct cause of the following exception:
 tests/charter/synthesizer/test_orchestrator_synthesize.py:208: in test_synthesize_result_has_target_kind
     result = synthesize(full_request, adapter=adapter)
              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-src/charter/synthesizer/orchestrator.py:169: in synthesize
+src/charter/activation/synthesizer/orchestrator.py:169: in synthesize
     _write_pipeline.promote(
-src/charter/synthesizer/write_pipeline.py:524: in promote
+src/charter/activation/synthesizer/write_pipeline.py:524: in promote
     raise StagingPromoteError(
-E   charter.synthesizer.errors.StagingPromoteError: Synthesis promote failed for run 01KPE222CD1MMCYEGB3ZCY51VR (staging: /private/tmp/sk-merged-canary/.kittify/charter/.staging/01KPE222CD1MMCYEGB3ZCY51VR): [Errno 2] No such file or directory: '/private/tmp/sk-merged-canary/.kittify/charter/.staging/01KPE222CD1MMCYEGB3ZCY51VR/doctrine/directives/001-mission-type-scope-directive.directive.yaml' -> '/private/tmp/sk-merged-canary/.kittify/doctrine/directives/001-mission-type-scope-directive.directive.yaml'. Staging directory preserved as /private/tmp/sk-merged-canary/.kittify/charter/.staging/01KPE222CD1MMCYEGB3ZCY51VR.failed/ for diagnosis.
+E   charter.activation.synthesizer.errors.StagingPromoteError: Synthesis promote failed for run 01KPE222CD1MMCYEGB3ZCY51VR (staging: /private/tmp/sk-merged-canary/.kittify/charter/.staging/01KPE222CD1MMCYEGB3ZCY51VR): [Errno 2] No such file or directory: '/private/tmp/sk-merged-canary/.kittify/charter/.staging/01KPE222CD1MMCYEGB3ZCY51VR/doctrine/directives/001-mission-type-scope-directive.directive.yaml' -> '/private/tmp/sk-merged-canary/.kittify/doctrine/directives/001-mission-type-scope-directive.directive.yaml'. Staging directory preserved as /private/tmp/sk-merged-canary/.kittify/charter/.staging/01KPE222CD1MMCYEGB3ZCY51VR.failed/ for diagnosis.
 
 During handling of the above exception, another exception occurred:
 /opt/homebrew/Cellar/python@3.14/3.14.4_1/Frameworks/Python.framework/Versions/3.14/lib/python3.14/contextlib.py:195: in __exit__
@@ -1703,9 +1703,9 @@ During handling of the above exception, another exception occurred:
     ^^^^^^^^^^^^^^^^^
 E   dataclasses.FrozenInstanceError: cannot assign to field '__traceback__'
 _______ TestSynthesizeEntryPoint.test_synthesize_result_has_inputs_hash ________
-src/charter/synthesizer/write_pipeline.py:489: in promote
+src/charter/activation/synthesizer/write_pipeline.py:489: in promote
     guard.replace(staged_content, live_content, caller="write_pipeline.promote[content-replace]")
-src/charter/synthesizer/path_guard.py:117: in replace
+src/charter/activation/synthesizer/path_guard.py:117: in replace
     os.replace(src, dst)
 E   FileNotFoundError: [Errno 2] No such file or directory: '/private/tmp/sk-merged-canary/.kittify/charter/.staging/01KPE222CD1MMCYEGB3ZCY51VR/doctrine/directives/001-mission-type-scope-directive.directive.yaml' -> '/private/tmp/sk-merged-canary/.kittify/doctrine/directives/001-mission-type-scope-directive.directive.yaml'
 
@@ -1713,11 +1713,11 @@ The above exception was the direct cause of the following exception:
 tests/charter/synthesizer/test_orchestrator_synthesize.py:217: in test_synthesize_result_has_inputs_hash
     result = synthesize(full_request, adapter=adapter)
              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-src/charter/synthesizer/orchestrator.py:169: in synthesize
+src/charter/activation/synthesizer/orchestrator.py:169: in synthesize
     _write_pipeline.promote(
-src/charter/synthesizer/write_pipeline.py:524: in promote
+src/charter/activation/synthesizer/write_pipeline.py:524: in promote
     raise StagingPromoteError(
-E   charter.synthesizer.errors.StagingPromoteError: Synthesis promote failed for run 01KPE222CD1MMCYEGB3ZCY51VR (staging: /private/tmp/sk-merged-canary/.kittify/charter/.staging/01KPE222CD1MMCYEGB3ZCY51VR): [Errno 2] No such file or directory: '/private/tmp/sk-merged-canary/.kittify/charter/.staging/01KPE222CD1MMCYEGB3ZCY51VR/doctrine/directives/001-mission-type-scope-directive.directive.yaml' -> '/private/tmp/sk-merged-canary/.kittify/doctrine/directives/001-mission-type-scope-directive.directive.yaml'. Staging directory preserved as /private/tmp/sk-merged-canary/.kittify/charter/.staging/01KPE222CD1MMCYEGB3ZCY51VR.failed/ for diagnosis.
+E   charter.activation.synthesizer.errors.StagingPromoteError: Synthesis promote failed for run 01KPE222CD1MMCYEGB3ZCY51VR (staging: /private/tmp/sk-merged-canary/.kittify/charter/.staging/01KPE222CD1MMCYEGB3ZCY51VR): [Errno 2] No such file or directory: '/private/tmp/sk-merged-canary/.kittify/charter/.staging/01KPE222CD1MMCYEGB3ZCY51VR/doctrine/directives/001-mission-type-scope-directive.directive.yaml' -> '/private/tmp/sk-merged-canary/.kittify/doctrine/directives/001-mission-type-scope-directive.directive.yaml'. Staging directory preserved as /private/tmp/sk-merged-canary/.kittify/charter/.staging/01KPE222CD1MMCYEGB3ZCY51VR.failed/ for diagnosis.
 
 During handling of the above exception, another exception occurred:
 /opt/homebrew/Cellar/python@3.14/3.14.4_1/Frameworks/Python.framework/Versions/3.14/lib/python3.14/contextlib.py:195: in __exit__
@@ -1814,16 +1814,16 @@ E   AssertionError: Action 'discover' produced a blocked decision despite the ga
 E   assert 'blocked' != 'blocked'
 ------------------------------ Captured log call -------------------------------
 WARNING  specify_cli.sync._team:_team.py:75 direct ingress skipped: {'category': 'direct_ingress_missing_private_team', 'rehydrate_attempted': False, 'ingress_sent': False, 'endpoint': '/api/v1/events/batch/'}
-WARNING  charter.sync:sync.py:279 governance.yaml not found and charter.md is absent. Using empty governance config.
-WARNING  charter.sync:sync.py:325 directives.yaml not found and charter.md is absent. Using empty directives config.
-WARNING  charter.sync:sync.py:279 governance.yaml not found and charter.md is absent. Using empty governance config.
-WARNING  charter.sync:sync.py:325 directives.yaml not found and charter.md is absent. Using empty directives config.
-WARNING  charter.sync:sync.py:279 governance.yaml not found and charter.md is absent. Using empty governance config.
-WARNING  charter.sync:sync.py:325 directives.yaml not found and charter.md is absent. Using empty directives config.
-WARNING  charter.sync:sync.py:279 governance.yaml not found and charter.md is absent. Using empty governance config.
-WARNING  charter.sync:sync.py:325 directives.yaml not found and charter.md is absent. Using empty directives config.
-WARNING  charter.sync:sync.py:279 governance.yaml not found and charter.md is absent. Using empty governance config.
-WARNING  charter.sync:sync.py:325 directives.yaml not found and charter.md is absent. Using empty directives config.
+WARNING  charter.activation.sync:sync.py:279 governance.yaml not found and charter.md is absent. Using empty governance config.
+WARNING  charter.activation.sync:sync.py:325 directives.yaml not found and charter.md is absent. Using empty directives config.
+WARNING  charter.activation.sync:sync.py:279 governance.yaml not found and charter.md is absent. Using empty governance config.
+WARNING  charter.activation.sync:sync.py:325 directives.yaml not found and charter.md is absent. Using empty directives config.
+WARNING  charter.activation.sync:sync.py:279 governance.yaml not found and charter.md is absent. Using empty governance config.
+WARNING  charter.activation.sync:sync.py:325 directives.yaml not found and charter.md is absent. Using empty directives config.
+WARNING  charter.activation.sync:sync.py:279 governance.yaml not found and charter.md is absent. Using empty governance config.
+WARNING  charter.activation.sync:sync.py:325 directives.yaml not found and charter.md is absent. Using empty directives config.
+WARNING  charter.activation.sync:sync.py:279 governance.yaml not found and charter.md is absent. Using empty governance config.
+WARNING  charter.activation.sync:sync.py:325 directives.yaml not found and charter.md is absent. Using empty directives config.
 WARNING  specify_cli.sync._team:_team.py:75 direct ingress skipped: {'category': 'direct_ingress_missing_private_team', 'rehydrate_attempted': False, 'ingress_sent': False, 'endpoint': '/api/v1/events/batch/'}
 WARNING  specify_cli.sync._team:_team.py:75 direct ingress skipped: {'category': 'direct_ingress_missing_private_team', 'rehydrate_attempted': False, 'ingress_sent': False, 'endpoint': '/api/v1/events/batch/'}
 _ TestImplementReviewFeedbackHandoff.test_implement_uses_review_cycle_artifact_after_review_claim _

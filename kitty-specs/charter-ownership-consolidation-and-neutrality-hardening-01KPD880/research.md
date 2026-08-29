@@ -14,8 +14,8 @@ Each entry follows the standard Decision / Rationale / Alternatives structure, w
 
 **Rationale**: The inventory confirmed both hard-success-criterion functions already have exactly one definition each:
 
-- `build_charter_context()` — defined at `src/charter/context.py:67`; all other occurrences are re-exports or callers.
-- `ensure_charter_bundle_fresh()` — defined at `src/charter/sync.py:66`; same pattern.
+- `build_charter_context()` — defined at `src/charter/activation/context.py:67`; all other occurrences are re-exports or callers.
+- `ensure_charter_bundle_fresh()` — defined at `src/charter/activation/sync.py:66`; same pattern.
 
 All 4 files under `src/specify_cli/charter/` are pure shims: `__init__.py` (108 lines of re-exports), and `compiler.py` / `interview.py` / `resolver.py` (9 lines each, using the `sys.modules` aliasing trick to redirect fully-qualified imports of the legacy submodule path to the canonical module). No real implementation survives in the legacy surface.
 
@@ -45,7 +45,7 @@ All 4 files under `src/specify_cli/charter/` are pure shims: `__init__.py` (108 
 | Documentation teaching `from specify_cli.charter …` | 0 | None | None |
 | **Actual callers to migrate** (`from specify_cli.charter …`) | 28 | Tractable (minus C-005 exceptions) | Rename in place during implementation, excluding three intentional legacy-import test files. See R-007 and `occurrence_map.yaml`. |
 
-**On the `pyproject.toml` entry**: the hit at `pyproject.toml:218` is inside a `[[tool.mypy.overrides]]` block explicitly labelled "Transitional quarantine" that relaxes mypy strictness for legacy modules. It is NOT a package-inclusion or entry-point reference — those have no such entry. The `specify_cli.charter.context` submodule path it names **never existed as a real submodule shim** (there is no `src/specify_cli/charter/context.py`), so the quarantine entry is effectively stale today. Removing it is a **typing-scope change**: dropping the override may surface previously-suppressed `mypy --strict` errors against the canonical `charter.context` module. Planning therefore treats this as an explicit task (run `mypy --strict src/charter/context.py`, fix any newly-visible errors, then delete the override line or migrate it to `charter.context` if errors cannot be fixed in this mission's scope).
+**On the `pyproject.toml` entry**: the hit at `pyproject.toml:218` is inside a `[[tool.mypy.overrides]]` block explicitly labelled "Transitional quarantine" that relaxes mypy strictness for legacy modules. It is NOT a package-inclusion or entry-point reference — those have no such entry. The `specify_cli.charter.context` submodule path it names **never existed as a real submodule shim** (there is no `src/specify_cli/charter/context.py`), so the quarantine entry is effectively stale today. Removing it is a **typing-scope change**: dropping the override may surface previously-suppressed `mypy --strict` errors against the canonical `charter.activation.context` module. Planning therefore treats this as an explicit task (run `mypy --strict src/charter/activation/context.py`, fix any newly-visible errors, then delete the override line or migrate it to `charter.activation.context` if errors cannot be fixed in this mission's scope).
 
 **Alternatives considered**:
 
@@ -61,7 +61,7 @@ All 4 files under `src/specify_cli/charter/` are pure shims: `__init__.py` (108 
 
 **Decision**: Ship an initial banned-terms YAML with both literal and regex entries, keyed by a human-readable id and category. Contributors can extend by editing a single file.
 
-**Initial term set** (subject to Phase 1 schema; the final authoritative list ships in `src/charter/neutrality/banned_terms.yaml`). The initial list is deliberately **narrow** — only the four highest-signal Python-bias tokens that do not collide with legitimate multi-ecosystem vocabulary:
+**Initial term set** (subject to Phase 1 schema; the final authoritative list ships in `src/charter/activation/neutrality/banned_terms.yaml`). The initial list is deliberately **narrow** — only the four highest-signal Python-bias tokens that do not collide with legitimate multi-ecosystem vocabulary:
 
 | ID | Kind | Pattern | Rationale |
 |---|---|---|---|
@@ -154,15 +154,15 @@ All 4 files under `src/specify_cli/charter/` are pure shims: `__init__.py` (108 
 
 ## R-008 — mypy quarantine removal and `mypy --strict` implications
 
-**Decision**: Treat removal of the `specify_cli.charter.context` entry from the `[[tool.mypy.overrides]]` "Transitional quarantine" block (`pyproject.toml:218`) as a typing-scope change. Run `mypy --strict src/charter/context.py` before deleting the override; fix any newly-visible strict errors as part of this mission or (if out of scope) migrate the override to target the real module (`charter.context`) with a `# TODO: remove in mission NNN` comment.
+**Decision**: Treat removal of the `specify_cli.charter.context` entry from the `[[tool.mypy.overrides]]` "Transitional quarantine" block (`pyproject.toml:218`) as a typing-scope change. Run `mypy --strict src/charter/activation/context.py` before deleting the override; fix any newly-visible strict errors as part of this mission or (if out of scope) migrate the override to target the real module (`charter.activation.context`) with a `# TODO: remove in mission NNN` comment.
 
-**Rationale**: The quarantine block's stated purpose is to relax strictness for legacy modules. The specific entry `specify_cli.charter.context` does not correspond to any real file — there is no `src/specify_cli/charter/context.py`. Meanwhile, the canonical `src/charter/context.py` is in scope for `mypy --strict` per the Charter Check. Removing the stale entry exposes nothing (no module has been matching it). What it *does* expose is the question "is `charter.context` actually strict-clean today?" — which must be answered with a real run before the line disappears, because the stale entry's mere presence has been camouflaging that question for some time.
+**Rationale**: The quarantine block's stated purpose is to relax strictness for legacy modules. The specific entry `specify_cli.charter.context` does not correspond to any real file — there is no `src/specify_cli/charter/context.py`. Meanwhile, the canonical `src/charter/activation/context.py` is in scope for `mypy --strict` per the Charter Check. Removing the stale entry exposes nothing (no module has been matching it). What it *does* expose is the question "is `charter.activation.context` actually strict-clean today?" — which must be answered with a real run before the line disappears, because the stale entry's mere presence has been camouflaging that question for some time.
 
 **Alternatives considered**:
 
 - *Delete the line without running mypy.* Rejected — the gate is `mypy --strict passes`. Landing without running the check would be a regression against the mission's own Charter Check.
 - *Leave the stale entry in place.* Rejected — leaving it teaches future contributors the legacy path is a live submodule (it is not), and makes the quarantine block noisier than it needs to be.
-- *Rename the entry to `charter.context`.* Defensible as a fallback if strict errors exist and cannot be fixed in this mission. Preferred outcome is still deletion; the rename is only a compromise.
+- *Rename the entry to `charter.activation.context`.* Defensible as a fallback if strict errors exist and cannot be fixed in this mission. Preferred outcome is still deletion; the rename is only a compromise.
 
 **Evidence**: Inspection of `pyproject.toml:218-240` (the `[[tool.mypy.overrides]]` block) and `src/specify_cli/charter/` directory (no `context.py` file exists there).
 

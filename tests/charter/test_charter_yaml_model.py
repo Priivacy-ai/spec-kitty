@@ -13,8 +13,8 @@ from __future__ import annotations
 import pytest
 from pydantic import ValidationError
 
-from charter.activations import ActivationEntry
-from charter.schemas import (
+from charter.activation.activations import ActivationEntry
+from charter.activation.schemas import (
     CharterCatalog,
     CharterCatalogReference,
     CharterYaml,
@@ -74,7 +74,7 @@ class TestCharterYamlRoundTrip:
 
         assert charter.governance == governance
         assert charter.directives == directives
-        assert charter.catalog == catalog
+        assert charter.activation.catalog == catalog
 
     def test_governance_and_directives_deserialize_from_dumped_dict(self) -> None:
         """G1: governance/directives deserialize into the existing

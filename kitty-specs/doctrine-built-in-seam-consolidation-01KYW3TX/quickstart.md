@@ -48,8 +48,8 @@ PWHEADLESS=1 uv run pytest -p no:cacheprovider -q tests/architectural/ -k "built
 
 ```bash
 uv run python -c "
-from charter.pack_manager import YAML_KEY_MAP
-from charter.charter_yaml_io import _ACTIVATION_KEYS
+from charter.activation.pack_manager import YAML_KEY_MAP
+from charter.activation.charter_yaml_io import _ACTIVATION_KEYS
 # after IC-05, the finalize migration constant must include activated_glossary_packs
 print('glossary in vocab:', 'activated_glossary_packs' in set(YAML_KEY_MAP.values()))
 "

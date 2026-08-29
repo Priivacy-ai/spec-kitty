@@ -28,7 +28,7 @@ execution_mode: code_change
 model: ''
 owned_files:
 - src/specify_cli/cli/commands/charter/_layer_roots.py
-- src/charter/pack_manager.py
+- src/charter/activation/pack_manager.py
 - tests/specify_cli/cli/commands/charter/test_activation_layout.py
 role: implementer
 tags: []
@@ -57,7 +57,7 @@ Load `python-pedro` via the `/ad-hoc-profile-load` skill (read `src/doctrine/age
 
 - **Independent of WP02–WP05** (no `dependencies`), but completes the #2156 end-to-end story for activation-list projects — verify it **before** Lane B's two-regime live proof so `charter activate` can materialise the explicit list.
 - **Root cause 1 — the `doctrine/`-dir gate.** `src/specify_cli/cli/commands/charter/_layer_roots.py:24-26` registers an org root only when `(org_root / "doctrine").is_dir()`. A runtime-flat pack (`<pack>/agent_profiles/`) has no `doctrine/` subdir, so the org root is never registered → activation fails "Unknown agent-profile ID". (The project branch at `:20-22` has the same `doctrine/`-dir assumption — confirm whether it needs the same treatment, but the **org** branch is the FR-013 target.)
-- **Root cause 2 — the nested org-layer scan.** `src/charter/pack_manager.py::_scan_layer_dirs` (`:563-567`) builds the project candidate as `root / "doctrine" / kind_dir` and the layered fallback as `root / base_dir / layer` — the org layer resolves to `<pack>/doctrine/<plural>/org/` rather than the flat `<pack>/<plural>/`. Re-point the org-layer branch to the flat `<pack>/<plural>/` layout.
+- **Root cause 2 — the nested org-layer scan.** `src/charter/activation/pack_manager.py::_scan_layer_dirs` (`:563-567`) builds the project candidate as `root / "doctrine" / kind_dir` and the layered fallback as `root / base_dir / layer` — the org layer resolves to `<pack>/doctrine/<plural>/org/` rather than the flat `<pack>/<plural>/`. Re-point the org-layer branch to the flat `<pack>/<plural>/` layout.
 - **Canonical reference contract (C-006).** Runtime resolves via `src/doctrine/drg/org_pack_config.py::resolve_org_roots` (`:263`) → `<pack>/agent_profiles/` (flat), consumed by `DoctrineService(org_roots=...)`. The activation subsystem must agree with this. Do NOT hand-roll a third resolution convention.
 - **Decision required in this WP (research.md open-question #4): hard cutover vs layout-tolerant.** Either (a) hard cutover to flat `<pack>/<plural>/` (simplest, matches runtime, operator-preferred direction), or (b) a layout-tolerant resolver that accepts BOTH (flat preferred, nested as fallback) for backward-compat with any pack already shipping the nested layout. Default to flat-canonical; add layout-tolerance ONLY if evidence shows shipped nested packs. Record the choice + rationale in the Activity Log.
 - **Shared-across-kinds risk.** The org-layer scan convention is shared across ALL org-pack kinds (directives/tactics/styleguides/agent_profiles/…). Flipping the layout affects every kind — hence the ≥ 2-kind regression (T018). Be careful: this file is owned by WP06 but its behaviour is mission-critical for all kinds.
@@ -76,9 +76,9 @@ Load `python-pedro` via the `/ad-hoc-profile-load` skill (read `src/doctrine/age
 - **Purpose**: Unify the activation subsystem with the runtime flat layout.
 - **Steps**:
   - In `src/specify_cli/cli/commands/charter/_layer_roots.py`, drop the `(<org_root>/doctrine).is_dir()` gate at `:24-26` so a flat org root (`<pack>/agent_profiles/` present, no `doctrine/`) is registered. Register the org root by the canonical `resolve_org_roots` contract, not the `doctrine/`-dir heuristic.
-  - In `src/charter/pack_manager.py::_scan_layer_dirs` (`:563-567`), fix the **org-layer** branch so the candidate is the flat `<pack>/<plural>/` (e.g. `<pack>/agent_profiles/`) instead of `<pack>/doctrine/<plural>/org/`. Keep built-in and project behaviour intact (do not regress the project layer or the built-in flat-kind path at `:568-571`).
+  - In `src/charter/activation/pack_manager.py::_scan_layer_dirs` (`:563-567`), fix the **org-layer** branch so the candidate is the flat `<pack>/<plural>/` (e.g. `<pack>/agent_profiles/`) instead of `<pack>/doctrine/<plural>/org/`. Keep built-in and project behaviour intact (do not regress the project layer or the built-in flat-kind path at `:568-571`).
   - Implement the hard-cutover-vs-layout-tolerant decision from Context; if layout-tolerant, prefer flat and fall back to nested.
-- **Files**: `src/specify_cli/cli/commands/charter/_layer_roots.py`, `src/charter/pack_manager.py`.
+- **Files**: `src/specify_cli/cli/commands/charter/_layer_roots.py`, `src/charter/activation/pack_manager.py`.
 - **Notes**: `_layer_roots.py` imports `resolve_org_roots` from `specify_cli.doctrine.config` (its in-tree alias) — keep root resolution in `specify_cli` and hand resolved paths to `pack_manager` as data (the file's existing C-008 layer note). Keep complexity ≤ 15; extract a small layout-resolution helper if the branch grows.
 
 ### Subtask T018 — Multi-kind regression (≥ 2 kinds)
@@ -91,7 +91,7 @@ Load `python-pedro` via the `/ad-hoc-profile-load` skill (read `src/doctrine/age
 
 - Run: `PWHEADLESS=1 pytest tests/specify_cli/cli/commands/charter/test_activation_layout.py -q`.
 - Prove T016 RED against pre-fix code, GREEN after T017. T018 exercises ≥ 2 kinds + the activate/deactivate round-trip.
-- `ruff check` + `mypy` on `src/specify_cli/cli/commands/charter/_layer_roots.py` and `src/charter/pack_manager.py`.
+- `ruff check` + `mypy` on `src/specify_cli/cli/commands/charter/_layer_roots.py` and `src/charter/activation/pack_manager.py`.
 - Because the org-layer scan is shared, run the broader charter/pack-manager test files locally to catch cross-kind fallout.
 
 ## Risks & Mitigations

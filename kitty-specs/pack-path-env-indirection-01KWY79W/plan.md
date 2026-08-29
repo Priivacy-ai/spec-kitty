@@ -20,7 +20,7 @@ Two independent, code-grounded fixes in the doctrine/charter config-resolution d
 **Project Type**: Single project (Python CLI package `spec-kitty-cli`, existing `src/` layout).
 **Performance Goals**: N/A beyond NFR-001 (no measurable latency added — both changes are pure string/path/regex operations, no new I/O).
 **Constraints**: See spec C-001–C-005 (independent WPs, `#2213` out of scope, locked env-var name/fail-closed behavior/unification depth).
-**Scale/Scope**: Two focused, single-module changes (`src/doctrine/drg/org_pack_config.py` for WP1; `src/charter/language_scope.py` + `src/charter/compiler.py` + `src/charter/context.py`/`compact.py` call sites for WP2). No new services, no new external dependencies.
+**Scale/Scope**: Two focused, single-module changes (`src/doctrine/drg/org_pack_config.py` for WP1; `src/charter/activation/language_scope.py` + `src/charter/activation/compiler.py` + `src/charter/activation/context.py`/`compact.py` call sites for WP2). No new services, no new external dependencies.
 
 ## Charter Check
 
@@ -103,6 +103,6 @@ tests/
 
 - **Purpose**: Eliminate the DIRECTIVE_044 split-brain where language extraction runs at both compile time (canonical, from interview) and runtime (re-derivation from the raw transcript), by persisting a structured language set on the compiled charter and making runtime read that value.
 - **Relevant requirements**: FR-008, FR-009, FR-010, FR-011, FR-012, NFR-002, C-005.
-- **Affected surfaces**: `src/charter/compiler.py` (persist structured `languages` at compile time); `src/charter/language_scope.py` (`infer_repo_languages` reads the compiled value first, interview transcript only as pre-compile fallback); `src/charter/context.py` (`active_languages` consumer — read path); `src/charter/compact.py` (display consumer — read path); `tests/charter/test_language_scope.py` (invert `test_infer_repo_languages_prefers_interview_answers`; add disagreement case; add structured-field case).
+- **Affected surfaces**: `src/charter/activation/compiler.py` (persist structured `languages` at compile time); `src/charter/activation/language_scope.py` (`infer_repo_languages` reads the compiled value first, interview transcript only as pre-compile fallback); `src/charter/activation/context.py` (`active_languages` consumer — read path); `src/charter/activation/compact.py` (display consumer — read path); `tests/charter/test_language_scope.py` (invert `test_infer_repo_languages_prefers_interview_answers`; add disagreement case; add structured-field case).
 - **Sequencing/depends-on**: none (independent of IC-01).
 - **Risks**: Existing pinning test currently asserts the buggy behavior — must be corrected (not deleted) per DIRECTIVE_034/041, with a red-first run to confirm the current behavior before flipping. Backward compatibility for charters compiled before this change (no structured field yet) requires the FR-010 fallback path.

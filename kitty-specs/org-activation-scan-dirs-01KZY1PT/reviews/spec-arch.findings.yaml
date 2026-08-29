@@ -15,8 +15,8 @@ findings:
     evidence:
       - artifact: "spec.md § FR-001 (Requirements > Functional Requirements)"
       - artifact: "spec.md § User Story 1, Acceptance Scenario 3"
-      - code: "src/charter/kind_vocabulary.py:200-209 (_org_scan_dirs, pre-fix)"
-      - code: "src/charter/kind_vocabulary.py:260-297 (resolve_artifact_urn — first-match-wins over _iter_artifact_paths, `for path in ...: if _config_stem(path) == config_id: ... return`)"
+      - code: "src/charter/activation/kind_vocabulary.py:200-209 (_org_scan_dirs, pre-fix)"
+      - code: "src/charter/activation/kind_vocabulary.py:260-297 (resolve_artifact_urn — first-match-wins over _iter_artifact_paths, `for path in ...: if _config_stem(path) == config_id: ... return`)"
       - code: "src/charter/drg.py:333-381 (_resolve_activated_urns_for_kind — the sole caller in the failure mechanism this mission fixes)"
     claim: >-
       FR-001 says the fixed `_org_scan_dirs` returns a scan entry for the flat
@@ -44,8 +44,8 @@ findings:
       to close — org-pack content silently resolving to the wrong (or no) URN —
       reopened at the file-collision level instead of the directory-scanning
       level. It is also not confined to the activation gate: `resolve_artifact_urn`
-      is called directly by `src/charter/compiler.py:146`,
-      `src/charter/consistency_check.py:744,815`, and the `charter activate`/
+      is called directly by `src/charter/activation/compiler.py:146`,
+      `src/charter/activation/consistency_check.py:744,815`, and the `charter activate`/
       `deactivate` CLI commands, so the ambiguity's blast radius is broader than
       `filter_graph_by_activation`.
     remediation: >-

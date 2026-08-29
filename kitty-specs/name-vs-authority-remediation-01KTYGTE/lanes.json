@@ -127,7 +127,7 @@
         ".roo/commands/**",
         ".windsurf/workflows/**",
         "architecture/3.x/adr/2026-06-11-1-*.md",
-        "src/charter/context_renderers/authority_paths.py",
+        "src/charter/activation/context_renderers/authority_paths.py",
         "src/doctrine/missions/mission-steps/software-dev/implement/prompt.md",
         "src/doctrine/missions/mission-steps/software-dev/review/prompt.md",
         "tests/charter/**",

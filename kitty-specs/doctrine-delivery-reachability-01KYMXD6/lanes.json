@@ -13,7 +13,7 @@
       ],
       "write_scope": [
         "src/charter/drg.py",
-        "src/charter/synthesizer/project_drg.py",
+        "src/charter/activation/synthesizer/project_drg.py",
         "src/doctrine/drg/merge.py",
         "src/doctrine/drg/migration/extractor.py",
         "src/doctrine/drg/models.py",
@@ -38,8 +38,8 @@
         "WP03"
       ],
       "write_scope": [
-        "src/charter/kind_vocabulary.py",
-        "src/charter/pack_manager.py",
+        "src/charter/activation/kind_vocabulary.py",
+        "src/charter/activation/pack_manager.py",
         "src/doctrine/artifact_kinds.py",
         "src/specify_cli/cli/commands/doctrine.py",
         "tests/doctrine/drg/test_kind_mapping_totality.py",
@@ -61,8 +61,8 @@
         "WP07"
       ],
       "write_scope": [
-        "src/charter/compiler.py",
-        "src/charter/pack_context.py",
+        "src/charter/activation/compiler.py",
+        "src/charter/activation/pack_context.py",
         "src/specify_cli/upgrade/migrations/m_3_2_x_normalize_activation_absence.py",
         "tests/charter/test_activation_authority.py",
         "tests/charter/test_activation_identifier_normalization.py",
@@ -170,8 +170,8 @@
         "WP10"
       ],
       "write_scope": [
-        "src/charter/context.py",
-        "src/charter/resolver.py",
+        "src/charter/activation/context.py",
+        "src/charter/activation/resolver.py",
         "tests/charter/test_action_bundle_delivery.py",
         "tests/charter/test_context.py"
       ],
@@ -233,7 +233,7 @@
         "WP11"
       ],
       "write_scope": [
-        "src/charter/compact.py",
+        "src/charter/activation/compact.py",
         "src/specify_cli/cli/commands/agent/workflow.py",
         "src/specify_cli/cli/commands/agent/workflow_executor.py",
         "tests/agent/test_workflow_charter_context.py",
@@ -307,7 +307,7 @@
         "wp_a": "WP06",
         "wp_b": "WP07",
         "rule": "write_scope_overlap",
-        "evidence": "overlapping globs: 'src/charter/pack_context.py' vs 'src/charter/pack_context.py'; WP07 depends on WP06"
+        "evidence": "overlapping globs: 'src/charter/activation/pack_context.py' vs 'src/charter/activation/pack_context.py'; WP07 depends on WP06"
       }
     ],
     "total_merges": 2,

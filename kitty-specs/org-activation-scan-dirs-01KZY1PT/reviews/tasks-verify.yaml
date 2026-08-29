@@ -21,4 +21,4 @@ results:
       codebase that action_doctrine_bundle.py:165 is the sole call site anywhere in src/
       passing a non-None org_root= into load_validated_graph, that _resolve_org_root
       (_drg_helpers.py:39-50) is a hardcoded no-op, and that test_merged_graph_on_live_path.py
-      demonstrates the cited patch("charter._drg_helpers.load_built_in_graph", ...) style.
+      demonstrates the cited patch("charter.activation._drg_helpers.load_built_in_graph", ...) style.

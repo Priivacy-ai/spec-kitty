@@ -20,15 +20,15 @@ history:
   action: Prompt generated via /spec-kitty.tasks
 - at: '2026-08-03T15:00:00Z'
   actor: system
-  action: Post-tasks squad correction - the original framing ("stops importing doctrine.resolver directly") was factually wrong; specify_cli/runtime/resolver.py never imported doctrine.resolver — it imports the charter.resolution facade and charter.template_resolver, both already legitimately inside src/charter/** (debugger-debbie finding). Reframed as an entry-point consolidation. Fixed a method-naming collision risk (debugger-debbie finding).
+  action: Post-tasks squad correction - the original framing ("stops importing doctrine.resolver directly") was factually wrong; specify_cli/runtime/resolver.py never imported doctrine.resolver — it imports the charter.resolution facade and charter.activation.template_resolver, both already legitimately inside src/charter/** (debugger-debbie finding). Reframed as an entry-point consolidation. Fixed a method-naming collision risk (debugger-debbie finding).
 agent_profile: architect-alphonso
-authoritative_surface: src/charter/template_resolver.py
+authoritative_surface: src/charter/activation/template_resolver.py
 create_intent:
 - tests/charter/test_resolver_tier_axis_via_factory.py
 execution_mode: code_change
 model: ''
 owned_files:
-- src/charter/template_resolver.py
+- src/charter/activation/template_resolver.py
 - src/specify_cli/runtime/resolver.py
 - tests/charter/test_resolver_tier_axis_via_factory.py
 role: implementer
@@ -59,13 +59,13 @@ Check `review_ref` in the event log before starting. Address all feedback; log c
 `doctrine.resolver` (`charter/template_resolver.py`, `charter/resolution.py`,
 `charter/context_renderers/template_include.py`, `doctrine/template_catalog.py`) is already legitimately
 inside `src/charter/**` or `src/doctrine/**`, where `charter → doctrine` is the sanctioned direction. The
-real problem is a **two-doors-within-charter** seam: `charter.template_resolver.CharterTemplateResolver`
-is a *second* charter-layer object separate from `charter.resolver.DoctrineService` (the factory), each
+real problem is a **two-doors-within-charter** seam: `charter.activation.template_resolver.CharterTemplateResolver`
+is a *second* charter-layer object separate from `charter.activation.resolver.DoctrineService` (the factory), each
 reaching `doctrine/resolver.py` independently. FR-003 closes this by consolidating the 5-tier
 template/command resolution entry point onto the factory — one charter-layer door, not two.
 
 **This WP's scope was corrected by the post-plan squad (still true, unaffected by the reframe above):**
-- `src/charter/resolution.py` and `src/charter/context_renderers/template_include.py` are **NOT** in scope —
+- `src/charter/resolution.py` and `src/charter/activation/context_renderers/template_include.py` are **NOT** in scope —
   both import only the `ResolutionResult`/`ResolutionTier` *types*, sanctioned by an existing facade
   contract, not resolution calls. Do not touch them.
 - `doctrine.template_catalog.resolve_template_by_id` (5 importers) and `specify_cli/runtime/resolver.py`'s
@@ -87,7 +87,7 @@ template/command resolution entry point onto the factory — one charter-layer d
   pick distinct names (e.g. `resolve_command_asset`, `resolve_content_asset`, `resolve_mission_definition`)
   so a reader is never unsure which signature applies where.
 - **Depends on WP01** (declared in frontmatter) — not just for the unified builder, but because T018 adds
-  methods to `src/charter/resolver.py`, which WP01 exclusively owns and edits first. `src/charter/resolver.py`
+  methods to `src/charter/activation/resolver.py`, which WP01 exclusively owns and edits first. `src/charter/activation/resolver.py`
   is **not** in this WP's `owned_files` — T018's edit there is a small, explicitly sequenced out-of-map
   addition, safe because the dependency on WP01 guarantees this WP never runs in parallel with it.
 
@@ -99,7 +99,7 @@ template/command resolution entry point onto the factory — one charter-layer d
 
 ## Subtasks & Detailed Guidance
 
-### Subtask T018 – Add resolution methods to `charter.resolver.DoctrineService`
+### Subtask T018 – Add resolution methods to `charter.activation.resolver.DoctrineService`
 
 - **Purpose**: Give the factory a public surface for the 5-tier axis, under NEW names distinct from
   `CharterTemplateResolver`'s existing methods (see the naming-collision note above).
@@ -108,18 +108,18 @@ template/command resolution entry point onto the factory — one charter-layer d
      `CharterTemplateResolver`'s current method signatures — understand the shape, but do NOT reuse its
      exact method names.
   2. Add methods with distinct names (e.g. `resolve_command_asset`, `resolve_content_asset`,
-     `resolve_mission_definition`) to `charter.resolver.DoctrineService` that call into `doctrine.resolver`'s
+     `resolve_mission_definition`) to `charter.activation.resolver.DoctrineService` that call into `doctrine.resolver`'s
      functions internally.
   3. These new methods are explicitly **ungated** by design (the 5-tier axis has no activation concept
      today) — do not add activation filtering here; that would conflate FR-003 with FR-005's separate scope.
      Note this explicitly in a docstring/comment on the new methods.
-- **Files**: `src/charter/resolver.py` (out-of-map edit, sequenced after WP01 via the declared dependency).
+- **Files**: `src/charter/activation/resolver.py` (out-of-map edit, sequenced after WP01 via the declared dependency).
 - **Parallel?**: No — T020 depends on this.
 
 ### Subtask T019 – Resolve the construction-contract mismatch
 
 - **Purpose**: `_charter_template_resolver_for()` in `runtime/resolver.py` is `lru_cache`d and keyed on a
-  `missions_root` string; `charter.resolver.DoctrineService` needs a `repo_root`. Design the mapping now.
+  `missions_root` string; `charter.activation.resolver.DoctrineService` needs a `repo_root`. Design the mapping now.
 - **Steps**: Either (a) resolve `repo_root` at the same call site `missions_root` is currently resolved from
   (check what upstream context is available there), or (b) add a `repo_root`-equivalent construction path.
   Document the chosen mapping in a comment at the call site.
@@ -131,10 +131,10 @@ template/command resolution entry point onto the factory — one charter-layer d
 - **Purpose**: Consolidate onto one charter-layer door.
 - **Steps**: Either turn `CharterTemplateResolver` into a thin delegating shim to T018's new factory methods
   (translating its old method names/signatures to the new ones), or retire it entirely and have
-  `_charter_template_resolver_for()` construct `charter.resolver.DoctrineService` directly (per T019's
+  `_charter_template_resolver_for()` construct `charter.activation.resolver.DoctrineService` directly (per T019's
   resolved mapping) and call the new methods. Pick whichever is the smaller diff given T019's actual design;
   state which you picked and why in the Activity Log.
-- **Files**: `src/charter/template_resolver.py`, `src/specify_cli/runtime/resolver.py`.
+- **Files**: `src/charter/activation/template_resolver.py`, `src/specify_cli/runtime/resolver.py`.
 - **Parallel?**: No — depends on T018, T019.
 
 ### Subtask T021 – Regression test: tier resolution unchanged
@@ -149,7 +149,7 @@ template/command resolution entry point onto the factory — one charter-layer d
 ## Test Strategy
 
 - `pytest tests/charter/ tests/specify_cli/runtime/ -v`.
-- `mypy --strict src/charter/resolver.py src/charter/template_resolver.py src/specify_cli/runtime/resolver.py`.
+- `mypy --strict src/charter/activation/resolver.py src/charter/activation/template_resolver.py src/specify_cli/runtime/resolver.py`.
 
 ## Risks & Mitigations
 

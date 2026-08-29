@@ -39,9 +39,9 @@ The architectural question is: **where is the natural single chokepoint, and whi
 
 ## Considered Options
 
-- **(A) Centralize at the existing orchestrator `ensure_charter_bundle_fresh()` in `src/charter/sync.py:66`.** Add encoding detection there; other read sites stay as-is.
-- **(B) New `src/charter/_io.py :: load_charter_file()` wrapping all 18 read sites across 8 modules.** Full retrofit.
-- **(C) NARROWED — new `src/charter/_io.py :: load_charter_file()` applied only at the three ingest boundaries: interview save, sync ingest, and compile-from-user-input.** Re-read sites stay as-is. **(Architect Alphonso recommendation.)**
+- **(A) Centralize at the existing orchestrator `ensure_charter_bundle_fresh()` in `src/charter/activation/sync.py:66`.** Add encoding detection there; other read sites stay as-is.
+- **(B) New `src/charter/activation/_io.py :: load_charter_file()` wrapping all 18 read sites across 8 modules.** Full retrofit.
+- **(C) NARROWED — new `src/charter/activation/_io.py :: load_charter_file()` applied only at the three ingest boundaries: interview save, sync ingest, and compile-from-user-input.** Re-read sites stay as-is. **(Architect Alphonso recommendation.)**
 - **(D) Single chokepoint at `ensure_charter_bundle_fresh()` only; defer interview-save and compile-input.** Smallest possible diff.
 
 ## Proposed Decision Outcome
@@ -50,7 +50,7 @@ The architectural question is: **where is the natural single chokepoint, and whi
 
 **Concrete contract proposal (subject to HiC adjustment):**
 
-1. **New module `src/charter/_io.py`** exposes:
+1. **New module `src/charter/activation/_io.py`** exposes:
    ```python
    @dataclass(frozen=True)
    class CharterContent:
@@ -66,9 +66,9 @@ The architectural question is: **where is the natural single chokepoint, and whi
 2. **Detection strategy.** Try in order: (a) BOM sniff; (b) strict UTF-8 decode; (c) `charset-normalizer` detection at confidence ≥ 0.85; (d) hard-fail with `CHARTER_ENCODING_AMBIGUOUS` naming the file and the candidates the detector considered. The `charset-normalizer` dependency addition needs HiC approval (see open sub-question).
 3. **Provenance recording.** When `normalization_applied=True`, the chokepoint writes a sibling provenance line to the charter directory's `.encoding-provenance.jsonl` (append-only) — file path, detected encoding, confidence, timestamp. This file becomes the *one new artifact* WP06 introduces; it is **not** consumed by current commands but is the audit trail #644 explicitly asks for.
 4. **Three retrofit sites (the entire WP06 module budget):**
-   - `src/charter/interview.py` — replace `path.read_text(encoding="utf-8")` reads at the **save/load roundtrip for interview state** (lines ~283, ~398) with `load_charter_file(path)`. Rationale: interview state is the first persistence of user-typed content.
-   - `src/charter/sync.py` — replace `charter_path.read_text("utf-8")` at line ~151 (sync→YAML extract) with `load_charter_file(path)`. Rationale: SaaS-sourced content is an external-trust boundary.
-   - `src/charter/compiler.py` — replace `yaml.load(path.read_text(encoding="utf-8"))` at line ~594 with `yaml.load(load_charter_file(path).text)`. Rationale: user-supplied charter at compile time is the original #644 failure case.
+   - `src/charter/activation/interview.py` — replace `path.read_text(encoding="utf-8")` reads at the **save/load roundtrip for interview state** (lines ~283, ~398) with `load_charter_file(path)`. Rationale: interview state is the first persistence of user-typed content.
+   - `src/charter/activation/sync.py` — replace `charter_path.read_text("utf-8")` at line ~151 (sync→YAML extract) with `load_charter_file(path)`. Rationale: SaaS-sourced content is an external-trust boundary.
+   - `src/charter/activation/compiler.py` — replace `yaml.load(path.read_text(encoding="utf-8"))` at line ~594 with `yaml.load(load_charter_file(path).text)`. Rationale: user-supplied charter at compile time is the original #644 failure case.
 5. **Untouched (deferred to a successor mission):** `charter/context.py`, `charter/hasher.py`, `charter/language_scope.py`, `charter/compact.py`, `charter/neutrality/lint.py`. These all re-read files that have already passed through ingest; they remain `read_text(encoding="utf-8")` and trust the normalization contract that #644's successor mission can broaden later.
 6. **Regression fixture (the one regression case #822 requires):** new `tests/charter/test_encoding_chokepoint.py` exercises a `cp1252`-encoded charter file through `compiler.compile_charter()`, asserts the compiler succeeds, the provenance file records `source_encoding="cp1252"` with `normalization_applied=True`, and the in-memory `CharterContent.text` is the correctly-decoded UTF-8 string. A second test asserts that genuinely mixed content (cp1252 bytes embedded in a UTF-8 file) raises with `CHARTER_ENCODING_AMBIGUOUS`.
 7. **Diagnostic codes (JSON-stable, parallel to WP03's namespace):**
@@ -256,13 +256,13 @@ This reframes the security/SBOM question significantly:
 
 - Source bug body: [#644](https://github.com/Priivacy-ai/spec-kitty/issues/644)
 - Code references (read sites, all explicit `read_text(encoding="utf-8")` except one `errors="replace"` in `lint.py:258`):
-  - `src/charter/compiler.py:594` (ingest — proposed retrofit)
-  - `src/charter/sync.py:151` (ingest — proposed retrofit)
-  - `src/charter/interview.py:283, 398` (ingest — proposed retrofit)
-  - `src/charter/context.py:135` (re-read — deferred)
+  - `src/charter/activation/compiler.py:594` (ingest — proposed retrofit)
+  - `src/charter/activation/sync.py:151` (ingest — proposed retrofit)
+  - `src/charter/activation/interview.py:283, 398` (ingest — proposed retrofit)
+  - `src/charter/activation/context.py:135` (re-read — deferred)
   - `src/charter/hasher.py:33` (re-read — deferred)
-  - `src/charter/language_scope.py:46` (re-read — deferred)
-  - `src/charter/compact.py:135` (re-read — deferred)
-  - `src/charter/neutrality/lint.py:258` (special — `errors="replace"`, deferred)
+  - `src/charter/activation/language_scope.py:46` (re-read — deferred)
+  - `src/charter/activation/compact.py:135` (re-read — deferred)
+  - `src/charter/activation/neutrality/lint.py:258` (special — `errors="replace"`, deferred)
 - Mission spec FR-016 through FR-019 and NFR-004 in `kitty-specs/review-merge-gate-hardening-3-2-x-01KRC57C/spec.md`.
 - `charset-normalizer` package: [`https://pypi.org/project/charset-normalizer/`](https://pypi.org/project/charset-normalizer/)

@@ -47,14 +47,14 @@ Use the `/ad-hoc-profile-load` skill to load `python-pedro` (role `implementer`)
 
 Provide a single construction seam so profile surfaces resolve through the existing charter activation chokepoint.
 
-- **FR-010**: `build_activation_aware_doctrine_service(repo_root) -> charter.resolver.DoctrineService` constructs the inner `doctrine.service.DoctrineService` and wraps it in `charter.resolver.DoctrineService(inner, pack_context=PackContext.from_config(repo_root))`.
+- **FR-010**: `build_activation_aware_doctrine_service(repo_root) -> charter.activation.resolver.DoctrineService` constructs the inner `doctrine.service.DoctrineService` and wraps it in `charter.activation.resolver.DoctrineService(inner, pack_context=PackContext.from_config(repo_root))`.
 - **FR-019** (DIR-032, vocabulary-before-code): add the glossary terms *abstract base profile*, *activation chokepoint*, *activated vs available profile* **here in WP03** — the dependency-free, earliest profile-surface WP — so the vocabulary is ratified **before** WP04 ships the `profile show` warning string that uses "abstract base profile". (Moved from WP06 per the `/spec-kitty.analyze` I1 finding.)
 
 **Done when**: the factory exists, is typed, and its `.agent_profiles` honors the three-state `activated_agent_profiles` contract; import is layer-safe; the three glossary terms are defined.
 
 ## Context & Constraints
 
-- The activation-aware wrapper already exists at `src/charter/resolver.py:56-129` (do **not** duplicate it — C-003). The factory generalises the construction pattern at `charter/generate.py:46-74`.
+- The activation-aware wrapper already exists at `src/charter/activation/resolver.py:56-129` (do **not** duplicate it — C-003). The factory generalises the construction pattern at `charter/generate.py:46-74`.
 - **Layer rule (C-005)**: the factory lives in `specify_cli.*` and imports `charter.*` + `doctrine.service` (the allowed direction). It must not be placed inside `charter.*` or `doctrine.*`.
 - See [data-model.md](../data-model.md) for the signature and placement decision.
 
@@ -66,12 +66,12 @@ Provide a single construction seam so profile surfaces resolve through the exist
 
 ### Subtask T011 – Implement the factory
 
-- **Steps**: create `src/specify_cli/doctrine_service_factory.py` with `build_activation_aware_doctrine_service(repo_root: Path) -> "charter.resolver.DoctrineService"`. Fully type-annotated, with a docstring stating it is the single seam for activation-aware profile resolution.
+- **Steps**: create `src/specify_cli/doctrine_service_factory.py` with `build_activation_aware_doctrine_service(repo_root: Path) -> "charter.activation.resolver.DoctrineService"`. Fully type-annotated, with a docstring stating it is the single seam for activation-aware profile resolution.
 - **Files**: `src/specify_cli/doctrine_service_factory.py`
 
 ### Subtask T012 – Construct + wrap
 
-- **Steps**: build the inner `doctrine.service.DoctrineService(built_in_root=..., project_root=..., org_roots=...)` using the same root-resolution the existing CLI surfaces use (mirror `charter/generate.py`), then wrap with `charter.resolver.DoctrineService(inner, pack_context=PackContext.from_config(repo_root))`.
+- **Steps**: build the inner `doctrine.service.DoctrineService(built_in_root=..., project_root=..., org_roots=...)` using the same root-resolution the existing CLI surfaces use (mirror `charter/generate.py`), then wrap with `charter.activation.resolver.DoctrineService(inner, pack_context=PackContext.from_config(repo_root))`.
 - **Notes**: reuse existing root resolvers; do not reinvent path discovery.
 
 ### Subtask T013 – Unit test: three-state filtering
@@ -87,7 +87,7 @@ Provide a single construction seam so profile surfaces resolve through the exist
 ### Subtask T029 – Glossary terms (FR-019)
 
 - **Purpose**: ratify vocabulary before the warning string ships (DIR-032).
-- **Steps**: add to `glossary/contexts/governance.md`, following the existing entry format: *abstract base profile* (a profile referenced via `specializes_from` that is not itself activated — a shared-element store, not directly selectable), *activation chokepoint* (the `charter.resolver.DoctrineService` activation filter), *activated vs available profile*.
+- **Steps**: add to `glossary/contexts/governance.md`, following the existing entry format: *abstract base profile* (a profile referenced via `specializes_from` that is not itself activated — a shared-element store, not directly selectable), *activation chokepoint* (the `charter.activation.resolver.DoctrineService` activation filter), *activated vs available profile*.
 - **Files**: `glossary/contexts/governance.md`
 - **Parallel?**: [P] — independent of the factory code.
 
@@ -97,7 +97,7 @@ Provide a single construction seam so profile surfaces resolve through the exist
 
 ## Risks & Mitigations
 
-- **Duplicating the wrapper** → import and reuse `charter.resolver.DoctrineService`; do not reimplement filtering.
+- **Duplicating the wrapper** → import and reuse `charter.activation.resolver.DoctrineService`; do not reimplement filtering.
 - **Wrong root resolution** → copy the proven pattern from `charter/generate.py`.
 
 ## Review Guidance

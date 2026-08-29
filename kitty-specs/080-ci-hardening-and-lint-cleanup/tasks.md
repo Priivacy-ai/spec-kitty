@@ -79,7 +79,7 @@ All five WPs are independent and can run simultaneously in separate lanes. None 
 
 **Priority:** High | **Effort:** Small | **Estimated prompt:** ~260 lines
 **Goal:** Fix 4 isolated ruff violations in 4 different files using auto-fix tooling.
-**Success:** `ruff check src/charter/catalog.py src/charter/resolver.py src/doctrine/missions/glossary_hook.py src/kernel/_safe_re.py` exits 0.
+**Success:** `ruff check src/charter/activation/catalog.py src/charter/activation/resolver.py src/doctrine/missions/glossary_hook.py src/kernel/_safe_re.py` exits 0.
 
 **Includes:**
 - [x] T001 Fix ARG001: unused `doctrine_root` arg in `charter/catalog.py:245` (WP01)

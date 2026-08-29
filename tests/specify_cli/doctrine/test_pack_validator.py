@@ -414,7 +414,7 @@ class TestIntentAwareCollision:
 
     def _has_built_in_doctrine(self) -> bool:
         try:
-            from charter.catalog import resolve_doctrine_root
+            from charter.activation.catalog import resolve_doctrine_root
         except ModuleNotFoundError:
             return False
         try:
@@ -1065,7 +1065,7 @@ class TestDrgRootGraphMissing:
     """FR-004: ``pack validate`` gains an additive check that fires when a
     pack's DRG content lives only under ``drg/*.graph.yaml`` fragments with
     no pack-root ``*.graph.yaml`` — the shape the runtime
-    (``src/charter/_drg_helpers.py:load_validated_graph``) never reads
+    (``src/charter/activation/_drg_helpers.py:load_validated_graph``) never reads
     (see sibling mission #3384). Keyed off pack *content*, via the same
     exact ``*.graph.yaml`` glob ``_validate_drg`` already uses, so it is
     consistent by construction (AC-5).

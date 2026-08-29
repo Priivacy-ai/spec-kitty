@@ -247,11 +247,11 @@ The `test_query_mode_unit` mock failure (`decide_next` mock not invoked) indicat
 
 ### WP08 — Charter synthesizer determinism (FR-010 / #1303)
 
-**Correct source path:** The charter synthesizer lives at `src/charter/synthesizer/` (not `src/specify_cli/charter/`). WP05 item 2 ("wrong error class from `synthesize_without_charter_md`") touches the CLI adapter in `src/specify_cli/cli/commands/charter/synthesize.py` — NOT `src/charter/synthesizer/errors.py`. WP08 must not touch the CLI adapter; WP05 must not touch `src/charter/synthesizer/errors.py`. This separation prevents parallel-lane conflict.
+**Correct source path:** The charter synthesizer lives at `src/charter/synthesizer/` (not `src/specify_cli/charter/`). WP05 item 2 ("wrong error class from `synthesize_without_charter_md`") touches the CLI adapter in `src/specify_cli/cli/commands/charter/synthesize.py` — NOT `src/charter/activation/synthesizer/errors.py`. WP08 must not touch the CLI adapter; WP05 must not touch `src/charter/activation/synthesizer/errors.py`. This separation prevents parallel-lane conflict.
 
 **Write scope:**
-- `src/charter/synthesizer/manifest.py` (or equivalent) — fix manifest hash determinism (sort file lists before hashing to produce deterministic traversal order)
-- `src/charter/synthesizer/path_guard.py` — enforce the chokepoint so direct write primitives cannot bypass it
+- `src/charter/activation/synthesizer/manifest.py` (or equivalent) — fix manifest hash determinism (sort file lists before hashing to produce deterministic traversal order)
+- `src/charter/activation/synthesizer/path_guard.py` — enforce the chokepoint so direct write primitives cannot bypass it
 - Test fixtures — refresh stored manifest hashes after the determinism fix
 
 **Investigation required:** run `pytest tests/charter/synthesizer/ -v --tb=long` to identify the exact hash computation path and confirm the `path_guard.py` chokepoint location.

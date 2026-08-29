@@ -22,7 +22,7 @@ FR-009 + NFR-001 require JSON-stable diagnostic codes (MISSION_REVIEW_*, CHARTER
 
 ## Final answer
 
-python_enum_per_subsystem — Each subsystem defines its own StrEnum for diagnostic codes: src/specify_cli/cli/commands/review/_diagnostics.py for MissionReviewDiagnostic; src/charter/_diagnostics.py for CharterEncodingDiagnostic. Type-safe, mypy-checkable, no central registry needed.
+python_enum_per_subsystem — Each subsystem defines its own StrEnum for diagnostic codes: src/specify_cli/cli/commands/review/_diagnostics.py for MissionReviewDiagnostic; src/charter/activation/_diagnostics.py for CharterEncodingDiagnostic. Type-safe, mypy-checkable, no central registry needed.
 
 ## Rationale
 
@@ -31,4 +31,4 @@ _(none)_
 ## Change log
 
 - `2026-05-12T10:41:22.700842+00:00` — opened
-- `2026-05-12T10:42:19.325627+00:00` — resolved (final_answer="python_enum_per_subsystem — Each subsystem defines its own StrEnum for diagnostic codes: src/specify_cli/cli/commands/review/_diagnostics.py for MissionReviewDiagnostic; src/charter/_diagnostics.py for CharterEncodingDiagnostic. Type-safe, mypy-checkable, no central registry needed.")
+- `2026-05-12T10:42:19.325627+00:00` — resolved (final_answer="python_enum_per_subsystem — Each subsystem defines its own StrEnum for diagnostic codes: src/specify_cli/cli/commands/review/_diagnostics.py for MissionReviewDiagnostic; src/charter/activation/_diagnostics.py for CharterEncodingDiagnostic. Type-safe, mypy-checkable, no central registry needed.")

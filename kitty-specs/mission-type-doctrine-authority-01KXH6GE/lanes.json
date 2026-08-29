@@ -32,7 +32,7 @@
         "WP02"
       ],
       "write_scope": [
-        "src/charter/mission_type_key.py",
+        "src/charter/activation/mission_type_key.py",
         "src/specify_cli/mission.py"
       ],
       "predicted_surfaces": [
@@ -68,7 +68,7 @@
       ],
       "write_scope": [
         "src/charter/__init__.py",
-        "src/charter/mission_type_profiles.py",
+        "src/charter/activation/mission_type_profiles.py",
         "src/runtime/next/prompt_builder.py"
       ],
       "predicted_surfaces": [
@@ -88,8 +88,8 @@
         "WP04"
       ],
       "write_scope": [
-        "src/charter/context.py",
-        "src/charter/scope_router.py",
+        "src/charter/activation/context.py",
+        "src/charter/activation/scope_router.py",
         "tests/charter/test_context.py"
       ],
       "predicted_surfaces": [
@@ -108,7 +108,7 @@
         "WP05"
       ],
       "write_scope": [
-        "src/charter/mission_type_profile_repository.py",
+        "src/charter/activation/mission_type_profile_repository.py",
         "src/doctrine/base.py"
       ],
       "predicted_surfaces": [

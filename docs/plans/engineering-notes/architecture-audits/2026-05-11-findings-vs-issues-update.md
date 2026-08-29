@@ -61,7 +61,7 @@ Issue 645 is a multi-step architectural epic (rescoped 2026-05-03 from "Frontend
 - `src/specify_cli/dashboard/static/dashboard/dashboard.js:1` (monolithic frontend)
 - `src/dashboard/` (new canonical service package: `services/mission_scan.py`, `services/project_state.py`, `services/sync.py`, `file_reader.py`)
 - `src/dashboard/api/` (FastAPI subpackage with 12 routers)
-- `src/charter/context.py`, `src/charter/sync.py` (charter chokepoint, upstream dependency of #460)
+- `src/charter/activation/context.py`, `src/charter/activation/sync.py` (charter chokepoint, upstream dependency of #460)
 - `tests/architectural/test_dashboard_boundary.py` (FR-010 invariant guard)
 - `tests/architectural/test_fastapi_handler_purity.py` (≤6-LOC handler bodies)
 

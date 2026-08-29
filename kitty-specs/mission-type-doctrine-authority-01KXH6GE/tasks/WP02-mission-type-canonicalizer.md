@@ -31,11 +31,11 @@ history:
 agent_profile: python-pedro
 authoritative_surface: src/charter/
 create_intent:
-- src/charter/mission_type_key.py
+- src/charter/activation/mission_type_key.py
 execution_mode: code_change
 model: claude-sonnet-5
 owned_files:
-- src/charter/mission_type_key.py
+- src/charter/activation/mission_type_key.py
 - src/specify_cli/mission.py
 role: implementer
 tags: []
@@ -72,7 +72,7 @@ consume, and **remove the `software-dev` governance default** at its source in `
 
 ## Subtask guidance
 
-- **T006 — canonicalizer module.** Create `src/charter/mission_type_key.py` with a small, pure
+- **T006 — canonicalizer module.** Create `src/charter/activation/mission_type_key.py` with a small, pure
   canonicalizer (normalize the raw mission-type string → canonical key; no I/O, no sw-dev default baked
   in). It must be importable by both layers without violating C-001 — **verify** `charter/` does not gain
   a `specify_cli` import. Keep it minimal and fully typed.
@@ -106,10 +106,10 @@ the mission base during `/spec-kitty.implement` and merges back into
 
 ## Definition of Done
 
-- [ ] `src/charter/mission_type_key.py` exists, pure, fully typed; it adds **no module-level**
+- [ ] `src/charter/activation/mission_type_key.py` exists, pure, fully typed; it adds **no module-level**
       `specify_cli` import, and `tests/architectural/test_layer_rules.py::…test_charter_does_not_import_specify_cli`
       stays green. (A pre-existing **function-local** import at
-      `src/charter/synthesizer/synthesize_pipeline.py:68` is tolerated by the guard — do NOT touch it.)
+      `src/charter/activation/synthesizer/synthesize_pipeline.py:68` is tolerated by the guard — do NOT touch it.)
 - [ ] `get_mission_type:575` no longer returns `software-dev` on a typeless/absent-key read (governance
       path); the `mission.py:466,469` **template-file-selection** fallback is left in place, rationale-scoped OUT (C-006).
 - [ ] `get_deliverables_path:605` routes through the canonicalizer; dead `get_mission_key:548` deleted (0 live callers).

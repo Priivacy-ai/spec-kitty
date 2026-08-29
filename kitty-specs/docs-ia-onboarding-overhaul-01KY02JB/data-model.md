@@ -51,7 +51,7 @@ expandable top-level item.
 ## DoctrineArtifactKind
 
 A fixed enumeration, not mission-authored data — sourced from
-`charter.kind_vocabulary.from_operator_token`.
+`charter.activation.kind_vocabulary.from_operator_token`.
 
 | Value |
 |---|
@@ -65,7 +65,7 @@ A fixed enumeration, not mission-authored data — sourced from
 | `mission_step_contract` |
 
 `template` and `asset` are related but distinct, non-charter-activatable kinds — not among the
-8. Corrected during WP06 implementation against live source (`src/charter/kind_vocabulary.py`,
+8. Corrected during WP06 implementation against live source (`src/charter/activation/kind_vocabulary.py`,
 `src/doctrine/artifact_kinds.py`) and the installed CLI's own `charter list --all` output; the
 CLAUDE.md table this mission originally sourced the list from was stale.
 

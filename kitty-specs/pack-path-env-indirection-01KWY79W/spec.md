@@ -70,7 +70,7 @@ Two independent, upstream-confirmed correctness/portability defects live in the 
 | FR-008 | `infer_repo_languages` (or its replacement) MUST resolve the governed language set from the compiled charter as the canonical runtime source, per DIRECTIVE_044 unification, rather than re-deriving from the raw interview transcript at runtime. | Draft |
 | FR-009 | The compiled charter MUST persist a structured, machine-readable language set at compile time (`charter generate`/`charter sync`), so runtime consumers read a resolved value instead of re-running free-text regex extraction against `charter.md` prose. | Draft |
 | FR-010 | When the compiled charter has no structured language set yet (pre-existing projects, or the narrow window between interview completion and first charter generation), resolution MUST fall back to the interview transcript as a creation-time-only input — never as a competing runtime authority once a compiled value exists. | Draft |
-| FR-011 | All existing callers of `infer_repo_languages` (`src/charter/context.py`, `src/charter/compact.py`) MUST consume the corrected resolution without requiring per-caller precedence logic (single canonical seam). | Draft |
+| FR-011 | All existing callers of `infer_repo_languages` (`src/charter/activation/context.py`, `src/charter/activation/compact.py`) MUST consume the corrected resolution without requiring per-caller precedence logic (single canonical seam). | Draft |
 | FR-012 | The existing test that pins interview-preferred precedence (`tests/charter/test_language_scope.py::test_infer_repo_languages_prefers_interview_answers`) MUST be corrected to assert charter-authoritative behavior on disagreement, not deleted. | Draft |
 
 ## Non-Functional Requirements

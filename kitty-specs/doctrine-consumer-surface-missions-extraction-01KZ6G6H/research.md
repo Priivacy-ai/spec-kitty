@@ -65,7 +65,7 @@ assert scan.project_tier, (
 
 ## R4 — `UnknownMissionTypeError`'s current message (grounds IC-07)
 
-`src/charter/mission_type_profiles.py:506-514` (per direct verification during the post-spec squad pass) already carries an in-repo docstring reproducing the exact defect: activating only `my-custom` with no resolvable profile raises `"Unknown mission type 'my-custom'. Registered types: my-custom."` — the id appears in both the "unknown" clause and the "registered" list. This docstring was authored the same day as (and before) this spec, from a genuine reproduction during the PR #3175 landing pass.
+`src/charter/activation/mission_type_profiles.py:506-514` (per direct verification during the post-spec squad pass) already carries an in-repo docstring reproducing the exact defect: activating only `my-custom` with no resolvable profile raises `"Unknown mission type 'my-custom'. Registered types: my-custom."` — the id appears in both the "unknown" clause and the "registered" list. This docstring was authored the same day as (and before) this spec, from a genuine reproduction during the PR #3175 landing pass.
 
 **Decision**: Split the message into two independent facts — activation state and profile-loadability — so no sentence claims both "unknown" and "registered" of the same id. Exact wording is an implementation-time choice (e.g. "Mission type 'my-custom' is activated but has no loadable profile"), not fixed here.
 
@@ -73,7 +73,7 @@ assert scan.project_tier, (
 
 Verified: both `.kittify/overrides/missions/software-dev/command-templates/implement.md` (lines 10, 27, 29, 39, 41) and `review.md` (lines 10, 26, 28, 38, 40) still reference `spec-kitty constitution context` and raw `AgentProfileRepository(...)`/`DoctrineService(...)` construction. Both files were last touched 2026-04-17/04-22 — well before the PR #3175 sole-door landing (2026-08-04), confirming that landing did not touch them (it changed production `src/` construction sites, not this repo's own dogfood command-template overrides).
 
-**Decision**: Rebase both files against the current canonical templates (which already demonstrate `charter.doctrine_service_builder.build_activation_aware_doctrine_service`) or delete either file if it no longer diverges usefully from the canonical template it overrides.
+**Decision**: Rebase both files against the current canonical templates (which already demonstrate `charter.activation.doctrine_service_builder.build_activation_aware_doctrine_service`) or delete either file if it no longer diverges usefully from the canonical template it overrides.
 
 ## R6 — Cross-layer `missions/` reader inventory: method, not result (grounds IC-03)
 
@@ -89,7 +89,7 @@ The inventory itself is FR-003's deliverable, not pre-computed here (doing so wo
 
 `src/doctrine/missions/repository.py::MissionTemplateRepository.default_missions_root()` (a `@classmethod`, ~line 97-108) is **not** a fourth independent implementation to discover — it is the authority the `charter-sole-door-bypass-closure-01KZ3WAA` mission's own WP06 already promoted. That WP's regression test, `tests/charter/test_missions_root_authority.py` (docstring, lines 1-22), states verbatim:
 
-> Before this WP, 3 sites independently constructed the shipped `src/doctrine/missions` root: (1) `charter.mission_type_profile_repository.builtin_missions_root()`, (2) `specify_cli.runtime.home.get_package_asset_root()`'s `dev_roots` fallback, (3) `doctrine.missions.repository.MissionTemplateRepository.default_missions_root()` — the `importlib.resources`-based, wheel-safe implementation. WP06 retargets (1) and (2) onto (3) as the ONE promoted authority... **Full convergence onto `doctrine.pack_paths.built_in_dir` remains deferred to GitHub issue #3091** (`pack_paths` has no `missions/` content directory today) — this WP does NOT claim that convergence, and these tests do not exercise it.
+> Before this WP, 3 sites independently constructed the shipped `src/doctrine/missions` root: (1) `charter.activation.mission_type_profile_repository.builtin_missions_root()`, (2) `specify_cli.runtime.home.get_package_asset_root()`'s `dev_roots` fallback, (3) `doctrine.missions.repository.MissionTemplateRepository.default_missions_root()` — the `importlib.resources`-based, wheel-safe implementation. WP06 retargets (1) and (2) onto (3) as the ONE promoted authority... **Full convergence onto `doctrine.pack_paths.built_in_dir` remains deferred to GitHub issue #3091** (`pack_paths` has no `missions/` content directory today) — this WP does NOT claim that convergence, and these tests do not exercise it.
 
 Issue #3091 is this mission. `default_missions_root()`'s own body (`importlib.resources.files("doctrine") / "missions"`, with a bare fallback to `Path(__file__).parent`) is algorithmically the same entangled shape FR-004 already targets in `kernel.paths`, just without the mission-type-vocabulary helpers.
 

@@ -227,7 +227,7 @@ def load_org_charter_policies(
 ) -> list[OrgCharterPolicy]:
 ```
 
-Import `PackContext` from `charter.pack_context`. The import direction is valid per C-004: `specify_cli.doctrine.*` may import from `charter.*`.
+Import `PackContext` from `charter.activation.pack_context`. The import direction is valid per C-004: `specify_cli.doctrine.*` may import from `charter.*`.
 
 The `PackContext | None` default maintains backward compatibility: when `None`, fall back to reading `.kittify/config.yaml` directly (existing behaviour). Callers are migrated in WP10.
 

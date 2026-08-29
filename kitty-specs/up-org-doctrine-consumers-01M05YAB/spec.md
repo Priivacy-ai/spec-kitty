@@ -26,7 +26,7 @@ verified against this checkout. They are not open questions for a reviewer to re
 1. **"Both step-contract consumers" undercounts the construction sites.** There are **six**
    `MissionStepContractRepository(` construction call sites, not two. See D-001 for the
    full per-site audit.
-2. **The brief's "proven org-root-resolving helper… at `src/charter/doctrine_service_builder.py`"
+2. **The brief's "proven org-root-resolving helper… at `src/charter/activation/doctrine_service_builder.py`"
    conflates two structurally different resolution shapes.** `MissionStepContractRepository`
    takes `org_dirs: list[Path]` (multiple org packs, declared order, later overrides earlier —
    `doctrine/base.py:93-102`); `load_validated_graph` takes `org_root: Path | None` — **a single
@@ -40,7 +40,7 @@ verified against this checkout. They are not open questions for a reviewer to re
    - **Single-path shape** (`org_root`): the *only* existing caller that supplies one,
      `charter/action_doctrine_bundle.py:_resolve_action_bundle` (lines 90-97), resolves it by
      taking the **first existing** candidate from
-     `charter.org_pack_discovery._enumerate_org_pack_paths(repo_root)` — a first-match, not an
+     `charter.activation.org_pack_discovery._enumerate_org_pack_paths(repo_root)` — a first-match, not an
      all-packs-merged, resolution. This is a real, pre-existing architectural limitation
      (`load_validated_graph` cannot merge more than one org DRG root today) that this mission
      inherits rather than fixes (out of scope — see C-004).
@@ -124,7 +124,7 @@ constructing `MissionStepContractRepository`/calling `load_validated_graph` as e
 does. **Rejected**: none of the five call sites need any of `DoctrineService`'s other nine
 repositories; constructing the full service is unnecessary coupling for a composer
 (`StepContractExecutor`) and three CLI/runtime helper functions, adds an import of
-`charter.context`/`charter.doctrine_service_builder` machinery documented as tuned for the
+`charter.activation.context`/`charter.activation.doctrine_service_builder` machinery documented as tuned for the
 charter-context/bootstrap-render call path (docstring, `doctrine_service_builder.py:1-72`), and
 no sole-door architectural gate forbids the direct construction these sites already perform
 (verified: `grep -rn "MissionStepContractRepository" tests/architectural/` finds no sole-door
@@ -379,7 +379,7 @@ additional artifact requirement is present in both.
 - **An org pack is configured but its directory does not exist on disk** (e.g. a stale
   `local_path` after a pack was removed). `resolve_org_roots`/`_enumerate_org_pack_paths` already
   return non-existent paths; every fix site MUST filter to `.exists()` before use (existing
-  precedent: `charter.doctrine_service_builder._self_resolve_existing_org_roots`, lines 142-152)
+  precedent: `charter.activation.doctrine_service_builder._self_resolve_existing_org_roots`, lines 142-152)
   so a stale config entry degrades to "no org contribution" rather than raising.
 - **More than one org pack is configured, but `load_validated_graph` only accepts one `org_root`.**
   This is the pre-existing, out-of-scope limitation named in D-000(2)/C-004: FR-002 uses the
@@ -404,7 +404,7 @@ additional artifact requirement is present in both.
 | ID | Title | User Story | Priority | Status |
 |----|-------|------------|----------|--------|
 | FR-001 | `StepContractExecutor` threads `org_dirs` into `MissionStepContractRepository` | As an operator with a registered org pack, I want `StepContractExecutor.__init__` (`mission_step_contracts/executor.py:160-162`) to construct `MissionStepContractRepository(org_dirs=..., project_dir=...)` instead of `project_dir` only, so that org-tier step contracts are discoverable at all. | High | Open |
-| FR-002 | `StepContractExecutor.execute` threads a resolved `org_root` into `load_validated_graph` | As an operator with a registered org pack, I want `StepContractExecutor.execute` (`executor.py:179`) to call `load_validated_graph(context.repo_root, org_root=<resolved>)` instead of the two-layer default, resolving `org_root` via the existing first-match pattern (`charter.org_pack_discovery._enumerate_org_pack_paths`, per D-000(2)), so that `_resolve_step_delegations` can resolve candidates against org-tier DRG nodes. | High | Open |
+| FR-002 | `StepContractExecutor.execute` threads a resolved `org_root` into `load_validated_graph` | As an operator with a registered org pack, I want `StepContractExecutor.execute` (`executor.py:179`) to call `load_validated_graph(context.repo_root, org_root=<resolved>)` instead of the two-layer default, resolving `org_root` via the existing first-match pattern (`charter.activation.org_pack_discovery._enumerate_org_pack_paths`, per D-000(2)), so that `_resolve_step_delegations` can resolve candidates against org-tier DRG nodes. | High | Open |
 | FR-003 | Shared, single resolution helper for the list-shaped `org_dirs` argument | As a maintainer, I want the `org_dirs` resolution logic (existing-path-filtered `resolve_org_roots(repo_root)` joined with `"mission_step_contracts"`) written once and reused by FR-001, FR-004, FR-005, FR-006 — not duplicated four times — so the four sites cannot silently drift from each other the way sites 3/6 already had before this mission. | High | Open |
 | FR-004 | `_mission_type_profile_repository`/`_resolve_governance_slot` threads `org_dirs` into `MissionTypeProfileRepository.for_project` | As an operator with a registered org pack, I want the live call at `mission_type_profiles.py:1168` (reached via `_resolve_governance_slot`, `:807`, on every `resolve_mission_type_context` call) to pass `org_dirs` to `for_project`, so that an org-tier `governance-profile.yaml` override is not silently invisible in rendered governance text. This is distinct from, and does not touch, the deliberately built-in-only `action_grain.py:220` call site (D-004). | High | Open |
 | FR-005 | `gate_bindings._build_repository` threads `org_dirs` (site 3) | As an operator, I want `_build_repository` (`review/gate_bindings.py:165-168`) to construct `MissionStepContractRepository` with the same `org_dirs` FR-003 resolves, so that an org-tier contract's `gates:` block fires at WP review-transition time instead of resolving delegations correctly while never gating anything. | High | Open |

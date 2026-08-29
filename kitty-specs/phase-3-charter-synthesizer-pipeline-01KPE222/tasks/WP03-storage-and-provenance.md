@@ -32,10 +32,10 @@ execution_mode: code_change
 mission_id: 01KPE222CD1MMCYEGB3ZCY51VR
 mission_slug: phase-3-charter-synthesizer-pipeline-01KPE222
 owned_files:
-- src/charter/synthesizer/provenance.py
-- src/charter/synthesizer/staging.py
-- src/charter/synthesizer/manifest.py
-- src/charter/synthesizer/write_pipeline.py
+- src/charter/activation/synthesizer/provenance.py
+- src/charter/activation/synthesizer/staging.py
+- src/charter/activation/synthesizer/manifest.py
+- src/charter/activation/synthesizer/write_pipeline.py
 - src/charter/bundle.py
 - tests/charter/synthesizer/test_provenance.py
 - tests/charter/synthesizer/test_staging_atomicity.py
@@ -71,7 +71,7 @@ Read before writing code:
 
 ### T015 — `provenance.py` [P]
 
-**File**: `src/charter/synthesizer/provenance.py`
+**File**: `src/charter/activation/synthesizer/provenance.py`
 
 Pydantic v2 model `ProvenanceEntry` exactly matching `contracts/provenance.schema.yaml`. IO helpers:
 - `dump_yaml(entry, path)` — serializes via `ruamel.yaml` using the same canonical formatting as artifact bodies; goes through `PathGuard.write_text`.
@@ -81,7 +81,7 @@ The `allOf` rule (at least one of `source_section` or `source_urns` non-empty) i
 
 ### T016 — `staging.py` [P]
 
-**File**: `src/charter/synthesizer/staging.py`
+**File**: `src/charter/activation/synthesizer/staging.py`
 
 Manage the staging directory lifecycle:
 - `StagingDir.create(repo_root, run_id) -> StagingDir` — creates `.kittify/charter/.staging/<run_id>/doctrine/{directives,tactics,styleguides}/` and `.kittify/charter/.staging/<run_id>/charter/provenance/` via `PathGuard.mkdir`.
@@ -95,7 +95,7 @@ The staging root (`.kittify/charter/.staging/`) is deliberately under the bookke
 
 ### T017 — `manifest.py` [P]
 
-**File**: `src/charter/synthesizer/manifest.py`
+**File**: `src/charter/activation/synthesizer/manifest.py`
 
 Pydantic v2 models `SynthesisManifest` + `ManifestArtifactEntry` matching `contracts/synthesis-manifest.schema.yaml`. IO:
 - `dump_yaml(manifest, path)` — writes to `.kittify/charter/synthesis-manifest.yaml` via `PathGuard.write_text`.
@@ -106,7 +106,7 @@ This module implements the **authority rule** from KD-2: live tree is authoritat
 
 ### T018 — `write_pipeline.py`
 
-**File**: `src/charter/synthesizer/write_pipeline.py`
+**File**: `src/charter/activation/synthesizer/write_pipeline.py`
 
 Public entry: `promote(request, staging_dir, results, validation_callback) -> SynthesisManifest`.
 

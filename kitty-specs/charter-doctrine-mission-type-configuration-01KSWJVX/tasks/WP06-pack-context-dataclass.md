@@ -25,10 +25,10 @@ history:
   event: created
   note: Initial task breakdown
 agent_profile: python-pedro
-authoritative_surface: src/charter/pack_context.py
+authoritative_surface: src/charter/activation/pack_context.py
 execution_mode: code_change
 owned_files:
-- src/charter/pack_context.py
+- src/charter/activation/pack_context.py
 - src/charter/__init__.py
 - tests/charter/test_pack_context.py
 role: implementer
@@ -56,12 +56,12 @@ C-005 requires that the doctrine resolver never reads `.kittify/config.yaml` dir
 
 ## Objective
 
-Implement `PackContext` as a frozen dataclass in `src/charter/pack_context.py`, implement the charter-side constructor that builds it from `.kittify/config.yaml`, wire it into existing doctrine resolver calls in `charter/`, and replace any direct `config.yaml` reads inside the resolver.
+Implement `PackContext` as a frozen dataclass in `src/charter/activation/pack_context.py`, implement the charter-side constructor that builds it from `.kittify/config.yaml`, wire it into existing doctrine resolver calls in `charter/`, and replace any direct `config.yaml` reads inside the resolver.
 
 ## PackContext Specification
 
 ```python
-# src/charter/pack_context.py
+# src/charter/activation/pack_context.py
 from __future__ import annotations
 from dataclasses import dataclass
 from pathlib import Path
@@ -96,7 +96,7 @@ __all__ = ["PackContext"]
 
 ### T036 — Implement PackContext frozen dataclass
 
-Create `src/charter/pack_context.py` with the `PackContext` dataclass exactly as specified above.
+Create `src/charter/activation/pack_context.py` with the `PackContext` dataclass exactly as specified above.
 
 All fields must have type annotations. The dataclass must be `frozen=True` (immutable). No mutable defaults (use `frozenset` and `tuple`, not `set` and `list`).
 
@@ -135,7 +135,7 @@ Implementation:
 
 **Note**: WP11 depends on `activated_kinds` and `activated_mission_types` being correctly populated here. Ensure these fields are non-empty for a standard project with a typical `.kittify/config.yaml`.
 
-The built-in doctrine root is `Path(__file__).parent.parent / "doctrine"` (relative to `src/charter/pack_context.py`): `parent` → `src/charter/`, `parent.parent` → `src/`, then `/ "doctrine"` → `src/doctrine/`. Do NOT add an extra `.parent` — three levels would exit `src/` into the repository root.
+The built-in doctrine root is `Path(__file__).parent.parent / "doctrine"` (relative to `src/charter/activation/pack_context.py`): `parent` → `src/charter/`, `parent.parent` → `src/`, then `/ "doctrine"` → `src/doctrine/`. Do NOT add an extra `.parent` — three levels would exit `src/` into the repository root.
 
 ### T039 — Wire PackContext into existing charter resolver calls
 
@@ -144,7 +144,7 @@ Find all places in `src/charter/` where `.kittify/config.yaml` is read directly 
 Replace those reads with `PackContext.from_config(repo_root)` calls that feed the `PackContext` to the resolver. Specifically:
 
 - `src/charter/drg.py` — if it reads config.yaml for pack locations, replace with PackContext
-- `src/charter/activations.py` — if it reads config.yaml for activation state, replace with PackContext
+- `src/charter/activation/activations.py` — if it reads config.yaml for activation state, replace with PackContext
 - Any other charter module that reads config.yaml inside a doctrine resolution path
 
 Ensure no doctrine-layer code receives or reads `config.yaml` directly after this change.
@@ -163,7 +163,7 @@ Test cases:
 
 ## Acceptance Criteria
 
-- [ ] `PackContext` dataclass exists in `src/charter/pack_context.py` and is exported from `src/charter/__init__.py`
+- [ ] `PackContext` dataclass exists in `src/charter/activation/pack_context.py` and is exported from `src/charter/__init__.py`
 - [ ] All fields are immutable types (`frozenset`, `tuple`)
 - [ ] `PackContext.from_config()` builds a correct context from `.kittify/config.yaml`
 - [ ] No doctrine-layer module reads `.kittify/config.yaml` directly after this WP

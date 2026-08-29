@@ -29,8 +29,8 @@ owned_files:
 - src/runtime/next/_internal_runtime/engine.py
 - src/runtime/next/_internal_runtime/planner.py
 - src/runtime/next/runtime_bridge.py
-- src/charter/_io.py
-- src/charter/mission_type_profiles.py
+- src/charter/activation/_io.py
+- src/charter/activation/mission_type_profiles.py
 - src/specify_cli/charter_activate.py
 - src/specify_cli/cli/commands/charter/_widen.py
 role: implementer

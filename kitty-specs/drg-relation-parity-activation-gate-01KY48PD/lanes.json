@@ -12,7 +12,7 @@
       ],
       "write_scope": [
         "src/charter/drg.py",
-        "src/charter/pack_context.py",
+        "src/charter/activation/pack_context.py",
         "tests/charter/test_drg_activation_gate.py"
       ],
       "predicted_surfaces": [
@@ -47,7 +47,7 @@
         "WP02"
       ],
       "write_scope": [
-        "src/charter/consistency_check.py",
+        "src/charter/activation/consistency_check.py",
         "tests/architectural/_baselines.yaml",
         "tests/architectural/test_no_dead_modules.py",
         "tests/architectural/test_no_dead_symbols.py",

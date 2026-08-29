@@ -38,7 +38,7 @@ pytestmark = [pytest.mark.fast, pytest.mark.doctrine]
 
 @dataclass(frozen=True)
 class _StubPackContext:
-    """Minimal stand-in for charter.pack_context.PackContext (FR-012 tests)."""
+    """Minimal stand-in for charter.activation.pack_context.PackContext (FR-012 tests)."""
 
     pack_roots: tuple[Path, ...]
     repo_root: Path

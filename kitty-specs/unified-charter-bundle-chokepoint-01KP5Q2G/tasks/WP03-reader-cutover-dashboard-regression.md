@@ -31,10 +31,10 @@ history:
 - at: '2026-04-14T11:16:00Z'
   actor: claude
   event: created
-authoritative_surface: src/charter/context.py
+authoritative_surface: src/charter/activation/context.py
 execution_mode: code_change
 owned_files:
-- src/charter/context.py
+- src/charter/activation/context.py
 - src/specify_cli/cli/commands/charter.py
 - src/specify_cli/next/prompt_builder.py
 - src/specify_cli/cli/commands/agent/workflow.py
@@ -70,7 +70,7 @@ tags: []
 
 Flip every reader of the three v1.0.0 manifest derivatives through the chokepoint. Capture the pre-cutover dashboard typed-contract baseline BEFORE any reader is rewired so the post-cutover byte-identical regression assertion is meaningful. Register the `charter_bundle` sub-app from WP01 into the main `charter` CLI so `spec-kitty charter bundle validate` is user-accessible. Replace the `TODO(WP02)` wrapper in WP01's sub-app with the real resolver. Ship the AST-walk coverage test, the bundle contract test, the fresh-clone smoke test, the worktree transparency test, and the dashboard regression test.
 
-**DO NOT touch**: `src/specify_cli/core/worktree.py:478-532` (C-011), `src/charter/compiler.py` (C-012), `src/charter/context.py:385-398` (C-012).
+**DO NOT touch**: `src/specify_cli/core/worktree.py:478-532` (C-011), `src/charter/activation/compiler.py` (C-012), `src/charter/activation/context.py:385-398` (C-012).
 
 ## Context
 
@@ -130,7 +130,7 @@ Flip every reader of the three v1.0.0 manifest derivatives through the chokepoin
 
 ---
 
-### T017 — Flip `build_charter_context()` at `src/charter/context.py`
+### T017 — Flip `build_charter_context()` at `src/charter/activation/context.py`
 
 **Purpose**: The primary reader today bypasses the chokepoint. This subtask makes it route through.
 
@@ -147,7 +147,7 @@ Flip every reader of the three v1.0.0 manifest derivatives through the chokepoin
        mark_loaded: bool = True,
        depth: int | None = None,
    ) -> CharterContextResult:
-       from charter.sync import ensure_charter_bundle_fresh  # Local import.
+       from charter.activation.sync import ensure_charter_bundle_fresh  # Local import.
 
        sync_result = ensure_charter_bundle_fresh(repo_root)
        # If sync_result is None, charter.md is absent; preserve existing missing-charter semantics.
@@ -162,12 +162,12 @@ Flip every reader of the three v1.0.0 manifest derivatives through the chokepoin
 4. Preserve the `None` return when `sync_result` is `None` AND `charter.md` is absent, matching existing semantics.
 
 **Files**:
-- `src/charter/context.py` (modified — function head rewired; ~15 lines diff; lines 385-398 untouched)
+- `src/charter/activation/context.py` (modified — function head rewired; ~15 lines diff; lines 385-398 untouched)
 
 **Validation**:
 - [ ] `pytest tests/charter/test_context.py tests/agent/test_workflow_charter_context.py` green.
-- [ ] `grep -n "ensure_charter_bundle_fresh" src/charter/context.py` finds the new import + call.
-- [ ] `diff <(git show main:src/charter/context.py | sed -n '385,398p') <(sed -n '385,398p' src/charter/context.py)` shows no changes (line-range preservation, C-012 verification).
+- [ ] `grep -n "ensure_charter_bundle_fresh" src/charter/activation/context.py` finds the new import + call.
+- [ ] `diff <(git show main:src/charter/activation/context.py | sed -n '385,398p') <(sed -n '385,398p' src/charter/activation/context.py)` shows no changes (line-range preservation, C-012 verification).
 
 ---
 
@@ -274,7 +274,7 @@ Flip every reader of the three v1.0.0 manifest derivatives through the chokepoin
    - For each file, find every function/method that reads any of the three v1.0.0 manifest derivatives (by file path literal OR by calling `load_governance_config` / `load_directives_config` / `build_charter_context` / etc).
    - Assert the function either directly calls `ensure_charter_bundle_fresh` OR is a delegating wrapper that ultimately calls it.
    - Registry of expected reader sites is seeded from `occurrences/WP03.yaml` (verifiable canary).
-   - Carve-outs: `src/charter/sync.py` itself, `src/charter/bundle.py`, `src/charter/resolution.py`, `src/charter/compiler.py`, `src/charter/context.py:385-398` region, `src/specify_cli/upgrade/migrations/m_3_2_3_unified_bundle.py`.
+   - Carve-outs: `src/charter/activation/sync.py` itself, `src/charter/bundle.py`, `src/charter/resolution.py`, `src/charter/activation/compiler.py`, `src/charter/activation/context.py:385-398` region, `src/specify_cli/upgrade/migrations/m_3_2_3_unified_bundle.py`.
 
 2. Create `tests/charter/test_bundle_contract.py` (new, ~100 lines):
    - Fixture: tmp repo with populated charter.
@@ -368,7 +368,7 @@ Flip every reader of the three v1.0.0 manifest derivatives through the chokepoin
        include: ["src/**"]
        exclude: []
        occurrences:
-         - path: src/charter/context.py
+         - path: src/charter/activation/context.py
            pattern: "build_charter_context"
            action: rewrite
            rewrite_to: "Calls ensure_charter_bundle_fresh() at function head."
@@ -398,9 +398,9 @@ Flip every reader of the three v1.0.0 manifest derivatives through the chokepoin
    carve_outs:
      - path: src/specify_cli/core/worktree.py
        reason: "C-011: .kittify/memory + .kittify/AGENTS.md symlinks are documented-intentional. Lines 478-532 MUST NOT be touched."
-     - path: src/charter/compiler.py
+     - path: src/charter/activation/compiler.py
        reason: "C-012: compiler pipeline owns references.yaml. Out of v1.0.0 manifest scope."
-     - path: src/charter/context.py
+     - path: src/charter/activation/context.py
        reason: "C-012: context-state.json write path at lines 385-398 is runtime-state. DO NOT TOUCH that region specifically; the rest of the file IS in WP03 scope."
    must_be_zero_after:
      - "TODO(WP02)"

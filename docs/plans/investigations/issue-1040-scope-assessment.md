@@ -49,7 +49,7 @@ deliver the full typed primitive in 3.3.x.
 
 `src/doctrine/missions/software-dev/governance-profile.yaml` (Mission B output) already
 has `activations: []` and `selected_procedures: []`. The activation registry
-(`charter.activations.ActivationEntry`) is the runtime contract for "when doing action
+(`charter.activation.activations.ActivationEntry`) is the runtime contract for "when doing action
 X, trigger artifact Y". A per-mission-type declaration to prompt for ADR creation
 during `plan` or `research` actions requires a one-line addition to the profile — no
 schema change, no new module.
@@ -67,7 +67,7 @@ identity — an additive change over what already works.
 
 ### 3. Charter context already points agents at ADRs
 
-`src/charter/context_renderers/authority_paths.py` hardcodes `docs/adr/2.x/`
+`src/charter/activation/context_renderers/authority_paths.py` hardcodes `docs/adr/2.x/`
 as a default authority path with the annotation:
 
 > *"architectural intent — when you change a structural boundary, read the relevant ADR"*
@@ -230,4 +230,4 @@ is an ADR (for the ADR primitive) plus an implementation spec. Suggested scope:
 | `dossier/indexer.py` → heuristic `"adr"` filename match | Discovery already works | Register in `expected-artifacts.yaml` | Replace heuristic with typed loader |
 | `expected-artifacts.yaml` → `optional_always` | Optional artifact registration | Add `adrs/*.md` entry | Schema-validate via `AdrArtifact` |
 | Architect Alphonso profile → `adr-drafting-workflow` tactic | Profile declares intent; tactic has no output path | ADR template gives it a landing zone | Full procedure wired to CLI creation |
-| `charter.context` section anchors | `docs/adr/2.x/` appears as authority path | Mission-local path added | ADR status surfaced in governance context |
+| `charter.activation.context` section anchors | `docs/adr/2.x/` appears as authority path | Mission-local path added | ADR status surfaced in governance context |

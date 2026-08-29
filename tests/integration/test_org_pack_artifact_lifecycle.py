@@ -200,7 +200,7 @@ def test_case_2_org_pack_styleguide_appears_in_consumer_prompt(tmp_path: Path) -
     and unions it into the project selection via
     ``apply_org_charter_to_interview`` (and the resolver renders it).
     """
-    from charter.context import build_charter_context
+    from charter.activation.context import build_charter_context
 
     consumer = tmp_path / "consumer"
     consumer.mkdir()
@@ -304,7 +304,7 @@ def test_case_2_required_styleguides_in_org_charter_pre_fills(tmp_path: Path) ->
         f"Apply messages: {messages!r}\n"
         "Fix lives in Mission B WP04 — extend the schema in "
         "src/specify_cli/doctrine/org_charter.py:OrgCharterPolicy, "
-        "extend CharterInterview in src/charter/interview.py, and extend "
+        "extend CharterInterview in src/charter/activation/interview.py, and extend "
         "apply_org_charter_to_interview to union the new field."
     )
 
@@ -397,7 +397,7 @@ def test_case_2_consumer_without_fetched_pack_fails_loudly(tmp_path: Path) -> No
     See pre-flight edge case 9 — "Caveman in org-charter.yaml but consumer
     project lacks the pack on disk."
     """
-    from charter.context import build_charter_context
+    from charter.activation.context import build_charter_context
 
     consumer = tmp_path / "consumer"
     consumer.mkdir()

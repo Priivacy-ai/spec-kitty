@@ -27,7 +27,7 @@ authoritative_surface: src/charter/context_renderers/
 execution_mode: code_change
 model: ''
 owned_files:
-- src/charter/context_renderers/authority_paths.py
+- src/charter/activation/context_renderers/authority_paths.py
 - src/doctrine/missions/mission-steps/software-dev/implement/prompt.md
 - src/doctrine/missions/mission-steps/software-dev/review/prompt.md
 - tests/charter/**

@@ -37,9 +37,9 @@ Replace the import path:
 | Old | New |
 |-----|-----|
 | `from specify_cli.charter import X` | `from charter import X` |
-| `from specify_cli.charter.compiler import X` | `from charter.compiler import X` |
-| `from specify_cli.charter.interview import X` | `from charter.interview import X` |
-| `from specify_cli.charter.resolver import X` | `from charter.resolver import X` |
+| `from specify_cli.charter.compiler import X` | `from charter.activation.compiler import X` |
+| `from specify_cli.charter.interview import X` | `from charter.activation.interview import X` |
+| `from specify_cli.charter.resolver import X` | `from charter.activation.resolver import X` |
 
 No call-site or signature changes are required — the re-exports are identity
 re-exports, and the submodule shims alias `sys.modules` to the canonical module,

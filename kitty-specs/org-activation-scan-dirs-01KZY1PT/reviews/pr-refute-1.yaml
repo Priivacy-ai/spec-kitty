@@ -42,8 +42,8 @@ verdicts:
       Ground-truth run per the run constraint: `uv run pytest tests/architectural/test_built_in_location_authority.py -q`
       -> "3 passed" (no failures) at current HEAD. Checked the current allowlist
       entry directly (grep "kind_vocabulary.py" tests/architectural/test_built_in_location_authority.py)
-      -> now pins (Path("src/charter/kind_vocabulary.py"), 244), and the current
-      join line (grep '"built-in"' src/charter/kind_vocabulary.py) is exactly line
+      -> now pins (Path("src/charter/activation/kind_vocabulary.py"), 244), and the current
+      join line (grep '"built-in"' src/charter/activation/kind_vocabulary.py) is exactly line
       244 -- they match. Commit d6a297409 ("fix(architectural): refresh built-in-join
       line-pin for _org_scan_dirs move (#3385)"), already on this branch, updated the
       allowlist from the stale 206 to 244. The finding's own claimed line (224) was

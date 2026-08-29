@@ -30,7 +30,7 @@ owned_files:
 - src/runtime/next/runtime_bridge_io.py
 - src/specify_cli/tool_surface/profiles/projection.py
 - src/specify_cli/cli/commands/agent/tasks_status_cmd.py
-- src/charter/profile_resolution.py
+- src/charter/activation/profile_resolution.py
 - tests/perf/test_tasks_status_baseline.py
 role: implementer
 tags: []
@@ -61,7 +61,7 @@ regression on the two sites whose removed "boundary ratchet" comment named a con
 
 **Success criteria**:
 - `runtime_bridge_io.py:576`, `projection.py:84`, `tasks_status_cmd.py:712`, `tasks_status_cmd.py:823` route
-  through `charter.resolver.DoctrineService` (or WP01's `agent_profile_repository` accessor where mutation
+  through `charter.activation.resolver.DoctrineService` (or WP01's `agent_profile_repository` accessor where mutation
   is needed) instead of constructing `AgentProfileRepository` directly. `charter/profile_resolution.py:81`
   is confirmed a genuine bootstrap carve-out (T010, corrected scope) and is documented, not migrated.
 - A pre-mission p95 latency baseline for `spec-kitty agent tasks status` is captured and recorded BEFORE
@@ -116,7 +116,7 @@ regression on the two sites whose removed "boundary ratchet" comment named a con
 - **Purpose**: `_resolve_tech_stack_for_profile` needs `resolve_profile()` (lineage-composed), not the plain
   filtered dict.
 - **Steps**: Replace the direct `AgentProfileRepository(...)` construction with WP01's
-  `agent_profile_repository` accessor on a `charter.resolver.DoctrineService` instance (built via the
+  `agent_profile_repository` accessor on a `charter.activation.resolver.DoctrineService` instance (built via the
   unified builder, `repo_root` already available as a function parameter). Call
   `.resolve_profile(profile_id)` on the accessor's returned repository.
 - **Files**: `src/runtime/next/runtime_bridge_io.py`.
@@ -153,12 +153,12 @@ regression on the two sites whose removed "boundary ratchet" comment named a con
 - **Purpose corrected by the post-tasks squad**: this subtask was originally scoped as a migration, but
   `_default_agent_profile_repository()` (`profile_resolution.py:70-82`) is a zero-argument, module-level
   cached function that constructs `AgentProfileRepository()` with **no `repo_root` and no org-pack context
-  at all** — there is nothing to build a `charter.resolver.DoctrineService` from at this call site. This is
+  at all** — there is nothing to build a `charter.activation.resolver.DoctrineService` from at this call site. This is
   the real, literal instance of the bootstrap edge case named in spec.md's Edge Cases section (R7): the
   "no repo context, no org packs" fast path that `_resolve_agent_profile_record` (`:142-159`) falls back to
   when `repo_root is None` OR no org roots exist. The *other*, org-aware branch of that same function
   (`_activation_aware_profile_map`, `:120-139`) already routes through
-  `charter.doctrine_service_builder._build_activation_aware_doctrine_service` correctly — there is nothing
+  `charter.activation.doctrine_service_builder._build_activation_aware_doctrine_service` correctly — there is nothing
   left to migrate in this file.
 - **Steps**:
   1. Read `profile_resolution.py` lines 60-160 in full to confirm the above structure independently.
@@ -167,7 +167,7 @@ regression on the two sites whose removed "boundary ratchet" comment named a con
   3. Add a one-line comment at the function noting it's a confirmed, documented bootstrap carve-out (C-002)
      — surfaced, not silently skipped.
   4. Note this confirmation in the PR description alongside FR-001's scope statement.
-- **Files**: `src/charter/profile_resolution.py` (comment only, no behavioural change).
+- **Files**: `src/charter/activation/profile_resolution.py` (comment only, no behavioural change).
 - **Parallel?**: Yes.
 
 ## Test Strategy

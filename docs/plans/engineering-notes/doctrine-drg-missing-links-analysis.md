@@ -69,8 +69,8 @@ Relation usage vs. the full `Relation` enum in `src/doctrine/drg/models.py`:
    relation — a relation the built-in layer emits **nowhere**. **Top recommendation below.**
 
 2. **Cascade cannot reach directives, tactics, or templates from an action.**
-   `charter.cascade.REFERENCE_RELATIONS = {REQUIRES, SUGGESTS, REFINES}`
-   (`src/charter/cascade.py:87`). Actions reach directives/tactics via **`scope`** (157 edges)
+   `charter.activation.cascade.REFERENCE_RELATIONS = {REQUIRES, SUGGESTS, REFINES}`
+   (`src/charter/activation/cascade.py:87`). Actions reach directives/tactics via **`scope`** (157 edges)
    and templates via **`instantiates`** (8 edges) — **none** of which cascade follows.
    So activating a `mission_type` cascades `requires` → its actions and then **stops**:
    every directive/tactic/template an action scopes is left un-activated. This is the
@@ -259,7 +259,7 @@ spec-kitty charter lint            # → 25 MEDIUM orphaned_directive
 #   scope=157 (all in action.graph.yaml)
 
 # Cascade relation set
-grep -n "REFERENCE_RELATIONS" src/charter/cascade.py
+grep -n "REFERENCE_RELATIONS" src/charter/activation/cascade.py
 #   REFERENCE_RELATIONS = {REQUIRES, SUGGESTS, REFINES}
 
 # Orphan rule relation requirements

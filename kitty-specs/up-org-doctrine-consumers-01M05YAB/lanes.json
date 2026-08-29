@@ -72,8 +72,8 @@
         "WP05"
       ],
       "write_scope": [
-        "src/charter/mission_type_profiles.py",
-        "src/charter/org_expected_artifacts.py",
+        "src/charter/activation/mission_type_profiles.py",
+        "src/charter/activation/org_expected_artifacts.py",
         "src/specify_cli/dossier/manifest.py",
         "tests/charter/test_mission_type_profiles.py",
         "tests/charter/test_org_expected_artifacts.py",
@@ -103,7 +103,7 @@
         "wp_a": "WP04",
         "wp_b": "WP05",
         "rule": "write_scope_overlap",
-        "evidence": "overlapping globs: 'src/charter/mission_type_profiles.py' vs 'src/charter/mission_type_profiles.py', 'tests/charter/test_mission_type_profiles.py' vs 'tests/charter/test_mission_type_profiles.py'; WP05 depends on WP04"
+        "evidence": "overlapping globs: 'src/charter/activation/mission_type_profiles.py' vs 'src/charter/activation/mission_type_profiles.py', 'tests/charter/test_mission_type_profiles.py' vs 'tests/charter/test_mission_type_profiles.py'; WP05 depends on WP04"
       }
     ],
     "total_merges": 1,

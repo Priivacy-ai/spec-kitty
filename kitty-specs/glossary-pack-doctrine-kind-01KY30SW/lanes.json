@@ -75,10 +75,10 @@
         "WP04"
       ],
       "write_scope": [
-        "src/charter/activations.py",
-        "src/charter/consistency_check.py",
+        "src/charter/activation/activations.py",
+        "src/charter/activation/consistency_check.py",
         "src/charter/drg.py",
-        "src/charter/pack_context.py",
+        "src/charter/activation/pack_context.py",
         "src/doctrine/drg/org_pack_loader.py",
         "tests/charter/test_glossary_pack_activation.py",
         "tests/charter/test_pack_context.py",

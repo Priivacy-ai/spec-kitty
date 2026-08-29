@@ -40,7 +40,7 @@ create_intent: []
 execution_mode: code_change
 model: claude-sonnet-5
 owned_files:
-- src/charter/mission_type_profiles.py
+- src/charter/activation/mission_type_profiles.py
 - src/charter/__init__.py
 - src/runtime/next/prompt_builder.py
 role: implementer
@@ -108,7 +108,7 @@ byte-parity scaffold deleted at this WP's end.
   call-sites live outside owned_files — migrate them as **justified out-of-map** edits, **including
   `cli/commands/mission_type.py:1477` (+ its import)**: WP01 lands first (dep edge) and has already removed
   the `governance_refs` display rows there, so this is a sequential quiet-file edit — no deferred caller
-  remains. Also update the **stale docstring cross-reference at `src/charter/resolver.py:299`** (it
+  remains. Also update the **stale docstring cross-reference at `src/charter/activation/resolver.py:299`** (it
   references `resolve_mission_type_governance`) as a justified out-of-map edit, so the subsume leaves no
   dangling doc ref / reviewer red-herring. Record every out-of-map site in the PR body.
 - **T016 — disjointness guard (FR-013).** Union type-grain ∪ action-grain and **forbid** the same artifact

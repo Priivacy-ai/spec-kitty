@@ -27,8 +27,8 @@ wp_id: WP01
 **Severity:** Blocking
 
 WP01's owned files are:
-- `src/charter/catalog.py`
-- `src/charter/resolver.py`
+- `src/charter/activation/catalog.py`
+- `src/charter/activation/resolver.py`
 - `src/doctrine/missions/glossary_hook.py`
 - `src/kernel/_safe_re.py`
 

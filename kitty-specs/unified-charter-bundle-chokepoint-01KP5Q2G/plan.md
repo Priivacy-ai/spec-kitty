@@ -15,7 +15,7 @@
 
 Deliver Phase 2 of [EPIC #461](https://github.com/Priivacy-ai/spec-kitty/issues/461) as four strictly sequential work packages that close [#464](https://github.com/Priivacy-ai/spec-kitty/issues/464)'s four acceptance gates:
 
-1. **WP2.1** introduces the typed bundle manifest (`CharterBundleManifest` at `src/charter/bundle.py`) scoped to the three files `src/charter/sync.py` materializes (`governance.yaml`, `directives.yaml`, `metadata.yaml`), adds the `spec-kitty charter bundle validate [--json]` CLI, and publishes the architecture §6 bundle contract doc.
+1. **WP2.1** introduces the typed bundle manifest (`CharterBundleManifest` at `src/charter/bundle.py`) scoped to the three files `src/charter/activation/sync.py` materializes (`governance.yaml`, `directives.yaml`, `metadata.yaml`), adds the `spec-kitty charter bundle validate [--json]` CLI, and publishes the architecture §6 bundle contract doc.
 2. **WP2.2** adds the canonical-root resolver at `src/charter/resolution.py` (per user Q1=A) using `git rev-parse --git-common-dir` — **with correct stdout interpretation** (relative-to-cwd vs. absolute; file-input normalization; `.git/`-interior detection) per the algorithm in `contracts/canonical-root-resolver.contract.md`. Extends `SyncResult` with `canonical_root: Path` (per user Q2=C). Re-plumbs `ensure_charter_bundle_fresh()` to consult the manifest and the resolver as its two authoritative inputs.
 3. **WP2.3** cuts every FR-004 reader over to the chokepoint (AST-walk-verified) and captures the pre-cutover dashboard-typed-contracts baseline **before** any reader is rewired. The worktree setup code (`src/specify_cli/core/worktree.py:478-532`) is **not touched** — those `.kittify/memory/` and `.kittify/AGENTS.md` symlinks are documented-intentional per `src/specify_cli/templates/AGENTS.md:168-179` and are unrelated to the charter bundle. Canonical-root resolution (from WP2.2) is what lets worktree readers transparently see the main-checkout bundle.
 4. **WP2.4** lands migration `m_3_2_3_unified_bundle.py` (next free slot per user Q2=A / spec C-008) scoped to: validate the bundle against the manifest, invoke the chokepoint to ensure derivatives are present, emit a structured JSON report. **No worktree scanning; no symlink removal; no `.gitignore` reconciliation** (v1.0.0 manifest matches current `.gitignore` verbatim, and the `.kittify/memory/` / `.kittify/AGENTS.md` symlinks are C-011 out-of-scope).
@@ -236,9 +236,9 @@ scripts/
 **Decision**: The v1.0.0 manifest's `gitignore_required_entries` is a MUST-INCLUDE set (not "only these"). Current `.gitignore:18-22` already covers the three required entries plus two additional entries for out-of-v1.0.0-scope files (`context-state.json`, `references.yaml`). The migration performs **no `.gitignore` reconciliation** — it's a no-op on first apply.
 
 ### D-13 — Out-of-v1.0.0-scope files (C-012) — **added 2026-04-14 from design review**
-**Decision**: `references.yaml` (produced by `src/charter/compiler.py:169-196`) and `context-state.json` (written by `src/charter/context.py:385-398`) are **explicitly out of v1.0.0 manifest scope**. The chokepoint does not validate, regenerate, or take ownership of those files. Readers of those files go through their own pipelines. Expanding scope to cover them requires a new manifest schema version (e.g., 1.1.0 or 2.0.0) and its own migration.
+**Decision**: `references.yaml` (produced by `src/charter/activation/compiler.py:169-196`) and `context-state.json` (written by `src/charter/activation/context.py:385-398`) are **explicitly out of v1.0.0 manifest scope**. The chokepoint does not validate, regenerate, or take ownership of those files. Readers of those files go through their own pipelines. Expanding scope to cover them requires a new manifest schema version (e.g., 1.1.0 or 2.0.0) and its own migration.
 
-**Rationale**: The original plan's manifest declared those files as `derived_files` with `sync()` as the derivation source — which is factually wrong on `main` (sync only writes three files per `src/charter/sync.py:32-36`). Rather than expand the chokepoint to also invoke the compiler pipeline and the context-state writer, v1.0.0 limits scope to what `sync()` owns. This keeps the chokepoint semantics clean and defers the larger scoping decision to a later tranche.
+**Rationale**: The original plan's manifest declared those files as `derived_files` with `sync()` as the derivation source — which is factually wrong on `main` (sync only writes three files per `src/charter/activation/sync.py:32-36`). Rather than expand the chokepoint to also invoke the compiler pipeline and the context-state writer, v1.0.0 limits scope to what `sync()` owns. This keeps the chokepoint semantics clean and defers the larger scoping decision to a later tranche.
 
 ### D-14 — Worktree code is out of scope (C-011) — **added 2026-04-14 from design review**
 **Decision**: `src/specify_cli/core/worktree.py:478-532` — the `.kittify/memory/` and `.kittify/AGENTS.md` symlink/copy block — is **not touched** by this mission. Those symlinks are documented-intentional per `src/specify_cli/templates/AGENTS.md:168-179` and solve a separate concern (project memory and agent-instructions sharing), not the charter bundle. The worktree-charter-visibility problem described in `#339` is solved by canonical-root resolution in WP2.2, not by touching this file.
@@ -274,7 +274,7 @@ Four strictly sequential WPs. Each WP PR includes: source edits, test edits, its
 
 **Scope**:
 - Add `src/charter/resolution.py` implementing the **corrected algorithm** per [`contracts/canonical-root-resolver.contract.md`](contracts/canonical-root-resolver.contract.md) — file-input normalization; stdout parsed relative-to-cwd or absolute; explicit `.git/`-interior detection; LRU cache.
-- Extend `SyncResult` in `src/charter/sync.py` with `canonical_root: Path` per D-3. Keep `files_written` relative to `canonical_root`.
+- Extend `SyncResult` in `src/charter/activation/sync.py` with `canonical_root: Path` per D-3. Keep `files_written` relative to `canonical_root`.
 - Re-plumb `ensure_charter_bundle_fresh()` to call `resolve_canonical_repo_root()` first, consult `CharterBundleManifest.CANONICAL_MANIFEST` (v1.0.0 completeness check — three files), then delegate to `sync()`.
 - Update every existing `SyncResult` caller per R-3.
 - Add `tests/charter/test_canonical_root_resolution.py` covering the R-2 fixture matrix (including the `.git/`-interior edge case).
@@ -299,10 +299,10 @@ Four strictly sequential WPs. Each WP PR includes: source edits, test edits, its
 - Run the committed capture script at `kitty-specs/unified-charter-bundle-chokepoint-01KP5Q2G/baseline/capture.py` on pre-WP2.3 `main` (or `HEAD~` reference if edits unavoidable) to produce `baseline/pre-wp23-dashboard-typed.json`.
 
 **B. Reader cutover** (canonical package `src/charter/`):
-- Flip `src/charter/context.py :: build_charter_context()` (lines 406–661 today) to call `ensure_charter_bundle_fresh()` before direct reads of `charter.md` (~line 555). Paths resolved via `SyncResult.canonical_root`.
+- Flip `src/charter/activation/context.py :: build_charter_context()` (lines 406–661 today) to call `ensure_charter_bundle_fresh()` before direct reads of `charter.md` (~line 555). Paths resolved via `SyncResult.canonical_root`.
 - Any other `src/charter/` reader surfaced by R-1 that still bypasses the chokepoint.
-- **Do NOT touch `src/charter/context.py:385-398`** (context-state.json write path is C-012 out-of-scope carve-out).
-- **Do NOT touch `src/charter/compiler.py:169-196`** (compiler pipeline is C-012 out-of-scope carve-out).
+- **Do NOT touch `src/charter/activation/context.py:385-398`** (context-state.json write path is C-012 out-of-scope carve-out).
+- **Do NOT touch `src/charter/activation/compiler.py:169-196`** (compiler pipeline is C-012 out-of-scope carve-out).
 
 **C. Reader cutover** (CLI surfaces + agent/next prompt builders):
 - `src/specify_cli/cli/commands/charter.py` — every handler that reads bundle artifacts before rendering output.
@@ -328,8 +328,8 @@ Four strictly sequential WPs. Each WP PR includes: source edits, test edits, its
 **G. Occurrence artifact**:
 - Author `kitty-specs/.../occurrences/WP2.3.yaml` covering categories A-H. **Must include explicit `leave` entries for**:
   - `src/specify_cli/core/worktree.py:478-532` (C-011 carve-out — memory/AGENTS sharing).
-  - `src/charter/compiler.py:169-196` (C-012 carve-out — compiler pipeline).
-  - `src/charter/context.py:385-398` (C-012 carve-out — context-state.json writes).
+  - `src/charter/activation/compiler.py:169-196` (C-012 carve-out — compiler pipeline).
+  - `src/charter/activation/context.py:385-398` (C-012 carve-out — context-state.json writes).
 - Update `index.yaml` with the NFR-005 must-be-zero set.
 
 **Acceptance gates for WP2.3 PR**:
@@ -387,7 +387,7 @@ Cross-reference spec §Risks. Operational mitigations below are the plan-level e
 | Live reader in `src/specify_cli/charter/` missed | AST-walk test walks full `src/` tree. |
 | Manifest disagrees with `.gitignore` | D-12: v1.0.0 manifest matches current `.gitignore`. |
 | `resolve_canonical_repo_root` invoked outside a git repo | Raises `NotInsideRepositoryError`; test fixtures always operate inside a fixture repo. |
-| Reader in `src/charter/compiler.py` or `src/charter/context.py:385-398` is accidentally rewired | C-012 pins these as out-of-v1.0.0-scope carve-outs. WP2.3 occurrence artifact lists them explicitly as `leave`. |
+| Reader in `src/charter/activation/compiler.py` or `src/charter/activation/context.py:385-398` is accidentally rewired | C-012 pins these as out-of-v1.0.0-scope carve-outs. WP2.3 occurrence artifact lists them explicitly as `leave`. |
 
 ---
 

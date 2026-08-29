@@ -73,7 +73,7 @@ Lane A blocks Lane C/D so the burn-down meta-test (FR-110/111) is in place befor
 #### WP04 — DRIFT-1 alias clean deletion
 
 - [x] T017 — Land failing-first `tests/charter/test_alias_deleted_regression.py::test_resolve_governance_import_raises_import_error` (RED on planning base; alias still exists) (WP04)
-- [x] T018 — DELETE the `resolve_governance = resolve_project_governance` alias + the "Deprecated alias" docstring at `src/charter/resolver.py:325-326` and `:198` (FR-100, C-003) (WP04)
+- [x] T018 — DELETE the `resolve_governance = resolve_project_governance` alias + the "Deprecated alias" docstring at `src/charter/activation/resolver.py:325-326` and `:198` (FR-100, C-003) (WP04)
 - [x] T019 — Remove `resolve_governance` from the import block and `__all__` in `src/charter/__init__.py` (FR-101) (WP04)
 - [x] T020 — Migrate `tests/charter/test_resolver.py` (and any other site `rg "resolve_governance" tests/` finds) to import `resolve_project_governance` (FR-102) (WP04)
 - [x] T021 — Confirm regression test GREEN; add `test_no_test_fixture_still_imports_legacy_alias` coverage for AC-5 (WP04)
@@ -83,7 +83,7 @@ Lane A blocks Lane C/D so the burn-down meta-test (FR-110/111) is in place befor
 - [x] T022 — Land failing-first `tests/integration/test_catalog_miss_cli_visibility.py::test_typoed_styleguide_produces_visible_stderr_warning` (subprocess; RED on planning base) (WP05)
 - [x] T023 — Install `logging.captureWarnings(True)` at CLI bootstrap in `src/specify_cli/__main__.py` (FR-130) (WP05)
 - [x] T024 — Add Rich-aware `logging.Handler` deferring to existing Rich `Console` instance (no double-init per RR-6); route `WARNING+` through stderr (FR-131) (WP05)
-- [x] T025 — Extend `src/charter/_catalog_miss.py` `_LOGGER.warning(extra=...)` payload to carry `kind`, `id`, `cause`, `suggestion`, `mission_id`, `scope` per data-model §8 (WP05)
+- [x] T025 — Extend `src/charter/activation/_catalog_miss.py` `_LOGGER.warning(extra=...)` payload to carry `kind`, `id`, `cause`, `suggestion`, `mission_id`, `scope` per data-model §8 (WP05)
 - [x] T026 — Confirm subprocess visibility test GREEN; layer-rules + 23-fixture regression suite still pass (NFR-001, NFR-003) (WP05)
 
 ### Lane C — Org-DRG (depends on Lane A)
@@ -120,8 +120,8 @@ Lane A blocks Lane C/D so the burn-down meta-test (FR-110/111) is in place befor
 
 - [x] T044 — Land failing-first `tests/integration/test_monorepo_charter_scope.py` (both happy path + malformed config) + `tests/charter/test_charter_scope.py` unit suite (RED on planning base) (WP09)
 - [x] T045 — Author `architecture/adrs/2026-05-18-1-monorepo-charter-scope.md` (ADR-8) finalising the design per FR-008 / spec §1.2 (WP09)
-- [x] T046 — Create `src/charter/scope.py` with `CharterScope` dataclass, `default()` + `resolve()` constructors, `CharterScopeConflict` + `CharterScopeNotFound` exceptions per data-model §4 (FR-009) (WP09)
-- [x] T047 — Create `src/charter/scope_router.py` as a thin wrapper invoking `build_charter_context` with a resolved scope — avoids breaking `context.py` signature (architectural carve-out for WP07 ownership of context.py) (FR-010) (WP09)
+- [x] T046 — Create `src/charter/activation/scope.py` with `CharterScope` dataclass, `default()` + `resolve()` constructors, `CharterScopeConflict` + `CharterScopeNotFound` exceptions per data-model §4 (FR-009) (WP09)
+- [x] T047 — Create `src/charter/activation/scope_router.py` as a thin wrapper invoking `build_charter_context` with a resolved scope — avoids breaking `context.py` signature (architectural carve-out for WP07 ownership of context.py) (FR-010) (WP09)
 - [x] T048 — Wire `prompt_builder.build_prompt` to call `CharterScope.resolve` → `scope_router` so single-project repos route via `CharterScope.default(repo_root)` (byte-identical to today, NFR-001) (WP09)
 - [x] T049 — Confirm Scenario 2 + AC-3 GREEN; the 23 `test_wp_prompt_governance_contract.py` fixtures pass unchanged (NFR-001) (WP09)
 
@@ -208,8 +208,8 @@ Lane A blocks Lane C/D so the burn-down meta-test (FR-110/111) is in place befor
 | T043 | WP08 | AC-2 satisfied |
 | T044 | WP09 | ATDD: failing-first monorepo scope tests |
 | T045 | WP09 | ADR-8 monorepo-charter-scope |
-| T046 | WP09 | `src/charter/scope.py` `CharterScope` |
-| T047 | WP09 | `src/charter/scope_router.py` |
+| T046 | WP09 | `src/charter/activation/scope.py` `CharterScope` |
+| T047 | WP09 | `src/charter/activation/scope_router.py` |
 | T048 | WP09 | `prompt_builder` integration via router |
 | T049 | WP09 | AC-3 + NFR-001 |
 | T050 | WP10 | ATDD: failing-first `test_workflow_registry.py` |
@@ -312,7 +312,7 @@ Adds `spec-kitty doctrine org init <path>` and `spec-kitty doctrine org validate
 **File**: [tasks/WP09-charter-scope-and-adr8.md](tasks/WP09-charter-scope-and-adr8.md)
 **Subtasks**: T044–T049 (6) | **FRs**: FR-008, FR-009, FR-010, FR-011
 
-Lands ADR-8 (monorepo-charter-scope); creates `src/charter/scope.py` (`CharterScope` abstraction) + `src/charter/scope_router.py` (thin wrapper that calls `build_charter_context`, avoiding signature change to WP07-owned `context.py`); wires `prompt_builder` through scope router.
+Lands ADR-8 (monorepo-charter-scope); creates `src/charter/activation/scope.py` (`CharterScope` abstraction) + `src/charter/activation/scope_router.py` (thin wrapper that calls `build_charter_context`, avoiding signature change to WP07-owned `context.py`); wires `prompt_builder` through scope router.
 
 ### WP10 — Workflow sequence YAML schema + registry + Pydantic model + `meta.json::workflow_id`
 

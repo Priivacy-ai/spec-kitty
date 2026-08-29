@@ -136,15 +136,15 @@ Single project — `src/doctrine/`, `src/charter/`, `src/specify_cli/`, `tests/`
 
 ### Included Subtasks
 
-- [x] T019 Add `"anti_pattern": "anti_patterns"` to `_SINGULAR_TO_PLURAL` and the corresponding `"activated_anti_patterns"` entry to `_SINGULAR_TO_PER_KIND_FIELD` (`src/charter/drg.py`); mirror the plural mapping in `_SINGULAR_TO_PLURAL_KIND` (`src/charter/activations.py`)
-- [x] T020 Add `activated_anti_patterns: frozenset[str] | None` field to `PackContext` (`src/charter/pack_context.py`), following the existing per-kind field pattern
+- [x] T019 Add `"anti_pattern": "anti_patterns"` to `_SINGULAR_TO_PLURAL` and the corresponding `"activated_anti_patterns"` entry to `_SINGULAR_TO_PER_KIND_FIELD` (`src/charter/drg.py`); mirror the plural mapping in `_SINGULAR_TO_PLURAL_KIND` (`src/charter/activation/activations.py`)
+- [x] T020 Add `activated_anti_patterns: frozenset[str] | None` field to `PackContext` (`src/charter/activation/pack_context.py`), following the existing per-kind field pattern
 - [x] T021 Add `rejects`-target validation to `src/doctrine/drg/validator.py`: a `rejects` edge whose target lacks `kind == NodeKind.ANTI_PATTERN` is a validation error (INV-004)
 - [x] T022 Test: symmetric read (INV-001) — a single stored `in_tension_with` edge is discoverable from both endpoint URNs via the graph's existing query helpers (new `tests/doctrine/drg/test_validator.py` or extend an existing DRG test)
 - [x] T023 Tests: `anti_pattern` kind activation-gating behaves like every other kind (extend `tests/charter/test_drg_filtering.py` / `test_activation_filtered_drg.py`); `rejects`-target validation error case (new `tests/doctrine/drg/test_validator.py`)
 
 ### Implementation Notes
 
-- **Verified, no code change needed**: `src/charter/cascade.py::_kind_of` resolves generically via `ArtifactKind(prefix)` — once WP01's `ArtifactKind` member exists, `_kind_of` handles `anti_pattern` URNs correctly with zero edits. Do not touch `cascade.py` in this WP.
+- **Verified, no code change needed**: `src/charter/activation/cascade.py::_kind_of` resolves generically via `ArtifactKind(prefix)` — once WP01's `ArtifactKind` member exists, `_kind_of` handles `anti_pattern` URNs correctly with zero edits. Do not touch `cascade.py` in this WP.
 - Before T019/T020, confirm whether `anti_pattern` nodes should default-allow (skip the per-kind config gate entirely, since they're validation targets rather than user-activatable content) or be config-gated like every other kind. FR-004 explicitly calls for wiring through `_SINGULAR_TO_PLURAL`/`_SINGULAR_TO_PER_KIND_FIELD`, so the spec's answer is config-gated — implement it that way even though `_node_is_activated`'s default-allow-for-unknown-kind behavior would otherwise make this optional.
 
 ### Parallel Opportunities
@@ -170,7 +170,7 @@ Single project — `src/doctrine/`, `src/charter/`, `src/specify_cli/`, `tests/`
 
 ### Included Subtasks
 
-- [x] T024 Add `TensionFinding` (sorted URN pair + the two fixed resolution-path strings) and `unreconciled_tensions: list[TensionFinding]` on `ConsistencyReport` (`src/charter/consistency_check.py`), excluded from the `coherent` reduction, and update `to_json()`
+- [x] T024 Add `TensionFinding` (sorted URN pair + the two fixed resolution-path strings) and `unreconciled_tensions: list[TensionFinding]` on `ConsistencyReport` (`src/charter/activation/consistency_check.py`), excluded from the `coherent` reduction, and update `to_json()`
 - [x] T025 Implement the tension scan over the activation-filtered graph: one finding per co-activated `in_tension_with` pair, keyed on the sorted URN pair for dedup (Edge Case: symmetric authoring drift), with no transitive closure (INV-002 — `A⋈B` + `B⋈C` never synthesizes `A⋈C`)
 - [x] T026 Implement the reconciliation check: a pair is resolved only when an active artefact has `reconciles_tension` edges to **both** sides (half-reconciled — only one edge — does not resolve, US2 sc2)
 - [x] T027 Make the DRG load for this check fail closed into `verification_errors` — any exception during the scan surfaces there, never silently reduces to an empty finding list
@@ -213,7 +213,7 @@ Single project — `src/doctrine/`, `src/charter/`, `src/specify_cli/`, `tests/`
 ### Implementation Notes
 
 - T030 is the only source change in this WP — T032 requires no `cascade.py` edit (the three relations are simply never added to the allowlist); do not "fix" this by writing a denylist check, which would reintroduce the per-kind branching the cascade engine's design deliberately avoids (C-003).
-- Do not touch `src/charter/cascade.py` itself in this WP — WP04 already confirmed `_kind_of` needs no change, and `REFERENCE_RELATIONS` needs no change either (correct-by-omission).
+- Do not touch `src/charter/activation/cascade.py` itself in this WP — WP04 already confirmed `_kind_of` needs no change, and `REFERENCE_RELATIONS` needs no change either (correct-by-omission).
 
 ### Parallel Opportunities
 

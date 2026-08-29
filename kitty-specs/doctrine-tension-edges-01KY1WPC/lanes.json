@@ -52,9 +52,9 @@
         "WP04"
       ],
       "write_scope": [
-        "src/charter/activations.py",
+        "src/charter/activation/activations.py",
         "src/charter/drg.py",
-        "src/charter/pack_context.py",
+        "src/charter/activation/pack_context.py",
         "src/doctrine/drg/validator.py",
         "tests/charter/test_activation_filtered_drg.py",
         "tests/charter/test_drg_filtering.py",
@@ -146,7 +146,7 @@
         "WP05"
       ],
       "write_scope": [
-        "src/charter/consistency_check.py",
+        "src/charter/activation/consistency_check.py",
         "src/specify_cli/cli/commands/charter/_app.py",
         "tests/charter/test_consistency_check.py",
         "tests/charter/test_tension_unreconciled.py"

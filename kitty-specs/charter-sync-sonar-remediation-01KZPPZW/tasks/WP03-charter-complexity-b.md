@@ -27,17 +27,17 @@ create_intent:
 - tests/charter/test_sonar_complexity_b_helpers.py
 execution_mode: code_change
 owned_files:
-- src/charter/synthesizer/write_pipeline.py
+- src/charter/activation/synthesizer/write_pipeline.py
 - src/specify_cli/charter_activate.py
-- src/charter/synthesizer/interview_mapping.py
-- src/charter/context_renderers/section_bodies.py
-- src/charter/context_renderers/profile_sections.py
+- src/charter/activation/synthesizer/interview_mapping.py
+- src/charter/activation/context_renderers/section_bodies.py
+- src/charter/activation/context_renderers/profile_sections.py
 - src/specify_cli/charter_runtime/lint/checks/contradiction.py
 - src/specify_cli/charter_runtime/lint/checks/reference_integrity.py
-- src/charter/kind_vocabulary.py
-- src/charter/interview.py
-- src/charter/context_renderers/bootstrap_text.py
-- src/charter/pack_manager.py
+- src/charter/activation/kind_vocabulary.py
+- src/charter/activation/interview.py
+- src/charter/activation/context_renderers/bootstrap_text.py
+- src/charter/activation/pack_manager.py
 role: implementer
 tags: []
 tracker_refs: []
@@ -56,17 +56,17 @@ Fix ALL Sonar findings in these 11 charter files (behavior-preserving; no new su
 
 | File | Findings |
 |------|----------|
-| `src/charter/synthesizer/write_pipeline.py` | `S3776`:451 (23) |
+| `src/charter/activation/synthesizer/write_pipeline.py` | `S3776`:451 (23) |
 | `src/specify_cli/charter_activate.py` | `S3776`:106 (24) |
-| `src/charter/synthesizer/interview_mapping.py` | `S3776`:208 (18) |
-| `src/charter/context_renderers/section_bodies.py` | `S3776`:148 (18) |
-| `src/charter/context_renderers/profile_sections.py` | `S3776`:150 (18) + `S3776`:416 (17) + `S1192` |
+| `src/charter/activation/synthesizer/interview_mapping.py` | `S3776`:208 (18) |
+| `src/charter/activation/context_renderers/section_bodies.py` | `S3776`:148 (18) |
+| `src/charter/activation/context_renderers/profile_sections.py` | `S3776`:150 (18) + `S3776`:416 (17) + `S1192` |
 | `src/specify_cli/charter_runtime/lint/checks/contradiction.py` | `S3776`:53 (18) |
 | `src/specify_cli/charter_runtime/lint/checks/reference_integrity.py` | `S3776`:88 (17) |
-| `src/charter/kind_vocabulary.py` | `S3776`:142 (16) |
-| `src/charter/interview.py` | `S3776`:354 (16) |
-| `src/charter/context_renderers/bootstrap_text.py` | `S3776`:165 (19) + `S7632` |
-| `src/charter/pack_manager.py` | `S3776`:662 (16) + `S3516` (method-always-returns-same-value) + `S1172` (unused param) |
+| `src/charter/activation/kind_vocabulary.py` | `S3776`:142 (16) |
+| `src/charter/activation/interview.py` | `S3776`:354 (16) |
+| `src/charter/activation/context_renderers/bootstrap_text.py` | `S3776`:165 (19) + `S7632` |
+| `src/charter/activation/pack_manager.py` | `S3776`:662 (16) + `S3516` (method-always-returns-same-value) + `S1172` (unused param) |
 
 ## ⚠️ AUTHORITATIVE: [post-tasks-squad-findings.md](../post-tasks-squad-findings.md) — read the WP03 section.
 

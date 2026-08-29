@@ -1,7 +1,7 @@
 {
   "rows": {
     "#2468": {
-      "evidence_ref": "Explicit non-goal under constraint C-002 (spec.md:135): full mission-type-as-ArtifactKind promotion. This mission relocates missions/ DATA content only; it does not promote mission_type to an activatable ArtifactKind (see src/doctrine/artifact_kinds.py _NON_AUGMENTATION_ELIGIBLE_KINDS and charter.kind_vocabulary, where mission-type raises MissionTypeNotAnArtifactKind by design). Follow-up handle: GitHub issue #2468 remains open.",
+      "evidence_ref": "Explicit non-goal under constraint C-002 (spec.md:135): full mission-type-as-ArtifactKind promotion. This mission relocates missions/ DATA content only; it does not promote mission_type to an activatable ArtifactKind (see src/doctrine/artifact_kinds.py _NON_AUGMENTATION_ELIGIBLE_KINDS and charter.activation.kind_vocabulary, where mission-type raises MissionTypeNotAnArtifactKind by design). Follow-up handle: GitHub issue #2468 remains open.",
       "fr": null,
       "nfr": null,
       "repo": null,
@@ -145,7 +145,7 @@
       "wp": null
     },
     "#3182": {
-      "evidence_ref": "Fixed by WP07, commit 02d1a2239 in lane-e. Both TIER-1 overrides (.kittify/overrides/missions/software-dev/command-templates/{implement,review}.md) refreshed onto build_activation_aware_doctrine_service; retired spec-kitty constitution context removed; additionally the nonexistent spec-kitty agent workflow replaced with spec-kitty agent action. Reviewer independently verified SC-004 grep clean (exit 1), both substitute commands exist via --help, and the builder signature matches src/charter/doctrine_service_builder.py:188. NOTE: WP07 review-cycle-1 rejected SOLELY on this matrix row being unknown -- a row outside WP07 owned_files, so its implementer could not have set it in scope.",
+      "evidence_ref": "Fixed by WP07, commit 02d1a2239 in lane-e. Both TIER-1 overrides (.kittify/overrides/missions/software-dev/command-templates/{implement,review}.md) refreshed onto build_activation_aware_doctrine_service; retired spec-kitty constitution context removed; additionally the nonexistent spec-kitty agent workflow replaced with spec-kitty agent action. Reviewer independently verified SC-004 grep clean (exit 1), both substitute commands exist via --help, and the builder signature matches src/charter/activation/doctrine_service_builder.py:188. NOTE: WP07 review-cycle-1 rejected SOLELY on this matrix row being unknown -- a row outside WP07 owned_files, so its implementer could not have set it in scope.",
       "fr": null,
       "nfr": null,
       "repo": null,

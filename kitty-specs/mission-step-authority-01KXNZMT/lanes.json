@@ -127,7 +127,7 @@
         "WP06"
       ],
       "write_scope": [
-        "src/charter/mission_type_profiles.py",
+        "src/charter/activation/mission_type_profiles.py",
         "src/runtime/next/decision.py",
         "src/runtime/next/runtime_bridge_composition.py",
         "tests/runtime/test_runtime_seam.py"

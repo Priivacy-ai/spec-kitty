@@ -118,7 +118,7 @@ class ValidationIssue:
     * ``drg_root_graph_missing`` — the pack's ``drg/`` directory contains one
       or more ``*.graph.yaml`` fragments but the pack root has no top-level
       ``*.graph.yaml`` — the runtime
-      (``src/charter/_drg_helpers.py:load_validated_graph``) reads only the
+      (``src/charter/activation/_drg_helpers.py:load_validated_graph``) reads only the
       pack root, never ``drg/`` fragments, so this pack's DRG content is not
       consumed as authored.
     * ``not_found`` / ``parse_error`` / ``advisory`` — structural categories.
@@ -358,7 +358,7 @@ def validate_pack(pack_dir: Path, *, check_drg_root: bool = True) -> ValidationR
     :func:`_check_drg_root_graph_missing` — a pack whose DRG content lives
     only under ``drg/*.graph.yaml`` fragments with no pack-root
     ``*.graph.yaml`` is flagged, since the runtime
-    (``src/charter/_drg_helpers.py:load_validated_graph``) reads only the
+    (``src/charter/activation/_drg_helpers.py:load_validated_graph``) reads only the
     pack root. Callers that know their own output can never produce that
     mismatch shape (e.g. ``pack_assembler.assemble_pack``'s internal
     round-trip check) pass ``check_drg_root=False``.
@@ -656,7 +656,7 @@ def _check_drg_root_graph_missing(
 ) -> list[ValidationIssue]:
     """Warn when DRG content lives only under drg/ with no pack-root graph.
 
-    The runtime (src/charter/_drg_helpers.py:load_validated_graph) reads a
+    The runtime (src/charter/activation/_drg_helpers.py:load_validated_graph) reads a
     pack-root *.graph.yaml, never drg/ fragments — see spec.md
     Clarification 3 / sibling mission #3384. Fires only when drg/ contains
     at least one *.graph.yaml fragment AND the pack root has none; a pack
@@ -679,7 +679,7 @@ def _check_drg_root_graph_missing(
             message=(
                 "DRG content exists only under drg/*.graph.yaml with no "
                 "pack-root *.graph.yaml. The runtime "
-                "(src/charter/_drg_helpers.py:load_validated_graph) reads "
+                "(src/charter/activation/_drg_helpers.py:load_validated_graph) reads "
                 "the pack root directly, not drg/ fragments — this pack's "
                 "DRG content will not be read as authored."
             ),
@@ -867,11 +867,11 @@ def _check_profile_skipped_diagnostics(
     ``org_roots`` override; the sole-door architectural gate
     (``tests/architectural/test_charter_sole_door_doctrine_service.py``)
     bans raw ``charter.offering.service.DoctrineService`` construction outside
-    ``charter.doctrine_service_builder``, and that builder's public entry
+    ``charter.activation.doctrine_service_builder``, and that builder's public entry
     point (``build_activation_aware_doctrine_service``) takes only
     ``repo_root`` and self-resolves ``org_roots`` — it cannot target an
     arbitrary pack directory. The gate's documented escape hatch,
-    constructing ``charter.resolver.DoctrineService`` directly, requires an
+    constructing ``charter.activation.resolver.DoctrineService`` directly, requires an
     *already-built* raw inner ``charter.offering.service.DoctrineService``, which is
     the very construction the gate forbids here. Direct
     ``AgentProfileRepository`` construction is therefore the correct seam;

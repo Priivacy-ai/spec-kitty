@@ -67,7 +67,7 @@ The only permitted direct config.yaml read is in `PackContext.from_config()` its
 
 The two main callers of `load_org_charter_policies()` in the charter layer are:
 - `src/charter/drg.py` — owned by WP11. WP11's T064-drg task must wire PackContext there.
-- `src/charter/context.py` — owned by WP01. WP01's T006 touches this file; when done, the implementer should leave a `# TODO (WP10/WP11): wire PackContext.from_config() into load_org_charter_policies() call` comment for the future WPs.
+- `src/charter/activation/context.py` — owned by WP01. WP01's T006 touches this file; when done, the implementer should leave a `# TODO (WP10/WP11): wire PackContext.from_config() into load_org_charter_policies() call` comment for the future WPs.
 
 This WP (WP10) does not make source code changes. Its value is the integration test (T065) that proves the full chain works end-to-end once WP09, WP11, and WP01 have all landed in the lane.
 
@@ -83,11 +83,11 @@ Test cases:
 
 ## Acceptance Criteria
 
-- [ ] `src/charter/drg.py` and `src/charter/context.py` call `load_org_charter_policies()` with a `PackContext`
+- [ ] `src/charter/drg.py` and `src/charter/activation/context.py` call `load_org_charter_policies()` with a `PackContext`
 - [ ] No new direct config.yaml reads in `_resolve_chain()` or `_merge_chain()` when PackContext is provided
 - [ ] All existing charter tests still pass (backward compat via `None` default preserved)
 - [ ] Integration tests for full chain resolution via PackContext pass
-- [ ] `mypy --strict` clean on `src/charter/drg.py` and `src/charter/context.py`
+- [ ] `mypy --strict` clean on `src/charter/drg.py` and `src/charter/activation/context.py`
 
 ## References
 

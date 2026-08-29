@@ -101,7 +101,7 @@ class ArtifactKind(StrEnum):
 
 ### Commit 4 — M3: add `logging.debug()` to `resolve_doctrine_root()` fallback chain
 
-**Files**: `src/specify_cli/charter/catalog.py` and `src/charter/catalog.py`
+**Files**: `src/specify_cli/charter/catalog.py` and `src/charter/activation/catalog.py`
 
 Add `import logging` and `log = logging.getLogger(__name__)`. Insert debug calls at each
 fallback step:
@@ -121,7 +121,7 @@ log.debug("doctrine: resolved via package asset root fallback")
 
 ### Commit 5 — M4: narrow `except Exception:` in `context.py` YAML/JSON parsers
 
-**Files**: `src/specify_cli/charter/context.py` and `src/charter/context.py`
+**Files**: `src/specify_cli/charter/context.py` and `src/charter/activation/context.py`
 
 Two locations in each file:
 

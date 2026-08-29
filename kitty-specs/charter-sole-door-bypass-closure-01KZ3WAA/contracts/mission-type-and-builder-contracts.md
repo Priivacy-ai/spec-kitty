@@ -10,10 +10,10 @@ activated_mission_types` is never `None`:
 | Equals `builtin_mission_type_id_set()` (the collapse default) | No selection was authored | Return the full built-in mission-type set |
 | A proper, non-default subset | A selection was authored | Return only the named mission-types |
 
-**The gating point is `charter.mission_type_profiles.resolve_mission_type_context()` ONLY** — NOT
-`charter.mission_type_profile_repository.MissionTypeProfileRepository`'s own file (post-tasks squad
+**The gating point is `charter.activation.mission_type_profiles.resolve_mission_type_context()` ONLY** — NOT
+`charter.activation.mission_type_profile_repository.MissionTypeProfileRepository`'s own file (post-tasks squad
 correction: that file is WP06's exclusive ownership for an unrelated change; implementing filtering there
-too would create a real ownership overlap), and NOT `charter.resolver.DoctrineService` (see the sibling
+too would create a real ownership overlap), and NOT `charter.activation.resolver.DoctrineService` (see the sibling
 contract file's "Explicitly NOT on this class" section). A bare project (no `mission-type` key
 authored) must still resolve every built-in mission-type — proven by a dedicated regression test asserting
 **set-equality against `builtin_mission_type_id_set()`**, not a fakeable subset check (post-plan squad
@@ -25,10 +25,10 @@ here has no three-state safety net to fall back on.
 ## Unified builder contract (FR-008)
 
 One function, replacing both `specify_cli.doctrine_service_factory.build_activation_aware_doctrine_service`
-and `charter.doctrine_service_builder._build_activation_aware_doctrine_service`:
+and `charter.activation.doctrine_service_builder._build_activation_aware_doctrine_service`:
 
 ```
-build_activation_aware_doctrine_service(repo_root: Path) -> charter.resolver.DoctrineService
+build_activation_aware_doctrine_service(repo_root: Path) -> charter.activation.resolver.DoctrineService
 ```
 
 Behavioural contract (both former call sites' inputs must produce identical output):
@@ -43,6 +43,6 @@ call site's original argument shape, and assert byte-identical (or structurally-
 impractical) resulting catalogs across all 9 gated properties.
 
 Both `src/specify_cli/doctrine_service_factory.py::build_activation_aware_doctrine_service` and
-`src/charter/doctrine_service_builder.py::_build_activation_aware_doctrine_service` become either the same
+`src/charter/activation/doctrine_service_builder.py::_build_activation_aware_doctrine_service` become either the same
 function (one deleted, callers repointed) or one thin re-export of the other — never two independent
 implementations after this mission (C-001).

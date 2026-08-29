@@ -12,8 +12,8 @@
       ],
       "write_scope": [
         "src/charter/bundle.py",
-        "src/charter/charter_yaml_io.py",
-        "src/charter/schemas.py",
+        "src/charter/activation/charter_yaml_io.py",
+        "src/charter/activation/schemas.py",
         "tests/charter/test_bundle_manifest_model.py",
         "tests/charter/test_charter_yaml_io.py",
         "tests/charter/test_charter_yaml_model.py",
@@ -33,9 +33,9 @@
         "WP02"
       ],
       "write_scope": [
-        "src/charter/activation_engine.py",
-        "src/charter/pack_context.py",
-        "src/charter/pack_manager.py",
+        "src/charter/activation/activation_engine.py",
+        "src/charter/activation/pack_context.py",
+        "src/charter/activation/pack_manager.py",
         "src/specify_cli/cli/commands/charter/interview.py",
         "src/specify_cli/doctrine/org_charter.py",
         "tests/charter/test_activation_engine_charter_yaml.py",
@@ -55,7 +55,7 @@
         "WP03"
       ],
       "write_scope": [
-        "src/charter/compiler.py",
+        "src/charter/activation/compiler.py",
         "src/specify_cli/cli/commands/charter/_synthesis.py",
         "src/specify_cli/cli/commands/charter/generate.py",
         "src/specify_cli/cli/commands/charter_bundle.py",
@@ -106,10 +106,10 @@
       ],
       "write_scope": [
         "src/charter/__init__.py",
-        "src/charter/consistency_check.py",
+        "src/charter/activation/consistency_check.py",
         "src/charter/extractor.py",
-        "src/charter/mission_type_profiles.py",
-        "src/charter/sync.py",
+        "src/charter/activation/mission_type_profiles.py",
+        "src/charter/activation/sync.py",
         "src/doctrine/spdd_reasons/activation.py",
         "src/specify_cli/cli/commands/_doctrine_collect.py",
         "tests/architectural/test_charter_references_resolve.py",
@@ -135,7 +135,7 @@
         "WP08"
       ],
       "write_scope": [
-        "src/charter/language_scope.py",
+        "src/charter/activation/language_scope.py",
         "tests/charter/test_language_scope.py"
       ],
       "predicted_surfaces": [
@@ -152,9 +152,9 @@
         "WP05"
       ],
       "write_scope": [
-        "src/charter/compact.py",
-        "src/charter/context.py",
-        "src/charter/context_renderers/section_bodies.py",
+        "src/charter/activation/compact.py",
+        "src/charter/activation/context.py",
+        "src/charter/activation/context_renderers/section_bodies.py",
         "tests/charter/test_context_display_charter_md.py"
       ],
       "predicted_surfaces": [

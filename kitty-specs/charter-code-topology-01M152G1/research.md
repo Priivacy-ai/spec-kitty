@@ -15,7 +15,7 @@
 - **CR-06 shim**: mechanics `runtime/next/__init__.py:15-28` (`__getattr__`); warn-once `retrospective/deprecation.py`; identity-guard `test_charter_facades_reexport_doctrine.py:30-205`; register `compat/shim-registry.yaml`.
 
 ## Seam 3 — Serialized surfaces / CR shims (paula)
-Precedent for ALL: CR-01 read-both/canonical-wins/warn-once `src/charter/sync.py:245-311`.
+Precedent for ALL: CR-01 read-both/canonical-wins/warn-once `src/charter/activation/sync.py:245-311`.
 - **CR-02** CLI group: `__init__.py:258,293`, `doctrine.py:60,67,74,81,87`. **`charter mission-type` collision is semantic** — `doctrine mission-type list` (activation-blind) vs `charter mission-type list` (activation-filtered); do NOT straight-alias.
 - **CR-03** tracker → **`ownership`** (different target word!): `tracker/config.py:125-126,176-178,192,200-209,251-252`, `tracker.py:422,624-626,699-713,720-721,899`, `saas_service.py:218-219,347-348`. Machine payload = downstream contract.
 - **CR-04** `doctrine.org.packs`→`charter_packs.org.packs`: `org_pack_config.py:41,404,427,462-485,~573`. 3rd shape (charter_packs → doctrine.org → legacy organisation_packs).

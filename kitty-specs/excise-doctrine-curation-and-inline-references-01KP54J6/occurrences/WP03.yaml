@@ -13,8 +13,8 @@ requires_merged:
 categories:
   - name: import_path
     strings:
-      - "charter.reference_resolver"
-      - "from charter.reference_resolver"
+      - "charter.activation.reference_resolver"
+      - "from charter.activation.reference_resolver"
     include_globs:
       - "src/**/*.py"
       - "tests/**/*.py"
@@ -22,7 +22,7 @@ categories:
       - "**/__pycache__/**"
       - "kitty-specs/**"
     expected_final_count: 0
-    to_change: "All callers must use doctrine.drg.query.resolve_transitive_refs (via charter._drg_helpers.load_validated_graph)."
+    to_change: "All callers must use doctrine.drg.query.resolve_transitive_refs (via charter.activation._drg_helpers.load_validated_graph)."
 
   - name: symbol_name
     strings:

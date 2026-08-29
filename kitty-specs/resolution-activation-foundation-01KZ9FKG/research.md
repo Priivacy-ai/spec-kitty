@@ -37,7 +37,7 @@ All NEEDS CLARIFICATION resolved; no open markers.
 
 ## D-03 — Activation authority & the implicit fallback
 
-- **Decision**: The provisioned `src/charter/packs/default.yaml` is the activation authority. Remove the config-absent backfill at `charter/pack_context.py:619` (`_read_activated_mission_types` returns `builtin_mission_type_id_set()` when the key is absent). Absent config resolves via provisioning or fails closed.
+- **Decision**: The provisioned `src/charter/activation/packs/default.yaml` is the activation authority. Remove the config-absent backfill at `charter/pack_context.py:619` (`_read_activated_mission_types` returns `builtin_mission_type_id_set()` when the key is absent). Absent config resolves via provisioning or fails closed.
 - **Rationale**: The implicit backfill is the hidden second availability source; removing it is what makes `activated_mission_types` trustworthy. Resolves #3183 (activated-vs-available vocabulary collision).
 - **Corrections to issue text**: the fallback is at `pack_context.py:601-619`, NOT `mission_type_profiles.py:388-395` (line drift; those are now the `governance` property). There is **no `CANONICAL_MISSION_TYPES` constant** — the roster is the disk-scanned, cached `builtin_mission_type_id_set()`.
 - **Alternatives considered**: none viable — leaving the fallback keeps the second source.

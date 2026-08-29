@@ -30,10 +30,10 @@ history:
 - date: '2026-05-15'
   event: created
 agent_profile: python-pedro
-authoritative_surface: src/charter/context.py
+authoritative_surface: src/charter/activation/context.py
 execution_mode: code_change
 owned_files:
-- src/charter/context.py
+- src/charter/activation/context.py
 - src/specify_cli/cli/commands/doctor.py
 - src/specify_cli/cli/commands/charter.py
 - tests/specify_cli/test_provenance_integration.py
@@ -85,7 +85,7 @@ This WP adds `doctor doctrine` to the same group.
 
 ## Subtask T033 — Add `"source"` field to `charter context --json`
 
-**File**: `src/charter/context.py`
+**File**: `src/charter/activation/context.py`
 
 **Current flow** (schematic):
 1. Load DRG (inline)
@@ -98,7 +98,7 @@ This WP adds `doctor doctrine` to the same group.
 
 Step 1: Replace the inline DRG load (lines 228–231) with:
 ```python
-from charter._drg_helpers import load_validated_graph
+from charter.activation._drg_helpers import load_validated_graph
 merged = load_validated_graph(repo_root)
 ```
 (T034 moves the inline load; T033 adds the provenance field to the JSON output.)
@@ -125,7 +125,7 @@ If `get_provenance()` returns `None` (artifact not found in provenance index), d
 
 ## Subtask T034 — Route `context.py` DRG loading through `_drg_helpers`
 
-**File**: `src/charter/context.py`
+**File**: `src/charter/activation/context.py`
 
 **Current code** (lines 228–231 approximate):
 ```python
@@ -139,7 +139,7 @@ assert_valid(merged)
 
 **Replace with**:
 ```python
-from charter._drg_helpers import load_validated_graph
+from charter.activation._drg_helpers import load_validated_graph
 merged = load_validated_graph(repo_root)
 ```
 
@@ -311,7 +311,7 @@ Uses `tmp_path` as a fake project root. Sets up:
 
 ## Subtask T046 — Org charter elements in `charter context --json`
 
-**File**: `src/charter/context.py` (owned by this WP)
+**File**: `src/charter/activation/context.py` (owned by this WP)
 
 Add an `"org_charter"` top-level key to the `charter context --json` output after the
 existing artifact fields. This key is additive — existing fields are unchanged.

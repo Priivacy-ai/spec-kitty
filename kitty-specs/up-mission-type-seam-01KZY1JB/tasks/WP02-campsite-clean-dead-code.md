@@ -23,12 +23,12 @@ history:
   actor: system
   action: Prompt generated during /spec-kitty.tasks
 agent_profile: python-pedro
-authoritative_surface: src/charter/resolver.py
+authoritative_surface: src/charter/activation/resolver.py
 create_intent: []
 execution_mode: code_change
 model: ''
 owned_files:
-- src/charter/resolver.py
+- src/charter/activation/resolver.py
 - tests/charter/test_resolver.py
 - src/specify_cli/cli/commands/mission_type.py
 - tests/cli/test_charter_mission_type_commands.py
@@ -63,7 +63,7 @@ not exist.
 Three independent deletions/fixes, each behavior-preserving (zero production callers today,
 confirmed below):
 
-1. **FR-010/CL-004**: delete `resolve_mission_steps` (`src/charter/resolver.py:908`, live-verify
+1. **FR-010/CL-004**: delete `resolve_mission_steps` (`src/charter/activation/resolver.py:908`, live-verify
    the exact end line before deleting — plan.md cites `908-937`) and its single test in
    `tests/charter/test_resolver.py`. Confirmed zero production callers by repo-wide grep during
    planning; **re-verify live before deleting**: `grep -rn "resolve_mission_steps" src/ tests/`
@@ -157,15 +157,15 @@ than left as a manual grep).
   from `__all__` to dodge a dead-symbol gate, stops persisting as bait for future confusion.
 - **Steps**: live-verify zero callers beyond the one test
   (`grep -rn "resolve_mission_steps" src/ tests/`); delete the function from
-  `src/charter/resolver.py`; delete its single test from `tests/charter/test_resolver.py` (the
+  `src/charter/activation/resolver.py`; delete its single test from `tests/charter/test_resolver.py` (the
   test that asserts only `isinstance(result, dict)` and non-empty length, per plan.md's own
   characterization — confirm this matches what you find, and if the live test asserts more than
   that, note the discrepancy in your Activity Log entry).
-- **Files**: `src/charter/resolver.py`, `tests/charter/test_resolver.py`.
+- **Files**: `src/charter/activation/resolver.py`, `tests/charter/test_resolver.py`.
 - **Parallel?**: Can proceed alongside T003/T004 (different files), but land as part of the same
   WP commit sequence.
 - **Notes**: Confirm `resolve_mission_steps` is not exported in any `__all__` before deleting
-  (already established by spec CL-004, but re-verify: `grep -n "__all__" src/charter/resolver.py`).
+  (already established by spec CL-004, but re-verify: `grep -n "__all__" src/charter/activation/resolver.py`).
 
 ### Subtask T003 – Delete `list_cmd` / `_print_available_missions` / the `discover_missions` import (FR-013/CL-004a)
 
@@ -234,7 +234,7 @@ than left as a manual grep).
   'WP06' as an org/project seam — both verified by direct inspection/grep in CI") and **SC-006**
   ("`list_cmd`, `_print_available_missions`, and the `discover_missions` import are removed... and
   `list_mission_types` remains the sole `@app.command("list")` handler... verified by direct
-  inspection/grep in CI"). Concretely: `grep -c "resolve_mission_steps" src/charter/resolver.py`
+  inspection/grep in CI"). Concretely: `grep -c "resolve_mission_steps" src/charter/activation/resolver.py`
   returns 0; `grep -n "WP06" src/doctrine/missions/mission_type_repository.py` returns nothing (or
   nothing in the org/project-seam sense — re-check the exact string); the new registration-count
   test from T004 is the executable proof for SC-006, not merely a manual grep.
@@ -263,7 +263,7 @@ than left as a manual grep).
 Per plan.md's Gate Set:
 
 - **`fast-tests-charter` + `integration-tests-charter`** (`--cov=charter --cov-fail-under=55`) —
-  `src/charter/resolver.py` is directly in scope.
+  `src/charter/activation/resolver.py` is directly in scope.
 - **`fast-tests-cli` + `integration-tests-cli`** (`--cov=src/specify_cli/cli`) —
   `src/specify_cli/cli/commands/mission_type.py` is directly in scope.
 - **`diff-coverage` (critical-path, 90%, `[ENFORCED]`)** over `src/charter/*` — this WP's diff in

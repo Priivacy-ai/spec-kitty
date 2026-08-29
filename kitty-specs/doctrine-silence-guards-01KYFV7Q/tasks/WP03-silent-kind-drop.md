@@ -28,7 +28,7 @@ execution_mode: code_change
 model: ''
 owned_files:
 - src/doctrine/drg/query.py
-- src/charter/context.py
+- src/charter/activation/context.py
 - tests/doctrine/drg/test_unknown_kind_fails_loudly.py
 role: implementer
 tags: []

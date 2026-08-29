@@ -10,10 +10,10 @@ findings:
   title: The Seam's "Production surface ... only" bullet still contradicts Campsite-Clean Scope's docstring
     mandate — round-2 fixed Project Structure but left this bullet unpatched
   evidence:
-  - artifact: 'plan.md § The Seam — "**Production surface**: `src/charter/kind_vocabulary.py`, function
+  - artifact: 'plan.md § The Seam — "**Production surface**: `src/charter/activation/kind_vocabulary.py`, function
       `_org_scan_dirs` (`:200-209`) only. Its caller (`_scan_roots`, `:142-180`) ... are unchanged"'
   - artifact: plan.md § Campsite-Clean Scope — "the implementing WP must update this docstring sentence"
-      (the `_scan_roots` docstring at `src/charter/kind_vocabulary.py:158-160`)
+      (the `_scan_roots` docstring at `src/charter/activation/kind_vocabulary.py:158-160`)
   - artifact: 'plan.md § Project Structure (round-2 fix) — "kind_vocabulary.py  # _org_scan_dirs (:200-209)
       fix, plus the _scan_roots docstring update at :158-160 (see Campsite-Clean Scope)"'
   claim: 'Round 1 flagged this exact contradiction (Project Structure''s "the only production edit" vs.
@@ -41,12 +41,12 @@ findings:
   title: _resolve_graph_kind_parity_stem is cited with two different, non-matching line ranges within
     the same section
   evidence:
-  - artifact: plan.md § The Seam (unchanged by round-2 fix) — "`charter.consistency_check`'s config↔graph
+  - artifact: plan.md § The Seam (unchanged by round-2 fix) — "`charter.activation.consistency_check`'s config↔graph
       parity guard (`_check_reference_id_parity`, `:744-748`; `_resolve_graph_kind_parity_stem`, `:815-817`)
       — both pass real `org_roots` today."
   - artifact: plan.md § The Seam (round-2 fix, two sentences later) — "`_resolve_graph_kind_parity_stem`
       (`:815-819`) appends to `verification_errors`/`suggestions` from within its own `except` block"
-  - code: 'src/charter/consistency_check.py:814-819 — try: (814); urn = resolve_artifact_urn(...) spans
+  - code: 'src/charter/activation/consistency_check.py:814-819 — try: (814); urn = resolve_artifact_urn(...) spans
       815-817; except UnknownArtifactIdError as exc: (818); verification_errors.append(...) (819)'
   claim: 'The round-2 fix commit rewrote the consistency_check.py paragraph to add a second, more precise
     citation of `_resolve_graph_kind_parity_stem` at `:815-819` (correctly including the `except`/`append`

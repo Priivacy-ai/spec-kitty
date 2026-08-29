@@ -21,7 +21,7 @@ The three axes (each from a #1111 child ticket):
 3. **Composable workflow sequencing**, per #682, promotes the mission action sequence (`specify → plan → tasks → implement → review → merge`) from hardcoded constant to a first-class artifact at `src/doctrine/workflows/<id>.workflow.yaml`, parallel to how agent profiles, tactics, and step contracts already work.
 
 The five absorbed remediations (each addresses a finding from the architect-alphonso debrief at `work/remediation-mission-debrief.md`; verbatim extracts are embedded inline below where they encode load-bearing rationale):
-1. **DRIFT-1 alias clean removal** — delete `resolve_governance` alias from `src/charter/resolver.py` and `src/charter/__init__.py` exports; tests use canonical `resolve_project_governance`. No `DeprecationWarning`, no sunset docstring (HiC §5a.1).
+1. **DRIFT-1 alias clean removal** — delete `resolve_governance` alias from `src/charter/activation/resolver.py` and `src/charter/__init__.py` exports; tests use canonical `resolve_project_governance`. No `DeprecationWarning`, no sunset docstring (HiC §5a.1).
 2. **HIGH-2 ratchet burn-down model** — `tests/architectural/_baselines.yaml` + meta-test that fails on growth, warns on shrinkage; refactor `test_no_dead_modules._ALLOWLIST` into per-category frozensets; concrete Cat-7 shrinkage from 10 → 7 (HiC §5a.2 binding).
 3. **MED-3 symbol-level dead-code gate** — extend `test_no_dead_modules` to walk `__all__` declarations; require `__all__` on `src/charter/` and `src/kernel/` modules.
 4. **HIGH-1 catalog-miss CLI visibility** — install `logging.captureWarnings(True)` + Rich-aware log handler at CLI bootstrap; subprocess-based test asserts a typo'd charter produces operator-visible stderr.
@@ -151,7 +151,7 @@ Explicitly descoped from this mission (each gets a separate disposition; see Con
 
 | ID | Description | Status |
 |---|---|---|
-| FR-100 | The alias `resolve_governance = resolve_project_governance` in `src/charter/resolver.py` SHALL be deleted in this mission (per HiC §5a.1 — clean removal, no `DeprecationWarning`, no sunset docstring). | Approved |
+| FR-100 | The alias `resolve_governance = resolve_project_governance` in `src/charter/activation/resolver.py` SHALL be deleted in this mission (per HiC §5a.1 — clean removal, no `DeprecationWarning`, no sunset docstring). | Approved |
 | FR-101 | The `resolve_governance` export from `src/charter/__init__.py` SHALL be removed. | Approved |
 | FR-102 | All test fixtures currently importing `resolve_governance` (notably `tests/charter/test_resolver.py:14`) SHALL be migrated to import `resolve_project_governance`. | Approved |
 | FR-103 | After deletion, `from charter import resolve_governance` SHALL raise `ImportError`; this is asserted by a regression test. | Approved |

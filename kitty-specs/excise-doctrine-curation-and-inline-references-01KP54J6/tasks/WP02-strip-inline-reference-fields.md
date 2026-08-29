@@ -42,7 +42,7 @@ owned_files:
 - src/doctrine/toolguides/models.py
 - src/doctrine/agent_profiles/models.py
 - src/doctrine/graph.yaml
-- src/charter/schemas.py
+- src/charter/activation/schemas.py
 - tests/doctrine/directives/**
 - tests/doctrine/paradigms/**
 - tests/doctrine/procedures/**
@@ -72,7 +72,7 @@ tags: []
 
 ## Objective
 
-Remove `tactic_refs`, `paradigm_refs`, and `applies_to` as valid fields from every doctrine artifact YAML, every JSON/YAML schema, every Pydantic model, and from `src/charter/schemas.py :: Directive`. Before stripping inline refs from YAMLs, audit `src/doctrine/graph.yaml` to confirm every inline relationship is ALSO encoded as a graph edge; if not, add the missing edges atomically in the same PR before the YAML stripping lands.
+Remove `tactic_refs`, `paradigm_refs`, and `applies_to` as valid fields from every doctrine artifact YAML, every JSON/YAML schema, every Pydantic model, and from `src/charter/activation/schemas.py :: Directive`. Before stripping inline refs from YAMLs, audit `src/doctrine/graph.yaml` to confirm every inline relationship is ALSO encoded as a graph edge; if not, add the missing edges atomically in the same PR before the YAML stripping lands.
 
 After this WP merges, the only source of truth for cross-artifact relationships is `src/doctrine/graph.yaml` edges.
 
@@ -104,7 +104,7 @@ After this WP merges, the only source of truth for cross-artifact relationships 
 
    Categories for WP02:
    - `yaml_key`: `tactic_refs`, `paradigm_refs`, `applies_to` in `src/doctrine/**/*.yaml`
-   - `symbol_name`: Pydantic field declarations of the three names in `src/doctrine/**/models.py` and `src/charter/schemas.py`
+   - `symbol_name`: Pydantic field declarations of the three names in `src/doctrine/**/models.py` and `src/charter/activation/schemas.py`
    - `docstring_or_comment`: schema comments referencing the three field names
    - `test_identifier`: test assertions that inline fields exist
 
@@ -301,7 +301,7 @@ After this WP merges, the only source of truth for cross-artifact relationships 
 
 ### T010 — Remove inline ref fields from schemas + Pydantic models
 
-**Purpose**: Strip `tactic_refs`, `paradigm_refs`, `applies_to` from the schema-layer declarations so that validators (in WP03) can reject them uniformly. Also strip `applies_to: list[str]` from `src/charter/schemas.py :: Directive`.
+**Purpose**: Strip `tactic_refs`, `paradigm_refs`, `applies_to` from the schema-layer declarations so that validators (in WP03) can reject them uniformly. Also strip `applies_to: list[str]` from `src/charter/activation/schemas.py :: Directive`.
 
 **Steps**:
 
@@ -345,7 +345,7 @@ After this WP merges, the only source of truth for cross-artifact relationships 
    Also re-verify `ProcedureReference` (around line 36): it has a `type: ArtifactKind`
    field that is **not** one of the three forbidden names, so do not touch it.
 
-3. **Charter schemas** — edit `src/charter/schemas.py`:
+3. **Charter schemas** — edit `src/charter/activation/schemas.py`:
    - Locate the `Directive` class (around line 87)
    - Remove the `applies_to: list[str]` field declaration
    - Update class docstring if it mentions `applies_to`
@@ -355,10 +355,10 @@ After this WP merges, the only source of truth for cross-artifact relationships 
 **Files affected** (10+ files):
 - Modified: 3 schema YAML files
 - Modified: 7 Pydantic model files
-- Modified: `src/charter/schemas.py`
+- Modified: `src/charter/activation/schemas.py`
 
 **Validation**:
-- [ ] `grep -Rn "tactic_refs\|paradigm_refs\|applies_to" src/doctrine/schemas/ src/doctrine/**/models.py src/charter/schemas.py` returns zero hits outside docstring mentions that were explicitly carved out (list any in `permitted_exceptions`)
+- [ ] `grep -Rn "tactic_refs\|paradigm_refs\|applies_to" src/doctrine/schemas/ src/doctrine/**/models.py src/charter/activation/schemas.py` returns zero hits outside docstring mentions that were explicitly carved out (list any in `permitted_exceptions`)
 - [ ] `mypy --strict src/` passes
 
 **Parallel opportunity**: Runs in parallel with T009.
@@ -427,9 +427,9 @@ After this WP merges, the only source of truth for cross-artifact relationships 
 3. Update `kitty-specs/.../occurrences/index.yaml`:
    - Append `WP02` to `wps` list (now `[WP01, WP02]`)
    - Ensure `must_be_zero` covers the WP02-scoped strings:
-     - `tactic_refs` (in `src/doctrine/`, `src/charter/schemas.py`, `src/doctrine/schemas/`)
-     - `paradigm_refs` (in `src/doctrine/`, `src/charter/schemas.py`)
-     - `applies_to` (in `src/doctrine/`, `src/charter/schemas.py`)
+     - `tactic_refs` (in `src/doctrine/`, `src/charter/activation/schemas.py`, `src/doctrine/schemas/`)
+     - `paradigm_refs` (in `src/doctrine/`, `src/charter/activation/schemas.py`)
+     - `applies_to` (in `src/doctrine/`, `src/charter/activation/schemas.py`)
    - Add any permitted-exceptions discovered in T011 (e.g. DRG extractor fixtures)
 
 4. Run the mission-level verifier:
@@ -444,7 +444,7 @@ After this WP merges, the only source of truth for cross-artifact relationships 
 - [ ] Ephemeral script and missing-edges file deleted
 - [ ] All three command gates green
 - [ ] Verifier green for WP02.yaml and for WP01+WP02 subset of index.yaml
-- [ ] Grep: `grep -R "tactic_refs\|paradigm_refs\|applies_to" src/doctrine src/charter/schemas.py` returns zero hits outside permitted exceptions
+- [ ] Grep: `grep -R "tactic_refs\|paradigm_refs\|applies_to" src/doctrine src/charter/activation/schemas.py` returns zero hits outside permitted exceptions
 
 ---
 
@@ -457,7 +457,7 @@ After this WP merges, the only source of truth for cross-artifact relationships 
 - 13+ shipped YAMLs no longer contain `tactic_refs:`
 - 3 schemas no longer declare `tactic_refs`/`paradigm_refs`/`applies_to`
 - 7 Pydantic model files no longer declare these fields
-- `src/charter/schemas.py :: Directive.applies_to` removed
+- `src/charter/activation/schemas.py :: Directive.applies_to` removed
 - All model/consistency tests updated; pytest green
 - `mypy --strict src/` clean
 - `scripts/r1_inline_vs_graph_audit.py` and `missing_edges.yaml` deleted
@@ -497,4 +497,4 @@ Stop and comment on [#477](https://github.com/Priivacy-ai/spec-kitty/issues/477)
 - 2026-04-14T06:29:32Z – claude:opus-4.6:python-implementer:implementer – shell_pid=50403 – Started implementation via action command
 - 2026-04-14T06:53:09Z – claude:opus-4.6:python-implementer:implementer – shell_pid=50403 – WP02 complete: 14 shipped/legacy YAMLs stripped (12 top-level tactic_refs + 6 procedure step-level); 3 schemas + 3 models (Directive/Paradigm/ProcedureStep) + charter/schemas.py::Directive.applies_to stripped; graph.yaml patched additive-only with 25 new procedure-step requires edges (TEST_FIRST legacy directive not a graph node — inline refs stripped from its YAML without promotion); affected WP02-scoped tests rewritten to assert fields are absent; WP02 + index verifiers GREEN; graph assert_valid() passes; WP02-scoped pytest 396 passed. Expected inter-WP failures in WP03 scope: tests/doctrine/drg/migration/test_extractor.py, tests/doctrine/test_shipped_doctrine_cycle_free.py (3 cases), tests/merge/test_profile_charter_e2e.py — WP03 rewrites reference_resolver.
 - 2026-04-14T06:54:33Z – opencode:gpt-5:python-reviewer:reviewer – shell_pid=96242 – Started review via action command
-- 2026-04-14T07:03:25Z – opencode:gpt-5:python-reviewer:reviewer – shell_pid=96242 – WP02 approved. All acceptance gates pass. 14 YAMLs stripped (13 shipped + legacy test-first.directive.yaml; TEST_FIRST not a graph node, correctly stripped without promotion). Directive/Paradigm/ProcedureStep models + charter.schemas.Directive.applies_to stripped; ProcedureStep model_config extra=forbid preserved. 3 schema YAMLs stripped. graph.yaml: 25 procedure-step 'requires' edges promoted additive-only (zero lines removed from pre-existing edges; root cause — Phase 0 DRG extractor never recursed into procedure.steps[*] — documented and fixed); assert_valid(merge_layers(...)) passes. 396 WP02-scoped pytest cases green. 5 expected inter-WP failures confirmed with documented cause (AttributeError: Directive has no attribute tactic_refs from src/charter/reference_resolver.py:107 — WP03 deletes that file). Mypy baseline at WP01: 107 errs; at WP02: 108 errs — the single new error is the same reference_resolver.py:107 dead-field read that WP03 eliminates (strangler-fig signal, not a WP02 regression). Verifier GREEN on WP02.yaml and index.yaml (blobs restored from commit 8163f8dc for re-verification; subsequent chore commit strips planning artifacts from lane per standard isolation). Fresh grep: tactic_refs/paradigm_refs/applies_to appear only in explanatory docstrings, drg/migration/extractor.py (legacy YAML reader required for promotion), graph.yaml promotion-context comments, charter-doctrine skill docs. Zero hits in shipped doctrine YAMLs or schemas. Zero agent-copy-dir edits. Ephemeral r1 script and missing_edges.yaml deleted. Zero WP03-territory edits (drg/query.py, *validation.py, reference_resolver.py, charter context/resolver/compiler, tests/charter, tests/doctrine/drg, test_shipped_doctrine_cycle_free.py, test_cycle_detection.py, test_artifact_kinds.py untouched).
+- 2026-04-14T07:03:25Z – opencode:gpt-5:python-reviewer:reviewer – shell_pid=96242 – WP02 approved. All acceptance gates pass. 14 YAMLs stripped (13 shipped + legacy test-first.directive.yaml; TEST_FIRST not a graph node, correctly stripped without promotion). Directive/Paradigm/ProcedureStep models + charter.activation.schemas.Directive.applies_to stripped; ProcedureStep model_config extra=forbid preserved. 3 schema YAMLs stripped. graph.yaml: 25 procedure-step 'requires' edges promoted additive-only (zero lines removed from pre-existing edges; root cause — Phase 0 DRG extractor never recursed into procedure.steps[*] — documented and fixed); assert_valid(merge_layers(...)) passes. 396 WP02-scoped pytest cases green. 5 expected inter-WP failures confirmed with documented cause (AttributeError: Directive has no attribute tactic_refs from src/charter/activation/reference_resolver.py:107 — WP03 deletes that file). Mypy baseline at WP01: 107 errs; at WP02: 108 errs — the single new error is the same reference_resolver.py:107 dead-field read that WP03 eliminates (strangler-fig signal, not a WP02 regression). Verifier GREEN on WP02.yaml and index.yaml (blobs restored from commit 8163f8dc for re-verification; subsequent chore commit strips planning artifacts from lane per standard isolation). Fresh grep: tactic_refs/paradigm_refs/applies_to appear only in explanatory docstrings, drg/migration/extractor.py (legacy YAML reader required for promotion), graph.yaml promotion-context comments, charter-doctrine skill docs. Zero hits in shipped doctrine YAMLs or schemas. Zero agent-copy-dir edits. Ephemeral r1 script and missing_edges.yaml deleted. Zero WP03-territory edits (drg/query.py, *validation.py, reference_resolver.py, charter context/resolver/compiler, tests/charter, tests/doctrine/drg, test_shipped_doctrine_cycle_free.py, test_cycle_detection.py, test_artifact_kinds.py untouched).

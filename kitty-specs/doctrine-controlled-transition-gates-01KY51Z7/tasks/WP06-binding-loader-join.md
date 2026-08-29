@@ -132,7 +132,7 @@ test (T031) is MANDATORY, not optional.**
     (`load_validated_graph(context.repo_root)`) → `:181-183`
     (`self._resolve_pack_context(...)` then `filter_graph_by_activation(graph, pack_context)`).
   - `_resolve_pack_context`: `executor.py:259-282` — `PackContext.from_config(repo_root)`
-    (`src/charter/pack_context.py:184`) with **fail-CLOSED** on `OrgPackEnvVarUnsetError` /
+    (`src/charter/activation/pack_context.py:184`) with **fail-CLOSED** on `OrgPackEnvVarUnsetError` /
     `OrgPackSubdirEscapeError` (`executor.py:275`), `None` on other errors. Copy this discipline.
   - `filter_graph_by_activation`: `src/charter/drg.py:433` — returns a copy of the graph limited to
     activated artifacts; `mission_step_contract` nodes survive only when their owning mission type

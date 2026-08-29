@@ -1264,8 +1264,8 @@ def _enforce_charter_activation_gate(wp_meta: WPMetadata, wp_id: str, repo_root:
     profile = wp_meta.agent_profile
     if not profile:
         return
-    from charter.exceptions import CharterActivationError
-    from charter.invocation_context import ProjectContext
+    from charter.activation.exceptions import CharterActivationError
+    from charter.activation.invocation_context import ProjectContext
 
     pack_ctx = ProjectContext.from_repo(repo_root).require_pack_context()
     activated_profiles = pack_ctx.activated_agent_profiles

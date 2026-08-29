@@ -26,7 +26,7 @@ execution_mode: code_change
 model: ''
 owned_files:
 - src/doctrine/resolver.py
-- src/charter/template_resolver.py
+- src/charter/activation/template_resolver.py
 - tests/doctrine/test_resolver.py
 - tests/charter/test_template_resolver.py
 role: ''
@@ -86,7 +86,7 @@ Read before starting:
 - `kitty-specs/up-org-template-fsm-01M06F9K/plan.md` — IC-02's Purpose/Risks; Plan-Time
   Verification's citations for `src/doctrine/resolver.py:47-52` (the enum),
   `src/charter/resolution.py:29` (re-export by identity), and
-  `src/charter/template_resolver.py:165-174` (`_tier_to_origin`'s `tier_prefix` dict).
+  `src/charter/activation/template_resolver.py:165-174` (`_tier_to_origin`'s `tier_prefix` dict).
 
 **This mission is dogfooded inside spec-kitty's own repository — a PUBLIC repo based on `main`.**
 No host paths, no usernames, no absolute local paths in any committed file — sweep your diff before
@@ -184,13 +184,13 @@ exists today, before fixing it.
 **Purpose**: Close DEC-008's gap.
 
 **Steps**:
-1. Open `src/charter/template_resolver.py` and locate `_tier_to_origin`'s `tier_prefix` dict
+1. Open `src/charter/activation/template_resolver.py` and locate `_tier_to_origin`'s `tier_prefix` dict
    (currently around lines 165-174 — re-verify).
 2. Add `ResolutionTier.ORG: "org",` to the dict, in the same style as the existing entries
    (`ResolutionTier.OVERRIDE: "override"`, etc.).
 3. Confirm T008's test now passes (renders `"org/..."`).
 
-**Files**: `src/charter/template_resolver.py`.
+**Files**: `src/charter/activation/template_resolver.py`.
 
 **Parallel?**: No — depends on T008 (red-first).
 
@@ -205,7 +205,7 @@ identified during planning's grounding pass, but was also not exhaustively ruled
    (the two members most likely to appear in an exhaustive chain, being the two most-recently-added
    before this mission) to find candidate call sites:
    ```bash
-   grep -rn "ResolutionTier\." src/ | grep -v "^src/doctrine/resolver.py\|^src/charter/template_resolver.py"
+   grep -rn "ResolutionTier\." src/ | grep -v "^src/doctrine/resolver.py\|^src/charter/activation/template_resolver.py"
    ```
 2. For each hit, check whether it is an exhaustive match (every member has an explicit arm, no
    default/fallback) or has a safe default (like `_tier_to_origin`'s `.get(tier, "unknown")`,
@@ -228,7 +228,7 @@ sweeping against.
 pytest tests/doctrine/test_resolver.py tests/charter/test_template_resolver.py -q
 ```
 FR-002 and FR-012 fall under the **diff-coverage critical-path** list (`src/doctrine/*` is in
-`.github/workflows/ci-quality.yml:3349`'s `--fail-under=90` scope) — `src/charter/template_resolver.py`
+`.github/workflows/ci-quality.yml:3349`'s `--fail-under=90` scope) — `src/charter/activation/template_resolver.py`
 is not `src/doctrine/*`, but treat both with the same rigor.
 
 ## Risks & Mitigations

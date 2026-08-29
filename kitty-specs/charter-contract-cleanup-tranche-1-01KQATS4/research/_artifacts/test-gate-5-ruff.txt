@@ -1,5 +1,5 @@
 F401 [*] `datetime.timezone` imported but unused
-  --> src/charter/evidence/code_reader.py:13:32
+  --> src/charter/activation/evidence/code_reader.py:13:32
    |
 12 | import os
 13 | from datetime import datetime, timezone, UTC
@@ -9,7 +9,7 @@ F401 [*] `datetime.timezone` imported but unused
 help: Remove unused import: `datetime.timezone`
 
 SIM103 Return the condition `bool("tests" in parts or "__tests__" in parts)` directly
-   --> src/charter/evidence/code_reader.py:120:5
+   --> src/charter/activation/evidence/code_reader.py:120:5
     |
 118 |       # Directory-based heuristic
 119 |       parts = rel_path.replace("\\", "/").split("/")
@@ -21,7 +21,7 @@ SIM103 Return the condition `bool("tests" in parts or "__tests__" in parts)` dir
 help: Replace with `return bool("tests" in parts or "__tests__" in parts)`
 
 C901 `_detect` is too complex (16 > 15)
-   --> src/charter/evidence/code_reader.py:176:9
+   --> src/charter/activation/evidence/code_reader.py:176:9
     |
 174 |     # ------------------------------------------------------------------
 175 |
@@ -4469,7 +4469,7 @@ F401 [*] `pathlib.Path` imported but unused
 1 | import pytest
 2 | from pathlib import Path
   |                     ^^^^
-3 | from charter.evidence.corpus_loader import CorpusLoader, CorpusLoaderError
+3 | from charter.activation.evidence.corpus_loader import CorpusLoader, CorpusLoaderError
   |
 help: Remove unused import: `pathlib.Path`
 
@@ -4484,23 +4484,23 @@ F401 [*] `inspect` imported but unused
    |
 help: Remove unused import: `inspect`
 
-F401 [*] `charter.synthesizer.request.SynthesisRequest` imported but unused
+F401 [*] `charter.activation.synthesizer.request.SynthesisRequest` imported but unused
   --> tests/charter/synthesizer/test_adapter_contract.py:19:41
    |
-17 | from charter.synthesizer.adapter import AdapterOutput, SynthesisAdapter
-18 | from charter.synthesizer.fixture_adapter import FixtureAdapter
-19 | from charter.synthesizer.request import SynthesisRequest, SynthesisTarget
+17 | from charter.activation.synthesizer.adapter import AdapterOutput, SynthesisAdapter
+18 | from charter.activation.synthesizer.fixture_adapter import FixtureAdapter
+19 | from charter.activation.synthesizer.request import SynthesisRequest, SynthesisTarget
    |                                         ^^^^^^^^^^^^^^^^
 20 | from datetime import UTC
    |
 help: Remove unused import
 
-F401 [*] `charter.synthesizer.request.SynthesisTarget` imported but unused
+F401 [*] `charter.activation.synthesizer.request.SynthesisTarget` imported but unused
   --> tests/charter/synthesizer/test_adapter_contract.py:19:59
    |
-17 | from charter.synthesizer.adapter import AdapterOutput, SynthesisAdapter
-18 | from charter.synthesizer.fixture_adapter import FixtureAdapter
-19 | from charter.synthesizer.request import SynthesisRequest, SynthesisTarget
+17 | from charter.activation.synthesizer.adapter import AdapterOutput, SynthesisAdapter
+18 | from charter.activation.synthesizer.fixture_adapter import FixtureAdapter
+19 | from charter.activation.synthesizer.request import SynthesisRequest, SynthesisTarget
    |                                                           ^^^^^^^^^^^^^^^
 20 | from datetime import UTC
    |
@@ -4623,7 +4623,7 @@ B017 Do not assert blind exception: `Exception`
 200 |         bundle.collected_at = "2026-01-01T00:00:00+00:00"  # type: ignore[misc]
     |
 
-F401 [*] `charter.synthesizer.request.normalize_request_for_hash` imported but unused
+F401 [*] `charter.activation.synthesizer.request.normalize_request_for_hash` imported but unused
   --> tests/charter/synthesizer/test_fixture_adapter.py:23:5
    |
 21 |     SynthesisTarget,
@@ -4633,7 +4633,7 @@ F401 [*] `charter.synthesizer.request.normalize_request_for_hash` imported but u
 24 |     short_hash,
 25 | )
    |
-help: Remove unused import: `charter.synthesizer.request.normalize_request_for_hash`
+help: Remove unused import: `charter.activation.synthesizer.request.normalize_request_for_hash`
 
 SIM222 Use `True` instead of `... or True`
    --> tests/charter/synthesizer/test_performance_envelopes.py:185:16
@@ -4645,17 +4645,17 @@ SIM222 Use `True` instead of `... or True`
     |
 help: Replace with `True`
 
-F401 [*] `charter.synthesizer.request.SynthesisTarget` imported but unused
+F401 [*] `charter.activation.synthesizer.request.SynthesisTarget` imported but unused
    --> tests/charter/synthesizer/test_performance_envelopes.py:281:49
     |
 279 |     def test_unresolved_selector_repeated_calls_fast(self) -> None:
 280 |         """SC-008: multiple cold-cache calls remain fast (no warm-up required)."""
-281 |         from charter.synthesizer.request import SynthesisTarget
+281 |         from charter.activation.synthesizer.request import SynthesisTarget
     |                                                 ^^^^^^^^^^^^^^^
 282 |
 283 |         artifacts: list[SynthesisTarget] = []
     |
-help: Remove unused import: `charter.synthesizer.request.SynthesisTarget`
+help: Remove unused import: `charter.activation.synthesizer.request.SynthesisTarget`
 
 F401 [*] `pytest` imported but unused
   --> tests/charter/synthesizer/test_request.py:15:8
@@ -4665,7 +4665,7 @@ F401 [*] `pytest` imported but unused
 15 | import pytest
    |        ^^^^^^
 16 |
-17 | from charter.synthesizer.evidence import (
+17 | from charter.activation.synthesizer.evidence import (
    |
 help: Remove unused import: `pytest`
 
@@ -4765,7 +4765,7 @@ SIM117 [*] Use a single `with` statement with multiple contexts instead of neste
  95 |           encoding="utf-8",
  96 |       )
  97 | /     with patch(
- 98 | |         "charter._drg_helpers.resolve_doctrine_root",
+ 98 | |         "charter.activation._drg_helpers.resolve_doctrine_root",
  99 | |         return_value=shipped_root,
 100 | |     ):
 101 | |         with pytest.raises(Exception):  # noqa: B017, assert_valid may raise a variety
@@ -4823,16 +4823,16 @@ C408 Unnecessary `dict()` call (rewrite as a literal)
     |
 help: Rewrite as a literal
 
-F401 [*] `charter.synthesizer.fixture_adapter.FixtureAdapterMissingError` imported but unused
+F401 [*] `charter.activation.synthesizer.fixture_adapter.FixtureAdapterMissingError` imported but unused
    --> tests/charter/test_phase3_integration.py:363:69
     |
 361 | def test_phase3_fixture_adapter_evidence_hash() -> None:
 362 |     """Evidence changes the hash, and the fixture adapter resolves the enriched-evidence fixture."""
-363 |     from charter.synthesizer.fixture_adapter import FixtureAdapter, FixtureAdapterMissingError
+363 |     from charter.activation.synthesizer.fixture_adapter import FixtureAdapter, FixtureAdapterMissingError
     |                                                                     ^^^^^^^^^^^^^^^^^^^^^^^^^^
-364 |     from charter.synthesizer.request import compute_inputs_hash, short_hash
+364 |     from charter.activation.synthesizer.request import compute_inputs_hash, short_hash
     |
-help: Remove unused import: `charter.synthesizer.fixture_adapter.FixtureAdapterMissingError`
+help: Remove unused import: `charter.activation.synthesizer.fixture_adapter.FixtureAdapterMissingError`
 
 F401 [*] `textwrap` imported but unused
   --> tests/charter/test_surface_calibration.py:19:8

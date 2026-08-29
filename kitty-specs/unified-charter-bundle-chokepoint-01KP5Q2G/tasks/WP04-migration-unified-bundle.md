@@ -129,7 +129,7 @@ Reference migrations to study before writing:
            # Lazy imports to avoid cost at registry-discovery time.
            from charter.bundle import CANONICAL_MANIFEST
            from charter.resolution import resolve_canonical_repo_root
-           from charter.sync import ensure_charter_bundle_fresh
+           from charter.activation.sync import ensure_charter_bundle_fresh
 
            canonical_root = resolve_canonical_repo_root(project_path)
            charter_md = canonical_root / ".kittify" / "charter" / "charter.md"
@@ -387,7 +387,7 @@ Reference migrations to study before writing:
 
 - **Scope creep**. The implementer may be tempted to add worktree scanning, symlink removal, or `.gitignore` reconciliation. All three are explicitly dropped in the design-review corrections. If the PR adds any of those behaviors, reject it and reference C-011 / C-012.
 - **Idempotency bug**. Fixture (c) must pass with `applied: False` on second apply. Any stateful side effect — writes to a registry file, a marker file, etc. — risks breaking idempotency.
-- **Mistaken import ordering**. The migration imports `charter.bundle`, `charter.resolution`, `charter.sync` — all lazy (inside `apply()`) to avoid cost at registry-discovery time. Inlining imports at module-top can slow boot and potentially create cycles.
+- **Mistaken import ordering**. The migration imports `charter.bundle`, `charter.resolution`, `charter.activation.sync` — all lazy (inside `apply()`) to avoid cost at registry-discovery time. Inlining imports at module-top can slow boot and potentially create cycles.
 - **Fixture realism**. The FR-013 fixtures must look like real pre-Phase-2 / post-Phase-2 project layouts. An overly synthetic fixture may pass the tests while a real project fails the upgrade.
 
 ## Reviewer guidance

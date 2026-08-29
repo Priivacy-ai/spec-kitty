@@ -41,12 +41,12 @@
 | T008 | Add 8 per-kind reader functions in `pack_context.py` and hook into `from_config()` | WP02 | |
 | T009 | Fix FR-039: remove `and raw` guard from `_read_activated_kinds` + `_read_activated_mission_types`; delete `test_empty_activated_kinds_uses_builtin_fallback` | WP02 | |
 | T010 | Write/extend `test_pack_context.py` to cover all three-state variants for new per-kind fields | WP02 | |
-| T011 | Create `src/charter/invocation_context.py` with `ProjectContext`, `OperationalContext`, `ContextPreconditionError` class bodies | WP03 | |
+| T011 | Create `src/charter/activation/invocation_context.py` with `ProjectContext`, `OperationalContext`, `ContextPreconditionError` class bodies | WP03 | |
 | T012 | Implement `from_repo()` factory and `require_*()` guard methods on `ProjectContext` | WP03 | |
 | T013 | Add 4 `OperationalContext`-family symbols to `_CATEGORY_C_WP_IN_FLIGHT_CHARTER_SCOPE`; update `_baselines.yaml` (FR-024 / FR-040) | WP03 | |
 | T014 | Write `tests/charter/test_invocation_context.py` covering `from_repo()`, guards, and `ContextPreconditionError` | WP03 | |
-| T015 | Create `src/charter/packs/default.yaml` with all 9 activation kinds fully populated with built-in IDs | WP04 | |
-| T016 | Create `src/charter/pack_manager.py` with `ActivationResult`, `MergeResult` value objects and `YAML_KEY_MAP` constant | WP04 | |
+| T015 | Create `src/charter/activation/packs/default.yaml` with all 9 activation kinds fully populated with built-in IDs | WP04 | |
+| T016 | Create `src/charter/activation/pack_manager.py` with `ActivationResult`, `MergeResult` value objects and `YAML_KEY_MAP` constant | WP04 | |
 | T017 | Implement `CharterPackManager.activate()` and `deactivate()` with cascade logic | WP04 | |
 | T018 | Implement `CharterPackManager.list_activated()`, `list_available()`, and `merge_defaults()` | WP04 | |
 | T019 | Write `tests/charter/test_pack_manager.py` | WP04 | |
@@ -60,7 +60,7 @@
 | T027 | Create `list.py` with `charter list` and `--show-available` Rich table output (FR-009, FR-010) | WP06 | |
 | T028 | Create `pack.py` `charter pack consistency-check` subcommand; register all new commands in `_app.py` | WP06 | |
 | T029 | Update/write CLI tests for activate (all 9 kinds), deactivate, list, and pack consistency-check | WP06 | |
-| T030 | Create `src/charter/consistency_check.py` with `ConsistencyReport` and unknown-reference algorithm | WP07 | |
+| T030 | Create `src/charter/activation/consistency_check.py` with `ConsistencyReport` and unknown-reference algorithm | WP07 | |
 | T031 | Implement cross-kind DRG-edge reference validation in `consistency_check.py` | WP07 | |
 | T032 | Implement kind-level duplicate-detection and kind-violation checks | WP07 | |
 | T033 | Write `tests/charter/test_consistency_check.py` with at least one planted violation per check type | WP07 | |
@@ -178,7 +178,7 @@ WP11 subtasks T048–T051 are fully independent and can be executed in any order
 
 ### WP03 — ProjectContext + Invocation Context Module
 
-**Goal**: Create `src/charter/invocation_context.py` with `ProjectContext`, `OperationalContext`, and `ContextPreconditionError`. Pre-allowlist 4 `OperationalContext`-family dead symbols so the architectural ratchet does not reject the new module on first commit.
+**Goal**: Create `src/charter/activation/invocation_context.py` with `ProjectContext`, `OperationalContext`, and `ContextPreconditionError`. Pre-allowlist 4 `OperationalContext`-family dead symbols so the architectural ratchet does not reject the new module on first commit.
 **Priority**: High
 **Dependencies**: WP02
 **Estimated size**: ~300 lines
@@ -202,15 +202,15 @@ WP11 subtasks T048–T051 are fully independent and can be executed in any order
 
 ### WP04 — Default Charter Pack + CharterPackManager
 
-**Goal**: Ship `src/charter/packs/default.yaml` with all 9 activation kinds fully populated with built-in IDs. Implement `CharterPackManager` with `activate()`, `deactivate()`, `list_activated()`, `list_available()`, and `merge_defaults()`.
+**Goal**: Ship `src/charter/activation/packs/default.yaml` with all 9 activation kinds fully populated with built-in IDs. Implement `CharterPackManager` with `activate()`, `deactivate()`, `list_activated()`, `list_available()`, and `merge_defaults()`.
 **Priority**: High
 **Dependencies**: WP02, WP03
 **Estimated size**: ~450 lines
 **Subtasks**: T015–T019
 **Agent profile**: python-pedro
 
-- [x] T015 Create `src/charter/packs/default.yaml` with all 9 activation kinds fully populated
-- [x] T016 Create `src/charter/pack_manager.py` with `ActivationResult`, `MergeResult` value objects and `YAML_KEY_MAP`
+- [x] T015 Create `src/charter/activation/packs/default.yaml` with all 9 activation kinds fully populated
+- [x] T016 Create `src/charter/activation/pack_manager.py` with `ActivationResult`, `MergeResult` value objects and `YAML_KEY_MAP`
 - [x] T017 Implement `CharterPackManager.activate()` and `deactivate()` with cascade logic
 - [x] T018 Implement `CharterPackManager.list_activated()`, `list_available()`, and `merge_defaults()`
 - [x] T019 Write `tests/charter/test_pack_manager.py`
@@ -280,7 +280,7 @@ WP11 subtasks T048–T051 are fully independent and can be executed in any order
 
 ### WP07 — Consistency Check Implementation
 
-**Goal**: Implement `src/charter/consistency_check.py` with `ConsistencyReport` and the full validation algorithm: unknown-reference detection, cross-kind DRG-edge reference validation, kind-level duplicate detection, and kind-violation checks.
+**Goal**: Implement `src/charter/activation/consistency_check.py` with `ConsistencyReport` and the full validation algorithm: unknown-reference detection, cross-kind DRG-edge reference validation, kind-level duplicate detection, and kind-violation checks.
 **Priority**: High
 **Dependencies**: WP03, WP04
 **Estimated size**: ~350 lines
@@ -372,7 +372,7 @@ WP11 subtasks T048–T051 are fully independent and can be executed in any order
 **Implementation Notes**:
 - T044: In `finalize-tasks`, after loading the WP metadata, call `ProjectContext.from_repo()` and then `require_artifact_activated("agent-profile", wp_meta.agent_profile)` if the WP declares an `agent_profile`. Raise `ContextPreconditionError` with a message that names the missing profile and suggests running `charter activate agent-profile <id>`.
 - T045: In `agent action implement`, before creating the worktree, call `ProjectContext.from_repo()` and verify the WP's declared agent profile is activated. This is the last enforcement point before environment creation.
-- T046: Create `src/charter/exceptions.py` (WP10-owned) with `CharterActivationError(RuntimeError)`. When a charter-aware resolution path receives a filtered DRG and the requested artifact is absent from the filtered graph, the caller raises `CharterActivationError` with the artifact identifier, activated set, and resolution command.
+- T046: Create `src/charter/activation/exceptions.py` (WP10-owned) with `CharterActivationError(RuntimeError)`. When a charter-aware resolution path receives a filtered DRG and the requested artifact is absent from the filtered graph, the caller raises `CharterActivationError` with the artifact identifier, activated set, and resolution command.
 - T047: Tests cover: (a) `finalize-tasks` raises on unactivated agent profile; (b) `finalize-tasks` passes when profile is activated; (c) `implement` raises on unactivated profile; (d) `implement` does not raise when no profile declared; (e) DRG hard-fail raises `CharterActivationError` for direct reference to non-activated artifact.
 
 **Risks**: Hard-fail (T046) must distinguish between direct references (hard-fail) and incidental traversal (skip); clarify the distinction in comments before implementing.
@@ -447,9 +447,9 @@ Per DIR-013, the following FRs are verified by grep-checking production call sit
 
 | FR | Call site | File |
 |----|-----------|------|
-| FR-031 | `filter_graph_by_activation` in `_load_action_doctrine_bundle` | `src/charter/context.py` |
-| FR-032 | `filter_graph_by_activation` in `resolve_references_transitively` | `src/charter/reference_resolver.py` |
-| FR-033 | `filter_graph_by_activation` in `_resolve_transitive_reference_graph` | `src/charter/compiler.py` |
+| FR-031 | `filter_graph_by_activation` in `_load_action_doctrine_bundle` | `src/charter/activation/context.py` |
+| FR-032 | `filter_graph_by_activation` in `resolve_references_transitively` | `src/charter/activation/reference_resolver.py` |
+| FR-033 | `filter_graph_by_activation` in `_resolve_transitive_reference_graph` | `src/charter/activation/compiler.py` |
 | FR-034 | `filter_graph_by_activation` in step execution | `src/specify_cli/mission_step_contracts/executor.py` |
 | FR-035 | `DoctrineService` constructed with `pack_context` | `src/specify_cli/cli/commands/charter/generate.py` |
 | FR-036 | `load_org_charter_policies` called with `pack_context` | `src/specify_cli/doctrine/org_charter.py` |

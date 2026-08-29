@@ -47,7 +47,7 @@ for the plan; re-verify with `git grep` if the tree moves.
 ## §3 — CI-red depth (all S; nothing needs splitting) — debugger-debbie
 
 - **KEY CONVERGENCE**: the `'str' object has no attribute 'get'` red AND `test_charter_epic_golden_path` (e2e)
-  are the **same bug** at `src/charter/evidence/orchestrator.py:95-96`: `config.get("charter")` returns a
+  are the **same bug** at `src/charter/activation/evidence/orchestrator.py:95-96`: `config.get("charter")` returns a
   **path string** post-#2773 (config `charter:` key was repurposed to a pointer), then `.get("synthesis_inputs")`
   → AttributeError. `synthesis_inputs`/`url_list` has no live config home post-#2773. **FIX**: `if not
   isinstance(charter_cfg, dict): charter_cfg = {}` (2 lines) + fix the stale docstring (`:82`). Clears the

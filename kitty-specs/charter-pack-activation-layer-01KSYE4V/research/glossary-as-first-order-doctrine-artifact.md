@@ -66,7 +66,7 @@ The `NodeKind.GLOSSARY` kind in `src/doctrine/drg/models.py` (line 38) acknowled
 │  PackContext.activated_glossary_packs: frozenset[str] | None                 │
 │  CharterPackManager.activate("glossary-pack", id, cascade)                  │
 │  charter pack consistency-check: validates glossary pack IDs                 │
-│  src/charter/packs/default.yaml: includes all built-in glossary packs        │
+│  src/charter/activation/packs/default.yaml: includes all built-in glossary packs        │
 └───────────────────────┬─────────────────────────────────────────────────────┘
                         │  seeds / bootstraps
                         ▼
@@ -197,7 +197,7 @@ activated_glossary_packs: frozenset[str] | None = None
 
 `charter activate glossary-pack <id>` and `charter deactivate glossary-pack <id>` follow the same model as all other kinds.
 
-`src/charter/packs/default.yaml` gains:
+`src/charter/activation/packs/default.yaml` gains:
 
 ```yaml
 activated_glossary_packs:

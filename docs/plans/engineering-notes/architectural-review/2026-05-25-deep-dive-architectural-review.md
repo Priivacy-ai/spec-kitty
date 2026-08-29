@@ -75,9 +75,9 @@ They differ in exactly two structural ways:
 ### LD-3 — Charter freshness reads inside the charter_freshness module
 
 **Severity**: MEDIUM (already surfaced as RISK-2 in mission-review)
-**Evidence**: `src/specify_cli/charter_freshness/computer.py:100,103,280,281` — direct reads of `.kittify/charter/synthesis-manifest.yaml` and `.kittify/doctrine/graph.yaml` via `_safe_load_yaml(...)` and `Path.exists()`, bypassing `charter.compiler.ensure_charter_bundle_fresh`. This duplicates the read-and-validate logic the chokepoint already implements.
+**Evidence**: `src/specify_cli/charter_freshness/computer.py:100,103,280,281` — direct reads of `.kittify/charter/synthesis-manifest.yaml` and `.kittify/doctrine/graph.yaml` via `_safe_load_yaml(...)` and `Path.exists()`, bypassing `charter.activation.compiler.ensure_charter_bundle_fresh`. This duplicates the read-and-validate logic the chokepoint already implements.
 
-**Recommended consolidation**: the freshness module should consume a read-only API from `charter.compiler`. Not a single-line rename — but the boundary is wrong.
+**Recommended consolidation**: the freshness module should consume a read-only API from `charter.activation.compiler`. Not a single-line rename — but the boundary is wrong.
 
 ### LD-4 — Three runtime "preflight" modules and one "status" module overlap
 

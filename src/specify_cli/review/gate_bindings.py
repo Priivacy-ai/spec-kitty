@@ -35,7 +35,7 @@ from enum import StrEnum
 from pathlib import Path
 from typing import TYPE_CHECKING, Protocol
 
-from charter._drg_helpers import load_validated_graph
+from charter.activation._drg_helpers import load_validated_graph
 from charter.drg import (
     NodeKind,
     OrgPackEnvVarUnsetError,
@@ -50,7 +50,7 @@ from specify_cli.mission_metadata import resolve_mission_identity
 if TYPE_CHECKING:
     from collections.abc import Callable
 
-    from charter.pack_context import PackContext
+    from charter.activation.pack_context import PackContext
     from charter.drg import DRGGraph
     from charter.mission_steps import GateBinding
 
@@ -262,7 +262,7 @@ def _resolve_pack_context(repo_root: Path) -> PackContext | None:
     is operator-actionable, so it propagates rather than silently degrading to
     an unfiltered graph; any other error leaves the filter optional (``None``).
     """
-    from charter.pack_context import PackContext  # noqa: PLC0415 — mirrors executor
+    from charter.activation.pack_context import PackContext  # noqa: PLC0415 — mirrors executor
 
     try:
         return PackContext.from_config(repo_root)

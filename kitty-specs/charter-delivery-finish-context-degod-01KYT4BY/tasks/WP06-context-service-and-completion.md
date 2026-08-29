@@ -26,22 +26,22 @@ history:
 agent_profile: python-pedro
 authoritative_surface: src/charter/
 create_intent:
-- src/charter/context_json.py
-- src/charter/org_pack_discovery.py
-- src/charter/action_doctrine_bundle.py
-- src/charter/profile_resolution.py
-- src/charter/doctrine_service_builder.py
+- src/charter/activation/context_json.py
+- src/charter/activation/org_pack_discovery.py
+- src/charter/activation/action_doctrine_bundle.py
+- src/charter/activation/profile_resolution.py
+- src/charter/activation/doctrine_service_builder.py
 - tests/charter/test_context_decomposition_completion.py
 - tests/charter/test_context_service_seams.py
 execution_mode: code_change
 model: claude-sonnet-4-6
 owned_files:
-- src/charter/context.py
-- src/charter/context_json.py
-- src/charter/org_pack_discovery.py
-- src/charter/action_doctrine_bundle.py
-- src/charter/profile_resolution.py
-- src/charter/doctrine_service_builder.py
+- src/charter/activation/context.py
+- src/charter/activation/context_json.py
+- src/charter/activation/org_pack_discovery.py
+- src/charter/activation/action_doctrine_bundle.py
+- src/charter/activation/profile_resolution.py
+- src/charter/activation/doctrine_service_builder.py
 - tests/architectural/test_no_dead_symbols.py
 - tests/charter/test_context_decomposition_completion.py
 - tests/charter/test_context_service_seams.py
@@ -72,7 +72,7 @@ Design authority: [`../data-model.md`](../data-model.md), [`../research.md`](../
 ## Subtasks
 
 ### T029 — `context_json.py` + `org_pack_discovery.py` + `action_doctrine_bundle.py`
-Move the JSON-builder privates (`_bundle_root_for_json`, `_relative_json_path`, `_project_charter_json_block`, `_project_directive_entries`, `_load_project_directives`, `_local_directive_entry`, `_maybe_build_doctrine_service`, `_EMPTY_ORG_CHARTER`, `_DirectiveLike`, `_DirectivesConfigLike`) to `src/charter/context_json.py`; the org-pack-discovery cluster to `org_pack_discovery.py`; the action-doctrine-bundle cluster (`_load_action_doctrine_bundle`, `_resolve_action_bundle`, `_ActionDoctrineBundle`) to `action_doctrine_bundle.py`. `__all__` each. Thin `build_charter_context_json` to delegate.
+Move the JSON-builder privates (`_bundle_root_for_json`, `_relative_json_path`, `_project_charter_json_block`, `_project_directive_entries`, `_load_project_directives`, `_local_directive_entry`, `_maybe_build_doctrine_service`, `_EMPTY_ORG_CHARTER`, `_DirectiveLike`, `_DirectivesConfigLike`) to `src/charter/activation/context_json.py`; the org-pack-discovery cluster to `org_pack_discovery.py`; the action-doctrine-bundle cluster (`_load_action_doctrine_bundle`, `_resolve_action_bundle`, `_ActionDoctrineBundle`) to `action_doctrine_bundle.py`. `__all__` each. Thin `build_charter_context_json` to delegate.
 
 ### T030 — `profile_resolution.py` (caches — LAST cluster)
 Move the profile-resolution cluster + module-global caches + `_reset_agent_profile_cache` (+ `_default_agent_profile_repository`, `_activation_aware_profile_map`, `_resolve_agent_profile_record`, `_load_agent_profile`, `_existing_org_roots`, `_profiles_dict_from_service`, `_normalize_directive_id`). Keep the `context.py` FR-009 re-export binding `_reset_agent_profile_cache` by reference. `__all__`.
@@ -88,7 +88,7 @@ Reduce `context.py` to: the 3 public orchestrators + `CharterContextResult` + `B
 
 Create `tests/charter/test_context_decomposition_completion.py` asserting BOTH:
 1. **primary (un-fakeable)**: a seam-existence manifest — each named seam module exists AND is imported by ≥1 non-`context` caller;
-2. **secondary**: `wc -l src/charter/context.py ≤ 600`.
+2. **secondary**: `wc -l src/charter/activation/context.py ≤ 600`.
 Add `tests/charter/test_context_service_seams.py` (focused unit tests). Then:
 ```
 uv run pytest tests/charter/ -q

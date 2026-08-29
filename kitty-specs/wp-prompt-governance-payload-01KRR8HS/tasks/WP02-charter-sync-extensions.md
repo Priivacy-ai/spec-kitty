@@ -23,7 +23,7 @@ authoritative_surface: src/charter/extractor.py
 execution_mode: code_change
 owned_files:
 - src/charter/extractor.py
-- src/charter/sync.py
+- src/charter/activation/sync.py
 - tests/charter/test_sync_references.py
 - tests/charter/test_sync_authority_paths.py
 role: implementer
@@ -111,7 +111,7 @@ construction — the caller (sync orchestration) supplies the lookup.
 In `_extract_directives`, after constructing each `Directive`, populate
 `references=_detect_catalog_references(body, tactic_registry=...)`. The `tactic_registry`
 is the bound predicate `lambda slug: doctrine_service.tactics.get(slug) is not None`
-passed from `charter.sync.sync()`.
+passed from `charter.activation.sync.sync()`.
 
 If no citations are found, the field defaults to `[]` (per the WP01 schema).
 

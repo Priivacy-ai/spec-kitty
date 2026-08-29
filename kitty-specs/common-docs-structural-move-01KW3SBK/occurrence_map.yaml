@@ -127,7 +127,7 @@ exceptions:
   # These resolve a doc/config path at RUNTIME. They land FIRST, each with a
   # test proving the new path resolves, BEFORE any tree move.
 
-  - path: "src/charter/context_renderers/authority_paths.py"
+  - path: "src/charter/activation/context_renderers/authority_paths.py"
     action: manual_review
     reason: >-
       DEFAULT_AUTHORITY_PATHS holds the live literals "architecture/3.x/adr/"
@@ -600,10 +600,10 @@ status:
   runtime_critical_reads:
     # Re-derived live (C-003): genuine runtime path-RESOLUTION reads, not
     # docstring/prose mentions. Land FIRST with resolution tests (NFR-005).
-    - file: "src/charter/context_renderers/authority_paths.py"
+    - file: "src/charter/activation/context_renderers/authority_paths.py"
       literal: "architecture/3.x/adr/"
       note: "ALREADY 3.x-default via #2160/#2115 (back-compat 2.x symlink); verify resolves post-fold."
-    - file: "src/charter/context_renderers/authority_paths.py"
+    - file: "src/charter/activation/context_renderers/authority_paths.py"
       literal: "glossary/contexts/"
       note: "4th read NOT in spec's '~3' — becomes critical when glossary moves to docs/context/ (FR-009/C-006)."
     - file: "src/specify_cli/compat/doctor.py"

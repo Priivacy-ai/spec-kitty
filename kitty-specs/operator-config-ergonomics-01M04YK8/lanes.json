@@ -55,7 +55,7 @@
         "WP03"
       ],
       "write_scope": [
-        "src/charter/compiler.py",
+        "src/charter/activation/compiler.py",
         "src/doctrine/provenance.py",
         "src/specify_cli/cli/commands/_provenance_doctor.py",
         "src/specify_cli/cli/commands/doctor.py",

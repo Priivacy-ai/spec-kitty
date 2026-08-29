@@ -173,9 +173,9 @@ optional charter-layer delivery projection module.
   edge's `when` as the applicability condition, delivered as links-not-bodies.
 - **Relevant requirements**: FR-001, FR-002, FR-003; NFR-003.
 - **Affected surfaces**: `src/doctrine/drg/reachability.py` (`PROFILE_CHANNEL_RELATIONS += SUGGESTS`);
-  `src/charter/progressive_disclosure.py` — **the profile-channel `when`-projection lands here (or a
+  `src/charter/activation/progressive_disclosure.py` — **the profile-channel `when`-projection lands here (or a
   sibling), MANDATORY, NOT inline in context.py (R-M7/D-M7)** — reusing `link_references`/
-  `edge_to_reference`/`STATED_DEFAULT_WHEN`; `src/charter/context.py` (minimal: kind-delivery table entry
+  `edge_to_reference`/`STATED_DEFAULT_WHEN`; `src/charter/activation/context.py` (minimal: kind-delivery table entry
   + call site only); sole consumer `src/doctrine/agent_profiles/repository.py:profile_channel_procedure_ids`
   (widen beyond procedures); **`src/doctrine/drg/migration/hand_authored_overlay.py:534-564` — Family-A
   architect→DDD `when` backfill OWNED HERE (D3/R-M6)**, incl. its Family-A edge-count golden delta (D15).
@@ -273,7 +273,7 @@ optional charter-layer delivery projection module.
   core lane → genuinely parallel.
 - **Relevant requirements**: FR-010 (writer half); NFR-006.
 - **Affected surfaces**: `src/specify_cli/migration/rewrite_opposed_by.py:_write_graph`,
-  `src/charter/synthesizer/project_drg.py:_serialize_graph`, **`src/specify_cli/doctrine/pack_assembler.py`
+  `src/charter/activation/synthesizer/project_drg.py:_serialize_graph`, **`src/specify_cli/doctrine/pack_assembler.py`
   (third, worse site — bypasses the mapping funnel via raw `.model_dump()`)**; `src/specify_cli/
   drg_writers/registry.py` (register + discovery-gate authority); `tests/architectural/
   test_registry_completeness.py` (+ discovery gate + self-mutation battery).
@@ -288,7 +288,7 @@ optional charter-layer delivery projection module.
 - **Purpose**: Replace the `object`-typed repository surfaces with an `ArtifactRepository` Protocol
   (`get`/`get_provenance`) and REMOVE the 12 `# type: ignore[attr-defined]`.
 - **Relevant requirements**: FR-010 (typing half); NFR-005.
-- **Affected surfaces**: `src/charter/progressive_disclosure.py:216,236-237`; `src/charter/context.py`
+- **Affected surfaces**: `src/charter/activation/progressive_disclosure.py:216,236-237`; `src/charter/activation/context.py`
   (10 ignore sites incl. 3515-3518). Concrete repos already satisfy via `BaseDoctrineRepository`.
 - **Sequencing/depends-on**: **AFTER IC-01 AND IC-08 (D12/R-B3)** — it edits the exact `context.py`/
   `progressive_disclosure.py` hunks IC-01 rewrites and IC-08 extracts; NOT parallel, on the critical path.
@@ -316,8 +316,8 @@ optional charter-layer delivery projection module.
 - **Purpose**: Extract the WP13 reference-pointer helpers (+ their module cache) and the WP10/WP11
   delivery-table helpers to `context_renderers/` siblings, behaviour-preserving.
 - **Relevant requirements**: FR-012; NFR-001.
-- **Affected surfaces**: `src/charter/context.py` (1702-1900 reference-pointer; 728-868 delivery-table) →
-  `src/charter/context_renderers/reference_pointers.py` + `delivery_table.py`.
+- **Affected surfaces**: `src/charter/activation/context.py` (1702-1900 reference-pointer; 728-868 delivery-table) →
+  `src/charter/activation/context_renderers/reference_pointers.py` + `delivery_table.py`.
 - **Sequencing/depends-on**: **IC-01** (post-hoc — extracts the FINAL cadence shape IC-01 creates; the
   usual tidy-first ordering is INVERTED here, justified because the code to extract doesn't exist until
   IC-01 lands).

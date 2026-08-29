@@ -13,8 +13,8 @@
 |---|---|---|---|
 | T001 | Extend `DoctrineSelectionConfig` with 5 new `selected_<kind>` fields | WP01 | | [D] |
 | T002 | Extend `OrgCharterPolicy` with 7 new `required_<kind>` fields + `activations` field | WP01 | [D] |
-| T003 | Add `ActivationEntry`, `ALLOWED_MISSION_TYPES`, `ALLOWED_ACTIONS`, `resolve_for_context` in `src/charter/activations.py` | WP01 | [D] |
-| T004 | Extend `_OPTIONAL_EMPTY_OMIT_KEYS` in `src/charter/schemas.py` with 5 new keys for NFR-005 byte-stability | WP01 | | [D] |
+| T003 | Add `ActivationEntry`, `ALLOWED_MISSION_TYPES`, `ALLOWED_ACTIONS`, `resolve_for_context` in `src/charter/activation/activations.py` | WP01 | [D] |
+| T004 | Extend `_OPTIONAL_EMPTY_OMIT_KEYS` in `src/charter/activation/schemas.py` with 5 new keys for NFR-005 byte-stability | WP01 | | [D] |
 | T005 | Unit tests for new schema fields (round-trip empty, round-trip populated, parity) | WP01 | [D] |
 | T006 | Extend `charter.extractor._apply_selection_row` to read the 5 new `selected_<kind>` fields | WP02 | | [D] |
 | T007 | Add `_apply_activations_block` handler reading top-level `activations:` from charter.md fenced YAML | WP02 | | [D] |
@@ -27,15 +27,15 @@
 | T014 | Create `src/charter/resolution.py` re-exporting `ResolutionResult`, `ResolutionTier` | WP03 | [D] |
 | T015 | Create `src/charter/versioning.py` re-exporting `check_bundle_compatibility`, `get_bundle_schema_version` | WP03 | [D] |
 | T016 | Add `tests/architectural/test_charter_facades_reexport_doctrine.py` asserting each facade re-exports the named doctrine symbols | WP03 | [D] |
-| T017 | Add `_render_selected_styleguides` helper in `src/charter/context.py` | WP04 | | [D] |
+| T017 | Add `_render_selected_styleguides` helper in `src/charter/activation/context.py` | WP04 | | [D] |
 | T018 | Add `_render_selected_toolguides`, `_render_selected_procedures`, `_render_selected_agent_profiles`, `_render_selected_mission_step_contracts` helpers | WP04 | | [D] |
 | T019 | Wire all 5 new render helpers into `build_charter_context` after existing directive/tactic renderers | WP04 | | [D] |
 | T020 | Carry provenance metadata (`source: org` / pack name) through new renderers for org-distributed artifacts | WP04 | | [D] |
 | T021 | Unit tests: each new renderer emits ID + body (or fetch + when-doing under overflow); provenance line present for org artifacts | WP04 | [D] |
-| T022 | Add `_render_activation_stanza` helper in `src/charter/context.py` producing the "When you `<action>` in a `<mission_type>` mission, run ..." line | WP05 | | [D] |
-| T023 | Wire activation resolver call (`charter.activations.resolve_for_context`) into `build_charter_context` and render matching entries | WP05 | | [D] |
-| T024 | Populate `tests/architectural/test_trigger_registry_coverage.py::_REGISTERED_TRIGGERS` with the 14-token frozenset per data-model.md §7 + MANDATORY runtime re-export from `src/charter/activations.py` | WP05 | [D] |
-| T024a | Cross-check architectural test `test_trigger_registry_runtime_export_in_sync` asserting byte-identical equality between canonical SSOT frozensets and `charter.activations` runtime re-exports | WP05 | [D] |
+| T022 | Add `_render_activation_stanza` helper in `src/charter/activation/context.py` producing the "When you `<action>` in a `<mission_type>` mission, run ..." line | WP05 | | [D] |
+| T023 | Wire activation resolver call (`charter.activation.activations.resolve_for_context`) into `build_charter_context` and render matching entries | WP05 | | [D] |
+| T024 | Populate `tests/architectural/test_trigger_registry_coverage.py::_REGISTERED_TRIGGERS` with the 14-token frozenset per data-model.md §7 + MANDATORY runtime re-export from `src/charter/activation/activations.py` | WP05 | [D] |
+| T024a | Cross-check architectural test `test_trigger_registry_runtime_export_in_sync` asserting byte-identical equality between canonical SSOT frozensets and `charter.activation.activations` runtime re-exports | WP05 | [D] |
 | T025 | Unit tests: activation stanza emitted on context match; wildcard match works; multiple matches concatenate in declaration order | WP05 | [D] |
 | T026 | Extend `apply_org_charter_to_interview` in `src/specify_cli/doctrine/org_charter.py` to union every `required_<kind>` (7 new) into `interview_data.selected_<kind>` | WP06 | | [D] |
 | T027 | Extend `load_org_charter_policies` merge to handle all 8 `required_<kind>` lists with union-preserving-first-seen-order semantics | WP06 | | [D] |
@@ -52,7 +52,7 @@
 | T038 | Migrate `src/specify_cli/runtime/resolver.py` to `from charter.resolution import ...`; remove from allowlist | WP07 | [D] |
 | T039 | Migrate `src/specify_cli/cli/commands/charter.py`, `charter_bundle.py`, and `upgrade/migrations/m_3_2_6_charter_bundle_v2.py` to `from charter.versioning import ...`; remove from allowlist (or document as ≤ 2 exceptions per C-004) | WP07 | [D] |
 | T040 | Promote `SchemaUtilities` to `src/kernel/schema_utils.py`; migrate `bulk_edit/occurrence_map.py`; remove from allowlist | WP07 | [D] |
-| T041 | Add `MissionTypeProfile` Pydantic model + `load_profile` + `resolve_governance` in `src/charter/mission_type_profiles.py` | WP08 | | [D] |
+| T041 | Add `MissionTypeProfile` Pydantic model + `load_profile` + `resolve_governance` in `src/charter/activation/mission_type_profiles.py` | WP08 | | [D] |
 | T042 | Ship `src/doctrine/missions/software-dev/governance-profile.yaml` mirroring today's `software-dev-default` selections | WP08 | [D] |
 | T043 | Ship `src/doctrine/missions/documentation/governance-profile.yaml` with documentation-flavoured defaults | WP08 | [D] |
 | T044 | Ship `src/doctrine/missions/research/governance-profile.yaml` with minimal defaults | WP08 | [D] |
@@ -74,7 +74,7 @@
 **Dependencies**: none
 **Enables**: WP02, WP04, WP06, WP08, WP09
 
-Extend `DoctrineSelectionConfig` with the 5 new `selected_<kind>` fields and `OrgCharterPolicy` with the 7 new `required_<kind>` fields. Add the new `charter.activations` module with `ActivationEntry`, vocabularies, and resolver. Extend `_OPTIONAL_EMPTY_OMIT_KEYS` for NFR-005 byte-stability.
+Extend `DoctrineSelectionConfig` with the 5 new `selected_<kind>` fields and `OrgCharterPolicy` with the 7 new `required_<kind>` fields. Add the new `charter.activation.activations` module with `ActivationEntry`, vocabularies, and resolver. Extend `_OPTIONAL_EMPTY_OMIT_KEYS` for NFR-005 byte-stability.
 
 **ATDD turns green:**
 - `tests/architectural/test_artifact_selection_completeness.py` — 3/3
@@ -115,7 +115,7 @@ Create the 6 re-export-only modules under `src/charter/` per the facade table in
 **Dependencies**: WP02
 **Enables**: WP05 (re-uses fetch stanza helper)
 
-Add 5 new `_render_selected_<kind>` helpers in `src/charter/context.py`, wire them into `build_charter_context`, carry provenance.
+Add 5 new `_render_selected_<kind>` helpers in `src/charter/activation/context.py`, wire them into `build_charter_context`, carry provenance.
 
 **ATDD turns green:**
 - `tests/integration/test_user_doctrine_artifact_lifecycle.py::test_case_1_project_styleguide_appears_in_implement_prompt`

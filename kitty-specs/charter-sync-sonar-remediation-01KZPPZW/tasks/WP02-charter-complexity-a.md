@@ -26,12 +26,12 @@ create_intent:
 - tests/charter/test_sonar_complexity_a_helpers.py
 execution_mode: code_change
 owned_files:
-- src/charter/evidence/code_reader.py
+- src/charter/activation/evidence/code_reader.py
 - src/specify_cli/charter_runtime/lint/checks/org_layer.py
-- src/charter/context.py
-- src/charter/context_renderers/catalog_diagnosis.py
-- src/charter/compiler.py
-- src/charter/consistency_check.py
+- src/charter/activation/context.py
+- src/charter/activation/context_renderers/catalog_diagnosis.py
+- src/charter/activation/compiler.py
+- src/charter/activation/consistency_check.py
 role: implementer
 tags: []
 tracker_refs: []
@@ -50,12 +50,12 @@ Fix ALL Sonar findings in these 6 charter files (behavior-preserving; no new sup
 
 | File | Findings |
 |------|----------|
-| `src/charter/evidence/code_reader.py` | `S3776`:182 (complexity 33 — the heaviest; extract tested helpers to ≤15) |
+| `src/charter/activation/evidence/code_reader.py` | `S3776`:182 (complexity 33 — the heaviest; extract tested helpers to ≤15) |
 | `src/specify_cli/charter_runtime/lint/checks/org_layer.py` | `S3776`:64 (29) + `S1192` (dup literal → constant) |
-| `src/charter/context.py` | `S3776`:127 (19) + `S3776`:363 (19) — two functions |
-| `src/charter/context_renderers/catalog_diagnosis.py` | `S3776`:61 (20) |
-| `src/charter/compiler.py` | `S3776`:1216 (20) |
-| `src/charter/consistency_check.py` | `S3776`:485 (22) + `S7632`×4 (malformed suppression comments → fix/remove) |
+| `src/charter/activation/context.py` | `S3776`:127 (19) + `S3776`:363 (19) — two functions |
+| `src/charter/activation/context_renderers/catalog_diagnosis.py` | `S3776`:61 (20) |
+| `src/charter/activation/compiler.py` | `S3776`:1216 (20) |
+| `src/charter/activation/consistency_check.py` | `S3776`:485 (22) + `S7632`×4 (malformed suppression comments → fix/remove) |
 
 Refetch: `curl -s "https://sonarcloud.io/api/issues/search?componentKeys=Priivacy-ai_spec-kitty&issueStatuses=OPEN,CONFIRMED&ps=500" | python3 -c "import sys,json;[print(i['component'].split(':',1)[1]+':'+str(i.get('line')),i['rule'],'|',i.get('message','')[:80]) for i in json.load(sys.stdin)['issues'] if any(x in i['component'] for x in ['code_reader','org_layer','charter/context.py','catalog_diagnosis','charter/compiler','consistency_check'])]"`
 

@@ -3,12 +3,12 @@
 Provides ``canonical_yaml`` — a deterministic, sorted-key YAML serializer
 that returns bytes.  Extracted here so it can be used by both
 ``charter.offering.versioning`` (migration hash computation) and
-``charter.synthesizer.synthesize_pipeline`` (artifact-content hashing)
+``charter.activation.synthesizer.synthesize_pipeline`` (artifact-content hashing)
 without creating a circular dependency.
 
 Dependency direction: doctrine is a leaf package. It must NOT import from
 charter.*.  Any code in charter that needs canonical YAML should import from
-``charter.synthesizer.synthesize_pipeline.canonical_yaml`` (which delegates
+``charter.activation.synthesizer.synthesize_pipeline.canonical_yaml`` (which delegates
 here) or call this module directly.
 """
 

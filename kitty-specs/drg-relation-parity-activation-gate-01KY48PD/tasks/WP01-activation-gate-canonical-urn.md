@@ -34,7 +34,7 @@ execution_mode: code_change
 model: claude-sonnet-5
 owned_files:
 - src/charter/drg.py
-- src/charter/pack_context.py
+- src/charter/activation/pack_context.py
 - tests/charter/test_drg_activation_gate.py
 role: implementer
 tags: []
@@ -55,7 +55,7 @@ Fix the **live** activation-gate correctness bug (research.md D1): `_node_is_act
 (`src/charter/drg.py:319`) compares a node's **canonical** id (`DIRECTIVE_001`) against
 `PackContext.activated_directives`, which holds config **stems** (`001-architectural-integrity-standard`).
 They never match, so a populated list drops every directive node. Route the gate through the
-**existing** `charter.kind_vocabulary.resolve_artifact_urn` (stem→canonical), resolving **once per
+**existing** `charter.activation.kind_vocabulary.resolve_artifact_urn` (stem→canonical), resolving **once per
 filter call**, with the public gate signature unchanged. Red-first.
 
 Read before editing: `research.md` (D1, D2), `contracts/activation-gate-contract.md` (the behavioral
@@ -125,7 +125,7 @@ notes"), never per-node.
    per-kind activated set is populated, resolve each **stem → full canonical URN** via
    `resolve_artifact_urn(kind, stem, doctrine_root=<root>, org_roots=<roots>)`. `None` set → keep
    `None` (default-allow).
-2. **Roots (contract, binding)**: `doctrine_root = resolve_doctrine_root()` (from `charter.catalog`
+2. **Roots (contract, binding)**: `doctrine_root = resolve_doctrine_root()` (from `charter.activation.catalog`
    — the SAME source the compiler `references.yaml` projection uses; NOT `pack_roots[0]`).
    `org_roots = list(pack_context.pack_roots[1:])`. Prefer adding a named `PackContext` accessor
    (e.g. `pack_context.org_roots` / `.doctrine_root`) in `pack_context.py` so the gate is not a third
@@ -140,7 +140,7 @@ notes"), never per-node.
    drift. The gate **MUST NOT raise** (it is consumed by five callers incl. the fail-closed
    `_check_graph_kind_parity`).
 
-**Files**: `src/charter/drg.py`, optionally `src/charter/pack_context.py` (accessor). **Validation**:
+**Files**: `src/charter/drg.py`, optionally `src/charter/activation/pack_context.py` (accessor). **Validation**:
 mypy/ruff clean; resolution happens O(kinds×stems), not O(nodes×stems); complexity of the new helper ≤15.
 
 ### T004 — `_node_is_activated` consumes the pre-resolved map (WP01)
@@ -172,7 +172,7 @@ mypy/ruff clean; resolution happens O(kinds×stems), not O(nodes×stems); comple
    not O(nodes)** for a graph with many nodes of one activated kind (proves the resolution is hoisted
    into `filter_graph_by_activation`, not called per-node in `_node_is_activated`).
 3. Run `uv run pytest tests/charter/test_drg_activation_gate.py -q` (all green), then
-   `uv run ruff check src/charter/drg.py src/charter/pack_context.py` and
+   `uv run ruff check src/charter/drg.py src/charter/activation/pack_context.py` and
    `uv run python -m mypy --strict src/charter`.
 
 **Validation**: all WP01 tests green; the root-divergence and batched-once tests are discriminating

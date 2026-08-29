@@ -50,7 +50,7 @@ findings for the addressed rules (except any documented, meaningfully-reduced co
 
 | ID | Title | User Story | Priority | Status |
 |----|-------|------------|----------|--------|
-| FR-001 | Charter ReDoS BLOCKER regex | Simplify the super-linear-backtracking regex at `src/charter/context_renderers/token_budget.py:308` (`S8786`) so it is linear-time AND matches identically (characterization test). | High | Open |
+| FR-001 | Charter ReDoS BLOCKER regex | Simplify the super-linear-backtracking regex at `src/charter/activation/context_renderers/token_budget.py:308` (`S8786`) so it is linear-time AND matches identically (characterization test). | High | Open |
 | FR-002 | Charter complexity | Reduce the 20 `S3776` charter functions (complexity 16-29) toward ≤15 via tested helper extraction, behavior-preserving. | Medium | Open |
 | FR-003 | Charter dup-literals | Hoist the 6 `S1192` charter repeated literals to named module constants. | Medium | Open |
 | FR-004 | Charter suppression comments | Fix or remove the 13 `S7632` malformed suppression comments in charter (prefer removal when the suppression is unnecessary). | Medium | Open |

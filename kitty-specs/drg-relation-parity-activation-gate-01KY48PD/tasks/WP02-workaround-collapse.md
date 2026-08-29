@@ -19,13 +19,13 @@ history:
   agent: system
   action: Prompt generated via /spec-kitty.tasks
 agent_profile: python-pedro
-authoritative_surface: src/charter/consistency_check.py
+authoritative_surface: src/charter/activation/consistency_check.py
 create_intent:
 - tests/charter/test_check_graph_kind_parity.py
 execution_mode: code_change
 model: claude-sonnet-5
 owned_files:
-- src/charter/consistency_check.py
+- src/charter/activation/consistency_check.py
 - tests/charter/test_check_graph_kind_parity.py
 - tests/architectural/_baselines.yaml
 - tests/architectural/test_no_dead_symbols.py
@@ -91,7 +91,7 @@ dead-symbol / dead-module gates and update `_baselines.yaml` counts + `test_no_d
 `test_no_dead_modules.py` entries for any symbol/module the deletions retire (follow the campsite
 pattern: the gate tells you the exact new count; add a `# justification:` line).
 **Validation**: `uv run pytest tests/architectural/test_no_dead_symbols.py tests/architectural/test_no_dead_modules.py tests/architectural/test_ratchet_baselines.py -q` green; then the WP gates:
-`uv run ruff check src/charter/consistency_check.py tests/charter/test_check_graph_kind_parity.py` and
+`uv run ruff check src/charter/activation/consistency_check.py tests/charter/test_check_graph_kind_parity.py` and
 `uv run python -m mypy --strict src/charter` clean (complexity ≤15).
 
 ## Branch Strategy

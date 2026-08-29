@@ -14,7 +14,7 @@ Complete the charter activation model across all 9 doctrine artifact kinds. Phas
 
 **Language/Version**: Python 3.11+  
 **Primary Dependencies**: typer, rich, ruamel.yaml, pydantic v2, pytest, mypy, ruff  
-**Storage**: Filesystem — `.kittify/config.yaml` (activation state), `src/charter/packs/default.yaml` (shipped pack template), `.kittify/charter/backups/` (upgrade backup)  
+**Storage**: Filesystem — `.kittify/config.yaml` (activation state), `src/charter/activation/packs/default.yaml` (shipped pack template), `.kittify/charter/backups/` (upgrade backup)  
 **Testing**: pytest with `fast`, `doctrine`, `architectural` marks; `pytestarch` for layer rules; `pytest-benchmark` for NFR-001 real-I/O performance  
 **Target Platform**: Linux/macOS/Windows (cross-platform, path handling via pathlib)  
 **Project Type**: Single Python package (`src/` layout)  
@@ -142,7 +142,7 @@ Research tasks dispatched from unknowns in Technical Context:
 
 Key entities (detail in `data-model.md`):
 
-- **`CharterPack`**: Immutable value object. Contains `activated_mission_types`, `activated_kinds`, and per-kind artifact lists (`activated_directives`, `activated_tactics`, etc.). Deserialized from `src/charter/packs/default.yaml`.
+- **`CharterPack`**: Immutable value object. Contains `activated_mission_types`, `activated_kinds`, and per-kind artifact lists (`activated_directives`, `activated_tactics`, etc.). Deserialized from `src/charter/activation/packs/default.yaml`.
 - **`PackContext`** (existing, extended): Gains `activated_directives`, `activated_tactics`, `activated_styleguides`, `activated_toolguides`, `activated_paradigms`, `activated_procedures`, `activated_agent_profiles`, `activated_mission_step_contracts` — each a `frozenset[str] | None` (None = all built-ins available). Read from config.yaml; written by `charter activate/deactivate`.
 - **`ActivationKind`**: Enum or Literal over the 9 activatable kinds (singular form used in CLI, plural in `PackContext`).
 - **`CascadeScope`**: Parsed from the `--cascade` flag. Accepts `"all"` or any comma-separated set of CLI kind names (`"directive"`, `"tactic"`, `"styleguide"`, `"toolguide"`, `"paradigm"`, `"procedure"`, `"agent-profile"`, `"mission-step-contract"`). Absent flag = no cascade.

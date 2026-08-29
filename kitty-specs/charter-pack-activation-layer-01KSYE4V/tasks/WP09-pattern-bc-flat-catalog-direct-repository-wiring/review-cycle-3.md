@@ -16,7 +16,7 @@ wp_id: WP09
 
 ## Summary
 
-All cycle-2 blocking issues resolved. `resolve_mission_steps` removed from `__all__` in `src/charter/resolver.py` — function is now module-internal (not a dead public export). No dead symbol. All tests pass, ruff clean.
+All cycle-2 blocking issues resolved. `resolve_mission_steps` removed from `__all__` in `src/charter/activation/resolver.py` — function is now module-internal (not a dead public export). No dead symbol. All tests pass, ruff clean.
 
 ## Items Verified
 

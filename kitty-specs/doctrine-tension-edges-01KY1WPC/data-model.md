@@ -1,7 +1,7 @@
 # Phase 1 Data Model: Doctrine Tension as First-Class DRG Edges
 
-Grounded in the current state of `src/doctrine/drg/models.py`, `src/charter/cascade.py`,
-and `src/charter/consistency_check.py` (read 2026-07-21). Only additive changes are
+Grounded in the current state of `src/doctrine/drg/models.py`, `src/charter/activation/cascade.py`,
+and `src/charter/activation/consistency_check.py` (read 2026-07-21). Only additive changes are
 listed — existing members/fields not mentioned here are untouched.
 
 ## `Relation` (StrEnum) — `src/doctrine/drg/models.py`
@@ -18,7 +18,7 @@ Current members: `REQUIRES`, `SUGGESTS`, `APPLIES`, `SCOPE`, `VOCABULARY`,
 | `RECONCILES_TENSION` | `"reconciles_tension"` | Directional, active-artefact → one side of a tension pair. A pair is resolved only when an active artefact has this edge to BOTH sides (FR-002). |
 | `REJECTS` | `"rejects"` | Directional, artefact → anti-pattern/smell node. Distinct from `IN_TENSION_WITH` (not symmetric — a good pattern rejects a bad one, they do not compete as equals) and from `REPLACES`/supersession. |
 
-All three are **excluded** from `src/charter/cascade.py::REFERENCE_RELATIONS`
+All three are **excluded** from `src/charter/activation/cascade.py::REFERENCE_RELATIONS`
 (currently `frozenset({Relation.REQUIRES, Relation.SUGGESTS, Relation.REFINES})`) —
 by omission, not by adding a denylist check. FR-013's regression test asserts
 `{IN_TENSION_WITH, RECONCILES_TENSION, REJECTS} & REFERENCE_RELATIONS == frozenset()`.
@@ -61,7 +61,7 @@ covers the finer distinction (see below).
 - Activation filter `_node_is_activated` — anti-pattern nodes must be excluded from
   normal activation cascading (an anti-pattern is referenced by `rejects`, never
   activated as a live rule).
-- Cascade `_kind_of` (`src/charter/cascade.py`) — recognize the new `ArtifactKind`
+- Cascade `_kind_of` (`src/charter/activation/cascade.py`) — recognize the new `ArtifactKind`
   value so exclusivity computation (`deactivation_plan`) does not mis-bucket it.
 
 ## `DRGNode` — `src/doctrine/drg/models.py`
@@ -85,7 +85,7 @@ approach for `smell`, `"smell" in target.tags`). Violation is a validation error
 a warning — `rejects` at an unmarked node is a spec-defined error case (Edge Cases:
 "`rejects` at an unmarked node").
 
-## `ConsistencyReport` — `src/charter/consistency_check.py`
+## `ConsistencyReport` — `src/charter/activation/consistency_check.py`
 
 Current fields include `coherent: bool`, `unknown_references`,
 `missing_from_doctrine`, `kind_violations`, `reference_id_divergences`,

@@ -22,8 +22,8 @@ agent_profile: python-pedro
 authoritative_surface: src/charter/context_renderers/
 execution_mode: code_change
 owned_files:
-- src/charter/context_renderers/authority_paths.py
-- src/charter/context_renderers/section_bodies.py
+- src/charter/activation/context_renderers/authority_paths.py
+- src/charter/activation/context_renderers/section_bodies.py
 - tests/charter/test_context_authority_paths.py
 - tests/charter/test_context_section_bodies.py
 role: implementer
@@ -34,7 +34,7 @@ shell_pid: "1153285"
 
 ## Objective
 
-Extend `charter.context` so the bootstrap render emits two structural sections that the
+Extend `charter.activation.context` so the bootstrap render emits two structural sections that the
 ATDD suite requires:
 
 1. `Project authority paths:` — bulleted list naming `glossary/contexts/` and
@@ -58,13 +58,13 @@ ATDD tests turned green by this WP:
 ## Module organisation note
 
 To keep ownership boundaries clean between WP03, WP04, and WP05 (all of which extend
-`src/charter/context.py`), the helpers introduced here MUST live in a new submodule
+`src/charter/activation/context.py`), the helpers introduced here MUST live in a new submodule
 `src/charter/context_renderers/`:
 
-- `src/charter/context_renderers/authority_paths.py` — `_render_authority_paths` (T014)
-- `src/charter/context_renderers/section_bodies.py` — `_render_critical_section_bodies` (T015)
+- `src/charter/activation/context_renderers/authority_paths.py` — `_render_authority_paths` (T014)
+- `src/charter/activation/context_renderers/section_bodies.py` — `_render_critical_section_bodies` (T015)
 
-`src/charter/context.py` imports from this submodule. The wiring change to
+`src/charter/activation/context.py` imports from this submodule. The wiring change to
 `_render_bootstrap_text` in T016 is a small edit to `context.py` (a few lines: import +
 call); this is intentionally narrow so it does not cross the WP03 / WP05 ownership
 slices.
@@ -73,7 +73,7 @@ slices.
 
 ## Context
 
-The bootstrap and compact renderers in `src/charter/context.py` already emit several
+The bootstrap and compact renderers in `src/charter/activation/context.py` already emit several
 sections (`Charter Context (Bootstrap):`, `Policy Summary:`, `Action Doctrine:`,
 `Reference Docs:`). The mission's contract (data-model.md §3) inserts two new sections
 between `Policy Summary:` and `Action Doctrine:`:
@@ -101,7 +101,7 @@ headers as anchors.
 
 ## Subtask T014 — Add `_render_authority_paths(repo_root, doctrine_selection)`
 
-**File**: `src/charter/context.py`
+**File**: `src/charter/activation/context.py`
 
 ```python
 _DEFAULT_AUTHORITY_PATHS: dict[str, str] = {
@@ -131,7 +131,7 @@ The when-doing copy for non-default (charter-declared) paths defaults to:
 
 ## Subtask T015 — Add `_render_critical_section_bodies(charter_content, action)`
 
-**File**: `src/charter/context.py`
+**File**: `src/charter/activation/context.py`
 
 ```python
 _ACTION_CRITICAL_SECTIONS: dict[str, list[str]] = {
@@ -176,7 +176,7 @@ When-doing copy per section (must match the contract in
 
 ## Subtask T016 — Wire both renderers into `_render_bootstrap_text` and the compact surface
 
-**File**: `src/charter/context.py`
+**File**: `src/charter/activation/context.py`
 
 In `_render_bootstrap_text`, after the `Policy Summary:` block and before the existing
 `Action Doctrine:` block, splice in the output of `_render_authority_paths` and then
@@ -268,6 +268,6 @@ Check that:
 ## Activity Log
 
 - 2026-05-16T12:39:05Z – claude:opus-4-7:python-pedro:implementer – shell_pid=1138959 – Started implementation via action command
-- 2026-05-16T12:54:15Z – claude:opus-4-7:python-pedro:implementer – shell_pid=1138959 – Ready for review: context_renderers/ submodule with render_authority_paths (FR-003) and render_critical_section_bodies (FR-001) wired into bootstrap + compact paths in src/charter/context.py. 3 ATDD tests + 1 bonus turned GREEN, 11 unit tests added, 8/8 layer rules pass, ruff clean, mypy unchanged from baseline.
+- 2026-05-16T12:54:15Z – claude:opus-4-7:python-pedro:implementer – shell_pid=1138959 – Ready for review: context_renderers/ submodule with render_authority_paths (FR-003) and render_critical_section_bodies (FR-001) wired into bootstrap + compact paths in src/charter/activation/context.py. 3 ATDD tests + 1 bonus turned GREEN, 11 unit tests added, 8/8 layer rules pass, ruff clean, mypy unchanged from baseline.
 - 2026-05-16T12:54:48Z – codex:gpt-4o:reviewer-renata:reviewer – shell_pid=1153285 – Started review via action command
 - 2026-05-16T12:56:46Z – codex:gpt-4o:reviewer-renata:reviewer – shell_pid=1153285 – Review passed: All DoD met. context_renderers submodule with render_authority_paths (FR-003) and render_critical_section_bodies (FR-001) properly wired into_render_bootstrap_text (lines 350, 358) and _render_compact_governance (lines 1012, 1023). 11/11 unit tests pass, 8/8 layer rules pass, 19/23 ATDD pass (4 reds scoped to WP05/06/07). C-001 layer check clean (0 specify_cli imports in src/charter/context_renderers/). 4 ATDD tests turned green: regression_vigilance_body_or_fetch_with_when_doing_rule, references_glossary_path, references_adr_path, implement_prompt_self_sufficiency (bonus).

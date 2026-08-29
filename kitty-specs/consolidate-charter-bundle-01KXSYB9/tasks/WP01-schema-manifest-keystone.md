@@ -22,14 +22,14 @@ history: []
 agent_profile: python-pedro
 authoritative_surface: src/charter/
 create_intent:
-- src/charter/charter_yaml_io.py
+- src/charter/activation/charter_yaml_io.py
 - tests/charter/test_charter_yaml_model.py
 - tests/charter/test_charter_yaml_io.py
 execution_mode: code_change
 owned_files:
-- src/charter/schemas.py
+- src/charter/activation/schemas.py
 - src/charter/bundle.py
-- src/charter/charter_yaml_io.py
+- src/charter/activation/charter_yaml_io.py
 - tests/charter/test_bundle_manifest_model.py
 - tests/charter/test_charter_yaml_model.py
 - tests/charter/test_charter_yaml_io.py
@@ -53,7 +53,7 @@ Author the **keystone** of the charter-bundle inversion: the `CharterYaml` struc
 
 ## Context / grounding
 
-- `src/charter/schemas.py:124 GovernanceConfig`, `:166 DirectivesConfig` — reuse as nested sub-models.
+- `src/charter/activation/schemas.py:124 GovernanceConfig`, `:166 DirectivesConfig` — reuse as nested sub-models.
 - `src/charter/bundle.py:34-52` (`SCHEMA_VERSION`, `BUNDLE_CONTENT_HASH_FILES`, filename constants), `:69-104 CharterBundleManifest` + `_validate:82-88`, `:107-125 CANONICAL_MANIFEST`, `:133 compute_bundle_content_hash`.
 - Filename constants are duplicated: `bundle.py:36-51` (Path-form) + `sync.py:43-44` (str-form) — unify into one shared constant (campsite; do NOT re-scatter the new `charter.yaml` name).
 
@@ -73,7 +73,7 @@ Author the **keystone** of the charter-bundle inversion: the `CharterYaml` struc
 - **`first_missing_bundle_file` (`bundle.py:187`, #2758) — disposition (post-tasks squad)**: KEEP it. Once `BUNDLE_CONTENT_HASH_FILES = ("charter.yaml",)` it **auto-narrows** to a `charter.yaml` existence check — i.e. it becomes the desired fail-loud "charter.yaml missing" guard (C-003). Its caller (`_synthesis.py`) is re-messaged by WP03; its test assertion is updated by WP04. Do NOT delete it (it is NOT in `computer.py` — WP06 does not own it).
 - **Validation**: `tests/charter/test_bundle_manifest_model.py` + `tests/cli/commands/test_charter_bundle_coverage.py` — manifest v2 constructs + validates; `derived_files == []`; `content_hash_files == [charter.yaml]`.
 
-### T003 — Shared write helper (`src/charter/charter_yaml_io.py`, NEW — INV-9)
+### T003 — Shared write helper (`src/charter/activation/charter_yaml_io.py`, NEW — INV-9)
 - Implement `load → mutate-owned-section → round-trip-save` for charter.yaml using **ruamel round-trip** (comment/format preserving). API shape: a function/class that loads charter.yaml, lets a caller mutate ONE named section (`governance` | `directives` | `catalog` | `activation` | `metadata` | `overrides`), and saves while preserving all other sections **byte-for-byte**.
 - This is the ONLY writer path WP02 (activation), WP03 (catalog/metadata), and merge_defaults use. It structurally prevents the internal clobber (Landmine 3).
 - Keep it in `src/charter/` (C-002: no `specify_cli` import).

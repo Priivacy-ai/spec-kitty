@@ -12,7 +12,7 @@
 Write activation state changes directly to `.kittify/config.yaml` under the `activated_kinds` and `mission_type_activations` keys. Retire the override-files write path for activation state.
 
 ### Rationale
-`PackContext.from_config()` (`src/charter/pack_context.py:112`) reads exclusively from `.kittify/config.yaml`. The Phase 1 `charter activate mission-type` implementation writes to `.kittify/overrides/mission-types/<id>.yaml`, which `PackContext` never reads. There is no code path that syncs override files back into config.yaml. The gap is architectural: two write paths with only one read path. Consolidating to config.yaml is the minimal fix.
+`PackContext.from_config()` (`src/charter/activation/pack_context.py:112`) reads exclusively from `.kittify/config.yaml`. The Phase 1 `charter activate mission-type` implementation writes to `.kittify/overrides/mission-types/<id>.yaml`, which `PackContext` never reads. There is no code path that syncs override files back into config.yaml. The gap is architectural: two write paths with only one read path. Consolidating to config.yaml is the minimal fix.
 
 ### Reader Gap Root Cause
 - `charter_activate.py:activate_mission_type_override()` writes `.kittify/overrides/mission-types/<id>.yaml`
@@ -42,9 +42,9 @@ Resolved via `load_validated_graph()` → `resolve_context()` from `doctrine.drg
 
 | Call Site | File | Line | Fix |
 |-----------|------|------|-----|
-| `_load_action_doctrine_bundle()` | `src/charter/context.py` | 523 | Pass `pack_context`; call `filter_graph_by_activation(merged, pack_context)` before `resolve_context()` |
-| `resolve_references_transitively()` | `src/charter/reference_resolver.py` | 40 | Pass `pack_context`; filter before `resolve_transitive_refs()` |
-| `_resolve_transitive_reference_graph()` | `src/charter/compiler.py` | 499 | Pass `pack_context`; filter after load |
+| `_load_action_doctrine_bundle()` | `src/charter/activation/context.py` | 523 | Pass `pack_context`; call `filter_graph_by_activation(merged, pack_context)` before `resolve_context()` |
+| `resolve_references_transitively()` | `src/charter/activation/reference_resolver.py` | 40 | Pass `pack_context`; filter before `resolve_transitive_refs()` |
+| `_resolve_transitive_reference_graph()` | `src/charter/activation/compiler.py` | 499 | Pass `pack_context`; filter after load |
 | `executor.py` step execution | `src/specify_cli/mission_step_contracts/executor.py` | 170 | Pass `pack_context`; filter before `resolve_context()` |
 
 The `drg.py` inline comment block (lines 712–738) explicitly documents that `filter_graph_by_activation` is the FR-018 access point for runtime resolvers.
@@ -88,9 +88,9 @@ The activation filter must therefore be wired in **two places** for paradigm/pro
 
 ### Confirmed Production Wiring Sites
 Priority order (highest impact first):
-1. `src/charter/context.py:523` — action doctrine bundle load → feeds directive/tactic/styleguide/toolguide to prompt rendering
-2. `src/charter/reference_resolver.py:40` — transitive reference resolution
-3. `src/charter/compiler.py:499` — charter compilation
+1. `src/charter/activation/context.py:523` — action doctrine bundle load → feeds directive/tactic/styleguide/toolguide to prompt rendering
+2. `src/charter/activation/reference_resolver.py:40` — transitive reference resolution
+3. `src/charter/activation/compiler.py:499` — charter compilation
 4. `src/specify_cli/mission_step_contracts/executor.py:170` — step contract execution
 
 The DRG comment block explicitly names these callers as required (lines 712–738): "callers that need activation filtering MUST call filter_graph_by_activation explicitly."
@@ -113,7 +113,7 @@ The DRG comment block explicitly names these callers as required (lines 712–73
 2. Wire in the runtime path where action sequences drive step execution — `specify_cli/next/` or `charter/mission_type_profiles.py` should call `MissionStepRepository.default().resolve(mission_type_id, step_id, pack_context)` for org/project step overrides
 
 ### C-004 Fix
-`src/doctrine/missions/mission_step_repository.py:43` has `if TYPE_CHECKING: from charter.pack_context import PackContext`. This violates the `doctrine ← charter` isolation rule (pytestarch follows TYPE_CHECKING imports).
+`src/doctrine/missions/mission_step_repository.py:43` has `if TYPE_CHECKING: from charter.activation.pack_context import PackContext`. This violates the `doctrine ← charter` isolation rule (pytestarch follows TYPE_CHECKING imports).
 
 Correct fix (per FR-020):
 1. Define a narrow `ProjectContextProtocol` in `src/doctrine/missions/` matching only the fields `MissionStepRepository` actually uses. Code inspection confirmed the only `PackContext` accesses are:
@@ -176,7 +176,7 @@ apply():
     backup to .kittify/charter/backups/charter-{timestamp}.md
     warn user: "Existing charter backed up. Defaults merged. Review recommended."
   
-  read src/charter/packs/default.yaml
+  read src/charter/activation/packs/default.yaml
   for each per-kind key K in _PER_KIND_KEYS:
     if K is absent from config.yaml:
       write K ← all built-in IDs for that kind from default pack
@@ -193,7 +193,7 @@ apply():
   # Do NOT let FileNotFoundError propagate as an unformatted exception
 ```
 
-The default pack values come from `src/charter/packs/default.yaml` (new file). The migration reads it at runtime (not hardcoded inline) so it stays in sync with any future updates to the shipped pack.
+The default pack values come from `src/charter/activation/packs/default.yaml` (new file). The migration reads it at runtime (not hardcoded inline) so it stays in sync with any future updates to the shipped pack.
 
 **After migration, no per-kind field is `None`.** Every kind has an explicit activation frozenset populated from the default pack. The `None` = all-built-ins fallback applies only to pre-migration projects that have not yet run `spec-kitty upgrade`. Post-upgrade, the hard-restriction model is fully active for all kinds.
 

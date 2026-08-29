@@ -17,13 +17,13 @@ history:
   actor: system
   action: Prompt generated via /spec-kitty.tasks
 agent_profile: python-pedro
-authoritative_surface: src/charter/mission_type_profiles.py
+authoritative_surface: src/charter/activation/mission_type_profiles.py
 create_intent:
 - tests/charter/test_mission_type_activation_gating.py
 execution_mode: code_change
 model: ''
 owned_files:
-- src/charter/mission_type_profiles.py
+- src/charter/activation/mission_type_profiles.py
 - tests/charter/test_mission_type_activation_gating.py
 role: implementer
 tags: []
@@ -52,11 +52,11 @@ Gate the `mission-type` token — the 10th of 10 doctrine-artifact kinds, and th
 (FR-006). **This is NOT a copy of WP07's pattern — read the Context section before starting.**
 
 **Success criteria**:
-- Activation filtering added entirely within `charter.mission_type_profiles.resolve_mission_type_context()`
+- Activation filtering added entirely within `charter.activation.mission_type_profiles.resolve_mission_type_context()`
   — this WP does NOT touch `MissionTypeProfileRepository`/`mission_type_profile_repository.py` at all (that
   file is WP06's exclusive ownership for the unrelated `builtin_missions_root()` delegate; keeping this WP's
   filtering logic entirely in `resolve_mission_type_context()` avoids a real ownership overlap) — and
-  **not** a new property on `charter.resolver.DoctrineService` (see
+  **not** a new property on `charter.activation.resolver.DoctrineService` (see
   `contracts/charter-doctrine-service-contract.md`'s "Explicitly NOT on this class" section — do not add a
   `mission_types` property there as a shortcut).
 - A bare-project regression test proves **set-equality** against `builtin_mission_type_id_set()` — not a
@@ -66,7 +66,7 @@ Gate the `mission-type` token — the 10th of 10 doctrine-artifact kinds, and th
 ## Context & Constraints
 
 - Read `research.md`'s D4 finding in full: `PackContext.activated_mission_types`
-  (`src/charter/pack_context.py:120`) is a plain `frozenset[str]`, **never `None`** —
+  (`src/charter/activation/pack_context.py:120`) is a plain `frozenset[str]`, **never `None`** —
   `_read_activated_mission_types` already collapses "key absent" to `builtin_mission_type_id_set()` at
   `PackContext` construction time. The three-state semantics (`None`/`frozenset()`/`{ids}`) the other 9
   kinds use **do not apply here** — do not attempt to force this token into that pattern.
@@ -87,7 +87,7 @@ Gate the `mission-type` token — the 10th of 10 doctrine-artifact kinds, and th
 - **Purpose**: The actual gating logic, on the correct function — without touching
   `MissionTypeProfileRepository`'s own file (ownership boundary with WP06).
 - **Steps**:
-  1. Read `charter.mission_type_profiles.resolve_mission_type_context()` in full, and read
+  1. Read `charter.activation.mission_type_profiles.resolve_mission_type_context()` in full, and read
      `MissionTypeProfileRepository` (in `mission_type_profile_repository.py`) for context only — do not
      edit that file.
   2. Add filtering logic, entirely within `mission_type_profiles.py`, that intersects the available
@@ -96,10 +96,10 @@ Gate the `mission-type` token — the 10th of 10 doctrine-artifact kinds, and th
      when nothing was authored, a straightforward intersection naturally gives the correct bare-project
      behaviour (full set) and correct activated-subset behaviour (narrowed set) without needing three-state
      branching.
-  3. Do not add a `mission_types` property to `charter.resolver.DoctrineService` — that is explicitly
+  3. Do not add a `mission_types` property to `charter.activation.resolver.DoctrineService` — that is explicitly
      forbidden by the pinned contract (a different entry point for a different shape of gating is the
      correct design here, not a shortcut to avoid).
-- **Files**: `src/charter/mission_type_profiles.py`.
+- **Files**: `src/charter/activation/mission_type_profiles.py`.
 - **Parallel?**: No — foundational for T035-T036.
 
 ### Subtask T035 – Bare-project regression test: set-equality
@@ -122,7 +122,7 @@ Gate the `mission-type` token — the 10th of 10 doctrine-artifact kinds, and th
 ## Test Strategy
 
 - `pytest tests/charter/ -v`.
-- `mypy --strict src/charter/mission_type_profile_repository.py src/charter/mission_type_profiles.py`.
+- `mypy --strict src/charter/activation/mission_type_profile_repository.py src/charter/activation/mission_type_profiles.py`.
 
 ## Risks & Mitigations
 
@@ -135,7 +135,7 @@ Gate the `mission-type` token — the 10th of 10 doctrine-artifact kinds, and th
 
 ## Review Guidance
 
-- Confirm no new property was added to `charter.resolver.DoctrineService`.
+- Confirm no new property was added to `charter.activation.resolver.DoctrineService`.
 - Confirm T035's assertion is set-equality, not a 4-item subset check.
 - Confirm T036 actually activates a proper subset (not the full set) to prove filtering occurs.
 

@@ -37,7 +37,7 @@ Contracts below).
 ## Technical Context
 
 **Language/Version**: Python 3.11+ (`pyproject.toml:7` — `requires-python = ">=3.11"`, matches charter.md's Technical Standards)
-**Primary Dependencies**: no new third-party dependency. Touches `runtime.next.runtime_bridge_cores` / `runtime_bridge_composition` / `runtime_bridge` (kernel-adjacent runtime seam), `charter.mission_type_key` (`canonical_mission_type_key`), `charter.mission_type_profiles` (`existing_mission_types`), `doctrine.missions.mission_type_repository` (`MissionTypeRepository`), `specify_cli.core.paths` (`load_meta_fail_closed`, `MissionMetaReadError`), `typer` (new CLI command)
+**Primary Dependencies**: no new third-party dependency. Touches `runtime.next.runtime_bridge_cores` / `runtime_bridge_composition` / `runtime_bridge` (kernel-adjacent runtime seam), `charter.activation.mission_type_key` (`canonical_mission_type_key`), `charter.activation.mission_type_profiles` (`existing_mission_types`), `doctrine.missions.mission_type_repository` (`MissionTypeRepository`), `specify_cli.core.paths` (`load_meta_fail_closed`, `MissionMetaReadError`), `typer` (new CLI command)
 **Storage**: none new — reads existing `meta.json` / `.kittify/config.yaml` / doctrine mission-type YAML; no schema, no DB
 **Testing**: pytest, targeted surface only (see Gate Set below) — `tests/runtime/test_bridge_cores.py`, `tests/runtime/test_bridge_composition.py`, `tests/next/`, `tests/specify_cli/next/`, `tests/integration/test_custom_mission_runtime_walk.py`, new `tests/specify_cli/cli/commands/test_doctor_mission_type.py`, plus `tests/specify_cli/cli/commands/test_doctor_cli_surface_golden.py` (frozen-contract update, see Contracts)
 **Target Platform**: Linux/macOS/Windows developer CLI (charter Deployment and Constraints)
@@ -106,7 +106,7 @@ noted explicitly):
     their four evaluator functions (`Callable` is already imported at line 73 —
     zero new imports).
   - Add `class UnregisteredMissionFamilyError(ValueError)` — a **new, local**
-    exception, deliberately NOT importing or reusing `charter.mission_type_profiles.UnknownMissionTypeError`.
+    exception, deliberately NOT importing or reusing `charter.activation.mission_type_profiles.UnknownMissionTypeError`.
     Two independent reasons: (1) this module's own zero-dependency-leaf
     invariant forbids importing `charter` at all; (2) the two exceptions answer
     different questions at different layers — `UnknownMissionTypeError` is
@@ -121,7 +121,7 @@ noted explicitly):
     different layers with no other code-level link between them, the
     implementation's docstring for `UnregisteredMissionFamilyError` must
     include a one-line cross-reference comment naming the sibling explicitly —
-    e.g. "Sibling concept: `charter.mission_type_profiles.UnknownMissionTypeError`
+    e.g. "Sibling concept: `charter.activation.mission_type_profiles.UnknownMissionTypeError`
     — same shape (ValueError carrying the offending string), different layer
     (runtime guard-family dispatch vs charter mission-type resolution);
     intentionally not unified, see plan.md's Seam & Module Placement for the

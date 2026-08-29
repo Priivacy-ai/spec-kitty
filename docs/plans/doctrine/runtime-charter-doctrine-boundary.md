@@ -68,12 +68,12 @@ Counted via `rg "^from doctrine|^import doctrine"` against `src/specify_cli/`.
 
 For reference, `src/charter/` has 20 doctrine imports — these are the legitimate proxy surface. They already cover most of the territory the runtime needs:
 
-- Agent profiles (`charter.context` imports `doctrine.agent_profiles`)
-- DRG loading + validation (`charter._drg_helpers`, `charter.synthesizer.*`, `charter.reference_resolver`)
-- Template / mission resolution (`charter.template_resolver` imports `doctrine.missions.repository`, `doctrine.resolver`)
+- Agent profiles (`charter.activation.context` imports `doctrine.agent_profiles`)
+- DRG loading + validation (`charter.activation._drg_helpers`, `charter.activation.synthesizer.*`, `charter.activation.reference_resolver`)
+- Template / mission resolution (`charter.activation.template_resolver` imports `doctrine.missions.repository`, `doctrine.resolver`)
 - Versioning (`charter.extractor` imports `doctrine.versioning`)
-- Shared scoping helpers (`charter.catalog`, `charter.language_scope` import `doctrine.shared.scoping`)
-- SPDD reasons (`charter.context` imports `doctrine.spdd_reasons`)
+- Shared scoping helpers (`charter.activation.catalog`, `charter.activation.language_scope` import `doctrine.shared.scoping`)
+- SPDD reasons (`charter.activation.context` imports `doctrine.spdd_reasons`)
 
 The charter is *almost* already the proxy. The runtime's 22 direct imports largely duplicate access paths the charter already has internally; the migration is a re-routing exercise more than a build-from-scratch exercise.
 
@@ -120,7 +120,7 @@ The test walks AST per file under `src/specify_cli/`, flags every direct `from d
 Add the following surfaces to the charter layer:
 
 1. `charter.profiles.resolve(...)` — proxies `doctrine.agent_profiles.AgentProfileRepository` lookups; takes an activation context (mission_type, action) and returns the resolved profile + its accessible doctrine artifact set per the charter's selection.
-2. `charter.mission_steps.resolve(...)` — proxies `doctrine.mission_step_contracts.repository.MissionStepContractRepository`; the charter already template-resolves mission steps in `charter.template_resolver`, so this is a thin re-export.
+2. `charter.mission_steps.resolve(...)` — proxies `doctrine.mission_step_contracts.repository.MissionStepContractRepository`; the charter already template-resolves mission steps in `charter.activation.template_resolver`, so this is a thin re-export.
 3. `charter.drg.load_for(...)` — proxies `doctrine.drg.loader.load_graph` + `merge_layers` per context; charter already does this in `_drg_helpers.load_validated_graph` — make it public.
 4. `charter.primitives.execute(...)` — proxies `doctrine.missions.execute_with_glossary`.
 5. `charter.resolution.{ResolutionResult, ResolutionTier}` — re-export the types from `doctrine.resolver` so callers can keep their type annotations.

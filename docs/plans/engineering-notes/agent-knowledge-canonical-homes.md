@@ -97,7 +97,7 @@ its existing canonical home, and add one modest CLI build to close the Common Do
 ## Key evidence paths
 
 `src/specify_cli/core/worktree.py`, `src/specify_cli/upgrade/migrations/m_3_1_1_charter_rename.py`,
-`src/doctrine/templates/AGENTS.md`, `.kittify/memory/`, `src/charter/context.py`,
+`src/doctrine/templates/AGENTS.md`, `.kittify/memory/`, `src/charter/activation/context.py`,
 `src/doctrine/service.py`, `src/doctrine/drg/query.py`, `scripts/docs/inventory_lockfile.py`,
 `docs/development/3-2-page-inventory.yaml`, `src/glossary/store.py`,
 `src/specify_cli/dossier/api.py`, `src/specify_cli/dashboard/server.py`.

@@ -57,7 +57,7 @@ tags: []
 
 ## Objective
 
-Establish the v1.0.0 typed bundle manifest as the authoritative declaration of which files `src/charter/sync.py :: sync()` materializes, publish the architecture §6 doc that describes the unified bundle contract and the canonical-root semantics, and ship a self-contained `spec-kitty charter bundle validate` Typer sub-app. WP01 is pure additive work: no existing source code is refactored, no readers are flipped, no worktrees are touched. WP03 will register the sub-app into the `charter` CLI root; WP02 will replace WP01's temporary `git rev-parse --show-toplevel` wrapper with the proper `resolve_canonical_repo_root()`.
+Establish the v1.0.0 typed bundle manifest as the authoritative declaration of which files `src/charter/activation/sync.py :: sync()` materializes, publish the architecture §6 doc that describes the unified bundle contract and the canonical-root semantics, and ship a self-contained `spec-kitty charter bundle validate` Typer sub-app. WP01 is pure additive work: no existing source code is refactored, no readers are flipped, no worktrees are touched. WP03 will register the sub-app into the `charter` CLI root; WP02 will replace WP01's temporary `git rev-parse --show-toplevel` wrapper with the proper `resolve_canonical_repo_root()`.
 
 **No fallback. No deprecation shim. No expansion of v1.0.0 scope.** Per spec C-001 and C-012.
 
@@ -67,7 +67,7 @@ Establish the v1.0.0 typed bundle manifest as the authoritative declaration of w
 - Phase 2 tracking: [#464](https://github.com/Priivacy-ai/spec-kitty/issues/464)
 - WP tracking issue: [#478](https://github.com/Priivacy-ai/spec-kitty/issues/478)
 - Guardrail reference: [#393](https://github.com/Priivacy-ai/spec-kitty/issues/393) — occurrence-classification pattern
-- v1.0.0 manifest scope: exactly the three files `_SYNC_OUTPUT_FILES` declares at `src/charter/sync.py:32-36` — `governance.yaml`, `directives.yaml`, `metadata.yaml`. `references.yaml` and `context-state.json` are OUT OF SCOPE.
+- v1.0.0 manifest scope: exactly the three files `_SYNC_OUTPUT_FILES` declares at `src/charter/activation/sync.py:32-36` — `governance.yaml`, `directives.yaml`, `metadata.yaml`. `references.yaml` and `context-state.json` are OUT OF SCOPE.
 
 ## Authoritative files (read before starting)
 
@@ -95,7 +95,7 @@ Establish the v1.0.0 typed bundle manifest as the authoritative declaration of w
    ```python
    """Unified charter bundle manifest (v1.0.0).
 
-   Declares the files src/charter/sync.py :: sync() materializes as the
+   Declares the files src/charter/activation/sync.py :: sync() materializes as the
    project's governance bundle. v1.0.0 scope is limited to the three
    sync-produced derivatives. See architecture/2.x/06_unified_charter_bundle.md
    for the full contract.
@@ -157,7 +157,7 @@ Establish the v1.0.0 typed bundle manifest as the authoritative declaration of w
    )
    ```
 
-2. The `CANONICAL_MANIFEST.derived_files` list must match `_SYNC_OUTPUT_FILES` at `src/charter/sync.py:32-36` exactly — same three files. Do NOT add `references.yaml` or `context-state.json`.
+2. The `CANONICAL_MANIFEST.derived_files` list must match `_SYNC_OUTPUT_FILES` at `src/charter/activation/sync.py:32-36` exactly — same three files. Do NOT add `references.yaml` or `context-state.json`.
 
 **Files**:
 - `src/charter/bundle.py` (new, ~70 lines)
@@ -177,7 +177,7 @@ Establish the v1.0.0 typed bundle manifest as the authoritative declaration of w
 
 1. Create `architecture/2.x/06_unified_charter_bundle.md` (new file, ~100 lines) covering:
    - Purpose and relationship to architecture §6 (unified emergent bundle).
-   - **v1.0.0 scope** explicitly: the three `sync()`-produced files; explicit out-of-scope list for `references.yaml` (compiler pipeline at `src/charter/compiler.py:169-196`) and `context-state.json` (runtime state at `src/charter/context.py:385-398`).
+   - **v1.0.0 scope** explicitly: the three `sync()`-produced files; explicit out-of-scope list for `references.yaml` (compiler pipeline at `src/charter/activation/compiler.py:169-196`) and `context-state.json` (runtime state at `src/charter/activation/context.py:385-398`).
    - Tracked vs. derived classification and why the split exists.
    - Canonical-root contract (forward-reference to `contracts/canonical-root-resolver.contract.md`, which WP02 finalizes).
    - Staleness semantics: hash comparison between `charter.md` and `metadata.yaml`.
@@ -515,7 +515,7 @@ Establish the v1.0.0 typed bundle manifest as the authoritative declaration of w
      - "direct_read_of_metadata_yaml_bypassing_chokepoint"
      - "fr004_reader_missing_ensure_charter_bundle_fresh_call"
    carve_outs:
-     - path: src/charter/sync.py
+     - path: src/charter/activation/sync.py
        reason: "Chokepoint performs the authoritative read."
      - path: src/charter/bundle.py
        reason: "Manifest declaration; carve-out C-012."
@@ -523,9 +523,9 @@ Establish the v1.0.0 typed bundle manifest as the authoritative declaration of w
        reason: "Migration performs bundle validation; WP04 adds this file."
      - path: src/specify_cli/core/worktree.py
        reason: "C-011: memory/AGENTS sharing is documented-intentional and out of scope."
-     - path: src/charter/compiler.py
+     - path: src/charter/activation/compiler.py
        reason: "C-012: compiler pipeline owns references.yaml."
-     - path: src/charter/context.py
+     - path: src/charter/activation/context.py
        reason: "C-012: context-state.json write path at lines 385-398 is runtime-state, out of v1.0.0 scope."
    ```
 
@@ -546,7 +546,7 @@ Establish the v1.0.0 typed bundle manifest as the authoritative declaration of w
 - [ ] `mypy --strict src/charter/bundle.py src/specify_cli/cli/commands/charter_bundle.py` green.
 - [ ] Verifier green against `WP01.yaml`.
 - [ ] No edits to `src/specify_cli/core/worktree.py:478-532` (C-011).
-- [ ] No edits to `src/charter/compiler.py` or `src/charter/context.py:385-398` (C-012).
+- [ ] No edits to `src/charter/activation/compiler.py` or `src/charter/activation/context.py:385-398` (C-012).
 - [ ] No edits to existing reader sites (reserved for WP03).
 - [ ] The temporary resolver wrapper remains in place with its TODO marker; no attempt is made to use the real canonical-root resolver (that is a downstream WP concern).
 
@@ -558,8 +558,8 @@ Establish the v1.0.0 typed bundle manifest as the authoritative declaration of w
 
 ## Reviewer guidance
 
-- Verify `CANONICAL_MANIFEST.derived_files` matches `_SYNC_OUTPUT_FILES` at `src/charter/sync.py:32-36` exactly (three entries, same filenames).
-- Run `diff <(python -c "from charter.bundle import CANONICAL_MANIFEST; print('\n'.join(sorted(str(p) for p in CANONICAL_MANIFEST.derived_files)))") <(python -c "from charter.sync import _SYNC_OUTPUT_FILES; print('\n'.join(sorted('.kittify/charter/' + f for f in _SYNC_OUTPUT_FILES)))")` — expect empty diff.
+- Verify `CANONICAL_MANIFEST.derived_files` matches `_SYNC_OUTPUT_FILES` at `src/charter/activation/sync.py:32-36` exactly (three entries, same filenames).
+- Run `diff <(python -c "from charter.bundle import CANONICAL_MANIFEST; print('\n'.join(sorted(str(p) for p in CANONICAL_MANIFEST.derived_files)))") <(python -c "from charter.activation.sync import _SYNC_OUTPUT_FILES; print('\n'.join(sorted('.kittify/charter/' + f for f in _SYNC_OUTPUT_FILES)))")` — expect empty diff.
 - Verify the TODO marker is present and occurrence artifact records it.
 - Verify no edits to carve-out files.
 
@@ -573,7 +573,7 @@ Establish the v1.0.0 typed bundle manifest as the authoritative declaration of w
 - 2026-04-14T12:15:00Z – claude:sonnet:implementer:implementer – shell_pid=79777 – Cycle 2 — Finding 1 FIXED: `_classify_paths` now runs `git ls-files --error-unmatch` via a new `_is_git_tracked` helper when `require_tracked=True`. The `validate` command passes `require_tracked=True` for `manifest.tracked_files`, so a `charter.md` that exists on disk but was never `git add`ed is now surfaced as missing and the bundle is non-compliant. Regression test `test_validate_fails_when_charter_md_is_untracked` covers this. If the `git ls-files` dispatch itself fails (e.g. not a git repo, git binary unavailable), `_is_git_tracked` returns False and the file is reported as missing rather than crashing the command.
 - 2026-04-14T12:15:00Z – claude:sonnet:implementer:implementer – shell_pid=79777 – Cycle 2 — Finding 2 FIXED: `_enumerate_out_of_scope_files` no longer filters through a hard-coded allowlist. Every file under `.kittify/charter/` that is not in `manifest.tracked_files ∪ manifest.derived_files` is surfaced as an informational warning (bundle_compliant stays True — undeclared files are warnings, not failures). The two producer-specific warnings for `references.yaml` and `context-state.json` are preserved; everything else falls through to a generic message citing v1.0.0 scope. Regression test `test_validate_reports_arbitrary_undeclared_file_as_warning` covers this with a `custom-notes.txt` fixture.
 - 2026-04-14T12:15:00Z – claude:sonnet:implementer:implementer – shell_pid=79777 – Cycle 2 — Finding 3 REBUTTAL (out of WP01 scope, tooling gap): `occurrences/WP01.yaml` uses the v1.0.0 schema defined at `kitty-specs/unified-charter-bundle-chokepoint-01KP5Q2G/contracts/occurrence-artifact.schema.yaml` (mapping-shaped `categories:` keyed by category name). The Phase 1 verifier `scripts/verify_occurrences.py` predates this schema and expects the old list-shaped payload, so it cannot read the new artifact. The artifact itself is correct per the mission contract; the verifier needs to be updated to read the new schema as a follow-up maintenance task, either in a dedicated WP or a separate PR. Not a WP01 regression.
-- 2026-04-14T12:15:00Z – claude:sonnet:implementer:implementer – shell_pid=79777 – Cycle 2 — Finding 4 REBUTTAL (out of WP01 scope, pre-existing on main): `mypy --strict src/charter/bundle.py src/specify_cli/cli/commands/charter_bundle.py` surfaces 7 errors, but none originate in WP01's new files. Running `mypy --strict src/charter/sync.py` against pre-WP01 main reproduces the same failures (missing `types-jsonschema` stubs transitively through `src/doctrine/*/validation.py` + a pre-existing `src/charter/compiler.py:631` dict-type issue). Installing `types-jsonschema` and fixing `compiler.py:631` is a repo-level maintenance concern (candidate for an explicit cleanup WP or a separate PR); the WP01 DoD check for strict typing is not a gate under the cycle-2 scope discipline.
+- 2026-04-14T12:15:00Z – claude:sonnet:implementer:implementer – shell_pid=79777 – Cycle 2 — Finding 4 REBUTTAL (out of WP01 scope, pre-existing on main): `mypy --strict src/charter/bundle.py src/specify_cli/cli/commands/charter_bundle.py` surfaces 7 errors, but none originate in WP01's new files. Running `mypy --strict src/charter/activation/sync.py` against pre-WP01 main reproduces the same failures (missing `types-jsonschema` stubs transitively through `src/doctrine/*/validation.py` + a pre-existing `src/charter/activation/compiler.py:631` dict-type issue). Installing `types-jsonschema` and fixing `compiler.py:631` is a repo-level maintenance concern (candidate for an explicit cleanup WP or a separate PR); the WP01 DoD check for strict typing is not a gate under the cycle-2 scope discipline.
 - 2026-04-14T12:13:25Z – claude:sonnet:implementer:implementer – shell_pid=79777 – Cycle 2: findings 1 & 2 fixed with regression tests. Findings 3 & 4 documented as out-of-scope (tooling gap / pre-existing main issue) in Activity Log and commit message for reviewer context.
 - 2026-04-14T12:13:52Z – codex:gpt-5:python-reviewer:reviewer – shell_pid=81819 – Started review via action command
 - 2026-04-14T12:32:01Z – codex:gpt-5:python-reviewer:reviewer – shell_pid=81819 – Cycle 2: codex approved with no findings. Findings 1 & 2 from cycle 1 fixed with regression tests. Findings 3 (tooling gap) & 4 (pre-existing main issue) accepted as out-of-WP01-scope per orchestrator arbiter judgment; documented in Activity Log. 17/17 tests pass.

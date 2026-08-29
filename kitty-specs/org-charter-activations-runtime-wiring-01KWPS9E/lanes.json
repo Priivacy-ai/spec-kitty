@@ -11,8 +11,8 @@
         "WP01"
       ],
       "write_scope": [
-        "src/charter/activations.py",
-        "src/charter/context.py",
+        "src/charter/activation/activations.py",
+        "src/charter/activation/context.py",
         "src/specify_cli/doctrine/org_charter.py",
         "tests/charter/test_context_org_governance.py",
         "tests/charter/test_iter_org_charter_docs.py",

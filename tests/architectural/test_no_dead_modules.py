@@ -9,21 +9,21 @@ The Mission B post-merge review surfaced a process gap:
 
 That cycle-1 failure was structural, not human:
 
-    src/charter/mission_type_profiles.py exported MissionTypeProfile,
+    src/charter/activation/mission_type_profiles.py exported MissionTypeProfile,
     resolve_governance, UnknownMissionTypeError. 14 tests called those
     symbols directly. Zero src/ files imported them. The cycle-2 fix
     wired resolve_governance into prompt_builder.py; a hard CI gate
     would have caught the missing wiring in cycle 1.
 
 This test is that hard gate. It walks every `*.py` file under `src/`,
-derives the module's dotted name (e.g. ``src/charter/mission_type_profiles.py``
-→ ``charter.mission_type_profiles``), and verifies that **at least one
+derives the module's dotted name (e.g. ``src/charter/activation/mission_type_profiles.py``
+→ ``charter.activation.mission_type_profiles``), and verifies that **at least one
 other file under `src/` imports it** -- via any of:
 
-* ``from charter.mission_type_profiles import resolve_governance``
+* ``from charter.activation.mission_type_profiles import resolve_governance``
 * ``from charter import mission_type_profiles``
-* ``import charter.mission_type_profiles``
-* ``from charter.mission_type_profiles.submodule import X``
+* ``import charter.activation.mission_type_profiles``
+* ``from charter.activation.mission_type_profiles.submodule import X``
 * relative-import equivalents (``from . import X``, ``from .X import Y``)
 
 Modules with zero such callers MUST appear in ``_ALLOWLIST`` with a
@@ -369,8 +369,8 @@ _CATEGORY_4_BACKCOMPAT_SHIMS: frozenset[str] = frozenset(
 # assertion. See src/specify_cli/compat/__init__.py for the
 # compat-shim mission context.
 #
-# charter.scope_router removed (post-merge remediation cycle 1, 2026-05-19):
-# prompt_builder.py now imports build_with_scope from charter.scope_router,
+# charter.activation.scope_router removed (post-merge remediation cycle 1, 2026-05-19):
+# prompt_builder.py now imports build_with_scope from charter.activation.scope_router,
 # giving scope_router a live src/ caller. The WP09→WP11 wiring trigger has
 # been reached; the allowlist entry is removed. See HIGH-1 in
 # mission-review-report.md.
@@ -382,7 +382,7 @@ _CATEGORY_5_WP_IN_FLIGHT_ADAPTERS: frozenset[str] = frozenset(
         # WP11 wired get_workflow() into planner.py (planner imports it
         # via workflow_registry at module scope), so the module now has a
         # live src/ caller.  WP11 removal trigger reached.
-        # charter.scope_router removed: post-merge remediation cycle 1
+        # charter.activation.scope_router removed: post-merge remediation cycle 1
         # wired prompt_builder._governance_context through build_with_scope.
         #
         # charter.offering.missions.mission_step_repository: live caller landed in
@@ -597,8 +597,8 @@ def _is_candidate(path: Path) -> bool:
 def _module_dotted(path: Path) -> str:
     """Return the dotted module name for *path* relative to ``src/``.
 
-    Example: ``src/charter/mission_type_profiles.py`` →
-    ``charter.mission_type_profiles``.
+    Example: ``src/charter/activation/mission_type_profiles.py`` →
+    ``charter.activation.mission_type_profiles``.
     """
     rel = path.relative_to(_SRC_ROOT).with_suffix("")
     return ".".join(rel.parts)

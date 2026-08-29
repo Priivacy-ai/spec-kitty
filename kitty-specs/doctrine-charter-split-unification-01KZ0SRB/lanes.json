@@ -11,7 +11,7 @@
         "WP01"
       ],
       "write_scope": [
-        "src/charter/context.py",
+        "src/charter/activation/context.py",
         "tests/charter/test_context_prose_presence_pin.py"
       ],
       "predicted_surfaces": [
@@ -77,9 +77,9 @@
         "WP05"
       ],
       "write_scope": [
-        "src/charter/compiler.py",
-        "src/charter/schemas.py",
-        "src/charter/sync.py",
+        "src/charter/activation/compiler.py",
+        "src/charter/activation/schemas.py",
+        "src/charter/activation/sync.py",
         "tests/charter/test_retrospective_governance_emit.py"
       ],
       "predicted_surfaces": [
@@ -115,7 +115,7 @@
         "WP10"
       ],
       "write_scope": [
-        "src/charter/synthesizer/synthesize_pipeline.py",
+        "src/charter/activation/synthesizer/synthesize_pipeline.py",
         "tests/architectural/test_charter_no_specify_cli_import.py"
       ],
       "predicted_surfaces": [

@@ -36,7 +36,7 @@ authoritative_surface: src/specify_cli/cli/commands/
 execution_mode: code_change
 owned_files:
 - src/specify_cli/cli/commands/charter.py
-- src/charter/synthesizer/write_pipeline.py
+- src/charter/activation/synthesizer/write_pipeline.py
 - tests/agent/cli/commands/test_charter_synthesize_cli.py
 - tests/integration/test_json_envelope_strict.py
 - tests/integration/test_charter_synthesize_fresh.py
@@ -124,7 +124,7 @@ The brief at `/Users/robert/spec-kitty-dev/spec-kitty-20260428-193814-MFDsf5/sta
 
 **Steps:**
 
-1. Inspect `src/charter/synthesizer/write_pipeline.py`. Identify the public function the synthesize CLI calls (likely `promote(...)` or a sibling) and the type it returns.
+1. Inspect `src/charter/activation/synthesizer/write_pipeline.py`. Identify the public function the synthesize CLI calls (likely `promote(...)` or a sibling) and the type it returns.
 2. If the existing return already carries enough data to populate `WrittenArtifact{path, kind, slug, artifact_id}` per entry — **do not modify this file**. Document the per-entry source mapping inline in T005's code (a comment naming the field).
 3. If the existing return is insufficient (e.g. it returns paths without kinds, or kinds without artifact IDs), extend the return shape **additively**:
    - Add a typed dataclass / TypedDict / Pydantic model that carries `path`, `kind`, `slug`, `artifact_id`. Reuse an existing dataclass if one is close.
@@ -133,10 +133,10 @@ The brief at `/Users/robert/spec-kitty-dev/spec-kitty-20260428-193814-MFDsf5/sta
 4. **Keep the change additive.** Do not remove existing fields; do not rename existing fields.
 
 **Files to edit:**
-- `src/charter/synthesizer/write_pipeline.py` (only if T005 inspection establishes need)
+- `src/charter/activation/synthesizer/write_pipeline.py` (only if T005 inspection establishes need)
 
 **Validation:**
-- `mypy --strict src/charter/synthesizer/write_pipeline.py` passes.
+- `mypy --strict src/charter/activation/synthesizer/write_pipeline.py` passes.
 - All tests in `tests/charter/synthesizer/` (excluding the new file in T010) continue to pass.
 
 ---
@@ -241,7 +241,7 @@ The brief at `/Users/robert/spec-kitty-dev/spec-kitty-20260428-193814-MFDsf5/sta
 1. Run a code-level sweep:
    ```bash
    rg -n 'PROJECT_000' src/specify_cli/cli/commands/charter.py
-   rg -n 'PROJECT_000' src/charter/synthesizer/write_pipeline.py
+   rg -n 'PROJECT_000' src/charter/activation/synthesizer/write_pipeline.py
    rg -n 'f".*PROJECT_000\b' src tests
    rg -n '"PROJECT_000"' src tests
    ```
@@ -249,7 +249,7 @@ The brief at `/Users/robert/spec-kitty-dev/spec-kitty-20260428-193814-MFDsf5/sta
 2. Run strict typing on every file you edited:
    ```bash
    uv run mypy --strict src/specify_cli/cli/commands/charter.py
-   uv run mypy --strict src/charter/synthesizer/write_pipeline.py  # only if T006 modified it
+   uv run mypy --strict src/charter/activation/synthesizer/write_pipeline.py  # only if T006 modified it
    ```
    Both must exit 0.
 3. Run `uv run ruff check src tests` — must exit 0.

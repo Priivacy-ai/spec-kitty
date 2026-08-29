@@ -203,7 +203,7 @@ Errors found by independent verification. Several corrections make the case *str
    `procedure:situational-assessment`. True statement: *activated and procedure-mandated, yet
    zero scores exist anywhere.*
 4. **"Nothing catches a contradictory reconciliation" is wrong.** `scan_unreconciled_tensions()`
-   (`src/charter/consistency_check.py:977`) is live, canonical, flags half-reconciled pairs, and
+   (`src/charter/activation/consistency_check.py:977`) is live, canonical, flags half-reconciled pairs, and
    has a non-vacuous suite naming this exact triple. Missing piece is narrower: **presence is
    validated; ordering semantics are not.**
 5. **Counts:** 13 paradigm DRG nodes, not 14 (`test-first.paradigm.yaml` sits outside
@@ -255,7 +255,7 @@ Errors found by independent verification. Several corrections make the case *str
 | # | Site | Failure |
 | --- | --- | --- |
 | 1 | `src/doctrine/drg/query.py:231-241` | `resolve_transitive_refs` buckets all 16 `NodeKind`s, reads out 10 → new kind computed, silently dropped |
-| 2 | `src/charter/context.py:670-682` | `_classify_artifact_urns`, four `elif`, **no `else`** → silent drop at the injection boundary |
+| 2 | `src/charter/activation/context.py:670-682` | `_classify_artifact_urns`, four `elif`, **no `else`** → silent drop at the injection boundary |
 | 3 | `src/doctrine/drg/migration/extractor.py:133-145` | `_KIND_MAP` has 11 entries; `.get()` → `None` → **edge vanishes at extraction time** |
 
 It is a shared enabler for **four already-open issues** (`#2468`, `#2847`, `#2862`, `#2829`),

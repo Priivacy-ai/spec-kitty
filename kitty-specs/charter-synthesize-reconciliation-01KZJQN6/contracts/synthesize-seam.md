@@ -3,7 +3,7 @@
 This mission has no HTTP/GraphQL surface. The "contracts" are the library seam signature +
 return, the CLI flags, and the reconciler consumption — the interfaces tasks must honor.
 
-## Library seam — `charter.synthesizer.orchestrator.synthesize`
+## Library seam — `charter.activation.synthesizer.orchestrator.synthesize`
 
 **Current**: `synthesize(request, adapter=None, repo_root=None) -> SynthesisResult`
 
@@ -29,7 +29,7 @@ return, the CLI flags, and the reconciler consumption — the interfaces tasks m
 | `charter synthesize` (unparseable on-disk overlay) | — | 1 | **refuses**, no write |
 
 - Refusal/prune/dry-run output uses the NEW `ReconciliationConflict` object in
-  `src/charter/synthesizer/reconcile.py` (`kind` + `target_id` + `backing_artifact` +
+  `src/charter/activation/synthesizer/reconcile.py` (`kind` + `target_id` + `backing_artifact` +
   `remediation` + `provenance`), **modeled after — not reusing** — the `src/doctrine/drg/merge.py`
   typed-conflict shape (that `OrgDRGConflict`/`_CONFLICT_REMEDIATIONS` model is the org-pack
   fragment-merge subsystem: closed `kind` Literal with no `duplicate_triple`, no

@@ -46,8 +46,8 @@
         "WP03"
       ],
       "write_scope": [
-        "src/charter/context.py",
-        "src/charter/context_json.py",
+        "src/charter/activation/context.py",
+        "src/charter/activation/context_json.py",
         "src/specify_cli/cli/commands/charter/_common.py",
         "src/specify_cli/cli/commands/charter/_status_collectors.py",
         "src/specify_cli/cli/commands/charter/context.py",
@@ -72,7 +72,7 @@
         "WP04"
       ],
       "write_scope": [
-        "src/charter/resolver.py",
+        "src/charter/activation/resolver.py",
         "tests/charter/test_resolve_project_governance_single_authority.py"
       ],
       "predicted_surfaces": [
@@ -87,7 +87,7 @@
         "WP05"
       ],
       "write_scope": [
-        "src/charter/context_renderers/section_bodies.py",
+        "src/charter/activation/context_renderers/section_bodies.py",
         "tests/charter/test_section_selector_graceful_degrade.py",
         "tests/charter/test_context_section_bodies.py",
         "tests/charter/test_context_selection_render.py"

@@ -42,7 +42,7 @@ Invoke `/ad-hoc-profile-load` with argument `python-pedro` before reading furthe
 
 ## Objective
 
-Route the manifest and graph reads inside `src/specify_cli/charter_freshness/computer.py` through the canonical `charter.compiler.ensure_charter_bundle_fresh` chokepoint. This closes LD-3 from the architectural review (which was RISK-2 in the post-merge mission review of #122).
+Route the manifest and graph reads inside `src/specify_cli/charter_freshness/computer.py` through the canonical `charter.activation.compiler.ensure_charter_bundle_fresh` chokepoint. This closes LD-3 from the architectural review (which was RISK-2 in the post-merge mission review of #122).
 
 The current code reads `.kittify/charter/synthesis-manifest.yaml` and `.kittify/doctrine/graph.yaml` directly via `_safe_load_yaml(...)` and `Path.exists()` at `computer.py:280-281`. This bypasses the chokepoint's refresh semantics and creates a potential staleness window under concurrent invocation.
 
@@ -61,17 +61,17 @@ The current code reads `.kittify/charter/synthesis-manifest.yaml` and `.kittify/
 - [`docs/engineering_notes/architectural-review/2026-05-25-deep-dive-architectural-review.md`](../../../docs/engineering_notes/architectural-review/2026-05-25-deep-dive-architectural-review.md) §2 LD-3.
 - [`architecture/3.x/adr/2026-05-24-1-charter-freshness-ux-contract.md`](../../../architecture/3.x/adr/2026-05-24-1-charter-freshness-ux-contract.md) — the public contract.
 - Existing source: `src/specify_cli/charter_freshness/computer.py` (lines 100, 103, 280, 281).
-- Chokepoint API: `src/charter/compiler.py::ensure_charter_bundle_fresh` (or its read-only sibling — verify name).
+- Chokepoint API: `src/charter/activation/compiler.py::ensure_charter_bundle_fresh` (or its read-only sibling — verify name).
 
 ## Subtask details
 
 ### T023 — Identify the canonical chokepoint API
 
 ```bash
-grep -n "def ensure_charter_bundle_fresh\|def .*fresh.*bundle\|@.*fresh" src/charter/compiler.py 2>&1 | head
+grep -n "def ensure_charter_bundle_fresh\|def .*fresh.*bundle\|@.*fresh" src/charter/activation/compiler.py 2>&1 | head
 ```
 
-Read the function signature + docstring. Determine whether `ensure_charter_bundle_fresh` is the right entry point or whether there's a `read_charter_bundle` (read-only sibling) that better fits the freshness module's needs. If only the refresh-side exists, request from charter.compiler a `load_charter_bundle_snapshot(repo_root) -> CharterBundleSnapshot` read-only helper as a small in-WP addition.
+Read the function signature + docstring. Determine whether `ensure_charter_bundle_fresh` is the right entry point or whether there's a `read_charter_bundle` (read-only sibling) that better fits the freshness module's needs. If only the refresh-side exists, request from charter.activation.compiler a `load_charter_bundle_snapshot(repo_root) -> CharterBundleSnapshot` read-only helper as a small in-WP addition.
 
 ### T024 — Route manifest read through chokepoint
 
@@ -83,7 +83,7 @@ from .computer import _safe_load_yaml  # or wherever
 manifest_data = _safe_load_yaml(manifest_path)
 
 # AFTER
-from charter.compiler import load_charter_bundle_snapshot  # or whatever T023 settles on
+from charter.activation.compiler import load_charter_bundle_snapshot  # or whatever T023 settles on
 snapshot = load_charter_bundle_snapshot(repo_root)
 manifest_data = snapshot.synthesis_manifest  # or whatever the snapshot exposes
 ```

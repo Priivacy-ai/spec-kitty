@@ -33,7 +33,7 @@ owned_files:
 - src/doctrine/missions/mission_type_repository.py
 - src/doctrine/missions/mission_step_repository.py
 - src/doctrine/missions/step_projection.py
-- src/charter/mission_type_profiles.py
+- src/charter/activation/mission_type_profiles.py
 - src/specify_cli/cli/commands/mission_type.py
 - tests/doctrine/missions/test_softwaredev_roundtrip.py
 - tests/doctrine/missions/test_mission_type_repository.py

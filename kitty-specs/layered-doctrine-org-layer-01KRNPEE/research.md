@@ -36,14 +36,14 @@ where `path` is the directory root. This means the convention shifts from "alway
 
 | File | Line(s) | Change |
 |---|---|---|
-| `src/charter/_drg_helpers.py` | 34–35 | Route through new `load_validated_graph()` (see §2) |
-| `src/charter/context.py` | 228–229 | Route through `_drg_helpers.load_validated_graph()` |
-| `src/charter/compiler.py` | 489 | Use `load_graph_or_dir` |
-| `src/charter/reference_resolver.py` | 38 | Use `load_graph_or_dir` |
-| `src/charter/synthesizer/validation_gate.py` | 61 | Use `load_graph_or_dir` |
-| `src/charter/synthesizer/project_drg.py` | 240 | Use `load_graph_or_dir` |
-| `src/charter/synthesizer/resynthesize_pipeline.py` | 450, 547 | Use `load_graph_or_dir` |
-| `src/charter/synthesizer/write_pipeline.py` | 516 | Use `load_graph_or_dir` |
+| `src/charter/activation/_drg_helpers.py` | 34–35 | Route through new `load_validated_graph()` (see §2) |
+| `src/charter/activation/context.py` | 228–229 | Route through `_drg_helpers.load_validated_graph()` |
+| `src/charter/activation/compiler.py` | 489 | Use `load_graph_or_dir` |
+| `src/charter/activation/reference_resolver.py` | 38 | Use `load_graph_or_dir` |
+| `src/charter/activation/synthesizer/validation_gate.py` | 61 | Use `load_graph_or_dir` |
+| `src/charter/activation/synthesizer/project_drg.py` | 240 | Use `load_graph_or_dir` |
+| `src/charter/activation/synthesizer/resynthesize_pipeline.py` | 450, 547 | Use `load_graph_or_dir` |
+| `src/charter/activation/synthesizer/write_pipeline.py` | 516 | Use `load_graph_or_dir` |
 
 ---
 

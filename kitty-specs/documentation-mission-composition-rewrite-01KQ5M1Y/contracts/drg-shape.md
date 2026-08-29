@@ -41,7 +41,7 @@ The mapping is by the URN's numeric / kebab suffix:
 After the nodes/edges are added:
 
 ```python
-from charter._drg_helpers import load_validated_graph
+from charter.activation._drg_helpers import load_validated_graph
 from doctrine.drg.query import resolve_context
 
 graph = load_validated_graph(repo_root)

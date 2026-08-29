@@ -26,7 +26,7 @@ execution_mode: code_change
 owned_files:
 - src/specify_cli/__main__.py
 - src/specify_cli/cli/logging_bootstrap.py
-- src/charter/_catalog_miss.py
+- src/charter/activation/_catalog_miss.py
 - tests/integration/test_catalog_miss_cli_visibility.py
 role: implementer
 tags: []
@@ -45,7 +45,7 @@ Scope governance context to Python implementation before reading anything else.
 
 ## Objective
 
-Close the architect's HIGH-1 finding: the structured `_LOGGER.warning(...)` path in `src/charter/_catalog_miss.py` is silently dropped under normal CLI invocation because the spec-kitty CLI installs **no log handler**. Install `logging.captureWarnings(True)` at CLI bootstrap so `warnings.warn(...)` reaches the logging subsystem (FR-130) and install a Rich-aware `logging.Handler` that routes `WARNING+` records through the existing Rich `Console` instance to operator stderr (FR-131). Land a subprocess-based integration test that runs the CLI with a typo'd charter and asserts the catalog-miss warning text appears in captured stderr (FR-132, NFR-006).
+Close the architect's HIGH-1 finding: the structured `_LOGGER.warning(...)` path in `src/charter/activation/_catalog_miss.py` is silently dropped under normal CLI invocation because the spec-kitty CLI installs **no log handler**. Install `logging.captureWarnings(True)` at CLI bootstrap so `warnings.warn(...)` reaches the logging subsystem (FR-130) and install a Rich-aware `logging.Handler` that routes `WARNING+` records through the existing Rich `Console` instance to operator stderr (FR-131). Land a subprocess-based integration test that runs the CLI with a typo'd charter and asserts the catalog-miss warning text appears in captured stderr (FR-132, NFR-006).
 
 This closes Scenario 5 (operator with a typo'd charter sees a visible warning) and AC-9.
 
@@ -57,7 +57,7 @@ Per the architect's HEAD-verified HIGH-1 finding:
 
 > `rg "logging.captureWarnings|logging.basicConfig|configure_logging|setup_logging" src/specify_cli/` returns **0 matches**. Python's default Warning filter is `default` (one warning per location), so a charter with 5 typo'd IDs surfaces each warning exactly once per process — and only if the operator's stderr isn't being suppressed or interleaved with Rich-managed output.
 
-The structured catalog-miss warning in `src/charter/_catalog_miss.py` carries useful metadata (`kind`, `id`, `cause`, `suggestion`) in `_LOGGER.warning(extra={...})`. With no handler, the operator never sees it. Per **RR-6** the Rich-aware handler MUST defer to the existing Rich `Console` instance rather than instantiate a new one — no Rich double-init.
+The structured catalog-miss warning in `src/charter/activation/_catalog_miss.py` carries useful metadata (`kind`, `id`, `cause`, `suggestion`) in `_LOGGER.warning(extra={...})`. With no handler, the operator never sees it. Per **RR-6** the Rich-aware handler MUST defer to the existing Rich `Console` instance rather than instantiate a new one — no Rich double-init.
 
 References:
 - [spec.md §"Scenario 5 — Catalog-miss visibility"](../spec.md)
@@ -241,7 +241,7 @@ class CatalogMissFormatter(logging.Formatter):
 
 ### T025 — Extend `_catalog_miss.py` `_LOGGER.warning(extra=...)` payload
 
-**File:** `src/charter/_catalog_miss.py`
+**File:** `src/charter/activation/_catalog_miss.py`
 
 Per data-model §8 (`CatalogMissEvent`), the `extra=` dict MUST carry:
 
@@ -318,7 +318,7 @@ AC coverage:
 2. **`logging.captureWarnings(True)` interferes with pytest's warning capture in unit tests** — would surface as warning leak. Mitigation: pytest's `caplog` and `recwarn` work alongside the logging subsystem; if a unit test breaks, opt out by calling `logging.captureWarnings(False)` in a fixture-scoped teardown. The subprocess test (FR-132) is the canonical proof; in-process tests can remain as-is.
 3. **The subprocess test is slow (spawns a Python interpreter)** — adds CI time. Mitigation: mark `@pytest.mark.integration` so fast-test runs skip it; the canonical sweep includes it.
 4. **The `extra={...}` field names collide with reserved `LogRecord` attributes** (e.g. `msg`, `levelno`, `name`). Mitigation: data-model §8 chose `kind`, `id`, `cause`, `suggestion`, `mission_id`, `scope` — none collide with `LogRecord` attrs. Verify with `logging.LogRecord.__init__.__doc__`.
-5. **Subprocess `cwd=` resolves charter from the wrong location** in some environments. Mitigation: T022's fixture scaffolds a complete project structure under `tmp_path` (charter at `.kittify/charter/charter.md`) and passes `cwd=str(tmp_path / "demo-project")`. The CLI must resolve the charter from cwd, which it does via existing `charter.resolver` logic.
+5. **Subprocess `cwd=` resolves charter from the wrong location** in some environments. Mitigation: T022's fixture scaffolds a complete project structure under `tmp_path` (charter at `.kittify/charter/charter.md`) and passes `cwd=str(tmp_path / "demo-project")`. The CLI must resolve the charter from cwd, which it does via existing `charter.activation.resolver` logic.
 6. **CLI bootstrap order: handler installed AFTER first charter resolution** would miss the first miss. Mitigation: install at module-import time in `src/specify_cli/__main__.py` (top of file) OR in the typer app's `@app.callback()` which runs before any subcommand. Verify the bootstrap runs before any charter code by reading the import chain.
 
 ---
@@ -344,7 +344,7 @@ pytest tests/integration/test_catalog_miss_cli_visibility.py -v
 - Confirm `rg "logging.captureWarnings|RichConsoleHandler" src/specify_cli/` finds the bootstrap site.
 - Confirm the handler DEFERS to the existing Rich Console (passed as argument) — REJECT if it instantiates a new `rich.Console()` (RR-6 violation).
 - Confirm the handler is installed idempotently (re-importing doesn't double-add).
-- Confirm `src/charter/_catalog_miss.py::_LOGGER.warning(...)` carries the full data-model §8 payload in `extra=`.
+- Confirm `src/charter/activation/_catalog_miss.py::_LOGGER.warning(...)` carries the full data-model §8 payload in `extra=`.
 - Confirm the subprocess test uses `subprocess.run([sys.executable, "-m", "specify_cli", ...])` and asserts against `result.stderr` text — REJECT if it falls back to pytest's `caplog` or `recwarn` (NFR-006 binding).
 - Confirm 23 governance-contract fixtures pass unchanged (NFR-001).
 - Confirm layer-rule unchanged (NFR-003).

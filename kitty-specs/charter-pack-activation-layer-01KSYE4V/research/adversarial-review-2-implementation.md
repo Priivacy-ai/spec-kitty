@@ -168,7 +168,7 @@ An implementer creating `context/factory.py:build_operational_context(...)` will
 
 ### S3. `CharterPackManager.activate()` from `None` state requires enumerating all built-in artifact IDs — the source is underspecified
 
-`data-model.md` says: "If None: initialize to all built-ins, then add." The source is described as `src/charter/packs/default.yaml` (the file being created in this mission). But `default.yaml` does not exist yet — it is a deliverable of this mission, not a pre-existing file. The initialization path in `activate()` reads a file that is simultaneously being authored by the same implementer.
+`data-model.md` says: "If None: initialize to all built-ins, then add." The source is described as `src/charter/activation/packs/default.yaml` (the file being created in this mission). But `default.yaml` does not exist yet — it is a deliverable of this mission, not a pre-existing file. The initialization path in `activate()` reads a file that is simultaneously being authored by the same implementer.
 
 If `default.yaml` is incomplete or contains wrong IDs at the time `activate()` is first tested, the initialization produces the wrong starting set. More importantly: if an implementer tests `activate()` before `default.yaml` is fully populated (e.g., during WP-by-WP implementation), the test will pass with a wrong starting set and the error will only be caught when a later WP populates `default.yaml` correctly.
 
@@ -260,7 +260,7 @@ FR-021 says "replace the `find_spec` assertion with a source-file-only check." R
 
 ### M3. Migration `detect()` guard reads config.yaml twice — and ignores `can_apply()` edge case when config.yaml exists but contains non-dict YAML
 
-In `m_3_2_7` pattern: `detect()` loads with `YAML(typ="safe")` and returns `False` on exception. `apply()` loads again with round-trip YAML. If config.yaml is modified between `detect()` and `apply()` (e.g., another process writes it), `apply()` may encounter a different state. This is acceptable and documented as a known limitation in the migration framework. But the new `m_3_2_8` migration reads `default.yaml` from `src/charter/packs/default.yaml` at runtime during `apply()`. If the package is installed editable and `default.yaml` is missing (e.g., a broken install where only the `.py` files were deployed), `apply()` will raise `FileNotFoundError` inside an `apply()` call, producing an unformatted exception rather than a `MigrationResult(success=False, errors=[...])`. The migration should explicitly guard for `default.yaml` absence.
+In `m_3_2_7` pattern: `detect()` loads with `YAML(typ="safe")` and returns `False` on exception. `apply()` loads again with round-trip YAML. If config.yaml is modified between `detect()` and `apply()` (e.g., another process writes it), `apply()` may encounter a different state. This is acceptable and documented as a known limitation in the migration framework. But the new `m_3_2_8` migration reads `default.yaml` from `src/charter/activation/packs/default.yaml` at runtime during `apply()`. If the package is installed editable and `default.yaml` is missing (e.g., a broken install where only the `.py` files were deployed), `apply()` will raise `FileNotFoundError` inside an `apply()` call, producing an unformatted exception rather than a `MigrationResult(success=False, errors=[...])`. The migration should explicitly guard for `default.yaml` absence.
 
 ---
 
@@ -279,7 +279,7 @@ is not in the spec; an implementer will invent it. The pluralization rule (appen
 
 ### M5. Prior review items A12 and A13 remain open
 
-**A12 (`charter.drg::PackContext` dead re-export)**: `PackContext` is in `charter.drg.__all__` at line 81. FR-024 says "wire or allowlist 12 dead symbols" but does not specifically address removing `PackContext` from `__all__` in `charter.drg`. If `PackContext` is imported only from `charter.pack_context` in production and never from `charter.drg`, this is a stale re-export. The plan does not confirm whether it will be removed or added to the allowlist.
+**A12 (`charter.drg::PackContext` dead re-export)**: `PackContext` is in `charter.drg.__all__` at line 81. FR-024 says "wire or allowlist 12 dead symbols" but does not specifically address removing `PackContext` from `__all__` in `charter.drg`. If `PackContext` is imported only from `charter.activation.pack_context` in production and never from `charter.drg`, this is a stale re-export. The plan does not confirm whether it will be removed or added to the allowlist.
 
 **A13 (migration rc testing)**: The migration's `target_version = "3.2.8"` will not fire during rc testing (`Version("3.2.8") > Version("3.2.0rc30")`). This is now noted in the data-model but is not reflected in the task strategy. Tests for `m_3_2_8` must call `detect()` and `apply()` directly. If any test author writes a standard migration integration test that goes through the upgrade pipeline with the current rc version, the migration will not fire and the test will give a false green.
 
@@ -293,7 +293,7 @@ is not in the spec; an implementer will invent it. The pluralization rule (appen
 | `PackContext` is a stdlib `@dataclass(frozen=True)`, not Pydantic | Confirmed |
 | `_node_is_activated` checks `activated_kinds` only (kind-level), no per-artifact-ID check | Confirmed |
 | `src/charter/packs/` directory does not exist yet | Confirmed |
-| `src/charter/invocation_context.py` does not exist yet | Confirmed |
+| `src/charter/activation/invocation_context.py` does not exist yet | Confirmed |
 | `charter list`, `charter deactivate`, `charter pack` commands do not exist yet | Confirmed |
 | `spec-kitty charter context` exists and requires `--action` flag (not optional) | Confirmed at `context.py:21` |
 | `doctor.py:2332` calls `load_org_charter_policies(repo_root)` without `pack_context` — 4th production caller not in FR-037 wiring table | Confirmed |

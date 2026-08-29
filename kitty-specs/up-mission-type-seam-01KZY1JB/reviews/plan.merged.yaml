@@ -11,7 +11,7 @@ source_files:
 dedup_notes: >
   PLAN-GOV-001 (gov, severity 4) and PLAN-VERIFY-003 (verify, severity 3) make substantially
   the same claim against the same artifact section (plan.md § Summary, paragraph 1) and the
-  same code citation (src/charter/mission_type_profiles.py:793-799/807): both assert the
+  same code citation (src/charter/activation/mission_type_profiles.py:793-799/807): both assert the
   Summary's "mission is None today ... falls through to line 807" story is internally
   contradictory / factually wrong about live code, since line 795's `if mission is None: raise
   UnknownMissionTypeError` makes line 807 unreachable in that case. Kept under the original
@@ -25,8 +25,8 @@ findings:
     title: "Plan's Summary misdescribes the mission's own \"dominant risk\" mechanism, contradicting the exact code it cites"
     evidence:
       - artifact: "plan.md § Summary, paragraph 1"
-      - code: "src/charter/mission_type_profiles.py:788-799 (guard + raise)"
-      - code: "src/charter/mission_type_profiles.py:807 (return list(mission.action_sequence or []) — only reachable when mission is not None)"
+      - code: "src/charter/activation/mission_type_profiles.py:788-799 (guard + raise)"
+      - code: "src/charter/activation/mission_type_profiles.py:807 (return list(mission.action_sequence or []) — only reachable when mission is not None)"
       - cross_reference: "Independently raised by the verify lens as PLAN-VERIFY-003, same artifact section and code citations; see that entry below for the second, independently-worded derivation."
     claim: >
       The plan's Summary states that today, for "a genuinely-registered-but-unprojected type,"
@@ -75,9 +75,9 @@ findings:
     evidence:
       - artifact: "plan.md § Summary (line 17-18: '...both hardcode pack_context=None.')"
       - artifact: "plan.md § IC-02 (Purpose: '...instead of their current hardcoded pack_context=None.')"
-      - code: "src/charter/mission_type_profiles.py:762-767 (def _resolve_action_slot(mission_type: str, *, registered: list[str], is_registered: bool) -> list[str]: — no pack_context parameter exists anywhere in the signature or body)"
-      - code: "src/charter/mission_type_profiles.py:793 (repo = MissionTypeRepository.default() — a zero-argument classmethod call; there is no argument to override)"
-      - code: "src/charter/mission_type_profiles.py:876-878 (_resolve_template_set_slot's call site — .resolve_all_for_mission_type(mission_type, pack_context=None) — this IS a genuine hardcoded pack_context=None argument)"
+      - code: "src/charter/activation/mission_type_profiles.py:762-767 (def _resolve_action_slot(mission_type: str, *, registered: list[str], is_registered: bool) -> list[str]: — no pack_context parameter exists anywhere in the signature or body)"
+      - code: "src/charter/activation/mission_type_profiles.py:793 (repo = MissionTypeRepository.default() — a zero-argument classmethod call; there is no argument to override)"
+      - code: "src/charter/activation/mission_type_profiles.py:876-878 (_resolve_template_set_slot's call site — .resolve_all_for_mission_type(mission_type, pack_context=None) — this IS a genuine hardcoded pack_context=None argument)"
     claim: >-
       The plan's Summary and IC-02 both state that "_resolve_action_slot /
       _resolve_template_set_slot ... both hardcode pack_context=None," and IC-02's
@@ -196,8 +196,8 @@ findings:
       `src/doctrine/*` and `src/charter/*` (verbatim entries in its `critical_paths` array) — the
       exact two directories this mission's own Technical Context/Project Structure sections name
       as the primary touch points (`src/doctrine/missions/mission_type_repository.py`,
-      `src/charter/mission_type_profiles.py`, `src/charter/pack_manager.py`,
-      `src/charter/resolver.py`, `src/charter/missions.py`). This is a stronger, more directly
+      `src/charter/activation/mission_type_profiles.py`, `src/charter/activation/pack_manager.py`,
+      `src/charter/activation/resolver.py`, `src/charter/missions.py`). This is a stronger, more directly
       applicable 90% new-code floor than either of the two 90% floors plan.md does address
       (kernel-tests, mission-loader-coverage) and it is not among the correctly-verified
       "does not apply" set — it squarely DOES apply, on the diff, to this mission's own files.
@@ -273,7 +273,7 @@ findings:
     duplicate_of: PLAN-GOV-001
     evidence:
       - artifact: "plan.md § Summary, paragraph 1"
-      - code: "src/charter/mission_type_profiles.py:793-799"
-      - code: "src/charter/mission_type_profiles.py:807"
+      - code: "src/charter/activation/mission_type_profiles.py:793-799"
+      - code: "src/charter/activation/mission_type_profiles.py:807"
     claim: "See PLAN-GOV-001 — same claim, same evidence, independently derived by the verify lens."
     remediation: "See PLAN-GOV-001."

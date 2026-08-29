@@ -81,7 +81,7 @@ spec-kitty agent action implement WP01 --agent claude
 is already committed. Read it before implementing the executor's router slot.
 
 **Key existing seams to import from** (read these files before starting):
-- `src/charter/context.py::build_charter_context` — programmatic governance context API
+- `src/charter/activation/context.py::build_charter_context` — programmatic governance context API
 - `src/doctrine/agent_profiles/repository.py::AgentProfileRepository` — profile loading
 - `src/doctrine/agent_profiles/capabilities.py::DEFAULT_ROLE_CAPABILITIES` — canonical verbs
 - `src/doctrine/agent_profiles/profile.py::AgentProfile` — profile model
@@ -390,7 +390,7 @@ is already committed. Read it before implementing the executor's router slot.
    from pathlib import Path
    import ulid as _ulid_mod  # matches codebase pattern: status/emit.py, core/mission_creation.py
 
-   from charter.context import build_charter_context
+   from charter.activation.context import build_charter_context
    from specify_cli.invocation.errors import ProfileNotFoundError, InvocationWriteError
    from specify_cli.invocation.record import InvocationRecord
    from specify_cli.invocation.registry import ProfileRegistry

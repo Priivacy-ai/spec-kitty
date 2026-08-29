@@ -320,7 +320,7 @@ an explicit `org_root` argument when present. It must not import from
 and turning it into a list of pack paths — lives one layer up in
 `specify_cli.doctrine.config.resolve_org_roots`.
 
-To preserve the boundary, `charter._drg_helpers._resolve_org_root()` is an **inert
+To preserve the boundary, `charter.activation._drg_helpers._resolve_org_root()` is an **inert
 stub** that always returns `None`. Real callers in `specify_cli` resolve the path
 themselves and pass it explicitly. This pattern is documented in the source and
 enforced by `tests/architectural/test_layer_rules.py` so that no future change can

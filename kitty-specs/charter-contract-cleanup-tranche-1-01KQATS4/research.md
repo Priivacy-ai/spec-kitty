@@ -65,7 +65,7 @@ The four contracted fields are emitted unconditionally; tests assert their prese
 | `slug` | string | Slug component used in the filename |
 | `artifact_id` | string \| null | Concrete artifact identifier (e.g. `PROJECT_001`, `DIRECTIVE_NEW_EXAMPLE`) when one exists; `null` for kinds that do not carry an ID |
 
-Sourcing rule: every element is derived from a typed staged-artifact entry returned by the synthesizer's write pipeline (`src/charter/synthesizer/write_pipeline.py`) — never reconstructed from `kind:slug` selectors or any other lossy projection.
+Sourcing rule: every element is derived from a typed staged-artifact entry returned by the synthesizer's write pipeline (`src/charter/activation/synthesizer/write_pipeline.py`) — never reconstructed from `kind:slug` selectors or any other lossy projection.
 
 **Rationale:**
 

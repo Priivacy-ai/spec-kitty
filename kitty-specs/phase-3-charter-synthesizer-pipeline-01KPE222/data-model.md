@@ -99,7 +99,7 @@ Per-artifact provenance sidecar at `.kittify/charter/provenance/<kind>-<slug>.ya
 
 ## E-5 · `ProjectDRGOverlay` (Pydantic model)
 
-Additive overlay graph. Emitted to `.kittify/doctrine/graph.yaml` — the exact path the existing `src/charter/_drg_helpers.py` project-layer loader already reads. No loader change is required.
+Additive overlay graph. Emitted to `.kittify/doctrine/graph.yaml` — the exact path the existing `src/charter/activation/_drg_helpers.py` project-layer loader already reads. No loader change is required.
 
 Reuses the existing `src/doctrine/drg/models.py :: DRGGraph` schema verbatim. Additional discipline:
 
@@ -205,7 +205,7 @@ All errors inherit from `SynthesisError(Exception)`. All carry structured fields
 | `StagingPromoteError` | `os.replace` or manifest write fails during promote; orchestration rolls back. | `run_id`, `staging_dir`, `cause` |
 | `ManifestIntegrityError` | A reader finds manifest-listed `content_hash` not matching disk content. | `manifest_path`, `offending_artifact` |
 
-Every error is *structured*: it carries fields, not just a message. CLI renders via a shared `rich` panel helper in `src/charter/synthesizer/errors.py`.
+Every error is *structured*: it carries fields, not just a message. CLI renders via a shared `rich` panel helper in `src/charter/activation/synthesizer/errors.py`.
 
 ---
 

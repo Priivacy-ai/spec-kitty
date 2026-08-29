@@ -104,7 +104,7 @@ docs/  # IC-09: context/charter-overview.md, context/governance-files.md, api/ch
 
 - **Purpose**: Define the `CharterYaml` pydantic model (nesting the existing `GovernanceConfig`/`DirectivesConfig`) and bump `CharterBundleManifest` to v2 so `charter.yaml` is the single tracked artifact and the content-hash input set. Unblocks everything.
 - **Relevant requirements**: FR-001, FR-002, NFR-001, C-004
-- **Affected surfaces**: `src/charter/schemas.py` (`CharterYaml` model, flat activation fields), `src/charter/bundle.py` (manifest v2 + new `content_hash_files` field), the shared `charter.yaml` filename constant, **and the shared `load→mutate-owned-section→round-trip-save` write helper** (owned here; consumed by IC-01/IC-03 — INV-9)
+- **Affected surfaces**: `src/charter/activation/schemas.py` (`CharterYaml` model, flat activation fields), `src/charter/bundle.py` (manifest v2 + new `content_hash_files` field), the shared `charter.yaml` filename constant, **and the shared `load→mutate-owned-section→round-trip-save` write helper** (owned here; consumed by IC-01/IC-03 — INV-9)
 - **Sequencing/depends-on**: none (keystone, first)
 - **Risks**: **Landmine 1 (renata M2 / alphonso MAJOR-1)** — `_validate` forbids tracked∩derived. `charter.yaml` ∈ `tracked_files`; keep it OUT of `derived_files` (which becomes `[]`); the content-hash input set is a **distinct `content_hash_files` field** = `[charter.yaml]` — so `_validate` stays untouched (do NOT relax the disjointness rule). `SCHEMA_VERSION 1.0.0→2.0.0`; `BUNDLE_CONTENT_HASH_FILES (4)→("charter.yaml",)`. Do NOT re-scatter the filename constant (today duplicated in `bundle.py`/`sync.py`). The shared write helper makes section-preservation structural (Landmine 3 / MAJOR-3).
 
@@ -112,7 +112,7 @@ docs/  # IC-09: context/charter-overview.md, context/governance-files.md, api/ch
 
 - **Purpose**: Relocate the flat activation keys (`activated_*` / `activated_kinds` / `mission_type_activations`) out of `.kittify/config.yaml` into `charter.yaml` (**flat at root**, matching `default.yaml`); re-point the activation engine and reader; resolve `charter.yaml` via the `config.yaml` `charter:` pointer.
 - **Relevant requirements**: FR-012, FR-013, FR-014, FR-015, C-005, SC-008
-- **Affected surfaces**: `src/charter/activation_engine.py` (`commit_plan:359` — the real write primitive; re-word its `config.yaml`-specific diagnostics/error strings; it is data-source-agnostic so a flat-root charter.yaml needs no functional change), `src/charter/pack_manager.py` (`merge_defaults`, `_save_config` — via the shared write helper), `src/charter/pack_context.py` (`PackContext.from_config` / `_load_config` — resolve charter.yaml via the `charter:` pointer then read flat activation from it; `org_packs` stay in config → two-file read), `.kittify/config.yaml` (activation keys removed; single `charter:` pointer added)
+- **Affected surfaces**: `src/charter/activation/activation_engine.py` (`commit_plan:359` — the real write primitive; re-word its `config.yaml`-specific diagnostics/error strings; it is data-source-agnostic so a flat-root charter.yaml needs no functional change), `src/charter/activation/pack_manager.py` (`merge_defaults`, `_save_config` — via the shared write helper), `src/charter/activation/pack_context.py` (`PackContext.from_config` / `_load_config` — resolve charter.yaml via the `charter:` pointer then read flat activation from it; `org_packs` stay in config → two-file read), `.kittify/config.yaml` (activation keys removed; single `charter:` pointer added)
 - **Sequencing/depends-on**: IC-02 (needs the charter.yaml activation schema + the shared write helper)
 - **Landmine (paula BLOCKER-1/MAJOR-1)**: activation is FLAT at charter.yaml root (not nested) so `_read_activated_*` + `commit_plan` operate unchanged. `_load_config` absent→`{}` branch must distinguish "pointer present, charter.yaml missing" (raise, INV-5) from "no config at all" (default-pack fallback). Do NOT convert an absent key into `[]` (would flip all-active→none — SC-008).
 - **Design note (config pointer)**: `config.yaml` keeps a one-line `charter:` pointer so the resolver locates `charter.yaml` deterministically and a charter swap (experiment / local redirect / cross-project) is a one-line change — keeping churny activation edits out of `config.yaml` (fewer multi-user merge conflicts).
@@ -123,7 +123,7 @@ docs/  # IC-09: context/charter-overview.md, context/governance-files.md, api/ch
 
 - **Purpose**: Emit `charter.yaml` from the compile pipeline (seeded deterministically from triad + catalog + activation); remove/guard the `compiler.py:421` `charter.md` clobber so `charter.md` is companion-only; retire the `references.yaml` writer.
 - **Relevant requirements**: FR-001, FR-007, FR-011
-- **Affected surfaces**: `src/charter/compiler.py` (`write_compiled_charter`, `:421`, `_write_references_yaml`), `src/specify_cli/cli/commands/charter/generate.py` (autotrack), `src/specify_cli/cli/commands/charter_bundle.py`
+- **Affected surfaces**: `src/charter/activation/compiler.py` (`write_compiled_charter`, `:421`, `_write_references_yaml`), `src/specify_cli/cli/commands/charter/generate.py` (autotrack), `src/specify_cli/cli/commands/charter_bundle.py`
 - **Sequencing/depends-on**: IC-02 (schema + shared write helper)
 - **Risks**: Three FRs converge on `write_compiled_charter` — one owner. Must regenerate + commit spec-kitty's own `charter.yaml` here or downstream re-points fail on this repo. Invert the clobber tests to assert prose survives. **Landmine 3 (alphonso MAJOR-2)** — the charter.yaml write MUST be a **partial/merge write** (via the IC-02 shared helper): refresh only the DERIVED `catalog`+`metadata`; preserve AUTHORED `governance`/`directives`/`activation`/`overrides` byte-for-byte (ruamel round-trip). Treat `activation` as read-only input (no catalog←activation round-trip circularity). Regression test: authored governance/activation survives `charter generate --force`.
 
@@ -131,7 +131,7 @@ docs/  # IC-09: context/charter-overview.md, context/governance-files.md, api/ch
 
 - **Purpose**: Re-point every governance/directive/parity DECISION reader to `charter.yaml`; delete the prose→triad scrape and the dead AI stub.
 - **Relevant requirements**: FR-004, FR-005, FR-006
-- **Affected surfaces**: ALL of `src/charter/sync.py` (loaders `:307/:356` → charter.yaml; delete `sync()` scrape + `post_save_hook:224`) + ALL of `src/charter/extractor.py` (delete `SECTION_MAPPING:46`, `write_extraction_result`, dead `extract_with_ai:807`); bypass readers `src/charter/mission_type_profiles.py` (`_project_has_doctrine_overrides` — re-verify line, ~:598/:975), `src/doctrine/spdd_reasons/activation.py` (+ `clear_activation_cache`), `src/specify_cli/cli/commands/_doctrine_collect.py:555`; parity `src/charter/consistency_check.py` — re-point **BOTH** `_load_raw_activation_lists:199-200` (activation lists — paula MAJOR-2, easy to miss) **and** `_load_reference_ids_by_kind:420` (catalog) to charter.yaml; re-home #2530 fail-closed onto charter.yaml
+- **Affected surfaces**: ALL of `src/charter/activation/sync.py` (loaders `:307/:356` → charter.yaml; delete `sync()` scrape + `post_save_hook:224`) + ALL of `src/charter/extractor.py` (delete `SECTION_MAPPING:46`, `write_extraction_result`, dead `extract_with_ai:807`); bypass readers `src/charter/activation/mission_type_profiles.py` (`_project_has_doctrine_overrides` — re-verify line, ~:598/:975), `src/doctrine/spdd_reasons/activation.py` (+ `clear_activation_cache`), `src/specify_cli/cli/commands/_doctrine_collect.py:555`; parity `src/charter/activation/consistency_check.py` — re-point **BOTH** `_load_raw_activation_lists:199-200` (activation lists — paula MAJOR-2, easy to miss) **and** `_load_reference_ids_by_kind:420` (catalog) to charter.yaml; re-home #2530 fail-closed onto charter.yaml
 - **Sequencing/depends-on**: IC-03 (charter.yaml must be emitted before consumers read it), IC-01 (activation read)
 - **Risks**: **NFR-005 hard ordering** — if the extractor retires before the loaders re-point, `sync()` stops writing the triad and un-re-pointed loaders return empty `GovernanceConfig()` SILENTLY (governance lost, no error). Keep loader signatures stable so callers (IC-05 display, resolver) auto-follow.
 
@@ -139,7 +139,7 @@ docs/  # IC-09: context/charter-overview.md, context/governance-files.md, api/ch
 
 - **Purpose**: Re-point the display-only `charter.md`-prose consumers so no governance DECISION reads prose; `charter.md` stays a display/companion surface.
 - **Relevant requirements**: FR-008
-- **Affected surfaces**: `src/charter/context.py` (prose call-sites: `_extract_policy_summary:274`, `render_critical_section_bodies:1023/2754/2784`), `src/charter/compact.py`, `src/charter/context_renderers/section_bodies.py`
+- **Affected surfaces**: `src/charter/activation/context.py` (prose call-sites: `_extract_policy_summary:274`, `render_critical_section_bodies:1023/2754/2784`), `src/charter/activation/compact.py`, `src/charter/activation/context_renderers/section_bodies.py`
 - **Sequencing/depends-on**: IC-04 (decision loaders stable)
 - **Risks**: Touch only the prose-read call-sites; the decision loader-calls auto-follow IC-04's signature-stable loaders (keeps `context.py` ownership disjoint from IC-04).
 
@@ -163,7 +163,7 @@ docs/  # IC-09: context/charter-overview.md, context/governance-files.md, api/ch
 
 - **Purpose**: Migrate the one behavioral `charter.md`-prose read (doctrine language-scoping tier-3) off prose to `catalog.languages`, so `charter.md` is behaviorally inert.
 - **Relevant requirements**: FR-009
-- **Affected surfaces**: `src/charter/language_scope.py` (`infer_repo_languages` tier-3, `:101-103`)
+- **Affected surfaces**: `src/charter/activation/language_scope.py` (`infer_repo_languages` tier-3, `:101-103`)
 - **Sequencing/depends-on**: IC-03 (needs `catalog.languages` in charter.yaml). Otherwise independent (P2).
 - **Risks**: Low; a degraded last-resort fallback today. Keep the tier-1 `references`/catalog precedence unchanged.
 

@@ -30,9 +30,9 @@ create_intent:
 - tests/charter/test_activation_engine_charter_yaml.py
 execution_mode: code_change
 owned_files:
-- src/charter/activation_engine.py
-- src/charter/pack_manager.py
-- src/charter/pack_context.py
+- src/charter/activation/activation_engine.py
+- src/charter/activation/pack_manager.py
+- src/charter/activation/pack_context.py
 - src/specify_cli/cli/commands/charter/interview.py
 - src/specify_cli/doctrine/org_charter.py
 - tests/charter/test_pack_context_charter_yaml.py
@@ -54,10 +54,10 @@ Relocate the project **activation state** (flat `activated_*` / `activated_kinds
 **Authoritative**: [`data-model.md`](../data-model.md) (config entity + INV-2/4/5/8/9), [`contracts/active-doctrine-resolution.md`](../contracts/active-doctrine-resolution.md), [`contracts/charter-yaml-schema.md`](../contracts/charter-yaml-schema.md) G3/G7. Consumes WP01's `CharterYaml` + shared write helper.
 
 ## Context / grounding
-- `src/charter/pack_context.py:150 from_config`, `:218 _load_config`, `:239-288 _read_activated_*` — the single read seam; consumers auto-follow via the `PackContext` instance.
-- `src/charter/activation_engine.py:359 commit_plan` — the REAL write primitive (data-source-agnostic; writes whatever mapping/path handed). Carries config.yaml-specific error strings (`:183`).
-- `src/charter/pack_manager.py:703-753 merge_defaults` (absent-key seed) + `_save_config` (ruamel round-trip).
-- `src/charter/packs/default.yaml:5-38` — flat activation shape (the fallback/seed).
+- `src/charter/activation/pack_context.py:150 from_config`, `:218 _load_config`, `:239-288 _read_activated_*` — the single read seam; consumers auto-follow via the `PackContext` instance.
+- `src/charter/activation/activation_engine.py:359 commit_plan` — the REAL write primitive (data-source-agnostic; writes whatever mapping/path handed). Carries config.yaml-specific error strings (`:183`).
+- `src/charter/activation/pack_manager.py:703-753 merge_defaults` (absent-key seed) + `_save_config` (ruamel round-trip).
+- `src/charter/activation/packs/default.yaml:5-38` — flat activation shape (the fallback/seed).
 
 ## Subtasks
 

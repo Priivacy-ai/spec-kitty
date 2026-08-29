@@ -29,7 +29,7 @@ activations:
     artifact_kind: styleguide
 ```
 
-### Pydantic shape (`charter.activations.ActivationEntry`)
+### Pydantic shape (`charter.activation.activations.ActivationEntry`)
 
 | Field | Type | Required | Notes |
 |-------|------|----------|-------|
@@ -51,11 +51,11 @@ activations:
 ```
 {
   "specify", "plan", "tasks", "implement", "review", "merge", "accept",
-  "charter.interview", "charter.generate", "charter.context"
+  "charter.activation.interview", "charter.generate", "charter.activation.context"
 }
 ```
 
-Vocabulary lives in `charter.activations.ALLOWED_MISSION_TYPES` and `charter.activations.ALLOWED_ACTIONS`. Single source of truth.
+Vocabulary lives in `charter.activation.activations.ALLOWED_MISSION_TYPES` and `charter.activation.activations.ALLOWED_ACTIONS`. Single source of truth.
 
 ### Wildcards
 
@@ -68,7 +68,7 @@ Vocabulary lives in `charter.activations.ALLOWED_MISSION_TYPES` and `charter.act
 ### Resolver call
 
 ```python
-from charter.activations import resolve_for_context, ActivationEntry
+from charter.activation.activations import resolve_for_context, ActivationEntry
 
 matches = resolve_for_context(
     entries,                        # list[ActivationEntry] (merged from all 3 sources)
@@ -133,4 +133,4 @@ When `mission_type` is wildcard, the stanza reads "When you `<action>`, run `...
 
 ## Note on Trigger Registry vs Activation Vocabulary
 
-See [data-model.md §7](../data-model.md#7-trigger-registry-fr-009--canonical-definition) for the canonical two-vocabulary definition, the union formula, the mandatory `src/charter/activations.py` runtime re-export, and the cross-check architectural test that pins them together.
+See [data-model.md §7](../data-model.md#7-trigger-registry-fr-009--canonical-definition) for the canonical two-vocabulary definition, the union formula, the mandatory `src/charter/activation/activations.py` runtime re-export, and the cross-check architectural test that pins them together.

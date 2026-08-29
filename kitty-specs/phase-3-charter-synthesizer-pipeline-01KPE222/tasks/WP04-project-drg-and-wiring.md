@@ -33,10 +33,10 @@ execution_mode: code_change
 mission_id: 01KPE222CD1MMCYEGB3ZCY51VR
 mission_slug: phase-3-charter-synthesizer-pipeline-01KPE222
 owned_files:
-- src/charter/synthesizer/project_drg.py
-- src/charter/synthesizer/validation_gate.py
-- src/charter/compiler.py
-- src/charter/context.py
+- src/charter/activation/synthesizer/project_drg.py
+- src/charter/activation/synthesizer/validation_gate.py
+- src/charter/activation/compiler.py
+- src/charter/activation/context.py
 - tests/charter/synthesizer/test_project_drg.py
 - tests/charter/synthesizer/test_validation_gate.py
 - tests/charter/synthesizer/test_charter_compile_project_root.py
@@ -62,8 +62,8 @@ Read before writing code:
 - [research.md §R-0-9](../research.md) — the three candidate-list test cases (legacy / present / empty).
 - `src/doctrine/drg/validator.py` — FR-008 gate calls this.
 - `src/doctrine/drg/graph.py::merge_layers` — the additive-merge contract.
-- `src/charter/_drg_helpers.py` — **read touchpoint only**, already resolves `.kittify/doctrine/graph.yaml`; no diff.
-- `src/charter/compiler.py::_default_doctrine_service` and `src/charter/context.py::_build_doctrine_service` — existing candidate list for `DoctrineService.project_root`; extend, don't rewrite.
+- `src/charter/activation/_drg_helpers.py` — **read touchpoint only**, already resolves `.kittify/doctrine/graph.yaml`; no diff.
+- `src/charter/activation/compiler.py::_default_doctrine_service` and `src/charter/activation/context.py::_build_doctrine_service` — existing candidate list for `DoctrineService.project_root`; extend, don't rewrite.
 
 ## Branch strategy
 
@@ -76,7 +76,7 @@ Read before writing code:
 
 ### T021 — `project_drg.py` [P]
 
-**File**: `src/charter/synthesizer/project_drg.py`
+**File**: `src/charter/activation/synthesizer/project_drg.py`
 
 Thin composer over `src/doctrine/drg` primitives:
 - `emit_project_layer(targets, adapter_outputs, spec_kitty_version) -> DRGGraph` — builds a `DRGGraph` with:
@@ -89,7 +89,7 @@ No new edge-removal semantics; no new merge semantics. If you're tempted to writ
 
 ### T022 — `validation_gate.py` [P]
 
-**File**: `src/charter/synthesizer/validation_gate.py`
+**File**: `src/charter/activation/synthesizer/validation_gate.py`
 
 Public: `validate(staging_dir, shipped_drg) -> None`.
 
@@ -109,9 +109,9 @@ Inside `project_drg.emit_project_layer`, before emitting any node, assert that `
 
 Same rule for edges: any `DRGEdge` whose `(source, target, kind)` triple already exists in shipped must be rejected as a duplicate-edge violation.
 
-### T024 — Extend `src/charter/compiler.py::_default_doctrine_service`
+### T024 — Extend `src/charter/activation/compiler.py::_default_doctrine_service`
 
-**File**: `src/charter/compiler.py` (edit)
+**File**: `src/charter/activation/compiler.py` (edit)
 
 Locate the current candidate-list logic. Extend it to append `.kittify/doctrine/` **before** the existing `src/doctrine` / `doctrine` candidates — if it exists. Use a helper:
 
@@ -132,11 +132,11 @@ def _resolve_project_root(repo_root: Path) -> Path | None:
 
 **Conditional on directory presence**: if `.kittify/doctrine/` does not exist, the function returns the next candidate — identical behaviour to 3.x today (R-2 mitigation).
 
-### T025 — Extend `src/charter/context.py::_build_doctrine_service`
+### T025 — Extend `src/charter/activation/context.py::_build_doctrine_service`
 
-**File**: `src/charter/context.py` (edit)
+**File**: `src/charter/activation/context.py` (edit)
 
-Mirror the same candidate-list extension. Both `compiler._default_doctrine_service` and `context._build_doctrine_service` should converge on the same helper — either extract a shared `_resolve_project_root` into `src/charter/_doctrine_paths.py` (a new small module **owned by WP04**; add it to `owned_files` before finalizing) or duplicate the tuple in both files with a comment cross-reference. Prefer the shared helper — duplication invites drift.
+Mirror the same candidate-list extension. Both `compiler._default_doctrine_service` and `context._build_doctrine_service` should converge on the same helper — either extract a shared `_resolve_project_root` into `src/charter/activation/_doctrine_paths.py` (a new small module **owned by WP04**; add it to `owned_files` before finalizing) or duplicate the tuple in both files with a comment cross-reference. Prefer the shared helper — duplication invites drift.
 
 If you add `_doctrine_paths.py`, it lives under `src/charter/` (not the synthesizer subpackage) because `DoctrineService` wiring predates the synthesizer.
 
