@@ -22,7 +22,7 @@ from unittest.mock import patch
 import pytest
 from typer.testing import CliRunner
 
-from doctrine.agent_profiles.diagnostics import SkippedProfile
+from charter.offering.agent_profiles.diagnostics import SkippedProfile
 from specify_cli.cli.commands._doctrine_health import (
     DoctrineHealthReport,
     PackHealth,
@@ -414,7 +414,7 @@ _VALID_ORG_SIBLING = dedent(
 def repo_with_inline_ref_org_profile(tmp_path: Path) -> Path:
     """Repo whose ORG doctrine layer holds an inline-ref profile + a valid sibling.
 
-    Registers the pack via the canonical ``doctrine.org.packs[]`` config so
+    Registers the pack via the canonical ``charter.offering.org.packs[]`` config so
     ``resolve_org_roots`` picks it up as an org layer (not the project layer),
     exercising the eager/all-or-nothing org load path the #1584 false-healthy
     class lives on.
@@ -568,7 +568,7 @@ def test_collector_crash_is_unhealthy_not_vacuous_green() -> None:
 
     # ``DoctrineService`` is imported locally inside ``_collect_profile_health``,
     # so patch it at its definition site to force the load to crash.
-    with patch("doctrine.service.DoctrineService", side_effect=_boom):
+    with patch("charter.offering.service.DoctrineService", side_effect=_boom):
         report = doctor_mod._collect_profile_health(_Path("/nonexistent-repo"))
 
     assert report.healthy is False, "a crashed collector must not be green"

@@ -14,17 +14,17 @@ import pytest
 import jsonschema
 from ruamel.yaml import YAML
 
-from doctrine.drg.migration.id_normalizer import normalize_directive_id
-from tests.doctrine.conftest import DOCTRINE_SOURCE_ROOT, REPO_ROOT
+from charter.offering.drg.migration.id_normalizer import normalize_directive_id
+from tests.charter.offering.conftest import DOCTRINE_SOURCE_ROOT, REPO_ROOT
 
 pytestmark = [pytest.mark.fast, pytest.mark.doctrine, pytest.mark.corpus]
 
 _DOCTRINE_ROOT = DOCTRINE_SOURCE_ROOT
 
-# Built-in doctrine pack content relocated out of ``src/doctrine/<kind>/built-in``
+# Built-in doctrine pack content relocated out of ``src/charter/offering/<kind>/built-in``
 # into the flattened top-level ``packs/built-in/<kind>`` pack root (mission
 # ``relocate-builtin-doctrine-packs-01KYT87F``). Schemas and templates stay under
-# ``src/doctrine/``.
+# ``src/charter/offering/``.
 _PACKS_BUILT_IN = REPO_ROOT / "packs" / "built-in"
 
 PROFILES_DIR = _PACKS_BUILT_IN / "agent_profiles"
@@ -402,7 +402,7 @@ def _shipped_paradigm_ids() -> set[str]:
 def test_no_paradigm_carries_inline_tactic_refs() -> None:
     """Post-WP02: shipped paradigms must not carry inline ``tactic_refs``.
 
-    Paradigm → tactic relationships live in ``src/doctrine/paradigm.graph.yaml``
+    Paradigm → tactic relationships live in ``src/charter/offering/paradigm.graph.yaml``
     after Phase 1 excision; this test guards against regression.
     """
     offenders: list[str] = []
@@ -413,7 +413,7 @@ def test_no_paradigm_carries_inline_tactic_refs() -> None:
             offenders.append(f"{paradigm_id}: still declares inline `tactic_refs`")
     assert not offenders, (
         "Inline `tactic_refs` reintroduced on shipped paradigms — all "
-        "relationships must live in src/doctrine/paradigm.graph.yaml "
+        "relationships must live in src/charter/offering/paradigm.graph.yaml "
         "(see WP02 of excise-doctrine-curation-and-inline-references-01KP54J6):\n"
         + "\n".join(offenders)
     )

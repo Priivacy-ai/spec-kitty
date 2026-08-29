@@ -82,7 +82,7 @@ def test_summarize_org_charter_module_unavailable(monkeypatch: pytest.MonkeyPatc
     real_import = builtins.__import__
 
     def _fake_import(name: str, *a: Any, **k: Any) -> Any:
-        if name == "specify_cli.doctrine.org_charter":
+        if name == "specify_cli.charter.offering.org_charter":
             raise ImportError("not shipped")
         return real_import(name, *a, **k)
 
@@ -99,7 +99,7 @@ def test_collect_profile_health_records_crash(monkeypatch: pytest.MonkeyPatch, t
     # load to fail, so the crash is recorded into org_drg["errors"].
     monkeypatch.setattr(collect, "_collect_org_layer_data", lambda _r: {"errors": []})
 
-    import doctrine.service as svc
+    import charter.offering.service as svc
 
     def _boom(*_a: Any, **_k: Any) -> Any:
         raise RuntimeError("load failed")
@@ -244,7 +244,7 @@ def test_build_selection_block_dedup_and_order(monkeypatch: pytest.MonkeyPatch, 
     )
     monkeypatch.setattr(collect, "_resolve_artifact_source", lambda *a, **k: "built-in")
 
-    import doctrine.service as svc
+    import charter.offering.service as svc
 
     monkeypatch.setattr(svc, "DoctrineService", lambda **k: object())
 

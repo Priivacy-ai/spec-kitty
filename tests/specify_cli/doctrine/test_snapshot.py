@@ -8,8 +8,8 @@ from pathlib import Path
 
 import yaml
 
-from specify_cli.doctrine.snapshot import fetch_pack, write_pack_manifest, write_snapshot
-from specify_cli.doctrine.sources.protocol import FetchResult
+from specify_cli.charter.offering.snapshot import fetch_pack, write_pack_manifest, write_snapshot
+from specify_cli.charter.offering.sources.protocol import FetchResult
 
 
 import pytest
@@ -46,7 +46,7 @@ class TestFetchPackEnvVarExpansion:
     ``${VAR}``-templated ``local_path`` literal."""
 
     def test_fetch_pack_writes_into_expanded_target_not_literal_template(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-        from doctrine.drg.org_pack_config import OrgPackConfig
+        from charter.offering.drg.org_pack_config import OrgPackConfig
 
         env_var = "SPEC_KITTY_PACK_HOME"
         monkeypatch.setenv(env_var, str(tmp_path))
@@ -61,7 +61,7 @@ class TestFetchPackEnvVarExpansion:
             layout=_populate_valid_pack,
             result=FetchResult(ok=True, artifacts_written=2, pack_version="v1.0.0"),
         )
-        monkeypatch.setattr("specify_cli.doctrine.snapshot._build_source", lambda _pack: source)
+        monkeypatch.setattr("specify_cli.charter.offering.snapshot._build_source", lambda _pack: source)
 
         result = fetch_pack(pack, tmp_path)
 
@@ -73,7 +73,7 @@ class TestFetchPackEnvVarExpansion:
         assert not literal_target.exists()
 
     def test_fetch_pack_fails_closed_on_unset_env_var(self, tmp_path: Path) -> None:
-        from doctrine.drg.org_pack_config import OrgPackConfig
+        from charter.offering.drg.org_pack_config import OrgPackConfig
 
         pack = OrgPackConfig(
             name="acme",
@@ -324,7 +324,7 @@ class TestWriteSnapshot:
         assert not local_path.exists()
 
     def test_fetch_pack_passes_subdir_to_write_snapshot(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-        from specify_cli.doctrine.config import OrgPackConfig
+        from specify_cli.charter.offering.config import OrgPackConfig
 
         pack = OrgPackConfig(
             name="doctrine-rnd",
@@ -341,7 +341,7 @@ class TestWriteSnapshot:
             layout=_nested_pack_layout,
             result=FetchResult(ok=True, artifacts_written=2, pack_version="v9"),
         )
-        monkeypatch.setattr("specify_cli.doctrine.snapshot._build_source", lambda _pack: source)
+        monkeypatch.setattr("specify_cli.charter.offering.snapshot._build_source", lambda _pack: source)
 
         result = fetch_pack(pack, tmp_path)
 
@@ -377,7 +377,7 @@ class TestEtagConditionalFetch:
         monkeypatch: pytest.MonkeyPatch,
         invalid_url: str,
     ) -> None:
-        from specify_cli.doctrine.sources.https_source import HttpsBundleSource
+        from specify_cli.charter.offering.sources.https_source import HttpsBundleSource
 
         local_path = tmp_path / "doctrine"
         _populate_valid_pack(local_path)
@@ -401,11 +401,11 @@ class TestEtagConditionalFetch:
             raise AssertionError("invalid source reached requests.get")
 
         monkeypatch.setattr(
-            "specify_cli.doctrine.sources.https_source.requests.get",
+            "specify_cli.charter.offering.sources.https_source.requests.get",
             _unexpected_get,
         )
         monkeypatch.setattr(
-            "specify_cli.doctrine.sources.https_source.requests.post",
+            "specify_cli.charter.offering.sources.https_source.requests.post",
             _unexpected_get,
         )
 
@@ -441,7 +441,7 @@ class TestEtagConditionalFetch:
         raw_url: str,
         canonical_url: str,
     ) -> None:
-        from specify_cli.doctrine.sources.https_source import HttpsBundleSource
+        from specify_cli.charter.offering.sources.https_source import HttpsBundleSource
 
         seen_urls: list[str] = []
 
@@ -465,7 +465,7 @@ class TestEtagConditionalFetch:
         assert manifest["source_url"] == canonical_url
 
     def test_query_bearing_source_never_reuses_persisted_etag(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-        from specify_cli.doctrine.sources.https_source import HttpsBundleSource
+        from specify_cli.charter.offering.sources.https_source import HttpsBundleSource
 
         local_path = tmp_path / "doctrine"
         _populate_valid_pack(local_path)
@@ -509,8 +509,8 @@ class TestEtagConditionalFetch:
         assert (local_path / "directives" / "sec-001.directive.yaml").read_text() == "id: B\n"
 
     def test_locally_modified_snapshot_disables_conditional_fetch(self, tmp_path: Path) -> None:
-        from specify_cli.doctrine.snapshot import _with_stored_etag
-        from specify_cli.doctrine.sources.https_source import HttpsBundleSource
+        from specify_cli.charter.offering.snapshot import _with_stored_etag
+        from specify_cli.charter.offering.sources.https_source import HttpsBundleSource
 
         local_path = tmp_path / "doctrine"
         _populate_valid_pack(local_path)
@@ -540,7 +540,7 @@ class TestEtagConditionalFetch:
         assert prepared.if_none_match is None
 
     def test_304_fails_when_local_snapshot_changed_after_preparation(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-        from specify_cli.doctrine.sources.https_source import HttpsBundleSource
+        from specify_cli.charter.offering.sources.https_source import HttpsBundleSource
 
         local_path = tmp_path / "doctrine"
         _populate_valid_pack(local_path)
@@ -568,7 +568,7 @@ class TestEtagConditionalFetch:
                 return None
 
         monkeypatch.setattr(
-            "specify_cli.doctrine.sources.https_source.requests.get",
+            "specify_cli.charter.offering.sources.https_source.requests.get",
             lambda _url, **_kwargs: _NotModified(),
         )
 
@@ -582,8 +582,8 @@ class TestEtagConditionalFetch:
         assert any("integrity digest" in error for error in result.errors)
 
     def test_legacy_artifactory_manifest_forces_one_versioned_download(self, tmp_path: Path) -> None:
-        from specify_cli.doctrine.snapshot import _with_stored_etag
-        from specify_cli.doctrine.sources.https_source import HttpsBundleSource
+        from specify_cli.charter.offering.snapshot import _with_stored_etag
+        from specify_cli.charter.offering.sources.https_source import HttpsBundleSource
 
         local_path = tmp_path / "doctrine"
         _populate_valid_pack(local_path)
@@ -615,7 +615,7 @@ class TestEtagConditionalFetch:
         assert prepared.if_none_match is None
 
     def test_write_snapshot_skips_replace_on_304(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-        from specify_cli.doctrine.sources.https_source import HttpsBundleSource
+        from specify_cli.charter.offering.sources.https_source import HttpsBundleSource
 
         local_path = tmp_path / "doctrine"
         _populate_valid_pack(local_path)
@@ -657,7 +657,7 @@ class TestEtagConditionalFetch:
 
             return _Resp()
 
-        monkeypatch.setattr("specify_cli.doctrine.sources.https_source.requests.get", _fake_get)
+        monkeypatch.setattr("specify_cli.charter.offering.sources.https_source.requests.get", _fake_get)
 
         result = write_snapshot(
             HttpsBundleSource(url="https://example.com/pack.tar.gz"),
@@ -694,7 +694,7 @@ class TestEtagConditionalFetch:
 
 class TestPackManifest:
     def test_fetched_manifest_round_trips_through_canonical_schema(self, tmp_path: Path) -> None:
-        from specify_cli.doctrine.pack_manifest import (
+        from specify_cli.charter.offering.pack_manifest import (
             load_pack_manifest,
             resolve_counts,
         )

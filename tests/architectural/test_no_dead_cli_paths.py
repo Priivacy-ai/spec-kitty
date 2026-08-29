@@ -3,15 +3,15 @@
 Split out of ``test_no_dead_doctrine_paths.py`` (mission
 ``doctrine-consumer-surface-missions-extraction-01KZ6G6H`` WP01, FR-001) --
 Gate A and Gate B both scan ``_SRC_ROOT`` (all of ``src/``, plus the relocated
-``packs/built-in/`` shipped tree), not just ``src/doctrine/``. They share a
-CLI-wide scope with each other but not with Gate C (``src/doctrine/``-only,
+``packs/built-in/`` shipped tree), not just ``src/charter/offering/``. They share a
+CLI-wide scope with each other but not with Gate C (``src/charter/offering/``-only,
 still in ``test_no_dead_doctrine_paths.py``) or Gate D (``docs/``-only, in
 ``test_dead_builtin_doc_paths.py``).
 
 Originally: mission ``doctrine-silence-guards-01KYFV7Q`` WP07 (FR-008, FR-009,
 NFR-003).
 
-``A`` -- the DRG monolith ``src/doctrine/graph.yaml``, sharded out of
+``A`` -- the DRG monolith ``src/charter/offering/graph.yaml``, sharded out of
 existence by #2680 into one ``<kind>.graph.yaml`` fragment per kind.
 
 ``B`` -- the ``<kind>/shipped/`` pack layer, which has never existed on disk;
@@ -62,7 +62,7 @@ pytestmark = [pytest.mark.architectural, pytest.mark.git_repo]
 #: Any slash-joined literal naming a ``graph.yaml`` directly inside a
 #: ``doctrine`` directory. Deliberately broader than the exact built-in
 #: string: the defect class is "names a doctrine graph monolith", and a gate
-#: keyed only on ``src/doctrine/graph.yaml`` is evaded by rewording the prefix.
+#: keyed only on ``src/charter/offering/graph.yaml`` is evaded by rewording the prefix.
 _GRAPH_MONOLITH_RE = re.compile(r"[\w./<>-]*doctrine/graph\.yaml")
 
 #: Discriminator A1. The project tier really does write a single
@@ -159,7 +159,7 @@ _SHIPPED_FULL_PATH_RE = re.compile(
 
 #: Discriminator B2 -- built-in glossary packs mirroring a hash-pinned seed.
 #:
-#: ``src/doctrine/glossary_packs/built-in/<pack-id>.glossary-pack.yaml`` is a
+#: ``src/charter/offering/glossary_packs/built-in/<pack-id>.glossary-pack.yaml`` is a
 #: field-for-field migration of the read-only seed
 #: ``.kittify/glossaries/<pack-id>.yaml`` (the ``{scope.value}.yaml`` layout
 #: ``glossary.scope.load_seed_file`` resolves). Two standing gates make the pack
@@ -302,18 +302,18 @@ def scan_shipped_pack_shipped() -> ShippedLayerScan:
 
 def test_no_source_site_names_the_dead_drg_monolith() -> None:
     """FR-008 / SC-007: nothing under the shipped trees (``src/`` +
-    ``packs/built-in/``) points at the sharded-away ``src/doctrine/graph.yaml``."""
+    ``packs/built-in/``) points at the sharded-away ``src/charter/offering/graph.yaml``."""
     scan = scan_graph_monolith_shipped()
     assert not scan.violations, (
         "These sites name a doctrine graph monolith that #2680 deleted. "
-        "Point them at the per-kind fragment (src/doctrine/<kind>.graph.yaml):\n" + _render(scan.violations)
+        "Point them at the per-kind fragment (src/charter/offering/<kind>.graph.yaml):\n" + _render(scan.violations)
     )
 
 
 def test_the_migration_hint_names_a_fragment_that_exists() -> None:
     """FR-008: the hint an operator is handed must be followable -- the file
     it names must be on disk for every artifact kind that can raise it."""
-    from doctrine.shared.errors import build_migration_hint
+    from charter.offering.shared.errors import build_migration_hint
 
     kinds = (
         "directive",
@@ -339,7 +339,7 @@ def test_the_migration_hint_names_a_fragment_that_exists() -> None:
         # SOURCE kind (extractor._partition_by_kind), verified against all 774
         # shipped edges, so the named fragment must be the source kind's own.
         # Relocated (mission relocate-builtin-doctrine-packs-01KYT87F): the shipped
-        # per-kind fragments moved from ``src/doctrine/`` to the ``packs/built-in/``
+        # per-kind fragments moved from ``src/charter/offering/`` to the ``packs/built-in/``
         # pack root, so the followable hint names the fragment there.
         expected = f"packs/built-in/{kind}.graph.yaml"
         if named[0] != expected:
@@ -362,7 +362,7 @@ def test_project_tier_graph_path_would_false_red_without_its_discriminator() -> 
     assert excluded == [
         "src/charter/synthesizer/manifest.py",
         "src/charter/synthesizer/project_drg.py",
-        "src/doctrine/drg/merge.py",
+        "src/charter/offering/drg/merge.py",
         "src/glossary/drg_builder.py",
         "src/specify_cli/charter_runtime/freshness/computer.py",
         "src/specify_cli/state/contract.py",
@@ -398,7 +398,7 @@ def test_forbidding_mention_would_false_red_without_its_discriminator(tmp_path: 
     fixture.write_text(
         "specialization:\n"
         "  avoidance-boundary: >\n"
-        "    Does not name src/doctrine/graph.yaml as guidance to follow.\n",
+        "    Does not name src/charter/offering/graph.yaml as guidance to follow.\n",
         encoding="utf-8",
     )
     scan = scan_graph_monolith_paths(tmp_path)
@@ -408,16 +408,16 @@ def test_forbidding_mention_would_false_red_without_its_discriminator(tmp_path: 
     )
     excluded = sorted((site.path, site.text) for site in scan.forbidding_mentions)
     assert excluded == [
-        ("synthetic-forbidding-mention.agent.yaml", "src/doctrine/graph.yaml"),
+        ("synthetic-forbidding-mention.agent.yaml", "src/charter/offering/graph.yaml"),
     ], f"A2's effect set moved -- widening it needs a reason: {_render(scan.forbidding_mentions)}"
 
 
 def test_gate_a_rejects_a_planted_violation(tmp_path: Path) -> None:
     """Self-mutation: the gate must catch the regression it exists to catch."""
     planted = tmp_path / "guidance.md"
-    planted.write_text("Add the edge to src/doctrine/graph.yaml.\n", encoding="utf-8")
+    planted.write_text("Add the edge to src/charter/offering/graph.yaml.\n", encoding="utf-8")
     scan = scan_graph_monolith_paths(tmp_path)
-    assert [site.text for site in scan.violations] == ["src/doctrine/graph.yaml"]
+    assert [site.text for site in scan.violations] == ["src/charter/offering/graph.yaml"]
 
 
 def test_gate_a_discriminators_do_not_swallow_a_planted_violation(tmp_path: Path) -> None:
@@ -427,9 +427,9 @@ def test_gate_a_discriminators_do_not_swallow_a_planted_violation(tmp_path: Path
     profile.write_text(
         "specialization:\n"
         "  primary-focus: >\n"
-        "    Edit src/doctrine/graph.yaml to add the edge.\n"
+        "    Edit src/charter/offering/graph.yaml to add the edge.\n"
         "  avoidance-boundary: >\n"
-        "    Does not tell an operator to edit src/doctrine/graph.yaml.\n",
+        "    Does not tell an operator to edit src/charter/offering/graph.yaml.\n",
         encoding="utf-8",
     )
     scan = scan_graph_monolith_paths(tmp_path)
@@ -466,7 +466,7 @@ def test_shipped_prose_would_false_red_without_the_path_shape_discriminator() ->
     # not a `<kind>/shipped/` pack-layer path reference.
     excluded = sorted(site.path for site in scan.prose)
     assert excluded == [
-        "src/doctrine/model_task_routing/catalog/model-to-task_type.yaml",
+        "src/charter/offering/model_task_routing/catalog/model-to-task_type.yaml",
         "src/runtime/next/_internal_runtime/planner.py",
         "src/specify_cli/cli/commands/_doctrine_asset.py",
     ], f"B1's effect set moved -- widening it needs a reason: {_render(scan.prose)}"
@@ -485,7 +485,7 @@ def test_frozen_seed_mirror_would_false_red_without_its_discriminator() -> None:
     # Relocated (mission relocate-builtin-doctrine-packs-01KYT87F): the built-in
     # glossary pack moved to the flattened ``packs/built-in/glossary_packs/`` home.
     pack = "packs/built-in/glossary_packs/spec-kitty-core.glossary-pack.yaml"
-    dead_path = "src/doctrine/tactics/shipped/secure-regex-catastrophic-backtracking.tactic.yaml"
+    dead_path = "src/charter/offering/tactics/shipped/secure-regex-catastrophic-backtracking.tactic.yaml"
     assert excluded == [(pack, dead_path), (pack, dead_path)], (
         "B2's effect set moved. It may only exclude a pack site whose dead path "
         "is verbatim in the hash-pinned seed it mirrors -- widening it needs a "
@@ -503,7 +503,7 @@ def test_frozen_seed_mirror_discriminator_is_anchored_in_the_live_seed() -> None
     """
     seed = _GLOSSARY_SEED_DIR / "spec_kitty_core.yaml"
     assert seed.is_file(), f"the mirrored migration seed is missing: {seed}"
-    dead_path = "src/doctrine/tactics/shipped/secure-regex-catastrophic-backtracking.tactic.yaml"
+    dead_path = "src/charter/offering/tactics/shipped/secure-regex-catastrophic-backtracking.tactic.yaml"
     assert dead_path in _frozen_seed_text(seed), (
         f"the seed no longer carries {dead_path!r}. The seed is READ, never "
         "modified (C-003, pinned by test_glossary_pack_no_regression) -- if it "
@@ -525,9 +525,9 @@ def test_gate_b_frozen_mirror_discriminator_requires_the_seed_to_carry_the_path(
     # ``packs/built-in/glossary_packs/`` (the inner ``built-in`` is dropped).
     pack_dir = tmp_path / "packs" / "built-in" / "glossary_packs"
     pack_dir.mkdir(parents=True)
-    mirrored = "src/doctrine/tactics/shipped/secure-regex-catastrophic-backtracking.tactic.yaml"
+    mirrored = "src/charter/offering/tactics/shipped/secure-regex-catastrophic-backtracking.tactic.yaml"
     (pack_dir / "spec-kitty-core.glossary-pack.yaml").write_text(
-        f"a: {mirrored}\nb: src/doctrine/tactics/shipped/invented.tactic.yaml\n",
+        f"a: {mirrored}\nb: src/charter/offering/tactics/shipped/invented.tactic.yaml\n",
         encoding="utf-8",
     )
     (pack_dir / "no-such-seed.glossary-pack.yaml").write_text(
@@ -548,7 +548,7 @@ def test_gate_b_rejects_a_planted_violation(tmp_path: Path) -> None:
     adjacent prose form must not be."""
     planted = tmp_path / "guide.md"
     planted.write_text(
-        "Artifacts live in src/doctrine/tactics/shipped/.\nThe shipped/packaged catalogue is generated.\n",
+        "Artifacts live in src/charter/offering/tactics/shipped/.\nThe shipped/packaged catalogue is generated.\n",
         encoding="utf-8",
     )
     scan = scan_shipped_pack_paths(tmp_path)
@@ -560,6 +560,6 @@ def test_gate_b_flags_the_placeholder_pack_layer_form(tmp_path: Path) -> None:
     """``<kind>/shipped/`` is the operator-facing form and must not slip
     through on account of its angle brackets."""
     planted = tmp_path / "guide.md"
-    planted.write_text("Shipped artifacts: src/doctrine/<kind>/shipped/\n", encoding="utf-8")
+    planted.write_text("Shipped artifacts: src/charter/offering/<kind>/shipped/\n", encoding="utf-8")
     scan = scan_shipped_pack_paths(tmp_path)
     assert len(scan.violations) == 1

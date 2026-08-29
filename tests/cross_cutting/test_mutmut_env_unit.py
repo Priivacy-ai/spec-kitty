@@ -41,7 +41,7 @@ def test_prepare_mutants_environment_copies_missing_siblings_without_overwriting
     # Assert
     assert (mutants_root / "src" / "specify_cli" / "dossier" / "api.py").read_text(encoding="utf-8") == "mutated api\n"
     assert (mutants_root / "src" / "specify_cli" / "dossier" / "models.py").read_text(encoding="utf-8") == "original models\n"
-    assert (mutants_root / "src" / "doctrine" / "core.py").read_text(encoding="utf-8") == "doctrine core\n"
+    assert (mutants_root / "src" / "charter" / "offering" / "core.py").read_text(encoding="utf-8") == "doctrine core\n"
     assert mutants_root / "src" / "specify_cli" / "dossier" / "models.py" in copied
     assert mutants_root / "src" / "specify_cli" / "dossier" / "api.py" not in copied
 
@@ -90,7 +90,7 @@ def test_missing_required_paths_reports_missing_entries(tmp_path: Path) -> None:
 
     # Assumption check
     assert (mutants_root / "src" / "specify_cli" / "frontmatter.py").exists()
-    assert not (mutants_root / "src" / "doctrine").exists()
+    assert not (mutants_root / "src" / "charter" / "offering").exists()
 
     # Act
     missing = missing_required_paths(
@@ -111,7 +111,7 @@ def test_main_returns_non_zero_when_required_paths_are_missing(tmp_path: Path, c
     (mutants_root / "src" / "specify_cli").mkdir(parents=True)
 
     # Assumption check
-    assert not (mutants_root / "src" / "doctrine").exists()
+    assert not (mutants_root / "src" / "charter" / "offering").exists()
 
     # Act
     exit_code = main(

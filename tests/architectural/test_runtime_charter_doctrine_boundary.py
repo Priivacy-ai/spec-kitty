@@ -57,7 +57,7 @@ def _rel_to_repo(path: Path) -> str:
 
 
 def test_boundary_predicate_has_prohibited_and_compliant_controls() -> None:
-    assert _has_module_level_doctrine_import("from doctrine.resolver import resolve_profile\n")
+    assert _has_module_level_doctrine_import("from charter.offering.resolver import resolve_profile\n")
     assert not _has_module_level_doctrine_import("from charter.profiles import resolve_profile\n")
 
 
@@ -81,7 +81,7 @@ def test_runtime_has_no_direct_doctrine_imports() -> None:
 # ===========================================================================
 #
 # The module-level ratchet above walks only ``tree.body`` and so is blind to the
-# *lazy* reach-through: a direct ``from doctrine…`` import nested inside a
+# *lazy* reach-through: a direct ``from charter.offering…`` import nested inside a
 # function/class body. Confirmed on-branch: 0 module-level vs 29 lazy files. This
 # section adds the sibling ratchet (FR-006 / SC-003) plus the SOURCE-side
 # re-export-laundering guard (C-005 / FR-004). The two ratchets stay separate:
@@ -95,17 +95,17 @@ def test_runtime_has_no_direct_doctrine_imports() -> None:
 # depth)`` and flags only depth>0, non-TYPE_CHECKING doctrine imports.
 #
 # Known limits (T020):
-#   * Bare ``import doctrine`` (path/metadata introspection, e.g.
-#     tool_surface/bundles/codex.py reading ``doctrine.__file__``) IS matched by
+#   * Bare ``import charter.offering`` (path/metadata introspection, e.g.
+#     tool_surface/bundles/codex.py reading ``charter.offering.__file__``) IS matched by
 #     the descent — it is a level-0 absolute ``doctrine`` name — so a file that
 #     only does metadata introspection still appears in the lazy baseline. It is
 #     classified INTERNAL-METADATA in WP01's census (FR-006 exempt at the
 #     disposition layer), but the ratchet's job is only "does not regrow", so it
 #     is pinned like any other baseline entry and migrates out with its file.
-#   * Aliased imports (``import doctrine.x as dx`` / ``from doctrine.x import y as
+#   * Aliased imports (``import charter.offering.x as dx`` / ``from charter.offering.x import y as
 #     z``) are matched on the *source* module path, not the local alias, so an
 #     alias cannot hide a reach-through.
-#   * Dynamic imports (``importlib.import_module("doctrine.x")``) are invisible to
+#   * Dynamic imports (``importlib.import_module("charter.offering.x")``) are invisible to
 #     a static AST scan. Zero exist today; the "cannot silently regrow" guarantee
 #     is therefore bounded to *static* imports (C3 "Known limit").
 
@@ -126,11 +126,11 @@ _LAZY_BASELINE_ALLOWLIST: frozenset[str] = frozenset(
         # doctrine import that this mission deliberately did not route through a
         # charter facade:
         #   - ``_doctrine_asset.py`` / ``_doctrine_collect.py`` / ``doctrine.py``:
-        #     the sole-door ``doctrine.service`` construction sites (already wrapped
+        #     the sole-door ``charter.offering.service`` construction sites (already wrapped
         #     + test-locked) and the TICKETED-BASELINE paths ``drg.override_policy``
         #     / ``drg.migration.hand_authored_overlay`` (doorless management internals).
-        #   - ``bundles/codex.py``: bare ``import doctrine`` for package-metadata
-        #     introspection (``doctrine.__file__``), not a symbol reach-through.
+        #   - ``bundles/codex.py``: bare ``import charter.offering`` for package-metadata
+        #     introspection (``charter.offering.__file__``), not a symbol reach-through.
         "src/specify_cli/cli/commands/_doctrine_asset.py",
         "src/specify_cli/cli/commands/_doctrine_collect.py",
         "src/specify_cli/cli/commands/doctrine.py",
@@ -144,7 +144,7 @@ _LAZY_BASELINE_ALLOWLIST: frozenset[str] = frozenset(
 #: first-party re-export "laundering" conduit. ``config.py`` re-exports the
 #: shared org-pack-config contract; WP05 closes the conduit, which forces the
 #: stale-entry eviction below. A consumer-side check is impossible: ``from
-#: specify_cli.doctrine.config import load_pack_registry`` (laundered) and ``…
+#: specify_cli.charter.offering.config import load_pack_registry`` (laundered) and ``…
 #: import assert_pack_local_paths_exist`` (genuine first-party) are byte-identical
 #: import syntax, so the rule must be enforced at the SOURCE module's ``__all__``.
 # WP05 (01KZPDSR / C-005, FR-004) CLOSED the ``config.py`` conduit: the
@@ -159,9 +159,9 @@ _LAUNDERING_BASELINE: dict[str, frozenset[str]] = {}
 def _doctrine_import_path(node: ast.AST) -> str | None:
     """Absolute ``doctrine[.…]`` module-path for a level-0 import node, else None.
 
-    Matches the same forms as the census: ``from doctrine.X import Y`` /
-    ``from doctrine import Z`` (``ImportFrom`` with ``level == 0``) and
-    ``import doctrine`` / ``import doctrine.X`` (``Import``). Relative imports
+    Matches the same forms as the census: ``from charter.offering.X import Y`` /
+    ``from charter.offering import Z`` (``ImportFrom`` with ``level == 0``) and
+    ``import charter.offering`` / ``import charter.offering.X`` (``Import``). Relative imports
     (``level > 0``) never name the top-level ``doctrine`` package and are skipped.
     """
     if isinstance(node, ast.ImportFrom):
@@ -277,7 +277,7 @@ def _format_lazy_ratchet_failure(
         bullets = "\n  - ".join(new_violators)
         parts.append(
             "Lazy (function-body) doctrine reach-through. The following files under\n"
-            "src/specify_cli/ introduce a NEW nested `from doctrine.*` / `import\n"
+            "src/specify_cli/ introduce a NEW nested `from charter.offering.*` / `import\n"
             "doctrine` import (outside `if TYPE_CHECKING:` and outside the\n"
             "src/specify_cli/doctrine/ management surface) that is not in the\n"
             "lazy baseline:\n"
@@ -320,7 +320,7 @@ def _declared_all(tree: ast.Module) -> set[str] | None:
 
 
 def _doctrine_origin_names(tree: ast.Module) -> set[str]:
-    """Local names bound by a direct ``from doctrine…`` / ``import doctrine`` import.
+    """Local names bound by a direct ``from charter.offering…`` / ``import charter.offering`` import.
 
     Block context is irrelevant to laundering — a doctrine-origin name that
     appears in ``__all__`` is laundering regardless of where it was imported — so
@@ -402,7 +402,7 @@ def test_runtime_has_no_new_lazy_doctrine_imports() -> None:
     """Pin the LAZY doctrine reach-through as an only-shrink ratchet (FR-006 / SC-003).
 
     Must be GREEN today against the 29-file lazy baseline captured from WP01's
-    live-tree census. A new nested ``from doctrine.*`` import in a non-baselined
+    live-tree census. A new nested ``from charter.offering.*`` import in a non-baselined
     runtime file trips the "grow" direction; removing a baseline entry without
     migrating the file (or migrating without shrinking the baseline) trips the
     "stale" direction — so WP05–WP07 provably shrink the surface.

@@ -44,7 +44,7 @@ _LOGGER = logging.getLogger(__name__)
 
 #: Artifact-kind suffixes for which an org pack may declare a
 #: ``required_<kind>`` list (mirrors
-#: :data:`specify_cli.doctrine.org_charter.REQUIRED_KIND_FIELDS`).  Kept
+#: :data:`specify_cli.charter.offering.org_charter.REQUIRED_KIND_FIELDS`).  Kept
 #: as a local constant inside the charter layer so we can do the
 #: cross-pack union without importing ``specify_cli`` (preserves the
 #: kernel <- doctrine <- charter <- specify_cli dependency direction).
@@ -63,12 +63,12 @@ _REQUIRED_KIND_FIELDS: tuple[str, ...] = (
 def _enumerate_org_pack_paths(repo_root: Path) -> list[tuple[str, Path]]:
     """Return configured ``(pack_name, local_path)`` pairs.
 
-    The shared parser lives in ``doctrine.drg.org_pack_config`` so charter,
+    The shared parser lives in ``charter.offering.drg.org_pack_config`` so charter,
     DRG composition, and specify_cli registry paths consume one config
     contract.
     """
     try:
-        from doctrine.drg.org_pack_config import load_pack_registry  # noqa: PLC0415
+        from charter.offering.drg.org_pack_config import load_pack_registry  # noqa: PLC0415
     except ImportError:
         return []
     try:
@@ -160,7 +160,7 @@ def _read_org_required_selections(repo_root: Path) -> dict[str, list[str]]:
     ``{kind: [ids...]}`` map covering the 8 kinds listed in
     :data:`_REQUIRED_KIND_FIELDS`.  Union preserves first-seen order
     across packs (declaration-order precedence, matching the merge
-    semantics of :func:`specify_cli.doctrine.org_charter.load_org_charter_policies`).
+    semantics of :func:`specify_cli.charter.offering.org_charter.load_org_charter_policies`).
     """
     out: dict[str, list[str]] = {kind: [] for kind in _REQUIRED_KIND_FIELDS}
     for _name, raw in _iter_org_charter_docs(repo_root):

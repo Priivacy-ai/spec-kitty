@@ -31,7 +31,7 @@ pytestmark = pytest.mark.fast
 
 runner = CliRunner()
 
-# A real shipped built-in directive URN (src/doctrine/graph.yaml). Using a real
+# A real shipped built-in directive URN (src/charter/offering/graph.yaml). Using a real
 # built-in URN (not a handcrafted placeholder) is what makes the merge record a
 # same-kind ``org_override`` the gate can adjudicate (C-007).
 _BUILT_IN_DIRECTIVE_URN = "directive:DIRECTIVE_001"
@@ -89,7 +89,7 @@ def _write_org_override_pack(repo_root: Path) -> Path:
 
 
 def _write_config(repo_root: Path, pack_root: Path) -> None:
-    """Write the canonical ``doctrine.org.packs`` config that ``load_org_drg`` reads."""
+    """Write the canonical ``charter.offering.org.packs`` config that ``load_org_drg`` reads."""
     kittify = repo_root / ".kittify"
     kittify.mkdir(exist_ok=True)
     (kittify / "config.yaml").write_text(
@@ -231,7 +231,7 @@ def test_no_org_packs_output_unchanged(tmp_path: Path) -> None:
 
 
 def _override_fragment(urn_kind: str) -> object:
-    from doctrine.drg.org_pack_loader import OrgDRGFragment
+    from charter.offering.drg.org_pack_loader import OrgDRGFragment
 
     item_id = "DIRECTIVE_001"
     return OrgDRGFragment.model_validate(
@@ -250,8 +250,8 @@ def _override_fragment(urn_kind: str) -> object:
 def test_adjudicate_org_overrides_flags_unlisted_directive(tmp_path: Path) -> None:
     """The extracted helper flags an unlisted built-in directive override."""
     from specify_cli.cli.commands._doctrine_collect import _adjudicate_org_overrides
-    from doctrine.drg.merge import merge_three_layers
-    from doctrine.drg.models import DRGGraph, DRGNode, NodeKind
+    from charter.offering.drg.merge import merge_three_layers
+    from charter.offering.drg.models import DRGGraph, DRGNode, NodeKind
 
     built_in = DRGGraph(
         schema_version="1.0",
@@ -276,8 +276,8 @@ def test_adjudicate_org_overrides_flags_unlisted_directive(tmp_path: Path) -> No
 def test_adjudicate_org_overrides_clears_sanctioned_directive(tmp_path: Path) -> None:
     """A directive override with a non-empty reason clears via the helper."""
     from specify_cli.cli.commands._doctrine_collect import _adjudicate_org_overrides
-    from doctrine.drg.merge import merge_three_layers
-    from doctrine.drg.models import DRGGraph, DRGNode, NodeKind
+    from charter.offering.drg.merge import merge_three_layers
+    from charter.offering.drg.models import DRGGraph, DRGNode, NodeKind
 
     built_in = DRGGraph(
         schema_version="1.0",

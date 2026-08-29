@@ -1,6 +1,6 @@
 """Integration tests for tactic schema and content compliance.
 
-Validates all tactic files in src/doctrine/tactics/ for:
+Validates all tactic files in src/charter/offering/tactics/ for:
 A. Schema validity against tactic.schema.yaml  — shipped and _proposed
 B. Reference resolution — every referenced artifact must exist  — shipped only
 C. Token discipline — step-level references repeated in >=70% of steps
@@ -19,7 +19,7 @@ import pytest
 import yaml
 from jsonschema import Draft202012Validator  # type: ignore[import-untyped]
 
-from tests.doctrine.conftest import DOCTRINE_SOURCE_ROOT
+from tests.charter.offering.conftest import DOCTRINE_SOURCE_ROOT
 
 pytestmark = [pytest.mark.doctrine, pytest.mark.fast]
 DOCTRINE_DIR = DOCTRINE_SOURCE_ROOT

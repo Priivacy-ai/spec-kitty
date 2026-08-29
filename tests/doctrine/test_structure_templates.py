@@ -5,7 +5,7 @@ from __future__ import annotations
 from pathlib import Path
 import pytest
 
-from tests.doctrine.conftest import DOCTRINE_SOURCE_ROOT
+from tests.charter.offering.conftest import DOCTRINE_SOURCE_ROOT
 
 pytestmark = [pytest.mark.fast, pytest.mark.doctrine]
 

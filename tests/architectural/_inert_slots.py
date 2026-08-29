@@ -89,7 +89,7 @@ _PYDANTIC_CONFIG_FIELD = "model_config"
 #: ``occurrence_map.yaml`` — a per-MISSION planning artifact authored under
 #: ``kitty-specs/<mission>/`` (see ``specify_cli.bulk_edit.occurrence_map``).
 #: That directory is outside the src-only producer scope this checker walks
-#: (``_producer_roots``: ``src/doctrine/`` and ``packs/built-in/``), and it
+#: (``_producer_roots``: ``src/charter/offering/`` and ``packs/built-in/``), and it
 #: always will be — occurrence maps are not shipped doctrine artefacts, they
 #: are mission-scoped classification documents. No schema property here can
 #: ever be seen as "populated": the checker is not looking in the one place
@@ -188,9 +188,9 @@ def _iter_model_field_names(tree: ast.Module) -> Iterator[str]:
 
 def _model_slots(root: Path) -> Iterator[InertSlot]:
     doctrine = root / _SRC / _DOCTRINE
-    if not doctrine.is_dir():
+    if not charter.offering.is_dir():
         return
-    for path in sorted(doctrine.rglob(_MODELS_FILENAME)):
+    for path in sorted(charter.offering.rglob(_MODELS_FILENAME)):
         tree = ast.parse(path.read_text(encoding="utf-8"))
         for name in _iter_model_field_names(tree):
             yield InertSlot(name=name, declared_at=path.relative_to(root))
@@ -205,9 +205,9 @@ def _producer_roots(root: Path) -> list[Path]:
     Two roots, both the doctrine layer proper. Mission
     ``relocate-builtin-doctrine-packs-01KYT87F`` relocated the shipped built-in
     *artefacts* (and the ``docs_structural_lint.py`` code producer) out of
-    ``src/doctrine/<kind>/built-in/`` into a flattened ``packs/built-in/<kind>/``;
+    ``src/charter/offering/<kind>/built-in/`` into a flattened ``packs/built-in/<kind>/``;
     the ``schemas/``, ``models.py``, ``templates/`` and the remaining ``.py`` code
-    stayed under ``src/doctrine/``. Producers therefore live in *both* trees now, so
+    stayed under ``src/charter/offering/``. Producers therefore live in *both* trees now, so
     both are walked.
 
     This is emphatically **not** the whole-``src`` widening the docstring warns
@@ -216,7 +216,7 @@ def _producer_roots(root: Path) -> list[Path]:
     harvesting all of ``src/``. ``packs/built-in`` is where the doctrine artefacts
     now physically live; scanning it restores the *same* producer set the move
     displaced, no more. The slot walks are deliberately left pointed at
-    ``src/doctrine/`` alone — schemas and models did not move.
+    ``src/charter/offering/`` alone — schemas and models did not move.
     """
     candidates = (root / _SRC / _DOCTRINE, root / _PACKS / _BUILT_IN)
     return [base for base in candidates if base.is_dir()]
@@ -238,7 +238,7 @@ def _artefact_producers(root: Path) -> set[str]:
     Walks both doctrine roots (see :func:`_producer_roots`) — the artefacts now live
     under ``packs/built-in/`` after the relocation, while a few still-authored trees
     (missions, templates, workflows, the routing catalog) remain under
-    ``src/doctrine/``. Excludes ``src/doctrine/schemas/``: the generated schemas are
+    ``src/charter/offering/``. Excludes ``src/charter/offering/schemas/``: the generated schemas are
     what is being checked, and admitting them makes every schema property
     self-producing.
     """
@@ -309,7 +309,7 @@ def _iter_code_producer_names(tree: ast.Module) -> Iterator[str]:
 def _code_producers(root: Path) -> set[str]:
     """Names written by code **in the doctrine tree** — the tree the slots live in.
 
-    Scoped to ``src/doctrine/`` rather than all of ``src/``, and that scope is
+    Scoped to ``src/charter/offering/`` rather than all of ``src/``, and that scope is
     load-bearing rather than a tidiness preference. Matching is by bare name with
     no namespacing, so a wider scan means any unrelated local variable anywhere in
     the CLI masks a doctrine slot of the same name. Whole-``src`` harvesting
@@ -320,7 +320,7 @@ def _code_producers(root: Path) -> set[str]:
 
     Both doctrine roots are walked (see :func:`_producer_roots`): the
     ``docs_structural_lint.py`` code producer relocated to ``packs/built-in/assets/``,
-    while the rest of the doctrine ``.py`` code stayed under ``src/doctrine/``.
+    while the rest of the doctrine ``.py`` code stayed under ``src/charter/offering/``.
     ``packs/built-in`` is the doctrine layer's new home, not the whole-``src``
     widening the paragraph above forbids.
     """
@@ -374,7 +374,7 @@ def find_code_only_suppressions(root: Path) -> list[InertSlot]:
     This is the gate's one silent suppression route, and it was silent in the literal
     sense: a slot could leave the findings list with no artefact authoring it, no
     ``ALLOWLIST`` entry and no baseline row. Review demonstrated it by appending
-    ``_UNUSED = {"zzzprobeslot": None}`` under ``src/doctrine/`` — one dead line, gate
+    ``_UNUSED = {"zzzprobeslot": None}`` under ``src/charter/offering/`` — one dead line, gate
     green. Confirming it found two more shapes that work identically: a bare binding
     and a keyword argument.
 

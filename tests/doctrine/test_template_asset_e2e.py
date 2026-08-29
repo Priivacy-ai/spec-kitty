@@ -10,19 +10,19 @@ end-to-end on a realistic (Regnology-shaped) org pack and that nothing
 regressed for the 9 pre-existing kinds.
 
 Unlike ``tests/doctrine/test_drg_merge.py::TestGlobalURNUniquenessScan``
-(which hand-constructs :class:`~doctrine.drg.org_pack_loader.OrgDRGFragment`
+(which hand-constructs :class:`~charter.offering.drg.org_pack_loader.OrgDRGFragment`
 instances directly), every test here drives the **real** on-disk pipeline:
 
-1. :func:`doctrine.drg.org_pack_loader.load_org_pack` parses an actual
+1. :func:`charter.offering.drg.org_pack_loader.load_org_pack` parses an actual
    ``drg/fragment.yaml`` (and, for the negative path/mime cases,
-   :func:`specify_cli.doctrine.pack_validator.validate_pack` scans an actual
+   :func:`specify_cli.charter.offering.pack_validator.validate_pack` scans an actual
    ``assets/*.asset.yaml`` sidecar) from
    ``tests/doctrine/fixtures/org_pack_template_asset/``.
-2. :func:`doctrine.drg.merge.merge_three_layers` merges the loaded fragment(s)
-   onto the **real, shipped** built-in DRG (``src/doctrine/graph.yaml``, not a
+2. :func:`charter.offering.drg.merge.merge_three_layers` merges the loaded fragment(s)
+   onto the **real, shipped** built-in DRG (``src/charter/offering/graph.yaml``, not a
    synthetic stub) — the strongest available proof that the two kinds compose
    correctly with the full built-in node/edge set.
-3. :func:`doctrine.drg.query.resolve_transitive_refs` walks the merged graph.
+3. :func:`charter.offering.drg.query.resolve_transitive_refs` walks the merged graph.
 
 No mocked shortcuts (NFR-004): behavior is asserted from what the real loader
 produces, not from API shape alone.
@@ -34,13 +34,13 @@ from pathlib import Path
 
 import pytest
 
-from doctrine.drg.loader import load_built_in_graph
-from doctrine.drg.merge import DuplicateURNError, merge_three_layers
-from doctrine.drg.models import DRGGraph, NodeKind, Relation
-from doctrine.drg.org_pack_loader import OrgDRGFragment, load_org_pack
-from doctrine.drg.query import resolve_transitive_refs
-from specify_cli.doctrine.pack_validator import validate_pack
-from tests.doctrine._builtin_inventory import builtin_asset_urns
+from charter.offering.drg.loader import load_built_in_graph
+from charter.offering.drg.merge import DuplicateURNError, merge_three_layers
+from charter.offering.drg.models import DRGGraph, NodeKind, Relation
+from charter.offering.drg.org_pack_loader import OrgDRGFragment, load_org_pack
+from charter.offering.drg.query import resolve_transitive_refs
+from specify_cli.charter.offering.pack_validator import validate_pack
+from tests.charter.offering._builtin_inventory import builtin_asset_urns
 
 pytestmark = [pytest.mark.fast, pytest.mark.doctrine, pytest.mark.corpus]
 
@@ -251,7 +251,7 @@ class TestNoRegressionForExistingKinds:
         """Two org packs shipping the same `directive:` id is UNCHANGED
         behavior: first-wins, no `DuplicateURNError` (that hard-fail is
         scoped strictly to `asset:`/`template:` by
-        :func:`doctrine.drg.merge._check_node_urn_unique`'s prefix
+        :func:`charter.offering.drg.merge._check_node_urn_unique`'s prefix
         argument)."""
         pack_a = OrgDRGFragment.model_validate(
             {

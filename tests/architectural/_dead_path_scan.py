@@ -10,7 +10,7 @@ helpers. That file is now split by *actual scan scope*:
 ``src/``-wide (CLI-wide, not doctrine-scoped).
 
 ``tests/architectural/test_no_dead_doctrine_paths.py`` -- Gate C alone, the
-only ``src/doctrine/``-scoped gate; the file keeps its original name because
+only ``src/charter/offering/``-scoped gate; the file keeps its original name because
 that name now means what it says.
 
 ``tests/architectural/test_dead_builtin_doc_paths.py`` -- Gate D alone, the
@@ -38,7 +38,7 @@ _DOCTRINE_ROOT = _SRC_ROOT / "doctrine"
 #: Relocated built-in pack root (mission ``relocate-builtin-doctrine-packs-01KYT87F``).
 #: The shipped built-in doctrine content that names paths -- agent profiles,
 #: glossary packs, toolguide markdown, and the per-kind ``*.graph.yaml`` fragments
-#: -- moved out of ``src/doctrine/`` into this top-level pack root. The dead-path
+#: -- moved out of ``src/charter/offering/`` into this top-level pack root. The dead-path
 #: defect class now spans BOTH trees (consuming code under ``src/``; authored pack
 #: content under ``packs/built-in/``), so every shipped gate scans the pair and
 #: merges the result. ``_rel`` addresses each site repo-relatively, so a merged

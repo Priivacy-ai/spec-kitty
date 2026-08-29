@@ -3,8 +3,8 @@
 Mission B WP06 (T030) replaces the silent-skip behaviour of Mission A's
 pack registry loader with a hard-fail: when a configured pack's
 ``local_path`` does not exist on disk,
-:func:`specify_cli.doctrine.config.assert_pack_local_paths_exist` raises
-:class:`specify_cli.doctrine.org_charter.MissingDoctrinePackError` naming
+:func:`specify_cli.charter.offering.config.assert_pack_local_paths_exist` raises
+:class:`specify_cli.charter.offering.org_charter.MissingDoctrinePackError` naming
 both the pack and the missing path so the operator can either fetch the
 pack or remove the entry from ``.kittify/config.yaml``.
 """
@@ -15,8 +15,8 @@ from pathlib import Path
 
 import pytest
 
-from specify_cli.doctrine.config import assert_pack_local_paths_exist
-from specify_cli.doctrine.org_charter import MissingDoctrinePackError
+from specify_cli.charter.offering.config import assert_pack_local_paths_exist
+from specify_cli.charter.offering.org_charter import MissingDoctrinePackError
 
 
 pytestmark = [pytest.mark.unit, pytest.mark.fast]

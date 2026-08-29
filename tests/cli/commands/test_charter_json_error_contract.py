@@ -156,7 +156,7 @@ def test_interview_json_keeps_org_prefill_messages_inside_payload(tmp_path: Path
         patch("specify_cli.cli.commands.charter.find_repo_root", return_value=tmp_path),
         patch("specify_cli.cli.commands.charter.default_interview", return_value=interview_data),
         patch(
-            "specify_cli.doctrine.org_charter.apply_org_charter_to_interview",
+            "specify_cli.charter.offering.org_charter.apply_org_charter_to_interview",
             return_value=["applied org default"],
         ),
         patch("charter.interview.write_interview_answers"),

@@ -18,15 +18,15 @@ from __future__ import annotations
 
 import pytest
 
-from doctrine.artifact_kinds import ArtifactKind
-from specify_cli.doctrine.builtin_manifest import (
+from charter.offering.artifact_kinds import ArtifactKind
+from specify_cli.charter.offering.builtin_manifest import (
     MANIFEST_FILENAME,
     build_builtin_manifest,
     builtin_manifest_is_fresh,
     enumerate_constituents,
     generate_builtin_manifest,
 )
-from specify_cli.doctrine.pack_manifest import load_pack_manifest
+from specify_cli.charter.offering.pack_manifest import load_pack_manifest
 
 pytestmark = [pytest.mark.unit, pytest.mark.fast, pytest.mark.doctrine]
 
@@ -105,7 +105,7 @@ class TestDeterminism:
         # (constituents) byte set — a re-run is byte-identical regardless.
         a = build_builtin_manifest(pack_root).model_copy(update={"generated_at": "t1", "generated_by": "x"})
         b = build_builtin_manifest(pack_root).model_copy(update={"generated_at": "t2", "generated_by": "y"})
-        from specify_cli.doctrine.pack_manifest import compute_pack_manifest_hash
+        from specify_cli.charter.offering.pack_manifest import compute_pack_manifest_hash
 
         assert compute_pack_manifest_hash(a) == compute_pack_manifest_hash(b)
 
@@ -149,8 +149,8 @@ class TestWiringFires:
     def test_regenerate_graph_materializes_the_manifest(self, pack_root, monkeypatch) -> None:
         import typer
 
-        from doctrine.drg.migration import hand_authored_overlay
-        from specify_cli.cli.commands import doctrine as doctrine_cmd
+        from charter.offering.drg.migration import hand_authored_overlay
+        from specify_cli.cli.commands import charter.offering as doctrine_cmd
 
         # Stub the unrelated DRG graph write; keep the real manifest generator.
         monkeypatch.setattr(

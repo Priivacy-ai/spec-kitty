@@ -65,7 +65,7 @@ _SRC = Path(__file__).resolve().parents[2] / "src"
 #: today's implementation.
 _CANONICAL_MODULE = (_SRC / "doctrine" / "drg" / "migration" / "extractor.py").resolve()
 
-#: All five of ``DRGGraph``'s declared fields (``src/doctrine/drg/models.py``).
+#: All five of ``DRGGraph``'s declared fields (``src/charter/offering/drg/models.py``).
 #: See the module docstring's "Precision-vs-recall scoping note" for why this
 #: is the full 5-key set rather than a 3-key subset.
 _DOCUMENT_KEYS: frozenset[str] = frozenset(
@@ -121,7 +121,7 @@ def _enclosing_qualname(node: ast.AST, parents: dict[int, ast.AST]) -> str | Non
 
 
 def _module_dotted_name(path: Path, root: Path) -> str:
-    """``src/specify_cli/doctrine/pack_assembler.py`` -> ``specify_cli.doctrine.pack_assembler``."""
+    """``src/specify_cli/doctrine/pack_assembler.py`` -> ``specify_cli.charter.offering.pack_assembler``."""
     rel_parts = path.relative_to(root).with_suffix("").parts
     if rel_parts and rel_parts[-1] == "__init__":
         rel_parts = rel_parts[:-1]
@@ -420,7 +420,7 @@ def test_self_mutation_writers_green_once_delegating(tmp_path: Path) -> None:
     fixed_source = '''
 """Fixture: the shape (i) writer, fixed to delegate."""
 
-from doctrine.drg.migration.extractor import graph_document_to_dict
+from charter.offering.drg.migration.extractor import graph_document_to_dict
 
 
 def good_write_graph(graph):

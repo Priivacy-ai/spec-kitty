@@ -122,7 +122,7 @@ how-to/setup-codex-spec-kitty-launcher.html: guides/how-to/harnesses/setup-codex
 how-to/setup-governance.html: guides/how-to/governance/setup-governance.html
 how-to/switch-missions.html: guides/how-to/missions/switch-missions.html
 how-to/sync-workspaces.html: guides/how-to/collaboration/sync-workspaces.html
-how-to/synthesize-doctrine.html: guides/how-to/governance/synthesize-doctrine.html
+how-to/synthesize-charter.offering.html: guides/how-to/governance/synthesize-charter.offering.html
 how-to/tool-surface-upgrade-and-repair.html: guides/how-to/installation/tool-surface-upgrade-and-repair.html
 how-to/troubleshoot-charter.html: guides/how-to/governance/troubleshoot-charter.html
 how-to/troubleshoot-merge.html: guides/how-to/recovery/troubleshoot-merge.html

@@ -604,7 +604,7 @@ class TestResolutionPrecedence:
 class TestMissionScopedOverrideParity:
     """FR-001 / SC-002 (up-org-template-fsm-01M06F9K, WP01).
 
-    ``doctrine.resolver._resolve_asset`` (the doctrine-layer "sole door",
+    ``charter.offering.resolver._resolve_asset`` (the doctrine-layer "sole door",
     used by ``charter list`` / ``show-origin``) has always probed a
     mission-scoped override at
     ``.kittify/overrides/missions/{mission}/{subdir}/{name}`` before the
@@ -625,16 +625,16 @@ class TestMissionScopedOverrideParity:
     ) -> None:
         """A mission-scoped override resolves at ``ResolutionTier.OVERRIDE``
         through ``specify_cli.runtime.resolver``, with ``(path, tier)``
-        identical to ``doctrine.resolver``'s resolution of the same fixture.
+        identical to ``charter.offering.resolver``'s resolution of the same fixture.
 
         Before FR-001 lands, ``specify_cli.runtime.resolver.resolve_template``
         raises ``FileNotFoundError`` on this fixture (it only probes the
         flat, non-mission-scoped override path) while
-        ``doctrine.resolver.resolve_template`` already resolves it at
+        ``charter.offering.resolver.resolve_template`` already resolves it at
         ``ResolutionTier.OVERRIDE`` -- the exact regression documented by
         User Story 2's Independent Test.
         """
-        import doctrine.resolver as doctrine_resolver
+        import charter.offering.resolver as doctrine_resolver
 
         project = tmp_path / "project"
         mission_scoped_path = _create_file(
@@ -1183,7 +1183,7 @@ class TestInitResolverIntegration:
 
 
 def _write_org_pack_config(repo_root: Path, *, pack_name: str, local_path: Path) -> None:
-    """Write a canonical ``doctrine.org.packs[].local_path`` config.yaml entry."""
+    """Write a canonical ``charter.offering.org.packs[].local_path`` config.yaml entry."""
     config_dir = repo_root / ".kittify"
     config_dir.mkdir(parents=True, exist_ok=True)
     (config_dir / "config.yaml").write_text(
@@ -1314,7 +1314,7 @@ class TestOrgTierResolution:
         assert result.path == global_template
 
     def test_no_org_packs_configured_is_a_noop(self, tmp_path: Path) -> None:
-        """NFR-005/SC-007: with zero ``doctrine.org.packs`` entries (no
+        """NFR-005/SC-007: with zero ``charter.offering.org.packs`` entries (no
         ``.kittify/config.yaml`` at all -- the overwhelmingly common case),
         resolution is byte-identical to before this WP: same path, same
         tier."""
@@ -1356,7 +1356,7 @@ class TestOrgTierResolution:
         kittify = project / ".kittify"
         kittify.mkdir(parents=True)
         (kittify / "config.yaml").write_text(
-            "not: [valid, doctrine.org.packs shape\n", encoding="utf-8"
+            "not: [valid, charter.offering.org.packs shape\n", encoding="utf-8"
         )
 
         pkg_root = tmp_path / "pkg"
@@ -1382,7 +1382,7 @@ class TestOrgTierResolution:
 
     def test_declared_but_broken_org_pack_still_warns(self, tmp_path: Path) -> None:
         """Positive case for the fix above: a config that DOES declare
-        ``doctrine.org.packs`` but fails schema validation (two packs
+        ``charter.offering.org.packs`` but fails schema validation (two packs
         sharing the same ``name``) is a genuinely misconfigured org pack --
         the operator demonstrably opted in and deserves to know it's
         broken. Unlike the unparseable-file case above, that signal must
@@ -1422,7 +1422,7 @@ class TestOrgTierResolution:
             result = resolve_template("spec-template.md", project, "software-dev")
 
         assert len(caught) == 1  # golden-count: cardinality-is-contract
-        assert "Invalid doctrine.org config" in str(caught[0].message)
+        assert "Invalid charter.offering.org config" in str(caught[0].message)
         assert result.tier == ResolutionTier.PACKAGE_DEFAULT
         assert result.path == pkg_template
 
@@ -1432,7 +1432,7 @@ class TestOrgTierResolution:
         it does out of resolve_org_roots itself. A blanket
         ``except Exception`` around resolve_org_roots() would silently
         regress this."""
-        from doctrine.drg.org_pack_config import OrgPackSubdirEscapeError
+        from charter.offering.drg.org_pack_config import OrgPackSubdirEscapeError
 
         project = tmp_path / "project"
         pack_root = tmp_path / "org-pack"
@@ -1460,11 +1460,11 @@ class TestOrgTierResolution:
         self, tmp_path: Path
     ) -> None:
         """Position-parity spot check: given the identical org-pack fixture,
-        ``specify_cli.runtime.resolver`` and ``doctrine.resolver`` resolve
+        ``specify_cli.runtime.resolver`` and ``charter.offering.resolver`` resolve
         the same ``(path, tier)`` -- mirroring
         ``TestMissionScopedOverrideParity``'s parity discipline for the org
         tier."""
-        import doctrine.resolver as doctrine_resolver
+        import charter.offering.resolver as doctrine_resolver
 
         project = tmp_path / "project"
         project.mkdir()
@@ -1511,7 +1511,7 @@ class TestExpectedArtifactManifestSchemaErrorBoundary:
         import ruamel.yaml
 
         import charter.missions as charter_missions
-        from doctrine.missions.repository import ConfigResult
+        from charter.offering.missions.repository import ConfigResult
 
         content = self._TYPO_FIXTURE_PATH.read_text(encoding="utf-8")
         parsed = ruamel.yaml.YAML(typ="safe").load(content)

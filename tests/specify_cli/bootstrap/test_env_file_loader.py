@@ -426,14 +426,14 @@ class TestConfigEnvFilePointer:
     def test_env_file_key_lives_outside_the_doctrine_org_extra_forbid_block(
         self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path, repo_dir: Path
     ) -> None:
-        """The env_file pointer must not break ``doctrine.drg.org_pack_config.PackRegistry``.
+        """The env_file pointer must not break ``charter.offering.drg.org_pack_config.PackRegistry``.
 
         That model's ``model_config = ConfigDict(extra="forbid")``
-        (src/doctrine/drg/org_pack_config.py:307) validates ONLY the
-        ``doctrine.org`` subsection of config.yaml -- a sibling top-level
+        (src/charter/offering/drg/org_pack_config.py:307) validates ONLY the
+        ``charter.offering.org`` subsection of config.yaml -- a sibling top-level
         ``env_file:`` key must be invisible to it (C-LDR-5).
         """
-        from doctrine.drg.org_pack_config import load_pack_registry
+        from charter.offering.drg.org_pack_config import load_pack_registry
 
         state_home = tmp_path / "state-home"
         monkeypatch.setenv("SPEC_KITTY_HOME", str(state_home))

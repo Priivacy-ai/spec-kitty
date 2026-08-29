@@ -57,7 +57,7 @@ _EXCLUDED_PATH_FRAGMENTS: tuple[str, ...] = (
     # active prose using it -- the same historical-artifact rationale as the
     # docs/adr/ exemption above, applied to glossary pack data instead of
     # decision records. (The pack moved here from the retired
-    # `src/doctrine/glossary_packs/built-in/` location; `packs/` is not in
+    # `src/charter/offering/glossary_packs/built-in/` location; `packs/` is not in
     # `_SCAN_ROOTS` today, so this exemption is kept forward-correct at the
     # pack's canonical home for when the pack tree enters the scan scope.)
     "packs/built-in/glossary_packs/",
@@ -231,8 +231,8 @@ _LANE_CONSOLIDATION_PHRASE_BASELINE: frozenset[str] = frozenset(
         "docs/plans/engineering-notes/naming-identity-ssot-strangler/00-OVERVIEW.md",
         "docs/plans/engineering-notes/naming-identity-ssot-strangler/randy-reducer-split-brain-map.md",
         "packs/built-in/procedures/mission-wrap-up-sequence.procedure.yaml",
-        "src/doctrine/skills/spec-kitty-git-workflow/references/git-operations-matrix.md",
-        "src/doctrine/skills/spec-kitty-implement-review/SKILL.md",
+        "src/charter/offering/skills/spec-kitty-git-workflow/references/git-operations-matrix.md",
+        "src/charter/offering/skills/spec-kitty-implement-review/SKILL.md",
         "src/specify_cli/lanes/merge.py",
         "src/specify_cli/lanes/stale_check.py",
         "src/specify_cli/merge/git_probes.py",
@@ -439,8 +439,8 @@ def test_glossary_pack_builtin_exemption_is_narrow() -> None:
     # in scope: an exemption here would be an over-broad carve-out.
     still_scanned = (
         f"packs/built-in/procedures/some-procedure.yaml:3:# never say {forbidden}",
-        f"src/doctrine/glossary_packs/models.py:10:# {forbidden} is banned",
-        f"src/doctrine/drg/models.py:1:# {forbidden}",
+        f"src/charter/offering/glossary_packs/models.py:10:# {forbidden} is banned",
+        f"src/charter/offering/drg/models.py:1:# {forbidden}",
     )
     for hit in still_scanned:
         assert not _line_is_excluded(hit), (

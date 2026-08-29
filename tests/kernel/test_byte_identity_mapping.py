@@ -107,13 +107,13 @@ REGISTRY: dict[str, RegisteredSite] = {
         producer=lambda: str(now_epoch()),
         prior_signature=lambda instant: str(instant.timestamp()),
     ),
-    # WP05 (doctrine): src/doctrine/versioning.py's migrate_v1_to_v2 stamps a
+    # WP05 (doctrine): src/charter/offering/versioning.py's migrate_v1_to_v2 stamps a
     # sidecar's missing `produced_at` from the sidecar's file mtime. Prior
     # site: `datetime.fromtimestamp(mtime, tz=UTC).isoformat()`. Migrated
     # onto the door's `from_epoch(mtime).isoformat()` -- `from_epoch` is
     # defined as exactly `datetime.fromtimestamp(value, tz=UTC)` (WP04), so
     # this is a byte-identical delegation, not a reformat.
-    "doctrine.versioning.migrate_v1_to_v2#produced_at": RegisteredSite(
+    "charter.offering.versioning.migrate_v1_to_v2#produced_at": RegisteredSite(
         producer=lambda: from_epoch(_FIXED_INSTANT.timestamp()).isoformat(),
         prior_signature=lambda instant: datetime.fromtimestamp(instant.timestamp(), tz=UTC).isoformat(),
     ),
@@ -426,7 +426,7 @@ REGISTRY: dict[str, RegisteredSite] = {
     # cache "Date" fallback). Prior: `datetime.now(UTC).strftime(
     # "%Y-%m-%dT%H:%M:%SZ")` -> now_utc_stamp() (one representative entry;
     # both modules shared the identical prior expression).
-    "specify_cli.doctrine.snapshot._iso_now#fetched_at": RegisteredSite(
+    "specify_cli.charter.offering.snapshot._iso_now#fetched_at": RegisteredSite(
         producer=now_utc_stamp,
         prior_signature=lambda instant: instant.strftime("%Y-%m-%dT%H:%M:%SZ"),
     ),

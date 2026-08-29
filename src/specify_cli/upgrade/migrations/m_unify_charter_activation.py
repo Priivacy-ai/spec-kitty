@@ -33,7 +33,7 @@ kind whose ``config.activated_<kind>`` key is *absent* before appending the
 promoted ids — but only if the caller actually supplies the real built-in set.
 This migration loads the shipped default pack via the shared
 :func:`charter.default_pack.load_default_pack_activation_ids` loader (the
-same primitive :func:`specify_cli.doctrine.org_charter._promote_org_required_to_config`
+same primitive :func:`specify_cli.charter.offering.org_charter._promote_org_required_to_config`
 uses — squad finding #2530 dedup) and passes it as ``default_ids`` so a
 first-run/absent-key project keeps every built-in active rather than
 collapsing to a bare, newly-promoted list.
@@ -68,11 +68,11 @@ from ..registry import MigrationRegistry
 from .base import BaseMigration, MigrationResult
 
 #: Kinds eligible for answers -> config promotion. Mirrors the 8-kind charter
-#: activation universe (``doctrine.artifact_kinds.CHARTER_KIND_TOKENS`` minus
+#: activation universe (``charter.offering.artifact_kinds.CHARTER_KIND_TOKENS`` minus
 #: the ``mission-type`` outlier, which has no ``selected_<kind>`` answers key
 #: and no per-artefact config-stem/URN pair). ``TEMPLATE``/``ASSET`` are
 #: excluded — they are not charter-activatable (see
-#: ``doctrine.artifact_kinds._NON_AUGMENTATION_ELIGIBLE_KINDS``).
+#: ``charter.offering.artifact_kinds._NON_AUGMENTATION_ELIGIBLE_KINDS``).
 _PROMOTABLE_KINDS: tuple[ArtifactKind, ...] = (
     ArtifactKind.DIRECTIVE,
     ArtifactKind.TACTIC,
@@ -104,7 +104,7 @@ def load_default_pack_ids() -> dict[str, list[str]]:
     """Load the shipped default-pack IDs, keyed by ``config.yaml`` activation key.
 
     Public (imported by ``interview.py``'s promotion wiring, T024, and by
-    ``specify_cli.doctrine.org_charter``) so every consumer of the WP06
+    ``specify_cli.charter.offering.org_charter``) so every consumer of the WP06
     ``promote_activations`` primitive supplies the same real built-in
     ``default_ids`` rather than each re-deriving it independently. Thin
     re-export of the canonical :func:`charter.default_pack.load_default_pack_activation_ids`

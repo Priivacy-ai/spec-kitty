@@ -89,7 +89,7 @@ def _write_config(
 ) -> None:
     """Write ``.kittify/config.yaml`` declaring the org pack and activation state.
 
-    ``pack_root`` of ``None`` omits the ``doctrine.org.packs`` declaration (the
+    ``pack_root`` of ``None`` omits the ``charter.offering.org.packs`` declaration (the
     no-org-packs regime).  ``activated`` of ``None`` omits the
     ``activated_agent_profiles`` key (absent regime); a list writes it verbatim.
     """
@@ -191,7 +191,7 @@ def _signature(projected: dict[str, NativeAgentProfile]) -> list[tuple[str, str,
 
 class TestNoOrgPacksRegression:
     def test_no_org_packs_projection_is_byte_identical(self, tmp_path: Path) -> None:
-        """No ``doctrine.org.packs`` declared → projection == built-in + project only.
+        """No ``charter.offering.org.packs`` declared → projection == built-in + project only.
 
         Compares a project that declares an org pack but with NO config against a
         baseline project with no config at all; both must project the identical
@@ -205,7 +205,7 @@ class TestNoOrgPacksRegression:
         baseline = _project(baseline_root)
 
         # Subject: same project layer, an org pack exists on disk but config does
-        # NOT declare ``doctrine.org.packs`` → org overlay must stay empty.
+        # NOT declare ``charter.offering.org.packs`` → org overlay must stay empty.
         subject_root = tmp_path / "subject"
         subject_root.mkdir()
         _write_org_pack(subject_root)

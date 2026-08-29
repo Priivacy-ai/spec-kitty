@@ -204,7 +204,7 @@ FROZEN_PRIOR_REDIRECT_KEYS: tuple[str, ...] = (
     "how-to/setup-governance.html",
     "how-to/switch-missions.html",
     "how-to/sync-workspaces.html",
-    "how-to/synthesize-doctrine.html",
+    "how-to/synthesize-charter.offering.html",
     "how-to/tool-surface-upgrade-and-repair.html",
     "how-to/troubleshoot-charter.html",
     "how-to/troubleshoot-merge.html",

@@ -9,7 +9,7 @@ Candidate ordering (FR-009 / T024 / T025):
 
 1. ``.kittify/doctrine/``   — Phase 3 synthesis target; present only after a
                               successful ``spec-kitty charter synthesize`` run.
-2. ``src/doctrine/``        — code-local built-in-layer path (legacy 3.x default).
+2. ``src/charter/offering/``        — code-local built-in-layer path (legacy 3.x default).
 3. ``doctrine/``            — flat built-in-layer fallback.
 
 Discovery is **conditional on directory presence**: if ``.kittify/doctrine/``

@@ -65,7 +65,7 @@ import json
 
 from pydantic import BaseModel, ConfigDict, field_validator
 
-from doctrine.missions.mission_type_repository import builtin_mission_type_id_set
+from charter.offering.missions.mission_type_repository import builtin_mission_type_id_set
 
 __all__ = [
     "ActivationEntry",
@@ -84,7 +84,7 @@ __all__ = [
 
 #: Canonical closed vocabulary for ``activation_context.mission_type``.
 #: Derived from the canonical accessor
-#: :func:`doctrine.missions.mission_type_repository.builtin_mission_type_id_set`
+#: :func:`charter.offering.missions.mission_type_repository.builtin_mission_type_id_set`
 #: (single source of truth, #2669 IC-1a) plus the wildcard tokens ``any`` /
 #: ``generic``. This triggers one cached ``mission_types/`` filesystem read
 #: at import of this module — the accepted NFR-001 carve-out for a
@@ -146,7 +146,7 @@ _ACTION_WILDCARDS: frozenset[str] = frozenset({"any", "generic"})
 #: Allowed values for the optional ``artifact_kind`` disambiguator. Mirrors
 #: the artifact-kind properties exposed by ``DoctrineService``. ``templates``
 #: and ``assets`` are node-declarable org-pack DRG kinds (see
-#: ``doctrine.drg.org_pack_loader._ORG_DRG_CANONICAL_KINDS``) and must move in
+#: ``charter.offering.drg.org_pack_loader._ORG_DRG_CANONICAL_KINDS``) and must move in
 #: lockstep with this set and ``charter.pack_context._BUILTIN_ARTIFACT_KINDS`` —
 #: the drift guard in ``tests/doctrine/test_org_pack_augmentation.py`` fails if
 #: any one of the three mirrors is updated alone.
@@ -308,8 +308,8 @@ def _activation_identity_key(entry: ActivationEntry) -> tuple[str, str, str, str
     hash keys regardless of insertion order.
 
     Relocated here (FR-003, WP01) from
-    ``specify_cli.doctrine.org_charter`` so the org-pack fold
-    (:func:`specify_cli.doctrine.org_charter._fold_policies`) and the
+    ``specify_cli.charter.offering.org_charter`` so the org-pack fold
+    (:func:`specify_cli.charter.offering.org_charter._fold_policies`) and the
     charter-layer resolve-time union
     (:func:`charter.context._union_activations`) share ONE identity-key
     implementation and cannot drift. This module has no

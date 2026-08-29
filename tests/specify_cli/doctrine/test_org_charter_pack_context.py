@@ -3,7 +3,7 @@
 T063 — Audit: no config.yaml reads in _resolve_chain() or _merge_chain()
 -----------------------------------------------------------------------
 ``_resolve_chain()`` and ``_merge_chain()`` in
-``specify_cli.doctrine.org_charter`` operate entirely on the
+``specify_cli.charter.offering.org_charter`` operate entirely on the
 ``pack_set: dict[str, OrgCharterPolicy]`` argument.  The only path
 that reads ``.kittify/config.yaml`` is ``PackContext.from_config()``
 in ``charter.pack_context``, which is in the *charter* layer (not the
@@ -31,7 +31,7 @@ from pathlib import Path
 import pytest
 
 from charter.pack_context import PackContext
-from specify_cli.doctrine.org_charter import (
+from specify_cli.charter.offering.org_charter import (
     OrgCharterPolicy,
     load_org_charter_policies,
 )

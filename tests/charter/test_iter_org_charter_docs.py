@@ -7,7 +7,7 @@ Two jobs live in this module (T003):
    of ``_load_doctrine_selection`` (``charter/context.py:795-813``) —
    this branch had ZERO existing coverage before WP01 (the sibling
    ``test_org_charter_union.py`` covers a *different* function,
-   ``specify_cli.doctrine.org_charter.apply_org_charter_to_interview``).
+   ``specify_cli.charter.offering.org_charter.apply_org_charter_to_interview``).
    This test is authored and passes GREEN against pre-refactor code; it
    is the safety net that makes the T005 extraction of
    ``_iter_org_charter_docs`` provably behavior-preserving — it MUST
@@ -95,7 +95,7 @@ def _register_org_pack(repo_root: Path, pack_root: Path, *, name: str = "securit
 
 
 def _load_mock_graph() -> object:
-    from doctrine.drg.models import DRGGraph
+    from charter.offering.drg.models import DRGGraph
 
     yaml = YAML(typ="safe")
     return DRGGraph.model_validate(yaml.load(StringIO(_MINIMAL_GRAPH_YAML)))
@@ -129,7 +129,7 @@ class TestRequiredKindUnionCharacterization:
         with (
             patch("charter._drg_helpers.load_validated_graph", return_value=mock_graph),
             patch("charter.catalog.resolve_doctrine_root", return_value=repo),
-            patch("doctrine.drg.validator.assert_valid"),
+            patch("charter.offering.drg.validator.assert_valid"),
             patch("charter.sync.ensure_charter_bundle_fresh", return_value=None),
         ):
             result = build_charter_context(repo, action="implement", depth=2, mark_loaded=False)

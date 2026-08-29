@@ -10,7 +10,7 @@ Architectural note
 ------------------
 ``specify_cli`` is the highest layer and may freely import from
 ``charter``.  The :func:`apply_org_charter_pre_fill` orchestration lives
-here, where it is permitted to (a) reach into ``specify_cli.doctrine.config``
+here, where it is permitted to (a) reach into ``specify_cli.charter.offering.config``
 for the pack registry and (b) call into the pure ``charter`` data helper
 that performs the YAML side-effect.
 
@@ -47,7 +47,7 @@ from charter.kind_vocabulary import (
     resolve_artifact_urn,
     resolve_config_id,
 )
-from doctrine.artifact_kinds import ArtifactKind
+from charter.offering.artifact_kinds import ArtifactKind
 
 if TYPE_CHECKING:
     from charter.pack_context import PackContext
@@ -703,13 +703,13 @@ def load_org_charter_policies(
         return _load_with_pack_context(pack_context)
 
     # Lazy import avoids a circular module load at package-init time.
-    from specify_cli.doctrine.config import load_pack_registry
+    from specify_cli.charter.offering.config import load_pack_registry
 
     registry = load_pack_registry(repo_root)
     if not registry.packs:
         return OrgCharterPolicy()
 
-    from doctrine.drg.org_pack_config import (
+    from charter.offering.drg.org_pack_config import (
         OrgPackEnvVarUnsetError,
         OrgPackSubdirEscapeError,
     )
@@ -797,7 +797,7 @@ def apply_org_charter_pre_fill(repo_root: Path) -> list[str]:
     dependency direction is preserved.
     """
     from charter.invocation_context import ProjectContext
-    from specify_cli.doctrine.config import load_pack_registry
+    from specify_cli.charter.offering.config import load_pack_registry
 
     registry = load_pack_registry(repo_root)
     if not registry.packs:
@@ -864,7 +864,7 @@ def apply_org_charter_to_interview(
     Returns ``[]`` when no org packs are configured, none ship an
     ``org-charter.yaml``, or the merged policy contributes nothing.
     """
-    from specify_cli.doctrine.config import load_pack_registry
+    from specify_cli.charter.offering.config import load_pack_registry
 
     registry = load_pack_registry(repo_root)
     if not registry.packs:
@@ -928,7 +928,7 @@ def org_charter_to_json_block(policy: OrgCharterPolicy) -> dict[str, Any]:
     """Return the ``{"present": ..., "packs": [...]}`` block for one policy.
 
     This mirrors the shape produced by
-    :func:`specify_cli.doctrine.org_charter_loader.load_org_charter_json_block`
+    :func:`specify_cli.charter.offering.org_charter_loader.load_org_charter_json_block`
     for a single pack.  Callers that need cross-pack aggregation should
     use the loader directly.
     """

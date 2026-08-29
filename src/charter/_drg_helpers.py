@@ -27,14 +27,14 @@ from __future__ import annotations
 import logging
 from pathlib import Path
 
-from doctrine.drg.loader import (
+from charter.offering.drg.loader import (
     has_graph_files,
     load_built_in_graph,
     load_graph_or_dir,
     merge_layers,
 )
-from doctrine.drg.models import DRGGraph
-from doctrine.drg.validator import assert_valid
+from charter.offering.drg.models import DRGGraph
+from charter.offering.drg.validator import assert_valid
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -45,7 +45,7 @@ def _resolve_org_root(_repo_root: Path) -> Path | None:
     The charter-layer implementation is intentionally inert — it always returns
     ``None``.  The ``repo_root`` parameter is accepted for API compatibility;
     callers in ``specify_cli`` are expected to resolve the org root themselves
-    (e.g. via ``specify_cli.doctrine.config``) and supply it explicitly to
+    (e.g. via ``specify_cli.charter.offering.config``) and supply it explicitly to
     :func:`load_validated_graph`.
 
     This design keeps the ``charter`` package free of ``specify_cli`` imports,
@@ -71,12 +71,12 @@ def load_validated_graph(
        collision (``merge_layers`` overrides ``label`` only; ``kind`` is
        retained from the earlier layer — the existing single-org semantics,
        unchanged). This mirrors the repository overlay's established
-       precedence (``doctrine.base._apply_overlay_layer``,
+       precedence (``charter.offering.base._apply_overlay_layer``,
        ``charter.org_expected_artifacts``) rather than the pre-fix
        first-match-wins behaviour that only ever folded pack #1. A root that
        does not exist on disk is silently skipped here; callers that need a
        WARNING per dropped root should pre-filter via
-       :func:`doctrine.drg.org_pack_config.resolve_existing_org_roots` —
+       :func:`charter.offering.drg.org_pack_config.resolve_existing_org_roots` —
        every production caller now does.
     3. **project** — optional per-project overlay at
        ``<repo_root>/.kittify/doctrine``.
@@ -97,7 +97,7 @@ def load_validated_graph(
         org_roots: The full, declaration-ordered chain of configured org
             doctrine roots (#3525). Preferred over *org_root* for every
             caller that resolves the project's configured org packs — pass
-            :func:`doctrine.drg.org_pack_config.resolve_existing_org_roots`'s
+            :func:`charter.offering.drg.org_pack_config.resolve_existing_org_roots`'s
             result. When *org_roots* is supplied (even as an empty list), it
             takes precedence over *org_root* — passing ``org_roots=[]``
             explicitly means "no org layer", distinct from omitting the

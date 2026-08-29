@@ -413,7 +413,7 @@ class TestRebaselineErrorBranches:
 
         import specify_cli.dossier.manifest as manifest_module
         import specify_cli.mission as mission_module
-        from doctrine.missions.repository import ConfigResult
+        from charter.offering.missions.repository import ConfigResult
         from specify_cli.dossier.manifest import ManifestRegistry
         from specify_cli.dossier.rebaseline import rebaseline_recorded_snapshots
 
@@ -476,7 +476,7 @@ class TestRebaselineErrorBranches:
 
 
 def _write_org_pack_config(repo_root: Path, *, packs: list[tuple[str, Path]]) -> None:
-    """Write ``<repo_root>/.kittify/config.yaml`` with a ``doctrine.org.packs``
+    """Write ``<repo_root>/.kittify/config.yaml`` with a ``charter.offering.org.packs``
     registry -- mirrors ``tests/dossier/test_manifest.py``'s helper of the
     same name/shape (duplicated locally to keep this owned test file
     self-contained rather than cross-importing another test module's

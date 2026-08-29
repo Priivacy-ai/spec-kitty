@@ -25,7 +25,7 @@ only ``pack-manifest.yaml``, leaves the authored pair byte-identical, and
 fails loudly on a stale committed manifest so CI catches future drift.
 
 This module reads the real, wheel-shipped ``packs/built-in/`` corpus (via
-:func:`doctrine.pack_paths.built_in_root`), so it carries
+:func:`charter.offering.pack_paths.built_in_root`), so it carries
 ``pytest.mark.corpus`` (see ``tests/architectural/test_ci_corpus_trigger_completeness.py``'s
 curated registry, updated alongside this file).
 """
@@ -38,8 +38,8 @@ from pathlib import Path
 import pytest
 import yaml
 
-from doctrine.pack_paths import built_in_root
-from specify_cli.doctrine.builtin_manifest import (
+from charter.offering.pack_paths import built_in_root
+from specify_cli.charter.offering.builtin_manifest import (
     MANIFEST_FILENAME,
     generate_builtin_manifest,
 )

@@ -503,7 +503,7 @@ class TestResolveLayerCandidateMissionTypeLayers:
         """The pre-existing built-in-layer branch for ``kind is None`` must be
         untouched by adding the org/project branch."""
         from charter.pack_manager import _resolve_layer_candidate
-        from doctrine.missions.repository import MissionTemplateRepository
+        from charter.offering.missions.repository import MissionTemplateRepository
 
         candidate = _resolve_layer_candidate(
             "built-in", tmp_path, None, "missions/mission_types", layered=False
@@ -674,7 +674,7 @@ class TestMissionTypeProjectLayerNonCollision:
         PR-CONTRACT-002 -- routing the mission-type branch through the same
         non-recursive, ``iterdir()``-based scan
         ``resolve_layered_mission_types`` already uses post-activation
-        (``doctrine.missions.mission_type_repository.scan_mission_types_dir``)
+        (``charter.offering.missions.mission_type_repository.scan_mission_types_dir``)
         -- closes this leak as a direct, intended side effect: the scan no
         longer descends into ``roster_dir / "qa"`` at all, so
         ``governance-profile`` is never even visited.

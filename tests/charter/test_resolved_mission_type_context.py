@@ -276,7 +276,7 @@ class TestResolvedTemplateSet:
         WP04 update (mission up-mission-type-seam-01KZY1JB, FR-002):
         ``_resolve_action_slot`` (the eager, non-lazy half of the bundle)
         now resolves through
-        ``doctrine.missions.mission_type_repository.resolve_layered_mission_types``
+        ``charter.offering.missions.mission_type_repository.resolve_layered_mission_types``
         -- a SEPARATE, ``(mission_types_dirs, pack_context)``-keyed cache
         from ``MissionTypeRepository.default()``'s own ``cls``-keyed cache
         (CL-001: the two must never share a cache). Priming
@@ -292,7 +292,7 @@ class TestResolvedTemplateSet:
         hits the same cache entry) warms that cache instead, before the
         patch below starts counting.
         """
-        from doctrine.missions.mission_step_repository import MissionStepRepository
+        from charter.offering.missions.mission_step_repository import MissionStepRepository
 
         _write_config(tmp_path, ["software-dev"])
 

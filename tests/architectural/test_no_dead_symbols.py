@@ -248,71 +248,71 @@ _CATEGORY_A_SLICE_F_DEFERRED: frozenset[SymbolKey] = frozenset(
         # charter.synthesizer.manifest::compute_manifest_hash
         SymbolKey("compute_manifest_hash", "976c4625daa4d8bc9612ad055b4076e879ab68aa5df7cba27c16ce90f5c51ef4", source_module="charter.synthesizer.manifest"),
         SymbolKey(
-            "ensure_pack_identity", "ca9b5b99abe23a15555eca6452a326aede2faf85c70518c1a17b8dc345b349bb", source_module="doctrine.drg.org_pack_config"
-        ),  # doctrine.drg.org_pack_config::ensure_pack_identity
+            "ensure_pack_identity", "ca9b5b99abe23a15555eca6452a326aede2faf85c70518c1a17b8dc345b349bb", source_module="charter.offering.drg.org_pack_config"
+        ),  # charter.offering.drg.org_pack_config::ensure_pack_identity
         SymbolKey(
-            "GENERATED_BY", "124f8f0fc76bb7fc39e58268421f79fe2044c7901abf8ed50a4dfd4a64556322", source_module="specify_cli.doctrine.builtin_manifest"
-        ),  # specify_cli.doctrine.builtin_manifest::GENERATED_BY
-        # specify_cli.doctrine.builtin_manifest::MANIFEST_FILENAME
-        SymbolKey("MANIFEST_FILENAME", "8d9c9bfddfbfe8e93bbc740dd033d34cb77d0b373b30e7118a1c93649bc3590a", source_module="specify_cli.doctrine.builtin_manifest"),
-        # specify_cli.doctrine.builtin_manifest::build_builtin_manifest
+            "GENERATED_BY", "124f8f0fc76bb7fc39e58268421f79fe2044c7901abf8ed50a4dfd4a64556322", source_module="specify_cli.charter.offering.builtin_manifest"
+        ),  # specify_cli.charter.offering.builtin_manifest::GENERATED_BY
+        # specify_cli.charter.offering.builtin_manifest::MANIFEST_FILENAME
+        SymbolKey("MANIFEST_FILENAME", "8d9c9bfddfbfe8e93bbc740dd033d34cb77d0b373b30e7118a1c93649bc3590a", source_module="specify_cli.charter.offering.builtin_manifest"),
+        # specify_cli.charter.offering.builtin_manifest::build_builtin_manifest
         SymbolKey(
-            "build_builtin_manifest", "f9a428de9a2dc22e79265005c2e7629c49c9e707ae3079911bda1081d598f976", source_module="specify_cli.doctrine.builtin_manifest"
+            "build_builtin_manifest", "f9a428de9a2dc22e79265005c2e7629c49c9e707ae3079911bda1081d598f976", source_module="specify_cli.charter.offering.builtin_manifest"
         ),
-        # specify_cli.doctrine.builtin_manifest::enumerate_constituents
+        # specify_cli.charter.offering.builtin_manifest::enumerate_constituents
         SymbolKey(
-            "enumerate_constituents", "d063e2da3dc64d421fb3a141db384b7515a09939629c536376de32c4ac42bfab", source_module="specify_cli.doctrine.builtin_manifest"
+            "enumerate_constituents", "d063e2da3dc64d421fb3a141db384b7515a09939629c536376de32c4ac42bfab", source_module="specify_cli.charter.offering.builtin_manifest"
         ),
-        # specify_cli.doctrine.pack_lineage::PackLineageCycleError
-        SymbolKey("PackLineageCycleError", "0e7c672a0f7e02520fb8b8dcb5e48c08c6745831760be28b3eec4277ce7635d1", source_module="specify_cli.doctrine.pack_lineage"),
-        # specify_cli.doctrine.pack_lineage::UnresolvedDoctrinePackError
+        # specify_cli.charter.offering.pack_lineage::PackLineageCycleError
+        SymbolKey("PackLineageCycleError", "0e7c672a0f7e02520fb8b8dcb5e48c08c6745831760be28b3eec4277ce7635d1", source_module="specify_cli.charter.offering.pack_lineage"),
+        # specify_cli.charter.offering.pack_lineage::UnresolvedDoctrinePackError
         SymbolKey(
-            "UnresolvedDoctrinePackError", "606f77e976b58a6cdc360bdc40a563b024e6598f01ad6866e1ca48477a60f097", source_module="specify_cli.doctrine.pack_lineage"
+            "UnresolvedDoctrinePackError", "606f77e976b58a6cdc360bdc40a563b024e6598f01ad6866e1ca48477a60f097", source_module="specify_cli.charter.offering.pack_lineage"
         ),
-        # specify_cli.doctrine.pack_lineage::UnresolvedPackParentError
+        # specify_cli.charter.offering.pack_lineage::UnresolvedPackParentError
         SymbolKey(
-            "UnresolvedPackParentError", "d61ea19665cc7e37035675c8ac779074707d253b3597f848db168c500df73c92", source_module="specify_cli.doctrine.pack_lineage"
+            "UnresolvedPackParentError", "d61ea19665cc7e37035675c8ac779074707d253b3597f848db168c500df73c92", source_module="specify_cli.charter.offering.pack_lineage"
         ),
-        # specify_cli.doctrine.pack_lineage::resolve_accompanying_doctrine_pack
+        # specify_cli.charter.offering.pack_lineage::resolve_accompanying_doctrine_pack
         SymbolKey(
             "resolve_accompanying_doctrine_pack",
             "dbc882bbbfa45f20c1ee4f86ffe0561d6955f067279c82e5e0768807874870bf",
-            source_module="specify_cli.doctrine.pack_lineage",
+            source_module="specify_cli.charter.offering.pack_lineage",
         ),
-        # specify_cli.doctrine.pack_lineage::resolve_pack_lineage_order
+        # specify_cli.charter.offering.pack_lineage::resolve_pack_lineage_order
         SymbolKey(
-            "resolve_pack_lineage_order", "f9b3114c48e1e4ad07968ce4e752d697bd5272f58f40626b6ff363b2517102c9", source_module="specify_cli.doctrine.pack_lineage"
+            "resolve_pack_lineage_order", "f9b3114c48e1e4ad07968ce4e752d697bd5272f58f40626b6ff363b2517102c9", source_module="specify_cli.charter.offering.pack_lineage"
         ),
         SymbolKey(
-            "CharterProfile", "e819b8ef6ee1d90a233d35df96668e478d793c8edcf11a3320587042e9e58377", source_module="specify_cli.doctrine.pack_manifest"
-        ),  # specify_cli.doctrine.pack_manifest::CharterProfile
-        # specify_cli.doctrine.pack_manifest::HASH_EXCLUDED_FIELDS
-        SymbolKey("HASH_EXCLUDED_FIELDS", "3c3581a0092e43f9586c79cf55dccee76fa9d480fa58e469fd3118c5e47747e3", source_module="specify_cli.doctrine.pack_manifest"),
+            "CharterProfile", "e819b8ef6ee1d90a233d35df96668e478d793c8edcf11a3320587042e9e58377", source_module="specify_cli.charter.offering.pack_manifest"
+        ),  # specify_cli.charter.offering.pack_manifest::CharterProfile
+        # specify_cli.charter.offering.pack_manifest::HASH_EXCLUDED_FIELDS
+        SymbolKey("HASH_EXCLUDED_FIELDS", "3c3581a0092e43f9586c79cf55dccee76fa9d480fa58e469fd3118c5e47747e3", source_module="specify_cli.charter.offering.pack_manifest"),
         SymbolKey(
-            "SCHEMA_VERSION", "d5eae924852db12511f61d775992ee1a06e6d9021b5a9623c442e387b873f9db", source_module="specify_cli.doctrine.pack_manifest"
-        ),  # specify_cli.doctrine.pack_manifest::SCHEMA_VERSION
-        # specify_cli.doctrine.pack_manifest::absorb_synthesis_manifest
+            "SCHEMA_VERSION", "d5eae924852db12511f61d775992ee1a06e6d9021b5a9623c442e387b873f9db", source_module="specify_cli.charter.offering.pack_manifest"
+        ),  # specify_cli.charter.offering.pack_manifest::SCHEMA_VERSION
+        # specify_cli.charter.offering.pack_manifest::absorb_synthesis_manifest
         SymbolKey(
-            "absorb_synthesis_manifest", "00945ab34f76cd761d46fb785c6bd556bc4804a61935760698d83877c9886693", source_module="specify_cli.doctrine.pack_manifest"
+            "absorb_synthesis_manifest", "00945ab34f76cd761d46fb785c6bd556bc4804a61935760698d83877c9886693", source_module="specify_cli.charter.offering.pack_manifest"
         ),
         # Public deferred hash API from #3500-#3503; body changed during #3165 hardening.
         SymbolKey(
-            "compute_pack_manifest_hash", "84e647d338a9494466004cc96eb08fc67307a5ff36f479a870f3adc936920d7b", source_module="specify_cli.doctrine.pack_manifest"
+            "compute_pack_manifest_hash", "84e647d338a9494466004cc96eb08fc67307a5ff36f479a870f3adc936920d7b", source_module="specify_cli.charter.offering.pack_manifest"
         ),
         SymbolKey(
-            "counts_by_kind", "7251aec17a859f0c24347f77d55f59328003829e77f87437a2f15dedc656738d", source_module="specify_cli.doctrine.pack_manifest"
-        ),  # specify_cli.doctrine.pack_manifest::counts_by_kind
-        # specify_cli.doctrine.pack_manifest::load_pack_manifest
-        SymbolKey("load_pack_manifest", "beddcbcf37b0a4e7fc2be56adc9149fce863e53e05e51bd1f2d4e8dad26847b2", source_module="specify_cli.doctrine.pack_manifest"),
+            "counts_by_kind", "7251aec17a859f0c24347f77d55f59328003829e77f87437a2f15dedc656738d", source_module="specify_cli.charter.offering.pack_manifest"
+        ),  # specify_cli.charter.offering.pack_manifest::counts_by_kind
+        # specify_cli.charter.offering.pack_manifest::load_pack_manifest
+        SymbolKey("load_pack_manifest", "beddcbcf37b0a4e7fc2be56adc9149fce863e53e05e51bd1f2d4e8dad26847b2", source_module="specify_cli.charter.offering.pack_manifest"),
         SymbolKey(
-            "sort_constituents", "00ba026bae02e3ad0d3d368cc78afe8806b62e71e5c407e8a102841315aa0fe2", source_module="specify_cli.doctrine.pack_manifest"
-        ),  # specify_cli.doctrine.pack_manifest::sort_constituents
+            "sort_constituents", "00ba026bae02e3ad0d3d368cc78afe8806b62e71e5c407e8a102841315aa0fe2", source_module="specify_cli.charter.offering.pack_manifest"
+        ),  # specify_cli.charter.offering.pack_manifest::sort_constituents
     }
 )
 
 
 # ---------- B. Grandfathered legacy (out of WP02 scope) ----------
-# Pre-existing public symbols across ``src/doctrine/`` + ``src/specify_cli/``
+# Pre-existing public symbols across ``src/charter/offering/`` + ``src/specify_cli/``
 # whose ``__all__`` membership predates the WP02 symbol-level gate. WP02 was
 # scoped to ``src/charter/`` + ``src/kernel/`` per C-007/FR-121, so these
 # entries were inherited as-is into the ratchet baseline. Per the Slice F
@@ -330,48 +330,48 @@ _CATEGORY_A_SLICE_F_DEFERRED: frozenset[SymbolKey] = frozenset(
 
 _CATEGORY_B_GRANDFATHERED_LEGACY: frozenset[SymbolKey] = frozenset(
     {
-        # doctrine.directives::ArtifactKind (escalated: live collision)
-        SymbolKey("ArtifactKind", "daf6b8e8a33ac97ab1bbd7e927cd20ca85bedb05de19ec852dc58cd6184763be", module_path="doctrine.directives"),
+        # charter.offering.directives::ArtifactKind (escalated: live collision)
+        SymbolKey("ArtifactKind", "daf6b8e8a33ac97ab1bbd7e927cd20ca85bedb05de19ec852dc58cd6184763be", module_path="charter.offering.directives"),
         SymbolKey(
-            "IDENTIFIER_PATTERN", "944bd183d9ba2c291aefb749f879af6cd98fc905083ec9c8c6d11b76ec488d12", source_module="doctrine.missions.models"
-        ),  # doctrine.missions.models::IDENTIFIER_PATTERN
+            "IDENTIFIER_PATTERN", "944bd183d9ba2c291aefb749f879af6cd98fc905083ec9c8c6d11b76ec488d12", source_module="charter.offering.missions.models"
+        ),  # charter.offering.missions.models::IDENTIFIER_PATTERN
         SymbolKey(
-            "Mission", "15e9ee0fa689f7a7e779b89907e036590786ec6594a8ab27bdb062e5f9fe8fa5", source_module="doctrine.missions.models"
-        ),  # doctrine.missions.models::Mission
+            "Mission", "15e9ee0fa689f7a7e779b89907e036590786ec6594a8ab27bdb062e5f9fe8fa5", source_module="charter.offering.missions.models"
+        ),  # charter.offering.missions.models::Mission
         SymbolKey(
-            "MissionOrchestration", "07d36b401f8d499e95d93e93d61fc1a9c139798fe4f7f0bf9f66939257ef965d", source_module="doctrine.missions.models"
-        ),  # doctrine.missions.models::MissionOrchestration
+            "MissionOrchestration", "07d36b401f8d499e95d93e93d61fc1a9c139798fe4f7f0bf9f66939257ef965d", source_module="charter.offering.missions.models"
+        ),  # charter.offering.missions.models::MissionOrchestration
         SymbolKey(
-            "MissionStateObject", "955954fbc29b36f5c463bc5e39a04a5b24410cc31f5c0e017e8221176efae587", source_module="doctrine.missions.models"
-        ),  # doctrine.missions.models::MissionStateObject
+            "MissionStateObject", "955954fbc29b36f5c463bc5e39a04a5b24410cc31f5c0e017e8221176efae587", source_module="charter.offering.missions.models"
+        ),  # charter.offering.missions.models::MissionStateObject
         SymbolKey(
-            "MissionTransition", "9fe929fc9914ddcb8ebc8c3872fe9f1d410a7f14ea6690c82165379d980dc973", source_module="doctrine.missions.models"
-        ),  # doctrine.missions.models::MissionTransition
+            "MissionTransition", "9fe929fc9914ddcb8ebc8c3872fe9f1d410a7f14ea6690c82165379d980dc973", source_module="charter.offering.missions.models"
+        ),  # charter.offering.missions.models::MissionTransition
         SymbolKey(
-            "MissionRepository", "87721dffc175e1e94aa69dc020df1effd47b986d66e538eef4c49df962d684f9", source_module="doctrine.missions"
-        ),  # doctrine.missions::MissionRepository
-        # doctrine.procedures::ArtifactKind (escalated: live collision)
-        SymbolKey("ArtifactKind", "daf6b8e8a33ac97ab1bbd7e927cd20ca85bedb05de19ec852dc58cd6184763be", module_path="doctrine.procedures"),
-        # doctrine.shared::ConflictType (escalated: live collision)
-        SymbolKey("ConflictType", "34ff96f6eabe70e229d72efc5674d6050bb7291c458ee30394ebc1d629bf566e", module_path="doctrine.shared"),
-        # doctrine.shared::ExtractedTerm (escalated: live collision)
-        SymbolKey("ExtractedTerm", "6a7ebe24a2cc047a13b893af65d33944f51293abbd976de963a6585ef032f0ce", module_path="doctrine.shared"),
-        # doctrine.shared::GlossaryScope (escalated: live collision)
-        SymbolKey("GlossaryScope", "e433a93e6f5df50065e49747d40c3be1bd0957989e424a8b47ed2d75a5da4ba7", module_path="doctrine.shared"),
-        # doctrine.shared::ScopeRef (escalated: live collision)
-        SymbolKey("ScopeRef", "6edbfc7de81b473814e0582739ad128906a23b95ee2fed75d471b6de77860e83", module_path="doctrine.shared"),
-        # doctrine.shared::SemanticConflict (escalated: live collision)
-        SymbolKey("SemanticConflict", "03a7b588ce09a403baa5d3c6130231131ed3e7eb824ec18448215061a85ccd00", module_path="doctrine.shared"),
-        # doctrine.shared::SenseRef (escalated: live collision)
-        SymbolKey("SenseRef", "80a18c5b75e03f2202466dbc52090000b2819302b89ae90048f98125d4b89b43", module_path="doctrine.shared"),
-        # doctrine.shared::Severity (escalated: live collision)
-        SymbolKey("Severity", "5e9f98120dbe568255ee059f39671686982b113d4e917b6d6faf149918c81709", module_path="doctrine.shared"),
-        # doctrine.shared::Strictness (escalated: live collision)
-        SymbolKey("Strictness", "bf6124f24491be137dec5c0a209e381046bc032dfeea16723b313a5014d2d6af", module_path="doctrine.shared"),
-        # doctrine.shared::TermSurface (escalated: live collision)
-        SymbolKey("TermSurface", "92ae59dd08020d0481eb46aac5aae4d296803b7647f1c97cfd63cb157da9ed81", module_path="doctrine.shared"),
-        # doctrine.tactics::ArtifactKind (escalated: live collision)
-        SymbolKey("ArtifactKind", "daf6b8e8a33ac97ab1bbd7e927cd20ca85bedb05de19ec852dc58cd6184763be", module_path="doctrine.tactics"),
+            "MissionRepository", "87721dffc175e1e94aa69dc020df1effd47b986d66e538eef4c49df962d684f9", source_module="charter.offering.missions"
+        ),  # charter.offering.missions::MissionRepository
+        # charter.offering.procedures::ArtifactKind (escalated: live collision)
+        SymbolKey("ArtifactKind", "daf6b8e8a33ac97ab1bbd7e927cd20ca85bedb05de19ec852dc58cd6184763be", module_path="charter.offering.procedures"),
+        # charter.offering.shared::ConflictType (escalated: live collision)
+        SymbolKey("ConflictType", "34ff96f6eabe70e229d72efc5674d6050bb7291c458ee30394ebc1d629bf566e", module_path="charter.offering.shared"),
+        # charter.offering.shared::ExtractedTerm (escalated: live collision)
+        SymbolKey("ExtractedTerm", "6a7ebe24a2cc047a13b893af65d33944f51293abbd976de963a6585ef032f0ce", module_path="charter.offering.shared"),
+        # charter.offering.shared::GlossaryScope (escalated: live collision)
+        SymbolKey("GlossaryScope", "e433a93e6f5df50065e49747d40c3be1bd0957989e424a8b47ed2d75a5da4ba7", module_path="charter.offering.shared"),
+        # charter.offering.shared::ScopeRef (escalated: live collision)
+        SymbolKey("ScopeRef", "6edbfc7de81b473814e0582739ad128906a23b95ee2fed75d471b6de77860e83", module_path="charter.offering.shared"),
+        # charter.offering.shared::SemanticConflict (escalated: live collision)
+        SymbolKey("SemanticConflict", "03a7b588ce09a403baa5d3c6130231131ed3e7eb824ec18448215061a85ccd00", module_path="charter.offering.shared"),
+        # charter.offering.shared::SenseRef (escalated: live collision)
+        SymbolKey("SenseRef", "80a18c5b75e03f2202466dbc52090000b2819302b89ae90048f98125d4b89b43", module_path="charter.offering.shared"),
+        # charter.offering.shared::Severity (escalated: live collision)
+        SymbolKey("Severity", "5e9f98120dbe568255ee059f39671686982b113d4e917b6d6faf149918c81709", module_path="charter.offering.shared"),
+        # charter.offering.shared::Strictness (escalated: live collision)
+        SymbolKey("Strictness", "bf6124f24491be137dec5c0a209e381046bc032dfeea16723b313a5014d2d6af", module_path="charter.offering.shared"),
+        # charter.offering.shared::TermSurface (escalated: live collision)
+        SymbolKey("TermSurface", "92ae59dd08020d0481eb46aac5aae4d296803b7647f1c97cfd63cb157da9ed81", module_path="charter.offering.shared"),
+        # charter.offering.tactics::ArtifactKind (escalated: live collision)
+        SymbolKey("ArtifactKind", "daf6b8e8a33ac97ab1bbd7e927cd20ca85bedb05de19ec852dc58cd6184763be", module_path="charter.offering.tactics"),
         SymbolKey(
             "SemanticConflictRecord", "a8ede16418bd45b1fefb48097ef7bfc5c27d9b90ba68906f3ee7124a3c1a11dd", source_module="glossary.semantic_events"
         ),  # glossary.semantic_events::SemanticConflictRecord
@@ -558,26 +558,26 @@ _CATEGORY_B_GRANDFATHERED_LEGACY: frozenset[SymbolKey] = frozenset(
         # function's body changed while its grandfathered-dead status (no src/
         # importer; only tests exercise it) did not.
         SymbolKey(
-            "GovernancePolicy", "46ddf246ad782f50222cdff721814f7880aa33c8d000a88110475e71b78a6f7c", source_module="specify_cli.doctrine.org_charter"
-        ),  # specify_cli.doctrine.org_charter::GovernancePolicy
+            "GovernancePolicy", "46ddf246ad782f50222cdff721814f7880aa33c8d000a88110475e71b78a6f7c", source_module="specify_cli.charter.offering.org_charter"
+        ),  # specify_cli.charter.offering.org_charter::GovernancePolicy
         # Hash refreshed for the write-side-seam-matrix-tracer landing fold
         # (Wave B / #3070) ASSET-kind tuple extension (added the ``assets``
         # member); still grandfathered-dead (no external src/ importer --
         # only internal use + a private ``_REQUIRED_KIND_FIELDS`` copy in
         # ``src/charter/context.py``). Body-sensitive key => extending the
         # tuple changes its content hash (see ``_symbol_key.py`` Body-sensitivity).
-        # specify_cli.doctrine.org_charter::REQUIRED_KIND_FIELDS
-        SymbolKey("REQUIRED_KIND_FIELDS", "6845e2186c122993ab17b0352e5ac72f9c821e031e96de06cb5bd996f2f0f327", source_module="specify_cli.doctrine.org_charter"),
-        # specify_cli.doctrine.org_charter::apply_org_charter_pre_fill
+        # specify_cli.charter.offering.org_charter::REQUIRED_KIND_FIELDS
+        SymbolKey("REQUIRED_KIND_FIELDS", "6845e2186c122993ab17b0352e5ac72f9c821e031e96de06cb5bd996f2f0f327", source_module="specify_cli.charter.offering.org_charter"),
+        # specify_cli.charter.offering.org_charter::apply_org_charter_pre_fill
         SymbolKey(
-            "apply_org_charter_pre_fill", "559da0a61fd4f6255212b449ad4de219cb758f57501e1c5adcc1f5e5f801385b", source_module="specify_cli.doctrine.org_charter"
+            "apply_org_charter_pre_fill", "559da0a61fd4f6255212b449ad4de219cb758f57501e1c5adcc1f5e5f801385b", source_module="specify_cli.charter.offering.org_charter"
         ),
         SymbolKey(
-            "AssemblyResult", "3af243769584cf1b5e44b1a04238c6a9f879b3cd8c34e05414c046d2220202f0", source_module="specify_cli.doctrine.pack_assembler"
-        ),  # specify_cli.doctrine.pack_assembler::AssemblyResult
+            "AssemblyResult", "3af243769584cf1b5e44b1a04238c6a9f879b3cd8c34e05414c046d2220202f0", source_module="specify_cli.charter.offering.pack_assembler"
+        ),  # specify_cli.charter.offering.pack_assembler::AssemblyResult
         SymbolKey(
-            "ConflictItem", "ba27993ebb52415cc1de33833e170bcaf33a09aed1db8ebf396d778466992f57", source_module="specify_cli.doctrine.pack_assembler"
-        ),  # specify_cli.doctrine.pack_assembler::ConflictItem
+            "ConflictItem", "ba27993ebb52415cc1de33833e170bcaf33a09aed1db8ebf396d778466992f57", source_module="specify_cli.charter.offering.pack_assembler"
+        ),  # specify_cli.charter.offering.pack_assembler::ConflictItem
         SymbolKey(
             "ArtifactDetailResponse", "6ab904af861ebc649ce5950673d6be8ef4b65f323addde067ea3bcf61bb03f49", source_module="specify_cli.dossier.api"
         ),  # specify_cli.dossier.api::ArtifactDetailResponse
@@ -977,26 +977,26 @@ _CATEGORY_C_WP_IN_FLIGHT_TOPOLOGY_AUTHORITY: frozenset[SymbolKey] = frozenset(
 _CATEGORY_C_WP_IN_FLIGHT_UNIFIED_MISSION_STEP: frozenset[SymbolKey] = frozenset(
     {
         SymbolKey(
-            "StepKey", "6b982c25b6d2735411195c4e785e71c6178eca1ce51e18c0b656f7f44bdd0edc", source_module="doctrine.missions.mission_step_repository"
-        ),  # doctrine.missions.mission_step_repository::StepKey
+            "StepKey", "6b982c25b6d2735411195c4e785e71c6178eca1ce51e18c0b656f7f44bdd0edc", source_module="charter.offering.missions.mission_step_repository"
+        ),  # charter.offering.missions.mission_step_repository::StepKey
         SymbolKey(
-            "IDENTIFIER_PATTERN", "944bd183d9ba2c291aefb749f879af6cd98fc905083ec9c8c6d11b76ec488d12", source_module="doctrine.missions.models"
-        ),  # doctrine.missions.models::IDENTIFIER_PATTERN
+            "IDENTIFIER_PATTERN", "944bd183d9ba2c291aefb749f879af6cd98fc905083ec9c8c6d11b76ec488d12", source_module="charter.offering.missions.models"
+        ),  # charter.offering.missions.models::IDENTIFIER_PATTERN
         SymbolKey(
-            "Mission", "15e9ee0fa689f7a7e779b89907e036590786ec6594a8ab27bdb062e5f9fe8fa5", source_module="doctrine.missions.models"
-        ),  # doctrine.missions.models::Mission
+            "Mission", "15e9ee0fa689f7a7e779b89907e036590786ec6594a8ab27bdb062e5f9fe8fa5", source_module="charter.offering.missions.models"
+        ),  # charter.offering.missions.models::Mission
         SymbolKey(
-            "MissionOrchestration", "07d36b401f8d499e95d93e93d61fc1a9c139798fe4f7f0bf9f66939257ef965d", source_module="doctrine.missions.models"
-        ),  # doctrine.missions.models::MissionOrchestration
+            "MissionOrchestration", "07d36b401f8d499e95d93e93d61fc1a9c139798fe4f7f0bf9f66939257ef965d", source_module="charter.offering.missions.models"
+        ),  # charter.offering.missions.models::MissionOrchestration
         SymbolKey(
-            "MissionStateObject", "955954fbc29b36f5c463bc5e39a04a5b24410cc31f5c0e017e8221176efae587", source_module="doctrine.missions.models"
-        ),  # doctrine.missions.models::MissionStateObject
+            "MissionStateObject", "955954fbc29b36f5c463bc5e39a04a5b24410cc31f5c0e017e8221176efae587", source_module="charter.offering.missions.models"
+        ),  # charter.offering.missions.models::MissionStateObject
         SymbolKey(
-            "MissionTransition", "9fe929fc9914ddcb8ebc8c3872fe9f1d410a7f14ea6690c82165379d980dc973", source_module="doctrine.missions.models"
-        ),  # doctrine.missions.models::MissionTransition
+            "MissionTransition", "9fe929fc9914ddcb8ebc8c3872fe9f1d410a7f14ea6690c82165379d980dc973", source_module="charter.offering.missions.models"
+        ),  # charter.offering.missions.models::MissionTransition
         SymbolKey(
-            "DelegatesTo", "e43595becef9482b7caa76b2e901db98a5f48737237d6c1aac8b74b64c32b9ee", source_module="doctrine.missions.step_contracts"
-        ),  # doctrine.missions.step_contracts::DelegatesTo
+            "DelegatesTo", "e43595becef9482b7caa76b2e901db98a5f48737237d6c1aac8b74b64c32b9ee", source_module="charter.offering.missions.step_contracts"
+        ),  # charter.offering.missions.step_contracts::DelegatesTo
     }
 )
 
@@ -1015,18 +1015,18 @@ _CATEGORY_C_WP_IN_FLIGHT_CHARTER_ACTIVATION: frozenset[SymbolKey] = frozenset(
             "MergeResult", "cc0c8d09dc8bd0cc0152b7bee385aefdedb9f555cc1e6ac4593a009b38b25093", source_module="charter.pack_manager"
         ),  # charter.pack_manager::MergeResult
         SymbolKey(
-            "StepKey", "6b982c25b6d2735411195c4e785e71c6178eca1ce51e18c0b656f7f44bdd0edc", source_module="doctrine.missions.mission_step_repository"
-        ),  # doctrine.missions.mission_step_repository::StepKey
+            "StepKey", "6b982c25b6d2735411195c4e785e71c6178eca1ce51e18c0b656f7f44bdd0edc", source_module="charter.offering.missions.mission_step_repository"
+        ),  # charter.offering.missions.mission_step_repository::StepKey
         SymbolKey(
             "AffectedMission", "aca1c4d1ccf40c858667a7ca7fc09a28197e3b7ed559beffd1c72e4ed91f5a1f", source_module="specify_cli.charter_activate"
         ),  # specify_cli.charter_activate::AffectedMission
         SymbolKey(
             "StepRemovalWarning", "508dec1c957b44c16c889862c20780e4d64148a0918785d8edd5ff094aa66ccf", source_module="specify_cli.charter_activate"
         ),  # specify_cli.charter_activate::StepRemovalWarning
-        # specify_cli.doctrine.org_charter::OrgCharterCycleError
-        SymbolKey("OrgCharterCycleError", "15ac7dc4906c07d6bbfeab8cd3051ed1872032f497dfe23b680eb118c0126740", source_module="specify_cli.doctrine.org_charter"),
-        # specify_cli.doctrine.org_charter::OrgCharterExtensionError
-        SymbolKey("OrgCharterExtensionError", "5351ebd8c29db6ce6682b7c0a92db5b9f433157d77f4c1985e030d0b8f7aae69", source_module="specify_cli.doctrine.org_charter"),
+        # specify_cli.charter.offering.org_charter::OrgCharterCycleError
+        SymbolKey("OrgCharterCycleError", "15ac7dc4906c07d6bbfeab8cd3051ed1872032f497dfe23b680eb118c0126740", source_module="specify_cli.charter.offering.org_charter"),
+        # specify_cli.charter.offering.org_charter::OrgCharterExtensionError
+        SymbolKey("OrgCharterExtensionError", "5351ebd8c29db6ce6682b7c0a92db5b9f433157d77f4c1985e030d0b8f7aae69", source_module="specify_cli.charter.offering.org_charter"),
     }
 )
 
@@ -1052,26 +1052,26 @@ _CATEGORY_C_ORG_DOCTRINE_CLOSEOUT: frozenset[SymbolKey] = frozenset(
             "ReferencedArtifact", "80d3c02ebae2c466ff75be630ecfd259036be62ea0a1394dbab6503f75414afc", source_module="charter.cascade"
         ),  # charter.cascade::ReferencedArtifact
         SymbolKey("SharedSkip", "5eaddd3d5d18e386fc96f4ad558b21289c0bf7955cc70cfadca308d234f3ff5b", source_module="charter.cascade"),  # charter.cascade::SharedSkip
-        # doctrine.drg.org_pack_loader::AUGMENTATION_RELATIONS
-        SymbolKey("AUGMENTATION_RELATIONS", "724f4741d69125ccfd2bb664f8f05739fb4a2372220636958b84476741738af0", source_module="doctrine.drg.org_pack_loader"),
+        # charter.offering.drg.org_pack_loader::AUGMENTATION_RELATIONS
+        SymbolKey("AUGMENTATION_RELATIONS", "724f4741d69125ccfd2bb664f8f05739fb4a2372220636958b84476741738af0", source_module="charter.offering.drg.org_pack_loader"),
         SymbolKey(
-            "TOPOLOGY_KINDS", "eb1deec7b602719bb1ada5074ee99c1bf01b1df4faa1370845f9e8f65b341e9e", source_module="doctrine.drg.org_pack_loader"
-        ),  # doctrine.drg.org_pack_loader::TOPOLOGY_KINDS
-        # doctrine.drg.org_pack_loader::merge_topology_artifact
-        SymbolKey("merge_topology_artifact", "8b3946b11d7220f921e402afa6152d2d33907b8743465c34a56e681e676539e9", source_module="doctrine.drg.org_pack_loader"),
+            "TOPOLOGY_KINDS", "eb1deec7b602719bb1ada5074ee99c1bf01b1df4faa1370845f9e8f65b341e9e", source_module="charter.offering.drg.org_pack_loader"
+        ),  # charter.offering.drg.org_pack_loader::TOPOLOGY_KINDS
+        # charter.offering.drg.org_pack_loader::merge_topology_artifact
+        SymbolKey("merge_topology_artifact", "8b3946b11d7220f921e402afa6152d2d33907b8743465c34a56e681e676539e9", source_module="charter.offering.drg.org_pack_loader"),
         # ``template_id_for`` and ``template_urn`` left the allowlist in
         # mission-step-creatability-01KXQA6R WP06 (S-C / #2724): the DRG
         # extractor's template-instantiation pass
-        # (``doctrine.drg.migration.extractor.extract_template_instantiation_edges``)
+        # (``charter.offering.drg.migration.extractor.extract_template_instantiation_edges``)
         # is now their first live non-test caller, so the dead-symbol gate
         # (FR-008) requires them removed. ``template_node``/``template_nodes``
         # stay allowlisted -- still no live caller.
         SymbolKey(
-            "template_node", "dea39c9ec49890b233342ad15392800be8606946f3ad2964e995969792c9b0e0", source_module="doctrine.template_catalog"
-        ),  # doctrine.template_catalog::template_node
+            "template_node", "dea39c9ec49890b233342ad15392800be8606946f3ad2964e995969792c9b0e0", source_module="charter.offering.template_catalog"
+        ),  # charter.offering.template_catalog::template_node
         SymbolKey(
-            "template_nodes", "84573a47cbf040c8d00b413ada1f52225e2131371dd580393fbc88ac226404dd", source_module="doctrine.template_catalog"
-        ),  # doctrine.template_catalog::template_nodes
+            "template_nodes", "84573a47cbf040c8d00b413ada1f52225e2131371dd580393fbc88ac226404dd", source_module="charter.offering.template_catalog"
+        ),  # charter.offering.template_catalog::template_nodes
         SymbolKey(
             "PackHealth", "82268603b58f8a1449a0bf97456ddf08c217c11de4d66d85a41afc56819f7eee", source_module="specify_cli.cli.commands._doctrine_health"
         ),  # specify_cli.cli.commands._doctrine_health::PackHealth
@@ -1412,7 +1412,7 @@ _CATEGORY_C_RUNTIME_BRIDGE_DEGOD_COMPAT_SURFACE: frozenset[SymbolKey] = frozense
 # to ``load_built_in_graph``, so the contract-required re-export now has no
 # cross-file src/ caller (removing it would break the facade gate -- two-gate
 # tension). ``load_graph`` is a LIVE COLLISION bare_name (3 live ``__all__``
-# locations; ``charter.drg`` + ``doctrine.drg`` share a body_hash), so the
+# locations; ``charter.drg`` + ``charter.offering.drg`` share a body_hash), so the
 # FR-005 classifier escalates it to the module_path tier and it is deliberately
 # NOT covered by ``_is_reexport_shim_symbol`` (escalated keys are hand-curated
 # by design). Tracker: #2677 (FR-303).
@@ -1633,14 +1633,14 @@ _CATEGORY_C_LIFECYCLE_GATE_EXECUTION_CONTEXT_2841: frozenset[SymbolKey] = frozen
 # ---------- C. Delivery-rail forward API (mission doctrine-delivery-reachability-01KYMXD6) ----------
 # The delivery-rail public API built by mission
 # ``doctrine-delivery-reachability-01KYMXD6``: the WP08 per-channel
-# reachability helpers (``src/doctrine/drg/reachability.py``) and the WP07
+# reachability helpers (``src/charter/offering/drg/reachability.py``) and the WP07
 # activation-partition helpers (``src/charter/pack_context.py``).
 #
 # WP03 UPDATE (mission ``doctrine-delivery-activation-01KYQVQK`` — the planned
 # "walk-update" fast-follow itself): this mission wired the *profile* channel.
 # ``profile_channel_reachable`` (never in this frozenset) and
 # ``agent_profile_seed_urns`` (retired below) now have a genuine runtime caller
-# in ``src/doctrine/agent_profiles/repository.py``, so they are no longer
+# in ``src/charter/offering/agent_profiles/repository.py``, so they are no longer
 # forward-only. The remaining eight symbols are a DIFFERENT concern — the
 # charter-activation partition helpers and the *action*-channel reachability
 # helpers — for which this mission builds no ``src/`` consumer; they stay
@@ -1703,21 +1703,21 @@ _CATEGORY_C_DELIVERY_RAIL_FORWARD_API: frozenset[SymbolKey] = frozenset(
         SymbolKey(
             "partition_delivery", "7a90e7fc7bfaa802edcb2f675f4cce8f0e7e6db3fbe184b68b64a4a03d194841", source_module="charter.progressive_disclosure"
         ),  # charter.progressive_disclosure::partition_delivery
-        # doctrine.drg.reachability::PROFILE_CHANNEL_RELATIONS (body_hash refreshed
+        # charter.offering.drg.reachability::PROFILE_CHANNEL_RELATIONS (body_hash refreshed
         # WP03/doctrine-delivery-activation-01KYQVQK: WP01 added Relation.SUGGESTS to
         # the frozenset, changing its body; still no ``src/`` importer — the sole
         # reference in src/charter/context_renderers/profile_sections.py:341 is a
         # prose comment, not an import/call — so it stays allowlisted, hash-refreshed.)
-        # doctrine.drg.reachability::PROFILE_CHANNEL_RELATIONS
-        SymbolKey("PROFILE_CHANNEL_RELATIONS", "17b05fe56e1ba52f5efca0f1cebe40e0ed1ab3232b80111f8e47e51176203fb5", source_module="doctrine.drg.reachability"),
-        # doctrine.drg.reachability::action_channel_reachable
-        SymbolKey("action_channel_reachable", "12033bfeabd0a031f426ef16f55dbc9ee765a0d1c8ad09a822847a1d91b42d10", source_module="doctrine.drg.reachability"),
+        # charter.offering.drg.reachability::PROFILE_CHANNEL_RELATIONS
+        SymbolKey("PROFILE_CHANNEL_RELATIONS", "17b05fe56e1ba52f5efca0f1cebe40e0ed1ab3232b80111f8e47e51176203fb5", source_module="charter.offering.drg.reachability"),
+        # charter.offering.drg.reachability::action_channel_reachable
+        SymbolKey("action_channel_reachable", "12033bfeabd0a031f426ef16f55dbc9ee765a0d1c8ad09a822847a1d91b42d10", source_module="charter.offering.drg.reachability"),
         SymbolKey(
-            "action_seed_urns", "65ce52327f352629e39db6b4d922f14aa86e9e3ef71725a856e70567f0b66d04", source_module="doctrine.drg.reachability"
-        ),  # doctrine.drg.reachability::action_seed_urns
+            "action_seed_urns", "65ce52327f352629e39db6b4d922f14aa86e9e3ef71725a856e70567f0b66d04", source_module="charter.offering.drg.reachability"
+        ),  # charter.offering.drg.reachability::action_seed_urns
         # ``agent_profile_seed_urns`` retired from this allowlist by WP03
         # (doctrine-delivery-activation-01KYQVQK): it now has a genuine cross-file
-        # ``src/`` consumer — src/doctrine/agent_profiles/repository.py imports it
+        # ``src/`` consumer — src/charter/offering/agent_profiles/repository.py imports it
         # (line 25) and calls it (line 889) — so the gate correctly no longer
         # treats it as unwired forward API.
     }
@@ -1729,11 +1729,11 @@ _CATEGORY_C_DELIVERY_RAIL_FORWARD_API: frozenset[SymbolKey] = frozenset(
 # census disposition). It re-exports each PUBLIC symbol by object identity.
 #
 # TEMPORARY BRIDGE (#3179): the charter facades that give these api symbols a
-# live in-repo caller — by re-exporting them *from ``doctrine.api``* — are built
-# in WP03, which is not yet landed. Until WP03 lands, ``doctrine.api``'s
+# live in-repo caller — by re-exporting them *from ``charter.offering.api``* — are built
+# in WP03, which is not yet landed. Until WP03 lands, ``charter.offering.api``'s
 # re-exports have no non-shim caller, so the symbol-level dead-code gate flags
 # them. These six are *escalated* to the module_path tier (their bare names also
-# live in ``doctrine.__init__`` / ``charter.drg`` / ``doctrine.assets`` __all__
+# live in ``charter.offering.__init__`` / ``charter.drg`` / ``charter.offering.assets`` __all__
 # with the same body), so the T013 re-export-shim auto-exempt (content-tier only)
 # does NOT cover them — they require this hand entry. The other four api symbols
 # (``RoutingRecommendation``, ``CatalogLoadResult``, ``evaluate``, ``load``) are
@@ -1742,19 +1742,19 @@ _CATEGORY_C_DELIVERY_RAIL_FORWARD_API: frozenset[SymbolKey] = frozenset(
 # trip ``test_auto_exempt_disjoint_from_hand_allowlist``).
 #
 # WP03 SHRINKS THIS: once ``charter.drg`` / ``charter.assets`` re-export these
-# symbols *from ``doctrine.api``*, each gains a genuine facade caller and MUST be
+# symbols *from ``charter.offering.api``*, each gains a genuine facade caller and MUST be
 # removed here (the stale-ratchet check reds if it lingers). Do NOT extend this
-# entry beyond the ``doctrine.api`` public surface.
+# entry beyond the ``charter.offering.api`` public surface.
 #
 # WP03 LANDED (mission ``doctrine-public-api-surface-01KZPDSR``): the charter
-# facades now re-export every one of these six from ``doctrine.api`` —
-# ``charter.drg`` imports ``ArtifactKind`` from ``doctrine.api`` (T010) and
-# ``charter.assets`` imports the five asset symbols from ``doctrine.api`` (T014).
-# Each escalated ``doctrine.api::X`` key therefore has a genuine live facade
+# facades now re-export every one of these six from ``charter.offering.api`` —
+# ``charter.drg`` imports ``ArtifactKind`` from ``charter.offering.api`` (T010) and
+# ``charter.assets`` imports the five asset symbols from ``charter.offering.api`` (T014).
+# Each escalated ``charter.offering.api::X`` key therefore has a genuine live facade
 # caller, so the bridge is emptied (leaving any entry would red the stale-ratchet
 # / dangling-entry check). The other four api symbols (``RoutingRecommendation``,
 # ``CatalogLoadResult``, ``evaluate``, ``load``) are also now re-exported from
-# ``doctrine.api`` by ``charter.model_routing`` (T013); they were never listed
+# ``charter.offering.api`` by ``charter.model_routing`` (T013); they were never listed
 # here (single-location content-tier keys, auto-exempt).
 _CATEGORY_C_DOCTRINE_API_SURFACE_BRIDGE_3179: frozenset[SymbolKey] = frozenset()
 
@@ -1772,7 +1772,7 @@ _CATEGORY_C_DOCTRINE_API_SURFACE_BRIDGE_3179: frozenset[SymbolKey] = frozenset()
 # (``test_charter_facades_reexport_doctrine`` independently enforces the
 # object-identity + ``__all__`` membership these entries would otherwise let a
 # refactor drop). Each is a LIVE-COLLISION bare_name (the same name lives in the
-# doctrine origin ``__all__`` and, for the PUBLIC ones, in ``doctrine.api`` too),
+# doctrine origin ``__all__`` and, for the PUBLIC ones, in ``charter.offering.api`` too),
 # so the FR-005 classifier escalates it to the module_path tier and it is
 # deliberately NOT covered by the content-tier ``_is_reexport_shim_symbol``
 # auto-exempt — escalated keys are hand-curated by design (DoD i). Same status
@@ -1790,12 +1790,12 @@ _CATEGORY_C_CHARTER_FACADE_FORWARD_API_01KZPDSR: frozenset[SymbolKey] = frozense
         # model_routing::{RoutingRecommendation,evaluate,load}, apply_spdd_blocks_for_project)
         # now have live runtime callers and were evicted per the shrink-only ratchet.
         # The three below remain genuine forward/wheel-only public API with no in-repo
-        # caller yet (re-exported from doctrine.api via the charter facades).
-        # charter.assets::AssetManifest (PUBLIC; re-exported from doctrine.api)
+        # caller yet (re-exported from charter.offering.api via the charter facades).
+        # charter.assets::AssetManifest (PUBLIC; re-exported from charter.offering.api)
         SymbolKey("AssetManifest", "456a44a16d8907143ec72c52a3db086e9a20fab655f777f1e6be99969ea69842", module_path="charter.assets"),
-        # charter.assets::AssetResolutionError (PUBLIC; re-exported from doctrine.api)
+        # charter.assets::AssetResolutionError (PUBLIC; re-exported from charter.offering.api)
         SymbolKey("AssetResolutionError", "fa48b11b82424e7d3303c757e25ee1dd5652c60b03702e5e3a3f5cf4c16c8d8c", module_path="charter.assets"),
-        # charter.model_routing::CatalogLoadResult (PUBLIC; re-exported from doctrine.api)
+        # charter.model_routing::CatalogLoadResult (PUBLIC; re-exported from charter.offering.api)
         SymbolKey("CatalogLoadResult", "d1058ae76b9cd3bd5e1755a50eccbb6e8873adc8eb1d8a538d651251334fbc76", module_path="charter.model_routing"),
     }
 )
@@ -2843,20 +2843,20 @@ _WIDENED_SCOPE_GRANDFATHERED_470: frozenset[str] = frozenset(
         "charter.evidence.code_reader::LANGUAGE_EXTENSIONS",
         "charter.synthesizer.adapter::BatchCapableSynthesisAdapter",
         "charter.synthesizer.synthesize_pipeline::run",
-        "doctrine.agent_profiles.schema_models::AgentProfileSchema",
-        "doctrine.agent_profiles.validation::is_agent_profile_file",
-        "doctrine.directives.validation::validate_directive",
-        "doctrine.drg.migration.hand_authored_overlay::hand_authored_edge_keys",
-        "doctrine.drg.migration.hand_authored_overlay::hand_authored_node_urns",
-        "doctrine.drg.models::RELATION_DESCRIPTIONS",
-        "doctrine.hatch_build::DoctrinePacksSiblingBuildHook",
-        "doctrine.import_candidates.models::CurationImportCandidate",
-        "doctrine.import_candidates.models::LegacyImportCandidate",
-        "doctrine.missions.repository::MissionRepository",
-        "doctrine.paradigms.validation::validate_paradigm",
-        "doctrine.styleguides.validation::validate_styleguide",
-        "doctrine.tactics.validation::validate_tactic",
-        "doctrine.toolguides.validation::validate_toolguide",
+        "charter.offering.agent_profiles.schema_models::AgentProfileSchema",
+        "charter.offering.agent_profiles.validation::is_agent_profile_file",
+        "charter.offering.directives.validation::validate_directive",
+        "charter.offering.drg.migration.hand_authored_overlay::hand_authored_edge_keys",
+        "charter.offering.drg.migration.hand_authored_overlay::hand_authored_node_urns",
+        "charter.offering.drg.models::RELATION_DESCRIPTIONS",
+        "charter.offering.hatch_build::DoctrinePacksSiblingBuildHook",
+        "charter.offering.import_candidates.models::CurationImportCandidate",
+        "charter.offering.import_candidates.models::LegacyImportCandidate",
+        "charter.offering.missions.repository::MissionRepository",
+        "charter.offering.paradigms.validation::validate_paradigm",
+        "charter.offering.styleguides.validation::validate_styleguide",
+        "charter.offering.tactics.validation::validate_tactic",
+        "charter.offering.toolguides.validation::validate_toolguide",
         "glossary.drg_builder::build_glossary_drg_layer",
         "glossary.extraction::score_confidence",
         "glossary.middleware::MockContext",
@@ -2922,8 +2922,8 @@ _WIDENED_SCOPE_GRANDFATHERED_470: frozenset[str] = frozenset(
         "specify_cli.doc_analysis.doc_state::update_documentation_state",
         "specify_cli.doc_analysis.gap_analysis::detect_version_mismatch",
         "specify_cli.doc_analysis.gap_analysis::run_gap_analysis_for_feature",
-        "specify_cli.doctrine.org_charter::org_charter_to_json_block",
-        "specify_cli.doctrine.pack_descriptor::PackDescriptor",
+        "specify_cli.charter.offering.org_charter::org_charter_to_json_block",
+        "specify_cli.charter.offering.pack_descriptor::PackDescriptor",
         "specify_cli.dossier.hasher::WP_DESCRIPTIVE_PROJECTION_FIELDS",
         "specify_cli.dossier.hasher::WP_RUNTIME_PROJECTION_FIELDS",
         "specify_cli.git.commit_helpers::logger",

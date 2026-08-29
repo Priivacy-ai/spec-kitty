@@ -70,7 +70,7 @@ def test_all_slice_f_terms_are_canonical_in_doctrine_context() -> None:
 
 # ---------------------------------------------------------------------------
 # WP02 (charter-authority-flip-01M14RB3) / T007 / FR-002: external referrer
-# re-point closure. WP01 renamed docs/context/doctrine.md -> charter.md; WP02
+# re-point closure. WP01 renamed docs/context/charter.offering.md -> charter.md; WP02
 # re-points the 40 external referrers (path token only -- the term CONTENT
 # those referrers carry is owned by later waves M2/M4/M5 per
 # occurrence_map.yaml's referrer exceptions block).
@@ -132,7 +132,7 @@ _AGENT_PROFILE_NAMES = [
 ]
 
 #: The 20 WP02-owned pages carrying a ``related:`` frontmatter edge that used
-#: to dangle on ``docs/context/doctrine.md`` (checked live by
+#: to dangle on ``docs/context/charter.offering.md`` (checked live by
 #: ``related_validator``; see ``test_wp02_owned_referrers_have_zero_dangling_related_edges``).
 WP02_RELATED_FRONTMATTER_REFERRERS: tuple[str, ...] = (
     *(f"docs/api/agent_profiles/{name}.md" for name in _AGENT_PROFILE_NAMES),
@@ -151,12 +151,12 @@ WP02_PATH_TOKEN_ONLY_REFERRERS: tuple[str, ...] = (
     "docs/plans/engineering-notes/drg-completeness-2843-research.md",
     "docs/plans/initiatives/2026-04-mission-nomenclature-reconciliation/README.md",
     "docs/plans/refactor/slice-f-mission-debrief.md",
-    "src/doctrine/README.md",
-    "src/doctrine/directives/README.md",
-    "src/doctrine/paradigms/README.md",
-    "src/doctrine/schemas/README.md",
-    "src/doctrine/tactics/README.md",
-    "src/doctrine/templates/README.md",
+    "src/charter/offering/README.md",
+    "src/charter/offering/directives/README.md",
+    "src/charter/offering/paradigms/README.md",
+    "src/charter/offering/schemas/README.md",
+    "src/charter/offering/tactics/README.md",
+    "src/charter/offering/templates/README.md",
     "tests/architectural/test_no_dead_doctrine_paths.py",
 )
 
@@ -173,18 +173,18 @@ def _git_show(rel_path: str, base_commit: str) -> str:
 
 
 def _flip_path_token(line: str) -> str:
-    return line.replace("context/doctrine.md", "context/charter.md")
+    return line.replace("context/charter.offering.md", "context/charter.md")
 
 
 @pytest.mark.architectural
 def test_wp02_owned_referrers_have_zero_dangling_related_edges() -> None:
     """T007(a) / FR-002: the 20 WP02-owned ``related:`` frontmatter referrers
-    no longer dangle on ``docs/context/doctrine.md`` (``related_validator``).
+    no longer dangle on ``docs/context/charter.offering.md`` (``related_validator``).
 
     Scoped to what WP02 actually owns. Three sibling ``docs/context/*.md``
     pages (``governance.md``, ``orchestration.md``,
     ``configuration-project-structure.md``) still carry a dangling
-    ``docs/context/doctrine.md`` in their OWN ``related:`` frontmatter --
+    ``docs/context/charter.offering.md`` in their OWN ``related:`` frontmatter --
     those pages are WP01-owned (its T003 only re-pointed the inline
     'Related terms' TABLE links at specific line numbers, not the frontmatter
     ``related:`` list) and are out of WP02's scope (explicitly: "Do NOT
@@ -203,7 +203,7 @@ def test_wp02_owned_referrers_have_zero_dangling_related_edges() -> None:
     )
 
     still_dangling_doctrine = {
-        edge.from_path for edge in report.dangling_edges if edge.to_path == "docs/context/doctrine.md"
+        edge.from_path for edge in report.dangling_edges if edge.to_path == "docs/context/charter.offering.md"
     }
     known_wp01_gap = {
         "docs/context/configuration-project-structure.md",
@@ -212,7 +212,7 @@ def test_wp02_owned_referrers_have_zero_dangling_related_edges() -> None:
     }
     unexpected = still_dangling_doctrine - known_wp01_gap
     assert not unexpected, (
-        "New/unexpected docs/context/doctrine.md dangling referrers outside WP02's "
+        "New/unexpected docs/context/charter.offering.md dangling referrers outside WP02's "
         f"owned set and the known WP01 frontmatter gap: {sorted(unexpected)}"
     )
 
@@ -220,7 +220,7 @@ def test_wp02_owned_referrers_have_zero_dangling_related_edges() -> None:
 @pytest.mark.architectural
 def test_wp02_referrer_diffs_are_exactly_the_path_token() -> None:
     """T007(b) / paula HIGH: each WP02-owned referrer's diff against its
-    pre-rename base is EXACTLY the ``context/doctrine.md`` ->
+    pre-rename base is EXACTLY the ``context/charter.offering.md`` ->
     ``context/charter.md`` path-token substitution on the lines that change
     -- no other doctrine-bearing content is touched (no double-funding the
     later-wave content classes M2/M4/M5 own; occurrence_map.yaml's referrer

@@ -11,7 +11,7 @@ outputs** against the sharded layout, matching the pre-shard reference:
 * T031 — ``agent_profiles.repository`` resolves the same ``specializes_from``
   lineage parents (empty graph → lost lineage).
 * T032 — ``charter_runtime.lint._drg`` reports a healthy ``GraphState`` (empty →
-  ``GraphState.MISSING``); ``doctrine.pack_validator`` sees the full built-in URN
+  ``GraphState.MISSING``); ``charter.offering.pack_validator`` sees the full built-in URN
   universe, so org-pack dangling-edge detection still resolves built-in targets
   (empty → false-pass / false-dangling).
 
@@ -27,15 +27,15 @@ from pathlib import Path
 import pytest
 from ruamel.yaml import YAML
 
-from doctrine.agent_profiles.repository import AgentProfileRepository
-from doctrine.drg.loader import built_in_graph_source, load_built_in_graph
-from doctrine.drg.migration.hand_authored_overlay import (
+from charter.offering.agent_profiles.repository import AgentProfileRepository
+from charter.offering.drg.loader import built_in_graph_source, load_built_in_graph
+from charter.offering.drg.migration.hand_authored_overlay import (
     generate_reference_graph_with_overlay,
 )
-from doctrine.drg.models import DRGGraph, NodeKind, Relation
+from charter.offering.drg.models import DRGGraph, NodeKind, Relation
 from specify_cli.charter_runtime.lint._drg import load_merged_drg
 from specify_cli.charter_runtime.lint.findings import GraphState
-from specify_cli.doctrine.pack_validator import validate_pack
+from specify_cli.charter.offering.pack_validator import validate_pack
 
 pytestmark = [pytest.mark.unit, pytest.mark.fast, pytest.mark.corpus]
 
@@ -47,7 +47,7 @@ def reference_graph() -> DRGGraph:
 
     Post-WP03 (doctrine-tension-edges-01KY1WPC): merges in the enumerable
     hand-authored ``in_tension_with``/``reconciles_tension``/``rejects``
-    edges and ``anti_pattern`` nodes (``doctrine.drg.migration.
+    edges and ``anti_pattern`` nodes (``charter.offering.drg.migration.
     hand_authored_overlay``) that the extractor cannot mint from frontmatter
     (C-005), so ``test_pack_validator_builtin_urn_set_is_full`` compares the
     shipped built-in URN universe against its true full reference rather than
@@ -64,7 +64,7 @@ def _lineage_children(graph: DRGGraph) -> list[str]:
     shipped doctrine actually authors (currently the four implementer
     specialists → ``implementer-ivan``) without hardcoding the roster.
     """
-    from doctrine.agent_profiles.repository import _profile_id_from_urn
+    from charter.offering.agent_profiles.repository import _profile_id_from_urn
 
     children = {
         _profile_id_from_urn(e.source)

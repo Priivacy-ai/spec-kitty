@@ -318,9 +318,9 @@ _CATEGORY_1_AUTO_DISCOVERED_MIGRATIONS: frozenset[str] = frozenset(
 # above (scripts/generate_schemas.py).
 _CATEGORY_2_BUILD_SCHEMA_GENERATORS: frozenset[str] = frozenset(
     {
-        "doctrine.agent_profiles.schema_models",
-        "doctrine.import_candidates.models",
-        # doctrine.model_task_routing.models removed (model-discipline-dispatch-binding-01KWPW36
+        "charter.offering.agent_profiles.schema_models",
+        "charter.offering.import_candidates.models",
+        # charter.offering.model_task_routing.models removed (model-discipline-dispatch-binding-01KWPW36
         # WP03): ProfileInvocationExecutor.invoke() now wires loader.py/evaluator.py into the
         # dispatch seam, and both import this module -- it has a live src/ caller as of WP03's
         # _compute_recommendation() wiring, so it no longer belongs in this build-script-only
@@ -336,11 +336,11 @@ _CATEGORY_3_EXTERNAL_CLI_ENTRYPOINTS: frozenset[str] = frozenset(
         # commit_guard_hook_cmd.commit_guard_hook_cli(), so it is no longer
         # genuinely dead -- it no longer belongs in this build-script-only
         # allowlist.
-        # doctrine.hatch_build: a hatchling custom build-hook module, loaded
+        # charter.offering.hatch_build: a hatchling custom build-hook module, loaded
         # by hatchling itself via the `path = "hatch_build.py"` declaration
-        # in src/doctrine/pyproject.toml's [tool.hatch.build.hooks.custom]
+        # in src/charter/offering/pyproject.toml's [tool.hatch.build.hooks.custom]
         # table -- never imported from src/ Python code (WP12, D7).
-        "doctrine.hatch_build",
+        "charter.offering.hatch_build",
     }
 )
 
@@ -378,7 +378,7 @@ _CATEGORY_5_WP_IN_FLIGHT_ADAPTERS: frozenset[str] = frozenset(
         # charter.scope_router removed: post-merge remediation cycle 1
         # wired prompt_builder._governance_context through build_with_scope.
         #
-        # doctrine.missions.mission_step_repository: live caller landed in
+        # charter.offering.missions.mission_step_repository: live caller landed in
         # charter.mission_steps (charter-pack-activation-layer-01KSYE4V WP09)
         #
         # charter.extractor removed: the prose->triad scraper (SECTION_MAPPING,
@@ -395,8 +395,8 @@ _CATEGORY_5_WP_IN_FLIGHT_ADAPTERS: frozenset[str] = frozenset(
         # These two modules are the not-yet-wired adapters awaiting that WP; the
         # AST ratchet test_pack_lineage_no_parallel_resolver.py + the schema/
         # identity/counts unit suites exercise them meanwhile.
-        "specify_cli.doctrine.pack_descriptor",
-        "specify_cli.doctrine.pack_lineage",
+        "specify_cli.charter.offering.pack_descriptor",
+        "specify_cli.charter.offering.pack_lineage",
     }
 )
 
@@ -424,7 +424,7 @@ _CATEGORY_6_FROZEN_RUNTIME_REEXPORTS: frozenset[str] = frozenset(
 # Per Slice F C-006 (binding), Cat-7 MUST shrink by >= 2 entries
 # per major release; target = 0 by 4.0. WP01 of Slice F shrinks
 # this list from 10 -> 7 by deleting three modules outright
-# (doctrine.templates.repository, glossary.prompts,
+# (charter.offering.templates.repository, glossary.prompts,
 # glossary.rendering) per DM-01KRX6N0YAFBY7MTJC0CN3D3E4.
 #
 # issue-116-wire-or-prune-orphaned-collateral (2026-08-27): shrinks this list

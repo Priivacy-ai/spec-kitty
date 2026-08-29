@@ -2,9 +2,9 @@
 
 Pins the behaviour of :func:`charter.context.build_charter_context_include`
 after WP17 routed the selector kind through the canonical
-:meth:`doctrine.artifact_kinds.ArtifactKind.from_operator_token` resolver
+:meth:`charter.offering.artifact_kinds.ArtifactKind.from_operator_token` resolver
 (WP01) and wired ``template:<mission>/<name>`` through WP18's
-:func:`doctrine.template_catalog.resolve_template_by_id` (FR-022/023/024/034).
+:func:`charter.offering.template_catalog.resolve_template_by_id` (FR-022/023/024/034).
 
 Coverage:
 

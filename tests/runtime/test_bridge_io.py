@@ -299,7 +299,7 @@ def test_build_discovery_context_anchors_on_repo_root(tmp_path: Path) -> None:
 
 
 def _write_org_pack_config(repo_root: Path, *, pack_name: str, local_path: Path) -> None:
-    """Write a canonical ``doctrine.org.packs[].local_path`` config.yaml entry."""
+    """Write a canonical ``charter.offering.org.packs[].local_path`` config.yaml entry."""
     config_dir = repo_root / ".kittify"
     config_dir.mkdir(parents=True, exist_ok=True)
     (config_dir / "config.yaml").write_text(
@@ -346,7 +346,7 @@ def test_build_discovery_context_populates_org_roots_from_configured_pack(
 
 
 def test_build_discovery_context_org_roots_empty_when_unconfigured(tmp_path: Path) -> None:
-    """NFR-005/SC-007: with no `doctrine.org.packs` entries (no
+    """NFR-005/SC-007: with no `charter.offering.org.packs` entries (no
     `.kittify/config.yaml` at all -- the overwhelmingly common case),
     `org_roots` is empty and every other field stays exactly what it was
     before this WP -- a verified no-op."""
@@ -366,7 +366,7 @@ def test_build_discovery_context_propagates_org_pack_subdir_escape_error(
     """DEC-005/NFR-001: `OrgPackSubdirEscapeError` is not swallowed by
     `_build_discovery_context` -- it propagates exactly as it does out of
     `resolve_org_roots()` itself. No `try/except` wraps the call."""
-    from doctrine.drg.org_pack_config import OrgPackSubdirEscapeError
+    from charter.offering.drg.org_pack_config import OrgPackSubdirEscapeError
 
     repo_root = tmp_path / "repo"
     pack_root = tmp_path / "org-pack"
@@ -413,7 +413,7 @@ def test_build_discovery_context_malformed_config_still_resolves_with_zero_org_r
     config_dir = repo_root / ".kittify"
     config_dir.mkdir(parents=True)
     (config_dir / "config.yaml").write_text(
-        "not: [valid, doctrine.org.packs shape\n", encoding="utf-8"
+        "not: [valid, charter.offering.org.packs shape\n", encoding="utf-8"
     )
 
     with warnings.catch_warnings(record=True) as caught:
@@ -443,7 +443,7 @@ def test_runtime_template_key_malformed_config_still_resolves_project_legacy(
     config_dir = repo_root / ".kittify"
     config_dir.mkdir(parents=True)
     (config_dir / "config.yaml").write_text(
-        "not: [valid, doctrine.org.packs shape\n", encoding="utf-8"
+        "not: [valid, charter.offering.org.packs shape\n", encoding="utf-8"
     )
     legacy_mission = repo_root / ".kittify" / "missions" / "software-dev" / "mission.yaml"
     _write_runtime_mission_yaml(legacy_mission, key="software-dev")
@@ -460,7 +460,7 @@ def test_build_discovery_context_declared_but_broken_org_pack_still_warns(
     tmp_path: Path,
 ) -> None:
     """Positive case for the two fixes above: a config that DOES declare
-    ``doctrine.org.packs`` but fails schema validation (two packs sharing
+    ``charter.offering.org.packs`` but fails schema validation (two packs sharing
     the same ``name``) is a genuinely misconfigured org pack -- the operator
     demonstrably opted in and deserves to know it's broken. Unlike the
     unparseable-file case, that signal must remain a loud ``UserWarning``
@@ -488,7 +488,7 @@ def test_build_discovery_context_declared_but_broken_org_pack_still_warns(
         context = io_seam._build_discovery_context(repo_root)
 
     assert len(caught) == 1  # golden-count: cardinality-is-contract
-    assert "Invalid doctrine.org config" in str(caught[0].message)
+    assert "Invalid charter.offering.org config" in str(caught[0].message)
     # Fails soft to zero org roots -- resolution still proceeds.
     assert context.org_roots == []
 
@@ -563,7 +563,7 @@ def test_org_tier_position_parity_project_legacy_wins_across_four_sites(
     """Given project-legacy AND org fixtures for the same mission key, all
     four sites select project-legacy -- org sits BELOW project-legacy
     everywhere, not just in one walk."""
-    import doctrine.resolver as doctrine_resolver
+    import charter.offering.resolver as doctrine_resolver
     import specify_cli.runtime.resolver as specify_resolver
     from runtime.next._internal_runtime.discovery import DiscoveryContext as FSMContext
     from runtime.next._internal_runtime.discovery import discover_missions
@@ -607,7 +607,7 @@ def test_org_tier_position_parity_org_wins_over_global_across_four_sites(
     """Given ONLY an org fixture (no project-legacy) for the same mission
     key, all four sites select org -- org sits ABOVE machine-global
     everywhere, not just in one walk."""
-    import doctrine.resolver as doctrine_resolver
+    import charter.offering.resolver as doctrine_resolver
     import specify_cli.runtime.resolver as specify_resolver
     from runtime.next._internal_runtime.discovery import DiscoveryContext as FSMContext
     from runtime.next._internal_runtime.discovery import discover_missions
@@ -625,7 +625,7 @@ def test_org_tier_position_parity_org_wins_over_global_across_four_sites(
     # Sites 1-2: resolvers. Point the global tier at an empty, isolated
     # directory so a miss there cannot masquerade as a false org "win".
     empty_home = tmp_path / "no-home"
-    with patch("doctrine.resolver.get_kittify_home", return_value=empty_home):
+    with patch("charter.offering.resolver.get_kittify_home", return_value=empty_home):
         doctrine_result = doctrine_resolver.resolve_mission(mission, project)
     with patch("specify_cli.runtime.resolver.get_kittify_home", return_value=empty_home):
         specify_result = specify_resolver.resolve_mission(mission, project)

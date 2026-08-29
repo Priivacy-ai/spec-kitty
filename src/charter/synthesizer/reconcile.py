@@ -27,7 +27,7 @@ Import-cycle note
 ``synthesize_pipeline``. ``orchestrator.py`` needs ``SynthesizeMode`` as a
 *real* (non-lazy) top-level import because it is used as a function-default
 value. To keep that safe, this module's OWN top-level imports are limited to
-dependency-light, cycle-free surfaces (``doctrine.drg.*``, stdlib,
+dependency-light, cycle-free surfaces (``charter.offering.drg.*``, stdlib,
 ``.artifact_naming``, ``charter.bundle``); anything that reaches back into
 ``.manifest`` / ``.synthesize_pipeline`` / ``.provenance`` is imported lazily
 inside the function that needs it — the same lazy-import convention already
@@ -40,10 +40,11 @@ import enum
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any, Literal
 
-from doctrine.drg.loader import DRGLoadError as DRGLoadError  # re-export (FR-007)
-from doctrine.drg.loader import has_graph_files, load_graph_or_dir, merge_layers
-from doctrine.drg.models import DRGEdge, DRGGraph, DRGNode
-from doctrine.drg.validator import dangling_endpoints, duplicate_edge_triples
+from charter.offering.drg.loader import DRGLoadError as DRGLoadError  # re-export (FR-007)
+from charter.offering.drg.loader import has_graph_files, load_graph_or_dir, merge_layers
+from charter.offering.drg.models import DRGEdge, DRGGraph, DRGNode
+from charter.offering.drg.validator import dangling_endpoints, duplicate_edge_triples
+from kernel.doctrine_root import LEGACY_DOCTRINE_DIRNAME, resolve_doctrine_read_root
 
 if TYPE_CHECKING:
     from collections.abc import Mapping
@@ -64,6 +65,17 @@ __all__ = [
     "rewrite_manifest",
 ]
 
+#: NOTE the name/value mismatch: this constant holds ``.kittify`` (the
+#: KITTIFY dir), not "doctrine" -- the "doctrine" path segment is composed
+#: separately at each call site below. This is exactly the CR-07
+#: "split-literal, census-invisible" shape (mission
+#: ``charter-code-topology-01M152G1`` S4): a plain grep for the contiguous
+#: string ``.kittify/doctrine`` would miss every f-string call site here.
+#: Call sites now compose the "doctrine" segment from the single shared
+#: ``kernel.doctrine_root.LEGACY_DOCTRINE_DIRNAME`` source instead of a bare
+#: re-spelled literal, closing that gap without changing the resolved path
+#: (manifest-bookkeeping write paths, lines below, are unchanged -- M3 moves
+#: the data and cuts writes over to the canonical root).
 _DOCTRINE_DIRNAME = ".kittify"
 
 
@@ -82,7 +94,7 @@ class SynthesizeMode(enum.Enum):
 
 
 # ---------------------------------------------------------------------------
-# Conflict vocabulary (modeled after -- NOT reusing -- doctrine.drg.merge's
+# Conflict vocabulary (modeled after -- NOT reusing -- charter.offering.drg.merge's
 # OrgDRGConflict / _CONFLICT_REMEDIATIONS shape; different subsystem, distinct
 # `kind` names so the two never fork the same Literal string).
 # ---------------------------------------------------------------------------
@@ -94,7 +106,7 @@ _ReconciliationConflictKind = Literal["duplicate_triple", "preserved_dangling_en
 #: label and no way to act on it. Enforced by
 #: ``test_every_conflict_class_carries_a_remediation_line`` in
 #: ``tests/charter/synthesizer/test_synthesize_reconcile.py`` (mirrors
-#: ``doctrine.drg.merge``'s gate of the same name).
+#: ``charter.offering.drg.merge``'s gate of the same name).
 _RECONCILE_REMEDIATIONS: dict[str, str] = {
     "duplicate_triple": (
         "Remediation (duplicate triple): a preserved edge repeats a "
@@ -115,7 +127,7 @@ _RECONCILE_REMEDIATIONS: dict[str, str] = {
 class ReconciliationConflict:
     """A single preserved-content conflict surfaced by the reconciliation seam.
 
-    Modeled after (not reusing) ``doctrine.drg.merge.OrgDRGConflict`` -- that
+    Modeled after (not reusing) ``charter.offering.drg.merge.OrgDRGConflict`` -- that
     type is the org-pack fragment-merge subsystem's closed-``Literal`` shape
     and carries no ``backing_artifact``/``remediation`` fields. This is a new,
     distinct object (data-model.md "ReconciliationConflict").
@@ -305,7 +317,7 @@ def rewrite_manifest(
         yaml_bytes = canonical_yaml(body)
         content_hash = hashlib.sha256(yaml_bytes).hexdigest()  # noqa: TID251 - production raw SHA-256 owner
 
-        rel_content = f"{_DOCTRINE_DIRNAME}/doctrine/{doctrine_kind_subdir(kind)}/{filename}"
+        rel_content = f"{_DOCTRINE_DIRNAME}/{LEGACY_DOCTRINE_DIRNAME}/{doctrine_kind_subdir(kind)}/{filename}"
         rel_prov = f"{_DOCTRINE_DIRNAME}/charter/provenance/{kind}-{slug}.yaml"
 
         new_entries_by_key[(kind, slug)] = ManifestArtifactEntry(
@@ -571,14 +583,22 @@ def reconcile_synthesis(
 
     Raises
     ------
-    doctrine.drg.loader.DRGLoadError
+    charter.offering.drg.loader.DRGLoadError
         When an on-disk project overlay exists but cannot be parsed (FR-007
         fail-closed at the library seam).
     """
     from .manifest import MANIFEST_PATH  # noqa: PLC0415
     from .manifest import load_yaml as load_manifest  # noqa: PLC0415
 
-    doctrine_dir = repo_root / _DOCTRINE_DIRNAME / "doctrine"
+    # CR-07 (mission `charter-code-topology-01M152G1` S4): this is a pure
+    # read (see the "performs no I/O writes itself, only reads" docstring
+    # note above) -- the one call site in this module safe to route through
+    # the dual-root reader today. Prefers the canonical
+    # `.kittify/charter-packs` overlay when it exists; falls back to the
+    # legacy `.kittify/doctrine` (warn-once) otherwise. The manifest
+    # bookkeeping paths above (`rel_content`/`rel_prov`) stay pointed at the
+    # legacy root -- M3 cuts writes over once the data itself has moved.
+    doctrine_dir = resolve_doctrine_read_root(repo_root)
     existing_overlay = _load_existing_overlay(doctrine_dir)
     merged_overlay = (
         fresh_overlay

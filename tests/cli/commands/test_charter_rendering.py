@@ -4,7 +4,7 @@ These tests assert on stable message substrings in CLI output.  They use
 CliRunner to capture Rich-rendered text and check for substrings that are
 stable across Rich versions and terminal widths.  No full-snapshot assertions.
 
-Tactic: function-over-form-testing (src/doctrine/tactics/built-in/testing/).
+Tactic: function-over-form-testing (src/charter/offering/tactics/built-in/testing/).
 Structure: AAA (Arrange / Act / Assert).
 """
 
@@ -300,7 +300,7 @@ def test_context_json_uses_same_depth_as_rendered_context(tmp_path: Path) -> Non
         patch("charter.context.build_charter_context_json", side_effect=_json_builder),
         patch("charter.drg.resolve_org_roots", return_value=[]),
         patch(
-            "specify_cli.doctrine.org_charter_loader.load_org_charter_json_block",
+            "specify_cli.charter.offering.org_charter_loader.load_org_charter_json_block",
             return_value={"present": False, "packs": []},
         ),
     ):

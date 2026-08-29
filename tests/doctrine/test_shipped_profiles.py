@@ -15,11 +15,11 @@ from pathlib import Path
 import pytest
 from ruamel.yaml import YAML
 
-from doctrine.agent_profiles.profile import AgentProfile, Role
-from doctrine.agent_profiles.repository import AgentProfileRepository
-from doctrine.agent_profiles.validation import validate_agent_profile_yaml
-from doctrine.pack_paths import resolve_pack_root
-from tests.doctrine._builtin_inventory import builtin_profile_ids
+from charter.offering.agent_profiles.profile import AgentProfile, Role
+from charter.offering.agent_profiles.repository import AgentProfileRepository
+from charter.offering.agent_profiles.validation import validate_agent_profile_yaml
+from charter.offering.pack_paths import resolve_pack_root
+from tests.charter.offering._builtin_inventory import builtin_profile_ids
 
 pytestmark = [pytest.mark.fast, pytest.mark.doctrine, pytest.mark.corpus]
 
@@ -31,13 +31,13 @@ REPO_ROOT = Path(__file__).resolve().parents[2]
 BUILT_IN_DIR = resolve_pack_root("built-in") / "agent_profiles"
 MISSION_RUNTIME_DIRS = (
     # Mission doctrine-consumer-surface-missions-extraction-01KZ6G6H (FR-005)
-    # relocated missions/ from src/doctrine/missions to packs/built-in/missions.
+    # relocated missions/ from src/charter/offering/missions to packs/built-in/missions.
     REPO_ROOT / "packs" / "built-in" / "missions",
     REPO_ROOT / ".kittify" / "overrides" / "missions",
 )
-# The Python-package README (``src/doctrine/agent_profiles/README.md``) was NOT
+# The Python-package README (``src/charter/offering/agent_profiles/README.md``) was NOT
 # relocated; the built-in-pack README moved to the flattened pack dir.
-AGENT_PROFILES_README = REPO_ROOT / "src" / "doctrine" / "agent_profiles" / "README.md"
+AGENT_PROFILES_README = REPO_ROOT / "src" / "charter" / "offering" / "agent_profiles" / "README.md"
 BUILT_IN_README = BUILT_IN_DIR / "README.md"
 
 # Derived from the shipped ``packs/built-in/agent_profiles/*.agent.yaml`` source

@@ -23,8 +23,8 @@ from pathlib import Path
 
 import pytest
 
-from doctrine.artifact_kinds import ArtifactKind
-from specify_cli.doctrine.pack_manifest import (
+from charter.offering.artifact_kinds import ArtifactKind
+from specify_cli.charter.offering.pack_manifest import (
     Constituent,
     counts_by_kind,
     resolve_counts,
@@ -74,7 +74,7 @@ class TestPinPackAssemblerReader:
     def test_recognises_manifest_with_derived_counts(self, tmp_path) -> None:
         import yaml
 
-        from specify_cli.doctrine.pack_assembler import _has_recognisable_pack_manifest
+        from specify_cli.charter.offering.pack_assembler import _has_recognisable_pack_manifest
 
         payload = {
             "pack_version": "1.0.0",
@@ -112,9 +112,9 @@ class TestSnapshotWriteStaysRecognisable:
     recognisable to the pinned pack_assembler reader (NFR-002)."""
 
     def test_write_pack_manifest_is_recognisable(self, tmp_path) -> None:
-        from specify_cli.doctrine.pack_assembler import _has_recognisable_pack_manifest
-        from specify_cli.doctrine.snapshot import write_pack_manifest
-        from specify_cli.doctrine.sources.protocol import FetchResult
+        from specify_cli.charter.offering.pack_assembler import _has_recognisable_pack_manifest
+        from specify_cli.charter.offering.snapshot import write_pack_manifest
+        from specify_cli.charter.offering.sources.protocol import FetchResult
 
         local = tmp_path / "snap"
         (local / "directives").mkdir(parents=True)

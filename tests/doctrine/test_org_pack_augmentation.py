@@ -29,9 +29,9 @@ from pathlib import Path
 
 import pytest
 
-from doctrine.artifact_kinds import ArtifactKind
-from doctrine.drg.models import Relation
-from doctrine.drg.org_pack_loader import (
+from charter.offering.artifact_kinds import ArtifactKind
+from charter.offering.drg.models import Relation
+from charter.offering.drg.org_pack_loader import (
     AUGMENTATION_ELIGIBLE_KINDS,
     AUGMENTATION_RELATIONS,
     TOPOLOGY_KINDS,
@@ -74,7 +74,7 @@ def _write_fragment(pack_root: Path, *, edges: str = "edges: []\n") -> Path:
 
 def test_loader_and_validator_share_one_augmentation_source() -> None:
     """FR-030: the validator set is *derived* from the loader's single source."""
-    from specify_cli.doctrine.pack_validator import _AUGMENTATION_PLURAL_KINDS
+    from specify_cli.charter.offering.pack_validator import _AUGMENTATION_PLURAL_KINDS
 
     assert augmentation_plural_kinds() == _AUGMENTATION_PLURAL_KINDS
 
@@ -86,7 +86,7 @@ def test_eligible_set_is_artifactkind_minus_template_plus_mission_type() -> None
     ``_NON_AUGMENTATION_ELIGIBLE_KINDS`` (``template``, ``asset``) plus the
     mission-type extension; adding a kind is a one-line change.
     """
-    from doctrine.artifact_kinds import _NON_AUGMENTATION_ELIGIBLE_KINDS
+    from charter.offering.artifact_kinds import _NON_AUGMENTATION_ELIGIBLE_KINDS
 
     expected_singulars = {
         k.value for k in ArtifactKind if k not in _NON_AUGMENTATION_ELIGIBLE_KINDS
@@ -227,14 +227,14 @@ def test_directive_field_projection_emits_edge(tmp_path: Path) -> None:
 
 
 def _fragment_intent(drg_dir: Path):
-    from specify_cli.doctrine.pack_validator import _collect_fragment_edge_intent
+    from specify_cli.charter.offering.pack_validator import _collect_fragment_edge_intent
 
     return _collect_fragment_edge_intent(drg_dir)
 
 
 def test_fragment_edge_intent_unknown_target_hard_errors(tmp_path: Path) -> None:
     """T016/FR-031: a fragment ``overrides`` of an unknown built-in hard-errors."""
-    from specify_cli.doctrine.pack_validator import (
+    from specify_cli.charter.offering.pack_validator import (
         _intent_aware_collision_messages_from_edges,
     )
 
@@ -261,7 +261,7 @@ def test_fragment_edge_intent_unknown_target_hard_errors(tmp_path: Path) -> None
 
 def test_fragment_edge_intent_conflict_when_both_declared(tmp_path: Path) -> None:
     """T016/FR-031: enhances + overrides on one source -> intent_conflict."""
-    from specify_cli.doctrine.pack_validator import (
+    from specify_cli.charter.offering.pack_validator import (
         _intent_aware_collision_messages_from_edges,
     )
 
@@ -290,7 +290,7 @@ def test_fragment_edge_intent_conflict_when_both_declared(tmp_path: Path) -> Non
 
 def test_fragment_edge_valid_intent_suppresses_advisory(tmp_path: Path) -> None:
     """T016/FR-031: a valid declared intent emits no error and no advisory."""
-    from specify_cli.doctrine.pack_validator import (
+    from specify_cli.charter.offering.pack_validator import (
         _intent_aware_collision_messages_from_edges,
     )
 
@@ -347,7 +347,7 @@ def test_mission_types_in_canonical_universe() -> None:
 
 def test_mission_type_fragment_augmentation_validates(tmp_path: Path) -> None:
     """FR-032: a mission-type fragment node validates (not silently dropped)."""
-    from doctrine.drg.org_pack_loader import OrgDRGFragment
+    from charter.offering.drg.org_pack_loader import OrgDRGFragment
 
     fragment = OrgDRGFragment.model_validate(
         {
@@ -375,7 +375,7 @@ def test_mission_type_fragment_augmentation_validates(tmp_path: Path) -> None:
 
 def test_mission_type_singular_alias_resolves_to_plural() -> None:
     """FR-032: the ``mission_type`` singular input form resolves to the plural."""
-    from doctrine.drg.org_pack_loader import OrgDRGFragment
+    from charter.offering.drg.org_pack_loader import OrgDRGFragment
 
     fragment = OrgDRGFragment.model_validate(
         {
@@ -399,7 +399,7 @@ def test_template_and_asset_fragment_nodes_validate_but_do_not_augment() -> None
     against one is not auto-emitted by the loader (only fragment-authored
     edges reach ``fragment.edges`` for these kinds).
     """
-    from doctrine.drg.org_pack_loader import OrgDRGFragment
+    from charter.offering.drg.org_pack_loader import OrgDRGFragment
 
     fragment = OrgDRGFragment.model_validate(
         {

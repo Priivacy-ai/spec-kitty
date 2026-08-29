@@ -88,7 +88,7 @@ def layered_project(tmp_path: Path) -> Path:
     kittify = repo / ".kittify"
     kittify.mkdir(parents=True)
 
-    # Org pack on disk, registered via the doctrine.org.packs config block.
+    # Org pack on disk, registered via the charter.offering.org.packs config block.
     org_pack = tmp_path / "org-pack"
     _write_directive(
         org_pack / "doctrine" / "directives" / "org",
@@ -201,7 +201,7 @@ class TestListAllTemplateKind:
 class TestKindOrderDerivedFromCanonical:
     def test_all_canonical_kinds_present(self, layered_project: Path) -> None:
         """Every canonical charter kind appears (order derived from WP01)."""
-        from doctrine.artifact_kinds import CHARTER_KIND_TOKENS
+        from charter.offering.artifact_kinds import CHARTER_KIND_TOKENS
 
         result = _invoke(layered_project, "--all")
         assert result.exit_code == 0, result.output

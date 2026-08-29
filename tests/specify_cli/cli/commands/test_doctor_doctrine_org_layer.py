@@ -392,7 +392,7 @@ def test_collect_org_layer_data_error_on_missing_pack(
 def _build_kittify_config_for_test(
     repo_root: Path, pack_path: Path, pack_name: str = "test-pack"
 ) -> None:
-    """Write a minimal .kittify/config.yaml for the doctrine.org.packs schema."""
+    """Write a minimal .kittify/config.yaml for the charter.offering.org.packs schema."""
     config_dir = repo_root / ".kittify"
     config_dir.mkdir(parents=True, exist_ok=True)
     (config_dir / "config.yaml").write_text(
@@ -415,7 +415,7 @@ def test_doctor_doctrine_json_includes_org_drg_key_when_packs_configured(
     """``doctor doctrine --json`` includes ``org_drg`` key when org packs configured.
 
     Uses the WP06 ``organisation_packs`` config format (which ``load_org_drg`` reads),
-    distinct from the ``doctrine.org.packs`` format (which ``load_pack_registry`` reads).
+    distinct from the ``charter.offering.org.packs`` format (which ``load_pack_registry`` reads).
     The ``org_drg`` key is populated from ``_collect_org_layer_data`` regardless
     of whether ``load_pack_registry`` finds packs.
     """

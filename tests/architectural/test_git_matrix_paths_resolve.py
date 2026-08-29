@@ -2,7 +2,7 @@
 matrix must resolve to a real file on disk (FR-011, issue #2447).
 
 The matrix is shipped doctrine
-(``src/doctrine/skills/spec-kitty-git-workflow/references/git-operations-matrix.md``)
+(``src/charter/offering/skills/spec-kitty-git-workflow/references/git-operations-matrix.md``)
 that agents read to learn which git commands spec-kitty executes and where.
 A phantom row — a ``Source File`` cell naming a file/function that never
 existed in git history (``core/mission_detection.py::_detect_from_branch()``,

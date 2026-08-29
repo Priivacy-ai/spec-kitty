@@ -246,7 +246,7 @@ class TestAddGlossaryTerm:
         events_path = repo_root / "kitty-specs" / MISSION_SLUG / "status.events.jsonl"
         event = json.loads(events_path.read_text(encoding="utf-8").splitlines()[-1])
         provenance_ref = event["payload"]["provenance_ref"]
-        assert provenance_ref == ".kittify/glossary/.provenance/doctrine.yaml"
+        assert provenance_ref == ".kittify/glossary/.provenance/charter.offering.yaml"
         assert not Path(provenance_ref).is_absolute()
 
     def test_repo_relative_posix_falls_back_for_external_path(self, tmp_path: Path) -> None:
@@ -517,7 +517,7 @@ class TestSynthesizeKinds:
             dry_run=False,
         )
         assert len(result.applied) == 1
-        assert "doctrine:directive:dir-001" in result.applied[0].target_urn
+        assert "charter:directive:dir-001" in result.applied[0].target_urn
         artifact = Path(result.applied[0].artifact_path)
         assert artifact.exists()
         assert artifact.read_text(encoding="utf-8") == "Do the thing."
@@ -543,7 +543,7 @@ class TestSynthesizeKinds:
             dry_run=False,
         )
         assert len(result.applied) == 1
-        assert "doctrine:tactic:tac-001" in result.applied[0].target_urn
+        assert "charter:tactic:tac-001" in result.applied[0].target_urn
 
     def test_synthesize_procedure(self, tmp_path: Path) -> None:
         repo_root = _make_repo(tmp_path, [EVT_A])
@@ -566,7 +566,7 @@ class TestSynthesizeKinds:
             dry_run=False,
         )
         assert len(result.applied) == 1
-        assert "doctrine:procedure:proc-001" in result.applied[0].target_urn
+        assert "charter:procedure:proc-001" in result.applied[0].target_urn
 
 
 # ---------------------------------------------------------------------------

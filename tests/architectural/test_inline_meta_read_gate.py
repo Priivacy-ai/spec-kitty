@@ -278,7 +278,7 @@ FLOOR_MARGIN = 2
 # accumulated genuine routed-call growth ahead of this mission (unrelated
 # merges between pins), not a delegation-chain regression -- this mission's own
 # CI-gate fixes (moving _mission_type_audit.py's MissionTypeRepository import
-# from doctrine.missions.mission_type_repository onto the charter.missions
+# from charter.offering.missions.mission_type_repository onto the charter.missions
 # facade, and documenting its kitty-specs/ walk as a distinct C-001 corpus
 # walk) touch neither ROUTED_CALLEES nor any load_meta* call site, so they are
 # census-neutral by construction; the gate had simply drifted stale ahead of

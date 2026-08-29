@@ -20,7 +20,7 @@ CURRENT_DOC_PATHS = (
     Path("docs/context/spec-driven.md"),
 )
 
-# Charter files whose ``doctrine.authority_paths`` block declares the
+# Charter files whose ``charter.offering.authority_paths`` block declares the
 # directories the runtime treats as canonical authority surfaces.
 _AUTHORITY_PATH_SOURCES = (
     Path(".kittify/charter/charter.yaml"),
@@ -42,11 +42,11 @@ def test_current_docs_do_not_publish_memory_charter_path() -> None:
 
 
 def _authority_paths(charter_file: Path) -> list[str]:
-    """Extract ``doctrine.authority_paths`` from a charter/governance YAML file."""
+    """Extract ``charter.offering.authority_paths`` from a charter/governance YAML file."""
     data = YAML(typ="safe").load(charter_file.read_text(encoding="utf-8"))
     # charter.yaml nests under ``governance``; governance.yaml is flat.
     doctrine = data.get("governance", data).get("doctrine", {})
-    return list(doctrine.get("authority_paths", []))
+    return list(charter.offering.get("authority_paths", []))
 
 
 def test_declared_charter_authority_paths_resolve() -> None:

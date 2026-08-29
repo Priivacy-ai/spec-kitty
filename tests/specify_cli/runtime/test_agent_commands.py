@@ -60,12 +60,12 @@ class TestGetCommandTemplatesDir:
         """Resolver returns <packs/built-in>/missions/mission-steps/software-dev.
 
         RED in lane-d (buggy resolver uses get_package_asset_root / kittify_home);
-        GREEN after WP01 merges (resolver uses doctrine.__file__ as the
+        GREEN after WP01 merges (resolver uses charter.offering.__file__ as the
         sibling-path primitive's anchor).
         """
         fake_doctrine_init = self._build_fake_doctrine_with_relocated_missions(tmp_path)
 
-        monkeypatch.setattr("doctrine.__file__", str(fake_doctrine_init))
+        monkeypatch.setattr("charter.offering.__file__", str(fake_doctrine_init))
 
         from specify_cli.runtime.agent_commands import _get_command_templates_dir
 
@@ -82,7 +82,7 @@ class TestGetCommandTemplatesDir:
         """
         fake_doctrine_init = self._build_fake_doctrine_with_relocated_missions(tmp_path)
 
-        monkeypatch.setattr("doctrine.__file__", str(fake_doctrine_init))
+        monkeypatch.setattr("charter.offering.__file__", str(fake_doctrine_init))
 
         from specify_cli.runtime.agent_commands import _get_command_templates_dir
 
@@ -92,7 +92,7 @@ class TestGetCommandTemplatesDir:
     def test_resolver_with_sys_modules_monkeypatch(
         self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
     ) -> None:
-        """T022: Resolver uses doctrine.__file__ as its anchor (sys.modules approach).
+        """T022: Resolver uses charter.offering.__file__ as its anchor (sys.modules approach).
 
         RED in lane-d; GREEN after WP01 merges.
         """

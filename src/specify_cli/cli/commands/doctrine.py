@@ -30,11 +30,11 @@ Surface area:
   activation state (FR-013 / WP13).
 
 Both ``pack validate`` and ``pack assemble`` are implemented by WP06; their
-heavy lifting lives in :mod:`specify_cli.doctrine.pack_validator` and
-:mod:`specify_cli.doctrine.pack_assembler` so this module only handles
+heavy lifting lives in :mod:`specify_cli.charter.offering.pack_validator` and
+:mod:`specify_cli.charter.offering.pack_assembler` so this module only handles
 argument parsing and exit-code mapping. ``new`` and ``validate`` are owned
 by WP09 (Mission B) and reuse the same schema registry from
-:mod:`specify_cli.doctrine.pack_validator`.
+:mod:`specify_cli.charter.offering.pack_validator`.
 """
 
 from __future__ import annotations
@@ -53,11 +53,40 @@ __all__ = ["app"]
 
 _JSON_OPTION_HELP = "Emit machine-readable JSON instead of rich text."
 
+#: CR-02 (mission ``charter-code-topology-01M152G1`` S4): the deprecation
+#: notice printed once per invocation of the ``spec-kitty doctrine`` group
+#: (any subcommand). Unlike the CR-01/CR-03/CR-04/CR-07 config/URN-reader
+#: shims -- which warn-once *per process* because a hot read path may call
+#: the same function many times in one invocation -- a CLI group's own
+#: ``@app.callback()`` fires at most once per process by construction (typer
+#: invokes it a single time before dispatching to exactly one subcommand),
+#: so no additional de-dup gate is needed here.
+_DEPRECATION_NOTICE = (
+    "`spec-kitty doctrine` is deprecated; use `spec-kitty charter` instead "
+    "(mission charter-code-topology-01M152G1, CR-02). This command still "
+    "works and delegates to the same implementation."
+)
+
+
 app = typer.Typer(
     name="doctrine",
-    help="Manage org-layer doctrine packs (fetch, validate, assemble).",
+    help="[DEPRECATED — use `spec-kitty charter`] Manage org-layer doctrine packs (fetch, validate, assemble).",
     no_args_is_help=True,
 )
+
+
+@app.callback()
+def _deprecation_warning() -> None:
+    """CR-02: emit a one-shot stderr deprecation notice, then delegate.
+
+    Typer/Click always runs a Typer app's own ``@app.callback()`` before
+    dispatching to whichever subcommand the operator invoked, so this fires
+    for every ``spec-kitty doctrine <anything>`` invocation -- the "callback
+    that emits a one-shot stderr deprecation then delegates" CR-02 asks for.
+    Prints (not raises): the legacy group must keep working exactly as
+    before, it only gains a warning banner.
+    """
+    typer.secho(_DEPRECATION_NOTICE, fg=typer.colors.YELLOW, err=True)
 
 pack_app = typer.Typer(
     name="pack",
@@ -106,7 +135,7 @@ def fetch(
     """Fetch org doctrine pack(s) from their configured remote sources."""
     from charter.drg import load_pack_registry
     from specify_cli.core.paths import locate_project_root
-    from specify_cli.doctrine.snapshot import fetch_pack
+    from specify_cli.charter.offering.snapshot import fetch_pack
 
     repo_root = locate_project_root()
     if repo_root is None:
@@ -120,7 +149,7 @@ def fetch(
     if not registry.packs:
         console.print("[red]No org doctrine packs configured.[/red]")
         console.print(
-            "Add a [bold]doctrine.org.packs[/bold] block to "
+            "Add a [bold]charter.offering.org.packs[/bold] block to "
             ".kittify/config.yaml. See the contract at "
             "kitty-specs/layered-doctrine-org-layer-*/contracts/config-schema.yaml."
         )
@@ -185,12 +214,12 @@ def _doctrine_root() -> Path:
 
     Post-flatten (relocate-builtin-doctrine-packs, WP03) the built-in artifact
     content and the sharded ``*.graph.yaml`` fragments live in
-    ``packs/built-in/`` — no longer under ``src/doctrine/<kind>/built-in``. This
+    ``packs/built-in/`` — no longer under ``src/charter/offering/<kind>/built-in``. This
     root is both the extractor's artifact input *and* the fragment write-target /
     freshness read source; the extractor resolves ``missions/`` (which did NOT
     move) internally.
 
-    Routes through :func:`doctrine.pack_paths.built_in_root` (C1.6), the single
+    Routes through :func:`charter.offering.pack_paths.built_in_root` (C1.6), the single
     root-resolution authority every root-needing reader must use instead of
     scattering bare ``resolve_pack_root("built-in")`` calls or a hand-rolled
     walk. This retires the CWD ancestor-walk this function previously
@@ -231,7 +260,7 @@ def regenerate_graph(
 
     Composes the DRG extractor + calibrator into per-populated-node-kind
     ``packs/built-in/*.graph.yaml`` fragments (sharded per mission #2680 WP05;
-    relocated from ``src/doctrine/`` by the pack flatten),
+    relocated from ``src/charter/offering/`` by the pack flatten),
     retiring the legacy ``graph.yaml`` monolith in the same write. Running twice
     on unchanged inputs yields byte-identical fragments. With ``--check`` the
     command never writes: it regenerates into a temp directory and compares the
@@ -239,7 +268,7 @@ def regenerate_graph(
     operator-facing twin of the freshness gate.
 
     Both the write path and ``--check`` merge in the enumerable hand-authored
-    overlay (:mod:`doctrine.drg.migration.hand_authored_overlay`) — the
+    overlay (:mod:`charter.offering.drg.migration.hand_authored_overlay`) — the
     ``in_tension_with``/``reconciles_tension``/``rejects`` edges and
     ``anti_pattern`` nodes hand-authored directly in the graph fragments
     (mission doctrine-tension-edges-01KY1WPC). The extractor has no
@@ -248,11 +277,11 @@ def regenerate_graph(
     write, and (b) always report "stale" under ``--check`` even when nothing
     is actually stale.
     """
-    from doctrine.drg.migration.hand_authored_overlay import (
+    from charter.offering.drg.migration.hand_authored_overlay import (
         write_reference_graph_with_overlay,
     )
     from charter.drg import DRGValidationError
-    from specify_cli.doctrine.builtin_manifest import (
+    from specify_cli.charter.offering.builtin_manifest import (
         builtin_manifest_is_fresh,
         generate_builtin_manifest,
     )
@@ -373,7 +402,7 @@ def pack_validate(
     Exits 0 when the pack passes validation (advisories do not affect the
     exit code) and 1 when at least one error is reported.
     """
-    from specify_cli.doctrine.pack_validator import (
+    from specify_cli.charter.offering.pack_validator import (
         render_validation_result,
         validate_pack,
     )
@@ -420,7 +449,7 @@ def pack_assemble(
     Exits 0 on success and 1 when conflicts block the merge or when the
     assembled output fails validation.
     """
-    from specify_cli.doctrine.pack_assembler import (
+    from specify_cli.charter.offering.pack_assembler import (
         assemble_pack,
         render_assembly_result,
     )
@@ -447,7 +476,7 @@ def pack_assemble(
 #: Per-kind stub bodies (T016).  Each value is a ``str.format``-ready YAML
 #: template whose ``{artifact_id}`` placeholder the scaffolder substitutes; the
 #: rendered stub is the *minimum* payload that passes the corresponding Pydantic
-#: schema in ``src/doctrine/*/models.py`` (or ``AssetManifest``).  The scaffolder
+#: schema in ``src/charter/offering/*/models.py`` (or ``AssetManifest``).  The scaffolder
 #: validates the rendered stub against the schema before writing — a future
 #: schema tightening surfaces at the next ``doctrine new`` rather than silently
 #: scaffolding an invalid file.
@@ -489,13 +518,13 @@ _STUB_TEMPLATES: dict[ArtifactKind, str] = {
         "  - TODO first principle\n"
         "applies_to_languages: []\n"
     ),
-    # Toolguide: guide_path must match ^src/doctrine/.+\.md$.
+    # Toolguide: guide_path must match ^src/charter/offering/.+\.md$.
     ArtifactKind.TOOLGUIDE: (
         'schema_version: "1.0"\n'
         "id: {artifact_id}\n"
         "tool: TODO tool name\n"
         "title: TODO short title\n"
-        "guide_path: src/doctrine/toolguides/{artifact_id}.md\n"
+        "guide_path: src/charter/offering/toolguides/{artifact_id}.md\n"
         "summary: TODO one-line summary\n"
     ),
     ArtifactKind.PARADIGM: (
@@ -646,7 +675,7 @@ def new(
 
     # Pack mode uses the plural pack-layout directory; project mode uses the
     # single canonical project-tier authority — the same map DoctrineService's
-    # resolver reads (doctrine.artifact_kinds.PROJECT_KIND_DIRS, re-exported
+    # resolver reads (charter.offering.artifact_kinds.PROJECT_KIND_DIRS, re-exported
     # here via the charter.kind_vocabulary facade per the runtime -> charter
     # -> doctrine boundary), so the stub lands exactly where the loader will
     # look for it.
@@ -670,7 +699,7 @@ def new(
     # registry in pack_validator is the canonical source of truth.
     from ruamel.yaml import YAML
 
-    from specify_cli.doctrine.pack_validator import _artifact_schema_registry
+    from specify_cli.charter.offering.pack_validator import _artifact_schema_registry
 
     schema_cls = _artifact_schema_registry()[plural][1]
     parsed = YAML(typ="safe").load(stub_text)
@@ -763,7 +792,7 @@ def _validate_single_artifact(
     from ruamel.yaml import YAML
     from ruamel.yaml.error import YAMLError
 
-    from specify_cli.doctrine.pack_validator import _artifact_schema_registry
+    from specify_cli.charter.offering.pack_validator import _artifact_schema_registry
 
     detected = _detect_artifact_kind(path)
     if detected is None:
@@ -851,7 +880,7 @@ def validate(
 # ----------------------------------------------------------------------
 
 #: Minimal ``org-charter.yaml`` body.  All fields are optional in
-#: :class:`specify_cli.doctrine.org_charter.OrgCharterPolicy`; the stub
+#: :class:`specify_cli.charter.offering.org_charter.OrgCharterPolicy`; the stub
 #: carries the schema_version sentinel and a TODO org_name as a
 #: quickstart hint.
 _ORG_CHARTER_STUB = """\
@@ -965,11 +994,11 @@ def org_validate(
 ) -> None:
     """Validate an org doctrine pack using schema and DRG checks (FR-006).
 
-    Calls the WP06 :func:`specify_cli.doctrine.pack_validator.validate_pack`
+    Calls the WP06 :func:`specify_cli.charter.offering.pack_validator.validate_pack`
     loader.  Prints per-file findings with file paths.  Exits non-zero when
     at least one error is found.
     """
-    from specify_cli.doctrine.pack_validator import (
+    from specify_cli.charter.offering.pack_validator import (
         render_validation_result,
         validate_pack,
     )
@@ -1005,7 +1034,7 @@ def org_validate(
                 try:
                     OrgDRGFragment.model_validate(frag_data)
                 except PydanticValidationError as exc:
-                    from specify_cli.doctrine.pack_validator import ValidationIssue, ValidationResult
+                    from specify_cli.charter.offering.pack_validator import ValidationIssue, ValidationResult
 
                     extra_error = ValidationIssue(
                         severity="error",

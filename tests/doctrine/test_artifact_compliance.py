@@ -13,7 +13,7 @@ import pytest
 import yaml
 from jsonschema import Draft202012Validator  # type: ignore[import-untyped]
 
-from tests.doctrine.conftest import DOCTRINE_SOURCE_ROOT, REPO_ROOT
+from tests.charter.offering.conftest import DOCTRINE_SOURCE_ROOT, REPO_ROOT
 
 pytestmark = [pytest.mark.doctrine, pytest.mark.fast]
 
@@ -101,7 +101,7 @@ def test_directive_has_no_inline_tactic_refs(directive_path: Path) -> None:
     """Post-WP02: directives must not carry inline ``tactic_refs``.
 
     Cross-artifact relationships live exclusively in
-    ``src/doctrine/graph.yaml`` (Phase 1 excision). This test guards
+    ``src/charter/offering/graph.yaml`` (Phase 1 excision). This test guards
     against regressions that reintroduce inline references.
     """
     directive = _load_yaml(directive_path)

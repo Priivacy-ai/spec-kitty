@@ -681,7 +681,7 @@ def test_build_discovery_context_malformed_config_emits_no_warning_stream(
     config_dir = repo_root / ".kittify"
     config_dir.mkdir(parents=True)
     (config_dir / "config.yaml").write_text(
-        "not: [valid, doctrine.org.packs shape\n", encoding="utf-8"
+        "not: [valid, charter.offering.org.packs shape\n", encoding="utf-8"
     )
 
     with warnings.catch_warnings(record=True) as caught:
@@ -697,7 +697,7 @@ def test_build_discovery_context_declared_but_broken_org_pack_still_warns(
     tmp_path: Path,
 ) -> None:
     """Positive case for the fix above: a config that DOES declare
-    ``doctrine.org.packs`` but fails schema validation (here, two packs
+    ``charter.offering.org.packs`` but fails schema validation (here, two packs
     sharing the same ``name``) is a genuinely misconfigured org pack -- the
     operator demonstrably opted in and deserves to know it's broken. That
     signal must remain diagnosable through this same resolution hot path,
@@ -727,7 +727,7 @@ def test_build_discovery_context_declared_but_broken_org_pack_still_warns(
         ctx = command_mod._build_discovery_context(repo_root)
 
     assert len(caught) == 1  # golden-count: cardinality-is-contract
-    assert "Invalid doctrine.org config" in str(caught[0].message)
+    assert "Invalid charter.offering.org config" in str(caught[0].message)
     # Fails soft to zero org roots -- resolution still proceeds, it just
     # can't trust the broken declaration.
     assert ctx.org_roots == []

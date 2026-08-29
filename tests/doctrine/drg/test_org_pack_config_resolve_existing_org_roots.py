@@ -1,7 +1,7 @@
 """Unit tests for ``resolve_existing_org_roots`` (#3525, Fold A).
 
 Covers the shared, declaration-order, existing-path-filtered primitive that
-:func:`doctrine.drg.org_pack_config.resolve_org_dirs` and every runtime
+:func:`charter.offering.drg.org_pack_config.resolve_org_dirs` and every runtime
 "does this org root actually exist" consumer (``charter.mission_type_profiles``,
 ``specify_cli.dossier.manifest``, ``charter.doctrine_service_builder``) now
 route onto, instead of each re-implementing the same filter comprehension
@@ -15,19 +15,19 @@ from pathlib import Path
 
 import pytest
 
-from doctrine.drg.org_pack_config import (
+from charter.offering.drg.org_pack_config import (
     resolve_existing_org_roots,
     resolve_org_dirs,
     resolve_org_roots,
 )
 
-_LOGGER_NAME = "doctrine.drg.org_pack_config"
+_LOGGER_NAME = "charter.offering.drg.org_pack_config"
 
 pytestmark = [pytest.mark.fast, pytest.mark.doctrine]
 
 
 def _write_config(repo_root: Path, packs: list[tuple[str, Path]]) -> None:
-    """Write a canonical ``doctrine.org.packs`` config.yaml with *packs* in order."""
+    """Write a canonical ``charter.offering.org.packs`` config.yaml with *packs* in order."""
     config_dir = repo_root / ".kittify"
     config_dir.mkdir(parents=True, exist_ok=True)
     if not packs:

@@ -183,7 +183,7 @@ class TestGetPackageAssetRoot:
     def test_template_root_checkout_root_normalizes_to_doctrine_missions(
         self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
     ) -> None:
-        """A checkout root env var resolves to src/doctrine/missions.
+        """A checkout root env var resolves to src/charter/offering/missions.
 
         The fixture carries a realistic decoy at the checkout root itself
         (``docs/templates/index.md``, mirroring this real repository's own
@@ -193,11 +193,11 @@ class TestGetPackageAssetRoot:
         decoy this test cannot distinguish a correct implementation from one
         that tries the bare checkout-root candidate before the
         ``src/*/missions`` glob -- which would return the checkout root
-        itself instead of ``src/doctrine/missions`` (the WP04 cycle-1
+        itself instead of ``src/charter/offering/missions`` (the WP04 cycle-1
         regression this decoy pins).
         """
         checkout = tmp_path / "spec-kitty"
-        missions = checkout / "src" / "doctrine" / "missions"
+        missions = checkout / "src" / "charter" / "offering" / "missions"
         templates = missions / "software-dev" / "templates"
         templates.mkdir(parents=True)
         (templates / "plan-template.md").write_text("# Plan\n", encoding="utf-8")
@@ -220,7 +220,7 @@ class TestGetPackageAssetRoot:
         stale_software_dev.mkdir(parents=True)
         (stale_software_dev / "mission.yaml").write_text("name: software-dev\n", encoding="utf-8")
 
-        doctrine_missions = checkout / "src" / "doctrine" / "missions"
+        doctrine_missions = checkout / "src" / "charter" / "offering" / "missions"
         templates = doctrine_missions / "software-dev" / "templates"
         templates.mkdir(parents=True)
         (templates / "plan-template.md").write_text("# Plan\n", encoding="utf-8")
@@ -297,7 +297,7 @@ class TestGetPackageAssetRoot:
         Reimplemented for FR-004 (mission
         doctrine-consumer-surface-missions-extraction-01KZ6G6H):
         get_package_asset_root() no longer calls
-        importlib.resources.files("doctrine") directly (SC-002 forbids a
+        importlib.resources.files("charter.offering") directly (SC-002 forbids a
         doctrine-identifying string literal anywhere in src/kernel/) -- it
         delegates to kernel.sibling_paths.resolve_installed_sibling instead.
         This test now forces that primitive to fail, in place of the retired
@@ -356,7 +356,7 @@ class TestGetPackageAssetRoot:
         **This is also the caller-level wheel test for mission #3091's own
         thesis (WP05, FR-005/SC-001).** Mission
         ``doctrine-consumer-surface-missions-extraction-01KZ6G6H`` relocated
-        the missions data from ``src/doctrine/missions`` to
+        the missions data from ``src/charter/offering/missions`` to
         ``packs/built-in/missions``, so the fixture below
         (:func:`build_post_relocation_wheel_shaped_site_packages`) plants BOTH
         the real relocated data AND the still-existing, now data-less
@@ -725,7 +725,7 @@ class TestGetPackageAssetRootErrorMessage:
         remediation substring.
 
         Reimplemented for FR-004: forces the kernel resolution primitive (not
-        the retired importlib.resources.files("doctrine") seam -- see
+        the retired importlib.resources.files("charter.offering") seam -- see
         ``test_importlib_failure_raises_file_not_found`` above) to fail so we
         reach the final raise/translation.
         """

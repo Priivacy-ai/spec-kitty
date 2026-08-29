@@ -2,7 +2,7 @@
 
 import pytest
 
-from doctrine.missions import MissionTemplateRepository
+from charter.offering.missions import MissionTemplateRepository
 
 pytestmark = [pytest.mark.fast, pytest.mark.doctrine]
 

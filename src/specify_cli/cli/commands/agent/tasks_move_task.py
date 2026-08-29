@@ -73,7 +73,7 @@ import typer
 if TYPE_CHECKING:
     from collections.abc import Sequence
 
-    from doctrine.missions.step_contracts import GateBinding
+    from charter.offering.missions.step_contracts import GateBinding
 
 from mission_runtime import MissionArtifactKind, placement_seam
 from specify_cli.agent_tasks_ports import (

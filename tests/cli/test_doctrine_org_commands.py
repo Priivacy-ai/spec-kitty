@@ -52,7 +52,7 @@ def test_doctrine_org_init_scaffolds_minimal_pack(tmp_path: Path) -> None:
 
     data = YAML(typ="safe").load(org_charter.read_text(encoding="utf-8"))
     assert data is not None
-    from specify_cli.doctrine.org_charter import OrgCharterPolicy
+    from specify_cli.charter.offering.org_charter import OrgCharterPolicy
 
     OrgCharterPolicy.model_validate(data)  # must not raise
 
@@ -186,21 +186,21 @@ def test_doctrine_org_validate_calls_validate_pack_with_check_drg_root_true(
     default. ``validate_pack`` is not bound at module scope in ``doctrine.py``
     — ``org_validate`` does a lazy, function-local import re-run on every
     invocation, so the correct patch target is the source location,
-    ``specify_cli.doctrine.pack_validator.validate_pack``.
+    ``specify_cli.charter.offering.pack_validator.validate_pack``.
 
     Before this WP, ``validate_pack`` has no ``check_drg_root`` keyword
     parameter at all, so asserting it was passed with that value fails.
     """
     from unittest.mock import patch
 
-    from specify_cli.doctrine.pack_validator import ValidationResult
+    from specify_cli.charter.offering.pack_validator import ValidationResult
 
     pack_dir = tmp_path / "valid-pack"
     init_result = runner.invoke(app, ["org", "init", str(pack_dir)])
     assert init_result.exit_code == 0, f"init failed: {init_result.output}"
 
     with patch(
-        "specify_cli.doctrine.pack_validator.validate_pack",
+        "specify_cli.charter.offering.pack_validator.validate_pack",
         return_value=ValidationResult(ok=True),
     ) as mock_validate:
         result = runner.invoke(app, ["org", "validate", str(pack_dir)])

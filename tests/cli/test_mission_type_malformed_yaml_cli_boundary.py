@@ -40,7 +40,7 @@ from pathlib import Path
 import pytest
 from typer.testing import CliRunner
 
-from doctrine.missions.mission_type_repository import MissionTypeRepository
+from charter.offering.missions.mission_type_repository import MissionTypeRepository
 from specify_cli.cli.commands.charter import charter_app
 from specify_cli.cli.commands.doctrine import app as doctrine_app
 from specify_cli.cli.commands.mission_type import app as mission_type_app
@@ -56,7 +56,7 @@ def project_with_malformed_org_mission_type(tmp_path: Path) -> Path:
     """A project with a real, config.yaml-registered org pack whose
     ``mission_types/broken.yaml`` is syntactically malformed YAML.
 
-    Deliberately real filesystem + real ``doctrine.org.packs`` config (no
+    Deliberately real filesystem + real ``charter.offering.org.packs`` config (no
     ``PackContext.from_config`` mock) -- this mirrors the finding's own
     reproduction and the ``tests/integration/test_org_pack_artifact_lifecycle.py``
     org-pack registration convention.

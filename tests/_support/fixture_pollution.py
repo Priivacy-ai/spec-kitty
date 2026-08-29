@@ -37,7 +37,7 @@ def scrub_repo_mission_overrides(project: Path) -> None:
     copied in by the fixture's ``shutil.copytree`` was silently ignored.
     Once both forked resolvers agreed on probing
     ``.kittify/overrides/missions/{mission}/...`` first (the correct fix --
-    ``charter list``/``show-origin``'s ``doctrine.resolver`` lane already
+    ``charter list``/``show-origin``'s ``charter.offering.resolver`` lane already
     resolved it), this repo's own override started winning template
     resolution ahead of any test-authored override/legacy template at a
     less-specific tier, breaking every test that supplies its own template
