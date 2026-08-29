@@ -156,6 +156,45 @@ class TestWrapperCmdContent:
         content = wrapper_cmd_content("1.0.0")
         assert "%*" in content
 
+    def test_exit_b_errorlevel_not_inside_parenthesized_block(self) -> None:
+        """EXIT /B %ERRORLEVEL% must never be nested inside `IF ... ( ... )`.
+
+        cmd.exe expands %VAR% in a parenthesized compound statement at parse
+        time, so an EXIT /B %ERRORLEVEL% written inside one always reports the
+        errorlevel current when the block was entered (the preceding `where`
+        probe's 0) rather than the real exit code of the delegated command.
+        """
+        content = wrapper_cmd_content("1.0.0")
+        lines = content.splitlines()
+        depth = 0
+        for line in lines:
+            stripped = line.strip()
+            if "EXIT /B %ERRORLEVEL%" in stripped:
+                assert depth == 0, (
+                    f"EXIT /B %ERRORLEVEL% is nested inside a parenthesized "
+                    f"block (depth={depth}): {stripped!r}"
+                )
+            depth += stripped.count("(") - stripped.count(")")
+
+    def test_no_parenthesized_if_blocks(self) -> None:
+        """The wrapper uses GOTO, not `IF ... ( ... )`, around EXIT /B.
+
+        A parenthesized IF block is exactly the construct that causes
+        cmd.exe's parse-time %ERRORLEVEL% expansion bug; asserting it is
+        gone (rather than only asserting EXIT /B's depth above) prevents a
+        future edit from reintroducing it around some other guarded exit.
+        """
+        content = wrapper_cmd_content("1.0.0")
+        assert "IF NOT ERRORLEVEL 1 (" not in content
+        assert ") (" not in content
+
+    def test_goto_labels_defined_and_referenced(self) -> None:
+        content = wrapper_cmd_content("1.0.0")
+        assert "GOTO try_uvx" in content
+        assert ":try_uvx" in content
+        assert "GOTO no_runtime" in content
+        assert ":no_runtime" in content
+
 
 # ---------------------------------------------------------------------------
 # marketplace.json generation via ClaudeBundleProjector

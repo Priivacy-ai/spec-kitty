@@ -287,7 +287,7 @@ class SaaSTrackerClient:
         monotonic_clock: Callable[[], float] | None = None,
         jitter_randbelow: Callable[[int], int] | None = None,
     ) -> None:
-        self._project_root = Path(project_root) if project_root is not None else None
+        self._project_root = Path(project_root).resolve() if project_root is not None else None
         # Canonical server-target authority (#2146, re-homed from the deleted
         # sync config in issue #5): resolve the URL we will actually hit —
         # folding in SPEC_KITTY_SAAS_URL precedence — instead of the raw
@@ -387,7 +387,7 @@ class SaaSTrackerClient:
         filesystem or credential-store access.
 
         **The per-project consent gate lives here** (#3030 FR-029), at the one
-        chokepoint all ten endpoints and the operation poller pass through, so a
+        chokepoint all endpoint methods and the operation poller pass through, so a
         new endpoint method cannot be added without inheriting it. It runs
         *before* the token is fetched: a refusal must not depend on auth state,
         must not mint a token for a project that may not transmit, and must be
