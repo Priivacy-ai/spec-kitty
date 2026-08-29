@@ -14,7 +14,7 @@ from specify_cli.status.models import Lane, StatusEvent
 from specify_cli.status.store import append_event
 from tests.lane_test_utils import write_single_lane_manifest
 
-pytestmark = pytest.mark.git_repo
+pytestmark = [pytest.mark.integration, pytest.mark.git_repo]
 
 runner = CliRunner()
 MISSION_ID = "01KQ6YEG000000000000000000"
