@@ -8511,6 +8511,7 @@ pages:
     anchors:
     - {slug: "prerequisites", text: "Prerequisites", level: 2}
     - {slug: "preview-exactly-what-would-be-disclosed", text: "Preview exactly what would be disclosed", level: 2}
+    - {slug: "opt-in-to-full-glm-5-3", text: "Opt in to full GLM 5.3", level: 3}
     - {slug: "consent-to-one-run", text: "Consent to one run", level: 2}
     - {slug: "interpret-the-result", text: "Interpret the result", level: 2}
     - {slug: "status-exit-code-and-remediation", text: "Status, exit code, and remediation", level: 2}
