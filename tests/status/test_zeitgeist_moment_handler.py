@@ -36,6 +36,10 @@ from typing import Any
 import jsonschema
 import pytest
 
+from kernel.clock import UTC, datetime as _dt
+
+from specify_cli.decisions.emit import emit_decision_opened, emit_decision_resolved
+from specify_cli.decisions.models import DecisionStatus, IndexEntry, OriginFlow
 from specify_cli.status import adapters
 from specify_cli.status.emit import emit_status_transition
 from specify_cli.status.lifecycle_events import emit_mission_created_local
@@ -45,6 +49,7 @@ from specify_cli.status.wp_status_metadata import WPStatusChangeMetadata
 from specify_cli.zeitgeist_client import resolution as resolution_module
 from specify_cli.zeitgeist_client import transport as transport_module
 from specify_cli.zeitgeist_client.credentials import StoredCredential
+from spec_kitty_events.decisionpoint import DECISION_POINT_OPENED, DECISION_POINT_RESOLVED
 from tests.status.conftest import seed_wp_to_planned as _seed_planned
 
 pytestmark = pytest.mark.fast
@@ -592,6 +597,17 @@ def test_client_config_carries_the_stored_relay_credential(monkeypatch: pytest.M
     assert config.capability_credential == "capability-jwt"
 
 
+def test_first_non_printable_attr_finds_the_offending_key_and_codepoint() -> None:
+    assert bridge._first_non_printable_attr({"summary": "Which auth? \x1b[31mRED"}) == (
+        "summary",
+        ["U+001B"],
+    )
+
+
+def test_first_non_printable_attr_is_none_for_ordinary_prose() -> None:
+    assert bridge._first_non_printable_attr({"summary": "Which auth? session, oauth2"}) is None
+
+
 def test_unencodable_payload_drops_before_any_attempt(monkeypatch: pytest.MonkeyPatch, resolved_credential: list[Path], caplog: pytest.LogCaptureFixture) -> None:
     recorder = OfferRecorder().install(monkeypatch)
 
@@ -1089,3 +1105,263 @@ def test_throttled_outcome_is_recorded_at_debug_without_a_second_warning(
     # stderr by the client; only the structured debug record remains.
     assert [r for r in caplog.records if r.levelno >= logging.WARNING] == []
     assert sum("throttled" in r.getMessage() for r in caplog.records) == 2
+
+
+# ---------------------------------------------------------------------------
+# DecisionPoint moments (#324): fan-out through the same lifecycle path
+# ---------------------------------------------------------------------------
+
+
+class _DirectMissionDirSeam:
+    """Stub placement seam mirroring tests/specify_cli/decisions/test_emit.py.
+
+    These tests target the fan-out projection, not mission/topology lookup.
+    """
+
+    def __init__(self, repo_root: Path, mission_slug: str) -> None:
+        self._repo_root = repo_root
+        self._mission_slug = mission_slug
+
+    def read_dir(self, kind: object) -> Path:
+        return self._repo_root / "kitty-specs" / self._mission_slug
+
+
+@pytest.fixture(autouse=True)
+def _direct_decision_mission_dir(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr("specify_cli.decisions.emit.placement_seam", _DirectMissionDirSeam)
+
+
+def _decision_entry(
+    decision_id: str,
+    *,
+    status: DecisionStatus = DecisionStatus.OPEN,
+    question: str = "Which auth strategy?",
+    options: tuple[str, ...] = ("session", "oauth2"),
+    final_answer: str | None = None,
+    rationale: str | None = None,
+    resolved_at: Any = None,
+    resolved_by: str | None = None,
+    mission_slug: str = "demo-mission",
+) -> IndexEntry:
+    return IndexEntry(
+        decision_id=decision_id,
+        origin_flow=OriginFlow.CHARTER,
+        step_id="charter.q1",
+        input_key="auth_strategy",
+        question=question,
+        options=options,
+        status=status,
+        final_answer=final_answer,
+        rationale=rationale,
+        created_at=_dt(2026, 4, 23, 10, 0, 0, tzinfo=UTC),
+        resolved_at=resolved_at,
+        resolved_by=resolved_by,
+        mission_id="01KPWT8PNY8683QX3WBW6VXYM7",
+        mission_slug=mission_slug,
+    )
+
+
+def test_decision_point_opened_via_local_emitter_offers_once(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+    resolved_credential: list[Path],
+) -> None:
+    """The exact same fan-out path WPStatusChanged/MissionCreated use: one
+    local append, then one ``event.publish`` -- before any git push."""
+    recorder = OfferRecorder(outcome="sent").install(monkeypatch)
+    entry = _decision_entry("01AAAAAAAAAAAAAAAAAAAAAAAA")
+
+    emit_decision_opened(
+        tmp_path,
+        "demo-mission",
+        decision_id="01AAAAAAAAAAAAAAAAAAAAAAAA",
+        entry=entry,
+        actor="robert",
+    )
+
+    assert recorder.summaries() == [
+        ("event.publish", "DecisionPointOpened"),
+        ("presence.publish", "command"),
+    ]
+    _op, args = recorder.moment_offers()[0]
+    _assert_event_args(args)
+    assert args["kind"] == DECISION_POINT_OPENED
+    assert args["ref"] == "01AAAAAAAAAAAAAAAAAAAAAAAA"  # decision_point_id
+    assert args["attrs"]["actor_id"] == "robert"
+    assert args["attrs"]["mission_slug"] == "demo-mission"
+    # Bounded moment summary (#77): question + options, joined "; ".
+    assert args["attrs"]["summary"] == "Which auth strategy?; session, oauth2"
+
+
+def test_decision_prose_with_control_characters_is_dropped_not_broadcast(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+    resolved_credential: list[Path],
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """A pasted ANSI escape in decision prose (#415): the codec's encode side
+    has no printability check, only its decode side does, so this must be
+    caught here or every consumer's decode silently drops the moment."""
+    recorder = OfferRecorder(outcome="sent").install(monkeypatch)
+    entry = _decision_entry(
+        "01AAAAAAAAAAAAAAAAAAAAAAAA",
+        question="Which auth? \x1b[31mRED\x1b[0m fallback",
+    )
+
+    emit_decision_opened(
+        tmp_path,
+        "demo-mission",
+        decision_id="01AAAAAAAAAAAAAAAAAAAAAAAA",
+        entry=entry,
+        actor="robert",
+    )
+
+    assert recorder.offers == []
+    assert "not broadcast" in caplog.text
+    assert "U+001B" in caplog.text
+
+
+def test_decision_point_resolved_via_local_emitter_carries_final_answer_summary(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+    resolved_credential: list[Path],
+) -> None:
+    recorder = OfferRecorder(outcome="sent").install(monkeypatch)
+    entry = _decision_entry(
+        "01AAAAAAAAAAAAAAAAAAAAAAAA",
+        status=DecisionStatus.RESOLVED,
+        final_answer="oauth2",
+        rationale="better security",
+        resolved_at=_dt(2026, 4, 23, 10, 5, 0, tzinfo=UTC),
+        resolved_by="robert",
+    )
+
+    emit_decision_resolved(
+        tmp_path,
+        "demo-mission",
+        decision_id="01AAAAAAAAAAAAAAAAAAAAAAAA",
+        entry=entry,
+        actor="robert",
+    )
+
+    assert recorder.summaries() == [
+        ("event.publish", "DecisionPointResolved"),
+        ("presence.publish", "command"),
+    ]
+    _op, args = recorder.moment_offers()[0]
+    _assert_event_args(args)
+    assert args["kind"] == DECISION_POINT_RESOLVED
+    assert args["attrs"]["terminal_outcome"] == "resolved"
+    assert args["attrs"]["resolved_by"] == "robert"
+    assert args["attrs"]["summary"] == "oauth2; better security"
+
+
+def test_decision_point_resolved_deferred_summary_uses_rationale_only(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+    resolved_credential: list[Path],
+) -> None:
+    """Deferred/canceled resolutions carry no ``final_answer``: the summary
+    falls back to ``rationale`` alone rather than being omitted."""
+    recorder = OfferRecorder(outcome="sent").install(monkeypatch)
+    entry = _decision_entry(
+        "01AAAAAAAAAAAAAAAAAAAAAAAA",
+        status=DecisionStatus.DEFERRED,
+        rationale="revisit later",
+        resolved_at=_dt(2026, 4, 23, 10, 5, 0, tzinfo=UTC),
+        resolved_by="robert",
+    )
+
+    emit_decision_resolved(
+        tmp_path,
+        "demo-mission",
+        decision_id="01AAAAAAAAAAAAAAAAAAAAAAAA",
+        entry=entry,
+        actor="robert",
+    )
+
+    _op, args = recorder.moment_offers()[0]
+    assert args["attrs"]["terminal_outcome"] == "deferred"
+    assert args["attrs"]["summary"] == "revisit later"
+
+
+def test_decision_point_opened_summary_is_truncated_on_a_utf8_boundary(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+    resolved_credential: list[Path],
+) -> None:
+    """An oversize summary is truncated to the 240-UTF-8-byte bound with a
+    trailing "…" marker -- never raised, never splitting a multi-byte
+    codepoint (#77's boundary-truncation contract)."""
+    recorder = OfferRecorder(outcome="sent").install(monkeypatch)
+    # Multi-byte codepoints (2 bytes each in UTF-8): guarantees the cut lands
+    # mid-string, not just at the tail, and never on a partial codepoint.
+    entry = _decision_entry("01AAAAAAAAAAAAAAAAAAAAAAAA", question="é" * 130, options=())
+
+    emit_decision_opened(
+        tmp_path,
+        "demo-mission",
+        decision_id="01AAAAAAAAAAAAAAAAAAAAAAAA",
+        entry=entry,
+        actor="robert",
+    )
+
+    _op, args = recorder.moment_offers()[0]
+    _assert_event_args(args)  # includes the <=240-byte attr-value bound
+    summary = args["attrs"]["summary"]
+    assert summary.endswith("…")
+    assert len(summary.encode("utf-8")) <= 240
+    # Every char before the marker survived intact -- no partial codepoint.
+    assert summary[:-1] == "é" * (len(summary) - 1)
+
+
+# ---------------------------------------------------------------------------
+# Lifecycle beats (#324): Specify/Plan/Tasks x Started/Completed all fan out
+# through the same shared path, unlocked by the events pin bump alone.
+# ---------------------------------------------------------------------------
+
+_LIFECYCLE_ARTIFACT_PAYLOADS: dict[str, dict[str, Any]] = {
+    "SpecifyStarted": {"mission_slug": "demo-mission", "actor": "robert"},
+    "SpecifyCompleted": {"mission_slug": "demo-mission", "actor": "robert", "artifact_path": "spec.md"},
+    "PlanStarted": {"mission_slug": "demo-mission", "actor": "robert"},
+    "PlanCompleted": {"mission_slug": "demo-mission", "actor": "robert", "artifact_path": "plan.md"},
+    "TasksStarted": {"mission_slug": "demo-mission", "actor": "robert"},
+    "TasksCompleted": {
+        "mission_slug": "demo-mission",
+        "actor": "robert",
+        "artifact_path": "tasks.md",
+        "wp_count": 3,
+    },
+}
+
+
+@pytest.mark.parametrize("event_type", sorted(_LIFECYCLE_ARTIFACT_PAYLOADS))
+def test_lifecycle_started_and_completed_events_broadcast_through_the_shared_path(
+    monkeypatch: pytest.MonkeyPatch,
+    resolved_credential: list[Path],
+    event_type: str,
+) -> None:
+    """No duplicate lifecycle emitter is introduced: the six Specify/Plan/Tasks
+    x Started/Completed beats reach the relay through the exact same
+    ``fire_lifecycle_saas_fanout`` slot MissionCreated already uses -- the
+    events#77 pin bump alone is what unlocked them (no new call site)."""
+    recorder = OfferRecorder(outcome="sent").install(monkeypatch)
+
+    adapters.fire_lifecycle_saas_fanout(
+        envelope={
+            "event_id": "01JME2E2E2E2E2E2E2E2E2E2E3",
+            "event_type": event_type,
+            "aggregate_id": "demo-mission",
+            "timestamp": "2026-08-27T00:00:00+00:00",
+            "payload": _LIFECYCLE_ARTIFACT_PAYLOADS[event_type],
+        },
+        log_path=None,
+    )
+
+    assert recorder.summaries() == [
+        ("event.publish", event_type),
+        ("presence.publish", "command"),
+    ]
+    _op, args = recorder.moment_offers()[0]
+    _assert_event_args(args)
+    assert args["attrs"]["mission_slug"] == "demo-mission"
