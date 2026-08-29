@@ -344,9 +344,13 @@ import re as _re
 
 _SCHEMA_VERSION_RE = _re.compile(r"^1\.[0-9]+\.[0-9]+$")
 _FOCUS_OPS = frozenset({"focus.start", "focus.heartbeat", "focus.pause", "focus.end"})
-_ALL_MANAGED_OPS = frozenset({"presence.publish", "session.revoke"}) | _FOCUS_OPS
+_ALL_MANAGED_OPS = frozenset({"presence.publish", "session.revoke", "event.publish"}) | _FOCUS_OPS
 _KIND_CAPS_DOUBLE: dict[str, frozenset[str]] = {
-    "presence": frozenset({"presence.publish"}),
+    # `presence` also grants `event.publish` on the real relay
+    # (`managed_auth._KIND_CAPS`) — the CLI's fire-and-forget status moment
+    # rides the same lease it already holds for presence. Kept in parity
+    # here (spec-kitty#30).
+    "presence": frozenset({"presence.publish", "event.publish"}),
     "focus": _FOCUS_OPS,
     "operator": frozenset({"session.revoke"}),
 }
@@ -386,6 +390,10 @@ _ARGS_SHAPE_DOUBLE: dict[str, tuple[frozenset[str], frozenset[str]]] = {
     "session.revoke": (
         frozenset({"session_id", "reason"}),
         frozenset({"session_id", "reason"}),
+    ),
+    "event.publish": (
+        frozenset({"session_id", "kind", "attrs"}),
+        frozenset({"session_id", "kind", "ref", "attrs"}),
     ),
 }
 

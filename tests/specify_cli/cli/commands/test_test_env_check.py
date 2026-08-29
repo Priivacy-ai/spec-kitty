@@ -36,6 +36,7 @@ from specify_cli.cli.commands._test_env_check import (
 
 pytestmark = [pytest.mark.unit, pytest.mark.integration]
 
+
 def test_assert_pytest_available_succeeds_when_pytest_importable(
     tmp_path: Path,
 ) -> None:
@@ -72,19 +73,14 @@ def test_assert_pytest_available_raises_when_pytest_missing(
     else:
         venv_python = venv_dir / "bin" / "python"
 
-    assert venv_python.exists(), (
-        f"Expected venv interpreter at {venv_python} but it does not exist."
-    )
+    assert venv_python.exists(), f"Expected venv interpreter at {venv_python} but it does not exist."
 
     # Verify the venv truly lacks pytest to avoid a false pass.
     probe = subprocess.run(
         [str(venv_python), "-c", "import pytest"],
         capture_output=True,
     )
-    assert probe.returncode != 0, (
-        "The synthetic venv unexpectedly has pytest installed — "
-        "the negative test premise is broken."
-    )
+    assert probe.returncode != 0, "The synthetic venv unexpectedly has pytest installed — the negative test premise is broken."
 
     # Monkeypatch sys.executable so assert_pytest_available uses the bare venv.
     import specify_cli.cli.commands._test_env_check as _mod
@@ -109,9 +105,7 @@ def _write_uv_lock(tmp_path: Path, versions: dict[str, str]) -> Path:
     """Write a minimal uv.lock fixture pinning the given package versions."""
     lock_path = tmp_path / "uv.lock"
     body_parts = [
-        f'[[package]]\nname = "{name}"\nversion = "{version}"\n'
-        'source = { registry = "https://pypi.org/simple" }\n'
-        for name, version in versions.items()
+        f'[[package]]\nname = "{name}"\nversion = "{version}"\nsource = {{ registry = "https://pypi.org/simple" }}\n' for name, version in versions.items()
     ]
     lock_path.write_text("\n".join(body_parts), encoding="utf-8")
     return lock_path
@@ -120,9 +114,7 @@ def _write_uv_lock(tmp_path: Path, versions: dict[str, str]) -> Path:
 class TestTyperClickLockParity:
     """FR-001: local typer/click lock-parity preflight (MISSION_REVIEW_ENV_SKEW)."""
 
-    def test_matching_versions_produce_no_mismatches(
-        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
+    def test_matching_versions_produce_no_mismatches(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
         """Installed versions matching uv.lock -> no mismatches, no raise."""
         _write_uv_lock(tmp_path, {"typer": "0.24.2", "click": "8.3.3"})
 
@@ -140,9 +132,7 @@ class TestTyperClickLockParity:
         # no divergence.
         assert assert_typer_click_lock_parity(tmp_path, fail_closed=True) == []
 
-    def test_diverging_installed_version_is_detected(
-        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
+    def test_diverging_installed_version_is_detected(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
         """A diverging installed typer version is reported as a mismatch."""
         _write_uv_lock(tmp_path, {"typer": "0.24.2", "click": "8.3.3"})
 
@@ -157,9 +147,7 @@ class TestTyperClickLockParity:
         mismatches = check_typer_click_lock_parity(tmp_path)
         assert mismatches == [PackageSkew("typer", "0.24.2", "0.26.0")]
 
-    def test_default_mode_is_warn_loud_not_fail_closed(
-        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
+    def test_default_mode_is_warn_loud_not_fail_closed(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
         """Red-first: divergence must NOT raise by default (warn-loud, SC-001)."""
         _write_uv_lock(tmp_path, {"typer": "0.24.2", "click": "8.3.3"})
 
@@ -176,9 +164,7 @@ class TestTyperClickLockParity:
         mismatches = assert_typer_click_lock_parity(tmp_path)
         assert mismatches == [PackageSkew("typer", "0.24.2", "0.26.0")]
 
-    def test_explicit_fail_closed_true_raises_env_skew(
-        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
+    def test_explicit_fail_closed_true_raises_env_skew(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
         """Red-first: fail_closed=True raises EnvSkew on divergence."""
         _write_uv_lock(tmp_path, {"typer": "0.24.2", "click": "8.3.3"})
 
@@ -195,9 +181,7 @@ class TestTyperClickLockParity:
 
         assert exc_info.value.args[0] == "MISSION_REVIEW_ENV_SKEW"
 
-    def test_fail_closed_env_var_opts_in_without_explicit_flag(
-        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
+    def test_fail_closed_env_var_opts_in_without_explicit_flag(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
         """SPEC_KITTY_ENV_SKEW_FAIL_CLOSED=1 opts into fail-closed mode."""
         _write_uv_lock(tmp_path, {"typer": "0.24.2", "click": "8.3.3"})
 
@@ -223,9 +207,7 @@ class TestTyperClickLockParity:
         """No uv.lock present (e.g. a uv-tool install) -> no mismatches."""
         assert check_typer_click_lock_parity(tmp_path) == []
 
-    def test_uv_lock_is_read_live_not_hardcoded(
-        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
+    def test_uv_lock_is_read_live_not_hardcoded(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
         """Changing the fixture uv.lock's pinned version changes the result.
 
         Proves the locked version is read from uv.lock at call time, never a
@@ -245,9 +227,7 @@ class TestTyperClickLockParity:
         # Mutate the lock's pinned typer version -- the same installed
         # version now diverges from the (changed) lock.
         _write_uv_lock(tmp_path, {"typer": "0.25.0", "click": "8.3.3"})
-        assert check_typer_click_lock_parity(tmp_path) == [
-            PackageSkew("typer", "0.25.0", "0.24.2")
-        ]
+        assert check_typer_click_lock_parity(tmp_path) == [PackageSkew("typer", "0.25.0", "0.24.2")]
 
 
 # ---------------------------------------------------------------------------
@@ -274,9 +254,7 @@ jobs:
 
 def _write_ci_workflow_fixture(tmp_path: Path, marker_expr: str) -> Path:
     workflow_path = tmp_path / "ci-quality.yml"
-    workflow_path.write_text(
-        _RESIDUAL_WORKFLOW_TEMPLATE.format(marker_expr=marker_expr), encoding="utf-8"
-    )
+    workflow_path.write_text(_RESIDUAL_WORKFLOW_TEMPLATE.format(marker_expr=marker_expr), encoding="utf-8")
     return workflow_path
 
 
@@ -284,9 +262,7 @@ class TestLocalResidualRunner:
     """FR-002: the local CI-residual `-m` selection runner."""
 
     def test_reads_marker_expr_from_fixture_workflow(self, tmp_path: Path) -> None:
-        workflow_path = _write_ci_workflow_fixture(
-            tmp_path, "(unit or contract) and not (fast or slow)"
-        )
+        workflow_path = _write_ci_workflow_fixture(tmp_path, "(unit or contract) and not (fast or slow)")
         expr = read_ci_residual_marker_expr(workflow_path)
         assert expr == "(unit or contract) and not (fast or slow)"
 
@@ -303,16 +279,22 @@ class TestLocalResidualRunner:
 
         # Mutate the *source* selector in place.
         workflow_path.write_text(
-            _RESIDUAL_WORKFLOW_TEMPLATE.format(
-                marker_expr="(unit or contract) and not slow"
-            ),
+            _RESIDUAL_WORKFLOW_TEMPLATE.format(marker_expr="(unit or contract) and not slow"),
             encoding="utf-8",
         )
-        assert (
-            read_ci_residual_marker_expr(workflow_path)
-            == "(unit or contract) and not slow"
-        )
+        assert read_ci_residual_marker_expr(workflow_path) == "(unit or contract) and not slow"
 
+    @pytest.mark.skip(
+        reason=(
+            "The real .github/workflows/ci-quality.yml this sanity check parsed"
+            " was deleted (pre-programme GitHub Actions cruft, PROGRAM.md §2,"
+            " planning#57). read_ci_residual_marker_expr() itself is still"
+            " covered by the fixture-based tests above; the local"
+            " CI-residual-selection CLI feature it backs has no live source of"
+            " truth to read from until a follow-up decides its replacement"
+            " (see the PR that deleted the workflow directory for details)."
+        )
+    )
     def test_reads_the_real_ci_workflow_marker_expr(self) -> None:
         """Sanity/integration check against the actual repo workflow file.
 
@@ -326,9 +308,7 @@ class TestLocalResidualRunner:
         assert "contract" in expr
         assert "not (" in expr
 
-    def test_missing_job_raises_residual_selector_not_found(
-        self, tmp_path: Path
-    ) -> None:
+    def test_missing_job_raises_residual_selector_not_found(self, tmp_path: Path) -> None:
         workflow_path = tmp_path / "ci-quality.yml"
         workflow_path.write_text(
             "jobs:\n  some-other-job:\n    runs-on: ubuntu-latest\n",
@@ -337,18 +317,14 @@ class TestLocalResidualRunner:
         with pytest.raises(ResidualSelectorNotFound):
             read_ci_residual_marker_expr(workflow_path)
 
-    def test_missing_workflow_file_raises_residual_selector_not_found(
-        self, tmp_path: Path
-    ) -> None:
+    def test_missing_workflow_file_raises_residual_selector_not_found(self, tmp_path: Path) -> None:
         with pytest.raises(ResidualSelectorNotFound):
             read_ci_residual_marker_expr(tmp_path / "does-not-exist.yml")
 
     def test_job_name_is_the_documented_residual_job(self) -> None:
         assert CI_RESIDUAL_JOB_NAME == "unit-contract-residual"
 
-    def test_build_local_residual_command_uses_live_marker_expr(
-        self, tmp_path: Path
-    ) -> None:
+    def test_build_local_residual_command_uses_live_marker_expr(self, tmp_path: Path) -> None:
         workflow_path = _write_ci_workflow_fixture(tmp_path, "unit or contract")
         command = build_local_residual_command(tmp_path, workflow_path=workflow_path)
 
@@ -357,17 +333,13 @@ class TestLocalResidualRunner:
         assert command[4:6] == ["-m", "unit or contract"]
         assert "-q" in command
 
-    def test_run_local_residual_selection_invokes_the_built_command(
-        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
+    def test_run_local_residual_selection_invokes_the_built_command(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
         """The runner actually shells out to the single-sourced command."""
         workflow_path = _write_ci_workflow_fixture(tmp_path, "unit or contract")
 
         captured: dict[str, object] = {}
 
-        def _fake_run(
-            args: list[str], *, cwd: Path, **_kwargs: object
-        ) -> subprocess.CompletedProcess[bytes]:
+        def _fake_run(args: list[str], *, cwd: Path, **_kwargs: object) -> subprocess.CompletedProcess[bytes]:
             captured["args"] = args
             captured["cwd"] = cwd
             return subprocess.CompletedProcess(args=args, returncode=0)
@@ -384,11 +356,7 @@ class TestLocalResidualRunner:
         assert "-m" in args and "pytest" in args
         assert "unit or contract" in args
 
-    def test_run_local_residual_selection_propagates_missing_selector(
-        self, tmp_path: Path
-    ) -> None:
+    def test_run_local_residual_selection_propagates_missing_selector(self, tmp_path: Path) -> None:
         """No workflow present -> ResidualSelectorNotFound, not a subprocess crash."""
         with pytest.raises(ResidualSelectorNotFound):
-            run_local_residual_selection(
-                tmp_path, workflow_path=tmp_path / "absent.yml"
-            )
+            run_local_residual_selection(tmp_path, workflow_path=tmp_path / "absent.yml")
