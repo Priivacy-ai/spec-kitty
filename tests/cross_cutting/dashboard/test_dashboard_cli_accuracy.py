@@ -212,6 +212,37 @@ def _write_dashboard_test_manifest(entries: list[dict[str, object]], manifest_pa
         raise
 
 
+def _manifest_ints(value: object) -> set[int]:
+    if not isinstance(value, list):
+        return set()
+
+    ints: set[int] = set()
+    for raw_value in value:
+        if isinstance(raw_value, bool):
+            continue
+        if isinstance(raw_value, int):
+            ints.add(raw_value)
+        elif isinstance(raw_value, str):
+            try:
+                ints.add(int(raw_value))
+            except ValueError:
+                continue
+    return ints
+
+
+def _manifest_float(value: object) -> float | None:
+    if isinstance(value, bool):
+        return None
+    if isinstance(value, (int, float)):
+        return float(value)
+    if isinstance(value, str):
+        try:
+            return float(value)
+        except ValueError:
+            return None
+    return None
+
+
 def _record_dashboard_candidate(
     port: int,
     project_dir: Path,
@@ -226,19 +257,15 @@ def _record_dashboard_candidate(
     updated = []
     for entry in entries:
         if entry.get("port") == port:
-            previous_pids = set()
-            for raw_pid in entry.get("pids", []):
-                try:
-                    previous_pids.add(int(raw_pid))
-                except (TypeError, ValueError):
-                    continue
+            previous_pids = _manifest_ints(entry.get("pids"))
+            previous_started_at = _manifest_float(entry.get("started_at"))
             # Only the same process still listening on this port proves this
             # is a continuation rather than a fresh launch on a recycled
             # port -- carry the original started_at forward in that one
             # case; otherwise this is a new launch and gets a fresh clock
             # reading so the stale-age gate cannot fire on it prematurely.
-            if previous_pids and previous_pids & current_listener_pids:
-                started_at = float(entry.get("started_at", started_at))
+            if previous_pids and previous_pids & current_listener_pids and previous_started_at is not None:
+                started_at = previous_started_at
             continue
         updated.append(entry)
     updated.append(
@@ -264,10 +291,9 @@ def _cleanup_stale_dashboard_manifest_entries(
     killed = 0
 
     for entry in _load_dashboard_test_manifest(path):
-        try:
-            port = int(entry["port"])
-            started_at = float(entry["started_at"])
-        except (KeyError, TypeError, ValueError):
+        port = entry.get("port")
+        started_at = _manifest_float(entry.get("started_at"))
+        if not isinstance(port, int) or isinstance(port, bool) or started_at is None:
             continue
 
         if now - started_at < max_age_seconds:
@@ -280,12 +306,7 @@ def _cleanup_stale_dashboard_manifest_entries(
         if not is_dashboard_accessible(port, timeout=0.3):
             continue
 
-        manifest_pids = set()
-        for raw_pid in entry.get("pids", []):
-            try:
-                manifest_pids.add(int(raw_pid))
-            except (TypeError, ValueError):
-                continue
+        manifest_pids = _manifest_ints(entry.get("pids"))
         if manifest_pids and manifest_pids.isdisjoint(_process_ids_for_port(port)):
             continue
 
@@ -760,7 +781,7 @@ def test_no_process_name_wide_dashboard_kill():
     assert ("run_dashboard_" + "server") not in source
 
 
-def test_record_dashboard_candidate_gives_new_launch_on_recycled_port_a_fresh_started_at(monkeypatch, tmp_path):
+def test_record_dashboard_candidate_gives_new_launch_on_recycled_port_a_fresh_started_at(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
     """A fresh launch on a recycled port must not inherit the old occupant's started_at.
 
     Regression for the squad pass-2 MAJOR on PR#523: recording port 61999 at
@@ -787,7 +808,7 @@ def test_record_dashboard_candidate_gives_new_launch_on_recycled_port_a_fresh_st
     assert entry["pids"] == [4242]
 
 
-def test_record_dashboard_candidate_keeps_started_at_when_same_process_still_listens(monkeypatch, tmp_path):
+def test_record_dashboard_candidate_keeps_started_at_when_same_process_still_listens(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
     """Re-recording a port whose listener is unchanged must keep the original started_at."""
     manifest = tmp_path / "manifest.json"
     port = 61999
@@ -807,7 +828,7 @@ def test_record_dashboard_candidate_keeps_started_at_when_same_process_still_lis
     assert entry["pids"] == [5555]
 
 
-def test_stale_manifest_reaper_kills_only_old_recorded_dashboard(monkeypatch, tmp_path):
+def test_stale_manifest_reaper_kills_only_old_recorded_dashboard(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
     manifest = tmp_path / "manifest.json"
     fresh_port = 61001
     stale_port = 61002
