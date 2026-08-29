@@ -41,8 +41,8 @@ from specify_cli.zeitgeist_client import moments
 def instead_of_rewrite(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> str:
     """A synthetic global git config that rewrites ``https://github.com/``
     onto a proxy host, inherited by every child ``git`` through
-    ``GIT_CONFIG_GLOBAL`` (which is not one of ``Deadline``'s stripped
-    discovery vars, so the real machine config is never touched).
+    ``GIT_CONFIG_GLOBAL`` with system-level config disabled, so the real
+    machine config is never touched.
 
     This is the shape every exe.dev VM — and many corporate laptops — carry
     for real, and it is exactly what made identity resolution report the
@@ -57,6 +57,7 @@ def instead_of_rewrite(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> str:
     config_path = tmp_path / "global-gitconfig"
     config_path.write_text(f'[url "https://{proxy_host}/"]\n\tinsteadOf = https://github.com/\n')
     monkeypatch.setenv("GIT_CONFIG_GLOBAL", str(config_path))
+    monkeypatch.setenv("GIT_CONFIG_NOSYSTEM", "1")
     return proxy_host
 
 
@@ -133,9 +134,7 @@ class TeamKittyDouble:
                     except json.JSONDecodeError:
                         parsed = None
                 with double._lock:
-                    double.requests.append(
-                        RecordedRequest(self.command, self.path, dict(self.headers), parsed)
-                    )
+                    double.requests.append(RecordedRequest(self.command, self.path, dict(self.headers), parsed))
                 if double.response_delay_s:
                     time.sleep(double.response_delay_s)
                 payload = json.dumps(double.response_body).encode("utf-8")
@@ -413,17 +412,21 @@ def _validate_args_shape(op: str, args: dict) -> str | None:
 
 
 def mint_capability_token(
-    key: str, *, sub: str, team: str, deployment: str, repo: str, kind: str,
-    iat: float, exp: float,
+    key: str,
+    *,
+    sub: str,
+    team: str,
+    deployment: str,
+    repo: str,
+    kind: str,
+    iat: float,
+    exp: float,
 ) -> str:
     """The exact wire shape ``managed_auth.SharedSecretCapabilityVerifier``
     verifies — reimplemented here (test-only) so a test can mint a
     protocol-real ``X-Zeitgeist-Capability`` value without importing
     zeitgeist (no dependency exists in either direction)."""
-    payload = json.dumps(
-        {"sub": sub, "team": team, "deployment": deployment, "repo": repo,
-         "kind": kind, "iat": iat, "exp": exp}
-    ).encode("utf-8")
+    payload = json.dumps({"sub": sub, "team": team, "deployment": deployment, "repo": repo, "kind": kind, "iat": iat, "exp": exp}).encode("utf-8")
     payload_b64 = _base64.urlsafe_b64encode(payload).rstrip(b"=").decode("ascii")
     # Reproduces the real relay's HMAC capability-token wire shape
     # (managed_auth.SharedSecretCapabilityVerifier) — a body/file-integrity
@@ -492,9 +495,7 @@ def _apply_managed_op(state: ManagedControlState, op: str, args: dict, scope: tu
                 raise _FocusNotStartedDouble(op)
 
 
-def _dispatch_managed_control(
-    state: ManagedControlState, headers: Any, raw: bytes
-) -> tuple[int, dict]:
+def _dispatch_managed_control(state: ManagedControlState, headers: Any, raw: bytes) -> tuple[int, dict]:
     """The whole ``POST /managed/control`` decision tree, isolated from
     ``http.server`` plumbing so it stays one small, directly-testable
     function rather than living inside a handler method."""
