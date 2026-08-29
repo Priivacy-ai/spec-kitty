@@ -132,6 +132,11 @@ def test_public_emit_never_raises_when_capture_fails_and_is_observed(
 ) -> None:
     """Non-fatal + observable pin driven through a public ``emit_*`` method."""
     _isolate(tmp_path, monkeypatch)
+    # Drive the PUBLIC emit path, which since #3799 short-circuits before capture
+    # unless sync is armed. Arm it (``_isolate`` sets SYNC_DISABLE=1) so ``_emit``
+    # actually reaches the ``_queue_event_locally`` seam this test forces to fail.
+    monkeypatch.setenv("SPEC_KITTY_ENABLE_SAAS_SYNC", "1")
+    monkeypatch.delenv("SPEC_KITTY_SYNC_DISABLE", raising=False)
     monkeypatch.setattr(emitter_mod, "_console", _RecordingConsole())
 
     emitter = EventEmitter()
