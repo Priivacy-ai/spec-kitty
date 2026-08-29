@@ -136,18 +136,35 @@ def test_glossary_javascript_does_not_construct_inline_markup() -> None:
     assert match is None, f"inline <script> construct at offset {match.start():d} in glossary.js"
 
 
-_JS_URL_LITERAL_RE = re.compile(r"""\bfetch\(\s*['"]([^'"]+)['"]|\.(?:src|href)\s*=\s*['"]([^'"]+)['"]""")
+_JS_URL_LITERAL_RE = re.compile(r"""\bfetch\(\s*['"]([^'"]+)['"]|\.src\s*=\s*['"]([^'"]+)['"]""")
 
 
 def test_glossary_javascript_subresources_are_same_origin() -> None:
-    """Every ``fetch(...)`` call and ``.src``/``.href`` assignment literal in
+    """Every ``fetch(...)`` call and ``.src`` assignment literal in
     glossary.js must be same-origin: a CDN URL there would be blocked by the
-    CSP exactly like a foreign ``<script src>`` in the template."""
+    CSP exactly like a foreign ``<script src>`` in the template.
+
+    ``.href`` assignments (e.g. ``location.href = '…'``, an anchor's
+    ``href``) are deliberately excluded: like the template's anchor ``href``
+    navigations (see ``:71-77`` above), they are top-level navigations, not
+    CSP-restricted subresources, and ``DASHBOARD_CSP`` sets no
+    ``navigate-to``/``form-action`` restriction that would apply."""
     js = GLOSSARY_JS.read_text(encoding="utf-8")
     urls = [first or second for first, second in _JS_URL_LITERAL_RE.findall(js)]
     assert urls, "glossary.js should reference at least one URL literal"
     foreign = [url for url in urls if not (url.startswith("/") or url.startswith("data:"))]
     assert foreign == [], f"non-same-origin URL literal(s) blocked by the CSP: {foreign}"
+
+
+def test_glossary_javascript_href_navigation_is_not_flagged_as_subresource() -> None:
+    """A ``.href`` navigation assignment must not be misdiagnosed as a
+    blocked subresource (squad finding, issue #385): unlike ``.src``, an
+    ``href`` assignment is a navigation, and navigations are excluded from
+    this same-origin subresource scan exactly as anchor ``href`` is excluded
+    from the template scan at ``:71-77``."""
+    js = "location.href = 'https://external.example/docs';"
+    urls = [first or second for first, second in _JS_URL_LITERAL_RE.findall(js)]
+    assert urls == []
 
 
 _CSS_URL_RE = re.compile(r"""url\(\s*['"]?([^'")]+)['"]?\s*\)""")

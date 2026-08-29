@@ -2,21 +2,21 @@
 
 PR #2172 review finding #1. The CORE↛INTEGRATION inversion routes mission
 creation through ``emit_mission_created_local`` (canonical lifecycle log +
-lifecycle SaaS fan-out) and ``fire_dossier_sync`` (dashboard/dossier sync) via
-the ``status/adapters.py`` registry instead of direct ``sync``/``tracker``
-imports. After rebasing onto main's rewired lifecycle path (#2070/#1793
-lifecycle/topology, #2134 status decompose, #2158 dead-symbol gate), this test
-pins the observable behaviour the inversion must preserve:
+lifecycle SaaS fan-out) via the ``status/adapters.py`` registry instead of
+direct ``sync``/``tracker`` imports. After rebasing onto main's rewired
+lifecycle path (#2070/#1793 lifecycle/topology, #2134 status decompose, #2158
+dead-symbol gate), this test pins the observable behaviour the inversion must
+preserve:
 
 * the canonical ``MissionCreated`` event is written **exactly once** (no drop,
-  no double-write),
+  no double-write), and
 * the daemon/SaaS lifecycle fan-out (``fire_lifecycle_saas_fanout``) fires
-  **exactly once** for that event, and
-* the dashboard/dossier sync (``fire_dossier_sync``) fires **exactly once**.
+  **exactly once** for that event.
 
-It drives the *real* adapter registry — registering spy observers through the
-public ``register_*`` API rather than patching the fire functions — so a
-double-fire or drop introduced by the rewired lifecycle path would fail here.
+It drives the *real* adapter registry — registering a spy observer through the
+public ``register_lifecycle_saas_fanout_handler`` API rather than patching the
+fire function — so a double-fire or drop introduced by the rewired lifecycle
+path would fail here.
 """
 
 from __future__ import annotations
@@ -39,8 +39,8 @@ pytestmark = [pytest.mark.integration, pytest.mark.git_repo]
 
 _CORE_MODULE = "specify_cli.core.mission_creation"
 
-# (lifecycle_events, dossier_calls) surfaced by the ``_isolated_adapter_registry`` fixture.
-_RegistryFixture = tuple[list[dict[str, Any]], list[tuple[Path, str, Path]]]
+# lifecycle_events surfaced by the ``_isolated_adapter_registry`` fixture.
+_RegistryFixture = list[dict[str, Any]]
 
 
 def _init_repo(repo: Path) -> None:
@@ -99,18 +99,13 @@ def _isolated_adapter_registry() -> Iterator[_RegistryFixture]:
     status_adapters.reset_handlers()
 
     lifecycle_events: list[dict[str, Any]] = []
-    dossier_calls: list[tuple[Path, str, Path]] = []
 
     def _lifecycle_spy(*, envelope: Any = None, **_kw: Any) -> None:
         lifecycle_events.append(dict(envelope or {}))
 
-    def _dossier_spy(feature_dir: Path, mission_slug: str, repo_root: Path) -> None:
-        dossier_calls.append((feature_dir, mission_slug, repo_root))
-
     status_adapters.register_lifecycle_saas_fanout_handler(_lifecycle_spy)
-    status_adapters.register_dossier_sync_handler(_dossier_spy)
     try:
-        yield lifecycle_events, dossier_calls
+        yield lifecycle_events
     finally:
         status_adapters.reset_handlers()
 
@@ -118,8 +113,8 @@ def _isolated_adapter_registry() -> Iterator[_RegistryFixture]:
 def test_mission_created_fanout_fires_exactly_once(
     tmp_path: Path, _isolated_adapter_registry: _RegistryFixture
 ) -> None:
-    """One mission creation => exactly one MissionCreated event + one of each fan-out."""
-    lifecycle_events, dossier_calls = _isolated_adapter_registry
+    """One mission creation => exactly one MissionCreated event + one fan-out."""
+    lifecycle_events = _isolated_adapter_registry
     _init_repo(tmp_path)
     slug = "fire-once-mission"
 
@@ -150,12 +145,6 @@ def test_mission_created_fanout_fires_exactly_once(
         f"{[e.get('event_type') for e in lifecycle_events]}"
     )
 
-    # Dashboard/dossier sync fires exactly once.
-    assert len(dossier_calls) == 1, (
-        f"Dossier (dashboard) sync must fire exactly once; got {len(dossier_calls)}"
-    )
-    assert dossier_calls[0][1] == result.mission_slug
-
 
 def test_mission_created_resume_does_not_double_fire(
     tmp_path: Path, _isolated_adapter_registry: _RegistryFixture
@@ -166,7 +155,7 @@ def test_mission_created_resume_does_not_double_fire(
     second run must NOT emit a second canonical row nor a second lifecycle
     fan-out — proving the inversion preserves idempotency on the rewired path.
     """
-    lifecycle_events, _dossier_calls = _isolated_adapter_registry
+    lifecycle_events = _isolated_adapter_registry
     _init_repo(tmp_path)
     slug = "fire-once-resume"
 

@@ -19,12 +19,14 @@ from __future__ import annotations
 import tempfile
 from collections.abc import Callable
 from pathlib import Path
+from types import SimpleNamespace
 from typing import cast
 
 import pytest
 
 from runtime.next._tmp_namespace import prompt_tmp_dir
 from tests import conftest as root_conftest
+from tests._support import run_basetemp
 from tests.utils import run
 
 pytestmark = [pytest.mark.architectural, pytest.mark.git_repo]
@@ -526,6 +528,31 @@ def test_pytest_sessionfinish_reds_and_selfheals_on_leak(
     assert not (temp_repo / "kitty-specs" / "test-feature-leak").exists()
     # ...but surfaced as a red exit status instead of silently masked (T009).
     assert session.exitstatus == 1
+
+
+def test_pytest_sessionfinish_retains_installed_basetemp_after_leak(
+    temp_repo: Path, _fake_tmp_root: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A residue failure downgrades the installed basetemp outcome to failed.
+
+    ``pytest_sessionfinish`` initially marks an otherwise-green session as
+    successful. When its residue check then finds a leak, it must reverse that
+    outcome before the atexit basetemp reaper decides whether to remove the
+    forensic tree.
+    """
+    monkeypatch.setattr(root_conftest, "REPO_ROOT", temp_repo)
+    basetemp_atexit = _FakeAtexit()
+    monkeypatch.setattr(run_basetemp, "atexit", basetemp_atexit)
+    session = _controller_session()
+    session.config.option = SimpleNamespace(basetemp=None)
+    run_basetemp.install_run_basetemp(cast(pytest.Config, session.config), now=0)
+
+    root_conftest.pytest_sessionstart(cast(pytest.Session, session))
+    _seed_mission_dir(temp_repo, "test-feature-leak", commit=False)
+    root_conftest.pytest_sessionfinish(cast(pytest.Session, session), pytest.ExitCode.OK)
+
+    outcome = getattr(session.config, run_basetemp._OUTCOME_CONFIG_ATTR)
+    assert outcome.succeeded is False
 
 
 def test_pytest_sessionfinish_stays_green_without_leak(

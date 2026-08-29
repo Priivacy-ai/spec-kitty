@@ -12,6 +12,7 @@ controlling terminal.
 from __future__ import annotations
 
 import json
+import subprocess
 from pathlib import Path
 
 import pytest
@@ -29,6 +30,28 @@ runner = CliRunner()
 def state_root(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
     monkeypatch.setenv("SPEC_KITTY_HOME", str(tmp_path / "spec-kitty-home"))
     return tmp_path / "spec-kitty-home"
+
+
+@pytest.fixture()
+def no_git_ancestry_inside_tmp_path(tmp_path: Path) -> None:
+    """Pin the ancestor-origin-leak boundary (#441/#589's shape, also fixed
+    in ``tests/zeitgeist_client/test_mcp_stdio.py`` and
+    ``test_resolution.py``): without this, a test that ``chdir``s into a
+    repo-less ``tmp_path`` subdirectory and asserts resolution fails closed
+    can instead walk upward past ``tmp_path`` into whatever git checkout the
+    pytest ``--basetemp`` happens to sit inside (e.g. this repo's own
+    working tree on an exe.dev VM) and mint THAT checkout's identity instead
+    of failing.
+
+    A real, originless ``git init`` at ``tmp_path`` stops the walk there —
+    for BOTH resolution paths ``store_key_for_checkout`` consults: the real
+    ``git`` subprocess ``repo_identity.Deadline.run`` shells out to (which
+    requires a genuine repository, not merely a ``.git``-shaped directory,
+    to treat a directory as a discovery boundary) and the no-subprocess
+    ``_git_dir_from_filesystem`` filesystem reader (which stops at the
+    first ``.git`` directory it finds, real or not). No ``origin`` remote
+    is configured, so both still resolve to "no identity here"."""
+    subprocess.run(["git", "init", "-q", str(tmp_path)], check=True, capture_output=True, text=True)
 
 
 # --- no runtime URL/credential option on any operability subcommand ---------
@@ -148,8 +171,15 @@ def test_operability_drill_rotation_with_no_repo_argument_derives_from_checkout(
     assert payload["checked_out"] is True
 
 
+@pytest.mark.git_repo
 @pytest.mark.parametrize("command", ["report", "drill-rotation", "drill-rollback"])
-def test_operability_subcommand_with_no_repo_and_no_checkout_exits_nonzero(state_root: Path, command: str, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+def test_operability_subcommand_with_no_repo_and_no_checkout_exits_nonzero(
+    state_root: Path,
+    command: str,
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    no_git_ancestry_inside_tmp_path: None,
+) -> None:
     """Outside any resolvable checkout there is nothing to derive from; the
     command names the accepted form instead of guessing."""
     outside = tmp_path / "not-a-checkout"

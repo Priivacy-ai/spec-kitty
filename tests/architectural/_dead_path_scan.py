@@ -72,7 +72,19 @@ def _read_lines(path: Path) -> list[str]:
 
 @lru_cache(maxsize=8)
 def _text_files(root: Path) -> tuple[tuple[Path, tuple[str, ...]], ...]:
-    """Read every scannable text file under *root* once per root."""
+    """Read every scannable text file under *root* once per root.
+
+    **Caveat for future consumers: the cache is keyed on the root PATH, not on its contents**
+    (same boundary as ``tests/architectural/_home_pin_scan.py::_corpus``, which documents the
+    live incident this sweep addressed, planning#88). A caller that materialises a synthetic
+    tree, scans it, then rewrites files under the **same** root within one process gets the
+    first read back. This bites hardest under ``tmp_path_retention_policy = failed``:
+    ``_pytest.tmpdir._mk_tmp`` truncates node names at ``MAXVAL = 30`` chars, so parametrizations
+    of one long test name can share an identical truncated prefix and, once each dir is
+    rmtree'd at its own teardown, ``make_numbered_dir``'s sibling scan can hand two
+    parametrizations the SAME physical directory. Give a parametrized caller a distinct subroot
+    per parametrization (``tmp_path / param``), never a bare ``tmp_path``.
+    """
     found: list[tuple[Path, tuple[str, ...]]] = []
     for candidate in sorted(root.rglob("*")):
         if candidate.is_file() and candidate.suffix in _TEXT_SUFFIXES:

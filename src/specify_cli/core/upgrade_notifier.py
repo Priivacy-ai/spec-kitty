@@ -40,7 +40,7 @@ from specify_cli.core.env import is_truthy
 from specify_cli.core.upgrade_probe import (
     UpgradeChannel,
     UpgradeProbeResult,
-    probe_pypi,
+    probe_github_releases,
 )
 
 OPT_OUT_ENV_VAR = "SPEC_KITTY_NO_UPGRADE_CHECK"
@@ -99,11 +99,17 @@ def _serialize_result(result: UpgradeProbeResult, ttl_seconds: int) -> dict[str,
 
 
 def _deserialize_result(data: dict[str, Any]) -> UpgradeProbeResult | None:
-    """Reconstruct an UpgradeProbeResult from cache JSON. Returns ``None`` on failure."""
+    """Reconstruct an UpgradeProbeResult from cache JSON. Returns ``None`` on failure.
+
+    Accepts the legacy ``latest_pypi_version`` key (written by installs before
+    the field was renamed) as a fallback so an on-disk cache from an older
+    build round-trips instead of forcing an immediate re-probe.
+    """
     try:
+        latest_release_version = data.get("latest_release_version", data.get("latest_pypi_version"))
         return UpgradeProbeResult(
             installed_version=str(data["installed_version"]),
-            latest_pypi_version=(str(data["latest_pypi_version"]) if data.get("latest_pypi_version") is not None else None),
+            latest_release_version=(str(latest_release_version) if latest_release_version is not None else None),
             channel=UpgradeChannel(data["channel"]),
             probed_at=parse_iso(data["probed_at"]),
             error=(str(data["error"]) if data.get("error") is not None else None),
@@ -182,7 +188,7 @@ def _is_fresh(
 
 _NOTICE_TEMPLATES: dict[UpgradeChannel, str] = {
     UpgradeChannel.ALREADY_CURRENT: ("[dim]spec-kitty-cli {version} — you are on the latest supported version.[/dim]"),
-    UpgradeChannel.AHEAD_OF_PYPI: ("[dim]spec-kitty-cli {version} — build is ahead of the latest GitHub release ({latest}). No upgrade required.[/dim]"),
+    UpgradeChannel.AHEAD_OF_RELEASE: ("[dim]spec-kitty-cli {version} — build is ahead of the latest GitHub release ({latest}). No upgrade required.[/dim]"),
     UpgradeChannel.NO_UPGRADE_PATH: (
         "[dim]spec-kitty-cli {version} — this build is not a current spec-kitty/EXPERIMENTAL-spec-kitty GitHub Release. Install the pinned private release.[/dim]"
     ),
@@ -200,7 +206,7 @@ def _render_notice(result: UpgradeProbeResult, console: Console) -> bool:
 
     message = template.format(
         version=result.installed_version,
-        latest=result.latest_pypi_version or "?",
+        latest=result.latest_release_version or "?",
     )
     console.print(message)
     return True
@@ -238,7 +244,7 @@ def maybe_emit_upgrade_notice(
 
     1. Returns ``False`` immediately if ``SPEC_KITTY_NO_UPGRADE_CHECK=1``.
     2. Loads the cache; if fresh and pinned to ``cli_version``, uses it.
-    3. Otherwise probes GitHub Releases (via :func:`upgrade_probe.probe_pypi`).
+    3. Otherwise probes GitHub Releases (via :func:`upgrade_probe.probe_github_releases`).
     4. Suppresses the notice if the previous cache entry within TTL was the
        same channel AND the channel is ALREADY_CURRENT (anti-noise rule).
     5. Renders the notice via ``console.print``.
@@ -289,7 +295,7 @@ def maybe_emit_upgrade_notice(
             # Probe and stamp the result with the caller-supplied ``now`` so
             # subsequent freshness checks use a single, consistent time source.
             # This matters for tests that thread ``now`` through both calls.
-            result = probe_pypi(cli_version)
+            result = probe_github_releases(cli_version)
             result = replace(result, probed_at=now)
 
         # Anti-noise: suppress ALREADY_CURRENT when the previous cache entry
