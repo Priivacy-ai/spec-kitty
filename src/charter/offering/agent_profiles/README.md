@@ -75,13 +75,13 @@ Profiles are validated against `schemas/agent-profile.schema.yaml`.
 
 ## Glossary Reference
 
-See [Agent](../../../docs/context/identity.md#agent) and
-[Tool](../../../docs/context/execution.md#tool) in the glossary for the
+See [Agent](../../../../docs/context/identity.md#agent) and
+[Tool](../../../../docs/context/execution.md#tool) in the glossary for the
 canonical naming distinction.
 
 ## Canonical documentation
 
-- **Agent-profile schema diagram** — [Doctrine artifact kinds → Schema at a glance](../../../docs/architecture/doctrine-kinds.md#schema-at-a-glance)
+- **Agent-profile schema diagram** — [Doctrine artifact kinds → Schema at a glance](../../../../docs/architecture/doctrine-kinds.md#schema-at-a-glance)
   (the `@startyaml` `AgentProfileSchema` + nested `AgentSpecialization` diagram is generated from the code model in this package and drift-guarded; it is the single source of truth for the field set).
-- **Kind catalog entry** — [Doctrine artifact kinds → Agent Profile](../../../docs/architecture/doctrine-kinds.md).
-- **Relationship edges (delegation, lineage)** — [Doctrine relationships](../../../docs/architecture/doctrine-relationships.md).
+- **Kind catalog entry** — [Doctrine artifact kinds → Agent Profile](../../../../docs/architecture/doctrine-kinds.md).
+- **Relationship edges (delegation, lineage)** — [Doctrine relationships](../../../../docs/architecture/doctrine-relationships.md).

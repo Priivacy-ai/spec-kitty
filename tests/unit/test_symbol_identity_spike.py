@@ -100,9 +100,9 @@ RECOMMENDATION_REASON = (
 # in test_no_dead_symbols.py, not importable classes; read as source text).
 # ---------------------------------------------------------------------------
 
-_ARTIFACT_KIND_DIRECTIVES = _SRC_ROOT / "doctrine" / "directives" / "__init__.py"
-_ARTIFACT_KIND_PROCEDURES = _SRC_ROOT / "doctrine" / "procedures" / "__init__.py"
-_ARTIFACT_KIND_TACTICS = _SRC_ROOT / "doctrine" / "tactics" / "__init__.py"
+_ARTIFACT_KIND_DIRECTIVES = _SRC_ROOT / "charter" / "offering" / "directives" / "__init__.py"
+_ARTIFACT_KIND_PROCEDURES = _SRC_ROOT / "charter" / "offering" / "procedures" / "__init__.py"
+_ARTIFACT_KIND_TACTICS = _SRC_ROOT / "charter" / "offering" / "tactics" / "__init__.py"
 
 _GATE_DECISION_BRANCH_STRATEGY = (
     _SRC_ROOT / "specify_cli" / "cli" / "commands" / "_branch_strategy_gate.py"

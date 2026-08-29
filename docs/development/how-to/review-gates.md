@@ -21,7 +21,7 @@ satisfy to reach `approved`/`done`. The verdict vocabulary, JSON schema, and
 `in-mission` semantics for the issue matrix are **already documented** in
 [`ERROR_CODES.md`](../../../src/specify_cli/cli/commands/review/ERROR_CODES.md)
 and
-[`spec-kitty-mission-review/SKILL.md`](../../../src/doctrine/skills/spec-kitty-mission-review/SKILL.md) —
+[`spec-kitty-mission-review/SKILL.md`](../../../src/charter/offering/skills/spec-kitty-mission-review/SKILL.md) —
 this page cites them rather than restating them.
 
 ## Environment hygiene before review/PR
@@ -250,7 +250,7 @@ re-authored), and the `in-mission` semantics (accepted at per-WP `approved`,
 **rejected on the mission `done` transition**) are already documented in
 [`ERROR_CODES.md`](../../../src/specify_cli/cli/commands/review/ERROR_CODES.md)
 and the Gate 4 section of
-[`spec-kitty-mission-review/SKILL.md`](../../../src/doctrine/skills/spec-kitty-mission-review/SKILL.md)
+[`spec-kitty-mission-review/SKILL.md`](../../../src/charter/offering/skills/spec-kitty-mission-review/SKILL.md)
 (C-008) — see those two for the full vocabulary and worked examples. This
 section covers only the genuinely-absent operational half: how a reference
 is *discovered*, and how a verdict is *recorded*.

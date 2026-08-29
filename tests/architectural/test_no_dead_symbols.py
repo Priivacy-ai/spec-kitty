@@ -1697,7 +1697,12 @@ _CATEGORY_C_DELIVERY_RAIL_FORWARD_API: frozenset[SymbolKey] = frozenset(
             "charter_activated_urns", "5003eed5e2d30c222f2108ba89da31d8531cdeb468898d01b3fa96020bd62830", source_module="charter.pack_context"
         ),  # charter.pack_context::charter_activated_urns
         # charter.pack_context::normalize_activation_identifier
-        SymbolKey("normalize_activation_identifier", "8deec4a1dd1a1699b821620bfa64a7ae3f3e64798b76156465ff2bef1e395c0c", source_module="charter.pack_context"),
+        # Hash re-pinned (mission charter-code-topology-01M152G1, #3664): the
+        # src/doctrine/ -> src/charter/offering/ relocation shifted this
+        # module's body enough to change its content-tier body_hash; no
+        # semantic change, no new/removed caller -- see FR-303 process note
+        # at the top of this allowlist for the re-pin-only case.
+        SymbolKey("normalize_activation_identifier", "9f7d92e2fc1d29bac413ee0aedb51ec14bf4288bf04f2a96ca2e9807e32e5cdd", source_module="charter.pack_context"),
         # charter.pack_context::partition_activated_unreachable
         SymbolKey("partition_activated_unreachable", "a128040a4804e409225402613ffbe128932fa1862881810bbb3bd3cfd1241fb4", source_module="charter.pack_context"),
         SymbolKey(
@@ -1839,6 +1844,63 @@ _CATEGORY_C_CHARTER_AUTHORITY_FLIP_FORWARD_API: frozenset[SymbolKey] = frozenset
 )
 
 
+# ---------- D. charter-code-topology-01M152G1 doctrine->charter.offering relocation forward API (#3664) ----------
+# Three symbols surfaced by the src/doctrine/ -> src/charter/offering/
+# package relocation (mission ``charter-code-topology-01M152G1``, PR #3664).
+# (A fourth casualty of the same relocation, ``charter.pack_context::
+# normalize_activation_identifier``, was NOT a new entry here -- it already
+# had a Category C allowlist row above that the relocation's body-hash shift
+# orphaned; that row was re-pinned in place rather than duplicated, per
+# ``_compute_dangling``'s own "refresh, don't duplicate" guidance.) None of
+# the three below is dead: each is exported by design for a consumer outside
+# this specific cross-file caller graph, verified before allow-listing
+# (never a blanket suppression):
+#
+# * ``charter.offering.drg.org_pack_config::LegacyOrgPackDoctrineKeyWarning``
+#   -- raised internally by the module's own legacy-key compat warn-once
+#   helper (same module, so invisible to the cross-file caller graph), same
+#   shape as the established ``charter.sync::LegacyGovernanceKeyWarning`` /
+#   ``specify_cli.tracker.config::LegacyTrackerOwnershipKeyWarning``
+#   precedent above: public by design so a consumer can filter/assert on the
+#   specific warning class. Asserted on via ``pytest.warns(...)`` in
+#   ``tests/runtime/test_bridge_io.py``, ``tests/runtime/test_resolver_unit.py``,
+#   and ``tests/unit/mission_loader/test_command.py``.
+# * ``kernel.doctrine_root::CANONICAL_DOCTRINE_DIRNAME`` -- the CR-07
+#   canonical per-project doctrine-artifact dirname (``"charter-packs"``,
+#   replacing legacy ``.kittify/doctrine/``). The module's own docstring is
+#   explicit that this is M2 (read-side dual-root resolver) groundwork only:
+#   "M3 performs the actual on-disk data move and flips write call sites
+#   over; nothing in this module writes or moves any file." No write call
+#   site exists yet anywhere in ``src/`` (grepped: zero hits for the literal
+#   ``"charter-packs"`` outside this module) -- genuinely forward API for
+#   the not-yet-landed M3 cutover, not a dropped caller.
+# * ``kernel.doctrine_root::LegacyDoctrineRootWarning`` -- same "legacy
+#   compat warn-once, same-module raise, public for external filtering"
+#   shape as ``LegacyOrgPackDoctrineKeyWarning`` above.
+_CATEGORY_D_CHARTER_CODE_TOPOLOGY_RELOCATION_FORWARD_API: frozenset[SymbolKey] = frozenset(
+    {
+        # charter.offering.drg.org_pack_config::LegacyOrgPackDoctrineKeyWarning
+        SymbolKey(
+            "LegacyOrgPackDoctrineKeyWarning",
+            "170e5c71e6169bb2ed72591007aad152732c04262a78e331dc80c3086bb251b2",
+            source_module="charter.offering.drg.org_pack_config",
+        ),
+        # kernel.doctrine_root::CANONICAL_DOCTRINE_DIRNAME
+        SymbolKey(
+            "CANONICAL_DOCTRINE_DIRNAME",
+            "574503cb520ece8db6025a806502c0f853e5fa390cbe69503d62771fb36bae70",
+            source_module="kernel.doctrine_root",
+        ),
+        # kernel.doctrine_root::LegacyDoctrineRootWarning
+        SymbolKey(
+            "LegacyDoctrineRootWarning",
+            "0045ea27dd2aac495a318ee0c8d799ce67b54fa4966e7286423210115079d8f7",
+            source_module="kernel.doctrine_root",
+        ),
+    }
+)
+
+
 # Aggregate. The gate consults this; the per-category frozensets are
 # the surface introspected by the ratchet-baseline meta-test
 # (``tests/architectural/test_ratchet_baselines.py``). Entries are
@@ -1877,6 +1939,7 @@ _SYMBOL_ALLOWLIST: frozenset[SymbolKey] = (
     | _CATEGORY_C_DOCTRINE_API_SURFACE_BRIDGE_3179
     | _CATEGORY_C_CHARTER_FACADE_FORWARD_API_01KZPDSR
     | _CATEGORY_C_CHARTER_AUTHORITY_FLIP_FORWARD_API
+    | _CATEGORY_D_CHARTER_CODE_TOPOLOGY_RELOCATION_FORWARD_API
 )
 
 

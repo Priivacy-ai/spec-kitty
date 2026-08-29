@@ -10,7 +10,7 @@ diagram, which are the single source of truth).
 
 ## Canonical documentation
 
-- **Schema diagram + relation families** — [Doctrine relationships](../../../docs/architecture/doctrine-relationships.md)
+- **Schema diagram + relation families** — [Doctrine relationships](../../../../docs/architecture/doctrine-relationships.md)
   (the `@startyaml` `DRGNode`/`DRGEdge`/`NodeKind`/`Relation` diagram is generated from these models and drift-guarded).
-- **Artifact-kind / node-kind vocabulary** — [Doctrine artifact kinds](../../../docs/architecture/doctrine-kinds.md).
+- **Artifact-kind / node-kind vocabulary** — [Doctrine artifact kinds](../../../../docs/architecture/doctrine-kinds.md).
 - **Owning domain plan** — the doctrine-charter domain (merged on `main`).

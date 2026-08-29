@@ -25,7 +25,8 @@ _SRC_ROOT = _REPO_ROOT / "src" / "specify_cli"
 _MATRIX_PATH = (
     _REPO_ROOT
     / "src"
-    / "doctrine"
+    / "charter"
+    / "offering"
     / "skills"
     / "spec-kitty-git-workflow"
     / "references"
