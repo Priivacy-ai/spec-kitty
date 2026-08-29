@@ -60,31 +60,6 @@ class AdmissionMetadata(TypedDict, total=False):
     project_slug: str
 
 
-class AdmissionStateResponse(TypedDict):
-    """Immutable success response for admit, readmit, revoke, and GET."""
-
-    source_project_uuid: str
-    state: str
-    generation: int
-    binding_audience: str
-
-
-class AdmissionErrorResponse(TypedDict, total=False):
-    """Stable non-retryable admission refusal shape."""
-
-    error_category: str
-    retryable: bool
-    current_generation: int
-
-
-class ProjectWriteAdmissionProofPayload(TypedDict):
-    """Per-write proof shared by every canonical project-bearing write."""
-
-    project_uuid: str
-    admission_generation: int
-    binding_audience: str
-
-
 class AdmissionAnswer(TypedDict, total=False):
     """Shape of GET /api/v1/sync/repo-admission/ (TEAM-ADMIT-M2-07/08).
 

@@ -14,7 +14,7 @@ import specify_cli.cli.commands.agent.mission_setup_plan as setup_plan_module
 import specify_cli.coordination.commit_router as commit_router_module
 from specify_cli.cli.commands.agent.mission import _commit_to_branch
 
-pytestmark = pytest.mark.git_repo
+pytestmark = [pytest.mark.integration, pytest.mark.git_repo]
 
 
 def _run_git(repo: Path, *args: str) -> str:

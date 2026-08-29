@@ -25,6 +25,7 @@ from kernel.clock import now_utc, timedelta
 from specify_cli import app
 from specify_cli.auth import reset_token_manager
 from specify_cli.auth.session import StoredSession, Team
+from specify_cli.saas_client.errors import SaasAuthError
 from specify_cli.zeitgeist_client import credentials, resolution
 from specify_cli.zeitgeist_client.resolution import GatewayError, MintedCredential
 
@@ -321,6 +322,23 @@ def test_unauthenticated_checkout_exits_nonzero_with_a_login_hint(state_root: Pa
     result = runner.invoke(app, ["routes"])
     assert result.exit_code == 1
     assert "auth login" in result.stdout
+
+
+def test_config_source_refusal_survives_rich_rendering(clone: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """The auth refusal's ``[sync]`` source label is data, not Rich markup."""
+    from specify_cli.cli.commands import routes as routes_module
+
+    def _raise_config_source_mismatch(repo_root: Path) -> None:
+        raise SaasAuthError(
+            "Session is for https://other.example; config.toml [sync].server_url now points at https://team.example — run spec-kitty auth login --force"
+        )
+
+    monkeypatch.setattr(routes_module, "load_auth_context", _raise_config_source_mismatch)
+
+    result = runner.invoke(app, ["routes"])
+
+    assert result.exit_code == 1
+    assert "config.toml [sync].server_url now points at" in result.stdout
 
 
 # --- the documented login path (#198) ----------------------------------------
