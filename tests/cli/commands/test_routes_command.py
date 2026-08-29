@@ -24,6 +24,7 @@ from kernel.clock import now_utc, timedelta
 
 from specify_cli import app
 from specify_cli.auth import reset_token_manager
+from specify_cli.auth.server_target import ServerTargetSplitBrainError
 from specify_cli.auth.session import StoredSession, Team
 from specify_cli.saas_client.errors import SaasAuthError
 from specify_cli.zeitgeist_client import credentials, resolution
@@ -300,6 +301,28 @@ def test_config_source_refusal_survives_rich_rendering(clone: Path, monkeypatch:
 
     assert result.exit_code == 1
     assert "config.toml [sync].server_url now points at" in result.stdout
+
+
+def test_split_brain_auth_refusal_keeps_its_specific_remediation(clone: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """The route wrapper must not turn a split-brain refusal back into a login hint."""
+    from specify_cli.cli.commands import routes as routes_module
+
+    def _raise_split_brain(repo_root: Path) -> None:
+        cause = ServerTargetSplitBrainError(
+            configured_server_url="https://legit-team-kitty.example.com",
+            env_server_url="https://attacker.example.com",
+        )
+        raise SaasAuthError(str(cause)) from cause
+
+    monkeypatch.setattr(routes_module, "load_auth_context", _raise_split_brain)
+
+    result = runner.invoke(app, ["routes"])
+
+    assert result.exit_code == 1
+    assert "Server target split-brain detected" in result.stdout
+    assert "legit-team-kitty.example.com" in result.stdout
+    assert "attacker.example.com" in result.stdout
+    assert "Run `spec-kitty auth login` first." not in result.stdout
 
 
 # --- the documented login path (#198) ----------------------------------------
