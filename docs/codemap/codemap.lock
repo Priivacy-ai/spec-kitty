@@ -21,15 +21,15 @@ LOCK = {
     "schema_version": "codemap-lock/v1",
     "codemap_schema_version": "codemap/v1",
     "mission": "glm53-paid-spec-reviewer-01M16CYX",
-    "source_head": "4d82f191dec04d25c80db293a0d81a28d5d9b46d",
-    "generated_at_utc": "2026-08-29T10:06:03Z",
+    "source_head": "f2b529ae4759601f5ed0bc34d5a049bacdf00954",
+    "generated_at_utc": "2026-08-29T10:46:16Z",
     "generator": "glm53-paid-spec-reviewer/v1",
     "digest_mode": "sha256(text normalized to UTF-8 with LF line endings)",
     "source_inputs": {
         ".github/workflows/ci-windows.yml": "fff34cb95f87f6e28307c6dfd6cf8a25c3f23fcbb9e2590f60d61110b6635a27",
         ".kittify/charter/charter.md": "0f1da4f62acf43829bc87076ee732092ba303a126007939a2dfbf799d3ca3c36",
         "kitty-specs/glm53-paid-spec-reviewer-01M16CYX/plan.md": "6ec38d90ca4f4a97464a03a9ad2f75b603ae85799fb3d142abac8979958d2148",
-        "kitty-specs/glm53-paid-spec-reviewer-01M16CYX/spec.md": "506e9c993a49fbc07d31d36c123957d52b7a03615ab98154919391dcaa06dc7e",
+        "kitty-specs/glm53-paid-spec-reviewer-01M16CYX/spec.md": "0ac8e9831809c502f3aab8a0c83d21331f1743416301653829b24cbd05639e76",
         "kitty-specs/ox-alpha-spec-reviewer-01M0N82A/plan.md": "6d8842753a17606122d017d926527c088c090b25624b115ae335729d51a7d7da",
         "kitty-specs/ox-alpha-spec-reviewer-01M0N82A/spec.md": "2d14fd19af11ea17f19b4d602fa745cd8474f16ece36a071ad227df26af49166",
         "src/mission_runtime/artifacts.py": "79791ec039b2e3e0f0b5828821bd92595c8fefa22ba120c0e04066c46ff5640d",
@@ -89,8 +89,8 @@ LOCK = {
         }
     },
     "artifacts": {
-        "docs/codemap/codemap.json": "120c863e3fe0281006e4665eafa524a45ded01dad6f477a2f1d9c00a49b8220a",
-        "docs/codemap/codemap.html": "5e472c07383f51bb608b11b4e522e153ac8bb7aefe65ffe5a0055da8b2d035a9",
+        "docs/codemap/codemap.json": "b8f4a8bc5323d64fdddd868d6d964ad46e1e3c21ee1232820fd5091924df9214",
+        "docs/codemap/codemap.html": "caed4dc2715766face77c6154bfbeb67da4d6e891bec224e676c4bbc4d72d7e8",
     },
     "verification_command": "python docs/codemap/codemap.lock",
 }
