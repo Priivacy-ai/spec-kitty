@@ -606,6 +606,69 @@ def test_doctor_no_teamspace_recovery_exit_0(monkeypatch: pytest.MonkeyPatch) ->
 # ===========================================================================
 
 
+# ===========================================================================
+# FR-014 (mission sync-deactivate-by-default) -- the deactivated/no-op arm.
+#
+# Every arm above self-pins ``SPEC_KITTY_ENABLE_SAAS_SYNC=1`` via the autouse
+# fixture, so they exercise the ENABLED render path. FR-014 requires the golden
+# to ALSO freeze the default-off contract: with sync inactive, the ``sync`` CLI
+# must still LOAD and REPORT its inactive posture (a read-only no-op) rather than
+# perform sync work or crash. This arm clears the sync env in the test body
+# (which runs after the autouse fixture, so it deterministically wins) to put the
+# process in the sync_disabled posture.
+# ===========================================================================
+
+_SYNC_POSTURE_ENV_VARS = (
+    "SPEC_KITTY_ENABLE_SAAS_SYNC",
+    "SPEC_KITTY_SYNC_DISABLE",
+    "SPEC_KITTY_SYNC_MINIMAL_IMPORT",
+)
+
+
+def _force_sync_inactive(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Clear every SaaS-sync env var so ``sync_active()`` reads False.
+
+    Runs in the test body, after the autouse ``_hermetic_sync_env`` fixture, so
+    it overrides that fixture's ``SPEC_KITTY_ENABLE_SAAS_SYNC=1`` pin -- the
+    canonical ``sync_disabled`` posture from ``tests/conftest.py``.
+    """
+    for var in _SYNC_POSTURE_ENV_VARS:
+        monkeypatch.delenv(var, raising=False)
+
+
+def test_status_reports_inactive_when_sync_off(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    """FR-014 inactive arm: ``sync status`` still loads and reports the disabled
+    posture (exit 0, read-only no-op) when SaaS sync is off.
+
+    A snapshot showing the ENABLED row here would be a frozen-wrong-arm defect --
+    the mirror of the Pd-1 concern the opt-in arms guard against.
+    """
+    _force_sync_inactive(monkeypatch)
+    _stub_render_seams(monkeypatch)
+    result = invoke("status")
+    assert result.exit_code == 0, result.output
+    rendered = _norm(result.output, tmp_path)
+    assert "Spec Kitty Sync Status" in rendered, "the status surface must still load"
+    assert "Disabled" in rendered, "the SaaS Sync row must report the inactive posture"
+    # The honest disabled notice names the opt-in env var (saas_sync_disabled_message).
+    assert "SPEC_KITTY_ENABLE_SAAS_SYNC" in rendered, "must tell the operator how to opt in"
+
+
+def test_now_reports_inactive_and_no_ops_when_sync_off(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    """FR-014 inactive arm: with the preflight satisfied but sync off, ``now``
+    prints the disabled notice and returns exit 0 -- it performs no sync work.
+
+    Complements ``test_now_saas_disabled_silent_skip_exit_0`` (which monkeypatches
+    ``is_saas_sync_enabled``): this drives the real env-var posture end to end.
+    """
+    _force_sync_inactive(monkeypatch)
+    monkeypatch.setattr(sync_preflight, "run_preflight", lambda *a, **k: SimpleNamespace(ok=True, render=lambda c: None))
+    result = invoke("now")
+    assert result.exit_code == 0, result.output
+    rendered = _norm(result.output, tmp_path)
+    assert "SPEC_KITTY_ENABLE_SAAS_SYNC" in rendered, "the disabled notice must name the opt-in var"
+
+
 @pytest.mark.parametrize("seam_name", SYNC_MONKEYPATCH_SEAM_NAMES)
 def test_seam_callees_resolve_on_module(seam_name: str) -> None:
     """Every documented seam MUST resolve as a ``sync.<name>`` attribute today.

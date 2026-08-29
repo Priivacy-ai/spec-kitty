@@ -26,6 +26,7 @@ import os
 from pathlib import Path
 
 from specify_cli.core.env import is_truthy
+from specify_cli.core.saas_sync_config import sync_active
 
 _EVENTS_MODULE = ".events"
 _FEATURE_FLAGS_MODULE = ".feature_flags"
@@ -342,7 +343,16 @@ def register_default_handlers() -> None:
     ``test_emit_backward_transition.py`` (which calls ``reset_handlers``
     in its teardown) poisoned subsequent ``test_lifecycle_events.py``
     tests that depend on the lifecycle SaaS fan-out being registered.
+
+    Gated at CALL-TIME on ``sync_active()`` (WP02 / FR-003, C-006): when the
+    legacy sync surface is not armed, register zero handlers and return. The
+    guard sits in the body (not at import-time and not a conditional
+    definition) so the function stays unconditionally callable and re-reads
+    the environment on every call — preserving the late-bind seam that lets
+    co-gate tests re-invoke it after toggling ``SPEC_KITTY_ENABLE_SAAS_SYNC``.
     """
+    if not sync_active():
+        return
     with _contextlib.suppress(ImportError):
         from specify_cli.status import register_dossier_sync_handler, register_lifecycle_saas_fanout_handler, register_saas_fanout_handler
 

@@ -31,7 +31,14 @@ from specify_cli.sync import _lifecycle_saas_fanout_handler
 # fast-tests-sync (tests/sync/, `-m "fast and not windows_ci"`) selects.
 # Without this marker the file is invisible to every CI gate (landing fold,
 # PR #2393 — same defect class caught on PR #2398's new test file).
-pytestmark = [pytest.mark.fast]
+from specify_cli.core.saas_sync_config import sync_active
+pytestmark = [
+    pytest.mark.fast,
+    pytest.mark.skipif(
+        not sync_active(),
+        reason="sync deactivated by default (#3799); set SPEC_KITTY_ENABLE_SAAS_SYNC=1 to run",
+    ),
+]
 
 
 def _envelope(event_type: str) -> dict[str, Any]:

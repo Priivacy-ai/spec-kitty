@@ -667,7 +667,7 @@ class TestSyncNowExitCodes:
         assert report["delivered"] == 1
         assert report["terminal_failed"] == 1
 
-    def test_strict_exits_1_on_auth_missing(self, monkeypatch):
+    def test_strict_exits_1_on_auth_missing(self, monkeypatch, sync_enabled):
         """Strict exits 1 when queue non-empty but all-zero result (auth missing).
 
         M7 (``handle_unauthenticated_with_teamspace``) split this contract in
@@ -698,7 +698,7 @@ class TestSyncNowExitCodes:
         assert res.exit_code == 1
         assert "not authenticated" in res.output
 
-    def test_strict_exits_4_when_teamspace_connected_and_auth_missing(self, monkeypatch):
+    def test_strict_exits_4_when_teamspace_connected_and_auth_missing(self, monkeypatch, sync_enabled):
         """M7: connected teamspace + non-interactive => structured stderr, exit 4.
 
         Mirrors :class:`tests.sync.test_sync_logged_out_recovery.TestSyncNowRecovery`

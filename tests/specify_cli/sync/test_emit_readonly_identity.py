@@ -34,7 +34,14 @@ import pytest
 from specify_cli.identity.project import load_identity
 from specify_cli.sync.events import emit_wp_status_changed, get_emitter, reset_emitter
 
-pytestmark = [pytest.mark.non_sandbox, pytest.mark.git_repo]
+from specify_cli.core.saas_sync_config import sync_active
+pytestmark = [
+    pytest.mark.non_sandbox, pytest.mark.git_repo,
+    pytest.mark.skipif(
+        not sync_active(),
+        reason="sync deactivated by default (#3799); set SPEC_KITTY_ENABLE_SAAS_SYNC=1 to run",
+    ),
+]
 
 _CONFIG_RELPATH = ".kittify/config.yaml"
 

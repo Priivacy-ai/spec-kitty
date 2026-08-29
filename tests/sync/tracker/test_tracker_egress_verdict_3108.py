@@ -76,7 +76,14 @@ from specify_cli.tracker.egress_verdict import (
 # no-import-time-`specify_cli.sync` pin below. The mission was adding a violator to an
 # always-on CI gate (WP07 review, MEDIUM-3). The test itself is genuinely quick (~0.17s), but
 # Rule 2 has no per-file escape hatch and the honest label is the one that matches behaviour.
-pytestmark = [pytest.mark.integration]
+from specify_cli.core.saas_sync_config import sync_active
+pytestmark = [
+    pytest.mark.integration,
+    pytest.mark.skipif(
+        not sync_active(),
+        reason="sync deactivated by default (#3799); set SPEC_KITTY_ENABLE_SAAS_SYNC=1 to run",
+    ),
+]
 
 DESTINATIONS = [EgressDestination.LOCAL_SUBPROCESS, EgressDestination.HOSTED_SERVICE]
 

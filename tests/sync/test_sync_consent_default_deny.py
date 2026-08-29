@@ -45,7 +45,14 @@ from specify_cli.sync.routing import (
     resolve_checkout_sync_routing_readonly,
 )
 
-pytestmark = [pytest.mark.unit, pytest.mark.fast]
+from specify_cli.core.saas_sync_config import sync_active
+pytestmark = [
+    pytest.mark.unit, pytest.mark.fast,
+    pytest.mark.skipif(
+        not sync_active(),
+        reason="sync deactivated by default (#3799); set SPEC_KITTY_ENABLE_SAAS_SYNC=1 to run",
+    ),
+]
 
 # A realistic owner/repo pair: consent must not depend on the slug looking
 # special, and this is the shape ``git_metadata.parse_repo_slug`` produces.

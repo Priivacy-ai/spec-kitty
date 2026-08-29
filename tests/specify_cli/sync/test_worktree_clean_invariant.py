@@ -68,7 +68,14 @@ from specify_cli.sync.events import emit_wp_status_changed, reset_emitter
 
 # Gate-selected markers so this file is actually run in CI (was a zero-gate #2034
 # orphan): it drives real git via ``subprocess`` (git_repo) and is integration-level.
-pytestmark = [pytest.mark.integration, pytest.mark.git_repo]
+from specify_cli.core.saas_sync_config import sync_active
+pytestmark = [
+    pytest.mark.integration, pytest.mark.git_repo,
+    pytest.mark.skipif(
+        not sync_active(),
+        reason="sync deactivated by default (#3799); set SPEC_KITTY_ENABLE_SAAS_SYNC=1 to run",
+    ),
+]
 
 _CONFIG_RELPATH = ".kittify/config.yaml"
 _MISSION_SLUG = "worktree-clean-invariant-01KWC9Y0"

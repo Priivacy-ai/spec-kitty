@@ -34,6 +34,7 @@ from typing import Any
 from rich.markup import escape as _escape_markup
 
 from specify_cli.auth.verdict import auth_verdict_from_flags
+from specify_cli.core.saas_sync_config import SAAS_SYNC_ENV_VAR, sync_active
 from specify_cli.sync.sync_store_report_core import (
     _per_project_store_issues,
     channel1_state_wording,
@@ -75,6 +76,19 @@ _ACCESS_EXPIRED_ISSUE = (
     "Token will auto-refresh on next sync attempt."
 )
 _SINGLETON_SCAN_SUFFIX = ". Retry the scan or stop sync before trusting queue health."
+
+#: WP02 / FR-018 — advisory (NOT an issue: it must not flip ``healthy``) shown
+#: when the legacy sync surface is inactive (the opt-in default). Copy is
+#: verified against the docs in WP08.
+_SYNC_INACTIVE_ADVISORY = (
+    f"Legacy local sync is inactive on this machine (opt-in). "
+    f"Set `{SAAS_SYNC_ENV_VAR}=1` to arm sync; it stays off otherwise."
+)
+_SYNC_INACTIVE_ORPHAN_HINT = (
+    "Deactivation prevents an *implicit* daemon spawn but does not stop a daemon "
+    "left running by a prior opted-in session. If one is still up, retire it with "
+    "`spec-kitty doctor restart-daemon` or stop the orphaned process."
+)
 
 #: Per-project journal open/group failures — mirror of ``_render_per_project_store``
 #: (``sync_render.py``); guarded by ``test_doctor_names_the_journal_it_could_not_{open,group}``.
@@ -177,14 +191,23 @@ class DoctorReport:
     ``issues`` is empty iff the sync surface is healthy. ``auth_missing`` mirrors
     the pre-restructure teamspace-recovery predicate (session absent, or any issue
     mentioning ``auth login`` / ``expired``) and gates the exit-4 recovery arm.
+
+    ``advisories`` (WP02 / FR-018) carries non-fault informational lines — e.g.
+    the sync-inactive advisory. Advisories DO NOT affect ``healthy``: an inactive
+    sync surface is the opt-in default, not a defect.
     """
 
     issues: list[str] = field(default_factory=list)
     auth_missing: bool = False
+    advisories: list[str] = field(default_factory=list)
 
     @property
     def healthy(self) -> bool:
-        """``True`` when no issue was surfaced (the "Sync is healthy" arm)."""
+        """``True`` when no issue was surfaced (the "Sync is healthy" arm).
+
+        Advisories are deliberately excluded — they are informational, not
+        faults, so the sync-inactive default stays healthy (FR-018).
+        """
         return not self.issues
 
 
@@ -348,6 +371,20 @@ def _auth_missing(session_present: bool, issues: list[str]) -> bool:
     return not session_present or any("auth login" in issue or "expired" in issue for issue in issues)
 
 
+def _sync_inactive_advisories() -> list[str]:
+    """WP02 / FR-018: advisory lines when the legacy sync surface is inactive.
+
+    Returns an empty list when sync is armed (``sync_active()`` is True). When
+    inactive — the opt-in default — returns the opt-in advisory plus an
+    orphaned-daemon cleanup hint (deactivation blocks an *implicit* spawn but
+    cannot kill a daemon a prior opted-in session left running). These are
+    advisories, never issues, so ``DoctorReport.healthy`` is unaffected.
+    """
+    if sync_active():
+        return []
+    return [_SYNC_INACTIVE_ADVISORY, _SYNC_INACTIVE_ORPHAN_HINT]
+
+
 def build_doctor_report(facts: DoctorFacts) -> DoctorReport:
     """Decide ``doctor``'s ordered ``issues`` list + verdicts from gathered facts.
 
@@ -365,7 +402,11 @@ def build_doctor_report(facts: DoctorFacts) -> DoctorReport:
     issues.extend(_consent_issues(facts))
     issues.extend(_tracker_issues(facts))
     issues.extend(_orphan_record_issues(facts))
-    return DoctorReport(issues=issues, auth_missing=_auth_missing(facts.session_present, issues))
+    return DoctorReport(
+        issues=issues,
+        auth_missing=_auth_missing(facts.session_present, issues),
+        advisories=_sync_inactive_advisories(),
+    )
 
 
 def doctor_token_flags(session: Any, now: datetime) -> tuple[bool, bool]:

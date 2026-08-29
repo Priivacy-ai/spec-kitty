@@ -46,7 +46,14 @@ _UUID_B = "bbbbbbbb-2222-2222-2222-222222222222"
 # _RawCensus — the shared pure data shape
 # --------------------------------------------------------------------------- #
 
-pytestmark = [pytest.mark.fast]
+from specify_cli.core.saas_sync_config import sync_active
+pytestmark = [
+    pytest.mark.fast,
+    pytest.mark.skipif(
+        not sync_active(),
+        reason="sync deactivated by default (#3799); set SPEC_KITTY_ENABLE_SAAS_SYNC=1 to run",
+    ),
+]
 
 
 def test_raw_census_count_sums_only_the_named_keys() -> None:

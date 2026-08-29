@@ -2,7 +2,7 @@
 title: Environment Variables Reference
 description: Environment variable reference for Spec Kitty 3.2 runtime, CI, hosted sync, tracker, dashboard, and test configuration.
 doc_status: active
-updated: '2026-08-16'
+updated: '2026-08-29'
 related:
 - docs/api/cli-commands.md
 - docs/api/configuration.md
@@ -192,7 +192,16 @@ Opt in to hosted auth, tracker, and sync flows.
 **Scope**: machine-global (see the warning above). Enabling it is not a
 per-repository decision.
 
-**Purpose**: Enables the SaaS-backed readiness path. Leave it unset for fully local CLI workflows.
+**Purpose**: The legacy local-sync surface is **inactive by default** — a bare
+install spawns no sync daemon and emits no events. Set this variable to `1` to
+**opt in** and arm sync (the SaaS-backed readiness path); leave it unset for
+fully local CLI workflows. Existing users who relied on the previous
+default-on behavior must set this to retain the daemon and event emission.
+
+Arming is machine-level and is strictly upstream of — never a replacement for —
+the per-project egress *consent* gate (`spec-kitty sync opt-in` / `opt-out`).
+When armed, egress still defers to per-project consent. See
+[ADR: egress-consent boundary](../adr/3.x/2026-08-04-1-egress-consent-boundary.md).
 
 **Example**:
 ```bash
@@ -232,6 +241,72 @@ spec-kitty auth login
 - [Launch-Readiness Behavior (Coming Soon)](../architecture/launch-readiness-future.md)
   -- the override remains internal-only after launch; only the
   user-facing default URL changes.
+
+---
+
+### SPEC_KITTY_SYNC_DISABLE
+
+Force the sync surface **off** regardless of any opt-in.
+
+**Purpose**: A hard kill switch. When set to a truthy value it wins over
+`SPEC_KITTY_ENABLE_SAAS_SYNC` — sync stays inactive even if the opt-in flag is
+also set (disable wins). Because sync is already inactive by default, this is
+only meaningful on a machine that has opted in and wants a per-invocation or
+per-shell override back to off.
+
+**Example**:
+```bash
+export SPEC_KITTY_SYNC_DISABLE=1
+spec-kitty sync status   # reports inactive
+```
+
+### SPEC_KITTY_SYNC_MINIMAL_IMPORT
+
+Force the sync surface **off** and skip its heavy imports.
+
+**Purpose**: Set by the daemon child to avoid eager heavy imports during spawn;
+as an operator toggle it behaves like `SPEC_KITTY_SYNC_DISABLE` for arming
+purposes — it forces sync inactive, and disable wins over the opt-in.
+
+**Example**:
+```bash
+export SPEC_KITTY_SYNC_MINIMAL_IMPORT=1
+```
+
+### Sync activation precedence
+
+Whether the legacy local-sync surface is *armed* is a single predicate:
+
+```
+sync_active = SPEC_KITTY_ENABLE_SAAS_SYNC AND NOT (SPEC_KITTY_SYNC_DISABLE OR SPEC_KITTY_SYNC_MINIMAL_IMPORT)
+```
+
+| `ENABLE_SAAS_SYNC` | `SYNC_DISABLE` / `SYNC_MINIMAL_IMPORT` | Sync active? |
+|---|---|---|
+| unset (default) | any | **no** (inactive by default) |
+| set (`1`) | unset | **yes** (armed) |
+| set (`1`) | set | **no** (disable wins) |
+
+Arming (`sync_active`) is strictly upstream of the per-project egress *consent*
+gate — it never replaces or weakens consent (see
+[ADR: egress-consent boundary](../adr/3.x/2026-08-04-1-egress-consent-boundary.md)).
+
+### SPEC_KITTY_PRE_REVIEW_GATE_DISABLE
+
+Disable the pre-review regression gate for `move-task --to for_review`.
+
+**Purpose**: This is a **gate** flag, not a sync flag. The synchronous
+pre-review regression gate that runs on the `for_review` transition previously
+rode the shared sync toggles; as of #2801 it has its own dedicated,
+independent env. Setting it to a truthy value skips the gate process-wide;
+the sync toggles above no longer affect it. A machine that disabled sync must
+still enforce the review gate — hence the clean separation.
+
+**Example**:
+```bash
+export SPEC_KITTY_PRE_REVIEW_GATE_DISABLE=1
+spec-kitty agent tasks move-task WP01 --to for_review
+```
 
 ---
 
@@ -486,7 +561,10 @@ The codebase also contains test and harness overrides such as `SPEC_KITTY_TEST_M
 | `SPECIFY_TEMPLATE_REPO` | Use a custom remote template repo | `org/templates` |
 | `SPEC_KITTY_NON_INTERACTIVE` | Disable prompts | `1` |
 | `SPEC_KITTY_WORKTREE_REMOVAL_DELAY` | Delay worktree cleanup | `10` |
-| `SPEC_KITTY_ENABLE_SAAS_SYNC` | Opt in to hosted sync/auth flows | `1` |
+| `SPEC_KITTY_ENABLE_SAAS_SYNC` | Opt in to hosted sync/auth flows (inactive by default) | `1` |
+| `SPEC_KITTY_SYNC_DISABLE` | Force sync off (disable wins over the opt-in) | `1` |
+| `SPEC_KITTY_SYNC_MINIMAL_IMPORT` | Force sync off + skip heavy imports (disable wins) | `1` |
+| `SPEC_KITTY_PRE_REVIEW_GATE_DISABLE` | Disable the pre-review regression gate (gate flag, not sync) | `1` |
 | `SPEC_KITTY_SAAS_URL` | Override hosted base URL | `https://spec-kitty-dev.fly.dev` |
 | `SPEC_KITTY_PRERELEASE` | Opt in to the pre-release (rc) consumer channel | `1` |
 | `SPEC_KITTY_NO_NAG` | Disable upgrade notices | `1` |

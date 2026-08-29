@@ -31,7 +31,14 @@ from specify_cli.sync.history_import.synthesize import (
     synthesize_streams,
 )
 
-pytestmark = pytest.mark.fast
+from specify_cli.core.saas_sync_config import sync_active
+pytestmark = [
+    pytest.mark.fast,
+    pytest.mark.skipif(
+        not sync_active(),
+        reason="sync deactivated by default (#3799); set SPEC_KITTY_ENABLE_SAAS_SYNC=1 to run",
+    ),
+]
 
 _REPO_ROOT = Path(__file__).resolve().parents[2]
 _SPECS = _REPO_ROOT / "kitty-specs"

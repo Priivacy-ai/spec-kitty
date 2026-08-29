@@ -21,9 +21,9 @@ import urllib.request
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
+from specify_cli.core.saas_sync_config import sync_active
 from specify_cli.status import WPStatusChangeMetadata
 
-from .feature_flags import is_saas_sync_enabled
 
 if TYPE_CHECKING:
     from .emitter import EventEmitter, TokenUsageMetadata
@@ -48,7 +48,7 @@ def _resolve_repo_root() -> Path | None:
 
 def _ensure_dashboard_sync_daemon(repo_root: Path | None, *, ensure_daemon: bool = True) -> None:
     """Keep the machine-global sync daemon alive for authenticated sync sessions."""
-    if not ensure_daemon or repo_root is None or not is_saas_sync_enabled():
+    if not ensure_daemon or repo_root is None or not sync_active():
         return
 
     if not (repo_root / ".kittify").is_dir():
@@ -106,7 +106,12 @@ def _ensure_dashboard_sync_daemon_for_active_project(*, ensure_daemon: bool = Tr
 
 def _request_dashboard_sync(repo_root: Path | None) -> None:
     """Ask the machine-global sync daemon to flush queued work soon."""
-    if repo_root is None or not is_saas_sync_enabled():
+    # WP02 / FR-005, C-008: machine-arming gate routed through the single
+    # canonical ``sync_active()`` predicate, REPLACING the prior bare
+    # ``is_saas_sync_enabled()`` check (not stacked). Real egress refusal still
+    # lives downstream in ``SyncRuntime.publish_event``, so this is strictly
+    # stricter — INV-2 (arming ⊂ upstream of consent) holds.
+    if repo_root is None or not sync_active():
         return
 
     try:
@@ -179,7 +184,12 @@ def _publish_event_via_sync_daemon(event: dict[str, Any], repo_root: Path | None
     socket into a long-lived machine-global daemon that may be running an older build
     than the CLI that is talking to it.
     """
-    if repo_root is None or not is_saas_sync_enabled():
+    # WP02 / FR-005, C-008: machine-arming gate routed through the single
+    # canonical ``sync_active()`` predicate, REPLACING the prior bare
+    # ``is_saas_sync_enabled()`` check (not stacked). The per-event consent gate
+    # (``event_project_consents_to_publish``) and the far-end refusal in
+    # ``SyncRuntime.publish_event`` are unchanged — INV-2 holds.
+    if repo_root is None or not sync_active():
         return
 
     from .runtime import event_project_consents_to_publish

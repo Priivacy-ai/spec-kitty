@@ -24,7 +24,14 @@ from specify_cli.sync.project_store_migration import (
 )
 
 
-pytestmark = [pytest.mark.integration]
+from specify_cli.core.saas_sync_config import sync_active
+pytestmark = [
+    pytest.mark.integration,
+    pytest.mark.skipif(
+        not sync_active(),
+        reason="sync deactivated by default (#3799); set SPEC_KITTY_ENABLE_SAAS_SYNC=1 to run",
+    ),
+]
 PROJECT_A = "a1a1a1a1-a1a1-41a1-81a1-a1a1a1a1a1a1"
 PROJECT_B = "b2b2b2b2-b2b2-42b2-82b2-b2b2b2b2b2b2"
 

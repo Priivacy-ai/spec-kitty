@@ -9,7 +9,14 @@ from __future__ import annotations
 import pytest
 
 
-pytestmark = [pytest.mark.unit]
+from specify_cli.core.saas_sync_config import sync_active
+pytestmark = [
+    pytest.mark.unit,
+    pytest.mark.skipif(
+        not sync_active(),
+        reason="sync deactivated by default (#3799); set SPEC_KITTY_ENABLE_SAAS_SYNC=1 to run",
+    ),
+]
 
 @pytest.mark.windows_ci
 def test_sync_daemon_paths_under_localappdata() -> None:

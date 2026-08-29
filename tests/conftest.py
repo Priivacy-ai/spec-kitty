@@ -205,22 +205,18 @@ def pytest_addoption(parser: pytest.Parser) -> None:
 def pytest_configure(config: pytest.Config) -> None:
     os.environ.setdefault(_REAL_HOME_ENV_VAR, str(Path.home()))
 
-    # #3213: set the SaaS-sync feature flag ONCE, collection-wide, before any test
-    # module is imported. Import-time ``@pytest.mark.skipif(not
-    # os.environ.get("SPEC_KITTY_ENABLE_SAAS_SYNC"))`` gates are evaluated at
-    # collection, which the per-test autouse ``_enable_saas_sync_feature_flag``
-    # fixture (a setup-time monkeypatch) is too late to satisfy. Previously six
-    # docs/architectural modules set it at import via their own
-    # ``os.environ.setdefault``, so whether the gate fired depended on whether
-    # one of those modules happened to be collected — ``pytest tests/ -m
-    # regression`` enforced it, ``pytest tests/regression`` did not. Setting it
-    # here is the single collection-time authority, so a given node's skip/run
-    # decision is the same under every selection. (Historically this also
-    # re-exposed the then-open #2782 P0 red under ``pytest tests/regression``;
-    # #2782 has since been resolved and its reproduction retired, so nothing in
-    # ``tests/regression`` is red today — but the invariant still governs every
-    # other import-time SaaS-sync gate.)
-    os.environ.setdefault("SPEC_KITTY_ENABLE_SAAS_SYNC", "1")
+    # WP04 (sync-deactivate-by-default, FR-010): the suite's DEFAULT posture is
+    # now sync-OFF. We deliberately do NOT set ``SPEC_KITTY_ENABLE_SAAS_SYNC``
+    # here, so the WP05 collection-time ``@pytest.mark.skipif(not
+    # os.environ.get("SPEC_KITTY_ENABLE_SAAS_SYNC"))`` gates actually fire.
+    #
+    # Collection-time opt-in (the #3213 lesson): a fixture runs too late to
+    # affect ``skipif``, which is evaluated at collection. Any run that needs
+    # the sync suite SELECTED must set the flag as a process-level env var
+    # BEFORE collection — the ``fast-tests-sync`` CI step does exactly this
+    # (``.github/workflows/ci-quality.yml``, ``env: SPEC_KITTY_ENABLE_SAAS_SYNC:
+    # "1"``). Individual tests that need sync ACTIVE at call time (no skipif on
+    # them) opt in via the ``sync_enabled`` fixture below.
 
     # WP04: isolate this worker's home BEFORE collection so modules that bind a
     # home-derived path at import time (e.g. ``daemon.py`` calling
@@ -424,10 +420,47 @@ def canonical_home(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
     monkeypatch.setenv("SPEC_KITTY_HOME", str(home))
 
 
-@pytest.fixture(autouse=True)
-def _enable_saas_sync_feature_flag(monkeypatch: pytest.MonkeyPatch) -> None:
-    """Keep legacy sync/auth tests enabled unless a test opts out explicitly."""
+# WP04 (sync-deactivate-by-default, FR-010): the three env vars that govern the
+# SaaS-sync posture. ``sync_enabled`` / ``sync_disabled`` toggle exactly these
+# and nothing else, so the ``sync_module.<name>`` late-bind seam (C-006) keeps
+# reading a real env var — the fixtures set env, they never monkeypatch the
+# ``sync_active`` predicate.
+_SAAS_SYNC_DISABLE_ENV_VARS = (
+    "SPEC_KITTY_SYNC_DISABLE",
+    "SPEC_KITTY_SYNC_MINIMAL_IMPORT",
+)
+
+
+@pytest.fixture
+def sync_enabled(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Opt this test into an ACTIVE SaaS-sync posture (call-time).
+
+    Sets ``SPEC_KITTY_ENABLE_SAAS_SYNC=1`` and clears the disable / minimal-import
+    escape hatches for the duration of the test, then ``monkeypatch`` restores the
+    prior environment. This is the replacement for the retired autouse
+    ``_enable_saas_sync_feature_flag`` — the suite default is now sync-OFF (FR-010),
+    so a test that needs sync active must request this fixture explicitly.
+
+    Sets env only; it never patches ``sync_active`` so the ``sync_module.<name>``
+    late-bind co-gate (C-006) keeps working. NOTE: this is call-time — it cannot
+    satisfy a collection-time ``skipif``; that opt-in is a CI-step env var (#3213).
+    """
     monkeypatch.setenv("SPEC_KITTY_ENABLE_SAAS_SYNC", "1")
+    for var in _SAAS_SYNC_DISABLE_ENV_VARS:
+        monkeypatch.delenv(var, raising=False)
+
+
+@pytest.fixture
+def sync_disabled(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Force an INACTIVE SaaS-sync posture for this test (call-time).
+
+    Ensures all three sync env vars are unset so ``sync_active()`` reads False,
+    even if a process-level opt-in (e.g. the ``fast-tests-sync`` CI env var) is
+    present. Sets/clears env only — the late-bind seam (C-006) is preserved.
+    """
+    monkeypatch.delenv("SPEC_KITTY_ENABLE_SAAS_SYNC", raising=False)
+    for var in _SAAS_SYNC_DISABLE_ENV_VARS:
+        monkeypatch.delenv(var, raising=False)
 
 
 @pytest.fixture(autouse=True)

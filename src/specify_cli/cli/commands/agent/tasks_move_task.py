@@ -60,6 +60,7 @@ from __future__ import annotations
 
 import contextlib
 import logging
+import os
 import traceback
 import warnings
 from collections.abc import Callable, Mapping
@@ -117,7 +118,7 @@ from specify_cli.coordination.atomic_write import (
 )
 from specify_cli.core.commit_guard import GuardCapability
 from specify_cli.core.constants import KITTY_SPECS_DIR
-from specify_cli.core.env import first_set_sync_disable_env
+from specify_cli.core.env import is_truthy
 from specify_cli.core.paths import assert_safe_path_segment, is_worktree_context
 from specify_cli.core.vcs.git import merge_base_changed_files
 from specify_cli.mission_metadata import resolve_mission_identity
@@ -984,14 +985,21 @@ def _mt_pre_review_block_enabled(main_repo_root: Path) -> bool:
     return bool(_mt_review_config_section(main_repo_root).get(_PRE_REVIEW_CONFIG_KEY_BLOCK, False))
 
 
-def _mt_pre_review_gate_env_disable_reason() -> str | None:
-    """#2573 FR-002: the first honored disable env var, or ``None`` if none set.
+_PRE_REVIEW_GATE_DISABLE_ENV = "SPEC_KITTY_PRE_REVIEW_GATE_DISABLE"
 
-    The gate honors the SAME sync-disable vocabulary as the daemon (``core.env.
-    SYNC_DISABLE_ENV_VARS``) rather than inventing a third env var.
+
+def _mt_pre_review_gate_env_disable_reason() -> str | None:
+    """#2801 FR-009: the gate's OWN disable env, or ``None`` if unset.
+
+    The pre-review regression gate is governed SOLELY by
+    ``SPEC_KITTY_PRE_REVIEW_GATE_DISABLE`` — a gate flag, not a sync flag. The
+    sync-disable toggles (``SPEC_KITTY_SYNC_DISABLE`` / ``SPEC_KITTY_SYNC_MINIMAL_IMPORT``)
+    have no effect here: a machine that disabled sync must still enforce the
+    review gate (#2801 clean-cut).
     """
-    env_var = first_set_sync_disable_env()
-    return f"{env_var} is set" if env_var else None
+    if is_truthy(os.environ.get(_PRE_REVIEW_GATE_DISABLE_ENV)):
+        return f"{_PRE_REVIEW_GATE_DISABLE_ENV} is set"
+    return None
 
 
 def _mt_pre_review_gate_skip_reason(st: _MoveTaskState) -> str | None:
