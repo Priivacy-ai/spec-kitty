@@ -908,6 +908,14 @@ class TestStrictShellPidGate:
 
     def test_strict_accept_passes_for_done_wps_without_shell_pid(self, tmp_path: Path) -> None:
         feature_dir = _setup_feature(tmp_path, all_done=True, wp_ids=["WP01", "WP02"])
+        # Seed the software-dev path-convention dirs so accept's path gate is
+        # satisfied deterministically. Without this the gate's outcome depends on
+        # ambient mission-config resolution (#3016 residual) -- it fires in a plain
+        # local run but no-ops in CI's remote-less fixture (non-hermetic).
+        for _rel in ("src", "tests", "docs", "kitty-specs/099-test-feature/contracts"):
+            _dir = tmp_path / _rel
+            _dir.mkdir(parents=True, exist_ok=True)
+            (_dir / ".gitkeep").write_text("", encoding="utf-8")
         tasks_dir = feature_dir / "tasks"
         # Orchestrator-style: done WPs with NO shell_pid stamped.
         for wp in ["WP01", "WP02"]:

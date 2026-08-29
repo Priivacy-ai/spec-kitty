@@ -82,6 +82,23 @@ def _approve_wp(feature_repo: Path, mission_slug: str, wp_id: str) -> None:
     )
 
 
+def _seed_convention_dirs(feature_repo: Path, mission_slug: str) -> None:
+    """Seed the software-dev path-convention dirs so accept's path gate is
+    satisfied deterministically.
+
+    Without this, the gate's outcome depends on ambient mission-config
+    resolution (#3016 residual): it fires in a plain local ``pytest`` run but
+    no-ops in CI's remote-less fixture, making these accept tests non-hermetic.
+    Seeding a realistic software-dev layout (src/ tests/ docs/ + the mission's
+    contracts/) pins the gate to *satisfied* in every environment. The
+    negative-path test injects its own mission and is unaffected.
+    """
+    for rel in ("src", "tests", "docs", f"kitty-specs/{mission_slug}/contracts"):
+        target = feature_repo / rel
+        target.mkdir(parents=True, exist_ok=True)
+        (target / ".gitkeep").write_text("", encoding="utf-8")
+
+
 def _force_lane(feature_repo: Path, mission_slug: str, wp_id: str, to_lane: str) -> None:
     """Force ``wp_id`` into ``to_lane`` via the canonical status engine.
 
@@ -165,6 +182,7 @@ def test_accept_command_reports_approved_wps_without_closing(
 
     monkeypatch.setattr(status_emit, "_saas_fan_out", lambda *args, **kwargs: None)
     _write_acceptance_meta(feature_repo, mission_slug)
+    _seed_convention_dirs(feature_repo, mission_slug)
     write_wp(feature_repo, mission_slug, "planned", "WP02")
     run(["git", "add", "."], cwd=feature_repo)
     run(["git", "commit", "-m", "Add second WP and meta"], cwd=feature_repo)
@@ -253,6 +271,7 @@ def test_accept_no_commit_reports_merge_pending_without_mutation(
 
     monkeypatch.setattr(status_emit, "_saas_fan_out", lambda *args, **kwargs: None)
     _write_acceptance_meta(feature_repo, mission_slug)
+    _seed_convention_dirs(feature_repo, mission_slug)
     run(["git", "add", "."], cwd=feature_repo)
     run(["git", "commit", "-m", "Add meta"], cwd=feature_repo)
     _approve_wp(feature_repo, mission_slug, "WP01")
@@ -504,6 +523,7 @@ def test_accept_does_not_require_done_evidence_for_approved_wp(
 
     monkeypatch.setattr(status_emit, "_saas_fan_out", lambda *args, **kwargs: None)
     _write_acceptance_meta(feature_repo, mission_slug)
+    _seed_convention_dirs(feature_repo, mission_slug)
     run(["git", "add", "."], cwd=feature_repo)
     run(["git", "commit", "-m", "Add meta"], cwd=feature_repo)
 
