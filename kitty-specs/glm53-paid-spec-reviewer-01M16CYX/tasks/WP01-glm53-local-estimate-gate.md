@@ -12,11 +12,9 @@ requirement_refs:
 - FR-007
 - FR-008
 - FR-009
-tracker_refs:
-- tmgsp-eup
 planning_base_branch: codex/glm53-paid-spec-reviewer
 merge_target_branch: codex/glm53-paid-spec-reviewer
-branch_strategy: Все изменения выполняются последовательно в task-owned ветке codex/glm53-paid-spec-reviewer и остаются в ней до отдельного PR lifecycle.
+branch_strategy: Planning artifacts for this mission were generated on codex/glm53-paid-spec-reviewer. During /spec-kitty.implement this WP may branch from a dependency-specific base, but completed changes must merge back into codex/glm53-paid-spec-reviewer unless the human explicitly redirects the landing branch.
 subtasks:
 - T001
 - T002
@@ -24,16 +22,14 @@ subtasks:
 - T004
 - T005
 phase: Phase 1 - Реализация и проверка
-assignee: ''
-agent: ''
-shell_pid: ''
 history:
 - at: '2026-08-29T09:33:00Z'
   actor: codex
   action: Пакет сформирован после согласования исправленного денежного контракта
 agent_profile: python-pedro
 authoritative_surface: src/specify_cli/spec_review/
-create_intent: []
+create_intent:
+- src/specify_cli/spec_review/assets/spec-review-run-v2.schema.yaml
 execution_mode: code_change
 model: ''
 owned_files:
@@ -43,7 +39,7 @@ owned_files:
 - src/specify_cli/spec_review/runner.py
 - src/specify_cli/spec_review/service.py
 - src/specify_cli/spec_review/storage.py
-- src/specify_cli/spec_review/contracts/spec-review-run-v1.schema.yaml
+- src/specify_cli/spec_review/assets/spec-review-run-v2.schema.yaml
 - tests/specify_cli/spec_review/
 - tests/integration/test_spec_review_integration.py
 - docs/guides/spec-review.md
@@ -53,6 +49,8 @@ tags:
 - cost-control
 - compatibility
 task_type: implement
+tracker_refs:
+- tmgsp-eup
 ---
 
 # Work Package Prompt: WP01 – Локальный порог advertised-оценки для GLM 5.3
