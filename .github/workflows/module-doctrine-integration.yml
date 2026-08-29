@@ -42,7 +42,7 @@ jobs:
             tests/doctrine/ \
             -m "integration and not windows_ci" \
             -n auto --dist loadfile -p no:cacheprovider \
-            --cov=doctrine --cov=charter \
+            --cov=charter.offering --cov=charter \
             --cov-report=xml:out/reports/coverage/coverage-integration-doctrine.xml \
             --junitxml=out/reports/xunit-reports/xunit-result-integration-doctrine-${{ github.run_id }}.xml
 

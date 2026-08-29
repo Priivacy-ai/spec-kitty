@@ -730,7 +730,7 @@ filtered `agent_profiles` dict, so they go through the pinned
 `agent_profile_repository` accessor instead of `raw_repository("agent_profiles")`:
 
 ```python
-from doctrine.agent_profiles.profile import TaskContext
+from charter.offering.agent_profiles.profile import TaskContext
 
 context = TaskContext(
     language="python",
@@ -755,7 +755,7 @@ Each mission action (specify, plan, implement, review) has an action index
 that lists which doctrine artifacts are relevant to that step:
 
 ```python
-from doctrine.missions.action_index import load_action_index
+from charter.offering.missions.action_index import load_action_index
 
 index = load_action_index(missions_root, "software-dev", "implement")
 # index.directives → ["TEST_FIRST"]

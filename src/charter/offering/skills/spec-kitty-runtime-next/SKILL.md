@@ -290,7 +290,7 @@ artifacts are relevant to the current step. Load the index to discover what
 to pull:
 
 ```python
-from doctrine.missions.action_index import load_action_index
+from charter.offering.missions.action_index import load_action_index
 
 index = load_action_index(missions_root, "software-dev", "implement")
 # index.directives → ["TEST_FIRST", ...]
