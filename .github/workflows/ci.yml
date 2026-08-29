@@ -39,8 +39,13 @@ jobs:
           if [ -z "$GH_TOKEN" ]; then
             echo "::error::org secret SK_CI_TOKEN is missing (fine-grained PAT: contents read on the EXPERIMENTAL-* repos, write on planning; issues+pull-requests write). See planning docs/BLACKSMITH-CI.md." ; exit 1
           fi
+          # System-wide, not --global: the suites' clean-venv install tests run subprocesses with an isolated
+          # HOME (pip pulling the private spec-kitty-events git dependency), so a per-user helper is invisible
+          # to them. exe VMs get the same effect from /etc/gitconfig's insteadOf rewrite onto the proxy.
+          sudo git config --system credential.helper '!gh auth git-credential'
+          sudo git config --system user.name sk-agent; sudo git config --system user.email sk-agent@spec-kitty.ai
           gh auth setup-git
-          git config --global user.name sk-agent; git config --global user.email sk-agent@spec-kitty.ai
+          echo "GIT_TERMINAL_PROMPT=0" >> "$GITHUB_ENV"
       - name: Resolve target
         id: t
         run: |
