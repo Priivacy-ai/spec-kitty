@@ -219,6 +219,12 @@ _TASKS_MOVE_TASK: tuple[str, ...] = (
     "_mt_reassignment_binding_fields",
     "_mt_resolve_current_agent",
     "_mt_hop_policy_metadata",
+    # governance-at-the-gate WP04 (#3682, FR-006, IC-04): the APPROVED/DONE
+    # hop's policy_metadata sidecar builder and the per-hop review_ref
+    # resolver (derives review_ref from the SAME hop_review_result object
+    # used as review_result, so the two can never diverge) (81 -> 83).
+    "_mt_approval_policy_metadata",
+    "_mt_hop_review_ref",
     "_mt_plan_review_result",
     "_mt_rollback_subtasks_reset",
     "_mt_shell_pid_baseline",
@@ -542,7 +548,12 @@ def test_guard_covers_full_163_symbol_surface() -> None:
     161 -> 162. #3590 WP01 (operator-authored cancellation provenance) added
     ``_mt_hop_reason_source`` — the reason_source resolver feeding the
     status-event hop, a native move-task seam def: 162 -> 163 on the
-    experimental convergence base."""
+    experimental convergence base. governance-at-the-gate WP04 (#3682,
+    FR-006, IC-04) added
+    ``_mt_approval_policy_metadata`` and ``_mt_hop_review_ref`` — the
+    APPROVED/DONE approval-gate policy_metadata sidecar builder and the
+    per-hop review_ref resolver that derives from the SAME hop_review_result
+    object used as review_result (tasks_move_task 81 -> 83): 163 -> 165."""
     # TODO(under-investigation, operator-flagged): the operator doubts this
     # consolidated compat guard earns its ROI. Every seam-local symbol addition
     # costs a three-part edit — register in the per-seam tuple, add an identity
@@ -550,4 +561,4 @@ def test_guard_covers_full_163_symbol_surface() -> None:
     # low incremental regression-catch value over the identity-re-export guard
     # alone. Revisit whether the golden-count ratchet should be relaxed or
     # dropped (see M4 #3578 integration, which paid this tax for 4 helpers).
-    assert len(SYMBOL_TO_MODULE) == 163  # golden-count: cardinality-is-contract
+    assert len(SYMBOL_TO_MODULE) == 165  # golden-count: cardinality-is-contract
