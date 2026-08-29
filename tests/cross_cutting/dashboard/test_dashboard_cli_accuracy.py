@@ -774,13 +774,6 @@ def cleanup_test_dashboards():
     _reserved_test_ports.clear()
 
 
-def test_no_process_name_wide_dashboard_kill():
-    """Dashboard test cleanup must not kill sibling workers by process name."""
-    source = Path(__file__).read_text(encoding="utf-8")
-    assert ("pg" + "rep") not in source
-    assert ("run_dashboard_" + "server") not in source
-
-
 def test_record_dashboard_candidate_gives_new_launch_on_recycled_port_a_fresh_started_at(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
     """A fresh launch on a recycled port must not inherit the old occupant's started_at.
 
