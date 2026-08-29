@@ -1,0 +1,14 @@
+{
+  "created_at": "2026-08-29T09:17:40.063285+00:00",
+  "flattened": false,
+  "friendly_name": "glm53 paid spec reviewer",
+  "mission_id": "01M16CYXTSKX0XZK7YGK3HW8E3",
+  "mission_number": null,
+  "mission_slug": "glm53-paid-spec-reviewer-01M16CYX",
+  "mission_type": "software-dev",
+  "purpose_context": "This mission advances glm53 paid spec reviewer on codex/glm53-paid-spec-reviewer so stakeholders can track the work from mission creation onward.",
+  "purpose_tldr": "glm53 paid spec reviewer",
+  "slug": "glm53-paid-spec-reviewer-01M16CYX",
+  "target_branch": "codex/glm53-paid-spec-reviewer",
+  "topology": "single_branch"
+}
