@@ -163,9 +163,7 @@ class TestLoadSettings:
         assert str(moments_config) in settings.agents_source
         assert "unparseable" in settings.agents_source
 
-    def test_corrupt_global_file_cannot_be_widened_by_a_valid_repo_file(
-        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
+    def test_corrupt_global_file_cannot_be_widened_by_a_valid_repo_file(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
         """An unparseable global file might have said `agents = "off"`; a
         repo file that validly sets `team` must not win over that
         uncertainty — the scope with the parse error still fails closed."""
@@ -324,6 +322,50 @@ class TestEventExtraction:
     def test_event_kind_absent_or_empty_is_none(self) -> None:
         assert moments.event_kind({}) is None
         assert moments.event_kind({"kind": ""}) is None
+
+
+class TestUnknownKindNames:
+    """#210: a ``kinds`` entry must spell the raw wire family name
+    (``WPStatusChanged``, …), never the dotted style #190's own text used
+    (``wp.move``) — :func:`moments.unknown_kind_names` is how that mismatch
+    becomes visible instead of a silent zero-moments filter."""
+
+    def test_known_family_names_are_not_flagged(self) -> None:
+        assert moments.unknown_kind_names(("WPStatusChanged", "MissionCreated")) == ()
+
+    def test_dotted_spelling_from_190_is_flagged(self) -> None:
+        assert moments.unknown_kind_names(("wp.move", "mission.created")) == ("wp.move", "mission.created")
+
+    def test_mixed_known_and_unknown_flags_only_the_unknown_order_preserving(self) -> None:
+        assert moments.unknown_kind_names(("WPStatusChanged", "wp.move", "MissionCreated")) == ("wp.move",)
+
+    def test_empty_kinds_flags_nothing(self) -> None:
+        assert moments.unknown_kind_names(()) == ()
+
+    def test_known_kind_names_matches_the_volatile_vocabulary(self) -> None:
+        from spec_kitty_events.zeitgeist_attrs import VOLATILE_EVENT_TYPES
+
+        assert moments.KNOWN_KIND_NAMES == VOLATILE_EVENT_TYPES
+        assert "WPStatusChanged" in moments.KNOWN_KIND_NAMES
+        assert "wp.move" not in moments.KNOWN_KIND_NAMES
+
+
+class TestMomentSettingsAsDictKindsUnknown:
+    def test_as_dict_reports_unknown_kinds(self) -> None:
+        settings = _settings(kinds=("wp.move",))
+        assert settings.as_dict()["kinds_unknown"] == ["wp.move"]
+
+    def test_as_dict_reports_no_unknown_kinds_for_valid_family_names(self) -> None:
+        settings = _settings(kinds=("WPStatusChanged",))
+        assert settings.as_dict()["kinds_unknown"] == []
+
+    def test_as_dict_does_not_double_report_a_malformed_kinds_filter(self) -> None:
+        """A ``kinds`` value already in ``invalid_filters`` (wrong shape, per
+        #201) is not usable data at all — ``kinds_unknown`` must not also try
+        to interpret it, since ``settings.kinds`` is the empty-tuple collapse
+        :func:`_malformed_filter_keys` exists to distinguish from "unset"."""
+        settings = _settings(invalid_filters=frozenset({"kinds"}))
+        assert settings.as_dict()["kinds_unknown"] == []
 
     def test_event_actor_reads_the_attested_user(self) -> None:
         assert moments.event_actor({"actor": {"user": "lynn"}}) == "lynn"
