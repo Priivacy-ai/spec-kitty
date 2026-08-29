@@ -310,7 +310,7 @@ constituents:
   kind: directive
   path: directives/disciplined-refactoring.directive.yaml
   provenance_path:
-- content_hash: 3b46511642e1523b4dbb189c563ae01c62642df9fbb359eb4e041e031dd90619
+- content_hash: 2e57008e1fb6f1e46a3833193c5d0ea0a7951df640727444933b3d93a04c08e1
   id: RECONCILE_CHANGE_SCOPE_TENSIONS
   kind: directive
   path: directives/reconcile-change-scope-tensions.directive.yaml
@@ -450,7 +450,7 @@ constituents:
   kind: procedure
   path: procedures/issue-triage-state-machine.procedure.yaml
   provenance_path:
-- content_hash: 68de41a22fd3c15556e9b405be9b36f08927d2ee4967094980fa3b66066a6d76
+- content_hash: 94365e0df6ea219f70960143e5556c529ba8be226daaf4b807a0678e1db34302
   id: legacy-codebase-triage
   kind: procedure
   path: procedures/legacy-codebase-triage.procedure.yaml
@@ -495,7 +495,7 @@ constituents:
   kind: procedure
   path: procedures/refactoring.procedure.yaml
   provenance_path:
-- content_hash: 490fa7a2c641b8b823a702875e589e8e7b378a3b7d9d52d5ac59084b48cd4e88
+- content_hash: 4fc09798eb6b0b2215ae683b75003ba8b70d4e8a27b1b1df3fefcdede1bf90dd
   id: situational-assessment
   kind: procedure
   path: procedures/situational-assessment.procedure.yaml
@@ -1340,7 +1340,7 @@ constituents:
 fetched_at:
 generated_at:
 generated_by: spec-kitty doctrine regenerate-graph
-manifest_hash: d9e8b311cf018e294a9b3c9b8dc7433e5e0c0fe9af7ce28b0fe81efaddd7ee16
+manifest_hash: c2739462f5d1994f014953efd375ea40aaac6df6d307c31461c61145ded34f4f
 schema_version: '1'
 source_type: built-in
 source_url:
