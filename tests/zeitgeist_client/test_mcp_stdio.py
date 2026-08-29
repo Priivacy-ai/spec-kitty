@@ -177,7 +177,10 @@ async def test_watch_tool_with_no_repo_argument_uses_the_checkout_derived_key(st
 
 
 async def test_status_tool_with_no_repo_argument_reports_a_tool_error_without_a_derivable_checkout(
-    state_root: Path, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    state_root: Path,
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    no_git_ancestry_inside_tmp_path: None,
 ) -> None:
     monkeypatch.chdir(tmp_path)  # not a git checkout at all
     server = mcp_stdio.build_server()
