@@ -628,7 +628,7 @@ Claude Code, Cursor, Windsurf all support slash commands natively. The commands 
 
 - Updates every 1-2 seconds
 - Handles 100+ work packages across all features
-- WebSocket-based live updates (no polling overhead)
+- Poll-based live updates (browser fetches on an interval, no WebSocket)
 
 ---
 
