@@ -1,0 +1,37 @@
+{
+  "version": 1,
+  "mission_slug": "glm53-paid-spec-reviewer-01M16CYX",
+  "mission_id": "01M16CYXTSKX0XZK7YGK3HW8E3",
+  "mission_branch": "kitty/mission-glm53-paid-spec-reviewer-01M16CYX",
+  "target_branch": "codex/glm53-paid-spec-reviewer",
+  "lanes": [
+    {
+      "lane_id": "lane-a",
+      "wp_ids": [
+        "WP01"
+      ],
+      "write_scope": [
+        "docs/guides/spec-review.md",
+        "src/specify_cli/cli/commands/spec_review.py",
+        "src/specify_cli/spec_review/assets/spec-review-run-v2.schema.yaml",
+        "src/specify_cli/spec_review/models.py",
+        "src/specify_cli/spec_review/preflight.py",
+        "src/specify_cli/spec_review/runner.py",
+        "src/specify_cli/spec_review/service.py",
+        "src/specify_cli/spec_review/storage.py",
+        "tests/integration/test_spec_review_integration.py",
+        "tests/specify_cli/spec_review/"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    }
+  ],
+  "computed_at": "2026-08-29T10:19:49.641192+00:00",
+  "computed_from": "dependency_graph+ownership",
+  "planning_artifact_wps": [],
+  "planning_commit_sha": "6ac4ab017e1434cb0c96fd824402c42ca59fda21"
+}
