@@ -136,6 +136,6 @@ in 10 work packages. Concretely:
 - Packaging assertions:
   - [`tests/contract/test_packaging_no_vendored_events.py`](../../../tests/contract/test_packaging_no_vendored_events.py)
 - Clean-install verification:
-  - [`.github/workflows/ci-quality.yml`](../../../.github/workflows/ci-quality.yml) (`clean-install-verification` job)
+  - `.github/workflows/ci-quality.yml`'s `clean-install-verification` job (deleted per PROGRAM.md §2 / planning#57 — this repo runs no GitHub Actions)
   - [`tests/integration/test_clean_install_next.py`](../../../tests/integration/test_clean_install_next.py)
 - PR #779 (rejected, superseded): <https://github.com/Priivacy-ai/spec-kitty/pull/779>

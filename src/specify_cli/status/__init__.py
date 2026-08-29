@@ -171,6 +171,7 @@ from .progress import (
 )
 from .adapters import (
     fire_dossier_sync,
+    fire_lifecycle_saas_fanout,
     fire_resolved_binding_fanout,
     fire_saas_fanout,
     register_dossier_sync_handler,
@@ -515,6 +516,7 @@ __all__ = [
     "materialize",
     "materialize_to_json",
     "fire_dossier_sync",
+    "fire_lifecycle_saas_fanout",
     "fire_resolved_binding_fanout",
     "fire_saas_fanout",
     "WPStatusChangeMetadata",

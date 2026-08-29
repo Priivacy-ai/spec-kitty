@@ -27,6 +27,11 @@ import pytest
 from typer.testing import CliRunner
 
 from specify_cli.auth import reset_token_manager
+from specify_cli.auth.errors import (
+    AuthenticationError,
+    BrowserLaunchError,
+    CallbackValidationError,
+)
 from specify_cli.auth.session import StoredSession, Team
 from specify_cli.cli.commands.auth import app
 
@@ -246,6 +251,114 @@ class TestAuthLoginConfigErrors:
 
         assert result.exit_code != 0
         assert "No hosted server is configured" in result.stdout
+
+
+class TestAuthLoginSaasLineRendering:
+    def test_saas_line_renders_server_url_containing_bracket_markup(
+        self, monkeypatch, tmp_path
+    ):
+        """#202: ``_run_browser_flow`` interpolated the configured
+        ``server_url`` into a Rich ``[dim]`` line unescaped, so a value
+        containing a closing-tag-like substring (``https://x.test[/]``) raised
+        ``rich.markup.MarkupError`` out of ``console.print`` and crashed login
+        before the OAuth flow could start. The URL must render verbatim."""
+        bracketed = "https://x.test[/]"
+        runtime_root = tmp_path / "runtime-root"
+        runtime_root.mkdir(parents=True)
+        monkeypatch.setenv("SPEC_KITTY_HOME", str(runtime_root))
+        monkeypatch.delenv("SPEC_KITTY_SAAS_URL", raising=False)
+        (runtime_root / "config.toml").write_text(
+            f'[sync]\nserver_url = "{bracketed}"\n', encoding="utf-8"
+        )
+
+        async def _noop_login(*_args, **_kwargs):
+            return _make_session()
+
+        with patch(
+            "specify_cli.cli.commands._auth_login.get_token_manager"
+        ) as mock_factory, patch(
+            "specify_cli.auth.flows.authorization_code.AuthorizationCodeFlow"
+        ) as mock_flow_cls:
+            mock_factory.return_value.is_authenticated = False
+            mock_flow_cls.return_value.login = AsyncMock(side_effect=_noop_login)
+            result = runner.invoke(app, ["login"])
+
+        assert result.exit_code == 0, result.stdout
+        # Rendered verbatim — no MarkupError, no swallowed markup tags.
+        assert f"SaaS: {bracketed}" in result.stdout
+
+
+class TestAuthLoginErrorMessageEscaping:
+    """#526: exception text printed on login error paths can carry a raw,
+    server-controlled body (e.g. a non-200 token-exchange response). Unescaped,
+    a value containing a closing-tag-like substring raises
+    ``rich.errors.MarkupError`` out of ``console.print`` instead of a clean
+    non-zero exit with a readable diagnostic."""
+
+    @pytest.mark.parametrize(
+        ("headless", "flow_class", "error_type", "expected_prefix"),
+        [
+            (
+                False,
+                "specify_cli.auth.flows.authorization_code.AuthorizationCodeFlow",
+                CallbackValidationError,
+                "Callback validation failed",
+            ),
+            (
+                False,
+                "specify_cli.auth.flows.authorization_code.AuthorizationCodeFlow",
+                BrowserLaunchError,
+                "Could not launch browser",
+            ),
+            (
+                False,
+                "specify_cli.auth.flows.authorization_code.AuthorizationCodeFlow",
+                AuthenticationError,
+                "Authentication failed",
+            ),
+            (
+                True,
+                "specify_cli.auth.flows.device_code.DeviceCodeFlow",
+                AuthenticationError,
+                "Device flow failed",
+            ),
+        ],
+        ids=("callback-validation", "browser-launch", "browser-auth", "device-auth"),
+    )
+    def test_markup_like_exception_text_does_not_crash(
+        self,
+        monkeypatch,
+        tmp_path,
+        headless,
+        flow_class,
+        error_type,
+        expected_prefix,
+    ):
+        runtime_root = tmp_path / "runtime-root"
+        runtime_root.mkdir(parents=True)
+        monkeypatch.setenv("SPEC_KITTY_HOME", str(runtime_root))
+        monkeypatch.setenv("SPEC_KITTY_SAAS_URL", "https://saas.test")
+
+        hostile_body = "Token exchange failed: HTTP 400 - bad [/] token"
+
+        async def _raise_auth_error(*_args, **_kwargs):
+            raise error_type(hostile_body)
+
+        with patch(
+            "specify_cli.cli.commands._auth_login.get_token_manager"
+        ) as mock_factory, patch(flow_class) as mock_flow_cls:
+            mock_factory.return_value.is_authenticated = False
+            mock_flow_cls.return_value.login = AsyncMock(
+                side_effect=_raise_auth_error
+            )
+            args = ["login", "--headless"] if headless else ["login"]
+            result = runner.invoke(app, args)
+
+        # A clean non-zero exit, not an unhandled MarkupError traceback.
+        assert result.exit_code == 1, result.stdout
+        assert "MarkupError" not in result.stdout
+        assert expected_prefix in result.stdout
+        assert hostile_body in result.stdout
 
 
 # ---------------------------------------------------------------------------
