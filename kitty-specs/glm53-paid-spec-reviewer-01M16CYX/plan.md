@@ -5,7 +5,7 @@
 
 ## Резюме
 
-Расширить существующий provider-neutral `spec-review` ровно одним платным профилем: `openrouter/z-ai/glm-5.3`. Бесплатная ветка остаётся прежней. Для платного профиля CLI требует канонический `--max-cost-usd`, связывает его с disclosure digest, а runner выдаёт permit только после проверки единственной точной записи OpenCode model metadata и консервативной верхней оценки стоимости. Неполная metadata, cap ниже оценки, другой платный маршрут или превышение prompt byte-bound завершаются до создания OpenCode session.
+Расширить существующий provider-neutral `spec-review` ровно одним платным профилем: `openrouter/z-ai/glm-5.3`. Бесплатная ветка остаётся побайтно совместимой. Для платного профиля CLI требует канонический `--max-estimated-cost-usd`; paid preview получает metadata-only котировку и включает её целиком в disclosure digest. Runner выдаёт permit только после повторной проверки неизменности котировки и консервативной advertised-оценки полного контекста плюс полного выхода. Это локальный authorization threshold, а не ограничение фактического billing.
 
 ## Technical Context
 
@@ -14,7 +14,7 @@
 **Хранение**: append-only YAML `reviews/spec-review-*.yaml`; credentials не хранятся  
 **Тестирование**: pytest unit + CLI + integration, ATDD red-first, без сети/model call  
 **Платформы**: Windows, Linux, macOS  
-**Ограничения**: один exact paid route; без fallback/retry; `0 < cap <= 5`; decimal round-up до 6 знаков; loopback transport остаётся неизменным  
+**Ограничения**: один exact paid route; без fallback/retry; `0 < threshold <= 5`; decimal round-up до 6 знаков; loopback transport остаётся неизменным
 **Масштаб**: один CLI leaf и bounded context `src/specify_cli/spec_review`
 
 ## Проверка charter
@@ -29,38 +29,42 @@
 
 ## Архитектурные решения
 
-1. **Предел входит в consent manifest.** `DisclosureManifest` хранит каноническую decimal-строку `max_cost_usd | null`; digest меняется вместе с ней.
-2. **Один платный allowlist-route.** `PAID_GLM53_ROUTE = "openrouter/z-ai/glm-5.3"`; cap не разрешает произвольные платные модели.
-3. **Цена проверяется до prompt.** Preflight manifest даёт безопасную верхнюю границу входных байт: `6 × total_payload_bytes + fixed JSON envelope`. Множитель покрывает максимальное JSON-экранирование UTF-8 входа. После построения prompt runner повторно проверяет фактическую длину против permit.
-4. **Денежная оценка fail-closed.** Из exact model document принимаются только конечные неотрицательные decimal prices и положительный целочисленный `limit.output`. Неизвестные/дублированные поля либо route отказываются.
-5. **Консервативная формула.** Максимум входных токенов не больше UTF-8 bytes. Input/cache leaves суммируются; output price умножается на advertised output limit. Итог делится на 1M и округляется вверх до `0.000001 USD`.
-6. **Permit — runtime teeth.** Permit связывает issuer, route, byte-bound, cap и upper estimate. Несоответствие либо фактический prompt больше bound даёт отказ до session creation.
-7. **Audit trail.** Host-owned artifact получает `max_cost_usd` и `estimated_max_cost_usd`; оба `null` для бесплатного режима. Contract schema обновляется совместно.
-8. **Ограничение честности.** Это верхняя оценка по локальным advertised metadata, а не provider-side reservation. OpenCode HTTP message contract не предоставляет `maxTokens`; при metadata drift требуется новый preview/consent.
+1. **Paid quote входит в consent manifest.** Платная секция содержит exact route, `max_estimated_cost_usd`, нормализованную price-map, `limit.context`, `limit.output`, `advertised_max_estimate_usd` и SHA-256 её канонического JSON. Изменение любого значения меняет digest.
+2. **Free canonical form не меняется.** Бесплатный manifest и artifact вообще не содержат paid-секцию или новые `null`-поля. Старый digest и YAML закрепляются golden-тестами.
+3. **Один платный allowlist-route.** `PAID_GLM53_ROUTE = "openrouter/z-ai/glm-5.3"`; threshold не разрешает произвольные платные модели.
+4. **Две metadata-only проверки.** Paid preview получает котировку без prompt/session/model call. Execution повторяет probe до построения prompt и требует точного совпадения канонических metadata с digest; drift означает отказ и новый preview. Бесплатный preview сохраняет прежнее отсутствие probe.
+5. **Денежная оценка fail-closed.** Из единственного exact model document принимаются только известные конечные неотрицательные decimal prices и положительные целочисленные `limit.context` и `limit.output`. Неизвестные/дублированные поля либо route отказываются.
+6. **Консервативная advertised-формула.** Все input/cache price leaves применяются к полному `limit.context`, output price — к полному `limit.output`; итог округляется вверх до `0.000001 USD`. Это покрывает неизвестный до запуска system/agent framing OpenCode в рамках объявленных лимитов.
+7. **Byte-bound — только integrity guard.** Preflight сохраняет верхнюю границу байт пользовательского пакета, а runner проверяет фактический prompt против permit. Эта величина не используется как billable-token estimate.
+8. **Permit — runtime teeth.** Permit связывает issuer, route, quote fingerprint, byte-bound, threshold и estimate. Несоответствие даёт отказ до session creation.
+9. **Audit trail без регрессии free path.** Paid artifact получает `max_estimated_cost_usd`, каноническую quote, fingerprint и `advertised_max_estimate_usd`; бесплатная сериализация остаётся прежней. Contract schema получает только optional paid-секцию.
+10. **Ограничение честности.** UI и guide называют это локальным порогом advertised-оценки. OpenCode contract не предоставляет `maxTokens`, provider-side reservation отсутствует, поэтому фактический billing не ограничен и может отличаться.
 
 ## Поток данных
 
 ```text
-CLI validates route + canonical cap
-  → disclosure binds route + cap + input byte-bound
+CLI validates route + canonical threshold
+  → paid preview probes exact OpenCode model metadata
+  → quote validates prices + context/output limits
+  → estimate uses full context + full output ceilings
+  → disclosure binds route + threshold + quote + fingerprint + estimate
   → user confirms digest
-  → pricing probe reads exact cached OpenCode metadata
-  → quote computes conservative upper estimate
-  → permit only when estimate <= cap
+  → execution re-probes and requires exact quote match
+  → permit only when estimate <= threshold
   → spec is rechecked, prompt is built
-  → runner checks prompt bytes <= permit bound
+  → runner checks prompt bytes only as an integrity bound
   → one loopback session call
-  → host stores findings plus cap/estimate provenance
+  → host stores findings plus threshold/quote/estimate provenance
 ```
 
 ## Структура изменений
 
 ```text
 src/specify_cli/
-├── cli/commands/spec_review.py          # --max-cost-usd validation and rendering
+├── cli/commands/spec_review.py          # --max-estimated-cost-usd + warning
 └── spec_review/
     ├── models.py                        # consent + persisted cost provenance
-    ├── preflight.py                     # cap-bound manifest
+    ├── preflight.py                     # paid quote-bound manifest
     ├── runner.py                        # exact quote, estimate and permit gate
     ├── service.py                       # ordering and provenance handoff
     └── storage.py                       # YAML fields
@@ -83,19 +87,19 @@ kitty-specs/glm53-paid-spec-reviewer-01M16CYX/contracts/
 
 ### IC-01 — Consent и денежная модель
 
-- **Назначение**: канонизировать cap, связать его с digest и задать проверяемую формулу upper estimate.
-- **Требования**: FR-002–FR-006, NFR-002–NFR-003.
+- **Назначение**: канонизировать threshold и quote, связать их с digest и задать проверяемую advertised-формулу.
+- **Требования**: FR-002–FR-006, FR-009, NFR-002–NFR-003.
 - **Поверхности**: `models.py`, `preflight.py`, `runner.py`, contract schema.
 - **Зависимости**: нет.
-- **Риски**: float-округление, неполная cost-map, ложное обещание provider-side cap.
+- **Риски**: float-округление, неполная cost-map, drift между preview и запуском, ложное обещание provider-side cap.
 
 ### IC-02 — Оркестрация и обратная совместимость
 
 - **Назначение**: провести cost policy через CLI/service/storage, не изменив бесплатный flow.
-- **Требования**: FR-001, FR-005–FR-008, NFR-001, NFR-004.
+- **Требования**: FR-001, FR-005–FR-009, NFR-001, NFR-004.
 - **Поверхности**: CLI, service, storage, operator guide, focused tests.
 - **Зависимости**: IC-01.
-- **Риски**: prompt/session может стартовать до полного gate; cap может не попасть в audit artifact.
+- **Риски**: prompt/session может стартовать до полного gate; paid provenance может изменить free digest/serialization.
 
 ## Проверки
 
@@ -107,7 +111,8 @@ kitty-specs/glm53-paid-spec-reviewer-01M16CYX/contracts/
    - `ruff check src/specify_cli/spec_review src/specify_cli/cli/commands/spec_review.py tests/specify_cli/spec_review tests/integration/test_spec_review_integration.py`
    - `mypy --strict src/specify_cli/spec_review src/specify_cli/cli/commands/spec_review.py`
 4. Compatibility:
-   - существующие free-route tests без новых аргументов;
+   - golden fixtures прежних free manifest digest и YAML artifact без новых аргументов/полей;
+   - zero `create_session`/server spawn для каждого paid refusal и metadata drift;
    - `python docs/codemap/codemap.lock`;
    - `git diff --check`.
 
@@ -115,4 +120,4 @@ kitty-specs/glm53-paid-spec-reviewer-01M16CYX/contracts/
 
 - Реализация и тесты полностью offline.
 - Платный smoke, изменение OpenRouter account/Auto Router и DSH исключены.
-- После реализации отдельное разрешение пользователя необходимо для любого фактического вызова GLM 5.3.
+- После реализации отдельное разрешение пользователя необходимо для любого фактического вызова GLM 5.3; локальный threshold не является разрешением на расход.
