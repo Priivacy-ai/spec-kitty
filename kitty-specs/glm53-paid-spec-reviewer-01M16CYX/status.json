@@ -1,38 +1,43 @@
 {
-  "event_count": 5,
-  "last_event_id": "01M16GP4Q5XZZZR83VRJWW5613",
-  "materialized_at": "2026-08-29T10:22:46.501263+00:00",
+  "event_count": 6,
+  "last_event_id": "01M16HAHGBC39GCDDATTWYAW00",
+  "materialized_at": "2026-08-29T10:33:54.955666+00:00",
   "mission_number": "",
   "mission_slug": "glm53-paid-spec-reviewer-01M16CYX",
   "mission_type": "software-dev",
   "summary": {
-    "approved": 0,
+    "approved": 1,
     "blocked": 0,
     "canceled": 0,
     "claimed": 0,
     "done": 0,
     "for_review": 0,
     "in_progress": 0,
-    "in_review": 1,
+    "in_review": 0,
     "planned": 0
   },
   "work_packages": {
     "WP01": {
-      "actor": "codex",
+      "actor": "user",
       "agent": "codex",
       "agent_profile": "reviewer-renata",
       "agent_profile_version": "1.0",
       "assignee": "codex",
-      "force_count": 0,
-      "lane": "in_review",
-      "last_event_id": "01M16GP4Q5XZZZR83VRJWW5613",
-      "last_transition_at": "2026-08-29T10:22:46.501263+00:00",
+      "force_count": 1,
+      "lane": "approved",
+      "last_event_id": "01M16HAHGBC39GCDDATTWYAW00",
+      "last_transition_at": "2026-08-29T10:33:54.955666+00:00",
       "model": "__resolved_model_absent__",
       "notes": [
         "Реализация выполнена и локально проверена",
         "149 focused pass; 50 architectural pass; Ruff, mypy и codemap green; model call не выполнялся"
       ],
       "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "APPROVE: реализация уже находится в target history до создания review-lane (red 82fe58250, production 4d82f191d); lane поэтому не имеет собственных implementation commits. Независимо проверены 199 тестов (1 skipped, 2 xfailed), Ruff, strict mypy и codemap. FR001-FR009 покрыты; anti-pattern checklist PASS: dead code, synthetic-only fixtures, silent empty returns, frozen surface, locked decisions, shared ownership и production fragility нарушений нет. Contracts artifact отсутствует и для этой миссии не требуется.",
+        "reviewer": "Reviewer Renata",
+        "verdict": "approved"
+      },
       "role": "reviewer",
       "shell_pid": 31840,
       "shell_pid_created_at": "1787999065.9856486",
