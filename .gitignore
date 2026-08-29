@@ -72,6 +72,7 @@ pyproject.local.toml
 .kittify/preflight-warning.json
 .kittify/.migration-backup/
 .kittify/encoding-provenance/
+.test-full-status
 .kittify/migrations/
 .kittify/logs/
 # Per-machine skill install ledger (timestamps, hashes, delivery_mode) — #2412.

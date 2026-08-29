@@ -343,13 +343,21 @@ def _oauth_session(*, expires_in: int = 900, access_token: str = "access-v1") ->
     )
 
 
-def _bridge_env(monkeypatch: pytest.MonkeyPatch, manager: Any) -> None:
+def _bridge_env(
+    monkeypatch: pytest.MonkeyPatch,
+    manager: Any,
+    *,
+    env_server_url: str | None = None,
+    configured_server_url: str | None = None,
+) -> None:
     """Aim the bridge at a scripted manager and a fixed server target.
 
     The bridge resolves both seams through this module's own lazy helpers,
     so patching here reaches every caller of ``load_auth_context`` without
     touching the real session store or ``specify_cli.auth`` globals.
-    ``manager=None`` stands in for an unusable session store."""
+    ``manager=None`` stands in for an unusable session store. ``env_server_url``
+    / ``configured_server_url`` mirror ``ResolvedServerTarget``'s real fields
+    (#300) so ``_saas_source_name`` has something to inspect."""
     if manager is None:
         monkeypatch.setattr(saas_auth_module, "_token_manager", _raise_unavailable)
     else:
@@ -357,6 +365,9 @@ def _bridge_env(monkeypatch: pytest.MonkeyPatch, manager: Any) -> None:
 
     class _Target:
         resolved_server_url = "https://team.example"
+
+    _Target.env_server_url = env_server_url  # type: ignore[attr-defined]
+    _Target.configured_server_url = configured_server_url  # type: ignore[attr-defined]
 
     monkeypatch.setattr(saas_auth_module, "_resolved_server_target", lambda: _Target())
 
@@ -553,6 +564,49 @@ def test_session_issuer_mismatch_is_refused_not_paired(tmp_path: Path, monkeypat
     _bridge_env(monkeypatch, _ScriptedSessionManager(session))
 
     with pytest.raises(SaasAuthError, match="auth login --force"):
+        load_auth_context(repo_root=tmp_path)
+
+
+def test_session_issuer_mismatch_names_the_default_endpoint_source(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, _no_env_auth: None) -> None:
+    """#300: the refusal names *where* the resolved URL came from, matching
+    ``format_saas_mismatch_warning``'s wording — and drops the backticks
+    around the remedy that the sibling message never had."""
+    session = _oauth_session()
+    session.issuer_url = "https://other.example"
+    _bridge_env(monkeypatch, _ScriptedSessionManager(session))
+
+    with pytest.raises(
+        SaasAuthError,
+        match=r"Session is for https://other\.example; the default endpoint now points at https://team\.example — run spec-kitty auth login --force",
+    ):
+        load_auth_context(repo_root=tmp_path)
+
+
+def test_session_issuer_mismatch_names_the_env_var_source(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, _no_env_auth: None) -> None:
+    """#300: when the resolved target came from ``SPEC_KITTY_SAAS_URL``, the
+    refusal names that env var, not a generic "the resolved server"."""
+    session = _oauth_session()
+    session.issuer_url = "https://other.example"
+    _bridge_env(monkeypatch, _ScriptedSessionManager(session), env_server_url="https://team.example")
+
+    with pytest.raises(
+        SaasAuthError,
+        match=r"Session is for https://other\.example; SPEC_KITTY_SAAS_URL now points at https://team\.example — run spec-kitty auth login --force",
+    ):
+        load_auth_context(repo_root=tmp_path)
+
+
+def test_session_issuer_mismatch_names_the_config_source(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, _no_env_auth: None) -> None:
+    """#300: when the resolved target came from ``config.toml``, the refusal
+    names that source."""
+    session = _oauth_session()
+    session.issuer_url = "https://other.example"
+    _bridge_env(monkeypatch, _ScriptedSessionManager(session), configured_server_url="https://team.example")
+
+    with pytest.raises(
+        SaasAuthError,
+        match=r"Session is for https://other\.example; config\.toml \[sync\]\.server_url now points at https://team\.example — run spec-kitty auth login --force",
+    ):
         load_auth_context(repo_root=tmp_path)
 
 
