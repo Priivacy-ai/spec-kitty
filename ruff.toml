@@ -1,5 +1,4 @@
 extend = "pyproject.toml"
-extend-exclude = ["kitty-specs/*/research/**"]
 
 # Governed immutable research artifacts: per-mission scratch/evidence scripts
 # checked in under kitty-specs/<mission>/research/ for audit-trail purposes
