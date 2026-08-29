@@ -47,10 +47,9 @@ def _run_create_feature(
         # The MissionCreated projection now flows via emit_mission_created_local
         # -> the registered SaaS-fanout observer (leak #1 fix removed the direct
         # emit_mission_created import from core.mission_creation). In this unit
-        # context no SaaS/dossier handlers are registered, so the lifecycle and
-        # dossier fan-outs are inert no-ops; we still patch the canonical status
-        # facade entry points to keep the create path hermetic (no network).
-        patch("specify_cli.status.fire_dossier_sync"),
+        # context no SaaS handlers are registered, so the lifecycle fan-out is
+        # an inert no-op; we still patch the canonical status facade entry
+        # point to keep the create path hermetic (no network).
         patch("specify_cli.status.emit_mission_created_local"),
     ):
         result = runner.invoke(app, args)

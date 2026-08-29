@@ -20,7 +20,6 @@ import math
 import os
 import threading
 from collections.abc import Callable
-from pathlib import Path
 from typing import Any
 
 from specify_cli.core.env import is_truthy
@@ -127,9 +126,6 @@ def _run_fanout_handler_bounded(handler: Callable[..., None], kwargs: dict[str, 
         raise error[0]
 
 
-# Callback signature: (feature_dir, mission_slug, repo_root) -> None
-DossierSyncHandler = Callable[[Path, str, Path], None]
-
 # Callback signature: keyword-only, mirrors emit_wp_status_changed
 SaasFanOutHandler = Callable[..., None]
 
@@ -139,7 +135,6 @@ LifecycleSaasFanOutHandler = Callable[..., None]
 # for the first-class ``WPResolvedBindingChanged`` bridge (FR-015 / IC-09).
 ResolvedBindingFanOutHandler = Callable[..., None]
 
-_dossier_handlers: list[DossierSyncHandler] = []
 _saas_handlers: list[SaasFanOutHandler] = []
 _lifecycle_saas_handlers: list[LifecycleSaasFanOutHandler] = []
 _resolved_binding_handlers: list[ResolvedBindingFanOutHandler] = []
@@ -160,24 +155,6 @@ def _handler_key(cb: Callable[..., Any]) -> str:
     if isinstance(name, str):
         return name
     return repr(cb)
-
-
-def register_dossier_sync_handler(cb: DossierSyncHandler) -> None:
-    """Register a dossier-sync callback (idempotent by qualified name).
-
-    Re-registration of a handler with the same ``__qualname__`` replaces
-    the existing entry rather than appending, so re-registering (e.g. in
-    test processes) does not produce duplicate fan-out invocations. Not
-    thread-safe by design (registration runs before concurrent access
-    begins). With no handler registered, fan-out is a no-op until E3 wires
-    the zeitgeist handler here.
-    """
-    key = _handler_key(cb)
-    for idx, existing in enumerate(_dossier_handlers):
-        if _handler_key(existing) == key:
-            _dossier_handlers[idx] = cb
-            return
-    _dossier_handlers.append(cb)
 
 
 def register_saas_fanout_handler(cb: SaasFanOutHandler) -> None:
@@ -247,33 +224,9 @@ def reset_handlers() -> None:
     that around every test, so one test's wipe cannot silence another's
     fan-out).
     """
-    _dossier_handlers.clear()
     _saas_handlers.clear()
     _lifecycle_saas_handlers.clear()
     _resolved_binding_handlers.clear()
-
-
-def fire_dossier_sync(
-    feature_dir: Path,
-    mission_slug: str,
-    repo_root: Path,
-) -> None:
-    """Call all registered dossier-sync handlers.
-
-    Guarantees:
-    - Handlers called in registration order.
-    - Exceptions are caught per handler, logged at DEBUG level, and
-      never propagate to the caller.
-    - If no handlers are registered, this is a no-op.
-    """
-    for handler in _dossier_handlers:
-        try:
-            handler(feature_dir, mission_slug, repo_root)
-        except Exception:
-            logger.debug(
-                "Dossier sync handler failed; never blocks status transitions",
-                exc_info=True,
-            )
 
 
 def _fanout_force(kwargs: dict[str, Any]) -> Any:
