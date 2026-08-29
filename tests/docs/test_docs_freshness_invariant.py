@@ -40,6 +40,20 @@ derived from ``github.event.pull_request.base.sha``. Properties 1-3 above are
 otherwise UNCHANGED by WP02 — the PR ``paths:`` allowlist and the unfiltered
 ``push: main`` backstop are exactly what they were before diff-scoping; WP02
 narrows *which files are examined*, never *whether the gate triggers*.
+
+Retired (planning#57): the 7 LIVE property tests above (allowlist
+presence/scope, push backstop presence, invariant-comment cross-reference,
+diff-scope checkout/flag/gate-wiring) asserted these properties against the
+real ``.github/workflows/docs-freshness.yml`` — the leftover pre-programme
+GitHub Actions YAML deleted per PROGRAM.md §2. With no workflow YAML left to
+parse, that half (and its now-unused ``_WORKFLOW`` constant,
+``_FORBIDDEN_ALLOWLIST_ENTRIES``, ``_INVARIANT_COMMENT_MARKERS``, and
+``_step_run_contains`` helper) has no remaining subject matter and was
+removed with the file. The 4 red-first negative-guard tests below never read
+the real workflow — each builds its OWN synthetic ``tmp_path`` fixture — and
+stay as non-fakeable evidence that the parsing predicates themselves
+(``_push_has_unfiltered_main_backstop``, ``_pr_paths``, ``_checkout_fetch_depth``,
+``_diffscope_step``) still correctly reject a broken/widened/shallow shape.
 """
 
 from __future__ import annotations
@@ -51,21 +65,6 @@ import pytest
 import yaml
 
 pytestmark = pytest.mark.fast
-
-_REPO_ROOT = Path(__file__).resolve().parents[2]
-_WORKFLOW = _REPO_ROOT / ".github" / "workflows" / "docs-freshness.yml"
-
-# Test / spec trees that must never appear in the PR allowlist (property 1).
-_FORBIDDEN_ALLOWLIST_ENTRIES = ("tests/**", "kitty-specs/**")
-
-# Stable substrings the invariant comment must carry (property 3). Chosen to be
-# resilient to reflow: the marker word, the backstop rationale, and this test's
-# own basename so comment and test are cross-referenced.
-_INVARIANT_COMMENT_MARKERS = (
-    "INVARIANT",
-    "backstop",
-    "test_docs_freshness_invariant.py",
-)
 
 
 def _get_on(workflow: dict[Any, Any]) -> dict[str, Any]:
@@ -132,110 +131,6 @@ def _diffscope_step(workflow: dict[Any, Any]) -> dict[str, Any] | None:
         if step.get("id") == "diffscope":
             return step
     return None
-
-
-def _step_run_contains(workflow: dict[Any, Any], name_substring: str, needle: str) -> bool:
-    """True iff the first step whose ``name`` contains *name_substring* has *needle* in its ``run``."""
-    for step in _docs_freshness_steps(workflow):
-        if name_substring in str(step.get("name", "")):
-            return needle in str(step.get("run", ""))
-    return False
-
-
-# --------------------------------------------------------------------------- #
-# Property tests against the real workflow.
-# --------------------------------------------------------------------------- #
-
-
-def test_pr_allowlist_present_and_excludes_test_trees() -> None:
-    """Property 1: PR ``paths:`` allowlist exists and omits the test/spec trees."""
-    on = _get_on(_load_workflow(_WORKFLOW))
-    paths = _pr_paths(on)
-    assert paths, "pull_request.paths allowlist is missing — PR scoping is unguarded"
-    for forbidden in _FORBIDDEN_ALLOWLIST_ENTRIES:
-        assert forbidden not in paths, (
-            f"{forbidden!r} must NOT be in the PR allowlist: it would run the "
-            "whole-tree docs scan on nearly every PR. (This is absence-from-an-"
-            "allowlist; there is no `!` exclusion pattern to add.)"
-        )
-
-
-def test_unfiltered_push_main_backstop_present() -> None:
-    """Property 2: an unfiltered ``push: main`` backstop trigger exists."""
-    on = _get_on(_load_workflow(_WORKFLOW))
-    assert _push_has_unfiltered_main_backstop(on), (
-        "docs-freshness needs an UNFILTERED `push:` trigger on `main` (no "
-        "`paths:` key) as the whole-tree backstop for the unbounded link/edge "
-        "input set the PR allowlist cannot express."
-    )
-
-
-def test_invariant_comment_present_and_cross_references_this_test() -> None:
-    """Property 3: the documented invariant comment exists and names this test."""
-    raw = _WORKFLOW.read_text(encoding="utf-8")
-    for marker in _INVARIANT_COMMENT_MARKERS:
-        assert marker in raw, (
-            f"docs-freshness.yml is missing the invariant-comment marker {marker!r}; "
-            "the comment must document the trigger-scoping rationale and "
-            "cross-reference this test so the two co-evolve (FR-006)."
-        )
-
-
-def test_checkout_fetches_full_history_for_diff_scope() -> None:
-    """Property 4a (#3147): ``fetch-depth: 0`` so the PR base commit resolves.
-
-    Diff-scope mode (:func:`scripts.docs._guards.resolve_changed_files`)
-    resolves the PR's base commit via ``git diff --name-only <base>...HEAD``;
-    a shallow (default ``actions/checkout``) clone doesn't have that history,
-    which would make every PR run hit the B-WP02 fail-closed error path.
-    """
-    workflow = _load_workflow(_WORKFLOW)
-    assert _checkout_fetch_depth(workflow) == 0, (
-        "actions/checkout must set fetch-depth: 0 so the diff-scope base commit resolves (#3147) — a shallow clone fails closed on every PR"
-    )
-
-
-def test_diffscope_flag_derives_from_pr_base_sha() -> None:
-    """Property 4b (#3147): the diff-scope flag keys off the PR's base sha.
-
-    The flag-computing step must reference both
-    ``github.event.pull_request.base.sha`` (the base to diff from) and
-    ``github.event_name`` / ``pull_request`` (so the flag is empty, and the
-    gates run whole-tree, on the unfiltered ``push: main`` backstop — M3/C-002).
-    """
-    workflow = _load_workflow(_WORKFLOW)
-    step = _diffscope_step(workflow)
-    assert step is not None, "expected a docs-freshness step (id: diffscope) computing the diff-scope flag"
-    run = str(step.get("run", ""))
-    assert "github.event.pull_request.base.sha" in run
-    assert "github.event_name" in run
-    assert "pull_request" in run
-
-
-def test_related_and_body_link_gates_receive_diffscope_flag() -> None:
-    """Property 4c (#3147): both blocking dead-link gates receive the flag.
-
-    Only the two gates #3147 targets (related-edge validator, relative
-    body-link gate) are diff-scoped — the other docs-freshness steps
-    (description-length, structural lint, changelog/contributing sync,
-    slash-command freshness, the freshness orchestrator) are explicitly out of
-    scope (WP02 spec) and must NOT reference the flag.
-    """
-    workflow = _load_workflow(_WORKFLOW)
-    assert _step_run_contains(workflow, "Related-edge validator", "steps.diffscope.outputs.flag"), (
-        "Related-edge validator step must pass steps.diffscope.outputs.flag"
-    )
-    assert _step_run_contains(workflow, "Relative body-link gate", "steps.diffscope.outputs.flag"), (
-        "Relative body-link gate step must pass steps.diffscope.outputs.flag"
-    )
-
-
-def test_description_length_gate_stays_out_of_diff_scope() -> None:
-    """Out-of-scope guard: the description-length gate is NOT diff-scoped (WP02 spec)."""
-    workflow = _load_workflow(_WORKFLOW)
-    assert not _step_run_contains(workflow, "Description-length gate", "steps.diffscope.outputs.flag"), (
-        "Description-length gate is explicitly out of #3147's scope — must not carry the flag"
-    )
 
 
 # --------------------------------------------------------------------------- #
