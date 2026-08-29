@@ -1,0 +1,54 @@
+{
+  "wp_id": "WP01",
+  "captured_at": "2026-08-28T18:02:35Z",
+  "base_branch": "fix/accept-path-convention-override",
+  "base_commit": "11711453f5d04b3f99297a34ec6ba91aa9ff382c",
+  "test_runner": "pytest",
+  "total": 8,
+  "passed": 0,
+  "failed": 8,
+  "skipped": 0,
+  "failures": [
+    {
+      "test": "tests.architectural.test_spec_kitty_home_pin_budget",
+      "error": "collection failure",
+      "file": "unknown:?"
+    },
+    {
+      "test": "tests.charter.test_consistency_check",
+      "error": "collection failure",
+      "file": "unknown:?"
+    },
+    {
+      "test": "tests.doctrine.test_doctrine_health_glossary_pack",
+      "error": "collection failure",
+      "file": "unknown:?"
+    },
+    {
+      "test": "tests.doctrine.test_shipped_profiles",
+      "error": "collection failure",
+      "file": "unknown:?"
+    },
+    {
+      "test": "tests.git.test_protection_config_honoring",
+      "error": "collection failure",
+      "file": "unknown:?"
+    },
+    {
+      "test": "tests.review.test_verdict_save_performance",
+      "error": "collection failure",
+      "file": "unknown:?"
+    },
+    {
+      "test": "tests.specify_cli.cli.commands.agent.test_finalize_canceled_work_packages_performance",
+      "error": "collection failure",
+      "file": "unknown:?"
+    },
+    {
+      "test": "tests.specify_cli.lanes.test_lane_dependency_cycle_performance",
+      "error": "collection failure",
+      "file": "unknown:?"
+    }
+  ],
+  "source_identity": "GateCoverageScopeSource/junit_xml"
+}
