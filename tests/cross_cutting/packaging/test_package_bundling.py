@@ -113,7 +113,7 @@ def test_wheel_bundles_templates_correctly(installed_wheel_venv: dict[str, Path]
             str(python),
             "-c",
             "from importlib.resources import files; "
-            "skill = files('doctrine').joinpath('skills', 'spec-kitty-setup-doctor', 'SKILL.md'); "
+            "skill = files('charter.offering').joinpath('skills', 'spec-kitty-setup-doctor', 'SKILL.md'); "
             "print(skill.is_file())",
         ],
         capture_output=True,

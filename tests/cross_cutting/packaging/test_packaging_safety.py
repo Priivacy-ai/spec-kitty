@@ -70,9 +70,11 @@ def test_wheel_contains_only_known_packages(build_artifacts: dict[str, Path]) ->
         # S5) -- the former src/doctrine package relocated to
         # src/charter/offering/ (S2a), so doctrine content ships under
         # "charter/offering/" below. The bare src/doctrine.py CR-06
-        # deprecation-shim module (not a directory) is a separate,
-        # not-yet-wired-into-packaging concern outside this gate's scope.
+        # deprecation-shim module (not a directory) IS force-included in the
+        # wheel so `import doctrine` keeps working for installed consumers, so
+        # "doctrine.py" is a known packaged file.
         "doctrine/",
+        "doctrine.py",
         "charter/",
         "kernel/",
         "glossary/",
