@@ -3691,6 +3691,10 @@ pages:
     - {slug: "hosted-auth-and-sync", text: "Hosted Auth and Sync", level: 2}
     - {slug: "spec-kitty-enable-saas-sync", text: "SPEC_KITTY_ENABLE_SAAS_SYNC", level: 3}
     - {slug: "spec-kitty-saas-url", text: "SPEC_KITTY_SAAS_URL", level: 3}
+    - {slug: "spec-kitty-sync-disable", text: "SPEC_KITTY_SYNC_DISABLE", level: 3}
+    - {slug: "spec-kitty-sync-minimal-import", text: "SPEC_KITTY_SYNC_MINIMAL_IMPORT", level: 3}
+    - {slug: "sync-activation-precedence", text: "Sync activation precedence", level: 3}
+    - {slug: "spec-kitty-pre-review-gate-disable", text: "SPEC_KITTY_PRE_REVIEW_GATE_DISABLE", level: 3}
     - {slug: "release-channel", text: "Release Channel", level: 2}
     - {slug: "spec-kitty-prerelease", text: "SPEC_KITTY_PRERELEASE", level: 3}
     - {slug: "the-kitty-env-file", text: "The `.kitty.env` file", level: 2}
@@ -9190,6 +9194,7 @@ pages:
     divio_type: "none"
     abstract: "How to inspect, classify, and clean up stale Spec Kitty sync daemons."
     anchors:
+    - {slug: "no-daemon-by-default-opt-in", text: "No daemon by default (opt-in)", level: 2}
     - {slug: "why-orphans-accumulate", text: "Why orphans accumulate", level: 2}
     - {slug: "the-two-command-operator-path", text: "The two-command operator path", level: 2}
     - {slug: "cleanup-classes", text: "Cleanup classes", level: 2}
@@ -9554,7 +9559,7 @@ pages:
     divio_type: "none"
     abstract: "Env census of the sync surface: a live or retired verdict for every SPEC_KITTY_* reference, proving the Wave-4 de-god deleted no environment name."
     anchors:
-    - {slug: "census-8-references-all-live-1-historical-retired", text: "Census (8 references, all `live`; 1 historical `retired`)", level: 2}
+    - {slug: "census-9-references-all-live-1-historical-retired", text: "Census (9 references, all `live`; 1 historical `retired`)", level: 2}
     - {slug: "verdict-rationale", text: "Verdict rationale", level: 3}
     - {slug: "anti-deletion-invariant-fr-007", text: "Anti-deletion invariant (FR-007)", level: 2}
   - path: "docs/plans/code-quality/targeted-cleanup-scoping.md"
