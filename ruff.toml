@@ -1,4 +1,5 @@
 extend = "pyproject.toml"
+extend-exclude = ["kitty-specs/*/research/**"]
 
 # Generated Ruff baseline for the legacy lint debt present on origin/main as of 2026-05-01.
 # Keep new files under the existing Ruff rule set while allowing cleanup to happen file-by-file.
