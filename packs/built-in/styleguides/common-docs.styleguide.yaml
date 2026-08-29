@@ -223,12 +223,17 @@ structural_lint_config:
   # touched-set root-allowlist gate consume. They land here together with the
   # LintConfig dataclass + check-fns so the three-way schema/LintConfig/YAML
   # parity guard (test_schema_properties_match_lintconfig_fields) stays green.
-  # (WP01 carries the placeholder comment marking this insertion point; the
-  # values themselves mirror the spec Definitions exactly.)
+  # (WP01 carries the placeholder comment marking this insertion point. The
+  # mission spec's Definitions section — `kitty-specs/common-docs-convergence-
+  # 01KZMTR9/spec.md` — is the HISTORICAL starting point for the two lists
+  # below, not a live parity guarantee: both lists are extended in-place by
+  # PR as new sections/dirs are sanctioned, and this shipped styleguide — the
+  # config the lint actually loads via `load_config` — is the SSOT going
+  # forward. No test asserts the two stay in sync; do not assume they do.)
   #
-  # The closed set of sanctioned CONTENT sections under docs/. A page whose
-  # top-level section is not one of these (and not covered by non_content_dirs)
-  # is off-structure. Advisory now; WP13 flips it blocking (OB-2).
+  # The sanctioned CONTENT sections under docs/. A page whose top-level
+  # section is not one of these (and not covered by non_content_dirs) is
+  # off-structure. Advisory now; WP13 flips it blocking (OB-2).
   sanctioned_content_sections:
     - index
     - context
