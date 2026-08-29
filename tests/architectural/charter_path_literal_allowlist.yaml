@@ -82,27 +82,27 @@ charter_path_literals:
   clause: "a"
   token: "_CHARTER_FILENAME ="
   rationale: "Sync composes the bundle directory from its own _KITTIFY_DIRNAME/_CHARTER_DIRNAME segments to materialize the C-003 prose file; the filename constant is one segment of that composition, not a whole-path duplicate."
-- file: src/doctrine/spdd_reasons/activation.py
+- file: src/charter/offering/spdd_reasons/activation.py
   qualname: <module>
   line: 49
   literal: "charter.yaml"
   clause: "a"
   token: "_CHARTER_YAML ="
-  rationale: "PERMANENT (layering): src/doctrine/ must not import charter.* under the enforced runtime->charter->doctrine boundary; importing CHARTER_YAML would invert the dependency and break the Shared Package Boundary ADR."
-- file: src/doctrine/versioning.py
+  rationale: "PERMANENT (layering): src/charter/offering/ (née src/doctrine/, relocated by charter-code-topology-01M152G1) must not import charter.* under the enforced runtime->charter->doctrine boundary; importing CHARTER_YAML would invert the dependency and break the Shared Package Boundary ADR."
+- file: src/charter/offering/versioning.py
   qualname: get_bundle_schema_version
-  line: 190
+  line: 191
   literal: "charter.yaml"
   clause: "a"
   token: "charter_yaml_path = charter_dir /"
-  rationale: "PERMANENT (layering): versioning.py's own module docstring states 'This module must NOT import from charter.*'; the doctrine wheel cannot depend on charter.bundle."
-- file: src/doctrine/versioning.py
+  rationale: "PERMANENT (layering): versioning.py's own module docstring states 'This module must NOT import from charter.*'; the doctrine wheel (relocated to src/charter/offering/ by charter-code-topology-01M152G1) cannot depend on charter.bundle."
+- file: src/charter/offering/versioning.py
   qualname: _stamp_charter_bundle_version
   line: 530
   literal: "charter.yaml"
   clause: "a"
   token: "charter_yaml_path = bundle_root /"
-  rationale: "PERMANENT (layering): same doctrine->charter import prohibition as :190; _stamp_charter_bundle_version (a phase-helper extracted from migrate_v1_to_v2 for S3776) resolves charter.yaml inside a caller-supplied bundle_root."
+  rationale: "PERMANENT (layering): same doctrine->charter import prohibition as :191; _stamp_charter_bundle_version (a phase-helper extracted from migrate_v1_to_v2 for S3776) resolves charter.yaml inside a caller-supplied bundle_root."
 - file: src/specify_cli/charter_runtime/freshness/computer.py
   qualname: <module>
   line: 179

@@ -263,8 +263,8 @@ def test_doctrine_skills_name_the_json_artifact() -> None:
     skill teaching only the retired markdown path.
     """
     skill_paths = (
-        _REPO_ROOT / "src/doctrine/skills/spec-kitty-implement-review/SKILL.md",
-        _REPO_ROOT / "src/doctrine/skills/spec-kitty-mission-review/SKILL.md",
+        _REPO_ROOT / "src/charter/offering/skills/spec-kitty-implement-review/SKILL.md",
+        _REPO_ROOT / "src/charter/offering/skills/spec-kitty-mission-review/SKILL.md",
     )
     for skill_path in skill_paths:
         text = skill_path.read_text(encoding="utf-8")

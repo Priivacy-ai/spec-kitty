@@ -4,9 +4,9 @@ An occurrence map is a YAML file that describes how a bulk rename/remove/depreca
 operation should be classified across different occurrence categories. Each category
 carries an ``action`` that tells the executor how to handle occurrences of that kind.
 
-The canonical schema lives in ``src/doctrine/schemas/occurrence-map.schema.yaml``
+The canonical schema lives in ``src/charter/offering/schemas/occurrence-map.schema.yaml``
 and the user-facing starter template lives in
-``src/doctrine/templates/occurrence-map-template.yaml``. Both are loaded at import
+``src/charter/offering/templates/occurrence-map-template.yaml``. Both are loaded at import
 time via :mod:`charter.offering.shared.schema_utils` so the constants below stay in lock
 step with the published schema — there is no second source of truth to drift.
 """

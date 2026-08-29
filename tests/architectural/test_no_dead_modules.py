@@ -365,7 +365,19 @@ _CATEGORY_3_EXTERNAL_CLI_ENTRYPOINTS: frozenset[str] = frozenset(
 # was the last documented back-compat shim; its ~35 test sites were re-anchored
 # onto ``specify_cli.task_utils`` and the module deleted, so this category is now
 # empty (baseline category_4_backcompat_shims: 0).
-_CATEGORY_4_BACKCOMPAT_SHIMS: frozenset[str] = frozenset()
+#
+# 0 -> 1 (charter-code-topology-01M152G1 landing remediation, retire-doctrine-term
+# M2): ``doctrine`` (src/doctrine.py) is an intentional deprecation shim -- a single
+# MODULE file (not a package) kept only so pre-existing external/legacy callers that
+# still spell ``import doctrine`` / ``from doctrine import X`` keep working during the
+# CR-06 deprecation window, after the relocation of src/doctrine/ to
+# src/charter/offering/. Nothing under src/ imports it (that is the point of a
+# backcompat shim for EXTERNAL callers); it has zero src/ callers by design.
+_CATEGORY_4_BACKCOMPAT_SHIMS: frozenset[str] = frozenset(
+    {
+        "doctrine",
+    }
+)
 
 # ---------- 5. WP-in-flight slot-holder adapters ----------
 # Carry the `# adapter:no-logic` marker; reserved for the WP07

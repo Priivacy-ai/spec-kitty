@@ -18,13 +18,23 @@ _EXEMPT_SUBPACKAGE = _RUNTIME_ROOT / "doctrine"
 
 # The absolute-``doctrine`` matcher literals, hoisted per Sonar S1192 (they recur
 # across the module-level ratchet, the lazy ratchet, and the laundering scan).
+# Post-relocation (charter-code-topology-01M152G1), the doctrine layer lives at
+# ``charter.offering.*`` (``src/doctrine/`` -> ``src/charter/offering/``); both the
+# legacy root and the relocated namespace are recognized so the boundary still
+# catches a direct reach-through regardless of which name a call site uses.
 _DOCTRINE_ROOT_MODULE = "doctrine"
 _DOCTRINE_SUBMODULE_PREFIX = "doctrine."
+_CHARTER_OFFERING_ROOT_MODULE = "charter.offering"
+_CHARTER_OFFERING_SUBMODULE_PREFIX = "charter.offering."
 
 
 def _is_doctrine_module(name: str) -> bool:
-    """True for an absolute ``doctrine`` / ``doctrine.<sub>`` dotted module name."""
-    return name == _DOCTRINE_ROOT_MODULE or name.startswith(_DOCTRINE_SUBMODULE_PREFIX)
+    """True for an absolute ``doctrine``/``charter.offering`` dotted module name."""
+    if name in (_DOCTRINE_ROOT_MODULE, _CHARTER_OFFERING_ROOT_MODULE):
+        return True
+    return name.startswith(_DOCTRINE_SUBMODULE_PREFIX) or name.startswith(
+        _CHARTER_OFFERING_SUBMODULE_PREFIX
+    )
 
 
 def _has_module_level_doctrine_import(source: str) -> bool:

@@ -40,11 +40,18 @@ import pytest
 pytestmark = pytest.mark.architectural
 
 _REPO_ROOT = Path(__file__).resolve().parents[2]
+#: Relocated (mission charter-code-topology-01M152G1): the whole doctrine
+#: layer, including ``missions/``, moved from ``src/doctrine/`` to
+#: ``src/charter/offering/``. Nothing under the old ``src/doctrine/missions/``
+#: path is live any more -- unlike when this gate was written (PR #3453),
+#: there is no longer a surviving Python-package exemption case, but the
+#: on-disk resolution check below is left in place: it now degrades to
+#: "everything unconditionally resolves as stale", which is still correct.
 _DOCTRINE_MISSIONS_ROOT = _REPO_ROOT / "src" / "doctrine" / "missions"
 _STALE_FRAGMENT = "src/doctrine/missions/"
 _SCAN_ROOTS = (
     _REPO_ROOT / "packs",
-    _REPO_ROOT / "src" / "doctrine" / "skills",
+    _REPO_ROOT / "src" / "charter" / "offering" / "skills",
 )
 _SCAN_SUFFIXES = {".md", ".yaml", ".yml"}
 # Path-token characters that may legitimately follow the stale fragment in

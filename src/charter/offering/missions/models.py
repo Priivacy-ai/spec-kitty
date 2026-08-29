@@ -173,7 +173,7 @@ class Mission(BaseModel):
 
     This is the schema-generation model used by
     ``scripts/generate_schemas.py`` to emit
-    ``src/doctrine/schemas/mission.schema.yaml``. It is **not** the
+    ``src/charter/offering/schemas/mission.schema.yaml``. It is **not** the
     runtime domain model used by
     :class:`charter.offering.missions.repository.MissionTemplateRepository`
     (which operates on raw dicts).

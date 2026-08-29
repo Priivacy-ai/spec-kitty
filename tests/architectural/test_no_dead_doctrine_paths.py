@@ -250,19 +250,21 @@ def test_code_example_links_would_false_red_without_their_discriminator() -> Non
     excluded = sorted({(site.path, site.text) for site in scan.code_examples})
     # Relocated (mission relocate-builtin-doctrine-packs-01KYT87F): the toolguide
     # markdown moved to the flattened ``packs/built-in/toolguides/`` home; the
-    # SKILL.md stays under ``src/doctrine/skills/`` (skills did not move).
+    # SKILL.md stays under ``src/charter/offering/skills/`` (skills did not
+    # move independently -- they relocated wholesale with ``src/doctrine/`` ->
+    # ``src/charter/offering/`` per mission charter-code-topology-01M152G1).
     # ``spk-doctrine-show-me`` carries byte-pinned portable copies of both
     # guides, so their fenced link examples intentionally appear twice.
     assert excluded == [
         ("packs/built-in/toolguides/MERMAID_DIAGRAMMING.md", "diagram.svg"),
         ("packs/built-in/toolguides/PLANTUML_DIAGRAMMING.md", "diagram.svg"),
-        ("src/doctrine/skills/spec-kitty-spdd-reasons/SKILL.md", "../spec.md#x"),
+        ("src/charter/offering/skills/spec-kitty-spdd-reasons/SKILL.md", "../spec.md#x"),
         (
-            "src/doctrine/skills/spk-doctrine-show-me/assets/MERMAID_DIAGRAMMING.md",
+            "src/charter/offering/skills/spk-doctrine-show-me/assets/MERMAID_DIAGRAMMING.md",
             "diagram.svg",
         ),
         (
-            "src/doctrine/skills/spk-doctrine-show-me/assets/PLANTUML_DIAGRAMMING.md",
+            "src/charter/offering/skills/spk-doctrine-show-me/assets/PLANTUML_DIAGRAMMING.md",
             "diagram.svg",
         ),
     ], f"C1's effect set moved: {excluded}"
@@ -273,9 +275,9 @@ def test_placeholder_links_would_false_red_without_their_discriminator() -> None
     scan = scan_doctrine_cross_links_shipped()
     excluded = sorted({(site.path, site.text) for site in scan.placeholders})
     assert excluded == [
-        ("src/doctrine/templates/guides/HOW-TO.template.md", "../explanation/{topic}.md"),
-        ("src/doctrine/templates/guides/HOW-TO.template.md", "../reference/{file}.md"),
-        ("src/doctrine/templates/guides/HOW-TO.template.md", "./{related-guide}.md"),
+        ("src/charter/offering/templates/guides/HOW-TO.template.md", "../explanation/{topic}.md"),
+        ("src/charter/offering/templates/guides/HOW-TO.template.md", "../reference/{file}.md"),
+        ("src/charter/offering/templates/guides/HOW-TO.template.md", "./{related-guide}.md"),
     ], f"C2's effect set moved: {excluded}"
 
 
@@ -438,7 +440,9 @@ def test_cross_link_scope_is_pinned() -> None:
             if skipped not in path.parents
         }
     assert _DOCTRINE_ROOT.is_dir() and _PACKS_ROOT.is_dir()
-    assert not any(path.startswith("src/doctrine/missions/") for path in in_scope)
+    assert not any(
+        path.startswith("src/charter/offering/missions/") for path in in_scope
+    )
     # Pinned near the live combined count (159 = 141 under src/doctrine + 18 under
     # packs/built-in), not at a token floor. The exclusion is subtree-shaped, so
     # this assertion is the only thing standing between Gate C and a silencing

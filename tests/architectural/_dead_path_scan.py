@@ -33,7 +33,11 @@ from pathlib import Path
 
 _REPO_ROOT = Path(__file__).resolve().parents[2]
 _SRC_ROOT = _REPO_ROOT / "src"
-_DOCTRINE_ROOT = _SRC_ROOT / "doctrine"
+#: Relocated doctrine source root (mission ``charter-code-topology-01M152G1``).
+#: ``src/doctrine/`` moved to ``src/charter/offering/``; ``src/doctrine.py`` is
+#: a legacy-import compat shim (a module, not a package) and carries no scannable
+#: content of its own.
+_DOCTRINE_ROOT = _SRC_ROOT / "charter" / "offering"
 
 #: Relocated built-in pack root (mission ``relocate-builtin-doctrine-packs-01KYT87F``).
 #: The shipped built-in doctrine content that names paths -- agent profiles,
