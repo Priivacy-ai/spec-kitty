@@ -29,7 +29,14 @@ import pytest
 from specify_cli.sync.runtime import SyncRuntime
 from tests.sync.conftest import _content_fingerprint
 
-pytestmark = [pytest.mark.unit, pytest.mark.fast]
+from specify_cli.core.saas_sync_config import sync_active
+pytestmark = [
+    pytest.mark.unit, pytest.mark.fast,
+    pytest.mark.skipif(
+        not sync_active(),
+        reason="sync deactivated by default (#3799); set SPEC_KITTY_ENABLE_SAAS_SYNC=1 to run",
+    ),
+]
 
 
 def test_distinct_unstarted_sync_runtime_instances_fingerprint_differently() -> None:

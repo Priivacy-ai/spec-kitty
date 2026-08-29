@@ -2,7 +2,7 @@
 title: CLI Command Reference
 description: Complete Spec Kitty 3.2 CLI command reference with subcommands, options, mission workflow commands, and generated help output.
 doc_status: active
-updated: '2026-06-26'
+updated: '2026-08-29'
 related:
 - docs/api/bulk-edit-gate.md
 - docs/api/finalize-tasks-internals.md
@@ -4446,6 +4446,16 @@ _Emit the open-Ops reminder for the Claude Code Stop hook._
 ## spec-kitty sync
 
 _Synchronization commands_
+
+> **Inactive by default (opt-in).** As of the `sync-deactivate-by-default`
+> mission the legacy local-sync surface is **inactive on a bare install** — no
+> sync daemon is spawned and no events are emitted. The `sync` command group
+> stays registered, but when sync is not armed the subcommands report inactive
+> / no-op rather than doing work. Opt in by setting
+> `SPEC_KITTY_ENABLE_SAAS_SYNC=1` (and give per-project consent with
+> `spec-kitty sync opt-in`). `SPEC_KITTY_SYNC_DISABLE` /
+> `SPEC_KITTY_SYNC_MINIMAL_IMPORT` force it back off (disable wins). See
+> [Environment Variables § Sync activation precedence](environment-variables.md#sync-activation-precedence).
 
 ```
  Usage: spec-kitty sync [OPTIONS] COMMAND [ARGS]...

@@ -41,7 +41,14 @@ if TYPE_CHECKING:
     from specify_cli.auth.token_manager import StoredSession
 
 
-pytestmark = [pytest.mark.fast]
+from specify_cli.core.saas_sync_config import sync_active
+pytestmark = [
+    pytest.mark.fast,
+    pytest.mark.skipif(
+        not sync_active(),
+        reason="sync deactivated by default (#3799); set SPEC_KITTY_ENABLE_SAAS_SYNC=1 to run",
+    ),
+]
 
 
 def _configure_root(monkeypatch: pytest.MonkeyPatch, tmp_path: Path, *, env_set: bool) -> Path:

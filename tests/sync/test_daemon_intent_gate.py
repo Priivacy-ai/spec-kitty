@@ -24,7 +24,14 @@ from specify_cli.sync.daemon import DaemonIntent, DaemonStartOutcome, ensure_syn
 # ---------------------------------------------------------------------------
 
 
-pytestmark = [pytest.mark.unit, pytest.mark.fast]
+from specify_cli.core.saas_sync_config import sync_active
+pytestmark = [
+    pytest.mark.unit, pytest.mark.fast,
+    pytest.mark.skipif(
+        not sync_active(),
+        reason="sync deactivated by default (#3799); set SPEC_KITTY_ENABLE_SAAS_SYNC=1 to run",
+    ),
+]
 
 @pytest.fixture()
 def rollout_disabled(monkeypatch: pytest.MonkeyPatch) -> Generator[None, None, None]:

@@ -15,7 +15,7 @@ from __future__ import annotations
 
 import os
 
-from specify_cli.core.env import is_truthy
+from specify_cli.core.env import first_set_sync_disable_env, is_truthy
 
 SAAS_SYNC_ENV_VAR = "SPEC_KITTY_ENABLE_SAAS_SYNC"
 
@@ -31,6 +31,7 @@ __all__ = [
     "is_saas_sync_enabled",
     "saas_sync_disabled_message",
     "saas_sync_opt_in_recorded_message",
+    "sync_active",
 ]
 
 
@@ -42,6 +43,12 @@ def is_saas_sync_enabled() -> bool:
     Everything else — including an unset or empty variable — returns ``False``.
     """
     return is_truthy(os.environ.get(SAAS_SYNC_ENV_VAR))
+
+
+def sync_active() -> bool:
+    """True iff the legacy sync surface is armed. Machine-level arming only —
+    NOT per-project egress consent (see sync/egress.py). Disable/minimal-import wins."""
+    return is_saas_sync_enabled() and first_set_sync_disable_env() is None
 
 
 def saas_sync_disabled_message() -> str:

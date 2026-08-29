@@ -809,21 +809,15 @@ def test_exact_entry_reports_unknown_timeout_candidate_without_transition(
     ("use_flag", "env", "expected_reason"),
     [
         (True, {}, "--skip-pre-review-gate flag"),
-        (False, {"SPEC_KITTY_SYNC_DISABLE": "1"}, "SPEC_KITTY_SYNC_DISABLE is set"),
         (
             False,
-            {"SPEC_KITTY_SYNC_MINIMAL_IMPORT": "1"},
-            "SPEC_KITTY_SYNC_MINIMAL_IMPORT is set",
+            {"SPEC_KITTY_PRE_REVIEW_GATE_DISABLE": "1"},
+            "SPEC_KITTY_PRE_REVIEW_GATE_DISABLE is set",
         ),
         (
             True,
-            {"SPEC_KITTY_SYNC_DISABLE": "1", "SPEC_KITTY_SYNC_MINIMAL_IMPORT": "1"},
+            {"SPEC_KITTY_PRE_REVIEW_GATE_DISABLE": "1"},
             "--skip-pre-review-gate flag",
-        ),
-        (
-            False,
-            {"SPEC_KITTY_SYNC_DISABLE": "1", "SPEC_KITTY_SYNC_MINIMAL_IMPORT": "1"},
-            "SPEC_KITTY_SYNC_DISABLE is set",
         ),
     ],
 )

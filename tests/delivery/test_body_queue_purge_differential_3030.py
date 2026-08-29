@@ -12,7 +12,14 @@ from specify_cli.sync.body_queue import OfflineBodyUploadQueue
 from specify_cli.sync.namespace import NamespaceRef
 from specify_cli.sync.project_store import ProjectSyncStore, ProjectUnitOfWork
 
-pytestmark = [pytest.mark.fast, pytest.mark.usefixtures("canonical_home")]
+from specify_cli.core.saas_sync_config import sync_active
+pytestmark = [
+    pytest.mark.fast, pytest.mark.usefixtures("canonical_home"),
+    pytest.mark.skipif(
+        not sync_active(),
+        reason="sync deactivated by default (#3799); set SPEC_KITTY_ENABLE_SAAS_SYNC=1 to run",
+    ),
+]
 
 # R1b (#3121): home isolation is provided by the canonical SPEC_KITTY_HOME owner
 # (``canonical_home``, root conftest) via the module-level ``usefixtures`` mark above, replacing a

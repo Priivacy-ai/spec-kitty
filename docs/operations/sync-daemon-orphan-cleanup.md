@@ -2,7 +2,7 @@
 title: Sync Daemon Orphan Cleanup — Operator Runbook
 description: How to inspect, classify, and clean up stale Spec Kitty sync daemons.
 doc_status: active
-updated: '2026-07-22'
+updated: '2026-08-29'
 related:
 - docs/adr/3.x/2026-06-30-1-sync-daemon-identity-and-cleanup-classification.md
 ---
@@ -16,6 +16,32 @@ scripting, and the hosted-auth/sync test environment gate.
 
 **Architectural background:**
 [`docs/adr/3.x/2026-06-30-1-sync-daemon-identity-and-cleanup-classification.md`](../adr/3.x/2026-06-30-1-sync-daemon-identity-and-cleanup-classification.md)
+
+---
+
+## No daemon by default (opt-in)
+
+As of the `sync-deactivate-by-default` mission the legacy local-sync surface is
+**inactive on a bare install**: nothing spawns a sync daemon implicitly. A
+daemon starts only once you opt in with `SPEC_KITTY_ENABLE_SAAS_SYNC=1` (see
+[Environment Variables § Sync activation precedence](../api/environment-variables.md#sync-activation-precedence)).
+
+Deactivation prevents a *new implicit* spawn — it does **not** stop a daemon
+that a prior opted-in session already left running. If one lingers,
+`spec-kitty sync doctor` surfaces an advisory line pointing at cleanup, and the
+orphan-cleanup path below retires it:
+
+```bash
+# Restart (foreground) or stop the registered daemon
+spec-kitty doctor restart-daemon
+
+# Or sweep same-scope stale daemons (the two-command path below)
+spec-kitty auth doctor --reset
+```
+
+The `spec-kitty sync doctor` advisory is informational only — an inactive sync
+surface is the opt-in default, not a defect, so it never flips the doctor
+report unhealthy.
 
 ---
 

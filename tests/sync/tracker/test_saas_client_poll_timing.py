@@ -29,7 +29,14 @@ import pytest
 from specify_cli.tracker import saas_client as saas_client_module
 from specify_cli.tracker.saas_client import SaaSTrackerClientError
 
-pytestmark = [pytest.mark.fast]
+from specify_cli.core.saas_sync_config import sync_active
+pytestmark = [
+    pytest.mark.fast,
+    pytest.mark.skipif(
+        not sync_active(),
+        reason="sync deactivated by default (#3799); set SPEC_KITTY_ENABLE_SAAS_SYNC=1 to run",
+    ),
+]
 
 _OPERATION_ID = "op-poll-timing"
 

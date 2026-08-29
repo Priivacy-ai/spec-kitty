@@ -1133,6 +1133,14 @@ jobs:
       # exclusion structural (defense-in-depth; no selection change today,
       # since the marker mismatch already excluded them).
       - name: "Run fast tests — sync (parallel, real-port suites excluded)"
+        # WP04 (sync-deactivate-by-default, FR-010 / BINDING item 8): the suite
+        # default is now sync-OFF, so the WP05 collection-time ``skipif`` gates
+        # would deselect every sync test here. This process-level env var is the
+        # collection-time opt-in (a fixture runs too late — the #3213 lesson), so
+        # the sync suite stays SELECTED and the completeness gate keeps counting
+        # it. The job's ``if`` already carries ``github.event_name == 'push'``.
+        env:
+          SPEC_KITTY_ENABLE_SAAS_SYNC: "1"
         run: |
           uv run python -m pytest tests/sync/ -m "fast and not windows_ci" -q --tb=short \
             --ignore=tests/sync/test_orphan_sweep.py \

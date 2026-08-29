@@ -69,7 +69,14 @@ from specify_cli.tracker.saas_client import TRACKER_EGRESS_IDENTIFIER_KINDS
 # no-import-time-`specify_cli.sync` probe, T005), which is a Rule-2
 # violator of the `fast` lane's sub-second, no-subprocess-fan-out contract, per
 # `tests/architectural/test_pytest_marker_correctness.py`.
-pytestmark = [pytest.mark.integration]
+from specify_cli.core.saas_sync_config import sync_active
+pytestmark = [
+    pytest.mark.integration,
+    pytest.mark.skipif(
+        not sync_active(),
+        reason="sync deactivated by default (#3799); set SPEC_KITTY_ENABLE_SAAS_SYNC=1 to run",
+    ),
+]
 
 DESTINATIONS: tuple[EgressDestination, ...] = (
     EgressDestination.LOCAL_SUBPROCESS,

@@ -38,6 +38,7 @@ from rich.console import Console
 
 from specify_cli.core.contract_gate import validate_outbound_payload
 from specify_cli.core.payload_shaping import apply_keep_none_fields
+from specify_cli.core.saas_sync_config import sync_active
 from kernel.clock import now_utc_iso, parse_iso
 from specify_cli.event_journal import (
     DRAIN_BLOCKED_MISSING_AUTH,
@@ -2277,6 +2278,21 @@ class EventEmitter:
             }
             if envelope_fields:
                 event.update(envelope_fields)
+
+            # WP02 / FR-005 + FR-006, C-008: the single canonical arming gate for
+            # the emission surface. Placed AFTER the envelope is fully
+            # constructed and BEFORE ``_capture_to_journal`` (~2280), the
+            # missing-uuid branch (~2308), ``_route_event`` (~2633), and
+            # ``_queue_event_locally`` (~2651). Gating ``_route_event`` alone
+            # MISSES the direct ``get_emitter().emit_*()`` path (init.py, merge,
+            # etc.), which reaches capture/queue without ever touching routing.
+            # We RETURN the constructed envelope (never ``None``) so the
+            # emit_*-returns-non-None contract (tests/contract/test_event_envelope.py
+            # and siblings) stays green, while capture/persist/route/queue — and
+            # the "project sync store is locked" / "Event routing failed"
+            # warnings — are all skipped on the inactive default path.
+            if not sync_active():
+                return event
 
             self._capture_to_journal(
                 event_id=event_id,
