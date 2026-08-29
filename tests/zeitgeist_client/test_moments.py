@@ -323,6 +323,26 @@ class TestEventExtraction:
         assert moments.event_kind({}) is None
         assert moments.event_kind({"kind": ""}) is None
 
+    def test_event_actor_reads_the_attested_user(self) -> None:
+        assert moments.event_actor({"actor": {"user": "lynn"}}) == "lynn"
+
+    def test_event_actor_without_a_user_is_none(self) -> None:
+        assert moments.event_actor({"actor": {"session_ref": "abc"}}) is None
+        assert moments.event_actor({}) is None
+
+    def test_event_mission_prefers_the_attr(self) -> None:
+        payload = {"attrs": {"mission_slug": "034-demo"}, "ref": "other/WP01"}
+        assert moments.event_mission(payload) == "034-demo"
+
+    def test_event_mission_falls_back_to_the_ref_prefix(self) -> None:
+        assert moments.event_mission({"ref": "034-demo/WP01"}) == "034-demo"
+
+    def test_event_mission_of_a_bare_ref_is_whole_ref(self) -> None:
+        assert moments.event_mission({"ref": "034-demo"}) == "034-demo"
+
+    def test_event_mission_absent_is_none(self) -> None:
+        assert moments.event_mission({"attrs": {"note": "hi"}}) is None
+
 
 class TestUnknownKindNames:
     """#210: a ``kinds`` entry must spell the raw wire family name
@@ -366,26 +386,6 @@ class TestMomentSettingsAsDictKindsUnknown:
         :func:`_malformed_filter_keys` exists to distinguish from "unset"."""
         settings = _settings(invalid_filters=frozenset({"kinds"}))
         assert settings.as_dict()["kinds_unknown"] == []
-
-    def test_event_actor_reads_the_attested_user(self) -> None:
-        assert moments.event_actor({"actor": {"user": "lynn"}}) == "lynn"
-
-    def test_event_actor_without_a_user_is_none(self) -> None:
-        assert moments.event_actor({"actor": {"session_ref": "abc"}}) is None
-        assert moments.event_actor({}) is None
-
-    def test_event_mission_prefers_the_attr(self) -> None:
-        payload = {"attrs": {"mission_slug": "034-demo"}, "ref": "other/WP01"}
-        assert moments.event_mission(payload) == "034-demo"
-
-    def test_event_mission_falls_back_to_the_ref_prefix(self) -> None:
-        assert moments.event_mission({"ref": "034-demo/WP01"}) == "034-demo"
-
-    def test_event_mission_of_a_bare_ref_is_whole_ref(self) -> None:
-        assert moments.event_mission({"ref": "034-demo"}) == "034-demo"
-
-    def test_event_mission_absent_is_none(self) -> None:
-        assert moments.event_mission({"attrs": {"note": "hi"}}) is None
 
 
 # --- the predicate -----------------------------------------------------------
