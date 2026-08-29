@@ -20,6 +20,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
+from specify_cli.config.path_conventions import load_project_path_conventions
 from specify_cli.mission import get_deliverables_path
 from specify_cli.status_lanes import has_operator_provenance, is_acceptable_ending
 from specify_cli.task_utils import WorkPackage
@@ -190,6 +191,7 @@ def evaluate_path_conventions(
         strict=False,
         path_prefix=_path_prefix_for_mission(mission, feature_dir),
         feature_dir=planning_read_dir,
+        path_overrides=load_project_path_conventions(repo_root),
     )
     if not path_result.missing_paths:
         return [], None, frozenset()

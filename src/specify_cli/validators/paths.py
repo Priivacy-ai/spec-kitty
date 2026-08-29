@@ -2,10 +2,12 @@
 
 from __future__ import annotations
 
+import warnings
 from dataclasses import dataclass, field
 from pathlib import Path, PurePosixPath
 from collections.abc import Iterable
 
+from specify_cli.config.path_conventions import ARTIFACT_ROUTED_KEYS
 from specify_cli.mission import Mission
 
 __all__ = [
@@ -163,6 +165,60 @@ def artifact_tokens_for_mission(mission: Mission) -> set[str]:
     return {_normalize_path_token(name) for name in (*required, *optional)}
 
 
+def _remap_declared_paths(
+    declared: dict[str, str], path_overrides: dict[str, str] | None
+) -> dict[str, str]:
+    """Apply a remap-only project ``path_conventions`` override to declared paths (C-008 / C-010).
+
+    Only keys the mission already declares are remapped; an override for a key the mission does not
+    declare is ignored (never adds a new required path). Artifact-routed keys (``ARTIFACT_ROUTED_KEYS``)
+    are excluded here too, as defense-in-depth: the reader (:mod:`specify_cli.config.path_conventions`)
+    already strips them from a config-file-sourced mapping, but this merge site must not blindly trust
+    an override dict constructed some other way to leave ``deliverables``-style artifact routing intact.
+    Returns a new dict; the input is untouched.
+    """
+    if not path_overrides:
+        return declared
+    remapped = dict(declared)
+    for key in declared:
+        if key in ARTIFACT_ROUTED_KEYS:
+            continue
+        override = path_overrides.get(key)
+        if override is not None:
+            remapped[key] = override
+    return remapped
+
+
+def _drop_overrides_colliding_with_artifacts(
+    path_overrides: dict[str, str] | None,
+    declared: dict[str, str],
+    artifact_tokens: set[str],
+) -> dict[str, str] | None:
+    """Drop (with a warning) an override whose VALUE collides with a mission artifact token.
+
+    e.g. ``{"workspace": "contracts"}`` where ``contracts`` is a declared mission artifact: applying it
+    would flip ``workspace``'s resolution onto ``feature_dir`` (the artifact surface, see
+    ``validate_mission_paths``'s ``is_artifact_tagged`` branch) and let a real mission-artifact directory
+    spuriously satisfy a check that should test the project's actual workspace location. Only meaningful
+    when artifact-token routing is active (``artifact_tokens`` non-empty, i.e. a ``feature_dir`` was
+    supplied and this is not research's ``path_prefix`` mode) — a no-op otherwise.
+    """
+    if not path_overrides or not artifact_tokens:
+        return path_overrides
+    safe_overrides = dict(path_overrides)
+    for key, value in path_overrides.items():
+        if key not in declared:
+            continue
+        if _normalize_path_token(value) in artifact_tokens:
+            warnings.warn(
+                f"project.path_conventions override for {key!r} ({value!r}) collides with a mission "
+                "artifact token and was ignored to avoid flipping path-resolution routing.",
+                stacklevel=2,
+            )
+            del safe_overrides[key]
+    return safe_overrides
+
+
 def validate_mission_paths(
     mission: Mission,
     project_root: Path,
@@ -170,6 +226,7 @@ def validate_mission_paths(
     strict: bool = False,
     path_prefix: str | Path | None = None,
     feature_dir: Path | None = None,
+    path_overrides: dict[str, str] | None = None,
 ) -> PathValidationResult:
     """Validate that project directories follow mission-defined conventions.
 
@@ -196,7 +253,21 @@ def validate_mission_paths(
         PathValidationResult summarising the state of each required path.
     """
 
-    declared = dict(mission.config.paths or {})
+    # Mission-artifact path tokens (e.g. ``contracts/``) — resolved against the
+    # mission's feature_dir rather than the repo root. Only consulted when a
+    # feature_dir is supplied and we are not in research's path_prefix mode.
+    # Computed BEFORE the override remap below so an override VALUE colliding with an
+    # artifact token can be guarded against (_drop_overrides_colliding_with_artifacts).
+    artifact_tokens: set[str] = set()
+    if feature_dir is not None and not path_prefix:
+        artifact_tokens = artifact_tokens_for_mission(mission)
+
+    # Merge the project-level override into ``declared`` BEFORE the prefix comprehension and the
+    # artifact-token membership check below, so overridden keys are prefixed for research missions and
+    # never bypass artifact routing (C-008). Remap-only: no new key is introduced (C-010).
+    mission_paths = dict(mission.config.paths or {})
+    safe_overrides = _drop_overrides_colliding_with_artifacts(path_overrides, mission_paths, artifact_tokens)
+    declared = _remap_declared_paths(mission_paths, safe_overrides)
     required_paths = {
         key: _prefix_required_path(path_prefix, relative_path)
         for key, relative_path in declared.items()
@@ -208,13 +279,6 @@ def validate_mission_paths(
 
     if not required_paths:
         return result
-
-    # Mission-artifact path tokens (e.g. ``contracts/``) — resolved against the
-    # mission's feature_dir rather than the repo root. Only consulted when a
-    # feature_dir is supplied and we are not in research's path_prefix mode.
-    artifact_tokens: set[str] = set()
-    if feature_dir is not None and not path_prefix:
-        artifact_tokens = artifact_tokens_for_mission(mission)
 
     for key, relative_path in required_paths.items():
         candidate = Path(relative_path)

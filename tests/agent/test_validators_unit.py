@@ -213,6 +213,45 @@ def test_validate_paths_strict_mode_raises(tmp_path: Path) -> None:
     assert "Path Convention Errors" in excinfo.value.result.format_errors()
 
 
+def test_override_remaps_workspace_to_apps(tmp_path: Path) -> None:
+    """#3016: a project path_conventions override remaps the declared source root so a non-``src`` repo
+    (Django ``apps/``) validates without fabricating ``src/`` and without ``--lenient``."""
+    (tmp_path / "apps").mkdir()
+    mission = _MissionStub("Software Dev Kitty", {"workspace": "src/", "tests": "apps/"})
+
+    result = validate_mission_paths(
+        mission, tmp_path, strict=False, path_overrides={"workspace": "apps/", "tests": "apps/"}
+    )
+
+    assert result.is_valid
+    assert "apps/" in result.existing_paths
+    assert not any("src/" in warning for warning in result.warnings)
+
+
+def test_override_declared_but_absent_still_blocks(tmp_path: Path) -> None:
+    """SC-006 (non-fakeable discriminator): an override changes WHICH directory is expected, not WHETHER
+    it is enforced — a declared-but-absent ``apps/`` still blocks under strict mode."""
+    mission = _MissionStub("Software Dev Kitty", {"workspace": "src/"})
+
+    with pytest.raises(PathValidationError) as excinfo:
+        validate_mission_paths(mission, tmp_path, strict=True, path_overrides={"workspace": "apps/"})
+
+    assert excinfo.value.result.missing_paths == ["apps/"]
+
+
+def test_override_only_remaps_declared_keys(tmp_path: Path) -> None:
+    """C-010 remap-only: an override for a key the mission does not declare adds no new required path."""
+    (tmp_path / "src").mkdir()
+    mission = _MissionStub("Software Dev Kitty", {"workspace": "src/"})
+
+    result = validate_mission_paths(
+        mission, tmp_path, strict=False, path_overrides={"workspace": "src/", "data": "datadir/"}
+    )
+
+    assert result.is_valid
+    assert result.missing_paths == []
+
+
 def test_mission_artifact_path_resolves_against_feature_dir(tmp_path: Path) -> None:
     """A declared path that is also a mission artifact (e.g. ``contracts/``) is
     resolved against the mission's feature_dir, while build paths (``src/``) stay
@@ -371,6 +410,68 @@ def test_missing_build_path_stays_project_root_relative_unchanged(
     # membership filter (summary_core.evaluate_path_conventions) — the
     # build/repo-root branch stays out of missing_artifact_tokens entirely.
     assert result.missing_artifact_tokens == []
+
+
+def test_merge_site_ignores_deliverables_override_even_when_passed_directly(
+    tmp_path: Path,
+) -> None:
+    """Defense-in-depth (adversarial squad fix #3): the reader already strips an artifact-routed
+    ``deliverables`` override, but ``_remap_declared_paths``/``validate_mission_paths`` must ALSO ignore
+    one, in case a future caller constructs ``path_overrides`` some other way. Routing must not flip.
+    """
+    repo_root = tmp_path / "repo"
+    feature_dir = repo_root / "kitty-specs" / "010-feature"
+    (feature_dir / "contracts").mkdir(parents=True)
+    (repo_root / "src").mkdir(parents=True)
+
+    mission = _MissionStub(
+        "Software Dev Kitty",
+        {"workspace": "src/", "deliverables": "contracts/"},
+        optional_artifacts=("contracts/",),
+    )
+
+    result = validate_mission_paths(
+        mission,
+        repo_root,
+        strict=False,
+        feature_dir=feature_dir,
+        path_overrides={"deliverables": "somewhere-else/"},
+    )
+
+    assert result.is_valid, result.warnings
+    assert result.required_paths["deliverables"] == "contracts/"
+    assert "somewhere-else/" not in result.required_paths.values()
+
+
+def test_override_value_colliding_with_artifact_token_is_dropped(tmp_path: Path) -> None:
+    """Adversarial squad fix #4: an override VALUE that collides with a mission artifact token (e.g.
+    ``workspace`` -> ``"contracts"``) must be dropped (with a warning), not silently applied — applying
+    it would flip ``workspace``'s routing onto ``feature_dir`` and let the real artifact directory
+    spuriously satisfy a check that should test the project's actual workspace location.
+    """
+    repo_root = tmp_path / "repo"
+    feature_dir = repo_root / "kitty-specs" / "010-feature"
+    (feature_dir / "contracts").mkdir(parents=True)
+    # NOTE: src/ deliberately absent at repo_root — if the override were honored, "contracts" would
+    # resolve under feature_dir (which exists) and the workspace check would wrongly pass.
+
+    mission = _MissionStub(
+        "Software Dev Kitty",
+        {"workspace": "src/", "deliverables": "contracts/"},
+        optional_artifacts=("contracts/",),
+    )
+
+    with pytest.warns(UserWarning, match="workspace"):
+        result = validate_mission_paths(
+            mission,
+            repo_root,
+            strict=False,
+            feature_dir=feature_dir,
+            path_overrides={"workspace": "contracts"},
+        )
+
+    assert result.required_paths["workspace"] == "src/"
+    assert "src/" in result.missing_paths
 
 
 def test_suggest_directory_creation_handles_files_and_dirs() -> None:

@@ -3021,6 +3021,27 @@ pages:
     - {slug: "b-complete-extinction-outside-the-immutable-archive-chosen", text: "B. Complete extinction outside the immutable archive (chosen)", level: 3}
     - {slug: "c-hard-break-now", text: "C. Hard break now", level: 3}
     - {slug: "more-information", text: "More Information", level: 2}
+  - path: "docs/adr/3.x/2026-08-28-1-project-path-convention-override-precedes-doctrine.md"
+    title: "ADR: A project path_conventions override precedes the doctrine default, without changing the blocking policy"
+    divio_type: "none"
+    abstract: "A project path_conventions override remaps resolved accept directories ahead of the mission-type doctrine default, leaving the #3783 blocking policy unchanged."
+    anchors:
+    - {slug: "context-and-problem-statement", text: "Context and Problem Statement", level: 2}
+    - {slug: "decision-drivers", text: "Decision Drivers", level: 2}
+    - {slug: "decision-outcome", text: "Decision Outcome", level: 2}
+    - {slug: "precedence-order-per-key", text: "Precedence order (per key)", level: 3}
+    - {slug: "remap-only", text: "Remap-only", level: 3}
+    - {slug: "deliberate-non-reversal-of-3783", text: "Deliberate non-reversal of #3783", level: 3}
+    - {slug: "why-deliverables-is-excluded-the-value-artifact-token-coupling-c-010", text: "Why `deliverables` is excluded — the value ↔ artifact-token coupling (C-010)", level: 3}
+    - {slug: "fail-closed-scope", text: "Fail-closed scope", level: 3}
+    - {slug: "layout-auto-detection-2744-is-the-deliberate-next-step", text: "Layout auto-detection (#2744) is the deliberate next step", level: 3}
+    - {slug: "considered-options", text: "Considered Options", level: 2}
+    - {slug: "consequences", text: "Consequences", level: 2}
+    - {slug: "positive", text: "Positive", level: 3}
+    - {slug: "negative", text: "Negative", level: 3}
+    - {slug: "neutral", text: "Neutral", level: 3}
+    - {slug: "confirmation", text: "Confirmation", level: 2}
+    - {slug: "more-information", text: "More Information", level: 2}
   - path: "docs/adr/3.x/README.md"
     title: "3.x ADRs"
     divio_type: "none"
