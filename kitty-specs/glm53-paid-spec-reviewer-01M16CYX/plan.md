@@ -7,10 +7,10 @@
 
 Расширить существующий provider-neutral `spec-review` ровно одним платным профилем: `openrouter/z-ai/glm-5.3`. Бесплатная ветка остаётся прежней. Для платного профиля CLI требует канонический `--max-cost-usd`, связывает его с disclosure digest, а runner выдаёт permit только после проверки единственной точной записи OpenCode model metadata и консервативной верхней оценки стоимости. Неполная metadata, cap ниже оценки, другой платный маршрут или превышение prompt byte-bound завершаются до создания OpenCode session.
 
-## Технический контекст
+## Technical Context
 
-**Язык**: Python 3.11+  
-**Основные зависимости**: Typer, стандартные `decimal`/`json`/`subprocess`, существующий OpenCode loopback adapter  
+**Language/Version**: Python 3.11+  
+**Primary Dependencies**: Typer, стандартные `decimal`/`json`/`subprocess`, существующий OpenCode loopback adapter  
 **Хранение**: append-only YAML `reviews/spec-review-*.yaml`; credentials не хранятся  
 **Тестирование**: pytest unit + CLI + integration, ATDD red-first, без сети/model call  
 **Платформы**: Windows, Linux, macOS  
@@ -116,4 +116,3 @@ kitty-specs/glm53-paid-spec-reviewer-01M16CYX/contracts/
 - Реализация и тесты полностью offline.
 - Платный smoke, изменение OpenRouter account/Auto Router и DSH исключены.
 - После реализации отдельное разрешение пользователя необходимо для любого фактического вызова GLM 5.3.
-
