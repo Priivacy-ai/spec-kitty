@@ -35,9 +35,9 @@ make test-full    # everything, parallel + serial passes — CI's target, not PR
 ```
 
 `make test-full` runs the bulk of the suite across worker processes, then gives
-each parallel-unsafe family (`stress`, `timing`, …) its own dedicated serial
-pass — see [AGENTS.md](../../../AGENTS.md#commands) for the exact pass
-breakdown and the PR-validation test policy.
+each of the two parallel-unsafe families (`stress` and `timing`) its own
+dedicated serial pass — see [AGENTS.md](../../../AGENTS.md#commands) for the
+exact pass breakdown and the PR-validation test policy.
 
 ## Why `--dist loadfile` (never bare `--dist load`)
 
@@ -212,7 +212,10 @@ python -m tests._support.coverage_safety.ratchet -n 3 -- \
 # 4. Parallel-vs-serial timing: target ≥2× faster on a ≥4-core machine.
 time PWHEADLESS=1 .venv/bin/pytest tests/ -n auto --dist loadfile -p no:cacheprovider \
   -m "not stress and not timing"
-time PWHEADLESS=1 .venv/bin/pytest tests/ -m "stress and not windows_ci" -n0 -q   # serial pass
+time PWHEADLESS=1 .venv/bin/pytest tests/ -m "stress and not windows_ci" -n0 \
+  --timeout=240 --timeout-method=signal -q
+time PWHEADLESS=1 .venv/bin/pytest tests/ -m timing -n0 \
+  --timeout=240 --timeout-method=signal -q
 
 # 5. Real home untouched: mtime/inode unchanged (or path still absent) after the run.
 ls -la ~/.spec-kitty 2>/dev/null
