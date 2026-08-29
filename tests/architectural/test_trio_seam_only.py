@@ -152,9 +152,19 @@ _READ_PATH_RESOLVER_MODULE = "specify_cli.missions._read_path_resolver"
 # EXPECTED red on ``test_trio_imports_route_only_through_seam_wrappers``
 # (recorded in research/expected-reds.md) -- that pre-existing gate now
 # structurally enforces the shrink with zero code changes to itself.
+# #450: ``MissionSelectorAmbiguous`` is added deliberately, not a silent
+# widening -- it is the exception type ``placement_seam(...).read_dir(...)``
+# raises on an ambiguous handle, not an FS-path-composing primitive (it
+# carries only ``error_code``/``handle``/``candidates``, no path). workflow.py
+# needs to name it in an ``except`` clause to stop that ambiguous-handle case
+# propagating as a bare traceback out of its own short-circuit call to the
+# blessed ``placement_seam`` wrapper -- the same shape #241 already landed at
+# the two sibling ``_find_mission_slug`` call sites outside the trio
+# (tasks_shared.py, status.py).
 _SEAM_ALLOWED_READ_PATH_RESOLVER_NAMES: frozenset[str] = frozenset(
     {
         "resolve_handle_to_read_path",
+        "MissionSelectorAmbiguous",
     }
 )
 
