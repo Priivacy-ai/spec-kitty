@@ -1,5 +1,4 @@
 {
-  "accept_commit": "fd8c4d58e93c7d0bf9b61af2029d4f077527c402",
   "acceptance_history": [
     {
       "accept_commit": "bb7436a32df0c15ca7e267da73c1c5ea0757d505",
@@ -21,12 +20,18 @@
       "accepted_at": "2026-08-29T11:46:19.634083+00:00",
       "accepted_by": "Руслан",
       "accepted_from_commit": "dd3ceb8266285bd93870cdfd9b18860c0d7d7e49"
+    },
+    {
+      "acceptance_mode": "pr",
+      "accepted_at": "2026-08-29T11:49:37.738180+00:00",
+      "accepted_by": "Руслан",
+      "accepted_from_commit": "0c0e9da3be505c9c735c9a36bd4da6272aa4cb0f"
     }
   ],
   "acceptance_mode": "pr",
-  "accepted_at": "2026-08-29T11:46:19.634083+00:00",
+  "accepted_at": "2026-08-29T11:49:37.738180+00:00",
   "accepted_by": "Руслан",
-  "accepted_from_commit": "dd3ceb8266285bd93870cdfd9b18860c0d7d7e49",
+  "accepted_from_commit": "0c0e9da3be505c9c735c9a36bd4da6272aa4cb0f",
   "created_at": "2026-08-29T09:17:40.063285+00:00",
   "flattened": false,
   "friendly_name": "Платный opt-in ревьюер GLM 5.3",
