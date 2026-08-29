@@ -18,7 +18,9 @@ from specify_cli.runtime.resolver import (
     ResolutionResult,
     ResolutionTier,
     TemplateConfigurationError,
+    required_artifacts_for,
     resolve_command,
+    resolve_configured_artifact_name,
     resolve_configured_template,
     resolve_mission,
     resolve_template,
@@ -1488,3 +1490,70 @@ class TestOrgTierResolution:
             doctrine_result.path,
             doctrine_result.tier.name,
         )
+
+
+# ---------------------------------------------------------------------------
+# Manifest-schema error boundary parity (planning#249)
+# ---------------------------------------------------------------------------
+
+
+class TestExpectedArtifactManifestSchemaErrorBoundary:
+    """A schema-invalid ``expected-artifacts.yaml`` must fail loud through
+    ``ManifestSchemaError`` -- the same domain-error shape
+    ``specify_cli.dossier.manifest.ManifestRegistry.load_manifest`` raises
+    for its own manifest-load boundary -- rather than leaking the raw
+    ``pydantic.ValidationError`` this seam's ``try`` block used to swallow
+    into a bare ``False``/``None`` (squad finding on #233, this issue)."""
+
+    _TYPO_FIXTURE_PATH = (
+        Path(__file__).parent.parent / "dossier" / "fixtures" / "expected_artifacts_typo.yaml"
+    )
+
+    def _patch_schema_invalid_manifest(self, monkeypatch: pytest.MonkeyPatch, origin: str) -> None:
+        import ruamel.yaml
+
+        import charter.missions as charter_missions
+        from doctrine.missions.repository import ConfigResult
+
+        content = self._TYPO_FIXTURE_PATH.read_text(encoding="utf-8")
+        parsed = ruamel.yaml.YAML(typ="safe").load(content)
+
+        class _FakeRepository:
+            def get_expected_artifacts(self, mission: str) -> ConfigResult | None:
+                return ConfigResult(content=content, origin=origin, parsed=parsed)
+
+        class _FakeMissionTemplateRepository:
+            @classmethod
+            def default(cls) -> _FakeRepository:
+                return _FakeRepository()
+
+        monkeypatch.setattr(
+            charter_missions, "MissionTemplateRepository", _FakeMissionTemplateRepository
+        )
+
+    def test_resolve_configured_artifact_name_raises_manifest_schema_error(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        from pydantic import ValidationError
+
+        from specify_cli.dossier.manifest import ManifestSchemaError
+
+        distinctive_origin = "doctrine/typo-fixture/expected-artifacts.yaml"
+        self._patch_schema_invalid_manifest(monkeypatch, origin=distinctive_origin)
+
+        with pytest.raises(ManifestSchemaError) as exc_info:
+            resolve_configured_artifact_name("input.spec.main", "typo-fixture")
+
+        assert exc_info.value.mission_type == "typo-fixture"
+        assert exc_info.value.origin == distinctive_origin
+        assert isinstance(exc_info.value.__cause__, ValidationError)
+
+    def test_required_artifacts_for_raises_manifest_schema_error(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        from specify_cli.dossier.manifest import ManifestSchemaError
+
+        self._patch_schema_invalid_manifest(monkeypatch, origin="test-fixture")
+
+        with pytest.raises(ManifestSchemaError):
+            required_artifacts_for("specify", "typo-fixture")
