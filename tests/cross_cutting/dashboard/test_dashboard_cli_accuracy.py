@@ -911,12 +911,9 @@ def test_stale_manifest_reaper_kills_only_old_recorded_dashboard(monkeypatch: py
     fresh_port = 61001
     stale_port = 61002
     killed_ports = []
+    now = clock_module.datetime.fromtimestamp(2_000.0, tz=clock_module.UTC)
 
-    monkeypatch.setattr(
-        time,
-        "time",
-        lambda: 2000.0,
-    )
+    monkeypatch.setattr(clock_module, "DEFAULT_CLOCK", FrozenClock(instant=now))
     module = sys.modules[__name__]
     monkeypatch.setattr(module, "port_has_listener", lambda port: port in {fresh_port, stale_port})
     monkeypatch.setattr(module, "_process_ids_for_port", lambda port: [111] if port == fresh_port else [222])
