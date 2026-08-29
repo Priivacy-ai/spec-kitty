@@ -2426,6 +2426,7 @@ test = [
 
 [package.dev-dependencies]
 dev = [
+    { name = "pytest-timeout" },
     { name = "pytest-xdist" },
     { name = "types-jsonschema" },
     { name = "types-psutil" },
@@ -2474,7 +2475,7 @@ requires-dist = [
     { name = "rich", specifier = ">=14.3.3" },
     { name = "ruamel-yaml", specifier = ">=0.18.0" },
     { name = "ruff", marker = "extra == 'lint'", specifier = ">=0.4.0" },
-    { name = "spec-kitty-events", git = "https://github.com/spec-kitty/EXPERIMENTAL-spec-kitty-events?rev=9fe707345469aaaf5d232247724a0e6a08925645" },
+    { name = "spec-kitty-events", git = "https://github.com/spec-kitty/EXPERIMENTAL-spec-kitty-events?rev=c93dbfbf5243330349452a31d05bca2ece26ceea" },
     { name = "spec-kitty-tracker", git = "https://github.com/spec-kitty/EXPERIMENTAL-spec-kitty-tracker?rev=67a6ecc91f4b4a5fa82492a80ced4f49ce98851e" },
     { name = "toml", specifier = ">=0.10.2" },
     { name = "tomli-w", specifier = ">=1.0.0" },
@@ -2491,6 +2492,7 @@ provides-extras = ["test", "lint"]
 
 [package.metadata.requires-dev]
 dev = [
+    { name = "pytest-timeout", specifier = ">=2.2.0" },
     { name = "pytest-xdist", specifier = ">=3.8.0" },
     { name = "types-jsonschema", specifier = ">=4.0.0" },
     { name = "types-psutil", specifier = ">=5.9.0" },
@@ -2501,8 +2503,8 @@ dev = [
 
 [[package]]
 name = "spec-kitty-events"
-version = "8.0.0"
-source = { git = "https://github.com/spec-kitty/EXPERIMENTAL-spec-kitty-events?rev=9fe707345469aaaf5d232247724a0e6a08925645#9fe707345469aaaf5d232247724a0e6a08925645" }
+version = "8.2.0"
+source = { git = "https://github.com/spec-kitty/EXPERIMENTAL-spec-kitty-events?rev=c93dbfbf5243330349452a31d05bca2ece26ceea#c93dbfbf5243330349452a31d05bca2ece26ceea" }
 dependencies = [
     { name = "pydantic" },
     { name = "python-ulid" },
