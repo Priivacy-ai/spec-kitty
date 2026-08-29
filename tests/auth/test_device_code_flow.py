@@ -395,6 +395,28 @@ class TestPollTokenRequest:
         assert body == {"error": "slow_down", "retry_after": None}
 
     @pytest.mark.asyncio
+    async def test_429_with_lowercase_retry_after_header(self):
+        """A non-canonical-case header still parses via httpx.Headers' fold.
+
+        Regression for #461: earlier fixtures all used the exact key
+        ``"Retry-After"``, so they passed identically whether
+        ``_parse_retry_after`` did a case-insensitive lookup or a plain
+        ``dict.get``. This uses real ``httpx.Headers`` (case-insensitive by
+        RFC 7230 §3.2) with a lowercase key to actually exercise that.
+        """
+        flow = DeviceCodeFlow(saas_base_url=_SAAS)
+        with patch("httpx.AsyncClient") as mock_client_class:
+            mock_client = AsyncMock()
+            mock_client_class.return_value.__aenter__.return_value = mock_client
+            response = _mock_httpx_response(429, text="rate limited")
+            response.headers = httpx.Headers({"retry-after": "7"})
+            mock_client.post.return_value = response
+
+            body = await flow._poll_token_request("dc_xyz")
+
+        assert body == {"error": "slow_down", "retry_after": 7}
+
+    @pytest.mark.asyncio
     async def test_unexpected_status_raises(self):
         flow = DeviceCodeFlow(saas_base_url=_SAAS)
         with patch("httpx.AsyncClient") as mock_client_class:
