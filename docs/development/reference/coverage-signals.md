@@ -209,8 +209,9 @@ the PR so the next reader does not re-litigate it.
 
 ## Where each signal is configured
 
-- **Internal `diff-coverage` gate** — the `diff-coverage` job in
-  [`.github/workflows/ci-quality.yml`](../../../.github/workflows/ci-quality.yml)
+- **Internal `diff-coverage` gate** — the `diff-coverage` job that used to
+  live in `.github/workflows/ci-quality.yml` (deleted per PROGRAM.md §2 /
+  planning#57 — this repo runs no GitHub Actions)
   (`--fail-under=90`, `--include <critical-paths>`, `--compare-branch`).
 - **SonarCloud scope and exclusions** —
   [`sonar-project.properties`](../../../sonar-project.properties)
