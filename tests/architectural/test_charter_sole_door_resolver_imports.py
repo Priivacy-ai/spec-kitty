@@ -1,5 +1,5 @@
 """Gate 3 (FR-003/FR-007, WP09): no module outside ``src/charter/**`` or
-``src/doctrine/**`` imports ``doctrine.resolver`` directly.
+``src/doctrine/**`` imports ``charter.offering.resolver`` directly.
 
 Mission ``charter-sole-door-bypass-closure-01KZ3WAA``, WP09 / T039. Third of the
 three mission-wide durability gates this work package ships.
@@ -8,11 +8,11 @@ three mission-wide durability gates this work package ships.
 The WP09 prompt is explicit about this, and so is the post-tasks squad
 correction that produced it: an earlier draft claimed "WP05 closed the one real
 consumer", which is false — *nothing* outside ``src/charter/**`` ever imported
-``doctrine.resolver``. There was no violation to close, so this module must not
+``charter.offering.resolver``. There was no violation to close, so this module must not
 be read, cited, or summarised as evidence that this mission eliminated a bypass.
 What it does is make the currently-clean state *durable*: the moment a future
 consumer starts reaching around
-:class:`charter.resolver.DoctrineService` into ``doctrine.resolver``'s tier
+:class:`charter.resolver.DoctrineService` into ``charter.offering.resolver``'s tier
 functions, this test reds.
 
 Why the boundary matters
@@ -25,7 +25,7 @@ tier and the mission-config resolution "remains reachable ONLY via a method on
 ``doctrine/resolver.py``'s functions are the implementation those methods
 delegate to. A direct import from a consumer re-opens exactly the second,
 ungated resolution path FR-003 exists to prevent — ``charter/resolver.py``'s own
-comment marks its import as "the ONLY import of ``doctrine.resolver``'s tier
+comment marks its import as "the ONLY import of ``charter.offering.resolver``'s tier
 functions".
 
 Consumers that need the resolution *types* (``ResolutionResult`` /
@@ -60,7 +60,7 @@ directs not re-asserting what an adjacent gate already proves:
 * **Tolerance** — it carries a shrink-only allow-list of pre-existing sites;
   this gate has none.
 * **Target** — it bans ``doctrine.*`` broadly for runtime modules; this one bans
-  the single ``doctrine.resolver`` module for everyone, including
+  the single ``charter.offering.resolver`` module for everyone, including
   ``specify_cli`` modules that the other gate does not audit at all.
 
 A5 fix: ``from package import module`` also binds the guarded module
@@ -70,7 +70,7 @@ rate. The dominant miss: ``from doctrine import resolver`` — in all three
 spellings (plain, aliased, function-local) — fully evaded the ban. For an
 ``ast.ImportFrom`` the detector tested only ``node.module`` (``"doctrine"``);
 it never tried ``node.module + "." + alias.name``. But ``from doctrine import
-resolver`` binds the IDENTICAL module object as ``import doctrine.resolver``,
+resolver`` binds the IDENTICAL module object as ``import charter.offering.resolver``,
 and ``resolver.resolve_template(...)`` then re-opens the exact ungated second
 resolution path this gate exists to forbid. :func:`scan_file_resolver_imports`
 now extends its candidate dotted-name list with the package-qualified form for
@@ -96,8 +96,8 @@ from tests.architectural._sole_door_scan import (
 
 pytestmark = pytest.mark.architectural
 
-#: The guarded module. ``doctrine.resolver`` itself and its submodules.
-GUARDED_MODULE = "doctrine.resolver"
+#: The guarded module. ``charter.offering.resolver`` itself and its submodules.
+GUARDED_MODULE = "charter.offering.resolver"
 
 #: The two layers entitled to import it: the charter layer (which owns the sole
 #: door and its facades) and the doctrine layer (which owns the module).
@@ -110,7 +110,7 @@ FACADE_MODULE = "charter.resolution"
 
 @dataclass(frozen=True)
 class ResolverImportSite:
-    """One direct import of ``doctrine.resolver`` outside the owning layers."""
+    """One direct import of ``charter.offering.resolver`` outside the owning layers."""
 
     rel_path: str
     qualname: str
@@ -122,7 +122,7 @@ class ResolverImportSite:
 
 
 def _targets_guarded_module(dotted: str) -> bool:
-    """True for ``doctrine.resolver`` itself or anything beneath it."""
+    """True for ``charter.offering.resolver`` itself or anything beneath it."""
     return dotted == GUARDED_MODULE or dotted.startswith(f"{GUARDED_MODULE}.")
 
 
@@ -149,13 +149,13 @@ def _qualname_map(tree: ast.Module) -> dict[int, str]:
 
 
 def scan_file_resolver_imports(path: Path, rel_path: str) -> list[ResolverImportSite]:
-    """Every direct ``doctrine.resolver`` import in one file, at any scope.
+    """Every direct ``charter.offering.resolver`` import in one file, at any scope.
 
-    Walks the whole AST, so ``from doctrine.resolver import X`` and
-    ``import doctrine.resolver`` are caught at module level, inside a function
+    Walks the whole AST, so ``from charter.offering.resolver import X`` and
+    ``import charter.offering.resolver`` are caught at module level, inside a function
     body, and inside a nested ``try``/``except`` — the three scopes the real
     imports in this codebase actually use. Relative imports (``level > 0``) are
-    skipped: they can never name the absolute ``doctrine.resolver`` module.
+    skipped: they can never name the absolute ``charter.offering.resolver`` module.
     """
     source = path.read_text(encoding="utf-8")
     try:
@@ -172,9 +172,9 @@ def scan_file_resolver_imports(path: Path, rel_path: str) -> list[ResolverImport
             if node.level == 0 and node.module:
                 dotted_names.append(node.module)
                 # A5 fix: ``from doctrine import resolver`` binds the
-                # identical module object as ``import doctrine.resolver`` —
+                # identical module object as ``import charter.offering.resolver`` —
                 # node.module alone ("doctrine") never matches the guarded
-                # "doctrine.resolver" target, so the imported NAME must also
+                # "charter.offering.resolver" target, so the imported NAME must also
                 # be tried as a dotted extension of the package it came from.
                 dotted_names.extend(f"{node.module}.{alias.name}" for alias in node.names)
         elif isinstance(node, ast.Import):
@@ -231,7 +231,7 @@ def check_resolver_import_gate(sites: tuple[ResolverImportSite, ...]) -> list[st
 
 
 def test_detector_finds_the_real_sanctioned_imports() -> None:
-    """The owning layers DO import ``doctrine.resolver`` — the detector sees them.
+    """The owning layers DO import ``charter.offering.resolver`` — the detector sees them.
 
     Without this, a detector that silently matched nothing at all would make the
     zero-violation assertion below meaningless. ``charter/resolver.py`` carries
@@ -283,7 +283,7 @@ def test_injected_function_local_import_is_flagged(tmp_path: Path) -> None:
     sites = _scratch(
         tmp_path,
         "src/specify_cli/regressed_local.py",
-        "def resolve(mission):\n    from doctrine.resolver import resolve_template\n\n    return resolve_template(mission)\n",
+        "def resolve(mission):\n    from charter.offering.resolver import resolve_template\n\n    return resolve_template(mission)\n",
     )
     assert [s.qualname for s in sites] == ["resolve"], [s.describe() for s in sites]
     assert sites[0].qualname == "resolve"

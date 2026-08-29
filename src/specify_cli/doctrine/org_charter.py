@@ -47,7 +47,7 @@ from charter.kind_vocabulary import (
     resolve_artifact_urn,
     resolve_config_id,
 )
-from doctrine.artifact_kinds import ArtifactKind
+from charter.offering.artifact_kinds import ArtifactKind
 
 if TYPE_CHECKING:
     from charter.pack_context import PackContext
@@ -709,7 +709,7 @@ def load_org_charter_policies(
     if not registry.packs:
         return OrgCharterPolicy()
 
-    from doctrine.drg.org_pack_config import (
+    from charter.offering.drg.org_pack_config import (
         OrgPackEnvVarUnsetError,
         OrgPackSubdirEscapeError,
     )

@@ -1,4 +1,4 @@
-"""Tests for doctrine.versioning — compatibility registry and bundle schema version."""
+"""Tests for charter.offering.versioning — compatibility registry and bundle schema version."""
 
 from __future__ import annotations
 
@@ -7,7 +7,7 @@ from pathlib import Path
 import pytest
 from ruamel.yaml import YAML
 
-from doctrine.versioning import (
+from charter.offering.versioning import (
     CURRENT_BUNDLE_SCHEMA_VERSION,
     MAX_READABLE_BUNDLE_SCHEMA,
     MIN_READABLE_BUNDLE_SCHEMA,
@@ -394,7 +394,7 @@ def _write_legacy_v2_manifest(
 ) -> Path:
     import hashlib
 
-    from doctrine.yaml_utils import canonical_yaml
+    from charter.offering.yaml_utils import canonical_yaml
     from ruamel.yaml import YAML
 
     manifest_data = {
@@ -429,7 +429,7 @@ def test_repair_v2_manifest_no_manifest_is_noop(tmp_path: Path) -> None:
 def test_repair_v2_manifest_load_error_is_reported(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    import doctrine.versioning as versioning
+    import charter.offering.versioning as versioning
 
     (tmp_path / "synthesis-manifest.yaml").write_text("schema_version: '2'\n")
 
@@ -549,45 +549,63 @@ def test_migration_result_construction() -> None:
 
 
 # ---------------------------------------------------------------------------
-# No circular imports — doctrine.versioning must not touch charter.*
+# No circular imports — charter.offering.versioning must not touch charter.*
 # ---------------------------------------------------------------------------
 
 
 def test_versioning_does_not_import_charter() -> None:
-    """doctrine.versioning must not introduce charter.* into sys.modules."""
+    """charter.offering.versioning must not introduce charter.* (the activation layer)
+    into sys.modules.
+
+    Mission ``charter-code-topology-01M152G1`` relocated the top-level
+    ``doctrine`` package to ``src/charter/offering`` (C-004: ``offering`` MAY
+    be imported by ``charter``'s activation side, never the reverse). Because
+    ``charter.offering.versioning`` now physically lives at
+    ``charter.offering.versioning``, an in-layer sibling import like
+    ``charter.offering.yaml_utils`` textually starts with ``"charter"`` too —
+    so the boundary this test enforces is "doesn't import the ACTIVATION
+    side" (``charter.<non-offering>``), not merely "doesn't start with the
+    string charter". Same self-reference exemption as
+    ``test_charter_offering_does_not_import_activation.py``.
+    """
     import sys
 
     # Trigger import (already loaded, but explicit)
-    import doctrine.versioning  # noqa: F401
+    import charter.offering.versioning  # noqa: F401
 
     charter_modules = [k for k in sys.modules if k.startswith("charter")]
-    # If charter was imported by versioning itself that would be a violation.
-    # We can't guarantee charter isn't loaded by OTHER tests, but we can
-    # inspect the module's __file__ and check it doesn't directly import charter.
+    # If charter's activation side was imported by versioning itself that
+    # would be a violation. We can't guarantee charter isn't loaded by OTHER
+    # tests, but we can inspect the module's __file__ and check it doesn't
+    # directly import upward into charter's activation layer.
     import ast
     import inspect
 
-    source = inspect.getsource(doctrine.versioning)
+    source = inspect.getsource(charter.offering.versioning)
     tree = ast.parse(source)
     for node in ast.walk(tree):
         if isinstance(node, (ast.Import, ast.ImportFrom)):
             if isinstance(node, ast.ImportFrom) and node.module:
-                assert not node.module.startswith("charter"), (
-                    f"doctrine.versioning imports from charter: {node.module}"
+                assert node.module == "charter.offering" or node.module.startswith(
+                    "charter.offering."
+                ) or not node.module.startswith("charter"), (
+                    f"charter.offering.versioning imports from charter's activation layer: {node.module}"
                 )
             elif isinstance(node, ast.Import):
                 for alias in node.names:
-                    assert not alias.name.startswith("charter"), (
-                        f"doctrine.versioning imports charter: {alias.name}"
+                    assert alias.name == "charter.offering" or alias.name.startswith(
+                        "charter.offering."
+                    ) or not alias.name.startswith("charter"), (
+                        f"charter.offering.versioning imports charter's activation layer: {alias.name}"
                     )
 
 
 def test_versioning_charter_filename_literals_match_charter_bundle() -> None:
-    """doctrine.versioning's hardcoded "charter.yaml"/"charter.md" filename
+    """charter.offering.versioning's hardcoded "charter.yaml"/"charter.md" filename
     literals must stay byte-for-byte in sync with charter.bundle's canonical
     CHARTER_YAML/CHARTER_MD constants.
 
-    doctrine.versioning cannot import charter.bundle directly (PERMANENT
+    charter.offering.versioning cannot import charter.bundle directly (PERMANENT
     layering exception recorded in
     tests/architectural/charter_path_literal_allowlist.yaml for the
     get_bundle_schema_version and migrate_v1_to_v2 sites -- see
@@ -609,10 +627,10 @@ def test_versioning_charter_filename_literals_match_charter_bundle() -> None:
     import ast
     import inspect
 
-    import doctrine.versioning
+    import charter.offering.versioning
     from charter.bundle import CHARTER_MD, CHARTER_YAML
 
-    source = inspect.getsource(doctrine.versioning)
+    source = inspect.getsource(charter.offering.versioning)
     tree = ast.parse(source)
     literals_found = {
         node.value
@@ -623,7 +641,7 @@ def test_versioning_charter_filename_literals_match_charter_bundle() -> None:
     }
 
     assert literals_found, (
-        "doctrine.versioning no longer contains any 'charter.yaml'/'charter.md' "
+        "charter.offering.versioning no longer contains any 'charter.yaml'/'charter.md' "
         "string literal. If versioning.py was refactored to remove the "
         "permanent-layering literal entirely, the two src/doctrine/versioning.py "
         "entries in tests/architectural/charter_path_literal_allowlist.yaml "
@@ -633,9 +651,9 @@ def test_versioning_charter_filename_literals_match_charter_bundle() -> None:
     canonical_names = {CHARTER_YAML.name, CHARTER_MD.name}
     stale = literals_found - canonical_names
     assert not stale, (
-        f"doctrine.versioning hardcodes filename literal(s) {sorted(stale)} that "
+        f"charter.offering.versioning hardcodes filename literal(s) {sorted(stale)} that "
         f"no longer match charter.bundle's canonical basenames "
-        f"{sorted(canonical_names)}. PERMANENT (layering): doctrine.versioning "
+        f"{sorted(canonical_names)}. PERMANENT (layering): charter.offering.versioning "
         "cannot import charter.bundle to fix this automatically -- update the "
         "hardcoded literal(s) in src/doctrine/versioning.py to match the rename."
     )

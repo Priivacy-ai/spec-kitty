@@ -313,7 +313,7 @@ def test_no_source_site_names_the_dead_drg_monolith() -> None:
 def test_the_migration_hint_names_a_fragment_that_exists() -> None:
     """FR-008: the hint an operator is handed must be followable -- the file
     it names must be on disk for every artifact kind that can raise it."""
-    from doctrine.shared.errors import build_migration_hint
+    from charter.offering.shared.errors import build_migration_hint
 
     kinds = (
         "directive",

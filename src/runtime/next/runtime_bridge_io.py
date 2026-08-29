@@ -852,7 +852,7 @@ def _presence_filenames_for(
 
     Family-scoped (every step's ``required_always`` + ``required_by_step``
     + ``optional_always`` path_patterns, unioned via
-    :func:`doctrine.missions.step_projection.project_artifact_name_set`),
+    :func:`charter.offering.missions.step_projection.project_artifact_name_set`),
     deliberately NOT filtered to the caller's ``step_id`` (byte-compat,
     NFR-003): the guard vocabulary calling this port is not uniform across
     mission families or dispatch paths. Software-dev's own manifest keys
@@ -906,8 +906,8 @@ def _presence_filenames_for(
             label (no single source file path is available there).
     """
     from charter.missions import MissionTemplateRepository  # noqa: PLC0415
-    from doctrine.missions import ExpectedArtifactManifest  # noqa: PLC0415
-    from doctrine.missions.step_projection import project_artifact_name_set  # noqa: PLC0415
+    from charter.offering.missions import ExpectedArtifactManifest  # noqa: PLC0415
+    from charter.offering.missions.step_projection import project_artifact_name_set  # noqa: PLC0415
     from pydantic import ValidationError  # noqa: PLC0415
 
     from specify_cli.dossier.manifest import ManifestSchemaError  # noqa: PLC0415

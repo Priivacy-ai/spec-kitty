@@ -76,7 +76,7 @@ def _load_inventory_module() -> types.ModuleType:
     Not on pytest's ``pythonpath`` (only ``src`` is, by design — see
     ``pytest.ini``), so it is loaded directly by file path rather than via
     ``sys.path`` mutation. Its own dynamic import of
-    ``doctrine.drg.migration.extractor`` still resolves because ``src`` is
+    ``charter.offering.drg.migration.extractor`` still resolves because ``src`` is
     already on ``sys.path``.
     """
     module_name = "inline_reference_inventory"

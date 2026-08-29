@@ -92,12 +92,12 @@ import pytest
 from pydantic import BaseModel, Field, ValidationError
 from ruamel.yaml import YAML
 
-from doctrine.agent_profiles.profile import AgentProfile
-from doctrine.drg import loader as drg_loader
-from doctrine.drg import models as drg_models
-from doctrine.drg.loader import DRGLoadError
-from doctrine.drg.migration import extractor
-from doctrine.drg.models import DRGEdge, DRGGraph, DRGNode, NodeKind, Relation
+from charter.offering.agent_profiles.profile import AgentProfile
+from charter.offering.drg import loader as drg_loader
+from charter.offering.drg import models as drg_models
+from charter.offering.drg.loader import DRGLoadError
+from charter.offering.drg.migration import extractor
+from charter.offering.drg.models import DRGEdge, DRGGraph, DRGNode, NodeKind, Relation
 
 pytestmark = [pytest.mark.doctrine, pytest.mark.fast, pytest.mark.corpus]
 

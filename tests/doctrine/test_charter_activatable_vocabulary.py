@@ -9,7 +9,7 @@ from __future__ import annotations
 
 import pytest
 
-from doctrine.artifact_kinds import (
+from charter.offering.artifact_kinds import (
     CHARTER_ACTIVATABLE_KINDS,
     CHARTER_ACTIVATABLE_PLURAL_TO_SINGULAR,
     CHARTER_ACTIVATABLE_SINGULAR_TO_PLURAL,

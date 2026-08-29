@@ -29,17 +29,17 @@ from charter.cascade import (
     referenced_but_not_cascaded,
 )
 from charter.mission_type_profile_repository import MissionTypeProfileRepository
-from doctrine.artifact_kinds import (
+from charter.offering.artifact_kinds import (
     CHARTER_ACTIVATABLE_KINDS,
     ArtifactKind,
     MissionTypeNotAnArtifactKind,
 )
-from doctrine.drg.loader import load_built_in_graph
-from doctrine.drg.migration.hand_authored_overlay import (
+from charter.offering.drg.loader import load_built_in_graph
+from charter.offering.drg.migration.hand_authored_overlay import (
     generate_reference_graph_with_overlay,
 )
-from doctrine.drg.migration.id_normalizer import artifact_to_urn
-from doctrine.drg.models import DRGEdge, DRGGraph, DRGNode, NodeKind, Relation
+from charter.offering.drg.migration.id_normalizer import artifact_to_urn
+from charter.offering.drg.models import DRGEdge, DRGGraph, DRGNode, NodeKind, Relation
 
 pytestmark = pytest.mark.unit
 
@@ -47,7 +47,7 @@ pytestmark = pytest.mark.unit
 #: ``tests/doctrine/drg/migration/test_extractor.py::DOCTRINE_ROOT`` (this file
 #: is two directories shallower: ``tests/charter/test_cascade.py`` ->
 #: ``tests/charter`` -> ``tests`` -> repo root).
-_DOCTRINE_ROOT: Path = Path(__file__).resolve().parents[2] / "src" / "doctrine"
+_DOCTRINE_ROOT: Path = Path(__file__).resolve().parents[2] / "src" / "charter" / "offering"
 
 
 # ---------------------------------------------------------------------------
@@ -560,10 +560,10 @@ def freshly_extracted_graph() -> DRGGraph:
     same content the goldens carry.
 
     This fixture calls
-    :func:`~doctrine.drg.migration.hand_authored_overlay.generate_reference_graph_with_overlay`
+    :func:`~charter.offering.drg.migration.hand_authored_overlay.generate_reference_graph_with_overlay`
     directly against the real shipped doctrine tree rather than loading the
     goldens through :func:`load_built_in_graph`. That function -- NOT bare
-    :func:`~doctrine.drg.migration.extractor.generate_graph` -- is the correct
+    :func:`~charter.offering.drg.migration.extractor.generate_graph` -- is the correct
     live-extraction reference: it is the exact pipeline
     ``spec-kitty doctrine regenerate-graph`` runs (pure extraction, written to
     a throwaway scratch dir, then merged with the hand-authored overlay via

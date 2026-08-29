@@ -96,8 +96,8 @@ class TestBind:
         config = svc.bind(
             provider="beads",
             workspace="my-ws",
-            doctrine_mode="external_authoritative",
-            doctrine_field_owners={},
+            ownership_mode="external_authoritative",
+            ownership_field_owners={},
             credentials={"command": "beads"},
         )
         assert config.provider == "beads"
@@ -117,8 +117,8 @@ class TestBind:
         config = svc.bind(
             provider="  FP  ",
             workspace="ws",
-            doctrine_mode="external_authoritative",
-            doctrine_field_owners={},
+            ownership_mode="external_authoritative",
+            ownership_field_owners={},
             credentials={"command": "fp"},
         )
         assert config.provider == "fp"
@@ -128,8 +128,8 @@ class TestBind:
         config = svc.bind(
             provider="beads",
             workspace="ws",
-            doctrine_mode="external_authoritative",
-            doctrine_field_owners={},
+            ownership_mode="external_authoritative",
+            ownership_field_owners={},
             credentials={},
         )
         assert config.provider == "beads"
@@ -142,12 +142,12 @@ class TestBind:
         config = svc.bind(
             provider="fp",
             workspace="ws",
-            doctrine_mode="split",
-            doctrine_field_owners=owners,
+            ownership_mode="split",
+            ownership_field_owners=owners,
             credentials={"command": "fp"},
         )
-        assert config.doctrine_mode == "split"
-        assert config.doctrine_field_owners == owners
+        assert config.ownership_mode == "split"
+        assert config.ownership_field_owners == owners
 
 
 # ---------------------------------------------------------------------------
@@ -171,8 +171,8 @@ class TestBindPreservesEgress:
         svc.bind(
             provider="beads",
             workspace="new-ws",
-            doctrine_mode="external_authoritative",
-            doctrine_field_owners={},
+            ownership_mode="external_authoritative",
+            ownership_field_owners={},
             credentials={},
         )
 
@@ -188,8 +188,8 @@ class TestBindPreservesEgress:
         svc.bind(
             provider="beads",
             workspace="new-ws",
-            doctrine_mode="external_authoritative",
-            doctrine_field_owners={},
+            ownership_mode="external_authoritative",
+            ownership_field_owners={},
             credentials={},
         )
 
@@ -214,8 +214,8 @@ class TestTrackerServiceBindPreservesEgressEndToEnd:
         service.bind(
             provider="beads",
             workspace="new-ws",
-            doctrine_mode="external_authoritative",
-            doctrine_field_owners={},
+            ownership_mode="external_authoritative",
+            ownership_field_owners={},
             credentials={},
         )
 
@@ -231,8 +231,8 @@ class TestTrackerServiceBindPreservesEgressEndToEnd:
         service.bind(
             provider="beads",
             workspace="new-ws",
-            doctrine_mode="external_authoritative",
-            doctrine_field_owners={},
+            ownership_mode="external_authoritative",
+            ownership_field_owners={},
             credentials={},
         )
 
@@ -355,8 +355,8 @@ class TestUnbind:
         svc.bind(
             provider="beads",
             workspace="ws",
-            doctrine_mode="external_authoritative",
-            doctrine_field_owners={},
+            ownership_mode="external_authoritative",
+            ownership_field_owners={},
             credentials={"command": "beads"},
         )
         # Verify bound
@@ -397,8 +397,8 @@ class TestStatus:
         svc.bind(
             provider="beads",
             workspace="ws",
-            doctrine_mode="external_authoritative",
-            doctrine_field_owners={},
+            ownership_mode="external_authoritative",
+            ownership_field_owners={},
             credentials={"command": "beads"},
         )
 
@@ -435,8 +435,8 @@ class TestSyncOperations:
         svc.bind(
             provider="beads",
             workspace="ws",
-            doctrine_mode="external_authoritative",
-            doctrine_field_owners={},
+            ownership_mode="external_authoritative",
+            ownership_field_owners={},
             credentials={"command": "beads"},
         )
         return svc
@@ -543,8 +543,8 @@ class TestMapOperations:
         svc.bind(
             provider="beads",
             workspace="ws",
-            doctrine_mode="external_authoritative",
-            doctrine_field_owners={},
+            ownership_mode="external_authoritative",
+            ownership_field_owners={},
             credentials={"command": "beads"},
         )
 
@@ -579,8 +579,8 @@ class TestMapOperations:
         svc.bind(
             provider="beads",
             workspace="ws",
-            doctrine_mode="external_authoritative",
-            doctrine_field_owners={},
+            ownership_mode="external_authoritative",
+            ownership_field_owners={},
             credentials={"command": "beads"},
         )
 

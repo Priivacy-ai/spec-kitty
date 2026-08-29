@@ -16,9 +16,9 @@ from pathlib import Path
 import pytest
 from ruamel.yaml import YAML
 
-from doctrine.agent_profiles.profile import AgentProfile, Role, TaskContext
-from doctrine.agent_profiles.repository import AgentProfileRepository
-from doctrine.drg.models import DRGEdge, DRGGraph, DRGNode, NodeKind, Relation
+from charter.offering.agent_profiles.profile import AgentProfile, Role, TaskContext
+from charter.offering.agent_profiles.repository import AgentProfileRepository
+from charter.offering.drg.models import DRGEdge, DRGGraph, DRGNode, NodeKind, Relation
 
 pytestmark = [pytest.mark.fast, pytest.mark.doctrine]
 
@@ -180,7 +180,7 @@ class TestAgentProfileCollisionWarning:
         self, shipped_profiles_dir: Path, project_profiles_dir: Path
     ) -> None:
         """The shipped+project fixtures define python-pedro twice; this must warn."""
-        from doctrine.base import DoctrineLayerCollisionWarning
+        from charter.offering.base import DoctrineLayerCollisionWarning
 
         with pytest.warns(DoctrineLayerCollisionWarning) as record:
             AgentProfileRepository(
@@ -198,7 +198,7 @@ class TestAgentProfileCollisionWarning:
         self, shipped_profiles_dir: Path, project_profiles_dir: Path
     ) -> None:
         """custom-reviewer exists only in project — no collision, no warning for it."""
-        from doctrine.base import DoctrineLayerCollisionWarning
+        from charter.offering.base import DoctrineLayerCollisionWarning
         import warnings as _w
 
         with _w.catch_warnings(record=True) as captured:
@@ -1084,7 +1084,7 @@ class TestMultiLevelHierarchy:
 # ── Multi-role routing ─────────────────────────────────────────────────────
 
 
-from doctrine.agent_profiles.repository import _filter_candidates_by_role, _exact_id_signal  # noqa: E402
+from charter.offering.agent_profiles.repository import _filter_candidates_by_role, _exact_id_signal  # noqa: E402
 
 
 def _make_profile(profile_id: str, roles: list[str]) -> AgentProfile:

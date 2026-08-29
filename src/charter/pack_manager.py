@@ -11,12 +11,12 @@ comments and formatting in ``config.yaml`` are preserved across writes.
 Canonical kind vocabulary (FR-027, R-009)
 -----------------------------------------
 There is **no** second kind enumeration in this module. Kind validation routes
-through :meth:`doctrine.artifact_kinds.ArtifactKind.from_operator_token` (the
+through :meth:`charter.offering.artifact_kinds.ArtifactKind.from_operator_token` (the
 single canonical resolver, WP01), and ``mission-type`` is the one charter-tier
 token that is *not* an :class:`ArtifactKind` member (handled explicitly).
 
 ``YAML_KEY_MAP`` is **derived** from the canonical charter kind universe
-(:data:`doctrine.artifact_kinds.CHARTER_KIND_TOKENS`): every kind maps to
+(:data:`charter.offering.artifact_kinds.CHARTER_KIND_TOKENS`): every kind maps to
 ``activated_<plural>`` except the ``mission-type`` outlier
 (``mission_type_activations``). ``ACTIVATION_YAML_KEYS`` extends that with
 the ``activated_kinds`` coarse ledger key -- it is the single authority
@@ -31,7 +31,7 @@ project doctrine roots, returning artifact IDs taken from each artifact's
 ``id:`` field (not the filename stem). :meth:`list_available_detailed` exposes
 the same scan annotated by source layer for ``charter list --all`` (WP16). The
 built-in layer's per-kind directory is resolved through
-:func:`doctrine.pack_paths.built_in_dir` (WP01/T020) rather than a locally
+:func:`charter.offering.pack_paths.built_in_dir` (WP01/T020) rather than a locally
 composed ``resolve_pack_root("built-in") / kind.plural`` join.
 
 Org/project roots are passed in **as data** (C-008): ``specify_cli`` resolves
@@ -80,10 +80,10 @@ from charter.activation_engine import (
 )
 from charter.charter_yaml_io import load_charter_yaml, update_charter_yaml_section
 from charter.pack_context import CharterPackConfigError, resolve_charter_yaml_pointer
-from doctrine.missions.mission_type_repository import scan_mission_types_dir
-from doctrine.missions.repository import MissionTemplateRepository
-from doctrine.pack_paths import built_in_dir
-from doctrine.artifact_kinds import (
+from charter.offering.missions.mission_type_repository import scan_mission_types_dir
+from charter.offering.missions.repository import MissionTemplateRepository
+from charter.offering.pack_paths import built_in_dir
+from charter.offering.artifact_kinds import (
     CHARTER_KIND_TOKENS,
     MISSION_TYPE_TOKEN,
     PROJECT_KIND_DIRS as _PROJECT_KIND_DIRS,
@@ -169,7 +169,7 @@ _KITTIFY_DIRNAME = ".kittify"
 _CONFIG_FILENAME = "config.yaml"
 _CHARTER_FILENAME = "charter.md"
 #: The project-tier overlay directory name per kind is the single canonical
-#: authority :data:`doctrine.artifact_kinds.PROJECT_KIND_DIRS` (imported above
+#: authority :data:`charter.offering.artifact_kinds.PROJECT_KIND_DIRS` (imported above
 #: as ``_PROJECT_KIND_DIRS``). It is *total*, so the ``.get(kind, kind.plural)``
 #: read below never actually falls back; the default is retained defensively.
 #: No mapping is re-declared here (WP03 T014).
@@ -214,7 +214,7 @@ def _scan_layout_for(kind: ArtifactKind | None) -> tuple[str, str, bool]:
     * ``mission-type`` lives under ``missions/mission_types`` (flat).
 
     Both outliers' ``base_dir`` is relative to
-    :meth:`doctrine.missions.repository.MissionTemplateRepository.default_missions_root`
+    :meth:`charter.offering.missions.repository.MissionTemplateRepository.default_missions_root`
     (``packs/built-in/missions/``), **not** ``_SRC_ROOT`` — mission
     ``doctrine-consumer-surface-missions-extraction-01KZ6G6H`` (FR-005)
     relocated ``missions/``'s data subdirectories there; see
@@ -307,7 +307,7 @@ def _resolve_layer_candidate(
         # drift the architectural gate
         # (test_no_builtin_path_joins_outside_pack_paths_authority)
         # exists to catch. Route through the SAME missions-root
-        # authority doctrine.missions.repository.MissionTemplateRepository
+        # authority charter.offering.missions.repository.MissionTemplateRepository
         # already provides instead (one of the three sanctioned
         # kernel.sibling_paths convergent call sites). `base_dir` is
         # always "missions/<segment>" for both outlier kinds (see
@@ -818,7 +818,7 @@ class CharterPackManager:
             For the ``mission-type`` outlier (``kind is None``), a malformed
             file or an unreadable ``mission_types/`` directory RAISES instead
             of being skipped (PR-CONTRACT-002) — this branch reuses
-            :func:`~doctrine.missions.mission_type_repository.scan_mission_types_dir`,
+            :func:`~charter.offering.missions.mission_type_repository.scan_mission_types_dir`,
             the same schema-validating, loud-fail primitive
             ``resolve_layered_mission_types`` uses post-activation, so the
             pre-activation availability catalog cannot silently disagree with
@@ -830,7 +830,7 @@ class CharterPackManager:
             If ``kind`` is not in the canonical charter kind universe.
         ValueError
             (mission-type only) If a scanned ``mission_types/`` file is
-            malformed, fails :class:`~doctrine.missions.models.MissionType`
+            malformed, fails :class:`~charter.offering.missions.models.MissionType`
             schema validation, or a scanned directory exists but cannot be
             read.
         """

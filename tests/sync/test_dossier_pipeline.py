@@ -787,7 +787,7 @@ def test_real_load_manifest_schema_error_names_origin_through_sync_feature_dossi
     one of them.
     """
     import ruamel.yaml
-    from doctrine.missions.repository import ConfigResult
+    from charter.offering.missions.repository import ConfigResult
 
     import specify_cli.dossier.manifest as manifest_module
     from specify_cli.dossier.manifest import ManifestRegistry

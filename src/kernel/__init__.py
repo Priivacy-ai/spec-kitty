@@ -25,7 +25,7 @@ glossary_types
     Glossary primitive value types: ``Strictness``, ``ExtractedTerm``,
     ``SemanticConflict``, ``ScopeRef``, ``GlossaryScope``, and related
     supporting types. Canonical definitions; consumed as re-exports by
-    ``glossary`` and ``doctrine.shared``.
+    ``glossary`` and ``charter.offering.shared``.
 paths
     Path resolution utilities: ``get_kittify_home()``, the ``PACKS_ROOT``-aware
     built-in-pack-root primitive ``get_built_in_pack_root()``, and the
@@ -35,7 +35,7 @@ paths
     is a thin delegate to this authority, not a second resolver. The
     ``BUILT_IN_PACK_SIBLING_PATTERN`` / ``MISSION_ASSETS_SIBLING_PATTERN``
     shape constants are exported here so downstream layers (e.g.
-    ``doctrine.pack_paths``) reuse one owned pattern instead of forking it.
+    ``charter.offering.pack_paths``) reuse one owned pattern instead of forking it.
 glossary_runner
     Plugin registry for the glossary runner. Defines
     ``GlossaryRunnerProtocol``, ``register()``, ``get_runner()``, and

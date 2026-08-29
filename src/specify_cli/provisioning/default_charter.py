@@ -24,7 +24,7 @@ D-07):
 
 * **Copy, not re-scan.** The authored ``mission_type_activations`` list is
   copied verbatim from ``default.yaml``. It is never re-derived via
-  ``doctrine.missions.mission_type_repository.builtin_mission_type_id_set()``
+  ``charter.offering.missions.mission_type_repository.builtin_mission_type_id_set()``
   (the disk-scanned, ``SPEC_KITTY_PACKS_ROOT``-sensitive built-in-type
   roster) — that would make this seam depend on the pack-root resolver at
   runtime, defeating the "disjoint halves" property the mission establishes.

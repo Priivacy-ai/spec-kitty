@@ -8,7 +8,7 @@ correctness gate for that unification:
 * **NFR-001b — action-sequence round trip.** Each type's *projected*
   ``action_sequence`` (derived from the newly-authored ``MissionStep``
   ``sequence_index``/``in_action_sequence`` fields via
-  :func:`~doctrine.missions.step_projection.project_action_sequence`) must be
+  :func:`~charter.offering.missions.step_projection.project_action_sequence`) must be
   byte-identical to the still-authored ``action_sequence`` field in
   ``mission_types/<type>.yaml``. A mismatch here would mean the new
   ``step.yaml`` set silently redefines the mission's dispatch order.
@@ -48,9 +48,9 @@ from pathlib import Path
 import pytest
 
 from charter.mission_type_profiles import resolve_mission_type_context
-from doctrine.missions.mission_step_repository import MissionStepRepository
-from doctrine.missions.mission_type_repository import MissionTypeRepository
-from doctrine.missions.step_projection import project_action_sequence
+from charter.offering.missions.mission_step_repository import MissionStepRepository
+from charter.offering.missions.mission_type_repository import MissionTypeRepository
+from charter.offering.missions.step_projection import project_action_sequence
 
 pytestmark = [pytest.mark.fast, pytest.mark.doctrine, pytest.mark.corpus]
 

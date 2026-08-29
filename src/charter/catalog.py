@@ -10,9 +10,9 @@ from pathlib import Path
 from ruamel.yaml import YAML
 from ruamel.yaml.error import YAMLError
 
-from doctrine.artifact_kinds import ArtifactKind
-from doctrine.pack_paths import built_in_dir
-from doctrine.shared.scoping import applies_to_languages_match, normalize_languages
+from charter.offering.artifact_kinds import ArtifactKind
+from charter.offering.pack_paths import built_in_dir
+from charter.offering.shared.scoping import applies_to_languages_match, normalize_languages
 from kernel.paths import get_package_asset_root as _get_package_asset_root
 
 __all__ = [
@@ -165,14 +165,14 @@ def load_doctrine_catalog(
 def resolve_doctrine_root() -> Path:
     """Resolve the doctrine package root in installed and development layouts."""
     try:
-        doctrine_pkg = importlib.resources.files("doctrine")
+        doctrine_pkg = importlib.resources.files("charter.offering")
         doctrine_root = Path(str(doctrine_pkg))
         if doctrine_root.is_dir():
             return doctrine_root
     except (ModuleNotFoundError, TypeError):
         _log.debug("doctrine: importlib.resources lookup failed, trying dev layout")
 
-    dev_root = Path(__file__).parent.parent.parent / "doctrine"
+    dev_root = Path(__file__).parent / "offering"
     if dev_root.is_dir():
         _log.debug("doctrine: resolved via dev layout at %s", dev_root)
         return dev_root
@@ -365,7 +365,7 @@ def _load_template_sets_with_presence(_doctrine_root: Path) -> tuple[set[str], b
         mission directories were found — every template-set selection is invalid.
         ``present=False`` means the missions directory is not deployed.
     """
-    from doctrine.missions import MissionTemplateRepository
+    from charter.offering.missions import MissionTemplateRepository
 
     repo = MissionTemplateRepository.default()
     mission_names = repo.list_missions()

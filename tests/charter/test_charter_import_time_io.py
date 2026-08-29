@@ -33,7 +33,7 @@ Covers (T006):
 
 3. **New-factory import-time-I/O bound (NFR-004, mission
    ``up-mission-type-seam-01KZY1JB`` WP03)** — ``resolve_layered_mission_types``
-   (``doctrine.missions.mission_type_repository``, FR-001) must never be
+   (``charter.offering.missions.mission_type_repository``, FR-001) must never be
    called at module scope in any ``charter.*`` module. At this WP's point in
    the mission sequence nothing calls it yet (WP04 wires the first caller),
    so the bound asserted here is exactly zero calls, checked via
@@ -56,7 +56,7 @@ import pytest
 
 import doctrine
 from charter.pack_context import PackContext
-from doctrine.missions.mission_type_repository import (
+from charter.offering.missions.mission_type_repository import (
     MissionTypeRepository,
     builtin_mission_type_ids,
     resolve_layered_mission_types,
@@ -179,7 +179,7 @@ _IMPORT_SPY_SCRIPT = textwrap.dedent(
     """\
     import sys
 
-    from doctrine.missions.mission_type_repository import (
+    from charter.offering.missions.mission_type_repository import (
         MissionTypeRepository,
         builtin_mission_type_id_set,
         resolve_layered_mission_types,
@@ -261,8 +261,13 @@ def _subprocess_env_with_src_root() -> dict[str, str]:
     of measuring anything. Propagate the ``src`` root this process actually
     resolved ``doctrine`` from, so the subprocess sees the same package
     regardless of what its own default ``sys.path`` would have produced.
+
+    ``doctrine`` is now the CR-06 compatibility shim (``src/doctrine.py``, a
+    single module, not a package) re-exporting ``charter.offering`` -- so
+    ``doctrine.__file__`` resolves directly to ``src/doctrine.py`` and its
+    immediate ``.parent`` (not ``.parents[1]``) is the ``src`` root.
     """
-    src_root = str(Path(doctrine.__file__).resolve().parents[1])
+    src_root = str(Path(doctrine.__file__).resolve().parents[0])
     env = dict(os.environ)
     existing_pythonpath = env.get("PYTHONPATH", "")
     env["PYTHONPATH"] = (

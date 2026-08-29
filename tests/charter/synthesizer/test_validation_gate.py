@@ -21,7 +21,7 @@ from ruamel.yaml import YAML
 
 from charter.synthesizer.errors import ProjectDRGValidationError
 from charter.synthesizer.validation_gate import validate
-from doctrine.drg.models import DRGEdge, DRGGraph, DRGNode, NodeKind, Relation
+from charter.offering.drg.models import DRGEdge, DRGGraph, DRGNode, NodeKind, Relation
 
 
 # ---------------------------------------------------------------------------

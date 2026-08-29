@@ -1,4 +1,4 @@
-"""Unit tests for doctrine.drg.migration.extractor._resolve_path_ref (T027).
+"""Unit tests for charter.offering.drg.migration.extractor._resolve_path_ref (T027).
 
 Covers:
 - Each of the 6 resolvable path patterns (hit cases).
@@ -17,19 +17,19 @@ from pathlib import Path
 
 import pytest
 
-from doctrine.drg.loader import built_in_graph_source
-from doctrine.drg.migration.extractor import (
+from charter.offering.drg.loader import built_in_graph_source
+from charter.offering.drg.migration.extractor import (
     _PATH_KIND_PATTERNS,  # noqa: PLC2701 – internal tested deliberately
     _resolve_path_ref,  # noqa: PLC2701 – internal tested deliberately
     extract_artifact_edges,
     generate_graph,
 )
-from doctrine.drg.models import Relation
-from doctrine.drg.validator import validate_graph
+from charter.offering.drg.models import Relation
+from charter.offering.drg.validator import validate_graph
 
 pytestmark = [pytest.mark.doctrine, pytest.mark.fast, pytest.mark.corpus]
 
-DOCTRINE_ROOT = Path(__file__).resolve().parents[4] / "src" / "doctrine"
+DOCTRINE_ROOT = Path(__file__).resolve().parents[4] / "src" / "charter" / "offering"
 
 
 # ---------------------------------------------------------------------------
@@ -428,14 +428,14 @@ class TestGraphWithStyleguideEdges:
 
         Post-WP03 (doctrine-tension-edges-01KY1WPC): "regenerated" means pure
         extraction plus the enumerable hand-authored overlay
-        (``doctrine.drg.migration.hand_authored_overlay``) — a bare
+        (``charter.offering.drg.migration.hand_authored_overlay``) — a bare
         regeneration can never mint the hand-authored tension/reconciliation/
         rejection edges or anti-pattern nodes (C-005), so it would never match
         the committed source even when nothing is actually stale.
         """
         import hashlib  # noqa: PLC0415 – local import to keep test self-contained
 
-        from doctrine.drg.migration.hand_authored_overlay import (  # noqa: PLC0415
+        from charter.offering.drg.migration.hand_authored_overlay import (  # noqa: PLC0415
             write_reference_graph_with_overlay,
         )
 

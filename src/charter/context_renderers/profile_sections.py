@@ -64,10 +64,10 @@ from charter.progressive_disclosure import (
     STATED_DEFAULT_WHEN,
     profile_channel_references,
 )
-from doctrine.drg.models import NodeKind
+from charter.offering.drg.models import NodeKind
 
 if TYPE_CHECKING:
-    from doctrine.agent_profiles import AgentProfile
+    from charter.offering.agent_profiles import AgentProfile
 
 # ``_render_profile_directives`` / ``_render_profile_tactics`` de-exported after
 # the context.py re-export shim retirement (doctrine-built-in-seam-consolidation

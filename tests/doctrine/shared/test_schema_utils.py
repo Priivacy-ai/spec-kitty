@@ -1,7 +1,7 @@
-"""Tests for doctrine.shared.schema_utils.SchemaUtilities.load_schema.
+"""Tests for charter.offering.shared.schema_utils.SchemaUtilities.load_schema.
 
 Targets mutation-prone areas in _resolve_schema_path:
-- importlib.resources path using "doctrine.schemas" package
+- importlib.resources path using "charter.offering.schemas" package
 - hasattr guard on joinpath
 - fallback to filesystem path
 
@@ -13,7 +13,7 @@ from __future__ import annotations
 
 import pytest
 
-from doctrine.shared.schema_utils import SchemaUtilities
+from charter.offering.shared.schema_utils import SchemaUtilities
 
 pytestmark = [pytest.mark.fast, pytest.mark.doctrine]
 

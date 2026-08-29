@@ -27,8 +27,8 @@ from pathlib import Path
 
 import pytest
 
-from doctrine.drg.loader import built_in_graph_source, load_built_in_graph
-from doctrine.drg.validator import assert_valid
+from charter.offering.drg.loader import built_in_graph_source, load_built_in_graph
+from charter.offering.drg.validator import assert_valid
 
 pytestmark = [pytest.mark.unit, pytest.mark.fast, pytest.mark.corpus]
 

@@ -150,7 +150,7 @@ def test_charter_mission_type_list_reports_real_layer_for_activated_org_type(
     into the ``source_layer: "unknown"`` / ``action_sequence: []`` tolerate
     branch even though it resolves fine end to end (User Story 1 AC1).
     """
-    from doctrine.missions.mission_type_repository import MissionTypeRepository
+    from charter.offering.missions.mission_type_repository import MissionTypeRepository
 
     from charter.pack_context import PackContext
 
@@ -192,7 +192,7 @@ def test_sc001_org_pack_mission_type_resolves_across_all_four_cli_surfaces(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     """SC-001 capstone: T016-T019's fixes assembled into one coherent scenario."""
-    from doctrine.missions.mission_type_repository import MissionTypeRepository
+    from charter.offering.missions.mission_type_repository import MissionTypeRepository
 
     from charter.mission_type_profiles import resolve_mission_type_context
     from charter.pack_context import PackContext
@@ -300,11 +300,17 @@ def test_sc001_org_pack_mission_type_resolves_across_all_four_cli_surfaces(
 
             # Surface 4: doctrine mission-type list (FR-008) -- the type
             # appears with the correct layer, a true all-layers listing.
+            #
+            # CR-02 (mission charter-code-topology-01M152G1 S4): `doctrine_app`
+            # now carries a deprecation-notice `@app.callback()` that writes
+            # to stderr (`err=True`) -- parse `.stdout` (stdout only), not
+            # `.output` (Click 8.2+'s stdout+stderr merge), so that notice
+            # never lands inside the JSON payload under test here.
             doctrine_result = runner.invoke(doctrine_app, ["mission-type", "list", "--json"])
             assert doctrine_result.exit_code == 0, doctrine_result.output
             doctrine_row = next(
                 row
-                for row in json.loads(doctrine_result.output.strip())
+                for row in json.loads(doctrine_result.stdout.strip())
                 if row["id"] == "qa"
             )
             assert doctrine_row["source_layer"] == "org"

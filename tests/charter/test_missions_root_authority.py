@@ -8,7 +8,7 @@ Mission ``charter-sole-door-bypass-closure-01KZ3WAA`` / WP06. Before this WP,
 2. ``specify_cli.runtime.home.get_package_asset_root()``'s ``dev_roots``
    fallback tuple — a ``Path(__file__).parents[2] / "doctrine" / "missions"``
    literal.
-3. ``doctrine.missions.repository.MissionTemplateRepository.default_missions_root()``
+3. ``charter.offering.missions.repository.MissionTemplateRepository.default_missions_root()``
    — the ``importlib.resources``-based, wheel-safe implementation.
 
 WP06 retargets (1) and (2) onto (3) as the ONE promoted authority, per
@@ -16,11 +16,11 @@ plan.md's Project Structure notes. ``builtin_missions_root()`` becomes a thin
 delegate (not a second co-equal authority); ``home.py``'s ``dev_roots``
 fallback calls the same authority.
 
-Full convergence onto ``doctrine.pack_paths.built_in_missions_root`` was
+Full convergence onto ``charter.offering.pack_paths.built_in_missions_root`` was
 completed by issue #3575: ``builtin_missions_root()`` now delegates straight
-to :func:`~doctrine.pack_paths.built_in_missions_root` (the single canonical
+to :func:`~charter.offering.pack_paths.built_in_missions_root` (the single canonical
 source), rather than hopping through
-:meth:`~doctrine.missions.repository.MissionTemplateRepository.default_missions_root`.
+:meth:`~charter.offering.missions.repository.MissionTemplateRepository.default_missions_root`.
 The equivalence assertions below still hold because
 ``default_missions_root()`` is itself a thin wrapper over the same
 ``pack_paths`` call (plus an existence check that ``builtin_missions_root()``
@@ -35,8 +35,8 @@ from pathlib import Path
 import pytest
 
 from charter.mission_type_profile_repository import builtin_missions_root
-from doctrine.missions.repository import MissionTemplateRepository
-from doctrine.pack_paths import built_in_missions_root as pack_paths_built_in_missions_root
+from charter.offering.missions.repository import MissionTemplateRepository
+from charter.offering.pack_paths import built_in_missions_root as pack_paths_built_in_missions_root
 from specify_cli.runtime import home as home_module
 
 pytestmark = [pytest.mark.unit]

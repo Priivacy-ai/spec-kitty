@@ -30,11 +30,12 @@ def copy_specify_base_from_local(repo_root: Path, project_path: Path) -> Path:
             shutil.rmtree(memory_dest)
         shutil.copytree(memory_src, memory_dest)
 
-    # Copy from src/doctrine/templates/ (doctrine artifacts).
+    # Copy from src/charter/offering/templates/ (doctrine artifacts, relocated
+    # by mission charter-code-topology-01M152G1).
     # Mission content templates live under packs/built-in/missions/<mission>/templates
     # (mission doctrine-consumer-surface-missions-extraction-01KZ6G6H, FR-005,
     # relocated the missions data subdirectories out of src/doctrine/missions).
-    templates_src = repo_root / "src" / "doctrine" / "templates"
+    templates_src = repo_root / "src" / "charter" / "offering" / "templates"
     if templates_src.exists():
         templates_dest = specify_root / "templates"
         if templates_dest.exists():
@@ -86,7 +87,7 @@ def copy_specify_base_from_package(project_path: Path) -> Path:
         copy_package_tree(memory_resource, specify_root / "memory")
 
     try:
-        doctrine_data_root = files("doctrine")
+        doctrine_data_root = files("charter.offering")
     except (ModuleNotFoundError, TypeError):
         doctrine_data_root = specify_data_root
 
@@ -161,7 +162,7 @@ def get_local_repo_root(override_path: str | None = None) -> Path | None:
         # here would silently accept a checkout whose missions data has
         # actually moved elsewhere, with no error signal).
         return (
-            (path / "src" / "doctrine" / "templates" / "AGENTS.md").is_file()
+            (path / "src" / "charter" / "offering" / "templates" / "AGENTS.md").is_file()
             and (path / "packs" / "built-in" / "missions").is_dir()
         )
 

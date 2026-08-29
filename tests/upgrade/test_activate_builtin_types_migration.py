@@ -19,7 +19,7 @@ import pytest
 
 pytestmark = pytest.mark.fast
 
-from doctrine.missions.mission_type_repository import (
+from charter.offering.missions.mission_type_repository import (
     MissionTypeRepository,
     builtin_mission_type_ids,
 )

@@ -1,4 +1,4 @@
-"""Tests for doctrine.shared.exceptions — exception class behaviors.
+"""Tests for charter.offering.shared.exceptions — exception class behaviors.
 
 Targets InlineReferenceRejectedError, DoctrineResolutionCycleError attribute
 and string representation contracts.
@@ -11,7 +11,7 @@ from __future__ import annotations
 
 import pytest
 
-from doctrine.shared.exceptions import (
+from charter.offering.shared.exceptions import (
     DoctrineArtifactLoadError,
     DoctrineResolutionCycleError,
     InlineReferenceRejectedError,

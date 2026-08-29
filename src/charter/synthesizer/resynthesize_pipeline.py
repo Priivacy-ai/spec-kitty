@@ -36,8 +36,8 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
-from doctrine.drg.loader import load_graph_or_dir
-from doctrine.drg.models import DRGGraph
+from charter.offering.drg.loader import load_graph_or_dir
+from charter.offering.drg.models import DRGGraph
 
 from .manifest import (
     MANIFEST_PATH,

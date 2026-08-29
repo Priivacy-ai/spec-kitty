@@ -29,17 +29,17 @@ from pathlib import Path
 
 import pytest
 
-from doctrine.drg.loader import (
+from charter.offering.drg.loader import (
     built_in_graph_source,
     load_built_in_graph,
     load_graph,
 )
-from doctrine.drg.migration.extractor import _dump_graph_document
-from doctrine.drg.migration.hand_authored_overlay import (
+from charter.offering.drg.migration.extractor import _dump_graph_document
+from charter.offering.drg.migration.hand_authored_overlay import (
     generate_reference_graph_with_overlay,
 )
-from doctrine.drg.models import DRGEdge, DRGGraph, DRGNode
-from doctrine.drg.validator import assert_valid
+from charter.offering.drg.models import DRGEdge, DRGGraph, DRGNode
+from charter.offering.drg.validator import assert_valid
 
 pytestmark = [pytest.mark.unit, pytest.mark.fast, pytest.mark.corpus]
 
@@ -164,7 +164,7 @@ def reference_graph() -> DRGGraph:
     also carries hand-authored ``in_tension_with``/``reconciles_tension``/
     ``rejects`` edges and ``anti_pattern`` nodes the extractor has no
     frontmatter mechanism to mint (C-005) — so the reference must include the
-    same enumerable overlay (``doctrine.drg.migration.hand_authored_overlay``)
+    same enumerable overlay (``charter.offering.drg.migration.hand_authored_overlay``)
     or every equality proof below would spuriously report the hand-authored
     content as "missing" from a bare extractor regeneration.
     """

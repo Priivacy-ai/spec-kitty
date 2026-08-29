@@ -10,7 +10,7 @@ carrying mission exists to protect. Completeness is satisfied by the **union of
 inlined and linked ids** equalling the delivered set — there is no cap on that
 union.
 
-The functions here are pure over a resolved :class:`~doctrine.drg.models.DRGGraph`
+The functions here are pure over a resolved :class:`~charter.offering.drg.models.DRGGraph`
 so the delivery cadence is testable without loading the whole doctrine tree, and
 so ``charter.context`` does not grow to carry them (context.py is single-owned by
 WP10 and held near-flat).
@@ -20,11 +20,11 @@ from __future__ import annotations
 from collections.abc import Callable, Iterable
 from typing import TYPE_CHECKING, Any
 
-from doctrine.drg.models import Relation
+from charter.offering.drg.models import Relation
 
 if TYPE_CHECKING:
     from charter.repository_protocol import ArtifactRepository
-    from doctrine.drg.models import DRGEdge, DRGGraph
+    from charter.offering.drg.models import DRGEdge, DRGGraph
 
 #: The stated default rendered for an *uncovered* ``suggests`` edge — one of the
 #: 118 (of 337) that carry no authored ``when`` (ADR 2026-07-28-1). A link with
@@ -163,7 +163,7 @@ def profile_channel_references(
 ) -> list[dict[str, str | None]]:
     """Suggests-delivered references for the profile channel (WP01, IC-01/C2).
 
-    The profile channel (``doctrine.drg.reachability.profile_channel_reachable``)
+    The profile channel (``charter.offering.drg.reachability.profile_channel_reachable``)
     now follows ``suggests`` edges. For every artefact it reaches *only* through a
     ``suggests`` edge, the consumer must surface that edge's ``when`` clause as
     the delivered doctrine's applicability condition (``STATED_DEFAULT_WHEN`` when

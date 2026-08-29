@@ -24,11 +24,11 @@ from pathlib import Path
 
 import pytest
 
-from doctrine.drg.loader import built_in_graph_source, load_graph_or_dir
-from doctrine.drg.migration.hand_authored_overlay import (
+from charter.offering.drg.loader import built_in_graph_source, load_graph_or_dir
+from charter.offering.drg.migration.hand_authored_overlay import (
     write_reference_graph_with_overlay,
 )
-from doctrine.drg.models import DRGEdge, DRGGraph, DRGNode
+from charter.offering.drg.models import DRGEdge, DRGGraph, DRGNode
 from specify_cli.cli.commands.doctrine import _doctrine_root
 
 pytestmark = [pytest.mark.doctrine, pytest.mark.fast, pytest.mark.corpus]
@@ -71,7 +71,7 @@ class TestRegenerationWriteTarget:
         assert resolved == built_in_graph_source()
 
     def test_old_src_doctrine_home_carries_no_fragments(self) -> None:
-        stale = sorted((_REPO_ROOT / "src" / "doctrine").glob("*.graph.yaml"))
+        stale = sorted((_REPO_ROOT / "src" / "charter" / "offering").glob("*.graph.yaml"))
         assert stale == [], (
             "graph fragments still sit under the retired src/doctrine home: "
             f"{[p.name for p in stale]}"

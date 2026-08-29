@@ -456,7 +456,7 @@ After {SCRIPT}
     charter_dir = repo_root / ".kittify" / "charter"
     charter_dir.mkdir(parents=True)
     # consolidate-charter-bundle (#2773): SPDD-active detection
-    # (doctrine.spdd_reasons.activation) reads charter.yaml's governance
+    # (charter.offering.spdd_reasons.activation) reads charter.yaml's governance
     # section, not the retired governance.yaml.
     (charter_dir / "charter.yaml").write_text(
         "governance:\n"

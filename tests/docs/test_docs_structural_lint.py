@@ -52,7 +52,7 @@ _REPO_ROOT = Path(__file__).resolve().parents[2]
 #: packaged data — the same addressing the WP05 operator surface uses.
 def _resolve_lint_asset_path() -> Path:
     """Resolve the shipped structural-lint asset via ``DoctrineService.assets``."""
-    from doctrine.service import DoctrineService
+    from charter.offering.service import DoctrineService
 
     return DoctrineService().assets.resolve_path("common-docs-structural-lint")
 
@@ -847,11 +847,11 @@ def test_shipped_lint_asset_resolved_via_doctrine_service() -> None:
 
     WP05's proof-by-first-user: this repository's own consumer of the shipped
     ``common-docs-structural-lint`` asset must resolve it through
-    :class:`doctrine.service.DoctrineService` ``.assets`` (the WP04 resolver),
+    :class:`charter.offering.service.DoctrineService` ``.assets`` (the WP04 resolver),
     not by reaching through a hard-coded ``_REPO_ROOT`` path. Guards against
     reintroducing the retired reach-through so the fix cannot silently regress.
     """
-    from doctrine.service import DoctrineService
+    from charter.offering.service import DoctrineService
 
     source = Path(__file__).read_text(encoding="utf-8")
     # Built by concatenation so this guard does not match its own source text.

@@ -894,7 +894,7 @@ class TestProfileSkippedDiagnostics:
         directly rather than hand-rolling a second skip-detection heuristic.
 
         Patches the source location the helper's lazy, function-local import
-        binds to (``doctrine.agent_profiles.repository.AgentProfileRepository``
+        binds to (``charter.offering.agent_profiles.repository.AgentProfileRepository``
         — matching this file's existing precedent of lazy in-function
         imports, and what ``scripts/check_patch_targets.py`` expects). This
         assertion is non-vacuous: it fails if the call is removed or replaced
@@ -905,7 +905,7 @@ class TestProfileSkippedDiagnostics:
         agent_profiles_dir.mkdir()
 
         with patch(
-            "doctrine.agent_profiles.repository.AgentProfileRepository.skipped_profiles"
+            "charter.offering.agent_profiles.repository.AgentProfileRepository.skipped_profiles"
         ) as mock_skipped_profiles:
             mock_skipped_profiles.return_value = []
             issues = _check_profile_skipped_diagnostics(tmp_path, set())
@@ -1020,17 +1020,17 @@ class TestProfileSkippedDiagnostics:
         same seam.
 
         Patches ``built_in_dir`` at the binding the repository's own
-        constructor calls (``doctrine.agent_profiles.repository.built_in_dir``
+        constructor calls (``charter.offering.agent_profiles.repository.built_in_dir``
         — the module ``AgentProfileRepository._default_built_in_dir``
         actually imported it into), so this fires regardless of which
         construction path calls into the repository (PR-M-002 routes that
         construction through ``DoctrineService``, which does not change
         this seam).
         """
-        from doctrine.pack_paths import PackRootNotFound
+        from charter.offering.pack_paths import PackRootNotFound
 
         with patch(
-            "doctrine.agent_profiles.repository.built_in_dir",
+            "charter.offering.agent_profiles.repository.built_in_dir",
             side_effect=PackRootNotFound("built-in"),
         ):
             issues = _check_profile_skipped_diagnostics(tmp_path, set())
@@ -1048,10 +1048,10 @@ class TestProfileSkippedDiagnostics:
         points), which is the concrete failure the finding describes — a
         raw traceback instead of the promised ``{"ok": ...}`` JSON.
         """
-        from doctrine.pack_paths import PackRootNotFound
+        from charter.offering.pack_paths import PackRootNotFound
 
         with patch(
-            "doctrine.agent_profiles.repository.built_in_dir",
+            "charter.offering.agent_profiles.repository.built_in_dir",
             side_effect=PackRootNotFound("built-in"),
         ):
             result = validate_pack(tmp_path)

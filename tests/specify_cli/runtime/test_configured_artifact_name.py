@@ -3,7 +3,7 @@
 Mission rc3-charter-gate-predicate-inversion-01M0GGT1, WP04a: a GREEN
 refactor. ``resolve_configured_artifact_name`` / ``required_artifacts_for``
 (``specify_cli.runtime.resolver``) and ``project_artifact_name_set``
-(``doctrine.missions.step_projection``) build ``artifact_kind -> filename``
+(``charter.offering.missions.step_projection``) build ``artifact_kind -> filename``
 from the single per-type authority -- ``expected-artifacts.yaml``'s
 ``path_pattern`` -- twinning the existing template seam
 (``resolve_configured_template``). NFR-003 requires byte-compatible output
@@ -30,13 +30,13 @@ from typing import cast
 import pytest
 
 from charter.missions import MissionTemplateRepository
-from doctrine.missions import (
+from charter.offering.missions import (
     ArtifactClassEnum,
     ConfigResult,
     ExpectedArtifactManifest,
     ExpectedArtifactSpec,
 )
-from doctrine.missions.step_projection import project_artifact_name_set
+from charter.offering.missions.step_projection import project_artifact_name_set
 from specify_cli.runtime.resolver import (
     ArtifactNameConfigurationError,
     required_artifacts_for,

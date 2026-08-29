@@ -112,7 +112,7 @@ class TestToolguideNestedDiscovery:
         built_in = tmp_path / "built-in"
         write_yaml(built_in / "subdir" / "nested-toolguide.toolguide.yaml", TOOLGUIDE)
 
-        from doctrine.toolguides.repository import ToolguideRepository
+        from charter.offering.toolguides.repository import ToolguideRepository
 
         repo = ToolguideRepository(built_in_dir=built_in)
         ids = [t.id for t in repo.list_all()]
@@ -122,7 +122,7 @@ class TestToolguideNestedDiscovery:
         built_in = tmp_path / "built-in"
         write_yaml(built_in / "subdir" / "nested-toolguide.toolguide.yaml", TOOLGUIDE)
 
-        from doctrine.toolguides.repository import ToolguideRepository
+        from charter.offering.toolguides.repository import ToolguideRepository
 
         repo = ToolguideRepository(built_in_dir=built_in)
         assert repo.get("nested-toolguide") is not None
@@ -133,7 +133,7 @@ class TestDirectiveNestedDiscovery:
         built_in = tmp_path / "built-in"
         write_yaml(built_in / "subdir" / "998-nested.directive.yaml", DIRECTIVE)
 
-        from doctrine.directives.repository import DirectiveRepository
+        from charter.offering.directives.repository import DirectiveRepository
 
         repo = DirectiveRepository(built_in_dir=built_in)
         ids = [d.id for d in repo.list_all()]
@@ -143,7 +143,7 @@ class TestDirectiveNestedDiscovery:
         built_in = tmp_path / "built-in"
         write_yaml(built_in / "subdir" / "998-nested.directive.yaml", DIRECTIVE)
 
-        from doctrine.directives.repository import DirectiveRepository
+        from charter.offering.directives.repository import DirectiveRepository
 
         repo = DirectiveRepository(built_in_dir=built_in)
         assert repo.get("DIRECTIVE_998") is not None
@@ -154,7 +154,7 @@ class TestTacticNestedDiscovery:
         built_in = tmp_path / "built-in"
         write_yaml(built_in / "subdir" / "nested-tactic.tactic.yaml", TACTIC)
 
-        from doctrine.tactics.repository import TacticRepository
+        from charter.offering.tactics.repository import TacticRepository
 
         repo = TacticRepository(built_in_dir=built_in)
         ids = [t.id for t in repo.list_all()]
@@ -164,7 +164,7 @@ class TestTacticNestedDiscovery:
         built_in = tmp_path / "built-in"
         write_yaml(built_in / "subdir" / "nested-tactic.tactic.yaml", TACTIC)
 
-        from doctrine.tactics.repository import TacticRepository
+        from charter.offering.tactics.repository import TacticRepository
 
         repo = TacticRepository(built_in_dir=built_in)
         assert repo.get("nested-tactic") is not None
@@ -175,7 +175,7 @@ class TestStyleguideNestedDiscovery:
         built_in = tmp_path / "built-in"
         write_yaml(built_in / "subdir" / "nested-styleguide.styleguide.yaml", STYLEGUIDE)
 
-        from doctrine.styleguides.repository import StyleguideRepository
+        from charter.offering.styleguides.repository import StyleguideRepository
 
         repo = StyleguideRepository(built_in_dir=built_in)
         ids = [s.id for s in repo.list_all()]
@@ -185,7 +185,7 @@ class TestStyleguideNestedDiscovery:
         built_in = tmp_path / "built-in"
         write_yaml(built_in / "subdir" / "nested-styleguide.styleguide.yaml", STYLEGUIDE)
 
-        from doctrine.styleguides.repository import StyleguideRepository
+        from charter.offering.styleguides.repository import StyleguideRepository
 
         repo = StyleguideRepository(built_in_dir=built_in)
         assert repo.get("nested-styleguide") is not None
@@ -196,7 +196,7 @@ class TestProcedureNestedDiscovery:
         built_in = tmp_path / "built-in"
         write_yaml(built_in / "subdir" / "nested-procedure.procedure.yaml", PROCEDURE)
 
-        from doctrine.procedures.repository import ProcedureRepository
+        from charter.offering.procedures.repository import ProcedureRepository
 
         repo = ProcedureRepository(built_in_dir=built_in)
         ids = [p.id for p in repo.list_all()]
@@ -206,7 +206,7 @@ class TestProcedureNestedDiscovery:
         built_in = tmp_path / "built-in"
         write_yaml(built_in / "subdir" / "nested-procedure.procedure.yaml", PROCEDURE)
 
-        from doctrine.procedures.repository import ProcedureRepository
+        from charter.offering.procedures.repository import ProcedureRepository
 
         repo = ProcedureRepository(built_in_dir=built_in)
         assert repo.get("nested-procedure") is not None
@@ -217,7 +217,7 @@ class TestParadigmNestedDiscovery:
         built_in = tmp_path / "built-in"
         write_yaml(built_in / "subdir" / "nested-paradigm.paradigm.yaml", PARADIGM)
 
-        from doctrine.paradigms.repository import ParadigmRepository
+        from charter.offering.paradigms.repository import ParadigmRepository
 
         repo = ParadigmRepository(built_in_dir=built_in)
         ids = [p.id for p in repo.list_all()]
@@ -227,7 +227,7 @@ class TestParadigmNestedDiscovery:
         built_in = tmp_path / "built-in"
         write_yaml(built_in / "subdir" / "nested-paradigm.paradigm.yaml", PARADIGM)
 
-        from doctrine.paradigms.repository import ParadigmRepository
+        from charter.offering.paradigms.repository import ParadigmRepository
 
         repo = ParadigmRepository(built_in_dir=built_in)
         assert repo.get("nested-paradigm") is not None
@@ -241,7 +241,7 @@ class TestMissionStepContractNestedDiscovery:
             MISSION_STEP_CONTRACT,
         )
 
-        from doctrine.missions.step_contracts import MissionStepContractRepository
+        from charter.offering.missions.step_contracts import MissionStepContractRepository
 
         repo = MissionStepContractRepository(built_in_dir=built_in)
         ids = [c.id for c in repo.list_all()]
@@ -254,7 +254,7 @@ class TestMissionStepContractNestedDiscovery:
             MISSION_STEP_CONTRACT,
         )
 
-        from doctrine.missions.step_contracts import MissionStepContractRepository
+        from charter.offering.missions.step_contracts import MissionStepContractRepository
 
         repo = MissionStepContractRepository(built_in_dir=built_in)
         assert repo.get("nested-action") is not None
@@ -265,7 +265,7 @@ class TestAgentProfileNestedDiscovery:
         built_in = tmp_path / "built-in"
         write_yaml(built_in / "subdir" / "nested-agent.agent.yaml", AGENT_PROFILE)
 
-        from doctrine.agent_profiles.repository import AgentProfileRepository
+        from charter.offering.agent_profiles.repository import AgentProfileRepository
 
         repo = AgentProfileRepository(built_in_dir=built_in)
         ids = [p.profile_id for p in repo.list_all()]
@@ -275,7 +275,7 @@ class TestAgentProfileNestedDiscovery:
         built_in = tmp_path / "built-in"
         write_yaml(built_in / "subdir" / "nested-agent.agent.yaml", AGENT_PROFILE)
 
-        from doctrine.agent_profiles.repository import AgentProfileRepository
+        from charter.offering.agent_profiles.repository import AgentProfileRepository
 
         repo = AgentProfileRepository(built_in_dir=built_in)
         assert repo.get("nested-agent") is not None

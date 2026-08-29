@@ -13,7 +13,7 @@ from pathlib import Path
 
 import pytest
 
-from doctrine.agent_profiles.operating_procedures import (
+from charter.offering.agent_profiles.operating_procedures import (
     collect_operating_procedure_entries,
 )
 

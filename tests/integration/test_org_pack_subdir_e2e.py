@@ -303,7 +303,7 @@ def test_config_schema_accepts_every_runtime_source_type() -> None:
     import yaml as _yaml
     from jsonschema import Draft202012Validator
 
-    from doctrine.drg.org_pack_config import SourceType
+    from charter.offering.drg.org_pack_config import SourceType
 
     repo_root = Path(__file__).resolve().parents[2]
     schema_path = (

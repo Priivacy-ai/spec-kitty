@@ -105,7 +105,7 @@ from ruamel.yaml import YAML
 # LD-3 chokepoint imports are kept LAZY (inside
 # ``_load_synthesis_manifest_via_chokepoint``) to preserve NFR-003 latency.
 # Eagerly importing ``charter.bundle`` / ``charter.synthesizer.manifest``
-# at module-load time pulls in the full ``doctrine.service``,
+# at module-load time pulls in the full ``charter.offering.service``,
 # ``jsonschema``, and ``rfc3987_syntax`` graph (>500 ms) onto the
 # ``spec-kitty next`` startup hot path. The architectural intent of LD-3
 # (consume reads through the chokepoint API, not raw YAML loads) is

@@ -27,16 +27,16 @@ from __future__ import annotations
 import logging
 from pathlib import Path
 
-from doctrine.drg.loader import (
+from charter.offering.drg.loader import (
     has_graph_files,
     load_built_in_graph,
     load_graph_or_dir,
     merge_layers,
 )
-from doctrine.drg.merge import merge_three_layers
-from doctrine.drg.models import DRGEdge, DRGGraph
-from doctrine.drg.org_pack_loader import OrgDRGFragment
-from doctrine.drg.validator import assert_valid
+from charter.offering.drg.merge import merge_three_layers
+from charter.offering.drg.models import DRGEdge, DRGGraph
+from charter.offering.drg.org_pack_loader import OrgDRGFragment
+from charter.offering.drg.validator import assert_valid
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -74,12 +74,12 @@ def load_validated_graph(
        collision (``merge_layers`` overrides ``label`` only; ``kind`` is
        retained from the earlier layer — the existing single-org semantics,
        unchanged). This mirrors the repository overlay's established
-       precedence (``doctrine.base._apply_overlay_layer``,
+       precedence (``charter.offering.base._apply_overlay_layer``,
        ``charter.org_expected_artifacts``) rather than the pre-fix
        first-match-wins behaviour that only ever folded pack #1. A root that
        does not exist on disk is silently skipped here; callers that need a
        WARNING per dropped root should pre-filter via
-       :func:`doctrine.drg.org_pack_config.resolve_existing_org_roots` —
+       :func:`charter.offering.drg.org_pack_config.resolve_existing_org_roots` —
        every production caller now does.
     3. **project** — optional per-project overlay at
        ``<repo_root>/.kittify/doctrine``.
@@ -100,7 +100,7 @@ def load_validated_graph(
         org_roots: The full, declaration-ordered chain of configured org
             doctrine roots (#3525). Preferred over *org_root* for every
             caller that resolves the project's configured org packs — pass
-            :func:`doctrine.drg.org_pack_config.resolve_existing_org_roots`'s
+            :func:`charter.offering.drg.org_pack_config.resolve_existing_org_roots`'s
             result. When *org_roots* is supplied (even as an empty list), it
             takes precedence over *org_root* — passing ``org_roots=[]``
             explicitly means "no org layer", distinct from omitting the
@@ -111,7 +111,7 @@ def load_validated_graph(
             here — the charter layer never imports ``specify_cli`` to fetch it
             (C-005). When non-empty, the org ``requires``/``suggests`` edges it
             carries are folded into the graph via the existing
-            :func:`doctrine.drg.merge.merge_three_layers` (endpoint resolution
+            :func:`charter.offering.drg.merge.merge_three_layers` (endpoint resolution
             and cross-fragment dedup owned there — C-002), so cascade walks
             org-authored dependency edges (FR-001/FR-002, DRG read-path bridge,
             mission ``drg-read-path-bridge-01M0CHVZ``). When omitted / ``None``
@@ -202,7 +202,7 @@ def _fold_final_layers(
     layer through the existing three-layer merge when fragments are supplied.
 
     When *org_fragments* is non-empty, the org ``requires``/``suggests`` edges
-    are folded via :func:`doctrine.drg.merge.merge_three_layers`, reusing its
+    are folded via :func:`charter.offering.drg.merge.merge_three_layers`, reusing its
     endpoint-resolution + cross-fragment edge dedup verbatim (C-002 — no forked
     canonicalisation). The built-in+root-graph merge is the ``built_in`` base
     and the project overlay is passed through, so ``merge_three_layers`` applies
@@ -238,7 +238,7 @@ def _collapse_duplicate_edge_triples(graph: DRGGraph) -> DRGGraph:
 
     This guard collapses such triples using the graph's OWN identity notion: the
     ``(source, target, relation)`` triple that ``_OrgEdgeCollector`` and
-    ``doctrine.drg.validator`` already treat as one edge. It introduces no new
+    ``charter.offering.drg.validator`` already treat as one edge. It introduces no new
     edge-identity or canonicalisation notion (C-002 — endpoint resolution and
     org-edge identity stay owned by ``merge_three_layers``; this only removes an
     exact restatement the *layered composition* produced). Keeping the first

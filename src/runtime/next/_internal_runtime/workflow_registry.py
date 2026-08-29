@@ -87,11 +87,13 @@ _WORKFLOW_ID_PATTERN: re.Pattern[str] = re.compile(r"[a-z0-9][a-z0-9-]*")
 #   2: runtime/
 #   3: src/
 #   4: <repo root>
-# So parents[3] / "src" / "doctrine" / "workflows" is the canonical root.
+# So parents[3] / "charter" / "offering" / "workflows" is the canonical root
+# (mission charter-code-topology-01M152G1 relocated src/doctrine/ to
+# src/charter/offering/).
 # ---------------------------------------------------------------------------
 _RUNTIME_FILE = Path(__file__).resolve()
 _SRC_ROOT = _RUNTIME_FILE.parents[3]  # …/src/
-_WORKFLOWS_ROOT = _SRC_ROOT / "doctrine" / "workflows"
+_WORKFLOWS_ROOT = _SRC_ROOT / "charter" / "offering" / "workflows"
 
 _SEARCH_ROOTS: tuple[Path, ...] = (
     _WORKFLOWS_ROOT,

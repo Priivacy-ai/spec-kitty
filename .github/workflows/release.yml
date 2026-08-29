@@ -211,22 +211,26 @@ jobs:
 
           # Count tracked doctrine files in source. Release tests can mutate the
           # checkout, so use the tracked tree as the source of truth here too.
-          # Apply the SAME exclusions the wheel build applies (pyproject.toml
-          # [tool.hatch.build.targets.wheel].exclude): src/doctrine/hatch_build.py
-          # and the nested src/doctrine/pyproject.toml are dormant standalone-wheel
-          # build scaffolding (#3163, ADR 2026-08-02-1), deliberately NOT shipped in
-          # the runtime wheel -- counting them as doctrine payload falsely fails this
-          # gate (they are tracked, so appear in `git ls-files`, but never in the wheel).
-          SOURCE_DOCTRINE_COUNT=$(git ls-files src/doctrine ':!src/doctrine/hatch_build.py' ':!src/doctrine/pyproject.toml' | wc -l | tr -d ' ')
+          #
+          # Path re-homed (charter-code-topology-01M152G1, S5): the former
+          # src/doctrine package relocated to src/charter/offering (S2a), so this
+          # payload check now counts that tree / the wheel's charter/offering/
+          # extraction path. The prior src/doctrine/hatch_build.py +
+          # src/doctrine/pyproject.toml exclusions are gone too -- the dormant,
+          # never-built spec-kitty-doctrine wheel groundwork they described
+          # (src/charter/offering/hatch_build.py + .../pyproject.toml) was DELETED
+          # outright per MAP-BUILD, not merely excluded, so there is nothing left
+          # under src/charter/offering to exclude from this count.
+          SOURCE_DOCTRINE_COUNT=$(git ls-files src/charter/offering | wc -l | tr -d ' ')
           echo "Source doctrine file count: $SOURCE_DOCTRINE_COUNT"
 
-          WHEEL_DOCTRINE_COUNT=$(find /tmp/wheel_check/doctrine -type f 2>/dev/null | wc -l | tr -d ' ')
+          WHEEL_DOCTRINE_COUNT=$(find /tmp/wheel_check/charter/offering -type f 2>/dev/null | wc -l | tr -d ' ')
           echo "Wheel doctrine file count: $WHEEL_DOCTRINE_COUNT"
 
-          SOURCE_SKILL_COUNT=$(git ls-files src/doctrine/skills | grep '/SKILL\.md$' | wc -l | tr -d ' ')
+          SOURCE_SKILL_COUNT=$(git ls-files src/charter/offering/skills | grep '/SKILL\.md$' | wc -l | tr -d ' ')
           echo "Source bundled skill count: $SOURCE_SKILL_COUNT"
 
-          WHEEL_SKILL_COUNT=$(find /tmp/wheel_check/doctrine/skills -path '*/SKILL.md' -type f 2>/dev/null | wc -l | tr -d ' ')
+          WHEEL_SKILL_COUNT=$(find /tmp/wheel_check/charter/offering/skills -path '*/SKILL.md' -type f 2>/dev/null | wc -l | tr -d ' ')
           echo "Wheel bundled skill count: $WHEEL_SKILL_COUNT"
 
           if [ "$SOURCE_DOCTRINE_COUNT" -ne "$WHEEL_DOCTRINE_COUNT" ]; then

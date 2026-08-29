@@ -21,10 +21,10 @@ from typing import TYPE_CHECKING
 
 import pytest
 
-from doctrine.drg.models import Relation
+from charter.offering.drg.models import Relation
 
 if TYPE_CHECKING:
-    from doctrine.drg.models import DRGGraph
+    from charter.offering.drg.models import DRGGraph
 
 pytestmark = [pytest.mark.fast, pytest.mark.corpus]
 

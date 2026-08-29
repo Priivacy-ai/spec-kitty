@@ -1,8 +1,8 @@
 """Built-in end-to-end characterization pin for governance-profile fail-loud (#3629 p2).
 
 WP03 / T013. The built-in guard
-(:func:`doctrine.drg.migration.extractor.assert_governance_scope_edges_resolve`)
-is already wired into :func:`~doctrine.drg.migration.extractor.generate_graph`
+(:func:`charter.offering.drg.migration.extractor.assert_governance_scope_edges_resolve`)
+is already wired into :func:`~charter.offering.drg.migration.extractor.generate_graph`
 and its unit tests exercise it against *synthetic* edges. This module drives the
 whole ``generate_graph`` pipeline against a real, fully-minted node universe so
 the WIRING (not just the pure check) is pinned: a fictional ``selected_*`` id in
@@ -22,7 +22,7 @@ from pathlib import Path
 
 import pytest
 
-from doctrine.drg.migration.extractor import generate_graph
+from charter.offering.drg.migration.extractor import generate_graph
 
 pytestmark = [pytest.mark.doctrine, pytest.mark.fast, pytest.mark.corpus]
 

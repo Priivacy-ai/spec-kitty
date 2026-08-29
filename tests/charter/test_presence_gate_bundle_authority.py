@@ -52,7 +52,7 @@ class TestJourney4ContextBundleAuthority:
     ) -> None:
         _setup_fixture_repo(tmp_path)
 
-        from doctrine.drg.models import DRGGraph
+        from charter.offering.drg.models import DRGGraph
         from ruamel.yaml import YAML
 
         yaml = YAML(typ="safe")
@@ -62,7 +62,7 @@ class TestJourney4ContextBundleAuthority:
         with (
             patch("charter._drg_helpers.load_validated_graph", return_value=mock_graph),
             patch("charter.catalog.resolve_doctrine_root", return_value=tmp_path),
-            patch("doctrine.drg.validator.assert_valid"),
+            patch("charter.offering.drg.validator.assert_valid"),
         ):
             before = build_charter_context(
                 tmp_path, action="implement", depth=2, mission_type="software-dev"
@@ -77,7 +77,7 @@ class TestJourney4ContextBundleAuthority:
         with (
             patch("charter._drg_helpers.load_validated_graph", return_value=mock_graph),
             patch("charter.catalog.resolve_doctrine_root", return_value=tmp_path),
-            patch("doctrine.drg.validator.assert_valid"),
+            patch("charter.offering.drg.validator.assert_valid"),
         ):
             after = build_charter_context(
                 tmp_path, action="implement", depth=2, mission_type="software-dev"
@@ -333,7 +333,7 @@ class TestFoldCLegacyCharterMdOnlyPresentFlipCell:
             "mission_type_activations:\n  - software-dev\n", encoding="utf-8"
         )
 
-        from doctrine.drg.models import DRGGraph
+        from charter.offering.drg.models import DRGGraph
         from ruamel.yaml import YAML
 
         yaml = YAML(typ="safe")
@@ -343,7 +343,7 @@ class TestFoldCLegacyCharterMdOnlyPresentFlipCell:
         with (
             patch("charter._drg_helpers.load_validated_graph", return_value=mock_graph),
             patch("charter.catalog.resolve_doctrine_root", return_value=tmp_path),
-            patch("doctrine.drg.validator.assert_valid"),
+            patch("charter.offering.drg.validator.assert_valid"),
         ):
             result = build_charter_context(
                 tmp_path, action="implement", depth=2, mission_type="software-dev"

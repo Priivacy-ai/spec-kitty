@@ -11,7 +11,7 @@ from __future__ import annotations
 
 import pytest
 
-from doctrine.drg.loader import (
+from charter.offering.drg.loader import (
     built_in_graph_source,
     load_built_in_graph,
 )

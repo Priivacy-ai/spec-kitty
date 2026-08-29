@@ -20,8 +20,8 @@ the "relocation tax" WS2 exists to retire. The naive fix — drop the module
 qualifier and key on the bare name alone — reopens the T004 no-false-negative
 regression the ``known_modules`` guard in ``test_no_dead_symbols.py`` exists to
 prevent: several *distinct* symbols share a bare name across modules today
-(``ArtifactKind`` re-exported into ``doctrine.directives`` /
-``doctrine.procedures`` / ``doctrine.tactics``; two independently-defined
+(``ArtifactKind`` re-exported into ``charter.offering.directives`` /
+``charter.offering.procedures`` / ``charter.offering.tactics``; two independently-defined
 ``GateDecision`` dataclasses; ``ResolutionResult`` / ``ResolutionTier``
 re-exported via both a plain import alias and a lazy ``__getattr__`` facade
 dict). A bare-name key would let a live sibling "rescue" a genuinely dead
