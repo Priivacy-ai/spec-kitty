@@ -9049,7 +9049,7 @@ pages:
   - path: "docs/operations/start-branch-coord-divergence.md"
     title: "Recovery: --start-branch Coordination Divergence"
     divio_type: "none"
-    abstract: "Recovery when mission create --start-branch plus coord topology diverges the coordination branch from the primary planning commit, blocking every lane claim."
+    abstract: "Recovery when agent mission create <mission_slug> --start-branch plus coord topology diverges the coordination branch from the primary planning commit, blocking every lane claim."
     anchors:
     - {slug: "why-this-happens", text: "Why this happens", level: 2}
     - {slug: "no-shipped-fix-for-this-case", text: "No shipped `--fix` for this case", level: 2}
