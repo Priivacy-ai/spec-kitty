@@ -3085,6 +3085,7 @@ pages:
     - {slug: "spec-kitty-agent-status-validate", text: "spec-kitty agent status validate", level: 2}
     - {slug: "spec-kitty-agent-tasks", text: "spec-kitty agent tasks", level: 2}
     - {slug: "spec-kitty-agent-tasks-add-history", text: "spec-kitty agent tasks add-history", level: 2}
+    - {slug: "spec-kitty-agent-tasks-check-terminability", text: "spec-kitty agent tasks check-terminability", level: 2}
     - {slug: "spec-kitty-agent-tasks-finalize-tasks", text: "spec-kitty agent tasks finalize-tasks", level: 2}
     - {slug: "spec-kitty-agent-tasks-list-dependents", text: "spec-kitty agent tasks list-dependents", level: 2}
     - {slug: "spec-kitty-agent-tasks-list-tasks", text: "spec-kitty agent tasks list-tasks", level: 2}
@@ -3438,7 +3439,6 @@ pages:
     - {slug: "spec-kitty-doctor-tool-surfaces", text: "spec-kitty doctor tool-surfaces", level: 2}
     - {slug: "spec-kitty-doctor-topology", text: "spec-kitty doctor topology", level: 2}
     - {slug: "spec-kitty-doctor-workspaces", text: "spec-kitty doctor workspaces", level: 2}
-    - {slug: "spec-kitty-doctrine", text: "spec-kitty doctrine", level: 2}
     - {slug: "spec-kitty-doctrine-asset", text: "spec-kitty doctrine asset", level: 2}
     - {slug: "spec-kitty-doctrine-asset-list", text: "spec-kitty doctrine asset list", level: 2}
     - {slug: "spec-kitty-doctrine-asset-path", text: "spec-kitty doctrine asset path", level: 2}
