@@ -55,10 +55,23 @@ class ResolvedContext:
             styleguides, toolguides, etc.) reachable from the action node.
         glossary_scopes: Glossary scope URNs reachable via ``vocabulary``
             edges from the resolved artifacts.
+        tension_arbiters: FR-009 -- co-delivered ``in_tension_with`` pairs
+            (both endpoints inside :attr:`artifact_urns`) mapped to the
+            reconciler(s) that carry a ``reconciles_tension`` edge to BOTH
+            sides, as ``(arbiter_urn, (arbitrated_urn, ...))`` pairs. A
+            trailing, defaulted, hashable field (tuple of tuples, not a
+            dict) so the frozen dataclass's auto-``__hash__`` stays intact.
+        unarbitrated_tensions: FR-009 -- co-delivered ``in_tension_with``
+            pairs with no reachable reconciler, as ``(source, target)``
+            pairs (canonical lexicographic order, matching how
+            ``in_tension_with`` itself is stored). Trailing, defaulted,
+            hashable (tuple of tuples) for the same reason.
     """
 
     artifact_urns: frozenset[str]
     glossary_scopes: frozenset[str]
+    tension_arbiters: tuple[tuple[str, tuple[str, ...]], ...] = ()
+    unarbitrated_tensions: tuple[tuple[str, str], ...] = ()
 
 
 def walk_edges(
@@ -108,6 +121,66 @@ def walk_edges(
     return visited
 
 
+def _tension_annotations(
+    graph: DRGGraph,
+    all_artifacts: set[str],
+) -> tuple[tuple[tuple[str, tuple[str, ...]], ...], tuple[tuple[str, str], ...]]:
+    """Annotate co-delivered tension pairs with their arbiter, if any (FR-009).
+
+    Single bounded pass over ``graph.edges`` -- not a second
+    :func:`walk_edges` BFS -- so the common case (no tension edges touching
+    *all_artifacts*) stays cheap (NFR-003). ``in_tension_with`` is stored as
+    one canonical edge per pair (lexicographically-smaller URN as source,
+    per :class:`Relation`'s docstring), so a plain ``edges`` scan already
+    sees every pair regardless of which endpoint a caller might expect to
+    query from.
+
+    Args:
+        graph: The DRG graph already loaded for this resolution.
+        all_artifacts: The action's resolved artifact URNs (scope + requires
+            + suggests) -- a tension pair counts as "in scope" only when
+            BOTH endpoints are delivered together.
+
+    Returns:
+        ``(tension_arbiters, unarbitrated_tensions)`` -- see
+        :class:`ResolvedContext` for the field shapes. A reconciler need not
+        itself be inside *all_artifacts* to arbitrate a pair that is; only
+        the tension pair's own two endpoints must be.
+    """
+    tension_pairs: set[tuple[str, str]] = {
+        (edge.source, edge.target)
+        for edge in graph.edges
+        if edge.relation is Relation.IN_TENSION_WITH
+        and edge.source in all_artifacts
+        and edge.target in all_artifacts
+    }
+    if not tension_pairs:
+        return (), ()
+
+    reconcilers_by_target: dict[str, set[str]] = {}
+    for edge in graph.edges:
+        if edge.relation is Relation.RECONCILES_TENSION:
+            reconcilers_by_target.setdefault(edge.target, set()).add(edge.source)
+
+    arbiters: dict[str, set[str]] = {}
+    unarbitrated: set[tuple[str, str]] = set()
+    for source, target in tension_pairs:
+        common_arbiters = reconcilers_by_target.get(source, set()) & reconcilers_by_target.get(
+            target, set()
+        )
+        if not common_arbiters:
+            unarbitrated.add((source, target))
+            continue
+        for arbiter in common_arbiters:
+            arbiters.setdefault(arbiter, set()).update((source, target))
+
+    tension_arbiters = tuple(
+        (arbiter, tuple(sorted(arbitrated))) for arbiter, arbitrated in sorted(arbiters.items())
+    )
+    unarbitrated_tensions = tuple(sorted(unarbitrated))
+    return tension_arbiters, unarbitrated_tensions
+
+
 def resolve_context(
     graph: DRGGraph,
     action_urn: str,
@@ -125,6 +198,11 @@ def resolve_context(
        to *depth* hops to find soft recommendations.
     4. **Vocabulary** -- walk ``vocabulary`` edges from all resolved nodes
        (depth 1) to find glossary scopes.
+    5. **Tension annotation** (FR-009) -- annotate co-delivered
+       ``in_tension_with`` pairs with their reconciler via
+       :func:`_tension_annotations`, a single bounded ``edges`` scan (not a
+       second :func:`walk_edges` traversal), so the no-tension-in-scope case
+       stays as cheap as before this step existed.
 
     Args:
         graph: Merged DRG graph.
@@ -154,9 +232,14 @@ def resolve_context(
     vocab_walk = walk_edges(graph, all_artifacts, {Relation.VOCABULARY}, max_depth=1)
     glossary_scopes = vocab_walk - all_artifacts
 
+    # Step 5: tension annotation (FR-009) -- bounded, no second BFS walk.
+    tension_arbiters, unarbitrated_tensions = _tension_annotations(graph, all_artifacts)
+
     return ResolvedContext(
         artifact_urns=frozenset(all_artifacts),
         glossary_scopes=frozenset(glossary_scopes),
+        tension_arbiters=tension_arbiters,
+        unarbitrated_tensions=unarbitrated_tensions,
     )
 
 
