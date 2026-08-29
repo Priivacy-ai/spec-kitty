@@ -137,7 +137,7 @@ def test_advisory_reconciler_over_required_operand_fails_naming_the_edge(
 
     violations = scan_enforcement_lattice_violations(ctx)
 
-    assert len(violations) == 1
+    assert len(violations) == 1  # golden-count: cardinality-is-contract
     assert _URN_ADVISORY in violations[0]
     assert _URN_REQUIRED in violations[0]
     assert "advisory" in violations[0]
@@ -226,7 +226,7 @@ def test_reconciler_promoted_to_required_is_always_a_violation(
 
     violations = scan_enforcement_lattice_violations(ctx)
 
-    assert len(violations) == 1
+    assert len(violations) == 1  # golden-count: cardinality-is-contract
     assert _URN_REQUIRED in violations[0]
     assert "required" in violations[0].lower()
 

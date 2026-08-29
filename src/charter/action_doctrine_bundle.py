@@ -78,6 +78,17 @@ class _ActionDoctrineBundle:
     # requires-eager/inline set (see ``progressive_disclosure.link_references``
     # ``bridge_urns``).
     bridge_urns: tuple[str, ...] = ()
+    # WP02 (governance-at-the-gate, FR-009): co-delivered ``in_tension_with``
+    # pairs mapped to the reconciler(s) that bridge BOTH sides, carried
+    # verbatim from ``ResolvedContext.tension_arbiters`` -- see that
+    # attribute's docstring for the field shape and why it is a tuple of
+    # tuples rather than a dict (frozen-dataclass hashability). Defaulted
+    # trailing field so every pre-existing bundle constructor stays valid.
+    tension_arbiters: tuple[tuple[str, tuple[str, ...]], ...] = ()
+    # WP02: co-delivered ``in_tension_with`` pairs with no reachable
+    # reconciler, carried verbatim from
+    # ``ResolvedContext.unarbitrated_tensions``.
+    unarbitrated_tensions: tuple[tuple[str, str], ...] = ()
 
 
 def _resolve_action_bundle(
@@ -185,6 +196,8 @@ def _load_action_doctrine_bundle(
     merged_graph: DRGGraph | None = None
     roots: tuple[str, ...] = ()
     bridge_urns: tuple[str, ...] = ()
+    tension_arbiters: tuple[tuple[str, tuple[str, ...]], ...] = ()
+    unarbitrated_tensions: tuple[tuple[str, str], ...] = ()
     # A typeless mission has no action:<type>/<action> node to resolve; skip the
     # DRG action resolution entirely so no doctrine is inferred (FR-003a).
     if resolved_type is not None:
@@ -229,6 +242,11 @@ def _load_action_doctrine_bundle(
             # set as bridge URNs restores it as a reference source without
             # making it delivered or inline.
             bridge_urns = tuple(resolved.artifact_urns)
+            # WP02 (FR-009): carried verbatim from ``resolve_context`` --
+            # no second graph walk here, the bundle just forwards what
+            # ``resolved`` already computed.
+            tension_arbiters = resolved.tension_arbiters
+            unarbitrated_tensions = resolved.unarbitrated_tensions
         except DRGLoadError as exc:
             _LOGGER.warning(
                 "DRG action resolution skipped for %s/%s: %s. "
@@ -254,4 +272,6 @@ def _load_action_doctrine_bundle(
         merged=merged_graph,
         roots=roots,
         bridge_urns=bridge_urns,
+        tension_arbiters=tension_arbiters,
+        unarbitrated_tensions=unarbitrated_tensions,
     )
