@@ -1,0 +1,20 @@
+{
+  "coordination_branch": "kitty/mission-sync-deactivate-by-default-01M16M1P",
+  "created_at": "2026-08-29T11:21:31.068381+00:00",
+  "flattened": false,
+  "friendly_name": "Sync Deactivated By Default",
+  "mission_id": "01M16M1PNV5AF7K1YAKNCWJ82W",
+  "mission_number": null,
+  "mission_slug": "sync-deactivate-by-default-01M16M1P",
+  "mission_type": "software-dev",
+  "pr_bound": true,
+  "purpose_context": "The legacy local-sync surface is slated for replacement by the SaaS redesign, so its ongoing CI/test/dev-noise cost is no longer worth carrying. This mission flips sync to opt-in via the existing toggles, silences the disabled-path traceback (#3470), decouples the pre-review regression gate from the sync toggles so it is not disabled by accident (#2801), and quarantines the sync tests without orphaning them — so contributors stop paying the cost of a module about to be superseded.",
+  "purpose_tldr": "Make a bare Spec Kitty install quiet by default — no sync daemon, events, or tracebacks — ahead of the SaaS redesign.",
+  "slug": "sync-deactivate-by-default-01M16M1P",
+  "target_branch": "spike/3799-sync-deactivation-3798-accept-hermetic",
+  "topology": "coord",
+  "change_mode": "standard",
+  "source_description": "Issue #3799 (P1, milestone 3.2.6, epic #3801): deactivate the sync module + tests by default ahead of the SaaS redesign, reusing existing toggles. Folds #3470 (silence disabled-path traceback) and #2801 (decouple pre-review gate). 5-lens research grounding in scratchpad grounding-brief-3798-3799.md.",
+  "vcs": "git",
+  "change_mode_rationale": "Reclassified from bulk_edit to standard: this mission ADDS a uniform skipif marker across ~200 sync-coupled test modules (additive) plus one localized env-var swap in the pre-review gate — it does NOT rename an existing identifier across files. The occurrence-map gate schema is rename-only (do_not_change/manual_review/rename) and cannot model an additive marker. Integrity of the gated set is guarded by the FR-013 file-count census (WP06), a stronger guard than a rename occurrence-map."
+}
