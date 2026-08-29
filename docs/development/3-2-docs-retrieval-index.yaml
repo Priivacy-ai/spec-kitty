@@ -3145,10 +3145,10 @@ pages:
     - {slug: "spec-kitty-agent-status-validate", text: "spec-kitty agent status validate", level: 2}
     - {slug: "spec-kitty-agent-tasks", text: "spec-kitty agent tasks", level: 2}
     - {slug: "spec-kitty-agent-tasks-add-history", text: "spec-kitty agent tasks add-history", level: 2}
+    - {slug: "spec-kitty-agent-tasks-check-terminability", text: "spec-kitty agent tasks check-terminability", level: 2}
     - {slug: "spec-kitty-agent-tasks-finalize-tasks", text: "spec-kitty agent tasks finalize-tasks", level: 2}
     - {slug: "spec-kitty-agent-tasks-list-dependents", text: "spec-kitty agent tasks list-dependents", level: 2}
     - {slug: "spec-kitty-agent-tasks-list-tasks", text: "spec-kitty agent tasks list-tasks", level: 2}
-    - {slug: "spec-kitty-agent-tasks-check-terminability", text: "spec-kitty agent tasks check-terminability", level: 2}
     - {slug: "spec-kitty-agent-tasks-map-requirements", text: "spec-kitty agent tasks map-requirements", level: 2}
     - {slug: "spec-kitty-agent-tasks-mark-status", text: "spec-kitty agent tasks mark-status", level: 2}
     - {slug: "spec-kitty-agent-tasks-move-task", text: "spec-kitty agent tasks move-task", level: 2}
@@ -3500,7 +3500,6 @@ pages:
     - {slug: "spec-kitty-doctor-tool-surfaces", text: "spec-kitty doctor tool-surfaces", level: 2}
     - {slug: "spec-kitty-doctor-topology", text: "spec-kitty doctor topology", level: 2}
     - {slug: "spec-kitty-doctor-workspaces", text: "spec-kitty doctor workspaces", level: 2}
-    - {slug: "spec-kitty-doctrine", text: "spec-kitty doctrine", level: 2}
     - {slug: "spec-kitty-doctrine-asset", text: "spec-kitty doctrine asset", level: 2}
     - {slug: "spec-kitty-doctrine-asset-list", text: "spec-kitty doctrine asset list", level: 2}
     - {slug: "spec-kitty-doctrine-asset-path", text: "spec-kitty doctrine asset path", level: 2}
@@ -3534,8 +3533,8 @@ pages:
     - {slug: "spec-kitty-materialize", text: "spec-kitty materialize", level: 2}
     - {slug: "spec-kitty-merge", text: "spec-kitty merge", level: 2}
     - {slug: "spec-kitty-migrate", text: "spec-kitty migrate", level: 2}
-    - {slug: "spec-kitty-migrate-backfill-mission-type", text: "spec-kitty migrate backfill-mission-type", level: 2}
     - {slug: "spec-kitty-migrate-backfill-identity", text: "spec-kitty migrate backfill-identity", level: 2}
+    - {slug: "spec-kitty-migrate-backfill-mission-type", text: "spec-kitty migrate backfill-mission-type", level: 2}
     - {slug: "spec-kitty-migrate-backfill-provenance", text: "spec-kitty migrate backfill-provenance", level: 2}
     - {slug: "spec-kitty-migrate-backfill-runtime-state", text: "spec-kitty migrate backfill-runtime-state", level: 2}
     - {slug: "spec-kitty-migrate-backfill-topology", text: "spec-kitty migrate backfill-topology", level: 2}
