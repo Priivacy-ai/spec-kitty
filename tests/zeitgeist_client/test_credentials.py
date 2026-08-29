@@ -336,6 +336,40 @@ def test_owner_only_mode_holds_across_every_write_path(state_root: Path):
     assert stat.S_IMODE(path.stat().st_mode) == 0o600
 
 
+def test_a_loose_pre_e3_file_is_tightened_on_read(state_root: Path):
+    """[squad] EXPERIMENTAL-spec-kitty#37 MINOR: a store/dir left loose by a
+    pre-E3 write (the old ``tmp_path.open("wb")`` path, no chmod, landing at
+    the ambient umask) must not stay group/other-readable until the next
+    write — ``load()`` alone must tighten it, since a manual checkout may
+    never call ``store()`` again."""
+    path = credentials.credentials_path()
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.parent.chmod(0o755)
+    path.write_text(
+        '["github.com/acme/spec-kitty"]\nrelay_url = "http://a"\ntoken = "tok-a"\ntoken_issued_at = "2026-01-01T00:00:00+00:00"\ntoken_kind = "shared_team"\n'
+    )
+    path.chmod(0o644)
+    assert credentials.load(repo="github.com/acme/spec-kitty") is not None
+    if not hasattr(os, "getuid"):
+        return
+    assert stat.S_IMODE(path.stat().st_mode) == 0o600
+    assert stat.S_IMODE(path.parent.stat().st_mode) == 0o700
+
+
+def test_a_loose_pre_e3_directory_is_tightened_on_read_with_nothing_stored(state_root: Path):
+    """Even a read that finds nothing stored (no file at all yet) must
+    tighten a loose parent directory left behind by some other pre-E3
+    artifact — the directory alone can leak which repos have ever been
+    touched, and :func:`_locked` is the one door every read goes through."""
+    path = credentials.credentials_path()
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.parent.chmod(0o755)
+    assert credentials.load(repo="github.com/acme/spec-kitty") is None
+    if not hasattr(os, "getuid"):
+        return
+    assert stat.S_IMODE(path.parent.stat().st_mode) == 0o700
+
+
 # --- spec-kitty#137: bare pre-#132 name keys are refused on every door ------
 
 

@@ -20,7 +20,7 @@ from specify_cli.git.commit_helpers import (
     assert_staging_area_matches_expected,
 )
 
-pytestmark = pytest.mark.git_repo
+pytestmark = [pytest.mark.unit, pytest.mark.git_repo]
 
 
 def _git(repo: Path, *args: str) -> subprocess.CompletedProcess[str]:
