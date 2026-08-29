@@ -41,8 +41,7 @@ someone clears them by hand. Giving each invocation its own
   with ``ExitCode.OK``; a session with failures, errors, or an interruption
   keeps its ``tmp_path`` tree for post-mortem inspection (#76 — retention is
   gated on outcome, not dropped outright: a bare reap-everything policy would
-  lose exactly the forensics a failed run needs, and the private-per-run tree
-  is what fixed #63, not the reap).
+  lose exactly the forensics a failed run needs).
 * **Swept for crash leftovers** — dirs older than :data:`STALE_RUN_MAX_AGE_S`
   (a SIGKILL'd run leaves one with no ``pytest_sessionfinish`` ever firing, so
   the atexit gate above never ran for it; no live suite runs this long) are
