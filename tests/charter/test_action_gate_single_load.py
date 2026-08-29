@@ -20,7 +20,7 @@ Two independent things are pinned here:
 
 AC-7 (single vocabulary) is pinned in the same file: exactly one
 ``{"specify", "plan", "implement", "review"}``-shaped constant definition
-exists under ``src/charter`` (``charter.context.BOOTSTRAP_ACTIONS``) —
+exists under ``src/charter`` (``charter.activation.context.BOOTSTRAP_ACTIONS``) —
 ``interview.py``'s ``_KNOWN_ACTIONS`` copy must be gone.
 """
 
@@ -79,12 +79,12 @@ class TestResolveActionBundleSingleLoad:
     """Precheck (NFR-001): ``_resolve_action_bundle`` loads the DRG once."""
 
     def test_resolve_action_bundle_loads_graph_exactly_once(self, project: Path) -> None:
-        import charter._drg_helpers as drg_helpers
-        from charter.action_doctrine_bundle import _resolve_action_bundle
+        import charter.activation._drg_helpers as drg_helpers
+        from charter.activation.action_doctrine_bundle import _resolve_action_bundle
 
         wrapped, calls = _counting_wrapper(drg_helpers.load_validated_graph)
 
-        with patch("charter._drg_helpers.load_validated_graph", side_effect=wrapped):
+        with patch("charter.activation._drg_helpers.load_validated_graph", side_effect=wrapped):
             bundle = _resolve_action_bundle(
                 project,
                 action="tasks",
@@ -107,12 +107,12 @@ class TestActionGateSingleLoad:
     def test_json_non_bootstrap_action_gate_triggers_exactly_one_load(
         self, project: Path
     ) -> None:
-        import charter._drg_helpers as drg_helpers
-        from charter.context import build_charter_context_json
+        import charter.activation._drg_helpers as drg_helpers
+        from charter.activation.context import build_charter_context_json
 
         wrapped, calls = _counting_wrapper(drg_helpers.load_validated_graph)
 
-        with patch("charter._drg_helpers.load_validated_graph", side_effect=wrapped):
+        with patch("charter.activation._drg_helpers.load_validated_graph", side_effect=wrapped):
             payload = build_charter_context_json(
                 project, action="tasks", mission_type="software-dev"
             )
@@ -169,7 +169,7 @@ class TestBootstrapActionsSingleDefinitionSite:
                     if frozenset(elements) == target:
                         definitions.append(str(pyfile.relative_to(charter_src)))
 
-        assert definitions == ["context.py"], (
+        assert definitions == ["activation/context.py"], (
             "expected exactly one {'specify', 'plan', 'implement', 'review'}-shaped "
-            f"constant definition, at src/charter/context.py; found: {definitions}"
+            f"constant definition, at src/charter/activation/context.py; found: {definitions}"
         )

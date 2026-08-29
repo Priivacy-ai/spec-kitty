@@ -297,7 +297,7 @@ class ResolveTransitiveRefsResult:
         """Reconcile the named fields and :attr:`by_kind` into one truth.
 
         Callers still construct this result with named keyword arguments only
-        (``charter.compiler``, ``charter.reference_resolver``). Left alone,
+        (``charter.activation.compiler``, ``charter.activation.reference_resolver``). Left alone,
         those instances would expose a populated ``directives`` beside an empty
         ``by_kind`` -- closing one silent drop by opening another for whoever
         reads the new surface. So whichever side was supplied fills the other,

@@ -28,7 +28,7 @@ import typer
 from specify_cli.cli.console import console
 from rich.table import Table
 
-from charter.mission_type_profiles import (
+from charter.activation.mission_type_profiles import (
     MissionTypeEmptyActionSequenceError,
     UnknownMissionTypeError,
     existing_mission_types,
@@ -36,7 +36,7 @@ from charter.mission_type_profiles import (
 )
 
 if TYPE_CHECKING:
-    from charter.pack_context import PackContext
+    from charter.activation.pack_context import PackContext
     from charter.offering.missions.models import MissionType
 
 __all__ = [
@@ -66,7 +66,7 @@ def _layered_lookup_inputs(repo_root: Path) -> tuple[tuple[Path, ...], PackConte
     modules, not ``specify_cli.cli.commands.*`` ones).
     """
     from charter.missions import MissionTemplateRepository  # noqa: PLC0415
-    from charter.pack_context import PackContext  # noqa: PLC0415
+    from charter.activation.pack_context import PackContext  # noqa: PLC0415
 
     pack_context = PackContext.from_config(repo_root)
     mission_types_dirs = (MissionTemplateRepository.default_missions_root() / "mission_types",)
@@ -90,13 +90,13 @@ def resolve_layered_roster(repo_root: Path) -> dict[str, MissionType]:
 def resolve_mission_type_source_layer(mission_type_id: str, repo_root: Path) -> str:
     """Return the real resolution layer (``"built-in"``/``"org"``/``"project"``).
 
-    FR-006/FR-007: reuses ``charter.mission_type_profiles``'s own
+    FR-006/FR-007: reuses ``charter.activation.mission_type_profiles``'s own
     ``resolve_action_sequence_layer`` — the identical precedence walk
     (project > org, earliest ``pack_root`` wins > built-in) that
     :func:`resolve_layered_roster`'s underlying factory itself implements —
     rather than re-deriving a second copy of that walk here.
     """
-    from charter.mission_type_profiles import resolve_action_sequence_layer  # noqa: PLC0415
+    from charter.activation.mission_type_profiles import resolve_action_sequence_layer  # noqa: PLC0415
 
     mission_types_dirs, pack_context = _layered_lookup_inputs(repo_root)
     return resolve_action_sequence_layer(
@@ -107,7 +107,7 @@ def resolve_mission_type_source_layer(mission_type_id: str, repo_root: Path) -> 
 #: CR-02 (mission ``charter-code-topology-01M152G1`` S4): the placeholder
 #: rendered in the ACTION SEQUENCE column for an ``--include-inactive`` row
 #: that is not activated. Such a type is *deliberately* not resolved through
-#: :func:`~charter.mission_type_profiles.resolve_mission_type_context` --
+#: :func:`~charter.activation.mission_type_profiles.resolve_mission_type_context` --
 #: that resolver hard-fails on a non-activated built-in type by design (the
 #: FR-006 activation-subset gate), so this command must not call it for
 #: exactly the rows ``--include-inactive`` adds.

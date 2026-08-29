@@ -22,7 +22,7 @@ import pytest
 import yaml
 from typer.testing import CliRunner
 
-from charter.cascade import CascadeScope, cascade_activation_targets, referenced_but_not_cascaded
+from charter.activation.cascade import CascadeScope, cascade_activation_targets, referenced_but_not_cascaded
 from charter.offering.drg.models import DRGEdge, DRGGraph, DRGNode, NodeKind, Relation
 from specify_cli.cli.commands.charter import charter_app
 

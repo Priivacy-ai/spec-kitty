@@ -287,7 +287,7 @@ def resolve_step_contract_ids(
     contracts (FR-008 / SC-007): step-contract resolution flows through the
     doctrine :class:`MissionStepContractRepository` artefact — there is no
     ``specify_cli`` copy. The charter seam
-    (:func:`charter.mission_type_profiles.resolve_mission_type_context`) calls
+    (:func:`charter.activation.mission_type_profiles.resolve_mission_type_context`) calls
     this to populate ``ResolvedMissionType.step_contracts``.
 
     Parameters

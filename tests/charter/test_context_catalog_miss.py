@@ -31,7 +31,7 @@ from typing import Any
 import pytest
 from ruamel.yaml import YAML
 
-from charter._catalog_miss import (
+from charter.activation._catalog_miss import (
     CatalogMissCause,
     CatalogMissDiagnosis,
     CharterCatalogMissError,
@@ -41,8 +41,8 @@ from charter._catalog_miss import (
     emit_catalog_miss_warning,
     format_catalog_miss_stanza,
 )
-from charter.context_renderers.profile_sections import _render_profile_directives
-from charter.context_renderers.selection_block import _render_selected_styleguides
+from charter.activation.context_renderers.profile_sections import _render_profile_directives
+from charter.activation.context_renderers.selection_block import _render_selected_styleguides
 from charter.offering.agent_profiles import AgentProfile
 from charter.offering.styleguides.repository import StyleguideRepository
 
@@ -264,7 +264,7 @@ class TestEmitCatalogMissWarning:
     ) -> None:
         diagnosis = CatalogMissDiagnosis(cause=CatalogMissCause.MISSING_ARTIFACT)
         with (
-            caplog.at_level(logging.WARNING, logger="charter._catalog_miss"),
+            caplog.at_level(logging.WARNING, logger="charter.activation._catalog_miss"),
             warnings.catch_warnings(),
         ):
             warnings.simplefilter("ignore", CharterCatalogMissWarning)
@@ -275,7 +275,7 @@ class TestEmitCatalogMissWarning:
                 context="profile:python-pedro",
             )
         relevant = [
-            r for r in caplog.records if r.name == "charter._catalog_miss"
+            r for r in caplog.records if r.name == "charter.activation._catalog_miss"
         ]
         assert {
             (r.kind, r.id, r.cause, r.context)  # type: ignore[attr-defined]

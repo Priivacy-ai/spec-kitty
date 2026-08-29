@@ -13,8 +13,8 @@ from __future__ import annotations
 import pytest
 from pydantic import ValidationError
 
-from charter.activations import ActivationEntry
-from charter.schemas import (
+from charter.activation.activations import ActivationEntry
+from charter.activation.schemas import (
     CharterCatalog,
     CharterCatalogReference,
     CharterYaml,

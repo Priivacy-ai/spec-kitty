@@ -24,7 +24,7 @@ correctness gate for that unification:
 * **NFR-006 — dispatch invariance.** ``spec-kitty next``'s dispatch decision
   for these 3 types must be unaffected by the new ``step.yaml`` files:
   1. The charter-mediated resolution seam
-     (:func:`charter.mission_type_profiles.resolve_mission_type_context`,
+     (:func:`charter.activation.mission_type_profiles.resolve_mission_type_context`,
      the function ``spec-kitty next`` calls to learn a mission's action
      sequence) still returns exactly the pre-existing, pinned sequence for
      each type — proving the *value* consumed by dispatch is unchanged.
@@ -47,7 +47,7 @@ from pathlib import Path
 
 import pytest
 
-from charter.mission_type_profiles import resolve_mission_type_context
+from charter.activation.mission_type_profiles import resolve_mission_type_context
 from charter.offering.missions.mission_step_repository import MissionStepRepository
 from charter.offering.missions.mission_type_repository import MissionTypeRepository
 from charter.offering.missions.step_projection import project_action_sequence

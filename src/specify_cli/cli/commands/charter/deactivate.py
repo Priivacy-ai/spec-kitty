@@ -8,16 +8,16 @@ Wiring (Contracts C3.3/C3.4, C1.5)
 The live caller for the WP10 plan/commit engine and the WP11 shared-reference-
 safe cascade engine on the removal side:
 
-* ``--cascade`` is parsed through :meth:`charter.cascade.CascadeScope.parse`
+* ``--cascade`` is parsed through :meth:`charter.activation.cascade.CascadeScope.parse`
   (WP11) into a real scope value object — never collapsed to a bool (C3.3).
-* Cascade removal goes through :func:`charter.cascade.deactivation_plan`, which
+* Cascade removal goes through :func:`charter.activation.cascade.deactivation_plan`, which
   removes only *exclusive* referenced artifacts and **never** removes a shared
   one (Contract C3.4); shared skips are reported with the still-referencing
   active source named.
-* :class:`charter.activation_engine.NoActivationRestrictionsError` (raised by
+* :class:`charter.activation.activation_engine.NoActivationRestrictionsError` (raised by
   the WP10 engine for a None-state kind) is caught and surfaced as a clean
   exit-1 with the upgrade guidance.
-* :class:`charter.pack_context.CharterPackConfigError` is caught and surfaced as
+* :class:`charter.activation.pack_context.CharterPackConfigError` is caught and surfaced as
   fail-closed guidance before any mutation (FR-035, C1.5).
 """
 
@@ -28,19 +28,19 @@ from pathlib import Path
 import typer
 from specify_cli.cli.console import console
 
-from charter.activation_engine import NoActivationRestrictionsError
-from charter.cascade import CascadeScope, deactivation_plan
-from charter.catalog import resolve_doctrine_root
-from charter.drg import load_org_drg
-from charter.invocation_context import ProjectContext
-from charter.kind_vocabulary import (
+from charter.activation.activation_engine import NoActivationRestrictionsError
+from charter.activation.cascade import CascadeScope, deactivation_plan
+from charter.activation.catalog import resolve_doctrine_root
+from charter.activation.drg_activation import load_org_drg
+from charter.activation.invocation_context import ProjectContext
+from charter.activation.kind_vocabulary import (
     UnknownArtifactIdError,
     resolve_artifact_urn,
     resolve_config_id,
 )
-from charter.pack_context import CharterPackConfigError
-from charter.pack_manager import YAML_KEY_MAP, CharterPackManager
-from charter.kind_vocabulary import ArtifactKind, MissionTypeNotAnArtifactKind
+from charter.activation.pack_context import CharterPackConfigError
+from charter.activation.pack_manager import YAML_KEY_MAP, CharterPackManager
+from charter.activation.kind_vocabulary import ArtifactKind, MissionTypeNotAnArtifactKind
 
 from specify_cli.cli.commands.charter.activate import (
     RESYNTHESIZE_HELP,
@@ -102,7 +102,7 @@ def _active_urns(
     ``org_roots`` (T008/T010): full org-pack chain — without it, a currently-
     active artifact whose config-stem lives only in org pack 2..N could not
     resolve its DRG URN at all here, so it would silently drop out of the
-    ``active`` set that :func:`charter.cascade.deactivation_plan` uses for
+    ``active`` set that :func:`charter.activation.cascade.deactivation_plan` uses for
     Contract C3.4 shared-reference safety (NFR-002: a dropped active URN is a
     silent-wrong-data risk, not merely a display gap).
     """
@@ -141,7 +141,7 @@ def _render_cascade_deactivation(
 ) -> None:
     """Cascade-deactivate exclusive referenced artifacts; keep shared ones (FR-015/016).
 
-    Uses the WP11 :func:`charter.cascade.deactivation_plan` over the merged DRG.
+    Uses the WP11 :func:`charter.activation.cascade.deactivation_plan` over the merged DRG.
     Exclusive candidates are removed through the same activation seam; shared
     candidates are reported (never removed — Contract C3.4) with the still-
     referencing active source named.
@@ -151,7 +151,7 @@ def _render_cascade_deactivation(
     below — same rationale as ``activate.py``'s ``_render_cascade_activation``.
     Previously this call carried NO org roots at all.
     """
-    from charter._drg_helpers import load_validated_graph  # noqa: PLC0415
+    from charter.activation._drg_helpers import load_validated_graph  # noqa: PLC0415
 
     org_roots = resolve_org_root_chain(repo_root)
     graph = load_validated_graph(

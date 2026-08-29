@@ -16,7 +16,7 @@ Covers the FR-013 fixture matrix (5 cases) plus:
 All fixtures are built as ephemeral git repositories so the canonical-root
 resolver in ``charter.resolution`` can compute the correct root via
 ``git rev-parse --git-common-dir``. Fixtures intentionally do NOT mock
-``charter.sync`` — the tests invoke the real chokepoint to catch wiring
+``charter.activation.sync`` — the tests invoke the real chokepoint to catch wiring
 regressions.
 
 Ref: kitty-specs/unified-charter-bundle-chokepoint-01KP5Q2G/tasks/WP04-migration-unified-bundle.md
@@ -127,7 +127,7 @@ def _sync_charter(root: Path) -> None:
     run ``charter generate`` once) rather than relying on the now-inert
     sync chokepoint to produce it.
     """
-    from charter.sync import sync
+    from charter.activation.sync import sync
 
     charter_dir = root / ".kittify" / "charter"
     sync(charter_dir / "charter.md", charter_dir, force=True)

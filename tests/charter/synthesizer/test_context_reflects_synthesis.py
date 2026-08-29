@@ -12,10 +12,10 @@ from typing import Any
 
 import pytest
 
-from charter._doctrine_paths import resolve_project_root
-from charter.compiler import _default_doctrine_service
-from charter.context import _build_doctrine_service
-from charter.synthesizer import FixtureAdapter, SynthesisRequest, SynthesisTarget, synthesize
+from charter.activation._doctrine_paths import resolve_project_root
+from charter.activation.compiler import _default_doctrine_service
+from charter.activation.context import _build_doctrine_service
+from charter.activation.synthesizer import FixtureAdapter, SynthesisRequest, SynthesisTarget, synthesize
 
 
 pytestmark = [pytest.mark.unit]
@@ -78,11 +78,11 @@ def _project_directive_ids(service: Any) -> set[str]:
     """Return PROJECT_-prefixed directive ids visible on *service*.
 
     *service* is either the raw ``charter.offering.service.DoctrineService``
-    returned by ``charter.context._build_doctrine_service`` (``.directives``
+    returned by ``charter.activation.context._build_doctrine_service`` (``.directives``
     is the repository itself, with ``.list_all()``) or, since WP03
     (charter-sole-door-bypass-closure-01KZ3WAA, FR-002/T011),
-    ``charter.compiler._default_doctrine_service``'s activation-aware
-    ``charter.resolver.DoctrineService`` wrapper (``.directives`` is a
+    ``charter.activation.compiler._default_doctrine_service``'s activation-aware
+    ``charter.activation.resolver.DoctrineService`` wrapper (``.directives`` is a
     gated, filtered ``dict`` with no ``.list_all()``). The wrapper's
     ``raw_repository(kind)`` accessor (FR-002 Option A) is the sanctioned
     way to reach the raw repository either way, so this helper prefers it

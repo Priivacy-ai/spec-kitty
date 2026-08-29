@@ -60,12 +60,14 @@ def test_org_drg_fragment_merges_through_three_layers_with_provenance(
 ) -> None:
     """Scenario 1 — an org pack contributes nodes/edges; the merged DRG
     carries per-artefact provenance through all three layers."""
-    from charter.drg import (  # noqa: PLC0415 - lazy ImportError on RED
+    from charter.drg import (
         DRGEdge,
         DRGGraph,
         DRGNode,
         NodeKind,
         Relation,
+    )
+    from charter.activation.drg_activation import (
         load_org_drg,
         merge_three_layers,
     )
@@ -120,7 +122,10 @@ def test_charter_lint_lints_all_three_layers_with_provenance(
     operator output formatting lives in
     ``test_charter_lint_lints_all_layers.py``.
     """
-    from charter.drg import load_org_drg, merge_three_layers  # noqa: PLC0415
+    from charter.activation.drg_activation import (
+        load_org_drg,
+        merge_three_layers,
+    )
 
     fragments = load_org_drg(tmp_repo_with_org_pack)
     assert fragments, "fixture must produce at least one fragment"

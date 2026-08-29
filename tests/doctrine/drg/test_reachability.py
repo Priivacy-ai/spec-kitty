@@ -35,8 +35,8 @@ from pathlib import Path
 
 import pytest
 
-from charter import pack_context
-from charter.pack_context import (
+from charter.activation import pack_context
+from charter.activation.pack_context import (
     charter_activated_urns,
 )
 from charter.offering.drg.loader import load_built_in_graph
@@ -718,7 +718,7 @@ def _activated() -> frozenset[str]:
 def _raw_activated_map() -> Mapping[str, list[str]]:
     """The activation store in its raw *store* form (pre-normalization).
 
-    Reuses ``charter.pack_context``'s own charter-pointer resolution — the exact
+    Reuses ``charter.activation.pack_context``'s own charter-pointer resolution — the exact
     path :func:`charter_activated_urns` reads — so the WP06 partition sees the
     same store the runtime does. The store form is what makes the C-009
     ``not_a_node`` slugs visible (e.g. ``directive:025-boy-scout-rule``); the

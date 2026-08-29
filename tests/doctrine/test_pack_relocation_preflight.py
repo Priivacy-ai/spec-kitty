@@ -30,11 +30,11 @@ Still meaningful and kept unchanged:
 
 Note on the reader that the pre-move sweep missed: the sweep's completeness
 regex keyed on a literal ``/ "built-in"`` join, so it could not see
-``charter.pack_manager._scan_layer_dirs``, which resolved the built-in layer
+``charter.activation.pack_manager._scan_layer_dirs``, which resolved the built-in layer
 through a *loop-variable* ``layer`` segment (``root / base_dir / layer``). That
 reader was left pointing at the emptied ``src/doctrine`` root by the move and
 is repointed to the ``packs/built-in`` seam in the post-merge remediation
-(``charter.pack_manager`` now resolves via ``resolve_pack_root("built-in")``).
+(``charter.activation.pack_manager`` now resolves via ``resolve_pack_root("built-in")``).
 """
 
 from __future__ import annotations

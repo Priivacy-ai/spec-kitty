@@ -73,7 +73,7 @@ def test_mission_type_ships_governance_profile_yaml(mission_type: str) -> None:
 
 @pytest.mark.parametrize("mission_type", _REQUIRED_MISSION_TYPES)
 def test_load_mission_type_profile_returns_mission_type_profile(mission_type: str) -> None:
-    """``charter.mission_type_profiles._load_mission_type_profile(mission_type)`` MUST
+    """``charter.activation.mission_type_profiles._load_mission_type_profile(mission_type)`` MUST
     return the profile for that mission type — not None, not a fallback.
 
     Fails today on ImportError. Mission B WP06 introduces the loader at
@@ -85,14 +85,14 @@ def test_load_mission_type_profile_returns_mission_type_profile(mission_type: st
         # as the module-internal ``_load_mission_type_profile`` — NOT called by
         # ``resolve_mission_type_context`` itself (which reads the repository
         # directly), but still live as the backing helper for
-        # ``charter.action_grain.scan_builtin_cross_grain_duplicates`` (the
+        # ``charter.activation.action_grain.scan_builtin_cross_grain_duplicates`` (the
         # IC-11 built-in dup-scan).
-        from charter.mission_type_profiles import (
+        from charter.activation.mission_type_profiles import (
             _load_mission_type_profile,
         )
     except ImportError as exc:
         pytest.fail(
-            "Could not import `charter.mission_type_profiles._load_mission_type_profile`. "
+            "Could not import `charter.activation.mission_type_profiles._load_mission_type_profile`. "
             "WP03 keeps the profile loader as the module-internal helper backing "
             "`resolve_mission_type_context`.\n"
             f"Underlying ImportError: {exc!r}"
@@ -166,12 +166,12 @@ def test_resolve_governance_picks_documentation_profile_for_documentation_missio
     Fails today on ImportError or because no documentation profile exists.
     """
     try:
-        from charter.mission_type_profiles import (
+        from charter.activation.mission_type_profiles import (
             resolve_mission_type_context,
         )
     except ImportError as exc:
         pytest.fail(
-            "Could not import `charter.mission_type_profiles.resolve_mission_type_context`. "
+            "Could not import `charter.activation.mission_type_profiles.resolve_mission_type_context`. "
             "WP03 introduces the unified resolver that reads meta.json's "
             "mission_type and dispatches to the matching profile.\n"
             f"Underlying ImportError: {exc!r}"
@@ -225,12 +225,12 @@ def test_resolve_governance_hard_fails_for_unknown_mission_type(tmp_path: Path) 
     message naming the unknown mission_type.
     """
     try:
-        from charter.mission_type_profiles import (
+        from charter.activation.mission_type_profiles import (
             resolve_mission_type_context,
         )
     except ImportError as exc:
         pytest.fail(
-            "Could not import `charter.mission_type_profiles.resolve_mission_type_context`. "
+            "Could not import `charter.activation.mission_type_profiles.resolve_mission_type_context`. "
             "WP03 introduces the unified resolver.\n"
             f"Underlying ImportError: {exc!r}"
         )

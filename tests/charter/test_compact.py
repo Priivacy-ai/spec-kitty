@@ -6,12 +6,12 @@ from pathlib import Path
 
 import pytest
 
-from charter.compact import (
+from charter.activation.compact import (
     CompactView,
     extract_section_anchors,
     render_compact_view,
 )
-from charter.resolver import GovernanceResolutionError
+from charter.activation.resolver import GovernanceResolutionError
 
 
 pytestmark = pytest.mark.fast
@@ -89,7 +89,7 @@ def test_render_compact_view_reports_governance_resolution_errors(
     def _raise_resolution_error(_repo_root: Path):
         raise GovernanceResolutionError(["missing directive"])
 
-    monkeypatch.setattr("charter.compact.resolve_project_governance", _raise_resolution_error)
+    monkeypatch.setattr("charter.activation.compact.resolve_project_governance", _raise_resolution_error)
 
     compact = render_compact_view(tmp_path)
 

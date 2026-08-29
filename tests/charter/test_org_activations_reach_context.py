@@ -28,7 +28,7 @@ from unittest.mock import patch
 import pytest
 from ruamel.yaml import YAML
 
-from charter.context import build_charter_context
+from charter.activation.context import build_charter_context
 from charter.offering.drg.models import DRGGraph
 from tests.charter.test_context_org_governance import _write_config
 
@@ -118,10 +118,10 @@ def _bootstrap_text(repo_root: Path) -> str:
     mock_graph = _load_mock_graph(yaml)
 
     with (
-        patch("charter._drg_helpers.load_validated_graph", return_value=mock_graph),
-        patch("charter.catalog.resolve_doctrine_root", return_value=repo_root),
+        patch("charter.activation._drg_helpers.load_validated_graph", return_value=mock_graph),
+        patch("charter.activation.catalog.resolve_doctrine_root", return_value=repo_root),
         patch("charter.offering.drg.validator.assert_valid"),
-        patch("charter.sync.ensure_charter_bundle_fresh", return_value=None),
+        patch("charter.activation.sync.ensure_charter_bundle_fresh", return_value=None),
     ):
         result = build_charter_context(
             repo_root, action="implement", depth=2, mark_loaded=False,

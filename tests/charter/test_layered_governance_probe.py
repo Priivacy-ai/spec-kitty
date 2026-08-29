@@ -38,7 +38,7 @@ from pathlib import Path
 import pytest
 from ruamel.yaml import YAML
 
-from charter.mission_type_profiles import (
+from charter.activation.mission_type_profiles import (
     UnknownMissionTypeError,
     resolve_mission_type_context,
 )

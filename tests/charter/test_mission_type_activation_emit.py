@@ -8,7 +8,7 @@ path never emitted that key, so a pointer-based charter (``config.yaml``
 ``charter:`` pointer -> ``charter.yaml``) that predates the provisioning
 feature offered NO mission types (mission-create on it fails closed).
 
-These tests pin ``charter.compiler.provision_mission_type_activations`` — the
+These tests pin ``charter.activation.compiler.provision_mission_type_activations`` — the
 non-crashing, additive provisioning primitive that emits the built-in mission
 type set into the activation authority (the pointer-resolved ``charter.yaml``
 for a migrated project, or ``config.yaml`` for a legacy one), mirroring
@@ -22,9 +22,9 @@ from pathlib import Path
 import pytest
 from ruamel.yaml import YAML
 
-from charter.compiler import provision_mission_type_activations
-from charter.default_pack import load_default_pack_activation_ids
-from charter.pack_context import PackContext
+from charter.activation.compiler import provision_mission_type_activations
+from charter.activation.default_pack import load_default_pack_activation_ids
+from charter.activation.pack_context import PackContext
 
 
 pytestmark = [pytest.mark.fast]

@@ -2,7 +2,7 @@
 Enhanced verify_setup implementation for spec-kitty.
 """
 
-from charter.mission_type_key import read_mission_type
+from charter.activation.mission_type_key import read_mission_type
 from specify_cli.core.constants import KITTY_SPECS_DIR
 import logging
 import subprocess

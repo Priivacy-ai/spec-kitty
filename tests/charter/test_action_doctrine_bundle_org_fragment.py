@@ -20,7 +20,7 @@ from pathlib import Path
 import pytest
 import yaml
 
-from charter.action_doctrine_bundle import _load_action_doctrine_bundle
+from charter.activation.action_doctrine_bundle import _load_action_doctrine_bundle
 from charter.drg import resolve_existing_org_roots
 from charter.offering.drg.validator import DRGValidationError
 

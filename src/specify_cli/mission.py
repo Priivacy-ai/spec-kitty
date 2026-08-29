@@ -21,7 +21,7 @@ from pydantic import BaseModel, ConfigDict, Field, ValidationError
 
 # WP02 / FR-012 (C-001): the single boundary-safe mission-type canonicalizer lives
 # in ``charter`` so ``specify_cli`` may consume it without crossing the layer rule.
-from charter.mission_type_key import read_mission_type
+from charter.activation.mission_type_key import read_mission_type
 from specify_cli.mission_metadata import load_meta_or_empty
 
 
@@ -547,7 +547,7 @@ def _canonical_meta_mission_type(meta: dict[str, Any]) -> str | None:
     """Return the canonical mission-type key recorded in ``meta``, or ``None``.
 
     Thin delegate to the one shared runtime reader
-    :func:`charter.mission_type_key.read_mission_type` (rc3 M5, FR-001). Reads
+    :func:`charter.activation.mission_type_key.read_mission_type` (rc3 M5, FR-001). Reads
     **only** the canonical ``mission_type`` field — the legacy ``mission`` field
     is no longer consulted (FR-002, legacy-resolution retirement). A typeless /
     absent / blank / non-string value yields ``None``, never a substituted

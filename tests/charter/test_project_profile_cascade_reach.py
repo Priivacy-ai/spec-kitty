@@ -19,9 +19,9 @@ from pathlib import Path
 
 import pytest
 
-from charter._drg_helpers import load_validated_graph
-from charter.synthesizer.path_guard import PathGuard
-from charter.synthesizer.project_drg import emit_project_layer, persist
+from charter.activation._drg_helpers import load_validated_graph
+from charter.activation.synthesizer.path_guard import PathGuard
+from charter.activation.synthesizer.project_drg import emit_project_layer, persist
 from charter.offering.drg.loader import load_built_in_graph
 from charter.offering.drg.models import NodeKind
 

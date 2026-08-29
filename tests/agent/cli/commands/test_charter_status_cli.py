@@ -68,7 +68,7 @@ def _write_governance_yaml(repo_root: Path) -> None:
 
     IC-04 (#2773) retired the standalone ``.kittify/charter/governance.yaml``:
     ``load_governance_config`` now reads the hand-authored ``governance:``
-    section directly off ``charter.yaml`` (``charter.schemas.CharterYaml``).
+    section directly off ``charter.yaml`` (``charter.activation.schemas.CharterYaml``).
     The governance references live at ``governance.doctrine.governance_references``.
     """
     path = repo_root / ".kittify" / "charter" / "charter.yaml"

@@ -16,7 +16,7 @@ from __future__ import annotations
 
 import pytest
 
-from charter.synthesizer.evidence import (
+from charter.activation.synthesizer.evidence import (
     CodeSignals,
     CorpusEntry,
     CorpusSnapshot,

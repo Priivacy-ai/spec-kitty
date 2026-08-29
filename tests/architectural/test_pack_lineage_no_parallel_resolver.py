@@ -1,6 +1,6 @@
 """Architectural guardrail (T013, C-002/NFR-001): no parallel lineage resolver.
 
-``charter.org_extends.resolve_extends_order`` is the single canonical
+``charter.activation.org_extends.resolve_extends_order`` is the single canonical
 resolver for lineage-chain topology (cycle detection, missing-base
 detection, base-first ordering). ``src/specify_cli/doctrine/pack_lineage.py``
 adapts ``pack_id``-keyed edges into the name-keyed shape that resolver
@@ -134,7 +134,7 @@ def test_pack_lineage_routes_only_through_org_extends() -> None:
     tree = ast.parse(pack_lineage_path.read_text(encoding="utf-8"))
     assert calls_resolve_extends_order(tree), (
         "pack_lineage.py must route lineage resolution through "
-        "charter.org_extends.resolve_extends_order (C-002/NFR-001) -- no "
+        "charter.activation.org_extends.resolve_extends_order (C-002/NFR-001) -- no "
         "call to the canonical resolver was found."
     )
 
@@ -152,7 +152,7 @@ def test_no_pack_module_defines_a_second_walker() -> None:
         "Found order-producing traversal(s) that do not delegate to "
         f"resolve_extends_order -- a second lineage resolver: {offenders}. "
         "Lineage resolution must route only through "
-        "charter.org_extends.resolve_extends_order (C-002/NFR-001)."
+        "charter.activation.org_extends.resolve_extends_order (C-002/NFR-001)."
     )
 
 
@@ -182,7 +182,7 @@ def _sneaky_recursive_resolve(node, edges, acc=None):
 """
 
 _LEGITIMATE_ADAPTER_LOOP = """
-from charter.org_extends import resolve_extends_order
+from charter.activation.org_extends import resolve_extends_order
 
 def resolve_pack_lineage_order(start_pack_id, parent_edges, pack_names):
     name_edges = {}

@@ -24,7 +24,7 @@ from pathlib import Path
 
 import pytest
 
-from charter.mission_type_key import read_mission_type
+from charter.activation.mission_type_key import read_mission_type
 from specify_cli.migration.backfill_mission_type import backfill_mission_type_repo
 
 pytestmark = [pytest.mark.integration]

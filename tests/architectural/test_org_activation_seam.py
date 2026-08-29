@@ -78,7 +78,7 @@ _SEAM_SYMBOLS = (
 # activation seam and MUST NOT splice raw org roots. Relative to ``src/``.
 _ORG_HONOURING_SURFACES: tuple[str, ...] = (
     "specify_cli/invocation/registry.py",
-    "charter/context.py",
+    "charter/activation/context.py",
     "specify_cli/tool_surface/profiles/projection.py",
 )
 

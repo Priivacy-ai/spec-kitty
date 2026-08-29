@@ -244,7 +244,7 @@ def test_result_is_frozen() -> None:
 # consolidate-charter-bundle (WP07 / T030): the read target moved from
 # ``<charter_dir>/metadata.yaml`` (top-level ``bundle_schema_version`` key,
 # now RETIRED) to ``<charter_dir>/charter.yaml``'s ``metadata:`` section
-# (``charter.schemas.CharterYamlMetadata`` keeps this one field across the
+# (``charter.activation.schemas.CharterYamlMetadata`` keeps this one field across the
 # Landmine 2 retirement). Fixtures below write ``charter.yaml`` with the
 # field nested under ``metadata:`` instead of ``metadata.yaml`` flat.
 # ---------------------------------------------------------------------------
@@ -344,7 +344,7 @@ def test_run_migration_v1_returns_migration_result(tmp_path: Path) -> None:
 
 
 def test_run_migration_v1_backfills_manifest_and_sidecar_fields(tmp_path: Path) -> None:
-    from charter.synthesizer.manifest import load_yaml, verify_manifest_hash
+    from charter.activation.synthesizer.manifest import load_yaml, verify_manifest_hash
 
     _write_v1_bundle(tmp_path)
 
@@ -486,7 +486,7 @@ def test_repair_v2_manifest_hash_mismatch_is_error(tmp_path: Path) -> None:
 
 
 def test_repair_v2_manifest_writes_canonical_default(tmp_path: Path) -> None:
-    from charter.synthesizer.manifest import load_yaml, verify_manifest_hash
+    from charter.activation.synthesizer.manifest import load_yaml, verify_manifest_hash
     from ruamel.yaml import YAML
 
     manifest_path = _write_legacy_v2_manifest(tmp_path)

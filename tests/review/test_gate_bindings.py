@@ -15,7 +15,7 @@ decorative gate.
 NFR-003 non-vacuity is enforced two ways:
 
 * the **positive arm** computes its activated URN set from the *real*
-  :func:`charter.drg.filter_graph_by_activation` applied to a *real*
+  :func:`charter.activation.drg_activation.filter_graph_by_activation` applied to a *real*
   ``mission_step_contract:software-dev/review`` DRG node — not a fabricated
   frozenset — and the paired negative-control arm deactivates the owning
   mission type so the *same* real filter drops the URN;
@@ -34,12 +34,13 @@ from typing import TYPE_CHECKING
 
 import pytest
 
-from charter.drg import NodeKind, filter_graph_by_activation
+from charter.drg import NodeKind
+from charter.activation.drg_activation import filter_graph_by_activation
 from charter.mission_steps import (
     MissionStepContract,
     MissionStepContractStep,
 )
-from charter.pack_context import PackContext
+from charter.activation.pack_context import PackContext
 from charter.offering.drg.models import DRGGraph, DRGNode
 from charter.offering.missions.step_contracts import GateBinding
 from specify_cli.mission_step_contracts.executor import StepContractExecutor

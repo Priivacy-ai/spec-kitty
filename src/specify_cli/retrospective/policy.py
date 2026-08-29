@@ -31,8 +31,8 @@ from ruamel.yaml import YAML as _YAML
 from ruamel.yaml.error import YAMLError as _YAMLError
 
 from charter.bundle import CHARTER_MD, CHARTER_YAML
-from charter.charter_yaml_io import load_charter_yaml
-from charter.schemas import RetrospectiveGovernance
+from charter.activation.charter_yaml_io import load_charter_yaml
+from charter.activation.schemas import RetrospectiveGovernance
 from specify_cli.retrospective.deprecation import (
     _DOCS_URL,
     REPLACEMENT_KEYS,
@@ -333,7 +333,7 @@ def _load_charter_retrospective_block(
 def _authored_keys_only(model: RetrospectiveGovernance) -> dict[str, object] | None:
     """Reduce a validated authority block to the keys the operator authored.
 
-    Every field on :class:`~charter.schemas.RetrospectiveGovernance` is
+    Every field on :class:`~charter.activation.schemas.RetrospectiveGovernance` is
     three-state ``X | None``, where ``None`` means "the charter does not claim
     this key".  Dropping the ``None``\\ s is what keeps ``charter.md``
     frontmatter a *contributing* secondary (C-003) instead of being wholesale
@@ -378,7 +378,7 @@ _ENUM_VALIDATION_ERROR_TYPES: frozenset[str] = frozenset({"literal_error", "enum
 def _reason_for_validation_error(exc: ValidationError) -> str:
     """Classify a pydantic ``ValidationError`` into this module's reason vocabulary.
 
-    Every :class:`~charter.schemas.RetrospectiveGovernance` field is a
+    Every :class:`~charter.activation.schemas.RetrospectiveGovernance` field is a
     ``Literal`` or ``bool``, so a raw pydantic error type is either
     ``"literal_error"`` (an operator typo'd the enum value, e.g.
     ``failure_policy: explode``) or a structural type mismatch such as
@@ -404,12 +404,12 @@ def _load_charter_yaml_retrospective_block(
 
     Reads ``.kittify/charter/charter.yaml`` — the deterministic, schema-guarded
     resolution authority (C-001) — through the charter layer's own reader
-    (``charter.charter_yaml_io.load_charter_yaml`` + the ``charter.bundle``
+    (``charter.activation.charter_yaml_io.load_charter_yaml`` + the ``charter.bundle``
     path constant).  This is a strictly **downward** import: the retrospective
     resolver consumes the charter layer, never the reverse.
 
     The raw mapping is validated through
-    :class:`~charter.schemas.RetrospectiveGovernance` so an operator typo in a
+    :class:`~charter.activation.schemas.RetrospectiveGovernance` so an operator typo in a
     ``Literal`` field surfaces as this module's structured
     :class:`PolicyResolutionError` rather than leaking a raw
     ``pydantic.ValidationError`` to the caller.
@@ -840,7 +840,7 @@ def resolve_policy(
     Raises:
         PolicyResolutionError: If charter.yaml, charter.md or config is
             malformed — including a ``charter.yaml`` block that fails
-            :class:`~charter.schemas.RetrospectiveGovernance` validation, which
+            :class:`~charter.activation.schemas.RetrospectiveGovernance` validation, which
             is translated here rather than leaking as a raw
             ``pydantic.ValidationError``.  The return
             value is still ``(default_policy(), source_map_with_sentinel)``

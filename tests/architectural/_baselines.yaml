@@ -115,7 +115,15 @@ test_no_dead_modules:
   # 2 -> 3 (#3262 consent program reconciliation, 2026-08-13):
   # sync.admission_operations is WP05's deferred admission-operation record
   # library; wiring tracked as a WP11 TODO(triage) in the allowlist entry.
-  category_7_grandfathered_orphans: 3
+  # justification: 3 -> 5 (mission charter-activation-split-01M16ZSE, #3664):
+  # converting charter/__init__.py's 15 eager `from .X import Y` blocks to a
+  # lazy PEP-562 __getattr__ (MAP-B) unmasked two pre-existing orphans
+  # (charter.parser, charter.activation.template_resolver) whose only prior
+  # "caller" was that eager import -- an AST-invisible reference once the
+  # facade is string-keyed. Neither module gained a new caller loss; the
+  # lazy conversion just stopped counting as one. See the allowlist entries
+  # for the TODO(triage) follow-up on each.
+  category_7_grandfathered_orphans: 5
 
 # tests/architectural/test_migration_chain_integrity.py
 test_migration_chain_integrity:

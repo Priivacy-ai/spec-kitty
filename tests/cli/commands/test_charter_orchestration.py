@@ -86,11 +86,11 @@ def test_interview_defaults_exits_zero_and_writes_answers(tmp_path: Path) -> Non
     with (
         patch("specify_cli.cli.commands.charter.find_repo_root", return_value=project),
         patch("specify_cli.cli.commands.charter.default_interview", return_value=fake_interview_data),
-        patch("charter.interview.write_interview_answers"),
-        patch("charter.interview.apply_answer_overrides", return_value=fake_interview_data),
-        patch("charter.interview.MINIMAL_QUESTION_ORDER", []),
-        patch("charter.interview.QUESTION_ORDER", []),
-        patch("charter.interview.QUESTION_PROMPTS", {}),
+        patch("charter.activation.interview.write_interview_answers"),
+        patch("charter.activation.interview.apply_answer_overrides", return_value=fake_interview_data),
+        patch("charter.activation.interview.MINIMAL_QUESTION_ORDER", []),
+        patch("charter.activation.interview.QUESTION_ORDER", []),
+        patch("charter.activation.interview.QUESTION_PROMPTS", {}),
         patch("specify_cli.cli.commands.charter._get_widen_prereqs_absent", return_value=None),
     ):
         result = runner.invoke(app, ["interview", "--defaults"])
@@ -136,11 +136,11 @@ def test_interview_defaults_json_output(tmp_path: Path) -> None:
     with (
         patch("specify_cli.cli.commands.charter.find_repo_root", return_value=project),
         patch("specify_cli.cli.commands.charter.default_interview", return_value=fake_interview_data),
-        patch("charter.interview.write_interview_answers"),
-        patch("charter.interview.apply_answer_overrides", return_value=fake_interview_data),
-        patch("charter.interview.MINIMAL_QUESTION_ORDER", []),
-        patch("charter.interview.QUESTION_ORDER", []),
-        patch("charter.interview.QUESTION_PROMPTS", {}),
+        patch("charter.activation.interview.write_interview_answers"),
+        patch("charter.activation.interview.apply_answer_overrides", return_value=fake_interview_data),
+        patch("charter.activation.interview.MINIMAL_QUESTION_ORDER", []),
+        patch("charter.activation.interview.QUESTION_ORDER", []),
+        patch("charter.activation.interview.QUESTION_PROMPTS", {}),
         patch("specify_cli.cli.commands.charter._get_widen_prereqs_absent", return_value=None),
     ):
         result = runner.invoke(app, ["interview", "--defaults", "--json"])
@@ -168,7 +168,7 @@ def test_sync_exits_zero_when_charter_synced(tmp_path: Path) -> None:
 
     with (
         patch("specify_cli.cli.commands.charter.find_repo_root", return_value=project),
-        patch("charter.sync.sync", return_value=fake_result),
+        patch("charter.activation.sync.sync", return_value=fake_result),
     ):
         result = runner.invoke(app, ["sync"])
 
@@ -200,7 +200,7 @@ def test_sync_noop_when_already_synced(tmp_path: Path) -> None:
 
     with (
         patch("specify_cli.cli.commands.charter.find_repo_root", return_value=project),
-        patch("charter.sync.sync", return_value=fake_result),
+        patch("charter.activation.sync.sync", return_value=fake_result),
     ):
         result = runner.invoke(app, ["sync"])
 
@@ -297,8 +297,8 @@ def test_context_exits_zero_for_known_action(tmp_path: Path) -> None:
 
     with (
         patch("specify_cli.cli.commands.charter.find_repo_root", return_value=project),
-        patch("charter.context.build_charter_context", return_value=fake_ctx),
-        patch("charter.context.BOOTSTRAP_ACTIONS", {"specify", "plan"}),
+        patch("charter.activation.context.build_charter_context", return_value=fake_ctx),
+        patch("charter.activation.context.BOOTSTRAP_ACTIONS", {"specify", "plan"}),
     ):
         result = runner.invoke(app, ["context", "--action", "specify"])
 
@@ -319,8 +319,8 @@ def test_context_json_output_has_success_key(tmp_path: Path) -> None:
 
     with (
         patch("specify_cli.cli.commands.charter.find_repo_root", return_value=project),
-        patch("charter.context.build_charter_context", return_value=fake_ctx),
-        patch("charter.context.BOOTSTRAP_ACTIONS", {"specify", "plan"}),
+        patch("charter.activation.context.build_charter_context", return_value=fake_ctx),
+        patch("charter.activation.context.BOOTSTRAP_ACTIONS", {"specify", "plan"}),
     ):
         result = runner.invoke(app, ["context", "--action", "implement", "--json"])
 

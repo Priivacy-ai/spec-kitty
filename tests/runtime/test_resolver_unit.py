@@ -13,7 +13,7 @@ from unittest.mock import Mock, patch
 
 import pytest
 
-from charter.mission_type_profiles import ResolvedMissionType
+from charter.activation.mission_type_profiles import ResolvedMissionType
 from specify_cli.runtime.resolver import (
     ResolutionResult,
     ResolutionTier,

@@ -31,7 +31,7 @@ from textwrap import dedent
 
 import pytest
 
-from charter._drg_helpers import load_validated_graph as real_load_validated_graph
+from charter.activation._drg_helpers import load_validated_graph as real_load_validated_graph
 from charter.drg import DRGGraph
 from specify_cli.review import gate_bindings
 

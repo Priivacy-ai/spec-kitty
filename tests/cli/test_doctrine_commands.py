@@ -215,7 +215,7 @@ def test_mission_type_list_includes_registered_org_type_regardless_of_activation
     """
     from charter.offering.missions.mission_type_repository import MissionTypeRepository
 
-    from charter.pack_context import PackContext
+    from charter.activation.pack_context import PackContext
 
     org_root = tmp_path / "org-pack"
     _write_org_mission_type_yaml(org_root, "qa", action_sequence=["design", "implement"])
@@ -229,7 +229,7 @@ def test_mission_type_list_includes_registered_org_type_regardless_of_activation
     monkeypatch.chdir(tmp_path)
     MissionTypeRepository.cache_clear()
     try:
-        with patch("charter.pack_context.PackContext.from_config", return_value=pack_context):
+        with patch("charter.activation.pack_context.PackContext.from_config", return_value=pack_context):
             result = runner.invoke(app, ["mission-type", "list", "--json"])
     finally:
         MissionTypeRepository.cache_clear()

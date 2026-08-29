@@ -17,7 +17,7 @@ from unittest.mock import MagicMock, patch
 import pytest
 from typer.testing import CliRunner
 
-from charter.exceptions import CharterActivationError
+from charter.activation.exceptions import CharterActivationError
 from specify_cli.cli.commands.agent.mission import app as mission_app
 from specify_cli.cli.commands.agent.workflow import app as workflow_app
 
@@ -131,7 +131,7 @@ def _finalize_tasks_context(
             return_value=False,
         ),
         patch(
-            "charter.invocation_context.ProjectContext.from_repo",
+            "charter.activation.invocation_context.ProjectContext.from_repo",
             return_value=mock_proj_ctx,
         ),
     ):
@@ -170,7 +170,7 @@ def _implement_context(
             return_value=mock_wp,
         ),
         patch(
-            "charter.invocation_context.ProjectContext.from_repo",
+            "charter.activation.invocation_context.ProjectContext.from_repo",
             return_value=mock_proj_ctx,
         ),
     ):
@@ -403,7 +403,7 @@ class TestCharterActivationErrorRaised:
 
         with (
             _finalize_tasks_context(tmp_path, feature_dir, mock_proj_ctx),
-            patch("charter.exceptions.CharterActivationError", _TrackingError),
+            patch("charter.activation.exceptions.CharterActivationError", _TrackingError),
         ):
             result = runner.invoke(mission_app, ["finalize-tasks", "--mission", "099-test"])
 
@@ -439,7 +439,7 @@ class TestCharterActivationErrorRaised:
 
         with (
             _implement_context(tmp_path, mock_wp, mock_proj_ctx),
-            patch("charter.exceptions.CharterActivationError", _TrackingError),
+            patch("charter.activation.exceptions.CharterActivationError", _TrackingError),
         ):
             result = runner.invoke(
                 workflow_app,

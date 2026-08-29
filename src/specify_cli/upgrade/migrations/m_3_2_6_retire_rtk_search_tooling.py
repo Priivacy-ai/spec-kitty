@@ -14,8 +14,8 @@ upgrade therefore never removes a stale member from an already-present key. So
 every project that passed through rc35 still names ``rtk-search-tooling`` in
 ``activated_toolguides`` while the artefact no longer exists on disk.
 
-The charter compiler is deliberately fail-closed: ``charter.compiler`` raises
-:class:`charter.kind_vocabulary.UnknownArtifactIdError` rather than silently
+The charter compiler is deliberately fail-closed: ``charter.activation.compiler`` raises
+:class:`charter.activation.kind_vocabulary.UnknownArtifactIdError` rather than silently
 dropping an unresolvable stem, and that raise is not caught on the compile
 path. The observed consequence is a hard failure::
 

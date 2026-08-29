@@ -414,7 +414,7 @@ class TestIntentAwareCollision:
 
     def _has_built_in_doctrine(self) -> bool:
         try:
-            from charter.catalog import resolve_doctrine_root
+            from charter.activation.catalog import resolve_doctrine_root
         except ModuleNotFoundError:
             return False
         try:

@@ -48,8 +48,8 @@ from textwrap import dedent
 
 import pytest
 
-from charter._drg_helpers import load_validated_graph
-from charter.drg import load_org_drg
+from charter.activation._drg_helpers import load_validated_graph
+from charter.activation.drg_activation import load_org_drg
 from charter.offering.drg.merge import OrgDRGConflictError
 from charter.offering.drg.models import DRGGraph
 from charter.offering.drg.org_pack_loader import OrgPackSchemaError
@@ -344,7 +344,7 @@ def test_misconfig_raise_is_not_the_graphless_warn(
     graphless = tmp_path / "graphless"
     graphless.mkdir()
 
-    with caplog.at_level(logging.WARNING, logger="charter._drg_helpers"):
+    with caplog.at_level(logging.WARNING, logger="charter.activation._drg_helpers"):
         merged = load_validated_graph(
             tmp_path, org_roots=[graphless], org_fragments=[]
         )

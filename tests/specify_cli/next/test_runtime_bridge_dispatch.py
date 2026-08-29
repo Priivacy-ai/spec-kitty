@@ -118,7 +118,7 @@ class TestSoftwareDevDispatchNFR002:
     def test_specify_step_dispatches_via_composition(self, tmp_path: Path) -> None:
         """software-dev at 'specify' lane dispatches via composition (not legacy DAG)."""
         with patch(
-            "charter.mission_type_profiles.resolve_mission_type_context",
+            "charter.activation.mission_type_profiles.resolve_mission_type_context",
             return_value=types.SimpleNamespace(action_sequence=_SW_DEV_ACTIONS),
         ):
             assert _should_dispatch_via_composition(
@@ -128,7 +128,7 @@ class TestSoftwareDevDispatchNFR002:
     def test_plan_step_dispatches_via_composition(self, tmp_path: Path) -> None:
         """software-dev at 'plan' lane dispatches via composition."""
         with patch(
-            "charter.mission_type_profiles.resolve_mission_type_context",
+            "charter.activation.mission_type_profiles.resolve_mission_type_context",
             return_value=types.SimpleNamespace(action_sequence=_SW_DEV_ACTIONS),
         ):
             assert _should_dispatch_via_composition(
@@ -138,7 +138,7 @@ class TestSoftwareDevDispatchNFR002:
     def test_tasks_step_dispatches_via_composition(self, tmp_path: Path) -> None:
         """software-dev at 'tasks' lane dispatches via composition."""
         with patch(
-            "charter.mission_type_profiles.resolve_mission_type_context",
+            "charter.activation.mission_type_profiles.resolve_mission_type_context",
             return_value=types.SimpleNamespace(action_sequence=_SW_DEV_ACTIONS),
         ):
             assert _should_dispatch_via_composition(
@@ -148,7 +148,7 @@ class TestSoftwareDevDispatchNFR002:
     def test_implement_step_dispatches_via_composition(self, tmp_path: Path) -> None:
         """software-dev at 'implement' lane dispatches via composition."""
         with patch(
-            "charter.mission_type_profiles.resolve_mission_type_context",
+            "charter.activation.mission_type_profiles.resolve_mission_type_context",
             return_value=types.SimpleNamespace(action_sequence=_SW_DEV_ACTIONS),
         ):
             assert _should_dispatch_via_composition(
@@ -158,7 +158,7 @@ class TestSoftwareDevDispatchNFR002:
     def test_review_step_dispatches_via_composition(self, tmp_path: Path) -> None:
         """software-dev at 'review' lane dispatches via composition."""
         with patch(
-            "charter.mission_type_profiles.resolve_mission_type_context",
+            "charter.activation.mission_type_profiles.resolve_mission_type_context",
             return_value=types.SimpleNamespace(action_sequence=_SW_DEV_ACTIONS),
         ):
             assert _should_dispatch_via_composition(
@@ -171,7 +171,7 @@ class TestSoftwareDevDispatchNFR002:
     ) -> None:
         """Parametrized gate: all five software-dev actions return True."""
         with patch(
-            "charter.mission_type_profiles.resolve_mission_type_context",
+            "charter.activation.mission_type_profiles.resolve_mission_type_context",
             return_value=types.SimpleNamespace(action_sequence=_SW_DEV_ACTIONS),
         ):
             assert _should_dispatch_via_composition(
@@ -206,7 +206,7 @@ class TestFrozensetsDeletion:
             return types.SimpleNamespace(action_sequence=_SW_DEV_ACTIONS)
 
         with patch(
-            "charter.mission_type_profiles.resolve_mission_type_context",
+            "charter.activation.mission_type_profiles.resolve_mission_type_context",
             side_effect=_record_call,
         ):
             result = _should_dispatch_via_composition(
@@ -240,7 +240,7 @@ class TestLegacyTasksNormalization:
     def test_legacy_tasks_step_dispatches_via_composition(self, tmp_path: Path) -> None:
         """tasks_outline / tasks_packages / tasks_finalize normalize to 'tasks'."""
         with patch(
-            "charter.mission_type_profiles.resolve_mission_type_context",
+            "charter.activation.mission_type_profiles.resolve_mission_type_context",
             return_value=types.SimpleNamespace(action_sequence=_SW_DEV_ACTIONS),
         ):
             for legacy_id in ("tasks_outline", "tasks_packages", "tasks_finalize"):
@@ -259,10 +259,10 @@ class TestGracefulDegradation:
 
     def test_unknown_mission_type_returns_false(self, tmp_path: Path) -> None:
         """An unknown mission type causes degradation to False (not a crash)."""
-        from charter.mission_type_profiles import UnknownMissionTypeError
+        from charter.activation.mission_type_profiles import UnknownMissionTypeError
 
         with patch(
-            "charter.mission_type_profiles.resolve_mission_type_context",
+            "charter.activation.mission_type_profiles.resolve_mission_type_context",
             side_effect=UnknownMissionTypeError("unknown-type"),
         ):
             result = _should_dispatch_via_composition(
@@ -302,10 +302,10 @@ class TestPerformance:
 
         try:
             with patch(
-                "charter.mission_type_profiles.existing_mission_types",
+                "charter.activation.mission_type_profiles.existing_mission_types",
                 return_value=["documentation", "plan", "research", "software-dev"],
             ):
-                from charter.mission_type_profiles import resolve_mission_type_context
+                from charter.activation.mission_type_profiles import resolve_mission_type_context
 
                 # Warm the import cache.
                 resolve_mission_type_context(tmp_path, mission_type="software-dev")
@@ -329,13 +329,13 @@ class TestNFR001LazyGovernanceBoundary:
     """NFR-001: the real hot path never triggers action-grain I/O (WP05).
 
     The previous NFR-001 gate here (``test_pack_context_from_config_p99_under_100ms``)
-    timed ``charter.pack_context.PackContext.from_config()`` — a function that
-    never calls :func:`~charter.mission_type_profiles.resolve_mission_type_context`
+    timed ``charter.activation.pack_context.PackContext.from_config()`` — a function that
+    never calls :func:`~charter.activation.mission_type_profiles.resolve_mission_type_context`
     or ``load_action_index`` at all, so it could never regress under the budget
     it claimed to protect. It is replaced with a direct spy over the ACTUAL
     disk-reading call the budget exists for:
-    ``charter.mission_type_profiles.aggregate_action_grain`` (imported from
-    :mod:`charter.action_grain`), which the ``governance_thunk`` built by
+    ``charter.activation.mission_type_profiles.aggregate_action_grain`` (imported from
+    :mod:`charter.activation.action_grain`), which the ``governance_thunk`` built by
     ``_resolve_governance_slot`` invokes lazily behind
     ``ResolvedMissionType.governance``'s ``@cached_property`` — and which
     transitively fans out to
@@ -352,11 +352,11 @@ class TestNFR001LazyGovernanceBoundary:
         self, tmp_path: Path
     ) -> None:
         """The real production hot path (``.action_sequence`` only) does zero action-grain I/O."""
-        from charter.mission_type_profiles import resolve_mission_type_context
+        from charter.activation.mission_type_profiles import resolve_mission_type_context
 
         _provision_mission_type_activation(tmp_path)
         with patch(
-            "charter.mission_type_profiles.aggregate_action_grain"
+            "charter.activation.mission_type_profiles.aggregate_action_grain"
         ) as spy_aggregate:
             bundle = resolve_mission_type_context(tmp_path, mission_type="software-dev")
             # This is the real hot path: runtime-next's FSM reads only
@@ -369,11 +369,11 @@ class TestNFR001LazyGovernanceBoundary:
         self, tmp_path: Path
     ) -> None:
         """Proves the lazy boundary is real: first ``.governance`` read DOES call it."""
-        from charter.mission_type_profiles import resolve_mission_type_context
+        from charter.activation.mission_type_profiles import resolve_mission_type_context
 
         _provision_mission_type_activation(tmp_path)
         with patch(
-            "charter.mission_type_profiles.aggregate_action_grain",
+            "charter.activation.mission_type_profiles.aggregate_action_grain",
             return_value={},
         ) as spy_aggregate:
             bundle = resolve_mission_type_context(tmp_path, mission_type="software-dev")

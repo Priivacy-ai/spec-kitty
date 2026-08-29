@@ -230,7 +230,7 @@ _FACADE_TABLE: dict[str, list[tuple[str, str]]] = {
     # in ``__all__``. Tabled during the #3321 post-fold squad: the self-discovery
     # inverse gate below found these public but identity-unchecked (they escaped
     # the earlier key-scoped gate because this module was absent from the table).
-    "charter.kind_vocabulary": [
+    "charter.activation.kind_vocabulary": [
         ("ArtifactKind", "charter.offering.artifact_kinds"),
         ("MissionTypeNotAnArtifactKind", "charter.offering.artifact_kinds"),
     ],
@@ -253,7 +253,7 @@ def _charter_modules() -> list[str]:
     """Self-discover every top-level ``charter.*`` module from ``src/charter/``.
 
     The inverse-containment gate iterates THIS, not ``_FACADE_TABLE.keys()``, so a
-    re-export module simply never added to the table (e.g. ``charter.kind_vocabulary``,
+    re-export module simply never added to the table (e.g. ``charter.activation.kind_vocabulary``,
     caught by the #3321 post-fold squad) cannot hide from the check.
     """
     return [
@@ -331,7 +331,7 @@ def test_facade_all_reexports_are_tabled(facade_module: str) -> None:
     Two scoping choices make the guard complete rather than manually curated:
     it is parametrized over **every** ``charter.*`` module self-discovered from
     ``src/charter/`` (not just ``_FACADE_TABLE.keys()``), so a re-export module
-    absent from the table cannot hide (the ``charter.kind_vocabulary`` escape the
+    absent from the table cannot hide (the ``charter.activation.kind_vocabulary`` escape the
     #3321 post-fold squad found); and it keys on
     :data:`_IDENTITY_REQUIRED_ORIGINS`, which includes doctrine-origin re-exports
     while excluding both charter-local definitions and stdlib value instances

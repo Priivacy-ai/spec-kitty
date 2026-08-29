@@ -15,9 +15,9 @@ from pathlib import Path
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from charter.pack_context import PackContext
+    from charter.activation.pack_context import PackContext
 
-from charter._drg_helpers import load_validated_graph
+from charter.activation._drg_helpers import load_validated_graph
 from charter.drg import (
     ArtifactKind,
     DRGGraph,
@@ -28,13 +28,15 @@ from charter.drg import (
     OrgPackParseError,
     OrgPackSchemaError,
     ResolvedContext,
-    filter_graph_by_activation,
     load_graph_or_dir,
-    load_org_drg,
     load_org_pack,
     resolve_context,
     resolve_existing_org_roots,
     resolve_org_dirs,
+)
+from charter.activation.drg_activation import (
+    filter_graph_by_activation,
+    load_org_drg,
 )
 from charter.mission_steps import (
     MissionStepContract,
@@ -300,7 +302,7 @@ class StepContractExecutor:
         "no contribution from that pack" instead of letting it crash
         composition.
 
-        Mirrors ``charter.action_doctrine_bundle._resolve_action_bundle``'s
+        Mirrors ``charter.activation.action_doctrine_bundle._resolve_action_bundle``'s
         established handling of the same ``load_validated_graph(...,
         org_roots=...)`` call: a configured org pack whose on-disk DRG layout
         does not conform to ``load_graph_or_dir`` (no ``graph.yaml``/
@@ -354,7 +356,7 @@ class StepContractExecutor:
         # ``packs/internal`` shape) is dropped on this dispatch path -- the
         # branch-named silent drop this WP closes.
         org_fragments = StepContractExecutor._load_org_fragments_degrading(repo_root)
-        # Typed locals absorb the ``charter._drg_helpers`` facade re-export (mypy
+        # Typed locals absorb the ``charter.activation._drg_helpers`` facade re-export (mypy
         # sees ``load_validated_graph`` as ``Any`` when this module is checked
         # alongside ``charter.drg``); the annotation restores the concrete
         # return type without a suppression (matches the pattern in
@@ -492,7 +494,7 @@ class StepContractExecutor:
         )
 
         try:
-            from charter.pack_context import PackContext  # noqa: PLC0415
+            from charter.activation.pack_context import PackContext  # noqa: PLC0415
 
             return PackContext.from_config(repo_root)
         except (OrgPackEnvVarUnsetError, OrgPackSubdirEscapeError):

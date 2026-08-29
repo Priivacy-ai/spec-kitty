@@ -3,7 +3,7 @@ dual-root READER (mission ``charter-code-topology-01M152G1`` S4).
 
 M2 introduces the reader only (canonical-preferred, legacy-fallback with a
 warn-once notice); M3 performs the actual data move and write-side cutover.
-Precedent for the read-both/canonical-wins/warn-once shape: ``charter.sync``
+Precedent for the read-both/canonical-wins/warn-once shape: ``charter.activation.sync``
 CR-01 (``src/charter/sync.py:245-311``).
 """
 

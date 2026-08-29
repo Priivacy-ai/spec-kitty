@@ -22,7 +22,7 @@ from unittest.mock import patch
 import pytest
 from ruamel.yaml import YAML
 
-from charter.mission_type_profiles import (
+from charter.activation.mission_type_profiles import (
     CrossGrainDoubleDeclarationError,
     ResolvedGovernance,
     ResolvedMissionType,
@@ -30,7 +30,7 @@ from charter.mission_type_profiles import (
     existing_mission_types,
     resolve_mission_type_context,
 )
-from charter.mission_type_profiles import (
+from charter.activation.mission_type_profiles import (
     _canonical_artifact_key,  # internal — the FR-013 normalization is contract-critical
 )
 
