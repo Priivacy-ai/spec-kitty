@@ -42,9 +42,11 @@ jobs:
           # System-wide, not --global: the suites' clean-venv install tests run subprocesses with an isolated
           # HOME (pip pulling the private spec-kitty-events git dependency), so a per-user helper is invisible
           # to them. exe VMs get the same effect from /etc/gitconfig's insteadOf rewrite onto the proxy.
-          sudo git config --system credential.helper '!gh auth git-credential'
+          # Token-bearing URL rewrite in /etc/gitconfig: reaches every subprocess, including the suites'
+          # clean-venv install tests that scrub env and HOME (a credential helper needs both). Same design as
+          # exe's /etc/gitconfig insteadOf onto the proxy; the runner is destroyed after the job.
+          sudo git config --system "url.https://x-access-token:${GH_TOKEN}@github.com/.insteadOf" "https://github.com/"
           sudo git config --system user.name sk-agent; sudo git config --system user.email sk-agent@spec-kitty.ai
-          gh auth setup-git
           echo "GIT_TERMINAL_PROMPT=0" >> "$GITHUB_ENV"
       - name: Resolve target
         id: t
