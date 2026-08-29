@@ -103,7 +103,9 @@ async def _run_browser_flow(tm: TokenManager, saas_url: str) -> None:
     from specify_cli.auth.flows.authorization_code import AuthorizationCodeFlow
 
     console.print("Opening browser for OAuth authentication...")
-    console.print(f"[dim]SaaS: {saas_url}[/dim]")
+    # escape(): saas_url is operator-controlled (env or config.toml); unescaped,
+    # a value like `https://x.test[/]` raises MarkupError out of login (#202).
+    console.print(f"[dim]SaaS: {escape(saas_url)}[/dim]")
 
     flow = AuthorizationCodeFlow(
         saas_base_url=saas_url,
@@ -117,18 +119,25 @@ async def _run_browser_flow(tm: TokenManager, saas_url: str) -> None:
         console.print("Run [bold]spec-kitty auth login[/bold] again.")
         raise typer.Exit(1) from None
     except CallbackValidationError as exc:
-        console.print(f"[red]X Callback validation failed: {exc}[/red]")
+        # escape(): exception text can embed attacker-influenced callback data;
+        # unescaped, Rich markup parses it and can raise MarkupError (#202/#182/#383).
+        console.print(f"[red]X Callback validation failed: {escape(str(exc))}[/red]")
         console.print(
             "This may indicate a CSRF attack or a stale browser tab. "
             "Run [bold]spec-kitty auth login[/bold] again."
         )
         raise typer.Exit(1) from exc
     except BrowserLaunchError as exc:
-        console.print(f"[red]X Could not launch browser: {exc}[/red]")
+        # escape(): see CallbackValidationError above.
+        console.print(f"[red]X Could not launch browser: {escape(str(exc))}[/red]")
         console.print("Try [bold]spec-kitty auth login --headless[/bold] instead.")
         raise typer.Exit(1) from exc
     except AuthenticationError as exc:
-        console.print(f"[red]X Authentication failed: {exc}[/red]")
+        # escape(): the message can embed the raw SaaS token-exchange response
+        # body (authorization_code.py); unescaped, a hostile/compromised SaaS
+        # response containing markup-like text can raise MarkupError instead of
+        # a clean error exit (#526).
+        console.print(f"[red]X Authentication failed: {escape(str(exc))}[/red]")
         raise typer.Exit(1) from exc
 
     tm.set_session(session)
@@ -165,7 +174,8 @@ async def _run_device_flow(tm: TokenManager, saas_url: str) -> None:
     try:
         session = await flow.login(progress_writer=console.print)
     except AuthenticationError as exc:
-        console.print(f"[red]X Device flow failed: {exc}[/red]")
+        # escape(): see the browser-flow AuthenticationError handler above (#526).
+        console.print(f"[red]X Device flow failed: {escape(str(exc))}[/red]")
         raise typer.Exit(1) from exc
 
     tm.set_session(session)
