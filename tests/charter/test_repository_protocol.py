@@ -2,7 +2,7 @@
 
 ``ArtifactRepository`` is a pure typing ``Protocol`` -- its two method bodies
 (``...``) are never executed at runtime; every consuming import site
-(``charter.context``, ``charter.progressive_disclosure``) pulls the name in
+(``charter.activation.context``, ``charter.activation.progressive_disclosure``) pulls the name in
 under ``if TYPE_CHECKING:`` only, so nothing in production code ever imports
 this module at runtime either. mypy verifies structural conformance
 statically, not by calling the stub bodies -- see ``src/charter/repository_protocol.py``
@@ -35,7 +35,7 @@ def test_module_exports_only_artifact_repository() -> None:
 def test_artifact_repository_declares_get_and_get_provenance() -> None:
     """Pins the two-method structural contract every doctrine repository satisfies.
 
-    ``charter.context`` / ``charter.progressive_disclosure`` retype their
+    ``charter.activation.context`` / ``charter.activation.progressive_disclosure`` retype their
     ``.get(...)`` / ``.get_provenance(...)`` call sites against these exact
     names (see the module docstring in ``repository_protocol.py``); losing
     either one silently would reopen the ``# type: ignore[attr-defined]``

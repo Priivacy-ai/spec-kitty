@@ -1,8 +1,8 @@
 """RED-first coverage for the promoted ``builtin_missions_root()`` accessor (#2668).
 
 ``MissionTypeProfileRepository._default_built_in_dir`` is a private classmethod
-that two out-of-class call sites (``charter.action_grain``,
-``charter.mission_type_profiles``) had to reach around ``# noqa: SLF001`` to
+that two out-of-class call sites (``charter.activation.action_grain``,
+``charter.activation.mission_type_profiles``) had to reach around ``# noqa: SLF001`` to
 use. This test pins the public module-level replacement: it must resolve to
 the same missions root the constructor already uses, so the promotion is a
 byte-identical refactor (no behavior change).
@@ -22,7 +22,7 @@ from __future__ import annotations
 
 import pytest
 
-from charter.mission_type_profile_repository import (
+from charter.activation.mission_type_profile_repository import (
     MissionTypeProfileRepository,
     builtin_missions_root,
 )

@@ -6,13 +6,13 @@ tier was read and guarded. An org pack carries its governance at
 extraction pass ever read, so an org-tier ``selected_*`` typo was neither minted
 into the DRG nor caught (a total no-op). This module pins the net-new behaviour
 as delivered on the SAME path the runtime consumers (``mission_step_contracts``
-executor and ``charter.action_doctrine_bundle``) use:
+executor and ``charter.activation.action_doctrine_bundle``) use:
 
 * :func:`charter.offering.drg.org_governance.collect_org_governance_scope_edges` +
   :func:`charter.offering.drg.org_pack_loader._collect_governance_scope_edges` mint the
   org-tier ``mission_type --scope--> <artifact>`` edges so a selection reaches
   the merged DRG (T014); and
-* :func:`charter._drg_helpers.load_validated_graph` runs
+* :func:`charter.activation._drg_helpers.load_validated_graph` runs
   :func:`charter.offering.drg.validator.assert_valid` on the fully-merged graph, whose
   :func:`~charter.offering.drg.validator.validate_dangling_references` escalates a
   dangling governance-scope target to :class:`~charter.offering.drg.validator.DRGValidationError`
@@ -21,8 +21,8 @@ executor and ``charter.action_doctrine_bundle``) use:
   graph validation already raises on.
 
 The fail-loud is driven end-to-end through the production loader chain
-(``.kittify/config.yaml`` -> :func:`charter.drg.load_org_drg` ->
-:func:`~charter._drg_helpers.load_validated_graph`) -- the exact call the
+(``.kittify/config.yaml`` -> :func:`charter.activation.drg_activation.load_org_drg` ->
+:func:`~charter.activation._drg_helpers.load_validated_graph`) -- the exact call the
 executor and action-doctrine-bundle make -- plus the edge-minting is asserted
 directly (a valid selection mints its scope edge; a fictional one becomes a
 dangling edge the validation raises on).
@@ -35,8 +35,8 @@ from pathlib import Path
 import pytest
 import yaml
 
-from charter._drg_helpers import load_validated_graph
-from charter.drg import load_org_drg
+from charter.activation._drg_helpers import load_validated_graph
+from charter.activation.drg_activation import load_org_drg
 from charter.offering.drg.models import Relation
 from charter.offering.drg.validator import DRGValidationError
 
@@ -97,7 +97,7 @@ def _load_merged_via_production_path(repo_root: Path):
     """Load the merged DRG exactly as the runtime consumers do.
 
     Mirrors ``mission_step_contracts.executor`` and
-    ``charter.action_doctrine_bundle``:
+    ``charter.activation.action_doctrine_bundle``:
     ``load_validated_graph(repo_root, org_fragments=load_org_drg(repo_root, strict=False))``.
     Raises :class:`DRGValidationError` (via ``assert_valid``) on a dangling
     governance-scope target.

@@ -3,7 +3,7 @@ flat org-pack layout so that ``charter activate`` on an org pack's own
 artifact actually survives ``filter_graph_by_activation`` (issue #3385).
 
 The defect (spec.md, verified at checkout HEAD ``ab0a0b9b5``):
-``charter.kind_vocabulary._org_scan_dirs`` (``src/charter/kind_vocabulary.py:200-209``)
+``charter.activation.kind_vocabulary._org_scan_dirs`` (``src/charter/kind_vocabulary.py:200-209``)
 scans only ``<org_root>/<plural>/built-in/`` -- a layout no real org pack
 uses. A flat-layout org pack (``<org_root>/<plural>/``, no ``built-in/``
 segment -- the documented, live-loader-matching layout) therefore
@@ -38,10 +38,10 @@ from pathlib import Path
 import pytest
 from ruamel.yaml import YAML
 
-from charter._drg_helpers import load_validated_graph
-from charter.activation_engine import commit_plan, plan_activation
-from charter.drg import filter_graph_by_activation
-from charter.pack_context import PackContext
+from charter.activation._drg_helpers import load_validated_graph
+from charter.activation.activation_engine import commit_plan, plan_activation
+from charter.activation.drg_activation import filter_graph_by_activation
+from charter.activation.pack_context import PackContext
 
 pytestmark = pytest.mark.fast
 
@@ -145,7 +145,7 @@ def _pack_context(
 
     ``pack_roots[0]`` is a deliberately unused placeholder -- the resolution
     gate sources the built-in ``doctrine_root`` from
-    ``charter.catalog.resolve_doctrine_root()``, never ``pack_roots[0]``
+    ``charter.activation.catalog.resolve_doctrine_root()``, never ``pack_roots[0]``
     (research.md D2 install-layout guard, see
     ``charter.drg._resolve_activated_urns_by_kind``'s own docstring); only
     ``PackContext.org_roots`` (``pack_roots[1:]``) is consumed here.

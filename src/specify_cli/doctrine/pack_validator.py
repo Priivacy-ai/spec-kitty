@@ -885,11 +885,11 @@ def _check_profile_skipped_diagnostics(
     ``org_roots`` override; the sole-door architectural gate
     (``tests/architectural/test_charter_sole_door_doctrine_service.py``)
     bans raw ``charter.offering.service.DoctrineService`` construction outside
-    ``charter.doctrine_service_builder``, and that builder's public entry
+    ``charter.activation.doctrine_service_builder``, and that builder's public entry
     point (``build_activation_aware_doctrine_service``) takes only
     ``repo_root`` and self-resolves ``org_roots`` — it cannot target an
     arbitrary pack directory. The gate's documented escape hatch,
-    constructing ``charter.resolver.DoctrineService`` directly, requires an
+    constructing ``charter.activation.resolver.DoctrineService`` directly, requires an
     *already-built* raw inner ``charter.offering.service.DoctrineService``, which is
     the very construction the gate forbids here. Direct
     ``AgentProfileRepository`` construction is therefore the correct seam;

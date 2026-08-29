@@ -7,7 +7,7 @@ do not name:
 Site                                         Shape           Kinds lost
 ===========================================  ==============  ============
 ``charter.offering.drg.query.resolve_transitive_refs``  16 buckets filled, 10 read out   6
-``charter.context._classify_artifact_urns``     4 branches, no ``else``          12
+``charter.activation.context._classify_artifact_urns``     4 branches, no ``else``          12
 ===========================================  ==============  ============
 
 Both figures were re-derived by execution on this branch. **The two drops differ
@@ -241,7 +241,7 @@ def test_named_buckets_and_per_kind_view_agree() -> None:
     """The legacy named fields and the per-kind view are one truth, not two.
 
     Callers still construct this result with named keyword arguments only
-    (``charter.compiler``, ``charter.reference_resolver``). If the per-kind
+    (``charter.activation.compiler``, ``charter.activation.reference_resolver``). If the per-kind
     view did not reflect those, closing the drop here would open a fresh one
     for anyone who reads the new surface.
     """
@@ -279,7 +279,7 @@ def test_anti_pattern_reachable_in_the_shipped_graph_survives() -> None:
 
 
 # ---------------------------------------------------------------------------
-# Site 2 -- charter.context._classify_artifact_urns
+# Site 2 -- charter.activation.context._classify_artifact_urns
 # ---------------------------------------------------------------------------
 
 
@@ -290,7 +290,7 @@ def test_action_bundle_rules_on_every_node_kind() -> None:
     verdict and this goes red — which is the only difference between an
     exclusion and an oversight.
     """
-    from charter.context import action_bundle_bucket
+    from charter.activation.context import action_bundle_bucket
 
     unruled = []
     for kind in NodeKind:
@@ -317,7 +317,7 @@ def test_action_bundle_projects_exactly_the_delivered_slots() -> None:
     set exactly, so a future kind cannot be smuggled in unstated; the stated set
     grew from four to six (WP10) to seven (WP01).
     """
-    from charter.context import action_bundle_bucket
+    from charter.activation.context import action_bundle_bucket
 
     projected = {
         kind: action_bundle_bucket(kind)
@@ -343,7 +343,7 @@ def test_unruled_kind_is_loud_at_the_action_bundle_boundary() -> None:
     total today would still pass ``test_action_bundle_rules_on_every_node_kind``
     while the runtime path silently swallowed anything outside it.
     """
-    from charter.context import action_bundle_bucket
+    from charter.activation.context import action_bundle_bucket
 
     with pytest.raises(LookupError, match="future_kind"):
         action_bundle_bucket(cast(NodeKind, _FutureNodeKind.FUTURE))
@@ -357,8 +357,7 @@ def test_classify_artifact_urns_propagates_the_loud_error() -> None:
     declaration currently lives. ``#2532`` may relocate either; it cannot make
     this pass with the drop reopened.
     """
-    from charter import context as context_module
-
+    from charter.activation import context as context_module
     class _UnruledNode:
         kind = _FutureNodeKind.FUTURE
 

@@ -17,7 +17,7 @@ from pathlib import Path
 
 import pytest
 
-from charter.interview import (
+from charter.activation.interview import (
     LocalSupportDeclaration,
     validate_local_support_declarations,
 )

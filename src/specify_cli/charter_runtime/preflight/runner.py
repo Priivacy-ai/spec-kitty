@@ -479,7 +479,7 @@ def refresh_references_if_needed(repo_root: Path, cause: str) -> bool:
     deferred to call time — not module-import time — so this rarely-taken
     branch does not grow ``run_charter_preflight``'s hot-path import surface
     (mirrors the lazy-import discipline this package already uses for
-    ``charter.bundle``/``charter.synthesizer`` elsewhere, LD-3/NFR-003).
+    ``charter.bundle``/``charter.activation.synthesizer`` elsewhere, LD-3/NFR-003).
 
     Args:
         repo_root: Repository root the just-completed heal ran against.

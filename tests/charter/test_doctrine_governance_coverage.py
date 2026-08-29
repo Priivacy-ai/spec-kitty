@@ -12,8 +12,8 @@ from pathlib import Path
 
 import pytest
 
-from charter import context
-from charter.pack_manager import _resolve_kind, _resolve_org_layer_dir
+from charter.activation import context
+from charter.activation.pack_manager import _resolve_kind, _resolve_org_layer_dir
 
 pytestmark = pytest.mark.fast
 

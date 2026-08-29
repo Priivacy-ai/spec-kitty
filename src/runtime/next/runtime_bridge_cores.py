@@ -679,7 +679,7 @@ class UnregisteredMissionFamilyError(ValueError):
     """Raised by :func:`evaluate_guards_strict` when ``snapshot.mission_family``
     has no entry in ``_GUARD_TABLES`` (FR-006/FR-011).
 
-    Sibling concept: ``charter.mission_type_profiles.UnknownMissionTypeError``
+    Sibling concept: ``charter.activation.mission_type_profiles.UnknownMissionTypeError``
     — same shape (a ``ValueError`` carrying the offending string), different
     layer (this one is runtime guard-family dispatch; that one is charter
     mission-type resolution). The two are intentionally NOT unified.

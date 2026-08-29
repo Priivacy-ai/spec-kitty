@@ -2,7 +2,7 @@
 
 Binds the two authorities that #3490/#3426 let drift: the loader
 (``charter.offering.base``/``charter.offering.agent_profiles``) and the charter-activation
-resolver (``charter.kind_vocabulary``) must discover the *same* nested overlay
+resolver (``charter.activation.kind_vocabulary``) must discover the *same* nested overlay
 artifacts, for every kind, because both derive recursion from the single
 ``charter.offering.discovery_recursion`` authority (C-001, FR-002). The gate:
 
@@ -21,8 +21,8 @@ from pathlib import Path
 import pytest
 from ruamel.yaml import YAML
 
-from charter import kind_vocabulary
-from charter.kind_vocabulary import _iter_artifact_paths
+from charter.activation import kind_vocabulary
+from charter.activation.kind_vocabulary import _iter_artifact_paths
 from charter.offering.artifact_kinds import ArtifactKind
 from charter.offering.discovery_recursion import overlay_scan_is_recursive
 
@@ -227,7 +227,7 @@ def test_top_level_builtin_still_reserved_flat_wins(tmp_path: Path) -> None:
     top-level ``<plural>/built-in`` legacy dir (the exclusion of the immediate
     child, compensated by the dedicated legacy entry, preserves flat-wins).
     """
-    from charter.kind_vocabulary import resolve_artifact_urn
+    from charter.activation.kind_vocabulary import resolve_artifact_urn
 
     pack = tmp_path / "orgpack"
     (pack / "tactics" / "built-in").mkdir(parents=True)

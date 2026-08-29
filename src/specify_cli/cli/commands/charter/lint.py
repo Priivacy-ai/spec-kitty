@@ -89,7 +89,8 @@ def _load_org_layer(
     from ``charter_lint`` to keep the command under the cyclomatic-complexity
     gate (mirrors the existing ``_print_charter_lint_banner`` extraction).
     """
-    from charter.drg import OrgDRGFragment, load_org_drg
+    from charter.drg import OrgDRGFragment
+    from charter.activation.drg_activation import load_org_drg
 
     org_layer_summary: list[str] = []
     org_fragments: list[OrgDRGFragment] = []
@@ -161,7 +162,7 @@ def charter_lint(
     # the human-readable surface can attribute findings (or the OK
     # marker) to each configured layer by name. JSON output is unchanged
     # — programmatic consumers read provenance from the merged DRG via
-    # ``charter.drg.merge_three_layers`` directly.
+    # ``charter.activation.drg_activation.merge_three_layers`` directly.
     org_layer_summary, org_fragments = _load_org_layer(repo_root, output_json=output_json)
 
     # When org packs are configured, exercise ``merge_three_layers``
@@ -176,8 +177,8 @@ def charter_lint(
             DRGGraph,
             OrgDRGConflict,
             OrgDRGConflictError,
-            merge_three_layers,
         )
+        from charter.activation.drg_activation import merge_three_layers
 
         empty_built_in = DRGGraph(
             schema_version="1.0",

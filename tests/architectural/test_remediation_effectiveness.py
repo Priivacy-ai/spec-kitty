@@ -16,7 +16,7 @@ THIS MODULE IS EXPECTED TO BE RED (NFR-002 red-first evidence / ADR
 2026-07-17-1) until WP02 lands the corrective change to
 ``charter_runtime/freshness/computer.py``. It fails on the four
 ``spec-kitty charter sync`` states (lines 309, 318, 348, 357) because
-``charter.sync.sync()`` is documented (``src/charter/sync.py:18``) as a pure
+``charter.activation.sync.sync()`` is documented (``src/charter/sync.py:18``) as a pure
 staleness reporter that never writes ``charter.yaml`` — the operator follows
 the instruction, nothing changes, the gate refuses identically. Do not
 silence, exempt, or weaken these assertions to make this module pass; WP02

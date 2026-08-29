@@ -64,10 +64,16 @@ from .base import BaseMigration, MigrationResult
 _PER_KIND_KEYS: list[str] = list(PER_KIND_ACTIVATION_KEYS)
 
 #: Absolute path to the default charter pack shipped with spec-kitty.
-#: Resolves to ``src/charter/packs/default.yaml`` relative to the repo root.
-#: Four ``.parent`` hops: migrations/ -> upgrade/ -> specify_cli/ -> src/
+#: Resolves to ``src/charter/activation/packs/default.yaml`` relative to the
+#: repo root. Four ``.parent`` hops: migrations/ -> upgrade/ -> specify_cli/
+#: -> src/. ``packs/`` relocated under ``charter/activation/`` by mission
+#: charter-activation-split-01M16ZSE (MAP-A MOVE).
 _DEFAULT_YAML_PATH: Path = (
-    Path(__file__).parent.parent.parent.parent / "charter" / "packs" / "default.yaml"
+    Path(__file__).parent.parent.parent.parent
+    / "charter"
+    / "activation"
+    / "packs"
+    / "default.yaml"
 )
 
 

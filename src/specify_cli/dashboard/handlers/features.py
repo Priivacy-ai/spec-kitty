@@ -28,7 +28,7 @@ from ..scanner import (
     scan_feature_kanban,
 )
 from .base import DashboardHandler
-from charter.mission_type_key import read_mission_type
+from charter.activation.mission_type_key import read_mission_type
 from specify_cli.upgrade.legacy_detector import is_legacy_format
 from specify_cli.mission import MissionError, get_mission_by_name
 

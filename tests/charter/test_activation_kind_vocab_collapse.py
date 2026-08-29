@@ -12,9 +12,9 @@ from __future__ import annotations
 
 import pytest
 
-from charter import _activation_render
-from charter._activation_render import _infer_kind, _singular_kind
-from charter.activations import _PLURAL_TO_SINGULAR_KIND, _SINGULAR_TO_PLURAL_KIND
+from charter.activation import _activation_render
+from charter.activation._activation_render import _infer_kind, _singular_kind
+from charter.activation.activations import _PLURAL_TO_SINGULAR_KIND, _SINGULAR_TO_PLURAL_KIND
 from charter.offering.artifact_kinds import (
     CHARTER_ACTIVATABLE_PLURAL_TO_SINGULAR,
     CHARTER_ACTIVATABLE_SINGULAR_TO_PLURAL,

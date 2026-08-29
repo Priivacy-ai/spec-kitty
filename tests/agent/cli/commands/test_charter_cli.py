@@ -55,7 +55,7 @@ def _write_charter_yaml_bundle(charter_dir: Path) -> None:
     IC-04 (#2773): the standalone derived triad (``governance.yaml`` /
     ``directives.yaml`` / ``metadata.yaml``) is retired -- ``governance`` and
     ``directives`` now live as hand-authored sections directly inside
-    ``charter.yaml`` (``charter.schemas.CharterYaml``). ``charter status``
+    ``charter.yaml`` (``charter.activation.schemas.CharterYaml``). ``charter status``
     reports ``SYNCED`` off the presence of this file (see
     ``_collect_charter_sync_status`` in
     ``specify_cli.cli.commands.charter._status_collectors``), not off a
@@ -439,7 +439,7 @@ def test_context_compact_mode_auto_syncs_missing_extracted_artifacts(tmp_path: P
     retired. ``charter.bundle.CANONICAL_MANIFEST.derived_files`` is now an
     empty list, so there is nothing left for the auto-sync chokepoint to
     (re)materialize -- ``governance``/``directives`` live inline in the
-    hand-authored ``charter.yaml`` (``charter.schemas.CharterYaml``) instead.
+    hand-authored ``charter.yaml`` (``charter.activation.schemas.CharterYaml``) instead.
     This test now pins that the bootstrap -> compact transition still
     completes cleanly across repeated ``context`` calls with no derived
     triad ever appearing on disk."""
@@ -542,7 +542,7 @@ def test_sync_command_human_and_json_surfaces_do_not_contradict_3045(tmp_path: P
 
     Test design, addressing three problems in an earlier draft of this test:
 
-    1. **Single invocation, two rendered surfaces.** ``charter.sync.sync()``
+    1. **Single invocation, two rendered surfaces.** ``charter.activation.sync.sync()``
        is called exactly ONCE to obtain one real ``SyncResult``; both
        ``_sync_json_payload`` and ``_emit_sync_human_result`` render from
        that SAME object. An earlier draft invoked the ``sync`` CLI command
@@ -583,7 +583,7 @@ def test_sync_command_human_and_json_surfaces_do_not_contradict_3045(tmp_path: P
         _emit_sync_human_result,
         _sync_json_payload,
     )
-    from charter.sync import sync as sync_charter
+    from charter.activation.sync import sync as sync_charter
 
     result = sync_charter(charter_dir / "charter.md", charter_dir)
     payload = _sync_json_payload(result)

@@ -1,7 +1,7 @@
 """Doctrine-tier entry point for the FR-005/NFR-002 config<->derived parity guard.
 
 WP05 (mission ``unify-charter-activation-surfaces-01KX5SJ9``). Before this WP,
-``charter.consistency_check.run_consistency_check`` was reachable only from
+``charter.activation.consistency_check.run_consistency_check`` was reachable only from
 the CLI (``spec-kitty charter pack consistency-check``, wired at
 ``src/specify_cli/cli/commands/charter/pack.py:31-47``). NFR-002 requires the
 fail-closed config<->derived parity guard to bite in the test suite too, not
@@ -69,8 +69,8 @@ from pathlib import Path
 import pytest
 from ruamel.yaml import YAML
 
-from charter.consistency_check import run_consistency_check
-from charter.invocation_context import ProjectContext
+from charter.activation.consistency_check import run_consistency_check
+from charter.activation.invocation_context import ProjectContext
 
 pytestmark = [pytest.mark.fast, pytest.mark.doctrine]
 
@@ -100,7 +100,7 @@ def _write_charter_yaml_catalog(kittify: Path, ref_entries: list[dict[str, str]]
     """Write a minimal ``.kittify/charter/charter.yaml`` carrying the given
     ``catalog.references`` entries (IC-04: replaces the retired
     ``references.yaml`` -- ``charter.yaml``'s ``catalog`` mirrors that file's
-    body verbatim, see ``charter.schemas.CharterCatalog``). Returns the
+    body verbatim, see ``charter.activation.schemas.CharterCatalog``). Returns the
     written path.
     """
     charter_dir = kittify / "charter"
@@ -139,7 +139,7 @@ def _write_org_directive(org_pack_root: Path, *, stem: str, canonical_id: str) -
     """Write a minimal org-pack-only directive artefact for #2529 org resolution.
 
     ``resolve_artifact_urn``'s ``org_roots`` scan
-    (``charter.kind_vocabulary._scan_roots``) treats every org root the same
+    (``charter.activation.kind_vocabulary._scan_roots``) treats every org root the same
     way it treats the built-in doctrine root: it looks for
     ``<root>/<plural>/built-in/*.yaml``. This mirrors that exact shape so the
     fixture is reachable through the precise code path Fix A repairs -- not
@@ -465,7 +465,7 @@ def test_drg_load_failure_fails_closed(tmp_path: Path, monkeypatch: pytest.Monke
     def _raise_corrupt_drg(*_args: object, **_kwargs: object) -> None:
         raise ValueError("simulated corrupt/invalid DRG graph")
 
-    monkeypatch.setattr("charter._drg_helpers.load_validated_graph", _raise_corrupt_drg)
+    monkeypatch.setattr("charter.activation._drg_helpers.load_validated_graph", _raise_corrupt_drg)
 
     ctx = ProjectContext.from_repo(tmp_path)
     report = run_consistency_check(ctx)
@@ -483,7 +483,7 @@ def test_drg_load_failure_fails_closed(tmp_path: Path, monkeypatch: pytest.Monke
 # ---------------------------------------------------------------------------
 # T020: layer discipline -- the guard must stay disjoint from freshness /
 # specify_cli. ``freshness/computer.py`` is a ``specify_cli`` module that
-# imports ``charter``; ``charter.consistency_check`` importing it back would
+# imports ``charter``; ``charter.activation.consistency_check`` importing it back would
 # be a cycle (and a layer-rule violation independent of the cycle -- see
 # ``tests/architectural/test_layer_rules.py`` for the general charter
 # !import specify_cli rule this test pins the specific case of).

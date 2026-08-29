@@ -3,15 +3,15 @@
 ``spec-kitty init``/``upgrade``
 (:func:`specify_cli.provisioning.default_charter.provision_default_mission_type_activations`)
 and ``spec-kitty charter generate``
-(:func:`charter.compiler.provision_mission_type_activations`) both seed
+(:func:`charter.activation.compiler.provision_mission_type_activations`) both seed
 ``mission_type_activations`` from the same shipped
 ``src/charter/packs/default.yaml``, but previously read it through two
 independent, near-identical stacks with divergent fail-closed behaviour:
 one (``specify_cli``) silently accepted an authored-empty list, the other
-(``charter.compiler``) already raised.
+(``charter.activation.compiler``) already raised.
 
 Both now consume the single, fail-closed
-:func:`charter.default_pack.load_default_mission_type_activations`. This
+:func:`charter.activation.default_pack.load_default_mission_type_activations`. This
 suite pins:
 
 * both provisioners seed the IDENTICAL set from the real shipped
@@ -19,7 +19,7 @@ suite pins:
 * a malformed/absent default pack fails closed on BOTH write paths, each
   still surfacing its own historical exception type
   (``DefaultCharterPackMissingError`` for ``specify_cli``,
-  ``CharterPackConfigError`` for ``charter.compiler``).
+  ``CharterPackConfigError`` for ``charter.activation.compiler``).
 
 Write-side behaviour (which config file, additive-only, idempotence,
 authored-``[]``-preserved) is unchanged and already covered by
@@ -35,10 +35,10 @@ from pathlib import Path
 import pytest
 from ruamel.yaml import YAML
 
-import charter.default_pack as default_pack_module
-from charter.compiler import provision_mission_type_activations
-from charter.default_pack import load_default_mission_type_activations
-from charter.pack_context import CharterPackConfigError
+import charter.activation.default_pack as default_pack_module
+from charter.activation.compiler import provision_mission_type_activations
+from charter.activation.default_pack import load_default_mission_type_activations
+from charter.activation.pack_context import CharterPackConfigError
 from specify_cli.provisioning import default_charter
 from specify_cli.provisioning.default_charter import (
     DefaultCharterPackMissingError,
@@ -124,7 +124,7 @@ def test_shared_helper_fails_closed_on_authored_empty_list_in_shipped_pack(
 def test_charter_generate_path_fails_closed_on_broken_default_pack(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    """``charter.compiler.provision_mission_type_activations`` fails closed too."""
+    """``charter.activation.compiler.provision_mission_type_activations`` fails closed too."""
     broken_pack = tmp_path / "broken-default.yaml"
     broken_pack.write_text("activated_kinds: []\n", encoding="utf-8")
     monkeypatch.setattr(
@@ -151,7 +151,7 @@ def test_init_upgrade_path_fails_closed_on_broken_default_pack_via_shared_helper
     Regression guard for the divergence this fold closes: before, an
     authored-empty ``mission_type_activations: []`` in the shipped pack was
     silently ACCEPTED by this path (isinstance-list-only check) while
-    ``charter.compiler``'s already raised. Both must now raise identically.
+    ``charter.activation.compiler``'s already raised. Both must now raise identically.
     """
     empty_pack = tmp_path / "empty-default.yaml"
     empty_pack.write_text("mission_type_activations: []\n", encoding="utf-8")

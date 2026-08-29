@@ -17,13 +17,13 @@ That cycle-1 failure was structural, not human:
 
 This test is that hard gate. It walks every `*.py` file under `src/`,
 derives the module's dotted name (e.g. ``src/charter/mission_type_profiles.py``
-→ ``charter.mission_type_profiles``), and verifies that **at least one
+→ ``charter.activation.mission_type_profiles``), and verifies that **at least one
 other file under `src/` imports it** -- via any of:
 
-* ``from charter.mission_type_profiles import resolve_governance``
+* ``from charter.activation.mission_type_profiles import resolve_governance``
 * ``from charter import mission_type_profiles``
-* ``import charter.mission_type_profiles``
-* ``from charter.mission_type_profiles.submodule import X``
+* ``import charter.activation.mission_type_profiles``
+* ``from charter.activation.mission_type_profiles.submodule import X``
 * relative-import equivalents (``from . import X``, ``from .X import Y``)
 
 Modules with zero such callers MUST appear in ``_ALLOWLIST`` with a
@@ -386,8 +386,8 @@ _CATEGORY_4_BACKCOMPAT_SHIMS: frozenset[str] = frozenset(
 # assertion. See src/specify_cli/compat/__init__.py for the
 # compat-shim mission context.
 #
-# charter.scope_router removed (post-merge remediation cycle 1, 2026-05-19):
-# prompt_builder.py now imports build_with_scope from charter.scope_router,
+# charter.activation.scope_router removed (post-merge remediation cycle 1, 2026-05-19):
+# prompt_builder.py now imports build_with_scope from charter.activation.scope_router,
 # giving scope_router a live src/ caller. The WP09→WP11 wiring trigger has
 # been reached; the allowlist entry is removed. See HIGH-1 in
 # mission-review-report.md.
@@ -399,7 +399,7 @@ _CATEGORY_5_WP_IN_FLIGHT_ADAPTERS: frozenset[str] = frozenset(
         # WP11 wired get_workflow() into planner.py (planner imports it
         # via workflow_registry at module scope), so the module now has a
         # live src/ caller.  WP11 removal trigger reached.
-        # charter.scope_router removed: post-merge remediation cycle 1
+        # charter.activation.scope_router removed: post-merge remediation cycle 1
         # wired prompt_builder._governance_context through build_with_scope.
         #
         # charter.offering.missions.mission_step_repository: live caller landed in
@@ -482,6 +482,37 @@ _CATEGORY_7_GRANDFATHERED_ORPHANS: frozenset[str] = frozenset(
         #   `stranded_verdict_findings` predicate by the `accept` provenance
         #   diagnostic), so the module has live `src/` callers and is no longer
         #   an orphan. Shrink 3 -> 2 -- reverses the post-merge green-up bump.
+        #
+        # charter-activation-split-01M16ZSE (MAP-B): converting
+        # ``charter/__init__.py`` from 15 eager ``from .X import Y`` blocks to
+        # a PEP-562 lazy ``__getattr__`` (module-path strings resolved via
+        # ``importlib.import_module`` at first attribute access) unmasked two
+        # pre-existing orphans. Neither module had ANY other real `src/`
+        # importer before this mission -- their only "caller" was the eager
+        # `__init__.py` import, which is exactly the reflective, AST-invisible
+        # reference this gate's own docstring describes lazy patterns as
+        # (function-scope `from .X import Y` IS still AST-visible and counted;
+        # a string-keyed `import_module(module_path)` dispatch table is not).
+        # Both stay reachable via the public facade (`charter.CharterParser`,
+        # `charter.CharterTemplateResolver`); this is staleness-visibility,
+        # not new dead code.
+        # - charter.parser: CharterParser/CharterSection re-exported at
+        #   `charter.CharterParser` / `charter.CharterSection`; zero other
+        #   `src/` file parses charter.md directly today.
+        #   TODO(triage): wire a direct caller or fold into the compiler
+        #   pipeline; until then it is exercised only via `charter.__init__`'s
+        #   lazy facade and the `tests/charter/` parser suite.
+        "charter.parser",
+        # - charter.activation.template_resolver: CharterTemplateResolver
+        #   re-exported at `charter.CharterTemplateResolver`. Superseded in
+        #   practice by `charter.activation.resolver.DoctrineService` (see
+        #   that module's own docstring, which documents
+        #   `CharterTemplateResolver` as the historical "second" template
+        #   resolution path) -- no other `src/` file constructs it directly.
+        #   TODO(triage): delete once confirmed fully superseded, or wire the
+        #   remaining caller `specify_cli.runtime.resolver._package_default_path`
+        #   onto it explicitly instead of the DoctrineService detour.
+        "charter.activation.template_resolver",
     }
 )
 
@@ -557,7 +588,7 @@ def _module_dotted(path: Path) -> str:
     """Return the dotted module name for *path* relative to ``src/``.
 
     Example: ``src/charter/mission_type_profiles.py`` →
-    ``charter.mission_type_profiles``.
+    ``charter.activation.mission_type_profiles``.
     """
     rel = path.relative_to(_SRC_ROOT).with_suffix("")
     return ".".join(rel.parts)

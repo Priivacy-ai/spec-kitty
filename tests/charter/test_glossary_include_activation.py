@@ -26,8 +26,8 @@ from typing import Any
 
 import pytest
 
-import charter.context as context_module
-from charter.context import build_charter_context_include
+import charter.activation.context as context_module
+from charter.activation.context import build_charter_context_include
 
 
 pytestmark = pytest.mark.fast
@@ -41,7 +41,7 @@ pytestmark = pytest.mark.fast
 class _StubRepo:
     """Repository stub exposing both ``get`` and ``list_all``.
 
-    The activation-aware wrapper (:class:`charter.resolver.DoctrineService`)
+    The activation-aware wrapper (:class:`charter.activation.resolver.DoctrineService`)
     builds its filtered ``glossary_packs`` dict via ``list_all()``; the
     unwrapped render path reads through ``get()``. Provide both.
     """

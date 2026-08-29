@@ -233,7 +233,7 @@ def build_glossary_drg_layer(
     Returns:
         A :class:`DRGGraph` with ``generated_by="glossary-drg-builder-v1"``.
     """
-    from charter._drg_helpers import load_validated_graph
+    from charter.activation._drg_helpers import load_validated_graph
 
     index = build_index(store, applicable_scopes)
 

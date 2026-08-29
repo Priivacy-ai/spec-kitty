@@ -1,4 +1,4 @@
-"""Unit tests for ``charter.org_expected_artifacts`` (WP05, T025, FR-008).
+"""Unit tests for ``charter.activation.org_expected_artifacts`` (WP05, T025, FR-008).
 
 Covers contract C-4's binding shape directly, at the helper level (no
 ``resolve_mission_type_context`` seam involved — that integration is
@@ -21,11 +21,11 @@ from pathlib import Path
 import pytest
 from ruamel.yaml import YAML
 
-from charter.org_expected_artifacts import resolve_org_expected_artifacts
+from charter.activation.org_expected_artifacts import resolve_org_expected_artifacts
 
 pytestmark = [pytest.mark.unit, pytest.mark.fast]
 
-_LOGGER_NAME = "charter.org_expected_artifacts"
+_LOGGER_NAME = "charter.activation.org_expected_artifacts"
 
 
 def _write_org_expected_artifacts(org_root: Path, mission_type: str, data: dict) -> None:

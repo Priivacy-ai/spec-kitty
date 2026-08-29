@@ -1236,7 +1236,7 @@ def doctrine_check(
     # report, before ``exit_code`` is derived — a collision forces RC=1 on
     # every output path (json / no-packs / human) the same way a profile-load
     # crash already does. Extracted to a helper so this shim stays thin
-    # (C-003: the ``__all__`` re-add in ``charter.action_grain`` needs a real
+    # (C-003: the ``__all__`` re-add in ``charter.activation.action_grain`` needs a real
     # ``src`` caller, and this is it).
     _run_cross_grain_check(report)
 

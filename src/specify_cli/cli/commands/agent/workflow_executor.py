@@ -591,8 +591,8 @@ def implement_check_wp_charter_precondition(main_repo_root: Path, wp: WorkPackag
     if not wp_profile:
         return
 
-    from charter.exceptions import CharterActivationError
-    from charter.invocation_context import ProjectContext
+    from charter.activation.exceptions import CharterActivationError
+    from charter.activation.invocation_context import ProjectContext
 
     pack_ctx = ProjectContext.from_repo(main_repo_root).require_pack_context()
     activated = pack_ctx.activated_agent_profiles

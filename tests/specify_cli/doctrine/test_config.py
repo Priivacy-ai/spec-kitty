@@ -171,8 +171,8 @@ class TestLoadPackRegistry:
         self, tmp_path: Path
     ) -> None:
         """One canonical config shape must drive registry, DRG, and context paths."""
-        from charter.org_pack_discovery import _enumerate_org_pack_paths
-        from charter.drg import load_org_drg
+        from charter.activation.org_pack_discovery import _enumerate_org_pack_paths
+        from charter.activation.drg_activation import load_org_drg
 
         pack_dir = tmp_path / "acme"
         (pack_dir / "drg").mkdir(parents=True)
@@ -199,8 +199,8 @@ class TestLoadPackRegistry:
         self, tmp_path: Path
     ) -> None:
         """Legacy ``organisation_packs`` is read through the same shared parser."""
-        from charter.org_pack_discovery import _enumerate_org_pack_paths
-        from charter.drg import load_org_drg
+        from charter.activation.org_pack_discovery import _enumerate_org_pack_paths
+        from charter.activation.drg_activation import load_org_drg
 
         pack_dir = tmp_path / "legacy-acme"
         (pack_dir / "drg").mkdir(parents=True)

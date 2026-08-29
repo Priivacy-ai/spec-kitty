@@ -22,11 +22,11 @@ from __future__ import annotations
 
 import pytest
 
-from charter.context_renderers.fetch_stanza import (
+from charter.activation.context_renderers.fetch_stanza import (
     DEFAULT_WHEN_CLAUSE,
     fetch_stanza_lines,
 )
-from charter.progressive_disclosure import STATED_DEFAULT_WHEN
+from charter.activation.progressive_disclosure import STATED_DEFAULT_WHEN
 from tests.specify_cli.next.test_wp_prompt_governance_contract import _WHEN_DOING_RE
 
 pytestmark = [pytest.mark.fast, pytest.mark.unit]

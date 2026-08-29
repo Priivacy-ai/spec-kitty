@@ -5,7 +5,7 @@ under ``<project_root>/.kittify/doctrine/agent_profiles/`` into
 ``agent_profile:<profile-id>`` :class:`~charter.offering.drg.models.DRGNode` objects, so
 they can be composed into the project overlay ``graph.yaml`` the charter cascade
 reads. The composing caller
-(:func:`charter.synthesizer.project_drg.emit_project_layer`) applies the
+(:func:`charter.activation.synthesizer.project_drg.emit_project_layer`) applies the
 additive-only / overlay-dedupe guards; this module only discovers and builds the
 nodes.
 

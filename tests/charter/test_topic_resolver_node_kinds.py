@@ -25,7 +25,7 @@ import importlib
 
 import pytest
 
-from charter.synthesizer import topic_resolver
+from charter.activation.synthesizer import topic_resolver
 from charter.offering.drg.models import NodeKind
 
 #: The six kinds the retired hand-literal in ``topic_resolver`` dropped.

@@ -4,13 +4,13 @@
 Two seams, below the CLI integration in
 ``tests/specify_cli/cli/commands/charter/test_org_cascade_chain.py``:
 
-* **T002** — ``charter.drg.load_org_drg(strict=…)``: ``strict=True`` (default,
+* **T002** — ``charter.activation.drg_activation.load_org_drg(strict=…)``: ``strict=True`` (default,
   the diagnostic-path contract) raises ``OrgPackMissingError`` for a pack with
   no ``drg/fragment.yaml``; ``strict=False`` (the cascade caller) skips such a
   pack, returning ``[]`` for a root-graph-only pack but still loading a present
   fragment (non-vacuity). ``layer_index`` is preserved from the full-registry
   enumeration.
-* **T003** — ``charter._drg_helpers.load_validated_graph(org_fragments=…)``: a
+* **T003** — ``charter.activation._drg_helpers.load_validated_graph(org_fragments=…)``: a
   supplied org fragment carrying ``A requires B`` folds via the existing
   ``merge_three_layers`` so the resolved edge appears in the returned graph's
   ``.edges``; omitting ``org_fragments`` is inert (FR-003) — the org edge does
@@ -24,14 +24,14 @@ from textwrap import dedent
 
 import pytest
 
-from charter._drg_helpers import load_validated_graph
+from charter.activation._drg_helpers import load_validated_graph
 from charter.drg import (
     DRGGraph,
     OrgDRGFragment,
     OrgPackMissingError,
-    load_org_drg,
     resolve_existing_org_roots,
 )
+from charter.activation.drg_activation import load_org_drg
 
 pytestmark = [pytest.mark.unit]
 

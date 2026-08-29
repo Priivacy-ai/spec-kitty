@@ -15,11 +15,11 @@ from pathlib import Path
 import pytest
 from ruamel.yaml import YAML
 
-from charter.synthesizer import project_drg
-from charter.synthesizer.errors import ProjectDRGValidationError
-from charter.synthesizer.path_guard import PathGuard
-from charter.synthesizer.project_drg import emit_project_layer, persist
-from charter.synthesizer.request import SynthesisTarget
+from charter.activation.synthesizer import project_drg
+from charter.activation.synthesizer.errors import ProjectDRGValidationError
+from charter.activation.synthesizer.path_guard import PathGuard
+from charter.activation.synthesizer.project_drg import emit_project_layer, persist
+from charter.activation.synthesizer.request import SynthesisTarget
 from charter.offering.drg.loader import load_graph, merge_layers
 from charter.offering.drg.models import DRGEdge, DRGGraph, DRGNode, NodeKind, Relation
 from charter.offering.drg.project_scan import MalformedProjectProfileError

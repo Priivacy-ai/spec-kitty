@@ -15,7 +15,7 @@ from specify_cli.cli.console import console, err_console
 from specify_cli.task_utils import TaskCliError
 
 if TYPE_CHECKING:
-    from charter.synthesizer.reconcile import (
+    from charter.activation.synthesizer.reconcile import (
         NodeOrEdgeRef,
         ReconciliationConflict,
         ReconciliationDelta,
@@ -56,12 +56,12 @@ def _build_synthesis_request(
     """
     import uuid
 
-    from charter.compiler import resolve_config_activated_roots
-    from charter.interview import read_interview_answers
-    from charter.pack_context import PackContext
-    from charter.synthesizer.fixture_adapter import FixtureAdapter
-    from charter.synthesizer.generated_artifact_adapter import GeneratedArtifactAdapter
-    from charter.synthesizer.request import SynthesisRequest, SynthesisTarget
+    from charter.activation.compiler import resolve_config_activated_roots
+    from charter.activation.interview import read_interview_answers
+    from charter.activation.pack_context import PackContext
+    from charter.activation.synthesizer.fixture_adapter import FixtureAdapter
+    from charter.activation.synthesizer.generated_artifact_adapter import GeneratedArtifactAdapter
+    from charter.activation.synthesizer.request import SynthesisRequest, SynthesisTarget
 
     import specify_cli.cli.commands.charter as _charter_pkg
 
@@ -79,7 +79,7 @@ def _build_synthesis_request(
     # below via ``interview_data.answers``) but is retired as an activation
     # source. ``resolve_config_activated_roots`` is the shared charter-layer
     # seam that also drives the ``references.yaml`` derivation in
-    # ``charter.compiler.compile_charter``, so both derivation paths agree.
+    # ``charter.activation.compiler.compile_charter``, so both derivation paths agree.
     config_roots = resolve_config_activated_roots(repo_root=repo_root)
 
     # #2577 (fast-follow fix of the #2526 regression): `config_roots.directives`
@@ -197,7 +197,7 @@ def _collect_evidence_result(
     skip_code_evidence: bool,
     skip_corpus: bool,
 ) -> Any:
-    from charter.evidence.orchestrator import EvidenceOrchestrator, load_url_list_from_config
+    from charter.activation.evidence.orchestrator import EvidenceOrchestrator, load_url_list_from_config
 
     url_list = load_url_list_from_config(repo_root)
     orchestrator = EvidenceOrchestrator(
@@ -211,12 +211,12 @@ def _collect_evidence_result(
 
 def _build_synthesis_validation_callback(request: Any, *, repo_root: Path | None = None) -> Any:
     from charter.drg import DRGGraph
-    from charter.synthesizer.interview_mapping import normalize_interview_snapshot, resolve_sections
-    from charter.synthesizer.orchestrator import _built_in_drg_from_snapshot
-    from charter.synthesizer.project_drg import emit_project_layer, persist as persist_project_graph
-    from charter.synthesizer.synthesize_pipeline import _get_synthesizer_version
-    from charter.synthesizer.targets import build_targets, detect_duplicates, order_targets
-    from charter.synthesizer.validation_gate import validate as validate_project_graph
+    from charter.activation.synthesizer.interview_mapping import normalize_interview_snapshot, resolve_sections
+    from charter.activation.synthesizer.orchestrator import _built_in_drg_from_snapshot
+    from charter.activation.synthesizer.project_drg import emit_project_layer, persist as persist_project_graph
+    from charter.activation.synthesizer.synthesize_pipeline import _get_synthesizer_version
+    from charter.activation.synthesizer.targets import build_targets, detect_duplicates, order_targets
+    from charter.activation.synthesizer.validation_gate import validate as validate_project_graph
 
     # WP03 campsite fix: this call site duplicated a bare, unprotected
     # ``importlib.metadata.version("spec-kitty-cli")`` lookup instead of
@@ -261,7 +261,7 @@ def _build_synthesis_validation_callback(request: Any, *, repo_root: Path | None
 def _read_written_artifacts_from_manifest(repo_root: Path) -> list[dict[str, str]]:
     """Read manifest entries for the strict synthesize success envelope."""
     try:
-        from charter.synthesizer.manifest import MANIFEST_PATH, load_yaml as _load_manifest
+        from charter.activation.synthesizer.manifest import MANIFEST_PATH, load_yaml as _load_manifest
     except Exception:
         return []
     manifest_path = repo_root / MANIFEST_PATH
@@ -278,7 +278,7 @@ def _provenance_to_planned_artifacts(
     results: list[tuple[Any, Any]],
 ) -> list[dict[str, str]]:
     """Convert synthesis provenance entries into planned doctrine paths."""
-    from charter.synthesizer.artifact_naming import (
+    from charter.activation.synthesizer.artifact_naming import (
         artifact_filename,
         doctrine_kind_subdir,
     )
@@ -306,7 +306,7 @@ def _provenance_to_planned_artifacts(
 
 def _staged_to_planned_artifacts(staged_files: list[str]) -> list[dict[str, str]]:
     """Convert legacy staged ``kind:slug`` selectors to planned artifacts."""
-    from charter.synthesizer.artifact_naming import (
+    from charter.activation.synthesizer.artifact_naming import (
         artifact_filename,
         doctrine_kind_subdir,
     )
@@ -344,11 +344,11 @@ def _run_synthesis_dry_run(
     from this list. The strict ``written_artifacts`` field (FR-003) is built
     separately in :func:`_run_synthesis_dry_run_with_artifacts`, which calls
     this function and additionally projects the typed staged-artifact entries
-    via :func:`charter.synthesizer.write_pipeline.compute_written_artifacts`.
+    via :func:`charter.activation.synthesizer.write_pipeline.compute_written_artifacts`.
     """
-    from charter.synthesizer.staging import StagingDir
-    from charter.synthesizer.synthesize_pipeline import run_all
-    from charter.synthesizer.write_pipeline import stage_and_validate
+    from charter.activation.synthesizer.staging import StagingDir
+    from charter.activation.synthesizer.synthesize_pipeline import run_all
+    from charter.activation.synthesizer.write_pipeline import stage_and_validate
 
     results = run_all(request, adapter=syn_adapter)
     validation_callback = _build_synthesis_validation_callback(request, repo_root=repo_root)
@@ -379,9 +379,9 @@ def _run_synthesis_dry_run_with_artifacts(
     write-time validation gate) and ``compute_written_artifacts`` (which
     projects per-artifact provenance).
     """
-    from charter.synthesizer.staging import StagingDir
-    from charter.synthesizer.synthesize_pipeline import run_all
-    from charter.synthesizer.write_pipeline import (
+    from charter.activation.synthesizer.staging import StagingDir
+    from charter.activation.synthesizer.synthesize_pipeline import run_all
+    from charter.activation.synthesizer.write_pipeline import (
         compute_written_artifacts,
         stage_and_validate,
     )
@@ -435,7 +435,7 @@ def _load_written_artifacts_from_manifest(repo_root: Path) -> list[dict[str, Any
     yields an empty list rather than blowing up the strict-JSON contract).
     """
     try:
-        from charter.synthesizer.manifest import MANIFEST_PATH, load_yaml
+        from charter.activation.synthesizer.manifest import MANIFEST_PATH, load_yaml
     except Exception:
         return []
 
@@ -501,7 +501,7 @@ def _list_resynthesis_topics(
     request: Any,
     repo_root: Path,
 ) -> dict[str, list[str]]:
-    from charter.synthesizer.resynthesize_pipeline import (
+    from charter.activation.synthesizer.resynthesize_pipeline import (
         _load_merged_drg,
         _load_project_artifacts_from_provenance,
     )
@@ -605,7 +605,7 @@ def _reconciliation_preview(request: Any, repo_root: Path) -> ReconciliationDelt
     refusal check ahead of a real preserve/prune write -- reads from this
     ONE preview computation.
 
-    Deliberately does NOT call ``charter.synthesizer.synthesize`` (nor
+    Deliberately does NOT call ``charter.activation.synthesizer.synthesize`` (nor
     ``run_all()``/the adapter): the GRAPH-level delta fields this WP consumes
     (``retained``/``added``/``removable`` node+edge refs, used for orphan
     detection and --dry-run reporting) depend only on ``targets`` --
@@ -621,12 +621,12 @@ def _reconciliation_preview(request: Any, repo_root: Path) -> ReconciliationDelt
     from this preview, only ``.removable``/``.retained``/``.conflicts``.
     """
     from charter.drg import DRGGraph  # noqa: PLC0415
-    from charter.synthesizer.interview_mapping import normalize_interview_snapshot, resolve_sections  # noqa: PLC0415
-    from charter.synthesizer.orchestrator import _built_in_drg_from_snapshot  # noqa: PLC0415
-    from charter.synthesizer.project_drg import emit_project_layer  # noqa: PLC0415
-    from charter.synthesizer.reconcile import reconcile_synthesis  # noqa: PLC0415
-    from charter.synthesizer.synthesize_pipeline import _get_synthesizer_version  # noqa: PLC0415
-    from charter.synthesizer.targets import build_targets, detect_duplicates, order_targets  # noqa: PLC0415
+    from charter.activation.synthesizer.interview_mapping import normalize_interview_snapshot, resolve_sections  # noqa: PLC0415
+    from charter.activation.synthesizer.orchestrator import _built_in_drg_from_snapshot  # noqa: PLC0415
+    from charter.activation.synthesizer.project_drg import emit_project_layer  # noqa: PLC0415
+    from charter.activation.synthesizer.reconcile import reconcile_synthesis  # noqa: PLC0415
+    from charter.activation.synthesizer.synthesize_pipeline import _get_synthesizer_version  # noqa: PLC0415
+    from charter.activation.synthesizer.targets import build_targets, detect_duplicates, order_targets  # noqa: PLC0415
 
     spec_kitty_version = _get_synthesizer_version()
     built_in_drg = DRGGraph.model_validate(_built_in_drg_from_snapshot(request.drg_snapshot))
@@ -676,7 +676,7 @@ def _orphaned_removals(delta: ReconciliationDelta | None) -> tuple[NodeOrEdgeRef
     ``None``, or a test double standing in for a mocked ``SynthesisResult``)
     -- there is nothing to classify without a genuine delta.
     """
-    from charter.synthesizer.reconcile import ReconciliationDelta as _ReconciliationDelta  # noqa: PLC0415
+    from charter.activation.synthesizer.reconcile import ReconciliationDelta as _ReconciliationDelta  # noqa: PLC0415
 
     if not isinstance(delta, _ReconciliationDelta):
         return ()
@@ -797,7 +797,7 @@ def _emit_orphan_refusal(
 
     Always raises ``typer.Exit(code=1)`` -- never returns normally. The real
     run's call site (``synthesize.py``) reaches this AFTER
-    ``charter.synthesizer.synthesize()`` has already run in preserve mode --
+    ``charter.activation.synthesizer.synthesize()`` has already run in preserve mode --
     i.e. after the write. Nothing was actually destroyed by that write:
     preserve mode never deletes, so the "refuse" here is about the *content*
     (a dangling, backing-artifact-deleted reference) rather than an
@@ -847,7 +847,7 @@ def _emit_real_run_report(
     report is simply omitted -- there is nothing genuine to report.
     """
     from specify_cli.diagnostics import mark_invocation_succeeded  # noqa: PLC0415
-    from charter.synthesizer.reconcile import ReconciliationDelta as _ReconciliationDelta  # noqa: PLC0415
+    from charter.activation.synthesizer.reconcile import ReconciliationDelta as _ReconciliationDelta  # noqa: PLC0415
 
     reconciliation = getattr(result, "reconciliation", None)
     if not isinstance(reconciliation, _ReconciliationDelta):

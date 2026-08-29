@@ -78,22 +78,17 @@ _OFFERING_ROOT = _CHARTER_ROOT / "offering"
 
 #: The forbidden target package. ``charter.offering`` sits beside it, and per
 #: C-004 may never depend on it (the reverse direction is allowed).
-#: The activation/mutation layer. Until mission M2b physically relocates it into a
-#: ``src/charter/activation/`` package, that layer lives as these top-level ``charter``
-#: modules; the C-004 boundary is enforced against them NOW (pre-review finding, paula
-#: MAJOR-4) so ``charter.offering`` cannot import the mutation layer today, not only after
-#: the M2b move. ``charter.activation`` (+ subpackages) is kept so the gate keeps matching
-#: once M2b lands and this explicit set can collapse back to it.
+#: Mission ``charter-activation-split-01M16ZSE`` (MAP-D) physically relocated
+#: the activation/mutation layer into the real ``src/charter/activation/``
+#: package (a 96-file move: 47 modules + 6 subpackages). The subpackage rule
+#: in :func:`_is_activation_module` (``module == "charter.activation"`` or
+#: ``module.startswith("charter.activation.")``) now catches every activation
+#: module through the single package-root entry below — the interim
+#: enumerated allowlist (individually-named ``activation_engine`` /
+#: ``activations`` / ``cascade`` / ``_activation_render`` entries, kept before
+#: the move landed) is retired; no module was left behind to need it.
 _FORBIDDEN_MODULE = "charter.activation"
-_ACTIVATION_MODULES = frozenset(
-    {
-        "charter.activation",
-        "charter.activation_engine",
-        "charter.activations",
-        "charter.cascade",
-        "charter._activation_render",
-    }
-)
+_ACTIVATION_MODULES = frozenset({"charter.activation"})
 
 
 def _is_activation_module(module: str) -> bool:

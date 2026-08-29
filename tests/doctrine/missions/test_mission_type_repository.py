@@ -429,7 +429,7 @@ def _builtin_mission_types_dir() -> Path:
 
 @dataclass(frozen=True)
 class _StubPackContext:
-    """Minimal structural stand-in for ``charter.pack_context.PackContext``.
+    """Minimal structural stand-in for ``charter.activation.pack_context.PackContext``.
 
     Mirrors ``tests/doctrine/missions/test_mission_step_resolver.py``'s own
     ``_StubPackContext`` -- satisfies ``_PackContextLike`` (``pack_roots``,
@@ -531,8 +531,8 @@ class TestLayeredProjectionThreadsPackContext:
     of what its callers held, so every org/project type relying on
     step-file projection (no explicit ``action_sequence:`` authored)
     resolved ``action_sequence = None``/``[]`` and the governed entry point
-    (``charter.mission_type_profiles.resolve_mission_type_context``) raised
-    :class:`~charter.mission_type_profiles.MissionTypeEmptyActionSequenceError`.
+    (``charter.activation.mission_type_profiles.resolve_mission_type_context``) raised
+    :class:`~charter.activation.mission_type_profiles.MissionTypeEmptyActionSequenceError`.
 
     Both assertions in this class MUST fail against the pre-fix production
     code (T002 step 2) and pass once T003's threading lands (T003 step 7) --
@@ -587,7 +587,7 @@ class TestLayeredProjectionThreadsPackContext:
         inventing a new patch shape)."""
         from unittest.mock import patch
 
-        from charter.mission_type_profiles import resolve_mission_type_context
+        from charter.activation.mission_type_profiles import resolve_mission_type_context
 
         org_root = tmp_path / "org"
         self._write_steps_only_org_fixture(org_root, "qa")
@@ -598,11 +598,11 @@ class TestLayeredProjectionThreadsPackContext:
 
         with (
             patch(
-                "charter.mission_type_profiles.existing_mission_types",
+                "charter.activation.mission_type_profiles.existing_mission_types",
                 return_value=["qa"],
             ),
             patch(
-                "charter.pack_context.PackContext.from_config",
+                "charter.activation.pack_context.PackContext.from_config",
                 return_value=ctx,
             ),
         ):

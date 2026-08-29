@@ -502,7 +502,7 @@ def _create_mission_core_impl(
     ------
     MissionCreationError
         On any validation or creation failure.
-    charter.pack_context.CharterPackConfigError
+    charter.activation.pack_context.CharterPackConfigError
         When the project has no activated mission types (an absent or empty
         ``mission_type_activations`` set). This is the WP04 fail-closed at the
         mission-create / mission-type-use boundary: ``PackContext``
@@ -596,11 +596,11 @@ def _create_mission_core_impl(
     # Resolve the activated mission's specification template before creating
     # any mission state. A configuration failure must not leave a directory,
     # metadata, or lifecycle events that look like a successful creation.
-    from charter.mission_type_profiles import (
+    from charter.activation.mission_type_profiles import (
         existing_mission_types,
         resolve_mission_type_context,
     )
-    from charter.pack_context import CharterPackConfigError
+    from charter.activation.pack_context import CharterPackConfigError
     from specify_cli.runtime.resolver import resolve_configured_template
 
     # Fail-closed at the mission-create / mission-type-use boundary (WP04

@@ -18,9 +18,9 @@ from typing import Any
 
 import pytest
 
-from charter.synthesizer.errors import TopicSelectorUnresolvedError
-from charter.synthesizer.request import SynthesisTarget
-from charter.synthesizer.topic_resolver import resolve
+from charter.activation.synthesizer.errors import TopicSelectorUnresolvedError
+from charter.activation.synthesizer.request import SynthesisTarget
+from charter.activation.synthesizer.topic_resolver import resolve
 
 
 # ---------------------------------------------------------------------------

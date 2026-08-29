@@ -12,7 +12,7 @@ enumerated exception. The load-bearing trap these tests pin:
   kinds (assets) — and ``delivered(kind) = gate(kind) ∩ channel_reachable``.
 
 The reachability channel is exercised through the **real** pipeline
-(:func:`charter.drg.filter_graph_by_activation` → :func:`charter.offering.drg.query.resolve_context`),
+(:func:`charter.activation.drg_activation.filter_graph_by_activation` → :func:`charter.offering.drg.query.resolve_context`),
 never a hand-rolled walk, so a gate-table drift from the runtime filter reddens
 here (R-1).
 """
@@ -25,9 +25,9 @@ from pathlib import Path
 
 import pytest
 
-from charter import context
-from charter.drg import filter_graph_by_activation
-from charter.pack_context import PackContext
+from charter.activation import context
+from charter.activation.drg_activation import filter_graph_by_activation
+from charter.activation.pack_context import PackContext
 from charter.offering.drg.models import DRGEdge, DRGGraph, DRGNode, NodeKind, Relation
 from charter.offering.drg.query import resolve_context
 
@@ -209,7 +209,7 @@ def test_delivered_equals_gate_intersect_reachable_through_real_pipeline() -> No
 
 
 def test_governance_resolution_carries_asset_field() -> None:
-    from charter.resolver import GovernanceResolution
+    from charter.activation.resolver import GovernanceResolution
 
     field_names = {f.name for f in dataclasses.fields(GovernanceResolution)}
     assert "assets" in field_names, "GovernanceResolution must carry assets, parallel to procedures"
@@ -235,7 +235,7 @@ def test_glossary_pack_delivers_to_glossary_packs_slot() -> None:
 
 def test_empty_slot_map_grows_a_glossary_packs_accumulator() -> None:
     """The slot accumulator is derived from the table, so the new slot appears."""
-    from charter.context_renderers.delivery_table import _empty_slot_map
+    from charter.activation.context_renderers.delivery_table import _empty_slot_map
 
     assert "glossary_packs" in _empty_slot_map()
 
@@ -247,7 +247,7 @@ def test_every_none_slot_kind_has_a_machine_checkable_stated_reason() -> None:
     keyed by the excluded kinds, so a future ``None`` row added without a reason
     reddens here rather than passing as an unexplained blank.
     """
-    from charter.context_renderers.delivery_table import (
+    from charter.activation.context_renderers.delivery_table import (
         _ACTION_BUNDLE_DELIVERY_BY_KIND,
         _DELIVERY_REASON_BY_KIND,
     )

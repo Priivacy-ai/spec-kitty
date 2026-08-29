@@ -526,10 +526,10 @@ def _provision_missing_mission_type_activations(project_path: Path, *, dry_run: 
     carries a ``charter:`` pointer) reads activations from the pointed-at
     ``charter.yaml`` (``PackContext.from_config`` — INV-2). The write side
     was pointer-blind, so the key it wrote was never read by anything. This
-    now seeds through :func:`charter.compiler.provision_mission_type_activations`
+    now seeds through :func:`charter.activation.compiler.provision_mission_type_activations`
     — the SAME pointer-aware writer ``spec-kitty charter generate``/``activate``
     use, which resolves the write target via
-    :func:`charter.pack_manager.resolve_activation_write_target` (``charter.yaml``
+    :func:`charter.activation.pack_manager.resolve_activation_write_target` (``charter.yaml``
     for a migrated project, ``config.yaml`` for a legacy one — the identical
     authority the read side already consults). This is an intentional
     divergence from fresh ``init``, not a regression: ``init`` still seeds
@@ -539,7 +539,7 @@ def _provision_missing_mission_type_activations(project_path: Path, *, dry_run: 
     must target whichever authority that project actually reads.
 
     Both provisioners share the same seed-read
-    (:func:`charter.default_pack.load_default_mission_type_activations`) so
+    (:func:`charter.activation.default_pack.load_default_mission_type_activations`) so
     they can never seed a divergent activation set — only the write target
     differs, additive-only (never overwrites an authored list, including an
     authored empty ``[]``), idempotent (a second call is a no-op), and
@@ -558,8 +558,8 @@ def _provision_missing_mission_type_activations(project_path: Path, *, dry_run: 
     if dry_run:
         return []
 
-    from charter.compiler import provision_mission_type_activations
-    from charter.pack_context import CharterPackConfigError
+    from charter.activation.compiler import provision_mission_type_activations
+    from charter.activation.pack_context import CharterPackConfigError
 
     try:
         provision_mission_type_activations(project_path)
@@ -571,7 +571,7 @@ def _provision_missing_mission_type_activations(project_path: Path, *, dry_run: 
 def _mission_type_activation_provisioning_pending(project_path: Path) -> bool:
     """Return True when a real upgrade would seed ``mission_type_activations``.
 
-    Mirrors :func:`charter.compiler.provision_mission_type_activations`'s
+    Mirrors :func:`charter.activation.compiler.provision_mission_type_activations`'s
     additive no-op rule (FR-009 preview parity, C-WP01): the seed writes only
     when the key is *entirely absent* from the resolved write target. A
     ``--dry-run`` skips the real seed, so this predicate is how the preview
@@ -579,7 +579,7 @@ def _mission_type_activation_provisioning_pending(project_path: Path) -> bool:
 
     WP01 (#3282): keys on KEY-PRESENCE in the resolved write target itself —
     the same ``(path, data, save)`` triple
-    :func:`charter.pack_manager.resolve_activation_write_target` hands the
+    :func:`charter.activation.pack_manager.resolve_activation_write_target` hands the
     real writer (``charter.yaml`` for a pointer/migrated project,
     ``config.yaml`` for a legacy one) — NOT on
     ``PackContext.from_config(...).activated_mission_types`` non-emptiness.
@@ -603,10 +603,10 @@ def _mission_type_activation_provisioning_pending(project_path: Path) -> bool:
     Returns:
         True if the seed would create the key on a real run, else False.
     """
-    from charter.pack_context import CharterPackConfigError
+    from charter.activation.pack_context import CharterPackConfigError
 
     try:
-        from charter.pack_manager import resolve_activation_write_target
+        from charter.activation.pack_manager import resolve_activation_write_target
 
         _target_path, data, _save = resolve_activation_write_target(project_path)
     except CharterPackConfigError:

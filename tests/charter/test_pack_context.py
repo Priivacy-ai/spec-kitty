@@ -1,4 +1,4 @@
-"""Unit tests for ``charter.pack_context.PackContext`` (WP06, T040; WP04, T019/T022).
+"""Unit tests for ``charter.activation.pack_context.PackContext`` (WP06, T040; WP04, T019/T022).
 
 Covers:
 - T040-1: ``PackContext.from_config()`` with a provisioned config.yaml (the
@@ -30,7 +30,7 @@ from pathlib import Path
 
 import pytest
 
-from charter.pack_context import (
+from charter.activation.pack_context import (
     CharterPackConfigError,
     PackContext,
     _BUILTIN_ARTIFACT_KINDS,
@@ -265,7 +265,7 @@ def test_activated_kinds_defaults_to_all_builtin_when_key_absent(tmp_path: Path)
     assert ctx.activated_kinds == _BUILTIN_ARTIFACT_KINDS
     # FR-001/FR-011 (asset-kind mission): templates + assets are node-declarable
     # org-pack DRG kinds added to the default set in lockstep with
-    # ``charter.activations._ALLOWED_KINDS`` and
+    # ``charter.activation.activations._ALLOWED_KINDS`` and
     # ``charter.offering.drg.org_pack_loader._ORG_DRG_CANONICAL_KINDS``.
     assert {"templates", "assets"} <= ctx.activated_kinds
 

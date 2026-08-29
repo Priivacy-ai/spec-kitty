@@ -41,7 +41,7 @@ from .models import MissionStep
 class _PackContextLike(Protocol):
     """Narrow structural protocol for the pack-context object.
 
-    Replaces the ``TYPE_CHECKING`` import of ``charter.pack_context.PackContext``
+    Replaces the ``TYPE_CHECKING`` import of ``charter.activation.pack_context.PackContext``
     (C-004: doctrine must not import from charter).  Only the two attributes
     accessed by this module are declared; the protocol is intentionally
     minimal so that any conforming object — including test fakes — satisfies
@@ -50,14 +50,14 @@ class _PackContextLike(Protocol):
     ``__hash__`` is declared explicitly (NFR-003, mission-step-creatability-01KXQA6R
     WP01) so this protocol is a structural subtype of ``collections.abc.Hashable``
     for ``mypy --strict`` -- ``resolve_all_for_mission_type``'s shared cache
-    keys on ``pack_context`` directly. The real ``charter.pack_context.PackContext``
+    keys on ``pack_context`` directly. The real ``charter.activation.pack_context.PackContext``
     (and every test double used against this module) is a frozen
     ``@dataclass``, which synthesizes ``__hash__`` automatically.
 
     ``pack_roots`` and ``repo_root`` are declared via read-only ``@property``
     rather than plain attribute annotations: under ``mypy --strict``, a plain
     Protocol attribute is treated as a *settable* member, which the real
-    ``charter.pack_context.PackContext`` (a frozen dataclass, thus read-only)
+    ``charter.activation.pack_context.PackContext`` (a frozen dataclass, thus read-only)
     structurally fails to satisfy. Declaring them as properties narrows the
     protocol to the read-only access this module actually performs.
     """
@@ -262,7 +262,7 @@ class MissionStepRepository:
         step_id:
             The step identifier (e.g. ``"review"``).
         pack_context:
-            Optional :class:`~charter.pack_context.PackContext` providing org
+            Optional :class:`~charter.activation.pack_context.PackContext` providing org
             pack roots and the repository root for project-layer overrides.
             When ``None``, only the built-in layer is consulted.
 
@@ -307,7 +307,7 @@ class MissionStepRepository:
         both the retained ``action_sequence`` overlay
         (``mission_type_repository._inject_projected_fields``) and the
         projected ``template_set`` slot
-        (``charter.mission_type_profiles._resolve_template_set_slot``)
+        (``charter.activation.mission_type_profiles._resolve_template_set_slot``)
         resolve steps for the same ``(mission_type, pack_context)`` per
         resolution; without a shared cache that would be two filesystem
         walks instead of one. Cleared via :meth:`cache_clear` (test seam).
@@ -468,7 +468,7 @@ def _resolve_all_for_mission_type_cached(
     *repository object*; this cache is what actually avoids re-walking
     ``mission-steps/`` on repeat resolutions, per NFR-003). ``pack_context``
     is either ``None`` or a hashable frozen dataclass (real
-    ``charter.pack_context.PackContext``, or a test double satisfying the
+    ``charter.activation.pack_context.PackContext``, or a test double satisfying the
     same shape), so it is safe to use directly as part of the cache key.
 
     Cleared via :meth:`MissionStepRepository.cache_clear` (test seam) --

@@ -4,7 +4,7 @@ Two invariants pin the reader convergence as a *gate*, not 12 hand-copies:
 
 * **Parity (AC-1).** Every in-scope reader that is expressible as a
   ``meta dict -> canonical key`` contract returns exactly what the one shared
-  :func:`charter.mission_type_key.read_mission_type` returns for the same dict.
+  :func:`charter.activation.mission_type_key.read_mission_type` returns for the same dict.
   The registry below is the enumeration; WP02/WP03 extend it as they converge
   additional readers.
 
@@ -66,7 +66,7 @@ def _norm(value: str | None) -> str | None:
 
 
 def _adapt_seam(meta: dict[str, Any]) -> str | None:
-    from charter.mission_type_key import read_mission_type
+    from charter.activation.mission_type_key import read_mission_type
 
     return _norm(read_mission_type(meta))
 
@@ -88,8 +88,8 @@ def _adapt_get_mission_type(meta: dict[str, Any], tmp_path: Path) -> str | None:
 
 
 def _adapt_charter_resolve(meta: dict[str, Any], tmp_path: Path) -> str | None:
-    """``charter.mission_type_profiles.resolve_mission_type_key`` — file-based."""
-    from charter.mission_type_profiles import resolve_mission_type_key
+    """``charter.activation.mission_type_profiles.resolve_mission_type_key`` — file-based."""
+    from charter.activation.mission_type_profiles import resolve_mission_type_key
 
     feature_dir = tmp_path / "charter_resolve"
     feature_dir.mkdir(parents=True, exist_ok=True)
@@ -99,14 +99,14 @@ def _adapt_charter_resolve(meta: dict[str, Any], tmp_path: Path) -> str | None:
 
 # Dict-in adapters (no filesystem).
 _DICT_ADAPTERS: dict[str, Callable[[dict[str, Any]], str | None]] = {
-    "charter.mission_type_key.read_mission_type": _adapt_seam,
+    "charter.activation.mission_type_key.read_mission_type": _adapt_seam,
     "specify_cli.mission._canonical_meta_mission_type": _adapt_cli_canonical,
 }
 
 # File-based adapters (need a tmp feature_dir).
 _FILE_ADAPTERS: dict[str, Callable[[dict[str, Any], Path], str | None]] = {
     "specify_cli.mission.get_mission_type": _adapt_get_mission_type,
-    "charter.mission_type_profiles.resolve_mission_type_key": _adapt_charter_resolve,
+    "charter.activation.mission_type_profiles.resolve_mission_type_key": _adapt_charter_resolve,
 }
 
 
@@ -135,7 +135,7 @@ def test_file_reader_parity_with_shared_seam(name: str, meta: dict[str, Any], tm
 # ``"software-dev"`` fallback — unless carried in the allow-list.
 IN_SCOPE_READER_MODULES: tuple[str, ...] = (
     "src/specify_cli/mission.py",
-    "src/charter/mission_type_profiles.py",
+    "src/charter/activation/mission_type_profiles.py",
     "src/specify_cli/dashboard/handlers/features.py",
     "src/specify_cli/dashboard/diagnostics.py",
     "src/specify_cli/mission_metadata.py",

@@ -16,7 +16,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from charter.doctrine_service_builder import _build_activation_aware_doctrine_service
+from charter.activation.doctrine_service_builder import _build_activation_aware_doctrine_service
 from charter.profiles import AgentProfile, AgentProfileRepository
 from charter.provenance import to_portable_source_path
 
@@ -92,7 +92,7 @@ def default_profile_repository(project_root: Path) -> AgentProfileRepository:
     (no project layer).
 
     The base repository is now obtained through the sanctioned builder
-    ``charter.doctrine_service_builder._build_activation_aware_doctrine_service``
+    ``charter.activation.doctrine_service_builder._build_activation_aware_doctrine_service``
     with ``org_roots=[]`` (C-008: an org-free base — see the call site) and
     ``agent_profile_overlay_dir=project_root / _PROJECT_PROFILE_SUBDIR``
     (the #3176 builder overlay seam, WP02). That seam resolves the inner

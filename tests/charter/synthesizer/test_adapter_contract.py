@@ -14,9 +14,9 @@ from pathlib import Path
 
 import pytest
 
-from charter.synthesizer.adapter import AdapterOutput, SynthesisAdapter
-from charter.synthesizer.fixture_adapter import FixtureAdapter
-from charter.synthesizer.request import SynthesisRequest, SynthesisTarget
+from charter.activation.synthesizer.adapter import AdapterOutput, SynthesisAdapter
+from charter.activation.synthesizer.fixture_adapter import FixtureAdapter
+from charter.activation.synthesizer.request import SynthesisRequest, SynthesisTarget
 from kernel.clock import now_utc
 
 
@@ -140,7 +140,7 @@ class TestContractStructuralEquivalence:
         import dataclasses
 
         contract_fields = {f.name for f in dataclasses.fields(contract.SynthesisRequest)}
-        from charter.synthesizer.request import SynthesisRequest as ImplReq
+        from charter.activation.synthesizer.request import SynthesisRequest as ImplReq
         impl_fields = {f.name for f in dataclasses.fields(ImplReq)}
         assert contract_fields == impl_fields, (
             f"SynthesisRequest field mismatch.\n"

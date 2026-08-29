@@ -152,7 +152,7 @@ def test_charter_mission_type_list_reports_real_layer_for_activated_org_type(
     """
     from charter.offering.missions.mission_type_repository import MissionTypeRepository
 
-    from charter.pack_context import PackContext
+    from charter.activation.pack_context import PackContext
 
     org_root = tmp_path / "org-pack"
     _write_org_mission_type_yaml(org_root, "qa", action_sequence=["design", "implement"])
@@ -166,7 +166,7 @@ def test_charter_mission_type_list_reports_real_layer_for_activated_org_type(
     monkeypatch.chdir(tmp_path)
     MissionTypeRepository.cache_clear()
     try:
-        with patch("charter.pack_context.PackContext.from_config", return_value=pack_context):
+        with patch("charter.activation.pack_context.PackContext.from_config", return_value=pack_context):
             result = runner.invoke(charter_app, ["mission-type", "list", "--json"])
     finally:
         MissionTypeRepository.cache_clear()
@@ -194,8 +194,8 @@ def test_sc001_org_pack_mission_type_resolves_across_all_four_cli_surfaces(
     """SC-001 capstone: T016-T019's fixes assembled into one coherent scenario."""
     from charter.offering.missions.mission_type_repository import MissionTypeRepository
 
-    from charter.mission_type_profiles import resolve_mission_type_context
-    from charter.pack_context import PackContext
+    from charter.activation.mission_type_profiles import resolve_mission_type_context
+    from charter.activation.pack_context import PackContext
     from specify_cli.core.mission_creation import create_mission_core
 
     _git_init_minimal(tmp_path)
@@ -255,7 +255,7 @@ def test_sc001_org_pack_mission_type_resolves_across_all_four_cli_surfaces(
     monkeypatch.chdir(tmp_path)
     MissionTypeRepository.cache_clear()
     try:
-        with patch("charter.pack_context.PackContext.from_config", return_value=pack_context):
+        with patch("charter.activation.pack_context.PackContext.from_config", return_value=pack_context):
             # Surface 1: mission create -- the created mission's projected
             # action sequence and template set match the org-pack's declared
             # steps exactly (User Story 1 AC2).

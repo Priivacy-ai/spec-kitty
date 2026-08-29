@@ -10,7 +10,7 @@ from pathlib import Path
 import pytest
 import ruamel.yaml
 
-from charter.evidence.orchestrator import (    EvidenceOrchestrator,
+from charter.activation.evidence.orchestrator import (    EvidenceOrchestrator,
     EvidenceResult,
     load_url_list_from_config,
 )

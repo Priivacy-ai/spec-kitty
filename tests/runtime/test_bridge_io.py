@@ -916,7 +916,7 @@ def test_resolve_tech_stack_for_profile_bare_repo_resolves_python_pedro(tmp_path
     swallowed by this function's best-effort ``except Exception`` -- and the
     resolved tech stack came back empty instead of ``{"python"}``. That
     silent emptiness fed straight into
-    :class:`~charter.invocation_context.OperationalContext` (see
+    :class:`~charter.activation.invocation_context.OperationalContext` (see
     ``test_build_operational_context_for_claim_resolves_profile_from_run_dir``
     above), so this is a real end-to-end regression, not just an internal
     resolution detail.
