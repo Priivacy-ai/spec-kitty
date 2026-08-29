@@ -2,98 +2,163 @@
   "mission_slug": "glm53-paid-spec-reviewer-01M16CYX",
   "mission_number": "",
   "mission_type": "software-dev",
-  "overall_verdict": "pending",
+  "overall_verdict": "pass",
   "criteria": [
     {
       "criterion_id": "FR-001",
-      "description": "Verify FR-001 is satisfied",
+      "description": "\u041f\u043b\u0430\u0442\u043d\u044b\u0439 opt-in \u0440\u0430\u0437\u0440\u0435\u0448\u0430\u0435\u0442 \u0442\u043e\u043b\u044c\u043a\u043e \u0442\u043e\u0447\u043d\u044b\u0439 \u043c\u0430\u0440\u0448\u0440\u0443\u0442 openrouter/z-ai/glm-5.3",
       "proof_type": "automated_test",
-      "evidence": null,
-      "pass_fail": "pending",
-      "verified_by": null,
-      "verified_at": null,
-      "notes": "TODO: replace with a real acceptance criterion"
+      "evidence": "tests/specify_cli/spec_review/test_paid_cost_gate_acceptance.py::test_paid_probe_refuses_estimate_above_local_threshold_and_other_paid_routes",
+      "pass_fail": "pass",
+      "verified_by": "Reviewer Renata",
+      "verified_at": "2026-08-29T10:35:43Z",
+      "notes": "\u0414\u0440\u0443\u0433\u0438\u0435 \u043f\u043b\u0430\u0442\u043d\u044b\u0435 \u043c\u0430\u0440\u0448\u0440\u0443\u0442\u044b \u043e\u0442\u043a\u043b\u043e\u043d\u044f\u044e\u0442\u0441\u044f \u0434\u043e prompt/session."
     },
     {
       "criterion_id": "FR-002",
-      "description": "Verify FR-002 is satisfied",
+      "description": "\u0414\u043b\u044f GLM 5.3 \u043e\u0431\u044f\u0437\u0430\u0442\u0435\u043b\u0435\u043d \u044f\u0432\u043d\u044b\u0439 \u043b\u043e\u043a\u0430\u043b\u044c\u043d\u044b\u0439 \u043f\u043e\u0440\u043e\u0433 \u0431\u0435\u0437 \u0437\u043d\u0430\u0447\u0435\u043d\u0438\u044f \u043f\u043e \u0443\u043c\u043e\u043b\u0447\u0430\u043d\u0438\u044e",
       "proof_type": "automated_test",
-      "evidence": null,
-      "pass_fail": "pending",
-      "verified_by": null,
-      "verified_at": null,
-      "notes": "TODO: replace with a real acceptance criterion"
+      "evidence": "tests/specify_cli/spec_review/test_paid_cost_gate_acceptance.py::test_paid_cli_requires_explicit_threshold_before_mission_resolution; ::test_paid_cli_rejects_unsafe_threshold_before_mission_resolution",
+      "pass_fail": "pass",
+      "verified_by": "Reviewer Renata",
+      "verified_at": "2026-08-29T10:35:43Z",
+      "notes": "\u041e\u0442\u0441\u0443\u0442\u0441\u0442\u0432\u0443\u044e\u0449\u0438\u0439, \u043d\u0435\u0447\u0438\u0441\u043b\u043e\u0432\u043e\u0439, \u0431\u0435\u0441\u043a\u043e\u043d\u0435\u0447\u043d\u044b\u0439 \u0438 \u0432\u044b\u0445\u043e\u0434\u044f\u0449\u0438\u0439 \u0437\u0430 \u0434\u0438\u0430\u043f\u0430\u0437\u043e\u043d \u043f\u043e\u0440\u043e\u0433 \u0437\u0430\u0432\u0435\u0440\u0448\u0430\u044e\u0442\u0441\u044f \u0434\u043e resolution."
     },
     {
       "criterion_id": "FR-003",
-      "description": "Verify FR-003 is satisfied",
+      "description": "Consent digest \u0441\u0432\u044f\u0437\u044b\u0432\u0430\u0435\u0442 \u043c\u0430\u0440\u0448\u0440\u0443\u0442, \u043f\u043e\u0440\u043e\u0433, \u0446\u0435\u043d\u044b, \u043b\u0438\u043c\u0438\u0442\u044b, \u043e\u0446\u0435\u043d\u043a\u0443 \u0438 fingerprint \u043c\u0435\u0442\u0430\u0434\u0430\u043d\u043d\u044b\u0445",
       "proof_type": "automated_test",
-      "evidence": null,
-      "pass_fail": "pending",
-      "verified_by": null,
-      "verified_at": null,
-      "notes": "TODO: replace with a real acceptance criterion"
+      "evidence": "tests/specify_cli/spec_review/test_paid_cost_gate_acceptance.py::test_paid_disclosure_uses_full_context_and_output_and_binds_digest",
+      "pass_fail": "pass",
+      "verified_by": "Reviewer Renata",
+      "verified_at": "2026-08-29T10:35:43Z",
+      "notes": "\u0418\u0437\u043c\u0435\u043d\u0435\u043d\u0438\u0435 \u043b\u044e\u0431\u043e\u0433\u043e \u0446\u0435\u043d\u043e\u0432\u043e\u0433\u043e \u0432\u0445\u043e\u0434\u0430 \u043c\u0435\u043d\u044f\u0435\u0442 \u043f\u043e\u0434\u0442\u0432\u0435\u0440\u0436\u0434\u0430\u0435\u043c\u0443\u044e \u043a\u043e\u0442\u0438\u0440\u043e\u0432\u043a\u0443."
     },
     {
       "criterion_id": "FR-004",
-      "description": "Verify FR-004 is satisfied",
+      "description": "Permit \u0432\u044b\u0434\u0430\u0451\u0442\u0441\u044f \u0442\u043e\u043b\u044c\u043a\u043e \u043f\u043e \u043f\u043e\u043b\u043d\u043e\u0439 metadata \u0438 \u043a\u043e\u043d\u0441\u0435\u0440\u0432\u0430\u0442\u0438\u0432\u043d\u043e\u0439 \u043e\u0446\u0435\u043d\u043a\u0435 \u043f\u043e\u043b\u043d\u043e\u0433\u043e \u043a\u043e\u043d\u0442\u0435\u043a\u0441\u0442\u0430 \u0438 \u0432\u044b\u0445\u043e\u0434\u0430",
       "proof_type": "automated_test",
-      "evidence": null,
-      "pass_fail": "pending",
-      "verified_by": null,
-      "verified_at": null,
-      "notes": "TODO: replace with a real acceptance criterion"
+      "evidence": "tests/specify_cli/spec_review/test_paid_cost_gate_acceptance.py::test_paid_probe_requires_complete_exact_metadata_and_computes_quote; ::test_paid_probe_refuses_ambiguous_or_incomplete_metadata",
+      "pass_fail": "pass",
+      "verified_by": "Reviewer Renata",
+      "verified_at": "2026-08-29T10:35:43Z",
+      "notes": "\u041d\u0435\u043f\u043e\u043b\u043d\u044b\u0435 \u0438 \u043d\u0435\u043e\u0434\u043d\u043e\u0437\u043d\u0430\u0447\u043d\u044b\u0435 \u043c\u0435\u0442\u0430\u0434\u0430\u043d\u043d\u044b\u0435 \u043e\u0442\u043a\u043b\u043e\u043d\u044f\u044e\u0442\u0441\u044f."
     },
     {
       "criterion_id": "FR-005",
-      "description": "Verify FR-005 is satisfied",
+      "description": "\u041f\u0435\u0440\u0435\u0434 prompt/session \u0432\u044b\u043f\u043e\u043b\u043d\u044f\u0435\u0442\u0441\u044f \u043f\u043e\u0432\u0442\u043e\u0440\u043d\u0430\u044f \u0442\u043e\u0447\u043d\u0430\u044f \u043f\u0440\u043e\u0432\u0435\u0440\u043a\u0430 \u043a\u043e\u0442\u0438\u0440\u043e\u0432\u043a\u0438 \u0438 byte-bound",
       "proof_type": "automated_test",
-      "evidence": null,
-      "pass_fail": "pending",
-      "verified_by": null,
-      "verified_at": null,
-      "notes": "TODO: replace with a real acceptance criterion"
+      "evidence": "tests/specify_cli/spec_review/test_paid_cost_gate_acceptance.py::test_paid_execution_refuses_metadata_drift_before_session_creation; ::test_paid_execution_refuses_prompt_larger_than_authorized_bound_before_session",
+      "pass_fail": "pass",
+      "verified_by": "Reviewer Renata",
+      "verified_at": "2026-08-29T10:35:43Z",
+      "notes": "Drift \u0438 \u043f\u0440\u0435\u0432\u044b\u0448\u0435\u043d\u0438\u0435 \u043f\u043e\u0434\u0442\u0432\u0435\u0440\u0436\u0434\u0451\u043d\u043d\u043e\u0433\u043e \u0440\u0430\u0437\u043c\u0435\u0440\u0430 prompt \u0437\u0430\u043a\u0440\u044b\u0432\u0430\u044e\u0442\u0441\u044f \u0434\u043e \u0432\u043d\u0435\u0448\u043d\u0435\u0433\u043e \u0437\u0430\u043f\u0443\u0441\u043a\u0430."
     },
     {
       "criterion_id": "FR-006",
-      "description": "Verify FR-006 is satisfied",
+      "description": "Paid artifact v2 \u0441\u043e\u0445\u0440\u0430\u043d\u044f\u0435\u0442 \u043f\u043e\u043b\u043d\u0443\u044e \u0446\u0435\u043d\u043e\u0432\u0443\u044e provenance, \u0431\u0435\u0441\u043f\u043b\u0430\u0442\u043d\u044b\u0439 artifact \u043d\u043e\u0432\u044b\u0445 \u043f\u043e\u043b\u0435\u0439 \u043d\u0435 \u043f\u043e\u043b\u0443\u0447\u0430\u0435\u0442",
       "proof_type": "automated_test",
-      "evidence": null,
-      "pass_fail": "pending",
-      "verified_by": null,
-      "verified_at": null,
-      "notes": "TODO: replace with a real acceptance criterion"
+      "evidence": "tests/specify_cli/spec_review/test_paid_cost_gate_acceptance.py::test_paid_service_authorizes_before_prompt_and_persists_v2_provenance; contracts/spec-review-run-v2.schema.yaml",
+      "pass_fail": "pass",
+      "verified_by": "Reviewer Renata",
+      "verified_at": "2026-08-29T10:35:43Z",
+      "notes": "v2 \u0442\u0440\u0435\u0431\u0443\u0435\u0442 paid_pricing; \u0431\u0435\u0441\u043f\u043b\u0430\u0442\u043d\u044b\u0439 \u0440\u0435\u0437\u0443\u043b\u044c\u0442\u0430\u0442 \u043e\u0441\u0442\u0430\u0451\u0442\u0441\u044f v1."
     },
     {
       "criterion_id": "FR-007",
-      "description": "Verify FR-007 is satisfied",
+      "description": "\u0411\u0435\u0441\u043f\u043b\u0430\u0442\u043d\u044b\u0439 \u043c\u0430\u0440\u0448\u0440\u0443\u0442 \u0441\u043e\u0445\u0440\u0430\u043d\u044f\u0435\u0442 canonical manifest, digest \u0438 YAML \u043f\u043e\u0431\u0430\u0439\u0442\u043d\u043e",
       "proof_type": "automated_test",
-      "evidence": null,
-      "pass_fail": "pending",
-      "verified_by": null,
-      "verified_at": null,
-      "notes": "TODO: replace with a real acceptance criterion"
+      "evidence": "tests/specify_cli/spec_review/test_paid_cost_gate_acceptance.py::test_free_manifest_and_yaml_remain_byte_compatible; tests/specify_cli/spec_review/test_cli_preview.py",
+      "pass_fail": "pass",
+      "verified_by": "Reviewer Renata",
+      "verified_at": "2026-08-29T10:35:43Z",
+      "notes": "Golden compatibility \u043f\u043e\u0434\u0442\u0432\u0435\u0440\u0436\u0434\u0435\u043d\u0430 \u0431\u0435\u0437 pricing probe."
     },
     {
       "criterion_id": "FR-008",
-      "description": "Verify FR-008 is satisfied",
+      "description": "\u041e\u0442\u043a\u0430\u0437 cost gate \u043d\u0435 \u0437\u0430\u043f\u0443\u0441\u043a\u0430\u0435\u0442 fallback \u0438 \u043d\u0435 \u043f\u043e\u0432\u0442\u043e\u0440\u044f\u0435\u0442 \u0437\u0430\u043f\u0440\u043e\u0441",
       "proof_type": "automated_test",
-      "evidence": null,
-      "pass_fail": "pending",
-      "verified_by": null,
-      "verified_at": null,
-      "notes": "TODO: replace with a real acceptance criterion"
+      "evidence": "tests/specify_cli/spec_review/test_paid_cost_gate_acceptance.py::test_paid_service_reports_quote_drift_before_prompt; tests/specify_cli/spec_review/test_paid_cost_gate_acceptance.py::test_paid_probe_refuses_estimate_above_local_threshold_and_other_paid_routes",
+      "pass_fail": "pass",
+      "verified_by": "Reviewer Renata",
+      "verified_at": "2026-08-29T10:35:43Z",
+      "notes": "\u0412\u0441\u0435 \u043e\u0442\u043a\u0430\u0437\u044b \u0437\u0430\u0432\u0435\u0440\u0448\u0430\u044e\u0442\u0441\u044f fail-closed \u043d\u0430 \u043e\u0434\u043d\u043e\u043c exact route."
     },
     {
       "criterion_id": "FR-009",
-      "description": "Verify FR-009 is satisfied",
+      "description": "CLI \u0438 guide \u0447\u0435\u0441\u0442\u043d\u043e \u043e\u0442\u0434\u0435\u043b\u044f\u044e\u0442 \u043b\u043e\u043a\u0430\u043b\u044c\u043d\u0443\u044e \u043e\u0446\u0435\u043d\u043a\u0443 \u043e\u0442 \u0444\u0430\u043a\u0442\u0438\u0447\u0435\u0441\u043a\u043e\u0433\u043e billing",
       "proof_type": "automated_test",
-      "evidence": null,
-      "pass_fail": "pending",
-      "verified_by": null,
-      "verified_at": null,
-      "notes": "TODO: replace with a real acceptance criterion"
+      "evidence": "tests/specify_cli/spec_review/test_paid_cost_gate_acceptance.py::test_paid_disclosure_uses_full_context_and_output_and_binds_digest; docs/guides/spec-review.md",
+      "pass_fail": "pass",
+      "verified_by": "Reviewer Renata",
+      "verified_at": "2026-08-29T10:35:43Z",
+      "notes": "\u0414\u043e\u043a\u0443\u043c\u0435\u043d\u0442\u0430\u0446\u0438\u044f \u043d\u0435 \u043e\u0431\u0435\u0449\u0430\u0435\u0442 provider-side hard cap."
+    },
+    {
+      "criterion_id": "NFR-001",
+      "description": "\u041d\u043e\u0432\u044b\u0435 acceptance-\u0442\u0435\u0441\u0442\u044b \u043d\u0435 \u0438\u0441\u043f\u043e\u043b\u044c\u0437\u0443\u044e\u0442 \u0441\u0435\u0442\u044c, credentials, server \u0438\u043b\u0438 model call",
+      "proof_type": "automated_test",
+      "evidence": "uv run --locked --extra test pytest tests/specify_cli/spec_review tests/integration/test_spec_review_integration.py tests/mission_runtime/test_spec_review_artifact_placement.py -q: 149 passed, 1 skipped",
+      "pass_fail": "pass",
+      "verified_by": "Reviewer Renata",
+      "verified_at": "2026-08-29T10:35:43Z",
+      "notes": "\u041f\u0440\u043e\u0432\u0435\u0440\u043a\u0438 \u0432\u044b\u043f\u043e\u043b\u043d\u0435\u043d\u044b \u043b\u043e\u043a\u0430\u043b\u044c\u043d\u043e \u043d\u0430 \u043f\u043e\u0434\u0441\u0442\u0430\u0432\u043d\u044b\u0445 metadata \u0438 runner boundaries."
+    },
+    {
+      "criterion_id": "NFR-002",
+      "description": "\u0414\u0435\u043d\u0435\u0436\u043d\u0430\u044f \u043e\u0446\u0435\u043d\u043a\u0430 \u0438\u0441\u043f\u043e\u043b\u044c\u0437\u0443\u0435\u0442 Decimal \u0438 \u043e\u043a\u0440\u0443\u0433\u043b\u0435\u043d\u0438\u0435 \u0432\u0432\u0435\u0440\u0445 \u0434\u043e 6 \u0437\u043d\u0430\u043a\u043e\u0432",
+      "proof_type": "automated_test",
+      "evidence": "tests/specify_cli/spec_review/test_paid_cost_gate_acceptance.py::test_paid_probe_requires_complete_exact_metadata_and_computes_quote",
+      "pass_fail": "pass",
+      "verified_by": "Reviewer Renata",
+      "verified_at": "2026-08-29T10:35:43Z",
+      "notes": "Binary float \u0432 \u0440\u0430\u0441\u0447\u0451\u0442\u0435 \u043d\u0435 \u0438\u0441\u043f\u043e\u043b\u044c\u0437\u0443\u0435\u0442\u0441\u044f."
+    },
+    {
+      "criterion_id": "NFR-003",
+      "description": "CLI \u043f\u0440\u0438\u043d\u0438\u043c\u0430\u0435\u0442 \u0442\u043e\u043b\u044c\u043a\u043e \u043a\u043e\u043d\u0435\u0447\u043d\u044b\u0439 \u043f\u043e\u0440\u043e\u0433 \u0431\u043e\u043b\u044c\u0448\u0435 0 \u0438 \u043d\u0435 \u0431\u043e\u043b\u044c\u0448\u0435 5 USD",
+      "proof_type": "automated_test",
+      "evidence": "tests/specify_cli/spec_review/test_paid_cost_gate_acceptance.py::test_paid_cli_rejects_unsafe_threshold_before_mission_resolution",
+      "pass_fail": "pass",
+      "verified_by": "Reviewer Renata",
+      "verified_at": "2026-08-29T10:35:43Z",
+      "notes": "\u041d\u0435\u0432\u0430\u043b\u0438\u0434\u043d\u044b\u0439 \u043f\u043e\u0440\u043e\u0433 \u0432\u043e\u0437\u0432\u0440\u0430\u0449\u0430\u0435\u0442 exit code 2 \u0434\u043e \u0447\u0442\u0435\u043d\u0438\u044f \u043c\u0438\u0441\u0441\u0438\u0438."
+    },
+    {
+      "criterion_id": "NFR-004",
+      "description": "\u0417\u0430\u0442\u0440\u043e\u043d\u0443\u0442\u044b\u0435 \u0442\u0435\u0441\u0442\u044b, Ruff, strict mypy \u0438 codemap \u043f\u0440\u043e\u0445\u043e\u0434\u044f\u0442",
+      "proof_type": "automated_test",
+      "evidence": "149 passed, 1 skipped; 50 passed, 2 xfailed; Ruff clean; mypy --strict clean; docs/codemap/codemap.lock OK",
+      "pass_fail": "pass",
+      "verified_by": "Reviewer Renata",
+      "verified_at": "2026-08-29T10:35:43Z",
+      "notes": "\u041f\u0440\u043e\u0432\u0435\u0440\u043a\u0438 \u043d\u0435\u0437\u0430\u0432\u0438\u0441\u0438\u043c\u043e \u043f\u043e\u0432\u0442\u043e\u0440\u0435\u043d\u044b \u0432 review-worktree."
     }
   ],
-  "negative_invariants": []
+  "negative_invariants": [
+    {
+      "invariant_id": "NI-001",
+      "description": "\u041f\u0440\u043e\u0432\u0435\u0440\u043a\u0438 \u043d\u0435 \u0434\u043e\u043b\u0436\u043d\u044b \u0432\u044b\u043f\u043e\u043b\u043d\u044f\u0442\u044c \u0440\u0435\u0430\u043b\u044c\u043d\u044b\u0439 \u0432\u044b\u0437\u043e\u0432 GLM 5.3 \u0438\u043b\u0438 \u0440\u0430\u0441\u0445\u043e\u0434\u043e\u0432\u0430\u0442\u044c \u0441\u0440\u0435\u0434\u0441\u0442\u0432\u0430",
+      "verification_method": "custom_command",
+      "verification_command": "uv run --locked --extra test pytest tests/specify_cli/spec_review/test_paid_cost_gate_acceptance.py -q",
+      "result": "confirmed_absent",
+      "evidence": "Acceptance suite uses stub metadata probes and runners; 18 tests passed without network or credentials."
+    },
+    {
+      "invariant_id": "NI-002",
+      "description": "\u0411\u0435\u0441\u043f\u043b\u0430\u0442\u043d\u044b\u0439 \u043c\u0430\u0440\u0448\u0440\u0443\u0442 \u043d\u0435 \u0434\u043e\u043b\u0436\u0435\u043d \u0432\u044b\u0437\u044b\u0432\u0430\u0442\u044c pricing probe \u0438\u043b\u0438 \u043c\u0435\u043d\u044f\u0442\u044c artifact v1",
+      "verification_method": "custom_command",
+      "verification_command": "uv run --locked --extra test pytest tests/specify_cli/spec_review/test_paid_cost_gate_acceptance.py::test_free_manifest_and_yaml_remain_byte_compatible -q",
+      "result": "confirmed_absent",
+      "evidence": "Golden compatibility test passed and asserts zero pricing probe calls."
+    },
+    {
+      "invariant_id": "NI-003",
+      "description": "Pricing drift, \u043f\u0440\u0435\u0432\u044b\u0448\u0435\u043d\u0438\u0435 \u043f\u043e\u0440\u043e\u0433\u0430 \u0438 \u043d\u0435\u0432\u0435\u0440\u043d\u044b\u0439 \u043c\u0430\u0440\u0448\u0440\u0443\u0442 \u043d\u0435 \u0434\u043e\u043b\u0436\u043d\u044b \u0434\u043e\u0441\u0442\u0438\u0433\u0430\u0442\u044c prompt/session, fallback \u0438\u043b\u0438 retry",
+      "verification_method": "custom_command",
+      "verification_command": "uv run --locked --extra test pytest tests/specify_cli/spec_review/test_paid_cost_gate_acceptance.py -q",
+      "result": "confirmed_absent",
+      "evidence": "Fail-closed tests passed and assert session/prompt counters remain zero on every cost-gate refusal."
+    }
+  ]
 }
