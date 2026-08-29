@@ -341,6 +341,46 @@ class TestAuthStatusCommand:
         assert "at_xyz_ignore" not in result.stdout
         assert "rt_xyz_ignore" not in result.stdout
 
+    def test_authenticated_path_renders_bracket_markup_in_email_name_and_team(self):
+        session = _make_session(
+            email="alice[/]@example.com",
+            name="Alice [/] Developer",
+            teams=[
+                Team(
+                    id="tm_acme",
+                    name="Acme [/] Corp",
+                    role="admin",
+                    is_private_teamspace=True,
+                )
+            ],
+        )
+        mock_storage = _mock_storage_returning(session, backend="file")
+        with patch(
+            "specify_cli.auth.secure_storage.SecureStorage.from_environment",
+            return_value=mock_storage,
+        ):
+            reset_token_manager()
+            result = runner.invoke(app, ["status"])
+
+        assert result.exit_code == 0, result.stdout
+        assert "User: alice[/]@example.com (Alice [/] Developer)" in _flat(result.stdout)
+        assert "- Acme [/] Corp (admin)" in _flat(result.stdout)
+        assert "MarkupError" not in result.stdout
+
+    def test_authenticated_path_renders_bracket_markup_in_email_only_identity(self):
+        session = _make_session(email="alice[/]@example.com", name="")
+        mock_storage = _mock_storage_returning(session, backend="file")
+        with patch(
+            "specify_cli.auth.secure_storage.SecureStorage.from_environment",
+            return_value=mock_storage,
+        ):
+            reset_token_manager()
+            result = runner.invoke(app, ["status"])
+
+        assert result.exit_code == 0, result.stdout
+        assert "User: alice[/]@example.com" in _flat(result.stdout)
+        assert "MarkupError" not in result.stdout
+
     def test_authenticated_path_minutes_branch(self):
         """Access token with 600s remaining must render minutes, not hours."""
         session = _make_session(
