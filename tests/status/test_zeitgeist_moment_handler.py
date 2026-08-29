@@ -597,6 +597,17 @@ def test_client_config_carries_the_stored_relay_credential(monkeypatch: pytest.M
     assert config.capability_credential == "capability-jwt"
 
 
+def test_first_non_printable_attr_finds_the_offending_key_and_codepoint() -> None:
+    assert bridge._first_non_printable_attr({"summary": "Which auth? \x1b[31mRED"}) == (
+        "summary",
+        ["U+001B"],
+    )
+
+
+def test_first_non_printable_attr_is_none_for_ordinary_prose() -> None:
+    assert bridge._first_non_printable_attr({"summary": "Which auth? session, oauth2"}) is None
+
+
 def test_unencodable_payload_drops_before_any_attempt(monkeypatch: pytest.MonkeyPatch, resolved_credential: list[Path], caplog: pytest.LogCaptureFixture) -> None:
     recorder = OfferRecorder().install(monkeypatch)
 
@@ -1180,6 +1191,34 @@ def test_decision_point_opened_via_local_emitter_offers_once(
     assert args["attrs"]["mission_slug"] == "demo-mission"
     # Bounded moment summary (#77): question + options, joined "; ".
     assert args["attrs"]["summary"] == "Which auth strategy?; session, oauth2"
+
+
+def test_decision_prose_with_control_characters_is_dropped_not_broadcast(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+    resolved_credential: list[Path],
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """A pasted ANSI escape in decision prose (#415): the codec's encode side
+    has no printability check, only its decode side does, so this must be
+    caught here or every consumer's decode silently drops the moment."""
+    recorder = OfferRecorder(outcome="sent").install(monkeypatch)
+    entry = _decision_entry(
+        "01AAAAAAAAAAAAAAAAAAAAAAAA",
+        question="Which auth? \x1b[31mRED\x1b[0m fallback",
+    )
+
+    emit_decision_opened(
+        tmp_path,
+        "demo-mission",
+        decision_id="01AAAAAAAAAAAAAAAAAAAAAAAA",
+        entry=entry,
+        actor="robert",
+    )
+
+    assert recorder.offers == []
+    assert "not broadcast" in caplog.text
+    assert "U+001B" in caplog.text
 
 
 def test_decision_point_resolved_via_local_emitter_carries_final_answer_summary(
