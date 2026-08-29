@@ -282,7 +282,7 @@ class TestEnsureDashboardSyncDaemonIntentLocalOnly:
         repo_root = tmp_path / "repo"
         (repo_root / ".kittify").mkdir(parents=True)
 
-        monkeypatch.setattr(events_mod, "is_saas_sync_enabled", lambda: True)
+        monkeypatch.setattr(events_mod, "sync_active", lambda: True)
 
         token_manager = MagicMock()
         token_manager.is_authenticated = True

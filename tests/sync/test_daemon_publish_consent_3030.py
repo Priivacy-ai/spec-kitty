@@ -416,7 +416,7 @@ def relay_egress(monkeypatch: pytest.MonkeyPatch) -> _RecordingUrlopen:
     below would pass for the wrong reason.
     """
     recorder = _RecordingUrlopen()
-    monkeypatch.setattr(events_module, "is_saas_sync_enabled", lambda: True)
+    monkeypatch.setattr(events_module, "sync_active", lambda: True)
     monkeypatch.setattr(
         "specify_cli.sync.daemon.get_sync_daemon_status",
         lambda **_kw: SimpleNamespace(healthy=True, url="http://127.0.0.1:9401", token="daemon-token"),
