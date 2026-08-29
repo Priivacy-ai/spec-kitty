@@ -78,17 +78,34 @@ _OFFERING_ROOT = _CHARTER_ROOT / "offering"
 
 #: The forbidden target package. ``charter.offering`` sits beside it, and per
 #: C-004 may never depend on it (the reverse direction is allowed).
+#: The activation/mutation layer. Until mission M2b physically relocates it into a
+#: ``src/charter/activation/`` package, that layer lives as these top-level ``charter``
+#: modules; the C-004 boundary is enforced against them NOW (pre-review finding, paula
+#: MAJOR-4) so ``charter.offering`` cannot import the mutation layer today, not only after
+#: the M2b move. ``charter.activation`` (+ subpackages) is kept so the gate keeps matching
+#: once M2b lands and this explicit set can collapse back to it.
 _FORBIDDEN_MODULE = "charter.activation"
+_ACTIVATION_MODULES = frozenset(
+    {
+        "charter.activation",
+        "charter.activation_engine",
+        "charter.activations",
+        "charter.cascade",
+        "charter._activation_render",
+    }
+)
 
 
 def _is_activation_module(module: str) -> bool:
-    """True when ``module`` is ``charter.activation`` or a subpackage of it.
+    """True when ``module`` is an activation-layer module or a subpackage of one.
 
     Matches on package boundaries so a same-prefix-different-package name
     (e.g. a hypothetical ``charter.activation_log``) is correctly *not*
     flagged.
     """
-    return module == _FORBIDDEN_MODULE or module.startswith(f"{_FORBIDDEN_MODULE}.")
+    return module in _ACTIVATION_MODULES or any(
+        module.startswith(f"{m}.") for m in _ACTIVATION_MODULES
+    )
 
 
 def _dotted_module_name(path: Path, package_root: Path) -> str:
