@@ -192,7 +192,7 @@ the suite in its worktree must not report the baseline reds as regressions or tr
 ## See also
 
 - [Running the test suite in parallel](testing-parallel.md) — per-worker HOME
-  isolation, the serial daemon pass, and the stability ratchet.
+  isolation, the serial marker passes, and the stability ratchet.
 - [ADR 2026-04-20-1](../../adr/3.x/2026-04-20-1-mutation-testing-as-local-only-quality-gate.md)
   — the `flaky` / `non_sandbox` markers (mutmut deselection; distinct from this
   policy).
