@@ -23,6 +23,7 @@
   "purpose_context": "Добавить точный маршрут GLM 5.3 для ручного ревью спецификаций только с подтверждённым порогом локальной advertised-оценки, не меняя бесплатный fail-closed режим.",
   "purpose_tldr": "Платный GLM 5.3 только с явным порогом оценки",
   "slug": "glm53-paid-spec-reviewer-01M16CYX",
+  "status_phase": "1",
   "target_branch": "codex/glm53-paid-spec-reviewer",
   "topology": "single_branch"
 }
