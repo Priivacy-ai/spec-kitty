@@ -1,8 +1,8 @@
 {
   "schema_version": "codemap/v1",
   "mission": "glm53-paid-spec-reviewer-01M16CYX",
-  "generated_at_utc": "2026-08-29T10:46:16Z",
-  "source_head": "f2b529ae4759601f5ed0bc34d5a049bacdf00954",
+  "generated_at_utc": "2026-08-29T11:43:54Z",
+  "source_head": "bae0c15e356622e264686796508e975617187806",
   "generator": "glm53-paid-spec-reviewer/v1",
   "digest_mode": "sha256(text normalized to UTF-8 with LF line endings)",
   "audience": "Spec Kitty core maintainers and WP implementers",
@@ -34,7 +34,7 @@
     "present_nodes": 30,
     "planned_nodes": 0,
     "edges": 43,
-    "historical_review_files": 546,
+    "historical_review_files": 717,
     "historical_spec_review_files": 0
   },
   "architecture_invariants": [
@@ -62,24 +62,24 @@
   "historical_review_inventory": {
     "scope": "kitty-specs/*/reviews/*",
     "authority": "historical convention only",
-    "file_count": 546,
+    "file_count": 717,
     "extensions": {
-      ".md": 20,
-      ".yaml": 526
+      ".md": 21,
+      ".yaml": 696
     },
     "filename_patterns": {
-      "*.findings.yaml": 150,
-      "*.merged.yaml": 49,
-      "*.confirmed.yaml": 50,
+      "*.findings.yaml": 201,
+      "*.merged.yaml": 66,
+      "*.confirmed.yaml": 67,
       "spec-review-*.yaml": 0
     },
     "dominant_schemas": {
-      "review-findings/v1": 319,
-      "review-verify/v1": 108,
-      "review-refute/v1": 47
+      "review-findings/v1": 431,
+      "review-verify/v1": 146,
+      "review-refute/v1": 67
     },
     "runtime_classification": "reviews/spec-review-*.yaml is classified as SPEC_REVIEW on PRIMARY; historical review names remain unclassified",
-    "inventory_sha256": "34f15f34a14ccdf3c2b324ffb1c09b34331d0e5dbfbdfd98a2f935b39eac9d0f"
+    "inventory_sha256": "b6cbc11f503d70e20c996c9d4e58e84adca831a1d7f024b210376b2a647447ef"
   },
   "source_inputs": [
     {
@@ -93,8 +93,8 @@
     {
       "path": "kitty-specs/*/reviews/*",
       "kind": "glob_manifest",
-      "entries": 546,
-      "sha256": "34f15f34a14ccdf3c2b324ffb1c09b34331d0e5dbfbdfd98a2f935b39eac9d0f",
+      "entries": 717,
+      "sha256": "b6cbc11f503d70e20c996c9d4e58e84adca831a1d7f024b210376b2a647447ef",
       "algorithm": "SHA-256 of LF-joined '<LF-normalized-file-sha256>  <POSIX-path>\\n' records sorted by path"
     },
     {
@@ -598,7 +598,7 @@
       "kind": "repository_artifact_family",
       "label": "Historical reviews directory convention",
       "path": "kitty-specs/*/reviews/*",
-      "symbol": "546 repository files at source_head",
+      "symbol": "717 repository files at source_head",
       "callers": ["planning and adversarial review workflows; no canonical runtime classifier caller"],
       "effects": ["stores heterogeneous historical review-findings, verification, merged, confirmed and prose records", "does not currently determine PRIMARY or COORD placement"],
       "coverage": {

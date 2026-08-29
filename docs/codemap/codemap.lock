@@ -21,8 +21,8 @@ LOCK = {
     "schema_version": "codemap-lock/v1",
     "codemap_schema_version": "codemap/v1",
     "mission": "glm53-paid-spec-reviewer-01M16CYX",
-    "source_head": "f2b529ae4759601f5ed0bc34d5a049bacdf00954",
-    "generated_at_utc": "2026-08-29T10:46:16Z",
+    "source_head": "bae0c15e356622e264686796508e975617187806",
+    "generated_at_utc": "2026-08-29T11:43:54Z",
     "generator": "glm53-paid-spec-reviewer/v1",
     "digest_mode": "sha256(text normalized to UTF-8 with LF line endings)",
     "source_inputs": {
@@ -83,14 +83,14 @@ LOCK = {
     },
     "glob_inputs": {
         "kitty-specs/*/reviews/*": {
-            "entries": 546,
-            "sha256": "34f15f34a14ccdf3c2b324ffb1c09b34331d0e5dbfbdfd98a2f935b39eac9d0f",
+            "entries": 717,
+            "sha256": "b6cbc11f503d70e20c996c9d4e58e84adca831a1d7f024b210376b2a647447ef",
             "algorithm": "SHA-256 of LF-joined '<LF-normalized-file-sha256>  <POSIX-path>\\n' records sorted by path",
         }
     },
     "artifacts": {
-        "docs/codemap/codemap.json": "b8f4a8bc5323d64fdddd868d6d964ad46e1e3c21ee1232820fd5091924df9214",
-        "docs/codemap/codemap.html": "caed4dc2715766face77c6154bfbeb67da4d6e891bec224e676c4bbc4d72d7e8",
+        "docs/codemap/codemap.json": "f3e86e809a140220f0972f07eb26d73f15db7feea3f7effa9e46f5ae88cf05ab",
+        "docs/codemap/codemap.html": "2433d7aeb9b3adb206e0c41b4e048d3fd34d2b360bc47d8bd50ed7e2e06a8cf1",
     },
     "verification_command": "python docs/codemap/codemap.lock",
 }
