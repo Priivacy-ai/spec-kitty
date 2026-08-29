@@ -29,7 +29,8 @@
       "last_transition_at": "2026-08-29T10:22:13.374240+00:00",
       "model": "__resolved_model_absent__",
       "notes": [
-        "Реализация выполнена и локально проверена"
+        "Реализация выполнена и локально проверена",
+        "149 focused pass; 50 architectural pass; Ruff, mypy и codemap green; model call не выполнялся"
       ],
       "provider": "__resolved_provider_absent__",
       "role": "implementer",
