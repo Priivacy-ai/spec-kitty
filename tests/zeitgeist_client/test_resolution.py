@@ -531,9 +531,9 @@ class TestCacheShortCircuits:
 
 
 class TestScopeRevalidation:
-    """Squad finding on #123: the store key is the bare repo NAME, which two
-    differently-hosted repos can share -- a same-name checkout must not be
-    served a credential minted for a different (host, repo_slug)."""
+    """Squad finding on #123: the store key was the bare repo NAME, which
+    two differently-hosted repos could share -- #132 moved the key to
+    ``resolution.store_key``'s ``host/owner/repo``."""
 
     def test_cache_hit_for_the_same_scope_is_trusted(self, state_root: Path) -> None:
         credentials.store(
