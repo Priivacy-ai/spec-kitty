@@ -30,7 +30,8 @@
       "model": "__resolved_model_absent__",
       "notes": [
         "Реализация выполнена и локально проверена",
-        "149 focused pass; 50 architectural pass; Ruff, mypy и codemap green; model call не выполнялся"
+        "149 focused pass; 50 architectural pass; Ruff, mypy и codemap green; model call не выполнялся",
+        "APPROVE: реализация уже находится в target history до создания review-lane (red 82fe58250, production 4d82f191d); lane поэтому не имеет собственных implementation commits. Независимо проверены 199 тестов (1 skipped, 2 xfailed), Ruff, strict mypy и codemap. FR001-FR009 покрыты; anti-pattern checklist PASS: dead code, synthetic-only fixtures, silent empty returns, frozen surface, locked decisions, shared ownership и production fragility нарушений нет. Contracts artifact отсутствует и для этой миссии не требуется."
       ],
       "provider": "__resolved_provider_absent__",
       "review_result": {
