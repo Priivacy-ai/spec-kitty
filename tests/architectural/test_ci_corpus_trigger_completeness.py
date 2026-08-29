@@ -24,21 +24,27 @@ investigate-squad-findings.md, R-WP01-a and R-WP01-b):
    instead: pin the marked-module set to a curated, hand-maintained
    registry, so a NEW corpus reader (or one silently un-marked) forces a
    conscious update here rather than reopening #3008 for that module.
+
+Retired (planning#57): Gate-0/Gate-1 presence (the six ``test_corpus_globs_*``
+/ ``test_fast_tests_corpus_*`` checks above) were verified LIVE against the
+real ``.github/workflows/ci-quality.yml`` — the leftover pre-programme GitHub
+Actions YAML deleted per PROGRAM.md §2. With no workflow YAML left to parse,
+those checks (and their shared ``_load_workflow()`` helper) have no remaining
+subject matter and were removed with the file. The marker-completeness half
+(R-WP01-a: the curated registry, its non-emptiness floor, and the
+``pytest.ini`` registration check) never read a workflow file and stays.
 """
 
 from __future__ import annotations
 
 import re
 from pathlib import Path
-from typing import Any
 
 import pytest
-import yaml
 
 pytestmark = pytest.mark.architectural
 
 _REPO_ROOT = Path(__file__).resolve().parents[2]
-_WORKFLOW = _REPO_ROOT / ".github" / "workflows" / "ci-quality.yml"
 
 # The authoritative corpus glob set (T001 on.paths / T002 dorny filter) --
 # discrete lines only: GitHub `on.paths` does not support `{a,b}` brace
@@ -166,50 +172,12 @@ _CORPUS_MARKED_MODULES = frozenset(
 )
 
 
-def _load_workflow() -> dict[Any, Any]:
-    # Resolve `uses:` reusable-workflow delegation (#3447) so fast-tests-corpus —
-    # now a caller job whose steps live in module-packs.yml — is seen inline.
-    # A raw yaml.safe_load would KeyError on the caller's absent `steps`.
-    from tests.architectural import _gate_coverage as gc
-
-    data: dict[Any, Any] = gc.load_spliced_workflow(_WORKFLOW)
-    return data
 
 
-def test_corpus_globs_present_in_pull_request_paths() -> None:
-    """Gate 0 (R-WP01-b): every corpus glob must be in on.pull_request.paths.
-
-    ``yaml.safe_load`` parses the top-level ``on:`` key as the boolean
-    ``True``, not the string ``"on"`` -- ``data[True][...]`` is the correct
-    access. A naive ``data["on"][...]`` guard raises ``KeyError`` and would
-    never have caught anything.
-    """
-    data = _load_workflow()
-    pr_paths = set(data[True]["pull_request"]["paths"])
-    missing = _CORPUS_GLOBS - pr_paths
-    assert not missing, f"corpus globs missing from on.pull_request.paths: {sorted(missing)}"
 
 
-def test_corpus_globs_present_in_push_paths() -> None:
-    """Gate 0 (R-WP01-b): every corpus glob must be in on.push.paths too.
-
-    Without this, a corpus-only PR triggers pre-merge but the post-merge
-    ``push`` run silently skips -- the same Gate-0 hole, one event later.
-    """
-    data = _load_workflow()
-    push_paths = set(data[True]["push"]["paths"])
-    missing = _CORPUS_GLOBS - push_paths
-    assert not missing, f"corpus globs missing from on.push.paths: {sorted(missing)}"
 
 
-def test_corpus_globs_match_the_dorny_filter_set() -> None:
-    """Keep the on.paths trigger allowlist (Gate 0) and the corpus dorny
-    filter (Gate 1) in lockstep -- a mismatch means the two gates disagree
-    about what counts as a corpus change."""
-    data = _load_workflow()
-    filter_step = next(step for step in data["jobs"]["changes"]["steps"] if step.get("id") == "filter")
-    filters = yaml.safe_load(filter_step["with"]["filters"])
-    assert set(filters["corpus"]) == _CORPUS_GLOBS
 
 
 def test_every_corpus_data_root_is_covered_by_a_trigger_glob() -> None:
@@ -275,34 +243,10 @@ def test_corpus_marked_registry_is_non_empty() -> None:
     assert len(_CORPUS_MARKED_MODULES) > 0
 
 
-def test_fast_tests_corpus_job_runs_by_marker_not_whole_directories() -> None:
-    """M1: fast-tests-corpus must select via ``-m corpus``, never whole
-    directories -- whole-dir collection would re-run suites already owned
-    by other jobs (fast-tests-doctrine, integration-tests-core-misc, ...) on
-    every push/mixed PR."""
-    data = _load_workflow()
-    step = next(step for step in data["jobs"]["fast-tests-corpus"]["steps"] if step.get("name") == "Run fast tests — corpus")
-    run_script = str(step["run"])
-    assert "-m " in run_script
-    assert '"corpus and not windows_ci"' in run_script or "'corpus and not windows_ci'" in run_script
 
 
-def test_fast_tests_corpus_does_not_mask_a_zero_collection_exit() -> None:
-    """No ``|| true`` / ``--suppress-no-test-exit-code`` -- a marker that
-    selects zero tests must FAIL the job (pytest exit 5), never be
-    swallowed into a false-green."""
-    data = _load_workflow()
-    step = next(step for step in data["jobs"]["fast-tests-corpus"]["steps"] if step.get("name") == "Run fast tests — corpus")
-    run_script = str(step["run"])
-    assert "|| true" not in run_script
-    assert "--suppress-no-test-exit-code" not in run_script
 
 
-def test_fast_tests_corpus_is_wired_into_the_quality_gate() -> None:
-    """N2: fast-tests-corpus must be a blocking dependency of quality-gate,
-    or an improper skip/failure would never block merge."""
-    data = _load_workflow()
-    assert "fast-tests-corpus" in data["jobs"]["quality-gate"]["needs"]
 
 
 def test_corpus_marker_is_registered_in_pytest_ini() -> None:
