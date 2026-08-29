@@ -24,6 +24,12 @@ Output layout (spec 080 §2.4, FR-015):
 - Storage backend (human label for the encrypted local session file)
 - Session ID, last_used_at, auth method
 
+The not-authenticated and session-expired early returns also print the
+``SaaS:`` endpoint line — the expired case additionally gets the session
+issuer + mismatch warning, since that is exactly the post-hostname-move
+symptom #176 exists to diagnose (#189). ``whoami``'s separate exit-1/no-output
+contract when unauthenticated is untouched.
+
 Exit code is 0 in both authenticated and not-authenticated cases per
 FR-015: ``auth status`` is purely informational and must never surface
 as a failure to shells / scripts.
@@ -73,11 +79,13 @@ def status_impl() -> None:
 
     if session is None:
         console.print("[red]X Not authenticated[/red]")
+        _print_saas_endpoint()
         console.print("  Run [bold]spec-kitty auth login[/bold] to authenticate.")
         return
 
     if session.is_refresh_token_expired():
         console.print("[red]X Session expired (refresh token expired)[/red]")
+        _print_saas_target(session)
         console.print("  Run [bold]spec-kitty auth login[/bold] to re-authenticate.")
         return
 
@@ -105,9 +113,14 @@ def status_impl() -> None:
 # ---------------------------------------------------------------------------
 
 
-def _print_saas_target(session: StoredSession) -> None:
-    """Print the SaaS endpoint line (first line of the status block) plus,
-    when it disagrees with where the session was minted, the mismatch warning.
+def _print_saas_endpoint() -> ResolvedServerTarget | None:
+    """Print the ``SaaS:`` endpoint line — the resolved URL + provenance, or
+    the not-configured notice — and return the resolved target (``None`` on
+    the not-configured branch).
+
+    Split out of :func:`_print_saas_target` so callers with no
+    :class:`StoredSession` (the not-authenticated branch) can print this line
+    alone, without the session-issuer/mismatch parts that need one (#189).
 
     The URL is the *same* resolved target ``auth login`` prints
     (:func:`specify_cli.auth.server_target.resolve_server_target`), so the two
@@ -123,15 +136,24 @@ def _print_saas_target(session: StoredSession) -> None:
         # markup parses "[sync]" as a style tag and silently drops it (#182).
         remedy = escape(f"— set {SAAS_URL_ENV_VAR} (or [sync].server_url in config.toml)")
         console.print(f"  SaaS:           not configured [dim]{remedy}[/dim]")
-        _print_session_issuer(session.issuer_url)
-        return
+        return None
     # escape(): both the resolved URL and the provenance suffix can contain
     # `[sync]`/`[/]`-shaped substrings (a config.toml server_url is
     # attacker- or fat-finger-controlled) — unescaped, Rich markup either
     # drops the bracketed text or raises MarkupError out of console.print,
     # which would violate this module's own never-fail invariant (#182).
     console.print(f"  SaaS:           {escape(target.resolved_server_url)} [dim]{escape(format_saas_provenance(target))}[/dim]")
+    return target
+
+
+def _print_saas_target(session: StoredSession) -> None:
+    """Print the SaaS endpoint line (first line of the status block) plus,
+    when it disagrees with where the session was minted, the mismatch warning.
+    """
+    target = _print_saas_endpoint()
     _print_session_issuer(session.issuer_url)
+    if target is None:
+        return
     warning = format_saas_mismatch_warning(
         session.issuer_url,
         source_name=saas_source_name(target),
