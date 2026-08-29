@@ -42,13 +42,22 @@ test-fast: ## Run fast tier of the typical blast-radius dirs (target <2 min)
 # comfortably under budget, no further tiering/cutting needed right now
 # (#29). Re-measure via the CI agent's baseline, not a local run, if a
 # future change bloats the suite materially.
+#
+# Each test-full pass writes its failure, if any, to this marker instead of
+# stopping the target: a red parallel pass must not skip the stress/timing
+# passes, or a CI round-trip diagnosing red main gets signal on only one of
+# the three families (planning#44). The final recipe line aggregates.
+TEST_FULL_STATUS := .test-full-status
+
 test-full: ## Run everything: one parallel pass + serial marker passes (CI agent's target)
+	@rm -f $(TEST_FULL_STATUS)
 	env -u FORCE_COLOR NO_COLOR=1 PWHEADLESS=1 uv run pytest tests/ \
-	  -m "$(PARALLEL_UNSAFE_MARKERS)" -n auto --dist loadfile -p no:cacheprovider -q
+	  -m "$(PARALLEL_UNSAFE_MARKERS)" -n auto --dist loadfile -p no:cacheprovider -q || touch $(TEST_FULL_STATUS)
 	# Serial passes: the two parallel-unsafe marker families, mirroring the
 	# stress-tests-serial / timing-nfr-serial CI jobs (--timeout guards a hung
 	# fork/process from stalling the lane indefinitely).
 	env -u FORCE_COLOR NO_COLOR=1 PWHEADLESS=1 uv run pytest tests/ \
-	  -m "stress and not windows_ci" -n0 --timeout=240 --timeout-method=signal -q
+	  -m "stress and not windows_ci" -n0 --timeout=240 --timeout-method=signal -q || touch $(TEST_FULL_STATUS)
 	env -u FORCE_COLOR NO_COLOR=1 PWHEADLESS=1 uv run pytest tests/ \
-	  -m timing -n0 --timeout=240 --timeout-method=signal -q
+	  -m timing -n0 --timeout=240 --timeout-method=signal -q || touch $(TEST_FULL_STATUS)
+	@if [ -f $(TEST_FULL_STATUS) ]; then rm -f $(TEST_FULL_STATUS); exit 1; fi
