@@ -314,19 +314,38 @@ def _composition_dispatch_inputs(
     patches it), so it is a plain internal helper re-exported into the
     residual (``decide_next_via_runtime`` still calls it bare) — no native
     delegate needed.
-    """
-    try:
-        from charter.mission_type_profiles import (  # noqa: PLC0415
-            resolve_mission_type_context,
-        )
 
-        action_sequence = resolve_mission_type_context(
-            repo_root, mission_type=mission
-        ).action_sequence
-        if action in action_sequence:
-            return None, None
-    except Exception:
-        pass
+    The short-circuit to ``(None, None)`` (letting
+    ``StepContractExecutor._resolve_profile_hint`` fall back to its own
+    ``_ACTION_PROFILE_DEFAULTS`` table) is gated on ``(mission, action)``
+    actually having an entry in that table — not merely on the action
+    appearing in the charter-resolved action sequence. A custom mission type
+    (e.g. an org-pack-registered ``qa`` mission) can resolve an action
+    sequence that includes an action with no built-in default; that table is
+    explicitly built-in-missions-only (see its own docstring), so such an
+    action must fall through to the frozen template's explicit
+    ``agent-profile``/``contract_ref`` binding instead of being silently
+    starved of a profile hint (#397 — the runtime discarded a frozen
+    ``agent-profile: researcher-robbie`` binding for a custom mission's
+    ``discovery`` action because this short-circuit fired unconditionally).
+    """
+    from specify_cli.mission_step_contracts.executor import (  # noqa: PLC0415
+        _ACTION_PROFILE_DEFAULTS,
+    )
+
+    if (mission, action) in _ACTION_PROFILE_DEFAULTS:
+        try:
+            from charter.mission_type_profiles import (  # noqa: PLC0415
+                resolve_mission_type_context,
+            )
+
+            action_sequence = resolve_mission_type_context(
+                repo_root, mission_type=mission
+            ).action_sequence
+            if action in action_sequence:
+                return None, None
+        except Exception:
+            pass
 
     from runtime.next import runtime_bridge as _rb  # noqa: PLC0415
 
