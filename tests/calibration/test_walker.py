@@ -128,9 +128,13 @@ def test_expected_steps_present(mission_key: str, expected_steps: list[str]) -> 
             }),
         ),
         (
-            # Pins the two re-inlined-constant fixes (DIRECTIVE_010, DIRECTIVE_037).
+            # Pins the two re-inlined-constant fixes (DIRECTIVE_010, DIRECTIVE_037),
+            # plus DIRECTIVE_003 (mission governance-at-the-gate WP03, FR-005):
+            # moved off `implement` onto `review` as a REQUIRED positive guard
+            # (no longer a silently-tolerated calibrator-sourced extra).
             ("software-dev", "action:software-dev/review"),
             frozenset({
+                "directive:DIRECTIVE_003",
                 "directive:DIRECTIVE_010",
                 "directive:DIRECTIVE_024",
                 "directive:DIRECTIVE_025",
