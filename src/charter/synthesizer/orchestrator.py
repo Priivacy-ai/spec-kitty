@@ -199,7 +199,7 @@ def synthesize(
         Until WP02 delivers synthesize_pipeline.py (pre-WP02 state).
     ImportError
         Propagated if synthesize_pipeline or write_pipeline module is missing.
-    doctrine.drg.loader.DRGLoadError
+    charter.offering.drg.loader.DRGLoadError
         When an on-disk project overlay exists but cannot be parsed (FR-007
         fail-closed at the library seam — never falls back to a wholesale
         rebuild; see ``reconcile.reconcile_synthesis``).
@@ -207,7 +207,7 @@ def synthesize(
     from pathlib import Path as _Path  # noqa: PLC0415
 
     try:
-        from doctrine.drg.models import DRGGraph as _DRGGraph  # noqa: PLC0415
+        from charter.offering.drg.models import DRGGraph as _DRGGraph  # noqa: PLC0415
         from .interview_mapping import normalize_interview_snapshot as _normalize_interview_snapshot  # noqa: PLC0415
         from .interview_mapping import resolve_sections as _resolve_sections  # noqa: PLC0415
         from .project_drg import apply_post_condition as _apply_post_condition  # noqa: PLC0415

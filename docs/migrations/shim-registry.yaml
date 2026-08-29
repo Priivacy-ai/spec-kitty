@@ -18,4 +18,18 @@
 # specify_cli.next (#612) shims deleted; canonical imports are
 # glossary.* and runtime.next.* respectively.
 
-shims: []
+shims:
+  - legacy_path: doctrine
+    canonical_import: charter.offering
+    introduced_in_release: "3.2.6"
+    removal_target_release: "3.3.0"
+    tracker_issue: "#3664"
+    grandfathered: false
+    notes: >
+      CR-06 (mission charter-code-topology-01M152G1). The top-level
+      src/doctrine/ package relocated wholesale to src/charter/offering/;
+      this shim (src/doctrine.py, a single module, not a package) keeps
+      bare `import doctrine` / `from doctrine import X` callers working via
+      a warn-once __getattr__ re-export. Dotted submodule imports
+      (`import doctrine.X`) were rewritten at the call site and are not
+      served by this shim.

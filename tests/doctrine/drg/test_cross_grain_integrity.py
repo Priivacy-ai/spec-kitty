@@ -71,7 +71,7 @@ from charter.mission_type_profiles import (
     _profile_type_grain,
 )
 from charter.mission_type_profile_repository import MissionTypeProfileRepository
-from doctrine.missions.mission_type_repository import builtin_mission_type_ids
+from charter.offering.missions.mission_type_repository import builtin_mission_type_ids
 
 pytestmark = [pytest.mark.doctrine, pytest.mark.fast, pytest.mark.corpus]
 

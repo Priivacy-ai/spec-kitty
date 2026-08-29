@@ -6,9 +6,9 @@ from pathlib import Path
 
 import pytest
 
-from doctrine.agent_profiles.profile import TaskContext
-from doctrine.agent_profiles.repository import AgentProfileRepository
-from doctrine.drg.models import DRGEdge, DRGGraph, DRGNode, NodeKind, Relation
+from charter.offering.agent_profiles.profile import TaskContext
+from charter.offering.agent_profiles.repository import AgentProfileRepository
+from charter.offering.drg.models import DRGEdge, DRGGraph, DRGNode, NodeKind, Relation
 
 pytestmark = [pytest.mark.fast, pytest.mark.doctrine, pytest.mark.corpus]
 

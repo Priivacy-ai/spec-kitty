@@ -13,7 +13,7 @@ action bundles produced by WP03:
    2x the median latency for research actions (NFR-007).
 
 The mission spec forbids mocking ``charter._drg_helpers.load_validated_graph``
-or ``doctrine.drg.query.resolve_context`` (C-007); these tests read the real
+or ``charter.offering.drg.query.resolve_context`` (C-007); these tests read the real
 on-disk graph and call the production resolver directly.
 """
 
@@ -27,8 +27,8 @@ import pytest
 import yaml
 
 from charter._drg_helpers import load_validated_graph
-from doctrine.drg.loader import load_built_in_graph
-from doctrine.drg.query import resolve_context
+from charter.offering.drg.loader import load_built_in_graph
+from charter.offering.drg.query import resolve_context
 
 # The 6 advancing documentation actions covered by the mission-runtime sidecar.
 

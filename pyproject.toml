@@ -110,7 +110,7 @@ test = [
     "diff-cover>=10.0.0",  # Enforce changed-line coverage in CI
     "chardet>=3.0.4,<6",  # Pin chardet below 6.x to avoid requests compatibility warning
     "build>=1.0.0",  # Required for distribution tests (wheel building)
-    "hatchling>=1.27.0",  # BuildHookInterface import for tests/doctrine/test_hatch_build.py (in-process coverage of the doctrine wheel's custom build hook; already a [build-system] requirement, pinned here so it's importable outside build isolation)
+    "hatchling>=1.27.0",  # Already a [build-system] requirement; pinned here so it's importable outside build isolation. (charter-code-topology-01M152G1, S5: its prior sole rationale, tests/doctrine/test_hatch_build.py's in-process BuildHookInterface coverage of the dormant doctrine wheel, was deleted with the dormant spec-kitty-doctrine wheel groundwork per MAP-BUILD -- kept as a lockfile-neutral no-op rather than risk uv.lock drift for a redundant-but-harmless test-extra pin.)
     "mutmut>=3.5.0",  # Mutation testing
     "pytestarch>=4.0.0",  # Architectural dependency testing (ADR 2026-03-27-1)
 ]
@@ -146,24 +146,25 @@ build-backend = "hatchling.build"
 allow-direct-references = true
 
 [tool.hatch.build.targets.wheel]
-packages = ["src/kernel", "src/glossary", "src/mission_runtime", "src/runtime", "src/specify_cli", "src/doctrine", "src/charter"]
+packages = ["src/kernel", "src/glossary", "src/mission_runtime", "src/runtime", "src/specify_cli", "src/charter"]
 exclude = [
     "src/specify_cli/**/tests/**",
-    # Build-tooling debris, not runtime code: src/doctrine/hatch_build.py imports
-    # hatchling (a build-time-only dependency) to power the NESTED
-    # src/doctrine/pyproject.toml's standalone-wheel build hook (see that
-    # file's own [tool.hatch.build.targets.wheel] comment); it has no runtime
-    # caller. The two nested src/*/pyproject.toml manifests describe the
-    # dormant kernel/doctrine wheel groundwork (docs/adr/3.x/2026-08-02-1-
-    # charter-wheel-assessment.md) and are themselves package metadata, never
-    # imported. Shipping either inside the runtime wheel is pure packaging
-    # pollution for every consumer of `spec-kitty-cli` (#3163).
-    "src/doctrine/hatch_build.py",
+    # Build-tooling debris, not runtime code: src/kernel/pyproject.toml is
+    # dormant packaging metadata for the planned standalone spec-kitty-kernel
+    # wheel (docs/adr/3.x/2026-08-02-1-charter-wheel-assessment.md); it is
+    # never imported at runtime. Shipping it inside the runtime wheel is pure
+    # packaging pollution for every consumer of `spec-kitty-cli` (#3163).
+    #
+    # The sibling dormant spec-kitty-doctrine wheel groundwork
+    # (src/charter/offering/pyproject.toml + hatch_build.py) was DELETED
+    # outright (charter-code-topology-01M152G1, S5; MAP-BUILD) rather than
+    # excluded here — it was never built or published by any CI job, so the
+    # dormant-wheel exclude entries for it are retired along with the files.
     "src/*/pyproject.toml",
 ]
 # Include all non-Python files (templates, configs, etc.)
 # Runtime command templates are package assets under specify_cli/missions;
-# doctrine/missions holds the governance/action-bundle side of the surface.
+# charter/offering/missions holds the governance/action-bundle side of the surface.
 artifacts = [
     "src/specify_cli/**/*.md",
     "src/specify_cli/**/*.yaml",
@@ -177,17 +178,29 @@ artifacts = [
     "src/runtime/**/*.jsonl",
     "src/charter/**/*.yaml",
     "src/charter/**/*.yml",
-    "src/doctrine/**/*.md",
-    "src/doctrine/**/*.yaml",
-    "src/doctrine/**/*.yml",
-    "src/doctrine/**/*.json",
-    "src/doctrine/**/*.csv",
-    "src/doctrine/**/*.template",
+    # R2 wheel silent-drop fix (charter-code-topology-01M152G1, S5): the
+    # broader src/charter/** glob (files directly under src/charter/, e.g.
+    # ERROR_CODES.md, plus everything under offering/) shipped only *.yaml/
+    # *.yml before this change, silently dropping src/charter/ERROR_CODES.md
+    # and src/charter/README.md from the wheel. Widen to the same extension
+    # set the offering/ subtree already ships (.md/.json/.csv/.template) so
+    # the top-level charter docs/config surface is not silently excluded.
+    "src/charter/**/*.md",
+    "src/charter/**/*.json",
+    "src/charter/**/*.csv",
+    "src/charter/**/*.template",
+    "src/charter/offering/**/*.md",
+    "src/charter/offering/**/*.yaml",
+    "src/charter/offering/**/*.yml",
+    "src/charter/offering/**/*.json",
+    "src/charter/offering/**/*.csv",
+    "src/charter/offering/**/*.template",
 ]
 # Relocated built-in doctrine packs (mission relocate-builtin-doctrine-packs-01KYT87F).
 # `packs/` is a top-level tree, NOT under `src/`, so the `packages`/`artifacts`
 # globs above never match it. `force-include` lands `packs/` as a site-packages
-# sibling of the `doctrine` package — exactly what the kernel sibling-path
+# sibling of the `charter` package (nesting the former top-level `doctrine`
+# package as `charter.offering`) — exactly what the kernel sibling-path
 # ancestor walk (`kernel.sibling_paths.resolve_installed_sibling`, which
 # `resolve_pack_root("built-in")` now delegates to since #3091/#3204) expects:
 # it walks up from an installed module to the ancestor holding `packs/built-in`.
@@ -196,7 +209,7 @@ artifacts = [
 # consumers. Other repo-local packs (e.g. `packs/internal/`, the maintainer-only
 # org-tier pack) must NOT be force-included into the wheel. Guarded by
 # tests/cross_cutting/packaging/test_packaging_safety.py.
-force-include = { "packs/built-in" = "packs/built-in" }
+force-include = { "packs/built-in" = "packs/built-in", "src/doctrine.py" = "doctrine.py" }
 
 [tool.hatch.build.targets.sdist]
 include = [
@@ -206,7 +219,7 @@ include = [
     # relocate-builtin-doctrine-packs-01KYT87F, WP05 / NFR-002). Scoped to
     # `packs/built-in/**` so the maintainer-only `packs/internal/` pack never ships.
     "packs/built-in/**",
-    "src/doctrine/curation/imports/**/*",
+    "src/charter/offering/curation/imports/**/*",
     "README.md",
     "LICENSE",
     "CHANGELOG.md",
@@ -484,9 +497,9 @@ also_copy = [
 
     ".pytest_cache/spec-kitty-test-venv/",  # Pre-seeded venv so test_venv fixture skips rebuild
     "src/specify_cli/*.py",  # Copy all top-level modules (frontmatter, etc.)
+    "src/doctrine.py",       # CR-06 deprecation shim re-exporting charter.offering
     "src/kernel/",           # Copy kernel package for shared utilities
-    "src/doctrine/",         # Copy doctrine package for imports
-    "src/charter/",          # Copy charter package
+    "src/charter/",          # Copy charter package (nests the relocated doctrine offering)
     "src/specify_cli/status/",  # Copy status module for status transitions
     "src/glossary/",          # Copy canonical glossary package
     "src/specify_cli/cli/",   # Copy CLI commands

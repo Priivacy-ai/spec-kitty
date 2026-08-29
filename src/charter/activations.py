@@ -65,11 +65,11 @@ import json
 
 from pydantic import BaseModel, ConfigDict, field_validator
 
-from doctrine.artifact_kinds import (
+from charter.offering.artifact_kinds import (
     CHARTER_ACTIVATABLE_PLURAL_TO_SINGULAR,
     CHARTER_ACTIVATABLE_SINGULAR_TO_PLURAL,
 )
-from doctrine.missions.mission_type_repository import builtin_mission_type_id_set
+from charter.offering.missions.mission_type_repository import builtin_mission_type_id_set
 
 __all__ = [
     "ActivationEntry",
@@ -88,7 +88,7 @@ __all__ = [
 
 #: Canonical closed vocabulary for ``activation_context.mission_type``.
 #: Derived from the canonical accessor
-#: :func:`doctrine.missions.mission_type_repository.builtin_mission_type_id_set`
+#: :func:`charter.offering.missions.mission_type_repository.builtin_mission_type_id_set`
 #: (single source of truth, #2669 IC-1a) plus the wildcard tokens ``any`` /
 #: ``generic``. This triggers one cached ``mission_types/`` filesystem read
 #: at import of this module — the accepted NFR-001 carve-out for a
@@ -150,7 +150,7 @@ _ACTION_WILDCARDS: frozenset[str] = frozenset({"any", "generic"})
 #: Allowed values for the optional ``artifact_kind`` disambiguator. Mirrors
 #: the artifact-kind properties exposed by ``DoctrineService``. ``templates``
 #: and ``assets`` are node-declarable org-pack DRG kinds (see
-#: ``doctrine.drg.org_pack_loader._ORG_DRG_CANONICAL_KINDS``) and must move in
+#: ``charter.offering.drg.org_pack_loader._ORG_DRG_CANONICAL_KINDS``) and must move in
 #: lockstep with this set and ``charter.pack_context._BUILTIN_ARTIFACT_KINDS`` —
 #: the drift guard in ``tests/doctrine/test_org_pack_augmentation.py`` fails if
 #: any one of the three mirrors is updated alone.
@@ -181,7 +181,7 @@ _ALLOWED_KINDS: frozenset[str] = frozenset(
 #: typos while remaining ergonomic for operators.
 #:
 #: Derived (not restated) from the single charter-activatable kind authority
-#: :data:`doctrine.artifact_kinds.CHARTER_ACTIVATABLE_SINGULAR_TO_PLURAL`
+#: :data:`charter.offering.artifact_kinds.CHARTER_ACTIVATABLE_SINGULAR_TO_PLURAL`
 #: (FR-004) — the 10 activatable kinds including ``anti_pattern`` (C-003/FR-005).
 #: The prior hand-copied literal was value-identical to the derived map, so this
 #: collapse is behaviour-preserving here while making drift structurally

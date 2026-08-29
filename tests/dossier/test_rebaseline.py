@@ -413,7 +413,7 @@ class TestRebaselineErrorBranches:
 
         import specify_cli.dossier.manifest as manifest_module
         import specify_cli.mission as mission_module
-        from doctrine.missions.repository import ConfigResult
+        from charter.offering.missions.repository import ConfigResult
         from specify_cli.dossier.manifest import ManifestRegistry
         from specify_cli.dossier.rebaseline import rebaseline_recorded_snapshots
 

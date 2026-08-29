@@ -1,6 +1,6 @@
 """Unit tests for the shared org/project recursion authority (WP01 / T003).
 
-The authority (:mod:`doctrine.discovery_recursion`) is the single seam both the
+The authority (:mod:`charter.offering.discovery_recursion`) is the single seam both the
 loader and the charter-activation resolver read so recursion cannot diverge per
 kind (C-001, FR-002). Recursion is unconditional — every kind recurses — and the
 authority never lists a non-recursive exclusion.
@@ -10,8 +10,8 @@ from __future__ import annotations
 
 import pytest
 
-from doctrine.artifact_kinds import ArtifactKind
-from doctrine.discovery_recursion import (
+from charter.offering.artifact_kinds import ArtifactKind
+from charter.offering.discovery_recursion import (
     RECURSIVE_OVERLAY_KINDS,
     overlay_scan_is_recursive,
 )

@@ -1,6 +1,6 @@
 """Unit tests for the 3-class portable-provenance normalizer (T016, C-PRV-6).
 
-``doctrine.provenance.to_portable_source_path`` is the single seam both
+``charter.offering.provenance.to_portable_source_path`` is the single seam both
 provenance carriers (charter catalog + agent-profile projection manifest)
 route through. This module tests the normalizer in isolation, against a
 synthetic ``SPEC_KITTY_PACKS_ROOT`` (mirroring the established
@@ -15,8 +15,8 @@ from pathlib import Path, PurePosixPath
 
 import pytest
 
-import doctrine.provenance as provenance_module
-from doctrine.provenance import is_built_in_pack_path, to_portable_source_path
+import charter.offering.provenance as provenance_module
+from charter.offering.provenance import is_built_in_pack_path, to_portable_source_path
 from kernel.sibling_paths import SiblingPathNotFound
 
 pytestmark = [pytest.mark.unit, pytest.mark.fast, pytest.mark.doctrine]

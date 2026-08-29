@@ -313,7 +313,7 @@ def test_no_source_site_names_the_dead_drg_monolith() -> None:
 def test_the_migration_hint_names_a_fragment_that_exists() -> None:
     """FR-008: the hint an operator is handed must be followable -- the file
     it names must be on disk for every artifact kind that can raise it."""
-    from doctrine.shared.errors import build_migration_hint
+    from charter.offering.shared.errors import build_migration_hint
 
     kinds = (
         "directive",
@@ -360,9 +360,9 @@ def test_project_tier_graph_path_would_false_red_without_its_discriminator() -> 
     kept_paths = {site.path for site in scan.violations} | {site.path for site in scan.forbidding_mentions}
     excluded = sorted(naive_paths - kept_paths)
     assert excluded == [
+        "src/charter/offering/drg/merge.py",
         "src/charter/synthesizer/manifest.py",
         "src/charter/synthesizer/project_drg.py",
-        "src/doctrine/drg/merge.py",
         "src/glossary/drg_builder.py",
         "src/specify_cli/charter_runtime/freshness/computer.py",
         "src/specify_cli/state/contract.py",
@@ -466,7 +466,7 @@ def test_shipped_prose_would_false_red_without_the_path_shape_discriminator() ->
     # not a `<kind>/shipped/` pack-layer path reference.
     excluded = sorted(site.path for site in scan.prose)
     assert excluded == [
-        "src/doctrine/model_task_routing/catalog/model-to-task_type.yaml",
+        "src/charter/offering/model_task_routing/catalog/model-to-task_type.yaml",
         "src/runtime/next/_internal_runtime/planner.py",
         "src/specify_cli/cli/commands/_doctrine_asset.py",
     ], f"B1's effect set moved -- widening it needs a reason: {_render(scan.prose)}"

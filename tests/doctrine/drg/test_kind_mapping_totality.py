@@ -4,8 +4,8 @@ WP07 / T029-T030 (C-005, FR-012). This module supersedes the narrower subset
 guard in ``test_nodekind_artifactkind.py::test_node_kind_remains_superset_of_artifact_kind``
 (kept for its own regression value; not duplicated here).
 
-Rationale: every time a new :class:`~doctrine.artifact_kinds.ArtifactKind` /
-:class:`~doctrine.drg.models.NodeKind` member is added (this mission added
+Rationale: every time a new :class:`~charter.offering.artifact_kinds.ArtifactKind` /
+:class:`~charter.offering.drg.models.NodeKind` member is added (this mission added
 ``TEMPLATE`` and ``ASSET``), any module-level dict table keyed by one of these
 enums silently becomes a trap for the *next* new kind unless it is either:
 
@@ -36,8 +36,8 @@ from pathlib import Path
 
 import pytest
 
-from doctrine.artifact_kinds import CHARTER_ACTIVATABLE_KINDS, ArtifactKind
-from doctrine.drg.models import NodeKind
+from charter.offering.artifact_kinds import CHARTER_ACTIVATABLE_KINDS, ArtifactKind
+from charter.offering.drg.models import NodeKind
 
 pytestmark = [pytest.mark.doctrine, pytest.mark.fast]
 
@@ -68,7 +68,7 @@ _EXEMPT_GET_PARTIALS: frozenset[str] = frozenset(
         "charter.pack_manager::_ID_FIELD_BY_KIND",
         # NOTE (WP03 T014): the two charter `_PROJECT_KIND_DIRS` partials were
         # retired here -- both modules now import the single total authority
-        # `doctrine.artifact_kinds.PROJECT_KIND_DIRS` (guard-visible, total), so
+        # `charter.offering.artifact_kinds.PROJECT_KIND_DIRS` (guard-visible, total), so
         # there is no local partial left to exempt.
         # WP01 (doctrine-tension-edges-01KY1WPC) added ArtifactKind.ANTI_PATTERN.
         # The sole read site (`executor.py`'s step-contract kind resolution)
@@ -247,7 +247,7 @@ def test_authority_missing_a_member_is_flagged_by_the_guard() -> None:
     string-keyed before WP03, no scan could have caught).
     """
     source = (
-        "from doctrine.artifact_kinds import ArtifactKind\n"
+        "from charter.offering.artifact_kinds import ArtifactKind\n"
         "PROJECT_KIND_DIRS: dict[ArtifactKind, str] = {\n"
         + "".join(f"    ArtifactKind.{member.name}: 'x',\n" for member in ArtifactKind if member is not ArtifactKind.ASSET)
         + "}\n"
@@ -260,7 +260,7 @@ def test_authority_missing_a_member_is_flagged_by_the_guard() -> None:
 
 def test_mixed_enum_and_plain_keys_raise_instead_of_silently_skipping() -> None:
     """An unrecognized dict shape must fail loudly, not be swallowed."""
-    source = "from doctrine.artifact_kinds import ArtifactKind\n_MIXED: dict = {\n    ArtifactKind.DIRECTIVE: 'x',\n    'plain-string-key': 'y',\n}\n"
+    source = "from charter.offering.artifact_kinds import ArtifactKind\n_MIXED: dict = {\n    ArtifactKind.DIRECTIVE: 'x',\n    'plain-string-key': 'y',\n}\n"
     tree = ast.parse(source, filename="<synthetic>")
     with pytest.raises(AssertionError, match="mixes enum-keyed"):
         _kind_keyed_dicts_in_module(tree, "synthetic")
@@ -310,9 +310,9 @@ _MIN_STRING_KIND_KEYS = 3
 #: dropped kind is reported).
 _STRING_KEYED_MUST_BE_TOTAL: frozenset[str] = frozenset(
     {
-        "doctrine.artifact_kinds::_PLURALS",
-        "doctrine.artifact_kinds::_PATTERNS",
-        "doctrine.artifact_kinds::_HAS_BUILT_IN_CONTENT_DIR",
+        "charter.offering.artifact_kinds::_PLURALS",
+        "charter.offering.artifact_kinds::_PATTERNS",
+        "charter.offering.artifact_kinds::_HAS_BUILT_IN_CONTENT_DIR",
     }
 )
 
@@ -419,11 +419,23 @@ def test_string_keyed_authority_maps_are_total() -> None:
 #: sit outside its named scope. ``charter.drg::_SINGULAR_TO_PLURAL`` is a fifth
 #: hand copy (identical 10 kinds to the derived authority) surfaced by the M1
 #: review squad; it lives on the golden-adjacent DRG activation-filter path and
-#: imports ``ArtifactKind`` via ``doctrine.api`` (a public-wheel boundary), so it
+#: imports ``ArtifactKind`` via ``charter.offering.api`` (a public-wheel boundary), so it
 #: is left un-collapsed under C-004 discipline. Follow-up: collapse onto
-#: :data:`doctrine.artifact_kinds.CHARTER_ACTIVATABLE_SINGULAR_TO_PLURAL`.
+#: :data:`charter.offering.artifact_kinds.CHARTER_ACTIVATABLE_SINGULAR_TO_PLURAL`.
+#:
+#: ``charter.offering.artifact_kinds::_PLURALS`` is NOT a re-declaration: mission
+#: ``charter-code-topology-01M152G1`` relocated the top-level ``doctrine``
+#: package to ``src/charter/offering``, so the scan below (which walks
+#: everything under ``src/charter``) now also walks the doctrine offering
+#: layer -- and finds the CANONICAL authority dict that
+#: ``CHARTER_ACTIVATABLE_SINGULAR_TO_PLURAL`` is itself derived from, not a
+#: hand copy of it. Exempted for the same reason a module can never be flagged
+#: for failing to import its own symbol from itself.
 _CHARTER_PLURAL_SINGULAR_LITERAL_EXEMPT: frozenset[str] = frozenset(
-    {"charter.drg::_SINGULAR_TO_PLURAL"}
+    {
+        "charter.drg::_SINGULAR_TO_PLURAL",
+        "charter.offering.artifact_kinds::_PLURALS",
+    }
 )
 
 #: The full charter-activatable singular→plural vocabulary (10 kinds). A literal
@@ -490,7 +502,7 @@ def test_no_charter_module_redeclares_a_plural_singular_kind_literal() -> None:
         )
     assert not offenders, (
         "these charter modules re-declare a plural↔singular kind-map literal "
-        "instead of importing doctrine.artifact_kinds.CHARTER_ACTIVATABLE_"
+        "instead of importing charter.offering.artifact_kinds.CHARTER_ACTIVATABLE_"
         f"SINGULAR_TO_PLURAL (#2981 re-declaration class): {offenders}"
     )
 

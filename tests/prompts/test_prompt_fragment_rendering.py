@@ -10,7 +10,7 @@ from pathlib import Path
 
 import pytest
 
-from doctrine.spdd_reasons.template_renderer import (
+from charter.offering.spdd_reasons.template_renderer import (
     REASONS_BLOCK_END,
     REASONS_BLOCK_START,
     UnmatchedReasonsBlockError,

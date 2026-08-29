@@ -21,7 +21,7 @@ from kernel.sibling_paths import SiblingPathNotFound, resolve_installed_sibling
 #: Read here, at the kernel floor, so built-in-pack-root *resolution* has exactly
 #: ONE ``SPEC_KITTY_PACKS_ROOT`` read (FR-001/DR-1) -- the resolve in
 #: :func:`get_built_in_pack_root`; every layer above -- the
-#: ``get_package_asset_root`` door here and ``doctrine.pack_paths`` -- must
+#: ``get_package_asset_root`` door here and ``charter.offering.pack_paths`` -- must
 #: delegate to it rather than forking a second resolver. (The door also reads
 #: the var once as a *presence gate* to decide ``PACKS_ROOT``-vs-``TEMPLATE_ROOT``
 #: precedence; that read resolves no path, so the single-resolver invariant --
@@ -118,7 +118,7 @@ _MISSION_ASSETS_DIR_NAME = "missions"
 #: PUBLIC (exported via ``kernel.__all__``): the ``packs/built-in`` sibling
 #: shape used by :func:`get_built_in_pack_root` to locate the built-in pack
 #: root, and the single owner of that shape (FR-012 / C-R1) so
-#: ``doctrine.pack_paths`` delegates to a public kernel symbol rather than
+#: ``charter.offering.pack_paths`` delegates to a public kernel symbol rather than
 #: forking the literal. Built with the multi-argument ``PurePosixPath``
 #: constructor (not ``/`` joins) so the shape is a single owned constant, not a
 #: scattered ``<path> / "built-in"`` filesystem-join literal.
@@ -127,7 +127,7 @@ BUILT_IN_PACK_SIBLING_PATTERN = PurePosixPath("packs", _BUILT_IN_DIR_NAME)
 #: PUBLIC: the full ``packs/built-in/missions`` sibling shape -- the built-in
 #: pack pattern above composed with the ``missions`` leaf. The one owned
 #: composition every consumer (this module's ancestor walk; WP02's
-#: ``doctrine.missions.repository``) reuses instead of re-spelling the literal.
+#: ``charter.offering.missions.repository``) reuses instead of re-spelling the literal.
 MISSION_ASSETS_SIBLING_PATTERN = BUILT_IN_PACK_SIBLING_PATTERN / _MISSION_ASSETS_DIR_NAME
 
 #: The relative shape used only by :func:`_resolve_env_root` below, globbed
@@ -250,7 +250,7 @@ def get_built_in_pack_root() -> Path:
     still does not raise on the override itself; only the silence is removed.
 
     Callers above this layer -- the :func:`get_package_asset_root` door here,
-    and ``doctrine.pack_paths`` (WP02) -- delegate to this one primitive rather
+    and ``charter.offering.pack_paths`` (WP02) -- delegate to this one primitive rather
     than forking a second ``SPEC_KITTY_PACKS_ROOT`` read.
 
     Returns:
@@ -259,7 +259,7 @@ def get_built_in_pack_root() -> Path:
     Raises:
         SiblingPathNotFound: fail-closed when neither the env override nor the
             ancestor walk resolves. The caller translates it -- the door to
-            ``FileNotFoundError``; ``doctrine.pack_paths`` to ``PackRootNotFound``
+            ``FileNotFoundError``; ``charter.offering.pack_paths`` to ``PackRootNotFound``
             -- so kernel need not know either upward-layer error type.
     """
     env_value = os.environ.get(_PACKS_ROOT_ENV)

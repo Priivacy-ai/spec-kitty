@@ -227,7 +227,7 @@ class TestLoadOrgCharterPolicies:
         site in the function body guarantees this; this test kills the mutation
         that would widen the handler back to a bare ``except Exception: continue``.
         """
-        from doctrine.drg.org_pack_config import OrgPackEnvVarUnsetError  # noqa: PLC0415
+        from charter.offering.drg.org_pack_config import OrgPackEnvVarUnsetError  # noqa: PLC0415
 
         monkeypatch.delenv("SPEC_KITTY_ORG_CHARTER_UNSET_VAR", raising=False)
         _write_kittify_config(

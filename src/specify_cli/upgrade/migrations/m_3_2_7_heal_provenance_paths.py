@@ -1,6 +1,6 @@
 """Migration: heal absolute built-in-pack ``source_path`` provenance to portable tokens.
 
-Companion to the T011/T012/T013 emit-side fix (``doctrine.provenance.
+Companion to the T011/T012/T013 emit-side fix (``charter.offering.provenance.
 to_portable_source_path``, routed through ``charter.compiler.
 _doctrine_yaml_reference`` and ``specify_cli.tool_surface.profiles.
 projection._manifest_source_path``): a project that compiled its charter or
@@ -28,7 +28,7 @@ Only entries the FIXED emit path would itself have tokenized are healed:
   distinct, deliberately excluded carrier that stays repo-relative via
   ``_paths.relativize_under_root``, untouched by this migration).
 
-Within that scope, only paths that ``doctrine.provenance.is_built_in_pack_path``
+Within that scope, only paths that ``charter.offering.provenance.is_built_in_pack_path``
 classifies as built-in are rewritten -- an out-of-tree absolute source (a
 legitimate, if unusual, local-support/org override) is preserved as-is,
 matching the normalizer's own class-(c) behaviour.

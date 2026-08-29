@@ -420,7 +420,7 @@ def test_self_mutation_writers_green_once_delegating(tmp_path: Path) -> None:
     fixed_source = '''
 """Fixture: the shape (i) writer, fixed to delegate."""
 
-from doctrine.drg.migration.extractor import graph_document_to_dict
+from charter.offering.drg.migration.extractor import graph_document_to_dict
 
 
 def good_write_graph(graph):

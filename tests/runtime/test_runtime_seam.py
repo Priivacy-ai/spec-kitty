@@ -1,7 +1,7 @@
 """Seam-equivalence tests for WP06 — consumer switch (mission-step-authority-01KXNZMT).
 
 WP02 injects a projected ``action_sequence``/``template_set`` into every
-:class:`~doctrine.missions.models.MissionType` at
+:class:`~charter.offering.missions.models.MissionType` at
 ``MissionTypeRepository._load`` time (see
 ``_inject_projected_fields``/``project_action_sequence``/
 ``project_template_set``). WP03/WP05 populated the mission-step data so the
@@ -15,7 +15,7 @@ future change cannot silently reintroduce a 5th authority (C-003).
 Investigation result (T018/T019 — no code changes required, confirmation only):
 
 - ``charter.mission_type_profiles._resolve_action_slot`` (:694/697) calls
-  ``doctrine.missions.mission_type_repository.MissionTypeRepository.default()``
+  ``charter.offering.missions.mission_type_repository.MissionTypeRepository.default()``
   and reads ``mission.action_sequence`` straight off the loaded model — the
   exact field WP02's ``_inject_projected_fields`` overlays before
   ``MissionType.model_validate()`` runs. There is no alternate/raw YAML
@@ -61,8 +61,8 @@ from unittest.mock import patch
 import pytest
 
 from charter.mission_type_profiles import ResolvedMissionType, resolve_mission_type_context
-from doctrine.missions.mission_step_repository import MissionStepRepository
-from doctrine.missions.mission_type_repository import MissionTypeRepository
+from charter.offering.missions.mission_step_repository import MissionStepRepository
+from charter.offering.missions.mission_type_repository import MissionTypeRepository
 
 pytestmark = [pytest.mark.unit, pytest.mark.fast]
 

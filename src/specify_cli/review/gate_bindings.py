@@ -7,7 +7,7 @@ mission-type axis), **NFR-003** (non-vacuous resolution) and **NFR-005**
 (bounded loads).
 
 The load-bearing correctness fix (post-task squad BLOCKER B1): the DRG carries
-**no** binding payload (:class:`doctrine.drg.models.DRGNode` holds only
+**no** binding payload (:class:`charter.offering.drg.models.DRGNode` holds only
 ``urn/kind/label/provenance/tags``), so bindings are loaded separately (off the
 runtime-wired ``mission_step_contract`` model) and **joined** against the
 activated-URN set. The join gates on the **owning review contract's URN**

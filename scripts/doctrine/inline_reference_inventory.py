@@ -106,7 +106,7 @@ class Inventory:
 
 def _resolve_path_ref_or_none(path_str: str) -> tuple[str, str] | None:
     """Delegate to the extractor's own resolver — never re-implement the rule."""
-    from doctrine.drg.migration.extractor import _resolve_path_ref
+    from charter.offering.drg.migration.extractor import _resolve_path_ref
 
     return _resolve_path_ref(path_str)
 

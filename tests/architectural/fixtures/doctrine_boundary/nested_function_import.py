@@ -13,7 +13,7 @@ from __future__ import annotations
 def outer() -> object:
     def inner() -> object:
         # Depth-2 (function inside function) — the descent must still flag it.
-        from doctrine.drg.models import ReferenceGraph
+        from charter.offering.drg.models import ReferenceGraph
 
         return ReferenceGraph
 

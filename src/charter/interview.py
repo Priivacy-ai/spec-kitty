@@ -90,7 +90,7 @@ def _declared_action_labels(repo_root: Path) -> frozenset[str]:
     ``DRGLoadError``, matching the established idiom at
     ``charter.reference_resolver``'s own ``load_validated_graph`` call site.
     """
-    from doctrine.drg.loader import DRGLoadError  # noqa: PLC0415 -- leaf import, no cycle risk
+    from charter.offering.drg.loader import DRGLoadError  # noqa: PLC0415 -- leaf import, no cycle risk
 
     from charter._drg_helpers import load_validated_graph  # noqa: PLC0415 -- see cycle note below
 

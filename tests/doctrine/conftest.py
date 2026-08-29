@@ -1,10 +1,13 @@
 """Shared constants for doctrine test suite.
 
-DOCTRINE_SOURCE_ROOT is the canonical path to the in-repo doctrine source tree.
+DOCTRINE_SOURCE_ROOT is the canonical path to the in-repo doctrine source tree
+(``src/charter/offering/`` since mission ``charter-code-topology-01M152G1``
+relocated the former top-level ``src/doctrine/`` package there).
 Compliance-guard and consistency tests import this constant instead of
-hardcoding ``REPO_ROOT / "src" / "doctrine"`` independently.  The path is
-intentionally *not* routed through ``MissionTemplateRepository`` — these tests
-act as layout canaries and should break if the directory structure changes.
+hardcoding ``REPO_ROOT / "src" / "charter" / "offering"`` independently.  The
+path is intentionally *not* routed through ``MissionTemplateRepository`` —
+these tests act as layout canaries and should break if the directory
+structure changes.
 
 BUILT_IN_MISSIONS_ROOT is the analogous canonical constant for the missions
 DATA subdirectories, relocated by mission
@@ -27,13 +30,13 @@ from typing import TYPE_CHECKING
 import pytest
 
 if TYPE_CHECKING:
-    from doctrine.drg.models import DRGGraph
+    from charter.offering.drg.models import DRGGraph
 
 REPO_ROOT: Path = Path(__file__).resolve().parents[2]
 """Repository root, resolved from ``tests/doctrine/conftest.py``."""
 
-DOCTRINE_SOURCE_ROOT: Path = REPO_ROOT / "src" / "doctrine"
-"""Canonical on-disk path to the doctrine source tree (``src/doctrine/``)."""
+DOCTRINE_SOURCE_ROOT: Path = REPO_ROOT / "src" / "charter" / "offering"
+"""Canonical on-disk path to the doctrine source tree (``src/charter/offering/``)."""
 
 BUILT_IN_MISSIONS_ROOT: Path = REPO_ROOT / "packs" / "built-in" / "missions"
 """Canonical on-disk path to the relocated missions data tree
@@ -75,7 +78,7 @@ def built_in_graph_dir() -> Path:
     Backed by the WP03 seam ``built_in_graph_source()`` so callers never encode
     the ``graph.yaml`` filename and survive the WP05 monolith->fragment flip.
     """
-    from doctrine.drg.loader import built_in_graph_source
+    from charter.offering.drg.loader import built_in_graph_source
 
     return built_in_graph_source()
 
@@ -90,7 +93,7 @@ def built_in_graph() -> DRGGraph:
     that merely collecting the doctrine suite does not pay the doctrine import
     cost. Consumers MUST treat the returned graph as read-only (see module note).
     """
-    from doctrine.drg.loader import load_built_in_graph
+    from charter.offering.drg.loader import load_built_in_graph
 
     return load_built_in_graph()
 
@@ -105,7 +108,7 @@ def shipped_drg_graph(built_in_graph: DRGGraph) -> DRGGraph:
     absence (``merge_layers(built_in, None)`` is an identity), so no extra merge
     step is needed here.
     """
-    from doctrine.drg.validator import assert_valid
+    from charter.offering.drg.validator import assert_valid
 
     assert_valid(built_in_graph)
     return built_in_graph

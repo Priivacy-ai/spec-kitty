@@ -222,7 +222,7 @@ def test_fault_injection_respects_allowlist(tmp_path: Path) -> None:
 def test_setup_doctor_failure_signatures_are_allowlisted(tmp_path: Path) -> None:
     """The setup-doctor failure catalog may mention Python recovery commands."""
     repo_root = Path(__file__).resolve().parents[2]
-    target = repo_root / "src" / "doctrine" / "skills" / "spec-kitty-setup-doctor" / "references" / "common-failure-signatures.md"
+    target = repo_root / "src" / "charter" / "offering" / "skills" / "spec-kitty-setup-doctor" / "references" / "common-failure-signatures.md"
     project_allowlist = repo_root / "src" / "charter" / "neutrality" / "language_scoped_allowlist.yaml"
 
     empty_allowlist = tmp_path / "allow.yaml"

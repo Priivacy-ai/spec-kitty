@@ -51,14 +51,25 @@ test_no_dead_modules:
   # src/doctrine/pyproject.toml's [tool.hatch.build.hooks.custom] `path =
   # "hatch_build.py"` declaration -- never imported from src/ Python code,
   # same external-entrypoint class as commit_guard_hook.
-  category_3_external_cli_entrypoints: 2
+  # 2 -> 1 (charter-code-topology-01M152G1, S5, MAP-BUILD): the dormant,
+  # never-built spec-kitty-doctrine wheel groundwork (src/charter/offering/
+  # pyproject.toml + hatch_build.py, née src/doctrine/...) was DELETED
+  # outright rather than relocated. charter.offering.hatch_build no longer
+  # exists as a module, so its allowlist entry is removed too (shrink — no
+  # extra workflow steps needed).
+  category_3_external_cli_entrypoints: 1
   # justification: 0 documented backward-compat shim modules. (unshim-wave1 WP01
   # #2289 deleted the 7 other category_4 shims — acceptance_matrix,
   # core.identity_aliases, doc_generators, doc_state, gap_analysis,
   # state_contract, workspace_context — 8->1 SHRINK. WP02 then re-anchored
   # tasks_support's ~35 test sites onto specify_cli.task_utils and deleted the
   # module, draining the last row: 1->0 SHRINK. Category fully drained.)
-  category_4_backcompat_shims: 0
+  # 0 -> 1 (charter-code-topology-01M152G1 landing remediation, retire-doctrine-term
+  # justification: M2): ``doctrine`` (src/doctrine.py) is an intentional deprecation
+  # shim for pre-existing external/legacy ``import doctrine`` callers, kept during the
+  # CR-06 window after src/doctrine/ relocated to src/charter/offering/. No src/
+  # module imports it by design.
+  category_4_backcompat_shims: 1
   # justification: 2 not-yet-wired adapter modules (specify_cli.doctrine.pack_descriptor,
   # specify_cli.doctrine.pack_lineage) from the pack-metadata library-first slice
   # (#3500-#3503, ADR 2026-08-16-1); production wiring is the deferred integration WP

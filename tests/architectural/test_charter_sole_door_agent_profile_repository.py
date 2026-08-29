@@ -10,7 +10,7 @@ What it proves
 --------------
 NFR-001 requires that every ``AgentProfileRepository(`` call site in ``src/``
 resolve its **bound qualname** to the originating module, and that zero of them
-resolve to ``doctrine.agent_profiles.repository.AgentProfileRepository`` outside
+resolve to ``charter.offering.agent_profiles.repository.AgentProfileRepository`` outside
 the sole door (``src/charter/resolver.py``), the one unified builder
 (``src/charter/doctrine_service_builder.py``, FR-008), and the named,
 composite-key-anchored exclusions below.
@@ -19,9 +19,9 @@ composite-key-anchored exclusions below.
 text-only grep"): the class is re-exported through several facades, so the same
 class is spelled ``charter.profiles.AgentProfileRepository`` in
 ``tool_surface/profiles/projection.py`` and
-``doctrine.agent_profiles.AgentProfileRepository`` in
+``charter.offering.agent_profiles.AgentProfileRepository`` in
 ``charter/profile_resolution.py`` — both resolve to the single originating
-``doctrine.agent_profiles.repository.AgentProfileRepository``. Conversely, a
+``charter.offering.agent_profiles.repository.AgentProfileRepository``. Conversely, a
 future ``AgentProfileRepository`` defined in some unrelated module would share
 the literal substring while being an entirely different class. This gate
 resolves each call site's bound name to a real ``(module, name)`` pair by AST
@@ -50,7 +50,7 @@ Gate 2.
 Structural exemptions (directory/file keyed, never line keyed)
 ---------------------------------------------------------------
 * ``src/doctrine/`` — the doctrine layer *owns* this class and the raw
-  ``doctrine.service.DoctrineService`` that composes it
+  ``charter.offering.service.DoctrineService`` that composes it
   (``doctrine/service.py``'s ``DoctrineService.agent_profiles`` cache). That
   construction is the thing the sole door wraps, not a bypass of it — the same
   shape as Gate 5's ``src/charter/`` exemption.
@@ -140,7 +140,7 @@ pytestmark = pytest.mark.architectural
 
 #: The originating qualname every sanctioned and unsanctioned spelling of the
 #: agent-profile repository collapses to. Named verbatim by spec.md NFR-001.
-AGENT_PROFILE_REPOSITORY_QUALNAME = "doctrine.agent_profiles.repository.AgentProfileRepository"
+AGENT_PROFILE_REPOSITORY_QUALNAME = "charter.offering.agent_profiles.repository.AgentProfileRepository"
 
 #: Gate 1 watches exactly one canonical class.
 AGENT_PROFILE_TARGETS = frozenset({AGENT_PROFILE_REPOSITORY_QUALNAME})
@@ -210,7 +210,7 @@ AGENT_PROFILE_EXCLUSIONS: tuple[ContentDescriptor, ...] = (
             "build_activation_aware_doctrine_service(repo_root) and "
             "_collect_profile_health(repo_root) both take only repo_root and "
             "self-resolve org_roots, and charter.resolver.DoctrineService.__init__ "
-            "requires an already-constructed raw inner doctrine.service.DoctrineService "
+            "requires an already-constructed raw inner charter.offering.service.DoctrineService "
             "to wrap, which is itself the construction the sibling gate forbids. "
             "Routing this through DoctrineService was tried on a previous tip and "
             "reverted precisely because it trips the sibling sole-door gate "
@@ -263,13 +263,15 @@ def test_census_is_non_empty_and_includes_the_doctrine_owner() -> None:
 
     A gate whose scanner silently resolves nothing would pass its
     zero-violation assertion vacuously. This pins the opposite: the census finds
-    sites, and specifically finds ``doctrine/service.py``'s own construction
-    (the structurally exempt owner), proving the resolution path works end to
-    end rather than short-circuiting.
+    sites, and specifically finds ``charter/offering/service.py``'s own
+    construction (the structurally exempt owner), proving the resolution path
+    works end to end rather than short-circuiting.
     """
     census = agent_profile_census()
     assert len(census.sites) >= 5, [s.describe() for s in census.sites]
-    assert any(s.rel_path == "src/doctrine/service.py" for s in census.sites), [s.describe() for s in census.sites]
+    assert any(s.rel_path == "src/charter/offering/service.py" for s in census.sites), [
+        s.describe() for s in census.sites
+    ]
     assert all(s.canonical == AGENT_PROFILE_REPOSITORY_QUALNAME for s in census.sites)
 
 

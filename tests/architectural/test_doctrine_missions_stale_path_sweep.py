@@ -16,7 +16,7 @@ Location" table).
 This is intentionally *not* a blind ``fragment not in content`` check (that
 shape lives in ``test_claudemd_has_no_stale_mission_steps_source_path``
 above, scoped to CLAUDE.md only). ``src/doctrine/missions/`` is not wholly
-retired: it is still the real, live location of the ``doctrine.missions``
+retired: it is still the real, live location of the ``charter.offering.missions``
 Python package (``primitives.py``, ``repository.py``, ``models.py``, etc. —
 see ``packs/built-in/missions/README.md``'s "Python Utilities" section,
 which correctly and currently points there). A blind substring ban would
@@ -40,11 +40,18 @@ import pytest
 pytestmark = pytest.mark.architectural
 
 _REPO_ROOT = Path(__file__).resolve().parents[2]
+#: Relocated (mission charter-code-topology-01M152G1): the whole doctrine
+#: layer, including ``missions/``, moved from ``src/doctrine/`` to
+#: ``src/charter/offering/``. Nothing under the old ``src/doctrine/missions/``
+#: path is live any more -- unlike when this gate was written (PR #3453),
+#: there is no longer a surviving Python-package exemption case, but the
+#: on-disk resolution check below is left in place: it now degrades to
+#: "everything unconditionally resolves as stale", which is still correct.
 _DOCTRINE_MISSIONS_ROOT = _REPO_ROOT / "src" / "doctrine" / "missions"
 _STALE_FRAGMENT = "src/doctrine/missions/"
 _SCAN_ROOTS = (
     _REPO_ROOT / "packs",
-    _REPO_ROOT / "src" / "doctrine" / "skills",
+    _REPO_ROOT / "src" / "charter" / "offering" / "skills",
 )
 _SCAN_SUFFIXES = {".md", ".yaml", ".yml"}
 # Path-token characters that may legitimately follow the stale fragment in
@@ -77,7 +84,7 @@ def test_no_stale_doctrine_missions_data_path_in_active_doctrine_prose() -> None
     """packs/** and src/doctrine/skills/** must not reference retired
     src/doctrine/missions/ data paths; the canonical data home is
     packs/built-in/missions/. References that still resolve on disk (the
-    surviving doctrine.missions Python modules) are exempt.
+    surviving charter.offering.missions Python modules) are exempt.
     """
     violations: list[str] = []
     for path in _iter_scan_files():

@@ -23,11 +23,11 @@ from pathlib import Path
 import pytest
 from pydantic import ValidationError
 
-from doctrine.missions.mission_type_repository import (
+from charter.offering.missions.mission_type_repository import (
     MissionTypeRepository,
     resolve_layered_mission_types,
 )
-from doctrine.missions.models import MissionType
+from charter.offering.missions.models import MissionType
 
 pytestmark = [pytest.mark.fast, pytest.mark.doctrine, pytest.mark.corpus]
 
@@ -207,8 +207,8 @@ class TestBuiltinYamlFiles:
         """S-C cutover (WP01, C-005): ``template_set`` is no longer a ``MissionType``
         field -- migrated to the step-authority projection (mirrors
         ``TestSoftwareDevProjectionParity`` in ``test_softwaredev_roundtrip.py``)."""
-        from doctrine.missions.mission_step_repository import MissionStepRepository
-        from doctrine.missions.step_projection import project_template_set
+        from charter.offering.missions.mission_step_repository import MissionStepRepository
+        from charter.offering.missions.step_projection import project_template_set
 
         steps = list(
             MissionStepRepository.default()
@@ -225,8 +225,8 @@ class TestBuiltinYamlFiles:
         on ``scoping`` and a ``plan`` ref on ``methodology``, with per-type-unique
         ``template_file`` names (NFR-006) -- mirrors ``test_software_dev_template_set``
         above."""
-        from doctrine.missions.mission_step_repository import MissionStepRepository
-        from doctrine.missions.step_projection import project_template_set
+        from charter.offering.missions.mission_step_repository import MissionStepRepository
+        from charter.offering.missions.step_projection import project_template_set
 
         steps = list(
             MissionStepRepository.default()
@@ -246,8 +246,8 @@ class TestBuiltinYamlFiles:
         above. ``documentation`` was removed from the now-deleted
         ``test_non_software_builtin_template_set_is_explicitly_null``
         parametrization once WP02 authored these refs."""
-        from doctrine.missions.mission_step_repository import MissionStepRepository
-        from doctrine.missions.step_projection import project_template_set
+        from charter.offering.missions.mission_step_repository import MissionStepRepository
+        from charter.offering.missions.step_projection import project_template_set
 
         steps = list(
             MissionStepRepository.default()
@@ -267,8 +267,8 @@ class TestBuiltinYamlFiles:
         removed from the now-deleted
         ``test_non_software_builtin_template_set_is_explicitly_null``
         parametrization once WP04 authored these refs."""
-        from doctrine.missions.mission_step_repository import MissionStepRepository
-        from doctrine.missions.step_projection import project_template_set
+        from charter.offering.missions.mission_step_repository import MissionStepRepository
+        from charter.offering.missions.step_projection import project_template_set
 
         steps = list(
             MissionStepRepository.default()
@@ -461,7 +461,7 @@ def _mission_type_yaml_steps_only(mission_type_id: str) -> str:
     WP01/NFR-001's steps-only fixture shape: the org/project mission-type
     YAML authors only ``schema_version``/``id``/``display_name``, so
     ``action_sequence`` must come entirely from step-file projection
-    (:func:`~doctrine.missions.step_projection.project_action_sequence`) --
+    (:func:`~charter.offering.missions.step_projection.project_action_sequence`) --
     the exact defect shape issue #3701 reports (``_inject_projected_fields``
     hardcoding ``pack_context=None`` means this projection was always empty
     for org/project types). ``_mission_type_yaml`` above always writes an

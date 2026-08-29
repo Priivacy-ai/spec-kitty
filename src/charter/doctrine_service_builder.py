@@ -23,7 +23,7 @@ raw, conditionally wrap" pattern previously duplicated inline at
 ``specify_cli/charter_runtime/lint/checks/org_layer.py`` (both provenance-
 scan sites now route the raw inner construction through
 :func:`_build_doctrine_service` below — the one place in this codebase that
-constructs a raw ``doctrine.service.DoctrineService`` — then wrap with
+constructs a raw ``charter.offering.service.DoctrineService`` — then wrap with
 ``charter.resolver.DoctrineService(inner, pack_context=None)``, the
 sanctioned unfiltered-diagnostic form; see that module's docstring) and
 ``specify_cli/cli/commands/charter/generate.py`` (FR-002). The two former
@@ -45,7 +45,7 @@ sanctioned unfiltered-diagnostic form; see that module's docstring) and
   :func:`~charter.language_scope.infer_repo_languages`'s docstring for the
   full resolution contract.
 * ``org_roots`` is always self-resolved via
-  :func:`doctrine.drg.org_pack_config.resolve_org_roots` when a caller does
+  :func:`charter.offering.drg.org_pack_config.resolve_org_roots` when a caller does
   not supply an explicit override (the prior behaviour of
   ``specify_cli.doctrine_service_factory``'s builder) — no caller can
   silently lose the org layer by omitting the argument.
@@ -78,7 +78,7 @@ from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from charter.resolver import DoctrineService as _ActivationAwareDoctrineService
-    import doctrine.service as _doctrine_service_module
+    import charter.offering.service as _doctrine_service_module
 
 from charter._doctrine_paths import resolve_project_root
 
@@ -116,10 +116,10 @@ def _build_doctrine_service(
     #3176 (WP02): callers may also supply *agent_profile_overlay_dir* to point
     the inner service's agent-profile project overlay at an arbitrary path
     (e.g. ``.kittify/agent_profiles``). Like *org_roots*, it is passed into
-    :class:`~doctrine.service.DoctrineService` **only when set**, so
+    :class:`~charter.offering.service.DoctrineService` **only when set**, so
     charter-internal callers that omit it see byte-identical kwargs (NFR-002).
     """
-    from doctrine.service import DoctrineService
+    from charter.offering.service import DoctrineService
     # Patch seam, see module docstring.
     from charter.context import infer_repo_languages  # noqa: PLC0415
 
@@ -169,12 +169,12 @@ def _self_resolve_existing_org_roots(repo_root: Path) -> list[Path]:
     both :func:`_build_activation_aware_doctrine_service`'s default and
     :func:`build_activation_aware_doctrine_service` route through this one
     helper so the resolution rule can never drift between them. Delegates to
-    the shared :func:`doctrine.drg.org_pack_config.resolve_existing_org_roots`
+    the shared :func:`charter.offering.drg.org_pack_config.resolve_existing_org_roots`
     primitive (#3525 Fold A) — this was the precedent every other
     "does this org root exist" consumer now routes onto instead of
     re-implementing the filter comprehension independently.
     """
-    from doctrine.drg.org_pack_config import resolve_existing_org_roots  # noqa: PLC0415
+    from charter.offering.drg.org_pack_config import resolve_existing_org_roots  # noqa: PLC0415
 
     return resolve_existing_org_roots(repo_root)
 

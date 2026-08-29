@@ -30,8 +30,8 @@ from pathlib import Path
 
 import pytest
 
-from doctrine.pack_paths import resolve_pack_root
-from doctrine.service import DoctrineService
+from charter.offering.pack_paths import resolve_pack_root
+from charter.offering.service import DoctrineService
 
 pytestmark = [pytest.mark.fast, pytest.mark.doctrine, pytest.mark.corpus]
 
@@ -110,7 +110,7 @@ def test_no_per_kind_importlib_content_anchor_remains() -> None:
     hyphen is not a legal identifier), so any surviving per-kind package anchor
     is a resolution path that never reaches the moved content.
     """
-    doctrine_src = REPO_ROOT / "src" / "doctrine"
+    doctrine_src = REPO_ROOT / "src" / "charter" / "offering"
     forbidden = tuple(
         anchor
         for kind in RELOCATED_KINDS

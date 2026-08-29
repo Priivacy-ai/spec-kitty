@@ -37,7 +37,7 @@ then asks Python itself where the object came from via
 :func:`resolve_canonical`. A rename, a new facade re-export, or an alias
 therefore cannot slip past it, and a same-named unrelated class cannot
 false-positive into it. Gates 1 and 2 are the two direct consumers; Gate 3
-(``doctrine.resolver`` import ban) and Gates 4/5 (path-hardcode / ``._inner``
+(``charter.offering.resolver`` import ban) and Gates 4/5 (path-hardcode / ``._inner``
 reach-around) use the lower-level ``iter_source_files``/``rel_to_repo``/
 ``parent_map``/``enclosing_scope``/``_scope_chain`` primitives without the
 qualname-resolution layer, since their detection shapes differ.
@@ -67,9 +67,11 @@ SOLE_DOOR_REL_PATH = "src/charter/resolver.py"
 #: The ONE unified builder (FR-008).
 UNIFIED_BUILDER_REL_PATH = "src/charter/doctrine_service_builder.py"
 #: The doctrine layer owns the wrapped subject (Gate 1/Gate 2's shared
-#: rationale: the raw doctrine.service.DoctrineService construction inside
-#: doctrine/service.py IS the thing the sole door wraps, not a bypass of it).
-DOCTRINE_LAYER_PREFIX = "src/doctrine/"
+#: rationale: the raw charter.offering.service.DoctrineService construction inside
+#: offering/service.py IS the thing the sole door wraps, not a bypass of it).
+#: Relocated (mission charter-code-topology-01M152G1): the doctrine layer
+#: moved from ``src/doctrine/`` to ``src/charter/offering/``.
+DOCTRINE_LAYER_PREFIX = "src/charter/offering/"
 
 #: Files entitled to construct a watched doctrine class natively. Shared by
 #: Gate 1 (AgentProfileRepository) and Gate 2 (DoctrineService), which each
@@ -164,8 +166,8 @@ def resolve_canonical(module: str, name: str) -> str | None:
 
     This is the qualname resolution NFR-001 demands: it asks the interpreter
     where the object actually came from, so any depth of facade re-export
-    (``charter.profiles`` -> ``doctrine.agent_profiles`` ->
-    ``doctrine.agent_profiles.repository``) collapses to one canonical answer.
+    (``charter.profiles`` -> ``charter.offering.agent_profiles`` ->
+    ``charter.offering.agent_profiles.repository``) collapses to one canonical answer.
 
     Returns ``None`` when the module or attribute does not exist. Callers must
     treat ``None`` as an unresolved blind spot, never as "clean".
@@ -451,7 +453,7 @@ def scan_file_constructions(
     Passing more than one target lets a caller classify sibling classes that
     share a source spelling in a **single parse**, so the resulting node
     identities are comparable (Gate 2 needs exactly that for
-    ``doctrine.service.DoctrineService`` vs ``charter.resolver.DoctrineService``).
+    ``charter.offering.service.DoctrineService`` vs ``charter.resolver.DoctrineService``).
 
     Returns ``None`` when the file cannot be parsed at all, or when a cheap
     substring pre-check (below) proves it holds no possible match — every

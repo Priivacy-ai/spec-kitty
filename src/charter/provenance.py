@@ -7,16 +7,16 @@ re-affirmed by mission ``doctrine-public-api-surface-01KZPDSR``) requires
 runtime modules under ``src/specify_cli/`` to reach doctrine artifacts only
 through charter facades.
 
-``doctrine.provenance`` is consumed from charter exactly like
-``doctrine.pack_paths`` (see :mod:`charter.pack_paths`) -- both normalizer
-functions are re-exported here (from ``doctrine.provenance``, not a wrapper).
+``charter.offering.provenance`` is consumed from charter exactly like
+``charter.offering.pack_paths`` (see :mod:`charter.pack_paths`) -- both normalizer
+functions are re-exported here (from ``charter.offering.provenance``, not a wrapper).
 
 This file is a **pure re-export** module -- no behaviour, no wrappers, no type
 aliases. Object identity is preserved (``charter.provenance.to_portable_source_path
-is doctrine.provenance.to_portable_source_path``).
+is charter.offering.provenance.to_portable_source_path``).
 """
 
-from doctrine.provenance import is_built_in_pack_path, to_portable_source_path
+from charter.offering.provenance import is_built_in_pack_path, to_portable_source_path
 
 __all__ = [
     "is_built_in_pack_path",

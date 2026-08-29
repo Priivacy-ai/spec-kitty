@@ -24,8 +24,8 @@ from charter.compiler import compile_charter
 from charter.interview import default_interview, read_interview_answers
 from charter.pack_context import PackContext
 from charter.schemas import DirectivesConfig, DoctrineSelectionConfig, GovernanceConfig
-from doctrine.service import DoctrineService
-from doctrine.spdd_reasons.activation import clear_activation_cache, is_spdd_reasons_active
+from charter.offering.service import DoctrineService
+from charter.offering.spdd_reasons.activation import clear_activation_cache, is_spdd_reasons_active
 from specify_cli.cli.commands.charter import charter_app
 
 pytestmark = [pytest.mark.fast, pytest.mark.doctrine]
@@ -182,7 +182,7 @@ class TestSpddActivationDoesNotFlip:
     ``generate.py`` runs ``sync_charter`` right after ``compile_charter``;
     the compiler's ``## Governance Activation`` render feeds
     ``governance.yaml`` ``doctrine.selected_*``, which
-    :func:`doctrine.spdd_reasons.activation.is_spdd_reasons_active` keys on
+    :func:`charter.offering.spdd_reasons.activation.is_spdd_reasons_active` keys on
     (paradigm ``structured-prompt-driven-development``, tactics
     ``reasons-canvas-fill``/``reasons-canvas-review``, or directive
     ``DIRECTIVE_038``).

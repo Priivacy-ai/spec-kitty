@@ -13,7 +13,11 @@ from tests.doctrine.conftest import DOCTRINE_SOURCE_ROOT
 pytestmark = [pytest.mark.fast, pytest.mark.doctrine, pytest.mark.corpus]
 
 _DOCTRINE_ROOT = DOCTRINE_SOURCE_ROOT
-_PACKS_BUILT_IN = _DOCTRINE_ROOT.parents[1] / "packs" / "built-in"
+# DOCTRINE_SOURCE_ROOT is src/charter/offering/ (mission
+# charter-code-topology-01M152G1 relocated the former src/doctrine/), so the
+# repo root is two parents up, not one: parents[0]=src/charter,
+# parents[1]=src, parents[2]=<repo root>.
+_PACKS_BUILT_IN = _DOCTRINE_ROOT.parents[2] / "packs" / "built-in"
 _DIRECTIVES_DIRS = [_PACKS_BUILT_IN / "directives"]
 
 

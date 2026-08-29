@@ -824,7 +824,7 @@ class TestSchemaHardeningAndLoudFailure:
         fixture's parsed YAML as a real `ConfigResult`.
         """
         import specify_cli.dossier.manifest as manifest_module
-        from doctrine.missions.repository import ConfigResult
+        from charter.offering.missions.repository import ConfigResult
 
         content = self._TYPO_FIXTURE_PATH.read_text(encoding="utf-8")
         import ruamel.yaml
@@ -864,7 +864,7 @@ class TestSchemaHardeningAndLoudFailure:
         678 exception note.
         """
         import specify_cli.dossier.manifest as manifest_module
-        from doctrine.missions.repository import ConfigResult
+        from charter.offering.missions.repository import ConfigResult
 
         content = self._TYPO_FIXTURE_PATH.read_text(encoding="utf-8")
         import ruamel.yaml
@@ -1146,7 +1146,7 @@ class TestOverrideMirrorDeprecation:
     charter DIRECTIVE_044's named anti-pattern). Verified first-hand:
     `MissionTemplateRepository._expected_artifacts_path()`
     (`src/doctrine/missions/repository.py`) composes only
-    `default_missions_root()` -> `doctrine.pack_paths.built_in_missions_root()`
+    `default_missions_root()` -> `charter.offering.pack_paths.built_in_missions_root()`
     (the `packs/built-in/missions` tree); `src/doctrine/resolver.py` -- the
     module that DOES implement the `.kittify/overrides/missions/{mission}/...`
     tier -- only wires that tier for `templates/`, `command-templates/`, and

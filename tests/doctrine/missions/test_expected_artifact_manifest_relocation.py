@@ -3,7 +3,7 @@
 Mission rc3-charter-gate-predicate-inversion-01M0GGT1, WP04: relocates
 ``ArtifactClassEnum`` / ``ExpectedArtifactSpec`` / ``ExpectedArtifactManifest``
 from ``specify_cli.dossier.manifest`` into
-``doctrine.missions.expected_artifact_manifest`` (charter ⊥ specify_cli --
+``charter.offering.missions.expected_artifact_manifest`` (charter ⊥ specify_cli --
 these are pure pydantic data models with no ``specify_cli`` dependency, so
 doctrine, not a ``specify_cli`` subpackage, is their correct home).
 
@@ -27,7 +27,7 @@ class TestNewHomeImports:
     """The relocated names resolve from their new doctrine-layer home."""
 
     def test_imports_from_doctrine_missions_package(self) -> None:
-        from doctrine.missions import (
+        from charter.offering.missions import (
             ArtifactClassEnum,
             ExpectedArtifactManifest,
             ExpectedArtifactSpec,
@@ -38,7 +38,7 @@ class TestNewHomeImports:
         assert ExpectedArtifactManifest is not None
 
     def test_imports_from_expected_artifact_manifest_module_directly(self) -> None:
-        from doctrine.missions.expected_artifact_manifest import (
+        from charter.offering.missions.expected_artifact_manifest import (
             ArtifactClassEnum,
             ExpectedArtifactManifest,
             ExpectedArtifactSpec,
@@ -50,7 +50,7 @@ class TestNewHomeImports:
 
     def test_new_module_declares_its_own_all(self) -> None:
         """C-007: the new module carries its own ``__all__``."""
-        import doctrine.missions.expected_artifact_manifest as eam
+        import charter.offering.missions.expected_artifact_manifest as eam
 
         assert set(eam.__all__) == {
             "ArtifactClassEnum",
@@ -60,10 +60,10 @@ class TestNewHomeImports:
 
     def test_doctrine_missions_public_surface_enrolls_the_three_names(self) -> None:
         """The doctrine public surface (``doctrine/missions/__init__.py``) enrolls all three."""
-        import doctrine.missions as dm
+        import charter.offering.missions as dm
 
         for name in ("ArtifactClassEnum", "ExpectedArtifactManifest", "ExpectedArtifactSpec"):
-            assert name in dm.__all__, f"{name} missing from doctrine.missions.__all__"
+            assert name in dm.__all__, f"{name} missing from charter.offering.missions.__all__"
             assert hasattr(dm, name)
 
 
@@ -88,7 +88,7 @@ class TestLegacyImportStillResolvesAtRuntime:
 
     def test_legacy_import_is_the_same_object_as_the_new_home(self) -> None:
         """Object identity preserved -- not a re-implemented duplicate."""
-        from doctrine.missions import (
+        from charter.offering.missions import (
             ArtifactClassEnum as NewArtifactClassEnum,
             ExpectedArtifactManifest as NewExpectedArtifactManifest,
             ExpectedArtifactSpec as NewExpectedArtifactSpec,
@@ -129,7 +129,7 @@ class TestRuntimeLoadManifestPathExercised:
     """
 
     def test_load_manifest_returns_a_relocated_manifest_instance(self) -> None:
-        from doctrine.missions import ExpectedArtifactManifest
+        from charter.offering.missions import ExpectedArtifactManifest
         from specify_cli.dossier.manifest import ManifestRegistry
 
         ManifestRegistry.clear_cache()
@@ -142,7 +142,7 @@ class TestRuntimeLoadManifestPathExercised:
 
     def test_load_manifest_second_call_hits_cache_with_same_relocated_type(self) -> None:
         """Cache path (no re-parse) still yields the relocated type -- not a stale copy."""
-        from doctrine.missions import ExpectedArtifactManifest
+        from charter.offering.missions import ExpectedArtifactManifest
         from specify_cli.dossier.manifest import ManifestRegistry
 
         ManifestRegistry.clear_cache()

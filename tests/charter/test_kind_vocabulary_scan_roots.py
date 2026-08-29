@@ -2,12 +2,12 @@
 
 The built-in doctrine relocation (mission
 doctrine-built-in-seam-consolidation-01KYW3TX) routed ``_scan_roots`` through the
-shared :func:`doctrine.pack_paths.built_in_dir` seam and wrapped it in a
+shared :func:`charter.offering.pack_paths.built_in_dir` seam and wrapped it in a
 best-effort ``try/except``: if the built-in root cannot be resolved
-(:class:`~doctrine.pack_paths.PackRootNotFound`) or the kind has no shipped
-content dir (:class:`~doctrine.pack_paths.BuiltInContentDirNotAvailable`), the
+(:class:`~charter.offering.pack_paths.PackRootNotFound`) or the kind has no shipped
+content dir (:class:`~charter.offering.pack_paths.BuiltInContentDirNotAvailable`), the
 charter-catalog *render* path degrades to the org/project roots instead of
-raising. (The authoritative *load* path in ``doctrine.base`` fails closed on
+raising. (The authoritative *load* path in ``charter.offering.base`` fails closed on
 ``PackRootNotFound`` instead -- see ``tests/doctrine/test_loader_fail_closed.py``;
 this render path is intentionally the softer sibling.)
 
@@ -30,8 +30,8 @@ from charter.kind_vocabulary import (
     _scan_roots,
     resolve_artifact_urn,
 )
-from doctrine.artifact_kinds import ArtifactKind
-from doctrine.pack_paths import BuiltInContentDirNotAvailable, PackRootNotFound
+from charter.offering.artifact_kinds import ArtifactKind
+from charter.offering.pack_paths import BuiltInContentDirNotAvailable, PackRootNotFound
 
 pytestmark = [pytest.mark.unit, pytest.mark.fast]
 

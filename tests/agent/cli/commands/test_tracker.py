@@ -509,8 +509,8 @@ def test_bind_local_provider(mock_service_fn, monkeypatch) -> None:
     mock_config = MagicMock()
     mock_config.provider = "beads"
     mock_config.workspace = "w"
-    mock_config.doctrine_mode = "external_authoritative"
-    mock_config.doctrine_field_owners = {}
+    mock_config.ownership_mode = "external_authoritative"
+    mock_config.ownership_field_owners = {}
     mock_svc.bind.return_value = mock_config
     mock_service_fn.return_value = mock_svc
 
@@ -533,6 +533,102 @@ def test_bind_local_provider(mock_service_fn, monkeypatch) -> None:
     assert call_kwargs["workspace"] == "w"
     assert call_kwargs["credentials"] == {"command": "beads"}
     assert "Tracker binding saved" in result.output
+
+
+# ---------------------------------------------------------------------------
+# bind: CR-03 --ownership-mode / --doctrine-mode compat (mission
+# charter-code-topology-01M152G1 S4)
+# ---------------------------------------------------------------------------
+
+
+@patch("specify_cli.cli.commands.tracker._service")
+def test_tracker_ownership_mode_canonical(mock_service_fn, monkeypatch) -> None:
+    """The canonical ``--ownership-mode`` flag passes its value straight
+    through to ``LocalTrackerService.bind`` with no deprecation warning."""
+    from specify_cli.tracker.config import (
+        LegacyTrackerOwnershipKeyWarning,
+        _warn_legacy_ownership_key_once,
+    )
+
+    _warn_legacy_ownership_key_once.cache_clear()
+
+    app = _make_app(monkeypatch)
+    mock_svc = MagicMock()
+    mock_config = MagicMock()
+    mock_config.provider = "beads"
+    mock_config.workspace = "w"
+    mock_config.ownership_mode = "split_ownership"
+    mock_config.ownership_field_owners = {}
+    mock_svc.bind.return_value = mock_config
+    mock_service_fn.return_value = mock_svc
+
+    import warnings
+
+    with warnings.catch_warnings(record=True) as caught:
+        warnings.simplefilter("always")
+        result = runner.invoke(
+            app,
+            [
+                "bind",
+                "--provider",
+                "beads",
+                "--workspace",
+                "w",
+                "--ownership-mode",
+                "split_ownership",
+            ],
+        )
+
+    assert result.exit_code == 0, result.output
+    call_kwargs = mock_svc.bind.call_args[1]
+    assert call_kwargs["ownership_mode"] == "split_ownership"
+    assert "ownership_mode: split_ownership" in result.output
+    assert not any(issubclass(w.category, LegacyTrackerOwnershipKeyWarning) for w in caught)
+
+
+@patch("specify_cli.cli.commands.tracker._service")
+def test_tracker_doctrine_mode_alias_warns(mock_service_fn, monkeypatch) -> None:
+    """The hidden, deprecated ``--doctrine-mode`` alias still binds
+    correctly (delegates) but emits the CR-03 one-shot deprecation warning
+    when ``--ownership-mode`` is not also given."""
+    from specify_cli.tracker.config import (
+        LegacyTrackerOwnershipKeyWarning,
+        _warn_legacy_ownership_key_once,
+    )
+
+    _warn_legacy_ownership_key_once.cache_clear()
+
+    app = _make_app(monkeypatch)
+    mock_svc = MagicMock()
+    mock_config = MagicMock()
+    mock_config.provider = "beads"
+    mock_config.workspace = "w"
+    mock_config.ownership_mode = "split_ownership"
+    mock_config.ownership_field_owners = {}
+    mock_svc.bind.return_value = mock_config
+    mock_service_fn.return_value = mock_svc
+
+    import warnings
+
+    with warnings.catch_warnings(record=True) as caught:
+        warnings.simplefilter("always")
+        result = runner.invoke(
+            app,
+            [
+                "bind",
+                "--provider",
+                "beads",
+                "--workspace",
+                "w",
+                "--doctrine-mode",
+                "split_ownership",
+            ],
+        )
+
+    assert result.exit_code == 0, result.output
+    call_kwargs = mock_svc.bind.call_args[1]
+    assert call_kwargs["ownership_mode"] == "split_ownership"
+    assert any(issubclass(w.category, LegacyTrackerOwnershipKeyWarning) for w in caught)
 
 
 # ---------------------------------------------------------------------------

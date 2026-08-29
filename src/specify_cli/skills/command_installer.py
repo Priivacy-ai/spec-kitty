@@ -105,7 +105,7 @@ def _package_templates_dir(mission_type: str = "software-dev") -> Path:
     ``Path(doctrine.__file__).parent``-relative construction addressed
     exactly the old, now-nonexistent location. Resolved through the one
     promoted missions-root authority
-    (:meth:`~doctrine.missions.repository.MissionTemplateRepository.default_missions_root`,
+    (:meth:`~charter.offering.missions.repository.MissionTemplateRepository.default_missions_root`,
     FR-004) instead, which works identically in editable and wheel installs.
 
     Parameters

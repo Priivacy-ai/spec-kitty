@@ -17,12 +17,12 @@ from pathlib import Path
 
 import pytest
 
-from doctrine.agent_profiles.operating_procedures import (
+from charter.offering.agent_profiles.operating_procedures import (
     collect_operating_procedure_entries,
     node_universe,
     resolve_operating_procedure_entries,
 )
-from doctrine.drg.loader import load_built_in_graph
+from charter.offering.drg.loader import load_built_in_graph
 
 pytestmark = pytest.mark.architectural
 

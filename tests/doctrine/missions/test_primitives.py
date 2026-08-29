@@ -13,7 +13,7 @@ It flows through the glossary middleware pipeline, accumulating state
 - src/specify_cli/glossary/attachment.py for pipeline integration
 """
 
-from doctrine.missions.primitives import PrimitiveExecutionContext
+from charter.offering.missions.primitives import PrimitiveExecutionContext
 from glossary.strictness import Strictness
 import pytest
 pytestmark = [pytest.mark.fast, pytest.mark.doctrine]

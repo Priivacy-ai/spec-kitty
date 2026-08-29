@@ -271,7 +271,7 @@ jobs:
               - 'src/specify_cli/mission.py'
               - 'src/specify_cli/mission_metadata.py'
               - 'src/specify_cli/missions/**'
-              - 'src/doctrine/missions/**'
+              - 'src/charter/offering/missions/**'
               - 'tests/fixtures/missions/**'
               - 'tests/missions/**'
               - 'tests/specify_cli/missions/**'
@@ -330,7 +330,7 @@ jobs:
               - '.github/workflows/release.yml'
               - '.github/workflows/review-verdict-durability.yml'
               - 'src/kernel/**'
-              - 'src/doctrine/**'
+              - 'src/charter/offering/**'
               # PAIRED with the 'src/specify_cli/egress.py' entry in the `sync`
               # group above — see the rationale there. core_misc WITHOUT sync
               # is a silent coverage loss, not a cost saving; it is worse than
@@ -444,7 +444,7 @@ jobs:
               - 'src/kernel/**'
               - 'tests/kernel/**'
             doctrine:
-              - 'src/doctrine/**'
+              - 'src/charter/offering/**'
               - '.kittify/doctrine/overlays/**'
               - 'tests/doctrine/**'
             execution_context:
@@ -647,8 +647,8 @@ jobs:
           mkdir -p out/reports/static-analysis
           mkdir -p out/reports/security
 
-      # WP05's SC-004 deliverable. The Pydantic models under src/doctrine are the
-      # single source of truth for the YAML schemas in src/doctrine/schemas/;
+      # WP05's SC-004 deliverable. The Pydantic models under src/charter/offering are the
+      # single source of truth for the YAML schemas in src/charter/offering/schemas/;
       # --check regenerates them in memory and fails if the committed files have
       # drifted. Deliberately placed in `lint`, the always-on job: a freshness
       # gate behind a paths filter is the same silence #2957 is about — a model
@@ -1242,7 +1242,7 @@ jobs:
             --timeout=240 --timeout-method=signal \
             --cov=specify_cli.mission \
             --cov=specify_cli.mission_metadata \
-            --cov=doctrine.missions \
+            --cov=charter.offering.missions \
             --cov-report=xml:out/reports/coverage/coverage-fast-missions.xml
       - name: "Upload fast-missions coverage"
         if: always()
@@ -2573,7 +2573,7 @@ jobs:
             -n auto --dist loadfile -p no:cacheprovider \
             --cov=specify_cli.mission \
             --cov=specify_cli.mission_metadata \
-            --cov=doctrine.missions \
+            --cov=charter.offering.missions \
             --cov-report=xml:out/reports/coverage/coverage-integration-missions.xml
       - name: "Upload integration-missions coverage"
         if: always()
@@ -3361,7 +3361,7 @@ jobs:
 
           critical_paths=(
             'src/kernel/*'
-            'src/doctrine/*'
+            'src/charter/offering/*'
             'src/charter/*'
             'src/specify_cli/status/*'
             # branch-based mission-slug detection #2443: the stale entry
@@ -3470,7 +3470,7 @@ jobs:
     needs:
       - kernel-tests
       - fast-tests-doctrine
-      # fast-tests-corpus emits --cov=src/doctrine (the wheel-shipped corpus
+      # fast-tests-corpus emits --cov=src/charter/offering (the wheel-shipped corpus
       # gate, #3008) — a sonarcloud coverage-consumer per the C-005 invariant;
       # its coverage XML would otherwise be silently dropped from the aggregator.
       - fast-tests-corpus

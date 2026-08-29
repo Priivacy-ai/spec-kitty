@@ -27,10 +27,10 @@ from pathlib import Path
 
 from ruamel.yaml import YAML
 
-from doctrine.artifact_kinds import ArtifactKind
-from doctrine.drg.migration.extractor import graph_document_to_dict, model_to_graph_dict
-from doctrine.drg.models import DRGEdge, DRGGraph, DRGNode, NodeKind, Relation
-from doctrine.drg.project_scan import walk_project_agent_profile_nodes
+from charter.offering.artifact_kinds import ArtifactKind
+from charter.offering.drg.migration.extractor import graph_document_to_dict, model_to_graph_dict
+from charter.offering.drg.models import DRGEdge, DRGGraph, DRGNode, NodeKind, Relation
+from charter.offering.drg.project_scan import walk_project_agent_profile_nodes
 
 from charter.synthesizer._constants import GRAPH_FILENAME as _GRAPH_FILENAME
 from kernel.clock import now_utc_seconds
@@ -65,7 +65,7 @@ from .request import SynthesisTarget
 #:
 #: NOTE: the ``AGENT_PROFILE`` entry drives the *answer-driven* synthesis-target
 #: path (:func:`_node_kind_for`); the hand-authored filesystem-walk path
-#: (:func:`doctrine.drg.project_scan.walk_project_agent_profile_nodes`)
+#: (:func:`charter.offering.drg.project_scan.walk_project_agent_profile_nodes`)
 #: hardcodes ``NodeKind.AGENT_PROFILE`` directly. The answer-driven path does
 #: not produce ``agent_profile`` targets today (interview sections map only to
 #: directive/tactic/styleguide), so the entry primarily buys gate visibility and
@@ -81,7 +81,7 @@ _KIND_TO_NODE_KIND: dict[ArtifactKind, NodeKind] = {
 def _node_kind_for(kind: str) -> NodeKind | None:
     """Return the ``NodeKind`` for a synthesis-target/project *kind*, or ``None``.
 
-    Normalizes the *kind* string to an :class:`~doctrine.artifact_kinds.ArtifactKind`
+    Normalizes the *kind* string to an :class:`~charter.offering.artifact_kinds.ArtifactKind`
     (an unknown string → ``None``), then reads :data:`_KIND_TO_NODE_KIND` via
     ``.get`` (not a raising subscript). A kind outside the emittable
     project-tier allowlist — including the mission-tier ``template`` and

@@ -3,11 +3,11 @@
 Reachability is a **membership** contract, not a cardinality one: a newly
 unreachable activated artefact fails a set-equality naming *itself*, where a
 count could only nudge an integer. The two channels are measured by two
-different traversals, both **called** from :mod:`doctrine.drg.reachability` (no
+different traversals, both **called** from :mod:`charter.offering.drg.reachability` (no
 walk is reimplemented here):
 
 * **action channel** — :func:`action_channel_reachable`, which calls
-  :func:`doctrine.drg.query.resolve_context`. Pinned at ``d=1`` (compact, the
+  :func:`charter.offering.drg.query.resolve_context`. Pinned at ``d=1`` (compact, the
   steady state, the stricter measure) and ``d=2`` (bootstrap). The measured
   spread between them is exactly 7 nodes (R-2).
 * **profile channel** — :func:`profile_channel_reachable`, a distinct
@@ -39,10 +39,10 @@ from charter import pack_context
 from charter.pack_context import (
     charter_activated_urns,
 )
-from doctrine.drg.loader import load_built_in_graph
-from doctrine.drg.models import DRGGraph, NodeKind, Relation
-from doctrine.drg.query import resolve_context
-from doctrine.drg.reachability import (
+from charter.offering.drg.loader import load_built_in_graph
+from charter.offering.drg.models import DRGGraph, NodeKind, Relation
+from charter.offering.drg.query import resolve_context
+from charter.offering.drg.reachability import (
     PROFILE_CHANNEL_RELATIONS,
     action_channel_reachable,
     action_seed_urns,

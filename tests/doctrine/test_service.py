@@ -7,8 +7,8 @@ from pathlib import Path
 import pytest
 from ruamel.yaml import YAML
 
-from doctrine.drg.models import DRGGraph, Relation
-from doctrine.service import DoctrineService
+from charter.offering.drg.models import DRGGraph, Relation
+from charter.offering.service import DoctrineService
 
 pytestmark = [pytest.mark.fast, pytest.mark.doctrine, pytest.mark.corpus]
 
@@ -419,21 +419,21 @@ def test_service_exposes_specification_by_example_artifacts(built_in_graph: DRGG
 def test_service_has_no_local_project_kind_dirs_copy() -> None:
     """T023: the AST-invisible string-keyed copy is retired to the authority.
 
-    Before WP04 ``doctrine.service`` carried its own string-keyed
+    Before WP04 ``charter.offering.service`` carried its own string-keyed
     ``_PROJECT_KIND_DIRS`` that the kind-mapping totality guard's AST scan
     could not see; it agreed with the authority only via a ``.get`` default.
     After the conversion the module reads
-    ``doctrine.artifact_kinds.PROJECT_KIND_DIRS`` directly and declares no
+    ``charter.offering.artifact_kinds.PROJECT_KIND_DIRS`` directly and declares no
     local copy.
     """
-    import doctrine.service as service_mod
+    import charter.offering.service as service_mod
 
     assert not hasattr(service_mod, "_PROJECT_KIND_DIRS")
 
 
 def test_service_project_dir_uses_hoisted_authority(tmp_path: Path) -> None:
     """T023 (contract A-5): the project-tier dir comes from the single authority."""
-    from doctrine.artifact_kinds import PROJECT_KIND_DIRS, ArtifactKind
+    from charter.offering.artifact_kinds import PROJECT_KIND_DIRS, ArtifactKind
 
     project_root = tmp_path / ".kittify" / "doctrine"
     project_root.mkdir(parents=True)

@@ -14,7 +14,7 @@ adjacent path-join components:
   fallback tuple (T023)
 
 Both now delegate to the ONE promoted authority,
-:meth:`~doctrine.missions.repository.MissionTemplateRepository.default_missions_root`.
+:meth:`~charter.offering.missions.repository.MissionTemplateRepository.default_missions_root`.
 This gate makes that closure durable: it is a **zero-tolerance** scan (no
 allow-list) for that exact literal shape anywhere in ``src/`` outside the one
 promoted authority module, ``src/doctrine/missions/repository.py``.

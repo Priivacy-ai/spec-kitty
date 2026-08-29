@@ -5,7 +5,7 @@ vocabularies that were previously re-declared across five+ modules with three
 incompatible spellings (research R-009):
 
 1. **Operator kind tokens** (hyphenated CLI surface, e.g. ``agent-profile``) →
-   canonical :class:`~doctrine.artifact_kinds.ArtifactKind`. That mapping lives
+   canonical :class:`~charter.offering.artifact_kinds.ArtifactKind`. That mapping lives
    on the enum itself (:meth:`ArtifactKind.from_operator_token`); this module
    re-exports the related error type for charter callers.
 
@@ -43,21 +43,21 @@ from pathlib import Path
 from ruamel.yaml import YAML
 from ruamel.yaml.error import YAMLError
 
-from doctrine.artifact_kinds import (
+from charter.offering.artifact_kinds import (
     CHARTER_KIND_TOKENS,
     MISSION_TYPE_TOKEN,
     PROJECT_KIND_DIRS as _PROJECT_KIND_DIRS,
     ArtifactKind,
     MissionTypeNotAnArtifactKind,
 )
-from doctrine.discovery_recursion import overlay_scan_is_recursive
-from doctrine.pack_paths import (
+from charter.offering.discovery_recursion import overlay_scan_is_recursive
+from charter.offering.pack_paths import (
     BuiltInContentDirNotAvailable,
     PackRootNotFound,
     built_in_dir,
 )
 
-#: Public re-export of :data:`doctrine.artifact_kinds.PROJECT_KIND_DIRS`.
+#: Public re-export of :data:`charter.offering.artifact_kinds.PROJECT_KIND_DIRS`.
 #:
 #: Landing-fold addition (write-side-seam-matrix-tracer Wave B / #3070):
 #: ``specify_cli.cli.commands.doctrine``'s ``new`` scaffolder needs the
@@ -99,7 +99,7 @@ _ID_FIELD_BY_KIND: dict[ArtifactKind, str] = {
 }
 _DEFAULT_ID_FIELD = "id"
 #: The project-tier overlay directory name per kind is the single canonical
-#: authority :data:`doctrine.artifact_kinds.PROJECT_KIND_DIRS` (imported and
+#: authority :data:`charter.offering.artifact_kinds.PROJECT_KIND_DIRS` (imported and
 #: re-exported above as ``PROJECT_KIND_DIRS`` — the runtime→charter→doctrine
 #: boundary facade for this mapping; see ``cli/commands/doctrine.py``'s
 #: ``new`` scaffolder for the consumer). It is *total*, so
@@ -155,18 +155,18 @@ def _scan_roots(
     longer used as a scan root itself: built-in content was flattened out of
     ``<doctrine_root>/<kind>/built-in`` into ``packs/built-in/<kind>``
     (relocation mission doctrine-built-in-seam-consolidation-01KYW3TX, WP02),
-    which resolves via the shared :func:`~doctrine.pack_paths.built_in_dir`
+    which resolves via the shared :func:`~charter.offering.pack_paths.built_in_dir`
     seam below instead. ``org_roots`` contributes, for each root, the flat
     ``<root>/<plural>`` layout that every real org pack uses today -- plus,
     additively, the legacy package-shaped ``<root>/<plural>/built-in`` layout
     (``recursive=True``) where that also separately exists.
 
     The flat entry's ``recursive`` flag is sourced from the single shared
-    recursion authority :func:`doctrine.discovery_recursion.overlay_scan_is_recursive`
+    recursion authority :func:`charter.offering.discovery_recursion.overlay_scan_is_recursive`
     -- the same authority the live loader consults
-    (:meth:`doctrine.base.BaseDoctrineRepository._project_scan`, which now
+    (:meth:`charter.offering.base.BaseDoctrineRepository._project_scan`, which now
     recurses unconditionally for every kind's org/project overlay, and
-    :meth:`doctrine.agent_profiles.repository.AgentProfileRepository._load`).
+    :meth:`charter.offering.agent_profiles.repository.AgentProfileRepository._load`).
     So the resolver and the loader recurse identically for **every** kind
     (C-001, unconditional), reading nested org/project subdirectories such as
     ``styleguides/writing/`` the same way. The prior divergence -- where the
@@ -224,7 +224,7 @@ def _org_scan_dirs(
 
     **Recursion is sourced from the shared authority (#3426 closed).** The
     flat entry's ``recursive`` flag comes from
-    :func:`doctrine.discovery_recursion.overlay_scan_is_recursive` -- the same
+    :func:`charter.offering.discovery_recursion.overlay_scan_is_recursive` -- the same
     single authority the live loader (``BaseDoctrineRepository._project_scan``
     and ``AgentProfileRepository._load``) consults -- so the resolver and the
     loader recurse identically for every kind (unconditional per C-001). This

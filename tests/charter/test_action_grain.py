@@ -25,8 +25,8 @@ from charter.action_grain import (
     aggregate_action_grain,
     scan_builtin_cross_grain_duplicates,
 )
-from doctrine.missions.action_index import ActionIndex
-from doctrine.missions.mission_type_repository import builtin_mission_type_ids
+from charter.offering.missions.action_index import ActionIndex
+from charter.offering.missions.mission_type_repository import builtin_mission_type_ids
 
 
 pytestmark = [pytest.mark.unit, pytest.mark.git_repo]

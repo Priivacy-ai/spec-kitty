@@ -602,7 +602,7 @@ class TestResolutionPrecedence:
 class TestMissionScopedOverrideParity:
     """FR-001 / SC-002 (up-org-template-fsm-01M06F9K, WP01).
 
-    ``doctrine.resolver._resolve_asset`` (the doctrine-layer "sole door",
+    ``charter.offering.resolver._resolve_asset`` (the doctrine-layer "sole door",
     used by ``charter list`` / ``show-origin``) has always probed a
     mission-scoped override at
     ``.kittify/overrides/missions/{mission}/{subdir}/{name}`` before the
@@ -623,16 +623,16 @@ class TestMissionScopedOverrideParity:
     ) -> None:
         """A mission-scoped override resolves at ``ResolutionTier.OVERRIDE``
         through ``specify_cli.runtime.resolver``, with ``(path, tier)``
-        identical to ``doctrine.resolver``'s resolution of the same fixture.
+        identical to ``charter.offering.resolver``'s resolution of the same fixture.
 
         Before FR-001 lands, ``specify_cli.runtime.resolver.resolve_template``
         raises ``FileNotFoundError`` on this fixture (it only probes the
         flat, non-mission-scoped override path) while
-        ``doctrine.resolver.resolve_template`` already resolves it at
+        ``charter.offering.resolver.resolve_template`` already resolves it at
         ``ResolutionTier.OVERRIDE`` -- the exact regression documented by
         User Story 2's Independent Test.
         """
-        import doctrine.resolver as doctrine_resolver
+        import charter.offering.resolver as doctrine_resolver
 
         project = tmp_path / "project"
         mission_scoped_path = _create_file(
@@ -1420,7 +1420,7 @@ class TestOrgTierResolution:
             result = resolve_template("spec-template.md", project, "software-dev")
 
         assert len(caught) == 1  # golden-count: cardinality-is-contract
-        assert "Invalid doctrine.org config" in str(caught[0].message)
+        assert "Invalid org-pack config; ignoring org layer:" in str(caught[0].message)
         assert result.tier == ResolutionTier.PACKAGE_DEFAULT
         assert result.path == pkg_template
 
@@ -1430,7 +1430,7 @@ class TestOrgTierResolution:
         it does out of resolve_org_roots itself. A blanket
         ``except Exception`` around resolve_org_roots() would silently
         regress this."""
-        from doctrine.drg.org_pack_config import OrgPackSubdirEscapeError
+        from charter.offering.drg.org_pack_config import OrgPackSubdirEscapeError
 
         project = tmp_path / "project"
         pack_root = tmp_path / "org-pack"
@@ -1458,11 +1458,11 @@ class TestOrgTierResolution:
         self, tmp_path: Path
     ) -> None:
         """Position-parity spot check: given the identical org-pack fixture,
-        ``specify_cli.runtime.resolver`` and ``doctrine.resolver`` resolve
+        ``specify_cli.runtime.resolver`` and ``charter.offering.resolver`` resolve
         the same ``(path, tier)`` -- mirroring
         ``TestMissionScopedOverrideParity``'s parity discipline for the org
         tier."""
-        import doctrine.resolver as doctrine_resolver
+        import charter.offering.resolver as doctrine_resolver
 
         project = tmp_path / "project"
         project.mkdir()

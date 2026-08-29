@@ -19,7 +19,7 @@ This module pins:
   reference set -- answers are retired as an activation source.
 - **T016**: the promotion writes ONLY ``.kittify/config.yaml`` -- never
   ``governance.yaml`` (the third ledger ``doctrine.selected_*`` reads) or any
-  file :func:`doctrine.spdd_reasons.activation.is_spdd_reasons_active`
+  file :func:`charter.offering.spdd_reasons.activation.is_spdd_reasons_active`
   consults.
 """
 
@@ -35,7 +35,7 @@ from ruamel.yaml import YAML
 from charter.compiler import compile_charter
 from charter.interview import CharterInterview, default_interview
 from charter.pack_context import PackContext
-from doctrine.service import DoctrineService
+from charter.offering.service import DoctrineService
 from specify_cli.doctrine.org_charter import (
     REQUIRED_KIND_FIELDS,
     apply_org_charter_to_interview,
@@ -388,7 +388,7 @@ class TestOrgRequiredIdFormNormalizedBeforePromotion:
         """
         from charter.catalog import resolve_doctrine_root
         from charter.kind_vocabulary import UnknownArtifactIdError, resolve_artifact_urn
-        from doctrine.artifact_kinds import ArtifactKind
+        from charter.offering.artifact_kinds import ArtifactKind
 
         doctrine_root = resolve_doctrine_root()
         with pytest.raises(UnknownArtifactIdError):
@@ -512,7 +512,7 @@ class TestThirdLedgerUntouched:
     """The org-union promotion (T014) writes ONLY ``.kittify/config.yaml``.
 
     ``governance.yaml`` (ledger C, read by
-    :func:`doctrine.spdd_reasons.activation.is_spdd_reasons_active`) is
+    :func:`charter.offering.spdd_reasons.activation.is_spdd_reasons_active`) is
     populated later by an unrelated pipeline stage (``charter generate`` /
     ``sync_charter``) -- this module must never create or edit it as a
     side effect of the interview pre-fill.

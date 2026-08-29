@@ -12,9 +12,9 @@ on:
       - "src/specify_cli/tool_surface/profiles/**"
       - "src/specify_cli/skills/**"
       - "src/specify_cli/cli/**"
-      - "src/doctrine/agent_profiles/**"
-      - "src/doctrine/hooks/**"
-      - "src/doctrine/.mcp.json"
+      - "src/charter/offering/agent_profiles/**"
+      - "src/charter/offering/hooks/**"
+      - "src/charter/offering/.mcp.json"
       - ".github/workflows/plugin-validate.yml"
   pull_request:
     paths:
@@ -24,9 +24,9 @@ on:
       - "src/specify_cli/tool_surface/profiles/**"
       - "src/specify_cli/skills/**"
       - "src/specify_cli/cli/**"
-      - "src/doctrine/agent_profiles/**"
-      - "src/doctrine/hooks/**"
-      - "src/doctrine/.mcp.json"
+      - "src/charter/offering/agent_profiles/**"
+      - "src/charter/offering/hooks/**"
+      - "src/charter/offering/.mcp.json"
       - ".github/workflows/plugin-validate.yml"
 
 jobs:

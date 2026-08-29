@@ -347,8 +347,17 @@ def _default_scan_roots(repo_root: Path) -> list[Path]:
     ``docs/plans/doctrine/missions-reader-inventory-01KZ6G6H.md``'s "Two
     distinct specify_cli/missions trees" note) keeps its own root below,
     unchanged.
+
+    Mission ``charter-code-topology-01M152G1`` (CR-06/S2a) relocated the
+    top-level ``src/doctrine`` package to ``src/charter/offering`` — no
+    dedicated root is needed for it any more: ``_iter_charter_scan_roots``
+    below already walks every direct child of ``src/charter``, and
+    ``offering`` is now one of those children, so it is picked up
+    automatically (matching the ``pyproject.toml`` packaging precedent of
+    dropping the standalone ``src/doctrine`` entry once ``src/charter``
+    covers it).
     """
-    roots: list[Path] = [repo_root / "src" / "doctrine"]
+    roots: list[Path] = []
     roots.extend(_iter_charter_scan_roots(repo_root / "src" / "charter"))
     roots.extend(_iter_mission_scan_roots(repo_root / "packs" / "built-in" / "missions"))
     roots.extend(_iter_mission_scan_roots(repo_root / "src" / "specify_cli" / "missions"))

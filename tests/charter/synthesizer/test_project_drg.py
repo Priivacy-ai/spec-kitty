@@ -20,10 +20,10 @@ from charter.synthesizer.errors import ProjectDRGValidationError
 from charter.synthesizer.path_guard import PathGuard
 from charter.synthesizer.project_drg import emit_project_layer, persist
 from charter.synthesizer.request import SynthesisTarget
-from doctrine.drg.loader import load_graph, merge_layers
-from doctrine.drg.models import DRGEdge, DRGGraph, DRGNode, NodeKind, Relation
-from doctrine.drg.project_scan import MalformedProjectProfileError
-from doctrine.drg.validator import validate_graph
+from charter.offering.drg.loader import load_graph, merge_layers
+from charter.offering.drg.models import DRGEdge, DRGGraph, DRGNode, NodeKind, Relation
+from charter.offering.drg.project_scan import MalformedProjectProfileError
+from charter.offering.drg.validator import validate_graph
 
 
 # ---------------------------------------------------------------------------
@@ -533,7 +533,7 @@ class TestProjectProfileWalk:
     """Unit coverage for the reusable walk under src/doctrine/drg/."""
 
     def test_walk_yields_agent_profile_node(self, tmp_path: Path) -> None:
-        from doctrine.drg.project_scan import walk_project_agent_profile_nodes
+        from charter.offering.drg.project_scan import walk_project_agent_profile_nodes
 
         _write_profile(tmp_path, "reviewer-rhonda", "reviewer-rhonda")
         nodes = walk_project_agent_profile_nodes(tmp_path)
@@ -545,12 +545,12 @@ class TestProjectProfileWalk:
         assert node.provenance == "project"
 
     def test_walk_missing_dir_returns_empty(self, tmp_path: Path) -> None:
-        from doctrine.drg.project_scan import walk_project_agent_profile_nodes
+        from charter.offering.drg.project_scan import walk_project_agent_profile_nodes
 
         assert walk_project_agent_profile_nodes(tmp_path) == []
 
     def test_walk_is_recursive_and_sorted(self, tmp_path: Path) -> None:
-        from doctrine.drg.project_scan import walk_project_agent_profile_nodes
+        from charter.offering.drg.project_scan import walk_project_agent_profile_nodes
 
         profiles_dir = tmp_path / ".kittify" / "doctrine" / "agent_profiles"
         (profiles_dir / "nested").mkdir(parents=True, exist_ok=True)
@@ -563,7 +563,7 @@ class TestProjectProfileWalk:
 
     def test_walk_missing_profile_id_fails_loud_naming_file(self, tmp_path: Path) -> None:
         """T008 / NFR-002: a profile without profile-id raises, naming the file."""
-        from doctrine.drg.project_scan import walk_project_agent_profile_nodes
+        from charter.offering.drg.project_scan import walk_project_agent_profile_nodes
 
         path = _write_profile(tmp_path, "broken", "placeholder")
         path.write_text("name: No Id Here\n", encoding="utf-8")
@@ -572,7 +572,7 @@ class TestProjectProfileWalk:
 
     def test_walk_unparseable_yaml_fails_loud_naming_file(self, tmp_path: Path) -> None:
         """T008 / NFR-002: malformed YAML raises, naming the file — no silent skip."""
-        from doctrine.drg.project_scan import walk_project_agent_profile_nodes
+        from charter.offering.drg.project_scan import walk_project_agent_profile_nodes
 
         path = _write_profile(tmp_path, "malformed", "placeholder")
         path.write_text("profile-id: [unterminated\n", encoding="utf-8")
@@ -582,7 +582,7 @@ class TestProjectProfileWalk:
     def test_walk_urn_unsafe_profile_id_fails_loud_naming_file(self, tmp_path: Path) -> None:
         """NFR-002: a URN-unsafe profile-id raises MalformedProjectProfileError
         naming the file — not a raw pydantic ValidationError that hides it."""
-        from doctrine.drg.project_scan import walk_project_agent_profile_nodes
+        from charter.offering.drg.project_scan import walk_project_agent_profile_nodes
 
         # Trailing space / embedded colon / non-ASCII would form an invalid
         # ``agent_profile:<id>`` URN and otherwise surface as a bare pydantic error.

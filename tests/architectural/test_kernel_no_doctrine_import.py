@@ -2,19 +2,29 @@
 
 The documented dependency direction is::
 
-    kernel (root) <- doctrine <- charter <- glossary/runtime <- specify_cli
+    kernel (root) <- charter <- glossary/runtime/mission_runtime <- specify_cli
 
-so no module under ``src/kernel/`` may hold a string identifying ``doctrine``,
+so no module under ``src/kernel/`` may hold a string identifying ``charter``,
 ``specify_cli``, or any mission-type name -- kernel must not know the
 vocabulary of the layers above it.
 
+Note (charter-code-topology-01M152G1, S5): the former ``src/doctrine``
+package relocated to ``src/charter/offering`` (S2a), collapsing the
+landscape chain from ``kernel <- doctrine <- charter <- ...`` to
+``kernel <- charter <- ...``. This gate's forbidden vocabulary tracks that
+collapse -- it now names ``"charter"`` (the layer that actually sits above
+kernel today) rather than the retired ``"doctrine"`` name, so a real
+``import charter`` / ``files("charter...")`` edge cannot slip through
+vacuously just because the package was renamed.
+
 Why this gate exists, given ``test_layer_rules.py`` already owns a pytestarch
-``LayerRule`` for the same direction (``test_kernel_does_not_import_doctrine``):
+``LayerRule`` for the same direction (``TestKernelIsolation.test_kernel_does_not_import_charter``):
 **that rule is vacuous against the violation this gate targets.** pytestarch's
 ``LayerRule`` resolves *import edges* — it cannot see a string-literal
-``importlib.resources.files("doctrine")`` call, which is exactly the shape
+``importlib.resources.files("charter...")`` call, which is exactly the shape
 ``kernel.paths.get_package_asset_root()`` used before FR-004 (mission
-``doctrine-consumer-surface-missions-extraction-01KZ6G6H``). Likewise
+``doctrine-consumer-surface-missions-extraction-01KZ6G6H``, back when the
+package was still named ``doctrine``). Likewise
 ``test_charter_no_specify_cli_import.py`` (scoped to ``src/charter/``) and
 ``test_doctrine_wheel_closure.py`` (scoped to ``pyproject.toml`` manifest
 declarations) do not cover a kernel-string-literal edge either (NFR-002) — a
@@ -27,7 +37,7 @@ This module therefore mirrors ``collect_specify_cli_imports`` from
 occurrence is caught, not merely a module-level ``import`` statement.
 
 Scope of the claim this gate proves (read this before citing it): it proves
-zero occurrences of the literal strings ``"doctrine"``, ``"specify_cli"``, or
+zero occurrences of the literal strings ``"charter"``, ``"specify_cli"``, or
 a mission-type name, in *code* positions (import statements, call arguments,
 and f-string components) anywhere under ``src/kernel/``. Docstrings and
 comments are explicitly out of scope -- ``ast`` does not expose comments at
@@ -54,9 +64,17 @@ _KERNEL_ROOT = _SRC / "kernel"
 #: The exact forbidden literals (SC-002 / the mission's kernel-resolution-
 #: primitive.md contract): the two upward-layer package names, plus the four
 #: mission-type identifiers kernel.paths used to hard-code.
+#:
+#: ``"doctrine"`` was replaced by ``"charter"`` (charter-code-topology-01M152G1,
+#: S5): the former ``src/doctrine`` package relocated to
+#: ``src/charter/offering`` (S2a), collapsing the landscape chain to
+#: ``kernel <- charter <- ...``. The forbidden vocabulary must name the layer
+#: that now actually sits above kernel -- ``doctrine`` no longer exists as a
+#: top-level package, so keeping it here would let a real
+#: ``import charter`` / ``files("charter...")`` edge slip through vacuously.
 _FORBIDDEN_STRINGS = frozenset(
     {
-        "doctrine",
+        "charter",
         "specify_cli",
         "software-dev",
         "documentation",
@@ -66,44 +84,50 @@ _FORBIDDEN_STRINGS = frozenset(
 )
 
 #: Import-statement module roots that are always forbidden regardless of the
-#: exact-string check above (``import doctrine.x`` never has a bare
-#: ``"doctrine"`` string node, but is exactly as much of a violation).
-_FORBIDDEN_IMPORT_ROOTS = frozenset({"doctrine", "specify_cli"})
+#: exact-string check above (``import charter.x`` never has a bare
+#: ``"charter"`` string node, but is exactly as much of a violation).
+_FORBIDDEN_IMPORT_ROOTS = frozenset({"charter", "specify_cli"})
 
 #: Pre-existing violations this gate discovers but that are OUT OF SCOPE for
 #: FR-004 (mission doctrine-consumer-surface-missions-extraction-01KZ6G6H,
-#: WP04 -- owned_files: src/kernel/paths.py, src/doctrine/pack_paths.py,
-#: src/doctrine/missions/repository.py). ``schema_utils.py`` was promoted to
-#: kernel by an unrelated, already-merged mission
-#: (charter-mediated-doctrine-selection-01KRTZCA, WP07); its
-#: ``_resolve_schema_path`` helper names "doctrine" at BOTH exempted sites
+#: WP04 -- owned_files: src/kernel/paths.py, and the (since-relocated)
+#: doctrine pack-paths / missions-repository modules, now
+#: src/charter/offering/pack_paths.py, src/charter/offering/missions/repository.py).
+#: ``schema_utils.py`` was promoted to kernel by an unrelated, already-merged
+#: mission (charter-mediated-doctrine-selection-01KRTZCA, WP07); its
+#: ``_resolve_schema_path`` helper names "charter" at BOTH exempted sites
 #: below -- this gate's segment-aware ``ast.Constant`` matcher (``value ==
-#: root or value.startswith(root + ".")``) now catches both, where the
-#: original exact-equality matcher only caught the second:
+#: root or value.startswith(root + ".")``) catches both:
 #:
-#: * line 88 -- ``files("doctrine.schemas")``, the installed-wheel resource
+#: * line 88 -- ``files("charter.offering.schemas")``, the installed-wheel resource
 #:   lookup. A dotted-module-path string literal (the string-literal
-#:   equivalent of ``import doctrine.schemas``) -- exactly the shape an
-#:   exact-equality match cannot see, since ``"doctrine.schemas" !=
-#:   "doctrine"``.
-#: * line 96 -- the dev-checkout fallback path segment
-#:   (``Path(__file__).resolve().parent.parent / "doctrine" / "schemas"``),
-#:   an exact ``"doctrine"`` literal, already caught before this gate's
-#:   segment-aware upgrade.
+#:   equivalent of ``import charter.offering.schemas``) -- exactly the shape an
+#:   exact-equality match cannot see, since ``"charter.offering.schemas" !=
+#:   "charter"``.
+#: * line 97 -- the dev-checkout fallback path segment
+#:   (``Path(__file__).resolve().parent.parent / "charter" / "offering" / "schemas"``),
+#:   an exact ``"charter"`` literal on the first path segment.
 #:
-#: This is real, disclosed, pre-existing coupling: a kernel schema-loading
-#: utility loads doctrine-owned schema files, and full decoupling (relocating
-#: the schemas themselves out of ``doctrine``, or injecting the resolved root
-#: from a caller above kernel) is a deferred design decision -- NOT resolved
-#: by this gate. Exempted here (not silently fixed, not hidden by weakening
-#: the gate) so the gate stays non-vacuous for *new* violations. Full
-#: decoupling is tracked as Follow-up: #3206 (retire these two exemptions once
-#: the schemas are relocated or the root is injected); do not widen this set
-#: for any file this WP or a future one actually owns.
+#: Retargeted (charter-code-topology-01M152G1, S5) from the pre-S2a lines
+#: (88, 96) that named the retired ``"doctrine"`` literal: the S2a relocation
+#: (``src/doctrine`` -> ``src/charter/offering``) rewrote both sites in place,
+#: which shifted the dev-checkout fallback onto line 97 (three chained path
+#: segments -- ``"charter"``, ``"offering"``, ``"schemas"`` -- instead of the
+#: original two) and changed the resource string from ``"doctrine.schemas"``
+#: to ``"charter.offering.schemas"``. Both sites are still the SAME real,
+#: disclosed, pre-existing coupling: a kernel schema-loading utility loads
+#: charter-owned schema files, and full decoupling (relocating the schemas
+#: themselves out of ``charter``, or injecting the resolved root from a
+#: caller above kernel) is a deferred design decision -- NOT resolved by this
+#: gate. Exempted here (not silently fixed, not hidden by weakening the gate)
+#: so the gate stays non-vacuous for *new* violations. Full decoupling is
+#: tracked as Follow-up: #3206 (retire these two exemptions once the schemas
+#: are relocated or the root is injected); do not widen this set for any file
+#: this WP or a future one actually owns.
 _PRE_EXISTING_EXEMPTIONS = frozenset(
     {
         ("kernel/schema_utils.py", 88),
-        ("kernel/schema_utils.py", 96),
+        ("kernel/schema_utils.py", 97),
     }
 )
 
@@ -113,9 +137,9 @@ def _matches_forbidden_vocabulary(value: str) -> bool:
 
     Segment/prefix-aware: catches both an exact forbidden literal
     (``"doctrine"``) and a dotted-module-path literal rooted in one
-    (``"doctrine.schemas"``) -- the string-literal shape
-    ``importlib.resources.files("doctrine.schemas")`` uses, which is the
-    literal-string equivalent of ``import doctrine.schemas`` already caught
+    (``"charter.offering.schemas"``) -- the string-literal shape
+    ``importlib.resources.files("charter.offering.schemas")`` uses, which is the
+    literal-string equivalent of ``import charter.offering.schemas`` already caught
     by the ``ast.Import``/``ast.ImportFrom`` branches below via
     ``_module_root``. A bare exact-equality check (``value in
     _FORBIDDEN_STRINGS``) misses this dotted form entirely -- exactly the
@@ -239,7 +263,7 @@ def test_walker_catches_in_function_call_argument(tmp_path: Path) -> None:
     """Non-vacuity (NFR-002/NFR-004): a call-argument string literal IS detected.
 
     Reproduces the exact shape ``kernel.paths.get_package_asset_root()`` used
-    before FR-004 -- ``importlib.resources.files("doctrine")`` nested inside a
+    before FR-004 -- ``importlib.resources.files("charter")`` nested inside a
     function -- and asserts the walker flags it. Were the walker downgraded to
     a module-body-only or import-only scan (what the pre-existing pytestarch
     ``LayerRule`` effectively does), this test goes red, proving that rule's
@@ -247,35 +271,35 @@ def test_walker_catches_in_function_call_argument(tmp_path: Path) -> None:
     """
     module = tmp_path / "paths.py"
     module.write_text(
-        'import importlib.resources\n\n\ndef get_package_asset_root():\n    resource = importlib.resources.files("doctrine") / "missions"\n    return resource\n',
+        'import importlib.resources\n\n\ndef get_package_asset_root():\n    resource = importlib.resources.files("charter") / "missions"\n    return resource\n',
         encoding="utf-8",
     )
 
     violations = collect_forbidden_vocabulary(tmp_path, relative_to=tmp_path)
 
-    assert violations == [("paths.py", 5, "string literal 'doctrine'")]
+    assert violations == [("paths.py", 5, "string literal 'charter'")]
 
 
 def test_walker_ignores_docstrings_and_prose(tmp_path: Path) -> None:
     """No false positives: docstrings/comments explaining the boundary are prose.
 
     Mirrors the mission's own trap #3 -- ``src/kernel/paths.py`` legitimately
-    mentions "doctrine" and "specify_cli" in docstrings/comments explaining
+    mentions "charter" and "specify_cli" in docstrings/comments explaining
     the layering rule (e.g. "kernel/ must not import specify_cli"); those are
     explanatory prose, not code, and must never be flagged.
     """
     (tmp_path / "clean.py").write_text(
-        '"""This module about doctrine and specify_cli lives in kernel.\n\n'
+        '"""This module about charter and specify_cli lives in kernel.\n\n'
         "kernel/ must not import specify_cli (architectural layer rule).\n"
         '"""\n'
         "from __future__ import annotations\n"
         "\n"
-        "# import doctrine  <- a comment, not an import\n"
+        "# import charter  <- a comment, not an import\n"
         "# Mirrors specify_cli.paths.render_runtime_path with identical semantics.\n"
         "\n"
         "\n"
         "def helper() -> None:\n"
-        '    """Also mentions doctrine and specify_cli, but is a docstring."""\n'
+        '    """Also mentions charter and specify_cli, but is a docstring."""\n'
         "    return None\n",
         encoding="utf-8",
     )

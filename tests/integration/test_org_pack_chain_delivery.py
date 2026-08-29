@@ -50,9 +50,9 @@ import pytest
 
 from charter._drg_helpers import load_validated_graph
 from charter.drg import load_org_drg
-from doctrine.drg.merge import OrgDRGConflictError
-from doctrine.drg.models import DRGGraph
-from doctrine.drg.org_pack_loader import OrgPackSchemaError
+from charter.offering.drg.merge import OrgDRGConflictError
+from charter.offering.drg.models import DRGGraph
+from charter.offering.drg.org_pack_loader import OrgPackSchemaError
 from specify_cli.mission_step_contracts.executor import StepContractExecutor
 
 pytestmark = [pytest.mark.integration, pytest.mark.doctrine]

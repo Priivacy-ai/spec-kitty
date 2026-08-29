@@ -256,7 +256,21 @@ def register_commands(app: typer.Typer) -> None:
     )
     app.command()(dashboard_module.dashboard)
     app.add_typer(doctor_module.app, name="doctor", help="Project health diagnostics")
-    app.add_typer(doctrine_module.app, name="doctrine", help="Manage org-layer doctrine packs")
+    # CR-02 (mission charter-code-topology-01M152G1 S4): the `doctrine`
+    # group is a deprecated, hidden alias -- `spec-kitty doctrine <x>` still
+    # runs (it delegates to the exact same implementation, unchanged), but
+    # it no longer clutters `spec-kitty --help`'s top-level command list
+    # (`hidden=True`) and typer marks it `deprecated=True` for the rare
+    # caller who still finds it via `spec-kitty doctrine --help` directly.
+    # The module's own `@app.callback()` adds the operator-facing stderr
+    # notice every invocation prints.
+    app.add_typer(
+        doctrine_module.app,
+        name="doctrine",
+        help="[DEPRECATED — use `spec-kitty charter`] Manage org-layer doctrine packs",
+        deprecated=True,
+        hidden=True,
+    )
     app.add_typer(docs_module.app, name="docs", help="Common Docs retrieval commands")
     app.add_typer(glossary_module.app, name="glossary", help="Glossary management commands")
     app.command()(implement_module.implement)
