@@ -254,15 +254,29 @@ def test_load_gate_coverage_module_marks_consumer_repo_when_unavailable(tmp_path
     assert excinfo.value.is_consumer_repo is True
 
 
-def test_gate_coverage_uses_the_live_authorities_against_the_real_repo() -> None:
-    """No override -> the live ``tests.architectural._gate_coverage``
-    authorities load for real against THIS repo — the "unreachable unless
-    selected" claim (FR-009) only holds if the live path genuinely works."""
+def test_gate_coverage_authorities_unavailable_against_the_real_repo_now_the_workflows_are_gone() -> None:
+    """No override -> the live ``tests.architectural._gate_coverage`` module
+    genuinely imports against THIS repo (the "unreachable unless selected"
+    claim, FR-009, still holds for the import itself), but its
+    ``load_workflow_models()`` reads ``.github/workflows/*.yml`` off disk —
+    and this programme's repos carry no GitHub Actions (PROGRAM.md §2,
+    planning#57: the leftover ``.github/workflows/`` YAML was deleted as
+    pre-programme cruft). That live read now fails for real, and
+    ``GateCoverageScopeSource`` must surface it as the SAME
+    ``GateAuthoritiesUnavailable`` "unverified scope" signal the port already
+    uses for an unimportable/cross-repo module — never a raw, unhandled
+    ``OSError`` escaping to the caller, and never a silent empty-scope green.
+    """
     impl = GateCoverageScopeSource(repo_root=_REPO_ROOT)
 
-    targets = impl.file_to_scope("src/specify_cli/review/scope_source.py")
+    with pytest.raises(pre_review_gate.GateAuthoritiesUnavailable) as excinfo:
+        impl.file_to_scope("src/specify_cli/review/scope_source.py")
 
-    assert isinstance(targets, tuple)
+    # This IS the spec-kitty source repo (it carries _gate_coverage.py) — the
+    # authorities are missing because the workflows they model were
+    # deliberately deleted, not because this is a downstream consumer repo.
+    assert excinfo.value.is_consumer_repo is False
+    assert ".github/workflows" in str(excinfo.value)
 
 
 def test_gate_coverage_parse_results_missing_artifact_is_surfaced_not_swallowed(tmp_path: Path) -> None:

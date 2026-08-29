@@ -1,12 +1,18 @@
 """Fixture-workflow builders for the WP04 invariant fault-injection suite.
 
 Mission ci-suite-map-bind (Wave 0), WP04. The invariant suites in
-``test_marker_job_completeness.py`` / ``test_workflow_coherence.py`` /
-``test_src_filter_coverage.py`` each need a *synthetic* workflow that VIOLATES
-the parsed relation they guard, to prove the invariant reds (ATDD
-fault-injection), plus a benign *reordered* twin to prove refactor-stability
-(the FR-010/FR-012 red-negatives). Centralising the builders here keeps the
-fault construction named, reusable, and out of the assertion bodies.
+``test_marker_job_completeness.py`` / ``test_workflow_coherence.py`` each
+need a *synthetic* workflow that VIOLATES the parsed relation they guard, to
+prove the invariant reds (ATDD fault-injection), plus a benign *reordered*
+twin to prove refactor-stability (the FR-010/FR-012 red-negatives).
+Centralising the builders here keeps the fault construction named, reusable,
+and out of the assertion bodies.
+
+Retired (planning#57): ``test_src_filter_coverage.py`` — formerly a third
+consumer of these builders — was retired and deleted alongside the leftover
+pre-programme ``.github/workflows/ci-quality.yml`` it asserted against (see
+PROGRAM.md §2). The two consumers listed above never read a real workflow
+file, so they and these builders stay.
 
 These builders emit the *minimum* workflow shape ``_gate_coverage``'s parser
 reads for the relation under test — never a copy of the live 3,200-line
