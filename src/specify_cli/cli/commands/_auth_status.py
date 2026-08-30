@@ -356,7 +356,9 @@ __all__ = [
     "format_duration",
     "format_storage_backend",
     # format_auth_method: demoted — no cross-module src/ callers (WP01).
-    # format_saas_mismatch_warning / format_saas_provenance / saas_source_name:
-    # demoted — called within this module (and unit-tested directly), with no
-    # other src/ consumer (#176).
+    # format_saas_provenance: demoted — called within this module (and
+    # unit-tested directly), with no other src/ consumer (#176).
+    # format_saas_mismatch_warning / saas_source_name: demoted from __all__,
+    # but still imported cross-module by _auth_doctor.py — keep exporting
+    # them from this module rather than treating them as module-private.
 ]
