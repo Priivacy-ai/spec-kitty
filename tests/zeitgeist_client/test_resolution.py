@@ -245,7 +245,7 @@ class TestStoreKeyForCheckout:
     def test_hosted_checkout_yields_its_store_key(self, clone: Path) -> None:
         assert resolution.store_key_for_checkout(clone) == "github.com/acme/widget"
 
-    def test_directory_with_no_git_identity_has_no_key(self, tmp_path: Path) -> None:
+    def test_directory_with_no_git_identity_has_no_key(self, tmp_path: Path, no_git_ancestry_inside_tmp_path: None) -> None:
         plain = tmp_path / "not-a-repo"
         plain.mkdir()
         assert resolution.store_key_for_checkout(plain) is None
@@ -765,7 +765,12 @@ class TestResolveCredentialsEndToEnd:
         assert cached is not None
         assert second.admission_calls == [] and second.mint_calls == []
 
-    def test_directory_with_no_git_identity_stays_silent(self, state_root: Path, tmp_path: Path) -> None:
+    def test_directory_with_no_git_identity_stays_silent(
+        self,
+        state_root: Path,
+        tmp_path: Path,
+        no_git_ancestry_inside_tmp_path: None,
+    ) -> None:
         plain = tmp_path / "not-a-repo"
         plain.mkdir()
         gateway = ScriptedGateway()
