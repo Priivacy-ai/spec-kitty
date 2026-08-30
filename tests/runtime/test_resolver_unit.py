@@ -1505,9 +1505,7 @@ class TestExpectedArtifactManifestSchemaErrorBoundary:
     ``pydantic.ValidationError`` this seam's ``try`` block used to swallow
     into a bare ``False``/``None`` (squad finding on #233, this issue)."""
 
-    _TYPO_FIXTURE_PATH = (
-        Path(__file__).parent.parent / "dossier" / "fixtures" / "expected_artifacts_typo.yaml"
-    )
+    _TYPO_FIXTURE_PATH = Path(__file__).parent.parent / "dossier" / "fixtures" / "expected_artifacts_typo.yaml"
 
     def _patch_schema_invalid_manifest(self, monkeypatch: pytest.MonkeyPatch, origin: str) -> None:
         import ruamel.yaml
@@ -1527,13 +1525,9 @@ class TestExpectedArtifactManifestSchemaErrorBoundary:
             def default(cls) -> _FakeRepository:
                 return _FakeRepository()
 
-        monkeypatch.setattr(
-            charter_missions, "MissionTemplateRepository", _FakeMissionTemplateRepository
-        )
+        monkeypatch.setattr(charter_missions, "MissionTemplateRepository", _FakeMissionTemplateRepository)
 
-    def test_resolve_configured_artifact_name_raises_manifest_schema_error(
-        self, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
+    def test_resolve_configured_artifact_name_raises_manifest_schema_error(self, monkeypatch: pytest.MonkeyPatch) -> None:
         from pydantic import ValidationError
 
         from specify_cli.dossier.manifest import ManifestSchemaError
@@ -1548,9 +1542,7 @@ class TestExpectedArtifactManifestSchemaErrorBoundary:
         assert exc_info.value.origin == distinctive_origin
         assert isinstance(exc_info.value.__cause__, ValidationError)
 
-    def test_required_artifacts_for_raises_manifest_schema_error(
-        self, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
+    def test_required_artifacts_for_raises_manifest_schema_error(self, monkeypatch: pytest.MonkeyPatch) -> None:
         from specify_cli.dossier.manifest import ManifestSchemaError
 
         self._patch_schema_invalid_manifest(monkeypatch, origin="test-fixture")
