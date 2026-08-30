@@ -16,6 +16,14 @@ the network seams with failures.
 *different* servers, with no whole-process override): both surfaces resolve
 with ``process_wide_override=False``, so that disagreement is now reachable
 and fails closed too, the same way an unconfigured machine does.
+
+#305: the readiness evaluator's split-brain case is *not* the same
+``MISSING_HOST_CONFIG`` state an unconfigured machine yields — it has its own
+``AMBIGUOUS_HOST_CONFIG`` state, because on a split-brain machine
+``SPEC_KITTY_SAAS_URL`` is already set, so telling the operator to set it
+(``MISSING_HOST_CONFIG``'s remedy) is a dead end. The client-construction case
+still raises :class:`ServerTargetSplitBrainError` directly, which already
+names both URLs.
 """
 
 from __future__ import annotations
@@ -98,16 +106,12 @@ def split_brain_host(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> Path:
     home = tmp_path / "split-brain-home"
     home.mkdir()
     monkeypatch.setenv("SPEC_KITTY_HOME", str(home))
-    (home / "config.toml").write_text(
-        '[sync]\nserver_url = "https://configured.example.com"\n', encoding="utf-8"
-    )
+    (home / "config.toml").write_text('[sync]\nserver_url = "https://configured.example.com"\n', encoding="utf-8")
     monkeypatch.setenv(SAAS_URL_ENV_VAR, "https://env-override.example.com")
     return tmp_path
 
 
-def test_saas_client_construction_with_split_brain_target_fails_closed(
-    split_brain_host: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
+def test_saas_client_construction_with_split_brain_target_fails_closed(split_brain_host: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """An ambiguous env/config disagreement must not silently bind the env host."""
     _refuse_network(monkeypatch)
 
@@ -119,12 +123,12 @@ def test_saas_client_construction_with_split_brain_target_fails_closed(
     assert "env-override.example.com" in message
 
 
-def test_evaluate_readiness_with_split_brain_target_yields_missing_host_config(
-    split_brain_host: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
+def test_evaluate_readiness_with_split_brain_target_yields_ambiguous_host_config(split_brain_host: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """The readiness evaluator's no-raise contract degrades the same ambiguity
-    to ``MISSING_HOST_CONFIG`` rather than reporting the env-overridden URL as
-    ready."""
+    to a dedicated ``AMBIGUOUS_HOST_CONFIG`` state (#305) — not
+    ``MISSING_HOST_CONFIG``, whose remedy ("set `SPEC_KITTY_SAAS_URL`") is a
+    dead end on a split-brain machine where that var is already set — and
+    names both disagreeing URLs so the operator can reconcile them."""
     _refuse_network(monkeypatch)
     monkeypatch.setenv("SPEC_KITTY_ENABLE_SAAS_SYNC", "1")
     monkeypatch.setattr("specify_cli.tracker.saas_readiness._probe_auth", lambda _repo_root: True)
@@ -134,5 +138,10 @@ def test_evaluate_readiness_with_split_brain_target_yields_missing_host_config(
         probe_reachability=True,
     )
 
-    assert result.state is ReadinessState.MISSING_HOST_CONFIG
+    assert result.state is ReadinessState.AMBIGUOUS_HOST_CONFIG
     assert not result.is_ready
+    assert "configured.example.com" in result.message
+    assert "env-override.example.com" in result.message
+    assert result.next_action is not None
+    assert "config.toml" in result.next_action
+    assert "SPEC_KITTY_SAAS_URL" in result.next_action
