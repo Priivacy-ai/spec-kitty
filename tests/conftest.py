@@ -303,8 +303,8 @@ def pytest_collection_modifyitems(items: list[pytest.Item]) -> None:
     skip_windows = pytest.mark.skip(reason="windows_ci: requires sys.platform == 'win32'")
     # Quarantine chokepoint (single, un-bypassable). Per the flakiness policy a
     # quarantined test is held out of every normal/blocking run so it can never
-    # turn main red or block an unrelated PR; the non-blocking quarantine-
-    # visibility CI job sets SPEC_KITTY_RUN_QUARANTINE=1 to run it for real.
+    # turn main red or block an unrelated PR; visibility requires the explicit
+    # SPEC_KITTY_RUN_QUARANTINE=1 opt-in (no hosted CI lane schedules it today).
     apply_quarantine_skip = not quarantine_opted_in(os.environ)
     skip_quarantine = quarantine_skip_mark()
     for item in items:
