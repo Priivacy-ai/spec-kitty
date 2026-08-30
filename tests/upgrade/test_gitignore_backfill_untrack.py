@@ -28,9 +28,7 @@ pytestmark = [pytest.mark.integration, pytest.mark.git_repo]
 
 
 def _git(cwd: Path, *args: str) -> subprocess.CompletedProcess[str]:
-    return subprocess.run(
-        ["git", "-C", str(cwd), *args], check=True, capture_output=True, text=True
-    )
+    return subprocess.run(["git", "-C", str(cwd), *args], check=True, capture_output=True, text=True)
 
 
 def _init_repo(root: Path) -> None:
@@ -77,9 +75,7 @@ def test_apply_untracks_a_previously_committed_skills_root(tmp_path: Path) -> No
     assert _SKILLS_ROOT_ENTRY in gitignore_text
 
     tracked_after = _ls_files(root)
-    assert not any(p.startswith(".agents/skills") for p in tracked_after), (
-        f"path must be untracked after the backfill, still tracked: {tracked_after}"
-    )
+    assert not any(p.startswith(".agents/skills") for p in tracked_after), f"path must be untracked after the backfill, still tracked: {tracked_after}"
 
     # `git rm --cached` stages the removal (a "D " index entry) rather than
     # committing it -- consistent with this codebase's existing convention
@@ -91,9 +87,7 @@ def test_apply_untracks_a_previously_committed_skills_root(tmp_path: Path) -> No
     # that would mean the gitignore coverage never actually took effect.
     dirt = _porcelain(root)
     assert not any(line.startswith("??") and "skills" in line for line in dirt), dirt
-    assert any(line.startswith("D") and "skills" in line for line in dirt), (
-        f"expected a staged removal of the untracked path, got: {dirt}"
-    )
+    assert any(line.startswith("D") and "skills" in line for line in dirt), f"expected a staged removal of the untracked path, got: {dirt}"
 
 
 def test_apply_untracks_a_previously_committed_manifest(tmp_path: Path) -> None:

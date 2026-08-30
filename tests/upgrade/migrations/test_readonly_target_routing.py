@@ -42,9 +42,7 @@ pytestmark = [pytest.mark.integration, pytest.mark.git_repo]
 
 def _init_git_repo(root: Path) -> None:
     subprocess.run(["git", "init", "-b", "main"], cwd=root, check=True, capture_output=True)
-    subprocess.run(
-        ["git", "config", "user.email", "test@example.com"], cwd=root, check=True, capture_output=True
-    )
+    subprocess.run(["git", "config", "user.email", "test@example.com"], cwd=root, check=True, capture_output=True)
     subprocess.run(["git", "config", "user.name", "Spec Kitty"], cwd=root, check=True, capture_output=True)
 
 
@@ -124,9 +122,7 @@ def test_workflow_agent_flag_rewrites_readonly_command_file(tmp_path: Path) -> N
     # Assert: succeeded and the edit was actually applied, not dropped.
     assert result.success is True
     new_content = command_path.read_text(encoding="utf-8")
-    assert "spec-kitty agent action implement WP01 --agent claude" in new_content, (
-        "edit must be applied, not silently skipped"
-    )
+    assert "spec-kitty agent action implement WP01 --agent claude" in new_content, "edit must be applied, not silently skipped"
 
     # The file must be left read-only again (managed generated-file state).
     assert stat.S_IMODE(command_path.stat().st_mode) & 0o222 == 0

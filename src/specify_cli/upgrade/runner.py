@@ -21,6 +21,7 @@ from specify_cli.migration.schema_version import (
 )
 
 from . import autocommit
+from .autocommit import capture_upgrade_baseline
 from .detector import VersionDetector
 from .metadata import ProjectMetadata
 from .migrations.base import BaseMigration, MigrationResult
@@ -366,7 +367,7 @@ class MigrationRunner:
 
             # Baseline BEFORE any write to this worktree, so the auto-commit
             # below stages only the churn this upgrade run introduces (#2385).
-            wt_baseline = autocommit.capture_upgrade_baseline(worktree) if auto_commit and not dry_run else None
+            wt_baseline = capture_upgrade_baseline(worktree) if auto_commit and not dry_run else None
 
             # Load or create worktree metadata
             wt_metadata = ProjectMetadata.load(wt_kittify)

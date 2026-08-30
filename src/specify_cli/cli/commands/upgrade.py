@@ -63,6 +63,11 @@ from specify_cli.cli.commands._teamspace_mission_state_gate import (
 from specify_cli.core.env import is_truthy
 from specify_cli.core.version_compare import is_version_newer
 from specify_cli.upgrade import autocommit
+from specify_cli.upgrade.autocommit import (
+    capture_upgrade_baseline,
+    should_auto_commit,
+    should_auto_commit_for_worktree,
+)
 from specify_cli.upgrade.outcome import RepairOutcome, UpgradeOutcome
 from specify_cli.upgrade.runner import UpgradeResult
 
@@ -765,7 +770,7 @@ def _run_no_migrations_worktree_stamp(
     worktrees_result = MigrationRunner(project_path, console).upgrade_worktrees_only(
         target_version,
         dry_run=dry_run,
-        auto_commit=autocommit.should_auto_commit_for_worktree(project_path, dry_run=dry_run),
+        auto_commit=should_auto_commit_for_worktree(project_path, dry_run=dry_run),
     )
     warnings = list(worktrees_result.get("warnings", []))
     if worktrees_result.get("errors"):
@@ -1227,7 +1232,7 @@ def upgrade(
     if not json_output:
         show_banner()
 
-    baseline_changed_paths = autocommit.capture_upgrade_baseline(project_path)
+    baseline_changed_paths = capture_upgrade_baseline(project_path)
 
     # Import upgrade system (lazy to avoid circular imports)
     from specify_cli.upgrade.detector import VersionDetector
@@ -1298,7 +1303,7 @@ def upgrade(
             dry_run=dry_run,
             force=confirm,  # pass the unified confirm flag
             include_worktrees=not no_worktrees,
-            auto_commit=autocommit.should_auto_commit_for_worktree(project_path, dry_run=dry_run),
+            auto_commit=should_auto_commit_for_worktree(project_path, dry_run=dry_run),
         )
         manual_review_paths = _collect_manual_review_paths(result.migration_results)
         if manual_review_paths:
@@ -1312,7 +1317,9 @@ def upgrade(
     # T017/C4 — one shared tail: wire the finalizer with the step
     # implementations as injected callables (the finalizer itself does not
     # import cli.commands — see upgrade/finalize.py's module docstring).
-    should_commit_main = autocommit.should_auto_commit(project_path, dry_run=dry_run, manual_review=bool(outcome.manual_review_paths))
+    should_commit_main = should_auto_commit(
+        project_path, dry_run=dry_run, manual_review=bool(outcome.manual_review_paths)
+    )
     render_ctx = _FinalizerRenderContext()
 
     from specify_cli.upgrade.finalize import finalize_upgrade
