@@ -337,8 +337,15 @@ STATE_SURFACES: tuple[StateSurface, ...] = (
         format=StateFormat.JSON,
         authority=AuthorityClass.LOCAL_RUNTIME,
         git_class=GitClass.IGNORED,
-        owner_module="dossier drift detector",
+        owner_module="dossier drift detector (deleted, #274)",
         creation_trigger="dossier parity baseline accept",
+        notes=(
+            "#274 deleted dossier/drift_detector.py, this surface's sole "
+            "writer -- nothing currently creates this path. Kept IGNORED "
+            "defensively (harmless over-inclusion in .gitignore) in case a "
+            "future feature reuses .kittify/dossiers/<feature>/"
+            "parity-baseline.json; see #277."
+        ),
     ),
     StateSurface(
         name="op_invocation_record",
