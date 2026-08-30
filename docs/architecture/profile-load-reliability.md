@@ -22,11 +22,13 @@ work makes possible is a **separate, backlog-scoped** design — see
 > on the activation-allowlist root cause with live-command and git evidence.
 
 > **Tracking.** Epic [#3809](https://github.com/Priivacy-ai/spec-kitty/issues/3809)
-> ("squads must never dispatch unprofiled"). Children: #3810 (activation-allowlist bug,
-> §4.1), #3811 (orchestrator-injects fail-loud contract, §4.2), #3812 (`/spk-load-profile`,
-> §4.3), #3813 (WP-prompt hygiene, §4.4), #3814 (research/doc template parity), #3816
-> (`directive:<id>` selector bug, §6 D1) — all milestone **3.2.6**; #3815 (charter-backend
-> design spike) in **Product backlog**.
+> ("squads must never dispatch unprofiled"). Children in **3.2.6**: #3810 (activation-
+> allowlist bug, §4.1), #3811 (orchestrator-injects fail-loud contract, §4.2), #3812
+> (`/spk-load-profile`, §4.3), #3813 (WP-prompt hygiene, §4.4), #3816 (`directive:<id>`
+> selector bug, §6 D1). In **Product backlog**: #3815 (charter-backend design spike) and
+> #3814 (research/doc template parity — demoted post scope-review as purely additive).
+> Hard dependency edges are encoded on the issues: #3810→#3811→#3812→#3813/#3814
+> (#3816 is a *soft* compaction edge on #3811, not a hard block).
 
 ## 1. Symptoms
 
