@@ -78,7 +78,7 @@ class TestProbeGithubReleasesChannelAware:
         assert default_result.latest_release_version == explicit_result.latest_release_version
 
     @respx.mock
-    def test_opted_in_rc_build_stops_reading_ahead_of_pypi(self) -> None:
+    def test_opted_in_rc_build_stops_reading_ahead_of_release(self) -> None:
         """C-CHN-2: an installed rc that IS the newest published release
         reclassifies as ALREADY_CURRENT once its own channel is consulted.
         """
