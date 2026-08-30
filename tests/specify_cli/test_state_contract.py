@@ -483,6 +483,37 @@ def test_section_e_sync_surfaces_present():
     assert not missing, f"Missing Section E surfaces: {missing}"
 
 
+def test_section_e_historical_sync_rows_retain_original_authority():
+    """#689 is metadata-only: owner_module/creation_trigger/notes were
+    updated to mark these rows historical, but authority/deprecated must
+    stay at their pre-#689 values (StateSurface.to_dict(), `doctor
+    state-roots`, and get_surfaces_by_authority() all read them; #689
+    explicitly excludes "any behavioral change to state handling").
+    """
+    surfaces_by_name = {s.name: s for s in STATE_SURFACES}
+    expected_authority = {
+        "lamport_clock": AuthorityClass.AUTHORITATIVE,
+        "active_queue_scope": AuthorityClass.LOCAL_RUNTIME,
+        "sync_daemon_control": AuthorityClass.LOCAL_RUNTIME,
+        "legacy_queue": AuthorityClass.AUTHORITATIVE,
+        "scoped_queue": AuthorityClass.AUTHORITATIVE,
+        "project_sync_store": AuthorityClass.AUTHORITATIVE,
+        "project_sync_egress_lock": AuthorityClass.LOCAL_RUNTIME,
+        "project_sync_layout_generation": AuthorityClass.AUTHORITATIVE,
+        "project_sync_layout_generation_lock": AuthorityClass.LOCAL_RUNTIME,
+        "project_sync_layout_generation_marker": AuthorityClass.AUTHORITATIVE,
+        "project_sync_migration_reports": AuthorityClass.LOCAL_RUNTIME,
+    }
+    for name, authority in expected_authority.items():
+        surface = surfaces_by_name[name]
+        assert surface.authority == authority, (
+            f"{name}: expected authority={authority}, got {surface.authority}"
+        )
+        assert surface.deprecated is False, f"{name}: expected deprecated=False, got {surface.deprecated}"
+        assert surface.owner_module == "legacy"
+        assert surface.creation_trigger == "historical"
+
+
 def test_section_f_global_runtime_present():
     """Key Section F surfaces exist."""
     names = {s.name for s in STATE_SURFACES}

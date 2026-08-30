@@ -98,6 +98,19 @@ def test_glossary_page_renders_styled_and_interactive_under_csp(page: Page, glos
     cards = page.locator(".letter-section .card")
     expect(cards).to_have_count(len(_SEED_TERMS))
 
+    # The CSSOM write at glossary.js:178 (card.querySelector('.conf-fill').style.width
+    # = pct + '%') is what the CSP re-home replaced a blocked inline style="width:..."
+    # with. Nothing above proves that write still has an effect: a selector typo or a
+    # later CSS rule overriding .conf-fill's width would leave every bar empty/full
+    # while every other assertion in this test stays green (issue #97). Assert the
+    # rendered ratio for the seeded 0.5-confidence term ("mission log").
+    mission_log_card = page.locator(".letter-section .card", has_text="mission log")
+    conf_bar_box = mission_log_card.locator(".conf-bar").bounding_box()
+    conf_fill_box = mission_log_card.locator(".conf-fill").bounding_box()
+    assert conf_bar_box is not None and conf_fill_box is not None
+    fill_ratio = conf_fill_box["width"] / conf_bar_box["width"]
+    assert fill_ratio == pytest.approx(0.5, abs=0.02), f"conf-fill/conf-bar width ratio {fill_ratio} != ~0.5 for a 0.5-confidence term"
+
     # Interactivity the former inline script provided: live search filter.
     # render() rebuilds the board from scratch on every keystroke/tab click,
     # so matching cards simply cease to exist rather than getting .hidden.

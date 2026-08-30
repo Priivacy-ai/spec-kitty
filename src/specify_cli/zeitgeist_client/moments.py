@@ -57,6 +57,7 @@ from pathlib import Path
 from typing import Any
 
 import tomli_w
+from spec_kitty_events.zeitgeist_attrs import VOLATILE_EVENT_TYPES
 
 from kernel.paths import get_kittify_home
 
@@ -125,6 +126,17 @@ class MomentSettings:
     the developer asked for a restriction and typo'd it, so it must never
     read as "no restriction" too — :func:`frame_predicate` and
     :func:`allows_repo` fail that dimension closed (admit nothing) instead.
+
+    ``kinds`` is spelled-correctly-but-wrong's other trap: it matches a
+    frame's raw wire ``kind`` (:func:`event_kind`) — the volatile family name
+    (``WPStatusChanged``, ``MissionCreated``, …; the full list is
+    :data:`KNOWN_KIND_NAMES`) — never the dotted style #190's own text used
+    (``wp.move``, ``mission.created``). A well-formed list of dotted or
+    otherwise unknown strings is not ``invalid_filters`` material — it is
+    valid TOML, so it settles into ``kinds`` normally — but it can never
+    match anything, and :func:`frame_predicate` then fails every event
+    closed. :func:`unknown_kind_names` is how ``moments status``
+    (EXPERIMENTAL-spec-kitty#210) makes that silence visible.
     """
 
     agents: MomentsMode = DEFAULT_AGENTS_MODE
@@ -138,9 +150,15 @@ class MomentSettings:
 
     def as_dict(self) -> dict[str, Any]:
         """JSON-safe projection (StrEnum members serialise as their values;
-        ``invalid_filters`` as a sorted list — a frozenset is not JSON-safe)."""
+        ``invalid_filters`` as a sorted list — a frozenset is not JSON-safe).
+
+        Adds ``kinds_unknown`` — the :func:`unknown_kind_names` among
+        ``kinds`` — so a machine caller sees the same "this can never match"
+        signal `spec-kitty moments status`'s human text does, without
+        re-deriving it against :data:`KNOWN_KIND_NAMES` itself."""
         payload = asdict(self)
         payload["invalid_filters"] = sorted(self.invalid_filters)
+        payload["kinds_unknown"] = [] if "kinds" in self.invalid_filters else list(unknown_kind_names(self.kinds))
         return payload
 
 
@@ -425,12 +443,37 @@ def local_missions(project_root: Path | None) -> frozenset[str]:
 
 # --- #190: the client-side predicate ----------------------------------------
 
+#: Every volatile family name a ``kinds`` entry can actually match on the
+#: wire — re-exported from :mod:`spec_kitty_events.zeitgeist_attrs` so a
+#: ``[moments]`` config or its docs never has to spell the vocabulary a
+#: second time (``WPStatusChanged``, ``MissionCreated``, ``PhaseEntered``, …,
+#: not the dotted ``wp.move``/``mission.created`` style #190's own text
+#: used). See :func:`unknown_kind_names`.
+KNOWN_KIND_NAMES: frozenset[str] = VOLATILE_EVENT_TYPES
+
 
 def event_kind(payload: Mapping[str, Any]) -> str | None:
     """An event payload's ``kind`` — the volatile vocabulary's event type
-    (``WPStatusChanged``, ``MissionCreated``, …) — or ``None`` when absent."""
+    (``WPStatusChanged``, ``MissionCreated``, …; the full list is
+    :data:`KNOWN_KIND_NAMES`) — or ``None`` when absent."""
     kind = payload.get("kind")
     return kind if isinstance(kind, str) and kind else None
+
+
+def unknown_kind_names(kinds: Iterable[str]) -> tuple[str, ...]:
+    """Which entries of a configured ``kinds`` filter are not in
+    :data:`KNOWN_KIND_NAMES`, order-preserving.
+
+    A well-formed ``kinds`` list of dotted (``wp.move``) or otherwise unknown
+    strings is not a shape :func:`_malformed_filter_keys` catches — it is
+    valid TOML — so it settles into :attr:`MomentSettings.kinds` looking like
+    an ordinary, active filter. It can never match a frame's wire
+    :func:`event_kind`, though, so :func:`frame_predicate` fails every event
+    closed and the developer sees zero moments with no error anywhere. This
+    is the fail-closed direction EXPERIMENTAL-spec-kitty#210 asks to keep —
+    just make the silence visible, which is `spec-kitty moments status`'s
+    job (``cli/commands/moments.py``)."""
+    return tuple(kind for kind in kinds if kind not in KNOWN_KIND_NAMES)
 
 
 def event_actor(payload: Mapping[str, Any]) -> str | None:
