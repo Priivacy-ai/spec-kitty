@@ -236,6 +236,45 @@ def test_cached_credential_answers_offline_without_asking_team_kitty(state_root:
     assert "team: demo · relay: http://relay" in result.stdout
 
 
+def test_cached_credential_answers_offline_even_with_nothing_configured_to_authenticate_with(
+    state_root: Path, clone: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """EXPERIMENTAL-spec-kitty#151: a checkout with a valid stored credential
+    but no auth configured anywhere (no env vars, no saas-auth.json, no
+    `auth login` session) must still answer offline — the gateway is never
+    needed for a cache hit."""
+    monkeypatch.delenv("SPEC_KITTY_SAAS_URL", raising=False)
+    monkeypatch.delenv("SPEC_KITTY_SAAS_TOKEN", raising=False)
+    monkeypatch.delenv("SPEC_KITTY_TEAM_SLUG", raising=False)
+    credentials.store(
+        repo="github.com/acme/widget",
+        relay_url="http://relay",
+        token="bearer",
+        token_kind="presence",
+        expires_at=_iso_in(3600),
+        host="github.com",
+        repo_slug="acme/widget",
+        team="demo",
+    )
+
+    result = runner.invoke(app, ["routes"])
+    assert result.exit_code == 0
+    assert "team: demo · relay: http://relay" in result.stdout
+
+
+def test_cached_negative_answers_offline_even_with_nothing_configured_to_authenticate_with(state_root: Path, clone: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """Same fix, the remembered-negative branch: "not admitted" must not
+    require auth to be configured either."""
+    monkeypatch.delenv("SPEC_KITTY_SAAS_URL", raising=False)
+    monkeypatch.delenv("SPEC_KITTY_SAAS_TOKEN", raising=False)
+    monkeypatch.delenv("SPEC_KITTY_TEAM_SLUG", raising=False)
+    credentials.store_negative(repo="github.com/acme/widget", reason="stale-reason")
+
+    result = runner.invoke(app, ["routes"])
+    assert result.exit_code == 0
+    assert "not admitted to any team — no relay" in result.stdout
+
+
 # --- not admitted -----------------------------------------------------------
 
 

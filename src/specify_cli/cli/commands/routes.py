@@ -9,13 +9,17 @@ or, just as valid an answer, *no team admits it, so this checkout produces
 nothing anywhere*. This command prints exactly that, read from the same
 seam every status transition already uses.
 
-One code path, no second implementation: :func:`routes` calls
-:func:`zeitgeist_client.resolution.resolve_credentials` — the E3 seam whose
-cache / remembered-negative / mint branches every transition rides. That
-means the command hits the network only when the store genuinely cannot
-answer yet (a fresh login, an expired stamp), stores whatever Team Kitty
-answers — positive credential or short-TTL negative — exactly as a
-transition would, and reports honestly which of the three states it is in:
+One code path, no second implementation: :func:`routes` reads the same
+store every status transition does — :func:`zeitgeist_client.resolution.cached_answer`
+for the offline peek, then :func:`zeitgeist_client.resolution.resolve_credentials`
+(the E3 seam whose cache / remembered-negative / mint branches every
+transition rides) only when that peek misses. A cache hit — positive or a
+remembered negative — must answer without ever requiring auth to be
+configured (EXPERIMENTAL-spec-kitty#151); only a genuine miss touches the
+network, mints if the store still cannot answer, and stores whatever Team
+Kitty answers — positive credential or short-TTL negative — exactly as a
+transition would. The command reports honestly which of the three states
+it is in:
 
 * a stored credential answers offline, instantly;
 * a remembered negative ("no team admits this repo") answers offline too,
@@ -117,10 +121,18 @@ def _print_routes(payload: dict[str, Any]) -> None:
 def routes(as_json: bool = _JSON_OPTION) -> None:
     """Show which team admits this checkout and which relay carries its moments."""
     key, slug, host = _resolve_checkout()
-    gateway = _gateway_for(Path(os.getcwd()))
 
-    stored = resolution.resolve_credentials(os.getcwd(), gateway=gateway)
-    negative = credentials.load_negative(repo=key)
+    # A cached answer — positive or a remembered negative — answers offline
+    # and must not require auth to be configured first (EXPERIMENTAL-spec-kitty#151):
+    # only a genuine cache miss needs the gateway (and thus a working auth
+    # context) at all.
+    hit, stored = resolution.cached_answer(key, repo_slug=slug, host=host)
+    if hit:
+        negative = credentials.load_negative(repo=key) if stored is None else None
+    else:
+        gateway = _gateway_for(Path(os.getcwd()))
+        stored = resolution.resolve_credentials(os.getcwd(), gateway=gateway)
+        negative = credentials.load_negative(repo=key)
 
     payload: dict[str, Any]
     if stored is not None:
