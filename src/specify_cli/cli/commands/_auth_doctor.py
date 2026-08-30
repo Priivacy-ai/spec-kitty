@@ -61,7 +61,7 @@ from specify_cli.cli.console import console
 from kernel.clock import datetime, now_utc
 
 from specify_cli.auth import get_token_manager
-from specify_cli.auth.server_target import resolve_server_target
+from specify_cli.auth.server_target import ServerTargetSplitBrainError, resolve_server_target
 from specify_cli.auth.session import StoredSession
 from specify_cli.auth.token_manager import _refresh_lock_path
 from specify_cli.cli.commands._auth_status import (
@@ -399,7 +399,6 @@ async def _check_server_session() -> ServerSessionStatus:
     short-circuits before any refresh is attempted (issue #253).
     """
     from specify_cli.auth import get_token_manager  # noqa: PLC0415 (avoid circular at module level)
-    from specify_cli.auth.config import get_saas_base_url  # noqa: PLC0415
     import httpx  # noqa: PLC0415
 
     from specify_cli.auth.errors import (  # noqa: PLC0415
@@ -432,8 +431,13 @@ async def _check_server_session() -> ServerSessionStatus:
         return ServerSessionStatus(active=False, error="Could not obtain access token.")
 
     try:
-        saas_url = get_saas_base_url()
-    except Exception:  # noqa: BLE001 - SaaS config failure is reported as inactive server status
+        # Route the bearer-token-bearing send through the canonical resolver
+        # (#307), failing closed on an ambiguous env/config disagreement like
+        # the other no-human-in-the-loop hosted sends (see #117, #297).
+        saas_url = resolve_server_target(process_wide_override=False).resolved_server_url
+    except ServerTargetSplitBrainError as exc:
+        return ServerSessionStatus(active=False, error=f"SaaS URL mismatch: {exc}")
+    except Exception:  # noqa: BLE001 - SaaS config/resolution failure is reported as inactive server status
         return ServerSessionStatus(active=False, error="SaaS URL not configured")
 
     url = f"{saas_url}/api/v1/session-status"
