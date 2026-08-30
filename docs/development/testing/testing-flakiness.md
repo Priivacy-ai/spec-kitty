@@ -159,7 +159,7 @@ will surface failures you did not cause. **Classify every failure before you act
 misattribution wastes effort and, worse, tempts an agent to green-wash a signal the project
 deliberately keeps red.
 
-Three baseline-red categories that are **not yours to fix**:
+Four baseline-red categories that are **not yours to fix**:
 
 1. **Pre-existing known-P0 reds.** Per [ADR 2026-07-17-1](../../adr/3.x/2026-07-17-1-red-main-is-honest-ci-is-release-authority.md),
    an open P0 bug is *expected* to red mainline (e.g. #2736 batch poisoning, #2772 charter
@@ -174,6 +174,14 @@ Three baseline-red categories that are **not yours to fix**:
    `merge-driver-meta`/`-traces` commands) only fires when an up-to-date `spec-kitty` is
    installed. Between landing a change and `pip install -e .`, coverage/gate jobs report
    false reds for lines that are actually exercised via subprocess.
+4. **Stale-venv false reds.** A `ModuleNotFoundError` (or other import failure) for a package
+   that *is* declared and pinned (`pyproject.toml` / `uv.lock`) usually means the local
+   `.venv` was never (re)synced to that pin, not a real regression. Run
+   `uv sync --frozen --all-extras` and retry the failing test before recording it as
+   pre-existing or unrelated — a stale venv is indistinguishable from real breakage in raw
+   pytest output (#648: a PR's `## Tests run` section excluded a whole
+   test file over exactly this `ModuleNotFoundError`, when a clean `uv sync --frozen
+   --all-extras` reproduced 1621/1621 passing with no exclusion needed).
 
 **The attribution test:** a failure is yours to fold only if it is **red on your branch and
 green on the base**. Confirm the base state by running the same node id against
