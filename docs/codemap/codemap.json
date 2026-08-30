@@ -1,8 +1,8 @@
 {
   "schema_version": "codemap/v1",
   "mission": "glm53-paid-spec-reviewer-01M16CYX",
-  "generated_at_utc": "2026-08-29T21:40:32Z",
-  "source_head": "8c885744640da4bd63aeb6acf0c6c200c574d240",
+  "generated_at_utc": "2026-08-30T09:20:02Z",
+  "source_head": "5612b8b8409cb5c1c23f980dc188f1660b0b3da6",
   "generator": "glm53-paid-spec-reviewer/v1",
   "digest_mode": "sha256(text normalized to UTF-8 with LF line endings)",
   "audience": "Spec Kitty core maintainers and WP implementers",
@@ -123,7 +123,7 @@
     },
     {
       "path": "src/specify_cli/__init__.py",
-      "sha256": "e98975057a21c5f611adad88ee79a554db908f6efbd251cf42e7443a4e1348a7"
+      "sha256": "9430e7cf7485223d9a5153b11cd88a60fc30e4f92684e8bd7d4fbd749d9d6a4b"
     },
     {
       "path": "src/specify_cli/cli/commands/__init__.py",
@@ -163,7 +163,7 @@
     },
     {
       "path": "src/specify_cli/invocation/executor.py",
-      "sha256": "e5f9b785c8d8a97733d6fc3decd5d786d738d13fec852ad75e73bb5ddc58fd50"
+      "sha256": "f254b8711ac663064c27c0df08e779e75bfb44f63200c267ce8e6b35b255709f"
     },
     {
       "path": "src/specify_cli/spec_review/__init__.py",
@@ -203,7 +203,7 @@
     },
     {
       "path": "tests/architectural/_baselines.yaml",
-      "sha256": "2ce6c924097a584f4dc8538cf365bd552f3b8c3ef277666b560a320ac306dec5"
+      "sha256": "064d0d6e5b4ef5fe0dc6e0d7db8e7bd157c764ff6a153e18ff9cc1ff36d79247"
     },
     {
       "path": "tests/architectural/test_egress_consent_boundary.py",
@@ -263,7 +263,7 @@
     },
     {
       "path": "tests/specify_cli/invocation/cli/test_dispatch.py",
-      "sha256": "18194595eb9fc818638894677bf99fd00265b99ef88cef8af9b1ed7633be8ed5"
+      "sha256": "56f1fdd7a78b20bb70cb522de4a6d3c3d1e54cf69eb7660be0b26f83435fea63"
     },
     {
       "path": "tests/specify_cli/invocation/test_executor.py",
