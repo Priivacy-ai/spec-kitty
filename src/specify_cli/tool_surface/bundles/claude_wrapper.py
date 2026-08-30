@@ -69,7 +69,7 @@ SET VERSION={version}
 
 where spec-kitty >nul 2>&1
 IF ERRORLEVEL 1 GOTO try_uvx
-spec-kitty --version >nul 2>&1
+CALL spec-kitty --version >nul 2>&1
 IF ERRORLEVEL 1 GOTO try_uvx
 spec-kitty %*
 EXIT /B %ERRORLEVEL%

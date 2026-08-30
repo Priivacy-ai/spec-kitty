@@ -154,7 +154,7 @@ class TestWrapperCmdContent:
 
     def test_where_match_must_be_reachable(self) -> None:
         content = wrapper_cmd_content("1.0.0")
-        assert "spec-kitty --version >nul 2>&1" in content
+        assert "CALL spec-kitty --version >nul 2>&1" in content
 
     def test_uvx_fallback_present(self) -> None:
         content = wrapper_cmd_content("1.0.0")
