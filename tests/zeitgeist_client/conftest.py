@@ -18,8 +18,6 @@ territory (Z1.md §4 preamble); this double never leaves ``127.0.0.1``.
 
 from __future__ import annotations
 
-from kernel.clock import now_epoch
-
 import contextlib
 import http.server
 import json
@@ -27,14 +25,17 @@ import queue
 import socket
 import threading
 import time
-from collections.abc import Generator
+import os
+from collections.abc import Callable, Generator
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
 import pytest
 
-from specify_cli.zeitgeist_client import moments
+from kernel.clock import now_epoch
+
+from specify_cli.zeitgeist_client import moments, repo_identity
 
 
 @pytest.fixture()
@@ -59,6 +60,59 @@ def instead_of_rewrite(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> str:
     monkeypatch.setenv("GIT_CONFIG_GLOBAL", str(config_path))
     monkeypatch.setenv("GIT_CONFIG_NOSYSTEM", "1")
     return proxy_host
+
+
+@pytest.fixture()
+def no_git_ancestry_inside_tmp_path(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Keep an unrelated ancestor checkout's identity from leaking into
+    tests that build a repo-less directory under ``tmp_path`` and expect
+    resolution to fail closed with ``UnverifiedRepositoryIdentity``.
+
+    When pytest's base temp directory itself sits under a checkout with an
+    ``origin`` remote configured — true of every exe.dev VM in this
+    programme, where repos live under ``/work`` — the upward walk both the
+    filesystem fallback (``_git_dir_from_filesystem``) and the live-git
+    probe (``Deadline.run``) perform can reach past ``tmp_path`` into that
+    ancestor and mint ITS identity instead of raising. Bound both to
+    ``tmp_path``, the same boundary-pin PR #386 established for one test:
+    a lookup that would otherwise resolve to a ``.git`` OUTSIDE
+    ``tmp_path`` reports nothing found, exactly as a real repo-less
+    directory would, while a ``.git`` genuinely created inside
+    ``tmp_path`` by the test itself (e.g. the ``origin``/``_clone``
+    fixtures) is unaffected.
+    """
+    boundary = os.path.abspath(str(tmp_path))
+    real_git_dir_from_filesystem: Callable[[str], str] = (
+        repo_identity._git_dir_from_filesystem
+    )
+    real_deadline_run: Callable[[repo_identity.Deadline, list[str], str], str] = (
+        repo_identity.Deadline.run
+    )
+
+    def _inside_boundary(path: str) -> bool:
+        candidate = os.path.abspath(path)
+        return candidate == boundary or candidate.startswith(boundary + os.sep)
+
+    def _bounded_git_dir_from_filesystem(cwd: str) -> str:
+        git_dir = real_git_dir_from_filesystem(cwd)
+        if git_dir and not _inside_boundary(git_dir):
+            return ""
+        return git_dir
+
+    def _bounded_deadline_run(
+        self: repo_identity.Deadline, args: list[str], cwd: str
+    ) -> str:
+        git_dir = real_git_dir_from_filesystem(os.path.realpath(cwd))
+        if git_dir and not _inside_boundary(git_dir):
+            return ""
+        return real_deadline_run(self, args, cwd)
+
+    monkeypatch.setattr(
+        repo_identity, "_git_dir_from_filesystem", _bounded_git_dir_from_filesystem
+    )
+    monkeypatch.setattr(repo_identity.Deadline, "run", _bounded_deadline_run)
 
 
 @dataclass
