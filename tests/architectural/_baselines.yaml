@@ -279,10 +279,10 @@ test_reference_enum_ratchet:
 # adding a file requires this diff plus a `# justification:` naming why the
 # sink carries no project data, or why its consent seam is sound.
 test_egress_consent_boundary:
-  # justification: 27 files hold a transmit primitive with a recorded reason —
+  # justification: 28 files hold a transmit primitive with a recorded reason —
   # 12 gated by a named consent seam on the data's own project_uuid (E1/E2/E3
   # and E6-E13), 1 per-project transport whose every caller is separately
-  # seamed (E14), and 14 that are
+  # seamed (E14), and 15 that are
   # not project egress at all — auth/OAuth token traffic, the doctrine fetch,
   # the readiness probe, four localhost control endpoints and `sync doctor`'s
   # empty-body connectivity probe (E18). Each was verified individually, not
@@ -336,7 +336,11 @@ test_egress_consent_boundary:
   # (sync/daemon.py, sync/daemon_protocol.py, sync/orphan_sweep.py). saas/readiness.py
   # re-homed verbatim to tracker/saas_readiness.py (same E18 reason, new address).
   # Recorded so the ceiling does not silently hold free files.
-  egress_allowlist_files: 14
+  # 14 -> 15 (#217): doctrine HTTPS fetches now query Artifactory AQL for the
+  # configured public pack item's version and SHA-256. The query identifies
+  # repo/path/name from the operator-configured doctrine URL and returns
+  # metadata; it transmits no project data.
+  egress_allowlist_files: 15
   # justification: 0. The module asserts this set is EMPTY, so any entry is a
   # red build; pinning the baseline at 0 makes recording one cost a second
   # visible diff here as well. Growth is a NEW unconsented egress path — the
@@ -344,4 +348,3 @@ test_egress_consent_boundary:
   # to fix the path, never to register it. E1/E2/E3 were the founding entries
   # (FR-028/029/030) and moved to egress_allowlist_files when they landed.
   known_ungated_files: 0
-

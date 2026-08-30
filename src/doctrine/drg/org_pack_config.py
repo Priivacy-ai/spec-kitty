@@ -36,7 +36,7 @@ __all__ = [
     "save_pack_registry",
 ]
 
-SourceType = Literal["git", "https", "api"]
+SourceType = Literal["git", "https", "artifactory", "api"]
 
 _CONFIG_REL_PATH = Path(".kittify") / "config.yaml"
 _LEGACY_DEFAULT_PACK_NAME = "default"

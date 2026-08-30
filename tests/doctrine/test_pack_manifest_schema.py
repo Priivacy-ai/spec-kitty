@@ -8,8 +8,10 @@ All synthetic (tmp_path only) — no on-disk corpus is read.
 
 from __future__ import annotations
 
+import json
+
 import pytest
-from pydantic import ValidationError
+from pydantic import TypeAdapter, ValidationError
 
 from doctrine.artifact_kinds import ArtifactKind
 from specify_cli.doctrine.pack_manifest import (
@@ -122,6 +124,44 @@ class TestSchemaVersionAndRoundTrip:
             PackManifest(generated_by="t", constituents=[_c(ArtifactKind.DIRECTIVE, "a")])
         )
         assert dump_pack_manifest_bytes(m) == dump_pack_manifest_bytes(m)
+
+    def test_builtin_variant_omits_fetched_nulls_on_all_pydantic_paths(self) -> None:
+        manifest = PackManifest(source_type="built-in", constituents=[])
+        forbidden = {"pack_version", "etag", "artifact_counts"}
+
+        assert forbidden.isdisjoint(manifest.model_dump())
+        assert forbidden.isdisjoint(json.loads(manifest.model_dump_json()))
+        assert forbidden.isdisjoint(TypeAdapter(PackManifest).dump_python(manifest))
+
+    def test_generated_variant_retains_null_pack_version(self) -> None:
+        manifest = PackManifest(source_type="https", artifact_counts={})
+
+        assert manifest.model_dump()["pack_version"] is None
+        assert json.loads(manifest.model_dump_json())["pack_version"] is None
+        assert TypeAdapter(PackManifest).dump_python(manifest)["pack_version"] is None
+
+    def test_serialization_schema_preserves_validation_field_contract(self) -> None:
+        validation = PackManifest.model_json_schema(mode="validation")
+        serialization = PackManifest.model_json_schema(mode="serialization")
+        adapter = TypeAdapter(PackManifest).json_schema(mode="serialization")
+
+        assert set(serialization["properties"]) == set(validation["properties"])
+        assert serialization["additionalProperties"] is False
+        assert set(adapter["properties"]) == set(validation["properties"])
+        assert adapter["additionalProperties"] is False
+
+    def test_non_null_provenance_changes_hash_without_artifact_counts(self) -> None:
+        first = PackManifest(
+            source_type="custom",
+            pack_version="v1",
+            etag="e1",
+            constituents=[_c(ArtifactKind.DIRECTIVE, "a")],
+        )
+        second = first.model_copy(update={"pack_version": "v2", "etag": "e2"})
+
+        assert first.model_dump()["pack_version"] == "v1"
+        assert first.model_dump()["etag"] == "e1"
+        assert compute_pack_manifest_hash(first) != compute_pack_manifest_hash(second)
 
 
 class TestCharterProfile:

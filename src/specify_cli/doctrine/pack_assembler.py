@@ -430,7 +430,13 @@ def _has_recognisable_pack_manifest(output_dir: Path) -> bool:
     # unrecognisable.
     if "pack_version" not in payload and _read_authored_pack_version(output_dir) is None:
         return False
-    return payload.get("source_type") in {"assemble", "git", "https", "api"}
+    return payload.get("source_type") in {
+        "assemble",
+        "git",
+        "https",
+        "artifactory",
+        "api",
+    }
 
 
 def _copy_artifacts(
