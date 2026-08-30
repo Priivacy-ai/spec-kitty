@@ -95,7 +95,9 @@ def scan_module(tree: ast.Module, relpath: str) -> list[Hit]:
             callee = _callee_name(call.func)
             if callee not in PATH_KEYED_CACHE_CONSUMERS:
                 continue
-            if any(_is_bare_tmp_path(arg) for arg in call.args):
+            bare_positional_tmp_path = any(_is_bare_tmp_path(arg) for arg in call.args)
+            bare_keyword_tmp_path = any(_is_bare_tmp_path(keyword.value) for keyword in call.keywords)
+            if bare_positional_tmp_path or bare_keyword_tmp_path:
                 hits.append(Hit(relpath, call.lineno, node.name, callee))
     return sorted(hits)
 
