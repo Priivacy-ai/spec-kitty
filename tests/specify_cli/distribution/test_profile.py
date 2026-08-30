@@ -2,11 +2,13 @@
 
 from __future__ import annotations
 
+from dataclasses import fields
 from typing import Any
 
 import pytest
 
 from specify_cli.compat.provider import FakeLatestVersionProvider, PyPIProvider
+from specify_cli.distribution import profile
 from specify_cli.distribution.package_name import (
     DEFAULT_CLI_PACKAGE_NAME,
     clear_cli_package_name_cache,
@@ -54,6 +56,18 @@ def test_stock_profile_defaults() -> None:
     assert profile.index_url is None
     assert profile.extra_index_url is None
     assert profile.version_label is None
+
+
+def test_retired_profile_field_and_export_are_removed() -> None:
+    assert not hasattr(DistributionProfile, "disable_public_pypi_notifier")
+    assert "disable_public_pypi_notifier" not in {field.name for field in fields(DistributionProfile)}
+    assert "disable_public_pypi_notifier" not in profile.__all__
+
+    with pytest.raises(TypeError):
+        DistributionProfile(
+            package_name="fork-cli",
+            disable_public_pypi_notifier=True,
+        )
 
 
 def test_stock_defaults_contain_no_private_hostnames() -> None:

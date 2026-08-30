@@ -17,7 +17,8 @@ from __future__ import annotations
 
 import time
 import tomllib
-from kernel.clock import datetime, timedelta, UTC
+from dataclasses import fields
+from kernel.clock import datetime, now_utc, timedelta, UTC
 from io import StringIO
 from pathlib import Path
 
@@ -26,6 +27,7 @@ import pytest
 import respx
 from rich.console import Console
 
+from specify_cli.core import upgrade_probe
 from specify_cli.core.upgrade_notifier import (
     OPT_OUT_ENV_VAR,
     TTL_SUCCESS_SECONDS,
@@ -70,6 +72,21 @@ def _capture_console() -> tuple[Console, StringIO]:
 
 class TestProbeChannelClassification:
     """The channel matrix from contracts/upgrade-probe-and-notifier.md."""
+
+    def test_retired_probe_api_names_are_removed(self) -> None:
+        assert not hasattr(upgrade_probe, "probe_pypi")
+        assert "probe_pypi" not in upgrade_probe.__all__
+        assert "AHEAD_OF_PYPI" not in UpgradeChannel.__members__
+        assert "latest_pypi_version" not in {field.name for field in fields(UpgradeProbeResult)}
+
+        with pytest.raises(TypeError):
+            UpgradeProbeResult(
+                installed_version="1.0.0",
+                latest_release_version="1.0.1",
+                channel=UpgradeChannel.UPGRADE_AVAILABLE,
+                probed_at=now_utc(),
+                latest_pypi_version="1.0.1",
+            )
 
     def test_probe_uses_github_releases_endpoint(self) -> None:
         assert GITHUB_RELEASES_URL.startswith("https://api.github.com/repos/")
