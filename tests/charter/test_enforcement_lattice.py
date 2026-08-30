@@ -29,15 +29,15 @@ from pathlib import Path
 
 import pytest
 
-import charter._drg_helpers as drg_helpers
-from charter import consistency_check
-from charter.consistency_check import (
+import charter.activation._drg_helpers as drg_helpers
+from charter.activation import consistency_check
+from charter.activation.consistency_check import (
     ConsistencyReport,
     run_consistency_check,
     scan_enforcement_lattice_violations,
 )
 from charter.drg import DRGEdge, DRGGraph, DRGNode, NodeKind, Relation
-from charter.invocation_context import ProjectContext
+from charter.activation.invocation_context import ProjectContext
 
 pytestmark = pytest.mark.unit
 

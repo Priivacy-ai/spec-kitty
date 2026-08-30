@@ -1184,8 +1184,8 @@ def scan_enforcement_lattice_violations(ctx: ProjectContext) -> list[str]:
         Exception: Propagates any DRG/doctrine load failure untouched --
             callers MUST fail closed (see :func:`_check_enforcement_lattice`).
     """
-    from charter._drg_helpers import load_validated_graph  # noqa: PLC0415
-    from charter.doctrine_service_builder import _build_doctrine_service  # noqa: PLC0415
+    from charter.activation._drg_helpers import load_validated_graph  # noqa: PLC0415
+    from charter.activation.doctrine_service_builder import _build_doctrine_service  # noqa: PLC0415
     from charter.offering.directives.models import Enforcement  # noqa: PLC0415
 
     repo_root = ctx.require_repo_root()
@@ -1206,7 +1206,7 @@ def scan_enforcement_lattice_violations(ctx: ProjectContext) -> list[str]:
     # already gates *which* URNs are in scope via the DRG's own stem<->
     # canonical-id resolution (filter_graph_by_activation); the activation-
     # aware wrapper's per-kind dict properties, by contrast, filter on raw
-    # config *stems* (charter.pack_context._read_activated_directives), which
+    # config *stems* (charter.activation.pack_context._read_activated_directives), which
     # do not match a Directive's canonical `.id` -- using that wrapper here
     # would silently empty the lookup for every directive endpoint.
     directives = _build_doctrine_service(
@@ -1327,7 +1327,7 @@ def scan_decision_documentation_scoped_on_implement(ctx: ProjectContext) -> list
     -only gate would have passed the shipped corpus while SC-001/SC-002
     still failed. Reuses ``resolve_context`` (no bespoke second traversal)
     at the SAME effective depth ``charter context`` uses by default
-    (:data:`charter.context_state._MIN_EFFECTIVE_DEPTH`), so the gate and
+    (:data:`charter.activation.context_state._MIN_EFFECTIVE_DEPTH`), so the gate and
     the CLI surface it protects can never disagree on what "delivered"
     means.
 
@@ -1348,9 +1348,9 @@ def scan_decision_documentation_scoped_on_implement(ctx: ProjectContext) -> list
             callers MUST fail closed (see
             :func:`_check_decision_documentation_on_implement`).
     """
-    from charter._drg_helpers import load_validated_graph  # noqa: PLC0415
-    from charter.context_state import _MIN_EFFECTIVE_DEPTH  # noqa: PLC0415
-    from charter.doctrine_service_builder import _build_doctrine_service  # noqa: PLC0415
+    from charter.activation._drg_helpers import load_validated_graph  # noqa: PLC0415
+    from charter.activation.context_state import _MIN_EFFECTIVE_DEPTH  # noqa: PLC0415
+    from charter.activation.doctrine_service_builder import _build_doctrine_service  # noqa: PLC0415
     from charter.offering.directives.models import Enforcement  # noqa: PLC0415
     from charter.offering.drg.query import resolve_context  # noqa: PLC0415
 

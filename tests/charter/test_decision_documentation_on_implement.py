@@ -28,14 +28,14 @@ from pathlib import Path
 
 import pytest
 
-import charter._drg_helpers as drg_helpers
-from charter import consistency_check
-from charter.consistency_check import (
+import charter.activation._drg_helpers as drg_helpers
+from charter.activation import consistency_check
+from charter.activation.consistency_check import (
     run_consistency_check,
     scan_decision_documentation_scoped_on_implement,
 )
 from charter.drg import DRGEdge, DRGGraph, DRGNode, NodeKind, Relation
-from charter.invocation_context import ProjectContext
+from charter.activation.invocation_context import ProjectContext
 
 pytestmark = pytest.mark.unit
 
@@ -224,7 +224,7 @@ def test_fail_closed_on_scan_error(
 
 def test_to_json_includes_decision_documentation_on_implement_violations_key() -> None:
     """``ConsistencyReport.to_json()`` renders the new field (additive-safe)."""
-    from charter.consistency_check import ConsistencyReport
+    from charter.activation.consistency_check import ConsistencyReport
 
     report = ConsistencyReport(
         coherent=False,
