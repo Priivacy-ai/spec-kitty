@@ -63,6 +63,9 @@ most directly) and the deeper three-dot case from ``offering/sub/mod.py``
 from __future__ import annotations
 
 import ast
+import os
+import subprocess
+import sys
 from pathlib import Path
 
 import pytest
@@ -370,3 +373,41 @@ def test_walker_ignores_clean_offering_and_activation_imports(tmp_path: Path) ->
 
     assert collect_activation_imports(offering, tmp_path) == []
     assert collect_activation_imports(activation, tmp_path) == []
+
+
+def test_importing_offering_does_not_drag_activation_layer() -> None:
+    """MAP-B / #3803 invariant: importing ``charter.offering`` must load zero
+    ``charter.activation.*`` modules.
+
+    The M2 relocation put ``charter.offering.*`` under the ``charter`` package,
+    so importing any offering submodule first runs ``charter/__init__.py``.
+    When that ``__init__`` eagerly re-exported the activation API, the first
+    parallel import of ``charter.offering.base`` could deadlock
+    (``_DeadlockError``, #3803). MAP-B made ``__init__`` lazy (PEP-562), so the
+    activation layer is no longer dragged in transitively.
+
+    This is a *direct* guard on that invariant — run in a clean interpreter so
+    no earlier test's imports mask a regression. It fails loudly ("activation
+    was dragged") rather than through a second-order roster corruption.
+    """
+    src = Path(__file__).resolve().parents[2] / "src"
+    env = dict(os.environ)
+    env["PYTHONPATH"] = os.pathsep.join([str(src), env.get("PYTHONPATH", "")])
+    probe = (
+        "import sys, charter.offering, charter.offering.base, charter.offering.drg.models;"
+        "dragged = sorted(m for m in sys.modules"
+        " if m == 'charter.activation' or m.startswith('charter.activation.'));"
+        "print('\\n'.join(dragged))"
+    )
+    result = subprocess.run(  # noqa: S603 — fixed argv, no shell
+        [sys.executable, "-c", probe],
+        capture_output=True,
+        text=True,
+        env=env,
+        check=True,
+    )
+    dragged = [line for line in result.stdout.splitlines() if line.strip()]
+    assert not dragged, (
+        "importing charter.offering.* dragged in the activation layer "
+        f"(MAP-B/#3803 regression): {dragged}"
+    )
