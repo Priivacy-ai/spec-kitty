@@ -178,6 +178,8 @@ def test_safe_commit_protected_branch(tmp_path: Path) -> None:
     # mission create) to the mission-aware caller (commit_router.py).
     assert "protected branch" in message
     assert "'main'" in message
+    assert "SPEC_KITTY_ALLOW_PROTECTED_BRANCH_COMMITS=1" in message
+    assert "pass a capability" not in message
     assert "feature branch" in message
     assert "mission" not in message
     assert "spec-kitty mission create --start-branch" not in message
