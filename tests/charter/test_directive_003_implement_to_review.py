@@ -26,7 +26,7 @@ from pathlib import Path
 
 import pytest
 
-from charter.context import build_charter_context_json
+from charter.activation.context import build_charter_context_json
 
 pytestmark = [pytest.mark.doctrine, pytest.mark.unit]
 
