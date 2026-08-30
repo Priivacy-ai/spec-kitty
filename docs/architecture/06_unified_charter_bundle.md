@@ -63,7 +63,7 @@ by the manifest. They are produced by separate pipelines with their own
 lifecycle and ownership:
 
 - **`.kittify/charter/context-state.json`** — runtime state written by
-  [`src/charter/context.py`](../../src/charter/context.py) inside
+  [`src/charter/activation/context.py`](../../src/charter/activation/context.py) inside
   `build_charter_context()`. This is lazy, per-invocation runtime
   state; it is not part of any reproducibility contract and is
   intentionally absent from the manifest.
