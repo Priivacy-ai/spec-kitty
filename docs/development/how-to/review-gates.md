@@ -98,36 +98,6 @@ Resolve a skew warning the same way as any other lock drift:
 uv sync --frozen --all-extras
 ```
 
-## Running the CI residual selection locally
-
-CI runs an always-on `unit-contract-residual` job
-(`.github/workflows/ci-quality.yml`) that selects tests marked `unit` or
-`contract` which carry no other routed runnable marker -- the authoring-
-taxonomy residual (mission `ci-suite-map-bind`, closes #2034). Previously
-there was no way to run this exact selection locally before pushing, so a
-marker-orphan failure only ever surfaced in CI.
-
-Run it locally with:
-
-```bash
-spec-kitty review --check-residual
-```
-
-This skips the mission-scoped review gates and instead runs the CI
-residual `-m` selection over `tests/` locally, exiting with pytest's return
-code (`--mission` is not required for this flag). The `-m` expression is
-**read live** from the `unit-contract-residual` job in
-`.github/workflows/ci-quality.yml` at run time -- it is never hand-copied
-into the CLI, so a future change to the CI selector is picked up
-automatically on the next run with no risk of drift (NFR-002). The
-`_test_env_check` marker parser is pinned to `_gate_coverage`'s parser by
-`test_env_check_marker_parser_agrees_with_gate_coverage_live`, so the two
-readers of that `-m` expression cannot silently diverge.
-
-> **Note:** `--check-residual` runs the selection **serially** (plain
-> `pytest -m ...`), not with CI's parallel `-n auto --dist loadfile`. It
-> selects exactly the same tests as CI but takes longer to finish locally.
-
 ## Pre-review regression gate (`move-task --to for_review`)
 
 When a work package moves to `for_review`, Spec Kitty runs a **doctrine-resolved**
