@@ -253,7 +253,7 @@ red that is **NOT your change**. Before treating a failure as yours, classify it
    local `.venv` was never (re)synced to that pin, not a real regression. Re-run
    `uv sync --frozen --all-extras` and retry before recording the failure as pre-existing or
    unrelated — a stale venv is indistinguishable from real breakage in raw pytest output
-   (spec-kitty-planning#648: a PR's `## Tests run` excluded a whole test file over exactly
+   (#648: a PR's `## Tests run` excluded a whole test file over exactly
    this; a clean `uv sync --frozen --all-extras` reproduced 1621/1621 passing, no exclusion
    needed).
 Only failures that are red on your branch **and** green on the base are yours to fold. Never

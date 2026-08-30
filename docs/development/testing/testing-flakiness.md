@@ -179,7 +179,7 @@ Four baseline-red categories that are **not yours to fix**:
    `.venv` was never (re)synced to that pin, not a real regression. Run
    `uv sync --frozen --all-extras` and retry the failing test before recording it as
    pre-existing or unrelated — a stale venv is indistinguishable from real breakage in raw
-   pytest output (spec-kitty-planning#648: a PR's `## Tests run` section excluded a whole
+   pytest output (#648: a PR's `## Tests run` section excluded a whole
    test file over exactly this `ModuleNotFoundError`, when a clean `uv sync --frozen
    --all-extras` reproduced 1621/1621 passing with no exclusion needed).
 

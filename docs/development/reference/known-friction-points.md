@@ -47,7 +47,7 @@ closed — so the "known reds" below are already a different set than a month ag
 - **Stale-venv false reds.** A `ModuleNotFoundError` for a package that is
   declared and pinned usually means the `.venv` was never (re)synced, not a
   real regression — run `uv sync --frozen --all-extras` before recording it
-  as pre-existing (spec-kitty-planning#648).
+  as pre-existing (#648).
 - **The `pr:deferred` / `pr:skip-ci` labels skip nearly every required PR
   workflow — a green check can mean "not run," not "passed."** Most
   `.github/workflows/*.yml` job `if:` conditions include
