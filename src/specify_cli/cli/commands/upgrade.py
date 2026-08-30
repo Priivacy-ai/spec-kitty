@@ -62,6 +62,7 @@ from specify_cli.cli.commands._teamspace_mission_state_gate import (
 )
 from specify_cli.core.env import is_truthy
 from specify_cli.core.version_compare import is_version_newer
+from specify_cli.gitignore_manager import GitignorePathError
 from specify_cli.upgrade import autocommit
 from specify_cli.upgrade.autocommit import (
     capture_upgrade_baseline,
@@ -707,11 +708,22 @@ def _show_migration_plan_and_confirm(
             # Show detection results
             console.print("[dim]Detection results:[/dim]")
             for migration in migrations_needed:
-                detected = migration.detect(project_path)
+                # A symlinked `.gitignore`/`.claudeignore` makes detect() fail
+                # closed with GitignorePathError rather than follow it
+                # (gitignore_manager.py) -- report it as skipped instead of
+                # crashing the whole upgrade command in verbose mode.
+                try:
+                    detected = migration.detect(project_path)
+                    detect_error: str | None = None
+                except GitignorePathError as exc:
+                    detected = False
+                    detect_error = str(exc)
                 can_apply, reason = migration.can_apply(project_path)
                 status = "[green]ready[/green]" if detected and can_apply else "[yellow]skipped[/yellow]"
                 console.print(f"  {migration.migration_id}: {status}")
-                if not can_apply and reason:
+                if detect_error:
+                    console.print(f"    [dim]{detect_error}[/dim]")
+                elif not can_apply and reason:
                     console.print(f"    [dim]{reason}[/dim]")
             console.print()
 

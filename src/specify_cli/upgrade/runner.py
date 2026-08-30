@@ -15,6 +15,7 @@ from packaging.version import InvalidVersion, Version
 from rich.console import Console
 
 from specify_cli.core.constants import KITTIFY_DIR, WORKTREES_DIR
+from specify_cli.gitignore_manager import GitignorePathError
 from specify_cli.migration.schema_version import (
     REQUIRED_SCHEMA_VERSION,
     get_project_schema_version,
@@ -276,8 +277,37 @@ class MigrationRunner:
                 "skipped",
             )
 
-        # Check if migration is needed via detection
-        if not migration.detect(self.project_path):
+        # Check if migration is needed via detection. A symlinked
+        # `.gitignore`/`.claudeignore` makes detect() fail closed with
+        # GitignorePathError (gitignore_manager.py) rather than follow the
+        # symlink. Treat that as a migration FAILURE, not a skip: a "skip"
+        # here would report the upgrade as successful and let
+        # _finalize_main_metadata bump metadata.version/schema_version past
+        # this migration, permanently stranding it (it would never be
+        # re-considered even after the symlink is replaced with a real file,
+        # per MigrationRegistry.get_applicable's from_v/to_v window). Failing
+        # closed instead leaves the pre-run schema/version untouched so the
+        # next `spec-kitty upgrade` retries once the symlink is gone.
+        try:
+            migration_needed = migration.detect(self.project_path)
+        except GitignorePathError as exc:
+            if not dry_run:
+                self._record_migration_result(
+                    metadata,
+                    self.kittify_dir,
+                    migration.migration_id,
+                    "failed",
+                    f"Cannot safely detect: {exc}",
+                )
+            return (
+                MigrationResult(
+                    success=False,
+                    errors=[f"Cannot safely detect {migration.migration_id}: {exc}"],
+                ),
+                "failed",
+            )
+
+        if not migration_needed:
             # Migration not needed - project doesn't have old state
             if not dry_run:
                 self._record_migration_result(
@@ -306,8 +336,19 @@ class MigrationRunner:
                 "failed",
             )
 
-        # Apply the migration
-        result = migration.apply(self.project_path, dry_run=dry_run)
+        # Apply the migration. Same TOCTOU-safe handling as detect() above --
+        # a symlink swapped in between detect() and apply() fails closed as a
+        # migration failure, not an unhandled crash.
+        try:
+            result = migration.apply(self.project_path, dry_run=dry_run)
+        except GitignorePathError as exc:
+            return (
+                MigrationResult(
+                    success=False,
+                    errors=[f"Cannot apply {migration.migration_id}: {exc}"],
+                ),
+                "failed",
+            )
 
         # Record in metadata
         if not dry_run:
@@ -399,7 +440,29 @@ class MigrationRunner:
                 if wt_metadata.has_migration(migration.migration_id):
                     continue
 
-                if not migration.detect(worktree):
+                # Same fail-closed handling as the main checkout in
+                # _apply_migration: a symlinked ignore file makes detect()
+                # raise GitignorePathError rather than follow it. Record it
+                # as a failure, not a skip -- a "skip" record would be
+                # indistinguishable from "not applicable" and could read as
+                # settled, when the migration was never actually evaluated.
+                try:
+                    migration_needed = migration.detect(worktree)
+                except GitignorePathError as exc:
+                    result["errors"].append(
+                        f"Worktree {worktree.name}: Cannot safely detect {migration.migration_id}: {exc}"
+                    )
+                    if not dry_run and self._record_migration_result(
+                        wt_metadata,
+                        wt_kittify,
+                        migration.migration_id,
+                        "failed",
+                        f"Cannot safely detect: {exc}",
+                    ):
+                        worktree_metadata_dirty = True
+                    continue
+
+                if not migration_needed:
                     # Only mark dirty when a NEW record was written; an
                     # already-recorded "skipped" migration is a no-op and must
                     # not bump last_upgraded_at on every re-run (issue #1872).
@@ -418,7 +481,13 @@ class MigrationRunner:
                     result["warnings"].append(f"Worktree {worktree.name}: Cannot apply {migration.migration_id}: {reason}")
                     continue
 
-                migration_result = migration.apply(worktree, dry_run=dry_run)
+                try:
+                    migration_result = migration.apply(worktree, dry_run=dry_run)
+                except GitignorePathError as exc:
+                    result["errors"].append(
+                        f"Worktree {worktree.name}: Cannot apply {migration.migration_id}: {exc}"
+                    )
+                    continue
                 if migration_result.manual_review_required:
                     worktree_manual_review = True
 

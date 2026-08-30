@@ -23,7 +23,9 @@ from specify_cli.gitignore_manager import (  # noqa: E402
     RUNTIME_PROTECTED_ENTRIES,
     AgentDirectory,
     GitignoreManager,
+    GitignorePathError,
     ProtectionResult,
+    read_ignore_file_text,
 )
 
 # Total entries: agents + runtime (derived from state contract)
@@ -374,3 +376,50 @@ class TestGitignoreManager:
         assert isinstance(result.entries_skipped, list)
         assert isinstance(result.errors, list)
         assert isinstance(result.warnings, list)
+
+
+class TestReadIgnoreFileText:
+    """Coverage for `read_ignore_file_text` (issue #626): migration `detect()`
+    logic must not read `.gitignore`/`.claudeignore` content through a
+    symlink the way a bare `Path.read_text()`/`.exists()` pair would."""
+
+    @pytest.fixture
+    def temp_dir(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            yield Path(tmpdir)
+
+    def test_missing_file_returns_empty_string(self, temp_dir):
+        assert read_ignore_file_text(temp_dir / ".gitignore") == ""
+
+    def test_regular_file_is_read_normally(self, temp_dir):
+        path = temp_dir / ".gitignore"
+        path.write_text(".claude/\n")
+        assert read_ignore_file_text(path) == ".claude/\n"
+
+    def test_utf8_sig_bom_is_stripped_by_default(self, temp_dir):
+        path = temp_dir / ".gitignore"
+        path.write_bytes(b"\xef\xbb\xbf.claude/\n")
+        assert read_ignore_file_text(path) == ".claude/\n"
+
+    def test_symlinked_file_is_rejected(self, temp_dir):
+        outside_target = temp_dir.parent / f"outside-target-{os.getpid()}.txt"
+        outside_target.write_text("do-not-touch\n")
+        path = temp_dir / ".gitignore"
+        path.symlink_to(outside_target)
+        try:
+            with pytest.raises(GitignorePathError):
+                read_ignore_file_text(path)
+        finally:
+            outside_target.unlink(missing_ok=True)
+
+    def test_dangling_symlink_is_also_rejected(self, temp_dir):
+        """`Path.exists()` follows symlinks and returns False for a dangling
+        one, so the guard must trigger on `is_symlink()` directly."""
+        missing_target = temp_dir.parent / f"missing-target-{os.getpid()}.txt"
+        path = temp_dir / ".gitignore"
+        path.symlink_to(missing_target)
+        try:
+            with pytest.raises(GitignorePathError):
+                read_ignore_file_text(path)
+        finally:
+            path.unlink(missing_ok=True)

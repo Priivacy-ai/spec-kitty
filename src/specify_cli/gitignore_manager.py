@@ -6,11 +6,72 @@ to protect AI agent directories from being accidentally committed to git.
 It replaces the fragmented approach where only .codex/ was protected.
 """
 
+import errno
 import os
 from dataclasses import dataclass, field
 from pathlib import Path
 
 from specify_cli.state.contract import get_runtime_gitignore_entries
+
+
+class GitignorePathError(Exception):
+    """Raised when an ignore file (`.gitignore`, `.claudeignore`) is a symlink.
+
+    `Path.read_text()` / `Path.write_text()` / `Path.exists()` all follow
+    symlinks, so an ignore file swapped for a symlink (e.g. by a malicious
+    repo checkout) would let a caller's presence/content check, or a write,
+    follow it to an arbitrary path. Fail closed instead of following it.
+    """
+
+
+def _open_no_follow(path: Path, flags: int) -> int:
+    """Open `path` refusing to follow a symlink at the kernel level.
+
+    An `is_symlink()` check followed by a separate open/read call is a
+    check-then-use race: a symlink swapped in between the check and the
+    subsequent open would still be followed. `O_NOFOLLOW` (where the
+    platform supports it) makes the open itself fail with `ELOOP` when the
+    final path component is a symlink, closing that window instead of
+    merely detecting it earlier.
+    """
+    if hasattr(os, "O_NOFOLLOW"):
+        flags |= os.O_NOFOLLOW
+    try:
+        return os.open(path, flags)
+    except OSError as exc:
+        if exc.errno == errno.ELOOP:
+            raise GitignorePathError(
+                f"{path} is a symlink; refusing to read through it"
+            ) from exc
+        raise
+
+
+def read_ignore_file_text(path: Path, encoding: str = "utf-8-sig") -> str:
+    """Read an ignore file's text content, refusing to follow a symlink.
+
+    Used for presence/content checks against `.gitignore`/`.claudeignore`
+    (e.g. migration `detect()` logic) that must not be redirected by a
+    symlink the way a bare `Path.read_text()`/`.exists()` pair would be.
+    Opens through `_open_no_follow()` rather than an `is_symlink()`
+    check-then-read, so a symlink swapped in between the check and the read
+    cannot be followed either.
+
+    Args:
+        path: Path to the ignore file (e.g. `.gitignore` or `.claudeignore`).
+        encoding: Text encoding to decode with.
+
+    Returns:
+        The file's text content, or `""` if it does not exist.
+
+    Raises:
+        GitignorePathError: If `path` is a symlink.
+    """
+    try:
+        fd = _open_no_follow(path, os.O_RDONLY)
+    except FileNotFoundError:
+        return ""
+    with os.fdopen(fd, encoding=encoding) as f:
+        return f.read()
 
 
 @dataclass
