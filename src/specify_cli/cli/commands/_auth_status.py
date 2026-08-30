@@ -148,7 +148,6 @@ def _print_saas_endpoint() -> ResolvedServerTarget | None:
         # `[sync]`/`[/]`-shaped substrings (#182's rationale applies here too).
         console.print("  SaaS:           [red]split-brain[/red] [dim](env and config.toml disagree)[/dim]")
         console.print(f"  [yellow]{escape(str(exc))}[/yellow]")
-        _print_session_issuer(session.issuer_url)
         return
     except ConfigurationError:
         # escape(): the remedy names `[sync].server_url` — unescaped, Rich
