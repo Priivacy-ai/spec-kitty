@@ -298,8 +298,9 @@ class ProtectedBranchRefused(SafeCommitError):
             # the finalize-tasks/mission-create remedy.
             f"safe_commit: refusing to commit to protected branch "
             f"{destination_ref!r} in {worktree_root}. "
-            f"Retry against a non-protected feature branch, or pass a "
-            f"capability that authorizes this destination."
+            f"Retry against a non-protected feature branch, or set "
+            f"SPEC_KITTY_ALLOW_PROTECTED_BRANCH_COMMITS=1 if you own this "
+            f"branch."
         )
         super().__init__(
             message,
