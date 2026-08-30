@@ -1104,11 +1104,11 @@ def _branch_resolvable(repo_root: Path, branch: str) -> bool:
 def _emit_selector_error(exc: Exception, *, json_output: bool = False) -> None:
     """Render a structured ``MISSION_AMBIGUOUS_SELECTOR`` error and exit non-zero.
 
-    With ``json_output`` set, emits the shared ``{"success": False,
+    When ``json_output`` is set, emits the same shared ``{"success": False,
     "error_code": ..., "error": ..., "handle": ..., "candidates": [...]}``
-    envelope (#230/#429) instead of falling through to Rich text on stdout
-    (#477: ``reopen``/``follow-up`` were the last two ``--json`` callers of
-    this helper still emitting non-JSON on an ambiguous handle).
+    JSON envelope used elsewhere for ``MissionSelectorAmbiguous`` (e.g.
+    ``status.py``/``tasks_shared.py``'s ``_find_mission_slug``), instead of
+    Rich-formatted text on stdout (spec-kitty#477).
     """
     if json_output:
         print(
@@ -1117,7 +1117,7 @@ def _emit_selector_error(exc: Exception, *, json_output: bool = False) -> None:
                     "success": False,
                     "error_code": getattr(exc, "error_code", "MISSION_AMBIGUOUS_SELECTOR"),
                     "error": str(exc),
-                    "handle": getattr(exc, "handle", None),
+                    "handle": getattr(exc, "handle", ""),
                     "candidates": getattr(exc, "candidates", []),
                 }
             )

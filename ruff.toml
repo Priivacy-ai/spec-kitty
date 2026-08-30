@@ -1,4 +1,12 @@
 extend = "pyproject.toml"
+
+# Governed immutable research artifacts: per-mission scratch/evidence scripts
+# checked in under kitty-specs/<mission>/research/ for audit-trail purposes
+# (e.g. kitty-specs/isolated-home-pin-guard-r1a-01KZNMA3/research/
+# spec_kitty_home_pin_evidence/{clf.py,step3.py}). They are not runtime or
+# test code, are not meant to be edited after the fact, and were never held
+# to repo lint conventions. Exclude the whole research/ subtree rather than
+# per-file-ignores so future mission research directories don't reopen this.
 extend-exclude = ["kitty-specs/*/research/**"]
 
 # Generated Ruff baseline for the legacy lint debt present on origin/main as of 2026-05-01.
