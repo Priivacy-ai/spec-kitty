@@ -101,14 +101,16 @@ class MigrationRegistry:
                 except GitignorePathError as exc:
                     # A symlinked `.gitignore`/`.claudeignore` makes detect()
                     # fail closed rather than follow it (gitignore_manager.py)
-                    # -- treat that as "cannot safely determine" instead of
-                    # crashing the whole upgrade plan for a benign symlink.
+                    # -- select the migration so the runner can record a
+                    # fail-closed failure instead of silently skipping it and
+                    # advancing metadata past a migration it could not
+                    # safely evaluate.
                     logger.warning(
-                        "Skipping detect() for migration %s: %s",
+                        "Selecting migration %s after detect() failed closed: %s",
                         migration.migration_id,
                         exc,
                     )
-                    migration_needed = False
+                    migration_needed = True
                 if migration_needed:
                     applicable.append(migration)
 

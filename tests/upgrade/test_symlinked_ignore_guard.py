@@ -77,6 +77,23 @@ class _ApplyRaisesMigration(BaseMigration):
         raise GitignorePathError("<project>/.gitignore is a symlink; refusing to read through it")
 
 
+class _AlwaysSucceedsMigration(BaseMigration):
+    """A later migration that must not run past an earlier unsafe detect()."""
+
+    migration_id = "0.0.2_always_succeeds"
+    description = "detect() and apply() both succeed"
+    target_version = "0.0.2"
+
+    def detect(self, project_path: Path) -> bool:  # noqa: ARG002
+        return True
+
+    def can_apply(self, project_path: Path) -> tuple[bool, str]:  # noqa: ARG002
+        return True, ""
+
+    def apply(self, project_path: Path, dry_run: bool = False) -> MigrationResult:  # noqa: ARG002
+        return MigrationResult(success=True, changes_made=["Applied"])
+
+
 @pytest.fixture()
 def registry_restore() -> Any:
     original = MigrationRegistry._migrations.copy()
@@ -171,12 +188,28 @@ class TestRegistryGetApplicableGuard:
     """`MigrationRegistry.get_applicable` -- the call site the squad's
     traceback named at ``registry.py:93``."""
 
-    def test_detect_raising_at_current_version_is_excluded_not_crashed(self, migration_project: Path, registry_restore: Any) -> None:
-        _register(_DetectRaisesMigration)
+    def test_detect_raising_at_current_version_fails_closed_before_later_migration(self, migration_project: Path, registry_restore: Any) -> None:
+        _register(_DetectRaisesMigration, _AlwaysSucceedsMigration)
 
-        applicable = MigrationRegistry.get_applicable("0.0.1", "0.0.1", project_path=migration_project)
+        metadata = ProjectMetadata.load(migration_project / ".kittify")
+        assert metadata is not None
+        metadata.version = "0.0.1"
+        metadata.save(migration_project / ".kittify")
 
-        assert applicable == []
+        runner = MigrationRunner(migration_project)
+        result = runner.upgrade("0.0.2", include_worktrees=False, force=True)
+
+        assert not result.success
+        assert any("0.0.1_detect_raises" in error for error in result.errors)
+        assert "0.0.1_detect_raises" not in result.migrations_skipped
+        assert "0.0.1_detect_raises" not in result.migrations_applied
+        assert "0.0.2_always_succeeds" not in result.migrations_applied
+
+        reloaded = ProjectMetadata.load(migration_project / ".kittify")
+        assert reloaded is not None
+        assert reloaded.version == "0.0.1"
+        record = next(migration for migration in reloaded.applied_migrations if migration.id == "0.0.1_detect_raises")
+        assert record.result == "failed"
 
 
 class TestRealMigrationEndToEnd:
