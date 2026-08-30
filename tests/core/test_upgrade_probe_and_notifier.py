@@ -688,9 +688,10 @@ class TestSerialization:
     )
     def test_legacy_cache_key_round_trips_on_unchanged_channels(self, channel: UpgradeChannel) -> None:
         """A cache written by a pre-rename build carries ``latest_pypi_version``,
-        not ``latest_release_version``, and the enum values for these four
-        channels never changed — so the legacy key must still round-trip
-        instead of forcing an immediate re-probe."""
+        not ``latest_release_version``. The fallback matters only while the old
+        and current builds report the same version; this same-version entry can
+        remain fresh, while a released upgrade would fail the version pin and
+        be re-probed."""
         from specify_cli.core.upgrade_notifier import _deserialize_result
 
         legacy_cache_entry = {
