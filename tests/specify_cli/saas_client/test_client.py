@@ -249,12 +249,14 @@ def test_load_auth_context_raises_when_file_has_empty_url(tmp_path: Path, monkey
 def test_load_auth_context_from_file(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.delenv("SPEC_KITTY_SAAS_TOKEN", raising=False)
     monkeypatch.delenv("SPEC_KITTY_SAAS_URL", raising=False)
+    monkeypatch.delenv("SPEC_KITTY_TEAM_SLUG", raising=False)
     auth_dir = tmp_path / ".kittify"
     auth_dir.mkdir()
-    (auth_dir / "saas-auth.json").write_text(json.dumps({"token": "file-token", "saas_url": "https://file-url.example"}))
+    (auth_dir / "saas-auth.json").write_text(json.dumps({"token": "file-token", "saas_url": "https://file-url.example", "team_slug": "file-team"}))
     ctx = load_auth_context(repo_root=tmp_path)
     assert ctx.token == "file-token"
     assert ctx.saas_url == "https://file-url.example"
+    assert ctx.team_slug == "file-team"
 
 
 def test_load_auth_context_cannot_distinguish_repo_tier_kitty_env_from_real_env(
@@ -489,6 +491,39 @@ def test_repo_auth_file_url_cannot_redirect_the_oauth_session_token(tmp_path: Pa
     ctx = load_auth_context(repo_root=tmp_path)
     assert ctx.saas_url == "https://team.example"
     assert ctx.token == "oauth-secret-token"
+
+
+def test_repo_auth_file_team_slug_cannot_scope_the_oauth_session_token(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    _no_env_auth: None,
+) -> None:
+    """A checkout-controlled auth file may not choose the team scope of the
+    user's personal OAuth session bearer (#765)."""
+    auth_dir = tmp_path / ".kittify"
+    auth_dir.mkdir()
+    (auth_dir / "saas-auth.json").write_text(json.dumps({"team_slug": "attacker-team"}))
+    _bridge_env(monkeypatch, _ScriptedSessionManager(_oauth_session()))
+
+    ctx = load_auth_context(repo_root=tmp_path)
+    assert ctx.saas_url == "https://team.example"
+    assert ctx.token == "access-v1"
+    assert ctx.team_slug is None
+
+
+def test_env_team_slug_can_scope_the_oauth_session_token(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    _no_env_auth: None,
+) -> None:
+    """The operator-controlled environment remains the supported way to choose
+    a team when the OAuth bridge supplies the bearer."""
+    monkeypatch.setenv("SPEC_KITTY_TEAM_SLUG", "operator-team")
+    _bridge_env(monkeypatch, _ScriptedSessionManager(_oauth_session()))
+
+    ctx = load_auth_context(repo_root=tmp_path)
+    assert ctx.token == "access-v1"
+    assert ctx.team_slug == "operator-team"
 
 
 def test_server_target_that_cannot_resolve_falls_through_to_the_refusal(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, _no_env_auth: None) -> None:
