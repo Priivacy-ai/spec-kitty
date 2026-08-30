@@ -139,9 +139,15 @@ def test_evaluate_readiness_with_split_brain_target_yields_ambiguous_host_config
     )
 
     assert result.state is ReadinessState.AMBIGUOUS_HOST_CONFIG
+    assert result.state.value == "ambiguous_host_config"
     assert not result.is_ready
-    assert "configured.example.com" in result.message
-    assert "env-override.example.com" in result.message
-    assert result.next_action is not None
-    assert "config.toml" in result.next_action
-    assert "SPEC_KITTY_SAAS_URL" in result.next_action
+    assert result.message == (
+        "SaaS host configuration is ambiguous: `config.toml` names "
+        "`https://configured.example.com` while `SPEC_KITTY_SAAS_URL` names "
+        "`https://env-override.example.com`."
+    )
+    assert result.next_action == (
+        "Reconcile the two: update `config.toml`'s `[sync].server_url` to "
+        "match, or change/unset `SPEC_KITTY_SAAS_URL`, so both name the "
+        "same host."
+    )
