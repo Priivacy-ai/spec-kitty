@@ -36,7 +36,14 @@ from specify_cli.sync import daemon as daemon_module
 from specify_cli.sync import owner as owner_module
 from specify_cli.sync.owner import reap_orphan_daemons
 
-pytestmark = [pytest.mark.unit, pytest.mark.fast]
+from specify_cli.core.saas_sync_config import sync_active
+pytestmark = [
+    pytest.mark.unit, pytest.mark.fast,
+    pytest.mark.skipif(
+        not sync_active(),
+        reason="sync deactivated by default (#3799); set SPEC_KITTY_ENABLE_SAAS_SYNC=1 to run",
+    ),
+]
 
 
 _SRC_ROOT = Path(__file__).resolve().parents[2] / "src" / "specify_cli"

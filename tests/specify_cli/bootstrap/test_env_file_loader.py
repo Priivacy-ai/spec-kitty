@@ -512,7 +512,7 @@ def test_sync_minimal_import_set_only_in_kitty_env_gates_import_time_registratio
 
 
 @pytest.mark.integration
-def test_control_without_kitty_env_registers_handlers_at_import_time(tmp_path: Path) -> None:
+def test_control_without_kitty_env_registers_handlers_at_import_time(tmp_path: Path, sync_enabled) -> None:
     """Control for the test above: absent the file, the default handlers DO register."""
     repo = tmp_path / "repo"
     (repo / ".kittify").mkdir(parents=True)

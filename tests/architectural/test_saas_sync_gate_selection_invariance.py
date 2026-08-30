@@ -8,20 +8,30 @@ module happens to be collected in the current selection — so the SAME node
 skips under ``pytest tests/regression`` but runs under ``pytest tests/ -m
 regression``. That selection-dependence is the #3213 defect.
 
-The fix makes ``tests/conftest.py``'s ``pytest_configure`` the single authority
-that sets the flag once, collection-wide, before any module import. These two
-guards pin that authority:
+The cure has two halves. First, ``tests/conftest.py``'s ``pytest_configure`` is
+the single collection-wide authority for the flag's posture — no test module may
+re-introduce a per-module write. Second (mission sync-deactivate-by-default,
+WP04/FR-010) the DEFAULT collection posture is now sync-**OFF**: ``pytest_configure``
+deliberately does NOT set ``SPEC_KITTY_ENABLE_SAAS_SYNC``, so the WP05
+collection-time skipif gates actually fire on a bare push. Opt-in is a
+process-level env var set BEFORE collection by the ``fast-tests-sync`` CI job
+(the #3213 lesson: a fixture runs too late for ``skipif``). These guards pin the
+combined contract:
 
-1. the flag IS set at collection time (so import-time gates see a stable value);
-2. NO test module re-introduces a module-level write of the flag (which would
+1. the flag is NOT *forced on* at collection time by default (default-off), and
+   its collection-time value — unset by default, ``"1"`` only under the sanctioned
+   opt-in job — agrees with :func:`sync_active`;
+2. the opt-in path (flag set, no disable var) deterministically flips
+   ``sync_active()`` on; unsetting it flips it off;
+3. NO test module re-introduces a module-level write of the flag (which would
    restore the selection-dependence).
 
-Note: with the flag consistently set, every import-time SaaS-sync gate makes the
+Whatever the collection-time posture, every import-time SaaS-sync gate makes the
 same skip/run decision under ``pytest tests/regression`` and ``pytest tests/ -m
-regression`` — that is the intended, honest effect. (Historically this also
-re-exposed the then-open #2782 P0 red under ``pytest tests/regression``; #2782
-has since been resolved and its reproduction retired, so nothing in
-``tests/regression`` is red today.)
+regression`` — the selection-invariance the #3213 fix bought is preserved; only
+the default *value* flipped from forced-on to off (#3799). (Historically the
+forced-on default re-exposed the then-open #2782 P0 red under ``pytest
+tests/regression``; #2782 has since been resolved and its reproduction retired.)
 """
 
 from __future__ import annotations
@@ -42,14 +52,55 @@ _TESTS_ROOT = Path(__file__).resolve().parents[1]
 _ALLOWED_RELPATHS = {Path("conftest.py")}
 
 
-def test_flag_is_set_at_collection_time() -> None:
-    """``pytest_configure`` set the flag before any module import (#3213)."""
+#: The sync-disable escape hatches ``sync_active()`` also honours; unset by the
+#: opt-in arm so the flip is governed by the enable flag alone.
+_SYNC_DISABLE_VARS = ("SPEC_KITTY_SYNC_DISABLE", "SPEC_KITTY_SYNC_MINIMAL_IMPORT")
+
+
+def test_flag_is_not_forced_on_at_collection_time() -> None:
+    """Default-off contract (WP04/FR-010, #3799): ``pytest_configure`` no longer
+    *forces* the enable flag on collection-wide.
+
+    The collection-time value is either unset (the default push posture, so the
+    WP05 skipif gates fire) or ``"1"`` (the sanctioned ``fast-tests-sync`` opt-in
+    job, set once process-wide). Both are honest; a hard-coded ``== "1"`` would
+    fight the default push path and a hard-coded ``is None`` would fight the
+    opt-in job — so this pins the value against :func:`sync_active`, whichever
+    posture the collection ran under.
+    """
     import os
 
-    assert os.environ.get(_FLAG) == "1", (
-        f"{_FLAG} must be set collection-wide by tests/conftest.py "
-        "pytest_configure so import-time skipif gates are selection-invariant."
-    )
+    from specify_cli.core.saas_sync_config import sync_active
+
+    flag = os.environ.get(_FLAG)
+    if flag is None:
+        assert sync_active() is False, (
+            f"{_FLAG} is unset at collection (the WP04 default-off posture), so "
+            "sync_active() must read False — the import-time skipif gates fire."
+        )
+    else:
+        assert flag == "1", (
+            f"the only sanctioned collection-time value of {_FLAG} is '1', set "
+            "once process-wide by the fast-tests-sync opt-in CI job; a stray "
+            f"other value ({flag!r}) means an ad-hoc write leaked in."
+        )
+
+
+def test_opt_in_flips_sync_active(monkeypatch: pytest.MonkeyPatch) -> None:
+    """The opt-in path deterministically arms ``sync_active()``; unset disarms it.
+
+    Proves the flip directly (call-time env control) rather than relying on the
+    ambient collection posture, so the contract holds identically under the
+    default push path and the opt-in CI job.
+    """
+    from specify_cli.core.saas_sync_config import sync_active
+
+    for var in _SYNC_DISABLE_VARS:
+        monkeypatch.delenv(var, raising=False)
+    monkeypatch.setenv(_FLAG, "1")
+    assert sync_active() is True, "flag set + no disable var must arm sync_active()"
+    monkeypatch.delenv(_FLAG, raising=False)
+    assert sync_active() is False, "clearing the flag must disarm sync_active()"
 
 
 def _module_level_flag_writers() -> list[str]:

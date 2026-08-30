@@ -23,20 +23,20 @@ from kernel.clock import UTC, datetime
 from charter.offering.drg.loader import load_graph
 
 from charter.bundle import BUNDLE_CONTENT_HASH_FILES, compute_bundle_content_hash
-from charter.synthesizer import (
+from charter.activation.synthesizer import (
     FixtureAdapter,
     SynthesisRequest,
     SynthesisTarget,
     synthesize,
 )
-from charter.synthesizer.errors import ProjectDRGValidationError
-from charter.synthesizer.manifest import (
+from charter.activation.synthesizer.errors import ProjectDRGValidationError
+from charter.activation.synthesizer.manifest import (
     MANIFEST_PATH,
     SynthesisManifest,
     load_yaml as load_manifest,
     verify_manifest_hash,
 )
-from charter.synthesizer.resynthesize_pipeline import run as resynthesize_run
+from charter.activation.synthesizer.resynthesize_pipeline import run as resynthesize_run
 
 
 # ---------------------------------------------------------------------------
@@ -311,7 +311,7 @@ class TestUs3KindSlug:
         _commit_all(repo, "baseline synthesis")
         assert _git(repo, "status", "--porcelain") == ""
 
-        from charter.synthesizer import project_drg
+        from charter.activation.synthesizer import project_drg
 
         # kernel-clock-single-door (WP07): project_drg now stamps
         # `generated_at` via the door's `now_utc_seconds()` producer rather
@@ -633,7 +633,7 @@ class TestResynthesizeValidationWiring:
                 merged_graph_summary="forced by test",
             )
 
-        monkeypatch.setattr("charter.synthesizer.validation_gate.validate", fail_validate)
+        monkeypatch.setattr("charter.activation.synthesizer.validation_gate.validate", fail_validate)
 
         with pytest.raises(ProjectDRGValidationError, match="forced resynthesis validation failure"):
             resynthesize_run(

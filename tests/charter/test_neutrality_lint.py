@@ -3,7 +3,7 @@
 Contract: kitty-specs/charter-ownership-consolidation-and-neutrality-hardening-01KPD880/
          contracts/neutrality-lint-contract.md (C-3)
 
-This module is the CI gate: it runs :func:`charter.neutrality.run_neutrality_lint`
+This module is the CI gate: it runs :func:`charter.activation.neutrality.run_neutrality_lint`
 against the shipped doctrine artifacts and fails if any banned term re-appears or
 any allowlist entry becomes stale. It also contains a fault-injection test
 (SC-005) that proves the scanner catches regressions, and a runtime budget test
@@ -15,7 +15,7 @@ from __future__ import annotations
 import time
 from pathlib import Path
 
-from charter.neutrality import NeutralityLintResult, run_neutrality_lint
+from charter.activation.neutrality import NeutralityLintResult, run_neutrality_lint
 
 
 import pytest
@@ -223,7 +223,9 @@ def test_setup_doctor_failure_signatures_are_allowlisted(tmp_path: Path) -> None
     """The setup-doctor failure catalog may mention Python recovery commands."""
     repo_root = Path(__file__).resolve().parents[2]
     target = repo_root / "src" / "charter" / "offering" / "skills" / "spec-kitty-setup-doctor" / "references" / "common-failure-signatures.md"
-    project_allowlist = repo_root / "src" / "charter" / "neutrality" / "language_scoped_allowlist.yaml"
+    project_allowlist = (
+        repo_root / "src" / "charter" / "activation" / "neutrality" / "language_scoped_allowlist.yaml"
+    )
 
     empty_allowlist = tmp_path / "allow.yaml"
     empty_allowlist.write_text("schema_version: '1'\npaths: []\n", encoding="utf-8")

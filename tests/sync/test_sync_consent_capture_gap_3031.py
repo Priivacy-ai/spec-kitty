@@ -103,7 +103,14 @@ from specify_cli.sync.project_store import ProjectSyncStore
 if TYPE_CHECKING:
     from specify_cli.sync.emitter import EventEmitter
 
-pytestmark = pytest.mark.fast
+from specify_cli.core.saas_sync_config import sync_active
+pytestmark = [
+    pytest.mark.fast,
+    pytest.mark.skipif(
+        not sync_active(),
+        reason="sync deactivated by default (#3799); set SPEC_KITTY_ENABLE_SAAS_SYNC=1 to run",
+    ),
+]
 
 _OCCURRED_AT = "2026-06-29T00:00:00+00:00"
 
@@ -121,13 +128,17 @@ def _isolated_home(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Iterator[
     ``_isolated_home`` fixture: ``resolve_journal_path``
     (``event_journal/journal.py:78-89``) honours ``SPEC_KITTY_HOME`` verbatim,
     so this test never touches the real ``~/.spec-kitty/event_journal/``.
-    ``SPEC_KITTY_ENABLE_SAAS_SYNC`` is cleared so the SaaS-enabled axis stays
-    off regardless of the invoking shell's environment — this test's only
-    load-bearing axis is per-project consent (``checkout_enabled``), not the
-    global rollout flag.
+    Sync is ARMED here (``SPEC_KITTY_ENABLE_SAAS_SYNC=1``, disable vars cleared):
+    since #3799 local capture is machine-arming-gated, so the per-project consent
+    axis this test exercises only becomes observable once arming lets ``_emit``
+    reach capture. Arming is the precondition; per-project consent
+    (``checkout_enabled``) stays the load-bearing axis that decides which
+    project's journal an event lands in and which UUID the drain selects.
     """
     monkeypatch.setenv("SPEC_KITTY_HOME", str(tmp_path))
-    monkeypatch.delenv("SPEC_KITTY_ENABLE_SAAS_SYNC", raising=False)
+    monkeypatch.setenv("SPEC_KITTY_ENABLE_SAAS_SYNC", "1")
+    monkeypatch.delenv("SPEC_KITTY_SYNC_DISABLE", raising=False)
+    monkeypatch.delenv("SPEC_KITTY_SYNC_MINIMAL_IMPORT", raising=False)
     # Live per-project capture requires the machine layout to have completed
     # the project-store cutover; publish it for this isolated runtime root.
     authority = ProjectSyncStore(_CONSENTING_UUID).layout_generation()

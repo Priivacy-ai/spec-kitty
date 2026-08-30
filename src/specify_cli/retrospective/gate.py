@@ -118,7 +118,7 @@ class GateDecision(BaseModel):
 # resolution flipped yaml-first (``charter.yaml`` ``governance.retrospective``,
 # see ``policy.resolve_policy``).  ``autonomous_allow_skip`` is deliberately NOT
 # part of that flip — like ``mode:`` it is a top-level frontmatter key with no
-# counterpart in ``charter.schemas.RetrospectiveGovernance`` (whose keys mirror
+# counterpart in ``charter.activation.schemas.RetrospectiveGovernance`` (whose keys mirror
 # ``policy._KNOWN_KEYS`` exactly), so giving it a ``governance`` home is a schema
 # change (FR-005a scope), not a resolver change.  What WP06 T003 does collapse is
 # the path constant: this module imports ``charter.bundle.CHARTER_MD`` directly

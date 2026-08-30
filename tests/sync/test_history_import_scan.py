@@ -40,7 +40,14 @@ from specify_cli.sync.history_import.scan import (
     scan_missions,
 )
 
-pytestmark = pytest.mark.fast
+from specify_cli.core.saas_sync_config import sync_active
+pytestmark = [
+    pytest.mark.fast,
+    pytest.mark.skipif(
+        not sync_active(),
+        reason="sync deactivated by default (#3799); set SPEC_KITTY_ENABLE_SAAS_SYNC=1 to run",
+    ),
+]
 
 # ── fixed ULID-shaped ids (real ``python-ulid`` output, hardcoded for a
 # deterministic, production-realistic ``mission_id`` per test) ───────────────

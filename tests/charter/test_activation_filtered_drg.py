@@ -38,9 +38,9 @@ from charter.drg import (
     DRGNode,
     NodeKind,
     Relation,
-    filter_graph_by_activation,
 )
-from charter.pack_context import PackContext
+from charter.activation.drg_activation import filter_graph_by_activation
+from charter.activation.pack_context import PackContext
 from charter.offering.drg.org_pack_loader import OrgDRGFragment
 
 # ---------------------------------------------------------------------------

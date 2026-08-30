@@ -110,30 +110,32 @@ _SRC_ROOT = _REPO_ROOT / "src"
 _CATEGORY_A_SLICE_F_DEFERRED: frozenset[SymbolKey] = frozenset(
     {
         SymbolKey(
-            "CatalogMissCause", "77f08f1610245bbd1a390b4f8dd581bc92dace80d6fcc5feab4112884171dea5", source_module="charter._catalog_miss"
-        ),  # charter._catalog_miss::CatalogMissCause
+            "CatalogMissCause", "77f08f1610245bbd1a390b4f8dd581bc92dace80d6fcc5feab4112884171dea5", source_module="charter.activation._catalog_miss"
+        ),  # charter.activation._catalog_miss::CatalogMissCause
         SymbolKey(
-            "CharterCatalogMissError", "f0f2057a37b2ac491094023a2059ce8904848d1ae6e6e63e84b627fc508ab1b8", source_module="charter._catalog_miss"
-        ),  # charter._catalog_miss::CharterCatalogMissError
-        # charter._catalog_miss::CharterCatalogMissWarning
-        SymbolKey("CharterCatalogMissWarning", "7e5a4824e4b5a66125cf3e5ac266279983bfd23e5a02f3abd661eefaa0f93be8", source_module="charter._catalog_miss"),
-        # charter.activations::ALLOWED_MISSION_TYPES (body_hash refreshed WP03/#2669: derived from builtin_mission_type_id_set())
+            "CharterCatalogMissError", "f0f2057a37b2ac491094023a2059ce8904848d1ae6e6e63e84b627fc508ab1b8", source_module="charter.activation._catalog_miss"
+        ),  # charter.activation._catalog_miss::CharterCatalogMissError
+        # charter.activation._catalog_miss::CharterCatalogMissWarning
         SymbolKey(
-            "ALLOWED_MISSION_TYPES", "66f78adc4726573209f4e4eba6c766601762ead6492b8a86131ef45184ef69fd", source_module="charter.activations"
-        ),  # charter.activations::ALLOWED_MISSION_TYPES
+            "CharterCatalogMissWarning", "7e5a4824e4b5a66125cf3e5ac266279983bfd23e5a02f3abd661eefaa0f93be8", source_module="charter.activation._catalog_miss"
+        ),
+        # charter.activation.activations::ALLOWED_MISSION_TYPES (body_hash refreshed WP03/#2669: derived from builtin_mission_type_id_set())
         SymbolKey(
-            "REGISTERED_TRIGGERS", "4582c6fc202160e4708ef2cec5b63a041e7331f9dc704abd9020800abe042c0f", source_module="charter.activations"
-        ),  # charter.activations::REGISTERED_TRIGGERS
-        # charter.compact::CompactView (body_hash refreshed WP11/T061: widened to carry every delivered kind)
+            "ALLOWED_MISSION_TYPES", "66f78adc4726573209f4e4eba6c766601762ead6492b8a86131ef45184ef69fd", source_module="charter.activation.activations"
+        ),  # charter.activation.activations::ALLOWED_MISSION_TYPES
         SymbolKey(
-            "CompactView", "eb8e865d277128be5a9f75d070b2acf3110794ed3650a38ad54507f648d872d9", source_module="charter.compact"
-        ),  # charter.compact::CompactView
+            "REGISTERED_TRIGGERS", "4582c6fc202160e4708ef2cec5b63a041e7331f9dc704abd9020800abe042c0f", source_module="charter.activation.activations"
+        ),  # charter.activation.activations::REGISTERED_TRIGGERS
+        # charter.activation.compact::CompactView (body_hash refreshed WP11/T061: widened to carry every delivered kind)
         SymbolKey(
-            "extract_section_anchors", "98ff665e1c40a10a69f25707ce30f4be7366667f472fb3abb3f457b8370e6633", source_module="charter.compact"
-        ),  # charter.compact::extract_section_anchors
+            "CompactView", "eb8e865d277128be5a9f75d070b2acf3110794ed3650a38ad54507f648d872d9", source_module="charter.activation.compact"
+        ),  # charter.activation.compact::CompactView
         SymbolKey(
-            "StagedArtifact", "e5cac178a00a1ab09ab3a43c31edee223c69f455e050f12dd172742c15e25f8b", source_module="charter.synthesizer.write_pipeline"
-        ),  # charter.synthesizer.write_pipeline::StagedArtifact
+            "extract_section_anchors", "98ff665e1c40a10a69f25707ce30f4be7366667f472fb3abb3f457b8370e6633", source_module="charter.activation.compact"
+        ),  # charter.activation.compact::extract_section_anchors
+        SymbolKey(
+            "StagedArtifact", "e5cac178a00a1ab09ab3a43c31edee223c69f455e050f12dd172742c15e25f8b", source_module="charter.activation.synthesizer.write_pipeline"
+        ),  # charter.activation.synthesizer.write_pipeline::StagedArtifact
         SymbolKey(
             "is_re2_active", "1f449ff66fa7793bd2911da921304f2668c6c449879c96292bf8c6a8a8b2efe9", source_module="kernel._safe_re"
         ),  # kernel._safe_re::is_re2_active
@@ -142,8 +144,10 @@ _CATEGORY_A_SLICE_F_DEFERRED: frozenset[SymbolKey] = frozenset(
         # wired to production callers until the deferred integration WP (#3518).
         # library-first slice; the AST ratchet + schema/identity/counts/lineage unit
         # suites exercise these meanwhile. Operator-confirmed deferred-API landing.
-        # charter.synthesizer.manifest::compute_manifest_hash
-        SymbolKey("compute_manifest_hash", "976c4625daa4d8bc9612ad055b4076e879ab68aa5df7cba27c16ce90f5c51ef4", source_module="charter.synthesizer.manifest"),
+        # charter.activation.synthesizer.manifest::compute_manifest_hash
+        SymbolKey(
+            "compute_manifest_hash", "976c4625daa4d8bc9612ad055b4076e879ab68aa5df7cba27c16ce90f5c51ef4", source_module="charter.activation.synthesizer.manifest"
+        ),
         SymbolKey(
             "ensure_pack_identity", "ca9b5b99abe23a15555eca6452a326aede2faf85c70518c1a17b8dc345b349bb", source_module="charter.offering.drg.org_pack_config"
         ),  # charter.offering.drg.org_pack_config::ensure_pack_identity
@@ -463,13 +467,18 @@ _CATEGORY_B_GRANDFATHERED_LEGACY: frozenset[SymbolKey] = frozenset(
         # (Wave B / #3070) ASSET-kind tuple extension (added the ``assets``
         # member); still grandfathered-dead (no external src/ importer --
         # only internal use + a private ``_REQUIRED_KIND_FIELDS`` copy in
-        # ``src/charter/context.py``). Body-sensitive key => extending the
+        # ``src/charter/activation/context.py``). Body-sensitive key => extending the
         # tuple changes its content hash (see ``_symbol_key.py`` Body-sensitivity).
         # specify_cli.doctrine.org_charter::REQUIRED_KIND_FIELDS
         SymbolKey("REQUIRED_KIND_FIELDS", "6845e2186c122993ab17b0352e5ac72f9c821e031e96de06cb5bd996f2f0f327", source_module="specify_cli.doctrine.org_charter"),
         # specify_cli.doctrine.org_charter::apply_org_charter_pre_fill
+        # Hash refreshed (mission charter-activation-split-01M16ZSE, #3664):
+        # this function's body carries two local ``from charter.X import Y``
+        # calls whose targets moved to ``charter.activation.X`` (importer
+        # closure, MAP-C) -- a body-text edit, not a behavior change; still
+        # grandfathered-dead (no external src/ caller).
         SymbolKey(
-            "apply_org_charter_pre_fill", "559da0a61fd4f6255212b449ad4de219cb758f57501e1c5adcc1f5e5f801385b", source_module="specify_cli.doctrine.org_charter"
+            "apply_org_charter_pre_fill", "e3a5d7e2e5d16803128180ed9c1e34256ed4ff2f1e1315a8d9ffefce8a1f0e95", source_module="specify_cli.doctrine.org_charter"
         ),
         SymbolKey(
             "AssemblyResult", "3af243769584cf1b5e44b1a04238c6a9f879b3cd8c34e05414c046d2220202f0", source_module="specify_cli.doctrine.pack_assembler"
@@ -834,13 +843,15 @@ _CATEGORY_B_GRANDFATHERED_LEGACY: frozenset[SymbolKey] = frozenset(
 
 _CATEGORY_C_WP_IN_FLIGHT_CHARTER_SCOPE: frozenset[SymbolKey] = frozenset(
     {
-        # charter.consistency_check::ConsistencyReport entry pruned
+        # charter.activation.consistency_check::ConsistencyReport entry pruned
         # (doctrine-tension-edges-01KY1WPC): removed from __all__ instead of
         # re-pinning the hash -- no external caller imports it by name (only
         # consumed via attribute access on run_consistency_check()'s return
         # value), matching this file's own CharterYamlCorruptError precedent.
-        # charter.invocation_context::ContextPreconditionError
-        SymbolKey("ContextPreconditionError", "ed270fe330c24f71db20d7c033d1246499b83b3bad558fc526fc4620bddd67af", source_module="charter.invocation_context"),
+        # charter.activation.invocation_context::ContextPreconditionError
+        SymbolKey(
+            "ContextPreconditionError", "ed270fe330c24f71db20d7c033d1246499b83b3bad558fc526fc4620bddd67af", source_module="charter.activation.invocation_context"
+        ),
     }
 )
 
@@ -933,11 +944,11 @@ _CATEGORY_C_WP_IN_FLIGHT_UNIFIED_MISSION_STEP: frozenset[SymbolKey] = frozenset(
 _CATEGORY_C_WP_IN_FLIGHT_CHARTER_ACTIVATION: frozenset[SymbolKey] = frozenset(
     {
         SymbolKey(
-            "ActivationResult", "3caa63e1d20b223d5052be3797c81a938ab823a04087c3fe7a4ca6fa7d82aec7", source_module="charter.pack_manager"
-        ),  # charter.pack_manager::ActivationResult
+            "ActivationResult", "3caa63e1d20b223d5052be3797c81a938ab823a04087c3fe7a4ca6fa7d82aec7", source_module="charter.activation.pack_manager"
+        ),  # charter.activation.pack_manager::ActivationResult
         SymbolKey(
-            "MergeResult", "cc0c8d09dc8bd0cc0152b7bee385aefdedb9f555cc1e6ac4593a009b38b25093", source_module="charter.pack_manager"
-        ),  # charter.pack_manager::MergeResult
+            "MergeResult", "cc0c8d09dc8bd0cc0152b7bee385aefdedb9f555cc1e6ac4593a009b38b25093", source_module="charter.activation.pack_manager"
+        ),  # charter.activation.pack_manager::MergeResult
         SymbolKey(
             "StepKey", "6b982c25b6d2735411195c4e785e71c6178eca1ce51e18c0b656f7f44bdd0edc", source_module="charter.offering.missions.mission_step_repository"
         ),  # charter.offering.missions.mission_step_repository::StepKey
@@ -964,8 +975,8 @@ _CATEGORY_C_WP_IN_FLIGHT_CHARTER_ACTIVATION: frozenset[SymbolKey] = frozenset(
 _CATEGORY_C_ORG_DOCTRINE_CLOSEOUT: frozenset[SymbolKey] = frozenset(
     {
         SymbolKey(
-            "ActivationPlan", "49697a5e9d4ea41ac9531c0b4bb6605a8aa71bf116e0dfbf1af2eee33a935a53", source_module="charter.activation_engine"
-        ),  # charter.activation_engine::ActivationPlan
+            "ActivationPlan", "49697a5e9d4ea41ac9531c0b4bb6605a8aa71bf116e0dfbf1af2eee33a935a53", source_module="charter.activation.activation_engine"
+        ),  # charter.activation.activation_engine::ActivationPlan
         # Re-pinned 2026-08-24 (#3705): WP04 added the ``not_cascaded_kind_filtered``
         # field to this dataclass so ``charter deactivate --cascade`` can report the
         # kind-filtered nodes it previously dropped in silence (C-002 symmetry). The
@@ -976,22 +987,28 @@ _CATEGORY_C_ORG_DOCTRINE_CLOSEOUT: frozenset[SymbolKey] = frozenset(
         # of ``deactivation_plan()``, consumed by the CLI layer and tests).
         # Prior hash: 527c491b7df6c1369bc3f4c7491626817a5a3a2ede574ffe4527168fde17bf43
         SymbolKey(
-            "DeactivationPlan", "ea81133908c5385ae013a8057ac7f863386247ba90b64e212b54be895d7e1615", source_module="charter.cascade"
-        ),  # charter.cascade::DeactivationPlan
+            "DeactivationPlan", "ea81133908c5385ae013a8057ac7f863386247ba90b64e212b54be895d7e1615", source_module="charter.activation.cascade"
+        ),  # charter.activation.cascade::DeactivationPlan
         SymbolKey(
-            "REFERENCE_RELATIONS", "95fca0816d6568e68a953c321ec3ca6c5a45a7903f064fdbcb4d87bc1558632b", source_module="charter.cascade"
-        ),  # charter.cascade::REFERENCE_RELATIONS
+            "REFERENCE_RELATIONS", "95fca0816d6568e68a953c321ec3ca6c5a45a7903f064fdbcb4d87bc1558632b", source_module="charter.activation.cascade"
+        ),  # charter.activation.cascade::REFERENCE_RELATIONS
         SymbolKey(
-            "ReferencedArtifact", "80d3c02ebae2c466ff75be630ecfd259036be62ea0a1394dbab6503f75414afc", source_module="charter.cascade"
-        ),  # charter.cascade::ReferencedArtifact
-        SymbolKey("SharedSkip", "5eaddd3d5d18e386fc96f4ad558b21289c0bf7955cc70cfadca308d234f3ff5b", source_module="charter.cascade"),  # charter.cascade::SharedSkip
+            "ReferencedArtifact", "80d3c02ebae2c466ff75be630ecfd259036be62ea0a1394dbab6503f75414afc", source_module="charter.activation.cascade"
+        ),  # charter.activation.cascade::ReferencedArtifact
+        SymbolKey(
+            "SharedSkip", "5eaddd3d5d18e386fc96f4ad558b21289c0bf7955cc70cfadca308d234f3ff5b", source_module="charter.activation.cascade"
+        ),  # charter.activation.cascade::SharedSkip
         # charter.offering.drg.org_pack_loader::AUGMENTATION_RELATIONS
-        SymbolKey("AUGMENTATION_RELATIONS", "724f4741d69125ccfd2bb664f8f05739fb4a2372220636958b84476741738af0", source_module="charter.offering.drg.org_pack_loader"),
+        SymbolKey(
+            "AUGMENTATION_RELATIONS", "724f4741d69125ccfd2bb664f8f05739fb4a2372220636958b84476741738af0", source_module="charter.offering.drg.org_pack_loader"
+        ),
         SymbolKey(
             "TOPOLOGY_KINDS", "eb1deec7b602719bb1ada5074ee99c1bf01b1df4faa1370845f9e8f65b341e9e", source_module="charter.offering.drg.org_pack_loader"
         ),  # charter.offering.drg.org_pack_loader::TOPOLOGY_KINDS
         # charter.offering.drg.org_pack_loader::merge_topology_artifact
-        SymbolKey("merge_topology_artifact", "8b3946b11d7220f921e402afa6152d2d33907b8743465c34a56e681e676539e9", source_module="charter.offering.drg.org_pack_loader"),
+        SymbolKey(
+            "merge_topology_artifact", "8b3946b11d7220f921e402afa6152d2d33907b8743465c34a56e681e676539e9", source_module="charter.offering.drg.org_pack_loader"
+        ),
         # ``template_id_for`` and ``template_urn`` left the allowlist in
         # mission-step-creatability-01KXQA6R WP06 (S-C / #2724): the DRG
         # extractor's template-instantiation pass
@@ -1561,7 +1578,7 @@ _CATEGORY_C_URN_RESOLUTION_LANE: frozenset[SymbolKey] = frozenset(
 
 
 # ---------- C. consolidate-charter-bundle WP01 shared write-helper vocabulary ----------
-# ``charter.charter_yaml_io.update_charter_yaml_section`` (the INV-9 single
+# ``charter.activation.charter_yaml_io.update_charter_yaml_section`` (the INV-9 single
 # writer all three charter.yaml mutators -- activation_engine.commit_plan,
 # pack_manager.merge_defaults, compiler.write_compiled_charter -- route
 # through) IS wired with a live src/ caller. ``OWNED_SECTIONS`` (the public
@@ -1583,10 +1600,12 @@ _CATEGORY_C_URN_RESOLUTION_LANE: frozenset[SymbolKey] = frozenset(
 _CATEGORY_C_WP_IN_FLIGHT_CHARTER_YAML_IO_WRITE_HELPER: frozenset[SymbolKey] = frozenset(
     {
         SymbolKey(
-            "OWNED_SECTIONS", "64c7a3f3de0c69de219050aed3e63d0f50a2ad8162997d0efa52be16deff81c3", source_module="charter.charter_yaml_io"
-        ),  # charter.charter_yaml_io::OWNED_SECTIONS
-        # charter.charter_yaml_io::UnknownCharterYamlSectionError
-        SymbolKey("UnknownCharterYamlSectionError", "9671c9b4163dbb4c718cf85bc3850ed8643fbf1d92ea63c7e296040e7197328a", source_module="charter.charter_yaml_io"),
+            "OWNED_SECTIONS", "64c7a3f3de0c69de219050aed3e63d0f50a2ad8162997d0efa52be16deff81c3", source_module="charter.activation.charter_yaml_io"
+        ),  # charter.activation.charter_yaml_io::OWNED_SECTIONS
+        # charter.activation.charter_yaml_io::UnknownCharterYamlSectionError
+        SymbolKey(
+            "UnknownCharterYamlSectionError", "9671c9b4163dbb4c718cf85bc3850ed8643fbf1d92ea63c7e296040e7197328a", source_module="charter.activation.charter_yaml_io"
+        ),
     }
 )
 
@@ -1743,7 +1762,7 @@ _CATEGORY_C_LIFECYCLE_GATE_EXECUTION_CONTEXT_2841: frozenset[SymbolKey] = frozen
 # The delivery-rail public API built by mission
 # ``doctrine-delivery-reachability-01KYMXD6``: the WP08 per-channel
 # reachability helpers (``src/doctrine/drg/reachability.py``) and the WP07
-# activation-partition helpers (``src/charter/pack_context.py``).
+# activation-partition helpers (``src/charter/activation/pack_context.py``).
 #
 # WP03 UPDATE (mission ``doctrine-delivery-activation-01KYQVQK`` — the planned
 # "walk-update" fast-follow itself): this mission wired the *profile* channel.
@@ -1764,10 +1783,10 @@ _CATEGORY_C_LIFECYCLE_GATE_EXECUTION_CONTEXT_2841: frozenset[SymbolKey] = frozen
 # docs/plans/doctrine/delivery-reachability-wiring-table.md). Target = 0 once a
 # later mission wires each remaining helper from a runtime caller.
 #
-# The WP15 progressive-disclosure module (``src/charter/progressive_disclosure.py``)
+# The WP15 progressive-disclosure module (``src/charter/activation/progressive_disclosure.py``)
 # is a DIFFERENT case, landing-fold-corrected (PR #3070, E1): its delivery
 # entry points (``build_disclosure_payload``, ``collect_typed_artifacts``,
-# ``requires_closure``) ARE wired -- ``charter.context`` calls them directly
+# ``requires_closure``) ARE wired -- ``charter.activation.context`` calls them directly
 # (``context.py:3513``, ``context.py:3375``, ``context.py:1238``) -- so they
 # carry no allowlist entry at all; the gate's module-attribute detector
 # recognises the caller and never flags them. The module's remaining helpers
@@ -1785,9 +1804,11 @@ _CATEGORY_C_LIFECYCLE_GATE_EXECUTION_CONTEXT_2841: frozenset[SymbolKey] = frozen
 # forward-API docstring) and has zero ``src/`` callers today.
 _CATEGORY_C_DELIVERY_RAIL_FORWARD_API: frozenset[SymbolKey] = frozenset(
     {
-        # charter.pack_context::ActivationReachabilityPartition
-        SymbolKey("ActivationReachabilityPartition", "16f04ac28e60241772fae3e88ebe14fa1e4b234c2fc216673cc9d075f285b661", source_module="charter.pack_context"),
-        # charter_activated_urns: charter.pack_context::charter_activated_urns
+        # charter.activation.pack_context::ActivationReachabilityPartition
+        SymbolKey(
+            "ActivationReachabilityPartition", "16f04ac28e60241772fae3e88ebe14fa1e4b234c2fc216673cc9d075f285b661", source_module="charter.activation.pack_context"
+        ),
+        # charter_activated_urns: charter.activation.pack_context::charter_activated_urns
         # -- re-allowlisted (charter-pack-usage-journey-01KYWWTF WP01/T006b,
         # #3118). It is the documented FR-017 "single activation authority"
         # and stays public/__all__-exported for the DRG reachability/
@@ -1803,29 +1824,37 @@ _CATEGORY_C_DELIVERY_RAIL_FORWARD_API: frozenset[SymbolKey] = frozenset(
         # since-removed caller). Re-allowlisting on caller removal, not
         # deleting/de-exporting, matches that precedent.
         SymbolKey(
-            "charter_activated_urns", "5003eed5e2d30c222f2108ba89da31d8531cdeb468898d01b3fa96020bd62830", source_module="charter.pack_context"
-        ),  # charter.pack_context::charter_activated_urns
-        # charter.pack_context::normalize_activation_identifier
+            "charter_activated_urns", "5003eed5e2d30c222f2108ba89da31d8531cdeb468898d01b3fa96020bd62830", source_module="charter.activation.pack_context"
+        ),  # charter.activation.pack_context::charter_activated_urns
+        # charter.activation.pack_context::normalize_activation_identifier
         # Hash re-pinned (mission charter-code-topology-01M152G1, #3664): the
         # src/doctrine/ -> src/charter/offering/ relocation shifted this
         # module's body enough to change its content-tier body_hash; no
         # semantic change, no new/removed caller -- see FR-303 process note
         # at the top of this allowlist for the re-pin-only case.
-        SymbolKey("normalize_activation_identifier", "9f7d92e2fc1d29bac413ee0aedb51ec14bf4288bf04f2a96ca2e9807e32e5cdd", source_module="charter.pack_context"),
-        # charter.pack_context::partition_activated_unreachable
-        SymbolKey("partition_activated_unreachable", "a128040a4804e409225402613ffbe128932fa1862881810bbb3bd3cfd1241fb4", source_module="charter.pack_context"),
         SymbolKey(
-            "partition_delivery", "7a90e7fc7bfaa802edcb2f675f4cce8f0e7e6db3fbe184b68b64a4a03d194841", source_module="charter.progressive_disclosure"
-        ),  # charter.progressive_disclosure::partition_delivery
+            "normalize_activation_identifier", "9f7d92e2fc1d29bac413ee0aedb51ec14bf4288bf04f2a96ca2e9807e32e5cdd", source_module="charter.activation.pack_context"
+        ),
+        # charter.activation.pack_context::partition_activated_unreachable
+        SymbolKey(
+            "partition_activated_unreachable", "a128040a4804e409225402613ffbe128932fa1862881810bbb3bd3cfd1241fb4", source_module="charter.activation.pack_context"
+        ),
+        SymbolKey(
+            "partition_delivery", "7a90e7fc7bfaa802edcb2f675f4cce8f0e7e6db3fbe184b68b64a4a03d194841", source_module="charter.activation.progressive_disclosure"
+        ),  # charter.activation.progressive_disclosure::partition_delivery
         # charter.offering.drg.reachability::PROFILE_CHANNEL_RELATIONS (body_hash refreshed
         # WP03/doctrine-delivery-activation-01KYQVQK: WP01 added Relation.SUGGESTS to
         # the frozenset, changing its body; still no ``src/`` importer — the sole
-        # reference in src/charter/context_renderers/profile_sections.py:341 is a
-        # prose comment, not an import/call — so it stays allowlisted, hash-refreshed.)
+        # reference in src/charter/activation/context_renderers/profile_sections.py:447
+        # is a prose comment, not an import/call — so it stays allowlisted, hash-refreshed.)
         # charter.offering.drg.reachability::PROFILE_CHANNEL_RELATIONS
-        SymbolKey("PROFILE_CHANNEL_RELATIONS", "17b05fe56e1ba52f5efca0f1cebe40e0ed1ab3232b80111f8e47e51176203fb5", source_module="charter.offering.drg.reachability"),
+        SymbolKey(
+            "PROFILE_CHANNEL_RELATIONS", "17b05fe56e1ba52f5efca0f1cebe40e0ed1ab3232b80111f8e47e51176203fb5", source_module="charter.offering.drg.reachability"
+        ),
         # charter.offering.drg.reachability::action_channel_reachable
-        SymbolKey("action_channel_reachable", "12033bfeabd0a031f426ef16f55dbc9ee765a0d1c8ad09a822847a1d91b42d10", source_module="charter.offering.drg.reachability"),
+        SymbolKey(
+            "action_channel_reachable", "12033bfeabd0a031f426ef16f55dbc9ee765a0d1c8ad09a822847a1d91b42d10", source_module="charter.offering.drg.reachability"
+        ),
         SymbolKey(
             "action_seed_urns", "65ce52327f352629e39db6b4d922f14aa86e9e3ef71725a856e70567f0b66d04", source_module="charter.offering.drg.reachability"
         ),  # charter.offering.drg.reachability::action_seed_urns
@@ -1920,7 +1949,7 @@ _CATEGORY_C_CHARTER_FACADE_FORWARD_API_01KZPDSR: frozenset[SymbolKey] = frozense
 # flip that have no cross-file `src/` caller yet, both content-tier (unique
 # bare_name, no live collision):
 #
-# * ``charter.interview::InterviewAnswersRegressionError`` -- raised by
+# * ``charter.activation.interview::InterviewAnswersRegressionError`` -- raised by
 #   ``write_interview_answers(..., fail_closed_on_regression=True)``. That
 #   opt-in flag has no production caller today: the only caller is
 #   ``tests/charter/test_answers_migration.py`` (which asserts on the error
@@ -1929,7 +1958,7 @@ _CATEGORY_C_CHARTER_FACADE_FORWARD_API_01KZPDSR: frozenset[SymbolKey] = frozense
 #   this writer at all -- it does byte-preserving anchored substitution to
 #   survive the archive-freeze gate. So this is test-only forward public API,
 #   exposed by design so that future/external migration callers can catch it.
-# * ``charter.sync::LegacyGovernanceKeyWarning`` -- the ``UserWarning`` subclass
+# * ``charter.activation.sync::LegacyGovernanceKeyWarning`` -- the ``UserWarning`` subclass
 #   ``_warn_legacy_governance_key_once()`` raises internally (same module, so
 #   invisible to the cross-file caller graph); ``tests/charter/
 #   test_governance_key_compat.py`` asserts on it via ``pytest.warns(...)``.
@@ -1937,17 +1966,17 @@ _CATEGORY_C_CHARTER_FACADE_FORWARD_API_01KZPDSR: frozenset[SymbolKey] = frozense
 #   warning class rather than a bare ``UserWarning``.
 _CATEGORY_C_CHARTER_AUTHORITY_FLIP_FORWARD_API: frozenset[SymbolKey] = frozenset(
     {
-        # charter.interview::InterviewAnswersRegressionError
+        # charter.activation.interview::InterviewAnswersRegressionError
         SymbolKey(
             "InterviewAnswersRegressionError",
             "af534399168d1c78dd7722884aeffc6366eb378779c8dfe91a2545843e1518c2",
-            source_module="charter.interview",
+            source_module="charter.activation.interview",
         ),
-        # charter.sync::LegacyGovernanceKeyWarning
+        # charter.activation.sync::LegacyGovernanceKeyWarning
         SymbolKey(
             "LegacyGovernanceKeyWarning",
             "3558fe165f51db3ae52de1abf6c15ce0ececf072f8ac8871cb98c3bbd8d9a1e6",
-            source_module="charter.sync",
+            source_module="charter.activation.sync",
         ),
     }
 )
@@ -1956,7 +1985,7 @@ _CATEGORY_C_CHARTER_AUTHORITY_FLIP_FORWARD_API: frozenset[SymbolKey] = frozenset
 # ---------- D. charter-code-topology-01M152G1 doctrine->charter.offering relocation forward API (#3664) ----------
 # Three symbols surfaced by the src/doctrine/ -> src/charter/offering/
 # package relocation (mission ``charter-code-topology-01M152G1``, PR #3664).
-# (A fourth casualty of the same relocation, ``charter.pack_context::
+# (A fourth casualty of the same relocation, ``charter.activation.pack_context::
 # normalize_activation_identifier``, was NOT a new entry here -- it already
 # had a Category C allowlist row above that the relocation's body-hash shift
 # orphaned; that row was re-pinned in place rather than duplicated, per
@@ -1968,7 +1997,7 @@ _CATEGORY_C_CHARTER_AUTHORITY_FLIP_FORWARD_API: frozenset[SymbolKey] = frozenset
 # * ``charter.offering.drg.org_pack_config::LegacyOrgPackDoctrineKeyWarning``
 #   -- raised internally by the module's own legacy-key compat warn-once
 #   helper (same module, so invisible to the cross-file caller graph), same
-#   shape as the established ``charter.sync::LegacyGovernanceKeyWarning`` /
+#   shape as the established ``charter.activation.sync::LegacyGovernanceKeyWarning`` /
 #   ``specify_cli.tracker.config::LegacyTrackerOwnershipKeyWarning``
 #   precedent above: public by design so a consumer can filter/assert on the
 #   specific warning class. Asserted on via ``pytest.warns(...)`` in
@@ -2005,6 +2034,45 @@ _CATEGORY_D_CHARTER_CODE_TOPOLOGY_RELOCATION_FORWARD_API: frozenset[SymbolKey] =
             "LegacyDoctrineRootWarning",
             "0045ea27dd2aac495a318ee0c8d799ce67b54fa4966e7286423210115079d8f7",
             source_module="kernel.doctrine_root",
+        ),
+    }
+)
+
+
+# ---------- E. charter-activation-split-01M16ZSE offering<->activation physical
+# split forward API (#3664, M2b) ----------
+# ``charter.drg`` is the pure offering-type re-export facade (its own
+# docstring: "This file is a pure re-export module -- the offering-type
+# surface only"). ``merge_three_layers`` is pure graph logic
+# (``charter.offering.drg.merge.merge_three_layers``, no ``PackContext``
+# dependency), so unlike ``load_org_drg``/``filter_graph_by_activation`` --
+# which DO need activation state and were fully relocated to
+# ``charter.activation.drg_activation`` -- it stays re-exported on both
+# facades: ``charter.drg`` (for a non-activation-aware consumer that only
+# needs the pure merge) and ``charter.activation.drg_activation`` (for an
+# activation-aware consumer already importing ``load_org_drg`` from the same
+# module, per that module's own docstring's "Import them from there" call-
+# site guidance). Before this mission all four live src/ callers imported
+# ``merge_three_layers`` from ``charter.drg`` alongside
+# ``load_org_drg``/``validate_dangling_references`` in one statement; M2b
+# correctly re-pointed those same call sites at the new
+# ``charter.activation.drg_activation`` single-import shape (the module they
+# already needed for ``load_org_drg``), which is what orphaned
+# ``charter.drg::merge_three_layers``'s LAST caller -- not a dropped
+# feature. The symbol resolves to the escalated module_path tier (not
+# content tier) because ``charter.activation.drg_activation::
+# merge_three_layers`` is a byte-identical re-export with a live caller,
+# so the bare-name/body-hash pair alone cannot disambiguate the two
+# facade locations (D-1/D-2 collision escalation, ``_symbol_key.py``).
+# Tracked: https://github.com/Priivacy-ai/spec-kitty/issues/3664
+_CATEGORY_E_CHARTER_ACTIVATION_SPLIT_FORWARD_API: frozenset[SymbolKey] = frozenset(
+    {
+        # charter.drg::merge_three_layers
+        SymbolKey(
+            "merge_three_layers",
+            "a474c1190d82c971ec43ab922f13e85ca488cea98ff3b56d1e077f386ab89b90",
+            module_path="charter.drg",
+            source_module="charter.drg",
         ),
     }
 )
@@ -2048,6 +2116,7 @@ _SYMBOL_ALLOWLIST: frozenset[SymbolKey] = (
     | _CATEGORY_C_CHARTER_FACADE_FORWARD_API_01KZPDSR
     | _CATEGORY_C_CHARTER_AUTHORITY_FLIP_FORWARD_API
     | _CATEGORY_D_CHARTER_CODE_TOPOLOGY_RELOCATION_FORWARD_API
+    | _CATEGORY_E_CHARTER_ACTIVATION_SPLIT_FORWARD_API
 )
 
 
@@ -2188,7 +2257,7 @@ def _iter_src_python_files() -> list[Path]:
 def _module_dotted(path: Path) -> str:
     """Return the dotted module name for *path* relative to ``src/``.
 
-    ``src/charter/mission_type_profiles.py`` -> ``charter.mission_type_profiles``.
+    ``src/charter/mission_type_profiles.py`` -> ``charter.activation.mission_type_profiles``.
     For ``__init__.py`` the package itself is returned (``charter``).
     """
     rel = path.relative_to(_SRC_ROOT).with_suffix("")
@@ -2571,7 +2640,7 @@ def _symbol_has_caller(
       -- the parent re-exports the name via its own ``__all__``;
     * any submodule of ``mod_dotted`` (``X.startswith(mod_dotted + ".")``)
       -- this covers package ``__init__.py`` re-exports: a name listed
-      in ``charter.__all__`` and imported via ``charter.compiler``
+      in ``charter.__all__`` and imported via ``charter.activation.compiler``
       proves the symbol is live runtime code.
 
     The third rule is necessary because the WP08 anti-pattern we gate

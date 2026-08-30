@@ -26,9 +26,9 @@ from pathlib import Path
 
 import pytest
 
-from charter._diagnostics import CharterEncodingDiagnostic
-from charter import _io
-from charter._io import CharterContent, CharterEncodingError, load_charter_bytes, load_charter_file
+from charter.activation._diagnostics import CharterEncodingDiagnostic
+from charter.activation import _io
+from charter.activation._io import CharterContent, CharterEncodingError, load_charter_bytes, load_charter_file
 from kernel.errors import KittyInternalConsistencyError
 
 

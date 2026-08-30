@@ -63,6 +63,9 @@ most directly) and the deeper three-dot case from ``offering/sub/mod.py``
 from __future__ import annotations
 
 import ast
+import os
+import subprocess
+import sys
 from pathlib import Path
 
 import pytest
@@ -78,22 +81,17 @@ _OFFERING_ROOT = _CHARTER_ROOT / "offering"
 
 #: The forbidden target package. ``charter.offering`` sits beside it, and per
 #: C-004 may never depend on it (the reverse direction is allowed).
-#: The activation/mutation layer. Until mission M2b physically relocates it into a
-#: ``src/charter/activation/`` package, that layer lives as these top-level ``charter``
-#: modules; the C-004 boundary is enforced against them NOW (pre-review finding, paula
-#: MAJOR-4) so ``charter.offering`` cannot import the mutation layer today, not only after
-#: the M2b move. ``charter.activation`` (+ subpackages) is kept so the gate keeps matching
-#: once M2b lands and this explicit set can collapse back to it.
+#: Mission ``charter-activation-split-01M16ZSE`` (MAP-D) physically relocated
+#: the activation/mutation layer into the real ``src/charter/activation/``
+#: package (a 96-file move: 47 modules + 6 subpackages). The subpackage rule
+#: in :func:`_is_activation_module` (``module == "charter.activation"`` or
+#: ``module.startswith("charter.activation.")``) now catches every activation
+#: module through the single package-root entry below — the interim
+#: enumerated allowlist (individually-named ``activation_engine`` /
+#: ``activations`` / ``cascade`` / ``_activation_render`` entries, kept before
+#: the move landed) is retired; no module was left behind to need it.
 _FORBIDDEN_MODULE = "charter.activation"
-_ACTIVATION_MODULES = frozenset(
-    {
-        "charter.activation",
-        "charter.activation_engine",
-        "charter.activations",
-        "charter.cascade",
-        "charter._activation_render",
-    }
-)
+_ACTIVATION_MODULES = frozenset({"charter.activation"})
 
 
 def _is_activation_module(module: str) -> bool:
@@ -377,3 +375,41 @@ def test_walker_ignores_clean_offering_and_activation_imports(tmp_path: Path) ->
 
     assert collect_activation_imports(offering, tmp_path) == []
     assert collect_activation_imports(activation, tmp_path) == []
+
+
+def test_importing_offering_does_not_drag_activation_layer() -> None:
+    """MAP-B / #3803 invariant: importing ``charter.offering`` must load zero
+    ``charter.activation.*`` modules.
+
+    The M2 relocation put ``charter.offering.*`` under the ``charter`` package,
+    so importing any offering submodule first runs ``charter/__init__.py``.
+    When that ``__init__`` eagerly re-exported the activation API, the first
+    parallel import of ``charter.offering.base`` could deadlock
+    (``_DeadlockError``, #3803). MAP-B made ``__init__`` lazy (PEP-562), so the
+    activation layer is no longer dragged in transitively.
+
+    This is a *direct* guard on that invariant — run in a clean interpreter so
+    no earlier test's imports mask a regression. It fails loudly ("activation
+    was dragged") rather than through a second-order roster corruption.
+    """
+    src = Path(__file__).resolve().parents[2] / "src"
+    env = dict(os.environ)
+    env["PYTHONPATH"] = os.pathsep.join([str(src), env.get("PYTHONPATH", "")])
+    probe = (
+        "import sys, charter.offering, charter.offering.base, charter.offering.drg.models;"
+        "dragged = sorted(m for m in sys.modules"
+        " if m == 'charter.activation' or m.startswith('charter.activation.'));"
+        "print('\\n'.join(dragged))"
+    )
+    result = subprocess.run(  # noqa: S603 — fixed argv, no shell
+        [sys.executable, "-c", probe],
+        capture_output=True,
+        text=True,
+        env=env,
+        check=True,
+    )
+    dragged = [line for line in result.stdout.splitlines() if line.strip()]
+    assert not dragged, (
+        "importing charter.offering.* dragged in the activation layer "
+        f"(MAP-B/#3803 regression): {dragged}"
+    )

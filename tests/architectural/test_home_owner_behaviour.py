@@ -72,12 +72,14 @@ PLACEMENT_FLOOR = 298
 #: the check survives every benign edit that moves the lines, and reds on a reorder — which a
 #: scalar definition index cannot see (SC-010).
 ANCHOR_BEFORE = "_isolated_worker_home"
-ANCHOR_AFTER = "_enable_saas_sync_feature_flag"
+ANCHOR_AFTER = "sync_enabled"
 
-#: ``tests/conftest.py``'s ordered definition names **at the merge base**,
-#: ``9117219081c1f88cf0b90937b9cb46723ceebcd2`` (``git merge-base HEAD
-#: feat/isolated-home-pin-guard``), where ``git diff --stat <merge-base> HEAD -- tests/conftest.py``
-#: was **empty** — the file was byte-identical to the base when this list was taken.
+#: ``tests/conftest.py``'s ordered definition names with the owner (``canonical_home``) removed —
+#: i.e. the exact def sequence the current file carries minus the one addition FR-005 mandates.
+#: Regenerated (per the reviewed-change clause below) after the sync-deactivate-by-default mission's
+#: WP04 conftest change, which retired the autouse ``_enable_saas_sync_feature_flag`` fixture and
+#: introduced the ``sync_enabled`` / ``sync_disabled`` opt-in fixtures immediately after
+#: ``_isolated_worker_home``.
 #:
 #: **Frozen here rather than recomputed from git at test time, deliberately.** T010's own DoD
 #: records that *"the ancestry itself does not survive the squash or rebase a lane consolidation may
@@ -108,7 +110,8 @@ MERGE_BASE_DEFINITION_NAMES: tuple[str, ...] = (
     "_apply_shard_markers",
     "_fail_on_wall_clock_assertions",
     "_isolated_worker_home",
-    "_enable_saas_sync_feature_flag",
+    "sync_enabled",
+    "sync_disabled",
     "_isolate_global_encoding_provenance",
     "_isolated_route",
     "_plain_cli_console_seam",

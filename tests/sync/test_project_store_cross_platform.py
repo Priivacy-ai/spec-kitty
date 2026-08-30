@@ -81,7 +81,14 @@ from specify_cli.sync.project_identity import CanonicalProjectUUID, ProjectStore
 from specify_cli.sync.project_store import ProjectSyncStore
 from specify_cli.sync.project_store_migration import LegacyProjectStoreMigration
 
-pytestmark = pytest.mark.fast
+from specify_cli.core.saas_sync_config import sync_active
+pytestmark = [
+    pytest.mark.fast,
+    pytest.mark.skipif(
+        not sync_active(),
+        reason="sync deactivated by default (#3799); set SPEC_KITTY_ENABLE_SAAS_SYNC=1 to run",
+    ),
+]
 
 UUID_A = "aaaaaaaa-1111-1111-1111-111111111111"
 UUID_B = "bbbbbbbb-2222-2222-2222-222222222222"

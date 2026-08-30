@@ -36,7 +36,14 @@ from unittest.mock import MagicMock
 
 import pytest
 
-pytestmark = pytest.mark.fast
+from specify_cli.core.saas_sync_config import sync_active
+pytestmark = [
+    pytest.mark.fast,
+    pytest.mark.skipif(
+        not sync_active(),
+        reason="sync deactivated by default (#3799); set SPEC_KITTY_ENABLE_SAAS_SYNC=1 to run",
+    ),
+]
 
 from specify_cli.sync.daemon import DaemonStartOutcome
 from specify_cli.sync.emitter import EventEmitter, TokenUsageMetadata
@@ -275,7 +282,7 @@ class TestEnsureDashboardSyncDaemonIntentLocalOnly:
         repo_root = tmp_path / "repo"
         (repo_root / ".kittify").mkdir(parents=True)
 
-        monkeypatch.setattr(events_mod, "is_saas_sync_enabled", lambda: True)
+        monkeypatch.setattr(events_mod, "sync_active", lambda: True)
 
         token_manager = MagicMock()
         token_manager.is_authenticated = True

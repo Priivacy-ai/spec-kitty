@@ -327,7 +327,7 @@ def _manifest_is_fresh_seed(manifest_path: Path) -> bool:
     validation.
     """
     try:
-        from .synthesizer.manifest import load_yaml as load_manifest  # noqa: PLC0415
+        from .activation.synthesizer.manifest import load_yaml as load_manifest  # noqa: PLC0415
 
         manifest = load_manifest(manifest_path)
     except Exception:  # noqa: BLE001
@@ -413,7 +413,7 @@ def _check_manifest_integrity(repo_root: Path, result: BundleValidationResult) -
     if not manifest_path.exists():
         return
     try:
-        from .synthesizer.manifest import (  # noqa: PLC0415
+        from .activation.synthesizer.manifest import (  # noqa: PLC0415
             load_yaml as load_manifest,
             verify as verify_manifest,
             verify_manifest_hash,

@@ -59,6 +59,7 @@ from specify_cli.core.loopback_http import (
     create_loopback_server,
 )
 from specify_cli.core.process_liveness import is_process_alive
+from specify_cli.core.saas_sync_config import sync_active
 from specify_cli.paths import get_runtime_root
 from specify_cli.sync.diagnostics import SyncDiagnosticCode, emit_sync_diagnostic
 
@@ -1141,17 +1142,28 @@ def _daemon_start_skip_reason(
     from specify_cli.saas.rollout import is_saas_sync_enabled
     from specify_cli.sync.config import BackgroundDaemonPolicy
 
-    # The disable envs (#2573b) suppress IMPLICIT auto-start — the daemon spawn
-    # that fires as a side effect of move-task / gate / loop ops. An explicit
-    # daemon-management command (``doctor restart-daemon``) is a direct user
-    # request for the daemon, so it bypasses the disable-env skip, matching the
-    # pre-#2573b behavior where restart always respawned. Rollout / intent /
-    # policy gating still applies to explicit restarts (unchanged from base).
-    if not force_explicit:
+    # WP02 / FR-004, C-008: the IMPLICIT auto-start decision — the daemon spawn
+    # that fires as a side effect of move-task / gate / loop ops — is gated on
+    # the single canonical arming predicate ``sync_active()`` (disable-env OR
+    # rollout-off both mean "not armed"), REPLACING the prior scattered
+    # disable-first + ``is_saas_sync_enabled()`` pair. The specific skip_reason
+    # string (the honored disable-var name, else ``rollout_disabled``) is derived
+    # only after the arming decision, purely for diagnostics.
+    #
+    # An explicit daemon-management command (``doctor restart-daemon``,
+    # ``force_explicit=True``) is a direct user request, so it bypasses the
+    # disable-env skip and gates on rollout alone — matching the pre-#2573b
+    # behavior where restart always respawned. ``sync_active()`` is stricter than
+    # rollout alone (it also honors disable), so it is only the implicit gate.
+    #
+    # The implicit spawn ultimately reaches ``_spawn_sync_daemon_process`` (the
+    # OS-level daemon spawn); returning a non-None skip_reason here stops
+    # ``ensure_sync_daemon_running`` before it, so the guard test spies
+    # ``assert_not_called`` on ``_spawn_sync_daemon_process``.
+    if not force_explicit and not sync_active():
         env_skip_reason = _daemon_disable_env_skip_reason()
-        if env_skip_reason is not None:
-            return env_skip_reason
-    if not is_saas_sync_enabled():
+        return env_skip_reason if env_skip_reason is not None else "rollout_disabled"
+    if force_explicit and not is_saas_sync_enabled():
         return "rollout_disabled"
     if intent == DaemonIntent.LOCAL_ONLY:
         return "intent_local_only"

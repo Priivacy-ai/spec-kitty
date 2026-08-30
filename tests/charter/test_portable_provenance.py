@@ -1,7 +1,7 @@
 """Portable provenance integration tests (T016, C-PRV-1..6).
 
 Exercises the normalizer at BOTH real emit call sites -- the charter catalog
-(``charter.compiler._doctrine_yaml_reference``) and the agent-profile
+(``charter.activation.compiler._doctrine_yaml_reference``) and the agent-profile
 projection manifest (``specify_cli.tool_surface.profiles.projection.
 _manifest_source_path``) -- plus the two deliberately-excluded callers
 (the mission-template reference and the manifest ``output_path`` field),
@@ -15,8 +15,8 @@ from pathlib import Path
 
 import pytest
 
-from charter.compiler import CharterReference, CompiledCharter, compile_charter
-from charter.interview import default_interview
+from charter.activation.compiler import CharterReference, CompiledCharter, compile_charter
+from charter.activation.interview import default_interview
 
 pytestmark = [pytest.mark.unit]
 

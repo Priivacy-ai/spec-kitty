@@ -57,7 +57,14 @@ from typing import Any
 
 import pytest
 
-pytestmark = [pytest.mark.integration]
+from specify_cli.core.saas_sync_config import sync_active
+pytestmark = [
+    pytest.mark.integration,
+    pytest.mark.skipif(
+        not sync_active(),
+        reason="sync deactivated by default (#3799); set SPEC_KITTY_ENABLE_SAAS_SYNC=1 to run",
+    ),
+]
 
 
 @pytest.fixture(autouse=True)

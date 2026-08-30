@@ -1,4 +1,4 @@
-"""Unit tests for ``charter.cascade`` (WP11, T052).
+"""Unit tests for ``charter.activation.cascade`` (WP11, T052).
 
 Covers the pure cascade engine:
 
@@ -19,7 +19,7 @@ from pathlib import Path
 
 import pytest
 
-from charter.cascade import (
+from charter.activation.cascade import (
     REFERENCE_RELATIONS,
     CascadeScope,
     DeactivationPlan,
@@ -28,7 +28,7 @@ from charter.cascade import (
     deactivation_plan,
     referenced_but_not_cascaded,
 )
-from charter.mission_type_profile_repository import MissionTypeProfileRepository
+from charter.activation.mission_type_profile_repository import MissionTypeProfileRepository
 from charter.offering.artifact_kinds import (
     CHARTER_ACTIVATABLE_KINDS,
     ArtifactKind,
@@ -860,7 +860,7 @@ def test_mission_type_scope_edges_cover_every_governance_profile_selection(
     below).
 
     Loads each profile through the canonical
-    :class:`~charter.mission_type_profile_repository.MissionTypeProfileRepository`
+    :class:`~charter.activation.mission_type_profile_repository.MissionTypeProfileRepository`
     (shipped-only, no project overlay) rather than re-parsing the YAML by
     hand -- the same authority :func:`extract_governance_profile_scope_edges`
     itself is grounded against.

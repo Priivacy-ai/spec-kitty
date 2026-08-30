@@ -22,7 +22,7 @@ from pathlib import Path
 import pytest
 from ruamel.yaml import YAML
 
-from charter.pack_context import PackContext
+from charter.activation.pack_context import PackContext
 from specify_cli.upgrade.migrations.m_unify_charter_activation import (
     UnifyCharterActivationMigration,
     load_default_pack_ids,
@@ -278,7 +278,7 @@ def test_apply_absent_key_preserves_real_builtins_not_bare_list(tmp_path: Path) 
 
 
 def test_resolve_selected_id_to_stem_already_stem() -> None:
-    from charter.catalog import resolve_doctrine_root
+    from charter.activation.catalog import resolve_doctrine_root
     from charter.offering.artifact_kinds import ArtifactKind
 
     doctrine_root = resolve_doctrine_root()
@@ -289,7 +289,7 @@ def test_resolve_selected_id_to_stem_already_stem() -> None:
 
 
 def test_resolve_selected_id_to_stem_canonical_form() -> None:
-    from charter.catalog import resolve_doctrine_root
+    from charter.activation.catalog import resolve_doctrine_root
     from charter.offering.artifact_kinds import ArtifactKind
 
     doctrine_root = resolve_doctrine_root()
@@ -300,7 +300,7 @@ def test_resolve_selected_id_to_stem_canonical_form() -> None:
 
 
 def test_resolve_selected_id_to_stem_unresolvable_returns_none() -> None:
-    from charter.catalog import resolve_doctrine_root
+    from charter.activation.catalog import resolve_doctrine_root
     from charter.offering.artifact_kinds import ArtifactKind
 
     doctrine_root = resolve_doctrine_root()
@@ -319,7 +319,7 @@ def test_load_default_pack_ids_matches_shipped_default_yaml() -> None:
 
 
 # ---------------------------------------------------------------------------
-# charter.default_pack.load_default_pack_activation_ids — shared-loader
+# charter.activation.default_pack.load_default_pack_activation_ids — shared-loader
 # coverage (squad finding #2530: org_charter.py's ``_load_default_pack_ids``
 # and this migration's ``load_default_pack_ids`` were near-identical
 # independent readers of the same ``src/charter/packs/default.yaml`` file;
@@ -331,8 +331,8 @@ def test_load_default_pack_ids_is_a_pure_reexport_of_shared_helper() -> None:
     """This migration's public ``load_default_pack_ids`` name is kept for
     backward compatibility (``interview.py`` and this file both import it
     from here) but must carry no independent implementation — it must
-    delegate to the shared ``charter.default_pack`` loader verbatim."""
-    from charter.default_pack import load_default_pack_activation_ids
+    delegate to the shared ``charter.activation.default_pack`` loader verbatim."""
+    from charter.activation.default_pack import load_default_pack_activation_ids
 
     assert load_default_pack_ids() == load_default_pack_activation_ids()
 
@@ -342,7 +342,7 @@ def test_load_default_pack_activation_ids_returns_real_per_kind_builtin_stems() 
     the shipped ``src/charter/packs/default.yaml`` — every one of the 8
     charter activation kinds ships a non-empty built-in set, and spot-checked
     ids are the config-stem form (not the canonical ``id:`` form)."""
-    from charter.default_pack import load_default_pack_activation_ids
+    from charter.activation.default_pack import load_default_pack_activation_ids
 
     ids = load_default_pack_activation_ids()
 
@@ -371,7 +371,7 @@ def test_load_default_pack_activation_ids_missing_file_returns_empty(tmp_path: P
     """An absent ``packs/default.yaml`` under the supplied root degrades to
     ``{}`` rather than raising -- callers treat that as "no real default
     available" (see the WP06 absent-key LAND-BLOCKER note)."""
-    from charter.default_pack import load_default_pack_activation_ids
+    from charter.activation.default_pack import load_default_pack_activation_ids
 
     assert load_default_pack_activation_ids(charter_pkg_root=tmp_path) == {}
 
@@ -380,7 +380,7 @@ def test_load_default_pack_activation_ids_filters_non_list_values(tmp_path: Path
     """Only list-valued top-level keys are returned -- a scalar/mapping key
     (e.g. a future ``schema_version:`` entry) is silently excluded rather
     than raising, matching the pre-dedup behaviour of both original readers."""
-    from charter.default_pack import load_default_pack_activation_ids
+    from charter.activation.default_pack import load_default_pack_activation_ids
 
     packs_dir = tmp_path / "packs"
     packs_dir.mkdir(parents=True)

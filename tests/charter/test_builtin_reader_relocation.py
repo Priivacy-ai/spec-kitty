@@ -41,9 +41,9 @@ from pathlib import Path
 
 import pytest
 
-from charter.catalog import resolve_doctrine_root
-from charter.compiler import _build_references_from_yaml
-from charter.interview import CharterInterview
+from charter.activation.catalog import resolve_doctrine_root
+from charter.activation.compiler import _build_references_from_yaml
+from charter.activation.interview import CharterInterview
 
 pytestmark = [pytest.mark.unit]
 

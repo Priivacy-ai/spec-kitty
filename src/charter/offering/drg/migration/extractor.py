@@ -1383,7 +1383,7 @@ def extract_mission_type_edges(doctrine_root: Path) -> list[DRGEdge]:
 #: :func:`extract_governance_profile_scope_edges` (#3604). Mirrors
 #: ``_ACTION_SCOPE_FIELDS`` (action-index scope fields) but keyed on the
 #: ``selected_*`` field names declared by
-#: :class:`charter.mission_type_profiles.MissionTypeProfile` -- the two field
+#: :class:`charter.activation.mission_type_profiles.MissionTypeProfile` -- the two field
 #: sets are named differently (one is action-grain, the other type-grain) so a
 #: single shared table would obscure which grain a field belongs to.
 _GOVERNANCE_PROFILE_SCOPE_FIELDS: tuple[tuple[str, str], ...] = (
@@ -1877,7 +1877,7 @@ def model_to_graph_dict(model: BaseModel) -> dict[str, Any]:
     list, so a field added to the model is written without anyone remembering
     to update this function. This is the **public, canonical** DRG mapping
     writer (T001, mission ``doctrine-delivery-reachability``): every sibling
-    write path — ``charter.synthesizer.project_drg`` and
+    write path — ``charter.activation.synthesizer.project_drg`` and
     ``specify_cli.migration.rewrite_opposed_by`` — routes through it so no writer
     restates the field list by hand. It is registered as a ``MappingWriter`` in
     ``specify_cli.drg_writers.registry``; the registry's completeness gate

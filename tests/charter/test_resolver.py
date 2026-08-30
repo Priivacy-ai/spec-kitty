@@ -6,9 +6,9 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-import charter.catalog as catalog_module
-from charter.interview import default_interview
-from charter.resolver import (
+import charter.activation.catalog as catalog_module
+from charter.activation.interview import default_interview
+from charter.activation.resolver import (
     DoctrineService,
     GovernanceResolutionError,
     collect_governance_diagnostics,
@@ -27,7 +27,7 @@ def _write_charter_files(
     """Write governance/directives bodies into charter.yaml's sections.
 
     consolidate-charter-bundle (IC-04 / WP04, T028c): ``resolve_project_
-    governance`` reads ``charter.sync.load_governance_config`` /
+    governance`` reads ``charter.activation.sync.load_governance_config`` /
     ``load_directives_config``, which now source ``charter.yaml``'s
     ``governance:`` / ``directives:`` sections directly -- the retired
     ``governance.yaml`` / ``directives.yaml`` files are no longer read at
@@ -277,7 +277,7 @@ def test_resolve_governance_uses_registry_local_directives_and_template_fallback
     catalog is monkeypatched to a known set so the union is deterministic.
     """
     monkeypatch.setattr(
-        "charter.resolver.load_doctrine_catalog",
+        "charter.activation.resolver.load_doctrine_catalog",
         lambda: SimpleNamespace(
             paradigms=frozenset(),
             directives=frozenset({"DIRECTIVE_010", "DIRECTIVE_003"}),
@@ -323,7 +323,7 @@ def test_resolve_governance_uses_catalog_directives_when_no_local_declarations(
 ) -> None:
     _write_charter_files(tmp_path, governance="doctrine: {}\n")
     monkeypatch.setattr(
-        "charter.resolver.load_doctrine_catalog",
+        "charter.activation.resolver.load_doctrine_catalog",
         lambda: SimpleNamespace(
             paradigms=frozenset(),
             directives=frozenset({"DIRECTIVE_010", "DIRECTIVE_003"}),
@@ -346,7 +346,7 @@ def test_bare_project_fallback_emits_catalog_default_diagnostic(
     a diagnostic names the fallback and its size."""
     _write_charter_files(tmp_path, governance="doctrine: {}\n")
     monkeypatch.setattr(
-        "charter.resolver.load_doctrine_catalog",
+        "charter.activation.resolver.load_doctrine_catalog",
         lambda: SimpleNamespace(
             paradigms=frozenset(),
             directives=frozenset({"DIRECTIVE_010", "DIRECTIVE_003"}),
@@ -372,7 +372,7 @@ def test_explicit_selection_and_local_declaration_union(
     narrowed) while a coexisting local declaration is additively merged with a
     diagnostic — never silently dropped."""
     monkeypatch.setattr(
-        "charter.resolver.load_doctrine_catalog",
+        "charter.activation.resolver.load_doctrine_catalog",
         lambda: SimpleNamespace(
             paradigms=frozenset(),
             directives=frozenset({"DIRECTIVE_A", "DIRECTIVE_C"}),
@@ -411,7 +411,7 @@ def test_local_declaration_matching_catalog_id_dedups_in_base_position(
 ) -> None:
     """INV-5: a local id equal to a catalog id appears once, in base position."""
     monkeypatch.setattr(
-        "charter.resolver.load_doctrine_catalog",
+        "charter.activation.resolver.load_doctrine_catalog",
         lambda: SimpleNamespace(
             paradigms=frozenset(),
             directives=frozenset({"DIRECTIVE_010", "DIRECTIVE_003"}),
@@ -452,7 +452,7 @@ def test_activation_base_and_local_declaration_union(
     ``sorted(activated) + [new_local]`` and source ``activation+project_local``.
     """
     monkeypatch.setattr(
-        "charter.resolver.load_doctrine_catalog",
+        "charter.activation.resolver.load_doctrine_catalog",
         lambda: SimpleNamespace(
             paradigms=frozenset(),
             directives=frozenset({"DIRECTIVE_003", "DIRECTIVE_010"}),
@@ -541,7 +541,7 @@ def test_resolve_governance_for_profile_populates_graph_artifacts_and_normalizes
     doctrine_service = MagicMock()
     doctrine_service.agent_profiles.resolve_profile.return_value = profile
 
-    # Post-WP03: monkeypatch charter.resolver.resolve_transitive_refs; its
+    # Post-WP03: monkeypatch charter.activation.resolver.resolve_transitive_refs; its
     # result is a :class:`charter.offering.drg.query.ResolveTransitiveRefsResult`
     # look-alike (SimpleNamespace is structurally compatible here).
     monkeypatch_graph = SimpleNamespace(
@@ -556,7 +556,7 @@ def test_resolve_governance_for_profile_populates_graph_artifacts_and_normalizes
     stub_graph = SimpleNamespace()
 
     with patch(
-        "charter.resolver.resolve_references_transitively",
+        "charter.activation.resolver.resolve_references_transitively",
         return_value=monkeypatch_graph,
     ):
         resolution = resolve_governance_for_profile(
@@ -627,7 +627,7 @@ def test_resolve_governance_for_profile_records_unresolved_references_in_diagnos
     stub_graph = SimpleNamespace()
 
     with patch(
-        "charter.resolver.resolve_references_transitively",
+        "charter.activation.resolver.resolve_references_transitively",
         return_value=monkeypatch_graph,
     ):
         resolution = resolve_governance_for_profile(
@@ -807,7 +807,7 @@ def test_sync_output_does_not_include_agents_yaml(tmp_path: Path) -> None:
     always reports ``synced=False`` / ``files_written=[]``, which trivially
     satisfies "no agents.yaml" but for a stronger reason than before.
     """
-    from charter.sync import sync
+    from charter.activation.sync import sync
 
     charter_file = tmp_path / "charter.md"
     charter_file.write_text("# Project\n\n## Directives\n1. Write tests\n")
@@ -827,7 +827,7 @@ def test_sync_output_does_not_include_agents_yaml(tmp_path: Path) -> None:
 def test_doctrine_service_paradigms_filtered_by_pack_context() -> None:
     """DoctrineService.paradigms applies pack_context.activated_paradigms filter."""
     from unittest.mock import MagicMock
-    from charter.pack_context import PackContext
+    from charter.activation.pack_context import PackContext
 
     paradigm_a = MagicMock()
     paradigm_a.id = "test-first"
@@ -865,7 +865,7 @@ def test_doctrine_service_paradigms_unfiltered_when_pack_context_none() -> None:
 def test_doctrine_service_procedures_filtered_by_pack_context() -> None:
     """DoctrineService.procedures applies pack_context.activated_procedures filter."""
     from unittest.mock import MagicMock
-    from charter.pack_context import PackContext
+    from charter.activation.pack_context import PackContext
 
     proc_a = MagicMock()
     proc_a.id = "tdd"
@@ -900,7 +900,7 @@ def test_doctrine_service_getattr_delegates_to_inner() -> None:
 def test_resolve_governance_for_profile_raises_when_profile_not_in_dict() -> None:
     """resolve_governance_for_profile raises ValueError when profile dict has no match."""
     from unittest.mock import MagicMock
-    from charter.interview import CharterInterview
+    from charter.activation.interview import CharterInterview
 
     service = MagicMock(spec=DoctrineService)
     service.agent_profiles = {}  # empty dict, isinstance check will be True

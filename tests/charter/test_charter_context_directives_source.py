@@ -19,9 +19,9 @@ from types import SimpleNamespace
 
 import pytest
 
-import charter.resolver as _resolver
-from charter.context import build_charter_context_json
-from charter.context_contract import CONTEXT_CONTRACT_TOP_LEVEL_KEYS
+import charter.activation.resolver as _resolver
+from charter.activation.context import build_charter_context_json
+from charter.activation.context_contract import CONTEXT_CONTRACT_TOP_LEVEL_KEYS
 from tests.charter.test_resolver import _write_charter_files
 
 pytestmark = [pytest.mark.fast, pytest.mark.unit]

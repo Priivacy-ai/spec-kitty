@@ -26,6 +26,7 @@ import os
 from pathlib import Path
 
 from specify_cli.core.env import is_truthy
+from specify_cli.core.saas_sync_config import sync_active
 
 _EVENTS_MODULE = ".events"
 _FEATURE_FLAGS_MODULE = ".feature_flags"
@@ -342,14 +343,27 @@ def register_default_handlers() -> None:
     ``test_emit_backward_transition.py`` (which calls ``reset_handlers``
     in its teardown) poisoned subsequent ``test_lifecycle_events.py``
     tests that depend on the lifecycle SaaS fan-out being registered.
+
+    Machine-arming gate (WP02 / FR-003, C-006): the SaaS **fan-out** handlers
+    (dossier / saas / lifecycle) register only when ``sync_active()`` is armed;
+    on the inactive path this function registers zero fan-out handlers and the
+    daemon / capture / store-lock surfaces stay silent. The guard sits in the
+    body (not at import-time and not a conditional definition) so the function
+    stays unconditionally callable and re-reads the environment on every call —
+    preserving the late-bind seam that lets co-gate tests re-invoke it after
+    toggling ``SPEC_KITTY_ENABLE_SAAS_SYNC``.
+
+    The per-project egress **consent resolver**, by contrast, registers
+    UNCONDITIONALLY — machine arming is strictly upstream of, and never a
+    replacement for, the consent gate (C-007). Registration is pure (no I/O, no
+    spawn); the resolver only answers when an egress is actually attempted, and
+    every egress site is itself arming-gated, so populating the CORE consent slot
+    on the inactive path reintroduces none of the daemon / capture / store-lock
+    noise WP02 removed. This restores the pre-#3799 invariant that importing this
+    package always populates the slot, which ``egress.py::_egress_decision``
+    relies on to answer ``NOT_CONSENTABLE`` / ``GRANTED`` for a real project
+    instead of degrading every send to ``NO_RESOLVER`` on the default path.
     """
-    with _contextlib.suppress(ImportError):
-        from specify_cli.status import register_dossier_sync_handler, register_lifecycle_saas_fanout_handler, register_saas_fanout_handler
-
-        register_dossier_sync_handler(_dossier_sync_handler)
-        register_saas_fanout_handler(_saas_fanout_handler)
-        register_lifecycle_saas_fanout_handler(_lifecycle_saas_fanout_handler)
-
     with _contextlib.suppress(ImportError):
         from specify_cli.invocation.adapters import EgressConsent, register_egress_consent_resolver
 
@@ -398,6 +412,15 @@ def register_default_handlers() -> None:
             return EgressConsent.RECORDED_REFUSAL
 
         register_egress_consent_resolver(_egress_consent_resolver)
+
+    if not sync_active():
+        return
+    with _contextlib.suppress(ImportError):
+        from specify_cli.status import register_dossier_sync_handler, register_lifecycle_saas_fanout_handler, register_saas_fanout_handler
+
+        register_dossier_sync_handler(_dossier_sync_handler)
+        register_saas_fanout_handler(_saas_fanout_handler)
+        register_lifecycle_saas_fanout_handler(_lifecycle_saas_fanout_handler)
 
     # ------------------------------------------------------------------
     # No SaaS-client factory is registered here, and that is deliberate

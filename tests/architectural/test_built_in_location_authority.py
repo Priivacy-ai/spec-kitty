@@ -41,7 +41,7 @@ three independent contract clauses:
 
 Known pre-existing exemption (read before extending ``_KNOWN_JOIN_ALLOWLIST``)
 --------------------------------------------------------------------------------
-``src/charter/kind_vocabulary.py``'s ``_scan_roots`` iterates ``org_roots`` and
+``src/charter/activation/kind_vocabulary.py``'s ``_scan_roots`` iterates ``org_roots`` and
 joins ``root / kind.plural / "built-in"`` -- syntactically a filesystem join
 (C3.1's third limb), but *semantically* it is the **ORG tier's** own legacy
 nested-pack contract (``<org_root>/<plural>/built-in``, documented in-file:
@@ -173,7 +173,7 @@ _KNOWN_JOIN_ALLOWLIST: frozenset[tuple[Path, int]] = frozenset(
         # is fixed by this mission -- net-shortening the docstring and pulling
         # the (unchanged) `flat / "built-in"` join back up from line 283 to
         # line 269; the org-tier legacy join itself is unchanged.
-        (Path("src/charter/kind_vocabulary.py"), 269),
+        (Path("src/charter/activation/kind_vocabulary.py"), 269),
         # src/kernel/paths.py::_MISSION_ASSETS_SIBLING_PATTERN -- a relative
         # SHAPE constant (input to kernel.sibling_paths.resolve_installed_sibling),
         # not a filesystem join against a concrete root. kernel cannot import
@@ -222,14 +222,18 @@ _KNOWN_JOIN_ALLOWLIST: frozenset[tuple[Path, int]] = frozenset(
         # `src/charter/offering/templates/AGENTS.md` (relocated from
         # `src/doctrine/templates/`), pushing this join down one line.
         (Path("src/specify_cli/template/manager.py"), 166),
-        # src/charter/neutrality/lint.py::_default_scan_roots -- scans a
-        # caller-supplied `repo_root` (tmp_path-rooted in tests; see
+        # src/charter/activation/neutrality/lint.py::_default_scan_roots --
+        # scans a caller-supplied `repo_root` (tmp_path-rooted in tests; see
         # tests/charter/test_neutrality_lint.py::test_default_scan_roots_include_relocated_builtin_missions),
         # not this installation's own built-in tier. See module docstring
         # class 2.
         # FRESHENED (charter-code-topology-01M152G1 landing): line 353 -> 362;
         # behaviour-preserving, same caller-supplied-root join.
-        (Path("src/charter/neutrality/lint.py"), 362),
+        # FRESHENED (charter-activation-split-01M16ZSE M2b landing): the
+        # module physically moved from src/charter/neutrality/lint.py to
+        # src/charter/activation/neutrality/lint.py, pushing the (unchanged)
+        # caller-supplied-root join from line 362 to line 379.
+        (Path("src/charter/activation/neutrality/lint.py"), 379),
     }
 )
 
@@ -386,7 +390,9 @@ def test_negative_bite_direct_and_variable_indirected_joins_are_caught() -> None
     one direct ``resolve_pack_root("built-in") / …`` join, one
     variable-indirected join. Both must be flagged.
     """
-    direct_source = "from charter.offering.pack_paths import resolve_pack_root\n\ndef sneaky_direct(kind):\n    return resolve_pack_root('built-in') / kind.plural\n"
+    direct_source = (
+        "from charter.offering.pack_paths import resolve_pack_root\n\ndef sneaky_direct(kind):\n    return resolve_pack_root('built-in') / kind.plural\n"
+    )
     indirected_source = (
         "from charter.offering.pack_paths import resolve_pack_root\n"
         "\n"
@@ -406,7 +412,9 @@ def test_negative_bite_direct_and_variable_indirected_joins_are_caught() -> None
 
     # And the permitted forms must NOT be flagged (proves the gate is
     # join-only, not a constant-scan -- C3.1b).
-    bare_root_call_source = "from charter.offering.pack_paths import resolve_pack_root\n\ndef permitted_bare_root_call():\n    return resolve_pack_root('built-in')\n"
+    bare_root_call_source = (
+        "from charter.offering.pack_paths import resolve_pack_root\n\ndef permitted_bare_root_call():\n    return resolve_pack_root('built-in')\n"
+    )
     bare_marker_source = "def permitted_bare_marker(layer):\n    return {'built-in': 'built-in', 'org': 'org'}.get(layer, layer)\n"
     assert not _find_builtin_joins(ast.parse(bare_root_call_source))
     assert not _find_builtin_joins(ast.parse(bare_marker_source))
@@ -425,7 +433,9 @@ def test_negative_bite_built_in_root_call_joins_are_caught() -> None:
     permitted (mirrors the ``resolve_pack_root("built-in")`` proof above).
     """
     direct_source = "from charter.offering.pack_paths import built_in_root\n\ndef sneaky_direct(kind):\n    return built_in_root() / kind.plural\n"
-    indirected_source = "from charter.offering.pack_paths import built_in_root\n\ndef sneaky_indirected(kind):\n    root = built_in_root()\n    return root / kind.plural\n"
+    indirected_source = (
+        "from charter.offering.pack_paths import built_in_root\n\ndef sneaky_indirected(kind):\n    root = built_in_root()\n    return root / kind.plural\n"
+    )
     attribute_call_source = "from doctrine import pack_paths\n\ndef sneaky_attribute_call(kind):\n    return pack_paths.built_in_root() / kind.plural\n"
 
     direct_hits = _find_builtin_joins(ast.parse(direct_source))

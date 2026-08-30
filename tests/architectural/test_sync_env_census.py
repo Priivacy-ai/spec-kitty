@@ -37,6 +37,18 @@ _SRC = _REPO_ROOT / "src"
 _HUSK = _SRC / "specify_cli" / "cli" / "commands" / "sync.py"
 _SYNC_PKG = _SRC / "specify_cli" / "sync"
 
+#: #2801 / FR-009 (mission sync-deactivate-by-default) cleanly CUT the pre-review
+#: regression gate off the shared sync toggles and onto its OWN dedicated env,
+#: ``SPEC_KITTY_PRE_REVIEW_GATE_DISABLE``. That gate lives in the move-task
+#: command — deliberately NOT on the sync husk/package surface (a machine that
+#: disabled sync must still enforce the review gate). The env census must stay
+#: aware of the new gate flag so a silent deletion of the decoupled gate still
+#: reds here, so we fold that one file into the scanned surface but admit ONLY
+#: its dedicated ``SPEC_KITTY_PRE_REVIEW_*`` family — never its incidental
+#: docstring mentions of the (now no-op) sync-disable toggles.
+_PRE_REVIEW_GATE_FILE = _SRC / "specify_cli" / "cli" / "commands" / "agent" / "tasks_move_task.py"
+_PRE_REVIEW_GATE_FAMILY = re.compile(r"SPEC_KITTY_PRE_REVIEW_[A-Z0-9_]+")
+
 #: Match a ``SPEC_KITTY_*`` token. Trailing-underscore tokens (wildcard family
 #: references such as ``SPEC_KITTY_SYNC_*`` written in a comment) are discarded
 #: below — a real environment or module name never ends in an underscore.
@@ -53,6 +65,12 @@ _EXPECTED_ENV_REFS: frozenset[str] = frozenset(
         "SPEC_KITTY_ENABLE_SAAS_SYNC",
         "SPEC_KITTY_HOME",
         "SPEC_KITTY_NO_AUTO_CUTOVER",
+        # Added #2801 / FR-009 (sync-deactivate-by-default): the pre-review
+        # regression gate's OWN disable env, cut off the shared sync toggles.
+        # Referenced from the decoupled ``tasks_move_task.py`` gate (folded into
+        # the scanned surface below), not from the sync husk/package. Recorded
+        # with a ``live`` verdict in the census doc.
+        "SPEC_KITTY_PRE_REVIEW_GATE_DISABLE",
         "SPEC_KITTY_SAAS_URL",
         "SPEC_KITTY_SYNC_MINIMAL_IMPORT",
         "SPEC_KITTY_SYNC_READONLY_IDENTITY",
@@ -72,13 +90,23 @@ def _sync_surface_files() -> list[Path]:
 
 
 def _scan_env_refs() -> set[str]:
-    """Compute the live set of ``SPEC_KITTY_*`` references on the sync surface."""
+    """Compute the live set of ``SPEC_KITTY_*`` references on the sync surface.
+
+    The husk + package supply every token; the decoupled pre-review gate file
+    (#2801 / FR-009) additionally contributes ONLY its ``SPEC_KITTY_PRE_REVIEW_*``
+    family, so the census tracks the new gate flag without freezing that file's
+    incidental docstring mentions of the (now no-op) sync-disable toggles.
+    """
     found: set[str] = set()
     for path in _sync_surface_files():
         text = path.read_text(encoding="utf-8")
         for token in _TOKEN.findall(text):
             if token.endswith("_"):
                 continue  # wildcard-family artefact (e.g. ``SPEC_KITTY_SYNC_*``)
+            found.add(token)
+    gate_text = _PRE_REVIEW_GATE_FILE.read_text(encoding="utf-8")
+    for token in _PRE_REVIEW_GATE_FAMILY.findall(gate_text):
+        if not token.endswith("_"):
             found.add(token)
     return found
 
@@ -89,7 +117,11 @@ def test_sync_surface_files_are_discovered() -> None:
     assert _HUSK in files, "sync husk not on the scanned surface"
     assert any(p.name == "daemon.py" for p in files), "sync package not scanned"
     # A representative reference must be present, or the scanner regex is broken.
-    assert "SPEC_KITTY_HOME" in _scan_env_refs()
+    live = _scan_env_refs()
+    assert "SPEC_KITTY_HOME" in live
+    # The decoupled pre-review gate family is folded in (#2801 / FR-009); its
+    # presence proves the supplemental scan actually reached that file.
+    assert "SPEC_KITTY_PRE_REVIEW_GATE_DISABLE" in live
 
 
 def test_no_spec_kitty_env_reference_was_deleted() -> None:

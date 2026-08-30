@@ -87,7 +87,7 @@ class TestMissionCreatedEnvelope:
         assert "build_id" in event
         assert event["build_id"], "build_id must be non-empty"
 
-    def test_aggregate_type_is_mission(self):
+    def test_aggregate_type_is_mission(self, sync_enabled):
         emitter = _make_emitter('kitty-crew')
 
         event = emitter.emit_mission_created(

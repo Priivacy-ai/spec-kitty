@@ -25,7 +25,7 @@ __all__ = [
 # `src/` caller existed -- see that WP's own commit history and
 # `kitty-specs/up-mission-type-seam-01KZY1JB/tracer-tooling-friction.md` for
 # why. WP04 (FR-002) now calls it from
-# `charter.mission_type_profiles._resolve_action_slot`
+# `charter.activation.mission_type_profiles._resolve_action_slot`
 # (`from charter.offering.missions.mission_type_repository import
 # resolve_layered_mission_types`), so
 # `tests/architectural/test_no_dead_symbols.py`'s symbol-level dead-code gate
@@ -251,7 +251,7 @@ def _inject_projected_fields(
     then rejects it during validation (SC-002 loud-fail), rather than this
     seam silently honoring or dropping it. Consumers now source the
     template mapping from the step authority directly at the consumption
-    boundary (:func:`charter.mission_type_profiles._resolve_template_set_slot`),
+    boundary (:func:`charter.activation.mission_type_profiles._resolve_template_set_slot`),
     not from this repository-load-time injection.
     """
     steps = list(
@@ -389,7 +389,7 @@ def scan_mission_types_dir(
     Public (PR-CONTRACT-002, pre-merge squad, mission
     up-mission-type-seam-01KZY1JB): the single-directory scan primitive
     :func:`resolve_layered_mission_types` itself uses, one layer at a time.
-    ``charter.pack_manager.CharterPackManager.list_available_detailed``'s
+    ``charter.activation.pack_manager.CharterPackManager.list_available_detailed``'s
     ``kind is None`` (mission-type) branch also calls this directly (one
     call per ``(layer, scan_dir)`` pair, mirroring its own per-layer entry
     shape) so that the pre-activation availability catalog loud-fails on the

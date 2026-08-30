@@ -25,7 +25,14 @@ from specify_cli.sync.emitter import EventEmitter
 # `fast` marker definition and is what `fast-tests-sync` (tests/sync/, `-m
 # "fast and not windows_ci"`) selects. Without this marker the file is
 # invisible to every CI gate (landing fold, PR #2398).
-pytestmark = [pytest.mark.fast]
+from specify_cli.core.saas_sync_config import sync_active
+pytestmark = [
+    pytest.mark.fast,
+    pytest.mark.skipif(
+        not sync_active(),
+        reason="sync deactivated by default (#3799); set SPEC_KITTY_ENABLE_SAAS_SYNC=1 to run",
+    ),
+]
 
 # Fixed created_at so the ``created_at -> now`` default does not vary between
 # the two call sites; friendly_name/purpose left None to exercise the shared

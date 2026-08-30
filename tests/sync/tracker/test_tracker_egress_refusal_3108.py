@@ -140,6 +140,7 @@ from specify_cli.tracker.saas_service import SaaSTrackerService
 from specify_cli.tracker.service import TrackerService
 from specify_cli.tracker.store import TrackerSqliteStore
 
+from specify_cli.core.saas_sync_config import sync_active
 pytestmark = [
     # Selection marker, added after WP07 measured that this file carried only a `skipif` and was
     # therefore **orphaned -- selected by zero CI gates**. This is the mission's acceptance
@@ -156,6 +157,10 @@ pytestmark = [
             "no runner to prove; the skip is recorded here rather than silently claiming "
             "cross-platform coverage that was never measured."
         ),
+    ),
+    pytest.mark.skipif(
+        not sync_active(),
+        reason="sync deactivated by default (#3799); set SPEC_KITTY_ENABLE_SAAS_SYNC=1 to run",
     ),
 ]
 

@@ -9,7 +9,7 @@ Three locked cases (R-2 / FR-009):
 3. ``.kittify/doctrine/`` present but empty → ``project_root`` points there but
    repositories resolve to empty overlays with no shipped-layer impact.
 
-Also covers ``charter._doctrine_paths.resolve_project_root`` directly and
+Also covers ``charter.activation._doctrine_paths.resolve_project_root`` directly and
 verifies the compiler's ``_default_doctrine_service`` uses it correctly.
 """
 
@@ -17,8 +17,8 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from charter._doctrine_paths import resolve_project_root, _PROJECT_ROOT_CANDIDATES
-from charter.compiler import _default_doctrine_service
+from charter.activation._doctrine_paths import resolve_project_root, _PROJECT_ROOT_CANDIDATES
+from charter.activation.compiler import _default_doctrine_service
 
 
 # ---------------------------------------------------------------------------
@@ -186,7 +186,7 @@ class TestContextDoctrineService:
     """The context module's _build_doctrine_service uses the same candidate list."""
 
     def _project_root_from_context_service(self, repo_root: Path) -> Path | None:
-        from charter.context import _build_doctrine_service
+        from charter.activation.context import _build_doctrine_service
         svc = _build_doctrine_service(repo_root)
         return getattr(svc, "_project_root", None)
 

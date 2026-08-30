@@ -15,7 +15,7 @@ from pathlib import Path
 import pytest
 from ruamel.yaml import YAML
 
-from charter.interview import apply_org_charter_pre_fill_to_answers
+from charter.activation.interview import apply_org_charter_pre_fill_to_answers
 from specify_cli.doctrine.org_charter import (
     GovernancePolicy,
     OrgCharterCycleError,
@@ -883,7 +883,7 @@ class TestLegacyPathFoldParity:
 
 class TestBuildPackSet:
     def test_indexes_packs_by_directory_name(self, tmp_path: Path) -> None:
-        from charter.pack_context import PackContext
+        from charter.activation.pack_context import PackContext
 
         pack_a = tmp_path / "corp-baseline"
         _write_org_charter(
@@ -919,7 +919,7 @@ class TestBuildPackSet:
         assert pack_set["team-overlay"].extends == "corp-baseline"
 
     def test_skips_packs_without_org_charter(self, tmp_path: Path) -> None:
-        from charter.pack_context import PackContext
+        from charter.activation.pack_context import PackContext
 
         # First pack ships an org-charter.yaml; second is bare.
         pack_a = tmp_path / "alpha"
@@ -942,7 +942,7 @@ class TestBuildPackSet:
 class TestLoadOrgCharterPoliciesWithPackContext:
     def test_extends_chain_merges_via_pack_context(self, tmp_path: Path) -> None:
         """WP09 T061-sig + T062-chain: ``PackContext`` drives chain resolution."""
-        from charter.pack_context import PackContext
+        from charter.activation.pack_context import PackContext
 
         base = tmp_path / "base-pack"
         _write_org_charter(
@@ -988,7 +988,7 @@ class TestLoadOrgCharterPoliciesWithPackContext:
 
     def test_backward_compat_pack_without_extends(self, tmp_path: Path) -> None:
         """Packs without ``extends:`` still merge as before (FR-001 backward compat)."""
-        from charter.pack_context import PackContext
+        from charter.activation.pack_context import PackContext
 
         pack_a = tmp_path / "flat-a"
         _write_org_charter(
@@ -1021,7 +1021,7 @@ class TestLoadOrgCharterPoliciesWithPackContext:
         assert merged.required_directives == ["a-001", "b-001"]
 
     def test_empty_pack_context_returns_default(self, tmp_path: Path) -> None:
-        from charter.pack_context import PackContext
+        from charter.activation.pack_context import PackContext
 
         ctx = PackContext(
             activated_kinds=frozenset({"directives"}),
@@ -1034,7 +1034,7 @@ class TestLoadOrgCharterPoliciesWithPackContext:
         assert merged == OrgCharterPolicy()
 
     def test_cycle_propagates(self, tmp_path: Path) -> None:
-        from charter.pack_context import PackContext
+        from charter.activation.pack_context import PackContext
 
         pack_a = tmp_path / "A"
         _write_org_charter(
@@ -1064,7 +1064,7 @@ class TestLoadOrgCharterPoliciesWithPackContext:
             load_org_charter_policies(tmp_path, pack_context=ctx)
 
     def test_missing_base_propagates(self, tmp_path: Path) -> None:
-        from charter.pack_context import PackContext
+        from charter.activation.pack_context import PackContext
 
         pack = tmp_path / "child"
         _write_org_charter(
@@ -1085,7 +1085,7 @@ class TestLoadOrgCharterPoliciesWithPackContext:
             load_org_charter_policies(tmp_path, pack_context=ctx)
 
     def test_schema_version_mismatch_propagates(self, tmp_path: Path) -> None:
-        from charter.pack_context import PackContext
+        from charter.activation.pack_context import PackContext
 
         base = tmp_path / "base"
         _write_org_charter(

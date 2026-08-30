@@ -10,8 +10,8 @@ not leave new projects with zero mission types.
 
 **Seed-read is shared, write is not.** The actual "what is the authored
 ``mission_type_activations`` list, or fail closed" question is answered by
-:func:`charter.default_pack.load_default_mission_type_activations` — the
-same helper ``charter.compiler.provision_mission_type_activations`` (the
+:func:`charter.activation.default_pack.load_default_mission_type_activations` — the
+same helper ``charter.activation.compiler.provision_mission_type_activations`` (the
 ``spec-kitty charter generate`` path) consumes, so the two provisioners can
 never seed a divergent set from the same shipped ``default.yaml``. This
 module still owns its own path resolution
@@ -47,8 +47,8 @@ from typing import Any
 
 from ruamel.yaml import YAML
 
-from charter.default_pack import load_default_mission_type_activations
-from charter.pack_context import CharterPackConfigError
+from charter.activation.default_pack import load_default_mission_type_activations
+from charter.activation.pack_context import CharterPackConfigError
 from specify_cli.charter_pack_registry import (
     merge_pack_into_config,
     resolve_builtin_pack_path,
@@ -90,8 +90,8 @@ def _load_default_pack_activations() -> list[Any]:
     Path resolution stays local (``resolve_builtin_pack_path``, the same
     seam ``spec-kitty charter pack`` and the rc35 migration use); the actual
     parse-and-validate step delegates to the shared, fail-closed
-    :func:`charter.default_pack.load_default_mission_type_activations` so
-    this provisioner and ``charter.compiler.provision_mission_type_activations``
+    :func:`charter.activation.default_pack.load_default_mission_type_activations` so
+    this provisioner and ``charter.activation.compiler.provision_mission_type_activations``
     (the ``spec-kitty charter generate`` path) can never read a divergent
     activation set from the same shipped file (squad-found maintainability
     defect: the two used to be independent, near-identical readers).

@@ -114,7 +114,7 @@ def _governance_selects_pack(governance: Any) -> bool:
 
     CR-01 (``charter-authority-flip-01M14RB3`` WP03) renames the selection
     key from ``doctrine`` to the canonical ``charter``. This module reads
-    ``charter.yaml`` as a raw dict rather than through ``charter.sync.
+    ``charter.yaml`` as a raw dict rather than through ``charter.activation.sync.
     load_governance_config`` -- it lives in ``src/doctrine/``, which the
     layering rule (``kernel <- doctrine <- charter <- specify_cli``, module
     docstring above) forbids from importing ``charter`` -- so it carries its

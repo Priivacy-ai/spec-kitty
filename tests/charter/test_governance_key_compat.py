@@ -5,7 +5,7 @@ Mission ``charter-authority-flip-01M14RB3`` WP03 (T012). ``charter.yaml``'s
 governing-term key ``doctrine:``. The canonical key is now ``charter:``
 (``GovernanceConfig.charter``, ``src/charter/schemas.py``). An existing
 project's ``charter.yaml`` may still carry the legacy key on disk, so
-:func:`charter.sync.load_governance_config` maps it forward with a
+:func:`charter.activation.sync.load_governance_config` maps it forward with a
 deprecation warning (CR-01, ``kitty-specs/retire-doctrine-term-01M0JMK9/
 inventory.md`` line 163) rather than failing closed.
 
@@ -23,7 +23,7 @@ from pathlib import Path
 import pytest
 from ruamel.yaml import YAML
 
-from charter.sync import (
+from charter.activation.sync import (
     LegacyGovernanceKeyWarning,
     _warn_legacy_governance_key_once,
     load_governance_config,

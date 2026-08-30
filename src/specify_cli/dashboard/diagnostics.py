@@ -5,7 +5,7 @@ from __future__ import annotations
 import subprocess
 import sys
 from pathlib import Path
-from charter.mission_type_key import read_mission_type
+from charter.activation.mission_type_key import read_mission_type
 from typing import Any, Dict
 
 __all__ = ["run_diagnostics"]

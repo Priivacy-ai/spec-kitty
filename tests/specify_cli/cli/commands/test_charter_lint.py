@@ -282,7 +282,7 @@ def test_load_org_layer_wrong_shape_fails_fast() -> None:
     from specify_cli.cli.commands.charter.lint import _load_org_layer
 
     # load_org_drg is imported inside _load_org_layer from charter.drg.
-    with patch("charter.drg.load_org_drg", return_value=[object()]), pytest.raises(TypeError, match="OrgDRGFragment"):
+    with patch("charter.activation.drg_activation.load_org_drg", return_value=[object()]), pytest.raises(TypeError, match="OrgDRGFragment"):
         _load_org_layer(Path("."), output_json=True)
 
 
@@ -293,7 +293,7 @@ def test_load_org_layer_missing_pack_exits_one() -> None:
     from specify_cli.cli.commands.charter.lint import _load_org_layer
 
     err = OrgPackMissingError("missing", "org-packs/foo")
-    with patch("charter.drg.load_org_drg", side_effect=err), pytest.raises(typer.Exit) as excinfo:
+    with patch("charter.activation.drg_activation.load_org_drg", side_effect=err), pytest.raises(typer.Exit) as excinfo:
         _load_org_layer(Path("."), output_json=True)
     assert excinfo.value.exit_code == 1
 
@@ -301,7 +301,7 @@ def test_load_org_layer_missing_pack_exits_one() -> None:
 def test_load_org_layer_generic_error_degrades() -> None:
     from specify_cli.cli.commands.charter.lint import _load_org_layer
 
-    with patch("charter.drg.load_org_drg", side_effect=RuntimeError("boom")):
+    with patch("charter.activation.drg_activation.load_org_drg", side_effect=RuntimeError("boom")):
         summary, fragments = _load_org_layer(Path("."), output_json=True)
     assert summary == []
     assert fragments == []

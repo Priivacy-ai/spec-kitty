@@ -2,12 +2,12 @@
 
 Two independent hand-restated copies of the flat charter activation-key
 vocabulary used to drift from the single derived authority
-(``charter.pack_manager.ACTIVATION_YAML_KEYS`` -- ``("activated_kinds",
+(``charter.activation.pack_manager.ACTIVATION_YAML_KEYS`` -- ``("activated_kinds",
 *YAML_KEY_MAP.values())``, itself derived from
 ``charter.offering.artifact_kinds.CHARTER_KIND_TOKENS``, mission
 ``doctrine-built-in-seam-consolidation-01KYW3TX`` WP01):
 
-* ``charter.charter_yaml_io._ACTIVATION_KEYS`` (the ``charter.yaml``
+* ``charter.activation.charter_yaml_io._ACTIVATION_KEYS`` (the ``charter.yaml``
   write-section vocabulary), and
 * ``specify_cli.upgrade.migrations.m_unify_charter_activation_finalize.
   ACTIVATION_KEYS`` (the finalize migration's relocation vocabulary) -- this
@@ -40,7 +40,7 @@ pytestmark = [pytest.mark.unit, pytest.mark.fast]
 
 
 def _authority() -> frozenset[str]:
-    from charter.pack_manager import ACTIVATION_YAML_KEYS
+    from charter.activation.pack_manager import ACTIVATION_YAML_KEYS
 
     return frozenset(ACTIVATION_YAML_KEYS)
 
@@ -52,7 +52,7 @@ def _authority() -> frozenset[str]:
 
 def test_charter_yaml_io_activation_keys_set_equal_to_authority() -> None:
     """``charter_yaml_io._ACTIVATION_KEYS`` must be set-equal to the authority."""
-    from charter.charter_yaml_io import _ACTIVATION_KEYS
+    from charter.activation.charter_yaml_io import _ACTIVATION_KEYS
 
     assert frozenset(_ACTIVATION_KEYS) == _authority()
 
@@ -78,8 +78,8 @@ def test_activated_glossary_packs_present_in_both_vocabularies() -> None:
     above -- pins the specific key so a future reader immediately sees which
     key previously drifted, without having to diff the full authority set.
     """
-    from charter.charter_yaml_io import _ACTIVATION_KEYS
-    from charter.compiler import _legacy_activation_keys
+    from charter.activation.charter_yaml_io import _ACTIVATION_KEYS
+    from charter.activation.compiler import _legacy_activation_keys
     from specify_cli.upgrade.migrations.m_unify_charter_activation_finalize import (
         ACTIVATION_KEYS,
     )
@@ -99,7 +99,7 @@ def test_compiler_legacy_activation_keys_set_equal_to_authority() -> None:
     first charter compile (the same FR-010/SC-005 drift the WRITE-side copies
     already guard against).
     """
-    from charter.compiler import _legacy_activation_keys
+    from charter.activation.compiler import _legacy_activation_keys
 
     assert frozenset(_legacy_activation_keys()) == _authority()
 

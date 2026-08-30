@@ -84,7 +84,7 @@ def project(tmp_path: Path) -> Path:
     shutil.copy(src / ".kittify" / "config.yaml", dst_kittify / "config.yaml")
     # The checkout's own charter.yaml now carries the WP04 (C-A1)
     # ``mission_type_activations`` provisioning key (emitted by the charter
-    # generation path — ``charter.compiler.provision_mission_type_activations``),
+    # generation path — ``charter.activation.compiler.provision_mission_type_activations``),
     # so the COPY inherits it and ``PackContext.from_config`` resolves without a
     # fixture-side append. ``software-dev`` — the grain every test in this
     # module resolves — is one of the provisioned built-in mission types.
@@ -118,7 +118,7 @@ class TestEveryLoadTextDelivery:
         MUST still be present on a subsequent load. Today the steady-state
         render fires a compact early-return before the bundle is computed.
         """
-        from charter.context import build_charter_context
+        from charter.activation.context import build_charter_context
 
         first = build_charter_context(
             project, action="implement", mark_loaded=True, mission_type="software-dev"
@@ -139,7 +139,7 @@ class TestEveryLoadTextDelivery:
 
     def test_explicit_steady_state_depth_delivers_bundle(self, project: Path) -> None:
         """T060 site 2: depth below the bootstrap minimum still delivers."""
-        from charter.context import build_charter_context
+        from charter.activation.context import build_charter_context
 
         result = build_charter_context(
             project,
@@ -165,7 +165,7 @@ class TestBootstrapRendersExtendedKinds:
         are gated out, so an activated styleguide never reaches the agent even
         on the bootstrap load.
         """
-        from charter.context import build_charter_context
+        from charter.activation.context import build_charter_context
 
         result = build_charter_context(
             project, action="implement", mark_loaded=False, mission_type="software-dev"
@@ -185,7 +185,7 @@ class TestBootstrapRendersExtendedKinds:
 class TestJsonEveryLoadDelivery:
     def test_json_delivers_at_steady_state_depth(self, project: Path) -> None:
         """T060 site 4 (red-first): depth<minimum returns an empty payload today."""
-        from charter.context import build_charter_context_json
+        from charter.activation.context import build_charter_context_json
 
         payload = build_charter_context_json(
             project, action="implement", depth=1, mission_type="software-dev"
@@ -205,7 +205,7 @@ class TestJsonEveryLoadDelivery:
         the opposite before the ADR — do NOT restore the old ``compact``/
         empty-arrays assertion; that re-breaks the fix.
         """
-        from charter.context import build_charter_context_json
+        from charter.activation.context import build_charter_context_json
 
         payload = build_charter_context_json(
             project, action="tasks", mission_type="software-dev"
@@ -228,7 +228,7 @@ class TestJsonEveryLoadDelivery:
         regression that starves them via a coarse action-name gate must red
         here.
         """
-        from charter.context import build_charter_context_json
+        from charter.activation.context import build_charter_context_json
 
         payload = build_charter_context_json(
             project, action="retrospect", mission_type=mission_type
@@ -346,8 +346,7 @@ class TestGrainCallersForwardMissionType:
 
 class TestScopeRouterForwardsGrain:
     def test_build_with_scope_forwards_feature_dir(self, tmp_path: Path) -> None:
-        from charter import scope_router
-
+        from charter.activation import scope_router
         feature_dir = tmp_path / "kitty-specs" / "999-demo"
         feature_dir.mkdir(parents=True)
         captured: dict[str, object] = {}

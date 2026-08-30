@@ -2,7 +2,7 @@
 ``drg_root_graph_missing`` finding is reconciled with the DRG read-path bridge.
 
 Once the runtime reads a pack's ``drg/fragment.yaml`` (via
-``charter._drg_helpers.load_validated_graph``'s ``org_fragments`` fold), the
+``charter.activation._drg_helpers.load_validated_graph``'s ``org_fragments`` fold), the
 validator must NOT tell the operator that pack's DRG "will not be read" — that
 would contradict the runtime (C-001 / NFR-003). This suite pins:
 

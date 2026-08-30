@@ -13,7 +13,14 @@ from specify_cli.cli.commands import sync as sync_module
 from specify_cli.sync.daemon import SyncDaemonStatus
 from specify_cli.sync.queue import QueueStats
 
-pytestmark = pytest.mark.fast
+from specify_cli.core.saas_sync_config import sync_active
+pytestmark = [
+    pytest.mark.fast,
+    pytest.mark.skipif(
+        not sync_active(),
+        reason="sync deactivated by default (#3799); set SPEC_KITTY_ENABLE_SAAS_SYNC=1 to run",
+    ),
+]
 
 
 def test_status_reads_dashboard_daemon_state_without_booting_local_runtime(monkeypatch, tmp_path: Path):

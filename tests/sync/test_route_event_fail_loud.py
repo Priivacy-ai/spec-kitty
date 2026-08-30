@@ -24,7 +24,14 @@ import pytest
 from specify_cli.sync import emitter as emitter_mod
 from specify_cli.sync.emitter import EventEmitter
 
-pytestmark = pytest.mark.fast
+from specify_cli.core.saas_sync_config import sync_active
+pytestmark = [
+    pytest.mark.fast,
+    pytest.mark.skipif(
+        not sync_active(),
+        reason="sync deactivated by default (#3799); set SPEC_KITTY_ENABLE_SAAS_SYNC=1 to run",
+    ),
+]
 
 
 class _RecordingConsole:
@@ -63,7 +70,12 @@ def test_non_durable_route_is_not_publication_eligible_and_is_legible(
     GREEN after the fix: the envelope is dropped from publication (``None``) and
     the drop is made legible on the existing stderr warning surface.
     """
-    monkeypatch.setenv("SPEC_KITTY_SYNC_DISABLE", "1")
+    # Arm sync so ``_emit`` reaches the real ``_route_event`` seam. The old
+    # ``SYNC_DISABLE=1`` (pre-#3799 "local-only, no network") now disarms the
+    # whole emit — ``_route_event`` is local-only, so arming reaches it without
+    # network egress.
+    monkeypatch.setenv("SPEC_KITTY_ENABLE_SAAS_SYNC", "1")
+    monkeypatch.delenv("SPEC_KITTY_SYNC_DISABLE", raising=False)
     console = _RecordingConsole()
     monkeypatch.setattr(emitter_mod, "_console", console)
 
@@ -89,7 +101,12 @@ def test_durable_route_still_returns_the_envelope(
 
     Guards against over-correcting the fix into dropping durable events too.
     """
-    monkeypatch.setenv("SPEC_KITTY_SYNC_DISABLE", "1")
+    # Arm sync so ``_emit`` reaches the real ``_route_event`` seam. The old
+    # ``SYNC_DISABLE=1`` (pre-#3799 "local-only, no network") now disarms the
+    # whole emit — ``_route_event`` is local-only, so arming reaches it without
+    # network egress.
+    monkeypatch.setenv("SPEC_KITTY_ENABLE_SAAS_SYNC", "1")
+    monkeypatch.delenv("SPEC_KITTY_SYNC_DISABLE", raising=False)
     console = _RecordingConsole()
     monkeypatch.setattr(emitter_mod, "_console", console)
 
@@ -114,7 +131,12 @@ def test_queue_full_nonexception_false_is_not_publication_eligible(
     (adversarial review finding 2b). It flows through the real ``_route_event``,
     so it must also drop the event from publication and warn.
     """
-    monkeypatch.setenv("SPEC_KITTY_SYNC_DISABLE", "1")
+    # Arm sync so ``_emit`` reaches the real ``_route_event`` seam. The old
+    # ``SYNC_DISABLE=1`` (pre-#3799 "local-only, no network") now disarms the
+    # whole emit — ``_route_event`` is local-only, so arming reaches it without
+    # network egress.
+    monkeypatch.setenv("SPEC_KITTY_ENABLE_SAAS_SYNC", "1")
+    monkeypatch.delenv("SPEC_KITTY_SYNC_DISABLE", raising=False)
     console = _RecordingConsole()
     monkeypatch.setattr(emitter_mod, "_console", console)
 

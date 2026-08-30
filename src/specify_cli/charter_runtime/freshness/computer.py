@@ -80,7 +80,7 @@ All sub-objects are always present in the result; ``state="missing"`` is the
 default when a file is absent.
 
 LD-3 routing (FR-013 / WP07): the synthesis manifest is loaded through the
-``charter.synthesizer.manifest`` public read API (``load_yaml`` + the canonical
+``charter.activation.synthesizer.manifest`` public read API (``load_yaml`` + the canonical
 ``MANIFEST_PATH`` constant); the doctrine graph path is anchored to
 ``charter.bundle.DOCTRINE_DIR``. This consumes the chokepoint module's
 read-only surface without invoking ``ensure_charter_bundle_fresh``'s
@@ -98,13 +98,13 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Literal
 
 if TYPE_CHECKING:
-    from charter.synthesizer.manifest import SynthesisManifest
+    from charter.activation.synthesizer.manifest import SynthesisManifest
 
 from ruamel.yaml import YAML
 
 # LD-3 chokepoint imports are kept LAZY (inside
 # ``_load_synthesis_manifest_via_chokepoint``) to preserve NFR-003 latency.
-# Eagerly importing ``charter.bundle`` / ``charter.synthesizer.manifest``
+# Eagerly importing ``charter.bundle`` / ``charter.activation.synthesizer.manifest``
 # at module-load time pulls in the full ``charter.offering.service``,
 # ``jsonschema``, and ``rfc3987_syntax`` graph (>500 ms) onto the
 # ``spec-kitty next`` startup hot path. The architectural intent of LD-3
@@ -321,7 +321,7 @@ def _missing_charter_source_detail(repo_root: Path) -> str:
 
 def _synthesis_manifest_path(repo_root: Path) -> Path:
     """Return the canonical synthesis manifest path via lazy chokepoint import."""
-    from charter.synthesizer.manifest import MANIFEST_PATH  # noqa: PLC0415
+    from charter.activation.synthesizer.manifest import MANIFEST_PATH  # noqa: PLC0415
 
     return repo_root / MANIFEST_PATH
 
@@ -331,11 +331,11 @@ def _doctrine_graph_path(repo_root: Path) -> Path:
 
     Both the doctrine dir and the graph filename are resolved lazily to keep
     this ``specify_cli`` module from eagerly importing the heavy
-    ``charter.synthesizer`` package at load time (LD-3 discipline). The graph
-    filename is single-sourced from the leaf ``charter.synthesizer._constants``.
+    ``charter.activation.synthesizer`` package at load time (LD-3 discipline). The graph
+    filename is single-sourced from the leaf ``charter.activation.synthesizer._constants``.
     """
     from charter.bundle import DOCTRINE_DIR  # noqa: PLC0415
-    from charter.synthesizer._constants import (  # noqa: PLC0415
+    from charter.activation.synthesizer._constants import (  # noqa: PLC0415
         GRAPH_FILENAME as _GRAPH_FILENAME,
     )
 
@@ -380,9 +380,9 @@ def _safe_load_yaml(path: Path) -> dict[str, object] | None:
 
 #: The only ``schema_version`` major series this build's bundle contract
 #: understands. Mirrors ``charter.bundle.SCHEMA_VERSION`` ("2.0.0") and
-#: ``charter.schemas.CharterYaml.schema_version``'s default/pattern — NOT
+#: ``charter.activation.schemas.CharterYaml.schema_version``'s default/pattern — NOT
 #: imported (same mirror-not-import discipline as ``_LEGACY_BUNDLE_FILENAMES``
-#: above) to keep this module's hot import path off the ``charter.schemas``
+#: above) to keep this module's hot import path off the ``charter.activation.schemas``
 #: pydantic graph (NFR-003).
 _SUPPORTED_CHARTER_SCHEMA_MAJOR = "2"
 _SCHEMA_VERSION_PATTERN = re.compile(r"^(\d+)\.\d+\.\d+$")
@@ -397,12 +397,12 @@ def _is_supported_charter_bundle(data: dict[str, object]) -> bool:
     ``{}`` (no content at all) and a ``schema_version`` this build's bundle
     contract does not understand (a pre-inversion ``"1.0.0"`` charter, or a
     future major bump this install predates). Both parse cleanly as YAML
-    but are not a charter bundle ``charter.schemas.CharterYaml`` (the actual
+    but are not a charter bundle ``charter.activation.schemas.CharterYaml`` (the actual
     round-trip contract every writer targets) or any other real consumer
     would accept — so preflight must not report them ``fresh``. This is a
     deliberately MINIMAL gate (non-empty mapping + a supported
     ``schema_version``), not full pydantic validation: the full ``CharterYaml``
-    model is a heavier, write-side concern (``charter.compiler``) this
+    model is a heavier, write-side concern (``charter.activation.compiler``) this
     read-side freshness check does not import (NFR-003), and every field it
     would additionally require (``catalog``, etc.) is already covered by
     other consumers failing loudly at their own read time — this check's
@@ -420,7 +420,7 @@ def _is_supported_charter_bundle(data: dict[str, object]) -> bool:
 def _load_synthesis_manifest_via_chokepoint(repo_root: Path) -> SynthesisManifest | None:
     """Load the synthesis manifest through the chokepoint's read API.
 
-    Routes through ``charter.synthesizer.manifest.load_yaml`` (the canonical
+    Routes through ``charter.activation.synthesizer.manifest.load_yaml`` (the canonical
     typed reader) instead of an ad-hoc YAML parse. Returns ``None`` when the
     manifest is absent or fails validation — preserves the pre-WP07
     "missing/unreadable → None" fallback semantics that ``compute_freshness``
@@ -438,7 +438,7 @@ def _load_synthesis_manifest_via_chokepoint(repo_root: Path) -> SynthesisManifes
         return None
     # NFR-003: defer the chokepoint import until first call so module-import
     # of ``charter_freshness`` stays off the ``spec-kitty next`` hot path.
-    from charter.synthesizer.manifest import load_yaml as _chokepoint_load_manifest  # noqa: PLC0415
+    from charter.activation.synthesizer.manifest import load_yaml as _chokepoint_load_manifest  # noqa: PLC0415
     try:
         return _chokepoint_load_manifest(manifest_path)
     except Exception:  # noqa: BLE001 — manifest validation/parse errors are non-fatal here
@@ -641,7 +641,7 @@ def _compute_synthesized_drg(
     synced_bundle: FreshnessSubState,
 ) -> FreshnessSubState:
     # LD-3: synthesis manifest and graph reads are routed through the
-    # chokepoint module's public surface (``charter.synthesizer.manifest``
+    # chokepoint module's public surface (``charter.activation.synthesizer.manifest``
     # for the typed manifest; ``charter.bundle.DOCTRINE_DIR`` for the graph
     # location). No direct ``_safe_load_yaml`` reads of either file from this
     # module — see module docstring for the FR-013 routing contract.

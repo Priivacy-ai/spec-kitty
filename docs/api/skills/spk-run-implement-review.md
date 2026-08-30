@@ -2,7 +2,7 @@
 title: "spk-run-implement-review"
 description: "Reference for the spk-run-implement-review skill: orchestrating the claim/implement/review loop across a mission's work packages."
 doc_status: active
-updated: '2026-07-21'
+updated: '2026-08-29'
 related:
   - docs/api/skills/index.md
 ---
@@ -42,8 +42,11 @@ implement and review", "sprint through WPs" — with `argument-hint:
 part of the transition. A dispatched implement/review sub-agent must poll
 that command to completion rather than treating it as fire-and-forget. Pass
 `--skip-pre-review-gate` to skip it for one invocation, or set
-`SPEC_KITTY_SYNC_DISABLE` / `SPEC_KITTY_SYNC_MINIMAL_IMPORT` to disable it
-process-wide.
+`SPEC_KITTY_PRE_REVIEW_GATE_DISABLE` to disable it process-wide. The gate has
+its own dedicated toggle (#2801); it is no longer coupled to the sync
+toggles (`SPEC_KITTY_SYNC_DISABLE` / `SPEC_KITTY_SYNC_MINIMAL_IMPORT`), which
+now govern only the (opt-in-by-default) sync surface and no longer disable
+this gate.
 
 ## What it does NOT do
 

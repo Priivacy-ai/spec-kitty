@@ -1,7 +1,7 @@
 """CLI-boundary reject-not-drop coverage for #2529/#2530 (squad NIT, Fix D).
 
-``_resolve_config_activated_ids`` (``charter.compiler``) raises
-:class:`~charter.kind_vocabulary.UnknownArtifactIdError` (a ``ValueError``
+``_resolve_config_activated_ids`` (``charter.activation.compiler``) raises
+:class:`~charter.activation.kind_vocabulary.UnknownArtifactIdError` (a ``ValueError``
 subclass) for a ``config.activated_*`` stem that cannot be resolved to a
 canonical doctrine artifact -- reject, not silently drop (C-006). This module
 pins that the two CLI entry points that reach that resolution path
@@ -29,7 +29,7 @@ from unittest.mock import patch
 import pytest
 from typer.testing import CliRunner
 
-from charter.kind_vocabulary import UnknownArtifactIdError
+from charter.activation.kind_vocabulary import UnknownArtifactIdError
 from specify_cli.cli.commands.charter import charter_app
 
 pytestmark = [pytest.mark.integration, pytest.mark.git_repo]

@@ -39,13 +39,13 @@ from specify_cli.charter_runtime.freshness import (
     compute_freshness,
 )
 from charter.bundle import BUNDLE_CONTENT_HASH_FILES, compute_bundle_content_hash
-from charter.synthesizer import (
+from charter.activation.synthesizer import (
     FixtureAdapter,
     SynthesisRequest,
     SynthesisTarget,
     synthesize,
 )
-from charter.synthesizer.resynthesize_pipeline import run as resynthesize_run
+from charter.activation.synthesizer.resynthesize_pipeline import run as resynthesize_run
 
 
 pytestmark = [pytest.mark.fast]
@@ -488,7 +488,7 @@ def test_charter_source_invalid_when_schema_version_unsupported(
     contract does not understand (a pre-inversion ``1.0.0`` shape, a
     hypothetical future major, or a non-semver string) parses cleanly but
     must not read ``fresh`` — only the ``"2.x.x"`` series this build's
-    ``charter.schemas.CharterYaml``/``charter.bundle.SCHEMA_VERSION``
+    ``charter.activation.schemas.CharterYaml``/``charter.bundle.SCHEMA_VERSION``
     actually supports may pass.
     """
     _seed_charter_yaml(tmp_path, body=f"schema_version: '{schema_version}'\ncatalog: {{}}\n")

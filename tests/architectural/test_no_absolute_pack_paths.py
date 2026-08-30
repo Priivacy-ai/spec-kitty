@@ -26,7 +26,7 @@ test.
 normalizer callers, still absolute by design:
 
 - Catalog references with ``kind: template_set`` (the mission-template
-  reference, ``charter.compiler._template_reference``).
+  reference, ``charter.activation.compiler._template_reference``).
 - The manifest's ``output_path`` field (``manifest.py``'s
   ``relativize_under_root``-driven, repo-relative-only carrier) -- only
   ``source_path`` is scanned.

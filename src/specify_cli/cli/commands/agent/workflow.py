@@ -70,7 +70,7 @@ if TYPE_CHECKING:
     from specify_cli.bulk_edit.gate import DiffCheckResult
     from specify_cli.invocation.record import OpStartedEvent
 
-from charter.context import build_charter_context
+from charter.activation.context import build_charter_context
 from specify_cli.cli.commands.agent.tasks import _collect_status_artifacts
 from specify_cli.cli.commands.implement import implement as top_level_implement
 from specify_cli.cli.selector_resolution import resolve_mission_handle

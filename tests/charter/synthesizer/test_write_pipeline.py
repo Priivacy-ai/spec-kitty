@@ -16,9 +16,9 @@ from pathlib import Path
 
 import pytest
 
-from charter.synthesizer.errors import NeutralityGateViolation
-from charter.synthesizer.artifact_naming import artifact_filename, extract_directive_number
-from charter.synthesizer.write_pipeline import _is_generic_scoped
+from charter.activation.synthesizer.errors import NeutralityGateViolation
+from charter.activation.synthesizer.artifact_naming import artifact_filename, extract_directive_number
+from charter.activation.synthesizer.write_pipeline import _is_generic_scoped
 
 
 # ---------------------------------------------------------------------------
@@ -100,7 +100,7 @@ def test_is_generic_scoped_no_evidence() -> None:
 
 def test_is_generic_scoped_no_code_signals() -> None:
     """With evidence but no code_signals, all artifacts are generic-scoped."""
-    from charter.synthesizer.evidence import EvidenceBundle
+    from charter.activation.synthesizer.evidence import EvidenceBundle
 
     bundle = EvidenceBundle()
     assert _is_generic_scoped("tactic", "testing-philosophy", bundle) is True
@@ -108,7 +108,7 @@ def test_is_generic_scoped_no_code_signals() -> None:
 
 def test_is_generic_scoped_unknown_scope_tag() -> None:
     """scope_tag == 'unknown' → generic-scoped even with code_signals."""
-    from charter.synthesizer.evidence import CodeSignals, EvidenceBundle
+    from charter.activation.synthesizer.evidence import CodeSignals, EvidenceBundle
 
     cs = CodeSignals(
         stack_id="unknown",
@@ -125,7 +125,7 @@ def test_is_generic_scoped_unknown_scope_tag() -> None:
 
 def test_is_generic_scoped_python_scoped_slug_is_not_generic() -> None:
     """With scope_tag='python', a slug containing 'python' is NOT generic-scoped."""
-    from charter.synthesizer.evidence import CodeSignals, EvidenceBundle
+    from charter.activation.synthesizer.evidence import CodeSignals, EvidenceBundle
 
     cs = CodeSignals(
         stack_id="python",
@@ -142,7 +142,7 @@ def test_is_generic_scoped_python_scoped_slug_is_not_generic() -> None:
 
 def test_is_generic_scoped_python_scope_but_generic_slug() -> None:
     """With scope_tag='python', a slug without 'python' IS generic-scoped."""
-    from charter.synthesizer.evidence import CodeSignals, EvidenceBundle
+    from charter.activation.synthesizer.evidence import CodeSignals, EvidenceBundle
 
     cs = CodeSignals(
         stack_id="python",
@@ -159,7 +159,7 @@ def test_is_generic_scoped_python_scope_but_generic_slug() -> None:
 
 def test_is_generic_scoped_different_kinds() -> None:
     """_is_generic_scoped works for directives and styleguides (target_kind ignored for now)."""
-    from charter.synthesizer.evidence import CodeSignals, EvidenceBundle
+    from charter.activation.synthesizer.evidence import CodeSignals, EvidenceBundle
 
     cs = CodeSignals(
         stack_id="python",
@@ -192,8 +192,8 @@ def _make_staging_dir_with_artifact(
     """Create a StagingDir and a matching ProvenanceEntry for testing the gate."""
     import hashlib
 
-    from charter.synthesizer.staging import StagingDir
-    from charter.synthesizer.synthesize_pipeline import ProvenanceEntry, canonical_yaml
+    from charter.activation.synthesizer.staging import StagingDir
+    from charter.activation.synthesizer.synthesize_pipeline import ProvenanceEntry, canonical_yaml
 
     run_id = "01KPWP06TESTGATE00000001"
     stage = StagingDir.create(tmp_path, run_id)
@@ -236,7 +236,7 @@ def _make_staging_dir_with_artifact(
 
 def test_gate_fires_on_biased_generic_content(tmp_path: Path) -> None:
     """Generic artifact with 'pytest' triggers NeutralityGateViolation."""
-    from charter.synthesizer.write_pipeline import _run_neutrality_gate
+    from charter.activation.synthesizer.write_pipeline import _run_neutrality_gate
 
     biased_content = (
         "Always run pytest to verify your code.\n"
@@ -259,8 +259,8 @@ def test_gate_fires_on_biased_generic_content(tmp_path: Path) -> None:
 
 def test_gate_skips_language_scoped_artifact(tmp_path: Path) -> None:
     """Language-scoped artifact with 'pytest' does NOT trigger NeutralityGateViolation."""
-    from charter.synthesizer.evidence import CodeSignals, EvidenceBundle
-    from charter.synthesizer.write_pipeline import _run_neutrality_gate
+    from charter.activation.synthesizer.evidence import CodeSignals, EvidenceBundle
+    from charter.activation.synthesizer.write_pipeline import _run_neutrality_gate
 
     cs = CodeSignals(
         stack_id="python",
@@ -285,7 +285,7 @@ def test_gate_skips_language_scoped_artifact(tmp_path: Path) -> None:
 
 def test_gate_passes_on_neutral_generic_content(tmp_path: Path) -> None:
     """Clean generic artifact passes the neutrality gate without raising."""
-    from charter.synthesizer.write_pipeline import _run_neutrality_gate
+    from charter.activation.synthesizer.write_pipeline import _run_neutrality_gate
 
     neutral_content = (
         "Test at multiple levels: unit, integration, and end-to-end.\n"
@@ -301,8 +301,8 @@ def test_gate_passes_on_neutral_generic_content(tmp_path: Path) -> None:
 
 def test_gate_passes_on_empty_results(tmp_path: Path) -> None:
     """Gate with no results raises nothing."""
-    from charter.synthesizer.staging import StagingDir
-    from charter.synthesizer.write_pipeline import _run_neutrality_gate
+    from charter.activation.synthesizer.staging import StagingDir
+    from charter.activation.synthesizer.write_pipeline import _run_neutrality_gate
 
     stage = StagingDir.create(tmp_path, "01KPWP06EMPTY000000001")
     _run_neutrality_gate(stage, [], evidence=None)
@@ -311,7 +311,7 @@ def test_gate_passes_on_empty_results(tmp_path: Path) -> None:
 @pytest.mark.performance
 def test_gate_timing(tmp_path: Path) -> None:
     """Neutrality gate completes in under 5 seconds on neutral content."""
-    from charter.synthesizer.write_pipeline import _run_neutrality_gate
+    from charter.activation.synthesizer.write_pipeline import _run_neutrality_gate
 
     neutral_content = (
         "Test at multiple levels: unit, integration, and end-to-end.\n"
@@ -330,7 +330,7 @@ def test_gate_timing(tmp_path: Path) -> None:
 
 def test_gate_preserves_staging_on_violation(tmp_path: Path) -> None:
     """Staging dir root is preserved (not wiped) when the gate raises."""
-    from charter.synthesizer.write_pipeline import _run_neutrality_gate
+    from charter.activation.synthesizer.write_pipeline import _run_neutrality_gate
 
     biased_content = "Always run pytest to verify your code.\n"
     stage, prov = _make_staging_dir_with_artifact(
@@ -349,11 +349,11 @@ def test_gate_preserves_staging_on_violation(tmp_path: Path) -> None:
 
 def test_promote_writes_manifest_with_valid_self_hash(tmp_path: Path) -> None:
     """promote() writes a manifest whose self-hash verifies after reload."""
-    from charter.synthesizer.manifest import MANIFEST_PATH, load_yaml, verify_manifest_hash
-    from charter.synthesizer.request import SynthesisRequest, SynthesisTarget
-    from charter.synthesizer.staging import StagingDir
-    from charter.synthesizer.synthesize_pipeline import ProvenanceEntry
-    from charter.synthesizer.write_pipeline import promote
+    from charter.activation.synthesizer.manifest import MANIFEST_PATH, load_yaml, verify_manifest_hash
+    from charter.activation.synthesizer.request import SynthesisRequest, SynthesisTarget
+    from charter.activation.synthesizer.staging import StagingDir
+    from charter.activation.synthesizer.synthesize_pipeline import ProvenanceEntry
+    from charter.activation.synthesizer.write_pipeline import promote
 
     target = SynthesisTarget(
         kind="tactic",

@@ -485,7 +485,7 @@ STATE_SURFACES: tuple[StateSurface, ...] = (
             "(activation_engine.commit_plan, pack_manager.merge_defaults, "
             "compiler.write_compiled_charter) route through the shared INV-9 "
             "load->mutate-owned-section->round-trip-save helper "
-            "(charter.charter_yaml_io) so section-preservation is structural."
+            "(charter.activation.charter_yaml_io) so section-preservation is structural."
         ),
     ),
     StateSurface(

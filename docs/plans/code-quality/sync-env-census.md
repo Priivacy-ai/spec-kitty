@@ -2,7 +2,7 @@
 title: SPEC_KITTY_* env census — sync surface
 description: 'Env census of the sync surface: a live or retired verdict for every SPEC_KITTY_* reference, proving the Wave-4 de-god deleted no environment name.'
 doc_status: active
-updated: '2026-08-21'
+updated: '2026-08-29'
 related:
 - docs/plans/code-quality/index.md
 - docs/plans/code-quality/targeted-cleanup-scoping.md
@@ -33,8 +33,22 @@ operator opt-in that flips the admission gate from its non-strict default to str
 (read by `sync/admission_negotiation.py`). This is a **growth**, not a relocation or deletion:
 the frozen set and the census table below now carry 8 `live` references.
 
+**Update (#2801 / #3799, 2026-08-29).** The `sync-deactivate-by-default` mission made the
+legacy local-sync surface **inactive by default** (opt in via `SPEC_KITTY_ENABLE_SAAS_SYNC=1`)
+and, as part of that, cleanly **cut the pre-review regression gate off the shared sync
+toggles onto its own dedicated env**, `SPEC_KITTY_PRE_REVIEW_GATE_DISABLE` (FR-009). That gate
+lives in the move-task command (`cli/commands/agent/tasks_move_task.py`) — deliberately NOT on
+the sync husk/package surface, because a machine that disabled sync must still enforce the
+review gate. To keep the anti-deletion invariant aware of the decoupled flag, the guard folds
+that one file into the scanned surface but admits **only** its `SPEC_KITTY_PRE_REVIEW_*`
+family (never its incidental docstring mentions of the now-no-op sync-disable toggles). This is
+a **growth**, not a relocation or deletion: the frozen set and the census table below now carry
+9 `live` references.
+
 **Surface scanned.** `src/specify_cli/cli/commands/sync.py` (the husk) plus every `*.py` under
-`src/specify_cli/sync/` (recursively). The frozen expected set and the executable guard live in
+`src/specify_cli/sync/` (recursively), plus the decoupled pre-review gate file
+`src/specify_cli/cli/commands/agent/tasks_move_task.py` — folded in for its
+`SPEC_KITTY_PRE_REVIEW_*` family only (#2801 / FR-009). The frozen expected set and the executable guard live in
 [`tests/architectural/test_sync_env_census.py`](../../../tests/architectural/test_sync_env_census.py);
 a removed reference shrinks the scanned set and turns that guard red.
 
@@ -44,7 +58,7 @@ token on the surface is the wildcard `SPEC_KITTY_SYNC_*` written in a `restart.p
 (`# ... the #2573b disable-env skip (SPEC_KITTY_SYNC_*)`), which is a family reference, not a
 distinct name.
 
-## Census (8 references, all `live`; 1 historical `retired`)
+## Census (9 references, all `live`; 1 historical `retired`)
 
 | # | Reference | Kind | Verdict | Where / role |
 |---|-----------|------|---------|--------------|
@@ -56,14 +70,17 @@ distinct name.
 | 6 | `SPEC_KITTY_NO_AUTO_CUTOVER` | env var | **live** | Refuses legacy-root auto-cutover (`layout_generation.py`, `NO_AUTO_CUTOVER_ENV`). Active operator escape hatch. |
 | 7 | `SPEC_KITTY_CLI_VERSION` | env var | **live** | Pins the CLI version across daemon respawn (`daemon.py`): read on start, re-exported onto the respawned child's env. |
 | 8 | `SPEC_KITTY_SYNC_STRICT_ADMISSION` | env var | **live** | Strict-admission opt-in (`admission_negotiation.py`, `STRICT_ADMISSION_ENV_VAR`). Flips the negotiated admission gate from its non-strict default (mint a local self-admission so a consented, authenticated project delivers) to strict enforcement (require a server-issued admission). Added #3626 for the hosted event-sync delivery restore (#3564/#3620); dormant until the SaaS admission endpoint (spec-kitty-saas#795) deploys. |
-| ~~9~~ | `SPEC_KITTY_DIR` | module-attribute shim | **retired (#3569)** | *Was not* an `os.environ` variable — a legacy lazily-resolved module attribute on `daemon.py` (`_LAZY_PATH_RESOLVERS`, served via `__getattr__`), superseded at runtime by `SPEC_KITTY_HOME` + `get_runtime_root()`. Had no production readers; the only remaining bindings were defensive `monkeypatch`/`patch` calls in daemon tests (alongside the still-live `DAEMON_*_FILE` lazy attributes) that had no effect on behaviour. Those bindings were deleted and the shim removed from `daemon.py` and `_LAZY_PATH_RESOLVERS`. |
+| 9 | `SPEC_KITTY_PRE_REVIEW_GATE_DISABLE` | env var | **live** | The pre-review regression gate's own disable flag (`cli/commands/agent/tasks_move_task.py`, `_PRE_REVIEW_GATE_DISABLE_ENV`). A **gate** flag, not a sync flag: #2801 / FR-009 cut the pre-review gate off the shared sync toggles onto this dedicated env so a machine with sync disabled still enforces the gate. Added by the `sync-deactivate-by-default` mission (#3799). Folded into the scanned surface (its family only) so a silent deletion still reds the guard. |
+| ~~10~~ | `SPEC_KITTY_DIR` | module-attribute shim | **retired (#3569)** | *Was not* an `os.environ` variable — a legacy lazily-resolved module attribute on `daemon.py` (`_LAZY_PATH_RESOLVERS`, served via `__getattr__`), superseded at runtime by `SPEC_KITTY_HOME` + `get_runtime_root()`. Had no production readers; the only remaining bindings were defensive `monkeypatch`/`patch` calls in daemon tests (alongside the still-live `DAEMON_*_FILE` lazy attributes) that had no effect on behaviour. Those bindings were deleted and the shim removed from `daemon.py` and `_LAZY_PATH_RESOLVERS`. |
 
 ### Verdict rationale
 
-- **`live` (8)** — every entry except the retired #9 is a genuine, actively-consumed environment
-  variable whose deletion would change `sync` behaviour. Entries #1–#7 pre-date the Wave-4
-  mission and survive its relocation unchanged; #8 (`SPEC_KITTY_SYNC_STRICT_ADMISSION`) was added
-  later by #3626 as a new live opt-in, not a de-god artefact.
+- **`live` (9)** — every entry except the retired historical `SPEC_KITTY_DIR` is a genuine,
+  actively-consumed environment variable whose deletion would change behaviour. Entries #1–#7
+  pre-date the Wave-4 mission and survive its relocation unchanged; #8
+  (`SPEC_KITTY_SYNC_STRICT_ADMISSION`) was added by #3626 as a new live opt-in; #9
+  (`SPEC_KITTY_PRE_REVIEW_GATE_DISABLE`) was added by #2801 / #3799 as the decoupled pre-review
+  gate's own flag (a gate flag folded into the scanned surface, not a de-god artefact).
 - **`retired` (1, was `retire-candidate`)** — `SPEC_KITTY_DIR` was a backward-compatibility module
   shim, not an env var. Its runtime authority had already moved to `SPEC_KITTY_HOME` /
   `get_runtime_root()`; the only remaining callers were test monkeypatches that did nothing (they
@@ -80,6 +97,7 @@ SPEC_KITTY_CLI_VERSION
 SPEC_KITTY_ENABLE_SAAS_SYNC
 SPEC_KITTY_HOME
 SPEC_KITTY_NO_AUTO_CUTOVER
+SPEC_KITTY_PRE_REVIEW_GATE_DISABLE
 SPEC_KITTY_SAAS_URL
 SPEC_KITTY_SYNC_MINIMAL_IMPORT
 SPEC_KITTY_SYNC_READONLY_IDENTITY
@@ -87,5 +105,6 @@ SPEC_KITTY_SYNC_STRICT_ADMISSION
 ```
 
 (`SPEC_KITTY_DIR` was removed from this frozen set by #3569's deliberate retirement — see the
-census row above. `SPEC_KITTY_SYNC_STRICT_ADMISSION` was added by #3626's deliberate growth —
-a new live opt-in, likewise recorded in the census row above.)
+census row above. `SPEC_KITTY_SYNC_STRICT_ADMISSION` was added by #3626's deliberate growth,
+and `SPEC_KITTY_PRE_REVIEW_GATE_DISABLE` by #2801 / #3799's deliberate decoupling — both new
+live references, likewise recorded in the census rows above.)

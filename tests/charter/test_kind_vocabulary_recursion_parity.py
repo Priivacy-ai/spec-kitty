@@ -14,7 +14,7 @@ from pathlib import Path
 import pytest
 from ruamel.yaml import YAML
 
-from charter.kind_vocabulary import (
+from charter.activation.kind_vocabulary import (
     UnknownArtifactIdError,
     resolve_artifact_urn,
 )

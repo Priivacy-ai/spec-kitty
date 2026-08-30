@@ -18,8 +18,8 @@ enums silently becomes a trap for the *next* new kind unless it is either:
 
 Naive totality ("every such dict must have every key") is provably wrong: it
 false-fails on four pre-existing, legitimately-partial tables
-(``charter.kind_vocabulary::_ID_FIELD_BY_KIND``/``_PROJECT_KIND_DIRS`` and
-``charter.pack_manager::_ID_FIELD_BY_KIND``/``_PROJECT_KIND_DIRS``). This guard
+(``charter.activation.kind_vocabulary::_ID_FIELD_BY_KIND``/``_PROJECT_KIND_DIRS`` and
+``charter.activation.pack_manager::_ID_FIELD_BY_KIND``/``_PROJECT_KIND_DIRS``). This guard
 distinguishes the two cases via :data:`_EXEMPT_GET_PARTIALS`, an explicit
 allow-list keyed by ``"<dotted.module>::<CONSTANT_NAME>"`` -- the exemption
 mechanism chosen over an inline marker comment because it puts the entire
@@ -64,8 +64,8 @@ _EXEMPT_GET_PARTIALS: frozenset[str] = frozenset(
     {
         # _id_field_for() / _declared_id() fall back to the "id" default field
         # for every kind that doesn't override it.
-        "charter.kind_vocabulary::_ID_FIELD_BY_KIND",
-        "charter.pack_manager::_ID_FIELD_BY_KIND",
+        "charter.activation.kind_vocabulary::_ID_FIELD_BY_KIND",
+        "charter.activation.pack_manager::_ID_FIELD_BY_KIND",
         # NOTE (WP03 T014): the two charter `_PROJECT_KIND_DIRS` partials were
         # retired here -- both modules now import the single total authority
         # `charter.offering.artifact_kinds.PROJECT_KIND_DIRS` (guard-visible, total), so
@@ -85,7 +85,7 @@ _EXEMPT_GET_PARTIALS: frozenset[str] = frozenset(
         # `tests/charter/test_action_bundle_delivery.py::
         # test_every_none_slot_kind_has_a_machine_checkable_stated_reason`, so a
         # future None row without a reason still reddens -- just there, not here.
-        "charter.context_renderers.delivery_table::_DELIVERY_REASON_BY_KIND",
+        "charter.activation.context_renderers.delivery_table::_DELIVERY_REASON_BY_KIND",
         # WP03 (T016): the `doctrine new` scaffolder's per-kind stub table.
         # Intentionally partial -- `template` (empty glob, unscaffoldable),
         # `glossary_pack` and `anti_pattern` (hand-authored) carry no stub. The
@@ -108,7 +108,7 @@ _EXEMPT_GET_PARTIALS: frozenset[str] = frozenset(
         # enum-keyed guard itself; the protection is indirect -- a future
         # ArtifactKind reddens the non-exempt authorities (PROJECT_KIND_DIRS et
         # al.), forcing a deliberate emit-or-not decision through the kind surface.
-        "charter.synthesizer.project_drg::_KIND_TO_NODE_KIND",
+        "charter.activation.synthesizer.project_drg::_KIND_TO_NODE_KIND",
     }
 )
 
@@ -273,7 +273,7 @@ def test_mixed_enum_and_plain_keys_raise_instead_of_silently_skipping() -> None:
 # literals, not ``ArtifactKind.MEMBER`` accesses). Those maps -- the artifact_kinds
 # authority tables ``_PLURALS`` / ``_PATTERNS`` / ``_HAS_BUILT_IN_CONTENT_DIR`` --
 # escaped totality entirely (the #2981 drift class: a copy silently missing a
-# kind). (``charter.synthesizer.project_drg._KIND_TO_NODE_KIND`` was also a
+# kind). (``charter.activation.synthesizer.project_drg._KIND_TO_NODE_KIND`` was also a
 # string-keyed escapee until M6 (#3038) re-keyed it on ``ArtifactKind``; it is
 # now covered by the enum-keyed guard above via ``_EXEMPT_GET_PARTIALS``.)
 # This section extends the same AST machinery to string-keyed kind-map
@@ -416,11 +416,13 @@ def test_string_keyed_authority_maps_are_total() -> None:
 
 
 #: Pre-existing charter ``plural↔singular`` kind-map literals that predate M1 and
-#: sit outside its named scope. ``charter.drg::_SINGULAR_TO_PLURAL`` is a fifth
-#: hand copy (identical 10 kinds to the derived authority) surfaced by the M1
-#: review squad; it lives on the golden-adjacent DRG activation-filter path and
-#: imports ``ArtifactKind`` via ``charter.offering.api`` (a public-wheel boundary), so it
-#: is left un-collapsed under C-004 discipline. Follow-up: collapse onto
+#: sit outside its named scope. ``charter.activation.drg_activation::_SINGULAR_TO_PLURAL``
+#: (relocated from ``charter.drg`` by mission charter-activation-split-01M16ZSE,
+#: DEC-1) is a fifth hand copy (identical 10 kinds to the derived authority)
+#: surfaced by the M1 review squad; it lives on the golden-adjacent DRG
+#: activation-filter path and imports ``ArtifactKind`` via ``charter.offering.api``
+#: (a public-wheel boundary), so it is left un-collapsed under C-004 discipline.
+#: Follow-up: collapse onto
 #: :data:`charter.offering.artifact_kinds.CHARTER_ACTIVATABLE_SINGULAR_TO_PLURAL`.
 #:
 #: ``charter.offering.artifact_kinds::_PLURALS`` is NOT a re-declaration: mission
@@ -433,7 +435,7 @@ def test_string_keyed_authority_maps_are_total() -> None:
 #: for failing to import its own symbol from itself.
 _CHARTER_PLURAL_SINGULAR_LITERAL_EXEMPT: frozenset[str] = frozenset(
     {
-        "charter.drg::_SINGULAR_TO_PLURAL",
+        "charter.activation.drg_activation::_SINGULAR_TO_PLURAL",
         "charter.offering.artifact_kinds::_PLURALS",
     }
 )

@@ -12,11 +12,11 @@ from __future__ import annotations
 
 import pytest
 
-from charter.context_renderers.artifact_bodies import (
+from charter.activation.context_renderers.artifact_bodies import (
     _format_inline_procedure_body,
     _format_inline_tactic_body,
 )
-from charter.context_renderers.profile_sections import format_inline_named_body
+from charter.activation.context_renderers.profile_sections import format_inline_named_body
 from charter.offering.procedures.models import ProcedureStep
 from charter.offering.tactics.models import TacticStep
 

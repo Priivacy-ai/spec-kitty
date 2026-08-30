@@ -40,7 +40,14 @@ from specify_cli.sync.project_identity import ProjectIdentity
 from specify_cli.sync.project_store import ProjectSyncStore
 from specify_cli.sync.queue import OfflineQueue
 
-pytestmark = [pytest.mark.unit, pytest.mark.fast]
+from specify_cli.core.saas_sync_config import sync_active
+pytestmark = [
+    pytest.mark.unit, pytest.mark.fast,
+    pytest.mark.skipif(
+        not sync_active(),
+        reason="sync deactivated by default (#3799); set SPEC_KITTY_ENABLE_SAAS_SYNC=1 to run",
+    ),
+]
 
 UUID_A = "aaaaaaaa-0000-0000-0000-00000000000a"
 UUID_B = "bbbbbbbb-0000-0000-0000-00000000000b"
@@ -66,6 +73,12 @@ def _isolated_home(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setenv("SPEC_KITTY_HOME", str(tmp_path / "home"))
     (tmp_path / "home").mkdir(parents=True, exist_ok=True)
     monkeypatch.delenv("SPEC_KITTY_ENABLE_SAAS_SYNC", raising=False)
+    # Arm the emitter directly: with the enable flag deleted (a developer's export
+    # must not decide anything here), the canonical ``sync_active()`` gate in
+    # ``_emit`` would otherwise read False and short-circuit before local capture.
+    # ``is_saas_sync_enabled`` stays patched because the emitter still consults it
+    # for the direct-ingress team-slug branch (independent of the arming gate).
+    monkeypatch.setattr("specify_cli.sync.emitter.sync_active", lambda: True)
     monkeypatch.setattr("specify_cli.sync.emitter.is_saas_sync_enabled", lambda: True)
     authority = ProjectSyncStore(UUID_A).layout_generation()
     authority.begin_cutover(_ACTOR)

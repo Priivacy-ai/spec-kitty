@@ -63,9 +63,9 @@ REPO_ROOT = Path(__file__).resolve().parents[2]
 SRC_ROOT = REPO_ROOT / "src"
 
 #: The sole door (NFR-001).
-SOLE_DOOR_REL_PATH = "src/charter/resolver.py"
+SOLE_DOOR_REL_PATH = "src/charter/activation/resolver.py"
 #: The ONE unified builder (FR-008).
-UNIFIED_BUILDER_REL_PATH = "src/charter/doctrine_service_builder.py"
+UNIFIED_BUILDER_REL_PATH = "src/charter/activation/doctrine_service_builder.py"
 #: The doctrine layer owns the wrapped subject (Gate 1/Gate 2's shared
 #: rationale: the raw charter.offering.service.DoctrineService construction inside
 #: offering/service.py IS the thing the sole door wraps, not a bypass of it).
@@ -453,7 +453,7 @@ def scan_file_constructions(
     Passing more than one target lets a caller classify sibling classes that
     share a source spelling in a **single parse**, so the resulting node
     identities are comparable (Gate 2 needs exactly that for
-    ``charter.offering.service.DoctrineService`` vs ``charter.resolver.DoctrineService``).
+    ``charter.offering.service.DoctrineService`` vs ``charter.activation.resolver.DoctrineService``).
 
     Returns ``None`` when the file cannot be parsed at all, or when a cheap
     substring pre-check (below) proves it holds no possible match — every

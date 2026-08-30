@@ -22,7 +22,14 @@ import pytest
 from specify_cli.sync.emitter import EventEmitter
 from specify_cli.sync.queue import OfflineQueue
 
-pytestmark = pytest.mark.fast
+from specify_cli.core.saas_sync_config import sync_active
+pytestmark = [
+    pytest.mark.fast,
+    pytest.mark.skipif(
+        not sync_active(),
+        reason="sync deactivated by default (#3799); set SPEC_KITTY_ENABLE_SAAS_SYNC=1 to run",
+    ),
+]
 
 # ULID regex: 26 chars from Crockford Base32 alphabet
 _ULID_RE = re.compile(r"^[0-9A-HJKMNP-TV-Z]{26}$")

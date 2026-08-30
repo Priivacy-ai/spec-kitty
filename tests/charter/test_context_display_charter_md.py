@@ -6,7 +6,7 @@ display-only ``charter.md`` prose consumers (``_extract_policy_summary``,
 ``compact.py``) feed DISPLAY strings only. No governance DECISION
 (directive/tactic resolution) reads ``charter.md`` prose — governance
 authority lives entirely in ``charter.yaml`` (WP04's re-pointed loaders,
-``charter.sync.load_governance_config`` / ``load_directives_config``).
+``charter.activation.sync.load_governance_config`` / ``load_directives_config``).
 
 Coverage:
 
@@ -42,11 +42,11 @@ from unittest.mock import patch
 import pytest
 from ruamel.yaml import YAML
 
-from charter import compact as compact_module
-from charter import context as context_module
-from charter.context import CharterContextResult, build_charter_context
-from charter.context_renderers.section_bodies import render_critical_section_bodies
-from charter.compact import extract_section_anchors, render_compact_view
+from charter.activation import compact as compact_module
+from charter.activation import context as context_module
+from charter.activation.context import CharterContextResult, build_charter_context
+from charter.activation.context_renderers.section_bodies import render_critical_section_bodies
+from charter.activation.compact import extract_section_anchors, render_compact_view
 from charter.offering.drg.models import DRGGraph
 
 # Uses subprocess `git init` (see below), so it must carry ``git_repo`` and
@@ -118,7 +118,7 @@ def _write_fixture_repo(tmp_path: Path, *, charter_md: str | None) -> None:
     """Write a minimal repo with ``charter.yaml`` and (optionally) ``charter.md``.
 
     ``charter.yaml`` always carries ``governance.doctrine.selected_directives``
-    so the WP04-repointed loader (``charter.sync.load_governance_config``)
+    so the WP04-repointed loader (``charter.activation.sync.load_governance_config``)
     resolves ``DIRECTIVE_001`` regardless of whether -- or what -- the
     companion ``charter.md`` says.
     """
@@ -157,8 +157,8 @@ def _build_bootstrap_context(tmp_path: Path, *, charter_md: str | None) -> Chart
     mock_graph = _mock_graph()
 
     with (
-        patch("charter._drg_helpers.load_validated_graph", return_value=mock_graph),
-        patch("charter.catalog.resolve_doctrine_root", return_value=tmp_path),
+        patch("charter.activation._drg_helpers.load_validated_graph", return_value=mock_graph),
+        patch("charter.activation.catalog.resolve_doctrine_root", return_value=tmp_path),
         patch("charter.offering.drg.validator.assert_valid"),
     ):
         return build_charter_context(
@@ -389,7 +389,7 @@ class TestNoGovernanceDecisionReadsCharterMdProse:
         # exclusively from charter.yaml; pin its self-documented contract
         # so a future regression that silently re-adds a charter.md read
         # is caught here too.
-        from charter.sync import load_governance_config
+        from charter.activation.sync import load_governance_config
 
         doc = inspect.getdoc(load_governance_config) or ""
         assert "charter.yaml" in doc

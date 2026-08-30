@@ -169,7 +169,7 @@ def get_bundle_schema_version(charter_dir: Path) -> int | None:
     consolidate-charter-bundle (WP07 / T030): re-pointed from the retired
     ``<charter_dir>/metadata.yaml`` top-level ``bundle_schema_version`` key
     onto ``<charter_dir>/charter.yaml``'s ``metadata.bundle_schema_version``
-    (``charter.schemas.CharterYamlMetadata`` -- data-model.md keeps this
+    (``charter.activation.schemas.CharterYamlMetadata`` -- data-model.md keeps this
     one field across the Landmine 2 retirement of ``charter_hash`` /
     ``extraction_mode`` / ``sections_parsed``). Callers pass the SAME
     ``charter_dir`` (``.kittify/charter/``) as before; only the filename and

@@ -6,7 +6,7 @@ via
 :func:`charter.offering.drg.migration.extractor.extract_governance_profile_scope_edges`.
 Org packs carry the SAME governance grain at a DIFFERENT path shape --
 ``<pack_root>/mission_types/<type>/governance-profile.yaml`` (per
-``charter.mission_type_profiles._resolve_governance_slot``) -- which no
+``charter.activation.mission_type_profiles._resolve_governance_slot``) -- which no
 extraction pass ever read. So an org-tier ``selected_*`` typo reached no DRG
 edge at all: it was neither minted (the built-in extractor globs only the
 built-in missions root) nor guarded (a total no-op, not even a silent prune).
@@ -17,7 +17,7 @@ they enter the merged DRG through the org-pack fragment path
 escalation needs no dedicated guard: an unresolved selection is minted as a
 dangling ``mission_type --scope--> <artifact>`` edge, which
 :func:`charter.offering.drg.validator.validate_dangling_references` (run by
-``assert_valid`` inside :func:`charter._drg_helpers.load_validated_graph`) raises
+``assert_valid`` inside :func:`charter.activation._drg_helpers.load_validated_graph`) raises
 on. The escalation cannot live here anyway: a pre-merge single-pack read cannot
 see built-in targets, so it would false-positive on every legitimate reference
 into the built-in layer (squad finding G1).

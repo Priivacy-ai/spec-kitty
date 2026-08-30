@@ -217,7 +217,7 @@ def _collect_profile_health(repo_root: Path) -> DoctrineHealthReport:
     profile regardless of charter activation state (a deactivated pack's
     profiles still need to be counted/health-checked so the operator sees
     the true installed set, not the currently-activated subset), so the raw
-    inner service is wrapped via ``charter.resolver.DoctrineService(inner,
+    inner service is wrapped via ``charter.activation.resolver.DoctrineService(inner,
     pack_context=None)`` -- the sanctioned unfiltered-diagnostic construction
     (data-model.md "unfiltered-diagnostic contract") -- rather than
     constructing ``charter.offering.service.DoctrineService`` directly. The
@@ -236,7 +236,7 @@ def _collect_profile_health(repo_root: Path) -> DoctrineHealthReport:
     load_error: str | None = None
     try:
         from charter.offering.service import DoctrineService as RawDoctrineService
-        from charter.resolver import DoctrineService as ActivationAwareDoctrineService
+        from charter.activation.resolver import DoctrineService as ActivationAwareDoctrineService
         from charter.drg import resolve_org_roots
 
         org_roots = resolve_org_roots(repo_root)
@@ -326,17 +326,17 @@ def _collect_glossary_pack_health(repo_root: Path) -> GlossaryPackHealth:
     diagnostic-completeness rationale -- glossary-pack health must reflect
     every installed pack regardless of charter activation state (the whole
     point is auditing what is on disk, not what is currently activated), so
-    the raw inner service is wrapped via ``charter.resolver.DoctrineService(
+    the raw inner service is wrapped via ``charter.activation.resolver.DoctrineService(
     inner, pack_context=None)`` -- the sanctioned unfiltered-diagnostic
     construction (data-model.md "unfiltered-diagnostic contract") -- rather
     than constructing ``charter.offering.service.DoctrineService`` directly. FR-005
     made ``glossary_packs`` a gated property that always returns a filtered
     ``dict`` (no ``.list_all()``), so this reads through
-    :meth:`~charter.resolver.DoctrineService.raw_repository` to reach the raw
+    :meth:`~charter.activation.resolver.DoctrineService.raw_repository` to reach the raw
     repository's ``list_all()``.
     """
     from charter.offering.service import DoctrineService as RawDoctrineService
-    from charter.resolver import DoctrineService as ActivationAwareDoctrineService
+    from charter.activation.resolver import DoctrineService as ActivationAwareDoctrineService
     from charter.drg import resolve_org_roots
 
     from ._doctrine_health import GlossaryPackHealth, SkippedGlossaryPack
@@ -377,12 +377,12 @@ def _collect_glossary_pack_health(repo_root: Path) -> GlossaryPackHealth:
 def _run_cross_grain_check(report: DoctrineHealthReport) -> None:
     """Fold the FR-013 built-in cross-grain scan into *report* in place (#2666).
 
-    Runs :func:`charter.action_grain.scan_builtin_cross_grain_duplicates` — the
+    Runs :func:`charter.activation.action_grain.scan_builtin_cross_grain_duplicates` — the
     single IC-11 dup-scan authority (C-002) — against the shipped built-in
     missions tree. Scope is deliberately built-in only (the scan's own scope
     cap): no project/org multi-root engine is built here.
 
-    On :class:`~charter.mission_type_profiles.CrossGrainDoubleDeclarationError`
+    On :class:`~charter.activation.mission_type_profiles.CrossGrainDoubleDeclarationError`
     this mutates ``report.org_drg`` in place, mirroring the fail-loud pattern
     :func:`_collect_profile_health` already uses for a collector crash:
 
@@ -401,8 +401,8 @@ def _run_cross_grain_check(report: DoctrineHealthReport) -> None:
     genuine collision: the exception is caught and folded into the report,
     not re-raised.
     """
-    from charter.action_grain import scan_builtin_cross_grain_duplicates
-    from charter.mission_type_profiles import CrossGrainDoubleDeclarationError
+    from charter.activation.action_grain import scan_builtin_cross_grain_duplicates
+    from charter.activation.mission_type_profiles import CrossGrainDoubleDeclarationError
 
     try:
         scan_builtin_cross_grain_duplicates()
@@ -542,7 +542,7 @@ def _collect_doctrine_collisions(repo_root: Path) -> list[dict[str, object]]:
     layer regardless of charter activation state (a collision between a
     deactivated pack's artifact and a built-in one is still a real
     cross-layer collision the operator needs to see), so the raw inner
-    service is wrapped via ``charter.resolver.DoctrineService(inner,
+    service is wrapped via ``charter.activation.resolver.DoctrineService(inner,
     pack_context=None)`` -- the sanctioned unfiltered-diagnostic construction
     (data-model.md "unfiltered-diagnostic contract") -- rather than
     constructing ``charter.offering.service.DoctrineService`` directly. Each gated
@@ -557,7 +557,7 @@ def _collect_doctrine_collisions(repo_root: Path) -> list[dict[str, object]]:
 
     from charter.drg import DoctrineLayerCollisionWarning
     from charter.offering.service import DoctrineService as RawDoctrineService
-    from charter.resolver import DoctrineService as ActivationAwareDoctrineService
+    from charter.activation.resolver import DoctrineService as ActivationAwareDoctrineService
     from charter.drg import resolve_org_roots
 
     org_roots = resolve_org_roots(repo_root)
@@ -624,10 +624,12 @@ def _collect_org_layer_data(repo_root: Path) -> dict[str, object]:
     but as a dict suitable for JSON serialisation.  Always returns a dict
     with an ``"org_drg"`` key so callers can rely on its presence.
     """
-    from charter.drg import (  # noqa: PLC0415
+    from charter.drg import (
         OrgDRGConflictError,
         OrgPackMissingError,
         load_built_in_graph,
+    )
+    from charter.activation.drg_activation import (
         load_org_drg,
         merge_three_layers,
     )
@@ -839,11 +841,11 @@ def _adjudicate_org_overrides(
 class _RawRepositorySource(Protocol):
     """Structural type for a *service* exposing ``raw_repository(kind)``.
 
-    Matches :meth:`charter.resolver.DoctrineService.raw_repository` (FR-002
-    Option A) without importing ``charter.resolver`` at module scope —
+    Matches :meth:`charter.activation.resolver.DoctrineService.raw_repository` (FR-002
+    Option A) without importing ``charter.activation.resolver`` at module scope —
     :func:`_resolve_artifact_source` only needs this one method's shape, and
     the module keeps its existing import discipline (I-2: collect → model /
-    render / shared; ``charter.resolver`` is not one of those).
+    render / shared; ``charter.activation.resolver`` is not one of those).
     """
 
     def raw_repository(self, kind: str) -> Any: ...
@@ -865,14 +867,14 @@ def _resolve_artifact_source(
     * ``project`` — artifact lives under ``.kittify/doctrine/``
     * ``org`` — artifact lives in an org pack (per-pack attribution is
       not yet tracked at the repository layer; see ``_collect_org_source_map``
-      in charter.context for the same limitation)
+      in charter.activation.context for the same limitation)
     * ``charter`` — declared selected in the project charter but the
       DoctrineService does not (yet) know about it (e.g. typo or
       missing snapshot)
     * ``org-required`` — required by an org pack's ``org-charter.yaml``
       but not present in the resolved catalog
 
-    *service* is a :class:`charter.resolver.DoctrineService` and MUST be
+    *service* is a :class:`charter.activation.resolver.DoctrineService` and MUST be
     queried via its ``raw_repository(plural)`` accessor, not
     ``getattr(service, plural)`` (WP03, charter-sole-door-bypass-closure-
     01KZ3WAA, FR-002/T013): the gated ``plural`` property always returns a
@@ -881,7 +883,7 @@ def _resolve_artifact_source(
     :func:`_collect_profile_health` solves via the more specific
     ``agent_profile_repository`` accessor. *service* is typed via the
     ``_RawRepositorySource`` structural protocol above (rather than
-    importing ``charter.resolver.DoctrineService`` directly) so this
+    importing ``charter.activation.resolver.DoctrineService`` directly) so this
     diagnostic helper does not force a hard ``charter`` import at module
     scope.
     """
@@ -909,7 +911,7 @@ def _resolve_artifact_source(
 def _read_project_selections(repo_root: Path) -> dict[str, list[str]]:
     """Read project-charter ``selected_<kind>`` lists (best-effort, FR-018).
 
-    We intentionally bypass ``charter.sync.load_governance_config`` here: that
+    We intentionally bypass ``charter.activation.sync.load_governance_config`` here: that
     loader resolves the canonical (main-checkout) repo root, which requires a
     git repository. The Selections section is a diagnostic — it MUST work in
     any working tree, including freshly-bootstrapped tmp fixtures and non-git
@@ -923,14 +925,14 @@ def _read_project_selections(repo_root: Path) -> dict[str, list[str]]:
     if not charter_yaml.exists():
         return selections
     try:
-        from charter.charter_yaml_io import load_charter_yaml
+        from charter.activation.charter_yaml_io import load_charter_yaml
 
         data = load_charter_yaml(charter_yaml)
         governance_block = (data or {}).get("governance") or {}
         # CR-01 (charter-authority-flip-01M14RB3 WP03): the selection block's
         # key was renamed doctrine -> charter. This diagnostic reads the raw
         # dict directly (see the docstring above) rather than through
-        # charter.sync.load_governance_config's warn-once compat shim, so it
+        # charter.activation.sync.load_governance_config's warn-once compat shim, so it
         # carries its own narrow read of both keys, preferring the canonical
         # one.
         doctrine_block = governance_block.get("charter") or governance_block.get("doctrine") or {}
@@ -956,7 +958,7 @@ def _read_org_required(repo_root: Path) -> dict[str, list[str]]:
 
     org_required: dict[str, list[str]] = {kind: [] for kind in _SELECTION_KIND_PLURALS}
     try:
-        from charter.invocation_context import ProjectContext
+        from charter.activation.invocation_context import ProjectContext
         from specify_cli.doctrine.org_charter import load_org_charter_policies
 
         _pack_ctx = None
@@ -1002,7 +1004,7 @@ def _build_selection_block(repo_root: Path) -> dict[str, list[dict[str, str]]]:
     subset (a selection that is charter-declared but not currently activated
     still needs its true provenance reported, not an activation-narrowed
     miss), so the raw inner service is wrapped via
-    ``charter.resolver.DoctrineService(inner, pack_context=None)`` -- the
+    ``charter.activation.resolver.DoctrineService(inner, pack_context=None)`` -- the
     sanctioned unfiltered-diagnostic construction (data-model.md
     "unfiltered-diagnostic contract") -- rather than constructing
     ``charter.offering.service.DoctrineService`` directly.
@@ -1012,7 +1014,7 @@ def _build_selection_block(repo_root: Path) -> dict[str, list[dict[str, str]]]:
     a filtered ``dict``.
     """
     from charter.offering.service import DoctrineService as RawDoctrineService
-    from charter.resolver import DoctrineService as ActivationAwareDoctrineService
+    from charter.activation.resolver import DoctrineService as ActivationAwareDoctrineService
     from charter.drg import resolve_org_roots
 
     project_selections = _read_project_selections(repo_root)

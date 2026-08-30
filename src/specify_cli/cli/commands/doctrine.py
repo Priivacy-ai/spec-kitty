@@ -44,7 +44,7 @@ from pathlib import Path
 
 import typer
 from charter.drg import ArtifactKind
-from charter.kind_vocabulary import PROJECT_KIND_DIRS
+from charter.activation.kind_vocabulary import PROJECT_KIND_DIRS
 from specify_cli.cli.commands._doctrine_asset import asset_app
 from specify_cli.cli.console import console
 from rich.table import Table
@@ -676,7 +676,7 @@ def new(
     # Pack mode uses the plural pack-layout directory; project mode uses the
     # single canonical project-tier authority — the same map DoctrineService's
     # resolver reads (charter.offering.artifact_kinds.PROJECT_KIND_DIRS, re-exported
-    # here via the charter.kind_vocabulary facade per the runtime -> charter
+    # here via the charter.activation.kind_vocabulary facade per the runtime -> charter
     # -> doctrine boundary), so the stub lands exactly where the loader will
     # look for it.
     target_dir_name = (

@@ -20,7 +20,14 @@ import pytest
 from specify_cli.sync.config import BackgroundDaemonPolicy, SyncConfig
 from specify_cli.sync.daemon import DaemonIntent, ensure_sync_daemon_running
 
-pytestmark = [pytest.mark.unit]
+from specify_cli.core.saas_sync_config import sync_active
+pytestmark = [
+    pytest.mark.unit,
+    pytest.mark.skipif(
+        not sync_active(),
+        reason="sync deactivated by default (#3799); set SPEC_KITTY_ENABLE_SAAS_SYNC=1 to run",
+    ),
+]
 
 
 def _config(policy: BackgroundDaemonPolicy) -> SyncConfig:

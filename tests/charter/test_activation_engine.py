@@ -1,4 +1,4 @@
-"""Unit tests for ``charter.activation_engine`` (WP10, T047).
+"""Unit tests for ``charter.activation.activation_engine`` (WP10, T047).
 
 Covers the pure plan/commit seam:
 
@@ -23,7 +23,7 @@ from typing import Any
 import pytest
 from ruamel.yaml import YAML
 
-from charter.activation_engine import (
+from charter.activation.activation_engine import (
     ActivationPlan,
     NoActivationRestrictionsError,
     UnknownActivationIdError,

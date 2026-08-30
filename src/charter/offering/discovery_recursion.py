@@ -1,7 +1,7 @@
 """Single authority for org/project doctrine overlay recursion (C-001, C-006).
 
 Both the loader (:mod:`charter.offering.base`, :mod:`charter.offering.agent_profiles.repository`)
-and the charter-activation resolver (:mod:`charter.kind_vocabulary`) read this
+and the charter-activation resolver (:mod:`charter.activation.kind_vocabulary`) read this
 seam so recursion cannot silently diverge per kind — the structural root cause of
 the org/project under-loading defects (#3490, #3426).
 

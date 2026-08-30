@@ -266,7 +266,7 @@ def test_runner_repairs_current_v2_after_original_migration_was_recorded(
     """Already-recorded original migration must not suppress same-version repair."""
     from kernel.clock import now_utc
 
-    from charter.synthesizer.manifest import load_yaml, verify_manifest_hash
+    from charter.activation.synthesizer.manifest import load_yaml, verify_manifest_hash
     from specify_cli.upgrade.metadata import ProjectMetadata
     from specify_cli.upgrade.runner import MigrationRunner
 
@@ -328,7 +328,7 @@ def test_apply_migrates_sidecar_to_v2(tmp_path: Path) -> None:
     assert len(result.errors) == 0, f"Unexpected errors: {result.errors}"
 
     # Sidecar should now parse cleanly as ProvenanceEntry v2.
-    from charter.synthesizer.synthesize_pipeline import ProvenanceEntry
+    from charter.activation.synthesizer.synthesize_pipeline import ProvenanceEntry
 
     sidecar = _load_yaml(
         tmp_path / ".kittify" / "charter" / "provenance" / "directive-use-prs.yaml"
@@ -365,7 +365,7 @@ def test_apply_updates_metadata_yaml(tmp_path: Path) -> None:
 
 def test_apply_manifest_gets_v2_fields(tmp_path: Path) -> None:
     """apply() upgrades synthesis-manifest.yaml to v2 with schema_version and manifest_hash."""
-    from charter.synthesizer.manifest import load_yaml, verify_manifest_hash
+    from charter.activation.synthesizer.manifest import load_yaml, verify_manifest_hash
 
     _create_v1_bundle(tmp_path)
     CharterBundleV2Migration().apply(tmp_path)
@@ -384,7 +384,7 @@ def test_apply_manifest_gets_v2_fields(tmp_path: Path) -> None:
 
 def test_apply_manifest_hash_verifies_after_v2_migration(tmp_path: Path) -> None:
     """Migrated manifests must satisfy the v2 self-hash contract."""
-    from charter.synthesizer.manifest import load_yaml, verify_manifest_hash
+    from charter.activation.synthesizer.manifest import load_yaml, verify_manifest_hash
 
     _create_v1_bundle(tmp_path)
     CharterBundleV2Migration().apply(tmp_path)
@@ -397,7 +397,7 @@ def test_apply_manifest_hash_verifies_after_v2_migration(tmp_path: Path) -> None
 
 def test_apply_repairs_current_v2_manifest_missing_built_in_only(tmp_path: Path) -> None:
     """Current v2 bundles with legacy self-hashes get a canonical manifest repair."""
-    from charter.synthesizer.manifest import load_yaml, verify_manifest_hash
+    from charter.activation.synthesizer.manifest import load_yaml, verify_manifest_hash
 
     _create_legacy_v2_bundle_without_built_in_only(tmp_path)
 

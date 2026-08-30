@@ -57,7 +57,14 @@ from specify_cli.sync.project_store import ProjectSyncStore
 from specify_cli.sync.queue import OfflineQueue
 from specify_cli.sync.runtime import SyncRuntime
 
-pytestmark = [pytest.mark.unit, pytest.mark.fast]
+from specify_cli.core.saas_sync_config import sync_active
+pytestmark = [
+    pytest.mark.unit, pytest.mark.fast,
+    pytest.mark.skipif(
+        not sync_active(),
+        reason="sync deactivated by default (#3799); set SPEC_KITTY_ENABLE_SAAS_SYNC=1 to run",
+    ),
+]
 
 UUID_A = "aaaaaaaa-0000-0000-0000-00000000000a"
 UUID_B = "bbbbbbbb-0000-0000-0000-00000000000b"
@@ -409,7 +416,7 @@ def relay_egress(monkeypatch: pytest.MonkeyPatch) -> _RecordingUrlopen:
     below would pass for the wrong reason.
     """
     recorder = _RecordingUrlopen()
-    monkeypatch.setattr(events_module, "is_saas_sync_enabled", lambda: True)
+    monkeypatch.setattr(events_module, "sync_active", lambda: True)
     monkeypatch.setattr(
         "specify_cli.sync.daemon.get_sync_daemon_status",
         lambda **_kw: SimpleNamespace(healthy=True, url="http://127.0.0.1:9401", token="daemon-token"),

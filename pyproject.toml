@@ -341,10 +341,13 @@ module = ["specify_cli.*"]
 follow_imports = "skip"
 
 [[tool.mypy.overrides]]
-# When checking charter.neutrality in isolation, mypy walks into other charter
-# submodules (interview, resolver, context, …) that have pre-existing strict
-# issues being addressed in a separate mission. Skip them so that
-# ``mypy --strict src/charter/neutrality/`` reports only neutrality's own issues.
+# When checking charter.activation.neutrality in isolation, mypy walks into other
+# charter submodules (interview, resolver, context, …) that have pre-existing
+# strict issues being addressed in a separate mission. Skip them so that
+# ``mypy --strict src/charter/activation/neutrality/`` reports only neutrality's
+# own issues. ``charter.*`` also covers ``charter.activation.*`` /
+# ``charter.offering.*`` (mission charter-activation-split-01M16ZSE relocated
+# the activation-layer modules under charter.activation).
 module = ["charter.*"]
 follow_imports = "skip"
 

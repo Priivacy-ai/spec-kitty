@@ -11,6 +11,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
+from specify_cli.core.saas_sync_config import sync_active
 from specify_cli.dossier.manifest import ManifestSchemaError
 
 if TYPE_CHECKING:
@@ -481,7 +482,18 @@ def trigger_feature_dossier_sync_if_enabled(
     callers, but this path performs project-isolated local capture only: the
     machine SaaS flag and project egress decision are enforced later by the
     canonical dispatcher and therefore cannot suppress local dossier capture.
+
+    When the sync surface is inactive (``not sync_active()``) this short-circuits
+    BEFORE any body-capture work (#3470, FR-007/FR-008). On a bare install no
+    disable var is set, so keying the guard on the disable vars would leave the
+    body-outbox ``RuntimeError`` traceback live on the default path — hence the
+    gate is keyed on ``sync_active()``. This is a gated early-return, NOT a
+    ``try/except`` widen: when active, the real body path (and its genuine
+    ``_require_project_destination`` error surfacing, C-003) is untouched.
     """
+    if not sync_active():
+        return None
+
     try:
         from specify_cli.core.paths import get_feature_target_branch
         from specify_cli.mission import get_mission_type

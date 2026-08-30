@@ -36,7 +36,7 @@ from typing import TYPE_CHECKING, cast
 # runtime.test_resolver_unit ran in the same session. The charter facade
 # route was adopted in mission charter-mediated-doctrine-selection-01KRTZCA
 # (WP07) to enforce the runtime → charter → doctrine boundary.
-from charter.mission_type_profiles import ResolvedMissionType
+from charter.activation.mission_type_profiles import ResolvedMissionType
 from charter.resolution import ResolutionResult, ResolutionTier
 from specify_cli.core.paths import assert_safe_path_segment
 
@@ -269,10 +269,10 @@ def _package_default_path(
     call site the WP asked to document.**
 
     Before this change this helper went through
-    ``charter.template_resolver.CharterTemplateResolver``, obtained from an
+    ``charter.activation.template_resolver.CharterTemplateResolver``, obtained from an
     ``lru_cache``d ``_charter_template_resolver_for(missions_root)`` factory
     keyed on a ``missions_root`` *string*, while the canonical charter factory
-    (``charter.resolver.DoctrineService``) is built from a ``repo_root`` by the
+    (``charter.activation.resolver.DoctrineService``) is built from a ``repo_root`` by the
     unified builder. Those two construction contracts do not compose, and the
     mapping is resolved as follows:
 
@@ -291,7 +291,7 @@ def _package_default_path(
     read, and would newly make template resolution fail-closed on a malformed
     ``.kittify/config.yaml`` — a project could then no longer resolve the
     templates its repair commands need. The ``lru_cache`` that used to live
-    here has moved into ``charter.resolver._mission_template_repository``,
+    here has moved into ``charter.activation.resolver._mission_template_repository``,
     alongside the resolution entry point, so repeated tier-6 lookups still
     reuse one repository.
 
@@ -301,7 +301,7 @@ def _package_default_path(
     scope. Only the tier-6 hop is charter-mediated, which is why the factory
     exposes a tier-6-only entry point at all.
     """
-    from charter.resolver import DoctrineService  # noqa: PLC0415 — lazy: keeps the charter import off module load
+    from charter.activation.resolver import DoctrineService  # noqa: PLC0415 — lazy: keeps the charter import off module load
 
     return DoctrineService.resolve_package_default_asset_path(
         missions_root=pkg_missions,
@@ -568,7 +568,7 @@ def _load_expected_artifact_manifest(
     FR-008 (WP02): when *repo_root* is given and resolves to 1+ existing
     configured org roots, an org-pack
     ``<org_root>/missions/<mission_type>/expected-artifacts.yaml`` (see
-    :func:`charter.org_expected_artifacts.resolve_org_expected_artifacts`,
+    :func:`charter.activation.org_expected_artifacts.resolve_org_expected_artifacts`,
     contract C-4) takes precedence over the built-in file, whole-file --
     never field-merged with it -- mirroring
     :meth:`~specify_cli.dossier.manifest.ManifestRegistry.load_manifest`'s own
@@ -614,7 +614,7 @@ def _load_expected_artifact_manifest(
 
     org_roots = _resolve_existing_org_roots_for_manifest(repo_root)
     if org_roots:
-        from charter.org_expected_artifacts import (  # noqa: PLC0415
+        from charter.activation.org_expected_artifacts import (  # noqa: PLC0415
             resolve_org_expected_artifacts,
         )
 
@@ -941,7 +941,7 @@ def resolve_mission(
     # canonical charter factory; see _package_default_path's docstring for the
     # construction-contract mapping this call site shares.
     try:
-        from charter.resolver import DoctrineService  # noqa: PLC0415 — lazy, mirrors _package_default_path
+        from charter.activation.resolver import DoctrineService  # noqa: PLC0415 — lazy, mirrors _package_default_path
 
         pkg_missions = get_package_asset_root()
         pkg_path = DoctrineService.resolve_package_default_mission_config_path(

@@ -50,7 +50,7 @@ _LEGACY_DEFAULT_PACK_NAME = "default"
 #: registry block. Precedence is canonical -> legacy-doctrine -> legacy-flat
 #: (``organisation_packs``, handled separately below and unchanged by this
 #: CR). Precedent for the read-both/canonical-wins/warn-once shape:
-#: ``charter.sync``'s CR-01 governance-selection-key compat
+#: ``charter.activation.sync``'s CR-01 governance-selection-key compat
 #: (``src/charter/sync.py:245-311``).
 _CANONICAL_ORG_PACKS_KEY = "charter_packs"
 _LEGACY_ORG_PACKS_KEY = "doctrine"
@@ -112,7 +112,7 @@ def _warn_legacy_org_pack_doctrine_key_once() -> None:
     filter, because callers -- including this project's own test suite --
     may run under a stricter ``filterwarnings`` configuration that would
     turn a *repeated* warning into a hard failure instead of a silent
-    de-dup (precedent: ``charter.sync._warn_legacy_governance_key_once``,
+    de-dup (precedent: ``charter.activation.sync._warn_legacy_governance_key_once``,
     CR-01). Tests reset this gate via
     ``_warn_legacy_org_pack_doctrine_key_once.cache_clear()``.
     """
@@ -576,8 +576,8 @@ def resolve_existing_org_roots(repo_root: Path) -> list[Path]:
     now shares, rather than each re-implementing the same
     ``[r for r in resolve_org_roots(repo_root) if r.exists()]`` comprehension
     independently (previously duplicated in
-    ``charter.mission_type_profiles``, ``specify_cli.dossier.manifest``, and
-    ``charter.doctrine_service_builder._self_resolve_existing_org_roots``).
+    ``charter.activation.mission_type_profiles``, ``specify_cli.dossier.manifest``, and
+    ``charter.activation.doctrine_service_builder._self_resolve_existing_org_roots``).
 
     Deliberately silent (no logging): this primitive has no ``subdir``
     context to name in a useful WARNING, and every one of the call sites

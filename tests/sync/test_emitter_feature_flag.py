@@ -8,7 +8,14 @@ import pytest
 from specify_cli.sync.emitter import EventEmitter
 
 
-pytestmark = [pytest.mark.fast]
+from specify_cli.core.saas_sync_config import sync_active
+pytestmark = [
+    pytest.mark.fast,
+    pytest.mark.skipif(
+        not sync_active(),
+        reason="sync deactivated by default (#3799); set SPEC_KITTY_ENABLE_SAAS_SYNC=1 to run",
+    ),
+]
 
 class _Clock:
     node_id = "test-node"
@@ -64,7 +71,15 @@ def test_saas_flag_disabled_suppresses_direct_ingress_resolution(
     )
 
     assert event is not None
-    assert routed == [event]
+    # Since #3799 a disabled SaaS flag disarms ``sync_active()``, so ``_emit``
+    # returns the constructed envelope but routes NOTHING (the arming gate sits
+    # before ``_route_event`` — matching ``tests/deactivation/test_seam_gating``'s
+    # capture/queue-not-reached contract). Pre-#3799 the disabled flag still routed
+    # locally; that granular "route-but-skip-direct-ingress" behavior is gone.
+    assert routed == []
+    # The envelope is still fully shaped: direct-ingress team-slug resolution
+    # stays behind the flag (``fail_if_team_slug_resolves`` above proves the
+    # resolver was never called) and the disabled marker is stamped.
     assert event["team_slug"] is None
     assert event["drain_blocked_reason"] == "saas_disabled"
     assert "direct ingress skipped" not in caplog.text

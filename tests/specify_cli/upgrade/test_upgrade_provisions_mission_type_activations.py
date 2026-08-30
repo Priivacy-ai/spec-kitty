@@ -63,8 +63,8 @@ from click.testing import Result
 from ruamel.yaml import YAML
 from typer.testing import CliRunner
 
-from charter.mission_type_profiles import existing_mission_types
-from charter.pack_context import CharterPackConfigError, PackContext
+from charter.activation.mission_type_profiles import existing_mission_types
+from charter.activation.pack_context import CharterPackConfigError, PackContext
 from specify_cli.cli.commands.upgrade import (
     _mission_type_activation_provisioning_pending,
     _provision_missing_mission_type_activations,
@@ -435,9 +435,9 @@ def test_provision_helper_surfaces_missing_default_pack_as_error(
     """A broken shipped default pack surfaces as a helper error, not a crash.
 
     WP01 (#3282) re-routed the helper through
-    ``charter.compiler.provision_mission_type_activations``, whose seed-read
-    is ``charter.default_pack.load_default_mission_type_activations`` (module-
-    level import into ``charter.compiler``'s namespace) -- the same fail-closed
+    ``charter.activation.compiler.provision_mission_type_activations``, whose seed-read
+    is ``charter.activation.default_pack.load_default_mission_type_activations`` (module-
+    level import into ``charter.activation.compiler``'s namespace) -- the same fail-closed
     ``CharterPackConfigError`` seam :func:`_provision_missing_mission_type_activations`
     now catches (using ``.body``, since ``CharterPackConfigError.__str__`` is
     just its error code, not the message).
@@ -447,7 +447,7 @@ def test_provision_helper_surfaces_missing_default_pack_as_error(
         raise CharterPackConfigError("shipped default.yaml declares no mission_type_activations list")
 
     monkeypatch.setattr(
-        "charter.compiler.load_default_mission_type_activations", _raise_missing
+        "charter.activation.compiler.load_default_mission_type_activations", _raise_missing
     )
 
     project = tmp_path / "project"

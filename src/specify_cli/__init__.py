@@ -380,7 +380,7 @@ def _argv_requests_json_mode(argv: list[str]) -> bool:
 def main() -> None:
     # FR-130 / FR-131: Install the CLI logging bootstrap early — before the
     # Typer app runs — so that warnings.warn(...) calls (including
-    # CharterCatalogMissWarning from charter._catalog_miss) are routed through
+    # CharterCatalogMissWarning from charter.activation._catalog_miss) are routed through
     # the logging subsystem and appear in the operator's terminal.
     # This is additive-only: if a handler is already attached, no second
     # handler is installed (no double-printing).

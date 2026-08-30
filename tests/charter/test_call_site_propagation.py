@@ -1,6 +1,6 @@
 """Regression tests for the silent-swallow finding (S1/S2) from the
 post-merge mission review of ``review-merge-gate-hardening-3-2-x-01KRC57C``,
-plus ATDD for Pattern C activation filtering in ``charter.resolver.DoctrineService``
+plus ATDD for Pattern C activation filtering in ``charter.activation.resolver.DoctrineService``
 (WP09, T042).
 
 The chokepoint at ``src/charter/_io.py`` correctly raises ``CharterEncodingError``
@@ -43,7 +43,7 @@ from unittest.mock import MagicMock
 
 import pytest
 
-from charter._io import CharterEncodingError
+from charter.activation._io import CharterEncodingError
 from kernel.errors import KittyInternalConsistencyError
 
 
@@ -69,7 +69,7 @@ def test_compiler_load_yaml_asset_propagates_encoding_error(tmp_path: Path) -> N
     This is the S2 finding: ``compiler.py`` wraps the chokepoint call in
     ``except Exception`` and returns an empty dict, hiding the diagnostic.
     """
-    from charter.compiler import _load_yaml_asset
+    from charter.activation.compiler import _load_yaml_asset
 
     bad = tmp_path / "bad.yaml"
     _write_ambiguous_yaml(bad)
@@ -93,7 +93,7 @@ def test_interview_read_propagates_encoding_error(tmp_path: Path) -> None:
     ``except Exception`` and returns ``None``, making "ambiguous encoding"
     look identical to "file missing".
     """
-    from charter.interview import read_interview_answers
+    from charter.activation.interview import read_interview_answers
 
     bad = tmp_path / "bad-interview.yaml"
     _write_ambiguous_yaml(bad)
@@ -112,7 +112,7 @@ def test_compiler_load_yaml_asset_still_handles_unrelated_yaml_errors(
     issues. The pre-existing behavior is to return an empty dict when YAML
     parsing fails on an otherwise readable file; that resilience stays.
     """
-    from charter.compiler import _load_yaml_asset
+    from charter.activation.compiler import _load_yaml_asset
 
     # Valid UTF-8 but malformed YAML — encoding succeeds, parse fails.
     malformed = tmp_path / "malformed.yaml"
@@ -128,7 +128,7 @@ def test_compiler_load_yaml_asset_still_handles_unrelated_yaml_errors(
 def test_interview_read_returns_none_for_missing_file(tmp_path: Path) -> None:
     """Missing files remain a None-return — only encoding/consistency errors
     propagate."""
-    from charter.interview import read_interview_answers
+    from charter.activation.interview import read_interview_answers
 
     missing = tmp_path / "does-not-exist.yaml"
     assert read_interview_answers(missing) is None
@@ -136,7 +136,7 @@ def test_interview_read_returns_none_for_missing_file(tmp_path: Path) -> None:
 
 def test_interview_read_returns_none_for_malformed_utf8_yaml(tmp_path: Path) -> None:
     """Malformed but decodable YAML preserves the legacy None-return contract."""
-    from charter.interview import read_interview_answers
+    from charter.activation.interview import read_interview_answers
 
     malformed = tmp_path / "malformed-interview.yaml"
     malformed.write_text("responses: [unclosed\n", encoding="utf-8")
@@ -152,7 +152,7 @@ def test_unsafe_bypass_propagates_through_compiler(tmp_path: Path) -> None:
     with no ``unsafe`` parameter, so even when an operator passes ``--unsafe``
     through the CLI, the bypass is silently ignored at this call site.
     """
-    from charter.compiler import _load_yaml_asset
+    from charter.activation.compiler import _load_yaml_asset
 
     bad = tmp_path / "bad.yaml"
     _write_ambiguous_yaml(bad)
@@ -186,7 +186,7 @@ def test_unsafe_bypass_propagates_through_compiler(tmp_path: Path) -> None:
 # A ``SimpleNamespace`` is used as a stand-in for a real ``PackContext``
 # because the three-state per-kind fields are added by WP02 (approved
 # dependency) and may not yet be present in the dataclass.  The wrapper in
-# ``charter.resolver.DoctrineService`` only duck-types the per-kind fields,
+# ``charter.activation.resolver.DoctrineService`` only duck-types the per-kind fields,
 # so the namespace fixture is fully faithful.
 
 
@@ -221,7 +221,7 @@ def test_doctrine_service_agent_profiles_no_pack_context_returns_all() -> None:
     This is the backward-compat contract: callers that do not supply a
     ``PackContext`` receive every profile the inner service exposes.
     """
-    from charter.resolver import DoctrineService
+    from charter.activation.resolver import DoctrineService
 
     profiles = {"alpha": MagicMock(), "beta": MagicMock()}
     mock_inner = _make_mock_inner_with_profiles(profiles)
@@ -238,7 +238,7 @@ def test_doctrine_service_agent_profiles_none_field_returns_all() -> None:
     The ``None`` sentinel means "key absent from config.yaml" → all built-in
     profiles are available (three-state: absent = all built-ins).
     """
-    from charter.resolver import DoctrineService
+    from charter.activation.resolver import DoctrineService
 
     profiles = {"alpha": MagicMock(), "beta": MagicMock()}
     mock_inner = _make_mock_inner_with_profiles(profiles)
@@ -259,7 +259,7 @@ def test_doctrine_service_agent_profiles_empty_frozenset_returns_empty() -> None
     config.yaml" → explicit opt-out; no profiles should be surfaced.
     This is the primary T042 ATDD assertion.
     """
-    from charter.resolver import DoctrineService
+    from charter.activation.resolver import DoctrineService
 
     profiles = {"alpha": MagicMock(), "beta": MagicMock()}
     mock_inner = _make_mock_inner_with_profiles(profiles)
@@ -281,7 +281,7 @@ def test_doctrine_service_agent_profiles_specific_ids_returns_subset() -> None:
 
     Profiles whose ID is NOT in the activated set must be excluded.
     """
-    from charter.resolver import DoctrineService
+    from charter.activation.resolver import DoctrineService
 
     profiles = {"alpha": MagicMock(), "beta": MagicMock(), "gamma": MagicMock()}
     mock_inner = _make_mock_inner_with_profiles(profiles)

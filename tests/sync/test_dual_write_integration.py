@@ -12,7 +12,14 @@ from specify_cli.status.models import Lane
 from specify_cli.status.reducer import SNAPSHOT_FILENAME
 from specify_cli.status.store import read_events, read_events_raw
 
-pytestmark = pytest.mark.git_repo
+from specify_cli.core.saas_sync_config import sync_active
+pytestmark = [
+    pytest.mark.git_repo,
+    pytest.mark.skipif(
+        not sync_active(),
+        reason="sync deactivated by default (#3799); set SPEC_KITTY_ENABLE_SAAS_SYNC=1 to run",
+    ),
+]
 
 
 def _setup_mission_dir(tmp_path: Path, *, initial_lane: str = "planned") -> Path:

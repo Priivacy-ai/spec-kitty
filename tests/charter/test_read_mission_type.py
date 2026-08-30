@@ -13,7 +13,7 @@ from typing import Any
 
 import pytest
 
-from charter.mission_type_key import read_mission_type
+from charter.activation.mission_type_key import read_mission_type
 
 pytestmark = [pytest.mark.unit]
 

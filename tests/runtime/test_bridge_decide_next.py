@@ -36,7 +36,7 @@ from runtime.next import runtime_bridge_retrospective as _retrospective_seam
 from runtime.next._internal_runtime import MissionRunRef
 from runtime.next._internal_runtime.schema import NextDecision
 from runtime.next.decision import Decision, DecisionKind
-from charter.invocation_context import OperationalContext
+from charter.activation.invocation_context import OperationalContext
 from specify_cli.status import CanonicalStatusNotFoundError
 
 pytestmark = [pytest.mark.unit, pytest.mark.fast]

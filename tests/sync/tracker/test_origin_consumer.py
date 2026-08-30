@@ -30,7 +30,14 @@ from specify_cli.tracker.origin_consumer import consume_pending_origin_impl
 # This file's end-to-end binding tests shell out to real `git` via subprocess,
 # so it carries `git_repo` (CI's -m git_repo gate selects it) alongside the
 # integration category marker (marker-correctness Rule 1).
-pytestmark = [pytest.mark.integration, pytest.mark.git_repo]
+from specify_cli.core.saas_sync_config import sync_active
+pytestmark = [
+    pytest.mark.integration, pytest.mark.git_repo,
+    pytest.mark.skipif(
+        not sync_active(),
+        reason="sync deactivated by default (#3799); set SPEC_KITTY_ENABLE_SAAS_SYNC=1 to run",
+    ),
+]
 
 # ---------------------------------------------------------------------------
 # Helpers

@@ -27,7 +27,14 @@ from specify_cli.delivery.config import EventSyncConfig, Mode
 from specify_cli.delivery.receivers import _TEAMSPACE_GATES
 from specify_cli.migration.envelope_seam import build_teamspace_envelope
 
-pytestmark = pytest.mark.fast
+from specify_cli.core.saas_sync_config import sync_active
+pytestmark = [
+    pytest.mark.fast,
+    pytest.mark.skipif(
+        not sync_active(),
+        reason="sync deactivated by default (#3799); set SPEC_KITTY_ENABLE_SAAS_SYNC=1 to run",
+    ),
+]
 
 runner = CliRunner()
 _CONFIRMED_ACTION_ID = "history-confirmed-action"

@@ -48,7 +48,14 @@ from tests.sync._daemon_harness import (
 # Suite metadata
 # ---------------------------------------------------------------------------
 
-pytestmark = [pytest.mark.integration]
+from specify_cli.core.saas_sync_config import sync_active
+pytestmark = [
+    pytest.mark.integration,
+    pytest.mark.skipif(
+        not sync_active(),
+        reason="sync deactivated by default (#3799); set SPEC_KITTY_ENABLE_SAAS_SYNC=1 to run",
+    ),
+]
 
 # Skip on Windows — fork/exec lifecycle differences make the live-subprocess
 # approach unreliable on win32; the unit-level reaper tests in

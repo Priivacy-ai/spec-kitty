@@ -1,12 +1,12 @@
 """Gate test for the #2787 ``context_schema_version`` contract ledger.
 
-Pins two invariants of ``charter.context_contract``:
+Pins two invariants of ``charter.activation.context_contract``:
 
 1. Every ``build_charter_context_json`` payload — bootstrap action AND
    non-bootstrap action — carries a top-level ``context_schema_version``
-   equal to :data:`~charter.context_contract.CONTEXT_SCHEMA_VERSION`.
+   equal to :data:`~charter.activation.context_contract.CONTEXT_SCHEMA_VERSION`.
 2. Every top-level key either payload carries is a declared member of
-   :data:`~charter.context_contract.CONTEXT_CONTRACT_TOP_LEVEL_KEYS` — a
+   :data:`~charter.activation.context_contract.CONTEXT_CONTRACT_TOP_LEVEL_KEYS` — a
    *superset* guard, not strict equality, because the exact key set is
    conditional on the action (bootstrap vs. non-bootstrap) and on
    charter/doctrine state. An undeclared key escaping the ledger must red
@@ -27,8 +27,8 @@ from pathlib import Path
 
 import pytest
 
-from charter.context import build_charter_context_json
-from charter.context_contract import (
+from charter.activation.context import build_charter_context_json
+from charter.activation.context_contract import (
     CONTEXT_CONTRACT_TOP_LEVEL_KEYS,
     CONTEXT_SCHEMA_VERSION,
 )
@@ -60,7 +60,7 @@ def project(tmp_path: Path) -> Iterator[Path]:
     # source once the ``charter:`` pointer is present). The copied charter.yaml
     # now carries the WP04 (C-A1) ``mission_type_activations`` provisioning key
     # verbatim from the checkout's tracked file -- the charter generation path
-    # (``charter.compiler.provision_mission_type_activations``) emits it -- so
+    # (``charter.activation.compiler.provision_mission_type_activations``) emits it -- so
     # ``PackContext.from_config`` resolves this isolated fixture project without
     # any fixture-side append.
     subprocess.run(["git", "init", "--quiet", str(tmp_path)], check=False, capture_output=True)

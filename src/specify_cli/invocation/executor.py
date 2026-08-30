@@ -27,7 +27,7 @@ if TYPE_CHECKING:
 
 import ulid as _ulid_mod  # matches codebase pattern: status/emit.py, core/mission_creation.py
 
-from charter.context import build_charter_context
+from charter.activation.context import build_charter_context
 from mission_runtime import CommitTarget
 from specify_cli.core.commit_guard import GuardCapability
 from kernel.clock import now_utc_iso

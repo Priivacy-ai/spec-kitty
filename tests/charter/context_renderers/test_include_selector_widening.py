@@ -12,7 +12,7 @@ from __future__ import annotations
 
 import pytest
 
-from charter.context_renderers.template_include import (
+from charter.activation.context_renderers.template_include import (
     _render_doctrine_artifact_include,
 )
 from charter.offering.artifact_kinds import CHARTER_ACTIVATABLE_KINDS, ArtifactKind

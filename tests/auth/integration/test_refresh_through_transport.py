@@ -314,6 +314,7 @@ class TestRefreshThroughTransport:
         self,
         seeded_tm: FakeStorage,
         install_fake_refresh: FakeRefreshFlow,
+        sync_enabled: None,  # WP04: `sync status --check` needs SaaS-sync active (default now OFF)
     ) -> None:
         """CliRunner → sync status --check → get_access_token() → refresh →
         health probe with refreshed token → "Connected".

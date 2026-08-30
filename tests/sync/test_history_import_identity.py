@@ -22,7 +22,14 @@ from specify_cli.sync.history_import.identity import (
 )
 from specify_cli.sync.history_import.synthesize import dry_run_project_uuid
 
-pytestmark = pytest.mark.fast
+from specify_cli.core.saas_sync_config import sync_active
+pytestmark = [
+    pytest.mark.fast,
+    pytest.mark.skipif(
+        not sync_active(),
+        reason="sync deactivated by default (#3799); set SPEC_KITTY_ENABLE_SAAS_SYNC=1 to run",
+    ),
+]
 
 _KNOWN_UUID = uuid.UUID("11111111-2222-3333-4444-555555555555")
 

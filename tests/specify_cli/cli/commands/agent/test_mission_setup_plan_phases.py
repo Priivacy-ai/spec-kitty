@@ -32,7 +32,7 @@ import pytest
 import typer
 from typer.testing import CliRunner
 
-from charter.mission_type_profiles import ResolvedMissionType
+from charter.activation.mission_type_profiles import ResolvedMissionType
 from charter.resolution import ResolutionResult, ResolutionTier
 from specify_cli.cli.commands.agent import mission_setup_plan as seam
 from specify_cli.cli.commands.agent import setup_plan_hosted_effects as hosted_effects

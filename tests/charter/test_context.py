@@ -11,7 +11,7 @@ from unittest.mock import patch
 
 import pytest
 
-from charter.context import (
+from charter.activation.context import (
     CharterContextResult,
     _ActionDoctrineBundle,
     _build_doctrine_service,
@@ -22,7 +22,7 @@ from charter.context import (
     build_charter_context,
     build_charter_context_json,
 )
-from charter.context_json import _load_project_directives, _relative_json_path
+from charter.activation.context_json import _load_project_directives, _relative_json_path
 
 pytestmark = pytest.mark.fast
 
@@ -172,8 +172,8 @@ class TestBuildContextV2:
         # ``merge_layers`` would concatenate it into duplicate edges. Replacing
         # ``load_validated_graph`` yields the fixture graph exactly once.
         with (
-            patch("charter._drg_helpers.load_validated_graph", return_value=mock_graph),
-            patch("charter.catalog.resolve_doctrine_root", return_value=tmp_path),
+            patch("charter.activation._drg_helpers.load_validated_graph", return_value=mock_graph),
+            patch("charter.activation.catalog.resolve_doctrine_root", return_value=tmp_path),
             patch("charter.offering.drg.validator.assert_valid"),  # fixture may not pass full validation
         ):
             return build_charter_context(
@@ -213,7 +213,7 @@ class TestBuildContextV2:
 
         with (
             patch("charter.offering.drg.loader.load_graph", side_effect=patched_load_graph),
-            patch("charter.catalog.resolve_doctrine_root", return_value=tmp_path),
+            patch("charter.activation.catalog.resolve_doctrine_root", return_value=tmp_path),
             patch("charter.offering.drg.validator.assert_valid"),
         ):
             # First load: depth=None -> state decides -> 2 (bootstrap)
@@ -260,8 +260,8 @@ class TestBuildContextV2:
         mock_graph = DRGGraph.model_validate(graph_data)
 
         with (
-            patch("charter._drg_helpers.load_validated_graph", return_value=mock_graph),
-            patch("charter.catalog.resolve_doctrine_root", return_value=tmp_path),
+            patch("charter.activation._drg_helpers.load_validated_graph", return_value=mock_graph),
+            patch("charter.activation.catalog.resolve_doctrine_root", return_value=tmp_path),
             patch("charter.offering.drg.validator.assert_valid"),
         ):
             payload = build_charter_context_json(
@@ -342,7 +342,7 @@ class TestBuildContextV2:
 
         with (
             patch("charter.offering.drg.loader.load_graph", side_effect=patched_load_graph),
-            patch("charter.catalog.resolve_doctrine_root", return_value=tmp_path),
+            patch("charter.activation.catalog.resolve_doctrine_root", return_value=tmp_path),
             patch("charter.offering.drg.validator.assert_valid"),
         ):
             result = build_charter_context(
@@ -405,10 +405,10 @@ class TestBuildContextV2:
         with (
             # WP05 (#2680): patch the merged-graph seam, not per-file load_graph,
             # so the sharded fragment layout does not duplicate the fixture.
-            patch("charter._drg_helpers.load_validated_graph", return_value=mock_graph),
-            patch("charter.catalog.resolve_doctrine_root", return_value=tmp_path),
+            patch("charter.activation._drg_helpers.load_validated_graph", return_value=mock_graph),
+            patch("charter.activation.catalog.resolve_doctrine_root", return_value=tmp_path),
             patch("charter.offering.drg.validator.assert_valid"),
-            patch("charter.sync.ensure_charter_bundle_fresh", return_value=None),
+            patch("charter.activation.sync.ensure_charter_bundle_fresh", return_value=None),
         ):
             result = build_charter_context(
                 tmp_path, action="implement", depth=2, mark_loaded=False,
@@ -488,10 +488,10 @@ class TestBuildContextV2:
         mock_graph = DRGGraph.model_validate(yaml.load(StringIO(graph_yaml)))
 
         with (
-            patch("charter._drg_helpers.load_validated_graph", return_value=mock_graph),
-            patch("charter.catalog.resolve_doctrine_root", return_value=tmp_path),
+            patch("charter.activation._drg_helpers.load_validated_graph", return_value=mock_graph),
+            patch("charter.activation.catalog.resolve_doctrine_root", return_value=tmp_path),
             patch("charter.offering.drg.validator.assert_valid"),
-            patch("charter.sync.ensure_charter_bundle_fresh", return_value=None),
+            patch("charter.activation.sync.ensure_charter_bundle_fresh", return_value=None),
         ):
             result = build_charter_context(
                 tmp_path, action="implement", depth=2, mark_loaded=False,
@@ -580,7 +580,7 @@ class TestBuildContextV2:
 
         with (
             patch("charter.offering.drg.loader.load_graph", side_effect=patched_load_graph),
-            patch("charter.catalog.resolve_doctrine_root", return_value=tmp_path),
+            patch("charter.activation.catalog.resolve_doctrine_root", return_value=tmp_path),
             patch("charter.offering.drg.validator.assert_valid"),
         ):
             result = build_charter_context(tmp_path, action="implement", depth=2)
@@ -614,7 +614,7 @@ class TestBuildContextV2:
 
         with (
             patch("charter.offering.drg.loader.load_graph", side_effect=patched_load_graph),
-            patch("charter.catalog.resolve_doctrine_root", return_value=tmp_path),
+            patch("charter.activation.catalog.resolve_doctrine_root", return_value=tmp_path),
             patch("charter.offering.drg.validator.assert_valid"),
         ):
             result = build_charter_context(tmp_path, action="implement", depth=2)
@@ -646,7 +646,7 @@ class TestBuildContextV2:
 
         with (
             patch("charter.offering.drg.loader.load_graph", side_effect=patched_load_graph),
-            patch("charter.catalog.resolve_doctrine_root", return_value=tmp_path),
+            patch("charter.activation.catalog.resolve_doctrine_root", return_value=tmp_path),
             patch("charter.offering.drg.validator.assert_valid"),
         ):
             result = build_charter_context(tmp_path, action="implement", depth=2)
@@ -671,7 +671,7 @@ class TestBuildContextV2:
 
         with (
             patch("charter.offering.drg.loader.load_graph", side_effect=patched_load_graph),
-            patch("charter.catalog.resolve_doctrine_root", return_value=tmp_path),
+            patch("charter.activation.catalog.resolve_doctrine_root", return_value=tmp_path),
             patch("charter.offering.drg.validator.assert_valid"),
         ):
             result = build_charter_context(tmp_path, action="implement", depth=2)
@@ -717,7 +717,7 @@ class TestBuildContextV2:
             encoding="utf-8",
         )
 
-        from charter.sync import SyncResult
+        from charter.activation.sync import SyncResult
 
         sync_result = SyncResult(
             synced=False,
@@ -726,7 +726,7 @@ class TestBuildContextV2:
             extraction_mode="",
             canonical_root=tmp_path,
         )
-        with patch("charter.sync.ensure_charter_bundle_fresh", return_value=sync_result):
+        with patch("charter.activation.sync.ensure_charter_bundle_fresh", return_value=sync_result):
             payload = build_charter_context_json(tmp_path, action="plan", depth=1)
 
         assert payload["directives"] == []
@@ -764,10 +764,10 @@ class TestBuildContextV2:
         """
         assert _relative_json_path(Path("/outside/charter.md"), tmp_path) == "/outside/charter.md"
 
-        with patch("charter.sync.ensure_charter_bundle_fresh", side_effect=RuntimeError("boom")):
+        with patch("charter.activation.sync.ensure_charter_bundle_fresh", side_effect=RuntimeError("boom")):
             assert _bundle_root_for_json(tmp_path) == tmp_path
 
-        with patch("charter.sync.ensure_charter_bundle_fresh", return_value=None):
+        with patch("charter.activation.sync.ensure_charter_bundle_fresh", return_value=None):
             assert _bundle_root_for_json(tmp_path) == tmp_path
 
         missing = _project_charter_json_block(tmp_path)
@@ -783,7 +783,7 @@ class TestBuildContextV2:
         # charter.yaml present, charter.md absent -- the FR-006 flip: present
         # is already True here, before charter.md ever exists.
         (charter_dir / "charter.yaml").write_text("schema_version: '2.0.0'\n", encoding="utf-8")
-        from charter.sync import SyncResult
+        from charter.activation.sync import SyncResult
 
         sync_result = SyncResult(
             synced=False,
@@ -793,7 +793,7 @@ class TestBuildContextV2:
             canonical_root=tmp_path,
         )
 
-        with patch("charter.sync.ensure_charter_bundle_fresh", return_value=sync_result):
+        with patch("charter.activation.sync.ensure_charter_bundle_fresh", return_value=sync_result):
             no_metadata = _project_charter_json_block(tmp_path)
         assert no_metadata["present"] is True
         assert no_metadata["charter_md_present"] is False
@@ -802,7 +802,7 @@ class TestBuildContextV2:
 
         # charter.md reappearing only moves the secondary display fields.
         (charter_dir / "charter.md").write_text("# Charter\n", encoding="utf-8")
-        with patch("charter.sync.ensure_charter_bundle_fresh", return_value=sync_result):
+        with patch("charter.activation.sync.ensure_charter_bundle_fresh", return_value=sync_result):
             with_md = _project_charter_json_block(tmp_path)
         assert with_md["present"] is True
         assert with_md["charter_md_present"] is True
@@ -810,13 +810,13 @@ class TestBuildContextV2:
 
         metadata = charter_dir / "metadata.yaml"
         metadata.write_text("[not-a-mapping]\n", encoding="utf-8")
-        with patch("charter.sync.ensure_charter_bundle_fresh", return_value=sync_result):
+        with patch("charter.activation.sync.ensure_charter_bundle_fresh", return_value=sync_result):
             non_mapping = _project_charter_json_block(tmp_path)
         assert "hash" not in non_mapping
 
         with (
-            patch("charter.sync.ensure_charter_bundle_fresh", return_value=sync_result),
-            patch("charter.context.YAML") as yaml_cls,
+            patch("charter.activation.sync.ensure_charter_bundle_fresh", return_value=sync_result),
+            patch("charter.activation.context.YAML") as yaml_cls,
         ):
             yaml_cls.side_effect = ValueError("bad yaml")
             unreadable = _project_charter_json_block(tmp_path)
@@ -825,12 +825,12 @@ class TestBuildContextV2:
     def test_project_directive_entries_fallbacks(self, tmp_path: Path) -> None:
         """Directive JSON keeps IDs when optional loaders are unavailable."""
         with (
-            patch("charter.sync.load_directives_config", side_effect=RuntimeError("no config")),
+            patch("charter.activation.sync.load_directives_config", side_effect=RuntimeError("no config")),
             patch(
-                "charter.resolver.resolve_project_governance",
+                "charter.activation.resolver.resolve_project_governance",
                 return_value=SimpleNamespace(directives=["DIRECTIVE_001"]),
             ),
-            patch("charter.context._build_doctrine_service", side_effect=RuntimeError("no service")),
+            patch("charter.activation.context._build_doctrine_service", side_effect=RuntimeError("no service")),
         ):
             assert _project_directive_entries(tmp_path) == [
                 {"id": "DIRECTIVE_001", "source": "builtin"}
@@ -839,11 +839,11 @@ class TestBuildContextV2:
         directive = SimpleNamespace(id="DIR-LOCAL", title="Local", description="")
         with (
             patch(
-                "charter.sync.load_directives_config",
+                "charter.activation.sync.load_directives_config",
                 return_value=SimpleNamespace(directives=[directive]),
             ),
-            patch("charter.resolver.resolve_project_governance", side_effect=RuntimeError("no resolver")),
-            patch("charter.context._build_doctrine_service", side_effect=RuntimeError("no service")),
+            patch("charter.activation.resolver.resolve_project_governance", side_effect=RuntimeError("no resolver")),
+            patch("charter.activation.context._build_doctrine_service", side_effect=RuntimeError("no service")),
         ):
             assert _project_directive_entries(tmp_path) == [
                 {"id": "DIR-LOCAL", "source": "project", "title": "Local"}
@@ -859,15 +859,15 @@ class TestBuildContextV2:
         )
         with (
             patch(
-                "charter.sync.load_directives_config",
+                "charter.activation.sync.load_directives_config",
                 return_value=SimpleNamespace(directives=[]),
             ),
             patch(
-                "charter.resolver.resolve_project_governance",
+                "charter.activation.resolver.resolve_project_governance",
                 return_value=SimpleNamespace(directives=["DIRECTIVE_002"]),
             ),
             patch(
-                "charter.context._build_doctrine_service",
+                "charter.activation.context._build_doctrine_service",
                 return_value=SimpleNamespace(directives=repo),
             ),
         ):
@@ -885,7 +885,7 @@ class TestBuildContextV2:
         local = SimpleNamespace(id="DIR-LOCAL")
 
         with patch(
-            "charter.resolver.resolve_project_governance",
+            "charter.activation.resolver.resolve_project_governance",
             side_effect=RuntimeError("no resolver"),
         ):
             local_by_id, directive_ids = _load_project_directives(
@@ -959,8 +959,8 @@ def test_action_doctrine_keys_off_meta_json_not_template_set(tmp_path: Path) -> 
     with (
         # WP05 (#2680): patch the merged-graph seam, not per-file load_graph, so
         # the sharded fragment layout does not duplicate the fixture on merge.
-        patch("charter._drg_helpers.load_validated_graph", return_value=mock_graph),
-        patch("charter.catalog.resolve_doctrine_root", return_value=tmp_path),
+        patch("charter.activation._drg_helpers.load_validated_graph", return_value=mock_graph),
+        patch("charter.activation.catalog.resolve_doctrine_root", return_value=tmp_path),
         patch("charter.offering.drg.validator.assert_valid"),
     ):
         result = build_charter_context(
@@ -1181,8 +1181,8 @@ def test_build_doctrine_service_prefers_repo_src_overlay(
     project_root = tmp_path / "src" / "doctrine"
     project_root.mkdir(parents=True)
 
-    monkeypatch.setattr("charter.catalog.resolve_doctrine_root", lambda: built_in_root)
-    monkeypatch.setattr("charter.context.infer_repo_languages", lambda repo_root: ["python", "typescript"])
+    monkeypatch.setattr("charter.activation.catalog.resolve_doctrine_root", lambda: built_in_root)
+    monkeypatch.setattr("charter.activation.context.infer_repo_languages", lambda repo_root: ["python", "typescript"])
     monkeypatch.setattr("charter.offering.service.DoctrineService", StubDoctrineService)
 
     service = _build_doctrine_service(tmp_path)
@@ -1217,7 +1217,7 @@ def test_build_doctrine_service_uses_compiled_charter_languages_end_to_end(
     """
     from ruamel.yaml import YAML
 
-    from charter.interview import apply_answer_overrides, default_interview, write_interview_answers
+    from charter.activation.interview import apply_answer_overrides, default_interview, write_interview_answers
 
     calls: dict[str, object] = {}
 
@@ -1259,7 +1259,7 @@ def test_build_doctrine_service_uses_compiled_charter_languages_end_to_end(
             handle,
         )
 
-    monkeypatch.setattr("charter.catalog.resolve_doctrine_root", lambda: built_in_root)
+    monkeypatch.setattr("charter.activation.catalog.resolve_doctrine_root", lambda: built_in_root)
     monkeypatch.setattr("charter.offering.service.DoctrineService", StubDoctrineService)
 
     service = _build_doctrine_service(tmp_path)

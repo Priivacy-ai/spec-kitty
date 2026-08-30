@@ -9,7 +9,7 @@ in ``answers.selected_<kind>`` that were never mirrored into
 ``config.activated_<kind>`` — under the new config-authority regime those
 artefacts would silently drop out of the compiled reference set. This
 migration is the zero-drop backstop: it promotes every answers-only selection
-into config via :func:`charter.activation_engine.promote_activations` (WP06),
+into config via :func:`charter.activation.activation_engine.promote_activations` (WP06),
 for **every** charter kind (not roots-only — an org- or hand-authored project
 can carry non-root selections such as ``selected_styleguides`` that no
 activated directive reaches).
@@ -22,7 +22,7 @@ values are free-form and may already be the stem OR the artefact's canonical
 ``id:`` field (e.g. ``"DIRECTIVE_001"`` for directives — the two forms this
 repository's own answers/config pair actually differ by, per the squad
 measurement in WP07's task doc). :func:`resolve_selected_id_to_stem` tries
-both directions via :mod:`charter.kind_vocabulary` (the WP01 resolver) before
+both directions via :mod:`charter.activation.kind_vocabulary` (the WP01 resolver) before
 concluding an id is unresolved, so a form-only difference is never mistaken
 for an answers-only artefact.
 
@@ -32,7 +32,7 @@ Absent-key built-in safety (WP06 LAND-BLOCKER, reviewer caveat)
 kind whose ``config.activated_<kind>`` key is *absent* before appending the
 promoted ids — but only if the caller actually supplies the real built-in set.
 This migration loads the shipped default pack via the shared
-:func:`charter.default_pack.load_default_pack_activation_ids` loader (the
+:func:`charter.activation.default_pack.load_default_pack_activation_ids` loader (the
 same primitive :func:`specify_cli.doctrine.org_charter._promote_org_required_to_config`
 uses — squad finding #2530 dedup) and passes it as ``default_ids`` so a
 first-run/absent-key project keeps every built-in active rather than
@@ -54,15 +54,15 @@ from typing import Any
 
 from ruamel.yaml import YAML
 
-from charter.activation_engine import promote_activations
-from charter.catalog import resolve_doctrine_root
-from charter.default_pack import load_default_pack_activation_ids
-from charter.kind_vocabulary import (
+from charter.activation.activation_engine import promote_activations
+from charter.activation.catalog import resolve_doctrine_root
+from charter.activation.default_pack import load_default_pack_activation_ids
+from charter.activation.kind_vocabulary import (
     UnknownArtifactIdError,
     resolve_artifact_urn,
     resolve_config_id,
 )
-from charter.kind_vocabulary import ArtifactKind
+from charter.activation.kind_vocabulary import ArtifactKind
 
 from ..registry import MigrationRegistry
 from .base import BaseMigration, MigrationResult
@@ -107,7 +107,7 @@ def load_default_pack_ids() -> dict[str, list[str]]:
     ``specify_cli.doctrine.org_charter``) so every consumer of the WP06
     ``promote_activations`` primitive supplies the same real built-in
     ``default_ids`` rather than each re-deriving it independently. Thin
-    re-export of the canonical :func:`charter.default_pack.load_default_pack_activation_ids`
+    re-export of the canonical :func:`charter.activation.default_pack.load_default_pack_activation_ids`
     loader — kept under this name (rather than inlined at each call site)
     because this migration's own tests and ``interview.py`` import it from
     this module (squad finding #2530: the duplicate *implementations* are
@@ -243,7 +243,7 @@ class UnifyCharterActivationMigration(BaseMigration):
 
         Uses ``ruamel.yaml`` round-trip mode so existing ``config.yaml``
         comments/formatting survive the write, and routes the single write
-        through :func:`charter.activation_engine.promote_activations` (one
+        through :func:`charter.activation.activation_engine.promote_activations` (one
         ``commit_plan`` call per affected kind) — there is no other write
         path in this migration.
         """

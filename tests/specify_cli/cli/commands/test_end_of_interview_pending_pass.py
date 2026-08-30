@@ -813,7 +813,7 @@ class TestCharterEndOfInterviewPendingPass:
         """Without SAAS token, widen_store is None → pending pass never runs."""
         import os
 
-        from charter.interview import MINIMAL_QUESTION_ORDER
+        from charter.activation.interview import MINIMAL_QUESTION_ORDER
         from typer.testing import CliRunner
 
         from specify_cli.cli.commands.charter import app as charter_app
@@ -843,7 +843,7 @@ class TestCharterEndOfInterviewPendingPass:
         """Widen enabled + empty store → interview completes without pending panel."""
         import os
 
-        from charter.interview import MINIMAL_QUESTION_ORDER
+        from charter.activation.interview import MINIMAL_QUESTION_ORDER
         from typer.testing import CliRunner
 
         from specify_cli.cli.commands.charter import app as charter_app

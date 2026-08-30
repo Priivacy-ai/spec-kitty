@@ -158,7 +158,14 @@ import pytest
 
 from tests.sync.test_daemon_intent_gate import ALLOWED_CALL_SITES
 
-pytestmark = [pytest.mark.slow]
+from specify_cli.core.saas_sync_config import sync_active
+pytestmark = [
+    pytest.mark.slow,
+    pytest.mark.skipif(
+        not sync_active(),
+        reason="sync deactivated by default (#3799); set SPEC_KITTY_ENABLE_SAAS_SYNC=1 to run",
+    ),
+]
 
 _SYNTHETIC_LEAK_TOKEN = "__fr007_leak_guard_probe_3115_synthetic_token__"
 _RUN_LEAK_CASE_ENV = "_FR007_PROBE_RUN_LEAK_CASE_3115"

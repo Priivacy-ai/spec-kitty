@@ -4,7 +4,7 @@
 wheel will export. No ``tests/doctrine`` test and no doctrine module imports it
 directly, so under ``--cov=doctrine`` (the ``fast-tests-doctrine`` shard, whose
 report feeds the critical-path ``diff-coverage`` aggregate) its only coverage
-came *incidentally* — via a single unrelated test importing ``charter.catalog``
+came *incidentally* — via a single unrelated test importing ``charter.activation.catalog``
 → ``charter.drg`` → ``from charter.offering.api import ArtifactKind``. Break that one
 import and ``api.py`` silently drops to 0% on a declared critical path.
 
