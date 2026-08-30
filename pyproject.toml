@@ -307,7 +307,6 @@ exclude = [
     "scripts/measure-wp-prompt.py",
     "scripts/mutants/attribute_sleep_count_3115.py",
     "scripts/mutants/neutralise_reset_token_manager_3115.py",
-    "scripts/mutants/nonterminating_dispatch_3115.py",
     "scripts/patch_seam_census.py",
     "scripts/release/check_candidate_consumer_compat.py",
     "scripts/release/check_exact_install.py",
