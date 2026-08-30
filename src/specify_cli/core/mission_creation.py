@@ -838,14 +838,6 @@ def _create_mission_core_impl(
             _phase_evt_exc,
         )
 
-    # Dossier sync (fire-and-forget via registered adapter)
-    # SaaS fan-out is already handled by emit_mission_created_local above —
-    # it calls fire_lifecycle_saas_fanout internally via append_lifecycle_event.
-    # No direct INTEGRATION imports needed here (FR-004/FR-006).
-    from specify_cli.status import fire_dossier_sync
-
-    fire_dossier_sync(feature_dir, mission_slug_formatted, resolved_root)
-
     # ------------------------------------------------------------------
     # 9. Consume pending origin if present (ticket-first flow)
     # ------------------------------------------------------------------

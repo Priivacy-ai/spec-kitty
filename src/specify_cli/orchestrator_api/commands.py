@@ -1158,7 +1158,6 @@ def start_implementation(
             repo_root=main_repo_root,
             policy_metadata=policy_dict,
             ensure_sync_daemon=False,
-            sync_dossier=False,
         )
     except WorkPackageClaimConflict as exc:
         _fail(
@@ -1252,7 +1251,6 @@ def start_review(
             repo_root=main_repo_root,
             policy_metadata=policy_dict,
             ensure_sync_daemon=False,
-            sync_dossier=False,
         )
     except WorkPackageClaimConflict as exc:
         _fail(
@@ -1473,7 +1471,6 @@ def transition(
                 policy_metadata=policy_dict,
             ),
             ensure_sync_daemon=False,
-            sync_dossier=False,
         )
     except TransitionError as exc:
         _fail(cmd, "TRANSITION_REJECTED", str(exc))

@@ -19,8 +19,8 @@ __all__ = ["first_set_sync_disable_env", "is_interactive", "is_truthy"]
 _TRUTHY_VALUES = frozenset({"1", "true", "yes", "y", "on"})
 
 #: The canonical set of env vars that disable sync-adjacent work — the single
-#: source of truth consumed by the sync daemon, the pre-review gate, and the
-#: per-test isolation fixtures. Do NOT re-scatter this tuple; import it.
+#: source of truth consumed by the pre-review gate and the per-test isolation
+#: fixtures. Do NOT re-scatter this tuple; import it.
 SYNC_DISABLE_ENV_VARS: tuple[str, str] = (
     "SPEC_KITTY_SYNC_DISABLE",
     "SPEC_KITTY_SYNC_MINIMAL_IMPORT",

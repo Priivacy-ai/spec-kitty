@@ -291,7 +291,6 @@ class TestInjectBranchContractRecommendation:
 class TestCreateFeatureCommand:
     """Tests for create command."""
 
-    @patch("specify_cli.status.fire_dossier_sync")
     @patch("specify_cli.core.mission_creation._commit_feature_file")
     @patch("specify_cli.core.mission_creation.is_worktree_context", return_value=False)
     @patch("specify_cli.cli.commands.agent.mission.locate_project_root")
@@ -300,7 +299,7 @@ class TestCreateFeatureCommand:
     def test_creates_feature_with_json_output(
         self, mock_branch: Mock,
         mock_is_git: Mock, mock_locate: Mock, mock_is_wt: Mock,
-        mock_commit: Mock, mock_emit: Mock, tmp_path: Path
+        mock_commit: Mock, tmp_path: Path
     ):
         """Should create feature and output JSON format."""
         # Setup
@@ -362,7 +361,6 @@ class TestCreateFeatureCommand:
             "track the work from mission creation onward."
         )
 
-    @patch("specify_cli.status.fire_dossier_sync")
     @patch("specify_cli.core.mission_creation._commit_feature_file")
     @patch("specify_cli.core.mission_creation.is_worktree_context", return_value=False)
     @patch("specify_cli.cli.commands.agent.mission.locate_project_root")
@@ -371,7 +369,7 @@ class TestCreateFeatureCommand:
     def test_creates_feature_with_human_output(
         self, mock_branch: Mock,
         mock_is_git: Mock, mock_locate: Mock, mock_is_wt: Mock,
-        mock_commit: Mock, mock_emit: Mock, tmp_path: Path
+        mock_commit: Mock, tmp_path: Path
     ):
         """Should create feature and output human-readable format."""
         # Setup
@@ -504,7 +502,6 @@ class TestCreateFeatureCommand:
         assert "error" in output
         assert "git" in output["error"].lower()
 
-    @patch("specify_cli.status.fire_dossier_sync")
     @patch("specify_cli.core.mission_creation._commit_feature_file")
     @patch("specify_cli.core.mission_creation.is_worktree_context", return_value=False)
     @patch("specify_cli.cli.commands.agent.mission.locate_project_root")
@@ -513,7 +510,7 @@ class TestCreateFeatureCommand:
     def test_allows_feature_creation_from_any_branch(
         self, mock_branch: Mock,
         mock_is_git: Mock, mock_locate: Mock, mock_is_wt: Mock,
-        mock_commit: Mock, mock_emit: Mock, tmp_path: Path
+        mock_commit: Mock, tmp_path: Path
     ):
         """Should allow feature creation on any branch (records it as target)."""
         # Setup: On non-main branch — should succeed (not block)
@@ -538,7 +535,6 @@ class TestCreateFeatureCommand:
         output = json.loads(first_line)
         assert output["result"] == "success"
 
-    @patch("specify_cli.status.fire_dossier_sync")
     @patch("specify_cli.core.mission_creation._commit_feature_file")
     @patch("specify_cli.core.mission_creation.is_worktree_context", return_value=False)
     @patch("specify_cli.cli.commands.agent.mission.locate_project_root")
@@ -547,7 +543,7 @@ class TestCreateFeatureCommand:
     def test_creates_feature_on_primary_branch(
         self, mock_branch: Mock,
         mock_is_git: Mock, mock_locate: Mock, mock_is_wt: Mock,
-        mock_commit: Mock, mock_emit: Mock, tmp_path: Path
+        mock_commit: Mock, tmp_path: Path
     ):
         """Should allow feature creation on the primary branch."""
         # Setup: On primary branch
@@ -588,7 +584,6 @@ class TestCreateFeatureCommand:
                 "specify_cli.core.mission_creation.Path.cwd",
                 return_value=linked,
             ),
-            patch("specify_cli.status.fire_dossier_sync"),
             patch("specify_cli.core.mission_creation.safe_commit") as safe_commit,
             patch(
                 "specify_cli.core.mission_creation.ULID",

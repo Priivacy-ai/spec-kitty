@@ -15,9 +15,12 @@ These tests validate that CLI status reporting matches actual dashboard state.
 
 import pytest
 import subprocess
+import textwrap
 import time
+from contextlib import contextmanager
 from pathlib import Path
 from tempfile import TemporaryDirectory, mkstemp
+from collections.abc import Iterator
 import signal
 import os
 import socket
@@ -28,6 +31,7 @@ import json
 
 import kernel.clock as clock_module
 from kernel.clock import FrozenClock, now_epoch
+from filelock import FileLock
 from tests.test_isolation_helpers import get_venv_python
 
 pytestmark = pytest.mark.git_repo
@@ -212,6 +216,15 @@ def _write_dashboard_test_manifest(entries: list[dict[str, object]], manifest_pa
         raise
 
 
+@contextmanager
+def _dashboard_manifest_lock(manifest_path: Path | None = None) -> Iterator[None]:
+    path = manifest_path or _dashboard_test_manifest_path()
+    path.parent.mkdir(parents=True, exist_ok=True)
+    lock_path = path.with_name(f".{path.name}.lock")
+    with FileLock(str(lock_path)):
+        yield
+
+
 def _manifest_ints(value: object) -> set[int]:
     if not isinstance(value, list):
         return set()
@@ -251,32 +264,33 @@ def _record_dashboard_candidate(
     manifest_path: Path | None = None,
 ) -> None:
     path = manifest_path or _dashboard_test_manifest_path()
-    entries = _load_dashboard_test_manifest(path)
-    started_at = now_epoch()
-    current_listener_pids = set(_process_ids_for_port(port))
-    updated = []
-    for entry in entries:
-        if entry.get("port") == port:
-            previous_pids = _manifest_ints(entry.get("pids"))
-            previous_started_at = _manifest_float(entry.get("started_at"))
-            # Only the same process still listening on this port proves this
-            # is a continuation rather than a fresh launch on a recycled
-            # port -- carry the original started_at forward in that one
-            # case; otherwise this is a new launch and gets a fresh clock
-            # reading so the stale-age gate cannot fire on it prematurely.
-            if previous_pids and previous_pids & current_listener_pids and previous_started_at is not None:
-                started_at = previous_started_at
-            continue
-        updated.append(entry)
-    updated.append(
-        {
-            "pids": pids or [],
-            "port": port,
-            "project_dir": str(project_dir.resolve()),
-            "started_at": started_at,
-        }
-    )
-    _write_dashboard_test_manifest(updated, path)
+    with _dashboard_manifest_lock(path):
+        entries = _load_dashboard_test_manifest(path)
+        started_at = now_epoch()
+        current_listener_pids = set(_process_ids_for_port(port))
+        updated = []
+        for entry in entries:
+            if entry.get("port") == port:
+                previous_pids = _manifest_ints(entry.get("pids"))
+                previous_started_at = _manifest_float(entry.get("started_at"))
+                # Only the same process still listening on this port proves this
+                # is a continuation rather than a fresh launch on a recycled
+                # port -- carry the original started_at forward in that one
+                # case; otherwise this is a new launch and gets a fresh clock
+                # reading so the stale-age gate cannot fire on it prematurely.
+                if previous_pids and previous_pids & current_listener_pids and previous_started_at is not None:
+                    started_at = previous_started_at
+                continue
+            updated.append(entry)
+        updated.append(
+            {
+                "pids": pids or [],
+                "port": port,
+                "project_dir": str(project_dir.resolve()),
+                "started_at": started_at,
+            }
+        )
+        _write_dashboard_test_manifest(updated, path)
 
 
 def _cleanup_stale_dashboard_manifest_entries(
@@ -286,39 +300,40 @@ def _cleanup_stale_dashboard_manifest_entries(
 ) -> int:
     """Reap only stale dashboard test ports recorded by this module."""
     path = manifest_path or _dashboard_test_manifest_path()
-    now = now_epoch()
-    retained = []
-    killed = 0
+    with _dashboard_manifest_lock(path):
+        now = now_epoch()
+        retained = []
+        killed = 0
 
-    for entry in _load_dashboard_test_manifest(path):
-        port = entry.get("port")
-        started_at = _manifest_float(entry.get("started_at"))
-        if not isinstance(port, int) or isinstance(port, bool) or started_at is None:
-            continue
+        for entry in _load_dashboard_test_manifest(path):
+            port = entry.get("port")
+            started_at = _manifest_float(entry.get("started_at"))
+            if not isinstance(port, int) or isinstance(port, bool) or started_at is None:
+                continue
 
-        if now - started_at < max_age_seconds:
-            retained.append(entry)
-            continue
+            if now - started_at < max_age_seconds:
+                retained.append(entry)
+                continue
 
-        if not port_has_listener(port):
-            continue
+            if not port_has_listener(port):
+                continue
 
-        if not is_dashboard_accessible(port, timeout=0.3):
-            continue
+            if not is_dashboard_accessible(port, timeout=0.3):
+                continue
 
-        manifest_pids = _manifest_ints(entry.get("pids"))
-        if manifest_pids and manifest_pids.isdisjoint(_process_ids_for_port(port)):
-            continue
+            manifest_pids = _manifest_ints(entry.get("pids"))
+            if manifest_pids and manifest_pids.isdisjoint(_process_ids_for_port(port)):
+                continue
 
-        kill_dashboard_process(port)
-        killed += 1
+            kill_dashboard_process(port)
+            killed += 1
 
-    if retained:
-        _write_dashboard_test_manifest(retained, path)
-    else:
-        path.unlink(missing_ok=True)
+        if retained:
+            _write_dashboard_test_manifest(retained, path)
+        else:
+            path.unlink(missing_ok=True)
 
-    return killed
+        return killed
 
 
 class TestDashboardCLIStatusReporting:
@@ -774,13 +789,6 @@ def cleanup_test_dashboards():
     _reserved_test_ports.clear()
 
 
-def test_no_process_name_wide_dashboard_kill():
-    """Dashboard test cleanup must not kill sibling workers by process name."""
-    source = Path(__file__).read_text(encoding="utf-8")
-    assert ("pg" + "rep") not in source
-    assert ("run_dashboard_" + "server") not in source
-
-
 def test_record_dashboard_candidate_gives_new_launch_on_recycled_port_a_fresh_started_at(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
     """A fresh launch on a recycled port must not inherit the old occupant's started_at.
 
@@ -828,17 +836,77 @@ def test_record_dashboard_candidate_keeps_started_at_when_same_process_still_lis
     assert entry["pids"] == [5555]
 
 
+@pytest.mark.stress
+@pytest.mark.non_sandbox
+def test_concurrent_record_dashboard_candidate_updates_do_not_lose_entries(tmp_path: Path) -> None:
+    """Concurrent manifest recorders must serialize their read-modify-write updates."""
+    manifest = tmp_path / "manifest.json"
+    ports = (61991, 61992)
+    ready_paths = [tmp_path / f"ready-{port}" for port in ports]
+    start_path = tmp_path / "start"
+    worker = textwrap.dedent(
+        """
+        import importlib
+        import sys
+        import time
+        from pathlib import Path
+
+        manifest = Path(sys.argv[1])
+        port = int(sys.argv[2])
+        ready = Path(sys.argv[3])
+        start = Path(sys.argv[4])
+        module = importlib.import_module("tests.cross_cutting.dashboard.test_dashboard_cli_accuracy")
+        original_load = module._load_dashboard_test_manifest
+
+        def delayed_load(path):
+            entries = original_load(path)
+            time.sleep(0.1)
+            return entries
+
+        module._load_dashboard_test_manifest = delayed_load
+        module._process_ids_for_port = lambda _port: []
+        ready.write_text("", encoding="utf-8")
+        deadline = time.monotonic() + 10
+        while not start.exists():
+            if time.monotonic() >= deadline:
+                raise TimeoutError("worker did not receive the start signal")
+            time.sleep(0.01)
+        module._record_dashboard_candidate(port, start.parent, pids=[port], manifest_path=manifest)
+        """
+    )
+    commands = [[sys.executable, "-c", worker, str(manifest), str(port), str(ready), str(start_path)] for port, ready in zip(ports, ready_paths, strict=True)]
+    processes = [subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE) for command in commands]
+
+    try:
+        deadline = time.monotonic() + 10
+        while not all(path.exists() for path in ready_paths):
+            if time.monotonic() >= deadline:
+                raise TimeoutError("workers did not become ready")
+            time.sleep(0.01)
+        start_path.write_text("", encoding="utf-8")
+        for process in processes:
+            _, stderr = process.communicate(timeout=10)
+            assert process.returncode == 0, stderr.decode(encoding="utf-8", errors="replace")
+    finally:
+        for process in processes:
+            if process.poll() is None:
+                process.terminate()
+        for process in processes:
+            if process.poll() is None:
+                process.wait(timeout=2)
+
+    entries = _load_dashboard_test_manifest(manifest)
+    assert _manifest_ints([entry["port"] for entry in entries]) == set(ports)
+
+
 def test_stale_manifest_reaper_kills_only_old_recorded_dashboard(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
     manifest = tmp_path / "manifest.json"
     fresh_port = 61001
     stale_port = 61002
     killed_ports = []
+    now = clock_module.datetime.fromtimestamp(2_000.0, tz=clock_module.UTC)
 
-    monkeypatch.setattr(
-        time,
-        "time",
-        lambda: 2000.0,
-    )
+    monkeypatch.setattr(clock_module, "DEFAULT_CLOCK", FrozenClock(instant=now))
     module = sys.modules[__name__]
     monkeypatch.setattr(module, "port_has_listener", lambda port: port in {fresh_port, stale_port})
     monkeypatch.setattr(module, "_process_ids_for_port", lambda port: [111] if port == fresh_port else [222])

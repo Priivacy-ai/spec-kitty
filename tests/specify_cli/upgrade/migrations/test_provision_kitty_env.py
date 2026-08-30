@@ -10,6 +10,8 @@ from __future__ import annotations
 
 import os
 import sys
+import stat
+import threading
 from pathlib import Path
 
 import pytest
@@ -17,12 +19,15 @@ from ruamel.yaml import YAML
 
 from kernel.paths import get_package_asset_root
 from specify_cli.upgrade.migrations.m_3_2_8_provision_kitty_env import (
+    ClaudeignorePathError,
     GOVERNED_SECRET_VARS,
     MIGRATION_ID,
     NEVER_SEED_VARS,
     ProvisionKittyEnvMigration,
     _read_ignore_file_text,
     _write_ignore_file_text,
+    _append_claudeignore_entry,
+    _open_claudeignore_no_follow,
 )
 from specify_cli.upgrade.registry import MigrationRegistry
 
@@ -425,6 +430,194 @@ class TestNonRegularIgnoreFiles:
         _write_ignore_file_text(path, "node_modules/\n*.log\n")
 
         assert _read_ignore_file_text(path) == "node_modules/\n*.log\n"
+
+# ---------------------------------------------------------------------------
+# .claudeignore symlink safety (issue #627, sibling of #582/#618's fix for
+# the same class of bug in GitignoreManager's .gitignore handling)
+# ---------------------------------------------------------------------------
+
+
+class TestClaudeignoreSymlinkSafety:
+    def _make_symlinked_claudeignore(self, tmp_path: Path) -> Path:
+        """Point .claudeignore at an outside-the-project target via a symlink."""
+        outside_target = tmp_path.parent / f"outside-claudeignore-target-{os.getpid()}.txt"
+        outside_target.write_text("do-not-touch\n", encoding="utf-8")
+        (tmp_path / ".claudeignore").symlink_to(outside_target)
+        return outside_target
+
+    def test_apply_rejects_symlinked_claudeignore(self, tmp_path: Path) -> None:
+        """apply() must refuse to write through a symlinked .claudeignore."""
+        outside_target = self._make_symlinked_claudeignore(tmp_path)
+        try:
+            migration = ProvisionKittyEnvMigration()
+            with pytest.raises(ClaudeignorePathError):
+                migration.apply(tmp_path, dry_run=False)
+            # The symlink's target must be untouched.
+            assert outside_target.read_text(encoding="utf-8") == "do-not-touch\n"
+        finally:
+            outside_target.unlink(missing_ok=True)
+
+    def test_dangling_symlink_is_also_rejected(self, tmp_path: Path) -> None:
+        """A symlink to a target that doesn't exist must still be rejected.
+
+        `Path.exists()` follows symlinks and returns False for a dangling
+        one, so the guard must trigger on `is_symlink()` directly, not
+        `exists()`.
+        """
+        missing_target = tmp_path.parent / f"missing-claudeignore-target-{os.getpid()}.txt"
+        (tmp_path / ".claudeignore").symlink_to(missing_target)
+
+        migration = ProvisionKittyEnvMigration()
+        with pytest.raises(ClaudeignorePathError):
+            migration.apply(tmp_path, dry_run=False)
+
+    def test_normal_claudeignore_write_survives_symlink_guard(self, tmp_path: Path) -> None:
+        """Sanity check: a regular (non-symlink) .claudeignore still works."""
+        migration = ProvisionKittyEnvMigration()
+        migration.apply(tmp_path, dry_run=False)
+
+        claudeignore = tmp_path / ".claudeignore"
+        assert not claudeignore.is_symlink()
+        assert ".kittify/.kitty.env" in claudeignore.read_text(encoding="utf-8").splitlines()
+
+    def test_write_preserves_existing_claudeignore_mode(self, tmp_path: Path) -> None:
+        """The atomic replace should not narrow an existing .claudeignore's mode."""
+        claudeignore = tmp_path / ".claudeignore"
+        claudeignore.write_text("existing\n", encoding="utf-8")
+        os.chmod(claudeignore, 0o640)
+
+        migration = ProvisionKittyEnvMigration()
+        migration.apply(tmp_path, dry_run=False)
+
+        mode = claudeignore.stat().st_mode & 0o777
+        assert mode == 0o640
+
+    def test_permission_denied_still_raised_on_readonly_claudeignore(self, tmp_path: Path) -> None:
+        """os.replace() ignores the target's mode bits; the migration must not.
+
+        A read-only `.claudeignore` must still surface `PermissionError` --
+        an `os.replace()`-only implementation would silently clobber it
+        instead, since rename() only checks the parent directory's
+        permissions.
+        """
+        claudeignore = tmp_path / ".claudeignore"
+        claudeignore.touch()
+        os.chmod(claudeignore, 0o444)
+        try:
+            migration = ProvisionKittyEnvMigration()
+            with pytest.raises(PermissionError):
+                migration.apply(tmp_path, dry_run=False)
+        finally:
+            os.chmod(claudeignore, 0o644)
+
+    def test_brand_new_claudeignore_respects_process_umask(self, tmp_path: Path) -> None:
+        """A first-time .claudeignore must land at the umask-respecting mode
+        `Path.write_text()` would give it, not `tempfile.mkstemp()`'s
+        unconditional 0o600 (squad finding, PR#637 pass 1 MAJOR #1)."""
+        previous_umask = os.umask(0o022)
+        try:
+            migration = ProvisionKittyEnvMigration()
+            migration.apply(tmp_path, dry_run=False)
+        finally:
+            os.umask(previous_umask)
+
+        claudeignore = tmp_path / ".claudeignore"
+        mode = stat.S_IMODE(claudeignore.stat().st_mode)
+        assert mode == 0o644, f"expected umask-0o022-respecting 0o644, got {oct(mode)}"
+
+    def test_brand_new_claudeignore_respects_a_looser_umask_too(self, tmp_path: Path) -> None:
+        previous_umask = os.umask(0o002)
+        try:
+            migration = ProvisionKittyEnvMigration()
+            migration.apply(tmp_path, dry_run=False)
+        finally:
+            os.umask(previous_umask)
+
+        claudeignore = tmp_path / ".claudeignore"
+        mode = stat.S_IMODE(claudeignore.stat().st_mode)
+        assert mode == 0o664, f"expected umask-0o002-respecting 0o664, got {oct(mode)}"
+
+    def test_open_no_follow_rejects_symlink_without_touching_target(self, tmp_path: Path) -> None:
+        """Direct unit test of the no-follow guard the read/probe now use --
+        the guard and the open() are the same syscall, so there is no
+        separate check-then-use window a swapped-in symlink can win."""
+        secret_target = tmp_path.parent / f"no-follow-secret-{os.getpid()}.txt"
+        secret_target.write_text("SUPER-SECRET-CONTENT\n", encoding="utf-8")
+        claudeignore = tmp_path / ".claudeignore"
+        claudeignore.symlink_to(secret_target)
+        try:
+            with pytest.raises(ClaudeignorePathError):
+                os.close(_open_claudeignore_no_follow(claudeignore, os.O_RDONLY))
+        finally:
+            secret_target.unlink(missing_ok=True)
+
+    def test_append_does_not_leak_symlink_target_content_under_race(self, tmp_path: Path) -> None:
+        """Regression for the TOCTOU squad found (PR#637 pass 1 MAJOR #2):
+        a `.claudeignore` swapped for a symlink between the guard and the
+        read must never have its target's bytes read through and merged
+        into the (now regular) `.claudeignore`. The guard and the read
+        used to be separate syscalls (`_reject_claudeignore_symlink()` then
+        `path.read_text()`); a racer thread flipping the file between a
+        regular file and a symlink to an outside-the-project secret,
+        exactly as the squad reproduced it, must never observe the
+        secret's content land in `.claudeignore`.
+        """
+        project_path = tmp_path
+        claudeignore = project_path / ".claudeignore"
+        claudeignore.write_text("existing\n", encoding="utf-8")
+        secret_target = tmp_path.parent / f"race-secret-{os.getpid()}.txt"
+        secret_target.write_text("SUPER-SECRET-CONTENT\n", encoding="utf-8")
+
+        stop = threading.Event()
+        leaked = threading.Event()
+
+        def racer() -> None:
+            while not stop.is_set():
+                claudeignore.unlink(missing_ok=True)
+                try:
+                    claudeignore.symlink_to(secret_target)
+                except FileExistsError:
+                    continue
+                claudeignore.unlink(missing_ok=True)
+                try:
+                    claudeignore.write_text("regular\n", encoding="utf-8")
+                except FileExistsError:
+                    continue
+
+        thread = threading.Thread(target=racer, daemon=True)
+        thread.start()
+        try:
+            for _ in range(300):
+                try:
+                    _append_claudeignore_entry(project_path)
+                except ClaudeignorePathError:
+                    pass
+                except OSError:
+                    # Benign under this synthetic thrash: the racer can
+                    # delete/replace the file between an existence check
+                    # and a subsequent open() elsewhere in the write path.
+                    # That's a plain "file vanished" race, unrelated to the
+                    # symlink-follow content leak this test targets.
+                    pass
+                # Check through the same no-follow primitive under test --
+                # a separate is_symlink() + read_text() here would carry
+                # exactly the TOCTOU this test exists to catch, just in the
+                # assertion instead of the production code.
+                try:
+                    fd = _open_claudeignore_no_follow(claudeignore, os.O_RDONLY)
+                except (ClaudeignorePathError, FileNotFoundError):
+                    continue
+                with os.fdopen(fd, encoding="utf-8") as handle:
+                    content = handle.read()
+                if "SUPER-SECRET-CONTENT" in content:
+                    leaked.set()
+                    break
+        finally:
+            stop.set()
+            thread.join(timeout=5)
+            secret_target.unlink(missing_ok=True)
+
+        assert not leaked.is_set(), "secret symlink target content leaked into .claudeignore"
 
 
 # ---------------------------------------------------------------------------

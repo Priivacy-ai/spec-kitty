@@ -41,7 +41,7 @@ def test_planner_queries_profile_package_name(monkeypatch: pytest.MonkeyPatch) -
         package_name="acme-spec-kitty-cli",
         package_aliases=("spec-kitty-cli",),
         upgrade_provider=provider,
-        disable_public_pypi_notifier=True,
+        disable_no_upgrade_notifier=True,
     )
     monkeypatch.setattr(
         "specify_cli.distribution.profile.resolve_distribution_profile",
