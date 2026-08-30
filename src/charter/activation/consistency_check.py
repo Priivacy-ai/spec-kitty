@@ -23,7 +23,8 @@ from charter.activation.pack_context import CharterPackConfigError, PackContext,
 from charter.activation.pack_manager import YAML_KEY_MAP, CharterPackManager
 
 if TYPE_CHECKING:  # pragma: no cover -- static-typing only, see lazy-import note below.
-    from charter.drg import DRGGraph
+    from charter.drg import DRGEdge, DRGGraph
+    from charter.offering.directives.models import Directive
 
 __all__ = [
     "run_consistency_check",
@@ -35,6 +36,19 @@ __all__ = [
 # either by name (both are consumed via attribute access on
 # run_consistency_check()'s return value, same precedent as
 # CharterYamlCorruptError above).
+#
+# scan_enforcement_lattice_violations (FR-002, mission
+# governance-at-the-gate WP01): same rationale -- no OTHER src/ module wires
+# it as a runtime caller yet (only ``run_consistency_check`` itself, via
+# ``_check_enforcement_lattice``, and this module's own tests import it
+# directly). Kept out of __all__ for the same reason; wiring a dedicated CLI
+# surface for the lattice gate is out of WP01's scope.
+#
+# scan_decision_documentation_scoped_on_implement (FR-004, mission
+# governance-at-the-gate WP03): same rationale as the lattice scan above --
+# only ``run_consistency_check`` (via
+# ``_check_decision_documentation_on_implement``) and this module's own
+# tests call it directly.
 
 #: FR-010/SC-001: the two resolution-path strings, verbatim, for a
 #: ``tension_unreconciled`` finding (contracts/tension-finding.md). Hoisted to
@@ -196,6 +210,28 @@ class ConsistencyReport:
             config<->doctrine defect. Populated on the same fail-closed DRG
             load as :attr:`graph_kind_gaps`; a scan failure lands in
             ``verification_errors`` instead of silently reporting ``[]``.
+        enforcement_lattice_violations: FR-002 -- for every active
+            ``reconciles_tension`` directive->directive edge, a violation of
+            ``rank(enforcement(reconciler)) >= rank(enforcement(operand))``
+            or of the "reconciler is never `required`" bound (FR-003).
+            Unlike ``unreconciled_tensions``, this IS folded into
+            ``coherent`` below -- a lattice violation is a genuine
+            doctrine-authoring defect, not an advisory signal.
+        decision_documentation_on_implement_violations: FR-004 -- for the
+            ``implement`` action's FULL delivered directive bundle (the same
+            scope+requires+suggests resolution
+            :func:`charter.offering.drg.query.resolve_context` produces for
+            ``charter context --action implement --json``, per SC-002's
+            "bundle directive_ids" framing -- not merely implement's direct
+            DRG ``scope`` edges), one entry per ``required``
+            decision-documentation directive delivered there. The class-level
+            durable-teeth counterpart to FR-005's one-time removal: this gate
+            guards against a *future* ``required`` decision-documentation
+            directive re-entering ``implement``, however it re-enters
+            (a direct scope edge OR a transitive ``requires`` chain through
+            an in-scope procedure/tactic/directive). Folded into
+            ``coherent`` below, same as ``enforcement_lattice_violations``
+            -- a genuine doctrine-authoring defect, not an advisory signal.
         suggestions: Human-readable resolution instructions for each finding.
     """
 
@@ -207,6 +243,10 @@ class ConsistencyReport:
     graph_kind_gaps: list[str] = field(default_factory=list)
     verification_errors: list[str] = field(default_factory=list)
     unreconciled_tensions: list[TensionFinding] = field(default_factory=list)
+    enforcement_lattice_violations: list[str] = field(default_factory=list)
+    decision_documentation_on_implement_violations: list[str] = field(
+        default_factory=list
+    )
     suggestions: list[str] = field(default_factory=list)
 
     def to_json(self) -> str:
@@ -223,6 +263,10 @@ class ConsistencyReport:
                 "unreconciled_tensions": [
                     t.to_json_dict() for t in self.unreconciled_tensions
                 ],
+                "enforcement_lattice_violations": self.enforcement_lattice_violations,
+                "decision_documentation_on_implement_violations": (
+                    self.decision_documentation_on_implement_violations
+                ),
                 "suggestions": self.suggestions,
             },
             indent=2,
@@ -982,6 +1026,28 @@ def _tension_candidate_pairs(
     return pairs
 
 
+def _active_reconciles_tension_edges(
+    full_drg: DRGGraph,
+    active_urns: frozenset[str],
+) -> list[DRGEdge]:
+    """Single walk over active ``reconciles_tension`` edges (T026 traversal).
+
+    Shared by :func:`_tension_reconciled_urns` (needs only the target URNs)
+    and :func:`scan_enforcement_lattice_violations` (FR-002, needs the full
+    edge to compare source/target enforcement) -- WP01 constraint: no second
+    ``reconciles_tension`` walk over the graph.
+    """
+    from charter.drg import Relation  # noqa: PLC0415
+
+    return [
+        edge
+        for edge in full_drg.edges
+        if edge.relation == Relation.RECONCILES_TENSION
+        and edge.source in active_urns
+        and edge.target in active_urns
+    ]
+
+
 def _tension_reconciled_urns(
     full_drg: DRGGraph,
     active_urns: frozenset[str],
@@ -993,15 +1059,9 @@ def _tension_reconciled_urns(
     it -- the same side being bridged by two different active reconcilers is
     equivalent to being bridged by one.
     """
-    from charter.drg import Relation  # noqa: PLC0415
-
-    reconciled: set[str] = set()
-    for edge in full_drg.edges:
-        if edge.relation != Relation.RECONCILES_TENSION:
-            continue
-        if edge.source in active_urns and edge.target in active_urns:
-            reconciled.add(edge.target)
-    return reconciled
+    return {
+        edge.target for edge in _active_reconciles_tension_edges(full_drg, active_urns)
+    }
 
 
 def scan_unreconciled_tensions(ctx: ProjectContext) -> list[TensionFinding]:
@@ -1073,6 +1133,303 @@ def _check_unreconciled_tensions(
 
 
 # ---------------------------------------------------------------------------
+# Enforcement lattice gate (FR-001/FR-002, mission governance-at-the-gate WP01)
+# ---------------------------------------------------------------------------
+
+
+def _urn_is_directive(urn: str) -> bool:
+    """Return whether *urn* addresses a directive node (URN prefix ``directive:``).
+
+    ``DRGNode._validate_urn`` (``charter.offering.drg.models``) enforces the
+    URN-prefix<->kind invariant at load time, so the prefix alone is a safe,
+    O(1) kind check here -- no separate node lookup by URN is needed.
+    """
+    return urn.split(":", 1)[0] == "directive"
+
+
+def _urn_bare_id(urn: str) -> str:
+    """Return the ``<id>`` half of a ``<kind>:<id>`` URN."""
+    return urn.split(":", 1)[1]
+
+
+def scan_enforcement_lattice_violations(ctx: ProjectContext) -> list[str]:
+    """FR-002: structural gate over the directive enforcement lattice.
+
+    For every active ``reconciles_tension`` edge ``R -> X`` where BOTH
+    endpoints are directives, asserts ``rank(enforcement(R)) >=
+    rank(enforcement(X))`` (:class:`~charter.offering.directives.models.Enforcement`,
+    FR-001) -- a reconciling directive must never be *weaker* than the
+    tension operand it reconciles. An edge whose target is a non-directive
+    (e.g. a tactic, which carries no ``enforcement`` field) is SKIPPED by a
+    documented rule: the lattice is a directive-only ordering, and a tactic
+    operand has nothing to rank against. Symmetrically, an edge whose
+    *source* is not a directive is also skipped (an equally undefined rank).
+
+    Bounded (FR-003/C-...): a reconciler is never itself ``required``,
+    reported as its own violation independent of the rank comparison above
+    -- a rank check alone cannot express this bound, since promoting the
+    reconciler to ``required`` would trivially satisfy
+    ``rank(R) >= rank(X)`` against every possible operand.
+
+    Reuses the SAME active-``reconciles_tension``-edge traversal as
+    :func:`_tension_reconciled_urns` (via
+    :func:`_active_reconciles_tension_edges`) -- no second graph walk over
+    ``reconciles_tension`` edges (WP01 constraint).
+
+    Returns:
+        One human-readable violation string per offending edge/rule, naming
+        the edge. An empty list means the lattice holds.
+
+    Raises:
+        Exception: Propagates any DRG/doctrine load failure untouched --
+            callers MUST fail closed (see :func:`_check_enforcement_lattice`).
+    """
+    from charter.activation._drg_helpers import load_validated_graph  # noqa: PLC0415
+    from charter.activation.doctrine_service_builder import _build_doctrine_service  # noqa: PLC0415
+    from charter.offering.directives.models import Enforcement  # noqa: PLC0415
+
+    repo_root = ctx.require_repo_root()
+    pack_context = ctx.require_pack_context()
+    full_drg = load_validated_graph(repo_root)
+
+    active_urns = _build_tension_active_urns(full_drg, pack_context)
+    edges = _active_reconciles_tension_edges(full_drg, active_urns)
+    directive_edges = [
+        edge
+        for edge in edges
+        if _urn_is_directive(edge.source) and _urn_is_directive(edge.target)
+    ]
+    if not directive_edges:
+        return []
+
+    # Raw (activation-UNfiltered) doctrine service, id-keyed: active_urns
+    # already gates *which* URNs are in scope via the DRG's own stem<->
+    # canonical-id resolution (filter_graph_by_activation); the activation-
+    # aware wrapper's per-kind dict properties, by contrast, filter on raw
+    # config *stems* (charter.activation.pack_context._read_activated_directives), which
+    # do not match a Directive's canonical `.id` -- using that wrapper here
+    # would silently empty the lookup for every directive endpoint.
+    directives = _build_doctrine_service(
+        repo_root, org_roots=list(pack_context.org_roots)
+    ).directives
+    violations: list[str] = []
+    for edge in directive_edges:
+        reconciler = directives.get(_urn_bare_id(edge.source))
+        operand = directives.get(_urn_bare_id(edge.target))
+        if reconciler is None or operand is None:
+            # active_urns already gated membership on both endpoints via the
+            # DRG; a miss here means the doctrine repository and the DRG
+            # graph disagree on what exists -- a genuine "could not verify"
+            # condition, not a legitimate "nothing to rank" skip.
+            missing = edge.source if reconciler is None else edge.target
+            raise RuntimeError(
+                f"reconciles_tension edge {edge.source} -> {edge.target} names "
+                f"{missing}, which the DRG reports active but the directive "
+                f"repository cannot resolve."
+            )
+        if reconciler.enforcement == Enforcement.REQUIRED:
+            violations.append(
+                f"reconciles_tension {edge.source} -> {edge.target}: reconciler "
+                f"{edge.source} must never be promoted to 'required'."
+            )
+            continue
+        if reconciler.enforcement < operand.enforcement:
+            violations.append(
+                f"reconciles_tension {edge.source} -> {edge.target}: reconciler "
+                f"rank ({reconciler.enforcement.value}) is below operand rank "
+                f"({operand.enforcement.value})."
+            )
+    return violations
+
+
+def _check_enforcement_lattice(
+    ctx: ProjectContext,
+    enforcement_lattice_violations: list[str],
+    verification_errors: list[str],
+    suggestions: list[str],
+) -> None:
+    """FR-002: fail-closed wrapper around :func:`scan_enforcement_lattice_violations`.
+
+    Mirrors :func:`_check_unreconciled_tensions`'s fail-closed shape: a
+    DRG/doctrine load failure is a genuine "could not verify" condition and
+    lands in *verification_errors*, never a silently empty
+    *enforcement_lattice_violations* masquerading as "checked, found
+    nothing." Unlike the advisory tension scan, a non-empty result here IS
+    folded into ``ConsistencyReport.coherent`` -- a lattice violation is a
+    genuine doctrine-authoring defect, not a competing-doctrine signal for
+    the operator to weigh.
+    """
+    try:
+        enforcement_lattice_violations.extend(scan_enforcement_lattice_violations(ctx))
+    except Exception as exc:  # noqa: BLE001  # fail-closed signal below, not a silent pass.
+        verification_errors.append(
+            f"drg: Could not verify enforcement lattice "
+            f"({type(exc).__name__}: {exc})."
+        )
+        suggestions.append(
+            f"drg: Could not verify enforcement lattice "
+            f"({type(exc).__name__}: {exc}). Regenerate graph.yaml / run "
+            f"'spec-kitty charter resynthesize' and retry."
+        )
+
+
+# ---------------------------------------------------------------------------
+# Decision-documentation-on-implement gate (FR-004, mission
+# governance-at-the-gate WP03)
+# ---------------------------------------------------------------------------
+
+#: The one action this gate protects. Only ``software-dev`` ships an
+#: ``implement`` action node; hardcoding the single URN (rather than a
+#: suffix match across mission types) mirrors FR-004's literal wording --
+#: "the ``implement`` action" -- and avoids the cross-kind URN-suffix hijack
+#: risk :func:`~charter.offering.drg.migration.calibrator.calibrate_surfaces`
+#: already documents (a ``mission_step_contract`` node can share the
+#: ``/implement`` suffix).
+_IMPLEMENT_ACTION_URN = "action:software-dev/implement"
+
+#: FR-004 identifies the "decision-documentation" directive CLASS by a
+#: case-insensitive title-substring match, not a hardcoded id. No directive
+#: schema field marks this class -- NFR-001 forbids adding one (the FR-003
+#: reconciler's ``enforcement``/``explicit_allowances`` change is the ONLY
+#: permitted directive-YAML edit this mission makes) -- so the title is the
+#: only signal available. ``DIRECTIVE_003``'s title is literally "Decision
+#: Documentation Requirement"; this deliberately also catches a differently
+#: -numbered FUTURE directive that reintroduces the same obligation under a
+#: title carrying this phrase (SC-004's forward-looking guard), at the
+#: acknowledged cost of being evadable by an unrelated rename. A
+#: schema-backed classification is future work if this proves insufficient.
+_DECISION_DOCUMENTATION_TITLE_MARKER = "decision documentation"
+
+
+def _is_decision_documentation_directive(directive: Directive) -> bool:
+    """Return whether *directive* belongs to the decision-documentation class.
+
+    See :data:`_DECISION_DOCUMENTATION_TITLE_MARKER` for why this is a title
+    match rather than a schema field or a hardcoded id.
+    """
+    return _DECISION_DOCUMENTATION_TITLE_MARKER in directive.title.lower()
+
+
+def scan_decision_documentation_scoped_on_implement(ctx: ProjectContext) -> list[str]:
+    """FR-004: class-level gate -- no ``required`` decision-documentation
+    directive is DELIVERED to the ``implement`` action.
+
+    Resolves ``implement``'s FULL delivered directive set via
+    :func:`charter.offering.drg.query.resolve_context` -- the same
+    scope-edges + unconditional-``requires``-closure + depth-bounded-
+    ``suggests`` resolution that backs ``charter context --action implement
+    --json`` (SC-002's "bundle ``directive_ids``" framing) -- rather than
+    only ``implement``'s direct DRG ``scope`` edges. This distinction is
+    load-bearing: mission governance-at-the-gate's own brownfield
+    investigation (WP03) found ``DIRECTIVE_003`` delivered to ``implement``
+    via a transitive ``requires`` chain from an in-scope procedure even
+    after its direct ``scope`` edge was removed (FR-005) -- a direct-edge
+    -only gate would have passed the shipped corpus while SC-001/SC-002
+    still failed. Reuses ``resolve_context`` (no bespoke second traversal)
+    at the SAME effective depth ``charter context`` uses by default
+    (:data:`charter.activation.context_state._MIN_EFFECTIVE_DEPTH`), so the gate and
+    the CLI surface it protects can never disagree on what "delivered"
+    means.
+
+    Bounded to :data:`_IMPLEMENT_ACTION_URN` -- the one action FR-004 names;
+    this is a targeted regression guard, not a general "no required
+    decision-documentation directive anywhere" rule (``plan``/``specify``/
+    ``tasks``/``retrospect``/``review`` legitimately retain ``DIRECTIVE_003``,
+    FR-005 edge case).
+
+    Returns:
+        One human-readable violation string per offending directive, naming
+        the directive id and title. An empty list means the gate holds
+        (including the legitimate case where ``implement`` delivers no
+        directives at all, or the action node is absent from the graph).
+
+    Raises:
+        Exception: Propagates any DRG/doctrine load failure untouched --
+            callers MUST fail closed (see
+            :func:`_check_decision_documentation_on_implement`).
+    """
+    from charter.activation._drg_helpers import load_validated_graph  # noqa: PLC0415
+    from charter.activation.context_state import _MIN_EFFECTIVE_DEPTH  # noqa: PLC0415
+    from charter.activation.doctrine_service_builder import _build_doctrine_service  # noqa: PLC0415
+    from charter.offering.directives.models import Enforcement  # noqa: PLC0415
+    from charter.offering.drg.query import resolve_context  # noqa: PLC0415
+
+    repo_root = ctx.require_repo_root()
+    pack_context = ctx.require_pack_context()
+    full_drg = load_validated_graph(repo_root)
+
+    resolved = resolve_context(
+        full_drg, _IMPLEMENT_ACTION_URN, depth=_MIN_EFFECTIVE_DEPTH
+    )
+    directive_urns = sorted(
+        urn for urn in resolved.artifact_urns if _urn_is_directive(urn)
+    )
+    if not directive_urns:
+        return []
+
+    directives = _build_doctrine_service(
+        repo_root, org_roots=list(pack_context.org_roots)
+    ).directives
+
+    violations: list[str] = []
+    for urn in directive_urns:
+        directive = directives.get(_urn_bare_id(urn))
+        if directive is None:
+            # implement's resolved bundle already gated membership via the
+            # DRG; a miss here means the doctrine repository and the DRG
+            # graph disagree on what exists -- a genuine "could not verify"
+            # condition, not a legitimate "nothing to check" skip.
+            raise RuntimeError(
+                f"{_IMPLEMENT_ACTION_URN} delivers {urn}, which the DRG "
+                f"reports resolvable but the directive repository cannot "
+                f"resolve."
+            )
+        if (
+            directive.enforcement == Enforcement.REQUIRED
+            and _is_decision_documentation_directive(directive)
+        ):
+            violations.append(
+                f"{_IMPLEMENT_ACTION_URN} delivers {urn} ('{directive.title}'), "
+                f"a required decision-documentation directive; decision "
+                f"documentation must not be delivered to implement."
+            )
+    return violations
+
+
+def _check_decision_documentation_on_implement(
+    ctx: ProjectContext,
+    decision_documentation_on_implement_violations: list[str],
+    verification_errors: list[str],
+    suggestions: list[str],
+) -> None:
+    """FR-004: fail-closed wrapper around
+    :func:`scan_decision_documentation_scoped_on_implement`.
+
+    Mirrors :func:`_check_enforcement_lattice`'s fail-closed shape: a
+    DRG/doctrine load failure is a genuine "could not verify" condition and
+    lands in *verification_errors*, never a silently empty
+    *decision_documentation_on_implement_violations* masquerading as
+    "checked, found nothing." A non-empty result IS folded into
+    ``ConsistencyReport.coherent`` -- a genuine doctrine-authoring defect,
+    not an advisory signal.
+    """
+    try:
+        decision_documentation_on_implement_violations.extend(
+            scan_decision_documentation_scoped_on_implement(ctx)
+        )
+    except Exception as exc:  # noqa: BLE001  # fail-closed signal below, not a silent pass.
+        verification_errors.append(
+            f"drg: Could not verify decision-documentation-on-implement gate "
+            f"({type(exc).__name__}: {exc})."
+        )
+        suggestions.append(
+            f"drg: Could not verify decision-documentation-on-implement gate "
+            f"({type(exc).__name__}: {exc}). Regenerate graph.yaml / run "
+            f"'spec-kitty charter resynthesize' and retry."
+        )
+
+
+# ---------------------------------------------------------------------------
 # Main function
 # ---------------------------------------------------------------------------
 
@@ -1081,7 +1438,7 @@ def run_consistency_check(ctx: ProjectContext) -> ConsistencyReport:
     """Run a full consistency check for the project's activated charter pack.
 
     Checks:
-      - Unknown references (activated IDs absent from charter.offering).
+      - Unknown references (activated IDs absent from doctrine).
       - Cross-kind DRG edge references where the target kind is empty (FR-012).
       - Kind violations and duplicate IDs within activation sets.
       - Config<->charter.yaml catalog ID parity and config<->DRG kind parity
@@ -1103,6 +1460,8 @@ def run_consistency_check(ctx: ProjectContext) -> ConsistencyReport:
     graph_kind_gaps: list[str] = []
     verification_errors: list[str] = []
     unreconciled_tensions: list[TensionFinding] = []
+    enforcement_lattice_violations: list[str] = []
+    decision_documentation_on_implement_violations: list[str] = []
     suggestions: list[str] = []
 
     manager = CharterPackManager()
@@ -1143,10 +1502,37 @@ def run_consistency_check(ctx: ProjectContext) -> ConsistencyReport:
         _check_unreconciled_tensions(
             ctx, unreconciled_tensions, verification_errors, suggestions
         )
+        # FR-002: the enforcement lattice gate is likewise always-on -- it
+        # reuses the same activation read as the tension scan just above
+        # (scan_enforcement_lattice_violations resolves activation from
+        # ``ctx`` directly) and is well-defined under implicit all-active.
+        # Unlike tensions, a lattice violation IS folded into ``coherent``.
+        _check_enforcement_lattice(
+            ctx, enforcement_lattice_violations, verification_errors, suggestions
+        )
+        # FR-004: the decision-documentation-on-implement gate is likewise
+        # always-on -- it resolves ``implement``'s delivered bundle straight
+        # from the DRG (not project activation state), so it is equally
+        # well-defined under implicit all-active. A violation IS folded into
+        # ``coherent``.
+        _check_decision_documentation_on_implement(
+            ctx,
+            decision_documentation_on_implement_violations,
+            verification_errors,
+            suggestions,
+        )
         return ConsistencyReport(
-            coherent=not verification_errors,
+            coherent=not (
+                enforcement_lattice_violations
+                or decision_documentation_on_implement_violations
+                or verification_errors
+            ),
             verification_errors=verification_errors,
             unreconciled_tensions=unreconciled_tensions,
+            enforcement_lattice_violations=enforcement_lattice_violations,
+            decision_documentation_on_implement_violations=(
+                decision_documentation_on_implement_violations
+            ),
             suggestions=suggestions,
         )
 
@@ -1175,10 +1561,23 @@ def run_consistency_check(ctx: ProjectContext) -> ConsistencyReport:
     _check_unreconciled_tensions(
         ctx, unreconciled_tensions, verification_errors, suggestions
     )
+    _check_enforcement_lattice(
+        ctx, enforcement_lattice_violations, verification_errors, suggestions
+    )
+    _check_decision_documentation_on_implement(
+        ctx,
+        decision_documentation_on_implement_violations,
+        verification_errors,
+        suggestions,
+    )
 
     # NFR-001: unreconciled_tensions is deliberately excluded from this
     # reduction -- a tension finding is additive/advisory, never a
     # config<->doctrine defect on its own (contracts/tension-finding.md).
+    # enforcement_lattice_violations and
+    # decision_documentation_on_implement_violations ARE included -- both
+    # FR-002 and FR-004 are genuine doctrine-authoring defects, not
+    # advisory signals.
     coherent = not (
         unknown_references
         or missing_from_doctrine
@@ -1186,6 +1585,8 @@ def run_consistency_check(ctx: ProjectContext) -> ConsistencyReport:
         or reference_id_divergences
         or graph_kind_gaps
         or verification_errors
+        or enforcement_lattice_violations
+        or decision_documentation_on_implement_violations
     )
     return ConsistencyReport(
         coherent=coherent,
@@ -1196,5 +1597,9 @@ def run_consistency_check(ctx: ProjectContext) -> ConsistencyReport:
         graph_kind_gaps=graph_kind_gaps,
         verification_errors=verification_errors,
         unreconciled_tensions=unreconciled_tensions,
+        enforcement_lattice_violations=enforcement_lattice_violations,
+        decision_documentation_on_implement_violations=(
+            decision_documentation_on_implement_violations
+        ),
         suggestions=suggestions,
     )
