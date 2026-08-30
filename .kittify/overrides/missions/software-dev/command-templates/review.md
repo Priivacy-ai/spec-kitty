@@ -26,10 +26,10 @@ Resolve the assigned profile and internalize its identity, boundaries, and direc
 Use the `/ad-hoc-profile-load` skill, or the sanctioned `DoctrineService` entry point below
 — do NOT read YAML files directly and do NOT construct `AgentProfileRepository` or
 `DoctrineService` yourself (five architectural gates ban that construction outside
-`charter.doctrine_service_builder`).
+`charter.activation.doctrine_service_builder`).
 
 ```python
-from charter.doctrine_service_builder import build_activation_aware_doctrine_service
+from charter.activation.doctrine_service_builder import build_activation_aware_doctrine_service
 
 service = build_activation_aware_doctrine_service(project_root)
 profile = service.agent_profiles.get("<profile-id>")  # e.g. "reviewer-renata"
