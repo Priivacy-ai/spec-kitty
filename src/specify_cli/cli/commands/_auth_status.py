@@ -39,6 +39,8 @@ as a failure to shells / scripts.
 
 from __future__ import annotations
 
+from rich.markup import escape
+
 from kernel.clock import UTC, datetime, now_utc
 
 from specify_cli.cli.console import console
@@ -64,6 +66,7 @@ _AUTH_METHOD_LABELS: dict[str, str] = {
     "authorization_code": "Browser (Authorization Code + PKCE)",
     "device_code": "Headless (Device Authorization Grant)",
 }
+
 
 def status_impl() -> None:
     """Print the current authentication status.
