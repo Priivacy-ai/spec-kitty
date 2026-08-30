@@ -785,6 +785,54 @@ class TestAuthStatusSaasLine:
         assert result.exit_code == 0, result.stdout
         assert "Session is for" not in _flat(result.stdout)
 
+    def test_status_shows_split_brain_instead_of_silently_picking_env(self, monkeypatch: pytest.MonkeyPatch, tmp_path):
+        """#193: config.toml and SPEC_KITTY_SAAS_URL genuinely disagree.
+
+        Previously ``_print_saas_target`` resolved with the default
+        ``process_wide_override=True``, under which env silently wins and
+        the diagnostic surface never shows the user that config.toml names a
+        different endpoint. It must now show both values and the
+        disagreement — and never a traceback, per this module's own
+        never-fail invariant (FR-015).
+        """
+        (tmp_path / "config.toml").write_text('[sync]\nserver_url = "https://config.test"\n', encoding="utf-8")
+        session = _make_session(issuer_url="https://saas.test")
+        mock_storage = _mock_storage_returning(session, backend="file")
+        with patch(
+            "specify_cli.auth.secure_storage.SecureStorage.from_environment",
+            return_value=mock_storage,
+        ):
+            monkeypatch.setenv("SPEC_KITTY_HOME", str(tmp_path))
+            # SPEC_KITTY_SAAS_URL=https://saas.test comes from the autouse fixture.
+            reset_token_manager()
+            result = runner.invoke(app, ["status"])
+
+        assert result.exit_code == 0, result.stdout
+        assert "Traceback" not in result.stdout
+        flat = _flat(result.stdout)
+        assert "split-brain" in flat
+        assert "https://config.test" in flat
+        assert "https://saas.test" in flat
+        assert "SPEC_KITTY_SAAS_URL" in flat
+
+    def test_status_split_brain_still_shows_session_issuer(self, monkeypatch: pytest.MonkeyPatch, tmp_path):
+        """The session-issuer line (#213) survives the split-brain branch too."""
+        (tmp_path / "config.toml").write_text('[sync]\nserver_url = "https://config.test"\n', encoding="utf-8")
+        session = _make_session(issuer_url="https://old.example.com")
+        mock_storage = _mock_storage_returning(session, backend="file")
+        with patch(
+            "specify_cli.auth.secure_storage.SecureStorage.from_environment",
+            return_value=mock_storage,
+        ):
+            monkeypatch.setenv("SPEC_KITTY_HOME", str(tmp_path))
+            reset_token_manager()
+            result = runner.invoke(app, ["status"])
+
+        assert result.exit_code == 0, result.stdout
+        flat = _flat(result.stdout)
+        assert "Session SaaS:" in flat
+        assert "https://old.example.com" in flat
+
     def test_no_mismatch_warning_for_legacy_session(self):
         """Pre-#176 sessions carry no issuer; nothing can be compared."""
         session = _make_session(issuer_url=None)
