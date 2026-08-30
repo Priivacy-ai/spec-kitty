@@ -137,6 +137,12 @@ Phase 1 entry-point groups remain valid thin aliases: if no profile is
 registered, Spec Kitty synthesizes a minimal profile from
 `spec_kitty.cli_package` + `spec_kitty.upgrade_provider`.
 
+If a registered profile entry point cannot be loaded or constructed, Spec Kitty
+does **not** fall back to public PyPI. It resolves a degraded profile that
+performs no network lookup, suppresses the no-upgrade notice, and shows manual
+guidance instead of an upgrade command. Fix the profile entry point and restart
+the CLI to restore fork-specific remediation.
+
 ## Phase 3 — Validation checklist
 
 - [ ] Stock install (no entry points): public PyPI + `spec-kitty-cli` behaviour unchanged
