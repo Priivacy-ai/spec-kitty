@@ -87,7 +87,8 @@ def _propagate_one(record: OpEvent, repo_root: Path) -> None:
 
     The real SaaS client uses ``async def send_event(self, event: dict)``.
     It is NOT synchronous and does NOT accept an idempotency_key kwarg.
-    Call pattern mirrors src/specify_cli/sync/emitter.py lines 993-1000.
+    This call pattern historically mirrored the deleted sync package's
+    ``sync/emitter.py`` (removed along with the sync transport, issue #5).
 
     Check ordering (invariant — do not reorder):
       1. Auth/client lookup (_get_saas_client returns None → early return)

@@ -285,28 +285,22 @@ class ProtectedBranchRefused(SafeCommitError):
         commit_message: str,
     ) -> None:
         message = (
+            # planning#261 (squad MINOR on #258): safe_commit takes no
+            # mission_slug and is called from mission-agnostic sites
+            # (core/mission_creation.py, git/bookkeeping_commit.py,
+            # invocation/executor.py, cli/commands/next_cmd.py,
+            # events/decision_log.py, cli/commands/safe_commit_cmd.py) as well
+            # as from mission-aware ones, so this message states only what
+            # safe_commit itself knows -- destination_ref is protected --
+            # instead of asserting a mission cause or a mission-lifecycle
+            # remedy. The mission-aware caller that has mission_slug in scope
+            # (coordination/commit_router.py) builds its own diagnostic with
+            # the finalize-tasks/mission-create remedy.
             f"safe_commit: refusing to commit to protected branch "
             f"{destination_ref!r} in {worktree_root}. "
-            f"This mission's target_branch is protected. "
-            # #255 fix-round-2 (squad pass 2 MAJOR): safe_commit has no
-            # MissionArtifactKind to branch on (it is deliberately
-            # mission-agnostic -- see core/mission_creation.py and
-            # git/bookkeeping_commit.py callers), so unlike
-            # coordination/commit_router.py's stage-aware message this one
-            # states the decision rule instead of a single command: the
-            # `finalize-tasks --target-branch` escape hatch only persists
-            # once `tasks/` exists (mission_finalize.py's
-            # `_revert_unpersisted_target_branch_override` reverts it
-            # otherwise), so a mission without `tasks/` yet must start over
-            # on a feature branch instead of trying to retarget itself.
-            f"If this mission already has a tasks/ directory, persist a "
-            f"non-protected feature branch onto it with: 'spec-kitty agent "
-            f"mission finalize-tasks --mission <mission_slug> --target-branch "
-            f"<feature-branch>'. Otherwise (no tasks/ yet), start a mission on "
-            f"a feature branch instead: 'spec-kitty agent mission create "
-            f"<mission_slug> --start-branch <feature-branch>'. "
-            f"Planning artifacts must land on a feature branch, or land via the "
-            f"mission lane worktree."
+            f"Retry against a non-protected feature branch, or set "
+            f"SPEC_KITTY_ALLOW_PROTECTED_BRANCH_COMMITS=1 if you own this "
+            f"branch."
         )
         super().__init__(
             message,

@@ -119,8 +119,18 @@ def bind_call(client: SaaSTrackerClient) -> dict[str, Any]:
 
 
 def pull_call(client: SaaSTrackerClient) -> dict[str, Any]:
-    """A read endpoint, to prove the gate is transport-wide, not one write path."""
+    """A second POST call site, to prove the gate is transport-wide, not one write path.
+
+    ``pull()`` issues ``POST /api/v1/tracker/pull`` (``saas_client.py``), same shape as
+    ``bind_mission_origin``'s POST -- this is not a GET-shaped call. ``status_call`` below
+    exercises the client's actual GET-shaped endpoint.
+    """
     return client.pull("linear", PROJECT_SLUG)
+
+
+def status_call(client: SaaSTrackerClient) -> dict[str, Any]:
+    """A genuine GET-shaped read (``status``), to prove the gate holds there too."""
+    return client.status("linear", PROJECT_SLUG)
 
 
 def refusal_of(call: Any, client: SaaSTrackerClient) -> SaaSTrackerClientError | None:
@@ -174,14 +184,24 @@ def test_refused_project_transmits_no_engagement_name(tmp_path: Path, sink: list
 
 def test_refused_project_refuses_every_endpoint_kind(tmp_path: Path, sink: list[dict[str, Any]]) -> None:
     """The gate lives at the one ``_request``/``_request_with_retry`` chokepoint, so it must
-    hold for a GET-shaped read (``pull``) exactly as it does for the authoritative bind POST --
-    not just the endpoint the original incident happened to name.
+    hold for a second POST call site (``pull``) exactly as it does for the authoritative bind
+    POST -- not just the endpoint the original incident happened to name.
     """
     save_tracker_config(tmp_path, TrackerProjectConfig(provider="linear", egress="refused"))
 
     refusal = refusal_of(pull_call, SaaSTrackerClient(project_root=tmp_path))
 
     assert sink == [], f"pull() must refuse before any request is issued; recorded {sink!r}"
+    assert isinstance(refusal, TrackerEgressRefusedError)
+
+
+def test_refused_project_refuses_a_get_shaped_read(tmp_path: Path, sink: list[dict[str, Any]]) -> None:
+    """The chokepoint holds for a real GET-shaped read (``status``) too, not just POSTs."""
+    save_tracker_config(tmp_path, TrackerProjectConfig(provider="linear", egress="refused"))
+
+    refusal = refusal_of(status_call, SaaSTrackerClient(project_root=tmp_path))
+
+    assert sink == [], f"status() must refuse before any request is issued; recorded {sink!r}"
     assert isinstance(refusal, TrackerEgressRefusedError)
 
 

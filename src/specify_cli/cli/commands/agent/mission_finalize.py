@@ -60,7 +60,6 @@ from specify_cli.ownership.models import OwnershipManifest
 from specify_cli.ownership.validation import (
     GlobValidationResult,
     ValidationResult,
-    build_wp_manifests,
     validate_glob_matches,
 )
 from specify_cli.status import BootstrapResult, Lane, WPMetadata, _Builder
@@ -1492,13 +1491,12 @@ def _validate_ownership_manifests(
     json_output: bool,
 ) -> None:
     """Phase: ownership overlap + glob-match + audit-coverage validation."""
-    validation_manifests = _resolve_wp_manifests_for_validation(wp_manifests, wp_frontmatters)
-    if not validation_manifests:
+    if not wp_manifests:
         return
     wp_dependencies = {
         wp_id: list(fm.dependencies) for wp_id, fm in wp_frontmatters.items() if getattr(fm, "dependencies", None)
     }
-    ownership_result = _validate_ownership_via_mission(validation_manifests, wp_dependencies)
+    ownership_result = _validate_ownership_via_mission(wp_manifests, wp_dependencies)
     for warning in ownership_result.warnings:
         if not json_output:
             console.print(f"[yellow]Ownership warning:[/yellow] {warning}")
@@ -1513,7 +1511,7 @@ def _validate_ownership_manifests(
         raise typer.Exit(1) from None
 
     create_intent = {wp_id: list(fm.create_intent) for wp_id, fm in wp_frontmatters.items() if fm.create_intent}
-    glob_result = validate_glob_matches(validation_manifests, repo_root, create_intent=create_intent)
+    glob_result = validate_glob_matches(wp_manifests, repo_root, create_intent=create_intent)
     _record_ownership_glob_diagnostics(glob_result, state, json_output=json_output)
     if not glob_result.passed:
         error_msg = "Ownership validation failed: literal-path owned_files entries match zero files. Fix the paths or add them to 'create_intent'."
@@ -1523,23 +1521,12 @@ def _validate_ownership_manifests(
             console.print(f"[red]Error:[/red] {error_msg}")
         raise typer.Exit(1) from None
 
-    codebase_wide = [list(m.owned_files) for m in validation_manifests.values() if m.is_codebase_wide]
+    codebase_wide = [list(m.owned_files) for m in wp_manifests.values() if m.is_codebase_wide]
     audit_warnings = validate_audit_coverage(codebase_wide, repo_root)
     state.ownership_warnings.extend(audit_warnings)
     if not json_output:
         for warning in audit_warnings:
             console.print(f"[yellow]Audit coverage warning:[/yellow] {warning}")
-
-
-def _resolve_wp_manifests_for_validation(
-    wp_manifests: dict[str, OwnershipManifest],
-    wp_frontmatters: dict[str, WPMetadata],
-) -> dict[str, OwnershipManifest]:
-    """Return the complete ownership-manifest view used by validation."""
-    if not wp_frontmatters:
-        return dict(wp_manifests)
-    derived = build_wp_manifests(wp_frontmatters)
-    return {**derived, **wp_manifests}
 
 
 def _project_lane_inputs(

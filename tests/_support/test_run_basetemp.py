@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import atexit
 import os
+import stat
 import subprocess
 import sys
 from pathlib import Path
@@ -16,9 +17,11 @@ from types import SimpleNamespace
 
 import pytest
 
+from tests._support import run_basetemp as run_basetemp_module
 from tests._support.run_basetemp import (
     RUN_TMP_ROOT_NAME,
     STALE_RUN_MAX_AGE_S,
+    _validate_existing_root,
     install_run_basetemp,
     mark_session_outcome,
     remove_run_dirs,
@@ -100,6 +103,73 @@ def test_remove_run_dirs_handles_dirs_files_and_repeats(tmp_path: Path) -> None:
     assert removed == [victim_dir, victim_file]
     assert not victim_dir.exists() and not victim_file.exists()
     assert remove_run_dirs([victim_dir, victim_file]) == []
+
+
+# ---------------------------------------------------------------------------
+# Pre-existing-root validation (#77: pytest-parity owner/mode/symlink checks)
+# ---------------------------------------------------------------------------
+
+
+def test_validate_existing_root_repairs_world_readable_mode(tmp_path: Path) -> None:
+    root = tmp_path / "root"
+    root.mkdir(mode=0o755)
+    os.chmod(root, 0o755)  # mkdir's mode is umask-filtered; force the bits we're testing
+
+    _validate_existing_root(root)
+
+    assert stat.S_IMODE(root.stat().st_mode) & 0o077 == 0
+
+
+def test_validate_existing_root_rejects_a_symlinked_root(tmp_path: Path) -> None:
+    real_dir = tmp_path / "real"
+    real_dir.mkdir()
+    link = tmp_path / "link"
+    link.symlink_to(real_dir)
+
+    with pytest.raises(OSError, match="symbolic link"):
+        _validate_existing_root(link)
+
+
+def test_validate_existing_root_rejects_a_root_owned_by_another_uid(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    root = tmp_path / "root"
+    root.mkdir()
+    monkeypatch.setattr(run_basetemp_module, "get_user_id", lambda: root.stat().st_uid + 1)
+
+    with pytest.raises(OSError, match="not owned by the current user"):
+        _validate_existing_root(root)
+
+
+def test_validate_existing_root_is_a_noop_when_uid_is_undeterminable(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Windows' ``get_user_id`` returns ``None`` — matches pytest's own
+    rootdir check, which skips owner/mode enforcement in that case too."""
+    real_dir = tmp_path / "real"
+    real_dir.mkdir()
+    link = tmp_path / "link"
+    link.symlink_to(real_dir)
+    monkeypatch.setattr(run_basetemp_module, "get_user_id", lambda: None)
+
+    _validate_existing_root(link)  # must not raise despite the symlink
+
+
+def test_install_run_basetemp_rejects_a_preexisting_symlinked_root(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    temp_root = tmp_path / "temproot"
+    temp_root.mkdir()
+    monkeypatch.setenv("PYTEST_DEBUG_TEMPROOT", str(temp_root))
+    real_dir = tmp_path / "real-root"
+    real_dir.mkdir()
+    (temp_root / RUN_TMP_ROOT_NAME).symlink_to(real_dir)
+
+    with pytest.raises(OSError, match="symbolic link"):
+        install_run_basetemp(_fake_config(), now=10**9)
 
 
 # ---------------------------------------------------------------------------
