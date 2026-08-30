@@ -25,7 +25,7 @@ from specify_cli.upgrade.migrations.m_3_2_8_provision_kitty_env import (
     NEVER_SEED_VARS,
     ProvisionKittyEnvMigration,
     _read_ignore_file_text,
-    _write_ignore_file_text,
+    _atomic_write_claudeignore,
     _append_claudeignore_entry,
     _open_claudeignore_no_follow,
 )
@@ -406,12 +406,12 @@ class TestNonRegularIgnoreFiles:
             _read_ignore_file_text(fifo_path)
 
     @pytest.mark.timeout(5)
-    def test_write_ignore_file_text_rejects_fifo_without_hanging(self, tmp_path: Path) -> None:
+    def test_atomic_write_claudeignore_rejects_fifo_without_hanging(self, tmp_path: Path) -> None:
         fifo_path = tmp_path / ".claudeignore"
         os.mkfifo(fifo_path)
 
         with pytest.raises(OSError):
-            _write_ignore_file_text(fifo_path, "irrelevant\n")
+            _atomic_write_claudeignore(fifo_path, "irrelevant\n")
 
     def test_read_ignore_file_text_rejects_symlink(self, tmp_path: Path) -> None:
         target = tmp_path / "real.gitignore"
@@ -425,9 +425,11 @@ class TestNonRegularIgnoreFiles:
     def test_read_ignore_file_text_returns_empty_string_for_missing_file(self, tmp_path: Path) -> None:
         assert _read_ignore_file_text(tmp_path / "does-not-exist") == ""
 
-    def test_write_then_read_ignore_file_text_round_trips_on_a_regular_file(self, tmp_path: Path) -> None:
+    def test_atomic_write_then_read_claudeignore_round_trips_on_a_regular_file(
+        self, tmp_path: Path
+    ) -> None:
         path = tmp_path / ".claudeignore"
-        _write_ignore_file_text(path, "node_modules/\n*.log\n")
+        _atomic_write_claudeignore(path, "node_modules/\n*.log\n")
 
         assert _read_ignore_file_text(path) == "node_modules/\n*.log\n"
 

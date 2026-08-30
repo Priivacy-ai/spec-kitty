@@ -313,18 +313,6 @@ def _read_ignore_file_text(path: Path) -> str:
         return handle.read()
 
 
-def _write_ignore_file_text(path: Path, content: str) -> None:
-    """Write an ignore file's full text, replacing any existing content.
-
-    Fails closed via :class:`NonRegularIgnoreFileError` on a symlink or any
-    other non-regular file instead of following/clobbering/blocking on it.
-    See :func:`_open_ignore_file_no_follow`.
-    """
-    fd = _open_ignore_file_no_follow(path, os.O_WRONLY | os.O_CREAT | os.O_TRUNC)
-    with os.fdopen(fd, "w", encoding="utf-8") as handle:
-        handle.write(content)
-
-
 def _ignore_file_entries(path: Path) -> set[str]:
     return {
         line.strip()
