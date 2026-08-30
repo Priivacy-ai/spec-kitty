@@ -241,6 +241,7 @@ def test_saas_fanout_fires_via_emit_mission_created_local(tmp_path: Path) -> Non
     """
     from specify_cli.status.lifecycle_events import emit_mission_created_local
 
+    (tmp_path / ".git").mkdir()
     (tmp_path / "status.events.jsonl").parent.mkdir(parents=True, exist_ok=True)
 
     mock_fanout = MagicMock()

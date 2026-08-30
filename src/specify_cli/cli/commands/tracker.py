@@ -290,7 +290,7 @@ def _check_sync_readiness(*, root: Path | None = None) -> None:
     through to the readiness probe exactly as before.
 
     SaaS-backed (or unknown/unconfigured) bindings get the full readiness
-    chain plus the manual-mode daemon-policy check.
+    chain plus the ``tracker_egress_verdict`` gate above.
 
     **Pass ``root`` so the pre-flight gate judges the same project the transport
     will.** ``SaaSTrackerClient._request`` resolves its own ``project_root``
@@ -321,9 +321,10 @@ def _check_sync_readiness(*, root: Path | None = None) -> None:
 def _check_binding_readiness(*, probe_reachability: bool = False) -> None:
     """Provider-aware readiness gate for non-sync commands that act on a binding.
 
-    Mirrors :func:`_check_sync_readiness` without the daemon-policy step: used
-    by ``status``, ``map add``, ``map list``, and ``unbind`` which require a
-    binding to operate on but do not interact with the background sync daemon.
+    Mirrors :func:`_check_sync_readiness` without its ``tracker_egress_verdict``
+    gate: used by ``status``, ``map add``, ``map list``, and ``unbind`` which
+    require a binding to operate on but never construct a connector or run a
+    subprocess.
 
     **Does not inherit :func:`_check_sync_readiness`'s corrected note about
     ``tracker_egress_verdict`` and Channel 1 (#3108).** The commands this

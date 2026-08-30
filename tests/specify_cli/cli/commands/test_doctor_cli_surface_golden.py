@@ -602,14 +602,6 @@ def test_skills_name_is_invokable_and_returns_documented_exit_code(
     assert result.exit_code in {0, 1, 2}
 
 
-def test_restart_daemon_name_is_invokable_with_four_state_contract(
-    runner: CliRunner,
-) -> None:
-    # Load-bearing name (__init__ argv fast-path). Four-state restart contract.
-    result = runner.invoke(app, ["restart-daemon", "--json"])
-    assert result.exit_code in {0, 1, 2, 3}
-
-
 def test_sparse_checkout_fix_reaches_refusal_or_clean_path(
     runner: CliRunner,
 ) -> None:
@@ -639,22 +631,21 @@ def test_public_and_load_bearing_symbols_are_importable() -> None:
 
 # --- T004: cross-surface name coupling (#2059, GAP 1) ------------------------
 #
-# FROZEN_SUBCOMMANDS pins the live Typer names, but three OTHER string-keyed
-# surfaces hard-code a subset of those names and are NOT cross-checked by the
-# golden snapshots above:
+# FROZEN_SUBCOMMANDS pins the live Typer names, but one OTHER string-keyed
+# surface hard-codes a subset of those names and is NOT cross-checked by the
+# golden snapshots above: the ``compat.safety_modes`` SAFETY_REGISTRY tuples
+# (e.g. ``("doctor", "skills")``, ``("doctor", "sparse-checkout")``).
 #
-#   1. the ``compat.safety_modes`` SAFETY_REGISTRY tuples
-#      (e.g. ``("doctor", "skills")``, ``("doctor", "sparse-checkout")``);
-#   2. the ``__init__`` argv fast-path predicates that key on the literal
-#      ``"skills"`` / ``"restart-daemon"`` tokens; and
-#   3. the ``cli.commands`` registration fast-path predicate for
-#      ``"restart-daemon"``.
-#
-# A rename that updates FROZEN_SUBCOMMANDS + doctor.py but forgets one of these
-# surfaces silently desyncs: the mode-gate tests monkeypatch sys.argv to the
-# hard-coded literal, so they stay green. These tests derive expected values
-# from the LIVE app + the real registry/predicate symbols (no second copy of
+# A rename that updates FROZEN_SUBCOMMANDS + doctor.py but forgets that
+# surface silently desyncs: the mode-gate tests monkeypatch sys.argv to the
+# hard-coded literal, so they stay green. The test below derives expected
+# values from the LIVE app + the real registry symbols (no second copy of
 # the literal), so such a rename FAILS here.
+#
+# (The ``__init__`` argv fast-path predicate and ``cli.commands`` registration
+# fast-path predicate for ``restart-daemon`` this comment used to describe
+# were removed along with the ``restart-daemon`` subcommand itself, issue #5;
+# the remaining fast-path predicate below covers ``skills`` only.)
 
 
 def _live_doctor_subcommand_names() -> frozenset[str]:
