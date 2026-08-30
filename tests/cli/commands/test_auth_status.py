@@ -38,14 +38,16 @@ from specify_cli.auth.server_target import (
     ResolvedServerTarget,
 )
 from specify_cli.auth.session import StoredSession, Team
+from specify_cli.cli.commands._auth_saas_target import (
+    format_saas_mismatch_warning,
+    format_saas_provenance,
+    saas_source_name,
+)
 from specify_cli.cli.commands._auth_status import (
     _print_token_expiry,
     format_auth_method,
     format_duration,
-    format_saas_mismatch_warning,
-    format_saas_provenance,
     format_storage_backend,
-    saas_source_name,
 )
 from specify_cli.cli.commands.auth import app
 
