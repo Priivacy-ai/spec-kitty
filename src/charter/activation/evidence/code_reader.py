@@ -136,9 +136,7 @@ def _is_test_file(rel_path: str, filename: str) -> bool:
             return True
     # Directory-based heuristic
     parts = to_posix(rel_path).split("/")
-    if "tests" in parts or "__tests__" in parts:
-        return True
-    return False
+    return "tests" in parts or "__tests__" in parts
 
 
 # ---------------------------------------------------------------------------
