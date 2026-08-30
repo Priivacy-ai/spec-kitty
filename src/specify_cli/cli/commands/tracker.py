@@ -56,6 +56,7 @@ app.add_typer(sync_app, name="sync")
 # Stable wording constants (asserted byte-for-byte by tests)
 # ---------------------------------------------------------------------------
 
+
 def _print_json(payload: Any) -> None:
     typer.echo(json.dumps(payload, indent=2, sort_keys=True, default=str))
 
@@ -189,14 +190,7 @@ def _render_readiness_failure(result: Any) -> None:
         next_token = "spec-kitty-auth-login"  # noqa: S105 - command token, not a secret.
     else:
         # Deterministic slug from the remediation phrase; fallback to "unknown".
-        next_token = (
-            "-".join(
-                tok.strip("`.,").lower()
-                for tok in next_action.split()
-                if tok.strip("`.,")
-            )
-            or "unknown"
-        )
+        next_token = "-".join(tok.strip("`.,").lower() for tok in next_action.split() if tok.strip("`.,")) or "unknown"
     typer.echo(
         f"spec-kitty tracker: readiness={state_value} next={next_token}",
         err=True,
@@ -380,13 +374,13 @@ def _run_or_exit(fn):  # type: ignore[no-untyped-def]
 
 @app.callback()
 def tracker_callback() -> None:
-    """Defense-in-depth rollout gate for tracker commands.
+    """Rollout gate for tracker commands.
 
-    The conditional registration in cli/commands/__init__.py already hides
-    this group entirely when the flag is off.  This callback is a
-    defense-in-depth check in case the env-var state drifts between import
-    time and invocation time.  Per-command readiness checks handle all
-    prerequisite validation beyond the rollout gate.
+    Registration in cli/commands/__init__.py is unconditional, so this
+    callback is the sole gate: it checks env-var state at invocation time
+    and blocks every tracker command when the rollout flag is off.
+    Per-command readiness checks handle all prerequisite validation beyond
+    the rollout gate.
     """
     if not is_saas_sync_enabled():
         typer.secho(saas_sync_disabled_message(), fg=typer.colors.RED, err=True)
@@ -432,10 +426,9 @@ def providers_command(
     Local providers use direct connectors with locally stored credentials.
 
     This command is purely informational and prints the hard-coded provider
-    categories.  It does **not** consult hosted readiness — the rollout gate
-    itself is enforced by ``tracker_callback`` (and by the conditional
-    registration in ``cli/commands/__init__.py``), which is all the gating
-    this static output needs.
+    categories.  It does **not** consult hosted readiness — ``tracker_callback``
+    is the sole rollout gate for the tracker Typer app, which is all the
+    gating this static output needs.
     """
 
     def _run() -> None:
@@ -641,10 +634,7 @@ def bind_command(
 
             mode = doctrine_mode.strip().lower()
             if mode not in set(_doctrine_modes()):
-                raise TrackerServiceError(
-                    f"Invalid doctrine mode '{doctrine_mode}'. "
-                    f"Expected one of: {', '.join(_doctrine_modes())}"
-                )
+                raise TrackerServiceError(f"Invalid doctrine mode '{doctrine_mode}'. Expected one of: {', '.join(_doctrine_modes())}")
 
             parsed_field_owners = parse_kv_pairs(field_owners)
             parsed_credentials = parse_kv_pairs(credentials)
@@ -666,10 +656,7 @@ def bind_command(
             return
 
         # Unknown provider
-        raise TrackerServiceError(
-            f"Unknown provider '{provider_normalized}'. "
-            f"Supported: {', '.join(sorted(SAAS_PROVIDERS | LOCAL_PROVIDERS))}"
-        )
+        raise TrackerServiceError(f"Unknown provider '{provider_normalized}'. Supported: {', '.join(sorted(SAAS_PROVIDERS | LOCAL_PROVIDERS))}")
 
     _run_or_exit(_run)
 
@@ -735,9 +722,7 @@ def _bind_saas(
         return False
 
     # No candidates (should not reach here -- service raises on no-match)
-    raise TrackerServiceError(
-        f"No bindable resources found for provider '{provider}'."
-    )
+    raise TrackerServiceError(f"No bindable resources found for provider '{provider}'.")
 
 
 def _display_bind_success(
@@ -795,9 +780,7 @@ def _handle_candidate_selection(
 
 @app.command("status")
 def status_command(
-    all_installations: bool = typer.Option(
-        False, "--all", help="Show installation-wide status (SaaS providers only)"
-    ),
+    all_installations: bool = typer.Option(False, "--all", help="Show installation-wide status (SaaS providers only)"),
     as_json: bool = typer.Option(False, "--json", help="Render status as JSON"),
 ) -> None:
     """Show tracker binding and sync status.
@@ -853,7 +836,6 @@ def _print_installation_wide_status(payload: dict) -> None:
     from rich.panel import Panel
     from rich.table import Table
 
-
     provider = payload.get("provider", "unknown")
     connected = payload.get("connected", payload.get("status", "unknown"))
     bindings = payload.get("bindings")
@@ -880,9 +862,7 @@ def _print_installation_wide_status(payload: dict) -> None:
             table.add_row("No bindings", str(provider), str(connected), "-")
 
         if "resource_count" in payload:
-            table.caption = (
-                f"Connected: {connected} | Resources: {payload['resource_count']}"
-            )
+            table.caption = f"Connected: {connected} | Resources: {payload['resource_count']}"
 
         panel = Panel(table, title="Installation-wide tracker status", border_style="green")
         console.print(panel)
@@ -927,11 +907,7 @@ def _binding_project_label(binding: dict[str, Any]) -> str:
 
 def _binding_status_label(binding: dict[str, Any]) -> str:
     """Return a normalized status label for installation-wide bindings."""
-    return str(
-        binding.get("status")
-        or binding.get("sync_state")
-        or ("bound" if binding.get("binding_ref") or binding.get("bound_at") else "unknown")
-    )
+    return str(binding.get("status") or binding.get("sync_state") or ("bound" if binding.get("binding_ref") or binding.get("bound_at") else "unknown"))
 
 
 # ---------------------------------------------------------------------------
@@ -1009,10 +985,7 @@ def map_list_command(
         if not mappings:
             typer.echo("No mappings found")
             if pending_binding_upgrade:
-                typer.echo(
-                    "Tracker binding upgrade available: "
-                    f"{pending_binding_upgrade}. Run `spec-kitty tracker bind` to apply."
-                )
+                typer.echo(f"Tracker binding upgrade available: {pending_binding_upgrade}. Run `spec-kitty tracker bind` to apply.")
             return
 
         typer.echo("Mappings")
@@ -1020,10 +993,7 @@ def map_list_command(
             key = row.get("external_key") or row.get("external_id")
             typer.echo(f"- {row.get('wp_id')}: {row.get('system')}:{key}")
         if pending_binding_upgrade:
-            typer.echo(
-                "Tracker binding upgrade available: "
-                f"{pending_binding_upgrade}. Run `spec-kitty tracker bind` to apply."
-            )
+            typer.echo(f"Tracker binding upgrade available: {pending_binding_upgrade}. Run `spec-kitty tracker bind` to apply.")
 
     _run_or_exit(_run)
 
@@ -1109,7 +1079,8 @@ def sync_pull_command(
 def sync_push_command(
     limit: int = typer.Option(100, "--limit", min=1, max=10000, help="Max items (local providers only)"),
     items_json: str | None = typer.Option(
-        None, "--items-json",
+        None,
+        "--items-json",
         help="Path to JSON file with PushItem[] array (SaaS providers). Use '-' for stdin.",
     ),
     as_json: bool = typer.Option(False, "--json", help="Render sync result as JSON"),
@@ -1153,8 +1124,7 @@ def sync_push_command(
             parsed = json.loads(raw)
             if not isinstance(parsed, list):
                 typer.secho(
-                    "Error: --items-json must contain a JSON array of "
-                    "PushItem objects.",
+                    "Error: --items-json must contain a JSON array of PushItem objects.",
                     fg=typer.colors.RED,
                     err=True,
                 )
