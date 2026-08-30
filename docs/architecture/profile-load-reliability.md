@@ -21,6 +21,13 @@ work makes possible is a **separate, backlog-scoped** design — see
 > charter API. The squad overturned an initial mis-attribution (see §2.4) and converged
 > on the activation-allowlist root cause with live-command and git evidence.
 
+> **Tracking.** Epic [#3809](https://github.com/Priivacy-ai/spec-kitty/issues/3809)
+> ("squads must never dispatch unprofiled"). Children: #3810 (activation-allowlist bug,
+> §4.1), #3811 (orchestrator-injects fail-loud contract, §4.2), #3812 (`/spk-load-profile`,
+> §4.3), #3813 (WP-prompt hygiene, §4.4), #3814 (research/doc template parity), #3816
+> (`directive:<id>` selector bug, §6 D1) — all milestone **3.2.6**; #3815 (charter-backend
+> design spike) in **Product backlog**.
+
 ## 1. Symptoms
 
 Squad delegates dispatched at a point-cut (per the `adversarial-squad` skill) were
@@ -179,7 +186,7 @@ hybrid §4.2:123 already names, but both narrow it:
      found"** for every directive ID tested (agent-profile / tactic / section selectors
      work; the *directive* selector does not). This makes "inject IDs, not bodies"
      (§4.2:121) a **dead end** — delegates cannot expand injected directive IDs. Fix the
-     selector, or inject directive bodies. **Needs its own ticket.**
+     selector, or inject directive bodies. **Filed as #3816 (3.2.6, P1, Bug).**
   2. **Sequencing dependency: §4.1 must land before any §4.2 injection rollout.** Injecting
      a resolved roster *today* would freeze the current 23-of-25 allowlist (daphne/randy
      de-activated) into every delegate with **no runtime recovery** — converting Issue 1
@@ -227,10 +234,10 @@ free-text positional is the wrong shape. **§4.3 is amended:**
   **seed of §4.2** (one source consumed by the skill roster, the guard, and the injector).
 - **Do not mark Issue 1 closed on §4.1 alone** — close it on §4.2; track §4.1 as mitigation.
 
-### New tickets surfaced by the dialectic (not in the original set)
+### New tickets surfaced by the dialectic (filed post-review)
 - **[Bug]** `charter context --include directive:<id>` selector returns `EXIT 1` for valid
-  directive IDs (D1.i above) — blocks the inject-IDs compaction strategy.
-- **[Constraint on #3811]** the fail-loud contract's guard and injector must consume one
-  canonical squad-eligible query (D4) — fold into #3810/#3811 acceptance criteria.
-- **[Constraint on #3812]** `/spk-load-profile` reconciles with `dispatch --profile` and
-  keeps a load-only path (D3) — fold into #3812 acceptance criteria.
+  directive IDs (D1.i above) — blocks the inject-IDs compaction strategy. **Filed #3816.**
+- **[Constraint]** the fail-loud contract's guard and injector must consume one canonical
+  squad-eligible query (D4) — **folded into #3810/#3811 acceptance criteria.**
+- **[Constraint]** `/spk-load-profile` reconciles with `dispatch --profile` and keeps a
+  load-only path (D3) — **folded into #3812 acceptance criteria.**
