@@ -46,3 +46,30 @@ Deep-path `from charter.<name> import …` breaks on the move (lazy `__init__` d
 7. **Full-sweep verify** — arch shards + docs freshness + terminology baselines (the M2 landing-pass blind spot), not just affected trees.
 
 **Approval requested**: MAP-A partition, DEC-1 (drg split), DEC-2 (5 subpkgs → activation), and MAP-C (rewrite call sites, not shims). On approval, execution begins at step 2.
+
+---
+
+## Census refresh (landing, 2026-08-30 — rebase base `16aba180f1`)
+
+The MAP-C census above is **frozen against `34790048ed`**. The landing pass
+rebased this mission onto `16aba180f1` (17 commits ahead, incl. #3804 and
+#3806 governance-at-the-gate). Re-running the deep-path importer census
+(`from|import charter.<moved-module>` + mock-target string literals, over
+`src/` and `tests/`) against the new base found the frozen 355/66 census had
+drifted: **#3806 added deep-path call sites outside it** —
+
+- 5 new `tests/charter/` files (`test_enforcement_lattice`,
+  `test_decision_documentation_on_implement`, `test_action_bundle_tension_arbiters`,
+  `test_directive_003_implement_to_review`, incl. two `patch("charter._drg_helpers…")`
+  mock targets), and
+- 5 additional function-local self-imports inside `consistency_check.py`
+  (`charter._drg_helpers`, `charter.doctrine_service_builder`,
+  `charter.context_state`) — the base had 3, main carried 8.
+
+All were re-pointed to `charter.activation.*` in the landing folds
+(`fix(landing): re-point #3806 census-drift importers…`,
+`docs(landing): re-point shipped charter import samples…`). Post-refresh the
+deep-path straggler count to any moved module is **0** across `.py` imports,
+`.py` mock-target string literals, and the shipped `.md` code samples. The
+frozen 355/66 counts are left as the historical MAP-C snapshot; this addendum
+is the authoritative post-rebase delta.
