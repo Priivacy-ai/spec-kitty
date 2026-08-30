@@ -33,7 +33,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 from rich.console import Console
 
-from specify_cli.auth.server_target import OverrideMode, ResolvedServerTarget
+from specify_cli.auth.server_target import OverrideMode, ResolvedServerTarget, SAAS_URL_ENV_VAR
 from specify_cli.auth.session import StoredSession, Team
 from specify_cli.cli.commands import _auth_doctor
 from specify_cli.cli.commands._auth_doctor import (
@@ -391,7 +391,9 @@ async def test_check_server_session_active(monkeypatch: pytest.MonkeyPatch) -> N
 
     with (
         patch.object(
-            _auth_doctor, "resolve_server_target", lambda: _fake_target("https://saas.example.com")
+            _auth_doctor,
+            "resolve_server_target",
+            lambda **_kwargs: _fake_target("https://saas.example.com"),
         ),
         patch("httpx.AsyncClient", return_value=mock_client),
     ):
@@ -420,7 +422,9 @@ async def test_check_server_session_401(monkeypatch: pytest.MonkeyPatch) -> None
 
     with (
         patch.object(
-            _auth_doctor, "resolve_server_target", lambda: _fake_target("https://saas.example.com")
+            _auth_doctor,
+            "resolve_server_target",
+            lambda **_kwargs: _fake_target("https://saas.example.com"),
         ),
         patch("httpx.AsyncClient", return_value=mock_client),
     ):
@@ -449,7 +453,9 @@ async def test_check_server_session_network_error(monkeypatch: pytest.MonkeyPatc
 
     with (
         patch.object(
-            _auth_doctor, "resolve_server_target", lambda: _fake_target("https://saas.example.com")
+            _auth_doctor,
+            "resolve_server_target",
+            lambda **_kwargs: _fake_target("https://saas.example.com"),
         ),
         patch("httpx.AsyncClient", return_value=mock_client),
     ):
@@ -459,6 +465,47 @@ async def test_check_server_session_network_error(monkeypatch: pytest.MonkeyPatc
     assert result.error is not None
     assert "ConnectError" in result.error
     # Access token must not appear in the error.
+    assert "tok" not in result.error
+
+
+async def test_check_server_session_split_brain_fails_closed(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    """An ambiguous env/config target is reported without making the send."""
+    home = tmp_path / "split-brain-home"
+    home.mkdir()
+    monkeypatch.setenv("SPEC_KITTY_HOME", str(home))
+    (home / "config.toml").write_text(
+        '[sync]\nserver_url = "https://configured.example.com"\n', encoding="utf-8"
+    )
+    monkeypatch.setenv(SAAS_URL_ENV_VAR, "https://env-override.example.com")
+
+    session = _make_session(refresh_token_expires_at=now_utc() + timedelta(days=30))
+    assert session.issuer_url is None
+
+    class _TmWithAccessToken:
+        def get_current_session(self) -> StoredSession:
+            return session
+
+        async def get_access_token(self) -> str:
+            return "tok"
+
+    import specify_cli.auth as _auth_module
+    monkeypatch.setattr(_auth_module, "get_token_manager", lambda: _TmWithAccessToken())
+
+    with patch(
+        "httpx.AsyncClient",
+        side_effect=AssertionError("the bearer-token send must fail closed"),
+    ):
+        result = await _check_server_session()
+
+    assert result.active is False
+    assert result.error is not None
+    assert result.error.startswith("SaaS URL mismatch:")
+    assert "configured.example.com" in result.error
+    assert "env-override.example.com" in result.error
+    assert SAAS_URL_ENV_VAR in result.error
     assert "tok" not in result.error
 
 
@@ -588,7 +635,9 @@ async def test_check_server_session_issuer_mismatch_skips_refresh(
         _auth_module, "get_token_manager", lambda: _FakeTokenManagerWithSession(session)
     )
     monkeypatch.setattr(
-        _auth_doctor, "resolve_server_target", lambda: _fake_target("https://team.spec-kitty.ai")
+        _auth_doctor,
+        "resolve_server_target",
+        lambda **_kwargs: _fake_target("https://team.spec-kitty.ai"),
     )
 
     result = await _check_server_session()
@@ -616,7 +665,9 @@ async def test_check_server_session_issuer_matches_proceeds_normally(
         _auth_module, "get_token_manager", lambda: _TmMatchingIssuer(session)
     )
     monkeypatch.setattr(
-        _auth_doctor, "resolve_server_target", lambda: _fake_target("https://team.spec-kitty.ai")
+        _auth_doctor,
+        "resolve_server_target",
+        lambda **_kwargs: _fake_target("https://team.spec-kitty.ai"),
     )
 
     mock_response = MagicMock()
@@ -651,7 +702,9 @@ async def test_check_server_session_no_issuer_proceeds_normally(
     import specify_cli.auth as _auth_module
     monkeypatch.setattr(_auth_module, "get_token_manager", lambda: _TmNoIssuer(session))
     monkeypatch.setattr(
-        _auth_doctor, "resolve_server_target", lambda: _fake_target("https://team.spec-kitty.ai")
+        _auth_doctor,
+        "resolve_server_target",
+        lambda **_kwargs: _fake_target("https://team.spec-kitty.ai"),
     )
 
     mock_response = MagicMock()
@@ -683,7 +736,9 @@ def test_server_issuer_mismatch_error_none_on_bare_async_mock(
     """A bare ``AsyncMock`` test double (unconfigured ``get_current_session``) is treated as unknown, not a mismatch."""
     tm = AsyncMock()
     monkeypatch.setattr(
-        _auth_doctor, "resolve_server_target", lambda: _fake_target("https://team.spec-kitty.ai")
+        _auth_doctor,
+        "resolve_server_target",
+        lambda **_kwargs: _fake_target("https://team.spec-kitty.ai"),
     )
     assert _server_issuer_mismatch_error(tm) is None
 
