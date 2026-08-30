@@ -102,8 +102,10 @@ def _deserialize_result(data: dict[str, Any]) -> UpgradeProbeResult | None:
     """Reconstruct an UpgradeProbeResult from cache JSON. Returns ``None`` on failure.
 
     Accepts the legacy ``latest_pypi_version`` key (written by installs before
-    the field was renamed) as a fallback so an on-disk cache from an older
-    build round-trips instead of forcing an immediate re-probe.
+    the field was renamed) as a fallback. It is useful only when the old and
+    current builds report the same installed version, such as an editable
+    install or a same-version rc rebuild; a released upgrade changes that
+    version, so the freshness pin forces a re-probe regardless of the key.
     """
     try:
         latest_release_version = data.get("latest_release_version", data.get("latest_pypi_version"))
