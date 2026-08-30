@@ -157,3 +157,80 @@ contract** without touching delegates. See
 > **Freeze note.** The `adversarial-squad` skill and charter packs are doctrine surfaces;
 > some changes may fall under the 3.2.x doctrine-surface freeze (`pr:deferred`). Sequence
 > the data fix (§4.1) first — it restores squads with the least surface.
+
+## 6. Dialectic review outcomes (2026-08-30)
+
+Four dialectic squads (thesis ↔ antithesis, 8 profile-loaded delegates) stress-tested the
+§4/§5 design. All four converged; none required synthesizer escalation. This section
+**amends** the sections named. Confidence figures are the delegates' own.
+
+### D1 — Resolution locus (§4.2): **hybrid, sharpened**
+Thesis (inject, 0.8) and antithesis (live-resolve, HIGH-on-facts) agree the answer is the
+hybrid §4.2:123 already names, but both narrow it:
+- **Injection carries a fail-loud FLOOR** — resolved profile identity + boundaries + proof
+  of successful resolution, **pinned at dispatch**. This is what makes "never dispatch
+  unprofiled" true and is the *only* path for CLI-less/shell-less/headless harnesses.
+- **On-demand pulls stay `required-capable`, not merely "allowed where available"** — a
+  delegate that needs an unanticipated tactic/body must be able to pull it live where the
+  harness permits; otherwise the on-demand path silently degrades on exactly the harnesses
+  that need it. Do **not** freeze *everything*.
+- **Two new must-fix findings (live-verified by the antithesis):**
+  1. **`spec-kitty charter context --include directive:<id>` returns `EXIT 1` "No directive
+     found"** for every directive ID tested (agent-profile / tactic / section selectors
+     work; the *directive* selector does not). This makes "inject IDs, not bodies"
+     (§4.2:121) a **dead end** — delegates cannot expand injected directive IDs. Fix the
+     selector, or inject directive bodies. **Needs its own ticket.**
+  2. **Sequencing dependency: §4.1 must land before any §4.2 injection rollout.** Injecting
+     a resolved roster *today* would freeze the current 23-of-25 allowlist (daphne/randy
+     de-activated) into every delegate with **no runtime recovery** — converting Issue 1
+     from "silent unprofiled" into "silently *wrong* roster, permanently." A live delegate
+     self-heals once §4.1 lands; an injected one cannot.
+
+### D2 — Backend service (§4.2-future / charter-backend-service-future.md): **keep backlog** (0.8 / 0.85, convergent)
+Both sides independently affirm the existing scope filing. The backend is the *right*
+boundary and *right to defer*. Hard gates before it leaves backlog:
+- Land §4.1 + §4.2 **first** — the backend fixes zero Issue-1 defects; a warm cache over
+  the same omitted allowlist is "faster and more consistently wrong."
+- **Design cache-invalidation before any cache is trusted** — a warm authority serving
+  stale doctrine violates the fail-loud invariant. This must land *on paper first*.
+- **Never a hard dependency** — degradation always falls back to in-process resolution,
+  never to unprofiled dispatch.
+- **Promotion triggers (a number, not an argument):** (1) measured resolution latency
+  materially on the dispatch critical path; (2) ≥2 repos in one program sharing a
+  centrally-refreshed corpus; (3) a real shell-less fleet dispatched by a non-orchestrator
+  surface. *(Live corroboration: a delegate's own CLI resolved doctrine from a sibling fork
+  checkout, not CWD — the environment-drift motivation is real but not yet urgent.)*
+
+### D3 — `/spk-load-profile` shape (§4.3): **consolidate, but reconcile with `spec-kitty dispatch`**
+Thesis (0.72) and antithesis (moderate-high) converge: consolidation's atomicity win is
+real **for the orchestrator-emitted dispatch case**, but a naive `<id> <instructions>`
+free-text positional is the wrong shape. **§4.3 is amended:**
+- **`spec-kitty dispatch` already carries load+task** (task positional, `--profile` flag —
+  `dispatch.py:225-232`). `/spk-load-profile` must be a **redirect/emitter over
+  `dispatch --profile` + the §4.2 inject contract, not a third resolution engine**
+  (directive 044 — else it duplicates `dispatch`).
+- **`<instructions>` must be passed structurally, not as a bare positional tail** — mirror
+  `dispatch`'s inversion, so there is no `<id> <instructions>` whitespace-split ambiguity.
+- **Keep a load-only interactive path** — the "adopt a profile" trigger has no single task;
+  `<instructions>` is optional, and pure-load must stay first-class and testable
+  independently of task text.
+
+### D4 — Issue 1 fix (§4.1 vs §4.2): **data-first, seam-closes** (0.85 / 0.85, convergent on sequencing)
+- **§4.1 data fix is the correct PRIMARY *first* move** — smallest surface, clears the
+  freeze, restores squads, and (with the guard) discharges directive 043 for these two
+  instances. Apply at **both** authoring sites (`charter.yaml` + `default.yaml:187`).
+- **§4.2 is the actual *class* close** — data alone leaves the fail-open fallback and the
+  two-list drift intact; the class recurs on the next `charter sync`/de-activation.
+- **Critical guard-design refinement (both delegates):** the §4.1 regression guard **must
+  derive its lens list from a single canonical "squad-eligible profiles" query**, not a
+  hand-copied list — otherwise it becomes a *third* drift-prone copy. That query is the
+  **seed of §4.2** (one source consumed by the skill roster, the guard, and the injector).
+- **Do not mark Issue 1 closed on §4.1 alone** — close it on §4.2; track §4.1 as mitigation.
+
+### New tickets surfaced by the dialectic (not in the original set)
+- **[Bug]** `charter context --include directive:<id>` selector returns `EXIT 1` for valid
+  directive IDs (D1.i above) — blocks the inject-IDs compaction strategy.
+- **[Constraint on #3811]** the fail-loud contract's guard and injector must consume one
+  canonical squad-eligible query (D4) — fold into #3810/#3811 acceptance criteria.
+- **[Constraint on #3812]** `/spk-load-profile` reconciles with `dispatch --profile` and
+  keeps a load-only path (D3) — fold into #3812 acceptance criteria.
