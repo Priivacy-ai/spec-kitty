@@ -140,16 +140,16 @@ class StoredCredential:
     # every entry whose issuer did not report one (all entries stored before
     # this field existed), which callers treat as "no recorded expiry".
     expires_at: str | None = None
-    # squad finding on #123: the store key is the bare repo NAME
-    # (`repo_identity.repo_name`), which two differently-hosted repos can
+    # squad finding on #123: the store key was the bare repo NAME
+    # (`repo_identity.repo_name`), which two differently-hosted repos could
     # share (a same-name hostile checkout would otherwise read a cached
-    # admitted credential minted for someone else's repo). `host`/
-    # `repo_slug` record the full identity `resolution.py` minted this
-    # credential for, so a caller can revalidate a cache hit against the
-    # checkout it is about to use it for. `None` for every entry stored
-    # before this field existed (a manual `zeitgeist checkout`, or any
-    # pre-fix mint) -- callers treat that as "no scope recorded", the same
-    # backward-compatible reading `expires_at` already gets.
+    # admitted credential minted for someone else's repo). #132 moved the
+    # key to `resolution.store_key`'s `host/owner/repo`; `host`/
+    # `repo_slug` remain the recorded scope a caller revalidates a cache
+    # hit against before using it for a checkout. `None` for every entry
+    # stored before this field existed (a manual `zeitgeist checkout`, or
+    # any pre-fix mint) -- callers treat that as "no scope recorded", the
+    # same backward-compatible reading `expires_at` already gets.
     host: str | None = None
     repo_slug: str | None = None
     # #10: the admitting team's slug, recorded verbatim from the admission
@@ -262,6 +262,33 @@ def _reject_empty(value: str | None, name: str) -> None:
         raise ValueError(f"{name} must be non-empty when provided")
 
 
+def _focus_lease_scope_unchanged(
+    previous: dict[str, str],
+    *,
+    relay_url: str,
+    host: str | None,
+    repo_slug: str | None,
+    team: str | None,
+) -> bool:
+    """Whether ``previous``'s relay/team identity still matches the entry
+    about to replace it (EXPERIMENTAL-spec-kitty#197).
+
+    A focus-kind capability JWT is minted by Team Kitty for a specific
+    ``(relay_url, host, repo_slug, team)`` — the relay it must be presented
+    to and the team scope it was granted under. ``token`` is deliberately
+    NOT compared: a re-mint of the presence credential routinely rotates
+    the relay bearer even when nothing about the relay/team identity moved
+    (that is exactly what :func:`store` does on every refresh), and treating
+    that as a scope change would drop a still-valid focus lease on every
+    ordinary re-mint — the behaviour
+    ``test_reminting_the_main_credential_preserves_a_live_focus_lease``
+    pins. When any of the four identity fields moved, the cached focus
+    lease was minted for a relay/team this entry no longer points at, so it
+    must not be carried forward.
+    """
+    return previous.get("relay_url") == relay_url and previous.get("host") == host and previous.get("repo_slug") == repo_slug and previous.get("team") == team
+
+
 def _positive_entry(
     *,
     relay_url: str,
@@ -281,7 +308,12 @@ def _positive_entry(
     literal to round-trip instead. The focus lease (#186) is independent of
     the main one: a re-mint of the presence-kind credential (same repo, same
     actor) must not silently drop a still-valid focus lease, so whatever the
-    replaced entry held carries over. Only
+    replaced entry held carries over -- but only when the replaced entry's
+    relay/team identity is the one the focus lease was actually minted for
+    (:func:`_focus_lease_scope_unchanged`, #197). Otherwise the focus lease
+    is dropped here so the next focus publish mints a fresh one scoped to
+    the new identity, rather than resolve_focus_capability() serving a
+    lease minted for a relay/team this entry no longer points at. Only
     :func:`store_focus_capability` replaces those two fields.
     """
     entry: dict[str, str] = {
@@ -294,9 +326,10 @@ def _positive_entry(
         entry["capability_credential"] = capability_credential
     if expires_at is not None:
         entry["expires_at"] = expires_at
-    for field_name in ("focus_capability_credential", "focus_expires_at"):
-        if field_name not in entry and field_name in previous:
-            entry[field_name] = previous[field_name]
+    if _focus_lease_scope_unchanged(previous, relay_url=relay_url, host=host, repo_slug=repo_slug, team=team):
+        for field_name in ("focus_capability_credential", "focus_expires_at"):
+            if field_name not in entry and field_name in previous:
+                entry[field_name] = previous[field_name]
     if host is not None:
         entry["host"] = host
     if repo_slug is not None:

@@ -108,7 +108,6 @@ def _patch_repo_environment(repo: Path) -> list[AbstractContextManager[Any]]:
         patch(f"{_CORE_MODULE}.is_worktree_context", return_value=False),
         patch(f"{_CORE_MODULE}.is_git_repo", return_value=True),
         patch(f"{_CORE_MODULE}.get_current_branch", return_value="main"),
-        patch("specify_cli.status.fire_dossier_sync"),
         patch(f"{_CORE_MODULE}._commit_feature_file"),
     ]
 
@@ -325,7 +324,6 @@ def test_create_json_output_contains_coordination_branch(tmp_path: Path) -> None
         patch(f"{_CORE_MODULE}.is_worktree_context", return_value=False),
         patch(f"{_CORE_MODULE}.is_git_repo", return_value=True),
         patch(f"{_CORE_MODULE}.get_current_branch", return_value="main"),
-        patch("specify_cli.status.fire_dossier_sync"),
         patch(f"{_CORE_MODULE}._commit_feature_file"),
         patch("specify_cli.cli.commands.agent.mission.locate_project_root", return_value=tmp_path),
         patch("specify_cli.cli.commands.agent.mission.get_current_branch", return_value="main"),
@@ -400,7 +398,6 @@ def test_create_on_non_primary_branch_without_pr_bound_defaults_to_single_branch
         patch(f"{_CORE_MODULE}.is_worktree_context", return_value=False),
         patch(f"{_CORE_MODULE}.is_git_repo", return_value=True),
         patch(f"{_CORE_MODULE}.get_current_branch", return_value="feature/my-fix"),
-        patch("specify_cli.status.fire_dossier_sync"),
         patch(f"{_CORE_MODULE}._commit_feature_file"),
         patch("specify_cli.cli.commands.agent.mission.locate_project_root", return_value=tmp_path),
         patch("specify_cli.cli.commands.agent.mission.get_current_branch", return_value="feature/my-fix"),
@@ -434,7 +431,6 @@ def test_create_on_primary_branch_still_defaults_to_coord(tmp_path: Path) -> Non
         patch(f"{_CORE_MODULE}.is_worktree_context", return_value=False),
         patch(f"{_CORE_MODULE}.is_git_repo", return_value=True),
         patch(f"{_CORE_MODULE}.get_current_branch", return_value="main"),
-        patch("specify_cli.status.fire_dossier_sync"),
         patch(f"{_CORE_MODULE}._commit_feature_file"),
         patch("specify_cli.cli.commands.agent.mission.locate_project_root", return_value=tmp_path),
         patch("specify_cli.cli.commands.agent.mission.get_current_branch", return_value="main"),
@@ -468,7 +464,6 @@ def test_create_pr_bound_on_non_primary_branch_still_defaults_to_coord(tmp_path:
         patch(f"{_CORE_MODULE}.is_worktree_context", return_value=False),
         patch(f"{_CORE_MODULE}.is_git_repo", return_value=True),
         patch(f"{_CORE_MODULE}.get_current_branch", return_value="feature/my-fix"),
-        patch("specify_cli.status.fire_dossier_sync"),
         patch(f"{_CORE_MODULE}._commit_feature_file"),
         patch("specify_cli.cli.commands.agent.mission.locate_project_root", return_value=tmp_path),
         patch("specify_cli.cli.commands.agent.mission.get_current_branch", return_value="feature/my-fix"),
@@ -503,7 +498,6 @@ def test_create_explicit_topology_overrides_context_derivation(tmp_path: Path) -
         patch(f"{_CORE_MODULE}.is_worktree_context", return_value=False),
         patch(f"{_CORE_MODULE}.is_git_repo", return_value=True),
         patch(f"{_CORE_MODULE}.get_current_branch", return_value="main"),
-        patch("specify_cli.status.fire_dossier_sync"),
         patch(f"{_CORE_MODULE}._commit_feature_file"),
         patch("specify_cli.cli.commands.agent.mission.locate_project_root", return_value=tmp_path),
         patch("specify_cli.cli.commands.agent.mission.get_current_branch", return_value="main"),
@@ -538,7 +532,6 @@ def test_pr_bound_create_json_refuses_with_json_instead_of_prompt_abort(tmp_path
         patch(f"{_CORE_MODULE}.is_worktree_context", return_value=False),
         patch(f"{_CORE_MODULE}.is_git_repo", return_value=True),
         patch(f"{_CORE_MODULE}.get_current_branch", return_value="main"),
-        patch("specify_cli.status.fire_dossier_sync"),
         patch(f"{_CORE_MODULE}._commit_feature_file"),
         patch("specify_cli.cli.commands.agent.mission.locate_project_root", return_value=tmp_path),
         patch("specify_cli.cli.commands.agent.mission.get_current_branch", return_value="main"),
@@ -581,7 +574,6 @@ def test_pr_bound_create_json_already_confirmed_preserves_success_path(tmp_path:
         patch(f"{_CORE_MODULE}.is_worktree_context", return_value=False),
         patch(f"{_CORE_MODULE}.is_git_repo", return_value=True),
         patch(f"{_CORE_MODULE}.get_current_branch", return_value="main"),
-        patch("specify_cli.status.fire_dossier_sync"),
         patch(f"{_CORE_MODULE}._commit_feature_file"),
         patch("specify_cli.cli.commands.agent.mission.locate_project_root", return_value=tmp_path),
         patch("specify_cli.cli.commands.agent.mission.get_current_branch", return_value="main"),
@@ -622,7 +614,6 @@ def test_pr_bound_create_start_branch_switches_before_scaffold_writes(tmp_path: 
     with (
         patch(f"{_CORE_MODULE}.locate_project_root", return_value=tmp_path),
         patch(f"{_CORE_MODULE}.is_worktree_context", return_value=False),
-        patch("specify_cli.status.fire_dossier_sync"),
         patch("specify_cli.cli.commands.agent.mission.locate_project_root", return_value=tmp_path),
     ):
         result = runner.invoke(

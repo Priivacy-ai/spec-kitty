@@ -18,8 +18,6 @@ territory (Z1.md §4 preamble); this double never leaves ``127.0.0.1``.
 
 from __future__ import annotations
 
-from kernel.clock import now_epoch
-
 import contextlib
 import http.server
 import json
@@ -27,22 +25,25 @@ import queue
 import socket
 import threading
 import time
-from collections.abc import Generator
+import os
+from collections.abc import Callable, Generator
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
 import pytest
 
-from specify_cli.zeitgeist_client import moments
+from kernel.clock import now_epoch
+
+from specify_cli.zeitgeist_client import moments, repo_identity
 
 
 @pytest.fixture()
 def instead_of_rewrite(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> str:
     """A synthetic global git config that rewrites ``https://github.com/``
     onto a proxy host, inherited by every child ``git`` through
-    ``GIT_CONFIG_GLOBAL`` (which is not one of ``Deadline``'s stripped
-    discovery vars, so the real machine config is never touched).
+    ``GIT_CONFIG_GLOBAL`` with system-level config disabled, so the real
+    machine config is never touched.
 
     This is the shape every exe.dev VM — and many corporate laptops — carry
     for real, and it is exactly what made identity resolution report the
@@ -57,7 +58,61 @@ def instead_of_rewrite(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> str:
     config_path = tmp_path / "global-gitconfig"
     config_path.write_text(f'[url "https://{proxy_host}/"]\n\tinsteadOf = https://github.com/\n')
     monkeypatch.setenv("GIT_CONFIG_GLOBAL", str(config_path))
+    monkeypatch.setenv("GIT_CONFIG_NOSYSTEM", "1")
     return proxy_host
+
+
+@pytest.fixture()
+def no_git_ancestry_inside_tmp_path(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Keep an unrelated ancestor checkout's identity from leaking into
+    tests that build a repo-less directory under ``tmp_path`` and expect
+    resolution to fail closed with ``UnverifiedRepositoryIdentity``.
+
+    When pytest's base temp directory itself sits under a checkout with an
+    ``origin`` remote configured — true of every exe.dev VM in this
+    programme, where repos live under ``/work`` — the upward walk both the
+    filesystem fallback (``_git_dir_from_filesystem``) and the live-git
+    probe (``Deadline.run``) perform can reach past ``tmp_path`` into that
+    ancestor and mint ITS identity instead of raising. Bound both to
+    ``tmp_path``, the same boundary-pin PR #386 established for one test:
+    a lookup that would otherwise resolve to a ``.git`` OUTSIDE
+    ``tmp_path`` reports nothing found, exactly as a real repo-less
+    directory would, while a ``.git`` genuinely created inside
+    ``tmp_path`` by the test itself (e.g. the ``origin``/``_clone``
+    fixtures) is unaffected.
+    """
+    boundary = os.path.abspath(str(tmp_path))
+    real_git_dir_from_filesystem: Callable[[str], str] = (
+        repo_identity._git_dir_from_filesystem
+    )
+    real_deadline_run: Callable[[repo_identity.Deadline, list[str], str], str] = (
+        repo_identity.Deadline.run
+    )
+
+    def _inside_boundary(path: str) -> bool:
+        candidate = os.path.abspath(path)
+        return candidate == boundary or candidate.startswith(boundary + os.sep)
+
+    def _bounded_git_dir_from_filesystem(cwd: str) -> str:
+        git_dir = real_git_dir_from_filesystem(cwd)
+        if git_dir and not _inside_boundary(git_dir):
+            return ""
+        return git_dir
+
+    def _bounded_deadline_run(
+        self: repo_identity.Deadline, args: list[str], cwd: str
+    ) -> str:
+        git_dir = real_git_dir_from_filesystem(os.path.realpath(cwd))
+        if git_dir and not _inside_boundary(git_dir):
+            return ""
+        return real_deadline_run(self, args, cwd)
+
+    monkeypatch.setattr(
+        repo_identity, "_git_dir_from_filesystem", _bounded_git_dir_from_filesystem
+    )
+    monkeypatch.setattr(repo_identity.Deadline, "run", _bounded_deadline_run)
 
 
 @dataclass
@@ -133,9 +188,7 @@ class TeamKittyDouble:
                     except json.JSONDecodeError:
                         parsed = None
                 with double._lock:
-                    double.requests.append(
-                        RecordedRequest(self.command, self.path, dict(self.headers), parsed)
-                    )
+                    double.requests.append(RecordedRequest(self.command, self.path, dict(self.headers), parsed))
                 if double.response_delay_s:
                     time.sleep(double.response_delay_s)
                 payload = json.dumps(double.response_body).encode("utf-8")
@@ -344,9 +397,13 @@ import re as _re
 
 _SCHEMA_VERSION_RE = _re.compile(r"^1\.[0-9]+\.[0-9]+$")
 _FOCUS_OPS = frozenset({"focus.start", "focus.heartbeat", "focus.pause", "focus.end"})
-_ALL_MANAGED_OPS = frozenset({"presence.publish", "session.revoke"}) | _FOCUS_OPS
+_ALL_MANAGED_OPS = frozenset({"presence.publish", "session.revoke", "event.publish"}) | _FOCUS_OPS
 _KIND_CAPS_DOUBLE: dict[str, frozenset[str]] = {
-    "presence": frozenset({"presence.publish"}),
+    # `presence` also grants `event.publish` on the real relay
+    # (`managed_auth._KIND_CAPS`) — the CLI's fire-and-forget status moment
+    # rides the same lease it already holds for presence. Kept in parity
+    # here (spec-kitty#30).
+    "presence": frozenset({"presence.publish", "event.publish"}),
     "focus": _FOCUS_OPS,
     "operator": frozenset({"session.revoke"}),
 }
@@ -387,6 +444,10 @@ _ARGS_SHAPE_DOUBLE: dict[str, tuple[frozenset[str], frozenset[str]]] = {
         frozenset({"session_id", "reason"}),
         frozenset({"session_id", "reason"}),
     ),
+    "event.publish": (
+        frozenset({"session_id", "kind", "attrs"}),
+        frozenset({"session_id", "kind", "ref", "attrs"}),
+    ),
 }
 
 
@@ -405,17 +466,21 @@ def _validate_args_shape(op: str, args: dict) -> str | None:
 
 
 def mint_capability_token(
-    key: str, *, sub: str, team: str, deployment: str, repo: str, kind: str,
-    iat: float, exp: float,
+    key: str,
+    *,
+    sub: str,
+    team: str,
+    deployment: str,
+    repo: str,
+    kind: str,
+    iat: float,
+    exp: float,
 ) -> str:
     """The exact wire shape ``managed_auth.SharedSecretCapabilityVerifier``
     verifies — reimplemented here (test-only) so a test can mint a
     protocol-real ``X-Zeitgeist-Capability`` value without importing
     zeitgeist (no dependency exists in either direction)."""
-    payload = json.dumps(
-        {"sub": sub, "team": team, "deployment": deployment, "repo": repo,
-         "kind": kind, "iat": iat, "exp": exp}
-    ).encode("utf-8")
+    payload = json.dumps({"sub": sub, "team": team, "deployment": deployment, "repo": repo, "kind": kind, "iat": iat, "exp": exp}).encode("utf-8")
     payload_b64 = _base64.urlsafe_b64encode(payload).rstrip(b"=").decode("ascii")
     # Reproduces the real relay's HMAC capability-token wire shape
     # (managed_auth.SharedSecretCapabilityVerifier) — a body/file-integrity
@@ -439,6 +504,7 @@ class ManagedControlState:
     dedup: dict[tuple, dict] = field(default_factory=dict)
     focus_started: set = field(default_factory=set)
     last_headers: dict[str, str] = field(default_factory=dict)
+    last_status: int | None = None
 
     def authorized(self, header_value: str | None) -> bool:
         if not header_value:
@@ -483,9 +549,7 @@ def _apply_managed_op(state: ManagedControlState, op: str, args: dict, scope: tu
                 raise _FocusNotStartedDouble(op)
 
 
-def _dispatch_managed_control(
-    state: ManagedControlState, headers: Any, raw: bytes
-) -> tuple[int, dict]:
+def _dispatch_managed_control(state: ManagedControlState, headers: Any, raw: bytes) -> tuple[int, dict]:
     """The whole ``POST /managed/control`` decision tree, isolated from
     ``http.server`` plumbing so it stays one small, directly-testable
     function rather than living inside a handler method."""
@@ -590,6 +654,19 @@ class ManagedControlDouble:
         with self._state.lock:
             return dict(self._state.last_headers)
 
+    def last_response_status(self) -> int | None:
+        """The raw HTTP status of the most recently answered request.
+
+        ``offer()``/``OfferResult`` collapse every non-2xx into
+        ``OfferOutcome.REJECTED`` (#352), so a test that must distinguish
+        *why* a request was rejected (e.g. 422 unknown-op vs. 403
+        kind-does-not-grant-op) needs to look past the client's outcome
+        enum at what the double actually answered.
+        """
+        assert self._state is not None
+        with self._state.lock:
+            return self._state.last_status
+
     def set_shared_token(self, value: str) -> None:
         """Reconfigure the ``Authorization: Bearer`` secret the running
         double checks, after ``start()`` — lets one test build several
@@ -626,6 +703,8 @@ class ManagedControlDouble:
                 length = int(self.headers.get("Content-Length", "0") or "0")
                 raw = self.rfile.read(length) if length else b"{}"
                 status, payload = _dispatch_managed_control(state, self.headers, raw)
+                with state.lock:
+                    state.last_status = status
                 self._send_json(status, payload)
 
         return _Handler

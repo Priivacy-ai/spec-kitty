@@ -167,21 +167,29 @@ def _oauth_session_context() -> AuthContext | None:
     session recorded against one server is refused, not paired, when the
     resolved target now names a different one (#234).
     ``resolve_server_target`` still fails closed on an ambiguous split-brain;
-    that refusal surfaces here as ``None`` and the caller's own error message
-    names what is missing.
+    that refusal surfaces here as a distinct ``SaasAuthError`` naming both
+    URLs (#306) rather than folding into the caller's generic "no SaaS token
+    configured: ... run `spec-kitty auth login`" message — on a split-brain
+    machine login already succeeded (FR-005 lets it win), so pointing the
+    operator back at it is a no-op loop; the real fix is reconciling
+    ``config.toml``/``SPEC_KITTY_SAAS_URL``.
 
-    Every *bridge-unavailable* failure degrades to ``None`` plus a debug
-    log: for the fire-and-forget status fan-out an unusable session means
-    "stay silent". A dead session or an issuer mismatch is different — both
-    are refusals that must reach interactive callers as a ``SaasAuthError``
-    naming the remedy, not silence. The token is only ever read from the
-    store, never written anywhere.
+    Every other *bridge-unavailable* failure still degrades to ``None`` plus
+    a debug log: for the fire-and-forget status fan-out an unusable session
+    means "stay silent". A dead session or an issuer mismatch is different —
+    both are refusals that must reach interactive callers as a
+    ``SaasAuthError`` naming the remedy, not silence. The token is only ever
+    read from the store, never written anywhere.
     """
+    from specify_cli.auth.server_target import ServerTargetSplitBrainError  # noqa: PLC0415
+
     try:
         manager = _token_manager()
         target = _resolved_server_target()
         session = manager.get_current_session()
-    except Exception as exc:  # noqa: BLE001 — any bridge trouble means "not available"
+    except ServerTargetSplitBrainError as exc:
+        raise SaasAuthError(str(exc)) from exc
+    except Exception as exc:  # noqa: BLE001 — any other bridge trouble means "not available"
         logger.debug("OAuth session bridge unavailable (%s)", exc)
         return None
 
@@ -216,17 +224,36 @@ def _guard_session_issuer(session: Any, target: Any) -> None:
     if _normalize_endpoint(issuer_url) == _normalize_endpoint(target.resolved_server_url):
         return
     raise SaasAuthError(
-        f"Session is for {_normalize_endpoint(issuer_url)}; the resolved server now points at {target.resolved_server_url} — run `spec-kitty auth login --force`"
+        f"Session is for {_normalize_endpoint(issuer_url)}; {_saas_source_name(target)} now points at "
+        f"{target.resolved_server_url} — run spec-kitty auth login --force"
     )
+
+
+def _saas_source_name(target: Any) -> str:
+    """Name the configuration source ``target.resolved_server_url`` came from.
+
+    Mirrors ``specify_cli.cli.commands._auth_status.saas_source_name``
+    (#300) so this refusal names the same override source ``spec-kitty auth
+    status`` would — duplicated locally, like ``_normalize_endpoint`` above,
+    so this module does not reach into a CLI-presentation module's helper.
+    """
+    from specify_cli.auth.server_target import SAAS_URL_ENV_VAR  # noqa: PLC0415
+
+    if target.env_server_url is not None:
+        return str(SAAS_URL_ENV_VAR)
+    if target.configured_server_url is not None:
+        return "config.toml [sync].server_url"
+    return "the default endpoint"
 
 
 def _normalize_endpoint(url: str) -> str:
     """Normalize a URL for endpoint comparison.
 
-    Same semantics as ``server_target._normalize_url`` /
-    ``_auth_status._normalize_endpoint`` (strip surrounding whitespace, drop
-    one trailing slash); kept local so the comparison does not reach into
-    another module's private helper.
+    Same semantics as ``server_target._normalize_url`` (strip surrounding
+    whitespace, drop one trailing slash); kept local so the comparison does
+    not reach into another module's private helper. Other modules keep their
+    own local copy with the same semantics rather than being named here, so
+    this reference doesn't go stale as those copies move (#423).
     """
     return url.strip().rstrip("/")
 

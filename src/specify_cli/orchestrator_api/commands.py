@@ -61,25 +61,48 @@ import click
 from typer import core as typer_core
 from typer.core import TyperGroup
 
-# Typer 0.26+ vendors click as typer._click; exceptions from that module are
-# distinct from the standalone click package's exceptions. We need to catch both
-# so that _JSONErrorGroup works regardless of the installed typer version.
-try:
-    from typer import _click as _typer_click_module  # type: ignore[attr-defined]
-    _CLICK_USAGE_ERRORS: tuple[type, ...] = (
-        click.UsageError,
-        _typer_click_module.exceptions.UsageError,
-    )
-    _CLICK_ABORTS: tuple[type, ...] = (click.Abort, _typer_click_module.exceptions.Abort)
-except ImportError:
-    _CLICK_USAGE_ERRORS = (click.UsageError,)
-    _CLICK_ABORTS = (click.Abort,)
+# Typer 0.26+ vendors click as ``typer._click``; exceptions raised by that copy
+# are distinct classes from the standalone ``click`` package's, so every catch
+# below must name both.  The vendored module's surface is itself a moving
+# target: 0.26.x exposed ``exceptions.Abort``/``exceptions.Exit``, while 0.27.x
+# exposes only ``exceptions.UsageError`` and raises typer's own public
+# ``typer.Abort``/``typer.Exit`` instead (spec-kitty#713).  Every class is
+# therefore resolved with ``getattr`` and a ``None`` default — never as an
+# eagerly evaluated default expression such as ``getattr(m, "Abort",
+# m.exceptions.Abort)``, which raised ``AttributeError`` at import time — and
+# typer's stable public ``typer.Abort``/``typer.Exit`` are always included.
 
 
-_CLICK = typer_core._click if hasattr(typer_core, "_click") else typer_core.click
-_USAGE_ERROR = getattr(_CLICK, "UsageError", _CLICK.exceptions.UsageError)
-_ABORT = getattr(_CLICK, "Abort", _CLICK.exceptions.Abort)
-_EXIT = getattr(_CLICK, "Exit", _CLICK.exceptions.Exit)
+def _vendored_click_exception(name: str) -> type[BaseException] | None:
+    """Return ``typer._click``'s exception class ``name``, or ``None`` if absent.
+
+    Looks in the vendored ``exceptions`` submodule first, then the package
+    root, and never touches an attribute it has not confirmed exists.
+    """
+    module = getattr(typer_core, "_click", None)
+    if module is None:
+        return None
+    for holder in (getattr(module, "exceptions", None), module):
+        candidate = getattr(holder, name, None) if holder is not None else None
+        if isinstance(candidate, type) and issubclass(candidate, BaseException):
+            return candidate
+    return None
+
+
+def _exception_classes(*candidates: type[BaseException] | None) -> tuple[type[BaseException], ...]:
+    """Deduplicate ``candidates`` into an ``except``-clause tuple, dropping ``None``."""
+    classes: list[type[BaseException]] = []
+    for candidate in candidates:
+        if candidate is not None and candidate not in classes:
+            classes.append(candidate)
+    return tuple(classes)
+
+
+_CLICK_USAGE_ERRORS = _exception_classes(click.UsageError, _vendored_click_exception("UsageError"))
+_CLICK_ABORTS = _exception_classes(click.Abort, typer.Abort, _vendored_click_exception("Abort"))
+# ``typer.Exit`` is click's ``Exit`` on typer <= 0.25 and typer's own class on
+# >= 0.26, so it covers the standalone-click spelling in both eras (TID251).
+_EXIT = _exception_classes(typer.Exit, _vendored_click_exception("Exit"))
 
 
 class _JSONErrorGroup(TyperGroup):
@@ -1135,7 +1158,6 @@ def start_implementation(
             repo_root=main_repo_root,
             policy_metadata=policy_dict,
             ensure_sync_daemon=False,
-            sync_dossier=False,
         )
     except WorkPackageClaimConflict as exc:
         _fail(
@@ -1229,7 +1251,6 @@ def start_review(
             repo_root=main_repo_root,
             policy_metadata=policy_dict,
             ensure_sync_daemon=False,
-            sync_dossier=False,
         )
     except WorkPackageClaimConflict as exc:
         _fail(
@@ -1450,7 +1471,6 @@ def transition(
                 policy_metadata=policy_dict,
             ),
             ensure_sync_daemon=False,
-            sync_dossier=False,
         )
     except TransitionError as exc:
         _fail(cmd, "TRANSITION_REJECTED", str(exc))

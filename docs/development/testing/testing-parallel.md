@@ -35,9 +35,9 @@ make test-full    # everything, parallel + serial passes — CI's target, not PR
 ```
 
 `make test-full` runs the bulk of the suite across worker processes, then gives
-each parallel-unsafe family (`stress`, `timing`, …) its own dedicated serial
-pass — see [AGENTS.md](../../../AGENTS.md#commands) for the exact pass
-breakdown and the PR-validation test policy.
+each of the two parallel-unsafe families (`stress` and `timing`) its own
+dedicated serial pass — see [AGENTS.md](../../../AGENTS.md#commands) for the
+exact pass breakdown and the PR-validation test policy.
 
 ## Why `--dist loadfile` (never bare `--dist load`)
 
@@ -105,10 +105,14 @@ choice as usual (`…/run-<pid>/popen-gwN`). Consequences worth knowing:
 
 - An explicit `--basetemp` still wins untouched — whoever passes one owns its
   lifecycle.
-- A healthy run leaves nothing behind: the run dir is removed at interpreter
-  exit, and crash leftovers older than 24 h are swept at startup. Unlike
-  pytest's default 3-session retention, `tmp_path` contents are therefore NOT
-  available for post-mortem inspection after the run ends.
+- Retention is outcome-gated (#76): a healthy run (`ExitCode.OK`) leaves
+  nothing behind — the run dir is removed at interpreter exit. A run that
+  fails, errors, or is interrupted keeps its private basetemp tree instead, so
+  `tmp_path` contents from that run ARE available for post-mortem inspection,
+  bounded by the 24 h stale-crash sweep below (which also catches a run that
+  never reaches `pytest_sessionfinish`, e.g. a SIGKILL, since the exit-gated
+  reap never runs for it either). This differs from pytest's own default
+  3-session retention, which keeps every session's tree regardless of outcome.
 
 ## `tmp_path` retention policy
 
@@ -131,41 +135,34 @@ repo: it only ever applies to the code path that prunes pytest's own
 default numbered basetemp tree, which never runs once a basetemp is given —
 so it is not a lever worth reaching for here.
 
-## The serial daemon pass
+## The serial marker passes
 
 Per-worker HOME isolation protects per-user state, but it does **not** protect
-OS-global resources such as real TCP ports or singleton daemons. Tests that bind
-the reserved fixed daemon port range (9400–9449) must run in their own serial
-pass. That family is **five** files, not just `test_orphan_sweep.py` — the
-single-source registry is `tests/_real_port_suites.py`'s `FIXED_RANGE_SUITES`
-(verified there via `grep -rl find_free_port_in_range tests/sync/*.py`):
-
-- `tests/sync/test_orphan_sweep.py`
-- `tests/sync/test_daemon_orphan_classification.py`
-- `tests/sync/test_daemon_cleanup_boundary.py`
-- `tests/sync/test_issue_1071_singleton_reconfirmation.py`
-- `tests/sync/test_legacy_daemon_retirement_r2t1.py`
+wall-clock timing or real multi-process/subprocess concurrency. Two marker
+families are corrupted by co-scheduled `pytest-xdist` workers and get their
+own dedicated serial pass instead of running in the main parallel pool:
+`stress` (spawns real multi-process/subprocess concurrency) and `timing`
+(measures wall-clock). `make test-full` deselects both from the parallel pass
+(`-m "not stress and not timing"`, `pytest.ini`'s parallel-unsafe marker set)
+and then runs each family on its own:
 
 ```bash
-PWHEADLESS=1 pytest tests/sync/test_orphan_sweep.py \
-  tests/sync/test_daemon_orphan_classification.py \
-  tests/sync/test_daemon_cleanup_boundary.py \
-  tests/sync/test_issue_1071_singleton_reconfirmation.py \
-  tests/sync/test_legacy_daemon_retirement_r2t1.py \
-  -n0 -q
+PWHEADLESS=1 pytest tests/ -m "stress and not windows_ci" -n0 --timeout=240 --timeout-method=signal -q
+PWHEADLESS=1 pytest tests/ -m timing -n0 --timeout=240 --timeout-method=signal -q
 ```
 
-`-n0` forces serial execution even when xdist is installed. These tests are
-excluded from the parallel pool (and, critically, from a bare `pytest tests/sync
--n <N>` invocation with no `--ignore`s — CI's `integration-tests-sync` /
-`integration-tests-sync-real-port` job split enforces the `--ignore`s itself;
-nothing at the pytest-collection level auto-routes these five away from a
-plain local `-n <N>` run) so two workers never contend for the same fixed
-port. A local run that skips the `--ignore`s can flake exactly this way —
-e.g. `RuntimeError: daemon on port 9401 (version=None) never published health
-identity` — under `-n <N>`, which is expected and not a regression; rerun with
-the five files isolated as above (`tests/architectural/test_serial_port_preservation.py`
-enforces that the CI workflow YAML keeps doing this).
+`-n0` forces serial execution even when xdist is installed.
+`--timeout=240 --timeout-method=signal` guards against a hung fork/process
+stalling the pass indefinitely. These mirror the `stress-tests-serial` /
+`timing-nfr-serial` CI jobs (`.github/workflows/ci-quality.yml`) and the
+`Makefile`'s `test-full` target.
+
+(The former fourth pass ran the deleted sync daemon's fixed-port suites — five
+files bound to the reserved 9400–9449 port range, keyed off
+`tests/_real_port_suites.py`'s `FIXED_RANGE_SUITES` registry, isolated so two
+workers never contended for the same fixed port. Both the registry and the
+sync daemon it protected died with the sync transport, issue #5; there is no
+fixed-daemon-port family left to isolate.)
 
 ## Volume env gates (`SPEC_KITTY_ULID_VOLUME_FULL`)
 
@@ -218,8 +215,11 @@ python -m tests._support.coverage_safety.ratchet -n 3 -- \
 
 # 4. Parallel-vs-serial timing: target ≥2× faster on a ≥4-core machine.
 time PWHEADLESS=1 .venv/bin/pytest tests/ -n auto --dist loadfile -p no:cacheprovider \
-  --deselect tests/sync/test_orphan_sweep.py
-time PWHEADLESS=1 .venv/bin/pytest tests/sync/test_orphan_sweep.py -n0 -q   # serial pass
+  -m "not stress and not timing"
+time PWHEADLESS=1 .venv/bin/pytest tests/ -m "stress and not windows_ci" -n0 \
+  --timeout=240 --timeout-method=signal -q
+time PWHEADLESS=1 .venv/bin/pytest tests/ -m timing -n0 \
+  --timeout=240 --timeout-method=signal -q
 
 # 5. Real home untouched: mtime/inode unchanged (or path still absent) after the run.
 ls -la ~/.spec-kitty 2>/dev/null

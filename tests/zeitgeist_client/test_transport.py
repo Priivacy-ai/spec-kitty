@@ -536,6 +536,44 @@ def test_offer_rejected_when_capability_token_kind_does_not_grant_op(managed_con
     assert managed_control_double.applied_op_count("focus.start") == 0
 
 
+def test_offer_event_publish_accepted_by_presence_kind_capability(managed_control_double):
+    """spec-kitty#30: ``managed_auth._KIND_CAPS["presence"]`` grants both
+    ``presence.publish`` and ``event.publish`` on the real relay — the CLI's
+    fire-and-forget status moment rides the same lease presence already
+    holds. The double's ``_KIND_CAPS_DOUBLE``/``_ALL_MANAGED_OPS`` must stay
+    in parity with that closed mapping."""
+    client = _kinded_client(managed_control_double, kind="presence")
+    result = client.offer(
+        "event.publish",
+        {"session_id": "sess-1", "kind": "WPStatusChanged", "attrs": {"to_lane": "doing"}},
+    )
+    assert result.outcome == transport.OfferOutcome.SENT
+    assert managed_control_double.applied_op_count("event.publish") == 1
+
+
+def test_offer_event_publish_rejected_when_capability_token_kind_does_not_grant_op(managed_control_double):
+    """The inverse of the acceptance case above: a ``focus``-kind token
+    never grants ``event.publish``.
+
+    #352: ``OfferOutcome.REJECTED`` collapses both a 422 (unknown op) and a
+    403 (known op, wrong kind) — asserting only the outcome can't tell those
+    apart, so this couldn't distinguish "op not in _ALL_MANAGED_OPS" (not
+    this PR's change) from "op known but kind doesn't grant it" (the actual
+    behavior under test). Pin the double's raw status too so a future
+    accidental drop of ``event.publish`` from ``_ALL_MANAGED_OPS`` fails
+    this test loudly (422) instead of silently passing for the wrong
+    reason.
+    """
+    client = _kinded_client(managed_control_double, kind="focus")
+    result = client.offer(
+        "event.publish",
+        {"session_id": "sess-1", "kind": "WPStatusChanged", "attrs": {"to_lane": "doing"}},
+    )
+    assert result.outcome == transport.OfferOutcome.REJECTED
+    assert managed_control_double.applied_op_count("event.publish") == 0
+    assert managed_control_double.last_response_status() == 403
+
+
 def test_offer_rejected_when_authorization_bearer_is_wrong(managed_control_double):
     """``AuthenticationMiddleware``'s outer gate, checked before
     ``managed.py`` ever inspects ``X-Zeitgeist-Capability`` — a client
