@@ -70,10 +70,7 @@ class TestAuthWhoamiCommand:
 
         assert result.exit_code == 0, result.stdout
         flat = _flat(result.stdout)
-        assert (
-            "Session is for https://old.example.com; "
-            "SPEC_KITTY_SAAS_URL now points at https://saas.test" in flat
-        )
+        assert "Session is for https://old.example.com; SPEC_KITTY_SAAS_URL now points at https://saas.test" in flat
 
     def test_no_mismatch_warning_for_matching_issuer(self):
         result = _invoke_with(_make_session(issuer_url="https://saas.test"))
@@ -85,3 +82,20 @@ class TestAuthWhoamiCommand:
         result = _invoke_with(None)
 
         assert result.exit_code == 1
+
+    def test_split_brain_shows_both_values_not_a_traceback(self, monkeypatch: pytest.MonkeyPatch, tmp_path):
+        """#193: ``whoami`` shares ``_print_saas_target`` with ``status`` — a
+        genuine config.toml/env disagreement must render as a friendly line
+        naming both endpoints, never as an unhandled traceback."""
+        (tmp_path / "config.toml").write_text('[sync]\nserver_url = "https://config.test"\n', encoding="utf-8")
+        monkeypatch.setenv("SPEC_KITTY_HOME", str(tmp_path))
+        result = _invoke_with(_make_session(issuer_url="https://saas.test"))
+
+        assert result.exit_code == 0, result.stdout
+        assert "Traceback" not in result.stdout
+        first_line = next(line for line in result.stdout.splitlines() if line.strip())
+        assert first_line.strip() == "alice@example.com"
+        flat = _flat(result.stdout)
+        assert "split-brain" in flat
+        assert "https://config.test" in flat
+        assert "https://saas.test" in flat

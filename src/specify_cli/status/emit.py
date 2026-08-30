@@ -76,7 +76,7 @@ from .transitions import resolve_lane_alias, validate_transition
 from .wp_state import annotate
 from . import store as _store
 from . import reducer as _reducer
-from .adapters import fire_dossier_sync, fire_resolved_binding_fanout, fire_saas_fanout
+from .adapters import fire_resolved_binding_fanout, fire_saas_fanout
 from .locking import feature_status_lock
 
 logger = logging.getLogger(__name__)
@@ -529,7 +529,6 @@ def emit_status_transition(  # NOSONAR — central orchestration hub; 15 of 20 p
     policy_metadata: dict[str, Any] | None = None,
     review_result: Any = None,
     ensure_sync_daemon: bool = True,
-    sync_dossier: bool = True,
 ) -> StatusEvent:
     """Central orchestration function for all status state changes.
 
@@ -558,7 +557,6 @@ def emit_status_transition(  # NOSONAR — central orchestration hub; 15 of 20 p
         policy_metadata: Orchestrator policy metadata dict (optional).
         review_result: Structured ReviewResult for in_review -> * transitions (optional).
         ensure_sync_daemon: If False, emit SaaS events without starting the local sync daemon.
-        sync_dossier: If False, skip dossier sync for this transition.
 
     Returns:
         The persisted StatusEvent.
@@ -801,10 +799,6 @@ def emit_status_transition(  # NOSONAR — central orchestration hub; 15 of 20 p
     if annotation is not None:
         _resolved_binding_fan_out(annotation, mission_slug)
 
-    # Step 8: Dossier sync (fire-and-forget, never blocks)
-    if sync_dossier and repo_root is not None:
-        fire_dossier_sync(canonical_feature_dir, mission_slug, repo_root)
-
     # Step 9: Return the event
     return event
 
@@ -813,7 +807,6 @@ def emit_status_transition_batch(  # noqa: C901 — composite transition orchest
     requests: list[TransitionRequest],
     *,
     ensure_sync_daemon: bool = True,
-    sync_dossier: bool = True,
 ) -> list[StatusEvent]:
     """Validate and persist a same-WP transition sequence atomically.
 
@@ -959,11 +952,6 @@ def emit_status_transition_batch(  # noqa: C901 — composite transition orchest
         )
     for annotation in annotations:
         _resolved_binding_fan_out(annotation, mission_slug)
-
-    if sync_dossier:
-        repo_root = next((request.repo_root for _event, request in built if request.repo_root is not None), None)
-        if repo_root is not None:
-            fire_dossier_sync(feature_dir, mission_slug, repo_root)
 
     return events
 

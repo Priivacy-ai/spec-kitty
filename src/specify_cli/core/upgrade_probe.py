@@ -60,7 +60,7 @@ class UpgradeChannel(StrEnum):
     ALREADY_CURRENT = "already_current"
     """Installed version equals the latest release (you're on the latest)."""
 
-    AHEAD_OF_PYPI = "ahead_of_pypi"
+    AHEAD_OF_RELEASE = "ahead_of_release"
     """Installed version > latest selected release and is itself a known release."""
 
     NO_UPGRADE_PATH = "no_upgrade_path"
@@ -84,11 +84,11 @@ class UpgradeProbeResult:
     installed_version: str
     """The value ``get_cli_version()`` returned at probe time."""
 
-    latest_pypi_version: str | None
+    latest_release_version: str | None
     """Latest selected GitHub release version, or ``None`` when the probe failed.
 
     Channel-aware (T022, C-CHN-2): when the rc channel is opted into (see
-    ``prerelease`` on :func:`probe_pypi`), this is instead the highest
+    ``prerelease`` on :func:`probe_github_releases`), this is instead the highest
     version across ``releases`` (pre-releases included). Default-off (the
     common case) this is the highest stable GitHub Release, falling back to
     the highest release when the channel has no stable tag yet.
@@ -123,7 +123,7 @@ class _ReleaseIdentity:
         return self.release_tag == f"v{self.version}" and self.release_commit_sha is not None and _RELEASE_COMMIT_RE.fullmatch(self.release_commit_sha) is not None
 
 
-def probe_pypi(
+def probe_github_releases(
     cli_version: str,
     *,
     timeout_s: float = DEFAULT_TIMEOUT_S,
@@ -197,7 +197,7 @@ def probe_pypi(
         channel = _classify(cli_version, channel_latest, releases)
         return UpgradeProbeResult(
             installed_version=cli_version,
-            latest_pypi_version=channel_latest,
+            latest_release_version=channel_latest,
             channel=channel,
             probed_at=probed_at,
             error=None,
@@ -302,7 +302,7 @@ def _from_bundled_release_identity(
     if not identity.stamped:
         return UpgradeProbeResult(
             installed_version=cli_version,
-            latest_pypi_version=identity.version,
+            latest_release_version=identity.version,
             channel=UpgradeChannel.NO_UPGRADE_PATH if try_parse_version(cli_version) is not None else UpgradeChannel.UNKNOWN,
             probed_at=probed_at,
             error=None,
@@ -317,7 +317,7 @@ def _from_bundled_release_identity(
     channel_latest = _channel_latest(stable_latest, releases, prerelease=prerelease)
     return UpgradeProbeResult(
         installed_version=cli_version,
-        latest_pypi_version=channel_latest,
+        latest_release_version=channel_latest,
         channel=_classify(cli_version, channel_latest, releases),
         probed_at=probed_at,
         error=None,
@@ -329,7 +329,7 @@ def _unknown(cli_version: str, probed_at: datetime, error: str) -> UpgradeProbeR
     """Build an UNKNOWN-channel result with a debug-friendly error string."""
     return UpgradeProbeResult(
         installed_version=cli_version,
-        latest_pypi_version=None,
+        latest_release_version=None,
         channel=UpgradeChannel.UNKNOWN,
         probed_at=probed_at,
         error=error,
@@ -346,7 +346,7 @@ def _classify(
 
     Returns ``UNKNOWN`` only when the installed version cannot be parsed as a
     PEP 440 version. Network/parse failures are handled upstream in
-    :func:`probe_pypi`.
+    :func:`probe_github_releases`.
     """
     installed_ver = try_parse_version(installed)
     if installed_ver is None:
@@ -365,7 +365,7 @@ def _classify(
     if latest_ver is not None and installed_ver == latest_ver:
         return UpgradeChannel.ALREADY_CURRENT
     if is_version_newer(installed, latest):
-        return UpgradeChannel.AHEAD_OF_PYPI
+        return UpgradeChannel.AHEAD_OF_RELEASE
 
     # Installed version is in releases but is older than latest. There IS an
     # upgrade path, so the no-upgrade notifier must stay silent and let the
@@ -377,5 +377,5 @@ __all__ = [
     "DEFAULT_TIMEOUT_S",
     "UpgradeChannel",
     "UpgradeProbeResult",
-    "probe_pypi",
+    "probe_github_releases",
 ]

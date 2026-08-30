@@ -11,7 +11,9 @@ Output layout (spec 080 §2.4, FR-015):
 - SaaS endpoint the CLI is pointed at, with its provenance, plus a plain
   warning when the stored session was minted against a *different*
   endpoint (#176 — after a hostname move this is the line that explains
-  why every call suddenly 401s)
+  why every call suddenly 401s); or, when ``SPEC_KITTY_SAAS_URL`` and
+  ``config.toml [sync].server_url`` genuinely disagree, a split-brain line
+  naming both values instead of silently picking the env one (#193)
 - SaaS endpoint the stored session was minted against, when known
 - email / name / user_id
 - Team list with the default team marked
@@ -23,6 +25,12 @@ Output layout (spec 080 §2.4, FR-015):
   the None branch only trips for replayed/legacy sessions.
 - Storage backend (human label for the encrypted local session file)
 - Session ID, last_used_at, auth method
+
+The not-authenticated and session-expired early returns also print the
+``SaaS:`` endpoint line — the expired case additionally gets the session
+issuer + mismatch warning, since that is exactly the post-hostname-move
+symptom #176 exists to diagnose (#189). ``whoami``'s separate exit-1/no-output
+contract when unauthenticated is untouched.
 
 Exit code is 0 in both authenticated and not-authenticated cases per
 FR-015: ``auth status`` is purely informational and must never surface
@@ -41,6 +49,7 @@ from specify_cli.auth.errors import ConfigurationError
 from specify_cli.auth.server_target import (
     SAAS_URL_ENV_VAR,
     ResolvedServerTarget,
+    ServerTargetSplitBrainError,
     resolve_server_target,
 )
 from specify_cli.auth.session import StoredSession
@@ -73,11 +82,13 @@ def status_impl() -> None:
 
     if session is None:
         console.print("[red]X Not authenticated[/red]")
+        _print_saas_endpoint()
         console.print("  Run [bold]spec-kitty auth login[/bold] to authenticate.")
         return
 
     if session.is_refresh_token_expired():
         console.print("[red]X Session expired (refresh token expired)[/red]")
+        _print_saas_target(session)
         console.print("  Run [bold]spec-kitty auth login[/bold] to re-authenticate.")
         return
 
@@ -97,7 +108,7 @@ def status_impl() -> None:
     _print_storage_backend(session)
     console.print(f"  Session ID:     {session.session_id}")
     console.print(f"  Last used:      {_format_iso(session.last_used_at)}")
-    console.print(f"  Auth method:    {format_auth_method(session.auth_method)}")
+    console.print(f"  Auth method:    {escape(format_auth_method(session.auth_method))}")
 
 
 # ---------------------------------------------------------------------------
@@ -105,9 +116,14 @@ def status_impl() -> None:
 # ---------------------------------------------------------------------------
 
 
-def _print_saas_target(session: StoredSession) -> None:
-    """Print the SaaS endpoint line (first line of the status block) plus,
-    when it disagrees with where the session was minted, the mismatch warning.
+def _print_saas_endpoint() -> ResolvedServerTarget | None:
+    """Print the ``SaaS:`` endpoint line — the resolved URL + provenance, or
+    the not-configured notice — and return the resolved target (``None`` on
+    the not-configured branch).
+
+    Split out of :func:`_print_saas_target` so callers with no
+    :class:`StoredSession` (the not-authenticated branch) can print this line
+    alone, without the session-issuer/mismatch parts that need one (#189).
 
     The URL is the *same* resolved target ``auth login`` prints
     (:func:`specify_cli.auth.server_target.resolve_server_target`), so the two
@@ -115,23 +131,48 @@ def _print_saas_target(session: StoredSession) -> None:
     fails closed when neither ``SPEC_KITTY_SAAS_URL`` nor ``config.toml``
     names a server — there is no default endpoint to fall back to — so this
     reports "not configured" (with the remedy) instead of a URL.
+
+    Resolved with ``process_wide_override=False`` (#193): this call is purely
+    descriptive (no network, no config mutation), so it should show a
+    genuine env/config disagreement instead of the whole-process override
+    silently picking the env value — otherwise a split-brain machine looks
+    identical to a clean one here, with no hint that ``config.toml`` says
+    something else. ``ServerTargetSplitBrainError`` is caught and rendered as
+    a friendly line naming both values, never a traceback.
     """
     try:
-        target = resolve_server_target()
+        target = resolve_server_target(process_wide_override=False)
+    except ServerTargetSplitBrainError as exc:
+        # escape(): the message embeds the raw config/env URLs, which are
+        # attacker- or fat-finger-controlled and can contain
+        # `[sync]`/`[/]`-shaped substrings (#182's rationale applies here too).
+        console.print("  SaaS:           [red]split-brain[/red] [dim](env and config.toml disagree)[/dim]")
+        console.print(f"  [yellow]{escape(str(exc))}[/yellow]")
+        _print_session_issuer(session.issuer_url)
+        return
     except ConfigurationError:
         # escape(): the remedy names `[sync].server_url` — unescaped, Rich
         # markup parses "[sync]" as a style tag and silently drops it (#182).
         remedy = escape(f"— set {SAAS_URL_ENV_VAR} (or [sync].server_url in config.toml)")
         console.print(f"  SaaS:           not configured [dim]{remedy}[/dim]")
-        _print_session_issuer(session.issuer_url)
-        return
+        return None
     # escape(): both the resolved URL and the provenance suffix can contain
     # `[sync]`/`[/]`-shaped substrings (a config.toml server_url is
     # attacker- or fat-finger-controlled) — unescaped, Rich markup either
     # drops the bracketed text or raises MarkupError out of console.print,
     # which would violate this module's own never-fail invariant (#182).
     console.print(f"  SaaS:           {escape(target.resolved_server_url)} [dim]{escape(format_saas_provenance(target))}[/dim]")
+    return target
+
+
+def _print_saas_target(session: StoredSession) -> None:
+    """Print the SaaS endpoint line (first line of the status block) plus,
+    when it disagrees with where the session was minted, the mismatch warning.
+    """
+    target = _print_saas_endpoint()
     _print_session_issuer(session.issuer_url)
+    if target is None:
+        return
     warning = format_saas_mismatch_warning(
         session.issuer_url,
         source_name=saas_source_name(target),
@@ -151,9 +192,9 @@ def _print_session_issuer(issuer_url: str | None) -> None:
 def _print_identity(session: StoredSession) -> None:
     """Print the authenticated user's identity block."""
     if session.name and session.name != session.email:
-        console.print(f"  User:           {session.email} ({session.name})")
+        console.print(f"  User:           {escape(session.email)} ({escape(session.name)})")
     else:
-        console.print(f"  User:           {session.email}")
+        console.print(f"  User:           {escape(session.email)}")
     console.print(f"  User ID:        {session.user_id}")
 
 
@@ -171,7 +212,7 @@ def _print_teams(session: StoredSession) -> None:
         if is_default:
             marker_parts.append("default")
         marker = f" [dim]({', '.join(marker_parts)})[/dim]" if marker_parts else ""
-        console.print(f"    - {team.name} ({team.role}){marker}")
+        console.print(f"    - {escape(team.name)} ({team.role}){marker}")
 
 
 def _print_token_expiry(session: StoredSession) -> None:
@@ -196,7 +237,7 @@ def _print_token_expiry(session: StoredSession) -> None:
 
 def _print_storage_backend(session: StoredSession) -> None:
     """Print the storage backend with a user-friendly label."""
-    label = format_storage_backend(session.storage_backend)
+    label = escape(format_storage_backend(session.storage_backend))
     console.print(f"  Storage:        {label}")
 
 
@@ -255,25 +296,22 @@ def saas_source_name(target: ResolvedServerTarget) -> str:
 
     Mirrors the precedence inside
     :func:`specify_cli.auth.server_target.resolve_server_target`: env first,
-    then ``config.toml [sync].server_url``, then the documented default. Used
-    in the mismatch warning so the sentence names the thing the user must
-    change. Note ``.kittify/saas-auth.json`` is deliberately absent — it feeds
-    the tracker/zeitgeist transport chain, not the OAuth login target.
+    then ``config.toml [sync].server_url`` — the only two sources it can
+    resolve from, since #179 that resolver fails closed when neither is set.
+    Used in the mismatch warning so the sentence names the thing the user
+    must change. Note ``.kittify/saas-auth.json`` is deliberately absent — it
+    feeds the tracker/zeitgeist transport chain, not the OAuth login target.
     """
     if target.env_server_url is not None:
         return SAAS_URL_ENV_VAR
-    if target.configured_server_url is not None:
-        return "config.toml [sync].server_url"
-    return "the default endpoint"
+    return "config.toml [sync].server_url"
 
 
 def format_saas_provenance(target: ResolvedServerTarget) -> str:
     """Return the dim provenance suffix shown next to the ``SaaS:`` line."""
     if target.env_server_url is not None:
         return f"(from {SAAS_URL_ENV_VAR})"
-    if target.configured_server_url is not None:
-        return "(from config.toml [sync].server_url)"
-    return "(default)"
+    return "(from config.toml [sync].server_url)"
 
 
 def format_saas_mismatch_warning(
