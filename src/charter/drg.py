@@ -17,19 +17,22 @@ Charter re-exports them here so existing ``from charter.drg import …`` call
 sites remain valid without crossing the layer boundary directly.
 
 Activation-aware logic split (mission ``charter-activation-split-01M16ZSE``,
-DEC-1): the org-DRG loader (``load_org_drg``), the three-layer merge
-re-export (``merge_three_layers``), and the FR-018 activation filter
-(``filter_graph_by_activation`` + its private helpers) now live in
+DEC-1): the org-DRG loader (``load_org_drg``) and the FR-018 activation
+filter (``filter_graph_by_activation`` + its private helpers) now live in
 :mod:`charter.activation.drg_activation` — they read project-charter
 activation state (:class:`~charter.activation.pack_context.PackContext`),
-which is an activation concern, not an offering-type concern. Import them
-from there:
+which is an activation concern, not an offering-type concern. Import those
+two from there:
 
     from charter.activation.drg_activation import (
         filter_graph_by_activation,
         load_org_drg,
-        merge_three_layers,
     )
+
+``merge_three_layers`` is a pure ``charter.offering.drg.merge`` re-export
+(no activation state), so it stays available on this offering facade too and
+is *also* re-exported from ``charter.activation.drg_activation`` for callers
+already importing the split trio — both paths resolve the same symbol.
 
 Slice F WP06 design notes
 -------------------------
