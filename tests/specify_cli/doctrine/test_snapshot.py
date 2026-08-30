@@ -16,6 +16,7 @@ import pytest
 
 pytestmark = [pytest.mark.unit, pytest.mark.fast]
 
+
 @dataclass
 class _ScriptedSource:
     """Test double implementing the OrgDoctrineSource protocol structurally."""
@@ -44,9 +45,7 @@ class TestFetchPackEnvVarExpansion:
     expanded directory ``effective_root()`` reads from, not the raw
     ``${VAR}``-templated ``local_path`` literal."""
 
-    def test_fetch_pack_writes_into_expanded_target_not_literal_template(
-        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
+    def test_fetch_pack_writes_into_expanded_target_not_literal_template(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
         from doctrine.drg.org_pack_config import OrgPackConfig
 
         env_var = "SPEC_KITTY_PACK_HOME"
@@ -62,9 +61,7 @@ class TestFetchPackEnvVarExpansion:
             layout=_populate_valid_pack,
             result=FetchResult(ok=True, artifacts_written=2, pack_version="v1.0.0"),
         )
-        monkeypatch.setattr(
-            "specify_cli.doctrine.snapshot._build_source", lambda _pack: source
-        )
+        monkeypatch.setattr("specify_cli.doctrine.snapshot._build_source", lambda _pack: source)
 
         result = fetch_pack(pack, tmp_path)
 
@@ -94,9 +91,7 @@ class TestWriteSnapshot:
         local_path = tmp_path / "doctrine"
         source = _ScriptedSource(
             layout=_populate_valid_pack,
-            result=FetchResult(
-                ok=True, artifacts_written=2, pack_version="v1.0.0"
-            ),
+            result=FetchResult(ok=True, artifacts_written=2, pack_version="v1.0.0"),
         )
 
         result = write_snapshot(source, local_path)
@@ -109,9 +104,7 @@ class TestWriteSnapshot:
         # Manifest written.
         assert (local_path / "pack-manifest.yaml").is_file()
 
-    def test_atomic_write_fetch_failure_preserves_existing(
-        self, tmp_path: Path
-    ) -> None:
+    def test_atomic_write_fetch_failure_preserves_existing(self, tmp_path: Path) -> None:
         local_path = tmp_path / "doctrine"
         # Pre-existing snapshot must remain unchanged on failure.
         _populate_valid_pack(local_path)
@@ -161,9 +154,7 @@ class TestWriteSnapshot:
         assert (local_path / "directives" / "new.directive.yaml").is_file()
         assert not (local_path / "stale.txt").exists()
 
-    def test_replace_failure_restores_existing_snapshot(
-        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
+    def test_replace_failure_restores_existing_snapshot(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
         local_path = tmp_path / "doctrine"
         _populate_valid_pack(local_path)
         (local_path / "marker").write_text("keep-me\n")
@@ -190,9 +181,7 @@ class TestWriteSnapshot:
         assert not list(tmp_path.glob(".tmp-*"))
         assert not list(tmp_path.glob(".old-*"))
 
-    def test_replace_and_restore_failure_preserves_recovery_backup(
-        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
+    def test_replace_and_restore_failure_preserves_recovery_backup(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
         """A double filesystem fault must never delete the only last-good tree."""
         local_path = tmp_path / "doctrine"
         _populate_valid_pack(local_path)
@@ -218,13 +207,11 @@ class TestWriteSnapshot:
         assert "promote failed" in " ".join(result.errors)
         assert "restore failed" in " ".join(result.errors)
         backups = list(tmp_path.glob(".old-*"))
-        assert len(backups) == 1
+        assert len(backups) == 1  # golden-count: cardinality-is-contract
         assert (backups[0] / "marker").read_text() == "last-good\n"
         assert str(backups[0]) in " ".join(result.errors)
 
-    def test_failed_unchanged_result_cannot_be_promoted_to_success(
-        self, tmp_path: Path
-    ) -> None:
+    def test_failed_unchanged_result_cannot_be_promoted_to_success(self, tmp_path: Path) -> None:
         """FetchResult invariants fail closed even for third-party adapters."""
         local_path = tmp_path / "doctrine"
         _populate_valid_pack(local_path)
@@ -245,9 +232,7 @@ class TestWriteSnapshot:
         assert result.unchanged is True
         assert result.errors == ["adapter failed"]
 
-    def test_manifest_write_failure_preserves_last_good_snapshot(
-        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
+    def test_manifest_write_failure_preserves_last_good_snapshot(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
         """Manifest construction is staged before the atomic promotion."""
         local_path = tmp_path / "doctrine"
         _populate_valid_pack(local_path)
@@ -338,9 +323,7 @@ class TestWriteSnapshot:
         assert any("No artifact directories" in err for err in result.errors)
         assert not local_path.exists()
 
-    def test_fetch_pack_passes_subdir_to_write_snapshot(
-        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
+    def test_fetch_pack_passes_subdir_to_write_snapshot(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
         from specify_cli.doctrine.config import OrgPackConfig
 
         pack = OrgPackConfig(
@@ -358,17 +341,13 @@ class TestWriteSnapshot:
             layout=_nested_pack_layout,
             result=FetchResult(ok=True, artifacts_written=2, pack_version="v9"),
         )
-        monkeypatch.setattr(
-            "specify_cli.doctrine.snapshot._build_source", lambda _pack: source
-        )
+        monkeypatch.setattr("specify_cli.doctrine.snapshot._build_source", lambda _pack: source)
 
         result = fetch_pack(pack, tmp_path)
 
         assert result.ok is True
         assert result.artifacts_written == 2
-        assert (
-            tmp_path / "doctrine-rnd" / "pack" / "directives" / "sec-001.directive.yaml"
-        ).is_file()
+        assert (tmp_path / "doctrine-rnd" / "pack" / "directives" / "sec-001.directive.yaml").is_file()
 
 
 class TestEtagConditionalFetch:
@@ -466,9 +445,7 @@ class TestEtagConditionalFetch:
 
         seen_urls: list[str] = []
 
-        def _fake_fetch(
-            source: HttpsBundleSource, target_dir: Path
-        ) -> FetchResult:
+        def _fake_fetch(source: HttpsBundleSource, target_dir: Path) -> FetchResult:
             seen_urls.append(source.url)
             _populate_valid_pack(target_dir)
             return FetchResult(ok=True, artifacts_written=2, pack_version="v1")
@@ -487,9 +464,7 @@ class TestEtagConditionalFetch:
         assert seen_urls == [canonical_url]
         assert manifest["source_url"] == canonical_url
 
-    def test_query_bearing_source_never_reuses_persisted_etag(
-        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
+    def test_query_bearing_source_never_reuses_persisted_etag(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
         from specify_cli.doctrine.sources.https_source import HttpsBundleSource
 
         local_path = tmp_path / "doctrine"
@@ -512,9 +487,7 @@ class TestEtagConditionalFetch:
         def _fetch(source: HttpsBundleSource, target: Path) -> FetchResult:
             validators.append(source.if_none_match)
             _populate_valid_pack(target)
-            (target / "directives" / "sec-001.directive.yaml").write_text(
-                "id: B\n"
-            )
+            (target / "directives" / "sec-001.directive.yaml").write_text("id: B\n")
             return FetchResult(
                 ok=True,
                 artifacts_written=2,
@@ -533,13 +506,9 @@ class TestEtagConditionalFetch:
 
         assert result.ok is True
         assert validators == [None]
-        assert (
-            local_path / "directives" / "sec-001.directive.yaml"
-        ).read_text() == "id: B\n"
+        assert (local_path / "directives" / "sec-001.directive.yaml").read_text() == "id: B\n"
 
-    def test_locally_modified_snapshot_disables_conditional_fetch(
-        self, tmp_path: Path
-    ) -> None:
+    def test_locally_modified_snapshot_disables_conditional_fetch(self, tmp_path: Path) -> None:
         from specify_cli.doctrine.snapshot import _with_stored_etag
         from specify_cli.doctrine.sources.https_source import HttpsBundleSource
 
@@ -557,9 +526,7 @@ class TestEtagConditionalFetch:
             source_url=source_url,
             source_type="https",
         )
-        (local_path / "directives" / "sec-001.directive.yaml").write_text(
-            "id: locally-mutated\n"
-        )
+        (local_path / "directives" / "sec-001.directive.yaml").write_text("id: locally-mutated\n")
 
         prepared = _with_stored_etag(
             HttpsBundleSource(url=source_url),
@@ -572,9 +539,7 @@ class TestEtagConditionalFetch:
         assert isinstance(prepared, HttpsBundleSource)
         assert prepared.if_none_match is None
 
-    def test_304_fails_when_local_snapshot_changed_after_preparation(
-        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
+    def test_304_fails_when_local_snapshot_changed_after_preparation(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
         from specify_cli.doctrine.sources.https_source import HttpsBundleSource
 
         local_path = tmp_path / "doctrine"
@@ -591,9 +556,7 @@ class TestEtagConditionalFetch:
             source_url=source_url,
             source_type="https",
         )
-        (local_path / "directives" / "sec-001.directive.yaml").write_text(
-            "id: changed-after-preparation\n"
-        )
+        (local_path / "directives" / "sec-001.directive.yaml").write_text("id: changed-after-preparation\n")
 
         class _NotModified:
             status_code = 304
@@ -618,9 +581,7 @@ class TestEtagConditionalFetch:
         assert result.ok is False
         assert any("integrity digest" in error for error in result.errors)
 
-    def test_legacy_artifactory_manifest_forces_one_versioned_download(
-        self, tmp_path: Path
-    ) -> None:
+    def test_legacy_artifactory_manifest_forces_one_versioned_download(self, tmp_path: Path) -> None:
         from specify_cli.doctrine.snapshot import _with_stored_etag
         from specify_cli.doctrine.sources.https_source import HttpsBundleSource
 
@@ -634,17 +595,11 @@ class TestEtagConditionalFetch:
                 pack_version="legacy-etag-without-dedicated-field",
                 etag="legacy-etag-without-dedicated-field",
             ),
-            source_url=(
-                "https://artifactory.example.com/artifactory/repo/"
-                "doctrine-rnd-latest.tar.gz"
-            ),
+            source_url=("https://artifactory.example.com/artifactory/repo/doctrine-rnd-latest.tar.gz"),
             source_type="artifactory",
         )
         source = HttpsBundleSource(
-            url=(
-                "https://artifactory.example.com/artifactory/repo/"
-                "doctrine-rnd-latest.tar.gz"
-            ),
+            url=("https://artifactory.example.com/artifactory/repo/doctrine-rnd-latest.tar.gz"),
             source_type="artifactory",
         )
 
@@ -659,9 +614,7 @@ class TestEtagConditionalFetch:
         assert isinstance(prepared, HttpsBundleSource)
         assert prepared.if_none_match is None
 
-    def test_write_snapshot_skips_replace_on_304(
-        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
+    def test_write_snapshot_skips_replace_on_304(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
         from specify_cli.doctrine.sources.https_source import HttpsBundleSource
 
         local_path = tmp_path / "doctrine"
@@ -704,9 +657,7 @@ class TestEtagConditionalFetch:
 
             return _Resp()
 
-        monkeypatch.setattr(
-            "specify_cli.doctrine.sources.https_source.requests.get", _fake_get
-        )
+        monkeypatch.setattr("specify_cli.doctrine.sources.https_source.requests.get", _fake_get)
 
         result = write_snapshot(
             HttpsBundleSource(url="https://example.com/pack.tar.gz"),
@@ -738,13 +689,11 @@ class TestEtagConditionalFetch:
         manifest = yaml.safe_load((local_path / "pack-manifest.yaml").read_text())
         assert manifest["etag"] == '"abc"'
         assert manifest["pack_version"] == "v1"
-        assert len(manifest["snapshot_sha256"]) == 64
+        assert len(manifest["snapshot_sha256"]) == 64  # golden-count: cardinality-is-contract
 
 
 class TestPackManifest:
-    def test_fetched_manifest_round_trips_through_canonical_schema(
-        self, tmp_path: Path
-    ) -> None:
+    def test_fetched_manifest_round_trips_through_canonical_schema(self, tmp_path: Path) -> None:
         from specify_cli.doctrine.pack_manifest import (
             load_pack_manifest,
             resolve_counts,
@@ -771,9 +720,9 @@ class TestPackManifest:
         assert loaded.source_type == "https"
         assert loaded.source_uses_query is False
         assert loaded.snapshot_sha256 is not None
-        assert len(loaded.snapshot_sha256) == 64
+        assert len(loaded.snapshot_sha256) == 64  # golden-count: cardinality-is-contract
         assert loaded.source_fingerprint is not None
-        assert len(loaded.source_fingerprint) == 64
+        assert len(loaded.source_fingerprint) == 64  # golden-count: cardinality-is-contract
         assert loaded.artifact_counts == {
             "agent_profiles": 1,
             "directives": 1,
@@ -795,9 +744,7 @@ class TestPackManifest:
             source_type="https",
         )
 
-        manifest = yaml.safe_load(
-            (local_path / "pack-manifest.yaml").read_text()
-        )
+        manifest = yaml.safe_load((local_path / "pack-manifest.yaml").read_text())
         assert manifest["pack_version"] == "v1.2.0"
         assert manifest["source_type"] == "https"
         assert manifest["source_url"] == "https://example.com/pack.tar.gz"
@@ -817,32 +764,25 @@ class TestPackManifest:
             source_type="https",
         )
 
-        manifest = yaml.safe_load(
-            (local_path / "pack-manifest.yaml").read_text()
-        )
+        manifest = yaml.safe_load((local_path / "pack-manifest.yaml").read_text())
         assert "secret" not in manifest["source_url"]
         assert manifest["source_url"] == "https://example.com/pack.tar.gz"
 
-    def test_manifest_omits_signed_query_fragment_and_records_fingerprint(
-        self, tmp_path: Path
-    ) -> None:
+    def test_manifest_omits_signed_query_fragment_and_records_fingerprint(self, tmp_path: Path) -> None:
         local_path = tmp_path / "doctrine"
         _populate_valid_pack(local_path)
 
         write_pack_manifest(
             local_path,
             FetchResult(ok=True, artifacts_written=2, pack_version="v1"),
-            source_url=(
-                "https://oauth2:secret@example.com/pack.tar.gz"
-                "?X-JFrog-Art-Api=signed-secret#private-fragment"
-            ),
+            source_url=("https://oauth2:secret@example.com/pack.tar.gz?X-JFrog-Art-Api=signed-secret#private-fragment"),
             source_type="https",
         )
 
         manifest = yaml.safe_load((local_path / "pack-manifest.yaml").read_text())
         assert manifest["source_url"] == "https://example.com/pack.tar.gz"
         assert "secret" not in str(manifest)
-        assert len(manifest["source_fingerprint"]) == 64
+        assert len(manifest["source_fingerprint"]) == 64  # golden-count: cardinality-is-contract
         assert manifest["source_uses_query"] is True
 
     def test_manifest_counts_top_level_graph_fragments(self, tmp_path: Path) -> None:
@@ -866,9 +806,7 @@ class TestPackManifest:
             source_type="https",
         )
 
-        manifest = yaml.safe_load(
-            (local_path / "pack-manifest.yaml").read_text()
-        )
+        manifest = yaml.safe_load((local_path / "pack-manifest.yaml").read_text())
         assert manifest["artifact_counts"]["drg_fragments"] == 2
         # Unrelated dir buckets remain intact (no double-counting).
         assert manifest["artifact_counts"]["directives"] == 1

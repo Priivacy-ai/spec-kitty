@@ -36,6 +36,7 @@ from specify_cli.doctrine.sources import (
 
 pytestmark = [pytest.mark.unit, pytest.mark.fast]
 
+
 class TestOrgDoctrineSourceProtocol:
     """The runtime_checkable protocol must accept all three concrete sources."""
 
@@ -120,9 +121,7 @@ def _make_fake_clone(directives_count: int = 2):
 
 
 class TestGitSource:
-    def test_first_install_success(
-        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
+    def test_first_install_success(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
         target = tmp_path / "doctrine"
         runner = _GitRunRecorder(
             script=[
@@ -131,9 +130,7 @@ class TestGitSource:
             ],
             side_effects={"clone": _make_fake_clone(directives_count=2)},
         )
-        monkeypatch.setattr(
-            "specify_cli.doctrine.sources.git_source.subprocess.run", runner
-        )
+        monkeypatch.setattr("specify_cli.doctrine.sources.git_source.subprocess.run", runner)
 
         result = GitSource(url="git@example.com:org/d.git").fetch(target)
 
@@ -146,9 +143,7 @@ class TestGitSource:
         assert any(call[1] == "clone" for call in runner.calls)
         assert not any(call[1:3] == ["-C", str(target)] and "fetch" in call for call in runner.calls)
 
-    def test_update_path_used_when_dot_git_exists(
-        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
+    def test_update_path_used_when_dot_git_exists(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
         target = tmp_path / "doctrine"
         (target / ".git").mkdir(parents=True)
         (target / "directives").mkdir()
@@ -161,9 +156,7 @@ class TestGitSource:
                 (0, "v1.3.0\n", ""),  # describe
             ],
         )
-        monkeypatch.setattr(
-            "specify_cli.doctrine.sources.git_source.subprocess.run", runner
-        )
+        monkeypatch.setattr("specify_cli.doctrine.sources.git_source.subprocess.run", runner)
 
         result = GitSource(url="git@example.com:org/d.git").fetch(target)
 
@@ -176,9 +169,7 @@ class TestGitSource:
         assert not any(part == "clone" for call in runner.calls for part in call)
         assert invocations  # silence the unused-var lint
 
-    def test_first_install_failure_cleans_up(
-        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
+    def test_first_install_failure_cleans_up(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
         target = tmp_path / "doctrine"
 
         def _partial_clone(argv: list[str]) -> None:
@@ -191,9 +182,7 @@ class TestGitSource:
             script=[(128, "", "fatal: repo not found")],
             side_effects={"clone": _partial_clone},
         )
-        monkeypatch.setattr(
-            "specify_cli.doctrine.sources.git_source.subprocess.run", runner
-        )
+        monkeypatch.setattr("specify_cli.doctrine.sources.git_source.subprocess.run", runner)
 
         result = GitSource(url="git@example.com:org/d.git").fetch(target)
 
@@ -201,18 +190,14 @@ class TestGitSource:
         assert "fatal: repo not found" in result.errors[0]
         assert not target.exists()
 
-    def test_update_failure_leaves_existing_clone_untouched(
-        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
+    def test_update_failure_leaves_existing_clone_untouched(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
         target = tmp_path / "doctrine"
         (target / ".git").mkdir(parents=True)
         (target / "directives").mkdir()
         (target / "directives" / "A.yaml").write_text("id: a\n")
 
         runner = _GitRunRecorder(script=[(1, "", "network unreachable")])
-        monkeypatch.setattr(
-            "specify_cli.doctrine.sources.git_source.subprocess.run", runner
-        )
+        monkeypatch.setattr("specify_cli.doctrine.sources.git_source.subprocess.run", runner)
 
         result = GitSource(url="git@example.com:org/d.git").fetch(target)
 
@@ -222,9 +207,7 @@ class TestGitSource:
         assert (target / ".git").exists()
         assert (target / "directives" / "A.yaml").read_text() == "id: a\n"
 
-    def test_https_url_gets_token_injected(
-        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
+    def test_https_url_gets_token_injected(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
         target = tmp_path / "doctrine"
         monkeypatch.setenv("GIT_TOKEN", "secret-abc")
 
@@ -232,9 +215,7 @@ class TestGitSource:
             script=[(0, "", ""), (0, "v1\n", "")],
             side_effects={"clone": _make_fake_clone(directives_count=1)},
         )
-        monkeypatch.setattr(
-            "specify_cli.doctrine.sources.git_source.subprocess.run", runner
-        )
+        monkeypatch.setattr("specify_cli.doctrine.sources.git_source.subprocess.run", runner)
 
         result = GitSource(url="https://example.com/org/d.git").fetch(target)
 
@@ -243,9 +224,7 @@ class TestGitSource:
         # Token must appear in the URL passed to git, not in any other arg.
         assert any("oauth2:secret-abc@example.com" in part for part in clone_argv)
 
-    def test_ssh_url_unaffected_by_git_token(
-        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
+    def test_ssh_url_unaffected_by_git_token(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
         target = tmp_path / "doctrine"
         monkeypatch.setenv("GIT_TOKEN", "secret-abc")
 
@@ -253,17 +232,13 @@ class TestGitSource:
             script=[(0, "", ""), (0, "v1\n", "")],
             side_effects={"clone": _make_fake_clone(directives_count=1)},
         )
-        monkeypatch.setattr(
-            "specify_cli.doctrine.sources.git_source.subprocess.run", runner
-        )
+        monkeypatch.setattr("specify_cli.doctrine.sources.git_source.subprocess.run", runner)
 
         GitSource(url="git@example.com:org/d.git").fetch(target)
         clone_argv = runner.calls[0]
         assert "secret-abc" not in " ".join(clone_argv)
 
-    def test_ref_checkout_after_first_clone(
-        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
+    def test_ref_checkout_after_first_clone(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
         target = tmp_path / "doctrine"
         runner = _GitRunRecorder(
             script=[
@@ -273,9 +248,7 @@ class TestGitSource:
             ],
             side_effects={"clone": _make_fake_clone()},
         )
-        monkeypatch.setattr(
-            "specify_cli.doctrine.sources.git_source.subprocess.run", runner
-        )
+        monkeypatch.setattr("specify_cli.doctrine.sources.git_source.subprocess.run", runner)
 
         result = GitSource(url="git@example.com:org/d.git", ref="v1.0.0").fetch(target)
 
@@ -351,9 +324,7 @@ def _aql_payload(
         "repo": repo,
         "path": path,
         "name": name,
-        "properties": (
-            [{"key": "version", "value": version}] if version is not None else []
-        ),
+        "properties": ([{"key": "version", "value": version}] if version is not None else []),
     }
     if sha256 is not None:
         result["sha256"] = sha256
@@ -448,9 +419,7 @@ class TestHttpsBundleSource:
         assert prepared_url is not None
         assert set(calls) == {prepared_url}
 
-    def test_canonical_url_is_the_wire_url_after_repeated_preparation(
-        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
+    def test_canonical_url_is_the_wire_url_after_repeated_preparation(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
         raw_url = "https://example.com/a/%2e%2e/pack.tar.gz"
         canonical_url = "https://example.com/pack.tar.gz"
         sent_urls: list[str] = []
@@ -473,9 +442,7 @@ class TestHttpsBundleSource:
         assert sent_urls
         assert set(sent_urls) == {canonical_url}
 
-    def test_fetch_captures_one_canonical_identity_for_request_and_error(
-        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
+    def test_fetch_captures_one_canonical_identity_for_request_and_error(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
         trusted_url = "https://trusted.example/pack.zip"
         attacker_url = "https://attacker.example/other.zip"
         calls: list[str] = []
@@ -492,9 +459,7 @@ class TestHttpsBundleSource:
             calls.append(url)
             return _FakeResponse(status_code=404, url=url)
 
-        monkeypatch.setattr(
-            "specify_cli.doctrine.sources.https_source.requests.get", _fake_get
-        )
+        monkeypatch.setattr("specify_cli.doctrine.sources.https_source.requests.get", _fake_get)
         source = _AlternatingSource(url=trusted_url)
 
         result = source.fetch(tmp_path / "snapshot")
@@ -505,9 +470,7 @@ class TestHttpsBundleSource:
         assert any(trusted_url in error for error in result.errors)
         assert all(attacker_url not in error for error in result.errors)
 
-    def test_tar_gz_extraction(
-        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
+    def test_tar_gz_extraction(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
         target = tmp_path / "snapshot"
         bundle = _make_tar_gz_bundle(top_dir="my-pack-v1.0.0")
 
@@ -521,17 +484,13 @@ class TestHttpsBundleSource:
         def _fake_get(url: str, **kwargs: Any) -> _FakeResponse:
             return response
 
-        monkeypatch.setattr(
-            "specify_cli.doctrine.sources.https_source.requests.get", _fake_get
-        )
+        monkeypatch.setattr("specify_cli.doctrine.sources.https_source.requests.get", _fake_get)
         monkeypatch.setattr(
             "specify_cli.doctrine.sources.https_source.requests.post",
             lambda *_args, **_kwargs: pytest.fail("non-Artifactory source used AQL"),
         )
 
-        result = HttpsBundleSource(
-            url="https://example.com/pack.tar.gz"
-        ).fetch(target)
+        result = HttpsBundleSource(url="https://example.com/pack.tar.gz").fetch(target)
 
         assert result.ok is True
         # Non-Artifactory HTTPS: etag is for conditional fetch only; no version.
@@ -543,9 +502,7 @@ class TestHttpsBundleSource:
         assert result.artifacts_written == 2
         assert response.closed is True
 
-    def test_non_artifactory_does_not_query_version_properties(
-        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
+    def test_non_artifactory_does_not_query_version_properties(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
         target = tmp_path / "snapshot"
         bundle = _make_tar_gz_bundle()
         urls: list[str] = []
@@ -559,13 +516,9 @@ class TestHttpsBundleSource:
                 url=url,
             )
 
-        monkeypatch.setattr(
-            "specify_cli.doctrine.sources.https_source.requests.get", _fake_get
-        )
+        monkeypatch.setattr("specify_cli.doctrine.sources.https_source.requests.get", _fake_get)
 
-        result = HttpsBundleSource(url="https://cdn.example.com/pack.tar.gz").fetch(
-            target
-        )
+        result = HttpsBundleSource(url="https://cdn.example.com/pack.tar.gz").fetch(target)
 
         assert result.ok is True
         assert result.pack_version is None
@@ -594,10 +547,7 @@ class TestHttpsBundleSource:
         streamed: list[bool] = []
         download_headers: list[dict[str, str]] = []
         metadata_responses: list[_FakeResponse] = []
-        artifact_url = (
-            "https://artifactory.example.com/artifactory/raf-generic-local/"
-            "doctrines/doctrine-rnd-latest.tar.gz"
-        )
+        artifact_url = "https://artifactory.example.com/artifactory/raf-generic-local/doctrines/doctrine-rnd-latest.tar.gz"
 
         class _TrackingDownload(_FakeResponse):
             def iter_content(self, chunk_size: int = 65536):
@@ -635,24 +585,16 @@ class TestHttpsBundleSource:
         monkeypatch.delenv("SPEC_KITTY_ORG_AUTH_HEADER", raising=False)
         monkeypatch.delenv("SPEC_KITTY_ORG_TOKEN", raising=False)
         monkeypatch.setenv(auth_env, auth_value)
-        monkeypatch.setattr(
-            "specify_cli.doctrine.sources.https_source.requests.get", _fake_get
-        )
-        monkeypatch.setattr(
-            "specify_cli.doctrine.sources.https_source.requests.post", _fake_post
-        )
+        monkeypatch.setattr("specify_cli.doctrine.sources.https_source.requests.get", _fake_get)
+        monkeypatch.setattr("specify_cli.doctrine.sources.https_source.requests.post", _fake_post)
 
-        result = HttpsBundleSource(url=artifact_url, source_type=source_type).fetch(
-            target
-        )
+        result = HttpsBundleSource(url=artifact_url, source_type=source_type).fetch(target)
 
         assert result.ok is True
         assert result.pack_version == "3.2.7"
         assert result.etag == '"etag-7"'
-        assert len(aql_calls) == 1
-        assert aql_calls[0][0] == (
-            "https://artifactory.example.com/artifactory/api/search/aql"
-        )
+        assert len(aql_calls) == 1  # golden-count: cardinality-is-contract
+        assert aql_calls[0][0] == ("https://artifactory.example.com/artifactory/api/search/aql")
         query = aql_calls[0][1]["data"]
         assert '"repo":"raf-generic-local"' in query
         assert '"path":"doctrines"' in query
@@ -665,14 +607,9 @@ class TestHttpsBundleSource:
         assert aql_calls[0][1]["headers"]["Authorization"] == expected_authorization
         assert all(response.closed for response in metadata_responses)
 
-    def test_artifactory_virtual_repo_and_encoded_item_are_validated(
-        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
+    def test_artifactory_virtual_repo_and_encoded_item_are_validated(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
         bundle = _make_tar_gz_bundle()
-        artifact_url = (
-            "https://artifactory.example.com/artifactory/my-virtual/folder/"
-            "My%20Pack-%E2%9C%93.tar.gz"
-        )
+        artifact_url = "https://artifactory.example.com/artifactory/my-virtual/folder/My%20Pack-%E2%9C%93.tar.gz"
         captured_criteria: dict[str, object] = {}
 
         def _fake_get(url: str, **kwargs: Any) -> _FakeResponse:
@@ -685,9 +622,7 @@ class TestHttpsBundleSource:
 
         def _fake_post(url: str, **kwargs: Any) -> _FakeResponse:
             query = kwargs["data"]
-            criteria_json = query.removeprefix("items.find(").split(").include", 1)[
-                0
-            ]
+            criteria_json = query.removeprefix("items.find(").split(").include", 1)[0]
             captured_criteria.update(json.loads(criteria_json))
             payload = _aql_payload(
                 bundle,
@@ -702,12 +637,8 @@ class TestHttpsBundleSource:
                 url=url,
             )
 
-        monkeypatch.setattr(
-            "specify_cli.doctrine.sources.https_source.requests.get", _fake_get
-        )
-        monkeypatch.setattr(
-            "specify_cli.doctrine.sources.https_source.requests.post", _fake_post
-        )
+        monkeypatch.setattr("specify_cli.doctrine.sources.https_source.requests.get", _fake_get)
+        monkeypatch.setattr("specify_cli.doctrine.sources.https_source.requests.post", _fake_post)
 
         result = HttpsBundleSource(url=artifact_url).fetch(tmp_path / "snapshot")
 
@@ -732,14 +663,9 @@ class TestHttpsBundleSource:
             "duplicate-version",
         ],
     )
-    def test_artifactory_rejects_non_exact_aql_result(
-        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch, case: str
-    ) -> None:
+    def test_artifactory_rejects_non_exact_aql_result(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch, case: str) -> None:
         bundle = _make_tar_gz_bundle()
-        artifact_url = (
-            "https://artifactory.example.com/artifactory/repo/"
-            "folder/pack-latest.tar.gz"
-        )
+        artifact_url = "https://artifactory.example.com/artifactory/repo/folder/pack-latest.tar.gz"
 
         def _fake_get(url: str, **kwargs: Any) -> _FakeResponse:
             return _FakeResponse(
@@ -776,12 +702,8 @@ class TestHttpsBundleSource:
                 url=url,
             )
 
-        monkeypatch.setattr(
-            "specify_cli.doctrine.sources.https_source.requests.get", _fake_get
-        )
-        monkeypatch.setattr(
-            "specify_cli.doctrine.sources.https_source.requests.post", _fake_post
-        )
+        monkeypatch.setattr("specify_cli.doctrine.sources.https_source.requests.get", _fake_get)
+        monkeypatch.setattr("specify_cli.doctrine.sources.https_source.requests.post", _fake_post)
 
         result = HttpsBundleSource(url=artifact_url).fetch(tmp_path / "snapshot")
 
@@ -789,13 +711,9 @@ class TestHttpsBundleSource:
         assert any("exact artifact" in error for error in result.errors)
         assert not (tmp_path / "snapshot" / "directives").exists()
 
-    def test_artifactory_aql_retry_closes_responses_and_strips_validator(
-        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
+    def test_artifactory_aql_retry_closes_responses_and_strips_validator(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
         bundle = _make_tar_gz_bundle()
-        artifact_url = (
-            "https://artifactory.example.com/artifactory/repo/pack-latest.tar.gz"
-        )
+        artifact_url = "https://artifactory.example.com/artifactory/repo/pack-latest.tar.gz"
         download_response = _FakeResponse(
             status_code=200,
             body=bundle,
@@ -821,12 +739,8 @@ class TestHttpsBundleSource:
             aql_headers.append(dict(kwargs.get("headers") or {}))
             return next(responses)
 
-        monkeypatch.setattr(
-            "specify_cli.doctrine.sources.https_source.requests.post", _fake_post
-        )
-        monkeypatch.setattr(
-            "specify_cli.doctrine.sources.https_source.time.sleep", lambda _s: None
-        )
+        monkeypatch.setattr("specify_cli.doctrine.sources.https_source.requests.post", _fake_post)
+        monkeypatch.setattr("specify_cli.doctrine.sources.https_source.time.sleep", lambda _s: None)
 
         result = HttpsBundleSource(
             url=artifact_url,
@@ -834,11 +748,8 @@ class TestHttpsBundleSource:
         ).fetch(tmp_path / "snapshot")
 
         assert result.ok is True
-        assert len(aql_headers) == 2
-        assert all(
-            headers.get("Authorization") == "Bearer retry-token"
-            for headers in aql_headers
-        )
+        assert len(aql_headers) == 2  # golden-count: cardinality-is-contract
+        assert all(headers.get("Authorization") == "Bearer retry-token" for headers in aql_headers)
         assert all("If-None-Match" not in headers for headers in aql_headers)
         assert download_response.closed is True
         assert first_aql.closed is True
@@ -853,8 +764,7 @@ class TestHttpsBundleSource:
                 "valid Artifactory item URL",
             ),
             (
-                "https://artifactory.example.com/artifactory/repo/"
-                "folder%2Fpack.tar.gz",
+                "https://artifactory.example.com/artifactory/repo/folder%2Fpack.tar.gz",
                 "https",
                 "valid Artifactory item URL",
             ),
@@ -889,9 +799,7 @@ class TestHttpsBundleSource:
             calls.append(url)
             return _FakeResponse(status_code=500, url=url)
 
-        monkeypatch.setattr(
-            "specify_cli.doctrine.sources.https_source.requests.get", _fake_get
-        )
+        monkeypatch.setattr("specify_cli.doctrine.sources.https_source.requests.get", _fake_get)
 
         result = HttpsBundleSource(
             url=item_url,
@@ -902,13 +810,9 @@ class TestHttpsBundleSource:
         assert any(expected_error in error for error in result.errors)
         assert calls == []
 
-    def test_artifactory_version_is_bound_to_downloaded_sha256(
-        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
+    def test_artifactory_version_is_bound_to_downloaded_sha256(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
         bundle = _make_tar_gz_bundle()
-        artifact_url = (
-            "https://artifactory.example.com/artifactory/repo/pack-latest.tar.gz"
-        )
+        artifact_url = "https://artifactory.example.com/artifactory/repo/pack-latest.tar.gz"
 
         def _fake_get(url: str, **kwargs: Any) -> _FakeResponse:
             return _FakeResponse(
@@ -931,29 +835,18 @@ class TestHttpsBundleSource:
                 url=url,
             )
 
-        monkeypatch.setattr(
-            "specify_cli.doctrine.sources.https_source.requests.get", _fake_get
-        )
-        monkeypatch.setattr(
-            "specify_cli.doctrine.sources.https_source.requests.post", _fake_post
-        )
+        monkeypatch.setattr("specify_cli.doctrine.sources.https_source.requests.get", _fake_get)
+        monkeypatch.setattr("specify_cli.doctrine.sources.https_source.requests.post", _fake_post)
 
-        result = HttpsBundleSource(
-            url=artifact_url, source_type="artifactory"
-        ).fetch(tmp_path / "snapshot")
+        result = HttpsBundleSource(url=artifact_url, source_type="artifactory").fetch(tmp_path / "snapshot")
 
         assert result.ok is False
         assert any("checksum" in error.lower() for error in result.errors)
         assert not (tmp_path / "snapshot" / "directives").exists()
 
-    def test_artifactory_download_fails_when_version_property_is_missing(
-        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
+    def test_artifactory_download_fails_when_version_property_is_missing(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
         bundle = _make_tar_gz_bundle()
-        artifact_url = (
-            "https://artifactory.example.com/artifactory/raf-generic-local/"
-            "doctrines/doctrine-rnd-latest.tar.gz"
-        )
+        artifact_url = "https://artifactory.example.com/artifactory/raf-generic-local/doctrines/doctrine-rnd-latest.tar.gz"
 
         def _fake_get(url: str, **kwargs: Any) -> _FakeResponse:
             return _FakeResponse(
@@ -978,27 +871,17 @@ class TestHttpsBundleSource:
                 url=url,
             )
 
-        monkeypatch.setattr(
-            "specify_cli.doctrine.sources.https_source.requests.get", _fake_get
-        )
-        monkeypatch.setattr(
-            "specify_cli.doctrine.sources.https_source.requests.post", _fake_post
-        )
+        monkeypatch.setattr("specify_cli.doctrine.sources.https_source.requests.get", _fake_get)
+        monkeypatch.setattr("specify_cli.doctrine.sources.https_source.requests.post", _fake_post)
 
-        result = HttpsBundleSource(
-            url=artifact_url, source_type="artifactory"
-        ).fetch(tmp_path / "snapshot")
+        result = HttpsBundleSource(url=artifact_url, source_type="artifactory").fetch(tmp_path / "snapshot")
 
         assert result.ok is False
         assert any("version property" in error for error in result.errors)
 
-    def test_artifactory_download_fails_when_file_checksum_is_missing(
-        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
+    def test_artifactory_download_fails_when_file_checksum_is_missing(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
         bundle = _make_tar_gz_bundle()
-        artifact_url = (
-            "https://artifactory.example.com/artifactory/repo/pack-latest.tar.gz"
-        )
+        artifact_url = "https://artifactory.example.com/artifactory/repo/pack-latest.tar.gz"
 
         def _fake_get(url: str, **kwargs: Any) -> _FakeResponse:
             return _FakeResponse(
@@ -1019,23 +902,15 @@ class TestHttpsBundleSource:
                 url=url,
             )
 
-        monkeypatch.setattr(
-            "specify_cli.doctrine.sources.https_source.requests.get", _fake_get
-        )
-        monkeypatch.setattr(
-            "specify_cli.doctrine.sources.https_source.requests.post", _fake_post
-        )
+        monkeypatch.setattr("specify_cli.doctrine.sources.https_source.requests.get", _fake_get)
+        monkeypatch.setattr("specify_cli.doctrine.sources.https_source.requests.post", _fake_post)
 
-        result = HttpsBundleSource(
-            url=artifact_url, source_type="artifactory"
-        ).fetch(tmp_path / "snapshot")
+        result = HttpsBundleSource(url=artifact_url, source_type="artifactory").fetch(tmp_path / "snapshot")
 
         assert result.ok is False
         assert any("SHA-256 checksum" in error for error in result.errors)
 
-    def test_304_unchanged_skips_download(
-        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
+    def test_304_unchanged_skips_download(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
         target = tmp_path / "snapshot"
         captured: dict[str, Any] = {}
 
@@ -1043,9 +918,7 @@ class TestHttpsBundleSource:
             captured["headers"] = kwargs.get("headers") or {}
             return _FakeResponse(status_code=304, body=b"", reason="Not Modified")
 
-        monkeypatch.setattr(
-            "specify_cli.doctrine.sources.https_source.requests.get", _fake_get
-        )
+        monkeypatch.setattr("specify_cli.doctrine.sources.https_source.requests.get", _fake_get)
 
         result = HttpsBundleSource(
             url="https://example.com/pack.tar.gz",
@@ -1060,26 +933,20 @@ class TestHttpsBundleSource:
         assert captured["headers"].get("If-None-Match") == '"abc123"'
         assert list(target.iterdir()) == []  # nothing extracted
 
-    def test_unsolicited_304_without_validator_fails(
-        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
+    def test_unsolicited_304_without_validator_fails(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
         response = _FakeResponse(status_code=304, reason="Not Modified")
         monkeypatch.setattr(
             "specify_cli.doctrine.sources.https_source.requests.get",
             lambda _url, **_kwargs: response,
         )
 
-        result = HttpsBundleSource(
-            url="https://example.com/pack.tar.gz"
-        ).fetch(tmp_path / "snapshot")
+        result = HttpsBundleSource(url="https://example.com/pack.tar.gz").fetch(tmp_path / "snapshot")
 
         assert result.ok is False
         assert any("without an If-None-Match" in error for error in result.errors)
         assert response.closed is True
 
-    def test_zip_extraction(
-        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
+    def test_zip_extraction(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
         target = tmp_path / "snapshot"
         bundle = _make_zip_bundle()
 
@@ -1091,9 +958,7 @@ class TestHttpsBundleSource:
                 url=url,
             )
 
-        monkeypatch.setattr(
-            "specify_cli.doctrine.sources.https_source.requests.get", _fake_get
-        )
+        monkeypatch.setattr("specify_cli.doctrine.sources.https_source.requests.get", _fake_get)
 
         result = HttpsBundleSource(
             url="https://example.com/pack.zip",
@@ -1104,19 +969,13 @@ class TestHttpsBundleSource:
         assert result.pack_version == "v2.0.0"  # ref wins over (absent) ETag
         assert (target / "directives" / "sec.directive.yaml").is_file()
 
-    def test_401_returns_auth_error(
-        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
+    def test_401_returns_auth_error(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
         def _fake_get(url: str, **kwargs: Any) -> _FakeResponse:
             return _FakeResponse(status_code=401, body=b"", reason="Unauthorized")
 
-        monkeypatch.setattr(
-            "specify_cli.doctrine.sources.https_source.requests.get", _fake_get
-        )
+        monkeypatch.setattr("specify_cli.doctrine.sources.https_source.requests.get", _fake_get)
 
-        result = HttpsBundleSource(
-            url="https://example.com/pack.tar.gz"
-        ).fetch(tmp_path / "snapshot")
+        result = HttpsBundleSource(url="https://example.com/pack.tar.gz").fetch(tmp_path / "snapshot")
 
         assert result.ok is False
         assert any("SPEC_KITTY_ORG_TOKEN" in err for err in result.errors)
@@ -1143,33 +1002,21 @@ class TestHttpsBundleSource:
         def _fake_get(url: str, **kwargs: Any) -> _FakeResponse:
             return next(responses)
 
-        monkeypatch.setattr(
-            "specify_cli.doctrine.sources.https_source.requests.get", _fake_get
-        )
-        monkeypatch.setattr(
-            "specify_cli.doctrine.sources.https_source.time.sleep", lambda _s: None
-        )
+        monkeypatch.setattr("specify_cli.doctrine.sources.https_source.requests.get", _fake_get)
+        monkeypatch.setattr("specify_cli.doctrine.sources.https_source.time.sleep", lambda _s: None)
 
-        result = HttpsBundleSource(
-            url="https://example.com/pack.tar.gz"
-        ).fetch(tmp_path / "snapshot")
+        result = HttpsBundleSource(url="https://example.com/pack.tar.gz").fetch(tmp_path / "snapshot")
 
         assert result.ok is True
         assert first.closed is True
 
-    def test_network_error_does_not_echo_signed_url(
-        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
-        secret_url = (
-            "https://oauth2:password@example.com/pack.tar.gz?token=signed-secret"
-        )
+    def test_network_error_does_not_echo_signed_url(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+        secret_url = "https://oauth2:password@example.com/pack.tar.gz?token=signed-secret"
 
         def _fail(_url: str, **_kwargs: Any) -> _FakeResponse:
             raise requests.ConnectionError(f"failed for {secret_url}")
 
-        monkeypatch.setattr(
-            "specify_cli.doctrine.sources.https_source.requests.get", _fail
-        )
+        monkeypatch.setattr("specify_cli.doctrine.sources.https_source.requests.get", _fail)
 
         result = HttpsBundleSource(url=secret_url).fetch(tmp_path / "snapshot")
 
@@ -1179,9 +1026,7 @@ class TestHttpsBundleSource:
         assert "signed-secret" not in rendered
         assert "https://example.com/pack.tar.gz" in rendered
 
-    def test_auth_header_is_used(
-        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
+    def test_auth_header_is_used(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
         bundle = _make_tar_gz_bundle()
         seen_headers: dict[str, str] = {}
 
@@ -1195,13 +1040,9 @@ class TestHttpsBundleSource:
             )
 
         monkeypatch.setenv("SPEC_KITTY_ORG_TOKEN", "tok123")
-        monkeypatch.setattr(
-            "specify_cli.doctrine.sources.https_source.requests.get", _fake_get
-        )
+        monkeypatch.setattr("specify_cli.doctrine.sources.https_source.requests.get", _fake_get)
 
-        HttpsBundleSource(url="https://example.com/pack.tar.gz").fetch(
-            tmp_path / "snapshot"
-        )
+        HttpsBundleSource(url="https://example.com/pack.tar.gz").fetch(tmp_path / "snapshot")
 
         assert seen_headers.get("Authorization") == "Bearer tok123"
 
@@ -1217,9 +1058,7 @@ class _FakeApiServer:
         self.headers_seen: list[dict[str, str]] = []
         self.calls: list[str] = []
 
-    def __call__(
-        self, method: str, url: str, **kwargs: Any
-    ) -> _FakeResponse:
+    def __call__(self, method: str, url: str, **kwargs: Any) -> _FakeResponse:
         self.calls.append(url)
         self.headers_seen.append(dict(kwargs.get("headers") or {}))
         for suffix, response in self.routes.items():
@@ -1237,15 +1076,11 @@ def _json_response(payload: Any, status_code: int = 200) -> _FakeResponse:
 
 
 class TestApiSource:
-    def test_full_flow(
-        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
+    def test_full_flow(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
         target = tmp_path / "snapshot"
         server = _FakeApiServer(
             routes={
-                "/artifact-types": _json_response(
-                    {"types": ["directives", "agent_profiles"]}
-                ),
+                "/artifact-types": _json_response({"types": ["directives", "agent_profiles"]}),
                 "/artifacts/directives": _json_response(
                     {
                         "artifacts": [
@@ -1281,9 +1116,7 @@ class TestApiSource:
                 "/version": _json_response({"version": "v1.4.2"}),
             }
         )
-        monkeypatch.setattr(
-            "specify_cli.doctrine.sources.api_source.requests.request", server
-        )
+        monkeypatch.setattr("specify_cli.doctrine.sources.api_source.requests.request", server)
 
         result = ApiSource(url="https://example.com/api").fetch(target)
 
@@ -1295,9 +1128,7 @@ class TestApiSource:
         # 1 directive + 1 agent + 1 drg fragment.
         assert result.artifacts_written == 3
 
-    def test_no_drg_endpoint(
-        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
+    def test_no_drg_endpoint(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
         target = tmp_path / "snapshot"
         server = _FakeApiServer(
             routes={
@@ -1316,9 +1147,7 @@ class TestApiSource:
                 # /drg-extensions and /version both fall through to 404.
             }
         )
-        monkeypatch.setattr(
-            "specify_cli.doctrine.sources.api_source.requests.request", server
-        )
+        monkeypatch.setattr("specify_cli.doctrine.sources.api_source.requests.request", server)
 
         result = ApiSource(url="https://example.com/api", ref="v0.9").fetch(target)
 
@@ -1327,15 +1156,11 @@ class TestApiSource:
         # Falls back to ref when /version returns 404 without Date.
         assert result.pack_version == "v0.9"
 
-    def test_default_types_when_artifact_types_404(
-        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
+    def test_default_types_when_artifact_types_404(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
         target = tmp_path / "snapshot"
         # All endpoints 404 -> default type list, all empty.
         server = _FakeApiServer(routes={})
-        monkeypatch.setattr(
-            "specify_cli.doctrine.sources.api_source.requests.request", server
-        )
+        monkeypatch.setattr("specify_cli.doctrine.sources.api_source.requests.request", server)
 
         result = ApiSource(url="https://example.com/api").fetch(target)
 
@@ -1347,16 +1172,10 @@ class TestApiSource:
         assert "/artifacts/directives" in called_suffixes
         assert "/artifacts/agent_profiles" in called_suffixes
 
-    def test_auth_header_override(
-        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
+    def test_auth_header_override(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
         target = tmp_path / "snapshot"
-        server = _FakeApiServer(
-            routes={"/artifact-types": _json_response({"types": []})}
-        )
-        monkeypatch.setattr(
-            "specify_cli.doctrine.sources.api_source.requests.request", server
-        )
+        server = _FakeApiServer(routes={"/artifact-types": _json_response({"types": []})})
+        monkeypatch.setattr("specify_cli.doctrine.sources.api_source.requests.request", server)
         monkeypatch.setenv("SPEC_KITTY_ORG_AUTH_HEADER", "Basic dXNlcjpwYXNz")
 
         ApiSource(url="https://example.com/api").fetch(target)
@@ -1364,23 +1183,11 @@ class TestApiSource:
         # The custom header must appear verbatim on the first request.
         assert server.headers_seen[0].get("Authorization") == "Basic dXNlcjpwYXNz"
 
-    def test_credential_error_propagates(
-        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
-        server = _FakeApiServer(
-            routes={
-                "/artifact-types": _FakeResponse(
-                    status_code=401, body=b"", reason="Unauthorized"
-                )
-            }
-        )
-        monkeypatch.setattr(
-            "specify_cli.doctrine.sources.api_source.requests.request", server
-        )
+    def test_credential_error_propagates(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+        server = _FakeApiServer(routes={"/artifact-types": _FakeResponse(status_code=401, body=b"", reason="Unauthorized")})
+        monkeypatch.setattr("specify_cli.doctrine.sources.api_source.requests.request", server)
 
-        result = ApiSource(url="https://example.com/api").fetch(
-            tmp_path / "snapshot"
-        )
+        result = ApiSource(url="https://example.com/api").fetch(tmp_path / "snapshot")
 
         assert result.ok is False
         assert any("SPEC_KITTY_ORG_TOKEN" in err for err in result.errors)
