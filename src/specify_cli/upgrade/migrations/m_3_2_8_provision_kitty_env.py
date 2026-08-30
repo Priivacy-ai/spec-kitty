@@ -249,12 +249,74 @@ def _write_config_env_file_pointer(project_path: Path) -> None:
 # ---------------------------------------------------------------------------
 
 
+class NonRegularIgnoreFileError(OSError):
+    """Raised when a ``.gitignore``/``.claudeignore`` path is not a regular
+    file -- e.g. a FIFO, a symlink, a device, or a socket.
+
+    A FIFO named ``.gitignore``/``.claudeignore`` hangs a bare
+    ``path.read_text()``/``path.write_text()`` indefinitely: ``open()`` on a
+    FIFO blocks until a peer connects unless ``O_NONBLOCK`` is set, and
+    nothing upstream of this module supplied a timeout. Rejecting outright
+    (rather than trying to read/write it) is fail-closed and immediate.
+    """
+
+
+def _open_ignore_file_no_follow(path: Path, flags: int, mode: int = 0o644) -> int:
+    """Open *path* for the ignore-file read/write helpers, then fail closed.
+
+    ``O_NOFOLLOW`` refuses to traverse a final symlink component.
+    ``O_NONBLOCK`` is folded in unconditionally: it is what stops the
+    ``open()`` call itself from blocking forever on a FIFO (opening a FIFO
+    read-only blocks until a writer connects, and opening it write-only
+    blocks until a reader connects -- both unless ``O_NONBLOCK`` is set).
+    It is a no-op for a genuine regular file, so always including it never
+    changes behaviour on the common path.
+
+    The ``S_ISREG`` check runs on the fd this call already has open, not on
+    a separate ``path.stat()``/``is_file()`` call beforehand -- a
+    check-then-open of the path is a TOCTOU window (the path can be
+    swapped between the check and the open), whereas checking the already-
+    open descriptor's own mode is atomic with respect to that race (mirrors
+    ``coordination/atomic_write.py``'s fd-relative confinement checks).
+    """
+    no_follow = getattr(os, "O_NOFOLLOW", 0)
+    non_blocking = getattr(os, "O_NONBLOCK", 0)
+    try:
+        fd = os.open(path, flags | no_follow | non_blocking, mode)
+    except FileNotFoundError:
+        raise
+    except OSError as exc:
+        if exc.errno == errno.ELOOP:
+            raise NonRegularIgnoreFileError(f"Refusing to open {path}: {exc}") from exc
+        raise
+    try:
+        if not stat.S_ISREG(os.fstat(fd).st_mode):
+            raise NonRegularIgnoreFileError(f"Refusing to open {path}: not a regular file")
+    except BaseException:
+        os.close(fd)
+        raise
+    return fd
+
+
+def _read_ignore_file_text(path: Path) -> str:
+    """Read an ignore file's full text -- "" if it does not exist yet.
+
+    Fails closed via :class:`NonRegularIgnoreFileError` on a symlink or any
+    other non-regular file (FIFO, device, socket) instead of following it or
+    hanging. See :func:`_open_ignore_file_no_follow`.
+    """
+    try:
+        fd = _open_ignore_file_no_follow(path, os.O_RDONLY)
+    except FileNotFoundError:
+        return ""
+    with os.fdopen(fd, "r", encoding="utf-8-sig") as handle:
+        return handle.read()
+
+
 def _ignore_file_entries(path: Path) -> set[str]:
-    if not path.exists():
-        return set()
     return {
         line.strip()
-        for line in path.read_text(encoding="utf-8-sig").splitlines()
+        for line in _read_ignore_file_text(path).splitlines()
         if line.strip() and not line.lstrip().startswith("#")
     }
 
@@ -264,7 +326,14 @@ def _gitignore_missing_entry(project_path: Path) -> bool:
 
 
 def _claudeignore_missing_entry(project_path: Path) -> bool:
-    return _ENV_FILE_IGNORE_ENTRY not in _ignore_file_entries(project_path / _CLAUDEIGNORE_FILENAME)
+    path = project_path / _CLAUDEIGNORE_FILENAME
+    _reject_claudeignore_symlink(path)
+    entries = {
+        line.strip()
+        for line in _read_claudeignore_no_follow(path).splitlines()
+        if line.strip() and not line.lstrip().startswith("#")
+    }
+    return _ENV_FILE_IGNORE_ENTRY not in entries
 
 
 def _reject_claudeignore_symlink(path: Path) -> None:
@@ -306,12 +375,13 @@ def _open_claudeignore_no_follow(path: Path, flags: int) -> int:
     if no_follow == 0:
         _reject_claudeignore_symlink(path)
     try:
-        return os.open(path, flags | no_follow)
-    except OSError as exc:
-        if exc.errno == errno.ELOOP:
+        return _open_ignore_file_no_follow(path, flags)
+    except NonRegularIgnoreFileError as exc:
+        cause = exc.__cause__
+        if isinstance(cause, OSError) and cause.errno == errno.ELOOP:
             raise ClaudeignorePathError(
                 f".claudeignore is a symlink; refusing to read or write through it: {path}"
-            ) from exc
+            ) from cause
         raise
 
 
