@@ -172,6 +172,45 @@ node_modules/
         assert len(errors) == 0
         assert "No blocking kitty-specs/ entries" in changes[0]
 
+    def test_dangling_symlink_is_rejected_not_treated_as_missing(self, tmp_path: Path):
+        """A dangling symlinked .gitignore must error, not silently no-op as 'missing'.
+
+        `Path.exists()` follows symlinks and returns False for a dangling
+        symlink, which used to let this short-circuit to the "no .gitignore
+        file found" no-op path before ever hitting the read. Checking
+        `is_symlink()` first closes that gap.
+        """
+        gitignore = tmp_path / ".gitignore"
+        missing_target = tmp_path / "does-not-exist"
+        try:
+            gitignore.symlink_to(missing_target)
+        except OSError:
+            pytest.skip("symlinks not supported on this filesystem")
+
+        changes, errors = remove_blocking_entries(gitignore)
+
+        assert changes == []
+        assert len(errors) == 1
+        assert "symlink" in errors[0]
+        assert not gitignore.exists()  # still dangling, untouched
+
+    def test_live_target_symlink_is_rejected(self, tmp_path: Path):
+        """A symlink to a real file is also rejected, not followed."""
+        real_file = tmp_path / "real-gitignore"
+        real_file.write_text("kitty-specs/\n")
+        gitignore = tmp_path / ".gitignore"
+        try:
+            gitignore.symlink_to(real_file)
+        except OSError:
+            pytest.skip("symlinks not supported on this filesystem")
+
+        changes, errors = remove_blocking_entries(gitignore)
+
+        assert changes == []
+        assert len(errors) == 1
+        assert "symlink" in errors[0]
+        assert real_file.read_text() == "kitty-specs/\n"  # untouched
+
 
 class TestMigration:
     """Test the migration class."""
@@ -206,6 +245,20 @@ class TestMigration:
         can_apply, msg = migration.can_apply(tmp_path)
         assert can_apply is True
         assert msg == ""
+
+    def test_can_apply_rejects_dangling_symlink(self, tmp_path: Path):
+        """can_apply() should reject a dangling symlinked .gitignore, not return True."""
+        gitignore = tmp_path / ".gitignore"
+        missing_target = tmp_path / "does-not-exist"
+        try:
+            gitignore.symlink_to(missing_target)
+        except OSError:
+            pytest.skip("symlinks not supported on this filesystem")
+
+        migration = RemoveKittySpecsFromGitignoreMigration()
+        can_apply, msg = migration.can_apply(tmp_path)
+        assert can_apply is False
+        assert "symlink" in msg
 
     def test_apply_removes_entries(self, tmp_path: Path):
         """apply() should remove blocking entries."""

@@ -1317,7 +1317,7 @@
    "deprecated": false,
    "commands": {
     "providers": {
-     "help": "List supported tracker providers, categorized by backend type.\n\nSaaS-backed providers authenticate through ``spec-kitty auth login`` and\nroute sync operations through the Spec Kitty SaaS control plane.\n\nLocal providers use direct connectors with locally stored credentials.\n\nThis command is purely informational and prints the hard-coded provider\ncategories.  It does **not** consult hosted readiness — the rollout gate\nitself is enforced by ``tracker_callback`` (and by the conditional\nregistration in ``cli/commands/__init__.py``), which is all the gating\nthis static output needs.",
+     "help": "List supported tracker providers, categorized by backend type.\n\nSaaS-backed providers authenticate through ``spec-kitty auth login`` and\nroute sync operations through the Spec Kitty SaaS control plane.\n\nLocal providers use direct connectors with locally stored credentials.\n\nThis command is purely informational and prints the hard-coded provider\ncategories.  It does **not** consult hosted readiness — ``tracker_callback``\nis the sole rollout gate for the tracker Typer app, which is all the\ngating this static output needs.",
      "hidden": false,
      "deprecated": false
     },

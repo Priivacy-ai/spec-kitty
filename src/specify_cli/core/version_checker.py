@@ -301,7 +301,7 @@ def maybe_emit_no_upgrade_notice(command_name: str) -> bool:
 
         from specify_cli.distribution import resolve_distribution_profile
 
-        if resolve_distribution_profile().disable_public_pypi_notifier:
+        if resolve_distribution_profile().disable_no_upgrade_notifier:
             return False
 
         # Deferred import to keep this module light and to avoid pulling httpx

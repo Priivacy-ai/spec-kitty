@@ -11,7 +11,9 @@ Output layout (spec 080 §2.4, FR-015):
 - SaaS endpoint the CLI is pointed at, with its provenance, plus a plain
   warning when the stored session was minted against a *different*
   endpoint (#176 — after a hostname move this is the line that explains
-  why every call suddenly 401s)
+  why every call suddenly 401s); or, when ``SPEC_KITTY_SAAS_URL`` and
+  ``config.toml [sync].server_url`` genuinely disagree, a split-brain line
+  naming both values instead of silently picking the env one (#193)
 - SaaS endpoint the stored session was minted against, when known
 - email / name / user_id
 - Team list with the default team marked
@@ -23,6 +25,12 @@ Output layout (spec 080 §2.4, FR-015):
   the None branch only trips for replayed/legacy sessions.
 - Storage backend (human label for the encrypted local session file)
 - Session ID, last_used_at, auth method
+
+The not-authenticated and session-expired early returns also print the
+``SaaS:`` endpoint line — the expired case additionally gets the session
+issuer + mismatch warning, since that is exactly the post-hostname-move
+symptom #176 exists to diagnose (#189). ``whoami``'s separate exit-1/no-output
+contract when unauthenticated is untouched.
 
 Exit code is 0 in both authenticated and not-authenticated cases per
 FR-015: ``auth status`` is purely informational and must never surface
@@ -37,7 +45,10 @@ from specify_cli.cli.console import console
 
 from specify_cli.auth import get_token_manager
 from specify_cli.auth.session import StoredSession
-from specify_cli.cli.commands._auth_saas_target import print_saas_target
+from specify_cli.cli.commands._auth_saas_target import (
+    print_saas_endpoint,
+    print_saas_target,
+)
 
 
 # Mapping from the StorageBackend literal (see session.py) to a
@@ -54,7 +65,6 @@ _AUTH_METHOD_LABELS: dict[str, str] = {
     "device_code": "Headless (Device Authorization Grant)",
 }
 
-
 def status_impl() -> None:
     """Print the current authentication status.
 
@@ -67,11 +77,13 @@ def status_impl() -> None:
 
     if session is None:
         console.print("[red]X Not authenticated[/red]")
+        print_saas_endpoint()
         console.print("  Run [bold]spec-kitty auth login[/bold] to authenticate.")
         return
 
     if session.is_refresh_token_expired():
         console.print("[red]X Session expired (refresh token expired)[/red]")
+        print_saas_target(session)
         console.print("  Run [bold]spec-kitty auth login[/bold] to re-authenticate.")
         return
 
@@ -91,7 +103,7 @@ def status_impl() -> None:
     _print_storage_backend(session)
     console.print(f"  Session ID:     {session.session_id}")
     console.print(f"  Last used:      {_format_iso(session.last_used_at)}")
-    console.print(f"  Auth method:    {format_auth_method(session.auth_method)}")
+    console.print(f"  Auth method:    {escape(format_auth_method(session.auth_method))}")
 
 
 # ---------------------------------------------------------------------------
@@ -102,9 +114,9 @@ def status_impl() -> None:
 def _print_identity(session: StoredSession) -> None:
     """Print the authenticated user's identity block."""
     if session.name and session.name != session.email:
-        console.print(f"  User:           {session.email} ({session.name})")
+        console.print(f"  User:           {escape(session.email)} ({escape(session.name)})")
     else:
-        console.print(f"  User:           {session.email}")
+        console.print(f"  User:           {escape(session.email)}")
     console.print(f"  User ID:        {session.user_id}")
 
 
@@ -122,7 +134,7 @@ def _print_teams(session: StoredSession) -> None:
         if is_default:
             marker_parts.append("default")
         marker = f" [dim]({', '.join(marker_parts)})[/dim]" if marker_parts else ""
-        console.print(f"    - {team.name} ({team.role}){marker}")
+        console.print(f"    - {escape(team.name)} ({team.role}){marker}")
 
 
 def _print_token_expiry(session: StoredSession) -> None:
@@ -147,7 +159,7 @@ def _print_token_expiry(session: StoredSession) -> None:
 
 def _print_storage_backend(session: StoredSession) -> None:
     """Print the storage backend with a user-friendly label."""
-    label = format_storage_backend(session.storage_backend)
+    label = escape(format_storage_backend(session.storage_backend))
     console.print(f"  Storage:        {label}")
 
 

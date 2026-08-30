@@ -53,8 +53,8 @@ class DistributionProfile:
         index_url: Primary simple/PyPI-compatible index for remediation argv.
         extra_index_url: Secondary index for remediation argv.
         data_freshness_seconds: Optional TTL override for re-query decisions.
-        disable_public_pypi_notifier: When ``True``, suppress the stock
-            public-PyPI “no upgrade” notice.
+        disable_no_upgrade_notifier: When ``True``, suppress the stock
+            "no upgrade available" notice.
         version_label: Optional ``--version`` banner label; ``None`` means use
             ``package_name``.
     """
@@ -65,7 +65,7 @@ class DistributionProfile:
     index_url: str | None = None
     extra_index_url: str | None = None
     data_freshness_seconds: int | None = None
-    disable_public_pypi_notifier: bool = False
+    disable_no_upgrade_notifier: bool = False
     version_label: str | None = None
 
 
@@ -84,7 +84,7 @@ def stock_distribution_profile() -> DistributionProfile:
         index_url=None,
         extra_index_url=None,
         data_freshness_seconds=None,
-        disable_public_pypi_notifier=False,
+        disable_no_upgrade_notifier=False,
         version_label=None,
     )
 
@@ -166,7 +166,28 @@ def _profile_from_entry_point(entry: EntryPoint) -> DistributionProfile | None:
         if callable(loaded):
             value = loaded()
             return value if isinstance(value, DistributionProfile) else None
+    except TypeError:
+        # The likeliest cause is a fork's factory still passing a retired
+        # DistributionProfile field name (e.g. disable_public_pypi_notifier,
+        # renamed to disable_no_upgrade_notifier — see the Breaking Changes
+        # entry in docs/changelog/CHANGELOG.md) as a keyword argument the
+        # current dataclass no longer accepts. Log loudly (not debug) so the
+        # packager notices instead of silently getting the stock profile.
+        _log.error(
+            "spec_kitty.distribution_profile entry point %r raised TypeError "
+            "while constructing its DistributionProfile — likely an outdated "
+            "field name after a breaking rename (see docs/changelog/CHANGELOG.md); "
+            "falling back to the stock profile.",
+            entry.name,
+            exc_info=True,
+        )
+        return None
     except Exception:
+        _log.debug(
+            "spec_kitty.distribution_profile entry point %r raised while constructing a profile; using stock profile",
+            entry.name,
+            exc_info=True,
+        )
         return None
 
     return None

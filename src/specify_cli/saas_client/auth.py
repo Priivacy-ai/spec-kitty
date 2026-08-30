@@ -167,21 +167,29 @@ def _oauth_session_context() -> AuthContext | None:
     session recorded against one server is refused, not paired, when the
     resolved target now names a different one (#234).
     ``resolve_server_target`` still fails closed on an ambiguous split-brain;
-    that refusal surfaces here as ``None`` and the caller's own error message
-    names what is missing.
+    that refusal surfaces here as a distinct ``SaasAuthError`` naming both
+    URLs (#306) rather than folding into the caller's generic "no SaaS token
+    configured: ... run `spec-kitty auth login`" message — on a split-brain
+    machine login already succeeded (FR-005 lets it win), so pointing the
+    operator back at it is a no-op loop; the real fix is reconciling
+    ``config.toml``/``SPEC_KITTY_SAAS_URL``.
 
-    Every *bridge-unavailable* failure degrades to ``None`` plus a debug
-    log: for the fire-and-forget status fan-out an unusable session means
-    "stay silent". A dead session or an issuer mismatch is different — both
-    are refusals that must reach interactive callers as a ``SaasAuthError``
-    naming the remedy, not silence. The token is only ever read from the
-    store, never written anywhere.
+    Every other *bridge-unavailable* failure still degrades to ``None`` plus
+    a debug log: for the fire-and-forget status fan-out an unusable session
+    means "stay silent". A dead session or an issuer mismatch is different —
+    both are refusals that must reach interactive callers as a
+    ``SaasAuthError`` naming the remedy, not silence. The token is only ever
+    read from the store, never written anywhere.
     """
+    from specify_cli.auth.server_target import ServerTargetSplitBrainError  # noqa: PLC0415
+
     try:
         manager = _token_manager()
         target = _resolved_server_target()
         session = manager.get_current_session()
-    except Exception as exc:  # noqa: BLE001 — any bridge trouble means "not available"
+    except ServerTargetSplitBrainError as exc:
+        raise SaasAuthError(str(exc)) from exc
+    except Exception as exc:  # noqa: BLE001 — any other bridge trouble means "not available"
         logger.debug("OAuth session bridge unavailable (%s)", exc)
         return None
 
@@ -241,10 +249,11 @@ def _saas_source_name(target: Any) -> str:
 def _normalize_endpoint(url: str) -> str:
     """Normalize a URL for endpoint comparison.
 
-    Same semantics as ``server_target._normalize_url`` /
-    ``_auth_status._normalize_endpoint`` (strip surrounding whitespace, drop
-    one trailing slash); kept local so the comparison does not reach into
-    another module's private helper.
+    Same semantics as ``server_target._normalize_url`` (strip surrounding
+    whitespace, drop one trailing slash); kept local so the comparison does
+    not reach into another module's private helper. Other modules keep their
+    own local copy with the same semantics rather than being named here, so
+    this reference doesn't go stale as those copies move (#423).
     """
     return url.strip().rstrip("/")
 

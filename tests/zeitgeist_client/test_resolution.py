@@ -245,7 +245,7 @@ class TestStoreKeyForCheckout:
     def test_hosted_checkout_yields_its_store_key(self, clone: Path) -> None:
         assert resolution.store_key_for_checkout(clone) == "github.com/acme/widget"
 
-    def test_directory_with_no_git_identity_has_no_key(self, tmp_path: Path) -> None:
+    def test_directory_with_no_git_identity_has_no_key(self, tmp_path: Path, no_git_ancestry_inside_tmp_path: None) -> None:
         plain = tmp_path / "not-a-repo"
         plain.mkdir()
         assert resolution.store_key_for_checkout(plain) is None
@@ -530,6 +530,41 @@ class TestCacheShortCircuits:
         assert len(gateway.admission_calls) == 1
 
 
+class TestCachedAnswer:
+    """:func:`resolution.cached_answer` — the gateway-free peek `_resolve`
+    and `resolve_credentials` both build on (EXPERIMENTAL-spec-kitty#151)."""
+
+    def test_miss_when_nothing_stored(self, state_root: Path) -> None:
+        assert resolution.cached_answer(KEY, repo_slug=SLUG, host=HOST) == (False, None)
+
+    def test_hit_on_an_unexpired_positive(self, state_root: Path) -> None:
+        credentials.store(repo=KEY, relay_url="http://cached", token="tok", token_kind="presence", expires_at=_iso_in(3600))
+        hit, value = resolution.cached_answer(KEY, repo_slug=SLUG, host=HOST)
+        assert hit is True
+        assert value is not None
+        assert value.relay_url == "http://cached"
+
+    def test_hit_on_an_unexpired_negative(self, state_root: Path) -> None:
+        credentials.store_negative(repo=KEY, reason="no_match", expires_at=_iso_in(300))
+        assert resolution.cached_answer(KEY, repo_slug=SLUG, host=HOST) == (True, None)
+
+    def test_miss_on_an_expired_positive(self, state_root: Path) -> None:
+        credentials.store(repo=KEY, relay_url="http://stale", token="tok", token_kind="presence", expires_at=_iso_in(-1))
+        assert resolution.cached_answer(KEY, repo_slug=SLUG, host=HOST) == (False, None)
+
+    def test_miss_on_an_out_of_scope_entry(self, state_root: Path) -> None:
+        credentials.store(
+            repo=KEY,
+            relay_url="http://cached",
+            token="tok",
+            token_kind="presence",
+            expires_at=_iso_in(3600),
+            host="gitlab.com",
+            repo_slug="other/repo",
+        )
+        assert resolution.cached_answer(KEY, repo_slug=SLUG, host=HOST) == (False, None)
+
+
 class TestScopeRevalidation:
     """Squad finding on #123: the store key was the bare repo NAME, which
     two differently-hosted repos could share -- #132 moved the key to
@@ -765,7 +800,12 @@ class TestResolveCredentialsEndToEnd:
         assert cached is not None
         assert second.admission_calls == [] and second.mint_calls == []
 
-    def test_directory_with_no_git_identity_stays_silent(self, state_root: Path, tmp_path: Path) -> None:
+    def test_directory_with_no_git_identity_stays_silent(
+        self,
+        state_root: Path,
+        tmp_path: Path,
+        no_git_ancestry_inside_tmp_path: None,
+    ) -> None:
         plain = tmp_path / "not-a-repo"
         plain.mkdir()
         gateway = ScriptedGateway()
@@ -1046,6 +1086,47 @@ class TestDefaultGatewayConstruction:
         monkeypatch.delenv("SPEC_KITTY_TEAM_SLUG", raising=False)
         assert resolution.resolve_credentials(clone, auth_repo_root=clone) is None
         assert credentials.load(repo="github.com/acme/widget") is None
+
+    def test_cached_credential_answers_offline_even_when_nothing_is_configured_to_authenticate_with(
+        self, state_root: Path, monkeypatch: pytest.MonkeyPatch, clone: Path
+    ) -> None:
+        """EXPERIMENTAL-spec-kitty#151: a stored credential must answer
+        offline before the gateway is ever built, so a checkout with a
+        cached credential but no auth configured anywhere still gets it —
+        not the quiet ``None`` an auth failure would otherwise produce."""
+        monkeypatch.delenv("SPEC_KITTY_SAAS_URL", raising=False)
+        monkeypatch.delenv("SPEC_KITTY_SAAS_TOKEN", raising=False)
+        monkeypatch.delenv("SPEC_KITTY_TEAM_SLUG", raising=False)
+        credentials.store(
+            repo="github.com/acme/widget",
+            relay_url="http://relay",
+            token="bearer",
+            token_kind=KIND_PRESENCE,
+            expires_at=_iso_in(3600),
+            host="github.com",
+            repo_slug="acme/widget",
+            team="demo",
+        )
+        stored = resolution.resolve_credentials(clone, auth_repo_root=clone)
+        assert stored is not None
+        assert stored.team == "demo"
+
+    def test_cached_negative_answers_offline_even_when_nothing_is_configured_to_authenticate_with(
+        self, state_root: Path, monkeypatch: pytest.MonkeyPatch, clone: Path
+    ) -> None:
+        """Same fix, the remembered-negative branch."""
+        monkeypatch.delenv("SPEC_KITTY_SAAS_URL", raising=False)
+        monkeypatch.delenv("SPEC_KITTY_SAAS_TOKEN", raising=False)
+        monkeypatch.delenv("SPEC_KITTY_TEAM_SLUG", raising=False)
+        credentials.store_negative(repo="github.com/acme/widget", reason="stale-reason")
+        assert resolution.resolve_credentials(clone, auth_repo_root=clone) is None
+        # Distinguishing "cached no" from "auth error, no answer" matters to
+        # callers like `spec-kitty routes` — confirm it stayed a cache hit,
+        # not a fall-through past a `SaasAuthError`, via the negative record
+        # itself: still present and unexpired, never touched by this call.
+        negative = credentials.load_negative(repo="github.com/acme/widget")
+        assert negative is not None
+        assert negative.reason == "stale-reason"
 
 
 # --- #10: the admitting team is recorded with the mint ----------------------

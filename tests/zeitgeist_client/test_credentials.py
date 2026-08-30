@@ -570,6 +570,56 @@ def test_reminting_the_main_credential_preserves_a_live_focus_lease(state_root: 
     assert loaded.focus_capability_credential == "focus-jwt"
 
 
+def test_reminting_with_a_new_relay_url_drops_the_stale_focus_lease(state_root: Path):
+    """#197: a focus lease minted for the old relay must not be served once
+    the main credential's rewrite points at a different relay -- serving it
+    would get every focus frame rejected until the stale lease expires."""
+    _seed_main_credential()
+    credentials.store_focus_capability(
+        repo="github.com/acme/widget", capability_credential="focus-jwt", expires_at=_iso_in(1200)
+    )
+
+    credentials.store(
+        repo="github.com/acme/widget",
+        relay_url="http://relay-2",
+        token="bearer-2",
+        token_kind="presence",
+        capability_credential="presence-jwt-2",
+        expires_at=_iso_in(3600),
+        host="github.com",
+        repo_slug="acme/widget",
+        team="demo",
+    )
+
+    loaded = credentials.load(repo="github.com/acme/widget")
+    assert loaded is not None
+    assert loaded.relay_url == "http://relay-2"
+    assert loaded.focus_capability_credential is None
+    assert loaded.focus_expires_at is None
+
+
+def test_reminting_under_a_new_team_drops_the_stale_focus_lease(state_root: Path):
+    """#197: the focus lease is scoped to the admitting team as much as the
+    relay -- a re-admission under a different team must drop it too."""
+    _seed_main_credential()
+    credentials.store_focus_capability(repo="github.com/acme/widget", capability_credential="focus-jwt")
+
+    credentials.store(
+        repo="github.com/acme/widget",
+        relay_url="http://relay",
+        token="bearer-2",
+        token_kind="presence",
+        capability_credential="presence-jwt-2",
+        host="github.com",
+        repo_slug="acme/widget",
+        team="other-team",
+    )
+
+    loaded = credentials.load(repo="github.com/acme/widget")
+    assert loaded is not None
+    assert loaded.focus_capability_credential is None
+
+
 def test_store_negative_drops_the_focus_lease_with_the_rest(state_root: Path):
     """A not-admitted answer means no relay at all — keeping a focus lease
     against it would be a live secret pointing nowhere."""

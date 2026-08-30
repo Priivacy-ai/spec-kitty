@@ -446,7 +446,6 @@ class TestEmitStatusTransition:
                 repo_root=lock_root,
             ),
             ensure_sync_daemon=False,
-            sync_dossier=False,
         )
 
         assert event.to_lane == Lane.CLAIMED
@@ -1460,15 +1459,12 @@ class TestReasonGuard:
 
 
 class TestMergeLightweightEmit:
-    def test_emit_status_transition_can_skip_dossier_sync_and_daemon_start(
+    def test_emit_status_transition_can_skip_daemon_start(
         self,
         feature_dir: Path,
     ) -> None:
         _seed_planned(feature_dir, "WP01", slug="034-test-feature")
-        with (
-            patch.object(emit_module, "_saas_fan_out") as mock_fanout,
-            patch("specify_cli.status.emit.fire_dossier_sync") as mock_dossier,
-        ):
+        with patch.object(emit_module, "_saas_fan_out") as mock_fanout:
             event = emit_status_transition(
                 feature_dir=feature_dir,
                 mission_slug="034-test-feature",
@@ -1477,13 +1473,11 @@ class TestMergeLightweightEmit:
                 actor="merge",
                 repo_root=feature_dir.parent.parent,
                 ensure_sync_daemon=False,
-                sync_dossier=False,
             )
 
         assert event.to_lane == Lane.CLAIMED
         mock_fanout.assert_called_once()
         assert mock_fanout.call_args.kwargs["ensure_sync_daemon"] is False
-        mock_dossier.assert_not_called()
 
 
 class TestBatchEmit:
@@ -1617,7 +1611,6 @@ class TestBatchEmit:
                         reason="ready for review",
                     ),
                 ],
-                sync_dossier=False,
             )
 
         assert [event.to_lane for event in events] == [Lane.CLAIMED, Lane.IN_PROGRESS, Lane.FOR_REVIEW]
@@ -1679,7 +1672,6 @@ class TestBatchEmit:
                         evidence=valid_evidence_dict,
                     ),
                 ],
-                sync_dossier=False,
             )
 
         assert done[-1].evidence is not None
@@ -1701,7 +1693,6 @@ class TestBatchEmit:
                         actor="agent",
                     )
                 ],
-                sync_dossier=False,
             )
 
         assert len(events) == 1
