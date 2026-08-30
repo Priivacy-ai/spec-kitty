@@ -11,8 +11,8 @@ import pytest
 
 from specify_cli.compat.cache import NagCacheRecord
 from specify_cli.compat.planner import Invocation, plan
-from specify_cli.compat.provider import LatestVersionResult
-from specify_cli.distribution.profile import DistributionProfile
+from specify_cli.compat.provider import LatestVersionResult, NoNetworkProvider
+from specify_cli.distribution.profile import DegradedDistributionProfile, DistributionProfile
 
 pytestmark = [pytest.mark.fast]
 
@@ -41,7 +41,7 @@ def test_planner_queries_profile_package_name(monkeypatch: pytest.MonkeyPatch) -
         package_name="acme-spec-kitty-cli",
         package_aliases=("spec-kitty-cli",),
         upgrade_provider=provider,
-        disable_public_pypi_notifier=True,
+        disable_no_upgrade_notifier=True,
     )
     monkeypatch.setattr(
         "specify_cli.distribution.profile.resolve_distribution_profile",
@@ -156,6 +156,45 @@ def test_stale_under_profile_ttl_queries_provider(
 
     assert provider.calls == ["fork-cli"]
     assert result.cli_status.latest_version == "3.0.0"
+
+
+def test_degraded_profile_does_not_fall_back_to_public_pypi(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    profile = DegradedDistributionProfile(
+        package_name="",
+        upgrade_provider=NoNetworkProvider(),
+        disable_no_upgrade_notifier=True,
+    )
+    monkeypatch.setattr(
+        "specify_cli.distribution.resolve_distribution_profile",
+        lambda: profile,
+    )
+    monkeypatch.setattr(
+        "specify_cli.distribution.resolve_installed_distribution_version",
+        lambda *_args, **_kwargs: "1.0.0",
+    )
+
+    def _no_public_pypi() -> None:
+        raise AssertionError("degraded profile must not resolve a fallback provider")
+
+    monkeypatch.setattr(
+        "specify_cli.distribution.resolve_upgrade_provider",
+        _no_public_pypi,
+    )
+
+    result = plan(
+        Invocation.from_argv(["spec-kitty", "status"]),
+        nag_cache=_empty_cache(),
+        config=_config(throttle_seconds=3600),
+        now=datetime(2026, 7, 21, tzinfo=UTC),
+        project_root_resolver=lambda _path: None,
+    )
+
+    assert result.cli_status.latest_version is None
+    assert result.cli_status.latest_source == "none"
+    assert result.upgrade_hint.command is None
+    assert result.upgrade_hint.note is not None
 
 
 def _empty_cache() -> MagicMock:

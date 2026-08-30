@@ -2,7 +2,7 @@
 title: Agent Subcommand Reference
 description: Reference for spec-kitty agent subcommands. Learn how agent-only actions like config, status, decision, and retrospect behave in workflows.
 doc_status: active
-updated: '2026-06-15'
+updated: '2026-08-30'
 ---
 # Agent Subcommand Reference
 
@@ -13,6 +13,10 @@ Terminology note:
 - `Mission` = tracked item under `kitty-specs/<mission-slug>/`
 - `Mission Run` = runtime/session instance
 - The `agent feature` command group remains a legacy compatibility alias; tracked-mission selectors are documented canonically as `--mission`
+
+## Ambiguous mission selectors
+
+`agent status` and `agent tasks` commands that resolve `--mission` never guess when a handle matches multiple missions. With `--json`, they emit the shared error envelope (`success: false`, `error_code: "MISSION_AMBIGUOUS_SELECTOR"`, `handle`, and `candidates`) and exit `1`. In human mode, they print the ambiguity diagnostic and exit `2`. The read-path fix in #429 deliberately changed this human-mode case from the earlier generic exit code `1` to `2`, aligning it with the other ambiguous mission-handle resolution path.
 
 ## Getting Started
 

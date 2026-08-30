@@ -15,7 +15,7 @@ def test_suppressed_when_profile_disables_notifier(
 ) -> None:
     profile = DistributionProfile(
         package_name="acme-cli",
-        disable_public_pypi_notifier=True,
+        disable_no_upgrade_notifier=True,
     )
     monkeypatch.setattr(
         "specify_cli.distribution.resolve_distribution_profile",

@@ -1167,23 +1167,41 @@ def test_g4_exactly_five_enclosing_functions_and_five_call_expressions() -> None
 
 
 def test_g4_hosted_verdict_helper_is_wired_to_the_exact_physical_sink() -> None:
-    """The audited helper must remain the first call in ``_request`` itself."""
+    """The audited helper must remain the first call reachable from both enforced entry points.
+
+    #458 consolidated the duplicated verdict/raise pair -- previously textually repeated at
+    ``_request`` and ``_request_with_retry`` -- into one shared ``_enforce_tracker_egress_consent``
+    helper. Both entry points must call that helper as their first runtime statement, and the
+    helper itself must call ``_current_tracker_egress_verdict`` as *its* first runtime statement --
+    the audited call is one hop further from the physical sink than before, but still
+    unconditionally the first thing either entry point reaches.
+    """
     path = SRC_ROOT / "specify_cli" / "tracker" / "saas_client.py"
     tree = ast.parse(path.read_text(encoding="utf-8"), filename=str(path))
-    request_method = next(
-        node
-        for parent in tree.body
-        if isinstance(parent, ast.ClassDef) and parent.name == "SaaSTrackerClient"
-        for node in parent.body
-        if isinstance(node, ast.FunctionDef) and node.name == "_request"
-    )
-    first = request_method.body[0]
-    assert isinstance(first, ast.Expr) and isinstance(first.value, ast.Constant)
-    first_runtime = request_method.body[1]
-    assert isinstance(first_runtime, ast.Assign)
-    assert isinstance(first_runtime.value, ast.Call)
-    assert isinstance(first_runtime.value.func, ast.Attribute)
-    assert first_runtime.value.func.attr == "_current_tracker_egress_verdict"
+    class_node = next(parent for parent in tree.body if isinstance(parent, ast.ClassDef) and parent.name == "SaaSTrackerClient")
+    methods = {node.name: node for node in class_node.body if isinstance(node, ast.FunctionDef)}
+
+    for entry_point in ("_request", "_request_with_retry"):
+        method = methods[entry_point]
+        first = method.body[0]
+        assert isinstance(first, ast.Expr) and isinstance(first.value, ast.Constant), f"{entry_point}: expected a leading docstring"
+        first_runtime = method.body[1]
+        assert isinstance(first_runtime, ast.Expr), f"{entry_point}: first runtime statement is not a bare call: {ast.dump(first_runtime)}"
+        assert isinstance(first_runtime.value, ast.Call)
+        assert isinstance(first_runtime.value.func, ast.Attribute)
+        assert first_runtime.value.func.attr == "_enforce_tracker_egress_consent", (
+            f"{entry_point}: first runtime statement must call the shared consent gate, found `{ast.unparse(first_runtime.value)}`"
+        )
+
+    gate_method = methods["_enforce_tracker_egress_consent"]
+    gate_first = gate_method.body[0]
+    assert isinstance(gate_first, ast.Expr) and isinstance(gate_first.value, ast.Constant)
+    gate_first_runtime = gate_method.body[1]
+    assert isinstance(gate_first_runtime, ast.Assign)
+    assert isinstance(gate_first_runtime.value, ast.Call)
+    assert isinstance(gate_first_runtime.value.func, ast.Attribute)
+    assert gate_first_runtime.value.func.attr == "_current_tracker_egress_verdict"
+
     real = _real_verdict_calls()
 
     # Every kill below is measured as a DELTA against a control that is itself correctly shaped,

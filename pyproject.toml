@@ -307,7 +307,6 @@ exclude = [
     "scripts/measure-wp-prompt.py",
     "scripts/mutants/attribute_sleep_count_3115.py",
     "scripts/mutants/neutralise_reset_token_manager_3115.py",
-    "scripts/mutants/nonterminating_dispatch_3115.py",
     "scripts/patch_seam_census.py",
     "scripts/release/check_candidate_consumer_compat.py",
     "scripts/release/check_exact_install.py",
@@ -3183,7 +3182,6 @@ module = [
     "specify_cli.cli.commands.init",
     "specify_cli.cli.commands.merge",
     "specify_cli.cli.commands.next_cmd",
-    "specify_cli.cli.commands.sync",
     "specify_cli.cli.commands.tracker",
     "specify_cli.cli.commands.upgrade",
     "specify_cli.cli.ui",
@@ -3216,12 +3214,6 @@ module = [
     "specify_cli.orchestrator_api.commands",
     "specify_cli.scripts.validate_encoding",
     "specify_cli.status.validate",
-    "specify_cli.sync.auth",
-    "specify_cli.sync.background",
-    "specify_cli.sync.batch",
-    "specify_cli.sync.client",
-    "specify_cli.sync.emitter",
-    "specify_cli.sync.runtime",
     "specify_cli.template.github_client",
     "specify_cli.tracker.factory",
     "specify_cli.tracker.service",
@@ -3334,7 +3326,6 @@ also_copy = [
     "src/specify_cli/cli/",   # Copy CLI commands
     "src/specify_cli/agent_utils/",  # Copy agent utilities
     "src/specify_cli/git/",  # Copy git utilities
-    "src/specify_cli/sync/",  # Copy sync module
     "src/runtime/next/",  # Copy canonical next runtime module
     "src/specify_cli/validators/",  # Copy validators
     "src/specify_cli/template/",  # Copy template utilities

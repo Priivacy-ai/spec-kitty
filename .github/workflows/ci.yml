@@ -1,0 +1,84 @@
+# Deterministic CI on Blacksmith — the same bin/ci-run.sh -> bin/ci-post.sh the exe CI VMs run, so the merge
+# agent reads an identical `[ci] <verdict> @<sha>` comment. Governed by EXPERIMENTAL-spec-kitty-planning
+# PROGRAM.md §2 and docs/BLACKSMITH-CI.md; exe stops dispatching this repo once it is listed in
+# SK_CI_ACTIONS_REPOS (one producer per repo — never both).
+name: ci
+
+on:
+  pull_request:
+    types: [labeled, synchronize, reopened]
+  push:
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      sha: { description: "40-char commit sha to run", required: true, type: string }
+      pr: { description: "repo-local PR number (empty = main run)", required: false, default: "", type: string }
+
+# one run per head; a newer push to the same PR supersedes the older run
+concurrency:
+  group: ci-${{ github.event.pull_request.number || inputs.pr || 'main' }}
+  cancel-in-progress: true
+
+env:
+  REPO: spec-kitty
+  SK_HOME: ${{ github.workspace }}/work
+  GH_TOKEN: ${{ secrets.SK_CI_TOKEN }}
+
+jobs:
+  suite:
+    # same gate as bin/ci-dispatch.sh's priority producer: only squad-passed/exhausted heads (and main) get a run
+    if: >-
+      github.event_name != 'pull_request' ||
+      contains(github.event.pull_request.labels.*.name, 'squad:passed') ||
+      contains(github.event.pull_request.labels.*.name, 'squad:exhausted')
+    runs-on: blacksmith-16vcpu-ubuntu-2404
+    timeout-minutes: 90
+    steps:
+      - name: Require SK_CI_TOKEN
+        run: |
+          if [ -z "$GH_TOKEN" ]; then
+            echo "::error::org secret SK_CI_TOKEN is missing (fine-grained PAT: contents read on the EXPERIMENTAL-* repos, write on planning; issues+pull-requests write). See planning docs/BLACKSMITH-CI.md." ; exit 1
+          fi
+          # System-wide, not --global: the suites' clean-venv install tests run subprocesses with an isolated
+          # HOME (pip pulling the private spec-kitty-events git dependency), so a per-user helper is invisible
+          # to them. exe VMs get the same effect from /etc/gitconfig's insteadOf rewrite onto the proxy.
+          # Token-bearing URL rewrite in /etc/gitconfig: reaches every subprocess, including the suites'
+          # clean-venv install tests that scrub env and HOME (a credential helper needs both). Same design as
+          # exe's /etc/gitconfig insteadOf onto the proxy; the runner is destroyed after the job.
+          sudo git config --system "url.https://x-access-token:${GH_TOKEN}@github.com/.insteadOf" "https://github.com/"
+          sudo git config --system user.name sk-agent; sudo git config --system user.email sk-agent@spec-kitty.ai
+          echo "GIT_TERMINAL_PROMPT=0" >> "$GITHUB_ENV"
+      - name: Resolve target
+        id: t
+        run: |
+          case "${{ github.event_name }}" in
+            pull_request) sha="${{ github.event.pull_request.head.sha }}"; pr="${{ github.event.pull_request.number }}" ;;
+            push)         sha="${{ github.sha }}"; pr="" ;;
+            *)            sha="${{ inputs.sha }}"; pr="${{ inputs.pr }}" ;;
+          esac
+          [[ "$sha" =~ ^[0-9a-f]{40}$ ]] || { echo "::error::bad sha '$sha'"; exit 64; }
+          echo "sha=$sha" >> "$GITHUB_OUTPUT"; echo "pr=$pr" >> "$GITHUB_OUTPUT"
+      - uses: astral-sh/setup-uv@v5
+      - name: Sibling checkouts (planning + repo under test)
+        run: |
+          mkdir -p "$SK_HOME"
+          git clone -q https://github.com/spec-kitty/EXPERIMENTAL-spec-kitty-planning.git "$SK_HOME/spec-kitty-planning"
+          git clone -q https://github.com/spec-kitty/EXPERIMENTAL-$REPO.git "$SK_HOME/$REPO"
+          git -C "$SK_HOME/$REPO" fetch -q origin "${{ steps.t.outputs.sha }}"
+      - name: Run the suite (bin/ci-run.sh --sync)
+        working-directory: ${{ env.SK_HOME }}/spec-kitty-planning
+        run: bin/ci-run.sh --sync "$REPO" "${{ steps.t.outputs.sha }}" "${{ steps.t.outputs.pr }}"
+      - name: Post the verdict (bin/ci-post.sh)
+        if: always() && steps.t.outcome == 'success'
+        working-directory: ${{ env.SK_HOME }}/spec-kitty-planning
+        run: |
+          run="$SK_HOME/ci-runs/$REPO/${{ steps.t.outputs.sha }}"
+          [ -f "$run/exit" ] || { echo "::error::no run dir/exit file — suite never completed; not posting a verdict"; exit 1; }
+          bin/ci-post.sh "$REPO" "${{ steps.t.outputs.sha }}" "$run" "${{ steps.t.outputs.pr }}"
+      - name: Keep the log
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ci-log-${{ steps.t.outputs.sha }}
+          path: ${{ env.SK_HOME }}/ci-runs/**/log
+          if-no-files-found: ignore

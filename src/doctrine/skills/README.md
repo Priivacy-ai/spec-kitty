@@ -92,7 +92,7 @@ the public user-facing hierarchy moves to `spk-*`.
 | `spk-admin-dashboard` | Status and dashboard |
 | `spk-admin-git-workflow` | Git and worktree workflows |
 | `spk-team-auth` | Auth and accounts |
-| `spk-team-sync` | Hosted/team sync |
+| `spk-team-sync` | Tracker sync (local pull/push/run, hosted binding) |
 | `spk-team-tracker` | Tracker workflows |
 | `spk-team-connectors` | Connector integrations |
 | `spk-doctrine-charter` | Charter workflows |

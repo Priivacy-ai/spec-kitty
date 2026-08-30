@@ -17,7 +17,8 @@ from __future__ import annotations
 
 import time
 import tomllib
-from kernel.clock import datetime, timedelta, UTC
+from dataclasses import fields
+from kernel.clock import datetime, now_utc, timedelta, UTC
 from io import StringIO
 from pathlib import Path
 
@@ -26,6 +27,7 @@ import pytest
 import respx
 from rich.console import Console
 
+from specify_cli.core import upgrade_probe
 from specify_cli.core.upgrade_notifier import (
     OPT_OUT_ENV_VAR,
     TTL_SUCCESS_SECONDS,
@@ -36,7 +38,7 @@ from specify_cli.core.upgrade_probe import (
     GITHUB_RELEASES_URL,
     UpgradeChannel,
     UpgradeProbeResult,
-    probe_pypi,
+    probe_github_releases,
 )
 
 
@@ -64,12 +66,27 @@ def _capture_console() -> tuple[Console, StringIO]:
 
 
 # ---------------------------------------------------------------------------
-# probe_pypi: channel classification
+# probe_github_releases: channel classification
 # ---------------------------------------------------------------------------
 
 
 class TestProbeChannelClassification:
     """The channel matrix from contracts/upgrade-probe-and-notifier.md."""
+
+    def test_retired_probe_api_names_are_removed(self) -> None:
+        assert not hasattr(upgrade_probe, "probe_pypi")
+        assert "probe_pypi" not in upgrade_probe.__all__
+        assert "AHEAD_OF_PYPI" not in UpgradeChannel.__members__
+        assert "latest_pypi_version" not in {field.name for field in fields(UpgradeProbeResult)}
+
+        with pytest.raises(TypeError):
+            UpgradeProbeResult(
+                installed_version="1.0.0",
+                latest_release_version="1.0.1",
+                channel=UpgradeChannel.UPGRADE_AVAILABLE,
+                probed_at=now_utc(),
+                latest_pypi_version="1.0.1",
+            )
 
     def test_probe_uses_github_releases_endpoint(self) -> None:
         assert GITHUB_RELEASES_URL.startswith("https://api.github.com/repos/")
@@ -79,59 +96,59 @@ class TestProbeChannelClassification:
     def test_already_current_when_installed_equals_latest(self) -> None:
         respx.get(GITHUB_RELEASES_URL).mock(return_value=httpx.Response(200, json=_make_release_payload(["3.1.0", "3.2.0"])))
 
-        result = probe_pypi("3.2.0")
+        result = probe_github_releases("3.2.0")
 
         assert result.channel == UpgradeChannel.ALREADY_CURRENT
-        assert result.latest_pypi_version == "3.2.0"
+        assert result.latest_release_version == "3.2.0"
         assert result.error is None
 
     @respx.mock
     def test_rc_only_release_channel_still_classifies_current_release(self) -> None:
         respx.get(GITHUB_RELEASES_URL).mock(return_value=httpx.Response(200, json=_make_release_payload(["3.2.6rc2"])))
 
-        result = probe_pypi("3.2.6rc2")
+        result = probe_github_releases("3.2.6rc2")
 
         assert result.channel == UpgradeChannel.ALREADY_CURRENT
-        assert result.latest_pypi_version == "3.2.6rc2"
+        assert result.latest_release_version == "3.2.6rc2"
         assert result.error is None
 
     @respx.mock
     def test_ahead_of_release_when_installed_greater_than_latest_stable_release(self) -> None:
         respx.get(GITHUB_RELEASES_URL).mock(return_value=httpx.Response(200, json=_make_release_payload(["3.0.0", "3.1.0", "3.2.0rc7"])))
 
-        result = probe_pypi("3.2.0rc7")
+        result = probe_github_releases("3.2.0rc7")
 
-        assert result.channel == UpgradeChannel.AHEAD_OF_PYPI
-        assert result.latest_pypi_version == "3.1.0"
+        assert result.channel == UpgradeChannel.AHEAD_OF_RELEASE
+        assert result.latest_release_version == "3.1.0"
 
     @respx.mock
     def test_no_upgrade_path_when_installed_not_in_releases(self) -> None:
         # Installed version "0.0.1.dev0" is NOT a current-org release.
         respx.get(GITHUB_RELEASES_URL).mock(return_value=httpx.Response(200, json=_make_release_payload(["3.1.0", "3.2.0"])))
 
-        result = probe_pypi("0.0.1.dev0")
+        result = probe_github_releases("0.0.1.dev0")
 
         assert result.channel == UpgradeChannel.NO_UPGRADE_PATH
-        assert result.latest_pypi_version == "3.2.0"
+        assert result.latest_release_version == "3.2.0"
 
     @respx.mock
     def test_upgrade_available_when_installed_is_older_published_release(self) -> None:
         respx.get(GITHUB_RELEASES_URL).mock(return_value=httpx.Response(200, json=_make_release_payload(["3.2.0", "3.2.1"])))
 
-        result = probe_pypi("3.2.0")
+        result = probe_github_releases("3.2.0")
 
         assert result.channel == UpgradeChannel.UPGRADE_AVAILABLE
-        assert result.latest_pypi_version == "3.2.1"
+        assert result.latest_release_version == "3.2.1"
 
     @respx.mock
     def test_unknown_on_http_500(self) -> None:
         respx.get(GITHUB_RELEASES_URL).mock(return_value=httpx.Response(500))
 
-        result = probe_pypi("3.2.0")
+        result = probe_github_releases("3.2.0")
 
         assert result.channel == UpgradeChannel.UNKNOWN
         assert result.error is not None
-        assert result.latest_pypi_version is None
+        assert result.latest_release_version is None
 
     @respx.mock
     def test_http_404_falls_back_to_stamped_bundled_release_identity(self, monkeypatch: pytest.MonkeyPatch) -> None:
@@ -149,10 +166,10 @@ class TestProbeChannelClassification:
         )
         respx.get(GITHUB_RELEASES_URL).mock(return_value=httpx.Response(404))
 
-        result = probe_pypi("3.2.6rc2")
+        result = probe_github_releases("3.2.6rc2")
 
         assert result.channel == UpgradeChannel.ALREADY_CURRENT
-        assert result.latest_pypi_version == "3.2.6rc2"
+        assert result.latest_release_version == "3.2.6rc2"
         assert result.error is None
         assert result.releases == ("3.2.6rc2",)
 
@@ -162,10 +179,10 @@ class TestProbeChannelClassification:
         pyproject = tomllib.loads((repo_root / "pyproject.toml").read_text(encoding="utf-8"))
         respx.get(GITHUB_RELEASES_URL).mock(return_value=httpx.Response(404))
 
-        result = probe_pypi(pyproject["project"]["version"])
+        result = probe_github_releases(pyproject["project"]["version"])
 
         assert result.channel == UpgradeChannel.NO_UPGRADE_PATH
-        assert result.latest_pypi_version == "3.2.6rc2"
+        assert result.latest_release_version == "3.2.6rc2"
         assert result.error is None
 
     @respx.mock
@@ -184,17 +201,17 @@ class TestProbeChannelClassification:
         )
         respx.get(GITHUB_RELEASES_URL).mock(return_value=httpx.Response(404))
 
-        result = probe_pypi("3.2.6rc3")
+        result = probe_github_releases("3.2.6rc3")
 
         assert result.channel == UpgradeChannel.NO_UPGRADE_PATH
-        assert result.latest_pypi_version == "3.2.6rc2"
+        assert result.latest_release_version == "3.2.6rc2"
         assert result.error is None
 
     @respx.mock
     def test_unknown_on_connection_error(self) -> None:
         respx.get(GITHUB_RELEASES_URL).mock(side_effect=httpx.ConnectError("boom"))
 
-        result = probe_pypi("not-a-version")
+        result = probe_github_releases("not-a-version")
 
         assert result.channel == UpgradeChannel.UNKNOWN
 
@@ -202,7 +219,7 @@ class TestProbeChannelClassification:
     def test_unknown_on_timeout(self) -> None:
         respx.get(GITHUB_RELEASES_URL).mock(side_effect=httpx.TimeoutException("slow"))
 
-        result = probe_pypi("not-a-version", timeout_s=0.1)
+        result = probe_github_releases("not-a-version", timeout_s=0.1)
 
         assert result.channel == UpgradeChannel.UNKNOWN
 
@@ -210,7 +227,7 @@ class TestProbeChannelClassification:
     def test_unknown_on_malformed_json_payload(self) -> None:
         respx.get(GITHUB_RELEASES_URL).mock(return_value=httpx.Response(200, text="not-json"))
 
-        result = probe_pypi("3.2.0")
+        result = probe_github_releases("3.2.0")
 
         assert result.channel == UpgradeChannel.UNKNOWN
 
@@ -218,7 +235,7 @@ class TestProbeChannelClassification:
     def test_unknown_on_missing_release_tags(self) -> None:
         respx.get(GITHUB_RELEASES_URL).mock(return_value=httpx.Response(200, json=[]))
 
-        result = probe_pypi("3.2.0")
+        result = probe_github_releases("3.2.0")
 
         assert result.channel == UpgradeChannel.UNKNOWN
 
@@ -227,7 +244,7 @@ class TestProbeChannelClassification:
         respx.get(GITHUB_RELEASES_URL).mock(side_effect=RuntimeError("totally unexpected"))
 
         # Must not raise.
-        result = probe_pypi("3.2.0")
+        result = probe_github_releases("3.2.0")
 
         assert result.channel == UpgradeChannel.UNKNOWN
 
@@ -509,7 +526,7 @@ class TestFailureContainment:
         def boom(*args, **kwargs):
             raise RuntimeError("synthetic")
 
-        monkeypatch.setattr("specify_cli.core.upgrade_notifier.probe_pypi", boom)
+        monkeypatch.setattr("specify_cli.core.upgrade_notifier.probe_github_releases", boom)
 
         console, buf = _capture_console()
         emitted = maybe_emit_upgrade_notice("3.2.0", console=console, cache_path=tmp_path / "c.json")
@@ -518,14 +535,14 @@ class TestFailureContainment:
         assert buf.getvalue() == ""
 
     def test_probe_swallows_all_exceptions_to_unknown(self) -> None:
-        """probe_pypi itself must not raise on any failure mode."""
+        """probe_github_releases itself must not raise on any failure mode."""
 
         # Use a transport that raises a non-httpx exception (rare path).
         class ExplodingTransport(httpx.BaseTransport):
             def handle_request(self, request: httpx.Request) -> httpx.Response:
                 raise RuntimeError("synthetic exception")
 
-        result = probe_pypi("3.2.0", transport=ExplodingTransport())
+        result = probe_github_releases("3.2.0", transport=ExplodingTransport())
 
         assert result.channel == UpgradeChannel.UNKNOWN
         assert result.error is not None
@@ -639,7 +656,7 @@ class TestSerialization:
 
         original = UpgradeProbeResult(
             installed_version="3.2.0",
-            latest_pypi_version="3.2.0",
+            latest_release_version="3.2.0",
             channel=UpgradeChannel.ALREADY_CURRENT,
             probed_at=datetime(2026, 5, 14, 12, 0, 0, tzinfo=UTC),
             error=None,
@@ -659,6 +676,78 @@ class TestSerialization:
 
         assert _deserialize_result({}) is None
         assert _deserialize_result({"installed_version": "3.2.0"}) is None
+
+    @pytest.mark.parametrize(
+        "channel",
+        [
+            UpgradeChannel.ALREADY_CURRENT,
+            UpgradeChannel.NO_UPGRADE_PATH,
+            UpgradeChannel.UPGRADE_AVAILABLE,
+            UpgradeChannel.UNKNOWN,
+        ],
+    )
+    def test_legacy_cache_key_round_trips_on_unchanged_channels(self, channel: UpgradeChannel) -> None:
+        """A cache written by a pre-rename build carries ``latest_pypi_version``,
+        not ``latest_release_version``. The fallback matters only while the old
+        and current builds report the same version; this same-version entry can
+        remain fresh, while a released upgrade would fail the version pin and
+        be re-probed."""
+        from specify_cli.core.upgrade_notifier import _deserialize_result
+
+        legacy_cache_entry = {
+            "installed_version": "3.2.0",
+            "latest_pypi_version": "3.3.0",
+            "channel": channel.value,
+            "probed_at": "2026-05-14T12:00:00+00:00",
+            "error": None,
+            "releases": ["3.1.0", "3.2.0", "3.3.0"],
+        }
+
+        restored = _deserialize_result(legacy_cache_entry)
+
+        assert restored is not None
+        assert restored.installed_version == "3.2.0"
+        assert restored.latest_release_version == "3.3.0"
+        assert restored.channel == channel
+        assert restored.releases == ("3.1.0", "3.2.0", "3.3.0")
+
+    def test_legacy_cache_new_key_takes_precedence_over_legacy_key(self) -> None:
+        """If a cache entry somehow carries both keys, the new key wins."""
+        from specify_cli.core.upgrade_notifier import _deserialize_result
+
+        legacy_cache_entry = {
+            "installed_version": "3.2.0",
+            "latest_pypi_version": "3.3.0",
+            "latest_release_version": "3.4.0",
+            "channel": UpgradeChannel.UPGRADE_AVAILABLE.value,
+            "probed_at": "2026-05-14T12:00:00+00:00",
+            "error": None,
+            "releases": ["3.4.0"],
+        }
+
+        restored = _deserialize_result(legacy_cache_entry)
+
+        assert restored is not None
+        assert restored.latest_release_version == "3.4.0"
+
+    def test_legacy_ahead_of_pypi_channel_is_cache_miss_not_crash(self) -> None:
+        """The renamed channel value has no compatibility shim: a cache entry
+        from a pre-rename build with the old ``ahead_of_pypi`` channel value
+        no longer matches any ``UpgradeChannel`` member. This must degrade to
+        a cache miss (``None``, triggering a safe re-probe) rather than
+        raising."""
+        from specify_cli.core.upgrade_notifier import _deserialize_result
+
+        legacy_cache_entry = {
+            "installed_version": "3.3.0",
+            "latest_pypi_version": "3.2.0",
+            "channel": "ahead_of_pypi",
+            "probed_at": "2026-05-14T12:00:00+00:00",
+            "error": None,
+            "releases": ["3.1.0", "3.2.0"],
+        }
+
+        assert _deserialize_result(legacy_cache_entry) is None
 
 
 class TestPackagedReleaseIdentity:
