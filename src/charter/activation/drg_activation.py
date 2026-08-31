@@ -226,16 +226,16 @@ _SINGULAR_TO_PLURAL: dict[str, str] = {
 #: Maps a singular URN kind prefix to the corresponding ``PackContext`` attribute
 #: that holds the three-state frozenset of activated artifact IDs.
 _SINGULAR_TO_PER_KIND_FIELD: dict[str, str] = {
-    "directive":             "activated_directives",
-    "tactic":                "activated_tactics",
-    "styleguide":            "activated_styleguides",
-    "toolguide":             "activated_toolguides",
-    "paradigm":              "activated_paradigms",
-    "procedure":             "activated_procedures",
-    "agent_profile":         "activated_agent_profiles",
+    "directive": "activated_directives",
+    "tactic": "activated_tactics",
+    "styleguide": "activated_styleguides",
+    "toolguide": "activated_toolguides",
+    "paradigm": "activated_paradigms",
+    "procedure": "activated_procedures",
+    "agent_profile": "activated_agent_profiles",
     "mission_step_contract": "activated_mission_step_contracts",
-    "glossary_pack":         "activated_glossary_packs",
-    "anti_pattern":          "activated_anti_patterns",
+    "glossary_pack": "activated_glossary_packs",
+    "anti_pattern": "activated_anti_patterns",
 }
 
 
@@ -340,11 +340,7 @@ def _resolve_activated_urns_for_kind(
     urns: set[str] = set()
     for stem in activated_ids:
         try:
-            urns.add(
-                resolve_artifact_urn(
-                    kind_enum, stem, doctrine_root=doctrine_root, org_roots=org_roots
-                )
-            )
+            urns.add(resolve_artifact_urn(kind_enum, stem, doctrine_root=doctrine_root, org_roots=org_roots))
         except UnknownArtifactIdError:
             continue  # Skip-with-report (contract): _check_unknown_references reports it.
     return frozenset(urns)
@@ -474,16 +470,9 @@ def filter_graph_by_activation(
     ``MissionTemplateRepository.get(...)``) are exempt.
     """
     resolved_urns_by_kind = _resolve_activated_urns_by_kind(pack_context)
-    surviving_nodes = [
-        n for n in graph.nodes
-        if _node_is_activated(*_split_urn(n.urn), pack_context, resolved_urns_by_kind)
-    ]
+    surviving_nodes = [n for n in graph.nodes if _node_is_activated(*_split_urn(n.urn), pack_context, resolved_urns_by_kind)]
     surviving_urns = {n.urn for n in surviving_nodes}
-    surviving_edges = [
-        e
-        for e in graph.edges
-        if e.source in surviving_urns and e.target in surviving_urns
-    ]
+    surviving_edges = [e for e in graph.edges if e.source in surviving_urns and e.target in surviving_urns]
     # ``model_construct`` skips the URN-prefix validators on each node/edge.
     # The input *graph* was already validated upstream, and we are returning
     # a strict subset of its nodes and edges, so the output is invariant-

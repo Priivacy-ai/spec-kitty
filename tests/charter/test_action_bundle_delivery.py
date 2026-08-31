@@ -25,8 +25,8 @@ from pathlib import Path
 
 import pytest
 
-from charter import context
-from charter.drg import filter_graph_by_activation
+from charter.activation import context
+from charter.activation.drg_activation import filter_graph_by_activation
 from charter.activation.pack_context import PackContext
 from charter.offering.drg.models import DRGEdge, DRGGraph, DRGNode, NodeKind, Relation
 from charter.offering.drg.query import resolve_context

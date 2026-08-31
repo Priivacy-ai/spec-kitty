@@ -489,8 +489,7 @@ def check_locality_gate(raw_sites: tuple[RawSite, ...]) -> list[str]:
         if raw.key in excluded and raw.verdict.wrapped:
             continue
         suffix = (
-            " (its named locality exclusion no longer applies: the immediate "
-            "charter.activation.resolver.DoctrineService wrap is gone)"
+            " (its named locality exclusion no longer applies: the immediate charter.activation.resolver.DoctrineService wrap is gone)"
             if raw.key in excluded
             else ""
         )

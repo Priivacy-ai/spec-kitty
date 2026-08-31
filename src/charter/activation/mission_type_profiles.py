@@ -64,7 +64,7 @@ from charter.activation.action_grain import aggregate_action_grain
 from charter.activation.activations import ActivationEntry
 from charter.bundle import CHARTER_YAML
 from charter.activation.charter_yaml_io import load_charter_yaml
-from charter.activation.mission_type_key import canonical_mission_type_key
+from charter.activation.mission_type_key import canonical_mission_type_key, read_mission_type
 from charter.activation.sync import apply_legacy_governance_selection_key_compat
 
 if TYPE_CHECKING:
@@ -760,8 +760,7 @@ def _read_meta_mission_type(feature_dir: Path) -> str | None:
         return None
     if not isinstance(data, dict):
         return None
-    raw = data.get("mission_type")
-    return raw if isinstance(raw, str) else None
+    return read_mission_type(data)
 
 
 def _resolve_governance_slot(

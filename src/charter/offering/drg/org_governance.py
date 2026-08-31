@@ -127,9 +127,7 @@ def _profile_scope_edges(
                 OrgGovernanceScopeEdge(
                     source=source_urn,
                     target=target_urn,
-                    generated_reason=(
-                        f"declared via governance-profile.yaml {field_name} selection"
-                    ),
+                    generated_reason=(f"declared via governance-profile.yaml {field_name} selection"),
                 )
             )
     return edges

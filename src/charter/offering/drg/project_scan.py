@@ -76,13 +76,9 @@ def _load_profile_mapping(path: Path) -> dict[str, Any]:
     try:
         data: Any = yaml.load(path)
     except (YAMLError, OSError) as exc:
-        raise MalformedProjectProfileError(
-            f"Project agent_profile file {path} could not be parsed: {exc}"
-        ) from exc
+        raise MalformedProjectProfileError(f"Project agent_profile file {path} could not be parsed: {exc}") from exc
     if not isinstance(data, dict):
-        raise MalformedProjectProfileError(
-            f"Project agent_profile file {path} does not contain a YAML mapping"
-        )
+        raise MalformedProjectProfileError(f"Project agent_profile file {path} does not contain a YAML mapping")
     return data
 
 
@@ -92,10 +88,7 @@ def _profile_id(data: dict[str, Any], path: Path) -> str:
         if isinstance(value, str) and value:
             _require_urn_safe_id(value, path)
             return value
-    raise MalformedProjectProfileError(
-        f"Project agent_profile file {path} is missing a non-empty "
-        f"'profile-id' field"
-    )
+    raise MalformedProjectProfileError(f"Project agent_profile file {path} is missing a non-empty 'profile-id' field")
 
 
 def _require_urn_safe_id(profile_id: str, path: Path) -> None:

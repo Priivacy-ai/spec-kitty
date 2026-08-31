@@ -219,7 +219,9 @@ _CATEGORY_A_SLICE_F_DEFERRED: frozenset[SymbolKey] = frozenset(
             "CharterCatalogMissError", "f0f2057a37b2ac491094023a2059ce8904848d1ae6e6e63e84b627fc508ab1b8", source_module="charter.activation._catalog_miss"
         ),  # charter.activation._catalog_miss::CharterCatalogMissError
         # charter.activation._catalog_miss::CharterCatalogMissWarning
-        SymbolKey("CharterCatalogMissWarning", "7e5a4824e4b5a66125cf3e5ac266279983bfd23e5a02f3abd661eefaa0f93be8", source_module="charter.activation._catalog_miss"),
+        SymbolKey(
+            "CharterCatalogMissWarning", "7e5a4824e4b5a66125cf3e5ac266279983bfd23e5a02f3abd661eefaa0f93be8", source_module="charter.activation._catalog_miss"
+        ),
         # charter.activation.activations::ALLOWED_MISSION_TYPES (body_hash refreshed WP03/#2669: derived from builtin_mission_type_id_set())
         SymbolKey(
             "ALLOWED_MISSION_TYPES", "66f78adc4726573209f4e4eba6c766601762ead6492b8a86131ef45184ef69fd", source_module="charter.activation.activations"
@@ -246,7 +248,9 @@ _CATEGORY_A_SLICE_F_DEFERRED: frozenset[SymbolKey] = frozenset(
         # library-first slice; the AST ratchet + schema/identity/counts/lineage unit
         # suites exercise these meanwhile. Operator-confirmed deferred-API landing.
         # charter.activation.synthesizer.manifest::compute_manifest_hash
-        SymbolKey("compute_manifest_hash", "976c4625daa4d8bc9612ad055b4076e879ab68aa5df7cba27c16ce90f5c51ef4", source_module="charter.activation.synthesizer.manifest"),
+        SymbolKey(
+            "compute_manifest_hash", "976c4625daa4d8bc9612ad055b4076e879ab68aa5df7cba27c16ce90f5c51ef4", source_module="charter.activation.synthesizer.manifest"
+        ),
         SymbolKey(
             "ensure_pack_identity", "ca9b5b99abe23a15555eca6452a326aede2faf85c70518c1a17b8dc345b349bb", source_module="charter.offering.drg.org_pack_config"
         ),  # charter.offering.drg.org_pack_config::ensure_pack_identity
@@ -570,7 +574,7 @@ _CATEGORY_B_GRANDFATHERED_LEGACY: frozenset[SymbolKey] = frozenset(
         SymbolKey("REQUIRED_KIND_FIELDS", "6845e2186c122993ab17b0352e5ac72f9c821e031e96de06cb5bd996f2f0f327", source_module="specify_cli.doctrine.org_charter"),
         # specify_cli.doctrine.org_charter::apply_org_charter_pre_fill
         SymbolKey(
-            "apply_org_charter_pre_fill", "559da0a61fd4f6255212b449ad4de219cb758f57501e1c5adcc1f5e5f801385b", source_module="specify_cli.doctrine.org_charter"
+            "apply_org_charter_pre_fill", "e3a5d7e2e5d16803128180ed9c1e34256ed4ff2f1e1315a8d9ffefce8a1f0e95", source_module="specify_cli.doctrine.org_charter"
         ),
         SymbolKey(
             "AssemblyResult", "3af243769584cf1b5e44b1a04238c6a9f879b3cd8c34e05414c046d2220202f0", source_module="specify_cli.doctrine.pack_assembler"
@@ -913,7 +917,9 @@ _CATEGORY_C_WP_IN_FLIGHT_CHARTER_SCOPE: frozenset[SymbolKey] = frozenset(
         # consumed via attribute access on run_consistency_check()'s return
         # value), matching this file's own CharterYamlCorruptError precedent.
         # charter.activation.invocation_context::ContextPreconditionError
-        SymbolKey("ContextPreconditionError", "ed270fe330c24f71db20d7c033d1246499b83b3bad558fc526fc4620bddd67af", source_module="charter.activation.invocation_context"),
+        SymbolKey(
+            "ContextPreconditionError", "ed270fe330c24f71db20d7c033d1246499b83b3bad558fc526fc4620bddd67af", source_module="charter.activation.invocation_context"
+        ),
     }
 )
 
@@ -1040,15 +1046,17 @@ _CATEGORY_C_ORG_DOCTRINE_CLOSEOUT: frozenset[SymbolKey] = frozenset(
             "ActivationPlan", "49697a5e9d4ea41ac9531c0b4bb6605a8aa71bf116e0dfbf1af2eee33a935a53", source_module="charter.activation.activation_engine"
         ),  # charter.activation.activation_engine::ActivationPlan
         SymbolKey(
-            "DeactivationPlan", "527c491b7df6c1369bc3f4c7491626817a5a3a2ede574ffe4527168fde17bf43", source_module="charter.activation.cascade"
+            "DeactivationPlan", "ea81133908c5385ae013a8057ac7f863386247ba90b64e212b54be895d7e1615", source_module="charter.activation.cascade"
         ),  # charter.activation.cascade::DeactivationPlan
         SymbolKey(
-            "REFERENCE_RELATIONS", "923c7531fa07a59396d69e256ee38a05448b62f4d75cde08c9fbaa932376a8ca", source_module="charter.activation.cascade"
+            "REFERENCE_RELATIONS", "95fca0816d6568e68a953c321ec3ca6c5a45a7903f064fdbcb4d87bc1558632b", source_module="charter.activation.cascade"
         ),  # charter.activation.cascade::REFERENCE_RELATIONS
         SymbolKey(
             "ReferencedArtifact", "80d3c02ebae2c466ff75be630ecfd259036be62ea0a1394dbab6503f75414afc", source_module="charter.activation.cascade"
         ),  # charter.activation.cascade::ReferencedArtifact
-        SymbolKey("SharedSkip", "5eaddd3d5d18e386fc96f4ad558b21289c0bf7955cc70cfadca308d234f3ff5b", source_module="charter.activation.cascade"),  # charter.activation.cascade::SharedSkip
+        SymbolKey(
+            "SharedSkip", "5eaddd3d5d18e386fc96f4ad558b21289c0bf7955cc70cfadca308d234f3ff5b", source_module="charter.activation.cascade"
+        ),  # charter.activation.cascade::SharedSkip
         # charter.offering.drg.org_pack_loader::AUGMENTATION_RELATIONS
         SymbolKey(
             "AUGMENTATION_RELATIONS", "724f4741d69125ccfd2bb664f8f05739fb4a2372220636958b84476741738af0", source_module="charter.offering.drg.org_pack_loader"
@@ -1489,7 +1497,9 @@ _CATEGORY_C_WP_IN_FLIGHT_CHARTER_YAML_IO_WRITE_HELPER: frozenset[SymbolKey] = fr
             "OWNED_SECTIONS", "64c7a3f3de0c69de219050aed3e63d0f50a2ad8162997d0efa52be16deff81c3", source_module="charter.activation.charter_yaml_io"
         ),  # charter.activation.charter_yaml_io::OWNED_SECTIONS
         # charter.activation.charter_yaml_io::UnknownCharterYamlSectionError
-        SymbolKey("UnknownCharterYamlSectionError", "9671c9b4163dbb4c718cf85bc3850ed8643fbf1d92ea63c7e296040e7197328a", source_module="charter.activation.charter_yaml_io"),
+        SymbolKey(
+            "UnknownCharterYamlSectionError", "9671c9b4163dbb4c718cf85bc3850ed8643fbf1d92ea63c7e296040e7197328a", source_module="charter.activation.charter_yaml_io"
+        ),
     }
 )
 
@@ -1680,7 +1690,9 @@ _CATEGORY_C_LIFECYCLE_GATE_EXECUTION_CONTEXT_2841: frozenset[SymbolKey] = frozen
 _CATEGORY_C_DELIVERY_RAIL_FORWARD_API: frozenset[SymbolKey] = frozenset(
     {
         # charter.activation.pack_context::ActivationReachabilityPartition
-        SymbolKey("ActivationReachabilityPartition", "16f04ac28e60241772fae3e88ebe14fa1e4b234c2fc216673cc9d075f285b661", source_module="charter.activation.pack_context"),
+        SymbolKey(
+            "ActivationReachabilityPartition", "16f04ac28e60241772fae3e88ebe14fa1e4b234c2fc216673cc9d075f285b661", source_module="charter.activation.pack_context"
+        ),
         # charter_activated_urns: charter.activation.pack_context::charter_activated_urns
         # -- re-allowlisted (charter-pack-usage-journey-01KYWWTF WP01/T006b,
         # #3118). It is the documented FR-017 "single activation authority"
@@ -1705,9 +1717,13 @@ _CATEGORY_C_DELIVERY_RAIL_FORWARD_API: frozenset[SymbolKey] = frozenset(
         # module's body enough to change its content-tier body_hash; no
         # semantic change, no new/removed caller -- see FR-303 process note
         # at the top of this allowlist for the re-pin-only case.
-        SymbolKey("normalize_activation_identifier", "9f7d92e2fc1d29bac413ee0aedb51ec14bf4288bf04f2a96ca2e9807e32e5cdd", source_module="charter.activation.pack_context"),
+        SymbolKey(
+            "normalize_activation_identifier", "9f7d92e2fc1d29bac413ee0aedb51ec14bf4288bf04f2a96ca2e9807e32e5cdd", source_module="charter.activation.pack_context"
+        ),
         # charter.activation.pack_context::partition_activated_unreachable
-        SymbolKey("partition_activated_unreachable", "a128040a4804e409225402613ffbe128932fa1862881810bbb3bd3cfd1241fb4", source_module="charter.activation.pack_context"),
+        SymbolKey(
+            "partition_activated_unreachable", "a128040a4804e409225402613ffbe128932fa1862881810bbb3bd3cfd1241fb4", source_module="charter.activation.pack_context"
+        ),
         SymbolKey(
             "partition_delivery", "7a90e7fc7bfaa802edcb2f675f4cce8f0e7e6db3fbe184b68b64a4a03d194841", source_module="charter.activation.progressive_disclosure"
         ),  # charter.activation.progressive_disclosure::partition_delivery
@@ -1908,6 +1924,22 @@ _CATEGORY_D_CHARTER_CODE_TOPOLOGY_RELOCATION_FORWARD_API: frozenset[SymbolKey] =
 )
 
 
+# ---------- E. charter-activation-split forward API (#3664, M2b) ----------
+# The pure merge remains re-exported on charter.drg while live callers import
+# it from charter.activation.drg_activation alongside the activation-aware DRG
+# loaders. The module_path key disambiguates the byte-identical re-export.
+_CATEGORY_E_CHARTER_ACTIVATION_SPLIT_FORWARD_API: frozenset[SymbolKey] = frozenset(
+    {
+        SymbolKey(
+            "merge_three_layers",
+            "a474c1190d82c971ec43ab922f13e85ca488cea98ff3b56d1e077f386ab89b90",
+            module_path="charter.drg",
+            source_module="charter.drg",
+        ),
+    }
+)
+
+
 # Aggregate. The gate consults this; the per-category frozensets are
 # the surface introspected by the ratchet-baseline meta-test
 # (``tests/architectural/test_ratchet_baselines.py``). Entries are
@@ -1947,6 +1979,7 @@ _SYMBOL_ALLOWLIST: frozenset[SymbolKey] = (
     | _CATEGORY_C_CHARTER_FACADE_FORWARD_API_01KZPDSR
     | _CATEGORY_C_CHARTER_AUTHORITY_FLIP_FORWARD_API
     | _CATEGORY_D_CHARTER_CODE_TOPOLOGY_RELOCATION_FORWARD_API
+    | _CATEGORY_E_CHARTER_ACTIVATION_SPLIT_FORWARD_API
 )
 
 

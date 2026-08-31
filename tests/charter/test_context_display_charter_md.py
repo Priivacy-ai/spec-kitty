@@ -42,8 +42,8 @@ from unittest.mock import patch
 import pytest
 from ruamel.yaml import YAML
 
-from charter import compact as compact_module
-from charter import context as context_module
+from charter.activation import compact as compact_module
+from charter.activation import context as context_module
 from charter.activation.context import CharterContextResult, build_charter_context
 from charter.activation.context_renderers.section_bodies import render_critical_section_bodies
 from charter.activation.compact import extract_section_anchors, render_compact_view
