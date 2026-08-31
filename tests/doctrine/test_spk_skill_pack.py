@@ -124,6 +124,7 @@ def test_skill_command_literals_resolve_against_live_cli() -> None:
         for literal in re.findall(r"`(spec-kitty\s+[^`]+)`(?!\s+not found)", text):
             command = root_command
             command_path: list[str] = []
+            unresolved: str | None = None
             for token in literal.split()[1:]:
                 if token.startswith("-") or token in {"...", "…"}:
                     break
@@ -133,11 +134,26 @@ def test_skill_command_literals_resolve_against_live_cli() -> None:
                     break
                 next_command = command.commands.get(token)
                 if next_command is None:
+                    # The walk stopped on an unresolved token while the current
+                    # node is still a `click.Group` -- i.e. a real subcommand was
+                    # expected and none exists. Record it rather than breaking
+                    # silently, so drift *below* the first token (e.g.
+                    # `spec-kitty tracker sync-pull`, the exact class issue #669
+                    # exists to catch) can no longer sail through green on the
+                    # already-resolved prefix left in `command_path`.
+                    unresolved = token
                     break
                 command_path.append(token)
                 command = next_command
 
-            if not command_path:
+            if unresolved is not None:
+                under = " ".join(["spec-kitty", *command_path])
+                errors.append(
+                    f"{skill_md.relative_to(REPO_ROOT)}: `{literal}` references "
+                    f"unknown command '{unresolved}'"
+                    + (f" under `{under}`" if command_path else "")
+                )
+            elif not command_path:
                 errors.append(
                     f"{skill_md.relative_to(REPO_ROOT)}: `{literal}` resolves no command"
                 )
