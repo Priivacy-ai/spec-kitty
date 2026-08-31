@@ -45,7 +45,7 @@ if TYPE_CHECKING:
     # when the doctrine package is stripped from a test environment. A
     # ``TYPE_CHECKING``-guarded import never executes at runtime, so it does
     # not reintroduce that hard dependency.
-    from doctrine.drg.models import DRGGraph
+    from charter.offering.drg.models import DRGGraph
 
 __all__ = [
     "ConflictItem",
@@ -203,7 +203,7 @@ def _detect_drg_conflicts(
     edge_owners: dict[tuple[str, str, str], list[str]] = {}
 
     try:
-        from doctrine.drg.loader import DRGLoadError, load_graph
+        from charter.offering.drg.loader import DRGLoadError, load_graph
     except ModuleNotFoundError:  # pragma: no cover
         return conflicts, fragments_by_pack
 
@@ -508,7 +508,7 @@ def _document_dict(graph: DRGGraph) -> dict[str, Any]:
     ``_copy_drg_fragments``'s own dynamic ``DRGLoadError``/``load_graph``
     import.
     """
-    from doctrine.drg.migration.extractor import graph_document_to_dict
+    from charter.offering.drg.migration.extractor import graph_document_to_dict
 
     return graph_document_to_dict(graph)
 
@@ -537,7 +537,7 @@ def _copy_drg_fragments(
     if force:
         # Drop duplicate edges across packs; preserve unique ones in order.
         try:
-            from doctrine.drg.loader import DRGLoadError, load_graph
+            from charter.offering.drg.loader import DRGLoadError, load_graph
         except ModuleNotFoundError:
             pass
         else:

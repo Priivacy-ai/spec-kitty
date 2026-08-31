@@ -1,6 +1,6 @@
 """Compatibility guard for the historical mission-primitives import."""
 
-from doctrine.missions.primitives import PrimitiveExecutionContext as CanonicalContext
+from charter.offering.missions.primitives import PrimitiveExecutionContext as CanonicalContext
 from specify_cli.missions import PrimitiveExecutionContext as CompatibilityContext
 
 

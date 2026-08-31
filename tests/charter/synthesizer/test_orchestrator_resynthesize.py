@@ -20,7 +20,7 @@ import pytest
 
 from kernel.clock import UTC, datetime
 
-from doctrine.drg.loader import load_graph
+from charter.offering.drg.loader import load_graph
 
 from charter.bundle import BUNDLE_CONTENT_HASH_FILES, compute_bundle_content_hash
 from charter.synthesizer import (

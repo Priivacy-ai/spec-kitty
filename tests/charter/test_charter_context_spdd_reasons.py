@@ -17,7 +17,7 @@ from pathlib import Path
 import pytest
 from ruamel.yaml.error import YAMLError
 
-from doctrine.spdd_reasons import (
+from charter.offering.spdd_reasons import (
     append_spdd_reasons_guidance,
     clear_activation_cache,
     is_spdd_reasons_active,

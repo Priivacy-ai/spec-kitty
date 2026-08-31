@@ -2,7 +2,7 @@
 # (mission doctrine-charter-split-unification-01KZ0SRB).
 #
 # Governed by tests/architectural/test_charter_path_literal_authority.py, whose
-# module docstring records the src/doctrine/** scope decision and the five
+# module docstring records the src/charter/offering/** scope decision and the five
 # non-vacuity mechanics. READ IT BEFORE EDITING THIS FILE.
 #
 # Each entry's authoritative comparand is the composite key
@@ -82,21 +82,21 @@ charter_path_literals:
   clause: "a"
   token: "_CHARTER_FILENAME ="
   rationale: "Sync composes the bundle directory from its own _KITTIFY_DIRNAME/_CHARTER_DIRNAME segments to materialize the C-003 prose file; the filename constant is one segment of that composition, not a whole-path duplicate."
-- file: src/doctrine/spdd_reasons/activation.py
+- file: src/charter/offering/spdd_reasons/activation.py
   qualname: <module>
   line: 49
   literal: "charter.yaml"
   clause: "a"
   token: "_CHARTER_YAML ="
-  rationale: "PERMANENT (layering): src/doctrine/ must not import charter.* under the enforced runtime->charter->doctrine boundary; importing CHARTER_YAML would invert the dependency and break the Shared Package Boundary ADR."
-- file: src/doctrine/versioning.py
+  rationale: "PERMANENT (layering): src/charter/offering/ must not import charter.* under the enforced runtime->charter->doctrine boundary; importing CHARTER_YAML would invert the dependency and break the Shared Package Boundary ADR."
+- file: src/charter/offering/versioning.py
   qualname: get_bundle_schema_version
   line: 190
   literal: "charter.yaml"
   clause: "a"
   token: "charter_yaml_path = charter_dir /"
   rationale: "PERMANENT (layering): versioning.py's own module docstring states 'This module must NOT import from charter.*'; the doctrine wheel cannot depend on charter.bundle."
-- file: src/doctrine/versioning.py
+- file: src/charter/offering/versioning.py
   qualname: _stamp_charter_bundle_version
   line: 530
   literal: "charter.yaml"

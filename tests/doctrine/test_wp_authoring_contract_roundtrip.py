@@ -43,7 +43,7 @@ pytestmark = [pytest.mark.fast, pytest.mark.doctrine, pytest.mark.corpus]
 # --- The three drifting encodings, pinned to disk -------------------------------
 
 # Mission doctrine-consumer-surface-missions-extraction-01KZ6G6H (FR-005)
-# relocated missions/ from src/doctrine/missions (nested under
+# relocated missions/ from src/charter/offering/missions (nested under
 # DOCTRINE_SOURCE_ROOT) to packs/built-in/missions (BUILT_IN_MISSIONS_ROOT,
 # see tests/doctrine/conftest.py).
 SOFTWARE_DEV_ROOT = BUILT_IN_MISSIONS_ROOT / "software-dev"

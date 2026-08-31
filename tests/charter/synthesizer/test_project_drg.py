@@ -20,9 +20,9 @@ from charter.synthesizer.errors import ProjectDRGValidationError
 from charter.synthesizer.path_guard import PathGuard
 from charter.synthesizer.project_drg import emit_project_layer, persist
 from charter.synthesizer.request import SynthesisTarget
-from doctrine.drg.loader import load_graph, merge_layers
-from doctrine.drg.models import DRGEdge, DRGGraph, DRGNode, NodeKind, Relation
-from doctrine.drg.validator import validate_graph
+from charter.offering.drg.loader import load_graph, merge_layers
+from charter.offering.drg.models import DRGEdge, DRGGraph, DRGNode, NodeKind, Relation
+from charter.offering.drg.validator import validate_graph
 
 
 # ---------------------------------------------------------------------------

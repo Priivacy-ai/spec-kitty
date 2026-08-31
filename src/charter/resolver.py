@@ -4,7 +4,7 @@ Resolves active governance from charter selections and validates
 selected references against available profile/tool catalogs.
 
 Exports ``DoctrineService`` — an activation-aware wrapper around
-:class:`doctrine.service.DoctrineService`.  The wrapper applies per-kind
+:class:`charter.offering.service.DoctrineService`.  The wrapper applies per-kind
 activation filters from :class:`~charter.pack_context.PackContext` to nine
 gated properties: ``paradigms``, ``procedures``, ``agent_profiles``
 (pre-existing) plus ``directives``, ``tactics``, ``styleguides``,
@@ -14,7 +14,7 @@ delegate to the inner doctrine service transparently via ``__getattr__``.
 
 It also exposes :attr:`DoctrineService.agent_profile_repository` — a second,
 explicitly-named accessor (FR-001) returning the raw, lineage/mutation-capable
-:class:`~doctrine.agent_profiles.repository.AgentProfileRepository` for
+:class:`~charter.offering.agent_profiles.repository.AgentProfileRepository` for
 callers that need ``register_overlay()`` or ``get_provenance()``, which the
 filtered ``agent_profiles`` dict cannot support; and
 :meth:`DoctrineService.raw_repository` (FR-002 Option A) — the generic,
@@ -25,11 +25,11 @@ hatch, for provenance-scan callers that need raw ``list_all()``/
 Finally (FR-003, charter-sole-door-bypass-closure-01KZ3WAA WP05) this module
 is the **sole charter-layer door** onto ``doctrine/resolver.py``'s 6-tier
 asset resolution chain. The tier functions themselves stay in
-``doctrine/resolver.py`` (charter must import doctrine, never the reverse);
+``doctrine/resolver.py`` (charter must import charter.offering, never the reverse);
 what lives here is the entry point — see the "6-tier resolution axis"
 section of :class:`DoctrineService`. Before WP05,
 ``charter.template_resolver.CharterTemplateResolver`` was a *second*
-charter-layer object reaching ``doctrine.resolver`` independently of this
+charter-layer object reaching ``charter.offering.resolver`` independently of this
 one; it is now a thin delegate onto these methods.
 """
 
@@ -47,13 +47,13 @@ from charter.sync import (
     load_directives_config,
     load_governance_config,
 )
-from doctrine.missions.repository import MissionTemplateRepository
+from charter.offering.missions.repository import MissionTemplateRepository
 
-# FR-003: the ONLY import of ``doctrine.resolver``'s tier functions in the
+# FR-003: the ONLY import of ``charter.offering.resolver``'s tier functions in the
 # charter layer. Aliased with a ``_doctrine_`` prefix so a reader of a call
 # site inside this module can never mistake the doctrine tier function for a
 # charter-layer helper of the same bare name.
-from doctrine.resolver import (
+from charter.offering.resolver import (
     ResolutionResult,
     resolve_command as _doctrine_resolve_command,
     resolve_mission as _doctrine_resolve_mission,
@@ -72,18 +72,18 @@ __all__ = [
 
 
 if TYPE_CHECKING:
-    from doctrine.agent_profiles.profile import AgentProfile
-    from doctrine.agent_profiles.repository import AgentProfileRepository
-    from doctrine.directives.models import Directive
-    from doctrine.drg.models import DRGGraph
-    from doctrine.glossary_packs.models import GlossaryPack
-    from doctrine.missions.step_contracts import MissionStepContract
-    from doctrine.paradigms.models import Paradigm
-    from doctrine.procedures.models import Procedure
-    from doctrine.styleguides.models import Styleguide
-    from doctrine.tactics.models import Tactic
-    from doctrine.toolguides.models import Toolguide
-    import doctrine.service as _doctrine_service_module
+    from charter.offering.agent_profiles.profile import AgentProfile
+    from charter.offering.agent_profiles.repository import AgentProfileRepository
+    from charter.offering.directives.models import Directive
+    from charter.offering.drg.models import DRGGraph
+    from charter.offering.glossary_packs.models import GlossaryPack
+    from charter.offering.missions.step_contracts import MissionStepContract
+    from charter.offering.paradigms.models import Paradigm
+    from charter.offering.procedures.models import Procedure
+    from charter.offering.styleguides.models import Styleguide
+    from charter.offering.tactics.models import Tactic
+    from charter.offering.toolguides.models import Toolguide
+    import charter.offering.service as _doctrine_service_module
     from charter.interview import CharterInterview
     from charter.pack_context import PackContext
 
@@ -110,7 +110,7 @@ _RAW_REPOSITORY_KINDS: frozenset[str] = frozenset(
 # FR-003 (WP05): the 6-tier resolution axis — shared vocabulary
 # ---------------------------------------------------------------------------
 
-#: Default mission key for the tier chain. Mirrors ``doctrine.resolver``'s own
+#: Default mission key for the tier chain. Mirrors ``charter.offering.resolver``'s own
 #: per-function default so the factory entry point is a behaviour-preserving
 #: pass-through rather than a second policy about "which mission". Private
 #: (and absent from ``__all__``) because it is only ever a default argument
@@ -118,7 +118,7 @@ _RAW_REPOSITORY_KINDS: frozenset[str] = frozenset(
 #: symbol-level dead-code gate rightly rejects an unimported export.
 _DEFAULT_RESOLUTION_MISSION = "software-dev"
 
-#: Tier-6 subdirectory names, matching ``doctrine.resolver._resolve_asset``'s
+#: Tier-6 subdirectory names, matching ``charter.offering.resolver._resolve_asset``'s
 #: ``subdir`` vocabulary.
 _COMMAND_TEMPLATES_SUBDIR = "command-templates"
 _CONTENT_TEMPLATES_SUBDIR = "templates"
@@ -145,7 +145,7 @@ def _mission_template_repository(missions_root: str) -> MissionTemplateRepositor
 
 
 class DoctrineService:
-    """Activation-aware wrapper around :class:`doctrine.service.DoctrineService`.
+    """Activation-aware wrapper around :class:`charter.offering.service.DoctrineService`.
 
     Applies per-kind activation filters from
     :class:`~charter.pack_context.PackContext` when accessing the nine gated
@@ -365,7 +365,7 @@ class DoctrineService:
         ``specify_cli.charter_runtime.lint.checks.org_layer.OrgOverridesBuiltinChecker``)
         need those raw repository operations directly. This is the named,
         sanctioned way to reach them without either (a) reconstructing a
-        second, unwrapped ``doctrine.service.DoctrineService`` (the FR-002
+        second, unwrapped ``charter.offering.service.DoctrineService`` (the FR-002
         violation this accessor exists to close) or (b) reaching into
         ``._inner`` from outside ``charter.resolver`` (the FR-010
         reach-around this module's accessors close generally).
@@ -397,7 +397,7 @@ class DoctrineService:
     # duplicated — they stay in doctrine because charter imports doctrine and
     # never the reverse. What consolidates here is the *entry point*: before
     # WP05, ``charter.template_resolver.CharterTemplateResolver`` reached
-    # ``doctrine.resolver`` independently of this class, giving the charter
+    # ``charter.offering.resolver`` independently of this class, giving the charter
     # layer two doors onto the same chain (C-001 violation). It is now a thin
     # delegate onto the methods below, and
     # ``specify_cli/runtime/resolver.py``'s tier-6 routing calls them
@@ -437,7 +437,7 @@ class DoctrineService:
         """Resolve a content template through the full 6-tier chain.
 
         Behaviour-preserving pass-through to
-        :func:`doctrine.resolver.resolve_template` (OVERRIDE > LEGACY > ORG >
+        :func:`charter.offering.resolver.resolve_template` (OVERRIDE > LEGACY > ORG >
         GLOBAL_MISSION > GLOBAL > PACKAGE_DEFAULT). Ungated by design — see
         the section comment above.
 
@@ -447,7 +447,7 @@ class DoctrineService:
             mission: Mission key used for tiers 3-5.
 
         Returns:
-            The winning :class:`~doctrine.resolver.ResolutionResult`.
+            The winning :class:`~charter.offering.resolver.ResolutionResult`.
 
         Raises:
             FileNotFoundError: If no tier provides the requested template.
@@ -463,7 +463,7 @@ class DoctrineService:
         """Resolve a command template through the full 6-tier chain.
 
         Behaviour-preserving pass-through to
-        :func:`doctrine.resolver.resolve_command`. Ungated by design — see
+        :func:`charter.offering.resolver.resolve_command`. Ungated by design — see
         the section comment above.
 
         Args:
@@ -472,7 +472,7 @@ class DoctrineService:
             mission: Mission key used for tiers 3-5.
 
         Returns:
-            The winning :class:`~doctrine.resolver.ResolutionResult`.
+            The winning :class:`~charter.offering.resolver.ResolutionResult`.
 
         Raises:
             FileNotFoundError: If no tier provides the requested command template.
@@ -484,7 +484,7 @@ class DoctrineService:
         """Resolve a ``mission.yaml`` through the mission-config tier chain.
 
         Behaviour-preserving pass-through to
-        :func:`doctrine.resolver.resolve_mission`. Missions are inherently
+        :func:`charter.offering.resolver.resolve_mission`. Missions are inherently
         mission-scoped, so that chain has five tiers (no GLOBAL tier).
         Ungated by design — see the section comment above.
 
@@ -493,7 +493,7 @@ class DoctrineService:
             project_dir: Project root containing ``.kittify/``.
 
         Returns:
-            The winning :class:`~doctrine.resolver.ResolutionResult`.
+            The winning :class:`~charter.offering.resolver.ResolutionResult`.
 
         Raises:
             FileNotFoundError: If no tier provides the mission config.
@@ -524,7 +524,7 @@ class DoctrineService:
         caller's root is ``get_package_asset_root()``, which honours the
         ``SPEC_KITTY_TEMPLATE_ROOT`` override; hard-wiring
         ``MissionTemplateRepository.default()`` here (as
-        ``doctrine.resolver``'s own tier 6 does) would silently drop that
+        ``charter.offering.resolver``'s own tier 6 does) would silently drop that
         override. That divergence between the two tier-6 implementations is
         pre-existing, named deferred debt — this method preserves the caller's
         side of it verbatim rather than "fixing" it out of scope.
@@ -683,7 +683,7 @@ def _resolve_directives_selection(
 
     Resolution order, unchanged for the first two branches:
 
-    1. ``doctrine.selected_directives`` (explicit charter selection) → validated
+    1. ``charter.offering.selected_directives`` (explicit charter selection) → validated
        against the local + built-in catalog, source ``"charter"``.
     2. ``directives_cfg.directives`` (local ``directives.yaml`` declarations,
        used when the charter selection is empty) → source ``"catalog_fallback"``
@@ -842,7 +842,7 @@ def resolve_governance_for_profile(
         raise ValueError("Profile ID is required for profile-aware governance resolution.")
 
     # Pattern C: agent_profiles may be a filtered dict (DoctrineService wrapper)
-    # or a repository (raw doctrine.service.DoctrineService / MagicMock in tests).
+    # or a repository (raw charter.offering.service.DoctrineService / MagicMock in tests).
     agent_profiles_attr = doctrine_service.agent_profiles
     if isinstance(agent_profiles_attr, dict):
         profile = agent_profiles_attr.get(normalized_profile_id)

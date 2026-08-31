@@ -36,10 +36,10 @@ from pathlib import Path
 
 import pytest
 
-from doctrine.drg.loader import merge_layers
-from doctrine.drg.models import DRGEdge, DRGGraph, DRGNode, NodeKind, Relation
-from doctrine.drg.validator import validate_graph
-from doctrine.missions.mission_type_repository import builtin_mission_type_ids
+from charter.offering.drg.loader import merge_layers
+from charter.offering.drg.models import DRGEdge, DRGGraph, DRGNode, NodeKind, Relation
+from charter.offering.drg.validator import validate_graph
+from charter.offering.missions.mission_type_repository import builtin_mission_type_ids
 
 from charter.synthesizer.fixture_adapter import FixtureAdapter
 from charter.synthesizer.interview_mapping import (

@@ -14,7 +14,7 @@ left orphaned -- every earlier WP already re-points its readers onto
 ``load_directives_config``, ``charter.pack_context.PackContext.from_config``,
 ``charter.consistency_check``).
 
-Body pattern: ``src/doctrine/versioning.py:299 migrate_v1_to_v2``
+Body pattern: ``src/charter/offering/versioning.py:299 migrate_v1_to_v2``
 (yaml -> yaml write-and-stamp), NOT the rc35 refresh-only shape. Registered
 via ``@MigrationRegistry.register``; ``runs_on_worktrees = False`` (a
 project-identity/config-level fold, not a worktree concern). ``charter.*``

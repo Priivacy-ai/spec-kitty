@@ -43,7 +43,7 @@ from ruamel.yaml import YAML
 
 from charter.synthesizer.manifest import SynthesisManifest, hash_manifest_payload
 from charter.synthesizer.synthesize_pipeline import canonical_yaml
-from doctrine.artifact_kinds import ArtifactKind
+from charter.offering.artifact_kinds import ArtifactKind
 
 #: Current unified pack-manifest schema version (DIR-018 shape gate).
 SCHEMA_VERSION = "1"
@@ -79,7 +79,7 @@ class Constituent(BaseModel):
 
     kind: ArtifactKind
     """Canonical artifact kind — widened from the charter manifest's 3-kind
-    literal to the shared :class:`~doctrine.artifact_kinds.ArtifactKind` so the
+    literal to the shared :class:`~charter.offering.artifact_kinds.ArtifactKind` so the
     built-in pack's kinds pass the shared model (PP-S4)."""
 
     id: str

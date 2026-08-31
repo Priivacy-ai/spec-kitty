@@ -1,7 +1,7 @@
 """Mission-type-scoped governance resolution — the single charter-mediated seam.
 
 Mission-type profiles are built-in doctrine-side YAML files at
-``src/doctrine/missions/<mission_type>/governance-profile.yaml``.  Each
+``src/charter/offering/missions/<mission_type>/governance-profile.yaml``.  Each
 profile declares the default selections and activations for missions of
 that type.
 
@@ -69,7 +69,7 @@ from charter.sync import apply_legacy_governance_selection_key_compat
 
 if TYPE_CHECKING:
     from charter.mission_type_profile_repository import MissionTypeProfileRepository
-    from doctrine.missions.mission_step_repository import _PackContextLike
+    from charter.offering.missions.mission_step_repository import _PackContextLike
 
 __all__ = [
     "CrossGrainDoubleDeclarationError",
@@ -101,7 +101,7 @@ _GOVERNANCE_KINDS: tuple[str, ...] = (
 
 #: The parsed ``<type>/expected-artifacts.yaml`` manifest: a top-level mapping
 #: (``schema_version`` / ``mission_type`` / ``required_by_step`` / ...) owned
-#: and versioned by doctrine (``doctrine.missions.repository``).  This is a
+#: and versioned by doctrine (``charter.offering.missions.repository``).  This is a
 #: **type alias**, not a pydantic model — a model would force ``src/charter``
 #: to own and validate a schema that belongs to the doctrine layer, crossing
 #: the charter -> doctrine boundary the wrong direction (C-001).  Charter
@@ -266,7 +266,7 @@ class MissionTypeEmptyActionSequenceError(ValueError):
     ``up-mission-type-seam-01KZY1JB``): an org- or project-layer
     mission-type YAML that carries only ``schema_version``/``id``/
     ``display_name`` (no ``action_sequence``) loads CLEAN --
-    :class:`~doctrine.missions.models.MissionType`'s ``action_sequence``
+    :class:`~charter.offering.missions.models.MissionType`'s ``action_sequence``
     field is ``list[str] | None``, and its own validator
     (``MissionType._validate_action_sequence``) only enforces the
     non-empty invariant when the field is **not** ``None``. Before this
@@ -385,7 +385,7 @@ class ResolvedMissionType:
     ``mission_type`` is the canonicalized key (``None`` for a typeless mission).
     ``governance_text`` / ``action_sequence`` are populated eagerly on the hot
     path; ``template_set`` is projected lazily from the activated doctrine
-    :class:`~doctrine.missions.models.MissionType` artifact.
+    :class:`~charter.offering.missions.models.MissionType` artifact.
 
     ``governance`` (WP03), ``template_set``, ``expected_artifacts`` (WP10) and
     ``step_contracts`` (WP11) are resolved **lazily** (NFR-001): ``governance`` triggers the
@@ -518,7 +518,7 @@ def existing_mission_types(repo_root: Path) -> list[str]:
     (:class:`~charter.pack_context.PackContext` docstring); it is always a
     concrete ``frozenset[str]`` at construction time -- read directly from the
     provisioned ``mission_type_activations`` key, with **no** implicit
-    collapse to :func:`~doctrine.missions.mission_type_repository.builtin_mission_type_id_set`
+    collapse to :func:`~charter.offering.missions.mission_type_repository.builtin_mission_type_id_set`
     when the key is absent (WP04 removed that backfill; an absent key resolves
     to ``frozenset()`` and construction stays total -- the fail-closed moved
     to the create/require boundary instead of raising here). That
@@ -845,12 +845,12 @@ def resolve_action_sequence_layer(
     ``__all__`` so the cross-module dependency is a documented, discoverable
     part of the public contract instead of an unlisted private import.
 
-    Mirrors :func:`~doctrine.missions.mission_type_repository.resolve_layered_mission_types`'s
+    Mirrors :func:`~charter.offering.missions.mission_type_repository.resolve_layered_mission_types`'s
     own precedence (project > org, earliest ``pack_root`` wins > built-in-
     equivalent, CL-005) but only determines *which* layer's file exists for
     *mission_type_id* -- it does not re-parse or re-validate any YAML, since
     :func:`_resolve_action_slot` already has the resolved
-    :class:`~doctrine.missions.models.MissionType` in hand by the time this
+    :class:`~charter.offering.missions.models.MissionType` in hand by the time this
     is called. Used solely to name the layer in
     :class:`MissionTypeEmptyActionSequenceError`'s message; callers only
     reach this helper once the type's action sequence is already known to be
@@ -887,7 +887,7 @@ def _resolve_action_slot(
     built-in action sequence, so it degrades to an empty list.
 
     **WP04 (FR-002, mission up-mission-type-seam-01KZY1JB):** resolves
-    through :func:`~doctrine.missions.mission_type_repository.resolve_layered_mission_types`
+    through :func:`~charter.offering.missions.mission_type_repository.resolve_layered_mission_types`
     -- the new, separate, module-level layered factory (WP03) -- instead of
     the built-in-only :meth:`MissionTypeRepository.default`. This is a
     repository-call **swap**, not argument-threading: the built-in-only
@@ -914,7 +914,7 @@ def _resolve_action_slot(
     ``mission.action_sequence`` below is already the WP02-projected value —
     ``MissionTypeRepository._load`` overlays ``project_action_sequence(steps)``
     onto the raw YAML field (via ``_inject_projected_fields``) before
-    :class:`~doctrine.missions.models.MissionType` validates, falling back to
+    :class:`~charter.offering.missions.models.MissionType` validates, falling back to
     the authored YAML only while a given type's projection is still empty
     (pre-WP07). This resolver was never a bypass; it reads the injected
     model through the layered factory, which is itself memoized
@@ -926,10 +926,10 @@ def _resolve_action_slot(
     if not is_registered:
         return []
 
-    from doctrine.missions.mission_type_repository import (  # noqa: PLC0415
+    from charter.offering.missions.mission_type_repository import (  # noqa: PLC0415
         resolve_layered_mission_types,
     )
-    from doctrine.missions.repository import MissionTemplateRepository  # noqa: PLC0415
+    from charter.offering.missions.repository import MissionTemplateRepository  # noqa: PLC0415
 
     mission_types_dirs = (MissionTemplateRepository.default_missions_root() / "mission_types",)
     roster = resolve_layered_mission_types(mission_types_dirs, pack_context)
@@ -996,7 +996,7 @@ def _resolve_expected_artifacts_slot(
     if not is_registered:
         return None
 
-    from doctrine.drg.org_pack_config import resolve_existing_org_roots  # noqa: PLC0415 — lazy; mirrors resolve_org_dirs import elsewhere in this module
+    from charter.offering.drg.org_pack_config import resolve_existing_org_roots  # noqa: PLC0415 — lazy; mirrors resolve_org_dirs import elsewhere in this module
     from charter.org_expected_artifacts import resolve_org_expected_artifacts  # noqa: PLC0415
 
     org_roots = resolve_existing_org_roots(repo_root)
@@ -1006,7 +1006,7 @@ def _resolve_expected_artifacts_slot(
     if org_result is not None:
         return org_result
 
-    from doctrine.missions.repository import MissionTemplateRepository  # noqa: PLC0415
+    from charter.offering.missions.repository import MissionTemplateRepository  # noqa: PLC0415
 
     repo = MissionTemplateRepository.default()
     result = repo.get_expected_artifacts(mission_type)
@@ -1056,15 +1056,15 @@ def _resolve_template_set_slot(
     resolved the same ``(mission_type, pack_context)`` pair in this process
     -- one filesystem walk serves both consumers. This is the *dict*
     template mapping (per-type template mapping), never the unrelated
-    ``doctrine.template_set`` scalar (charter selection authority in
+    ``charter.offering.template_set`` scalar (charter selection authority in
     ``resolver.py``/``compiler.py``/etc.) — C-002 keeps those surfaces
     fenced off.
     """
     if not is_registered:
         return None
 
-    from doctrine.missions.mission_step_repository import MissionStepRepository  # noqa: PLC0415
-    from doctrine.missions.step_projection import project_template_set  # noqa: PLC0415
+    from charter.offering.missions.mission_step_repository import MissionStepRepository  # noqa: PLC0415
+    from charter.offering.missions.step_projection import project_template_set  # noqa: PLC0415
 
     steps = list(
         MissionStepRepository.default()
@@ -1093,7 +1093,7 @@ def _resolve_step_contracts_slot(
     if not is_registered:
         return []
 
-    from doctrine.missions.step_contracts import (  # noqa: PLC0415 — lazy; charter -> doctrine is canonical
+    from charter.offering.missions.step_contracts import (  # noqa: PLC0415 — lazy; charter -> doctrine is canonical
         resolve_step_contract_ids,
     )
 
@@ -1184,7 +1184,7 @@ def _mission_type_profile_repository(
 
     if repo_root is None:
         return MissionTypeProfileRepository()
-    from doctrine.drg.org_pack_config import resolve_org_dirs  # noqa: PLC0415 — lazy; mirrors MissionTypeProfileRepository import above
+    from charter.offering.drg.org_pack_config import resolve_org_dirs  # noqa: PLC0415 — lazy; mirrors MissionTypeProfileRepository import above
 
     return MissionTypeProfileRepository.for_project(
         repo_root, org_dirs=resolve_org_dirs(repo_root, "mission_types")
@@ -1197,12 +1197,12 @@ def _load_mission_type_profile(
 ) -> MissionTypeProfile | None:
     """Load the governance profile for ``mission_type`` through the overlay stack.
 
-    Resolves ``src/doctrine/missions/<mission_type>/governance-profile.yaml`` as
+    Resolves ``src/charter/offering/missions/<mission_type>/governance-profile.yaml`` as
     the shipped baseline and — when ``repo_root`` is given — field-merges a
     project override from
     ``<repo_root>/.kittify/doctrine/mission_types/<mission_type>/governance-profile.yaml``
     via :class:`~charter.mission_type_profile_repository.MissionTypeProfileRepository`
-    (project > org > builtin; :class:`~doctrine.base.DoctrineLayerCollisionWarning`
+    (project > org > builtin; :class:`~charter.offering.base.DoctrineLayerCollisionWarning`
     on shadow).  Keying on the ``id == mission_type`` invariant means a profile
     whose declared type disagrees with its directory is simply not found under
     ``mission_type`` (returns ``None``) rather than silently mis-routed.

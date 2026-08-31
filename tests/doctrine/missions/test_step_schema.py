@@ -3,7 +3,7 @@
 Covers:
 - All net-new ``MissionStep`` fields (``sequence_index``, ``in_action_sequence``,
   ``recommended_model_tier``, ``template``) survive a load through
-  :class:`~doctrine.missions.mission_step_repository.MissionStepRepository` —
+  :class:`~charter.offering.missions.mission_step_repository.MissionStepRepository` —
   guards against the ``extra="forbid"`` silent-strip trap when a new field is
   added to the model but not registered in ``_STEP_YAML_TO_MODEL``.
 - ``MissionStep.prompt_template`` stays a required field (not relaxed).
@@ -22,8 +22,8 @@ from pathlib import Path
 import pytest
 from pydantic import ValidationError
 
-from doctrine.missions.mission_step_repository import MissionStepRepository
-from doctrine.missions.models import MissionStep, MissionStepTemplateRef, MissionType
+from charter.offering.missions.mission_step_repository import MissionStepRepository
+from charter.offering.missions.models import MissionStep, MissionStepTemplateRef, MissionType
 
 pytestmark = [pytest.mark.fast, pytest.mark.doctrine]
 

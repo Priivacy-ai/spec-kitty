@@ -39,7 +39,7 @@ if TYPE_CHECKING:
     )
 
 #: Parses the fixed ``"Skipping invalid <layer> <kind> <file>: <reason>"``
-#: shape ``doctrine.base.BaseDoctrineRepository`` emits on an unloadable
+#: shape ``charter.offering.base.BaseDoctrineRepository`` emits on an unloadable
 #: glossary-pack file (``_load_built_in_items`` / ``_apply_overlay_layer``).
 #: ``re.DOTALL`` so a multi-line pydantic ``ValidationError`` reason is
 #: captured in full, not truncated at the first newline.
@@ -197,7 +197,7 @@ def _summarize_org_charter(snapshot_path: Path) -> dict[str, object]:
 def _collect_profile_health(repo_root: Path) -> DoctrineHealthReport:
     """Build the agent-profile + org-DRG health report once (WP08, NFR-001).
 
-    Instantiates a single :class:`~doctrine.service.DoctrineService` rooted at
+    Instantiates a single :class:`~charter.offering.service.DoctrineService` rooted at
     the configured org packs, reads the WP05
     ``AgentProfileRepository.skipped_profiles()`` diagnostics (no regex
     scraping), and groups valid + skipped counts into one ``PackHealth`` per
@@ -219,7 +219,7 @@ def _collect_profile_health(repo_root: Path) -> DoctrineHealthReport:
     inner service is wrapped via ``charter.resolver.DoctrineService(inner,
     pack_context=None)`` -- the sanctioned unfiltered-diagnostic construction
     (data-model.md "unfiltered-diagnostic contract") -- rather than
-    constructing ``doctrine.service.DoctrineService`` directly. The
+    constructing ``charter.offering.service.DoctrineService`` directly. The
     ``AgentProfileRepository``-specific ``get_provenance()`` /
     ``skipped_profiles()`` calls below need the raw repository object (a
     ``dict`` has neither method), so this reads through the wrapper's
@@ -234,7 +234,7 @@ def _collect_profile_health(repo_root: Path) -> DoctrineHealthReport:
     skipped: list[SkippedProfile] = []
     load_error: str | None = None
     try:
-        from doctrine.service import DoctrineService as RawDoctrineService
+        from charter.offering.service import DoctrineService as RawDoctrineService
         from charter.resolver import DoctrineService as ActivationAwareDoctrineService
         from charter.drg import resolve_org_roots
 
@@ -281,7 +281,7 @@ def _parse_skipped_glossary_pack_warning(message: object) -> SkippedGlossaryPack
     """Turn one captured ``UserWarning`` into a structured skip record.
 
     ``BaseDoctrineRepository`` emits ``"Skipping invalid <layer> <kind> <file>:
-    <reason>"`` (see ``doctrine.base._load_built_in_items`` /
+    <reason>"`` (see ``charter.offering.base._load_built_in_items`` /
     ``_apply_overlay_layer``); this parses that fixed shape rather than
     inventing a second diagnostic format. A message that doesn't match (the
     production emitter's shape is pinned, so this is defensive only) degrades
@@ -328,13 +328,13 @@ def _collect_glossary_pack_health(repo_root: Path) -> GlossaryPackHealth:
     the raw inner service is wrapped via ``charter.resolver.DoctrineService(
     inner, pack_context=None)`` -- the sanctioned unfiltered-diagnostic
     construction (data-model.md "unfiltered-diagnostic contract") -- rather
-    than constructing ``doctrine.service.DoctrineService`` directly. FR-005
+    than constructing ``charter.offering.service.DoctrineService`` directly. FR-005
     made ``glossary_packs`` a gated property that always returns a filtered
     ``dict`` (no ``.list_all()``), so this reads through
     :meth:`~charter.resolver.DoctrineService.raw_repository` to reach the raw
     repository's ``list_all()``.
     """
-    from doctrine.service import DoctrineService as RawDoctrineService
+    from charter.offering.service import DoctrineService as RawDoctrineService
     from charter.resolver import DoctrineService as ActivationAwareDoctrineService
     from charter.drg import resolve_org_roots
 
@@ -481,7 +481,7 @@ def _collect_doctrine_collisions(repo_root: Path) -> list[dict[str, object]]:
     service is wrapped via ``charter.resolver.DoctrineService(inner,
     pack_context=None)`` -- the sanctioned unfiltered-diagnostic construction
     (data-model.md "unfiltered-diagnostic contract") -- rather than
-    constructing ``doctrine.service.DoctrineService`` directly. Each gated
+    constructing ``charter.offering.service.DoctrineService`` directly. Each gated
     property below still triggers the same eager, warning-emitting
     repository ``_load()`` as the raw accessor did (``BaseDoctrineRepository.
     __init__`` loads eagerly); only the return *value* is now a filtered
@@ -492,7 +492,7 @@ def _collect_doctrine_collisions(repo_root: Path) -> list[dict[str, object]]:
     import warnings as _warnings
 
     from charter.drg import DoctrineLayerCollisionWarning
-    from doctrine.service import DoctrineService as RawDoctrineService
+    from charter.offering.service import DoctrineService as RawDoctrineService
     from charter.resolver import DoctrineService as ActivationAwareDoctrineService
     from charter.drg import resolve_org_roots
 
@@ -758,7 +758,7 @@ def _adjudicate_org_overrides(
     empty when every override is sanctioned by
     ``.kittify/doctrine/replaceable-builtins.yaml`` (or none exist).
     """
-    from doctrine.drg.override_policy import (  # noqa: PLC0415
+    from charter.offering.drg.override_policy import (  # noqa: PLC0415
         find_overridden_builtin_urns,
         find_unsanctioned_overrides,
         load_replaceable_builtins,
@@ -941,13 +941,13 @@ def _build_selection_block(repo_root: Path) -> dict[str, list[dict[str, str]]]:
     ``charter.resolver.DoctrineService(inner, pack_context=None)`` -- the
     sanctioned unfiltered-diagnostic construction (data-model.md
     "unfiltered-diagnostic contract") -- rather than constructing
-    ``doctrine.service.DoctrineService`` directly.
+    ``charter.offering.service.DoctrineService`` directly.
     ``_resolve_artifact_source`` reads through the wrapper's
     ``raw_repository(plural)`` accessor (FR-002 Option A) to reach
     ``get_provenance()``, since the gated per-kind properties always return
     a filtered ``dict``.
     """
-    from doctrine.service import DoctrineService as RawDoctrineService
+    from charter.offering.service import DoctrineService as RawDoctrineService
     from charter.resolver import DoctrineService as ActivationAwareDoctrineService
     from charter.drg import resolve_org_roots
 

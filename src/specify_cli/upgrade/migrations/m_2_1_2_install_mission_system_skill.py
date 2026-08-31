@@ -33,9 +33,9 @@ _FILES = [
 
 
 def _load_canonical(relative_path: str) -> str | None:
-    """Load canonical skill file content from doctrine package."""
+    """Load canonical skill file content from charter.offering package."""
     try:
-        doctrine_root = files("doctrine")
+        doctrine_root = files("charter.offering")
         canonical = doctrine_root.joinpath("skills", _SKILL_NAME, relative_path)
         return canonical.read_text(encoding="utf-8")
     except Exception:

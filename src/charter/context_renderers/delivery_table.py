@@ -1,6 +1,6 @@
 """The NodeKind delivery table -- which action-bundle slot each kind feeds.
 
-Every :class:`~doctrine.drg.models.NodeKind` the DRG can resolve must have a
+Every :class:`~charter.offering.drg.models.NodeKind` the DRG can resolve must have a
 recorded verdict: which :class:`_ActionDoctrineBundle` list (if any) it feeds,
 and which reachability gate governs it. :func:`_classify_artifact_urns`
 partitions a resolved action's artifact URNs into that slot-keyed mapping,
@@ -43,10 +43,10 @@ from collections.abc import Mapping
 from enum import Enum
 from typing import NamedTuple, TYPE_CHECKING
 
-from doctrine.drg.models import NodeKind
+from charter.offering.drg.models import NodeKind
 
 if TYPE_CHECKING:
-    from doctrine.drg.models import DRGGraph
+    from charter.offering.drg.models import DRGGraph
 
 # ``_ACTION_BUNDLE_DELIVERY_BY_KIND`` / ``_KindDelivery`` / ``_kind_delivery`` de-exported
 # after the context.py re-export shim retirement (doctrine-built-in-seam-consolidation
@@ -174,8 +174,8 @@ def _classify_artifact_urns(
     drift was a delivery defect (WP10/T053). A kind with no recorded verdict
     raises via :func:`action_bundle_bucket` rather than falling out unnoticed.
     """
-    from doctrine.drg.models import Relation
-    from doctrine.drg.query import resolve_transitive_refs
+    from charter.offering.drg.models import Relation
+    from charter.offering.drg.query import resolve_transitive_refs
 
     selected_tactics = selected_tactics or set()
     selected_paradigms = selected_paradigms or set()

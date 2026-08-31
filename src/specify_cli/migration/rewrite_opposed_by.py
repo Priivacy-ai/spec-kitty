@@ -69,7 +69,7 @@ Precedent / conventions reused
 Modelled on :mod:`specify_cli.migration.backfill_identity`'s
 scan-and-report shape (a pure function returns a structured result; the CLI
 layer formats it) and reuses the core DRG models from
-:mod:`doctrine.drg.models` (``DRGGraph``, ``DRGNode``, ``DRGEdge``,
+:mod:`charter.offering.drg.models` (``DRGGraph``, ``DRGNode``, ``DRGEdge``,
 ``NodeKind``, ``Relation``) rather than inventing a parallel schema. New
 edges/nodes are written into per-kind ``<kind>.graph.yaml`` fragment files
 at the pack root (``directive.graph.yaml`` / ``tactic.graph.yaml`` /

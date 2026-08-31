@@ -98,6 +98,8 @@ warnings.warn(__deprecation_message__, DeprecationWarning, stacklevel=2)
 
 The `warnings.warn(..., stacklevel=2)` call executes at import time so that any import of the shim module immediately surfaces the deprecation to the calling code's stack frame (not the shim's own frame).
 
+Lazy PEP 562 shims used to avoid eager CLI-startup imports are exempt from the eager re-export and eager `__all__` lines above. They must still expose `__deprecated__`, `__canonical_import__`, `__removal_release__`, and `__deprecation_message__`, and warn on the first import or attribute access.
+
 ### Deprecation window
 
 A shim must remain in place for **at least one full minor release** after the canonical path is available. The `removal_target_release` in the registry must be at least one minor version ahead of the release in which the shim was introduced (e.g., introduced in `3.2.0` → removal no earlier than `3.3.0`).
@@ -125,7 +127,7 @@ The registry at `docs/migrations/shim-registry.yaml` is the authoritative list o
 
 ### How to add a new entry
 
-1. Copy the shim template from Section 4 into the appropriate `src/specify_cli/<legacy_name>.py` or `src/specify_cli/<legacy_name>/__init__.py`.
+1. Copy the shim template from Section 4 into the appropriate `src/<dotted legacy path>.py` or `src/<dotted legacy path>/__init__.py` (including top-level modules).
 2. Add an entry to `docs/migrations/shim-registry.yaml` with all required fields.
 3. Open a tracker issue for the removal and record its reference in `tracker_issue`.
 4. Run `spec-kitty doctor shim-registry` and confirm it exits 0 with the new entry showing `pending` status.
@@ -163,7 +165,7 @@ Statuses:
 
 ### `tests/architectural/test_unregistered_shim_scanner.py`
 
-This test walks `src/specify_cli/` using Python's `ast` module, detects any module containing `__deprecated__ = True`, and asserts that every detected path appears in the registry. The test fails if a shim module exists on disk but has no registry entry. This prevents engineers from introducing a shim without registering it.
+This test walks `src/` using Python's `ast` module, detects any module containing `__deprecated__ = True`, and asserts that every detected path appears in the registry. The test fails if a shim module exists on disk but has no registry entry. This prevents engineers from introducing a shim without registering it.
 
 The scanner detects both `__deprecated__ = True` (assignment) and `__deprecated__: bool = True` (annotated assignment) forms.
 

@@ -32,7 +32,7 @@ encode the contract that:
 6. The two directive namespaces — charter-extracted `DIR-NNN` (auto-emitted
    by `spec-kitty charter sync` into `.kittify/charter/directives.yaml`)
    and doctrine-catalog `DIRECTIVE_NNN` (hand-authored in
-   `src/doctrine/directives/built-in/*.directive.yaml`) — must be
+   `src/charter/offering/directives/built-in/*.directive.yaml`) — must be
    cross-linked when one cites the other, so the resolver can surface the
    right body regardless of which ID the citation used.
 
@@ -146,15 +146,15 @@ subtasks: [T001, T002]
 agent: claude
 agent_profile: python-pedro
 role: implementer
-authoritative_surface: src/doctrine/service.py
-owned_files: [src/doctrine/service.py]
+authoritative_surface: src/charter/offering/service.py
+owned_files: [src/charter/offering/service.py]
 execution_mode: code_change
 history: []
 ---
 # WP01 — Reconcile shipped vs built-in terminology
 
 Replace literal ``shipped`` path strings with ``built-in`` across
-``src/doctrine/`` and update tests accordingly.
+``src/charter/offering/`` and update tests accordingly.
 """
 
 
@@ -168,8 +168,8 @@ subtasks: [T003]
 agent: claude
 agent_profile: reviewer-renata
 role: reviewer
-authoritative_surface: src/doctrine/service.py
-owned_files: [src/doctrine/service.py]
+authoritative_surface: src/charter/offering/service.py
+owned_files: [src/charter/offering/service.py]
 execution_mode: code_change
 history: []
 ---
@@ -478,7 +478,7 @@ class TestProfileDirectivesSurfacedInWpPrompt:
     def test_python_pedro_directive_010_referenced_in_implement_prompt(
         self, project_with_implement_wp: tuple[Path, Path, str]
     ) -> None:
-        """python-pedro's profile (`src/doctrine/agent_profiles/built-in/`
+        """python-pedro's profile (`src/charter/offering/agent_profiles/built-in/`
         `python-pedro.agent.yaml`) declares directive 010 (Specification Fidelity).
         The implement WP whose frontmatter selects python-pedro MUST surface
         DIRECTIVE_010 in the prompt: either the rule body verbatim or a fetch
@@ -621,7 +621,7 @@ class TestProfileDirectivesSurfacedInWpPrompt:
         the doctrine-catalog namespace (`DIRECTIVE_NNN`), not the charter-extracted
         namespace (`DIR-NNN`). The two namespaces exist today; the contract is that
         profile-cited directives use the catalog form so the agent can locate the
-        body at `src/doctrine/directives/built-in/<id>.directive.yaml`.
+        body at `src/charter/offering/directives/built-in/<id>.directive.yaml`.
         """
         repo_root, feature_dir, mission_slug = project_with_implement_wp
         prompt = _build_wp_prompt(

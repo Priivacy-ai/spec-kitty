@@ -2,7 +2,7 @@
 
 The relocation changed *where* built-in content lives on disk
 (``packs/built-in/<kind>/``) but MUST NOT change the three-layer overlay
-semantics that ``doctrine.drg.merge.merge_three_layers`` implements. This
+semantics that ``charter.offering.drg.merge.merge_three_layers`` implements. This
 verifies, on a synthetic ``built-in + org + project`` overlay, the three
 properties the move could plausibly have broken:
 
@@ -23,10 +23,10 @@ from typing import Any
 
 import pytest
 
-from doctrine.drg.loader import load_built_in_graph
-from doctrine.drg.merge import merge_three_layers
-from doctrine.drg.models import DRGEdge, DRGGraph, DRGNode, NodeKind, Relation
-from doctrine.drg.org_pack_loader import OrgDRGFragment
+from charter.offering.drg.loader import load_built_in_graph
+from charter.offering.drg.merge import merge_three_layers
+from charter.offering.drg.models import DRGEdge, DRGGraph, DRGNode, NodeKind, Relation
+from charter.offering.drg.org_pack_loader import OrgDRGFragment
 
 pytestmark = [pytest.mark.fast, pytest.mark.doctrine, pytest.mark.corpus]
 
