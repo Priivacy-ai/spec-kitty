@@ -23,7 +23,7 @@ C-009 / kind universe
 
 The 8-kind plural universe (``_ORG_DRG_CANONICAL_KINDS``) is declared here
 rather than imported from elsewhere so that any drift from
-``charter.activations._ALLOWED_KINDS`` is surfaced by the contract test
+``charter.activation.activations._ALLOWED_KINDS`` is surfaced by the contract test
 sweep (C-009 binding). Do not import this constant across the boundary;
 use the contract sweep to detect drift.
 """
@@ -57,7 +57,7 @@ __all__ = [
 # ---------------------------------------------------------------------------
 # C-009: 8-kind plural universe inherited from Mission B
 # ---------------------------------------------------------------------------
-# Byte-identical to ``charter.activations._ALLOWED_KINDS``. We re-declare
+# Byte-identical to ``charter.activation.activations._ALLOWED_KINDS``. We re-declare
 # rather than import to keep this module free of charter imports; the
 # contract test sweep enforces drift detection between the two declarations
 # (C-009 binding).
@@ -80,7 +80,7 @@ __all__ = [
 # author ``enhances`` / ``overrides`` / ``specializes_from`` edges against a
 # built-in mission type and have them validate. This is a binding change to the
 # (formerly 8-kind) universe; the lockstep drift guard against
-# ``charter.activations._ALLOWED_KINDS`` lives in
+# ``charter.activation.activations._ALLOWED_KINDS`` lives in
 # ``tests/doctrine/test_org_pack_augmentation.py`` (it asserts the loader
 # universe equals ``_ALLOWED_KINDS`` plus the mission-type extension, so neither
 # side can drift silently and mission types are never silently dropped).
@@ -111,8 +111,8 @@ _ORG_DRG_KIND_ALIASES: dict[str, str] = {
     "assets": "assets",
     # FR-008/FR-009 (glossary-pack-doctrine-kind mission, WP04 T020): the
     # glossary-pack kind joins the canonical org-pack DRG universe in
-    # lockstep with ``charter.activations._ALLOWED_KINDS`` and
-    # ``charter.pack_context._BUILTIN_ARTIFACT_KINDS`` — see the three-way
+    # lockstep with ``charter.activation.activations._ALLOWED_KINDS`` and
+    # ``charter.activation.pack_context._BUILTIN_ARTIFACT_KINDS`` — see the three-way
     # drift guard in ``tests/doctrine/test_org_pack_augmentation.py``.
     "glossary_packs": "glossary_packs",
 }

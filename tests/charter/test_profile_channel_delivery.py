@@ -22,7 +22,7 @@ from __future__ import annotations
 
 import pytest
 
-from charter.context_renderers.profile_sections import (
+from charter.activation.context_renderers.profile_sections import (
     _PROFILE_PROCEDURES_HEADER_TPL,
     _PROFILE_STYLEGUIDES_HEADER_TPL,
     _PROFILE_TOOLGUIDES_HEADER_TPL,

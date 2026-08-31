@@ -92,7 +92,7 @@ def _resolve_existing_org_roots(repo_root: Path) -> list[Path]:
     (#3525 Fold A) rather than re-implementing the filter comprehension —
     the same primitive every other "does this org root exist" consumer now
     routes onto (e.g.
-    ``charter.doctrine_service_builder._self_resolve_existing_org_roots``): a
+    ``charter.activation.doctrine_service_builder._self_resolve_existing_org_roots``): a
     stale/never-fetched ``local_path`` config entry degrades to "no org
     contribution" for this call rather than raising.
     """
@@ -219,7 +219,7 @@ class ManifestRegistry:
         FR-008 (WP05): when *repo_root* is given and resolves to 1+ existing
         configured org roots, an org-pack
         ``<org_root>/<mission_type>/expected-artifacts.yaml`` (see
-        :func:`charter.org_expected_artifacts.resolve_org_expected_artifacts`,
+        :func:`charter.activation.org_expected_artifacts.resolve_org_expected_artifacts`,
         contract C-4) takes precedence over the built-in file, whole-file —
         never field-merged with it. *repo_root* is optional and defaults to
         ``None`` (today's exact behavior: no org lookup, built-in tree only)
@@ -268,7 +268,7 @@ class ManifestRegistry:
 
         org_parsed: object | None = None
         if org_roots:
-            from charter.org_expected_artifacts import resolve_org_expected_artifacts  # noqa: PLC0415
+            from charter.activation.org_expected_artifacts import resolve_org_expected_artifacts  # noqa: PLC0415
 
             org_parsed = resolve_org_expected_artifacts(org_roots, mission_type)
 
@@ -287,7 +287,7 @@ class ManifestRegistry:
                 # expected it to take effect, so silently falling back to
                 # None (or worse, to the built-in file, which whole-file
                 # precedence forbids) hides a genuine misconfiguration.
-                # `resolve_org_expected_artifacts` (charter.org_expected_artifacts)
+                # `resolve_org_expected_artifacts` (charter.activation.org_expected_artifacts)
                 # returns only the parsed mapping, not which org_root/file
                 # matched (last-EXISTING-match-wins means it isn't
                 # necessarily the last root in the list either -- only the

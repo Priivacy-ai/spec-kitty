@@ -25,12 +25,12 @@ from pathlib import Path
 
 import pytest
 
-import charter.resolver as charter_resolver_module
+import charter.activation.resolver as charter_resolver_module
 import charter.offering.resolver as doctrine_resolver_module
 import specify_cli.runtime.resolver as runtime_resolver_module
 from charter.resolution import ResolutionResult, ResolutionTier
-from charter.resolver import DoctrineService
-from charter.template_resolver import CharterTemplateResolver
+from charter.activation.resolver import DoctrineService
+from charter.activation.template_resolver import CharterTemplateResolver
 from charter.offering.missions.repository import MissionTemplateRepository
 
 pytestmark = pytest.mark.fast
@@ -447,8 +447,11 @@ def test_only_charter_resolver_imports_the_doctrine_tier_functions() -> None:
     must not name ``charter.offering.resolver`` in an import at all; ``charter/
     resolver.py`` is the sole charter-layer importer of its tier functions.
     """
-    src = Path(charter_resolver_module.__file__).parent.parent
-    for module_path in (src / "charter" / "template_resolver.py", src / "specify_cli" / "runtime" / "resolver.py"):
+    src = Path(charter_resolver_module.__file__).parent.parent.parent
+    for module_path in (
+        src / "charter" / "activation" / "template_resolver.py",
+        src / "specify_cli" / "runtime" / "resolver.py",
+    ):
         body = module_path.read_text(encoding="utf-8")
         offending = [
             line.strip()
@@ -457,7 +460,7 @@ def test_only_charter_resolver_imports_the_doctrine_tier_functions() -> None:
         ]
         assert not offending, f"{module_path} must not import charter.offering.resolver: {offending}"
 
-    charter_body = (src / "charter" / "resolver.py").read_text(encoding="utf-8")
+    charter_body = (src / "charter" / "activation" / "resolver.py").read_text(encoding="utf-8")
     assert "from charter.offering.resolver import (" in charter_body
 
 

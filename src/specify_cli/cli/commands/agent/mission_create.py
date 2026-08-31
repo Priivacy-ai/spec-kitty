@@ -445,7 +445,7 @@ def _run_create_core_phase(
     a ``MissionCreationError`` (with worktree navigation hint), or any other
     unexpected exception.
     """
-    from charter.pack_context import CharterPackConfigError
+    from charter.activation.pack_context import CharterPackConfigError
     from specify_cli.core.mission_creation import (
         MissionCreationError,
         create_mission_core,

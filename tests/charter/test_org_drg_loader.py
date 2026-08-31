@@ -27,6 +27,8 @@ from charter.drg import (
     OrgPackMissingError,
     Relation,
     UnknownRelationError,
+)
+from charter.activation.drg_activation import (
     load_org_drg,
     merge_three_layers,
 )

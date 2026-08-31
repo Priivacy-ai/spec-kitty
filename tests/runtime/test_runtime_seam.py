@@ -14,7 +14,7 @@ future change cannot silently reintroduce a 5th authority (C-003).
 
 Investigation result (T018/T019 — no code changes required, confirmation only):
 
-- ``charter.mission_type_profiles._resolve_action_slot`` (:694/697) calls
+- ``charter.activation.mission_type_profiles._resolve_action_slot`` (:694/697) calls
   ``charter.offering.missions.mission_type_repository.MissionTypeRepository.default()``
   and reads ``mission.action_sequence`` straight off the loaded model — the
   exact field WP02's ``_inject_projected_fields`` overlays before
@@ -33,7 +33,7 @@ Investigation result (T018/T019 — no code changes required, confirmation only)
 - ``runtime.next.decision._build_prompt_or_error`` (:606) and
   ``runtime.next.runtime_bridge_composition._should_dispatch_via_composition``
   (:186) / ``_composition_dispatch_inputs`` (:321) all call
-  ``charter.mission_type_profiles.resolve_mission_type_context(...).action_sequence``
+  ``charter.activation.mission_type_profiles.resolve_mission_type_context(...).action_sequence``
   — the bundle built from ``_resolve_action_slot`` above — so they consume the
   projected value transitively. No consumer reads a raw/flat field directly.
 
@@ -60,7 +60,7 @@ from unittest.mock import patch
 
 import pytest
 
-from charter.mission_type_profiles import ResolvedMissionType, resolve_mission_type_context
+from charter.activation.mission_type_profiles import ResolvedMissionType, resolve_mission_type_context
 from charter.offering.missions.mission_step_repository import MissionStepRepository
 from charter.offering.missions.mission_type_repository import MissionTypeRepository
 
@@ -127,7 +127,7 @@ def _expected_authored(mission_type_id: str) -> dict[str, Any]:
 
 def _resolve_via_seam(tmp_path: Path, mission_type_id: str) -> ResolvedMissionType:
     with patch(
-        "charter.mission_type_profiles.existing_mission_types",
+        "charter.activation.mission_type_profiles.existing_mission_types",
         return_value=list(_BUILTIN_TYPE_IDS),
     ):
         return resolve_mission_type_context(tmp_path, mission_type=mission_type_id)
@@ -206,7 +206,7 @@ class TestGoldenParityUnaffectedByPackContextThreading:
     def test_builtin_type_unaffected_by_real_pack_context_with_org_root(
         self, tmp_path: Path, mission_type_id: str
     ) -> None:
-        from charter.pack_context import PackContext
+        from charter.activation.pack_context import PackContext
 
         expected = _expected_authored(mission_type_id)
         org_root = tmp_path / "org-pack"
@@ -220,7 +220,7 @@ class TestGoldenParityUnaffectedByPackContextThreading:
         )
 
         with patch(
-            "charter.pack_context.PackContext.from_config", return_value=pack_context
+            "charter.activation.pack_context.PackContext.from_config", return_value=pack_context
         ):
             bundle = _resolve_via_seam(tmp_path, mission_type_id)
 
@@ -249,7 +249,7 @@ class TestGoldenParityUnaffectedByPackContextThreading:
         built-in type -- so the layered-merge code path this class claims to
         guard is actually exercised end to end, closing the vacuity gap.
         """
-        from charter.pack_context import PackContext
+        from charter.activation.pack_context import PackContext
 
         org_root = tmp_path / "org-pack"
         mt_dir = org_root / "mission_types"
@@ -276,11 +276,11 @@ class TestGoldenParityUnaffectedByPackContextThreading:
         try:
             with (
                 patch(
-                    "charter.mission_type_profiles.existing_mission_types",
+                    "charter.activation.mission_type_profiles.existing_mission_types",
                     return_value=activated,
                 ),
                 patch(
-                    "charter.pack_context.PackContext.from_config",
+                    "charter.activation.pack_context.PackContext.from_config",
                     return_value=pack_context,
                 ),
             ):
@@ -309,7 +309,7 @@ class TestConsumerTransitivity:
         )
 
         with patch(
-            "charter.mission_type_profiles.existing_mission_types",
+            "charter.activation.mission_type_profiles.existing_mission_types",
             return_value=list(_BUILTIN_TYPE_IDS),
         ):
             result = _should_dispatch_via_composition(
@@ -326,7 +326,7 @@ class TestConsumerTransitivity:
         )
 
         with patch(
-            "charter.mission_type_profiles.existing_mission_types",
+            "charter.activation.mission_type_profiles.existing_mission_types",
             return_value=list(_BUILTIN_TYPE_IDS),
         ):
             result = _should_dispatch_via_composition(
@@ -346,7 +346,7 @@ class TestConsumerTransitivity:
         )
 
         with patch(
-            "charter.mission_type_profiles.existing_mission_types",
+            "charter.activation.mission_type_profiles.existing_mission_types",
             return_value=list(_BUILTIN_TYPE_IDS),
         ):
             result = _composition_dispatch_inputs(
@@ -379,7 +379,7 @@ class TestConsumerTransitivity:
         )
 
         with patch(
-            "charter.mission_type_profiles.existing_mission_types",
+            "charter.activation.mission_type_profiles.existing_mission_types",
             return_value=list(_BUILTIN_TYPE_IDS),
         ):
             path, err = _build_prompt_or_error(

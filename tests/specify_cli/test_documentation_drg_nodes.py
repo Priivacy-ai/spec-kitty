@@ -12,7 +12,7 @@ action bundles produced by WP03:
 3. ``resolve_context`` median latency for documentation actions is at most
    2x the median latency for research actions (NFR-007).
 
-The mission spec forbids mocking ``charter._drg_helpers.load_validated_graph``
+The mission spec forbids mocking ``charter.activation._drg_helpers.load_validated_graph``
 or ``charter.offering.drg.query.resolve_context`` (C-007); these tests read the real
 on-disk graph and call the production resolver directly.
 """
@@ -26,7 +26,7 @@ from pathlib import Path
 import pytest
 import yaml
 
-from charter._drg_helpers import load_validated_graph
+from charter.activation._drg_helpers import load_validated_graph
 from charter.offering.drg.loader import load_built_in_graph
 from charter.offering.drg.query import resolve_context
 

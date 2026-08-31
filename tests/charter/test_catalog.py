@@ -5,7 +5,7 @@ from pathlib import Path
 import pytest
 from ruamel.yaml import YAML
 
-from charter.catalog import _load_yaml_id_catalog, load_doctrine_catalog
+from charter.activation.catalog import _load_yaml_id_catalog, load_doctrine_catalog
 
 pytestmark = pytest.mark.fast
 
@@ -105,12 +105,12 @@ def test_catalog_filters_language_scoped_artifacts(monkeypatch: pytest.MonkeyPat
         with path.open("w", encoding="utf-8") as handle:
             yaml.dump(data, handle)
 
-    monkeypatch.setattr("charter.catalog.resolve_doctrine_root", lambda: doctrine_root)
+    monkeypatch.setattr("charter.activation.catalog.resolve_doctrine_root", lambda: doctrine_root)
     # Built-in pack content is flat under ``packs/built-in/<kind>/`` and is
     # resolved per-kind via ``built_in_dir`` (mission
     # doctrine-built-in-seam-consolidation-01KYW3TX, WP02); point it at the
     # tmp root's flat per-kind directories.
-    monkeypatch.setattr("charter.catalog.built_in_dir", lambda kind: doctrine_root / kind.plural)
+    monkeypatch.setattr("charter.activation.catalog.built_in_dir", lambda kind: doctrine_root / kind.plural)
 
     catalog = load_doctrine_catalog(active_languages=["typescript"])
 
@@ -167,12 +167,12 @@ def test_catalog_keeps_language_scoped_artifacts_when_active_languages_are_unset
         with path.open("w", encoding="utf-8") as handle:
             yaml.dump(data, handle)
 
-    monkeypatch.setattr("charter.catalog.resolve_doctrine_root", lambda: doctrine_root)
+    monkeypatch.setattr("charter.activation.catalog.resolve_doctrine_root", lambda: doctrine_root)
     # Built-in pack content is flat under ``packs/built-in/<kind>/`` and is
     # resolved per-kind via ``built_in_dir`` (mission
     # doctrine-built-in-seam-consolidation-01KYW3TX, WP02); point it at the
     # tmp root's flat per-kind directories.
-    monkeypatch.setattr("charter.catalog.built_in_dir", lambda kind: doctrine_root / kind.plural)
+    monkeypatch.setattr("charter.activation.catalog.built_in_dir", lambda kind: doctrine_root / kind.plural)
 
     catalog = load_doctrine_catalog()
 

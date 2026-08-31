@@ -150,7 +150,7 @@ from typing import TYPE_CHECKING, Any
 from kernel.clock import now_utc_iso
 
 if TYPE_CHECKING:
-    from charter.invocation_context import OperationalContext as OperationalContextT
+    from charter.activation.invocation_context import OperationalContext as OperationalContextT
 
 from runtime.next._internal_runtime import (
     DiscoveryContext,

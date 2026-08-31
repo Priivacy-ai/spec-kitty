@@ -79,7 +79,7 @@ def _mock_resolve_mission_type_context(
     Used as an autouse fixture patch so integration tests don't need a live
     MissionTypeRepository (which is provided by a later WP).
     """
-    from charter.mission_type_profiles import UnknownMissionTypeError
+    from charter.activation.mission_type_profiles import UnknownMissionTypeError
 
     result = _KNOWN_ACTION_SEQUENCES.get(mission_type)
     if result is None:
@@ -96,7 +96,7 @@ def _mock_charter_resolve(monkeypatch: pytest.MonkeyPatch) -> None:
     by a later WP; this autouse fixture patches the call for all tests in this
     module so they remain self-contained.
     """
-    import charter.mission_type_profiles as _cmt
+    import charter.activation.mission_type_profiles as _cmt
 
     monkeypatch.setattr(
         _cmt,
@@ -179,7 +179,7 @@ def test_should_dispatch_fires_for_software_dev_composed_actions(
 
     sw_actions = ["specify", "plan", "tasks", "implement", "review"]
     with patch(
-        "charter.mission_type_profiles.resolve_mission_type_context",
+        "charter.activation.mission_type_profiles.resolve_mission_type_context",
         return_value=SimpleNamespace(action_sequence=sw_actions),
     ):
         for action in sw_actions:
@@ -192,11 +192,11 @@ def test_should_dispatch_falls_through_for_unknown_mission_helper(
     tmp_path: Path,
 ) -> None:
     """Any mission type unknown to charter falls through (C-008)."""
-    from charter.mission_type_profiles import UnknownMissionTypeError
+    from charter.activation.mission_type_profiles import UnknownMissionTypeError
     from unittest.mock import patch
 
     with patch(
-        "charter.mission_type_profiles.resolve_mission_type_context",
+        "charter.activation.mission_type_profiles.resolve_mission_type_context",
         side_effect=UnknownMissionTypeError("documentation"),
     ):
         for action in ("specify", "plan", "tasks", "implement", "review"):
@@ -208,7 +208,7 @@ def test_should_dispatch_falls_through_for_unknown_mission_helper(
             )
 
     with patch(
-        "charter.mission_type_profiles.resolve_mission_type_context",
+        "charter.activation.mission_type_profiles.resolve_mission_type_context",
         side_effect=UnknownMissionTypeError("other"),
     ):
         for action in ("specify", "plan", "tasks", "implement", "review"):
@@ -226,7 +226,7 @@ def test_should_dispatch_falls_through_for_unknown_step_id_helper(
 
     sw_actions = ["specify", "plan", "tasks", "implement", "review"]
     with patch(
-        "charter.mission_type_profiles.resolve_mission_type_context",
+        "charter.activation.mission_type_profiles.resolve_mission_type_context",
         return_value=SimpleNamespace(action_sequence=sw_actions),
     ):
         for step_id in ("accept", "merge", "bootstrap", "unknown_step"):
@@ -348,7 +348,7 @@ def test_dispatch_falls_through_for_unknown_mission(tmp_path: Path) -> None:
     unknown to charter raise UnknownMissionTypeError and the predicate degrades
     to False gracefully.
     """
-    from charter.mission_type_profiles import UnknownMissionTypeError
+    from charter.activation.mission_type_profiles import UnknownMissionTypeError
 
     # Pre-condition: the executor is never called when the predicate is False.
     def _raise_unknown(
@@ -359,7 +359,7 @@ def test_dispatch_falls_through_for_unknown_mission(tmp_path: Path) -> None:
     with (
         patch("specify_cli.mission_step_contracts.executor.StepContractExecutor.execute") as mock_execute,
         patch(
-            "charter.mission_type_profiles.resolve_mission_type_context",
+            "charter.activation.mission_type_profiles.resolve_mission_type_context",
             side_effect=_raise_unknown,
         ),
     ):
@@ -389,7 +389,7 @@ def test_dispatch_falls_through_for_unknown_step_id(tmp_path: Path) -> None:
     """
     sw_actions = ["specify", "plan", "tasks", "implement", "review"]
     with patch(
-        "charter.mission_type_profiles.resolve_mission_type_context",
+        "charter.activation.mission_type_profiles.resolve_mission_type_context",
         return_value=SimpleNamespace(action_sequence=sw_actions),
     ):
         for step_id in ("accept", "merge", "bootstrap", "unknown_step"):

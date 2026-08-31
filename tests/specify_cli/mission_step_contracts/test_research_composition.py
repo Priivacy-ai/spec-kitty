@@ -16,7 +16,7 @@ in order to dispatch a `research/<action>` invocation actually line up:
    touched while adding the research entries.
 
 These tests intentionally read the live shipped DRG via
-``charter._drg_helpers.load_validated_graph`` and the production resolver
+``charter.activation._drg_helpers.load_validated_graph`` and the production resolver
 ``charter.offering.drg.query.resolve_context`` (mission spec C-007 forbids mocking
 either surface). The composer's higher-level dispatch surfaces
 (``_dispatch_via_composition``, ``StepContractExecutor.execute``,
@@ -31,7 +31,7 @@ from pathlib import Path
 import pytest
 import yaml
 
-from charter._drg_helpers import load_validated_graph
+from charter.activation._drg_helpers import load_validated_graph
 from charter.offering.drg.query import resolve_context
 from charter.offering.missions.step_contracts import MissionStepContractRepository
 from specify_cli.mission_step_contracts.executor import _ACTION_PROFILE_DEFAULTS
@@ -197,7 +197,7 @@ def test_research_drg_node_resolves_non_empty_context(action: str) -> None:
 
     Uses the *real* composition resolver
     (``charter.offering.drg.query.resolve_context``) and the *real*
-    ``charter._drg_helpers.load_validated_graph`` -- neither is mocked
+    ``charter.activation._drg_helpers.load_validated_graph`` -- neither is mocked
     (mission spec C-007). The depth matches the composer's default
     (``StepContractExecutionContext.resolution_depth = 2``).
     """

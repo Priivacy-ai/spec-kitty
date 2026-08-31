@@ -27,7 +27,7 @@ from pathlib import Path
 
 import pytest
 
-from charter import progressive_disclosure as pd
+from charter.activation import progressive_disclosure as pd
 from charter.offering.drg.models import DRGEdge, DRGGraph, DRGNode, NodeKind, Relation
 
 pytestmark = [pytest.mark.integration, pytest.mark.git_repo]
@@ -97,7 +97,7 @@ def _project_root(tmp_path: Path) -> Path:
     delivery contract this module pins, but WP04 (C-A1) made it a hard
     construction precondition for ``PackContext.from_config``. The checkout's
     own charter.yaml now carries that provisioning key (emitted by the charter
-    generation path — ``charter.compiler.provision_mission_type_activations``),
+    generation path — ``charter.activation.compiler.provision_mission_type_activations``),
     so the COPY inherits it with no fixture-side append. Every test in this
     module resolves the ``software-dev`` grain, which is one of the provisioned
     built-in mission types. (Mirrors the fixture in
@@ -117,7 +117,7 @@ def _project_root(tmp_path: Path) -> Path:
 
 
 def _json_payload(tmp_path: Path, *, include_all: bool = False) -> dict[str, object]:
-    from charter.context import build_charter_context, build_charter_context_json
+    from charter.activation.context import build_charter_context, build_charter_context_json
 
     repo = _project_root(tmp_path)
     # depth is state-driven; force the bootstrap depth without mutating state.
@@ -361,7 +361,7 @@ class TestCompletenessByNaming:
         assert _inlined_ids(payload) | _referenced_ids(payload) >= delivered
 
     def test_linked_artifact_retrievable_via_include(self, tmp_path: Path) -> None:
-        from charter.context import build_charter_context_include
+        from charter.activation.context import build_charter_context_include
 
         payload = _json_payload(tmp_path)
         linked: tuple[str, str] | None = None

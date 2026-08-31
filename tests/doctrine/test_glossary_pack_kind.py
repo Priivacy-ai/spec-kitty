@@ -15,7 +15,7 @@ from __future__ import annotations
 
 import pytest
 
-from charter.pack_manager import YAML_KEY_MAP
+from charter.activation.pack_manager import YAML_KEY_MAP
 from charter.offering.artifact_kinds import (
     CHARTER_KIND_TOKENS,
     ArtifactKind,

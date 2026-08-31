@@ -21,7 +21,7 @@ from typing import Any, cast
 import pytest
 import typer
 
-from charter.mission_type_profiles import ResolvedMissionType
+from charter.activation.mission_type_profiles import ResolvedMissionType
 from charter.resolution import ResolutionResult, ResolutionTier
 from specify_cli.cli.commands.agent import mission_setup_plan as seam
 from specify_cli.core.paths import load_meta_fail_closed as canonical_load_meta_fail_closed

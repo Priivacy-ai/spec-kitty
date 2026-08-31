@@ -10,7 +10,7 @@ activation gate (C-008).
 How the gate is honoured (C-006: reuse, never re-implement)
 ----------------------------------------------------------
 The activation gate lives two layers above ``resolve_org_roots`` — on
-:attr:`charter.resolver.DoctrineService.agent_profiles`, which filters the
+:attr:`charter.activation.resolver.DoctrineService.agent_profiles`, which filters the
 merged profile set by ``PackContext.activated_agent_profiles`` (three-state:
 ``None`` → all admitted; ``frozenset()`` → none; explicit set → only those).
 This resolver builds that activation-aware service via
@@ -58,7 +58,7 @@ def _existing_org_roots(repo_root: Path) -> list[Path]:
 
     Best-effort: a missing/corrupt config yields an empty list so the caller
     takes the no-org-packs fast path. Mirrors
-    :func:`charter.context._existing_org_roots`.
+    :func:`charter.activation.context._existing_org_roots`.
     """
     from charter.drg import resolve_org_roots
 
@@ -108,7 +108,7 @@ def resolve_activated_org_profiles(repo_root: Path) -> list[ResolvedOrgProfile]:
     """
     # Short-circuit (perf): with zero configured org roots the org-provenance
     # subset is necessarily empty, so skip the full activation-aware service
-    # build. Mirrors ``charter.context._existing_org_roots`` (best-effort).
+    # build. Mirrors ``charter.activation.context._existing_org_roots`` (best-effort).
     if not _existing_org_roots(repo_root):
         return []
 

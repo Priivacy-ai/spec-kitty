@@ -11,7 +11,7 @@ This module pins:
 
 - **T014**: every ``required_<kind>`` (all 8 kinds -- not just directives/
   paradigms) unions into ``config.activated_<kind>`` via
-  :func:`charter.activation_engine.promote_activations`, including the
+  :func:`charter.activation.activation_engine.promote_activations`, including the
   absent-key LAND-BLOCKER (promoting into a previously-absent key must
   preserve every built-in id, never write a bare restrictive list).
 - **T015 (SC-004)**: editing ``interview.selected_*`` (the answers surface)
@@ -32,9 +32,9 @@ from pathlib import Path
 import pytest
 from ruamel.yaml import YAML
 
-from charter.compiler import compile_charter
-from charter.interview import CharterInterview, default_interview
-from charter.pack_context import PackContext
+from charter.activation.compiler import compile_charter
+from charter.activation.interview import CharterInterview, default_interview
+from charter.activation.pack_context import PackContext
 from charter.offering.service import DoctrineService
 from specify_cli.doctrine.org_charter import (
     REQUIRED_KIND_FIELDS,
@@ -44,7 +44,7 @@ from specify_cli.doctrine.org_charter import (
 pytestmark = [pytest.mark.unit, pytest.mark.fast, pytest.mark.doctrine]
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
-DEFAULT_PACK_PATH = REPO_ROOT / "src" / "charter" / "packs" / "default.yaml"
+DEFAULT_PACK_PATH = REPO_ROOT / "src" / "charter" / "activation" / "packs" / "default.yaml"
 
 
 def _safe_yaml() -> YAML:
@@ -226,7 +226,7 @@ class TestOrgRequiredPromotedIntoConfig:
         ``[org-required-directive]`` list -- it must materialize every
         built-in directive first (the real shipped default pack), preserving
         the absent-key "all built-ins active" three-state contract
-        :meth:`charter.pack_context.PackContext.from_config` depends on.
+        :meth:`charter.activation.pack_context.PackContext.from_config` depends on.
         """
         pack = tmp_path / "pack"
         _write_org_charter(
@@ -292,8 +292,8 @@ class TestOrgRequiredPromotedIntoConfig:
 
 class TestOrgRequiredIdFormNormalizedBeforePromotion:
     """Squad finding #2529: ``config.activated_<kind>`` stores config/file-
-    stem ids and the derivation (:mod:`charter.compiler`,
-    :func:`~charter.kind_vocabulary.resolve_artifact_urn`) reads stems --
+    stem ids and the derivation (:mod:`charter.activation.compiler`,
+    :func:`~charter.activation.kind_vocabulary.resolve_artifact_urn`) reads stems --
     promoting an org-required id in its natural canonical ``id:`` form
     (e.g. ``DIRECTIVE_001``) verbatim writes a value the derivation can never
     match, crashing even for a built-in org-required directive.
@@ -381,13 +381,13 @@ class TestOrgRequiredIdFormNormalizedBeforePromotion:
     def test_prefix_verbatim_canonical_id_would_not_resolve_as_a_stem(self) -> None:
         """Regression proof: the pre-fix behaviour (writing the canonical id
         verbatim into ``config.activated_directives``) is provably broken --
-        :func:`~charter.kind_vocabulary.resolve_artifact_urn`, the same
-        resolver :mod:`charter.compiler` uses to turn a config stem into a
+        :func:`~charter.activation.kind_vocabulary.resolve_artifact_urn`, the same
+        resolver :mod:`charter.activation.compiler` uses to turn a config stem into a
         DRG URN, does NOT recognize the canonical form as a stem. This is
         why the fix is needed, not merely a stylistic preference.
         """
-        from charter.catalog import resolve_doctrine_root
-        from charter.kind_vocabulary import UnknownArtifactIdError, resolve_artifact_urn
+        from charter.activation.catalog import resolve_doctrine_root
+        from charter.activation.kind_vocabulary import UnknownArtifactIdError, resolve_artifact_urn
         from charter.offering.artifact_kinds import ArtifactKind
 
         doctrine_root = resolve_doctrine_root()

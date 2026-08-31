@@ -82,8 +82,6 @@ steps:
       are linked from any subsequent ADRs, design documents, or work packages.
 references:
   - type: directive
-    id: DIRECTIVE_003
-  - type: directive
     id: DIRECTIVE_001
   - type: template
     id: system-context-canvas-template

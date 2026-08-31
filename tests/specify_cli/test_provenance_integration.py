@@ -198,10 +198,10 @@ class TestLintOrgOverridesAdvisory:
             return None
 
         monkeypatch.setattr(
-            "charter.catalog.resolve_doctrine_root", _fake_resolve_doctrine_root
+            "charter.activation.catalog.resolve_doctrine_root", _fake_resolve_doctrine_root
         )
         monkeypatch.setattr(
-            "charter._doctrine_paths.resolve_project_root", _fake_resolve_project_root
+            "charter.activation._doctrine_paths.resolve_project_root", _fake_resolve_project_root
         )
 
         checker = org_layer.OrgOverridesBuiltinChecker(repo_root=repo_root)

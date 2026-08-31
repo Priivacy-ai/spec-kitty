@@ -18,8 +18,8 @@ enums silently becomes a trap for the *next* new kind unless it is either:
 
 Naive totality ("every such dict must have every key") is provably wrong: it
 false-fails on four pre-existing, legitimately-partial tables
-(``charter.kind_vocabulary::_ID_FIELD_BY_KIND``/``_PROJECT_KIND_DIRS`` and
-``charter.pack_manager::_ID_FIELD_BY_KIND``/``_PROJECT_KIND_DIRS``). This guard
+(``charter.activation.kind_vocabulary::_ID_FIELD_BY_KIND``/``_PROJECT_KIND_DIRS`` and
+``charter.activation.pack_manager::_ID_FIELD_BY_KIND``/``_PROJECT_KIND_DIRS``). This guard
 distinguishes the two cases via :data:`_EXEMPT_GET_PARTIALS`, an explicit
 allow-list keyed by ``"<dotted.module>::<CONSTANT_NAME>"`` -- the exemption
 mechanism chosen over an inline marker comment because it puts the entire
@@ -64,8 +64,8 @@ _EXEMPT_GET_PARTIALS: frozenset[str] = frozenset(
     {
         # _id_field_for() / _declared_id() fall back to the "id" default field
         # for every kind that doesn't override it.
-        "charter.kind_vocabulary::_ID_FIELD_BY_KIND",
-        "charter.pack_manager::_ID_FIELD_BY_KIND",
+        "charter.activation.kind_vocabulary::_ID_FIELD_BY_KIND",
+        "charter.activation.pack_manager::_ID_FIELD_BY_KIND",
         # NOTE (WP03 T014): the two charter `_PROJECT_KIND_DIRS` partials were
         # retired here -- both modules now import the single total authority
         # `charter.offering.artifact_kinds.PROJECT_KIND_DIRS` (guard-visible, total), so
