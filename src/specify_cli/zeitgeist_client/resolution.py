@@ -78,7 +78,7 @@ from specify_cli.saas_client.auth import AuthContext, load_auth_context
 from specify_cli.saas_client.errors import SaasAuthError
 
 from . import credentials, repo_identity
-from .credentials import StoredCredential
+from .credentials import NegativeEntry, StoredCredential
 
 logger = logging.getLogger(__name__)
 
@@ -439,7 +439,7 @@ def _default_gateway(auth_repo_root: Path) -> SaasCapabilityGateway:
     )
 
 
-def cached_answer(key: str, *, repo_slug: str, host: str | None) -> tuple[bool, StoredCredential | None]:
+def cached_answer(key: str, *, repo_slug: str, host: str | None) -> tuple[bool, StoredCredential | None, NegativeEntry | None]:
     """Peek the local store for a still-valid answer — positive or a
     remembered negative — without touching the network or requiring auth
     to be configured. This is the offline fast path the module docstring
@@ -447,16 +447,18 @@ def cached_answer(key: str, *, repo_slug: str, host: str | None) -> tuple[bool, 
     configured to authenticate with yet, so it never needs a gateway
     (Priivacy-ai/spec-kitty#151).
 
-    Returns ``(True, credential)`` for a positive cache hit, ``(True,
-    None)`` for a remembered negative still inside its TTL, or ``(False,
-    None)`` on a miss — the caller must resolve over the network."""
+    Returns ``(True, credential, None)`` for a positive cache hit,
+    ``(True, None, negative)`` for a remembered negative still inside its
+    TTL, or ``(False, None, None)`` on a miss — the caller must resolve over
+    the network. Returning the negative entry lets callers report its reason
+    without another store read."""
     stored = credentials.load(repo=key)
     if stored is not None and not _expired(stored.expires_at) and _same_scope(stored, repo_slug=repo_slug, host=host):
-        return True, stored
+        return True, stored, None
     negative = credentials.load_negative(repo=key)
     if negative is not None and not _expired(negative.expires_at):
-        return True, None
-    return False, None
+        return True, None, negative
+    return False, None, None
 
 
 def _resolve(
@@ -471,7 +473,7 @@ def _resolve(
     """Resolution over an already-derived identity — the git-independent
     core, so every branch above is testable without a checkout."""
     if not force:
-        hit, value = cached_answer(key, repo_slug=repo_slug, host=host)
+        hit, value, _negative = cached_answer(key, repo_slug=repo_slug, host=host)
         if hit:
             return value
 
@@ -607,7 +609,7 @@ def resolve_credentials(
     # configured — checking before the gateway is built, not after
     # (Priivacy-ai/spec-kitty#151).
     if not force:
-        hit, value = cached_answer(key, repo_slug=slug, host=host)
+        hit, value, _negative = cached_answer(key, repo_slug=slug, host=host)
         if hit:
             return value
 
