@@ -1119,7 +1119,7 @@ function escapeHtmlAttr(text) {
 // KanbanTaskData actually populates) and renders nothing when a WP has none
 // of them set, so legacy/unassigned cards are unaffected.
 function profileAvatarHtml(task) {
-    const identity = task.agent_profile || task.role || task.agent || task.assignee || '';
+    const identity = (task.agent_profile || task.role || task.agent || task.assignee || '').trim();
     if (!identity) {
         return '';
     }
