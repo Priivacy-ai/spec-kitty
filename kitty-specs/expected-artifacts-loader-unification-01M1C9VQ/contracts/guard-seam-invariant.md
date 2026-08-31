@@ -17,9 +17,19 @@ except UnregisteredMissionFamilyError:           # :504  — MUST stay this type
 ## Invariants
 
 1. **Gather-time propagation.** A `MalformedManifestError` raised during
-   `gather_artifact_presence` (via `_presence_filenames_for` →
-   `_expected_artifacts_manifest_resolves` → the authority) is raised at `:486`,
-   OUTSIDE the try — so it propagates regardless of the `:504` handler.
+   `gather_artifact_presence` is raised at `:486`, OUTSIDE the try — so it
+   propagates regardless of the `:504` handler. The custom-family launder path
+   runs `_expected_artifacts_manifest_resolves → _resolve_org_manifest_mapping →
+   resolve_org_expected_artifacts → _read_yaml_mapping` (feeds
+   `blocking_artifact_names`); `_presence_filenames_for` is a **sibling** gather
+   path (feeds the presence name-set). A malformed manifest can raise from either
+   — both are called inside `gather_artifact_presence`, both outside the try.
+
+   **Note:** `:504` is ALREADY `except _cores.UnregisteredMissionFamilyError` only
+   and gather is ALREADY outside the try in the live code — so once
+   `_read_yaml_mapping` raises (WP03), this seam is closed with no production
+   `except`-change. WP04's deliverable is the integration regression + a
+   durability test that LOCKS the pin, not a code edit to the handler.
 2. **Handler type-pinning.** The `except` at `:504` catches
    `UnregisteredMissionFamilyError` and NOTHING that a malformed manifest raises.
    A broadened handler (`except (UnregisteredMissionFamilyError,
