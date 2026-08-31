@@ -134,11 +134,7 @@ def assess_scope_budget(test_targets: tuple[str, ...], effective_budget_seconds:
 
     for rule in _RULES:
         rule_targets = frozenset(rule.required_target_atoms)
-        matches = (
-            selected_targets.issuperset(rule_targets)
-            if rule.classification is BudgetClassification.OVERSIZED
-            else selected_targets == rule_targets
-        )
+        matches = selected_targets.issuperset(rule_targets) if rule.classification is BudgetClassification.OVERSIZED else selected_targets == rule_targets
         if matches:
             return ScopeBudgetAssessment(
                 classification=rule.classification,

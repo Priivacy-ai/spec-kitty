@@ -407,8 +407,10 @@ def test_exact_entry_wires_typed_observer_with_ordered_human_progress(
         return SimpleNamespace(returncode=0)
 
     real_observer_factory = tasks_move_task._mt_human_gate_status_observer
+    constructed_observer: pre_review_gate.GateStatusObserver | None = None
 
     def recording_observer_factory(_tasks: Any) -> pre_review_gate.GateStatusObserver:
+        nonlocal constructed_observer
         renderer = real_observer_factory(_tasks)
 
         def observe(event: pre_review_gate.GateStatusEvent) -> None:
@@ -418,6 +420,7 @@ def test_exact_entry_wires_typed_observer_with_ordered_human_progress(
             timeline.append((name, monotonic()))
             renderer(event)
 
+        constructed_observer = observe
         constructed_observers.append(observe)
         return observe
 
@@ -527,8 +530,8 @@ def test_exact_entry_wires_typed_observer_with_ordered_human_progress(
 
     assert result.exit_code == 0, result.output
     assert len(router.status_calls) == 1
-    assert len(constructed_observers) == 1
-    assert evaluate_scope_spy.call_args.kwargs["status_observer"] is constructed_observers[0]
+    assert constructed_observers == [constructed_observer]
+    assert evaluate_scope_spy.call_args.kwargs["status_observer"] is constructed_observer
     assert monotonic() > 60.0, result.output
     names = [name for name, _at in timeline]
     assert names[0] == "start"
