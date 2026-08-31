@@ -134,17 +134,12 @@ def _custom_wp_iteration_context(tmp_path: Path) -> rb.DecideNextContext:
     )
 
 
-def test_wp_iteration_guard_degrades_for_unregistered_family(
-    tmp_path: Path, caplog: pytest.LogCaptureFixture
-) -> None:
+def test_wp_iteration_guard_degrades_for_unregistered_family(tmp_path: Path, caplog: pytest.LogCaptureFixture) -> None:
     with caplog.at_level(logging.WARNING, logger="runtime.next.runtime_bridge"):
         assert rb._dn_dependency_gate(_custom_wp_iteration_context(tmp_path)) is None
 
     messages = [record.getMessage() for record in caplog.records if record.levelno == logging.WARNING]
-    assert any(
-        CUSTOM_UNREGISTERED_FAMILY in message and "CLI guard path" in message and "empty" in message
-        for message in messages
-    ), messages
+    assert any(CUSTOM_UNREGISTERED_FAMILY in message and "CLI guard path" in message and "empty" in message for message in messages), messages
 
 
 def test_wp_iteration_guard_only_swallows_unregistered_family_error(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
