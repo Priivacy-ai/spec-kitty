@@ -9,7 +9,13 @@ This module houses the shared selector-section renderer and the render paths for
 the kinds a profile *attests*:
 
 * **styleguide / toolguide** — schema-attested inline reference kinds
-  (``styleguide-references`` / ``toolguide-references``).
+  (``styleguide-references`` / ``toolguide-references``). These render
+  **pointer-only** (a header line + ``--include`` fetch stanza, ``body_fn=None``)
+  BY DESIGN, not as a silent no-op: it is a deliberate NFR-001 token-budget
+  choice. Their bodies are large and shaped unlike the other kinds', so they are
+  pulled on demand rather than inlined into every profile load — keeping the
+  profile block within budget. See :func:`render_profile_styleguides` /
+  :func:`render_profile_toolguides`.
 * **procedure** — reached through the profile *channel*: WP08's
   ``walk_edges({requires, specializes_from})`` traversal
   (:meth:`AgentProfileRepository.profile_channel_procedure_ids`), **not** a
@@ -81,6 +87,20 @@ _PROFILE_TOOLGUIDES_HEADER_TPL = "Profile-Cited Toolguides ({profile_id}):"
 _PROFILE_PROCEDURES_HEADER_TPL = "Profile-Resolved Procedures ({profile_id}):"
 _PROFILE_CODE_CHANGE_WHEN = "are about to apply a code change"
 
+# WP01 (deliver-loaded-doctrine, FR-005): the stated reason styleguide/toolguide
+# profile sections render pointer-only (``body_fn=None``). This is a DELIBERATE
+# NFR-001 token-budget decision -- their bodies are large and pulled on demand --
+# not a silent no-op. This constant is a documented, human-readable stated
+# reason surfaced in the render-policy docstrings below (the FR-005
+# discoverability requirement); it is not imported or asserted by any test.
+# Named here (rather than left as an incidental "bodies vary" aside) so the
+# choice is discoverable at the point of decision.
+_STYLEGUIDE_TOOLGUIDE_POINTER_ONLY_REASON: str = (
+    "styleguide/toolguide profile sections are pointer-only by design "
+    "(NFR-001 token budget): their bodies are pulled on demand via the "
+    "--include fetch stanza, never inlined on every profile load"
+)
+
 # --- WP01: suggests-delivery render policy (C4) -----------------------------
 # The NodeKind values the profile channel delivers when it reaches an artefact
 # via a ``suggests`` edge. Deliberately EXCLUDES ``asset`` / ``anti_pattern``
@@ -123,9 +143,11 @@ def format_inline_named_body(artifact: object) -> list[str]:
     """Render an artifact's ``Name`` / ``Purpose`` / ``Steps`` inline body.
 
     Shared by the tactic and procedure renderers — both carry a
-    ``name`` / ``purpose`` / ``steps`` shape. Procedure steps expose
-    ``description`` rather than ``title``; the lookup falls through so either
-    shape renders a step line.
+    ``name`` / ``purpose`` / ``steps`` shape. Each step renders its ``title`` as
+    the header line; WP01 (FR-004) then renders a non-empty ``description`` as an
+    indented sub-line beneath it. When a step carries a ``description`` but no
+    ``title`` the description remains the header line (no sub-line), so the
+    output is byte-identical to the pre-WP01 fall-through for that shape.
     """
     body: list[str] = []
     name = getattr(artifact, "name", None)
@@ -138,12 +160,20 @@ def format_inline_named_body(artifact: object) -> list[str]:
     if isinstance(steps, list) and steps:
         body.append("    Steps:")
         for step in steps:
-            step_title = (
-                getattr(step, "title", None)
-                or getattr(step, "description", None)
-                or str(step)
-            )
-            body.append(f"      - {step_title}")
+            title = getattr(step, "title", None)
+            description = getattr(step, "description", None)
+            header = title or description or str(step)
+            body.append(f"      - {header}")
+            # Only a sub-line when the title is the header AND a distinct,
+            # non-empty description exists — never duplicate a description that
+            # already stands in as the header (the title-less fall-through).
+            if (
+                isinstance(title, str)
+                and title.strip()
+                and isinstance(description, str)
+                and description.strip()
+            ):
+                body.append(f"        {description.strip()}")
     return body
 
 
@@ -254,8 +284,10 @@ def render_profile_selector_refs(
     then either the inline body (when ``body_fn`` yields one under the per-entry
     budget) or the canonical fetch stanza. A catalog miss degrades to the
     structured miss stanza + warning rather than crashing the resolver (FR-013).
-    ``body_fn=None`` always emits the fetch stanza — used for styleguide/toolguide,
-    whose bodies vary and are pulled on demand.
+    ``body_fn=None`` always emits the fetch stanza — used for styleguide/toolguide
+    as a deliberate NFR-001 token-budget choice (pointer-only by design, not a
+    silent no-op): their bodies are pulled on demand rather than inlined on every
+    profile load. See :data:`_STYLEGUIDE_TOOLGUIDE_POINTER_ONLY_REASON`.
 
     ``when_by_id`` supplies a *per-entry* when-clause override (WP01): the
     suggests-delivery renderer carries each artefact's own edge ``when`` rather
@@ -295,9 +327,11 @@ def _ref_entries(refs: Iterable[object]) -> list[tuple[str, str]]:
 def render_profile_styleguides(profile: AgentProfile, service: object) -> list[str]:
     """Render the ``Profile-Cited Styleguides (<profile-id>):`` section (T067).
 
-    Styleguides are a schema-attested profile reference kind. Bodies vary in
-    shape and are pulled on demand, so each entry renders as a header line plus
-    the ``--include styleguide:<id>`` fetch stanza. Empty when none are cited.
+    Styleguides are a schema-attested profile reference kind. Each entry renders
+    as a header line plus the ``--include styleguide:<id>`` fetch stanza and
+    NEVER an inlined body (``body_fn=None``): that is a deliberate NFR-001
+    token-budget choice, not a silent no-op -- their bodies are pulled on demand.
+    See :data:`_STYLEGUIDE_TOOLGUIDE_POINTER_ONLY_REASON`. Empty when none cited.
     """
     refs = list(profile.styleguide_references)
     if not refs:
@@ -317,7 +351,10 @@ def render_profile_toolguides(profile: AgentProfile, service: object) -> list[st
     """Render the ``Profile-Cited Toolguides (<profile-id>):`` section (T067).
 
     Toolguides are a schema-attested profile reference kind, rendered as a header
-    line plus the ``--include toolguide:<id>`` fetch stanza. Empty when none.
+    line plus the ``--include toolguide:<id>`` fetch stanza and never an inlined
+    body (``body_fn=None``): a deliberate NFR-001 token-budget choice, not a
+    silent no-op -- bodies are pulled on demand. See
+    :data:`_STYLEGUIDE_TOOLGUIDE_POINTER_ONLY_REASON`. Empty when none.
     """
     refs = list(profile.toolguide_references)
     if not refs:
@@ -575,6 +612,30 @@ def _render_profile_tactics(
     )
 
 
+# The composed set of profile-channel section renderers ``_render_profile_sections``
+# calls, in deterministic render order. Named at module scope (rather than kept
+# function-local) so the FR-008 anti-divergence test
+# (``tests/charter/test_emit_delivery_bind.py::_REAL_PROJECTED_CHANNELS``) can
+# bind its roster to this exact tuple instead of hand-copying/re-deriving it —
+# a future 7th renderer added here without a matching roster entry now fails
+# that test instead of silently diverging.
+_PROFILE_SECTION_RENDERERS: tuple[Callable[[AgentProfile, object], list[str]], ...] = (
+    _render_profile_directives,
+    _render_profile_tactics,
+    render_profile_styleguides,
+    render_profile_toolguides,
+    render_profile_procedures,
+    # WP01 (doctrine-delivery-activation-01KYQVQK): the channel-resolved
+    # ``suggests``-delivery section — the profile channel now follows
+    # ``suggests``, delivering the #3063 A–E families (paradigm/tactic/…) as
+    # ``when``-labelled links. Distinct from the C-007 deferral of
+    # schema-attested INLINE citation of asset/anti-pattern/paradigm kinds:
+    # this delivers what the CHANNEL reaches, as ``render_profile_procedures``
+    # already does.
+    render_profile_suggested_doctrine,
+)
+
+
 def _render_profile_sections(
     profile: AgentProfile | None,
     service: object,
@@ -590,24 +651,9 @@ def _render_profile_sections(
     """
     if profile is None:
         return ""
-    section_renderers = (
-        _render_profile_directives,
-        _render_profile_tactics,
-        render_profile_styleguides,
-        render_profile_toolguides,
-        render_profile_procedures,
-        # WP01 (doctrine-delivery-activation-01KYQVQK): the channel-resolved
-        # ``suggests``-delivery section — the profile channel now follows
-        # ``suggests``, delivering the #3063 A–E families (paradigm/tactic/…) as
-        # ``when``-labelled links. Distinct from the C-007 deferral of
-        # schema-attested INLINE citation of asset/anti-pattern/paradigm kinds:
-        # this delivers what the CHANNEL reaches, as ``render_profile_procedures``
-        # already does.
-        render_profile_suggested_doctrine,
-    )
     blocks = [
         "\n".join(lines)
-        for renderer in section_renderers
+        for renderer in _PROFILE_SECTION_RENDERERS
         if (lines := renderer(profile, service))
     ]
     return "\n\n".join(blocks)

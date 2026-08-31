@@ -13,7 +13,7 @@
 #
 # Valid operations: rename | remove | deprecate
 #
-# Schema: src/charter/offering/schemas/occurrence-map.schema.yaml
+# Schema: src/doctrine/schemas/occurrence-map.schema.yaml
 
 target:
   term: <the exact string being changed>
@@ -38,13 +38,13 @@ exceptions:
   #   action: do_not_change
   #   reason: "Historical migrations must not be edited"
   #
-  # Field-path form (schema: src/charter/offering/schemas/occurrence-map.schema.yaml).
+  # Field-path form (schema: src/doctrine/schemas/occurrence-map.schema.yaml).
   # Scopes `do_not_change` to ONE YAML field inside a file that ALSO carries
   # entries the category-level action must still classify normally — the
   # path-glob form above cannot express this because it overrides the WHOLE
   # file, and the same file needs a DIFFERENT action on its other fields
   # (e.g. an agent profile whose `directive-references` must never change
-  # while `context-sources.directives` in the SAME file is being migrated).
+  # while `tactic-references` in the SAME file is being migrated).
   # - path: "<path glob matching the governed file(s)>"
   #   field_path: "<dotted.yaml.field.path>"
   #   action: do_not_change

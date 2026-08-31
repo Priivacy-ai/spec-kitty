@@ -1,6 +1,6 @@
 # Charter Encoding Error & Warning Codes
 
-> **Source of truth**: `src/charter/activation/_diagnostics.py` (StrEnum class `CharterEncodingDiagnostic`).
+> **Source of truth**: `src/charter/_diagnostics.py` (StrEnum class `CharterEncodingDiagnostic`).
 > This file is a hand-maintained mirror. Until #645's code-to-docs flow exists,
 > the StrEnum members and this file's section count must match per NFR-008.
 

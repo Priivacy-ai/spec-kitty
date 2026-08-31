@@ -7,7 +7,7 @@ multi-step flows that can be paused, resumed, and validated.
 
 ## Schema
 
-See `src/charter/offering/schemas/procedure.schema.yaml`.
+See `src/doctrine/schemas/procedure.schema.yaml`.
 
 ## Examples
 

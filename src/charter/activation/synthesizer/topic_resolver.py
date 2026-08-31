@@ -23,6 +23,8 @@ from dataclasses import dataclass
 from typing import Any, Literal
 from collections.abc import Mapping, Sequence
 
+from charter.offering.drg.models import NodeKind
+
 from .errors import TopicSelectorUnresolvedError
 from .interview_mapping import canonicalize_interview_section_label
 from .request import SynthesisTarget
@@ -33,18 +35,12 @@ from .request import SynthesisTarget
 
 _SYNTHESIZABLE_KINDS: frozenset[str] = frozenset({"directive", "tactic", "styleguide"})
 
-# DRG node kinds (superset, from charter.offering.drg.models.NodeKind)
-_DRG_NODE_KINDS: frozenset[str] = frozenset({
-    "directive",
-    "tactic",
-    "paradigm",
-    "styleguide",
-    "toolguide",
-    "procedure",
-    "agent_profile",
-    "action",
-    "glossary_scope",
-})
+# DRG node kinds, derived from the canonical ``NodeKind`` enum so a new kind is
+# addressable at the membership gate the moment it is declared — no hand copy to
+# drift behind the enum (#3608). ``NodeKind`` value == URN prefix is guaranteed
+# by ``DRGNode._validate_urn`` (doctrine/drg/models.py). Mirrors the twin
+# derivation ``_NODE_KIND_PREFIXES`` in ``doctrine/drg/merge.py``.
+_DRG_NODE_KINDS: frozenset[str] = frozenset(k.value for k in NodeKind)
 
 
 # ---------------------------------------------------------------------------

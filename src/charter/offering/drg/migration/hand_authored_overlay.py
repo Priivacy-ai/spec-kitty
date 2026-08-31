@@ -1279,28 +1279,14 @@ HAND_AUTHORED_EDGES: tuple[DRGEdge, ...] = (
             "implement/review."
         ),
     ),
-    DRGEdge(
-        source=_URN_DIRECTIVE_034,
-        target="styleguide:given-when-then-authoring",
-        relation=Relation.SUGGESTS,
-        when=("writing behavioural scenarios as Given (precondition) / When (single trigger) / Then (observable outcome) in domain language, runner-agnostic"),
-        reason=(
-            "Test-first development suggests the Given-When-Then authoring "
-            "conventions for writing the scenarios; the `when` is the new "
-            "styleguide's own scope. Delivered at implement/review."
-        ),
-    ),
-    DRGEdge(
-        source=_URN_DIRECTIVE_034,
-        target="toolguide:gherkin",
-        relation=Relation.SUGGESTS,
-        when=("expressing those scenarios in the Gherkin DSL (Feature / Scenario / Given-When-Then / Examples), independent of any runner"),
-        reason=(
-            "Test-first development suggests the Gherkin toolguide as the notation "
-            "for the scenarios; the `when` is the new toolguide's own scope "
-            "(language only, not a runner). Delivered at implement/review."
-        ),
-    ),
+    # NOTE (#3009, mission kind-complete-cascade-orphan-wiring-01M0FQCD, WP02):
+    # the DIRECTIVE_034 --suggests--> {styleguide:given-when-then-authoring,
+    # toolguide:gherkin} overlay edges were PROMOTED to DIRECTIVE_034's own
+    # ``references`` frontmatter (single canonical authority). The extractor now
+    # mints these edges directly from the directive YAML, byte-identical (same
+    # source/target/relation/when/reason), so they were removed here to keep a
+    # single source of truth. See packs/built-in/directives/034-test-first-
+    # development.directive.yaml.
     # D2. Brownfield onboarding hub = paradigm:brownfield-onboarding.
     # Not scope-resolved itself, but reachable via a <=2-hop suggests chain, so
     # these DELIVER at the bootstrap depth d=2 only. `suggests` matches how
@@ -1441,18 +1427,12 @@ HAND_AUTHORED_EDGES: tuple[DRGEdge, ...] = (
             "styleguide's own subject. Delivered at implement/review."
         ),
     ),
-    DRGEdge(
-        source=_URN_DIRECTIVE_030,
-        target="toolguide:sonar",
-        relation=Relation.SUGGESTS,
-        when=("running SonarQube static analysis and gating on NEW-code coverage, code smells, security hotspots and duplication"),
-        reason=(
-            "The quality gate suggests the Sonar toolguide as the static-analysis "
-            "gate that carries the size/complexity/duplication metrics that do not "
-            "belong in a per-file test gate; the `when` is the new toolguide's own "
-            "scope. Delivered at implement/review."
-        ),
-    ),
+    # NOTE (#3009, mission kind-complete-cascade-orphan-wiring-01M0FQCD, WP02):
+    # the DIRECTIVE_030 --suggests--> toolguide:sonar overlay edge was PROMOTED to
+    # DIRECTIVE_030's own ``references`` frontmatter (single canonical authority);
+    # the extractor now mints it byte-identical from the directive YAML, so it was
+    # removed here. See packs/built-in/directives/030-test-and-typecheck-quality-
+    # gate.directive.yaml.
     # D4b. Test-quality hub = directive:DIRECTIVE_041 (tests-as-scaffold-not-
     # friction) — the clarity / authoring side. INERT: 041 is NOT scope-linked from
     # any action, so its `suggests` are never walked; these members stay deferred.
@@ -1478,21 +1458,13 @@ HAND_AUTHORED_EDGES: tuple[DRGEdge, ...] = (
             "stated purpose. Inert (041 is not action-scoped)."
         ),
     ),
-    DRGEdge(
-        source=_URN_DIRECTIVE_041,
-        target="styleguide:quadruple-a-test-format",
-        relation=Relation.SUGGESTS,
-        when=(
-            "structuring each test as Arrange / Assumption-check / Act / Assert so "
-            "one behaviour is pinned and a wrong fixture fails at the assumption "
-            "check rather than masquerading as a behaviour failure"
-        ),
-        reason=(
-            "Tests-as-scaffold suggests the new Quadruple-A test-format styleguide "
-            "as the single-behaviour skeleton that keeps tests clear; the `when` is "
-            "the new styleguide's own subject. Inert (041 is not action-scoped)."
-        ),
-    ),
+    # NOTE (#3009, mission kind-complete-cascade-orphan-wiring-01M0FQCD, WP02):
+    # the DIRECTIVE_041 --suggests--> styleguide:quadruple-a-test-format overlay
+    # edge was PROMOTED to DIRECTIVE_041's own ``references`` frontmatter (single
+    # canonical authority); the extractor now mints it byte-identical from the
+    # directive YAML, so it was removed here. 041 stays non-action-scoped, so this
+    # edge remains inert in the shipped reachability channels. See packs/built-in/
+    # directives/041-tests-as-scaffold-not-friction.directive.yaml.
     # D5. Profile -> hub (all `suggests`, all INERT in the profile channel; the
     # attested delivery vector for a future channel that follows suggests).
     # Seven implementer-role profiles -> {test-first 034, mutation, test-quality
@@ -2076,7 +2048,7 @@ HAND_AUTHORED_EDGES: tuple[DRGEdge, ...] = (
     # --instantiates--> template edges"), which mints MISSION-QUALIFIED template
     # nodes/edges from a MissionStep.template-shaped field. The three C4 templates
     # are shared/general-purpose nodes (`template:c4-*-mermaid-template`, NOT
-    # mission-qualified) backed by src/charter/offering/templates/architecture/ — they are
+    # mission-qualified) backed by src/doctrine/templates/architecture/ — they are
     # not one mission's step-output template, so that extractor mechanism does not
     # derive them, and action.graph.yaml is itself extractor-regenerated (a manual
     # edit there would be dropped on `spec-kitty doctrine regenerate-graph`). Per

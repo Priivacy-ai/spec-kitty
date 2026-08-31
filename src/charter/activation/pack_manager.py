@@ -275,7 +275,7 @@ def _resolve_layer_candidate(
     if layered and layer == "org" and kind is not None:
         return _resolve_org_layer_dir(root, kind, base_dir)
     if layered and layer == "built-in" and kind is not None:
-        # The built-in layer relocated from ``src/charter/offering/<plural>/built-in``
+        # The built-in layer relocated from ``src/doctrine/<plural>/built-in``
         # to the flattened ``packs/built-in/<plural>`` tree
         # (mission relocate-builtin-doctrine-packs). Resolve it through the
         # canonical per-kind seam (mission

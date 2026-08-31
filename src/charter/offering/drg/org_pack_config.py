@@ -51,7 +51,7 @@ _LEGACY_DEFAULT_PACK_NAME = "default"
 #: (``organisation_packs``, handled separately below and unchanged by this
 #: CR). Precedent for the read-both/canonical-wins/warn-once shape:
 #: ``charter.activation.sync``'s CR-01 governance-selection-key compat
-#: (``src/charter/activation/sync.py:245-311``).
+#: (``src/charter/sync.py:245-311``).
 _CANONICAL_ORG_PACKS_KEY = "charter_packs"
 _LEGACY_ORG_PACKS_KEY = "doctrine"
 
@@ -463,7 +463,7 @@ def load_pack_registry(repo_root: Path, *, quiet: bool = False) -> PackRegistry:
     ``quiet=True`` demotes that one signal to a DEBUG-level log line instead.
 
     This does NOT weaken diagnosis of a *genuinely* misconfigured org pack:
-    a config that DOES declare ``charter_packs.org`` or ``charter.offering.org`` but
+    a config that DOES declare ``charter_packs.org`` or ``doctrine.org`` but
     fails schema validation (below) stays a loud ``UserWarning``
     unconditionally, on every calling surface, regardless of ``quiet`` --
     that operator has demonstrably opted in to org packs and deserves to
@@ -521,7 +521,7 @@ def save_pack_registry(repo_root: Path, registry: PackRegistry) -> None:
     CR-04 (mission ``charter-code-topology-01M152G1`` S4): writes only ever
     target the canonical ``charter_packs`` key now. A pre-existing legacy
     ``doctrine:`` section (if any) is left untouched -- this writer only
-    ever populated ``charter.offering.org``, never any other ``doctrine.*`` key, so
+    ever populated ``doctrine.org``, never any other ``doctrine.*`` key, so
     there is nothing of this module's own to migrate away; an operator still
     reading through the legacy key gets the CR-04 warn-once notice from
     :func:`load_pack_registry` on their next read, independent of this

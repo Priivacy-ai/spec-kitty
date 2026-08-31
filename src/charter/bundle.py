@@ -1,6 +1,6 @@
 """Unified charter bundle manifest (v1.0.0).
 
-Declares the files ``src/charter/activation/sync.py :: sync()`` materializes as the
+Declares the files ``src/charter/sync.py :: sync()`` materializes as the
 project's governance bundle. v1.0.0 scope is limited to the three
 sync-produced derivatives. See
 ``docs/architecture/06_unified_charter_bundle.md`` for the full contract and
@@ -9,9 +9,9 @@ for the JSON Schema.
 
 Out of v1.0.0 scope (per C-012):
 
-* ``references.yaml`` — produced by ``src/charter/activation/compiler.py``.
+* ``references.yaml`` — produced by ``src/charter/compiler.py``.
 * ``context-state.json`` — runtime state written by
-  ``src/charter/activation/context.py :: build_charter_context``.
+  ``src/charter/context.py :: build_charter_context``.
 
 Expanding the manifest requires a schema bump and a new migration; the
 project ``.gitignore`` MAY carry additional entries for those files.

@@ -28,7 +28,7 @@ Runtime prompt generation under `src/specify_cli/next/` must resolve doctrine
 through charter facades (`context.py`, `resolver.py`, `catalog.py`,
 `scope_router.py`) so project and org governance remains scoped by the charter
 trust boundary. CLI org-pack tooling under `src/specify_cli/doctrine/` is the
-documented exception: validators and assemblers may import charter.offering artifact
+documented exception: validators and assemblers may import doctrine artifact
 models directly because they validate and package doctrine artifacts as data,
 not prompt-runtime governance context.
 

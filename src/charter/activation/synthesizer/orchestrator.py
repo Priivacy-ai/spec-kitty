@@ -264,6 +264,7 @@ def synthesize(
         targets=targets,
         spec_kitty_version=_SPEC_KITTY_VERSION,
         built_in_drg=built_in_drg,
+        project_root=_repo_root,
     )
     outcome = _reconcile_synthesis(
         repo_root=_repo_root,
@@ -348,7 +349,7 @@ def resynthesize(
     except ImportError as exc:
         raise NotImplementedError(
             "resynthesize() is not yet implemented — WP05 will deliver "
-            "src/charter/activation/synthesizer/resynthesize_pipeline.py."
+            "src/charter/synthesizer/resynthesize_pipeline.py."
         ) from exc
 
     # The pipeline call is deliberately outside the import-guard above: any

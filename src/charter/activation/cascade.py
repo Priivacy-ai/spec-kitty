@@ -60,7 +60,7 @@ from collections import deque
 from dataclasses import dataclass, field
 from typing import ClassVar
 
-from charter.offering.artifact_kinds import ArtifactKind
+from charter.offering.artifact_kinds import CHARTER_ACTIVATABLE_KINDS, ArtifactKind
 from charter.offering.drg.models import DRGEdge, DRGGraph, Relation
 
 __all__ = [
@@ -84,8 +84,30 @@ __all__ = [
 #: is followed too: a refinement is a traversable reference at least as
 #: load-bearing as a suggestion, so activating an artifact cascades to what it
 #: refines — this is the wiring that keeps ``REFINES`` from being born inert.
+#:
+#: ``SCOPE`` and ``INSTANTIATES`` join the set per ADR 2026-08-20-1 (#2829) to
+#: follow the **action hop**. A ``mission_type`` node carries
+#: ``requires → action`` edges and, since #3604, ``scope → governance`` edges
+#: for its type-wide selections; an ``action`` node carries ``scope → governance``
+#: ({directive, tactic, styleguide, …}) and ``instantiates → template`` — it has
+#: no requires/suggests/refines edges. Without ``scope``/``instantiates`` the
+#: forward closure reaches the ``action`` node and stops, so activating any of the
+#: four built-in mission types cascaded to nobody. ``scope`` is the direct #2829
+#: fix (action → governance); ``instantiates`` is followed so the action hop is
+#: complete and mission-type actions are treated like the pre-existing sources
+#: that already reach templates. Its non-activatable ``template`` targets are
+#: dropped at *candidacy* (see :func:`_referenced_artifacts`), not by omitting the
+#: relation — traversal reach and candidacy are separate concerns. The remaining
+#: relations stay excluded (lineage, overlay, runtime handoff, tension,
+#: anti-pattern) so the cascade never over-reaches; the ADR tabulates why.
 REFERENCE_RELATIONS: frozenset[Relation] = frozenset(
-    {Relation.REQUIRES, Relation.SUGGESTS, Relation.REFINES}
+    {
+        Relation.REQUIRES,
+        Relation.SUGGESTS,
+        Relation.REFINES,
+        Relation.SCOPE,
+        Relation.INSTANTIATES,
+    }
 )
 
 #: Recovery hint surfaced with the no-cascade warning (FR-013, Contract C3.2).
@@ -241,24 +263,50 @@ def _reference_adjacency(edges: list[DRGEdge]) -> dict[str, list[str]]:
     return adj
 
 
-def _referenced_artifacts(graph: DRGGraph, source_urn: str) -> list[ReferencedArtifact]:
-    """Return artifact-kind nodes referenced (transitively) from *source_urn*.
+def _referenced_artifacts(
+    graph: DRGGraph, source_urn: str
+) -> tuple[list[ReferencedArtifact], list[ReferencedArtifact]]:
+    """Return the two partitions of nodes referenced (transitively) from *source_urn*.
 
-    Pure forward closure over :data:`REFERENCE_RELATIONS`, filtered to nodes that
-    are themselves artifact kinds (non-artifact nodes — actions, glossary — are
-    never cascade candidates). Result is sorted by ``(kind, artifact_id)`` for
-    deterministic rendering.
+    Pure forward closure over :data:`REFERENCE_RELATIONS` (which now follows the
+    action hop via ``scope``/``instantiates``), filtered twice: non-artifact nodes
+    (actions, glossary) are dropped because :func:`_kind_of` returns ``None``, and
+    artifact-kind nodes are then partitioned by the canonical
+    :data:`~charter.offering.artifact_kinds.CHARTER_ACTIVATABLE_KINDS` set (ADR
+    2026-08-20-1) into ``activatable`` and ``kind_filtered``. The closure still
+    *reaches* the kind-filtered nodes — traversal reach and candidacy are separate
+    concerns — but this is the single shared seam (C-002) that collects them
+    instead of silently dropping them (issue #3705), so every caller can report
+    what it saw. Each list is sorted by ``(kind, artifact_id)`` for deterministic
+    rendering.
+
+    Returns
+    -------
+    tuple[list[ReferencedArtifact], list[ReferencedArtifact]]
+        ``(activatable, kind_filtered)`` — charter-activatable nodes, then
+        structurally non-activatable (``template``/``asset``) nodes.
     """
     adj = _reference_adjacency(graph.edges)
     reachable = _forward_reference_closure(adj, {source_urn})
-    refs: list[ReferencedArtifact] = []
+    activatable: list[ReferencedArtifact] = []
+    kind_filtered: list[ReferencedArtifact] = []
     for urn in reachable:
         kind = _kind_of(urn)
         if kind is None:
             continue
-        refs.append(ReferencedArtifact(kind=kind, artifact_id=_bare_id(urn), urn=urn))
-    refs.sort(key=lambda r: (r.kind.value, r.artifact_id))
-    return refs
+        ref = ReferencedArtifact(kind=kind, artifact_id=_bare_id(urn), urn=urn)
+        # ADR 2026-08-20-1 (#2829): traversal follows ``instantiates`` (and
+        # ``scope``) so the closure passes *through* action nodes to the governance
+        # and templates they reach; candidacy then partitions on the single
+        # canonical ``CHARTER_ACTIVATABLE_KINDS`` authority (C-001, unchanged) —
+        # one membership test, no per-specific-kind branch.
+        if kind not in CHARTER_ACTIVATABLE_KINDS:
+            kind_filtered.append(ref)
+            continue
+        activatable.append(ref)
+    activatable.sort(key=lambda r: (r.kind.value, r.artifact_id))
+    kind_filtered.sort(key=lambda r: (r.kind.value, r.artifact_id))
+    return activatable, kind_filtered
 
 
 # ---------------------------------------------------------------------------
@@ -297,10 +345,17 @@ class CascadeActivationResult:
         Kind → sorted bare IDs that were referenced but fall **outside** scope.
         These are reported so the operator sees exactly what the explicit scope
         excluded (auditability, R-005).
+    not_cascaded_kind_filtered:
+        Kind → sorted bare IDs that were reached but are structurally
+        non-activatable (``template``/``asset``, C-001) — collected by the
+        shared :func:`_referenced_artifacts` seam instead of being silently
+        dropped (issue #3705, FR-001/FR-002). Never overlaps ``activated`` or
+        ``skipped_by_scope`` (C-006).
     """
 
     activated: dict[str, list[str]] = field(default_factory=dict)
     skipped_by_scope: dict[str, list[str]] = field(default_factory=dict)
+    not_cascaded_kind_filtered: dict[str, list[str]] = field(default_factory=dict)
 
 
 def cascade_activation_targets(
@@ -336,13 +391,23 @@ def cascade_activation_targets(
     """
     activated: dict[str, list[str]] = {}
     skipped: dict[str, list[str]] = {}
-    for ref in _referenced_artifacts(graph, source_urn):
+    activatable, kind_filtered = _referenced_artifacts(graph, source_urn)
+    for ref in activatable:
         bucket = activated if scope.selects(ref.kind) else skipped
         bucket.setdefault(ref.kind.value, []).append(ref.artifact_id)
     for table in (activated, skipped):
         for ids in table.values():
             ids.sort()
-    return CascadeActivationResult(activated=activated, skipped_by_scope=skipped)
+    not_cascaded_kind_filtered: dict[str, list[str]] = {}
+    for ref in kind_filtered:
+        not_cascaded_kind_filtered.setdefault(ref.kind.value, []).append(ref.artifact_id)
+    for ids in not_cascaded_kind_filtered.values():
+        ids.sort()
+    return CascadeActivationResult(
+        activated=activated,
+        skipped_by_scope=skipped,
+        not_cascaded_kind_filtered=not_cascaded_kind_filtered,
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -361,6 +426,13 @@ class NoCascadeReport:
     skipped:
         Per-kind sorted bare IDs that *would* have cascaded but were not
         activated (because no ``--cascade`` was supplied).
+    not_cascaded_kind_filtered:
+        Per-kind sorted bare IDs of referenced nodes that are structurally
+        non-activatable (``asset``/``template``, ADR 2026-08-20-1) and so
+        were never candidates for cascading regardless of ``--cascade``
+        (FR-005, mission ``cascade-asset-silent-drop-01M0RME0`` WP03). Same
+        kind -> sorted-bare-IDs shape as ``skipped``, but a *distinct* reason:
+        re-running with ``--cascade`` would not activate these.
     recovery_hint:
         Actionable recovery string naming the ``--cascade`` re-run and the
         consistency-check (Contract C3.2).
@@ -368,12 +440,24 @@ class NoCascadeReport:
 
     source_urn: str
     skipped: dict[str, list[str]] = field(default_factory=dict)
+    not_cascaded_kind_filtered: dict[str, list[str]] = field(default_factory=dict)
     recovery_hint: str = _NO_CASCADE_HINT
 
     @property
     def has_skipped(self) -> bool:
-        """``True`` when at least one referenced artifact was not cascaded."""
-        return any(self.skipped.values())
+        """``True`` when there is anything for the no-cascade warning to report.
+
+        FR-005a (mission ``cascade-asset-silent-drop-01M0RME0`` WP03): checks
+        BOTH ``skipped`` and ``not_cascaded_kind_filtered`` -- a source whose
+        ONLY referenced nodes are kind-filtered leaves ``skipped`` empty, and
+        the original ``any(self.skipped.values())``-only check returned
+        ``False`` here, short-circuiting the caller's render loop before it
+        was ever reached: the exact silent-drop bug #3705 reports, one level
+        up, inside this mission's own fix. Additive to the existing check
+        (NFR-004) -- a source with only activatable-kind skipped refs (the
+        pre-existing case) still triggers this exactly as before.
+        """
+        return any(self.skipped.values()) or any(self.not_cascaded_kind_filtered.values())
 
 
 def referenced_but_not_cascaded(
@@ -398,16 +482,28 @@ def referenced_but_not_cascaded(
     Returns
     -------
     NoCascadeReport
-        The skipped reference kinds (sorted IDs) and the recovery hint. When the
-        source references nothing, ``skipped`` is empty and ``has_skipped`` is
+        The skipped reference kinds (sorted IDs), the kind-filtered reference
+        kinds (sorted IDs, FR-005), and the recovery hint. When the source
+        references nothing at all, both ``skipped`` and
+        ``not_cascaded_kind_filtered`` are empty and ``has_skipped`` is
         ``False`` (the caller emits no warning).
     """
     skipped: dict[str, list[str]] = {}
-    for ref in _referenced_artifacts(graph, source_urn):
+    activatable, kind_filtered = _referenced_artifacts(graph, source_urn)
+    for ref in activatable:
         skipped.setdefault(ref.kind.value, []).append(ref.artifact_id)
     for ids in skipped.values():
         ids.sort()
-    return NoCascadeReport(source_urn=source_urn, skipped=skipped)
+    not_cascaded_kind_filtered: dict[str, list[str]] = {}
+    for ref in kind_filtered:
+        not_cascaded_kind_filtered.setdefault(ref.kind.value, []).append(ref.artifact_id)
+    for ids in not_cascaded_kind_filtered.values():
+        ids.sort()
+    return NoCascadeReport(
+        source_urn=source_urn,
+        skipped=skipped,
+        not_cascaded_kind_filtered=not_cascaded_kind_filtered,
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -446,10 +542,24 @@ class DeactivationPlan:
         :class:`SharedSkip` records for candidates that remain reachable from
         another still-activated source — kept (never removed) with the
         referencing source named (Contract C3.4, no silent removal).
+    not_cascaded_kind_filtered:
+        Sorted URNs of nodes reached by the candidate collection that are
+        structurally non-activatable (``template``/``asset``, C-001) —
+        collected by the shared :func:`_referenced_artifacts` seam instead of
+        being silently dropped (issue #3705, FR-007). Deliberately a flat
+        ``list[str]`` of URNs, NOT kind-bucketed like
+        ``CascadeActivationResult``'s/``NoCascadeReport``'s equivalent field
+        (plan.md §2) — ``deactivate.py``'s existing render loop already
+        partitions a URN into kind/config-id itself
+        (``urn.partition(":")``), so this is the shape that call site already
+        knows how to render, not an inconsistency with the other two. Never
+        overlaps ``deactivate`` or any ``SharedSkip`` in ``skipped_shared``
+        (C-006).
     """
 
     deactivate: list[str] = field(default_factory=list)
     skipped_shared: list[SharedSkip] = field(default_factory=list)
+    not_cascaded_kind_filtered: list[str] = field(default_factory=list)
 
 
 def deactivation_plan(
@@ -496,9 +606,19 @@ def deactivation_plan(
 
     # Candidate set: in-scope artifacts referenced by the target.
     candidates: set[str] = set()
-    for ref in _referenced_artifacts(graph, target_urn):
+    activatable, kind_filtered = _referenced_artifacts(graph, target_urn)
+    for ref in activatable:
         if scope.selects(ref.kind):
             candidates.add(ref.urn)
+
+    # FR-007 (issue #3705): report the kind-filtered nodes the shared
+    # `_referenced_artifacts` seam collected instead of silently dropping
+    # them — the deactivation-side half of C-002's cross-command symmetry
+    # (ADR 2026-08-20-1). Populated from `kind_filtered` directly, never
+    # through the `scope.selects()`-gated candidate loop above (C-006): a
+    # kind-filtered node was never a deactivation candidate and this does
+    # not change that, it only reports what was reached.
+    not_cascaded_kind_filtered = sorted(ref.urn for ref in kind_filtered)
 
     # Remaining active sources (target excluded — its references must not keep a
     # candidate alive). For each remaining source, the set of artifacts it still
@@ -528,4 +648,8 @@ def deactivation_plan(
 
     deactivate.sort()
     skipped_shared.sort(key=lambda s: s.urn)
-    return DeactivationPlan(deactivate=deactivate, skipped_shared=skipped_shared)
+    return DeactivationPlan(
+        deactivate=deactivate,
+        skipped_shared=skipped_shared,
+        not_cascaded_kind_filtered=not_cascaded_kind_filtered,
+    )

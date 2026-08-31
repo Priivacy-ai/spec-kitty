@@ -23,7 +23,7 @@ missions.
 | `agent-file-template.md` | CLAUDE.md-style project guidelines scaffold |
 | `checklist-template.md` | Review/acceptance checklist scaffold |
 
-Mission content templates live under `src/charter/offering/missions/<mission>/templates/`.
+Mission content templates live under `src/doctrine/missions/<mission>/templates/`.
 
 ## Glossary Reference
 

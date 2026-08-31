@@ -24,5 +24,5 @@ Toolguides for diagram-as-code tools used in Spec Kitty projects:
 - `packs/built-in/toolguides/plantuml-diagramming.toolguide.yaml` -- PlantUML reference guide
 - `packs/built-in/toolguides/mermaid-diagramming.toolguide.yaml` -- Mermaid reference guide
 
-See `src/charter/offering/templates/diagrams/README.md` for the corresponding diagram
+See `src/doctrine/templates/diagrams/README.md` for the corresponding diagram
 template library.

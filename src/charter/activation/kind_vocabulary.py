@@ -50,6 +50,7 @@ from charter.offering.artifact_kinds import (
     ArtifactKind,
     MissionTypeNotAnArtifactKind,
 )
+from charter.offering.discovery_recursion import overlay_scan_is_recursive
 from charter.offering.pack_paths import (
     BuiltInContentDirNotAvailable,
     PackRootNotFound,
@@ -156,44 +157,34 @@ def _scan_roots(
     (relocation mission doctrine-built-in-seam-consolidation-01KYW3TX, WP02),
     which resolves via the shared :func:`~charter.offering.pack_paths.built_in_dir`
     seam below instead. ``org_roots`` contributes, for each root, the flat
-    ``<root>/<plural>`` layout (``recursive=False``) that every real org
-    pack uses today, matching the live loader's own non-recursive org glob
-    (``DoctrineService._org_dirs`` / ``BaseDoctrineRepository``) -- plus,
-    additively, the legacy package-shaped ``<root>/<plural>/built-in``
-    layout (``recursive=True``) where that also separately exists. That
-    legacy shape is accepted here for config-stem *resolution* only, and
-    whether it also loads at runtime is kind-dependent: the live loader's
-    (``DoctrineService``/``BaseDoctrineRepository``) org-layer scan reuses
-    :meth:`charter.offering.base.BaseDoctrineRepository._project_scan`, whose
-    *default* is the flat, non-recursive glob (``base.py``'s
-    ``_project_scan``, reused for both org and project layers) -- for most
-    kinds this default is never overridden, so the live loader does not
-    read an org pack's nested ``built-in/`` subdirectory for those kinds.
-    Verified by direct inspection of every ``BaseDoctrineRepository``
-    subclass under ``src/charter/offering/``: exactly two override
-    ``_project_scan`` to ``rglob`` instead --
-    :class:`~charter.offering.styleguides.repository.StyleguideRepository`
-    (``src/charter/offering/styleguides/repository.py:59-61``) and
-    :class:`~charter.offering.assets.repository.AssetRepository`
-    (``src/charter/offering/assets/repository.py:130-132``) -- so for the
-    ``styleguide`` and ``asset`` kinds specifically, the live loader's
-    org-layer scan *is* recursive and *does* read a nested ``built-in/``
-    subdirectory under an org root. For every other kind, a config-stem
-    that resolves only via the legacy entry does not guarantee the
-    artifact's *content* loads at runtime through ``DoctrineService``.
+    ``<root>/<plural>`` layout that every real org pack uses today -- plus,
+    additively, the legacy package-shaped ``<root>/<plural>/built-in`` layout
+    (``recursive=True``) where that also separately exists.
+
+    The flat entry's ``recursive`` flag is sourced from the single shared
+    recursion authority :func:`charter.offering.discovery_recursion.overlay_scan_is_recursive`
+    -- the same authority the live loader consults
+    (:meth:`charter.offering.base.BaseDoctrineRepository._project_scan`, which now
+    recurses unconditionally for every kind's org/project overlay, and
+    :meth:`charter.offering.agent_profiles.repository.AgentProfileRepository._load`).
+    So the resolver and the loader recurse identically for **every** kind
+    (C-001, unconditional), reading nested org/project subdirectories such as
+    ``styleguides/writing/`` the same way. The prior divergence -- where the
+    resolver emitted ``recursive=False`` while only the ``styleguide`` and
+    ``asset`` repositories overrode ``_project_scan`` to ``rglob`` -- is closed:
+    those redundant overrides were removed in favour of the recursive base, and
+    the parity/totality gate pins loader↔resolver agreement.
     ``layer_roots`` is the modern charter layer map.
     Org roots contribute ``<root>/doctrine/<plural>/org``. Project roots
     contribute ``<root>/doctrine/<singular>`` for live ``.kittify/doctrine``
     overlays.
 
-    The ``recursive`` flag mirrors :class:`charter.offering.base.BaseDoctrineRepository`
-    (the live loader backing ``DoctrineService``/DRG resolution), whose
-    three-source pattern is *built-in rglob + org glob + project glob*: several
-    built-in kinds (tactics, styleguides, toolguides) organize artifacts into
-    category subdirectories under ``built-in/`` (e.g.
+    Several built-in kinds (tactics, styleguides, toolguides) organize
+    artifacts into category subdirectories (e.g.
     ``tactics/built-in/testing/acceptance-test-first.tactic.yaml``), which a
-    non-recursive scan would silently miss — the exact silent-drop failure
-    mode C-006 forbids.
+    non-recursive scan would silently miss -- the exact silent-drop failure
+    mode C-006 forbids; the shared authority makes org/project match built-in
+    here.
     """
     dirs: list[tuple[Path, bool]] = []
     built_in = _built_in_scan_dir(kind)
@@ -226,30 +217,24 @@ def _org_scan_dirs(
     """Return the flat and legacy ``built-in`` org-pack dirs that exist.
 
     For every configured org root, contributes (in this order) the flat
-    ``<root>/<plural>`` layout (``recursive=False``, matching the live
-    loader's non-recursive org glob -- ``DoctrineService._org_dirs`` /
-    ``BaseDoctrineRepository``) when it exists, then the legacy
+    ``<root>/<plural>`` layout when it exists, then the legacy
     ``<root>/<plural>/built-in`` layout (``recursive=True``, unchanged)
     when it separately exists. Neither directory existing is not an error --
-    fewer entries are returned, never a raise. Note that whether the live
-    loader (``DoctrineService``/``BaseDoctrineRepository``) also reads this
-    legacy nested shape at runtime is kind-dependent -- see
-    :func:`_scan_roots`'s docstring for which kinds' repositories override
-    the default non-recursive org-layer scan.
+    fewer entries are returned, never a raise.
 
-    **Known residual (tracked #3426).** The flat entry is emitted
-    ``recursive=False`` for *every* kind, but the live loader's org-layer
-    scan is recursive for the two kinds whose repository overrides
-    ``_project_scan`` to ``rglob`` -- ``styleguide`` and ``asset``. So a
-    ``styleguide`` (a charter-activatable kind) stored under *any*
-    subdirectory of an org root -- not only ``built-in/`` but e.g.
-    ``styleguides/writing/`` -- loads at runtime yet is *not* resolved
-    here, so ``charter activate`` silently drops it: the same #3385 class,
-    residual for nested org styleguides. (``asset`` shares the divergence
-    but is not charter-activatable, so it does not reach this path.) The
-    correct fix is a single recursion authority shared with
-    ``BaseDoctrineRepository._project_scan`` plus a gate pinning the two --
-    design-pass scope, deferred to #3426.
+    **Recursion is sourced from the shared authority (#3426 closed).** The
+    flat entry's ``recursive`` flag comes from
+    :func:`charter.offering.discovery_recursion.overlay_scan_is_recursive` -- the same
+    single authority the live loader (``BaseDoctrineRepository._project_scan``
+    and ``AgentProfileRepository._load``) consults -- so the resolver and the
+    loader recurse identically for every kind (unconditional per C-001). This
+    closes the prior list-vs-activate divergence: a ``styleguide`` (or any
+    charter-activatable kind) stored under *any* subdirectory of an org root --
+    e.g. ``styleguides/writing/`` -- now resolves for ``charter activate`` just
+    as it already loads at runtime and already lists via
+    ``pack_manager.list_available_detailed`` (which was always ``rglob``). The
+    parity/totality gate pins loader↔resolver agreement so the divergence
+    cannot silently return.
 
     **Global flat-before-legacy grouping** (PR-BOUNDARY-002 fix, pre-merge
     adversarial squad, severity 3; operator-ruled "fix it properly" rather
@@ -276,10 +261,11 @@ def _org_scan_dirs(
     """
     flat_dirs: list[tuple[Path, bool]] = []
     legacy_dirs: list[tuple[Path, bool]] = []
+    recursive = overlay_scan_is_recursive(kind)
     for root in org_roots or []:
         flat = root / kind.plural
         if flat.is_dir():
-            flat_dirs.append((flat, False))
+            flat_dirs.append((flat, recursive))
         legacy = flat / "built-in"
         if legacy.is_dir():
             legacy_dirs.append((legacy, True))
@@ -298,10 +284,11 @@ def _layer_scan_dirs(
 ) -> list[tuple[Path, bool]]:
     """Return layer doctrine dirs that exist for *kind*, across *layer_roots*."""
     dirs: list[tuple[Path, bool]] = []
+    recursive = overlay_scan_is_recursive(kind)
     for layer, root in (layer_roots or {}).items():
         candidate = _layer_candidate_dir(kind, layer, root)
         if candidate.is_dir():
-            dirs.append((candidate, False))
+            dirs.append((candidate, recursive))
     return dirs
 
 
@@ -322,9 +309,50 @@ def _iter_artifact_paths(
         org_roots=org_roots,
         layer_roots=layer_roots,
     ):
-        matches = scan_dir.rglob(pattern) if recursive else scan_dir.glob(pattern)
-        paths.extend(sorted(matches))
+        paths.extend(sorted(_scan_dir_matches(scan_dir, pattern, recursive=recursive)))
     return paths
+
+
+def _scan_dir_matches(scan_dir: Path, pattern: str, *, recursive: bool) -> list[Path]:
+    """Return the artifact files under *scan_dir* matching *pattern*.
+
+    A recursive scan excludes the reserved ``built-in/`` subtree (handled by its
+    own dedicated entry — see :func:`_under_reserved_builtin_subdir`); a
+    non-recursive scan is a flat glob.
+    """
+    if not recursive:
+        return list(scan_dir.glob(pattern))
+    return [
+        match
+        for match in scan_dir.rglob(pattern)
+        if not _under_reserved_builtin_subdir(match, scan_dir)
+    ]
+
+
+def _under_reserved_builtin_subdir(match: Path, scan_dir: Path) -> bool:
+    """Return whether *match* is directly under the reserved ``built-in/`` child.
+
+    The **immediate** child ``<plural>/built-in`` is the reserved legacy
+    package-shaped layer, scanned by its **own** dedicated
+    ``(<plural>/built-in, recursive=True)`` entry (see :func:`_org_scan_dirs`).
+    A now-recursive flat ``<plural>`` entry would otherwise double-cover it and —
+    because a ``built-in/`` file would sort ahead of the sibling flat file —
+    silently invert the flat-wins-over-legacy precedence guarantee (FR-001 / the
+    ``TestOrgScanDirsHelper`` precedence regressions). Excluding it from the
+    recursive flat scan leaves ``built-in/`` to its dedicated, later-ordered
+    entry so flat still wins.
+
+    The check is scoped to the **immediate** child (``parts[0] == "built-in"``),
+    NOT any ``built-in`` component at arbitrary depth: the compensating dedicated
+    entry only covers ``<plural>/built-in``, so excluding a deeper
+    ``<plural>/<category>/built-in/`` would drop it from the resolver while the
+    loader (``base._project_scan`` rglob, no exclusion) still loads it — exactly
+    the loader↔resolver discovery divergence this mission eliminates. Deeper
+    ``built-in`` components (a user directory that merely happens to be named
+    ``built-in`` below a category) stay discoverable, matching the loader.
+    """
+    parts = match.relative_to(scan_dir).parts
+    return len(parts) > 1 and parts[0] == "built-in"
 
 
 def resolve_artifact_urn(

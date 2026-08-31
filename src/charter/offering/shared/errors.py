@@ -15,9 +15,9 @@ The trailing path is the DRG fragment for the *source* artifact's kind, which
 is where an edge with that source belongs. Mission #2680 sharded the former
 single doctrine-graph monolith into one ``<kind>.graph.yaml`` fragment per
 kind, and mission ``relocate-builtin-doctrine-packs-01KYT87F`` then relocated
-those shipped fragments from ``src/charter/offering/`` to the top-level
+those shipped fragments from ``src/doctrine/`` to the top-level
 ``packs/built-in/`` pack root — so a hint naming either the monolith or the
-old ``src/charter/offering/`` home sends the operator to a file that is not there.
+old ``src/doctrine/`` home sends the operator to a file that is not there.
 
 The hint uses the actual ``DRGEdge`` schema: ``source``/``target``/``relation``
 keys (not ``from``/``to``/``kind``), and ``requires`` as the relation value (the

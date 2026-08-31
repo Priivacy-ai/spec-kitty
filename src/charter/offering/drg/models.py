@@ -69,7 +69,7 @@ class NodeKind(StrEnum):
     # addressed by the underscore URN ``glossary_pack:<id>``. It is NOT part of
     # the retiring runtime term nodes above and survives Mission C.
     GLOSSARY_PACK = "glossary_pack"  # URN prefix: "glossary_pack:<id>"
-    MISSION_TYPE = "mission_type"   # URN prefix: "mission_type:<id>"; carries `requires` edges to its action_sequence steps
+    MISSION_TYPE = "mission_type"   # URN prefix: "mission_type:<id>"; carries `requires`->action_sequence steps, `scope`->type-wide governance (#3604)
     # URN prefix: "anti_pattern:<id>"; `rejects` targets only (D2) -- never
     # activated as a live rule; finer marking (e.g. "smell") lives in
     # `DRGNode.tags`, not a second `NodeKind` member.
@@ -196,14 +196,38 @@ RELATION_DESCRIPTIONS: dict[Relation, str] = {
     ),
     Relation.SCOPE: (
         "Names the edge from a mission-step action node to the directives "
-        "and tactics that govern performing that action -- the entry point "
-        "walked at depth 1 by ``resolve_action_context`` before it expands "
-        "through ``requires``/``suggests``. It is the most heavily emitted "
-        "action-adjacent relation in the built-in graph (165 edges). "
-        "Distinct from ``applies``: ``scope`` says an action is governed by "
-        "an artifact; ``applies`` says a profile executes a workflow "
-        "artifact. Despite both linking an action-adjacent node to guidance "
-        "content, they name different edge-roles and are never interchangeable."
+        "and tactics that govern performing that action, or -- since #3604 -- "
+        "from a mission_type node to the type-wide governance its "
+        "governance-profile.yaml selects. The action-sourced edges are the "
+        "entry point walked at depth 1 by ``resolve_action_context`` before "
+        "it expands through ``requires``/``suggests``; the mission_type-"
+        "sourced edges are instead the entry point the charter cascade "
+        "(``REFERENCE_RELATIONS``) walks when activating a mission type. It "
+        "is the most heavily emitted action-adjacent relation in the "
+        "built-in graph -- 204 edges as measured by a live extraction after "
+        "#3604 (165 action-sourced, unchanged from before #3604 since this "
+        "pass is purely additive, plus 39 mission_type-sourced); this "
+        "count is not enforced by any test against the graph, so treat it "
+        "as directional, not exact. Distinct from ``applies``: ``scope`` "
+        "says an action -- or a mission type's own type-wide selections -- "
+        "is governed by an artifact; ``applies`` says a profile executes a "
+        "workflow artifact. Despite both linking guidance content to a "
+        "governed node, they name different edge-roles and are never "
+        "interchangeable.\n\n"
+        "DELIBERATE ACCEPTED DEBT (#3633): one ``Relation.SCOPE`` member now "
+        "carries two distinct source-node grains (action-sourced and "
+        "mission_type-sourced, above) instead of two separate relations. "
+        "This is a deliberate decision, not an oversight -- splitting the "
+        "grain into e.g. ``scope`` / ``type_scope`` would churn every "
+        "consumer's relation vocabulary (query filters, the charter "
+        "cascade's ``REFERENCE_RELATIONS``, doctrine docs) and force a DRG "
+        "merge/projection migration for a purely cosmetic grain "
+        "distinction the graph already encodes structurally (a scope "
+        "edge's source-node kind -- ``action`` vs ``mission_type`` -- tells "
+        "a consumer which grain it is without a second relation name). Do "
+        "NOT split this relation to \"fix\" the overload; if a genuine "
+        "behavioral need for two distinct relations ever arises, that is a "
+        "new decision to make explicitly, not a refactor of this one."
     ),
     Relation.VOCABULARY: (
         "Names the edge from a resolved doctrine artifact to a "
@@ -322,7 +346,7 @@ class DRGNode(BaseModel):
     # FR-004: an authored key this model does not declare is a load error, not a
     # silent discard. Pydantic v2's default is ``extra="ignore"``, which is how a
     # graph fragment can carry a key nobody reads and nobody is told about.
-    # Every sibling model under ``src/charter/offering/**/models.py`` already forbids
+    # Every sibling model under ``src/doctrine/**/models.py`` already forbids
     # extras; this brings the DRG models in line rather than inventing a policy.
     model_config = ConfigDict(extra="forbid")
 

@@ -6,7 +6,7 @@ repository loads those manifests across the built-in, organisation and project
 tiers (via :class:`~charter.offering.base.BaseDoctrineRepository`) and resolves an
 asset identifier to the on-disk blob path, fail-closed.
 
-Three traps the base class does not handle for this kind, addressed here:
+Two traps the base class does not handle for this kind, addressed here:
 
 1. **Anchor asymmetry** (A-2). The service constructs this repository with
    ``built_in_dir = <root>/assets/built-in`` but ``org_dirs``/``project_dir``
@@ -15,12 +15,7 @@ Three traps the base class does not handle for this kind, addressed here:
    **parent** of ``built_in_dir``; org/project paths anchor at the directory
    itself. A single shared anchor rule would double the segment
    (``.../assets/built-in/built-in/...``).
-2. **Recursive overlay discovery** (A-3). The base ``_project_scan`` is a
-   non-recursive ``glob``; an org-pack manifest at the ADR-mandated
-   ``assets/<pack>/x.asset.yaml`` would never be found. Overridden to ``rglob``
-   (returning ``list[Path]`` — widening to ``Iterable`` would be a Liskov
-   violation the base's ``list[Path]`` return type forbids).
-3. **Layer-correct containment** (A-4). Containment is enforced through the
+2. **Layer-correct containment** (A-4). Containment is enforced through the
    doctrine-layer :func:`resolve_relative_path_within_root` primitive — never
    the ``specify_cli`` pack-validator convenience helper, which ``doctrine``
    may not import upward (C-001). Traversal and symlink escapes raise a typed,
@@ -126,10 +121,6 @@ class AssetRepository(BaseDoctrineRepository[AssetManifest]):
         entry — ``source_path(id)`` and ``get(id)`` agree.
         """
         self._source_paths[obj.id] = yaml_file
-
-    def _project_scan(self, project_dir: Path) -> list[Path]:
-        """Recurse — org/project asset manifests may live one dir deep (A-3)."""
-        return sorted(project_dir.rglob(self._glob))
 
     def source_path(self, asset_id: str) -> Path:
         """Return the manifest file that declared *asset_id*.

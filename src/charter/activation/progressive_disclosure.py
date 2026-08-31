@@ -313,12 +313,16 @@ def collect_typed_artifacts(
     return entries
 
 
-#: Action-scoped JSON payload array name for each delivered kind.
+#: Action-scoped JSON payload array name for each delivered kind. ``procedure``
+#: is a first-class typed array (#3389); ``asset`` is deliberately absent — it
+#: stays reference-only (no resolution/install path — #3037), folded into the
+#: flat ``references[]`` via ``build_disclosure_payload``'s ``extra_delivered``.
 _ARRAY_BY_KIND: dict[str, str] = {
     "directive": "directives",
     "tactic": "tactics",
     "styleguide": "styleguides",
     "toolguide": "toolguides",
+    "procedure": "procedures",
 }
 
 
@@ -334,12 +338,14 @@ def build_disclosure_payload(
 ) -> dict[str, object]:
     """Render the progressive-disclosure slice of the JSON payload (WP15).
 
-    Returns the four typed artefact arrays — each entry decorated with
-    ``references[]`` and a ``delivery`` cadence marker — plus the top-level
-    ``references`` link set that names every delivered artefact (including the
-    ``procedure``/``asset`` kinds in *extra_delivered*, which are delivered but
-    not surfaced as their own arrays). Kept here so ``charter.activation.context`` stays
-    flat (single-owner, no-net-growth) while owning only the call.
+    Returns the typed artefact arrays named in :data:`_ARRAY_BY_KIND` — one per
+    kind in *repos_by_kind*, each entry decorated with ``references[]`` and a
+    ``delivery`` cadence marker — plus the top-level ``references`` link set that
+    names every delivered artefact (including any *extra_delivered* kind, which
+    is delivered but not surfaced as its own array). ``procedure`` is a typed
+    array (#3389); ``asset`` stays reference-only (#3037), so callers pass it via
+    *extra_delivered*. Kept here so ``charter.activation.context`` stays flat (single-owner,
+    no-net-growth) while owning only the call.
 
     *bridge_urns* is every URN actually visited while resolving the action's
     doctrine (e.g. ``resolve_context``'s raw ``artifact_urns``, before the

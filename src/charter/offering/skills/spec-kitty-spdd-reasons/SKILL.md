@@ -21,7 +21,7 @@ plan, and tasks; it is **not** a duplicate system mirror.
 
 This skill is documentation for the agent. It assumes the SPDD/REASONS
 doctrine pack (paradigm, tactics, styleguide, directive, template) has
-already been shipped under `src/charter/offering/` and that activation can be
+already been shipped under `src/doctrine/` and that activation can be
 detected via the helper described below.
 
 ---
@@ -58,7 +58,7 @@ Three branches:
    `structured-prompt-driven-development`, tactic `reasons-canvas-fill`,
    tactic `reasons-canvas-review`, or directive `DIRECTIVE_038`). Proceed
    with canvas authoring or review using the seven-section template at
-   `src/charter/offering/templates/fragments/reasons-canvas-template.md`.
+   `src/doctrine/templates/fragments/reasons-canvas-template.md`.
 2. **Inactive + ad-hoc request** — user asked to "use REASONS" once,
    without charter opt-in. Proceed, but stamp the canvas header with a
    "not formally opted in via charter" note so reviewers know the canvas
@@ -88,8 +88,8 @@ selectors is present:
 - directive `DIRECTIVE_038`
 
 Manual fallback: read `.kittify/charter/governance.yaml` directly and look
-for the same selectors under `charter.offering.selected_paradigms`,
-`charter.offering.selected_tactics`, or `charter.offering.selected_directives`.
+for the same selectors under `doctrine.selected_paradigms`,
+`doctrine.selected_tactics`, or `doctrine.selected_directives`.
 
 ## How to author the canvas
 
@@ -97,7 +97,7 @@ for the same selectors under `charter.offering.selected_paradigms`,
    `tasks.md`, per-WP prompts, `research/*`, `contracts/*`, the project
    glossary, and any source files the spec or plan calls out.
 2. **Map content to the seven sections** using the template at
-   `src/charter/offering/templates/fragments/reasons-canvas-template.md`:
+   `src/doctrine/templates/fragments/reasons-canvas-template.md`:
    - **Requirements** — problem statement, acceptance criteria, DoD.
    - **Entities** — domain concepts, relationships, canonical glossary
      terms.
@@ -168,9 +168,9 @@ so the canonical entry is updated once and propagated everywhere.
 ## Reference paths
 
 - Template fragment:
-  `src/charter/offering/templates/fragments/reasons-canvas-template.md`
+  `src/doctrine/templates/fragments/reasons-canvas-template.md`
 - Activation helper:
-  `src/charter/offering/spdd_reasons/activation.py` (`is_spdd_reasons_active`)
+  `src/doctrine/spdd_reasons/activation.py` (`is_spdd_reasons_active`)
 - Charter governance config:
   `.kittify/charter/governance.yaml`
 - Drift taxonomy:

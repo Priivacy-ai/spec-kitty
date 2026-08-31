@@ -22,7 +22,7 @@ should be done* — independent of any specific project or charter configuration
 ## Design principle
 
 Doctrine is a **pure knowledge library**. It has no dependency on the charter
-package or the CLI. The charter package reads from charter.offering to compile
+package or the CLI. The charter package reads from doctrine to compile
 project-specific governance bundles, but doctrine itself is unaware of any
 consumer.
 

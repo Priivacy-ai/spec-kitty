@@ -25,9 +25,10 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, NamedTuple
 
-from charter import progressive_disclosure as _pd
+from charter.activation import progressive_disclosure as _pd
 from charter.activation.context_renderers import render_authority_paths, render_critical_section_bodies
 from charter.activation.context_renderers.activation_block import _render_activation_block
+from charter.activation.context_renderers.artifact_bodies import _format_inline_glossary_body
 from charter.activation.context_renderers.reference_pointers import _select_reference_pointers
 from charter.activation.context_renderers.selection_block import (
     _build_action_org_source_map,
@@ -58,6 +59,9 @@ POLICY_SUMMARY_HEADER = "Policy Summary:"
 NO_POLICY_SUMMARY_MESSAGE = "  - No explicit policy summary section found in charter.md."
 REFERENCE_DOCS_HEADER = "Reference Docs:"
 MISSING_REFERENCES_MESSAGE = "  - No references manifest found."
+# WP01 (deliver-loaded-doctrine): the action-doctrine glossary block heading,
+# matching the ``  <Heading>:`` shape ``_extend_named_artifact_lines`` uses.
+_GLOSSARY_HEADING = "  Glossaries:"
 
 
 def _append_guidelines_lines(lines: list[str], mission: str, action: str) -> None:
@@ -160,6 +164,40 @@ def _render_action_doctrine_lines(
             progressive_kind=row.progressive_kind,
             inline_urns=inline_urns,
         )
+
+    # WP01 (deliver-loaded-doctrine, FR-001/FR-002): glossary packs cannot ride
+    # the generic ``_ActionRenderRow`` path -- that renderer emits a single
+    # ``title``/``summary`` line and cannot express a term-surface list. The
+    # dedicated glossary block emits surfaces-only + a fetch pointer (NFR-001).
+    _render_glossary_lines(lines, doctrine_bundle)
+
+
+def _render_glossary_lines(
+    lines: list[str],
+    doctrine_bundle: _ActionDoctrineBundle,
+) -> None:
+    """Emit the glossary block: term surfaces (names) + a ``--include`` pointer.
+
+    Resolves each delivered ``glossary_pack_ids`` entry from
+    ``service.glossary_packs``; a pack the repository cannot resolve degrades to
+    its bare id (mirroring the bare-id fallback the named-artifact rows use).
+    Emits nothing when the bundle carries no glossary ids, so a bundle without
+    glossary delivery is byte-identical to the pre-WP01 render.
+    """
+    pack_ids = getattr(doctrine_bundle, "glossary_pack_ids", ()) or ()
+    if not pack_ids:
+        return
+    repo = getattr(doctrine_bundle.service, "glossary_packs", None)
+    rendered: list[str] = []
+    for pack_id in pack_ids:
+        pack = repo.get(pack_id) if repo is not None else None
+        if pack is None:
+            rendered.append(f"    - {pack_id}")
+            continue
+        rendered.extend(_format_inline_glossary_body(pack))
+    if rendered:
+        lines.append(_GLOSSARY_HEADING)
+        lines.extend(rendered)
 
 
 def _append_policy_summary_lines(lines: list[str], summary: list[str]) -> None:
@@ -298,7 +336,7 @@ def _render_bootstrap_text(
     lines.append(REFERENCE_DOCS_HEADER)
     # The reference-pointer resolver walks ``<root>/<kind>/`` for on-disk doctrine
     # docs. Mission relocate-builtin-doctrine-packs moved the built-in artefacts out
-    # of ``src/charter/offering/<kind>/`` into ``packs/built-in/<kind>/``; ``resolve_doctrine_root()``
+    # of ``src/doctrine/<kind>/`` into ``packs/built-in/<kind>/``; ``resolve_doctrine_root()``
     # still points at the now-emptied ``src/doctrine`` tree (used for templates), so it
     # resolves nothing and every pointer dies. Resolve the built-in pack root instead,
     # mirroring how the DoctrineService repositories self-resolve ``packs/built-in/<kind>``.
@@ -316,9 +354,16 @@ def _render_bootstrap_text(
     # otherwise the longest substitutable section bodies are swapped
     # for fetch + when-doing stanzas until the budget holds.  Authority
     # paths and core doctrine stay inline (substitutable=False).
-    return _enforce_token_budget(
+    #
+    # ``budgeted`` is pinned to ``str`` (mirroring ``_resolve_authority_block``'s
+    # ``block`` idiom above) so the conditionally-``skip``-followed
+    # ``charter.activation.context_renderers`` import (see the ``charter.*``
+    # ``[[tool.mypy.overrides]]`` in pyproject.toml) cannot make this return look
+    # like ``Any`` to mypy.
+    budgeted: str = _enforce_token_budget(
         text,
         action=action,
         profile_block=profile_block,
         section_block=section_block,
     )
+    return budgeted

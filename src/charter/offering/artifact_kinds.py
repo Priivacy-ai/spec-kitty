@@ -311,8 +311,49 @@ PROJECT_KIND_DIRS: dict[ArtifactKind, str] = {
 }
 
 
+#: **Canonical charter-activatable kind set** (FR-004 / FR-005 / C-003).
+#:
+#: Every :class:`ArtifactKind` *except* the two that resolve specially and are
+#: never activated as a live governance rule: ``TEMPLATE`` (mission-tier, empty
+#: glob) and ``ASSET`` (loose-contract blob manifest). This is **10 kinds,
+#: including ``ANTI_PATTERN``** — deliberately distinct from both
+#: :data:`CHARTER_KIND_TOKENS` (9 tokens; also drops ``anti_pattern`` via
+#: :data:`_NON_AUGMENTATION_ELIGIBLE_KINDS`) and that exclusion set itself
+#: (which additionally drops ``anti_pattern``). C-003/FR-005 require the
+#: ``anti_pattern`` entry be preserved here, so this set uses its own two-kind
+#: exclusion rather than reusing ``_NON_AUGMENTATION_ELIGIBLE_KINDS``.
+#:
+#: This is the single authority the charter activation-kind vocabulary
+#: (``charter.activation.activations`` plural↔singular maps, ``charter.activation._activation_render``
+#: render/inference maps) is derived from — no charter module re-declares a
+#: plural↔singular kind dict (FR-004).
+CHARTER_ACTIVATABLE_KINDS: frozenset[ArtifactKind] = frozenset(ArtifactKind) - {
+    ArtifactKind.TEMPLATE,
+    ArtifactKind.ASSET,
+}
+
+#: Derived singular→plural map over the charter-activatable kinds (10 entries).
+#: Ordered by :class:`ArtifactKind` declaration so downstream first-match
+#: semantics (e.g. ``_infer_kind``) are stable.
+CHARTER_ACTIVATABLE_SINGULAR_TO_PLURAL: dict[str, str] = {
+    kind.value: kind.plural
+    for kind in ArtifactKind
+    if kind in CHARTER_ACTIVATABLE_KINDS
+}
+
+#: Derived plural→singular inverse of
+#: :data:`CHARTER_ACTIVATABLE_SINGULAR_TO_PLURAL`.
+CHARTER_ACTIVATABLE_PLURAL_TO_SINGULAR: dict[str, str] = {
+    plural: singular
+    for singular, plural in CHARTER_ACTIVATABLE_SINGULAR_TO_PLURAL.items()
+}
+
+
 __all__ = [
     "ArtifactKind",
+    "CHARTER_ACTIVATABLE_KINDS",
+    "CHARTER_ACTIVATABLE_PLURAL_TO_SINGULAR",
+    "CHARTER_ACTIVATABLE_SINGULAR_TO_PLURAL",
     "CHARTER_KIND_TOKENS",
     "MISSION_TYPE_TOKEN",
     "PROJECT_KIND_DIRS",

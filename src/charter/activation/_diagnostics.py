@@ -13,7 +13,7 @@ __all__ = [
 
 
 class CharterEncodingDiagnostic(StrEnum):
-    """JSON-stable diagnostic codes emitted by src/charter/activation/_io.py.
+    """JSON-stable diagnostic codes emitted by src/charter/_io.py.
 
     Per-code remediation guidance is documented in src/charter/activation/ERROR_CODES.md.
     """

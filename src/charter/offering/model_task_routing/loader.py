@@ -3,7 +3,7 @@
 The catalog is plain Python **package data** -- it is NOT an activatable
 doctrine ``ArtifactKind``, and there is no "activation convention" here.
 The ONLY default-resolution mechanism is :func:`importlib.resources.files`
-pointed at ``src/charter/offering/model_task_routing/catalog/model-to-task_type.yaml``
+pointed at ``src/doctrine/model_task_routing/catalog/model-to-task_type.yaml``
 (WP05's deliverable); :func:`load` also accepts an injectable
 ``catalog_path`` override so callers (and this module's own tests) can
 point at a fixture catalog instead.

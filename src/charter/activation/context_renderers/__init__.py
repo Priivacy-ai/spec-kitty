@@ -3,7 +3,7 @@
 This package hosts the helpers that compose the resolved context text
 returned by :func:`charter.activation.context.build_charter_context`.  Splitting the
 helpers into a dedicated submodule keeps the ownership boundaries clean
-between the WPs that extend ``src/charter/activation/context.py``:
+between the WPs that extend ``src/charter/context.py``:
 
 * WP03 owns the profile-cited renderers (still in ``context.py``).
 * **WP04 owns this submodule**: ``authority_paths`` + ``section_bodies``.

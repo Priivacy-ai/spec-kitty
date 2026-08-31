@@ -4,7 +4,7 @@ Scans configured roots for banned language-specific terms in generic-scoped file
 Language-scoped files listed in ``language_scoped_allowlist.yaml`` are exempt.
 
 Contracts:
-  - C-3  src/charter/activation/neutrality/banned_terms.yaml (banned terms schema)
+  - C-3  src/charter/neutrality/banned_terms.yaml (banned terms schema)
   - C-4  contracts/banned-terms-schema.yaml
   - C-5  contracts/language-scoped-allowlist-schema.yaml
 
@@ -356,7 +356,7 @@ def _default_scan_roots(repo_root: Path) -> list[Path]:
     Mission ``doctrine-consumer-surface-missions-extraction-01KZ6G6H``
     (FR-005, N-04) relocated the doctrine ``missions/`` data (mission
     prompts, content templates, ``mission.yaml`` manifests) from
-    ``src/charter/offering/missions`` to ``packs/built-in/missions`` — without this
+    ``src/doctrine/missions`` to ``packs/built-in/missions`` — without this
     additional root, the lint would silently stop scanning those relocated
     prompts/templates while staying green (a gate-coverage loss, not a wrong
     resolution). The separate, still-live ``src/specify_cli/missions`` legacy

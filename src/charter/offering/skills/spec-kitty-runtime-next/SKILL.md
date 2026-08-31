@@ -574,7 +574,7 @@ kitty-ops/<invocation_id>.jsonl
 
 Viewable at any time with `spec-kitty invocations list --json`. No SaaS connection required.
 
-For full CLI surface documentation, see `src/charter/offering/skills/spec-kitty/SKILL.md`.
+For full CLI surface documentation, see `src/doctrine/skills/spec-kitty/SKILL.md`.
 
 ---
 

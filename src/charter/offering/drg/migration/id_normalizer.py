@@ -1,6 +1,6 @@
 """Normalize directive IDs between slug and DIRECTIVE_NNN formats.
 
-Reuses the same algorithm as ``src/charter/activation/context.py:_normalize_directive_id``
+Reuses the same algorithm as ``src/charter/context.py:_normalize_directive_id``
 but exposed as a standalone, importable module for the DRG migration pipeline.
 """
 

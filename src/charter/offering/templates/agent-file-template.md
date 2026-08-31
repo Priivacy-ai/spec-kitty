@@ -1,6 +1,6 @@
 # [PROJECT NAME] Development Guidelines
 
-*Path: `src/charter/offering/templates/agent-file-template.md`*
+*Path: `src/doctrine/templates/agent-file-template.md`*
 
 Auto-generated from all feature plans. Last updated: [DATE]
 

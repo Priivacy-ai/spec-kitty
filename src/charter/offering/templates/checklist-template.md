@@ -1,6 +1,6 @@
 # [CHECKLIST TYPE] Checklist: [MISSION NAME]
 
-*Path: `src/charter/offering/templates/checklist-template.md`*
+*Path: `src/doctrine/templates/checklist-template.md`*
 
 **Purpose**: [Brief description of what this checklist covers]
 **Created**: [DATE]
