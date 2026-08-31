@@ -178,7 +178,7 @@ _VIOLATION_FIXTURE = """
 from pathlib import Path
 
 from charter.profiles import AgentProfileRepository
-from doctrine.drg.org_pack_config import resolve_org_roots
+from charter.offering.drg.org_pack_config import resolve_org_roots
 from specify_cli.invocation.org_profiles import resolve_activated_org_profiles
 
 

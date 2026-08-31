@@ -77,7 +77,7 @@ def synthesis_request() -> SynthesisRequest:
 def _project_directive_ids(service: Any) -> set[str]:
     """Return PROJECT_-prefixed directive ids visible on *service*.
 
-    *service* is either the raw ``doctrine.service.DoctrineService``
+    *service* is either the raw ``charter.offering.service.DoctrineService``
     returned by ``charter.context._build_doctrine_service`` (``.directives``
     is the repository itself, with ``.list_all()``) or, since WP03
     (charter-sole-door-bypass-closure-01KZ3WAA, FR-002/T011),

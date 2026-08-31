@@ -9,7 +9,7 @@ loaded into the repository overlay (chain-correct) but its graph nodes /
 disagreed with itself. This module pins the primitive-level fix:
 :func:`charter._drg_helpers.load_validated_graph` accepts ``org_roots: list[Path]``
 and folds every root in declaration order, later-declared-wins (mirroring
-``doctrine.base._apply_overlay_layer`` and ``charter.org_expected_artifacts``).
+``charter.offering.base._apply_overlay_layer`` and ``charter.org_expected_artifacts``).
 
 The executor-level self-consistency proof (repo loads pack #2's contract AND
 its ``delegates_to`` target resolves in the DRG) lives alongside the existing
@@ -27,7 +27,7 @@ from unittest.mock import patch
 import pytest
 
 from charter._drg_helpers import load_validated_graph
-from doctrine.drg.loader import load_graph_or_dir
+from charter.offering.drg.loader import load_graph_or_dir
 
 pytestmark = pytest.mark.fast
 
@@ -167,7 +167,7 @@ class TestUrnCollisionLaterDeclaredWins:
     """Both packs declare the SAME node URN with a different label -- the
     later-declared pack (#2) must win, mirroring the repository overlay's
     established later-declared-wins precedence
-    (``doctrine.base._apply_overlay_layer``, ``charter.org_expected_artifacts``).
+    (``charter.offering.base._apply_overlay_layer``, ``charter.org_expected_artifacts``).
     """
 
     def test_pack_b_label_wins_on_urn_collision(self, tmp_path: Path) -> None:

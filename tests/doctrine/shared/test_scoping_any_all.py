@@ -19,7 +19,7 @@ from __future__ import annotations
 
 import pytest
 
-from doctrine.shared.scoping import _SENTINEL_TOKENS, applies_to_languages_match
+from charter.offering.shared.scoping import _SENTINEL_TOKENS, applies_to_languages_match
 
 pytestmark = [pytest.mark.fast, pytest.mark.doctrine]
 

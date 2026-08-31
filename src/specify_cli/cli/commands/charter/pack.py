@@ -54,7 +54,7 @@ def consistency_check_cmd(
             for ref in report.unknown_references:
                 console.print(f"  [red]Unknown reference:[/red] {ref}")
             for ref in report.missing_from_doctrine:
-                console.print(f"  [yellow]Missing from doctrine:[/yellow] {ref}")
+                console.print(f"  [yellow]Missing from charter.offering:[/yellow] {ref}")
             for v in report.kind_violations:
                 console.print(f"  [red]Kind violation:[/red] {v}")
             for ref in report.reference_id_divergences:

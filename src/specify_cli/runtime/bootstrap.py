@@ -100,11 +100,11 @@ def populate_from_package(target: Path) -> None:
     # correctly, so missions_src below needs no separate repoint. The
     # scripts_src/agents_src ".parent"-derived candidates below were,
     # independent of this move, ALREADY never satisfied in a real
-    # installed/editable layout -- neither src/doctrine/scripts nor
-    # src/doctrine/AGENTS.md exist for real (the actual shipped scripts/ tree
+    # installed/editable layout -- neither src/charter/offering/scripts nor
+    # src/charter/offering/AGENTS.md exist for real (the actual shipped scripts/ tree
     # is packaged from src/specify_cli/scripts/, per pyproject.toml's wheel
     # "artifacts" list, and the real AGENTS.md lives at
-    # src/doctrine/templates/AGENTS.md) -- confirmed by checking both
+    # src/charter/offering/templates/AGENTS.md) -- confirmed by checking both
     # directories directly. Only the SPEC_KITTY_TEMPLATE_ROOT-driven test
     # fixture (tests/runtime/test_bootstrap_unit.py's fake_assets, a
     # synthetic sibling layout) ever exercises these two branches

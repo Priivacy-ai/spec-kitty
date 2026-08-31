@@ -27,7 +27,7 @@ import re
 
 import pytest
 
-from doctrine.agent_profiles.repository import AgentProfileRepository
+from charter.offering.agent_profiles.repository import AgentProfileRepository
 
 pytestmark = [pytest.mark.doctrine, pytest.mark.fast, pytest.mark.corpus]
 

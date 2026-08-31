@@ -36,7 +36,7 @@ def _provenance_entry(
     slug: str,
     *,
     file_hash: str | None = "deadbeef",
-    source_path: str | None = "src/doctrine/agent_profiles/built-in/x.agent.yaml",
+    source_path: str | None = "src/charter/offering/agent_profiles/built-in/x.agent.yaml",
     source_hash: str | None = "sha256:source",
 ) -> NativeAgentProfile:
     return NativeAgentProfile(

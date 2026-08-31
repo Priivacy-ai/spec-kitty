@@ -143,7 +143,7 @@ class TestLibraryApi:
         import ruamel.yaml
 
         import specify_cli.dossier.manifest as manifest_module
-        from doctrine.missions.repository import ConfigResult
+        from charter.offering.missions.repository import ConfigResult
         from specify_cli.cli.commands.reconcile import (
             _DEFAULT_MISSION_TYPE,
             reconcile_mission_dossier,

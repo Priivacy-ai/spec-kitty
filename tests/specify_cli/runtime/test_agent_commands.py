@@ -36,23 +36,26 @@ class TestGetCommandTemplatesDir:
 
     @staticmethod
     def _build_fake_doctrine_with_relocated_missions(tmp_path: Path) -> Path:
-        """Build a synthetic post-relocation layout: doctrine pkg + sibling packs/.
+        """Build a synthetic post-relocation layout: offering pkg + sibling packs/.
 
         Mission ``doctrine-consumer-surface-missions-extraction-01KZ6G6H``
         (FR-005) relocated ``mission-steps/`` to ``packs/built-in/missions``,
-        a sibling of the ``tmp_path`` root the fake ``doctrine`` package
-        directory also lives directly under -- mirroring the installed-wheel
-        depth (``<site-packages>/{doctrine,packs}``) the shared kernel
-        sibling-path primitive resolves through. Returns the fake
-        ``doctrine/__init__.py`` path.
+        a sibling of the ``tmp_path`` root the fake ``charter.offering``
+        package directory also lives nested under (mirroring the real
+        post-relocation ``charter/offering`` nesting, mission
+        ``charter-code-topology-01M152G1``) -- close enough to the
+        installed-wheel depth (``<site-packages>/{charter/offering,packs}``)
+        for the shared kernel sibling-path primitive's bounded ancestor walk
+        to resolve through. Returns the fake ``charter/offering/__init__.py``
+        path.
         """
-        fake_doctrine_init = tmp_path / "doctrine" / "__init__.py"
-        fake_doctrine_init.parent.mkdir(parents=True)
-        fake_doctrine_init.write_text("")
+        fake_offering_init = tmp_path / "charter" / "offering" / "__init__.py"
+        fake_offering_init.parent.mkdir(parents=True)
+        fake_offering_init.write_text("")
 
         mission_steps = tmp_path / "packs" / "built-in" / "missions" / "mission-steps" / "software-dev"
         mission_steps.mkdir(parents=True)
-        return fake_doctrine_init
+        return fake_offering_init
 
     def test_returns_correct_doctrine_path(
         self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
@@ -60,12 +63,12 @@ class TestGetCommandTemplatesDir:
         """Resolver returns <packs/built-in>/missions/mission-steps/software-dev.
 
         RED in lane-d (buggy resolver uses get_package_asset_root / kittify_home);
-        GREEN after WP01 merges (resolver uses doctrine.__file__ as the
+        GREEN after WP01 merges (resolver uses charter.offering.__file__ as the
         sibling-path primitive's anchor).
         """
-        fake_doctrine_init = self._build_fake_doctrine_with_relocated_missions(tmp_path)
+        fake_offering_init = self._build_fake_doctrine_with_relocated_missions(tmp_path)
 
-        monkeypatch.setattr("doctrine.__file__", str(fake_doctrine_init))
+        monkeypatch.setattr("charter.offering.__file__", str(fake_offering_init))
 
         from specify_cli.runtime.agent_commands import _get_command_templates_dir
 
@@ -80,9 +83,9 @@ class TestGetCommandTemplatesDir:
 
         RED in lane-d (buggy resolver can return None); GREEN after WP01.
         """
-        fake_doctrine_init = self._build_fake_doctrine_with_relocated_missions(tmp_path)
+        fake_offering_init = self._build_fake_doctrine_with_relocated_missions(tmp_path)
 
-        monkeypatch.setattr("doctrine.__file__", str(fake_doctrine_init))
+        monkeypatch.setattr("charter.offering.__file__", str(fake_offering_init))
 
         from specify_cli.runtime.agent_commands import _get_command_templates_dir
 
@@ -92,16 +95,16 @@ class TestGetCommandTemplatesDir:
     def test_resolver_with_sys_modules_monkeypatch(
         self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
     ) -> None:
-        """T022: Resolver uses doctrine.__file__ as its anchor (sys.modules approach).
+        """T022: Resolver uses charter.offering.__file__ as its anchor (sys.modules approach).
 
         RED in lane-d; GREEN after WP01 merges.
         """
         self._build_fake_doctrine_with_relocated_missions(tmp_path)
-        fake_mod = types.ModuleType("doctrine")
-        fake_mod.__file__ = str(tmp_path / "doctrine" / "__init__.py")
-        monkeypatch.setitem(sys.modules, "doctrine", fake_mod)
+        fake_mod = types.ModuleType("charter.offering")
+        fake_mod.__file__ = str(tmp_path / "charter" / "offering" / "__init__.py")
+        monkeypatch.setitem(sys.modules, "charter.offering", fake_mod)
 
-        # Reload the module under test to pick up the patched doctrine
+        # Reload the module under test to pick up the patched charter.offering
         import importlib
 
         import specify_cli.runtime.agent_commands as ac

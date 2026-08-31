@@ -463,7 +463,7 @@ def main() -> int:
         _walk_modules,
     )
 
-    decls, path_to_dotted, path_to_tree, corpus = _walk_modules()
+    decls, _all_literal_decls, path_to_dotted, path_to_tree, corpus = _walk_modules()
     per_symbol, star_targets = _imports_by_target(path_to_dotted, path_to_tree)
     source = _THIS_SOURCE.read_text(encoding="utf-8")
     decisions = plan_refresh(corpus, decls, per_symbol, source, star_targets)

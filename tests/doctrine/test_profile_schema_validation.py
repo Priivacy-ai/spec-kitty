@@ -5,8 +5,8 @@ from pathlib import Path
 import pytest
 from ruamel.yaml import YAML
 
-from doctrine.agent_profiles.profile import AgentProfile
-from doctrine.agent_profiles.validation import (
+from charter.offering.agent_profiles.profile import AgentProfile
+from charter.offering.agent_profiles.validation import (
     is_agent_profile_file,
     validate_agent_profile_yaml,
 )
