@@ -5031,7 +5031,7 @@ pages:
     - {slug: "wp-iteration-within-a-single-step", text: "WP iteration within a single step", level: 3}
     - {slug: "reporting-results", text: "Reporting results", level: 3}
     - {slug: "things-to-be-aware-of", text: "Things to Be Aware Of", level: 2}
-    - {slug: "completed-missions-may-not-return-terminal-335", text: "Completed missions may not return `terminal` (#335)", level: 3}
+    - {slug: "merged-missions-are-recognized-as-terminal-2947-was-335", text: "Merged missions are recognized as terminal (#2947, was #335)", level: 3}
     - {slug: "some-steps-may-return-a-null-prompt-file-336", text: "Some steps may return a null prompt file (#336)", level: 3}
     - {slug: "see-also", text: "See Also", level: 2}
   - path: "docs/architecture/spdd-reasons.md"
