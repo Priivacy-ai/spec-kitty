@@ -2280,8 +2280,207 @@ def _extract_public_module_level_names(tree: ast.Module) -> frozenset[str]:
     return frozenset(names)
 
 
+def _argument_nodes(args: ast.arguments) -> tuple[ast.arg, ...]:
+    return (
+        *args.posonlyargs,
+        *args.args,
+        *args.kwonlyargs,
+        *(() if args.vararg is None else (args.vararg,)),
+        *(() if args.kwarg is None else (args.kwarg,)),
+    )
+
+
+def _visit_function_outer_expressions(visitor: ast.NodeVisitor, node: ast.FunctionDef | ast.AsyncFunctionDef) -> None:
+    for decorator in node.decorator_list:
+        visitor.visit(decorator)
+    for default in (*node.args.defaults, *(value for value in node.args.kw_defaults if value is not None)):
+        visitor.visit(default)
+    for argument in _argument_nodes(node.args):
+        if argument.annotation is not None:
+            visitor.visit(argument.annotation)
+    if node.returns is not None:
+        visitor.visit(node.returns)
+
+
+class _FunctionScopeVisitor(ast.NodeVisitor):
+    def __init__(self, name: str) -> None:
+        self.name = name
+        self.binds_name = False
+        self.global_declared = False
+        self.nonlocal_declared = False
+
+    def visit_Name(self, node: ast.Name) -> None:
+        if node.id == self.name and not isinstance(node.ctx, ast.Load):
+            self.binds_name = True
+
+    def visit_alias(self, node: ast.alias) -> None:
+        bound_name = node.asname or node.name.rpartition(".")[2]
+        if bound_name == self.name:
+            self.binds_name = True
+
+    def visit_Global(self, node: ast.Global) -> None:
+        if self.name in node.names:
+            self.global_declared = True
+
+    def visit_Nonlocal(self, node: ast.Nonlocal) -> None:
+        if self.name in node.names:
+            self.nonlocal_declared = True
+
+    def visit_ExceptHandler(self, node: ast.ExceptHandler) -> None:
+        if node.name == self.name:
+            self.binds_name = True
+        self.generic_visit(node)
+
+    def visit_MatchAs(self, node: ast.MatchAs) -> None:
+        if node.name == self.name:
+            self.binds_name = True
+        self.generic_visit(node)
+
+    def visit_MatchStar(self, node: ast.MatchStar) -> None:
+        if node.name == self.name:
+            self.binds_name = True
+        self.generic_visit(node)
+
+    def visit_MatchMapping(self, node: ast.MatchMapping) -> None:
+        if node.rest == self.name:
+            self.binds_name = True
+        self.generic_visit(node)
+
+    def visit_FunctionDef(self, node: ast.FunctionDef) -> None:
+        if node.name == self.name:
+            self.binds_name = True
+        _visit_function_outer_expressions(self, node)
+
+    def visit_AsyncFunctionDef(self, node: ast.AsyncFunctionDef) -> None:
+        if node.name == self.name:
+            self.binds_name = True
+        _visit_function_outer_expressions(self, node)
+
+    def visit_Lambda(self, node: ast.Lambda) -> None:
+        for default in node.args.defaults:
+            self.visit(default)
+        for default in (value for value in node.args.kw_defaults if value is not None):
+            self.visit(default)
+
+    def visit_ClassDef(self, node: ast.ClassDef) -> None:
+        if node.name == self.name:
+            self.binds_name = True
+        for decorator in node.decorator_list:
+            self.visit(decorator)
+        for base in node.bases:
+            self.visit(base)
+        for keyword in node.keywords:
+            self.visit(keyword.value)
+
+    def visit_comprehension(self, node: ast.comprehension) -> None:
+        self.visit(node.iter)
+        for condition in node.ifs:
+            self.visit(condition)
+
+
+def _classify_function_scope(node: ast.FunctionDef | ast.AsyncFunctionDef | ast.Lambda, name: str) -> tuple[bool, bool, bool]:
+    visitor = _FunctionScopeVisitor(name)
+    for argument in _argument_nodes(node.args):
+        if argument.arg == name:
+            visitor.binds_name = True
+    if isinstance(node, ast.Lambda):
+        visitor.visit(node.body)
+    else:
+        for statement in node.body:
+            visitor.visit(statement)
+    return visitor.binds_name, visitor.global_declared, visitor.nonlocal_declared
+
+
+def _target_binds_name(target: ast.expr, name: str) -> bool:
+    return any(isinstance(node, ast.Name) and node.id == name for node in ast.walk(target))
+
+
+class _ModuleLevelNameUseVisitor(ast.NodeVisitor):
+    def __init__(self, name: str) -> None:
+        self.name = name
+        self.found = False
+        self.function_scopes: list[tuple[bool, bool]] = []
+        self.comprehension_scopes: list[bool] = []
+
+    def _name_is_shadowed(self) -> bool:
+        for is_shadowed in reversed(self.comprehension_scopes):
+            if is_shadowed:
+                return True
+        for is_shadowed, global_declared in reversed(self.function_scopes):
+            if global_declared:
+                return False
+            if is_shadowed:
+                return True
+        return False
+
+    def visit_Name(self, node: ast.Name) -> None:
+        if node.id == self.name and isinstance(node.ctx, ast.Load) and not self._name_is_shadowed():
+            self.found = True
+
+    def _visit_function_body(self, node: ast.FunctionDef | ast.AsyncFunctionDef | ast.Lambda) -> None:
+        binds_name, global_declared, nonlocal_declared = _classify_function_scope(node, self.name)
+        if global_declared:
+            is_shadowed = False
+        elif nonlocal_declared:
+            is_shadowed = self._name_is_shadowed()
+        else:
+            is_shadowed = self._name_is_shadowed() or binds_name
+        self.function_scopes.append((is_shadowed, global_declared))
+        if isinstance(node, ast.Lambda):
+            self.visit(node.body)
+        else:
+            for statement in node.body:
+                self.visit(statement)
+        self.function_scopes.pop()
+
+    def visit_FunctionDef(self, node: ast.FunctionDef) -> None:
+        _visit_function_outer_expressions(self, node)
+        self._visit_function_body(node)
+
+    def visit_AsyncFunctionDef(self, node: ast.AsyncFunctionDef) -> None:
+        _visit_function_outer_expressions(self, node)
+        self._visit_function_body(node)
+
+    def visit_Lambda(self, node: ast.Lambda) -> None:
+        for default in node.args.defaults:
+            self.visit(default)
+        for default in (value for value in node.args.kw_defaults if value is not None):
+            self.visit(default)
+        self._visit_function_body(node)
+
+    def _visit_comprehension(self, node: ast.ListComp | ast.SetComp | ast.GeneratorExp | ast.DictComp) -> None:
+        if node.generators:
+            self.visit(node.generators[0].iter)
+        self.comprehension_scopes.append(False)
+        for index, generator in enumerate(node.generators):
+            if index > 0:
+                self.visit(generator.iter)
+            if _target_binds_name(generator.target, self.name):
+                self.comprehension_scopes[-1] = True
+            for condition in generator.ifs:
+                self.visit(condition)
+        if isinstance(node, ast.DictComp):
+            self.visit(node.key)
+            self.visit(node.value)
+        else:
+            self.visit(node.elt)
+        self.comprehension_scopes.pop()
+
+    def visit_ListComp(self, node: ast.ListComp) -> None:
+        self._visit_comprehension(node)
+
+    def visit_SetComp(self, node: ast.SetComp) -> None:
+        self._visit_comprehension(node)
+
+    def visit_GeneratorExp(self, node: ast.GeneratorExp) -> None:
+        self._visit_comprehension(node)
+
+    def visit_DictComp(self, node: ast.DictComp) -> None:
+        self._visit_comprehension(node)
+
+
 def _used_within_own_module(tree: ast.Module, name: str) -> bool:
-    """True if *name* is referenced (``ast.Name`` load) anywhere in *tree* (#470).
+    """True if *name* has a Load that can resolve to the module binding (#470).
 
     Used ONLY to rescue a widened (non-``__all__``) symbol: intra-module use
     is real evidence a module-private-by-convention name is not dead, but is
@@ -2289,7 +2488,9 @@ def _used_within_own_module(tree: ast.Module, name: str) -> bool:
     membership is itself a claim of cross-module export, so a same-module-only
     ``__all__`` symbol must stay caught (unchanged from the original gate).
     """
-    return any(isinstance(node, ast.Name) and node.id == name and isinstance(node.ctx, ast.Load) for node in ast.walk(tree))
+    visitor = _ModuleLevelNameUseVisitor(name)
+    visitor.visit(tree)
+    return visitor.found
 
 
 def _walk_modules() -> tuple[
@@ -3270,7 +3471,9 @@ def test_used_within_own_module() -> None:
     unreferenced_tree = ast.parse("logger = get_logger()\n")
     local_shadow_tree = ast.parse("logger = get_logger()\ndef use():\n    logger = logging.getLogger(__name__)\n    return logger\n")
     parameter_shadow_tree = ast.parse("logger = get_logger()\ndef use(logger):\n    return logger\n")
-    nested_shadow_tree = ast.parse("logger = get_logger()\ndef outer():\n    logger = logging.getLogger(__name__)\n    def inner():\n        return logger\n    return inner\n")
+    nested_shadow_tree = ast.parse(
+        "logger = get_logger()\ndef outer():\n    logger = logging.getLogger(__name__)\n    def inner():\n        return logger\n    return inner\n"
+    )
     comprehension_shadow_tree = ast.parse("logger = get_logger()\nvalues = [logger for logger in loggers]\n")
     assert _used_within_own_module(referenced_tree, "logger") is True
     assert _used_within_own_module(unreferenced_tree, "logger") is False
