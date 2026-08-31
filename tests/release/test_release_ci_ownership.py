@@ -118,6 +118,15 @@ def test_ci_windows_has_no_sync_path_filters() -> None:
     assert workflow["jobs"]["windows-critical"]["runs-on"] == "windows-latest"
 
 
+def test_ci_windows_filter_can_read_pull_request_files() -> None:
+    workflow = load_workflow("ci-windows.yml")
+
+    assert workflow["permissions"] == {
+        "contents": "read",
+        "pull-requests": "read",
+    }
+
+
 @pytest.mark.parametrize("name", sorted(RESTORED_WORKFLOWS))
 def test_restored_workflows_use_stock_runners(name: str) -> None:
     text = workflow_text(name)
