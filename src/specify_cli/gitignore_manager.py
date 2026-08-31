@@ -12,7 +12,12 @@ import tempfile
 from dataclasses import dataclass, field
 from pathlib import Path
 
-from specify_cli.core.no_follow import NoFollowPathError, open_no_follow, read_text_no_follow
+from specify_cli.core.no_follow import (
+    NoFollowPathError,
+    open_no_follow,
+    read_text_no_follow,
+    write_text_no_follow,
+)
 from specify_cli.state.contract import get_runtime_gitignore_entries
 
 
@@ -272,8 +277,8 @@ class GitignoreManager:
             # have produced: 0666 narrowed by the process umask.
             target_mode = existing_mode if existing_mode is not None else (0o666 & ~_get_umask())
             os.chmod(tmp_path, target_mode)
-            with os.fdopen(fd, "w", encoding="utf-8") as f:
-                f.write(content)
+            os.close(fd)
+            write_text_no_follow(Path(tmp_path), content)
             os.replace(tmp_path, self.gitignore_path)
         except BaseException:
             with contextlib.suppress(OSError):
