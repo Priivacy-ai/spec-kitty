@@ -28,9 +28,9 @@ from __future__ import annotations
 
 import pytest
 
-from doctrine.drg.merge import bridge_org_edge_to_drg_edge
-from doctrine.drg.models import DRGEdge, Relation
-from doctrine.drg.org_pack_loader import _OrgDRGEdge, _ProjectedOrgDRGEdge
+from charter.offering.drg.merge import bridge_org_edge_to_drg_edge
+from charter.offering.drg.models import DRGEdge, Relation
+from charter.offering.drg.org_pack_loader import _OrgDRGEdge, _ProjectedOrgDRGEdge
 
 pytestmark = [pytest.mark.doctrine, pytest.mark.fast]
 

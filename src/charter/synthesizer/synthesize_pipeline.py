@@ -192,9 +192,9 @@ def canonical_yaml(body: Mapping[str, Any]) -> bytes:
 
 # Lazy imports to avoid circular imports at module load time.
 def _get_schema_by_kind() -> dict[str, Any]:
-    from doctrine.directives.models import Directive
-    from doctrine.styleguides.models import Styleguide
-    from doctrine.tactics.models import Tactic
+    from charter.offering.directives.models import Directive
+    from charter.offering.styleguides.models import Styleguide
+    from charter.offering.tactics.models import Tactic
 
     return {
         "directive": Directive,

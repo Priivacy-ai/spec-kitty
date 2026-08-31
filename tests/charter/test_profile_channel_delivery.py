@@ -28,8 +28,8 @@ from charter.context_renderers.profile_sections import (
     _PROFILE_TOOLGUIDES_HEADER_TPL,
     _render_profile_sections,
 )
-from doctrine.agent_profiles import AgentProfile, AgentProfileRepository
-from doctrine.service import DoctrineService
+from charter.offering.agent_profiles import AgentProfile, AgentProfileRepository
+from charter.offering.service import DoctrineService
 
 pytestmark = pytest.mark.fast
 

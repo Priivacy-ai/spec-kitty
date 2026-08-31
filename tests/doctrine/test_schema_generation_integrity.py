@@ -1,7 +1,7 @@
 """Schema-generation integrity (WP05, FR-005, SC-004).
 
 ``scripts/generate_schemas.py --check`` verifies the committed schemas under
-``src/doctrine/schemas/`` match what the Pydantic models (the single source of
+``src/charter/offering/schemas/`` match what the Pydantic models (the single source of
 truth, per the script's own module docstring) actually generate. Measured
 before this work package: it exits 1 with 7 stale schemas.
 

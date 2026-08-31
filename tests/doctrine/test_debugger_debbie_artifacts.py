@@ -4,8 +4,8 @@ from __future__ import annotations
 
 import pytest
 
-from doctrine.drg.models import DRGGraph
-from doctrine.service import DoctrineService
+from charter.offering.drg.models import DRGGraph
+from charter.offering.service import DoctrineService
 
 pytestmark = [pytest.mark.fast, pytest.mark.doctrine, pytest.mark.corpus]
 

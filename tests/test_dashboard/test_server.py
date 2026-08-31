@@ -1,3 +1,4 @@
+import os
 import socket
 
 from specify_cli.dashboard import server
@@ -30,6 +31,38 @@ def test_start_dashboard_background_invokes_subprocess(monkeypatch, tmp_path):
     assert pid == 12345  # Changed from thread to pid
     assert calls["args"][0] == server.sys.executable
     assert calls["args"][1] == "-c"
+
+
+def test_start_dashboard_background_ephemeral_port_reads_back_actual_port(monkeypatch, tmp_path):
+    """port=0 + background_process=True must report the real OS-assigned port.
+
+    Regression for issue #98: the background branch echoed the caller-supplied
+    `port` straight back, so `port=0` (ephemeral) reported the dashboard was
+    on port 0 while the detached child actually bound a different port —
+    the same silent-wrong-port shape issue #66 pinned for threaded mode.
+    """
+    calls = {}
+
+    class FakeProcess:
+        pid = 54321
+
+        def __init__(self, args, **kwargs):
+            calls["args"] = args
+            calls["kwargs"] = kwargs
+            # Stand in for the detached child: report the port it "bound"
+            # back over the inherited pipe, without closing our fd copy —
+            # there's no real subprocess here, so the parent's own close of
+            # its fd copy is what should surface EOF to the reader.
+            for fd in kwargs.get("pass_fds") or ():
+                os.write(fd, b"23456")
+
+    monkeypatch.setattr(server, "subprocess", type("S", (), {"Popen": FakeProcess, "DEVNULL": None}))
+
+    port, pid = server.start_dashboard(tmp_path, port=0, background_process=True, project_token="abc")
+
+    assert port == 23456
+    assert pid == 54321
+    assert calls["kwargs"]["pass_fds"]
 
 
 def test_start_dashboard_foreground_starts_thread(monkeypatch, tmp_path):

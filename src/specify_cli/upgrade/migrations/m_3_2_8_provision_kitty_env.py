@@ -89,7 +89,11 @@ from ``.kitty.env``/``config.yaml``'s ``env_file`` key/the two ignore files.
 
 from __future__ import annotations
 
+import contextlib
+import errno
 import os
+import stat
+import tempfile
 from pathlib import Path
 
 from ruamel.yaml import YAML
@@ -97,7 +101,7 @@ from ruamel.yaml import YAML
 from specify_cli.gitignore_manager import GitignoreManager
 
 from ..registry import MigrationRegistry
-from .base import BaseMigration, MigrationResult
+from .base import BaseMigration, ClaudeignorePathError, MigrationResult
 
 MIGRATION_ID = "3.2.8_provision_kitty_env"
 TARGET_VERSION = "3.2.6rc2"
@@ -245,12 +249,74 @@ def _write_config_env_file_pointer(project_path: Path) -> None:
 # ---------------------------------------------------------------------------
 
 
+class NonRegularIgnoreFileError(OSError):
+    """Raised when a ``.gitignore``/``.claudeignore`` path is not a regular
+    file -- e.g. a FIFO, a symlink, a device, or a socket.
+
+    A FIFO named ``.gitignore``/``.claudeignore`` hangs a bare
+    ``path.read_text()``/``path.write_text()`` indefinitely: ``open()`` on a
+    FIFO blocks until a peer connects unless ``O_NONBLOCK`` is set, and
+    nothing upstream of this module supplied a timeout. Rejecting outright
+    (rather than trying to read/write it) is fail-closed and immediate.
+    """
+
+
+def _open_ignore_file_no_follow(path: Path, flags: int, mode: int = 0o644) -> int:
+    """Open *path* for the ignore-file read/write helpers, then fail closed.
+
+    ``O_NOFOLLOW`` refuses to traverse a final symlink component.
+    ``O_NONBLOCK`` is folded in unconditionally: it is what stops the
+    ``open()`` call itself from blocking forever on a FIFO (opening a FIFO
+    read-only blocks until a writer connects, and opening it write-only
+    blocks until a reader connects -- both unless ``O_NONBLOCK`` is set).
+    It is a no-op for a genuine regular file, so always including it never
+    changes behaviour on the common path.
+
+    The ``S_ISREG`` check runs on the fd this call already has open, not on
+    a separate ``path.stat()``/``is_file()`` call beforehand -- a
+    check-then-open of the path is a TOCTOU window (the path can be
+    swapped between the check and the open), whereas checking the already-
+    open descriptor's own mode is atomic with respect to that race (mirrors
+    ``coordination/atomic_write.py``'s fd-relative confinement checks).
+    """
+    no_follow = getattr(os, "O_NOFOLLOW", 0)
+    non_blocking = getattr(os, "O_NONBLOCK", 0)
+    try:
+        fd = os.open(path, flags | no_follow | non_blocking, mode)
+    except FileNotFoundError:
+        raise
+    except OSError as exc:
+        if exc.errno == errno.ELOOP:
+            raise NonRegularIgnoreFileError(f"Refusing to open {path}: {exc}") from exc
+        raise
+    try:
+        if not stat.S_ISREG(os.fstat(fd).st_mode):
+            raise NonRegularIgnoreFileError(f"Refusing to open {path}: not a regular file")
+    except BaseException:
+        os.close(fd)
+        raise
+    return fd
+
+
+def _read_ignore_file_text(path: Path) -> str:
+    """Read an ignore file's full text -- "" if it does not exist yet.
+
+    Fails closed via :class:`NonRegularIgnoreFileError` on a symlink or any
+    other non-regular file (FIFO, device, socket) instead of following it or
+    hanging. See :func:`_open_ignore_file_no_follow`.
+    """
+    try:
+        fd = _open_ignore_file_no_follow(path, os.O_RDONLY)
+    except FileNotFoundError:
+        return ""
+    with os.fdopen(fd, "r", encoding="utf-8-sig") as handle:
+        return handle.read()
+
+
 def _ignore_file_entries(path: Path) -> set[str]:
-    if not path.exists():
-        return set()
     return {
         line.strip()
-        for line in path.read_text(encoding="utf-8-sig").splitlines()
+        for line in _read_ignore_file_text(path).splitlines()
         if line.strip() and not line.lstrip().startswith("#")
     }
 
@@ -260,18 +326,149 @@ def _gitignore_missing_entry(project_path: Path) -> bool:
 
 
 def _claudeignore_missing_entry(project_path: Path) -> bool:
-    return _ENV_FILE_IGNORE_ENTRY not in _ignore_file_entries(project_path / _CLAUDEIGNORE_FILENAME)
+    path = project_path / _CLAUDEIGNORE_FILENAME
+    _reject_claudeignore_symlink(path)
+    entries = {
+        line.strip()
+        for line in _read_claudeignore_no_follow(path).splitlines()
+        if line.strip() and not line.lstrip().startswith("#")
+    }
+    return _ENV_FILE_IGNORE_ENTRY not in entries
+
+
+def _reject_claudeignore_symlink(path: Path) -> None:
+    """Raise ``ClaudeignorePathError`` if *path* is a symlink.
+
+    Checks ``is_symlink()``, not ``exists()`` -- ``exists()`` follows
+    symlinks and returns ``False`` for a dangling one, which would
+    otherwise let a dangling-symlink ``.claudeignore`` slip past an
+    ``exists()``-gated check.
+
+    This is a fast, friendly up-front rejection only -- it is a separate
+    syscall from whatever the caller does next, so it does NOT by itself
+    close the window where a ``.claudeignore`` swapped for a symlink after
+    this check returns gets read through or probed. Callers that go on to
+    open/read/probe the same path use :func:`_open_claudeignore_no_follow`
+    so the guard and the use are the same syscall.
+    """
+    if path.is_symlink():
+        target = os.readlink(path)
+        raise ClaudeignorePathError(
+            f".claudeignore is a symlink to {target!r}; refusing to read or write through it: {path}"
+        )
+
+
+def _open_claudeignore_no_follow(path: Path, flags: int) -> int:
+    """Open *path* with ``O_NOFOLLOW`` and return the fd.
+
+    Folds the symlink guard into the ``open()`` call itself: a
+    ``.claudeignore`` swapped for a symlink between an earlier
+    ``is_symlink()`` check and this call still fails closed, because the
+    kernel raises ``ELOOP`` on the ``open()`` rather than following it --
+    there is no separate check-then-use window left to race. Falls back to
+    a plain (racy) ``is_symlink()`` check only on a platform without
+    ``O_NOFOLLOW`` (there is none among this project's supported targets;
+    kept for parity with the other no-follow call sites in this codebase,
+    e.g. ``invocation/writer.py``).
+    """
+    no_follow = getattr(os, "O_NOFOLLOW", 0)
+    if no_follow == 0:
+        _reject_claudeignore_symlink(path)
+    try:
+        return _open_ignore_file_no_follow(path, flags)
+    except NonRegularIgnoreFileError as exc:
+        cause = exc.__cause__
+        if isinstance(cause, OSError) and cause.errno == errno.ELOOP:
+            raise ClaudeignorePathError(
+                f".claudeignore is a symlink; refusing to read or write through it: {path}"
+            ) from cause
+        raise
+
+
+def _current_umask() -> int:
+    """Read the process umask without permanently changing it.
+
+    ``os.umask()`` is set-and-return-old -- there is no read-only form --
+    so this restores the previous value immediately after reading it. Used
+    to give a brand-new ``.claudeignore`` the same umask-respecting mode
+    ``Path.write_text()`` would have given it, instead of leaving
+    ``tempfile.mkstemp()``'s unconditional ``0o600``.
+    """
+    previous = os.umask(0)
+    os.umask(previous)
+    return previous
+
+
+def _atomic_write_claudeignore(path: Path, content: str) -> None:
+    """Write ``.claudeignore`` atomically without following a symlink.
+
+    Writes to a same-directory tempfile, then ``os.replace()``s it into
+    place -- ``os.replace()`` (POSIX ``rename()``) replaces the destination
+    directory entry itself rather than following it, so even a
+    ``.claudeignore`` swapped for a symlink between the guard above and this
+    call cannot redirect the write to an arbitrary target.
+    """
+    _reject_claudeignore_symlink(path)
+    existing_mode: int | None = None
+    if path.exists():
+        # os.replace() (rename) only requires write access to the parent
+        # directory, not to the file it replaces, so it would otherwise
+        # silently clobber a read-only .claudeignore. Probe with a real
+        # open() to preserve the PermissionError a direct write raises --
+        # through a no-follow fd, so a symlink swapped in since the guard
+        # above both fails closed AND can't substitute its target's mode
+        # for the real file's (fstat() reads whatever inode this fd is
+        # actually attached to, never a followed symlink target).
+        probe_fd = _open_claudeignore_no_follow(path, os.O_WRONLY)
+        try:
+            existing_mode = stat.S_IMODE(os.fstat(probe_fd).st_mode)
+        finally:
+            os.close(probe_fd)
+    fd, tmp_path = tempfile.mkstemp(
+        dir=path.parent,
+        prefix=".claudeignore.",
+        suffix=".tmp",
+    )
+    try:
+        new_file_mode = 0o666 & ~_current_umask()
+        os.chmod(tmp_path, existing_mode if existing_mode is not None else new_file_mode)
+        with os.fdopen(fd, "w", encoding="utf-8") as handle:
+            handle.write(content)
+        os.replace(tmp_path, path)
+    except BaseException:
+        with contextlib.suppress(OSError):
+            os.unlink(tmp_path)
+        raise
+
+
+def _read_claudeignore_no_follow(path: Path) -> str:
+    """Read ``.claudeignore``'s content through a no-follow fd.
+
+    A guard-then-use pair spread across two syscalls (an ``is_symlink()``
+    check followed by a separate ``read_text()``) leaves a window where a
+    ``.claudeignore`` swapped for a symlink in between gets its target's
+    content read and merged into the new file. Opening with
+    :func:`_open_claudeignore_no_follow` makes the guard and the read the
+    same syscall.
+    """
+    try:
+        fd = _open_claudeignore_no_follow(path, os.O_RDONLY)
+    except FileNotFoundError:
+        return ""
+    with os.fdopen(fd, encoding="utf-8-sig") as handle:
+        return handle.read()
 
 
 def _append_claudeignore_entry(project_path: Path) -> None:
     path = project_path / _CLAUDEIGNORE_FILENAME
-    existing = path.read_text(encoding="utf-8-sig") if path.exists() else ""
+    _reject_claudeignore_symlink(path)
+    existing = _read_claudeignore_no_follow(path)
     lines = existing.splitlines()
     if lines and lines[-1].strip():
         lines.append("")
     lines.append(_ENV_FILE_IGNORE_ENTRY)
     lines.append("")
-    path.write_text("\n".join(lines), encoding="utf-8")
+    _atomic_write_claudeignore(path, "\n".join(lines))
 
 
 # ---------------------------------------------------------------------------

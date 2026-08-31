@@ -100,7 +100,7 @@ class ProjectContext:
         from charter.pack_context import PackContext  # runtime import — avoids circular
 
         try:
-            from doctrine.drg.org_pack_config import resolve_org_roots  # noqa: PLC0415
+            from charter.offering.drg.org_pack_config import resolve_org_roots  # noqa: PLC0415
 
             org_roots = resolve_org_roots(repo_root)
             org_root: Path | None = org_roots[0] if org_roots else None

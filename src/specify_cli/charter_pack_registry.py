@@ -63,7 +63,7 @@ _NON_PACK_ACTIVATION_KEYS: frozenset[str] = frozenset(
 #: The per-kind activation keys a charter pack may populate. DERIVED from
 #: ``charter.pack_manager.YAML_KEY_MAP`` (the canonical charter-kind ->
 #: ``config.yaml``-key table, itself derived from
-#: ``doctrine.artifact_kinds.CHARTER_KIND_TOKENS``) rather than hand-maintained,
+#: ``charter.offering.artifact_kinds.CHARTER_KIND_TOKENS``) rather than hand-maintained,
 #: so a newly added charter kind is picked up here automatically instead of
 #: silently drifting from the registry. See :data:`_NON_PACK_ACTIVATION_KEYS`
 #: for what is deliberately excluded and why; today's result is byte-identical

@@ -107,13 +107,13 @@ REGISTRY: dict[str, RegisteredSite] = {
         producer=lambda: str(now_epoch()),
         prior_signature=lambda instant: str(instant.timestamp()),
     ),
-    # WP05 (doctrine): src/doctrine/versioning.py's migrate_v1_to_v2 stamps a
+    # WP05 (doctrine): src/charter/offering/versioning.py's migrate_v1_to_v2 stamps a
     # sidecar's missing `produced_at` from the sidecar's file mtime. Prior
     # site: `datetime.fromtimestamp(mtime, tz=UTC).isoformat()`. Migrated
     # onto the door's `from_epoch(mtime).isoformat()` -- `from_epoch` is
     # defined as exactly `datetime.fromtimestamp(value, tz=UTC)` (WP04), so
     # this is a byte-identical delegation, not a reformat.
-    "doctrine.versioning.migrate_v1_to_v2#produced_at": RegisteredSite(
+    "charter.offering.versioning.migrate_v1_to_v2#produced_at": RegisteredSite(
         producer=lambda: from_epoch(_FIXED_INSTANT.timestamp()).isoformat(),
         prior_signature=lambda instant: datetime.fromtimestamp(instant.timestamp(), tz=UTC).isoformat(),
     ),
@@ -263,41 +263,6 @@ REGISTRY: dict[str, RegisteredSite] = {
     "runtime.runtime_bridge#now": RegisteredSite(
         producer=now_utc_iso,
         prior_signature=lambda instant: instant.isoformat(),
-    ),
-    # --- WP09 (specify_cli/sync) --------------------------------------------
-    # sync/body_queue.py's persisted SQLite epoch columns (`created_at`,
-    # `next_attempt_at`, `first_failed_at`, `last_failed_at` -- all five call
-    # sites shared the identical prior expression, one representative entry
-    # covers them). Prior: raw `time.time()` -> now_epoch(). `now_epoch()` is
-    # defined as exactly `DEFAULT_CLOCK.now_epoch()` -> `time.time()` (WP03),
-    # so this is a byte-identical delegation (the persisted float epoch is
-    # unchanged), not a reformat.
-    "specify_cli.sync.body_queue.OfflineBodyUploadQueue#persisted_epoch": RegisteredSite(
-        producer=lambda: str(now_epoch()),
-        prior_signature=lambda instant: str(instant.timestamp()),
-    ),
-    # sync/queue.py's persisted `queue.timestamp` column (5 call sites, one
-    # representative entry). Prior: naive `int(datetime.now().timestamp())`
-    # -- a naive `.now()` interpreted under the system's local timezone and
-    # immediately reduced to a Unix epoch via `.timestamp()`, which is the
-    # SAME epoch float `time.time()`/`now_epoch()` would have produced for
-    # that instant (naive-local-`.timestamp()` and aware-UTC-`.timestamp()`
-    # both resolve to the one true Unix epoch for "now" -- this is an epoch
-    # computation in disguise, not a serialized local-time value, so it is
-    # NOT one of the FR-011 byte-changing naive fixes; see
-    # research/migration-notes.md). Migrated onto `int(now_epoch())`.
-    "specify_cli.sync.queue.OfflineQueue#persisted_timestamp": RegisteredSite(
-        producer=lambda: str(int(now_epoch())),
-        prior_signature=lambda instant: str(int(instant.timestamp())),
-    ),
-    # sync/owner.py's `DaemonOwnerRecord.started_at` seconds-precision stamp.
-    # Prior: `datetime.now(UTC).strftime("%Y-%m-%dT%H:%M:%S+00:00")` -- for a
-    # UTC-tzinfo datetime this is byte-identical to
-    # `isoformat(timespec="seconds")` (both render the zero UTC offset as
-    # `+00:00`) -> now_utc_seconds().
-    "specify_cli.sync.owner.build_foreground_owner_record#started_at": RegisteredSite(
-        producer=now_utc_seconds,
-        prior_signature=lambda instant: instant.strftime("%Y-%m-%dT%H:%M:%S+00:00"),
     ),
     # --- WP10 (specify_cli/status + merge + coordination) -------------------
     # coordination/status_transition.py's batch-commit persisted `StatusEvent.at`
