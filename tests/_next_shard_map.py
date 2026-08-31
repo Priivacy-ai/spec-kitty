@@ -122,6 +122,7 @@ _RUNTIME_SHARD_2_FILES: tuple[str, ...] = (
 )
 _RUNTIME_SHARD_3_FILES: tuple[str, ...] = (
     "tests/runtime/next/test_committed_authority.py",
+    "tests/runtime/next/test_merged_mission_terminal.py",
     "tests/runtime/test_bootstrap_unit.py",
     "tests/runtime/test_bootstrap_version_fallback.py",
     "tests/runtime/test_bridge_engine.py",
