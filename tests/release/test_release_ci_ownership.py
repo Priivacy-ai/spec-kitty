@@ -141,7 +141,7 @@ def test_ci_windows_configures_private_git_dependencies_before_install() -> None
     assert 'git config --global "url.https://x-access-token:${GH_TOKEN}@github.com/.insteadOf" "https://github.com/"' in configure_step["run"]
 
 
-def test_docs_pages_skips_cleanly_when_pages_is_unavailable() -> None:
+def test_docs_pages_deploys_only_from_promotion_repo_and_skips_when_pages_is_unavailable() -> None:
     workflow = load_workflow("docs-pages.yml")
     pages_job = workflow["jobs"]["pages"]
     setup_step = pages_job["steps"][0]
@@ -154,7 +154,7 @@ def test_docs_pages_skips_cleanly_when_pages_is_unavailable() -> None:
     assert setup_step["continue-on-error"] is True
     assert build_job["needs"] == ["pages"]
     assert build_job["if"] == "needs.pages.outputs.configured == 'success'"
-    assert deploy_job["if"] == "github.ref == 'refs/heads/main' && needs.build.result == 'success'"
+    assert deploy_job["if"] == "github.repository == 'Priivacy-ai/spec-kitty' && github.ref == 'refs/heads/main' && needs.build.result == 'success'"
 
 
 @pytest.mark.parametrize("name", sorted(RESTORED_WORKFLOWS))
