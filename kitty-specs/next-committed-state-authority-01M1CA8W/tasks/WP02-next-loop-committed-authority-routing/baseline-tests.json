@@ -1,0 +1,59 @@
+{
+  "wp_id": "WP02",
+  "captured_at": "2026-08-31T17:59:33Z",
+  "base_branch": "fix/next-committed-state-authority",
+  "base_commit": "f13cbcc20f312e668bfc5f893b20e3cb1afcb4fd",
+  "test_runner": "pytest",
+  "total": 9,
+  "passed": 0,
+  "failed": 9,
+  "skipped": 0,
+  "failures": [
+    {
+      "test": "tests.architectural.test_spec_kitty_home_pin_budget",
+      "error": "collection failure",
+      "file": "unknown:?"
+    },
+    {
+      "test": "tests.charter.test_consistency_check",
+      "error": "collection failure",
+      "file": "unknown:?"
+    },
+    {
+      "test": "tests.doctrine.test_doctrine_health_glossary_pack",
+      "error": "collection failure",
+      "file": "unknown:?"
+    },
+    {
+      "test": "tests.doctrine.test_shipped_profiles",
+      "error": "collection failure",
+      "file": "unknown:?"
+    },
+    {
+      "test": "tests.git.test_protection_config_honoring",
+      "error": "collection failure",
+      "file": "unknown:?"
+    },
+    {
+      "test": "tests.review.test_verdict_save_performance",
+      "error": "collection failure",
+      "file": "unknown:?"
+    },
+    {
+      "test": "tests.specify_cli.cli.commands.agent.test_finalize_canceled_work_packages_performance",
+      "error": "collection failure",
+      "file": "unknown:?"
+    },
+    {
+      "test": "tests.specify_cli.lanes.test_lane_dependency_cycle_performance",
+      "error": "collection failure",
+      "file": "unknown:?"
+    },
+    {
+      "test": "tests.specify_cli.next.test_next_cold_start_performance",
+      "error": "collection failure",
+      "file": "unknown:?"
+    }
+  ],
+  "source_identity": "GateCoverageScopeSource/junit_xml"
+}
