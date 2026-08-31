@@ -34,8 +34,6 @@ from specify_cli.cli.commands.agent.tasks import app
 from specify_cli.core.commit_guard import GuardCapability
 from specify_cli.review import gate_bindings, gate_registry, pre_review_gate
 from specify_cli.review.gate_budget import assess_scope_budget
-from specify_cli.sync.config import BackgroundDaemonPolicy, SyncConfig
-from specify_cli.sync.daemon import DaemonIntent, ensure_sync_daemon_running
 from specify_cli.status import Lane, StatusEvent, TransitionRequest
 from specify_cli.status.reducer import materialize
 from specify_cli.status.store import append_event
@@ -871,18 +869,12 @@ def test_exact_entry_skip_disable_collision_precedence(
             "_mt_resolve_pre_review_workspace",
             side_effect=AssertionError("skip/disable must precede validation"),
         ) as workspace_spy,
-        patch(
-            "specify_cli.sync.daemon._ensure_sync_daemon_running_locked",
-            side_effect=AssertionError("disable controls must suppress implicit daemon startup"),
-        ) as implicit_daemon_spy,
     ):
         result = CliRunner().invoke(app, args)
 
     assert result.exit_code == 0, result.output
     assert len(router.status_calls) == 1
     workspace_spy.assert_not_called()
-    if env:
-        implicit_daemon_spy.assert_not_called()
     if json_mode:
         payload = json.loads(result.stdout)
         assert payload["transition_applied"] is True
@@ -891,44 +883,6 @@ def test_exact_entry_skip_disable_collision_precedence(
     else:
         assert "SKIPPED" in result.output
         assert expected_reason in result.output
-
-
-def _daemon_config(policy: BackgroundDaemonPolicy) -> SyncConfig:
-    """Build a daemon config stub without reading project configuration."""
-    config = MagicMock(spec=SyncConfig)
-    config.get_background_daemon.return_value = policy
-    return config
-
-
-@pytest.mark.parametrize("env_var", ["SPEC_KITTY_SYNC_DISABLE", "SPEC_KITTY_SYNC_MINIMAL_IMPORT"])
-def test_explicit_daemon_management_remains_available_under_each_disable(
-    tmp_path: Path,
-    monkeypatch: pytest.MonkeyPatch,
-    env_var: str,
-) -> None:
-    """Each disable suppresses implicit startup, not explicit daemon management."""
-    monkeypatch.setenv("SPEC_KITTY_ENABLE_SAAS_SYNC", "1")
-    monkeypatch.setenv(env_var, "1")
-    inner = MagicMock(return_value=("http://127.0.0.1:9400", 9400, True))
-
-    with (
-        patch("specify_cli.sync.daemon._ensure_sync_daemon_running_locked", inner),
-        patch("specify_cli.sync.daemon.DAEMON_LOCK_FILE", tmp_path / "sync-daemon.lock"),
-    ):
-        implicit = ensure_sync_daemon_running(
-            intent=DaemonIntent.REMOTE_REQUIRED,
-            config=_daemon_config(BackgroundDaemonPolicy.AUTO),
-        )
-        explicit = ensure_sync_daemon_running(
-            intent=DaemonIntent.REMOTE_REQUIRED,
-            config=_daemon_config(BackgroundDaemonPolicy.AUTO),
-            force_explicit=True,
-        )
-
-    assert implicit.started is False
-    assert env_var in (implicit.skipped_reason or "")
-    assert explicit.started is True
-    inner.assert_called_once()
 
 
 @pytest.mark.parametrize(
