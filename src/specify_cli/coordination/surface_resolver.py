@@ -607,6 +607,18 @@ def _husk_is_authoritative_surface(repo_root: Path, mission_slug: str) -> bool:
     return _topology_uses_coord_surface(stored)
 
 
+def _primary_mission_is_completed(primary_dir: Path) -> bool:
+    """Return whether PRIMARY completion evidence makes that surface authoritative."""
+    from specify_cli.status import StoreError, is_mission_completed
+
+    if not (primary_dir / "meta.json").is_file():
+        return False
+    try:
+        return bool(is_mission_completed(primary_dir))
+    except StoreError:
+        return False
+
+
 def _effective_surface_topology(
     threaded: MissionTopology | None,
     meta: dict[str, object],
@@ -731,6 +743,15 @@ def resolve_status_surface_with_anchor(
     # must never hand back. (For unresolvable handles the candidate's name
     # equals the raw handle, so the not-found behaviour is unchanged.)
     mission_slug = feature_dir.name
+    primary_dir: Path = _compose_primary_feature_dir(
+        repo_root,
+        _canonicalize_primary_read_handle(repo_root, mission_slug),
+    )
+    if _primary_mission_is_completed(primary_dir):
+        return ResolvedStatusSurface(
+            surface_path=primary_dir / _STATUS_EVENTS_FILENAME,
+            primary_anchor=primary_dir,
+        )
     # FR-007: fail-closed reader routing. Malformed meta surfaces typed
     # MissionMetaReadError instead of raw ValueError.
     from specify_cli.core.paths import load_meta_fail_closed
@@ -798,10 +819,6 @@ def resolve_status_surface_with_anchor(
     # (``retrospective/writer.py``, ``status/aggregate.py``) instead, per its
     # own reconciling comment above ``_FOUNDATION_SANCTIONED``. Six underlying
     # sites total, two different countable subsets by design — not a typo.
-    primary_dir: Path = _compose_primary_feature_dir(
-        repo_root,
-        _canonicalize_primary_read_handle(repo_root, mission_slug),
-    )
     if meta is None:
         # FR-007: fail-closed reader routing. Malformed meta surfaces typed
         # MissionMetaReadError instead of raw ValueError.

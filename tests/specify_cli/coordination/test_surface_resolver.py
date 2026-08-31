@@ -9,7 +9,10 @@ import pytest
 import inspect
 
 from specify_cli.coordination import surface_resolver
-from specify_cli.coordination.surface_resolver import resolve_status_surface
+from specify_cli.coordination.surface_resolver import (
+    resolve_status_surface,
+    resolve_status_surface_with_anchor,
+)
 from specify_cli.missions._read_path_resolver import StatusReadPathNotFound
 
 pytestmark = pytest.mark.fast
@@ -122,6 +125,45 @@ def test_materialized_coord_worktree_resolves_exactly_once(tmp_path: Path) -> No
         f"path: {result}"
     )
     assert result == coord_feature_dir / "status.events.jsonl"
+
+
+def test_merged_coord_mission_resolves_primary_before_stale_coord_worktree(
+    tmp_path: Path,
+) -> None:
+    """Primary completion evidence outranks a stale materialized coord husk."""
+    slug = "merged-mission-01KTDVHZ"
+    primary_dir = tmp_path / "kitty-specs" / slug
+    coord_dir = (
+        tmp_path
+        / ".worktrees"
+        / f"{slug}-coord"
+        / "kitty-specs"
+        / slug
+    )
+    _write_meta(
+        primary_dir,
+        mission_slug=slug,
+        mission_id="01KTDVHZKGCHCW6HQ4V577PNES",
+        mid8="01KTDVHZ",
+        mission_type="software-dev",
+        coordination_branch=f"kitty/mission-{slug}",
+        topology="coord",
+        merged_at="2026-08-30T00:00:00+00:00",
+    )
+    _write_meta(
+        coord_dir,
+        mission_slug=slug,
+        mission_id="01KTDVHZKGCHCW6HQ4V577PNES",
+        mid8="01KTDVHZ",
+        mission_type="software-dev",
+        coordination_branch=f"kitty/mission-{slug}",
+        topology="coord",
+    )
+
+    resolved = resolve_status_surface_with_anchor(tmp_path, slug)
+
+    assert resolved.read_dir.resolve() == primary_dir.resolve()
+    assert resolved.primary_anchor.resolve() == primary_dir.resolve()
 
 
 def test_unresolvable_mid8_fails_closed_instead_of_fabricating(tmp_path: Path) -> None:

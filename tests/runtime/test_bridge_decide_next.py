@@ -268,6 +268,49 @@ def test_bootstrap_returns_blocked_decision_when_run_start_fails(
     assert decision.reason == "Failed to start/load runtime run: cannot start run"
 
 
+def test_bootstrap_returns_terminal_before_run_for_merged_mission(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A merged mission must not start a runtime run from stale coord state."""
+    slug = "042-mission"
+    primary_dir = tmp_path / "kitty-specs" / slug
+    primary_dir.mkdir(parents=True)
+    (primary_dir / "meta.json").write_text(
+        json.dumps(
+            {
+                "mission_slug": slug,
+                "mission_type": "software-dev",
+                "merged_at": "2026-08-30T00:00:00+00:00",
+            }
+        ),
+        encoding="utf-8",
+    )
+    stale_coord_dir = (
+        tmp_path / ".worktrees" / f"{slug}-coord" / "kitty-specs" / slug
+    )
+    stale_coord_dir.mkdir(parents=True)
+    monkeypatch.setattr(
+        rb, "_resolve_runtime_feature_dir", lambda repo_root, mission_slug: stale_coord_dir
+    )
+    monkeypatch.setattr(rb, "get_mission_type", lambda feature_dir: "software-dev")
+    class _RaisingEmitter:
+        @staticmethod
+        def for_feature(**_kwargs: Any) -> Any:
+            raise AssertionError("a merged mission must not construct an emitter")
+
+    monkeypatch.setattr(rb, "RuntimeEventEmitter", _RaisingEmitter)
+    monkeypatch.setattr(rb, "_wrap_with_decision_git_log", _raising)
+    monkeypatch.setattr(rb, "get_or_start_run", _raising)
+
+    ctx, decision = rb._dn_bootstrap("agent-x", slug, "success", tmp_path)
+
+    assert ctx is None
+    assert decision is not None
+    assert decision.kind == DecisionKind.terminal
+    assert decision.mission_state == "done"
+    assert decision.run_id is None
+
+
 def test_bootstrap_builds_full_context_on_happy_path(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:

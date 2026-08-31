@@ -1383,6 +1383,18 @@ def _materialize_decision(
     return _cores.step_or_blocked(envelope, guard_failures, prompt_exists=_prompt_exists)
 
 
+def _primary_mission_is_completed(primary_metadata_dir: Path) -> bool:
+    """Return whether the PRIMARY checkout proves the mission is closed."""
+    from specify_cli.status import StoreError, is_mission_completed
+
+    if not (primary_metadata_dir / "meta.json").is_file():
+        return False
+    try:
+        return bool(is_mission_completed(primary_metadata_dir))
+    except StoreError:
+        return False
+
+
 @dataclasses.dataclass(frozen=True)
 class DecideNextContext:
     """Frozen value carrier threading ``decide_next_via_runtime``'s shared
@@ -1433,7 +1445,9 @@ def _dn_bootstrap(
     """
     if effective_root is None:
         feature_dir = _resolve_runtime_feature_dir(repo_root, mission_slug)
-        primary_metadata_dir: Path | None = None
+        primary_metadata_dir: Path | None = _primary_runtime_feature_dir(
+            repo_root, mission_slug
+        )
     else:
         from mission_runtime import MissionArtifactKind, mission_context_for
 
@@ -1481,6 +1495,20 @@ def _dn_bootstrap(
         if primary_metadata_dir is None
         else primary_metadata_dir
     )
+    if primary_metadata_dir is not None and _primary_mission_is_completed(
+        primary_metadata_dir
+    ):
+        return None, _materialize_decision(
+            _cores.DecisionEnvelope(
+                kind=DecisionKind.terminal,
+                agent=agent,
+                mission_slug=mission_slug,
+                mission=mission_type,
+                mission_state="done",
+                timestamp=now,
+                reason="Mission is already completed",
+            )
+        )
     sync_emitter = RuntimeEventEmitter.for_feature(
         feature_dir=feature_dir,
         mission_slug=mission_slug,
