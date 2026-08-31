@@ -2,7 +2,7 @@
 title: The Runtime Loop Explained
 description: "How spec-kitty next inverts control so the runtime picks the next action: query versus advancing mode and the four decisions, step, decision_required, blocked, and terminal."
 doc_status: active
-updated: '2026-07-14'
+updated: '2026-08-31'
 related:
 - docs/architecture/kanban-workflow.md
 - docs/architecture/mission-system.md
@@ -193,7 +193,7 @@ The loop continues until the runtime returns `terminal` or the agent hits a bloc
 
 ### WP iteration within a single step
 
-During the implementation phase, multiple calls to `spec-kitty next` will return different `wp_id` values but the **same `step_id`** ("implement"). The runtime stays on the "implement" step while cycling through work packages. It only advances to the next mission step (such as "review") when all WPs have reached a terminal or handoff lane (`done`, `approved`, or `for_review`).
+During the implementation phase, multiple calls to `spec-kitty next` will return different `wp_id` values but the **same `step_id`** ("implement"). The runtime stays on the "implement" step while cycling through work packages. It only advances to the next mission step (such as "review") when all WPs have reached a terminal or handoff lane (`done`, `approved`, `for_review`, or `canceled` **with operator provenance** — an operator-recorded cancellation is an acceptable ending, mirroring `is_acceptable_ending`; a synthetic cancellation still blocks advancement, fail-closed — #3780).
 
 This means that in a mission with WP01 through WP09, successive calls might return:
 
@@ -223,14 +223,24 @@ If `--result` is omitted, the command stays in read-only query mode. Query mode 
 
 ## Things to Be Aware Of
 
-### Completed missions may not return `terminal` (#335)
+### Merged missions are recognized as terminal (#2947, was #335)
 
-When `spec-kitty next` is called on a mission where all WPs are done but no prior runtime state exists, the runtime may create a new run starting from the beginning of the mission instead of recognizing that the mission is already complete. It will return `kind: "step"` even though there is nothing left to do.
+**Fixed (#2947).** `spec-kitty next` now resolves mission state from the
+**committed status authority** before it selects a coordination workspace. When a
+mission has merged — its committed `meta.json.mission_number` is assigned and its
+committed status shows every WP in an acceptable ending — the loop recognizes it
+from that committed record instead of a stale coordination worktree checkout:
+advancing mode (`--result success`) returns `kind: "terminal"` and creates **no**
+runtime run; read-only query mode returns `kind: "query"` with
+`mission_state: "done"` (query mode is structurally `kind: query`). If the
+committed record is assigned a `mission_number` but its status is not all-accepted
+(a merge/status conflict), or an actionable step needs a coordination workspace
+whose checkout is missing the mission's artifacts, the loop fails closed with a
+structured `kind: "blocked"` — never a fabricated "unstarted" step. The former
+`progress`-field workaround is no longer required.
 
-**Workaround:** Always check the `progress` field in the response. If
-approved/done WPs account for `progress.total_wps`, treat the mission as ready
-for acceptance regardless of the reported `kind`. Run `/spec-kitty.accept`;
-if it passes, merge and continue to mission-review plus retrospective.
+Historically this class was tracked as #335; the committed-authority resolution
+in mission `next-committed-state-authority` closes it via #2947.
 
 ### Some steps may return a null prompt file (#336)
 
