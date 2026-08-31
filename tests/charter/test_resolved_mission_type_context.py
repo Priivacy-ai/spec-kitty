@@ -354,19 +354,20 @@ class TestResolvedTemplateSet:
             "plan": "plan-template.md",
         }
 
+    @pytest.mark.parametrize("selection_key", ["charter", "doctrine"])
     def test_unregistered_project_override_has_no_artifact_mapping(
-        self, tmp_path: Path
+        self, tmp_path: Path, selection_key: str
     ) -> None:
         _write_config(tmp_path, ["software-dev"])
         # consolidate-charter-bundle (IC-04 / WP04, T028c):
-        # _project_has_doctrine_overrides now reads charter.yaml's
-        # governance.doctrine.selected_* -- the retired governance.yaml is
-        # never consulted.
+        # _project_has_doctrine_overrides reads charter.yaml's canonical
+        # governance.charter.selected_* (with legacy-key compatibility) -- the
+        # retired governance.yaml is never consulted.
         charter_dir = tmp_path / ".kittify" / "charter"
         charter_dir.mkdir(parents=True, exist_ok=True)
         (charter_dir / "charter.yaml").write_text(
             "governance:\n"
-            "  doctrine:\n"
+            f"  {selection_key}:\n"
             "    selected_directives:\n"
             "      - DIRECTIVE_001\n",
             encoding="utf-8",

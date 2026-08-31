@@ -221,7 +221,7 @@ def test_apply_composes_charter_yaml_and_retires_four(
     assert composed["schema_version"] == "2.0.0"
     assert composed["metadata"]["bundle_schema_version"] == 2
     assert composed["governance"]["testing"]["min_coverage"] == 90
-    assert composed["governance"]["doctrine"]["template_set"] == "software-dev-default"
+    assert composed["governance"]["charter"]["template_set"] == "software-dev-default"
     assert composed["directives"]["directives"][0]["id"] == "DIRECTIVE_001"
     assert composed["catalog"]["mission"] == "software-dev"
     assert composed["catalog"]["references"][0]["id"] == "DIRECTIVE:DIRECTIVE_001"

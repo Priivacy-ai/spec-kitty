@@ -1,0 +1,30 @@
+{
+  "wp_id": "WP02",
+  "captured_at": "2026-08-24T00:13:36Z",
+  "base_branch": "fix/setup-plan-auth-diagnostics-nonfatal",
+  "base_commit": "7a6a4919465688877f5efca0d3ba5bfe30b8a690",
+  "test_runner": "pytest",
+  "total": 97,
+  "passed": 96,
+  "failed": 0,
+  "skipped": 1,
+  "failures": [],
+  "source_identity": "MissionReviewEvidence/exact_command",
+  "evidence_kind": "post_merge_current_surface_verification",
+  "verification_command": "uv run pytest -q tests/specify_cli/cli/commands/agent/test_setup_plan_hosted.py tests/sync/test_sync_boundary_preflight.py",
+  "result_summary": "96 passed, 1 skipped in 4.46s",
+  "evidence_commits": [
+    "e9bab144253bd918796112faeae506248429aded",
+    "7a6a4919465688877f5efca0d3ba5bfe30b8a690"
+  ],
+  "previous_capture": {
+    "captured_at": "2026-08-23T19:54:26Z",
+    "base_commit": "fff9936c83db3adb9c8787a7be564f3f9c6a332c",
+    "total": 1,
+    "passed": 0,
+    "failed": 1,
+    "skipped": 0,
+    "source_identity": "GateCoverageScopeSource/junit_xml",
+    "failure": "No JUnit XML artifact was produced; this was capture-infrastructure evidence, not a product-test failure."
+  }
+}

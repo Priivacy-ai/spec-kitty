@@ -172,7 +172,7 @@ def _collect_governance_reference_status(repo_root: Path) -> dict[str, Any]:
         governance = load_governance_config(repo_root)
         statuses = collect_governance_reference_status(
             repo_root,
-            governance.doctrine.governance_references,
+            governance.charter.governance_references,
         )
     except Exception as exc:  # noqa: BLE001 - status diagnostics must degrade
         return {

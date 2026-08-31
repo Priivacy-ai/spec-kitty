@@ -65,6 +65,7 @@ from charter.activations import ActivationEntry
 from charter.bundle import CHARTER_YAML
 from charter.charter_yaml_io import load_charter_yaml
 from charter.mission_type_key import canonical_mission_type_key
+from charter.sync import apply_legacy_governance_selection_key_compat
 
 if TYPE_CHECKING:
     from charter.mission_type_profile_repository import MissionTypeProfileRepository
@@ -1240,9 +1241,10 @@ def _project_has_doctrine_overrides(repo_root: Path) -> bool:
 
     IC-04 (WP04): re-pointed from the retired ``.kittify/charter/
     governance.yaml`` onto ``charter.yaml``'s ``governance:`` section — a
-    project "has overrides" when ``charter.yaml``'s ``governance.doctrine``
-    carries at least one non-empty ``selected_<kind>`` list. This is
-    consulted by the governance slot to decide whether an unknown
+    project "has overrides" when ``charter.yaml``'s ``governance.charter``
+    carries at least one non-empty ``selected_<kind>`` list. The retired
+    ``governance.doctrine`` key is read through the shared CR-01 compat shim.
+    This is consulted by the governance slot to decide whether an unknown
     ``mission_type`` should hard-fail (no overrides) or merely skip the
     missing profile (overrides present).
 
@@ -1261,7 +1263,7 @@ def _project_has_doctrine_overrides(repo_root: Path) -> bool:
     governance = data.get("governance")
     if not isinstance(governance, dict):
         return False
-    doctrine = governance.get("doctrine")
+    doctrine = apply_legacy_governance_selection_key_compat(governance).get("charter")
     if not isinstance(doctrine, dict):
         return False
     for key, value in doctrine.items():

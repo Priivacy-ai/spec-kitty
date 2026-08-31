@@ -198,7 +198,7 @@ def _load_doctrine_selection(repo_root: Path) -> DoctrineSelectionConfig:
 
     try:
         governance = load_governance_config(repo_root)
-        selection = governance.doctrine
+        selection = governance.charter
     except Exception:  # noqa: BLE001 — best-effort governance load
         selection = DoctrineSelectionConfig()
 

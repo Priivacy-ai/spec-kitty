@@ -116,6 +116,7 @@ Changelog = "https://github.com/Priivacy-ai/spec-kitty/blob/main/CHANGELOG.md"
 test = [
     "pytest>=9.0.3,<9.1",  # CVE-2025-71176 fix (>=9.0.3); <9.1 avoids the pytest 9.1.x reorder_items INTERNALERROR ('Function' not subscriptable) that trips CI's pip-resolved collection order (#2884). Aligns CI pip jobs with uv.lock's 9.0.3.
     "pytest-asyncio>=0.21.0",  # Required for async tests
+    "pytest-benchmark>=5.2.3",  # Statistical off-PR performance pipeline (ADR 2026-08-22-1)
     "pytest-cov>=4.1.0",  # Required by CI coverage flags
     "pytest-timeout>=2.2.0",  # Required by mutmut pytest_add_cli_args --timeout flag
     "pytest-xdist>=3.8.0",  # Parallelize large CI shards with --dist loadfile
