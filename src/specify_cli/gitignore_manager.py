@@ -254,9 +254,8 @@ class GitignoreManager:
         if not entries:
             return False
 
-        # Read existing content or start with empty list
-        if self.gitignore_path.exists():
-            content = self.gitignore_path.read_text(encoding="utf-8-sig")
+        content = read_gitignore_text(self.gitignore_path)
+        if content is not None:
             # Detect and store line ending style
             self._line_ending = self._detect_line_ending(content)
             lines = content.splitlines()
@@ -293,7 +292,7 @@ class GitignoreManager:
 
             # Join with detected line ending
             content = self._line_ending.join(lines)
-            self.gitignore_path.write_text(content, encoding="utf-8")
+            write_gitignore_text(self.gitignore_path, content)
 
         return changed
 
@@ -339,8 +338,8 @@ class GitignoreManager:
         try:
             # Snapshot existing entries before modification
             existing_before: set[str] = set()
-            if self.gitignore_path.exists():
-                content = self.gitignore_path.read_text(encoding="utf-8-sig")
+            content = read_gitignore_text(self.gitignore_path)
+            if content is not None:
                 existing_before = set(content.splitlines())
 
             # Attempt to add entries

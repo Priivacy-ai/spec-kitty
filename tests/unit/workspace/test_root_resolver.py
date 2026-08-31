@@ -115,9 +115,10 @@ def test_coord_worktree_feature_dir_is_not_rewritten_to_primary(tmp_path: Path) 
     assert canonicalize_feature_dir(coord_feature_dir) != primary_feature_dir
 
 
-def test_non_git_directory_raises(tmp_path: Path) -> None:
+def test_non_git_directory_raises(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     plain = tmp_path / "no-git"
     plain.mkdir()
+    monkeypatch.setenv("GIT_CEILING_DIRECTORIES", str(tmp_path))
 
     with pytest.raises(WorkspaceRootNotFound) as exc_info:
         resolve_canonical_root(plain)

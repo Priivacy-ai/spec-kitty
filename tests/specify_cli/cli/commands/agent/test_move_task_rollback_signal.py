@@ -63,8 +63,9 @@ def _st(tmp_path: Path) -> SimpleNamespace:
 # --------------------------------------------------------------------------- #
 
 
-def test_rollback_summary_splits_completed_from_never_started(tmp_path: Path) -> None:
+def test_rollback_summary_splits_completed_from_never_started(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """A subtask DONE in an earlier cycle is distinguishable from a never-started one."""
+    monkeypatch.setenv("GIT_CEILING_DIRECTORIES", str(tmp_path))
     feature_dir = _seed_feature(tmp_path, ["T001", "T002", "T003"])
     # T001 was completed in an earlier cycle; T002 was in progress; T003 never
     # started — the pre-reset snapshot carries that work-state.
@@ -74,6 +75,7 @@ def test_rollback_summary_splits_completed_from_never_started(tmp_path: Path) ->
         WPInnerStateDelta(subtasks={"T001": Lane.DONE, "T002": Lane.IN_PROGRESS}),
         actor="test",
         mission_slug=_SLUG,
+        repo_root=tmp_path,
     )
     reset = _mt_rollback_subtasks_reset(_st(tmp_path), _ports(feature_dir))
 

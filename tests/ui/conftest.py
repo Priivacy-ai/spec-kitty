@@ -222,7 +222,7 @@ role: {WP_AGENT_ROLE}
     )
 
 
-def _seed_event_log(feature_dir: Path) -> None:
+def _seed_event_log(feature_dir: Path, repo_root: Path) -> None:
     """Seed canonical lane and resolved-agent events for the synthetic WP.
 
     `dashboard/scanner.py::_process_wp_file` resolves a WP's lane either via
@@ -256,22 +256,24 @@ def _seed_event_log(feature_dir: Path) -> None:
         ),
         actor=WP_AGENT_TOOL,
         mission_slug=MISSION_SLUG,
+        repo_root=repo_root,
     )
 
 
 @pytest.fixture
-def synthetic_project_root(tmp_path: Path) -> Path:
+def synthetic_project_root(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
     """A temp project root with one synthetic mission/WP the scanner can read.
 
     Hermetic: no real `~/.spec-kitty`, no network, no git repository — just
     the `kitty-specs/<mission>/tasks/WP01.md` + `status.events.jsonl` layout
     `dashboard/scanner.py` needs to list the mission and populate its kanban.
     """
+    monkeypatch.setenv("GIT_CEILING_DIRECTORIES", str(tmp_path))
     feature_dir = tmp_path / "kitty-specs" / MISSION_SLUG
     tasks_dir = feature_dir / "tasks"
     tasks_dir.mkdir(parents=True)
     _write_wp_frontmatter(tasks_dir)
-    _seed_event_log(feature_dir)
+    _seed_event_log(feature_dir, tmp_path)
     return tmp_path
 
 

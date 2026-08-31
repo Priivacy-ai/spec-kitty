@@ -373,6 +373,7 @@ def test_can_apply_rejects_nonexistent_path() -> None:
 def test_symlinked_gitignore_is_rejected_without_external_write(tmp_path: Path, dangling: bool) -> None:
     _init_git_repo(tmp_path)
     external = tmp_path.parent / f"external-{tmp_path.name}.txt"
+    external.unlink(missing_ok=True)
     if not dangling:
         external.write_text("outside\n", encoding="utf-8")
     tmp_path.joinpath(".gitignore").symlink_to(external)

@@ -94,6 +94,7 @@ class TestGitignoreManager:
     @pytest.mark.parametrize("dangling", [False, True])
     def test_ensure_entries_refuses_symlinked_gitignore(self, temp_dir: Path, dangling: bool) -> None:
         external = temp_dir.parent / f"manager-external-{temp_dir.name}.txt"
+        external.unlink(missing_ok=True)
         if not dangling:
             external.write_text("outside\n", encoding="utf-8")
         temp_dir.joinpath(".gitignore").symlink_to(external)
