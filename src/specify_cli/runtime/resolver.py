@@ -23,7 +23,7 @@ import logging
 import sys
 import warnings
 from pathlib import Path
-from typing import TYPE_CHECKING, cast
+from typing import TYPE_CHECKING
 
 # Single source of truth for the resolution enum / result dataclass.
 # Re-exported via the charter.resolution facade (which itself re-exports
@@ -559,123 +559,34 @@ def _load_expected_artifact_manifest(
 ) -> ExpectedArtifactManifest | None:
     """Load and validate *mission_type*'s expected-artifacts manifest (read-only).
 
-    Consumes :meth:`charter.missions.MissionTemplateRepository.get_expected_artifacts`
-    -- the single per-type filename authority (FR-009) -- without modifying
-    ``doctrine/missions/repository.py``. Returns ``None`` when neither tier has
-    a manifest for *mission_type* (unregistered/custom type -- degrades
-    gracefully, mirrors ``ManifestRegistry.load_manifest``).
+    **Retired mirror (WP02, #3770, FR-004):** this function used to duplicate
+    the org->built-in precedence + ``model_validate`` logic locally. It now
+    delegates to :func:`charter.activation.manifest_loader.load_manifest` --
+    the single relocated, cached authority (WP01) -- instead of maintaining a
+    second copy. Returns ``None`` when neither tier has a manifest for
+    *mission_type* (unregistered/custom type -- degrades gracefully).
 
-    FR-008 (WP02): when *repo_root* is given and resolves to 1+ existing
-    configured org roots, an org-pack
-    ``<org_root>/missions/<mission_type>/expected-artifacts.yaml`` (see
-    :func:`charter.activation.org_expected_artifacts.resolve_org_expected_artifacts`,
-    contract C-4) takes precedence over the built-in file, whole-file --
-    never field-merged with it -- mirroring
-    :meth:`~specify_cli.dossier.manifest.ManifestRegistry.load_manifest`'s own
-    FR-008/WP05 precedence. *repo_root* is optional and defaults to ``None``
-    (today's exact behavior: no org lookup, built-in tree only), so every
-    existing caller with no root in scope is unaffected by this signature
-    change.
+    FR-008: when *repo_root* is given and resolves to 1+ existing configured
+    org roots, an org-pack ``<org_root>/missions/<mission_type>/expected-artifacts.yaml``
+    takes precedence over the built-in file, whole-file -- never field-merged
+    with it -- exactly as the authority implements (contract C-4). *repo_root*
+    is optional and defaults to ``None`` (today's exact behavior: no org
+    lookup, built-in tree only), so every existing caller with no root in
+    scope is unaffected by this signature.
 
     Raises:
         ManifestSchemaError: A *found*, syntactically-valid manifest that
-            fails schema validation (``extra="forbid"``) raises this instead
-            of a bare ``pydantic.ValidationError`` (FR-010,
-            ANALYZE-ARCH-001 fix round) -- for BOTH tiers. Carries a
-            branch-specific ``origin``: the built-in branch's real
-            ``ConfigResult.origin``, or a synthesized org-tier label (no
-            single source file path is available there), mirroring
-            ``ManifestRegistry.load_manifest``'s own two origin expressions
-            (``specify_cli/dossier/manifest.py:274-340``).
+            fails schema validation (``extra="forbid"``) -- propagated
+            unchanged from the authority, for BOTH tiers. Not caught here
+            (WP03/#3412 is a separate, not-yet-landed work package): this
+            delegate must not re-swallow it.
+        MalformedManifestError: A *found* manifest that fails to parse as
+            YAML at all -- propagated unchanged from the authority
+            (built-in tier only, today).
     """
-    from charter.missions import (  # noqa: PLC0415
-        ExpectedArtifactManifest,
-        MissionTemplateRepository,
-    )
-    from pydantic import ValidationError  # noqa: PLC0415
+    from charter.activation.manifest_loader import load_manifest  # noqa: PLC0415
 
-    from specify_cli.dossier.manifest import ManifestSchemaError  # noqa: PLC0415
-
-    if TYPE_CHECKING:
-        # The `ExpectedArtifactManifest` name bound above (via the
-        # `charter.missions` runtime import, needed to call
-        # `.model_validate()`) is `follow_imports = "skip"`-erased to `Any`
-        # by [tool.mypy] (pyproject.toml) -- and it shadows the module-level
-        # TYPE_CHECKING import of the same name for the rest of this
-        # function body, so a `cast("ExpectedArtifactManifest", ...)` below
-        # would resolve against the shadowed (`Any`) name instead of the
-        # real, fully-typed class. Bind the doctrine-sourced class under a
-        # distinct name, type-checking-only (mirrors the top-of-file
-        # TYPE_CHECKING import; runtime still reaches doctrine only via the
-        # charter facade), so the cast has a real type to point at.
-        from charter.offering.missions import (
-            ExpectedArtifactManifest as _TypedExpectedArtifactManifest,
-        )
-
-    org_roots = _resolve_existing_org_roots_for_manifest(repo_root)
-    if org_roots:
-        from charter.activation.org_expected_artifacts import (  # noqa: PLC0415
-            resolve_org_expected_artifacts,
-        )
-
-        org_parsed = resolve_org_expected_artifacts(org_roots, mission_type)
-        if org_parsed is not None:
-            try:
-                # `charter.*` is intentionally `follow_imports = "skip"` in
-                # [tool.mypy] (pyproject.toml) so this module's mypy run
-                # doesn't walk unrelated pre-existing strict debt elsewhere
-                # in the charter package; that also erases the imported
-                # `ExpectedArtifactManifest`'s real (pydantic `Self`) return
-                # type down to `Any`. The cast documents the type
-                # `model_validate` actually returns at runtime (or raises
-                # `ValidationError`, handled below) -- mypy is not wrong
-                # about the code, only blind to it through this boundary.
-                return cast(
-                    "_TypedExpectedArtifactManifest",
-                    ExpectedArtifactManifest.model_validate(org_parsed),
-                )
-            except ValidationError as exc:
-                # Org-tier branch: no `ConfigResult` of type `config` is in
-                # scope here, so `.origin` cannot be read off one (that would
-                # raise `AttributeError`, not `ManifestSchemaError` --
-                # ANALYZE-FRESH-001). Synthesize a descriptive origin naming
-                # the org tier + mission type + the roots checked instead.
-                origin = (
-                    f"org-tier expected-artifacts.yaml for mission type {mission_type!r} "
-                    f"(no single source file path available; checked org roots: "
-                    f"{', '.join(str(root) for root in org_roots)})"
-                )
-                raise ManifestSchemaError(mission_type, origin) from exc
-
-    config = MissionTemplateRepository.default().get_expected_artifacts(mission_type)
-    if config is None:
-        return None
-    try:
-        return ExpectedArtifactManifest.model_validate(config.parsed)
-    except ValidationError as exc:
-        # Built-in branch: `config.origin` is a real, reachable attribute.
-        raise ManifestSchemaError(mission_type, config.origin) from exc
-
-
-def _resolve_existing_org_roots_for_manifest(repo_root: Path | None) -> list[Path]:
-    """Return existing configured org doctrine roots for *repo_root*, or ``[]``.
-
-    Lazy import mirrors :func:`_load_expected_artifact_manifest`'s other
-    lazy imports and ``specify_cli.dossier.manifest._resolve_existing_org_roots``
-    -- reaches ``doctrine`` only through the ``charter.drg`` proxy (runtime
-    must reach doctrine through charter -- never directly). ``repo_root=None``
-    (the default, no-org-lookup call shape) short-circuits without importing
-    anything.
-    """
-    if repo_root is None:
-        return []
-    from charter.drg import resolve_existing_org_roots  # noqa: PLC0415
-
-    # See the cast rationale in `_load_expected_artifact_manifest` above:
-    # `charter.*` is `follow_imports = "skip"` in [tool.mypy], which erases
-    # `resolve_existing_org_roots`'s real `list[Path]` return type to `Any`
-    # at this call boundary only.
-    return cast("list[Path]", resolve_existing_org_roots(repo_root))
+    return load_manifest(mission_type, repo_root=repo_root)
 
 
 def resolve_configured_artifact_name(

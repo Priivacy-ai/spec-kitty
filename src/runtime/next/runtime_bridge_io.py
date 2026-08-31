@@ -850,23 +850,30 @@ def _presence_filenames_for(
     draw from -- instead of the previously-closed 10-tuple literal this
     function replaces (``_PRESENCE_FILE_TAGS``).
 
+    **Retired mirror (WP02, #3770, FR-005):** this function used to duplicate
+    the org->built-in precedence + ``model_validate`` load logic locally. It
+    now delegates to :func:`charter.activation.manifest_loader.load_manifest`
+    (WP01's relocated, cached authority) for the manifest, and keeps ONLY the
+    :func:`~charter.offering.missions.step_projection.project_artifact_name_set`
+    -> ``frozenset`` projection step below.
+
     Family-scoped (every step's ``required_always`` + ``required_by_step``
     + ``optional_always`` path_patterns, unioned via
-    :func:`charter.offering.missions.step_projection.project_artifact_name_set`),
-    deliberately NOT filtered to the caller's ``step_id`` (byte-compat,
-    NFR-003): the guard vocabulary calling this port is not uniform across
-    mission families or dispatch paths. Software-dev's own manifest keys
-    (mission.yaml state ids: specify/plan/tasks_outline/tasks_packages/
-    tasks_finalize/...) match its CLI-native guard's ``step_id`` 1:1, but
-    neither the *composed* ``"tasks"`` action (no such manifest key --
-    disambiguated only by ``legacy_step_id``) nor the ``plan`` mission
-    family's composed action names (``specify``/``plan``, vs. its own
-    manifest's ``goals``/``draft`` step keys) resolve correctly if this
-    port filtered to one caller-supplied ``step_id``. Scanning the whole
-    family set instead -- exactly what the old global 10-tuple effectively
-    did for every family it was blindly reused across -- avoids silently
-    turning either mismatch into a spurious block. (A step-scoped design
-    was tried during this WP's implementation and reverted after it red
+    ``project_artifact_name_set``), deliberately NOT filtered to the
+    caller's ``step_id`` (byte-compat, NFR-003): the guard vocabulary
+    calling this port is not uniform across mission families or dispatch
+    paths. Software-dev's own manifest keys (mission.yaml state ids:
+    specify/plan/tasks_outline/tasks_packages/tasks_finalize/...) match its
+    CLI-native guard's ``step_id`` 1:1, but neither the *composed* ``"tasks"``
+    action (no such manifest key -- disambiguated only by
+    ``legacy_step_id``) nor the ``plan`` mission family's composed action
+    names (``specify``/``plan``, vs. its own manifest's ``goals``/``draft``
+    step keys) resolve correctly if this port filtered to one
+    caller-supplied ``step_id``. Scanning the whole family set instead --
+    exactly what the old global 10-tuple effectively did for every family
+    it was blindly reused across -- avoids silently turning either mismatch
+    into a spurious block. (A step-scoped design was tried during the WP04
+    implementation and reverted after it red
     ``tests/runtime/test_bridge_parity.py::test_coverage_floor_is_met`` by
     incorrectly blocking the software-dev composed ``tasks`` guard and the
     ``plan``-family ``specify``/``plan`` guards even when their artifacts
@@ -875,7 +882,10 @@ def _presence_filenames_for(
     A custom mission family gates on its own filenames (AC-10) as long as
     it ships an ``expected-artifacts.yaml`` -- present -> passes, absent ->
     blocks -- regardless of which step is being gathered for; a family
-    with no manifest resolves to an empty set. The distinct guard-table
+    with no manifest resolves to an EMPTY ``frozenset()`` (never ``None`` --
+    that is this projection's own absence output, distinct from the
+    ``blocking_artifact_names`` tri-state :func:`_expected_artifacts_manifest_resolves`
+    governs; see that function's docstring). The distinct guard-table
     *dispatch* fail-closed concern for a genuinely unregistered family is a
     separate, retained mechanism: ``runtime_bridge_cores.evaluate_guards_strict``
     still raises ``UnregisteredMissionFamilyError`` when ``_GUARD_TABLES``
@@ -886,62 +896,28 @@ def _presence_filenames_for(
     ``tests/specify_cli/runtime/test_configured_artifact_name.py`` for the
     per-(family, artifact_key) byte-compat characterization.
 
-    FR-008 (WP02): when *repo_root* is given and resolves to 1+ existing
-    configured org roots, an org-pack
-    ``<org_root>/missions/<mission_family>/expected-artifacts.yaml`` takes
-    precedence over the built-in file, whole-file -- never field-merged with
-    it (same last-existing-match-wins / whole-file-replacement precedence
-    :func:`charter.activation.org_expected_artifacts.resolve_org_expected_artifacts`
-    itself implements). *repo_root* defaults to ``None`` (today's exact
-    behavior: no org lookup, built-in tree only).
+    FR-008: when *repo_root* is given and resolves to 1+ existing configured
+    org roots, an org-pack ``<org_root>/missions/<mission_family>/expected-artifacts.yaml``
+    takes precedence over the built-in file, whole-file -- never field-merged
+    with it -- exactly as the authority implements (contract C-4). *repo_root*
+    defaults to ``None`` (today's exact behavior: no org lookup, built-in
+    tree only).
 
     Raises:
         ManifestSchemaError: A *found*, syntactically-valid manifest that
-            fails schema validation (``extra="forbid"``) raises this instead
-            of a bare ``pydantic.ValidationError`` (FR-010, #3704 pr-merged-001
-            fix round) -- for BOTH tiers, mirroring
-            :func:`specify_cli.runtime.resolver._load_expected_artifact_manifest`'s
-            own wrap. Carries a branch-specific ``origin``: the built-in
-            branch's real ``ConfigResult.origin``, or a synthesized org-tier
-            label (no single source file path is available there).
+            fails schema validation (``extra="forbid"``) -- propagated
+            unchanged from the authority, for BOTH tiers. Not caught here:
+            this projection must not re-swallow it.
+        MalformedManifestError: A *found* manifest that fails to parse as
+            YAML at all -- propagated unchanged from the authority
+            (built-in tier only, today).
     """
-    from charter.missions import MissionTemplateRepository  # noqa: PLC0415
-    from charter.offering.missions import ExpectedArtifactManifest  # noqa: PLC0415
+    from charter.activation.manifest_loader import load_manifest  # noqa: PLC0415
     from charter.offering.missions.step_projection import project_artifact_name_set  # noqa: PLC0415
-    from pydantic import ValidationError  # noqa: PLC0415
 
-    from specify_cli.dossier.manifest import ManifestSchemaError  # noqa: PLC0415
-
-    org_parsed, org_roots = _resolve_org_manifest_mapping(mission_family, repo_root)
-    if org_parsed is not None:
-        try:
-            manifest = ExpectedArtifactManifest.model_validate(org_parsed)
-        except ValidationError as exc:
-            # Org-tier branch: no `ConfigResult` of type `config` is in
-            # scope here, so `.origin` cannot be read off one (that would
-            # raise `AttributeError`, not `ManifestSchemaError`). Synthesize
-            # a descriptive origin naming the org tier + mission family + the
-            # roots checked, byte-for-byte matching
-            # resolver.py::_load_expected_artifact_manifest's own org-tier
-            # `ManifestSchemaError` construction (kept identical so an operator
-            # gets the same actionable message whichever entry point surfaces
-            # the broken manifest).
-            origin = (
-                f"org-tier expected-artifacts.yaml for mission type {mission_family!r} "
-                f"(no single source file path available; checked org roots: "
-                f"{', '.join(str(root) for root in org_roots)})"
-            )
-            raise ManifestSchemaError(mission_family, origin) from exc
-    else:
-        config = MissionTemplateRepository.default().get_expected_artifacts(mission_family)
-        if config is None:
-            return frozenset()
-        try:
-            manifest = ExpectedArtifactManifest.model_validate(config.parsed)
-        except ValidationError as exc:
-            # Built-in branch: `config.origin` is a real, reachable
-            # attribute, mirroring resolver.py's built-in-branch handling.
-            raise ManifestSchemaError(mission_family, config.origin) from exc
+    manifest = load_manifest(mission_family, repo_root=repo_root)
+    if manifest is None:
+        return frozenset()
     name_set = project_artifact_name_set(manifest) or {}
     return frozenset(name_set.values())
 
@@ -960,9 +936,13 @@ def _resolve_org_manifest_mapping(
     string, identically to resolver.py's org-tier construction, instead of
     re-deriving them.
 
-    Shared by :func:`_presence_filenames_for` and
-    :func:`_expected_artifacts_manifest_resolves` so both consult the exact
-    same org-tier precedence (FR-008) rather than each re-deriving it.
+    **WP02 (#3770) note:** :func:`_presence_filenames_for` no longer calls
+    this helper directly -- it now delegates its whole manifest load
+    (org-tier included) to :func:`charter.activation.manifest_loader.load_manifest`.
+    This helper's sole remaining caller is
+    :func:`_expected_artifacts_manifest_resolves`, which still needs the
+    bare "does an org file exist" boolean (not the loaded/validated
+    manifest) for the ``blocking_artifact_names`` tri-state (C-002).
     """
     if repo_root is None:
         return None, []
@@ -990,10 +970,10 @@ def _expected_artifacts_manifest_resolves(mission_family: str, repo_root: Path |
 
     The single per-:func:`gather_artifact_presence`-call source for
     ``ArtifactPresenceSnapshot.blocking_artifact_names``'s ``None`` vs. real
-    ``frozenset`` distinction (SPEC-FRESH-001) -- reuses the exact same
-    tier-checking logic :func:`_presence_filenames_for` runs internally,
-    factored out via :func:`_resolve_org_manifest_mapping` so the two
-    functions share one source of truth.
+    ``frozenset`` distinction (SPEC-FRESH-001, C-002) -- untouched by WP02:
+    still its own org-existence check via :func:`_resolve_org_manifest_mapping`
+    plus a bare built-in-tier presence check, independent of
+    :func:`_presence_filenames_for`'s (now authority-delegated) manifest load.
     """
     org_mapping, _ = _resolve_org_manifest_mapping(mission_family, repo_root)
     if org_mapping is not None:
