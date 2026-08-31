@@ -605,21 +605,20 @@ def merge(
         # ``forecast`` seam. Behavior + JSON key set preserved byte-for-byte
         # (FR-001, FR-004); ``run_dry_run_forecast`` terminates the dry-run path.
         #
-        # #3131 scoping note: ``forecast.py`` is not an owned file of this WP —
-        # the retention-resolver consumption contract lists it as a future
-        # consumer, but wiring the forecast payload to
-        # ``resolve_merge_retention`` is out of scope here. To keep the dry-run
-        # preview behavior byte-identical (its signature still takes concrete
-        # ``bool`` flags), an unset tri-state flag falls back to the pre-#3131
-        # CLI default (delete/remove) for the PREVIEW ONLY — the real merge
-        # path below always resolves through the retention policy.
+        # #3131 FR-008: the RAW tri-state flags are threaded through so the
+        # forecast resolves the effective cleanup decision through
+        # ``resolve_merge_retention`` (against the mission's primary meta.json)
+        # exactly as the real merge path does. An unset flag (``None``) therefore
+        # lets a mission's retention policy govern the preview — the dry-run
+        # forecast now reflects the resolved retain/delete decision, not the
+        # pre-#3131 delete/remove default.
         run_dry_run_forecast(
             repo_root=repo_root,
             resolved_feature=resolved_mission,
             resolved_target_branch=resolved_target_branch,
             resolved_strategy=resolved_strategy,
-            delete_branch=delete_branch if delete_branch is not None else True,
-            remove_worktree=remove_worktree if remove_worktree is not None else True,
+            delete_branch=delete_branch,
+            remove_worktree=remove_worktree,
             push=push,
             json_output=json_output,
         )
