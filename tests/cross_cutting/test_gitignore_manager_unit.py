@@ -99,7 +99,7 @@ class TestGitignoreManager:
             external.write_text("outside\n", encoding="utf-8")
         temp_dir.joinpath(".gitignore").symlink_to(external)
 
-        with pytest.raises(GitignorePathError, match="symlinked .gitignore"):
+        with pytest.raises(GitignorePathError, match="is a symlink"):
             GitignoreManager(temp_dir).ensure_entries([".codex/"])
 
         if not dangling:

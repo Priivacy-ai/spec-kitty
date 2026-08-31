@@ -131,6 +131,14 @@ def write_gitignore_text(gitignore_path: Path, content: str) -> None:
             temporary_path = Path(handle.name)
         if existing_mode is not None:
             temporary_path.chmod(existing_mode)
+        else:
+            # No existing file to replicate the mode of (the common
+            # `spec-kitty init` first-write path): `NamedTemporaryFile`
+            # always creates its tempfile at 0600 regardless of the process
+            # umask, so a brand-new .gitignore would otherwise land there
+            # instead of the umask-respecting mode `write_text()` used to
+            # produce. Match that historical behaviour explicitly.
+            temporary_path.chmod(0o666 & ~_get_umask())
         if gitignore_path.is_symlink():
             raise GitignorePathError(f"Refusing to replace symlinked .gitignore: {gitignore_path}")
         os.replace(temporary_path, gitignore_path)
