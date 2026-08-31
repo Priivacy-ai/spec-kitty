@@ -14,6 +14,7 @@ suite on purpose — see ``repo_identity.py``'s module docstring for why.
 
 from __future__ import annotations
 
+import os
 import subprocess
 import time
 from pathlib import Path
@@ -97,7 +98,7 @@ def test_repo_without_origin_and_without_quarantine_raises_unverified(tmp_path):
         repo_identity.repo_name(str(local))
 
 
-def test_not_a_git_repo_raises_unverified(tmp_path):
+def test_not_a_git_repo_raises_unverified(tmp_path, no_git_ancestry_inside_tmp_path):
     """Upstream falls back to the cwd basename here too
     (``test_not_a_git_repo_falls_back_to_basename``); this module has nothing
     to derive an identity from and must refuse rather than guess."""
@@ -148,7 +149,7 @@ def test_container_directory_with_two_child_checkouts_raises_ambiguous(tmp_path,
         repo_identity.repo_name(str(container))
 
 
-def test_container_directory_with_one_child_checkout_is_unverified_not_ambiguous(tmp_path, origin):
+def test_container_directory_with_one_child_checkout_is_unverified_not_ambiguous(tmp_path, origin, no_git_ancestry_inside_tmp_path):
     """A single child checkout is not an ambiguity — but querying the
     container itself (not the checkout) still has no `origin` of its own, so
     it fails as unverified rather than silently reaching into the child."""
@@ -367,7 +368,9 @@ def test_symlink_into_a_subdirectory_of_a_different_checkout_raises_even_nested(
 
 
 @pytest.mark.requires_symlinks
-def test_symlink_inside_a_checkout_to_a_non_repo_location_does_not_raise(tmp_path, origin):
+def test_symlink_inside_a_checkout_to_a_non_repo_location_does_not_raise(
+    tmp_path, origin, monkeypatch
+):
     """Regression guard pinning the deliberate asymmetry in the fix above:
     a symlink living INSIDE a real checkout that happens to point OUTSIDE
     any git repository must NOT raise. `real` (the resolved side) governs
@@ -378,12 +381,61 @@ def test_symlink_inside_a_checkout_to_a_non_repo_location_does_not_raise(tmp_pat
     only ONE candidate: the checkout the symlink object itself lives in, not
     a foreign one) with nothing to disagree with. Raising here would be
     over-rejection of an ordinary, harmless symlink that a real checkout is
-    free to contain."""
+    free to contain.
+
+    `isolated_no_git` claiming "no git identity of its own" is about ITS OWN
+    ancestry, not `tmp_path`'s — some sandboxes mount `/tmp` (or an ancestor
+    of it) inside a git checkout of their own (planning#158), which would
+    make the real, unresolved walk-up from `isolated_no_git` find that
+    unrelated ancestor's `.git` and turn this into a DIFFERENT regression
+    this test does not cover. So the one filesystem lookup that must see "no
+    repository here" for `isolated_no_git` itself is pinned directly,
+    leaving every other lookup (in particular the syntactic walk-up from
+    `link` that must still independently find `repo_a`) running the real,
+    unmocked git-discovery code.
+
+    That same ambient-ancestor boundary applies just as much to the two LIVE
+    ``git`` probes `_origin_candidates` tries first (`git config --get
+    remote.origin.url`, `git remote get-url origin`): they run with
+    ``cwd=str(link)``, and the OS resolves the symlink for a subprocess's
+    ``cwd`` exactly like `os.path.realpath` does, so real git's own
+    repository discovery starts at `isolated_real` and — unpinned — would
+    walk up into the same unrelated ancestor checkout and report ITS
+    `origin`, before the (already-pinned) filesystem fallback is ever
+    consulted. Pinning only `_git_dir_from_filesystem` leaves that path
+    open (planning#158 squad finding on PR #386: turns a raise into
+    asserting the wrong repo name instead of eliminating the
+    environment-dependence). So `Deadline.run` is pinned the same way, for
+    the same single boundary — calls whose `cwd` resolves to
+    `isolated_real` return `""` (a failed-closed probe, indistinguishable
+    from a real one that found nothing), while every other call (in
+    particular the two live probes as they walk from `repo_a` itself, once
+    the syntactic fallback path is taken) runs the real, unmocked
+    subprocess."""
     repo_a = _clone(origin, tmp_path / "repo-a")
     isolated_no_git = tmp_path / "isolated-no-git"
     isolated_no_git.mkdir()
     link = repo_a / "link-out"
     link.symlink_to(isolated_no_git)
+
+    isolated_real = os.path.realpath(str(isolated_no_git))
+    original_lookup = repo_identity._git_dir_from_filesystem
+
+    def _lookup_with_isolated_boundary(cwd: str) -> str:
+        if os.path.abspath(cwd) == isolated_real:
+            return ""
+        return original_lookup(cwd)
+
+    monkeypatch.setattr(repo_identity, "_git_dir_from_filesystem", _lookup_with_isolated_boundary)
+
+    original_run = repo_identity.Deadline.run
+
+    def _run_with_isolated_boundary(self, args: list[str], cwd: str) -> str:
+        if os.path.realpath(cwd) == isolated_real:
+            return ""
+        return original_run(self, args, cwd)
+
+    monkeypatch.setattr(repo_identity.Deadline, "run", _run_with_isolated_boundary)
 
     assert repo_identity.repo_name(str(link)) == "acme-widgets"
 
@@ -554,7 +606,7 @@ def test_identity_propagates_ambiguous_repository_identity(tmp_path, origin):
         repo_identity.identity(str(container))
 
 
-def test_identity_propagates_unverified_repository_identity(tmp_path):
+def test_identity_propagates_unverified_repository_identity(tmp_path, no_git_ancestry_inside_tmp_path):
     plain = tmp_path / "just-a-folder"
     plain.mkdir()
     with pytest.raises(repo_identity.UnverifiedRepositoryIdentity):
@@ -566,7 +618,7 @@ def test_identity_honors_a_caller_supplied_deadline_instead_of_minting_its_own(t
     status-transition broadcast resolving credentials, presence identity,
     and a focus capability) must have that ONE deadline threaded to every
     probe — not have identity() silently mint a fresh GIT_BUDGET_S on top
-    of it (EXPERIMENTAL-spec-kitty#203)."""
+    of it (Priivacy-ai/spec-kitty#203)."""
     clone = _clone(origin, tmp_path / "clone")
     shared = repo_identity.Deadline(60.0)
     seen: list[object] = []
@@ -643,7 +695,7 @@ def stalled_non_repo(tmp_path, monkeypatch):
     return str(work)
 
 
-def test_not_a_git_repo_raises_even_with_git_wedged(stalled_non_repo):
+def test_not_a_git_repo_raises_even_with_git_wedged(stalled_non_repo, no_git_ancestry_inside_tmp_path):
     """Upstream's matching fixture asserts `repo_name(stalled_git) ==
     "work"` — exactly the spoofable directory-basename guess this module
     exists to refuse."""
@@ -743,7 +795,7 @@ def test_for_repository_passes_the_given_deadline_to_identity(tmp_path, origin, 
     assert seen == [shared], "for_repository must forward the caller's Deadline, not mint its own"
 
 
-def test_for_repository_raises_instead_of_constructing_an_unverified_client_config(tmp_path):
+def test_for_repository_raises_instead_of_constructing_an_unverified_client_config(tmp_path, no_git_ancestry_inside_tmp_path):
     plain = tmp_path / "just-a-folder"
     plain.mkdir()
     with pytest.raises(repo_identity.UnverifiedRepositoryIdentity):
@@ -796,8 +848,7 @@ def test_origin_url_returns_the_live_remote_verbatim(tmp_path, origin):
     from it."""
     clone = _clone(origin, tmp_path / "work" / "some-other-dirname")
     url = repo_identity.origin_url(str(clone))
-    assert url.endswith("acme-widgets.git")
-    assert "work" not in url  # the checkout path leaks nothing into it
+    assert url == str(origin)  # the remote itself, verbatim — no checkout path leaks in
 
 
 def test_origin_url_ignores_a_global_insteadof_transport_rewrite(tmp_path, origin, instead_of_rewrite):

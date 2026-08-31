@@ -1,9 +1,11 @@
 """Tests for the m_2_0_9_state_gitignore migration."""
 
+import os
 from pathlib import Path
 
 import pytest
 
+from specify_cli.gitignore_manager import GitignorePathError
 from specify_cli.upgrade.migrations.m_2_0_9_state_gitignore import (
     StateGitignoreMigration,
     _NEW_RUNTIME_ENTRIES,
@@ -103,6 +105,19 @@ def test_should_apply_true_when_missing(tmp_path: Path, migration):
 def test_should_apply_true_when_no_gitignore(tmp_path: Path, migration):
     """detect() returns True when .gitignore doesn't exist."""
     assert migration.detect(tmp_path)
+
+
+def test_detect_rejects_symlinked_gitignore(tmp_path: Path, migration):
+    """detect() must not follow a .gitignore that is a symlink (issue #626)."""
+    outside_target = tmp_path.parent / f"outside-target-{os.getpid()}.txt"
+    outside_target.write_text("do-not-touch\n")
+    (tmp_path / ".gitignore").symlink_to(outside_target)
+
+    try:
+        with pytest.raises(GitignorePathError):
+            migration.detect(tmp_path)
+    finally:
+        outside_target.unlink(missing_ok=True)
 
 
 def test_dry_run_no_changes(tmp_path: Path, migration):

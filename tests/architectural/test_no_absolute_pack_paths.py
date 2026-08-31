@@ -10,7 +10,7 @@ source. Empirically real before this WP: this very repository's committed
 carried a macOS Homebrew wheel path (both healed by
 ``m_3_2_7_heal_provenance_paths``).
 
-**Scan is PATTERN-based, not resolver-based.** ``doctrine.provenance.
+**Scan is PATTERN-based, not resolver-based.** ``charter.offering.provenance.
 is_built_in_pack_path`` classifies against THIS process's OWN resolved
 built-in pack root (``kernel.paths.get_built_in_pack_root()``) -- which,
 inside a Spec Kitty lane worktree, differs from the path baked into a

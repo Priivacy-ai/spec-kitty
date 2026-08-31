@@ -71,12 +71,12 @@ from charter.mission_type_profiles import (
     _profile_type_grain,
 )
 from charter.mission_type_profile_repository import MissionTypeProfileRepository
-from doctrine.missions.mission_type_repository import builtin_mission_type_ids
+from charter.offering.missions.mission_type_repository import builtin_mission_type_ids
 
 pytestmark = [pytest.mark.doctrine, pytest.mark.fast, pytest.mark.corpus]
 
 #: The shipped missions root: ``packs/built-in/missions`` (relocated from
-#: ``src/doctrine/missions`` by mission
+#: ``src/charter/offering/missions`` by mission
 #: doctrine-consumer-surface-missions-extraction-01KZ6G6H, FR-005).
 #: Path-derived from this file (mirrors ``test_shipped_graph_valid.py``'s
 #: ``SHIPPED_GRAPH`` constant) rather than a shared fixture, per the

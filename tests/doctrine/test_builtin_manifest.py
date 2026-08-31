@@ -18,7 +18,7 @@ from __future__ import annotations
 
 import pytest
 
-from doctrine.artifact_kinds import ArtifactKind
+from charter.offering.artifact_kinds import ArtifactKind
 from specify_cli.doctrine.builtin_manifest import (
     MANIFEST_FILENAME,
     build_builtin_manifest,
@@ -149,7 +149,7 @@ class TestWiringFires:
     def test_regenerate_graph_materializes_the_manifest(self, pack_root, monkeypatch) -> None:
         import typer
 
-        from doctrine.drg.migration import hand_authored_overlay
+        from charter.offering.drg.migration import hand_authored_overlay
         from specify_cli.cli.commands import doctrine as doctrine_cmd
 
         # Stub the unrelated DRG graph write; keep the real manifest generator.

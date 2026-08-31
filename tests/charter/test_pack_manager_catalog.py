@@ -32,7 +32,7 @@ from charter.pack_manager import (
     CharterPackManager,
     _resolve_layer_candidate,
 )
-from doctrine.artifact_kinds import CHARTER_KIND_TOKENS, ArtifactKind
+from charter.offering.artifact_kinds import CHARTER_KIND_TOKENS, ArtifactKind
 
 pytestmark = pytest.mark.unit
 
@@ -394,7 +394,7 @@ class TestResolveLayerCandidate:
         candidate = _resolve_layer_candidate(
             "built-in", tmp_path, None, "missions/mission_types", layered=False
         )
-        from doctrine.missions.repository import MissionTemplateRepository
+        from charter.offering.missions.repository import MissionTemplateRepository
 
         assert candidate == MissionTemplateRepository.default_missions_root() / "mission_types"
 

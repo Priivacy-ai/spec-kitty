@@ -11,7 +11,9 @@ Output layout (spec 080 §2.4, FR-015):
 - SaaS endpoint the CLI is pointed at, with its provenance, plus a plain
   warning when the stored session was minted against a *different*
   endpoint (#176 — after a hostname move this is the line that explains
-  why every call suddenly 401s)
+  why every call suddenly 401s); or, when ``SPEC_KITTY_SAAS_URL`` and
+  ``config.toml [sync].server_url`` genuinely disagree, a split-brain line
+  naming both values instead of silently picking the env one (#193)
 - SaaS endpoint the stored session was minted against, when known
 - email / name / user_id
 - Team list with the default team marked
@@ -24,6 +26,12 @@ Output layout (spec 080 §2.4, FR-015):
 - Storage backend (human label for the encrypted local session file)
 - Session ID, last_used_at, auth method
 
+The not-authenticated and session-expired early returns also print the
+``SaaS:`` endpoint line — the expired case additionally gets the session
+issuer + mismatch warning, since that is exactly the post-hostname-move
+symptom #176 exists to diagnose (#189). ``whoami``'s separate exit-1/no-output
+contract when unauthenticated is untouched.
+
 Exit code is 0 in both authenticated and not-authenticated cases per
 FR-015: ``auth status`` is purely informational and must never surface
 as a failure to shells / scripts.
@@ -31,19 +39,26 @@ as a failure to shells / scripts.
 
 from __future__ import annotations
 
-from kernel.clock import UTC, datetime, now_utc
 from rich.markup import escape
+
+from kernel.clock import UTC, datetime, now_utc
 
 from specify_cli.cli.console import console
 
 from specify_cli.auth import get_token_manager
-from specify_cli.auth.errors import ConfigurationError
-from specify_cli.auth.server_target import (
-    SAAS_URL_ENV_VAR,
-    ResolvedServerTarget,
-    resolve_server_target,
-)
 from specify_cli.auth.session import StoredSession
+from specify_cli.auth.verdict import HealthVerdict, evaluate_auth_verdict
+from specify_cli.cli.commands._auth_saas_target import (
+    print_saas_endpoint,
+    print_saas_target,
+)
+
+
+_VERDICT_STYLE: dict[str, tuple[str, str]] = {
+    "ok": ("green", "+"),
+    "unknown": ("yellow", "?"),
+    "fail": ("red", "X"),
+}
 
 
 # Mapping from the StorageBackend literal (see session.py) to a
@@ -71,20 +86,22 @@ def status_impl() -> None:
     tm = get_token_manager()
     session = tm.get_current_session()
 
+    verdict = evaluate_auth_verdict(session, now_utc())
+    _print_banner(verdict)
+
     if session is None:
-        console.print("[red]X Not authenticated[/red]")
+        print_saas_endpoint()
         console.print("  Run [bold]spec-kitty auth login[/bold] to authenticate.")
         return
 
-    if session.is_refresh_token_expired():
-        console.print("[red]X Session expired (refresh token expired)[/red]")
+    if verdict.state == "fail":
+        print_saas_target(session)
         console.print("  Run [bold]spec-kitty auth login[/bold] to re-authenticate.")
         return
 
-    console.print("[green]+ Authenticated[/green]")
     console.print()
 
-    _print_saas_target(session)
+    print_saas_target(session)
     _print_identity(session)
     console.print()
 
@@ -97,7 +114,7 @@ def status_impl() -> None:
     _print_storage_backend(session)
     console.print(f"  Session ID:     {session.session_id}")
     console.print(f"  Last used:      {_format_iso(session.last_used_at)}")
-    console.print(f"  Auth method:    {format_auth_method(session.auth_method)}")
+    console.print(f"  Auth method:    {escape(format_auth_method(session.auth_method))}")
 
 
 # ---------------------------------------------------------------------------
@@ -105,55 +122,18 @@ def status_impl() -> None:
 # ---------------------------------------------------------------------------
 
 
-def _print_saas_target(session: StoredSession) -> None:
-    """Print the SaaS endpoint line (first line of the status block) plus,
-    when it disagrees with where the session was minted, the mismatch warning.
-
-    The URL is the *same* resolved target ``auth login`` prints
-    (:func:`specify_cli.auth.server_target.resolve_server_target`), so the two
-    commands can never name different endpoints. Since #179 that resolver
-    fails closed when neither ``SPEC_KITTY_SAAS_URL`` nor ``config.toml``
-    names a server — there is no default endpoint to fall back to — so this
-    reports "not configured" (with the remedy) instead of a URL.
-    """
-    try:
-        target = resolve_server_target()
-    except ConfigurationError:
-        # escape(): the remedy names `[sync].server_url` — unescaped, Rich
-        # markup parses "[sync]" as a style tag and silently drops it (#182).
-        remedy = escape(f"— set {SAAS_URL_ENV_VAR} (or [sync].server_url in config.toml)")
-        console.print(f"  SaaS:           not configured [dim]{remedy}[/dim]")
-        _print_session_issuer(session.issuer_url)
-        return
-    # escape(): both the resolved URL and the provenance suffix can contain
-    # `[sync]`/`[/]`-shaped substrings (a config.toml server_url is
-    # attacker- or fat-finger-controlled) — unescaped, Rich markup either
-    # drops the bracketed text or raises MarkupError out of console.print,
-    # which would violate this module's own never-fail invariant (#182).
-    console.print(f"  SaaS:           {escape(target.resolved_server_url)} [dim]{escape(format_saas_provenance(target))}[/dim]")
-    _print_session_issuer(session.issuer_url)
-    warning = format_saas_mismatch_warning(
-        session.issuer_url,
-        source_name=saas_source_name(target),
-        resolved_server_url=target.resolved_server_url,
-    )
-    if warning is not None:
-        console.print(f"  [yellow]{escape(warning)}[/yellow]")
-
-
-def _print_session_issuer(issuer_url: str | None) -> None:
-    """Print where the stored session was minted, when the session knows it."""
-    if issuer_url is None:
-        return
-    console.print(f"  Session SaaS:   {escape(_normalize_endpoint(issuer_url))} [dim](authenticated session)[/dim]")
+def _print_banner(verdict: HealthVerdict) -> None:
+    """Print the verdict-derived headline and its evidence."""
+    color, glyph = _VERDICT_STYLE[verdict.state]
+    console.print(f"[{color}]{glyph} {verdict.headline}[/{color}] ({verdict.evidence})")
 
 
 def _print_identity(session: StoredSession) -> None:
     """Print the authenticated user's identity block."""
     if session.name and session.name != session.email:
-        console.print(f"  User:           {session.email} ({session.name})")
+        console.print(f"  User:           {escape(session.email)} ({escape(session.name)})")
     else:
-        console.print(f"  User:           {session.email}")
+        console.print(f"  User:           {escape(session.email)}")
     console.print(f"  User ID:        {session.user_id}")
 
 
@@ -171,7 +151,7 @@ def _print_teams(session: StoredSession) -> None:
         if is_default:
             marker_parts.append("default")
         marker = f" [dim]({', '.join(marker_parts)})[/dim]" if marker_parts else ""
-        console.print(f"    - {team.name} ({team.role}){marker}")
+        console.print(f"    - {escape(team.name)} ({team.role}){marker}")
 
 
 def _print_token_expiry(session: StoredSession) -> None:
@@ -196,7 +176,7 @@ def _print_token_expiry(session: StoredSession) -> None:
 
 def _print_storage_backend(session: StoredSession) -> None:
     """Print the storage backend with a user-friendly label."""
-    label = format_storage_backend(session.storage_backend)
+    label = escape(format_storage_backend(session.storage_backend))
     console.print(f"  Storage:        {label}")
 
 
@@ -250,61 +230,6 @@ def format_auth_method(method: str) -> str:
     return _AUTH_METHOD_LABELS.get(method, f"Unknown ({method})")
 
 
-def saas_source_name(target: ResolvedServerTarget) -> str:
-    """Name the configuration source the resolved SaaS URL came from.
-
-    Mirrors the precedence inside
-    :func:`specify_cli.auth.server_target.resolve_server_target`: env first,
-    then ``config.toml [sync].server_url``, then the documented default. Used
-    in the mismatch warning so the sentence names the thing the user must
-    change. Note ``.kittify/saas-auth.json`` is deliberately absent — it feeds
-    the tracker/zeitgeist transport chain, not the OAuth login target.
-    """
-    if target.env_server_url is not None:
-        return SAAS_URL_ENV_VAR
-    if target.configured_server_url is not None:
-        return "config.toml [sync].server_url"
-    return "the default endpoint"
-
-
-def format_saas_provenance(target: ResolvedServerTarget) -> str:
-    """Return the dim provenance suffix shown next to the ``SaaS:`` line."""
-    if target.env_server_url is not None:
-        return f"(from {SAAS_URL_ENV_VAR})"
-    if target.configured_server_url is not None:
-        return "(from config.toml [sync].server_url)"
-    return "(default)"
-
-
-def format_saas_mismatch_warning(
-    session_issuer_url: str | None,
-    *,
-    source_name: str,
-    resolved_server_url: str,
-) -> str | None:
-    """Build the stale-session warning, or ``None`` when there is nothing to warn about.
-
-    ``None`` when the session carries no issuer (minted before #176 recorded
-    one — nothing to compare against) or when it matches the currently
-    configured endpoint modulo a trailing slash.
-    """
-    if session_issuer_url is None:
-        return None
-    if _normalize_endpoint(session_issuer_url) == _normalize_endpoint(resolved_server_url):
-        return None
-    return f"Session is for {_normalize_endpoint(session_issuer_url)}; {source_name} now points at {resolved_server_url} — run spec-kitty auth login --force"
-
-
-def _normalize_endpoint(url: str) -> str:
-    """Normalize a URL for endpoint comparison.
-
-    Same semantics as ``server_target._normalize_url`` (strip surrounding
-    whitespace, drop one trailing slash); kept local so the comparison does
-    not reach into another module's private helper.
-    """
-    return url.strip().rstrip("/")
-
-
 def _format_iso(dt: datetime) -> str:
     """Render a datetime as an ISO-8601 UTC string for display."""
     # Normalize to UTC then strip microseconds for display compactness.
@@ -317,7 +242,7 @@ __all__ = [
     "format_duration",
     "format_storage_backend",
     # format_auth_method: demoted — no cross-module src/ callers (WP01).
-    # format_saas_mismatch_warning / format_saas_provenance / saas_source_name:
-    # demoted — called within this module (and unit-tested directly), with no
-    # other src/ consumer (#176).
+    # print_saas_target / format_saas_mismatch_warning / format_saas_provenance /
+    # saas_source_name: moved to _auth_saas_target (#192) — shared by status
+    # and whoami, so neither imports the other's private helper.
 ]

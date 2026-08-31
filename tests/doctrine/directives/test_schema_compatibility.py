@@ -7,15 +7,15 @@ from pathlib import Path
 import pytest
 from ruamel.yaml import YAML
 
-from doctrine.directives.models import Directive
-from doctrine.directives.repository import DirectiveRepository
-from doctrine.directives.validation import validate_directive
+from charter.offering.directives.models import Directive
+from charter.offering.directives.repository import DirectiveRepository
+from charter.offering.directives.validation import validate_directive
 
 
 pytestmark = [pytest.mark.doctrine, pytest.mark.fast]
 
 REPO_ROOT = Path(__file__).resolve().parents[3]
-BUILT_IN_DIRECTIVES_DIR = REPO_ROOT / "src" / "doctrine" / "directives" / "built-in"
+BUILT_IN_DIRECTIVES_DIR = REPO_ROOT / "src" / "charter" / "offering" / "directives" / "built-in"
 
 
 def _load_yaml(path: Path) -> dict:

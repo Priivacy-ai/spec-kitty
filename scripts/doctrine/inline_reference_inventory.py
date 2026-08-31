@@ -46,7 +46,7 @@ import yaml
 
 _REPO_ROOT = Path(__file__).resolve().parents[2]
 #: The relationship-bearing built-in artefacts (agent profiles, styleguides,
-#: directives, …) relocated from ``src/doctrine/<kind>/built-in`` to the
+#: directives, …) relocated from ``src/charter/offering/<kind>/built-in`` to the
 #: top-level ``packs/built-in/<kind>`` pack root (mission
 #: relocate-builtin-doctrine-packs); the inline-reference inventory enumerates
 #: them there. Schemas/templates/missions stay under ``src/doctrine`` and carry
@@ -102,7 +102,7 @@ class Inventory:
 
 def _resolve_path_ref_or_none(path_str: str) -> tuple[str, str] | None:
     """Delegate to the extractor's own resolver — never re-implement the rule."""
-    from doctrine.drg.migration.extractor import _resolve_path_ref
+    from charter.offering.drg.migration.extractor import _resolve_path_ref
 
     return _resolve_path_ref(path_str)
 

@@ -33,7 +33,7 @@ from specify_cli.review.pre_review_gate import evaluate_pre_review_gate
 
 if TYPE_CHECKING:
     from specify_cli.review.baseline import BaselineTestResult
-    from specify_cli.review.pre_review_gate import GateVerdict
+    from specify_cli.review.pre_review_gate import GateStatusObserver, GateVerdict
     from specify_cli.review.scope_source import ScopeSource
     from specify_cli.status.models import Lane
 
@@ -71,6 +71,7 @@ class TransitionGateContext:
     force: bool
     from_lane: Lane
     to_lane: Lane
+    status_observer: GateStatusObserver | None = None
 
 
 @dataclass(frozen=True)
@@ -111,6 +112,7 @@ def _spec_kitty_pre_review_handler(ctx: TransitionGateContext) -> GateVerdict:
         repo_root=ctx.repo_root,
         baseline=ctx.baseline,
         scope_source=ctx.scope_source,
+        status_observer=ctx.status_observer,
     )
 
 

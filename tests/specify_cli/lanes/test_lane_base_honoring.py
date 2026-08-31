@@ -287,7 +287,6 @@ def _run_implement_via_seam(
             ),
         ),
         patch("specify_cli.status.emit._saas_fan_out"),
-        patch("specify_cli.status.emit.fire_dossier_sync"),
         patch("specify_cli.core.agent_config.get_auto_commit_default", return_value=False),
         patch("specify_cli.core.context_validation.require_main_repo", lambda f: f),
     ]

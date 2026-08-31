@@ -25,8 +25,8 @@ from charter.action_grain import (
     aggregate_action_grain,
     scan_builtin_cross_grain_duplicates,
 )
-from doctrine.missions.action_index import ActionIndex
-from doctrine.missions.mission_type_repository import builtin_mission_type_ids
+from charter.offering.missions.action_index import ActionIndex
+from charter.offering.missions.mission_type_repository import builtin_mission_type_ids
 
 
 pytestmark = [pytest.mark.unit, pytest.mark.git_repo]
@@ -35,7 +35,7 @@ pytestmark = [pytest.mark.unit, pytest.mark.git_repo]
 @pytest.fixture
 def missions_root(repo_root: Path) -> Path:
     """The real shipped missions root: ``packs/built-in/missions`` (relocated
-    from ``src/doctrine/missions`` by mission
+    from ``src/charter/offering/missions`` by mission
     doctrine-consumer-surface-missions-extraction-01KZ6G6H, FR-005)."""
     return repo_root / "packs" / "built-in" / "missions"
 

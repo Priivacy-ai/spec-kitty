@@ -26,7 +26,7 @@ import pytest
 from pydantic import BaseModel, ConfigDict
 from ruamel.yaml import YAML
 
-from doctrine.base import BaseDoctrineRepository
+from charter.offering.base import BaseDoctrineRepository
 
 pytestmark = [pytest.mark.fast, pytest.mark.doctrine]
 

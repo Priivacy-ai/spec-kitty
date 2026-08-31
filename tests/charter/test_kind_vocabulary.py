@@ -25,7 +25,7 @@ from charter.kind_vocabulary import (
     resolve_artifact_urn,
     resolve_config_id,
 )
-from doctrine.artifact_kinds import CHARTER_KIND_TOKENS, ArtifactKind
+from charter.offering.artifact_kinds import CHARTER_KIND_TOKENS, ArtifactKind
 
 
 # --------------------------------------------------------------------------- #

@@ -102,9 +102,7 @@ class MissionLifecycleResult:
             "terminal_wp_count": self.terminal_wp_count,
             "has_event_log": self.has_event_log,
             "post_mission_events": list(self.post_mission_events),
-            "last_follow_up_at": self.last_follow_up_at.isoformat()
-            if self.last_follow_up_at
-            else None,
+            "last_follow_up_at": self.last_follow_up_at.isoformat() if self.last_follow_up_at else None,
             "stale_after_days": self.stale_after_days,
             "abandoned_after_days": self.abandoned_after_days,
         }
@@ -141,6 +139,7 @@ def _parse_dt(raw: object) -> datetime | None:
 
 def _fallback_created_at(feature_dir: Path) -> datetime | None:
     from specify_cli.core.paths import load_meta_fail_closed
+
     meta = load_meta_fail_closed(feature_dir) or {}
     created_at = _parse_dt(meta.get("created_at"))
     if created_at is not None:
@@ -153,11 +152,7 @@ def _fallback_created_at(feature_dir: Path) -> datetime | None:
 
 
 def _derive_last_transition_at(snapshot: StatusSnapshot) -> datetime | None:
-    candidates = [
-        _parse_dt(wp_state.get("last_transition_at"))
-        for wp_state in snapshot.work_packages.values()
-        if isinstance(wp_state, dict)
-    ]
+    candidates = [_parse_dt(wp_state.get("last_transition_at")) for wp_state in snapshot.work_packages.values() if isinstance(wp_state, dict)]
     filtered = [candidate for candidate in candidates if candidate is not None]
     if filtered:
         return max(filtered)
@@ -188,11 +183,7 @@ def _collect_post_mission_events(feature_dir: Path) -> tuple[dict[str, Any], ...
     log_path = mission_event_log_path(feature_dir)
     if not log_path.exists():
         return ()
-    relevant = [
-        event
-        for event in read_lifecycle_events(log_path)
-        if event.get("event_type") in _POST_MISSION_EVENT_TYPES
-    ]
+    relevant = [event for event in read_lifecycle_events(log_path) if event.get("event_type") in _POST_MISSION_EVENT_TYPES]
     relevant.sort(key=_event_sort_key)
     return tuple(relevant)
 
@@ -214,21 +205,13 @@ def _latest_event_time(event: dict[str, Any]) -> datetime | None:
 
 
 def _last_reopen_at(events: tuple[dict[str, Any], ...]) -> datetime | None:
-    times = [
-        _latest_event_time(event)
-        for event in events
-        if event.get("event_type") == MISSION_REOPENED
-    ]
+    times = [_latest_event_time(event) for event in events if event.get("event_type") == MISSION_REOPENED]
     filtered = [t for t in times if t is not None]
     return max(filtered) if filtered else None
 
 
 def _last_follow_up_at(events: tuple[dict[str, Any], ...]) -> datetime | None:
-    times = [
-        _latest_event_time(event)
-        for event in events
-        if event.get("event_type") == FOLLOW_UP_RECORDED
-    ]
+    times = [_latest_event_time(event) for event in events if event.get("event_type") == FOLLOW_UP_RECORDED]
     filtered = [t for t in times if t is not None]
     return max(filtered) if filtered else None
 
@@ -241,6 +224,7 @@ def _last_merge_marker_at(feature_dir: Path) -> datetime | None:
     postdates the latest re-open the mission is no longer ``reopened``.
     """
     from specify_cli.core.paths import load_meta_fail_closed
+
     meta = load_meta_fail_closed(feature_dir) or {}
     return _parse_dt(meta.get("merged_at"))
 
@@ -303,6 +287,21 @@ def _classify_state(
 _COMPLETED_LIFECYCLE_STATES = frozenset({"recently_completed", "archived"})
 
 
+def is_mission_merged(feature_dir: Path) -> bool:
+    """Return ``True`` iff the mission carries a live merge marker (#801).
+
+    Narrower than :func:`is_mission_completed`: ONLY the explicit ``merged_at``
+    marker counts — an unmerged mission whose WPs are all terminal
+    (``recently_completed`` / ``archived``) is NOT merged. Gates that must fire
+    exclusively on merged missions (the runtime bootstrap short-circuit, the
+    resolver's primary re-anchor) use this predicate so a normally-completing
+    mission still finalizes its run and passes the retrospective gate.
+    ``MissionReopened`` clears ``merged_at`` (IC-02), so a re-opened mission is
+    correctly not merged until re-merged.
+    """
+    return _last_merge_marker_at(feature_dir) is not None
+
+
 def is_mission_completed(
     feature_dir: Path,
     *,
@@ -353,11 +352,7 @@ def derive_mission_lifecycle(
         from specify_cli.status.reducer import reduce
 
         snapshot = reduce(read_events(feature_dir))
-        snapshot.mission_number = (
-            str(identity.mission_number)
-            if identity.mission_number is not None
-            else None
-        )
+        snapshot.mission_number = str(identity.mission_number) if identity.mission_number is not None else None
         snapshot.mission_type = identity.mission_type
         if not snapshot.mission_slug:
             snapshot.mission_slug = identity.mission_slug or feature_dir.name

@@ -458,7 +458,7 @@ class TestMergeThreeLayers:
                 "edges": [],
             }
         )
-        with caplog.at_level(logging.WARNING, logger="doctrine.drg.merge"):
+        with caplog.at_level(logging.WARNING, logger="charter.offering.drg.merge"):
             merged = merge_three_layers(
                 built_in=built_in, org_fragments=[fragment], project=None
             )

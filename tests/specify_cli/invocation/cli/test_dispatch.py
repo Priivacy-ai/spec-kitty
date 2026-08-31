@@ -91,7 +91,7 @@ def _write_configured_charter(project: Path) -> None:
 
 
 def _make_mock_registry(profile_specs: list[dict[str, object]]) -> MagicMock:
-    from doctrine.agent_profiles.profile import Role
+    from charter.offering.agent_profiles.profile import Role
 
     mock_profiles = []
     for spec in profile_specs:

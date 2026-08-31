@@ -30,15 +30,15 @@ from __future__ import annotations
 
 import pytest
 
-from doctrine.drg.loader import load_built_in_graph
-from doctrine.drg.models import DRGGraph, Relation
-from doctrine.drg.reachability import (
+from charter.offering.drg.loader import load_built_in_graph
+from charter.offering.drg.models import DRGGraph, Relation
+from charter.offering.drg.reachability import (
     action_channel_reachable,
     action_seed_urns,
     agent_profile_seed_urns,
     profile_channel_reachable,
 )
-from doctrine.drg.validator import validate_graph
+from charter.offering.drg.validator import validate_graph
 
 pytestmark = [pytest.mark.doctrine, pytest.mark.fast, pytest.mark.corpus]
 

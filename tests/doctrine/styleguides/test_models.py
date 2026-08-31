@@ -3,7 +3,7 @@
 import pytest
 from pydantic import ValidationError
 
-from doctrine.styleguides.models import AntiPattern, Styleguide, StyleguideScope
+from charter.offering.styleguides.models import AntiPattern, Styleguide, StyleguideScope
 pytestmark = [pytest.mark.fast, pytest.mark.doctrine]
 
 

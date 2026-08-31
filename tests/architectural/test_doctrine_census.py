@@ -21,7 +21,7 @@ reach-through-ed, undoored doctrine path therefore fails CI (FR-002 / SC-002).
 Census numbers, re-measured on this tip (post WP05–WP07 migration) via
 ``reached_doctrine_paths()`` — the same live scan the gate runs on every invocation:
 
-* module-level direct ``from doctrine …`` imports (``ImportFrom.level == 0``): **0**
+* module-level direct ``from charter.offering …`` imports (``ImportFrom.level == 0``): **0**
 * lazy (function-body) direct doctrine imports: **4 files / 5 reaches**
 * ``if TYPE_CHECKING:`` doctrine imports (excluded from the reach-through set): 11 files
 * distinct doctrine module-paths reached (non-TYPE_CHECKING): **4**
@@ -71,7 +71,7 @@ EXEMPT_MANAGEMENT_SURFACE: frozenset[str] = frozenset({"src/specify_cli/doctrine
 
 #: The full disposition taxonomy (data-model.md "Taxonomy (value set)" + the two
 #: census-only tags: TICKETED-BASELINE for doorless management internals, and
-#: INTERNAL-METADATA for ``import doctrine`` path/metadata introspection).
+#: INTERNAL-METADATA for ``import charter.offering`` path/metadata introspection).
 TAXONOMY: frozenset[str] = frozenset(
     {
         "PUBLIC",
@@ -90,11 +90,11 @@ TAXONOMY: frozenset[str] = frozenset(
 #: MANAGEMENT — MANAGEMENT would widen the exempt surface, the opposite of this
 #: mission's intent. WP03 owes no door for these; WP05 keeps them allowlisted.
 TICKETED_BASELINE: dict[str, str] = {
-    "doctrine.drg.override_policy": (
+    "charter.offering.drg.override_policy": (
         "Doctrine-management internal consumed by _doctrine_collect.py "
         "(override-audit paths); no clean charter door. Ratchet allowlist, #3179."
     ),
-    "doctrine.drg.migration.hand_authored_overlay": (
+    "charter.offering.drg.migration.hand_authored_overlay": (
         "write_reference_graph_with_overlay is a DRG-regeneration internal "
         "consumed by cli/commands/doctrine.py; no clean charter door. "
         "Ratchet allowlist, #3179."
@@ -108,45 +108,45 @@ TICKETED_BASELINE: dict[str, str] = {
 #: MUST appear here (test_every_reached_doctrine_path_has_disposition).
 DISPOSITION: dict[str, str] = {
     # agent_profiles cluster → charter.profiles (existing door)
-    "doctrine.agent_profiles.profile": "FACADE-ONLY",
-    "doctrine.agent_profiles.repository": "FACADE-ONLY",
-    "doctrine.agent_profiles.capabilities": "FACADE-ONLY",
-    "doctrine.agent_profiles.diagnostics": "FACADE-ONLY",
-    # artifact kinds — PUBLIC (already enumerated in doctrine.api / charter.drg)
-    "doctrine.artifact_kinds": "PUBLIC",
+    "charter.offering.agent_profiles.profile": "FACADE-ONLY",
+    "charter.offering.agent_profiles.repository": "FACADE-ONLY",
+    "charter.offering.agent_profiles.capabilities": "FACADE-ONLY",
+    "charter.offering.agent_profiles.diagnostics": "FACADE-ONLY",
+    # artifact kinds — PUBLIC (already enumerated in charter.offering.api / charter.drg)
+    "charter.offering.artifact_kinds": "PUBLIC",
     # DRG cluster → charter.drg (existing/widened door)
-    "doctrine.drg.models": "FACADE-ONLY",
-    "doctrine.drg.loader": "FACADE-ONLY",
-    "doctrine.drg.merge": "FACADE-ONLY",
-    "doctrine.drg.org_pack_config": "FACADE-ONLY",
-    "doctrine.drg.validator": "FACADE-ONLY",
-    "doctrine.drg.override_policy": "TICKETED-BASELINE",
-    "doctrine.drg.migration.hand_authored_overlay": "TICKETED-BASELINE",
-    # doctrine.base — DoctrineLayerCollisionWarning (census-drift: absent from the
+    "charter.offering.drg.models": "FACADE-ONLY",
+    "charter.offering.drg.loader": "FACADE-ONLY",
+    "charter.offering.drg.merge": "FACADE-ONLY",
+    "charter.offering.drg.org_pack_config": "FACADE-ONLY",
+    "charter.offering.drg.validator": "FACADE-ONLY",
+    "charter.offering.drg.override_policy": "TICKETED-BASELINE",
+    "charter.offering.drg.migration.hand_authored_overlay": "TICKETED-BASELINE",
+    # charter.offering.base — DoctrineLayerCollisionWarning (census-drift: absent from the
     # snapshot table). Doorable → FACADE-ONLY (prefer a clean door over widening
     # the exempt surface). Consumer _doctrine_collect.py is WP05-owned.
-    "doctrine.base": "FACADE-ONLY",
+    "charter.offering.base": "FACADE-ONLY",
     # missions cluster → new charter.missions door
-    "doctrine.missions.step_contracts": "FACADE-ONLY",
-    "doctrine.missions.repository": "FACADE-ONLY",
-    "doctrine.missions.mission_type_repository": "FACADE-ONLY",
+    "charter.offering.missions.step_contracts": "FACADE-ONLY",
+    "charter.offering.missions.repository": "FACADE-ONLY",
+    "charter.offering.missions.mission_type_repository": "FACADE-ONLY",
     # The two former "decide IC-01" rows: FACADE-ONLY (a clean charter.missions
     # door exists) — NOT MANAGEMENT, which would widen exemptions.
-    "doctrine.missions.step_projection": "FACADE-ONLY",
-    "doctrine.missions.mission_step_repository": "FACADE-ONLY",
+    "charter.offering.missions.step_projection": "FACADE-ONLY",
+    "charter.offering.missions.mission_step_repository": "FACADE-ONLY",
     # model/task routing → new charter.model_routing (symbol-level PUBLIC)
-    "doctrine.model_task_routing": "PUBLIC",
+    "charter.offering.model_task_routing": "PUBLIC",
     # assets → new charter.assets (PUBLIC)
-    "doctrine.assets.repository": "PUBLIC",
-    "doctrine.assets.models": "PUBLIC",
+    "charter.offering.assets.repository": "PUBLIC",
+    "charter.offering.assets.models": "PUBLIC",
     # narrow doors
-    "doctrine.glossary_packs": "FACADE-ONLY",
-    "doctrine.spdd_reasons": "FACADE-ONLY",
-    "doctrine.template_catalog": "FACADE-ONLY",
-    "doctrine.pack_paths": "FACADE-ONLY",
+    "charter.offering.glossary_packs": "FACADE-ONLY",
+    "charter.offering.spdd_reasons": "FACADE-ONLY",
+    "charter.offering.template_catalog": "FACADE-ONLY",
+    "charter.offering.pack_paths": "FACADE-ONLY",
     # sole-door service construction (routed through charter builder, IC-05)
-    "doctrine.service": "CONSTRUCTION-ROUTED",
-    # bare ``import doctrine`` — path/metadata introspection (doctrine.__file__)
+    "charter.offering.service": "CONSTRUCTION-ROUTED",
+    # bare ``import charter.offering`` — path/metadata introspection (charter.offering.__file__)
     # in tool_surface/bundles/codex.py. Not a symbol import; FR-006 exempt.
     "doctrine": "INTERNAL-METADATA",
 }
@@ -157,7 +157,7 @@ DISPOSITION: dict[str, str] = {
 #: rather than silently passing the catch-all owner check. A NEW orphan (reached,
 #: unowned, not listed here) fails test_no_reached_file_is_orphaned.
 #:
-#: ``charter/interview.py`` was the sole orphan: it reached ``doctrine.artifact_kinds``
+#: ``charter/interview.py`` was the sole orphan: it reached ``charter.offering.artifact_kinds``
 #: (ArtifactKind) directly while being owned by no migration WP. Mission
 #: ``doctrine-public-api-surface-01KZPDSR`` WP07 folded it in (out-of-map, justified):
 #: its ArtifactKind import now routes through ``charter.drg`` and its
@@ -250,7 +250,7 @@ def _is_exempt(path: Path) -> bool:
 def reached_doctrine_paths() -> dict[str, set[str]]:
     """Map each non-exempt runtime file → the set of doctrine module-paths it reaches.
 
-    Reach = a direct ``from doctrine…`` / ``import doctrine`` with
+    Reach = a direct ``from charter.offering…`` / ``import charter.offering`` with
     ``ImportFrom.level == 0``, at module level *or* inside a function body,
     excluding ``if TYPE_CHECKING:`` blocks. Files that reach nothing are omitted.
     Public so WP04's ratchet baseline can consume the identical census.
@@ -383,9 +383,9 @@ def test_injected_undoored_path_is_flagged() -> None:
 
     Proves the census gate would fail on a real regression without mutating the tree.
     """
-    reached = {"doctrine.artifact_kinds", "doctrine.brand_new_undoored_module"}
+    reached = {"charter.offering.artifact_kinds", "charter.offering.brand_new_undoored_module"}
     flagged = undoored_paths(reached, DISPOSITION)
-    assert flagged == {"doctrine.brand_new_undoored_module"}
+    assert flagged == {"charter.offering.brand_new_undoored_module"}
     # And the real, fully-classified reached set must flag nothing.
     real = set().union(*reached_doctrine_paths().values())
     assert undoored_paths(real, DISPOSITION) == set()

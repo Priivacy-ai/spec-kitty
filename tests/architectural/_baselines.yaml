@@ -58,7 +58,10 @@ test_no_dead_modules:
   # state_contract, workspace_context — 8->1 SHRINK. WP02 then re-anchored
   # tasks_support's ~35 test sites onto specify_cli.task_utils and deleted the
   # module, draining the last row: 1->0 SHRINK. Category fully drained.)
-  category_4_backcompat_shims: 0
+  # justification: 0 -> 1 (charter-code-topology-01M152G1, M2): `doctrine`
+  # (src/doctrine.py) is an intentional deprecation shim for legacy external
+  # `import doctrine` callers during the CR-06 compatibility window.
+  category_4_backcompat_shims: 1
   # justification: 2 not-yet-wired adapter modules (specify_cli.doctrine.pack_descriptor,
   # specify_cli.doctrine.pack_lineage) from the pack-metadata library-first slice
   # (#3500-#3503, ADR 2026-08-16-1); production wiring is the deferred integration WP
@@ -125,14 +128,14 @@ test_no_dead_modules:
   # All four now have live src/ callers and are no longer orphans; none remain open. Shrink --
   # fully reverses the M2-canonical-integration deferral bump above.
   #
-  # 3 -> 4 (EXPERIMENTAL-spec-kitty#9, E3 credential resolution, 2026-08-25):
+  # 3 -> 4 (Priivacy-ai/spec-kitty#9, E3 credential resolution, 2026-08-25):
   # zeitgeist_client.resolution is the seam library the #8 zeitgeist handler will
   # call at fan-out — written library-first with its contract pinned by tests,
   # no src/ caller yet. Follow-up tracker ticket per FR-303:
-  # EXPERIMENTAL-spec-kitty#8 (the wiring consumer); the entry burns when that
+  # Priivacy-ai/spec-kitty#8 (the wiring consumer); the entry burns when that
   # lands, per the stale-entry check.
   #
-  # 4 -> 3 (EXPERIMENTAL-spec-kitty#8, E3 zeitgeist moment handler, 2026-08-25):
+  # 4 -> 3 (Priivacy-ai/spec-kitty#8, E3 zeitgeist moment handler, 2026-08-25):
   # the wiring landed — status/zeitgeist_bridge.py resolves credentials through
   # zeitgeist_client.resolution at the fan-out seam, so the module has a live
   # src/ caller and its Cat-7 entry is burned.
@@ -279,10 +282,10 @@ test_reference_enum_ratchet:
 # adding a file requires this diff plus a `# justification:` naming why the
 # sink carries no project data, or why its consent seam is sound.
 test_egress_consent_boundary:
-  # justification: 27 files hold a transmit primitive with a recorded reason —
+  # justification: 28 files hold a transmit primitive with a recorded reason —
   # 12 gated by a named consent seam on the data's own project_uuid (E1/E2/E3
   # and E6-E13), 1 per-project transport whose every caller is separately
-  # seamed (E14), and 14 that are
+  # seamed (E14), and 15 that are
   # not project egress at all — auth/OAuth token traffic, the doctrine fetch,
   # the readiness probe, four localhost control endpoints and `sync doctor`'s
   # empty-body connectivity probe (E18). Each was verified individually, not
@@ -308,7 +311,7 @@ test_egress_consent_boundary:
   # is independently pinned in test_egress_consent_boundary.py.
   # Both sides of the #14 merge moved this counter off 28, in opposite
   # directions, and both allowances are kept:
-  # - EXPERIMENTAL-spec-kitty#9 (E3 ephemeral-team-status) ADDED
+  # - Priivacy-ai/spec-kitty#9 (E3 ephemeral-team-status) ADDED
   #   specify_cli/zeitgeist_client/resolution.py — the capability mint POSTs
   #   {'repo_slug', 'kind'} to Team Kitty to *receive* a relay token;
   #   credential traffic gated by team membership over Bearer auth, not
@@ -336,7 +339,11 @@ test_egress_consent_boundary:
   # (sync/daemon.py, sync/daemon_protocol.py, sync/orphan_sweep.py). saas/readiness.py
   # re-homed verbatim to tracker/saas_readiness.py (same E18 reason, new address).
   # Recorded so the ceiling does not silently hold free files.
-  egress_allowlist_files: 14
+  # 14 -> 15 (#217): doctrine HTTPS fetches now query Artifactory AQL for the
+  # configured public pack item's version and SHA-256. The query identifies
+  # repo/path/name from the operator-configured doctrine URL and returns
+  # metadata; it transmits no project data.
+  egress_allowlist_files: 15
   # justification: 0. The module asserts this set is EMPTY, so any entry is a
   # red build; pinning the baseline at 0 makes recording one cost a second
   # visible diff here as well. Growth is a NEW unconsented egress path — the
@@ -344,4 +351,3 @@ test_egress_consent_boundary:
   # to fix the path, never to register it. E1/E2/E3 were the founding entries
   # (FR-028/029/030) and moved to egress_allowlist_files when they landed.
   known_ungated_files: 0
-

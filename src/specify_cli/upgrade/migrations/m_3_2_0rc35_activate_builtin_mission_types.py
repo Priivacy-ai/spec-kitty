@@ -28,7 +28,7 @@ from ..registry import MigrationRegistry
 from .base import BaseMigration, MigrationResult
 
 #: The written set is resolved at ``apply()``-time from the filesystem accessor
-#: ``doctrine.missions.mission_type_repository.builtin_mission_type_ids()``
+#: ``charter.offering.missions.mission_type_repository.builtin_mission_type_ids()``
 #: (a disk-scan of the built-in mission-type catalog) rather than a hardcoded
 #: literal here.
 #:
