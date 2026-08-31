@@ -88,9 +88,7 @@ class HealthVerdict:
         # Rule 1 mechanised: a definite claim must carry evidence. ``unknown``
         # is the only state allowed to have said "I did not / could not check".
         if self.state in ("ok", "fail") and not self.evidence.strip():
-            raise ValueError(
-                "HealthVerdict.evidence is required unless state == 'unknown'"
-            )
+            raise ValueError("HealthVerdict.evidence is required unless state == 'unknown'")
 
     @property
     def headline(self) -> str:

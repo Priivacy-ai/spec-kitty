@@ -328,9 +328,7 @@ def test_local_artifact_phase_persists_started_without_hosted_fanout(
 
     adapters.reset_handlers()
     captured: list[dict[str, object]] = []
-    adapters.register_lifecycle_saas_fanout_handler(
-        lambda **kwargs: captured.append(dict(kwargs))
-    )
+    adapters.register_lifecycle_saas_fanout_handler(lambda **kwargs: captured.append(dict(kwargs)))
     try:
         envelope = emit_artifact_phase_local(
             feature_dir,
@@ -343,9 +341,7 @@ def test_local_artifact_phase_persists_started_without_hosted_fanout(
         assert envelope is not None
         entries = read_lifecycle_events(mission_event_log_path(feature_dir))
         assert entries == [envelope]
-        assert entries[0]["payload"]["artifact_path"] == (
-            "kitty-specs/demo-mission/plan.md"
-        )
+        assert entries[0]["payload"]["artifact_path"] == ("kitty-specs/demo-mission/plan.md")
         assert captured == []
     finally:
         adapters.reset_handlers()
@@ -358,9 +354,7 @@ def test_local_artifact_phase_persists_completed_without_hosted_fanout(
 
     adapters.reset_handlers()
     captured: list[dict[str, object]] = []
-    adapters.register_lifecycle_saas_fanout_handler(
-        lambda **kwargs: captured.append(dict(kwargs))
-    )
+    adapters.register_lifecycle_saas_fanout_handler(lambda **kwargs: captured.append(dict(kwargs)))
     try:
         envelope = emit_artifact_phase_local(
             feature_dir,
@@ -760,9 +754,7 @@ def test_persist_local_then_explicit_hosted_fanout_uses_same_envelope(
 
     adapters.reset_handlers()
     captured: list[dict[str, object]] = []
-    adapters.register_lifecycle_saas_fanout_handler(
-        lambda **kwargs: captured.append(dict(kwargs))
-    )
+    adapters.register_lifecycle_saas_fanout_handler(lambda **kwargs: captured.append(dict(kwargs)))
     log_path = mission_event_log_path(feature_dir)
     try:
         envelope = persist_lifecycle_event_local(
@@ -794,9 +786,7 @@ def test_append_lifecycle_event_composes_local_write_and_hosted_fanout(
 
     adapters.reset_handlers()
     captured: list[dict[str, object]] = []
-    adapters.register_lifecycle_saas_fanout_handler(
-        lambda **kwargs: captured.append(dict(kwargs))
-    )
+    adapters.register_lifecycle_saas_fanout_handler(lambda **kwargs: captured.append(dict(kwargs)))
     log_path = mission_event_log_path(feature_dir)
     try:
         envelope = append_lifecycle_event(
@@ -823,9 +813,7 @@ def test_local_write_failure_returns_none_without_hosted_fanout(
 
     adapters.reset_handlers()
     captured: list[dict[str, object]] = []
-    adapters.register_lifecycle_saas_fanout_handler(
-        lambda **kwargs: captured.append(dict(kwargs))
-    )
+    adapters.register_lifecycle_saas_fanout_handler(lambda **kwargs: captured.append(dict(kwargs)))
 
     def fail_write(path: Path, line: str) -> None:
         raise OSError("disk full")
