@@ -62,6 +62,7 @@ def _make_mission(tmp_path: Path, mission_slug: str = "099-test-mission") -> tup
     mission_dir = repo_root / "kitty-specs" / mission_slug
     tasks_dir = mission_dir / "tasks"
     tasks_dir.mkdir(parents=True)
+    (repo_root / ".git").mkdir()
 
     for wp_id in ("WP01", "WP02"):
         (tasks_dir / f"{wp_id}.md").write_text(
@@ -1813,6 +1814,7 @@ def _make_mission_with_suffixed_wps(tmp_path: Path, mission_slug: str = "040-tes
     mission_dir = repo_root / "kitty-specs" / mission_slug
     tasks_dir = mission_dir / "tasks"
     tasks_dir.mkdir(parents=True)
+    (repo_root / ".git").mkdir()
 
     (tasks_dir / "WP01-core-setup.md").write_text(
         "---\nwork_package_id: WP01\ntitle: Core Setup\nlane: planned\ndependencies: []\nsubtasks: []\n---\n\n# WP01\n",

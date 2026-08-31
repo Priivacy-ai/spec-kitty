@@ -111,9 +111,7 @@ def build_work_package_state(
     return state, metadata_issues
 
 
-def build_canceled_wp_report(
-    wp_id: str, wp_snapshot: Mapping[str, Any] | None
-) -> dict[str, str] | None:
+def build_canceled_wp_report(wp_id: str, wp_snapshot: Mapping[str, Any] | None) -> dict[str, str] | None:
     """Return the ``canceled_wps`` report entry for an operator-canceled WP, else ``None``.
 
     Pure builder for the NFR-003 ``accept --json`` ``canceled_wps`` array: an
@@ -216,11 +214,7 @@ def _has_non_terminal_lane(lanes: dict[str, list[str]]) -> bool:
     provenance-aware acceptability decision lives on
     ``AcceptanceSummary.all_done`` / ``.canceled_wps``.
     """
-    return any(
-        wp_ids
-        for lane, wp_ids in lanes.items()
-        if not is_acceptable_ending(lane, has_provenance=False)
-    )
+    return any(wp_ids for lane, wp_ids in lanes.items() if not is_acceptable_ending(lane, has_provenance=False))
 
 
 def _has_issue_containing(issues: list[str], needle: str) -> bool:

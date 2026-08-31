@@ -141,7 +141,7 @@ def test_synthetic_cancellation_stays_a_blocker(tmp_path: Path) -> None:
 
     assert summary.all_done is False
     blockers = summary.outstanding()["lane_blockers"]
-    assert len(blockers) == 1
+    assert len(blockers) == 1  # golden-count: cardinality-is-contract
     assert "WP02: canonical lane is 'canceled'" in blockers[0]
     assert "operator-authored cancellation provenance required" in blockers[0]
     assert "approved or done" in blockers[0]

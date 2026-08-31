@@ -65,9 +65,7 @@ def _normalize(text: str) -> str:
 
 # Precompute (canonical, normalized) pairs once at import; the module is pure so
 # this is a safe module-level constant.
-_NORMALIZED_TRIGGERS: tuple[tuple[str, str], ...] = tuple(
-    (phrase, _normalize(phrase)) for phrase in _TRIGGER_PHRASES
-)
+_NORMALIZED_TRIGGERS: tuple[tuple[str, str], ...] = tuple((phrase, _normalize(phrase)) for phrase in _TRIGGER_PHRASES)
 
 
 @dataclass(frozen=True)

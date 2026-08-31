@@ -61,7 +61,7 @@ def acceptably_canceled_wp_ids(repo_root: Path, mission_slug: str) -> set[str]:
     and the downstream done-state assertions stay authoritative.
     """
     from specify_cli.status import read_events, reduce
-    from specify_cli.status.store import StoreError
+    from specify_cli.status import StoreError
 
     try:
         surface_path = resolve_status_surface(repo_root, mission_slug)
