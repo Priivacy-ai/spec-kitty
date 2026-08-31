@@ -145,11 +145,7 @@ _PATH_TOKEN = f"context/{_TOKEN}.md"
 
 def _is_governing_line(content: str) -> bool:
     """True when a line carries the retired token in a *governing* sense."""
-    return bool(
-        _SURFACE_MARKER.match(content)
-        or _SELECTION_KEY_MARKER.match(content)
-        or _PATH_TOKEN in content
-    )
+    return bool(_SURFACE_MARKER.match(content) or _SELECTION_KEY_MARKER.match(content) or _PATH_TOKEN in content)
 
 
 # CR-01 / ATDD *control* paths: the test files that legitimately name the retired
@@ -245,13 +241,11 @@ def _census(rev: str | None) -> Census:
     result = _run_git(args)
     # git grep exits 1 on no matches, 0 on matches, >1 on error.
     if result.returncode not in (0, 1):
-        raise RuntimeError(
-            f"git grep failed (rev={rev!r}): exit={result.returncode} stderr={result.stderr!r}"
-        )
+        raise RuntimeError(f"git grep failed (rev={rev!r}): exit={result.returncode} stderr={result.stderr!r}")
     prefix = f"{rev}:" if rev is not None else ""
     census: Census = {}
     for raw in result.stdout.splitlines():
-        line = raw[len(prefix):] if prefix and raw.startswith(prefix) else raw
+        line = raw[len(prefix) :] if prefix and raw.startswith(prefix) else raw
         parts = line.split(":", 2)
         if len(parts) != 3:
             continue
@@ -273,9 +267,7 @@ def _total(census: Census) -> int:
     return sum(sum(counter.values()) for counter in census.values())
 
 
-def _widening_violations(
-    baseline: Census, current: Census, control_paths: frozenset[str]
-) -> list[str]:
+def _widening_violations(baseline: Census, current: Census, control_paths: frozenset[str]) -> list[str]:
     """Every current governing coordinate absent from the baseline and not under a
     registered control path — a pure seam so the teeth test can drive it with a
     doctored census without a git subprocess."""
@@ -343,11 +335,7 @@ def test_authority_footprint_shrank() -> None:
         f"current={_total(current)}) — WP01–WP03 were expected to remove the "
         "governing term from the authority graph"
     )
-    surviving = {
-        path: dict(current.get(path, Counter()))
-        for path in _AUTHORITY_ZERO_PIN_SURFACES
-        if current.get(path)
-    }
+    surviving = {path: dict(current.get(path, Counter())) for path in _AUTHORITY_ZERO_PIN_SURFACES if current.get(path)}
     assert not surviving, (
         "the retired governing surface still survives on an authority surface: "
         f"{surviving} — the M1 flip (T005/T005a) did not fully retire it, or the "
@@ -374,10 +362,7 @@ def test_guard_has_teeth() -> None:
         _AUTHORITY_ZERO_PIN_SURFACES[0]: Counter({"basehash": 1, "reintroduced": 1}),
     }
     violations = _widening_violations(baseline, doctored, _CR01_CONTROL_PATHS)
-    assert violations, (
-        "the no-widening gate did not flag a synthetic governing coordinate "
-        "re-introduced into an authority surface — the gate is vacuous"
-    )
+    assert violations, "the no-widening gate did not flag a synthetic governing coordinate re-introduced into an authority surface — the gate is vacuous"
 
 
 def test_charter_bundle_zero_pin_catches_synthetic_reintroduction() -> None:
@@ -417,11 +402,7 @@ def test_charter_bundle_zero_pin_catches_synthetic_reintroduction() -> None:
     # The dedicated zero-pin used by test_authority_footprint_shrank DOES catch
     # it: any surviving coordinate on a registered authority surface is fatal,
     # independent of what the baseline held.
-    surviving = {
-        path: dict(reintroduced.get(path, Counter()))
-        for path in _AUTHORITY_ZERO_PIN_SURFACES
-        if reintroduced.get(path)
-    }
+    surviving = {path: dict(reintroduced.get(path, Counter())) for path in _AUTHORITY_ZERO_PIN_SURFACES if reintroduced.get(path)}
     assert surviving == {charter_bundle_path: {"selection-key-hash": 1}}, (
         "the zero-pin failed to catch the synthetic re-added `doctrine:` "
         f"selection-key coordinate at {charter_bundle_path!r} — the gate is "
@@ -448,9 +429,7 @@ def test_cr01_control_paths_are_currently_real() -> None:
     _require_baseline()
     current = _census(None)
     for control in sorted(_CR01_CONTROL_PATHS):
-        assert (REPO_ROOT / control).is_file(), (
-            f"registered control path {control!r} does not exist on disk — remove it"
-        )
+        assert (REPO_ROOT / control).is_file(), f"registered control path {control!r} does not exist on disk — remove it"
         assert current.get(control), (
             f"registered control path {control!r} no longer carries any governing "
             "coordinate — it has been fixed and MUST be removed from "

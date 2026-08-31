@@ -65,9 +65,7 @@ _ARCHIVE_ROOTS: tuple[str, ...] = (
 # passes, not strictly an append) -- its content integrity is independently
 # policed by the build job's rename-reconcile gate, so a destructive rewrite
 # here would red there, not slip through silently.
-_APPEND_ONLY_SPINE_EXCEPTIONS: frozenset[str] = frozenset(
-    {"kitty-specs/common-docs-convergence-01KZMTR9/occurrence_map.yaml"}
-)
+_APPEND_ONLY_SPINE_EXCEPTIONS: frozenset[str] = frozenset({"kitty-specs/common-docs-convergence-01KZMTR9/occurrence_map.yaml"})
 
 
 def _run_git(args: list[str]) -> subprocess.CompletedProcess[str]:
@@ -88,11 +86,7 @@ def _files_under_roots_at(rev: str) -> set[str]:
     result = _run_git(["ls-tree", "-r", "--name-only", rev])
     if result.returncode != 0:
         raise RuntimeError(f"git ls-tree failed for {rev!r}: {result.stderr!r}")
-    return {
-        path
-        for path in result.stdout.splitlines()
-        if any(path.startswith(root) for root in _ARCHIVE_ROOTS)
-    }
+    return {path for path in result.stdout.splitlines() if any(path.startswith(root) for root in _ARCHIVE_ROOTS)}
 
 
 def _port_base_rev() -> str:
@@ -112,9 +106,7 @@ def test_no_preexisting_archived_file_was_modified() -> None:
     port_base_rev = _port_base_rev()
     baseline_files = _files_under_roots_at(port_base_rev)
 
-    diff = _run_git(
-        ["diff", "--name-status", port_base_rev, "--", *_ARCHIVE_ROOTS]
-    )
+    diff = _run_git(["diff", "--name-status", port_base_rev, "--", *_ARCHIVE_ROOTS])
     if diff.returncode != 0:
         raise RuntimeError(f"git diff failed: {diff.stderr!r}")
 
@@ -156,6 +148,5 @@ def test_archive_baseline_is_non_empty() -> None:
     """Anti-vacuity floor: the archive roots are non-empty at the base, so the
     byte-identity assertion above is scanning real content, not nothing."""
     assert _files_under_roots_at(_MISSION_BASE_REV), (
-        "no tracked files found under the archive roots at the mission base — "
-        "the byte-identity gate would pass vacuously"
+        "no tracked files found under the archive roots at the mission base — the byte-identity gate would pass vacuously"
     )

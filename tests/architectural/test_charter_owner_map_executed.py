@@ -48,6 +48,7 @@ _REPO_ROOT = _repo_root()
 _DOCTRINE_MD_PATH = _REPO_ROOT / "docs" / "context" / "doctrine.md"
 _CHARTER_MD_PATH = _REPO_ROOT / "docs" / "context" / "charter.md"
 
+
 @functools.lru_cache(maxsize=1)
 def _resolve_wp01_base_commit() -> str | None:
     """The point M1 branched from, resolved dynamically as the mission's true
@@ -77,6 +78,7 @@ def _resolve_wp01_base_commit() -> str | None:
     if result.returncode != 0:
         return None
     return result.stdout.strip()
+
 
 #: ``context-state.json`` is deliberately excluded here (see module
 #: docstring): it is gitignored runtime state, never tracked at any commit,
@@ -128,9 +130,7 @@ def test_glossary_authority_flip_ran() -> None:
 def test_charter_canon_entry_landed() -> None:
     assert _CHARTER_MD_PATH.exists(), "docs/context/charter.md does not exist -- OC-40 move did not run"
     text = _CHARTER_MD_PATH.read_text(encoding="utf-8")
-    assert "### charter" in text, (
-        "Terminology-Canon owner action did not run: no '### charter' entry in docs/context/charter.md"
-    )
+    assert "### charter" in text, "Terminology-Canon owner action did not run: no '### charter' entry in docs/context/charter.md"
 
 
 def test_doctrine_md_moved_to_charter_md() -> None:
@@ -156,10 +156,7 @@ def test_h4_verify_no_op_files_unchanged_by_m1(target: Path) -> None:
         )
     is_empty = _git_diff_is_empty(_REPO_ROOT, base_commit, target)
     if is_empty is None:
-        pytest.skip(
-            f"WP01 base commit {base_commit} not resolvable in this checkout "
-            "(likely a shallow clone) -- cannot verify H4 no-op via git diff"
-        )
+        pytest.skip(f"WP01 base commit {base_commit} not resolvable in this checkout (likely a shallow clone) -- cannot verify H4 no-op via git diff")
     assert is_empty, (
         f"{target.relative_to(_REPO_ROOT)} differs from its content at WP01 base commit "
         f"{base_commit} -- H4 requires M1 to raise NO owner action on this file "
