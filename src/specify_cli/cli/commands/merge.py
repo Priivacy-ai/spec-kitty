@@ -677,6 +677,14 @@ def merge(
         # WP06 (#2057): the dry-run preview + payload build lives in the
         # ``forecast`` seam. Behavior + JSON key set preserved byte-for-byte
         # (FR-001, FR-004); ``run_dry_run_forecast`` terminates the dry-run path.
+        #
+        # #3131 FR-008: the RAW tri-state flags are threaded through so the
+        # forecast resolves the effective cleanup decision through
+        # ``resolve_merge_retention`` (against the mission's primary meta.json)
+        # exactly as the real merge path does. An unset flag (``None``) therefore
+        # lets a mission's retention policy govern the preview — the dry-run
+        # forecast now reflects the resolved retain/delete decision, not the
+        # pre-#3131 delete/remove default.
         run_dry_run_forecast(
             repo_root=repo_root,
             resolved_feature=resolved_mission,
