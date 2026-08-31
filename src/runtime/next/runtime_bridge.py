@@ -141,7 +141,9 @@ from __future__ import annotations
 
 import dataclasses
 import logging
+import re
 import shutil
+from collections.abc import Mapping
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
@@ -178,7 +180,9 @@ from specify_cli.core.constants import MISSION_TYPE_SOFTWARE_DEV
 from specify_cli.mission import get_mission_type
 from specify_cli.status import CanonicalStatusNotFoundError
 from specify_cli.status import Lane
+from specify_cli.status import get_all_wp_snapshots
 from specify_cli.status import wp_state_for
+from specify_cli.status_lanes import has_operator_provenance, is_acceptable_ending
 from runtime.next.decision import (
     Decision,
     DecisionKind,
@@ -680,21 +684,58 @@ def _finalized_task_board_override_step(
     if _find_first_wp_by_lane(feature_dir, "in_review", status_dir=status_dir) is not None:
         return "blocked:review_in_progress"
 
+    acceptable_endings = _count_acceptable_wp_endings(
+        feature_dir,
+        status_dir=status_dir,
+    )
     done = int(progress.get("done_wps", 0) or 0)
-    approved = int(progress.get("approved_wps", 0) or 0)
     if done == total:
         return "done"
-    if approved + done == total:
+    if acceptable_endings == total:
         return "accept"
     return "blocked:no_actionable_wp"
+
+
+def _count_acceptable_wp_endings(
+    feature_dir: Path,
+    *,
+    status_dir: Path | None = None,
+) -> int:
+    """Count WP files whose reduced lane is an acceptable mission ending."""
+    tasks_dir = feature_dir / "tasks"
+    if not tasks_dir.is_dir():
+        return 0
+
+    lane_read_dir = status_dir if status_dir is not None else feature_dir
+    try:
+        wp_snapshots = get_all_wp_snapshots(lane_read_dir)
+    except CanonicalStatusNotFoundError:
+        return 0
+
+    acceptable_endings = 0
+    for wp_file in sorted(tasks_dir.glob(TASKS_GLOB)):
+        wp_match = re.match(r"(WP\d+)", wp_file.stem)
+        wp_id = wp_match.group(1) if wp_match else wp_file.stem
+        wp_snapshot = wp_snapshots.get(wp_id)
+        lane = (
+            wp_snapshot.get("lane", Lane.GENESIS)
+            if wp_snapshot is not None
+            else Lane.UNINITIALIZED
+        )
+        if is_acceptable_ending(
+            str(lane),
+            has_provenance=has_operator_provenance(wp_snapshot),
+        ):
+            acceptable_endings += 1
+    return acceptable_endings
 
 
 def _should_advance_wp_step(step_id: str, feature_dir: Path) -> bool:
     """Check if all WPs are done for this phase, meaning we should advance.
 
-    For implement: all WPs must be handed off or complete
-    (for_review, approved, or done).
-    For review: all WPs must be approved or done.
+    For implement: all WPs must be handed off, accepted, done, or reach an
+    acceptable ending (operator-canceled).
+    For review: all WPs must be accepted, done, or reach an acceptable ending.
     """
     tasks_dir = feature_dir / "tasks"
     if not tasks_dir.is_dir():
@@ -704,35 +745,53 @@ def _should_advance_wp_step(step_id: str, feature_dir: Path) -> bool:
     if not wp_files:
         return True
 
-    # Get canonical lane state from event log (hard-fail if absent)
-    import re as _re
-    from specify_cli.status import get_wp_lane
+    # Get the reduced canonical state from the event log (hard-fail if absent).
+    wp_snapshots = get_all_wp_snapshots(feature_dir)
 
     for wp_file in wp_files:
-        wp_match = _re.match(r"(WP\d+)", wp_file.stem)
+        wp_match = re.match(r"(WP\d+)", wp_file.stem)
         wp_id = wp_match.group(1) if wp_match else wp_file.stem
-        raw_lane = get_wp_lane(feature_dir, wp_id)
+        wp_snapshot = wp_snapshots.get(wp_id)
+        raw_lane = (
+            Lane(wp_snapshot.get("lane", Lane.GENESIS))
+            if wp_snapshot is not None
+            else Lane.UNINITIALIZED
+        )
         try:
             state = wp_state_for(raw_lane)
         except ValueError:
             # Unknown lane (e.g. "uninitialized" before status bootstrap) — treat as
             # not-yet-handed-off, so this WP blocks advancement.
             return False
-        if _wp_blocks_step(step_id, state):
+        if _wp_blocks_step(step_id, state, wp_snapshot=wp_snapshot):
             return False
 
     return True
 
 
-def _wp_blocks_step(step_id: str, state: Any) -> bool:
+def _wp_blocks_step(
+    step_id: str,
+    state: Any,
+    *,
+    wp_snapshot: Mapping[str, Any] | None = None,
+) -> bool:
     """Return whether a WP state blocks advancement for ``step_id``."""
     lane = state.lane
+    if is_acceptable_ending(
+        str(lane),
+        has_provenance=has_operator_provenance(wp_snapshot),
+    ):
+        return False
     if step_id == "implement":
         # Advance past implement only when the WP has been handed off
-        # (for_review or approved) or completed (done/canceled).
+        # (for_review or approved) or reaches an acceptable ending.
         # is_run_affecting is True for all active lanes; we further restrict
         # to only allow advancement for the "handed off" active lanes.
-        return state.is_blocked or (state.is_run_affecting and lane not in (Lane.FOR_REVIEW, Lane.APPROVED))
+        return (
+            lane == Lane.CANCELED
+            or state.is_blocked
+            or (state.is_run_affecting and lane not in (Lane.FOR_REVIEW, Lane.APPROVED))
+        )
     if step_id == "review":
         return lane not in (Lane.DONE, Lane.APPROVED)
     return False

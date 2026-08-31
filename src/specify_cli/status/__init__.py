@@ -151,6 +151,7 @@ from .lane_reader import (
     CanonicalStatusNotFoundError,
     LEGACY_UNINITIALIZED_SENTINEL,
     get_all_wp_lanes,
+    get_all_wp_snapshots,
     get_wp_lane,
     has_event_log,
 )
@@ -513,6 +514,7 @@ __all__ = [
     "emit_status_transition",
     "generate_status_view",
     "get_all_wp_lanes",
+    "get_all_wp_snapshots",
     "get_wp_lane",
     "git_operation_in_progress",
     "has_event_log",
