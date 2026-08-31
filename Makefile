@@ -45,7 +45,7 @@ test-fast: ## Run fast tier of the typical blast-radius dirs (target <2 min)
 # GOAL.md requires make test-full green in <30 min on every repo's main.
 # Last confirmed: 792.70s (13m12s) total across all three passes below @
 # 26c07f66c (2026-08-27, sk-cirun-cli-26c07f66 — see the CI agent's baseline,
-# EXPERIMENTAL-spec-kitty-planning state/ci-baseline/spec-kitty.json) —
+# the programme planning repository's state/ci-baseline/spec-kitty.json) —
 # comfortably under budget, no further tiering/cutting needed right now
 # (#29). Re-measure via the CI agent's baseline, not a local run, if a
 # future change bloats the suite materially.

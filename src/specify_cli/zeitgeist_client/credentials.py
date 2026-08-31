@@ -83,7 +83,7 @@ before this fix, same as ``expires_at``. And since spec-kitty#129,
 (:func:`resolution.store_key`, ``host/owner/repo``) instead of the bare
 name, so same-named repos no longer share an entry at all.
 
-EXPERIMENTAL-spec-kitty#10 adds one last optional aspect, ``team`` — the
+Priivacy-ai/spec-kitty#10 adds one last optional aspect, ``team`` — the
 slug of the team whose admission pre-flight answered "admitted" just before
 this capability was minted (``resolution._resolve`` has it in hand and
 would otherwise drop it). ``spec-kitty routes`` displays it; nothing else
@@ -204,7 +204,7 @@ def _locked() -> FileLock:
     group/other-readable forever, since only :func:`_write_all` asserted a
     mode and this door is also every *read*'s entry point. Re-asserting both
     modes here, on every acquire, closes that gap (squad finding,
-    EXPERIMENTAL-spec-kitty#37) — cheap and idempotent once already tight.
+    Priivacy-ai/spec-kitty#37) — cheap and idempotent once already tight.
     """
     path = credentials_path()
     path.parent.mkdir(parents=True, exist_ok=True, mode=0o700)
@@ -271,7 +271,7 @@ def _focus_lease_scope_unchanged(
     team: str | None,
 ) -> bool:
     """Whether ``previous``'s relay/team identity still matches the entry
-    about to replace it (EXPERIMENTAL-spec-kitty#197).
+    about to replace it (Priivacy-ai/spec-kitty#197).
 
     A focus-kind capability JWT is minted by Team Kitty for a specific
     ``(relay_url, host, repo_slug, team)`` — the relay it must be presented

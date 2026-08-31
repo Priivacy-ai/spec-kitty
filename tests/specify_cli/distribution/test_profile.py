@@ -57,22 +57,22 @@ def test_stock_profile_defaults() -> None:
     assert profile.package_name == DEFAULT_CLI_PACKAGE_NAME
     assert profile.package_aliases == ()
     assert isinstance(profile.upgrade_provider, PyPIProvider)
-    assert profile.disable_no_upgrade_notifier is False
+    assert profile.disable_public_pypi_notifier is False
     assert profile.index_url is None
     assert profile.extra_index_url is None
     assert profile.version_label is None
 
 
-def test_retired_profile_field_and_export_are_removed() -> None:
-    assert not hasattr(DistributionProfile, "disable_public_pypi_notifier")
-    assert "disable_public_pypi_notifier" not in {field.name for field in fields(DistributionProfile)}
+def test_public_pypi_profile_field_is_restored() -> None:
+    assert hasattr(DistributionProfile, "disable_public_pypi_notifier")
+    assert "disable_public_pypi_notifier" in {field.name for field in fields(DistributionProfile)}
+    assert "disable_no_upgrade_notifier" not in {field.name for field in fields(DistributionProfile)}
     assert "disable_public_pypi_notifier" not in profile.__all__
 
-    with pytest.raises(TypeError):
-        DistributionProfile(
-            package_name="fork-cli",
-            disable_public_pypi_notifier=True,
-        )
+    DistributionProfile(
+        package_name="fork-cli",
+        disable_public_pypi_notifier=True,
+    )
 
 
 def test_stock_defaults_contain_no_private_hostnames() -> None:
@@ -91,7 +91,7 @@ def test_entry_point_profile(monkeypatch: pytest.MonkeyPatch) -> None:
         package_aliases=("spec-kitty-cli",),
         upgrade_provider=FakeLatestVersionProvider(version="1.0.0"),
         index_url="https://example.invalid/simple/",
-        disable_no_upgrade_notifier=True,
+        disable_public_pypi_notifier=True,
         version_label="acme-cli",
     )
     monkeypatch.setattr(
@@ -102,7 +102,7 @@ def test_entry_point_profile(monkeypatch: pytest.MonkeyPatch) -> None:
     assert profile.package_name == "acme-spec-kitty-cli"
     assert profile.package_aliases == ("spec-kitty-cli",)
     assert profile.index_url == "https://example.invalid/simple/"
-    assert profile.disable_no_upgrade_notifier is True
+    assert profile.disable_public_pypi_notifier is True
     assert profile.version_label == "acme-cli"
 
 
@@ -176,7 +176,7 @@ def test_incompatible_factory_signature_fails_closed(monkeypatch: pytest.MonkeyP
     assert is_degraded_distribution_profile(profile)
     assert profile.package_name == ""
     assert isinstance(profile.upgrade_provider, NoNetworkProvider)
-    assert profile.disable_no_upgrade_notifier is True
+    assert profile.disable_public_pypi_notifier is True
     assert any(record.levelno == _logging.ERROR and "legacy-fork" in record.message for record in caplog.records)
 
 
