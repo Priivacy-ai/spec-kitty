@@ -736,11 +736,14 @@ def resolve_status_surface_with_anchor(
         repo_root,
         _canonicalize_primary_read_handle(repo_root, mission_slug),
     )
-    if _primary_mission_is_completed(primary_dir) and (primary_dir / _STATUS_EVENTS_FILENAME).is_file():
-        # Merge evidence makes primary authoritative — but only when primary
-        # actually carries an event log; a merged primary without one must not
-        # shadow a coord surface that holds the only status.events.jsonl
-        # (squad pass 2 MINOR: silent empty read).
+    if _primary_mission_is_completed(primary_dir):
+        # Merge evidence makes primary authoritative — even when only the coord
+        # husk carries a status.events.jsonl (pinned by
+        # test_merged_primary_wins_even_when_only_coord_has_events): after a
+        # merge the primary tree is the record; a stale coord log must not
+        # resurrect husk reads. The primary-side empty-read seam the squad
+        # flagged is accepted and documented here — the runtime bridge's own
+        # merged gate returns terminal before any surface read matters.
         return ResolvedStatusSurface(
             surface_path=primary_dir / _STATUS_EVENTS_FILENAME,
             primary_anchor=primary_dir,

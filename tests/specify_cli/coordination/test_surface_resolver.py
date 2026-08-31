@@ -145,8 +145,8 @@ def test_merged_coord_mission_resolves_primary_before_stale_coord_worktree(
         topology="coord",
     )
     # Merged-with-events (squad pass 2): primary wins even when coord also
-    # carries a log — but only because primary actually HAS one; a merged
-    # primary without an event log falls through to coord (see below).
+    # carries a log — and even without its own log (see
+    # test_merged_primary_wins_even_when_only_coord_has_events).
     (primary_dir / "status.events.jsonl").write_text("", encoding="utf-8")
     (coord_dir / "status.events.jsonl").write_text("", encoding="utf-8")
 
@@ -156,12 +156,14 @@ def test_merged_coord_mission_resolves_primary_before_stale_coord_worktree(
     assert resolved.primary_anchor.resolve() == primary_dir.resolve()
 
 
-def test_merged_primary_without_event_log_falls_through_to_coord(
+def test_merged_primary_wins_even_when_only_coord_has_events(
     tmp_path: Path,
 ) -> None:
-    """A merged primary that carries NO ``status.events.jsonl`` must not shadow
-    a coord surface holding the only log (squad pass 2 MINOR: silent empty
-    read on the status surface)."""
+    """Pin (squad pass 2 MINOR, option b): merge evidence makes primary
+    authoritative even when only the coord husk carries a
+    ``status.events.jsonl`` — a stale coord log must not resurrect husk reads
+    after the merge. The primary-side empty read is accepted: the runtime
+    bridge's merged gate returns terminal before any surface read matters."""
     slug = "merged-nolog-01KTDVHZ"
     coord_dir = tmp_path / ".worktrees" / f"{slug}-coord" / "kitty-specs" / slug
     _write_meta(
@@ -187,12 +189,10 @@ def test_merged_primary_without_event_log_falls_through_to_coord(
 
     resolved = resolve_status_surface_with_anchor(tmp_path, slug)
 
-    assert resolved.read_dir.resolve() == coord_dir.resolve()
+    assert resolved.read_dir.resolve() == (tmp_path / "kitty-specs" / slug).resolve()
 
 
-def test_unmerged_coord_mission_keeps_coord_surface_when_all_wps_terminal(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
+def test_unmerged_coord_mission_keeps_coord_surface_when_all_wps_terminal(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """No merge marker => no primary re-anchor: an unmerged coord mission still
     reads its coord worktree (squad pass 1: primary can be stale until merge).
 
@@ -200,9 +200,7 @@ def test_unmerged_coord_mission_keeps_coord_surface_when_all_wps_terminal(
     so re-widening the resolver helper back to it makes this test fail."""
     import specify_cli.status as status_pkg
 
-    monkeypatch.setattr(
-        status_pkg, "is_mission_completed", lambda *_a, **_k: True
-    )
+    monkeypatch.setattr(status_pkg, "is_mission_completed", lambda *_a, **_k: True)
     slug = "unmerged-mission-01KTDVHZ"  # both surfaces get event logs below
     coord_dir = tmp_path / ".worktrees" / f"{slug}-coord" / "kitty-specs" / slug
     _write_meta(
@@ -223,9 +221,7 @@ def test_unmerged_coord_mission_keeps_coord_surface_when_all_wps_terminal(
         coordination_branch=f"kitty/mission-{slug}",
         topology="coord",
     )
-    (tmp_path / "kitty-specs" / slug / "status.events.jsonl").write_text(
-        "", encoding="utf-8"
-    )
+    (tmp_path / "kitty-specs" / slug / "status.events.jsonl").write_text("", encoding="utf-8")
     (coord_dir / "status.events.jsonl").write_text("", encoding="utf-8")
 
     resolved = resolve_status_surface_with_anchor(tmp_path, slug)
