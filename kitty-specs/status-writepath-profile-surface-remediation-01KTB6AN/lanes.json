@@ -45,7 +45,7 @@
         "WP05"
       ],
       "write_scope": [
-        "src/charter/activation/context.py",
+        "src/charter/context.py",
         "tests/charter/test_context_include_activation.py"
       ],
       "predicted_surfaces": [

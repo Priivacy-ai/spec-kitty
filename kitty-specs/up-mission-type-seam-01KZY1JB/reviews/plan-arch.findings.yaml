@@ -15,9 +15,9 @@ findings:
     evidence:
       - artifact: "plan.md § Summary (line 17-18: '...both hardcode pack_context=None.')"
       - artifact: "plan.md § IC-02 (Purpose: '...instead of their current hardcoded pack_context=None.')"
-      - code: "src/charter/activation/mission_type_profiles.py:762-767 (def _resolve_action_slot(mission_type: str, *, registered: list[str], is_registered: bool) -> list[str]: — no pack_context parameter exists anywhere in the signature or body)"
-      - code: "src/charter/activation/mission_type_profiles.py:793 (repo = MissionTypeRepository.default() — a zero-argument classmethod call; there is no argument to override)"
-      - code: "src/charter/activation/mission_type_profiles.py:876-878 (_resolve_template_set_slot's call site — .resolve_all_for_mission_type(mission_type, pack_context=None) — this IS a genuine hardcoded pack_context=None argument)"
+      - code: "src/charter/mission_type_profiles.py:762-767 (def _resolve_action_slot(mission_type: str, *, registered: list[str], is_registered: bool) -> list[str]: — no pack_context parameter exists anywhere in the signature or body)"
+      - code: "src/charter/mission_type_profiles.py:793 (repo = MissionTypeRepository.default() — a zero-argument classmethod call; there is no argument to override)"
+      - code: "src/charter/mission_type_profiles.py:876-878 (_resolve_template_set_slot's call site — .resolve_all_for_mission_type(mission_type, pack_context=None) — this IS a genuine hardcoded pack_context=None argument)"
     claim: >-
       The plan's Summary and IC-02 both state that "_resolve_action_slot /
       _resolve_template_set_slot ... both hardcode pack_context=None," and IC-02's

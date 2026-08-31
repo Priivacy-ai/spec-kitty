@@ -66,7 +66,7 @@ src/doctrine/missions/{documentation,research,plan}/templates/   # per-type temp
 src/doctrine/drg/migration/extractor.py              # new instantiates pass [Concern C — sole owner]
 src/doctrine/*.graph.yaml                            # regenerated (action.graph.yaml gains edges) [C]
 src/doctrine/template_catalog.py                     # URN authority (consumed) [C]
-src/charter/activation/mission_type_profiles.py                 # _resolve_template_set_slot :744 (in-scope slot only) [A]
+src/charter/mission_type_profiles.py                 # _resolve_template_set_slot :744 (in-scope slot only) [A]
 src/specify_cli/runtime/resolver.py                  # add resolve-by-URN lane (signature stable) [C]
 src/specify_cli/cli/commands/mission_type.py         # migrate :1491/:1509 reads [A]
 tests/doctrine/missions/test_prompt_emptiness.py     # coupled edit + scaffold retirement [Concern B — sole owner]

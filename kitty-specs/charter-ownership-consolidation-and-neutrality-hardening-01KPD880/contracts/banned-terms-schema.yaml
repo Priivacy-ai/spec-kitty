@@ -65,7 +65,7 @@ properties:
           default: true
           description: "If false, literal matches and regex patterns ignore case."
 
-# Initial payload example (ships in src/charter/activation/neutrality/banned_terms.yaml):
+# Initial payload example (ships in src/charter/neutrality/banned_terms.yaml):
 #
 # schema_version: "1"
 # terms:

@@ -66,9 +66,9 @@
         "WP02"
       ],
       "write_scope": [
-        "src/charter/activation/synthesizer/manifest.py",
-        "src/charter/activation/synthesizer/orchestrator.py",
-        "src/charter/activation/synthesizer/project_drg.py",
+        "src/charter/synthesizer/manifest.py",
+        "src/charter/synthesizer/orchestrator.py",
+        "src/charter/synthesizer/project_drg.py",
         "src/specify_cli/charter_freshness/**",
         "src/specify_cli/cli/commands/charter.py",
         "tests/integration/test_charter_status_freshness.py",

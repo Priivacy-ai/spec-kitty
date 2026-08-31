@@ -13,7 +13,7 @@
         "WP03"
       ],
       "write_scope": [
-        "src/charter/activation/template_resolver.py",
+        "src/charter/template_resolver.py",
         "src/doctrine/resolver.py",
         "src/specify_cli/runtime/resolver.py",
         "tests/charter/test_template_resolver.py",

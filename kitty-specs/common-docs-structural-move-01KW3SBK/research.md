@@ -175,7 +175,7 @@ retiring LEAK before the lockfile gate is proven blocking (drops enforcement wit
 | Lockfile drift gate (report-only) | `scripts/docs/check_docs_freshness.py` | Flip via **code change** (FR-011, D-R5) |
 | Lockfile generator | `scripts/docs/inventory_lockfile.py` | `run_generate_and_compare(...)` → generate-and-compare (FR-010) |
 | LEAK check | `scripts/docs/version_leakage_check.py` | `LEAK-FRONTMATTER-MISMATCH` retired (FR-014) |
-| Runtime ADR read-path | `src/charter/activation/context_renderers/authority_paths.py` | Rewritten first w/ resolution test (IC-02); already 3.x-default |
+| Runtime ADR read-path | `src/charter/context_renderers/authority_paths.py` | Rewritten first w/ resolution test (IC-02); already 3.x-default |
 | Glossary read-path | `src/glossary/scope.py` (`load_seed_file`) + `src/specify_cli/dashboard/handlers/glossary.py` | Preserved (C-006, merge-blocker) |
 
 **Open at task time (deliberately deferred to IC-01/IC-02 execution, not design):** the exact

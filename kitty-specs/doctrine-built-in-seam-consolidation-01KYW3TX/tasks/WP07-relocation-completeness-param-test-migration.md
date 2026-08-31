@@ -108,8 +108,8 @@ at the real root (US2 acceptance #1).
   (latent false-green). Repoint it to `packs/built-in/` so it loads real content and the assertion is
   meaningful (US2 acceptance #2; the arch-level anti-vacuity gate is WP04's).
 - In `tests/charter/test_profile_channel_delivery.py` and `tests/doctrine/drg/test_profile_suggests_delivery.py`:
-  remove the now-stale `from charter.activation.context import _render_profile_sections` line (both already import
-  `_render_profile_sections` from the leaf `charter.activation.context_renderers.profile_sections` on the adjacent
+  remove the now-stale `from charter.context import _render_profile_sections` line (both already import
+  `_render_profile_sections` from the leaf `charter.context_renderers.profile_sections` on the adjacent
   line) — this completes WP06's shim retirement for the two files WP06 could not own. Also migrate their
   `built_in_root=` per T024/T025.
 
@@ -145,4 +145,4 @@ land WP07 first so the shim shrink lands on repointed imports (acyclic).
 Confirm zero `built_in_root=` in `tests/`. Confirm the collision test asserts `DoctrineLayerCollisionWarning`
 at a real root, not a vacuous pass. Confirm the profile-inheritance fixture loads real content. Confirm
 the `built_in_dir=` leaf param and guard docstrings are untouched (occurrence_map). Confirm the two
-dual-concern files no longer import from `charter.activation.context`.
+dual-concern files no longer import from `charter.context`.

@@ -40,7 +40,7 @@ Append every place the tooling fought the mission. Feeds the tooling-gap backlog
 
 ## Campsite / pre-existing debt observed (not introduced by this mission)
 
-- `src/charter/activation/compiler.py:279` (`_resolve_template_set`) — `mypy` `no-any-return`, present on the lane base before WP01's diff. Outside WP01 scope; verify at the pre-PR full-gate sweep whether to campsite-fix.
+- `src/charter/compiler.py:279` (`_resolve_template_set`) — `mypy` `no-any-return`, present on the lane base before WP01's diff. Outside WP01 scope; verify at the pre-PR full-gate sweep whether to campsite-fix.
 - **`tests/specify_cli/cli/commands/test_doctor_cli_surface_golden.py` — ~20 FAILURES present at the mission base** (constant across WP07 parent → WP08 tip; not caused by any WP). Strongly suspected local Typer/venv-skew (cf. the known golden `isinstance(<TyperGroup>, click.Group)` / help-snapshot skew that fails locally but passes in CI). **Pre-PR action**: determine on CI whether these are real or venv-skew; if skew, gate on CI not the local venv; if real, campsite-fix. (WP08 cycle-1 re-pins ONLY the 1 net-new doctrine snapshot it caused.)
 - Test fixtures using the **deprecated top-level `organisation_packs`** config key emit a DeprecationWarning; canonical is `doctrine.org.packs[].local_path` (reviewer-renata, WP08). Non-blocking; deferred.
 

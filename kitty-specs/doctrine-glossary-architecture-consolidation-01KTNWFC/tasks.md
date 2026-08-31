@@ -32,7 +32,7 @@
 | T021 | Refresh glossary **content** for new epics + architectural direction | WP01 | |
 | T022 | Reconcile planning-and-tracking subset terms; record FR-011 runtime-scope **defer** | WP01 | |
 | T023 | Implement `org-charter.yaml` `extends:` additive merge + base precedence | WP08 | |
-| T024 | Cycle detection + integrate with `charter.activation.activation_engine`/cascade (no parallel resolver) | WP08 | |
+| T024 | Cycle detection + integrate with `charter.activation_engine`/cascade (no parallel resolver) | WP08 | |
 | T025 | Tests for extends (additive, precedence, cycle-reject, non-destructive) | WP08 | |
 | T026 | DRG **regeneration command** (deterministic output) | WP09 | |
 | T027 | **Symmetric** profile-edge detection + freshness gate | WP09 | |

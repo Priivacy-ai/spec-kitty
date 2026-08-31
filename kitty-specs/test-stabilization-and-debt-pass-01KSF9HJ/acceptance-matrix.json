@@ -130,7 +130,7 @@
       "criterion_id": "FR-013",
       "description": "WP07 MUST route src/specify_cli/charter_freshness/computer.py manifest+graph reads through the canonical charter chokepoint (LD-3).",
       "proof_type": "code_evidence",
-      "evidence": "Commit 9aa598f5a on lane-e. Uses charter.activation.synthesizer.manifest.{MANIFEST_PATH, load_yaml} and charter.bundle.DOCTRINE_DIR — the typed read-only chokepoint API. Public compute_freshness(repo_root) -> CharterFreshness unchanged. §6 conflict test passes. 17/17 + 19/19 in targeted slices.",
+      "evidence": "Commit 9aa598f5a on lane-e. Uses charter.synthesizer.manifest.{MANIFEST_PATH, load_yaml} and charter.bundle.DOCTRINE_DIR — the typed read-only chokepoint API. Public compute_freshness(repo_root) -> CharterFreshness unchanged. §6 conflict test passes. 17/17 + 19/19 in targeted slices.",
       "pass_fail": "pass",
       "verified_by": "WP07 reviewer-renata.",
       "verified_at": "2026-05-25T18:15:00Z",

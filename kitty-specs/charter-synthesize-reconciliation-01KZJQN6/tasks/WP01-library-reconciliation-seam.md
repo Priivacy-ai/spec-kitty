@@ -34,15 +34,15 @@ history:
 agent_profile: python-pedro
 authoritative_surface: src/charter/synthesizer/
 create_intent:
-- src/charter/activation/synthesizer/reconcile.py
+- src/charter/synthesizer/reconcile.py
 - tests/charter/synthesizer/test_synthesize_reconcile.py
 execution_mode: code_change
 mission_id: 01KZJQN68SWZ7T1YKGDB4Q4EVH
 owned_files:
-- src/charter/activation/synthesizer/orchestrator.py
-- src/charter/activation/synthesizer/write_pipeline.py
-- src/charter/activation/synthesizer/resynthesize_pipeline.py
-- src/charter/activation/synthesizer/reconcile.py
+- src/charter/synthesizer/orchestrator.py
+- src/charter/synthesizer/write_pipeline.py
+- src/charter/synthesizer/resynthesize_pipeline.py
+- src/charter/synthesizer/reconcile.py
 - src/doctrine/drg/validator.py
 - tests/charter/synthesizer/test_synthesize_reconcile.py
 - tests/charter/synthesizer/test_synthesize_node_preservation.py
@@ -63,7 +63,7 @@ scope for this work package. Then read `kitty-specs/charter-synthesize-reconcili
 
 ## Objectives & Success Criteria
 
-- `charter.activation.synthesizer.orchestrator.synthesize` reconciles the freshly-emitted project DRG
+- `charter.synthesizer.orchestrator.synthesize` reconciles the freshly-emitted project DRG
   overlay **and** synthesis manifest against what is already on disk, instead of rebuilding both
   from the current target set and whole-file-swapping them in.
 - The default behavior **preserves backed content** (drops nothing), exits normally, and returns
@@ -81,7 +81,7 @@ bypasses the CLI.
 ## Context & Constraints
 
 - **Root cause** (see `research.md`): today `orchestrator.synthesize._validation_callback`
-  (`src/charter/activation/synthesizer/orchestrator.py:179-188`) calls `emit_project_layer(targets=targets)`
+  (`src/charter/synthesizer/orchestrator.py:179-188`) calls `emit_project_layer(targets=targets)`
   and persists a brand-new overlay with no read of the on-disk graph; `write_pipeline.promote`
   whole-file-swaps it in, and the manifest is rebuilt from the current `results` only
   (`orchestrator.py:193-198` passes no `manifest_override`).
@@ -101,13 +101,13 @@ bypasses the CLI.
 
 ### Subtask T001 – Reconcile value objects
 - **Purpose**: Give the seam a typed vocabulary for the delta and modes (data-model.md).
-- **Steps**: Create `src/charter/activation/synthesizer/reconcile.py` with:
+- **Steps**: Create `src/charter/synthesizer/reconcile.py` with:
   - `class SynthesizeMode(enum.Enum)`: `preserve` (default), `prune`, `dry_run`.
   - `@dataclass(frozen=True) ReconciliationConflict`: `kind`, `target_id`, `backing_artifact`,
     `remediation`, `provenance` (`"preserved" | "new_emit"`).
   - `@dataclass(frozen=True) ReconciliationDelta`: `retained`, `added`, `removable`,
     `manifest_delta`, `conflicts` (lists). Add a `has_backed_removals`/`is_empty` helper.
-- **Files**: `src/charter/activation/synthesizer/reconcile.py` (new). Keep it dependency-light; import DRG
+- **Files**: `src/charter/synthesizer/reconcile.py` (new). Keep it dependency-light; import DRG
   models where needed.
 
 ### Subtask T002 – Share the merge primitives

@@ -38,11 +38,11 @@ tags: []
 
 ## Objective
 
-Prove that `build_context_v2()` resolves the same governance artifacts (by URN) as the canonical `build_charter_context()` from `src/charter/activation/context.py` for all shipped (profile, action, depth) combinations. This tests **artifact reachability parity**, not rendered-text parity. Rendered-text parity (guidelines, reference filtering, section formatting) is a Phase 1 concern when callers are switched to `build_context_v2`. This test gates Phase 1.
+Prove that `build_context_v2()` resolves the same governance artifacts (by URN) as the canonical `build_charter_context()` from `src/charter/context.py` for all shipped (profile, action, depth) combinations. This tests **artifact reachability parity**, not rendered-text parity. Rendered-text parity (guidelines, reference filtering, section formatting) is a Phase 1 concern when callers are switched to `build_context_v2`. This test gates Phase 1.
 
 ## Context
 
-**The oracle**: `src/charter/activation/context.py::build_charter_context()` is the canonical legacy path. It is the sole parity baseline. Do NOT compare against `src/specify_cli/charter/context.py` -- that is a legacy compatibility surface (rerouted in WP00).
+**The oracle**: `src/charter/context.py::build_charter_context()` is the canonical legacy path. It is the sole parity baseline. Do NOT compare against `src/specify_cli/charter/context.py` -- that is a legacy compatibility surface (rerouted in WP00).
 
 **Test matrix**:
 - **Profiles**: All shipped profiles from `src/doctrine/agent_profiles/shipped/` (~10 profiles). If profiles don't influence context assembly today (they don't -- current `build_charter_context` has no profile parameter), the test degenerates to action-only and documents this.
@@ -271,4 +271,4 @@ Prove that `build_context_v2()` resolves the same governance artifacts (by URN) 
 - 2026-04-13T09:25:35Z – claude:opus-4-6:implementer:implementer – shell_pid=74075 – Started implementation via action command
 - 2026-04-13T09:35:31Z – claude:opus-4-6:implementer:implementer – shell_pid=74075 – Invariant test implemented with artifact reachability comparison, 40 tests passing
 - 2026-04-13T09:36:01Z – claude:opus-4-6:reviewer:reviewer – shell_pid=90548 – Started review via action command
-- 2026-04-13T09:38:01Z – claude:opus-4-6:reviewer:reviewer – shell_pid=90548 – Review passed: All 40 tests pass (1.04s). URN-set parity comparison correct (not rendered text). Legacy path is canonical src/charter/activation/context.py. Accepted-differences ledger is empty. Vague-reason rejection works (4 forbidden phrases). Threshold gate enforced via assertion. Tasks action is DRG-only. Profile dimension documented as degenerate. WP04 commit only touches its 2 owned files.
+- 2026-04-13T09:38:01Z – claude:opus-4-6:reviewer:reviewer – shell_pid=90548 – Review passed: All 40 tests pass (1.04s). URN-set parity comparison correct (not rendered text). Legacy path is canonical src/charter/context.py. Accepted-differences ledger is empty. Vague-reason rejection works (4 forbidden phrases). Threshold gate enforced via assertion. Tasks action is DRG-only. Profile dimension documented as degenerate. WP04 commit only touches its 2 owned files.

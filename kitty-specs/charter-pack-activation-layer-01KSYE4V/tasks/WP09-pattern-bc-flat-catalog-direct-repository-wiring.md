@@ -30,7 +30,7 @@ history:
   event: created
   actor: claude
 agent_profile: python-pedro
-authoritative_surface: src/charter/activation/resolver.py
+authoritative_surface: src/charter/resolver.py
 execution_mode: code_change
 owned_files:
 - src/specify_cli/cli/commands/charter/generate.py
@@ -38,7 +38,7 @@ owned_files:
 - src/specify_cli/cli/commands/doctor.py
 - src/specify_cli/charter_runtime/lint/checks/org_layer.py
 - src/charter/mission_steps.py
-- src/charter/activation/resolver.py
+- src/charter/resolver.py
 - tests/charter/test_call_site_propagation.py
 role: implementer
 tags: []
@@ -123,7 +123,7 @@ then T041, then T042+T043 together.
    service = DoctrineService(pack_context=ctx.require_pack_context(), ...)
    ```
 
-3. In `src/charter/activation/resolver.py`, add an activation filter to the `paradigms` and
+3. In `src/charter/resolver.py`, add an activation filter to the `paradigms` and
    `procedures` properties (if not already filtering):
    ```python
    @property
@@ -195,7 +195,7 @@ def check_org_layer(self, artifact_set: ..., pack_context: PackContext | None = 
 ```
 Use `pack_context` inside the method body to filter `artifact_set` before the check,
 following the same dict comprehension pattern as `DoctrineService.paradigms` in T039.
-Import `PackContext` from `charter.activation.pack_context` if absent.
+Import `PackContext` from `charter.pack_context` if absent.
 
 **ATDD**: Update tests for the doctor org-charter path and `org_layer.py` linter
 methods to pass `pack_context=None` (or a real `PackContext`).
@@ -211,7 +211,7 @@ python -c "from specify_cli.charter_runtime.lint.checks.org_layer import *; prin
 
 ### T042 — Wire Pattern C: agent_profiles via `resolver.py`
 
-**Requirement**: FR-033, FR-037 | **File**: `src/charter/activation/resolver.py`
+**Requirement**: FR-033, FR-037 | **File**: `src/charter/resolver.py`
 
 1. Read `DoctrineService.agent_profiles` (≈line 257) in full.
 
@@ -247,7 +247,7 @@ constructed with a `PackContext` holding that frozenset, and a test asserting th
 **Validation**:
 ```bash
 cd /home/stijn/Documents/_code/SDD/fork/spec-kitty
-python -c "from charter.activation.resolver import DoctrineService; print('OK')"
+python -c "from charter.resolver import DoctrineService; print('OK')"
 ```
 
 ---
@@ -321,7 +321,7 @@ grep -r "MissionStepRepository" src/ --include="*.py" \
 - [ ] All callers of `load_org_charter_policies` pass `pack_context` explicitly
 - [ ] `grep -r "require_pack_context()" src/ --include="*.py"` returns ≥ 3 lines
 - [ ] `pytest tests/architectural/test_no_dead_symbols.py -x` passes with no `MissionStepRepository` finding
-- [ ] `ruff check src/specify_cli/cli/commands/charter/generate.py src/specify_cli/doctrine/org_charter.py src/specify_cli/cli/commands/doctor.py src/specify_cli/charter_runtime/lint/checks/org_layer.py src/charter/mission_steps.py src/charter/activation/resolver.py` passes
+- [ ] `ruff check src/specify_cli/cli/commands/charter/generate.py src/specify_cli/doctrine/org_charter.py src/specify_cli/cli/commands/doctor.py src/specify_cli/charter_runtime/lint/checks/org_layer.py src/charter/mission_steps.py src/charter/resolver.py` passes
 - [ ] `grep -r "from charter" src/specify_cli/doctrine/ --include="*.py"` returns zero lines (layer rule upheld)
 
 ---

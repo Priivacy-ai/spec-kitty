@@ -73,7 +73,7 @@ Return value: `list[str]` of human-readable messages (one per kind with new entr
 
 ### Resolver-level (FR-005)
 
-`charter.activation.context.build_charter_context(repo_root, action=..., profile=...)` produces a payload whose text carries, for each globally-selected artifact:
+`charter.context.build_charter_context(repo_root, action=..., profile=...)` produces a payload whose text carries, for each globally-selected artifact:
 
 - The artifact ID
 - Either the artifact body inline OR (on token-budget overflow) a fetch + when-doing stanza naming the artifact ID

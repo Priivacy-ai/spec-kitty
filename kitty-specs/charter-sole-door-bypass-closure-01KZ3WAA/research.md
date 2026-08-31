@@ -40,7 +40,7 @@ plan was written) plus a set of implementation-level design decisions that did n
 ### D3 — A real C-001 violation surfaced as a byproduct: two divergent builders
 
 - **Decision**: Fold in unifying `specify_cli.doctrine_service_factory.build_activation_aware_doctrine_
-  service` and `charter.activation.doctrine_service_builder._build_activation_aware_doctrine_service` as new scope
+  service` and `charter.doctrine_service_builder._build_activation_aware_doctrine_service` as new scope
   (FR-008), rather than deferring it as a separate issue.
 - **Rationale**: The two functions are NOT behaviourally identical. The `charter` builder passes
   `active_languages=infer_repo_languages(repo_root)` into the inner `DoctrineService` construction; the
@@ -58,11 +58,11 @@ plan was written) plus a set of implementation-level design decisions that did n
 
 ### D4 — `mission-type` does not fit the mechanical 9-kind pattern
 
-- **Decision**: Gate the `mission-type` token via `charter.activation.mission_type_profile_repository.
-  MissionTypeProfileRepository` / `charter.activation.mission_type_profiles.resolve_mission_type_context()` (FR-006),
-  not via a new property on `charter.activation.resolver.DoctrineService`. Per operator decision, do the real work
+- **Decision**: Gate the `mission-type` token via `charter.mission_type_profile_repository.
+  MissionTypeProfileRepository` / `charter.mission_type_profiles.resolve_mission_type_context()` (FR-006),
+  not via a new property on `charter.resolver.DoctrineService`. Per operator decision, do the real work
   rather than narrowing the "all 10 kinds" claim to 9.
-- **Rationale**: `PackContext.activated_mission_types` (`src/charter/activation/pack_context.py:120`) is a plain
+- **Rationale**: `PackContext.activated_mission_types` (`src/charter/pack_context.py:120`) is a plain
   `frozenset[str]`, never `None` — `_read_activated_mission_types` (`pack_context.py:601-619`) already
   collapses "key absent" to `builtin_mission_type_id_set()` at construction time, so the three-state
   semantics (`None`/`frozenset()`/`{ids}`) the other 6 kinds use don't apply here; the default is baked in
@@ -70,7 +70,7 @@ plan was written) plus a set of implementation-level design decisions that did n
   (confirmed by grepping every `@property` on the raw service: directives, tactics, styleguides, toolguides,
   paradigms, procedures, mission_step_contracts, glossary_packs, assets, agent_profiles — no mission-type
   entry) — mission-type resolution has always lived entirely outside `DoctrineService`, in a separate
-  repository. There is nothing for `charter.activation.resolver.DoctrineService.__getattr__` to even unfilteredly
+  repository. There is nothing for `charter.resolver.DoctrineService.__getattr__` to even unfilteredly
   forward for this token the way it does for the other 7 — the "ungated passthrough" framing doesn't fit.
 - **Alternatives considered**: Narrow to 9/10 real `ArtifactKind` gating, name `mission-type` as an explicit
   carve-out matching how `TEMPLATE`/`ASSET`/`ANTI_PATTERN` are already carved out via
@@ -84,14 +84,14 @@ plan was written) plus a set of implementation-level design decisions that did n
 `charter/resolver.py::_resolve_directives_selection` (lines 233-298) already implements the exact
 three-state semantics for `directive` and reads `PackContext.activated_directives` directly — but it is
 private, used only inside the separate `resolve_project_governance()` function, and is **not** wired to
-`charter.activation.resolver.DoctrineService`'s properties (which are exactly `paradigms`, `procedures`,
+`charter.resolver.DoctrineService`'s properties (which are exactly `paradigms`, `procedures`,
 `agent_profiles` — confirmed by grepping `@property` in the file). It is the fallback-source *exemplar* to
 copy the three-state logic from for FR-005's 6 mechanical kinds, not evidence that `directive` gating
 already exists on the factory. The spec's "3 of 10 gated" premise stands correctly.
 
 ### R2 — FR-005's 6 mechanical kinds require zero `PackContext` schema changes
 
-`PackContext` (`src/charter/activation/pack_context.py:100-259`) already carries a three-state `activated_<kind>` field
+`PackContext` (`src/charter/pack_context.py:100-259`) already carries a three-state `activated_<kind>` field
 for every one of `directive` (144), `tactic` (152), `styleguide` (155), `toolguide` (158),
 `mission_step_contract` (170), `glossary_pack` (173) — each populated via a dedicated `_read_activated_*`
 reader (lines 622-676), structurally identical to the readers already wired for `paradigms`/`procedures`/
@@ -118,17 +118,17 @@ covered by NFR-005's latency measurement, not an architectural blocker.
 `_build_selection_block` all deliberately need the unfiltered, all-layer view — activation-aware filtering
 would silently narrow doctor/health output for deactivated packs, which is exactly the anti-pattern the
 spec's Acceptance Scenario 2 (User Story 1) warns against. Fix: wrap with
-`charter.activation.resolver.DoctrineService(inner, pack_context=None)` — same class, explicit unfiltered construction,
+`charter.resolver.DoctrineService(inner, pack_context=None)` — same class, explicit unfiltered construction,
 satisfying C-001 (one factory) without regressing diagnostic completeness.
 
 ### R5 — `projection.py:84` and `runtime_bridge_io.py:576` need capabilities the filtered wrapper doesn't expose
 
 `projection.py:84` (`default_profile_repository`) needs `register_overlay()` (mutation) and `get_ancestors()`
-(lineage) — neither exists on the filtered dict `charter.activation.resolver.DoctrineService.agent_profiles` returns.
+(lineage) — neither exists on the filtered dict `charter.resolver.DoctrineService.agent_profiles` returns.
 `runtime_bridge_io.py:576` needs `repo.resolve_profile(profile_id)` (lineage composition), also absent from
 the filtered dict. Both currently reach around the gate via `svc._inner.agent_profiles` (already used at
 `registry.py:64`) — a private-attribute reach-around that works but isn't a real public contract. **Design
-decision**: add one new public accessor to `charter.activation.resolver.DoctrineService` for "the mutable/lineage-
+decision**: add one new public accessor to `charter.resolver.DoctrineService` for "the mutable/lineage-
 capable repository, still activation-aware for read paths" before migrating these two call sites, so the
 mission doesn't trade one reach-around for a proliferation of `_inner` accesses at every migrated site.
 
@@ -137,10 +137,10 @@ mission doesn't trade one reach-around for a proliferation of `_inner` accesses 
 `doctrine/resolver.py::_resolve_asset`/`resolve_mission` are pure filesystem-tier functions, unrelated to the
 `DoctrineService` object the factory wraps. An existing correct precedent already solves this exact shape:
 `src/specify_cli/runtime/resolver.py` reimplements tiers 1-4 itself (pure `.kittify`/`~/.kittify` filesystem
-checks) and routes only tier 5 (package-default) through `charter.activation.template_resolver.CharterTemplateResolver`
+checks) and routes only tier 5 (package-default) through `charter.template_resolver.CharterTemplateResolver`
 — its own comment states the intent: *"Keep this call routed through charter so runtime never binds directly
 to doctrine's repository shape."* (Landed under `charter-mediated-doctrine-selection-01KRTZCA`, WP07.)
-**Design decision**: add resolution methods to `charter.activation.resolver.DoctrineService` that internally call
+**Design decision**: add resolution methods to `charter.resolver.DoctrineService` that internally call
 `doctrine.resolver.resolve_command`/`resolve_template`/`resolve_mission` (legal — `charter → doctrine` is the
 sanctioned direction); `CharterTemplateResolver` becomes a thin delegating shim or is retired in favour of
 direct factory use by its one real caller. Two additional in-scope importers were found during this research
@@ -165,12 +165,12 @@ records what was found, not a duplicate of the WP text):
 | Finding | Lens | Severity | Folded into |
 |---|---|---|---|
 | WP02/WP03/WP04's `dependencies: []` frontmatter never declared WP01, despite prose saying so everywhere — found INDEPENDENTLY by 3 of 4 delegates | reviewer-renata, paula-patterns, python-pedro | CRITICAL | WP02/03/04 frontmatter fixed |
-| WP01 (accessor) and former WP07 (6 properties) both edited `src/charter/activation/resolver.py`; the 3-way split (with WP05) forced an awkward, benefit-free serialization | paula-patterns | HIGH | WP01+WP07 merged |
+| WP01 (accessor) and former WP07 (6 properties) both edited `src/charter/resolver.py`; the 3-way split (with WP05) forced an awkward, benefit-free serialization | paula-patterns | HIGH | WP01+WP07 merged |
 | Gate 5 (`._inner`) and Gate 4 (hardcoded paths) each only ever guarded one WP's own surface; a separate WP for them added dependency edges for no benefit | paula-patterns | HIGH | Gate 5 → WP04, Gate 4 → WP06 |
 | Accessor method name never pinned ("e.g. `agent_profile_repository`") — three dependent WPs could each invent something different | reviewer-renata, python-pedro | CRITICAL (compounding) | Pinned exact name in WP01 |
 | Accessor method-list wrong: `get_ancestors()` unused; `projection.py` needs only `register_overlay()`; `registry.py`/`org_profiles.py` need `get_provenance()`, named nowhere | debugger-debbie | MEDIUM | Corrected in WP01/WP02/WP04 |
 | `_doctrine_collect.py` line citations drifted +2 (193/283/420/828, not 191/281/418/826) after a later commit inserted 2 lines | debugger-debbie | MEDIUM | Corrected in WP03/WP09 |
-| WP05's core premise was false: `specify_cli/runtime/resolver.py` never imported `doctrine.resolver` — it imports the `charter.resolution` facade and `charter.activation.template_resolver`, both already inside `src/charter/**` | debugger-debbie | HIGH | WP05 reframed as entry-point consolidation, not bypass removal |
+| WP05's core premise was false: `specify_cli/runtime/resolver.py` never imported `doctrine.resolver` — it imports the `charter.resolution` facade and `charter.template_resolver`, both already inside `src/charter/**` | debugger-debbie | HIGH | WP05 reframed as entry-point consolidation, not bypass removal |
 | WP05's suggested new method names collided with `CharterTemplateResolver`'s existing `resolve_command_template`/`resolve_content_template` (different signatures) | debugger-debbie | LOW | WP05 requires distinct names |
 | Gate 3 (`doctrine.resolver` import) is already green today — proves nothing about a WP05 closure, since no such violation existed outside `src/charter/**` | debugger-debbie | HIGH | WP09 T039 reframed as forward-looking guard only |
 | Gate 5's naive `._inner`-anywhere scan would false-positive on unrelated `._inner` attributes in `auth/transport.py`/`events/decision_log.py` | debugger-debbie | HIGH | WP04's gate scoped to doctrine-service-typed receivers |

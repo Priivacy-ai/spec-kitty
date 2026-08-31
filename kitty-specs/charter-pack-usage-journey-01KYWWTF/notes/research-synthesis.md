@@ -36,14 +36,14 @@ generate`; today `pack.py:200-205` hand-waves "a compile may still be needed"); 
 ## Read-surface retarget list (charter.md-presence → charter.yaml authority)
 
 HARD gates to RETARGET (produce the #3105 symptoms):
-- `src/charter/activation/context.py:286` — bootstrap gate on `CHARTER_MD` → retarget to `charter.yaml` presence;
+- `src/charter/context.py:286` — bootstrap gate on `CHARTER_MD` → retarget to `charter.yaml` presence;
   render `charter.md` prose only when present (graceful-degrade like `_compact_section_block`).
 - `src/specify_cli/cli/commands/charter/_common.py:27 _resolve_charter_path` — raises on `charter.md`
   absent; consumed by `_status_collectors.py:62`. **Add a SIBLING `_resolve_charter_bundle_path`
   (charter.yaml)** and point only the presence/"governance exists" gates at it — do NOT retarget the
   shared `_resolve_charter_path` in place (also used by `status.py`, `resynthesize.py`).
 
-SOFT retarget: `src/charter/activation/context_json.py:81-93 _project_charter_json_block` — report `charter.yaml`
+SOFT retarget: `src/charter/context_json.py:81-93 _project_charter_json_block` — report `charter.yaml`
 presence as the primary signal (charter.md becomes secondary display).
 
 DO NOT retarget (legitimately charter.md prose — the #3094/#3095 boundary): `context.py:397-399` the
@@ -116,7 +116,7 @@ the migration as the upgrade-time equivalent, so the config→bundle transform i
 ## C-004 — hard dependency on Mission 1
 
 M2 is sequenced AFTER M1 and its branch is BASED ON the M1 branch. Two couplings:
-1. **Shared file:** M1 WP02 owns `src/charter/activation/resolver.py` (built-in-reader migration + operator-string
+1. **Shared file:** M1 WP02 owns `src/charter/resolver.py` (built-in-reader migration + operator-string
    repoint at :187/:250). M2's `_resolve_directives_selection` retarget edits the same file — M2 must NOT
    repoint those operator strings (M1 owns them) and must re-verify M1's resolver changes before layering.
 2. **Activation-store trust:** M2's resolver-fallback-from-activated-set trusts M1/FR-010 having unified the

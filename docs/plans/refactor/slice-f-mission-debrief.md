@@ -146,7 +146,7 @@ Land Issue #1111 Slice F (3 architectural axes: three-layer DRG resolution per #
 **Finding:** `build_with_scope` had zero `src/` callers; the WP09→WP11 in-flight Category C allowlist was never cleared.
 
 **Fix:**
-- `src/specify_cli/next/prompt_builder.py`: added `from charter.activation.scope_router import build_with_scope` import; extended `_governance_context()` with `feature_dir: Path | None = None` kwarg; when `feature_dir` is provided, delegates to `build_with_scope(repo_root, feature_dir, ...)` instead of `build_charter_context(repo_root, ...)` directly. Single-project path (feature_dir=None) is byte-identical to pre-fix.
+- `src/specify_cli/next/prompt_builder.py`: added `from charter.scope_router import build_with_scope` import; extended `_governance_context()` with `feature_dir: Path | None = None` kwarg; when `feature_dir` is provided, delegates to `build_with_scope(repo_root, feature_dir, ...)` instead of `build_charter_context(repo_root, ...)` directly. Single-project path (feature_dir=None) is byte-identical to pre-fix.
 - `_build_wp_prompt` and `_build_template_prompt` both forward their `feature_dir` argument.
 - `scope_router.py`: added explicit `# noqa: F401` imports of `CharterScopeConfig`, `CharterScopeConflict`, `CharterScopeNotFound` to give those `__all__` exports a live `src/` caller.
 
@@ -160,7 +160,7 @@ Both `category_c_wp_in_flight_charter_scope` (was 4) and `category_5_wp_in_fligh
 
 **Finding:** `build_charter_context` did not accept an optional `scope` parameter as specified in FR-010.
 
-**Fix:** Added `scope: CharterScope | None = None` keyword-only parameter to `build_charter_context` in `src/charter/activation/context.py`. When provided, `repo_root` is overridden with `scope.root`. Uses `TYPE_CHECKING` import to avoid circular dependency. All existing callers are unaffected (scope defaults to None).
+**Fix:** Added `scope: CharterScope | None = None` keyword-only parameter to `build_charter_context` in `src/charter/context.py`. When provided, `repo_root` is overridden with `scope.root`. Uses `TYPE_CHECKING` import to avoid circular dependency. All existing callers are unaffected (scope defaults to None).
 
 ### MEDIUM-3 — CharterScope glossary definition drift
 
@@ -178,7 +178,7 @@ Both `category_c_wp_in_flight_charter_scope` (was 4) and `category_5_wp_in_fligh
 
 **Finding:** `test_slice_f_cross_axis.py` called `CharterScope.resolve` directly, not through the prompt-build pipeline.
 
-**Fix:** Added `test_governance_context_production_path_uses_monorepo_charter` which drives `_governance_context(repo_root, feature_dir=deep_auth_path, action="implement")` with a monorepo fixture, patches `charter.activation.scope_router.build_charter_context` to capture the `resolved_root` argument, and asserts the resolved root equals the auth package root (not `repo_root`).
+**Fix:** Added `test_governance_context_production_path_uses_monorepo_charter` which drives `_governance_context(repo_root, feature_dir=deep_auth_path, action="implement")` with a monorepo fixture, patches `charter.scope_router.build_charter_context` to capture the `resolved_root` argument, and asserts the resolved root equals the auth package root (not `repo_root`).
 
 ### Debrief accuracy correction
 

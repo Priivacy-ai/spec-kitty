@@ -10,7 +10,7 @@
 Epic #2519's root finding: **`config.yaml` `activated_*` and the derived doctrine
 signals are disjoint ledgers with no reconciler.** Concretely — `charter activate`
 and `charter deactivate` route every write through a single chokepoint,
-`charter.activation.activation_engine.commit_plan`, which writes **exactly one file:
+`charter.activation_engine.commit_plan`, which writes **exactly one file:
 `.kittify/config.yaml`**. It never runs `sync` (which writes
 `governance/directives/metadata.yaml`), never runs `generate` (which compiles
 `references.yaml`), never runs `synthesize`/`regenerate-graph` (which writes the

@@ -409,7 +409,7 @@ fact than its overall liveness.
 
 ## WP05 (FR-003/FR-005 mission-type org/project layer scan) — an unowned, pre-existing test file pins the exact pre-fix bug as "correct" behavior
 
-WP05's own owned files are `src/charter/activation/pack_manager.py` and `tests/charter/test_pack_manager.py`
+WP05's own owned files are `src/charter/pack_manager.py` and `tests/charter/test_pack_manager.py`
 only, disjoint from WP03/WP04. That disjointness held for the two files this WP actually needed to
 touch. It did **not** hold for a third file this WP never listed and does not own:
 `tests/charter/test_pack_manager_catalog.py`. That file predates this mission entirely (last
@@ -418,7 +418,7 @@ against `f419ec4ba..HEAD` showing no hits) and is not referenced anywhere in `wp
 this mission's WP prompts.
 
 Its `TestResolveLayerCandidate` class contains two tests that call
-`charter.activation.pack_manager._resolve_layer_candidate` directly and assert the exact pre-fix bug this WP
+`charter.pack_manager._resolve_layer_candidate` directly and assert the exact pre-fix bug this WP
 exists to close as expected behavior:
 
 ```python
@@ -473,7 +473,7 @@ real directories. An independent reviewer adjudicated these as **stale, not a re
 — no implementation of FR-003 could satisfy both these assertions and the spec simultaneously.
 
 **Independently verified before editing, not taken on faith**: read both tests and the full body of
-`_resolve_layer_candidate` in `src/charter/activation/pack_manager.py`. The two branches added by WP05's commit
+`_resolve_layer_candidate` in `src/charter/pack_manager.py`. The two branches added by WP05's commit
 (`fix(charter): resolve mission-type org/project layers in _resolve_layer_candidate`) are exactly
 `kind is None and layer == "org"` → `root / "mission_types"` and `kind is None and layer ==
 "project"` → `root / "missions" / "mission_types"` — the identical `(layer, kind, layered)` triples
@@ -490,7 +490,7 @@ inputs, confirming this is the current, intended contract rather than a coincide
   equals `tmp_path / "missions" / "mission_types"` and cites FR-005 instead of the retired
   `else: continue`.
 
-**Discriminating-ness proven, not assumed**: reverted `src/charter/activation/pack_manager.py` to its
+**Discriminating-ness proven, not assumed**: reverted `src/charter/pack_manager.py` to its
 pre-WP05 state (`5491d3570`, the commit immediately before `1defeaed8`) in a disposable `git
 worktree` under `/tmp`, copied the re-pinned test file into that worktree, and ran the two tests
 there. Both **failed** against the pre-WP05 code (`AssertionError: assert None == ...`), confirming
@@ -622,7 +622,7 @@ layer's identity is not carried through to callers at all, only the final merged
 that factory's return shape to also carry provenance would have been the "real" fix (and is
 probably what FR-006/FR-007/FR-008's `source_layer` CLI work, WP07, will eventually need too), but
 `resolve_layered_mission_types` lives in `src/doctrine/missions/mission_type_repository.py`, which
-is outside WP06's `owned_files` (`src/charter/activation/mission_type_profiles.py` and its test file only).
+is outside WP06's `owned_files` (`src/charter/mission_type_profiles.py` and its test file only).
 Rather than reach outside scope, WP06 adds a small, local, read-only helper
 (`_resolve_action_sequence_layer`) in the owned file that mirrors the factory's own
 project > org > built-in-equivalent precedence by checking file existence directly — it never
@@ -640,7 +640,7 @@ declared in `__all__`. `MissionTypeEmptyActionSequenceError` has no such externa
 raised and caught only within `mission_type_profiles.py` and its own tests), and adding one — e.g.
 a dedicated `except` clause in the CLI's mission-create wrapper — would mean editing a file outside
 WP06's `owned_files`. Left the class out of `__all__` entirely instead (still fully importable via
-`from charter.activation.mission_type_profiles import MissionTypeEmptyActionSequenceError`, exactly how this
+`from charter.mission_type_profiles import MissionTypeEmptyActionSequenceError`, exactly how this
 WP's own tests and `UnknownMissionTypeError` are already imported) rather than trip the gate or
 smuggle in an unrelated file edit. Verified clean:
 `pytest tests/architectural/test_no_dead_symbols.py tests/architectural/test_golden_count_ban.py`
@@ -666,7 +666,7 @@ class).
 WP06's own tracer entry above already flagged this as the likely shape of WP07's problem, and it
 landed exactly that way. `charter mission-type list` / `mission-type show` / `doctrine mission-type
 list` all need the FR-001 layered roster's actual `MissionType` objects (display_name, extends),
-not just an action sequence — `charter.activation.mission_type_profiles` has no public function that returns
+not just an action sequence — `charter.mission_type_profiles` has no public function that returns
 one. The only producer is `resolve_layered_mission_types` in
 `src/doctrine/missions/mission_type_repository.py`, and that module is dispositioned `FACADE-ONLY`
 in `tests/architectural/test_doctrine_census.py`'s `DISPOSITION` table — a `specify_cli` file may
@@ -679,7 +679,7 @@ re-export `resolve_layered_mission_types`, and neither `src/charter/missions.py`
 `tests/architectural/test_charter_facades_reexport_doctrine.py` were in this WP's task-file
 `owned_files` list. Widened both anyway — a two-line re-export plus one `_FACADE_TABLE` row — since
 the alternative (duplicating the layer-precedence walk inside a CLI file to avoid an unowned-file
-touch) would have forked a second, driftable copy of logic `charter.activation.mission_type_profiles`'s own
+touch) would have forked a second, driftable copy of logic `charter.mission_type_profiles`'s own
 `_resolve_action_sequence_layer` already implements, for no gain. Verified this was the intended
 shape, not an improvisation: plan.md's "The Seam" section had already anticipated exactly this
 under IC-01 as the "bare-function shape needs a new facade-table entry" branch, just without

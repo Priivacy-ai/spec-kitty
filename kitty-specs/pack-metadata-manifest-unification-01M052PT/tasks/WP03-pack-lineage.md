@@ -43,7 +43,7 @@ Resolve pack lineage **without a second resolver**: feed `parent_pack` edges to 
 
 ## Context
 
-Design: [plan.md](../plan.md) IC-05 (lineage-authority decision) + [data-model.md](../data-model.md). `org_extends.resolve_extends_order` (`src/charter/activation/org_extends.py:72`) is generic over `str` keys but is fed a **name→name** map today from the live `extends:` field (`org_charter.py:517,525`). The decision: `extends:` (name) stays the **live** authority; `parent_pack` (id) resolves through an adapter; full migration to `parent_pack`-as-sole-source is deferred until `pack_id` backfill is universal.
+Design: [plan.md](../plan.md) IC-05 (lineage-authority decision) + [data-model.md](../data-model.md). `org_extends.resolve_extends_order` (`src/charter/org_extends.py:72`) is generic over `str` keys but is fed a **name→name** map today from the live `extends:` field (`org_charter.py:517,525`). The decision: `extends:` (name) stays the **live** authority; `parent_pack` (id) resolves through an adapter; full migration to `parent_pack`-as-sole-source is deferred until `pack_id` backfill is universal.
 
 ## Subtasks
 

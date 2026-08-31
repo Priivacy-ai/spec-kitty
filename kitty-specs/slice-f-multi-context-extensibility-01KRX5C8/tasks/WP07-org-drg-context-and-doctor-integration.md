@@ -23,10 +23,10 @@ subtasks:
 agent: "claude:sonnet-4-6:reviewer-renata:reviewer"
 history: []
 agent_profile: python-pedro
-authoritative_surface: src/charter/activation/context.py
+authoritative_surface: src/charter/context.py
 execution_mode: code_change
 owned_files:
-- src/charter/activation/context.py
+- src/charter/context.py
 - src/specify_cli/cli/commands/doctor.py
 - tests/integration/test_charter_status_reports_three_layers.py
 - tests/charter/test_context_provenance.py
@@ -71,7 +71,7 @@ References:
 - [data-model.md §2 OrgDRGFragment provenance threading](../data-model.md)
 - [atdd-coverage.md AC-1 (provenance side), AC-2 (doctor)](../atdd-coverage.md)
 
-**Ownership boundary note (`src/charter/activation/context.py`):** WP09 also touches `build_charter_context` to thread a `scope=` parameter. Resolution: WP07 owns `src/charter/activation/context.py` for the org-DRG wiring. WP09 implements its scope wiring as a thin wrapper module `src/charter/activation/scope_router.py` that calls into `build_charter_context` rather than changing its signature. This avoids cross-WP file ownership conflict.
+**Ownership boundary note (`src/charter/context.py`):** WP09 also touches `build_charter_context` to thread a `scope=` parameter. Resolution: WP07 owns `src/charter/context.py` for the org-DRG wiring. WP09 implements its scope wiring as a thin wrapper module `src/charter/scope_router.py` that calls into `build_charter_context` rather than changing its signature. This avoids cross-WP file ownership conflict.
 
 ---
 
@@ -128,7 +128,7 @@ def test_charter_status_reports_only_two_layers_without_org_pack(
 
 ### T035 — Wire `load_org_drg` + `merge_three_layers` into `build_charter_context`
 
-**File:** `src/charter/activation/context.py`
+**File:** `src/charter/context.py`
 
 Locate the existing `build_charter_context` function. Add the org-DRG wiring:
 
@@ -150,7 +150,7 @@ Do NOT change the function signature in this WP (WP09 owns signature extension v
 
 ### T036 — Thread per-layer `source:` provenance into `_render_*` helpers
 
-**File:** `src/charter/activation/context.py`
+**File:** `src/charter/context.py`
 
 For each `_render_<kind>` helper that emits artifact stanzas, thread the `source:` field from the merged graph into the rendered output. Example transformation:
 
@@ -292,7 +292,7 @@ pytest tests/integration/test_charter_status_reports_three_layers.py \
 - Confirm `load_org_drg(repo_root)` is called from `build_charter_context`; org-DRG nodes thread `source:` into the rendered output.
 - Confirm Option B is implemented: stanzas carry `source:` only when an org pack contributes. Verify by running 23-fixture suite: `pytest tests/specify_cli/next/test_wp_prompt_governance_contract.py -v` — MUST stay 23/23 (NFR-001 binding).
 - Confirm `doctor doctrine` catches `OrgDRGConflictError` and renders gracefully (diagnostic commands never crash on operator misconfiguration).
-- Confirm layer-rule unchanged: `src/charter/activation/context.py` imports nothing from `src/specify_cli/` (NFR-003).
+- Confirm layer-rule unchanged: `src/charter/context.py` imports nothing from `src/specify_cli/` (NFR-003).
 - Confirm `_baselines.yaml::test_runtime_charter_doctrine_boundary` is still 0 (or edited with justification if it grew).
 - Confirm full architectural sweep exit 0 (NFR-005).
 

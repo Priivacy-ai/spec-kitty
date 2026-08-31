@@ -5,7 +5,7 @@
 
 This feature introduces two new typed entities (`CharterBundleManifest`, `MigrationReport`), extends one existing entity (`SyncResult`), and adds two new exception types. No existing schema is retyped or renamed. All models are Pydantic (the project's existing typed-config standard).
 
-**v1.0.0 scope**: the manifest and chokepoint cover the three files `src/charter/activation/sync.py` materializes — `governance.yaml`, `directives.yaml`, `metadata.yaml`. `references.yaml` (compiler pipeline) and `context-state.json` (runtime state) are explicitly out of v1.0.0 scope and belong to different pipelines. Expanding scope requires a new manifest schema version and its own migration.
+**v1.0.0 scope**: the manifest and chokepoint cover the three files `src/charter/sync.py` materializes — `governance.yaml`, `directives.yaml`, `metadata.yaml`. `references.yaml` (compiler pipeline) and `context-state.json` (runtime state) are explicitly out of v1.0.0 scope and belong to different pipelines. Expanding scope requires a new manifest schema version and its own migration.
 
 ---
 
@@ -18,7 +18,7 @@ This feature introduces two new typed entities (`CharterBundleManifest`, `Migrat
 
 ### Purpose
 
-Declares the files that `src/charter/activation/sync.py` materializes as the project's governance bundle. Consumed by:
+Declares the files that `src/charter/sync.py` materializes as the project's governance bundle. Consumed by:
 
 - `ensure_charter_bundle_fresh()` (the chokepoint) — for the "what files must exist" completeness check.
 - `m_3_2_3_unified_bundle.py` (the migration) — for bundle validation on upgrade.
@@ -31,7 +31,7 @@ Declares the files that `src/charter/activation/sync.py` materializes as the pro
 | --- | --- | --- | --- |
 | `schema_version` | `str` | Yes | Semver string describing the manifest schema version. Starts at `"1.0.0"`. Bumped only when manifest shape or scope changes. |
 | `tracked_files` | `list[Path]` | Yes | Every path (relative to the project root) that must be tracked in git. For v1.0.0: `[Path(".kittify/charter/charter.md")]`. |
-| `derived_files` | `list[Path]` | Yes | Every path (relative to the project root) that is produced by `src/charter/activation/sync.py` and must be gitignored. For v1.0.0: exactly the three files in `_SYNC_OUTPUT_FILES` at `src/charter/activation/sync.py:32-36` — `governance.yaml`, `directives.yaml`, `metadata.yaml`. |
+| `derived_files` | `list[Path]` | Yes | Every path (relative to the project root) that is produced by `src/charter/sync.py` and must be gitignored. For v1.0.0: exactly the three files in `_SYNC_OUTPUT_FILES` at `src/charter/sync.py:32-36` — `governance.yaml`, `directives.yaml`, `metadata.yaml`. |
 | `derivation_sources` | `dict[Path, Path]` | Yes | Maps each derived file to the source file it is derived from. For v1.0.0 every mapping is `<derived> → Path(".kittify/charter/charter.md")`. |
 | `gitignore_required_entries` | `list[str]` | Yes | The exact strings that must appear in `.gitignore` for the derived files to be correctly ignored. For v1.0.0 the three entries matching `derived_files`. The project `.gitignore` MAY contain additional entries (e.g., for `context-state.json`, `references.yaml`) — the manifest's set is a "must include" floor, not an "only these" ceiling. |
 
@@ -76,8 +76,8 @@ CANONICAL_MANIFEST = CharterBundleManifest(
 
 ### Explicitly out of v1.0.0 scope
 
-- `.kittify/charter/references.yaml` — produced by `src/charter/activation/compiler.py :: write_compiled_charter` (lines 169-196), a different pipeline invoked by `spec-kitty charter generate`.
-- `.kittify/charter/context-state.json` — written lazily by `src/charter/activation/context.py :: build_charter_context` (lines 385-398) as runtime first-load state.
+- `.kittify/charter/references.yaml` — produced by `src/charter/compiler.py :: write_compiled_charter` (lines 169-196), a different pipeline invoked by `spec-kitty charter generate`.
+- `.kittify/charter/context-state.json` — written lazily by `src/charter/context.py :: build_charter_context` (lines 385-398) as runtime first-load state.
 - `.kittify/charter/interview/answers.yaml` — interview answer cache.
 - `.kittify/charter/library/*.md` — user-authored local support docs when the charter was generated interactively.
 
@@ -87,7 +87,7 @@ The project `.gitignore` continues to ignore these files as it does today; the m
 
 ## Entity: `SyncResult` (extended)
 
-**Module**: `src/charter/activation/sync.py` (existing — extended in WP2.2).
+**Module**: `src/charter/sync.py` (existing — extended in WP2.2).
 **Pattern**: `@dataclass` (current shape; preserved).
 **Extension**: one new field `canonical_root: Path`.
 **External contract**: [`contracts/chokepoint.contract.md`](contracts/chokepoint.contract.md).
@@ -213,7 +213,7 @@ Per C-001, neither exception has a fallback handler in the chokepoint; both prop
                    │                          │                               │
                    ▼                          ▼                               ▼
    ensure_charter_bundle_fresh()    m_3_2_3_unified_bundle.py   spec-kitty charter bundle validate
-   (src/charter/activation/sync.py)            (upgrade migration)         (src/specify_cli/cli/commands/charter.py)
+   (src/charter/sync.py)            (upgrade migration)         (src/specify_cli/cli/commands/charter.py)
                    │
                    │ calls first, caches path
                    ▼

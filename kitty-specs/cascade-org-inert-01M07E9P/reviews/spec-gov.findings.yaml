@@ -10,11 +10,11 @@ findings:
     title: "Base-Branch Drift section cites the wrong file as evidence for the missing symbol"
     evidence:
       - artifact: "spec.md § Base-Branch Drift, lines 19-22 (\"Reason for the dependency\")"
-      - code: "src/charter/activation/_drg_helpers.py (this branch, lines 76 & 97) vs src/doctrine/drg/org_pack_config.py:474 (this branch)"
+      - code: "src/charter/_drg_helpers.py (this branch, lines 76 & 97) vs src/doctrine/drg/org_pack_config.py:474 (this branch)"
     claim: >
       The spec states: "the fix this issue prescribes threads
       `doctrine.drg.org_pack_config.resolve_existing_org_roots` into three call sites. That
-      symbol is **verified absent** from `src/charter/activation/_drg_helpers.py` on `main`." The symbol
+      symbol is **verified absent** from `src/charter/_drg_helpers.py` on `main`." The symbol
       is actually *defined* in `src/doctrine/drg/org_pack_config.py:474` (verified: this branch
       has it, `git show main:src/doctrine/drg/org_pack_config.py` does not). `_drg_helpers.py`
       only ever *mentions* the symbol's name in its docstring (as a cross-reference for
@@ -32,6 +32,6 @@ findings:
       module/function is verified absent from `src/doctrine/drg/org_pack_config.py` on `main`
       (confirmed via `git show main:src/doctrine/drg/org_pack_config.py`, which does not define
       `resolve_existing_org_roots`) — it is introduced by #3520/#3525's commits." Optionally note
-      that `src/charter/activation/_drg_helpers.py` (which consumes the symbol) also changes substantially
+      that `src/charter/_drg_helpers.py` (which consumes the symbol) also changes substantially
       between `main` and this branch, so both files are worth diffing, but only
       `org_pack_config.py` is where the symbol itself is missing.

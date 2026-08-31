@@ -12,7 +12,7 @@ wp_id: WP05
 ## Review cycle 2 — REJECTED
 
 `docs/guides/troubleshoot-charter.md` §1 ("Stale bundle") is now correct and well-verified
-against `src/charter/activation/sync.py` and `src/specify_cli/cli/commands/charter/synthesize.py`. Thank you
+against `src/charter/sync.py` and `src/specify_cli/cli/commands/charter/synthesize.py`. Thank you
 for the "Model change" callout — it's clear and accurate.
 
 However, the same staleness bug (charter.md treated as the authoritative/gating artifact) is
@@ -73,7 +73,7 @@ uv run spec-kitty charter bundle validate
 
 This is the identical dead command your own §1 fix just removed and explained: `charter.md`'s
 `sync()` "no longer extracts or writes anything; it always reports `synced=False`" (per
-`src/charter/activation/sync.py` module docstring). It's still listed here as a "fix" step, teaching the same
+`src/charter/sync.py` module docstring). It's still listed here as a "fix" step, teaching the same
 no-op.
 
 Fix: drop the `charter sync` line from this step (keep `synthesize` + `bundle validate`).

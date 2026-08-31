@@ -108,7 +108,7 @@ docs/                             # charter journey guides (IC-09, FR-009) + ana
 ```
 
 **Structure Decision**: Single-project layout. Governance code lives in `src/charter/` (library) and
-`src/specify_cli/cli/commands/charter/` (CLI surface); the compile seam in `src/charter/activation/compiler.py` is
+`src/specify_cli/cli/commands/charter/` (CLI surface); the compile seam in `src/charter/compiler.py` is
 reused unchanged. All file:line anchors below are **symbol-anchored** — `context.py` has drifted twice
 (M1's #3116 shim removal shifted it), so implementers resolve by symbol, using the synthesis re-anchor table
 as a hint, and re-verify against HEAD before editing (C-002).
@@ -167,9 +167,9 @@ as a hint, and re-verify against HEAD before editing (C-002).
   `charter.yaml`, without entangling the prose readers.
 - **Relevant requirements**: FR-005, FR-006, SC-002; journey tests 4 & 5 (incl. `charter.md`-deletion) + the
   FR-006 JSON present-signal test.
-- **Affected surfaces**: `src/charter/activation/context.py` (`build_charter_context` `CHARTER_MD` presence gate `:206`/
+- **Affected surfaces**: `src/charter/context.py` (`build_charter_context` `CHARTER_MD` presence gate `:206`/
   `:236` — render `charter.md` prose only when present, graceful-degrade; **reuse `charter.bundle.CHARTER_YAML`
-  `bundle.py:48`**, never a fresh `"charter.yaml"` literal); `src/charter/activation/context_json.py:87`
+  `bundle.py:48`**, never a fresh `"charter.yaml"` literal); `src/charter/context_json.py:87`
   (`_project_charter_json_block` soft-retarget — **IC-03 owns this file's edits**); the **2nd present-signal
   site `src/specify_cli/cli/commands/charter/context.py:158`** (the `{"present": False, "path": "…charter.md"}`
   fallback default — keep consistent with the producer); `_common.py` (**NEW** CLI-layer sibling
@@ -193,7 +193,7 @@ as a hint, and re-verify against HEAD before editing (C-002).
   the authored selection is empty (as after apply+compile), source directives from the config-activated set,
   never the full built-in catalog.
 - **Relevant requirements**: FR-007, US3, SC-003; journey test 6 (RED today) + the bare-project regression.
-- **Affected surfaces**: `src/charter/activation/resolver.py` — the fix-locus is **`_resolve_directives_selection`
+- **Affected surfaces**: `src/charter/resolver.py` — the fix-locus is **`_resolve_directives_selection`
   (`:233`, catalog-fallback `:258-260`) and `resolve_project_governance` (`:289`, builds unfiltered catalog at
   `:316`, constructs no `PackContext`)**. Thread `PackContext.from_config(repo_root).activated_directives` down
   and use it as the fallback *source*. **The `DoctrineService` wrapper (`:57-139`) is NOT the fix** — all 5
@@ -237,7 +237,7 @@ as a hint, and re-verify against HEAD before editing (C-002).
   (required by generated `implement`/`review` prompts) resolve instead of dead-ending — closing #3095, its
   terminology-canon twin #3094, **and its code-review-checklist twin #2552**.
 - **Relevant requirements**: FR-010, SC-007 (partial); acceptance US4.1.
-- **Affected surfaces**: **`src/charter/activation/context_renderers/section_bodies.py::render_critical_section_include`
+- **Affected surfaces**: **`src/charter/context_renderers/section_bodies.py::render_critical_section_include`
   ONLY** (`:282`; returns `None` at `:308-311` when the heading is absent). Make it return an **honest
   placeholder** ("This charter has not yet authored a *Terminology Canon* section — add one to
   `.kittify/charter/charter.md`") instead of `None`, so the selector always resolves *and* the dead-end raise

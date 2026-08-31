@@ -24,10 +24,10 @@ history:
   event: created
   actor: claude
 agent_profile: python-pedro
-authoritative_surface: src/charter/activation/pack_context.py
+authoritative_surface: src/charter/pack_context.py
 execution_mode: code_change
 owned_files:
-- src/charter/activation/pack_context.py
+- src/charter/pack_context.py
 - tests/charter/test_pack_context.py
 role: implementer
 tags: []
@@ -68,7 +68,7 @@ later WPs consume the new fields added here.
 
 ## Context
 
-`PackContext` is defined in `src/charter/activation/pack_context.py` as a
+`PackContext` is defined in `src/charter/pack_context.py` as a
 `@dataclass(frozen=True)`. It is **not** a Pydantic model. Do not use `Field()`,
 validators, or any Pydantic construct in this file.
 
@@ -115,11 +115,11 @@ T009, then after T010.
 activation fields, all defaulting to `None` (three-state: absent = all built-ins).
 
 **Files**:
-- `src/charter/activation/pack_context.py`
+- `src/charter/pack_context.py`
 
 **Steps**:
 
-1. Open `src/charter/activation/pack_context.py`. Find the `PackContext` dataclass definition.
+1. Open `src/charter/pack_context.py`. Find the `PackContext` dataclass definition.
    Locate the existing field:
    ```python
    activated_mission_types: frozenset[str] | None = None
@@ -145,7 +145,7 @@ activation fields, all defaulting to `None` (three-state: absent = all built-ins
    ```bash
    cd /home/stijn/Documents/_code/SDD/fork/spec-kitty
    python -c "
-   from charter.activation.pack_context import PackContext
+   from charter.pack_context import PackContext
    from pathlib import Path
    pc = PackContext(pack_roots=(Path('.'),), repo_root=Path('.'))
    print('activated_directives:', pc.activated_directives)
@@ -158,7 +158,7 @@ activation fields, all defaulting to `None` (three-state: absent = all built-ins
 **Validation**:
 ```bash
 cd /home/stijn/Documents/_code/SDD/fork/spec-kitty
-python -m mypy src/charter/activation/pack_context.py --strict 2>&1 | tail -5
+python -m mypy src/charter/pack_context.py --strict 2>&1 | tail -5
 ```
 Expected: no errors on this file (or only pre-existing errors unrelated to the new
 fields — but ideally zero).
@@ -174,12 +174,12 @@ deserializes the raw YAML value using the three-state contract. Hook all 8 reade
 into `from_config()` so loading a config YAML populates the new fields.
 
 **Files**:
-- `src/charter/activation/pack_context.py`
+- `src/charter/pack_context.py`
 
 **Steps**:
 
 1. Find the existing reader functions `_read_activated_kinds` and
-   `_read_activated_mission_types` in `src/charter/activation/pack_context.py`. Study their
+   `_read_activated_mission_types` in `src/charter/pack_context.py`. Study their
    structure — you will follow the same pattern but with the three-state fix already
    applied (do not add `and raw`).
 
@@ -231,7 +231,7 @@ into `from_config()` so loading a config YAML populates the new fields.
    cd /home/stijn/Documents/_code/SDD/fork/spec-kitty
    python -c "
    import tempfile, pathlib, yaml
-   from charter.activation.pack_context import PackContext
+   from charter.pack_context import PackContext
 
    cfg = {'activated_directives': ['dir-001', 'dir-002'], 'activated_tactics': []}
    with tempfile.NamedTemporaryFile(mode='w', suffix='.yaml', delete=False) as f:
@@ -248,7 +248,7 @@ into `from_config()` so loading a config YAML populates the new fields.
 **Validation**:
 ```bash
 cd /home/stijn/Documents/_code/SDD/fork/spec-kitty
-python -m mypy src/charter/activation/pack_context.py --strict 2>&1 | tail -5
+python -m mypy src/charter/pack_context.py --strict 2>&1 | tail -5
 pytest tests/charter/test_pack_context.py -x -v 2>&1 | tail -20
 ```
 Both must pass. (Some tests added in T010 will be new; existing passing tests must
@@ -267,12 +267,12 @@ all-built-ins sentinel). This is wrong: an explicit `[]` must map to `frozenset(
 the old wrong behavior.
 
 **Files**:
-- `src/charter/activation/pack_context.py`
+- `src/charter/pack_context.py`
 - `tests/charter/test_pack_context.py`
 
 **Steps**:
 
-1. Open `src/charter/activation/pack_context.py`. Find `_read_activated_kinds` (around line
+1. Open `src/charter/pack_context.py`. Find `_read_activated_kinds` (around line
    197). The current code reads:
    ```python
    if isinstance(raw, list) and raw:
@@ -311,7 +311,7 @@ the old wrong behavior.
    cd /home/stijn/Documents/_code/SDD/fork/spec-kitty
    python -c "
    import tempfile, pathlib, yaml
-   from charter.activation.pack_context import PackContext
+   from charter.pack_context import PackContext
 
    # Empty list must now produce frozenset(), not None
    cfg = {'activated_kinds': []}
@@ -473,9 +473,9 @@ Verify the new test names appear and the deleted test name does not.
       `activated_agent_profiles` (3 tests)
 - [ ] Structural test `test_packcontext_has_all_ten_activated_fields` passes
 - [ ] FR-039 regression test for `activated_kinds` with empty list passes
-- [ ] `ruff check src/charter/activation/pack_context.py tests/charter/test_pack_context.py`
+- [ ] `ruff check src/charter/pack_context.py tests/charter/test_pack_context.py`
       passes (no new lint errors)
-- [ ] `python -m mypy src/charter/activation/pack_context.py --strict` passes
+- [ ] `python -m mypy src/charter/pack_context.py --strict` passes
 
 ---
 
@@ -512,21 +512,21 @@ Verify the new test names appear and the deleted test name does not.
 
 Reviewers must verify:
 
-1. **Three-state contract is complete**: `grep "and raw" src/charter/activation/pack_context.py`
+1. **Three-state contract is complete**: `grep "and raw" src/charter/pack_context.py`
    returns no output. Both fixed readers use only `isinstance(raw, list):` without a
    truthiness guard.
 
 2. **Deleted test is gone**: `grep "uses_builtin_fallback" tests/charter/test_pack_context.py`
    returns no output.
 
-3. **10 fields on dataclass**: In `src/charter/activation/pack_context.py`, count all
+3. **10 fields on dataclass**: In `src/charter/pack_context.py`, count all
    `activated_*` fields in the `PackContext` class body. There should be exactly 10:
    `activated_kinds`, `activated_mission_types`, `activated_directives`,
    `activated_tactics`, `activated_styleguides`, `activated_toolguides`,
    `activated_paradigms`, `activated_procedures`, `activated_agent_profiles`,
    `activated_mission_step_contracts`.
 
-4. **All readers wired in `from_config()`**: `grep "activated_" src/charter/activation/pack_context.py`
+4. **All readers wired in `from_config()`**: `grep "activated_" src/charter/pack_context.py`
    should show all 8 new reader calls inside the `from_config()` method body.
 
 5. **Structural test passes**: The test
@@ -536,7 +536,7 @@ Reviewers must verify:
    `test_activated_kinds_empty_list_returns_frozenset_not_builtin_fallback` must be
    present and PASSED.
 
-7. **mypy strict passes** on `src/charter/activation/pack_context.py` — check CI output or run
+7. **mypy strict passes** on `src/charter/pack_context.py` — check CI output or run
    locally.
 
 ## Activity Log

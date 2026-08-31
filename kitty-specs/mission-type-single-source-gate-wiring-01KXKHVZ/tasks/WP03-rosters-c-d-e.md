@@ -36,8 +36,8 @@ execution_mode: code_change
 model: claude-sonnet-5
 owned_files:
 - src/specify_cli/upgrade/migrations/m_3_2_0rc35_activate_builtin_mission_types.py
-- src/charter/activation/activations.py
-- src/charter/activation/synthesizer/interview_mapping.py
+- src/charter/activations.py
+- src/charter/synthesizer/interview_mapping.py
 - tests/architectural/test_no_dead_symbols.py
 - tests/upgrade/test_activate_builtin_types_migration.py
 - tests/charter/test_activations.py
@@ -74,10 +74,10 @@ Route the three remaining mission-type rosters through the WP01 accessor (#2669)
   `ALLOWED_MISSION_TYPES = frozenset(builtin_mission_type_id_set() | {"any", "generic"})` at module scope.
   Do **NOT** convert it to a function. Rationale: `ALLOWED_MISSION_TYPES` is public and an **unowned** arch
   test `tests/architectural/test_activation_registry_schema.py:117` does
-  `from charter.activation.activations import ALLOWED_MISSION_TYPES` then `frozenset(ALLOWED_MISSION_TYPES)` (`:129`) —
+  `from charter.activations import ALLOWED_MISSION_TYPES` then `frozenset(ALLOWED_MISSION_TYPES)` (`:129`) —
   a function form would `ImportError`/`TypeError` that unowned test. Keeping it a derived frozenset VALUE
   leaves that test **green by construction (no edit to it)** and `test_activations.py:211` isinstance green.
-  This triggers **one cached `mission_types/` read at import of `charter.activation.activations`** — explicitly the
+  This triggers **one cached `mission_types/` read at import of `charter.activations`** — explicitly the
   NFR-001 carve-out (C-012); acceptable (bounded by NFR-002). The module-level accessor import is
   layer-legal (charter→doctrine) and cycle-free (doctrine never imports charter).
 - **Roster D dead-symbol body_hash (paula MUST-FIX):** `ALLOWED_MISSION_TYPES` is baselined in
@@ -134,7 +134,7 @@ frozenset. Confirm T011 goes green.
 
 ### T015 — Quality gate
 
-- `uv run ruff check src/charter/ src/specify_cli/upgrade/ && uv run mypy --strict src/charter/activation/activations.py src/charter/activation/synthesizer/interview_mapping.py src/specify_cli/upgrade/migrations/m_3_2_0rc35_activate_builtin_mission_types.py`
+- `uv run ruff check src/charter/ src/specify_cli/upgrade/ && uv run mypy --strict src/charter/activations.py src/charter/synthesizer/interview_mapping.py src/specify_cli/upgrade/migrations/m_3_2_0rc35_activate_builtin_mission_types.py`
 - `uv run pytest tests/charter tests/upgrade -q`
 - Arch pole (dead-symbol body_hash MUST be green): `uv run python -m pytest tests/adversarial tests/architectural tests/architecture tests/lint -m 'arch_shard_1 and not windows_ci and (git_repo or integration or architectural) and not timing' -q -n auto --dist loadfile`
 

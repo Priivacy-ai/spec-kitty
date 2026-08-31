@@ -18,9 +18,9 @@ A test under `tests/specify_cli/charter/test_import_surface_preservation.py` ite
 LEGACY_IMPORTS: list[tuple[str, str]] = [
     # (legacy_path, canonical_path)
     ("specify_cli.charter", "charter"),
-    ("specify_cli.charter.compiler", "charter.activation.compiler"),
-    ("specify_cli.charter.interview", "charter.activation.interview"),
-    ("specify_cli.charter.resolver", "charter.activation.resolver"),
+    ("specify_cli.charter.compiler", "charter.compiler"),
+    ("specify_cli.charter.interview", "charter.interview"),
+    ("specify_cli.charter.resolver", "charter.resolver"),
     # + each public symbol re-exported from __init__.py, frozen at mission time
 ]
 

@@ -36,7 +36,7 @@ tags: []
 
 Add an additive `pack validate` check that warns when a pack's DRG content lives only under
 `drg/*.graph.yaml` fragments with no pack-root `*.graph.yaml` — the shape the runtime
-(`src/charter/activation/_drg_helpers.py:load_validated_graph`) never reads, which sibling mission #3384
+(`src/charter/_drg_helpers.py:load_validated_graph`) never reads, which sibling mission #3384
 documents as **zeroing the action grain** at adoption. Gate this new check behind a
 keyword-only `check_drg_root: bool = True` parameter on `validate_pack()`, and set that
 parameter correctly at `validate_pack()`'s two other call sites per operator ruling #2.
@@ -55,7 +55,7 @@ version described anywhere else in this repo's history.
 — it never looks at the pack root. A pack authored exactly per the guide's `drg/` layout
 passes `pack validate` cleanly today, and, per sibling mission #3384, silently loses its DRG
 content at runtime. **Explicitly out of scope (C-002)**: no change to
-`src/charter/activation/_drg_helpers.py`, `load_graph_or_dir`, or `load_validated_graph` — that surface
+`src/charter/_drg_helpers.py`, `load_graph_or_dir`, or `load_validated_graph` — that surface
 belongs to sibling mission `org-pack-drg-root-graph-guard-01KZY0QT` (#3384), in spec phase
 concurrently. This WP's entire fix lives in `pack_validator.py` and two call-site edits.
 
@@ -122,7 +122,7 @@ drg/-only, no-pack-root-graph shape.
      need to pass the keyword explicitly, since the CLI-facing default is what AC-1 targets).
    - Asserts `result.ok is False`, and that `result.errors` contains a `ValidationIssue` with
      `category == "drg_root_graph_missing"` naming the runtime carrier the check is about
-     (a message referencing `src/charter/activation/_drg_helpers.py` / `load_validated_graph` / the
+     (a message referencing `src/charter/_drg_helpers.py` / `load_validated_graph` / the
      pack-root `*.graph.yaml` requirement — the exact wording is your call, but the message
      must be actionable, not just a bare category name).
    - **Also exercises the CLI for AC-4's exit-code-1 half** (a direct `validate_pack()` call
@@ -297,7 +297,7 @@ and operator ruling #2.
    ) -> list[ValidationIssue]:
        """Warn when DRG content lives only under drg/ with no pack-root graph.
 
-       The runtime (src/charter/activation/_drg_helpers.py:load_validated_graph) reads a
+       The runtime (src/charter/_drg_helpers.py:load_validated_graph) reads a
        pack-root *.graph.yaml, never drg/ fragments — see spec.md
        Clarification 3 / sibling mission #3384. Fires only when drg/ contains
        at least one *.graph.yaml fragment AND the pack root has none; a pack
@@ -318,7 +318,7 @@ and operator ruling #2.
                message=(
                    "DRG content exists only under drg/*.graph.yaml with no "
                    "pack-root *.graph.yaml. The runtime "
-                   "(src/charter/activation/_drg_helpers.py:load_validated_graph) reads "
+                   "(src/charter/_drg_helpers.py:load_validated_graph) reads "
                    "the pack root directly, not drg/ fragments — this pack's "
                    "DRG content will not be read as authored."
                ),
@@ -492,7 +492,7 @@ untouched — confirm with `git status` that only the canonical path shows as mo
       entry; the root symlink is untouched.
 - [ ] `uv run pytest tests/specify_cli/doctrine/test_pack_validator.py tests/specify_cli/doctrine/test_pack_assembler.py tests/cli/test_doctrine_org_commands.py -q`
       is fully green.
-- [ ] No file outside `owned_files` is touched; `src/charter/activation/_drg_helpers.py` is not touched
+- [ ] No file outside `owned_files` is touched; `src/charter/_drg_helpers.py` is not touched
       anywhere in this WP's diff (C-002).
 - [ ] `ruff check src/specify_cli/doctrine/pack_validator.py src/specify_cli/doctrine/pack_assembler.py src/specify_cli/cli/commands/doctrine.py`
       and `mypy --strict` on the same three files (or the project's standard invocation) pass
@@ -596,7 +596,7 @@ untouched — confirm with `git status` that only the canonical path shows as mo
   `tests/cli/test_doctrine_org_commands.py`, not a repurposed existing one) and that it
   exercises `doctrine org validate` end-to-end (via `runner.invoke`), not just `validate_pack`
   directly, since AC-7(b) is specifically about the CLI command's behaviour.
-- Confirm `src/charter/activation/_drg_helpers.py` does not appear anywhere in this WP's diff (C-002).
+- Confirm `src/charter/_drg_helpers.py` does not appear anywhere in this WP's diff (C-002).
 - Confirm the CHANGELOG edit lands on `docs/changelog/CHANGELOG.md` (canonical path) and that
   `git status`/`readlink` show the root symlink untouched.
 - Run only the three targeted test files named in this WP's `owned_files` for this WP's own

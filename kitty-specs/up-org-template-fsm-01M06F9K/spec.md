@@ -14,7 +14,7 @@ already answers the design questions a specify phase would otherwise raise, and 
 **Option A2**. This spec independently re-verifies every load-bearing claim against this
 checkout's tip (`main@2cffc248f`) during authoring. Several files changed between the spike's
 commit and this one (`src/doctrine/drg/org_pack_config.py`, `src/specify_cli/cli/commands/charter/list_cmd.py`,
-`src/charter/activation/resolver.py`, `src/specify_cli/core/mission_creation.py`,
+`src/charter/resolver.py`, `src/specify_cli/core/mission_creation.py`,
 `tests/architectural/test_built_in_location_authority.py`); none of the changes touch the two
 resolver `_resolve_asset` functions, `resolve_mission`, the FSM discovery walks, or the 3-kind
 carve-out. One spike-cited line range had gone stale by the time of this re-verification
@@ -60,7 +60,7 @@ unchanged.**
 `doctrine/resolver.py:177-179` verbatim) to the `specify_cli` module — it does not delete, import,
 or otherwise unify the two modules. `tests/architectural/test_charter_sole_door_resolver_imports.py:1-20`
 gate-mandates that `doctrine.resolver`'s tier functions stay reachable, from outside
-`src/charter/**`/`src/doctrine/**`, only via `charter.activation.resolver.DoctrineService` — a real merge
+`src/charter/**`/`src/doctrine/**`, only via `charter.resolver.DoctrineService` — a real merge
 would make `specify_cli/runtime/resolver.py` import `doctrine.resolver` directly and red this gate
 immediately (zero-tolerance, no allow-list, confirmed at the same citation).
 
@@ -163,9 +163,9 @@ Checked directly against the two gates a `<org_root> / "missions"` join could pl
 also unrelated; the fix changes `org_root / "doctrine" / "missions"` to `org_root / "missions"`,
 composing against the already-resolved `org_root`, never `"built-in"`.
 
-### DEC-008 — `charter.activation.template_resolver.CharterTemplateResolver._tier_to_origin` is a fourth place needing an `ORG` label
+### DEC-008 — `charter.template_resolver.CharterTemplateResolver._tier_to_origin` is a fourth place needing an `ORG` label
 
-`src/charter/activation/template_resolver.py:166-174`'s `tier_prefix` dict maps `ResolutionTier` members to a
+`src/charter/template_resolver.py:166-174`'s `tier_prefix` dict maps `ResolutionTier` members to a
 display prefix via `.get(tier, "unknown")`. Without an `ResolutionTier.ORG` entry, an org-tier
 resolution reached through this class would silently render its origin string as
 `"unknown/<mission>/<asset_type>/<filename>"` — the exact silent-wrong class this program is

@@ -32,9 +32,9 @@ execution_mode: code_change
 mission_id: 01KPE222CD1MMCYEGB3ZCY51VR
 mission_slug: phase-3-charter-synthesizer-pipeline-01KPE222
 owned_files:
-- src/charter/activation/synthesizer/interview_mapping.py
-- src/charter/activation/synthesizer/targets.py
-- src/charter/activation/synthesizer/synthesize_pipeline.py
+- src/charter/synthesizer/interview_mapping.py
+- src/charter/synthesizer/targets.py
+- src/charter/synthesizer/synthesize_pipeline.py
 - tests/charter/synthesizer/test_interview_mapping.py
 - tests/charter/synthesizer/test_orchestrator_synthesize.py
 - tests/charter/synthesizer/test_schema_conformance.py
@@ -57,7 +57,7 @@ Read before writing code:
 - [plan.md §Work Package Breakdown](../plan.md) — scope for WP3.2.
 - [data-model.md §E-1, §E-2, §E-3, §E-4](../data-model.md) — entity fields.
 - [research.md §R-0-1](../research.md) — interview-answer surfaces → artifact kind mapping.
-- Existing interview surface at `src/charter/activation/interview.py` — use its section labels as the mapping keys.
+- Existing interview surface at `src/charter/interview.py` — use its section labels as the mapping keys.
 - Shipped Pydantic models: `src/doctrine/directives/models.py::Directive`, `src/doctrine/tactics/models.py::Tactic`, `src/doctrine/styleguides/models.py::Styleguide` — call `.model_validate(body)` for FR-019.
 
 ## Branch strategy
@@ -71,7 +71,7 @@ Read before writing code:
 
 ### T009 — `interview_mapping.py` [P]
 
-**File**: `src/charter/activation/synthesizer/interview_mapping.py`
+**File**: `src/charter/synthesizer/interview_mapping.py`
 
 Build an explicit **data table** mapping interview section labels → expected artifact kinds. Data-driven, not imperative. Example shape:
 
@@ -96,7 +96,7 @@ The mapping drives WP04's `test_context_reflects_synthesis` — keep it public a
 
 ### T010 — `targets.py` [P]
 
-**File**: `src/charter/activation/synthesizer/targets.py`
+**File**: `src/charter/synthesizer/targets.py`
 
 Functions:
 - `build_targets(interview_snapshot, mappings, drg_snapshot) -> list[SynthesisTarget]` — resolves answers + source URN references; assigns `artifact_id` per kind (for directives, generate `PROJECT_<NNN>` deterministically from the target index; for tactic/styleguide, `artifact_id == slug`).
@@ -107,7 +107,7 @@ Every URN in `target.source_urns` must resolve in `drg_snapshot`; if not, raise 
 
 ### T011 — `synthesize_pipeline.py`
 
-**File**: `src/charter/activation/synthesizer/synthesize_pipeline.py`
+**File**: `src/charter/synthesizer/synthesize_pipeline.py`
 
 Public entry: `run(request, adapter) -> list[tuple[Mapping[str, Any], ProvenanceEntry]]`.
 
@@ -150,7 +150,7 @@ This is the FR-019 / NFR-005 gate.
 ### T013 — In-memory provenance-object assembly
 
 Build `ProvenanceEntry` per data-model.md §E-4:
-- `artifact_content_hash` = blake3-256 of the canonicalized YAML bytes that WP03 will emit (use the same YAML serializer WP03 will use — call `charter.activation.synthesizer.serialize.canonical_yaml(body)` which you add as a small helper inside `synthesize_pipeline.py` or a sibling module you own).
+- `artifact_content_hash` = blake3-256 of the canonicalized YAML bytes that WP03 will emit (use the same YAML serializer WP03 will use — call `charter.synthesizer.serialize.canonical_yaml(body)` which you add as a small helper inside `synthesize_pipeline.py` or a sibling module you own).
 - `inputs_hash` = blake3-256 over `normalize_request_for_hash(request, adapter_id, adapter_version)` from WP01.
 - `source_section` and `source_urns` copied verbatim from `target`.
 - `generated_at` from `AdapterOutput.generated_at` (ISO 8601 UTC).

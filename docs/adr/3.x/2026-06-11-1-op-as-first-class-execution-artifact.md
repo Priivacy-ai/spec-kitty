@@ -247,7 +247,7 @@ architect to adjudicate. They are recorded here because they belong to the
 ### Adjudication 1 — Charter authority-path modernization: **deferred**
 
 **Finding.** The charter's default authority pointer for architectural intent
-(`charter.activation.context_renderers.authority_paths.DEFAULT_AUTHORITY_PATHS`) still cites
+(`charter.context_renderers.authority_paths.DEFAULT_AUTHORITY_PATHS`) still cites
 `architecture/2.x/adr/`, while `architecture/3.x/adr/` is the canonical track.
 
 **Decision: defer the flip, with a sanctioned recovery path.** Rationale:
@@ -290,7 +290,7 @@ a WP06 side effect.
 **Addendum — 2026-06-12 — EXECUTED** (WP07, mission `name-vs-authority-remediation-01KTYGTE`):
 The deferred flip was executed in full. All seven chain links landed atomically:
 
-1. `src/charter/activation/context_renderers/authority_paths.py` `DEFAULT_AUTHORITY_PATHS` flipped
+1. `src/charter/context_renderers/authority_paths.py` `DEFAULT_AUTHORITY_PATHS` flipped
    `architecture/2.x/adr/` → `architecture/3.x/adr/`; module docstring and dict docstring updated.
 2. Both source prompts updated: `src/doctrine/missions/mission-steps/software-dev/implement/prompt.md`
    and `review/prompt.md`.

@@ -7,12 +7,12 @@
 
 ## Summary
 
-Unify pack metadata onto **one** canonical manifest schema for every pack type (built-in, org, fetched, charter), replacing the two divergent formats that ship today — per-kind `artifact_counts` for org packs (`src/specify_cli/doctrine/snapshot.py:157-212`) and enumerated `artifacts[]` for charter bundles (`src/charter/activation/synthesizer/manifest.py`). The enumerated shape is promoted to the canonical `constituents[]`; identity/lineage become authored data in a `pack.yaml`/`pack.md` pair, distinct from the generated `pack-manifest.yaml`; lineage resolution reuses the existing `org_extends` resolver via an identity-keyed edge map. Ratified by ADR `docs/adr/3.x/2026-08-16-1-pack-metadata-manifest-unification.md`.
+Unify pack metadata onto **one** canonical manifest schema for every pack type (built-in, org, fetched, charter), replacing the two divergent formats that ship today — per-kind `artifact_counts` for org packs (`src/specify_cli/doctrine/snapshot.py:157-212`) and enumerated `artifacts[]` for charter bundles (`src/charter/synthesizer/manifest.py`). The enumerated shape is promoted to the canonical `constituents[]`; identity/lineage become authored data in a `pack.yaml`/`pack.md` pair, distinct from the generated `pack-manifest.yaml`; lineage resolution reuses the existing `org_extends` resolver via an identity-keyed edge map. Ratified by ADR `docs/adr/3.x/2026-08-16-1-pack-metadata-manifest-unification.md`.
 
 ## Technical Context
 
 **Language/Version**: Python 3.11+
-**Primary Dependencies**: internal — `specify_cli.doctrine` (snapshot/pack_assembler), **`doctrine.drg`** (org_pack_config), `charter.activation.synthesizer.manifest`, `charter.activation.org_extends`; `ruamel.yaml`; ULID minting reused from the mission-identity model.
+**Primary Dependencies**: internal — `specify_cli.doctrine` (snapshot/pack_assembler), **`doctrine.drg`** (org_pack_config), `charter.synthesizer.manifest`, `charter.org_extends`; `ruamel.yaml`; ULID minting reused from the mission-identity model.
 **Storage**: YAML — authored `pack.yaml`/`pack.md` + generated `pack-manifest.yaml` at each pack root; `packs/built-in/` for the reference pack.
 **Testing**: `pytest` — unit under `tests/doctrine/`; the no-parallel-resolver ratchet under `tests/architectural/`; the no-author-edit rule under `tests/architectural/` (no `tests/contracts/` dir exists).
 **Target Platform**: Linux/macOS/Windows CLI (DIR-001). **`content_hash` normalizes line endings (LF)** so hashes are cross-platform-stable (trust substrate, #2539).

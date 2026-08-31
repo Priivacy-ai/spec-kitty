@@ -60,7 +60,7 @@ research D-04/D-07. **Root** (independent of WP01/WP02); **gates WP04**.
 - Today `spec-kitty init` writes NO activation keys; both rc35 migrations
   (`m_3_2_0rc35_default_charter_pack`, `m_3_2_0rc35_activate_builtin_mission_types`) fail-**open** on
   absent config. So removing the fallback without init provisioning = zero mission types for new projects.
-- The provisioned surface is `src/charter/activation/packs/default.yaml` (`mission_type_activations: [software-dev,
+- The provisioned surface is `src/charter/packs/default.yaml` (`mission_type_activations: [software-dev,
   documentation, research, plan]`). The migration uses `merge_pack_into_config(..., force=False)`.
 - **Operator decision**: keep BOTH rc35 migrations unchanged (no consolidation).
 

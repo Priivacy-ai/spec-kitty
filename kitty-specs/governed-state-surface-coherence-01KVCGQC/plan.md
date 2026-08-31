@@ -37,7 +37,7 @@ Decomposition of architectural intent into ownership-disjoint concerns for `/tas
 |----|---------|----------------|------------|-----|--------|
 | **IC-D** (WP01) | Green main: repair the un-masked architectural gate | `tests/specify_cli/missions/test_read_path_resolver_validation.py` (markers); `tests/architectural/test_no_worktree_name_guess.py` (remove diff-scoped test + reconcile ratchet baselines) | — | FR-011, FR-012, FR-013 | #2025 |
 | **IC-A** | #2016 orchestrator coord-read adoption | `src/specify_cli/orchestrator_api/commands.py`; `tests/specify_cli/regression/test_issue_1615_1616_1617_1618.py` (the #2016 class) | IC-D (green base) | FR-001, FR-002, FR-003, FR-004 | #2016 |
-| **IC-B** | #2009 charter coherence (residue downgrade + JSON-safe + unlink-consolidation + pins) | `src/specify_cli/charter_runtime/freshness/computer.py`; `src/specify_cli/cli/commands/charter/{_status_collectors.py,status.py,_fresh_doctrine.py}`; `src/charter/activation/synthesizer/project_drg.py`; charter tests | IC-D | FR-005..FR-009 | #2009 |
+| **IC-B** | #2009 charter coherence (residue downgrade + JSON-safe + unlink-consolidation + pins) | `src/specify_cli/charter_runtime/freshness/computer.py`; `src/specify_cli/cli/commands/charter/{_status_collectors.py,status.py,_fresh_doctrine.py}`; `src/charter/synthesizer/project_drg.py`; charter tests | IC-D | FR-005..FR-009 | #2009 |
 | **IC-C** | merge.py baseline extract (behavior-preserving) | `src/specify_cli/cli/commands/merge.py`; new `src/specify_cli/merge/baseline.py`; `src/specify_cli/merge/__init__.py`; baseline tests | IC-D | FR-010 | #2027 (epic #2026) |
 
 **Ownership-overlap resolution (binding for `/tasks`):** the marker fix on `test_read_path_resolver_validation.py` is **D1's** and stays in **IC-D / WP01**, NOT in IC-A — so IC-A owns only `orchestrator_api/commands.py` + the #2016 regression test. No two ICs share `owned_files`.
@@ -61,7 +61,7 @@ src/specify_cli/
   cli/commands/merge.py               # IC-C (source)
   merge/baseline.py                   # IC-C (NEW)
   merge/__init__.py                   # IC-C (re-export)
-src/charter/activation/synthesizer/project_drg.py    # IC-B (unlink site)
+src/charter/synthesizer/project_drg.py    # IC-B (unlink site)
 tests/
   specify_cli/missions/test_read_path_resolver_validation.py  # IC-D (markers)
   architectural/test_no_worktree_name_guess.py                # IC-D (ratchets)

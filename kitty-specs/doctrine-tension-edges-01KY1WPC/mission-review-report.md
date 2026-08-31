@@ -23,12 +23,12 @@
 - Result: **FAIL**
 - Notes: The full-suite run could not complete in reasonable time — `tests/architectural/test_arch_shard_marker_completeness.py` (a repo-wide test-collection-marker invariant, unrelated in subject matter to this mission's diff — it does not touch doctrine/charter code) appears to have a pre-existing, environment-dependent performance characteristic on this machine (a full `--collect-only` pass across the entire ~1000+ test tree); two attempts (60s and 550s timeouts) did not complete. This is very likely pre-existing and unrelated to this mission (confirmed: zero diff overlap with anything this mission touched), but I could not get a clean PASS to record. **Running the mission-relevant subset directly surfaced a real, mission-caused failure**: `tests/architectural/test_no_dead_symbols.py::test_no_public_symbol_in_all_is_unimported` fails with:
   ```
-  charter.activation.consistency_check::ConsistencyReport
-  charter.activation.consistency_check::TensionFinding
+  charter.consistency_check::ConsistencyReport
+  charter.consistency_check::TensionFinding
   specify_cli.core.env::SYNC_DISABLE_ENV_VARS
   ```
   The third (`SYNC_DISABLE_ENV_VARS`) is confirmed **pre-existing** — `src/specify_cli/core/env.py` has zero diff in this mission's range; last touched by unrelated PR #2814.
-  The first two (`ConsistencyReport`, `TensionFinding`) are **new, mission-caused failures**: WP05 added both to `src/charter/activation/consistency_check.py`'s `__all__`, but `grep -rn "ConsistencyReport\b|TensionFinding\b" src/` confirms **zero** external callers import either by name anywhere in `src/` (only a docstring in `activate.py` mentions `ConsistencyReport` in prose, not code). This directly contradicts the file's own already-documented convention two lines below `__all__` for `CharterYamlCorruptError`: *"Kept out of `__all__` per the symbol-level dead-code gate — no external caller imports it."* WP05 didn't follow the precedent sitting right next to where it edited. **See RISK-1.**
+  The first two (`ConsistencyReport`, `TensionFinding`) are **new, mission-caused failures**: WP05 added both to `src/charter/consistency_check.py`'s `__all__`, but `grep -rn "ConsistencyReport\b|TensionFinding\b" src/` confirms **zero** external callers import either by name anywhere in `src/` (only a docstring in `activate.py` mentions `ConsistencyReport` in prose, not code). This directly contradicts the file's own already-documented convention two lines below `__all__` for `CharterYamlCorruptError`: *"Kept out of `__all__` per the symbol-level dead-code gate — no external caller imports it."* WP05 didn't follow the precedent sitting right next to where it edited. **See RISK-1.**
 
 ### Gate 3 — Cross-repo E2E
 - Command: not run — no `spec-kitty-end-to-end-testing` sibling repo checkout available in this environment.
@@ -83,11 +83,11 @@ None found. Checked specifically:
 
 ## Risk Findings
 
-### RISK-1: Dead public exports in `charter.activation.consistency_check.__all__`
+### RISK-1: Dead public exports in `charter.consistency_check.__all__`
 
 **Type**: DEAD-CODE (symbol-level)
 **Severity**: MEDIUM (gate-failing, but a 2-line mechanical fix; no runtime behavior is wrong)
-**Location**: `src/charter/activation/consistency_check.py:28-33`
+**Location**: `src/charter/consistency_check.py:28-33`
 **Trigger condition**: Always — this is a static gate failure, not input-dependent.
 
 **Analysis**: `ConsistencyReport` and `TensionFinding` are listed in `__all__` but no file in `src/` imports either by name (confirmed via repo-wide grep). This fails `tests/architectural/test_no_dead_symbols.py::test_no_public_symbol_in_all_is_unimported`. The same file already documents the correct pattern two lines below, for `CharterYamlCorruptError`: keep undead-but-unimported symbols out of `__all__`. WP05's reviewer did not run this specific architectural gate (each WP review scoped its test runs to the relevant `tests/doctrine/`/`tests/charter/` trees, not `tests/architectural/`), so this was never caught until mission-level review. Fix: remove both names from `__all__` (the classes remain fully functional and usable via attribute access on `run_consistency_check()`'s return value — nothing else needs to change).
@@ -162,7 +162,7 @@ All 15 FRs are adequately covered by real tests tied to production code paths (n
 
 Both gate-blocking findings were fixed directly on `doctrine/drg-missing-links-analysis` at commit `38a83d939`:
 
-- **RISK-1 (Gate 2)**: Removed `ConsistencyReport`/`TensionFinding` from `charter.activation.consistency_check.__all__`; pruned the now-dangling pre-existing `ConsistencyReport` allowlist entry in `test_no_dead_symbols.py` (updated `_baselines.yaml`'s count 4→1 accordingly). Re-verified: `tests/architectural/test_no_dead_symbols.py` now shows only the confirmed pre-existing, unrelated `specify_cli.core.env::SYNC_DISABLE_ENV_VARS` finding (zero diff on `env.py` in this mission's range).
+- **RISK-1 (Gate 2)**: Removed `ConsistencyReport`/`TensionFinding` from `charter.consistency_check.__all__`; pruned the now-dangling pre-existing `ConsistencyReport` allowlist entry in `test_no_dead_symbols.py` (updated `_baselines.yaml`'s count 4→1 accordingly). Re-verified: `tests/architectural/test_no_dead_symbols.py` now shows only the confirmed pre-existing, unrelated `specify_cli.core.env::SYNC_DISABLE_ENV_VARS` finding (zero diff on `env.py` in this mission's range).
 - **RISK-2 (Gate 4)**: `issue-matrix.md` rows for `#2537` and `#2737` updated from `in-mission` to `fixed`. While re-verifying #2737, a bare `spec-kitty charter lint` run against this repo's own dev activation config showed 25 orphan findings, not 2 — investigated and confirmed this is a **scope mismatch in the verification method**, not a regression: SC-003's claim is scoped to the built-in layer, not any one project's live (partial) activation config. Re-ran the actual test (`tests/specify_cli/charter_lint/checks/test_orphan.py`, 14/14 passed) to confirm the built-in-layer exact-set assertion genuinely holds post-merge. The issue-matrix row now documents this scope distinction explicitly so a future reader doesn't repeat the same false alarm.
 
 **Gate 2 (architectural, dead-symbol/allowlist subset)**: PASS (mission-caused findings resolved; pre-existing unrelated finding remains, correctly out of scope).

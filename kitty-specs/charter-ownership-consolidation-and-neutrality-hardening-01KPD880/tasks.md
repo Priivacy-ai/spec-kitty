@@ -43,7 +43,7 @@ A pre-breakdown audit (see research.md R-001, R-002) confirmed that `src/charter
 | T010 | Author `tests/charter/test_neutrality_lint.py` with `test_generic_artifacts_are_neutral` | WP03 | | [D] |
 | T011 | Add fault-injection test that catches a synthetic regression (SC-005) | WP03 | | [D] |
 | T012 | Add runtime-budget assertion (NFR-001, ≤ 5 s on baseline) | WP03 | | [D] |
-| T013 | Confirm ≥ 90% coverage on `src/charter/activation/neutrality/lint.py` | WP03 | | [D] |
+| T013 | Confirm ≥ 90% coverage on `src/charter/neutrality/lint.py` | WP03 | | [D] |
 | T014 | Edit `src/specify_cli/charter/__init__.py` — add deprecation constants + single `warnings.warn` | WP04 | [D] |
 | T015 | Leave submodule shims silent; strip any existing per-submodule `warnings.warn` calls | WP04 | | [D] |
 | T016 | Author `tests/specify_cli/charter/test_shim_deprecation.py` per contract C-2 | WP04 | | [D] |
@@ -51,8 +51,8 @@ A pre-breakdown audit (see research.md R-001, R-002) confirmed that `src/charter
 | T018 | Author `tests/specify_cli/charter/test_no_new_legacy_modules.py` (premortem guard) | WP05 | | [D] |
 | T019 | Add content-shape assertions — no new `class` / non-re-export `def` under `src/specify_cli/charter/` | WP05 | | [D] |
 | T020 | Document the guard's purpose in an in-file docstring | WP05 | | [D] |
-| T021 | Run `mypy --strict src/charter/activation/context.py` and record diagnostics | WP06 | [D] |
-| T022 | Fix any strict errors surfaced, or rename quarantine entry to `charter.activation.context` with removal TODO | WP06 | | [D] |
+| T021 | Run `mypy --strict src/charter/context.py` and record diagnostics | WP06 | [D] |
+| T022 | Fix any strict errors surfaced, or rename quarantine entry to `charter.context` with removal TODO | WP06 | | [D] |
 | T023 | Remove the stale `specify_cli.charter.context` line from `pyproject.toml` `[[tool.mypy.overrides]]` and confirm config parses | WP06 | | [D] |
 | T024 | Author `docs/migration/charter-ownership-consolidation.md` naming canonical path + removal release 3.3.0 | WP07 | | [D] |
 | T025 | Add CHANGELOG entry for the landing release with shim-removal target call-out | WP07 | | [D] |
@@ -94,7 +94,7 @@ Total: **26 subtasks** across **7 work packages**. Average ~3.7 subtasks per WP.
 
 **Priority**: P1 (blocks WP03 regression test).
 
-**Independent test**: `python -c "from charter.activation.neutrality import run_neutrality_lint; print(run_neutrality_lint().passed)"` returns `True` on a clean baseline.
+**Independent test**: `python -c "from charter.neutrality import run_neutrality_lint; print(run_neutrality_lint().passed)"` returns `True` on a clean baseline.
 
 **Included subtasks**:
 
@@ -128,7 +128,7 @@ Total: **26 subtasks** across **7 work packages**. Average ~3.7 subtasks per WP.
 - [x] T010 Author `tests/charter/test_neutrality_lint.py` with `test_generic_artifacts_are_neutral` (WP03)
 - [x] T011 Add fault-injection test that catches a synthetic regression (SC-005) (WP03)
 - [x] T012 Add runtime-budget assertion (NFR-001, ≤ 5 s on baseline) (WP03)
-- [x] T013 Confirm ≥ 90% coverage on `src/charter/activation/neutrality/lint.py` (WP03)
+- [x] T013 Confirm ≥ 90% coverage on `src/charter/neutrality/lint.py` (WP03)
 
 **Dependencies**: WP02.
 
@@ -187,16 +187,16 @@ Total: **26 subtasks** across **7 work packages**. Average ~3.7 subtasks per WP.
 
 ### WP06 — mypy Quarantine Cleanup
 
-**Goal**: Remove the stale `specify_cli.charter.context` entry from the `[[tool.mypy.overrides]]` "Transitional quarantine" block. Gated on a passing `mypy --strict src/charter/activation/context.py` run (R-008).
+**Goal**: Remove the stale `specify_cli.charter.context` entry from the `[[tool.mypy.overrides]]` "Transitional quarantine" block. Gated on a passing `mypy --strict src/charter/context.py` run (R-008).
 
 **Priority**: P2.
 
-**Independent test**: `mypy --strict src/charter/activation/context.py` returns zero errors; `pyproject.toml` parses clean; no quarantine entry names `specify_cli.charter.context`.
+**Independent test**: `mypy --strict src/charter/context.py` returns zero errors; `pyproject.toml` parses clean; no quarantine entry names `specify_cli.charter.context`.
 
 **Included subtasks**:
 
-- [x] T021 Run `mypy --strict src/charter/activation/context.py` and record diagnostics (WP06)
-- [x] T022 Fix any strict errors surfaced, or rename quarantine entry to `charter.activation.context` with removal TODO (WP06)
+- [x] T021 Run `mypy --strict src/charter/context.py` and record diagnostics (WP06)
+- [x] T022 Fix any strict errors surfaced, or rename quarantine entry to `charter.context` with removal TODO (WP06)
 - [x] T023 Remove the stale line from `pyproject.toml` `[[tool.mypy.overrides]]` and confirm config parses (WP06)
 
 **Dependencies**: None.

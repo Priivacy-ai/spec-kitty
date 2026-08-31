@@ -507,7 +507,7 @@ def _make_executor(tmp_path: Path):
 
 def test_invoke_payload_has_glossary_observations(tmp_path):
     executor = _make_executor(tmp_path)
-    with patch("charter.activation.context.build_charter_context") as mock_ctx:
+    with patch("charter.context.build_charter_context") as mock_ctx:
         mock_ctx.return_value = MagicMock(text="ctx", mode="bootstrap")
         payload = executor.invoke("what is the status of WP01", actor="test")
     assert hasattr(payload, "glossary_observations")
@@ -518,7 +518,7 @@ def test_invoke_payload_has_glossary_observations(tmp_path):
 
 def test_invoke_to_dict_includes_glossary_key(tmp_path):
     executor = _make_executor(tmp_path)
-    with patch("charter.activation.context.build_charter_context") as mock_ctx:
+    with patch("charter.context.build_charter_context") as mock_ctx:
         mock_ctx.return_value = MagicMock(text="ctx", mode="bootstrap")
         payload = executor.invoke("advise on next step", actor="test")
     d = payload.to_dict()
@@ -533,7 +533,7 @@ def test_invoke_with_chokepoint_exception_returns_error_bundle(tmp_path):
     broken_cp.run.side_effect = RuntimeError("simulated failure")
     executor._chokepoint = broken_cp
 
-    with patch("charter.activation.context.build_charter_context") as mock_ctx:
+    with patch("charter.context.build_charter_context") as mock_ctx:
         mock_ctx.return_value = MagicMock(text="ctx", mode="bootstrap")
         payload = executor.invoke("test request", actor="test")
 
@@ -556,7 +556,7 @@ def test_clean_invocation_has_only_started_event(tmp_path):
     clean_cp.run.return_value = clean_bundle
     executor._chokepoint = clean_cp
 
-    with patch("charter.activation.context.build_charter_context") as mock_ctx:
+    with patch("charter.context.build_charter_context") as mock_ctx:
         mock_ctx.return_value = MagicMock(text="ctx", mode="bootstrap")
         payload = executor.invoke("clean request text", actor="test")
 
@@ -591,7 +591,7 @@ def test_conflict_invocation_writes_glossary_checked_event(tmp_path):
     conflict_cp.run.return_value = conflict_bundle
     executor._chokepoint = conflict_cp
 
-    with patch("charter.activation.context.build_charter_context") as mock_ctx:
+    with patch("charter.context.build_charter_context") as mock_ctx:
         mock_ctx.return_value = MagicMock(text="ctx", mode="bootstrap")
         payload = executor.invoke("move the task to a new lane", actor="test")
 

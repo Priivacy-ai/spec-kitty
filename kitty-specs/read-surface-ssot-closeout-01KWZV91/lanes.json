@@ -174,8 +174,8 @@
         "WP13"
       ],
       "write_scope": [
-        "src/charter/activation/_io.py",
-        "src/charter/activation/mission_type_profiles.py",
+        "src/charter/_io.py",
+        "src/charter/mission_type_profiles.py",
         "src/runtime/next/_internal_runtime/engine.py",
         "src/runtime/next/_internal_runtime/planner.py",
         "src/runtime/next/runtime_bridge.py",

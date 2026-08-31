@@ -37,7 +37,7 @@ All claims below were **re-verified against code** by the orchestrator before fo
    `profile_sections` import cycle **dissolves** (not relocates). [alphonso MEDIUM, paula MEDIUM]
 
 5. **FR-009 undercounted the preserved surface.** `_reset_agent_profile_cache` is imported
-   from `charter.activation.context` by 4 test files → keep a re-export shim or move import sites with
+   from `charter.context` by 4 test files → keep a re-export shim or move import sites with
    the seam. [alphonso HIGH]
 
 6. **Real cross-WP collision is US1∩US3, not US2∩US3.** US2's fetch fix lands in the

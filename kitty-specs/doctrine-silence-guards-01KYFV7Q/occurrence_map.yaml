@@ -145,13 +145,13 @@ exceptions:
   # A1's effect set together with merge.py and computer.py, and the gate pins
   # that set of six positively.
 
-  - path: "src/charter/activation/synthesizer/manifest.py"
+  - path: "src/charter/synthesizer/manifest.py"
     action: do_not_change
     reason: >-
       Live `.kittify/doctrine/graph.yaml` project-tier reference — the
       synthesizer's manifest authority ignores stale residue at that path.
 
-  - path: "src/charter/activation/synthesizer/project_drg.py"
+  - path: "src/charter/synthesizer/project_drg.py"
     action: do_not_change
     reason: >-
       Live `.kittify/doctrine/graph.yaml` project-tier reference — this module

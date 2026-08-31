@@ -116,8 +116,8 @@ The migration is **idempotent** — re-running on an already-normalized corpus i
    - `.kittify/charter/*.{yaml,md,txt}`
 2. Iterate. For each file:
    ```python
-   from charter.activation._io import load_charter_file, CharterEncodingError
-   from charter.activation._diagnostics import CharterEncodingDiagnostic
+   from charter._io import load_charter_file, CharterEncodingError
+   from charter._diagnostics import CharterEncodingDiagnostic
 
    try:
        content = load_charter_file(file_path)

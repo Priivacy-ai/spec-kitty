@@ -127,9 +127,9 @@ mission_exception_present: true | false | not_applicable
 
 **Decision**: Confirmed via exploration. The three ingest sites are:
 
-- `src/charter/activation/compiler.py:594` — `yaml.load(path.read_text(encoding="utf-8"))` of user-supplied charter at compile time. **Ingest** (external source = user file).
-- `src/charter/activation/sync.py:151` — `charter_path.read_text("utf-8")` from SaaS sync extraction. **Ingest** (external source = SaaS payload).
-- `src/charter/activation/interview.py:283, 398` — `yaml.load(path.read_text(encoding="utf-8"))` of interview state files. **Ingest** (external source = user keyboard via prior interview save).
+- `src/charter/compiler.py:594` — `yaml.load(path.read_text(encoding="utf-8"))` of user-supplied charter at compile time. **Ingest** (external source = user file).
+- `src/charter/sync.py:151` — `charter_path.read_text("utf-8")` from SaaS sync extraction. **Ingest** (external source = SaaS payload).
+- `src/charter/interview.py:283, 398` — `yaml.load(path.read_text(encoding="utf-8"))` of interview state files. **Ingest** (external source = user keyboard via prior interview save).
 
 The five deferred sites are confirmed re-reads of files already normalized through an ingest:
 

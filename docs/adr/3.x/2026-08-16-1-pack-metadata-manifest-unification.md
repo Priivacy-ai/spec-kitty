@@ -34,7 +34,7 @@ but scattered across **two divergent manifest formats that disagree**:
   carries **no lineage**, and is **not written** for the built-in or git-managed packs
   (`…/contracts/pack-layout.md:104-107`).
 - `synthesis-manifest.yaml` for charter/project bundles
-  (`src/charter/activation/synthesizer/manifest.py:46-112`) records **enumerated**
+  (`src/charter/synthesizer/manifest.py:46-112`) records **enumerated**
   `artifacts:[{kind, slug, path, content_hash}]` plus a self-integrity `manifest_hash`
   (`:107`) — the "constituent parts" model — but exists only for charter bundles.
 
@@ -42,7 +42,7 @@ The **built-in reference pack that every org pack extends has no pack-level mani
 all** — `packs/built-in/*.graph.yaml` carry only `schema_version`/`generated_by` headers.
 Packs also have **no stable identity** — they are keyed only by config `name`
 (`org_pack_config.py:166`) — and a charter pack's binding to its doctrine pack exists
-only **per-activation** as `doctrine_pack_id` (`src/charter/activation/activations.py:241`), never
+only **per-activation** as `doctrine_pack_id` (`src/charter/activations.py:241`), never
 as one pack-level pointer.
 
 Left unaddressed, adding pack metadata would ship a **third** format and deepen the
@@ -104,7 +104,7 @@ is their verifiable sibling.
 ### 3. Lineage delegates, never re-walks
 
 `parent_pack` and `accompanies_doctrine_pack` **store** edges only. Resolution order is
-delegated to the existing `src/charter/activation/org_extends.py::resolve_extends_order` (the
+delegated to the existing `src/charter/org_extends.py::resolve_extends_order` (the
 canonical `extends:` resolver with cycle detection). A second walker is prohibited — it
 trips the C-005 no-parallel-resolver ratchet (`org_extends.py:14-21`).
 

@@ -93,7 +93,7 @@ and does not mint `src/charter/pyproject.toml` (C-004).
 | `pack_paths` (`built_in_dir`, `built_in_root`) | 2 | none | FACADE-ONLY | new narrow door |
 | `drg.override_policy` | 1 | none | **ticketed-baseline** (WP01 T004) — mgmt internal, no clean door | ratchet allowlist + ticket |
 | `drg.migration.hand_authored_overlay.write_reference_graph_with_overlay` | 1 | none | **ticketed-baseline** (WP01 T004) — mgmt internal, no clean door | ratchet allowlist + ticket |
-| `service.DoctrineService` (raw) | 5 | wrapper exists | CONSTRUCTION-ROUTED | `charter.activation.doctrine_service_builder` (IC-05) |
+| `service.DoctrineService` (raw) | 5 | wrapper exists | CONSTRUCTION-ROUTED | `charter.doctrine_service_builder` (IC-05) |
 | `import doctrine` (metadata introspection) | 2 | n/a | INTERNAL/exempt (FR-006 decides) | ratchet policy |
 
 **Truly-INTERNAL (negative-test set, IC-07):** only paths with *no* non-exempt consumer after

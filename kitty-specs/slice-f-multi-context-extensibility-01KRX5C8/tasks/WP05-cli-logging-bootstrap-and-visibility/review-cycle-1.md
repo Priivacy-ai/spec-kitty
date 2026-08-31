@@ -37,7 +37,7 @@ Running the integration test at the RED commit (`47389d40`) produces **1 passed*
 The captured stderr at the RED commit shows:
 
 ```
-src/charter/activation/context.py:1627: CharterCatalogMissWarning: Charter catalog miss for styleguide:does-not-exist-typo; cause=missing_artifact
+src/charter/context.py:1627: CharterCatalogMissWarning: Charter catalog miss for styleguide:does-not-exist-typo; cause=missing_artifact
 Charter catalog miss for styleguide:does-not-exist-typo; cause=missing_artifact
 ```
 

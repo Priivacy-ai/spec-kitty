@@ -29,7 +29,7 @@ create_intent:
 execution_mode: code_change
 model: claude-sonnet-4-6
 owned_files:
-- src/charter/activation/compact.py
+- src/charter/compact.py
 - src/doctrine/assets/built-in/charter_scaffold_minimal.yml
 - src/doctrine/assets/built-in/charter_scaffold_minimal.yml.asset.yaml
 - tests/charter/test_empty_charter_governance_agreement.py
@@ -54,10 +54,10 @@ Design authority: [`../spec.md`](../spec.md) (FR-010, FR-005), [`../contracts/em
 
 ## Critical context (verified against code — the leak is real)
 
-- `_render_compact_governance` → `render_compact_view` (`src/charter/activation/compact.py:216-230`) **merges `resolver_directives`** from `_resolve_governance_summary(repo_root)` into the `Directive IDs:` block, **independent of the profile**.
-- Under an empty charter, `resolve_project_governance` → `_resolve_directives_selection` (`src/charter/activation/resolver.py:233-260`) has empty `selected_directives`, so it returns `fallback = sorted(doctrine_catalog.directives)` — **all built-in directives** (`catalog_fallback`). Hence a generic-agent dispatch would emit every `DIR-###`.
+- `_render_compact_governance` → `render_compact_view` (`src/charter/compact.py:216-230`) **merges `resolver_directives`** from `_resolve_governance_summary(repo_root)` into the `Directive IDs:` block, **independent of the profile**.
+- Under an empty charter, `resolve_project_governance` → `_resolve_directives_selection` (`src/charter/resolver.py:233-260`) has empty `selected_directives`, so it returns `fallback = sorted(doctrine_catalog.directives)` — **all built-in directives** (`catalog_fallback`). Hence a generic-agent dispatch would emit every `DIR-###`.
 - **Bounded fix only**: suppress the resolver-directive merge on the empty-charter/generic-agent path. Do NOT globally change `_resolve_directives_selection` (broad blast radius across every compact-context consumer). Prefer a flag on the fallback path (e.g. `render_compact_view` consulting the composite empty-charter predicate, or a `suppress_project_resolver` param threaded from the fallback). Keep the change inside `compact.py` where possible; a minimal `build_charter_context` param passthrough is an acceptable declared out-of-map coupled edit to `context.py` (owned by WP06) if unavoidable — record the rationale.
-- Asset precedent: `src/doctrine/assets/built-in/docs_structural_lint.py.asset.yaml` sidecar has `id`, `mime`, `path`, `title`; `AssetManifest` is frozen/extra-forbid; `path` carries the leading `built-in/` segment. Resolve via `spec-kitty doctrine asset path <id>` (resolve/copy-only, no install). Do NOT reuse `src/charter/activation/packs/default.yaml` (it activates ALL built-ins — the inverse of a minimal starter).
+- Asset precedent: `src/doctrine/assets/built-in/docs_structural_lint.py.asset.yaml` sidecar has `id`, `mime`, `path`, `title`; `AssetManifest` is frozen/extra-forbid; `path` carries the leading `built-in/` segment. Resolve via `spec-kitty doctrine asset path <id>` (resolve/copy-only, no install). Do NOT reuse `src/charter/packs/default.yaml` (it activates ALL built-ins — the inverse of a minimal starter).
 
 ## Subtasks
 
@@ -75,7 +75,7 @@ mime: application/yaml
 path: built-in/charter_scaffold_minimal.yml
 title: Minimal charter scaffold
 ```
-Add a one-line comment in each file cross-referencing `src/charter/activation/packs/default.yaml` (activate-all) so a later agent does not conflate them.
+Add a one-line comment in each file cross-referencing `src/charter/packs/default.yaml` (activate-all) so a later agent does not conflate them.
 
 ### T015 — Asset mime guard + resolvability test
 Create `tests/doctrine/test_charter_scaffold_asset.py`: assert the sidecar passes `pack_validator._check_asset_mime`, and that `spec-kitty doctrine asset path common-charter-scaffold-minimal` resolves to the shipped file (exit 0). Frame the mime test as a guard (py3.11 already maps `.yml`→`application/yaml`).

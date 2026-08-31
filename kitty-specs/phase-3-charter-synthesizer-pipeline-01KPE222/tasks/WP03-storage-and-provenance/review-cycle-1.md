@@ -54,7 +54,7 @@ T018 explicitly states:
 > to call `write_pipeline.promote` after WP02's in-memory assembly. **The lazy-import
 > seam at `orchestrator.synthesize` now resolves.**
 
-Currently `src/charter/activation/synthesizer/orchestrator.py::synthesize()` still only
+Currently `src/charter/synthesizer/orchestrator.py::synthesize()` still only
 delegates to `synthesize_pipeline.run` (in-memory only) — it does not create a
 `StagingDir`, does not call `promote`, and does not produce any on-disk
 manifest. `write_pipeline.promote` has **no production caller** anywhere in
@@ -67,7 +67,7 @@ artifacts to disk will not work until this wiring lands.
 
 ### Fix
 
-In `src/charter/activation/synthesizer/orchestrator.py::synthesize`, after the in-memory
+In `src/charter/synthesizer/orchestrator.py::synthesize`, after the in-memory
 `run_all(...)` assembly:
 
 1. Create a `StagingDir` scoped to `request.run_id`.
@@ -91,7 +91,7 @@ concern (checklist item #12).
 
 ## Non-blocking observations
 
-- **ruff**: one `UP037` in `src/charter/activation/synthesizer/synthesize_pipeline.py:89`
+- **ruff**: one `UP037` in `src/charter/synthesizer/synthesize_pipeline.py:89`
   — the `_check_source_provenance` return type uses quoted `"ProvenanceEntry"`
   instead of the unquoted self-class reference. Auto-fixable with `ruff check --fix`.
 - **Scope**: the single `feat(WP03)` commit contains WP01 + WP02 + WP03 source

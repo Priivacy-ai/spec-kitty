@@ -194,7 +194,7 @@
 2. **Do NOT touch** `src/specify_cli/tasks/move_task.py` — owned by WP04
 3. **Do NOT begin** `runtime_bridge.py` edits until WP06 is merged (shared file risk)
 4. T019 fix may be in `src/specify_cli/charter_preflight/` — check there before `runtime_bridge.py`
-5. WP05 item 2 touches CLI adapter only (`src/specify_cli/cli/commands/charter/synthesize.py`), not `src/charter/activation/synthesizer/errors.py`
+5. WP05 item 2 touches CLI adapter only (`src/specify_cli/cli/commands/charter/synthesize.py`), not `src/charter/synthesizer/errors.py`
 
 **Dependencies**: Coordinate with WP04 before touching move_task.py; coordinate with WP06 before touching runtime_bridge.py
 **Prompt file**: [tasks/WP05-charter-integration-regressions.md](tasks/WP05-charter-integration-regressions.md)

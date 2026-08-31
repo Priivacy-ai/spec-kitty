@@ -19,8 +19,8 @@ agent_profile: python-pedro
 authoritative_surface: src/charter/context_renderers/
 execution_mode: code_change
 owned_files:
-- src/charter/activation/context_renderers/token_budget.py
-- src/charter/activation/context_renderers/fetch_stanza.py
+- src/charter/context_renderers/token_budget.py
+- src/charter/context_renderers/fetch_stanza.py
 - tests/charter/test_context_token_budget.py
 - scripts/measure-wp-prompt.py
 role: implementer
@@ -47,10 +47,10 @@ pre-mission baseline) is asserted against, run against
 To keep ownership boundaries clean between WP03, WP04, and WP05, the helpers introduced
 here MUST live in `src/charter/context_renderers/`:
 
-- `src/charter/activation/context_renderers/token_budget.py` — `_apply_token_budget` (T019)
-- `src/charter/activation/context_renderers/fetch_stanza.py` — `_fetch_stanza` (T020)
+- `src/charter/context_renderers/token_budget.py` — `_apply_token_budget` (T019)
+- `src/charter/context_renderers/fetch_stanza.py` — `_fetch_stanza` (T020)
 
-`src/charter/activation/context.py` imports from this submodule. WP03 + WP04 renderers refactor
+`src/charter/context.py` imports from this submodule. WP03 + WP04 renderers refactor
 their inline stanza construction to call `_fetch_stanza` from the new submodule.
 
 ---
@@ -84,7 +84,7 @@ either too sparse OR too bloated; the token budget is the bloat-side gate.
 
 ## Subtask T019 — Implement `_apply_token_budget(text, budget=32_000)`
 
-**File**: `src/charter/activation/context.py`
+**File**: `src/charter/context.py`
 
 ```python
 _BUDGET_DEFAULT = 32_000  # NFR-001 — ~8000 tokens at 4 chars/token
@@ -118,7 +118,7 @@ end, rather than each `_render_*` helper performing its own substitution.
 
 ## Subtask T020 — Fetch + when-doing stanza formatter
 
-**File**: `src/charter/activation/context.py`
+**File**: `src/charter/context.py`
 
 Centralise the stanza shape so every renderer (WP03 profile-cited, WP04 section bodies,
 WP05 budget substitution) emits the same bytes:

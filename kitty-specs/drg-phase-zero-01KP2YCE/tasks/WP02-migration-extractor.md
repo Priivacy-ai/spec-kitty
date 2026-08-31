@@ -102,7 +102,7 @@ Current action surface sizes: specify(3), plan(4), implement(13), review(5), tas
    - For directives: use `directive_to_urn`
    - For all others: `f"{kind}:{raw_id}"`
 
-**Reference**: The existing `_normalize_directive_id()` in `src/charter/activation/context.py:133-144` already handles this logic. Reuse the same algorithm but in a standalone module.
+**Reference**: The existing `_normalize_directive_id()` in `src/charter/context.py:133-144` already handles this logic. Reuse the same algorithm but in a standalone module.
 
 **Files**: `src/doctrine/drg/migration/id_normalizer.py`
 

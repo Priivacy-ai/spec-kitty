@@ -67,7 +67,7 @@ The non-fakeable proofs that the relocation preserved doctrine behavior. These a
 
 ### T022 — Full doctor-health gate + charter catalog + clean-install load — NFR-006, NFR-002
 - Assert `spec-kitty doctor doctrine --json` reports FULL health: `skipped_profiles == []`, 18/18 profiles valid, **no `org_drg` errors, no skipped glossary packs** (glossary_packs/built-in + assets/built-in moved — a profiles-only gate would miss their degradation), glossary term count unchanged (108).
-- **Charter catalog non-empty** (the post-tasks BLOCKER guard): assert `charter.activation.catalog.load_doctrine_catalog()` returns **non-empty** built-in sets for the 7 catalog kinds — doctor does NOT exercise the catalog, so a missed `catalog.py` repoint (WP04) slips through every other gate.
+- **Charter catalog non-empty** (the post-tasks BLOCKER guard): assert `charter.catalog.load_doctrine_catalog()` returns **non-empty** built-in sets for the 7 catalog kinds — doctor does NOT exercise the catalog, so a missed `catalog.py` repoint (WP04) slips through every other gate.
 - **Clean-install full-graph proof** (moved here from WP05 — depends on WP04+WP05): install the wheel in a clean venv and assert `load_built_in_graph()` returns the full-projection identity (324/892) — the packaged end-to-end proof of US3.
 
 ## Branch Strategy

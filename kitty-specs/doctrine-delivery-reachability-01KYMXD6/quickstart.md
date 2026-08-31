@@ -49,7 +49,7 @@ PWHEADLESS=1 pytest tests/charter/synthesizer/test_project_drg.py -q
 ### The reference cap
 
 ```bash
-# Change BOTH [:10] sites in src/charter/activation/context.py to [:1], then:
+# Change BOTH [:10] sites in src/charter/context.py to [:1], then:
 PWHEADLESS=1 pytest tests/charter/test_context.py tests/charter/test_compact.py -q
 # expect: unchanged counts. No test pins the cap.
 ```

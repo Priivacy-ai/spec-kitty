@@ -23,7 +23,7 @@
 
 | Field | Type | Owner | Description |
 |---|---|---|---|
-| `languages` (or equivalent structured field, exact name/location TBD by implementer within `src/charter/activation/compiler.py`'s existing output shape) | `list[str]` | Charter compiler | The resolved, canonical set of governed languages, computed once at `charter generate`/`charter sync` time from the interview answers available at that moment, and persisted alongside/within the compiled charter output. |
+| `languages` (or equivalent structured field, exact name/location TBD by implementer within `src/charter/compiler.py`'s existing output shape) | `list[str]` | Charter compiler | The resolved, canonical set of governed languages, computed once at `charter generate`/`charter sync` time from the interview answers available at that moment, and persisted alongside/within the compiled charter output. |
 
 **State transition**:
 
@@ -45,7 +45,7 @@
 2. Else (no structured field yet — pre-recompile projects) → fall back to today's extraction logic (interview transcript, then `charter.md` free-text as a secondary fallback), preserving current behavior for projects that have not yet recompiled under this change.
 
 **Consumers (read-path only, no logic change expected)**:
-- `src/charter/activation/context.py:1320,1326` — `active_languages` population, feeding `_diagnose_catalog_miss`/`classify_scope_filtered_miss` (`context.py:2188-2207`).
-- `src/charter/activation/compact.py:195` — display-only footnote, wrapped in a defensive exception handler.
+- `src/charter/context.py:1320,1326` — `active_languages` population, feeding `_diagnose_catalog_miss`/`classify_scope_filtered_miss` (`context.py:2188-2207`).
+- `src/charter/compact.py:195` — display-only footnote, wrapped in a defensive exception handler.
 
 **Test contract change**: `tests/charter/test_language_scope.py::test_infer_repo_languages_prefers_interview_answers` — inverted to assert charter-authoritative resolution when interview and compiled charter disagree, plus a new case exercising the structured-field path directly.

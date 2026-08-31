@@ -38,7 +38,7 @@ The implementer chose to satisfy the `pydantic_model:` frontmatter by **creating
 | File created | Future WP owner | Scope violation |
 |---|---|---|
 | `src/charter/drg.py — OrgDRGFragment` (with 8-kind plural validator) | **WP06** (org-DRG loader/merge/validator) | Pre-commits the field shape and validator semantics |
-| `src/charter/activation/scope.py — _CharterScopeEntry` (with inner class + empty-root validator) | **WP09** (CharterScope + ADR-8) | Locks the `{root, name}` field set + parsing strictness |
+| `src/charter/scope.py — _CharterScopeEntry` (with inner class + empty-root validator) | **WP09** (CharterScope + ADR-8) | Locks the `{root, name}` field set + parsing strictness |
 | `src/specify_cli/next/_internal_runtime/workflow_schema.py — WorkflowSequence + ActionStep` (with `terminal: bool`, dangling-ref `model_validator`, default empty lists) | **WP10** (workflow YAML schema + registry) | Substantive design — every field is a future-WP architecture decision |
 
 Plus 2 cross-WP-ownership edits:
@@ -53,7 +53,7 @@ The cleaner pattern: when an FR-140 round-trip test needs to import models that 
 
 ## Required cycle-2 actions
 
-1. **Delete the 3 stub files entirely** (`src/charter/drg.py — OrgDRGFragment` section, `src/charter/activation/scope.py`, `src/specify_cli/next/_internal_runtime/workflow_schema.py`).
+1. **Delete the 3 stub files entirely** (`src/charter/drg.py — OrgDRGFragment` section, `src/charter/scope.py`, `src/specify_cli/next/_internal_runtime/workflow_schema.py`).
 2. **Refactor `tests/contract/test_example_round_trip.py`** to use `pytest.importorskip(...)` per parametrized case so contracts referencing not-yet-existing models skip cleanly (with a clear `reason` naming the future WP that lands the model).
 3. **Revert the `BaselinesFile` Any-value loosening** in `tests/architectural/test_ratchet_baselines.py`. The cleaner path: reshape the `ratchet-baseline-format.md` contract example so its codeblock is schema-only (the `<discovered-at-WP03>` placeholder is fine for documentation; just don't run it through the round-trip walker — mark it `expect: invalid` OR use a separate `expect: valid` block with a real number).
 

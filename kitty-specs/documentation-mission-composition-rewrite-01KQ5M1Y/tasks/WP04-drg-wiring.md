@@ -36,7 +36,7 @@ Add 6 documentation action nodes and ~22 scope edges to `src/doctrine/graph.yaml
 
 ## Context
 
-The validated DRG (`charter.activation._drg_helpers.load_validated_graph`) is the consumer of `action:documentation/*` nodes. Without these nodes, `resolve_context()` returns an empty `artifact_urns` set for documentation actions and the right-sized governance context contract (FR-005) is broken. The research mission added its 5 action nodes + edges by hand-authoring graph.yaml; we mirror exactly.
+The validated DRG (`charter._drg_helpers.load_validated_graph`) is the consumer of `action:documentation/*` nodes. Without these nodes, `resolve_context()` returns an empty `artifact_urns` set for documentation actions and the right-sized governance context contract (FR-005) is broken. The research mission added its 5 action nodes + edges by hand-authoring graph.yaml; we mirror exactly.
 
 Reference: [data-model.md → DRG node and edge shapes](../data-model.md#drg-node-and-edge-shapes) for the full node/edge content. [contracts/drg-shape.md](../contracts/drg-shape.md) is the regression contract.
 
@@ -104,7 +104,7 @@ Reference: [data-model.md → DRG node and edge shapes](../data-model.md#drg-nod
    ```bash
    uv run --python 3.13 --extra test python -c "
    from pathlib import Path
-   from charter.activation._drg_helpers import load_validated_graph
+   from charter._drg_helpers import load_validated_graph
    g = load_validated_graph(Path('.'))
    for action in ('discover','audit','design','generate','validate','publish'):
        assert g.get_node(f'action:documentation/{action}'), f'missing: {action}'
@@ -139,7 +139,7 @@ Reference: [data-model.md → DRG node and edge shapes](../data-model.md#drg-nod
    import pytest
    import yaml
 
-   from charter.activation._drg_helpers import load_validated_graph
+   from charter._drg_helpers import load_validated_graph
    from doctrine.drg.query import resolve_context
 
    _REPO_ROOT = Path(__file__).resolve().parents[2]

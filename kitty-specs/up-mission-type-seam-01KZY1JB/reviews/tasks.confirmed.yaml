@@ -182,7 +182,7 @@ findings:
   - artifact: tasks/WP04-pack-context-projection.md § Subtasks & Detailed Guidance, T008/T009/T010
   - artifact: tasks/WP04-pack-context-projection.md § Test Strategy (no red-first/commit-ordering statement
       present)
-  - code: src/charter/activation/mission_type_profiles.py:762 (_resolve_action_slot), :841 (_resolve_template_set_slot)
+  - code: src/charter/mission_type_profiles.py:762 (_resolve_action_slot), :841 (_resolve_template_set_slot)
       — the two functions T008/T009 edit
   claim: 'WP04 is an `execution_mode: code_change` / `task_type: implement` WP that changes production
     behavior: T008 threads a real `PackContext` into `_resolve_template_set_slot` (replacing a hardcoded

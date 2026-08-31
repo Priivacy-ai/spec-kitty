@@ -60,7 +60,7 @@
         "WP04"
       ],
       "write_scope": [
-        "src/charter/activation/evidence/orchestrator.py"
+        "src/charter/evidence/orchestrator.py"
       ],
       "predicted_surfaces": [
         "api"

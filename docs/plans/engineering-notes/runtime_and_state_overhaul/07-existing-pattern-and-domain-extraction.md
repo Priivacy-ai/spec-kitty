@@ -35,11 +35,11 @@ def __init__(self, built_in_root=None, project_root=None,
 
 ### 1b. Frozen context snapshots + guard methods — `PackContext` / `ProjectContext`
 
-- `PackContext` (`src/charter/activation/pack_context.py:74`) — frozen; bundles activation state + `pack_roots`
+- `PackContext` (`src/charter/pack_context.py:74`) — frozen; bundles activation state + `pack_roots`
   (built-in first, then org). Constructed **only** via `PackContext.from_config(repo_root)` (`:151`),
   which reads `.kittify/config.yaml` **once**. **Hard invariant C-005:** the doctrine resolver
   receives a `PackContext` and **never reads config itself** (`pack_context.py:1-20`).
-- `ProjectContext` (`src/charter/activation/invocation_context.py:69`) — frozen; bundles
+- `ProjectContext` (`src/charter/invocation_context.py:69`) — frozen; bundles
   `repo_root, pack_context, org_root, specs_dir, architecture_dir`. Factory `from_repo(repo_root)`
   (`:88`). **Guard methods** `require_repo_root()/require_pack_context()/require_org_root()` raise a
   typed `ContextPreconditionError` (`:36`) with actionable hints — not `ValueError`.
@@ -49,8 +49,8 @@ def __init__(self, built_in_root=None, project_root=None,
 - **Pure assembler** reads nothing, just packages caller-supplied data.
 - **Root-resolving builder** lives one layer up, calls the canonical root helpers, reads state/config.
 - Canonical root helpers (roots-as-data, **C-008: doctrine never reaches into `.kittify`**):
-  `resolve_doctrine_root()` (built-in/shipped, `src/charter/activation/catalog.py:153`),
-  `resolve_project_root()` (`src/charter/activation/_doctrine_paths.py:36`),
+  `resolve_doctrine_root()` (built-in/shipped, `src/charter/catalog.py:153`),
+  `resolve_project_root()` (`src/charter/_doctrine_paths.py:36`),
   `resolve_org_roots()` (`src/doctrine/drg/org_pack_config.py:170`),
   `resolve_layer_roots(repo_root) -> {"project","org"}` (`cli/commands/charter/_layer_roots.py:10`).
 - Project-root/base-dir helpers: `locate_project_root` (`core/project_resolver.py:16`),
@@ -66,7 +66,7 @@ def __init__(self, built_in_root=None, project_root=None,
 - **5-tier template chain** — `src/doctrine/resolver.py:133-213`: OVERRIDE → LEGACY → GLOBAL_MISSION →
   GLOBAL → PACKAGE_DEFAULT, returning frozen `ResolutionResult(path, tier, mission)`. Tier roots
   supplied **as data** by the caller (`TierRoot`, `template_catalog.py:69`).
-- **Action-scoped doctrine** — `src/charter/activation/context.py`: `build_charter_context(repo_root, *, action,
+- **Action-scoped doctrine** — `src/charter/context.py`: `build_charter_context(repo_root, *, action,
   depth, …)` (`:122`) → `PackContext.from_config` → `_load_action_doctrine_bundle` (`:797`) which
   loads the DRG, **filters by activation** (`filter_graph_by_activation`, `:837`), resolves
   `action:{mission}/{action}` (`resolve_context`, `:839-840`), and partitions into
@@ -83,7 +83,7 @@ def __init__(self, built_in_root=None, project_root=None,
 
 ## 2. ⚠️ `OperationalContext` already exists — naming collision
 
-`OperationalContext` is **already a live, frozen dataclass**: `src/charter/activation/invocation_context.py:155`,
+`OperationalContext` is **already a live, frozen dataclass**: `src/charter/invocation_context.py:155`,
 with a pure assembler `build_operational_context()` (`:220`) and a wired builder
 `build_operational_context_for_claim()` (`runtime_bridge.py:2119`, explicitly "shared so OC
 construction is not forked", `:2133`) plus `_build_operational_context_for_decision()` (`:2182`).

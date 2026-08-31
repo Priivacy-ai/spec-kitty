@@ -82,7 +82,7 @@ Two file-disjoint workstreams → three execution lanes:
 ### WP03 — Activation-aware doctrine service factory + glossary terms (#1636 / FR-010, FR-019)
 **Priority**: P1 · **Lane B-core** · **Depends on**: none · **Est.**: ~260 lines
 
-**Goal**: One shared factory wrapping the inner `DoctrineService` in the activation-aware `charter.activation.resolver.DoctrineService`, used by `profile show` and `--include`. Also lands the FR-019 glossary terms **here** (dependency-free, before WP04's warning string) per the analyze I1 fix (DIR-032 vocab-before-code).
+**Goal**: One shared factory wrapping the inner `DoctrineService` in the activation-aware `charter.resolver.DoctrineService`, used by `profile show` and `--include`. Also lands the FR-019 glossary terms **here** (dependency-free, before WP04's warning string) per the analyze I1 fix (DIR-032 vocab-before-code).
 
 **Independent test**: factory returns a service whose `.agent_profiles` honors the three-state `activated_agent_profiles` contract; the three glossary terms are defined.
 

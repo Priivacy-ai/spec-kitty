@@ -323,7 +323,7 @@ reason (e.g. a typo in the assertion that happens to also fail).
      docstring MUST include the cross-reference plan.md's Seam & Module Placement section
      specifies verbatim (this closes PLAN-ARCH-002, a confirmed plan-review finding already
      designed-in): a one-line note naming the sibling concept
-     `charter.activation.mission_type_profiles.UnknownMissionTypeError` — same shape (`ValueError`
+     `charter.mission_type_profiles.UnknownMissionTypeError` — same shape (`ValueError`
      carrying the offending string), different layer (runtime guard-family dispatch vs. charter
      mission-type resolution); intentionally not unified. Do **not** import `charter` into this
      module to write that comment — it is prose only.

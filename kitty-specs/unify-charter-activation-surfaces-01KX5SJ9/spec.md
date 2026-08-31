@@ -18,8 +18,8 @@ Today `charter activate` updates only the runtime ledger (`.kittify/config.yaml 
 ## Context & Motivation
 
 Two unreconciled representations of "which artefact is active":
-- **`config.yaml activated_*`** — runtime activation state, written by `charter activate`/`deactivate` through `charter.activation.activation_engine.commit_plan` (single config write), read authoritatively by `PackContext.from_config()`.
-- **`answers.yaml selected_*`** — authoring/compile state, compiled by `src/charter/activation/compiler.py` into `references.yaml` + `src/doctrine/graph.yaml` via `charter generate`/`synthesize`.
+- **`config.yaml activated_*`** — runtime activation state, written by `charter activate`/`deactivate` through `charter.activation_engine.commit_plan` (single config write), read authoritatively by `PackContext.from_config()`.
+- **`answers.yaml selected_*`** — authoring/compile state, compiled by `src/charter/compiler.py` into `references.yaml` + `src/doctrine/graph.yaml` via `charter generate`/`synthesize`.
 
 No code reconciles them (grep-confirmed empty). The guardrails are themselves split-brained: `consistency_check.py` sees only config; `freshness/computer.py` sees only references/graph. Observed today: `config.yaml` carried 25 activated directives while the answers-derived `references.yaml` carried 24 — config is already the superset/runtime SSOT, making it the natural single authority.
 
@@ -78,7 +78,7 @@ No code reconciles them (grep-confirmed empty). The guardrails are themselves sp
 | ID | Constraint | Status |
 |----|-----------|--------|
 | C-001 | Reconciliation/derivation logic lives in the `charter` package; CLI orchestration lives in the `specify_cli` charter command layer. The `charter` package must not import `specify_cli` (layer rule). | Draft |
-| C-002 | The single config write chokepoint is `charter.activation.activation_engine.commit_plan`. Do **not** build the cascade engine — the accepted-and-forwarded `cascade` param stays a reserved seam. | Draft |
+| C-002 | The single config write chokepoint is `charter.activation_engine.commit_plan`. Do **not** build the cascade engine — the accepted-and-forwarded `cascade` param stays a reserved seam. | Draft |
 | C-003 | The `generate_graph` freshness gate stays green — the config-derived synthesis must keep `src/doctrine/graph.yaml` byte-deterministic. | Draft |
 | C-004 | Migration must not silently drop active artefacts; `config.activated_*` is the authoritative migration seed. | Draft |
 | C-005 | Behaviour-preserving for consumers that already read `config.activated_*` (`PackContext.from_config`); only the answers→derived pipeline changes source. | Draft |

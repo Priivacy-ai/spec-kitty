@@ -133,7 +133,7 @@ tests/
 ### IC-07 — applies_to_languages guard + diagnostic (Thread D / #2092)
 - **Purpose**: Fail loud at authoring for `any`/`all` language tokens; name scope-filtered artifacts in the catalog-miss diagnostic.
 - **Relevant requirements**: FR-012, FR-013, SC-006, C-006.
-- **Affected surfaces**: `spec-kitty doctrine validate` (guard); `src/doctrine/shared/scoping.py:24` (`applies_to_languages_match`); `src/charter/activation/_catalog_miss.py` (present-but-scope-filtered branch).
+- **Affected surfaces**: `spec-kitty doctrine validate` (guard); `src/doctrine/shared/scoping.py:24` (`applies_to_languages_match`); `src/charter/_catalog_miss.py` (present-but-scope-filtered branch).
 - **Sequencing/depends-on**: none (parallel lane); de-risks IC-06 (a `[any]`-scoped styleguide would be silently dropped).
 - **Risks**: prefer validate-time rejection over silent query-time wildcarding (C-006), so authors see the error where they write it.
 

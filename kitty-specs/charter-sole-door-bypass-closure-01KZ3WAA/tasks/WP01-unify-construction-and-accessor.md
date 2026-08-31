@@ -24,7 +24,7 @@ subtasks:
 - T030
 - T031
 - T032
-phase: Phase 1 - Foundation (owns src/charter/activation/resolver.py exclusively)
+phase: Phase 1 - Foundation (owns src/charter/resolver.py exclusively)
 history:
 - at: '2026-08-03T14:10:00Z'
   actor: system
@@ -33,7 +33,7 @@ history:
   actor: system
   action: Post-tasks squad restructure - merged former WP07 in (paula-patterns finding); corrected accessor method names, dropped the wrong __getattr__-removal step, softened the resolver.py:402-413 precedent claim (debugger-debbie, reviewer-renata findings)
 agent_profile: python-pedro
-authoritative_surface: src/charter/activation/resolver.py
+authoritative_surface: src/charter/resolver.py
 create_intent:
 - tests/charter/test_doctrine_service_builder_unification.py
 - tests/charter/test_doctrine_service_lineage_accessor.py
@@ -41,8 +41,8 @@ create_intent:
 execution_mode: code_change
 model: ''
 owned_files:
-- src/charter/activation/resolver.py
-- src/charter/activation/doctrine_service_builder.py
+- src/charter/resolver.py
+- src/charter/doctrine_service_builder.py
 - src/specify_cli/doctrine_service_factory.py
 - src/specify_cli/charter_runtime/lint/checks/org_layer.py
 - src/specify_cli/cli/commands/charter/generate.py
@@ -77,9 +77,9 @@ feedback; log changes in the Activity Log.
 ## Objectives & Success Criteria
 
 **This WP was expanded by a post-tasks adversarial squad** (originally split into WP01+WP07, restructured
-because both edited `src/charter/activation/resolver.py` and the split forced an awkward 3-lane serialization for no
+because both edited `src/charter/resolver.py` and the split forced an awkward 3-lane serialization for no
 real benefit — see `research.md`'s "Post-Tasks Squad Findings" section, appended after this restructure).
-This WP is now the **sole owner** of `src/charter/activation/resolver.py` for the whole mission, and covers three
+This WP is now the **sole owner** of `src/charter/resolver.py` for the whole mission, and covers three
 things:
 
 1. **A new public accessor** for lineage/mutation-capable `AgentProfileRepository` access — the filtered
@@ -109,7 +109,7 @@ things:
 - **Pinned accessor contract** (post-tasks squad correction — the original prompt only offered "e.g." naming,
   which left three dependent WPs free to each invent something different):
   ```
-  charter.activation.resolver.DoctrineService.agent_profile_repository -> agent_profiles.repository.AgentProfileRepository
+  charter.resolver.DoctrineService.agent_profile_repository -> agent_profiles.repository.AgentProfileRepository
   ```
   A `@property` returning the raw, lineage-capable repository object directly. Dependent WPs call
   `factory.agent_profile_repository.register_overlay(...)` or `.get_provenance(...)` — verified against the
@@ -137,14 +137,14 @@ things:
 - **Purpose**: Give `projection.py:84`, `registry.py:64`, and `org_profiles.py:117` one shared, public way
   to reach mutation/provenance operations without reaching into `._inner`.
 - **Steps**:
-  1. Add `agent_profile_repository` as a `@property` on `charter.activation.resolver.DoctrineService` returning the
+  1. Add `agent_profile_repository` as a `@property` on `charter.resolver.DoctrineService` returning the
      raw `AgentProfileRepository` instance (the pinned contract above).
   2. Semantics: `register_overlay()` mutates the underlying repository's lineage graph; it does **not**
      create a way to read an unfiltered profile through the gated `agent_profiles` property afterward — that
      property's three-state filter still applies on every read, including reads that follow a mutation.
   3. `get_provenance()` is a read-only lookup on the raw repository — confirm its current signature/return
      type by reading `AgentProfileRepository.get_provenance` directly (do not assume a shape).
-- **Files**: `src/charter/activation/resolver.py`.
+- **Files**: `src/charter/resolver.py`.
 - **Parallel?**: No — T002-T003 depend on this landing first.
 
 ### Subtask T002 – Unify the two named builder functions
@@ -152,12 +152,12 @@ things:
 - **Purpose**: Close the C-001 violation: two "canonical" builders with silently different output.
 - **Steps**:
   1. Read both `specify_cli.doctrine_service_factory.build_activation_aware_doctrine_service` and
-     `charter.activation.doctrine_service_builder._build_activation_aware_doctrine_service` in full.
+     `charter.doctrine_service_builder._build_activation_aware_doctrine_service` in full.
   2. Pick the *fuller* behaviour on each axis: always compute
      `active_languages=infer_repo_languages(repo_root)`; always self-resolve `org_roots` via
      `resolve_org_roots`.
   3. Collapse to one function; make the other a thin re-export or delete-and-repoint callers.
-- **Files**: `src/charter/activation/doctrine_service_builder.py`, `src/specify_cli/doctrine_service_factory.py`.
+- **Files**: `src/charter/doctrine_service_builder.py`, `src/specify_cli/doctrine_service_factory.py`.
 - **Parallel?**: Yes, alongside T001 (different files).
 
 ### Subtask T003 – Retarget the inline construction sites; fix the fail-open bug
@@ -204,7 +204,7 @@ For `directives` (T026), `tactics` (T027), `styleguides` (T028), `toolguides` (T
 `mission_step_contracts` and `glossary_packs` (both covered under T030's mechanical pass, since all 6 are
 the identical copy-paste operation done together):
 
-- **Purpose**: Mechanical copy of the existing `paradigms` property pattern (`src/charter/activation/resolver.py:96`).
+- **Purpose**: Mechanical copy of the existing `paradigms` property pattern (`src/charter/resolver.py:96`).
 - **Steps**:
   1. Read the exact `paradigms` property implementation (getter logic, which `PackContext.activated_*`
      field it reads, how it applies the three-state filter to `self._inner.paradigms.list_all()`).
@@ -213,7 +213,7 @@ the identical copy-paste operation done together):
   3. **Do not** attempt to remove anything from the `__getattr__` fallback (post-tasks squad correction —
      the original prompt's step 3 was wrong): `resolver.py:136-140`'s `__getattr__` is a generic catch-all
      with no per-kind list; a new `@property` shadows it automatically. There is nothing to edit there.
-- **Files**: `src/charter/activation/resolver.py`.
+- **Files**: `src/charter/resolver.py`.
 - **Parallel?**: Yes — all 6 kinds are independent property additions in the same file; write them together
   in one pass.
 
@@ -231,7 +231,7 @@ the identical copy-paste operation done together):
 ## Test Strategy
 
 - `pytest tests/charter/ -v`.
-- `mypy --strict src/charter/activation/resolver.py src/charter/activation/doctrine_service_builder.py
+- `mypy --strict src/charter/resolver.py src/charter/doctrine_service_builder.py
   src/specify_cli/doctrine_service_factory.py`.
 - Do NOT run the full `pytest tests/` suite — targeted surfaces only.
 
@@ -255,4 +255,4 @@ the identical copy-paste operation done together):
 
 - 2026-08-03T14:10:00Z – system – Prompt created.
 - 2026-08-03T15:00:00Z – system – Post-tasks squad restructure: merged former WP07 into this WP.
-- 2026-08-03T17:25:31Z – unknown – shell_pid=0 – Cycle 2: fixed cycle-1 review findings. BLOCKER 1 (org_layer.py raw construction): added charter.activation.resolver.DoctrineService.raw_repository(kind) accessor (Option A, generic per-kind form of agent_profile_repository) and retargeted org_layer.py's two provenance-scan sites (_build_scan_service) through charter.activation.doctrine_service_builder._build_doctrine_service + charter.activation.resolver.DoctrineService(inner, pack_context=None) instead of raw doctrine.service.DoctrineService construction; OrgOverridesBuiltinChecker now calls service.raw_repository(kind) instead of getattr(service, kind). BLOCKER 2 (duplicate builder bodies): build_activation_aware_doctrine_service now delegates to _build_activation_aware_doctrine_service(repo_root) -- exactly one function constructs the wrapper. MAJOR 3 (tautological T004 test): replaced the self-comparing charter_builder(x).prop == specify_cli_builder(x).prop assertion with comparison against an independently-derived raw_repository(prop).list_all() projection for both entry points. MINOR 4: replaced all object.__getattribute__(result, _inner) reach-arounds in tests/charter/test_doctrine_service_builder_unification.py with the public raw_repository() accessor. MINOR 6: confirmed baseline mypy --strict error count is 1 (resolver.py Returning Any from function declared to return dict[str, Any]), not 2 as previously reported. Validation: ruff clean on all 8 files; mypy --strict 1 pre-existing baseline error; tests/specify_cli/test_provenance_integration.py 9/9 passed; tests/charter/test_doctrine_service_builder_unification.py 12/12 passed; tests/architectural/test_org_activation_seam.py + test_layer_rules.py 29/29 passed; tests/specify_cli/cli/commands/charter/ 94/94 passed; tests/specify_cli/test_doctrine_service_factory.py + tests/specify_cli/charter_runtime/ 26 passed/3 skipped.
+- 2026-08-03T17:25:31Z – unknown – shell_pid=0 – Cycle 2: fixed cycle-1 review findings. BLOCKER 1 (org_layer.py raw construction): added charter.resolver.DoctrineService.raw_repository(kind) accessor (Option A, generic per-kind form of agent_profile_repository) and retargeted org_layer.py's two provenance-scan sites (_build_scan_service) through charter.doctrine_service_builder._build_doctrine_service + charter.resolver.DoctrineService(inner, pack_context=None) instead of raw doctrine.service.DoctrineService construction; OrgOverridesBuiltinChecker now calls service.raw_repository(kind) instead of getattr(service, kind). BLOCKER 2 (duplicate builder bodies): build_activation_aware_doctrine_service now delegates to _build_activation_aware_doctrine_service(repo_root) -- exactly one function constructs the wrapper. MAJOR 3 (tautological T004 test): replaced the self-comparing charter_builder(x).prop == specify_cli_builder(x).prop assertion with comparison against an independently-derived raw_repository(prop).list_all() projection for both entry points. MINOR 4: replaced all object.__getattribute__(result, _inner) reach-arounds in tests/charter/test_doctrine_service_builder_unification.py with the public raw_repository() accessor. MINOR 6: confirmed baseline mypy --strict error count is 1 (resolver.py Returning Any from function declared to return dict[str, Any]), not 2 as previously reported. Validation: ruff clean on all 8 files; mypy --strict 1 pre-existing baseline error; tests/specify_cli/test_provenance_integration.py 9/9 passed; tests/charter/test_doctrine_service_builder_unification.py 12/12 passed; tests/architectural/test_org_activation_seam.py + test_layer_rules.py 29/29 passed; tests/specify_cli/cli/commands/charter/ 94/94 passed; tests/specify_cli/test_doctrine_service_factory.py + tests/specify_cli/charter_runtime/ 26 passed/3 skipped.

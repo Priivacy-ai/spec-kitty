@@ -1,7 +1,7 @@
 # Contract: `build_charter_context` with `profile=` load-bearing
 
 **Mission**: `wp-prompt-governance-payload-01KRR8HS`
-**Surface**: `charter.activation.context.build_charter_context`
+**Surface**: `charter.context.build_charter_context`
 **FRs covered**: FR-001, FR-002, FR-003, FR-008
 **ATDD anchors**: `TestCharterContextResolverCompleteness::*`, `TestImplementPromptContainsActionableGovernance::*`, `TestProfileDirectivesSurfacedInWpPrompt::*`, `TestPromptReferencesAuthorityPaths::*`
 

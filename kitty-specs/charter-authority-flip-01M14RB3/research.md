@@ -13,11 +13,11 @@ Consolidated from a pre-plan brownfield research squad (3 profile-loaded scouts,
 
 ## Seam 2 — CR-01 key + migration (slice 6)
 
-- **Load seam**: `load_governance_config` `src/charter/activation/sync.py:262-263` — dict-level warn-and-map before `model_validate` (silent alias fails SC-002).
-- **Field**: `GovernanceConfig.doctrine`→`.charter` `src/charter/activation/schemas.py:209` (keep value class `DoctrineSelectionConfig`).
+- **Load seam**: `load_governance_config` `src/charter/sync.py:262-263` — dict-level warn-and-map before `model_validate` (silent alias fails SC-002).
+- **Field**: `GovernanceConfig.doctrine`→`.charter` `src/charter/schemas.py:209` (keep value class `DoctrineSelectionConfig`).
 - **3 readers**: `resolver.py:845`, `org_pack_discovery.py:201`, `_status_collectors.py:175`.
-- **Warn precedent**: `src/charter/activation/_catalog_miss.py:327-365`; legacy-key structural precedent `compiler.py:648-680`; warn-once via `lru_cache`, not filter.
-- **Migration script new**: `scripts/migrate_charter_interview_answers.py`; writer to harden `src/charter/activation/interview.py:400-404`; answers `.kittify/charter/interview/answers.yaml` (`_common.py:101`). Token-literal-free (numeric bytes); scope to governing-term bytes (slug `doctrine-catfooding-2196` is a proper noun — do not touch); prefer targeted substitution over ruamel round-trip; preimage restore.
+- **Warn precedent**: `src/charter/_catalog_miss.py:327-365`; legacy-key structural precedent `compiler.py:648-680`; warn-once via `lru_cache`, not filter.
+- **Migration script new**: `scripts/migrate_charter_interview_answers.py`; writer to harden `src/charter/interview.py:400-404`; answers `.kittify/charter/interview/answers.yaml` (`_common.py:101`). Token-literal-free (numeric bytes); scope to governing-term bytes (slug `doctrine-catfooding-2196` is a proper noun — do not touch); prefer targeted substitution over ruamel round-trip; preimage restore.
 - **charter generate**: `compiler.py:515-516` section-update (safe), never `:725` (clobbers governance).
 - **Compat registry**: spec-artifact + guard-test, no runtime object; CR-01 budget 3 + control; `data-model.md:82-101`, `methodology.md:145-159`.
 

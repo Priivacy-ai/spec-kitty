@@ -145,7 +145,7 @@ Resolution order:
 2. If not found, try to load the built-in DRG via `doctrine.shared.resolve_doctrine_root() / "graph.yaml"`. If found → `(graph, BUILT_IN_ONLY)`.
 3. Otherwise → `(None, MISSING)`.
 
-Read DEFAULT shipping graph via `charter.activation.catalog.resolve_doctrine_root()` (already imported elsewhere in this package).
+Read DEFAULT shipping graph via `charter.catalog.resolve_doctrine_root()` (already imported elsewhere in this package).
 
 ### T006 — Wire `LintEngine.run()` + banner + JSON
 
@@ -189,7 +189,7 @@ Use existing fixtures under `tests/specify_cli/charter_lint/conftest.py` as temp
 
 ## Risks
 
-- **Cyclic import**: pulling `charter.activation.catalog.resolve_doctrine_root` into `charter_lint._drg` could create a cycle. Mitigation: lazy import inside the function (matches existing pattern at line 32-46 of `_drg.py`).
+- **Cyclic import**: pulling `charter.catalog.resolve_doctrine_root` into `charter_lint._drg` could create a cycle. Mitigation: lazy import inside the function (matches existing pattern at line 32-46 of `_drg.py`).
 - **Test fixture drift**: existing `tests/integration/test_charter_lint_lints_all_layers.py` may assert on the old banner text. If so, update the assertions and document in the WP notes.
 
 ## Reviewer guidance

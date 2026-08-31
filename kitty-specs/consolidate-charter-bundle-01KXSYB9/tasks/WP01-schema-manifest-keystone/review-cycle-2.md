@@ -11,7 +11,7 @@ wp_id: WP01
 
 # WP01 review-cycle-2 — APPROVED
 
-Keystone (IC-02): `src/charter/activation/schemas.py` (`CharterYaml` model — governance/directives
+Keystone (IC-02): `src/charter/schemas.py` (`CharterYaml` model — governance/directives
 nested, activation FLAT at root), `src/charter/bundle.py` (manifest v2), and the shared
 `charter_yaml_io` load→mutate-owned-section→round-trip write helper.
 

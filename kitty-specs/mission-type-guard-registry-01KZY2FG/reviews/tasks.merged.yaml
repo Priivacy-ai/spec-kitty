@@ -20,14 +20,14 @@ findings:
       (T003's 5 numbered steps)
   - code: src/runtime/next/runtime_bridge_cores.py:351-374 (current evaluate_guards, the function T003
       rewrites)
-  - code: 'src/charter/activation/mission_type_profiles.py:193-205 (UnknownMissionTypeError — the sibling exception
+  - code: 'src/charter/mission_type_profiles.py:193-205 (UnknownMissionTypeError — the sibling exception
       T003''s own docstring is required to cross-reference, shown here as evidence of this codebase''s
       typical size for a ValueError-with-rationale-docstring: 13 lines)'
   claim: 'tasks.md''s PR Shape section characterizes the whole WP01+WP02 diff as "a ~10-line production
     change in 4 files plus one new ~5-way guard function" (referring to WP01). Read against WP01''s own
     T003 steps, this undercounts what Commit 3 actually adds to ONE file (runtime_bridge_cores.py), which
     is not "~10 lines" in "4 files" — it is: (1) a new `_GUARD_TABLES` dict (step 1), (2) a new `UnregisteredMissionFamilyError`
-    exception class carrying a mandated cross-reference docstring to `charter.activation.mission_type_profiles.UnknownMissionTypeError`
+    exception class carrying a mandated cross-reference docstring to `charter.mission_type_profiles.UnknownMissionTypeError`
     (step 2 — this codebase''s own analogous exception at mission_type_profiles.py:193-205 runs 13 lines,
     giving a concrete size anchor), (3) a new `evaluate_guards_strict` function (step 3), (4) a new `_evaluate_plan_guards`
     5-way if/elif function with a docstring citing `_evaluate_documentation_guards`''s `accept` case by

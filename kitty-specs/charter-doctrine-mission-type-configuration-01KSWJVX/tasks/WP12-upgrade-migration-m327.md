@@ -87,7 +87,7 @@ Copy the class structure; do not copy the `m_3_2_6` logic.
 
 ### T072 — Migration logic: detect and add activation entries
 
-**First, verify the config key**. Before implementing, read the actual `.kittify/config.yaml` from a real project and/or search the codebase for `mission_type_activations` to confirm this is the correct YAML key. Also read `src/specify_cli/upgrade/migrations/m_3_2_6_charter_bundle_v2.py` and `src/charter/activation/pack_context.py` (WP06) to confirm the key expected by `PackContext.from_config()`.
+**First, verify the config key**. Before implementing, read the actual `.kittify/config.yaml` from a real project and/or search the codebase for `mission_type_activations` to confirm this is the correct YAML key. Also read `src/specify_cli/upgrade/migrations/m_3_2_6_charter_bundle_v2.py` and `src/charter/pack_context.py` (WP06) to confirm the key expected by `PackContext.from_config()`.
 
 If the key name differs (e.g., `mission_types` or `activated_mission_types`), use the key that `PackContext.from_config()` actually reads — consistency between the migration writer and the runtime reader is critical.
 

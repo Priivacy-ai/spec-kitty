@@ -5,7 +5,7 @@ resolves a design unknown; there are no open `[NEEDS CLARIFICATION]` markers.
 
 ## D1 — Where the loss happens (mechanism)
 
-- **Decision**: Reconcile at `orchestrator.synthesize._validation_callback` (`src/charter/activation/synthesizer/orchestrator.py:179-188`), which today calls `emit_project_layer(targets=targets)` and persists a brand-new overlay with no read of the on-disk graph; `write_pipeline.promote` (`write_pipeline.py:635-643`) whole-file-swaps it in.
+- **Decision**: Reconcile at `orchestrator.synthesize._validation_callback` (`src/charter/synthesizer/orchestrator.py:179-188`), which today calls `emit_project_layer(targets=targets)` and persists a brand-new overlay with no read of the on-disk graph; `write_pipeline.promote` (`write_pipeline.py:635-643`) whole-file-swaps it in.
 - **Rationale**: All three lossy surfaces (manual `synthesize`, boundary `auto_refresh` subprocess, `activate`/`deactivate` via `run_resynthesize_pipeline`) funnel through this one seam, so a single fix covers them.
 - **Alternatives considered**: Fixing only the CLI command (misses auto_refresh/activate); a byte-equality short-circuit (`_substantively_equal` already exists and does NOT prevent loss when the target set genuinely differs).
 
@@ -17,7 +17,7 @@ resolves a design unknown; there are no open `[NEEDS CLARIFICATION]` markers.
 
 ## Doctrine anchor
 
-- **Decision**: Conform to ADR `2026-07-26-3`'s warn/report posture. Introduce a NEW `ReconciliationConflict` in `src/charter/activation/synthesizer/reconcile.py`, **modeled after** — not reusing — the DRG typed-conflict shape in `src/doctrine/drg/merge.py` (`OrgDRGConflict.kind`, `resolution_applied`, `_CONFLICT_REMEDIATIONS`). `merge.py` is the org-pack fragment-merge subsystem — its `kind` Literal is closed (no `duplicate_triple`), it has no `backing_artifact`/`remediation` fields, and the synthesize path's `validate_graph` returns `list[str]` — so this is net-new translation, not reuse; `merge.py` is not edited. `reconcile.py` carries its own remediation vocab (`duplicate_triple`, `preserved_dangling_endpoint`) with a completeness gate mirroring `test_every_conflict_class_carries_a_remediation_line`. Use that new object for refusal/prune/dry-run messaging.
+- **Decision**: Conform to ADR `2026-07-26-3`'s warn/report posture. Introduce a NEW `ReconciliationConflict` in `src/charter/synthesizer/reconcile.py`, **modeled after** — not reusing — the DRG typed-conflict shape in `src/doctrine/drg/merge.py` (`OrgDRGConflict.kind`, `resolution_applied`, `_CONFLICT_REMEDIATIONS`). `merge.py` is the org-pack fragment-merge subsystem — its `kind` Literal is closed (no `duplicate_triple`), it has no `backing_artifact`/`remediation` fields, and the synthesize path's `validate_graph` returns `list[str]` — so this is net-new translation, not reuse; `merge.py` is not edited. `reconcile.py` carries its own remediation vocab (`duplicate_triple`, `preserved_dangling_endpoint`) with a completeness gate mirroring `test_every_conflict_class_carries_a_remediation_line`. Use that new object for refusal/prune/dry-run messaging.
 - **Rationale**: That is the canonical node/edge no-silent-drop machinery with a warn/report posture and per-class remediations. ADR `2026-05-16-1` (originally cited) is field-grain layer merge and chose warn-not-block Option C — precedent only.
 - **Alternatives considered**: a hand-rolled "name each URN + artifact" message (FR-014 rejects this — reuse the typed shape).
 

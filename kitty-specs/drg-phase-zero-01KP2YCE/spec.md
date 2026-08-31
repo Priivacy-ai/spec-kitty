@@ -34,7 +34,7 @@ A doctrine maintainer runs the migration extractor against the current shipped a
 
 ### Scenario 2: DRG-driven context matches legacy context
 
-For every supported `(profile, action, depth)` combination, `build_context_v2()` resolves the same set of governance artifacts (by URN) as the currently shipped `src/charter/activation/context.py` path. Reachability differences are either exact matches or itemized intentional improvements (e.g., legacy path was wrong-sized). Rendered-text differences (formatting, section ordering) are out of scope for Phase 0.
+For every supported `(profile, action, depth)` combination, `build_context_v2()` resolves the same set of governance artifacts (by URN) as the currently shipped `src/charter/context.py` path. Reachability differences are either exact matches or itemized intentional improvements (e.g., legacy path was wrong-sized). Rendered-text differences (formatting, section ordering) are out of scope for Phase 0.
 
 **Verification**: Run invariant test matrix; assert artifact-set identity or accepted difference with explicit justification per entry.
 
@@ -62,7 +62,7 @@ The following are NOT greenfield --- they exist on `main` and must be preserved:
 
 | Surface | Location | Status |
 |---------|----------|--------|
-| Action-scoped `build_charter_context()` with depth parameter | `src/charter/activation/context.py` | Canonical baseline; parity oracle |
+| Action-scoped `build_charter_context()` with depth parameter | `src/charter/context.py` | Canonical baseline; parity oracle |
 | Legacy `build_charter_context()` without depth | `src/specify_cli/charter/context.py` | Compatibility surface; 2 callers remain |
 | Action index files per mission/action | `src/doctrine/missions/software-dev/actions/*/index.yaml` | Input to migration extractor |
 | `DoctrineService` with 8 lazy-loaded repositories | `src/doctrine/service.py` | Preserved; DRG does not replace it |
@@ -88,13 +88,13 @@ Phase 0 does NOT reroute these callers. The behavioral delta between the two imp
 
 | ID | Requirement | Status |
 |----|-------------|--------|
-| FR-001 | Audit all `build_charter_context()` call sites, document the behavioral delta between the canonical `src/charter/activation/context.py` and the legacy `src/specify_cli/charter/context.py`, and confirm the canonical path is the correct parity oracle for FR-007. The actual reroute of callers is Phase 1 scope (after parity is confirmed). | Proposed |
+| FR-001 | Audit all `build_charter_context()` call sites, document the behavioral delta between the canonical `src/charter/context.py` and the legacy `src/specify_cli/charter/context.py`, and confirm the canonical path is the correct parity oracle for FR-007. The actual reroute of callers is Phase 1 scope (after parity is confirmed). | Proposed |
 | FR-002 | Define a DRG schema as a single YAML file (`graph.yaml`) with node URN format (`kind:id`), typed edges (v1 relation types: `requires`, `suggests`, `applies`, `scope`, `vocabulary`, `instantiates`, `replaces`, `delegates_to`), and a Pydantic model that validates the graph. | Proposed |
 | FR-003 | The Pydantic model rejects malformed graphs: dangling references (edge target not a known node), unknown relation types, malformed URNs, and cycles in `requires` edges. | Proposed |
 | FR-004 | Provide a migration extractor that walks all shipped doctrine artifacts (directives, tactics, paradigms) and action index files, extracts every inline reference field, and emits equivalent typed edges into `graph.yaml`. | Proposed |
 | FR-005 | The migration extractor applies per-action surface calibration: each action (`specify`, `plan`, `tasks`, `implement`, `review`) receives `scope` edges that respect the minimum-effective-dose principle. | Proposed |
 | FR-006 | Implement `build_context_v2(profile, action, depth)` that queries the merged DRG (shipped + project-local layers), walks `scope` edges from the action node to depth 1, walks `requires` transitively, walks `suggests` to user-configured depth, includes `vocabulary` edges as glossary scope, materializes each resolved artifact, and returns a structured prompt block. (`applies` is defined in the v1 schema but not populated by the Phase 0 migration; it is reserved for Phase 2+ when artifacts self-declare applicability.) | Proposed |
-| FR-007 | Provide an invariant regression test that compares the **artifact reachability** of `build_context_v2(profile, action, depth)` against the canonical `src/charter/activation/context.py` `build_charter_context()` for every shipped profile x action x depth combination. Parity means: the same set of artifact URNs is resolved by both paths. Rendered-text parity (guidelines, reference filtering, section formatting) is a Phase 1 concern when callers are switched to `build_context_v2`. Intentional reachability differences must be itemized in an accepted-differences manifest. | Proposed |
+| FR-007 | Provide an invariant regression test that compares the **artifact reachability** of `build_context_v2(profile, action, depth)` against the canonical `src/charter/context.py` `build_charter_context()` for every shipped profile x action x depth combination. Parity means: the same set of artifact URNs is resolved by both paths. Rendered-text parity (guidelines, reference filtering, section formatting) is a Phase 1 concern when callers are switched to `build_context_v2`. Intentional reachability differences must be itemized in an accepted-differences manifest. | Proposed |
 | FR-008 | Provide an action surface calibration test that asserts the minimum-effective-dose inequalities for every shipped action. Violations are fixed by adjusting `scope` edges in `graph.yaml`, never by adding filtering logic in the context builder. | Proposed |
 | FR-009 | The DRG is the only knob for calibrating action surfaces. No per-action filtering logic exists in `build_context_v2` or the prompt builder. Context size is determined entirely by graph topology. | Proposed |
 | FR-010 | Both the invariant test and the calibration test run in CI on every PR that touches `src/doctrine/`, `src/charter/`, or `graph.yaml`. | Proposed |
@@ -126,7 +126,7 @@ Phase 0 does NOT reroute these callers. The behavioral delta between the two imp
 1. The invariant regression test passes for 100% of shipped profile x action x depth combinations (artifact reachability parity), with any accepted differences explicitly itemized and reviewed.
 2. The calibration test confirms all minimum-effective-dose inequalities hold for every shipped action.
 3. Both test harnesses run green in CI before Phase 1 work begins.
-4. The behavioral delta between `src/charter/activation/context.py` and `src/specify_cli/charter/context.py` is documented, and the canonical path is confirmed as the correct parity oracle.
+4. The behavioral delta between `src/charter/context.py` and `src/specify_cli/charter/context.py` is documented, and the canonical path is confirmed as the correct parity oracle.
 5. `graph.yaml` validates with zero errors against the DRG Pydantic model.
 6. The migration extractor accounts for every inline reference field across all shipped artifacts (zero missed references).
 
@@ -144,10 +144,10 @@ Once Phase 0's test harnesses pass, Phase 1 (#463) will delete the following. Ph
 | Inline `references` arrays | Directive and tactic YAMLs | Remove field |
 | Inline `opposed_by` arrays | Paradigm YAMLs | Remove field |
 | Action index inline lists | `actions/*/index.yaml` `directives`, `tactics`, etc. | Replace with DRG edge queries |
-| Call-site reroute (prompt_builder, workflow) | `src/specify_cli/next/prompt_builder.py`, `src/specify_cli/cli/commands/agent/workflow.py` | Switch imports to `charter.activation.context` + test rendered-text parity |
+| Call-site reroute (prompt_builder, workflow) | `src/specify_cli/next/prompt_builder.py`, `src/specify_cli/cli/commands/agent/workflow.py` | Switch imports to `charter.context` + test rendered-text parity |
 | Legacy context compatibility surface | `src/specify_cli/charter/context.py` | Delete after reroute confirmed |
 | Validators for inline refs | Schema validation for above fields | Remove validators |
-| `build_charter_context()` in `src/charter/activation/context.py` | `src/charter/activation/context.py` | Replace with `build_context_v2` |
+| `build_charter_context()` in `src/charter/context.py` | `src/charter/context.py` | Replace with `build_context_v2` |
 
 ## Key Entities
 
@@ -185,7 +185,7 @@ A structured file listing intentional divergences between legacy and DRG context
 | Risk | Likelihood | Impact | Mitigation |
 |------|-----------|--------|------------|
 | Inline reference extraction misses edge cases (e.g., directive ID format mismatch between `DIRECTIVE_NNN` and `NNN-slug` in action indices) | Medium | High | Migration extractor normalizes both ID formats; validation step counts extracted edges vs source field counts |
-| Call-site reroute to `src/charter/activation/context.py` introduces subtle behavior change | Low | Medium | Reroute is a separate, independently testable WP with before/after output comparison |
+| Call-site reroute to `src/charter/context.py` introduces subtle behavior change | Low | Medium | Reroute is a separate, independently testable WP with before/after output comparison |
 | Invariant test produces too many accepted differences, reducing Phase 1 confidence | Low | High | Differences must be individually reviewed and justified; a threshold (e.g., >10% divergence) triggers mission pause |
 | `graph.yaml` becomes a merge-conflict hotspot | Medium | Low | Graph is generated by migration script, not hand-edited. Regeneration is idempotent. |
 

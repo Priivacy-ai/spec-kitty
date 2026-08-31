@@ -18,7 +18,7 @@ platform-level interrogation).
 
 ## Summary
 
-`charter.activation.kind_vocabulary._org_scan_dirs` (`src/charter/activation/kind_vocabulary.py:200-209`) scans only
+`charter.kind_vocabulary._org_scan_dirs` (`src/charter/kind_vocabulary.py:200-209`) scans only
 `<org_root>/<plural>/built-in/` — a layout no real org pack uses — so `resolve_artifact_urn`
 can never find an org pack's own artifacts, and every `charter activate` call silently drops
 them from the filtered DRG (FR-001's defect). The fix adds a second, ordered-first scan entry
@@ -35,7 +35,7 @@ test placement around that already-decided fix — not to re-derive the fix itse
 **Language/Version**: Python 3.11+ (repo-wide baseline; no version-specific feature used by
 this change).
 **Primary Dependencies**: None added or changed. The fix uses only `pathlib.Path` (already
-imported in `src/charter/activation/kind_vocabulary.py`) — no new import, no new third-party dependency.
+imported in `src/charter/kind_vocabulary.py`) — no new import, no new third-party dependency.
 **Storage**: N/A — the function reads directory existence off the local filesystem
 (`Path.is_dir()`); no database, no persisted state format changes.
 **Testing**: `pytest`, using the repo's existing fixture idioms (`tmp_path`, `monkeypatch`)
@@ -52,7 +52,7 @@ and its new sibling entry are pure `pathlib` directory checks, portable as-is).
 (bounded file set, no D1 code, no neighboring-helper refactor, red-first, no new suppressions)
 — see the Gate Set and Campsite-Clean sections below, not a runtime performance constraint.
 **Scale/Scope**: One function's behavior changed (`_org_scan_dirs`), ~5 LOC, in one file
-(`src/charter/activation/kind_vocabulary.py`) — plus a docstring-only update to that function's caller
+(`src/charter/kind_vocabulary.py`) — plus a docstring-only update to that function's caller
 (`_scan_roots`, see Campsite-Clean Scope) in the same file — plus test changes in exactly two
 test files (one extended, one new) — see Test Placement Decision below. One work package, one
 PR.
@@ -75,7 +75,7 @@ PR.
   unit-level shortcut. Pass.
 - **`RECONCILE_CHANGE_SCOPE_TENSIONS`** (smallest-viable-diff → Boy Scout → Locality of Change)
   — already resolved in the spec's own Clarifications: the file set is
-  `src/charter/activation/kind_vocabulary.py` plus the two test files named below; `_built_in_scan_dir`
+  `src/charter/kind_vocabulary.py` plus the two test files named below; `_built_in_scan_dir`
   and `_layer_scan_dirs` (C-003) are deliberately not touched. This plan does not relitigate
   that resolution — see Campsite-Clean Scope below. Pass, by inheritance from the spec.
 - **Standing Order #9 (red-main discipline)** — this mission does not touch or depend on any
@@ -93,7 +93,7 @@ divergences this mission's C-001 file set does not close — named here so a rea
 alone knows they remain open, not silently missed:
 
 - **The `layer_roots`/`_layer_scan_dirs` cascade path.** `_layer_scan_dirs`
-  (`src/charter/activation/kind_vocabulary.py:219-228`, via `_layer_candidate_dir`, `:212-216`) resolves an
+  (`src/charter/kind_vocabulary.py:219-228`, via `_layer_candidate_dir`, `:212-216`) resolves an
   org layer to a **third** directory shape, `<root>/doctrine/<plural>/org` — distinct from both
   this mission's flat `<root>/<plural>` fix and the legacy `<root>/<plural>/built-in` shape
   `_org_scan_dirs` already scans. It is reached only via `layer_roots`, never `org_roots`:
@@ -108,7 +108,7 @@ alone knows they remain open, not silently missed:
   Acceptance Scenarios test); it does not touch, and does not close, the cascade-warning/DRG-id
   path's independent `layer_roots`-only resolution of the `<root>/doctrine/<plural>/org` shape.
 - **`CharterPackManager._resolve_org_layer_dir`'s FR-013 precedent.**
-  `src/charter/activation/pack_manager.py:238-253` already reconciles flat vs. legacy for a related seam:
+  `src/charter/pack_manager.py:238-253` already reconciles flat vs. legacy for a related seam:
   its docstring states outright that "FR-013 unifies the charter activation subsystem with
   runtime... Flat is therefore the canonical, preferred layout. The legacy nested
   `<pack>/doctrine/<plural>/org/` layout is kept as a fallback." Concretely, it checks the flat
@@ -127,7 +127,7 @@ alone knows they remain open, not silently missed:
 
 This change lands entirely in the charter layer, in one pure function and its tests:
 
-- **Production surface**: `src/charter/activation/kind_vocabulary.py`, function `_org_scan_dirs`
+- **Production surface**: `src/charter/kind_vocabulary.py`, function `_org_scan_dirs`
   (`:200-209`) is the sole *behavioral* edit. Its caller's (`_scan_roots`, `:142-181`) own
   call-chain logic, and *its* caller's (`resolve_artifact_urn`, `:253+`), are unchanged — both
   already consume whatever `_org_scan_dirs` returns via the established `(Path, bool)` list
@@ -135,21 +135,21 @@ This change lands entirely in the charter layer, in one pure function and its te
   `_scan_roots`'s docstring is also edited, though: the sentence at `:158-160` describing what
   `org_roots` contributes goes stale the moment the fix lands, so the implementing WP updates it
   as part of the fix commit — see Campsite-Clean Scope below for the full rationale.
-- **No CLI surface.** `charter activate` itself (`src/charter/activation/pack_manager.py`) is unchanged;
+- **No CLI surface.** `charter activate` itself (`src/charter/pack_manager.py`) is unchanged;
   the fix is entirely inside the resolution helper it calls transitively. No Typer command,
   option, or JSON output shape changes.
 - **No doctrine schema.** Nothing under `src/doctrine/*.models` or the generated JSON Schemas
   changes; the fix does not add, remove, or reshape any doctrine artifact type.
-- **No kernel, no mission-loader.** `src/charter/activation/kind_vocabulary.py` is outside both
+- **No kernel, no mission-loader.** `src/charter/kind_vocabulary.py` is outside both
   `src/kernel/**` and `src/specify_cli/mission_loader/**` — see Gate Set below for why their
   dedicated 90% coverage jobs are structurally inapplicable, not merely "not run this time."
 - **`resolve_artifact_urn`'s real consumer set is wider than the drg.py path this spec's
   Acceptance Scenarios exercise, and two of those consumers observe a real behavior change.**
-  `resolve_artifact_urn` (`:253+`) is called from `charter.activation.compiler._resolve_config_activated_ids`
-  (`src/charter/activation/compiler.py:112-149`), threaded `org_roots` by
+  `resolve_artifact_urn` (`:253+`) is called from `charter.compiler._resolve_config_activated_ids`
+  (`src/charter/compiler.py:112-149`), threaded `org_roots` by
   `_resolve_config_activated_roots` (`:187`, `list(pack_context.pack_roots[1:])`) for every
   activated kind on the `charter synthesize` path, and from
-  `charter.activation.consistency_check`'s config↔graph parity guard (`_check_reference_id_parity`,
+  `charter.consistency_check`'s config↔graph parity guard (`_check_reference_id_parity`,
   `:744-748`; `_resolve_graph_kind_parity_stem`, `:815-819`) — both pass real `org_roots` today.
   `compiler.py`'s call site has **no** `try`/`except`: its own docstring (`:135-140`) states a
   stem that cannot resolve "raises `UnknownArtifactIdError` ... rather than being silently
@@ -172,7 +172,7 @@ Explicit, not silently omitted or assumed: this mission regenerates none of the 
 none of the following contract-shaped surfaces move.
 
 - **Doctrine schema** — `scripts/generate_schemas.py`'s sources are `doctrine.*.models`
-  (`:140-545`); nothing in `src/charter/activation/kind_vocabulary.py` is a schema source, so the freshness
+  (`:140-545`); nothing in `src/charter/kind_vocabulary.py` is a schema source, so the freshness
   check (below) passes trivially without any regeneration step being run by this WP, and no
   schema contract moves.
 - **Contextive glossary** — the glossary generator (`scripts/generate_contextive_glossaries.py`)
@@ -223,7 +223,7 @@ assumed covered.
 ## Gate Set
 
 Verified against `.github/workflows/ci-quality.yml` and `pyproject.toml` directly (not assumed)
-for this specific diff shape (`src/charter/activation/kind_vocabulary.py` + `tests/charter/*`):
+for this specific diff shape (`src/charter/kind_vocabulary.py` + `tests/charter/*`):
 
 | Gate | Applies? | Why |
 | --- | --- | --- |
@@ -270,7 +270,7 @@ the change is scoped to a known surface") — not for this planning-phase spot c
 
 ## Campsite-Clean Scope
 
-`src/charter/activation/kind_vocabulary.py` also contains `_built_in_scan_dir` and `_layer_scan_dirs` —
+`src/charter/kind_vocabulary.py` also contains `_built_in_scan_dir` and `_layer_scan_dirs` —
 structurally similar, similarly terse helpers sitting right next to `_org_scan_dirs` in the
 touched file. Standing Order #2 (campsite cleaning) and the Boy Scout Rule (`DIRECTIVE_025`)
 would, on their own, license folding in a tidy-up of those neighbors since the file is already
@@ -286,7 +286,7 @@ follows below — not a campsite tidy-up of a neighboring helper, but adjacent d
 itself causes.)
 
 One piece of adjacent debt *was* found, and it is directly caused by the change rather than a
-neighboring helper: `_scan_roots`'s own docstring (`src/charter/activation/kind_vocabulary.py:158-160`,
+neighboring helper: `_scan_roots`'s own docstring (`src/charter/kind_vocabulary.py:158-160`,
 `_org_scan_dirs`'s immediate caller) states, present-tense, that "``org_roots`` preserves the
 legacy package-shaped root contract where each root contributes ``<root>/<plural>/built-in`` --
 this nested layout is still live for org packs." Once FR-001 lands, `org_roots` also
@@ -304,7 +304,7 @@ FR-002's regression test must be authored and shown failing against the current,
 ordering constraint on the mission's single work package, not a separate review-time check:
 
 1. Author the FR-002 activation-filter-level regression test (see Test Placement Decision)
-   against the pre-fix `src/charter/activation/kind_vocabulary.py`.
+   against the pre-fix `src/charter/kind_vocabulary.py`.
 2. Run it and confirm red — the expected pre-fix failure is, unconditionally, the assertion that
    the org directive's node is **absent** from `filter_graph_by_activation`'s output graph.
    FR-002 (spec.md) constrains this test to the full `activate()` → `filter_graph_by_activation()`
@@ -349,7 +349,7 @@ commit followed by the fix commit), never a single commit that adds an already-g
   folding an unrelated org-scan-dirs regression into either would blur their own documented
   scope), and `test_org_activations_resolution.py` /
   `test_org_activations_reach_context.py` (both scoped to `activations:` stanza rendering in
-  `charter.activation.context`, a different consumer of org packs entirely, not `resolve_artifact_urn` /
+  `charter.context`, a different consumer of org packs entirely, not `resolve_artifact_urn` /
   `filter_graph_by_activation`). A new file is explicitly permitted by C-001 ("plus one new or
   extended test module") and is the better fit here: it gets its own on-disk fixture (a flat
   `<org_root>/directives/<stem>.directive.yaml` plus a root-level `<org_root>/<stem>.graph.yaml`

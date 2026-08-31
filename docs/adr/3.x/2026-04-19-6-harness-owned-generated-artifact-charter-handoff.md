@@ -140,7 +140,7 @@ matter.
 
 ## More information
 
-- `src/charter/activation/synthesizer/generated_artifact_adapter.py`
+- `src/charter/synthesizer/generated_artifact_adapter.py`
 - `src/specify_cli/cli/commands/charter.py`
-- `src/charter/activation/synthesizer/write_pipeline.py`
+- `src/charter/synthesizer/write_pipeline.py`
 - `tests/agent/cli/commands/test_charter_status_cli.py`

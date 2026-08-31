@@ -173,7 +173,7 @@ State value vocabulary matches `CharterPreflightCheck.state` for cross-consisten
 
 ## 6. Synthesis manifest marker
 
-`src/charter/activation/synthesizer/manifest.py` — `synthesis-manifest.yaml` gains an optional field:
+`src/charter/synthesizer/manifest.py` — `synthesis-manifest.yaml` gains an optional field:
 
 ```yaml
 schema_version: "1.0"

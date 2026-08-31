@@ -74,7 +74,7 @@ on "`{type, id}` dicts" silently misses 130 of them:
 `directive-references` (68) and `context-sources.{additional, doctrine-layers, tactics}` (120)
 on agent profiles. These produce **zero** DRG edges, so every graph-shaped assertion is blind
 to them — and `directive-references` is the **seed set for the entire charter governance
-closure**: `src/charter/activation/resolver.py` reads `profile.directive_references` and feeds it to
+closure**: `src/charter/resolver.py` reads `profile.directive_references` and feeds it to
 `resolve_references_transitively`, whose output populates the directives/tactics/styleguides
 /toolguides/procedures rendered into the prompt an agent actually reads.
 

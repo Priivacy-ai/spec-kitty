@@ -22,7 +22,7 @@ squad (`glossary-research/01-doctrine-glossary-kind.md`).
 ## Technical Context
 
 **Language/Version**: Python 3.11+
-**Primary Dependencies**: existing doctrine subsystem (`BaseDoctrineRepository`, DRG models/loader, `charter.activation.activation_engine`/`cascade`, `DoctrineService`), `ruamel.yaml` for pack files; `pytest` / `mypy --strict` / `ruff` for gates
+**Primary Dependencies**: existing doctrine subsystem (`BaseDoctrineRepository`, DRG models/loader, `charter.activation_engine`/`cascade`, `DoctrineService`), `ruamel.yaml` for pack files; `pytest` / `mypy --strict` / `ruff` for gates
 **Storage**: on-disk YAML — built-in `*.glossary-pack.yaml` pack file(s) under `src/doctrine/glossaries/` plus a shipped `*.graph.yaml` DRG fragment; no database
 **Testing**: `pytest` (unit + `tests/architectural/` gates), ATDD red-first per WP; targeted surfaces `tests/doctrine/`, `tests/charter/`, `tests/architectural/`
 **Target Platform**: cross-platform CLI/library (Linux, macOS, Windows)

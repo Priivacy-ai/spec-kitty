@@ -29,13 +29,13 @@ history:
   actor: claude
   action: Generated via /spec-kitty.tasks (IC-06/IC-10/IC-12, resolver-core lane — serial after WP02)
 agent_profile: python-pedro
-authoritative_surface: src/charter/activation/mission_type_profiles.py
+authoritative_surface: src/charter/mission_type_profiles.py
 create_intent:
 - tests/architectural/test_no_parity_scaffold.py
 execution_mode: code_change
 model: claude-sonnet-5
 owned_files:
-- src/charter/activation/mission_type_profiles.py
+- src/charter/mission_type_profiles.py
 - tests/charter/test_resolved_mission_type_context.py
 - tests/missions/test_mission_type_profile_resolution.py
 - tests/architectural/test_no_parity_scaffold.py
@@ -50,7 +50,7 @@ tags: []
 [ADR 2026-07-14-2](../../../docs/adr/3.x/2026-07-14-2-doctrine-to-core-mission-type-resolution-unification.md)
 (grain union) + [ADR 2026-07-15-1](../../../docs/adr/3.x/2026-07-15-1-doctrine-offers-charter-activates-runtime-consumes.md)
 (NFR-001 lazy driver). **This is the multi-day core and the single owner of `mission_type_profiles.py`.**
-It depends on WP02's `src/charter/activation/action_grain.py`. Always `uv run`.
+It depends on WP02's `src/charter/action_grain.py`. Always `uv run`.
 
 ## Objective
 

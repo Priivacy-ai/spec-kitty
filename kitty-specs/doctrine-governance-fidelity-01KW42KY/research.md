@@ -34,7 +34,7 @@ passes `org_dirs`. Census (org-awareness):
 
 ## Lane A (#2153) — single read-but-dropped field, distinct from #1416
 
-- `src/charter/activation/compiler.py:937-939` interpolates `risk_boundaries`; `:942-944` reads
+- `src/charter/compiler.py:937-939` interpolates `risk_boundaries`; `:942-944` reads
   `documentation_policy` (`if docs:`) but emits a **hardcoded** string — value dropped.
 - **Field census (paula)**: 13 interview fields interpolate; `documentation_policy` is
   the **sole** read-but-dropped one → not a class; one-line fix. Resisted promoting to
@@ -90,7 +90,7 @@ Lenses: architect-alphonso, doctrine-daphne, debugger-debbie (profile-loaded).
   above** `resolve_org_roots`. Canonical gated chain:
   `build_activation_aware_doctrine_service(repo_root)` (`doctrine_service_factory.py:38`)
   → inner `DoctrineService(org_roots=resolve_org_roots(...))` (`service.py:29`,
-  activation-BLIND) → `charter.activation.resolver.DoctrineService(inner, PackContext.from_config(repo_root))`
+  activation-BLIND) → `charter.resolver.DoctrineService(inner, PackContext.from_config(repo_root))`
   → `.agent_profiles`.
 - **Original IC-02 ("thin wrapper over `resolve_org_roots`") was below the gate** —
   would surface declared-but-de-activated org profiles to dispatch/projection.

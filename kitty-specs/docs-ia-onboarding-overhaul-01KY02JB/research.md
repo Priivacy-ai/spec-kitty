@@ -95,7 +95,7 @@ All items below were either resolved directly with the user during specify/plan 
 - **Rationale**: Originally sourced from project CLAUDE.md's documented table (directive,
   tactic, styleguide, toolguide, paradigm, **template**, agent_profile, mission_step_contract).
   **Correction (post-plan, during WP06 implementation)**: CLAUDE.md's table was stale.
-  Independently verified against `src/charter/activation/kind_vocabulary.py`,
+  Independently verified against `src/charter/kind_vocabulary.py`,
   `src/doctrine/artifact_kinds.py`, git history (commit `1e3dc8d2c`, "first-class TEMPLATE +
   loose-contract ASSET doctrine kinds"), and the live installed CLI (`spec-kitty charter
   activate bogus-kind x` → lists valid kinds; `spec-kitty charter list --all`) — the real 8th

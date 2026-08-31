@@ -32,7 +32,7 @@ execution_mode: code_change
 model: ''
 owned_files:
 - src/specify_cli/invocation/registry.py
-- src/charter/activation/context.py
+- src/charter/context.py
 - tests/specify_cli/invocation/test_registry_org_visibility.py
 - tests/charter/test_context_org_governance.py
 role: implementer
@@ -64,7 +64,7 @@ Load `python-pedro` via the `/ad-hoc-profile-load` skill (read `src/doctrine/age
 
 - **Depends on WP02.** Consume `resolve_activated_org_profiles(repo_root)` from `src/specify_cli/invocation/org_profiles.py` — never re-derive org roots or re-construct the gate (C-006/C-008).
 - **Routing leg root cause (research.md census).** `src/specify_cli/invocation/registry.py:22-26` constructs `AgentProfileRepository(project_dir=.kittify/profiles)` with **no** `org_dirs` — so org-pack profiles are invisible to dispatch routing (live divergence: charter/specify catalog 19, dispatch catalog 18). Merge the WP02 org subset **onto** this existing project repo; do NOT reroute `ProfileRegistry` through `DoctrineService` (that would change which project profiles dispatch sees — C-002, the two-distinct-project-layers invariant).
-- **Governance-context leg root cause.** `src/charter/activation/context.py:1602` `_default_agent_profile_repository()` caches a built-in-only `AgentProfileRepository()` (no org/project layer) used by `_load_agent_profile` on the prompt-build path — so a dispatched org profile resolves empty context. **Precedent to reuse**: the same module already has `_build_activation_aware_doctrine_service` at `:1300-1333` gating `charter context --include agent-profile:<id>` (FR-016/#1636), with the exact `None`-default short-circuit (`if pack_context.activated_agent_profiles is None: return inner`). Mirror that activation-aware shape for the `--profile`-hinted governance-context path; do NOT splice raw `org_dirs`.
+- **Governance-context leg root cause.** `src/charter/context.py:1602` `_default_agent_profile_repository()` caches a built-in-only `AgentProfileRepository()` (no org/project layer) used by `_load_agent_profile` on the prompt-build path — so a dispatched org profile resolves empty context. **Precedent to reuse**: the same module already has `_build_activation_aware_doctrine_service` at `:1300-1333` gating `charter context --include agent-profile:<id>` (FR-016/#1636), with the exact `None`-default short-circuit (`if pack_context.activated_agent_profiles is None: return inner`). Mirror that activation-aware shape for the `--profile`-hinted governance-context path; do NOT splice raw `org_dirs`.
 - **C-002 reconciliation.** C-002 governs the **project** overlay; the **org** overlay's sole notion of "active" is charter activation. Correct design = keep each consumer's project repo, **merge** the activation-admitted org-provenance subset onto it (C-008).
 - **`None` default.** No activation list → all org profiles admitted (#2156 install→visible). Explicit list excluding an id → absent everywhere.
 - **C-005 red-first** through the pre-existing public surfaces (`ProfileRegistry.list_all()` / `dispatch --profile` governance-context path), not WP02's internal API. **C-007** realistic org-pack fixtures (`orgzilla-org-analyst`, `<pack>/agent_profiles/<id>.agent.yaml`). **NFR-003** ruff/mypy clean.
@@ -90,8 +90,8 @@ Load `python-pedro` via the `/ad-hoc-profile-load` skill (read `src/doctrine/age
 ### Subtask T009 — Wire `charter/context.py` governance-context path
 
 - **Purpose**: A dispatched activated org agent loads non-empty governance context.
-- **Steps**: In `src/charter/activation/context.py`, make the `--profile`-hinted governance-context resolution (the `_default_agent_profile_repository()` / `_load_agent_profile` path around `:1590-1618`) activation-aware for org profiles, mirroring the existing `_build_activation_aware_doctrine_service` precedent at `:1300-1333` (including its `None`-default short-circuit). The dispatched org profile must resolve through the charter activation filter and carry non-empty context. Respect the existing process-wide cache contract and the `_reset_agent_profile_cache()` test hook (`:1606`). Keep the built-in-only fast path unchanged when no org packs are declared.
-- **Files**: `src/charter/activation/context.py`.
+- **Steps**: In `src/charter/context.py`, make the `--profile`-hinted governance-context resolution (the `_default_agent_profile_repository()` / `_load_agent_profile` path around `:1590-1618`) activation-aware for org profiles, mirroring the existing `_build_activation_aware_doctrine_service` precedent at `:1300-1333` (including its `None`-default short-circuit). The dispatched org profile must resolve through the charter activation filter and carry non-empty context. Respect the existing process-wide cache contract and the `_reset_agent_profile_cache()` test hook (`:1606`). Keep the built-in-only fast path unchanged when no org packs are declared.
+- **Files**: `src/charter/context.py`.
 - **Notes**: `charter` may NOT import `specify_cli` (layer rule). If the org overlay must enter here, thread it as **data** (resolved roots/profiles handed in by the caller), reusing the in-module `_build_activation_aware_doctrine_service` rather than importing the WP02 `specify_cli` helper. Confirm the actual call path during implementation and keep the wiring inside the allowed dependency direction. Add the governance-context assertion to `tests/charter/test_context_org_governance.py`.
 
 ### Subtask T010 — No-org-packs regression test (NFR-001)
@@ -104,7 +104,7 @@ Load `python-pedro` via the `/ad-hoc-profile-load` skill (read `src/doctrine/age
 
 - Run: `PWHEADLESS=1 pytest tests/specify_cli/invocation/test_registry_org_visibility.py tests/charter/test_context_org_governance.py -q`.
 - Prove T007 RED (positive admitted-but-absent) against pre-fix code; GREEN after T008. The negative (de-activated absent) and T010 (no-packs identical) must hold both before and after the org-overlay wiring.
-- `ruff check` + `mypy` on `src/specify_cli/invocation/registry.py` and `src/charter/activation/context.py`.
+- `ruff check` + `mypy` on `src/specify_cli/invocation/registry.py` and `src/charter/context.py`.
 
 ## Risks & Mitigations
 

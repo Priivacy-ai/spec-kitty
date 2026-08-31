@@ -13,7 +13,7 @@ findings:
       - artifact: "spec.md § C-001, NFR-002, FR-003/FR-004 (cross-references FR-007)"
       - artifact: "spec.md § FR-008 ('resolved' state definition)"
       - code: "src/runtime/next/runtime_bridge_cores.py:586 (_GUARD_TABLES literal dict, exactly 4 hardcoded entries: research/documentation/software-dev/plan)"
-      - code: "src/runtime/next/runtime_bridge_cores.py:575 (UnregisteredMissionFamilyError docstring — cross-references only charter.activation.mission_type_profiles.UnknownMissionTypeError, never doctor mission-type or its 'resolved' state)"
+      - code: "src/runtime/next/runtime_bridge_cores.py:575 (UnregisteredMissionFamilyError docstring — cross-references only charter.mission_type_profiles.UnknownMissionTypeError, never doctor mission-type or its 'resolved' state)"
       - code: "src/specify_cli/cli/commands/_mission_type_audit.py:19-22 ('resolved' = present + activated in charter + \"has a loadable definition in the built-in doctrine bundle\", resolved via MissionTypeRepository.default())"
       - code: "packs/built-in/missions/mission_types/ (documentation.yaml, plan.yaml, research.yaml, software-dev.yaml — exactly the 4 files MissionTypeRepository.default() loads, and exactly _GUARD_TABLES's 4 keys, today)"
     claim: >

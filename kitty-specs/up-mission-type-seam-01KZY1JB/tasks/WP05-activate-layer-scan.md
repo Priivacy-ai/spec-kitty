@@ -23,12 +23,12 @@ history:
   actor: system
   action: Prompt generated during /spec-kitty.tasks
 agent_profile: python-pedro
-authoritative_surface: src/charter/activation/pack_manager.py
+authoritative_surface: src/charter/pack_manager.py
 create_intent: []
 execution_mode: code_change
 model: ''
 owned_files:
-- src/charter/activation/pack_manager.py
+- src/charter/pack_manager.py
 - tests/charter/test_pack_manager.py
 role: implementer
 tags: []
@@ -50,7 +50,7 @@ before parsing the rest of this prompt.
 
 ## Objectives & Success Criteria
 
-`_scan_layout_for(None)` (`src/charter/activation/pack_manager.py`, live-verify — plan.md cites `227-229`)
+`_scan_layout_for(None)` (`src/charter/pack_manager.py`, live-verify — plan.md cites `227-229`)
 returns `("missions/mission_types", "*.yaml", False)` — `layered=False` — and
 `_resolve_layer_candidate` (live-verify — plan.md cites `256-317`) only resolves a directory for
 `layer == "built-in"` when `layered=False`; org and project layers fall through to `return None`.
@@ -86,10 +86,10 @@ change, split here only for requirements traceability" — same file, same commi
 
 - **This WP runs concurrently with WP03/WP04** — both this WP and WP03 depend only on WP02, and
   neither WP03 nor WP04 touches `pack_manager.py`. Confirm your `owned_files`
-  (`src/charter/activation/pack_manager.py`, `tests/charter/test_pack_manager.py`) stay disjoint from WP03's
+  (`src/charter/pack_manager.py`, `tests/charter/test_pack_manager.py`) stay disjoint from WP03's
   (`src/doctrine/missions/mission_type_repository.py`,
   `tests/doctrine/missions/test_mission_type_repository.py`,
-  `tests/charter/test_charter_import_time_io.py`) and WP04's (`src/charter/activation/mission_type_profiles.py`,
+  `tests/charter/test_charter_import_time_io.py`) and WP04's (`src/charter/mission_type_profiles.py`,
   `tests/charter/test_mission_type_profiles.py`, `tests/runtime/test_runtime_seam.py`). Per
   plan.md's own IC-03 note: "independent of IC-01/IC-02 per spec's own Q5 independence finding —
   `CharterPackManager.activate` validates purely against `available_ids`, no roster read." This WP
@@ -140,7 +140,7 @@ change, split here only for requirements traceability" — same file, same commi
      `layer_roots` generically for every kind. If you find they DO need a change, STOP and report —
      that would mean this citation drifted since planning and needs a fresh look, not a silent
      workaround.
-- **Files**: `src/charter/activation/pack_manager.py`.
+- **Files**: `src/charter/pack_manager.py`.
 - **Parallel?**: Write test-first if practical (T012 constructs the fixture this depends on).
 
 ### Subtask T012 – Flat, non-recursive project-layer location + non-collision regression test
@@ -160,7 +160,7 @@ change, split here only for requirements traceability" — same file, same commi
   3. Add a one-line comment or docstring in the test explaining the `rglob`-vs-`glob` neutralization
      (why this location's flatness makes the trap moot here, without changing the general-purpose
      `list_available_detailed` code).
-- **Files**: `src/charter/activation/pack_manager.py` (if the location constant needs to be named/exported —
+- **Files**: `src/charter/pack_manager.py` (if the location constant needs to be named/exported —
   check whether IC-03's branch already hardcodes the path inline, which is fine, or whether a
   named constant is cleaner; either is acceptable), `tests/charter/test_pack_manager.py`.
 - **Parallel?**: Can proceed alongside T011; the two are one code change with two test angles.

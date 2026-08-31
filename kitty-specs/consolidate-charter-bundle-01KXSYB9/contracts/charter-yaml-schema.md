@@ -3,9 +3,9 @@
 `charter.yaml` is the git-tracked, authorable project charter. Full field table in `data-model.md`. This contract fixes the observable guarantees consumers may rely on.
 
 ## Shape (top-level keys)
-A concrete, round-trippable instance (executed against `charter.activation.schemas.CharterYaml` by the FR-140 round-trip gate). `governance`/`directives`/`overrides` are shown at their empty defaults; the FLAT root activation lists carry sample values.
+A concrete, round-trippable instance (executed against `charter.schemas.CharterYaml` by the FR-140 round-trip gate). `governance`/`directives`/`overrides` are shown at their empty defaults; the FLAT root activation lists carry sample values.
 ```yaml
-# pydantic_model: charter.activation.schemas.CharterYaml
+# pydantic_model: charter.schemas.CharterYaml
 # expect: valid
 schema_version: "2.0.0"
 governance: {}                       # GovernanceConfig — AUTHORED
@@ -45,7 +45,7 @@ metadata:
   bundle_schema_version: 2
 ```
 
-> ⚠ **Activation keys are FLAT at the charter.yaml root** (matching `src/charter/activation/packs/default.yaml:5-38`), NOT nested under an `activation:` mapping — so `pack_context._read_activated_*` / `_read_list_key` and `activation_engine.commit_plan` read/write them unchanged, and pack overlay works (paula BLOCKER-1).
+> ⚠ **Activation keys are FLAT at the charter.yaml root** (matching `src/charter/packs/default.yaml:5-38`), NOT nested under an `activation:` mapping — so `pack_context._read_activated_*` / `_read_list_key` and `activation_engine.commit_plan` read/write them unchanged, and pack overlay works (paula BLOCKER-1).
 
 ## Guarantees
 - **G1**: `governance` and `directives` deserialize into the existing `GovernanceConfig` / `DirectivesConfig` models unchanged (nested in `CharterYaml`).

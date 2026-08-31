@@ -121,9 +121,9 @@ User runs: spec-kitty implement WP01
 ```
 User runs: spec-kitty charter interview / generate
   → src/specify_cli/cli/commands/ (Control Plane)
-  → src/charter/activation/interview.py (Charter interview)
-  → src/charter/activation/compiler.py (Charter compiler)
-  → src/charter/activation/reference_resolver.py (transitive DFS: directive → tactic → styleguide/toolguide)
+  → src/charter/interview.py (Charter interview)
+  → src/charter/compiler.py (Charter compiler)
+  → src/charter/reference_resolver.py (transitive DFS: directive → tactic → styleguide/toolguide)
   → src/doctrine/service.py → per-artifact repositories (Doctrine read)
   → .kittify/charter/ (compiled governance bundle)
 ```
@@ -132,7 +132,7 @@ User runs: spec-kitty charter interview / generate
 
 ```
 Agent calls: spec-kitty charter context --action implement
-  → src/charter/activation/context.py (Action Context Resolver)
+  → src/charter/context.py (Action Context Resolver)
   → Load action index: src/doctrine/missions/software-dev/actions/implement/index.yaml
   → Two-stage intersection: action index ∩ project selections (references.yaml)
   → src/doctrine/service.py (DoctrineService) → fetch directive/tactic content by depth
@@ -342,14 +342,14 @@ update and a valid fixture update.
 | Cross-artifact references (`tactic_refs`, `references[]`) | ✅ Complete | Wired with test coverage (40 doctrine tests) |
 | Tension/rejection modeling (`in_tension_with`/`reconciles_tension`/`rejects` DRG edges) | ✅ Complete | Hand-authored edges in `src/doctrine/*.graph.yaml`; validated via `assert_valid` |
 | DAG cycle detection — shipped artifacts | ✅ Complete | `test_tactic_reference_graph_has_no_cycles` in `tests/doctrine/test_directive_consistency.py` |
-| Cycle detection at resolution boundary (raises `DoctrineResolutionCycleError`) | ✅ Complete | `src/charter/activation/reference_resolver.py` `_Walker`; `tests/doctrine/test_cycle_detection.py` |
+| Cycle detection at resolution boundary (raises `DoctrineResolutionCycleError`) | ✅ Complete | `src/charter/reference_resolver.py` `_Walker`; `tests/doctrine/test_cycle_detection.py` |
 | Shared schema loading (`SchemaUtilities`) | ✅ Complete | `src/doctrine/shared/schema_utils.py`; replaces 6 duplicated per-type loaders |
 | Domain exceptions (`DoctrineArtifactLoadError`, `DoctrineResolutionCycleError`) | ✅ Complete | `src/doctrine/shared/exceptions.py` |
 | `DoctrineService` aggregation facade | ✅ Complete | `src/doctrine/service.py` |
-| Charter compiler consumes Doctrine | ✅ Complete | `src/charter/activation/compiler.py` |
+| Charter compiler consumes Doctrine | ✅ Complete | `src/charter/compiler.py` |
 | Command templates as connector implementation | ✅ Complete | 12-agent template system via migrations |
-| Transitive reference resolution (directive → tactic → styleguide/toolguide) | ✅ Complete | `src/charter/activation/reference_resolver.py` (feature 054) |
-| Action-scoped governance injection with depth semantics | ✅ Complete | `src/charter/activation/context.py` + `src/doctrine/missions/*/actions/*/index.yaml` (feature 054) |
+| Transitive reference resolution (directive → tactic → styleguide/toolguide) | ✅ Complete | `src/charter/reference_resolver.py` (feature 054) |
+| Action-scoped governance injection with depth semantics | ✅ Complete | `src/charter/context.py` + `src/doctrine/missions/*/actions/*/index.yaml` (feature 054) |
 | Per-action guidelines extraction from templates | ✅ Complete | `src/doctrine/missions/software-dev/actions/*/guidelines.md` (feature 054) |
 | ArtifactKind canonical enum | ✅ Complete | `src/doctrine/artifact_kinds.py` (feature 054, WP09-WP10) |
 | MissionRepository package relocation | ✅ Complete | `src/doctrine/missions/` is the authoritative source for all mission assets (YAML, command templates, content templates, expected-artifacts). `src/specify_cli/missions/` retains only Python code modules (`primitives.py`, `glossary_hook.py`, `.contextive.yml`) for the glossary subsystem per ADR 2026-03-25-1. |

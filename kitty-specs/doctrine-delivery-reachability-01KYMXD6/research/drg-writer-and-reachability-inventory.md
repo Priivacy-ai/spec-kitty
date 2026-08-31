@@ -50,7 +50,7 @@ know about**:
 |---|---|---|
 | 1 | `src/doctrine/drg/migration/extractor.py:1210/1219` | **Fixed by PR #3007** — derived from `model_fields` with `_FIELDS_WITHHELD_FROM_GRAPH_OUTPUT`. This is the working precedent to copy. |
 | 2 | `src/specify_cli/migration/rewrite_opposed_by.py:338/347` | **#2977** — open. |
-| 3 | `src/charter/activation/synthesizer/project_drg.py:65` `_serialize_graph` | **Unfiled.** Named in neither #2977 nor PR #3007's ownership map. Emits `{kind, urn, label}` / `{relation, source, target, when, reason}` — **drops `tags` and `provenance` today**, and would drop B1's `impacts`/`is_symmetric` and B2's `aliases`. It is the project-tier DRG write path. |
+| 3 | `src/charter/synthesizer/project_drg.py:65` `_serialize_graph` | **Unfiled.** Named in neither #2977 nor PR #3007's ownership map. Emits `{kind, urn, label}` / `{relation, source, target, when, reason}` — **drops `tags` and `provenance` today**, and would drop B1's `impacts`/`is_symmetric` and B2's `aliases`. It is the project-tier DRG write path. |
 
 **This is the ordering constraint for the whole programme.** Mission B1
 (`drg-relation-impacts-vocabulary-01KYFV87`) exists to add two new `DRGEdge` fields. Shipping it

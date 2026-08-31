@@ -38,10 +38,10 @@ owned_files:
 - src/specify_cli/doctrine/pack_assembler.py
 - src/specify_cli/doctrine/pack_validator.py
 - src/specify_cli/doctrine/snapshot.py
-- src/charter/activation/schemas.py
+- src/charter/schemas.py
 - src/charter/mission_steps.py
-- src/charter/activation/activations.py
-- src/charter/activation/context.py
+- src/charter/activations.py
+- src/charter/context.py
 - tests/doctrine/missions/test_models.py
 - tests/architectural/test_layer_rules.py
 role: implementer
@@ -137,10 +137,10 @@ Do not change any functionality — only update the import paths and model refer
 ### T006 — Migrate charter/ callers
 
 Migrate these charter-layer files to the unified model:
-- `src/charter/activation/schemas.py`
+- `src/charter/schemas.py`
 - `src/charter/mission_steps.py`
-- `src/charter/activation/activations.py`
-- `src/charter/activation/context.py`
+- `src/charter/activations.py`
+- `src/charter/context.py`
 - `src/charter/drg.py`
 
 Respect C-004 boundary (kernel ← doctrine ← charter ← specify_cli):

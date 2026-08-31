@@ -22,14 +22,14 @@ Strict sequential WP ordering per C-007: **strict sequence WP01 then WP02 then W
 | T007 | Author `kitty-specs/.../occurrences/WP01.yaml` and seed `index.yaml` | WP01 | — | [D] |
 | T008 | Create `src/charter/resolution.py` with `resolve_canonical_repo_root` + exceptions + LRU cache | WP02 | — | [D] |
 | T009 | Write `tests/charter/test_canonical_root_resolution.py` covering R-2 matrix | WP02 | [D] |
-| T010 | Extend `SyncResult` in `src/charter/activation/sync.py` with `canonical_root: Path` | WP02 | — | [D] |
+| T010 | Extend `SyncResult` in `src/charter/sync.py` with `canonical_root: Path` | WP02 | — | [D] |
 | T011 | Refactor `ensure_charter_bundle_fresh()` to call the resolver and consult the manifest | WP02 | — | [D] |
-| T012 | Update `post_save_hook()` + any existing `SyncResult` inspections inside `src/charter/activation/sync.py` and its tests for `canonical_root` | WP02 | — | [D] |
+| T012 | Update `post_save_hook()` + any existing `SyncResult` inspections inside `src/charter/sync.py` and its tests for `canonical_root` | WP02 | — | [D] |
 | T013 | Write `tests/charter/test_chokepoint_overhead.py` (NFR-002 benchmarks) | WP02 | [D] |
 | T014 | Write `tests/charter/test_resolution_overhead.py` (NFR-003 benchmarks) | WP02 | [D] |
 | T015 | Author `kitty-specs/.../occurrences/WP02.yaml` and extend `index.yaml` | WP02 | — | [D] |
 | T016 | **STEP A**: capture pre-WP03 dashboard typed-contracts baseline via committed `baseline/capture.py` | WP03 | — | [D] |
-| T017 | Flip `src/charter/activation/context.py :: build_charter_context()` to route through the chokepoint (does NOT touch lines 385-398) | WP03 | — | [D] |
+| T017 | Flip `src/charter/context.py :: build_charter_context()` to route through the chokepoint (does NOT touch lines 385-398) | WP03 | — | [D] |
 | T018 | Flip CLI + prompt-builder readers: `charter.py` handlers + register `charter_bundle` sub-app; `next/prompt_builder.py`; `cli/commands/agent/workflow.py` | WP03 | — | [D] |
 | T019 | Flip dashboard readers: `charter_path.py`, `scanner.py`, `server.py` — preserve `#361` typed contracts | WP03 | — | [D] |
 | T020 | Lockstep update to `src/specify_cli/charter/` duplicate package (any live reader) | WP03 | — | [D] |
@@ -105,9 +105,9 @@ See **Included subtasks** above (checkbox format is the tracking surface).
 
 - [x] T008 Create `src/charter/resolution.py` with `resolve_canonical_repo_root` + exceptions + LRU cache (WP02)
 - [x] T009 Write `tests/charter/test_canonical_root_resolution.py` covering R-2 matrix (WP02) [P]
-- [x] T010 Extend `SyncResult` in `src/charter/activation/sync.py` with `canonical_root: Path` (WP02)
+- [x] T010 Extend `SyncResult` in `src/charter/sync.py` with `canonical_root: Path` (WP02)
 - [x] T011 Refactor `ensure_charter_bundle_fresh()` to call the resolver and consult the manifest (WP02)
-- [x] T012 Update `post_save_hook()` + any existing `SyncResult` inspections inside `src/charter/activation/sync.py` and its tests for `canonical_root` (WP02)
+- [x] T012 Update `post_save_hook()` + any existing `SyncResult` inspections inside `src/charter/sync.py` and its tests for `canonical_root` (WP02)
 - [x] T013 Write `tests/charter/test_chokepoint_overhead.py` — NFR-002 benchmarks (WP02) [P]
 - [x] T014 Write `tests/charter/test_resolution_overhead.py` — NFR-003 benchmarks (WP02) [P]
 - [x] T015 Author `kitty-specs/.../occurrences/WP02.yaml` and extend `index.yaml` (WP02)
@@ -121,7 +121,7 @@ See **Included subtasks** above (checkbox format is the tracking surface).
 5. **T012** — `post_save_hook()` must anchor its log messages against `canonical_root` when displaying paths. Update internal tests in `tests/charter/` that assert on `SyncResult.files_written` (currently expect raw filenames relative to caller-provided `repo_root`) to assert paths relative to `canonical_root`.
 6. **T013** — NFR-002 benchmark: 100 warm invocations of `ensure_charter_bundle_fresh()` against a fresh tmpdir bundle; assert p95 <10 ms. Use `time.monotonic_ns()` for timing; use `subprocess.run` spy to assert ≤0 git calls on warm path.
 7. **T014** — NFR-003 benchmark: 100 warm invocations of `resolve_canonical_repo_root()` on the same path; assert p95 <5 ms. Cold path: one call, assert ≤50 ms and exactly one `git` invocation.
-8. **T015** — Occurrence artifact covers categories `import_path` (`from charter.resolution import ...`), `symbol_name` (`resolve_canonical_repo_root`, `NotInsideRepositoryError`, `GitCommonDirUnavailableError`), `filesystem_path_literal` (`src/charter/resolution.py`, `src/charter/activation/sync.py` for the modified region), and `test_identifier` (the three new test modules). `requires_merged: [WP01]`.
+8. **T015** — Occurrence artifact covers categories `import_path` (`from charter.resolution import ...`), `symbol_name` (`resolve_canonical_repo_root`, `NotInsideRepositoryError`, `GitCommonDirUnavailableError`), `filesystem_path_literal` (`src/charter/resolution.py`, `src/charter/sync.py` for the modified region), and `test_identifier` (the three new test modules). `requires_merged: [WP01]`.
 
 ### Parallel opportunities
 
@@ -150,7 +150,7 @@ See **Included subtasks** above (checkbox format is the tracking surface).
 ### Included subtasks
 
 - [x] T016 Capture pre-WP03 dashboard typed-contracts baseline via committed `baseline/capture.py` — **Step A, MUST run first** (WP03)
-- [x] T017 Flip `src/charter/activation/context.py :: build_charter_context()` to route through the chokepoint; does NOT touch lines 385-398 (C-012) (WP03)
+- [x] T017 Flip `src/charter/context.py :: build_charter_context()` to route through the chokepoint; does NOT touch lines 385-398 (C-012) (WP03)
 - [x] T018 Flip CLI + prompt-builder readers: `charter.py` handlers + register `charter_bundle` sub-app via `charter_app.add_typer(charter_bundle.app, name="bundle")`; `next/prompt_builder.py`; `cli/commands/agent/workflow.py` (WP03)
 - [x] T019 Flip dashboard readers: `charter_path.py`, `scanner.py`, `server.py`; preserve `#361` typed contracts (WP03)
 - [x] T020 Lockstep update to `src/specify_cli/charter/` duplicate package where live readers remain (WP03)

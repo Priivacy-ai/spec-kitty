@@ -34,9 +34,9 @@ mission_slug: charter-ux-and-org-pack-vocabulary-01KSAF14
 owned_files:
 - src/specify_cli/cli/commands/charter.py
 - src/specify_cli/charter_freshness/**
-- src/charter/activation/synthesizer/manifest.py
-- src/charter/activation/synthesizer/project_drg.py
-- src/charter/activation/synthesizer/orchestrator.py
+- src/charter/synthesizer/manifest.py
+- src/charter/synthesizer/project_drg.py
+- src/charter/synthesizer/orchestrator.py
 - tests/integration/test_charter_status_freshness.py
 - tests/integration/test_charter_synthesize_built_in_only.py
 - tests/specify_cli/charter_freshness/**
@@ -64,7 +64,7 @@ Extend `charter status --json` with a `freshness` sub-payload computed by hash/t
 - `kitty-specs/.../spec.md` — FR-005, FR-009
 - `kitty-specs/.../contracts/charter-status-json.md` — JSON shape and staleness rules
 - `kitty-specs/.../data-model.md` — §5 (freshness sub-object), §6 (conflict resolution)
-- Existing source: `src/specify_cli/cli/commands/charter.py::status` (line ~1708), `src/charter/activation/synthesizer/manifest.py`, `src/charter/activation/synthesizer/project_drg.py`
+- Existing source: `src/specify_cli/cli/commands/charter.py::status` (line ~1708), `src/charter/synthesizer/manifest.py`, `src/charter/synthesizer/project_drg.py`
 - WP01's `GraphState` enum — `synthesized_drg.state = "built_in_only"` aligns with this enum value
 
 ## Subtask details
@@ -125,13 +125,13 @@ Define `to_dict()` on `CharterFreshness` (one-line via `asdict`). The human-read
 
 ### T011 — Add `built_in_only` field to synthesis-manifest schema
 
-**Files**: `src/charter/activation/synthesizer/manifest.py`
+**Files**: `src/charter/synthesizer/manifest.py`
 
 Extend the manifest Pydantic model with `built_in_only: bool = False`. Update any model_dump/YAML serialisation to include the field. Backward compatibility: an old manifest without the field continues to load (Optional default).
 
 ### T012 — Synthesizer atomic post-condition
 
-**Files**: `src/charter/activation/synthesizer/project_drg.py`, `src/charter/activation/synthesizer/orchestrator.py`
+**Files**: `src/charter/synthesizer/project_drg.py`, `src/charter/synthesizer/orchestrator.py`
 
 In the project-DRG generation path:
 1. If synthesis produced project artifacts → write `.kittify/doctrine/graph.yaml`, set manifest `built_in_only=False`.

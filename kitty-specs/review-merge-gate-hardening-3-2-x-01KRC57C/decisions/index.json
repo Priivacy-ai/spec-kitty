@@ -74,7 +74,7 @@
     {
       "created_at": "2026-05-12T10:41:22.700842Z",
       "decision_id": "01KRDWDVRCRYKHFXNKAKZRPAEK",
-      "final_answer": "python_enum_per_subsystem \u2014 Each subsystem defines its own StrEnum for diagnostic codes: src/specify_cli/cli/commands/review/_diagnostics.py for MissionReviewDiagnostic; src/charter/activation/_diagnostics.py for CharterEncodingDiagnostic. Type-safe, mypy-checkable, no central registry needed.",
+      "final_answer": "python_enum_per_subsystem \u2014 Each subsystem defines its own StrEnum for diagnostic codes: src/specify_cli/cli/commands/review/_diagnostics.py for MissionReviewDiagnostic; src/charter/_diagnostics.py for CharterEncodingDiagnostic. Type-safe, mypy-checkable, no central registry needed.",
       "input_key": "diagnostic_code_registry_form",
       "mission_id": "01KRC57CNW5JCVBRV8RAQ2ARXZ",
       "mission_slug": "review-merge-gate-hardening-3-2-x-01KRC57C",

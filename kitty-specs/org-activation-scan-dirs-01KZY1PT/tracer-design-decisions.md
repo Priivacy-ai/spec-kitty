@@ -3,7 +3,7 @@
 ## Specify phase (2026-08-13)
 
 **D1/D2 kept strictly separate.** This mission (`org-activation-scan-dirs`, issue #3385, D2)
-does not author any change to `src/charter/activation/_drg_helpers.py` or any other code path that
+does not author any change to `src/charter/_drg_helpers.py` or any other code path that
 implements issue #3384 (D1)'s fix — that file is read-only evidence in this spec, cited for the
 mechanism chain and for the two contingent verification FRs (FR-004/FR-005), never as a target
 of a production edit. This was an operator decision made before this mission started (an
@@ -17,7 +17,7 @@ one mission would either race the sibling mission's D1 fix or duplicate it.
 .py` also contains `_built_in_scan_dir` and `_layer_scan_dirs`, structurally similar helpers
 that are not implicated in this defect. Per `RECONCILE_CHANGE_SCOPE_TENSIONS`
 (`.kittify/charter/charter.md`), the file set for this change is fixed at
-`src/charter/activation/kind_vocabulary.py` (production) plus its test files — the two neighboring
+`src/charter/kind_vocabulary.py` (production) plus its test files — the two neighboring
 functions are explicitly left alone. This is stated in the spec as a Clarification and a
 Constraint (C-003) rather than left implicit, so a later reviewer doesn't read the untouched
 functions as an oversight.

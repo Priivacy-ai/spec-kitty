@@ -46,7 +46,7 @@ Three substantive deltas vs the original blueprint are worth flagging:
 
 3. **`charter interview` pre-fill was implemented but unwired.** WP09 created `apply_org_charter_pre_fill_to_answers` (file helper) and `apply_org_charter_pre_fill` (orchestrator) but never invoked them from the live `charter interview` command (HIGH-2). The remediation added an in-memory variant `apply_org_charter_to_interview` and wired it.
 
-The architectural boundary documented in ADR 2026-03-27-1 (charter must not import specify_cli) materially shaped two design choices: `charter.activation._drg_helpers._resolve_org_root` is an inert stub by deliberate design (org-root resolution lives in `specify_cli.doctrine.config.resolve_org_roots` and is passed down), and the WP09 org-charter loader was lifted from charter into `specify_cli.doctrine.org_charter_loader` so the charter layer remains import-clean.
+The architectural boundary documented in ADR 2026-03-27-1 (charter must not import specify_cli) materially shaped two design choices: `charter._drg_helpers._resolve_org_root` is an inert stub by deliberate design (org-root resolution lives in `specify_cli.doctrine.config.resolve_org_roots` and is passed down), and the WP09 org-charter loader was lifted from charter into `specify_cli.doctrine.org_charter_loader` so the charter layer remains import-clean.
 
 The glossary and parts of the mission spec are now out of sync with the shipped semantics (see [Domain concepts cross-check](#domain-concepts-cross-check)). This is the single largest gap left after the remediations.
 
@@ -141,7 +141,7 @@ The arrow direction is **import / call**: higher layers depend on lower layers; 
                                                                  │ uses data parameter         │
                                                                  ▼                              │
                                                       ┌───────────────────────────────┐         │
-                                                      │ charter.activation.interview              │         │
+                                                      │ charter.interview              │         │
                                                       │   apply_org_charter_pre_fill_  │◄────────┘
                                                       │     to_answers (file side-fx)  │
                                                       └───────────────────────────────┘
@@ -259,7 +259,7 @@ The `_org_dirs` list is iterated **in declaration order**; later packs overlay e
 ```
 operator → spec-kitty charter interview --defaults
     specify_cli.cli.commands.charter.interview
-        → charter.activation.interview.default_interview(...)               (builds default CharterInterview)
+        → charter.interview.default_interview(...)               (builds default CharterInterview)
         → specify_cli.doctrine.org_charter.apply_org_charter_to_interview(interview_data, repo_root)
                 → load_pack_registry → early return if no packs
                 → load_org_charter_policies(repo_root)
@@ -325,7 +325,7 @@ This section compares the canonical glossary against the spec and the implementa
 | `pack assembly` / `assembled pack` / `assemble` | Not defined. | `spec.md:123`, FR-013, FR-022, C-007. | `specify_cli/doctrine/pack_assembler.py`. | ⚠ Add entry; distinguish "assembled distributable" from "hand-authored pack". |
 | `pack-manifest.yaml` | Not defined. | FR-015, FR-021. | Emitted by `specify_cli/doctrine/snapshot.py::write_pack_manifest`. | ⚠ Add entry. |
 | `doctrine fetch` / `doctrine pack validate` / `doctrine pack assemble` / `doctor doctrine` | Not defined. | Defined operationally in spec and FR-007–FR-013, FR-015, FR-024. | New CLI subcommand group. | ⚠ Add entries for the four operator-facing commands. |
-| `DRG` / `Doctrine Reference Graph` / `GraphFragment` / `GraphExtension` | **Entirely absent.** | Used in FR-004, FR-005 and entities (`spec.md:206-207`). | Central to `doctrine.drg.loader` and `charter.activation._drg_helpers`. | ⚠ Pre-existing gap that this mission widens. DRG is a load-bearing concept and deserves a glossary section of its own. |
+| `DRG` / `Doctrine Reference Graph` / `GraphFragment` / `GraphExtension` | **Entirely absent.** | Used in FR-004, FR-005 and entities (`spec.md:206-207`). | Central to `doctrine.drg.loader` and `charter._drg_helpers`. | ⚠ Pre-existing gap that this mission widens. DRG is a load-bearing concept and deserves a glossary section of its own. |
 | `org-charter.yaml` / `OrgCharterPolicy` / `interview_defaults` / `required_directives` / `governance_policies` | Not defined. The existing glossary `Charter` entry is project-only. | `spec.md:205`, FR-025–FR-028. | `src/specify_cli/doctrine/org_charter.py`. | ⚠ Glossary `Charter` entry must be revised to acknowledge tiered composition (built-in defaults → org charter(s) → project charter). Add entries for the three policy fields. |
 | `OrgDoctrineSource` / `GitSource` / `HttpsBundleSource` / `ApiSource` / `FetchResult` | Not defined. | `spec.md:201` mentions `OrgDoctrineSource` as an entity name. | `src/specify_cli/doctrine/sources/`. | ⚠ Add Source Protocol entry. |
 | `collision` / `DoctrineLayerCollisionWarning` / `shadow` / `override` / `overlay` | Not defined. ("Overlay" not used anywhere; "override" only informal.) | `spec.md:124` explicitly says "Avoid: graph overlay" (in DRG context). FR-003 uses both `override` and `shadowed`. | Code uses `shadowed` in warning text; class is `DoctrineLayerCollisionWarning`. | ⚠ Need one canonical term and one glossary entry; recommend `override` for the action, `shadow` for the resulting state, `collision` for the merge event. |
@@ -371,7 +371,7 @@ This is plausibly **Journey 006 — Adopting and Auditing an Organisation Doctri
 
 ### Where the implementation honours the intent
 
-- **Layer rule (ADR 2026-03-27-1).** All 8 layer-rule tests pass. The two places where this rule shaped the design — the inert `_resolve_org_root` stub in `charter.activation._drg_helpers` and the lifting of org-charter loading into `specify_cli.doctrine.org_charter_loader` — are documented and tested.
+- **Layer rule (ADR 2026-03-27-1).** All 8 layer-rule tests pass. The two places where this rule shaped the design — the inert `_resolve_org_root` stub in `charter._drg_helpers` and the lifting of org-charter loading into `specify_cli.doctrine.org_charter_loader` — are documented and tested.
 - **Local-first operation (Landscape README Principle 4).** Network access is confined to `spec-kitty doctrine fetch`. Every resolution / context / lint path is offline. Constraint C-001 and FR-018 enforce this.
 - **Governance at the execution boundary (Principle 5).** The same `DoctrineService` that the runtime consumes for agent context now resolves all three layers; agents do not need to know whether a directive came from the org pack or the built-in defaults.
 - **Doctrine package isolation (Landscape README §Dependency Rules).** The new behaviour fits inside `BaseDoctrineRepository` and `AgentProfileRepository`; the doctrine layer's API surface to charter is unchanged in shape (same `service.directives.list_all()` etc.).
@@ -551,7 +551,7 @@ Section Anchors:
 
 ### What the WP implement prompt actually contains
 
-The runtime prompt builder calls this same resolver. `src/specify_cli/next/prompt_builder.py::_build_wp_prompt` invokes `_governance_context(repo_root, action="implement")` at line 147 for every implement and review prompt, and the function in turn calls `charter.activation.context.build_charter_context(repo_root, action=action, mark_loaded=True)` at line 273. The output is injected verbatim into the WP prompt above the "CRITICAL: work package ISOLATION RULES" block.
+The runtime prompt builder calls this same resolver. `src/specify_cli/next/prompt_builder.py::_build_wp_prompt` invokes `_governance_context(repo_root, action="implement")` at line 147 for every implement and review prompt, and the function in turn calls `charter.context.build_charter_context(repo_root, action=action, mark_loaded=True)` at line 273. The output is injected verbatim into the WP prompt above the "CRITICAL: work package ISOLATION RULES" block.
 
 The implement template at `src/specify_cli/missions/software-dev/command-templates/implement.md:68-71` then **explicitly forbids** the agent from looking elsewhere for governance:
 

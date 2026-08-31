@@ -55,7 +55,7 @@ Capture each terminal block in the PR description as evidence (SC-006).
 ```bash
 uv run mypy --strict src/specify_cli/cli/commands/charter.py
 # Run for write_pipeline only if it was modified for FR-003:
-uv run mypy --strict src/charter/activation/synthesizer/write_pipeline.py
+uv run mypy --strict src/charter/synthesizer/write_pipeline.py
 uv run mypy --strict src/specify_cli/mission_step_contracts/executor.py
 ```
 
@@ -139,7 +139,7 @@ This is a planning estimate only; the implementation phase finalises the concret
 | Likely-modified file | Why |
 |---|---|
 | `src/specify_cli/cli/commands/charter.py` | FR-001, FR-002, FR-003, FR-004, FR-005 |
-| `src/charter/activation/synthesizer/write_pipeline.py` | FR-003 only if the staged-artifact return shape needs to grow |
+| `src/charter/synthesizer/write_pipeline.py` | FR-003 only if the staged-artifact return shape needs to grow |
 | `tests/agent/cli/commands/test_charter_synthesize_cli.py` | New / hardened assertions for FR-001, FR-002 |
 | `tests/integration/test_json_envelope_strict.py` | New / hardened FR-001 strict-stdout regression test |
 | `tests/integration/test_charter_synthesize_fresh.py` | FR-002 envelope shape on fresh-project seed |

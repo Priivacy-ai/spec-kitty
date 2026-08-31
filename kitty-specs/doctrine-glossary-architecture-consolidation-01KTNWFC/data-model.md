@@ -19,7 +19,7 @@ This mission's "entities" are **artefact and schema shapes**, not runtime record
 - **GlossaryScope**: enum (`mission_local`, `team_domain`, `audience_domain`, `spec_kitty_core`). Planning-and-tracking subset stays a non-registered reference (FR-011 defer); promotion = new enum value (out of scope this mission).
 
 ## Charter config (IC-07)
-- **org-charter.yaml `extends:`** — list of base-org references; merge = **additive**, base-org precedence, cycle-detected. Resolved through `charter.activation.activation_engine` plan/commit + cascade (no parallel resolver).
+- **org-charter.yaml `extends:`** — list of base-org references; merge = **additive**, base-org precedence, cycle-detected. Resolved through `charter.activation_engine` plan/commit + cascade (no parallel resolver).
 - Invariant: extend resolution is non-destructive (C-004); cycles rejected fail-closed.
 
 ## DRG (IC-08)

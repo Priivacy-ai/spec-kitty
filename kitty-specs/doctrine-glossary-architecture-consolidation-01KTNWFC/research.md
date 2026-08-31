@@ -58,7 +58,7 @@ These are *review ICs*, not assignment locks.
 **Decision (2026-06-09):** Close gaps in the **existing generator** (regeneration command + symmetric profile-edge detection) — NOT a rebuild. **PLUS (expanded scope): sanitize and re-curate the built-in DRG and agent profiles** — fold in the new doctrine additions (the artefacts this mission authors), re-curate stale/duplicate edges and profiles, so the DRG reflects the consolidated doctrine.
 
 ### R-10 — charter `extends:` (#1397)
-**Decision (2026-06-09):** **Additive merge**, base-org precedence + cycle detection, integrated with the existing `charter.activation.activation_engine`/cascade. **No parallel mechanism.**
+**Decision (2026-06-09):** **Additive merge**, base-org precedence + cycle detection, integrated with the existing `charter.activation_engine`/cascade. **No parallel mechanism.**
 
 ---
 

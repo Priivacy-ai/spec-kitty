@@ -36,7 +36,7 @@ Measured on `ed470756e`:
 | quantity | value |
 |---|---|
 | activated artefacts | 184 |
-| context budget (`BUDGET_DEFAULT`, `src/charter/activation/context_renderers/token_budget.py:54`) | 32,000 tokens |
+| context budget (`BUDGET_DEFAULT`, `src/charter/context_renderers/token_budget.py:54`) | 32,000 tokens |
 | bootstrap render (in-process `build_charter_context`, depth 2, `ed470756e`) | ~31.5 KB, 80 activated ids |
 | steady-state render today (in-process) | ~982 ms |
 | steady-state render after delivery-on-every-load (in-process) | ~1.94 s |

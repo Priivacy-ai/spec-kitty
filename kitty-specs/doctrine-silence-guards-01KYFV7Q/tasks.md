@@ -97,7 +97,7 @@ one, and having B2 author its own guardrail would be self-validation.
 
 T012 Failing-first test: plant an unknown kind at each of the four sites, assert current silence
 T013 Close `src/doctrine/drg/query.py:230-242` — 16 buckets filled, 10 read out
-T014 Close `src/charter/activation/context.py:672-683` — 4 branches, no `else`. **Pin behaviourally** (see risks)
+T014 Close `src/charter/context.py:672-683` — 4 branches, no `else`. **Pin behaviourally** (see risks)
 T017 Assert the graph invariant: 311 nodes / 774 edges unchanged (NFR-004)
 
 ### Implementation Notes

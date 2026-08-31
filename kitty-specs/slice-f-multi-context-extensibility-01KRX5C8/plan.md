@@ -41,7 +41,7 @@ Project charter principles ([`.kittify/charter/charter.md`](../../.kittify/chart
 | **Cross-platform** | All new paths use `pathlib.Path`; subprocess test (FR-132) uses `sys.executable -m specify_cli` to stay portable | ✅ |
 | **Shared-package boundary (events / tracker external; runtime CLI-internal)** | Slice F touches only `src/charter/`, `src/specify_cli/cli/`, `src/specify_cli/next/_internal_runtime/`, and tests. No new external deps; `pyproject.toml` shape unchanged | ✅ |
 | **Internal runtime boundary (CLI does not depend on `spec-kitty-runtime`)** | Workflow registry lives in `src/specify_cli/next/_internal_runtime/workflow_registry.py`. No re-introduction of standalone runtime package | ✅ |
-| **Layer rule (`kernel ← doctrine ← charter ← specify_cli`)** | Org-DRG loader lives in `src/charter/drg.py` extensions; CharterScope lives in `src/charter/activation/scope.py`; workflow registry lives in `src/specify_cli/next/_internal_runtime/` (correct layer — runtime is the right home for runtime sequencing). All consumers route through the existing facade or via `specify_cli.next` (no `from doctrine.*` direct from runtime) — pinned by `test_runtime_charter_doctrine_boundary.py` (C-001, NFR-003) | ✅ |
+| **Layer rule (`kernel ← doctrine ← charter ← specify_cli`)** | Org-DRG loader lives in `src/charter/drg.py` extensions; CharterScope lives in `src/charter/scope.py`; workflow registry lives in `src/specify_cli/next/_internal_runtime/` (correct layer — runtime is the right home for runtime sequencing). All consumers route through the existing facade or via `specify_cli.next` (no `from doctrine.*` direct from runtime) — pinned by `test_runtime_charter_doctrine_boundary.py` (C-001, NFR-003) | ✅ |
 | **Branch-and-release strategy (3.x active on main; feat branches stack)** | Slice F stacks on `feat/org-doctrine-layer` per Mission B precedent; eventual upstream PR carries the whole baseline | ✅ |
 | **Auth-caution (Robert / SaaS lead maintainer)** | HiC §5a.3 honoured — auth-transport is descoped to ADR + ticket only; no source change. C-005 binds | ✅ |
 | **New charter amendments (added by THIS mission per FR-303)** | (a) Burn-down policy (per C-004/C-006), (b) `__all__` declaration convention (per C-007), (c) ATDD-first discipline note (per C-011). All three land in WP12 after the load-bearing work proves the conventions are honest | ✅ (charter is the inheritor, not the gate, here) |
@@ -177,7 +177,7 @@ The mission action sequence (`specify → plan → tasks → implement → revie
 
 Per **HiC §5a.1 (binding)** — clean removal, no `DeprecationWarning`, no sunset docstring.
 
-- Delete `resolve_governance = resolve_project_governance` and its module-level docstring at `src/charter/activation/resolver.py:325-326`.
+- Delete `resolve_governance = resolve_project_governance` and its module-level docstring at `src/charter/resolver.py:325-326`.
 - Remove `resolve_governance` from both the `from .resolver import (...)` block (line 73) and the `__all__` list (line 124) in `src/charter/__init__.py`.
 - Update `tests/charter/test_resolver.py` (and any other test fixture using the legacy name — `rg "resolve_governance" tests/` will enumerate them; the audit identified `tests/charter/test_resolver.py:14`).
 - Land regression test `tests/charter/test_alias_deleted_regression.py` asserting `from charter import resolve_governance` raises `ImportError`.
@@ -204,7 +204,7 @@ Per **HiC §5a.2 (binding)** — burn-down policies are charter-pinned, not advi
 
 ### 1.7 Remediation 4 — Catalog-miss CLI visibility (FR-130 .. FR-132, NFR-006)
 
-The structured `_LOGGER.warning(...)` path in `charter.activation._catalog_miss` is silently dropped today because the CLI installs no log handler (architect's HEAD-verified finding HIGH-1).
+The structured `_LOGGER.warning(...)` path in `charter._catalog_miss` is silently dropped today because the CLI installs no log handler (architect's HEAD-verified finding HIGH-1).
 
 - **Bootstrap.** `src/specify_cli/__main__.py` (or the typer app's startup hook) calls `logging.captureWarnings(True)` so `warnings.warn(...)` reaches the logging subsystem (FR-130).
 - **Handler.** A Rich-aware `logging.Handler` routes `WARNING+` records through the existing Rich `Console` instance to the operator's stderr (FR-131). Per RR-6, the handler defers to the existing Console rather than instantiating a new one — no Rich double-init.
@@ -236,18 +236,18 @@ Per **HiC §5a.3 (binding)** — descoped. Mission C produces:
 - Add `merge_three_layers(shipped: DRGGraph, org_fragments: list[OrgDRGFragment], project: DRGGraph | None) -> DRGGraph`.
 - Extend the existing `merge_layers` call site signature OR add `merge_three_layers` as the new public API; the existing 2-layer signature stays for backward compat.
 
-### 2.2 `src/charter/activation/scope.py` — NEW (CharterScope abstraction)
+### 2.2 `src/charter/scope.py` — NEW (CharterScope abstraction)
 
 - `CharterScope` dataclass: `root: Path`, `name: str | None`.
 - `CharterScope.default(repo_root: Path) -> CharterScope`.
 - `CharterScope.resolve(repo_root: Path, feature_dir: Path) -> CharterScope` — reads `.kittify/config.yaml`'s optional `charter_scopes:` list and returns the nearest-enclosing scope; raises `CharterScopeConflict` on malformed configuration.
 
-### 2.3 `src/charter/activation/context.py` — `scope=` parameter (FR-010)
+### 2.3 `src/charter/context.py` — `scope=` parameter (FR-010)
 
 - `build_charter_context(repo_root, *, scope: CharterScope | None = None, ...)`. When `scope is None`, behaviour is byte-identical to today's `build_charter_context(repo_root)` — NFR-001 binding.
 - Thread per-layer provenance into the `_render_*` helpers so the rendered prompt body carries `source: built-in | org:<pack> | project` per stanza (Axis 1 / FR-001).
 
-### 2.4 `src/charter/activation/resolver.py` — DRIFT-1 alias deletion (FR-100, C-003)
+### 2.4 `src/charter/resolver.py` — DRIFT-1 alias deletion (FR-100, C-003)
 
 - Delete `resolve_governance = resolve_project_governance` at line 325-326.
 - Delete the "Deprecated alias" docstring at line 198.

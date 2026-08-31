@@ -42,7 +42,7 @@ not change a single byte.
 ## Decision
 
 Introduce a new abstraction at the charter layer: **`CharterScope`**, modelled
-as a frozen dataclass living in `src/charter/activation/scope.py`. It has exactly two
+as a frozen dataclass living in `src/charter/scope.py`. It has exactly two
 constructors and a small failure-mode surface:
 
 1. `CharterScope.default(repo_root)` — single-project constructor.
@@ -77,7 +77,7 @@ behaviour they have today.
 
 To thread the resolver through the rendering pipeline without disturbing
 `build_charter_context`'s signature (WP07's ownership boundary), we ship a
-new thin wrapper module `src/charter/activation/scope_router.py` exposing:
+new thin wrapper module `src/charter/scope_router.py` exposing:
 
 ```python
 def build_with_scope(repo_root: Path, feature_dir: Path, **kwargs) -> CharterContextResult:
@@ -94,7 +94,7 @@ The Pydantic model `CharterScopeConfig` (plus the inner `_CharterScopeEntry`)
 ships alongside in the same module. It validates the YAML payload at config
 load time, rejecting empty `root` fields and surfacing structural errors with
 a stable error shape. This satisfies the FR-140 round-trip case
-`charter.activation.scope.CharterScopeConfig` in `contracts/charter-scope-resolution.md`.
+`charter.scope.CharterScopeConfig` in `contracts/charter-scope-resolution.md`.
 
 ---
 
@@ -111,13 +111,13 @@ a stable error shape. This satisfies the FR-140 round-trip case
 - **Layer-rule clean** (NFR-003). `scope.py` and `scope_router.py` live in
   the charter layer and do not import from `specify_cli.*`. The
   prompt-builder wiring (WP11) reverses the dependency direction:
-  `specify_cli.next.prompt_builder` calls into `charter.activation.scope_router`, not
+  `specify_cli.next.prompt_builder` calls into `charter.scope_router`, not
   the other way around.
 - **Ownership clean.** `context.py` (owned by WP07) is untouched.
   `scope_router.py` is a new module owned by WP09. No cross-WP file
   conflicts.
 - **Round-trip gate strengthened** (FR-140). The
-  `charter.activation.scope.CharterScopeConfig` round-trip case flips from `SKIPPED` to
+  `charter.scope.CharterScopeConfig` round-trip case flips from `SKIPPED` to
   `PASSED`, removing one entry from the deferred-skips ledger.
 
 ### Negative
@@ -189,7 +189,7 @@ contains a `.kittify/charter/` directory.
 Add `scope: CharterScope | None = None` as a kwarg.
 
 **Rejected for this mission.** Would force WP07 and WP09 to share file
-ownership on `src/charter/activation/context.py`, creating the kind of cross-WP
+ownership on `src/charter/context.py`, creating the kind of cross-WP
 serialisation point we explicitly designed lanes to avoid. The
 `scope_router.py` wrapper achieves the same effect from outside, leaves
 `context.py` untouched, and gives us a clean place to add scope-aware

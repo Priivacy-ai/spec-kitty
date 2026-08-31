@@ -71,7 +71,7 @@ instead of silently producing a dead-end `None`.
 - **No pre-existing completeness gate to extend**: today `synthesize` only guards `charter.md`
   existence (`synthesize.py:~120`) and interview answers (`_synthesis.py:~45`). Your preflight
   is **net-new** — do not go hunting for an existing bundle-completeness checkpoint. Note also
-  `_SYNC_OUTPUT_FILES` lives in `src/charter/activation/sync.py` (the library), not the CLI `sync.py`.
+  `_SYNC_OUTPUT_FILES` lives in `src/charter/sync.py` (the library), not the CLI `sync.py`.
 
 ## Subtasks
 

@@ -30,7 +30,7 @@ The following Typer subcommands and their Typer app are removed in WP1.1. Any in
 | `CurationSession`, `load_session()`, `clear_session()` | `src/doctrine/curation/state.py` | Delete module |
 | `run_curate_session()`, `promote_single()`, `get_status_counts()` | `src/doctrine/curation/workflow.py` | Delete module |
 | All exports of `src/specify_cli/validators/doctrine_curation.py` | — | Delete module |
-| `load_doctrine_catalog(include_proposed=...)` parameter | `src/charter/activation/catalog.py` | Remove parameter (WP1.3) |
+| `load_doctrine_catalog(include_proposed=...)` parameter | `src/charter/catalog.py` | Remove parameter (WP1.3) |
 
 ## Tests removed
 

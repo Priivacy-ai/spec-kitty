@@ -119,7 +119,7 @@ flowchart TB
 | Op Invocation Context | Op Tier | Opens an Op under resolved governance context and closes it with the real outcome |
 | Charter Activation Engine | Governance | Plan/commit activation seam; writes config only after plan succeeds |
 | Charter Cascade | Governance | Follows DRG `requires`/`suggests` edges for cascade (de)activation |
-| Org Charter Extends Resolver | Governance | Canonical `org-charter.yaml extends:` chain resolver (`charter.activation.org_extends`): base-first order, fail-closed on cycles/missing bases; the legacy loader delegates here |
+| Org Charter Extends Resolver | Governance | Canonical `org-charter.yaml extends:` chain resolver (`charter.org_extends`): base-first order, fail-closed on cycles/missing bases; the legacy loader delegates here |
 | Doctrine Catalog Loader | Governance | Loads doctrine assets as typed artifacts; surfaces load diagnostics |
 | Doctrine Relationship Graph | Governance | Generated edge graph; resolves profile lineage (`specializes_from`) |
 | Agent Profile Repository | Governance | Resolves agent profiles via DRG traversal |

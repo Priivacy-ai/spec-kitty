@@ -11,13 +11,13 @@ results:
       load_graph_or_dir(org_root)) call explicitly labeled "a hand-reproduction of
       load_validated_graph's own internal implementation... not an instance of any test file's
       pattern," and (2) calling load_validated_graph(repo_root, org_root=<org_root>) directly
-      while optionally patching charter.activation._drg_helpers.load_built_in_graph, now correctly
+      while optionally patching charter._drg_helpers.load_built_in_graph, now correctly
       described as the pattern tests/charter/test_merged_graph_on_live_path.py actually uses
       ("that file always calls load_validated_graph(tmp_path) itself and only patches
       load_built_in_graph") — verified against the live test file (test_load_validated_graph_invokes_assert_valid
       and test_load_validated_graph_overlays_project_graph both call load_validated_graph(tmp_path)
-      and patch charter.activation._drg_helpers.load_built_in_graph, never calling load_built_in_graph/
-      load_graph_or_dir/merge_layers directly) and against src/charter/activation/_drg_helpers.py's
+      and patch charter._drg_helpers.load_built_in_graph, never calling load_built_in_graph/
+      load_graph_or_dir/merge_layers directly) and against src/charter/_drg_helpers.py's
       load_validated_graph body (the three-call sequence is confirmed as its own internal
       implementation) and src/doctrine/drg/loader.py (merge_layers, load_built_in_graph,
       load_graph_or_dir all exist with the cited names).

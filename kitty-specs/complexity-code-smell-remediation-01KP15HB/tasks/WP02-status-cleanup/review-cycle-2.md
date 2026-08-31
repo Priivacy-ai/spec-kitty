@@ -11,7 +11,7 @@ wp_id: WP02
 
 **Issue 1: Lane branch is not isolated to WP02-owned changes.**
 
-`WP02` owns `src/specify_cli/status/wp_metadata.py`, `src/specify_cli/status/locking.py`, and `tests/specify_cli/status/test_wp_metadata.py`, but the current `lane-a` review diff against `kitty/mission-complexity-code-smell-remediation-01KP15HB` contains a much larger unrelated branch delta outside that surface. Examples include `src/charter/activation/context.py`, `src/doctrine/drg/*`, `src/doctrine/graph.yaml`, and many `tests/doctrine/drg/*` files. This means the branch presented for review is not limited to WP02's contract, so the reviewer cannot approve it as an isolated WP handoff.
+`WP02` owns `src/specify_cli/status/wp_metadata.py`, `src/specify_cli/status/locking.py`, and `tests/specify_cli/status/test_wp_metadata.py`, but the current `lane-a` review diff against `kitty/mission-complexity-code-smell-remediation-01KP15HB` contains a much larger unrelated branch delta outside that surface. Examples include `src/charter/context.py`, `src/doctrine/drg/*`, `src/doctrine/graph.yaml`, and many `tests/doctrine/drg/*` files. This means the branch presented for review is not limited to WP02's contract, so the reviewer cannot approve it as an isolated WP handoff.
 
 Required remediation:
 - Clean or rebase `lane-a` so the branch diff contains only the intended WP01/WP02 lane work and excludes unrelated DRG/charter changes.

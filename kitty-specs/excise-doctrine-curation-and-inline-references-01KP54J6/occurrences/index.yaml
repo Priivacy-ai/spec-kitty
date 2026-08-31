@@ -26,11 +26,11 @@ must_be_zero:
       # mission slug ("excise-doctrine-curation-and-inline-references-...")
       # itself contains the substring "curation" -- every WP01-touching file
       # that mentions the mission in a docstring lights up the verifier.
-      - "src/charter/activation/catalog.py"
-      - "src/charter/activation/compiler.py"
-      - "src/charter/activation/context.py"
-      - "src/charter/activation/schemas.py"
-      - "src/charter/activation/_drg_helpers.py"
+      - "src/charter/catalog.py"
+      - "src/charter/compiler.py"
+      - "src/charter/context.py"
+      - "src/charter/schemas.py"
+      - "src/charter/_drg_helpers.py"
       - "src/specify_cli/charter/_drg_helpers.py"
       - "src/specify_cli/charter/compiler.py"
       - "src/specify_cli/charter/context.py"
@@ -145,7 +145,7 @@ must_be_zero:
       - "src/doctrine/directives/models.py"
       - "src/doctrine/directives/validation.py"
       - "src/doctrine/shared/exceptions.py"
-      - "src/charter/activation/schemas.py"
+      - "src/charter/schemas.py"
       - "src/specify_cli/charter/schemas.py"
     final_count: 0
 

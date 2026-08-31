@@ -241,7 +241,7 @@ This is false:
 
 - `src/doctrine/missions/glossary_hook.py:83` lazy-imports
   `from specify_cli.glossary.attachment import GlossaryAwarePrimitiveRunner` at call time.
-- `src/charter/activation/catalog.py:25` lazy-imports
+- `src/charter/catalog.py:25` lazy-imports
   `from specify_cli.runtime.home import get_package_asset_root` at call time.
 
 The `glossary_hook.py` case is partially addressed in ADR `2026-03-25-1-glossary-type-ownership`

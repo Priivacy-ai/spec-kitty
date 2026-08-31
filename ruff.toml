@@ -12,9 +12,9 @@ extend-exclude = ["kitty-specs/*/research/**"]
 # Generated Ruff baseline for the legacy lint debt present on origin/main as of 2026-05-01.
 # Keep new files under the existing Ruff rule set while allowing cleanup to happen file-by-file.
 [lint.extend-per-file-ignores]
-"src/charter/activation/evidence/code_reader.py" = ["C901", "F401", "SIM103"]
+"src/charter/evidence/code_reader.py" = ["C901", "F401", "SIM103"]
 "src/charter/resolution.py" = ["SIM108"]
-"src/charter/activation/synthesizer/synthesize_pipeline.py" = ["UP017"]
+"src/charter/synthesizer/synthesize_pipeline.py" = ["UP017"]
 "src/charter/offering/shared/scoping.py" = ["UP035"]
 "src/charter/offering/spdd_reasons/activation.py" = ["SIM103"]
 "src/charter/offering/versioning.py" = ["C901", "UP017", "UP035", "UP042"]

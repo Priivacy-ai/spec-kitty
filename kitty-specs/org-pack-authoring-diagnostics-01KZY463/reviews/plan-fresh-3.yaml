@@ -10,7 +10,7 @@ findings:
     location: "plan.md:452-458 (Chokepoint § Sibling-mission write-scope check)"
     finding: >
       The plan's Chokepoint section checks write-scope collision against exactly one
-      concurrent artifact — sibling mission #3384 on `src/charter/activation/_drg_helpers.py:87` — and
+      concurrent artifact — sibling mission #3384 on `src/charter/_drg_helpers.py:87` — and
       concludes "No write-scope collision." It never checks this mission's touched files
       (`src/specify_cli/cli/commands/doctrine.py`, `src/specify_cli/doctrine/pack_validator.py`,
       `src/specify_cli/doctrine/pack_assembler.py`, `docs/changelog/CHANGELOG.md`) against the

@@ -156,7 +156,7 @@ from the WP02/WP03 helper.
 **Consumers (wired later):** writers (`promote`, `_rewrite_manifest`) import it
 eagerly (already inside `charter.*`, WP02); the reader (`computer.py`) imports
 it LAZILY inside `_compute_synthesized_drg` (LD-3/NFR-003 discipline, matching
-the module's existing lazy `charter.bundle` / `charter.activation.synthesizer.manifest`
+the module's existing lazy `charter.bundle` / `charter.synthesizer.manifest`
 imports, WP03). The eager-vs-lazy import discipline is a WP02/WP03 wiring
 concern, not a WP01 one. `apply_post_condition` and
 `src/specify_cli/cli/commands/charter/_fresh_doctrine.py` do NOT call the

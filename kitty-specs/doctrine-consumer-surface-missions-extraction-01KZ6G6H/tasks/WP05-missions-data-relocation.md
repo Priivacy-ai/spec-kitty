@@ -58,8 +58,8 @@ owned_files:
 - src/doctrine/missions/mission_step_repository.py
 - src/doctrine/missions/step_contracts.py
 - src/doctrine/drg/migration/extractor.py
-- src/charter/activation/pack_manager.py
-- src/charter/activation/catalog.py
+- src/charter/pack_manager.py
+- src/charter/catalog.py
 - src/specify_cli/runtime/home.py
 - src/specify_cli/skills/command_installer.py
 - src/specify_cli/template/manager.py
@@ -69,8 +69,8 @@ owned_files:
 - src/specify_cli/runtime/agent_commands.py
 - src/specify_cli/migration/rewrite_shims.py
 - src/specify_cli/runtime/bootstrap.py
-- src/charter/activation/neutrality/lint.py
-- src/charter/activation/compiler.py
+- src/charter/neutrality/lint.py
+- src/charter/compiler.py
 - src/specify_cli/core/config.py
 role: implementer
 tags: []

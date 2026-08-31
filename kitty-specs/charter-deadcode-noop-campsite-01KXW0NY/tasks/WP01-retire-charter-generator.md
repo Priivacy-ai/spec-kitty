@@ -73,13 +73,13 @@ entries in the same change.
   `test_build_charter_draft_invalid_template_set_raises`, `test_write_charter_respects_force`,
   `test_write_charter_rejects_symlink_even_with_force`.
 
-**KEEP** (they import `charter.activation.compiler.write_compiled_charter`, not generator — live coverage, C-003):
+**KEEP** (they import `charter.compiler.write_compiled_charter`, not generator — live coverage, C-003):
 `test_write_compiled_charter_ignores_stale_symlinked_charter_md`,
 `test_write_compiled_charter_rejects_symlinked_output_dir`,
 `test_write_compiled_charter_rejects_symlinked_output_dir_without_repo_root`,
 `test_write_compiled_charter_rejects_output_dir_that_resolves_outside_repo`.
-Keep the `from charter.activation.compiler import CompiledCharter, write_compiled_charter` and
-`from charter.activation.catalog import load_doctrine_catalog` imports (lines 8-9).
+Keep the `from charter.compiler import CompiledCharter, write_compiled_charter` and
+`from charter.catalog import load_doctrine_catalog` imports (lines 8-9).
 
 ### T004 — Verify
 - `git grep -nE "generator|build_charter_draft|CharterDraft|\bwrite_charter\b" -- src/charter` →

@@ -71,7 +71,7 @@ build_charter_context(action='implement', depth=2, mission_type='software-dev')
 ### Why the original measurement read zero
 
 `spec-kitty charter context` exposes **no `--depth` flag**. Depth is inferred from first-load
-state (`src/charter/activation/context.py:623-628`):
+state (`src/charter/context.py:623-628`):
 
 ```python
 if depth is not None:        effective_depth = depth
@@ -91,7 +91,7 @@ evidence it did not read: `"first_load": false`.
 
 ### D1 — The compact rail structurally cannot carry four of six kinds
 
-`src/charter/activation/resolver.py:329-332` hardcodes `tactics=[], styleguides=[], toolguides=[],
+`src/charter/resolver.py:329-332` hardcodes `tactics=[], styleguides=[], toolguides=[],
 procedures=[]` in the returned `GovernanceResolution`. This is not a missing argument at a call
 site — the rail cannot carry those kinds regardless of what any caller passes.
 
@@ -122,11 +122,11 @@ no `procedure_ids` field at all.
 
 ### D3 — The bootstrap reference block is capped at 10, and the cap is order-rigged
 
-`src/charter/activation/context.py:1103`: `for reference in filtered_references[:10]`.
+`src/charter/context.py:1103`: `for reference in filtered_references[:10]`.
 
 `_filter_references_for_action` (`context.py:1419`) is a **no-op for every doctrine kind**
 (verified: 214 -> 214 for all four actions). `_build_references_from_service`
-(`src/charter/activation/compiler.py:877-980`) emits in fixed kind order: user_profile(1) -> paradigms(8) ->
+(`src/charter/compiler.py:877-980`) emits in fixed kind order: user_profile(1) -> paradigms(8) ->
 directives(25) -> tactics(119) -> styleguides -> toolguides -> procedures -> agent_profiles.
 
 Slots 1-10 are therefore **always** USER + 8 paradigms + `DIRECTIVE_001`. Tactics start at index
@@ -156,12 +156,12 @@ This is the path agents actually take. It is the most consequential single defec
 | 1 | "185 activated; zero appear" | 78 appear on a first-load `implement` render with `--mission-type`; 94 can appear across all actions. Restate as *"91 of 185 can never reach an action prompt, and the other 94 only on the once-per-project first load."* |
 | 2 | "Activation influences compile and fetch, not what is offered at an action" | Wrong. Deactivation demonstrably removes artefacts from the action prompt (65 -> 1). Activation is an **intersection filter over DRG action-reachability**, not an entry vector. |
 | 3 | "This is not the typeless-grain defect of #883" | Wrong, and the inversion matters. The results matched only because compact never consults mission type. In bootstrap, `mission_type=None` yields `{directives:0, tactics:0, styleguides:0, toolguides:0}` vs `{16, 51, 5, 2}` with `software-dev`. This **is** #883, and #883 is more load-bearing than the assessment allows. |
-| 4 | "V1 (`config.activated_*`) is the right survivor" | **Backwards.** `PackContext.from_config` (`src/charter/activation/pack_context.py:203-212`) reads `config.yaml` only when the `charter:` pointer is absent. It is present here, so **`charter.yaml` is the live authority and `config.yaml`'s `activated_*` is an unread mirror.** Proven by mutation: editing `config.yaml` down to 2 tactics changed nothing; editing `charter.yaml` changed everything. |
+| 4 | "V1 (`config.activated_*`) is the right survivor" | **Backwards.** `PackContext.from_config` (`src/charter/pack_context.py:203-212`) reads `config.yaml` only when the `charter:` pointer is absent. It is present here, so **`charter.yaml` is the live authority and `config.yaml`'s `activated_*` is an unread mirror.** Proven by mutation: editing `config.yaml` down to 2 tactics changed nothing; editing `charter.yaml` changed everything. |
 | 5 | "V2 holds 110 tactics" | `interview/answers.yaml` holds **28** tactics (also 25 directives, 5 styleguides, 3 toolguides, 4 procedures, 0 paradigms). |
 | 6 | "V3 holds `selected_*: []` for every kind" | Accurate, but nested. `charter.yaml` carries *both* top-level `activated_*` (185, live) *and* `governance.doctrine.selected_*` (all 8 empty). |
-| 7 | "Three vocabularies" | An undercount — there are **six stores**, two of them dead files. `.kittify/charter/governance.yaml` and `.kittify/charter/directives.yaml` are **never read** (`load_governance_config`, `src/charter/activation/sync.py:233-252`, reads `charter.yaml`'s sections per IC-04). They sit on disk looking authoritative. `references.yaml` (214 entries) is the sixth. |
+| 7 | "Three vocabularies" | An undercount — there are **six stores**, two of them dead files. `.kittify/charter/governance.yaml` and `.kittify/charter/directives.yaml` are **never read** (`load_governance_config`, `src/charter/sync.py:233-252`, reads `charter.yaml`'s sections per IC-04). They sit on disk looking authoritative. `references.yaml` (214 entries) is the sixth. |
 | 8 | "`--include` works for all 185" | **157/185 by the documented selector form.** All 25 directives fail as `directive:025-boy-scout-rule` (the id form stored in the activation list) and require `directive:DIRECTIVE_025` — an id-vocabulary mismatch between the activation store and the fetch selector. Three more fail correctly via language scoping. Effective 182/185, with a 25-artefact usability trap. |
-| 9 | Blast radius unstated | **Not repo-specific.** `src/charter/activation/packs/default.yaml` ships **155 activated artefacts** to every project via `m_3_2_0rc35_default_charter_pack`. A fresh `init` hits the same shape. |
+| 9 | Blast radius unstated | **Not repo-specific.** `src/charter/packs/default.yaml` ships **155 activated artefacts** to every project via `m_3_2_0rc35_default_charter_pack`. A fresh `init` hits the same shape. |
 | 10 | — | Profile-cited artefacts are **not** activation. `python-pedro` renders `test-scaffolding-as-design-smell`, which is not in `activated_tactics`. Profile citations bypass the activation gate; do not count them as activation working. |
 
 ---
@@ -178,10 +178,10 @@ Modules that change — **5 files, ~150-250 lines**:
 
 | File | Change |
 |---|---|
-| `src/charter/activation/resolver.py:329-332` | Remove the hardcoded `[]` for four kinds. **Blocking edit** — without it the compact rail cannot carry them regardless of callers. |
-| `src/charter/activation/context.py` | `_load_doctrine_selection` (:819) unions in `resolve_config_activated_roots`; `_render_selection_block` (:1040) moves out of bootstrap-only; compact callers (:214, :245) pass ids. |
-| `src/charter/activation/compact.py:177-191` | `_render_text` accepts paradigm/procedure/styleguide/toolguide lists, not just two. |
-| `src/charter/activation/context.py:1103` + `:1419` | Replace the order-rigged `[:10]` with a per-kind quota. |
+| `src/charter/resolver.py:329-332` | Remove the hardcoded `[]` for four kinds. **Blocking edit** — without it the compact rail cannot carry them regardless of callers. |
+| `src/charter/context.py` | `_load_doctrine_selection` (:819) unions in `resolve_config_activated_roots`; `_render_selection_block` (:1040) moves out of bootstrap-only; compact callers (:214, :245) pass ids. |
+| `src/charter/compact.py:177-191` | `_render_text` accepts paradigm/procedure/styleguide/toolguide lists, not just two. |
+| `src/charter/context.py:1103` + `:1419` | Replace the order-rigged `[:10]` with a per-kind quota. |
 | `src/runtime/next/prompt_builder.py:404-410` | Pass the mission-type grain; stop burning the bootstrap render. |
 
 **The grain filter is already built and already correct.** The action-doctrine walk yields 55-65
@@ -212,7 +212,7 @@ a bulk edit.
 
 ## 6. Not verified
 
-- A live `spec-kitty init` on a fresh project — `src/charter/activation/packs/default.yaml` and the migration
+- A live `spec-kitty init` on a fresh project — `src/charter/packs/default.yaml` and the migration
   were read, but the init path was not executed end-to-end.
 - The `.claude/commands/` runtime prompt path end-to-end. Static scan only: `.claude/commands` has
   0 files in this checkout; `.agents/skills` (87 files) contains 17 activated ids as literal prose

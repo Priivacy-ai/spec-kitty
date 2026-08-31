@@ -26,11 +26,11 @@ authoritative_surface: src/charter/
 create_intent: []
 execution_mode: code_change
 owned_files:
-- src/charter/activation/sync.py
+- src/charter/sync.py
 - src/charter/extractor.py
 - src/charter/__init__.py
-- src/charter/activation/consistency_check.py
-- src/charter/activation/mission_type_profiles.py
+- src/charter/consistency_check.py
+- src/charter/mission_type_profiles.py
 - src/doctrine/spdd_reasons/activation.py
 - src/specify_cli/cli/commands/_doctrine_collect.py
 - tests/architectural/test_charter_references_resolve.py

@@ -28,7 +28,7 @@ The WP prompt's hard rule is: *"if any command fails, do not push; triage as a r
 Triage performed in-session:
 
 1. **Mission-touched files alone are clean.** `uv run ruff check` over the seven files this mission's squash merge changed —
-   - `src/charter/activation/synthesizer/write_pipeline.py`
+   - `src/charter/synthesizer/write_pipeline.py`
    - `src/specify_cli/cli/commands/charter.py`
    - `tests/agent/cli/commands/test_charter_synthesize_cli.py`
    - `tests/charter/synthesizer/test_synthesize_path_parity.py` (the file the merge added; the pre-merge expectation was `tests/agent/cli/commands/synthesizer/test_synthesize_path_parity.py` but it actually lives at `tests/charter/synthesizer/test_synthesize_path_parity.py` post-merge — the squash diff stat reflects the destination tree)
@@ -38,7 +38,7 @@ Triage performed in-session:
 
    — reports `All checks passed!`. The mission introduced **zero** new ruff violations.
 
-2. **The 772 errors are entirely pre-existing.** Comparison run against the pre-merge parent commit (`cb8bd1e2^` = `a1250a1e`) reported **773** errors of the same shape, all in unrelated source modules: `src/charter/activation/evidence/code_reader.py`, `src/charter/resolution.py`, `src/doctrine/drg/migration/extractor.py`, etc. The merge actually *removed one* ruff error.
+2. **The 772 errors are entirely pre-existing.** Comparison run against the pre-merge parent commit (`cb8bd1e2^` = `a1250a1e`) reported **773** errors of the same shape, all in unrelated source modules: `src/charter/evidence/code_reader.py`, `src/charter/resolution.py`, `src/doctrine/drg/migration/extractor.py`, etc. The merge actually *removed one* ruff error.
 
 3. **Conclusion.** This is a release-process gate failing on a non-product axis — exactly the same pattern as the Protect-Main-Branch failure (T020). It is not a WP02/WP03/WP04 regression. The correct disposition is to file a follow-up GitHub issue to either (a) clean up the 772 baseline violations as a focused tranche, or (b) widen `quickstart.md` §1's NFR-001 ruff scope to mission-touched paths only and pin the wide-scope ruff run to a separate baseline-tracking gate. **Filing this issue is deferred to the user (no `gh` auth in this session).**
 

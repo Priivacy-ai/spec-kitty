@@ -227,15 +227,15 @@ pyproject.toml                 # WP05: add types-requests to dev deps
 **Doctrine:** DIRECTIVE_030, DIRECTIVE_025
 
 **Files to fix:**
-- `src/charter/activation/catalog.py:245` — ARG001: remove or use the `doctrine_root` parameter
-- `src/charter/activation/resolver.py:120` — SIM108: collapse if/else to ternary
+- `src/charter/catalog.py:245` — ARG001: remove or use the `doctrine_root` parameter
+- `src/charter/resolver.py:120` — SIM108: collapse if/else to ternary
 - `src/doctrine/missions/glossary_hook.py:134` — B009: replace `getattr(module, "X")` with `module.X`
 - `src/kernel/_safe_re.py:185` — SIM105: replace try/except/pass with `contextlib.suppress`
 
-**Approach:** Run `ruff check --fix src/charter/activation/catalog.py src/charter/activation/resolver.py src/doctrine/missions/glossary_hook.py src/kernel/_safe_re.py` for auto-fixable rules. Verify each change passes the test suite for that module.
+**Approach:** Run `ruff check --fix src/charter/catalog.py src/charter/resolver.py src/doctrine/missions/glossary_hook.py src/kernel/_safe_re.py` for auto-fixable rules. Verify each change passes the test suite for that module.
 
 **Acceptance criteria:**
-- `ruff check src/charter/activation/catalog.py src/charter/activation/resolver.py src/doctrine/missions/glossary_hook.py src/kernel/_safe_re.py` exits 0
+- `ruff check src/charter/catalog.py src/charter/resolver.py src/doctrine/missions/glossary_hook.py src/kernel/_safe_re.py` exits 0
 - All tests in the affected modules pass
 - DIRECTIVE_030 gate: mypy passes for touched files
 

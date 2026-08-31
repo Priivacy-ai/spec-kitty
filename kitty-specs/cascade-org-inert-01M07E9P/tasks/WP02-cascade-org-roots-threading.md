@@ -62,7 +62,7 @@ the FIRST org root (`break` after one iteration) into a single-value `dict[str, 
 for ID-mapping — so even once the DRG walk sees pack 2..N, `_drg_id_to_config_id` still only
 consults pack 1.
 
-**Do NOT modify `src/charter/activation/_drg_helpers.py::_resolve_org_root`** — it is intentionally inert
+**Do NOT modify `src/charter/_drg_helpers.py::_resolve_org_root`** — it is intentionally inert
 (its own docstring), enforced by `tests/architectural/test_layer_rules.py`. All fixes go in the
 `specify_cli`-layer callers below.
 
@@ -75,7 +75,7 @@ unchanged) — `charter list --all-layers` (`list_cmd.py:165`) already consumes 
 must NOT regress. Add a NEW key carrying the full declaration-ordered chain (e.g.
 `roots["org_chain"]: list[Path]`, exact name is your call — document it). This mirrors the
 established `effective_org_root`/`effective_org_roots` dual-field pattern already in
-`charter.activation.action_doctrine_bundle._resolve_action_bundle`.
+`charter.action_doctrine_bundle._resolve_action_bundle`.
 
 ## T009 — Thread org roots into `activate.py` (depends on T008)
 

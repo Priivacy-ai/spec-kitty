@@ -472,7 +472,7 @@ ADR: [`docs/adr/3.x/2026-04-25-1-shared-package-boundary.md`](docs/adr/3.x/2026-
 
 Governing ADR: [`docs/adr/3.x/2026-05-16-1-doctrine-layer-merge-semantics.md`](docs/adr/3.x/2026-05-16-1-doctrine-layer-merge-semantics.md)
 
-### Activation Engine (`charter.activation.activation_engine`)
+### Activation Engine (`charter.activation_engine`)
 
 Plan/commit seam: `plan_activation()` validates (non-mutating); `commit_activation()` writes config only after plan succeeds. Never mutates config on validation failure (NFR-003). `CharterPackConfigError` → fail-closed.
 
@@ -481,7 +481,7 @@ plan = plan_activation(kind="directive", artifact_id="010-...", pack_context=ctx
 commit_activation(plan, project_root=Path("."))
 ```
 
-### Charter Cascade (`charter.activation.cascade`)
+### Charter Cascade (`charter.cascade`)
 
 Follows DRG `requires`/`suggests` edges (not hardcoded per-kind logic).
 
@@ -495,7 +495,7 @@ Without `--cascade`: warns about skipped artifacts with a suggested recovery com
 
 ### Canonical Kind Vocabulary
 
-`charter.activation.kind_vocabulary.from_operator_token` normalizes operator-facing tokens at input boundaries:
+`charter.kind_vocabulary.from_operator_token` normalizes operator-facing tokens at input boundaries:
 
 | Token | Canonical kind |
 |-------|----------------|

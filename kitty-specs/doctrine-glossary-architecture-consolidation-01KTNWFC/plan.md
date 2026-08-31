@@ -132,7 +132,7 @@ No charter violations. One scope note: this is a **large mission** (5 streams). 
 - **Risks**: `spec-kitty glossary validate` must pass; terminology guard
 
 ### IC-07 — Charter `extends:` (additive multi-org config)
-- **Purpose**: Implement `org-charter.yaml` `extends:` as additive merge with base-org precedence + cycle detection, integrated with the existing `charter.activation.activation_engine`/cascade — **no parallel mechanism** (FR-008, R-10, C-005).
+- **Purpose**: Implement `org-charter.yaml` `extends:` as additive merge with base-org precedence + cycle detection, integrated with the existing `charter.activation_engine`/cascade — **no parallel mechanism** (FR-008, R-10, C-005).
 - **Relevant requirements**: FR-008
 - **Affected surfaces**: `src/charter/` (activation_engine, cascade, org-charter loader), charter schema, tests
 - **Change mode**: normal (code)

@@ -11,7 +11,7 @@ Build the two foundations charter-loaded mission types depend on, without repoin
 
 **Language/Version**: Python 3.11+
 **Primary Dependencies**: spec-kitty CLI internals (`kernel`, `doctrine`, `charter`, `specify_cli`); no new third-party dependency.
-**Storage**: `.kittify/config.yaml`; shipped `src/charter/activation/packs/default.yaml`; built-in pack tree at `<pack-root>/built-in/missions`. No database.
+**Storage**: `.kittify/config.yaml`; shipped `src/charter/packs/default.yaml`; built-in pack tree at `<pack-root>/built-in/missions`. No database.
 **Testing**: pytest (ATDD-first); `-n auto --dist loadfile` suite, `-n0` for any daemon/real-port test; `mypy --strict` + `ruff` zero-issue; `tests/architectural/` from the **primary checkout**.
 **Target Platform**: Cross-platform CLI (DIR-001).
 **Project Type**: single (Python package + tests).

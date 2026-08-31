@@ -112,7 +112,7 @@ work_packages:
       - WP01
     prompt_file: "tasks/WP02-campsite-clean-dead-code.md"
     owned_files:
-      - "src/charter/activation/resolver.py"
+      - "src/charter/resolver.py"
       - "tests/charter/test_resolver.py"
       - "src/specify_cli/cli/commands/mission_type.py"
       - "tests/cli/test_charter_mission_type_commands.py"
@@ -163,7 +163,7 @@ work_packages:
       - WP03
     prompt_file: "tasks/WP04-pack-context-projection.md"
     owned_files:
-      - "src/charter/activation/mission_type_profiles.py"
+      - "src/charter/mission_type_profiles.py"
       - "tests/charter/test_mission_type_profiles.py"
       - "tests/runtime/test_runtime_seam.py"
     requirement_refs:
@@ -185,7 +185,7 @@ work_packages:
       - WP02
     prompt_file: "tasks/WP05-activate-layer-scan.md"
     owned_files:
-      - "src/charter/activation/pack_manager.py"
+      - "src/charter/pack_manager.py"
       - "tests/charter/test_pack_manager.py"
     requirement_refs:
       - FR-003
@@ -207,7 +207,7 @@ work_packages:
       - WP04
     prompt_file: "tasks/WP06-loud-fail-empty-action-sequence.md"
     owned_files:
-      - "src/charter/activation/mission_type_profiles.py"
+      - "src/charter/mission_type_profiles.py"
       - "tests/charter/test_mission_type_profiles.py"
     requirement_refs:
       - FR-004

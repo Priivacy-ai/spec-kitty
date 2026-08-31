@@ -142,7 +142,7 @@ concerns write the same file (see ICM).
   writes no git-tracked artifact (only untracked runtime state).
 - **Relevant requirements**: FR-005, FR-008; NFR-001.
 - **Affected surfaces**: a new/extended guard in `tests/charter/test_context*.py`. No production change
-  expected in `src/charter/activation/context.py`; if the guard fails there, that is a real regression to fix.
+  expected in `src/charter/context.py`; if the guard fails there, that is a real regression to fix.
 - **Sequencing/depends-on**: none.
 - **Risks**: must assert cleanliness in a doctrine-tracked context, not this masked checkout (FR-007).
 

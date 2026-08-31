@@ -41,7 +41,7 @@ model: ''
 owned_files:
 - src/specify_cli/drg_writers/**
 - src/doctrine/drg/migration/extractor.py
-- src/charter/activation/synthesizer/project_drg.py
+- src/charter/synthesizer/project_drg.py
 - src/specify_cli/migration/rewrite_opposed_by.py
 - src/charter/drg.py
 - tests/specify_cli/drg_writers/**
@@ -96,7 +96,7 @@ Three code paths persist that state, and only one derives its output from the mo
 |---|---|
 | `src/doctrine/drg/migration/extractor.py` — `_node_to_dict` / `_edge_to_dict` | **Derived already.** `_model_to_dict` + `_FIELDS_WITHHELD_FROM_GRAPH_OUTPUT`. This is the reference implementation |
 | `src/specify_cli/migration/rewrite_opposed_by.py:338` / `:347` | Hand-restated — but **already guarded** by `tests/doctrine/drg/test_model_strictness_roundtrip.py:520` / `:557`, which go red when B1 lands |
-| `src/charter/activation/synthesizer/project_drg.py:65` `_serialize_graph` | Hand-restated, dicts built **inline in two loops**, and **guarded by nothing** |
+| `src/charter/synthesizer/project_drg.py:65` `_serialize_graph` | Hand-restated, dicts built **inline in two loops**, and **guarded by nothing** |
 
 **Priority inside this WP is inverted from the obvious reading.** Verified by mutation: deleting
 `edge.reason` from `project_drg._serialize_graph` leaves `tests/charter/synthesizer/test_project_drg.py`
@@ -117,7 +117,7 @@ an empty list**, and `_model_to_dict` then drops the key. Proven:
 B1's `impacts` is plausibly list-shaped. If you assert W-1 over a sparsely-populated instance, the
 gate passes for every writer and is **vacuous for exactly the field it exists to protect**.
 
-**The registry cannot live in `doctrine`.** A tuple naming `charter.activation.synthesizer.project_drg` and
+**The registry cannot live in `doctrine`.** A tuple naming `charter.synthesizer.project_drg` and
 `specify_cli.migration.rewrite_opposed_by` requires `doctrine` to import upward, which reds
 `tests/architectural/test_layer_rules.py:282` and `:293`. `charter` reds `:311`. **Only
 `src/specify_cli/` can statically hold all members.** Tests are not layered — the precedent is
@@ -149,7 +149,7 @@ the extractor. Every other writer needs it.
    lines, 24 entries — and `rewrite_opposed_by.py:97` already imports `DRGEdge, DRGGraph, DRGNode,
    NodeKind, Relation` through it. **You are adding to an export surface, not creating a facade.**
 3. Confirm no import cycle: `charter/synthesizer/project_drg.py` imports `doctrine.drg.models` and
-   `charter.activation.synthesizer._constants`, not `charter.drg`.
+   `charter.synthesizer._constants`, not `charter.drg`.
 
 **Validation**: `pytest tests/architectural/test_layer_rules.py tests/architectural/test_runtime_charter_doctrine_boundary.py -q` stays green (17 + 14 at baseline).
 
@@ -175,7 +175,7 @@ registry. This is a **prerequisite refactor**, not a registry join.
 
 **Steps**:
 1. Extract `_node_to_dict(node) -> dict` and `_edge_to_dict(edge) -> dict` from the two loops in
-   `src/charter/activation/synthesizer/project_drg.py:65`.
+   `src/charter/synthesizer/project_drg.py:65`.
 2. Keep behaviour byte-identical at this step. Prove it: serialize a fixture graph before and after,
    assert equality.
 3. Only then switch them to the derived helper (T005).

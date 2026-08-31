@@ -58,7 +58,7 @@ Read first (authoritative — do not re-derive): `../spec.md` FR-001/FR-002/NFR-
 `../plan.md` IC-01; `../notes/research-synthesis.md` §"The dispatch predicate (#3104) — corrected,
 org-pack-safe" (the exact predicate) and §"POST-PLAN SQUAD REFRESH". Ground in the current
 `empty_charter.py` (`is_charter_empty:48-67`, `_MATCH_REASON:42`, imports `:33`) and
-`src/charter/activation/pack_context.py` (`PackContext.from_config`, `org_roots`, `activated_agent_profiles`,
+`src/charter/pack_context.py` (`PackContext.from_config`, `org_roots`, `activated_agent_profiles`,
 `activated_directives:144`).
 
 ## Guidance
@@ -104,7 +104,7 @@ only.
 **Fixture-realism guard (squad — the #3104 proof depends on it):** case (2) is only a valid #3104 proof if the
 fixture reproduces the **real** `apply minimal` config — build it via the actual `charter pack apply minimal`
 path, or assert the produced `config.yaml` has **no** `activated_agent_profiles` key (confirmed absent in
-`src/charter/activation/packs/minimal.yaml`). A hand-crafted config that writes `activated_agent_profiles: []` becomes
+`src/charter/packs/minimal.yaml`). A hand-crafted config that writes `activated_agent_profiles: []` becomes
 `frozenset()` (not `None`) → predicate returns `False` → net disengages → #3104 is **not** actually fixed, yet
 a synthetic-config test could still go green. Track the real command, not a stand-in.
 
@@ -157,7 +157,7 @@ Gate: `uv run pytest` these three node-sets green plus the WP01 test file; `ruff
 
 **T006b — dead-symbol gate fallout (NFR-001/#3118).** Removing the `charter_activated_urns` call from
 `empty_charter.py` (the #3118 double-config-load fold) deletes its LAST `src/` caller. `charter_activated_urns`
-stays in `charter.activation.pack_context.__all__` (documented "single activation authority, FR-017") and is still consumed
+stays in `charter.pack_context.__all__` (documented "single activation authority, FR-017") and is still consumed
 by the DRG reachability/extractor test suites, so it is now **genuinely-public-but-unwired forward API** →
 `tests/architectural/test_no_dead_symbols.py::test_no_public_symbol_in_all_is_unimported` FAILS. **Fix:** re-add
 a `SymbolKey("charter_activated_urns", "<body_hash>")` entry to the `_CATEGORY_C_DELIVERY_RAIL_FORWARD_API`

@@ -12,8 +12,8 @@ findings:
   - artifact: 'plan.md § Project Structure — `kind_vocabulary.py           # _org_scan_dirs (:200-209)
       — the only production edit`'
   - artifact: plan.md § Campsite-Clean Scope (new text) — "the implementing WP must update this docstring
-      sentence" (the `_scan_roots` docstring at `src/charter/activation/kind_vocabulary.py:158-160`)
-  - code: src/charter/activation/kind_vocabulary.py:142-181 (_scan_roots, whose docstring lines 158-160 are the sentence
+      sentence" (the `_scan_roots` docstring at `src/charter/kind_vocabulary.py:158-160`)
+  - code: src/charter/kind_vocabulary.py:142-181 (_scan_roots, whose docstring lines 158-160 are the sentence
       the fix now mandates be updated)
   claim: 'The fix commit added a new paragraph to Campsite-Clean Scope requiring the implementing WP to
     edit `_scan_roots`''s docstring (a second function in `kind_vocabulary.py`, distinct from `_org_scan_dirs`)
@@ -38,7 +38,7 @@ findings:
     and C-001–C-005 never name
   evidence:
   - artifact: plan.md § Nothing Generated, No Contract Movement (new text) — "the implementing WP adds
-      one additional assertion to FR-002's own new test module ... asserting `charter.activation.compiler._resolve_config_activated_ids`
+      one additional assertion to FR-002's own new test module ... asserting `charter.compiler._resolve_config_activated_ids`
       no longer raises `UnknownArtifactIdError` ... it is the same new module FR-002 already authorizes."
   - artifact: spec.md FR-002 — scoped explicitly to "the full `activate()` → `filter_graph_by_activation()`
       round trip, not a direct `resolve_artifact_urn()` call"; no mention of `compiler.py` or `_resolve_config_activated_ids`
@@ -51,7 +51,7 @@ findings:
     scope in spec.md, or explicitly document the gap as deferred). The fix took a third, unlisted path:
     it added the compiler.py assertion directly in plan.md without touching spec.md at all. spec.md''s
     FR-002 text is unchanged and still describes only the `filter_graph_by_activation` round trip; no
-    FR/C authorizes asserting behavior of `charter.activation.compiler._resolve_config_activated_ids`. The plan''s
+    FR/C authorizes asserting behavior of `charter.compiler._resolve_config_activated_ids`. The plan''s
     own justification — "it is the same new module FR-002 already authorizes" — conflates file-level authorization
     (C-001''s bounded file set) with content-level authorization (what FR-002 says the module must prove),
     which are different constraints. A downstream `/spec-kitty.analyze` or requirement-traceability pass
@@ -125,16 +125,16 @@ findings:
   severity: 1
   title: Two small precision slips in the newly-added consumer analysis
   evidence:
-  - artifact: plan.md § Related, Not Fixed — "`_layer_scan_dirs` (`src/charter/activation/kind_vocabulary.py:219-228`,
+  - artifact: plan.md § Related, Not Fixed — "`_layer_scan_dirs` (`src/charter/kind_vocabulary.py:219-228`,
       via `_layer_candidate_dir`, `:212-217`)"
-  - code: src/charter/activation/kind_vocabulary.py:212-216 (_layer_candidate_dir's actual body; line 217 is a blank
+  - code: src/charter/kind_vocabulary.py:212-216 (_layer_candidate_dir's actual body; line 217 is a blank
       line before the next def, not part of the function)
   - artifact: plan.md § The Seam — "`consistency_check.py`'s two call sites narrowly catch `UnknownArtifactIdError`
       and report the stem as unresolved"
-  - code: src/charter/activation/consistency_check.py:744-748 (_check_reference_id_parity's call site does a bare
+  - code: src/charter/consistency_check.py:744-748 (_check_reference_id_parity's call site does a bare
       `continue` on catch, with no report emitted from that except block — the comment there says the
       report happens via a separate check, `_check_unknown_references`)
-  - code: src/charter/activation/consistency_check.py:815-819 (_resolve_graph_kind_parity_stem's call site does directly
+  - code: src/charter/consistency_check.py:815-819 (_resolve_graph_kind_parity_stem's call site does directly
       append to `verification_errors`/`suggestions` on catch)
   claim: '`_layer_candidate_dir` is cited as `:212-217`, one line past its actual body (`:212-216`); line
     217 is a blank separator line. Separately, "consistency_check.py''s two call sites ... report the

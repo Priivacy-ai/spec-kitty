@@ -28,7 +28,7 @@ create_intent:
 execution_mode: code_change
 model: ''
 owned_files:
-- src/charter/activation/compiler.py
+- src/charter/compiler.py
 - tests/charter/test_compiler_documentation_policy.py
 role: implementer
 tags: []
@@ -55,7 +55,7 @@ Load `python-pedro` via the `/ad-hoc-profile-load` skill (read `src/doctrine/age
 
 ## Context & Constraints
 
-- Root cause (research.md): `src/charter/activation/compiler.py:942-944` reads `docs = interview.answers.get("documentation_policy")`, gates `if docs:`, but emits a **hardcoded** string. The adjacent `risk_boundaries` at `:937-939` IS interpolated.
+- Root cause (research.md): `src/charter/compiler.py:942-944` reads `docs = interview.answers.get("documentation_policy")`, gates `if docs:`, but emits a **hardcoded** string. The adjacent `risk_boundaries` at `:937-939` IS interpolated.
 - **Single sink** — directive output flows only to `charter.md` Project Directives; no `directives.yaml` emitted here (research-confirmed). Do not touch the synthesizer styleguide path.
 - **C-005 red-first** through the pre-existing `charter generate --from-interview` surface. **C-007** realistic sentinel prose. **NFR-003** ruff/mypy clean, complexity ≤ 15.
 
@@ -70,8 +70,8 @@ Load `python-pedro` via the `/ad-hoc-profile-load` skill (read `src/doctrine/age
 ### Subtask T002 — Interpolate the answer
 
 - **Purpose**: Honour the answer.
-- **Steps**: At `src/charter/activation/compiler.py:944`, change the hardcoded line to interpolate `docs`, mirroring the `risk` shape, e.g. `lines.append(f"{index}. Keep documentation synchronized with workflow and behavior changes: {docs}")`. Keep the `if docs:` gate and `index += 1`.
-- **Files**: `src/charter/activation/compiler.py`.
+- **Steps**: At `src/charter/compiler.py:944`, change the hardcoded line to interpolate `docs`, mirroring the `risk` shape, e.g. `lines.append(f"{index}. Keep documentation synchronized with workflow and behavior changes: {docs}")`. Keep the `if docs:` gate and `index += 1`.
+- **Files**: `src/charter/compiler.py`.
 
 ### Subtask T003 — Empty-answer regression test
 

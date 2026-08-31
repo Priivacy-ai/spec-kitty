@@ -20,10 +20,10 @@ agent: "codex:gpt-4o:reviewer-renata:reviewer"
 shell_pid: "1091724"
 history: []
 agent_profile: python-pedro
-authoritative_surface: src/charter/activation/schemas.py
+authoritative_surface: src/charter/schemas.py
 execution_mode: code_change
 owned_files:
-- src/charter/activation/schemas.py
+- src/charter/schemas.py
 - tests/charter/test_schemas_additive_fields.py
 role: implementer
 tags: []
@@ -71,7 +71,7 @@ in parallel.
 
 ## Subtask T001 — Add `references: list[str] = []` to `Directive`
 
-**File**: `src/charter/activation/schemas.py`
+**File**: `src/charter/schemas.py`
 
 Locate the `Directive` pydantic model. Add an additive field:
 
@@ -92,7 +92,7 @@ looks each entry up via `DoctrineService` and surfaces the body.
 
 ## Subtask T002 — Add `authority_paths: list[str] = []` to `DoctrineSelectionConfig`
 
-**File**: `src/charter/activation/schemas.py`
+**File**: `src/charter/schemas.py`
 
 Locate `DoctrineSelectionConfig`. Add the additive field:
 
@@ -127,8 +127,8 @@ renderer in WP04 only surfaces paths that exist on disk.
 
 ## Definition of Done
 
-- [ ] `src/charter/activation/schemas.py::Directive` carries `references: list[str] = []`.
-- [ ] `src/charter/activation/schemas.py::DoctrineSelectionConfig` carries `authority_paths: list[str] = []`.
+- [ ] `src/charter/schemas.py::Directive` carries `references: list[str] = []`.
+- [ ] `src/charter/schemas.py::DoctrineSelectionConfig` carries `authority_paths: list[str] = []`.
 - [ ] `tests/charter/test_schemas_additive_fields.py` exists and passes (5 tests).
 - [ ] All existing tests under `tests/charter/` still pass.
 - [ ] `tests/architectural/test_layer_rules.py` (8 tests) still passes (NFR-004).

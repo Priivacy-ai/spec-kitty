@@ -26,10 +26,10 @@ history:
   event: created
   actor: claude
 agent_profile: python-pedro
-authoritative_surface: src/charter/activation/consistency_check.py
+authoritative_surface: src/charter/consistency_check.py
 execution_mode: code_change
 owned_files:
-- src/charter/activation/consistency_check.py
+- src/charter/consistency_check.py
 - tests/charter/test_consistency_check.py
 role: implementer
 tags: []
@@ -52,7 +52,7 @@ outside the `owned_files` list above.
 ## Objective
 
 Implement `run_consistency_check(ctx: ProjectContext) -> ConsistencyReport` in
-`src/charter/activation/consistency_check.py`. The function inspects the project's activated
+`src/charter/consistency_check.py`. The function inspects the project's activated
 artifact IDs against the doctrine, the DRG edge graph, and the activation sets
 themselves for duplicate and kind-violation defects. The result is a frozen
 `ConsistencyReport` dataclass consumed by `charter pack consistency-check` (WP06)
@@ -120,18 +120,18 @@ FR-011, FR-012, NFR-003
 **Requirement refs**: FR-011, NFR-003
 
 **Files**:
-- `src/charter/activation/consistency_check.py` (new)
+- `src/charter/consistency_check.py` (new)
 
 **Steps**:
 
 1. Read the following files before writing a line:
-   - `src/charter/activation/pack_manager.py` — understand `CharterPackManager`, `YAML_KEY_MAP`,
+   - `src/charter/pack_manager.py` — understand `CharterPackManager`, `YAML_KEY_MAP`,
      and how activation sets are read.
-   - `src/charter/activation/pack_context.py` — understand `PackContext` fields for the 9 kinds.
+   - `src/charter/pack_context.py` — understand `PackContext` fields for the 9 kinds.
    - WP03 delivery for `ProjectContext.require_pack_context()` — understand how to
      obtain a `PackContext` from a `ProjectContext`.
 
-2. Create `src/charter/activation/consistency_check.py`. Start with the module docstring and
+2. Create `src/charter/consistency_check.py`. Start with the module docstring and
    imports, then define `ConsistencyReport`:
 
    ```python
@@ -142,8 +142,8 @@ FR-011, FR-012, NFR-003
    import json
    from dataclasses import dataclass, field
 
-   from charter.activation.pack_context import PackContext
-   from charter.activation.invocation_context import ProjectContext
+   from charter.pack_context import PackContext
+   from charter.invocation_context import ProjectContext
 
 
    @dataclass(frozen=True)
@@ -209,7 +209,7 @@ FR-011, FR-012, NFR-003
    b. Load the project's doctrine reader once. Use
       `CharterPackManager().list_available(ctx, kind)` (delivered by WP04) to retrieve
       the full set of known doctrine IDs for a given kind. Read
-      `src/charter/activation/pack_manager.py` first to confirm the exact signature and return
+      `src/charter/pack_manager.py` first to confirm the exact signature and return
       type. If the method name differs from `list_available`, adapt — do not guess.
 
    c. For each CLI kind name in `YAML_KEY_MAP` (all 9):
@@ -237,7 +237,7 @@ FR-011, FR-012, NFR-003
 ```bash
 cd /home/stijn/Documents/_code/SDD/fork/spec-kitty
 python -c "
-from charter.activation.consistency_check import ConsistencyReport, run_consistency_check
+from charter.consistency_check import ConsistencyReport, run_consistency_check
 r = ConsistencyReport(coherent=True)
 print('coherent:', r.coherent)
 print('json:', r.to_json()[:40])
@@ -253,7 +253,7 @@ Expected: prints `coherent: True` and a JSON snippet, no errors.
 **Requirement refs**: FR-012
 
 **Files**:
-- `src/charter/activation/consistency_check.py`
+- `src/charter/consistency_check.py`
 
 **Steps**:
 
@@ -272,7 +272,7 @@ Expected: prints `coherent: True` and a JSON snippet, no errors.
    # Pattern A kinds carry edges to other kinds in the DRG.
    _DRG_SOURCE_KINDS = {"directive", "tactic", "styleguide", "toolguide"}
 
-   # Load the DRG: read src/charter/activation/context.py (_load_action_doctrine_bundle) and
+   # Load the DRG: read src/charter/context.py (_load_action_doctrine_bundle) and
    # src/charter/drg.py to find the correct load path available in this charter
    # module. filter_graph_by_activation is in charter.drg.
    # Example pattern (adapt to actual API):
@@ -319,7 +319,7 @@ Expected: prints `coherent: True` and a JSON snippet, no errors.
 ```bash
 cd /home/stijn/Documents/_code/SDD/fork/spec-kitty
 python -c "
-from charter.activation.consistency_check import run_consistency_check
+from charter.consistency_check import run_consistency_check
 print('run_consistency_check callable:', callable(run_consistency_check))
 "
 ```
@@ -332,7 +332,7 @@ Expected: `True`. DRG traversal path will be exercised fully by T033 tests.
 **Requirement refs**: FR-011
 
 **Files**:
-- `src/charter/activation/consistency_check.py`
+- `src/charter/consistency_check.py`
 
 **Steps**:
 
@@ -399,7 +399,7 @@ Expected: `True`. DRG traversal path will be exercised fully by T033 tests.
 ```bash
 cd /home/stijn/Documents/_code/SDD/fork/spec-kitty
 python -c "
-from charter.activation.consistency_check import ConsistencyReport
+from charter.consistency_check import ConsistencyReport
 r = ConsistencyReport(
     coherent=False,
     kind_violations=['directive/foo: Duplicate entry in activation set.'],
@@ -511,8 +511,8 @@ Before marking WP07 as `for_review`:
 - [ ] `run_consistency_check` completes in < 2 seconds against the built-in doctrine
   (manual `time pytest tests/charter/test_consistency_check.py -k completes_within`
   or the dedicated timing test).
-- [ ] `ruff check src/charter/activation/consistency_check.py` — no lint errors.
-- [ ] `mypy src/charter/activation/consistency_check.py --strict` — no type errors.
+- [ ] `ruff check src/charter/consistency_check.py` — no lint errors.
+- [ ] `mypy src/charter/consistency_check.py --strict` — no type errors.
 - [ ] No files outside `owned_files` were modified.
 
 ## Activity Log

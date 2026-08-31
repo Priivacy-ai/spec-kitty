@@ -35,7 +35,7 @@ execution_mode: code_change
 model: claude-sonnet-5
 owned_files:
 - src/specify_cli/cli/commands/doctor.py
-- src/charter/activation/action_grain.py
+- src/charter/action_grain.py
 - tests/specify_cli/cli/commands/test_doctor_doctrine_integrity.py
 - tests/architectural/test_cross_grain_builtin_gate.py
 role: implementer
@@ -86,7 +86,7 @@ invoke `doctor doctrine --json`, and assert RC=1 + a structured collision findin
 
 ### T021 — Wire the scan into `doctrine_check`
 
-Import `scan_builtin_cross_grain_duplicates` from `charter.activation.action_grain` and call it in `doctrine_check`
+Import `scan_builtin_cross_grain_duplicates` from `charter.action_grain` and call it in `doctrine_check`
 before computing `exit_code`. On `CrossGrainDoubleDeclarationError`: mark the report unhealthy (or force
 `exit_code=1`) and add a structured finding to the `--json` payload + a loud human line (mirror
 `_render_unsanctioned_override_findings`). On success, contribute a healthy result without changing the exit
@@ -106,7 +106,7 @@ as the finer-grained structural home (owned elsewhere — do not edit it here).
 
 ### T024 — Quality gate
 
-- `uv run ruff check src/specify_cli/cli/commands/doctor.py src/charter/activation/action_grain.py && uv run mypy --strict src/specify_cli/cli/commands/doctor.py src/charter/activation/action_grain.py`
+- `uv run ruff check src/specify_cli/cli/commands/doctor.py src/charter/action_grain.py && uv run mypy --strict src/specify_cli/cli/commands/doctor.py src/charter/action_grain.py`
 - `uv run pytest tests/specify_cli/cli/commands/test_doctor_doctrine_integrity.py tests/architectural/test_cross_grain_builtin_gate.py -q`
 - **Dead-symbol gate MUST be green (C-003):** `uv run python -m pytest tests/adversarial tests/architectural tests/architecture tests/lint -m 'arch_shard_1 and not windows_ci and (git_repo or integration or architectural) and not timing' -q -n auto --dist loadfile`
 - Smoke: `uv run spec-kitty doctor doctrine --json` returns RC=0 on the clean repo.

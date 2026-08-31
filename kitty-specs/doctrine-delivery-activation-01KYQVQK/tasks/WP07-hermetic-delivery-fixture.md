@@ -83,7 +83,7 @@ Use language identifiers in code blocks: ````python`, ````bash`
     "charter")`. This copies EVERYTHING under `.kittify/charter/`, including the gitignored
     `context-state.json` (`.gitignore:88` confirms it's gitignored; confirmed present in THIS checkout at
     `.kittify/charter/context-state.json`, ~204 bytes, as of this grounding pass).
-  - `_prepare_context_state` (`src/charter/activation/context.py:696`) reads `repo_root / ".kittify" / "charter" /
+  - `_prepare_context_state` (`src/charter/context.py:696`) reads `repo_root / ".kittify" / "charter" /
     "context-state.json"` to determine `first_load`. In a populated local checkout, the COPIED file makes
     `first_load=False` on what the test expects to be a virgin project, so
     `test_artefact_on_first_load_is_present_on_second_load`'s `assert first.mode == "bootstrap"`

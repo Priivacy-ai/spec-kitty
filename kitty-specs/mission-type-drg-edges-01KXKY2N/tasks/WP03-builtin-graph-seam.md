@@ -38,9 +38,9 @@ owned_files:
 - src/specify_cli/doctrine/pack_validator.py
 - src/specify_cli/calibration/walker.py
 - src/specify_cli/charter_runtime/lint/_drg.py
-- src/charter/activation/_drg_helpers.py
-- src/charter/activation/compiler.py
-- src/charter/activation/reference_resolver.py
+- src/charter/_drg_helpers.py
+- src/charter/compiler.py
+- src/charter/reference_resolver.py
 - src/specify_cli/cli/commands/charter/_status_collectors.py
 - src/specify_cli/cli/commands/_doctrine_collect.py
 - src/specify_cli/cli/commands/_profile_health_render.py

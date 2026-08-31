@@ -36,7 +36,7 @@ owned_files:
 - src/doctrine/styleguides/models.py
 - src/doctrine/tactics/built-in/common-docs-find.tactic.yaml
 - src/doctrine/paradigms/built-in/brownfield-onboarding.paradigm.yaml
-- src/charter/activation/schemas.py
+- src/charter/schemas.py
 - src/specify_cli/calibration/walker.py
 - src/doctrine/directives/validation.py
 - src/doctrine/procedures/validation.py

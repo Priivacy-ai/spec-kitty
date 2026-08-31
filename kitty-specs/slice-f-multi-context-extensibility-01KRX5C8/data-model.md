@@ -20,11 +20,11 @@ Cross-mission reuse: this mission **reuses, does not redefine**, the following s
 |---|---|---|---|---|
 | 2 | `OrgDRGFragment` | `src/charter/drg.py` | FR-001 | One loaded organisation-tier DRG fragment with provenance metadata |
 | 3 | `OrgDRGConflict` | `src/charter/drg.py` | FR-004, FR-005 | Typed conflict report when shipped/org/project layers disagree |
-| 4 | `CharterScope` | `src/charter/activation/scope.py` | FR-009, FR-010 | Runtime resolver for "which charter applies to this filesystem path" |
+| 4 | `CharterScope` | `src/charter/scope.py` | FR-009, FR-010 | Runtime resolver for "which charter applies to this filesystem path" |
 | 5 | `WorkflowSequence` | `src/specify_cli/next/_internal_runtime/workflow_schema.py` | FR-012 | First-class artifact for a mission's action sequence |
 | 6 | `ActionStep` | `src/specify_cli/next/_internal_runtime/workflow_schema.py` | FR-012 | One step within a `WorkflowSequence` |
 | 7 | `RatchetBaseline` (YAML schema, not Pydantic) | `tests/architectural/_baselines.yaml` | FR-110 | Per-test, per-category baseline sizes for every mutable allowlist |
-| 8 | `CatalogMissEvent` (logging payload extension) | `src/charter/activation/_catalog_miss.py` (no new module) | FR-131 | Structured-log `extra=` dict fields for the FR-131 Rich-aware handler |
+| 8 | `CatalogMissEvent` (logging payload extension) | `src/charter/_catalog_miss.py` (no new module) | FR-131 | Structured-log `extra=` dict fields for the FR-131 Rich-aware handler |
 | 9 | `Mission.meta_json.workflow_id` | `kitty-specs/<mission>/meta.json` (operator-facing) | FR-013 | Optional field selecting the active workflow; `None` ⇒ `software-dev-default` |
 
 ---
@@ -55,7 +55,7 @@ A loaded organisation-tier DRG fragment with provenance metadata. The loader pro
 
 ### Provenance threading
 
-When `charter.activation.context.build_charter_context` renders an artifact stanza, the `source` field on each contributing node is one of:
+When `charter.context.build_charter_context` renders an artifact stanza, the `source` field on each contributing node is one of:
 
 - `built-in` (shipped layer, no org/project override)
 - `org:<pack_name>` (contributed by an `OrgDRGFragment`)
@@ -105,7 +105,7 @@ class OrgDRGConflictError(Exception):
 
 ## 4. `CharterScope` (FR-009, FR-010)
 
-Location: `src/charter/activation/scope.py`
+Location: `src/charter/scope.py`
 
 The runtime abstraction that resolves "which charter applies to this filesystem path" given an optional monorepo layout.
 
@@ -249,7 +249,7 @@ To be determined by WP01 implementer from HEAD-of-mission-branch readings. Initi
 
 ## 8. `CatalogMissEvent` — logging payload extension (FR-131)
 
-Location: `src/charter/activation/_catalog_miss.py` (no new module; extends existing `_LOGGER.warning(extra=...)` payload)
+Location: `src/charter/_catalog_miss.py` (no new module; extends existing `_LOGGER.warning(extra=...)` payload)
 
 When the FR-131 Rich-aware handler emits a catalog-miss warning, the log record's `extra=` dict MUST carry the following fields. The handler reads these to format the operator-facing message.
 

@@ -31,7 +31,7 @@ literal string `built-in` (with hyphen). The code emits `builtin` (no hyphen).
 
 **Evidence in code:**
 
-- `src/charter/activation/context.py:775` constrains the value:
+- `src/charter/context.py:775` constrains the value:
   `"source": source if source in {"builtin", "org", "project"} else "builtin"`
 - `src/doctrine/base.py:225` initialises provenance:
   `self._provenance = {k: "builtin" for k in self._items}`

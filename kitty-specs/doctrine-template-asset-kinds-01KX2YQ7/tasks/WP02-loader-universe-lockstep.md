@@ -32,8 +32,8 @@ execution_mode: code_change
 model: ''
 owned_files:
 - src/doctrine/drg/org_pack_loader.py
-- src/charter/activation/activations.py
-- src/charter/activation/pack_context.py
+- src/charter/activations.py
+- src/charter/pack_context.py
 - tests/doctrine/test_org_pack_augmentation.py
 - tests/charter/test_pack_context.py
 role: implementer
@@ -97,7 +97,7 @@ Done when:
 - **Steps**: add `templates` + `assets` to `charter/activations.py::_ALLOWED_KINDS` and
   `charter/pack_context.py::_BUILTIN_ARTIFACT_KINDS` **in the same WP** — the drift-guard asserts
   `_ORG_DRG_CANONICAL_KINDS == _ALLOWED_KINDS (normalised) ∪ {mission_types}`, so a partial move is guaranteed-red.
-- **Files**: `src/charter/activation/activations.py`, `src/charter/activation/pack_context.py`.
+- **Files**: `src/charter/activations.py`, `src/charter/pack_context.py`.
 
 ### T009 – Tests
 - **Steps**: update `test_org_pack_augmentation.py` (eligible-set no longer contains templates/assets; the
@@ -121,6 +121,6 @@ drift-guard is red until all three mirrors move, land T006+T007+T008 together be
 ## Activity Log
 - 2026-07-09T10:15:17Z – system – Prompt created.
 - 2026-07-09T11:02:23Z – claude:sonnet:python-pedro:implementer – shell_pid=1684490 – Assigned agent via action command
-- 2026-07-09T11:16:54Z – claude:sonnet:python-pedro:implementer – shell_pid=1684490 – Ready: templates+assets node-declarable in org_pack_loader (_ORG_DRG_KIND_ALIASES/_ORG_DRG_CANONICAL_KINDS); augmentation exclusion now routes through imported _NON_AUGMENTATION_ELIGIBLE_KINDS (no is-not-TEMPLATE); charter.activation.activations._ALLOWED_KINDS + charter.activation.pack_context._BUILTIN_ARTIFACT_KINDS moved in lockstep, drift-guard green. Tests: uv run pytest tests/doctrine/test_org_pack_augmentation.py tests/charter/test_pack_context.py -q -> 55 passed. Lint: uv run ruff check <diff files> -> exit 0. mypy: Success, no issues.
+- 2026-07-09T11:16:54Z – claude:sonnet:python-pedro:implementer – shell_pid=1684490 – Ready: templates+assets node-declarable in org_pack_loader (_ORG_DRG_KIND_ALIASES/_ORG_DRG_CANONICAL_KINDS); augmentation exclusion now routes through imported _NON_AUGMENTATION_ELIGIBLE_KINDS (no is-not-TEMPLATE); charter.activations._ALLOWED_KINDS + charter.pack_context._BUILTIN_ARTIFACT_KINDS moved in lockstep, drift-guard green. Tests: uv run pytest tests/doctrine/test_org_pack_augmentation.py tests/charter/test_pack_context.py -q -> 55 passed. Lint: uv run ruff check <diff files> -> exit 0. mypy: Success, no issues.
 - 2026-07-09T11:18:26Z – claude:opus:reviewer-renata:reviewer – shell_pid=1769942 – Started review via action command
 - 2026-07-09T11:22:42Z – user – shell_pid=1769942 – Review passed: templates+assets added to _ORG_DRG_KIND_ALIASES/_ORG_DRG_CANONICAL_KINDS; augmentation exclusion in both AUGMENTATION_ELIGIBLE_KINDS and _AUGMENTATION_GLOBS derives via 'kind not in _NON_AUGMENTATION_ELIGIBLE_KINDS' imported from artifact_kinds (grep-confirmed zero is-not-TEMPLATE remnant; imported set consumed at both comprehensions, not shadowed); _ALLOWED_KINDS + _BUILTIN_ARTIFACT_KINDS moved in lockstep, drift-guard green; _OrgDRGNode UNCHANGED, no mime (D-08); tests cover eligible-set exclusion + node-declarable-yet-augmentation-excluded via real OrgDRGFragment.model_validate. 55 passed; sanity import OK; scope clean (5 owned files only).

@@ -1,10 +1,10 @@
 # Contract: `ensure_charter_bundle_fresh()` and extended `SyncResult`
 
-**Module**: `src/charter/activation/sync.py`
+**Module**: `src/charter/sync.py`
 **Introduced in**: WP2.2
 **Consumes**: `CharterBundleManifest` (WP2.1, v1.0.0), `resolve_canonical_repo_root()` (WP2.2)
 **Referenced by**: [plan.md §D-3](../plan.md), [spec.md FR-003, FR-004](../spec.md), [data-model.md](../data-model.md)
-**Scope (v1.0.0)**: the chokepoint is authoritative for the files `src/charter/activation/sync.py` materializes — `governance.yaml`, `directives.yaml`, `metadata.yaml`. It is NOT authoritative for `references.yaml` (compiler-produced) or `context-state.json` (runtime-state-produced). This scope is pinned by `CharterBundleManifest.SCHEMA_VERSION = "1.0.0"`. Future manifest versions may broaden scope; those require a new migration.
+**Scope (v1.0.0)**: the chokepoint is authoritative for the files `src/charter/sync.py` materializes — `governance.yaml`, `directives.yaml`, `metadata.yaml`. It is NOT authoritative for `references.yaml` (compiler-produced) or `context-state.json` (runtime-state-produced). This scope is pinned by `CharterBundleManifest.SCHEMA_VERSION = "1.0.0"`. Future manifest versions may broaden scope; those require a new migration.
 
 ---
 
@@ -110,21 +110,21 @@ Both exception types (`NotInsideRepositoryError`, `GitCommonDirUnavailableError`
 
 ### `sync()`
 
-Unchanged externally. Internally, it now receives `canonical_root` (a `Path`) from the chokepoint and produces paths relative to it. The extraction logic itself is untouched. `_SYNC_OUTPUT_FILES` (at `src/charter/activation/sync.py:32-36`) remains the authoritative list of files `sync()` writes.
+Unchanged externally. Internally, it now receives `canonical_root` (a `Path`) from the chokepoint and produces paths relative to it. The extraction logic itself is untouched. `_SYNC_OUTPUT_FILES` (at `src/charter/sync.py:32-36`) remains the authoritative list of files `sync()` writes.
 
 ### `load_governance_config()` / `load_directives_config()`
 
-Already route through `ensure_charter_bundle_fresh()` at `src/charter/activation/sync.py:204` and `:244`. After WP2.2 they automatically benefit from canonical-root resolution with no code change at those call sites — the `SyncResult` they receive carries the new `canonical_root` field, but they do not need to consume it (they read the derived YAMLs from the paths the chokepoint guarantees).
+Already route through `ensure_charter_bundle_fresh()` at `src/charter/sync.py:204` and `:244`. After WP2.2 they automatically benefit from canonical-root resolution with no code change at those call sites — the `SyncResult` they receive carries the new `canonical_root` field, but they do not need to consume it (they read the derived YAMLs from the paths the chokepoint guarantees).
 
 ### `post_save_hook()`
 
 Called after a CLI charter write. Consumes `SyncResult`. WP2.2 updates the hook to anchor displayed paths against `canonical_root` (R-3).
 
-### Compiler pipeline (`write_compiled_charter` at `src/charter/activation/compiler.py:169-196`)
+### Compiler pipeline (`write_compiled_charter` at `src/charter/compiler.py:169-196`)
 
 Out of scope for v1.0.0 chokepoint. Callers that need `references.yaml` materialized invoke the compiler pipeline explicitly (`spec-kitty charter generate`). The compiler pipeline MAY call the chokepoint to guarantee upstream `governance.yaml` / `directives.yaml` / `metadata.yaml` are fresh before compiling, but the chokepoint does not call the compiler.
 
-### `build_charter_context()` context-state.json writes (`src/charter/activation/context.py:385-398`)
+### `build_charter_context()` context-state.json writes (`src/charter/context.py:385-398`)
 
 Out of scope for v1.0.0 chokepoint. `context-state.json` remains lazily written by the context builder and is not validated by the chokepoint. The project `.gitignore` may continue to ignore it; the manifest is silent about it.
 

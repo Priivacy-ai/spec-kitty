@@ -13,9 +13,9 @@ findings:
     title: "Base-Branch Drift section cites the wrong file as evidence for the missing symbol"
     evidence:
       - artifact: "spec.md § Base-Branch Drift, lines 19-22 (\"Reason for the dependency\")"
-      - code: "src/charter/activation/_drg_helpers.py (this branch, lines 76 & 97) vs src/doctrine/drg/org_pack_config.py:474 (this branch)"
+      - code: "src/charter/_drg_helpers.py (this branch, lines 76 & 97) vs src/doctrine/drg/org_pack_config.py:474 (this branch)"
     claim: >
-      The spec cites src/charter/activation/_drg_helpers.py as the file where resolve_existing_org_roots
+      The spec cites src/charter/_drg_helpers.py as the file where resolve_existing_org_roots
       is verified absent on main, but the symbol is actually defined in
       src/doctrine/drg/org_pack_config.py:474. _drg_helpers.py only mentions the symbol's name
       in a docstring cross-reference; it neither defines nor imports it, on either branch, and
@@ -35,7 +35,7 @@ findings:
       - code: "src/specify_cli/cli/commands/charter/activate.py:447"
       - code: "src/specify_cli/cli/commands/charter/deactivate.py:221"
       - code: "src/specify_cli/cli/commands/charter/list_cmd.py:165,200,219,48-77"
-      - code: "src/charter/activation/pack_manager.py:779-816 (list_available_detailed signature: layer_roots: dict[str, Path] | None)"
+      - code: "src/charter/pack_manager.py:779-816 (list_available_detailed signature: layer_roots: dict[str, Path] | None)"
     claim: >
       resolve_layer_roots has a third call site (list_cmd.py:165, charter list --all-layers) that
       feeds layer_roots["org"] into list_available_detailed/_template_tier_roots, whose contract is
@@ -57,9 +57,9 @@ findings:
       - code: "src/specify_cli/cli/commands/charter/context.py:84-85 (org_root = org_roots[0] if org_roots else None)"
       - code: "src/specify_cli/cli/commands/charter/context.py:113-119 (build_charter_context(..., org_root=org_root))"
       - code: "src/specify_cli/cli/commands/charter/context.py:128-134 (build_charter_context_json(..., org_root=org_root))"
-      - code: "src/charter/activation/context.py:270-276 (build_charter_context calls _resolve_action_bundle with org_root=org_root)"
-      - code: "src/charter/activation/context.py:467-476 (build_charter_context_json calls _load_action_doctrine_bundle directly)"
-      - code: "src/charter/activation/action_doctrine_bundle.py:96-99 (\"An explicit org_root override ... is honoured verbatim and does not widen into the chain\")"
+      - code: "src/charter/context.py:270-276 (build_charter_context calls _resolve_action_bundle with org_root=org_root)"
+      - code: "src/charter/context.py:467-476 (build_charter_context_json calls _load_action_doctrine_bundle directly)"
+      - code: "src/charter/action_doctrine_bundle.py:96-99 (\"An explicit org_root override ... is honoured verbatim and does not widen into the chain\")"
     claim: >
       The CLI command precomputes one truncated org_root and passes it to BOTH build_charter_context
       (plain-text) and build_charter_context_json (JSON). build_charter_context already routes

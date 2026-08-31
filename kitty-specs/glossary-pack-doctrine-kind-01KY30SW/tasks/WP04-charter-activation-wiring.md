@@ -29,11 +29,11 @@ create_intent:
 execution_mode: code_change
 model: claude-opus-4-8
 owned_files:
-- src/charter/activation/activations.py
-- src/charter/activation/pack_context.py
-- src/charter/activation/consistency_check.py
+- src/charter/activations.py
+- src/charter/pack_context.py
+- src/charter/consistency_check.py
 - src/charter/drg.py
-- src/charter/activation/schemas.py
+- src/charter/schemas.py
 - src/doctrine/drg/org_pack_loader.py
 - src/specify_cli/doctrine/org_charter.py
 - tests/doctrine/test_org_pack_augmentation.py
@@ -68,12 +68,12 @@ silently ship without it. This WP closes that hole.
 ## Context — the surfaces (all verified against source)
 
 - **Three kind-lists** (hold **plural strings** like `"directives"`, add `"glossary_packs"`):
-  - `src/charter/activation/activations.py` → `_ALLOWED_KINDS`; also add `_SINGULAR_TO_PLURAL_KIND["glossary_pack"] = "glossary_packs"`.
-  - `src/charter/activation/pack_context.py` → `_BUILTIN_ARTIFACT_KINDS` (this is the **default-on** list) +
+  - `src/charter/activations.py` → `_ALLOWED_KINDS`; also add `_SINGULAR_TO_PLURAL_KIND["glossary_pack"] = "glossary_packs"`.
+  - `src/charter/pack_context.py` → `_BUILTIN_ARTIFACT_KINDS` (this is the **default-on** list) +
     `activated_glossary_packs` field + `_read_activated_glossary_packs` + wiring in `from_config`/`from_activation`.
   - `src/doctrine/drg/org_pack_loader.py` → add to `_ORG_DRG_KIND_ALIASES` (the **dict** behind the
     derived `_ORG_DRG_CANONICAL_KINDS` frozenset), NOT the frozenset directly.
-- **Two more per-kind maps**: `src/charter/activation/consistency_check.py` → `_CLI_KIND_TO_DRG_SINGULAR["glossary-pack"] = "glossary_pack"`; `src/charter/drg.py` → the two kind-map entries.
+- **Two more per-kind maps**: `src/charter/consistency_check.py` → `_CLI_KIND_TO_DRG_SINGULAR["glossary-pack"] = "glossary_pack"`; `src/charter/drg.py` → the two kind-map entries.
 - **Default-on mechanism (named)**: three-state `None` default + `_BUILTIN_ARTIFACT_KINDS` membership +
   the root graph fragment shipped in WP03. No `config.yaml` entry, no `suggests`/`requires` edge.
 - **The drift-guard**: `tests/doctrine/test_org_pack_augmentation.py:411-431` currently binds only
@@ -96,7 +96,7 @@ silently ship without it. This WP closes that hole.
   `activated_kinds` config is absent — the default-on seam).
 - Add the `activated_glossary_packs` field, a `_read_activated_glossary_packs` reader, and wire it into
   `from_config`/`from_activation` (mirror an existing `activated_*` field end-to-end).
-- **Exhaustiveness gate (surfaced during WP03 implementation, squad miss).** `src/charter/activation/schemas.py`
+- **Exhaustiveness gate (surfaced during WP03 implementation, squad miss).** `src/charter/schemas.py`
   `DoctrineSelectionConfig` must gain `selected_glossary_packs` (mirror `selected_directives`) or
   `tests/architectural/test_artifact_selection_completeness.py::test_every_doctrine_kind_has_a_charter_selected_field`
   stays RED (it asserts every `DoctrineService` kind has a `selected_<kind>` field). This is a
@@ -105,7 +105,7 @@ silently ship without it. This WP closes that hole.
 ### T020 — org-pack alias + consistency map + charter DRG maps · FR-008, FR-009
 
 - `src/doctrine/drg/org_pack_loader.py`: add `"glossary_packs"` to `_ORG_DRG_KIND_ALIASES`.
-- `src/charter/activation/consistency_check.py`: add `_CLI_KIND_TO_DRG_SINGULAR["glossary-pack"] = "glossary_pack"`.
+- `src/charter/consistency_check.py`: add `_CLI_KIND_TO_DRG_SINGULAR["glossary-pack"] = "glossary_pack"`.
 - `src/charter/drg.py`: add the two kind-map entries (mirror `directive`).
 - **Org-required exhaustiveness gate (squad miss, surfaced in WP03).** `src/specify_cli/doctrine/org_charter.py`
   `OrgCharterPolicy` must gain `required_glossary_packs` (mirror `required_directives` at ~:156) AND be

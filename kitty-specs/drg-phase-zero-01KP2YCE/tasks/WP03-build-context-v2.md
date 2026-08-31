@@ -29,7 +29,7 @@ authoritative_surface: src/doctrine/drg/
 execution_mode: code_change
 owned_files:
 - src/doctrine/drg/query.py
-- src/charter/activation/context.py
+- src/charter/context.py
 - tests/doctrine/drg/test_query.py
 - tests/charter/test_context_v2.py
 tags: []
@@ -39,11 +39,11 @@ tags: []
 
 ## Objective
 
-Implement `build_context_v2(profile, action, depth)` in `src/charter/activation/context.py` that queries the Doctrine Reference Graph to assemble governance context. The function composes DRG query primitives from `src/doctrine/drg/query.py` -- it does NOT embed graph traversal logic.
+Implement `build_context_v2(profile, action, depth)` in `src/charter/context.py` that queries the Doctrine Reference Graph to assemble governance context. The function composes DRG query primitives from `src/doctrine/drg/query.py` -- it does NOT embed graph traversal logic.
 
 ## Context
 
-The existing `build_charter_context()` in `src/charter/activation/context.py` assembles governance context by:
+The existing `build_charter_context()` in `src/charter/context.py` assembles governance context by:
 1. Loading action index files from disk
 2. Intersecting with project-selected directives
 3. Loading doctrine artifacts via `DoctrineService`
@@ -55,7 +55,7 @@ The existing `build_charter_context()` in `src/charter/activation/context.py` as
 3. Materializing resolved artifacts via `DoctrineService`
 4. Rendering formatted text
 
-The DRG package (`src/doctrine/drg/`) provides query primitives. Charter-specific assembly policy (how to compose the walk results into a prompt block) stays in `src/charter/activation/context.py`.
+The DRG package (`src/doctrine/drg/`) provides query primitives. Charter-specific assembly policy (how to compose the walk results into a prompt block) stays in `src/charter/context.py`.
 
 **Key constraint (FR-009)**: No per-action filtering logic in `build_context_v2`. Context size is determined entirely by graph topology (the `scope` edges in `graph.yaml`). If a surface is too large or too small, the fix is adjusting edges in `graph.yaml`, never adding if-statements in the function body.
 
@@ -103,12 +103,12 @@ The DRG package (`src/doctrine/drg/`) provides query primitives. Charter-specifi
 - [ ] `resolve_context` includes scope, requires, suggests, vocabulary results
 - [ ] Results are deterministic for the same graph
 
-### T020: Implement `build_context_v2()` in `src/charter/activation/context.py`
+### T020: Implement `build_context_v2()` in `src/charter/context.py`
 
 **Purpose**: Compose DRG query primitives with charter-specific rendering to produce governance context text.
 
 **Steps**:
-1. In `src/charter/activation/context.py`, add the function:
+1. In `src/charter/context.py`, add the function:
    ```python
    def build_context_v2(
        repo_root: Path,
@@ -148,7 +148,7 @@ The DRG package (`src/doctrine/drg/`) provides query primitives. Charter-specifi
 
 **Key constraint**: No if-statements that check action names and conditionally filter artifacts. The DRG's `scope` edges already determine what each action gets. The rendering logic is generic.
 
-**Files**: `src/charter/activation/context.py`
+**Files**: `src/charter/context.py`
 
 **Validation**:
 - [ ] Function signature matches specification
@@ -208,7 +208,7 @@ The DRG package (`src/doctrine/drg/`) provides query primitives. Charter-specifi
 ## Definition of Done
 
 1. `src/doctrine/drg/query.py` exists with `walk_edges` and `resolve_context`
-2. `build_context_v2()` exists in `src/charter/activation/context.py`
+2. `build_context_v2()` exists in `src/charter/context.py`
 3. Function composes DRG primitives (does not embed traversal logic)
 4. No per-action filtering logic (FR-009 verified by structural test)
 5. Profile parameter accepted but documented as Phase 0 degenerate

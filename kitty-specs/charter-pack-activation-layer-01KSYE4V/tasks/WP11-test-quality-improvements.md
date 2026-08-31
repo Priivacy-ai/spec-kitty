@@ -158,7 +158,7 @@ existing `TestPerformance` class.
            """Real I/O: PackContext.from_config() p99 ≤ 100ms over 50 runs."""
            import time
 
-           from charter.activation.pack_context import PackContext
+           from charter.pack_context import PackContext
 
            kittify = tmp_path / ".kittify"
            kittify.mkdir()
@@ -234,7 +234,7 @@ this test to the owned file. Create the file if it does not exist.
    from __future__ import annotations
    from pathlib import Path
    import pytest
-   from charter.activation.pack_context import PackContext
+   from charter.pack_context import PackContext
    pytestmark = [pytest.mark.fast]
    ```
 

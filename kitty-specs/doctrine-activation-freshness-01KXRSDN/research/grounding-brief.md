@@ -107,11 +107,11 @@ built-in `NodeKind`s that create the collision). This mission is the **activatio
 5. #2157 scope fence: 2157b OUT (recommend), only 2157a IN. → C-004
 
 ### Key files (absolute)
-- `src/charter/activation/activation_engine.py` (chokepoint `commit_plan:359`)
+- `src/charter/activation_engine.py` (chokepoint `commit_plan:359`)
 - `src/charter/bundle.py` (`compute_bundle_content_hash:133`, hash input-set `:47-52` — #2758)
-- `src/charter/activation/sync.py` (`_SYNC_OUTPUT_FILES:46`, triad omits references.yaml)
+- `src/charter/sync.py` (`_SYNC_OUTPUT_FILES:46`, triad omits references.yaml)
 - `src/specify_cli/charter_runtime/freshness/computer.py` (`_compute_synthesized_drg:349` — #2759 blind spot)
 - `src/specify_cli/charter_runtime/preflight/runner.py` (`_attempt_auto_refresh:327` — #2157a home)
-- `src/charter/activation/consistency_check.py` (`run_consistency_check:645` — the built-but-unwired guard)
+- `src/charter/consistency_check.py` (`run_consistency_check:645` — the built-but-unwired guard)
 - `src/specify_cli/cli/commands/agent/workflow.py` (`_require_current_analysis_report:835` — serial implement gate; 2157b)
-- `src/charter/activation/synthesizer/write_pipeline.py` (`promote:455`, stamp `:685`) + `resynthesize_pipeline.py` (`:205`) — #2732 write-side to preserve.
+- `src/charter/synthesizer/write_pipeline.py` (`promote:455`, stamp `:685`) + `resynthesize_pipeline.py` (`:205`) — #2732 write-side to preserve.

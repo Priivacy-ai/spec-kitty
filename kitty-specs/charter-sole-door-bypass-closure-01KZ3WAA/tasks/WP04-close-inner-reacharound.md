@@ -60,7 +60,7 @@ unfiltered repository directly, bypassing every other WP's gating. Left open, th
 (FR-007's Gate 5, absorbed from the former WP09 by a post-tasks squad — it only ever guarded these two
 sites, so a separate WP for it added a dependency edge for no real benefit).
 
-**Success criteria**: zero `._inner` attribute access on a `charter.activation.resolver.DoctrineService`/
+**Success criteria**: zero `._inner` attribute access on a `charter.resolver.DoctrineService`/
 `AgentProfileRepository`-typed expression anywhere in `src/` outside `src/charter/**`, gate-enforced with a
 self-mutation proof, not a one-time grep.
 
@@ -75,7 +75,7 @@ self-mutation proof, not a one-time grep.
 - **Gate scope correction** (debugger-debbie finding): a bare `._inner` AST scan across all of `src/`
   produces false positives on unrelated `._inner` attributes in `auth/transport.py` and
   `events/decision_log.py` that have nothing to do with `DoctrineService`. Scope the gate to `._inner`
-  access specifically on an expression that resolves to a `charter.activation.resolver.DoctrineService` or the
+  access specifically on an expression that resolves to a `charter.resolver.DoctrineService` or the
   `agent_profile_repository`/`agent_profiles` chain — not a bare `._inner` anywhere.
 
 ## Branch Strategy
@@ -110,7 +110,7 @@ self-mutation proof, not a one-time grep.
 - **Steps**:
   1. Write an architectural test that AST-walks all of `src/` for `._inner` attribute access where the
      receiver expression resolves (via type inference or a narrower syntactic pattern —
-     e.g. `.<name>._inner` where `<name>` is bound to a `charter.activation.resolver.DoctrineService`/
+     e.g. `.<name>._inner` where `<name>` is bound to a `charter.resolver.DoctrineService`/
      `agent_profile_repository`/`agent_profiles` chain) to a doctrine-service object, outside
      `src/charter/**`. Do NOT flag unrelated `._inner` attributes on unrelated classes (e.g.
      `auth/transport.py`, `events/decision_log.py` — confirmed false-positive risks if the pattern is too

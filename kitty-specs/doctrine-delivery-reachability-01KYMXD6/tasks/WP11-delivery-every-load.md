@@ -30,13 +30,13 @@ history:
   actor: system
   action: Prompt generated via /spec-kitty.tasks
 agent_profile: python-pedro
-authoritative_surface: src/charter/activation/compact.py
+authoritative_surface: src/charter/compact.py
 create_intent:
 - tests/charter/test_every_load_delivery.py
 execution_mode: code_change
 model: ''
 owned_files:
-- src/charter/activation/compact.py
+- src/charter/compact.py
 - src/specify_cli/cli/commands/agent/workflow.py
 - src/specify_cli/cli/commands/agent/workflow_executor.py
 - tests/charter/test_every_load_delivery.py
@@ -132,7 +132,7 @@ Read [`contracts/activation-delivery.md`](../contracts/activation-delivery.md) �
 Planning base and merge target `feat/doctrine-delivery-reachability`. **Depends on WP15** (links are
 the default before every-load turns on). `spec-kitty implement WP11` resolves the workspace.
 
-**File-ownership note**: **`src/charter/activation/context.py` is owned by WP10** (single owner — it cannot be
+**File-ownership note**: **`src/charter/context.py` is owned by WP10** (single owner — it cannot be
 co-owned). Your every-load/render edits to `context.py` are coordinated **out-of-map edits**, safe
 because the dependency chain WP10 → WP15 → WP11 serializes them behind WP10; record each with a
 one-line rationale. You **own** `compact.py` and the two workflow callers. Extract helpers, do not grow

@@ -59,7 +59,7 @@ total_missing_edges: 0   # after remediation
 Can a traversal of the merged DRG (shipped `graph.yaml` ∪ project overlay) produce an output that is a functional drop-in for `resolve_references_transitively()`'s `ResolvedReferenceGraph` payload?
 
 ### Method
-1. Read `src/charter/activation/reference_resolver.py` (187 LOC) to capture its full behavioral contract:
+1. Read `src/charter/reference_resolver.py` (187 LOC) to capture its full behavioral contract:
    - Inputs: `doctrine_service: DoctrineService`, starting directive IDs
    - Outputs: `ResolvedReferenceGraph(directives, tactics, styleguides, toolguides, procedures, unresolved)`
    - Traversal: depth-first, follows `tactic_refs`, `styleguide_refs`, `toolguide_refs`, `procedure_refs`

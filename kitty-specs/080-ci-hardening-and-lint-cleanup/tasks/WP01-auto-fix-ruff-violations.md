@@ -22,8 +22,8 @@ history:
 authoritative_surface: src/charter/
 execution_mode: code_change
 owned_files:
-- src/charter/activation/catalog.py
-- src/charter/activation/resolver.py
+- src/charter/catalog.py
+- src/charter/resolver.py
 - src/doctrine/missions/glossary_hook.py
 - src/kernel/_safe_re.py
 tags: []
@@ -36,7 +36,7 @@ tags: []
 Fix four isolated ruff violations across four independent files using ruff's own `--fix` mode
 (per C-004). Each file has exactly one violation. No file overlap with any other WP.
 
-After this WP, `ruff check src/charter/activation/catalog.py src/charter/activation/resolver.py src/doctrine/missions/glossary_hook.py src/kernel/_safe_re.py` must exit 0.
+After this WP, `ruff check src/charter/catalog.py src/charter/resolver.py src/doctrine/missions/glossary_hook.py src/kernel/_safe_re.py` must exit 0.
 
 ## Context
 
@@ -57,20 +57,20 @@ No other WP touches these four files.
 
 ### T001 — Fix ARG001: unused `doctrine_root` arg in `charter/catalog.py:245`
 
-**File:** `src/charter/activation/catalog.py`, around line 245
+**File:** `src/charter/catalog.py`, around line 245
 
 **Violation:** ARG001 — a function parameter `doctrine_root` is accepted but never used inside
 the function body. Ruff flags this to prevent silent parameter drift.
 
 **Fix approach:**
 ```bash
-ruff check --fix --select ARG001 src/charter/activation/catalog.py
+ruff check --fix --select ARG001 src/charter/catalog.py
 ```
 
 If ruff's auto-fix removes the parameter, verify the call sites still compile:
 ```bash
-ruff check src/charter/activation/catalog.py
-mypy src/charter/activation/catalog.py
+ruff check src/charter/catalog.py
+mypy src/charter/catalog.py
 ```
 
 If ruff cannot auto-fix (ARG001 is sometimes not auto-fixable), the manual fix is:
@@ -79,20 +79,20 @@ If ruff cannot auto-fix (ARG001 is sometimes not auto-fixable), the manual fix i
   add `_` prefix; if no callers pass it, remove it.
 - Do NOT simply suppress with `# noqa:` — that would re-introduce a violation.
 
-**Validation:** `ruff check src/charter/activation/catalog.py` exits 0 with no ARG001 errors.
+**Validation:** `ruff check src/charter/catalog.py` exits 0 with no ARG001 errors.
 
 ---
 
 ### T002 — Fix SIM108: if/else → ternary in `charter/resolver.py:120`
 
-**File:** `src/charter/activation/resolver.py`, around line 120
+**File:** `src/charter/resolver.py`, around line 120
 
 **Violation:** SIM108 — an `if/else` block that assigns a single value can be collapsed into
 a ternary expression for clarity.
 
 **Fix approach:**
 ```bash
-ruff check --fix --select SIM108 src/charter/activation/resolver.py
+ruff check --fix --select SIM108 src/charter/resolver.py
 ```
 
 SIM108 is auto-fixable. Ruff will rewrite the construct. Review the diff to confirm the
@@ -104,8 +104,8 @@ result = value_if_true if condition else value_if_false
 
 **Validation:**
 ```bash
-ruff check src/charter/activation/resolver.py  # exits 0
-mypy src/charter/activation/resolver.py         # exits 0
+ruff check src/charter/resolver.py  # exits 0
+mypy src/charter/resolver.py         # exits 0
 ```
 Run the charter test suite: `pytest tests/charter/ -m fast -q`
 
@@ -183,11 +183,11 @@ Run the kernel tests: `pytest tests/kernel/ -m fast -q`
 
 ```bash
 # 1. All four files clean
-ruff check src/charter/activation/catalog.py src/charter/activation/resolver.py \
+ruff check src/charter/catalog.py src/charter/resolver.py \
            src/doctrine/missions/glossary_hook.py src/kernel/_safe_re.py
 
 # 2. Mypy passes for each file
-mypy src/charter/activation/catalog.py src/charter/activation/resolver.py \
+mypy src/charter/catalog.py src/charter/resolver.py \
      src/doctrine/missions/glossary_hook.py src/kernel/_safe_re.py
 
 # 3. Affected test suites pass
@@ -204,7 +204,7 @@ If any command fails:
 
 ## Definition of Done
 
-- [ ] `ruff check src/charter/activation/catalog.py src/charter/activation/resolver.py src/doctrine/missions/glossary_hook.py src/kernel/_safe_re.py` exits 0
+- [ ] `ruff check src/charter/catalog.py src/charter/resolver.py src/doctrine/missions/glossary_hook.py src/kernel/_safe_re.py` exits 0
 - [ ] `mypy` exits 0 for all four files
 - [ ] Affected test suites pass (`tests/charter/`, `tests/kernel/`)
 - [ ] No new ruff or mypy violations introduced in any of the four files

@@ -18,7 +18,7 @@ picture rather than re-discovering it.
 
 [#3176](https://github.com/Priivacy-ai/spec-kitty/issues/3176) is the last named,
 composite-key-excluded call site (`projection.py:115`) blocking `default_profile_repository()`
-from going through `charter.activation.resolver.DoctrineService`'s unified builder — the "sole door" for
+from going through `charter.resolver.DoctrineService`'s unified builder — the "sole door" for
 doctrine/charter construction (mission `charter-sole-door-bypass-closure-01KZ3WAA`, parent
 [#1868](https://github.com/Priivacy-ai/spec-kitty/issues/1868)). Once it lands, every production
 caller constructs doctrine/charter services through one builder, not through scattered direct

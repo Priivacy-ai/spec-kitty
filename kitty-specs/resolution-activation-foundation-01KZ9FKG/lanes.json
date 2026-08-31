@@ -77,8 +77,8 @@
         "WP04"
       ],
       "write_scope": [
-        "src/charter/activation/mission_type_profiles.py",
-        "src/charter/activation/pack_context.py",
+        "src/charter/mission_type_profiles.py",
+        "src/charter/pack_context.py",
         "tests/charter/test_mission_type_activation_gating.py",
         "tests/charter/test_pack_context.py"
       ],

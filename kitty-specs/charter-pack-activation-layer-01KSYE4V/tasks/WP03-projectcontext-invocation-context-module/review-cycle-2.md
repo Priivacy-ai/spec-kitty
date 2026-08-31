@@ -20,7 +20,7 @@ review_artifact_override_reason: "Cycle-2 review passed: dead-symbol gate fixed 
 
 ## Summary
 
-The implementation is functionally correct and all 24 unit tests pass. However, there is one **blocking** issue that must be fixed before approval: the architectural dead-symbol gate (`test_no_dead_symbols.py`) fails because `charter.activation.invocation_context::ProjectContext` and `charter.activation.invocation_context::ContextPreconditionError` are declared in `__all__` but have no live caller in `src/`.
+The implementation is functionally correct and all 24 unit tests pass. However, there is one **blocking** issue that must be fixed before approval: the architectural dead-symbol gate (`test_no_dead_symbols.py`) fails because `charter.invocation_context::ProjectContext` and `charter.invocation_context::ContextPreconditionError` are declared in `__all__` but have no live caller in `src/`.
 
 ---
 
@@ -30,8 +30,8 @@ The implementation is functionally correct and all 24 unit tests pass. However, 
 
 **Symptoms**:
 ```
-charter.activation.invocation_context::ContextPreconditionError
-charter.activation.invocation_context::ProjectContext
+charter.invocation_context::ContextPreconditionError
+charter.invocation_context::ProjectContext
 ```
 Both symbols are in `__all__` but have zero `import` occurrences in `src/`. The dead-symbol scanner requires every `__all__` export to have at least one caller in `src/` (or be in the allowlist).
 
@@ -47,10 +47,10 @@ Change:
 ```python
 _CATEGORY_C_WP_IN_FLIGHT_CHARTER_SCOPE: frozenset[str] = frozenset(
     {
-        "charter.activation.invocation_context::OperationalContext",
-        "charter.activation.invocation_context::build_operational_context",
-        "charter.activation.invocation_context::OperationalContext.require_active_profile",
-        "charter.activation.invocation_context::OperationalContext.require_active_role",
+        "charter.invocation_context::OperationalContext",
+        "charter.invocation_context::build_operational_context",
+        "charter.invocation_context::OperationalContext.require_active_profile",
+        "charter.invocation_context::OperationalContext.require_active_role",
     }
 )
 ```
@@ -59,14 +59,14 @@ To:
 ```python
 _CATEGORY_C_WP_IN_FLIGHT_CHARTER_SCOPE: frozenset[str] = frozenset(
     {
-        "charter.activation.invocation_context::OperationalContext",
-        "charter.activation.invocation_context::build_operational_context",
-        "charter.activation.invocation_context::OperationalContext.require_active_profile",
-        "charter.activation.invocation_context::OperationalContext.require_active_role",
+        "charter.invocation_context::OperationalContext",
+        "charter.invocation_context::build_operational_context",
+        "charter.invocation_context::OperationalContext.require_active_profile",
+        "charter.invocation_context::OperationalContext.require_active_role",
         # ProjectContext and ContextPreconditionError have no src/ caller yet;
         # callers will be added by WP04–WP09 (charter-pack-activation-layer).
-        "charter.activation.invocation_context::ProjectContext",
-        "charter.activation.invocation_context::ContextPreconditionError",
+        "charter.invocation_context::ProjectContext",
+        "charter.invocation_context::ContextPreconditionError",
     }
 )
 ```
@@ -86,7 +86,7 @@ If `charter/__init__.py` already imports `ProjectContext` and `ContextPreconditi
 
 1. **Pre-existing test failures**: `test_no_dead_symbols.py` has pre-existing failures on the base branch unrelated to WP03 (e.g., `specify_cli.charter_activate::*`, `doctrine.missions.mission_step_repository::*`). The WP03 contribution adds two new failures on top of the pre-existing ones. The fix above addresses only the WP03-introduced failures.
 
-2. **mypy errors**: The 6 `import-untyped` errors for `jsonschema` stubs are pre-existing across the codebase and unrelated to this WP. `src/charter/activation/invocation_context.py` itself has zero mypy errors.
+2. **mypy errors**: The 6 `import-untyped` errors for `jsonschema` stubs are pre-existing across the codebase and unrelated to this WP. `src/charter/invocation_context.py` itself has zero mypy errors.
 
 3. **ruff**: All checks pass (`All checks passed!`).
 

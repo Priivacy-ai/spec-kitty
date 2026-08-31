@@ -40,13 +40,13 @@ _raised_ in the charter context resolution path. Currently it is only defined.
 > requested artifact is not in the activated set; errors include the artifact
 > identifier, the activated set, and the resolution command.
 
-**What WP10 delivered**: `src/charter/activation/exceptions.py` defines and exports
+**What WP10 delivered**: `src/charter/exceptions.py` defines and exports
 `CharterActivationError`. It is re-exported from `charter/__init__.__all__`.
 No production code path raises it — `grep -rn "raise CharterActivationError" src/`
 returns zero hits.
 
 **What the spec says about the call-site** (T046 body):
-> Wire the hard-fail guard into the DRG resolution path in `src/charter/activation/context.py`
+> Wire the hard-fail guard into the DRG resolution path in `src/charter/context.py`
 > (owned by WP08, so read-only for WP10).
 
 The spec correctly prohibits WP10 from editing `context.py`. However the DoD is
@@ -86,7 +86,7 @@ accordingly and note the decision in the activity log.
 ## Minor Observation (non-blocking)
 
 `tests/architectural/test_no_dead_symbols.py` has a stale allowlist entry
-`charter.activation.invocation_context::ProjectContext` — now that WP03 has introduced
+`charter.invocation_context::ProjectContext` — now that WP03 has introduced
 production callers, the allowlist entry should be removed. This is not WP10's
 concern (WP10 did not add it and does not own that file), but is noted for
 awareness.

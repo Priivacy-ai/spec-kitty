@@ -31,10 +31,10 @@ history:
   event: created
   note: Initial task breakdown
 agent_profile: python-pedro
-authoritative_surface: src/charter/activation/mission_type_profiles.py
+authoritative_surface: src/charter/mission_type_profiles.py
 execution_mode: code_change
 owned_files:
-- src/charter/activation/mission_type_profiles.py
+- src/charter/mission_type_profiles.py
 - tests/charter/test_mission_type_profiles.py
 - tests/charter/test_action_sequence_dispatch.py
 role: implementer
@@ -56,18 +56,18 @@ architectural constraints you must follow throughout this work package.
 
 ## Context
 
-The charter module (`src/charter/`) is the anti-corruption layer (ACL) between `specify_cli.next` and the doctrine layer. This WP adds two new public API functions to `src/charter/activation/mission_type_profiles.py` that `spec-kitty next` will use to replace the hardcoded frozenset dispatch tables (deleted in WP07).
+The charter module (`src/charter/`) is the anti-corruption layer (ACL) between `specify_cli.next` and the doctrine layer. This WP adds two new public API functions to `src/charter/mission_type_profiles.py` that `spec-kitty next` will use to replace the hardcoded frozenset dispatch tables (deleted in WP07).
 
 Additionally, `MissionTypeProfile.mission_type` is currently typed as `Literal["software-dev", "documentation", "research", "plan"]`. FR-009 requires opening this to `str` so custom mission types can be supported. Validation moves from Pydantic model construction time to call-time via `charter.existing_mission_types()`.
 
 ## Objective
 
-Add `charter.existing_mission_types()` and `charter.resolve_action_sequence()` to `src/charter/activation/mission_type_profiles.py`; open `MissionTypeProfile.mission_type` from `Literal` to `str`; update `UnknownMissionTypeError` to include `registered_ids`; update the ATDD test suite.
+Add `charter.existing_mission_types()` and `charter.resolve_action_sequence()` to `src/charter/mission_type_profiles.py`; open `MissionTypeProfile.mission_type` from `Literal` to `str`; update `UnknownMissionTypeError` to include `registered_ids`; update the ATDD test suite.
 
 ## Public API to Implement
 
 ```python
-# src/charter/activation/mission_type_profiles.py
+# src/charter/mission_type_profiles.py
 
 def existing_mission_types(repo_root: Path) -> list[str]:
     """Return sorted, deduplicated IDs of activated mission types for the project.
@@ -94,7 +94,7 @@ def resolve_action_sequence(
 
 ### T029 — Open MissionTypeProfile.mission_type from Literal to str
 
-In `src/charter/activation/mission_type_profiles.py`, find `mission_type: Literal["software-dev", "documentation", "research", "plan"]` and change the type annotation to `mission_type: str`.
+In `src/charter/mission_type_profiles.py`, find `mission_type: Literal["software-dev", "documentation", "research", "plan"]` and change the type annotation to `mission_type: str`.
 
 **Important Pydantic v2 detail**: In Pydantic v2, `Literal["a", "b"]` is enforced via the type annotation itself — there is no separate `@field_validator` to remove. Simply changing the annotation from `Literal[...]` to `str` is the complete change. Do NOT search for or remove a validator that does not exist; removing code that is not there would cause test failures.
 
@@ -102,7 +102,7 @@ Validation against the activation list moves to `resolve_mission_type_governance
 
 ### T030 — Update UnknownMissionTypeError with registered_ids
 
-Find `UnknownMissionTypeError` in `src/charter/activation/mission_type_profiles.py`. Add a `registered_ids: list[str]` field to the exception. Update the error message to include the list of registered IDs:
+Find `UnknownMissionTypeError` in `src/charter/mission_type_profiles.py`. Add a `registered_ids: list[str]` field to the exception. Update the error message to include the list of registered IDs:
 
 ```
 Unknown mission type 'compliance-audit'. Registered types: documentation, plan, research, software-dev.
@@ -135,7 +135,7 @@ This function must not be cached across calls (FR-007): it reads from disk each 
 
 ### T033 — Update resolve_mission_type_governance()
 
-Find `resolve_mission_type_governance(repo_root, feature_dir)` in `src/charter/activation/mission_type_profiles.py`.
+Find `resolve_mission_type_governance(repo_root, feature_dir)` in `src/charter/mission_type_profiles.py`.
 
 Update the validation check from:
 ```python
@@ -182,7 +182,7 @@ Extend `tests/charter/test_mission_type_profiles.py` with tests for `resolve_mis
 - [ ] `resolve_action_sequence()` raises `UnknownMissionTypeError` for unknown types
 - [ ] All updated ATDD tests pass
 - [ ] `tests/charter/test_action_sequence_dispatch.py` passes
-- [ ] `mypy --strict` clean on `src/charter/activation/mission_type_profiles.py`
+- [ ] `mypy --strict` clean on `src/charter/mission_type_profiles.py`
 - [ ] `__all__` updated with new public functions
 
 ## References

@@ -23,12 +23,12 @@ history:
   actor: system
   action: Prompt generated during /spec-kitty.tasks
 agent_profile: python-pedro
-authoritative_surface: src/charter/activation/mission_type_profiles.py
+authoritative_surface: src/charter/mission_type_profiles.py
 create_intent: []
 execution_mode: code_change
 model: ''
 owned_files:
-- src/charter/activation/mission_type_profiles.py
+- src/charter/mission_type_profiles.py
 - tests/charter/test_mission_type_profiles.py
 role: implementer
 tags: []
@@ -65,7 +65,7 @@ exception, landing in the same PR that first makes the silent-degrade path reach
 
 1. A new named exception class, `MissionTypeEmptyActionSequenceError` (or an equivalent name you
    settle on — keep it descriptive and consistent with the existing pattern), following the
-   existing `UnknownMissionTypeError` pattern already in `src/charter/activation/mission_type_profiles.py`
+   existing `UnknownMissionTypeError` pattern already in `src/charter/mission_type_profiles.py`
    (class at live-verified line ~193, raised for an analogous configuration-inconsistency case at
    ~738 and ~799 — live-verify all three).
 2. The new raise site sits inside `_resolve_action_slot`, specifically the branch that currently
@@ -118,7 +118,7 @@ exception, landing in the same PR that first makes the silent-degrade path reach
 - **NFR-002 (no silent success)** — this WP is the mission's canonical example of NFR-002 in
   action: the new raise site must never degrade back to `[]` under any code path.
 - **File overlap with WP04 is expected and fine** — both WPs touch
-  `src/charter/activation/mission_type_profiles.py` and `tests/charter/test_mission_type_profiles.py`, but
+  `src/charter/mission_type_profiles.py` and `tests/charter/test_mission_type_profiles.py`, but
   WP06 depends on WP04, so they are sequenced, not concurrent (see this mission's `wps.yaml` header
   comment on the ownership-map-leeway convention: file overlap is fine across a dependency edge).
 - **User Story 2 AC2's "same class of error" requirement** — `mission create` against the
@@ -163,7 +163,7 @@ exception, landing in the same PR that first makes the silent-degrade path reach
 
 - **Purpose**: NFR-005's mandatory second, passing commit.
 - **Steps**:
-  1. Add the exception class to `src/charter/activation/mission_type_profiles.py`, following
+  1. Add the exception class to `src/charter/mission_type_profiles.py`, following
      `UnknownMissionTypeError`'s existing pattern (constructor signature, `__str__`/message
      formatting — mirror its shape).
   2. Add the raise site inside `_resolve_action_slot`, replacing the silent
@@ -176,7 +176,7 @@ exception, landing in the same PR that first makes the silent-degrade path reach
   4. Run T013's test and confirm it now passes.
   5. Commit this alone, with a commit message stating which prior commit SHA (T013's) it makes
      green.
-- **Files**: `src/charter/activation/mission_type_profiles.py`.
+- **Files**: `src/charter/mission_type_profiles.py`.
 - **Parallel?**: No — depends on T013's commit existing first.
 
 ### Subtask T015 – `mission create` propagation test (User Story 2 AC2)

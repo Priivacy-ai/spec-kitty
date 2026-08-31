@@ -16,8 +16,8 @@
       ],
       "write_scope": [
         "src/charter/bundle.py",
-        "src/charter/activation/context.py",
-        "src/charter/activation/synthesizer/targets.py",
+        "src/charter/context.py",
+        "src/charter/synthesizer/targets.py",
         "src/doctrine/directives/shipped/038-structured-prompt-boundary.directive.yaml",
         "src/doctrine/paradigms/shipped/structured-prompt-driven-development.paradigm.yaml",
         "src/doctrine/skills/spec-kitty-spdd-reasons/SKILL.md",

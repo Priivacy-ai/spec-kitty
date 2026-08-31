@@ -10,7 +10,7 @@
       "wp_ids": ["WP02"],
       "write_scope": [
         "src/specify_cli/cli/commands/charter.py",
-        "src/charter/activation/synthesizer/write_pipeline.py",
+        "src/charter/synthesizer/write_pipeline.py",
         "tests/agent/cli/commands/test_charter_synthesize_cli.py",
         "tests/integration/test_json_envelope_strict.py",
         "tests/integration/test_charter_synthesize_fresh.py",

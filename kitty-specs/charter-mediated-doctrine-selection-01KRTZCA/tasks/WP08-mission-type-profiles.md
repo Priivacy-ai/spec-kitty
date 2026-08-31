@@ -20,10 +20,10 @@ subtasks:
 - T047
 agent: "claude:opus-4-7:reviewer-renata:reviewer"
 agent_profile: python-pedro
-authoritative_surface: src/charter/activation/mission_type_profiles.py
+authoritative_surface: src/charter/mission_type_profiles.py
 execution_mode: code_change
 owned_files:
-- src/charter/activation/mission_type_profiles.py
+- src/charter/mission_type_profiles.py
 - src/doctrine/missions/software-dev/governance-profile.yaml
 - src/doctrine/missions/documentation/governance-profile.yaml
 - src/doctrine/missions/research/governance-profile.yaml
@@ -45,7 +45,7 @@ shell_pid: "1785106"
 
 ## Objective
 
-Ship one `governance-profile.yaml` per canonical mission type (`software-dev`, `documentation`, `research`, `plan`) at `src/doctrine/missions/<type>/governance-profile.yaml`. Add the loader + resolver in `src/charter/activation/mission_type_profiles.py`. Hard-fail on unknown mission_type with no project override per FR-011 — no `software-dev-default` silent fallback.
+Ship one `governance-profile.yaml` per canonical mission type (`software-dev`, `documentation`, `research`, `plan`) at `src/doctrine/missions/<type>/governance-profile.yaml`. Add the loader + resolver in `src/charter/mission_type_profiles.py`. Hard-fail on unknown mission_type with no project override per FR-011 — no `software-dev-default` silent fallback.
 
 After this WP, a documentation mission gets documentation governance and a research mission gets research governance, with project + org selections layered on top.
 
@@ -55,7 +55,7 @@ After this WP, a documentation mission gets documentation governance and a resea
 
 Today every mission inherits `software-dev-default` template-set content regardless of mission_type. This is journey 4's documented leak. The fix is doctrine-side data (4 YAML files) + charter-side code (loader + resolver).
 
-`charter.activation.context` already reads `meta.json` for mission identity (via `resolve_canonical_repo_root` and friends). This WP adds a thin layer that branches on `mission_type` before assembling the governance payload.
+`charter.context` already reads `meta.json` for mission identity (via `resolve_canonical_repo_root` and friends). This WP adds a thin layer that branches on `mission_type` before assembling the governance payload.
 
 See:
 - [plan.md §1.5, §2.7, §2.8](../plan.md)
@@ -74,7 +74,7 @@ See:
 
 ## Subtasks
 
-### T041 — Create `src/charter/activation/mission_type_profiles.py`
+### T041 — Create `src/charter/mission_type_profiles.py`
 
 ```python
 """Mission-type-scoped governance profile loader + resolver."""
@@ -88,7 +88,7 @@ from typing import Literal
 from pydantic import BaseModel, ConfigDict, Field
 from ruamel.yaml import YAML
 
-from charter.activation.activations import ActivationEntry
+from charter.activations import ActivationEntry
 
 __all__ = ["MissionTypeProfile", "load_profile", "resolve_governance"]
 
@@ -143,7 +143,7 @@ def resolve_governance(repo_root: Path, feature_dir: Path):
     profile = load_profile(mission_type)
 
     # Check for project override — if project has selections, that's enough.
-    # Implementation reads the project charter via charter.activation.context helpers.
+    # Implementation reads the project charter via charter.context helpers.
     project_has_overrides = _project_has_doctrine_overrides(repo_root)
 
     if profile is None and not project_has_overrides:
@@ -154,8 +154,8 @@ def resolve_governance(repo_root: Path, feature_dir: Path):
             f"or declare selected_* fields in .kittify/charter/charter.md."
         )
 
-    # Delegate to charter.activation.context.build_charter_context with the resolved profile.
-    from charter.activation.context import build_charter_context
+    # Delegate to charter.context.build_charter_context with the resolved profile.
+    from charter.context import build_charter_context
     payload = build_charter_context(
         repo_root,
         action="implement",
@@ -250,7 +250,7 @@ activations: []
 
 ### T046 — Wire `resolve_governance` into mission-context pipeline
 
-Identify the call site where the mission's governance payload is built for the implement prompt (today: `charter.activation.context.build_charter_context` consumed by `runtime` or by `agent action implement`). Insert a `resolve_governance` call that runs first, contributes its profile selections + activations to the union, and produces the final payload.
+Identify the call site where the mission's governance payload is built for the implement prompt (today: `charter.context.build_charter_context` consumed by `runtime` or by `agent action implement`). Insert a `resolve_governance` call that runs first, contributes its profile selections + activations to the union, and produces the final payload.
 
 The exact wiring point is implementation detail; the test assertion is the contract — `resolve_governance(repo_root, feature_dir).text` must not contain `software-dev-default` when mission_type is documentation.
 
@@ -299,7 +299,7 @@ Pinned by `test_resolve_governance_hard_fails_for_unknown_mission_type`.
 ## Activity Log
 
 - 2026-05-17T18:12:35Z – claude:opus-4-7:python-pedro:implementer – shell_pid=1770351 – Started implementation via action command
-- 2026-05-17T18:20:47Z – claude:opus-4-7:python-pedro:implementer – shell_pid=1770351 – 4 governance-profile.yaml files + charter.activation.mission_type_profiles loader + 14/14 mission-type profile resolution tests green; UnknownMissionTypeError hard-fail on unknown mission_type; 23/23 wp_prompt_governance contract regression green; layer rule clean (no specify_cli imports)
+- 2026-05-17T18:20:47Z – claude:opus-4-7:python-pedro:implementer – shell_pid=1770351 – 4 governance-profile.yaml files + charter.mission_type_profiles loader + 14/14 mission-type profile resolution tests green; UnknownMissionTypeError hard-fail on unknown mission_type; 23/23 wp_prompt_governance contract regression green; layer rule clean (no specify_cli imports)
 - 2026-05-17T18:21:59Z – claude:opus-4-7:reviewer-renata:reviewer – shell_pid=1774534 – Started review via action command
 - 2026-05-17T18:25:17Z – claude:opus-4-7:reviewer-renata:reviewer – shell_pid=1774534 – Moved to planned
 - 2026-05-17T18:26:12Z – claude:opus-4-7:python-pedro:implementer – shell_pid=1776735 – Started implementation via action command

@@ -29,7 +29,7 @@ Activations render **only** in the **text** bootstrap stanza (`"Selected activat
 
 ## 4. Brownfield: split-brain / duplication scan
 
-**Finding (split-brain / logical duplication)**: org-charter.yaml is read by THREE paths — the pydantic `OrgCharterPolicy` load (`org_charter.py`), the raw `_read_org_required_selections` rescan (`context.py`), and (as-proposed) a new activations rescan. This accreting duplication is the *same class* that caused #2365. → **Folded**: FR-006 extracts a shared `_iter_org_charter_docs(repo_root)` consumed by both charter-layer rescans; FR-003 unifies the dedup identity key into `charter.activation.activations`. Consolidate-to-one-seam per [[brownfield-logical-duplication-consolidation]].
+**Finding (split-brain / logical duplication)**: org-charter.yaml is read by THREE paths — the pydantic `OrgCharterPolicy` load (`org_charter.py`), the raw `_read_org_required_selections` rescan (`context.py`), and (as-proposed) a new activations rescan. This accreting duplication is the *same class* that caused #2365. → **Folded**: FR-006 extracts a shared `_iter_org_charter_docs(repo_root)` consumed by both charter-layer rescans; FR-003 unifies the dedup identity key into `charter.activations`. Consolidate-to-one-seam per [[brownfield-logical-duplication-consolidation]].
 
 ## 5. Brownfield: deprecation & LOC
 
@@ -45,7 +45,7 @@ No domain-matched hygiene items; touched files carry zero live TODO/FIXME/skip/x
 | Decision | Resolution |
 |---|---|
 | Generate-time fold vs resolve-time union | Resolve-time union (precedent + no shadow path) |
-| Shared identity key home | `charter.activation.activations` (down-layer, legal) |
+| Shared identity key home | `charter.activations` (down-layer, legal) |
 | Validation vs silent-drop | Validate + raise, pre-`except` placement (FR-004) |
 | Text stanza vs JSON arrays | Text stanza only (parity); JSON deferred (C-004) |
 | Third rescan copy | Consolidate via shared reader (FR-006) |

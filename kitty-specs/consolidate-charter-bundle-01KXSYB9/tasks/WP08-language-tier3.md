@@ -21,7 +21,7 @@ authoritative_surface: src/charter/
 create_intent: []
 execution_mode: code_change
 owned_files:
-- src/charter/activation/language_scope.py
+- src/charter/language_scope.py
 - tests/charter/test_language_scope.py
 role: implementer
 tags: []

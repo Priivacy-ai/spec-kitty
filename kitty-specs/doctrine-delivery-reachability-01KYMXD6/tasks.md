@@ -498,6 +498,6 @@ Files claimed by more than one package — assign one lane or serialize:
 
 | File | Packages |
 |---|---|
-| `src/charter/activation/context.py` | WP10, WP11, WP12, WP13 |
+| `src/charter/context.py` | WP10, WP11, WP12, WP13 |
 | `tests/doctrine/drg/migration/test_extractor_projection.py` | WP08, WP09 |
 | `src/specify_cli/cli/commands/doctrine.py` | WP03, WP05 |

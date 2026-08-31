@@ -51,7 +51,7 @@ findings:
       The Clarifications entry justifies not cleaning up `_built_in_scan_dir`/`_layer_scan_dirs`
       by saying "smallest-viable-diff picks the file set first ... touching them grows the file
       set beyond the stated goal." But per the charter's own three-step reconciliation order,
-      step 1 (smallest-viable-diff) already includes `src/charter/activation/kind_vocabulary.py` in the
+      step 1 (smallest-viable-diff) already includes `src/charter/kind_vocabulary.py` in the
       file set (it is where `_org_scan_dirs` itself lives), and both neighboring functions sit
       in that same file — so editing them would not "grow the file set" at all; step 2 (Boy
       Scout Rule) explicitly permits "proportional tidy-up ... without adding files to the set,"

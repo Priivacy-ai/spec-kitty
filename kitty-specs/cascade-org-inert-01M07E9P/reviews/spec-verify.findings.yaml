@@ -15,7 +15,7 @@ findings:
     claim: >
       FR-002 AC5 ("Recommendation, stated explicitly (not silently picked): this mission
       recommends routing context.py's call path through
-      charter.activation.action_doctrine_bundle._resolve_action_bundle...") and FR-003 AC3/AC4
+      charter.action_doctrine_bundle._resolve_action_bundle...") and FR-003 AC3/AC4
       ("Recommendation, stated explicitly: this mission recommends derivation (B)..." /
       "Open question — explicitly flagged for the plan phase, not resolved here...") are
       numbered inside the "Acceptance Criteria" lists for their FRs, but none of the three

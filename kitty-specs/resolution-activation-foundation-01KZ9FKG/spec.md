@@ -99,7 +99,7 @@ A reviewer needs proof this mission built only the two foundations and did not s
 |----|-------|-------------|----------|----------|--------|
 | NFR-001 | No second resolution/availability source | An architectural test asserts: 0 second `SPEC_KITTY_PACKS_ROOT` read outside the kernel primitive, 0 second `get_package_asset_root` body, 0 implicit config-absent all-four fallback site. Present and green. Scope: the `mission_type_activations` fallback specifically — NOT the `_read_activated_kinds`/directive three-state fallbacks. | Maintainability | High | Open |
 | NFR-002 | Layer integrity | `kernel` retains 0 import edges to `doctrine`/`specify_cli` (the PACKS_ROOT env read moving to kernel adds no upward edge); existing layer/AST gates stay green (0 new upward edges). | Architecture | High | Open |
-| NFR-003 | No behavior change at the activation authority + resolved paths | For a normally-provisioned project under default env: 0 diff in the set returned by the **activation authority** (`charter.activation.mission_type_profiles.existing_mission_types` / drg gating) — explicitly NOT `list_available_missions` (fenced unchanged) — and 0 diff in resolved mission-asset paths. | Compatibility | High | Open |
+| NFR-003 | No behavior change at the activation authority + resolved paths | For a normally-provisioned project under default env: 0 diff in the set returned by the **activation authority** (`charter.mission_type_profiles.existing_mission_types` / drg gating) — explicitly NOT `list_available_missions` (fenced unchanged) — and 0 diff in resolved mission-asset paths. | Compatibility | High | Open |
 | NFR-004 | Provisioning idempotence | Re-running init/migration on a provisioned config yields byte-identical config (0 drift) and retains 100% of custom entries. | Reliability | High | Open |
 | NFR-005 | Terminology canon | 0 new `feature*` identifiers/prose; `tests/architectural/test_no_legacy_terminology.py` green. | Compliance | Medium | Open |
 | NFR-006 | Env-relocation regression coverage | A new test asserts the missions tree honors `SPEC_KITTY_PACKS_ROOT` (none exists today), including the both-vars precedence case (FR-004). Present and green. | Testability | High | Open |
@@ -135,7 +135,7 @@ A reviewer needs proof this mission built only the two foundations and did not s
 
 ## Assumptions
 
-- `src/charter/activation/packs/default.yaml` already carries the full activation surface (verified); this mission wires it as the authority + adds fresh-init provisioning, not new default content.
+- `src/charter/packs/default.yaml` already carries the full activation surface (verified); this mission wires it as the authority + adds fresh-init provisioning, not new default content.
 - Both `3.2.0rc35` migrations remain unchanged (operator decision); no consolidation.
 - "The four built-in types" is never a literal — the roster is the disk-scanned `builtin_mission_type_id_set()`.
 - Post-#3211: the only surface overlap is `init.py` (a gitattributes constant); FR-009 provisioning re-anchors around #3211's additions.

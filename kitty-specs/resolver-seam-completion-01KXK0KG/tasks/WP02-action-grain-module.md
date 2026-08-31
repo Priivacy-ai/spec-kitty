@@ -23,14 +23,14 @@ history:
   actor: claude
   action: Generated via /spec-kitty.tasks (IC-07 + IC-11 spike, resolver-helper lane)
 agent_profile: python-pedro
-authoritative_surface: src/charter/activation/action_grain.py
+authoritative_surface: src/charter/action_grain.py
 create_intent:
-- src/charter/activation/action_grain.py
+- src/charter/action_grain.py
 - tests/charter/test_action_grain.py
 execution_mode: code_change
 model: claude-sonnet-5
 owned_files:
-- src/charter/activation/action_grain.py
+- src/charter/action_grain.py
 - tests/charter/test_action_grain.py
 role: implementer
 tags: []
@@ -46,7 +46,7 @@ ADR/plan are the authority. Always `uv run`.
 ## Objective
 
 Create **one** canonical, pure, tested module that computes a mission type's action-grain union —
-`src/charter/activation/action_grain.py`. This is the **foundational** WP: the resolver (WP03), the integrity gate
+`src/charter/action_grain.py`. This is the **foundational** WP: the resolver (WP03), the integrity gate
 (WP04), and the reconciled tests (WP05) all import it, so the type⊕action reduction lives in exactly
 one place (C-002 / kills the second-source the two enduring tests currently duplicate). This lane owns
 a **new file only** and runs in parallel with WP01.
@@ -56,18 +56,18 @@ a **new file only** and runs in parallel with WP01.
 - `load_action_index(missions_root, mission, action) -> ActionIndex` (`src/doctrine/missions/action_index.py:26`)
   is **per-(mission, action)** and returns an `ActionIndex` dataclass (`action_index.py:12-23`) with 7
   fields: `directives / tactics / paradigms / styleguides / toolguides / procedures / agent_profiles`.
-  These map **1:1** to `charter.activation.mission_type_profiles._GOVERNANCE_KINDS` (`:100-108`).
+  These map **1:1** to `charter.mission_type_profiles._GOVERNANCE_KINDS` (`:100-108`).
 - `load_action_index` returns an **empty** `ActionIndex` on missing/corrupt YAML (`action_index.py:42-43,67-68`)
   — so a real load must be asserted non-empty by consumers (WP04 relies on this).
 - **Root authority:** the correct `missions_root` is `MissionTypeProfileRepository._default_built_in_dir()`
-  (`src/charter/activation/mission_type_profile_repository.py:94-102`) = `src/doctrine/missions`. It is **NOT** the
+  (`src/charter/mission_type_profile_repository.py:94-102`) = `src/doctrine/missions`. It is **NOT** the
   resolver's `repo_root`. **SCOPE CAP:** builtin root only; project/org action-index overlay symmetry is a
   tracked follow-up (no project `actions/` override layout exists today) — do NOT build a multi-root/field-merge engine.
 - `charter` MUST NOT import `specify_cli` (C-001 layer rule); importing from `doctrine` is fine.
 
 **Circular-import guard (post-task squad):** `action_grain.py` needs `_GOVERNANCE_KINDS` (and T006 needs the
 type-grain helper) — both in `mission_type_profiles.py`, which will import `aggregate_action_grain` back.
-Keep `action_grain.py` **free of module-level `charter.activation.mission_type_profiles` imports** — import
+Keep `action_grain.py` **free of module-level `charter.mission_type_profiles` imports** — import
 `_GOVERNANCE_KINDS` / the type-grain reader **lazily** inside the functions (the module already uses the
 `# noqa: PLC0415` lazy-import convention). Do NOT re-declare the 7 kind keys (that duplicates a governance-kind list — C-002 smell).
 
@@ -99,7 +99,7 @@ Base and merge target both `feat/2651-resolver-seam-completion`; land on the mer
 
 ## Definition of Done
 
-- `src/charter/activation/action_grain.py` exposes `action_index_to_mapping` + `aggregate_action_grain` (builtin-root, pure/tested).
+- `src/charter/action_grain.py` exposes `action_index_to_mapping` + `aggregate_action_grain` (builtin-root, pure/tested).
 - Unit tests cover the adapter, the aggregation (populated + empty type), and the dup-scan helper.
 - No import of `specify_cli`; `ruff` + `mypy --strict` clean. This module is the **only** home of the union logic.
 

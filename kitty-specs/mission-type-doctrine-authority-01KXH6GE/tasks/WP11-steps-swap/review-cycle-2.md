@@ -66,7 +66,7 @@ production.
 
 Note: editing this WP03-authored test is within reasonable ownership leeway —
 WP11 already (correctly) edits the charter seam
-`src/charter/activation/mission_type_profiles.py` outside its declared `owned_files`, and
+`src/charter/mission_type_profiles.py` outside its declared `owned_files`, and
 updating the seam's own test to match the new contract is the same seam.
 
 ---

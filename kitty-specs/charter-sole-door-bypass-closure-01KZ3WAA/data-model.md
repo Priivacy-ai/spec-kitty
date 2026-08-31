@@ -7,15 +7,15 @@ FR-001-006 change, plus the three contracts that must not regress while changing
 
 | Kind | Pre-mission gating owner | Post-mission gating owner | Shape of change |
 |---|---|---|---|
-| `paradigm` | `charter.activation.resolver.DoctrineService.paradigms` | unchanged | none |
-| `procedure` | `charter.activation.resolver.DoctrineService.procedures` | unchanged | none |
-| `agent_profile` | `charter.activation.resolver.DoctrineService.agent_profiles` | unchanged (+ new lineage/mutation accessor, R5) | additive |
-| `directive` | none (`__getattr__` passthrough) | `charter.activation.resolver.DoctrineService.directives` (new) | FR-005, mechanical |
-| `tactic` | none (`__getattr__` passthrough) | `charter.activation.resolver.DoctrineService.tactics` (new) | FR-005, mechanical |
-| `styleguide` | none (`__getattr__` passthrough) | `charter.activation.resolver.DoctrineService.styleguides` (new) | FR-005, mechanical |
-| `toolguide` | none (`__getattr__` passthrough) | `charter.activation.resolver.DoctrineService.toolguides` (new) | FR-005, mechanical |
-| `mission_step_contract` | none (`__getattr__` passthrough) | `charter.activation.resolver.DoctrineService.mission_step_contracts` (new) | FR-005, mechanical |
-| `glossary_pack` | none (`__getattr__` passthrough) | `charter.activation.resolver.DoctrineService.glossary_packs` (new) | FR-005, mechanical |
+| `paradigm` | `charter.resolver.DoctrineService.paradigms` | unchanged | none |
+| `procedure` | `charter.resolver.DoctrineService.procedures` | unchanged | none |
+| `agent_profile` | `charter.resolver.DoctrineService.agent_profiles` | unchanged (+ new lineage/mutation accessor, R5) | additive |
+| `directive` | none (`__getattr__` passthrough) | `charter.resolver.DoctrineService.directives` (new) | FR-005, mechanical |
+| `tactic` | none (`__getattr__` passthrough) | `charter.resolver.DoctrineService.tactics` (new) | FR-005, mechanical |
+| `styleguide` | none (`__getattr__` passthrough) | `charter.resolver.DoctrineService.styleguides` (new) | FR-005, mechanical |
+| `toolguide` | none (`__getattr__` passthrough) | `charter.resolver.DoctrineService.toolguides` (new) | FR-005, mechanical |
+| `mission_step_contract` | none (`__getattr__` passthrough) | `charter.resolver.DoctrineService.mission_step_contracts` (new) | FR-005, mechanical |
+| `glossary_pack` | none (`__getattr__` passthrough) | `charter.resolver.DoctrineService.glossary_packs` (new) | FR-005, mechanical |
 | `mission-type` (token) | none (lives outside `DoctrineService` entirely) | `resolve_mission_type_context()` only (new filtering; `MissionTypeProfileRepository`'s own file is explicitly untouched — WP06 ownership boundary) | FR-006, non-mechanical |
 
 `TEMPLATE`, `ASSET`, `ANTI_PATTERN` remain outside this table — they are the pre-existing
@@ -60,7 +60,7 @@ longer applies: the post-tasks squad merged FR-005's 6-kind work into the same w
 builder unification, so the proof is written once against the full 9-kind surface, in one unstaged pass.
 
 **Also unified (post-plan squad, FR-002/FR-008)**: `org_layer.py:244,275` and `generate.py:56` each
-reimplement the same "build raw `DoctrineService`, then conditionally wrap with `charter.activation.resolver.
+reimplement the same "build raw `DoctrineService`, then conditionally wrap with `charter.resolver.
 DoctrineService` if `pack_context` is given" pattern inline, rather than calling either named builder.
 `org_layer.py:252-253`'s `except ImportError: pass` silently returns the *unwrapped* `inner` on import
 failure — a fail-open bypass of the entire activation-gating mechanism. All three inline sites collapse onto
@@ -69,7 +69,7 @@ silently degrade to an unfiltered service).
 
 ## The unfiltered-diagnostic contract (FR-002, R4)
 
-`charter.activation.resolver.DoctrineService(inner, pack_context=None)` is a sanctioned, explicit construction shape for
+`charter.resolver.DoctrineService(inner, pack_context=None)` is a sanctioned, explicit construction shape for
 diagnostic/health call sites that need the full unfiltered catalog. It is still the one factory class
 (satisfies C-001); it is distinguished from the normal activation-aware construction only by the explicit
 `pack_context=None` argument, not by a different class or a raw `doctrine.service.DoctrineService(...)`

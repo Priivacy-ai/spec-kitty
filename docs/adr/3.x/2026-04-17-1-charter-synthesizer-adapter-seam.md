@@ -92,7 +92,7 @@ Fixture path = `tests/charter/fixtures/synthesizer/<kind>/<slug>/<short_hash>.<k
 
 The `.<kind>.yaml` suffix matches the shipped repository glob so fixtures round-trip through the same loaders.
 
-**`normalize_request_for_hash()` in `src/charter/activation/synthesizer/request.py` is the sole, canonical source of fixture-hash bytes. Changing it changes every fixture hash — treat as a breaking change and amend this ADR.**
+**`normalize_request_for_hash()` in `src/charter/synthesizer/request.py` is the sole, canonical source of fixture-hash bytes. Changing it changes every fixture hash — treat as a breaking change and amend this ADR.**
 
 ---
 
@@ -120,7 +120,7 @@ The `.<kind>.yaml` suffix matches the shipped repository glob so fixtures round-
 
 ## Conformance Contract
 
-The contract file at `kitty-specs/phase-3-charter-synthesizer-pipeline-01KPE222/contracts/adapter.py` and the implementation at `src/charter/activation/synthesizer/adapter.py` MUST expose structurally identical shapes. `tests/charter/synthesizer/test_adapter_contract.py::test_contract_structural_equivalence` verifies this at runtime.
+The contract file at `kitty-specs/phase-3-charter-synthesizer-pipeline-01KPE222/contracts/adapter.py` and the implementation at `src/charter/synthesizer/adapter.py` MUST expose structurally identical shapes. `tests/charter/synthesizer/test_adapter_contract.py::test_contract_structural_equivalence` verifies this at runtime.
 
 Changes to either file require a synchronised update to both, plus an amendment to this ADR.
 

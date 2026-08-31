@@ -193,8 +193,8 @@ kitty-specs/excise-doctrine-curation-and-inline-references-01KP54J6/occurrences/
 2. Flip `charter/resolver.py` and `charter/compiler.py` (and their `specify_cli/charter/` twins) to import the new function. Keep the legacy `reference_resolver.py` present but now unused by production paths; tests still exercise it.
 3. Flip the five+ live `build_charter_context()` call sites to call `build_context_v2()` directly.
 4. Run the full pytest suite at this point: legacy builder is imported by nothing in src; still exercised only by `tests/charter/test_context.py` (legacy) and `tests/charter/test_context_parity.py`.
-5. Rename `build_context_v2` → `build_charter_context` in `src/charter/activation/context.py`; delete the old `build_charter_context` implementation; update `charter/__init__.py` and `specify_cli/charter/__init__.py` re-exports; flip the five+ call sites back to the renamed import.
-6. Delete `src/charter/activation/reference_resolver.py` after the last importer is moved.
+5. Rename `build_context_v2` → `build_charter_context` in `src/charter/context.py`; delete the old `build_charter_context` implementation; update `charter/__init__.py` and `specify_cli/charter/__init__.py` re-exports; flip the five+ call sites back to the renamed import.
+6. Delete `src/charter/reference_resolver.py` after the last importer is moved.
 7. Delete `tests/charter/test_context_parity.py` and `tests/charter/test_reference_resolver.py` only **after** the replacement suites (`tests/charter/test_context.py` rewritten + `tests/doctrine/drg/test_resolve_transitive_refs.py` new) land green and demonstrably cover their behavioral surface.
 
 ### D-2 — Reference-resolver replacement location (Q1 = A) — **amended 2026-04-14**
@@ -204,7 +204,7 @@ kitty-specs/excise-doctrine-curation-and-inline-references-01KP54J6/occurrences/
 
 **Relation selection**: callers pass `{Relation.REQUIRES, Relation.SUGGESTS}` for legacy parity — these are the two relation kinds the Phase 0 migration extractor used when translating inline `tactic_refs`/`paradigm_refs` into DRG edges. Confirmed by reading `doctrine.drg.query.resolve_context()` (the Phase 0 reference implementation), which uses `REQUIRES` (transitive) and `SUGGESTS` (depth-limited) for artifact reachability.
 
-**Caller-side helper**: introduce `src/charter/activation/_drg_helpers.py :: _load_validated_graph(repo_root)` (+ `src/specify_cli/charter/_drg_helpers.py` twin) to encapsulate the `load_graph(doctrine_root/'graph.yaml')` + `merge_layers(shipped, project_overlay)` + `assert_valid(merged)` sequence. `resolver.py` and `compiler.py` each import the helper once. This avoids duplicating the 4-line graph-load sequence at every call site.
+**Caller-side helper**: introduce `src/charter/_drg_helpers.py :: _load_validated_graph(repo_root)` (+ `src/specify_cli/charter/_drg_helpers.py` twin) to encapsulate the `load_graph(doctrine_root/'graph.yaml')` + `merge_layers(shipped, project_overlay)` + `assert_valid(merged)` sequence. `resolver.py` and `compiler.py` each import the helper once. This avoids duplicating the 4-line graph-load sequence at every call site.
 
 **Rationale**: Minimizes blast radius on the live path and keeps `charter/resolver.py` / `charter/compiler.py` / `charter generate` behavior-stable without requiring the deeper Phase 3 rewrite. The function is a DRG-layer capability (walk the merged graph), not a charter-layer capability, so it belongs in `src/doctrine/drg/`. Cycle detection is NOT relocated to this function — `assert_valid()` already rejects `requires` cycles at graph load; `walk_edges` is BFS-with-visited-set so `suggests` cycles are benign.
 
@@ -278,14 +278,14 @@ Three sequential WPs. Each WP PR includes: source edits, test edits, its occurre
   - `src/doctrine/schemas/paradigm.schema.yaml`
   - `src/doctrine/schemas/procedure.schema.yaml`
 - Remove corresponding fields from Pydantic models under `src/doctrine/<kind>/models.py`
-- Strip `applies_to: list[str]` from `src/charter/activation/schemas.py :: Directive`
+- Strip `applies_to: list[str]` from `src/charter/schemas.py :: Directive`
 - Update model tests in `tests/doctrine/<kind>/test_models.py` and consistency tests under `tests/doctrine/` to assert the fields are absent
 - Author `kitty-specs/.../occurrences/WP1.2.yaml` and update `index.yaml`
 
 **Acceptance gates for WP1.2 PR**:
 - All tests green
 - Verifier green against WP1.2.yaml
-- `grep -R "tactic_refs\|paradigm_refs\|applies_to" src/doctrine src/charter/activation/schemas.py` returns zero hits outside explicit carve-outs listed in `index.yaml`
+- `grep -R "tactic_refs\|paradigm_refs\|applies_to" src/doctrine src/charter/schemas.py` returns zero hits outside explicit carve-outs listed in `index.yaml`
 - `mypy --strict` passes
 - WP1.1 acceptance gates still hold
 
@@ -299,7 +299,7 @@ Three sequential WPs. Each WP PR includes: source edits, test edits, its occurre
 
 **B. DRG-backed helper + tests**:
 - Add `resolve_transitive_refs()` to `src/doctrine/drg/query.py` per the corrected [contracts/resolve-transitive-refs.contract.md](contracts/resolve-transitive-refs.contract.md) — uses the live `DRGGraph` / `Relation` / `walk_edges` API; callers pass `{Relation.REQUIRES, Relation.SUGGESTS}` for legacy parity
-- Add `src/charter/activation/_drg_helpers.py` + `src/specify_cli/charter/_drg_helpers.py` with `_load_validated_graph(repo_root)`
+- Add `src/charter/_drg_helpers.py` + `src/specify_cli/charter/_drg_helpers.py` with `_load_validated_graph(repo_root)`
 - Add `tests/doctrine/drg/test_resolve_transitive_refs.py` including the 7-dimensional coverage in the contract and the behavioral-equivalence fixture against the still-present legacy resolver
 
 **C. Validator rejection**:
@@ -309,7 +309,7 @@ Three sequential WPs. Each WP PR includes: source edits, test edits, its occurre
 - Add `tests/doctrine/test_inline_ref_rejection.py` with one negative fixture per kind (7 total); the procedures fixture includes a step-level `tactic_refs:` entry to exercise the step-scan path
 
 **D. Resolver/compiler flip**:
-- Swap `resolve_references_transitively` → `resolve_transitive_refs` in `src/charter/activation/resolver.py` and `src/charter/activation/compiler.py` (and their `specify_cli/charter/*` twins)
+- Swap `resolve_references_transitively` → `resolve_transitive_refs` in `src/charter/resolver.py` and `src/charter/compiler.py` (and their `specify_cli/charter/*` twins)
 
 **E. Context-builder cutover (strict D-1 sequencing)**:
 - Flip the five live `build_charter_context()` call sites to `build_context_v2()` (temporary intermediate state)
@@ -318,8 +318,8 @@ Three sequential WPs. Each WP PR includes: source edits, test edits, its occurre
 - **NFR-002b byte-parity check**: `spec-kitty charter context --action <act> --json` for each bootstrap action must now byte-match the baseline captured in step A. Diff must be empty.
 
 **F. Legacy excision**:
-- Delete `src/charter/activation/reference_resolver.py`
-- Delete `include_proposed` parameter from `src/charter/activation/catalog.py :: load_doctrine_catalog()` and update all callers
+- Delete `src/charter/reference_resolver.py`
+- Delete `include_proposed` parameter from `src/charter/catalog.py :: load_doctrine_catalog()` and update all callers
 
 **G. Test-coverage collapse (per D-4 — only after replacement green)**:
 - Rewrite `tests/charter/test_context.py` as a single-builder suite; include the NFR-002a artifact-reachability parity contract inherited from the soon-to-be-deleted `test_context_parity.py`
@@ -328,8 +328,8 @@ Three sequential WPs. Each WP PR includes: source edits, test edits, its occurre
 - Delete `tests/charter/test_reference_resolver.py`
 - Delete `tests/doctrine/test_cycle_detection.py` (coverage rehomed to `test_shipped_graph_valid.py`)
 - Delete `tests/doctrine/test_shipped_doctrine_cycle_free.py` (coverage rehomed)
-- Update `tests/doctrine/test_artifact_kinds.py` — replace the three `from charter.activation.reference_resolver import _REF_TYPE_MAP` uses with the equivalent `doctrine.artifact_kinds.ArtifactKind` public enum (or delete the affected test cases if they were purely about the private mapping)
-- Update `tests/charter/test_resolver.py:293` — change the `patch("charter.activation.resolver.resolve_references_transitively", ...)` target to `patch("charter.activation.resolver.resolve_transitive_refs", ...)` with the new return-value shape
+- Update `tests/doctrine/test_artifact_kinds.py` — replace the three `from charter.reference_resolver import _REF_TYPE_MAP` uses with the equivalent `doctrine.artifact_kinds.ArtifactKind` public enum (or delete the affected test cases if they were purely about the private mapping)
+- Update `tests/charter/test_resolver.py:293` — change the `patch("charter.resolver.resolve_references_transitively", ...)` target to `patch("charter.resolver.resolve_transitive_refs", ...)` with the new return-value shape
 - Update `tests/charter/test_compiler.py:107` — comment reference to `resolve_references_transitively` becomes `resolve_transitive_refs`
 - Update `tests/agent/test_workflow_charter_context.py` for the single-builder name
 

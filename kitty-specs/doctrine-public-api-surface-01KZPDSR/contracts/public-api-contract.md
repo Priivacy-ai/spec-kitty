@@ -32,7 +32,7 @@ enforcing test and its acceptance condition, in ATDD red-first order.
 ## C5 — Sole door not bypassed
 
 - **Gate**: `tests/architectural/test_charter_sole_door_doctrine_service.py`.
-- **Given** the whole tree, **then** zero unwrapped raw `doctrine.service.DoctrineService(...)` constructions exist outside `charter.activation.doctrine_service_builder`. `charter.activation.resolver.DoctrineService` (the wrapper) is never added to `_FACADE_TABLE`. (FR-005)
+- **Given** the whole tree, **then** zero unwrapped raw `doctrine.service.DoctrineService(...)` constructions exist outside `charter.doctrine_service_builder`. `charter.resolver.DoctrineService` (the wrapper) is never added to `_FACADE_TABLE`. (FR-005)
 
 ## C6 — Truly-internal paths stay hidden (negative)
 

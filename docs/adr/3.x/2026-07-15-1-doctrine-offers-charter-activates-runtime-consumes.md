@@ -42,7 +42,7 @@ types and templates**, and that "active by default" is a fail-open code constant
 | 2 | Charter ACTIVATES uniformly | **Holds** | One `YAML_KEY_MAP` (`pack_manager.py:120-122`, mission-type first-class), one plan/commit engine (`activation_engine.py:194-282`), one consume-side filter (`drg.py:256-343`). Two narrow special-cases: cascade is a no-op for mission-type (no DRG node → `activate.py:88-90,319-321`); one warning branch (`activate.py:134`). |
 | 3 | Runtime consumes ONLY activated | **Breaks** | `_dn_bootstrap` (`runtime_bridge.py:1199`) → `get_or_start_run` (`runtime_bridge_io.py:469`) → `_runtime_template_key` (`io.py:322-360`) resolve `mission.yaml`/templates by **filesystem discovery tiers with no activation consultation**. The activated `action_sequence` is only an advisory routing predicate and **degrades on exception** (`runtime_bridge_composition.py:180-195,316-327`). An unactivated type whose `mission.yaml` is on disk is fully runnable. |
 | 4 | Templates are config | **Partial (~80%)** | `template_set` fields exist on all four `mission_types/*.yaml`; templates are DRG nodes (16) and pack-carried. But the `ResolvedMissionType.template_set` slot is **unwired** (`mission_type_profiles.py:470` hardcodes `None`), and the mission_type→template link is an unbacked filename string because mission_type is not a DRG node. |
-| 5 | Default charter | **Breaks at init; fail-open** | Absent config → `_load_config` returns `{}` (`pack_context.py:230-231`) → hardcoded `_BUILTIN_*` constants activate **everything** (`pack_context.py:253-271`). A real default charter ships (`src/charter/activation/packs/default.yaml` + `load_default_pack_activation_ids` + `merge_defaults` `pack_manager.py:703`), but **`init` never provisions it** and **no read-time fallback consumes it** — it reaches config only via a version-guarded migration. The default is **triple-sourced** (constants, `default.yaml`, `merge_defaults`). |
+| 5 | Default charter | **Breaks at init; fail-open** | Absent config → `_load_config` returns `{}` (`pack_context.py:230-231`) → hardcoded `_BUILTIN_*` constants activate **everything** (`pack_context.py:253-271`). A real default charter ships (`src/charter/packs/default.yaml` + `load_default_pack_activation_ids` + `merge_defaults` `pack_manager.py:703`), but **`init` never provisions it** and **no read-time fallback consumes it** — it reaches config only via a version-guarded migration. The default is **triple-sourced** (constants, `default.yaml`, `merge_defaults`). |
 
 ### The two disconnected availability authorities
 
@@ -86,7 +86,7 @@ change rather than assertion.**
    template magic. Templates are configuration carried by the mission type, not
    engine-baked knowledge.
 5. **Retire "active by default = all built-in doctrine" as a code constant.** The
-   shipped `src/charter/activation/packs/default.yaml` becomes the **single default-activation
+   shipped `src/charter/packs/default.yaml` becomes the **single default-activation
    authority**:
    - **(a) Read-time fallback:** `PackContext.from_config` resolves an absent
      activation key from `load_default_pack_activation_ids()` (data, not the

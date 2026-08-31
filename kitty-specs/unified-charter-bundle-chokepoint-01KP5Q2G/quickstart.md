@@ -5,7 +5,7 @@
 
 Operational quickstart for contributors who need to implement, review, or verify a WP in this mission. Assumes you have the repo checked out at `/Users/robert/spec-kitty-dev/spec-kitty-charter-14-April/spec-kitty` (or the equivalent on your machine).
 
-**v1.0.0 scope reminder**: this tranche covers the three files `src/charter/activation/sync.py :: sync()` materializes — `governance.yaml`, `directives.yaml`, `metadata.yaml`. `references.yaml` and `context-state.json` are explicitly out of v1.0.0 scope. `.kittify/memory/` and `.kittify/AGENTS.md` symlinks in worktrees are documented-intentional and out of scope (C-011).
+**v1.0.0 scope reminder**: this tranche covers the three files `src/charter/sync.py :: sync()` materializes — `governance.yaml`, `directives.yaml`, `metadata.yaml`. `references.yaml` and `context-state.json` are explicitly out of v1.0.0 scope. `.kittify/memory/` and `.kittify/AGENTS.md` symlinks in worktrees are documented-intentional and out of scope (C-011).
 
 ---
 
@@ -42,8 +42,8 @@ Operational quickstart for contributors who need to implement, review, or verify
 These are listed here so the line numbers are unambiguous. Each carve-out is declared in the relevant WP2.3 occurrence artifact as `action: leave`.
 
 - `src/specify_cli/core/worktree.py:478-532` — `.kittify/memory/` and `.kittify/AGENTS.md` symlink/copy/exclude block. C-011; documented-intentional per `src/specify_cli/templates/AGENTS.md:168-179`.
-- `src/charter/activation/compiler.py:169-196` — `write_compiled_charter()` produces `references.yaml`. C-012 (out of v1.0.0 manifest scope).
-- `src/charter/activation/context.py:385-398` — `context-state.json` lazy write path inside `build_charter_context()`. C-012. Note: the `build_charter_context` function's bundle-read path (~line 555) IS rewired in WP2.3; only the context-state write block at lines 385-398 is the carve-out.
+- `src/charter/compiler.py:169-196` — `write_compiled_charter()` produces `references.yaml`. C-012 (out of v1.0.0 manifest scope).
+- `src/charter/context.py:385-398` — `context-state.json` lazy write path inside `build_charter_context()`. C-012. Note: the `build_charter_context` function's bundle-read path (~line 555) IS rewired in WP2.3; only the context-state write block at lines 385-398 is the carve-out.
 
 ---
 
@@ -198,7 +198,7 @@ except NotInsideRepositoryError as e:
 # SyncResult now has canonical_root
 python -c "
 from pathlib import Path
-from charter.activation.sync import ensure_charter_bundle_fresh
+from charter.sync import ensure_charter_bundle_fresh
 r = ensure_charter_bundle_fresh(Path.cwd())
 print(r.canonical_root, r.files_written)
 "
@@ -232,7 +232,7 @@ ls .kittify/charter/
 # In a terminal inside a worktree (e.g., .worktrees/any-existing-worktree):
 python -c "
 from pathlib import Path
-from charter.activation.sync import ensure_charter_bundle_fresh
+from charter.sync import ensure_charter_bundle_fresh
 r = ensure_charter_bundle_fresh(Path.cwd())
 print('canonical_root =', r.canonical_root)
 # Expected: points at the MAIN checkout, not the worktree
@@ -290,7 +290,7 @@ print('no-op on second apply: OK')
 ## Common pitfalls
 
 - **Editing `src/specify_cli/core/worktree.py`.** C-011 carve-out. Those symlinks are for project memory / agent instructions, NOT the charter bundle. If you find yourself editing lines 478-532, stop — you're reintroducing the bug the 2026-04-14 design review corrected. Canonical-root resolution (WP2.2) is the charter-visibility fix.
-- **Adding `references.yaml` or `context-state.json` to the v1.0.0 manifest.** C-012 out of scope. `references.yaml` is produced by the compiler pipeline at `src/charter/activation/compiler.py:169-196`; `context-state.json` is runtime state written lazily by `src/charter/activation/context.py:385-398`. Neither is a `sync()`-produced derivative. Expanding manifest scope requires a new schema version in a later tranche.
+- **Adding `references.yaml` or `context-state.json` to the v1.0.0 manifest.** C-012 out of scope. `references.yaml` is produced by the compiler pipeline at `src/charter/compiler.py:169-196`; `context-state.json` is runtime state written lazily by `src/charter/context.py:385-398`. Neither is a `sync()`-produced derivative. Expanding manifest scope requires a new schema version in a later tranche.
 - **Editing agent copies instead of source templates.** Never edit `.claude/`, `.codex/`, `.opencode/`, etc. Source templates live under `src/specify_cli/missions/*/command-templates/` and `src/specify_cli/skills/` (C-006).
 - **Adding a fallback for `git rev-parse` failure.** Do not. Per C-001 / C-009, the resolver raises `GitCommonDirUnavailableError` loudly. Fix the operator's environment; do not mask the failure.
 - **Assuming `git rev-parse --git-common-dir` returns an absolute path.** It does not in the common case — it returns a path relative to `cwd` (e.g., `.git` from the repo root, `../../.git` from `src/charter`, `.` from inside `.git/` itself). The resolver must resolve stdout against `cwd` explicitly. Absolute is only returned for linked worktrees.

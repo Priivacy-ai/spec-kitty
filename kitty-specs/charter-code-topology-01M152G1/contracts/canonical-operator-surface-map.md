@@ -33,7 +33,7 @@
 - **NEW** `test_charter_offering_does_not_import_activation` (hard M2 exit, not CR-budgeted): copy `tests/architectural/test_charter_no_specify_cli_import.py`; **add level-aware `ast.ImportFrom` resolution** (catch relative `from ..activation import X`) + a `tmp_path` non-vacuity case for the relative form.
 - **RE-HOME** `conftest.py:89` landscape (drop `doctrine` node), `test_layer_rules.py` `_DEFINED_LAYERS`, `test_kernel_no_doctrine_import.py` `_FORBIDDEN_IMPORT_ROOTS` (doctrine→charter) — **retarget** the 2 `kernel/schema_utils.py:88,96` exemptions, never delete.
 
-## MAP-CR — serialized-surface compat shims (each replicates CR-01 `src/charter/activation/sync.py:278-311`)
+## MAP-CR — serialized-surface compat shims (each replicates CR-01 `src/charter/sync.py:278-311`)
 
 | CR | Surface | Target word | Key sites | Guard |
 |----|---------|-------------|-----------|-------|

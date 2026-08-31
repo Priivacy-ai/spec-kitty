@@ -39,7 +39,7 @@ Wire the WP02 scanner into a pytest module that gates the repository. Three thin
 
 ## Context
 
-WP02 delivered `charter.activation.neutrality.run_neutrality_lint`. This WP delivers the test harness that calls it and makes the result block CI. The contract is at `contracts/neutrality-lint-contract.md` (C-3); follow it closely.
+WP02 delivered `charter.neutrality.run_neutrality_lint`. This WP delivers the test harness that calls it and makes the result block CI. The contract is at `contracts/neutrality-lint-contract.md` (C-3); follow it closely.
 
 ## Branch Strategy
 
@@ -65,7 +65,7 @@ from pathlib import Path
 
 import pytest
 
-from charter.activation.neutrality import run_neutrality_lint
+from charter.neutrality import run_neutrality_lint
 
 
 def _format_failure(result) -> str:
@@ -81,7 +81,7 @@ def _format_failure(result) -> str:
         "",
         "Remediation for each HIT:",
         "  (a) Remove the banned term from the file, OR",
-        "  (b) Add the file's path to src/charter/activation/neutrality/language_scoped_allowlist.yaml",
+        "  (b) Add the file's path to src/charter/neutrality/language_scoped_allowlist.yaml",
         "      if the file is INTENTIONALLY language-scoped.",
         "",
         "Remediation for STALE entries:",
@@ -149,7 +149,7 @@ Run:
 pytest tests/charter/test_neutrality_lint.py --cov=src/charter/neutrality --cov-report=term-missing
 ```
 
-Verify coverage on `src/charter/activation/neutrality/lint.py` is ≥ 90%. Any under-tested branches must be covered by additional targeted tests in this WP. Common gaps:
+Verify coverage on `src/charter/neutrality/lint.py` is ≥ 90%. Any under-tested branches must be covered by additional targeted tests in this WP. Common gaps:
 
 - Regex vs literal dispatch.
 - Glob vs literal allowlist matching.
@@ -168,7 +168,7 @@ Add parametrized unit tests if the scanner helpers are not covered by the three 
 - [ ] `pytest tests/charter/test_neutrality_lint.py -v` passes.
 - [ ] Fault-injection test fails **without** the scanner fix (verify by temporarily breaking the scanner — then restore).
 - [ ] Runtime on a typical dev machine is well under 5 seconds (report the actual number in the PR body).
-- [ ] Coverage report shows ≥ 90% on `src/charter/activation/neutrality/lint.py`.
+- [ ] Coverage report shows ≥ 90% on `src/charter/neutrality/lint.py`.
 - [ ] `mypy --strict tests/charter/test_neutrality_lint.py` passes.
 
 ## Risks
@@ -188,6 +188,6 @@ Add parametrized unit tests if the scanner helpers are not covered by the three 
 ## Activity Log
 
 - 2026-04-17T09:44:21Z – claude:sonnet-4-6:implementer:implementer – shell_pid=11041 – Started implementation via action command
-- 2026-04-17T09:47:10Z – claude:sonnet-4-6:implementer:implementer – shell_pid=11041 – Ready for review: neutrality regression test gate wired via charter.activation.neutrality.run_neutrality_lint. 7 tests (baseline, fault-injection, allowlist literal/glob, stale entries, regex column accuracy, runtime budget). Baseline passes (0 hits, 0 stale), coverage 93% on lint.py, mypy --strict clean, runtime ~0.8s. (--force used: only uncommitted file is gitignored dossier snapshot.)
+- 2026-04-17T09:47:10Z – claude:sonnet-4-6:implementer:implementer – shell_pid=11041 – Ready for review: neutrality regression test gate wired via charter.neutrality.run_neutrality_lint. 7 tests (baseline, fault-injection, allowlist literal/glob, stale entries, regex column accuracy, runtime budget). Baseline passes (0 hits, 0 stale), coverage 93% on lint.py, mypy --strict clean, runtime ~0.8s. (--force used: only uncommitted file is gitignored dossier snapshot.)
 - 2026-04-17T09:47:40Z – claude:opus-4-6:reviewer:reviewer – shell_pid=11649 – Started review via action command
-- 2026-04-17T09:49:28Z – claude:opus-4-6:reviewer:reviewer – shell_pid=11649 – Review passed: 7 tests pass in 1.11s (NFR-001 budget 5s). Baseline (T010) asserts passed=True on shipped doctrine. Fault-injection (T011) verified to catch broken scanner via monkeypatch — not a no-op. Coverage 93% on src/charter/activation/neutrality/lint.py (exceeds 90% T013 threshold). Failure message in _format_failure matches C-3: file:line:column, term_id, matched text, remediation block for hits and stale entries. mypy --strict clean. Extra tests cover allowlist literal/glob, stale entries, regex column accuracy. Only WP03 commit touched tests/charter/test_neutrality_lint.py — dossier snapshot is unrelated runtime artifact.
+- 2026-04-17T09:49:28Z – claude:opus-4-6:reviewer:reviewer – shell_pid=11649 – Review passed: 7 tests pass in 1.11s (NFR-001 budget 5s). Baseline (T010) asserts passed=True on shipped doctrine. Fault-injection (T011) verified to catch broken scanner via monkeypatch — not a no-op. Coverage 93% on src/charter/neutrality/lint.py (exceeds 90% T013 threshold). Failure message in _format_failure matches C-3: file:line:column, term_id, matched text, remediation block for hits and stale entries. mypy --strict clean. Extra tests cover allowlist literal/glob, stale entries, regex column accuracy. Only WP03 commit touched tests/charter/test_neutrality_lint.py — dossier snapshot is unrelated runtime artifact.

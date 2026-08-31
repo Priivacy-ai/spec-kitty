@@ -51,7 +51,7 @@ Charter exposes **six new facade modules** (FR-012, all under `src/charter/`):
 | `charter/resolution.py` | `ResolutionResult`, `ResolutionTier` | `runtime/resolver.py` |
 | `charter/versioning.py` | `check_bundle_compatibility`, `get_bundle_schema_version` | `cli/commands/charter.py`, `cli/commands/charter_bundle.py`, `upgrade/migrations/m_3_2_6_charter_bundle_v2.py` |
 
-These are **thin re-exports**, not new abstractions (FR-012 is migration plumbing — the "real" selection-aware charter API surface lives in `charter.activation.context` and the new `charter.activation.activations` / `charter.activation.mission_type_profiles` modules). Charter facades may freely import from `doctrine.*`; they encapsulate the existing imports the runtime currently makes directly.
+These are **thin re-exports**, not new abstractions (FR-012 is migration plumbing — the "real" selection-aware charter API surface lives in `charter.context` and the new `charter.activations` / `charter.mission_type_profiles` modules). Charter facades may freely import from `doctrine.*`; they encapsulate the existing imports the runtime currently makes directly.
 
 `SchemaUtilities` (today imported from `doctrine.shared.schema_utils` by `bulk_edit/occurrence_map.py`) is a generic schema helper. Per the boundary audit, **promote it to `kernel/`** rather than route it through charter — it's a leaf helper that doesn't belong in either layer's domain.
 
@@ -59,17 +59,17 @@ These are **thin re-exports**, not new abstractions (FR-012 is migration plumbin
 
 The activation registry is **charter-side** state. The schema (`ActivationEntry`,
 `ALLOWED_MISSION_TYPES`, `ALLOWED_ACTIONS`) lives in a new module
-`src/charter/activation/activations.py`. Doctrine has no awareness of activations — that
+`src/charter/activations.py`. Doctrine has no awareness of activations — that
 direction would invert the layering. When the resolver in
 `charter/context.py` builds the implement-prompt governance payload, it calls
-`charter.activation.activations.resolve_for_context(activations, mission_type, action)`
+`charter.activations.resolve_for_context(activations, mission_type, action)`
 to filter the list down to entries whose `activation_context` matches the
 current `(mission_type, action)` pair, then renders each into a "when doing"
 stanza alongside the existing globally-selected artifact bodies.
 
 ### 1.5 Mission-type profile resolution
 
-A new module `src/charter/activation/mission_type_profiles.py` provides:
+A new module `src/charter/mission_type_profiles.py` provides:
 
 - `load_profile(mission_type: str) -> MissionTypeProfile | None` — loads `src/doctrine/missions/<mission_type>/governance-profile.yaml`. Returns `None` if no such file exists.
 - `resolve_governance(repo_root: Path, feature_dir: Path) -> GovernancePayload` — reads `feature_dir/meta.json mission_type`, picks the matching profile, unions its declarations with project + org selections, and hard-fails when both the profile is missing AND the project has no declarations (FR-011, journey 4).
@@ -80,14 +80,14 @@ The shipped profiles live under `src/doctrine/missions/<type>/governance-profile
 
 - Charters lacking new fields parse as today (NFR-005). All new fields default to empty lists / `None`.
 - The 23-test ATDD suite at `tests/specify_cli/next/test_wp_prompt_governance_contract.py` MUST stay green throughout.
-- The `_OPTIONAL_EMPTY_OMIT_KEYS` allow-list in `src/charter/activation/schemas.py` is extended with the 5 new `selected_<kind>` keys so existing serialised `governance.yaml` files stay byte-identical when the new fields are empty (preserves Mission A's NFR-005 byte-stability contract).
+- The `_OPTIONAL_EMPTY_OMIT_KEYS` allow-list in `src/charter/schemas.py` is extended with the 5 new `selected_<kind>` keys so existing serialised `governance.yaml` files stay byte-identical when the new fields are empty (preserves Mission A's NFR-005 byte-stability contract).
 - Org charters lacking `required_<kind>` / `activations:` propagate as today — empty unions, no behaviour change.
 
 ---
 
 ## 2. Component Changes
 
-### 2.1 `src/charter/activation/schemas.py` — selection schema extension
+### 2.1 `src/charter/schemas.py` — selection schema extension
 
 Extend `DoctrineSelectionConfig` with five new `selected_<kind>` fields (FR-001):
 
@@ -115,13 +115,13 @@ Extend `load_org_charter_policies` merge semantics — each `required_<kind>` fi
 
 Add `activations` field to `OrgCharterPolicy` (FR-008) so org packs can ship context-scoped activations. The org-merge step concatenates activations across packs (last duplicate wins on `(activation_context, doctrine_pack_id, artifact_id, artifact_kind)` key).
 
-### 2.3 `src/charter/activation/sync.py` and `src/charter/extractor.py` — extraction
+### 2.3 `src/charter/sync.py` and `src/charter/extractor.py` — extraction
 
 Extend the YAML row applier `_apply_selection_row` in `extractor.py` (FR-004) to read every `selected_<kind>` field from the charter's fenced YAML resolution-hints block. Pattern mirrors today's `selected_paradigms` / `selected_directives` / `selected_tactics` handling.
 
 Add an `_apply_activations_block` handler that reads the top-level `activations:` list and populates a new `activations` field on `GovernanceConfig` (or a sibling top-level model — to be confirmed during WP02 implementation, but the data shape is fixed). Round-trip through `governance.yaml` is required: the field round-trips as a list of dicts matching `ActivationEntry.model_dump()`.
 
-### 2.4 `src/charter/activation/context.py` — rendering
+### 2.4 `src/charter/context.py` — rendering
 
 Add five new `_render_selected_<kind>` helpers (FR-005) matching the shape of the existing `_render_profile_directives` and `_render_profile_tactics`. Each renders ID + body inline by default, or ID + fetch + when-doing stanza when token-budget overflow triggers. They are called from `build_charter_context` after the existing directive/tactic renderers.
 
@@ -133,7 +133,7 @@ The resolver call site filters the registry to matching entries first (wildcard 
 
 Add the `org_root` provenance bookkeeping for selected artifacts so the prompt carries `source: org` / pack-name metadata for org-distributed artifacts (acceptance criterion in `test_case_2_org_pack_styleguide_appears_in_consumer_prompt`).
 
-### 2.5 `src/charter/activation/activations.py` — NEW
+### 2.5 `src/charter/activations.py` — NEW
 
 The activation registry surface. Contents:
 
@@ -147,7 +147,7 @@ The activation registry surface. Contents:
 
 `src/charter/profiles.py`, `mission_steps.py`, `drg.py`, `primitives.py`, `resolution.py`, `versioning.py`. Each is a 5–10 line `from doctrine.<x> import <Y>` + `__all__ = [...]` re-export, matching the audit's Phase 2 sketch. No behavioural change; pure layer plumbing.
 
-### 2.7 `src/charter/activation/mission_type_profiles.py` — NEW
+### 2.7 `src/charter/mission_type_profiles.py` — NEW
 
 Loader + resolver for shipped mission-type profiles (FR-010, FR-011):
 
@@ -178,13 +178,13 @@ Borderline cases: the three `versioning` consumers (`cli/commands/charter.py`, `
 
 ### 2.10 Trigger registry initial population (C-005, HiC-facing decision)
 
-See [data-model.md §7](data-model.md#7-trigger-registry-fr-009--canonical-definition) for the canonical vocabulary definition, the `_REGISTERED_TRIGGERS = _ALLOWED_ACTIONS ∪ {write_comment, write_docstring, rename_identifier, add_dependency}` union formula, the mandatory `src/charter/activation/activations.py` re-export contract, and the cross-check architectural test that prevents drift. C-005 is satisfied by that pinned set (15 trigger tokens / 10 action tokens) — implementation must consume the vocabulary via that single source, not by restating it.
+See [data-model.md §7](data-model.md#7-trigger-registry-fr-009--canonical-definition) for the canonical vocabulary definition, the `_REGISTERED_TRIGGERS = _ALLOWED_ACTIONS ∪ {write_comment, write_docstring, rename_identifier, add_dependency}` union formula, the mandatory `src/charter/activations.py` re-export contract, and the cross-check architectural test that prevents drift. C-005 is satisfied by that pinned set (15 trigger tokens / 10 action tokens) — implementation must consume the vocabulary via that single source, not by restating it.
 
 ### 2.11 Missing-pack policy change (C-006, FR-015)
 
 Today's pack-registry loader silently filters out missing `local_path` entries (Mission A behaviour). FR-015 + `test_case_2_consumer_without_fetched_pack_fails_loudly` change this to hard-fail with a message naming the pack and the missing path.
 
-Implementation point: `specify_cli.doctrine.config.load_pack_registry` (or its consumer in `charter.activation.context.build_charter_context`) gains a strict mode. When a configured pack's `local_path` does not exist, the loader raises `PackNotFoundError` (or similar) carrying the pack name + path. C-006 requires the org-doctrine-layer user docs to be updated to call out the change — owned by WP09 documentation work.
+Implementation point: `specify_cli.doctrine.config.load_pack_registry` (or its consumer in `charter.context.build_charter_context`) gains a strict mode. When a configured pack's `local_path` does not exist, the loader raises `PackNotFoundError` (or similar) carrying the pack name + path. C-006 requires the org-doctrine-layer user docs to be updated to call out the change — owned by WP09 documentation work.
 
 ### 2.12 Operator UX (FR-016, FR-017, FR-018, C-007)
 
@@ -235,7 +235,7 @@ Dependencies:
 | Missing-pack policy change breaks existing flows where users have stale `config.yaml` | MEDIUM | C-006 mandates user-doc update. Add a clear migration note. The error message itself names the pack and the missing path so the fix is obvious. |
 | Boundary migration introduces import cycles between charter facades and existing charter modules | MEDIUM | Facades re-export only public doctrine symbols. Charter modules that today import `from doctrine.X` continue to do so directly (the boundary rule applies only to runtime). Phase 2 in the audit explicitly avoids the cycle. |
 | Mission-type profiles ship empty for research / plan and cause regressions in those mission types | LOW | Initial profiles are minimal but valid (declare `mission_type` + empty fields). Profile is hard-fail-on-unknown — but it returns the profile if found, so a minimal-but-present profile is the correct shape. |
-| Charter facades duplicate symbols already exposed by `charter.activation.context` / `charter.activation.template_resolver` | LOW | Facades expose **types and repositories** the runtime needs for type annotations and lookups. The richer charter API (resolved governance payloads) stays in `charter.activation.context`. The two coexist. |
+| Charter facades duplicate symbols already exposed by `charter.context` / `charter.template_resolver` | LOW | Facades expose **types and repositories** the runtime needs for type annotations and lookups. The richer charter API (resolved governance payloads) stays in `charter.context`. The two coexist. |
 | Glossary candidate→canonical flip catches new terms not aligned with implementation | LOW | Promotion happens in WP09 after the implementation lands. Term definitions in the spec are already aligned. |
 | Mission B WPs land in parallel and stomp on `charter/context.py` | MEDIUM | Single owner (`python-pedro`) for all WPs touching `context.py`. WP04 and WP05 both touch it but in distinct rendering blocks; WP04 runs first, WP05 extends afterward. |
 

@@ -63,7 +63,7 @@ After reconciliation, the `ad-hoc-profile-load` skill's Step 1 invokes a command
 
 | ID | Requirement | Status |
 |----|-------------|--------|
-| FR-010 | A shared factory `build_activation_aware_doctrine_service(repo_root)` constructs the inner `doctrine.service.DoctrineService` and wraps it in `charter.activation.resolver.DoctrineService(inner, pack_context=PackContext.from_config(repo_root))`, so all profile surfaces resolve through one chokepoint | Proposed |
+| FR-010 | A shared factory `build_activation_aware_doctrine_service(repo_root)` constructs the inner `doctrine.service.DoctrineService` and wraps it in `charter.resolver.DoctrineService(inner, pack_context=PackContext.from_config(repo_root))`, so all profile surfaces resolve through one chokepoint | Proposed |
 | FR-011 | `spec-kitty agent profile list` defaults to **activated-only**. **Corrected approach (per dialectic review):** today the command builds its descriptor rows from `ProfileRegistry.list_all()` (`profiles_cmd.py:30`), not from `doctrine.service`. To preserve the existing descriptor schema and guarantee NFR-001 byte-identity, **filter the existing `ProfileRegistry` row set by `PackContext.from_config(repo_root).activated_agent_profiles`** (three-state: absent → all; empty → none; set → those) — do **not** swap the data source to the wrapper's `.agent_profiles` dict. The shared factory (FR-010) is used by `show`/`--include`, where no legacy schema is at stake. | Proposed |
 | FR-012 | `profile list` gains `--all` and `--show-available` flags (mirroring `charter list`) that drop to the unfiltered repository and annotate each row with source layer and `activated | available` | Proposed |
 | FR-013 | A new `spec-kitty agent profile show <id>` (alias `get`) prints a single profile's full resolved definition — `initialization_declaration`, `specialization` (primary/secondary/avoidance), `collaboration` (handoff_to/from, works_with), `canonical_verbs`, `mode_defaults`, directive/tactic references, source layer — with `--json` | Proposed |
@@ -89,7 +89,7 @@ After reconciliation, the `ad-hoc-profile-load` skill's Step 1 invokes a command
 |----|-----------|--------|
 | C-001 | `coordination/transaction.py` internals must not be modified (NFR-002) | Accepted |
 | C-002 | The `MissionStatus` read path and its tests (shipped in `01KT6HVH`) must remain green; this mission is additive to the write path | Accepted |
-| C-003 | The activation wrapper `charter.activation.resolver.DoctrineService` must not be duplicated; the shared factory wraps the existing class | Accepted |
+| C-003 | The activation wrapper `charter.resolver.DoctrineService` must not be duplicated; the shared factory wraps the existing class | Accepted |
 | C-004 | `mission_number` must not be used as identity or selector anywhere in new/modified code (ULID/slug only) | Accepted |
 | C-005 | Layer rule preserved: the activation-aware wrapper lives in `charter.*` so it may import `PackContext`; profile CLI in `specify_cli.*` constructs it with a real `PackContext` (DIRECTIVE_031 bounded-context boundary) | Accepted |
 | C-006 | Template/skill edits target the **source** (`src/doctrine/skills/...`), never the generated agent copies (per CLAUDE.md) | Accepted |
@@ -104,8 +104,8 @@ After reconciliation, the `ad-hoc-profile-load` skill's Step 1 invokes a command
 | `ActiveWPStatus` | Read projection from `MissionStatus.claim()` — unchanged |
 | `BookkeepingTransaction` | Infra coordinator (`coordination/transaction.py`) — called only internally; unchanged |
 | `CommitReceipt` | Return type of `save()` (`coordination/types.py`) — unchanged |
-| `charter.activation.resolver.DoctrineService` | Activation-aware wrapper (`src/charter/activation/resolver.py:56-129`) — the activation chokepoint; reused, not duplicated |
-| `PackContext` | `src/charter/activation/pack_context.py` — three-state `activated_agent_profiles` resolver |
+| `charter.resolver.DoctrineService` | Activation-aware wrapper (`src/charter/resolver.py:56-129`) — the activation chokepoint; reused, not duplicated |
+| `PackContext` | `src/charter/pack_context.py` — three-state `activated_agent_profiles` resolver |
 | `build_activation_aware_doctrine_service` | **New** shared factory — single construction seam for all profile surfaces |
 | `profile show` | **New** CLI command (`profiles_cmd.py`) — activation-gated single-profile inspector |
 | Abstract base profile | A profile referenced via `specializes_from` that is not itself activated; resolvable as lineage but gated for direct `show` |
@@ -125,7 +125,7 @@ After reconciliation, the `ad-hoc-profile-load` skill's Step 1 invokes a command
 ## Assumptions
 
 - The `MissionStatus` aggregate, `ActiveWPStatus`, `CoordAuthorityUnavailable`, and the `agent/status.py` read-path migration are already shipped (verified on `feature/...` base, originating from `01KT6HVH`); this mission does not rebuild them.
-- `charter.activation.resolver.DoctrineService`, `PackContext.from_config`, and the construction pattern in `charter/generate.py:46-74` are the canonical activation seam; the shared factory generalises that pattern.
+- `charter.resolver.DoctrineService`, `PackContext.from_config`, and the construction pattern in `charter/generate.py:46-74` are the canonical activation seam; the shared factory generalises that pattern.
 - `activated_agent_profiles` in `.kittify/config.yaml` is the authoritative activation key for agent profiles (confirmed via `charter list` showing `agent-profile` as a first-class activatable kind).
 - The four "phantom" skill commands were never implemented (git history confirms); reconciliation is doc-side plus the one genuinely-needed new command (`show`).
 

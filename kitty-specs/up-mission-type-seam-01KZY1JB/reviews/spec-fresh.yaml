@@ -43,7 +43,7 @@ findings:
     title: "`_resolve_template_set_slot` line-range citation overshoots the function body by two lines"
     evidence:
       - artifact: "spec.md § CL-004 (line 122)"
-      - code: "src/charter/activation/mission_type_profiles.py:841-884"
+      - code: "src/charter/mission_type_profiles.py:841-884"
     claim: >
       CL-004's rewritten corroborating citation gives `_resolve_template_set_slot` as
       `mission_type_profiles.py:841-886`. The function's `def` line is verified at 841 (correct)

@@ -132,7 +132,7 @@ the Requirements table rows, and classifies every match starting with `FR-` as a
 requirement this spec defines" that some WP must cover. `spec.md:124` cites, in explanatory
 prose about the failure mechanism (not in the Requirements table), an **unrelated, pre-existing,
 already-implemented mechanism** in a different part of the codebase: "`CharterPackManager.activate`'s
-FR-021 default-pack materialization (`src/charter/activation/pack_manager.py:601-616` ...)". That citation's
+FR-021 default-pack materialization (`src/charter/pack_manager.py:601-616` ...)". That citation's
 `FR-021` — a foreign requirement ID from different, already-shipped code, not one of *this*
 spec's three Requirements-table rows (FR-001/002/003) — gets swept into `functional_spec_requirement_ids`
 by the whole-document scan and then reported as "unmapped" because, correctly, no WP in this
@@ -172,11 +172,11 @@ artifact). The operator ruled option (a): rephrase the offending citation rather
 upstream fix or grant a bypass.
 
 **Edit made, mechanically, for tooling reasons only** — `spec.md:124` (pre-edit): `` `CharterPackManager.activate`'s
-FR-021 default-pack materialization (`src/charter/activation/pack_manager.py:601-616`, ...) `` → (post-edit):
-`` `CharterPackManager.activate`'s default-pack materialization (`src/charter/activation/pack_manager.py:601-616`, ...) ``.
+FR-021 default-pack materialization (`src/charter/pack_manager.py:601-616`, ...) `` → (post-edit):
+`` `CharterPackManager.activate`'s default-pack materialization (`src/charter/pack_manager.py:601-616`, ...) ``.
 Only the bare `FR-021` token was removed; the mechanism name ("default-pack materialization") and
-every `file:line` citation in the sentence (`src/charter/activation/pack_manager.py:601-616`,
-`src/charter/activation/activation_engine.py:257-268`, `src/charter/activation/pack_manager.py:511-518`) are untouched,
+every `file:line` citation in the sentence (`src/charter/pack_manager.py:601-616`,
+`src/charter/activation_engine.py:257-268`, `src/charter/pack_manager.py:511-518`) are untouched,
 so the sentence's full evidentiary weight is preserved. This is a **semantically inert** edit: the
 sentence's claim, its scope ("not an org-specific gap... the same exclusion would equally apply to
 an unlisted built-in or project artifact"), and its "not a defect this mission changes" framing are
@@ -294,7 +294,7 @@ Ran the canonical `/spec-kitty.analyze` cross-artifact pass by hand (spec.md 419
 against seven detection passes (duplication, ambiguity, underspecification, charter alignment,
 coverage gaps, inconsistency, terminology canon) plus a direct code-citation spot-check of both
 files this mission's spec/plan cite by line number
-(`src/charter/activation/kind_vocabulary.py:200` for `_org_scan_dirs`, `:158` for the `_scan_roots`
+(`src/charter/kind_vocabulary.py:200` for `_org_scan_dirs`, `:158` for the `_scan_roots`
 docstring sentence quoted in plan.md's Campsite-Clean Scope) — both citations are live-accurate.
 Zero findings.
 
@@ -333,7 +333,7 @@ on a *present-but-wrong* carrier is still a silent-success shape worth fixing pe
 "silent success is this repo's dominant failure mode" standing order) — it just was not the cause
 of anything in this analyze pass, and nothing here should be read as "SK-06 is resolved" or as
 this mission's problem to fix (out of `C-001`'s bounded file set; `analysis_report.py` is not
-`src/charter/activation/kind_vocabulary.py` or either of the two owned test files).
+`src/charter/kind_vocabulary.py` or either of the two owned test files).
 
 **Separate, unrelated `DIRTY_WORKTREE` friction, not a defect.** The first `record-analysis`
 attempt failed: `{"success": false, "error_code": "DIRTY_WORKTREE", "dirty_paths":

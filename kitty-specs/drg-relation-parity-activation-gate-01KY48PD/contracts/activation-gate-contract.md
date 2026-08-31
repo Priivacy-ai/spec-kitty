@@ -7,7 +7,7 @@
 
 For a per-kind activation set `S` on `PackContext` (holding config **stems**), a graph node of
 that kind with canonical id `A` survives the per-ID gate iff `A ∈ resolve_stems_to_canonical(S)`,
-where resolution reuses `charter.activation.kind_vocabulary.resolve_artifact_urn` with roots sourced from the
+where resolution reuses `charter.kind_vocabulary.resolve_artifact_urn` with roots sourced from the
 `PackContext`. The gate signature is unchanged.
 
 ## Behavioral cases
@@ -24,7 +24,7 @@ where resolution reuses `charter.activation.kind_vocabulary.resolve_artifact_urn
 
 - **Batch resolution once per filter call.** `_node_is_activated` is invoked once per node (`drg.py:351`) and `resolve_artifact_urn` does filesystem I/O (`rglob`). Resolving per-node is O(nodes×stems×fs-walk) and pushes `_node_is_activated` past the ≤15 complexity ceiling. Instead, `filter_graph_by_activation` builds a `dict[kind, frozenset[canonical_urn] | None]` **once** (lift `_build_tension_active_urns` from the deleted tension-scan almost verbatim — `consistency_check.py:932-956`), and `_node_is_activated` takes that pre-resolved map and stays a pure membership check. The **public gate signature is unchanged** (only the internal helper's).
 - **Compare on full URN.** `resolve_artifact_urn` returns a full URN (`"directive:DIRECTIVE_001"`), while Step 3 today compares the bare `artifact_id`. Resolve activated stems to full URNs and membership-test against `node.urn` (as the tension-scan does at `consistency_check.py:929`).
-- **One doctrine-root source.** Source `doctrine_root` from `resolve_doctrine_root()` (`charter.activation.catalog`) — the SAME source the surviving compiler `references.yaml` projection uses — NOT `pack_context.pack_roots[0]` (a naive `__file__` join that can disagree in installed/wheel layouts and reintroduce the silent-drop class). `org_roots` = `pack_context.pack_roots[1:]`. Add a test pinning gate-doctrine-root == projection-doctrine-root. Prefer lifting `org_roots`/`doctrine_root` to a named `PackContext` accessor so the gate does not become a third open-coded copy of the `pack_roots[1:]` slice (compiler `:144`, tension-scan `:940` are the existing two).
+- **One doctrine-root source.** Source `doctrine_root` from `resolve_doctrine_root()` (`charter.catalog`) — the SAME source the surviving compiler `references.yaml` projection uses — NOT `pack_context.pack_roots[0]` (a naive `__file__` join that can disagree in installed/wheel layouts and reintroduce the silent-drop class). `org_roots` = `pack_context.pack_roots[1:]`. Add a test pinning gate-doctrine-root == projection-doctrine-root. Prefer lifting `org_roots`/`doctrine_root` to a named `PackContext` accessor so the gate does not become a third open-coded copy of the `pack_roots[1:]` slice (compiler `:144`, tension-scan `:940` are the existing two).
 
 ## Attribution proof (NFR-001)
 

@@ -19,10 +19,10 @@ subtasks:
 - T023
 agent: "claude:opus-4-7:reviewer-renata:reviewer"
 agent_profile: python-pedro
-authoritative_surface: src/charter/activation/context.py
+authoritative_surface: src/charter/context.py
 execution_mode: code_change
 owned_files:
-- src/charter/activation/context.py
+- src/charter/context.py
 - tests/charter/test_context_selection_render.py
 role: implementer
 history: []
@@ -40,7 +40,7 @@ shell_pid: "1702621"
 
 ## Objective
 
-Extend `build_charter_context` in `src/charter/activation/context.py` to render every globally-selected artifact across all 5 new kinds. Each render emits the artifact ID plus body inline by default, or ID + fetch + when-doing stanza when token-budget overflow triggers. Org-distributed artifacts additionally carry provenance metadata so the operator can audit which pack contributed which rule.
+Extend `build_charter_context` in `src/charter/context.py` to render every globally-selected artifact across all 5 new kinds. Each render emits the artifact ID plus body inline by default, or ID + fetch + when-doing stanza when token-budget overflow triggers. Org-distributed artifacts additionally carry provenance metadata so the operator can audit which pack contributed which rule.
 
 After this WP, Case 1 (project-layer styleguide) and Case 2 (org-pack styleguide) "always-on" global activation both work end-to-end.
 
@@ -48,9 +48,9 @@ After this WP, Case 1 (project-layer styleguide) and Case 2 (org-pack styleguide
 
 ## Context
 
-Today `src/charter/activation/context.py` has two renderers (`_render_profile_directives`, `_render_profile_tactics`, lines 941 and 1000) called from `build_charter_context` at lines 1083–1084. The pattern is established; this WP extends it to 5 new kinds.
+Today `src/charter/context.py` has two renderers (`_render_profile_directives`, `_render_profile_tactics`, lines 941 and 1000) called from `build_charter_context` at lines 1083–1084. The pattern is established; this WP extends it to 5 new kinds.
 
-The fetch-stanza helper (`charter.activation.context_renderers.fetch_stanza.fetch_stanza_lines`) handles token-budget overflow. New renderers reuse it.
+The fetch-stanza helper (`charter.context_renderers.fetch_stanza.fetch_stanza_lines`) handles token-budget overflow. New renderers reuse it.
 
 See:
 - [plan.md §2.4](../plan.md)
@@ -70,7 +70,7 @@ See:
 
 ### T017 — Add `_render_selected_styleguides`
 
-**File**: `src/charter/activation/context.py`
+**File**: `src/charter/context.py`
 
 Helper signature mirrors `_render_profile_directives`:
 

@@ -34,8 +34,8 @@ execution_mode: code_change
 mission_id: 01KPE222CD1MMCYEGB3ZCY51VR
 mission_slug: phase-3-charter-synthesizer-pipeline-01KPE222
 owned_files:
-- src/charter/activation/synthesizer/topic_resolver.py
-- src/charter/activation/synthesizer/resynthesize_pipeline.py
+- src/charter/synthesizer/topic_resolver.py
+- src/charter/synthesizer/resynthesize_pipeline.py
 - src/specify_cli/cli/commands/charter.py
 - tests/charter/synthesizer/test_topic_resolver.py
 - tests/charter/synthesizer/test_orchestrator_resynthesize.py
@@ -76,7 +76,7 @@ Read before writing code:
 
 ### T027 — `topic_resolver.py` [P]
 
-**File**: `src/charter/activation/synthesizer/topic_resolver.py`
+**File**: `src/charter/synthesizer/topic_resolver.py`
 
 Public API:
 
@@ -117,7 +117,7 @@ CLI renders via `rich`-panel helper — panel title `Cannot resolve --topic "<ra
 
 ### T029 — `resynthesize_pipeline.py`
 
-**File**: `src/charter/activation/synthesizer/resynthesize_pipeline.py`
+**File**: `src/charter/synthesizer/resynthesize_pipeline.py`
 
 Public entry: `run(request, adapter, topic: str) -> SynthesisManifest`.
 
@@ -161,7 +161,7 @@ def charter_resynthesize(
 
 - `--adapter fixture` opts into the fixture adapter (R-0-5; quickstart §6). Default is `"production"`.
 - `--dry-run` (synthesize only) stages + validates but does not promote; prints the staged file list.
-- On any `SynthesisError`, render via the shared `rich`-panel helper (`src/charter/activation/synthesizer/errors.py`), exit code 1 for most errors, exit code 2 for `TopicSelectorUnresolvedError` (matches `contracts/topic-selector.md §2.2`).
+- On any `SynthesisError`, render via the shared `rich`-panel helper (`src/charter/synthesizer/errors.py`), exit code 1 for most errors, exit code 2 for `TopicSelectorUnresolvedError` (matches `contracts/topic-selector.md §2.2`).
 
 ### T031 — Performance envelope tests [P]
 

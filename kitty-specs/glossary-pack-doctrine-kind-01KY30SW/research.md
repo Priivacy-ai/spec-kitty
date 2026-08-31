@@ -81,11 +81,11 @@ and `glossary-research/00-consolidated-pre-spec-brief.md`. Grounding: ADR
 | `src/doctrine/drg/models.py` | URN regex ~19, `prefix==kind.value` ~117-121, `NodeKind` ~45 | `NodeKind.GLOSSARY_PACK`; underscore URN |
 | `src/doctrine/glossaries/` | — | NEW package (models, repository, builtin assets) |
 | `src/doctrine/service.py` | `DoctrineService` | `.glossaries` accessor |
-| `src/charter/activation/pack_context.py` | `_BUILTIN_ARTIFACT_KINDS`, `activated_*` | add kind + `activated_glossary_packs` |
-| `src/charter/activation/activations.py` | `_ALLOWED_KINDS` | add kind |
+| `src/charter/pack_context.py` | `_BUILTIN_ARTIFACT_KINDS`, `activated_*` | add kind + `activated_glossary_packs` |
+| `src/charter/activations.py` | `_ALLOWED_KINDS` | add kind |
 | `src/charter/org_pack_loader.py` | `_ORG_DRG_CANONICAL_KINDS` | add kind |
 | `src/charter/drg.py` | kind maps | two entries |
-| `src/charter/activation/kind_vocabulary.py` | `from_operator_token`, `YAML_KEY_MAP` | derived token |
+| `src/charter/kind_vocabulary.py` | `from_operator_token`, `YAML_KEY_MAP` | derived token |
 | doctrine `loader.py` / extractor | `_KIND_MAP` ~100-146 | emit glossary-pack nodes |
 
 ## Open risks carried into design

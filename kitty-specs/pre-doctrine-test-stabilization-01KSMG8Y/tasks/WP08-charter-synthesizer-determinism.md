@@ -148,7 +148,7 @@ The charter synthesizer produces manifest hashes that vary across runs because f
 
 1. Read `path_guard.py` to understand its current interface:
    ```bash
-   cat src/charter/activation/synthesizer/path_guard.py
+   cat src/charter/synthesizer/path_guard.py
    ```
    (If it doesn't exist yet, it needs to be created as the single write-permitted entry point.)
 
@@ -168,7 +168,7 @@ The charter synthesizer produces manifest hashes that vary across runs because f
    pytest tests/charter/synthesizer/test_bundle_validate_extension.py -v --tb=short -k "path_guard or chokepoint"
    ```
 
-**Files**: `src/charter/activation/synthesizer/path_guard.py` and any callers that bypass it
+**Files**: `src/charter/synthesizer/path_guard.py` and any callers that bypass it
 
 **Validation**:
 - [ ] No direct write primitives exist outside `path_guard.py` in `src/charter/synthesizer/`

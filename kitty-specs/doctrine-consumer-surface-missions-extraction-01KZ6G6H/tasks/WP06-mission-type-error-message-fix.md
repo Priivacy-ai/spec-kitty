@@ -25,7 +25,7 @@ create_intent: []
 execution_mode: code_change
 model: ''
 owned_files:
-- src/charter/activation/mission_type_profiles.py
+- src/charter/mission_type_profiles.py
 - tests/charter/test_mission_type_profiles.py
 role: implementer
 tags: []
@@ -58,7 +58,7 @@ This WP is done when:
 
 Read `spec.md` (FR-006, SC-003, User Story 3) and `research.md` (R4) before starting.
 
-**The exact reproduction is already documented.** `src/charter/activation/mission_type_profiles.py` (~line 506-514) carries an in-repo docstring reproducing the defect verbatim: activating only `my-custom` with no resolvable `MissionTypeProfile` on disk raises `"Unknown mission type 'my-custom'. Registered types: my-custom."` — the id appears in both the "unknown" clause and the "registered" list.
+**The exact reproduction is already documented.** `src/charter/mission_type_profiles.py` (~line 506-514) carries an in-repo docstring reproducing the defect verbatim: activating only `my-custom` with no resolvable `MissionTypeProfile` on disk raises `"Unknown mission type 'my-custom'. Registered types: my-custom."` — the id appears in both the "unknown" clause and the "registered" list.
 
 **Important — the existing test does not cover this.** `tests/charter/test_mission_type_profiles.py::test_unknown_type_raises_unknown_mission_type_error` only checks an id absent from `existing_mission_types()` entirely — a different, non-contradictory case. Do not treat that test passing as evidence this defect is already covered.
 
@@ -81,7 +81,7 @@ Read `spec.md` (FR-006, SC-003, User Story 3) and `research.md` (R4) before star
 
 - **Purpose**: Resolve the vocabulary collision.
 - **Steps**: Change the message so it states the two distinct facts separately — e.g. "Mission type 'my-custom' is activated but has no loadable profile" — never claiming both "unknown" and "registered" of the same id in one sentence.
-- **Files**: `src/charter/activation/mission_type_profiles.py`.
+- **Files**: `src/charter/mission_type_profiles.py`.
 - **Parallel?**: No — depends on T026 existing first (red).
 
 ### T028 – Verify

@@ -16,10 +16,10 @@ Found independently by **alphonso, debbie, and priti**.
 | Site | Role | Severity |
 |------|------|----------|
 | `src/charter/drg.py:137` | `load_org_pack(.../drg/fragment.yaml)` — the path `doctor doctrine` health flows through (`doctor.py:2628`→`load_org_drg`→`_collect_org_layer_data`) | BLOCKER |
-| `src/charter/activation/pack_context.py:344` | modern `PackContext.from_config` path | BLOCKER/HIGH |
+| `src/charter/pack_context.py:344` | modern `PackContext.from_config` path | BLOCKER/HIGH |
 | `src/specify_cli/doctrine/org_charter.py:570` | org-charter policy load | HIGH |
 | `src/specify_cli/cli/commands/doctor.py:2608` | pack-health renderer (`_build_pack_entries`) | HIGH |
-| `src/charter/activation/context.py:746` | direct `org-charter.yaml` read | MEDIUM |
+| `src/charter/context.py:746` | direct `org-charter.yaml` read | MEDIUM |
 | `src/specify_cli/charter_runtime/lint/checks/org_layer.py:236` | org-layer lint `DoctrineService(org_roots=...)` | MEDIUM |
 
 **Debbie's repro trace**: fix `resolve_org_roots` alone → #2083 repro stays RED, because health is decided by `load_org_drg`→`load_org_pack(<pack.local_path>/drg/fragment.yaml)`, never touching `resolve_org_roots`.

@@ -102,7 +102,7 @@ mission exists to close.
   `resolve_org_dirs`) — consumed by `MissionStepContractRepository`, a
   `BaseDoctrineRepository` subclass.
 - **FR-002** uses the structurally distinct **single-path shape** (`org_root: Path | None`) —
-  consumed by `charter.activation._drg_helpers.load_validated_graph`. This is **not** `resolve_org_dirs`'s
+  consumed by `charter._drg_helpers.load_validated_graph`. This is **not** `resolve_org_dirs`'s
   job and does not go through it. Resolve it inline per contract C-2 (below). Conflating these
   two shapes is a mistake the mission's own spec had to explicitly correct once (spec.md
   D-000(2)) — do not attempt to pass `org_dirs` (a list) where `org_root` (a single path) is
@@ -154,7 +154,7 @@ for _name, candidate in _enumerate_org_pack_paths(context.repo_root):
 
 Then change the `load_validated_graph` call to
 `load_validated_graph(context.repo_root, org_root=effective_org_root)`. Import
-`_enumerate_org_pack_paths` from `charter.activation.org_pack_discovery` — it is exported despite its
+`_enumerate_org_pack_paths` from `charter.org_pack_discovery` — it is exported despite its
 underscore prefix (present in that module's `__all__`) and already imported cross-module by
 `action_doctrine_bundle.py`, so this is established precedent, not a new pattern.
 
@@ -200,7 +200,7 @@ import — this is not a lazy/local import; check the file's existing import sty
 
 Edit `StepContractExecutor.execute` (`executor.py:179`) as described above (contract C-2,
 first-match inline resolution). Import `_enumerate_org_pack_paths` from
-`charter.activation.org_pack_discovery`.
+`charter.org_pack_discovery`.
 
 ### T007 — FR-005: mirror the executor's construction in gate_bindings [LOCKSTEP with T005]
 

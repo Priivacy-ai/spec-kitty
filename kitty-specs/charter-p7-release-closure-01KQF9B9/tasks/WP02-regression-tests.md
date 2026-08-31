@@ -147,7 +147,7 @@ def _add_synthesis_manifest(
 ) -> Path:
     """Write .kittify/charter/synthesis-manifest.yaml referencing one artifact.
 
-    Uses charter.activation.synthesizer.manifest (SynthesisManifest + dump_manifest) so the
+    Uses charter.synthesizer.manifest (SynthesisManifest + dump_manifest) so the
     format matches what load_yaml/verify_manifest expect. See _make_v2_manifest() in
     tests/charter/synthesizer/test_bundle_validate_extension.py for the exact pattern.
 
@@ -158,7 +158,7 @@ def _add_synthesis_manifest(
     per-artifact content_hash values and the manifest self-hash. T010 targets the
     per-artifact mismatch path; the self-hash mismatch path has its own regression.
     """
-    from charter.activation.synthesizer.manifest import SynthesisManifest, dump_manifest  # noqa: PLC0415
+    from charter.synthesizer.manifest import SynthesisManifest, dump_manifest  # noqa: PLC0415
 
     artifact_full_rel = f".kittify/doctrine/{artifact_rel}"
     real_hash = hashlib.sha256(content.encode()).hexdigest()
@@ -179,7 +179,7 @@ def _add_synthesis_manifest(
     return manifest_path
 ```
 
-**Note on `_add_synthesis_manifest`**: The import inside the function body avoids adding a module-level import that could fail in environments where `charter.activation.synthesizer` is not on the path. If `SynthesisManifest` or `dump_manifest` have different names in the actual module, check `src/charter/activation/synthesizer/manifest.py` and mirror the call pattern from `_make_v2_manifest()` in `tests/charter/synthesizer/test_bundle_validate_extension.py`.
+**Note on `_add_synthesis_manifest`**: The import inside the function body avoids adding a module-level import that could fail in environments where `charter.synthesizer` is not on the path. If `SynthesisManifest` or `dump_manifest` have different names in the actual module, check `src/charter/synthesizer/manifest.py` and mirror the call pattern from `_make_v2_manifest()` in `tests/charter/synthesizer/test_bundle_validate_extension.py`.
 
 **Validation**:
 - [ ] The three helpers are defined above the fixture definitions

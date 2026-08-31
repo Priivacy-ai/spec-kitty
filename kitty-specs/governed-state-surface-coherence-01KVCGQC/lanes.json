@@ -69,8 +69,8 @@
       ],
       "write_scope": [
         "src/charter/hasher.py",
-        "src/charter/activation/synthesizer/graph_residue.py",
-        "src/charter/activation/synthesizer/project_drg.py",
+        "src/charter/synthesizer/graph_residue.py",
+        "src/charter/synthesizer/project_drg.py",
         "src/specify_cli/charter_runtime/freshness/computer.py",
         "src/specify_cli/cli/commands/charter/_fresh_doctrine.py",
         "tests/specify_cli/charter/test_freshness_hash_unification.py",

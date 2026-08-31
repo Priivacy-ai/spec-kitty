@@ -15,7 +15,7 @@
 For monorepos that want per-package charter scoping:
 
 ```yaml
-# pydantic_model: charter.activation.scope.CharterScopeConfig
+# pydantic_model: charter.scope.CharterScopeConfig
 # expect: valid
 charter_scopes:
   - root: packages/auth
@@ -30,7 +30,7 @@ Single-project repositories OMIT this key entirely. The CharterScope resolver de
 
 ```python
 from pathlib import Path
-from charter.activation.scope import CharterScope
+from charter.scope import CharterScope
 
 # Default (single-project) — behaviour byte-identical to today
 scope = CharterScope.default(repo_root)
@@ -42,7 +42,7 @@ scope = CharterScope.resolve(repo_root, feature_dir)
 ### API surface — `charter/context.py`
 
 ```python
-from charter.activation.context import build_charter_context
+from charter.context import build_charter_context
 
 # Single-project (no scope passed) — byte-identical to today's call site
 result = build_charter_context(repo_root, action="implement")
@@ -105,7 +105,7 @@ When a non-default scope is active, `build_charter_context` reads the charter fr
 ## Sample malformed configuration — round-trip frontmatter
 
 ```yaml
-# pydantic_model: charter.activation.scope.CharterScopeConfig
+# pydantic_model: charter.scope.CharterScopeConfig
 # expect: invalid
 charter_scopes:
   - root: packages/auth

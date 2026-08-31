@@ -9,7 +9,7 @@
 
 ### CharterPack (value object)
 
-Immutable snapshot of a full activation configuration. Loaded from `src/charter/activation/packs/default.yaml` (shipped pack) or assembled from config.yaml state.
+Immutable snapshot of a full activation configuration. Loaded from `src/charter/packs/default.yaml` (shipped pack) or assembled from config.yaml state.
 
 | Field | Type | Description |
 |-------|------|-------------|
@@ -27,13 +27,13 @@ Immutable snapshot of a full activation configuration. Loaded from `src/charter/
 
 **Reader rule (FR-039)**: The `and raw` guard is removed from **every** activation reader — `_read_activated_kinds`, `_read_activated_mission_types`, and all new per-kind readers. An empty YAML list `[]` maps to `frozenset()` (explicit empty restriction) for every activation field. There is no reader-side fallback to built-ins for any key. The three-state model (`None` = absent key = all built-ins; `frozenset()` = empty = nothing; non-empty frozenset = exactly those IDs) applies consistently across all activation fields without exception. The existing test `test_empty_activated_kinds_uses_builtin_fallback` encodes the old two-state behavior and must be deleted. Projects are protected from accidental empty activation sets by the upgrade command writing the default pack — not by reader-side fallbacks.
 
-**Serialization**: YAML under `src/charter/activation/packs/default.yaml`. Kind keys use plural snake_case matching `PackContext` existing keys. `None` / absent key is represented by absence of the YAML key (round-trip safe).
+**Serialization**: YAML under `src/charter/packs/default.yaml`. Kind keys use plural snake_case matching `PackContext` existing keys. `None` / absent key is represented by absence of the YAML key (round-trip safe).
 
 ---
 
 ### PackContext (existing, extended)
 
-Existing **stdlib `@dataclass(frozen=True)`** in `src/charter/activation/pack_context.py` (not Pydantic — do not use `Field()`, `@validator`, or Pydantic APIs). Extended with per-kind activation fields.
+Existing **stdlib `@dataclass(frozen=True)`** in `src/charter/pack_context.py` (not Pydantic — do not use `Field()`, `@validator`, or Pydantic APIs). Extended with per-kind activation fields.
 
 | Field | Type | Source in config.yaml |
 |-------|------|----------------------|
@@ -102,10 +102,10 @@ Parsed from the `--cascade` CLI flag. The cascade token is the CLI kind name (hy
 
 ### CharterPackManager (service)
 
-New module: `src/charter/activation/pack_manager.py`
+New module: `src/charter/pack_manager.py`
 
 Responsibilities:
-- Load `CharterPack` from `src/charter/activation/packs/default.yaml`
+- Load `CharterPack` from `src/charter/packs/default.yaml`
 - Read current activation state from config.yaml via `PackContext.from_config()`
 - Write activation changes to config.yaml (ruamel.yaml round-trip, comment-preserving)
 - Merge default pack into existing config.yaml state (upgrade path)
@@ -138,7 +138,7 @@ YAML_KEY_MAP = {
 ```
 Do NOT use a generic `f"activated_{kind.replace('-', '_')}s"` formatter — `mission-type` is the outlier that requires explicit dispatch.
 
-**Activation from `None` state**: When `activated_<kind>` is `None` (absent key — pre-upgrade project), `activate()` must first materialize the starting set. The source is `src/charter/activation/packs/default.yaml` — the manager reads the default pack for that kind, writes all its artifact IDs as the initial explicit activation list, then adds the requested artifact. This is deterministic and independent of the live doctrine catalog (catalog changes do not retroactively alter an explicit activation list). **Warning required**: if the project has third-party doctrine artifacts of this kind that are absent from `default.yaml`, the materialized set will not include them and those artifacts will become unavailable. The manager must emit a visible warning: `"Warning: materialized activation set from default pack; any third-party <kind> artifacts not in the default pack are now excluded. Review 'charter list --show-available' to verify."` This warning should only fire when a third-party artifact would be lost (i.e., the doctrine catalog for this kind has entries not in `default.yaml`).
+**Activation from `None` state**: When `activated_<kind>` is `None` (absent key — pre-upgrade project), `activate()` must first materialize the starting set. The source is `src/charter/packs/default.yaml` — the manager reads the default pack for that kind, writes all its artifact IDs as the initial explicit activation list, then adds the requested artifact. This is deterministic and independent of the live doctrine catalog (catalog changes do not retroactively alter an explicit activation list). **Warning required**: if the project has third-party doctrine artifacts of this kind that are absent from `default.yaml`, the materialized set will not include them and those artifacts will become unavailable. The manager must emit a visible warning: `"Warning: materialized activation set from default pack; any third-party <kind> artifacts not in the default pack are now excluded. Review 'charter list --show-available' to verify."` This warning should only fire when a third-party artifact would be lost (i.e., the doctrine catalog for this kind has entries not in `default.yaml`).
 
 **Deactivation from `None` state**: `deactivate()` on a kind whose activation field is `None` (no explicit set) is an error. Exit with code 1 and message: `"Kind '<kind>' has no explicit activation set. Run 'spec-kitty upgrade' to initialize the default pack before modifying individual activations."` This prevents an implicit materialization step on a destructive path and guides the user to the correct remediation.
 
@@ -175,7 +175,7 @@ Return type of `CharterPackManager.merge_defaults()`.
 
 ### ProjectContext (value object)
 
-Immutable snapshot of project-level runtime state. Defined in `src/charter/activation/invocation_context.py`. Owned by the charter module; populated by `specify_cli.*`.
+Immutable snapshot of project-level runtime state. Defined in `src/charter/invocation_context.py`. Owned by the charter module; populated by `specify_cli.*`.
 
 | Field | Type | Description |
 |-------|------|-------------|
@@ -224,7 +224,7 @@ def activate(ctx: ProjectContext, kind: str, artifact_id: str, ...) -> Activatio
 
 ### OperationalContext (value object)
 
-Immutable snapshot of agent-invocation-level runtime state. Defined in `src/charter/activation/invocation_context.py`. Owned by the charter module; populated by `specify_cli.context` factories when an agent invocation is live.
+Immutable snapshot of agent-invocation-level runtime state. Defined in `src/charter/invocation_context.py`. Owned by the charter module; populated by `specify_cli.context` factories when an agent invocation is live.
 
 | Field | Type | Description |
 |-------|------|-------------|
@@ -267,10 +267,10 @@ class ContextPreconditionError(RuntimeError):
 
 | Module | Role |
 |--------|------|
-| `src/charter/activation/invocation_context.py` | Defines `ProjectContext`, `OperationalContext`, `ContextPreconditionError`, and all guard methods — charter owns these types entirely |
-| call sites in `specify_cli.*` | Import directly from `charter.activation.invocation_context`; construct `ProjectContext.from_repo(repo_root)` inline at CLI entry points — no wrapper package or factory module needed |
+| `src/charter/invocation_context.py` | Defines `ProjectContext`, `OperationalContext`, `ContextPreconditionError`, and all guard methods — charter owns these types entirely |
+| call sites in `specify_cli.*` | Import directly from `charter.invocation_context`; construct `ProjectContext.from_repo(repo_root)` inline at CLI entry points — no wrapper package or factory module needed |
 
-`charter.*` functions import `ProjectContext` from `charter.activation.invocation_context` (same-package, no violation). `specify_cli.*` functions import from `charter.activation.invocation_context` directly — the `specify_cli → charter` direction is allowed by the layer rules. No new `specify_cli.*` package is created for this purpose; `src/specify_cli/context/` is an existing MissionContext identity package with unrelated semantics and must not be extended with charter types. `doctrine.*` defines a narrow `ProjectContextProtocol` matching only the fields it uses (resolves C-004 / A2 — no charter import needed in doctrine).
+`charter.*` functions import `ProjectContext` from `charter.invocation_context` (same-package, no violation). `specify_cli.*` functions import from `charter.invocation_context` directly — the `specify_cli → charter` direction is allowed by the layer rules. No new `specify_cli.*` package is created for this purpose; `src/specify_cli/context/` is an existing MissionContext identity package with unrelated semantics and must not be extended with charter types. `doctrine.*` defines a narrow `ProjectContextProtocol` matching only the fields it uses (resolves C-004 / A2 — no charter import needed in doctrine).
 
 ---
 

@@ -154,7 +154,7 @@ External end-to-end coverage (#827 Tranche 3), plain-English acceptance scenario
 | NFR-001 | The required local test gate passes on the feature branch before PR open | All five commands listed in start-here.md §"Required Product-Repo Test Gate" exit 0: `uv run pytest tests/e2e/test_charter_epic_golden_path.py -q`; `uv run pytest tests/agent/cli/commands/test_charter_synthesize_cli.py tests/integration/test_json_envelope_strict.py tests/integration/test_charter_synthesize_fresh.py -q`; `uv run pytest tests/next/test_retrospective_terminus_wiring.py tests/retrospective/test_gate_decision.py tests/doctrine_synthesizer/test_path_traversal_rejection.py -q`; `uv run pytest tests/cross_cutting/test_mypy_strict_mission_step_contracts.py -q`; `uv run ruff check src tests` | Pending |
 | NFR-002 | No regressions in CI checks that pass on current `main` | Every CI check that is green on `origin/main` at branch-cut time remains green on the PR head; net new failures are zero | Pending |
 | NFR-003 | Test coverage for new code | Code added or modified in this mission carries automated test coverage at the repository's existing standard (90%+ line coverage for new/changed code, per the project policy summary) | Pending |
-| NFR-004 | Strict type-check coverage for new and modified runtime code | `uv run mypy --strict` passes for all modified files in `src/specify_cli/cli/commands/charter.py` and `src/charter/activation/synthesizer/write_pipeline.py` (if touched), and for `src/specify_cli/mission_step_contracts/executor.py` per the existing cross-cutting rule | Pending |
+| NFR-004 | Strict type-check coverage for new and modified runtime code | `uv run mypy --strict` passes for all modified files in `src/specify_cli/cli/commands/charter.py` and `src/charter/synthesizer/write_pipeline.py` (if touched), and for `src/specify_cli/mission_step_contracts/executor.py` per the existing cross-cutting rule | Pending |
 | NFR-005 | Hosted-surface command rule | 100% of commands in this mission's tests, fixtures, and examples that touch hosted auth, tracker, SaaS sync, or sync behavior are invoked with `SPEC_KITTY_ENABLE_SAAS_SYNC=1` | Pending |
 | NFR-006 | Single-PR scope discipline | The diff for this mission lives in exactly one PR; the PR touches files only inside the `spec-kitty` repository | Pending |
 
@@ -184,7 +184,7 @@ External end-to-end coverage (#827 Tranche 3), plain-English acceptance scenario
 ## Key Entities
 
 - **Synthesis envelope** — the strict JSON object emitted by `spec-kitty charter synthesize --json`. Contains `result`, `adapter`, `written_artifacts`, `warnings`, and may carry legacy compatibility fields. Authored in `src/specify_cli/cli/commands/charter.py`.
-- **Staged artifact** — a typed entry returned by the synthesizer's write pipeline (`src/charter/activation/synthesizer/write_pipeline.py`) describing the kind, identifier, and target path of a doctrine artifact that was staged or promoted. The envelope's `written_artifacts` list is derived from these entries.
+- **Staged artifact** — a typed entry returned by the synthesizer's write pipeline (`src/charter/synthesizer/write_pipeline.py`) describing the kind, identifier, and target path of a doctrine artifact that was staged or promoted. The envelope's `written_artifacts` list is derived from these entries.
 - **Issued action envelope** — a runtime-emitted envelope of `kind=step` instructing the agent to perform a prompted action. Carries a prompt path field; consumed by the golden-path E2E.
 - **Blocked decision envelope** — a runtime-emitted envelope that halts a step. Must carry a non-empty `reason`; may omit a prompt path.
 - **Prompt file** — an on-disk markdown/text artifact pointed at by an issued action envelope. May be test-project-relative, absolute, or a documented shipped prompt artifact path.
@@ -193,7 +193,7 @@ External end-to-end coverage (#827 Tranche 3), plain-English acceptance scenario
 ## Assumptions
 
 - A1 The `_parse_first_json_object` helper in the golden-path E2E currently uses `json.loads(stdout)` over the full stdout (per start-here.md verification list). This mission preserves that, but FR-001 also requires the producer side to emit strict JSON regardless.
-- A2 The Charter synthesizer's write pipeline already returns a typed staged-artifact list (or can be extended to do so without changing public types). If the staged-artifact return shape needs to grow, edits to `src/charter/activation/synthesizer/write_pipeline.py` are in scope.
+- A2 The Charter synthesizer's write pipeline already returns a typed staged-artifact list (or can be extended to do so without changing public types). If the staged-artifact return shape needs to grow, edits to `src/charter/synthesizer/write_pipeline.py` are in scope.
 - A3 The golden-path E2E builds a real test project where prompt files have predictable, resolvable paths; the assertion in FR-006 can therefore distinguish "prompt path is wrong" from "test project setup is broken."
 - A4 The `Protect Main Branch` failure described in start-here.md is not caused by code in `src/`. If diagnosis proves otherwise, it is fixed in this PR (FR-013).
 - A5 The agent has authority to file or update GitHub issues under the rules in C-006 and FR-013, including unsetting `GITHUB_TOKEN` to use keyring scopes when needed (per CLAUDE.md guidance).

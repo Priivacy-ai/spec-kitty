@@ -77,7 +77,7 @@ citation directly against the actual checkout before writing a single line of pl
   before proposing that `_mission_type_audit.py` import from `charter` and
   `doctrine` — confirmed `specify_cli -> charter -> doctrine -> kernel` is the
   declared, enforced direction, and that `specify_cli/mission.py` already imports
-  `charter.activation.mission_type_key` today, so the new sibling module's import shape has
+  `charter.mission_type_key` today, so the new sibling module's import shape has
   a direct, live precedent rather than being a novel architectural decision.
 
 ## Sequencing decisions

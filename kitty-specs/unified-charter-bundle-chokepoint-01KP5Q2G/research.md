@@ -33,7 +33,7 @@ Seed the WP2.3 occurrence artifact with the following registry. WP2.3 verifies a
 
 | Site (file:approx line) | Bypass mechanism | Fix |
 | --- | --- | --- |
-| `src/charter/activation/context.py:406-661` (`build_charter_context`) | Direct `charter_path.read_text()` (~line 555) — note this reads the tracked `charter.md` but is still covered by the chokepoint contract because staleness vs. derivatives is the concern. | Call `ensure_charter_bundle_fresh()` at the top of the function; use `SyncResult.canonical_root` to anchor subsequent reads. This ensures the reader observes fresh derivatives for downstream `load_governance_config` / `load_directives_config` calls. |
+| `src/charter/context.py:406-661` (`build_charter_context`) | Direct `charter_path.read_text()` (~line 555) — note this reads the tracked `charter.md` but is still covered by the chokepoint contract because staleness vs. derivatives is the concern. | Call `ensure_charter_bundle_fresh()` at the top of the function; use `SyncResult.canonical_root` to anchor subsequent reads. This ensures the reader observes fresh derivatives for downstream `load_governance_config` / `load_directives_config` calls. |
 | `src/specify_cli/dashboard/charter_path.py:8-17` (`resolve_project_charter_path`) | Existence-only check without freshness guarantee | Call the chokepoint before the existence check; surface a freshness-aware result. |
 | `src/specify_cli/dashboard/scanner.py` charter probes | TBD by implementation grep; suspected direct existence checks in the scanner's per-frame loop | Route through the chokepoint; use NFR-002's warm-overhead budget as the perf bar. |
 | `src/specify_cli/dashboard/server.py` charter endpoints | TBD by implementation grep | Same. |
@@ -45,16 +45,16 @@ Seed the WP2.3 occurrence artifact with the following registry. WP2.3 verifies a
 
 | Site | Already uses chokepoint |
 | --- | --- |
-| `src/charter/activation/sync.py:187-226` (`load_governance_config`) | Yes, at line 204 |
-| `src/charter/activation/sync.py:229-264` (`load_directives_config`) | Yes, at line 244 |
-| `src/charter/activation/resolver.py:43-135` (`resolve_governance`) | Yes, transitively via the two loaders above |
+| `src/charter/sync.py:187-226` (`load_governance_config`) | Yes, at line 204 |
+| `src/charter/sync.py:229-264` (`load_directives_config`) | Yes, at line 244 |
+| `src/charter/resolver.py:43-135` (`resolve_governance`) | Yes, transitively via the two loaders above |
 
 **Out of R-1 scope** — not required to route through the chokepoint in this tranche:
 
 | Pipeline | File(s) | Rationale |
 | --- | --- | --- |
-| Compiler (`references.yaml` producer) | `src/charter/activation/compiler.py:169-196` (`write_compiled_charter`) | Produces `references.yaml`, which is out of v1.0.0 manifest scope. |
-| Context-state writes | `src/charter/activation/context.py:385-398` | Writes `context-state.json` runtime state; out of v1.0.0 manifest scope. |
+| Compiler (`references.yaml` producer) | `src/charter/compiler.py:169-196` (`write_compiled_charter`) | Produces `references.yaml`, which is out of v1.0.0 manifest scope. |
+| Context-state writes | `src/charter/context.py:385-398` | Writes `context-state.json` runtime state; out of v1.0.0 manifest scope. |
 
 **Duplicate-package twins (C-003 lockstep)** — WP2.3 updates only if still live:
 
@@ -150,8 +150,8 @@ Narrow scope: only the three v1.0.0 manifest files (`governance.yaml`, `directiv
 
 | Caller (file:approx line) | Uses `files_written`? | Needs rewire? |
 | --- | --- | --- |
-| `src/charter/activation/sync.py :: post_save_hook()` (lines 162-184) | Yes — displays the file list | Rewire to use `SyncResult.canonical_root / p` for each displayed path. |
-| `src/charter/activation/sync.py :: ensure_charter_bundle_fresh()` (lines 50-90) | Returns `SyncResult` | Behavior moved to use `canonical_root` internally; callers outside see it in the new field. |
+| `src/charter/sync.py :: post_save_hook()` (lines 162-184) | Yes — displays the file list | Rewire to use `SyncResult.canonical_root / p` for each displayed path. |
+| `src/charter/sync.py :: ensure_charter_bundle_fresh()` (lines 50-90) | Returns `SyncResult` | Behavior moved to use `canonical_root` internally; callers outside see it in the new field. |
 | `src/specify_cli/cli/commands/charter.py :: sync()` (line ~347) | Inspects the result and prints | Rewire to use `canonical_root` when formatting output. |
 | Tests under `tests/charter/` that assert on `files_written` | Varies | Rewire each assertion to anchor paths against `canonical_root`. |
 

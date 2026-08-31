@@ -23,7 +23,7 @@ during spec authoring; any line-number drift found during that re-verification i
 `MissionTypeRepository.default()` (`src/doctrine/missions/mission_type_repository.py:48-50`, a
 `@classmethod` decorated with `@functools.cache` and keyed on `cls` only) **stays built-in-only
 and memoised, unchanged.** A **new, separate** layered lookup is added, entered at
-`resolve_mission_type_context` (`src/charter/activation/mission_type_profiles.py:516-618`), which already
+`resolve_mission_type_context` (`src/charter/mission_type_profiles.py:516-618`), which already
 constructs a `PackContext` one call-frame down (via `existing_mission_types()` at
 `mission_type_profiles.py:424`, which builds `PackContext.from_config(repo_root)` at
 `mission_type_profiles.py:507`). The new lookup imports the existing structural `_PackContextLike`
@@ -58,7 +58,7 @@ The new factory MUST be a **module-level** `@functools.cache` keyed on
 a `@staticmethod` that calls `.cache_clear()` on the underlying module-level
 `functools.cache`-wrapped factory) — **never** a classmethod cache. It must never be called at
 module scope in any `charter.*` module: an import-time-IO architectural gate constrains
-`charter.activation.mission_type_profiles` / `charter.activation.pack_context` imports to at most one
+`charter.mission_type_profiles` / `charter.pack_context` imports to at most one
 `MissionTypeRepository.default()` call at import time, and the new factory must respect the same
 constraint.
 
@@ -92,7 +92,7 @@ binds that a plan/tasks-phase ADR is **required as WP01**, and the ADR must:
 This is the mission's own **dominant risk** — the class of defect this whole spec exists to
 prevent. Today, an org-pack mission-type YAML carrying only `schema_version` / `id` /
 `display_name` (no `action_sequence`) loads CLEAN with `action_sequence = None`, which the
-existing `_resolve_action_slot` (`src/charter/activation/mission_type_profiles.py:762-807`; the
+existing `_resolve_action_slot` (`src/charter/mission_type_profiles.py:762-807`; the
 empty-sequence fallback is the `if not is_registered: return []` branch at line 789) silently
 degrades to `[]`. A mission of that type would resolve "successfully" and plan **nothing** — no
 error anywhere.
@@ -105,7 +105,7 @@ behaviour must be written and committed *before* the fix that makes it loud.
 
 ### CL-004 — Delete dead code + fix a stale docstring, same PR
 
-`resolve_mission_steps` (`src/charter/activation/resolver.py:908`) has **zero production callers** anywhere
+`resolve_mission_steps` (`src/charter/resolver.py:908`) has **zero production callers** anywhere
 in `src/` (confirmed by repo-wide search — the only other hit is its own test in
 `tests/charter/test_resolver.py`), is not exported in any `__all__`, and was kept alive only by
 removing it from `__all__` to dodge a dead-symbol gate after its own PR reviewer flagged it as
@@ -291,13 +291,13 @@ baseline-red gotcha).
 | FR-001 | New module-level layered mission-type-context lookup | As a mission-type resolution seam, I want a new `functools.cache`-backed factory keyed on `(mission_types_dirs, pack_context)`, separate from `MissionTypeRepository.default()`, so that project-scoped mission-type resolution cannot poison the process-wide built-in cache. | High | Open |
 | FR-002 | `resolve_mission_type_context` threads a real `PackContext` into projection | As an operator activating an org-pack mission type, I want `resolve_mission_type_context` to pass the `PackContext` it already constructs through to action-sequence and template-set projection, so that org/project mission types get real, non-empty projected fields instead of degrading to built-in-only defaults. | High | Open |
 | FR-003 | `charter activate mission-type` scans org and project layers | As an operator, I want `charter activate mission-type <id>` to resolve `<id>` against built-in, org, and project layers (in that precedence order), so that activating a non-built-in mission type actually finds it instead of only ever seeing the built-in four. | High | Open |
-| FR-004 | Loud failure for empty action sequence resolved from a non-built-in layer | As an operator, I want mission-type resolution to raise a named error ("mission type `<id>` resolved from layer `<layer>` has an empty action sequence") when an org/project-layer type has no `action_sequence`, so that a misconfigured mission type cannot silently resolve to a mission with nothing to do. The error MUST be raised as a specific, named exception class (e.g. `MissionTypeEmptyActionSequenceError`), following the existing `UnknownMissionTypeError` pattern already in `src/charter/activation/mission_type_profiles.py` (class at line 193, raised for an analogous configuration-inconsistency case at lines 738 and 799) — not a bare built-in `ValueError`/`Exception`. Both the red-first regression test (CL-003/NFR-005) and the `mission create` refusal path (User Story 2 AC2) must assert on that exception type, not merely on message content. Must be red-first: the regression test pinning today's silent-`[]`-degradation is written and committed before the fix. | High | Open |
+| FR-004 | Loud failure for empty action sequence resolved from a non-built-in layer | As an operator, I want mission-type resolution to raise a named error ("mission type `<id>` resolved from layer `<layer>` has an empty action sequence") when an org/project-layer type has no `action_sequence`, so that a misconfigured mission type cannot silently resolve to a mission with nothing to do. The error MUST be raised as a specific, named exception class (e.g. `MissionTypeEmptyActionSequenceError`), following the existing `UnknownMissionTypeError` pattern already in `src/charter/mission_type_profiles.py` (class at line 193, raised for an analogous configuration-inconsistency case at lines 738 and 799) — not a bare built-in `ValueError`/`Exception`. Both the red-first regression test (CL-003/NFR-005) and the `mission create` refusal path (User Story 2 AC2) must assert on that exception type, not merely on message content. Must be red-first: the regression test pinning today's silent-`[]`-degradation is written and committed before the fix. | High | Open |
 | FR-005 | Project-layer mission-type roster location is flat and non-recursive | As a doctrine-pack maintainer, I want the project-layer mission-type roster at a flat `.kittify/missions/mission_types/*.yaml`, scanned non-recursively, so that a per-type subdirectory (e.g. `governance-profile.yaml`) can never be misread as a mission-type id. | High | Open |
 | FR-006 | `charter mission-type list` reports a true `source_layer` | As an operator, I want `charter mission-type list` to report the real resolution layer (`built-in` / `org` / `project`) and a real action sequence for an activated non-built-in mission type, so that the CLI stops emitting `source_layer: "unknown"` with an empty action sequence for a type that actually resolved successfully. | High | Open |
 | FR-007 | `mission-type show <type>` succeeds for an activated non-built-in type | As an operator, I want `mission-type show <type>` to succeed and display the resolved fields for an activated org/project-layer mission type, so that the command stops hard-failing with `typer.Exit(1)` for a type that is genuinely available. | High | Open |
 | FR-008 | `doctrine mission-type list` implements its documented layering | As an operator, I want `doctrine mission-type list` to actually enumerate built-in, org, and project mission types with a correct `source_layer` per row — matching what its own docstring already promises — instead of only ever calling the built-in-only collector. | High | Open |
 | FR-009 | `charter activate`'s step-removal warnings evaluate real removed-steps for non-built-in types | As an operator re-activating a changed org/project mission type, I want `_emit_step_removal_warnings` to compare the type's actual previous and incoming `action_sequence` for non-built-in types (not silently degrade), so that I am warned about in-flight missions affected by removed steps regardless of which layer the type came from. | Medium | Open |
-| FR-010 | Delete `resolve_mission_steps` dead code | As a codebase maintainer, I want `resolve_mission_steps` (`src/charter/activation/resolver.py:908`) and its single test deleted (not wired up), so that a function with zero production callers, twice flagged dead by review, and excluded from `__all__` to dodge a dead-symbol gate, stops persisting as bait for future confusion. | Medium | Open |
+| FR-010 | Delete `resolve_mission_steps` dead code | As a codebase maintainer, I want `resolve_mission_steps` (`src/charter/resolver.py:908`) and its single test deleted (not wired up), so that a function with zero production callers, twice flagged dead by review, and excluded from `__all__` to dodge a dead-symbol gate, stops persisting as bait for future confusion. | Medium | Open |
 | FR-011 | Correct the stale `_inject_projected_fields` docstring | As a codebase maintainer, I want the docstring of `_inject_projected_fields` (`src/doctrine/missions/mission_type_repository.py:171`) corrected so it no longer claims org/project overrides apply "through the separate runtime consumer switch, WP06" — a false claim, since that WP06 was a caching-authority switch, not an org/project seam — so the next reader is not misdirected toward a seam that does not exist. | Medium | Open |
 | FR-012 | ADR authored as WP01 in the plan/tasks phase | As a reviewer, I want the plan/tasks phase to produce an ADR as the first work package, stating (a) this mission does not promote mission-type to `ArtifactKind`, (b) its relation to that separate ADR's "no silent contract reversal" driver, and (c) the flat org-pack layout decision (CL-005) as its own short decision record, so that the sequencing rationale in `docs/adr/3.x/2026-08-05-1-mission-type-availability-before-kind-promotion.md` is honored rather than silently reopened. | High | Open |
 | FR-013 | Delete the shadowed `list_cmd`/`_print_available_missions`/`discover_missions` dead code | As a codebase maintainer, I want the shadowed `list_cmd` (`src/specify_cli/cli/commands/mission_type.py:150-151`), its `_print_available_missions` helper (line 122), and the now-unused `discover_missions` import (lines 38-46) deleted in the same PR as the FR-006/FR-007/FR-008 work, so that the second, silently-winning `@app.command("list")` registration (`list_mission_types`, lines 1429-1430) is the only `list` handler left in the file, per CL-004a. | Medium | Open |
@@ -309,7 +309,7 @@ baseline-red gotcha).
 | NFR-001 | Cache correctness under project-scoping | The new layered lookup's cache key MUST include both `mission_types_dirs` and `pack_context`; a project-A resolution followed by a project-B resolution in the same process MUST return distinct, correct results for each — verified by a same-process, two-project regression test. | Reliability | High | Open |
 | NFR-002 | No silent success anywhere in the new seam | Every new code path added by this mission MUST raise, report, or refuse when it cannot do its job. No new path may return `None` / an empty collection / a placeholder string like `"unknown"` and treat that as a successful result. This applies to FR-001 through FR-009 without exception. | Reliability | High | Open |
 | NFR-003 | Layer boundary preserved | `doctrine.missions` MUST NOT gain a new import of anything under `src/charter/`. The new lookup (FR-001) may only import the existing structural `_PackContextLike` `Protocol` from its sibling `doctrine.missions` module — no new cross-layer dependency direction. | Architecture | High | Open |
-| NFR-004 | Import-time-IO gate respected | No module under `charter.*` may call the new factory (FR-001) or `MissionTypeRepository.default()` more than once combined at import time, consistent with the existing import-time-IO architectural gate on `charter.activation.mission_type_profiles` / `charter.activation.pack_context`. | Architecture | High | Open |
+| NFR-004 | Import-time-IO gate respected | No module under `charter.*` may call the new factory (FR-001) or `MissionTypeRepository.default()` more than once combined at import time, consistent with the existing import-time-IO architectural gate on `charter.mission_type_profiles` / `charter.pack_context`. | Architecture | High | Open |
 | NFR-005 | Red-first test ordering for the dominant-risk fix | The regression test pinning today's silent empty-action-sequence degradation (FR-004) MUST be committed RED against the pre-fix behavior before the commit that introduces the loud-failure fix, as two separate commits in that order. Reviewers verify RED on the pre-fix commit and GREEN on the final commit, per the charter's ATDD-first discipline (C-011) — but that two-endpoint check alone cannot distinguish two separate ordered commits from one combined test+fix commit, which would also pass it trivially. Verification MUST go further: reviewers identify the commit SHA that introduces the CL-003 regression test, check it out in isolation (without the fix commit), and confirm the test fails there, so the red-before-fix ordering claim is mechanically falsifiable rather than resting on implementer honesty. | Process | High | Open |
 
 ### Constraints
@@ -318,10 +318,10 @@ baseline-red gotcha).
 |----|-------|------------|----------|----------|--------|
 | C-001 | Estimated mission size is L | Approximately 150–190 production `src/` LOC and approximately 260 test LOC, plus the WP01 ADR (authored in the plan/tasks phase, not counted in the LOC estimate). | Planning | High | Open |
 | C-002 | `ArtifactKind` promotion is out of scope | Promoting mission-type to a first-class `ArtifactKind` member is explicitly NOT part of this mission. It is a separate, larger, currently-unstarted upstream effort (issue #2468, blocked on keystone #2467) tracked by its own ADR. This mission's WP01 ADR must state the relationship (CL-002) without doing that work. | Technical | High | Open |
-| C-003 | `ALLOWED_MISSION_TYPES` activation gate stays untouched | Widening the `ALLOWED_MISSION_TYPES` activation frozenset (`src/charter/activation/activations.py`) or the bootstrap-action gate is out of scope — that frozenset is import-time-constrained and stays built-in-only for this mission; it is a separate future mission's territory. | Technical | High | Open |
+| C-003 | `ALLOWED_MISSION_TYPES` activation gate stays untouched | Widening the `ALLOWED_MISSION_TYPES` activation frozenset (`src/charter/activations.py`) or the bootstrap-action gate is out of scope — that frozenset is import-time-constrained and stays built-in-only for this mission; it is a separate future mission's territory. | Technical | High | Open |
 | C-004 | Template-resolution and FSM discovery chains are out of scope | This mission does not touch the template-resolution chain or the FSM discovery chain. Those are a separate future mission's territory. | Technical | Medium | Open |
 | C-005 | `expected-artifacts.yaml` reconciliation is out of scope | This mission does not reconcile `expected-artifacts.yaml` against the new layered mission types. | Technical | Medium | Open |
-| C-006 | `action_grain.py`'s integrity duplicate-scan stays built-in-only | `src/charter/activation/action_grain.py` deliberately stays built-in-only — it is a gate over shipped content, not a resolution path, and this mission does not widen it. | Technical | Medium | Open |
+| C-006 | `action_grain.py`'s integrity duplicate-scan stays built-in-only | `src/charter/action_grain.py` deliberately stays built-in-only — it is a gate over shipped content, not a resolution path, and this mission does not widen it. | Technical | Medium | Open |
 | C-007 | Provisioning and migration rosters stay built-in-only | `src/specify_cli/provisioning/default_charter.py` and the builtin-mission-type-activation migration must explicitly stay built-in-only. Widening them would silently activate org types behind the operator's back without consent — a NFR-002 violation by a different name. | Technical | High | Open |
 | C-008 | `doctrine` package never imports `charter` | The new layered lookup (FR-001) must not introduce any import from `src/doctrine/` into `src/charter/`. See NFR-003. | Architecture | High | Open |
 
@@ -340,7 +340,7 @@ baseline-red gotcha).
   layer (built-in / org / project). Distinct from the *charter activation record*, which merely
   says a roster entry is turned on for a project.
 - **`PackContext`**: the existing doctrine-layer construct (`doctrine.pack_paths`,
-  `charter.activation.pack_context`) carrying the resolved pack roots and repo root used to scope a
+  `charter.pack_context`) carrying the resolved pack roots and repo root used to scope a
   layered lookup to one project. Already constructed inside `resolve_mission_type_context`'s
   call chain; this mission threads it further rather than inventing a new carrier type.
 - **`_PackContextLike` Protocol**: the existing structural protocol
@@ -393,7 +393,7 @@ Deliberately **not** part of this mission, so an implementer does not wander:
 - The provisioning and migration rosters (`src/specify_cli/provisioning/default_charter.py`, the
   builtin-mission-type-activation migration) — these must explicitly stay built-in-only; widening
   them would silently activate org types behind the operator's back without consent — see C-007.
-- `src/charter/activation/activations.py`'s `ALLOWED_MISSION_TYPES` (import-time-constrained; touching it
+- `src/charter/activations.py`'s `ALLOWED_MISSION_TYPES` (import-time-constrained; touching it
   risks tripping an import-time-IO architectural gate) — stays built-in-only for this mission —
   see C-003.
 

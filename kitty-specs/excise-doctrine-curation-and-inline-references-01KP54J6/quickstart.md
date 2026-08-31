@@ -163,7 +163,7 @@ src/doctrine/toolguides/models.py        # tactic_refs if present
 src/doctrine/agent_profiles/models.py    # any of three if present
 
 # And from charter schemas
-src/charter/activation/schemas.py                   # strip applies_to: list[str] from Directive
+src/charter/schemas.py                   # strip applies_to: list[str] from Directive
 ```
 
 ### Step 6. Update tests that asserted these fields
@@ -176,7 +176,7 @@ Edit every affected test to assert the fields are absent instead. Do NOT delete 
 pytest tests/
 mypy --strict src/
 python scripts/verify_occurrences.py kitty-specs/excise-doctrine-curation-and-inline-references-01KP54J6/occurrences/WP1.2.yaml
-grep -R "tactic_refs\|paradigm_refs\|applies_to" src/doctrine src/charter/activation/schemas.py
+grep -R "tactic_refs\|paradigm_refs\|applies_to" src/doctrine src/charter/schemas.py
 ```
 
 Last command must return zero hits outside `index.yaml` permitted exceptions.
@@ -203,7 +203,7 @@ Implement per `contracts/resolve-transitive-refs.contract.md`. Add `tests/doctri
 
 ### Step 2. Flip resolver/compiler imports
 
-Both `src/charter/activation/resolver.py` and `src/charter/activation/compiler.py` (and their `specify_cli/charter/*` twins) swap their `resolve_references_transitively` import for `resolve_transitive_refs`. Also load/merge/validate the DRG at the call site (or via a shared helper).
+Both `src/charter/resolver.py` and `src/charter/compiler.py` (and their `specify_cli/charter/*` twins) swap their `resolve_references_transitively` import for `resolve_transitive_refs`. Also load/merge/validate the DRG at the call site (or via a shared helper).
 
 ### Step 3. Add validator rejection
 
@@ -223,7 +223,7 @@ Run full pytest at this point. All tests should pass (legacy `build_charter_cont
 
 ### Step 5. Rename `build_context_v2` → `build_charter_context`
 
-Edit `src/charter/activation/context.py`:
+Edit `src/charter/context.py`:
 - Delete the legacy `build_charter_context()` function (lines ~33–119)
 - Rename `build_context_v2` (lines ~495+) to `build_charter_context`
 - Update module docstring/comments
@@ -235,7 +235,7 @@ Update `src/charter/__init__.py` and `src/specify_cli/charter/__init__.py` re-ex
 ### Step 6. Delete `reference_resolver.py`
 
 ```bash
-rm src/charter/activation/reference_resolver.py
+rm src/charter/reference_resolver.py
 ```
 
 All importers have been flipped in step 2. Verify with:
@@ -245,7 +245,7 @@ grep -R "reference_resolver\|resolve_references_transitively\|ResolvedReferenceG
 
 ### Step 7. Remove `include_proposed` from catalog
 
-Edit `src/charter/activation/catalog.py :: load_doctrine_catalog()` — remove the parameter. Update every caller (should be few; most callers pass `False` implicitly).
+Edit `src/charter/catalog.py :: load_doctrine_catalog()` — remove the parameter. Update every caller (should be few; most callers pass `False` implicitly).
 
 ### Step 8. Add merged-graph-on-live-path regression test
 

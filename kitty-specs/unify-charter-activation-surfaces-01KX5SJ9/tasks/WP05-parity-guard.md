@@ -23,13 +23,13 @@ history:
   agent: system
   shell_pid: ''
   action: Prompt generated via /spec-kitty.tasks
-authoritative_surface: src/charter/activation/consistency_check.py
+authoritative_surface: src/charter/consistency_check.py
 create_intent:
 - tests/doctrine/test_activation_parity_guard.py
 execution_mode: code_change
 mission_id: 01KX5SJ9P0HXTVWZDJ121JBP60
 owned_files:
-- src/charter/activation/consistency_check.py
+- src/charter/consistency_check.py
 tags: []
 agent_profile: python-pedro
 role: implementer
@@ -48,7 +48,7 @@ Do not touch code until the profile is loaded and acknowledged.
 # WP05 – Fail-closed parity guard (consistency_check)
 
 ## Objective
-Extend `src/charter/activation/consistency_check.py` to assert derived-vs-config parity, fail-closed (FR-005, NFR-002). This is the regression guard so a #2524-style divergence fails locally, not at CI.
+Extend `src/charter/consistency_check.py` to assert derived-vs-config parity, fail-closed (FR-005, NFR-002). This is the regression guard so a #2524-style divergence fails locally, not at CI.
 
 ## Context (squad corrections — read carefully)
 - `consistency_check.py` today reads raw config activation lists (`:116-136`) vs doctrine/DRG; it does NOT read references.yaml/graph.
@@ -67,7 +67,7 @@ Extend `src/charter/activation/consistency_check.py` to assert derived-vs-config
 ## Closeout (last correctness WP)
 Run the aggregate gate: full `tests/doctrine/` + `tests/charter/` + `tests/architectural/` (the WHOLE dir, not just layer_rules) + graph freshness + `test_no_legacy_terminology.py` + ruff + mypy.
 
-**T021b (required out-of-map fix — WP02 arch-gate regression surfaced by WP03).** `tests/architectural/test_no_dead_symbols.py::test_no_public_symbol_in_all_is_unimported` FAILS on `charter.activation.compiler::ConfigActivatedRoots` — WP02 added it to `compiler.py`'s `__all__` but no other module imports it (it's used internally only). This blocks the aggregate gate. Fix in `src/charter/activation/compiler.py` (out-of-map, rationale-backed — no other WP is open on that file and this WP owns the arch-gate closeout): either REMOVE `ConfigActivatedRoots` from `__all__` (correct if it's internal-only — most likely) or import it where it was intended to be public. Judge which; do not suppress the test. Record a one-line rationale in the commit.
+**T021b (required out-of-map fix — WP02 arch-gate regression surfaced by WP03).** `tests/architectural/test_no_dead_symbols.py::test_no_public_symbol_in_all_is_unimported` FAILS on `charter.compiler::ConfigActivatedRoots` — WP02 added it to `compiler.py`'s `__all__` but no other module imports it (it's used internally only). This blocks the aggregate gate. Fix in `src/charter/compiler.py` (out-of-map, rationale-backed — no other WP is open on that file and this WP owns the arch-gate closeout): either REMOVE `ConfigActivatedRoots` from `__all__` (correct if it's internal-only — most likely) or import it where it was intended to be public. Judge which; do not suppress the test. Record a one-line rationale in the commit.
 - Also (NON-blocking, file as follow-up, do NOT fix here): the "Lynn Cole" interview alias (`apply_doctrine_intent_aliases`) is now dead code since activation no longer reads the interview — note it for the mission close.
 
 ## Branch Strategy

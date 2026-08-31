@@ -2,7 +2,7 @@
 
 **Location**: `src/doctrine/drg/query.py`
 **Introduced in**: WP03
-**Replaces**: `src/charter/activation/reference_resolver.py :: resolve_references_transitively()` (deleted in same WP)
+**Replaces**: `src/charter/reference_resolver.py :: resolve_references_transitively()` (deleted in same WP)
 **Plan reference**: D-2 in plan.md
 
 > **Amendment 2026-04-14**: This contract was rewritten after an internal review caught that the
@@ -15,7 +15,7 @@
 
 ## Purpose
 
-Walk the Doctrine Reference Graph (DRG) from a set of starting URNs and return the transitive closure of reachable artifacts, grouped by `NodeKind`. Functionally equivalent to the legacy `resolve_references_transitively()` in bucketed return shape so that callers (`src/charter/activation/resolver.py`, `src/charter/activation/compiler.py`, and their `src/specify_cli/charter/*` twins) swap one import line and adapt one call-site pattern.
+Walk the Doctrine Reference Graph (DRG) from a set of starting URNs and return the transitive closure of reachable artifacts, grouped by `NodeKind`. Functionally equivalent to the legacy `resolve_references_transitively()` in bucketed return shape so that callers (`src/charter/resolver.py`, `src/charter/compiler.py`, and their `src/specify_cli/charter/*` twins) swap one import line and adapt one call-site pattern.
 
 ## Relationship to existing DRG primitives
 
@@ -77,7 +77,7 @@ def resolve_transitive_refs(
     A thin wrapper over :func:`walk_edges` that groups the flat result set by
     :class:`doctrine.drg.models.NodeKind` and strips the URN prefix from each
     per-kind list.  Designed as a behavior-equivalent replacement for the legacy
-    :func:`charter.activation.reference_resolver.resolve_references_transitively` during
+    :func:`charter.reference_resolver.resolve_references_transitively` during
     the Phase 1 cutover.
 
     Args:
@@ -144,8 +144,8 @@ The relation set that preserves parity (`{REQUIRES, SUGGESTS}`) is the authorita
 ### Before (pre-WP03, still in src/ during WP02)
 
 ```python
-# src/charter/activation/resolver.py
-from charter.activation.reference_resolver import resolve_references_transitively
+# src/charter/resolver.py
+from charter.reference_resolver import resolve_references_transitively
 ...
 graph = resolve_references_transitively(starting_directive_ids, doctrine_service)
 # graph.directives, graph.tactics, ..., graph.unresolved
@@ -154,9 +154,9 @@ graph = resolve_references_transitively(starting_directive_ids, doctrine_service
 ### After (WP03, T015)
 
 ```python
-# src/charter/activation/resolver.py
+# src/charter/resolver.py
 from pathlib import Path
-from charter.activation.catalog import resolve_doctrine_root
+from charter.catalog import resolve_doctrine_root
 from doctrine.drg.loader import load_graph, merge_layers
 from doctrine.drg.models import Relation
 from doctrine.drg.query import resolve_transitive_refs
@@ -186,7 +186,7 @@ graph = resolve_transitive_refs(
 # graph.directives, graph.tactics, ..., graph.unresolved — same field shape as legacy
 ```
 
-The `_load_validated_graph` helper goes into `src/charter/activation/_drg_helpers.py` (new module) so `resolver.py` and `compiler.py` share it. Same pattern in `src/specify_cli/charter/_drg_helpers.py`.
+The `_load_validated_graph` helper goes into `src/charter/_drg_helpers.py` (new module) so `resolver.py` and `compiler.py` share it. Same pattern in `src/specify_cli/charter/_drg_helpers.py`.
 
 ## Non-goals
 

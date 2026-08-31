@@ -269,11 +269,11 @@ pytest tests/charter/test_bundle_content_hash.py \
     tests/specify_cli/upgrade/test_bundle_validate_fresh_seed.py -q
 pytest tests/architectural/test_no_legacy_terminology.py -q
 mypy --strict \
-    src/charter/activation/synthesizer/manifest.py src/charter/bundle.py \
+    src/charter/synthesizer/manifest.py src/charter/bundle.py \
     src/specify_cli/cli/commands/charter/_fresh_doctrine.py \
-    src/charter/activation/synthesizer/write_pipeline.py \
-    src/charter/activation/synthesizer/resynthesize_pipeline.py \
-    src/charter/activation/synthesizer/project_drg.py \
+    src/charter/synthesizer/write_pipeline.py \
+    src/charter/synthesizer/resynthesize_pipeline.py \
+    src/charter/synthesizer/project_drg.py \
     src/specify_cli/charter_runtime/freshness/computer.py
 ```
 

@@ -102,7 +102,7 @@ exceptions:
 
   - path: "tests/charter/test_charter_ownership_invariant.py"
     action: do_not_change
-    reason: "Contains CANONICAL_OWNERS registry naming `src/charter/activation/context.py` and `src/charter/activation/sync.py`. Registry updates are explicit edits, not subject to the automatic rename rule."
+    reason: "Contains CANONICAL_OWNERS registry naming `src/charter/context.py` and `src/charter/sync.py`. Registry updates are explicit edits, not subject to the automatic rename rule."
 
   # C-005 deprecation-window tests: these files intentionally import the
   # legacy `specify_cli.charter.*` surface and assert that the shim still

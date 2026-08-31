@@ -22,8 +22,8 @@ findings:
       `src/doctrine/*` and `src/charter/*` (verbatim entries in its `critical_paths` array) — the
       exact two directories this mission's own Technical Context/Project Structure sections name
       as the primary touch points (`src/doctrine/missions/mission_type_repository.py`,
-      `src/charter/activation/mission_type_profiles.py`, `src/charter/activation/pack_manager.py`,
-      `src/charter/activation/resolver.py`, `src/charter/missions.py`). This is a stronger, more directly
+      `src/charter/mission_type_profiles.py`, `src/charter/pack_manager.py`,
+      `src/charter/resolver.py`, `src/charter/missions.py`). This is a stronger, more directly
       applicable 90% new-code floor than either of the two 90% floors plan.md does address
       (kernel-tests, mission-loader-coverage) and it is not among the correctly-verified
       "does not apply" set — it squarely DOES apply, on the diff, to this mission's own files.
@@ -73,8 +73,8 @@ findings:
     title: "Plan's own Summary narrative of the CL-003 dominant-risk mechanism is internally contradictory and does not match the live code path it cites"
     evidence:
       - artifact: "plan.md § Summary, paragraph 1: \"...`_resolve_action_slot`'s `if not is_registered: return []` guard at line 788-789 never even fires for a genuinely-registered-but-unprojected type — the type falls through to `list(mission.action_sequence or [])` at line 807, and `mission` is `None` today because `MissionTypeRepository.default()` never contains it.\""
-      - code: "src/charter/activation/mission_type_profiles.py:793-799 (`repo = MissionTypeRepository.default(); mission = repo.get(mission_type); if mission is None: raise UnknownMissionTypeError(mission_type, registered_ids=registered)`)"
-      - code: "src/charter/activation/mission_type_profiles.py:807 (`return list(mission.action_sequence or [])` — only reachable when `mission is not None`, since line 795's guard already returned/raised otherwise)"
+      - code: "src/charter/mission_type_profiles.py:793-799 (`repo = MissionTypeRepository.default(); mission = repo.get(mission_type); if mission is None: raise UnknownMissionTypeError(mission_type, registered_ids=registered)`)"
+      - code: "src/charter/mission_type_profiles.py:807 (`return list(mission.action_sequence or [])` — only reachable when `mission is not None`, since line 795's guard already returned/raised otherwise)"
     claim: >
       The Summary's own sentence asserts two mutually exclusive things about the same code path:
       that `mission` is `None` today, AND that execution "falls through to `list(mission.action_sequence

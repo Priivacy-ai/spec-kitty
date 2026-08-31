@@ -116,7 +116,7 @@ Final state: at most 2 documented exceptions in the allowlist (C-004 cap), with 
 
 - Pre-migration runtime callers continue to work — `doctrine.<sub>` modules remain importable and the boundary test allows current direct imports via the baseline allowlist.
 - Migration is per-file. WP07 migrates the 13 baseline files in sequence; each migration is independently verifiable (per-file tests + the boundary ratchet).
-- Charter internal modules that today import `from doctrine.*` (e.g. `charter.activation.context`, `charter.activation.template_resolver`) are **unaffected**. The boundary rule applies only to `src/specify_cli/`, not to `src/charter/`. Facades and direct doctrine imports coexist within `src/charter/` without contradiction.
+- Charter internal modules that today import `from doctrine.*` (e.g. `charter.context`, `charter.template_resolver`) are **unaffected**. The boundary rule applies only to `src/specify_cli/`, not to `src/charter/`. Facades and direct doctrine imports coexist within `src/charter/` without contradiction.
 - The 8 layer-rule tests in `tests/architectural/test_layer_rules.py` continue to pass — the ADR layering of `kernel ← doctrine ← charter ← specify_cli` is preserved (charter is allowed to import doctrine; facades re-export from there).
 
 ---

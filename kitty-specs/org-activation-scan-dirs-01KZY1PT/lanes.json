@@ -11,7 +11,7 @@
         "WP01"
       ],
       "write_scope": [
-        "src/charter/activation/kind_vocabulary.py",
+        "src/charter/kind_vocabulary.py",
         "tests/charter/test_kind_vocabulary_scan_roots.py",
         "tests/charter/test_org_scan_dirs_activation_regression.py"
       ],

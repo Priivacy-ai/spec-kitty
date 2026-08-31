@@ -44,12 +44,12 @@ owned_files:
 - src/doctrine/styleguides/validation.py
 - src/doctrine/toolguides/validation.py
 - src/doctrine/agent_profiles/validation.py
-- src/charter/activation/context.py
-- src/charter/activation/resolver.py
-- src/charter/activation/compiler.py
-- src/charter/activation/catalog.py
-- src/charter/activation/reference_resolver.py
-- src/charter/activation/_drg_helpers.py
+- src/charter/context.py
+- src/charter/resolver.py
+- src/charter/compiler.py
+- src/charter/catalog.py
+- src/charter/reference_resolver.py
+- src/charter/_drg_helpers.py
 - src/charter/__init__.py
 - src/charter/README.md
 - src/specify_cli/charter/context.py
@@ -102,7 +102,7 @@ Close Phase 1 with the final cutover:
 2. **Add** validator rejection of inline refs across 7 per-kind `validation.py` files.
 3. **Flip** `resolver.py` and `compiler.py` (both twin packages) to use the DRG helper.
 4. **Flip** the 5 live `build_charter_context` call sites to `build_context_v2`; **rename** `build_context_v2` → `build_charter_context`; **delete** the legacy implementation.
-5. **Delete** `src/charter/activation/reference_resolver.py` and the `include_proposed` parameter on `src/charter/activation/catalog.py`.
+5. **Delete** `src/charter/reference_resolver.py` and the `include_proposed` parameter on `src/charter/catalog.py`.
 6. **Collapse** test coverage: rewrite `tests/charter/test_context.py` as single-builder suite; delete parity + legacy resolver tests ONLY after replacement coverage is green (per plan D-4 "collapse coverage, do not create a regression hole").
 
 After this WP merges, `build_charter_context` is the only context builder, `resolve_transitive_refs` is the only transitive resolution path, every inline-ref field on any doctrine artifact is a hard error, and Phase 1 of EPIC #461 is complete.
@@ -116,9 +116,9 @@ After this WP merges, `build_charter_context` is the only context builder, `reso
   - `src/charter/__init__.py:23` (re-export)
   - `src/specify_cli/charter/__init__.py:23` (re-export)
   - Also `src/specify_cli/charter/context.py:30` defines its own wrapper.
-- `resolve_references_transitively()` is used by `src/charter/activation/resolver.py:14` and indirectly by `src/charter/activation/compiler.py` via the resolver layer.
+- `resolve_references_transitively()` is used by `src/charter/resolver.py:14` and indirectly by `src/charter/compiler.py` via the resolver layer.
 - `resolve_governance()` (which uses `resolve_references_transitively` via `resolver.py`) is called from 6 places; this is the legacy governance pipeline that underpins `build_charter_context`.
-- `build_context_v2()` at `src/charter/activation/context.py:495` is parity-safe after PR #609, has zero callers on `main`, and already uses DRG query primitives internally.
+- `build_context_v2()` at `src/charter/context.py:495` is parity-safe after PR #609, has zero callers on `main`, and already uses DRG query primitives internally.
 - Twin charter packages `src/charter/` and `src/specify_cli/charter/` carry parallel copies of `context.py`, `compiler.py`, `resolver.py`, `__init__.py`. Both get updated in this WP per plan D-3.
 
 ## Authoritative files (read before starting)
@@ -367,12 +367,12 @@ After this WP merges, `build_charter_context` is the only context builder, `reso
 
 **Steps**:
 
-1. Create `src/charter/activation/_drg_helpers.py` with a shared helper so resolver.py/compiler.py don't duplicate the graph-load sequence:
+1. Create `src/charter/_drg_helpers.py` with a shared helper so resolver.py/compiler.py don't duplicate the graph-load sequence:
    ```python
    """Shared DRG graph-load helpers for charter resolver and compiler."""
    from __future__ import annotations
    from pathlib import Path
-   from charter.activation.catalog import resolve_doctrine_root
+   from charter.catalog import resolve_doctrine_root
    from doctrine.drg.loader import load_graph, merge_layers
    from doctrine.drg.models import DRGGraph
    from doctrine.drg.validator import assert_valid
@@ -394,22 +394,22 @@ After this WP merges, `build_charter_context` is the only context builder, `reso
    ```
    Create an identical `src/specify_cli/charter/_drg_helpers.py` twin.
 
-2. Edit `src/charter/activation/resolver.py`:
-   - Remove `from charter.activation.reference_resolver import resolve_references_transitively` (line 14 on current `main`)
-   - Add `from charter.activation._drg_helpers import load_validated_graph`, `from doctrine.drg.models import Relation`, `from doctrine.drg.query import resolve_transitive_refs`
+2. Edit `src/charter/resolver.py`:
+   - Remove `from charter.reference_resolver import resolve_references_transitively` (line 14 on current `main`)
+   - Add `from charter._drg_helpers import load_validated_graph`, `from doctrine.drg.models import Relation`, `from doctrine.drg.query import resolve_transitive_refs`
    - At each former call site of `resolve_references_transitively([...], doctrine_service)`:
      - Call `graph = load_validated_graph(repo_root)` to get the validated `DRGGraph`
      - Build start URNs: `start_urns = {f"directive:{d}" for d in starting_directive_ids}` (adapt the kind prefix to whatever the caller's starting IDs represent — almost always directives at this site)
      - Call `result = resolve_transitive_refs(graph, start_urns=start_urns, relations={Relation.REQUIRES, Relation.SUGGESTS})`
      - Consume `result.directives`, `result.tactics`, etc. — same field names as the legacy `ResolvedReferenceGraph`
 
-3. Edit `src/charter/activation/compiler.py`:
+3. Edit `src/charter/compiler.py`:
    - Same treatment — remove the legacy resolver import chain (indirectly via `resolver.py` — `compiler.py` itself may or may not import `reference_resolver` directly; check and handle both cases)
    - Preserve `compile_charter()`'s signature and behavior except that transitive refs now come from DRG
 
 4. Edit the twin files `src/specify_cli/charter/resolver.py` and `src/specify_cli/charter/compiler.py` identically using `src/specify_cli/charter/_drg_helpers.py`.
 
-5. Update `src/specify_cli/runtime/doctor.py` — it calls `resolve_governance(project_dir)` which internally now uses the DRG. No direct code change needed here unless `doctor.py` directly imports from `charter.activation.reference_resolver` (it doesn't on current `main`; double-check). Touched only to verify it still runs.
+5. Update `src/specify_cli/runtime/doctor.py` — it calls `resolve_governance(project_dir)` which internally now uses the DRG. No direct code change needed here unless `doctor.py` directly imports from `charter.reference_resolver` (it doesn't on current `main`; double-check). Touched only to verify it still runs.
 
 4. Run full pytest:
    ```bash
@@ -426,7 +426,7 @@ After this WP merges, `build_charter_context` is the only context builder, `reso
    """
    from unittest.mock import patch
    from pathlib import Path
-   from charter.activation.context import build_charter_context
+   from charter.context import build_charter_context
 
 
    def test_assert_valid_runs_on_bootstrap_context_build(tmp_path_with_charter):
@@ -439,7 +439,7 @@ After this WP merges, `build_charter_context` is the only context builder, `reso
    # Additional tests: non-bootstrap action does NOT trigger validator (compact mode)
    # Non-bootstrap action returns compact text without invoking full DRG load
    ```
-   Note: at this subtask step, `build_charter_context` still delegates to `resolve_governance` which is now DRG-backed. The assertion target may need to be `charter.activation.resolver.assert_valid` or similar — adjust based on the actual import path in resolver.py.
+   Note: at this subtask step, `build_charter_context` still delegates to `resolve_governance` which is now DRG-backed. The assertion target may need to be `charter.resolver.assert_valid` or similar — adjust based on the actual import path in resolver.py.
 
 6. Run:
    ```bash
@@ -448,8 +448,8 @@ After this WP merges, `build_charter_context` is the only context builder, `reso
    Must pass.
 
 **Files**:
-- Modified: `src/charter/activation/resolver.py`
-- Modified: `src/charter/activation/compiler.py`
+- Modified: `src/charter/resolver.py`
+- Modified: `src/charter/compiler.py`
 - Modified: `src/specify_cli/charter/resolver.py`
 - Modified: `src/specify_cli/charter/compiler.py`
 - Created: `tests/charter/test_merged_graph_on_live_path.py` (~80 LOC)
@@ -478,7 +478,7 @@ After this WP merges, `build_charter_context` is the only context builder, `reso
 
    Run pytest — must pass. At this step, `build_context_v2` is the real live builder; legacy `build_charter_context` is reachable only through the old re-export (if retained) and internal tests.
 
-2. **Rename `build_context_v2` → `build_charter_context`** in `src/charter/activation/context.py`:
+2. **Rename `build_context_v2` → `build_charter_context`** in `src/charter/context.py`:
    - Delete the legacy `build_charter_context()` function (lines ~33–119 on current `main`)
    - Rename `build_context_v2` (lines ~495+) to `build_charter_context`. Remove the `profile` parameter docstring note that says "Phase 0 degenerate — ignored" if appropriate (the parameter itself stays for Phase 4).
    - Update the module docstring and section comment (`# build_context_v2 -- DRG-based context assembly (T020)` → remove or rename)
@@ -513,7 +513,7 @@ After this WP merges, `build_charter_context` is the only context builder, `reso
    Every diff must be empty. If any diff is non-empty, the cutover introduced rendered-text drift — debug before proceeding to T017.
 
 **Files**:
-- Modified: `src/charter/activation/context.py` (delete legacy impl, rename v2)
+- Modified: `src/charter/context.py` (delete legacy impl, rename v2)
 - Modified: `src/specify_cli/next/prompt_builder.py`
 - Modified: `src/specify_cli/cli/commands/charter.py`
 - Modified: `src/specify_cli/cli/commands/agent/workflow.py`
@@ -524,14 +524,14 @@ After this WP merges, `build_charter_context` is the only context builder, `reso
 
 **Validation**:
 - [ ] `grep -nE "build_context_v2" src/` returns only references being removed; after step 4, zero src hits
-- [ ] `grep -nE "^def build_charter_context" src/charter/activation/context.py src/specify_cli/charter/context.py` returns each file's single definition (the renamed v2)
+- [ ] `grep -nE "^def build_charter_context" src/charter/context.py src/specify_cli/charter/context.py` returns each file's single definition (the renamed v2)
 - [ ] Full pytest green
 - [ ] `mypy --strict src/` clean
 - [ ] Smoke: `spec-kitty charter context --action specify --json` returns same output as pre-WP03 Phase 0 golden fixture (NFR-002 parity check)
 
 ---
 
-### T017 — Delete `src/charter/activation/reference_resolver.py`; remove `include_proposed` from `src/charter/activation/catalog.py`
+### T017 — Delete `src/charter/reference_resolver.py`; remove `include_proposed` from `src/charter/catalog.py`
 
 **Purpose**: Final code deletion. Legacy transitive resolver and the catalog's `include_proposed` flag.
 
@@ -545,10 +545,10 @@ After this WP merges, `build_charter_context` is the only context builder, `reso
 
 2. Delete the file:
    ```bash
-   rm -f src/charter/activation/reference_resolver.py
+   rm -f src/charter/reference_resolver.py
    ```
 
-3. Edit `src/charter/activation/catalog.py`:
+3. Edit `src/charter/catalog.py`:
    - Find `load_doctrine_catalog(..., include_proposed: bool = False, ...)` signature (~line 44)
    - Remove the `include_proposed` parameter from the signature
    - Remove the internal logic (lines 60–101 on current `main`) that conditionally includes `_proposed/` artifacts
@@ -573,13 +573,13 @@ After this WP merges, `build_charter_context` is the only context builder, `reso
 6. Run `mypy --strict src/` — must pass.
 
 **Files**:
-- Deleted: `src/charter/activation/reference_resolver.py`
-- Modified: `src/charter/activation/catalog.py` (remove `include_proposed`)
+- Deleted: `src/charter/reference_resolver.py`
+- Modified: `src/charter/catalog.py` (remove `include_proposed`)
 - Modified: caller files (any that passed `include_proposed=...`)
 - (Conditional): Deleted: `tests/charter/test_reference_resolver.py` — see discussion above
 
 **Validation**:
-- [ ] `test -f src/charter/activation/reference_resolver.py` returns non-zero
+- [ ] `test -f src/charter/reference_resolver.py` returns non-zero
 - [ ] `grep -rn "reference_resolver\|resolve_references_transitively\|ResolvedReferenceGraph\|include_proposed" src/` returns zero hits
 - [ ] Full pytest green
 - [ ] `mypy --strict src/` clean
@@ -590,7 +590,7 @@ After this WP merges, `build_charter_context` is the only context builder, `reso
 
 **Purpose**: Collapse test coverage onto the single builder and the new DRG helpers. Delete parity, legacy resolver, and cycle-detection tests ONLY after their replacement coverage is demonstrably green (plan D-4 "collapse coverage, do not create a regression hole"). Finalize mission-level occurrence assertion.
 
-> **Scope correction (2026-04-14)**: an earlier draft of this subtask only enumerated `test_reference_resolver.py` and `test_context_parity.py` for deletion, but four additional test files on `main` import from `charter.activation.reference_resolver` directly — `tests/doctrine/test_cycle_detection.py`, `tests/doctrine/test_shipped_doctrine_cycle_free.py`, `tests/doctrine/test_artifact_kinds.py` (imports private `_REF_TYPE_MAP`), `tests/charter/test_resolver.py` (patches the symbol at line 293), and `tests/charter/test_compiler.py` (comment reference at line 107). All must be handled in this subtask.
+> **Scope correction (2026-04-14)**: an earlier draft of this subtask only enumerated `test_reference_resolver.py` and `test_context_parity.py` for deletion, but four additional test files on `main` import from `charter.reference_resolver` directly — `tests/doctrine/test_cycle_detection.py`, `tests/doctrine/test_shipped_doctrine_cycle_free.py`, `tests/doctrine/test_artifact_kinds.py` (imports private `_REF_TYPE_MAP`), `tests/charter/test_resolver.py` (patches the symbol at line 293), and `tests/charter/test_compiler.py` (comment reference at line 107). All must be handled in this subtask.
 
 **Steps**:
 
@@ -610,7 +610,7 @@ After this WP merges, `build_charter_context` is the only context builder, `reso
 
    Replaces coverage previously in tests/doctrine/test_cycle_detection.py and
    tests/doctrine/test_shipped_doctrine_cycle_free.py, which imported from the
-   deleted charter.activation.reference_resolver module.
+   deleted charter.reference_resolver module.
 
    assert_valid() rejects:
    - dangling edges (target URN not in nodes)
@@ -663,8 +663,8 @@ After this WP merges, `build_charter_context` is the only context builder, `reso
    ```
 
 5. **Update related tests** (not deleted; edited to remove references to dead symbols):
-   - **`tests/doctrine/test_artifact_kinds.py`** — three call sites (lines 121, 126, 131) import `_REF_TYPE_MAP` from `charter.activation.reference_resolver`. Replace with the public `doctrine.artifact_kinds.ArtifactKind` enum. The private mapping was `{kind.value: kind.plural for kind in ArtifactKind}` — reconstruct it inline in the test if the assertion still makes sense, or delete the affected test cases if they were testing private-mapping implementation details rather than artifact-kind semantics.
-   - **`tests/charter/test_resolver.py:293`** — change `patch("charter.activation.resolver.resolve_references_transitively", return_value=monkeypatch_graph)` to `patch("charter.activation.resolver.resolve_transitive_refs", return_value=monkeypatch_graph_in_new_shape)`. The monkeypatch value must be a `ResolveTransitiveRefsResult` instance (not a `ResolvedReferenceGraph`).
+   - **`tests/doctrine/test_artifact_kinds.py`** — three call sites (lines 121, 126, 131) import `_REF_TYPE_MAP` from `charter.reference_resolver`. Replace with the public `doctrine.artifact_kinds.ArtifactKind` enum. The private mapping was `{kind.value: kind.plural for kind in ArtifactKind}` — reconstruct it inline in the test if the assertion still makes sense, or delete the affected test cases if they were testing private-mapping implementation details rather than artifact-kind semantics.
+   - **`tests/charter/test_resolver.py:293`** — change `patch("charter.resolver.resolve_references_transitively", return_value=monkeypatch_graph)` to `patch("charter.resolver.resolve_transitive_refs", return_value=monkeypatch_graph_in_new_shape)`. The monkeypatch value must be a `ResolveTransitiveRefsResult` instance (not a `ResolvedReferenceGraph`).
    - **`tests/charter/test_compiler.py:107`** — update the comment reference to the new function name.
    - **`tests/agent/test_workflow_charter_context.py`** — update any `build_charter_context` references if the signature changed (profile parameter handling).
 
@@ -745,10 +745,10 @@ After this WP merges, `build_charter_context` is the only context builder, `reso
 - All six subtasks (T013-T018) complete
 - `resolve_transitive_refs()` exists in `src/doctrine/drg/query.py`; equivalence suite passes
 - `InlineReferenceRejectedError` raised by all 7 per-kind validators; negative-fixture test suite passes
-- `src/charter/activation/resolver.py` and `src/charter/activation/compiler.py` (+ their `specify_cli/charter/` twins) flipped to the DRG helper
+- `src/charter/resolver.py` and `src/charter/compiler.py` (+ their `specify_cli/charter/` twins) flipped to the DRG helper
 - `build_charter_context` exists as the single context-builder name; legacy implementation deleted; `build_context_v2` removed
-- `src/charter/activation/reference_resolver.py` deleted
-- `include_proposed` parameter removed from `src/charter/activation/catalog.py` and all callers
+- `src/charter/reference_resolver.py` deleted
+- `include_proposed` parameter removed from `src/charter/catalog.py` and all callers
 - `tests/charter/test_context.py` rewritten; parity + legacy resolver tests deleted; new regression test for merged-graph-on-live-path passes
 - `kitty-specs/.../occurrences/WP03.yaml` green; mission-level `index.yaml` finalized with full must-be-zero set
 - NFR-002 byte parity empty; NFR-001 runtime within budget
@@ -799,4 +799,4 @@ Stop and comment on [#475](https://github.com/Priivacy-ai/spec-kitty/issues/475)
 - 2026-04-14T07:03:53Z – claude:opus-4.6:python-implementer:implementer – shell_pid=8091 – Started implementation via action command
 - 2026-04-14T07:51:37Z – claude:opus-4.6:python-implementer:implementer – shell_pid=8091 – WP03 complete: resolve_transitive_refs added in doctrine/drg/query.py using live DRGGraph+walk_edges API, InlineReferenceRejectedError rejecting 7 kinds including procedures step-level (FR-008), resolver+compiler twins flipped to DRG helper, build_charter_context renamed from v2 + legacy deleted, reference_resolver.py deleted, include_proposed removed, all 5 expected inter-WP failures now green (4 passing, 1 deleted as obsolete), NFR-002b byte-parity diff empty for all 4 actions, parity/legacy tests deleted after replacement green, occurrences/{WP03.yaml,index.yaml} both VERIFIER GREEN, full pytest 11202 passing.
 - 2026-04-14T07:53:35Z – opencode:gpt-5:python-reviewer:reviewer – shell_pid=85568 – Started review via action command
-- 2026-04-14T08:21:59Z – opencode:gpt-5:python-reviewer:reviewer – shell_pid=85568 – Phase 1 EPIC #461 closed. WP03 acceptance gates all green: (1) resolve_transitive_refs() in src/doctrine/drg/query.py uses live DRGGraph + Relation enum, delegates to walk_edges, returns ResolveTransitiveRefsResult with bare-id buckets sorted lexicographically; matches corrected contract exactly. (2) InlineReferenceRejectedError + 7 per-kind validators wired; 11 fixtures green in test_inline_ref_rejection.py including procedure step-level scan (FR-008 step-level requirement). (3) build_context_v2 -> build_charter_context atomic rename: only one definition in src/charter/activation/context.py; src/specify_cli/charter/context.py is a thin re-export (D-3 twin lockstep). (4) NFR-002b byte-parity baseline diff: empty for all 4 actions (specify/plan/implement/review) verified live. (5) NFR-002a artifact-reachability parity preserved via byte-parity baseline (stronger than artifact-set comparison) + test_profile_charter_e2e e2e test + new test_merged_graph_on_live_path.py. (6) src/charter/activation/reference_resolver.py deleted cleanly (-186 LOC). (7) include_proposed= parameter removed from src/charter/catalog.load_doctrine_catalog with no remaining src/test references. (8) Test-coverage collapse correctly executed per plan D-4: deleted test_context_parity.py + test_reference_resolver.py + test_cycle_detection.py + test_shipped_doctrine_cycle_free.py only AFTER replacement coverage green; cycle/validity rehomed in tests/doctrine/drg/test_shipped_graph_valid.py. 5 deviations all judged acceptable: D1 synthetic equivalence fixtures preserve R-2 intent since legacy resolver is deleted by T017 + WP02 stripped inline refs (hand-computed expected outputs are not tautological); D2 twin _drg_helpers.py with no in-package caller is acceptable D-3 lockstep scaffold for forward symmetry; D3 test_compile_with_doctrine_service_unknown_directive_in_diagnostics rewrite asserts genuine user-visible diagnostic from _sanitize_catalog_selection; D4 test_directive_tactic_refs_produce_requires deletion correct because test asserted on shipped DOCTRINE_ROOT data WP02 already removed (migration extractor remains MIGRATION-ONLY tool with other tests covering live behavior); D5 include_proposed removal verified zero src callers. Twin-package D-3 lockstep preserved. Agent-copy dirs untouched (C-005 git diff stat empty). Canonical grep returns zero outside permitted_exceptions. WP03 verifier GREEN, index.yaml verifier GREEN. mypy --strict shows exactly 7 errors matching implementer baseline (6 jsonschema stubs env + 1 dict-invariance pre-existing). 31 full-pytest failures all confirmed pre-existing on base mission branch (spec_kitty_events / keyring environmental missing modules). 109 WP03-focus tests all pass including 5 expected inter-WP failure resolutions. Force-move because untracked dossier snapshot file lives in a gitignored .kittify/dossiers path. Phase 1 of EPIC #461 closed.
+- 2026-04-14T08:21:59Z – opencode:gpt-5:python-reviewer:reviewer – shell_pid=85568 – Phase 1 EPIC #461 closed. WP03 acceptance gates all green: (1) resolve_transitive_refs() in src/doctrine/drg/query.py uses live DRGGraph + Relation enum, delegates to walk_edges, returns ResolveTransitiveRefsResult with bare-id buckets sorted lexicographically; matches corrected contract exactly. (2) InlineReferenceRejectedError + 7 per-kind validators wired; 11 fixtures green in test_inline_ref_rejection.py including procedure step-level scan (FR-008 step-level requirement). (3) build_context_v2 -> build_charter_context atomic rename: only one definition in src/charter/context.py; src/specify_cli/charter/context.py is a thin re-export (D-3 twin lockstep). (4) NFR-002b byte-parity baseline diff: empty for all 4 actions (specify/plan/implement/review) verified live. (5) NFR-002a artifact-reachability parity preserved via byte-parity baseline (stronger than artifact-set comparison) + test_profile_charter_e2e e2e test + new test_merged_graph_on_live_path.py. (6) src/charter/reference_resolver.py deleted cleanly (-186 LOC). (7) include_proposed= parameter removed from src/charter/catalog.load_doctrine_catalog with no remaining src/test references. (8) Test-coverage collapse correctly executed per plan D-4: deleted test_context_parity.py + test_reference_resolver.py + test_cycle_detection.py + test_shipped_doctrine_cycle_free.py only AFTER replacement coverage green; cycle/validity rehomed in tests/doctrine/drg/test_shipped_graph_valid.py. 5 deviations all judged acceptable: D1 synthetic equivalence fixtures preserve R-2 intent since legacy resolver is deleted by T017 + WP02 stripped inline refs (hand-computed expected outputs are not tautological); D2 twin _drg_helpers.py with no in-package caller is acceptable D-3 lockstep scaffold for forward symmetry; D3 test_compile_with_doctrine_service_unknown_directive_in_diagnostics rewrite asserts genuine user-visible diagnostic from _sanitize_catalog_selection; D4 test_directive_tactic_refs_produce_requires deletion correct because test asserted on shipped DOCTRINE_ROOT data WP02 already removed (migration extractor remains MIGRATION-ONLY tool with other tests covering live behavior); D5 include_proposed removal verified zero src callers. Twin-package D-3 lockstep preserved. Agent-copy dirs untouched (C-005 git diff stat empty). Canonical grep returns zero outside permitted_exceptions. WP03 verifier GREEN, index.yaml verifier GREEN. mypy --strict shows exactly 7 errors matching implementer baseline (6 jsonschema stubs env + 1 dict-invariance pre-existing). 31 full-pytest failures all confirmed pre-existing on base mission branch (spec_kitty_events / keyring environmental missing modules). 109 WP03-focus tests all pass including 5 expected inter-WP failure resolutions. Force-move because untracked dossier snapshot file lives in a gitignored .kittify/dossiers path. Phase 1 of EPIC #461 closed.

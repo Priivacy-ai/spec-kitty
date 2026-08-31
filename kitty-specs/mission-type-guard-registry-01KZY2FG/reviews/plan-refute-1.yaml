@@ -40,7 +40,7 @@ verdicts:                   # one entry for EVERY finding in your batch — no o
     reason: >
       Confirmed runtime_bridge_cores.py's imports are stdlib + runtime.next.decision only (lines
       70-77) matching its zero-dependency-leaf docstring; confirmed UnknownMissionTypeError is a
-      ValueError subclass at src/charter/activation/mission_type_profiles.py:193 carrying mission_type_id;
+      ValueError subclass at src/charter/mission_type_profiles.py:193 carrying mission_type_id;
       confirmed the raise UnknownMissionTypeError(...) call plan.md cites is real, at line 799,
       inside _resolve_action_slot's `if mission is None:` branch — exactly the branch plan.md's
       own FR-008 classifier text describes reusing read-only. No code-level cross-reference

@@ -8,7 +8,7 @@ a `verify_manifest_hash` backward-compat break found during re-verification.
 
 ## Entity: `SynthesisManifest` (schema change)
 
-File: `src/charter/activation/synthesizer/manifest.py`
+File: `src/charter/synthesizer/manifest.py`
 
 | Field | Before | After (WP01) | After (WP02) | Volatility |
 |-------|--------|--------------|--------------|------------|
@@ -45,7 +45,7 @@ BUT adding the field is NOT free on the integrity surface — see the mandatory
 
 ## Contract: `finalize_manifest` (single canonical manifest finalizer)
 
-**New symbol:** `src/charter/activation/synthesizer/manifest.py::finalize_manifest(manifest:
+**New symbol:** `src/charter/synthesizer/manifest.py::finalize_manifest(manifest:
 SynthesisManifest) -> SynthesisManifest`
 
 ```
@@ -85,7 +85,7 @@ scope; it correctly stays within v2 field semantics.
 
 ## Contract: `verify_manifest_hash` backward-compat shim (MANDATORY with the field)
 
-File: `src/charter/activation/synthesizer/manifest.py::verify_manifest_hash`
+File: `src/charter/synthesizer/manifest.py::verify_manifest_hash`
 
 `compute_manifest_hash` normalizes through the model, so after the field is
 added it includes `bundle_content_hash: None` in the recomputed digest. Every

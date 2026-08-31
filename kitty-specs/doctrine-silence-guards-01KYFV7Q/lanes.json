@@ -47,7 +47,7 @@
         "WP03"
       ],
       "write_scope": [
-        "src/charter/activation/context.py",
+        "src/charter/context.py",
         "src/doctrine/drg/query.py",
         "tests/doctrine/drg/test_unknown_kind_fails_loudly.py"
       ],
@@ -147,7 +147,7 @@
         "WP07"
       ],
       "write_scope": [
-        "src/charter/activation/schemas.py",
+        "src/charter/schemas.py",
         "src/doctrine/agent_profiles/repository.py",
         "src/doctrine/agent_profiles/schema_models.py",
         "src/doctrine/directives/README.md",

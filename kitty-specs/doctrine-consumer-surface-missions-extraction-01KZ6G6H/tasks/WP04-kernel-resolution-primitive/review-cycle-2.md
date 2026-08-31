@@ -160,7 +160,7 @@ the one cycle 1 flagged for `src/*/missions`, not smaller.
 
 Bounded in practice — both real layouts match at ancestor depth 1–2, long before
 reaching user-controlled parents, and `kernel.paths.get_package_asset_root` has a
-single production consumer (`src/charter/activation/catalog.py:16`). Worth either a stop
+single production consumer (`src/charter/catalog.py:16`). Worth either a stop
 condition on the walk (e.g. halt at the first ancestor that is a `src`/site-packages
 level) or an explicit note in the primitive's docstring naming the trade.
 

@@ -1,7 +1,7 @@
 # Mission-type governance profile — research
 #
 # Pinned by `tests/missions/test_mission_type_profile_resolution.py`.
-# Schema: `charter.activation.mission_type_profiles.MissionTypeProfile`
+# Schema: `charter.mission_type_profiles.MissionTypeProfile`
 # Contract: kitty-specs/charter-mediated-doctrine-selection-01KRTZCA/contracts/mission-type-profile.md
 #
 # Research missions focus on investigation and evidence gathering rather than

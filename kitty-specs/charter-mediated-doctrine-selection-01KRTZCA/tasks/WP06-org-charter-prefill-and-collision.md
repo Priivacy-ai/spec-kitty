@@ -107,7 +107,7 @@ for kind in (
         )
 ```
 
-Verify the `CharterInterview` dataclass in `src/charter/activation/interview.py` carries `selected_<kind>` attributes for every kind so the union has a target. If absent, add the defaults (additive — NFR-005 safe).
+Verify the `CharterInterview` dataclass in `src/charter/interview.py` carries `selected_<kind>` attributes for every kind so the union has a target. If absent, add the defaults (additive — NFR-005 safe).
 
 ### T027 — Extend `load_org_charter_policies` merge
 

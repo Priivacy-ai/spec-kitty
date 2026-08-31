@@ -68,7 +68,7 @@
       "criterion_id": "FR-007",
       "description": "Verify FR-007 is satisfied",
       "proof_type": "automated_test",
-      "evidence": "WP04 88520ccac \u2014 single unlink_stale_project_graph in src/charter/activation/synthesizer/graph_residue.py; both callers; atomic ordering byte-unchanged",
+      "evidence": "WP04 88520ccac \u2014 single unlink_stale_project_graph in src/charter/synthesizer/graph_residue.py; both callers; atomic ordering byte-unchanged",
       "pass_fail": "pass",
       "verified_by": "reviewer-renata",
       "verified_at": "2026-06-18T06:59:07.261858+00:00",

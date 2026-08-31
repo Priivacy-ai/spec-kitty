@@ -133,7 +133,7 @@ Contract:
 | Action | Path | Description |
 |--------|------|-------------|
 | CREATE | `src/doctrine/versioning.py` | Compatibility registry, version constants, `check_bundle_compatibility()`, `get_bundle_schema_version()`, migration registration, `migrate_v1_to_v2()` stub |
-| MODIFY | `src/charter/activation/schemas.py` | Add `bundle_schema_version: int \| None = None` to `ExtractionMetadata` |
+| MODIFY | `src/charter/schemas.py` | Add `bundle_schema_version: int \| None = None` to `ExtractionMetadata` |
 | MODIFY | `src/charter/extractor.py` | Stamp `bundle_schema_version = CURRENT_BUNDLE_SCHEMA_VERSION` when writing `metadata.yaml` |
 | CREATE | `tests/doctrine/test_versioning.py` | Unit tests for compatibility registry |
 
@@ -159,11 +159,11 @@ Contract:
 
 | Action | Path | Description |
 |--------|------|-------------|
-| MODIFY | `src/charter/activation/synthesizer/synthesize_pipeline.py` | Bump `schema_version` Literal to "2"; add `synthesizer_version`, `source_input_ids`, `produced_at`, `synthesis_run_id`; promote `corpus_snapshot_id` to mandatory str |
-| MODIFY | `src/charter/activation/synthesizer/manifest.py` | Bump `schema_version` to "2"; add `synthesizer_version`, `manifest_hash` |
-| MODIFY | `src/charter/activation/synthesizer/provenance.py` | `dump_yaml()` sets `produced_at` at write time; pass through new fields |
-| MODIFY | `src/charter/activation/synthesizer/write_pipeline.py` | Pass `synthesizer_version`, `synthesis_run_id`, `corpus_snapshot_id or "(none)"`, `produced_at`, `source_input_ids`; compute and set `manifest_hash` |
-| MODIFY | `src/charter/activation/synthesizer/resynthesize_pipeline.py` | Same provenance field additions as write_pipeline.py |
+| MODIFY | `src/charter/synthesizer/synthesize_pipeline.py` | Bump `schema_version` Literal to "2"; add `synthesizer_version`, `source_input_ids`, `produced_at`, `synthesis_run_id`; promote `corpus_snapshot_id` to mandatory str |
+| MODIFY | `src/charter/synthesizer/manifest.py` | Bump `schema_version` to "2"; add `synthesizer_version`, `manifest_hash` |
+| MODIFY | `src/charter/synthesizer/provenance.py` | `dump_yaml()` sets `produced_at` at write time; pass through new fields |
+| MODIFY | `src/charter/synthesizer/write_pipeline.py` | Pass `synthesizer_version`, `synthesis_run_id`, `corpus_snapshot_id or "(none)"`, `produced_at`, `source_input_ids`; compute and set `manifest_hash` |
+| MODIFY | `src/charter/synthesizer/resynthesize_pipeline.py` | Same provenance field additions as write_pipeline.py |
 | MODIFY | `tests/charter/synthesizer/test_provenance.py` | Update assertions for v2 fields |
 | MODIFY | `tests/charter/synthesizer/test_manifest.py` | Update assertions for v2 fields |
 | MODIFY | `tests/charter/synthesizer/test_adapter_contract.py` | Update fixtures |

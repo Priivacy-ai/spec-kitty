@@ -29,11 +29,11 @@
       ],
       "write_scope": [
         ".kittify/charter/charter.yaml",
-        "src/charter/activation/interview.py",
-        "src/charter/activation/org_pack_discovery.py",
-        "src/charter/activation/resolver.py",
-        "src/charter/activation/schemas.py",
-        "src/charter/activation/sync.py",
+        "src/charter/interview.py",
+        "src/charter/org_pack_discovery.py",
+        "src/charter/resolver.py",
+        "src/charter/schemas.py",
+        "src/charter/sync.py",
         "src/specify_cli/cli/commands/charter/_status_collectors.py"
       ],
       "predicted_surfaces": [],

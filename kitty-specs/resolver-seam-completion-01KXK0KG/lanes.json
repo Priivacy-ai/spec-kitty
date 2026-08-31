@@ -30,7 +30,7 @@
         "WP02"
       ],
       "write_scope": [
-        "src/charter/activation/action_grain.py",
+        "src/charter/action_grain.py",
         "tests/charter/test_action_grain.py"
       ],
       "predicted_surfaces": [
@@ -46,7 +46,7 @@
         "WP03"
       ],
       "write_scope": [
-        "src/charter/activation/mission_type_profiles.py",
+        "src/charter/mission_type_profiles.py",
         "tests/architectural/test_no_parity_scaffold.py",
         "tests/charter/test_resolved_mission_type_context.py",
         "tests/missions/test_mission_type_profile_resolution.py"

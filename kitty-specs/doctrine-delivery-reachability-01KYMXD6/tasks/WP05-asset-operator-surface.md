@@ -70,7 +70,7 @@ stops reaching the asset through a hard-coded repo path.
 ## Context
 
 `SC-003` is the load-bearing criterion, and it is falsifiable **only from a built wheel in a clean
-environment**. In-repo, `resolve_doctrine_root()` (`src/charter/activation/catalog.py:153`) falls back to the dev
+environment**. In-repo, `resolve_doctrine_root()` (`src/charter/catalog.py:153`) falls back to the dev
 layout, so an in-repo test always passes and proves nothing. The wheel already contains the asset
 (verified: `doctrine/assets/built-in/docs_structural_lint.py` and its sidecar are in
 `spec_kitty_cli-*.whl`) — so this is an addressing fix, not a packaging one.

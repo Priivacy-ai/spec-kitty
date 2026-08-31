@@ -32,8 +32,8 @@ execution_mode: code_change
 model: ''
 owned_files:
 - src/charter/drg.py
-- src/charter/activation/activations.py
-- src/charter/activation/pack_context.py
+- src/charter/activations.py
+- src/charter/pack_context.py
 - src/doctrine/drg/validator.py
 - tests/doctrine/drg/test_validator.py
 - tests/charter/test_drg_filtering.py
@@ -75,10 +75,10 @@ Done means:
 
 ## Context & Constraints
 
-- **Read this before touching any file**: `src/charter/activation/cascade.py::_kind_of` resolves `ArtifactKind(prefix)` generically — it requires **no code change** once WP01's `ArtifactKind.ANTI_PATTERN` member exists. Do not edit `src/charter/activation/cascade.py` in this WP; doing so would create an unnecessary ownership conflict with WP06, which also touches cascade-adjacent test coverage.
+- **Read this before touching any file**: `src/charter/cascade.py::_kind_of` resolves `ArtifactKind(prefix)` generically — it requires **no code change** once WP01's `ArtifactKind.ANTI_PATTERN` member exists. Do not edit `src/charter/cascade.py` in this WP; doing so would create an unnecessary ownership conflict with WP06, which also touches cascade-adjacent test coverage.
 - `src/charter/drg.py::_node_is_activated` has a documented default-allow for kinds absent from `_SINGULAR_TO_PLURAL` ("An unknown kind... is allowed through so the filter never silently swallows new artifact kinds"). This is real, existing behavior — but FR-004 explicitly requires wiring `anti_pattern` through `_SINGULAR_TO_PLURAL`/`_SINGULAR_TO_PER_KIND_FIELD` anyway, so it is config-gated like every other kind rather than silently defaulting to always-visible. Implement the explicit wiring; do not rely on the default-allow fallback even though it would technically "work" for a different reason.
-- There are (at least) two near-duplicate singular→plural maps: `_SINGULAR_TO_PLURAL`/`_SINGULAR_TO_PER_KIND_FIELD` in `src/charter/drg.py`, and `_SINGULAR_TO_PLURAL_KIND` in `src/charter/activation/activations.py`. Both must gain the `anti_pattern` entry or activation/CLI parsing diverges — search for any other call site using `grep -rn "_SINGULAR_TO_PLURAL" src/` before considering this done, in case a third copy exists that this prompt's research missed.
-- `PackContext` (`src/charter/activation/pack_context.py`) needs the new `activated_anti_patterns` field, following the exact pattern of the existing per-kind fields (e.g. `activated_directives`).
+- There are (at least) two near-duplicate singular→plural maps: `_SINGULAR_TO_PLURAL`/`_SINGULAR_TO_PER_KIND_FIELD` in `src/charter/drg.py`, and `_SINGULAR_TO_PLURAL_KIND` in `src/charter/activations.py`. Both must gain the `anti_pattern` entry or activation/CLI parsing diverges — search for any other call site using `grep -rn "_SINGULAR_TO_PLURAL" src/` before considering this done, in case a third copy exists that this prompt's research missed.
+- `PackContext` (`src/charter/pack_context.py`) needs the new `activated_anti_patterns` field, following the exact pattern of the existing per-kind fields (e.g. `activated_directives`).
 
 ## Branch Strategy
 
@@ -95,17 +95,17 @@ Implementation command: `spec-kitty agent action implement WP04 --agent <name>` 
 - **Purpose**: Makes `anti_pattern` a config-gated activatable kind, consistent with every other kind (FR-004).
 - **Steps**:
   1. In `src/charter/drg.py`, add `"anti_pattern": "anti_patterns"` to `_SINGULAR_TO_PLURAL` (line ~189-198 as of plan time) and `"anti_pattern": "activated_anti_patterns"` to `_SINGULAR_TO_PER_KIND_FIELD` (line ~203-214 as of plan time) — confirm current line numbers, they may have shifted after WP01-WP03.
-  2. In `src/charter/activation/activations.py`, add the matching entry to `_SINGULAR_TO_PLURAL_KIND` (line ~177-186 as of plan time).
+  2. In `src/charter/activations.py`, add the matching entry to `_SINGULAR_TO_PLURAL_KIND` (line ~177-186 as of plan time).
   3. Grep for any other `_SINGULAR_TO_PLURAL`-shaped dict in `src/` you haven't yet accounted for and update it too.
-- **Files**: `src/charter/drg.py`, `src/charter/activation/activations.py`
+- **Files**: `src/charter/drg.py`, `src/charter/activations.py`
 - **Parallel?**: Yes, relative to T021 (different files).
 - **Notes**: Match the exact plural form your CLI/config layer expects — `"anti_patterns"` is the working assumption; confirm no existing convention (e.g. `"anti-patterns"` with a hyphen) is already in use elsewhere for this concept before committing to the underscore form.
 
 ### Subtask T020 – Add `activated_anti_patterns` to `PackContext`
 
 - **Purpose**: The per-kind config field T019's `_SINGULAR_TO_PER_KIND_FIELD` entry points at.
-- **Steps**: In `src/charter/activation/pack_context.py`, add `activated_anti_patterns: frozenset[str] | None = None` (or the exact type/default used by sibling fields like `activated_directives` — match it precisely, don't invent a slightly different shape).
-- **Files**: `src/charter/activation/pack_context.py`
+- **Steps**: In `src/charter/pack_context.py`, add `activated_anti_patterns: frozenset[str] | None = None` (or the exact type/default used by sibling fields like `activated_directives` — match it precisely, don't invent a slightly different shape).
+- **Files**: `src/charter/pack_context.py`
 - **Parallel?**: Yes, relative to T021.
 - **Notes**: Check whether `PackContext` construction (wherever it's built from `charter.yaml`/config) needs a corresponding read-path addition too — a field that exists on the model but is never populated from config is a partial wiring, exactly the kind of "lands on one surface but not others" defect NFR-002/the Change Surface Map warns about.
 
@@ -147,7 +147,7 @@ Implementation command: `spec-kitty agent action implement WP04 --agent <name>` 
 
 ## Review Guidance
 
-- Confirm `src/charter/activation/cascade.py` was NOT touched in this WP (no code change needed there — verify the reviewer understands why, per the note above, rather than requesting an unnecessary edit).
+- Confirm `src/charter/cascade.py` was NOT touched in this WP (no code change needed there — verify the reviewer understands why, per the note above, rather than requesting an unnecessary edit).
 - Confirm all singular→plural maps found via a repo-wide grep were updated, not just the two named in this prompt.
 
 ## Activity Log
@@ -166,4 +166,4 @@ Status is managed via `status.events.jsonl`. Use `spec-kitty agent tasks move-ta
 - 2026-07-21T13:41:05Z – claude:sonnet:python-pedro:implementer – shell_pid=80649 – Assigned agent via action command
 - 2026-07-21T13:53:10Z – claude:sonnet:python-pedro:implementer – shell_pid=80649 – Ready for review: anti_pattern wired into both singular->plural kind maps + PackContext.activated_anti_patterns (with read-path), rejects-target INV-004 validator rule added, INV-001 symmetric-read + gating/negative tests added. cascade.py untouched. Scoped tests/ruff/mypy all green.
 - 2026-07-21T14:20:34Z – claude:sonnet:reviewer-renata:reviewer – shell_pid=91207 – Started review via action command
-- 2026-07-21T14:27:38Z – user – shell_pid=91207 – Review passed: T019 verified — anti_pattern added to _SINGULAR_TO_PLURAL/_SINGULAR_TO_PER_KIND_FIELD (drg.py) and _SINGULAR_TO_PLURAL_KIND (activations.py). Independently re-grepped _SINGULAR_TO_PLURAL across src/ and confirmed the 3 other near-duplicates the implementer cited (doctrine.py scaffold map, pack_validator._SINGULAR_TO_PLURAL_AUGMENTATION, artifact_kinds.ArtifactKind._PLURALS) correctly exclude/handle anti_pattern by design per artifact_kinds.py's _NON_AUGMENTATION_ELIGIBLE_KINDS docstring (anti_pattern is never hand-authored standalone, never augmentation-eligible). Also found and independently investigated a 4th candidate the implementer did not mention (_activation_render.py::_singular_kind's local hardcoded inverse dict) and confirmed it is genuinely unreachable for anti_pattern (DoctrineService has no .anti_patterns property, and activations._ALLOWED_KINDS/_KIND_TO_PROPERTY never admit it) -- correctly left unchanged. T020 verified: PackContext.activated_anti_patterns field added plus a real read-path (_read_activated_anti_patterns calling _read_list_key), matching the exact sibling pattern for every other kind -- not a dead field. T021 verified: _validate_rejects_targets added to validator.py following the exact existing rule pattern (kind_by_urn lookup, dangling-defers-elsewhere comment, matching error message shape), wired into validate_graph as check 5. T022/T023 verified: real INV-001 symmetric-read test (edges_from/edges_to cross-checked both directions) and INV-004 positive/negative/dangling-target validator tests exist in new tests/doctrine/drg/test_validator.py; activation-gating coverage added to tests/charter/test_drg_filtering.py proving anti_pattern is config-gated (kind-level + per-artifact-ID), not default-allowed. Confirmed src/charter/activation/cascade.py untouched (0 diff hits). Ran pytest tests/doctrine/drg/test_validator.py tests/charter/test_drg_filtering.py tests/charter/test_activation_filtered_drg.py tests/charter/test_pack_context.py -q myself: 58 passed. Ran mypy on all 4 changed source files myself: Success, no issues. Ran ruff check on changed files: all checks passed. Bulk-edit gate: grepped all 4 changed source files for opposed_by/Contradiction -- zero hits; this WP is purely additive activation-filter wiring, unrelated to the opposed_by retirement's manual_review code_symbols category, not a shortcut.
+- 2026-07-21T14:27:38Z – user – shell_pid=91207 – Review passed: T019 verified — anti_pattern added to _SINGULAR_TO_PLURAL/_SINGULAR_TO_PER_KIND_FIELD (drg.py) and _SINGULAR_TO_PLURAL_KIND (activations.py). Independently re-grepped _SINGULAR_TO_PLURAL across src/ and confirmed the 3 other near-duplicates the implementer cited (doctrine.py scaffold map, pack_validator._SINGULAR_TO_PLURAL_AUGMENTATION, artifact_kinds.ArtifactKind._PLURALS) correctly exclude/handle anti_pattern by design per artifact_kinds.py's _NON_AUGMENTATION_ELIGIBLE_KINDS docstring (anti_pattern is never hand-authored standalone, never augmentation-eligible). Also found and independently investigated a 4th candidate the implementer did not mention (_activation_render.py::_singular_kind's local hardcoded inverse dict) and confirmed it is genuinely unreachable for anti_pattern (DoctrineService has no .anti_patterns property, and activations._ALLOWED_KINDS/_KIND_TO_PROPERTY never admit it) -- correctly left unchanged. T020 verified: PackContext.activated_anti_patterns field added plus a real read-path (_read_activated_anti_patterns calling _read_list_key), matching the exact sibling pattern for every other kind -- not a dead field. T021 verified: _validate_rejects_targets added to validator.py following the exact existing rule pattern (kind_by_urn lookup, dangling-defers-elsewhere comment, matching error message shape), wired into validate_graph as check 5. T022/T023 verified: real INV-001 symmetric-read test (edges_from/edges_to cross-checked both directions) and INV-004 positive/negative/dangling-target validator tests exist in new tests/doctrine/drg/test_validator.py; activation-gating coverage added to tests/charter/test_drg_filtering.py proving anti_pattern is config-gated (kind-level + per-artifact-ID), not default-allowed. Confirmed src/charter/cascade.py untouched (0 diff hits). Ran pytest tests/doctrine/drg/test_validator.py tests/charter/test_drg_filtering.py tests/charter/test_activation_filtered_drg.py tests/charter/test_pack_context.py -q myself: 58 passed. Ran mypy on all 4 changed source files myself: Success, no issues. Ran ruff check on changed files: all checks passed. Bulk-edit gate: grepped all 4 changed source files for opposed_by/Contradiction -- zero hits; this WP is purely additive activation-filter wiring, unrelated to the opposed_by retirement's manual_review code_symbols category, not a shortcut.

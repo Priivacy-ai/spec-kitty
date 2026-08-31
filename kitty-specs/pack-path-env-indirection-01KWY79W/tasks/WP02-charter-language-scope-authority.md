@@ -30,15 +30,15 @@ history:
   actor: system
   action: Prompt generated via /spec-kitty.tasks
 agent_profile: implementer-ivan
-authoritative_surface: src/charter/activation/language_scope.py
+authoritative_surface: src/charter/language_scope.py
 create_intent: []
 execution_mode: code_change
 model: ''
 owned_files:
-- src/charter/activation/compiler.py
-- src/charter/activation/language_scope.py
-- src/charter/activation/context.py
-- src/charter/activation/compact.py
+- src/charter/compiler.py
+- src/charter/language_scope.py
+- src/charter/context.py
+- src/charter/compact.py
 - tests/charter/test_language_scope.py
 role: implementer
 tags: []
@@ -55,7 +55,7 @@ Use the `/ad-hoc-profile-load` skill to load the agent profile specified in the 
 - **Role**: `implementer`
 - **Agent/tool**: (assign at dispatch time)
 
-If no profile is specified, run `spec-kitty agent profile list` and select the best match for `task_type: implement` and `authoritative_surface: src/charter/activation/language_scope.py`.
+If no profile is specified, run `spec-kitty agent profile list` and select the best match for `task_type: implement` and `authoritative_surface: src/charter/language_scope.py`.
 
 ---
 
@@ -84,13 +84,13 @@ Done when:
 
 This WP implements FR-008 through FR-012, NFR-002, C-005 from `kitty-specs/pack-path-env-indirection-01KWY79W/spec.md`. Read `kitty-specs/pack-path-env-indirection-01KWY79W/plan.md` (Technical Context, IC-02), `research.md` (WP2 section), and `data-model.md` (compiled charter language set entity + state transition diagram) before writing any code.
 
-**Why the deeper fix, not a minimal branch-flip**: the upstream issue's own suggested direction is a minimal precedence flip inside `infer_repo_languages` (interview vs. charter.md, just swap which wins). That would fix the reported symptom but leave the split-brain in place — `extract_declared_languages()` would still be invoked canonically at compile time (`src/charter/activation/compiler.py:99`) *and* separately at runtime (`src/charter/activation/language_scope.py`), meaning a future third caller could reintroduce its own precedence bug. This mission explicitly chose (locked decision, `deep_unify`) to persist a structured field at compile time instead, per DIRECTIVE_044 (canonical sources and unification — "unification not parity").
+**Why the deeper fix, not a minimal branch-flip**: the upstream issue's own suggested direction is a minimal precedence flip inside `infer_repo_languages` (interview vs. charter.md, just swap which wins). That would fix the reported symptom but leave the split-brain in place — `extract_declared_languages()` would still be invoked canonically at compile time (`src/charter/compiler.py:99`) *and* separately at runtime (`src/charter/language_scope.py`), meaning a future third caller could reintroduce its own precedence bug. This mission explicitly chose (locked decision, `deep_unify`) to persist a structured field at compile time instead, per DIRECTIVE_044 (canonical sources and unification — "unification not parity").
 
 **Read before changing anything**:
-- `src/charter/activation/compiler.py:99` — the existing canonical invocation of `extract_declared_languages()` over interview answers at compile time. This is where the structured field should be computed and persisted.
-- `src/charter/activation/language_scope.py:18-54` — `extract_declared_languages()` (keyword-regex extractor, reuse as-is) and `infer_repo_languages()` (the function whose resolution precedence changes).
-- `src/charter/activation/context.py:1320,1326` — `active_languages` population, and `~2188-2207` — `_diagnose_catalog_miss`/`classify_scope_filtered_miss`, the scope-filtering consumer.
-- `src/charter/activation/compact.py:195-199` — display-only consumer, wrapped in a defensive exception handler; low risk but must still work correctly.
+- `src/charter/compiler.py:99` — the existing canonical invocation of `extract_declared_languages()` over interview answers at compile time. This is where the structured field should be computed and persisted.
+- `src/charter/language_scope.py:18-54` — `extract_declared_languages()` (keyword-regex extractor, reuse as-is) and `infer_repo_languages()` (the function whose resolution precedence changes).
+- `src/charter/context.py:1320,1326` — `active_languages` population, and `~2188-2207` — `_diagnose_catalog_miss`/`classify_scope_filtered_miss`, the scope-filtering consumer.
+- `src/charter/compact.py:195-199` — display-only consumer, wrapped in a defensive exception handler; low risk but must still work correctly.
 - `tests/charter/test_language_scope.py:21-36` — `test_infer_repo_languages_prefers_interview_answers`, the existing test that currently pins the buggy precedence as its contract.
 
 **Exact field name/location is your implementation choice** — `data-model.md` deliberately leaves this open ("exact name/location TBD by implementer within `compiler.py`'s existing output shape"). Choose whatever fits the existing compiled-charter output structure most naturally (e.g. a YAML frontmatter key, a sidecar structured file, or an in-memory field on whatever object `compiler.py` already returns/persists) — just ensure it round-trips through a real compile→read cycle, not only in-memory during a single process.
@@ -109,10 +109,10 @@ This WP implements FR-008 through FR-012, NFR-002, C-005 from `kitty-specs/pack-
 
 - **Purpose**: Give runtime a canonical value to read instead of re-deriving from the raw transcript.
 - **Steps**:
-  1. Read `src/charter/activation/compiler.py` around line 99 and its surrounding function fully — understand what triggers this extraction today and what output structure the compiler already produces/persists.
+  1. Read `src/charter/compiler.py` around line 99 and its surrounding function fully — understand what triggers this extraction today and what output structure the compiler already produces/persists.
   2. Add a structured `languages` (or equivalently named) field to that output, computed via the existing `extract_declared_languages()` call over interview answers, persisted so it survives to disk (not just held in memory for the current compile call) and is readable independently by `language_scope.py` afterward.
   3. Ensure this only runs at `charter generate`/`charter sync` time — not on every read.
-- **Files**: `src/charter/activation/compiler.py`.
+- **Files**: `src/charter/compiler.py`.
 - **Parallel?**: No — foundation for T009.
 - **Notes**: Reuse `extract_declared_languages()` as-is; do not fork or duplicate its regex logic.
 
@@ -120,11 +120,11 @@ This WP implements FR-008 through FR-012, NFR-002, C-005 from `kitty-specs/pack-
 
 - **Purpose**: Make `infer_repo_languages` (or its replacement, keeping existing call signatures for callers) read the compiled structured field as the canonical source.
 - **Steps**:
-  1. Update `src/charter/activation/language_scope.py` so resolution checks for T008's structured field first.
+  1. Update `src/charter/language_scope.py` so resolution checks for T008's structured field first.
   2. If present, return it directly — do **not** also consult the interview transcript in this branch, even if the transcript would produce a different answer. The compiled value wins unconditionally once it exists (this is the exact behavior that flips the bug: today, `answers.yaml` wins if it has any match at all).
   3. If absent (pre-existing charter, not yet recompiled under this change), fall back to today's existing logic unchanged: interview transcript first, then `charter.md` free-text extraction, then empty.
   4. Keep the function name/signature stable if at all reasonably possible — `context.py` and `compact.py` should not need call-site changes beyond what T010 verifies.
-- **Files**: `src/charter/activation/language_scope.py`.
+- **Files**: `src/charter/language_scope.py`.
 - **Parallel?**: No — depends on T008's field existing.
 - **Notes**: This is the FR-008/FR-010 core logic. Re-read `data-model.md`'s state-transition diagram before implementing — it specifies the exact two-branch precedence.
 
@@ -135,7 +135,7 @@ This WP implements FR-008 through FR-012, NFR-002, C-005 from `kitty-specs/pack-
   1. Read `context.py:1320,1326` and the `_diagnose_catalog_miss`/`classify_scope_filtered_miss` chain (`~2188-2207`) — confirm they simply consume whatever `infer_repo_languages` returns, with no independent interview/charter branching duplicated there. If you find such duplication, that's a pre-existing DIRECTIVE_044 violation worth flagging in the Activity Log (fix only if trivially in-scope; otherwise note it for a follow-up).
   2. Read `compact.py:195-199` — confirm the defensive `except Exception` wrapper still makes sense post-change (it should; this subtask is verification, not a rewrite).
   3. Add or update tests exercising the full path from a compiled structured field through to `active_languages` and the scope-filtering consumer, not just `infer_repo_languages` in isolation.
-- **Files**: `src/charter/activation/context.py`, `src/charter/activation/compact.py` (read/verify only — avoid changes unless something is actually broken), `tests/charter/test_context.py` if you add coverage there.
+- **Files**: `src/charter/context.py`, `src/charter/compact.py` (read/verify only — avoid changes unless something is actually broken), `tests/charter/test_context.py` if you add coverage there.
 - **Parallel?**: [P] — can proceed alongside T011/T012 once T009 lands.
 - **Notes**: `tests/charter/test_context.py:851` already monkeypatches `infer_repo_languages` directly in some tests — that isolation is fine and doesn't need to change, but don't rely on it as your only coverage; add at least one test that exercises the real resolution path end-to-end.
 
@@ -178,7 +178,7 @@ This WP implements FR-008 through FR-012, NFR-002, C-005 from `kitty-specs/pack-
 - **Purpose**: Confirm the WP is mergeable.
 - **Steps**:
   1. Run `pytest tests/charter/ -v` — all green, including the inverted T011 test and the new T012 backward-compatibility test, no unexplained regressions elsewhere in the charter test suite.
-  2. Run `ruff check src/charter/activation/compiler.py src/charter/activation/language_scope.py src/charter/activation/context.py src/charter/activation/compact.py` and `mypy` on the same files — zero issues.
+  2. Run `ruff check src/charter/compiler.py src/charter/language_scope.py src/charter/context.py src/charter/compact.py` and `mypy` on the same files — zero issues.
   3. If any documentation or prose under `src/doctrine/` was touched by T013, run `pytest tests/architectural/test_no_legacy_terminology.py` (terminology guard, ~0.1s) per the repo-wide pre-push rule.
 - **Files**: N/A (verification only).
 - **Parallel?**: No — final gate.

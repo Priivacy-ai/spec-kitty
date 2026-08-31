@@ -23,14 +23,14 @@ history:
   actor: system
   action: Post-tasks squad restructure - absorbed the former WP09 Gate 4 (it only ever guarded this WP's own surface, per paula-patterns finding); noted 3 additional undiscovered missions-root duplicates found by reviewer-renata as an explicit residual, not silently fixed or hidden
 agent_profile: python-pedro
-authoritative_surface: src/charter/activation/mission_type_profile_repository.py
+authoritative_surface: src/charter/mission_type_profile_repository.py
 create_intent:
 - tests/charter/test_missions_root_authority.py
 - tests/architectural/test_charter_sole_door_hardcoded_paths.py
 execution_mode: code_change
 model: ''
 owned_files:
-- src/charter/activation/mission_type_profile_repository.py
+- src/charter/mission_type_profile_repository.py
 - src/specify_cli/runtime/home.py
 - tests/charter/test_missions_root_authority.py
 - tests/architectural/test_charter_sole_door_hardcoded_paths.py
@@ -103,7 +103,7 @@ framing changed during planning — read the Context section before starting.**
   `return MissionTemplateRepository.default_missions_root()`. Keep the function's signature and name
   unchanged — existing callers (`action_grain.py`, `mission_type_profiles.py`, others) must not need
   changes.
-- **Files**: `src/charter/activation/mission_type_profile_repository.py`.
+- **Files**: `src/charter/mission_type_profile_repository.py`.
 - **Parallel?**: Yes.
 
 ### Subtask T023 – Retarget `home.py`'s `dev_roots` fallback
@@ -159,7 +159,7 @@ framing changed during planning — read the Context section before starting.**
 ## Test Strategy
 
 - `pytest tests/charter/ tests/specify_cli/runtime/ -v`.
-- `mypy --strict src/charter/activation/mission_type_profile_repository.py src/specify_cli/runtime/home.py`.
+- `mypy --strict src/charter/mission_type_profile_repository.py src/specify_cli/runtime/home.py`.
 
 ## Risks & Mitigations
 

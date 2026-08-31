@@ -9,14 +9,14 @@
 Two independent, contained remediations delivered as parallel lanes:
 
 - **Workstream A (#1667 residual) — D-1 resolved → fork Y.** The aggregate's read+write methods are shipped and tested (#1682). This mission completes #1667's single-domain-ownership intent: **FR-004** routes the live write surface `agent status emit` through `MissionStatus.transition()/.save()` (was a direct `emit_status_transition_transactional` call), **FR-007** adds a `load()` slug guard, **FR-008** extends the parity ratchet over that write path. **No change to `BookkeepingTransaction`.** #1673 overlap accepted.
-- **Workstream B (#1636):** make `profile list` activation-aware and add an activation-gated `profile show`, both routed through the existing charter activation chokepoint (`charter.activation.resolver.DoctrineService`) via one shared factory; route `charter context --include agent-profile:<id>` through the same seam; reconcile the `ad-hoc-profile-load` skill's four phantom commands; add a doc/CLI parity guard. Lineage gate = **Option A** (abstract base profiles allowed, with a warning).
+- **Workstream B (#1636):** make `profile list` activation-aware and add an activation-gated `profile show`, both routed through the existing charter activation chokepoint (`charter.resolver.DoctrineService`) via one shared factory; route `charter context --include agent-profile:<id>` through the same seam; reconcile the `ad-hoc-profile-load` skill's four phantom commands; add a doc/CLI parity guard. Lineage gate = **Option A** (abstract base profiles allowed, with a warning).
 
 Technical approach is **wire-through-existing-seams**, not greenfield. Both the status aggregate and the activation wrapper already exist; the work is test coverage, one factory, CLI surface, and doc reconciliation.
 
 ## Technical Context
 
 **Language/Version**: Python 3.11+ (existing spec-kitty codebase)
-**Primary Dependencies**: typer (CLI), rich (console), ruamel.yaml (config/frontmatter), pytest (tests); internal: `specify_cli.status`, `specify_cli.coordination`, `charter.activation.resolver`, `charter.activation.pack_context`, `doctrine.service`, `doctrine.agent_profiles`
+**Primary Dependencies**: typer (CLI), rich (console), ruamel.yaml (config/frontmatter), pytest (tests); internal: `specify_cli.status`, `specify_cli.coordination`, `charter.resolver`, `charter.pack_context`, `doctrine.service`, `doctrine.agent_profiles`
 **Storage**: Filesystem only — `.kittify/config.yaml` (`activated_agent_profiles`), `kitty-specs/<mission>/status.events.jsonl`; no database
 **Testing**: pytest; unit (`tests/status/`, `tests/specify_cli/cli/commands/`), architectural (`tests/architectural/`); headless `PWHEADLESS=1` where applicable; `mypy --strict` + `ruff`
 **Target Platform**: Cross-platform CLI (Linux/macOS/Windows), Python 3.11+
@@ -75,7 +75,7 @@ src/specify_cli/
 │   └── charter/context_*.py         # (only if needed) ensure --include path uses wrapper
 └── <new> doctrine_service_factory   # B: build_activation_aware_doctrine_service() (FR-010)
                                      #    placement: a shared module importable by profiles_cmd
-                                     #    + charter.activation.context (candidate: specify_cli/charter_runtime/ or
+                                     #    + charter.context (candidate: specify_cli/charter_runtime/ or
                                      #    a thin specify_cli/doctrine/ helper — decided in data-model)
 
 src/charter/
@@ -125,7 +125,7 @@ BookkeepingTransaction.acquire → append_event → materialize → commit   (UN
    │ PackContext.from_config(repo_root)
    ▼
 build_activation_aware_doctrine_service(repo_root)   ← NEW single factory (FR-010)
-   = charter.activation.resolver.DoctrineService(inner, pack_context)
+   = charter.resolver.DoctrineService(inner, pack_context)
    │ .agent_profiles → activation-filtered dict
    ├── profile list   (default filtered; --all/--show-available → inner.list_all annotated)
    ├── profile show    (gate leaf via .get(id); resolve lineage via inner repo; warn on non-activated parent)
@@ -134,7 +134,7 @@ build_activation_aware_doctrine_service(repo_root)   ← NEW single factory (FR-
 
 ## Interfaces & Contracts (Phase 1 — detailed in data-model.md)
 
-- `build_activation_aware_doctrine_service(repo_root: Path) -> charter.activation.resolver.DoctrineService`
+- `build_activation_aware_doctrine_service(repo_root: Path) -> charter.resolver.DoctrineService`
 - `profile list [--all] [--show-available] [--json]` — default = activated-only
 - `profile show <id> [--all] [--json]` — activated-gated; `--json` emits stable sorted-key schema
 - `profile_not_activated` error (D-4): `{ "error": "profile_not_activated", "profile_id": <id>, "activated_candidates": [<sorted ids>] }`
@@ -165,7 +165,7 @@ build_activation_aware_doctrine_service(repo_root)   ← NEW single factory (FR-
 | Risk | Mitigation |
 |------|-----------|
 | Write-path integration test needs real coord topology (git worktree) | reuse the parity-ratchet fixture pattern (`test_execution_context_parity.py` already builds a real worktree) |
-| Factory placement could violate layer rule | factory lives in `specify_cli.*`, imports `charter.activation.resolver`/`pack_context` (allowed direction); confirmed in data-model |
+| Factory placement could violate layer rule | factory lives in `specify_cli.*`, imports `charter.resolver`/`pack_context` (allowed direction); confirmed in data-model |
 | `profile list` default change surprises a configured project | documented as intended (NFR-001); `--all` escape hatch; release note |
 | Skill copies drift again | FR-018 parity guard test is the structural backstop |
 

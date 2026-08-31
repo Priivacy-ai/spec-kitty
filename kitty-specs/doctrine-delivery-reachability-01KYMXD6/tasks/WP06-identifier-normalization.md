@@ -25,13 +25,13 @@ history:
   actor: system
   action: Prompt generated via /spec-kitty.tasks
 agent_profile: python-pedro
-authoritative_surface: src/charter/activation/pack_context.py
+authoritative_surface: src/charter/pack_context.py
 create_intent:
 - tests/charter/test_activation_identifier_normalization.py
 execution_mode: code_change
 model: ''
 owned_files:
-- src/charter/activation/pack_context.py
+- src/charter/pack_context.py
 - tests/charter/test_activation_identifier_normalization.py
 role: implementer
 tags: []

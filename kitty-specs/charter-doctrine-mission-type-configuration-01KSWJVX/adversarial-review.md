@@ -17,7 +17,7 @@
 `grep -r "_COMPOSED_ACTIONS" src/` returns zero results. Deletions are complete.
 
 **WP07 — `_should_dispatch_via_composition` wired to charter**
-`src/specify_cli/next/runtime_bridge.py` and `decision.py` both use lazy imports of `charter.activation.mission_type_profiles.resolve_action_sequence` with `# noqa: PLC0415`. No frozenset fast-path remains.
+`src/specify_cli/next/runtime_bridge.py` and `decision.py` both use lazy imports of `charter.mission_type_profiles.resolve_action_sequence` with `# noqa: PLC0415`. No frozenset fast-path remains.
 
 **WP08 — command_renderer reads from doctrine path**
 `src/specify_cli/skills/command_installer.py::_package_templates_dir()` derives the path as `doctrine.__file__.parent / "missions" / "mission-steps" / mission_type`. New layout is wired.
@@ -35,7 +35,7 @@
 `src/specify_cli/charter_activate.py::activate_mission_type_override()` writes to `.kittify/overrides/mission-types/<id>.yaml`. In-flight WP warnings are emitted. Path contract met.
 
 **FR-016 — `charter mission-type list` returns activated types only**
-`src/specify_cli/cli/commands/charter/mission_type.py` calls `existing_mission_types(repo_root)` from `charter.activation.mission_type_profiles`, which reads `PackContext.activated_mission_types`. Filtering path correct.
+`src/specify_cli/cli/commands/charter/mission_type.py` calls `existing_mission_types(repo_root)` from `charter.mission_type_profiles`, which reads `PackContext.activated_mission_types`. Filtering path correct.
 
 **Architecture C-004 — `specify_cli` does not import doctrine at module level**
 All doctrine imports in `runtime_bridge.py` and `decision.py` are inside function bodies with `# noqa: PLC0415`. No top-level `import doctrine.*` found in `src/specify_cli/`.
@@ -55,7 +55,7 @@ File: `src/doctrine/missions/mission_step_repository.py`, line 43:
 
 ```python
 if TYPE_CHECKING:
-    from charter.activation.pack_context import PackContext
+    from charter.pack_context import PackContext
 ```
 
 `pytestarch` follows import edges in the AST; `TYPE_CHECKING` guards are not excluded. `tests/architectural/test_layer_rules.py::TestDoctrineIsolation::test_doctrine_does_not_import_charter` **fails** on this branch. This is a hard C-004 violation — the `doctrine ← charter` dependency is inverted.
@@ -135,7 +135,7 @@ Every test hits the fallback path where `mission_type_activations` is absent fro
 
 | Violation | File | Severity |
 |-----------|------|----------|
-| C-004: `doctrine` imports `charter.activation.pack_context` via `TYPE_CHECKING` | `src/doctrine/missions/mission_step_repository.py:43` | BLOCKING |
+| C-004: `doctrine` imports `charter.pack_context` via `TYPE_CHECKING` | `src/doctrine/missions/mission_step_repository.py:43` | BLOCKING |
 | `filter_graph_by_activation` exported in `charter.drg.__all__` but unwired | `src/charter/drg.py` | Significant |
 | `MissionStepRepository` not reachable through `charter` facade | `src/doctrine/missions/mission_step_repository.py` | Significant |
 

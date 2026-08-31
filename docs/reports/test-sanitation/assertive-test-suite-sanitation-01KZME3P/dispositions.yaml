@@ -5860,7 +5860,7 @@ dispositions:
   evidence:
     causal_probe:
       act_reached: true
-      authority_violated: charter.activation.pack_manager.CharterPackManager.list_available
+      authority_violated: charter.pack_manager.CharterPackManager.list_available
       command: '[".venv/bin/python", "-m", "pytest", "-q", "-p", "no:cacheprovider",
         "-p", "wp04_fault_plugin", "--junitxml=<TEMP_ROOT>/junit.xml", "tests/doctrine/missions/test_primitives.py::TestGlossaryEnablementContract::test_enabled_by_default",
         "tests/doctrine/missions/test_primitives.py::TestGlossaryEnablementContract::test_bool_true_enables",
@@ -10279,11 +10279,11 @@ dispositions:
     - asserted_observables:
       - assert profile.mission_type == 'compliance-audit'
       callable_authorities:
-      - charter.activation.mission_type_profiles.MissionTypeProfile
+      - charter.mission_type_profiles.MissionTypeProfile
       distinguishing_fault: 'At concrete input {''fixtures'': [], ''decorators'':
         [], ''executable_statements'': ["profile = MissionTypeProfile(mission_type=''compliance-audit'')",
         "assert profile.mission_type == ''compliance-audit''"]}, replace live authority
-        charter.activation.mission_type_profiles.MissionTypeProfile with an exception/wrong return;
+        charter.mission_type_profiles.MissionTypeProfile with an exception/wrong return;
         expected oracle is assert profile.mission_type == ''compliance-audit'''
       input_boundary:
         decorators: []
@@ -10302,11 +10302,11 @@ dispositions:
     - asserted_observables:
       - assert profile.mission_type == 'compliance-audit'
       callable_authorities:
-      - charter.activation.mission_type_profiles.MissionTypeProfile
+      - charter.mission_type_profiles.MissionTypeProfile
       distinguishing_fault: 'At concrete input {''fixtures'': [], ''decorators'':
         [], ''executable_statements'': ["profile = MissionTypeProfile(mission_type=''compliance-audit'')",
         "assert profile.mission_type == ''compliance-audit''"]}, replace live authority
-        charter.activation.mission_type_profiles.MissionTypeProfile with an exception/wrong return;
+        charter.mission_type_profiles.MissionTypeProfile with an exception/wrong return;
         expected oracle is assert profile.mission_type == ''compliance-audit'''
       input_boundary:
         decorators: []
@@ -10497,11 +10497,11 @@ dispositions:
     - asserted_observables:
       - assert profile.mission_type == 'compliance-audit'
       callable_authorities:
-      - charter.activation.mission_type_profiles.MissionTypeProfile
+      - charter.mission_type_profiles.MissionTypeProfile
       distinguishing_fault: 'At concrete input {''fixtures'': [], ''decorators'':
         [], ''executable_statements'': ["profile = MissionTypeProfile(mission_type=''compliance-audit'')",
         "assert profile.mission_type == ''compliance-audit''"]}, replace live authority
-        charter.activation.mission_type_profiles.MissionTypeProfile with an exception/wrong return;
+        charter.mission_type_profiles.MissionTypeProfile with an exception/wrong return;
         expected oracle is assert profile.mission_type == ''compliance-audit'''
       input_boundary:
         decorators: []
@@ -10514,11 +10514,11 @@ dispositions:
       - MissionTypeProfile
       member: tests/charter/test_action_sequence_dispatch.py::TestMissionTypeProfileNoLiteralConstraint.test_custom_mission_type_succeeds_at_model_time
       result: '{"asserted_observables": ["assert profile.mission_type == ''compliance-audit''"],
-        "callable_authorities": ["charter.activation.mission_type_profiles.MissionTypeProfile"],
+        "callable_authorities": ["charter.mission_type_profiles.MissionTypeProfile"],
         "distinguishing_fault": "At concrete input {''fixtures'': [], ''decorators'':
         [], ''executable_statements'': [\"profile = MissionTypeProfile(mission_type=''compliance-audit'')\",
         \"assert profile.mission_type == ''compliance-audit''\"]}, replace live authority
-        charter.activation.mission_type_profiles.MissionTypeProfile with an exception/wrong return;
+        charter.mission_type_profiles.MissionTypeProfile with an exception/wrong return;
         expected oracle is assert profile.mission_type == ''compliance-audit''", "input_boundary":
         {"decorators": [], "executable_statements": ["profile = MissionTypeProfile(mission_type=''compliance-audit'')",
         "assert profile.mission_type == ''compliance-audit''"], "fixtures": []}, "live_callables":
@@ -10528,11 +10528,11 @@ dispositions:
     - asserted_observables:
       - assert profile.mission_type == 'compliance-audit'
       callable_authorities:
-      - charter.activation.mission_type_profiles.MissionTypeProfile
+      - charter.mission_type_profiles.MissionTypeProfile
       distinguishing_fault: 'At concrete input {''fixtures'': [], ''decorators'':
         [], ''executable_statements'': ["profile = MissionTypeProfile(mission_type=''compliance-audit'')",
         "assert profile.mission_type == ''compliance-audit''"]}, replace live authority
-        charter.activation.mission_type_profiles.MissionTypeProfile with an exception/wrong return;
+        charter.mission_type_profiles.MissionTypeProfile with an exception/wrong return;
         expected oracle is assert profile.mission_type == ''compliance-audit'''
       input_boundary:
         decorators: []
@@ -10545,11 +10545,11 @@ dispositions:
       - MissionTypeProfile
       member: tests/charter/test_mission_type_profiles.py::TestMissionTypeProfileOpenStr.test_arbitrary_string_accepted
       result: '{"asserted_observables": ["assert profile.mission_type == ''compliance-audit''"],
-        "callable_authorities": ["charter.activation.mission_type_profiles.MissionTypeProfile"],
+        "callable_authorities": ["charter.mission_type_profiles.MissionTypeProfile"],
         "distinguishing_fault": "At concrete input {''fixtures'': [], ''decorators'':
         [], ''executable_statements'': [\"profile = MissionTypeProfile(mission_type=''compliance-audit'')\",
         \"assert profile.mission_type == ''compliance-audit''\"]}, replace live authority
-        charter.activation.mission_type_profiles.MissionTypeProfile with an exception/wrong return;
+        charter.mission_type_profiles.MissionTypeProfile with an exception/wrong return;
         expected oracle is assert profile.mission_type == ''compliance-audit''", "input_boundary":
         {"decorators": [], "executable_statements": ["profile = MissionTypeProfile(mission_type=''compliance-audit'')",
         "assert profile.mission_type == ''compliance-audit''"], "fixtures": []}, "live_callables":
@@ -14227,7 +14227,7 @@ dispositions:
   evidence:
     causal_probe:
       act_reached: true
-      authority_violated: charter.activation.pack_manager.CharterPackManager.list_available
+      authority_violated: charter.pack_manager.CharterPackManager.list_available
       command: '[".venv/bin/python", "-m", "pytest", "-q", "-p", "no:cacheprovider",
         "-p", "wp04_fault_plugin", "--junitxml=<TEMP_ROOT>/junit.xml", "tests/doctrine/missions/test_primitives.py::TestGlossaryEnablementContract::test_enabled_by_default",
         "tests/doctrine/missions/test_primitives.py::TestGlossaryEnablementContract::test_bool_true_enables",
@@ -14607,7 +14607,7 @@ dispositions:
       - assert result == kittify_doctrine
       callable_authorities:
       - kittify_doctrine.mkdir
-      - charter.activation._doctrine_paths.resolve_project_root
+      - charter._doctrine_paths.resolve_project_root
       distinguishing_fault: 'At concrete input {''fixtures'': [''tmp_path''], ''decorators'':
         [], ''executable_statements'': ["kittify_doctrine = tmp_path / ''.kittify''
         / ''doctrine''", ''kittify_doctrine.mkdir(parents=True)'', ''result = resolve_project_root(tmp_path)'',
@@ -14635,7 +14635,7 @@ dispositions:
       - assert result == kittify_doctrine
       callable_authorities:
       - kittify_doctrine.mkdir
-      - charter.activation._doctrine_paths.resolve_project_root
+      - charter._doctrine_paths.resolve_project_root
       distinguishing_fault: 'At concrete input {''fixtures'': [''tmp_path''], ''decorators'':
         [], ''executable_statements'': ["kittify_doctrine = tmp_path / ''.kittify''
         / ''doctrine''", ''kittify_doctrine.mkdir(parents=True)'', ''result = resolve_project_root(tmp_path)'',
@@ -14833,7 +14833,7 @@ dispositions:
       - assert result == kittify_doctrine
       callable_authorities:
       - kittify_doctrine.mkdir
-      - charter.activation._doctrine_paths.resolve_project_root
+      - charter._doctrine_paths.resolve_project_root
       distinguishing_fault: 'At concrete input {''fixtures'': [''tmp_path''], ''decorators'':
         [], ''executable_statements'': ["kittify_doctrine = tmp_path / ''.kittify''
         / ''doctrine''", ''kittify_doctrine.mkdir(parents=True)'', ''result = resolve_project_root(tmp_path)'',
@@ -14854,7 +14854,7 @@ dispositions:
       - resolve_project_root
       member: tests/charter/synthesizer/test_charter_compile_project_root.py::TestResolveProjectRoot.test_empty_kittify_doctrine_still_resolves
       result: '{"asserted_observables": ["assert result == kittify_doctrine"], "callable_authorities":
-        ["kittify_doctrine.mkdir", "charter.activation._doctrine_paths.resolve_project_root"],
+        ["kittify_doctrine.mkdir", "charter._doctrine_paths.resolve_project_root"],
         "distinguishing_fault": "At concrete input {''fixtures'': [''tmp_path''],
         ''decorators'': [], ''executable_statements'': [\"kittify_doctrine = tmp_path
         / ''.kittify'' / ''doctrine''\", ''kittify_doctrine.mkdir(parents=True)'',
@@ -14872,7 +14872,7 @@ dispositions:
       - assert result == kittify_doctrine
       callable_authorities:
       - kittify_doctrine.mkdir
-      - charter.activation._doctrine_paths.resolve_project_root
+      - charter._doctrine_paths.resolve_project_root
       distinguishing_fault: 'At concrete input {''fixtures'': [''tmp_path''], ''decorators'':
         [], ''executable_statements'': ["kittify_doctrine = tmp_path / ''.kittify''
         / ''doctrine''", ''kittify_doctrine.mkdir(parents=True)'', ''result = resolve_project_root(tmp_path)'',
@@ -14893,7 +14893,7 @@ dispositions:
       - resolve_project_root
       member: tests/charter/synthesizer/test_charter_compile_project_root.py::TestResolveProjectRoot.test_returns_kittify_doctrine_when_present
       result: '{"asserted_observables": ["assert result == kittify_doctrine"], "callable_authorities":
-        ["kittify_doctrine.mkdir", "charter.activation._doctrine_paths.resolve_project_root"],
+        ["kittify_doctrine.mkdir", "charter._doctrine_paths.resolve_project_root"],
         "distinguishing_fault": "At concrete input {''fixtures'': [''tmp_path''],
         ''decorators'': [], ''executable_statements'': [\"kittify_doctrine = tmp_path
         / ''.kittify'' / ''doctrine''\", ''kittify_doctrine.mkdir(parents=True)'',
@@ -16144,7 +16144,7 @@ dispositions:
   evidence:
     causal_probe:
       act_reached: true
-      authority_violated: charter.activation.pack_manager.scan_builtin_cross_grain_duplicates
+      authority_violated: charter.pack_manager.scan_builtin_cross_grain_duplicates
       command: '[".venv/bin/python", "-m", "pytest", "-q", "-p", "no:cacheprovider",
         "-p", "wp04_fault_plugin", "--junitxml=<TEMP_ROOT>/junit.xml", "tests/doctrine/missions/test_primitives.py::TestGlossaryEnablementContract::test_enabled_by_default",
         "tests/doctrine/missions/test_primitives.py::TestGlossaryEnablementContract::test_bool_true_enables",

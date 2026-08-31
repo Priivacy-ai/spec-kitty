@@ -37,7 +37,7 @@ create_intent:
 execution_mode: code_change
 model: claude-sonnet-5
 owned_files:
-- src/charter/activation/synthesizer/manifest.py
+- src/charter/synthesizer/manifest.py
 - src/charter/bundle.py
 - src/specify_cli/cli/commands/charter/_fresh_doctrine.py
 - tests/charter/synthesizer/test_manifest.py
@@ -211,7 +211,7 @@ persist site consistent.
 - **Purpose**: Land the new field additively; widen the literal without
   touching the default.
 - **Steps**:
-  1. In `src/charter/activation/synthesizer/manifest.py`, change line 79
+  1. In `src/charter/synthesizer/manifest.py`, change line 79
      `schema_version: Literal["2"] = "2"` → `Literal["2", "3"] = "2"`
      (literal widened, default UNCHANGED).
   2. Add `bundle_content_hash: str | None = None` after `built_in_only`
@@ -221,7 +221,7 @@ persist site consistent.
      `write_pipeline._VOLATILE_MANIFEST_FIELDS`.
   3. Update the class docstring (lines 64-74) with a "Schema version 3" note.
   4. Do NOT touch `compute_manifest_hash`/`verify_manifest_hash`/callers here.
-- **Files**: `src/charter/activation/synthesizer/manifest.py`
+- **Files**: `src/charter/synthesizer/manifest.py`
 - **Parallel?**: Yes, alongside T002 (different file).
 - **Notes**: `ConfigDict(frozen=True, extra="forbid")` rejects UNKNOWN keys,
   not ABSENT optional keys — a pre-fix v2 file still `model_validate`s.
@@ -278,7 +278,7 @@ persist site consistent.
      ```
   2. Add `"finalize_manifest"` to `__all__`. No writer callers in WP01
      (only T005 uses it).
-- **Files**: `src/charter/activation/synthesizer/manifest.py`
+- **Files**: `src/charter/synthesizer/manifest.py`
 - **Parallel?**: No — benefits from T001 landing first.
 - **Notes**: Behavior-preserving — identical content → same `manifest_hash`
   as the current inline `compute_manifest_hash` path (T006(c) pins this).
@@ -319,7 +319,7 @@ persist site consistent.
      old `built_in_only`-absent special case.
   3. Keep the module's `hashlib` import + the `# noqa: TID251` rationale
      (this module is a documented raw-SHA-256 owner).
-- **Files**: `src/charter/activation/synthesizer/manifest.py`
+- **Files**: `src/charter/synthesizer/manifest.py`
 - **Parallel?**: No — highest-risk subtask; validate with T006(a)/(b) before
   moving on.
 
@@ -332,7 +332,7 @@ persist site consistent.
      the manual hash-then-validate in `_fresh_seed_manifest_text` (lines
      55-82) with build-instance-then-finalize:
      ```python
-     from charter.activation.synthesizer.manifest import SynthesisManifest, finalize_manifest
+     from charter.synthesizer.manifest import SynthesisManifest, finalize_manifest
      manifest = SynthesisManifest.model_validate(
          {**without_hash, "manifest_hash": "0" * 64}
      )
@@ -449,9 +449,9 @@ pytest tests/charter/synthesizer/test_write_pipeline.py \
     tests/specify_cli/upgrade/test_charter_bundle_v2_migration.py \
     tests/doctrine/test_versioning.py \
     tests/specify_cli/upgrade/test_bundle_validate_fresh_seed.py -q
-mypy --strict src/charter/activation/synthesizer/manifest.py src/charter/bundle.py \
+mypy --strict src/charter/synthesizer/manifest.py src/charter/bundle.py \
     src/specify_cli/cli/commands/charter/_fresh_doctrine.py
-ruff check src/charter/activation/synthesizer/manifest.py src/charter/bundle.py \
+ruff check src/charter/synthesizer/manifest.py src/charter/bundle.py \
     src/specify_cli/cli/commands/charter/_fresh_doctrine.py \
     tests/charter/synthesizer/test_manifest.py \
     tests/integration/test_charter_synthesize_fresh.py \

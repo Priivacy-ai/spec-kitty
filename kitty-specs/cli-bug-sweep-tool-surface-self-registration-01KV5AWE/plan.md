@@ -117,7 +117,7 @@ src/specify_cli/
 - **Relevant requirements**: FR-003, FR-004, FR-005
 - **Affected surfaces**:
   - Part A: `git rm` on `.kittify/charter/provenance/` (7 files listed in spec)
-  - Part B: `src/charter/activation/synthesizer/artifact_naming.py` → `doctrine_kind_subdir()` and all callers in `write_pipeline.py`
+  - Part B: `src/charter/synthesizer/artifact_naming.py` → `doctrine_kind_subdir()` and all callers in `write_pipeline.py`
   - Part C: `src/charter/bundle.py` → `validate_synthesis_state()`; add test in `tests/specify_cli/charter/`
 - **Sequencing/depends-on**: none; B and C can be done in any order after A
 - **Risks**: Part B must audit all callers of `doctrine_kind_subdir()` and any hardcoded plural-dir paths in `write_pipeline.py` (lines ~174, ~206, ~584 per Debugger Debbie). Missing a caller leaves a dangling plural path. Part C must not suppress validation for repos that have real synthesis state — the early-exit is gated on `built_in_only: true AND artifacts == []`.

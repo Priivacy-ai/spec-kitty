@@ -22,7 +22,7 @@ create_intent:
 execution_mode: code_change
 model: claude-sonnet-4-6
 owned_files:
-- src/charter/activation/synthesizer/synthesize_pipeline.py
+- src/charter/synthesizer/synthesize_pipeline.py
 - tests/architectural/test_charter_no_specify_cli_import.py
 role: implementer
 tags: []

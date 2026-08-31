@@ -15,7 +15,7 @@ The mission-type roster today resolves **built-in types only**: `MissionTypeRepo
 over the shipped `packs/built-in/missions/mission_types/` tree, and the two projection call
 sites that feed a resolved mission's action sequence and template set —
 `_resolve_action_slot` / `_resolve_template_set_slot`
-(`src/charter/activation/mission_type_profiles.py:762-807`, `841-884`) — are both built-in-only today, for two
+(`src/charter/mission_type_profiles.py:762-807`, `841-884`) — are both built-in-only today, for two
 structurally different reasons: `_resolve_template_set_slot` genuinely hardcodes `pack_context=None`
 in its `MissionStepRepository.default().resolve_all_for_mission_type(...)` call (`:878`);
 `_resolve_action_slot` has **no** `pack_context` parameter at all — its builtin-only-ness comes from
@@ -40,7 +40,7 @@ This plan adds a **new, separate, module-level, pack-aware layered lookup** in
 (`mission_type_profiles.py:516-618`) already constructs one call-frame down
 (`existing_mission_types()` → `PackContext.from_config(repo_root)` at line 507) into the two
 projection slots. It widens `charter activate mission-type`'s own availability scan
-(`src/charter/activation/pack_manager.py`) to see org/project mission-type files, fixes four CLI surfaces that
+(`src/charter/pack_manager.py`) to see org/project mission-type files, fixes four CLI surfaces that
 today tolerate-and-lie about non-built-in types, adds a named loud-fail for the empty-action-
 sequence case, and deletes two pieces of confirmed dead code (`resolve_mission_steps` and the
 shadowed `list_cmd` mission-type-list handler). The plan's first work package is an ADR — required
@@ -79,7 +79,7 @@ pair costs zero filesystem walks — same shape as the already-cache-warm
 call the new factory or `MissionTypeRepository.default()` more than once combined at import time
 (live gate: `tests/charter/test_charter_import_time_io.py:244-291`,
 `TestHotModulesTriggerZeroImportTimeIo.test_import_charter_mission_type_profiles_and_pack_context_bounded_io`,
-which spawns a subprocess, imports `charter.activation.mission_type_profiles` / `charter.activation.pack_context`, and
+which spawns a subprocess, imports `charter.mission_type_profiles` / `charter.pack_context`, and
 asserts a bounded-I/O subprocess probe exits 0). Zero new architectural-baseline edits is a design
 goal (CL-001, verified below under "Producer-scan constraint").
 **Scale/Scope**: Size class **L** per spec C-001 — this plan does not revise that estimate (see
@@ -89,7 +89,7 @@ goal (CL-001, verified below under "Producer-scan constraint").
 
 **Layer**: this change lands in the **doctrine layer**
 (`src/doctrine/missions/mission_type_repository.py`), consumed one call-frame up by the
-**charter layer** (`src/charter/activation/mission_type_profiles.py`, `src/charter/activation/pack_manager.py`), and
+**charter layer** (`src/charter/mission_type_profiles.py`, `src/charter/pack_manager.py`), and
 reached by the **CLI layer** (`src/specify_cli/cli/commands/{mission_type.py, doctrine.py,
 charter/mission_type.py, charter/activate.py}`) only through the existing charter facade,
 `src/charter/missions.py`. No kernel-layer code is touched.
@@ -182,7 +182,7 @@ apply, and this section leaves no residual work item — the existing `MissionTy
 row already covers it by identity.
 
 No other new facade door is needed regardless of which shape IC-01 picks:
-`charter.activation.mission_type_profiles` and `charter.activation.pack_manager` are
+`charter.mission_type_profiles` and `charter.pack_manager` are
 themselves `charter.*` modules, so `specify_cli` reaching functions inside them
 (`resolve_mission_type_context`, `existing_mission_types`) needs no additional facade — the
 facade rule only gates `doctrine.*` symbols reached from outside `charter`.
@@ -239,7 +239,7 @@ so Complexity Tracking below is empty.*
 - **Architectural alignment / module seams** — NFR-003/C-008 (`doctrine.missions` imports nothing
   from `charter`) is honored: the new factory lives in `doctrine.missions.mission_type_repository`
   and only ever *receives* a `_PackContextLike`-conforming object as a parameter; it never imports
-  `charter.activation.pack_context.PackContext` by name. PASS, mechanically enforced by
+  `charter.pack_context.PackContext` by name. PASS, mechanically enforced by
   `tests/architectural/test_layer_rules.py:279-302`.
 - **Domain-driven splits / tiered rigour** — the dominant-risk path (CL-003's loud-fail) gets a
   named exception class and a red-first regression test (NFR-005); CLI glue gets ordinary
@@ -427,7 +427,7 @@ The mission's **first commit** is a distinct, behavior-preserving deletion pass 
 grab-bag — folding exactly the two pieces of domain-matched debt spec.md already requires in this
 mission's own touched surfaces:
 
-1. **CL-004**: delete `resolve_mission_steps` (`src/charter/activation/resolver.py:908-937` per live
+1. **CL-004**: delete `resolve_mission_steps` (`src/charter/resolver.py:908-937` per live
    re-check — confirmed zero production callers via repo-wide grep, matching spec's own finding)
    and its single test in `tests/charter/test_resolver.py` (asserts only `isinstance(result, dict)`
    and non-empty length, never exercising the `pack_context` branch the function exists to expose).
@@ -501,7 +501,7 @@ live from `Makefile`, `.github/workflows/ci-quality.yml`, and `pyproject.toml` �
 | Gate | Why excluded |
 |---|---|
 | **SonarCloud Quality Gate** (`ci-quality.yml:3568`, the `sonarcloud:` job header — the actual `[ENFORCED] SonarCloud Quality Gate` step is further down, at `:4011`) | **Provides zero enforcement on this PR — verified by reading the job's own `if:` condition, not assumed.** The job's `if:` (`ci-quality.yml:3625`) is `always() && (github.event_name == 'schedule' \|\| github.event_name == 'workflow_dispatch')` — it never runs on `pull_request` or `push`, so it never runs on this mission's own PR at all. It is also absent from `quality-gate`'s blocking `needs:` list (`:4338-4394`) — no `sonarcloud` entry there. The new-code-coverage concern this row would otherwise be cited for is fully covered by the `diff-coverage` row added to the Included table above (this document's own PLAN-VERIFY-001 remediation) — that gate, unlike this one, is `[ENFORCED]`, PR-scoped, and a real `quality-gate` dependency. |
-| **Kernel coverage ≥90%** (`ci-quality.yml:1075-1128`, `--cov=src/kernel`, `kernel-tests` job) | **Does not apply — verified by directory scope, not assumed.** The coverage floor is computed only over `src/kernel/`. Neither of this mission's two named touch-points — `src/doctrine/missions/mission_type_repository.py` nor `src/charter/activation/mission_type_profiles.py` — is under `src/kernel/`; `kernel-tests` runs unconditionally (`needs: [changes]`, `if: ... || github.event_name == 'push'`) but this mission adds zero lines to the scope its coverage assertion measures, so the floor is unaffected by construction. |
+| **Kernel coverage ≥90%** (`ci-quality.yml:1075-1128`, `--cov=src/kernel`, `kernel-tests` job) | **Does not apply — verified by directory scope, not assumed.** The coverage floor is computed only over `src/kernel/`. Neither of this mission's two named touch-points — `src/doctrine/missions/mission_type_repository.py` nor `src/charter/mission_type_profiles.py` — is under `src/kernel/`; `kernel-tests` runs unconditionally (`needs: [changes]`, `if: ... || github.event_name == 'push'`) but this mission adds zero lines to the scope its coverage assertion measures, so the floor is unaffected by construction. |
 | **Mission-loader coverage ≥90%** (`ci-quality.yml:1517-1548`, `--cov=src/specify_cli/mission_loader`, `mission-loader-coverage` job) | **Does not apply — same reasoning.** The floor is scoped to `src/specify_cli/mission_loader/` and `tests/unit/mission_loader/` + `tests/integration/test_mission_run_command.py`. This mission touches `src/specify_cli/cli/commands/{mission_type.py,doctrine.py,charter/*}` — a sibling CLI-commands tree, not `mission_loader/` — and no file this mission edits lives under that path. The job still runs (it is `always()`-gated, not path-filtered by this mission's changes) but measures a directory tree this mission never writes to. |
 | **`fast-tests-corpus`, `fast-tests-docs`, `fast-tests-missions`, `fast-tests-status`, `fast-tests-review`, `fast-tests-next`, `fast-tests-lanes`, `fast-tests-dashboard`, `fast-tests-upgrade`, `fast-tests-sync*`, `fast-tests-merge`, `fast-tests-post-merge`, `fast-tests-release`, `fast-tests-agent`, `fast-tests-core-misc`, `unit-contract-residual`, `slow-tests`, `e2e-cross-cutting`, `stress-tests-serial`, `timing-nfr-serial`, `restart-daemon-nfr-timing`, `regression-tests`, and their `integration-*` counterparts** | Every one of these is a distinct, dedicated `quality-gate` dependency (`ci-quality.yml:4338-4364`) scoped to a directory tree this mission does not touch (sync, merge, status, lanes, dashboard, upgrade, missions-lifecycle, docs, corpus, agent surface, etc.). They all run unconditionally in CI (most are `path-filter`-gated to their own tree via the `changes` job, and this mission's diff does not touch any of those trees, so they run in their already-green, unaffected state) — none is a gate this mission's *own* correctness depends on, so none is separately re-justified per row here beyond this one blanket entry. |
 | **`build-wheel` / `clean-install-verification` / `consumer-compatibility`** | Package-build and cross-version-compatibility gates unrelated to a same-repo doctrine/charter/CLI seam change; this mission adds no new public wheel symbol beyond the facade re-export that may possibly be needed, conditional on IC-01's still-open factory-shape choice — not yet a settled fact (see "The Seam") — and even in that branch, the existing `charter.missions` door already satisfies it structurally. |
@@ -512,7 +512,7 @@ live from `Makefile`, `.github/workflows/ci-quality.yml`, and `pyproject.toml` �
 
 **The two coverage floors named in this task's own instructions, addressed directly.** This
 mission touches `src/doctrine/missions/mission_type_repository.py` and
-`src/charter/activation/mission_type_profiles.py`. Neither file is inside `src/kernel/` (the kernel-tests
+`src/charter/mission_type_profiles.py`. Neither file is inside `src/kernel/` (the kernel-tests
 floor's scope, `ci-quality.yml:1075` comment: "kernel is small, stable, and must be well-tested")
 nor inside `src/specify_cli/mission_loader/` (the mission-loader floor's scope,
 `ci-quality.yml:1517` comment: "NFR-003, mission #505 / WP07"). **Neither named 90% floor applies
@@ -575,7 +575,7 @@ verifiably and in these terms:
 
 (a) **No `ArtifactKind` promotion.** This mission does not promote mission-type to a first-class
 `ArtifactKind` member (confirmed: `src/doctrine/artifact_kinds.py`'s `ArtifactKind` enum has no
-`MISSION_TYPE` member today, and `src/charter/activation/kind_vocabulary.py`'s
+`MISSION_TYPE` member today, and `src/charter/kind_vocabulary.py`'s
 `MissionTypeNotAnArtifactKind` exception exists specifically to keep `"mission-type"` out of the
 charter-activatable `ArtifactKind` vocabulary while still being a `CHARTER_KIND_TOKENS` member).
 That promotion is a separate, larger, currently-unstarted upstream effort (issue #2468, blocked on
@@ -667,7 +667,7 @@ designed to preserve, not merely a WP01 ADR talking point.
   parameter at all today — its fix is a repository-call swap (from `MissionTypeRepository.default()`
   at `:793` to IC-01's new layered factory), not argument-threading.
 - **Relevant requirements**: FR-002.
-- **Affected surfaces**: `src/charter/activation/mission_type_profiles.py` — `resolve_mission_type_context`
+- **Affected surfaces**: `src/charter/mission_type_profiles.py` — `resolve_mission_type_context`
   (`:516-618`), `_resolve_action_slot`, `_resolve_template_set_slot`; both slot functions gain a
   `pack_context` parameter and call IC-01's new factory instead of
   `MissionTypeRepository.default()` when a non-built-in type is in play.
@@ -687,7 +687,7 @@ designed to preserve, not merely a WP01 ADR talking point.
 
 ### IC-03 — `charter activate mission-type` scans org and project layers
 
-- **Purpose**: `_scan_layout_for(None)` (`src/charter/activation/pack_manager.py:227-229`) returns
+- **Purpose**: `_scan_layout_for(None)` (`src/charter/pack_manager.py:227-229`) returns
   `("missions/mission_types", "*.yaml", False)` — `layered=False` — and `_resolve_layer_candidate`
   (`:256-317`) only resolves a directory for `layer == "built-in"` when `layered=False`; org and
   project layers fall through to `return None` (line 317), so `charter activate mission-type qa`
@@ -695,7 +695,7 @@ designed to preserve, not merely a WP01 ADR talking point.
   reading both functions' full bodies.
 - **Relevant requirements**: FR-003, FR-005 (project-layer location = CL-005's flat, non-recursive
   path).
-- **Affected surfaces**: `src/charter/activation/pack_manager.py` — add an explicit `kind is None`
+- **Affected surfaces**: `src/charter/pack_manager.py` — add an explicit `kind is None`
   (mission-type) branch to `_resolve_layer_candidate` for `layer in ("org", "project")`, resolving
   to `<pack_root>/mission_types` (org) and `<repo_root>/.kittify/missions/mission_types` (project)
   respectively. `resolve_layer_roots` (`src/specify_cli/cli/commands/charter/_layer_roots.py:10-36`)
@@ -730,7 +730,7 @@ designed to preserve, not merely a WP01 ADR talking point.
   assert — that this location has no live collision with the pre-existing `.kittify/missions/<mission_name>/`
   per-mission-instance directory convention (`src/specify_cli/mission.py:79,463,473,476,502,829`).
 - **Relevant requirements**: FR-005.
-- **Affected surfaces**: `src/charter/activation/pack_manager.py` (same edit as IC-03 — this IC states the
+- **Affected surfaces**: `src/charter/pack_manager.py` (same edit as IC-03 — this IC states the
   *location choice*, IC-03 states the *scan-branch mechanism*; they are one code change,
   split here only for requirements traceability).
 - **Sequencing/depends-on**: same commit as IC-03.
@@ -762,7 +762,7 @@ designed to preserve, not merely a WP01 ADR talking point.
   no `action_sequence`, instead of silently degrading to `[]`. This is the mission's own stated
   reason for existing (CL-003).
 - **Relevant requirements**: FR-004, NFR-005 (red-first ordering), NFR-002 (no silent success).
-- **Affected surfaces**: `src/charter/activation/mission_type_profiles.py` — new exception class following
+- **Affected surfaces**: `src/charter/mission_type_profiles.py` — new exception class following
   the existing `UnknownMissionTypeError` pattern (class definition at `:193-229`, raised at
   `:738` and `:799` for the two existing hard-fail branches); the new raise site sits inside
   `_resolve_action_slot` (`:762-807`), specifically the branch that currently returns
@@ -789,7 +789,7 @@ designed to preserve, not merely a WP01 ADR talking point.
   above) plus the stale-docstring correction (FR-011, CL-004) that would otherwise misdirect the
   next reader toward a seam ("WP06") that is not an org/project seam at all.
 - **Relevant requirements**: FR-010, FR-011, FR-013.
-- **Affected surfaces**: `src/charter/activation/resolver.py` (delete `resolve_mission_steps`,
+- **Affected surfaces**: `src/charter/resolver.py` (delete `resolve_mission_steps`,
   lines 908-937), `tests/charter/test_resolver.py` (delete its one test),
   `src/specify_cli/cli/commands/mission_type.py` (delete `list_cmd` lines 150-151,
   `_print_available_missions` line 122 through its body, and the `discover_missions` name only

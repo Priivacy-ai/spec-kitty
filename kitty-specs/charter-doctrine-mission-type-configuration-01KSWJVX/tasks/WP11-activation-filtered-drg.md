@@ -80,7 +80,7 @@ The activation filter ensures that mission-type-scoped directives (from `governa
 In `src/charter/drg.py`, find the call(s) to `load_org_charter_policies(repo_root)`. Update them to pass a `PackContext`:
 
 ```python
-from charter.activation.pack_context import PackContext
+from charter.pack_context import PackContext
 
 ctx = PackContext.from_config(repo_root)
 policies = load_org_charter_policies(repo_root, pack_context=ctx)
@@ -142,9 +142,9 @@ Use `PackContext.activated_kinds` for non-mission-type artifact kinds.
 
 ### T068 — Verify PackContext.activated_kinds is correctly populated
 
-**Do NOT modify `src/charter/activation/pack_context.py`** — that file is owned by WP06. WP06's T038 specifies that `activated_kinds` must be populated from the charter's activation config with a backward-compatible default.
+**Do NOT modify `src/charter/pack_context.py`** — that file is owned by WP06. WP06's T038 specifies that `activated_kinds` must be populated from the charter's activation config with a backward-compatible default.
 
-Before writing any filter logic in this WP, read `src/charter/activation/pack_context.py` and confirm:
+Before writing any filter logic in this WP, read `src/charter/pack_context.py` and confirm:
 1. `PackContext.activated_kinds` is a `frozenset[str]` field
 2. `PackContext.from_config()` populates it from the charter config (key: `activated_kinds`)
 3. If the key is absent, the default is all built-in artifact kinds (backward-compat)

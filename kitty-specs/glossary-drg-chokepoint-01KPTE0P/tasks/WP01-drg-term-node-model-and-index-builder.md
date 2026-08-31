@@ -67,7 +67,7 @@ No DRG YAML is written. No new CLI commands. No operator sync step. All outputs 
 | File | Purpose |
 |------|---------|
 | `src/doctrine/drg/models.py` | Contains `NodeKind` StrEnum, `Relation` StrEnum, `DRGNode`, `DRGEdge`, `DRGGraph` — **modify** |
-| `src/charter/activation/_drg_helpers.py` | `load_validated_graph()` — use to get shipped action URNs |
+| `src/charter/_drg_helpers.py` | `load_validated_graph()` — use to get shipped action URNs |
 | `src/specify_cli/glossary/models.py` | `TermSense`, `TermSurface`, `SenseStatus` — read-only, no changes |
 | `src/specify_cli/glossary/scope.py` | `GlossaryScope`, `SCOPE_RESOLUTION_ORDER` — read-only |
 | `src/specify_cli/glossary/store.py` | `GlossaryStore` — read-only |
@@ -147,7 +147,7 @@ The existing `DRGNode` validator enforces `urn.split(":")[0] == kind.value`. Add
 
 1. In `drg_builder.py`, import:
    ```python
-   from charter.activation._drg_helpers import load_validated_graph
+   from charter._drg_helpers import load_validated_graph
    from doctrine.drg.models import DRGEdge, DRGGraph, DRGNode, NodeKind, Relation
    from specify_cli.glossary.models import SenseStatus
    from specify_cli.glossary.scope import GlossaryScope
@@ -352,7 +352,7 @@ The existing `DRGNode` validator enforces `urn.split(":")[0] == kind.value`. Add
 ```python
 from doctrine.drg.models import DRGNode, NodeKind
 from doctrine.drg.loader import load_graph
-from charter.activation._drg_helpers import load_validated_graph
+from charter._drg_helpers import load_validated_graph
 from pathlib import Path
 
 def test_glossary_kind_value():

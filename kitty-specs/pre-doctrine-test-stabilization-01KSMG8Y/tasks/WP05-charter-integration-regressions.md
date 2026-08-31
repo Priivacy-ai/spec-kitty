@@ -109,7 +109,7 @@ Integration tests are slow. Use `-x` (fail-fast) and `--tb=short` when investiga
 
 **Purpose**: `test_synthesize_without_charter_md_fails_actionably` expects a specific error class but gets a different one.
 
-**IMPORTANT**: Fix the CLI adapter ONLY (`src/specify_cli/cli/commands/charter/synthesize.py`). Do NOT touch `src/charter/activation/synthesizer/errors.py` — that path is owned by WP08.
+**IMPORTANT**: Fix the CLI adapter ONLY (`src/specify_cli/cli/commands/charter/synthesize.py`). Do NOT touch `src/charter/synthesizer/errors.py` — that path is owned by WP08.
 
 **Steps**:
 
@@ -125,7 +125,7 @@ Integration tests are slow. Use `-x` (fail-fast) and `--tb=short` when investiga
 
 3. If the fix is in the CLI adapter (`synthesize.py`): fix the exception wrapping or error propagation.
 
-4. If the fix requires changing `src/charter/activation/synthesizer/errors.py`: stop and coordinate with WP08 — the error class change belongs in that lane.
+4. If the fix requires changing `src/charter/synthesizer/errors.py`: stop and coordinate with WP08 — the error class change belongs in that lane.
 
 5. Run the test to confirm:
    ```bash

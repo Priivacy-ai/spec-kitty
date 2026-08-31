@@ -29,7 +29,7 @@ authoritative_surface: src/charter/resolution.py
 execution_mode: code_change
 owned_files:
 - src/charter/resolution.py
-- src/charter/activation/sync.py
+- src/charter/sync.py
 - tests/charter/test_canonical_root_resolution.py
 - tests/charter/test_chokepoint_overhead.py
 - tests/charter/test_resolution_overhead.py
@@ -220,13 +220,13 @@ Add the canonical-root resolver that the chokepoint will use to identify the mai
 
 ---
 
-### T010 — Extend `SyncResult` in `src/charter/activation/sync.py`
+### T010 — Extend `SyncResult` in `src/charter/sync.py`
 
 **Purpose**: Add `canonical_root: Path` field per Q2=C decision.
 
 **Steps**:
 
-1. Edit `src/charter/activation/sync.py` `SyncResult` dataclass (currently at lines 39-47):
+1. Edit `src/charter/sync.py` `SyncResult` dataclass (currently at lines 39-47):
 
    ```python
    @dataclass
@@ -243,13 +243,13 @@ Add the canonical-root resolver that the chokepoint will use to identify the mai
 
    Rationale for `Path | None`: existing `SyncResult(...)` constructor calls inside `sync.py` (lines 75-80, 125-130, 144-148, 153-157) and in `ensure_charter_bundle_fresh()`'s no-op branch do not pass `canonical_root` until T011 rewires them. The `None` default is a transient state that T011 will eliminate in the SAME commit/PR (every constructor call must set `canonical_root` explicitly before this WP merges).
 
-2. Update every `SyncResult(...)` constructor call in `src/charter/activation/sync.py` to pass `canonical_root=<the resolved canonical root>` — this overlaps with T011's refactor; do them together.
+2. Update every `SyncResult(...)` constructor call in `src/charter/sync.py` to pass `canonical_root=<the resolved canonical root>` — this overlaps with T011's refactor; do them together.
 
 **Files**:
-- `src/charter/activation/sync.py` (modified — dataclass definition + constructor call sites; ~10 lines diff)
+- `src/charter/sync.py` (modified — dataclass definition + constructor call sites; ~10 lines diff)
 
 **Validation**:
-- [ ] `python -c "from charter.activation.sync import SyncResult; import inspect; assert 'canonical_root' in inspect.signature(SyncResult).parameters"` succeeds.
+- [ ] `python -c "from charter.sync import SyncResult; import inspect; assert 'canonical_root' in inspect.signature(SyncResult).parameters"` succeeds.
 
 ---
 
@@ -259,7 +259,7 @@ Add the canonical-root resolver that the chokepoint will use to identify the mai
 
 **Steps**:
 
-1. Edit `src/charter/activation/sync.py` `ensure_charter_bundle_fresh()` (currently lines 50-90). After the edit:
+1. Edit `src/charter/sync.py` `ensure_charter_bundle_fresh()` (currently lines 50-90). After the edit:
 
    ```python
    def ensure_charter_bundle_fresh(repo_root: Path) -> SyncResult | None:
@@ -320,25 +320,25 @@ Add the canonical-root resolver that the chokepoint will use to identify the mai
 
 3. Exceptions (`NotInsideRepositoryError`, `GitCommonDirUnavailableError`) propagate out of `ensure_charter_bundle_fresh()` unchanged. Do NOT wrap or catch them.
 
-4. Update `sync()` at `src/charter/activation/sync.py:93-159` to set `canonical_root` in every `SyncResult(...)` constructor it returns — use `output_dir.parent.parent.parent` as canonical_root inference, OR simpler: accept `canonical_root` as an optional kw-only arg and default to `None` (then `ensure_charter_bundle_fresh` patches it via `replace()` as shown above). The `replace()` pattern is the simpler fix.
+4. Update `sync()` at `src/charter/sync.py:93-159` to set `canonical_root` in every `SyncResult(...)` constructor it returns — use `output_dir.parent.parent.parent` as canonical_root inference, OR simpler: accept `canonical_root` as an optional kw-only arg and default to `None` (then `ensure_charter_bundle_fresh` patches it via `replace()` as shown above). The `replace()` pattern is the simpler fix.
 
 **Files**:
-- `src/charter/activation/sync.py` (modified — `ensure_charter_bundle_fresh` body rewritten; ~40 lines diff)
+- `src/charter/sync.py` (modified — `ensure_charter_bundle_fresh` body rewritten; ~40 lines diff)
 
 **Validation**:
 - [ ] `pytest tests/charter/` (existing tests) passes — no behavioral regression on existing tests except where T012 updated them.
-- [ ] `grep -n "resolve_canonical_repo_root" src/charter/activation/sync.py` shows the import and call.
-- [ ] `grep -n "CANONICAL_MANIFEST" src/charter/activation/sync.py` shows the import and usage.
+- [ ] `grep -n "resolve_canonical_repo_root" src/charter/sync.py` shows the import and call.
+- [ ] `grep -n "CANONICAL_MANIFEST" src/charter/sync.py` shows the import and usage.
 
 ---
 
-### T012 — Update `post_save_hook()` + existing SyncResult inspection call sites in `src/charter/activation/sync.py` and its tests
+### T012 — Update `post_save_hook()` + existing SyncResult inspection call sites in `src/charter/sync.py` and its tests
 
 **Purpose**: Ensure no code in WP02's ownership reads `files_written` without knowing the new anchor.
 
 **Steps**:
 
-1. Edit `src/charter/activation/sync.py :: post_save_hook()` (lines 162-184). Any `logger.info(...)` calls that display file paths must anchor them against `result.canonical_root`:
+1. Edit `src/charter/sync.py :: post_save_hook()` (lines 162-184). Any `logger.info(...)` calls that display file paths must anchor them against `result.canonical_root`:
 
    ```python
    # Before:
@@ -355,10 +355,10 @@ Add the canonical-root resolver that the chokepoint will use to identify the mai
 
 3. Do NOT touch `src/specify_cli/cli/commands/charter.py` — that's WP03's scope. WP03 will update the CLI sync handler's display logic.
 
-4. Do NOT touch `src/charter/activation/context.py` — WP03 flips `build_charter_context()` separately.
+4. Do NOT touch `src/charter/context.py` — WP03 flips `build_charter_context()` separately.
 
 **Files**:
-- `src/charter/activation/sync.py` (modified — `post_save_hook` + possibly other local readers; ~15 lines diff)
+- `src/charter/sync.py` (modified — `post_save_hook` + possibly other local readers; ~15 lines diff)
 - `tests/charter/test_sync.py` (modified — existing tests updated)
 - Any other `tests/charter/*.py` file that instantiates `SyncResult` directly
 
@@ -384,7 +384,7 @@ Add the canonical-root resolver that the chokepoint will use to identify the mai
 
    import pytest
 
-   from charter.activation.sync import ensure_charter_bundle_fresh
+   from charter.sync import ensure_charter_bundle_fresh
 
 
    @pytest.fixture
@@ -491,11 +491,11 @@ Add the canonical-root resolver that the chokepoint will use to identify the mai
        include: ["src/charter/**"]
        exclude: []
        occurrences:
-         - path: src/charter/activation/sync.py
+         - path: src/charter/sync.py
            pattern: "from charter.resolution import resolve_canonical_repo_root"
            action: leave
            rationale: New import added by T011.
-         - path: src/charter/activation/sync.py
+         - path: src/charter/sync.py
            pattern: "from charter.bundle import CANONICAL_MANIFEST"
            action: leave
            rationale: New import added by T011.
@@ -514,7 +514,7 @@ Add the canonical-root resolver that the chokepoint will use to identify the mai
          - path: src/charter/resolution.py
            pattern: "GitCommonDirUnavailableError"
            action: leave
-         - path: src/charter/activation/sync.py
+         - path: src/charter/sync.py
            pattern: "canonical_root"
            action: leave
            rationale: New SyncResult field.
@@ -558,14 +558,14 @@ Add the canonical-root resolver that the chokepoint will use to identify the mai
 - [ ] `mypy --strict src/charter/` green.
 - [ ] Verifier green against `WP02.yaml`.
 - [ ] No edits to `src/specify_cli/core/worktree.py:478-532` (C-011).
-- [ ] No edits to `src/charter/activation/compiler.py` or `src/charter/activation/context.py:385-398` (C-012).
-- [ ] No edits to reader call sites outside `src/charter/activation/sync.py` (that's WP03's scope).
+- [ ] No edits to `src/charter/compiler.py` or `src/charter/context.py:385-398` (C-012).
+- [ ] No edits to reader call sites outside `src/charter/sync.py` (that's WP03's scope).
 
 ## Risks
 
 - **Algorithm precision**. The six-step algorithm from the contract must match exactly. Any shortcut (e.g., treating stdout as always-absolute) silently breaks subdirectory or worktree invocations.
 - **Benchmark flakiness on CI**. NFR-002 / NFR-003 thresholds may occasionally breach on loaded CI runners. The tests should use `pytest.mark.perf` or similar so CI can retry if needed, but the budget is a hard merge gate on three consecutive runs.
-- **Cycle risk with local imports**. `charter.activation.sync` now imports from `charter.bundle` and `charter.resolution`. Use local imports inside functions if a cycle surfaces.
+- **Cycle risk with local imports**. `charter.sync` now imports from `charter.bundle` and `charter.resolution`. Use local imports inside functions if a cycle surfaces.
 
 ## Reviewer guidance
 

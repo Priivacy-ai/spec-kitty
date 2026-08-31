@@ -9,7 +9,7 @@ This document defines the new and extended data shapes introduced by the mission
 
 ## 1. `DoctrineSelectionConfig` — extension (FR-001)
 
-Location: `src/charter/activation/schemas.py`
+Location: `src/charter/schemas.py`
 
 **Existing fields (kept unchanged):**
 
@@ -83,7 +83,7 @@ Location: `src/specify_cli/doctrine/org_charter.py`
 
 ## 3. `ActivationEntry` — NEW (FR-006)
 
-Location: `src/charter/activation/activations.py`
+Location: `src/charter/activations.py`
 
 **Fields:**
 
@@ -115,7 +115,7 @@ The registry is **not a wrapper type**; it's the bare `list[ActivationEntry]` ca
 - `GovernanceConfig.activations` (project-charter-level, populated by extractor, FR-006)
 - `MissionTypeProfile.activations` (mission-type-profile-level, FR-010)
 
-Resolver call (`charter.activation.activations.resolve_for_context`) flattens the three sources into a single list and filters by current `(mission_type, action)`.
+Resolver call (`charter.activations.resolve_for_context`) flattens the three sources into a single list and filters by current `(mission_type, action)`.
 
 **Merge semantics across the three sources:**
 
@@ -150,7 +150,7 @@ See [data-model.md §7](#7-trigger-registry-fr-009--canonical-definition) for th
 
 ## 6. `MissionTypeProfile` — NEW (FR-010)
 
-Location: `src/charter/activation/mission_type_profiles.py`
+Location: `src/charter/mission_type_profiles.py`
 
 YAML on-disk shape (one file per mission type under `src/doctrine/missions/<type>/governance-profile.yaml`):
 
@@ -200,7 +200,7 @@ _ALLOWED_ACTIONS: frozenset[str] = frozenset({
     # Mission-type verbs
     "specify", "plan", "tasks", "implement", "review", "merge", "accept",
     # Charter-loop verbs
-    "charter.activation.interview", "charter.generate", "charter.activation.context",
+    "charter.interview", "charter.generate", "charter.context",
 })
 
 # Union formula (the ONLY place this formula appears):
@@ -213,10 +213,10 @@ In set notation: `_REGISTERED_TRIGGERS = _ALLOWED_ACTIONS  ∪  {write_comment, 
 
 ### MANDATORY runtime re-export
 
-`src/charter/activation/activations.py` **MUST** re-export both sets as `ALLOWED_ACTIONS` and `REGISTERED_TRIGGERS` for runtime consumers (resolvers, prompt builders, validators). The re-export is **non-optional** — it removes the prior ambiguity where the runtime might copy/paste a divergent literal.
+`src/charter/activations.py` **MUST** re-export both sets as `ALLOWED_ACTIONS` and `REGISTERED_TRIGGERS` for runtime consumers (resolvers, prompt builders, validators). The re-export is **non-optional** — it removes the prior ambiguity where the runtime might copy/paste a divergent literal.
 
 ```python
-# src/charter/activation/activations.py
+# src/charter/activations.py
 from tests.architectural.test_trigger_registry_coverage import (
     _ALLOWED_ACTIONS as ALLOWED_ACTIONS,
     _REGISTERED_TRIGGERS as REGISTERED_TRIGGERS,
@@ -231,7 +231,7 @@ A new architectural cross-check test `test_trigger_registry_runtime_export_in_sy
 
 - Both constants MUST be a `frozenset` (pinned by `test_registered_triggers_constant_is_a_frozenset_for_immutability`).
 - Every `triggers:` value declared in a shipped doctrine artifact (`src/doctrine/**/*.yaml`) MUST be a member of `_REGISTERED_TRIGGERS` (pinned by `test_every_declared_trigger_is_in_the_registered_set`).
-- `charter.activation.activations.ALLOWED_ACTIONS == _ALLOWED_ACTIONS` and `charter.activation.activations.REGISTERED_TRIGGERS == _REGISTERED_TRIGGERS` (pinned by `test_trigger_registry_runtime_export_in_sync`).
+- `charter.activations.ALLOWED_ACTIONS == _ALLOWED_ACTIONS` and `charter.activations.REGISTERED_TRIGGERS == _REGISTERED_TRIGGERS` (pinned by `test_trigger_registry_runtime_export_in_sync`).
 
 ### Mutation rule
 
@@ -277,14 +277,14 @@ No additional logic. Tests for these modules assert (a) the module imports clean
 
 ## 9. `GovernancePayload` (returned by `resolve_governance`)
 
-Implementation-level dataclass returned by `charter.activation.mission_type_profiles.resolve_governance`. Exact shape determined during implementation; minimum surface required by the ATDD:
+Implementation-level dataclass returned by `charter.mission_type_profiles.resolve_governance`. Exact shape determined during implementation; minimum surface required by the ATDD:
 
 | Field | Type | Source test |
 |-------|------|-------------|
 | `text` | `str` | `test_resolve_governance_picks_documentation_profile_for_documentation_mission` reads `payload.text` |
 | `mission_type` | `str` | Same test asserts `payload.mission_type == "documentation"` |
 
-Implementation MAY return `CharterContextResult` (existing dataclass in `charter.activation.context`) extended with a `mission_type` field, or a new `GovernancePayload` type. The decision is left to WP08 implementation.
+Implementation MAY return `CharterContextResult` (existing dataclass in `charter.context`) extended with a `mission_type` field, or a new `GovernancePayload` type. The decision is left to WP08 implementation.
 
 ---
 

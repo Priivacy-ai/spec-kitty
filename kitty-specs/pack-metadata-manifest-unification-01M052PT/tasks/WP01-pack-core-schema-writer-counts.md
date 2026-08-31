@@ -37,7 +37,7 @@ owned_files:
 - src/specify_cli/doctrine/pack_manifest.py
 - src/specify_cli/doctrine/builtin_manifest.py
 - src/specify_cli/doctrine/snapshot.py
-- src/charter/activation/synthesizer/manifest.py
+- src/charter/synthesizer/manifest.py
 - packs/built-in/pack-manifest.yaml
 - tests/doctrine/test_pack_manifest_schema.py
 - tests/doctrine/test_builtin_manifest.py

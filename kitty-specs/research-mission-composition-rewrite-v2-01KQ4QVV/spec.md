@@ -85,7 +85,7 @@ A spec-kitty operator (human or agent harness) who runs `spec-kitty agent missio
 |---|---|---|
 | MissionTemplate | The Pydantic schema at `src/specify_cli/next/_internal_runtime/schema.py:445` that the runtime engine consumes; requires `mission.key`, `steps: list[PromptStep]`, optional `audit_steps`. | "mission spec", "mission file" |
 | Composition substrate | `StepContractExecutor` + `ProfileInvocationExecutor` + the `_should_dispatch_via_composition` fast path. | "v2 path", "new runtime" |
-| Validated DRG | The graph returned by `charter.activation._drg_helpers.load_validated_graph(repo)`. The shipped portion lives at `<doctrine_root>/graph.yaml`; project overlays at `.kittify/doctrine/graph.yaml`. | "DRG", "doctrine graph" |
+| Validated DRG | The graph returned by `charter._drg_helpers.load_validated_graph(repo)`. The shipped portion lives at `<doctrine_root>/graph.yaml`; project overlays at `.kittify/doctrine/graph.yaml`. | "DRG", "doctrine graph" |
 | Action node | A DRG node with URN of the form `action:<mission>/<action>`. Carries VOCABULARY/SCOPE/etc. edges that `resolve_context()` walks to populate `artifact_urns`. | "doctrine entry", "action index entry" |
 | Composed-action guard | The function `_check_composed_action_guard()` in `runtime_bridge.py` that fires after composition to verify expected artifacts/events; returns a non-empty failure list to block run-state advancement. | "post-action validator", "guard" |
 | Real-runtime walk | An integration test that calls `get_or_start_run` (or `decide_next_via_runtime` end-to-end) without mocking `_dispatch_via_composition`, `StepContractExecutor.execute`, frozen-template loaders, or the DRG. | "integration test" |

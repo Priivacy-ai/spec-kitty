@@ -88,13 +88,13 @@ WP scope (mapped via owned_files frontmatter and the diff):
 |---|---|---|---|
 | WP01 | `src/doctrine/drg/loader.py`, `__init__.py`, charter DRG call sites, `tests/doctrine/drg/test_loader_multifile.py` | All present (8 tests in loader, charter `_drg_helpers.py` rewritten, all 4 synthesizer pipelines updated) | ✅ in scope |
 | WP02 | `src/doctrine/base.py`, all 8 repository subclasses, `tests/doctrine/test_base_org_layer.py` | All 8 subclasses now route `org_dir` through `__init__`; provenance dict wired | ✅ in scope |
-| WP03 | `src/doctrine/service.py`, `src/charter/activation/_drg_helpers.py`, `tests/doctrine/test_service_org_layer.py` | Done; `_resolve_org_root()` is intentionally inert (architectural-correctness deviation, see Notes) | ✅ in scope, deviation documented |
+| WP03 | `src/doctrine/service.py`, `src/charter/_drg_helpers.py`, `tests/doctrine/test_service_org_layer.py` | Done; `_resolve_org_root()` is intentionally inert (architectural-correctness deviation, see Notes) | ✅ in scope, deviation documented |
 | WP04 | `src/specify_cli/doctrine/sources/{protocol,git_source,https_source,api_source}.py`, `snapshot.py`, tests | All 4 source modules + snapshot.py + 21 source tests + 6 snapshot tests | ✅ in scope; added `tests/specify_cli/__init__.py` (test infra fix, accepted) |
 | WP05 | `config.py`, `cli/commands/doctrine.py` (fetch + stubs), tests | All present | ✅ in scope |
 | WP06 | `pack_validator.py`, `pack_assembler.py`, plus `org-charter.yaml` validate/assemble extension | All present; touched `cli/commands/doctrine.py` and `tests/specify_cli/doctrine/test_config.py` outside owned_files (replaced WP05 stubs with real impls — accepted at WP-review) | ✅ in scope, deviation documented |
 | WP07 | `charter/context.py`, `cli/commands/doctor.py`, `cli/commands/charter.py`, `charter_lint/checks/org_layer.py` | All present; `doctor doctrine` registered, `OrgOverridesBuiltinChecker` + `OrgCharterDeviationChecker` registered in lint engine | ✅ in scope |
 | WP08 | `docs/how-to/`, `docs/migration/`, `docs/explanation/`, `docs/toc.yml` | All 3 docs (274 + 434 + 252 lines), per-section TOCs updated | ✅ in scope |
-| WP09 | `src/specify_cli/doctrine/org_charter.py`, `src/charter/activation/interview.py`, tests | `apply_org_charter_pre_fill_to_answers` lives in `charter/interview.py`, `OrgCharterPolicy` in `specify_cli/doctrine/org_charter.py`, fully tested. **Not wired to live `spec-kitty charter interview` command.** See HIGH-2 below. |
+| WP09 | `src/specify_cli/doctrine/org_charter.py`, `src/charter/interview.py`, tests | `apply_org_charter_pre_fill_to_answers` lives in `charter/interview.py`, `OrgCharterPolicy` in `specify_cli/doctrine/org_charter.py`, fully tested. **Not wired to live `spec-kitty charter interview` command.** See HIGH-2 below. |
 | WP10 | Rename `shipped/` → `built-in/` for all 8 artifact dirs, update `_shipped_dir()` | All 175+ rename diff entries present; `service.py:38` returns `artifact / "built-in"`; `base.py:225` provenance tag is `"builtin"` (no hyphen) | ✅ in scope |
 
 ---
@@ -105,7 +105,7 @@ WP08 cycle 1 (`review-cycle-2.md`, 2026-05-15T15:17Z) flagged a docs/code
 literal mismatch: docs claimed `source` field value was `built-in` (with
 hyphen) but code emits `builtin` (no hyphen).
 
-* `src/charter/activation/context.py:775` constrains: `"source": source if source in
+* `src/charter/context.py:775` constrains: `"source": source if source in
   {"builtin", "org", "project"} else "builtin"`.
 * `src/doctrine/base.py:225` sets `self._provenance = {k: "builtin" for k in
   self._items}`.
@@ -141,7 +141,7 @@ Trace below maps FR → constraining test(s) → implementing code.
 | FR-011 (validation; existing snapshot preserved on failure) | `tests/specify_cli/doctrine/test_snapshot.py::test_atomic_write_fetch_failure_preserves_existing` | `snapshot.py::write_snapshot` (atomic rename) | ✅ |
 | FR-012 (`pack validate`) | `tests/specify_cli/doctrine/test_pack_validator.py` (12 tests) | `pack_validator.py::validate_pack` | ✅ |
 | FR-013 (`pack assemble` with conflict reporting) | `tests/specify_cli/doctrine/test_pack_assembler.py` (11 tests) | `pack_assembler.py::assemble_pack` | ✅ |
-| FR-014 (`charter context --json` `source` field) | `tests/specify_cli/test_provenance_integration.py::TestProvenanceServiceIntegration` | `src/charter/activation/context.py:775` | ✅ literal value is `builtin/org/project` |
+| FR-014 (`charter context --json` `source` field) | `tests/specify_cli/test_provenance_integration.py::TestProvenanceServiceIntegration` | `src/charter/context.py:775` | ✅ literal value is `builtin/org/project` |
 | FR-015 (`doctor doctrine` per-pack listing) | `tests/specify_cli/test_provenance_integration.py::TestDoctorDoctrineCommand` | `src/specify_cli/cli/commands/doctor.py:1376` | ✅ |
 | FR-016 (`charter lint` advisory on org-overrides-built-in) | `tests/specify_cli/test_provenance_integration.py::TestLintOrgOverridesAdvisory` | `src/specify_cli/charter_lint/checks/org_layer.py::OrgOverridesBuiltinChecker` | ✅ |
 | FR-017 (base class as documented extension point) | n/a (documentation-only requirement) | `src/doctrine/base.py` docstring | ✅ docstring documents the contract |
@@ -275,7 +275,7 @@ NFR coverage:
 * `tests/doctrine/test_service_org_layer.py:104-110` — `test_only_first_org_root_used`
   documents the limitation: *"Only the first entry in org_roots is used by
   _org_dir (future-proof)."*
-* `src/charter/activation/_drg_helpers.py::load_validated_graph` — also takes a single
+* `src/charter/_drg_helpers.py::load_validated_graph` — also takes a single
   `org_root: Path | None`, not a list, so multi-pack DRG merging in
   declaration order is also impossible at the live call site.
 * `src/specify_cli/cli/commands/charter.py:1490-1491` — `org_root =
@@ -327,7 +327,7 @@ mission_step_contracts), not at the charter-policy layer.
 
 **Evidence:**
 
-* `src/charter/activation/interview.py:324` — `apply_org_charter_pre_fill_to_answers`
+* `src/charter/interview.py:324` — `apply_org_charter_pre_fill_to_answers`
   is implemented and 5 tests cover it.
 * `src/specify_cli/doctrine/org_charter.py:185` —
   `apply_org_charter_pre_fill(repo_root)` is implemented as the public
@@ -447,7 +447,7 @@ the docstring.
   English prose uses "built-in" freely.
 * **Architectural boundary `kernel <- doctrine <- charter <- specify_cli`** —
   preserved; no `specify_cli` imports in `src/charter/` or `src/doctrine/`
-  except one pre-existing exception in `src/charter/activation/synthesizer/synthesize_pipeline.py:61`
+  except one pre-existing exception in `src/charter/synthesizer/synthesize_pipeline.py:61`
   which is **not** part of this mission (last touched by mission-688 / 690).
 * **All 8 artifact directories** are renamed consistently from
   `shipped/` → `built-in/` (175+ rename diff lines). `_shipped_dir()`

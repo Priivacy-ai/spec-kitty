@@ -62,7 +62,7 @@ leg. Two consequences beyond the outright failure:
   required to work for the converged call sites; for this one it cannot.
 
 This is masked today only because `kernel.paths.get_package_asset_root()` has exactly one
-production consumer — `src/charter/activation/catalog.py:185` (`_get_package_asset_root().parent`),
+production consumer — `src/charter/catalog.py:185` (`_get_package_asset_root().parent`),
 reached as the *third* fallback inside `resolve_doctrine_root()` after two earlier steps
 that succeed in both editable and wheel layouts. `specify_cli.runtime.home.get_package_asset_root()`
 is a separate, untouched implementation, which is why the CLI and the distribution tests
@@ -100,7 +100,7 @@ NEW -> …/lane-b                        # the checkout root itself
 
 That is the shape `README.md:201` (`export SPEC_KITTY_TEMPLATE_ROOT="$(pwd)"`),
 `docs/api/environment-variables.md:38`, `tests/conftest.py:789` and
-`tests/test_isolation_helpers.py:112` all use. `src/charter/activation/catalog.py:185` then takes
+`tests/test_isolation_helpers.py:112` all use. `src/charter/catalog.py:185` then takes
 `.parent` of it, so a wrong answer here becomes a wrong doctrine root.
 
 `tests/kernel/test_paths.py::…::test_template_root_checkout_resolves_doctrine_missions`

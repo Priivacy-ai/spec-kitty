@@ -99,7 +99,7 @@ src/specify_cli/cli/commands/agent/workflow.py
 
 Because these use submodule paths (`.charter.context`, `.charter.resolver`), a package-level
 re-export shim in `__init__.py` alone is not sufficient — callers must be redirected to
-`charter.activation.context` and `charter.activation.resolver` directly.
+`charter.context` and `charter.resolver` directly.
 
 The `src/charter/` canonical module has all the same exports plus additional files
 (`defaults.yaml`, `reference_resolver.py`, `template_resolver.py`). No behaviour changes
@@ -111,7 +111,7 @@ exactly what T027 does. WP03 is approved; the constraint no longer restricts WP0
 
 **Post-rebase adjustments (2026-04-15)**:
 
-1. `src/specify_cli/charter/sync.py` is already a thin re-export of `charter.activation.sync` —
+1. `src/specify_cli/charter/sync.py` is already a thin re-export of `charter.sync` —
    the `unified-charter-bundle-chokepoint` mission on main completed that part of T027.
    T027 Step 1 only needs to write `__init__.py`; `sync.py` still must be deleted in
    Step 2 (it becomes redundant once `__init__.py` is the comprehensive re-export).
@@ -190,8 +190,8 @@ from specify_cli.charter.context import build_charter_context
 from specify_cli.charter.resolver import GovernanceResolutionError, resolve_governance
 
 # After
-from charter.activation.context import build_charter_context
-from charter.activation.resolver import GovernanceResolutionError, resolve_governance
+from charter.context import build_charter_context
+from charter.resolver import GovernanceResolutionError, resolve_governance
 ```
 
 `src/specify_cli/runtime/doctor.py`:
@@ -200,7 +200,7 @@ from charter.activation.resolver import GovernanceResolutionError, resolve_gover
 from specify_cli.charter.resolver import (...)
 
 # After
-from charter.activation.resolver import (...)
+from charter.resolver import (...)
 ```
 
 **After each file**:

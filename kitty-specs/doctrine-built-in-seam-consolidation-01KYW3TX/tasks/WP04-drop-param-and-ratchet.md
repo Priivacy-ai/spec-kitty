@@ -62,7 +62,7 @@ migrate those test files here (they are WP07-owned; owning them here would overl
 
 **Do NOT** fold the ratchet into `tests/architectural/test_no_dead_doctrine_paths.py` (cf. #3039's
 planned split) — it lives in its OWN file. Depends on **WP02 + WP03 + WP05** — the ratchet enforces
-against EVERY production join, including `src/charter/activation/pack_manager.py:658` which **WP05** migrates; without
+against EVERY production join, including `src/charter/pack_manager.py:658` which **WP05** migrates; without
 WP05 in the base the gate would false-red its own keystone on a site this WP cannot fix.
 
 ## Subtasks

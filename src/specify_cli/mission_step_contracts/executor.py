@@ -24,12 +24,12 @@ from charter.drg import (
     DRGLoadError,
     NodeKind,
     ResolvedContext,
-    filter_graph_by_activation,
     load_graph_or_dir,
     resolve_context,
     resolve_existing_org_roots,
     resolve_org_dirs,
 )
+from charter.activation.drg_activation import filter_graph_by_activation
 from charter.mission_steps import (
     MissionStepContract,
     MissionStepContractRepository,

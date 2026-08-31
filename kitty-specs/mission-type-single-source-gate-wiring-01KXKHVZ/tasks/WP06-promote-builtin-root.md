@@ -33,7 +33,7 @@ create_intent:
 execution_mode: code_change
 model: claude-sonnet-5
 owned_files:
-- src/charter/activation/mission_type_profile_repository.py
+- src/charter/mission_type_profile_repository.py
 - tests/charter/test_builtin_missions_root.py
 role: implementer
 tags: []
@@ -55,7 +55,7 @@ the **terminal** WP — it consumes the promoted accessor and lands after the fi
 
 ## Context — READ BEFORE CODING
 
-- `MissionTypeProfileRepository._default_built_in_dir` (`src/charter/activation/mission_type_profile_repository.py:94`)
+- `MissionTypeProfileRepository._default_built_in_dir` (`src/charter/mission_type_profile_repository.py:94`)
   returns `Path(__file__).resolve().parents[1] / "doctrine" / "missions"` (`src/doctrine/missions`). Three
   consumers reach it:
   - `mission_type_profile_repository.py:70` — internal `__init__` (same class, no noqa).
@@ -94,7 +94,7 @@ Replace `repo._default_built_in_dir()  # noqa: SLF001` (`mission_type_profiles.p
 
 ### T029 — Quality gate (full pre-hand-off)
 
-- `uv run ruff check src/charter/ && uv run mypy --strict src/charter/activation/mission_type_profile_repository.py src/charter/activation/action_grain.py src/charter/activation/mission_type_profiles.py`
+- `uv run ruff check src/charter/ && uv run mypy --strict src/charter/mission_type_profile_repository.py src/charter/action_grain.py src/charter/mission_type_profiles.py`
 - `grep -rn "_default_built_in_dir()  # noqa: SLF001" src/charter/` returns nothing.
 - `uv run pytest tests/charter -q`
 - **Full arch pole + terminology guard (mission is terminal — run the whole thing):**

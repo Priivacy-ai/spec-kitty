@@ -70,7 +70,7 @@ A single charter-mediated resolver is the one entry point for per-mission-type
 resolution:
 
 ```
-charter.activation.mission_type_profiles.resolve_mission_type_context(
+charter.mission_type_profiles.resolve_mission_type_context(
     repo_root, *, mission_type=None, feature_dir=None
 ) -> ResolvedMissionType
 ```

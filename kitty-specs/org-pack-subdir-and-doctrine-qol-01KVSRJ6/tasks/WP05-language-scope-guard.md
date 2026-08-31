@@ -26,7 +26,7 @@ model: ''
 owned_files:
 - src/specify_cli/cli/commands/doctrine.py
 - src/doctrine/shared/scoping.py
-- src/charter/activation/_catalog_miss.py
+- src/charter/_catalog_miss.py
 - tests/doctrine/shared/test_scoping_any_all.py
 - tests/doctrine/test_doctrine_validate_lang_guard.py
 role: implementer
@@ -55,7 +55,7 @@ Stop the doctrine catalog from silently dropping artifacts that declare `applies
 ## Context
 
 - Spec FR-012/013, SC-006, C-006. Research D-3.
-- Anchors: `src/doctrine/shared/scoping.py:24` `applies_to_languages_match` (treats `any`/`all` as literal tokens → never overlap a concrete active set → silently filtered). Active-language set: `src/doctrine/service.py:34-39`. Catalog-miss diagnostic: `src/charter/activation/_catalog_miss.py` (`CharterCatalogMissWarning`, "catalog entry not found").
+- Anchors: `src/doctrine/shared/scoping.py:24` `applies_to_languages_match` (treats `any`/`all` as literal tokens → never overlap a concrete active set → silently filtered). Active-language set: `src/doctrine/service.py:34-39`. Catalog-miss diagnostic: `src/charter/_catalog_miss.py` (`CharterCatalogMissWarning`, "catalog entry not found").
 - `doctrine validate` commands live in `src/specify_cli/cli/commands/doctrine.py` (`validate` at :687, `org validate` at :852). Reproduction precedent: tactic `delete-the-assertion-not-the-test` hit this; PR #2089 worked around it by removing the field.
 - **Bug-fix discipline**: write the RED test FIRST through a pre-existing entry point (the `doctrine validate` command / `applies_to_languages_match`), prove it red against current code, then fix.
 

@@ -11,7 +11,7 @@
         "WP01"
       ],
       "write_scope": [
-        "src/charter/activation/mission_type_profiles.py",
+        "src/charter/mission_type_profiles.py",
         "src/doctrine/missions/mission_step_repository.py",
         "src/doctrine/missions/mission_type_repository.py",
         "src/doctrine/missions/models.py",

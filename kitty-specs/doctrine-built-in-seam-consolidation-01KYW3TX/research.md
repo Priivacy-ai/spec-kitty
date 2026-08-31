@@ -67,7 +67,7 @@ the design decisions that resolve every open question for the plan.
 
 ## Decision 6 — Context.py shim retirement (severable) + provenance sweep (severable)
 
-- **Decision (FR-011)**: re-point ~62 `from charter.activation.context import _x` test imports to leaf modules;
+- **Decision (FR-011)**: re-point ~62 `from charter.context import _x` test imports to leaf modules;
   delete `context.py:25-145`. 0 production sites.
 - **Decision (FR-012)**: sweep ~18 `packs/built-in/**` `related:`/`source_files:` old-path strings —
   **after** confirming they are descriptive, not runtime-resolved (grep for a "load related" reader;

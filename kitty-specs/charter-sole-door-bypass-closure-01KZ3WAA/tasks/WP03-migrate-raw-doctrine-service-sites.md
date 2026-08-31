@@ -25,7 +25,7 @@ create_intent:
 execution_mode: code_change
 model: ''
 owned_files:
-- src/charter/activation/compiler.py
+- src/charter/compiler.py
 - src/specify_cli/cli/commands/_doctrine_asset.py
 - src/specify_cli/cli/commands/_doctrine_collect.py
 - tests/charter/test_doctrine_service_unfiltered_mode.py
@@ -57,7 +57,7 @@ Close the 6 originally-flagged raw `doctrine.service.DoctrineService(...)` const
 WP's; do not duplicate that work here.)
 
 **Success criteria**:
-- `charter/compiler.py:802` and `_doctrine_asset.py:75` route through `charter.activation.resolver.DoctrineService`
+- `charter/compiler.py:802` and `_doctrine_asset.py:75` route through `charter.resolver.DoctrineService`
   (normal activation-aware construction).
 - `_doctrine_collect.py`'s 4 diagnostic sites (`:193,283,420,828` — corrected line numbers, post-tasks squad
   found the original citations drifted +2 lines) route through the factory's **explicit
@@ -73,7 +73,7 @@ WP's; do not duplicate that work here.)
   all-layer view — an activation-aware swap here is a silent regression (narrows doctor/health output for
   deactivated packs), not a fix.
 - Read `contracts/charter-doctrine-service-contract.md`'s "unfiltered-diagnostic contract" section: the
-  shape is `charter.activation.resolver.DoctrineService(inner, pack_context=None)`, same class, distinguished only by
+  shape is `charter.resolver.DoctrineService(inner, pack_context=None)`, same class, distinguished only by
   the explicit argument — never a raw `doctrine.service.DoctrineService(...)` construction.
 
 ## Branch Strategy
@@ -87,10 +87,10 @@ WP's; do not duplicate that work here.)
 ### Subtask T011 – Migrate `charter/compiler.py:802`
 
 - **Purpose**: This site lives inside `charter.*` itself — the smallest, most direct fix in the WP.
-- **Steps**: Wrap the existing raw construction: `charter.activation.resolver.DoctrineService(doctrine.service.
+- **Steps**: Wrap the existing raw construction: `charter.resolver.DoctrineService(doctrine.service.
   DoctrineService(project_root=project_root), pack_context=<resolved context>)` — or better, call the
   unified builder from WP01 if a `repo_root`/`pack_context` pair is already available at this call site.
-- **Files**: `src/charter/activation/compiler.py`.
+- **Files**: `src/charter/compiler.py`.
 - **Parallel?**: Yes.
 - **Notes**: `compile_charter` does its own *separate* parallel activation filtering via `config_roots`,
   independent of this wrapper swap — that duplication is a WP01/FR-005 concern, not this subtask's. Do not
@@ -101,7 +101,7 @@ WP's; do not duplicate that work here.)
 - **Purpose**: Close the raw construction; note this site reads `.assets`, a non-charter-activatable kind
   (excluded via `_NON_AUGMENTATION_ELIGIBLE_KINDS`), so it falls through `__getattr__` unfiltered either way
   — the fix here is about the *construction site*, not adding new filtering for `.assets`.
-- **Steps**: Route through `charter.activation.resolver.DoctrineService` (normal construction, `pack_context` supplied
+- **Steps**: Route through `charter.resolver.DoctrineService` (normal construction, `pack_context` supplied
   normally); preserve the existing `repo_root is None` clean-install branch unchanged.
 - **Files**: `src/specify_cli/cli/commands/_doctrine_asset.py`.
 - **Parallel?**: Yes.
@@ -114,7 +114,7 @@ WP's; do not duplicate that work here.)
      (`_collect_doctrine_collisions`), `:828` (`_build_selection_block`) — corrected line numbers, verify
      against the current file before editing — replace the raw
      `doctrine.service.DoctrineService(...)` construction with
-     `charter.activation.resolver.DoctrineService(inner, pack_context=None)`.
+     `charter.resolver.DoctrineService(inner, pack_context=None)`.
   2. Add an inline comment at each site naming the diagnostic-completeness rationale (per the contract
      file's requirement that unfiltered-mode call sites carry documented rationale).
 - **Files**: `src/specify_cli/cli/commands/_doctrine_collect.py`.
@@ -127,7 +127,7 @@ WP's; do not duplicate that work here.)
 - **Purpose**: Non-fakeable proof that `pack_context=None` construction preserves pre-mission diagnostic
   behaviour exactly.
 - **Steps**: For a project with some packs deactivated, assert
-  `charter.activation.resolver.DoctrineService(inner, pack_context=None).<prop>` equals
+  `charter.resolver.DoctrineService(inner, pack_context=None).<prop>` equals
   `inner.<prop>` (the raw unwrapped service) for every gated property that exists today — equality, not "not
   empty."
 - **Files**: `tests/charter/test_doctrine_service_unfiltered_mode.py` (new).
@@ -136,7 +136,7 @@ WP's; do not duplicate that work here.)
 ## Test Strategy
 
 - `pytest tests/charter/ tests/specify_cli/cli/commands/ -v` — targeted surfaces.
-- `mypy --strict src/charter/activation/compiler.py src/specify_cli/cli/commands/_doctrine_asset.py
+- `mypy --strict src/charter/compiler.py src/specify_cli/cli/commands/_doctrine_asset.py
   src/specify_cli/cli/commands/_doctrine_collect.py`.
 
 ## Risks & Mitigations

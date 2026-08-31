@@ -27,7 +27,7 @@ create_intent:
 execution_mode: code_change
 mission_id: 01KX5SJ9P0HXTVWZDJ121JBP60
 owned_files:
-- src/charter/activation/kind_vocabulary.py
+- src/charter/kind_vocabulary.py
 tags: []
 agent_profile: python-pedro
 role: implementer

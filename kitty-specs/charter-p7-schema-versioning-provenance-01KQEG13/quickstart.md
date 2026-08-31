@@ -43,7 +43,7 @@ cd src && pytest ../tests/ -x -q
 
 **Deliverables:**
 - `src/doctrine/versioning.py` (new file) — compatibility registry, version constants, `check_bundle_compatibility()`, `get_bundle_schema_version()`, migration stubs (actual migration logic can be a stub; WP03 completes it)
-- `src/charter/activation/schemas.py` — add `bundle_schema_version: int | None = None` to `ExtractionMetadata`
+- `src/charter/schemas.py` — add `bundle_schema_version: int | None = None` to `ExtractionMetadata`
 - `src/charter/extractor.py` — stamp `bundle_schema_version = CURRENT_BUNDLE_SCHEMA_VERSION` when writing `metadata.yaml`
 - `tests/doctrine/test_versioning.py` (new file) — unit tests for compatibility registry
 
@@ -58,11 +58,11 @@ cd src && pytest ../tests/ -x -q
 **Lane B** (parallel with WP01)
 
 **Files to modify:**
-- `src/charter/activation/synthesizer/synthesize_pipeline.py` — `ProvenanceEntry`: add 5 new/promoted fields, bump schema_version to `Literal["2"]`
-- `src/charter/activation/synthesizer/manifest.py` — `SynthesisManifest`: add `synthesizer_version`, `manifest_hash`, bump schema_version to `Literal["2"]`
-- `src/charter/activation/synthesizer/provenance.py` — `dump_yaml()`: stamp `produced_at = datetime.now(UTC).isoformat()`
-- `src/charter/activation/synthesizer/write_pipeline.py` — pass `synthesis_run_id`, `synthesizer_version` into `ProvenanceEntry` construction; compute and set `manifest_hash` on `SynthesisManifest`
-- `src/charter/activation/synthesizer/resynthesize_pipeline.py` — same provenance field additions as write_pipeline.py
+- `src/charter/synthesizer/synthesize_pipeline.py` — `ProvenanceEntry`: add 5 new/promoted fields, bump schema_version to `Literal["2"]`
+- `src/charter/synthesizer/manifest.py` — `SynthesisManifest`: add `synthesizer_version`, `manifest_hash`, bump schema_version to `Literal["2"]`
+- `src/charter/synthesizer/provenance.py` — `dump_yaml()`: stamp `produced_at = datetime.now(UTC).isoformat()`
+- `src/charter/synthesizer/write_pipeline.py` — pass `synthesis_run_id`, `synthesizer_version` into `ProvenanceEntry` construction; compute and set `manifest_hash` on `SynthesisManifest`
+- `src/charter/synthesizer/resynthesize_pipeline.py` — same provenance field additions as write_pipeline.py
 
 **Fixture updates (mandatory):**
 - `tests/charter/fixtures/synthesizer/` — update all sidecar YAML fixtures to include v2 fields

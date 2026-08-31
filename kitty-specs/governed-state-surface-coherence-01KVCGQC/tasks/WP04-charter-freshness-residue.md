@@ -30,14 +30,14 @@ authoritative_surface: src/specify_cli/charter_runtime/freshness/
 create_intent:
 - tests/specify_cli/charter_runtime/test_freshness_residue.py
 - tests/specify_cli/charter/test_graph_unlink_helper.py
-- src/charter/activation/synthesizer/graph_residue.py
+- src/charter/synthesizer/graph_residue.py
 - tests/specify_cli/charter/test_freshness_hash_unification.py
 execution_mode: code_change
 owned_files:
 - src/specify_cli/charter_runtime/freshness/computer.py
 - src/specify_cli/cli/commands/charter/_fresh_doctrine.py
-- src/charter/activation/synthesizer/project_drg.py
-- src/charter/activation/synthesizer/graph_residue.py
+- src/charter/synthesizer/project_drg.py
+- src/charter/synthesizer/graph_residue.py
 - src/charter/hasher.py
 - tests/specify_cli/charter_freshness/test_computer.py
 - tests/specify_cli/charter_runtime/test_freshness_residue.py
@@ -64,7 +64,7 @@ Then read, in this order:
 Make the charter-freshness false-positive **structurally unreachable**, and collapse a duplicated producer.
 
 1. **FR-006 (C2-f, structural):** `computer.py:345-357` returns a terminal `invalid` sub-state when `built_in_only=true` ∧ a project `graph.yaml` is present. `runner.py:60` `_PASS_STATES` excludes `invalid`, so preflight/implement is **blocked** — and it self-heals only reactively on the next `synthesize` (auto-refresh skips dirty trees). The manifest is the **declared authority** (#083): a `graph.yaml` it disowns is *residue*, not a contradiction. So the reader should authoritatively report `built_in_only` and emit a **non-blocking "stale graph residue" diagnostic** instead of the blocking `invalid`. This makes the blocking branch unreachable for the residue condition (structural, not reactive — do NOT "fix" by auto-running synthesize).
-2. **FR-007:** the two parallel `graph.yaml` unlink sites — `src/charter/activation/synthesizer/project_drg.py::apply_post_condition` (:343) and `cli/commands/charter/_fresh_doctrine.py` (:119) — consolidate into ONE shared helper any `built_in_only`-writer calls.
+2. **FR-007:** the two parallel `graph.yaml` unlink sites — `src/charter/synthesizer/project_drg.py::apply_post_condition` (:343) and `cli/commands/charter/_fresh_doctrine.py` (:119) — consolidate into ONE shared helper any `built_in_only`-writer calls.
 3. **FR-009 (C2-e):** `charter sync --json` reportedly returns `noop`-despite-stale (then `--force` works). **Reproduce LIVE first** (live-evidence rule — NFR-002). If reproduced, fix the stored-hash drift. If NOT reproducible, record a `verified-non-reproducible` verdict with captured evidence — do NOT change code on a hunch.
 4. **FR-008b (C2-d hash pin, moved here from WP03):** pin that `sync`/`status`/`computer` agree on the content hash via the one `charter.hasher.hash_content` path — co-located here because the C2-e fix (FR-009) targets the same `is_stale`/hash seam. Test the REAL surfaces, not the primitive (T035).
 
@@ -97,10 +97,10 @@ Make the charter-freshness false-positive **structurally unreachable**, and coll
 
 ### T032 — One shared unlink helper (FR-007)
 
-> ⚠️ **Helper home is MANDATED, not discretionary (squad-paula+debbie):** put `unlink_stale_project_graph(doctrine_dir: Path) -> None` in a NEW small module **`src/charter/activation/synthesizer/graph_residue.py`** (declared in this WP's `owned_files`/`create_intent`). This is the only import-safe home: `_fresh_doctrine.py` already does deferred `from charter.activation.synthesizer.* import …` (no new cycle), and `project_drg.py` is in the same package. **NEVER** place it in `specify_cli` — `src/charter/synthesizer` already has a deferred `import specify_cli`, so a back-import would tighten toward a cycle.
+> ⚠️ **Helper home is MANDATED, not discretionary (squad-paula+debbie):** put `unlink_stale_project_graph(doctrine_dir: Path) -> None` in a NEW small module **`src/charter/synthesizer/graph_residue.py`** (declared in this WP's `owned_files`/`create_intent`). This is the only import-safe home: `_fresh_doctrine.py` already does deferred `from charter.synthesizer.* import …` (no new cycle), and `project_drg.py` is in the same package. **NEVER** place it in `specify_cli` — `src/charter/synthesizer` already has a deferred `import specify_cli`, so a back-import would tighten toward a cycle.
 
 **Steps:**
-1. Create `src/charter/activation/synthesizer/graph_residue.py` with `unlink_stale_project_graph(doctrine_dir)` doing the plain `(doctrine_dir / "graph.yaml").unlink(missing_ok=True)`. Reuse the existing `_GRAPH_FILENAME` constant from `project_drg.py` (import it) — do **NOT** mint a third copy (it is already duplicated in `project_drg.py:47` and `write_pipeline.py:61`).
+1. Create `src/charter/synthesizer/graph_residue.py` with `unlink_stale_project_graph(doctrine_dir)` doing the plain `(doctrine_dir / "graph.yaml").unlink(missing_ok=True)`. Reuse the existing `_GRAPH_FILENAME` constant from `project_drg.py` (import it) — do **NOT** mint a third copy (it is already duplicated in `project_drg.py:47` and `write_pipeline.py:61`).
 2. Replace ONLY the bare unlink expression at `project_drg.py:343` and `_fresh_doctrine.py:119` with a call to the helper. **The two sites are asymmetric:** `project_drg.py:343` sits INSIDE `apply_post_condition`'s guarded `write_text(tmp) → unlink(graph) → guard.replace(tmp, manifest)` atomic sequence — the helper call MUST stay **in place** within that sequence (replace only the `.unlink` line, keep the `graph_path` local and the `guard.replace` ordering exactly). `_fresh_doctrine.py:119` is a standalone unlink.
 3. Add `tests/specify_cli/charter/test_graph_unlink_helper.py` exercising the helper (idempotent, missing-ok).
 
@@ -144,7 +144,7 @@ Planning branch `feat/governed-state-surface-coherence`; merge target `main` (PR
 - [ ] Residue (`built_in_only ∧ graph.yaml`) reports `built_in_only` + non-blocking diagnostic; preflight PASSES (SC-003); the blocking `invalid` branch is unreachable for this case (structural, not reactive).
 - [ ] **Existing `test_computer.py` `invalid` assertions updated** to the residue contract (blocker fix); the `invalid` vocabulary stays covered by a genuine producer.
 - [ ] **Genuine `invalid` guard (F5):** a real inconsistency (e.g. `computer.py:276` charter-unhashable) STILL returns `invalid` and fails `_PASS_STATES` — GREEN after the fix.
-- [ ] ONE `unlink_stale_project_graph` helper in `src/charter/activation/synthesizer/graph_residue.py`; both former sites call it; `apply_post_condition` atomic `unlink→guard.replace` ordering preserved; no third `_GRAPH_FILENAME` (FR-007).
+- [ ] ONE `unlink_stale_project_graph` helper in `src/charter/synthesizer/graph_residue.py`; both former sites call it; `apply_post_condition` atomic `unlink→guard.replace` ordering preserved; no third `_GRAPH_FILENAME` (FR-007).
 - [ ] **C2-d hash pin (T035)** tests the REAL surfaces (not `hash_content` directly) with a negative guard (FR-008b, F1).
 - [ ] C2-e reproduced+fixed OR `verified-non-reproducible` with captured `sync --json`+freshness output (FR-009, NFR-002, F2).
 - [ ] complexity ≤15 = ruff C901 (passes); S3776 on `_compute_synthesized_drg` noted as a PR-body Sonar hotspot, not refactored.
@@ -153,11 +153,11 @@ Planning branch `feat/governed-state-surface-coherence`; merge target `main` (PR
 
 ## Reviewer Guidance
 
-Confirm: the residue downgrade is at the READER (manifest-authority), NOT a "self-heal" that runs synthesize (C-003 — structural, not reactive); `_PASS_STATES` was NOT widened to include `invalid`; the genuine-`invalid` guard test is present and green (the downgrade didn't over-fire); the unlink helper lives in `src/charter/activation/synthesizer/graph_residue.py` (never `specify_cli`) and `apply_post_condition`'s atomic ordering is byte-unchanged; the hash pin (T035) exercises real surface functions with a mutate-and-diverge negative guard (reject if it only calls `hash_content`); C2-e carries captured command output if non-reproducible (reject prose-only). Grep for any new `sync`/mutator call in the status/freshness read path — none allowed.
+Confirm: the residue downgrade is at the READER (manifest-authority), NOT a "self-heal" that runs synthesize (C-003 — structural, not reactive); `_PASS_STATES` was NOT widened to include `invalid`; the genuine-`invalid` guard test is present and green (the downgrade didn't over-fire); the unlink helper lives in `src/charter/synthesizer/graph_residue.py` (never `specify_cli`) and `apply_post_condition`'s atomic ordering is byte-unchanged; the hash pin (T035) exercises real surface functions with a mutate-and-diverge negative guard (reject if it only calls `hash_content`); C2-e carries captured command output if non-reproducible (reject prose-only). Grep for any new `sync`/mutator call in the status/freshness read path — none allowed.
 
 ## Activity Log
 
 - 2026-06-18T06:20:41Z – claude:sonnet:python-pedro:implementer – shell_pid=4098966 – Assigned agent via action command
 - 2026-06-18T06:45:09Z – claude:sonnet:python-pedro:implementer – shell_pid=4098966 – FR-006 residue downgrade (built_in_only + non-blocking diagnostic, invalid unreachable for residue; _PASS_STATES not widened); FR-007 graph_residue.unlink_stale_project_graph helper consolidates both sites (atomic ordering preserved, _GRAPH_FILENAME reused); FR-008b hash-unification pin on real surfaces w/ negative guard; FR-009 C2-e LIVE-REPRODUCED (CRLF+BOM noop-despite-stale) and FIXED in hash_content; F5 genuine-invalid guard green. 34 new/touched tests pass; ruff+mypy clean (package-mode).
 - 2026-06-18T06:46:11Z – claude:opus:reviewer-renata:reviewer – shell_pid=4177659 – Started review via action command
-- 2026-06-18T06:54:53Z – user – shell_pid=4177659 – WP04 APPROVED. FR-006 residue downgrade at reader (built_in_only + non-blocking detail + remediation=None; terminal invalid removed for residue; C-003 no self-heal); T030 verified RED pre-fix / GREEN post-fix; _PASS_STATES NOT widened (runner.py untouched). test_computer.py faithful; [invalid] vocab re-pointed to genuine _compute_charter_source (untouched). F5 genuine-invalid guard real+GREEN. FR-007 unlink_stale_project_graph in src/charter/activation/synthesizer/graph_residue.py (no specify_cli cycle), reuses _GRAPH_FILENAME; atomic unlink->guard.replace ordering byte-unchanged at project_drg.py; _fresh_doctrine rewired. FR-008b hash pin on REAL surfaces + mutate-diverge negative guard (non-tautological). C2-e SHARED-HASHER-SEAM SAFETY: NORMAL CONTENT (no BOM, LF-only) HASHES UNCHANGED = YES (verified old-vs-new; only BOM/CRLF changes + converges to plain-LF); NO mass-restale. test_c2e_no_noop_despite_stale real (crlf/bom/bom_crlf). No new read-path mutator (NFR-006). ruff clean incl C901<=15; mypy clean package-mode. Sole suite failure test_cli.py::test_hard_error_exits_two confirmed PRE-EXISTING (fails identically on mission base). #2009 stays in-mission (SC-007 orchestrator).
+- 2026-06-18T06:54:53Z – user – shell_pid=4177659 – WP04 APPROVED. FR-006 residue downgrade at reader (built_in_only + non-blocking detail + remediation=None; terminal invalid removed for residue; C-003 no self-heal); T030 verified RED pre-fix / GREEN post-fix; _PASS_STATES NOT widened (runner.py untouched). test_computer.py faithful; [invalid] vocab re-pointed to genuine _compute_charter_source (untouched). F5 genuine-invalid guard real+GREEN. FR-007 unlink_stale_project_graph in src/charter/synthesizer/graph_residue.py (no specify_cli cycle), reuses _GRAPH_FILENAME; atomic unlink->guard.replace ordering byte-unchanged at project_drg.py; _fresh_doctrine rewired. FR-008b hash pin on REAL surfaces + mutate-diverge negative guard (non-tautological). C2-e SHARED-HASHER-SEAM SAFETY: NORMAL CONTENT (no BOM, LF-only) HASHES UNCHANGED = YES (verified old-vs-new; only BOM/CRLF changes + converges to plain-LF); NO mass-restale. test_c2e_no_noop_despite_stale real (crlf/bom/bom_crlf). No new read-path mutator (NFR-006). ruff clean incl C901<=15; mypy clean package-mode. Sole suite failure test_cli.py::test_hard_error_exits_two confirmed PRE-EXISTING (fails identically on mission base). #2009 stays in-mission (SC-007 orchestrator).

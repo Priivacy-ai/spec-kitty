@@ -9,7 +9,7 @@ Every `src/` site that serializes a `DRGGraph` to a document dict (the five top-
 `graph_document_to_dict` (`src/doctrine/drg/migration/extractor.py:1424`). The three known sites MUST be
 converted:
 - `src/specify_cli/migration/rewrite_opposed_by.py:_write_graph` (#2977)
-- `src/charter/activation/synthesizer/project_drg.py:_serialize_graph`
+- `src/charter/synthesizer/project_drg.py:_serialize_graph`
 - `src/specify_cli/doctrine/pack_assembler.py` prune (~495-501) — currently bypasses the mapping funnel via
   raw `.model_dump()`, so it also MUST route node/edge dicts through `model_to_graph_dict` to restore
   `FIELDS_WITHHELD_FROM_GRAPH_OUTPUT` + omit-when-empty discipline.

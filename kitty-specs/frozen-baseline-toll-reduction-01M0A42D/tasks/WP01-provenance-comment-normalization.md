@@ -42,7 +42,7 @@ Give every **content-tier** entry in the dead-symbol allowlist a single canonica
   1. trailing `# module::Name` — ~176 entries (the canonical target).
   2. `# module`-only, **no** `::Name` — ~19 entries (reconstruct `::Name` from the entry's `bare_name`).
   3. comment on the **preceding** line, or absent — ~159 entries.
-  Some carry parenthetical suffixes, e.g. `# charter.activation.activations::ALLOWED_MISSION_TYPES (body_hash refreshed …)`.
+  Some carry parenthetical suffixes, e.g. `# charter.activations::ALLOWED_MISSION_TYPES (body_hash refreshed …)`.
 - **Do NOT** touch collision-tier entries' keys (they carry `module_path` in-key) — only their comments if needed for consistency.
 - **Do NOT** change any `body_hash` / `bare_name` / `module_path` value. Comments only.
 

@@ -89,8 +89,8 @@ availability thread first.**
      and makes `default_missions_root()` honour `SPEC_KITTY_PACKS_ROOT` — so there is *one*
      resolution door with consistent env-relocation semantics.
    - **#2657** retires the implicit "all four built-in types" fallback
-     (`src/charter/activation/mission_type_profiles.py:388-395` and the analogous `charter.activation.pack_context`
-     fallback) so the provisioned default charter (`src/charter/activation/packs/default.yaml`, migration
+     (`src/charter/mission_type_profiles.py:388-395` and the analogous `charter.pack_context`
+     fallback) so the provisioned default charter (`src/charter/packs/default.yaml`, migration
      `m_3_2_0rc35_default_charter_pack`) is the single authority for the activation set, with
      fail-closed provisioning for both legacy-migration and fresh-init projects.
    - These two are bundled because they are the *foundation the availability chain stands on*:

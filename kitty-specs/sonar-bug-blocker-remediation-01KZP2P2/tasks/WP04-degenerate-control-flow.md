@@ -26,7 +26,7 @@ create_intent: []
 execution_mode: code_change
 model: claude-sonnet-5
 owned_files:
-- src/charter/activation/pack_manager.py
+- src/charter/pack_manager.py
 - src/specify_cli/cli/commands/_command_surface_doctor.py
 - src/specify_cli/core/file_lock.py
 - src/specify_cli/status/reducer.py
@@ -75,7 +75,7 @@ This is an **investigate** WP — classify each site, then apply the matching re
 
 ### T009 — S3516 always-same-return (4 sites)
 
-- `src/charter/activation/pack_manager.py:559`
+- `src/charter/pack_manager.py:559`
 - `src/specify_cli/cli/commands/_command_surface_doctor.py:164`
 - `src/specify_cli/core/file_lock.py:271`
 - `src/specify_cli/status/reducer.py:751`

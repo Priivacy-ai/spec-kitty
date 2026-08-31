@@ -52,7 +52,7 @@ _The 3.2.6rc5 candidate cycle is open (rc2 shipped 2026-08-20). Entries land her
   invisible to validation). DRG content living only under `drg/*.graph.yaml`
   fragments with no pack-root `*.graph.yaml` now produces a
   `drg_root_graph_missing` error — the runtime
-  (`src/charter/activation/_drg_helpers.py:load_validated_graph`) reads only the pack
+  (`src/charter/_drg_helpers.py:load_validated_graph`) reads only the pack
   root, never `drg/` fragments, so this shape previously validated cleanly and
   then silently zeroed the pack's DRG content on adoption (per sibling mission
   `org-pack-drg-root-graph-guard-01KZY0QT`, `#3384`). `validate_pack()` gains a
@@ -1038,7 +1038,7 @@ _The 3.2.6rc5 candidate cycle is open (rc2 shipped 2026-08-20). Entries land her
 
 - **A single project-local `charter.yaml` `directives:` entry is now additive instead of silently replacing the entire resolved directive set.** (#3728; mission `directives-additive-resolution`) **Before:** on a project that resolved its directives via the built-in catalog, adding even one directive under `charter.yaml`'s `directives:` section wiped the whole resolved set — `charter context --action plan --json` dropped from the catalog's full directive count to just the one local entry, with exit 0, nothing on stderr, and `charter status` still reporting FRESH/VALID. **After:** a project-local directive is unioned onto the base set the project already resolves (catalog default, charter activation, or an explicit `governance.doctrine.selected_directives` selection), so `N` base directives plus `K` **new** local ones resolve to `N+K` (a local id already in the base is de-duplicated, never a loss), with zero baseline lost.
 
-- **Three release-blocking P0 workflow defects fixed as one mission (`p0-reliability-triad`; #3282, #3579, #3281).** Each left a project broken-but-"healthy"-reporting during a core workflow. **#3282 — upgrade:** `spec-kitty upgrade` wrote `mission_type_activations` into `.kittify/config.yaml` unconditionally, but a pointer-based charter project reads them from the pointed-at `charter.yaml`, so the seeded key was never read and mission creation kept failing closed after a "successful" upgrade; the provisioner now routes through the pointer-aware `charter.activation.compiler.provision_mission_type_activations` writer (legacy projects still write `config.yaml`), and the dry-run pending predicate keys on key-presence in the resolved write target (preserving authored-empty-`[]` parity, non-crashing on a dangling pointer). No new migration. **#3579 — merge:** a stale-lane halt routed the operator to a raw `git` merge that conflicts on the derived `status.json`, naming neither of the tool's own remedies; `_stale_remediation` now names `spec-kitty agent status materialize` (rebuild from the event log) — no `status.json` merge driver is introduced (it stays intentionally driver-exempt). **#3281 — implement:** a retry after a recorded-planning-commit merge conflict skipped dependency propagation because `ensure_workspace_materialized` short-circuited on `workspace.exists`; the retry now re-enters an idempotent self-heal, fresh-path allocation is atomic (no orphaned worktree on conflict), and a **post-materialize** ancestry gate — enforced on both the CLI and `orchestrator_api` claim paths — refuses claiming a WP against a lane missing its dependencies **without** deadlocking a legitimately-approved same-mission dependency.
+- **Three release-blocking P0 workflow defects fixed as one mission (`p0-reliability-triad`; #3282, #3579, #3281).** Each left a project broken-but-"healthy"-reporting during a core workflow. **#3282 — upgrade:** `spec-kitty upgrade` wrote `mission_type_activations` into `.kittify/config.yaml` unconditionally, but a pointer-based charter project reads them from the pointed-at `charter.yaml`, so the seeded key was never read and mission creation kept failing closed after a "successful" upgrade; the provisioner now routes through the pointer-aware `charter.compiler.provision_mission_type_activations` writer (legacy projects still write `config.yaml`), and the dry-run pending predicate keys on key-presence in the resolved write target (preserving authored-empty-`[]` parity, non-crashing on a dangling pointer). No new migration. **#3579 — merge:** a stale-lane halt routed the operator to a raw `git` merge that conflicts on the derived `status.json`, naming neither of the tool's own remedies; `_stale_remediation` now names `spec-kitty agent status materialize` (rebuild from the event log) — no `status.json` merge driver is introduced (it stays intentionally driver-exempt). **#3281 — implement:** a retry after a recorded-planning-commit merge conflict skipped dependency propagation because `ensure_workspace_materialized` short-circuited on `workspace.exists`; the retry now re-enters an idempotent self-heal, fresh-path allocation is atomic (no orphaned worktree on conflict), and a **post-materialize** ancestry gate — enforced on both the CLI and `orchestrator_api` claim paths — refuses claiming a WP against a lane missing its dependencies **without** deadlocking a legitimately-approved same-mission dependency.
 
 - **`specify_cli.dossier` no longer re-exports seven `spec_kitty_events` types — one canonical import path per type instead of two.** (#3677) `ArtifactIdentity`, `ContentHashRef`, `LocalNamespaceTuple`, and the four `MissionDossier*Payload` types (`MissionDossierArtifactIndexedPayload`, `MissionDossierArtifactMissingPayload`, `MissionDossierSnapshotComputedPayload`, `MissionDossierParityDriftDetectedPayload`) were re-exported from both `spec_kitty_events` (their canonical home) and `specify_cli.dossier`, violating the charter's single-canonical-authority principle for this surface; no `src/`/`tests/` caller used the second path. **After:** the seven names are removed from `dossier/__init__.py`'s `from .events import (...)` statement and `__all__`; the four `emit_*` function re-exports (`emit_artifact_indexed`, `emit_artifact_missing`, `emit_snapshot_computed`, `emit_parity_drift_detected`) are untouched, and `events.py` itself has zero diff. A regression test (`tests/dossier/test_reexport_trim.py`) pins both halves: the seven names are unreachable via `specify_cli.dossier`, and the four `emit_*` names remain reachable. **User-visible API change:** `from specify_cli.dossier import ArtifactIdentity` (and the other six) now raises `ImportError`; import these types directly from `spec_kitty_events` instead.
 
@@ -1515,7 +1515,7 @@ _The 3.2.6rc2 candidate shipped 2026-08-20 (rc1 shipped 2026-08-12)._
   circle (`#2831`).** An operator on a project carrying the pre-consolidation
   legacy bundle (`governance.yaml`/`directives.yaml`/`metadata.yaml`/
   `references.yaml`, no `charter.yaml`) was told to run `spec-kitty charter
-  sync` — a documented pure staleness reporter (`src/charter/activation/sync.py`: "it
+  sync` — a documented pure staleness reporter (`src/charter/sync.py`: "it
   always reports `synced=False` / `files_written=[]`") that clears nothing, so
   the gate refused identically with no way out. Three fixes: (1) the blocking
   `charter_source`/`synced_bundle` `missing`-state remediation now names
@@ -1603,8 +1603,8 @@ _The 3.2.6rc2 candidate shipped 2026-08-20 (rc1 shipped 2026-08-12)._
   flat-wins-over-legacy precedence is preserved. The plural↔singular charter
   kind vocabulary is now derived from one `ArtifactKind`-backed authority
   (`CHARTER_ACTIVATABLE_*`, the 10 activatable kinds including `anti_pattern`),
-  collapsing the hand-copied maps in `charter.activation.activations` and
-  `charter.activation._activation_render` — the two drifted copies that had fallen two kinds
+  collapsing the hand-copied maps in `charter.activations` and
+  `charter._activation_render` — the two drifted copies that had fallen two kinds
   behind, so `glossary_pack` rendered as its plural and `glossary_packs`
   inference was blind, are fixed. `charter context --include glossary_pack:<id>`
   now renders and `--include anti_pattern:<id>` resolves to a normal not-found
@@ -2191,7 +2191,7 @@ _The 3.2.6rc2 candidate shipped 2026-08-20 (rc1 shipped 2026-08-12)._
   invisible to validation). DRG content living only under `drg/*.graph.yaml`
   fragments with no pack-root `*.graph.yaml` now produces a
   `drg_root_graph_missing` error — the runtime
-  (`src/charter/activation/_drg_helpers.py:load_validated_graph`) reads only the pack
+  (`src/charter/_drg_helpers.py:load_validated_graph`) reads only the pack
   root, never `drg/` fragments, so this shape previously validated cleanly and
   then silently zeroed the pack's DRG content on adoption (per sibling mission
   `org-pack-drg-root-graph-guard-01KZY0QT`, `#3384`). `validate_pack()` gains a
@@ -2345,7 +2345,7 @@ The complete, factual list of changes for this candidate follows in the entries 
   changes; the shared activation gate is untouched).
 - **A minimal starter charter now ships as a first-class, on-demand charter
   pack (mission `charter-delivery-finish-context-degod`; `#3064`).** It ships
-  as `src/charter/activation/packs/minimal.yaml`, alongside `default.yaml`. Run
+  as `src/charter/packs/minimal.yaml`, alongside `default.yaml`. Run
   `spec-kitty charter pack list` to see the shipped built-in packs,
   `spec-kitty charter pack path minimal` to resolve the file, or
   `spec-kitty charter pack apply minimal` to merge its small, curated
@@ -3046,7 +3046,7 @@ The complete, factual list of changes for this candidate follows in the entries 
   render surface in `section_bodies.py` is tracked separately as `#3093`.)
 - **DRG document-writer blind spot closed (mission `doctrine-delivery-activation`;
   `#3075`, `#2977`).** All three `DRGGraph` document-emit sites
-  (`rewrite_opposed_by`, `charter.activation.synthesizer.project_drg`, and the
+  (`rewrite_opposed_by`, `charter.synthesizer.project_drg`, and the
   `pack_assembler` force-dedup path) now route through the canonical
   `graph_document_to_dict` and are registered `DocumentWriter` members, guarded
   by a new non-vacuous writer-discovery gate that fails on either an
@@ -3940,7 +3940,7 @@ The complete, factual list of changes for this candidate follows in the entries 
   a project's tests execute, so shipping it as an artefact every new project
   activates by default was a liability rather than a service. The toolguide,
   its guide document, and its node in the doctrine graph are gone, and it no
-  longer appears in `src/charter/activation/packs/default.yaml`.
+  longer appears in `src/charter/packs/default.yaml`.
 
   This is a breaking removal for existing projects because of how the entry got
   there. The 3.2.0rc35 default-pack migration copied the pack's
@@ -4795,7 +4795,7 @@ patch releases are expected in quick succession.
   cluster from the oversized `cli/commands/merge.py` into a dedicated `specify_cli/merge/baseline.py`,
   behavior-preserving with back-compat re-exports (public + legacy private names).
 - **Charter constant single-sourced:** the `_GRAPH_FILENAME` value, previously duplicated across three modules,
-  now resolves from one leaf `charter.activation.synthesizer._constants`.
+  now resolves from one leaf `charter.synthesizer._constants`.
 
 ### 🐛 Fixed (security follow-up)
 
@@ -6165,8 +6165,8 @@ new-code gate cleanup, and CI portability fixes folded in.
   `src/specify_cli/cli/commands/merge.py` from cognitive complexity 22 down
   to a flat coordinator backed by six named predicate / effect helpers, with
   no behavior change.
-- Narrowed broad `except` clauses in `src/charter/activation/_io.py`,
-  `src/charter/activation/compiler.py`, and `src/charter/activation/interview.py` so charter
+- Narrowed broad `except` clauses in `src/charter/_io.py`,
+  `src/charter/compiler.py`, and `src/charter/interview.py` so charter
   encoding errors propagate to the canonical handler instead of being
   swallowed.
 - Wired `assert_pytest_available()` into the production review preflight in

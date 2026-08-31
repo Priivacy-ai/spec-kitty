@@ -37,7 +37,7 @@ architectural defect (a missing bounded context with a shallow interface), not a
    assembler + higher-layer builder", with typed precondition guards and the rule that low layers
    never read `.kittify` config (C-005/C-008). We mirror this, we don't invent it. (`07` §1)
 
-3. **`OperationalContext` already exists** (`src/charter/activation/invocation_context.py:155`) — but holds
+3. **`OperationalContext` already exists** (`src/charter/invocation_context.py:155`) — but holds
    *session* facts (model/profile/role/activity/tech_stack), not filesystem aspects. Naming
    collision to resolve before coding (DIRECTIVE_032). (`07` §2)
 

@@ -27,7 +27,7 @@ Implement four user-facing surfaces on top of the DRG-resident glossary (Phase 5
 ## Technical Context
 
 **Language/Version**: Python 3.11+  
-**Primary Dependencies**: existing `doctrine.drg.models`, `charter.activation.sync`, `specify_cli.glossary`, `specify_cli.dashboard` — no new packages  
+**Primary Dependencies**: existing `doctrine.drg.models`, `charter.sync`, `specify_cli.glossary`, `specify_cli.dashboard` — no new packages  
 **Storage**: filesystem (`.kittify/events/glossary/`, `.kittify/charter/compiled/`, `.kittify/lint-report.json`)  
 **Testing**: pytest, fixture-based DRG mocks; no LLM calls in any test  
 **Target Platform**: CLI + dashboard HTTP server (same as rest of spec-kitty)  

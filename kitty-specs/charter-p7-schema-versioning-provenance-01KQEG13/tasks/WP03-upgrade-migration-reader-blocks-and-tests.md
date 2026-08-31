@@ -72,7 +72,7 @@ Complete the v1→v2 migration implementation in `versioning.py`, create the `Ch
 Start by confirming both preconditions:
 ```bash
 python -c "from doctrine.versioning import run_migration, migrate_v1_to_v2; print('WP01 OK')"
-python -c "from charter.activation.synthesizer.synthesize_pipeline import ProvenanceEntry; p = ProvenanceEntry.__fields__; assert 'synthesizer_version' in p; print('WP02 OK')"
+python -c "from charter.synthesizer.synthesize_pipeline import ProvenanceEntry; p = ProvenanceEntry.__fields__; assert 'synthesizer_version' in p; print('WP02 OK')"
 ```
 (Run from `src/`)
 
@@ -153,7 +153,7 @@ def migrate_v1_to_v2(bundle_root: Path, dry_run: bool = False) -> MigrationResul
      ```python
      fields_for_hash = {k: v for k, v in data.items() if k != "manifest_hash"}
      import hashlib
-     from charter.activation.synthesizer.synthesize_pipeline import canonical_yaml
+     from charter.synthesizer.synthesize_pipeline import canonical_yaml
      manifest_hash = hashlib.sha256(canonical_yaml(fields_for_hash)).hexdigest()
      data["manifest_hash"] = manifest_hash
      ```
@@ -293,7 +293,7 @@ Read `src/specify_cli/cli/commands/charter_bundle.py` in full. The current `vali
 After the existing structure checks pass, add:
 
 ```python
-from charter.activation.synthesizer.synthesize_pipeline import ProvenanceEntry
+from charter.synthesizer.synthesize_pipeline import ProvenanceEntry
 from pydantic import ValidationError
 
 provenance_dir = charter_dir / "provenance"
@@ -349,7 +349,7 @@ def test_apply_migrates_sidecar_to_v2(tmp_path):
     assert len(result.changes_made) > 0
     assert len(result.errors) == 0
     # Verify sidecar parses as ProvenanceEntry v2
-    from charter.activation.synthesizer.synthesize_pipeline import ProvenanceEntry
+    from charter.synthesizer.synthesize_pipeline import ProvenanceEntry
     sidecar = _load_yaml(tmp_path / ".kittify/charter/provenance/directive-use-prs.yaml")
     entry = ProvenanceEntry(**sidecar)
     assert entry.schema_version == "2"
@@ -502,7 +502,7 @@ cd src && pytest ../tests/charter/synthesizer/test_schema_conformance.py -v
 - **Migration registration discovery**: If the upgrade runner discovers migrations by class scanning or an explicit list, you must register `CharterBundleV2Migration`. Check how other `m_3_2_*.py` migrations are discovered.
 - **`_assert_bundle_compatible` for fresh synthesize**: The check MUST NOT run before a first-ever synthesis (when `metadata.yaml` doesn't exist yet). Only add the check inside branches where `metadata.yaml` is known to exist.
 - **CliRunner output format**: `charter status --provenance` output may be a table (Rich). The regression test checks for field name presence as a string in the output — this works for Rich table headers. If it outputs JSON, parse it instead.
-- **import `canonical_yaml` from within versioning.py**: The `migrate_v1_to_v2` function needs `canonical_yaml` (from `charter.activation.synthesizer.synthesize_pipeline`). This creates a `doctrine → charter` import — which is the WRONG direction per the constraint. Use a local alternative: serialize to YAML via ruamel.yaml with sorted keys, or inline the canonical serialization logic. Do NOT import from `charter.*` in `versioning.py`. One clean option: extract `canonical_yaml` to a shared utility module (e.g., `src/doctrine/yaml_utils.py`) and import from there in both `versioning.py` and `synthesize_pipeline.py`. Ask the user if the right approach is unclear.
+- **import `canonical_yaml` from within versioning.py**: The `migrate_v1_to_v2` function needs `canonical_yaml` (from `charter.synthesizer.synthesize_pipeline`). This creates a `doctrine → charter` import — which is the WRONG direction per the constraint. Use a local alternative: serialize to YAML via ruamel.yaml with sorted keys, or inline the canonical serialization logic. Do NOT import from `charter.*` in `versioning.py`. One clean option: extract `canonical_yaml` to a shared utility module (e.g., `src/doctrine/yaml_utils.py`) and import from there in both `versioning.py` and `synthesize_pipeline.py`. Ask the user if the right approach is unclear.
 
 ## Activity Log
 

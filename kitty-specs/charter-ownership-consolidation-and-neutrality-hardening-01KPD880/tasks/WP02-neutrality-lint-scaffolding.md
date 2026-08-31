@@ -78,10 +78,10 @@ Planning base branch is `main`; merge target is `main`. Execution worktree path 
 
 **Files** (new):
 
-- `src/charter/activation/neutrality/__init__.py` (~20 lines) — public API. Re-export `run_neutrality_lint`, `BannedTermHit`, `NeutralityLintResult`.
-- `src/charter/activation/neutrality/lint.py` — placeholder for T007.
-- `src/charter/activation/neutrality/banned_terms.yaml` — placeholder for T005.
-- `src/charter/activation/neutrality/language_scoped_allowlist.yaml` — placeholder for T006.
+- `src/charter/neutrality/__init__.py` (~20 lines) — public API. Re-export `run_neutrality_lint`, `BannedTermHit`, `NeutralityLintResult`.
+- `src/charter/neutrality/lint.py` — placeholder for T007.
+- `src/charter/neutrality/banned_terms.yaml` — placeholder for T005.
+- `src/charter/neutrality/language_scoped_allowlist.yaml` — placeholder for T006.
 
 Module-level docstring in `__init__.py` names the mission and links to the contracts in the mission folder for readers.
 
@@ -178,9 +178,9 @@ Add a top-of-file comment block explaining the schema, mirroring the style of `b
 
 ### Subtask T007 — Implement `lint.py`
 
-**File**: `src/charter/activation/neutrality/lint.py` (~180 lines).
+**File**: `src/charter/neutrality/lint.py` (~180 lines).
 
-Public surface (importable from `charter.activation.neutrality`):
+Public surface (importable from `charter.neutrality`):
 
 ```python
 from dataclasses import dataclass
@@ -243,7 +243,7 @@ Type-annotate everything. Use `from __future__ import annotations` so forward re
 From the worktree root:
 
 ```bash
-python -c "from charter.activation.neutrality import run_neutrality_lint; r = run_neutrality_lint(); print('passed:', r.passed); print('hits:', len(r.hits)); print('stale:', r.stale_allowlist_entries)"
+python -c "from charter.neutrality import run_neutrality_lint; r = run_neutrality_lint(); print('passed:', r.passed); print('hits:', len(r.hits)); print('stale:', r.stale_allowlist_entries)"
 ```
 
 Expected output:
@@ -270,15 +270,15 @@ Must return zero errors. Add type annotations to any helper that slipped through
 
 ## Files
 
-- **New**: `src/charter/activation/neutrality/__init__.py`
-- **New**: `src/charter/activation/neutrality/lint.py`
-- **New**: `src/charter/activation/neutrality/banned_terms.yaml`
-- **New**: `src/charter/activation/neutrality/language_scoped_allowlist.yaml`
+- **New**: `src/charter/neutrality/__init__.py`
+- **New**: `src/charter/neutrality/lint.py`
+- **New**: `src/charter/neutrality/banned_terms.yaml`
+- **New**: `src/charter/neutrality/language_scoped_allowlist.yaml`
 
 ## Definition of Done
 
 - [ ] All four files exist and are importable / parseable.
-- [ ] `from charter.activation.neutrality import run_neutrality_lint, BannedTermHit, NeutralityLintResult` succeeds.
+- [ ] `from charter.neutrality import run_neutrality_lint, BannedTermHit, NeutralityLintResult` succeeds.
 - [ ] `run_neutrality_lint()` on baseline returns `passed=True`.
 - [ ] Seed populations in the two YAMLs match the spec in T005 and T006 exactly.
 - [ ] `mypy --strict src/charter/neutrality/` passes.

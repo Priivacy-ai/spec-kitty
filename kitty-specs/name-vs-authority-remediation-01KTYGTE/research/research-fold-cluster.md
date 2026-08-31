@@ -201,7 +201,7 @@ The ADR `2026-06-11-1-op-as-first-class-execution-artifact.md` (Adjudication 1) 
 
 ### Chain as recorded in the ADR
 
-1. `src/charter/activation/context_renderers/authority_paths.py` `DEFAULT_AUTHORITY_PATHS` dict
+1. `src/charter/context_renderers/authority_paths.py` `DEFAULT_AUTHORITY_PATHS` dict
 2. Two source prompts: `src/doctrine/missions/mission-steps/software-dev/implement/prompt.md` and `review/prompt.md`
 3. Two governance-contract tests: `tests/architectural/test_template_governance_payload_contract.py` and `tests/specify_cli/next/test_wp_prompt_governance_contract.py`
 4. Three `tests/charter/` assertions: `test_context_authority_paths.py`, `test_sync_authority_paths.py`, `test_schemas_additive_fields.py`

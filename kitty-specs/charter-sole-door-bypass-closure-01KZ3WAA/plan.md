@@ -9,7 +9,7 @@ the operator before this plan was written; see spec.md's "Revised at planning ti
 
 ## Summary
 
-Make `charter.activation.resolver.DoctrineService` (`src/charter/activation/resolver.py`) the sole, fully-gated access path to
+Make `charter.resolver.DoctrineService` (`src/charter/resolver.py`) the sole, fully-gated access path to
 provisioned doctrine assets. The mission (a) eliminates 5 of 7 flagged direct `AgentProfileRepository`
 construction sites plus 9 raw `DoctrineService` construction sites (6 original + 3 found by a post-plan
 adversarial squad) — excluding 2 sites that turned out to access a legitimately separate `.kittify/profiles`
@@ -55,7 +55,7 @@ additional construction sites, the `._inner` gap, an IC-sequencing bug, and seve
 
 *GATE: Must pass before Phase 0 research. Re-checked after Phase 1 design.*
 
-- **Single canonical authority** (Governing Principle; DIR-044). ✅ The mission's spine: `charter.activation.resolver.
+- **Single canonical authority** (Governing Principle; DIR-044). ✅ The mission's spine: `charter.resolver.
   DoctrineService` becomes the one factory every in-scope site routes through, built by one unified builder
   (FR-008) — the two-builder divergence found during planning is exactly the kind of second-authority drift
   this principle exists to close, and it is folded in rather than left standing.
@@ -195,7 +195,7 @@ are deliberately left untouched in place (C-006) rather than moved.
 
 ### IC-02 — Template/command resolver axis routed through the factory
 
-- **Purpose**: Give `charter.activation.resolver.DoctrineService` resolution methods for the 5-tier axis so
+- **Purpose**: Give `charter.resolver.DoctrineService` resolution methods for the 5-tier axis so
   `CharterTemplateResolver`'s one real caller (`specify_cli/runtime/resolver.py`'s tier-5 routing) stops
   importing `doctrine.resolver` directly.
 - **Relevant requirements**: FR-003, NFR-001, SC-002.
@@ -211,7 +211,7 @@ are deliberately left untouched in place (C-006) rather than moved.
 - **Sequencing/depends-on**: independent of IC-01/IC-00; can run in parallel. Must resolve a real
   construction-contract mismatch: `specify_cli/runtime/resolver.py`'s `_charter_template_resolver_for()`
   helper is cached (`lru_cache`) and keyed on a `missions_root` string via `CharterTemplateResolver.
-  from_missions_root(...)`, while `charter.activation.resolver.DoctrineService` is constructed from `repo_root` via the
+  from_missions_root(...)`, while `charter.resolver.DoctrineService` is constructed from `repo_root` via the
   unified builder — the WP must design this mapping explicitly (e.g. resolve `repo_root` at the same call
   site, or add a `from_missions_root`-equivalent path to the factory), not discover it mid-implementation.
 - **Risks**: `doctrine/resolver.py`'s tier functions must NOT move — moving them fights the module's own

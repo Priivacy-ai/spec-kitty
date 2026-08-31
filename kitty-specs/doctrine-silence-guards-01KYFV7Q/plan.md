@@ -96,7 +96,7 @@ src/doctrine/
 │   └── *.schema.yaml                # 7 stale                                (WP05)
 └── skills/**, templates/**          # 22 `shipped/` hits                      (WP07)
 
-src/charter/activation/context.py               # site 2: 4 branches, no else            (WP03)
+src/charter/context.py               # site 2: 4 branches, no else            (WP03)
 scripts/generate_schemas.py          # drops structural_lint_config           (WP05)
 tests/architectural/                 # gates. NEVER run the whole directory
 .github/workflows/ci-quality.yml     # --check wiring + collection gap        (WP10)

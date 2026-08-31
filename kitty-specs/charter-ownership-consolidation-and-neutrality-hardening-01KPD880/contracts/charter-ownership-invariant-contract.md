@@ -11,8 +11,8 @@ A pytest module at `tests/charter/test_charter_ownership_invariant.py` MUST enfo
 
 ```python
 CANONICAL_OWNERS: dict[str, str] = {
-    "build_charter_context":       "src/charter/activation/context.py",
-    "ensure_charter_bundle_fresh": "src/charter/activation/sync.py",
+    "build_charter_context":       "src/charter/context.py",
+    "ensure_charter_bundle_fresh": "src/charter/sync.py",
 }
 ```
 
@@ -37,9 +37,9 @@ Example:
 
 ```
 Charter ownership invariant violated for 'build_charter_context':
-  canonical location: src/charter/activation/context.py
+  canonical location: src/charter/context.py
   definitions found in:
-    src/charter/activation/context.py            (canonical)
+    src/charter/context.py            (canonical)
     src/legacy/charter_helper.py:42  (DUPLICATE — remove or rename)
 ```
 
@@ -51,8 +51,8 @@ import ast
 from pathlib import Path
 
 CANONICAL_OWNERS = {
-    "build_charter_context": "src/charter/activation/context.py",
-    "ensure_charter_bundle_fresh": "src/charter/activation/sync.py",
+    "build_charter_context": "src/charter/context.py",
+    "ensure_charter_bundle_fresh": "src/charter/sync.py",
 }
 
 def _find_defs(repo_root: Path, name: str) -> list[Path]:

@@ -26,7 +26,7 @@ create_intent:
 - tests/charter/test_compiler_charter_yaml.py
 execution_mode: code_change
 owned_files:
-- src/charter/activation/compiler.py
+- src/charter/compiler.py
 - src/specify_cli/cli/commands/charter/generate.py
 - src/specify_cli/cli/commands/charter/_synthesis.py
 - src/specify_cli/cli/commands/charter_bundle.py
@@ -51,7 +51,7 @@ Make the compile pipeline emit `charter.yaml` as a **PARTIAL / MERGE write** (re
 **Authoritative**: [`data-model.md`](../data-model.md) **Landmine 3** + INV-9, [`contracts/charter-yaml-schema.md`](../contracts/charter-yaml-schema.md) G5. Consumes WP01's shared write helper.
 
 ## Context / grounding
-- `src/charter/activation/compiler.py:393-421 write_compiled_charter` — the full-file overwrite (`charter_path.write_text(compiled.markdown)` at `:421` = the #2772 clobber). `_write_references_yaml:1218` — the references writer to retire. `:367 _render_charter_markdown` feeds the clobber.
+- `src/charter/compiler.py:393-421 write_compiled_charter` — the full-file overwrite (`charter_path.write_text(compiled.markdown)` at `:421` = the #2772 clobber). `_write_references_yaml:1218` — the references writer to retire. `:367 _render_charter_markdown` feeds the clobber.
 - `generate.py:344-352` autotrack/gitignore; `charter_bundle.py:68-78 _OUT_OF_SCOPE_WARNINGS` (references special-case).
 
 ## Subtasks

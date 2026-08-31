@@ -1,6 +1,6 @@
 ---
 affected_files:
-  - path: src/charter/activation/scope.py
+  - path: src/charter/scope.py
   - path: src/specify_cli/next/_internal_runtime/workflow_schema.py
   - path: src/charter/drg.py
   - path: src/charter/__init__.py

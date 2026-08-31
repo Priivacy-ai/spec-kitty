@@ -11,8 +11,8 @@ findings:
     evidence:
       - artifact: "plan.md § Charter Check ('Single canonical authority... Pass')"
       - artifact: "plan.md § The Seam ('No CLI surface. `charter activate` itself... is unchanged')"
-      - code: "src/charter/activation/pack_manager.py:238-256 (_resolve_org_layer_dir, docstring: 'FR-013 unifies the charter activation subsystem with runtime, which resolves org packs from the flat <pack>/<plural>/ layout... Flat is therefore the canonical, preferred layout. The legacy nested <pack>/doctrine/<plural>/org/ layout is kept as a fallback')"
-      - code: "src/charter/activation/kind_vocabulary.py:219-228 (_layer_scan_dirs / _layer_candidate_dir, org layer resolves to <root>/doctrine/<plural>/org — a third, distinct shape)"
+      - code: "src/charter/pack_manager.py:238-256 (_resolve_org_layer_dir, docstring: 'FR-013 unifies the charter activation subsystem with runtime, which resolves org packs from the flat <pack>/<plural>/ layout... Flat is therefore the canonical, preferred layout. The legacy nested <pack>/doctrine/<plural>/org/ layout is kept as a fallback')"
+      - code: "src/charter/kind_vocabulary.py:219-228 (_layer_scan_dirs / _layer_candidate_dir, org layer resolves to <root>/doctrine/<plural>/org — a third, distinct shape)"
       - code: "src/charter/drg.py:376,397 (_resolve_activated_urns_for_kind calls resolve_artifact_urn with org_roots only, never layer_roots)"
       - code: "src/specify_cli/cli/commands/charter/activate.py:87-116,433 (_source_urn / cascade path calls resolve_artifact_urn with layer_roots only, never org_roots)"
     claim: >
@@ -54,7 +54,7 @@ findings:
     evidence:
       - artifact: "plan.md § Campsite-Clean Scope ('no other adjacent Sonar/lint debt on the touched surface was found that would change that conclusion')"
       - artifact: "plan.md § The Seam ('Its caller (`_scan_roots`, `:142-180`)... are unchanged')"
-      - code: "src/charter/activation/kind_vocabulary.py:158-160 (_scan_roots docstring: '``org_roots`` preserves the legacy package-shaped root contract where each root contributes ``<root>/<plural>/built-in`` -- this nested layout is still live for org packs')"
+      - code: "src/charter/kind_vocabulary.py:158-160 (_scan_roots docstring: '``org_roots`` preserves the legacy package-shaped root contract where each root contributes ``<root>/<plural>/built-in`` -- this nested layout is still live for org packs')"
     claim: >
       `_scan_roots` (the immediate caller of `_org_scan_dirs`, cited by the plan's "The Seam"
       section as staying unchanged) carries a docstring that makes a present-tense, factual claim

@@ -38,7 +38,7 @@ lands in the DRG/doctrine-integrity layer per both ADRs, not the hot loop); DDD 
 ### Source Code (repository root)
 - `src/doctrine/drg/{models.py, validator.py, migration/extractor.py, loader.py}` — DRG node-kind + generator (IC-01/02).
 - `src/doctrine/graph.yaml` — generated output (regenerated, IC-02).
-- `src/charter/activation/mission_type_profiles.py` — resolver seam: lazy governance thunk, retire `_EMPTY_GRAIN`, aggregation, typing (IC-06/07/10).
+- `src/charter/mission_type_profiles.py` — resolver seam: lazy governance thunk, retire `_EMPTY_GRAIN`, aggregation, typing (IC-06/07/10).
 - `src/doctrine/missions/action_index.py` — per-action loader (consumed by IC-07).
 - `src/charter/` + `src/specify_cli/cli/commands/charter/activate.py` — cascade fix (IC-03).
 - New gate: `tests/doctrine/drg/test_cross_grain_integrity.py` (or a doctrine-integrity module) — IC-04/05.

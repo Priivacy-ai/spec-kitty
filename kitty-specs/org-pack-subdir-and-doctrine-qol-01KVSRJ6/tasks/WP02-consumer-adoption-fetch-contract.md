@@ -29,8 +29,8 @@ execution_mode: code_change
 model: ''
 owned_files:
 - src/charter/drg.py
-- src/charter/activation/pack_context.py
-- src/charter/activation/context.py
+- src/charter/pack_context.py
+- src/charter/context.py
 - src/specify_cli/doctrine/org_charter.py
 - src/specify_cli/doctrine/snapshot.py
 - src/specify_cli/cli/commands/doctor.py
@@ -70,7 +70,7 @@ Route **every** pack-root consumer through `OrgPackConfig.effective_root` (WP01)
 - Spec FR-004/007/008, SC-001/002/003. Depends on WP01's `effective_root`.
 - **Squad-enumerated consumer sites** (the BLOCKER fan-out — `research/post-spec-squad-findings.md`):
   - `src/charter/drg.py:137` → `load_org_pack(...)` — **the doctor-health path** (`doctor.py`→`load_org_drg`→`load_org_pack`). Highest priority.
-  - `src/charter/activation/pack_context.py:344` `_read_org_packs`; `src/charter/activation/context.py:746` direct `org-charter.yaml` read.
+  - `src/charter/pack_context.py:344` `_read_org_packs`; `src/charter/context.py:746` direct `org-charter.yaml` read.
   - `src/specify_cli/doctrine/org_charter.py:570` `load_org_charter_policy`; `src/specify_cli/cli/commands/doctor.py:2608` `_build_pack_entries`; `src/specify_cli/charter_runtime/lint/checks/org_layer.py:236` `DoctrineService(org_roots=...)`.
 - Fetch: `src/specify_cli/doctrine/snapshot.py` orchestrates `source.fetch(local_path)`; clone target stays `local_path` (C-003). Report the count under the effective root post-fetch.
 - Existing integration tests to mirror: `tests/integration/test_org_pack_artifact_lifecycle.py`, `tests/integration/test_org_pack_missing_path_hard_fails.py`.

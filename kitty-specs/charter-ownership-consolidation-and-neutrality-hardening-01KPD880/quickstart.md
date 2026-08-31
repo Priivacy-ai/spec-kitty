@@ -12,10 +12,10 @@ This quickstart shows the three most common workflows the mission creates or cha
 
 ## 1. Adding a banned term
 
-If you observe (or want to prevent) a specific language/tool-specific string from reappearing in generic shipped doctrine, extend `src/charter/activation/neutrality/banned_terms.yaml`.
+If you observe (or want to prevent) a specific language/tool-specific string from reappearing in generic shipped doctrine, extend `src/charter/neutrality/banned_terms.yaml`.
 
 ```yaml
-# src/charter/activation/neutrality/banned_terms.yaml
+# src/charter/neutrality/banned_terms.yaml
 schema_version: "1"
 terms:
   # ... existing terms ...
@@ -37,10 +37,10 @@ Run `pytest tests/charter/test_neutrality_lint.py` locally to confirm the update
 
 ## 2. Registering a Python-scoped doctrine file
 
-If you're adding a new shipped file that **intentionally** contains language-specific guidance — e.g., a Python profile README — register its path in `src/charter/activation/neutrality/language_scoped_allowlist.yaml`.
+If you're adding a new shipped file that **intentionally** contains language-specific guidance — e.g., a Python profile README — register its path in `src/charter/neutrality/language_scoped_allowlist.yaml`.
 
 ```yaml
-# src/charter/activation/neutrality/language_scoped_allowlist.yaml
+# src/charter/neutrality/language_scoped_allowlist.yaml
 schema_version: "1"
 paths:
   - path: "src/charter/profiles/python/README.md"
@@ -92,7 +92,7 @@ If your Python code uses `from specify_cli.charter import X`, update to `from ch
 +from charter import build_charter_context
 
 -from specify_cli.charter.compiler import compile_charter
-+from charter.activation.compiler import compile_charter
++from charter.compiler import compile_charter
 ```
 
 Symbol names do not change; only the owning package path changes.

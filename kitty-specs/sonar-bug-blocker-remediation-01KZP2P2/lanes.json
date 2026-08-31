@@ -89,7 +89,7 @@
         "WP04"
       ],
       "write_scope": [
-        "src/charter/activation/pack_manager.py",
+        "src/charter/pack_manager.py",
         "src/runtime/next/runtime_bridge.py",
         "src/specify_cli/cli/commands/_command_surface_doctor.py",
         "src/specify_cli/compat/remediation.py",

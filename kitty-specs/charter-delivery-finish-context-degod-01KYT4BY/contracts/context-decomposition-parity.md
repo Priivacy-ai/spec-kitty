@@ -17,20 +17,20 @@ The parity-baseline-capture WP **depends on** the US1 (empty-charter) + US2 (pro
 ## Completion signal (SC-004) — WIRED, non-fakeable
 A dedicated test `tests/charter/test_context_decomposition_completion.py` (owned by the last US3 WP) asserts BOTH:
 1. **Primary (un-fakeable): seam-existence manifest** — each named seam module (see data-model.md) **exists** AND is imported by ≥1 non-`context` caller (imported *from the seam*, not only re-exported through `context.py`).
-2. **Secondary: LOC gate** — `wc -l src/charter/activation/context.py ≤ 600` (grounded floor ≈500–540; ≤500 is the aspirational stretch; the earlier 400 is dropped). If context.py cannot reach ≤600, that is a BLOCKER requiring explicit operator re-sign-off — NOT an implementer-side ceiling adjustment.
+2. **Secondary: LOC gate** — `wc -l src/charter/context.py ≤ 600` (grounded floor ≈500–540; ≤500 is the aspirational stretch; the earlier 400 is dropped). If context.py cannot reach ≤600, that is a BLOCKER requiring explicit operator re-sign-off — NOT an implementer-side ceiling adjustment.
 
 ## Regression guards (already green on the monolith — NOT completion signals)
 - `test_layer_rules.py`, `test_runtime_charter_doctrine_boundary.py` — no `specify_cli` import under `src/charter/`.
 - `test_no_dead_symbols.py` — every `src/charter/` module declares `__all__`, every export called.
 
 ## Cycle dissolution (NFR-001 acyclicity)
-The 4 symbols `profile_sections.py` function-locally imports from `charter.activation.context`
+The 4 symbols `profile_sections.py` function-locally imports from `charter.context`
 (`_render_fetch_stanza`, `_budget_estimate`, `_diagnose_catalog_miss`,
 `_PROFILE_INLINE_BODY_LIMIT_CHARS`) move to LEAF homes; `profile_sections.py` imports
 them at top level; both `# noqa: PLC0415` are deleted; no new cycle.
 
 ## FR-009 preserved surface
-Every private symbol imported from `charter.activation.context` by tests (test-only; ~40 incl.
+Every private symbol imported from `charter.context` by tests (test-only; ~40 incl.
 `_reset_agent_profile_cache` used by 4 files) stays importable via a
 `# FR-009 preserved surface` re-export block in `context.py`.
 

@@ -74,7 +74,7 @@ NOT ride WP01's lane, which lands first and alone to unblock B1.
   `DRGEdge(source=…, target=…, relation=…)` from an org-fragment edge — a three-field restatement. Any
   additional edge field an org pack declares is lost on merge. WP01 registered it as a `ModelBridge`;
   this WP makes its field coverage an assertion.
-- **Blast radius**: `src/charter/activation/packs/default.yaml` ships to every consumer. An org-pack graph
+- **Blast radius**: `src/charter/packs/default.yaml` ships to every consumer. An org-pack graph
   document with a stray top-level key goes from silently-accepted to a hard load failure on upgrade.
   This is intended, but it needs a typed error, not a bare `ValidationError`.
 

@@ -41,7 +41,7 @@
 | T020 | Move `status`, `sync`, `synthesize`, `lint`, `preflight`, `bundle`, `resynthesize` handlers into per-file modules in the new package | WP06 | [P] |
 | T021 | Leave `src/specify_cli/cli/commands/charter.py` as a ≤150-line re-export shim OR delete it if all imports redirect through the package | WP06 | |
 | T022 | Verify charter integration tests green: `tests/specify_cli/cli/commands/test_charter_lint.py` + `tests/integration/test_charter_status_freshness.py` + `tests/integration/test_charter_lint_lints_all_layers.py` | WP06 | |
-| T023 | Identify the canonical `ensure_charter_bundle_fresh` API surface in `charter.activation.compiler` | WP07 | |
+| T023 | Identify the canonical `ensure_charter_bundle_fresh` API surface in `charter.compiler` | WP07 | |
 | T024 | Route `charter_freshness/computer.py:281` (`_safe_load_yaml(manifest_path)`) through the chokepoint | WP07 | |
 | T025 | Route `charter_freshness/computer.py:280` (`_DOCTRINE_DIR / _GRAPH_FILENAME` direct read) through the chokepoint | WP07 | |
 | T026 | Verify `compute_freshness(repo_root) -> CharterFreshness` public API unchanged (C-007) | WP07 | |

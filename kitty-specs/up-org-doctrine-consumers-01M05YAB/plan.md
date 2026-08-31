@@ -38,7 +38,7 @@ named in the mission brief.
 3.12).
 **Primary Dependencies**: No new third-party dependency. All five in-scope call sites and the new
 FR-008 surface consume only existing first-party modules (`doctrine.drg.org_pack_config`,
-`doctrine.base.BaseDoctrineRepository`, `charter.activation.org_pack_discovery`, `charter.activation._drg_helpers`,
+`doctrine.base.BaseDoctrineRepository`, `charter.org_pack_discovery`, `charter._drg_helpers`,
 `ruamel.yaml` already used by `MissionTemplateRepository`).
 **Storage**: N/A (filesystem doctrine tree reads only — no database).
 **Testing**: `pytest`, existing fixture pattern from
@@ -153,7 +153,7 @@ tests/
 
 **Structure Decision**: Single project (spec-kitty's own `src/` tree). No new top-level package.
 Two brand-new files: `src/doctrine/drg/org_pack_config.py` gains a new function (not a new file —
-`resolve_org_roots` already lives there); `src/charter/activation/org_expected_artifacts.py` is a genuinely
+`resolve_org_roots` already lives there); `src/charter/org_expected_artifacts.py` is a genuinely
 new small module (IC-05's shared helper). Every other change is an edit to an existing file.
 
 ## Complexity Tracking
@@ -185,7 +185,7 @@ No violations. Table intentionally empty.
   is itself inert (unused) until they do — safe to land first with only unit tests exercising it
   directly.
 - **Risks**: Low. The one design decision worth stating explicitly: existence filtering happens at
-  the *org-root* level (mirroring `charter.activation.doctrine_service_builder._self_resolve_existing_org_roots`),
+  the *org-root* level (mirroring `charter.doctrine_service_builder._self_resolve_existing_org_roots`),
   not at the joined-subdirectory level — a nonexistent org root is dropped before joining, so a
   stale `local_path` config entry degrades cleanly (Edge Cases, NFR-002) without a second existence
   check downstream.
@@ -247,7 +247,7 @@ No violations. Table intentionally empty.
   resolution (it runs eagerly, per D-004) — cheap, same shape as FR-001, and explicitly does not
   touch the deliberately built-in-only `action_grain.py:220` call site.
 - **Relevant requirements**: FR-004.
-- **Affected surfaces**: `src/charter/activation/mission_type_profiles.py` (`_resolve_governance_slot` around
+- **Affected surfaces**: `src/charter/mission_type_profiles.py` (`_resolve_governance_slot` around
   line 766, `_mission_type_profile_repository` around line 1148 — no change needed to
   `MissionTypeProfileRepository` itself, which already accepts `org_dirs`).
 - **Sequencing/depends-on**: IC-01 (consumes the shared `org_dirs` helper, joined with the
@@ -265,15 +265,15 @@ No violations. Table intentionally empty.
   concern lands, ship `<org_root>/<mission_type>/expected-artifacts.yaml` that **fully replaces**
   (not merges with) the built-in manifest for that mission type.
 - **Relevant requirements**: FR-008 (SC-005).
-- **Affected surfaces**: new `src/charter/activation/org_expected_artifacts.py` (shared org-file-check
+- **Affected surfaces**: new `src/charter/org_expected_artifacts.py` (shared org-file-check
   helper — see `research.md` for why this is a new module rather than a new method on
-  `MissionTemplateRepository`, per C-003), `src/charter/activation/mission_type_profiles.py`
+  `MissionTemplateRepository`, per C-003), `src/charter/mission_type_profiles.py`
   (`_resolve_expected_artifacts_slot`, around line 971), `src/specify_cli/dossier/manifest.py`
   (`ManifestRegistry.load_manifest`).
 - **Sequencing/depends-on**: **IC-04** — self-identified file collision (beyond the brief's two
   named pairs): `_resolve_expected_artifacts_slot` (this concern) and `_resolve_governance_slot`/
   `_mission_type_profile_repository` (IC-04) are different functions in the **same file**,
-  `src/charter/activation/mission_type_profiles.py`. The `owned_files` pairwise-disjoint constraint means these
+  `src/charter/mission_type_profiles.py`. The `owned_files` pairwise-disjoint constraint means these
   two concerns cannot become two work packages running in parallel against that file. This plan
   recommends **serial sequencing** (IC-04 lands and merges first; IC-05 starts after) rather than
   forcing IC-04's small, functionally-unrelated fix into IC-05's large, higher-risk one — merging
@@ -351,8 +351,8 @@ architectural suite (NFR-004, NFR-005). Per-IC shard exposure:
   (`--cov=src/specify_cli/mission_loader --cov-fail-under=90`,
   `tests/unit/mission_loader/` + `tests/integration/test_mission_run_command.py`, NFR-004's own
   citation).
-- **IC-04**, **IC-05** (`src/charter/activation/mission_type_profiles.py`, new
-  `src/charter/activation/org_expected_artifacts.py`): critical-path (`src/charter/*`), enforced.
+- **IC-04**, **IC-05** (`src/charter/mission_type_profiles.py`, new
+  `src/charter/org_expected_artifacts.py`): critical-path (`src/charter/*`), enforced.
   `src/specify_cli/dossier/manifest.py` (IC-05's other half): **not** critical-path, advisory only —
   same caveat as IC-02, lean on NFR-001's red-first tests as the real backstop for this file.
 - **Architectural suite** (NFR-005): `tests/architectural/test_layer_rules.py` and every
@@ -417,7 +417,7 @@ Per the operator instruction to record genuine gaps as stated assumptions rather
    a spec requirement — task generation may reasonably choose to merge them instead if that proves
    simpler to schedule. Either choice satisfies `owned_files` disjointness; only *parallel,
    file-colliding* work packages would violate it.
-3. **FR-007's shared org-file-check helper for IC-05** (`src/charter/activation/org_expected_artifacts.py`) is
+3. **FR-007's shared org-file-check helper for IC-05** (`src/charter/org_expected_artifacts.py`) is
    this plan's own design choice, not named by the spec, which only says "adds a narrow, additive
    org-file check alongside the existing built-in-only reader" (C-003) without specifying module
    placement. A new small module was chosen over adding logic inline to both

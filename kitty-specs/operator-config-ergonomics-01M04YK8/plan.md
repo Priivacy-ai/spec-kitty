@@ -109,7 +109,7 @@ tests/
 ### IC-03 — Portable provenance emit + heal + leak-check
 - **Purpose**: Emit `${SPEC_KITTY_PACKS_ROOT}/built-in/...` tokens through one shared normalizer for both carriers; heal existing absolute paths; doctor leak-check.
 - **Relevant requirements**: FR-001, FR-002, FR-003; C-003, NFR-003.
-- **Affected surfaces**: `src/charter/activation/compiler.py`, profile-manifest surface (`manifest.py`/`projection.py`/`_paths.py`), a heal migration, `runtime/doctor.py`.
+- **Affected surfaces**: `src/charter/compiler.py`, profile-manifest surface (`manifest.py`/`projection.py`/`_paths.py`), a heal migration, `runtime/doctor.py`.
 - **Sequencing/depends-on**: IC-01.
 - **Risks**: re-bake footgun (PACKS_ROOT=abs at emit) — regression-gated; two emit sites must share one normalizer.
 

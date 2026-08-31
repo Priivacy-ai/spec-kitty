@@ -83,8 +83,8 @@ writers, and different readers.
 
 | # | Vocabulary | Stored in | Written by | Read by |
 |---|---|---|---|---|
-| **V1** | `activated_<kind>` | `.kittify/config.yaml` | `charter activate` / `deactivate` | `charter.activation.resolver` (as a *filter*), `charter.activation.compiler._resolve_config_activated_roots` (as compile *roots*) |
-| **V2** | `selected_<kind>` | `.kittify/charter/interview/answers.yaml` | the charter interview | `charter.activation.compiler` charter-body render (`Selected Doctrine`) |
+| **V1** | `activated_<kind>` | `.kittify/config.yaml` | `charter activate` / `deactivate` | `charter.resolver` (as a *filter*), `charter.compiler._resolve_config_activated_roots` (as compile *roots*) |
+| **V2** | `selected_<kind>` | `.kittify/charter/interview/answers.yaml` | the charter interview | `charter.compiler` charter-body render (`Selected Doctrine`) |
 | **V3** | `selected_<kind>` | `.kittify/charter/charter.yaml` | charter compile | assorted consumers |
 
 In this repository today:
@@ -110,7 +110,7 @@ Two paths honour V1 correctly:
 - **On-demand fetch works.** `spec-kitty charter context --include tactic:acceptance-test-first`
   returns the full artefact — purpose, steps, references. An agent that knows an
   id can always reach it.
-- **Compile-time root seeding works.** `charter.activation.compiler._resolve_config_activated_roots`
+- **Compile-time root seeding works.** `charter.compiler._resolve_config_activated_roots`
   seeds tactics, styleguides, toolguides, procedures and agent profiles as direct
   roots, explicitly *"so an artefact activated directly in `config.activated_*`
   resolves in the compiled set even when no selected directive's transitive

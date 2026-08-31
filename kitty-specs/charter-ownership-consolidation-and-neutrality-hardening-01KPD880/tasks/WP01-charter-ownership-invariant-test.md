@@ -42,8 +42,8 @@ Install an executable invariant that asserts **exactly one real definition** of 
 
 A baseline audit (research.md R-001) found:
 
-- `build_charter_context` defined once at `src/charter/activation/context.py:67`.
-- `ensure_charter_bundle_fresh` defined once at `src/charter/activation/sync.py:66`.
+- `build_charter_context` defined once at `src/charter/context.py:67`.
+- `ensure_charter_bundle_fresh` defined once at `src/charter/sync.py:66`.
 
 The codebase already satisfies the invariant. This WP installs the test that keeps it true. The contract is spelled out in detail at `/Users/robert/spec-kitty-dev/charter/spec-kitty/kitty-specs/charter-ownership-consolidation-and-neutrality-hardening-01KPD880/contracts/charter-ownership-invariant-contract.md`.
 
@@ -62,8 +62,8 @@ Follow the skeleton in `contracts/charter-ownership-invariant-contract.md` secti
 - Module-level constant `CANONICAL_OWNERS: dict[str, str]` with exactly these two entries:
   ```python
   CANONICAL_OWNERS: dict[str, str] = {
-      "build_charter_context": "src/charter/activation/context.py",
-      "ensure_charter_bundle_fresh": "src/charter/activation/sync.py",
+      "build_charter_context": "src/charter/context.py",
+      "ensure_charter_bundle_fresh": "src/charter/sync.py",
   }
   ```
 - Helper `_find_defs(repo_root: Path, name: str) -> list[Path]` walks `src/**/*.py`, excludes `__pycache__` and `.worktrees`, parses each file with `ast.parse`, and collects `FunctionDef` / `AsyncFunctionDef` nodes whose `name` matches — at **any nesting level** (use `ast.walk`, not just module-level).
@@ -74,9 +74,9 @@ Follow the skeleton in `contracts/charter-ownership-invariant-contract.md` secti
 
 ```
 Charter ownership invariant violated for 'build_charter_context':
-  canonical location: src/charter/activation/context.py
+  canonical location: src/charter/context.py
   definitions found in:
-    src/charter/activation/context.py            (canonical)
+    src/charter/context.py            (canonical)
     src/legacy/charter_helper.py     (DUPLICATE — remove or rename)
 ```
 

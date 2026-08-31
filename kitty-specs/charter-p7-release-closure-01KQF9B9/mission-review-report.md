@@ -89,7 +89,7 @@ Gate 4 failure does not block the overall verdict when the only affected FR is a
 
 **Type**: BOUNDARY-CONDITION
 **Severity**: RESOLVED in commit `5a6e0737`
-**Location**: `src/charter/activation/synthesizer/manifest.py:verify_manifest_hash()` and `src/charter/bundle.py:_check_manifest_integrity()`
+**Location**: `src/charter/synthesizer/manifest.py:verify_manifest_hash()` and `src/charter/bundle.py:_check_manifest_integrity()`
 **Trigger condition**: A synthesis manifest whose `manifest_hash` field is tampered with while per-artifact `content_hash` values still match.
 
 **Analysis**: `verify_manifest_hash()` now recomputes SHA-256 over the canonical manifest fields excluding `manifest_hash` and `_check_manifest_integrity()` reports a structured error on mismatch. CLI and direct validator regressions cover tampered self-hash failures.
@@ -108,7 +108,7 @@ None introduced by this mission. The diff adds no `except Exception: return ""` 
 |---------|----------|------------|----------------|
 | No new subprocess calls | — | — | None |
 | No `shell=True` | — | — | None |
-| Manifest-listed paths are anchored | `src/charter/activation/synthesizer/manifest.py` | Path traversal / local file read | Manifest artifact paths must stay under `.kittify/doctrine`; provenance paths must stay under `.kittify/charter/provenance`; symlink escapes are rejected. |
+| Manifest-listed paths are anchored | `src/charter/synthesizer/manifest.py` | Path traversal / local file read | Manifest artifact paths must stay under `.kittify/doctrine`; provenance paths must stay under `.kittify/charter/provenance`; symlink escapes are rejected. |
 | No `type: ignore` or `noqa` added | — | — | None |
 | No new HTTP/network calls | — | — | None |
 

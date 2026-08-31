@@ -49,7 +49,7 @@ load-bearing — only the keys are.
 
 ### Pydantic mapping
 
-`charter.activation.schemas.DoctrineSelectionConfig` gains:
+`charter.schemas.DoctrineSelectionConfig` gains:
 
 ```python
 class DoctrineSelectionConfig(BaseModel):
@@ -68,7 +68,7 @@ class DoctrineSelectionConfig(BaseModel):
 **Producer**: `charter.extractor.Extractor._extract_directives` detects citations
 of `DIRECTIVE_\d{3}` and tactic-id slugs inside a directive's `description` body
 and lifts them into a structured field.
-**Consumer**: `charter.activation.context.build_charter_context` resolves the catalog IDs
+**Consumer**: `charter.context.build_charter_context` resolves the catalog IDs
 via `DoctrineService.directives.get(id)` / `tactics.get(id)` and surfaces the
 catalog body (or fetch + when-doing) when the charter-side `DIR-NNN` is included
 in a resolved action context.
@@ -87,7 +87,7 @@ directives:
 
 ### Pydantic mapping
 
-`charter.activation.schemas.Directive` gains:
+`charter.schemas.Directive` gains:
 
 ```python
 class Directive(BaseModel):
@@ -119,7 +119,7 @@ field and behave exactly as today (NFR-005).
 
 ## 3. `CharterContextResult.text` — required sections when `profile=` is passed
 
-`CharterContextResult` (dataclass at `src/charter/activation/context.py:36-45`) is
+`CharterContextResult` (dataclass at `src/charter/context.py:36-45`) is
 unchanged in shape; only the rendered `text` field gains structure. When
 `build_charter_context(repo_root, action=<bootstrap-action>, profile=<id>)` is
 called with a known profile against a project whose charter and doctrine catalog

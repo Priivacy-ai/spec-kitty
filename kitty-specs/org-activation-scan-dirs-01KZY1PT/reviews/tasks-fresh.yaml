@@ -9,16 +9,16 @@ findings:
     severity: 2
     title: T001 step 6's "Alternatively" parenthetical misdescribes test_merged_graph_on_live_path.py's own pattern as a manual three-call graph build
     evidence:
-      - artifact: "tasks/WP01-org-scan-dirs-flat-layout-fix.md § Subtask T001, step 6 (\"Alternatively, build the merged graph directly via `doctrine.drg.loader.load_built_in_graph()` + `load_graph_or_dir(org_root)` + `merge_layers(...)`, in the patching style `tests/charter/test_merged_graph_on_live_path.py` already uses to inject a fixture layer via `patch(\\\"charter.activation._drg_helpers.load_built_in_graph\\\", ...)`...\")"
-      - code: "tests/charter/test_merged_graph_on_live_path.py:47-52 (test_load_validated_graph_invokes_assert_valid: patches `charter.activation._drg_helpers.load_built_in_graph` and then calls `load_validated_graph(tmp_path)` — it never calls `load_built_in_graph()` / `load_graph_or_dir()` / `merge_layers()` directly itself)"
-      - code: "src/charter/activation/_drg_helpers.py:55-97 (load_validated_graph's own body: `built_in = load_built_in_graph(); org = load_graph_or_dir(org_root) if org_root and org_root.exists() else None; ... merged = merge_layers(merge_layers(built_in, org), project)` — this IS the 'direct' three-call construction, but it is `load_validated_graph`'s internal implementation, not a pattern the cited test file demonstrates externally)"
+      - artifact: "tasks/WP01-org-scan-dirs-flat-layout-fix.md § Subtask T001, step 6 (\"Alternatively, build the merged graph directly via `doctrine.drg.loader.load_built_in_graph()` + `load_graph_or_dir(org_root)` + `merge_layers(...)`, in the patching style `tests/charter/test_merged_graph_on_live_path.py` already uses to inject a fixture layer via `patch(\\\"charter._drg_helpers.load_built_in_graph\\\", ...)`...\")"
+      - code: "tests/charter/test_merged_graph_on_live_path.py:47-52 (test_load_validated_graph_invokes_assert_valid: patches `charter._drg_helpers.load_built_in_graph` and then calls `load_validated_graph(tmp_path)` — it never calls `load_built_in_graph()` / `load_graph_or_dir()` / `merge_layers()` directly itself)"
+      - code: "src/charter/_drg_helpers.py:55-97 (load_validated_graph's own body: `built_in = load_built_in_graph(); org = load_graph_or_dir(org_root) if org_root and org_root.exists() else None; ... merged = merge_layers(merge_layers(built_in, org), project)` — this IS the 'direct' three-call construction, but it is `load_validated_graph`'s internal implementation, not a pattern the cited test file demonstrates externally)"
     claim: >
       The parenthetical presents two genuinely different techniques as if one instance of the
       other: "(a) build the merged graph directly via three separate loader calls, (b) in the
       patching style [that file] already uses". But `test_merged_graph_on_live_path.py` never
       builds a graph "directly" via `load_built_in_graph()` + `load_graph_or_dir()` +
       `merge_layers()` in test code — it always goes through `load_validated_graph(tmp_path)`
-      (the seam under test) and only patches `charter.activation._drg_helpers.load_built_in_graph` to
+      (the seam under test) and only patches `charter._drg_helpers.load_built_in_graph` to
       substitute a fixture built-in layer; `merge_layers` is called inside
       `load_validated_graph`, not by the test. The three-call "direct" construction the WP
       recommends is actually `load_validated_graph`'s own internal implementation, reproduced
@@ -28,7 +28,7 @@ findings:
       `load_built_in_graph` AND manually call the three loader functions — would find the
       patch has no effect on their manual `load_built_in_graph()` call (since they invoke the
       unpatched `doctrine.drg.loader.load_built_in_graph` directly, not through
-      `charter.activation._drg_helpers`'s patchable reference), producing confusion during review even
+      `charter._drg_helpers`'s patchable reference), producing confusion during review even
       though the primary, unambiguous instruction earlier in the same step (call
       `load_validated_graph(repo_root, org_root=<org_root>)` explicitly) is correct and
       sufficient on its own.
@@ -38,7 +38,7 @@ findings:
       — bypassing `load_validated_graph` entirely, which sidesteps the `org_root` fallback
       problem by construction; OR (2) call `load_validated_graph(repo_root, org_root=<org_root>)`
       directly (the primary instruction above) while optionally patching
-      `charter.activation._drg_helpers.load_built_in_graph` — in the style
+      `charter._drg_helpers.load_built_in_graph` — in the style
       `tests/charter/test_merged_graph_on_live_path.py` uses — only if you also want to
       substitute a fixture built-in layer instead of the real shipped one." Do not describe (1)
       as an instance of the cited file's pattern.

@@ -12,18 +12,18 @@ findings:
     evidence:
       - code: "src/specify_cli/cli/commands/charter/mission_type.py:106"
       - code: "src/specify_cli/cli/commands/charter/mission_type.py:84"
-      - code: "src/charter/activation/mission_type_profiles.py:827"
-      - code: "src/charter/activation/mission_type_profiles.py:73-82"
+      - code: "src/charter/mission_type_profiles.py:827"
+      - code: "src/charter/mission_type_profiles.py:73-82"
     claim: >
       `resolve_mission_type_source_layer` (src/specify_cli/cli/commands/charter/mission_type.py:97-114)
-      does `from charter.activation.mission_type_profiles import _resolve_action_sequence_layer` — a
-      leading-underscore symbol never listed in `charter.activation.mission_type_profiles.__all__`
-      (src/charter/activation/mission_type_profiles.py:73-82) and never re-exported through any charter
+      does `from charter.mission_type_profiles import _resolve_action_sequence_layer` — a
+      leading-underscore symbol never listed in `charter.mission_type_profiles.__all__`
+      (src/charter/mission_type_profiles.py:73-82) and never re-exported through any charter
       facade. This is inconsistent with the pattern the SAME function applies one line above
       it (`resolve_layered_roster`, mission_type.py:76-94), which reaches
       `resolve_layered_mission_types` only via the `charter.missions` facade door WP07
       deliberately widened for that exact purpose (src/charter/missions.py). It is also
-      inconsistent with `charter.activation.mission_type_profiles`'s own documented intent: every other
+      inconsistent with `charter.mission_type_profiles`'s own documented intent: every other
       symbol this file imports from that module (`MissionTypeEmptyActionSequenceError`,
       `UnknownMissionTypeError`, `existing_mission_types`, `resolve_mission_type_context`,
       mission_type.py:31-36) is a name the module's author put in `__all__` on purpose;
@@ -35,7 +35,7 @@ findings:
       second, cross-package consumer would depend on it directly. No existing gate catches
       this: `tests/architectural/test_layer_rules.py` enforces package-level direction
       (kernel<-doctrine<-charter<-specify_cli) and would pass regardless of the leading
-      underscore since `charter.activation.mission_type_profiles` is a charter module and specify_cli is
+      underscore since `charter.mission_type_profiles` is a charter module and specify_cli is
       permitted to import from it; `tests/architectural/test_events_tracker_public_imports.py`
       only guards `spec_kitty_events._internal`/`spec_kitty_tracker._internal`, not
       underscore-prefixed functions inside charter modules; ruff's selected rule set (E, F, W,
@@ -50,23 +50,23 @@ findings:
       one call site opts out of it.
     remediation: >
       Rename `_resolve_action_sequence_layer` to a public name (e.g.
-      `resolve_action_sequence_layer`) in src/charter/activation/mission_type_profiles.py and add it to
+      `resolve_action_sequence_layer`) in src/charter/mission_type_profiles.py and add it to
       that module's `__all__` (currently mission_type_profiles.py:73-82), then update both the
       in-module caller (mission_type_profiles.py:949) and the cross-module caller
       (mission_type.py:106) to the new public name. This keeps the existing
-      "specify_cli imports charter.activation.mission_type_profiles's public symbols directly" pattern
+      "specify_cli imports charter.mission_type_profiles's public symbols directly" pattern
       already established in this file (mission_type.py:31-36) — no facade widening is needed
-      since `charter.activation.mission_type_profiles` is itself a charter module, not a doctrine module
+      since `charter.mission_type_profiles` is itself a charter module, not a doctrine module
       behind the doctrine-census facade wall — while making the CLI's real dependency on this
       helper visible in the module's own public contract instead of reaching around it.
 
   - id: PR-BOUNDARY-002
     lens: "facade widening / public-surface hygiene"
     severity: 1
-    title: "MissionTypeEmptyActionSequenceError is imported by name from two other src/ modules but is missing from charter.activation.mission_type_profiles.__all__"
+    title: "MissionTypeEmptyActionSequenceError is imported by name from two other src/ modules but is missing from charter.mission_type_profiles.__all__"
     evidence:
-      - code: "src/charter/activation/mission_type_profiles.py:73-82"
-      - code: "src/charter/activation/mission_type_profiles.py:259"
+      - code: "src/charter/mission_type_profiles.py:73-82"
+      - code: "src/charter/mission_type_profiles.py:259"
       - code: "src/specify_cli/cli/commands/charter/mission_type.py:32"
       - code: "src/specify_cli/cli/commands/charter/activate.py"
     claim: >
@@ -75,7 +75,7 @@ findings:
       `src/specify_cli/cli/commands/charter/activate.py` (its `except UnknownMissionTypeError`
       handler comment explicitly discusses this error class propagating past it), i.e. it is a
       genuinely public, cross-module-depended-on symbol, yet it was never added to
-      `charter.activation.mission_type_profiles.__all__` (mission_type_profiles.py:73-82, which still
+      `charter.mission_type_profiles.__all__` (mission_type_profiles.py:73-82, which still
       only lists `CrossGrainDoubleDeclarationError`, `GovernancePayload`,
       `MissionTypeProfile`, `ResolvedGovernance`, `ResolvedMissionType`,
       `UnknownMissionTypeError`, `existing_mission_types`, `resolve_mission_type_context`,
@@ -87,5 +87,5 @@ findings:
       `MissionTypeEmptyActionSequenceError` docstring, "Mirrors UnknownMissionTypeError's
       shape").
     remediation: >
-      Add `"MissionTypeEmptyActionSequenceError"` to `charter.activation.mission_type_profiles.__all__`
+      Add `"MissionTypeEmptyActionSequenceError"` to `charter.mission_type_profiles.__all__`
       (mission_type_profiles.py:73-82), alongside `UnknownMissionTypeError`, which it mirrors.

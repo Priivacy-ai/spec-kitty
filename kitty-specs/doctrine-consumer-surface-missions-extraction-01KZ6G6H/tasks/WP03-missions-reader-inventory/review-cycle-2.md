@@ -155,7 +155,7 @@ these rows as authority, so they need correcting rather than deleting:
    641-line 5-tier resolver, and it consumes `get_package_asset_root()` at **:317** and **:631** to
    build the `PACKAGE_DEFAULT` tier. `stay` is the right decision; the `current_path_assumption`
    is wrong.
-2. **`src/charter/activation/compiler.py`**, inside the consolidated charter row whose rationale reads "No
+2. **`src/charter/compiler.py`**, inside the consolidated charter row whose rationale reads "No
    independent path/root construction in any of these files": line **1316** is
    `mission_path = repo._mission_config_path(mission) or (doctrine_root / "missions" / mission /
    "mission.yaml")` — a stale `or`-fallback that post-move yields a nonexistent path into a

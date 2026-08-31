@@ -71,9 +71,9 @@ surface at all — confirmed against plan.md's "The Seam" section).
 ### Code-citation spot-check (verification-only, not a detection-pass category but performed as part of inconsistency-checking)
 
 Verified against the live checkout (not merely trusted from the artifacts):
-- `src/charter/activation/kind_vocabulary.py:200` — `_org_scan_dirs` def line matches
+- `src/charter/kind_vocabulary.py:200` — `_org_scan_dirs` def line matches
   spec.md's `:200-209` citation.
-- `src/charter/activation/kind_vocabulary.py:158` — `_scan_roots` docstring sentence
+- `src/charter/kind_vocabulary.py:158` — `_scan_roots` docstring sentence
   ("`org_roots` preserves the legacy package-shaped root contract...")
   matches plan.md's `:158-160` citation and Campsite-Clean Scope's quoted
   text verbatim.

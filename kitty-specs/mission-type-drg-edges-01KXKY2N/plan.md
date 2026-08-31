@@ -133,7 +133,7 @@ src/doctrine/agent_profiles/repository.py  # IC-3a: _default_drg_path + :289 →
 src/specify_cli/doctrine/pack_validator.py # IC-3a: :513 monolith read → seam
 src/specify_cli/calibration/walker.py      # IC-3a: _built_in_graph_path :430-437 → seam
 src/specify_cli/charter_runtime/lint/_drg.py  # IC-3a: :52,85 monolith candidate → seam
-src/charter/activation/_drg_helpers.py, compiler.py, reference_resolver.py  # IC-3a: route through seam (already load_graph_or_dir)
+src/charter/_drg_helpers.py, compiler.py, reference_resolver.py  # IC-3a: route through seam (already load_graph_or_dir)
 src/specify_cli/cli/commands/{_status_collectors.py,_doctrine_collect.py,_profile_health_render.py}  # IC-3a: seam
 src/doctrine/drg/migration/extractor.py    # IC-3b: generate_graph/_write_graph_yaml → per-kind fragments + delete monolith
 src/specify_cli/cli/commands/doctrine.py   # IC-3b: regenerate-graph writes/verifies sharded layout + atomic delete

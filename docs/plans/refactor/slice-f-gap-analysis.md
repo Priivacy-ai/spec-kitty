@@ -49,7 +49,7 @@ The 3.2.0 epic rephrases this as:
 ### Current codebase state
 
 **What exists:**
-- `charter.activation._drg_helpers._resolve_org_root` — an intentionally inert stub that returns `None`.
+- `charter._drg_helpers._resolve_org_root` — an intentionally inert stub that returns `None`.
   It exists to mark the extension point; the real resolution lives in
   `specify_cli.doctrine.config.resolve_org_roots`, which accepts a `repo_root: Path`
   and returns a list of configured org-pack root paths from `.kittify/config.yaml`.

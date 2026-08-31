@@ -255,7 +255,7 @@ the single largest category and the first lever to pull.
  562  specify_cli.next
  524  specify_cli.status
  508  specify_cli.review
- 439  charter.activation.synthesizer
+ 439  charter.synthesizer
  434  specify_cli.agent_utils
 ```
 

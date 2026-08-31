@@ -64,7 +64,7 @@ findings:
       one is actually correct — exactly the vagueness a red-first step is supposed to
       eliminate. (Separately, `pack_manager.CharterPackManager.activate`'s own ID-validation
       step, `list_available` → `_resolve_org_layer_dir`
-      (src/charter/activation/pack_manager.py:238-253), already resolves the flat org layout correctly
+      (src/charter/pack_manager.py:238-253), already resolves the flat org layout correctly
       via a wholly different scan path than `_org_scan_dirs`, so the `activate()` write itself
       succeeds pre-fix — it is only the later `filter_graph_by_activation` step, going through
       `_org_scan_dirs`, that drops the node. This confirms the round trip's only reachable red

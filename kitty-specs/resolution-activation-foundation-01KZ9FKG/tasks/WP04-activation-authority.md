@@ -24,8 +24,8 @@ authoritative_surface: src/charter/
 create_intent: []
 execution_mode: code_change
 owned_files:
-- src/charter/activation/pack_context.py
-- src/charter/activation/mission_type_profiles.py
+- src/charter/pack_context.py
+- src/charter/mission_type_profiles.py
 - tests/charter/test_pack_context.py
 - tests/charter/test_mission_type_activation_gating.py
 role: implementer

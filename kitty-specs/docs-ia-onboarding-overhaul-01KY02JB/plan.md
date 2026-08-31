@@ -32,7 +32,7 @@ entry in the existing `scripts/docs/redirect_map.yaml` (no new redirect mechanis
 
 | Charter principle | Applies to this mission | Compliance |
 |---|---|---|
-| Single canonical authority | Yes — glossary terms, doctrine kind names, mission-type names must each have one owning source. | Pass. Glossary source stays `.kittify/glossaries/spec_kitty_core.yaml` (FR-011/012); doctrine kind vocabulary sourced from `charter.activation.kind_vocabulary` (FR-007); no new parallel glossary or doctrine registry is introduced. |
+| Single canonical authority | Yes — glossary terms, doctrine kind names, mission-type names must each have one owning source. | Pass. Glossary source stays `.kittify/glossaries/spec_kitty_core.yaml` (FR-011/012); doctrine kind vocabulary sourced from `charter.kind_vocabulary` (FR-007); no new parallel glossary or doctrine registry is introduced. |
 | Architectural alignment | Yes — the shared-package boundary and DocFX-as-canonical-site-generator decisions are pre-existing architecture. | Pass. C-001 explicitly keeps DocFX/GitHub Pages internals untouched; the redirect mechanism reuses the existing `common-docs-consolidation` decision (D4) rather than introducing an alternative. |
 | Domain-driven splits + tiered rigour | Loosely applies — "zones" and "navigation groups" are the domain model for this mission (see Key Entities in spec.md). | Pass. `NavigationZone`/`NavigationGroup`/`DocsPage` model is the bounded structure; rigour is proportional (docs content, not a runtime system). |
 | ATDD-first | Yes — every FR in spec.md carries an explicit acceptance criterion. | Pass. Tasks phase will derive WPs directly from FR acceptance criteria. |

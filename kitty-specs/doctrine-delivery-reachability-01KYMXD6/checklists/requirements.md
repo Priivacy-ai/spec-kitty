@@ -42,7 +42,7 @@ path, and three FRs with no acceptance scenario. All are folded into the revised
 
 **Run 1's NFR-003 note was wrong and is withdrawn.** It deferred the bound to plan on the grounds
 that "the correct number is a grain decision". Half of that is false — the context budget is already
-an absolute constant (`BUDGET_DEFAULT = 32_000`, `src/charter/activation/context_renderers/token_budget.py`),
+an absolute constant (`BUDGET_DEFAULT = 32_000`, `src/charter/context_renderers/token_budget.py`),
 with degradation-to-fetch-stanza implemented. Worse, the original wording ("no action emits the full
 activated set verbatim") was satisfiable by **re-introducing a cap**, contradicting FR-013 in the same
 document. NFR-003 now forbids truncation outright and carries a shrink-only cardinality ceiling of 90.

@@ -34,11 +34,11 @@ authoritative_surface: src/charter/
 execution_mode: code_change
 owned_files:
 - src/charter/extractor.py
-- src/charter/activation/resolver.py
-- src/charter/activation/compiler.py
-- src/charter/activation/context.py
+- src/charter/resolver.py
+- src/charter/compiler.py
+- src/charter/context.py
 - src/charter/parser.py
-- src/charter/activation/catalog.py
+- src/charter/catalog.py
 - tests/agent/test_workflow_charter_context.py
 - tests/agent/cli/commands/test_charter_cli.py
 - tests/merge/test_profile_charter_e2e.py
@@ -76,14 +76,14 @@ CC=28, two `# noqa: C901` suppressions. It dispatches on `field_name` via a 26-b
 and set it on a `GovernanceConfig`. The fix is to replace the chain with a
 `dict[str, Callable]` dispatch table — one handler per field name.
 
-`src/charter/activation/resolver.py::resolve_governance` (CC=20) has three independent resource-resolution
+`src/charter/resolver.py::resolve_governance` (CC=20) has three independent resource-resolution
 blocks (paradigms, tools, directives) inlined into a single function. Each block is an
 independent concept that deserves its own helper. FR-007 is conditional on C-001 (DRG gate).
 
-`src/charter/activation/compiler.py::_build_references_from_service` (7 args, 17 branches) is a long
+`src/charter/compiler.py::_build_references_from_service` (7 args, 17 branches) is a long
 parameter list smell. Reducing to ≤ 5 parameters is sufficient per FR-008.
 
-`src/charter/activation/context.py` and `src/charter/parser.py` have trivial one-line fixes (FR-009, FR-010).
+`src/charter/context.py` and `src/charter/parser.py` have trivial one-line fixes (FR-009, FR-010).
 
 ## Pre-work: C-001 gate check
 
@@ -181,7 +181,7 @@ def _extract_governance(section: Section, config: GovernanceConfig) -> None:
 
 **Purpose**: Extract three independent resource blocks into named helpers (FR-007).
 
-**File**: `src/charter/activation/resolver.py`
+**File**: `src/charter/resolver.py`
 
 **SKIP IF**: DRG rebuild mission is active (see pre-work check above). Document the skip in the
 WP review comment so it can be tracked.
@@ -225,7 +225,7 @@ After extraction, CC of `resolve_governance` must be ≤ 8.
 
 **Purpose**: Reduce from 7 arguments to ≤ 5 (FR-008).
 
-**File**: `src/charter/activation/compiler.py`
+**File**: `src/charter/compiler.py`
 
 **Current signature** (inspect the actual file before implementing):
 Read the function, identify which parameters are logically grouped. The most natural grouping
@@ -251,7 +251,7 @@ directly (callers likely already have a service reference).
 
 **Purpose**: Replace magic numbers 2 and 3 with named constants (FR-009).
 
-**File**: `src/charter/activation/context.py`
+**File**: `src/charter/context.py`
 
 **Change** (one-liner per constant):
 ```python
@@ -264,7 +264,7 @@ Replace each occurrence of the literal `2` and `3` used as depth thresholds with
 constant. Do not replace occurrences of `2` or `3` that are used for other purposes (e.g.,
 list indices, string formatting).
 
-**Validation**: `ruff check src/charter/activation/context.py --select PLR2004` — zero magic number violations.
+**Validation**: `ruff check src/charter/context.py --select PLR2004` — zero magic number violations.
 
 ---
 
@@ -294,15 +294,15 @@ This is a `change-apply-smallest-viable-diff` — one mechanical replacement, no
 
 ## Subtask T032 — Decompose S3776-violating functions in `catalog.py`
 
-**Purpose**: Reduce Sonar cognitive complexity for the functions in `src/charter/activation/catalog.py`
+**Purpose**: Reduce Sonar cognitive complexity for the functions in `src/charter/catalog.py`
 that are flagged by SonarCloud (`python:S3776`) in PR #592 backlog (#594, FR-019).
 
-**File**: `src/charter/activation/catalog.py` (263 lines, 7 functions)
+**File**: `src/charter/catalog.py` (263 lines, 7 functions)
 
 **Pre-work — identify the offenders**:
 
 ```bash
-ruff check src/charter/activation/catalog.py --select C901   # ruff proxy for CC
+ruff check src/charter/catalog.py --select C901   # ruff proxy for CC
 ```
 
 Read the file and identify which functions have the highest branch depth. Likely candidates:
@@ -330,9 +330,9 @@ branches of its own.
 **Validation**:
 
 ```bash
-ruff check src/charter/activation/catalog.py --select C901     # CC ≤ 10 per function
+ruff check src/charter/catalog.py --select C901     # CC ≤ 10 per function
 pytest tests/ -k "catalog or charter" -x -q
-mypy src/charter/activation/catalog.py
+mypy src/charter/catalog.py
 ```
 
 **Note**: If `load_doctrine_catalog` is already ≤ 10 CC according to ruff (Sonar uses a
@@ -380,7 +380,7 @@ pytest tests/ -x --timeout=120
 3. Check that `_FIELD_HANDLERS` contains an entry for every field name that was previously an `if/elif` branch. Count the branches in the old code and compare.
 4. For T015: if deferred, the review comment must explicitly state "T015 deferred — DRG mission <slug> is active".
 5. Confirm no changes were made to `src/specify_cli/charter/` (C-002 constraint).
-6. Run `ruff check src/charter/activation/catalog.py --select C901` — confirm CC ≤ 10 for all functions (T032).
+6. Run `ruff check src/charter/catalog.py --select C901` — confirm CC ≤ 10 for all functions (T032).
 
 ## Activity Log
 

@@ -31,12 +31,12 @@ One architectural gate failure blocks approval. All other criteria are met.
 
 ## Passing Checks
 
-- `src/charter/activation/consistency_check.py` exists with `ConsistencyReport` (all required fields: `coherent`, `unknown_references`, `missing_from_doctrine`, `kind_violations`, `suggestions`) and `run_consistency_check()`.
+- `src/charter/consistency_check.py` exists with `ConsistencyReport` (all required fields: `coherent`, `unknown_references`, `missing_from_doctrine`, `kind_violations`, `suggestions`) and `run_consistency_check()`.
 - `ConsistencyReport.to_json()` is correctly implemented.
 - `CharterPackManager.list_available(ctx, kind)` is used (not `get_doctrine_ids`).
 - All 7 tests in `tests/charter/test_consistency_check.py` pass.
-- `ruff check src/charter/activation/consistency_check.py` — clean.
-- `mypy src/charter/activation/consistency_check.py --strict` — clean.
+- `ruff check src/charter/consistency_check.py` — clean.
+- `mypy src/charter/consistency_check.py --strict` — clean.
 - Cherry-picks from WP03 (`invocation_context.py`) and WP04 (`pack_manager.py`) are byte-for-byte identical to the originals — accepted.
 - Silent exception paths have documented rationale (DRG load is best-effort).
 - NFR-003 performance: test completes in 1.06s (limit: 2s).
@@ -51,15 +51,15 @@ One architectural gate failure blocks approval. All other criteria are met.
 ```
 Symbol-level dead-code gate FAILED. The following public symbols are declared
 in __all__ but no other src/ file imports them:
-    - charter.activation.consistency_check::ConsistencyReport
-    - charter.activation.consistency_check::run_consistency_check
+    - charter.consistency_check::ConsistencyReport
+    - charter.consistency_check::run_consistency_check
 ```
 
 Additionally, two stale allowlist entries now need removal:
 ```
 Stale `_SYMBOL_ALLOWLIST` entries detected. The following symbols now have
 at least one caller and must be removed from the allowlist:
-    - charter.activation.invocation_context::ProjectContext
+    - charter.invocation_context::ProjectContext
     - doctrine.missions.models::MissionStep
 ```
 
@@ -84,8 +84,8 @@ _CATEGORY_C_WP_IN_FLIGHT_CHARTER_SCOPE: frozenset[str] = frozenset(
         # ... existing entries ...
         # consumed by charter pack consistency-check CLI command (WP06,
         # charter-pack-activation-layer lane-f); wiring deferred
-        "charter.activation.consistency_check::ConsistencyReport",
-        "charter.activation.consistency_check::run_consistency_check",
+        "charter.consistency_check::ConsistencyReport",
+        "charter.consistency_check::run_consistency_check",
     }
 )
 ```
@@ -99,7 +99,7 @@ ticket reference per the test's instruction (FR-303 pattern).
 ### Also Required
 
 Remove the two stale allowlist entries from `_SYMBOL_ALLOWLIST`:
-- `charter.activation.invocation_context::ProjectContext`
+- `charter.invocation_context::ProjectContext`
 - `doctrine.missions.models::MissionStep`
 
 These now have live callers and the test explicitly requests their removal.
@@ -116,5 +116,5 @@ test is part of the project's standard quality gate and fires on the new
 `__all__` exports. The fix is small: update `test_no_dead_symbols.py` and
 `_baselines.yaml`.
 
-No other changes to `src/charter/activation/consistency_check.py` or
+No other changes to `src/charter/consistency_check.py` or
 `tests/charter/test_consistency_check.py` are needed.

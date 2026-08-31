@@ -19,7 +19,7 @@ Adds an artifact to the project's activated set for its kind. Once at least one 
 1. Validate `kind` is one of the 9 activatable kinds. Error if unknown.
 2. Validate `id` exists in the doctrine catalog for that kind. Error if unknown artifact.
 3. Read current activation state from `.kittify/config.yaml`.
-4. If `activated_<kind>` key is absent in config.yaml (pre-upgrade project): materialize the initial activation set from `src/charter/activation/packs/default.yaml` for that kind before adding `id`. If the live doctrine catalog for this kind has entries absent from `default.yaml` (third-party artifacts), emit a visible warning that those artifacts will not be included in the materialized set.
+4. If `activated_<kind>` key is absent in config.yaml (pre-upgrade project): materialize the initial activation set from `src/charter/packs/default.yaml` for that kind before adding `id`. If the live doctrine catalog for this kind has entries absent from `default.yaml` (third-party artifacts), emit a visible warning that those artifacts will not be included in the materialized set.
 5. Add `id` to the activation set for `kind` in config.yaml.
 6. If `--cascade` is absent: emit a warning listing cross-kind references from `id` that were NOT cascaded, with hint to use `--cascade`.
 7. If `--cascade <scope>` is present: activate all artifacts of the specified kinds that `id` references (DRG edges or catalog cross-references).

@@ -36,7 +36,7 @@ The path all consumers treat as the pack root. Computed only via `OrgPackConfig.
 
 - `applies_to_languages` omitted ≡ always-applicable (unchanged).
 - `[any]` / `[all]` are **rejected tokens** at `doctrine validate` (FR-012), not literal languages and not (canonically) wildcards.
-- Diagnostic (`src/charter/activation/_catalog_miss.py`): a referenced-but-scope-filtered artifact is reported as "present but scope-filtered", distinct from "missing/malformed" (FR-013).
+- Diagnostic (`src/charter/_catalog_miss.py`): a referenced-but-scope-filtered artifact is reported as "present but scope-filtered", distinct from "missing/malformed" (FR-013).
 
 ## Tier Taxonomy (Thread C) — doctrine artifact, not a Python model
 

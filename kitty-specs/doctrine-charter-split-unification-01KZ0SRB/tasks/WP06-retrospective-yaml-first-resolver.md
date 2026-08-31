@@ -45,7 +45,7 @@ frontmatter as an **overridden secondary** for legacy `charter.md`-only projects
 emitted `governance.retrospective` block must exist).
 
 Read first (authoritative — do not re-derive): `../spec.md` FR-005 + User Story 2 (all 4 scenarios) + SC-002 +
-C-003; `../research.md` **D3** (resolver is a **downward** import: `charter.activation.charter_yaml_io.load_charter_yaml` +
+C-003; `../research.md` **D3** (resolver is a **downward** import: `charter.charter_yaml_io.load_charter_yaml` +
 `charter.bundle`, feeding the dict as highest-precedence through `_apply_block_to_policy`). Ground in the live
 anchors: the three redeclared `_CHARTER_REL` at `policy.py:39`, `mode.py:67`, `gate.py:116`; the precedence
 merge point `_apply_block_to_policy` at `policy.py:381`; the md-frontmatter reads at `policy.py:233-234`,
@@ -63,7 +63,7 @@ frontmatter (C-003). Cases 1-2 fail today (resolvers read md-frontmatter only). 
 #### T002 — Yaml-first resolution (D3)
 
 In each of `policy.py` / `mode.py` / `gate.py`, load `governance.retrospective` via
-`charter.activation.charter_yaml_io.load_charter_yaml` + `charter.bundle` (downward import — allowed) and feed it as the
+`charter.charter_yaml_io.load_charter_yaml` + `charter.bundle` (downward import — allowed) and feed it as the
 highest-precedence block through the existing `_apply_block_to_policy` (`policy.py:381`); keep the `charter.md`
 frontmatter read as the **overridden secondary** so legacy projects still resolve (C-003).
 

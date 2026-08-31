@@ -67,7 +67,7 @@ Produce the two artefacts every later WP consumes: (1) the **authoritative conte
 ### T001 — Finalize occurrence-map dispositions (verify)
 - Sweep **three** reader idioms, not one: `git grep 'files("doctrine'`, literal `"src/doctrine/…"` strings, **and `Path(__file__)`-relative** joins onto `"missions"`/kind names (these are invisible to the first two). Include `src/kernel/`, `src/charter/`, `src/specify_cli/`.
 - For every reader, confirm a move/stay entry exists in `occurrence_map.yaml`; 0 unclassified (SC-004).
-- **Include `src/charter/activation/catalog.py`** — its `_scan()` reads `resolve_doctrine_root()/<kind>/built-in` via the `files("doctrine")` root (not a per-kind anchor), so it is caught by no downstream guard; classify it REPOINT (owned by WP04).
+- **Include `src/charter/catalog.py`** — its `_scan()` reads `resolve_doctrine_root()/<kind>/built-in` via the `files("doctrine")` root (not a per-kind anchor), so it is caught by no downstream guard; classify it REPOINT (owned by WP04).
 - Re-confirm `missions/` = STAY (Phase 1b) and record the kernel/`__file__` readers that make it undeferrable in Phase 1.
 - Classify the two REVIEW readers: `specify_cli/migration/rewrite_opposed_by.py:192`, `core/upgrade_probe.py:8` (both docstrings → leave).
 - **Completeness check** (in `tests/doctrine/test_pack_relocation_preflight.py`, FR-002): a committed test that *runs the three sweeps* over `src/{doctrine,kernel,charter,specify_cli}` and **fails if any hit path is absent from `occurrence_map.yaml`** — so "0 unclassified" is machine-verified, not asserted (catches the `__file__`-relative idiom this WP itself calls invisible).

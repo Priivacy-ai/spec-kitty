@@ -118,7 +118,7 @@ review before acceptance; the review's corrections are folded in below.
 ### Decisions recorded
 
 - **One charter-mediated resolver.**
-  `charter.activation.mission_type_profiles.resolve_mission_type_context(repo_root, *,
+  `charter.mission_type_profiles.resolve_mission_type_context(repo_root, *,
   mission_type=None, feature_dir=None) -> ResolvedMissionType` is the single entry
   point for per-mission-type resolution. It resolves the type from an explicit
   argument → `feature_dir/meta.json` → **hard error for an *unknown* type**. It

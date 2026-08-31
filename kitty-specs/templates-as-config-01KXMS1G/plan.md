@@ -113,7 +113,7 @@ No charter violations or complexity exceptions are required.
 
 - **Purpose**: Expose each activated doctrine mission type's complete `template_set` mapping through the resolved context without eager I/O regression or profile-default substitution.
 - **Relevant requirements**: FR-001, FR-002, NFR-001, NFR-002, C-001, C-002, C-003
-- **Affected surfaces**: `src/doctrine/missions/models.py`, `src/doctrine/missions/mission_type_repository.py`, `src/charter/activation/mission_type_profiles.py`, `tests/charter/test_resolved_mission_type_context.py`, doctrine tests
+- **Affected surfaces**: `src/doctrine/missions/models.py`, `src/doctrine/missions/mission_type_repository.py`, `src/charter/mission_type_profiles.py`, `tests/charter/test_resolved_mission_type_context.py`, doctrine tests
 - **Sequencing/depends-on**: none
 - **Risks**: Mutable mapping leakage, loss of deterministic ordering, or eager repository access could violate context semantics and the 100 ms budget.
 

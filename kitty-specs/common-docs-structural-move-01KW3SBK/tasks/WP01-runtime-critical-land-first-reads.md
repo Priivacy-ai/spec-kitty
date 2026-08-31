@@ -22,12 +22,12 @@ subtasks:
 agent: "claude:opus:reviewer-renata:reviewer"
 history: []
 agent_profile: python-pedro
-authoritative_surface: src/charter/activation/context_renderers/authority_paths.py
+authoritative_surface: src/charter/context_renderers/authority_paths.py
 create_intent:
 - tests/docs/test_runtime_read_resolution.py
 execution_mode: code_change
 owned_files:
-- src/charter/activation/context_renderers/authority_paths.py
+- src/charter/context_renderers/authority_paths.py
 - src/specify_cli/compat/doctor.py
 - src/specify_cli/compat/registry.py
 - src/specify_cli/cli/commands/doctor.py
@@ -51,7 +51,7 @@ This WP **does not move any file**. It edits target literals in place and adds r
 
 ## Context
 
-`authority_paths.py` lives at **`src/charter/activation/context_renderers/authority_paths.py`** (not `src/specify_cli/charter/...`) and already reflects the #2160/#2115 ADR-default flip (`architecture/3.x/adr/` default with `architecture/2.x/adr/` back-compat). The occurrence map (`occurrence_map.yaml` → `status.runtime_critical_reads`) is the authority for the exact files, literals, and line numbers. Read it before touching anything.
+`authority_paths.py` lives at **`src/charter/context_renderers/authority_paths.py`** (not `src/specify_cli/charter/...`) and already reflects the #2160/#2115 ADR-default flip (`architecture/3.x/adr/` default with `architecture/2.x/adr/` back-compat). The occurrence map (`occurrence_map.yaml` → `status.runtime_critical_reads`) is the authority for the exact files, literals, and line numbers. Read it before touching anything.
 
 **The 6 reads (re-derived live, C-003):**
 
@@ -79,7 +79,7 @@ Read `occurrence_map.yaml` `exceptions:` + `status.runtime_critical_reads` + `ta
 Create `tests/docs/test_runtime_read_resolution.py`. For each of the 6 reads, write a test that asserts the **new** path resolves (i.e. that the reader, given the post-move layout, finds a real file). Seed the new-path fixtures so the test is meaningful **before** WP03 moves the real tree (use a tmp fixture tree mirroring `docs/migrations/`, `docs/context/`, `docs/adr/3.x/`). Prove the test is RED against the pre-edit code (the readers still point only at the old path), then green after the dual-read edit. Red-first through the pre-existing reader entry point, not the new literal.
 
 ### T003 — `authority_paths.py`: dual-read ADR + glossary literals
-In `src/charter/activation/context_renderers/authority_paths.py`, stage `DEFAULT_AUTHORITY_PATHS` to resolve **`architecture/3.x/adr/` ∪ `docs/adr/3.x/`** and **`glossary/contexts/` ∪ `docs/context/`**. Mirror the existing #2160/#2115 back-compat pattern (3.x default + 2.x fallback) — add the new `docs/` home as an additional candidate, do not delete the old yet. The glossary literal is the missed 4th read: it is inert today and becomes live when WP03 moves the glossary; the dual-read makes WP03 safe.
+In `src/charter/context_renderers/authority_paths.py`, stage `DEFAULT_AUTHORITY_PATHS` to resolve **`architecture/3.x/adr/` ∪ `docs/adr/3.x/`** and **`glossary/contexts/` ∪ `docs/context/`**. Mirror the existing #2160/#2115 back-compat pattern (3.x default + 2.x fallback) — add the new `docs/` home as an additional candidate, do not delete the old yet. The glossary literal is the missed 4th read: it is inert today and becomes live when WP03 moves the glossary; the dual-read makes WP03 safe.
 
 ### T004 — Shim-registry readers: dual-read to `docs/migrations/`
 In `src/specify_cli/compat/doctor.py` (`check_shim_registry()`, ~line 69) and `src/specify_cli/compat/registry.py` (~line 51), stage the read as `architecture/2.x/shim-registry.yaml` **∪** `docs/migrations/shim-registry.yaml` (prefer the new home, fall back to old). Keep the two readers byte-coherent (same resolution helper if one exists; otherwise the same candidate order).
@@ -100,8 +100,8 @@ Run `tests/docs/test_runtime_read_resolution.py` (all 6 green against the new-pa
 
 | Surface | Locus | Old literal | New literal | Move kind |
 |---------|-------|-------------|-------------|-----------|
-| `src/charter/activation/context_renderers/authority_paths.py` | `DEFAULT_AUTHORITY_PATHS` | `architecture/3.x/adr/` | `docs/adr/3.x/` (∪ old) | dual-read (verify post-fold) |
-| `src/charter/activation/context_renderers/authority_paths.py` | `DEFAULT_AUTHORITY_PATHS` | `glossary/contexts/` | `docs/context/` (∪ old) | dual-read (4th read, spec-missed) |
+| `src/charter/context_renderers/authority_paths.py` | `DEFAULT_AUTHORITY_PATHS` | `architecture/3.x/adr/` | `docs/adr/3.x/` (∪ old) | dual-read (verify post-fold) |
+| `src/charter/context_renderers/authority_paths.py` | `DEFAULT_AUTHORITY_PATHS` | `glossary/contexts/` | `docs/context/` (∪ old) | dual-read (4th read, spec-missed) |
 | `src/specify_cli/compat/doctor.py` | `check_shim_registry()` ~L69 | `architecture/2.x/shim-registry.yaml` | `docs/migrations/shim-registry.yaml` (∪ old) | dual-read |
 | `src/specify_cli/compat/registry.py` | ~L51 | `architecture/2.x/shim-registry.yaml` | `docs/migrations/shim-registry.yaml` (∪ old) | dual-read |
 | `src/specify_cli/cli/commands/doctor.py` | remediation string ~L509 | `architecture/2.x/shim-registry.yaml` | `docs/migrations/shim-registry.yaml` | `user_facing_strings`, lock-step |

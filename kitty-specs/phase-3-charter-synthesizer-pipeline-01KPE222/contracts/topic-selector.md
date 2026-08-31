@@ -53,7 +53,7 @@ Examples:
 <section-label>
 ```
 
-- Must match an entry in the known interview-section label set (maintained alongside `src/charter/activation/interview.py`).
+- Must match an entry in the known interview-section label set (maintained alongside `src/charter/interview.py`).
 - Case-sensitive, exact match.
 - No colon → this form is tried only when forms 1.1 and 1.2 cannot apply (because they require a `:`).
 

@@ -82,7 +82,7 @@ actually delivered the milestone's goals. Re-audited against the code and tracke
     token — note honestly that `mission-type` gating itself *pre-existed*; this mission
     verified it and added regression coverage rather than building it new. The two
     previously-divergent "canonical" builder functions unified onto one
-    (`charter.activation.doctrine_service_builder.build_activation_aware_doctrine_service`), and a
+    (`charter.doctrine_service_builder.build_activation_aware_doctrine_service`), and a
     triplicated missions-root hardcode consolidated onto
     `MissionTemplateRepository.default_missions_root()`. Five zero-tolerance AST/qualname
     architectural gates (one per bypass category) ship the durability guarantee, widened

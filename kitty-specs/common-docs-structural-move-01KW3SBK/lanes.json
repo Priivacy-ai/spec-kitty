@@ -13,7 +13,7 @@
       "write_scope": [
         ".kittify/charter/charter.md",
         "scripts/generate_contextive_glossaries.py",
-        "src/charter/activation/context_renderers/authority_paths.py",
+        "src/charter/context_renderers/authority_paths.py",
         "src/specify_cli/cli/commands/doctor.py",
         "src/specify_cli/compat/doctor.py",
         "src/specify_cli/compat/registry.py",

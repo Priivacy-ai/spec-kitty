@@ -37,7 +37,7 @@ All findings are evidence-based from source code at HEAD.
 **Decision**: Three-part fix — git rm sidecars, fix `doctrine_kind_subdir()`, add `built_in_only` early-exit.
 
 **Root cause**: Three interlocking defects:
-1. `doctrine_kind_subdir()` in `src/charter/activation/synthesizer/artifact_naming.py` maps kinds to plural dirs (`directives/`, `tactics/`, `styleguides/`) while `.gitignore` whitelists singular dirs (`directive/`, `tactic/`). Synthesized artifacts can never be committed under current structure.
+1. `doctrine_kind_subdir()` in `src/charter/synthesizer/artifact_naming.py` maps kinds to plural dirs (`directives/`, `tactics/`, `styleguides/`) while `.gitignore` whitelists singular dirs (`directive/`, `tactic/`). Synthesized artifacts can never be committed under current structure.
 2. 7 `adapter_id: fixture` sidecar placeholders were committed in commit `0b6e2d7d9` without corresponding generated artifacts.
 3. `validate_synthesis_state()` early-exits only when artifact_files, provenance_files, AND manifest are ALL absent. The seeded `synthesis-manifest.yaml` (with `built_in_only: true`, `artifacts: []`) prevents the early-exit even in fresh-seed state.
 
@@ -50,7 +50,7 @@ All findings are evidence-based from source code at HEAD.
 - Remove only the sidecars (Fix A alone): insufficient. Any future `charter synthesize --apply` run would recreate the same failure class by writing to plural dirs.
 - Fix only the validator early-exit (Fix C alone): masks the symptom without fixing the cause; leaves structurally ungittrackable synthesizer output.
 
-**Callers of `doctrine_kind_subdir()` to audit**: `src/charter/activation/synthesizer/write_pipeline.py` lines ~174, ~206, ~584. Any hardcoded plural-dir string in that file must also be updated.
+**Callers of `doctrine_kind_subdir()` to audit**: `src/charter/synthesizer/write_pipeline.py` lines ~174, ~206, ~584. Any hardcoded plural-dir string in that file must also be updated.
 
 ---
 

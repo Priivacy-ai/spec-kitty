@@ -71,7 +71,7 @@ lockfile `--strict` drift **252 removed / 296 changed / 0 added** against the co
 that gap **is FR-010's backfill workload**, closing to 0 only after the tree move + backfill.
 
 **Runtime read surface (re-derived live, C-003 / NFR-005):** `authority_paths.py` lives at
-**`src/charter/activation/context_renderers/authority_paths.py`** and already reflects the #2160/#2115
+**`src/charter/context_renderers/authority_paths.py`** and already reflects the #2160/#2115
 ADR-default flip (`architecture/3.x/adr/` default, back-compat for `architecture/2.x/adr/`). The
 **4 runtime-critical reads** (the occurrence-map regen refined the spec's "~3" — it MISSED the
 glossary read) are the `src/` paths that *resolve a real file at runtime* (not documentation
@@ -153,7 +153,7 @@ scripts/docs/                      # the rulers + generators (Mission A foundati
 ├── version_leakage_check.py       # LEAK-FRONTMATTER-MISMATCH — retired (FR-014)
 └── redirect_stub_generator.py     # NEW — emits <meta refresh> stubs from the redirect map (FR-006)
 
-src/charter/activation/context_renderers/authority_paths.py   # runtime-critical ADR read-path (IC-02, FIRST)
+src/charter/context_renderers/authority_paths.py   # runtime-critical ADR read-path (IC-02, FIRST)
 src/glossary/scope.py                              # load_seed_file — glossary read-path (C-006)
 src/specify_cli/dashboard/handlers/glossary.py     # GlossaryHandler — glossary read consumer (C-006)
 tests/                              # resolution / invariance / redirect-coverage / ruler-blocking tests
@@ -224,7 +224,7 @@ its content lands under `docs/`.
   `06_migration_and_shim_rules.md`). Re-point all 3 readers + the remediation string
   (`cli/commands/doctor.py:509`) in lock-step, dual-read.
 - **Relevant requirements**: FR-005, NFR-005; C-003.
-- **Affected surfaces**: `src/charter/activation/context_renderers/authority_paths.py` (ADR + `glossary/contexts/`
+- **Affected surfaces**: `src/charter/context_renderers/authority_paths.py` (ADR + `glossary/contexts/`
   literals); `src/specify_cli/compat/doctor.py` + `compat/registry.py` + `cli/commands/doctor.py:509`
   (shim-registry → `docs/migrations/`); the 2 **non-`src/` land-first reads** —
   `scripts/generate_contextive_glossaries.py` (`glossary/contexts/` → `docs/context/`) and

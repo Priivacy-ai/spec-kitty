@@ -81,11 +81,11 @@ default-on with a green suite.
 
 | Surface | File | Key form |
 |---------|------|----------|
-| `_ALLOWED_KINDS` | `src/charter/activation/activations.py` | plural `"glossary_packs"` |
-| `_BUILTIN_ARTIFACT_KINDS` | `src/charter/activation/pack_context.py` | plural `"glossary_packs"` (default-on) |
+| `_ALLOWED_KINDS` | `src/charter/activations.py` | plural `"glossary_packs"` |
+| `_BUILTIN_ARTIFACT_KINDS` | `src/charter/pack_context.py` | plural `"glossary_packs"` (default-on) |
 | `_ORG_DRG_KIND_ALIASES` → `_ORG_DRG_CANONICAL_KINDS` | `src/doctrine/drg/org_pack_loader.py` | alias dict, plural |
-| `_SINGULAR_TO_PLURAL_KIND` | `src/charter/activation/activations.py` | `{"glossary_pack":"glossary_packs"}` |
-| `_CLI_KIND_TO_DRG_SINGULAR` | `src/charter/activation/consistency_check.py` | `{"glossary-pack":"glossary_pack"}` |
+| `_SINGULAR_TO_PLURAL_KIND` | `src/charter/activations.py` | `{"glossary_pack":"glossary_packs"}` |
+| `_CLI_KIND_TO_DRG_SINGULAR` | `src/charter/consistency_check.py` | `{"glossary-pack":"glossary_pack"}` |
 
 ## Relationships
 

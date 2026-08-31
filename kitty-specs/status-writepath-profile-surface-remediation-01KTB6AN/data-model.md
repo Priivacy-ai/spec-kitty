@@ -13,7 +13,7 @@ Phase 1 design detail for `status-writepath-profile-surface-remediation-01KTB6AN
 | `TransitionRequest` | `specify_cli/status/models.py` | None (reused as `transition()` input) |
 | `StatusEvent` | `specify_cli/status/models.py` | None (return of `transition()`) |
 | `CommitReceipt` | `specify_cli/coordination/types.py` | None (return of `save()`) |
-| `charter.activation.resolver.DoctrineService` (wrapper) | `charter/resolver.py` | None (reused via factory) |
+| `charter.resolver.DoctrineService` (wrapper) | `charter/resolver.py` | None (reused via factory) |
 | `PackContext` | `charter/pack_context.py` | None (3-state `activated_agent_profiles`) |
 | `AgentProfile` | `doctrine/agent_profiles/profile.py` | None (rendered by `show`) |
 
@@ -22,7 +22,7 @@ Phase 1 design detail for `status-writepath-profile-surface-remediation-01KTB6AN
 ### Factory (FR-010)
 
 ```python
-def build_activation_aware_doctrine_service(repo_root: Path) -> "charter.activation.resolver.DoctrineService":
+def build_activation_aware_doctrine_service(repo_root: Path) -> "charter.resolver.DoctrineService":
     """Construct the inner doctrine service and wrap it with charter activation filters.
 
     Single construction seam for all profile surfaces (profile list/show,
@@ -33,7 +33,7 @@ def build_activation_aware_doctrine_service(repo_root: Path) -> "charter.activat
 
 **Placement decision:** `src/specify_cli/doctrine_service_factory.py` (new, thin) — used by `profile show` (FR-013/014).
 
-**FR-016 correction (dialectic review):** `_build_doctrine_service` is at `charter/context.py:1235`, returns a plain `DoctrineService(**kwargs)` with **no `PackContext`**, and has **6 callers** (333/352/863/1373/2620 + `_maybe_build_doctrine_service@2887`). Do **not** blanket-wrap it (would change the return type for all 6). Instead add a **scoped** `_build_activation_aware_doctrine_service` inside `charter.activation.context`, used **only** by the `agent-profile:<id>` include branch, constructing `PackContext.from_config(repo_root)` locally (the module already imports `PackContext` and constructs one in a *different* function near line 244 — that line is **not** inside `_build_doctrine_service`).
+**FR-016 correction (dialectic review):** `_build_doctrine_service` is at `charter/context.py:1235`, returns a plain `DoctrineService(**kwargs)` with **no `PackContext`**, and has **6 callers** (333/352/863/1373/2620 + `_maybe_build_doctrine_service@2887`). Do **not** blanket-wrap it (would change the return type for all 6). Instead add a **scoped** `_build_activation_aware_doctrine_service` inside `charter.context`, used **only** by the `agent-profile:<id>` include branch, constructing `PackContext.from_config(repo_root)` locally (the module already imports `PackContext` and constructs one in a *different* function near line 244 — that line is **not** inside `_build_doctrine_service`).
 
 ### `profile list` (FR-011/012) — corrected to filter, not swap
 

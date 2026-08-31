@@ -47,7 +47,7 @@ spec-kitty implement WP04
 **Steps**:
 1. `git mv src/doctrine/constitution/ src/doctrine/charter/`
 2. In `src/doctrine/charter/defaults.yaml`:
-   - Replace all "constitution" references (e.g., `constitution.interview.apply_answer_overrides` → `charter.activation.interview.apply_answer_overrides`)
+   - Replace all "constitution" references (e.g., `constitution.interview.apply_answer_overrides` → `charter.interview.apply_answer_overrides`)
 
 **Validation**: `rg -i constitution src/doctrine/charter/` returns zero matches.
 

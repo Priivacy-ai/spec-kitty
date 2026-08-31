@@ -161,11 +161,11 @@ src/charter/synthesizer/
 **Modified existing files**:
 
 ```
-src/charter/activation/compiler.py          # FR-009: extend _default_doctrine_service project-root candidate list
+src/charter/compiler.py          # FR-009: extend _default_doctrine_service project-root candidate list
                                  #   to include .kittify/doctrine/ (in addition to repo_root/src/doctrine
                                  #   and repo_root/doctrine). Discovery is conditional on directory presence.
-src/charter/activation/context.py           # FR-009 / FR-018: extend _build_doctrine_service with the same candidate.
-src/charter/activation/_drg_helpers.py      # Already reads .kittify/doctrine/graph.yaml for the project DRG layer;
+src/charter/context.py           # FR-009 / FR-018: extend _build_doctrine_service with the same candidate.
+src/charter/_drg_helpers.py      # Already reads .kittify/doctrine/graph.yaml for the project DRG layer;
                                  #   no change required. Listed here as a touchpoint for reviewers, not a diff.
 src/charter/bundle.py            # FR-015: manifest-v1 gains optional synthesis-bridging fields that cross
                                  #   the .kittify/charter/ ↔ .kittify/doctrine/ boundary (backwards-compatible).
@@ -212,7 +212,7 @@ tests/agent/cli/commands/
 └── test_charter_resynthesize_cli.py         # CLI integration: resynthesize --topic
 ```
 
-**Structure Decision**: Single-project extension. All new code lives under `src/charter/synthesizer/` as a self-contained subpackage. All tests live under `tests/charter/synthesizer/` mirroring the module layout. Cross-package edits are limited to *extending a candidate list* in `src/charter/activation/compiler.py` and `src/charter/activation/context.py` (FR-009); `src/doctrine/**` is strictly read-only.
+**Structure Decision**: Single-project extension. All new code lives under `src/charter/synthesizer/` as a self-contained subpackage. All tests live under `tests/charter/synthesizer/` mirroring the module layout. Cross-package edits are limited to *extending a candidate list* in `src/charter/compiler.py` and `src/charter/context.py` (FR-009); `src/doctrine/**` is strictly read-only.
 
 **Storage Decision (Path D)**: Synthesized artifact content (directives, tactics, styleguides, project DRG graph) is written under `.kittify/doctrine/` using filenames that match the existing repository globs (`*.directive.yaml`, `*.tactic.yaml`, `*.styleguide.yaml`, plus `graph.yaml`). This is the tree the existing `DirectiveRepository`, `TacticRepository`, `StyleguideRepository`, and `_drg_helpers` project-layer loader already recognise — no consumer-side reshape is required beyond extending the project-root candidate list. Synthesis bookkeeping (per-artifact provenance sidecars at `.kittify/charter/provenance/`, commit-marker manifest at `.kittify/charter/synthesis-manifest.yaml`, ephemeral staging at `.kittify/charter/.staging/<runid>/`) is kept separate so `bundle validate` can bridge the two trees without doctrine loaders seeing bundle artifacts.
 
@@ -302,7 +302,7 @@ Applying `premortem-risk-identification` — "imagine this mission failed in six
 
 ## File Clusters (orientation for reviewers)
 
-- **Charter package**: `src/charter/synthesizer/*` (new), `src/charter/activation/compiler.py`, `src/charter/activation/context.py`, `src/charter/bundle.py` (modified — small diffs; `compiler.py` / `context.py` edits are candidate-list extensions only). `src/charter/activation/_drg_helpers.py` is a read touchpoint (already resolves project DRG from `.kittify/doctrine/graph.yaml`) but requires no diff.
+- **Charter package**: `src/charter/synthesizer/*` (new), `src/charter/compiler.py`, `src/charter/context.py`, `src/charter/bundle.py` (modified — small diffs; `compiler.py` / `context.py` edits are candidate-list extensions only). `src/charter/_drg_helpers.py` is a read touchpoint (already resolves project DRG from `.kittify/doctrine/graph.yaml`) but requires no diff.
 - **CLI**: `src/specify_cli/cli/commands/charter.py` (two new Typer subcommands).
 - **Doctrine** (unchanged): `src/doctrine/drg/**` is consumed only; do not expect diffs here.
 - **Tests**: `tests/charter/synthesizer/*` (new), `tests/charter/fixtures/synthesizer/*` (new), `tests/agent/cli/commands/test_charter_synthesize_cli.py` + `test_charter_resynthesize_cli.py` (new).

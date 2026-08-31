@@ -96,7 +96,7 @@ tests/
 
 - **Purpose**: Fix or redesign control flow Sonar proves is degenerate — methods that always return the same value (4× S3516) and conditions that can never be false (2× S2583).
 - **Relevant requirements**: FR-002, FR-003.
-- **Affected surfaces**: `src/charter/activation/pack_manager.py:559`, `src/specify_cli/cli/commands/_command_surface_doctor.py:164`, `src/specify_cli/core/file_lock.py:271`, `src/specify_cli/status/reducer.py:751`, `src/runtime/next/runtime_bridge.py:1497`, `src/specify_cli/compat/remediation.py:445`.
+- **Affected surfaces**: `src/charter/pack_manager.py:559`, `src/specify_cli/cli/commands/_command_surface_doctor.py:164`, `src/specify_cli/core/file_lock.py:271`, `src/specify_cli/status/reducer.py:751`, `src/runtime/next/runtime_bridge.py:1497`, `src/specify_cli/compat/remediation.py:445`.
 - **Sequencing/depends-on**: none.
 - **Risks**: some may be intentional (protocol-conforming constant return / defensive guard). Each needs a judgment call: real bug → correct with a behavioral test; intentional → remove the smell (drop vacuous return, adjust signature, make invariant explicit) with a test — never a suppression.
 

@@ -9,9 +9,9 @@
 
 ### Overview
 
-| Property | Canonical (`src/charter/activation/context.py`) | Legacy (`src/specify_cli/charter/context.py`) |
+| Property | Canonical (`src/charter/context.py`) | Legacy (`src/specify_cli/charter/context.py`) |
 |---|---|---|
-| Module | `charter.activation.context` | `specify_cli.charter.context` |
+| Module | `charter.context` | `specify_cli.charter.context` |
 | `depth` parameter | Yes (1, 2, 3) | No |
 | `CharterContextResult.depth` field | Yes | No |
 | Action doctrine injection | Yes (`_append_action_doctrine_lines`) | No |
@@ -19,7 +19,7 @@
 | Styleguide/toolguide rendering | Yes (at depth 3) | No |
 | Guidelines rendering | Yes (at depth >= 2) | No |
 | `_load_references` fields | `id`, `title`, `local_path`, `kind`, `summary` | `id`, `title`, `local_path` only |
-| Resolver module | `charter.activation.resolver` (richer `GovernanceResolution` with tactics, styleguides, toolguides, procedures, profile_id, role) | `specify_cli.charter.resolver` (simpler `GovernanceResolution` with paradigms, directives, tools only) |
+| Resolver module | `charter.resolver` (richer `GovernanceResolution` with tactics, styleguides, toolguides, procedures, profile_id, role) | `specify_cli.charter.resolver` (simpler `GovernanceResolution` with paradigms, directives, tools only) |
 | Atomic write import | `kernel.atomic.atomic_write` | `specify_cli.core.atomic.atomic_write` |
 
 ### Detailed Comparison: All 4 Actions x 3 Depths
@@ -187,7 +187,7 @@ This is correct behavior: project-level governance narrows the action index, not
 
 ### Oracle Confirmation
 
-**The canonical path (`src/charter/activation/context.py`) is confirmed as the correct oracle for WP04 invariant tests.** Each action's resolved artifacts match its `index.yaml` source exactly. The project-directive intersection logic is sound.
+**The canonical path (`src/charter/context.py`) is confirmed as the correct oracle for WP04 invariant tests.** Each action's resolved artifacts match its `index.yaml` source exactly. The project-directive intersection logic is sound.
 
 ---
 
@@ -199,7 +199,7 @@ This is correct behavior: project-level governance narrows the action index, not
 |---|--------|--------|-------------|
 | 1 | `src/specify_cli/next/prompt_builder.py:13` | `from specify_cli.charter.context import build_charter_context` | Legacy |
 | 2 | `src/specify_cli/cli/commands/agent/workflow.py:20` | `from specify_cli.charter.context import build_charter_context` | Legacy |
-| 3 | `src/specify_cli/cli/commands/charter.py:13` | `from charter.activation.context import build_charter_context` | Canonical (already correct) |
+| 3 | `src/specify_cli/cli/commands/charter.py:13` | `from charter.context import build_charter_context` | Canonical (already correct) |
 
 ### Caller 1: `prompt_builder.py` (spec-kitty next)
 
@@ -211,7 +211,7 @@ This is correct behavior: project-level governance narrows the action index, not
 - No action doctrine, no guidelines, no filtered references.
 
 **After reroute** (canonical path):
-- Import changes to `from charter.activation.context import build_charter_context`.
+- Import changes to `from charter.context import build_charter_context`.
 - The caller passes no `depth` parameter, so the canonical default applies: first load gets `depth=2` (bootstrap + action doctrine + guidelines + filtered refs), subsequent loads get `depth=1` (compact).
 - **Net change**: First-load prompts for implement will now include 6 directives, 6 tactics, guidelines prose, and action-filtered references. First-load prompts for specify/plan/review similarly gain their respective doctrine payloads.
 - The `CharterContextResult` gains a `depth` field. The caller only reads `.text` and `.mode`, so the new field is harmless.
@@ -234,7 +234,7 @@ This is correct behavior: project-level governance narrows the action index, not
 - Same legacy behavior as caller 1: no action doctrine, no guidelines, no filtered references.
 
 **After reroute** (canonical path):
-- Import changes to `from charter.activation.context import build_charter_context`.
+- Import changes to `from charter.context import build_charter_context`.
 - The caller passes no `depth`, so canonical defaults apply identically to caller 1.
 - **Net change**: Same as caller 1. The `_render_charter_context` wrapper only reads `.text`, so the additional `depth` field is invisible.
 
@@ -242,7 +242,7 @@ This is correct behavior: project-level governance narrows the action index, not
 
 ### Caller 3: `charter.py` (already canonical)
 
-No change needed. Already imports from `charter.activation.context`.
+No change needed. Already imports from `charter.context`.
 
 ### Reroute Risks
 
@@ -254,16 +254,16 @@ No change needed. Already imports from `charter.activation.context`.
 | **`_load_references` field expansion** | None | The canonical `_load_references` extracts `kind` and `summary` in addition to `id`, `title`, `local_path`. These extra fields are consumed internally by `_filter_references_for_action()` and do not appear in rendered text differently. |
 | **Exception handling difference** | Low | Legacy `_load_references` catches bare `Exception`. Canonical catches `(YAMLError, UnicodeDecodeError, OSError)` explicitly. The canonical path also has `_load_state` with similarly narrow exception handling. The prompt_builder wrapper already has its own try/except around the call, so this is safe. |
 | **State file compatibility** | None | Both implementations use the same `context-state.json` file at `.kittify/charter/context-state.json` with the same schema. Rerouting does not break existing state. |
-| **Fallback behavior in prompt_builder** | Low | The prompt_builder `_governance_context()` function falls back to `_legacy_governance_context()` if charter context returns `mode="missing"` or raises. After reroute, the canonical implementation uses `charter.activation.resolver.resolve_governance` (richer GovernanceResolution with tactics, styleguides, etc.) for compact mode, while the fallback uses `specify_cli.charter.resolver.resolve_governance` (simpler). The compact text output format is identical (same 5 lines), but they use different resolver instances. The fallback path should be evaluated separately -- it may need to switch to `charter.activation.resolver` too. |
+| **Fallback behavior in prompt_builder** | Low | The prompt_builder `_governance_context()` function falls back to `_legacy_governance_context()` if charter context returns `mode="missing"` or raises. After reroute, the canonical implementation uses `charter.resolver.resolve_governance` (richer GovernanceResolution with tactics, styleguides, etc.) for compact mode, while the fallback uses `specify_cli.charter.resolver.resolve_governance` (simpler). The compact text output format is identical (same 5 lines), but they use different resolver instances. The fallback path should be evaluated separately -- it may need to switch to `charter.resolver` too. |
 
 ### Recommendation
 
 Phase 1 reroute is **safe and recommended**. The behavioral delta is entirely additive (agents gain doctrine context they previously lacked). No existing functionality is removed or broken. The main consideration is that agent prompts will be materially richer on first load, which is the explicit goal of the canonical path.
 
 **Action items for Phase 1**:
-1. Change import in `prompt_builder.py:13` from `specify_cli.charter.context` to `charter.activation.context`.
-2. Change import in `workflow.py:20` from `specify_cli.charter.context` to `charter.activation.context`.
-3. Consider whether `prompt_builder.py`'s `_legacy_governance_context()` fallback should also switch to `charter.activation.resolver.resolve_governance` for consistency.
+1. Change import in `prompt_builder.py:13` from `specify_cli.charter.context` to `charter.context`.
+2. Change import in `workflow.py:20` from `specify_cli.charter.context` to `charter.context`.
+3. Consider whether `prompt_builder.py`'s `_legacy_governance_context()` fallback should also switch to `charter.resolver.resolve_governance` for consistency.
 4. Add integration test confirming first-load implement prompt includes action doctrine section.
 5. No signature changes needed: both callers pass `action=action, mark_loaded=True` which is compatible with the canonical signature (canonical's `depth` parameter has a default of `None`).
 

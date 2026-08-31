@@ -33,8 +33,8 @@ create_intent:
 execution_mode: code_change
 model: claude-sonnet-5
 owned_files:
-- src/charter/activation/mission_type_profiles.py
-- src/charter/activation/pack_context.py
+- src/charter/mission_type_profiles.py
+- src/charter/pack_context.py
 - src/charter/__init__.py
 - tests/charter/test_pack_context.py
 - tests/charter/test_mission_type_profile_override.py
@@ -89,10 +89,10 @@ New file `tests/charter/test_charter_import_time_io.py` with TWO tests:
    before T008 (today `_BUILTIN_MISSION_TYPE_IDS` is a hardcoded literal that ignores the accessor). This is
    the genuine red-first behavior for #2669 in this WP. `cache_clear()` teardown.
 2. **Import-time-I/O regression guard (green-stays-green):** assert importing the HOT modules
-   `charter.activation.mission_type_profiles` and `charter.activation.pack_context` triggers ZERO reads of `mission_types/`
+   `charter.mission_type_profiles` and `charter.pack_context` triggers ZERO reads of `mission_types/`
    (spy: patch `builtin_mission_type_ids` to raise if called during a fresh import in a subprocess, or count
    `MissionTypeRepository.default` calls). It passes today (literals) and must keep passing (lazy). Do **NOT**
-   assert this for `charter.activation.activations` / `interview_mapping` — those are the C-012 carve-out (they derive at
+   assert this for `charter.activations` / `interview_mapping` — those are the C-012 carve-out (they derive at
    module scope by design; a ≤1 cached read there is expected).
 
 ### T007 — Retire Roster A
@@ -115,7 +115,7 @@ default remains a frozenset and equality holds.
 
 ### T010 — Quality gate
 
-- `uv run ruff check src/charter/ && uv run mypy --strict src/charter/activation/mission_type_profiles.py src/charter/activation/pack_context.py src/charter/__init__.py`
+- `uv run ruff check src/charter/ && uv run mypy --strict src/charter/mission_type_profiles.py src/charter/pack_context.py src/charter/__init__.py`
 - `uv run pytest tests/charter tests/doctrine/drg/test_cross_grain_integrity.py -q`
 - Reproduce the arch pole (dead-symbol + terminology): `uv run python -m pytest tests/adversarial tests/architectural tests/architecture tests/lint -m 'arch_shard_1 and not windows_ci and (git_repo or integration or architectural) and not timing' -q -n auto --dist loadfile`
 

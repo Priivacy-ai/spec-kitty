@@ -94,9 +94,9 @@ Canonical surfaces that **do** exist for *invoke/adopt*: `spec-kitty ask <profil
 
 ```python
 # specify_cli — may import PackContext via charter.* (layer rule C-005)
-def build_activation_aware_doctrine_service(repo_root: Path) -> "charter.activation.resolver.DoctrineService":
-    from charter.activation.resolver import DoctrineService as ActivationDoctrineService
-    from charter.activation.pack_context import PackContext
+def build_activation_aware_doctrine_service(repo_root: Path) -> "charter.resolver.DoctrineService":
+    from charter.resolver import DoctrineService as ActivationDoctrineService
+    from charter.pack_context import PackContext
     from doctrine.service import DoctrineService as InnerDoctrineService
     inner = InnerDoctrineService(built_in_root=..., project_root=..., org_roots=...)
     return ActivationDoctrineService(inner, pack_context=PackContext.from_config(repo_root))

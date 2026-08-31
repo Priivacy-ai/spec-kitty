@@ -27,7 +27,7 @@ create_intent:
 execution_mode: code_change
 model: claude-sonnet-4-6
 owned_files:
-- src/charter/activation/context_renderers/fetch_stanza.py
+- src/charter/context_renderers/fetch_stanza.py
 - tests/specify_cli/next/test_wp_prompt_governance_contract.py
 - tests/charter/test_fetch_stanza_normalization.py
 role: implementer
@@ -53,7 +53,7 @@ Design authority: [`../spec.md`](../spec.md) (US2, FR-001, NFR-003), [`../contra
 
 ## Critical context (verified against code)
 
-- The single composition choke-point is `src/charter/activation/context_renderers/fetch_stanza.py`, function `fetch_stanza_lines` (~line 133): `f"{indent}When you {clause}, run this command and apply the returned rule."`.
+- The single composition choke-point is `src/charter/context_renderers/fetch_stanza.py`, function `fetch_stanza_lines` (~line 133): `f"{indent}When you {clause}, run this command and apply the returned rule."`.
 - **`_WHEN_DOING_RE` is a CLOSED 6-verb set** (`tests/specify_cli/next/test_wp_prompt_governance_contract.py:221`):
   `when you (are about to | need to | encounter | introduce | rename | review)`.
   So a grammatical-but-non-matching rewrite (e.g. `When you are designing…`) **silently breaks the contract**. Your normalization MUST land the clause inside this closed set. The safe default anchor is the existing `DEFAULT_WHEN_CLAUSE = "are about to apply a code change"`.
@@ -88,7 +88,7 @@ In `tests/specify_cli/next/test_wp_prompt_governance_contract.py`, add a helper 
 Assert the already-well-formed clause path is byte-identical to today. Run:
 ```
 uv run pytest tests/charter/test_fetch_stanza_normalization.py tests/specify_cli/next/test_wp_prompt_governance_contract.py -q
-uv run ruff check src/charter/activation/context_renderers/fetch_stanza.py && uv run mypy src/charter/activation/context_renderers/fetch_stanza.py
+uv run ruff check src/charter/context_renderers/fetch_stanza.py && uv run mypy src/charter/context_renderers/fetch_stanza.py
 ```
 
 ## Branch strategy

@@ -27,7 +27,7 @@ create_intent:
 execution_mode: code_change
 mission_id: 01KZJQN68SWZ7T1YKGDB4Q4EVH
 owned_files:
-- src/charter/activation/synthesizer/validation_gate.py
+- src/charter/synthesizer/validation_gate.py
 - tests/charter/synthesizer/test_synthesize_conflict_routing.py
 tags: []
 tracker_refs: []

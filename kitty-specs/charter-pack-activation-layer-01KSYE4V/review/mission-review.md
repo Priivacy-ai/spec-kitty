@@ -35,7 +35,7 @@ All 10 checklist items resolved in commit `5f7e9d353` and follow-up baseline fix
 | Remove `deactivate_cmd`/`list_cmd` from `__all__` | ✅ | Removed (typer callbacks, not importable symbols) |
 | Remove 4 stale allowlist entries | ✅ | Removed from `test_no_dead_symbols.py` |
 | Remove `mission_step_repository` from dead-modules allowlist | ✅ | Removed from `test_no_dead_modules.py` |
-| Add `__all__` to `src/charter/activation/packs/__init__.py` | ✅ | Added empty `__all__` |
+| Add `__all__` to `src/charter/packs/__init__.py` | ✅ | Added empty `__all__` |
 | Fix contract YAML blocks in charter-activate/deactivate-cli.md | ✅ | Changed `yaml` fences to plain fences (documentation examples, not Pydantic model instances) |
 | Add `DEPENDENCIES_NOT_SATISFIED` to contract | ✅ | Added to `upstream_contract.json` allowed_error_codes |
 | Remove tracked test-feature fixtures | ✅ | `git rm -r` for all 3 directories |
@@ -85,7 +85,7 @@ The error code `DEPENDENCIES_NOT_SATISFIED` is emitted at runtime (in `src/speci
 **Result**: FAIL — 8 failures (6 introduced by this mission, 2 pre-existing)
 
 ```
-FAILED tests/architectural/test_all_declarations_required.py::...[src/charter/activation/packs/__init__.py]
+FAILED tests/architectural/test_all_declarations_required.py::...[src/charter/packs/__init__.py]
 FAILED tests/architectural/test_docs_cli_reference_parity.py::test_visible_paths_match_reference
 FAILED tests/architectural/test_no_dead_modules.py::test_no_new_dead_modules_under_src
 FAILED tests/architectural/test_no_dead_symbols.py::test_no_public_symbol_in_all_is_unimported
@@ -95,11 +95,11 @@ FAILED tests/architectural/test_pytest_marker_correctness.py::test_subprocess_gi
 FAILED tests/architectural/test_pytest_marker_correctness.py::test_fast_marker_must_not_apply_to_subprocess_users  [PRE-EXISTING]
 ```
 
-### G2-F1 (WP04 defect): `src/charter/activation/packs/__init__.py` missing `__all__`
+### G2-F1 (WP04 defect): `src/charter/packs/__init__.py` missing `__all__`
 
-WP04 created `src/charter/activation/packs/__init__.py` but omitted the `__all__` declaration. Every module under `src/charter/` is required to declare `__all__` (enforced by `test_every_charter_module_declares_all`).
+WP04 created `src/charter/packs/__init__.py` but omitted the `__all__` declaration. Every module under `src/charter/` is required to declare `__all__` (enforced by `test_every_charter_module_declares_all`).
 
-**Fix**: Add `__all__ = [...]` to `src/charter/activation/packs/__init__.py` declaring the public API of the packs subpackage.
+**Fix**: Add `__all__ = [...]` to `src/charter/packs/__init__.py` declaring the public API of the packs subpackage.
 
 ### G2-F2 (WP06 defect): New CLI commands not in docs CLI reference
 
@@ -144,9 +144,9 @@ The typer callbacks (`deactivate_cmd`, `list_cmd`) are registered via `@charter_
 **Fix for `deactivate_cmd` and `list_cmd`**: Remove them from their modules' `__all__` (only the typer app objects need to be exported). **Fix for `activate_mission_type_override`**: See G2-F3.
 
 Additionally, 4 allowlist entries are now stale (the symbols now have live callers and must be removed from the allowlist to keep the ratchet tight):
-- `charter.activation.consistency_check::run_consistency_check` (now called from `charter/pack.py`)
+- `charter.consistency_check::run_consistency_check` (now called from `charter/pack.py`)
 - `charter.drg::filter_graph_by_activation` (now called from 5 production files)
-- `charter.activation.invocation_context::ProjectContext` (now called from 7 production files)
+- `charter.invocation_context::ProjectContext` (now called from 7 production files)
 - `doctrine.missions.mission_step_repository::MissionStepRepository` (now called from `charter/mission_steps.py`)
 
 ### G2-F5 (WP01 T004 defect): FR-025 not delivered — 3 test-feature missions still tracked
@@ -221,7 +221,7 @@ All 6 design decisions (DIR-001 through DIR-013) verified against the diff:
 
 - **DIR-001** (doctrine never imports charter): `test_layer_rules.py` passes — no violation found.
 - **DIR-002** (empty activation = nothing available): Verified in `_read_activated_kinds` / `_read_activated_mission_types` — `frozenset()` returned for `[]`.
-- **DIR-004** (default charter pack is the backward-compat safety net): `src/charter/activation/packs/default.yaml` present and populated by WP04.
+- **DIR-004** (default charter pack is the backward-compat safety net): `src/charter/packs/default.yaml` present and populated by WP04.
 - **DIR-006** (backup-before-write): Implemented in WP05 `apply()` backup pattern.
 - **DIR-013** (every new module must have a verified production call site): **VIOLATED** by `specify_cli.charter_activate` (see G2-F3). The WP06 review approved this WP, but the dead-module gate catches what the reviewer missed.
 
@@ -241,7 +241,7 @@ The "library written but never wired" anti-pattern manifests in:
 | FR-014 reader gap not fixed in production | **CRITICAL** | `charter_activate.py` has zero `src/` callers; the fix never runs | WP06 |
 | DEPENDENCIES_NOT_SATISFIED not in contract | **HIGH** | Error code emitted but not contractually registered | WP10 |
 | Charter CLI contracts not round-trip testable | **HIGH** | Missing `pydantic_model` frontmatter blocks contract validation | WP06 |
-| `src/charter/activation/packs/__init__.py` has no `__all__` | **MEDIUM** | Violates module declaration invariant; exports are invisible | WP04 |
+| `src/charter/packs/__init__.py` has no `__all__` | **MEDIUM** | Violates module declaration invariant; exports are invisible | WP04 |
 | FR-025 not delivered | **MEDIUM** | 3 test-feature fixture dirs still tracked; test gate will block CI | WP01 |
 | WP05 test missing `pytestmark` | **MEDIUM** | Test invisible to marker-based CI profiles | WP05 |
 | 4 stale allowlist entries | **LOW** | Ratchet is looser than reality; new dead symbols may sneak through | WP07/WP09 cleanup |
@@ -282,7 +282,7 @@ The following issues must be fixed in a follow-up PR before this feature branch 
 - [ ] Remove `deactivate_cmd` and `list_cmd` from their modules' `__all__` (they're typer callbacks, not importable symbols). Confirm dead-symbols gate passes.
 - [ ] Remove 4 stale allowlist entries from `test_no_dead_symbols.py`: `consistency_check::run_consistency_check`, `drg::filter_graph_by_activation`, `invocation_context::ProjectContext`, `mission_step_repository::MissionStepRepository`.
 - [ ] Remove `doctrine.missions.mission_step_repository` from the dead-modules allowlist in `test_no_dead_modules.py`.
-- [ ] Add `__all__` to `src/charter/activation/packs/__init__.py`.
+- [ ] Add `__all__` to `src/charter/packs/__init__.py`.
 - [ ] Add `# pydantic_model:` frontmatter to all YAML blocks in `contracts/charter-activate-cli.md` and `contracts/charter-deactivate-cli.md`.
 - [ ] Add `DEPENDENCIES_NOT_SATISFIED` to the allowed error codes in `tests/contract/test_orchestrator_api.py`.
 - [ ] Remove tracked test-feature fixture dirs: `git rm -r kitty-specs/test-feature-01KSY68P kitty-specs/test-feature-01KSY6MY kitty-specs/test-feature-01KSY8TG`.

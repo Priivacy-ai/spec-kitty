@@ -41,7 +41,7 @@ Add URN-addressed template resolution as a **second lane** alongside resolve-by-
 ## Context & FROZEN
 - **C-004 two lanes, do NOT collapse**: resolve-by-name (`template_set[artifact_kind]→filename→5-tier`) stays as the creation path; resolve-by-URN is added *alongside*. The `template_file` filename remains the 5-tier override key; the URN identifies the DRG node. Both terminate in the same Stage-2 `resolve_template`.
 - **Scope bound (FR-010)**: add the lane + an equivalence test **only**. Do NOT re-wire the name-based creation path. `resolve_configured_template`'s signature is unchanged.
-- **C-002 scalar fence**: `resolver.py` neighbours the scalar surfaces. The new URN code must **never reference** `resolution.template_set`, `MissionTypeProfile.template_set`, or `doctrine.template_set`. Importing `ResolvedMissionType` from `charter.activation.mission_type_profiles` is REQUIRED and allowed — the fence is on *referencing the scalar*, not on importing from charter.
+- **C-002 scalar fence**: `resolver.py` neighbours the scalar surfaces. The new URN code must **never reference** `resolution.template_set`, `MissionTypeProfile.template_set`, or `doctrine.template_set`. Importing `ResolvedMissionType` from `charter.mission_type_profiles` is REQUIRED and allowed — the fence is on *referencing the scalar*, not on importing from charter.
 - **C-001 fail-closed**: an absent/blank/unresolvable URN → typed error; never default an unqualified URN's `mission` segment to `software-dev` (no #2660 inference reintroduction).
 
 ## Subtasks

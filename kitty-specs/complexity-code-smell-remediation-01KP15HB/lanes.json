@@ -64,12 +64,12 @@
         "WP03"
       ],
       "write_scope": [
-        "src/charter/activation/catalog.py",
-        "src/charter/activation/compiler.py",
-        "src/charter/activation/context.py",
+        "src/charter/catalog.py",
+        "src/charter/compiler.py",
+        "src/charter/context.py",
         "src/charter/extractor.py",
         "src/charter/parser.py",
-        "src/charter/activation/resolver.py",
+        "src/charter/resolver.py",
         "tests/agent/cli/commands/test_charter_cli.py",
         "tests/agent/test_workflow_charter_context.py",
         "tests/init/test_charter_runtime_integration.py",

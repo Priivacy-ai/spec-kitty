@@ -42,7 +42,7 @@ tags: []
 [research.md](../research.md) §R2/R3 (the enforcement-home + vacuity decisions), and
 [ADR 2026-07-14-2](../../../docs/adr/3.x/2026-07-14-2-doctrine-to-core-mission-type-resolution-unification.md)
 Enduring-verification (FR-013's home is a doctrine-module + integration test with a non-vacuity twin).
-Depends on WP02's `src/charter/activation/action_grain.py`. Always `uv run`.
+Depends on WP02's `src/charter/action_grain.py`. Always `uv run`.
 
 ## Objective
 

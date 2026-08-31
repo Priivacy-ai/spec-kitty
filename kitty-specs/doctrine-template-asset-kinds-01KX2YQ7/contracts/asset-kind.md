@@ -37,6 +37,6 @@ or `NodeKind` (discovered by reflection/AST), assert it contains an entry (or a 
 
 ## Lockstep contract (#2495)
 
-`_ORG_DRG_CANONICAL_KINDS == (charter.activation.activations._ALLOWED_KINDS normalised) ∪ {mission_types}` — the
+`_ORG_DRG_CANONICAL_KINDS == (charter.activations._ALLOWED_KINDS normalised) ∪ {mission_types}` — the
 drift-guard test stays green because `_ALLOWED_KINDS` + `_BUILTIN_ARTIFACT_KINDS` move in lockstep with the
 loader universe.

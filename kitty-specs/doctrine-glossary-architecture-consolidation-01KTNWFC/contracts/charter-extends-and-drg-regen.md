@@ -10,14 +10,14 @@ No HTTP API in this mission; the "contracts" are the config-schema and CLI-surfa
 # expect: valid
 # org-charter.yaml — `extends` is an optional single-parent reference; absent =
 # current behaviour. Multi-level chains arise transitively (A extends B extends C)
-# and are resolved base-first, fail-closed, by charter.activation.org_extends (WP08).
+# and are resolved base-first, fail-closed, by charter.org_extends (WP08).
 extends: base/org-charter.yaml
 ```
 
 **Resolution contract:**
 - **Additive merge**: extended config is layered onto the base; the extending org's values take **precedence** over the base on conflict.
 - **Cycle detection**: an `extends:` cycle is rejected fail-closed with a structured error (no partial/ambiguous resolution).
-- **Single mechanism**: resolution runs through `charter.activation.activation_engine` (plan→commit) + `charter.activation.cascade`; **no parallel resolver** (C-005, R-10).
+- **Single mechanism**: resolution runs through `charter.activation_engine` (plan→commit) + `charter.cascade`; **no parallel resolver** (C-005, R-10).
 - **Non-destructive**: existing charter content and user customizations are preserved (C-004).
 
 **Acceptance:** a charter declaring `extends:` resolves additively and passes charter validation; a cycle is rejected; existing single-org charters behave unchanged.

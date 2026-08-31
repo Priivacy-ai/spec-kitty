@@ -13,7 +13,7 @@ findings:
       - artifact: "spec.md § FR-008 (state definitions) / Key Entities (_GUARD_TABLES vs doctor mission-type taxonomy described as two distinct entities)"
       - code: "src/runtime/next/runtime_bridge_cores.py:586-591 (_GUARD_TABLES: fixed 4-entry dict {research, documentation, software-dev, plan})"
       - code: "src/specify_cli/cli/commands/_mission_type_audit.py:147-220 (_classify_present_key/_classify_absent_key/classify_mission_type — zero references to _GUARD_TABLES, evaluate_guards, evaluate_guards_strict, or UnregisteredMissionFamilyError anywhere in this file)"
-      - code: "src/charter/activation/mission_type_profiles.py:424-443 (existing_mission_types docstring: \"a project MAY activate a custom (non-built-in) mission type id, and that id is returned as-is\")"
+      - code: "src/charter/mission_type_profiles.py:424-443 (existing_mission_types docstring: \"a project MAY activate a custom (non-built-in) mission type id, and that id is returned as-is\")"
     claim: >
       User Story 4's own stated purpose is that `doctor mission-type` lets an operator
       "check proactively" for "the class of misconfiguration this mission fixes (an

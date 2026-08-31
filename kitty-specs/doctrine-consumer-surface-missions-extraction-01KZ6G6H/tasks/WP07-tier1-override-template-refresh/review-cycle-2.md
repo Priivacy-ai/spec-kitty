@@ -116,7 +116,7 @@ teaching stale things. Worth aligning to `approved`, or noting deliberately.
 | `agent context resolve` exists with those flags | `spec-kitty agent context resolve --help` | `--action`, `--mission`, `--json` all present |
 | `spec-kitty constitution` really retired | `spec-kitty constitution --help` | "No such command 'constitution'" |
 | `spec-kitty agent workflow` really retired | `spec-kitty agent workflow --help` | "No such command 'workflow'" |
-| builder call shape | signature at `src/charter/activation/doctrine_service_builder.py:188` + SKILL.md:660-690 | matches: one positional `repo_root: Path` |
+| builder call shape | signature at `src/charter/doctrine_service_builder.py:188` + SKILL.md:660-690 | matches: one positional `repo_root: Path` |
 | the taught snippet actually runs | executed it | `service.agent_profiles.get('reviewer-renata')` → `AgentProfile`; `.initialization_declaration`, `.specialization.avoidance_boundary`, `.collaboration.handoff_to` all resolve |
 | scope discipline | diffstat | only the 2 owned files; no `src/`, no tests, no sibling overrides |
 | Terminology Canon | `pytest tests/architectural/test_no_legacy_terminology.py -q` | 10 passed |

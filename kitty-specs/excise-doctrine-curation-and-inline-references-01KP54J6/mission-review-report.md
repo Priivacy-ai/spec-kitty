@@ -45,7 +45,7 @@
 | FR-013 | Obsolete tests deleted or rewritten | WP03 | deletions confirmed in diff | PARTIAL | See [RISK-2] `tests/doctrine/drg/migration/test_extractor.py::_count_inline_refs` now vacuously true |
 | FR-014 | Validator-rejection test suite, one per kind | WP03 | `tests/doctrine/test_inline_ref_rejection.py` | **PARTIAL** | Test constructs dicts directly rather than "loading a YAML fixture"; does not exercise the load-path the spec scenario 4 requires |
 | FR-015 | Per-WP occurrence classification artifact | all | `occurrences/WP0N.yaml` | **MISSING for WP02** | [DRIFT-3] `occurrences/WP02.yaml` was never committed; only WP01.yaml and WP03.yaml exist |
-| FR-016 | Merged-graph validator runs on live `build_charter_context()` path | WP03 | `tests/charter/test_merged_graph_on_live_path.py` | PARTIAL | Test exercises `load_validated_graph` helper in isolation, not `build_charter_context` itself; however, `src/charter/activation/context.py:505` provably calls `assert_valid()` unconditionally, so the behavior holds even though the regression test doesn't target the exact invocation FR-016 asks about |
+| FR-016 | Merged-graph validator runs on live `build_charter_context()` path | WP03 | `tests/charter/test_merged_graph_on_live_path.py` | PARTIAL | Test exercises `load_validated_graph` helper in isolation, not `build_charter_context` itself; however, `src/charter/context.py:505` provably calls `assert_valid()` unconditionally, so the behavior holds even though the regression test doesn't target the exact invocation FR-016 asks about |
 | NFR-001 | Pytest runtime ≤5% regression | all | (not measured in-repo) | UNKNOWN | Reviewer cited "109 WP03-focus tests all pass"; no CI-level p50 comparison committed |
 | NFR-002a | Artifact-reachability parity across (profile, action, depth) | WP03 | absorbed into rewritten `test_context.py` and NFR-002b | PARTIAL | New `test_context.py` uses a minimal synthetic graph with `assert_valid` patched out (line 129); the comprehensive parametrized matrix from the deleted `test_context_parity.py` is not reproduced. Reachability is guaranteed transitively via NFR-002b byte-parity, not directly. |
 | NFR-002b | Rendered-text byte parity on 4 bootstrap actions | WP03 | `baseline/pre-wp03-context-*.json` | ADEQUATE | Verified live: `diff` is empty for `specify`, `plan`, `implement`, `review`. |
@@ -64,12 +64,12 @@
 **Severity**: MEDIUM
 **Spec reference**: D-3 in plan.md ("every edit that touches `src/charter/{context,compiler,resolver,catalog,__init__}.py` also touches the equivalent `src/specify_cli/charter/*` file in the same WP PR"); FR-007; NFR-004 "applies_to" literal target
 **Evidence**:
-- `src/charter/activation/schemas.py:80-94` — `Directive` class has `applies_to` **removed**, docstring explicitly documents the removal.
+- `src/charter/schemas.py:80-94` — `Directive` class has `applies_to` **removed**, docstring explicitly documents the removal.
 - `src/specify_cli/charter/schemas.py:80-87` — `Directive` class **still declares** `applies_to: list[str] = Field(default_factory=list)`.
 - `kitty-specs/.../occurrences/index.yaml:145` — papers this over by explicitly adding `src/specify_cli/charter/schemas.py` to the `applies_to` excluding list.
 - `src/specify_cli/charter/sync.py:19` and `src/specify_cli/charter/extractor.py:17` both import `Directive` from the twin — so a user overlay that supplies `applies_to` on a Directive will be silently accepted by this code path.
 
-**Analysis**: The spec.md WP02 scope explicitly names `src/charter/activation/schemas.py (strip applies_to)` but does not name the twin. The plan's D-3 rule, however, requires twin-package lockstep for every charter module edit. The carve-out in `index.yaml` was added to make the verifier pass without actually applying the twin edit, trading mechanical completeness against a silent inconsistency. Since `specify_cli.charter.schemas.Directive` is imported from live production code, a downstream YAML with `applies_to` is accepted here and rejected via the doctrine Pydantic model — two different validation surfaces with opposite behavior on the same field name. This is the precise "inline/edge drift" failure mode the spec's Problem Statement calls out as the reason for the mission. Not release-blocking (the field is accepted but never read), but a direct contradiction of D-3 and should be cleaned up in a follow-up issue.
+**Analysis**: The spec.md WP02 scope explicitly names `src/charter/schemas.py (strip applies_to)` but does not name the twin. The plan's D-3 rule, however, requires twin-package lockstep for every charter module edit. The carve-out in `index.yaml` was added to make the verifier pass without actually applying the twin edit, trading mechanical completeness against a silent inconsistency. Since `specify_cli.charter.schemas.Directive` is imported from live production code, a downstream YAML with `applies_to` is accepted here and rejected via the doctrine Pydantic model — two different validation surfaces with opposite behavior on the same field name. This is the precise "inline/edge drift" failure mode the spec's Problem Statement calls out as the reason for the mission. Not release-blocking (the field is accepted but never read), but a direct contradiction of D-3 and should be cleaned up in a follow-up issue.
 
 ### DRIFT-2: `occurrences/WP02.yaml` never committed
 
@@ -89,13 +89,13 @@
 **Severity**: LOW
 **Spec reference**: D-3 twin-package lockstep; plan.md "twin charter packages … deduplicating them is explicitly out of scope"
 **Evidence**:
-- `src/charter/activation/resolver.py` exposes `resolve_governance_for_profile` with full DRG integration (`resolve_transitive_refs`, `load_validated_graph`).
+- `src/charter/resolver.py` exposes `resolve_governance_for_profile` with full DRG integration (`resolve_transitive_refs`, `load_validated_graph`).
 - `src/specify_cli/charter/resolver.py` does NOT expose `resolve_governance_for_profile` and does NOT import `resolve_transitive_refs`.
 - Canonical `GovernanceResolution` has 6 extra fields (`tactics`, `styleguides`, `toolguides`, `procedures`, `profile_id`, `role`); the twin does not.
 - `git show 6e9e6506:src/specify_cli/charter/resolver.py` confirms this drift **pre-existed** (no `tactics` field on baseline twin).
 - `src/specify_cli/charter/_drg_helpers.py` exists as a no-caller twin stub; the implementer flagged this as Deviation D2 in the WP03 report.
 
-**Analysis**: The mission did not introduce this asymmetry and the plan explicitly carved it out of scope. However, D-3's lockstep-edit rule was only partially honored: when the canonical `charter.activation.resolver` grew new DRG-backed functions, the twin did not. The helper scaffold was created in lockstep, but without callers in the twin it serves no runtime purpose. Treat as a known pre-existing wart confirmed by this mission, not a regression.
+**Analysis**: The mission did not introduce this asymmetry and the plan explicitly carved it out of scope. However, D-3's lockstep-edit rule was only partially honored: when the canonical `charter.resolver` grew new DRG-backed functions, the twin did not. The helper scaffold was created in lockstep, but without callers in the twin it serves no runtime purpose. Treat as a known pre-existing wart confirmed by this mission, not a regression.
 
 ---
 
@@ -139,7 +139,7 @@
 **Location**: `tests/charter/test_context.py:129` — `patch("doctrine.drg.validator.assert_valid")`
 **Trigger condition**: A regression that silently stops calling `assert_valid` on the live path would not be caught by this test file.
 **Evidence**: Every functional test in the new `test_context.py` calls the harness at lines 102–137 which uses a `with … patch("doctrine.drg.validator.assert_valid") …` context. The comment on line 129 says "fixture may not pass full validation."
-**Analysis**: FR-016 is nominally covered by `test_merged_graph_on_live_path.py` (which does verify `assert_valid` is called on the `load_validated_graph` helper) and the live-code inspection at `src/charter/activation/context.py:505`. But within the mainline context-builder test suite, `assert_valid` being patched out means the suite cannot detect a regression where `build_charter_context` stops calling it. The belt-and-braces is the live-path test file, not this suite.
+**Analysis**: FR-016 is nominally covered by `test_merged_graph_on_live_path.py` (which does verify `assert_valid` is called on the `load_validated_graph` helper) and the live-code inspection at `src/charter/context.py:505`. But within the mainline context-builder test suite, `assert_valid` being patched out means the suite cannot detect a regression where `build_charter_context` stops calling it. The belt-and-braces is the live-path test file, not this suite.
 
 ---
 

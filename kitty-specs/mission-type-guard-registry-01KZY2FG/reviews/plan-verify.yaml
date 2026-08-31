@@ -44,7 +44,7 @@ results:
       Seam & Module Placement (plan.md lines 117-127) now mandates that the
       implementation's UnregisteredMissionFamilyError docstring include an
       explicit one-line cross-reference to
-      charter.activation.mission_type_profiles.UnknownMissionTypeError, closing the
+      charter.mission_type_profiles.UnknownMissionTypeError, closing the
       "no code-level cross-reference required" gap the finding identified at
       the plan level.
 

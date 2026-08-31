@@ -33,7 +33,7 @@ The import-layer order (`kernel<-doctrine<-charter<-specify_cli`) is CLEAN; what
 - Repoint stale TEST fixtures: `tests/glossary/test_gate_terms.py:35`, `test_org_pack_artifact_lifecycle.py:348`
   (via `built_in_root=None`), `test_profile_inheritance.py:381`; triage-sweep the `parents[N]/"src"/"doctrine"` test
   list for any appending a relocated `<kind>/built-in`.
-- Repoint PRODUCT operator-facing strings: `src/charter/activation/resolver.py:187,250` (error text points operators at dead paths).
+- Repoint PRODUCT operator-facing strings: `src/charter/resolver.py:187,250` (error text points operators at dead paths).
 - Anti-vacuity guard so a future relocation can't false-green.
 - Do NOT touch the 5 architectural guard tests that name the old path as a *forbidden pattern*.
 
@@ -76,7 +76,7 @@ The import-layer order (`kernel<-doctrine<-charter<-specify_cli`) is CLEAN; what
   ROUTER_NO_MATCH); apply→context/status reflect the pack.
 
 ### WS-E — Shim retirement (paula = #3116; independent, test-only)
-- Re-point ~62 `from charter.activation.context import _x` test imports to leaf modules; delete the FR-009 re-export block
+- Re-point ~62 `from charter.context import _x` test imports to leaf modules; delete the FR-009 re-export block
   (`context.py:25-145`). 0 production call sites. Lowest risk; hazard = multi-line imports.
 
 ### WS-F — Perf/hygiene (low severity)

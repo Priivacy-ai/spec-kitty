@@ -17,7 +17,7 @@ Verified against source:
   `charter.yaml` (not `charter.md`) is the authoritative, resolving source... The historical
   `charter.md`-SHA-vs-`metadata.yaml::charter_hash` staleness mechanism is **retired outright, not
   re-homed**... `charter_source` therefore never returns `stale`."
-- `src/charter/activation/sync.py :: sync()` docstring: "the prose->triad scrape this module used to perform
+- `src/charter/sync.py :: sync()` docstring: "the prose->triad scrape this module used to perform
   ... is RETIRED... `synced` is now always `False` and `files_written` always empty."
 
 Current `troubleshoot-charter.md` §1 (lines 21-48) still says:

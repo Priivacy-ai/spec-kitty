@@ -40,10 +40,10 @@ from charter.drg import (
     NodeKind,
     OrgPackEnvVarUnsetError,
     OrgPackSubdirEscapeError,
-    filter_graph_by_activation,
     resolve_existing_org_roots,
     resolve_org_dirs,
 )
+from charter.activation.drg_activation import filter_graph_by_activation
 from charter.mission_steps import MissionStepContract, MissionStepContractRepository
 from specify_cli.mission_metadata import resolve_mission_identity
 

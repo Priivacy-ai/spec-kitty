@@ -10,7 +10,7 @@
 
 ## Summary
 
-Spec Kitty's charter package has **already been canonicalized in `src/charter/`**. The baseline inventory confirms `src/charter/` owns 18 modules and both hard-success-criterion functions (`build_charter_context()` at `src/charter/activation/context.py:67`, `ensure_charter_bundle_fresh()` at `src/charter/activation/sync.py:66`) have exactly one definition. The legacy `src/specify_cli/charter/` surface has collapsed to 4 pure re-export shims totalling 135 lines.
+Spec Kitty's charter package has **already been canonicalized in `src/charter/`**. The baseline inventory confirms `src/charter/` owns 18 modules and both hard-success-criterion functions (`build_charter_context()` at `src/charter/context.py:67`, `ensure_charter_bundle_fresh()` at `src/charter/sync.py:66`) have exactly one definition. The legacy `src/specify_cli/charter/` surface has collapsed to 4 pure re-export shims totalling 135 lines.
 
 This mission therefore has **less implementation work than a naive read of #611 suggested** and can focus on three structural completions the baseline does not yet cover:
 
@@ -18,7 +18,7 @@ This mission therefore has **less implementation work than a naive read of #611 
 2. **Audit and migrate callable legacy imports** while preserving intentional C-005 compatibility coverage. A naive `specify_cli.charter → charter` rewrite would destroy legacy-import tests that exist *by design* (e.g., `tests/specify_cli/charter/test_defaults_unit.py`, `tests/charter/test_sync_paths.py`, `tests/charter/test_chokepoint_coverage.py`). Per-path exceptions are specified in [occurrence_map.yaml](./occurrence_map.yaml).
 3. **Build neutrality tripwires from scratch**: a content-lint pytest, a banned-terms config, a language-scoped allowlist, all owned by `src/charter/neutrality/`. No neutrality guardrail currently exists in the repo. The lint must scan the real doctrine bias surface (`src/doctrine/` — see Technical Context), not just `src/charter/` and mission templates.
 
-The mission also addresses one latent `pyproject.toml` reference to `specify_cli.charter.context`. That reference is **not** package metadata — it sits inside a `[[tool.mypy.overrides]]` "Transitional quarantine" block at `pyproject.toml:218` relaxing strictness for legacy modules. Since `specify_cli.charter.context` never existed as an independent submodule (there is no `src/specify_cli/charter/context.py`), the entry is stale. The plan treats its removal as a **typing-scope change**, not cosmetic cleanup: removing the line may surface previously-suppressed `mypy --strict` errors against `charter.activation.context`. That check is an explicit task (see Phase 1 below).
+The mission also addresses one latent `pyproject.toml` reference to `specify_cli.charter.context`. That reference is **not** package metadata — it sits inside a `[[tool.mypy.overrides]]` "Transitional quarantine" block at `pyproject.toml:218` relaxing strictness for legacy modules. Since `specify_cli.charter.context` never existed as an independent submodule (there is no `src/specify_cli/charter/context.py`), the entry is stale. The plan treats its removal as a **typing-scope change**, not cosmetic cleanup: removing the line may surface previously-suppressed `mypy --strict` errors against `charter.context`. That check is an explicit task (see Phase 1 below).
 
 ## Technical Context
 
@@ -102,7 +102,7 @@ docs/
 └── migration/
     └── charter-ownership-consolidation.md      # NEW — sunset guide for external importers
 
-pyproject.toml                                  # EDIT — remove stale `specify_cli.charter.context` override from [[tool.mypy.overrides]] quarantine block; gated on a passing `mypy --strict src/charter/activation/context.py` run (see R-008)
+pyproject.toml                                  # EDIT — remove stale `specify_cli.charter.context` override from [[tool.mypy.overrides]] quarantine block; gated on a passing `mypy --strict src/charter/context.py` run (see R-008)
 CHANGELOG.md                                    # EDIT — add mission entry + shim removal-target note
 ```
 
@@ -138,7 +138,7 @@ See [data-model.md](./data-model.md), [contracts/](./contracts/), and [quickstar
   - Public import surface contract for `src/charter/*` (no surface change versus baseline).
   - Shim deprecation warning contract: the package `__init__.py` emits a single `DeprecationWarning`; submodule shims stay silent to avoid double-warning common `from specify_cli.charter.X import Y` idioms.
 - **Quickstart**: Developer walkthrough — how to add a Python-scoped doctrine file to the allowlist; how to extend the banned-terms list; how to run the lint locally.
-- **Dedicated mypy verification task**: Per R-008, before deleting the stale `specify_cli.charter.context` entry from the `[[tool.mypy.overrides]]` "Transitional quarantine" block at `pyproject.toml:218`, run `mypy --strict src/charter/activation/context.py`. If the run is clean, delete the line. If strict errors surface, either fix them within this mission's scope or (as a compromise) rename the override to target the real module `charter.activation.context` with a `# TODO: remove in mission NNN` comment; do not silently delete without the check.
+- **Dedicated mypy verification task**: Per R-008, before deleting the stale `specify_cli.charter.context` entry from the `[[tool.mypy.overrides]]` "Transitional quarantine" block at `pyproject.toml:218`, run `mypy --strict src/charter/context.py`. If the run is clean, delete the line. If strict errors surface, either fix them within this mission's scope or (as a compromise) rename the override to target the real module `charter.context` with a `# TODO: remove in mission NNN` comment; do not silently delete without the check.
 
 ---
 
@@ -150,7 +150,7 @@ See [data-model.md](./data-model.md), [contracts/](./contracts/), and [quickstar
 | DIRECTIVE_010 spec fidelity preserved? | PASS — every FR/NFR/C is addressed by a design artifact, no scope expansion. |
 | DIRECTIVE_035 occurrence map authored? | PASS — `./occurrence_map.yaml` generated with user-ratified categories (Q2). |
 | Test coverage plan realistic? | PASS — new code is a small module + two config files; 90%+ coverage achievable with 3 test modules. |
-| `mypy --strict` feasible? | PASS — new module is pure-Python with straightforward types. The `[[tool.mypy.overrides]]` quarantine removal is gated on a real `mypy --strict src/charter/activation/context.py` run per R-008; no silent deletions. |
+| `mypy --strict` feasible? | PASS — new module is pure-Python with straightforward types. The `[[tool.mypy.overrides]]` quarantine removal is gated on a real `mypy --strict src/charter/context.py` run per R-008; no silent deletions. |
 | CLI behavioral invariance? | PASS — shim warnings are import-time only and wrapped to avoid breaking first-load output; integration tests continue to cover invariance. |
 
 **Gate status after design**: PASS. Ready for `/spec-kitty.tasks`.

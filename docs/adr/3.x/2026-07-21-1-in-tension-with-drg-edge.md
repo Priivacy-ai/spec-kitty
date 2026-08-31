@@ -32,7 +32,7 @@ The only machine-readable "these two are at odds" signal today is the `opposed_b
 
 1. **It is mis-encoded in the graph.** The extractor (`src/doctrine/drg/migration/extractor.py:373-391, 484-494`) maps every `opposed_by` entry to `Relation.REPLACES`. `replaces` is a directional supersession relation; tension is neither directional nor supersession. The live result in `src/doctrine/directive.graph.yaml` is a nonsensical mutual cycle: `DIRECTIVE_024 --replaces--> DIRECTIVE_025` **and** `DIRECTIVE_025 --replaces--> DIRECTIVE_024`. Two co-valid rules cannot each replace the other.
 2. **It is consumed inconsistently.** The extractor emits `opposed_by` edges for directives and paradigms but **not** for tactics — the tactic block only walks `references`/`steps`. So `tactics/built-in/change-apply-smallest-viable-diff.tactic.yaml`'s `opposed_by: DIRECTIVE_025` produces no edge at all. The field is dead for one of the three kinds that declare it.
-3. **Nothing reads it for its stated purpose.** No activation-time or consistency-check path inspects `opposed_by` or any tension signal. `charter pack consistency-check` (`src/charter/activation/consistency_check.py`) checks reference parity, kind violations, and duplicates — never tension. The lint `ContradictionChecker` (`src/specify_cli/charter_runtime/lint/checks/contradiction.py`) checks ADR-topic clashes and duplicate glossary senses — unrelated to `opposed_by`. The reconciliation prose that already exists inside `025`'s `opposed_by.reason` never reaches an agent as structure.
+3. **Nothing reads it for its stated purpose.** No activation-time or consistency-check path inspects `opposed_by` or any tension signal. `charter pack consistency-check` (`src/charter/consistency_check.py`) checks reference parity, kind violations, and duplicates — never tension. The lint `ContradictionChecker` (`src/specify_cli/charter_runtime/lint/checks/contradiction.py`) checks ADR-topic clashes and duplicate glossary senses — unrelated to `opposed_by`. The reconciliation prose that already exists inside `025`'s `opposed_by.reason` never reaches an agent as structure.
 
 Separately, `opposed_by` is **semantically overloaded**. Its six live usages split into two different concepts:
 
@@ -89,10 +89,10 @@ When two artefacts that are `in_tension_with` each other are both active (or bot
 Add `RECONCILES_TENSION = "reconciles_tension"` to `Relation`. A pair is resolved by (b) only when **each** side has at least one active `reconciles_tension` edge pointing at it — a pair with only one side bridged (a half-reconciled pair, whichever artefact(s) are involved) is still flagged as unreconciled.
 
 **Where it hooks in:**
-- `charter pack consistency-check` (`run_consistency_check`, `src/charter/activation/consistency_check.py`) is the natural home. It already loads the activation-filtered DRG (`filter_graph_by_activation`) and holds the per-kind activation set. Add a new finding category (e.g. `tension_unreconciled`) computed from the activated graph's `in_tension_with` pairs minus those satisfied by (a) or (b). Keep it advisory (see consequences) rather than flipping `coherent` to hard-fail by default.
+- `charter pack consistency-check` (`run_consistency_check`, `src/charter/consistency_check.py`) is the natural home. It already loads the activation-filtered DRG (`filter_graph_by_activation`) and holds the per-kind activation set. Add a new finding category (e.g. `tension_unreconciled`) computed from the activated graph's `in_tension_with` pairs minus those satisfied by (a) or (b). Keep it advisory (see consequences) rather than flipping `coherent` to hard-fail by default.
 - `charter activate` (`src/specify_cli/cli/commands/charter/activate.py`) surfaces the same check as a `[yellow]Warning[/yellow]` for the artefact being activated, alongside the existing no-cascade warning path.
 
-**Cascade integration (`REFERENCE_RELATIONS`).** Both new relations are deliberately **excluded** from `charter.activation.cascade.REFERENCE_RELATIONS`:
+**Cascade integration (`REFERENCE_RELATIONS`).** Both new relations are deliberately **excluded** from `charter.cascade.REFERENCE_RELATIONS`:
 
 - `in_tension_with` must **not** cascade — activating `A` must never auto-activate its opponent `B`; that would manufacture the exact conflict we are trying to make visible.
 - `reconciles_tension` must **not** cascade — a reconciler (`R`, or `R1`/`R2` when the two sides are bridged separately) reconciles `A` and/or `B` but does not *require* them; the reconciliation is only meaningful when `A` and `B` are already both active, so activating a reconciler must not drag them in.
@@ -192,7 +192,7 @@ The operator directs that the cascade / multi-tier pack + charter-activation sys
 | Generated graph | `src/doctrine/tactic.graph.yaml` | Author the `smallest-viable-diff → 025` `in_tension_with` edge. |
 | New built-in | reconciliation directive/tactic + `reconciles_tension` edges | Ship a reconciliation artefact for the `024`/`025` (and smallest-diff/`025`) tension so the default pack is self-consistent under the check. |
 | Orphan lint (#2737) | `src/specify_cli/charter_runtime/lint/checks/orphan.py` | Remove the phantom `governs` (directive) and `supersedes` (adr) branches from `_ORPHAN_RULES` — neither is a `Relation` enum member, so neither is ever authorable; they misfire on 100% of directives. Retire those branches (or, for directives, re-point at the relations that actually reach them: `scope`/`requires`/`suggests`) so only the 2 genuinely-disconnected directives surface. Closes #2737. |
-| Consistency check | `src/charter/activation/consistency_check.py` | Add the `tension_unreconciled` finding computed over the activation-filtered graph. |
+| Consistency check | `src/charter/consistency_check.py` | Add the `tension_unreconciled` finding computed over the activation-filtered graph. |
 | CLI | `src/specify_cli/cli/commands/charter/activate.py` | Surface the tension warning on activate. |
 | Docs | `docs/architecture/04_implementation_mapping/README.md` (lines ~250, 260-263, 310-312, 335) | Replace `opposed_by` reference-direction + "Contradiction semantics" + schema-table + status-table entries with the edge model. |
 | Docs | `docs/guides/synthesize-doctrine.md` | Update the contradictions mention. |
@@ -223,6 +223,6 @@ The operator directs that the cascade / multi-tier pack + charter-activation sys
 
 - Analysis: `docs/plans/engineering-notes/doctrine-drg-missing-links-analysis.md` (cascade dead-ends, relation-usage census).
 - Migration precedent: `tests/doctrine/test_relationship_migration.py` (field→edge, zero-loss, no-field invariant).
-- Cascade engine + reference set: `src/charter/activation/cascade.py` (`REFERENCE_RELATIONS`).
-- Consistency check surface: `src/charter/activation/consistency_check.py`; CLI `spec-kitty charter pack consistency-check`.
+- Cascade engine + reference set: `src/charter/cascade.py` (`REFERENCE_RELATIONS`).
+- Consistency check surface: `src/charter/consistency_check.py`; CLI `spec-kitty charter pack consistency-check`.
 - Related: ADR 2026-07-18-1 (charter.yaml authoring authority, extractor retirement).

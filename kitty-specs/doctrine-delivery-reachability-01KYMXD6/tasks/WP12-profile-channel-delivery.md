@@ -114,7 +114,7 @@ reachability helper). Parallel with WP10/WP11 on the render surface — **file c
 `context.py`, so serialize within the lane. `spec-kitty implement WP12` resolves the workspace.
 
 
-**File-ownership note**: `src/charter/activation/context.py` is owned by **WP10** (single owner). Your edits to its render path are coordinated **out-of-map edits**, serialized safely behind the delivery chain by this WP's dependencies; record each with a one-line rationale.
+**File-ownership note**: `src/charter/context.py` is owned by **WP10** (single owner). Your edits to its render path are coordinated **out-of-map edits**, serialized safely behind the delivery chain by this WP's dependencies; record each with a one-line rationale.
 
 ## Test strategy
 

@@ -25,13 +25,13 @@ history:
   actor: system
   action: Prompt generated via /spec-kitty.tasks
 agent_profile: python-pedro
-authoritative_surface: src/charter/activation/mission_type_profiles.py
+authoritative_surface: src/charter/mission_type_profiles.py
 create_intent:
 - tests/runtime/test_runtime_seam.py
 execution_mode: code_change
 model: ''
 owned_files:
-- src/charter/activation/mission_type_profiles.py
+- src/charter/mission_type_profiles.py
 - src/runtime/next/decision.py
 - src/runtime/next/runtime_bridge_composition.py
 - tests/runtime/test_runtime_seam.py

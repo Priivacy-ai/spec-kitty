@@ -57,7 +57,7 @@ Charter, missions, and agent profiles, and it is almost entirely undocumented.
   `styleguide`, `toolguide`, `paradigm`, `template`, `agent_profile`, `mission_step_contract`.
   Do not add, omit, or rename any of these.
 - Ground truth for what each kind IS and how one is CREATED lives in the codebase — likely
-  `charter.activation.kind_vocabulary`, the charter activation engine (`plan_activation`/
+  `charter.kind_vocabulary`, the charter activation engine (`plan_activation`/
   `commit_activation`), and any `charter synthesize`/`charter activate` CLI commands. Read the
   actual code before writing definitions — do not rely on this WP prompt's summary alone.
 - The abandoned `kitty-specs/charter-end-user-docs-828-01KQAJA0` mission targeted exactly this
@@ -67,7 +67,7 @@ Charter, missions, and agent profiles, and it is almost entirely undocumented.
 
 ## Subtask guidance
 
-- **T023 — Source the vocabulary from code.** Find and read `charter.activation.kind_vocabulary` (or
+- **T023 — Source the vocabulary from code.** Find and read `charter.kind_vocabulary` (or
   equivalent module) and the "Canonical Kind Vocabulary" table referenced in this project's own
   CLAUDE.md. Confirm the 8-kind list and the operator-token normalization (e.g.
   `agent-profile` → `agent_profile`, `mission-step-contract` → `mission_step_contract`).
@@ -131,4 +131,4 @@ that base during `/spec-kitty.implement`, after WP02 has landed, and merges back
 - 2026-07-20T17:58:12Z – claude:sonnet-5:curator-carla:implementer – shell_pid=91148 – Assigned agent via action command
 - 2026-07-20T18:13:54Z – claude:sonnet-5:curator-carla:implementer – shell_pid=91148 – Ready for review: doctrine-kinds.md + create-a-doctrine-artifact.md authored, code/CLI-verified 8-kind list (procedure not template — see commit msg for drift note), example tactic schema-validated, index.md cross-linked, link-checker and terminology guard pass.
 - 2026-07-20T18:23:45Z – claude:sonnet-5:curator-carla:reviewer – shell_pid=11323 – Started review via action command
-- 2026-07-20T18:29:58Z – user – shell_pid=11323 – Review passed: independently re-verified the 8 doctrine-kind correction from scratch (read src/doctrine/artifact_kinds.py, src/charter/activation/kind_vocabulary.py, live 'spec-kitty charter activate bogus-kind x' error output, 'spec-kitty charter list --all', and commit 1e3dc8d2c) - procedure (not template) is confirmed the correct 8th charter-activatable kind. All 8 cited example artifacts verified to exist with matching content. All CLI commands/flags verified against --help output. Schema claims verified. Links/anchors resolve. Terminology guard passes. WP06 commit touches only its 3 owned files.
+- 2026-07-20T18:29:58Z – user – shell_pid=11323 – Review passed: independently re-verified the 8 doctrine-kind correction from scratch (read src/doctrine/artifact_kinds.py, src/charter/kind_vocabulary.py, live 'spec-kitty charter activate bogus-kind x' error output, 'spec-kitty charter list --all', and commit 1e3dc8d2c) - procedure (not template) is confirmed the correct 8th charter-activatable kind. All 8 cited example artifacts verified to exist with matching content. All CLI commands/flags verified against --help output. Schema claims verified. Links/anchors resolve. Terminology guard passes. WP06 commit touches only its 3 owned files.

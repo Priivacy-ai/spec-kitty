@@ -38,9 +38,9 @@ authoritative_surface: src/charter/drg.py
 execution_mode: code_change
 owned_files:
 - src/charter/drg.py
-- src/charter/activation/context.py
-- src/charter/activation/reference_resolver.py
-- src/charter/activation/compiler.py
+- src/charter/context.py
+- src/charter/reference_resolver.py
+- src/charter/compiler.py
 - src/specify_cli/mission_step_contracts/executor.py
 - tests/charter/test_activation_filtered_drg.py
 - tests/charter/test_context.py
@@ -82,9 +82,9 @@ this WP. No stale mocks.
 
 The 4 wiring sites (from `research.md §2` and the `drg.py` comment block):
 
-1. `src/charter/activation/context.py:523` — `_load_action_doctrine_bundle()` → filter merged DRG before `resolve_context()`
-2. `src/charter/activation/reference_resolver.py:40` — `resolve_references_transitively()` → filter before `resolve_transitive_refs()`
-3. `src/charter/activation/compiler.py:499` — `_resolve_transitive_reference_graph()` → filter after load
+1. `src/charter/context.py:523` — `_load_action_doctrine_bundle()` → filter merged DRG before `resolve_context()`
+2. `src/charter/reference_resolver.py:40` — `resolve_references_transitively()` → filter before `resolve_transitive_refs()`
+3. `src/charter/compiler.py:499` — `_resolve_transitive_reference_graph()` → filter after load
 4. `src/specify_cli/mission_step_contracts/executor.py:170` → filter before `resolve_context()`
 
 All sites must thread `PackContext` from the enclosing `ProjectContext` via
@@ -163,7 +163,7 @@ editing. The existing function currently checks only `activated_kinds`.
 5. **Remove dead `PackContext` re-export (FR-024)**. In `drg.py`'s `__all__` list,
    check if `"PackContext"` appears. It is a dead re-export because no production
    file imports `PackContext` from `charter.drg` — all imports come from
-   `charter.activation.pack_context` directly. Remove `"PackContext"` from `__all__` if
+   `charter.pack_context` directly. Remove `"PackContext"` from `__all__` if
    present. Do NOT remove the import of `PackContext` that `filter_graph_by_activation`
    uses internally — only remove it from `__all__`.
 
@@ -180,7 +180,7 @@ pytest tests/charter/test_activation_filtered_drg.py -x -v 2>&1 | tail -15
 
 ### T035 — Wire `filter_graph_by_activation` in `context.py`
 
-**Requirement**: FR-032, FR-035 | **File**: `src/charter/activation/context.py`
+**Requirement**: FR-032, FR-035 | **File**: `src/charter/context.py`
 
 1. Read `_load_action_doctrine_bundle()` in full (≈line 523). Identify the merge
    step that produces `merged` and the subsequent `resolve_context(merged, ...)` call.
@@ -198,7 +198,7 @@ pytest tests/charter/test_activation_filtered_drg.py -x -v 2>&1 | tail -15
    ```
 
 4. Import `filter_graph_by_activation` from `charter.drg` and `PackContext` from
-   `charter.activation.pack_context` at the top of the file if not already present.
+   `charter.pack_context` at the top of the file if not already present.
 
 5. Confirm the `drg.py` comment block at lines 712–738 names this function — your
    wiring must match exactly what that comment documents.
@@ -206,14 +206,14 @@ pytest tests/charter/test_activation_filtered_drg.py -x -v 2>&1 | tail -15
 **Validation**:
 ```bash
 cd /home/stijn/Documents/_code/SDD/fork/spec-kitty
-python -c "from charter.activation.context import _load_action_doctrine_bundle; print('OK')"
+python -c "from charter.context import _load_action_doctrine_bundle; print('OK')"
 ```
 
 ---
 
 ### T036 — Wire in `reference_resolver.py`
 
-**Requirement**: FR-032, FR-036 | **File**: `src/charter/activation/reference_resolver.py`
+**Requirement**: FR-032, FR-036 | **File**: `src/charter/reference_resolver.py`
 
 1. Read `resolve_references_transitively()` in full (≈line 40).
 2. Add `pack_context: PackContext | None = None` to its signature if absent.
@@ -233,7 +233,7 @@ python -c "from charter.activation.context import _load_action_doctrine_bundle; 
 **Validation**:
 ```bash
 cd /home/stijn/Documents/_code/SDD/fork/spec-kitty
-python -c "from charter.activation.reference_resolver import resolve_references_transitively; print('OK')"
+python -c "from charter.reference_resolver import resolve_references_transitively; print('OK')"
 ```
 If `tests/charter/test_context.py` exists and tests `resolve_references_transitively`,
 run it and confirm it passes. If its call signature changed, update the test to pass
@@ -243,7 +243,7 @@ run it and confirm it passes. If its call signature changed, update the test to 
 
 ### T037 — Wire in `compiler.py`
 
-**Requirement**: FR-032, FR-035 | **File**: `src/charter/activation/compiler.py`
+**Requirement**: FR-032, FR-035 | **File**: `src/charter/compiler.py`
 
 Add `pack_context: PackContext | None = None` to `_resolve_transitive_reference_graph()`
 (≈line 499). After the graph is loaded but before resolution:
@@ -259,7 +259,7 @@ Thread `pack_context` up from the public `compile()` entry point using
 **Validation**:
 ```bash
 cd /home/stijn/Documents/_code/SDD/fork/spec-kitty
-python -c "from charter.activation.compiler import _resolve_transitive_reference_graph; print('OK')"
+python -c "from charter.compiler import _resolve_transitive_reference_graph; print('OK')"
 ```
 
 ---
@@ -299,7 +299,7 @@ Create or extend `tests/charter/test_drg_filtering.py`. Required test classes:
 
 ```python
 from charter.drg import _node_is_activated
-from charter.activation.pack_context import PackContext
+from charter.pack_context import PackContext
 from pathlib import Path
 
 def _pc(**kw) -> PackContext:
@@ -369,7 +369,7 @@ do not forward the new parameter will cause `TypeError` at runtime.
 - [ ] Dead `PackContext` re-export removed from `charter.drg.__all__` (FR-024)
 - [ ] `tests/charter/test_resolver.py` updated: any call/mock of `resolve_references_transitively` passes `pack_context=None` or a real `PackContext`
 - [ ] `pytest tests/charter/ -x` passes (no stale mocks, no signature mismatches)
-- [ ] `ruff check src/charter/drg.py src/charter/activation/context.py src/charter/activation/reference_resolver.py src/charter/activation/compiler.py src/specify_cli/mission_step_contracts/executor.py` passes
+- [ ] `ruff check src/charter/drg.py src/charter/context.py src/charter/reference_resolver.py src/charter/compiler.py src/specify_cli/mission_step_contracts/executor.py` passes
 - [ ] `python -m mypy src/charter/drg.py --strict` passes (or no new errors introduced)
 - [ ] No new `from doctrine` import appears in `src/charter/` files
 

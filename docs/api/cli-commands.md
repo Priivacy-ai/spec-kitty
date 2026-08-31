@@ -826,7 +826,7 @@ _Charter pack management commands._
  **minimal artifact set** the runtime requires:
 
  1. ``.kittify/doctrine/`` — directory marker. ``DoctrineService``'s
-    project-root resolver (``src/charter/activation/_doctrine_paths.py``) is a
+    project-root resolver (``src/charter/_doctrine_paths.py``) is a
     presence-only check; an empty directory is a valid project layer.
  2. ``.kittify/doctrine/PROVENANCE.md`` — human-readable record of the
     fresh-project seed path, citing #839.

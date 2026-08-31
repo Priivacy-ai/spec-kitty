@@ -65,7 +65,7 @@ This document captures the user-visible data shapes the mission introduces or ha
 
 **Invariants (entry-level)**
 
-- `INV-W-1` — `path` is sourced from typed staged-artifact entries returned by the synthesizer's write pipeline (`src/charter/activation/synthesizer/write_pipeline.py`), not from `kind`/`slug`-based path reconstruction.
+- `INV-W-1` — `path` is sourced from typed staged-artifact entries returned by the synthesizer's write pipeline (`src/charter/synthesizer/write_pipeline.py`), not from `kind`/`slug`-based path reconstruction.
 - `INV-W-2` — When `artifact_id` is non-null, the `<NNN>` segment of `path` (where present) is derived from that `artifact_id` (e.g. `PROJECT_001` → `001`).
 - `INV-W-3` — Dry-run and non-dry-run runs produce equal entries, member-for-member, when given the same `SynthesisRequest`.
 

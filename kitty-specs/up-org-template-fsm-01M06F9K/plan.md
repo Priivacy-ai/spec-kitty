@@ -23,7 +23,7 @@ only — never a module merge), then adds a `ResolutionTier.ORG` sourced from th
 `charter.drg.resolve_org_roots` facade at the identical relative position across four independent
 call sites (`doctrine/resolver.py`, `specify_cli/runtime/resolver.py`, FSM Walk A, FSM Walk B),
 fixes `list_cmd.py`'s org-tier reporting to match what actually resolves, and de-silences Walk B's
-swallowed FSM load failures. `charter.activation.template_resolver.CharterTemplateResolver._tier_to_origin`
+swallowed FSM load failures. `charter.template_resolver.CharterTemplateResolver._tier_to_origin`
 gets a matching `ORG` label as a small, independent consistency fix. Twelve FRs, sized M upper-edge
 (~123 production / ~340 test LOC per the spec's own estimate — see Sizing Assessment below).
 
@@ -215,7 +215,7 @@ directly in this checkout during planning (not inherited from the spec without a
   (`_build_discovery_context`, docstring explicitly says it duplicates
   `runtime_bridge._build_discovery_context` to avoid depending on a private surface) — confirmed
   DEC-006's third wiring site is real and independent of Walk A/B's own construction sites.
-- `src/charter/activation/template_resolver.py:165-174` (`_tier_to_origin`'s `tier_prefix` dict, `.get(tier,
+- `src/charter/template_resolver.py:165-174` (`_tier_to_origin`'s `tier_prefix` dict, `.get(tier,
   "unknown")` fallback) — confirmed the missing-`ORG` gap DEC-008 describes.
 - `src/doctrine/artifact_kinds.py:65-92` (`_HAS_BUILT_IN_CONTENT_DIR`) — confirmed `template` stays
   `False`; this mission's changes do not touch this map.

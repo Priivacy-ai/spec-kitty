@@ -31,8 +31,8 @@ create_intent:
 execution_mode: code_change
 owned_files:
 - .kittify/charter/provenance/**
-- src/charter/activation/synthesizer/artifact_naming.py
-- src/charter/activation/synthesizer/write_pipeline.py
+- src/charter/synthesizer/artifact_naming.py
+- src/charter/synthesizer/write_pipeline.py
 - src/charter/bundle.py
 - tests/specify_cli/charter/**
 role: implementer
@@ -65,7 +65,7 @@ Fix `spec-kitty charter bundle validate` so it exits 0 on a fresh checkout of th
 
 **Defect 1 — Stale sidecars (T004)**: Seven `adapter_id: fixture` placeholder files are tracked in `.kittify/charter/provenance/`. They were committed in commit `0b6e2d7d9` without corresponding generated artifacts. The validator finds them, looks for their artifacts, finds nothing, and fails.
 
-**Defect 2 — Plural/singular mismatch (T005, T006)**: `doctrine_kind_subdir()` in `src/charter/activation/synthesizer/artifact_naming.py` maps kinds to plural directories (`directives/`, `tactics/`, `styleguides/`). The `.gitignore` must whitelist only singular directories (`directive/`, `tactic/`, `styleguide/`). Synthesized artifacts are structurally ungittrackable when produced under plural directories. The validator's `_find_artifact()` does `doctrine_root.rglob("*.directive.yaml")` which hits nothing because no plural-dir artifacts exist.
+**Defect 2 — Plural/singular mismatch (T005, T006)**: `doctrine_kind_subdir()` in `src/charter/synthesizer/artifact_naming.py` maps kinds to plural directories (`directives/`, `tactics/`, `styleguides/`). The `.gitignore` must whitelist only singular directories (`directive/`, `tactic/`, `styleguide/`). Synthesized artifacts are structurally ungittrackable when produced under plural directories. The validator's `_find_artifact()` does `doctrine_root.rglob("*.directive.yaml")` which hits nothing because no plural-dir artifacts exist.
 
 **Defect 3 — Validator early-exit gap (T007)**: `validate_synthesis_state()` early-exits only when artifact_files, provenance_files, AND manifest are ALL absent. The seeded `synthesis-manifest.yaml` (`built_in_only: true`, `artifacts: []`) prevents the early-exit even though no synthesis has occurred.
 
@@ -120,17 +120,17 @@ Do NOT change `.gitignore` to whitelist plural dirs — that would allow gitigno
 
 **Steps**:
 
-1. Read `src/charter/activation/synthesizer/artifact_naming.py` — find `doctrine_kind_subdir()`.
+1. Read `src/charter/synthesizer/artifact_naming.py` — find `doctrine_kind_subdir()`.
 
 2. Change the return values from plural to singular:
    - `"directives"` → `"directive"`
    - `"tactics"` → `"tactic"`
    - `"styleguides"` → `"styleguide"` (the singular gitignore-whitelisted name)
 
-3. Run `mypy src/charter/activation/synthesizer/artifact_naming.py --strict` — must pass with zero errors.
+3. Run `mypy src/charter/synthesizer/artifact_naming.py --strict` — must pass with zero errors.
 
 **Validation**:
-- `ruff check src/charter/activation/synthesizer/artifact_naming.py` passes.
+- `ruff check src/charter/synthesizer/artifact_naming.py` passes.
 - The function returns singular dir names for all supported kinds.
 
 ---
@@ -141,7 +141,7 @@ Do NOT change `.gitignore` to whitelist plural dirs — that would allow gitigno
 
 **Steps**:
 
-1. Read `src/charter/activation/synthesizer/write_pipeline.py` in full. Look for:
+1. Read `src/charter/synthesizer/write_pipeline.py` in full. Look for:
    - Calls to `doctrine_kind_subdir()` — these will now receive the correct singular name from T005.
    - Any hardcoded string literals with `"directives"`, `"tactics"`, or `"styleguides"` (plural). Lines ~174, ~206, ~584 were flagged in the investigation.
 

@@ -38,6 +38,6 @@ Expected: the two former test-side unions now assert against production's bundle
 ## Gate before hand-off
 ```bash
 uv run ruff check .
-uv run mypy --strict src/charter/activation/mission_type_profiles.py src/doctrine/drg
+uv run mypy --strict src/charter/mission_type_profiles.py src/doctrine/drg
 ```
 Expected: zero issues.

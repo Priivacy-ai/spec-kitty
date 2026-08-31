@@ -15,7 +15,7 @@
         "WP05"
       ],
       "write_scope": [
-        "src/charter/activation/context.py",
+        "src/charter/context.py",
         "src/doctrine/drg/__init__.py",
         "src/doctrine/drg/loader.py",
         "src/doctrine/drg/migration/__init__.py",

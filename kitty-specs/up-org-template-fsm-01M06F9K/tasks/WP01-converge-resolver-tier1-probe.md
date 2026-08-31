@@ -115,7 +115,7 @@ in this mission already had to be corrected for citing a path that only exists o
 `doctrine/resolver.py` and `specify_cli/runtime/resolver.py` — they stay two modules.
 `tests/architectural/test_charter_sole_door_resolver_imports.py:1-20` gate-mandates that
 `doctrine.resolver`'s tier functions stay reachable, from outside `src/charter/**`/`src/doctrine/**`,
-only via `charter.activation.resolver.DoctrineService`. A real merge would make
+only via `charter.resolver.DoctrineService`. A real merge would make
 `specify_cli/runtime/resolver.py` import `doctrine.resolver` directly and red this gate immediately
 (zero-tolerance, no allow-list).
 

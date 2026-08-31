@@ -73,7 +73,7 @@ Done means:
 
 ## Context & Constraints
 
-- **Verified fact, do not "fix" this**: `src/charter/activation/cascade.py::REFERENCE_RELATIONS` is `frozenset({Relation.REQUIRES, Relation.SUGGESTS, Relation.REFINES})` today. The three new relations achieve exclusion **by never being added to this set** — there is no code change required for T032, only a test that proves the omission holds and stays held. Do not add a denylist check to `cascade.py`; that would reintroduce the per-kind branching the engine's design (C-003) deliberately avoids.
+- **Verified fact, do not "fix" this**: `src/charter/cascade.py::REFERENCE_RELATIONS` is `frozenset({Relation.REQUIRES, Relation.SUGGESTS, Relation.REFINES})` today. The three new relations achieve exclusion **by never being added to this set** — there is no code change required for T032, only a test that proves the omission holds and stays held. Do not add a denylist check to `cascade.py`; that would reintroduce the per-kind branching the engine's design (C-003) deliberately avoids.
 - `src/specify_cli/charter_runtime/lint/checks/orphan.py` (verified): `_ORPHAN_RULES` maps `"directive": ("directive", {"governs"})` and `"adr": ("adr", {"supersedes", "references"})`. Neither `"governs"` nor `"supersedes"` is a member of the `Relation` enum (confirmed by reading `src/doctrine/drg/models.py`'s `Relation` class) — these are phantom expected-inbound-relations that can never actually be satisfied, which is exactly why every built-in directive with no OTHER inbound relation gets flagged.
 - This WP depends on WP01 (relations must exist to assert their absence) and WP02 (INV-003's test needs the real tension/reconciler edges to exist).
 
@@ -109,7 +109,7 @@ Implementation command: `spec-kitty agent action implement WP06 --agent <name>` 
 ### Subtask T032 – Cascade `REFERENCE_RELATIONS` exclusion regression test
 
 - **Purpose**: FR-013 — the test IS the deliverable (exclusion is by omission, there's no code to write).
-- **Steps**: In `tests/charter/test_cascade.py`, add: `assert {Relation.IN_TENSION_WITH, Relation.RECONCILES_TENSION, Relation.REJECTS} & cascade.REFERENCE_RELATIONS == frozenset()`. Import `Relation` from `src/doctrine/drg/models.py` and `REFERENCE_RELATIONS`/module from `src/charter/activation/cascade.py`.
+- **Steps**: In `tests/charter/test_cascade.py`, add: `assert {Relation.IN_TENSION_WITH, Relation.RECONCILES_TENSION, Relation.REJECTS} & cascade.REFERENCE_RELATIONS == frozenset()`. Import `Relation` from `src/doctrine/drg/models.py` and `REFERENCE_RELATIONS`/module from `src/charter/cascade.py`.
 - **Files**: `tests/charter/test_cascade.py`
 - **Parallel?**: Yes.
 - **Notes**: Do not write this as "no crash when cascading over a graph containing these relations" — that would pass vacuously. It must be the explicit frozenset-intersection assertion.
@@ -134,7 +134,7 @@ Implementation command: `spec-kitty agent action implement WP06 --agent <name>` 
 ## Review Guidance
 
 - Confirm `orphaned_directive` findings are exactly `{DIRECTIVE_035, DIRECTIVE_039}` — run the lint command yourself, don't just trust the test.
-- Confirm `src/charter/activation/cascade.py` itself was not modified in this WP (no source change needed, only tests).
+- Confirm `src/charter/cascade.py` itself was not modified in this WP (no source change needed, only tests).
 
 ## Activity Log
 

@@ -34,7 +34,7 @@ Home key: `CR/<m>` = `src/charter/context_renderers/<m>.py`; `ch/<m>` = `src/cha
 | Seam cluster | Home | New/existing | Render? | Notes |
 |---|---|---|---|---|
 | Public orchestrators (`build_charter_context`, `_include`, `_json`, `CharterContextResult`, `BOOTSTRAP_ACTIONS`) | **STAY** | — | y | thin after delegation; ≤500 LOC ceiling |
-| Catalog diagnosis (`_diagnose_catalog_miss`, `_available_catalog_ids`) | `CR/catalog_diagnosis.py` | new (leaf) | n | **cycle symbol**; deps `charter.activation._catalog_miss` only |
+| Catalog diagnosis (`_diagnose_catalog_miss`, `_available_catalog_ids`) | `CR/catalog_diagnosis.py` | new (leaf) | n | **cycle symbol**; deps `charter._catalog_miss` only |
 | Token budget (`_enforce_token_budget`, `_budget_estimate`, `_PROFILE_INLINE_BODY_LIMIT_CHARS`) | `CR/token_budget.py` | existing | y/n | **cycle symbols**; consolidate |
 | Fetch stanza (`_render_fetch_stanza`) | `CR/fetch_stanza.py` | existing | y | **cycle symbol**; fold thin wrapper; US2 fix lands here |
 | Artifact-body formatting (9× `_format_inline_*`, `_format_full_artifact_payload_body`, `_format_profile_directive_code`, `_jsonable_artifact_value`) | `CR/artifact_bodies.py` | new | y/n | pure transforms |
@@ -61,4 +61,4 @@ Home key: `CR/<m>` = `src/charter/context_renderers/<m>.py`; `ch/<m>` = `src/cha
 2. **Layer rule** — no `specify_cli` import anywhere under `src/charter/`.
 3. **`__all__`** — every `src/charter/` module (incl. new seams) declares `__all__`; every export has a caller.
 4. **Import acyclicity** — the `profile_sections` cycle is dissolved, no new cycle introduced.
-5. **FR-009 surface** — every private symbol imported from `charter.activation.context` by tests stays importable (re-export shim).
+5. **FR-009 surface** — every private symbol imported from `charter.context` by tests stays importable (re-export shim).

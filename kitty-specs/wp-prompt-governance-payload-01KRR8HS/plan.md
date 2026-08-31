@@ -17,7 +17,7 @@ or ADR pointers. The runtime `implement.md` template at
 forbids the executing agent from looking elsewhere, closing the trap.
 
 This mission makes the `profile=` parameter of `build_charter_context` load-bearing
-(today: `_ = profile` at `src/charter/activation/context.py:92`), wires the WP frontmatter's
+(today: `_ = profile` at `src/charter/context.py:92`), wires the WP frontmatter's
 `agent_profile:` through `_build_wp_prompt → _governance_context →
 build_charter_context`, augments the bootstrap renderer to surface charter section
 bodies (verbatim or fetch + when-doing) plus authority paths plus profile-cited
@@ -99,7 +99,7 @@ specify_cli.next.prompt_builder._build_wp_prompt
 specify_cli.next.prompt_builder._governance_context(repo_root, action=..., profile=<id>)
   │ NEW: forwards profile=<id> to build_charter_context
   ▼
-charter.activation.context.build_charter_context(repo_root, action=..., profile=<id>)
+charter.context.build_charter_context(repo_root, action=..., profile=<id>)
   │ NEW: profile= becomes load-bearing
   │ NEW: imports doctrine.agent_profiles.AgentProfileRepository (allowed)
   │ NEW: walks profile.directive_references / tactic_references
@@ -184,12 +184,12 @@ contract pinned by
 
 | Module | Change |
 |---|---|
-| `src/charter/activation/context.py` | Remove `_ = profile` at line 92; thread `profile=` into `_load_action_doctrine_bundle` and into a new `_render_profile_section` helper. Add `_render_authority_paths(repo_root, charter_config)`, `_render_critical_section_bodies(charter_content, action)`, `_render_profile_directives(profile, service)`, `_render_profile_tactics(profile, service)`. Extend `_render_bootstrap_text` to call all four. |
-| `src/charter/activation/context.py` (new helper) | `_load_agent_profile(profile_id)` — imports `doctrine.agent_profiles.AgentProfileRepository.default()`, returns the profile or `None`. Centralised so the import site is single. |
-| `src/charter/activation/context.py` (token budget) | New `_apply_token_budget(text, budget=32_000)` walks the rendered sections, identifies the longest body, replaces it with a `Run: …\nWhen …, run this and apply.` stanza, and emits a warning line `# Governance payload trimmed: <section> substituted with fetch command (budget=…).` Repeats until under budget; warns once if still over. |
-| `src/charter/activation/sync.py` | Augment `Extractor._extract_directives` (extractor.py:263) to scan each `numbered_items` body for `DIRECTIVE_\d{3}` and tactic-id slug regex; collect detected IDs into a new `references:` list on the emitted `Directive`. Update `charter.activation.schemas.Directive` to carry an optional `references: list[str] = []` field. |
-| `src/charter/activation/sync.py` (resolver-input declarations) | Extend `Extractor._merge_doctrine_selection` to scan any section's `yaml_blocks` for top-level `template_set`, `available_tools`, and `authority_paths` keys. Already partially supported for `template_set` / `available_tools` via `_apply_selection_row`; add `authority_paths` handling and ensure it lands in `GovernanceConfig.doctrine` (new `authority_paths: list[str] = []` field). |
-| `src/charter/activation/schemas.py` | Add optional `references: list[str] = []` to `Directive`. Add optional `authority_paths: list[str] = []` to `DoctrineSelectionConfig`. Both default-empty so NFR-005 holds. |
+| `src/charter/context.py` | Remove `_ = profile` at line 92; thread `profile=` into `_load_action_doctrine_bundle` and into a new `_render_profile_section` helper. Add `_render_authority_paths(repo_root, charter_config)`, `_render_critical_section_bodies(charter_content, action)`, `_render_profile_directives(profile, service)`, `_render_profile_tactics(profile, service)`. Extend `_render_bootstrap_text` to call all four. |
+| `src/charter/context.py` (new helper) | `_load_agent_profile(profile_id)` — imports `doctrine.agent_profiles.AgentProfileRepository.default()`, returns the profile or `None`. Centralised so the import site is single. |
+| `src/charter/context.py` (token budget) | New `_apply_token_budget(text, budget=32_000)` walks the rendered sections, identifies the longest body, replaces it with a `Run: …\nWhen …, run this and apply.` stanza, and emits a warning line `# Governance payload trimmed: <section> substituted with fetch command (budget=…).` Repeats until under budget; warns once if still over. |
+| `src/charter/sync.py` | Augment `Extractor._extract_directives` (extractor.py:263) to scan each `numbered_items` body for `DIRECTIVE_\d{3}` and tactic-id slug regex; collect detected IDs into a new `references:` list on the emitted `Directive`. Update `charter.schemas.Directive` to carry an optional `references: list[str] = []` field. |
+| `src/charter/sync.py` (resolver-input declarations) | Extend `Extractor._merge_doctrine_selection` to scan any section's `yaml_blocks` for top-level `template_set`, `available_tools`, and `authority_paths` keys. Already partially supported for `template_set` / `available_tools` via `_apply_selection_row`; add `authority_paths` handling and ensure it lands in `GovernanceConfig.doctrine` (new `authority_paths: list[str] = []` field). |
+| `src/charter/schemas.py` | Add optional `references: list[str] = []` to `Directive`. Add optional `authority_paths: list[str] = []` to `DoctrineSelectionConfig`. Both default-empty so NFR-005 holds. |
 | `src/specify_cli/next/prompt_builder.py` | In `_build_wp_prompt`, after `read_wp_frontmatter`, extract `wp_meta.agent_profile` (already in frontmatter). Pass it to `_governance_context(repo_root, action=action, profile=<id>)`. In `_governance_context`, forward `profile=` to `build_charter_context`. |
 | `src/specify_cli/missions/software-dev/command-templates/implement.md` | Add new top-level section `## Governance Payload Contract` (before `## Execution Steps`) enumerating the guaranteed bodies and fetch-command stanzas. Forbid clause at lines 68-71 stays; the new section makes it honest. |
 | `src/specify_cli/missions/software-dev/command-templates/review.md` | Same addition for the review prompt, framed for the reviewer's surfaces (profile-cited review directives e.g. DIRECTIVE_032, glossary pointer with "when you assess a diff that renames identifiers, …" conditional). |
@@ -281,9 +281,9 @@ WP06 once WP02 lands. All other WPs are strictly sequential.
 - `tests/specify_cli/next/test_wp_prompt_governance_contract.py` — 23 ATDD tests (the executable spec).
 - `docs/development/wp-prompt-governance-atdd-findings.md` — per-test failure-to-FR mapping.
 - `docs/development/org-doctrine-layer-architecture-review.md` — root-cause analysis.
-- `src/charter/activation/context.py:70-92` — `build_charter_context` signature with the discarded `profile=` parameter.
-- `src/charter/activation/context.py:282-332` — `_render_bootstrap_text` that needs augmentation.
-- `src/charter/activation/sync.py:128-200` — `sync()` orchestration.
+- `src/charter/context.py:70-92` — `build_charter_context` signature with the discarded `profile=` parameter.
+- `src/charter/context.py:282-332` — `_render_bootstrap_text` that needs augmentation.
+- `src/charter/sync.py:128-200` — `sync()` orchestration.
 - `src/charter/extractor.py:263-299` — `_extract_directives` (gains `references:` detection).
 - `src/charter/extractor.py:198-261` — `_merge_doctrine_selection` / `_apply_selection_row` (gains `authority_paths` handling).
 - `src/specify_cli/next/prompt_builder.py:110-148` — `_build_wp_prompt`.

@@ -92,7 +92,7 @@ Done means:
 
 - Read `kitty-specs/doctrine-tension-edges-01KY1WPC/spec.md` (FR-001/002/003/004/012, Key Entities section) and `data-model.md` (this WP implements exactly the "Relation" and "NodeKind"/"DRGNode" sections there) before starting.
 - `docs/architecture/doctrine-relationships.md` is the FR-012/NFR-004 doc-parity target — WP08 builds a check that this doc must match `RELATION_DESCRIPTIONS` verbatim. You are not responsible for editing that doc in this WP, but the description text you write here is load-bearing for that later check — write real prose, not a stub.
-- Do **not** wire `ANTI_PATTERN` into `_SINGULAR_TO_PLURAL`, `_SINGULAR_TO_PER_KIND_FIELD`, `_SINGULAR_TO_PLURAL_KIND`, or `PackContext` — that is WP04's job (`src/charter/drg.py`, `src/charter/activation/activations.py`, `src/charter/activation/pack_context.py`). Touching those files here would create an ownership conflict.
+- Do **not** wire `ANTI_PATTERN` into `_SINGULAR_TO_PLURAL`, `_SINGULAR_TO_PER_KIND_FIELD`, `_SINGULAR_TO_PLURAL_KIND`, or `PackContext` — that is WP04's job (`src/charter/drg.py`, `src/charter/activations.py`, `src/charter/pack_context.py`). Touching those files here would create an ownership conflict.
 - Do **not** touch `opposed_by`, `Contradiction`, or any built-in `*.yaml` artifact content — that is WP02 (adds new edges) and WP03 (removes the old field), both sequenced after this WP.
 
 ## Branch Strategy
@@ -166,12 +166,12 @@ Implementation command: `spec-kitty agent action implement WP01 --agent <name>` 
 
 ### Subtask T005 – Add the `ArtifactKind` member
 
-- **Purpose**: `ArtifactKind` (`src/doctrine/artifact_kinds.py`) is a separate enum from `NodeKind` used by the activation/cascade machinery; `src/charter/activation/cascade.py::_kind_of` resolves via `ArtifactKind(prefix)`, so this member must exist for anti-pattern URNs to resolve correctly there (verified by reading `cascade.py` — no other code change is needed in that file once this member exists).
+- **Purpose**: `ArtifactKind` (`src/doctrine/artifact_kinds.py`) is a separate enum from `NodeKind` used by the activation/cascade machinery; `src/charter/cascade.py::_kind_of` resolves via `ArtifactKind(prefix)`, so this member must exist for anti-pattern URNs to resolve correctly there (verified by reading `cascade.py` — no other code change is needed in that file once this member exists).
 - **Steps**:
   1. Open `src/doctrine/artifact_kinds.py`, find `class ArtifactKind(StrEnum)`, add the corresponding member (match the existing naming convention in that file exactly — check whether other members use the singular kind string or a different casing before adding `ANTI_PATTERN`/`"anti_pattern"`).
 - **Files**: `src/doctrine/artifact_kinds.py`
 - **Parallel?**: Yes.
-- **Notes**: Do NOT touch `_SINGULAR_TO_PLURAL`/`_SINGULAR_TO_PER_KIND_FIELD` in `src/charter/drg.py` or `_SINGULAR_TO_PLURAL_KIND` in `src/charter/activation/activations.py` or `PackContext` — WP04 owns those files and that wiring.
+- **Notes**: Do NOT touch `_SINGULAR_TO_PLURAL`/`_SINGULAR_TO_PER_KIND_FIELD` in `src/charter/drg.py` or `_SINGULAR_TO_PLURAL_KIND` in `src/charter/activations.py` or `PackContext` — WP04 owns those files and that wiring.
 
 ### Subtask T006 – Foundation tests
 

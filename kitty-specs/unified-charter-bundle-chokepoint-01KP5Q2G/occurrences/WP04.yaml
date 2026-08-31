@@ -97,12 +97,12 @@ carve_outs:
       The migration never scans or edits worktrees. Verification:
       ``git diff kitty/mission-unified-charter-bundle-chokepoint-01KP5Q2G..HEAD -- src/specify_cli/core/worktree.py``
       is empty.
-  - path: src/charter/activation/compiler.py
+  - path: src/charter/compiler.py
     action: leave
     reason: >-
       C-012: compiler pipeline owns references.yaml. Out of v1.0.0
       manifest scope. Verification:
-      ``git diff kitty/mission-unified-charter-bundle-chokepoint-01KP5Q2G..HEAD -- src/charter/activation/compiler.py``
+      ``git diff kitty/mission-unified-charter-bundle-chokepoint-01KP5Q2G..HEAD -- src/charter/compiler.py``
       is empty.
   - path: .gitignore
     action: leave

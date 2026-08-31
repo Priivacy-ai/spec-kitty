@@ -148,16 +148,16 @@ apply():
 
 | Old Symbol | New Symbol | Module |
 |-----------|-----------|--------|
-| `CompiledConstitution` | `CompiledCharter` | `charter.activation.compiler` |
+| `CompiledConstitution` | `CompiledCharter` | `charter.compiler` |
 | `ConstitutionParser` | `CharterParser` | `charter.parser` |
 | `ConstitutionSection` | `CharterSection` | `charter.parser` |
-| `ConstitutionInterview` | `CharterInterview` | `charter.activation.interview` |
-| `ConstitutionTemplateResolver` | `CharterTemplateResolver` | `charter.activation.template_resolver` |
-| `compile_constitution()` | `compile_charter()` | `charter.activation.compiler` |
-| `write_compiled_constitution()` | `write_compiled_charter()` | `charter.activation.compiler` |
-| `build_constitution_context()` | `build_charter_context()` | `charter.activation.context` |
+| `ConstitutionInterview` | `CharterInterview` | `charter.interview` |
+| `ConstitutionTemplateResolver` | `CharterTemplateResolver` | `charter.template_resolver` |
+| `compile_constitution()` | `compile_charter()` | `charter.compiler` |
+| `write_compiled_constitution()` | `write_compiled_charter()` | `charter.compiler` |
+| `build_constitution_context()` | `build_charter_context()` | `charter.context` |
 | `build_constitution_draft()` | `build_charter_draft()` | `charter.generator` |
-| `sync_constitution()` | `sync_charter()` | `charter.activation.sync` |
+| `sync_constitution()` | `sync_charter()` | `charter.sync` |
 | `resolve_project_constitution_path()` | `resolve_project_charter_path()` | `specify_cli.dashboard.charter_path` |
 | `copy_constitution_templates()` | `copy_charter_templates()` | `specify_cli.template.manager` |
 | `ConstitutionCleanupMigration` | `CharterCleanupMigration` | (stub) |

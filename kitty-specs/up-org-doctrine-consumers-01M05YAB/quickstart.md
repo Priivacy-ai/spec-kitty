@@ -19,7 +19,7 @@ All commands below assume this working directory and branch.
 ```bash
 .venv/bin/python -c "
 from pathlib import Path
-from charter.activation._drg_helpers import load_validated_graph
+from charter._drg_helpers import load_validated_graph
 graph = load_validated_graph(Path('.'))
 print('node count (no org_root):', len(graph.nodes))
 "
@@ -55,7 +55,7 @@ EOF
 ```bash
 .venv/bin/python -c "
 from pathlib import Path
-from charter.activation._drg_helpers import load_validated_graph
+from charter._drg_helpers import load_validated_graph
 graph = load_validated_graph(Path('.'), org_root=Path('/tmp/org-pack-quickstart'))
 print('node count (with org_root):', len(graph.nodes))
 print('probe node present:', any(n.urn == 'directive:quickstart-probe' for n in graph.nodes))

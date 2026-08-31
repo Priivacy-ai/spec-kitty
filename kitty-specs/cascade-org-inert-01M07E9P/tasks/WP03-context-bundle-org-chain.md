@@ -26,7 +26,7 @@ create_intent:
 - tests/charter/test_context_org_chain.py
 execution_mode: code_change
 owned_files:
-- src/charter/activation/context.py
+- src/charter/context.py
 - src/specify_cli/cli/commands/charter/context.py
 - tests/charter/test_context_org_chain.py
 tags: []
@@ -52,7 +52,7 @@ tracker_refs: []
 `src/specify_cli/cli/commands/charter/context.py`'s `context()` CLI command (lines ~84-134)
 computes ONE truncated `org_root = org_roots[0] if org_roots else None` and passes that SAME
 truncated value into BOTH `build_charter_context` (plain-text) and `build_charter_context_json`
-(JSON). `build_charter_context` already routes through `charter.activation.action_doctrine_bundle
+(JSON). `build_charter_context` already routes through `charter.action_doctrine_bundle
 ._resolve_action_bundle` — but that wrapper only self-resolves the full chain when it receives
 `org_root=None`; an explicit (already-truncated) `org_root` is honoured verbatim (see
 `_resolve_action_bundle`'s docstring, `action_doctrine_bundle.py:96-99`). So the PLAIN-TEXT path
@@ -74,10 +74,10 @@ the separately-computed full `org_roots` list UNCHANGED** for
 
 ## T018 — Route the JSON path through the self-resolving wrapper
 
-In `src/charter/activation/context.py::build_charter_context_json`: swap the internal call from the private
-`_load_action_doctrine_bundle` to `charter.activation.action_doctrine_bundle._resolve_action_bundle`
+In `src/charter/context.py::build_charter_context_json`: swap the internal call from the private
+`_load_action_doctrine_bundle` to `charter.action_doctrine_bundle._resolve_action_bundle`
 (mirroring what `build_charter_context`, the plain-text path, already does at
-`src/charter/activation/context.py:270`).
+`src/charter/context.py:270`).
 
 ## T019 — Empirical inertness proof (do this, do not skip it, do not treat it as optional)
 
@@ -119,9 +119,9 @@ after this WP.
 - `.venv/bin/python -m pytest tests/charter/ -v` (targeted surface, esp.
   `test_context.py`, `test_context_org_governance.py`, `test_org_activations_reach_context.py`) —
   baseline recorded before T019's first (red) run.
-- `uvx --with-requirements pyproject.toml mypy --strict src/charter/activation/context.py
+- `uvx --with-requirements pyproject.toml mypy --strict src/charter/context.py
   src/specify_cli/cli/commands/charter/context.py` — before/after. **Known pre-existing baseline
   (already live-checked by plan.md, do not re-derive)**: `charter/context.py` carries 6
   `no-any-return` errors (lines 250/336/342/351/365/376); `cli/commands/charter/context.py:19`
   carries 1 `untyped-decorator` error. Confirm the count does not grow past this baseline.
-- `uvx ruff check src/charter/activation/context.py src/specify_cli/cli/commands/charter/context.py`.
+- `uvx ruff check src/charter/context.py src/specify_cli/cli/commands/charter/context.py`.

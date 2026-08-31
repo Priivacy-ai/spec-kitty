@@ -38,7 +38,7 @@ owned_files:
 - src/doctrine/toolguides/repository.py
 - src/doctrine/assets/repository.py
 - src/doctrine/glossary_packs/repository.py
-- src/charter/activation/catalog.py
+- src/charter/catalog.py
 - src/specify_cli/cli/commands/agent/tasks_status_cmd.py
 - tests/doctrine/test_loader_fail_closed.py
 role: implementer
@@ -69,7 +69,7 @@ Repoint every reader of the moved content to resolve via `resolve_pack_root("bui
 - **Drop the now-dead `hasattr`/`Path(str(...))` Traversable dance** — the resolver returns a real `Path`. Don't leave dead code.
 
 ### T012 — Repoint the string reader + the charter catalog + enumerated readers
-- **`src/charter/activation/catalog.py` `_scan()`/`load_doctrine_catalog()` (line ~276)** — a SECOND, independent reader of the moved content: it scans `resolve_doctrine_root()/<kind>/"built-in"` for paradigms/directives/tactics/styleguides/toolguides/procedures/agent_profiles (30+ callers). Repoint onto `resolve_pack_root("built-in")/<kind>` (charter is above doctrine — importing the resolver is layer-legal). **If missed, charter activation/generation silently breaks build-green** (post-tasks squad BLOCKER).
+- **`src/charter/catalog.py` `_scan()`/`load_doctrine_catalog()` (line ~276)** — a SECOND, independent reader of the moved content: it scans `resolve_doctrine_root()/<kind>/"built-in"` for paradigms/directives/tactics/styleguides/toolguides/procedures/agent_profiles (30+ callers). Repoint onto `resolve_pack_root("built-in")/<kind>` (charter is above doctrine — importing the resolver is layer-legal). **If missed, charter activation/generation silently breaks build-green** (post-tasks squad BLOCKER).
 - `specify_cli/cli/commands/agent/tasks_status_cmd.py:708,813` — replace the literal `"src/doctrine/agent_profiles/built-in"` with `resolve_pack_root("built-in")/"agent_profiles"`. Use a **module-level** `from doctrine.pack_paths import resolve_pack_root` (NOT function-local — #2986's shrink-only import ratchet fails on new function-local `from doctrine…`).
 - Repoint any live-path reader flagged REVIEW in WP01 (`rewrite_opposed_by.py:192`, `upgrade_probe.py:8` are docstrings → leave).
 

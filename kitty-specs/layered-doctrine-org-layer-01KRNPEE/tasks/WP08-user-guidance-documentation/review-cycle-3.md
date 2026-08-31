@@ -16,7 +16,7 @@ Verdict: Approved
 
 ## Summary
 
-The cycle-1 fix (commit `7a01910e`) landed correctly. The two flagged literal occurrences of the provenance `source` tag have been updated from `built-in` to `builtin`, matching the values emitted by `src/charter/activation/context.py` and `src/doctrine/base.py`:
+The cycle-1 fix (commit `7a01910e`) landed correctly. The two flagged literal occurrences of the provenance `source` tag have been updated from `built-in` to `builtin`, matching the values emitted by `src/charter/context.py` and `src/doctrine/base.py`:
 
 - `docs/explanation/org-doctrine-layer.md:135` now reads `` | `builtin` | Shipped with the CLI | `` in the provenance table.
 - `docs/how-to/create-an-org-doctrine-pack.md:389` now reads ``Resolved artifacts will have a `source` field of `builtin`, `org`, or `project`.``
