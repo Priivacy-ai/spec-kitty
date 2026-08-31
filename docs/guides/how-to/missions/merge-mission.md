@@ -2,7 +2,7 @@
 title: How to Merge a Mission
 description: 'How to merge a mission with Spec Kitty 3.2: Use this guide to merge completed work packages from a Spec Kitty mission into its target branch.'
 doc_status: active
-updated: '2026-06-03'
+updated: '2026-08-31'
 audience: docs/context/audience/external/project-owner.md
 type: how-to
 related:
@@ -417,8 +417,8 @@ For the full command reference, see
 | Flag | Description | Default |
 |------|-------------|---------|
 | `--strategy` | Merge strategy: `merge`, `squash` (rebase not supported for multi-workspace missions) | `merge` |
-| `--delete-branch` / `--keep-branch` | Delete lane and mission branches after merge | Delete |
-| `--remove-worktree` / `--keep-worktree` | Remove resolved execution worktrees after merge | Remove |
+| `--delete-branch` / `--keep-branch` | Delete lane and mission branches after merge. Unset defers to the mission's `meta.json` `retain_branches` policy (see [Mission Retention Policy](#mission-retention-policy)); passing either flag always wins | Delete (unless `retain_branches: true` in `meta.json`) |
+| `--remove-worktree` / `--keep-worktree` | Remove resolved execution worktrees after merge. Unset defers to the mission's `meta.json` `retain_worktrees` policy; passing either flag always wins | Remove (unless `retain_worktrees: true` in `meta.json`) |
 | `--push` | Push to origin after merge | No push |
 | `--target` | target branch to merge into | `main` |
 | `--dry-run` | Show what would be done without executing | - |
