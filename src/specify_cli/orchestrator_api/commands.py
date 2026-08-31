@@ -1752,6 +1752,7 @@ def accept_mission(
         return
 
     from specify_cli.acceptance import collect_feature_summary
+    from specify_cli.config.path_conventions import PathConventionsConfigError
     from specify_cli.upgrade.pre30_guard import Pre30LayoutError
 
     try:
@@ -1763,6 +1764,17 @@ def accept_mission(
         # to MISSION_NOT_READY; the full `spec-kitty upgrade` instruction rides in
         # the message field (keeping the orchestrator JSON envelope contract).
         _fail(cmd, "MISSION_NOT_READY", str(exc), _mission_identity_payload(mission_dir))
+        return
+    except PathConventionsConfigError as exc:
+        _fail(
+            cmd,
+            "MISSION_NOT_READY",
+            str(exc),
+            {
+                "message": str(exc),
+                **_mission_identity_payload(mission_dir),
+            },
+        )
         return
     workflow_evidence_issues = [
         issue for issue in summary.activity_issues if issue.startswith("Workflow run evidence required:")

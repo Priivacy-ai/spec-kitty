@@ -128,6 +128,11 @@ def test_dotdot_traversal_value_raises(tmp_path: Path) -> None:
 
 def test_relative_trailing_slash_value_still_accepted(tmp_path: Path) -> None:
     """Non-regression: a normal repo-relative value with a trailing slash (e.g. ``apps/``) must still be
-    accepted — it is later normalized by ``_normalize_path_token`` at the merge site, not here."""
+    accepted — it is later normalized by ``normalize_path_token`` at the merge site, not here."""
     _write_config(tmp_path, "project:\n  path_conventions:\n    workspace: apps/\n")
     assert load_project_path_conventions(tmp_path) == {"workspace": "apps/"}
+
+
+def test_surrounding_whitespace_value_is_trimmed(tmp_path: Path) -> None:
+    _write_config(tmp_path, 'project:\n  path_conventions:\n    workspace: "  apps  "\n')
+    assert load_project_path_conventions(tmp_path) == {"workspace": "apps"}
