@@ -43,13 +43,7 @@ def test_identity_fields_alongside_override_not_rejected(tmp_path: Path) -> None
     fields (uuid/slug/node_id/build_id) coexist without being rejected."""
     _write_config(
         tmp_path,
-        "project:\n"
-        "  uuid: 01ABC\n"
-        "  slug: my-project\n"
-        "  node_id: node-7\n"
-        "  build_id: b-42\n"
-        "  path_conventions:\n"
-        "    workspace: apps/\n",
+        "project:\n  uuid: 01ABC\n  slug: my-project\n  node_id: node-7\n  build_id: b-42\n  path_conventions:\n    workspace: apps/\n",
     )
     assert load_project_path_conventions(tmp_path) == {"workspace": "apps/"}
 
