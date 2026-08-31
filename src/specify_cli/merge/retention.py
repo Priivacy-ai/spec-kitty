@@ -71,28 +71,34 @@ def load_mission_retention(repo_root: Path, mission_slug: str) -> MissionRetenti
 
 
 def _retained_artifacts(constraint: str) -> tuple[bool, bool]:
-    """Return branch and worktree retention from each artifact-specific clause."""
+    """Return branch and worktree retention from each artifact-specific clause.
 
-    clauses = re.split(
-        r"[.;!?]|\bbut\b|\band\s+(?=(?:delete|remove)\b)",
-        constraint,
-        flags=re.IGNORECASE,
-    )
+    A trailing merge-timing phrase governs every joined clause in its sentence.
+    This preserves the branch gate in constraints such as ``Keep branches and
+    delete worktrees after merge`` without applying timing across a distinct
+    sentence.
+    """
+
     branch_retentions: list[bool] = []
     worktree_retentions: list[bool] = []
-    for clause in clauses:
-        if not _MERGE_TIMING.search(clause):
+    for sentence in re.split(r"[.;!?]", constraint):
+        if not _MERGE_TIMING.search(sentence):
             continue
+        clauses = re.split(
+            r"\bbut\b|\band\s+(?=(?:delete|remove)\b)",
+            sentence,
+            flags=re.IGNORECASE,
+        )
+        for clause in clauses:
+            negated_retention = _NEGATED_RETENTION.search(clause)
+            deletion_prohibition = _NEGATED_DELETION.search(clause)
+            affirmative_retention = _RETENTION_VERB.search(clause) is not None and not negated_retention
+            retains = affirmative_retention or deletion_prohibition is not None
 
-        negated_retention = _NEGATED_RETENTION.search(clause)
-        deletion_prohibition = _NEGATED_DELETION.search(clause)
-        affirmative_retention = _RETENTION_VERB.search(clause) is not None and not negated_retention
-        retains = affirmative_retention or deletion_prohibition is not None
-
-        if _BRANCH.search(clause):
-            branch_retentions.append(retains)
-        if _WORKTREE.search(clause):
-            worktree_retentions.append(retains)
+            if _BRANCH.search(clause):
+                branch_retentions.append(retains)
+            if _WORKTREE.search(clause):
+                worktree_retentions.append(retains)
 
     return any(branch_retentions), any(worktree_retentions)
 
