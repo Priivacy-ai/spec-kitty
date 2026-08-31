@@ -296,13 +296,23 @@ def test_bootstrap_proceeds_for_unmerged_mission(tmp_path: Path, monkeypatch: py
     """No merge marker => no short-circuit, even if lifecycle would classify
     the mission completed (squad pass 1: all-WPs-terminal is not merged).
     The final advance must still reach run handling so ``MissionRunCompleted``
-    and the retrospective completion gate run."""
+    and the retrospective completion gate run.
+
+    Mutation guard (squad pass 2): ``is_mission_completed`` is patched to
+    ``True`` so re-widening the helper's predicate back to it (the exact
+    pass-1 MAJOR) makes THIS test fail; only the merge-marker predicate
+    lets bootstrap proceed."""
+    import specify_cli.status as status_pkg
+
     slug = "042-mission"
     primary_dir = tmp_path / "kitty-specs" / slug
     primary_dir.mkdir(parents=True)
     (primary_dir / "meta.json").write_text(
         json.dumps({"mission_slug": slug, "mission_type": "software-dev"}),
         encoding="utf-8",
+    )
+    monkeypatch.setattr(
+        status_pkg, "is_mission_completed", lambda *_a, **_k: True
     )
     monkeypatch.setattr(rb, "_resolve_runtime_feature_dir", lambda repo_root, mission_slug: primary_dir)
     monkeypatch.setattr(rb, "get_mission_type", lambda feature_dir: "software-dev")
