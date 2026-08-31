@@ -43,7 +43,7 @@ The charter `activated_agent_profiles` allowlist omits `doctrine-daphne` and `ra
 
 **Acceptance Scenarios**:
 
-1. **Given** the shipped `src/charter/packs/default.yaml` and the project charter, **When** the activation allowlist is read, **Then** `doctrine-daphne` and `randy-reducer` are activated (25 source profiles → 25 activated, or the intended set with these two included).
+1. **Given** the shipped `src/charter/activation/packs/default.yaml` and the project charter, **When** the activation allowlist is read, **Then** `doctrine-daphne` and `randy-reducer` are activated (25 source profiles → 25 activated, or the intended set with these two included).
 2. **Given** the `adversarial-squad` skill's hardcoded lenses, **When** a delegate resolves each profile through the CLI, **Then** neither returns `EXIT 1 "is not activated"`.
 
 ---
@@ -98,7 +98,7 @@ A charter-sync / synthesis writer emits byte-identical duplicates at a doubled-l
 | FR-004 | Single shared DRG load + wrapper | As a maintainer, I want one graph load and one fail-closed wrapper backing the three consistency gates. | Medium | Open |
 | FR-005 | Behavior-preserving consistency verdicts | As a maintainer, I want byte-identical gate verdicts before/after the dedup, proven by focused tests. | High | Open |
 | FR-006 | Fix doubled-path synthesis write | As a maintainer, I want synthesis artifacts written once at their canonical path, no doubled-leaf duplicate. | Medium | Open |
-| FR-007 | Gitignore generated synthesis output | As a maintainer, I want the regenerated `.kittify/charter/provenance/**` + synthesis output ignored without swallowing tracked files. | Medium | Open |
+| FR-007 | Gitignore generated synthesis output | **Superseded by KD-2.** `test_charter_synthesis_artifacts_are_trackable` requires `.kittify/charter/synthesis-manifest.yaml` + `.kittify/charter/provenance/**` to stay **tracked** (commit-ready by design), so no safe ignore exists; #3819 is closed via the WP04 detection guard instead, not a gitignore. | Medium | Dropped |
 
 ### Non-Functional Requirements
 
@@ -120,7 +120,7 @@ A charter-sync / synthesis writer emits byte-identical duplicates at a doubled-l
 ### Key Entities
 
 - **Moved-module set**: the modules physically under `src/charter/activation/` (the FR-001 gate's scan input).
-- **Activation allowlist**: `activated_agent_profiles` in `src/charter/packs/default.yaml` + project charter config (FR-003).
+- **Activation allowlist**: `activated_agent_profiles` in `src/charter/activation/packs/default.yaml` + project charter config (FR-003).
 - **Consistency gates**: the three always-on checks in `charter/activation/consistency_check.py` (FR-004/005).
 - **Synthesis provenance writer**: the charter-sync path-join that emits `.kittify/charter/provenance/**` (FR-006/007).
 

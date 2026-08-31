@@ -31,7 +31,7 @@ Four independent charter/doctrine-surface fixes, bundled as a tidy-first enabler
 *GATE: must pass before and after design.*
 
 - **Terminology Canon** — the mission touches charter/doctrine prose (issue refs, docstrings). Run `tests/architectural/test_no_legacy_terminology.py` on any prose/config touch. PASS-by-construction (no `feature`/`ceremony` introductions).
-- **Canonical sources** — #3810 edits the *shipped* allowlist source (`src/charter/packs/default.yaml`), not a generated copy; #3818 gate lives in `tests/architectural/` beside the C-004 gate. PASS.
+- **Canonical sources** — #3810 edits the *shipped* allowlist source (`src/charter/activation/packs/default.yaml`), not a generated copy; #3818 gate lives in `tests/architectural/` beside the C-004 gate. PASS.
 - **Red-first / test-remediation** — #3810 and #3819 land a failing test first (C-001). PASS by plan.
 - **Architectural gate discipline** — #3818 adds a gate and joins the completeness baselines (C-002). PASS by plan.
 - **No suppression** — NFR-003. PASS by plan.
@@ -60,7 +60,7 @@ Lane A · #3818 (guardrail):
   tests/architectural/<golden-count baseline>                  (shared baseline — join)
 
 Lane B · #3810 (reliability):
-  src/charter/packs/default.yaml                               (activated_agent_profiles)
+  src/charter/activation/packs/default.yaml                    (activated_agent_profiles)
   .kittify/config.yaml / project charter allowlist             (if project-local)
   tests/charter/ or tests/doctrine/ test for activation resolve
 
