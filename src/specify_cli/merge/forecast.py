@@ -21,7 +21,7 @@ import typer
 from specify_cli import __version__ as SPEC_KITTY_VERSION
 from specify_cli.cli.console import console
 from specify_cli.core.constants import KITTY_SPECS_DIR
-from specify_cli.core.paths import get_main_repo_root
+from specify_cli.core.paths import get_main_repo_root, resolve_merge_retention
 from specify_cli.lanes.persistence import (
     CorruptLanesError,
     MissingLanesError,
@@ -134,8 +134,8 @@ def run_dry_run_forecast(
     resolved_feature: str | None,
     resolved_target_branch: str,
     resolved_strategy: MergeStrategy,
-    delete_branch: bool,
-    remove_worktree: bool,
+    delete_branch: bool | None,
+    remove_worktree: bool | None,
     push: bool,
     json_output: bool,
 ) -> None:
@@ -145,6 +145,13 @@ def run_dry_run_forecast(
     command body. Always terminates the dry-run path (returns on success after
     printing the payload; raises ``typer.Exit(1)`` on unresolved slug / missing
     lanes / review-artifact conflict).
+
+    ``delete_branch`` / ``remove_worktree`` are tri-state (``None`` = flag
+    unset): they are resolved against the mission's ``meta.json`` retention
+    policy via :func:`resolve_merge_retention` (contracts/retention-resolver-
+    contract.md, consumption contract item 2) -- the SAME resolver the merge
+    executor uses -- so the forecast reports the RESOLVED cleanup decision
+    instead of echoing raw flags.
     """
     if not resolved_feature:
         _emit_dry_run_error(
@@ -216,17 +223,33 @@ def run_dry_run_forecast(
 
     would_assign_number = _scan_would_assign_mission_number(repo_root, feature_dir_for_preview)
 
+    # FR-008 (#3131): resolve the SAME retention decision the merge executor
+    # would make -- via the single shared resolver -- instead of echoing the
+    # raw CLI flags. ``feature_dir_for_preview`` is already the PRIMARY meta
+    # dir (see the comment above it), which is where ``meta.json`` retention
+    # policy lives.
+    retention_decision = resolve_merge_retention(
+        feature_dir_for_preview,
+        explicit_delete_branch=delete_branch,
+        explicit_remove_worktree=remove_worktree,
+    )
+
     payload: dict[str, object] = {
         "spec_kitty_version": SPEC_KITTY_VERSION,
         "mission_slug": resolved_feature,
         "target_branch": resolved_target_branch,
         "strategy": resolved_strategy.value,
-        "delete_branch": delete_branch,
-        "remove_worktree": remove_worktree,
+        "delete_branch": retention_decision.delete_branch,
+        "remove_worktree": retention_decision.remove_worktree,
         "push": push,
         "mission_branch": lanes_manifest.mission_branch,
         "lanes": [lane.to_dict() for lane in lanes_manifest.lanes],
         "would_assign_mission_number": would_assign_number,
+        "retention": {
+            "branch_source": retention_decision.branch_source,
+            "worktree_source": retention_decision.worktree_source,
+            "warnings": list(retention_decision.warnings),
+        },
     }
     if would_assign_number is not None and not json_output:
         console.print(
