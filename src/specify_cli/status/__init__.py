@@ -210,6 +210,7 @@ from .lifecycle import (
     derive_mission_lifecycle,
     generate_lifecycle_json,
     is_mission_completed,
+    is_mission_merged,
 )
 from .validate import (
     ValidationResult,
@@ -255,6 +256,7 @@ from .lifecycle_events import (
     read_lifecycle_events,
     repo_root_for_lifecycle_log,
 )
+
 # NOTE (WIRE-M2-03, 2026-08-22, rework cycle 2): ``migrate_lifecycle_envelope``
 # (the F2-T1 rewrite entry point) is deliberately NOT promoted onto this
 # facade, even though ``project_event_log_path`` above was. Its bare name is
@@ -303,6 +305,7 @@ from .dup_key_repair import (
     find_duplicate_keys_in_text,
     plan_artifact_repair,
 )
+
 # WP03/WP04 (runtime-state-birth-cutover-all-paths-01KYH654): the cut-over
 # predicate reaches its src/ consumer (``cli.commands.cutover_guard``) through
 # this package surface, not by importing the submodule directly -- the status
@@ -322,6 +325,7 @@ def uninitialized_status_error(mission_slug: str, wp_id: str, feature_dir: Path)
     from .uninitialized_hint import uninitialized_status_error as _uninitialized_status_error
 
     return str(_uninitialized_status_error(mission_slug, wp_id, feature_dir))
+
 
 # WP13 (IC-07c) retired ``COORD_OWNED_STATUS_FILES`` -- the canonical status
 # artifacts (event log + snapshot) frozenset -- onto the single canonical churn
@@ -452,6 +456,7 @@ __all__ = [
     "generate_lifecycle_json",
     "generate_progress_json",
     "is_mission_completed",
+    "is_mission_merged",
     "materialize_if_stale",
     "CANONICAL_LANES",
     "DoneEvidence",
