@@ -66,7 +66,7 @@ def resolve_org_root_chain(repo_root: Path) -> list[Path]:
     config-stem ID correctly, not just pack 1's.
 
     A thin, single-authority delegation to
-    :func:`doctrine.drg.org_pack_config.resolve_existing_org_roots` (the same
+    :func:`charter.offering.drg.org_pack_config.resolve_existing_org_roots` (the same
     primitive #3525 introduced for ``load_validated_graph``'s ``org_roots``
     threading), kept here rather than imported separately by both
     ``activate.py`` and ``deactivate.py`` so the two CLI commands share one

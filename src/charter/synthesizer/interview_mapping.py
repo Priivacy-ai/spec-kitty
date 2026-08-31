@@ -47,7 +47,7 @@ from dataclasses import dataclass
 from typing import Any, Literal
 
 from charter.language_scope import extract_declared_languages
-from doctrine.missions.mission_type_repository import builtin_mission_type_ids
+from charter.offering.missions.mission_type_repository import builtin_mission_type_ids
 
 __all__ = [
     "canonicalize_interview_section_label",
@@ -327,7 +327,7 @@ def mission_type_urn_candidate(answer: str) -> str | None:
     when it (up to hyphen/underscore normalization, mirroring
     ``_MISSION_IDENTIFIER_ANSWERS``) names a shipped mission-type id -- the
     built-in DRG carries a ``mission_type:<id>`` node for each one
-    (``doctrine.drg.models.NodeKind.MISSION_TYPE``). A free-text answer that
+    (``charter.offering.drg.models.NodeKind.MISSION_TYPE``). A free-text answer that
     does not name a shipped id carries no such evidence, so ``None`` is
     returned -- never inferred, never fabricated.
 

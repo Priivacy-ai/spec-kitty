@@ -19,8 +19,8 @@ from pathlib import Path
 import pytest
 from ruamel.yaml import YAML
 
-from doctrine.directives.repository import DirectiveRepository
-from doctrine.tactics.repository import TacticRepository
+from charter.offering.directives.repository import DirectiveRepository
+from charter.offering.tactics.repository import TacticRepository
 
 pytestmark = [pytest.mark.fast, pytest.mark.doctrine]
 
@@ -395,7 +395,7 @@ class TestDoctrineLayerCollisionWarning:
     """Collision warnings surface higher-layer override of lower-layer artifacts (MEDIUM-1)."""
 
     def test_org_shadows_builtin_emits_warning(self, tmp_path: Path) -> None:
-        from doctrine.base import DoctrineLayerCollisionWarning
+        from charter.offering.base import DoctrineLayerCollisionWarning
 
         shipped = tmp_path / "built-in"
         org = tmp_path / "org"
@@ -426,7 +426,7 @@ class TestDoctrineLayerCollisionWarning:
         assert "field" in msg
 
     def test_project_shadows_org_emits_warning(self, tmp_path: Path) -> None:
-        from doctrine.base import DoctrineLayerCollisionWarning
+        from charter.offering.base import DoctrineLayerCollisionWarning
 
         shipped = tmp_path / "built-in"
         org = tmp_path / "org"
@@ -459,7 +459,7 @@ class TestDoctrineLayerCollisionWarning:
         assert any("org" in m and "builtin" in m for m in messages)
 
     def test_project_shadows_builtin_when_no_org(self, tmp_path: Path) -> None:
-        from doctrine.base import DoctrineLayerCollisionWarning
+        from charter.offering.base import DoctrineLayerCollisionWarning
 
         shipped = tmp_path / "built-in"
         project = tmp_path / "project"
@@ -482,7 +482,7 @@ class TestDoctrineLayerCollisionWarning:
         assert any("project" in m and "builtin" in m for m in messages)
 
     def test_no_warning_when_no_collision(self, tmp_path: Path) -> None:
-        from doctrine.base import DoctrineLayerCollisionWarning
+        from charter.offering.base import DoctrineLayerCollisionWarning
 
         shipped = tmp_path / "built-in"
         org = tmp_path / "org"
@@ -511,7 +511,7 @@ class TestDoctrineLayerCollisionWarning:
 
     def test_collision_warning_reports_field_count(self, tmp_path: Path) -> None:
         """The warning message includes how many fields were replaced and inherited."""
-        from doctrine.base import DoctrineLayerCollisionWarning
+        from charter.offering.base import DoctrineLayerCollisionWarning
 
         shipped = tmp_path / "built-in"
         org = tmp_path / "org"

@@ -24,7 +24,7 @@ Usage:
 # this module -- before the SPEC_KITTY_TEST_MODE read below and before any
 # other spec-kitty submodule is imported (C-LDR-2) -- so operator-configured
 # env vars (incl. import-time-gated ones like SPEC_KITTY_SYNC_MINIMAL_IMPORT,
-# see specify_cli/sync/__init__.py) are already in os.environ by the time
+# see specify_cli/status/adapters.py) are already in os.environ by the time
 # anything downstream reads them. specify_cli.bootstrap.env_file's own
 # transitive imports are stdlib + kernel ONLY (arch-gated by
 # tests/architectural/test_bootstrap_import_purity.py) -- it does not import

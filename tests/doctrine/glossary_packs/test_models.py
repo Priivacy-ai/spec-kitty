@@ -1,6 +1,6 @@
 """Unit tests for GlossaryTerm / GlossaryPack models (T006, FR-005, C-004).
 
-T006 is RED-FIRST: authored before ``doctrine.glossary_packs.models`` exists so
+T006 is RED-FIRST: authored before ``charter.offering.glossary_packs.models`` exists so
 the initial run fails on the import, proving the round-trip assertions are
 exercised against real model behavior once T007 lands the implementation.
 """
@@ -8,7 +8,7 @@ exercised against real model behavior once T007 lands the implementation.
 import pytest
 from pydantic import ValidationError
 
-from doctrine.glossary_packs.models import GlossaryPack, GlossaryTerm
+from charter.offering.glossary_packs.models import GlossaryPack, GlossaryTerm
 
 pytestmark = [pytest.mark.fast, pytest.mark.doctrine]
 

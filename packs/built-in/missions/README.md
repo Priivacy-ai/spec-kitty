@@ -28,8 +28,8 @@ The mission **logic modules** are **not** in this directory — this pack ships 
 **data** only (`mission.yaml`, prompts, templates, step contracts). The Python modules
 (`primitives.py` with `PrimitiveExecutionContext`, `glossary_hook.py` with
 `execute_with_glossary()`, `repository.py`, and the other 8 logic modules) live in the
-`doctrine` package at `src/doctrine/missions/` and read this data at runtime; a pack tree
-cannot host a Python package.
+`charter.offering` package at `src/charter/offering/missions/` and read this data at
+runtime; a pack tree cannot host a Python package.
 
 ## Glossary Reference
 

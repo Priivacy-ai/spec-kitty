@@ -136,6 +136,11 @@ class CommitRouterResult:
     diagnostic: str | None = None
 
 
+def mission_has_coordination_branch(repo_root: Path, mission_slug: str) -> bool:
+    """Return whether the mission's stored topology mints a coordination branch."""
+    return routes_through_coordination(resolve_topology(repo_root, mission_slug))
+
+
 # ---------------------------------------------------------------------------
 # Public entry point
 # ---------------------------------------------------------------------------

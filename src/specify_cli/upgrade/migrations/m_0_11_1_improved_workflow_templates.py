@@ -5,6 +5,8 @@ from __future__ import annotations
 import shutil
 from pathlib import Path
 
+from specify_cli.runtime.generated_writer import write_generated_file
+
 from ..registry import MigrationRegistry
 from .base import BaseMigration, MigrationResult
 from .m_0_9_1_complete_lane_migration import get_agent_dirs_for_project
@@ -119,10 +121,7 @@ class ImprovedWorkflowTemplatesMigration(BaseMigration):
                     changes.append(f"Would update {agent_root}: {dest_filename}")
                 else:
                     try:
-                        dest_path.write_text(
-                            source_template.read_text(encoding="utf-8"),
-                            encoding="utf-8",
-                        )
+                        write_generated_file(dest_path, source_template.read_text(encoding="utf-8"))
                         updated_count += 1
                     except OSError as e:
                         warnings.append(f"Failed to update {agent_root}/{dest_filename}: {e}")

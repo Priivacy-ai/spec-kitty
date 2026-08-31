@@ -55,13 +55,24 @@ def _reset_tm(monkeypatch):
     reset_token_manager()
 
 
-def _make_session(email: str = "alice@example.com") -> StoredSession:
+def _make_session(
+    email: str = "alice@example.com",
+    team_name: str = "Team One",
+    is_private_teamspace: bool = False,
+) -> StoredSession:
     now = now_utc()
     return StoredSession(
         user_id="user-1",
         email=email,
         name="Alice",
-        teams=[Team(id="t1", name="Team One", role="owner")],
+        teams=[
+            Team(
+                id="t1",
+                name=team_name,
+                role="owner",
+                is_private_teamspace=is_private_teamspace,
+            )
+        ],
         default_team_id="t1",
         access_token="access-xyz",
         refresh_token="refresh-xyz",
@@ -390,6 +401,62 @@ class TestAuthLoginAlreadyAuthenticated:
         assert "Already logged in" in result.stdout
         assert existing.email in result.stdout
         assert not mock_browser.called
+
+    def test_renders_bracket_markup_in_existing_session_email(self):
+        existing = _make_session(email="alice[/]@example.com")
+
+        with patch(
+            "specify_cli.cli.commands._auth_login.get_token_manager"
+        ) as mock_factory:
+            mock_tm = mock_factory.return_value
+            mock_tm.is_authenticated = True
+            mock_tm.get_current_session.return_value = existing
+
+            result = runner.invoke(app, ["login"])
+
+        assert result.exit_code == 0, result.stdout
+        assert "Already logged in as alice[/]@example.com" in result.stdout
+        assert "MarkupError" not in result.stdout
+
+    def test_renders_bracket_markup_in_success_email(self):
+        session = _make_session(email="alice[/]@example.com")
+
+        async def _login(*_args, **_kwargs):
+            return session
+
+        with patch(
+            "specify_cli.cli.commands._auth_login.get_token_manager"
+        ) as mock_factory, patch(
+            "specify_cli.auth.flows.authorization_code.AuthorizationCodeFlow"
+        ) as mock_flow_cls:
+            mock_factory.return_value.is_authenticated = False
+            mock_flow_cls.return_value.login = AsyncMock(side_effect=_login)
+            result = runner.invoke(app, ["login"])
+
+        assert result.exit_code == 0, result.stdout
+        assert "Authenticated as alice[/]@example.com" in result.stdout
+        assert "MarkupError" not in result.stdout
+
+    def test_renders_bracket_markup_in_private_team_name_with_suffix(self):
+        session = _make_session(
+            team_name="A[/]C", is_private_teamspace=True
+        )
+
+        async def _login(*_args, **_kwargs):
+            return session
+
+        with patch(
+            "specify_cli.cli.commands._auth_login.get_token_manager"
+        ) as mock_factory, patch(
+            "specify_cli.auth.flows.authorization_code.AuthorizationCodeFlow"
+        ) as mock_flow_cls:
+            mock_factory.return_value.is_authenticated = False
+            mock_flow_cls.return_value.login = AsyncMock(side_effect=_login)
+            result = runner.invoke(app, ["login"])
+
+        assert result.exit_code == 0, result.stdout
+        assert "Default team: A[/]C [Private Teamspace]" in result.stdout
+        assert "MarkupError" not in result.stdout
 
     def test_force_reauthenticates_even_when_logged_in(self):
         existing = _make_session()

@@ -24,7 +24,7 @@ there is no separate "WP report" artifact in this repo).
 Fixture shape: a minimal action node lives in an isolated (patched) built-in
 graph; each org pack contributes its own self-contained ``*.graph.yaml``
 fragment declaring one ``directive`` node reached from the action node via a
-depth-1 ``scope`` edge (``doctrine.drg.query.resolve_context``'s step 1 only
+depth-1 ``scope`` edge (``charter.offering.drg.query.resolve_context``'s step 1 only
 walks ``scope`` edges directly off the action URN -- see that function's
 docstring), plus a real ``<id>.directive.yaml`` artifact file so the
 directive's real content (not just a catalog-miss ID stub) is what's being
@@ -45,7 +45,7 @@ from unittest.mock import patch
 import pytest
 
 from charter.context import build_charter_context, build_charter_context_json
-from doctrine.drg.loader import load_graph_or_dir
+from charter.offering.drg.loader import load_graph_or_dir
 
 pytestmark = pytest.mark.fast
 

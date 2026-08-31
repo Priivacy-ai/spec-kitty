@@ -113,7 +113,7 @@ def test_infer_repo_languages_returns_none_without_inputs(tmp_path: Path) -> Non
 
     ``None`` (not ``[]``) is load-bearing here (regression fix,
     charter-sole-door-bypass-closure-01KZ3WAA landing fold):
-    ``doctrine.shared.scoping.applies_to_languages_match`` treats ``None`` as
+    ``charter.offering.shared.scoping.applies_to_languages_match`` treats ``None`` as
     admit-all for scoped artifacts and ``[]`` as admit-none. This test used
     to assert ``== []`` before the fix, which silently dropped every
     language-scoped built-in profile from a bare project's catalog.
@@ -169,7 +169,7 @@ def test_infer_repo_languages_returns_none_when_no_compiled_charter_and_no_inter
     charter-sole-door-bypass-closure-01KZ3WAA landing fold): this is the
     "truly no signal at all" bare-project case, distinct from a configured
     project's deliberate empty answer. Before the fix this resolved to
-    ``[]``, which ``doctrine.shared.scoping.applies_to_languages_match``
+    ``[]``, which ``charter.offering.shared.scoping.applies_to_languages_match``
     treats as admit-none — silently dropping every language-scoped built-in
     profile from a bare project's catalog.
     """

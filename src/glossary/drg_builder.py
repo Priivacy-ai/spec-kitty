@@ -218,10 +218,10 @@ def build_glossary_drg_layer(
 ) -> DRGGraph:
     """Build the glossary DRG layer from the active glossary store.
 
-    Mints one :class:`~doctrine.drg.models.DRGNode` of kind
+    Mints one :class:`~charter.offering.drg.models.DRGNode` of kind
     ``NodeKind.GLOSSARY`` per unique active sense surface in
     *applicable_scopes*, then adds a
-    ``Relation.VOCABULARY`` :class:`~doctrine.drg.models.DRGEdge` for every
+    ``Relation.VOCABULARY`` :class:`~charter.offering.drg.models.DRGEdge` for every
     (action URN, glossary URN) pair found in the built-in + project DRG graph.
 
     Args:

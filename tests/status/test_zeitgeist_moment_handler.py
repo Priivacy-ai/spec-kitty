@@ -470,7 +470,7 @@ def test_transition_broadcasts_one_moment_plus_its_liveness_frames(monkeypatch: 
 def test_one_broadcast_shares_one_git_deadline_across_credentials_presence_and_focus(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """EXPERIMENTAL-spec-kitty#203: credential resolution, presence identity
+    """Priivacy-ai/spec-kitty#203: credential resolution, presence identity
     (via ``ClientConfig.for_repository``), and the focus capability lookup
     each used to open their OWN fresh ``repo_identity.Deadline`` — three
     independent 2.0s budgets stacking under the fan-out seam's 10s bound.

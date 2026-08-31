@@ -10,8 +10,8 @@ from __future__ import annotations
 
 import pytest
 
-from doctrine.pack_paths import resolve_pack_root
-from doctrine.service import DoctrineService
+from charter.offering.pack_paths import resolve_pack_root
+from charter.offering.service import DoctrineService
 
 from tests.doctrine.conftest import DOCTRINE_SOURCE_ROOT
 
@@ -20,7 +20,7 @@ pytestmark = [pytest.mark.fast, pytest.mark.doctrine, pytest.mark.corpus]
 
 # Post-relocation the shipped built-in doctrine kinds live flattened under
 # ``packs/built-in/<kind>/`` (the per-kind ``built-in/`` subdir was removed).
-# ``templates/`` was NOT relocated and still lives under ``src/doctrine/``.
+# ``templates/`` was NOT relocated and still lives under ``src/charter/offering/``.
 PACKS_BUILT_IN = resolve_pack_root("built-in")
 DOCTRINE_ROOT = DOCTRINE_SOURCE_ROOT
 

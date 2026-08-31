@@ -40,6 +40,7 @@ class ReadinessState(StrEnum):
     ROLLOUT_DISABLED = "rollout_disabled"
     MISSING_AUTH = "missing_auth"
     MISSING_HOST_CONFIG = "missing_host_config"
+    AMBIGUOUS_HOST_CONFIG = "ambiguous_host_config"
     HOST_UNREACHABLE = "host_unreachable"
     MISSING_MISSION_BINDING = "missing_mission_binding"
     READY = "ready"
@@ -86,6 +87,10 @@ _WORDING: dict[ReadinessState, tuple[str, str]] = {
     ReadinessState.MISSING_HOST_CONFIG: (
         "No SaaS host URL is configured.",
         "Set `SPEC_KITTY_SAAS_URL` in your environment.",
+    ),
+    ReadinessState.AMBIGUOUS_HOST_CONFIG: (
+        "SaaS host configuration is ambiguous: `config.toml` names `{configured_server_url}` while `SPEC_KITTY_SAAS_URL` names `{env_server_url}`.",
+        "Reconcile the two: update `config.toml`'s `[sync].server_url` to match, or change/unset `SPEC_KITTY_SAAS_URL`, so both name the same host.",
     ),
     ReadinessState.HOST_UNREACHABLE: (
         "The configured SaaS host did not respond within 2 seconds.",
@@ -168,32 +173,40 @@ def _probe_host_config() -> str | None:
       can never green-light a different URL than sync uses, even when the env
       var overrides ``config.toml`` (SC-008).
 
-    No-raise contract: any failure degrades to ``None`` (treated as an absent
-    host) rather than propagating.
+    No-raise contract, with one named exception: any failure degrades to
+    ``None`` (treated as an absent host) rather than propagating, **except**
+    :class:`~specify_cli.auth.server_target.ServerTargetSplitBrainError`, which
+    propagates so the caller can report ``AMBIGUOUS_HOST_CONFIG`` with both
+    disagreeing URLs named instead of the misleading ``MISSING_HOST_CONFIG``
+    remedy (#305 — the operator has already set ``SPEC_KITTY_SAAS_URL``, so
+    telling them to set it again is a dead end).
     """
+    from specify_cli.auth.config import get_saas_base_url
+    from specify_cli.auth.errors import ConfigurationError
+
     try:
-        from specify_cli.auth.config import get_saas_base_url
-        from specify_cli.auth.errors import ConfigurationError
+        # D-5 opt-in gate: ``SPEC_KITTY_SAAS_URL`` must be set for hosted
+        # readiness. ``ConfigurationError`` here means "no host configured".
+        get_saas_base_url()
+    except ConfigurationError:
+        return None
 
-        try:
-            # D-5 opt-in gate: ``SPEC_KITTY_SAAS_URL`` must be set for hosted
-            # readiness. ``ConfigurationError`` here means "no host configured".
-            get_saas_base_url()
-        except ConfigurationError:
-            return None
+    # Opted in → report the canonical resolved target. When the env var
+    # overrides ``config.toml`` the resolver picks the env URL (process
+    # override), so readiness probes the **same** URL sync uses (SC-008).
+    # ``specify_cli.*`` cross-package imports are ``Any`` to mypy
+    # (follow_imports=skip); coerce ``resolved_server_url`` (a ``str``).
+    from specify_cli.auth.server_target import ServerTargetSplitBrainError, resolve_server_target
 
-        # Opted in → report the canonical resolved target. When the env var
-        # overrides ``config.toml`` the resolver picks the env URL (process
-        # override), so readiness probes the **same** URL sync uses (SC-008).
-        # ``specify_cli.*`` cross-package imports are ``Any`` to mypy
-        # (follow_imports=skip); coerce ``resolved_server_url`` (a ``str``).
-        from specify_cli.auth.server_target import resolve_server_target
-
+    try:
         # process_wide_override=False (#117): readiness is a no-human-in-the-loop
-        # probe, so an ambiguous env/config disagreement must fail closed (caught
-        # below, same as any other resolution failure) rather than silently
-        # reporting the env-overridden URL as ready.
+        # probe, so an ambiguous env/config disagreement must fail closed rather
+        # than silently reporting the env-overridden URL as ready. Unlike other
+        # resolution failures, this one is let through (see docstring) so the
+        # evaluator can name both URLs instead of degrading to ``None``.
         return str(resolve_server_target(process_wide_override=False).resolved_server_url)
+    except ServerTargetSplitBrainError:
+        raise
     except Exception:
         return None
 
@@ -253,7 +266,9 @@ def evaluate_readiness(
 
     1. Rollout gate (``SPEC_KITTY_ENABLE_SAAS_SYNC``)
     2. Auth (``TokenManager.is_authenticated``)
-    3. Host config (``SPEC_KITTY_SAAS_URL`` via ``get_saas_base_url()``)
+    3. Host config (``SPEC_KITTY_SAAS_URL`` via ``get_saas_base_url()``); an
+       env/``config.toml`` disagreement yields ``AMBIGUOUS_HOST_CONFIG``
+       instead of ``MISSING_HOST_CONFIG`` (#305)
     4. Reachability — only when ``probe_reachability=True``
     5. Mission binding — only when ``require_mission_binding=True``
     6. ``READY``
@@ -273,6 +288,8 @@ def evaluate_readiness(
     Returns:
         A frozen :class:`ReadinessResult`.
     """
+    from specify_cli.auth.server_target import ServerTargetSplitBrainError
+
     try:
         # Step 1: rollout gate
         if not _probe_rollout():
@@ -283,7 +300,14 @@ def evaluate_readiness(
             return _build_result(ReadinessState.MISSING_AUTH)
 
         # Step 3: host config — also captures server_url for later steps
-        server_url = _probe_host_config()
+        try:
+            server_url = _probe_host_config()
+        except ServerTargetSplitBrainError as exc:
+            return _build_result(
+                ReadinessState.AMBIGUOUS_HOST_CONFIG,
+                configured_server_url=exc.configured_server_url or "(unset)",
+                env_server_url=exc.env_server_url or "(unset)",
+            )
         if server_url is None:
             return _build_result(ReadinessState.MISSING_HOST_CONFIG)
 
