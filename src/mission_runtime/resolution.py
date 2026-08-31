@@ -16,6 +16,7 @@ Prompts should not discover context on their own. They call into this
 command-owned resolver, which determines the active mission, target branch,
 work package, workspace path, and any action-specific commands to run.
 """
+
 from __future__ import annotations
 
 from collections.abc import Callable, Mapping, Sequence
@@ -262,9 +263,7 @@ def read_dir_for(
     # boundary erases these returns to (follow_imports=skip) — mirroring the
     # existing typed-local pattern elsewhere in this module.
     if effective_root is None:
-        planning_dir: Path = resolve_planning_read_dir(
-            primary_root, mission_slug, kind=kind, resolver=resolver
-        )
+        planning_dir: Path = resolve_planning_read_dir(primary_root, mission_slug, kind=kind, resolver=resolver)
         return planning_dir
     meta_dir: Path = compose_meta_json_path(effective_root, mission_slug).parent
     return meta_dir
@@ -393,9 +392,7 @@ def resolve_context_for_mission(
     if mission_id != identity.mission_id:
         raise ActionContextError(
             "TOPOLOGY_INPUT_MISMATCH",
-            f"mission_id {mission_id!r} does not match identity fragment "
-            f"mission_id {identity.mission_id!r}; the shell threaded inconsistent "
-            "identity inputs.",
+            f"mission_id {mission_id!r} does not match identity fragment mission_id {identity.mission_id!r}; the shell threaded inconsistent identity inputs.",
         )
     _assert_topology_corroborated(
         topology,
@@ -537,8 +534,7 @@ def _resolve_mission_slug(
     if not feature_dir.exists():
         raise ActionContextError(
             _FEATURE_CONTEXT_UNRESOLVED_CODE,
-            f"Mission directory not found: {feature_dir}. Check that "
-            f"'{slug}' is the correct mission slug.",
+            f"Mission directory not found: {feature_dir}. Check that '{slug}' is the correct mission slug.",
         )
     # Parse, don't re-derive: the resolved directory's name IS the canonical
     # mission slug (identical in the coord-worktree and primary views).
@@ -632,14 +628,8 @@ def _wp_workflow_commands(
         workflow += f" --agent {agent}"
     commands = {"workflow": workflow}
     if action != "implement":
-        commands["approve"] = (
-            f"spec-kitty agent tasks move-task {wp_id} --to approved "
-            f'--mission {mission_slug} --note "Review passed: <summary>"'
-        )
-        commands["reject"] = (
-            f"spec-kitty agent tasks move-task {wp_id} --to planned "
-            f"--review-feedback-file <feedback-file> --mission {mission_slug}"
-        )
+        commands["approve"] = f'spec-kitty agent tasks move-task {wp_id} --to approved --mission {mission_slug} --note "Review passed: <summary>"'
+        commands["reject"] = f"spec-kitty agent tasks move-task {wp_id} --to planned --review-feedback-file <feedback-file> --mission {mission_slug}"
     return commands
 
 
@@ -840,22 +830,12 @@ def _first_wp_in_lane(
 
 def _is_review_claimed(events: Sequence[Any], candidate_wp_id: str, *, Lane: Any) -> bool:
     latest_event = next(
-        (
-            event
-            for event in reversed(events)
-            if getattr(event, "wp_id", None) == candidate_wp_id
-        ),
+        (event for event in reversed(events) if getattr(event, "wp_id", None) == candidate_wp_id),
         None,
     )
     if latest_event is None:
         return False
-    return bool(
-        latest_event.to_lane == Lane.IN_REVIEW
-        or (
-            latest_event.to_lane == Lane.IN_PROGRESS
-            and latest_event.review_ref == "action-review-claim"
-        )
-    )
+    return bool(latest_event.to_lane == Lane.IN_REVIEW or (latest_event.to_lane == Lane.IN_PROGRESS and latest_event.review_ref == "action-review-claim"))
 
 
 def _resolve_wp_id(
@@ -996,9 +976,7 @@ def _resolve_topology(
         return classify_topology(coordination_branch, has_lanes=False)
 
 
-def resolve_topology(
-    repo_root: Path, mission_handle: str, *, resolver: MissionResolver | None = None
-) -> MissionTopology:
+def resolve_topology(repo_root: Path, mission_handle: str, *, resolver: MissionResolver | None = None) -> MissionTopology:
     """Public seam: read the WP02 **stored** :class:`MissionTopology` for a mission.
 
     The single public entry point a caller uses to obtain the stored topology so
@@ -1027,9 +1005,7 @@ def resolve_topology(
     primary_root = get_main_repo_root(repo_root)
     mission_slug = mission_handle
     try:
-        candidate_dir = candidate_feature_dir_for_mission(
-            repo_root, mission_handle, resolver=resolver
-        )
+        candidate_dir = candidate_feature_dir_for_mission(repo_root, mission_handle, resolver=resolver)
     except (StatusReadPathNotFound, MissionSelectorAmbiguous):
         # Unresolvable / ambiguous handle: pass the raw handle through so the
         # topology degrades exactly as the full resolver does for a missing mission
@@ -1080,15 +1056,9 @@ def mission_context_for(
     # An owned-checkout caller instead threads the root already validated by
     # ``resolve_ownership_claim``. Folding it through ``get_main_repo_root``
     # would silently cross-read a sibling checkout (#3328 / C-002).
-    primary_root = (
-        get_main_repo_root(repo_root)
-        if effective_root is None
-        else effective_root.resolve()
-    )
+    primary_root = get_main_repo_root(repo_root) if effective_root is None else effective_root.resolve()
     try:
-        candidate_dir = candidate_feature_dir_for_mission(
-            primary_root, mission_handle, resolver=resolver
-        )
+        candidate_dir = candidate_feature_dir_for_mission(primary_root, mission_handle, resolver=resolver)
     except StatusReadPathNotFound as exc:
         raise ActionContextError(exc.error_code, str(exc)) from exc
     except MissionSelectorAmbiguous as exc:
@@ -1135,22 +1105,10 @@ def mission_context_for(
     )
     artifacts: list[MissionArtifactContext] = []
     for kind in MissionArtifactKind:
-        placement_ref = (
-            CommitTarget(ref=target_branch)
-            if is_primary_artifact_kind(kind)
-            else branch_ref.destination_ref
-        )
+        placement_ref = CommitTarget(ref=target_branch) if is_primary_artifact_kind(kind) else branch_ref.destination_ref
         home = artifact_home_for(kind, placement_ref)
-        read_dir = (
-            primary_read_dir
-            if home.read_surface == TopologySurface.PRIMARY
-            else status_surface.status_read_dir
-        )
-        write_dir = (
-            primary_read_dir
-            if home.write_surface == TopologySurface.PRIMARY
-            else status_surface.status_write_dir
-        )
+        read_dir = primary_read_dir if home.read_surface == TopologySurface.PRIMARY else status_surface.status_read_dir
+        write_dir = primary_read_dir if home.write_surface == TopologySurface.PRIMARY else status_surface.status_write_dir
         artifacts.append(
             MissionArtifactContext(
                 kind=kind,
@@ -1283,9 +1241,7 @@ def _resolve_status_surface_dir(
         )
         meta = load_meta(primary_dir, allow_missing=True, on_malformed="raise") or {}
         raw_coordination_branch = meta.get("coordination_branch")
-        coordination_branch = (
-            str(raw_coordination_branch) if raw_coordination_branch else None
-        )
+        coordination_branch = str(raw_coordination_branch) if raw_coordination_branch else None
         if not routes_through_coordination(topology) or coordination_branch is None:
             return primary_dir
         mission_id = _resolve_mission_id(
@@ -1325,9 +1281,7 @@ def _resolve_status_surface_dir(
         # instead, preserving the refusal message (PR #1850 M6).
         raise ActionContextError(exc.error_code, str(exc)) from exc
     except (FileNotFoundError, ValueError):
-        fallback_dir: Path = candidate_feature_dir_for_mission(
-            primary_root, mission_slug, resolver=resolver
-        )
+        fallback_dir: Path = candidate_feature_dir_for_mission(primary_root, mission_slug, resolver=resolver)
         return fallback_dir
     surface_parent: Path = surface.parent
     return surface_parent
@@ -1365,9 +1319,7 @@ def _assemble_workspace_fragment(
     current_cwd = (cwd or primary_root).resolve()
     coord_worktree: Path | None = None
     if coordination_branch is not None:
-        coord_worktree = CoordinationWorkspace.worktree_path(
-            primary_root, mission_slug, mid8
-        )
+        coord_worktree = CoordinationWorkspace.worktree_path(primary_root, mission_slug, mid8)
 
     return WorkspaceFragment(
         primary_root=primary_root,
@@ -1428,11 +1380,7 @@ def _assemble_core_fragments(
     """
     from specify_cli.core.paths import get_main_repo_root
 
-    primary_root = (
-        get_main_repo_root(repo_root)
-        if effective_root is None
-        else effective_root.resolve()
-    )
+    primary_root = get_main_repo_root(repo_root) if effective_root is None else effective_root.resolve()
 
     mission_id = _resolve_mission_id(
         primary_root,
@@ -1440,9 +1388,7 @@ def _assemble_core_fragments(
         resolver=resolver,
         effective_root=effective_root,
     )
-    identity = IdentityFragment.derive(
-        mission_id=mission_id, mission_slug=mission_slug
-    )
+    identity = IdentityFragment.derive(mission_id=mission_id, mission_slug=mission_slug)
 
     # ``_resolve_coordination_branch`` stays as the VALUE reader for the ref
     # string the BranchRefFragment carries (the shell still needs the ref). The
@@ -1459,12 +1405,7 @@ def _assemble_core_fragments(
     # (FR-005 / WP04 drain) — never a re-derived per-ref enum. ``CommitTarget`` is a
     # ref-only carrier (C-007 / FR-001b): the destination ref is the coord branch
     # when the stored topology routes through coordination, else the target branch.
-    coord_ref = (
-        coordination_branch
-        if routes_through_coordination(topology)
-        and coordination_branch is not None
-        else target_branch
-    )
+    coord_ref = coordination_branch if routes_through_coordination(topology) and coordination_branch is not None else target_branch
     destination_ref = CommitTarget(ref=coord_ref)
     branch_ref = BranchRefFragment(
         target_branch=target_branch,
@@ -1607,9 +1548,7 @@ def resolve_placement_only(
     # the builder degrades exactly as before (no behaviour change for missing
     # missions).
     try:
-        candidate_dir = candidate_feature_dir_for_mission(
-            repo_root, mission_slug, resolver=resolver
-        )
+        candidate_dir = candidate_feature_dir_for_mission(repo_root, mission_slug, resolver=resolver)
     except StatusReadPathNotFound as exc:
         # Fail-closed surface refusal at entry canonicalization: translate to
         # the boundary's single error type, preserving the refusal message
@@ -1649,9 +1588,7 @@ def resolve_placement_only(
     from specify_cli.core.paths import get_main_repo_root
 
     target_branch = get_feature_target_branch(repo_root, mission_slug)
-    topology = _resolve_topology(
-        get_main_repo_root(repo_root), mission_slug, resolver=resolver
-    )
+    topology = _resolve_topology(get_main_repo_root(repo_root), mission_slug, resolver=resolver)
     _identity, branch_ref, _status_surface, _workspace = _assemble_core_fragments(
         repo_root,
         mission_slug=mission_slug,
@@ -1765,9 +1702,7 @@ class PlacementSeam:
             # ``resolve_retrospective_home`` return is seen as ``Any``; the
             # annotation re-narrows it (the function IS typed ``-> Path``) —
             # matching the sibling ``_planning_read_dir`` chokepoint pattern.
-            retrospective_dir: Path = resolve_retrospective_home(
-                self.repo_root, self.mission_slug
-            )
+            retrospective_dir: Path = resolve_retrospective_home(self.repo_root, self.mission_slug)
             return retrospective_dir
 
         return resolve_artifact_surface(self.repo_root, self.mission_slug, kind).path
@@ -1825,10 +1760,7 @@ def translate_surface(surface: TopologySurface, locations: SurfaceLocations) -> 
     assert_surface_totality(frozenset(_SURFACE_LOCATION_FIELD))
     location: Path | None = getattr(locations, _SURFACE_LOCATION_FIELD[surface])
     if location is None:
-        raise ValueError(
-            f"No resolved location for surface {surface.value!r}; the caller must "
-            "supply it in SurfaceLocations before translating."
-        )
+        raise ValueError(f"No resolved location for surface {surface.value!r}; the caller must supply it in SurfaceLocations before translating.")
     return location
 
 
@@ -1929,14 +1861,10 @@ def _classify_artifact_surface(
         probe_coord_state,
     )
 
-    coordination_branch = _resolve_coordination_branch(
-        primary_root, canonical_slug, resolver=resolver
-    )
+    coordination_branch = _resolve_coordination_branch(primary_root, canonical_slug, resolver=resolver)
     mission_id = _resolve_mission_id(primary_root, canonical_slug, resolver=resolver)
     mid8 = resolve_mid8(canonical_slug, mission_id=mission_id)
-    coord_state = probe_coord_state(
-        primary_root, canonical_slug, mid8, coordination_branch=coordination_branch
-    )
+    coord_state = probe_coord_state(primary_root, canonical_slug, mid8, coordination_branch=coordination_branch)
 
     if coord_state is CoordState.DELETED:
         # C3 "fail loud" (#1848 data-loss): a declared coord branch deleted from
@@ -1951,9 +1879,7 @@ def _classify_artifact_surface(
             primary_candidate=primary_dir,
         )
     if coord_state is CoordState.MATERIALIZED:
-        return TopologySurface.COORD, coord_feature_dir(
-            primary_root, canonical_slug, mid8
-        )
+        return TopologySurface.COORD, coord_feature_dir(primary_root, canonical_slug, mid8)
     # EMPTY / UNMATERIALIZED / NONE → primary + PRIMARY stamp (GEC-3): a DECLARED
     # answer the returned stamp names, NOT an undeclared fallback (NFR-001). GEC-5
     # governs whether the consuming gate may treat the stamped surface as
@@ -2080,9 +2006,7 @@ def resolve_artifact_surface(
     # through the double-suffix-safe ``_compose_mission_dir``, so correcting the
     # slug here is sufficient — and ``declared_read_surface`` can then actually read
     # the mission's ``meta.json`` and reach ``probe_coord_state``.
-    recovered = _backfilled_primary_dir(
-        primary_root, mission_slug, primary_dir, resolver=resolver
-    )
+    recovered = _backfilled_primary_dir(primary_root, mission_slug, primary_dir, resolver=resolver)
     if recovered is not None:
         primary_dir = recovered
     canonical_slug = primary_dir.name
@@ -2111,9 +2035,7 @@ def resolve_artifact_surface(
     # existing "no resolved location" guard before any consolidation exists.
     phase = resolve_lifecycle_phase(canonical_slug, primary_root, resolver=resolver)
     consolidated_dir = None if phase is LifecyclePhase.PRE_CONSOLIDATION else primary_dir
-    locations = SurfaceLocations(
-        primary=primary_dir, coord=coord_dir, consolidated=consolidated_dir
-    )
+    locations = SurfaceLocations(primary=primary_dir, coord=coord_dir, consolidated=consolidated_dir)
     return ResolvedSurface(
         path=translate_surface(surface_kind, locations),
         surface_kind=surface_kind,
@@ -2182,15 +2104,10 @@ def resolve_create_time_write_target(planning_branch: str) -> CommitTarget:
     carries the already-authoritative short branch into commit routing without
     consulting CWD, environment, topology, or a fallback repository root.
     """
-    if (
-        not planning_branch
-        or planning_branch != planning_branch.strip()
-        or planning_branch.startswith("refs/heads/")
-    ):
+    if not planning_branch or planning_branch != planning_branch.strip() or planning_branch.startswith("refs/heads/"):
         raise ActionContextError(
             "CREATE_TIME_TARGET_INVALID",
-            "Create-time planning branch must be a non-empty short branch name "
-            "without the 'refs/heads/' prefix.",
+            "Create-time planning branch must be a non-empty short branch name without the 'refs/heads/' prefix.",
         )
     return CommitTarget(ref=planning_branch)
 
@@ -2278,11 +2195,7 @@ def resolve_action_context(
         from specify_cli.core.paths import read_target_branch_from_meta
 
         stored_target = read_target_branch_from_meta(feature_dir)
-        target_branch = (
-            stored_target
-            if stored_target is not None
-            else get_feature_target_branch(repo_root, mission_slug)
-        )
+        target_branch = stored_target if stored_target is not None else get_feature_target_branch(repo_root, mission_slug)
     topology = _resolve_topology(
         get_main_repo_root(repo_root),
         mission_slug,

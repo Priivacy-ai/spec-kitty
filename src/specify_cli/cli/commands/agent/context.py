@@ -29,12 +29,7 @@ from mission_runtime import (
     resolve_action_context,
 )
 
-app = typer.Typer(
-    name="context",
-    help="Agent context management commands",
-    no_args_is_help=True
-)
-
+app = typer.Typer(name="context", help="Agent context management commands", no_args_is_help=True)
 
 
 def _find_feature_directory(
@@ -72,9 +67,7 @@ def _find_feature_directory(
 
     raw_handle = explicit_mission.strip() if explicit_mission else None
     if not raw_handle:
-        raise ActionContextError(
-            "FEATURE_CONTEXT_UNRESOLVED", "--mission <slug> is required"
-        )
+        raise ActionContextError("FEATURE_CONTEXT_UNRESOLVED", "--mission <slug> is required")
     # WP02/FR-002: the single guarded read-side seam (IC-01) collapses the former
     # raw-join → load_meta → resolve_mid8 bootstrap. It performs the primary-meta
     # probe, the sanctioned mid8 cascade, the fail-closed coord gate, and the
@@ -91,8 +84,7 @@ def _find_feature_directory(
     except StatusReadPathNotFound as exc:
         raise ActionContextError(
             "FEATURE_CONTEXT_UNRESOLVED",
-            f"Mission not found for handle {raw_handle!r}; checked the "
-            f"coordination worktree and the primary checkout. {exc}",
+            f"Mission not found for handle {raw_handle!r}; checked the coordination worktree and the primary checkout. {exc}",
         ) from exc
     return feature_dir
 
@@ -103,10 +95,7 @@ def resolve_context(
         str,
         typer.Option(
             "--action",
-            help=(
-                "Action to resolve context for "
-                f"({', '.join(ACTION_NAMES)})"
-            ),
+            help=(f"Action to resolve context for ({', '.join(ACTION_NAMES)})"),
         ),
     ],
     mission: Annotated[str | None, typer.Option("--mission", help="Mission slug (e.g., '020-my-mission')")] = None,
@@ -147,11 +136,7 @@ def resolve_context(
             raise ActionContextError("MISSION_CONTEXT_CONFLICT", str(exc)) from exc
 
         try:
-            mission_resolved = (
-                operation.identity
-                if operation.identity is not None
-                else resolve_mission(raw_handle, operation.mission_anchor_root)
-            )
+            mission_resolved = operation.identity if operation.identity is not None else resolve_mission(raw_handle, operation.mission_anchor_root)
         except AmbiguousHandleError as exc:
             raise ActionContextError("ambiguous_mission_handle", str(exc)) from exc
         except MissionNotFoundError as exc:
@@ -186,7 +171,6 @@ def resolve_context(
         else:
             console.print(f"[red]Error:[/red] {exc}")
         raise typer.Exit(1)
-
 
 
 # update-context command removed — agent_context.py was deleted in WP10.
