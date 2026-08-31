@@ -2239,8 +2239,12 @@ def _merged_mission_short_circuit(
     :func:`query_current_state` passes ``DecisionKind.query`` (query mode is
     structurally ``kind: query`` only — mirrors the finalized-override
     ``mission_state="done"`` precedent, :func:`_build_finalized_override_
-    query_decision`). A ``blocked_conflict`` verdict always returns
-    ``DecisionKind.blocked`` in both modes.
+    query_decision`). A ``blocked_conflict`` verdict honors the same mode
+    split: advancing mode emits ``kind: blocked`` (an actionable blocked
+    decision), while query mode emits ``kind: query`` with
+    ``mission_state="blocked"`` — preserving the query-mode ``is_query`` /
+    ``kind: query`` invariant and matching the finalized-override ``blocked:``
+    precedent (never ``kind: blocked`` from a read-only query).
 
     F5 invariant: returns ``None`` for verdict ``"none"`` so the caller's
     existing behavior is BYTE-IDENTICAL to today (protects the many
@@ -2267,12 +2271,15 @@ def _merged_mission_short_circuit(
                 reason=_MERGED_MISSION_DONE_REASON,
             )
         )
-    # blocked_conflict — mirrors the inline blocked emissions at
-    # `_build_wp_iteration_decision`/`_map_wp_step_decision` (SHOULD-FIX-3):
-    # same DecisionEnvelope field set, no invented payload shape.
+    # blocked_conflict — honor the mode: query mode keeps the structural
+    # ``kind: query`` invariant (``mission_state="blocked"``, mirroring the
+    # finalized-override ``blocked:`` precedent), advancing mode emits an
+    # actionable ``kind: blocked``. Field set mirrors the inline blocked
+    # emissions; no invented payload shape.
+    blocked_kind = DecisionKind.query if terminal_kind == DecisionKind.query else DecisionKind.blocked
     return _materialize_decision(
         _cores.DecisionEnvelope(
-            kind=DecisionKind.blocked,
+            kind=blocked_kind,
             agent=agent,
             mission_slug=mission_slug,
             mission=mission_type,

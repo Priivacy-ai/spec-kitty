@@ -297,7 +297,13 @@ class TestMergedMissionConflict:
         ):
             decision = query_current_state("claude", mission_slug, repo_root)
 
-        assert decision.kind == DecisionKind.blocked
+        # Query mode is structurally kind:query — a conflict surfaces as
+        # mission_state:"blocked" (the finalized-override precedent), NOT
+        # kind:blocked, preserving the is_query invariant. Advancing mode
+        # (test_advancing_mode_returns_blocked) emits the actionable kind:blocked.
+        assert decision.kind == DecisionKind.query
+        assert decision.mission_state == "blocked"
+        assert decision.is_query is True
 
 
 # ---------------------------------------------------------------------------
