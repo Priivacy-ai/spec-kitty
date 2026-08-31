@@ -645,17 +645,26 @@ class TestRebaselineOrgAwareness:
         )
         assert _ORG_REQUIRED_KEY not in _snapshot_artifact_keys(snapshot_path)
 
-    def test_malformed_org_pack_does_not_raise(self, tmp_path: Path) -> None:
-        """FR-003 AC4: a malformed org pack must not raise an unhandled
-        exception to the operator's `migrate` command. Rebaseline's org-pack
-        lookup (`ManifestRegistry.load_manifest` ->
-        `resolve_org_expected_artifacts` -> `_read_yaml_mapping`) already
-        degrades gracefully on any read/parse failure — logs a WARNING and
-        falls back as if no override were present — independent of this WP's
-        fix and NOT the same DRG-graph-loading subsystem #3401 targets. This
-        test proves that graceful degrade still holds once `repo_root` is
-        actually threaded in (previously the org branch was unreachable, so
-        this path could never even run).
+    def test_malformed_org_pack_does_not_abort_the_operator_command(
+        self, tmp_path: Path
+    ) -> None:
+        """FR-003 AC4 (as widened by #3412/WP03's org-tier fail-loud fix):
+        a malformed org pack must not raise an UNHANDLED exception out of
+        the operator's `migrate` command — but it must no longer silently
+        degrade to "no org override" either. Rebaseline's org-pack lookup
+        (`ManifestRegistry.load_manifest` -> `resolve_org_expected_artifacts`
+        -> `_read_yaml_mapping`) now raises `MalformedManifestError` for a
+        present-but-broken file (C-006: an operator authored this override
+        and expects it to take effect, so masking it behind the built-in
+        manifest would hide a genuine misconfiguration). That raise is
+        caught by `rebaseline_snapshot_file`'s own pre-existing
+        `except Exception` (`dossier/rebaseline.py:348-350`, "one bad
+        mission must not abort the backlog sweep") exactly like the
+        schema-invalid sibling case in
+        `test_rebaseline_skips_one_mission_on_malformed_manifest` above —
+        so the command itself never crashes, but this mission's snapshot is
+        now correctly reported as failed rather than silently rebaselined
+        against the wrong (built-in-only) manifest.
         """
         from specify_cli.dossier.rebaseline import rebaseline_snapshot_file
 
@@ -664,6 +673,7 @@ class TestRebaselineOrgAwareness:
         feature_dir = project_root / "kitty-specs" / slug
         _write_source_mission(feature_dir)
         snapshot_path = _record_old_form_snapshot(feature_dir, slug)
+        before = snapshot_path.read_text(encoding="utf-8")
 
         org_root = tmp_path / "org-pack"
         # Constructed directly rather than via `_write_org_manifest` -- that
@@ -676,8 +686,9 @@ class TestRebaselineOrgAwareness:
         # stranded again the next time that helper's join changes.
         malformed_dir = org_root / "missions" / "software-dev"
         malformed_dir.mkdir(parents=True, exist_ok=True)
-        # Malformed: not a YAML mapping (unbalanced flow sequence) — this must
-        # not raise; it must degrade to "no org override for this pack".
+        # Malformed: not a YAML mapping (unbalanced flow sequence) — this
+        # must not raise UNHANDLED out of `rebaseline_snapshot_file`; it
+        # must be captured as a per-mission `reindex_failed` error instead.
         (malformed_dir / "expected-artifacts.yaml").write_text(
             "required_always: [this, is, not: valid\n", encoding="utf-8"
         )
@@ -685,10 +696,10 @@ class TestRebaselineOrgAwareness:
 
         outcome = rebaseline_snapshot_file(snapshot_path)  # must not raise
 
-        assert outcome.error is None
-        assert outcome.changed is True
-        # Degrades to built-in manifest — the org-required ghost never appears.
-        assert _ORG_REQUIRED_KEY not in _snapshot_artifact_keys(snapshot_path)
+        assert outcome.error is not None
+        assert outcome.error.startswith("reindex_failed")
+        assert outcome.changed is False
+        assert snapshot_path.read_text(encoding="utf-8") == before  # not rewritten
 
     def test_two_pack_chain_second_pack_reaches_rebaseline(self, tmp_path: Path) -> None:
         """FR-003 AC3 / T007: `ManifestRegistry.load_manifest` already calls
