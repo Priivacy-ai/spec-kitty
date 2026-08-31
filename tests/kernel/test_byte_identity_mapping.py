@@ -293,7 +293,7 @@ REGISTRY: dict[str, RegisteredSite] = {
     ),
     # core/upgrade_probe.py's persisted `UpgradeProbeResult.probed_at` (JSON
     # upgrade-check cache). Prior: `datetime.now(UTC)` -> `now_utc()`.
-    "specify_cli.core.upgrade_probe.probe_github_releases#probed_at": RegisteredSite(
+    "specify_cli.core.upgrade_probe.probe_pypi#probed_at": RegisteredSite(
         producer=lambda: now_utc().isoformat(),
         prior_signature=lambda instant: instant.isoformat(),
     ),

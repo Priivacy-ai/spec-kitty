@@ -234,7 +234,7 @@ class ClientConfig:
         the same one credential resolution and a focus-capability lookup are
         using in the same handler invocation) instead of allocating a fresh
         ``budget_s`` here — see ``repo_identity.identity``'s own ``deadline``
-        parameter (EXPERIMENTAL-spec-kitty#203).
+        parameter (Priivacy-ai/spec-kitty#203).
         """
         ident = repo_identity.identity(cwd, budget=budget_s, deadline=deadline)
         return cls(

@@ -10,7 +10,7 @@ Three facts fix this module's shape:
 of the frame's scope); nothing here is ever sent upstream. What this module
 produces is a *predicate* over already-received :class:`~.live_frame.LiveFrame`
 objects, which ``filtered_stream.FilteredStream`` applies client-side before a
-frame is delivered — the exact seam EXPERIMENTAL-spec-kitty#190 names
+frame is delivered — the exact seam Priivacy-ai/spec-kitty#190 names
 ("applied client-side in the stream client").
 
 **Quiet by default.** ``[moments] agents`` defaults to ``mine``, never
@@ -136,7 +136,7 @@ class MomentSettings:
     valid TOML, so it settles into ``kinds`` normally — but it can never
     match anything, and :func:`frame_predicate` then fails every event
     closed. :func:`unknown_kind_names` is how ``moments status``
-    (EXPERIMENTAL-spec-kitty#210) makes that silence visible.
+    (Priivacy-ai/spec-kitty#210) makes that silence visible.
     """
 
     agents: MomentsMode = DEFAULT_AGENTS_MODE
@@ -197,7 +197,7 @@ def _read_section(path: Path) -> tuple[dict[str, Any], str | None]:
     syntax error ANYWHERE in the file — even outside ``[moments]`` — must not
     read as "this file said nothing", because that silently discards an
     explicit ``agents = "off"`` and every filter the file set, widening the
-    effective mode to the ``mine`` default (EXPERIMENTAL-spec-kitty#211). The
+    effective mode to the ``mine`` default (Priivacy-ai/spec-kitty#211). The
     caller fails that scope's mode closed instead."""
     try:
         with path.open("rb") as fh:
@@ -470,7 +470,7 @@ def unknown_kind_names(kinds: Iterable[str]) -> tuple[str, ...]:
     an ordinary, active filter. It can never match a frame's wire
     :func:`event_kind`, though, so :func:`frame_predicate` fails every event
     closed and the developer sees zero moments with no error anywhere. This
-    is the fail-closed direction EXPERIMENTAL-spec-kitty#210 asks to keep —
+    is the fail-closed direction Priivacy-ai/spec-kitty#210 asks to keep —
     just make the silence visible, which is `spec-kitty moments status`'s
     job (``cli/commands/moments.py``)."""
     return tuple(kind for kind in kinds if kind not in KNOWN_KIND_NAMES)
@@ -526,7 +526,7 @@ def frame_predicate(
     list (e.g. a typo'd bare string, see ``settings.invalid_filters``) fails
     ITS dimension closed: every event is refused, never admitted, so a
     malformed allowlist narrows the stream to nothing instead of silently
-    reading as "no restriction" and widening it (EXPERIMENTAL-spec-kitty#190
+    reading as "no restriction" and widening it (Priivacy-ai/spec-kitty#190
     squad follow-up, PR #201). ``repos`` is not one of these — it gates
     subscriptions, not frames — and is checked by :func:`allows_repo` instead.
     """

@@ -117,7 +117,7 @@ def build_profile() -> DistributionProfile:
         index_url="https://example.invalid/simple/",
         extra_index_url=None,
         data_freshness_seconds=3600,  # re-query TTL only; nag display throttle unchanged
-        disable_no_upgrade_notifier=True,
+        disable_public_pypi_notifier=True,
         version_label=None,  # None → banner uses package_name
     )
 ```
@@ -130,7 +130,7 @@ def build_profile() -> DistributionProfile:
 | `upgrade_provider` | Latest-version source for session-presence + compat planner |
 | `index_url` / `extra_index_url` | Appended as `--index-url` / `--extra-index-url` on pip/pipx/uv remediation |
 | `data_freshness_seconds` | Cache re-query TTL only (display/nag throttle stays stock) |
-| `disable_no_upgrade_notifier` | Suppresses the "no upgrade available" notice |
+| `disable_public_pypi_notifier` | Suppresses the public-PyPI “no upgrade” notice |
 | `version_label` | Optional `--version` banner label |
 
 Phase 1 entry-point groups remain valid thin aliases: if no profile is
@@ -149,7 +149,7 @@ the CLI to restore fork-specific remediation.
 - [ ] `--version` / installed-version lookup use the fork name (and aliases if set)
 - [ ] Upgrade refresh / compat planner call your provider for the fork package name
 - [ ] Remediation commands include `--index-url` when the profile sets it and still pass CHK028 (allowlist length 512, same character class)
-- [ ] No-upgrade notifier stays quiet when `disable_no_upgrade_notifier=True`
+- [ ] No-upgrade notifier stays quiet when `disable_public_pypi_notifier=True`
 - [ ] No files under `src/specify_cli/**` were modified for the publish
 
 ## Related guides

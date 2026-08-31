@@ -41,7 +41,7 @@ def test_planner_queries_profile_package_name(monkeypatch: pytest.MonkeyPatch) -
         package_name="acme-spec-kitty-cli",
         package_aliases=("spec-kitty-cli",),
         upgrade_provider=provider,
-        disable_no_upgrade_notifier=True,
+        disable_public_pypi_notifier=True,
     )
     monkeypatch.setattr(
         "specify_cli.distribution.profile.resolve_distribution_profile",
@@ -164,7 +164,7 @@ def test_degraded_profile_does_not_fall_back_to_public_pypi(
     profile = DegradedDistributionProfile(
         package_name="",
         upgrade_provider=NoNetworkProvider(),
-        disable_no_upgrade_notifier=True,
+        disable_public_pypi_notifier=True,
     )
     monkeypatch.setattr(
         "specify_cli.distribution.resolve_distribution_profile",

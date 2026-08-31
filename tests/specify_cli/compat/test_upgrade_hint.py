@@ -86,7 +86,7 @@ def test_degraded_profile_suppresses_remediation_command(
     profile = DegradedDistributionProfile(
         package_name="",
         upgrade_provider=NoNetworkProvider(),
-        disable_no_upgrade_notifier=True,
+        disable_public_pypi_notifier=True,
     )
     monkeypatch.setattr(
         "specify_cli.distribution.resolve_distribution_profile",

@@ -618,7 +618,7 @@ def test_identity_honors_a_caller_supplied_deadline_instead_of_minting_its_own(t
     status-transition broadcast resolving credentials, presence identity,
     and a focus capability) must have that ONE deadline threaded to every
     probe — not have identity() silently mint a fresh GIT_BUDGET_S on top
-    of it (EXPERIMENTAL-spec-kitty#203)."""
+    of it (Priivacy-ai/spec-kitty#203)."""
     clone = _clone(origin, tmp_path / "clone")
     shared = repo_identity.Deadline(60.0)
     seen: list[object] = []
