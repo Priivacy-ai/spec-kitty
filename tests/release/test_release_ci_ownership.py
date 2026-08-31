@@ -129,15 +129,15 @@ def test_ci_windows_filter_can_read_pull_request_files() -> None:
 
 def test_ci_windows_configures_private_git_dependencies_before_install() -> None:
     workflow = load_workflow("ci-windows.yml")
-    job = workflow["jobs"]["windows-critical"]
     steps = workflow["jobs"]["windows-critical"]["steps"]
     step_names = [step.get("name") for step in steps]
 
-    assert job["env"]["TMP"] == "${{ runner.temp }}"
-    assert job["env"]["TEMP"] == "${{ runner.temp }}"
     assert step_names.index("Configure private git dependencies") < step_names.index("Install spec-kitty-cli (editable) + test deps")
     configure_step = steps[step_names.index("Configure private git dependencies")]
+    install_step = steps[step_names.index("Install spec-kitty-cli (editable) + test deps")]
     assert configure_step["env"]["GH_TOKEN"] == "${{ secrets.SK_CI_TOKEN }}"
+    assert install_step["env"]["TMP"] == "${{ runner.temp }}"
+    assert install_step["env"]["TEMP"] == "${{ runner.temp }}"
     assert 'git config --global "url.https://x-access-token:${GH_TOKEN}@github.com/.insteadOf" "https://github.com/"' in configure_step["run"]
 
 

@@ -70,8 +70,6 @@ jobs:
     env:
       PYTHONUTF8: "1"
       SPEC_KITTY_ENABLE_SAAS_SYNC: "0"
-      TMP: ${{ runner.temp }}
-      TEMP: ${{ runner.temp }}
     steps:
       - uses: actions/checkout@v6
 
@@ -101,6 +99,9 @@ jobs:
 
       - name: Install spec-kitty-cli (editable) + test deps
         shell: bash
+        env:
+          TMP: ${{ runner.temp }}
+          TEMP: ${{ runner.temp }}
         run: |
           pipx install --editable . --force
           pipx inject spec-kitty-cli pytest pytest-cov pytest-asyncio pytest-timeout respx pytestarch
