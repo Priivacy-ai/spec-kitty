@@ -71,10 +71,11 @@ exposure as later transports over the same core — but this is open for design 
 - **Consistency vs. freshness** — for a long squad run, does a delegate get a pinned
   snapshot (deterministic) or the latest (fresh)? The near-term design pins at dispatch;
   the backend should keep that default.
-- **Authority reconciliation** — one canonical "squad-eligible profiles" query lives where
-  (backend endpoint vs. charter data)? This is the seam gap from
-  [Profile-Load Reliability](profile-load-reliability.md) §2.4, promoted to a first-class
-  API concern.
+- **Authority reconciliation** — the canonical "squad-eligible profiles" query is
+  **authored in charter data near-term** ([Profile-Load Reliability](profile-load-reliability.md)
+  §4.2 / §6 D4); the only backlog-open question is whether the backend later **exposes** it as
+  an endpoint. This is the seam gap from Profile-Load Reliability §2.4, promoted to a
+  first-class API concern.
 - **Degradation** — precise behavior when the backend is unreachable: the orchestrator
   falls back to in-process CLI resolution (same contract) and never to unprofiled dispatch.
 - **Relationship to `orchestrator-api`** — does this reuse or extend the existing external
