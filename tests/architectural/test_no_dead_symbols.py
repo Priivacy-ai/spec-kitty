@@ -765,12 +765,9 @@ _CATEGORY_B_GRANDFATHERED_LEGACY: frozenset[SymbolKey] = frozenset(
         SymbolKey(
             "SCHEMA_VERSION", "8fb29803d3d131301db2bbe72bbaab5314981664272c6a9d57f2a75684ae1811", source_module="specify_cli.skills.manifest_store"
         ),  # specify_cli.skills.manifest_store::SCHEMA_VERSION
-        SymbolKey(
-            "load", "7689780b2e4a040cfc29e5b540406167217369b98795702cc6c496cb1c9a2b7c", source_module="specify_cli.skills.manifest_store"
-        ),  # specify_cli.skills.manifest_store::load
-        SymbolKey(
-            "save", "222fabd1e77c7d011d9fc0b583fd27d7c8a044cf0fe17fdce0a59c95583b1172", source_module="specify_cli.skills.manifest_store"
-        ),  # specify_cli.skills.manifest_store::save
+        # specify_cli.skills.manifest_store::{load,save} -- REMOVED (#666):
+        # unaliased submodule imports now feed the module-attr detector, so
+        # their many real src/ callers make both rows stale.
         # specify_cli.status.lifecycle_events::MISSION_EVENTS_FILENAME
         SymbolKey(
             "MISSION_EVENTS_FILENAME", "725b94e955667ce901d7080717a134b4f0b6da5c5efc829f5fc9e98353d9afc9", source_module="specify_cli.status.lifecycle_events"
@@ -1366,7 +1363,9 @@ _CATEGORY_C_LAYOUT_CUTOVER_AUTHORITY_SURFACE: frozenset[SymbolKey] = frozenset()
 # :func:`_imports_by_target` proper, so the gate now recognises these 4
 # names as live via ``_runtime_bridge_module()``'s call-bound accessor
 # pattern WITHOUT a permanent allowlist row; the 4 entries are removed
-# here in the same commit. Converting the call sites to a direct
+# here in the same commit. Unaliased ``from X import Y`` bindings now map
+# to ``X.Y`` too, with the real-module guard rejecting symbol aliases.
+# Converting the call sites to a direct
 # ``from runtime.next.runtime_bridge import get_or_start_run`` was
 # considered and rejected: it would defeat the very patchability the
 # dynamic accessor exists for and breaks a live regression test
@@ -2071,10 +2070,12 @@ def _build_alias_map_and_consts(
     Returns ``(alias_map, str_consts)`` where:
 
     * ``alias_map`` maps a local Python name to the dotted module it
-      resolves to.  Only explicit ``asname`` bindings are captured:
+      resolves to.  Explicit and unaliased ``ImportFrom`` bindings are
+      captured:
 
       - ``import a.b.c as x``  →  ``{"x": "a.b.c"}``
-      - ``from X import Y as Z``  →  ``{"Z": "X.Y"}`` (absolute X)
+      - ``from X import Y`` / ``from X import Y as Z``  →
+        ``{"Y"/"Z": "X.Y"}`` (absolute X)
 
       Plain ``import a.b.c`` (no alias) is skipped: the gate only needs
       to trace ``x.attr``-style attribute accesses where the module is
@@ -2102,8 +2103,8 @@ def _build_alias_map_and_consts(
         elif isinstance(node, ast.ImportFrom):
             target = _resolve_import_from(node, containing_pkg)
             for alias in node.names:
-                if alias.name != "*" and alias.asname:
-                    alias_map[alias.asname] = f"{target}.{alias.name}"
+                if alias.name != "*":
+                    alias_map[alias.asname or alias.name] = f"{target}.{alias.name}"
     return alias_map, _extract_str_consts_from_body(tree)
 
 
