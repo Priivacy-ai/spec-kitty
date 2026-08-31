@@ -157,6 +157,13 @@ _FACADE_TABLE: dict[str, list[tuple[str, str]]] = {
         # through a charter door, so this door is widened rather than a new
         # direct ``doctrine.*`` import added to a CLI command file.
         ("resolve_layered_mission_types", "charter.offering.missions.mission_type_repository"),
+        # Added by mission ``expected-artifacts-loader-unification-01M1C9VQ``
+        # WP01 (#3770): the relocated ``charter.activation.manifest_loader``
+        # loader authority's sibling error moved back through this
+        # already-established door so ``specify_cli.dossier.manifest``'s shim
+        # re-export reaches it without a direct ``charter.offering.*`` import
+        # (test_runtime_charter_doctrine_boundary.py forbids that).
+        ("MalformedManifestError", "charter.offering.missions.repository"),
     ],
     # New door (WP03/T013): symbol-level model→task routing surface. PUBLIC —
     # re-exported from ``charter.offering.api`` (leaf callables/types only, NOT the
