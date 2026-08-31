@@ -69,7 +69,7 @@ def project_finalization_eligibility(
         )
     )
     projected = MappingProxyType(
-        {wp_id: tuple(sorted(prerequisite for prerequisite in dependencies.get(wp_id, ()) if prerequisite not in canceled_set)) for wp_id in eligible}
+        {wp_id: tuple(sorted({prerequisite for prerequisite in dependencies.get(wp_id, ()) if prerequisite not in canceled_set})) for wp_id in eligible}
     )
     return FinalizationEligibility(
         known_wp_ids=known,
