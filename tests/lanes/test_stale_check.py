@@ -130,6 +130,7 @@ class TestCheckLaneStaleness:
         assert ".worktrees/" not in result.remediation
         assert "repository-root checkout" in result.remediation
         assert "git checkout target-branch && git merge kitty/mission-feat" in result.remediation
+        assert "spec-kitty agent status materialize" in result.remediation
 
     def test_stale_reports_only_overlapping_files(self, tmp_path):
         repo = _make_repo(tmp_path)
@@ -172,3 +173,22 @@ class TestStaleRemediation:
         assert ".worktrees/" not in remediation
         assert "repository-root checkout" in remediation
         assert "git checkout main && git merge kitty/mission-feat" in remediation
+        assert "spec-kitty agent status materialize" in remediation
+
+    def test_planning_lane_remediation_names_status_materialize(self):
+        """A raw `git merge` on the planning lane produces a `status.json`
+        conflict git cannot text-reconcile (status.json is a derived
+        projection of status.events.jsonl, intentionally driver-exempt --
+        see tests/architectural/test_merge_reconciliation_class_guard.py).
+        The remediation must name the tool's own recovery -- `status
+        materialize` rebuilds status.json from the event log deterministically
+        -- followed by `git add`, instead of leaving the operator stuck on an
+        unreconcilable conflict."""
+        remediation = _stale_remediation(
+            _lane(lane_id="lane-planning"), "main", "kitty/mission-feat",
+        )
+        assert "spec-kitty agent status materialize" in remediation
+        assert "git add" in remediation
+        # No merge driver introduced -- rebuild via the tool instead of a driver.
+        assert "merge driver" not in remediation
+        assert "do not hand-edit" in remediation
