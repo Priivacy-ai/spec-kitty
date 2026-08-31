@@ -297,6 +297,18 @@ def _git(repo: Path, *args: str) -> subprocess.CompletedProcess[str]:
     return _run(["git", "-C", str(repo), *args])
 
 
+def _branch_exists(repo: Path, branch: str) -> bool:
+    return (
+        subprocess.run(
+            ["git", "-C", str(repo), "rev-parse", "--verify", f"refs/heads/{branch}"],
+            capture_output=True,
+            text=True,
+            check=False,
+        ).returncode
+        == 0
+    )
+
+
 def _commit_file(
     repo: Path,
     *,
@@ -1338,3 +1350,358 @@ class TestPlanningArtifactReachesTarget:
             f"this assertion starts failing, the design has changed and the "
             f"D4 documentation must be updated."
         )
+
+
+# ---------------------------------------------------------------------------
+# WP02/T005 — #3131 P1 data-loss regression: the DEFAULT merge cleanup must
+# honor a mission's meta.json retention policy, on a COORD-topology mission,
+# driven at the CLI layer (where the ``True`` cleanup default lives).
+# ---------------------------------------------------------------------------
+
+
+_RETENTION_MISSION_ID = "01KX0000000RETENTIONCOORD01"
+_RETENTION_MID8 = _RETENTION_MISSION_ID[:8].lower()
+_RETENTION_SLUG = f"retention-repro-{_RETENTION_MID8}"
+_RETENTION_MISSION_BRANCH = f"kitty/mission-{_RETENTION_SLUG}"
+
+
+def _write_coord_retaining_meta(feature_dir: Path, slug: str) -> None:
+    """meta.json for a COORD-topology mission that retains BOTH branches and worktrees."""
+    feature_dir.mkdir(parents=True, exist_ok=True)
+    meta: dict[str, object] = {
+        "mission_id": _RETENTION_MISSION_ID,
+        "mid8": _RETENTION_MID8,
+        "mission_slug": slug,
+        "mission_number": None,
+        "mission_type": "software-dev",
+        "target_branch": "main",
+        "coordination_branch": _RETENTION_MISSION_BRANCH,
+        "mission_branch": _RETENTION_MISSION_BRANCH,
+        "topology": "coord",
+        "purpose_tldr": "retention regression pin (#3131)",
+        "purpose_context": "merge default cleanup must honor meta.json retention",
+        "retain_branches": True,
+        "retain_worktrees": True,
+    }
+    (feature_dir / "meta.json").write_text(
+        json.dumps(meta, indent=2, sort_keys=True) + "\n", encoding="utf-8"
+    )
+
+
+def _invoke_merge_cli(repo: Path, extra_args: list[str]) -> object:
+    """Invoke the real ``merge`` Typer command (CLI layer where the tri-state
+    cleanup flags' default lives) — NOT ``_run_lane_based_merge`` directly,
+    whose ``delete_branch``/``remove_worktree`` params have no default of
+    their own."""
+    import os
+
+    from typer.testing import CliRunner
+
+    from specify_cli.cli.commands.merge import merge
+
+    app = typer.Typer()
+    app.command()(merge)
+
+    runner = CliRunner()
+    original_cwd = os.getcwd()
+    try:
+        os.chdir(repo)
+        return runner.invoke(app, extra_args, catch_exceptions=False)
+    finally:
+        os.chdir(original_cwd)
+
+
+class TestRetentionConstraintSurvivesCleanup:
+    """#3131 P1: the DEFAULT ``spec-kitty merge`` cleanup must honor a
+    mission's ``meta.json`` retention policy across the success path.
+
+    Non-vacuous per ``contracts/retention-resolver-contract.md``: a real
+    COORD-topology mission (``coordination_branch`` present, mid8-embedded
+    slug), a NON-planning lane, driven through the CLI ``merge`` entry with
+    NO ``--delete-branch``/``--keep-branch``/``--remove-worktree``/
+    ``--keep-worktree`` flags — letting the CLI's own default resolve. On
+    current main that default is unconditional ``True``/``True``, so the
+    mission branch, the lane branch, and the lane worktree are all deleted
+    despite ``retain_branches: true`` / ``retain_worktrees: true`` in
+    meta.json (RED). After WP02 lands, the same invocation resolves the
+    default through ``resolve_merge_retention`` -> meta retain (GREEN).
+    """
+
+    @pytest.mark.regression
+    def test_default_merge_honors_coord_retention_policy(
+        self, tmp_path: Path
+    ) -> None:
+        slug = _RETENTION_SLUG
+        _init_git_repo(tmp_path)
+
+        feature_dir = tmp_path / "kitty-specs" / slug
+        (feature_dir / "tasks").mkdir(parents=True)
+        _write_coord_retaining_meta(feature_dir, slug)
+        _write_lanes_manifest(
+            feature_dir,
+            slug,
+            code_wp_ids=["WP01"],
+            planning_wp_ids=[],
+            mission_branch=_RETENTION_MISSION_BRANCH,
+        )
+        _git(tmp_path, "add", ".")
+        _git(tmp_path, "commit", "-m", f"chore({slug}): bootstrap coord retaining mission")
+
+        # Mission branch == coordination branch (coord topology).
+        _git(tmp_path, "branch", _RETENTION_MISSION_BRANCH, "main")
+
+        # Real code lane with a real commit.
+        lane_a_branch = f"kitty/mission-{slug}-lane-a"
+        _git(tmp_path, "branch", lane_a_branch, "main")
+        code_relpath = "src/retention_repro.py"
+        _commit_file(
+            tmp_path,
+            branch=lane_a_branch,
+            relpath=code_relpath,
+            content="def foo():\n    return 1\n",
+            message=f"feat({slug}): add foo function (WP01)",
+        )
+        _git(tmp_path, "checkout", "main")
+
+        # A REAL lane worktree, at the MODERN mid8-embedded path the cleanup
+        # phase resolves for a modern (mission_id-bearing) mission — NOT the
+        # legacy `<slug>-<lane>` path, and explicitly NOT the merge scratch
+        # worktree.
+        from specify_cli.lanes.branch_naming import worktree_path as _worktree_path_helper
+
+        lane_worktree = _worktree_path_helper(
+            tmp_path, slug, mission_id=_RETENTION_MISSION_ID, lane_id="lane-a"
+        )
+        _git(
+            tmp_path,
+            "worktree",
+            "add",
+            str(lane_worktree),
+            lane_a_branch,
+        )
+
+        assert lane_worktree.exists(), "fixture invalid: lane worktree must exist pre-merge"
+        assert _branch_exists(tmp_path, _RETENTION_MISSION_BRANCH), (
+            "fixture invalid: mission/coordination branch must exist pre-merge"
+        )
+        assert _branch_exists(tmp_path, lane_a_branch), (
+            "fixture invalid: lane branch must exist pre-merge"
+        )
+
+        with (
+            _real_merge_external_mocks(tmp_path),
+            # This fixture's modern (mission_id-bearing) meta.json makes the
+            # target-branch done-durability assert run for real; it needs a
+            # committed status.events.jsonl this test's mocked done-marking
+            # never produces. That WP-bookkeeping durability is out of scope
+            # for this branch/worktree-retention regression.
+            patch("specify_cli.merge.executor._assert_merged_wps_done_on_target"),
+            patch("specify_cli.merge.executor._assert_baseline_merge_commit_on_target"),
+        ):
+            # NO --delete-branch/--keep-branch/--remove-worktree/--keep-worktree:
+            # the CLI's own default resolves the cleanup decision.
+            result = _invoke_merge_cli(
+                tmp_path,
+                ["--mission", slug, "--yes", "--allow-sparse-checkout"],
+            )
+
+        exit_code = getattr(result, "exit_code", None)
+        assert exit_code == 0, (
+            f"merge must succeed for this fixture (output: "
+            f"{getattr(result, 'output', None)!r}, "
+            f"exception: {getattr(result, 'exception', None)!r})"
+        )
+
+        # ANCHOR (INV-1 / FR-002): the mission/coordination branch survives.
+        assert _branch_exists(tmp_path, _RETENTION_MISSION_BRANCH), (
+            "#3131 P1 regression: the DEFAULT merge deleted the mission/"
+            "coordination branch despite meta.json's retain_branches=true. "
+            "The default cleanup decision must be resolved through "
+            "resolve_merge_retention(), not an unconditional True."
+        )
+        # ANCHOR: a non-planning LANE branch survives.
+        assert _branch_exists(tmp_path, lane_a_branch), (
+            "#3131 P1 regression: the DEFAULT merge deleted the lane branch "
+            "despite meta.json's retain_branches=true."
+        )
+        # ANCHOR: the lane WORKTREE survives (explicitly not the merge scratch
+        # worktree — this is `.worktrees/<slug>-<mid8>-lane-<id>`).
+        assert lane_worktree.exists(), (
+            "#3131 P1 regression: the DEFAULT merge removed the lane worktree "
+            "despite meta.json's retain_worktrees=true. The default cleanup "
+            "decision must be resolved through resolve_merge_retention(), not "
+            "an unconditional True."
+        )
+
+    def test_explicit_delete_override_still_reachable(self, tmp_path: Path) -> None:
+        """Second assertion tier (added once enforcement lands, T005): an
+        EXPLICIT ``--delete-branch``/``--remove-worktree`` override still
+        deletes on the SAME retaining mission — proving the override path
+        stays reachable and this class does not just assert "merge never
+        deletes"."""
+        slug = _RETENTION_SLUG + "-override"
+        mission_branch = f"kitty/mission-{slug}"
+        _init_git_repo(tmp_path)
+
+        feature_dir = tmp_path / "kitty-specs" / slug
+        (feature_dir / "tasks").mkdir(parents=True)
+        _write_coord_retaining_meta(feature_dir, slug)
+        # Re-key the coord/mission branch marker to this slug's own branch.
+        meta_path = feature_dir / "meta.json"
+        meta = json.loads(meta_path.read_text(encoding="utf-8"))
+        meta["mission_slug"] = slug
+        meta["coordination_branch"] = mission_branch
+        meta["mission_branch"] = mission_branch
+        meta_path.write_text(json.dumps(meta, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+        _write_lanes_manifest(
+            feature_dir,
+            slug,
+            code_wp_ids=["WP01"],
+            planning_wp_ids=[],
+            mission_branch=mission_branch,
+        )
+        _git(tmp_path, "add", ".")
+        _git(tmp_path, "commit", "-m", f"chore({slug}): bootstrap coord retaining mission")
+
+        _git(tmp_path, "branch", mission_branch, "main")
+        lane_a_branch = f"kitty/mission-{slug}-lane-a"
+        _git(tmp_path, "branch", lane_a_branch, "main")
+        code_relpath = "src/retention_repro_override.py"
+        _commit_file(
+            tmp_path,
+            branch=lane_a_branch,
+            relpath=code_relpath,
+            content="def bar():\n    return 2\n",
+            message=f"feat({slug}): add bar function (WP01)",
+        )
+        _git(tmp_path, "checkout", "main")
+
+        from specify_cli.lanes.branch_naming import worktree_path as _worktree_path_helper
+
+        lane_worktree = _worktree_path_helper(
+            tmp_path, slug, mission_id=_RETENTION_MISSION_ID, lane_id="lane-a"
+        )
+        _git(tmp_path, "worktree", "add", str(lane_worktree), lane_a_branch)
+
+        with (
+            _real_merge_external_mocks(tmp_path),
+            patch("specify_cli.merge.executor._assert_merged_wps_done_on_target"),
+            patch("specify_cli.merge.executor._assert_baseline_merge_commit_on_target"),
+        ):
+            result = _invoke_merge_cli(
+                tmp_path,
+                [
+                    "--mission",
+                    slug,
+                    "--yes",
+                    "--allow-sparse-checkout",
+                    "--delete-branch",
+                    "--remove-worktree",
+                ],
+            )
+
+        exit_code = getattr(result, "exit_code", None)
+        assert exit_code == 0, (
+            f"merge must succeed for this fixture (output: "
+            f"{getattr(result, 'output', None)!r}, "
+            f"exception: {getattr(result, 'exception', None)!r})"
+        )
+        assert not _branch_exists(tmp_path, mission_branch), (
+            "explicit --delete-branch must still delete the mission/coordination "
+            "branch even though meta.json retains it -- the override path must "
+            "stay reachable."
+        )
+        assert not _branch_exists(tmp_path, lane_a_branch), (
+            "explicit --delete-branch must still delete the lane branch."
+        )
+        assert not lane_worktree.exists(), (
+            "explicit --remove-worktree must still remove the lane worktree "
+            "even though meta.json retains it -- the override path must stay "
+            "reachable."
+        )
+        # FR-005/FR-006: an explicit CLI delete over a retaining policy must be
+        # recorded as an operator-visible override notice, never silent.
+        output = getattr(result, "output", "") or ""
+        assert "explicit delete overrode retention policy for branches" in output
+        assert "explicit delete overrode retention policy for worktrees" in output
+
+    def test_malformed_retention_value_is_treated_as_retaining(
+        self, tmp_path: Path
+    ) -> None:
+        """#3131 INV-4/T011: a malformed (non-boolean) ``retain_branches`` /
+        ``retain_worktrees`` value in meta.json must NEVER ``bool()``-coerce
+        to a delete — it resolves to retaining (fail-closed), with a
+        malformed-value warning, exactly like an explicit ``true``."""
+        slug = _RETENTION_SLUG + "-malformed"
+        mission_branch = f"kitty/mission-{slug}"
+        _init_git_repo(tmp_path)
+
+        feature_dir = tmp_path / "kitty-specs" / slug
+        (feature_dir / "tasks").mkdir(parents=True)
+        _write_coord_retaining_meta(feature_dir, slug)
+        meta_path = feature_dir / "meta.json"
+        meta = json.loads(meta_path.read_text(encoding="utf-8"))
+        meta["mission_slug"] = slug
+        meta["coordination_branch"] = mission_branch
+        meta["mission_branch"] = mission_branch
+        # Malformed: a non-boolean truthy-ish JSON value, never bool()-coerced.
+        meta["retain_branches"] = "yes"
+        meta["retain_worktrees"] = 1
+        meta_path.write_text(json.dumps(meta, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+        _write_lanes_manifest(
+            feature_dir,
+            slug,
+            code_wp_ids=["WP01"],
+            planning_wp_ids=[],
+            mission_branch=mission_branch,
+        )
+        _git(tmp_path, "add", ".")
+        _git(tmp_path, "commit", "-m", f"chore({slug}): bootstrap malformed-retention mission")
+
+        _git(tmp_path, "branch", mission_branch, "main")
+        lane_a_branch = f"kitty/mission-{slug}-lane-a"
+        _git(tmp_path, "branch", lane_a_branch, "main")
+        _commit_file(
+            tmp_path,
+            branch=lane_a_branch,
+            relpath="src/retention_repro_malformed.py",
+            content="def baz():\n    return 3\n",
+            message=f"feat({slug}): add baz function (WP01)",
+        )
+        _git(tmp_path, "checkout", "main")
+
+        from specify_cli.lanes.branch_naming import worktree_path as _worktree_path_helper
+
+        lane_worktree = _worktree_path_helper(
+            tmp_path, slug, mission_id=_RETENTION_MISSION_ID, lane_id="lane-a"
+        )
+        _git(tmp_path, "worktree", "add", str(lane_worktree), lane_a_branch)
+
+        with (
+            _real_merge_external_mocks(tmp_path),
+            patch("specify_cli.merge.executor._assert_merged_wps_done_on_target"),
+            patch("specify_cli.merge.executor._assert_baseline_merge_commit_on_target"),
+        ):
+            result = _invoke_merge_cli(
+                tmp_path,
+                ["--mission", slug, "--yes", "--allow-sparse-checkout"],
+            )
+
+        exit_code = getattr(result, "exit_code", None)
+        assert exit_code == 0, (
+            f"merge must succeed for this fixture (output: "
+            f"{getattr(result, 'output', None)!r}, "
+            f"exception: {getattr(result, 'exception', None)!r})"
+        )
+        assert _branch_exists(tmp_path, mission_branch), (
+            "INV-4 regression: a malformed retain_branches value resolved to "
+            "delete instead of fail-closed retain."
+        )
+        assert _branch_exists(tmp_path, lane_a_branch)
+        assert lane_worktree.exists(), (
+            "INV-4 regression: a malformed retain_worktrees value resolved to "
+            "delete instead of fail-closed retain."
+        )
+        output = getattr(result, "output", "") or ""
+        assert "malformed retain_branches value in meta.json" in output
+        assert "malformed retain_worktrees value in meta.json" in output

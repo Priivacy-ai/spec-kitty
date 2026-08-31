@@ -133,10 +133,14 @@ def test_issue_3086_merge_delete_branch_flattens_coordination_metadata(
         all_wp_ids=["WP01"],
         push=False,
         delete_branch=True,
-        # Isolate the branch-deletion block: ``remove_worktree=False`` skips the
-        # worktree removal + ``teardown_coordination_topology`` seam, so only the
-        # ``delete_branch`` path (the one that strands ``meta.json``) is exercised.
-        remove_worktree=False,
+        # #3131 T008/T011: the coord/mission branch + marker + worktree are now
+        # ONE atomic unit gated by ``teardown_coordination`` (INV-2) — a coord
+        # mission with ``delete_branch=True, remove_worktree=False`` alone no
+        # longer tears any of the three down (see the new RETAINS-together case
+        # below). Both must be True (and ``teardown_coordination`` set) to
+        # exercise the #3086 flatten-atomicity this test pins.
+        remove_worktree=True,
+        teardown_coordination=True,
         strategy=ex.MergeStrategy.SQUASH,
         assume_yes=True,
         planning_artifact_only=False,
@@ -196,6 +200,90 @@ def test_issue_3086_merge_delete_branch_flattens_coordination_metadata(
     assert porcelain == "", (
         "issue #3086: the coordination-metadata flatten was written but not "
         f"committed — merged target left dirty: {porcelain!r}"
+    )
+
+
+def test_partial_retention_retains_coord_triple_together(
+    merged_coord_repo: Path,
+) -> None:
+    """#3131 T008/T011/INV-2: partial retention must NOT half-tear the coord triple.
+
+    ``delete_branch=True, remove_worktree=False`` resolves
+    ``teardown_coordination=False`` (the coupling is an AND). Pre-#3131 this
+    combination deleted the coordination branch AND flattened the marker
+    (only skipping the worktree teardown) — the exact "``--keep-worktree``-on-
+    coord husk" this WP fixes. The corrected coupling must retain the branch,
+    the marker, and the worktree TOGETHER: nothing is torn down until BOTH
+    resolved flags are True.
+    """
+    repo = merged_coord_repo
+    feature_dir = repo / "kitty-specs" / _SLUG
+
+    lanes_manifest = SimpleNamespace(
+        target_branch="main",
+        mission_branch=_MISSION_BRANCH,
+        lanes=[SimpleNamespace(lane_id="lane-a", wp_ids=["WP01"])],
+    )
+    state = MergeState(
+        mission_id=_MISSION_ID,
+        mission_slug=_SLUG,
+        target_branch="main",
+        wp_order=["WP01"],
+    )
+    run = ex._MergeRunState(
+        main_repo=repo,
+        mission_slug=_SLUG,
+        canonical_id=_MISSION_ID,
+        canonical_mission_id=_MISSION_ID,
+        feature_dir=feature_dir,
+        target_feature_dir=feature_dir,
+        lanes_manifest=lanes_manifest,
+        all_wp_ids=["WP01"],
+        push=False,
+        delete_branch=True,
+        remove_worktree=False,
+        teardown_coordination=False,  # delete_branch AND remove_worktree == False
+        strategy=ex.MergeStrategy.SQUASH,
+        assume_yes=True,
+        planning_artifact_only=False,
+        state=state,
+        is_resume=False,
+        baseline_mission_id=_MISSION_ID,
+    )
+
+    assert _branch_exists(repo, _MISSION_BRANCH), (
+        "fixture invalid: coordination branch must exist before cleanup"
+    )
+    head_before = _git(repo, "rev-parse", "HEAD").stdout.strip()
+
+    ex._phase_cleanup_worktrees_and_branches(run)
+
+    # The coord branch survives: partial retention must not delete it.
+    assert _branch_exists(repo, _MISSION_BRANCH), (
+        "INV-2 regression: the coordination branch was deleted even though "
+        "teardown_coordination=False (partial retention: delete_branch=True, "
+        "remove_worktree=False) — the coord triple was half-torn."
+    )
+
+    # The marker survives untouched: no flatten attempted.
+    meta = load_meta(feature_dir)
+    assert meta is not None
+    assert meta.get("coordination_branch") == _MISSION_BRANCH, (
+        "INV-2 regression: coordination_branch was flattened out of meta.json "
+        "despite teardown_coordination=False — the marker was torn down while "
+        "the branch (or worktree) was meant to be retained together."
+    )
+    assert meta.get("flattened") is False, (
+        "INV-2 regression: 'flattened' provenance was set even though the "
+        "flatten never ran (teardown_coordination=False)"
+    )
+
+    # No bookkeeping commit landed (the flatten never wrote/committed anything).
+    head_after = _git(repo, "rev-parse", "HEAD").stdout.strip()
+    assert head_after == head_before, (
+        "INV-2 regression: a bookkeeping commit landed on the target branch "
+        "even though teardown_coordination=False — the flatten must not have "
+        "run at all in the retained-together case."
     )
 
 
