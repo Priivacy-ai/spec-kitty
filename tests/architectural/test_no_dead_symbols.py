@@ -765,12 +765,9 @@ _CATEGORY_B_GRANDFATHERED_LEGACY: frozenset[SymbolKey] = frozenset(
         SymbolKey(
             "SCHEMA_VERSION", "8fb29803d3d131301db2bbe72bbaab5314981664272c6a9d57f2a75684ae1811", source_module="specify_cli.skills.manifest_store"
         ),  # specify_cli.skills.manifest_store::SCHEMA_VERSION
-        SymbolKey(
-            "load", "7689780b2e4a040cfc29e5b540406167217369b98795702cc6c496cb1c9a2b7c", source_module="specify_cli.skills.manifest_store"
-        ),  # specify_cli.skills.manifest_store::load
-        SymbolKey(
-            "save", "222fabd1e77c7d011d9fc0b583fd27d7c8a044cf0fe17fdce0a59c95583b1172", source_module="specify_cli.skills.manifest_store"
-        ),  # specify_cli.skills.manifest_store::save
+        # specify_cli.skills.manifest_store::{load,save} -- REMOVED (#666):
+        # unaliased submodule imports now feed the module-attr detector, so
+        # their many real src/ callers make both rows stale.
         # specify_cli.status.lifecycle_events::MISSION_EVENTS_FILENAME
         SymbolKey(
             "MISSION_EVENTS_FILENAME", "725b94e955667ce901d7080717a134b4f0b6da5c5efc829f5fc9e98353d9afc9", source_module="specify_cli.status.lifecycle_events"
@@ -1370,7 +1367,9 @@ _CATEGORY_C_LAYOUT_CUTOVER_AUTHORITY_SURFACE: frozenset[SymbolKey] = frozenset()
 # :func:`_imports_by_target` proper, so the gate now recognises these 4
 # names as live via ``_runtime_bridge_module()``'s call-bound accessor
 # pattern WITHOUT a permanent allowlist row; the 4 entries are removed
-# here in the same commit. Converting the call sites to a direct
+# here in the same commit. Unaliased ``from X import Y`` bindings now map
+# to ``X.Y`` too, with the real-module guard rejecting symbol aliases.
+# Converting the call sites to a direct
 # ``from runtime.next.runtime_bridge import get_or_start_run`` was
 # considered and rejected: it would defeat the very patchability the
 # dynamic accessor exists for and breaks a live regression test
@@ -2142,10 +2141,12 @@ def _build_alias_map_and_consts(
     Returns ``(alias_map, str_consts)`` where:
 
     * ``alias_map`` maps a local Python name to the dotted module it
-      resolves to.  Only explicit ``asname`` bindings are captured:
+      resolves to.  Explicit and unaliased ``ImportFrom`` bindings are
+      captured:
 
       - ``import a.b.c as x``  →  ``{"x": "a.b.c"}``
-      - ``from X import Y as Z``  →  ``{"Z": "X.Y"}`` (absolute X)
+      - ``from X import Y`` / ``from X import Y as Z``  →
+        ``{"Y"/"Z": "X.Y"}`` (absolute X)
 
       Plain ``import a.b.c`` (no alias) is skipped: the gate only needs
       to trace ``x.attr``-style attribute accesses where the module is
@@ -2173,8 +2174,8 @@ def _build_alias_map_and_consts(
         elif isinstance(node, ast.ImportFrom):
             target = _resolve_import_from(node, containing_pkg)
             for alias in node.names:
-                if alias.name != "*" and alias.asname:
-                    alias_map[alias.asname] = f"{target}.{alias.name}"
+                if alias.name != "*":
+                    alias_map[alias.asname or alias.name] = f"{target}.{alias.name}"
     return alias_map, _extract_str_consts_from_body(tree)
 
 
@@ -2351,8 +2352,207 @@ def _extract_public_module_level_names(tree: ast.Module) -> frozenset[str]:
     return frozenset(names)
 
 
+def _argument_nodes(args: ast.arguments) -> tuple[ast.arg, ...]:
+    return (
+        *args.posonlyargs,
+        *args.args,
+        *args.kwonlyargs,
+        *(() if args.vararg is None else (args.vararg,)),
+        *(() if args.kwarg is None else (args.kwarg,)),
+    )
+
+
+def _visit_function_outer_expressions(visitor: ast.NodeVisitor, node: ast.FunctionDef | ast.AsyncFunctionDef) -> None:
+    for decorator in node.decorator_list:
+        visitor.visit(decorator)
+    for default in (*node.args.defaults, *(value for value in node.args.kw_defaults if value is not None)):
+        visitor.visit(default)
+    for argument in _argument_nodes(node.args):
+        if argument.annotation is not None:
+            visitor.visit(argument.annotation)
+    if node.returns is not None:
+        visitor.visit(node.returns)
+
+
+class _FunctionScopeVisitor(ast.NodeVisitor):
+    def __init__(self, name: str) -> None:
+        self.name = name
+        self.binds_name = False
+        self.global_declared = False
+        self.nonlocal_declared = False
+
+    def visit_Name(self, node: ast.Name) -> None:
+        if node.id == self.name and not isinstance(node.ctx, ast.Load):
+            self.binds_name = True
+
+    def visit_alias(self, node: ast.alias) -> None:
+        bound_name = node.asname or node.name.rpartition(".")[2]
+        if bound_name == self.name:
+            self.binds_name = True
+
+    def visit_Global(self, node: ast.Global) -> None:
+        if self.name in node.names:
+            self.global_declared = True
+
+    def visit_Nonlocal(self, node: ast.Nonlocal) -> None:
+        if self.name in node.names:
+            self.nonlocal_declared = True
+
+    def visit_ExceptHandler(self, node: ast.ExceptHandler) -> None:
+        if node.name == self.name:
+            self.binds_name = True
+        self.generic_visit(node)
+
+    def visit_MatchAs(self, node: ast.MatchAs) -> None:
+        if node.name == self.name:
+            self.binds_name = True
+        self.generic_visit(node)
+
+    def visit_MatchStar(self, node: ast.MatchStar) -> None:
+        if node.name == self.name:
+            self.binds_name = True
+        self.generic_visit(node)
+
+    def visit_MatchMapping(self, node: ast.MatchMapping) -> None:
+        if node.rest == self.name:
+            self.binds_name = True
+        self.generic_visit(node)
+
+    def visit_FunctionDef(self, node: ast.FunctionDef) -> None:
+        if node.name == self.name:
+            self.binds_name = True
+        _visit_function_outer_expressions(self, node)
+
+    def visit_AsyncFunctionDef(self, node: ast.AsyncFunctionDef) -> None:
+        if node.name == self.name:
+            self.binds_name = True
+        _visit_function_outer_expressions(self, node)
+
+    def visit_Lambda(self, node: ast.Lambda) -> None:
+        for default in node.args.defaults:
+            self.visit(default)
+        for default in (value for value in node.args.kw_defaults if value is not None):
+            self.visit(default)
+
+    def visit_ClassDef(self, node: ast.ClassDef) -> None:
+        if node.name == self.name:
+            self.binds_name = True
+        for decorator in node.decorator_list:
+            self.visit(decorator)
+        for base in node.bases:
+            self.visit(base)
+        for keyword in node.keywords:
+            self.visit(keyword.value)
+
+    def visit_comprehension(self, node: ast.comprehension) -> None:
+        self.visit(node.iter)
+        for condition in node.ifs:
+            self.visit(condition)
+
+
+def _classify_function_scope(node: ast.FunctionDef | ast.AsyncFunctionDef | ast.Lambda, name: str) -> tuple[bool, bool, bool]:
+    visitor = _FunctionScopeVisitor(name)
+    for argument in _argument_nodes(node.args):
+        if argument.arg == name:
+            visitor.binds_name = True
+    if isinstance(node, ast.Lambda):
+        visitor.visit(node.body)
+    else:
+        for statement in node.body:
+            visitor.visit(statement)
+    return visitor.binds_name, visitor.global_declared, visitor.nonlocal_declared
+
+
+def _target_binds_name(target: ast.expr, name: str) -> bool:
+    return any(isinstance(node, ast.Name) and node.id == name for node in ast.walk(target))
+
+
+class _ModuleLevelNameUseVisitor(ast.NodeVisitor):
+    def __init__(self, name: str) -> None:
+        self.name = name
+        self.found = False
+        self.function_scopes: list[tuple[bool, bool]] = []
+        self.comprehension_scopes: list[bool] = []
+
+    def _name_is_shadowed(self) -> bool:
+        for is_shadowed in reversed(self.comprehension_scopes):
+            if is_shadowed:
+                return True
+        for is_shadowed, global_declared in reversed(self.function_scopes):
+            if global_declared:
+                return False
+            if is_shadowed:
+                return True
+        return False
+
+    def visit_Name(self, node: ast.Name) -> None:
+        if node.id == self.name and isinstance(node.ctx, ast.Load) and not self._name_is_shadowed():
+            self.found = True
+
+    def _visit_function_body(self, node: ast.FunctionDef | ast.AsyncFunctionDef | ast.Lambda) -> None:
+        binds_name, global_declared, nonlocal_declared = _classify_function_scope(node, self.name)
+        if global_declared:
+            is_shadowed = False
+        elif nonlocal_declared:
+            is_shadowed = self._name_is_shadowed()
+        else:
+            is_shadowed = self._name_is_shadowed() or binds_name
+        self.function_scopes.append((is_shadowed, global_declared))
+        if isinstance(node, ast.Lambda):
+            self.visit(node.body)
+        else:
+            for statement in node.body:
+                self.visit(statement)
+        self.function_scopes.pop()
+
+    def visit_FunctionDef(self, node: ast.FunctionDef) -> None:
+        _visit_function_outer_expressions(self, node)
+        self._visit_function_body(node)
+
+    def visit_AsyncFunctionDef(self, node: ast.AsyncFunctionDef) -> None:
+        _visit_function_outer_expressions(self, node)
+        self._visit_function_body(node)
+
+    def visit_Lambda(self, node: ast.Lambda) -> None:
+        for default in node.args.defaults:
+            self.visit(default)
+        for default in (value for value in node.args.kw_defaults if value is not None):
+            self.visit(default)
+        self._visit_function_body(node)
+
+    def _visit_comprehension(self, node: ast.ListComp | ast.SetComp | ast.GeneratorExp | ast.DictComp) -> None:
+        if node.generators:
+            self.visit(node.generators[0].iter)
+        self.comprehension_scopes.append(False)
+        for index, generator in enumerate(node.generators):
+            if index > 0:
+                self.visit(generator.iter)
+            if _target_binds_name(generator.target, self.name):
+                self.comprehension_scopes[-1] = True
+            for condition in generator.ifs:
+                self.visit(condition)
+        if isinstance(node, ast.DictComp):
+            self.visit(node.key)
+            self.visit(node.value)
+        else:
+            self.visit(node.elt)
+        self.comprehension_scopes.pop()
+
+    def visit_ListComp(self, node: ast.ListComp) -> None:
+        self._visit_comprehension(node)
+
+    def visit_SetComp(self, node: ast.SetComp) -> None:
+        self._visit_comprehension(node)
+
+    def visit_GeneratorExp(self, node: ast.GeneratorExp) -> None:
+        self._visit_comprehension(node)
+
+    def visit_DictComp(self, node: ast.DictComp) -> None:
+        self._visit_comprehension(node)
+
+
 def _used_within_own_module(tree: ast.Module, name: str) -> bool:
-    """True if *name* is referenced (``ast.Name`` load) anywhere in *tree* (#470).
+    """True if *name* has a Load that can resolve to the module binding (#470).
 
     Used ONLY to rescue a widened (non-``__all__``) symbol: intra-module use
     is real evidence a module-private-by-convention name is not dead, but is
@@ -2360,7 +2560,9 @@ def _used_within_own_module(tree: ast.Module, name: str) -> bool:
     membership is itself a claim of cross-module export, so a same-module-only
     ``__all__`` symbol must stay caught (unchanged from the original gate).
     """
-    return any(isinstance(node, ast.Name) and node.id == name and isinstance(node.ctx, ast.Load) for node in ast.walk(tree))
+    visitor = _ModuleLevelNameUseVisitor(name)
+    visitor.visit(tree)
+    return visitor.found
 
 
 def _walk_modules() -> tuple[
@@ -3330,16 +3532,27 @@ def test_extract_public_module_level_names_scoping() -> None:
 def test_used_within_own_module() -> None:
     """Unit test for `_used_within_own_module` (#470 mutation-proofing).
 
-    True iff *name* is referenced as an ``ast.Name`` Load anywhere in the
-    tree. A Store-only reference (the name's own definition, with no later
-    use) or no reference at all must return False -- the mutation the squad
-    demonstrated (an unconditional `return True`) would rescue every
-    widened-in offender regardless of real intra-module use.
+    True iff *name* is referenced as an ``ast.Name`` Load that can resolve to
+    the module-level binding. A Store-only reference, no reference at all, or
+    a load shadowed by a local binding in an enclosing function scope must
+    return False -- the mutation the squad demonstrated (an unconditional
+    `return True`) would rescue every widened-in offender regardless of real
+    intra-module use.
     """
     referenced_tree = ast.parse("logger = get_logger()\ndef use():\n    return logger\n")
     unreferenced_tree = ast.parse("logger = get_logger()\n")
+    local_shadow_tree = ast.parse("logger = get_logger()\ndef use():\n    logger = logging.getLogger(__name__)\n    return logger\n")
+    parameter_shadow_tree = ast.parse("logger = get_logger()\ndef use(logger):\n    return logger\n")
+    nested_shadow_tree = ast.parse(
+        "logger = get_logger()\ndef outer():\n    logger = logging.getLogger(__name__)\n    def inner():\n        return logger\n    return inner\n"
+    )
+    comprehension_shadow_tree = ast.parse("logger = get_logger()\nvalues = [logger for logger in loggers]\n")
     assert _used_within_own_module(referenced_tree, "logger") is True
     assert _used_within_own_module(unreferenced_tree, "logger") is False
+    assert _used_within_own_module(local_shadow_tree, "logger") is False
+    assert _used_within_own_module(parameter_shadow_tree, "logger") is False
+    assert _used_within_own_module(nested_shadow_tree, "logger") is False
+    assert _used_within_own_module(comprehension_shadow_tree, "logger") is False
     assert _used_within_own_module(unreferenced_tree, "nonexistent_name") is False
 
 
@@ -3502,6 +3715,27 @@ def test_no_false_negative_module_attr_detector() -> None:
     assert _symbol_has_caller("Foo", "other_pkg", ps, sub_idx), "other_pkg::Foo must be rescued by alias.Foo access"
     # A different module with the same symbol name is NOT rescued.
     assert not _symbol_has_caller("Foo", "declaring_module", ps, sub_idx), "declaring_module::Foo must NOT be rescued by alias.Foo where alias→other_pkg"
+
+
+def test_no_false_negative_unaliased_submodule_attr_detector() -> None:
+    """An unaliased submodule import rescues only that real submodule."""
+    src = "from parent import target_mod\ntarget_mod.Bar"
+    tree = ast.parse(src)
+    alias_map, _ = _build_alias_map_and_consts(tree, "")
+    ps: dict[str, set[str]] = {}
+    _record_module_attr_edges(tree, alias_map, ps, frozenset({"parent.target_mod"}))
+    sub_idx = _submodule_index(ps)
+
+    assert _symbol_has_caller("Bar", "parent.target_mod", ps, sub_idx)
+
+    collision_src = "from parent import SomeClass\nSomeClass.NAME"
+    collision_tree = ast.parse(collision_src)
+    collision_alias_map, _ = _build_alias_map_and_consts(collision_tree, "")
+    collision_ps: dict[str, set[str]] = {}
+    _record_module_attr_edges(collision_tree, collision_alias_map, collision_ps, frozenset({"parent"}))
+    collision_sub_idx = _submodule_index(collision_ps)
+
+    assert not _symbol_has_caller("NAME", "parent", collision_ps, collision_sub_idx)
 
 
 def test_no_false_negative_getattr_detector() -> None:
