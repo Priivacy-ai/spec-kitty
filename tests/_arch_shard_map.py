@@ -157,6 +157,11 @@ _ARCH_SHARD_1_FILES: tuple[str, ...] = (
     # superseded by main's #3187 instance seam). shard_1 and shard_2 were tied
     # lightest by file count (38 vs 38/45) when this file landed; shard_1 is
     # the convention's default first pick on a tie.
+    # Added by mission tidy-charter-cutover-surface-01M18R5B WP01 (#3818): the
+    # stale charter path-literal guardrail (mock-target/allowlist/doc-link
+    # stragglers the C-004 import gate misses). shard_1 was the lightest by
+    # file count (18 vs 21/29) when this file landed, so it lands here.
+    "tests/architectural/test_no_stale_charter_path_literals.py",
 )
 
 _ARCH_SHARD_2_FILES: tuple[str, ...] = (
