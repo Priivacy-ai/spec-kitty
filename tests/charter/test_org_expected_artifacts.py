@@ -15,17 +15,15 @@ T026):
 
 from __future__ import annotations
 
-import logging
 from pathlib import Path
 
 import pytest
 from ruamel.yaml import YAML
 
 from charter.activation.org_expected_artifacts import resolve_org_expected_artifacts
+from charter.offering.missions.repository import MalformedManifestError
 
 pytestmark = [pytest.mark.unit, pytest.mark.fast]
-
-_LOGGER_NAME = "charter.activation.org_expected_artifacts"
 
 
 def _write_org_expected_artifacts(org_root: Path, mission_type: str, data: dict) -> None:
@@ -208,58 +206,32 @@ class TestResolveOrgExpectedArtifactsDeclaredOrderPrecedence:
 
 
 class TestResolveOrgExpectedArtifactsMalformedFile:
-    """Fail-closed-to-None behaviour for a present-but-unparseable file,
-    mirroring ``MissionTemplateRepository.get_expected_artifacts``'s
-    convention (see this module's docstring). An earlier root's good match
-    still stands when a LATER root's file is malformed.
+    """Fail-loud behaviour for a present-but-unparseable file (WP03,
+    FR-007/FR-008/#3412) -- superseded from this class's pre-WP03
+    warn-and-swallow-to-``None`` convention. A malformed org file is a
+    genuine operator misconfiguration an operator authored and expected to
+    take effect (C-006), so it now raises ``MalformedManifestError``
+    instead of being treated as "no matching file" -- see
+    ``tests/charter/activation/test_org_expected_artifacts.py`` for the
+    red-first regression pins (#3412) that drove this widening.
     """
 
-    def test_malformed_yaml_file_treated_as_no_match(self, tmp_path: Path) -> None:
-        org_root = tmp_path / "org-pack"
-        target_dir = org_root / "missions" / "software-dev"
-        target_dir.mkdir(parents=True)
-        (target_dir / "expected-artifacts.yaml").write_text(
-            "schema_version: [unterminated flow seq\n", encoding="utf-8"
-        )
-
-        assert resolve_org_expected_artifacts([org_root], "software-dev") is None
-
-    def test_non_mapping_yaml_content_treated_as_no_match(self, tmp_path: Path) -> None:
-        org_root = tmp_path / "org-pack"
-        target_dir = org_root / "missions" / "software-dev"
-        target_dir.mkdir(parents=True)
-        (target_dir / "expected-artifacts.yaml").write_text(
-            "- just\n- a\n- list\n", encoding="utf-8"
-        )
-
-        assert resolve_org_expected_artifacts([org_root], "software-dev") is None
-
-    def test_malformed_yaml_file_logs_a_warning_naming_the_file(
-        self, tmp_path: Path, caplog: pytest.LogCaptureFixture
+    def test_malformed_yaml_file_raises_malformed_manifest_error(
+        self, tmp_path: Path
     ) -> None:
-        """A malformed org file is a genuine operator misconfiguration, not
-        "this org pack legitimately doesn't override this mission type" --
-        distinguishing those two must not depend on log-diffing an INFO
-        line. This is the recurrence, one layer up, of the defect WP01 was
-        reopened for under NFR-002 (see ``resolve_org_dirs``).
-        """
         org_root = tmp_path / "org-pack"
         target_dir = org_root / "missions" / "software-dev"
         target_dir.mkdir(parents=True)
         bad_file = target_dir / "expected-artifacts.yaml"
         bad_file.write_text("schema_version: [unterminated flow seq\n", encoding="utf-8")
 
-        with caplog.at_level(logging.WARNING, logger=_LOGGER_NAME):
-            result = resolve_org_expected_artifacts([org_root], "software-dev")
+        with pytest.raises(MalformedManifestError) as excinfo:
+            resolve_org_expected_artifacts([org_root], "software-dev")
 
-        assert result is None
-        warning_records = [r for r in caplog.records if r.levelno == logging.WARNING]
-        assert len(warning_records) == 1
-        message = warning_records[0].getMessage()
-        assert str(bad_file) in message
+        assert excinfo.value.path == bad_file
 
-    def test_non_mapping_yaml_content_logs_a_warning_naming_the_file(
-        self, tmp_path: Path, caplog: pytest.LogCaptureFixture
+    def test_non_mapping_yaml_content_raises_malformed_manifest_error(
+        self, tmp_path: Path
     ) -> None:
         org_root = tmp_path / "org-pack"
         target_dir = org_root / "missions" / "software-dev"
@@ -267,21 +239,14 @@ class TestResolveOrgExpectedArtifactsMalformedFile:
         bad_file = target_dir / "expected-artifacts.yaml"
         bad_file.write_text("- just\n- a\n- list\n", encoding="utf-8")
 
-        with caplog.at_level(logging.WARNING, logger=_LOGGER_NAME):
-            result = resolve_org_expected_artifacts([org_root], "software-dev")
+        with pytest.raises(MalformedManifestError) as excinfo:
+            resolve_org_expected_artifacts([org_root], "software-dev")
 
-        assert result is None
-        warning_records = [r for r in caplog.records if r.levelno == logging.WARNING]
-        assert len(warning_records) == 1
-        assert str(bad_file) in warning_records[0].getMessage()
+        assert excinfo.value.path == bad_file
 
-    def test_well_formed_file_emits_no_warning(
-        self, tmp_path: Path, caplog: pytest.LogCaptureFixture
-    ) -> None:
-        """Negative case for the two warning tests above: a well-formed org
-        file -- the ordinary "no override for this mission type" and the
-        successful-override paths alike -- must NOT log a WARNING. Only a
-        genuinely malformed file should.
+    def test_well_formed_file_resolves_without_raising(self, tmp_path: Path) -> None:
+        """Negative case for the two raise tests above: a well-formed org
+        file resolves normally. Only a genuinely malformed file raises.
         """
         org_root = tmp_path / "org-pack"
         _write_org_expected_artifacts(
@@ -294,16 +259,22 @@ class TestResolveOrgExpectedArtifactsMalformedFile:
             },
         )
 
-        with caplog.at_level(logging.WARNING, logger=_LOGGER_NAME):
-            result = resolve_org_expected_artifacts([org_root], "software-dev")
+        result = resolve_org_expected_artifacts([org_root], "software-dev")
 
         assert result is not None
         assert result["manifest_version"] == "well-formed"
-        assert not any(r.levelno == logging.WARNING for r in caplog.records)
 
-    def test_later_malformed_root_does_not_clobber_earlier_good_match(
+    def test_later_malformed_root_raises_even_with_earlier_good_match(
         self, tmp_path: Path
     ) -> None:
+        """C-006 / spec Edge Cases: a broken file that would be the
+        *effective* override (the last root reached with a matching file)
+        fails loud -- it is NOT silently replaced by an earlier root's good
+        match. This is the inverse of this class's pre-WP03 behaviour
+        (formerly ``..._does_not_clobber_earlier_good_match``), which
+        assumed the opposite: that a later malformed root would be skipped
+        in favour of the earlier good one.
+        """
         first_root = tmp_path / "z-org-pack"
         second_root = tmp_path / "a-org-pack"
         _write_org_expected_artifacts(
@@ -317,14 +288,13 @@ class TestResolveOrgExpectedArtifactsMalformedFile:
         )
         malformed_dir = second_root / "missions" / "software-dev"
         malformed_dir.mkdir(parents=True)
-        (malformed_dir / "expected-artifacts.yaml").write_text(
-            "schema_version: [unterminated flow seq\n", encoding="utf-8"
-        )
+        bad_file = malformed_dir / "expected-artifacts.yaml"
+        bad_file.write_text("schema_version: [unterminated flow seq\n", encoding="utf-8")
 
-        result = resolve_org_expected_artifacts([first_root, second_root], "software-dev")
+        with pytest.raises(MalformedManifestError) as excinfo:
+            resolve_org_expected_artifacts([first_root, second_root], "software-dev")
 
-        assert result is not None
-        assert result["manifest_version"] == "good-match"
+        assert excinfo.value.path == bad_file
 
 
 class TestResolveOrgExpectedArtifactsCustomMissionType:

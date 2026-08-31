@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from collections.abc import Mapping
 from pathlib import Path
 from typing import Any, cast
 
@@ -46,10 +47,13 @@ class MalformedManifestError(Exception):
     offending ``path`` and the underlying parse error (``cause``) so the failure
     surfaces to the operator instead of being silently dropped.
 
-    Only YAML-syntax malformation is widened to this raise. A genuinely
-    absent/unreadable manifest (path ``None``, ``OSError``, ``UnicodeDecodeError``)
-    still degrades to ``None`` -- that ``None`` truthfully means "absent", which
-    is exactly the distinction this error restores.
+    YAML-syntax malformation, present-but-unreadable
+    (``OSError``/``UnicodeDecodeError``, FR-012), and present-but-non-mapping
+    content are all widened to this raise, on both the built-in and org
+    tiers (FR-007/FR-008/FR-012). Only a genuinely ABSENT manifest (no path
+    resolved for it on that tier) still degrades to ``None`` -- that
+    ``None`` truthfully means "absent", which is exactly the distinction
+    this error restores.
     """
 
     def __init__(self, path: Path, cause: Exception) -> None:
@@ -390,16 +394,18 @@ class MissionTemplateRepository:
 
         Returns:
             ConfigResult with raw YAML text and parsed data, or ``None`` if the
-            manifest is genuinely absent/unreadable (path ``None``, ``OSError``,
-            ``UnicodeDecodeError``, or an empty file).
+            manifest is genuinely absent (path ``None``) or present but empty
+            (parses to ``None``).
 
         Raises:
-            MalformedManifestError: If the manifest file is present but fails to
-                parse as YAML (a ``YAMLError``). Fail-loud, distinct from absence
-                (FR-007/SC-005, #3412): a syntax-broken manifest previously
-                degraded to ``None``, indistinguishable from "not found". It now
-                surfaces the offending path and the underlying parse error rather
-                than being silently dropped.
+            MalformedManifestError: If the manifest file is present but fails
+                to parse as YAML (``YAMLError``) or cannot be read/decoded
+                (``OSError``/``UnicodeDecodeError``, FR-012). Fail-loud,
+                distinct from absence (FR-007/FR-012/SC-005, #3412): a
+                present-but-broken manifest previously degraded to ``None``
+                for the unreadable case, indistinguishable from "not found".
+                It now surfaces the offending path and the underlying cause
+                rather than being silently dropped.
         """
         path = self._expected_artifacts_path(mission)
         if path is None:
@@ -408,12 +414,20 @@ class MissionTemplateRepository:
             content = path.read_text(encoding="utf-8")
             yaml = YAML(typ="safe")
             parsed = cast(ParsedConfig | None, yaml.load(content))
-        except YAMLError as exc:
+        except (YAMLError, OSError, UnicodeDecodeError) as exc:
             raise MalformedManifestError(path, exc) from exc
-        except (OSError, UnicodeDecodeError):
-            return None
         if parsed is None:
             return None
+        if not isinstance(parsed, Mapping):
+            # Symmetry with the org tier (#3412/FR-008): a present-but-non-mapping
+            # manifest (a top-level scalar/sequence) is present-but-unparseable-as-a-
+            # manifest -> the sibling MalformedManifestError, distinct from absence and
+            # from a schema/extra=forbid violation. Without this guard the value would
+            # flow to model_validate and surface as ManifestSchemaError, breaking the
+            # both-tiers-agree sibling model.
+            raise MalformedManifestError(
+                path, TypeError(f"expected a YAML mapping, got {type(parsed).__name__}")
+            )
         origin = f"doctrine/{mission}/expected-artifacts.yaml"
         return ConfigResult(content=content, origin=origin, parsed=parsed)
 
