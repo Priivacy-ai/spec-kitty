@@ -1,6 +1,6 @@
 ---
 title: Profile-Load Reliability (Squads & WP Prompts)
-description: 'Why adversarial/research squads stopped loading charter agent profiles, and the near-term stabilization design: orchestrator-resolves-then-injects, fail-loud dispatch, and the /spk-load-profile primitive.'
+description: 'Why adversarial and research squads stopped loading charter agent profiles, and the 3.2.6 fix: resolve-then-inject, fail-loud dispatch, and a /spk-load-profile primitive.'
 doc_status: active
 updated: '2026-08-30'
 related:
