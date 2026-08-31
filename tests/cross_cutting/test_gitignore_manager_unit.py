@@ -471,6 +471,46 @@ class TestGitignoreSymlinkSafety:
         mode = manager.gitignore_path.stat().st_mode & 0o777
         assert mode == 0o644
 
+    def test_atomic_write_does_not_follow_a_symlink_planted_after_the_guard(self, manager, temp_dir, monkeypatch):
+        """#643: the ``_reject_symlink()`` check-then-use guard only proves a
+        symlink wasn't present *at check time*; the property that actually
+        makes the write safe against one appearing afterward is
+        ``os.replace()`` itself never following the destination directory
+        entry. A pre-planted symlink can't isolate that property here --
+        ``_open_no_follow()``'s kernel-level ``O_NOFOLLOW`` independently
+        blocks both the read path and the pre-write permission probe the
+        moment ``.gitignore`` exists as a symlink, before either implementation
+        would ever reach its differing final-write line. So this starts from
+        a brand-new project (no ``.gitignore`` yet, matching ``spec-kitty
+        init``) and hooks ``tempfile.mkstemp`` -- the first thing
+        ``_atomic_write()`` does once its own pre-checks have already passed
+        cleanly against the not-yet-existing path, and unchanged by the
+        finding's own mutation -- to plant a symlink to an outside target at
+        that exact moment, simulating the guard-to-write race without needing
+        a real one. This must pass with the real ``os.replace()``-based
+        ``_atomic_write`` and fail if a following write (e.g. plain
+        ``write_text()``) is swapped in for it instead."""
+        outside_target = temp_dir.parent / f"outside-target-{os.getpid()}.txt"
+        outside_target.write_text("do-not-touch\n")
+        assert not manager.gitignore_path.exists()
+
+        real_mkstemp = tempfile.mkstemp
+
+        def planting_mkstemp(*args, **kwargs):
+            manager.gitignore_path.symlink_to(outside_target)
+            return real_mkstemp(*args, **kwargs)
+
+        monkeypatch.setattr(tempfile, "mkstemp", planting_mkstemp)
+        try:
+            result = manager.ensure_entries([".claude/"])
+
+            assert result
+            assert outside_target.read_text() == "do-not-touch\n"
+            assert not manager.gitignore_path.is_symlink()
+            assert ".claude/" in manager.gitignore_path.read_text()
+        finally:
+            outside_target.unlink(missing_ok=True)
+
     def test_permission_denied_still_raised_on_readonly_file(self, manager):
         """os.replace() ignores the target's mode bits; the manager must not.
 
