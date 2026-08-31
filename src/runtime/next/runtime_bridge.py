@@ -1676,6 +1676,11 @@ def _dn_dependency_gate(ctx: DecideNextContext) -> Decision | None:
         try:
             guard_failures = _check_cli_guards(current_step_id, feature_dir, mission_family=mission_type)
         except _cores.UnregisteredMissionFamilyError:
+            logger.warning(
+                "Unregistered mission_family %r reached the CLI guard path; "
+                "returning a neutral (empty) guard result.",
+                mission_type,
+            )
             guard_failures = []
         if guard_failures:
             return _build_wp_iteration_decision(
