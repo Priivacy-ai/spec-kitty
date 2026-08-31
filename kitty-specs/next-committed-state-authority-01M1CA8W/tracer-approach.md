@@ -19,6 +19,10 @@ Append-only log of the approach taken. Seeded at planning; appended during imple
 - **WP02 (next loop) dispatched** (sonnet) once WP01 code was in lane-b HEAD.
 - (append as WPs land)
 
-## Close assessment
+## Close assessment (2026-08-31)
 
-- (append at mission close)
+- **Both issues fixed, one cohesive mission.** #2947 (state authority) + #3780 (provenance-gated advancement) share the committed-authority module (`committed_authority.py`); the decompose-by-layer split (authority+board → loop) kept owned_files disjoint and made the single-authority principle literal.
+- **Disambiguate-before-routing paid off.** Four adversarial point-cuts (post-spec ×2, post-plan, post-tasks) caught **five** BLOCKERs before a line of impl was written: the shared-seam mis-placement (F1), the terminal-surface ambiguity (F4), the deleted `primary_feature_dir_for_mission` primitive (BLOCKER-1), and the two-entry-point / query-mode-`kind` reconciliation (BLOCKER-2). Every one would have produced a wrong or non-compiling implementation.
+- **Live evidence held the line on #3780.** The stall was proven gone by driving the real `decide_next_via_runtime` after advancing the runtime engine to the review step (operator-cancel → advances review→accept; synthetic → stalls) — not static reading. A pre-merge review-squad fold then corrected the query-mode `blocked_conflict` `kind` to preserve the `is_query` invariant.
+- **Delivered as draft PR #3825 (Priivacy-ai), operator merges.** 7 clean linear commits off upstream/main; full-sweep verify green (arch gates, guard suites, 809-test affected smoke, docs-freshness, ruff/mypy).
+- **Deferred (tracked in PR):** two #3780 secondary observations (done_bookkeeping redundant read; upstream_contract reason_source denylist) and two perf items (board O(N) reductions; redundant primary-meta read — coordinate with `next-latency-durable-fix`).
