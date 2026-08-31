@@ -425,22 +425,33 @@ def _atomic_write_claudeignore(path: Path, content: str) -> None:
         raise FileExistsError(f"could not create a unique temporary file beside {path}")
 
     try:
-        if existing_mode is not None:
-            os.fchmod(fd, existing_mode)
-        remaining = memoryview(content.encode("utf-8"))
-        while remaining:
-            written = os.write(fd, remaining)
-            if written == 0:
-                raise OSError(f"temporary file beside {path} accepted zero bytes")
-            remaining = remaining[written:]
+        try:
+            if existing_mode is not None:
+                os.fchmod(fd, existing_mode)
+            remaining = memoryview(content.encode("utf-8"))
+            while remaining:
+                written = os.write(fd, remaining)
+                if written == 0:
+                    raise OSError(f"temporary file beside {path} accepted zero bytes")
+                remaining = remaining[written:]
+        finally:
+            with contextlib.suppress(OSError):
+                os.close(fd)
+        # Replace only after the fd is closed. An open fd from os.open carries no
+        # FILE_SHARE_DELETE on Windows, so it blocks MoveFileExW there -- replacing
+        # while the fd was still open failed every .claudeignore write on that
+        # platform (issue #655 squad pass-1 MAJOR). Mirrors the repo's established
+        # close-before-replace idiom in coordination/atomic_write.py's
+        # _write_and_replace_via_parent_fd.
         os.replace(tmp_path, path)
     except BaseException:
+        # Covers both failure stages -- a write/fchmod failure (fd already closed
+        # by the inner finally, tmp left behind) and an os.replace failure (fd
+        # closed, tmp still present). The fd is closed exactly once, so there is no
+        # double-close.
         with contextlib.suppress(OSError):
             os.unlink(tmp_path)
         raise
-    finally:
-        with contextlib.suppress(OSError):
-            os.close(fd)
 
 
 def _read_claudeignore_no_follow(path: Path) -> str:
