@@ -392,7 +392,7 @@ def test_resolve_runtime_contract_for_step_looks_up_by_contract_ref(
     seen_refs: list[str] = []
 
     monkeypatch.setattr(
-        "doctrine.missions.step_contracts.MissionStepContractRepository",
+        "charter.offering.missions.step_contracts.MissionStepContractRepository",
         lambda *, project_dir, org_dirs=None: object(),
     )
 
@@ -459,7 +459,7 @@ def test_resolve_runtime_contract_for_step_uses_live_lookup_for_normalize(
 
     monkeypatch.setattr(rb, "_normalize_action_for_composition", _fake_normalize)
     monkeypatch.setattr(
-        "doctrine.missions.step_contracts.MissionStepContractRepository",
+        "charter.offering.missions.step_contracts.MissionStepContractRepository",
         lambda *, project_dir, org_dirs=None: object(),
     )
     sentinel = object()

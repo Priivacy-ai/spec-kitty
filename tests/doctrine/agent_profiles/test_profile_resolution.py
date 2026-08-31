@@ -3,7 +3,7 @@
 The authoritative surface for the profile-channel delivery decision is
 :meth:`AgentProfileRepository.profile_channel_procedure_ids`. It answers the
 doctrine question "which procedures does a loaded profile deliver?" by *calling*
-WP08's :func:`doctrine.drg.reachability.profile_channel_reachable` — the
+WP08's :func:`charter.offering.drg.reachability.profile_channel_reachable` — the
 ``walk_edges({requires, specializes_from})`` traversal — and filtering the reached
 set to procedure-kind artefacts.
 
@@ -18,9 +18,9 @@ from __future__ import annotations
 
 import pytest
 
-from doctrine.agent_profiles.repository import AgentProfileRepository
-from doctrine.drg.query import resolve_context
-from doctrine.drg.reachability import profile_channel_reachable
+from charter.offering.agent_profiles.repository import AgentProfileRepository
+from charter.offering.drg.query import resolve_context
+from charter.offering.drg.reachability import profile_channel_reachable
 
 pytestmark = [pytest.mark.fast, pytest.mark.corpus]
 

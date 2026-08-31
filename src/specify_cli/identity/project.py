@@ -182,6 +182,18 @@ def derive_project_slug(repo_root: Path) -> str:
     Attempts to extract repo name from git remote origin URL.
     Falls back to directory name if no remote is configured.
 
+    Uses the transport view (``git remote get-url``, which applies any
+    global ``url.<base>.insteadOf`` rewrite) rather than the raw configured
+    URL on purpose, triaged against spec-kitty#113: #111's raw-config
+    criterion is for sites that consume the URL's *host* (forge admission
+    in ``zeitgeist_client/repo_identity.py``). This function only ever
+    consumes the URL's trailing path segment (the repo name) via
+    ``url.split("/")[-1]``, and ``insteadOf`` is a pure prefix substitution
+    — it can rewrite the host but can never alter what comes after the
+    matched prefix. There is no rewrite shape that changes the slug this
+    derives, so the raw-config swap #111 needed here would be a no-op
+    dressed up as a fix.
+
     Args:
         repo_root: Path to repository root
 

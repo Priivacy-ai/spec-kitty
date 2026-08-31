@@ -36,14 +36,14 @@ from charter.context_renderers.selection_block import (
 )
 from charter.context_renderers.token_budget import _enforce_token_budget
 from charter.governance_references import render_governance_references
-from doctrine.spdd_reasons import append_spdd_reasons_guidance, is_spdd_reasons_active
+from charter.offering.spdd_reasons import append_spdd_reasons_guidance, is_spdd_reasons_active
 
 if TYPE_CHECKING:
     from pathlib import Path
 
     from charter.context import _ActionDoctrineBundle
     from charter.schemas import DoctrineSelectionConfig
-    from doctrine.agent_profiles import AgentProfile
+    from charter.offering.agent_profiles import AgentProfile
 
 __all__ = [
     "_render_bootstrap_text",
@@ -62,7 +62,7 @@ MISSING_REFERENCES_MESSAGE = "  - No references manifest found."
 
 def _append_guidelines_lines(lines: list[str], mission: str, action: str) -> None:
     """Append action guidelines to lines, silently skipping on any error."""
-    from doctrine.missions import MissionTemplateRepository
+    from charter.offering.missions import MissionTemplateRepository
 
     try:
         repo = MissionTemplateRepository.default()
@@ -298,12 +298,12 @@ def _render_bootstrap_text(
     lines.append(REFERENCE_DOCS_HEADER)
     # The reference-pointer resolver walks ``<root>/<kind>/`` for on-disk doctrine
     # docs. Mission relocate-builtin-doctrine-packs moved the built-in artefacts out
-    # of ``src/doctrine/<kind>/`` into ``packs/built-in/<kind>/``; ``resolve_doctrine_root()``
+    # of ``src/charter/offering/<kind>/`` into ``packs/built-in/<kind>/``; ``resolve_doctrine_root()``
     # still points at the now-emptied ``src/doctrine`` tree (used for templates), so it
     # resolves nothing and every pointer dies. Resolve the built-in pack root instead,
     # mirroring how the DoctrineService repositories self-resolve ``packs/built-in/<kind>``.
     # Lazy import: avoids a load-time cycle (see module docstring).
-    from doctrine.pack_paths import built_in_root  # noqa: PLC0415
+    from charter.offering.pack_paths import built_in_root  # noqa: PLC0415
 
     selected_references = _select_reference_pointers(
         references, action, built_in_root()

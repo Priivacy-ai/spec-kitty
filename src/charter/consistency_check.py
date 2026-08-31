@@ -1081,7 +1081,7 @@ def run_consistency_check(ctx: ProjectContext) -> ConsistencyReport:
     """Run a full consistency check for the project's activated charter pack.
 
     Checks:
-      - Unknown references (activated IDs absent from doctrine).
+      - Unknown references (activated IDs absent from charter.offering).
       - Cross-kind DRG edge references where the target kind is empty (FR-012).
       - Kind violations and duplicate IDs within activation sets.
       - Config<->charter.yaml catalog ID parity and config<->DRG kind parity

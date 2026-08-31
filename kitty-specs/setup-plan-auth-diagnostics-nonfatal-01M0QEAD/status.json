@@ -1,0 +1,160 @@
+{
+  "event_count": 54,
+  "last_event_id": "01M0RA1E1AYYKMY1PJRGMM1YQ1",
+  "materialized_at": "2026-08-23T21:57:14.410741+00:00",
+  "mission_number": "196",
+  "mission_slug": "setup-plan-auth-diagnostics-nonfatal-01M0QEAD",
+  "mission_type": "software-dev",
+  "summary": {
+    "approved": 0,
+    "blocked": 0,
+    "canceled": 0,
+    "claimed": 0,
+    "done": 4,
+    "for_review": 0,
+    "in_progress": 0,
+    "in_review": 0,
+    "planned": 0
+  },
+  "work_packages": {
+    "WP01": {
+      "actor": "merge",
+      "agent": "codex",
+      "agent_profile": "reviewer-renata",
+      "agent_profile_version": "1.0",
+      "force_count": 0,
+      "lane": "done",
+      "last_event_id": "01M0RA11Q3093SN0023G383S31",
+      "last_transition_at": "2026-08-23T21:57:01.795928+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "Review passed: canonical SessionAssessment preserves cold-read and hot-materialization failure provenance, keeps Boolean refresh-token compatibility, readiness short-circuits UNKNOWN before Teamspace detection, and only four owned files changed in implementation commits. ATDD red on d3be19dbb~1 (SessionAssessment import errors) and green on a9ca12dcf. Gates: 58 focused + 47 storage/hot-path + 423 auth/readiness tests passed (3 skipped); ruff and strict mypy passed. Anti-patterns: dead code PASS (production readiness caller); synthetic fixtures PASS; silent empty returns PASS; FR coverage PASS for WP01 slice; frozen surface PASS; locked decisions PASS; shared ownership PASS; production fragility PASS (constructor invariant raises documented)."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "Review passed: canonical SessionAssessment preserves cold-read and hot-materialization failure provenance, keeps Boolean refresh-token compatibility, readiness short-circuits UNKNOWN before Teamspace detection, and only four owned files changed in implementation commits. ATDD red on d3be19dbb~1 (SessionAssessment import errors) and green on a9ca12dcf. Gates: 58 focused + 47 storage/hot-path + 423 auth/readiness tests passed (3 skipped); ruff and strict mypy passed. Anti-patterns: dead code PASS (production readiness caller); synthetic fixtures PASS; silent empty returns PASS; FR coverage PASS for WP01 slice; frozen surface PASS; locked decisions PASS; shared ownership PASS; production fragility PASS (constructor invariant raises documented).",
+        "reviewer": "spec-kitty auto-rebase",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 92115,
+      "shell_pid_created_at": "1787512669.782428",
+      "subtasks": {
+        "T001": "done",
+        "T002": "done",
+        "T003": "done",
+        "T004": "done"
+      },
+      "tracker_refs": [
+        "https://github.com/Priivacy-ai/spec-kitty/issues/3621"
+      ]
+    },
+    "WP02": {
+      "actor": "merge",
+      "agent": "reviewer-renata",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 11,
+      "lane": "done",
+      "last_event_id": "01M0RA1D71Y9W6R80DASHQTDSA",
+      "last_transition_at": "2026-08-23T21:57:13.569421+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "Pre-existing committed kitty-specs artifacts were inherited from lane setup/dependency history; WP02 commits modify only its two owned files.",
+        "Persist canonical WP02 for-review state after validated implementation.",
+        "Cycle 1 remediation complete: free-form preflight diagnostics are classified safely and the unused aggregate adapter was removed in favor of WP04 phase-aligned primitives plus one decision composer. Force only bypasses pre-existing inherited kitty-specs lane artifacts.",
+        "Cycle 3 remediation complete: one closed allowlist serializer now governs Diagnostic and Decision details across session, boundary, route, evidence, and direct-construction seams. Force only bypasses pre-existing inherited kitty-specs lane artifacts.",
+        "Arbiter remediation complete: exactly four registered diagnostic codes own every wire field and details classifier; unknown codes and allow-plus-diagnostic decisions fail with fixed non-echoing errors. Force only bypasses pre-existing inherited kitty-specs lane artifacts.",
+        "Post-arbiter SSOT proof complete: the test directly equates live runtime registry keys to the explicit four-code contract and proves a temporary fifth entry trips the guard. Force only bypasses pre-existing inherited kitty-specs lane artifacts."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review": null,
+      "review_result": {
+        "reference": "Review passed: arbiter SSOT proof is non-vacuous; exact four-code runtime registry and fifth-entry negative control pass with all security, truth-table, ownership, Ruff, mypy, and regression gates green. Force bypasses unrelated pre-existing committed kitty-specs artifacts on the lane branch; no files were altered.",
+        "reviewer": "spec-kitty auto-rebase",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 48157,
+      "shell_pid_created_at": "1787517245.143814",
+      "subtasks": {
+        "T005": "done",
+        "T006": "done",
+        "T007": "done",
+        "T008": "done"
+      },
+      "tracker_refs": [
+        "https://github.com/Priivacy-ai/spec-kitty/issues/3621"
+      ]
+    },
+    "WP03": {
+      "actor": "merge",
+      "agent": "codex",
+      "agent_profile": "reviewer-renata",
+      "agent_profile_version": "1.0",
+      "force_count": 0,
+      "lane": "done",
+      "last_event_id": "01M0RA1CCB8VRQXJCQPY3F7JJ5",
+      "last_transition_at": "2026-08-23T21:57:12.715430+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "Review passed: explicit local persistence and hosted fan-out are separated; legacy composition, identity, deduplication, and failure semantics are preserved; 83 targeted and 876 status tests pass; ruff and mypy strict pass"
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "Review passed: explicit local persistence and hosted fan-out are separated; legacy composition, identity, deduplication, and failure semantics are preserved; 83 targeted and 876 status tests pass; ruff and mypy strict pass",
+        "reviewer": "spec-kitty auto-rebase",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 93851,
+      "shell_pid_created_at": "1787512824.371783",
+      "subtasks": {
+        "T009": "done",
+        "T010": "done",
+        "T011": "done",
+        "T012": "done"
+      },
+      "tracker_refs": [
+        "https://github.com/Priivacy-ai/spec-kitty/issues/3621"
+      ]
+    },
+    "WP04": {
+      "actor": "merge",
+      "agent": "reviewer-renata",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 2,
+      "lane": "done",
+      "last_event_id": "01M0RA1E1AYYKMY1PJRGMM1YQ1",
+      "last_transition_at": "2026-08-23T21:57:14.410741+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "WP04 implementation complete; 271 passing, 1 expected skip; Ruff and strict mypy clean"
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review": null,
+      "review_result": {
+        "reference": "Review passed: cycle-2 remediation proves red baseline; preserves exact local payloads and exits across the real setup-plan matrix; isolates TokenManager state; reports git-preflight/auth/boundary/route diagnostics additively; keeps WP02 as sole decision authority and all hosted effects behind one executor; preserves unconditional local lifecycle persistence with guarded fan-out; passes disabled fatal probes, real-storage, parser, refused-sink, AST mutation, docs/issues, Ruff, strict mypy, terminology, ownership, and 279-pass quickstart gates. Force only overrides lane coordination-artifact guard after reviewer claim auto-rebase rematerialized canonical status files.",
+        "reviewer": "reviewer-renata",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 58587,
+      "shell_pid_created_at": "1787521212.095389",
+      "subtasks": {
+        "T013": "done",
+        "T014": "done",
+        "T015": "done",
+        "T016": "done",
+        "T017": "done",
+        "T018": "done",
+        "T019": "done"
+      },
+      "tracker_refs": [
+        "https://github.com/Priivacy-ai/spec-kitty/issues/3621",
+        "https://github.com/Priivacy-ai/spec-kitty/issues/3127"
+      ]
+    }
+  }
+}

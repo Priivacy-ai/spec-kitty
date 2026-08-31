@@ -281,7 +281,7 @@ def _stamp_schema_metadata(kittify_dir: Path) -> bool:
 def _get_package_templates_root() -> Path | None:
     """Return the package-bundled templates directory (read-only).
 
-    This is the ``src/doctrine/templates/`` directory which contains
+    This is the ``src/charter/offering/templates/`` directory which contains
     ``command-templates/``, ``AGENTS.md``, etc.
 
     Returns None if the templates directory cannot be located.
@@ -294,12 +294,12 @@ def _get_package_templates_root() -> Path | None:
     * ``SPEC_KITTY_TEMPLATE_ROOT``-driven test/dev overrides still hand
       ``get_package_asset_root()`` a synthetic root where ``missions/`` and
       ``templates/`` are siblings (mirroring the pre-relocation
-      ``src/doctrine/{missions,templates}`` shape) -- ``.parent / "templates"``
+      ``src/charter/offering/{missions,templates}`` shape) -- ``.parent / "templates"``
       is still correct there, and is tried first.
     * The real, non-override production resolution now routes through the
       kernel sibling-path primitive to ``packs/built-in/missions``, whose
       *actual* parent (``packs/built-in``) does **not** carry ``templates/``
-      (that stays under ``src/doctrine/templates``, untouched by this
+      (that stays under ``src/charter/offering/templates``, untouched by this
       mission). Falls back to :func:`charter.catalog.resolve_doctrine_root`
       for this shape.
     """

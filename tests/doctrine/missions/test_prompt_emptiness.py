@@ -45,15 +45,15 @@ from pathlib import Path
 
 import pytest
 
-from doctrine.missions.mission_step_repository import MissionStepRepository
-from doctrine.missions.mission_type_repository import MissionTypeRepository
-from doctrine.missions.step_projection import project_action_sequence
+from charter.offering.missions.mission_step_repository import MissionStepRepository
+from charter.offering.missions.mission_type_repository import MissionTypeRepository
+from charter.offering.missions.step_projection import project_action_sequence
 
 pytestmark = [pytest.mark.fast, pytest.mark.doctrine, pytest.mark.corpus]
 
 _REPO_ROOT = Path(__file__).parents[3]
 # Mission doctrine-consumer-surface-missions-extraction-01KZ6G6H (FR-005)
-# relocated mission-steps/ from src/doctrine/missions/mission-steps to
+# relocated mission-steps/ from src/charter/offering/missions/mission-steps to
 # packs/built-in/missions/mission-steps.
 _MISSION_STEPS_ROOT = _REPO_ROOT / "packs" / "built-in" / "missions" / "mission-steps"
 
@@ -78,7 +78,7 @@ def _every_dispatch_relevant_sequence_step() -> list[tuple[str, str]]:
     """Every ``(mission_type, step_id)`` pair in a dispatched action sequence.
 
     Derived from the same step-authority projection the runtime seam
-    consumes (:func:`~doctrine.missions.step_projection.project_action_sequence`)
+    consumes (:func:`~charter.offering.missions.step_projection.project_action_sequence`)
     rather than a hand-maintained literal list -- so this census can never
     silently drift from the authority it is meant to police (C-003, "one
     ordering authority"). Steps with ``in_action_sequence: false`` (e.g.

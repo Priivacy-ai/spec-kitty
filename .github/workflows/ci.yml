@@ -1,6 +1,6 @@
 # Deterministic CI on Blacksmith — the same bin/ci-run.sh -> bin/ci-post.sh the exe CI VMs run, so the merge
-# agent reads an identical `[ci] <verdict> @<sha>` comment. Governed by EXPERIMENTAL-spec-kitty-planning
-# PROGRAM.md §2 and docs/BLACKSMITH-CI.md; exe stops dispatching this repo once it is listed in
+# agent reads an identical `[ci] <verdict> @<sha>` comment. Governed by the programme
+# planning repository's PROGRAM.md §2 and docs/BLACKSMITH-CI.md; exe stops dispatching this repo once it is listed in
 # SK_CI_ACTIONS_REPOS (one producer per repo — never both).
 name: ci
 
@@ -62,7 +62,8 @@ jobs:
       - name: Sibling checkouts (planning + repo under test)
         run: |
           mkdir -p "$SK_HOME"
-          git clone -q https://github.com/spec-kitty/EXPERIMENTAL-spec-kitty-planning.git "$SK_HOME/spec-kitty-planning"
+          planning_repo="${GITHUB_REPOSITORY%/*}/EXPERIMENTAL-${REPO}-planning"
+          git clone -q "https://github.com/${planning_repo}.git" "$SK_HOME/spec-kitty-planning"
           git clone -q https://github.com/spec-kitty/EXPERIMENTAL-$REPO.git "$SK_HOME/$REPO"
           git -C "$SK_HOME/$REPO" fetch -q origin "${{ steps.t.outputs.sha }}"
       - name: Run the suite (bin/ci-run.sh --sync)

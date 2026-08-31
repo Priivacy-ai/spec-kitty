@@ -4,7 +4,7 @@ Two independent hand-restated copies of the flat charter activation-key
 vocabulary used to drift from the single derived authority
 (``charter.pack_manager.ACTIVATION_YAML_KEYS`` -- ``("activated_kinds",
 *YAML_KEY_MAP.values())``, itself derived from
-``doctrine.artifact_kinds.CHARTER_KIND_TOKENS``, mission
+``charter.offering.artifact_kinds.CHARTER_KIND_TOKENS``, mission
 ``doctrine-built-in-seam-consolidation-01KYW3TX`` WP01):
 
 * ``charter.charter_yaml_io._ACTIVATION_KEYS`` (the ``charter.yaml``

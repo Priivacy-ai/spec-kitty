@@ -38,7 +38,7 @@ from charter.org_pack_discovery import _load_doctrine_selection
 if TYPE_CHECKING:
     from charter.action_doctrine_bundle import _ActionDoctrineBundle
     from charter.context_state import _ContextStateBundle
-    from doctrine.agent_profiles import AgentProfile
+    from charter.offering.agent_profiles import AgentProfile
 
 __all__ = [
     "CharterContextResult",

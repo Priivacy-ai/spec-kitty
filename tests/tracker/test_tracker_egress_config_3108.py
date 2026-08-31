@@ -172,7 +172,7 @@ def _egress_region(text: str, *, key: str = "egress", indent: str = "  ") -> str
 
 class TestFieldShape:
     """The field carries the raw loaded value plus a derived fault -- never a
-    narrowed enum-or-None or bool | None (measured on the doctrine.mode
+    narrowed enum-or-None or bool | None (measured on the charter.offering.mode
     precedent: a known field with an unusable value is silently replaced by
     its default on round trip)."""
 
@@ -261,8 +261,8 @@ class TestNoNullPlanting:
         service.bind(
             provider="beads",
             workspace="ws",
-            doctrine_mode="external_authoritative",
-            doctrine_field_owners={},
+            ownership_mode="external_authoritative",
+            ownership_field_owners={},
             credentials={},
         )
         text = (tmp_path / ".kittify" / "config.yaml").read_text(encoding="utf-8")
@@ -492,8 +492,8 @@ class TestSiteA2LocalBranchUnitLevel:
             service.bind(
                 provider="beads",
                 workspace="ws2",
-                doctrine_mode="external_authoritative",
-                doctrine_field_owners={},
+                ownership_mode="external_authoritative",
+                ownership_field_owners={},
                 credentials={},
             )
 

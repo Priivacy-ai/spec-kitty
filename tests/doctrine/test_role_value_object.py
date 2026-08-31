@@ -5,7 +5,7 @@ import warnings
 import pytest
 from pydantic import ValidationError
 
-from doctrine.agent_profiles.profile import AgentProfile, Role
+from charter.offering.agent_profiles.profile import AgentProfile, Role
 
 
 pytestmark = [pytest.mark.doctrine, pytest.mark.fast]

@@ -2,7 +2,7 @@
 title: Test-flakiness handling policy
 description: "Spec Kitty's suite-wide flaky-test policy: how to detect a flake, what is and isn't allowed (never retry-to-green), and the disposition of each known flake surface."
 doc_status: active
-updated: '2026-08-29'
+updated: '2026-08-30'
 audience: docs/context/audience/internal/lead-developer.md
 type: explanation
 related:
@@ -46,9 +46,9 @@ single sanctioned response.
 
 | Tier | What it is | Example | Sanctioned response |
 |---|---|---|---|
-| **1. Threshold / budget gate** | A test that asserts a measurement stays under a wall-clock / size budget. CI runners are shared and noisy, so a generous gate occasionally trips with no real regression. | NFR-002 latency (`tests/architectural/test_wp_prompt_build_latency.py`), the `-m timing` gate. | **Tune the budget — never retry.** Widen the budget to absorb runner variance. A *real* regression adds time **consistently** and still trips a generous gate; a retry would mask exactly that. Investigate before bumping; the budget is the gate, not the regression. |
+| **1. Threshold / budget gate** | A test that asserts a measurement stays under a wall-clock / size budget. CI runners are shared and noisy, so a generous gate occasionally trips with no real regression. | Timing-budget tests (`tests/architectural/test_spec_kitty_home_pin_budget.py`), the `-m timing` gate. | **Tune the budget — never retry.** Widen the budget to absorb runner variance. A *real* regression adds time **consistently** and still trips a generous gate; a retry would mask exactly that. Investigate before bumping; the budget is the gate, not the regression. |
 | **2. Correctness test** | A test of logical behaviour that should be 100% deterministic. If it flakes, the test (or the code) has a hidden nondeterminism — shared global state, ordering assumptions, fixture-teardown races, monkeypatch leakage, import-time side effects. | `tests/specify_cli/shims/test_registry.py` (parallel-collection nondeterminism). | **Fix the root cause — never retry.** A correctness test that needs a retry is lying. Find the nondeterminism and remove it. |
-| **3. Genuinely environmental** | A test that depends on an OS-global resource — real TCP ports, singleton daemons, the real filesystem — that cannot be fully isolated per worker. | Tests marked `stress` (real multi-process/subprocess concurrency). | **Surgical handling only.** First serialise (`-n0`) and isolate (per-worker HOME) — see [testing-parallel.md](testing-parallel.md). Only if a residual, irreducible environmental flake remains do we **quarantine** (below) — never a blanket retry. |
+| **3. Genuinely environmental** | A test that depends on an OS-global resource — real TCP ports, singleton daemons, the real filesystem — that cannot be fully isolated per worker. | Historical real-port / daemon suites, deleted with the sync transport (issue #5). | **Surgical handling only.** First serialise (`-n0`) and isolate (per-worker HOME) — see [testing-parallel.md](testing-parallel.md). Only if a residual, irreducible environmental flake remains do we **quarantine** (below) — never a blanket retry. |
 
 ## Detection: confirm a flake before you treat it
 
@@ -102,36 +102,32 @@ It is implemented as a single, un-bypassable chokepoint:
    run a quarantined test — the gate cannot be forgotten. The opt-in is strict
    (only the literal `"1"`); the pure decision lives in
    `tests/_support/quarantine.py` and is unit-tested.
-3. **Visible, never blocking.** The `quarantine-visibility` job in
-   `ci-quality.yml` sets `SPEC_KITTY_RUN_QUARANTINE=1` and runs `-m quarantine`
-   for real, so a quarantined flake is still **seen failing** — never silently
-   retried to green. The job is deliberately **excluded from the `quality-gate`
-   aggregation** (and must stay out of branch-protection required checks), so it
-   can never turn `main` red or block an unrelated PR. It tolerates an empty
-   quarantine set (pytest exit code 5) so "nothing quarantined" is green. The
-   architectural CI guard scans every Python test for direct
-   `pytest.mark.quarantine` usage and requires the job's owner manifest to match
-   the discovered file set exactly; an empty manifest therefore cannot hide a
-   newly quarantined test elsewhere in `tests/`.
+3. **Visible only by explicit opt-in; not currently scheduled in CI.** Setting
+   `SPEC_KITTY_RUN_QUARANTINE=1` and selecting `-m quarantine` runs a
+   quarantined test for real locally. The current hosted CI topology has one
+   `suite` job and no `quarantine-visibility` lane, so quarantine visibility is
+   **not enforced there**. A PR that adds the first quarantined test must also
+   add a non-blocking visibility lane (or explicitly change this policy); it
+   must not rely on the normal suite, which skips quarantined tests.
 
 **To quarantine a test:** mark it `@pytest.mark.quarantine` with a one-line
 reason **and a tracking-issue link** — every quarantined test is tech debt with
 an owner. The wiring above (`test_quarantine_marker.py`) is enforced.
 
 As of this writing **no test is quarantined** (see the disposition table — every
-known surface is fixed or correctly handled). The mechanism exists so the first
+known surface is fixed, correctly handled, or retired). The mechanism exists so the first
 irreducible flake has a sanctioned home instead of a retry.
 
 ## Audit + disposition of known flake surfaces
 
 | Surface | Tier | Disposition |
 |---|---|---|
-| `tests/architectural/test_wp_prompt_build_latency.py` (NFR-002 latency) | 1 | **Resolved — keep tuning.** Budget already widened 8.0 → 10.0s after a shared runner measured 8.50s with no code regression (PR #2036). The file carries inline rationale that *is* the Tier-1 policy. No further change. |
+| Historical `tests/architectural/test_wp_prompt_build_latency.py` NFR-002 latency surface | 1 | **Retired — this surface no longer exists.** The low-signal suite cleanup in PR #3285 removed the file. The current timing policy is carried by the live `-m timing` lane and its current budget tests; a future latency flake gets a new, separately evidenced row. |
 | `doctor restart-daemon` issue #1153 / NFR-002 wall-clock gate | 3 | **Retired as a portable CI performance claim in PR #3285.** The original ≤10-second end-to-end requirement depended on OS-global daemon and port state and repeatedly failed during hosted-macOS control-plane bootstrap without a corresponding product regression. The controlled Linux lane now enforces the replacement functional contract: the old daemon stops, a distinct PID starts, and the control plane becomes healthy within bounded subprocess and readiness timeouts. macOS remains supported through platform-independent tests and local smoke evidence; a future cross-platform restart performance SLO requires a controlled developer/canary harness because shared-runner wall clock is not accepted as evidence. |
-| The former fixed-port daemon family — five deleted `tests/sync/test_*` files, including `test_orphan_sweep.py`, registered by deleted `tests/_real_port_suites.py`'s `FIXED_RANGE_SUITES` | 3 | **Retired — deleted with the sync transport (issue #5).** The files, registry, and former serial-port guards no longer exist, so this is no longer an active known-flake surface. Do not explain a current failure as this retired family; collect fresh evidence and file a new disposition if a real-port or singleton-daemon test returns. |
+| `tests/sync/test_orphan_sweep.py` and `tests/_real_port_suites.py`'s `FIXED_RANGE_SUITES` (real fixed ports 9400–9449, daemons) | 3 | **Retired — this surface no longer exists.** The sync transport that owned it was deleted (issue #5): `tests/sync/` and `tests/_real_port_suites.py` are gone from the repo, so there is nothing left to serialise or quarantine here. `make test-full`'s current topology (one parallel pass plus dedicated `-n0` serial passes for `stress`/`timing`) is described in `CLAUDE.md`'s Commands section. |
 | `tests/specify_cli/shims/test_registry.py` (parallel-collection nondeterminism) | 2 | **Fixed at root cause.** Parametrising over `list(<frozenset>)` produced a `PYTHONHASHSEED`-dependent case order, so xdist workers collected different orders ("Different tests were collected between gw0 and gwN"). Changed to `sorted(<frozenset>)`, making collection order deterministic across workers. Verified: identical node-id order under different hash seeds. |
-| `tests/sync/tracker/test_egress_single_authority.py`, `tests/sync/test_transport_revocation_matrix.py`, `tests/sync/tracker/test_saas_client*.py` and siblings (module-level accumulator / thread-identity state under bare `-n <N>`) | 2 | **Fixed at root cause (TEST-M2-03).** A bare `pytest tests/ -n <N>` — no explicit `--dist` — silently gets xdist's own `"no"` → `"load"` auto-upgrade (`xdist/plugin.py::pytest_cmdline_main`, which runs before every `pytest_configure`, including this repo's own). `load` scatters one file's parametrized cases and test classes across workers with no file-scoping guarantee, which this repo's own docs already warned against (testing-parallel.md's "Always `--dist loadfile`, never bare `--dist load`") — but that rule was previously enforced only by CI's explicit flag and by developers remembering to type it locally. Two concrete failures reproduced this: `test_egress_single_authority.py::TestT001EnforcementEquivalenceMatrix::test_matrix_ran_every_cell_incl_permit_row_and_every_precedence_level` (a module-level accumulator only sees the subset of cells that land on its own worker — "ran 9 of 48 declared cells") and `test_transport_revocation_matrix.py`'s `_project_b_progress` helper (a `patch.object`'d `__init__` recording opens process-wide, racing a concurrent opt-out thread it does not own). `tests/conftest.py::_upgrade_unspecified_xdist_load_to_loadfile` promotes the *default* the same way xdist promotes `"no"` — only when the user asked for neither serial nor an explicit `--dist` — closing the gap for every such file at once instead of opting each one in individually; an explicit `--dist load/loadscope/loadgroup/worksteal/each` is never overridden. Verified: `test_egress_single_authority.py` reds reliably under bare `-n5` before the fix (2/2 runs) and passes clean after (2/2 runs); `test_transport_revocation_matrix.py` and the `saas_client` family (230 tests) pass clean under bare `-n5` after the fix (2/2 runs each); `tests/sync` as a whole (3439 tests, `FIXED_RANGE_SUITES` excluded) passes under bare `-n5` after the fix with 0 failures in this family across 2 consecutive runs. |
-| `tests/sync/test_daemon_self_retirement.py` (4 failures reported against the M0 baseline and the pre-`cff82ad84` M2-canonical-integration baseline; `docs/bootstrap/M2-CANONICAL-INTEGRATION.json`) | 2 | **Not reproduced post-fix (TEST-M2-03); tracked as covered by the same root-cause fix above, not independently repaired.** The integration receipt classifies these 4 as "fail on M0 too" (i.e. present on a baseline predating `tests/conftest.py`'s `--dist loadfile` default), which is consistent with — not contrary to — the row above: an M0 baseline run via bare `pytest tests/ -n <N>` would hit the identical `"load"`-scattering default, and this file's own module-global `monkeypatch.setattr(daemon, "DAEMON_STATE_FILE"/"DAEMON_TICK_SECONDS", ...)` seams and cross-thread `threading.enumerate()` leak assertions (`TestRunSyncDaemonWiring`) are exactly the shape that scattering breaks. All 26 tests in the file were run and passed in every configuration probed on this evidence run: serial (`-n0`), forced `-n5 --dist loadfile` standalone, and — with the fix applied — bare `-n5` both standalone and as part of the full `tests/sync` batch (2/2 consecutive runs, 0 failures in this file either time). No independent defect in `daemon.py` or the test file itself was found or changed. If a future run reproduces a failure here under the fixed default, re-open as a new, separately-evidenced defect rather than assuming this disposition covers it. |
+| `tests/sync/tracker/test_egress_single_authority.py`, `tests/sync/test_transport_revocation_matrix.py`, `tests/sync/tracker/test_saas_client*.py` and siblings (module-level accumulator / thread-identity state under bare `-n <N>`) | 2 | **Retired — this surface no longer exists.** The sync transport that owned it was deleted (issue #5): `tests/sync/` is gone from the repo, so there is nothing left here to fix or re-flake. The root-cause fix this row used to describe (`tests/conftest.py`'s default `--dist loadfile` promotion for xdist) is unaffected — it applies to any file, not specifically to the deleted `tests/sync/` tree. |
+| Historical `tests/sync/test_daemon_self_retirement.py` daemon-self-retirement reports | 2 | **Retired — this surface no longer exists.** The sync transport that owned it was deleted (issue #5); `tests/sync/test_daemon_self_retirement.py` and its old integration receipt are gone from the repo. |
 
 ## Adding a new test? Avoid the common root causes
 
@@ -163,7 +159,7 @@ will surface failures you did not cause. **Classify every failure before you act
 misattribution wastes effort and, worse, tempts an agent to green-wash a signal the project
 deliberately keeps red.
 
-Three baseline-red categories that are **not yours to fix**:
+Four baseline-red categories that are **not yours to fix**:
 
 1. **Pre-existing known-P0 reds.** Per [ADR 2026-07-17-1](../../adr/3.x/2026-07-17-1-red-main-is-honest-ci-is-release-authority.md),
    an open P0 bug is *expected* to red mainline (e.g. #2736 batch poisoning, #2772 charter
@@ -178,6 +174,14 @@ Three baseline-red categories that are **not yours to fix**:
    `merge-driver-meta`/`-traces` commands) only fires when an up-to-date `spec-kitty` is
    installed. Between landing a change and `pip install -e .`, coverage/gate jobs report
    false reds for lines that are actually exercised via subprocess.
+4. **Stale-venv false reds.** A `ModuleNotFoundError` (or other import failure) for a package
+   that *is* declared and pinned (`pyproject.toml` / `uv.lock`) usually means the local
+   `.venv` was never (re)synced to that pin, not a real regression. Run
+   `uv sync --frozen --all-extras` and retry the failing test before recording it as
+   pre-existing or unrelated — a stale venv is indistinguishable from real breakage in raw
+   pytest output (#648: a PR's `## Tests run` section excluded a whole
+   test file over exactly this `ModuleNotFoundError`, when a clean `uv sync --frozen
+   --all-extras` reproduced 1621/1621 passing with no exclusion needed).
 
 **The attribution test:** a failure is yours to fold only if it is **red on your branch and
 green on the base**. Confirm the base state by running the same node id against
@@ -192,7 +196,7 @@ the suite in its worktree must not report the baseline reds as regressions or tr
 ## See also
 
 - [Running the test suite in parallel](testing-parallel.md) — per-worker HOME
-  isolation, the serial daemon pass, and the stability ratchet.
+  isolation, the serial marker passes, and the stability ratchet.
 - [ADR 2026-04-20-1](../../adr/3.x/2026-04-20-1-mutation-testing-as-local-only-quality-gate.md)
   — the `flaky` / `non_sandbox` markers (mutmut deselection; distinct from this
   policy).

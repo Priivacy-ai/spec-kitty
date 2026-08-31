@@ -151,6 +151,12 @@ gh api repos/{owner}/{repo}/labels --paginate --jq '.[].name'
 Exception: `gh search issues` returns up to 100 items per call with `--limit` but
 has a separate cap; verify with `--jq 'length'` when a known large set is expected.
 
+**exe.dev proxy caveat:** on any exe.dev VM (`GH_HOST=github.int.exe.xyz`), `--paginate`
+is unreliable once the result set exceeds 100 items — the proxy's response omits
+`rel="last"` in the `Link` header, which confuses `gh`'s built-in paginator, so it
+silently stops after page 1. On that host, loop `&page=N` manually instead of trusting
+`--paginate`.
+
 ---
 
 ## Handy one-call queries

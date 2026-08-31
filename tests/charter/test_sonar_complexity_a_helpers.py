@@ -332,7 +332,7 @@ class TestContextResultBuilders:
 
 class TestResolveIncludeKind:
     def test_resolve_include_kind_normalises_hyphenated_token(self) -> None:
-        from doctrine.artifact_kinds import ArtifactKind
+        from charter.offering.artifact_kinds import ArtifactKind
 
         from charter.context_renderers.template_include import _resolve_include_kind
 
