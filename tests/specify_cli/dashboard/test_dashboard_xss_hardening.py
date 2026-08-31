@@ -76,19 +76,12 @@ def test_card_avatar_palette_meets_wcag_aa_text_contrast() -> None:
     assert background_match is not None
 
     foreground_hex = foreground_match.group("hex")
-    foreground = tuple(
-        int(foreground_hex[index : index + 2], 16) / 255 for index in (0, 2, 4)
-    )
+    foreground = tuple(int(foreground_hex[index : index + 2], 16) / 255 for index in (0, 2, 4))
     saturation = int(background_match.group("saturation")) / 100
     lightness = int(background_match.group("lightness")) / 100
 
     def _luminance(rgb: tuple[float, float, float]) -> float:
-        linear = tuple(
-            channel / 12.92
-            if channel <= 0.04045
-            else ((channel + 0.055) / 1.055) ** 2.4
-            for channel in rgb
-        )
+        linear = tuple(channel / 12.92 if channel <= 0.04045 else ((channel + 0.055) / 1.055) ** 2.4 for channel in rgb)
         return 0.2126 * linear[0] + 0.7152 * linear[1] + 0.0722 * linear[2]
 
     foreground_luminance = _luminance(foreground)

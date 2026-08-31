@@ -37,9 +37,7 @@ _SLUG = "rollback-signal-demo"
 def _seed_feature(tmp_path: Path, roster: list[str]) -> Path:
     feature_dir = tmp_path / "kitty-specs" / _SLUG
     (feature_dir / "tasks").mkdir(parents=True)
-    (feature_dir / "meta.json").write_text(
-        f'{{"mission_slug":"{_SLUG}","topology":"single_branch"}}\n', encoding="utf-8"
-    )
+    (feature_dir / "meta.json").write_text(f'{{"mission_slug":"{_SLUG}","topology":"single_branch"}}\n', encoding="utf-8")
     (feature_dir / "tasks.md").write_text("# Tasks\n\nNo checkbox rows.\n", encoding="utf-8")
     lines = ["---", "work_package_id: WP01", "dependencies: []"]
     if roster:
@@ -53,9 +51,7 @@ def _seed_feature(tmp_path: Path, roster: list[str]) -> Path:
 
 
 def _ports(feature_dir: Path) -> SimpleNamespace:
-    return SimpleNamespace(
-        fs=SimpleNamespace(planning_read_dir=lambda _handle, *, kind: feature_dir)
-    )
+    return SimpleNamespace(fs=SimpleNamespace(planning_read_dir=lambda _handle, *, kind: feature_dir))
 
 
 def _st(tmp_path: Path) -> SimpleNamespace:

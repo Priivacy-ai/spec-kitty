@@ -78,9 +78,7 @@ _REVIEW_REJECTION_EDGES = [
     _REVIEW_REJECTION_EDGES,
     ids=[f"{o}->{n}" for o, n, _ in _REVIEW_REJECTION_EDGES],
 )
-def test_cli_emit_conforms_to_shared_events_contract(
-    old_lane: str, target_lane: str, evidence: dict[str, object]
-) -> None:
+def test_cli_emit_conforms_to_shared_events_contract(old_lane: str, target_lane: str, evidence: dict[str, object]) -> None:
     kwargs: dict[str, object] = {
         "review_feedback_pointer": None,
         "arb_review_ref": None,
@@ -89,9 +87,7 @@ def test_cli_emit_conforms_to_shared_events_contract(
     }
     kwargs.update(evidence)
 
-    plan = build_transition_plan(
-        old_lane=old_lane, target_lane=target_lane, force=False, **kwargs
-    )
+    plan = build_transition_plan(old_lane=old_lane, target_lane=target_lane, force=False, **kwargs)
 
     payload = StatusTransitionPayload(
         mission_slug="example-mission",

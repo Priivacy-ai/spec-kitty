@@ -8,10 +8,15 @@ It replaces the fragmented approach where only .codex/ was protected.
 
 import errno
 import os
+import stat
+import tempfile
 from dataclasses import dataclass, field
 from pathlib import Path
 
 from specify_cli.state.contract import get_runtime_gitignore_entries
+
+
+SPEC_KITTY_GITIGNORE_MARKER = "# Added by Spec Kitty CLI (auto-managed)"
 
 
 class GitignorePathError(Exception):
@@ -40,9 +45,7 @@ def _open_no_follow(path: Path, flags: int) -> int:
         return os.open(path, flags)
     except OSError as exc:
         if exc.errno == errno.ELOOP:
-            raise GitignorePathError(
-                f"{path} is a symlink; refusing to read through it"
-            ) from exc
+            raise GitignorePathError(f"{path} is a symlink; refusing to read through it") from exc
         raise
 
 
@@ -232,7 +235,7 @@ class GitignoreManager:
 
         self.project_path = project_path
         self.gitignore_path = project_path / ".gitignore"
-        self.marker = "# Added by Spec Kitty CLI (auto-managed)"
+        self.marker = SPEC_KITTY_GITIGNORE_MARKER
         self._line_ending: str = os.linesep
 
     def ensure_entries(self, entries: list[str]) -> bool:
@@ -355,9 +358,7 @@ class GitignoreManager:
 
         except PermissionError:
             result.success = False
-            result.errors.append(
-                f"Cannot update .gitignore: Permission denied. Run: chmod u+w {self.gitignore_path}"
-            )
+            result.errors.append(f"Cannot update .gitignore: Permission denied. Run: chmod u+w {self.gitignore_path}")
         except Exception as exc:
             result.success = False
             result.errors.append(f"Error protecting {error_context}: {exc}")
