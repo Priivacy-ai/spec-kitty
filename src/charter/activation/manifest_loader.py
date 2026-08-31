@@ -24,16 +24,19 @@ existing consumer's import breaks (FR-002, C-001).
 **Sibling-error model (D2).** Present-but-unparseable manifests (YAML-syntax,
 non-mapping, or present-but-unreadable) raise
 :class:`~charter.offering.missions.repository.MalformedManifestError`
-(already charter-resident) on the BUILT-IN tier — shipped in ``1763bf2ae3``,
-via :meth:`~charter.offering.missions.repository.MissionTemplateRepository.get_expected_artifacts`,
-which this module does not catch, so that error propagates unchanged. The
-ORG tier's own read (:func:`charter.activation.org_expected_artifacts.resolve_org_expected_artifacts`)
-still swallows a malformed org file to "no org contribution" as of this WP —
-widening the org tier to the same fail-loud ``MalformedManifestError``
-behaviour is FR-007/#3412, a distinct, not-yet-landed requirement of this
-mission, tracked for a later work package. Present-but-schema-invalid
-manifests (valid YAML, ``extra="forbid"`` violation) raise
-:class:`ManifestSchemaError` on EITHER tier — a sibling of
+(already charter-resident) on BOTH tiers. Built-in-tier YAML-syntax
+fail-loud shipped in ``1763bf2ae3``, via
+:meth:`~charter.offering.missions.repository.MissionTemplateRepository.get_expected_artifacts`,
+which this module does not catch, so that error propagates unchanged.
+FR-007/FR-012 (#3412, mission ``expected-artifacts-loader-unification-01M1C9VQ``
+WP03) widened both tiers symmetrically: the org tier's own read
+(:func:`charter.activation.org_expected_artifacts.resolve_org_expected_artifacts`)
+now also raises ``MalformedManifestError`` for a present-but-broken org
+file instead of swallowing it to "no org contribution", and the built-in
+tier's ``get_expected_artifacts`` now raises on present-but-unreadable
+(``OSError``/``UnicodeDecodeError``) too, not only ``YAMLError``.
+Present-but-schema-invalid manifests (valid YAML, ``extra="forbid"``
+violation) raise :class:`ManifestSchemaError` on EITHER tier — a sibling of
 ``MalformedManifestError``, not a synonym: both are distinct from ``None``
 (genuine absence).
 
@@ -206,11 +209,11 @@ def load_manifest(
     -valid manifest that fails **schema** validation (e.g. a typo'd/extra
     key, rejected by ``extra="forbid"``) raises :class:`ManifestSchemaError`
     instead of being silently swallowed; a *found* manifest that is not even
-    valid YAML raises the sibling
+    valid YAML, is unreadable, or is not a mapping raises the sibling
     :class:`~charter.offering.missions.repository.MalformedManifestError` on
-    the built-in tier (shipped, ``1763bf2ae3``) -- see the module docstring's
-    "Sibling-error model" section for the org-tier's current, narrower state
-    (FR-007/#3412 is separate, not-yet-landed scope).
+    EITHER tier (built-in: shipped, ``1763bf2ae3``, widened to
+    present-but-unreadable by FR-012; org: FR-007/FR-012, #3412) -- see the
+    module docstring's "Sibling-error model" section.
 
     When *repo_root* is given and resolves to 1+ existing configured org
     roots, an org-pack ``<org_root>/missions/<mission_type>/expected-artifacts.yaml``
@@ -244,10 +247,13 @@ def load_manifest(
             ``str(exc)`` is always operator-actionable (names both the
             file and the bad key) for any consumer, not only one that
             knows to read an exception note.
-        MalformedManifestError: Built-in tier only, if the manifest file is
-            present but fails to parse as YAML at all -- propagated
-            unchanged from
-            :meth:`~charter.offering.missions.repository.MissionTemplateRepository.get_expected_artifacts`.
+        MalformedManifestError: On either tier, if the manifest file is
+            present but fails to parse as YAML, is unreadable, or is not a
+            mapping -- propagated unchanged from
+            :meth:`~charter.offering.missions.repository.MissionTemplateRepository.get_expected_artifacts`
+            (built-in tier) or
+            :func:`~charter.activation.org_expected_artifacts.resolve_org_expected_artifacts`
+            (org tier, FR-007/FR-012).
     """
     org_roots = _resolve_existing_org_roots(repo_root) if repo_root is not None else []
     cache_key = (mission_type, tuple(str(root) for root in org_roots))
