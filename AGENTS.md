@@ -63,7 +63,7 @@ This repository uses **`main` as the integration branch**. Open a topic branch, 
 - Before applying a commit, classify it with `git show --stat <sha> -- <retired paths>`.
 - If every touched path is retired, record the commit as `DROP` in the convergence map and do not port it.
 - For a mixed commit, drop the retired hunks and cite the omitted hunks under `Dropped hunks:`.
-- Every convergence PR carries `Retired-surface scan: 0 hits`, computed over added diff lines with the planning #1703 regex.
+- Every convergence PR carries `Retired-surface scan: 0 hits`, computed over added diff lines with the canonical regex in [planning `PROGRAM.md` §5](https://github.com/spec-kitty/EXPERIMENTAL-spec-kitty-planning/blob/main/PROGRAM.md#5-the-pr-protocol).
 - Never add `# noqa: TID251` for a retired module.
 - Never resolve a kept-file conflict with `theirs` without re-running `tests/architectural/test_no_retired_subsystems.py`.
 
