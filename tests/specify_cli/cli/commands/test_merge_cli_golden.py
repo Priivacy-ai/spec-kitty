@@ -98,6 +98,7 @@ EXPECTED_DRY_RUN_PAYLOAD_KEYS = frozenset(
         "mission_branch",
         "lanes",
         "would_assign_mission_number",
+        "retention",  # added for the #3131 merge-retention forecast (2026-09-02)
     }
 )
 
