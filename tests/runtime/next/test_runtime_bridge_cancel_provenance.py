@@ -8,8 +8,6 @@ from typing import Any
 
 import pytest
 
-from specify_cli.status.models import Lane
-
 pytestmark = pytest.mark.fast
 
 
