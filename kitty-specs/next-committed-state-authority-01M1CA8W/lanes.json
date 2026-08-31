@@ -1,0 +1,53 @@
+{
+  "version": 1,
+  "mission_slug": "next-committed-state-authority-01M1CA8W",
+  "mission_id": "01M1CA8WD0HSRY5MAJ3WR3DM3A",
+  "mission_branch": "kitty/mission-next-committed-state-authority-01M1CA8W",
+  "target_branch": "fix/next-committed-state-authority",
+  "lanes": [
+    {
+      "lane_id": "lane-a",
+      "wp_ids": [
+        "WP01"
+      ],
+      "write_scope": [
+        "src/runtime/next/committed_authority.py",
+        "src/specify_cli/cli/commands/agent/tasks_status_cmd.py",
+        "tests/runtime/next/test_committed_authority.py",
+        "tests/specify_cli/cli/commands/agent/test_tasks_status_committed_authority.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "legacy-cleanup"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-b",
+      "wp_ids": [
+        "WP02"
+      ],
+      "write_scope": [
+        "src/runtime/next/runtime_bridge.py",
+        "tests/runtime/next/test_merged_mission_terminal.py",
+        "tests/specify_cli/next/test_runtime_bridge.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "legacy-cleanup",
+        "workspace"
+      ],
+      "depends_on_lanes": [
+        "lane-a"
+      ],
+      "parallel_group": 1
+    }
+  ],
+  "computed_at": "2026-08-31T16:53:29.579939+00:00",
+  "computed_from": "dependency_graph+ownership",
+  "planning_artifact_wps": [],
+  "planning_commit_sha": "aec28c3e2cb3814e61fff5620dd8a2eb6585a485"
+}
