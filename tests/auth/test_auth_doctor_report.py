@@ -465,6 +465,33 @@ async def test_check_server_session_active(monkeypatch: pytest.MonkeyPatch) -> N
     assert result.error is None
 
 
+async def test_check_server_session_resolves_target_once(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Issuer diagnostics and the send share one target resolution (#762)."""
+    mock_tm = AsyncMock()
+    mock_tm.get_access_token = AsyncMock(return_value="tok")
+    mock_response = MagicMock(status_code=200)
+    mock_response.json.return_value = {"active": True, "session_id": "abc"}
+    mock_client = AsyncMock()
+    mock_client.__aenter__ = AsyncMock(return_value=mock_client)
+    mock_client.__aexit__ = AsyncMock(return_value=None)
+    mock_client.get = AsyncMock(return_value=mock_response)
+    import specify_cli.auth as _auth_module
+
+    monkeypatch.setattr(_auth_module, "get_token_manager", lambda: mock_tm)
+    resolutions = 0
+
+    def resolve_once(**_kwargs: object) -> object:
+        nonlocal resolutions
+        resolutions += 1
+        return _fake_target("https://saas.example.com")
+
+    with patch.object(_auth_doctor, "resolve_server_target", resolve_once), patch("httpx.AsyncClient", return_value=mock_client):
+        result = await _check_server_session()
+
+    assert result.active is True
+    assert resolutions == 1
+
+
 async def test_check_server_session_401(monkeypatch: pytest.MonkeyPatch) -> None:
     """GET /api/v1/session-status 401 → ServerSessionStatus(active=False, error='re-authenticate')."""
     mock_tm = AsyncMock()
