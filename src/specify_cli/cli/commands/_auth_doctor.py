@@ -64,6 +64,7 @@ from specify_cli.auth import get_token_manager
 from specify_cli.auth.server_target import ServerTargetSplitBrainError, resolve_server_target
 from specify_cli.auth.session import StoredSession
 from specify_cli.auth.token_manager import _refresh_lock_path
+from specify_cli.auth.verdict import HealthVerdict, evaluate_auth_verdict
 from specify_cli.cli.commands._auth_saas_target import (
     format_saas_mismatch_warning,
     saas_source_name,
@@ -158,6 +159,7 @@ class DoctorReport:
     auth_root: Path
     session: SessionSummary | None
     refresh_lock: LockSummary
+    auth_verdict: HealthVerdict
     findings: list[Finding] = field(default_factory=list)
 
 
@@ -272,6 +274,7 @@ def _compute_findings(
     *,
     session: SessionSummary | None,
     refresh_lock: LockSummary,
+    auth_verdict: HealthVerdict,
 ) -> list[Finding]:
     """Compute :class:`Finding` list from the read-only state snapshots.
 
@@ -332,7 +335,30 @@ def _compute_findings(
                 )
             )
 
+    auth_finding = _auth_verdict_finding(session, auth_verdict)
+    if auth_finding is not None:
+        findings.append(auth_finding)
+
     return findings
+
+
+def _auth_verdict_finding(
+    session: SessionSummary | None,
+    auth_verdict: HealthVerdict,
+) -> Finding | None:
+    """Emit F-008 when a present session is not confirmed healthy."""
+    if session is None or auth_verdict.state == "ok":
+        return None
+    return Finding(
+        id="F-008",
+        severity="critical" if auth_verdict.state == "fail" else "warn",
+        summary=f"Session health not confirmed: {auth_verdict.evidence}",
+        remediation_command=auth_verdict.remediation,
+        remediation_description=(
+            "The access token could not be confirmed valid; re-authenticate or "
+            "re-run with --server to probe the live session."
+        ),
+    )
 
 
 def compute_exit_code(findings: list[Finding]) -> int:
@@ -472,7 +498,11 @@ async def _check_server_session() -> ServerSessionStatus:
 # ---------------------------------------------------------------------------
 
 
-def assemble_report(*, stuck_threshold_s: float = 60.0) -> DoctorReport:
+def assemble_report(
+    *,
+    stuck_threshold_s: float = 60.0,
+    server_probe: ServerSessionStatus | None = None,
+) -> DoctorReport:
     """Gather local-only state into a :class:`DoctorReport`. No mutation.
 
     All inputs are local files (allowed by C-007). The function never
@@ -480,20 +510,24 @@ def assemble_report(*, stuck_threshold_s: float = 60.0) -> DoctorReport:
     responsibility of :func:`doctor_impl` when the user opts in via
     ``--unstick-lock``.
     """
-    session_summary, _raw_session = _read_session_summary()
+    now = now_utc()
+    session_summary, raw_session = _read_session_summary()
+    auth_verdict = evaluate_auth_verdict(raw_session, now, server_probe=server_probe)
     refresh_lock = _read_lock_summary(stuck_threshold_s)
 
     findings = _compute_findings(
         session=session_summary,
         refresh_lock=refresh_lock,
+        auth_verdict=auth_verdict,
     )
 
     return DoctorReport(
         schema_version=_SCHEMA_VERSION,
-        generated_at=now_utc(),
+        generated_at=now,
         auth_root=_read_auth_root(),
         session=session_summary,
         refresh_lock=refresh_lock,
+        auth_verdict=auth_verdict,
         findings=findings,
     )
 
@@ -574,7 +608,7 @@ def _render_lock_section(lock: LockSummary, console: Console) -> None:
 def _render_findings_section(report: DoctorReport, console: Console) -> None:
     """Section 5 — Findings & Remediation."""
     console.print("[bold]Findings[/bold]")
-    if not report.findings:
+    if report.auth_verdict.state == "ok" and not report.findings:
         console.print("  No problems detected.")
     else:
         severity_color = {
@@ -651,6 +685,7 @@ def _run_unstick_lock(
     *,
     stuck_threshold: float,
     messages: list[str],
+    server_probe: ServerSessionStatus | None = None,
 ) -> DoctorReport:
     """Orchestrate the ``--unstick-lock`` phase. Returns a refreshed report."""
     if not any(f.id == "F-003" for f in report.findings):
@@ -662,7 +697,10 @@ def _run_unstick_lock(
         messages.append("--unstick-lock: stuck lock released.")
     else:
         messages.append("--unstick-lock: lock not removed (fresh, missing, or unreadable).")
-    return assemble_report(stuck_threshold_s=stuck_threshold)
+    return assemble_report(
+        stuck_threshold_s=stuck_threshold,
+        server_probe=server_probe,
+    )
 
 
 def _render_server_status(status: ServerSessionStatus) -> None:
@@ -709,15 +747,23 @@ def doctor_impl(
     calls ``GET /api/v1/session-status``. The default path (server=False)
     makes ZERO outbound network calls (C-007).
     """
-    report = assemble_report(stuck_threshold_s=stuck_threshold)
-    repair_messages: list[str] = []
-
-    if unstick_lock:
-        report = _run_unstick_lock(report, stuck_threshold=stuck_threshold, messages=repair_messages)
-
     server_status: ServerSessionStatus | None = None
     if server:
         server_status = asyncio.run(_check_server_session())
+
+    report = assemble_report(
+        stuck_threshold_s=stuck_threshold,
+        server_probe=server_status,
+    )
+    repair_messages: list[str] = []
+
+    if unstick_lock:
+        report = _run_unstick_lock(
+            report,
+            stuck_threshold=stuck_threshold,
+            messages=repair_messages,
+            server_probe=server_status,
+        )
 
     if json_output:
         # JSON consumers read the post-repair report state directly.
