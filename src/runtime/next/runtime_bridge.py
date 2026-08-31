@@ -179,6 +179,7 @@ from specify_cli.mission import get_mission_type
 from specify_cli.status import CanonicalStatusNotFoundError
 from specify_cli.status import Lane
 from specify_cli.status import wp_state_for
+from specify_cli.status_lanes import is_acceptable_ending
 from runtime.next.decision import (
     Decision,
     DecisionKind,
@@ -694,7 +695,15 @@ def _should_advance_wp_step(step_id: str, feature_dir: Path) -> bool:
 
     For implement: all WPs must be handed off or complete
     (for_review, approved, or done).
-    For review: all WPs must be approved or done.
+    For review: all WPs must be approved, done, or canceled-with-operator-
+    provenance (#3780, D2/D6/D11).
+
+    Routes through WP01's :func:`committed_authority.wp_ending` — a single
+    status reduction per WP that yields lane AND operator-provenance in one
+    read (C-004), fronted by the same explicit fail-loud event-log gate
+    ``get_wp_lane`` used (C-003/D6): a genuinely-absent committed status log
+    still raises ``CanonicalStatusNotFoundError`` here, never a silent
+    ``False``.
     """
     tasks_dir = feature_dir / "tasks"
     if not tasks_dir.is_dir():
@@ -704,28 +713,39 @@ def _should_advance_wp_step(step_id: str, feature_dir: Path) -> bool:
     if not wp_files:
         return True
 
-    # Get canonical lane state from event log (hard-fail if absent)
     import re as _re
-    from specify_cli.status import get_wp_lane
+    from runtime.next import committed_authority
+    from specify_cli.status_lanes import OPERATOR_REASON_SOURCE
 
     for wp_file in wp_files:
         wp_match = _re.match(r"(WP\d+)", wp_file.stem)
         wp_id = wp_match.group(1) if wp_match else wp_file.stem
-        raw_lane = get_wp_lane(feature_dir, wp_id)
+        ending = committed_authority.wp_ending(feature_dir, wp_id)
         try:
-            state = wp_state_for(raw_lane)
+            state = wp_state_for(ending.lane)
         except ValueError:
             # Unknown lane (e.g. "uninitialized" before status bootstrap) — treat as
             # not-yet-handed-off, so this WP blocks advancement.
             return False
-        if _wp_blocks_step(step_id, state):
+        has_provenance = ending.reason_source == OPERATOR_REASON_SOURCE
+        if _wp_blocks_step(step_id, state, has_provenance=has_provenance):
             return False
 
     return True
 
 
-def _wp_blocks_step(step_id: str, state: Any) -> bool:
-    """Return whether a WP state blocks advancement for ``step_id``."""
+def _wp_blocks_step(step_id: str, state: Any, has_provenance: bool = False) -> bool:
+    """Return whether a WP state blocks advancement for ``step_id``.
+
+    ``has_provenance`` (#3780, defaulted so the single caller above stays the
+    only 3-arg call site) is folded through the shipped
+    :func:`specify_cli.status_lanes.is_acceptable_ending` authority for the
+    ``review`` branch (D2/C-001): approved/done are unconditionally
+    acceptable; canceled is acceptable only with operator-authored
+    provenance (synthetic cancellations stay fail-closed); every other lane
+    still blocks. The ``implement`` branch is unchanged — a canceled WP is
+    never run-affecting there regardless of provenance.
+    """
     lane = state.lane
     if step_id == "implement":
         # Advance past implement only when the WP has been handed off
@@ -734,7 +754,7 @@ def _wp_blocks_step(step_id: str, state: Any) -> bool:
         # to only allow advancement for the "handed off" active lanes.
         return state.is_blocked or (state.is_run_affecting and lane not in (Lane.FOR_REVIEW, Lane.APPROVED))
     if step_id == "review":
-        return lane not in (Lane.DONE, Lane.APPROVED)
+        return not is_acceptable_ending(str(lane), has_provenance=has_provenance)
     return False
 
 
@@ -2087,6 +2107,80 @@ def _dn_decision_materialize(ctx: DecideNextContext) -> Decision:
     )
 
 
+#: Reused across both #2947 short-circuit branches (S1192 — repeated literal).
+_MERGED_MISSION_DONE_REASON = "All work packages are done"
+
+
+def _merged_mission_short_circuit(
+    *,
+    repo_root: Path,
+    mission_slug: str,
+    agent: str | None,
+    now: str,
+    terminal_kind: str,
+) -> Decision | None:
+    """Committed-authority pre-check (#2947, D8/D9/D13/F5) shared by BOTH
+    ``next`` entry points, called BEFORE either selects a workspace or starts
+    a run.
+
+    Consumes WP01's :func:`committed_authority.mission_terminal_verdict` —
+    the PRIMARY-surface authority (never the coordination checkout) — so a
+    merged mission is recognized from committed truth instead of a stale/
+    artifact-missing coordination workspace fabricating an unstarted run
+    (D9). ``mission_type`` is resolved off the same PRIMARY surface
+    (:func:`_primary_runtime_feature_dir`) — never via workspace selection.
+
+    ``terminal_kind`` lets the two callers diverge on the ONE dimension D13
+    requires: :func:`decide_next_via_runtime` passes ``DecisionKind.terminal``
+    (matching issue #2947's ``--result success`` repro, and creating NO run
+    since this returns before workspace selection / ``get_or_start_run``);
+    :func:`query_current_state` passes ``DecisionKind.query`` (query mode is
+    structurally ``kind: query`` only — mirrors the finalized-override
+    ``mission_state="done"`` precedent, :func:`_build_finalized_override_
+    query_decision`). A ``blocked_conflict`` verdict always returns
+    ``DecisionKind.blocked`` in both modes.
+
+    F5 invariant: returns ``None`` for verdict ``"none"`` so the caller's
+    existing behavior is BYTE-IDENTICAL to today (protects the many
+    in-flight query/decide fixtures) — the only two verdicts this function
+    ever materializes a ``Decision`` for are ``"terminal"`` and
+    ``"blocked_conflict"``.
+    """
+    from runtime.next.committed_authority import mission_terminal_verdict
+
+    verdict = mission_terminal_verdict(repo_root, mission_slug)
+    if verdict == "none":
+        return None
+
+    mission_type = get_mission_type(_primary_runtime_feature_dir(repo_root, mission_slug))
+    if verdict == "terminal":
+        return _materialize_decision(
+            _cores.DecisionEnvelope(
+                kind=terminal_kind,
+                agent=agent,
+                mission_slug=mission_slug,
+                mission=mission_type,
+                mission_state="done",
+                timestamp=now,
+                reason=_MERGED_MISSION_DONE_REASON,
+            )
+        )
+    # blocked_conflict — mirrors the inline blocked emissions at
+    # `_build_wp_iteration_decision`/`_map_wp_step_decision` (SHOULD-FIX-3):
+    # same DecisionEnvelope field set, no invented payload shape.
+    return _materialize_decision(
+        _cores.DecisionEnvelope(
+            kind=DecisionKind.blocked,
+            agent=agent,
+            mission_slug=mission_slug,
+            mission=mission_type,
+            mission_state="blocked",
+            timestamp=now,
+            reason="Merged mission has committed work packages that are not an acceptable ending (conflict)",
+        )
+    )
+
+
 def decide_next_via_runtime(
     agent: str,
     mission_slug: str,
@@ -2105,6 +2199,11 @@ def decide_next_via_runtime(
     decision-materialize is the terminal phase and always resolves.
 
     Flow:
+    0. Committed-authority pre-check (#2947, D13) — a merged mission
+       (``mission_terminal_verdict`` is ``terminal``/``blocked_conflict``)
+       short-circuits BEFORE workspace selection / run start, returning
+       ``kind: terminal`` (no run created) or ``kind: blocked``. A ``"none"``
+       verdict falls through unchanged (F5).
     1. Resolve mission_type from meta.json
     2. get_or_start_run() to obtain MissionRunRef
     3. Check if current step is a WP-iteration step
@@ -2113,6 +2212,16 @@ def decide_next_via_runtime(
     4. For non-WP steps: call next_step(run_ref, agent, result) directly
     5. Map NextDecision -> Decision (preserving JSON contract)
     """
+    merged_short_circuit = _merged_mission_short_circuit(
+        repo_root=repo_root,
+        mission_slug=mission_slug,
+        agent=agent,
+        now=now_utc_iso(),
+        terminal_kind=DecisionKind.terminal,
+    )
+    if merged_short_circuit is not None:
+        return merged_short_circuit
+
     if effective_root is None:
         ctx, early_decision = _dn_bootstrap(agent, mission_slug, result, repo_root)
     else:
@@ -2298,14 +2407,34 @@ def query_current_state(
     Reads the run snapshot idempotently. Does NOT call next_step().
     Returns a Decision with kind=DecisionKind.query and is_query=True.
 
+    Committed-authority pre-check (#2947, D13): before any workspace
+    selection (``mission_context_for`` below), a merged mission
+    (``mission_terminal_verdict`` is ``terminal``) short-circuits to
+    ``kind: query`` / ``mission_state: "done"`` — query mode's structural
+    ``kind: query`` contract (never ``kind: terminal`` here); a
+    ``blocked_conflict`` verdict short-circuits to ``kind: blocked``. A
+    ``"none"`` verdict falls through unchanged (F5), so
+    ``_finalized_task_board_override_step`` (D9) never runs for a merged
+    mission.
+
     Args:
         agent: Agent name (for Decision construction only).
         mission_slug: Mission slug (e.g. '069-planning-pipeline-integrity').
         repo_root: Repository root path.
     """
+    now = now_utc_iso()
+    merged_short_circuit = _merged_mission_short_circuit(
+        repo_root=repo_root,
+        mission_slug=mission_slug,
+        agent=agent,
+        now=now,
+        terminal_kind=DecisionKind.query,
+    )
+    if merged_short_circuit is not None:
+        return merged_short_circuit
+
     from mission_runtime import ActionContextError, MissionArtifactKind, mission_context_for
 
-    now = now_utc_iso()
     try:
         mission_context = mission_context_for(
             repo_root,
