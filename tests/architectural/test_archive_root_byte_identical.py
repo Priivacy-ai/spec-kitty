@@ -9,18 +9,18 @@ historical-record surfaces:
 * ``.kittify/missions/`` — mission-state history.
 
 Mission ``charter-authority-flip-01M14RB3`` (wave M1) must not touch a single
-byte of any file that already existed under those roots at the mission base
-:data:`_MISSION_BASE_REV`. Editing an archived artifact to "fix" a stale line is
-forbidden (the correction belongs in the live mission dossier, not the archive —
-see this mission's DD-10). M1 is free to ADD new content under its own new
-archive dir (``kitty-specs/charter-authority-flip-01M14RB3/``); only
+byte of any file that already existed under those roots when this port branched
+from this repository's ``main``. Editing an archived artifact to "fix" a stale
+line is forbidden (the correction belongs in the live mission dossier, not the
+archive — see this mission's DD-10). M1 is free to ADD new content under its own
+new archive dir (``kitty-specs/charter-authority-flip-01M14RB3/``); only
 *pre-existing* files are frozen.
 
-This gate compares the mission base tree to the working tree via a single
-``git diff --name-status`` scoped to the four roots and asserts that every
-reported entry is an ADD of a path that did not exist at the base. Any Modify or
-Delete of a pre-existing archived file is a real NFR-002 violation to surface,
-never to mask.
+This gate compares the port's merge-base with ``origin/main`` to the working
+tree via a single ``git diff --name-status`` scoped to the four roots and asserts
+that every reported entry is an ADD of a path that did not exist at that base.
+Any Modify or Delete of a pre-existing archived file is a real NFR-002 violation
+to surface, never to mask.
 """
 
 from __future__ import annotations
@@ -35,6 +35,11 @@ pytestmark = [pytest.mark.architectural, pytest.mark.git_repo]
 
 # The mission base commit (pre-WP01 opening state).
 _MISSION_BASE_REV = "fc4acaa897"
+
+# The convergence-port base ref. The upstream mission base is not an ancestor of
+# this repository's main, so comparing it directly would blame pre-existing fork
+# deletions on M1. The merge-base with main is the exact pre-port EXP tree.
+_PORT_BASE_REF = "origin/main"
 
 # The four fixed exclusion / immutable-archive roots.
 _ARCHIVE_ROOTS: tuple[str, ...] = (
@@ -90,6 +95,13 @@ def _files_under_roots_at(rev: str) -> set[str]:
     }
 
 
+def _port_base_rev() -> str:
+    result = _run_git(["merge-base", "HEAD", _PORT_BASE_REF])
+    if result.returncode != 0:
+        raise RuntimeError(f"git merge-base failed for HEAD and {_PORT_BASE_REF!r}: {result.stderr!r}")
+    return result.stdout.strip()
+
+
 @pytest.mark.skipif(
     not _baseline_is_reachable(),
     reason=f"mission base commit {_MISSION_BASE_REV} not reachable in this checkout",
@@ -97,10 +109,11 @@ def _files_under_roots_at(rev: str) -> set[str]:
 def test_no_preexisting_archived_file_was_modified() -> None:
     """No file that existed under an archive root at the mission base may be
     Modified or Deleted in the working tree — only new files may be added."""
-    baseline_files = _files_under_roots_at(_MISSION_BASE_REV)
+    port_base_rev = _port_base_rev()
+    baseline_files = _files_under_roots_at(port_base_rev)
 
     diff = _run_git(
-        ["diff", "--name-status", _MISSION_BASE_REV, "--", *_ARCHIVE_ROOTS]
+        ["diff", "--name-status", port_base_rev, "--", *_ARCHIVE_ROOTS]
     )
     if diff.returncode != 0:
         raise RuntimeError(f"git diff failed: {diff.stderr!r}")
