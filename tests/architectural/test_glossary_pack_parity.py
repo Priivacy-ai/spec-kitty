@@ -24,7 +24,7 @@ from typing import Any
 import pytest
 from ruamel.yaml import YAML
 
-from doctrine.glossary_packs.repository import GlossaryPackRepository
+from charter.offering.glossary_packs.repository import GlossaryPackRepository
 
 pytestmark = [pytest.mark.architectural, pytest.mark.doctrine]
 

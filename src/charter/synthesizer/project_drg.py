@@ -1,7 +1,7 @@
 """Project-level DRG overlay writer.
 
-Thin composer over ``src/doctrine/drg`` primitives (KD-1 rule: no reusable
-graph logic here — push any generic graph logic to ``src/doctrine/drg/``
+Thin composer over ``src/charter/offering/drg`` primitives (KD-1 rule: no reusable
+graph logic here — push any generic graph logic to ``src/charter/offering/drg/``
 instead).
 
 Public API:
@@ -27,8 +27,8 @@ from pathlib import Path
 
 from ruamel.yaml import YAML
 
-from doctrine.drg.migration.extractor import graph_document_to_dict, model_to_graph_dict
-from doctrine.drg.models import DRGEdge, DRGGraph, DRGNode, NodeKind, Relation
+from charter.offering.drg.migration.extractor import graph_document_to_dict, model_to_graph_dict
+from charter.offering.drg.models import DRGEdge, DRGGraph, DRGNode, NodeKind, Relation
 
 from charter.synthesizer._constants import GRAPH_FILENAME as _GRAPH_FILENAME
 from kernel.clock import now_utc_seconds
@@ -55,7 +55,7 @@ def _node_kind_for(kind: str) -> NodeKind | None:
     Only ``directive``/``tactic``/``styleguide`` are synthesizable charter
     targets today. ``.get`` (not a raising subscript, WP06) so unsupported
     kinds — including the mission-tier ``template`` and loose-contract
-    ``asset`` :class:`~doctrine.artifact_kinds.ArtifactKind` members —
+    ``asset`` :class:`~charter.offering.artifact_kinds.ArtifactKind` members —
     resolve to ``None`` instead of raising. Callers (``emit_project_layer``)
     treat ``None`` as "skip this target's node and edges" so an unsupported
     target kind never crashes project-DRG emission.

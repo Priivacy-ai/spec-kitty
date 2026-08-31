@@ -141,6 +141,14 @@ def test_nested_completion_is_scoped_to_group() -> None:
     assert "doctor" not in agent  # top-level command must not appear under `agent`
 
 
+def test_empty_manifest_builds_root_group() -> None:
+    from typer.core import TyperGroup
+
+    command = completion._build_command_tree({})
+
+    assert isinstance(command, TyperGroup)
+
+
 # --------------------------------------------------------------------------- #
 # Fallback gating: option tokens must defer to the full application.
 # --------------------------------------------------------------------------- #

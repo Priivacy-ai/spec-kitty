@@ -243,7 +243,7 @@ def test_resolver_does_not_read_mission_files(tmp_path: Path) -> None:
         tmp_path,
         governance="doctrine: {}\n",
     )
-    mission_file = tmp_path / "src" / "doctrine" / "missions" / "software-dev" / "mission.yaml"
+    mission_file = tmp_path / "src" / "charter" / "offering" / "missions" / "software-dev" / "mission.yaml"
     mission_file.parent.mkdir(parents=True)
     mission_file.write_text("::invalid-yaml::\n\tbad")
 
@@ -366,7 +366,7 @@ def test_resolve_governance_for_profile_populates_graph_artifacts_and_normalizes
     doctrine_service.agent_profiles.resolve_profile.return_value = profile
 
     # Post-WP03: monkeypatch charter.resolver.resolve_transitive_refs; its
-    # result is a :class:`doctrine.drg.query.ResolveTransitiveRefsResult`
+    # result is a :class:`charter.offering.drg.query.ResolveTransitiveRefsResult`
     # look-alike (SimpleNamespace is structurally compatible here).
     monkeypatch_graph = SimpleNamespace(
         tactics=["TACTIC_001"],

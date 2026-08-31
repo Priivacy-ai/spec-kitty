@@ -26,8 +26,8 @@ from charter.cascade import (
     deactivation_plan,
     referenced_but_not_cascaded,
 )
-from doctrine.artifact_kinds import ArtifactKind, MissionTypeNotAnArtifactKind
-from doctrine.drg.models import DRGEdge, DRGGraph, DRGNode, NodeKind, Relation
+from charter.offering.artifact_kinds import ArtifactKind, MissionTypeNotAnArtifactKind
+from charter.offering.drg.models import DRGEdge, DRGGraph, DRGNode, NodeKind, Relation
 
 pytestmark = pytest.mark.unit
 

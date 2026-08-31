@@ -37,9 +37,6 @@ def _disable_status_side_effects(monkeypatch: pytest.MonkeyPatch) -> None:
     import specify_cli.status.emit as status_emit
 
     monkeypatch.setattr(status_emit, "_saas_fan_out", lambda *args, **kwargs: None)
-    monkeypatch.setattr(status_emit, "fire_dossier_sync", lambda *args, **kwargs: None)
-
-
 def _feature_dir(tmp_path: Path) -> Path:
     feature_dir = tmp_path / "kitty-specs" / "099-lifecycle-test"
     feature_dir.mkdir(parents=True)

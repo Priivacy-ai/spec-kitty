@@ -170,7 +170,7 @@ interview's equivalent question writes into this same section):
 
 ```yaml
 governance:
-  doctrine:
+  charter:
     governance_references:
       - spec/constitution.md
 ```

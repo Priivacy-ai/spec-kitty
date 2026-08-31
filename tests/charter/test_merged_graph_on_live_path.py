@@ -1,4 +1,4 @@
-"""FR-016 regression: :func:`doctrine.drg.validator.assert_valid` is invoked
+"""FR-016 regression: :func:`charter.offering.drg.validator.assert_valid` is invoked
 on every live path that loads the DRG.
 
 Ensures the Phase 0 merged-graph validator is not bypassed as the live
@@ -14,7 +14,7 @@ from unittest.mock import patch
 import pytest
 
 from charter._drg_helpers import load_validated_graph
-from doctrine.drg.loader import load_graph_or_dir
+from charter.offering.drg.loader import load_graph_or_dir
 
 pytestmark = pytest.mark.fast
 
@@ -23,7 +23,7 @@ def _built_in_from(root: Path) -> Any:
     """Load a fixture built-in graph from *root* (a fake doctrine directory).
 
     WP03 (mission #2680) routed ``load_validated_graph`` through the canonical
-    :func:`doctrine.drg.loader.load_built_in_graph` seam, so tests inject the
+    :func:`charter.offering.drg.loader.load_built_in_graph` seam, so tests inject the
     built-in layer by patching that seam rather than the retired
     ``resolve_doctrine_root`` import.
     """
@@ -124,7 +124,7 @@ def test_shipped_graph_is_valid() -> None:
     it stays layout-agnostic across the WP05 monolith->fragment migration (the
     seam raises if no built-in graph source can be loaded).
     """
-    from doctrine.drg.loader import load_built_in_graph
-    from doctrine.drg.validator import assert_valid
+    from charter.offering.drg.loader import load_built_in_graph
+    from charter.offering.drg.validator import assert_valid
 
     assert_valid(load_built_in_graph())

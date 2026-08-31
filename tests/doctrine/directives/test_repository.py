@@ -5,7 +5,7 @@ from pathlib import Path
 import pytest
 from ruamel.yaml import YAML
 
-from doctrine.directives.repository import DirectiveRepository
+from charter.offering.directives.repository import DirectiveRepository
 pytestmark = [pytest.mark.fast, pytest.mark.doctrine]
 
 
@@ -59,7 +59,7 @@ class TestDirectiveRepository:
     def test_save_writes_valid_yaml(
         self, tmp_path: Path, sample_directive_data: dict
     ) -> None:
-        from doctrine.directives.models import Directive
+        from charter.offering.directives.models import Directive
 
         project_dir = tmp_path / "project"
         repo = DirectiveRepository(built_in_dir=tmp_path / "empty", project_dir=project_dir)
@@ -78,7 +78,7 @@ class TestDirectiveRepository:
     def test_save_raises_without_project_dir(
         self, tmp_path: Path, sample_directive_data: dict
     ) -> None:
-        from doctrine.directives.models import Directive
+        from charter.offering.directives.models import Directive
 
 
         repo = DirectiveRepository(built_in_dir=tmp_path / "empty")

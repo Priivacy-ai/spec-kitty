@@ -3,7 +3,7 @@
 Relocated verbatim from ``charter.context`` (single-owner, no-net-growth for
 that file) — the **LAST** cluster of the ``context.py`` decomposition
 (research.md Decision 7, extraction step 13). Covers the process-wide
-cached built-in-only :class:`~doctrine.agent_profiles.AgentProfileRepository`,
+cached built-in-only :class:`~charter.offering.agent_profiles.AgentProfileRepository`,
 the per-repo charter-activation-aware profile map, the ``repo_root``-aware
 resolver that picks between the two, and the FR-009 test hook
 :func:`_reset_agent_profile_cache`.
@@ -34,7 +34,7 @@ import logging
 import re
 from pathlib import Path
 
-from doctrine.agent_profiles import AgentProfile, AgentProfileRepository
+from charter.offering.agent_profiles import AgentProfile, AgentProfileRepository
 
 # ``_reset_agent_profile_cache`` is intentionally *not* exported: after the
 # context.py re-export shim retirement (doctrine-built-in-seam-consolidation WP06)
@@ -111,7 +111,7 @@ def _existing_org_roots(repo_root: Path) -> list[Path]:
     (never charter→specify_cli) so the layer rule holds.
     """
     try:
-        from doctrine.drg.org_pack_config import resolve_org_roots  # noqa: PLC0415
+        from charter.offering.drg.org_pack_config import resolve_org_roots  # noqa: PLC0415
     except ImportError:
         return []
     try:
@@ -205,7 +205,7 @@ def _normalize_directive_id(raw: str) -> str:
 
     If the raw value already looks like DIRECTIVE_NNN, return as-is.
 
-    Kept in lock-step with ``doctrine.drg.migration.id_normalizer.normalize_directive_id``
+    Kept in lock-step with ``charter.offering.drg.migration.id_normalizer.normalize_directive_id``
     (a separate copy for a documented import-cycle reason): the fallback folds
     hyphens to underscores so slug-named hub directives
     (``use-c4-model-techniques`` -> ``USE_C4_MODEL_TECHNIQUES``) resolve to their

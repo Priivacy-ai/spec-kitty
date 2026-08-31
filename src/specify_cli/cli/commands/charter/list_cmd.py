@@ -33,7 +33,7 @@ charter_list_app = typer.Typer(
 )
 
 #: Display order for the charter kinds. Derived from the canonical charter kind
-#: universe (:data:`doctrine.artifact_kinds.CHARTER_KIND_TOKENS`, WP01) so this
+#: universe (:data:`charter.offering.artifact_kinds.CHARTER_KIND_TOKENS`, WP01) so this
 #: surface never re-declares the kind set (R-009 / CC-4). The ``template`` kind
 #: (FR-025) is *not* in ``CHARTER_KIND_TOKENS`` — it is resolved specially
 #: (mission-qualified IDs, WP18) and appended to the ``--all`` listing below.

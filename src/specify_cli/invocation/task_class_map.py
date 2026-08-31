@@ -3,11 +3,11 @@
 The governed dispatch seam (``ProfileInvocationExecutor.invoke()``)
 resolves a single canonical action verb per invocation -- drawn from
 ``DEFAULT_ROLE_CAPABILITIES[role].canonical_verbs``
-(``doctrine.agent_profiles.capabilities``) via
+(``charter.offering.agent_profiles.capabilities``) via
 ``_derive_action_from_request`` / ``ActionRouter``. This module is the
 one explicit, maintained bridge from that verb namespace to the
 ``model-to-task_type`` catalog's ``task_type`` vocabulary
-(``doctrine.model_task_routing.models.TASK_TYPE_PATTERN``).
+(``charter.offering.model_task_routing.models.TASK_TYPE_PATTERN``).
 
 Design note -- flat verb map, not a (role, verb) pair: a few verbs are
 shared across roles (e.g. ``"audit"`` for both reviewer and architect,

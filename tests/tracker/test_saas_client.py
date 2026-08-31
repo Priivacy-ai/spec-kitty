@@ -425,6 +425,31 @@ class TestPush:
 
         assert actual_key == expected_key
 
+    def test_project_root_is_resolved_so_a_relative_root_is_not_cwd_dependent(
+        self,
+        mock_credential_store: MagicMock,
+        mock_sync_config: MagicMock,
+        tmp_path: Path,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        """A relative ``project_root`` must resolve to the same absolute path
+        (and therefore the same idempotency digest) regardless of which
+        directory the process happened to be run from (#314): storing the
+        raw ``Path(project_root)`` made ``_content_digest`` cwd-dependent."""
+        project_dir = tmp_path / "proj"
+        project_dir.mkdir()
+        monkeypatch.chdir(tmp_path)
+
+        client = SaaSTrackerClient(
+            credential_store=mock_credential_store,
+            sync_config=mock_sync_config,
+            timeout=5.0,
+            project_root=Path("proj"),
+        )
+
+        assert client._project_root == project_dir.resolve()
+        assert client._project_root.is_absolute()
+
     @patch("specify_cli.tracker.saas_client.httpx.Client")
     def test_push_idempotency_key_changes_with_payload(self, mock_cls: MagicMock, client: SaaSTrackerClient) -> None:
         mock_http = MagicMock()

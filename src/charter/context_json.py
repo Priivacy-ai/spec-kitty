@@ -27,7 +27,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Protocol
 
 if TYPE_CHECKING:
-    import doctrine.service as _doctrine_service_module
+    import charter.offering.service as _doctrine_service_module
 
 from ruamel.yaml.error import YAMLError
 
