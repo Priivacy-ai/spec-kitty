@@ -28,7 +28,7 @@ from pathlib import Path
 
 _PROJECT_ROOT_CANDIDATES: tuple[str, ...] = (
     ".kittify/doctrine",   # NEW — Phase 3 synthesis target (FR-009)
-    "src/doctrine",        # existing — code-local built-in-layer path
+    "src/charter/offering",  # relocated code-local built-in-layer path
     "doctrine",            # existing — flat built-in-layer fallback
 )
 

@@ -152,7 +152,7 @@ Rel(taskSystem, emailSystem, "Sends emails via")
 ## Theming
 
 Spec Kitty provides three PlantUML themes in
-`src/doctrine/templates/diagrams/plantuml/themes/`:
+`src/charter/offering/templates/diagrams/plantuml/themes/`:
 
 | Theme | Use Case |
 |---|---|
@@ -218,7 +218,7 @@ plantuml diagram.puml
 plantuml -tsvg diagram.puml
 
 # Render all .puml files in a directory
-plantuml -tsvg "src/doctrine/templates/diagrams/plantuml/examples/*.puml"
+plantuml -tsvg "src/charter/offering/templates/diagrams/plantuml/examples/*.puml"
 
 # Watch mode
 plantuml -gui diagram.puml
@@ -285,7 +285,7 @@ diagrams: $(PUML_SVG)
 ## Template Library
 
 Spec Kitty ships ready-to-copy PlantUML templates in
-`src/doctrine/templates/diagrams/plantuml/examples/`:
+`src/charter/offering/templates/diagrams/plantuml/examples/`:
 
 - `causal-map-plantuml-template.md`
 - `content-map-plantuml-template.md`

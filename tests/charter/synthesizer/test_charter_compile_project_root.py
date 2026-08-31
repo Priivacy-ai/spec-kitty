@@ -104,7 +104,7 @@ class TestResolveProjectRoot:
     def test_candidate_order_is_kittify_src_flat(self) -> None:
         """_PROJECT_ROOT_CANDIDATES tuple has the expected order."""
         assert _PROJECT_ROOT_CANDIDATES[0] == ".kittify/doctrine"
-        assert _PROJECT_ROOT_CANDIDATES[1] == "src/doctrine"
+        assert _PROJECT_ROOT_CANDIDATES[1] == "src/charter/offering"
         assert _PROJECT_ROOT_CANDIDATES[2] == "doctrine"
 
 
