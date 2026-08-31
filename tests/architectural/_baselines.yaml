@@ -153,7 +153,7 @@ test_no_dead_modules:
   # dossier.drift_detector, migration.envelope_seam) were each adjudicated
   # PRUNE and deleted outright -- none had a viable low-risk wiring target
   # after the sync transport's removal (issue #5). TODO(triage) notes burned.
-  category_7_grandfathered_orphans: 2
+  category_7_grandfathered_orphans: 4  # justification: M2b (#806) exposes charter.parser and charter.activation.template_resolver as lazy-facade-only modules; wire-or-prune follow-up is #925.
 
 # tests/architectural/test_migration_chain_integrity.py
 test_migration_chain_integrity:
