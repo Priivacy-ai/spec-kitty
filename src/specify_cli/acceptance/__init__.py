@@ -16,7 +16,7 @@ from specify_cli.core.agent_config import get_auto_commit_default
 from specify_cli.core.paths import load_meta_fail_closed, read_target_branch_from_meta
 from specify_cli.decisions.models import DecisionStatus
 from specify_cli.decisions.store import load_index
-from specify_cli.mission import MissionError, get_mission_for_feature
+from specify_cli.mission import Mission, MissionError, get_mission_for_feature
 from specify_cli.mission_metadata import record_acceptance, resolve_mission_identity, write_meta
 from specify_cli.status import CanonicalStatusNotFoundError
 from specify_cli.status import EVENTS_FILENAME, SNAPSHOT_FILENAME, StoreError
@@ -32,6 +32,7 @@ from specify_cli.task_utils import (
 from specify_cli.task_utils.support import TaskCliError
 from specify_cli.runtime.resolver import resolve_configured_artifact_name
 from specify_cli.upgrade.pre30_guard import check_pre30_layout
+from specify_cli.validators.paths import _normalize_path_token
 
 # WP04 (coord-authority-trio-degod-01KX7094) split: pure lane-gate/workflow-evidence
 # checks live in ``gates_core`` (T022), pure WP-summary/path-convention helpers live
@@ -679,14 +680,41 @@ def _iter_clarification_decision_ids(text: str) -> Iterable[str]:
             yield decision_id_text.split(maxsplit=1)[0]
 
 
-def _missing_artifacts(feature_dir: Path) -> tuple[list[str], list[str]]:
+# Fallback optional-artifact tokens used when a mission is absent or its config
+# carries no ``artifacts`` block (#3785). This mirrors the historical hardcoded
+# list; it deliberately omits software-dev's ``checklists/`` — the mission's own
+# ``artifacts.optional`` declaration is the SSOT when available (FR-006).
+_FALLBACK_OPTIONAL_ARTIFACTS: tuple[str, ...] = (
+    QUICKSTART_FILE,
+    DATA_MODEL_FILE,
+    RESEARCH_FILE,
+    "contracts",
+)
+
+
+def _optional_artifact_tokens(mission: Mission | None) -> list[str]:
+    """Optional-artifact tokens for a mission (#3785, FR-006).
+
+    Prefers the mission's declared ``artifacts.optional`` (via the null-safe
+    :meth:`Mission.get_optional_artifacts`) so the set stays the single source of
+    truth — including software-dev's ``checklists/``. Falls back to
+    :data:`_FALLBACK_OPTIONAL_ARTIFACTS` when there is no mission (``MissionError``)
+    OR the mission config has no ``artifacts`` attribute. The ``getattr`` guard is
+    load-bearing (C-009): the #3783 regression injects an artifacts-less
+    ``SimpleNamespace`` config, on which ``get_optional_artifacts()`` would raise
+    ``AttributeError`` (paths.py:160 uses the same guard).
+    """
+    if mission is not None and getattr(mission.config, "artifacts", None) is not None:
+        return list(mission.get_optional_artifacts())
+    return list(_FALLBACK_OPTIONAL_ARTIFACTS)
+
+
+def _missing_artifacts(feature_dir: Path, mission: Mission | None) -> tuple[list[str], list[str]]:
     required = [feature_dir / _spec_file(), feature_dir / _plan_file(), feature_dir / _tasks_file()]
-    optional = [
-        feature_dir / QUICKSTART_FILE,
-        feature_dir / DATA_MODEL_FILE,
-        feature_dir / RESEARCH_FILE,
-        feature_dir / "contracts",
-    ]
+    # ``Path`` normalizes trailing slashes, so a ``contracts/`` token maps to the
+    # same relative string ``contracts`` the ``_normalize_path_token`` dedup expects
+    # (C-003: severity for ``contracts/`` is decided downstream, unchanged here).
+    optional = [feature_dir / token for token in _optional_artifact_tokens(mission)]
     missing_required = [str(p.relative_to(feature_dir)) for p in required if not p.exists()]
     missing_optional = [str(p.relative_to(feature_dir)) for p in optional if not p.exists()]
     return missing_required, missing_optional
@@ -1174,14 +1202,27 @@ def collect_feature_summary(
             planning_read_dir / "data-model.md",
         ]
     )
-    missing_required, missing_optional = _missing_artifacts(planning_read_dir)
-
     try:
         mission = get_mission_for_feature(feature_dir)
     except MissionError:
         mission = None
 
-    path_violations, path_convention_warning = evaluate_path_conventions(mission, repo_root, feature_dir, planning_read_dir, strict_metadata=strict_metadata)
+    # #3785 T012: the mission is fetched BEFORE _missing_artifacts so the optional
+    # set is derived from the mission's declared artifacts.optional (SSOT, FR-006)
+    # instead of a drifted hardcoded list. Nothing between depended on the old order.
+    missing_required, missing_optional = _missing_artifacts(planning_read_dir, mission)
+
+    path_violations, path_convention_warning, dedup_tokens = evaluate_path_conventions(
+        mission,
+        repo_root,
+        feature_dir,
+        planning_read_dir,
+        strict_metadata=strict_metadata,
+    )
+    if dedup_tokens:
+        # FR-002: apply the dedup query result explicitly — evaluate_path_conventions
+        # is a pure query and never mutates our list itself (summary_core.py).
+        missing_optional = [entry for entry in missing_optional if _normalize_path_token(entry) not in dedup_tokens]
 
     warnings = build_warnings(
         missing_optional=missing_optional,

@@ -20,10 +20,11 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
+from specify_cli.config.path_conventions import load_project_path_conventions
 from specify_cli.mission import get_deliverables_path
 from specify_cli.status_lanes import has_operator_provenance, is_acceptable_ending
 from specify_cli.task_utils import WorkPackage
-from specify_cli.validators.paths import validate_mission_paths
+from specify_cli.validators.paths import _normalize_path_token, artifact_tokens_for_mission, validate_mission_paths
 
 from .gates_core import AcceptanceCheckDiagnostic
 
@@ -147,8 +148,8 @@ def evaluate_path_conventions(
     planning_read_dir: Path,
     *,
     strict_metadata: bool,
-) -> tuple[list[str], str | None]:
-    """Evaluate mission path conventions; returns (path_violations, warning).
+) -> tuple[list[str], str | None, frozenset[str]]:
+    """Evaluate mission path conventions; returns violations, warning, and dedup tokens.
 
     Mission path conventions block acceptance by default, but under
     ``--lenient`` (``strict_metadata=False``) they are advisory: surfaced as a
@@ -161,7 +162,7 @@ def evaluate_path_conventions(
     no-op: ``([], None)``.
     """
     if not (mission and mission.config.paths):
-        return [], None
+        return [], None, frozenset()
 
     # Mission-artifact paths (e.g. ``contracts/``) live on the PRIMARY mission
     # surface, not the repo root — resolve them via the canonical
@@ -173,12 +174,15 @@ def evaluate_path_conventions(
         strict=False,
         path_prefix=_path_prefix_for_mission(mission, feature_dir),
         feature_dir=planning_read_dir,
+        path_overrides=load_project_path_conventions(repo_root),
     )
     if not path_result.missing_paths:
-        return [], None
+        return [], None, frozenset()
     if strict_metadata:
-        return [path_result.format_errors() or _PATH_CONVENTIONS_NOT_SATISFIED], None
-    return [], path_result.format_warnings() or _PATH_CONVENTIONS_NOT_SATISFIED
+        artifact_tokens = artifact_tokens_for_mission(mission)
+        dedup_tokens = frozenset(_normalize_path_token(token) for token in path_result.missing_artifact_tokens if _normalize_path_token(token) in artifact_tokens)
+        return [path_result.format_errors() or _PATH_CONVENTIONS_NOT_SATISFIED], None, dedup_tokens
+    return [], path_result.format_warnings() or _PATH_CONVENTIONS_NOT_SATISFIED, frozenset()
 
 
 def build_warnings(
