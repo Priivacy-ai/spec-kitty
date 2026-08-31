@@ -1,0 +1,51 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://spec-kitty.ai/contracts/lane-dependency-cycle.schema.json",
+  "title": "Lane Dependency Cycle Error",
+  "description": "Structured terminal error emitted when mission finalization rejects a cyclic post-collapse execution-lane graph.",
+  "type": "object",
+  "additionalProperties": true,
+  "required": ["error_code", "error", "cycle_path", "cycle_lanes"],
+  "properties": {
+    "error_code": {
+      "const": "LANE_DEPENDENCY_CYCLE"
+    },
+    "error": {
+      "type": "string",
+      "minLength": 1
+    },
+    "cycle_path": {
+      "type": "array",
+      "minItems": 2,
+      "items": {
+        "type": "string",
+        "minLength": 1
+      },
+      "description": "A normalized closed directed path; the first element is repeated at the end."
+    },
+    "cycle_lanes": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["lane_id", "wp_ids"],
+        "properties": {
+          "lane_id": {
+            "type": "string",
+            "minLength": 1
+          },
+          "wp_ids": {
+            "type": "array",
+            "minItems": 1,
+            "items": {
+              "type": "string",
+              "minLength": 1
+            }
+          }
+        }
+      },
+      "description": "Unique cycle lanes in first-path-appearance order; each wp_ids array is lexically sorted."
+    }
+  }
+}

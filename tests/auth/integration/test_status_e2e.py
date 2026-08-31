@@ -107,7 +107,8 @@ class TestStatusE2E:
         self,
         fake_storage: FakeSecureStorage,
     ) -> None:
-        """A session whose refresh token has expired prompts re-login."""
+        """A session whose refresh token has expired reads as the honest
+        ``Not authenticated`` verdict (evidence-named) and prompts re-login (#3723)."""
         now = now_utc()
         session = _authenticated_session()
         # Force refresh expiry into the past.
@@ -121,7 +122,9 @@ class TestStatusE2E:
             result = runner.invoke(app, ["status"])
 
         assert result.exit_code == 0, result.stdout
-        assert "Session expired" in result.stdout
+        assert "Not authenticated" in result.stdout
+        assert "expired" in result.stdout
+        assert "spec-kitty auth login" in result.stdout
 
     def test_status_device_code_method_label(
         self,

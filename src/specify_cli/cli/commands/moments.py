@@ -1,5 +1,5 @@
 """``spec-kitty moments`` — the one-line switch for what reaches agent
-context (EXPERIMENTAL-spec-kitty#190, "Moments in agent context").
+context (Priivacy-ai/spec-kitty#190, "Moments in agent context").
 
 Three subcommands, each one line of output, over
 ``zeitgeist_client.moments``' settings — never a second config reader or a
@@ -18,6 +18,16 @@ only". Precedence (repo beats global beats default) lives in
 :func:`zeitgeist_client.moments.load_settings` — after any write this module
 re-reads and prints the *effective* mode, because with both files in play
 the file just written is not always the one that decides.
+
+A ``[moments] kinds`` entry MUST spell a volatile family name off the real
+wire (``WPStatusChanged``, ``MissionCreated``, ``PhaseEntered``, … — the full
+list is :data:`zeitgeist_client.moments.KNOWN_KIND_NAMES`), never the dotted
+style Priivacy-ai/spec-kitty#190's own text used (``wp.move``,
+``mission.created``): a dotted or otherwise unknown entry is valid TOML, so
+it is never reported alongside a malformed filter, but it can never match a
+frame's ``kind`` and so silently surfaces zero moments
+(Priivacy-ai/spec-kitty#210). ``status`` warns on exactly that entry instead
+of staying silent about it.
 """
 
 from __future__ import annotations
@@ -94,6 +104,14 @@ def status(as_json: bool = _JSON_OPTION) -> None:
             values = getattr(settings, name)
             rendered = ", ".join(values) if values else "(no filter)"
         console.print(f"  {name}: {rendered}", markup=False)
+        if name == "kinds" and name not in settings.invalid_filters:
+            unknown = moments.unknown_kind_names(settings.kinds)
+            if unknown:
+                known = ", ".join(sorted(moments.KNOWN_KIND_NAMES))
+                console.print(
+                    f"    warning: {', '.join(unknown)} — not a known event-kind name, will never match, so this filter admits nothing; known names: {known}",
+                    markup=False,
+                )
     console.print(f"  rate_per_minute: {settings.rate_per_minute}", markup=False)
     if settings.agents is moments.MomentsMode.OFF:
         console.print("  `spec-kitty zeitgeist mcp-serve` refuses to start while agents = off.")

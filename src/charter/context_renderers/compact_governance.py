@@ -35,7 +35,7 @@ if TYPE_CHECKING:
     from pathlib import Path
 
     from charter.context import _ActionDoctrineBundle
-    from doctrine.agent_profiles import AgentProfile
+    from charter.offering.agent_profiles import AgentProfile
 
 __all__ = [
     "_compact_section_block",

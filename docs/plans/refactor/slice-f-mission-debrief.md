@@ -64,7 +64,7 @@ Land Issue #1111 Slice F (3 architectural axes: three-layer DRG resolution per #
 ### Closing artifacts
 
 - `tests/integration/test_slice_f_cross_axis.py` — 3 cross-cutting integration tests exercising all 3 axes together with a shared `tmp_complex_setup` fixture
-- `docs/context/doctrine.md` — 10 Slice F terms promoted from `candidate` → `canonical` (C-010)
+- `docs/context/charter.md` — 10 Slice F terms promoted from `candidate` → `canonical` (C-010)
 - `.kittify/charter/charter.md` amendments:
   - Burn-down policy: per-category allowlist sizes may shrink between releases but never grow except via documented exception; Cat-7 MUST shrink ≥2 entries per major release with target 0 by 4.0; pure-shim files target 0 by 4.0
   - `__all__` convention: required on modules under `src/charter/` + `src/kernel/` (enforced by `test_no_dead_symbols.py`)
@@ -164,7 +164,7 @@ Both `category_c_wp_in_flight_charter_scope` (was 4) and `category_5_wp_in_fligh
 
 ### MEDIUM-3 — CharterScope glossary definition drift
 
-**Finding:** `docs/context/doctrine.md` lines 374-380 described the Mission B selection-layer concept, not the Slice F monorepo path-resolution dataclass.
+**Finding:** `docs/context/charter.md` lines 374-380 described the Mission B selection-layer concept, not the Slice F monorepo path-resolution dataclass.
 
 **Fix:** Rewrote the CharterScope entry to describe `CharterScope.default()` and `CharterScope.resolve()`, reference ADR-8, and link to the correct related terms. `test_canonical_promotion.py` still passes (Status: canonical unchanged).
 

@@ -14,6 +14,7 @@ The fix:
 
 from __future__ import annotations
 
+import os
 import re
 from pathlib import Path
 
@@ -95,6 +96,11 @@ def remove_blocking_entries(gitignore_path: Path, dry_run: bool = False) -> tupl
     changes: list[str] = []
     errors: list[str] = []
 
+    if gitignore_path.is_symlink():
+        target = os.readlink(gitignore_path)
+        errors.append(f".gitignore is a symlink to {target!r}; refusing to follow it")
+        return changes, errors
+
     if not gitignore_path.exists():
         changes.append("No .gitignore file found")
         return changes, errors
@@ -165,6 +171,10 @@ class RemoveKittySpecsFromGitignoreMigration(BaseMigration):
     def can_apply(self, project_path: Path) -> tuple[bool, str]:
         """Check if we can modify .gitignore."""
         gitignore_path = project_path / ".gitignore"
+
+        if gitignore_path.is_symlink():
+            target = os.readlink(gitignore_path)
+            return False, f".gitignore is a symlink to {target!r}; refusing to follow it"
 
         if not gitignore_path.exists():
             return True, ""

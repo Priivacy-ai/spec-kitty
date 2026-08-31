@@ -1,4 +1,4 @@
-"""Tests for doctrine.drg.migration.extractor.
+"""Tests for charter.offering.drg.migration.extractor.
 
 Includes:
 - T012/T013 unit tests against real shipped doctrine
@@ -16,9 +16,9 @@ from typing import Any
 import pytest
 from ruamel.yaml import YAML
 
-from doctrine.drg.loader import built_in_graph_source
-from doctrine.drg.migration.calibrator import measure_surface
-from doctrine.drg.migration.extractor import (
+from charter.offering.drg.loader import built_in_graph_source
+from charter.offering.drg.migration.calibrator import measure_surface
+from charter.offering.drg.migration.extractor import (
     _AGENT_PROFILE_IMPLEMENTER_IVAN,
     _CURATED_ARTIFACT_EDGES,
     _SKIP_REF_TYPES,
@@ -29,16 +29,16 @@ from doctrine.drg.migration.extractor import (
     extract_mission_type_edges,
     generate_graph,
 )
-from doctrine.drg.migration.hand_authored_overlay import write_reference_graph_with_overlay
-from doctrine.drg.models import DRGEdge, DRGGraph, DRGNode, NodeKind, Relation
-from doctrine.drg.query import resolve_context
-from doctrine.drg.validator import validate_graph
-from doctrine.missions.mission_type_repository import MissionTypeRepository
+from charter.offering.drg.migration.hand_authored_overlay import write_reference_graph_with_overlay
+from charter.offering.drg.models import DRGEdge, DRGGraph, DRGNode, NodeKind, Relation
+from charter.offering.drg.query import resolve_context
+from charter.offering.drg.validator import validate_graph
+from charter.offering.missions.mission_type_repository import MissionTypeRepository
 
 # Path to the shipped doctrine root inside the repo.
 
 pytestmark = [pytest.mark.doctrine, pytest.mark.fast, pytest.mark.corpus]
-DOCTRINE_ROOT: Path = Path(__file__).resolve().parents[4] / "src" / "doctrine"
+DOCTRINE_ROOT: Path = Path(__file__).resolve().parents[4] / "src" / "charter" / "offering"
 
 _yaml = YAML(typ="safe")
 
@@ -500,7 +500,7 @@ class TestGenerateGraph:
 
         Post-WP03 (doctrine-tension-edges-01KY1WPC): the reference is "pure
         extraction + the enumerable hand-authored overlay"
-        (``doctrine.drg.migration.hand_authored_overlay``), not a bare
+        (``charter.offering.drg.migration.hand_authored_overlay``), not a bare
         extractor regeneration — the extractor has no frontmatter mechanism
         that could ever mint the hand-authored tension/reconciliation/rejection
         edges or anti-pattern nodes, so a bare regeneration would never match

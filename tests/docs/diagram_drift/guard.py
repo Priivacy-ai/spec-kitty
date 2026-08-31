@@ -24,7 +24,7 @@ from typing import Any, cast
 from pydantic import BaseModel
 from ruamel.yaml import YAML
 
-from doctrine.artifact_kinds import ArtifactKind
+from charter.offering.artifact_kinds import ArtifactKind
 
 from .binding_table import (
     ARTIFACT_KIND_DISPOSITIONS,

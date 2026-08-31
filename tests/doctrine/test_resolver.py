@@ -8,9 +8,9 @@ from types import SimpleNamespace
 
 import pytest
 
-import doctrine.missions as missions_module
-import doctrine.resolver as resolver_module
-from doctrine.resolver import (
+import charter.offering.missions as missions_module
+import charter.offering.resolver as resolver_module
+from charter.offering.resolver import (
     ResolutionTier,
     _resolve_asset,
     _warn_legacy_asset,
@@ -555,7 +555,7 @@ def test_resolution_tier_org_member_exists() -> None:
 
 def test_charter_resolution_tier_is_doctrine_resolution_tier_by_identity() -> None:
     """``charter.resolution.ResolutionTier`` is the *same class object* as
-    ``doctrine.resolver.ResolutionTier`` (a pure re-export), not a parallel
+    ``charter.offering.resolver.ResolutionTier`` (a pure re-export), not a parallel
     declaration with matching member values. Value equality (``==``) would
     pass even for two distinct enum classes with identically-named/valued
     members, which is not what the re-export contract guarantees -- so this
@@ -568,9 +568,9 @@ def test_charter_resolution_tier_is_doctrine_resolution_tier_by_identity() -> No
 
 
 # ---------------------------------------------------------------------------
-# WP03 (FR-003, FR-005) – org tier in doctrine.resolver's _resolve_asset and
+# WP03 (FR-003, FR-005) – org tier in charter.offering.resolver's _resolve_asset and
 # resolve_mission. Slots between LEGACY and GLOBAL_MISSION, sourced from
-# doctrine.drg.org_pack_config.resolve_org_roots via a same-layer direct
+# charter.offering.drg.org_pack_config.resolve_org_roots via a same-layer direct
 # import (DEC-003 -- no facade needed inside the doctrine layer itself).
 # ---------------------------------------------------------------------------
 
@@ -793,6 +793,6 @@ def test_declared_but_broken_org_pack_still_warns_in_doctrine_resolver(
         result = resolve_template("spec-template.md", project, mission="software-dev")
 
     assert len(caught) == 1  # golden-count: cardinality-is-contract
-    assert "Invalid doctrine.org config" in str(caught[0].message)
+    assert "Invalid org-pack config" in str(caught[0].message)
     # Fails soft to zero org roots -- resolution still proceeds.
     assert result.tier.name == ResolutionTier.PACKAGE_DEFAULT.name

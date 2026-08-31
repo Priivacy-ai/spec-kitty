@@ -5,7 +5,7 @@ T001: ``NodeKind.MISSION_TYPE`` validates a ``mission_type:<id>`` URN and
 rejects a mismatched kind/prefix pairing.
 
 T002: ``generate_graph`` discovers exactly one ``mission_type`` node per
-shipped ``src/doctrine/missions/mission_types/*.yaml`` file, labelled with
+shipped ``src/charter/offering/missions/mission_types/*.yaml`` file, labelled with
 that file's ``display_name``.
 
 Each ``mission_type`` node now emits one ``requires`` edge per step in its
@@ -23,15 +23,15 @@ import pytest
 from pydantic import ValidationError
 from ruamel.yaml import YAML
 
-from doctrine.drg.migration.extractor import generate_graph
-from doctrine.drg.models import DRGNode, NodeKind, Relation
-from doctrine.missions.mission_type_repository import MissionTypeRepository
+from charter.offering.drg.migration.extractor import generate_graph
+from charter.offering.drg.models import DRGNode, NodeKind, Relation
+from charter.offering.missions.mission_type_repository import MissionTypeRepository
 
 pytestmark = [pytest.mark.doctrine, pytest.mark.fast, pytest.mark.corpus]
 
-DOCTRINE_ROOT: Path = Path(__file__).resolve().parents[3] / "src" / "doctrine"
+DOCTRINE_ROOT: Path = Path(__file__).resolve().parents[3] / "src" / "charter" / "offering"
 # Mission doctrine-consumer-surface-missions-extraction-01KZ6G6H (FR-005)
-# relocated mission_types/ from src/doctrine/missions/mission_types to
+# relocated mission_types/ from src/charter/offering/missions/mission_types to
 # packs/built-in/missions/mission_types. DOCTRINE_ROOT itself is unchanged
 # (still src/doctrine) and stays correct for generate_graph() below, which
 # internally repoints through _missions_root()'s own FR-005 fix.

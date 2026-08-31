@@ -11,7 +11,7 @@ from ruamel.yaml.error import YAMLError
 from charter.bundle import CHARTER_YAML
 from charter.charter_yaml_io import load_charter_yaml
 from charter.interview import read_interview_answers
-from doctrine.shared.scoping import normalize_languages
+from charter.offering.shared.scoping import normalize_languages
 
 if TYPE_CHECKING:
     from charter.interview import CharterInterview
@@ -134,7 +134,7 @@ def infer_repo_languages(
          to ``None``, distinct from an empty list.
 
     The ``None`` vs. ``[]`` distinction is load-bearing for callers, not
-    cosmetic: ``doctrine.shared.scoping.applies_to_languages_match`` treats
+    cosmetic: ``charter.offering.shared.scoping.applies_to_languages_match`` treats
     ``active_languages=None`` as "admit every scoped artifact" and an
     explicitly empty active set as "admit none". #3292's root cause was
     ``charter.compiler.compile_charter`` independently re-scanning the

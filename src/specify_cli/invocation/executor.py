@@ -71,7 +71,7 @@ def _compute_recommendation(profile: AgentProfile, action: str) -> RoutingRecomm
     """
     # Function-local charter-door imports keep model-routing lazy (no import-time
     # cost when routing is unused). The charter facade fronts
-    # doctrine.model_task_routing at symbol level (FR-004): import the callables
+    # charter.offering.model_task_routing at symbol level (FR-004): import the callables
     # directly rather than the whole module.
     from charter.model_routing import evaluate, load
 

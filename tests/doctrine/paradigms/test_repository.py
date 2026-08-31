@@ -5,7 +5,7 @@ from pathlib import Path
 import pytest
 from ruamel.yaml import YAML
 
-from doctrine.paradigms.repository import ParadigmRepository
+from charter.offering.paradigms.repository import ParadigmRepository
 pytestmark = [pytest.mark.fast, pytest.mark.doctrine]
 
 
@@ -46,7 +46,7 @@ class TestParadigmRepository:
         assert repo.list_all() == []
 
     def test_save_writes_valid_yaml(self, tmp_path: Path, sample_paradigm_data: dict) -> None:
-        from doctrine.paradigms.models import Paradigm
+        from charter.offering.paradigms.models import Paradigm
 
         project_dir = tmp_path / "project"
         repo = ParadigmRepository(built_in_dir=tmp_path / "empty", project_dir=project_dir)
@@ -62,7 +62,7 @@ class TestParadigmRepository:
         assert data["id"] == "test-first"
 
     def test_save_raises_without_project_dir(self, tmp_path: Path, sample_paradigm_data: dict) -> None:
-        from doctrine.paradigms.models import Paradigm
+        from charter.offering.paradigms.models import Paradigm
 
 
         repo = ParadigmRepository(built_in_dir=tmp_path / "empty")

@@ -22,7 +22,7 @@ from __future__ import annotations
 
 import pytest
 
-from doctrine.model_task_routing.loader import default_catalog_path, load
+from charter.offering.model_task_routing.loader import default_catalog_path, load
 from specify_cli.invocation.task_class_map import known_verbs, task_type_for_verb
 
 pytestmark = [pytest.mark.doctrine, pytest.mark.fast]
@@ -66,6 +66,6 @@ def test_task_class_map_task_types_are_subset_of_shipped_catalog() -> None:
         "task_class_map emits task_type(s) with no shipped catalog "
         f"task_fit coverage: {sorted(missing)}. Add task_fit entries for "
         "these task_types to "
-        "src/doctrine/model_task_routing/catalog/model-to-task_type.yaml, "
+        "src/charter/offering/model_task_routing/catalog/model-to-task_type.yaml, "
         "or remove the verb mapping from task_class_map.py."
     )

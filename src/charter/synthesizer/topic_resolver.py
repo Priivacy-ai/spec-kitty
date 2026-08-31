@@ -33,7 +33,7 @@ from .request import SynthesisTarget
 
 _SYNTHESIZABLE_KINDS: frozenset[str] = frozenset({"directive", "tactic", "styleguide"})
 
-# DRG node kinds (superset, from doctrine.drg.models.NodeKind)
+# DRG node kinds (superset, from charter.offering.drg.models.NodeKind)
 _DRG_NODE_KINDS: frozenset[str] = frozenset({
     "directive",
     "tactic",

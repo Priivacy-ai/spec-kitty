@@ -1,0 +1,179 @@
+name: CI Quality
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: ci-quality-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  lint:
+    name: Lint
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      GH_TOKEN: ${{ secrets.SK_CI_TOKEN }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v5
+        with:
+          python-version: '3.12'
+      - name: Configure private git dependencies
+        run: git config --global "url.https://x-access-token:${GH_TOKEN}@github.com/.insteadOf" "https://github.com/"
+      - name: Install dependencies
+        run: uv sync --frozen --all-extras
+      - name: Run ruff checks
+        run: |
+          uv run ruff check .
+          uv run ruff format --check .
+
+  build-wheel:
+    name: Build wheel
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v5
+        with:
+          python-version: '3.12'
+      - name: Build wheel
+        run: |
+          uv build --wheel
+          ls -la dist/
+      - name: Upload wheel
+        uses: actions/upload-artifact@v4
+        with:
+          name: spec-kitty-cli-wheel
+          path: dist/spec_kitty_cli-*.whl
+          retention-days: 7
+
+  clean-install-verification:
+    name: Clean install verification
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    needs: [build-wheel]
+    env:
+      GH_TOKEN: ${{ secrets.SK_CI_TOKEN }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+      - name: Download CLI wheel
+        uses: actions/download-artifact@v4
+        with:
+          name: spec-kitty-cli-wheel
+          path: dist/
+      - name: Configure private git dependencies
+        run: |
+          if [ -z "$GH_TOKEN" ]; then
+            echo "::error::SK_CI_TOKEN is required to install the pinned private git dependencies."
+            exit 1
+          fi
+          git config --global "url.https://x-access-token:${GH_TOKEN}@github.com/.insteadOf" "https://github.com/"
+      - name: Create clean venv
+        run: |
+          python -m venv "$RUNNER_TEMP/clean-venv"
+          "$RUNNER_TEMP/clean-venv/bin/pip" install --upgrade pip
+      - name: Install CLI from wheel
+        run: |
+          "$RUNNER_TEMP/clean-venv/bin/pip" install dist/spec_kitty_cli-*.whl
+          "$RUNNER_TEMP/clean-venv/bin/pip" list
+      - name: Assert spec-kitty-runtime is not installed
+        run: |
+          if "$RUNNER_TEMP/clean-venv/bin/pip" show spec-kitty-runtime >/dev/null 2>&1; then
+            echo "::error::spec-kitty-runtime is installed; the clean-install contract regressed."
+            exit 1
+          fi
+      - name: Assert no runtime import side effect
+        run: |
+          "$RUNNER_TEMP/clean-venv/bin/python" -c "
+          import sys
+          import specify_cli
+          leaked = [name for name in sys.modules if 'spec_kitty_runtime' in name]
+          assert not leaked, f'spec_kitty_runtime imported: {leaked}'
+          "
+      - name: Run spec-kitty next against fixture mission
+        run: |
+          cp -r tests/fixtures/clean_install_fixture_mission "$RUNNER_TEMP/fixture"
+          cd "$RUNNER_TEMP/fixture"
+          git init -q
+          git -c user.email=ci@test -c user.name=ci add -A
+          git -c user.email=ci@test -c user.name=ci commit -q -m "fixture mission"
+          "$RUNNER_TEMP/clean-venv/bin/spec-kitty" next \
+            --agent claude \
+            --mission clean-install-fixture-01KQ22XX \
+            --json | tee "$RUNNER_TEMP/next.json"
+          "$RUNNER_TEMP/clean-venv/bin/python" -c "
+          import json
+          import pathlib
+          payload = json.loads(pathlib.Path('$RUNNER_TEMP/next.json').read_text())
+          assert isinstance(payload, dict), payload
+          "
+
+  uv-lock-check:
+    name: uv lock --check
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    env:
+      GH_TOKEN: ${{ secrets.SK_CI_TOKEN }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v5
+        with:
+          python-version: '3.12'
+      - name: Configure private git dependencies
+        run: |
+          if [ -z "$GH_TOKEN" ]; then
+            echo "::error::SK_CI_TOKEN is required to resolve the pinned private git dependencies."
+            exit 1
+          fi
+          git config --global "url.https://x-access-token:${GH_TOKEN}@github.com/.insteadOf" "https://github.com/"
+      - name: Assert uv.lock is up to date
+        run: uv lock --check
+
+  quality-gate:
+    name: Quality gate
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    needs:
+      - lint
+      - build-wheel
+      - clean-install-verification
+      - uv-lock-check
+    if: ${{ always() && !cancelled() }}
+    steps:
+      - name: Evaluate quality-gate decision
+        shell: bash
+        env:
+          NEEDS_JSON: ${{ toJSON(needs) }}
+        run: |
+          python3 - <<'PY'
+          import json
+          import os
+
+          needs = json.loads(os.environ["NEEDS_JSON"])
+          expected = {
+              "lint",
+              "build-wheel",
+              "clean-install-verification",
+              "uv-lock-check",
+          }
+          if set(needs) != expected:
+              raise SystemExit(f"quality-gate needs changed: {sorted(needs)}")
+          failed = {
+              job: result.get("result")
+              for job, result in needs.items()
+              if result.get("result") != "success"
+          }
+          if failed:
+              raise SystemExit(f"blocking job(s) did not succeed: {failed}")
+          PY

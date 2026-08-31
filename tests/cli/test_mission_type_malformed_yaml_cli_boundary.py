@@ -40,7 +40,7 @@ from pathlib import Path
 import pytest
 from typer.testing import CliRunner
 
-from doctrine.missions.mission_type_repository import MissionTypeRepository
+from charter.offering.missions.mission_type_repository import MissionTypeRepository
 from specify_cli.cli.commands.charter import charter_app
 from specify_cli.cli.commands.doctrine import app as doctrine_app
 from specify_cli.cli.commands.mission_type import app as mission_type_app

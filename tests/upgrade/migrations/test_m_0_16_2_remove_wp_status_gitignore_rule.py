@@ -17,6 +17,7 @@ from specify_cli.upgrade.migrations.m_0_16_2_remove_wp_status_gitignore_rule imp
 
 pytestmark = pytest.mark.fast
 
+
 class TestIsWpStatusIgnorePattern:
     """Pattern matching for stale WP status ignore entries."""
 
@@ -147,10 +148,48 @@ class TestRemoveWpStatusEntries:
             changes, errors = remove_wp_status_entries(gitignore)
             assert changes == []
             assert len(errors) == 1
-            assert "Failed to read .gitignore" in errors[0]
+            assert "symlink" in errors[0]
             assert outside_target.read_text() == "kitty-specs/**/tasks/*.md\n"
         finally:
             outside_target.unlink(missing_ok=True)
+
+    def test_dangling_symlink_is_rejected_not_treated_as_missing(self, tmp_path: Path) -> None:
+        """A dangling symlinked .gitignore must error, not silently no-op as 'missing'.
+
+        `Path.exists()` follows symlinks and returns False for a dangling
+        symlink, which used to let this short-circuit to the "no .gitignore
+        file found" no-op path before ever hitting the read.
+        """
+        gitignore = tmp_path / ".gitignore"
+        missing_target = tmp_path / "does-not-exist"
+        try:
+            gitignore.symlink_to(missing_target)
+        except OSError:
+            pytest.skip("symlinks not supported on this filesystem")
+
+        changes, errors = remove_wp_status_entries(gitignore)
+
+        assert changes == []
+        assert len(errors) == 1
+        assert "symlink" in errors[0]
+        assert not gitignore.exists()  # still dangling, untouched
+
+    def test_live_target_symlink_is_rejected(self, tmp_path: Path) -> None:
+        """A symlink to a real file is also rejected, not followed."""
+        real_file = tmp_path / "real-gitignore"
+        real_file.write_text("kitty-specs/**/tasks/*.md\n")
+        gitignore = tmp_path / ".gitignore"
+        try:
+            gitignore.symlink_to(real_file)
+        except OSError:
+            pytest.skip("symlinks not supported on this filesystem")
+
+        changes, errors = remove_wp_status_entries(gitignore)
+
+        assert changes == []
+        assert len(errors) == 1
+        assert "symlink" in errors[0]
+        assert real_file.read_text() == "kitty-specs/**/tasks/*.md\n"  # untouched
 
 
 class TestMigration:
@@ -185,9 +224,23 @@ class TestMigration:
             migration = RemoveWpStatusGitignoreRuleMigration()
             can_apply, msg = migration.can_apply(tmp_path)
             assert can_apply is False
-            assert ".gitignore is not readable" in msg
+            assert "symlink" in msg
         finally:
             outside_target.unlink(missing_ok=True)
+
+    def test_can_apply_rejects_dangling_symlink(self, tmp_path: Path) -> None:
+        """can_apply() should reject a dangling symlinked .gitignore, not return True."""
+        gitignore = tmp_path / ".gitignore"
+        missing_target = tmp_path / "does-not-exist"
+        try:
+            gitignore.symlink_to(missing_target)
+        except OSError:
+            pytest.skip("symlinks not supported on this filesystem")
+
+        migration = RemoveWpStatusGitignoreRuleMigration()
+        can_apply, msg = migration.can_apply(tmp_path)
+        assert can_apply is False
+        assert "symlink" in msg
 
     def test_apply(self, tmp_path: Path) -> None:
         gitignore = tmp_path / ".gitignore"

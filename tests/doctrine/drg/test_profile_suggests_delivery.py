@@ -9,7 +9,7 @@ every authored edge was inert. This suite proves the topology is now live.
 ``profile_channel_reachable(graph, {agent_profile:…})`` and the profile *render*
 path (``_render_profile_sections`` / the new
 ``render_profile_suggested_doctrine`` renderer / the
-``profile_channel_references`` projection). ``doctrine.drg.query.resolve_context``
+``profile_channel_references`` projection). ``charter.offering.drg.query.resolve_context``
 (the ACTION channel) is FORBIDDEN as the delivery entry point here — DDD is
 already action-reachable there (vacuously green) and ``resolve_context`` seeded
 from a profile reaches nothing. It appears in this file ONLY in A6's isolation
@@ -34,12 +34,12 @@ from charter.progressive_disclosure import (
     partition_delivery,
     profile_channel_references,
 )
-from doctrine.agent_profiles import AgentProfile, AgentProfileRepository
-from doctrine.drg.loader import load_built_in_graph
-from doctrine.drg.models import DRGEdge, DRGGraph, DRGNode, NodeKind, Relation
-from doctrine.drg.query import resolve_context
-from doctrine.drg.reachability import profile_channel_reachable
-from doctrine.service import DoctrineService
+from charter.offering.agent_profiles import AgentProfile, AgentProfileRepository
+from charter.offering.drg.loader import load_built_in_graph
+from charter.offering.drg.models import DRGEdge, DRGGraph, DRGNode, NodeKind, Relation
+from charter.offering.drg.query import resolve_context
+from charter.offering.drg.reachability import profile_channel_reachable
+from charter.offering.service import DoctrineService
 
 pytestmark = [pytest.mark.doctrine, pytest.mark.fast, pytest.mark.corpus]
 
@@ -71,7 +71,7 @@ def service() -> DoctrineService:
 
     No explicit built-in root: each repository self-resolves the flattened
     built-in tier via ``resolve_pack_root("built-in")`` (packs/built-in/<kind>).
-    Post-relocation, ``files("doctrine")`` points at the emptied src/doctrine
+    Post-relocation, ``files("charter.offering")`` points at the emptied src/doctrine
     tree and would load nothing.
     """
     return DoctrineService()
