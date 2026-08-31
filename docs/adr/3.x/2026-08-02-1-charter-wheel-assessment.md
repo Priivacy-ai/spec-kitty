@@ -34,7 +34,7 @@ the sequencing decision, so the follow-on is mechanical rather than exploratory:
   gate: it manufactures false confidence.
 - **WP12 / FR-009+FR-010** minted [`src/kernel/pyproject.toml`](../../../src/kernel/pyproject.toml)
   (`spec-kitty-kernel`, zero first-party dependencies — the true root of the chain) and
-  closed [`src/doctrine/pyproject.toml`](../../../src/doctrine/pyproject.toml) with its real
+  closed `src/doctrine/pyproject.toml` with its real
   `spec-kitty-kernel` dependency plus a working hatchling build hook for the **out-of-tree**
   `packs/` tree. Both were **build-verified with a real `hatch build`**, not asserted from
   manifest shape.
@@ -145,7 +145,7 @@ WP12 supplies the groundwork this reuse rests on, and it is **build-executed, no
 - `src/doctrine/pyproject.toml` — declares `spec-kitty-kernel>=1.0.0,<2.0.0`, a real
   import-closure need (`doctrine/resolver.py`, `missions/primitives.py`,
   `shared/schema_utils.py` all `from kernel...`).
-- [`src/doctrine/hatch_build.py`](../../../src/doctrine/hatch_build.py) — a hatchling
+- `src/doctrine/hatch_build.py` — a hatchling
   `BuildHookInterface.initialize` hook that force-includes the repo-root `packs/` tree as a
   **wheel-root sibling** of `doctrine/`, matching what `pack_paths._resolve_built_in`
   expects (`files("doctrine").parent / "packs" / "built-in"`). A naive
@@ -287,6 +287,6 @@ decision rather than a footnote.
 - Landed enforcement and groundwork:
   - [`tests/architectural/test_charter_no_specify_cli_import.py`](../../../tests/architectural/test_charter_no_specify_cli_import.py) — the AST-walk gate this ADR's claim rests on
   - [`tests/architectural/test_layer_rules.py`](../../../tests/architectural/test_layer_rules.py) — the pytestarch layer rule; does not catch imports nested inside `try`/`except` handlers (the exact shape of the deleted edge), so it stayed green with the violation present
-  - [`tests/architectural/test_doctrine_wheel_closure.py`](../../../tests/architectural/test_doctrine_wheel_closure.py) — non-vacuous doctrine manifest closure
-  - [`src/kernel/pyproject.toml`](../../../src/kernel/pyproject.toml), [`src/doctrine/pyproject.toml`](../../../src/doctrine/pyproject.toml), [`src/doctrine/hatch_build.py`](../../../src/doctrine/hatch_build.py)
+  - `tests/architectural/test_doctrine_wheel_closure.py` — non-vacuous doctrine manifest closure (removed along with the rest of this dormant wheel groundwork by mission `charter-code-topology-01M152G1`)
+  - [`src/kernel/pyproject.toml`](../../../src/kernel/pyproject.toml), `src/doctrine/pyproject.toml`, `src/doctrine/hatch_build.py`
 - Runbook precedent: [`docs/migrations/shared-package-boundary-cutover.md`](../../migrations/shared-package-boundary-cutover.md)

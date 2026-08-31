@@ -5,7 +5,7 @@ from pathlib import Path
 import pytest
 from ruamel.yaml import YAML
 
-from doctrine.procedures.repository import ProcedureRepository
+from charter.offering.procedures.repository import ProcedureRepository
 pytestmark = [pytest.mark.fast, pytest.mark.doctrine]
 
 
@@ -60,7 +60,7 @@ class TestProcedureRepository:
     def test_save_raises_without_project_dir(
         self, tmp_procedure_dir: Path, sample_procedure_data: dict
     ) -> None:
-        from doctrine.procedures.models import Procedure
+        from charter.offering.procedures.models import Procedure
 
         repo = ProcedureRepository(built_in_dir=tmp_procedure_dir)
         procedure = Procedure.model_validate(sample_procedure_data)
@@ -70,7 +70,7 @@ class TestProcedureRepository:
     def test_save_writes_to_project_dir(
         self, tmp_path: Path, sample_procedure_data: dict
     ) -> None:
-        from doctrine.procedures.models import Procedure
+        from charter.offering.procedures.models import Procedure
 
 
         shipped = tmp_path / "built-in"

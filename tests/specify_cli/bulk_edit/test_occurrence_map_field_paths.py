@@ -76,7 +76,7 @@ def _load_inventory_module() -> types.ModuleType:
     Not on pytest's ``pythonpath`` (only ``src`` is, by design — see
     ``pytest.ini``), so it is loaded directly by file path rather than via
     ``sys.path`` mutation. Its own dynamic import of
-    ``doctrine.drg.migration.extractor`` still resolves because ``src`` is
+    ``charter.offering.drg.migration.extractor`` still resolves because ``src`` is
     already on ``sys.path``.
     """
     module_name = "inline_reference_inventory"
@@ -149,7 +149,7 @@ class TestFieldPathExceptionSchema:
         data = _map_data(
             [
                 {
-                    "path": "src/doctrine/agent_profiles/built-in/*.agent.yaml",
+                    "path": "src/charter/offering/agent_profiles/built-in/*.agent.yaml",
                     "field_path": "directive-references",
                     "action": "do_not_change",
                     "reason": "Governance seed field, never migrated",

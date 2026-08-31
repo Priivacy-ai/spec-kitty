@@ -10,7 +10,7 @@ from specify_cli.skills.registry import SkillRegistry
 
 pytestmark = [pytest.mark.doctrine, pytest.mark.fast]
 REPO_ROOT = Path(__file__).resolve().parents[2]
-SKILLS_ROOT = REPO_ROOT / "src" / "doctrine" / "skills"
+SKILLS_ROOT = REPO_ROOT / "src" / "charter" / "offering" / "skills"
 SPK_SKILLS = {
     "spk-admin-agent-config",
     "spk-admin-dashboard",

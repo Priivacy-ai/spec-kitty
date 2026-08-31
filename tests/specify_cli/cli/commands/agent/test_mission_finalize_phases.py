@@ -586,6 +586,31 @@ def test_apply_bootstrap_fields_marks_changes() -> None:
     assert built.merge_target_branch == "prog/x"
 
 
+def test_apply_bootstrap_fields_keeps_planning_and_final_targets_distinct() -> None:
+    meta = WPMetadata(work_package_id="WP01", title="t")
+    bld = meta.builder()
+
+    changed, fields = seam._apply_bootstrap_fields(
+        bld,
+        meta,
+        deps=[],
+        has_dependencies_line=True,
+        requirement_refs=["FR-001"],
+        has_requirement_refs_line=True,
+        target_branch="op/mission-planning",
+        merge_target_branch="main",
+    )
+
+    assert changed is True
+    assert fields["planning_base_branch"] == "op/mission-planning"
+    assert fields["merge_target_branch"] == "main"
+    built = bld.build()
+    assert built.planning_base_branch == "op/mission-planning"
+    assert built.merge_target_branch == "main"
+    assert "generated on op/mission-planning" in str(built.branch_strategy)
+    assert "merge back into main" in str(built.branch_strategy)
+
+
 def test_apply_bootstrap_fields_noop_when_already_set() -> None:
     branch = "prog/x"
     meta = WPMetadata(

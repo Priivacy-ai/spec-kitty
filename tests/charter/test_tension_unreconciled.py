@@ -48,7 +48,7 @@ pytestmark = pytest.mark.unit
 
 # ---------------------------------------------------------------------------
 # Real built-in doctrine identifiers used throughout (see WP02's hand-
-# authored edges in src/doctrine/directive.graph.yaml):
+# authored edges in src/charter/offering/directive.graph.yaml):
 #   directive:DIRECTIVE_024 <-> directive:DIRECTIVE_025
 #   directive:DIRECTIVE_025 <-> tactic:change-apply-smallest-viable-diff
 #   directive:RECONCILE_CHANGE_SCOPE_TENSIONS reconciles both pairs.

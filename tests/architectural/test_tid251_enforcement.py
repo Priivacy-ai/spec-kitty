@@ -149,6 +149,23 @@ def test_annotated_sha256_is_allowed() -> None:
     )
 
 
+def test_retired_subsystem_imports_are_flagged() -> None:
+    """The #795 retired-subsystem bans must bite through Ruff TID251."""
+    dotted = chr(46)
+    retired_sync = dotted.join(("specify_cli", "sync"))
+    retired_delivery = dotted.join(("specify_cli", "delivery"))
+    proc = _ruff_probe(
+        f"import {retired_sync}\nfrom specify_cli import {retired_delivery.split(dotted, 1)[1]}\n",
+        "src/specify_cli/_retired_subsystem_probe.py",
+    )
+    assert proc.returncode != 0, (
+        "Ruff did not flag retired subsystem imports.\n"
+        f"stdout:\n{proc.stdout}\nstderr:\n{proc.stderr}"
+    )
+    assert retired_sync in proc.stdout
+    assert retired_delivery in proc.stdout
+
+
 def test_click_exceptions_probe_in_src_is_flagged() -> None:
     """Gap-5 must be live for production files, not just tests."""
     proc = _ruff_probe(

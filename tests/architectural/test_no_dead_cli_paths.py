@@ -153,9 +153,7 @@ _SHIPPED_NAIVE_RE = re.compile(r"shipped/")
 #: The whole dead path, not just its ``<segment>/shipped/`` core. Discriminator
 #: B2 compares this token against the frozen seed, so a pack that *invented* a
 #: sibling dead path under the same segment cannot ride the seed's coat-tails.
-_SHIPPED_FULL_PATH_RE = re.compile(
-    r"[\w./<>-]*(?:<[A-Za-z_][\w-]*>|[A-Za-z_][\w-]*)/shipped/[\w./-]*"
-)
+_SHIPPED_FULL_PATH_RE = re.compile(r"[\w./<>-]*(?:<[A-Za-z_][\w-]*>|[A-Za-z_][\w-]*)/shipped/[\w./-]*")
 
 #: Discriminator B2 -- built-in glossary packs mirroring a hash-pinned seed.
 #:
@@ -313,7 +311,7 @@ def test_no_source_site_names_the_dead_drg_monolith() -> None:
 def test_the_migration_hint_names_a_fragment_that_exists() -> None:
     """FR-008: the hint an operator is handed must be followable -- the file
     it names must be on disk for every artifact kind that can raise it."""
-    from doctrine.shared.errors import build_migration_hint
+    from charter.offering.shared.errors import build_migration_hint
 
     kinds = (
         "directive",
@@ -344,10 +342,7 @@ def test_the_migration_hint_names_a_fragment_that_exists() -> None:
         expected = f"packs/built-in/{kind}.graph.yaml"
         if named[0] != expected:
             unfollowable.append(f"{kind}: names {named[0]}, but its edges shard into {expected}")
-    assert not unfollowable, (
-        "Migration hints that do not name the fragment the operator must open:\n"
-        + "\n".join(unfollowable)
-    )
+    assert not unfollowable, "Migration hints that do not name the fragment the operator must open:\n" + "\n".join(unfollowable)
 
 
 def test_project_tier_graph_path_would_false_red_without_its_discriminator() -> None:
@@ -360,9 +355,9 @@ def test_project_tier_graph_path_would_false_red_without_its_discriminator() -> 
     kept_paths = {site.path for site in scan.violations} | {site.path for site in scan.forbidding_mentions}
     excluded = sorted(naive_paths - kept_paths)
     assert excluded == [
+        "src/charter/offering/drg/merge.py",
         "src/charter/synthesizer/manifest.py",
         "src/charter/synthesizer/project_drg.py",
-        "src/doctrine/drg/merge.py",
         "src/glossary/drg_builder.py",
         "src/specify_cli/charter_runtime/freshness/computer.py",
         "src/specify_cli/state/contract.py",
@@ -396,15 +391,12 @@ def test_forbidding_mention_would_false_red_without_its_discriminator(tmp_path: 
     """
     fixture = tmp_path / "synthetic-forbidding-mention.agent.yaml"
     fixture.write_text(
-        "specialization:\n"
-        "  avoidance-boundary: >\n"
-        "    Does not name src/doctrine/graph.yaml as guidance to follow.\n",
+        "specialization:\n  avoidance-boundary: >\n    Does not name src/doctrine/graph.yaml as guidance to follow.\n",
         encoding="utf-8",
     )
     scan = scan_graph_monolith_paths(tmp_path)
     assert scan.forbidding_mentions, (
-        "A2 excludes nothing, so it cannot be proven. Either the fixture's "
-        "forbidding mention is gone or the pattern stopped matching it."
+        "A2 excludes nothing, so it cannot be proven. Either the fixture's forbidding mention is gone or the pattern stopped matching it."
     )
     excluded = sorted((site.path, site.text) for site in scan.forbidding_mentions)
     assert excluded == [
@@ -466,7 +458,7 @@ def test_shipped_prose_would_false_red_without_the_path_shape_discriminator() ->
     # not a `<kind>/shipped/` pack-layer path reference.
     excluded = sorted(site.path for site in scan.prose)
     assert excluded == [
-        "src/doctrine/model_task_routing/catalog/model-to-task_type.yaml",
+        "src/charter/offering/model_task_routing/catalog/model-to-task_type.yaml",
         "src/runtime/next/_internal_runtime/planner.py",
         "src/specify_cli/cli/commands/_doctrine_asset.py",
     ], f"B1's effect set moved -- widening it needs a reason: {_render(scan.prose)}"
@@ -530,13 +522,9 @@ def test_gate_b_frozen_mirror_discriminator_requires_the_seed_to_carry_the_path(
         f"a: {mirrored}\nb: src/doctrine/tactics/shipped/invented.tactic.yaml\n",
         encoding="utf-8",
     )
-    (pack_dir / "no-such-seed.glossary-pack.yaml").write_text(
-        f"a: {mirrored}\n", encoding="utf-8"
-    )
+    (pack_dir / "no-such-seed.glossary-pack.yaml").write_text(f"a: {mirrored}\n", encoding="utf-8")
     scan = scan_shipped_pack_paths(tmp_path)
-    assert [(site.path, site.line) for site in scan.frozen_mirrors] == [
-        ("packs/built-in/glossary_packs/spec-kitty-core.glossary-pack.yaml", 1)
-    ]
+    assert [(site.path, site.line) for site in scan.frozen_mirrors] == [("packs/built-in/glossary_packs/spec-kitty-core.glossary-pack.yaml", 1)]
     assert [(site.path, site.line) for site in scan.violations] == [
         ("packs/built-in/glossary_packs/no-such-seed.glossary-pack.yaml", 1),
         ("packs/built-in/glossary_packs/spec-kitty-core.glossary-pack.yaml", 2),

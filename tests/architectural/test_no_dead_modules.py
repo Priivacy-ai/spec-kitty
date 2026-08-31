@@ -318,9 +318,9 @@ _CATEGORY_1_AUTO_DISCOVERED_MIGRATIONS: frozenset[str] = frozenset(
 # above (scripts/generate_schemas.py).
 _CATEGORY_2_BUILD_SCHEMA_GENERATORS: frozenset[str] = frozenset(
     {
-        "doctrine.agent_profiles.schema_models",
-        "doctrine.import_candidates.models",
-        # doctrine.model_task_routing.models removed (model-discipline-dispatch-binding-01KWPW36
+        "charter.offering.agent_profiles.schema_models",
+        "charter.offering.import_candidates.models",
+        # charter.offering.model_task_routing.models removed (model-discipline-dispatch-binding-01KWPW36
         # WP03): ProfileInvocationExecutor.invoke() now wires loader.py/evaluator.py into the
         # dispatch seam, and both import this module -- it has a live src/ caller as of WP03's
         # _compute_recommendation() wiring, so it no longer belongs in this build-script-only
@@ -336,11 +336,6 @@ _CATEGORY_3_EXTERNAL_CLI_ENTRYPOINTS: frozenset[str] = frozenset(
         # commit_guard_hook_cmd.commit_guard_hook_cli(), so it is no longer
         # genuinely dead -- it no longer belongs in this build-script-only
         # allowlist.
-        # doctrine.hatch_build: a hatchling custom build-hook module, loaded
-        # by hatchling itself via the `path = "hatch_build.py"` declaration
-        # in src/doctrine/pyproject.toml's [tool.hatch.build.hooks.custom]
-        # table -- never imported from src/ Python code (WP12, D7).
-        "doctrine.hatch_build",
     }
 )
 
@@ -353,7 +348,19 @@ _CATEGORY_3_EXTERNAL_CLI_ENTRYPOINTS: frozenset[str] = frozenset(
 # was the last documented back-compat shim; its ~35 test sites were re-anchored
 # onto ``specify_cli.task_utils`` and the module deleted, so this category is now
 # empty (baseline category_4_backcompat_shims: 0).
-_CATEGORY_4_BACKCOMPAT_SHIMS: frozenset[str] = frozenset()
+#
+# 0 -> 1 (charter-code-topology-01M152G1 landing remediation, retire-doctrine-term
+# M2): ``doctrine`` (src/doctrine.py) is an intentional deprecation shim -- a single
+# MODULE file (not a package) kept only so pre-existing external/legacy callers that
+# still spell ``import doctrine`` / ``from doctrine import X`` keep working during the
+# CR-06 deprecation window, after the relocation of src/doctrine/ to
+# src/charter/offering/. Nothing under src/ imports it (that is the point of a
+# backcompat shim for EXTERNAL callers); it has zero src/ callers by design.
+_CATEGORY_4_BACKCOMPAT_SHIMS: frozenset[str] = frozenset(
+    {
+        "doctrine",
+    }
+)
 
 # ---------- 5. WP-in-flight slot-holder adapters ----------
 # Carry the `# adapter:no-logic` marker; reserved for the WP07
@@ -378,7 +385,7 @@ _CATEGORY_5_WP_IN_FLIGHT_ADAPTERS: frozenset[str] = frozenset(
         # charter.scope_router removed: post-merge remediation cycle 1
         # wired prompt_builder._governance_context through build_with_scope.
         #
-        # doctrine.missions.mission_step_repository: live caller landed in
+        # charter.offering.missions.mission_step_repository: live caller landed in
         # charter.mission_steps (charter-pack-activation-layer-01KSYE4V WP09)
         #
         # charter.extractor removed: the prose->triad scraper (SECTION_MAPPING,
@@ -424,7 +431,7 @@ _CATEGORY_6_FROZEN_RUNTIME_REEXPORTS: frozenset[str] = frozenset(
 # Per Slice F C-006 (binding), Cat-7 MUST shrink by >= 2 entries
 # per major release; target = 0 by 4.0. WP01 of Slice F shrinks
 # this list from 10 -> 7 by deleting three modules outright
-# (doctrine.templates.repository, glossary.prompts,
+# (charter.offering.templates.repository, glossary.prompts,
 # glossary.rendering) per DM-01KRX6N0YAFBY7MTJC0CN3D3E4.
 #
 # issue-116-wire-or-prune-orphaned-collateral (2026-08-27): shrinks this list

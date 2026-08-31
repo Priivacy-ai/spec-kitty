@@ -28,6 +28,7 @@ from kernel.paths import MISSION_ASSETS_SIBLING_PATTERN
 from kernel.sibling_paths import SiblingPathNotFound, resolve_installed_sibling
 from specify_cli.core.config import DEFAULT_MISSION_KEY
 from specify_cli.runtime.bootstrap import _get_cli_version, _lock_exclusive
+from specify_cli.runtime.generated_writer import write_generated_file
 from specify_cli.runtime.home import get_kittify_home
 
 logger = logging.getLogger(__name__)
@@ -78,65 +79,82 @@ def get_global_command_dir(agent_key: str) -> Path:
 
 
 #: The relative shape sought below, anchored on the (cheaply-discovered,
-#: never-imported) ``doctrine`` package's own file location. Mission
+#: never-imported) ``charter.offering`` package's own file location (formerly
+#: the top-level ``doctrine`` package, relocated by mission
+#: ``charter-code-topology-01M152G1``, CR-06). Mission
 #: ``doctrine-consumer-surface-missions-extraction-01KZ6G6H`` (FR-005)
 #: relocated the missions data to ``packs/built-in/missions`` -- a directory
 #: that, unlike the pre-relocation shape, sits at a *different* relative
-#: depth from the doctrine package directory in an installed wheel
+#: depth from the doctrine offering package directory in an installed wheel
 #: (``<site-packages>/packs/built-in/missions``, one parent hop) versus an
 #: editable checkout (``<repo>/packs/built-in/missions``, two parent hops,
 #: since an extra ``src/`` level sits in between). No single fixed-depth
 #: ``Path(...).parent / ...`` join can express both, so this is resolved via
 #: the shared kernel sibling-path-resolution primitive instead (the same
 #: ancestor-walk-covers-both-layouts algorithm :mod:`kernel.paths` and
-#: :mod:`doctrine.missions.repository` already use), anchored on the
-#: doctrine package's own file rather than this module's. Owned once at the
-#: kernel floor (:data:`kernel.paths.MISSION_ASSETS_SIBLING_PATTERN`) and
-#: re-bound to this module-local name (FR-012, mission
+#: :mod:`charter.offering.missions.repository` already use), anchored on the
+#: doctrine offering package's own file rather than this module's. Owned once
+#: at the kernel floor (:data:`kernel.paths.MISSION_ASSETS_SIBLING_PATTERN`)
+#: and re-bound to this module-local name (FR-012, mission
 #: ``resolution-activation-foundation-01KZ9FKG`` WP02) instead of a second,
 #: independently-typed ``packs/built-in/missions`` literal -- the
 #: ``_get_command_templates_dir`` body below is unchanged, it just now
 #: passes the shared constant.
 _MISSIONS_SIBLING_PATTERN = MISSION_ASSETS_SIBLING_PATTERN
 
+#: Dotted import path of the doctrine offering package post-relocation
+#: (CR-06). Kept as a name (not a literal repeated below) so the two lookup
+#: strategies in :func:`_get_command_templates_dir` stay in lockstep.
+_OFFERING_MODULE = "charter.offering"
+
 
 def _get_command_templates_dir() -> Path:
-    """Return the command-templates directory from the doctrine package.
+    """Return the command-templates directory from the doctrine offering package.
 
-    Uses import metadata rather than ``import doctrine`` so CLI startup does
-    not execute doctrine's heavy validation imports before command dispatch.
-    :mod:`kernel.sibling_paths` has zero dependency on ``doctrine`` (C-001
-    layer direction), so resolving through it below does not reintroduce
-    that heavy import either.
+    Uses import metadata rather than ``import charter.offering`` so CLI
+    startup does not execute the offering package's (or its ``charter``
+    parent's) heavier imports before command dispatch. :mod:`kernel.sibling_paths`
+    has zero dependency on ``charter.offering`` (C-001 layer direction), so
+    resolving through it below does not reintroduce that heavy import either.
 
-    Raises ``FileNotFoundError`` if the doctrine package is absent or the
-    relocated missions data cannot be located as its sibling, either of which
-    indicates a corrupted install.
+    ``importlib.util.find_spec("charter.offering")`` would itself import the
+    ``charter`` parent package (dotted ``find_spec`` always imports parent
+    packages first) -- exactly the heavy import this function exists to
+    avoid -- so the search location is resolved via the cheap, top-level
+    ``find_spec("charter")`` instead, with ``offering`` appended by hand.
+
+    Raises ``FileNotFoundError`` if the doctrine offering package is absent or
+    the relocated missions data cannot be located as its sibling, either of
+    which indicates a corrupted install.
     """
     if os.environ.get("SPEC_KITTY_TEMPLATE_ROOT"):
         from specify_cli.runtime.home import get_package_asset_root
 
         package_asset_root = get_package_asset_root()
-        legacy_command_templates = package_asset_root / DEFAULT_MISSION_KEY / "command-templates"
+        # Typed pin: ``specify_cli.*`` is ``follow_imports = "skip"`` in pyproject, so
+        # ``DEFAULT_MISSION_KEY`` resolves to ``Any`` to mypy even though its module
+        # annotates it as ``str`` -- the runtime type of this expression is ``Path``.
+        legacy_command_templates: Path = package_asset_root / DEFAULT_MISSION_KEY / "command-templates"
         if legacy_command_templates.exists():
             return legacy_command_templates
 
-    loaded_doctrine = sys.modules.get("doctrine")
-    loaded_file = getattr(loaded_doctrine, "__file__", None)
+    loaded_offering = sys.modules.get(_OFFERING_MODULE)
+    loaded_file = getattr(loaded_offering, "__file__", None)
     if isinstance(loaded_file, str) and loaded_file:
         anchor = Path(loaded_file)
     else:
         try:
-            spec = find_spec("doctrine")
+            charter_spec = find_spec("charter")
         except (ModuleNotFoundError, ValueError):
-            spec = None
-        locations = list(spec.submodule_search_locations or ()) if spec is not None else []
+            charter_spec = None
+        locations = list(charter_spec.submodule_search_locations or ()) if charter_spec is not None else []
         if not locations:
-            raise FileNotFoundError("doctrine package has no search location; installation may be corrupted")
+            raise FileNotFoundError("doctrine offering package has no search location; installation may be corrupted")
         # A file-shaped anchor (matching the sys.modules branch above) so the
         # primitive's ancestor walk starts from the package *directory*, not
-        # one level above it.
-        anchor = Path(locations[0]) / "__init__.py"
+        # one level above it. ``offering`` is appended by hand rather than
+        # resolved via find_spec("charter.offering") -- see docstring.
+        anchor = Path(locations[0]) / "offering" / "__init__.py"
 
     try:
         missions_root = resolve_installed_sibling(
@@ -146,9 +164,12 @@ def _get_command_templates_dir() -> Path:
         )
     except SiblingPathNotFound as exc:
         raise FileNotFoundError(
-            "doctrine package has no search location; installation may be corrupted"
+            "doctrine offering package has no search location; installation may be corrupted"
         ) from exc
-    return missions_root / "mission-steps" / DEFAULT_MISSION_KEY
+    # Typed pin: see the ``legacy_command_templates`` comment above -- same
+    # ``DEFAULT_MISSION_KEY``-resolves-to-``Any`` mypy artifact.
+    resolved: Path = missions_root / "mission-steps" / DEFAULT_MISSION_KEY
+    return resolved
 
 
 def _resolve_script_type() -> str:
@@ -312,10 +333,7 @@ def _sync_agent_commands(agent_key: str, templates_dir: Path, script_type: str) 
             )
             continue
         out_path = output_dir / filename
-        if out_path.exists():
-            out_path.chmod(out_path.stat().st_mode | 0o222)
-        out_path.write_text(content, encoding="utf-8")
-        out_path.chmod(out_path.stat().st_mode & ~0o222)
+        write_generated_file(out_path, content)
 
     # --- CLI-driven shims ---
     for command in sorted(CLI_DRIVEN_COMMANDS):
@@ -332,10 +350,7 @@ def _sync_agent_commands(agent_key: str, templates_dir: Path, script_type: str) 
             )
             continue
         out_path = output_dir / filename
-        if out_path.exists():
-            out_path.chmod(out_path.stat().st_mode | 0o222)
-        out_path.write_text(content, encoding="utf-8")
-        out_path.chmod(out_path.stat().st_mode & ~0o222)
+        write_generated_file(out_path, content)
 
     # --- Remove stale spec-kitty.* files no longer in canonical set ---
     for existing in output_dir.iterdir():

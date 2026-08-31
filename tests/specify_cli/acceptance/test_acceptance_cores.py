@@ -212,60 +212,87 @@ class TestEvaluatePathConventions:
     def test_mission_none_is_a_noop(self, tmp_path: Path) -> None:
         result = evaluate_path_conventions(None, tmp_path, tmp_path, tmp_path, strict_metadata=True)
 
-        assert result == ([], None)
+        assert result == ([], None, frozenset())
 
     def test_mission_without_path_conventions_is_a_noop(self, tmp_path: Path) -> None:
         mission = SimpleNamespace(config=SimpleNamespace(paths=None), domain="software-dev")
 
         result = evaluate_path_conventions(mission, tmp_path, tmp_path, tmp_path, strict_metadata=True)
 
-        assert result == ([], None)
+        assert result == ([], None, frozenset())
 
     def test_no_missing_paths_is_a_noop(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
         mission = SimpleNamespace(config=SimpleNamespace(paths=["src/"]), domain="software-dev")
         monkeypatch.setattr(
             "specify_cli.acceptance.summary_core.validate_mission_paths",
-            lambda *_a, **_k: SimpleNamespace(missing_paths=[]),
+            lambda *_a, **_k: SimpleNamespace(missing_paths=[], missing_artifact_tokens=[]),
         )
 
         result = evaluate_path_conventions(mission, tmp_path, tmp_path, tmp_path, strict_metadata=True)
 
-        assert result == ([], None)
+        assert result == ([], None, frozenset())
 
     def test_strict_metadata_true_blocks_with_violation(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-        mission = SimpleNamespace(config=SimpleNamespace(paths=["src/"]), domain="software-dev")
+        mission = SimpleNamespace(
+            config=SimpleNamespace(
+                paths=["src/"],
+                artifacts=SimpleNamespace(optional=("contracts/",), required=()),
+            ),
+            domain="software-dev",
+        )
         monkeypatch.setattr(
             "specify_cli.acceptance.summary_core.validate_mission_paths",
-            lambda *_a, **_k: SimpleNamespace(missing_paths=["src/"], format_errors=lambda: "missing src/"),
+            lambda *_a, **_k: SimpleNamespace(
+                missing_paths=["src/"],
+                missing_artifact_tokens=["contracts", "src"],
+                format_errors=lambda: "missing src/",
+            ),
         )
 
-        violations, warning = evaluate_path_conventions(mission, tmp_path, tmp_path, tmp_path, strict_metadata=True)
+        violations, warning, dedup_tokens = evaluate_path_conventions(
+            mission, tmp_path, tmp_path, tmp_path, strict_metadata=True
+        )
 
         assert violations == ["missing src/"]
         assert warning is None
+        assert dedup_tokens == frozenset({"contracts"})
 
     def test_strict_metadata_false_downgrades_to_warning(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
         mission = SimpleNamespace(config=SimpleNamespace(paths=["src/"]), domain="software-dev")
         monkeypatch.setattr(
             "specify_cli.acceptance.summary_core.validate_mission_paths",
-            lambda *_a, **_k: SimpleNamespace(missing_paths=["src/"], format_warnings=lambda: "missing src/ (advisory)"),
+            lambda *_a, **_k: SimpleNamespace(
+                missing_paths=["src/"],
+                missing_artifact_tokens=[],
+                format_warnings=lambda: "missing src/ (advisory)",
+            ),
         )
 
-        violations, warning = evaluate_path_conventions(mission, tmp_path, tmp_path, tmp_path, strict_metadata=False)
+        violations, warning, dedup_tokens = evaluate_path_conventions(
+            mission, tmp_path, tmp_path, tmp_path, strict_metadata=False
+        )
 
         assert violations == []
         assert warning == "missing src/ (advisory)"
+        assert dedup_tokens == frozenset()
 
     def test_empty_format_errors_falls_back_to_default_message(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
         mission = SimpleNamespace(config=SimpleNamespace(paths=["src/"]), domain="software-dev")
         monkeypatch.setattr(
             "specify_cli.acceptance.summary_core.validate_mission_paths",
-            lambda *_a, **_k: SimpleNamespace(missing_paths=["src/"], format_errors=lambda: ""),
+            lambda *_a, **_k: SimpleNamespace(
+                missing_paths=["src/"],
+                missing_artifact_tokens=[],
+                format_errors=lambda: "",
+            ),
         )
 
-        violations, _warning = evaluate_path_conventions(mission, tmp_path, tmp_path, tmp_path, strict_metadata=True)
+        violations, _warning, dedup_tokens = evaluate_path_conventions(
+            mission, tmp_path, tmp_path, tmp_path, strict_metadata=True
+        )
 
         assert violations == ["Path conventions not satisfied."]
+        assert dedup_tokens == frozenset()
 
 
 class TestBuildWarnings:
