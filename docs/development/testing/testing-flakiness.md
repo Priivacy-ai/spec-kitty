@@ -159,7 +159,7 @@ will surface failures you did not cause. **Classify every failure before you act
 misattribution wastes effort and, worse, tempts an agent to green-wash a signal the project
 deliberately keeps red.
 
-Four baseline-red categories that are **not yours to fix**:
+Five baseline-red categories that are **not yours to fix**:
 
 1. **Pre-existing known-P0 reds.** Per [ADR 2026-07-17-1](../../adr/3.x/2026-07-17-1-red-main-is-honest-ci-is-release-authority.md),
    an open P0 bug is *expected* to red mainline (e.g. #2736 batch poisoning, #2772 charter
@@ -182,6 +182,20 @@ Four baseline-red categories that are **not yours to fix**:
    pytest output (#648: a PR's `## Tests run` section excluded a whole
    test file over exactly this `ModuleNotFoundError`, when a clean `uv sync --frozen
    --all-extras` reproduced 1621/1621 passing with no exclusion needed).
+5. **Ambient read-only `.git` above basetemp.** When pytest's basetemp has an ancestor
+   that is itself a git checkout — true of every exe.dev VM, and reproducible with a
+   read-only `/tmp/.git` mount when basetemp lives under `/tmp` — status and lifecycle
+   writers that resolve their lock root by climbing to the nearest `.git`
+   (`resolve_canonical_root`) land the lock inside *that* ancestor checkout. If that
+   `.git` is read-only, `append_lifecycle_event` swallows the resulting `PermissionError`
+   as a best-effort `OSError` and silently persists nothing, reddening every
+   event-recording assertion (130 nodes red in the #142 repro). This is host setup, not
+   your diff. The guard is the autouse `_hermetic_canonical_root` fixture in
+   `tests/status/conftest.py`, exercised end-to-end by
+   `tests/status/test_hermetic_ambient_git.py` (#142); the identity-resolution variant of
+   the same ancestor leak is pinned by the `no_git_ancestry_inside_tmp_path` fixture in
+   `tests/zeitgeist_client/conftest.py` (hoisting tracked at #614). Run inside the sandbox
+   those guards establish rather than "fixing" the read-only ancestor mount.
 
 **The attribution test:** a failure is yours to fold only if it is **red on your branch and
 green on the base**. Confirm the base state by running the same node id against
