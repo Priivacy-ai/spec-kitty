@@ -51,9 +51,7 @@ def test_read_rejects_dangling_symlink(tmp_path: Path) -> None:
 
 
 @pytest.mark.skipif(not hasattr(os, "O_NOFOLLOW"), reason="kernel no-follow flag unavailable")
-def test_read_rejects_symlink_planted_before_open(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
+def test_read_rejects_symlink_planted_before_open(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """The syscall refuses a link swapped in after the caller chose the path."""
     path = tmp_path / "settings.txt"
     path.write_text("safe content\n", encoding="utf-8")
