@@ -2148,6 +2148,25 @@ def _mt_hop_policy_metadata(
     return None
 
 
+def _mt_hop_reason_source(st: _MoveTaskState, target: str) -> str | None:
+    """Resolve the ``reason_source`` provenance discriminator for one emit hop.
+
+    FR-001 (mission completion-terminal-state): a cancellation is accept-eligible
+    only when the operator authored the reason via ``--note``. Scoped to the
+    ``canceled`` target — every other lane hop leaves ``reason_source`` ``None``
+    (provenance is not tracked for non-cancel moves; the synthetic default reason
+    they carry is unchanged). A non-empty operator note (trimmed, so a
+    whitespace-only ``--note`` is not operator-authored, T002) yields
+    ``"operator"``; a bare ``--force`` cancel with no note — or a whitespace note
+    — yields ``"synthetic"``, which is what makes FR-003's blocker reachable
+    through the canonical command.
+    """
+    if resolve_lane_alias(target) != Lane.CANCELED:
+        return None
+    note = st.note.strip() if isinstance(st.note, str) else None
+    return "operator" if note else "synthetic"
+
+
 def _binding_role_for_lane(lane: Lane | str) -> str | None:
     """Map a target lane to its resolved-binding role.
 
@@ -2216,6 +2235,7 @@ def _mt_emit_transitions(st: _MoveTaskState, ports: TasksPorts) -> None:
                 actor=transition_actor,
                 force=emit_force,
                 reason=emit_reason,
+                reason_source=_mt_hop_reason_source(st, target),
                 evidence=st.evidence_dict if target in (Lane.APPROVED, Lane.DONE) else None,
                 policy_metadata=hop_policy_metadata,
                 review_ref=emit_review_ref,

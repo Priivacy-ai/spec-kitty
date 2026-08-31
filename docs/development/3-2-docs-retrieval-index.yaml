@@ -3049,6 +3049,7 @@ pages:
     - {slug: "spec-kitty-agent-tasks-finalize-tasks", text: "spec-kitty agent tasks finalize-tasks", level: 2}
     - {slug: "spec-kitty-agent-tasks-list-dependents", text: "spec-kitty agent tasks list-dependents", level: 2}
     - {slug: "spec-kitty-agent-tasks-list-tasks", text: "spec-kitty agent tasks list-tasks", level: 2}
+    - {slug: "spec-kitty-agent-tasks-check-terminability", text: "spec-kitty agent tasks check-terminability", level: 2}
     - {slug: "spec-kitty-agent-tasks-map-requirements", text: "spec-kitty agent tasks map-requirements", level: 2}
     - {slug: "spec-kitty-agent-tasks-mark-status", text: "spec-kitty agent tasks mark-status", level: 2}
     - {slug: "spec-kitty-agent-tasks-move-task", text: "spec-kitty agent tasks move-task", level: 2}
