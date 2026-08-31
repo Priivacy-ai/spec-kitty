@@ -43,7 +43,7 @@ from charter.synthesizer import FixtureAdapter, SynthesisRequest, SynthesisTarge
 from charter.synthesizer.errors import ProjectDRGValidationError
 from charter.synthesizer.reconcile import _RECONCILE_REMEDIATIONS, ReconciliationConflict, _edge_label
 from charter.synthesizer.validation_gate import _edge_conflict_key, validate
-from doctrine.drg.models import DRGEdge, DRGGraph, DRGNode, NodeKind, Relation
+from charter.offering.drg.models import DRGEdge, DRGGraph, DRGNode, NodeKind, Relation
 
 pytestmark = [pytest.mark.unit]
 

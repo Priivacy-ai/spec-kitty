@@ -97,7 +97,7 @@ def default_profile_repository(project_root: Path) -> AgentProfileRepository:
     surfaced per C-002 rather than silently worked around or silently left
     as-is).** FR-001 named this site as an in-scope migration target, but the
     factory's ``agent_profile_repository`` accessor is built from a
-    ``doctrine.service.DoctrineService`` whose own project-overlay directory is
+    ``charter.offering.service.DoctrineService`` whose own project-overlay directory is
     derived exclusively from ``charter._doctrine_paths.resolve_project_root``'s
     three fixed candidates (``.kittify/doctrine``, ``src/doctrine``,
     ``doctrine``) -- none of which is ``.kittify/agent_profiles``

@@ -6,7 +6,7 @@ Asserts the M1 owner actions M1 itself performs:
     pinned in detail by ``test_glossary_authority_parity.py``);
   - the ``### charter`` Terminology-Canon entry landed in
     ``docs/context/charter.md`` (T004);
-  - ``docs/context/doctrine.md`` -> ``docs/context/charter.md`` (OC-40).
+  - ``docs/context/charter.offering.md`` -> ``docs/context/charter.md`` (OC-40).
 
 H4 (squad finding): ``.kittify/charter/graph.yml`` and
 ``.kittify/charter/synthesis-manifest.yaml`` are **verify-no-op**, not
@@ -45,7 +45,7 @@ def _repo_root() -> Path:
 
 
 _REPO_ROOT = _repo_root()
-_DOCTRINE_MD_PATH = _REPO_ROOT / "docs" / "context" / "doctrine.md"
+_DOCTRINE_MD_PATH = _REPO_ROOT / "docs" / "context" / "charter.offering.md"
 _CHARTER_MD_PATH = _REPO_ROOT / "docs" / "context" / "charter.md"
 
 
@@ -134,7 +134,7 @@ def test_charter_canon_entry_landed() -> None:
 
 
 def test_doctrine_md_moved_to_charter_md() -> None:
-    assert not _DOCTRINE_MD_PATH.exists(), "OC-40 move owner action did not run: docs/context/doctrine.md still present"
+    assert not _DOCTRINE_MD_PATH.exists(), "OC-40 move owner action did not run: docs/context/charter.offering.md still present"
     assert _CHARTER_MD_PATH.exists(), "OC-40 move owner action did not run: docs/context/charter.md missing"
 
 

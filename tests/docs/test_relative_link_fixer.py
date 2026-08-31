@@ -477,6 +477,16 @@ class TestLiveTreeGate:
     # all in-repo cross-tree refs that resolve on disk are accepted by the gate.
     # Add entries ONLY for genuinely unfixable repo-root escapes or permanently
     # non-resolving links, with an inline justification per entry.
+    #
+    # Deliberately NOT used for the three files mission charter-code-topology-01M152G1
+    # permanently deleted (src/doctrine/pyproject.toml, src/doctrine/hatch_build.py,
+    # tests/architectural/test_doctrine_wheel_closure.py): the production `--check`
+    # CLI invoked directly in CI (docs-freshness.yml, docs-build-pr.yml) has no
+    # _KNOWN_GAPS mechanism of its own, so an entry here would silence only this
+    # pytest copy of the gate while the real CI gate stayed red. The ADR that cited
+    # those paths (2026-08-02-1-charter-wheel-assessment.md) was instead rewritten
+    # to name them as plain code spans (no markdown link), which preserves the
+    # historical record without producing a dead link.
     _KNOWN_GAPS: Final[frozenset[tuple[str, str]]] = frozenset()
 
     def test_assembled_tree_has_no_unexpected_dead_links(self) -> None:

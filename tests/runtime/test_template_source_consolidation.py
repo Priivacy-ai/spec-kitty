@@ -28,7 +28,7 @@ def test_software_dev_runtime_template_tree_removed() -> None:
 def test_generic_content_template_copies_removed() -> None:
     stale_roots = [
         REPO_ROOT / "src" / "specify_cli" / "templates",
-        REPO_ROOT / "src" / "doctrine" / "templates",
+        REPO_ROOT / "src" / "charter" / "offering" / "templates",
     ]
 
     stale_copies = [
@@ -44,7 +44,7 @@ def test_generic_content_template_copies_removed() -> None:
 @pytest.mark.parametrize("name", sorted(CONTENT_TEMPLATE_NAMES))
 def test_content_template_source_is_doctrine_mission_tree(name: str) -> None:
     # Mission doctrine-consumer-surface-missions-extraction-01KZ6G6H (FR-005)
-    # relocated missions/ from src/doctrine/missions to packs/built-in/missions.
+    # relocated missions/ from src/charter/offering/missions to packs/built-in/missions.
     canonical = REPO_ROOT / "packs" / "built-in" / "missions" / "software-dev" / "templates" / name
 
     assert canonical.is_file()

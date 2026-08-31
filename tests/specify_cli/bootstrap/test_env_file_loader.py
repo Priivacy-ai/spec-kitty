@@ -211,8 +211,9 @@ class TestFailPolicy:
         docstring on ``_read_tier`` for why: an absent ``.kitty.env`` is the
         default state for nearly every project, so a ``UserWarning`` on every
         CLI invocation would be noise, and concretely breaks the
-        clean-stderr-on-import contract pinned by
-        ``test_bare_import_emits_no_stderr`` below.
+        clean-stderr-on-import contract pinned by the sibling subprocess
+        tests ``test_bare_import_emits_no_stderr`` and
+        ``test_bare_import_without_operator_env_file_is_silent`` below.
         """
         caplog.set_level(logging.DEBUG, logger="specify_cli.bootstrap.env_file")
         home = tmp_path / "state-home"
@@ -426,14 +427,14 @@ class TestConfigEnvFilePointer:
     def test_env_file_key_lives_outside_the_doctrine_org_extra_forbid_block(
         self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path, repo_dir: Path
     ) -> None:
-        """The env_file pointer must not break ``doctrine.drg.org_pack_config.PackRegistry``.
+        """The env_file pointer must not break ``charter.offering.drg.org_pack_config.PackRegistry``.
 
         That model's ``model_config = ConfigDict(extra="forbid")``
-        (src/doctrine/drg/org_pack_config.py:307) validates ONLY the
-        ``doctrine.org`` subsection of config.yaml -- a sibling top-level
+        (src/charter/offering/drg/org_pack_config.py:307) validates ONLY the
+        ``charter.offering.org`` subsection of config.yaml -- a sibling top-level
         ``env_file:`` key must be invisible to it (C-LDR-5).
         """
-        from doctrine.drg.org_pack_config import load_pack_registry
+        from charter.offering.drg.org_pack_config import load_pack_registry
 
         state_home = tmp_path / "state-home"
         monkeypatch.setenv("SPEC_KITTY_HOME", str(state_home))
@@ -611,6 +612,27 @@ def test_bare_import_emits_no_stderr(tmp_path: Path) -> None:
         "a bare import must not print to stdout or stderr; "
         f"stdout={result.stdout!r} stderr={result.stderr}"
     )
+
+
+@pytest.mark.integration
+def test_bare_import_without_operator_env_file_is_silent(tmp_path: Path) -> None:
+    """A bare ``import specify_cli`` must print nothing when no file exists."""
+    repo = tmp_path / "repo"
+    (repo / ".kittify").mkdir(parents=True)
+    env = _subprocess_env(tmp_path)
+
+    result = subprocess.run(
+        [sys.executable, "-c", "import specify_cli"],
+        cwd=repo,
+        env=env,
+        text=True,
+        capture_output=True,
+        timeout=60,
+    )
+
+    assert result.returncode == 0, result.stderr
+    assert result.stdout == ""
+    assert result.stderr == ""
 
 
 # --------------------------------------------------------------------------- #

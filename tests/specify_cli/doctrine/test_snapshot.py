@@ -46,7 +46,7 @@ class TestFetchPackEnvVarExpansion:
     ``${VAR}``-templated ``local_path`` literal."""
 
     def test_fetch_pack_writes_into_expanded_target_not_literal_template(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-        from doctrine.drg.org_pack_config import OrgPackConfig
+        from charter.offering.drg.org_pack_config import OrgPackConfig
 
         env_var = "SPEC_KITTY_PACK_HOME"
         monkeypatch.setenv(env_var, str(tmp_path))
@@ -73,7 +73,7 @@ class TestFetchPackEnvVarExpansion:
         assert not literal_target.exists()
 
     def test_fetch_pack_fails_closed_on_unset_env_var(self, tmp_path: Path) -> None:
-        from doctrine.drg.org_pack_config import OrgPackConfig
+        from charter.offering.drg.org_pack_config import OrgPackConfig
 
         pack = OrgPackConfig(
             name="acme",

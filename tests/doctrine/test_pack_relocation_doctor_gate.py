@@ -34,7 +34,7 @@ import pytest
 from typer.testing import CliRunner
 
 from charter.catalog import load_doctrine_catalog
-from doctrine.glossary_packs import GlossaryPackRepository
+from charter.offering.glossary_packs import GlossaryPackRepository
 from specify_cli.cli.commands.doctor import app as doctor_app
 from tests.doctrine._builtin_inventory import (
     builtin_glossary_term_count,
@@ -165,7 +165,7 @@ def test_clean_install_resolves_full_built_in_graph(
             str(python),
             "-c",
             (
-                "from doctrine.drg.loader import load_built_in_graph; "
+                "from charter.offering.drg.loader import load_built_in_graph; "
                 "g = load_built_in_graph(); "
                 "print(len(g.nodes), len(g.edges))"
             ),

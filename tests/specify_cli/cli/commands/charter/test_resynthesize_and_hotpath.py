@@ -147,7 +147,7 @@ def _seed_project_graph(repo: Path) -> Path:
 
     Matches ``test_freshness_activation_visibility.py``'s own local helper:
     a bare ``schema_version``/``nodes``/``edges`` document is REJECTED by
-    ``doctrine.drg.models.DRGGraph`` (``generated_at``/``generated_by`` are
+    ``charter.offering.drg.models.DRGGraph`` (``generated_at``/``generated_by`` are
     required) once ``charter.consistency_check``'s graph-kind-parity check
     pydantic-validates it via ``load_validated_graph``.
     """
@@ -496,7 +496,7 @@ def test_promote_activations_migration_path_triggers_no_synthesis(
     Structural by construction (``charter.activation_engine`` never imports
     ``specify_cli`` -- C-001) -- this test locks that invariant in behavior,
     not just by inspection: the write path taken by ``spec-kitty upgrade``'s
-    ``m_unify_charter_activation`` migration and ``doctrine.org_charter``'s
+    ``m_unify_charter_activation`` migration and ``charter.offering.org_charter``'s
     ``required_*`` union both funnel through this exact function.
     """
     mock_generate, mock_synthesize = _patch_synthesis_spies(monkeypatch)

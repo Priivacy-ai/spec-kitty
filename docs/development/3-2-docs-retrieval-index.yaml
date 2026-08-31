@@ -3085,6 +3085,7 @@ pages:
     - {slug: "spec-kitty-agent-status-validate", text: "spec-kitty agent status validate", level: 2}
     - {slug: "spec-kitty-agent-tasks", text: "spec-kitty agent tasks", level: 2}
     - {slug: "spec-kitty-agent-tasks-add-history", text: "spec-kitty agent tasks add-history", level: 2}
+    - {slug: "spec-kitty-agent-tasks-check-terminability", text: "spec-kitty agent tasks check-terminability", level: 2}
     - {slug: "spec-kitty-agent-tasks-finalize-tasks", text: "spec-kitty agent tasks finalize-tasks", level: 2}
     - {slug: "spec-kitty-agent-tasks-list-dependents", text: "spec-kitty agent tasks list-dependents", level: 2}
     - {slug: "spec-kitty-agent-tasks-list-tasks", text: "spec-kitty agent tasks list-tasks", level: 2}
@@ -3281,6 +3282,13 @@ pages:
     - {slug: "when-to-reach-for-it", text: "When to reach for it", level: 2}
     - {slug: "how-to-load-it-from-your-harness", text: "How to load it from your harness", level: 2}
     - {slug: "see-also", text: "See also", level: 2}
+  - path: "docs/api/auth-whoami-output.md"
+    title: "auth whoami output reference"
+    divio_type: "none"
+    abstract: "Full stdout shape of spec-kitty auth whoami, including the SaaS diagnostic lines the generated --help text doesn't mention."
+    anchors:
+    - {slug: "what-prints-in-order", text: "What prints, in order", level: 2}
+    - {slug: "why-the-split-exists", text: "Why the split exists", level: 2}
   - path: "docs/api/batch-api-contract.md"
     title: "Batch Event Ingest API Contract"
     divio_type: "reference"
@@ -3438,7 +3446,6 @@ pages:
     - {slug: "spec-kitty-doctor-tool-surfaces", text: "spec-kitty doctor tool-surfaces", level: 2}
     - {slug: "spec-kitty-doctor-topology", text: "spec-kitty doctor topology", level: 2}
     - {slug: "spec-kitty-doctor-workspaces", text: "spec-kitty doctor workspaces", level: 2}
-    - {slug: "spec-kitty-doctrine", text: "spec-kitty doctrine", level: 2}
     - {slug: "spec-kitty-doctrine-asset", text: "spec-kitty doctrine asset", level: 2}
     - {slug: "spec-kitty-doctrine-asset-list", text: "spec-kitty doctrine asset list", level: 2}
     - {slug: "spec-kitty-doctrine-asset-path", text: "spec-kitty doctrine asset path", level: 2}

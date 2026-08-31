@@ -1,7 +1,7 @@
 """``charter status`` must not hand out a clean bill for an incomplete graph.
 
 WP08 re-review fold. The first fold wired
-:func:`doctrine.drg.validate_dangling_references` into ONE of the callers that
+:func:`charter.offering.drg.validate_dangling_references` into ONE of the callers that
 merges the real built-in layer against the operator's real configured packs
 (``doctor doctrine``'s JSON collector) and justified stopping there by calling
 that caller "the one place that holds a graph it can call complete".
@@ -15,7 +15,7 @@ binds to nothing: a machine-readable clean bill for a graph that is not clean.
 That is this mission's own defect class one layer up.
 
 The rule that actually governs the check (now stated on
-:func:`doctrine.drg.validator.validate_dangling_references`) is a predicate on
+:func:`charter.offering.drg.validator.validate_dangling_references`) is a predicate on
 the *merge*, not a uniqueness claim about one call site: **a caller may escalate
 a dangling endpoint to an error exactly when it merged the complete graph.**
 ``charter lint`` is the one caller that must NOT (it merges against a

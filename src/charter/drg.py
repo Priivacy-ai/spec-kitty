@@ -1,7 +1,7 @@
 """Charter facade for DRG (Doctrine Reference Graph) types + org layer (Slice F).
 
 This module is the charter-layer proxy for runtime callers that historically
-imported from ``doctrine.drg`` directly. The runtime → charter → doctrine
+imported from ``charter.offering.drg`` directly. The runtime → charter → doctrine
 boundary (ADR 2026-03-27-1, tightened by mission
 ``charter-mediated-doctrine-selection-01KRTZCA``) requires runtime modules
 under ``src/specify_cli/`` to reach doctrine artifacts only through such
@@ -14,7 +14,7 @@ in the charter layer per the architectural constraint that anything new in the
 doctrine-overlay space must be reachable by ``specify_cli`` only through
 ``charter``.
 
-Schema / fragment models live in ``doctrine.drg.org_pack_loader``
+Schema / fragment models live in ``charter.offering.drg.org_pack_loader``
 (PR #1119 DDD-boundary fix): ``OrgDRGFragment``, ``OrgPackMissingError``.
 Charter re-exports them here so existing ``from charter.drg import …`` call
 sites remain valid without crossing the layer boundary directly.
@@ -23,7 +23,7 @@ Slice F WP06 design notes
 -------------------------
 
 The org-DRG fragment schema (``OrgDRGFragment``) intentionally uses a
-simpler node/edge shape than ``doctrine.drg.models.DRGNode`` /
+simpler node/edge shape than ``charter.offering.drg.models.DRGNode`` /
 ``DRGEdge``. The reason is C-009: the contract round-trip gate exercises
 the YAML example in
 ``kitty-specs/<mission>/contracts/org-drg-schema.md`` which uses plural
@@ -32,7 +32,7 @@ kinds (``kind: directives``) and human-friendly fields (``id``, ``title``,
 satisfy both surfaces:
 
 * Fragment-side parsing uses private node/edge models declared in
-  ``doctrine.drg.org_pack_loader``. Their ``kind`` field is constrained
+  ``charter.offering.drg.org_pack_loader``. Their ``kind`` field is constrained
   to the Mission B 8-kind plural universe (C-009 binding).
 * ``merge_three_layers`` bridges fragment nodes onto the built-in DRG by
   minting URNs of the form ``<singular_kind>:<id>`` (e.g. ``directive:sox-controls``).
@@ -56,18 +56,18 @@ from charter.kind_vocabulary import (
     UnknownArtifactIdError,
     resolve_artifact_urn,
 )
-# ArtifactKind is re-exported from the curated public surface ``doctrine.api``
-# (not ``doctrine.artifact_kinds`` directly) so the PUBLIC wheel symbol gains a
-# live in-repo caller — the from-``doctrine.api`` wiring the no-dead-symbol gate
+# ArtifactKind is re-exported from the curated public surface ``charter.offering.api``
+# (not ``charter.offering.artifact_kinds`` directly) so the PUBLIC wheel symbol gains a
+# live in-repo caller — the from-``charter.offering.api`` wiring the no-dead-symbol gate
 # (``tests/architectural/test_no_dead_symbols.py``) and the strict T007
 # live-caller assertion (``test_doctrine_public_surface.py``) depend on. Object
-# identity is unchanged: ``doctrine.api.ArtifactKind is
-# doctrine.artifact_kinds.ArtifactKind`` (mission ``doctrine-public-api-surface``
+# identity is unchanged: ``charter.offering.api.ArtifactKind is
+# charter.offering.artifact_kinds.ArtifactKind`` (mission ``doctrine-public-api-surface``
 # WP03, FR-003 / NFR-002 / contract C1).
 from charter.pack_context import PackContext
-from doctrine.api import ArtifactKind
-from doctrine.base import DoctrineLayerCollisionWarning
-from doctrine.drg import (
+from charter.offering.api import ArtifactKind
+from charter.offering.base import DoctrineLayerCollisionWarning
+from charter.offering.drg import (
     DRGLoadError,
     DRGValidationError,
     load_built_in_graph,
@@ -76,22 +76,22 @@ from doctrine.drg import (
     merge_layers,
     validate_dangling_references,
 )
-from doctrine.drg.merge import (
+from charter.offering.drg.merge import (
     OrgDRGConflict,
     OrgDRGConflictError,
     UnknownRelationError,
     merge_three_layers,
 )
-from doctrine.drg.merge import (
+from charter.offering.drg.merge import (
     bridge_org_edge_to_drg_edge,
 )
-from doctrine.drg.migration.extractor import (
+from charter.offering.drg.migration.extractor import (
     FIELDS_WITHHELD_FROM_GRAPH_OUTPUT,
     graph_document_to_dict,
     model_to_graph_dict,
 )
-from doctrine.drg.models import DRGEdge, DRGGraph, DRGNode, NodeKind, Relation
-from doctrine.drg.org_pack_config import (
+from charter.offering.drg.models import DRGEdge, DRGGraph, DRGNode, NodeKind, Relation
+from charter.offering.drg.org_pack_config import (
     OrgPackEnvVarUnsetError,
     OrgPackSubdirEscapeError,
     load_pack_registry as load_pack_registry,
@@ -99,14 +99,14 @@ from doctrine.drg.org_pack_config import (
     resolve_org_dirs,
     resolve_org_roots,
 )
-from doctrine.drg.org_pack_loader import (
+from charter.offering.drg.org_pack_loader import (
     OrgDRGFragment,
     OrgPackMissingError,
     load_org_pack,
 )
-from doctrine.drg.query import ResolvedContext, resolve_context
+from charter.offering.drg.query import ResolvedContext, resolve_context
 
-# Canonical three-layer merge now lives in ``doctrine.drg.merge`` (WP03,
+# Canonical three-layer merge now lives in ``charter.offering.drg.merge`` (WP03,
 # mission ``org-doctrine-profile-integrity-activation-closure-01KT1TV1``). The
 # merge is pure graph logic and must not depend on charter/specify_cli; this
 # module re-exports the public names below so existing
@@ -119,7 +119,7 @@ from doctrine.drg.query import ResolvedContext, resolve_context
 # completeness check every runtime caller that merges the COMPLETE graph must
 # run (see its docstring for the predicate), so it belongs beside
 # ``merge_three_layers`` on the facade rather than being imported from
-# ``doctrine.drg.validator`` inside a runtime function — a form that reaches
+# ``charter.offering.drg.validator`` inside a runtime function — a form that reaches
 # past charter into doctrine and that the boundary ratchet
 # (``tests/architectural/test_runtime_charter_doctrine_boundary.py``) cannot
 # see, because it only inspects module-level imports.
@@ -172,15 +172,15 @@ def load_org_drg(repo_root: Path) -> list[OrgDRGFragment]:
 
     This function is project-config-aware (charter-domain): it reads the
     shared org-pack registry contract from
-    :func:`doctrine.drg.org_pack_config.load_pack_registry` and resolves each
+    :func:`charter.offering.drg.org_pack_config.load_pack_registry` and resolves each
     pack's local path relative to *repo_root*. Per-pack schema parsing and
-    validation is delegated to :func:`doctrine.drg.org_pack_loader.load_org_pack`.
+    validation is delegated to :func:`charter.offering.drg.org_pack_loader.load_org_pack`.
 
     Parameters
     ----------
     repo_root:
         Repository root containing ``.kittify/config.yaml``. When the
-        config is absent or has no ``doctrine.org`` pack entries, the
+        config is absent or has no ``charter.offering.org`` pack entries, the
         function returns ``[]`` (NFR-001 backward compatibility — repos
         with no org packs behave identically to today).
 
@@ -201,11 +201,11 @@ def load_org_drg(repo_root: Path) -> list[OrgDRGFragment]:
 
 
 # ---------------------------------------------------------------------------
-# Merge (relocated to ``doctrine.drg.merge`` — WP03)
+# Merge (relocated to ``charter.offering.drg.merge`` — WP03)
 # ---------------------------------------------------------------------------
 # The canonical three-layer merge (``merge_three_layers`` and its bridging
 # helpers, plus ``OrgDRGConflict`` / ``OrgDRGConflictError`` /
-# ``UnknownRelationError``) now lives in :mod:`doctrine.drg.merge`. It is pure
+# ``UnknownRelationError``) now lives in :mod:`charter.offering.drg.merge`. It is pure
 # graph logic with no charter/specify_cli dependency. This module imports and
 # re-exports those names (see the imports + ``__all__`` above) so existing
 # ``from charter.drg import merge_three_layers`` call sites keep working. Only
@@ -287,7 +287,7 @@ _MISSION_STEP_SINGULAR_KINDS: frozenset[str] = frozenset({"mission_step_contract
 #: ``anti_pattern`` has no dedicated artifact file / config stem: it is a
 #: re-kinded, tagged node living inside another kind's YAML fragment, never
 #: a standalone ``*.anti_pattern.yaml`` file (see
-#: ``doctrine.artifact_kinds`` module docstring and its ``glob_pattern``
+#: ``charter.offering.artifact_kinds`` module docstring and its ``glob_pattern``
 #: entry, which is declared for enum completeness but never matches a real
 #: file). ``PackContext.activated_anti_patterns`` therefore already holds
 #: the canonical/direct artifact id, not a config stem needing resolution —

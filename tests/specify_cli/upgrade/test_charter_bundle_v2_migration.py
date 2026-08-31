@@ -47,7 +47,7 @@ def _write_minimal_charter_yaml(
 ) -> None:
     """Write a minimal charter.yaml, optionally stamping ``metadata.bundle_schema_version``.
 
-    consolidate-charter-bundle (WP07 / T030): ``doctrine.versioning.
+    consolidate-charter-bundle (WP07 / T030): ``charter.offering.versioning.
     get_bundle_schema_version`` now reads this file's ``metadata:`` section
     instead of the retired ``<charter_dir>/metadata.yaml`` top-level key —
     these Phase-7-provenance fixtures need a real ``charter.yaml`` on disk
@@ -149,7 +149,7 @@ def _create_v2_bundle(project_path: Path) -> None:
     )
 
     # Compute a real manifest_hash for the v2 manifest.
-    from doctrine.yaml_utils import canonical_yaml
+    from charter.offering.yaml_utils import canonical_yaml
     import hashlib
 
     fields_for_hash = {
@@ -188,7 +188,7 @@ def _create_legacy_v2_bundle_without_built_in_only(project_path: Path) -> None:
 
     import hashlib
 
-    from doctrine.yaml_utils import canonical_yaml
+    from charter.offering.yaml_utils import canonical_yaml
 
     manifest_path = (
         project_path / ".kittify" / "charter" / "synthesis-manifest.yaml"
@@ -357,7 +357,7 @@ def test_apply_updates_metadata_yaml(tmp_path: Path) -> None:
     _create_v1_bundle(tmp_path)
     CharterBundleV2Migration().apply(tmp_path)
 
-    from doctrine.versioning import get_bundle_schema_version
+    from charter.offering.versioning import get_bundle_schema_version
 
     version = get_bundle_schema_version(tmp_path / ".kittify" / "charter")
     assert version == 2

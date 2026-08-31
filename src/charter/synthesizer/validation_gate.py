@@ -48,9 +48,9 @@ from __future__ import annotations
 from pathlib import Path
 from typing import TYPE_CHECKING
 
-from doctrine.drg.loader import DRGLoadError, load_graph_or_dir, merge_layers
-from doctrine.drg.models import DRGEdge, DRGGraph
-from doctrine.drg.validator import validate_graph
+from charter.offering.drg.loader import DRGLoadError, load_graph_or_dir, merge_layers
+from charter.offering.drg.models import DRGEdge, DRGGraph
+from charter.offering.drg.validator import validate_graph
 
 from .errors import ProjectDRGValidationError
 
@@ -94,7 +94,7 @@ def _graph_excluding_preserved_conflicts(
       dangling reference cannot legitimately participate in cycle
       detection, so removing it changes no other check's verdict.
     - ``duplicate_triple``: only occurrences AFTER the first are dropped
-      (mirrors ``doctrine.drg.validator.duplicate_edge_triples``'s "the
+      (mirrors ``charter.offering.drg.validator.duplicate_edge_triples``'s "the
       first occurrence is not itself a duplicate" rule), so the edge still
       participates once in every other structural check (cycles, dangling)
       — only the redundant repeat is suppressed.

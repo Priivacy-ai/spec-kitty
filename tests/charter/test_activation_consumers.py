@@ -52,7 +52,7 @@ from charter.context import _load_action_doctrine_bundle
 from charter.invocation_context import ProjectContext
 from charter.pack_context import _BUILTIN_ARTIFACT_KINDS, PackContext
 from charter.reference_resolver import resolve_references_transitively
-from doctrine.drg.models import DRGGraph, DRGNode, NodeKind
+from charter.offering.drg.models import DRGGraph, DRGNode, NodeKind
 
 pytestmark = [pytest.mark.unit]
 

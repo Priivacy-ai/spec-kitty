@@ -446,7 +446,7 @@ def _resolve_snapshot_validate_root(
     """
     if subdir is None:
         return snapshot_dir
-    from doctrine.drg.org_pack_config import resolve_relative_path_within_root
+    from charter.offering.drg.org_pack_config import resolve_relative_path_within_root
 
     return resolve_relative_path_within_root(snapshot_dir, subdir)
 
