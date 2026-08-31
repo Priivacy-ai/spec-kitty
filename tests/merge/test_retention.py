@@ -46,6 +46,8 @@ def _write_spec(tmp_path: Path, constraint: str, status: str) -> MissionFixture:
             True,
             False,
         ),
+        ("Keep branches and delete worktrees after merge.", True, False),
+        ("Keep branches but delete worktrees after merge.", True, False),
     ],
 )
 def test_load_mission_retention_detects_each_retained_artifact(
