@@ -287,7 +287,17 @@ class SaaSTrackerClient:
         monotonic_clock: Callable[[], float] | None = None,
         jitter_randbelow: Callable[[int], int] | None = None,
     ) -> None:
-        self._project_root = Path(project_root).resolve() if project_root is not None else None
+        if project_root is None:
+            self._project_root = None
+        else:
+            try:
+                self._project_root = Path(project_root).resolve()
+            except (OSError, RuntimeError) as exc:
+                raise SaaSTrackerClientError(
+                    f"Cannot resolve project root {project_root}: {exc}",
+                    error_code="project_root_resolution_failed",
+                    details={"project_root": str(project_root), "reason": str(exc)},
+                ) from exc
         # Canonical server-target authority (#2146, re-homed from the deleted
         # sync config in issue #5): resolve the URL we will actually hit —
         # folding in SPEC_KITTY_SAAS_URL precedence — instead of the raw
