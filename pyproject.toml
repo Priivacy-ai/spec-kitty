@@ -1186,7 +1186,6 @@ exclude = [
     "tests/architectural/test_doctrine_missions_stale_path_sweep.py",
     "tests/architectural/test_doctrine_public_surface.py",
     "tests/architectural/test_doctrine_regenerate_graph_roundtrip.py",
-    "tests/architectural/test_doctrine_wheel_closure.py",
     "tests/architectural/test_dossier_emitter_positional_guard.py",
     "tests/architectural/test_drg_writer_discovery.py",
     "tests/architectural/test_egress_consent_boundary.py",
