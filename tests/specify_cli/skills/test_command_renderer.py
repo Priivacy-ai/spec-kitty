@@ -19,7 +19,7 @@ why the output changed — the snapshots are the regression guard.
 TODO (reconsider this test's design if it keeps causing friction):
     These snapshots pin *byte-identical* rendered ``SKILL.md`` output per agent,
     so any legitimate prose edit to a doctrine source template
-    (``src/doctrine/missions/mission-steps/**``) forces regenerating the
+    (``src/charter/offering/missions/mission-steps/**``) forces regenerating the
     committed ``__snapshots__/<agent>/<command>.SKILL.md`` copies. The snapshot
     asserts byte-identity, not semantic correctness. Paired with the 12-agent
     baseline guard (``tests/specify_cli/regression/test_twelve_agent_parity``),
@@ -55,7 +55,7 @@ from specify_cli.skills.render_versions import FIXTURE_SKILL_RENDER_VERSION
 pytestmark = [pytest.mark.unit, pytest.mark.fast]
 
 # New doctrine layout: packs/built-in/missions/mission-steps/<mission_type>/
-# (relocated from src/doctrine/missions/mission-steps by mission
+# (relocated from src/charter/offering/missions/mission-steps by mission
 # doctrine-consumer-surface-missions-extraction-01KZ6G6H, FR-005).
 DOCTRINE_MISSION_STEPS_DIR = Path(__file__).parent.parent.parent.parent / "packs" / "built-in" / "missions" / "mission-steps"
 
@@ -88,7 +88,7 @@ def _all_templates() -> list[Path]:
     """Return sorted list of all canonical command prompt.md paths.
 
     Under the new doctrine layout each step lives in its own sub-directory:
-    ``src/doctrine/missions/mission-steps/<mission_type>/<step_id>/prompt.md``
+    ``src/charter/offering/missions/mission-steps/<mission_type>/<step_id>/prompt.md``
     """
     return sorted(TEMPLATES_DIR.glob("*/prompt.md"))
 
@@ -552,7 +552,7 @@ def test_nfr004_doctrine_path_exists() -> None:
 def test_nfr004_legacy_command_templates_absent() -> None:
     """NFR-004: The old command-templates/ path must NOT exist after WP02 migration.
 
-    The template source of truth is now ``src/doctrine/missions/mission-steps/``.
+    The template source of truth is now ``src/charter/offering/missions/mission-steps/``.
     If the old path still exists, the migration was incomplete.
     """
     assert not _LEGACY_COMMAND_TEMPLATES_DIR.exists(), (

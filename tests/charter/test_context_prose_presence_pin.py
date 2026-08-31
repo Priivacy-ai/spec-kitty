@@ -141,7 +141,7 @@ def _build(tmp_path: Path) -> CharterContextResult:
     depend on.
     """
     from charter.sync import SyncResult
-    from doctrine.drg.models import DRGGraph
+    from charter.offering.drg.models import DRGGraph
     from ruamel.yaml import YAML
 
     yaml = YAML(typ="safe")
@@ -158,7 +158,7 @@ def _build(tmp_path: Path) -> CharterContextResult:
         patch("charter.sync.ensure_charter_bundle_fresh", return_value=sync_result),
         patch("charter._drg_helpers.load_validated_graph", return_value=mock_graph),
         patch("charter.catalog.resolve_doctrine_root", return_value=tmp_path),
-        patch("doctrine.drg.validator.assert_valid"),
+        patch("charter.offering.drg.validator.assert_valid"),
     ):
         return build_charter_context(tmp_path, action="implement", depth=2, mission_type="software-dev")
 

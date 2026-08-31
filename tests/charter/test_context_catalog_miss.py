@@ -43,8 +43,8 @@ from charter._catalog_miss import (
 )
 from charter.context_renderers.profile_sections import _render_profile_directives
 from charter.context_renderers.selection_block import _render_selected_styleguides
-from doctrine.agent_profiles import AgentProfile
-from doctrine.styleguides.repository import StyleguideRepository
+from charter.offering.agent_profiles import AgentProfile
+from charter.offering.styleguides.repository import StyleguideRepository
 
 
 pytestmark = pytest.mark.fast

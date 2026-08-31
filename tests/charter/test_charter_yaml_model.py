@@ -39,7 +39,7 @@ def _catalog() -> CharterCatalog:
                 kind="paradigm",
                 title="Atomic Design",
                 summary="Compose interfaces from a five-level hierarchy.",
-                source_path="src/doctrine/paradigms/built-in/atomic-design.paradigm.yaml",
+                source_path="src/charter/offering/paradigms/built-in/atomic-design.paradigm.yaml",
                 local_path="_LIBRARY/paradigm-atomic-design.md",
             )
         ],

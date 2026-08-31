@@ -14,3 +14,4 @@ map-requirements Register requirement-to-WP mappings with immediate validation.
 validate-workflow Validate task metadata structure and workflow consistency.
 status Display kanban status board for all work packages in a feature.
 list-dependents Find all WPs that depend on a given WP (downstream dependents).
+check-terminability Advisory scan for work packages that can only be terminated post-integration.

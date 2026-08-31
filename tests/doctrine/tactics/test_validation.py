@@ -1,6 +1,6 @@
 """Unit tests for tactic schema validation."""
 
-from doctrine.tactics.validation import validate_tactic
+from charter.offering.tactics.validation import validate_tactic
 import pytest
 pytestmark = [pytest.mark.fast, pytest.mark.doctrine]
 

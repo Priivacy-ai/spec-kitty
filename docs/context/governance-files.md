@@ -79,7 +79,7 @@ Recommended pattern:
 
 ```yaml
 governance:
-  doctrine:
+  charter:
     authority_paths:
       - spec/
     governance_references:
@@ -123,7 +123,7 @@ from `charter.yaml`:
 
 ```yaml
 governance:
-  doctrine:
+  charter:
     governance_references:
       - spec/constitution.md
 ```

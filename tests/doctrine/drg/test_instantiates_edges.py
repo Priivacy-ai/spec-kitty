@@ -1,6 +1,6 @@
 """Coverage for the ``mission_type -> step -> template`` graph-back (WP06, FR-009/FR-011).
 
-``extract_template_instantiation_edges`` (``doctrine.drg.migration.extractor``)
+``extract_template_instantiation_edges`` (``charter.offering.drg.migration.extractor``)
 mints a mission-qualified ``template:<mission>/<file>`` node per step-carried
 ``MissionStepTemplateRef`` and one ``action:<mission>/<step> --instantiates-->
 template:<mission>/<file>`` edge per pair, consuming WP01's
@@ -31,11 +31,11 @@ from pathlib import Path
 
 import pytest
 
-from doctrine.drg.migration.extractor import (
+from charter.offering.drg.migration.extractor import (
     extract_template_instantiation_edges,
     generate_graph,
 )
-from doctrine.drg.models import NodeKind, Relation
+from charter.offering.drg.models import NodeKind, Relation
 
 pytestmark = [pytest.mark.doctrine, pytest.mark.fast, pytest.mark.corpus]
 

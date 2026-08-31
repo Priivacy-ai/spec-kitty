@@ -20,13 +20,14 @@ diverges from ``serialize_mapping``, that is the signal to REVERT the
 
 from __future__ import annotations
 
+from pathlib import Path
 from typing import Any
 
 import pytest
 from ruamel.yaml import YAML
 
 from kernel.yaml_io import serialize_mapping
-from specify_cli.review.artifacts import _make_yaml
+from specify_cli.review.artifacts import ReviewCycleArtifact, _make_yaml
 
 pytestmark = pytest.mark.fast
 
@@ -94,3 +95,44 @@ def test_serialize_mapping_output_still_parses_identically_to_make_yaml_load() -
         loaded_via_safe = YAML(typ="safe").load(new_bytes.decode("utf-8"))
         assert dict(loaded_via_make_yaml) == data
         assert loaded_via_safe == data
+
+
+def test_review_cycle_write_emits_utf8_lf_bytes_under_windows_translation(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """The serializer must not let platform text I/O rewrite canonical bytes."""
+    original_write_bytes = Path.write_bytes
+
+    def _windows_write_text(
+        path: Path,
+        data: str,
+        encoding: str | None = None,
+        errors: str | None = None,
+        newline: str | None = None,
+    ) -> int:
+        del errors
+        translated = data.replace("\n", "\r\n") if newline is None else data
+        return original_write_bytes(path, translated.encode(encoding or "utf-8"))
+
+    monkeypatch.setattr(Path, "write_text", _windows_write_text)
+    artifact = ReviewCycleArtifact(
+        cycle_number=3,
+        wp_id="WP03",
+        mission_slug="durable-review-cycles",
+        reviewer_agent="reviewer-renata",
+        reviewed_at="2026-08-24T12:15:44Z",
+        body="Grüße from Windows\nsecond line\n",
+    )
+    path = tmp_path / "review-cycle-3.md"
+
+    artifact.write(path)
+
+    expected = (
+        b"---\n"
+        + serialize_mapping(artifact.to_dict())
+        + b"---\n\nGr\xc3\xbc\xc3\x9fe from Windows\nsecond line\n"
+    )
+    assert path.read_bytes() == expected
+    assert b"\r\n" not in path.read_bytes()
+    assert ReviewCycleArtifact.from_file(path) == artifact

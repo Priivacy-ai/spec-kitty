@@ -16,7 +16,7 @@ Coverage:
   ``charter.md`` prose content — flipping the companion's Policy Summary /
   section bodies does not change which directives resolve, because
   directive resolution is driven by the DRG graph + ``charter.yaml``'s
-  ``governance.doctrine.selected_directives``, never by parsing
+  ``governance.charter.offering.selected_directives``, never by parsing
   ``charter.md`` (T021, INV-3).
 * The compact-mode section-block renderer (``context._compact_section_block``)
   and the compact anchor extractor (``compact.render_compact_view``) degrade
@@ -47,7 +47,7 @@ from charter import context as context_module
 from charter.context import CharterContextResult, build_charter_context
 from charter.context_renderers.section_bodies import render_critical_section_bodies
 from charter.compact import extract_section_anchors, render_compact_view
-from doctrine.drg.models import DRGGraph
+from charter.offering.drg.models import DRGGraph
 
 # Uses subprocess `git init` (see below), so it must carry ``git_repo`` and
 # must NOT be ``fast`` (fast excludes subprocess users) per the marker-correctness
@@ -117,7 +117,7 @@ _CHARTER_MD_WITH_DIFFERENT_PROSE = textwrap.dedent("""\
 def _write_fixture_repo(tmp_path: Path, *, charter_md: str | None) -> None:
     """Write a minimal repo with ``charter.yaml`` and (optionally) ``charter.md``.
 
-    ``charter.yaml`` always carries ``governance.doctrine.selected_directives``
+    ``charter.yaml`` always carries ``governance.charter.offering.selected_directives``
     so the WP04-repointed loader (``charter.sync.load_governance_config``)
     resolves ``DIRECTIVE_001`` regardless of whether -- or what -- the
     companion ``charter.md`` says.
@@ -159,7 +159,7 @@ def _build_bootstrap_context(tmp_path: Path, *, charter_md: str | None) -> Chart
     with (
         patch("charter._drg_helpers.load_validated_graph", return_value=mock_graph),
         patch("charter.catalog.resolve_doctrine_root", return_value=tmp_path),
-        patch("doctrine.drg.validator.assert_valid"),
+        patch("charter.offering.drg.validator.assert_valid"),
     ):
         return build_charter_context(
             tmp_path,
@@ -203,7 +203,7 @@ class TestBootstrapRendersCompanionProse:
 
 class TestGovernanceResolutionIndependentOfProse:
     """Directive resolution comes from the DRG graph + charter.yaml's
-    ``governance.doctrine.selected_directives`` -- never from parsing
+    ``governance.charter.offering.selected_directives`` -- never from parsing
     ``charter.md``. Swapping the companion's prose changes only the
     DISPLAY blocks, never which directives resolve."""
 

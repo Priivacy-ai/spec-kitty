@@ -242,8 +242,57 @@ def test_agent_mismatch_refuses_with_console_warning() -> None:
     assert isinstance(outcome, RefuseExit1)
     assert "Agent mismatch" in outcome.error
     assert "testbot" in outcome.error and "other-agent" in outcome.error
+    assert outcome.diagnostic is None
     # The rich ownership warning is carried as data for the shell to print.
     assert outcome.console_warning, "agent-ownership refusal must carry the console warning lines"
+
+
+def test_agent_mismatch_on_rejection_save_has_typed_non_durable_diagnostic() -> None:
+    outcome = decide_transition(
+        _base_request(
+            target_lane="planned",
+            old_lane="planned",
+            feedback_provided=True,
+            auto_commit=True,
+            agent="reviewer-a",
+            current_agent="reviewer-b",
+            force=False,
+        )
+    )
+    assert isinstance(outcome, RefuseExit1)
+    assert outcome.diagnostic == {
+        "result": "error",
+        "code": "ownership_refusal",
+        "error": (
+            "Agent mismatch: WP01 is assigned to 'reviewer-b', not "
+            "'reviewer-a'. Use --force to override."
+        ),
+        "current_lane": "planned",
+        "requested_lane": "planned",
+        "assigned_agent": "reviewer-b",
+        "requesting_agent": "reviewer-a",
+        "verdict_durably_persisted": False,
+        "evidence_ref": None,
+        "destination_ref": None,
+    }
+    assert "event_id" not in outcome.diagnostic
+
+
+def test_agent_mismatch_on_local_only_rejection_preserves_legacy_diagnostic() -> None:
+    outcome = decide_transition(
+        _base_request(
+            target_lane="planned",
+            old_lane="planned",
+            feedback_provided=True,
+            auto_commit=False,
+            agent="reviewer-a",
+            current_agent="reviewer-b",
+            force=False,
+        )
+    )
+    assert isinstance(outcome, RefuseExit1)
+    assert outcome.diagnostic is None
+    assert "Agent mismatch" in outcome.error
 
 
 def test_agent_mismatch_bypassed_by_force() -> None:

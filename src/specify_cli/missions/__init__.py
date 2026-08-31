@@ -1,6 +1,6 @@
 """Backward-compatibility shim for specify_cli.missions.
 
-The canonical implementation is in doctrine.missions. This package
+The canonical implementation is in charter.offering.missions. This package
 re-exports the public surface so that existing callers continue to work
 without modification (C-006). Access is mediated through the
 ``charter.primitives`` facade per the runtime → charter → doctrine

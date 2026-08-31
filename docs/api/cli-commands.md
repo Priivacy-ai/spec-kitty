@@ -63,7 +63,10 @@ For non-obvious runtime behaviour an operator may encounter:
 │ --json                                                 Emit JSON instead of  │
 │                                                        formatted text        │
 │ --lenient                                              Skip strict metadata  │
-│                                                        validation            │
+│                                                        validation and        │
+│                                                        downgrade missing     │
+│                                                        path-convention       │
+│                                                        checks to warnings    │
 │ --no-commit                                            Report acceptance     │
 │                                                        readiness without     │
 │                                                        writing metadata or   │
@@ -550,7 +553,7 @@ _Mission type commands (activated types only)._
 │ --help  -h        Show this message and exit.                                │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ╭─ Commands ───────────────────────────────────────────────────────────────────╮
-│ list  List activated mission types for the current project (FR-016).         │
+│ list  List mission types for the current project (FR-016).                   │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ```
 
@@ -559,17 +562,30 @@ _Mission type commands (activated types only)._
 ```
  Usage: spec-kitty charter mission-type list [OPTIONS]
 
- List activated mission types for the current project (FR-016).
+ List mission types for the current project (FR-016).
 
- Returns only mission types that are explicitly activated in this
- project's charter.  To see all doctrine-layer types regardless of
- activation state, use ``spec-kitty doctrine mission-type list``.
+ By default, returns only mission types that are explicitly activated in
+ this project's charter. Pass ``--include-inactive`` to also see every
+ type registered in the built-in/org/project layers regardless of
+ activation state -- the deprecated ``spec-kitty doctrine mission-type
+ list`` group covered this before CR-02; this flag is its canonical
+ replacement, not a straight alias (activation state still distinguishes
+ the two row classes -- see ACTION SEQUENCE below).
 
- Output columns (table): ID, SOURCE, DISPLAY NAME, ACTION SEQUENCE.
+ Output columns (table): ID, SOURCE, DISPLAY NAME, ACTION SEQUENCE. A
+ non-activated ``--include-inactive`` row shows ``(not activated)`` in
+ ACTION SEQUENCE: resolving a real action sequence requires activation
+ (the FR-006 gate), so there is nothing to compute for it.
 
 ╭─ Options ────────────────────────────────────────────────────────────────────╮
-│ --json            Output as JSON.                                            │
-│ --help  -h        Show this message and exit.                                │
+│ --json                        Output as JSON.                                │
+│ --include-inactive            Also list mission types registered in the      │
+│                               built-in/org/project layers but NOT activated  │
+│                               for this project (activation-blind). The       │
+│                               canonical replacement for `spec-kitty doctrine │
+│                               mission-type list` (CR-02, mission             │
+│                               charter-code-topology-01M152G1 S4).            │
+│ --help              -h        Show this message and exit.                    │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ```
 
@@ -1749,34 +1765,6 @@ _Project health diagnostics_
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ```
 
-## spec-kitty doctrine
-
-_Manage org-layer doctrine packs_
-
-```
- Usage: spec-kitty doctrine [OPTIONS] COMMAND [ARGS]...
-
- Manage org-layer doctrine packs
-
-╭─ Options ────────────────────────────────────────────────────────────────────╮
-│ --help  -h        Show this message and exit.                                │
-╰──────────────────────────────────────────────────────────────────────────────╯
-╭─ Commands ───────────────────────────────────────────────────────────────────╮
-│ fetch             Fetch org doctrine pack(s) from their configured remote    │
-│                   sources.                                                   │
-│ regenerate-graph  Regenerate the shipped DRG graph source deterministically  │
-│                   (FR-009).                                                  │
-│ new               Scaffold a stub doctrine artifact YAML (FR-016).           │
-│ validate          Validate project-layer doctrine artifacts against their    │
-│                   schemas (FR-017).                                          │
-│ pack              Validate or assemble doctrine packs.                       │
-│ org               Manage org-layer doctrine pack authoring (init, validate). │
-│ mission-type      Mission type commands.                                     │
-│ asset             Resolve shipped and overlay doctrine assets (no install —  │
-│                   C-002).                                                    │
-╰──────────────────────────────────────────────────────────────────────────────╯
-```
-
 ## spec-kitty doctrine asset
 
 _Resolve shipped and overlay doctrine assets (no install — C-002)._
@@ -2064,7 +2052,7 @@ _Validate or assemble doctrine packs._
  operator-facing twin of the freshness gate.
 
  Both the write path and ``--check`` merge in the enumerable hand-authored
- overlay (:mod:`doctrine.drg.migration.hand_authored_overlay`) — the
+ overlay (:mod:`charter.offering.drg.migration.hand_authored_overlay`) — the
  ``in_tension_with``/``reconciles_tension``/``rejects`` edges and
  ``anti_pattern`` nodes hand-authored directly in the graph fragments
  (mission doctrine-tension-edges-01KY1WPC). The extractor has no
@@ -4364,11 +4352,6 @@ _Cross-mission retrospective summary._
 │                                 release-gate contract). Auto-detected from   │
 │                                 meta.json.baseline_merge_commit when         │
 │                                 omitted.                                     │
-│ --check-residual                Run the CI residual (unit or contract)       │
-│                                 marker selection locally over tests/, then   │
-│                                 exit -- skips the mission-scoped review      │
-│                                 gates. The -m expression is read live from   │
-│                                 the CI workflow, never hand-copied.          │
 │ --help            -h            Show this message and exit.                  │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ```
@@ -4565,24 +4548,23 @@ _Task tracker commands_
    Requires --provider, --workspace, and --credential flags.
 
 ╭─ Options ────────────────────────────────────────────────────────────────────╮
-│ *  --provider               TEXT     Provider name (linear, jira, github,    │
-│                                      gitlab, beads, fp)                      │
-│                                      [required]                              │
-│    --bind-ref               TEXT     Binding reference for CI/automation     │
-│                                      (validates against host)                │
-│    --select                 INTEGER  Auto-select candidate by number         │
-│                                      (non-interactive)                       │
-│    --workspace              TEXT     Provider workspace/team/project         │
-│                                      identifier (local providers only)       │
-│    --doctrine-mode          TEXT     Doctrine mode: external_authoritative | │
-│                                      spec_kitty_authoritative |              │
-│                                      split_ownership                         │
-│                                      [default: external_authoritative]       │
-│    --field-owner            TEXT     Split ownership mapping: field=owner    │
-│                                      (local providers only)                  │
-│    --credential             TEXT     Provider credential key/value:          │
-│                                      key=value (local providers only)        │
-│    --help           -h               Show this message and exit.             │
+│ *  --provider                TEXT     Provider name (linear, jira, github,   │
+│                                       gitlab, beads, fp)                     │
+│                                       [required]                             │
+│    --bind-ref                TEXT     Binding reference for CI/automation    │
+│                                       (validates against host)               │
+│    --select                  INTEGER  Auto-select candidate by number        │
+│                                       (non-interactive)                      │
+│    --workspace               TEXT     Provider workspace/team/project        │
+│                                       identifier (local providers only)      │
+│    --ownership-mode          TEXT     Ownership mode: external_authoritative │
+│                                       | spec_kitty_authoritative |           │
+│                                       split_ownership                        │
+│    --field-owner             TEXT     Split ownership mapping: field=owner   │
+│                                       (local providers only)                 │
+│    --credential              TEXT     Provider credential key/value:         │
+│                                       key=value (local providers only)       │
+│    --help            -h               Show this message and exit.            │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ```
 

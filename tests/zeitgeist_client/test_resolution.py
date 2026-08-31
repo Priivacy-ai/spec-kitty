@@ -1,4 +1,4 @@
-"""E3 credential resolution (EXPERIMENTAL-spec-kitty#9): cached relay
+"""E3 credential resolution (Priivacy-ai/spec-kitty#9): cached relay
 credential, capability mint on miss/expiry, short-TTL negative answers.
 
 Three layers are covered separately:
@@ -532,7 +532,7 @@ class TestCacheShortCircuits:
 
 class TestCachedAnswer:
     """:func:`resolution.cached_answer` — the gateway-free peek `_resolve`
-    and `resolve_credentials` both build on (EXPERIMENTAL-spec-kitty#151)."""
+    and `resolve_credentials` both build on (Priivacy-ai/spec-kitty#151)."""
 
     def test_miss_when_nothing_stored(self, state_root: Path) -> None:
         assert resolution.cached_answer(KEY, repo_slug=SLUG, host=HOST) == (False, None)
@@ -1090,7 +1090,7 @@ class TestDefaultGatewayConstruction:
     def test_cached_credential_answers_offline_even_when_nothing_is_configured_to_authenticate_with(
         self, state_root: Path, monkeypatch: pytest.MonkeyPatch, clone: Path
     ) -> None:
-        """EXPERIMENTAL-spec-kitty#151: a stored credential must answer
+        """Priivacy-ai/spec-kitty#151: a stored credential must answer
         offline before the gateway is ever built, so a checkout with a
         cached credential but no auth configured anywhere still gets it —
         not the quiet ``None`` an auth failure would otherwise produce."""

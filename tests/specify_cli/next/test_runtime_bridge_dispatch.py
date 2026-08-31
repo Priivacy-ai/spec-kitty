@@ -52,7 +52,7 @@ def _inject_mission_type_repository_mock(
     """Inject a mock ``resolve_layered_mission_types`` into sys.modules.
 
     WP04 (mission up-mission-type-seam-01KZY1JB): ``_resolve_action_slot``
-    calls ``doctrine.missions.mission_type_repository.resolve_layered_mission_types``
+    calls ``charter.offering.missions.mission_type_repository.resolve_layered_mission_types``
     (WP03's layered factory), not ``MissionTypeRepository.default()`` -- a
     repository-call swap. *mock_repo* already exposes the ``.get(id)``
     interface the returned roster needs, so it doubles as the fake factory's
@@ -65,17 +65,17 @@ def _inject_mission_type_repository_mock(
     """
     mock_resolve_layered = MagicMock(return_value=mock_repo)
 
-    fake_pkg = types.ModuleType("doctrine.missions")
-    fake_module = types.ModuleType("doctrine.missions.mission_type_repository")
+    fake_pkg = types.ModuleType("charter.offering.missions")
+    fake_module = types.ModuleType("charter.offering.missions.mission_type_repository")
     fake_module.resolve_layered_mission_types = mock_resolve_layered  # type: ignore[attr-defined]
 
     saved: dict = {}
-    for key in ("doctrine.missions", "doctrine.missions.mission_type_repository"):
+    for key in ("charter.offering.missions", "charter.offering.missions.mission_type_repository"):
         saved[key] = sys.modules.get(key)
 
-    if "doctrine.missions" not in sys.modules:
-        sys.modules["doctrine.missions"] = fake_pkg
-    sys.modules["doctrine.missions.mission_type_repository"] = fake_module
+    if "charter.offering.missions" not in sys.modules:
+        sys.modules["charter.offering.missions"] = fake_pkg
+    sys.modules["charter.offering.missions.mission_type_repository"] = fake_module
     return saved
 
 
@@ -338,7 +338,7 @@ class TestNFR001LazyGovernanceBoundary:
     ``_resolve_governance_slot`` invokes lazily behind
     ``ResolvedMissionType.governance``'s ``@cached_property`` — and which
     transitively fans out to
-    :func:`doctrine.missions.action_index.load_action_index` for every action
+    :func:`charter.offering.missions.action_index.load_action_index` for every action
     a mission type ships.
 
     ``TestPerformance.test_resolve_mission_type_context_within_100ms`` above

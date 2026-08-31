@@ -174,6 +174,7 @@ def build_status_event(  # noqa: PLR0913 -- pass-through to a dataclass construc
     force: bool = False,
     execution_mode: str = "worktree",
     reason: str | None = None,
+    reason_source: str | None = None,
     review_ref: str | None = None,
     evidence: DoneEvidence | None = None,
     review_result: ReviewResult | None = None,
@@ -196,6 +197,8 @@ def build_status_event(  # noqa: PLR0913 -- pass-through to a dataclass construc
         force: True if this transition bypasses guard conditions.
         execution_mode: ``"worktree"`` or ``"direct_repo"``.
         reason: Optional human reason (required for force).
+        reason_source: Optional provenance discriminator for ``reason``
+            (``"operator"`` / ``"synthetic"``); ``None`` when not tracked.
         review_ref: Optional review-feedback reference.
         evidence: Optional :class:`DoneEvidence` for done transitions.
         review_result: Optional structured review outcome for review exits.
@@ -215,6 +218,7 @@ def build_status_event(  # noqa: PLR0913 -- pass-through to a dataclass construc
         force=force,
         execution_mode=execution_mode,
         reason=reason,
+        reason_source=reason_source,
         review_ref=review_ref,
         evidence=evidence,
         review_result=review_result,
@@ -519,6 +523,7 @@ def emit_status_transition(  # NOSONAR — central orchestration hub; 15 of 20 p
     mission_slug: str | None = None,
     force: bool = False,
     reason: str | None = None,
+    reason_source: str | None = None,
     evidence: dict[str, Any] | None = None,
     review_ref: str | None = None,
     workspace_context: str | None = None,
@@ -580,6 +585,7 @@ def emit_status_transition(  # NOSONAR — central orchestration hub; 15 of 20 p
                     mission_dir,
                     mission_slug,
                     reason,
+                    reason_source,
                     evidence,
                     review_ref,
                     workspace_context,
@@ -602,6 +608,7 @@ def emit_status_transition(  # NOSONAR — central orchestration hub; 15 of 20 p
         actor = request.actor
         force = request.force
         reason = request.reason
+        reason_source = request.reason_source
         evidence = request.evidence
         review_ref = request.review_ref
         workspace_context = request.workspace_context
@@ -690,6 +697,7 @@ def emit_status_transition(  # NOSONAR — central orchestration hub; 15 of 20 p
                 force=force,
                 execution_mode=execution_mode,
                 reason=reason,
+                reason_source=reason_source,
                 review_ref=review_ref,
                 evidence=None,
                 review_result=review_result,
@@ -740,6 +748,7 @@ def emit_status_transition(  # NOSONAR — central orchestration hub; 15 of 20 p
             force=force,
             execution_mode=execution_mode,
             reason=reason,
+            reason_source=reason_source,
             review_ref=review_ref,
             evidence=done_evidence,
             review_result=review_result,
@@ -901,6 +910,7 @@ def emit_status_transition_batch(  # noqa: C901 — composite transition orchest
             force=request.force,
             execution_mode=request.execution_mode,
             reason=request.reason,
+            reason_source=request.reason_source,
             review_ref=request.review_ref,
             evidence=done_evidence,
             review_result=request.review_result,

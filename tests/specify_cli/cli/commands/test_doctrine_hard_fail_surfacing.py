@@ -2,7 +2,7 @@
 
 WP08 minted five hard-fail conflict classes (``unresolved_edge_endpoint``,
 ``ambiguous_edge_endpoint``, ``malformed_urn``, ``kind_mismatch``,
-``layer_rule_violation``) and made :func:`doctrine.drg.merge_three_layers`
+``layer_rule_violation``) and made :func:`charter.offering.drg.merge_three_layers`
 *raise* :class:`OrgDRGConflictError` for them. Every CLI collector caught that
 raise and wrote it to ``collision_warnings`` — an advisory channel no verdict
 reads. ``DoctrineHealthReport.healthy`` reads ``org_drg["errors"]`` only. So a
@@ -291,7 +291,7 @@ def test_org_drg_conflict_error_partitions_fatal_from_advisory() -> None:
     distinction from a string field and every one of them skipped it. Expose the
     partition on the type that owns the invariant.
     """
-    from doctrine.drg.merge import OrgDRGConflict, OrgDRGConflictError
+    from charter.offering.drg.merge import OrgDRGConflict, OrgDRGConflictError
 
     advisory = OrgDRGConflict(
         kind="node_override",

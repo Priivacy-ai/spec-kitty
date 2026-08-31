@@ -490,7 +490,7 @@ def walk_mission(
 
     Raises:
         KeyError: If *mission_key* is not in the built-in step registry.
-        ``doctrine.drg.DRGLoadError``: If the built-in graph cannot be loaded.
+        ``charter.offering.drg.DRGLoadError``: If the built-in graph cannot be loaded.
     """
     steps = _MISSION_STEPS[mission_key]
     graph = _build_graph(repo_root, mission_key)

@@ -2,8 +2,8 @@
 
 WP05 (``doctrine-delivery-reachability``). Two read-only commands let an
 operator see and resolve shipped/overlay doctrine assets, reading exclusively
-through :class:`doctrine.service.DoctrineService` ``.assets`` (the WP04
-:class:`~doctrine.assets.repository.AssetRepository`):
+through :class:`charter.offering.service.DoctrineService` ``.assets`` (the WP04
+:class:`~charter.offering.assets.repository.AssetRepository`):
 
 * ``asset list [--json]`` — every resolvable asset with its source tier.
 * ``asset path <asset-id> [--json]`` — a resolvable filesystem path; an unknown
@@ -64,7 +64,7 @@ def _build_asset_repository() -> AssetRepository:
     ``charter.resolver.DoctrineService`` wrapper (normal, activation-aware
     construction — a real ``PackContext`` when *repo_root* is available) so
     no code outside ``charter.resolver``/the unified builder constructs
-    ``doctrine.service.DoctrineService`` directly (NFR-001). ``.assets`` is a
+    ``charter.offering.service.DoctrineService`` directly (NFR-001). ``.assets`` is a
     non-charter-activatable kind (``ArtifactKind.ASSET`` is excluded via
     ``_NON_AUGMENTATION_ELIGIBLE_KINDS``), so it has no gated property on the
     wrapper and falls through ``__getattr__`` to the raw
@@ -73,7 +73,7 @@ def _build_asset_repository() -> AssetRepository:
     pre-existing ``repo_root is None`` clean-install branch (no project
     overlay, no org packs) is unchanged.
     """
-    from doctrine.service import DoctrineService as RawDoctrineService
+    from charter.offering.service import DoctrineService as RawDoctrineService
     from charter.resolver import DoctrineService as ActivationAwareDoctrineService
     from charter.pack_context import PackContext
     from specify_cli.core.paths import locate_project_root

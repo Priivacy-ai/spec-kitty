@@ -7,7 +7,11 @@ from typing import Any
 
 import pytest
 
-from specify_cli.compat.provider import FakeLatestVersionProvider, PyPIProvider
+from specify_cli.compat.provider import (
+    FakeLatestVersionProvider,
+    NoNetworkProvider,
+    PyPIProvider,
+)
 from specify_cli.distribution import profile
 from specify_cli.distribution.package_name import (
     DEFAULT_CLI_PACKAGE_NAME,
@@ -17,6 +21,7 @@ from specify_cli.distribution.profile import (
     DISTRIBUTION_PROFILE_GROUP,
     DistributionProfile,
     clear_distribution_profile_cache,
+    is_degraded_distribution_profile,
     resolve_distribution_profile,
     stock_distribution_profile,
 )
@@ -52,22 +57,22 @@ def test_stock_profile_defaults() -> None:
     assert profile.package_name == DEFAULT_CLI_PACKAGE_NAME
     assert profile.package_aliases == ()
     assert isinstance(profile.upgrade_provider, PyPIProvider)
-    assert profile.disable_no_upgrade_notifier is False
+    assert profile.disable_public_pypi_notifier is False
     assert profile.index_url is None
     assert profile.extra_index_url is None
     assert profile.version_label is None
 
 
-def test_retired_profile_field_and_export_are_removed() -> None:
-    assert not hasattr(DistributionProfile, "disable_public_pypi_notifier")
-    assert "disable_public_pypi_notifier" not in {field.name for field in fields(DistributionProfile)}
+def test_public_pypi_profile_field_is_restored() -> None:
+    assert hasattr(DistributionProfile, "disable_public_pypi_notifier")
+    assert "disable_public_pypi_notifier" in {field.name for field in fields(DistributionProfile)}
+    assert "disable_no_upgrade_notifier" not in {field.name for field in fields(DistributionProfile)}
     assert "disable_public_pypi_notifier" not in profile.__all__
 
-    with pytest.raises(TypeError):
-        DistributionProfile(
-            package_name="fork-cli",
-            disable_public_pypi_notifier=True,
-        )
+    DistributionProfile(
+        package_name="fork-cli",
+        disable_public_pypi_notifier=True,
+    )
 
 
 def test_stock_defaults_contain_no_private_hostnames() -> None:
@@ -86,7 +91,7 @@ def test_entry_point_profile(monkeypatch: pytest.MonkeyPatch) -> None:
         package_aliases=("spec-kitty-cli",),
         upgrade_provider=FakeLatestVersionProvider(version="1.0.0"),
         index_url="https://example.invalid/simple/",
-        disable_no_upgrade_notifier=True,
+        disable_public_pypi_notifier=True,
         version_label="acme-cli",
     )
     monkeypatch.setattr(
@@ -97,7 +102,7 @@ def test_entry_point_profile(monkeypatch: pytest.MonkeyPatch) -> None:
     assert profile.package_name == "acme-spec-kitty-cli"
     assert profile.package_aliases == ("spec-kitty-cli",)
     assert profile.index_url == "https://example.invalid/simple/"
-    assert profile.disable_no_upgrade_notifier is True
+    assert profile.disable_public_pypi_notifier is True
     assert profile.version_label == "acme-cli"
 
 
@@ -141,12 +146,11 @@ def test_synthesize_from_phase1_when_no_profile_ep(monkeypatch: pytest.MonkeyPat
     assert profile.upgrade_provider is provider
 
 
-def test_incompatible_factory_signature_logs_actionable_error(monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture) -> None:
+def test_incompatible_factory_signature_fails_closed(monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture) -> None:
     """A fork still passing a retired field name (e.g. disable_public_pypi_notifier)
     raises TypeError inside the factory call; this must be logged loudly (not
-    swallowed at debug) so the incompatibility is actionable, while still
-    falling back to the stock/synthesized profile per the "never raises"
-    contract."""
+    swallowed at debug) and fail closed instead of silently substituting
+    public-PyPI remediation."""
 
     def broken_factory() -> DistributionProfile:
         return DistributionProfile(disable_public_pypi_notifier=True)  # type: ignore[call-arg]
@@ -169,11 +173,14 @@ def test_incompatible_factory_signature_logs_actionable_error(monkeypatch: pytes
     with caplog.at_level(_logging.ERROR, logger="specify_cli.distribution.profile"):
         profile = resolve_distribution_profile()
 
-    assert profile.package_name == "fallback-cli"
+    assert is_degraded_distribution_profile(profile)
+    assert profile.package_name == ""
+    assert isinstance(profile.upgrade_provider, NoNetworkProvider)
+    assert profile.disable_public_pypi_notifier is True
     assert any(record.levelno == _logging.ERROR and "legacy-fork" in record.message for record in caplog.records)
 
 
-def test_load_failure_falls_back_to_synthesize(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_load_failure_fails_closed(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(
         "specify_cli.distribution.profile.entry_points",
         lambda group: [_FakeEntryPoint("broken", RuntimeError("nope"))],
@@ -187,7 +194,21 @@ def test_load_failure_falls_back_to_synthesize(monkeypatch: pytest.MonkeyPatch) 
         lambda: FakeLatestVersionProvider(version="0.1.0"),
     )
     profile = resolve_distribution_profile()
-    assert profile.package_name == "fallback-cli"
+    assert is_degraded_distribution_profile(profile)
+    assert profile.package_name == ""
+    assert isinstance(profile.upgrade_provider, NoNetworkProvider)
+
+
+def test_invalid_factory_result_fails_closed(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(
+        "specify_cli.distribution.profile.entry_points",
+        lambda group: [_FakeEntryPoint("wrong-type", lambda: object())],
+    )
+
+    profile = resolve_distribution_profile()
+
+    assert is_degraded_distribution_profile(profile)
+    assert profile.package_name == ""
 
 
 def test_alphabetical_when_multiple_profiles(monkeypatch: pytest.MonkeyPatch) -> None:

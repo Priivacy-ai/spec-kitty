@@ -32,16 +32,10 @@ Anti-goals (contract): do NOT hard-code the current job list (derive
 ``pytest_jobs`` from the parsed workflow model so a FUTURE job is covered
 automatically); do NOT match ``pytest`` inside a comment or a string literal.
 
-Retired (planning#57): the LIVE half of this guard (``pytest_jobs_of`` /
-``_ci_quality_needs`` and the four ``test_*_live`` functions that used them)
-asserted FR-012 against the real ``.github/workflows/ci-quality.yml`` — the
-leftover pre-programme GitHub Actions YAML deleted per PROGRAM.md §2. With no
-workflow YAML left to parse, that half has no remaining subject matter and
-was removed with the file. The pure rationale check and the fault-injection
-substrate below never read the real file — each builds and parses its OWN
-fixture workflow via ``_workflow_fixtures.write_workflow`` — and stay exactly
-as non-fakeable evidence that ``blocking_violations`` itself still catches
-(and passes) a planted un-gated pytest job.
+The reduced interim ``ci-quality.yml`` contains no pytest jobs. The live
+checks below prove that absence and bind ``quality-gate.needs`` to the four
+producer jobs it blocks; the fault-injection substrate keeps the general
+containment relation ready when suite jobs return.
 """
 
 from __future__ import annotations
@@ -55,6 +49,7 @@ from tests.architectural._workflow_fixtures import write_workflow
 
 pytestmark = [pytest.mark.architectural, pytest.mark.git_repo]
 
+_CI_QUALITY_NAME = "ci-quality.yml"
 _QUALITY_GATE_JOB = "quality-gate"
 
 # Reasoned allowlist (contracts/quality-gate-needs-containment.md): a
@@ -100,6 +95,28 @@ def blocking_violations(
 ) -> frozenset[str]:
     """Pure IC-11 relation: ``pytest_jobs - allowlist - needs`` (empty == healthy)."""
     return pytest_jobs - frozenset(allowlist) - quality_gate_needs
+
+
+def pytest_jobs_of(workflow_name: str) -> frozenset[str]:
+    """Jobs in ``workflow_name`` with at least one real pytest invocation."""
+    return frozenset(gate.job for gate in gc.load_gates() if gate.workflow == workflow_name)
+
+
+def _ci_quality_needs() -> frozenset[str]:
+    model = gc.load_workflow_model(gc.WORKFLOWS_DIR / _CI_QUALITY_NAME)
+    return frozenset(model.job_needs[_QUALITY_GATE_JOB])
+
+
+def test_reduced_ci_quality_has_no_pytest_jobs_live() -> None:
+    """The interim producer is lint/build/install only, not a second suite runner."""
+    assert pytest_jobs_of(_CI_QUALITY_NAME) == frozenset()
+
+
+def test_reduced_quality_gate_needs_exact_blocking_set_live() -> None:
+    """Every non-gate producer job blocks the reduced quality gate."""
+    assert _ci_quality_needs() == frozenset(
+        {"lint", "build-wheel", "clean-install-verification", "uv-lock-check"}
+    )
 
 
 def test_allowlist_entries_carry_rationale() -> None:

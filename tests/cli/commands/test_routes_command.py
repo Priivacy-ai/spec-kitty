@@ -1,4 +1,4 @@
-"""``spec-kitty routes`` (EXPERIMENTAL-spec-kitty#10): which team admits
+"""``spec-kitty routes`` (Priivacy-ai/spec-kitty#10): which team admits
 this checkout, and which relay carries its moments.
 
 Covers the three answers the command can honestly give — admitted (team +
@@ -239,7 +239,7 @@ def test_cached_credential_answers_offline_without_asking_team_kitty(state_root:
 def test_cached_credential_answers_offline_even_with_nothing_configured_to_authenticate_with(
     state_root: Path, clone: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    """EXPERIMENTAL-spec-kitty#151: a checkout with a valid stored credential
+    """Priivacy-ai/spec-kitty#151: a checkout with a valid stored credential
     but no auth configured anywhere (no env vars, no saas-auth.json, no
     `auth login` session) must still answer offline — the gateway is never
     needed for a cache hit."""

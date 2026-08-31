@@ -96,7 +96,7 @@
        "deprecated": false
       },
       "check-prerequisites": {
-       "help": "Validate mission structure and prerequisites.\n\nThis command is designed for AI agents to call programmatically.\n\nExamples:\n    spec-kitty agent mission check-prerequisites --json\n    spec-kitty agent mission check-prerequisites --mission 020-my-feature --paths-only --json",
+       "help": "Validate mission structure and prerequisites.\n\nThis command is designed for AI agents to call programmatically.\n\nExamples:\n    spec-kitty agent mission check-prerequisites --json\n    spec-kitty agent mission check-prerequisites --mission 020-my-feature --paths-only --json\n    spec-kitty agent mission check-prerequisites --mission my-feature --resume-probe --json",
        "hidden": false,
        "deprecated": false
       },
@@ -174,6 +174,11 @@
       },
       "list-dependents": {
        "help": "Find all WPs that depend on a given WP (downstream dependents).\n\nThis answers \"who depends on me?\" - useful when reviewing a WP to understand\nthe impact of requested changes on downstream work packages.\n\nAlso shows what the WP itself depends on (upstream dependencies).\n\nExamples:\n    spec-kitty agent tasks list-dependents WP13\n    spec-kitty agent tasks list-dependents WP01 --mission 001-my-feature --json",
+       "hidden": false,
+       "deprecated": false
+      },
+      "check-terminability": {
+       "help": "Advisory scan for work packages that can only be terminated post-integration.\n\nWarns when a WP's acceptance criteria contain a post-integration trigger\nphrase (the #3590 trap) — content that cannot be verified in the WP's own\ndiff. This is **advisory only**: it never refuses or fails authoring\n(FR-008) — it exits 0 even when warnings fire. It does not touch the\nfinalize / lane-compute path (C-005).\n\nExamples:\n    spec-kitty agent tasks check-terminability --mission my-mission --json",
        "hidden": false,
        "deprecated": false
       }
@@ -479,7 +484,7 @@
      "deprecated": false,
      "commands": {
       "list": {
-       "help": "List activated mission types for the current project (FR-016).\n\nReturns only mission types that are explicitly activated in this\nproject's charter.  To see all doctrine-layer types regardless of\nactivation state, use ``spec-kitty doctrine mission-type list``.\n\nOutput columns (table): ID, SOURCE, DISPLAY NAME, ACTION SEQUENCE.",
+       "help": "List mission types for the current project (FR-016).\n\nBy default, returns only mission types that are explicitly activated in\nthis project's charter. Pass ``--include-inactive`` to also see every\ntype registered in the built-in/org/project layers regardless of\nactivation state -- the deprecated ``spec-kitty doctrine mission-type\nlist`` group covered this before CR-02; this flag is its canonical\nreplacement, not a straight alias (activation state still distinguishes\nthe two row classes -- see ACTION SEQUENCE below).\n\nOutput columns (table): ID, SOURCE, DISPLAY NAME, ACTION SEQUENCE. A\nnon-activated ``--include-inactive`` row shows ``(not activated)`` in\nACTION SEQUENCE: resolving a real action sequence requires activation\n(the FR-006 gate), so there is nothing to compute for it.",
        "hidden": false,
        "deprecated": false
       }
@@ -701,9 +706,9 @@
    }
   },
   "doctrine": {
-   "help": "Manage org-layer doctrine packs",
-   "hidden": false,
-   "deprecated": false,
+   "help": "[DEPRECATED — use `spec-kitty charter`] Manage org-layer doctrine packs",
+   "hidden": true,
+   "deprecated": true,
    "commands": {
     "fetch": {
      "help": "Fetch org doctrine pack(s) from their configured remote sources.",
@@ -711,7 +716,7 @@
      "deprecated": false
     },
     "regenerate-graph": {
-     "help": "Regenerate the shipped DRG graph source deterministically (FR-009).\n\nComposes the DRG extractor + calibrator into per-populated-node-kind\n``packs/built-in/*.graph.yaml`` fragments (sharded per mission #2680 WP05;\nrelocated from ``src/doctrine/`` by the pack flatten),\nretiring the legacy ``graph.yaml`` monolith in the same write. Running twice\non unchanged inputs yields byte-identical fragments. With ``--check`` the\ncommand never writes: it regenerates into a temp directory and compares the\nfragment set against the committed source, exiting non-zero when stale — the\noperator-facing twin of the freshness gate.\n\nBoth the write path and ``--check`` merge in the enumerable hand-authored\noverlay (:mod:`doctrine.drg.migration.hand_authored_overlay`) — the\n``in_tension_with``/``reconciles_tension``/``rejects`` edges and\n``anti_pattern`` nodes hand-authored directly in the graph fragments\n(mission doctrine-tension-edges-01KY1WPC). The extractor has no\nfrontmatter mechanism that could ever mint these, so a bare pure\nregeneration would (a) silently drop them from the committed source on\nwrite, and (b) always report \"stale\" under ``--check`` even when nothing\nis actually stale.",
+     "help": "Regenerate the shipped DRG graph source deterministically (FR-009).\n\nComposes the DRG extractor + calibrator into per-populated-node-kind\n``packs/built-in/*.graph.yaml`` fragments (sharded per mission #2680 WP05;\nrelocated from ``src/charter/offering/`` by the pack flatten),\nretiring the legacy ``graph.yaml`` monolith in the same write. Running twice\non unchanged inputs yields byte-identical fragments. With ``--check`` the\ncommand never writes: it regenerates into a temp directory and compares the\nfragment set against the committed source, exiting non-zero when stale — the\noperator-facing twin of the freshness gate.\n\nBoth the write path and ``--check`` merge in the enumerable hand-authored\noverlay (:mod:`charter.offering.drg.migration.hand_authored_overlay`) — the\n``in_tension_with``/``reconciles_tension``/``rejects`` edges and\n``anti_pattern`` nodes hand-authored directly in the graph fragments\n(mission doctrine-tension-edges-01KY1WPC). The extractor has no\nfrontmatter mechanism that could ever mint these, so a bare pure\nregeneration would (a) silently drop them from the committed source on\nwrite, and (b) always report \"stale\" under ``--check`` even when nothing\nis actually stale.",
      "hidden": false,
      "deprecated": false
     },

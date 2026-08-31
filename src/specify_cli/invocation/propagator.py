@@ -2,9 +2,8 @@
 # Verified 2026-04-21: The spec-kitty-saas repo is not co-located with this
 # codebase; the cli-saas-current-api.yaml contract file is not accessible.
 #
-# Verification performed against the *local* SaaS sync client:
-#   src/specify_cli/sync/client.py -> async def send_event(self, event: dict)
-#   src/specify_cli/sync/emitter.py -> _route_event() (lines 981-1016)
+# Verification basis is historical: the former local SaaS client was removed
+# with the retired transport. No runtime client seam is expected in this tree.
 #
 # Client protocol: send_event(event: dict) is ASYNC and takes a single flat
 # dict with an "event_type" discriminator field at the top level.  There is NO

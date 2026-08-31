@@ -18,6 +18,8 @@ from __future__ import annotations
 import logging
 from pathlib import Path
 
+from specify_cli.runtime.generated_writer import write_generated_file
+
 from ..registry import MigrationRegistry
 from .base import BaseMigration, MigrationResult
 from .m_0_9_1_complete_lane_migration import get_agent_dirs_for_project
@@ -113,7 +115,12 @@ class RepositoryRootCheckoutTerminologyMigration(BaseMigration):
                     content = content.replace(old, new)
                 if content != original:
                     if not dry_run:
-                        md_file.write_text(content, encoding="utf-8")
+                        # Agent command files are left read-only by the
+                        # generation layer; write_generated_file restores the
+                        # write bit before writing so a previously-generated
+                        # file does not raise PermissionError (#3651), and
+                        # leaves it read-only again afterward.
+                        write_generated_file(md_file, content, read_only=True)
                     rel = str(md_file.relative_to(project_path))
                     changed.append(rel)
                     logger.info("Updated: %s", rel)
