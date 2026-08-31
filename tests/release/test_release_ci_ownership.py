@@ -14,6 +14,7 @@ pytestmark = [pytest.mark.fast]
 ROOT = Path(__file__).resolve().parents[2]
 WORKFLOWS = ROOT / ".github" / "workflows"
 CONVERGENCE_MAP = ROOT / "docs" / "convergence" / "interim-ci-producer.md"
+RELEASE_CHECKLIST = ROOT / "RELEASE_CHECKLIST.md"
 
 RESTORED_WORKFLOWS = {
     "ci-quality.yml",
@@ -71,6 +72,13 @@ def load_workflow(name: str) -> dict[str, Any]:
 
 def workflow_text(name: str) -> str:
     return (WORKFLOWS / name).read_text(encoding="utf-8")
+
+
+def test_release_checklist_marks_deferred_publish_workflows_as_p3_4b_prerequisite() -> None:
+    checklist = RELEASE_CHECKLIST.read_text(encoding="utf-8")
+    assert "P3.4b prerequisite" in checklist
+    assert "release.yml" in checklist
+    assert "release-readiness.yml" in checklist
 
 
 def test_reduced_ci_quality_has_exact_jobs() -> None:
