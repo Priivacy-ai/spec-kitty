@@ -1422,7 +1422,7 @@ class TestOrgTierResolution:
             result = resolve_template("spec-template.md", project, "software-dev")
 
         assert len(caught) == 1  # golden-count: cardinality-is-contract
-        assert "Invalid charter.offering.org config" in str(caught[0].message)
+        assert "Invalid org-pack config" in str(caught[0].message)
         assert result.tier == ResolutionTier.PACKAGE_DEFAULT
         assert result.path == pkg_template
 

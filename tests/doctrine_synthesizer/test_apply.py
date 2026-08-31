@@ -246,7 +246,7 @@ class TestAddGlossaryTerm:
         events_path = repo_root / "kitty-specs" / MISSION_SLUG / "status.events.jsonl"
         event = json.loads(events_path.read_text(encoding="utf-8").splitlines()[-1])
         provenance_ref = event["payload"]["provenance_ref"]
-        assert provenance_ref == ".kittify/glossary/.provenance/charter.offering.yaml"
+        assert provenance_ref == ".kittify/glossary/.provenance/doctrine.yaml"
         assert not Path(provenance_ref).is_absolute()
 
     def test_repo_relative_posix_falls_back_for_external_path(self, tmp_path: Path) -> None:

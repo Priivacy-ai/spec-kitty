@@ -192,7 +192,7 @@ class TestGetPackageAssetRoot:
         sniff just as well as the real missions directory does. Without the
         decoy this test cannot distinguish a correct implementation from one
         that tries the bare checkout-root candidate before the
-        ``src/*/missions`` glob -- which would return the checkout root
+        ``src/*/*/missions`` glob -- which would return the checkout root
         itself instead of ``src/charter/offering/missions`` (the WP04 cycle-1
         regression this decoy pins).
         """

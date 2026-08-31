@@ -133,8 +133,8 @@ MISSION_ASSETS_SIBLING_PATTERN = BUILT_IN_PACK_SIBLING_PATTERN / _MISSION_ASSETS
 #: The relative shape used only by :func:`_resolve_env_root` below, globbed
 #: directly against a caller-supplied ``SPEC_KITTY_TEMPLATE_ROOT`` checkout
 #: root -- NOT handed to the sibling-resolution primitive. A checkout root
-#: sits *two* levels above the sibling package's missions dir
-#: (``<root>/src/<pkg>/missions``), unlike the primitive's own anchor (this
+#: sits above the sibling package's missions dir
+#: (``<root>/src/<namespace>/<pkg>/missions``), unlike the primitive's own anchor (this
 #: module's file, one level below ``src/``), so this candidate needs the
 #: ``src/`` segment that :data:`MISSION_ASSETS_SIBLING_PATTERN` above must
 #: not carry.
@@ -144,7 +144,7 @@ MISSION_ASSETS_SIBLING_PATTERN = BUILT_IN_PACK_SIBLING_PATTERN / _MISSION_ASSETS
 _SRC_LAYOUT_DIR_NAME = "src"
 
 _MISSION_ASSETS_CHECKOUT_GLOB_PATTERN = (
-    PurePosixPath(_SRC_LAYOUT_DIR_NAME) / "*" / _MISSION_ASSETS_DIR_NAME
+    PurePosixPath(_SRC_LAYOUT_DIR_NAME) / "*" / "*" / _MISSION_ASSETS_DIR_NAME
 )
 
 
@@ -217,7 +217,7 @@ def _resolve_env_root(root: Path) -> Path:
     # non-deterministically pick an unrelated sibling ``*/missions``) -- this
     # preserves the pre-collapse ``home.py`` behavior (behavior parity, DR-1).
     if root.name == _MISSION_ASSETS_DIR_NAME and root.parent.parent.name == _SRC_LAYOUT_DIR_NAME:
-        candidates.extend(sorted(root.parent.parent.glob(f"*/{_MISSION_ASSETS_DIR_NAME}")))
+        candidates.extend(sorted(root.parent.parent.glob(f"*/*/{_MISSION_ASSETS_DIR_NAME}")))
     candidates.append(root)
     for candidate in candidates:
         if candidate.is_dir() and _looks_like_missions_root(candidate):

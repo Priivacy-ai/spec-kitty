@@ -41,8 +41,8 @@ _LEGACY_OWNERSHIP_KEY: Final = "doctrine"
 
 class LegacyTrackerOwnershipKeyWarning(UserWarning):
     """Emitted once per process when a project's ``tracker:`` block still
-    carries the retired ``doctrine`` mode/field_owners key instead of the
-    canonical ``ownership`` key (CR-03)."""
+    carries the retired ``doctrine`` ownership surface instead of the
+    canonical ``ownership`` surface (CR-03)."""
 
 
 @functools.lru_cache(maxsize=1)
@@ -57,9 +57,9 @@ def _warn_legacy_ownership_key_once() -> None:
     ``_warn_legacy_ownership_key_once.cache_clear()``.
     """
     warnings.warn(
-        "tracker: config uses the legacy 'doctrine' mode/field_owners key; "
-        "reading it as 'ownership'. Run `spec-kitty tracker bind` again (or "
-        "hand-edit .kittify/config.yaml) to adopt the canonical key.",
+        "tracker: the legacy 'doctrine' ownership key/option was used; "
+        "reading it as 'ownership'. Use the canonical config key or "
+        "`--ownership-mode`.",
         LegacyTrackerOwnershipKeyWarning,
         stacklevel=3,
     )

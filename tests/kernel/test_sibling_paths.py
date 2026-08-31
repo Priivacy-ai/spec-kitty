@@ -242,7 +242,7 @@ class TestEditableCheckoutShapedAnchor:
         result = resolve_installed_sibling(
             anchor_file=anchor,
             env_override=None,
-            sibling_relative_path=PurePosixPath("*") / "missions",
+            sibling_relative_path=PurePosixPath("*") / "*" / "missions",
         )
 
         assert result == sibling
@@ -274,7 +274,7 @@ class TestEditableCheckoutShapedAnchor:
         result = resolve_installed_sibling(
             anchor_file=anchor,
             env_override=None,
-            sibling_relative_path=PurePosixPath("*") / "missions",
+            sibling_relative_path=PurePosixPath("*") / "*" / "missions",
         )
 
         assert result == sibling
