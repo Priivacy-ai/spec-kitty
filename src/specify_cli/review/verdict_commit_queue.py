@@ -38,10 +38,7 @@ class VerdictSaveBusy(RuntimeError):
     def __init__(self, lock_path: Path, timeout_seconds: float) -> None:
         self.lock_path = lock_path
         self.timeout_seconds = timeout_seconds
-        super().__init__(
-            "Timed out acquiring the checkout-wide verdict-save queue "
-            f"after {timeout_seconds:g} seconds: {lock_path}"
-        )
+        super().__init__(f"Timed out acquiring the checkout-wide verdict-save queue after {timeout_seconds:g} seconds: {lock_path}")
 
 
 class VerdictSaveReentrant(RuntimeError):
@@ -49,10 +46,7 @@ class VerdictSaveReentrant(RuntimeError):
 
     def __init__(self, lock_path: Path) -> None:
         self.lock_path = lock_path
-        super().__init__(
-            "The checkout-wide verdict-save queue is already held by this "
-            f"execution context: {lock_path}"
-        )
+        super().__init__(f"The checkout-wide verdict-save queue is already held by this execution context: {lock_path}")
 
 
 def verdict_save_queue_path(repository: Path) -> Path:

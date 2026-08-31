@@ -88,9 +88,7 @@ def _git_show(repo: Path, ref: str, relative_path: str) -> subprocess.CompletedP
     return _git(repo, "show", f"{ref}:{relative_path}", check=False)
 
 
-def _git_show_bytes(
-    repo: Path, ref: str, relative_path: str
-) -> subprocess.CompletedProcess[bytes]:
+def _git_show_bytes(repo: Path, ref: str, relative_path: str) -> subprocess.CompletedProcess[bytes]:
     return subprocess.run(
         ["git", "-C", str(repo), "show", f"{ref}:{relative_path}"],
         check=False,
@@ -105,14 +103,8 @@ def _assert_git_blob_exact(
     expected: bytes,
 ) -> bytes:
     shown = _git_show_bytes(repo, ref, relative_path)
-    assert shown.returncode == 0, (
-        f"missing governed blob: ref={ref!r}, path={relative_path!r}, "
-        f"stderr={shown.stderr!r}"
-    )
-    assert shown.stdout == expected, (
-        f"governed blob mismatch: ref={ref!r}, path={relative_path!r}, "
-        f"expected={expected!r}, actual={shown.stdout!r}"
-    )
+    assert shown.returncode == 0, f"missing governed blob: ref={ref!r}, path={relative_path!r}, stderr={shown.stderr!r}"
+    assert shown.stdout == expected, f"governed blob mismatch: ref={ref!r}, path={relative_path!r}, expected={expected!r}, actual={shown.stdout!r}"
     return shown.stdout
 
 
@@ -311,22 +303,15 @@ def _relative_evidence_path(fixture: _Fixture, payload: dict[str, Any]) -> str:
 
 
 def _events_from_governed_ref(fixture: _Fixture) -> list[StatusEvent]:
-    status_ref = placement_seam(fixture.repo, fixture.mission).write_target(
-        MissionArtifactKind.STATUS_STATE
-    ).ref
+    status_ref = placement_seam(fixture.repo, fixture.mission).write_target(MissionArtifactKind.STATUS_STATE).ref
     relative = f"kitty-specs/{fixture.mission}/status.events.jsonl"
     shown = _git_show_bytes(fixture.repo, status_ref, relative)
-    assert shown.returncode == 0, (
-        f"status event ref unreadable: topology={fixture.topology.value}, "
-        f"status_ref={status_ref}, stderr={shown.stderr!r}"
-    )
+    assert shown.returncode == 0, f"status event ref unreadable: topology={fixture.topology.value}, status_ref={status_ref}, stderr={shown.stderr!r}"
     with tempfile.TemporaryDirectory(prefix="verdict-status-readback-") as temp_dir:
         materialized = Path(temp_dir) / "kitty-specs" / fixture.mission
         materialized.mkdir(parents=True)
         (materialized / "status.events.jsonl").write_bytes(shown.stdout)
-        (materialized / "meta.json").write_bytes(
-            (fixture.feature_dir / "meta.json").read_bytes()
-        )
+        (materialized / "meta.json").write_bytes((fixture.feature_dir / "meta.json").read_bytes())
         return cast(list[StatusEvent], read_events(materialized))
 
 
@@ -372,18 +357,13 @@ def _assert_event_correlation(
         assert review.reference == pointer
         return
 
-    status_ref = placement_seam(fixture.repo, fixture.mission).write_target(
-        MissionArtifactKind.STATUS_STATE
-    ).ref
+    status_ref = placement_seam(fixture.repo, fixture.mission).write_target(MissionArtifactKind.STATUS_STATE).ref
     governed_worktree = _worktree_for_ref(fixture.repo, status_ref)
     event_dirs = {fixture.status_dir, fixture.feature_dir}
     if governed_worktree is not None:
         event_dirs.add(governed_worktree / "kitty-specs" / fixture.mission)
     local_matches_by_id = {
-        status_event.event_id: status_event
-        for event_dir in event_dirs
-        for status_event in read_events(event_dir)
-        if status_event.event_id == event_id
+        status_event.event_id: status_event for event_dir in event_dirs for status_event in read_events(event_dir) if status_event.event_id == event_id
     }
     local_matches = list(local_matches_by_id.values())
     assert len(local_matches) == 1
@@ -396,11 +376,7 @@ def _assert_event_correlation(
     assert review_result.reviewer == reviewer
     assert review_result.verdict == expected_verdict
     assert review_result.reference == pointer
-    governed_matches = [
-        event
-        for event in _events_from_governed_ref(fixture)
-        if event.event_id == event_id
-    ]
+    governed_matches = [event for event in _events_from_governed_ref(fixture) if event.event_id == event_id]
     assert len(governed_matches) <= 1
     if governed_matches:
         governed_event = governed_matches[0]
@@ -444,12 +420,11 @@ def test_real_command_matrix_uses_governed_refs_and_explicit_commit_modes(
         monkeypatch.setattr(
             persistence_module,
             "acquire_verdict_save_queue",
-            lambda repository, timeout_seconds=10.0: _tracked_queue(
-                queue_hits, repository, timeout_seconds
-            ),
+            lambda repository, timeout_seconds=10.0: _tracked_queue(queue_hits, repository, timeout_seconds),
         )
         monkeypatch.setattr(RealCoordCommitRouter, "commit_artifact", tracked_commit)
     else:
+
         def forbidden_queue(*_args: Any, **_kwargs: Any) -> Any:
             raise AssertionError("local-only verdict entered the automatic queue")
 
@@ -469,12 +444,8 @@ def test_real_command_matrix_uses_governed_refs_and_explicit_commit_modes(
     payload = command.payload
     assert payload is not None and payload.get("result") == "success", command.result.output
 
-    review_ref = placement_seam(fixture.repo, fixture.mission).write_target(
-        MissionArtifactKind.REVIEW_CYCLE
-    ).ref
-    status_ref = placement_seam(fixture.repo, fixture.mission).write_target(
-        MissionArtifactKind.STATUS_STATE
-    ).ref
+    review_ref = placement_seam(fixture.repo, fixture.mission).write_target(MissionArtifactKind.REVIEW_CYCLE).ref
+    status_ref = placement_seam(fixture.repo, fixture.mission).write_target(MissionArtifactKind.STATUS_STATE).ref
     relative = _relative_evidence_path(fixture, payload)
     local_path = fixture.repo / relative
     assert local_path.is_file()
@@ -486,9 +457,7 @@ def test_real_command_matrix_uses_governed_refs_and_explicit_commit_modes(
         assert payload["verdict_durably_persisted"] is True
         assert payload["durability_reason"] is None
         assert payload["destination_ref"] == review_ref
-        evidence = _assert_git_blob_exact(
-            fixture.repo, review_ref, relative, generated_evidence
-        )
+        evidence = _assert_git_blob_exact(fixture.repo, review_ref, relative, generated_evidence)
         assert b"reviewer_agent: reviewer-matrix" in evidence
         assert body.strip().encode() in evidence
         _assert_event_correlation(
@@ -515,8 +484,7 @@ def test_real_command_matrix_uses_governed_refs_and_explicit_commit_modes(
         )
 
     diagnostic = (
-        f"topology={topology.value}, mode={'automatic' if auto_commit else 'local-only'}, "
-        f"status_ref={status_ref}, review_ref={review_ref}, payload={payload}"
+        f"topology={topology.value}, mode={'automatic' if auto_commit else 'local-only'}, status_ref={status_ref}, review_ref={review_ref}, payload={payload}"
     )
     assert status_ref and review_ref, diagnostic
 
@@ -535,15 +503,11 @@ def test_coordination_cell_rejects_a_deliberately_wrong_primary_ref(
     assert command.result.exit_code == 0, command.result.output
     assert command.payload is not None
     relative = _relative_evidence_path(fixture, command.payload)
-    governed_ref = placement_seam(fixture.repo, fixture.mission).write_target(
-        MissionArtifactKind.REVIEW_CYCLE
-    ).ref
+    governed_ref = placement_seam(fixture.repo, fixture.mission).write_target(MissionArtifactKind.REVIEW_CYCLE).ref
     assert governed_ref != fixture.target_branch
     generated_evidence = (fixture.repo / relative).read_bytes()
     with pytest.raises(AssertionError, match="missing governed blob"):
-        _assert_git_blob_exact(
-            fixture.repo, fixture.target_branch, relative, generated_evidence
-        )
+        _assert_git_blob_exact(fixture.repo, fixture.target_branch, relative, generated_evidence)
     _assert_git_blob_exact(fixture.repo, governed_ref, relative, generated_evidence)
 
 
@@ -578,9 +542,7 @@ def test_exact_tuple_oracle_rejects_wrong_verdict_and_nonidentical_committed_byt
     )
 
     relative = _relative_evidence_path(fixture, payload)
-    review_ref = placement_seam(fixture.repo, fixture.mission).write_target(
-        MissionArtifactKind.REVIEW_CYCLE
-    ).ref
+    review_ref = placement_seam(fixture.repo, fixture.mission).write_target(MissionArtifactKind.REVIEW_CYCLE).ref
     generated_evidence = (fixture.repo / relative).read_bytes()
     _assert_git_blob_exact(fixture.repo, review_ref, relative, generated_evidence)
     markers = (body.strip().encode(), b"reviewer_agent: reviewer-exact-control")
@@ -657,13 +619,9 @@ def test_real_command_records_approval_for_approved_and_done_targets(
         committed=True,
     )
     relative = _relative_evidence_path(fixture, payload)
-    review_ref = placement_seam(fixture.repo, fixture.mission).write_target(
-        MissionArtifactKind.REVIEW_CYCLE
-    ).ref
+    review_ref = placement_seam(fixture.repo, fixture.mission).write_target(MissionArtifactKind.REVIEW_CYCLE).ref
     generated_evidence = (fixture.repo / relative).read_bytes()
-    evidence = _assert_git_blob_exact(
-        fixture.repo, review_ref, relative, generated_evidence
-    )
+    evidence = _assert_git_blob_exact(fixture.repo, review_ref, relative, generated_evidence)
     assert f"Approved by {reviewer}".encode() in evidence
     assert f"reviewer_agent: {reviewer}".encode() in evidence
 
@@ -714,12 +672,8 @@ def _install_event_failure(
         signal = st.pending_verdict_write
         assert signal is not None and signal.durably_persisted
         relative = signal.artifact_path.relative_to(fixture.repo).as_posix()
-        target = placement_seam(fixture.repo, fixture.mission).write_target(
-            MissionArtifactKind.REVIEW_CYCLE
-        ).ref
-        observation.evidence_verified_before_event = (
-            _git_show(fixture.repo, target, relative).returncode == 0
-        )
+        target = placement_seam(fixture.repo, fixture.mission).write_target(MissionArtifactKind.REVIEW_CYCLE).ref
+        observation.evidence_verified_before_event = _git_show(fixture.repo, target, relative).returncode == 0
         raise RuntimeError("injected status event failure after durable evidence")
 
     real_held = persistence_module._revert_committed_verdict_write_held
@@ -762,9 +716,7 @@ def test_event_failure_reacquires_queue_and_removes_only_committed_evidence(
     assert "injected status event failure" in command.result.output
     assert observation.evidence_verified_before_event
     assert observation.queue_held_during_compensation
-    review_ref = placement_seam(fixture.repo, fixture.mission).write_target(
-        MissionArtifactKind.REVIEW_CYCLE
-    ).ref
+    review_ref = placement_seam(fixture.repo, fixture.mission).write_target(MissionArtifactKind.REVIEW_CYCLE).ref
     assert observation.deletion_target == review_ref
     (deletion_path,) = observation.deletion_paths
     relative = Path(deletion_path).relative_to(Path(deletion_path).anchor).as_posix()
@@ -773,11 +725,7 @@ def test_event_failure_reacquires_queue_and_removes_only_committed_evidence(
     assert _git_show(fixture.repo, review_ref, relative).returncode != 0
     log = _git(fixture.repo, "log", review_ref, "--name-only", "--pretty=format:").stdout
     assert Path(relative).name in log
-    assert not any(
-        event.review_result is not None
-        and event.review_result.reviewer == "reviewer-compensated"
-        for event in read_events(fixture.status_dir)
-    )
+    assert not any(event.review_result is not None and event.review_result.reviewer == "reviewer-compensated" for event in read_events(fixture.status_dir))
 
 
 def test_compensation_failure_is_loud_and_leaves_only_noncurrent_history(
@@ -803,23 +751,15 @@ def test_compensation_failure_is_loud_and_leaves_only_noncurrent_history(
     assert command.result.exit_code != 0
     assert observation.evidence_verified_before_event
     assert observation.queue_held_during_compensation
-    assert observation.deletion_target == placement_seam(
-        fixture.repo, fixture.mission
-    ).write_target(MissionArtifactKind.REVIEW_CYCLE).ref
+    assert observation.deletion_target == placement_seam(fixture.repo, fixture.mission).write_target(MissionArtifactKind.REVIEW_CYCLE).ref
     assert "injected status event failure" in command.result.output
     assert "injected compensation deletion failure" in command.result.output
     assert "ALSO failed" in command.result.output
     relative_path = observation.deletion_paths[0].split("/kitty-specs/", 1)[-1]
     relative_path = f"kitty-specs/{relative_path}"
-    review_ref = placement_seam(fixture.repo, fixture.mission).write_target(
-        MissionArtifactKind.REVIEW_CYCLE
-    ).ref
+    review_ref = placement_seam(fixture.repo, fixture.mission).write_target(MissionArtifactKind.REVIEW_CYCLE).ref
     assert _git_show(fixture.repo, review_ref, relative_path).returncode == 0
-    assert not any(
-        event.review_result is not None
-        and event.review_result.reviewer == "reviewer-compensation-failed"
-        for event in read_events(fixture.status_dir)
-    )
+    assert not any(event.review_result is not None and event.review_result.reviewer == "reviewer-compensation-failed" for event in read_events(fixture.status_dir))
 
 
 @contextmanager
@@ -864,9 +804,7 @@ def _event_mutant_worker(
             stack.enter_context(
                 patch(
                     target,
-                    lambda *args, _label=label, **kwargs: _unlocked(
-                        hits, _label, *args, **kwargs
-                    ),
+                    lambda *args, _label=label, **kwargs: _unlocked(hits, _label, *args, **kwargs),
                 )
             )
         from specify_cli.status import store as status_store
@@ -931,17 +869,13 @@ def _missing_event_classification(
     if any(result.exit_code != 0 or result.payload is None for result in results):
         return "command_failed"
     payloads = [result.payload for result in results if result.payload is not None]
-    review_ref = placement_seam(fixture.repo, fixture.mission).write_target(
-        MissionArtifactKind.REVIEW_CYCLE
-    ).ref
+    review_ref = placement_seam(fixture.repo, fixture.mission).write_target(MissionArtifactKind.REVIEW_CYCLE).ref
     for payload in payloads:
         relative = _relative_evidence_path(fixture, payload)
         if _git_show(fixture.repo, review_ref, relative).returncode != 0:
             return "missing_committed_evidence"
     event_ids = {str(payload["event_id"]) for payload in payloads}
-    governed_ids = {
-        event.event_id for event in _events_from_governed_ref(fixture)
-    }
+    governed_ids = {event.event_id for event in _events_from_governed_ref(fixture)}
     return "missing_authoritative_event" if event_ids - governed_ids else "mutant_survived"
 
 
@@ -990,6 +924,4 @@ def test_coordination_transaction_lock_negative_control_reports_exact_missing_ev
         for process in processes:
             process.join(timeout=15)
             assert not process.is_alive(), f"spawn worker hung: pid={process.pid}"
-            assert process.exitcode == 0, (
-                f"spawn worker crashed: pid={process.pid}, exit={process.exitcode}"
-            )
+            assert process.exitcode == 0, f"spawn worker crashed: pid={process.pid}, exit={process.exitcode}"
