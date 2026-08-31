@@ -255,9 +255,10 @@ surfaces and are not converted into event-journal rows by that mission.
 > additive, NFR-006/C-006).** The **wire** protocol in this section is unchanged:
 > the request body, the per-event `status` vocabulary (`success` / `duplicate` /
 > `rejected`), and every fixture below stay exactly as specified. What changes is
-> only the **local CLI behavior** for *event payload* rows once the retired local receiver
-> drives delivery (the canonical source of this mapping is
-> `src/specify_cli/delivery/receivers.py`):
+> only the **local CLI behavior** for *event payload* rows while the (since-retired) local
+> receiver drove delivery (the canonical source of this mapping was
+> `src/specify_cli/delivery/receivers.py`, removed with the delivery subsystem on this line —
+> spec-kitty#5 / PR #114; the table is retained as historical wire-contract documentation):
 >
 > | Per-event / batch outcome | Local event-row effect after this mission |
 > |---|---|
