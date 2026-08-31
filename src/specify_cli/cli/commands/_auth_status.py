@@ -47,10 +47,18 @@ from specify_cli.cli.console import console
 
 from specify_cli.auth import get_token_manager
 from specify_cli.auth.session import StoredSession
+from specify_cli.auth.verdict import HealthVerdict, evaluate_auth_verdict
 from specify_cli.cli.commands._auth_saas_target import (
     print_saas_endpoint,
     print_saas_target,
 )
+
+
+_VERDICT_STYLE: dict[str, tuple[str, str]] = {
+    "ok": ("green", "+"),
+    "unknown": ("yellow", "?"),
+    "fail": ("red", "X"),
+}
 
 
 # Mapping from the StorageBackend literal (see session.py) to a
@@ -78,19 +86,19 @@ def status_impl() -> None:
     tm = get_token_manager()
     session = tm.get_current_session()
 
+    verdict = evaluate_auth_verdict(session, now_utc())
+    _print_banner(verdict)
+
     if session is None:
-        console.print("[red]X Not authenticated[/red]")
         print_saas_endpoint()
         console.print("  Run [bold]spec-kitty auth login[/bold] to authenticate.")
         return
 
-    if session.is_refresh_token_expired():
-        console.print("[red]X Session expired (refresh token expired)[/red]")
+    if verdict.state == "fail":
         print_saas_target(session)
         console.print("  Run [bold]spec-kitty auth login[/bold] to re-authenticate.")
         return
 
-    console.print("[green]+ Authenticated[/green]")
     console.print()
 
     print_saas_target(session)
@@ -112,6 +120,12 @@ def status_impl() -> None:
 # ---------------------------------------------------------------------------
 # Section printers
 # ---------------------------------------------------------------------------
+
+
+def _print_banner(verdict: HealthVerdict) -> None:
+    """Print the verdict-derived headline and its evidence."""
+    color, glyph = _VERDICT_STYLE[verdict.state]
+    console.print(f"[{color}]{glyph} {verdict.headline}[/{color}] ({verdict.evidence})")
 
 
 def _print_identity(session: StoredSession) -> None:

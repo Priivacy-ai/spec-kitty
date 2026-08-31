@@ -1,5 +1,5 @@
 """``spec-kitty routes`` — where this checkout broadcasts, and who admits it
-(EXPERIMENTAL-spec-kitty#10, replacing the reshaped TEAM-ADMIT-M2-11).
+(Priivacy-ai/spec-kitty#10, replacing the reshaped TEAM-ADMIT-M2-11).
 
 The old ``spec-kitty sync routes`` answered a question the deleted sync
 transport owned: where does my data go, and which teams see it. With the
@@ -15,7 +15,7 @@ for the offline peek, then :func:`zeitgeist_client.resolution.resolve_credential
 (the E3 seam whose cache / remembered-negative / mint branches every
 transition rides) only when that peek misses. A cache hit — positive or a
 remembered negative — must answer without ever requiring auth to be
-configured (EXPERIMENTAL-spec-kitty#151); only a genuine miss touches the
+configured (Priivacy-ai/spec-kitty#151); only a genuine miss touches the
 network, mints if the store still cannot answer, and stores whatever Team
 Kitty answers — positive credential or short-TTL negative — exactly as a
 transition would. The command reports honestly which of the three states
@@ -123,7 +123,7 @@ def routes(as_json: bool = _JSON_OPTION) -> None:
     key, slug, host = _resolve_checkout()
 
     # A cached answer — positive or a remembered negative — answers offline
-    # and must not require auth to be configured first (EXPERIMENTAL-spec-kitty#151):
+    # and must not require auth to be configured first (Priivacy-ai/spec-kitty#151):
     # only a genuine cache miss needs the gateway (and thus a working auth
     # context) at all.
     hit, stored = resolution.cached_answer(key, repo_slug=slug, host=host)

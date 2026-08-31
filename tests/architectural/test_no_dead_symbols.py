@@ -162,7 +162,25 @@ _CATEGORY_A_SLICE_F_DEFERRED: frozenset[SymbolKey] = frozenset(
         # that land with the F1-strict cutover. TODO(triage): wire or drop from __all__.
         SymbolKey(
             "append_lifecycle_event",
-            "6695d4df0c44533bb9ae576a365562e7c79745ec7e2b8b0fe4e7b3571fbc2c0e",
+            "3534b0a120eafa5dc1cc295cb539f18cd9737f4003b4c124ce57e7842ad5a1d0",
+            source_module="specify_cli.status.lifecycle_events",
+        ),
+        # specify_cli.status.lifecycle_events::emit_artifact_phase_local -- convergence
+        # #813: retained local half of the lifecycle persistence/fanout split. Its hosted
+        # setup-plan consumer was an explicitly dropped retired hunk. TODO(triage): #813
+        # wire this split half when a non-retired hosted consumer lands.
+        SymbolKey(
+            "emit_artifact_phase_local",
+            "e285765b04611be105c42a29d3f4f13beb49fed64afe517243f5a1cc8fa1439f",
+            source_module="specify_cli.status.lifecycle_events",
+        ),
+        # specify_cli.status.lifecycle_events::fanout_lifecycle_event_hosted -- convergence
+        # #813: retained hosted half of the lifecycle persistence/fanout split. Its hosted
+        # setup-plan consumer was an explicitly dropped retired hunk. TODO(triage): #813
+        # wire this split half when a non-retired hosted consumer lands.
+        SymbolKey(
+            "fanout_lifecycle_event_hosted",
+            "6807f7943a4c7f909f816db58882b43f5889279cffa8754ed138ab22c28f6350",
             source_module="specify_cli.status.lifecycle_events",
         ),
         # specify_cli.status.migrate_lifecycle_envelope::MigrationAction -- M2
@@ -381,7 +399,7 @@ _CATEGORY_B_GRANDFATHERED_LEGACY: frozenset[SymbolKey] = frozenset(
         # (issue-5-delete-sync-transport): the auth-doctor daemon section died with
         # the sync transport; the dataclass is gone from _auth_doctor.
         SymbolKey(
-            "DoctorReport", "f67b56299c5fe794033b42a7c5390519ce0f197bb7976a0aaa9b668d2993221a", source_module="specify_cli.cli.commands._auth_doctor"
+            "DoctorReport", "9d02d77be32202c48b37532815694b720249563faea3da5cf3042b207730f6bf", source_module="specify_cli.cli.commands._auth_doctor"
         ),  # specify_cli.cli.commands._auth_doctor::DoctorReport
         SymbolKey(
             "Finding", "d47a46e21c6dc7c48f4654c3c1e88ca76cc25ae2b81b9efaaaea90649e8b2065", source_module="specify_cli.cli.commands._auth_doctor"
@@ -398,7 +416,7 @@ _CATEGORY_B_GRANDFATHERED_LEGACY: frozenset[SymbolKey] = frozenset(
         # kernel-clock-single-door PR #3305: body now calls kernel.clock.now_utc()
         # instead of datetime.now(UTC), per the clock single-door migration)
         SymbolKey(
-            "assemble_report", "e051060c599e629ffa35ef3762389ec265873962c55c57cec3cb4611e860a19f", source_module="specify_cli.cli.commands._auth_doctor"
+            "assemble_report", "e132afb32edcad67772bbe2d608e87ce9f387a7b688291f9c919f63542eb5e45", source_module="specify_cli.cli.commands._auth_doctor"
         ),  # specify_cli.cli.commands._auth_doctor::assemble_report
         # specify_cli.cli.commands._auth_doctor::compute_exit_code
         SymbolKey("compute_exit_code", "060144b6c7b405770cc41179f7c74273e8618e6271027c42794a87f567516179", source_module="specify_cli.cli.commands._auth_doctor"),
@@ -473,6 +491,11 @@ _CATEGORY_B_GRANDFATHERED_LEGACY: frozenset[SymbolKey] = frozenset(
         SymbolKey(
             "DEFAULT_TIMEOUT_S", "06ad6f73f97f6fa8fb8842f61fea9ff0bc7e8c5a6aa3cd65369ee5f09f605e76", source_module="specify_cli.core.upgrade_probe"
         ),  # specify_cli.core.upgrade_probe::DEFAULT_TIMEOUT_S
+        # specify_cli.core.upgrade_probe::PYPI_JSON_URL -- restored upstream public
+        # endpoint contract (#798); probe_pypi consumes it in this module, but no other
+        # src/ module imports the constant by name. TODO(triage): wire a direct
+        # consumer or remove it from __all__ if the public contract no longer needs it.
+        SymbolKey("PYPI_JSON_URL", "34521508629be2d77f48e49b4908e2e7e8baedeb8eab95ac9005b0b66ace1b36", source_module="specify_cli.core.upgrade_probe"),
         SymbolKey(
             "FeatureTopology", "7eb983a309007bf528c914ade5ecf049191c487a1de7457dcc663f0b6fbad30e", source_module="specify_cli.core.worktree_topology"
         ),  # specify_cli.core.worktree_topology::FeatureTopology

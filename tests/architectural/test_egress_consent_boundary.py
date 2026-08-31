@@ -576,7 +576,7 @@ _EGRESS_ALLOWLIST: dict[str, Allowance] = {
             "it carries no project data."
         ),
     ),
-    # -- Credential traffic, not project egress (E3, EXPERIMENTAL-spec-kitty#9) --
+    # -- Credential traffic, not project egress (E3, Priivacy-ai/spec-kitty#9) --
     "specify_cli/zeitgeist_client/resolution.py": Allowance(
         kind=AllowanceKind.NOT_PROJECT_DATA,
         inventory_id="E3-#9",

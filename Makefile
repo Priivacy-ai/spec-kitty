@@ -1,6 +1,6 @@
 .DEFAULT_GOAL := help
 
-.PHONY: help dev-setup lint format-check typecheck test-fast test-full
+.PHONY: help dev-setup lint format-check typecheck test-fast test-full convergence-census
 
 help: ## Show available targets
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | \
@@ -19,6 +19,10 @@ lint: ## Run ruff linter
 # runs this target locally (#558).
 format-check: ## Run ruff formatter check on the whole repo (issue #473's gate)
 	uv run ruff format --check .
+
+convergence-census: ## Fetch upstream and report convergence dispositions
+	git fetch old
+	uv run python scripts/convergence/census_status.py
 
 typecheck: ## Run targeted mypy strict type checking
 	uv run mypy --strict src/specify_cli/runtime/agent_commands.py
@@ -45,7 +49,7 @@ test-fast: ## Run fast tier of the typical blast-radius dirs (target <2 min)
 # GOAL.md requires make test-full green in <30 min on every repo's main.
 # Last confirmed: 792.70s (13m12s) total across all three passes below @
 # 26c07f66c (2026-08-27, sk-cirun-cli-26c07f66 — see the CI agent's baseline,
-# EXPERIMENTAL-spec-kitty-planning state/ci-baseline/spec-kitty.json) —
+# the programme planning repository's state/ci-baseline/spec-kitty.json) —
 # comfortably under budget, no further tiering/cutting needed right now
 # (#29). Re-measure via the CI agent's baseline, not a local run, if a
 # future change bloats the suite materially.

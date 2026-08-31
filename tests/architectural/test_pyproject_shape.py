@@ -26,7 +26,7 @@ _RETIRED_MYPY_PREFIX = _DOTTED.join(("specify_cli", "sync"))
 _DEP_NAME_TERMINATORS = "[=<>!~;@ "
 # The sanctioned direct references (controller-qa on #58, PROGRAM.md §2's
 # wheel-installability exception): pinned-rev git dependencies on the shared
-# packages (EXPERIMENTAL-spec-kitty-planning#31). [tool.uv.sources] does not travel
+# packages (Priivacy-ai/spec-kitty-planning#31). [tool.uv.sources] does not travel
 # into the wheel's Requires-Dist, so the pin must live in the dependency
 # itself; the host must always be github.com, never the exe.dev
 # github.int.exe.xyz forge proxy (laptops cannot resolve that proxy). Any

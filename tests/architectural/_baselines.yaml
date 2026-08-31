@@ -125,14 +125,14 @@ test_no_dead_modules:
   # All four now have live src/ callers and are no longer orphans; none remain open. Shrink --
   # fully reverses the M2-canonical-integration deferral bump above.
   #
-  # 3 -> 4 (EXPERIMENTAL-spec-kitty#9, E3 credential resolution, 2026-08-25):
+  # 3 -> 4 (Priivacy-ai/spec-kitty#9, E3 credential resolution, 2026-08-25):
   # zeitgeist_client.resolution is the seam library the #8 zeitgeist handler will
   # call at fan-out — written library-first with its contract pinned by tests,
   # no src/ caller yet. Follow-up tracker ticket per FR-303:
-  # EXPERIMENTAL-spec-kitty#8 (the wiring consumer); the entry burns when that
+  # Priivacy-ai/spec-kitty#8 (the wiring consumer); the entry burns when that
   # lands, per the stale-entry check.
   #
-  # 4 -> 3 (EXPERIMENTAL-spec-kitty#8, E3 zeitgeist moment handler, 2026-08-25):
+  # 4 -> 3 (Priivacy-ai/spec-kitty#8, E3 zeitgeist moment handler, 2026-08-25):
   # the wiring landed — status/zeitgeist_bridge.py resolves credentials through
   # zeitgeist_client.resolution at the fan-out seam, so the module has a live
   # src/ caller and its Cat-7 entry is burned.
@@ -308,7 +308,7 @@ test_egress_consent_boundary:
   # is independently pinned in test_egress_consent_boundary.py.
   # Both sides of the #14 merge moved this counter off 28, in opposite
   # directions, and both allowances are kept:
-  # - EXPERIMENTAL-spec-kitty#9 (E3 ephemeral-team-status) ADDED
+  # - Priivacy-ai/spec-kitty#9 (E3 ephemeral-team-status) ADDED
   #   specify_cli/zeitgeist_client/resolution.py — the capability mint POSTs
   #   {'repo_slug', 'kind'} to Team Kitty to *receive* a relay token;
   #   credential traffic gated by team membership over Bearer auth, not
