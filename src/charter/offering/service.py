@@ -27,18 +27,10 @@ class DoctrineService:
         project_root: Path | None = None,
         org_roots: list[Path] | None = None,
         active_languages: list[str] | tuple[str, ...] | None = None,
-        agent_profile_overlay_dir: Path | None = None,
     ) -> None:
         self._project_root = project_root
         self._org_roots = org_roots or []
         self._active_languages = None if active_languages is None else normalize_languages(active_languages)
-        # #3176 (WP02): optional override for the agent-profile project overlay
-        # directory. When set, the ``agent_profiles`` property points its
-        # project layer at this path (e.g. ``.kittify/agent_profiles``) instead
-        # of the doctrine-root ``agent_profiles`` dir ``_project_dir`` derives.
-        # Only ``agent_profiles`` consults it; every other repository is
-        # unaffected. Default ``None`` ⇒ byte-identical behaviour (NFR-002).
-        self._agent_profile_overlay_dir = agent_profile_overlay_dir
         self._cache: dict[str, object] = {}
 
     def _project_dir(self, artifact: str) -> Path | None:
@@ -150,10 +142,9 @@ class DoctrineService:
     @property
     def agent_profiles(self) -> AgentProfileRepository:
         if "agent_profiles" not in self._cache:
-            project_dir = self._agent_profile_overlay_dir if self._agent_profile_overlay_dir is not None else self._project_dir("agent_profiles")
             self._cache["agent_profiles"] = AgentProfileRepository(
                 org_dirs=self._org_dirs("agent_profiles"),
-                project_dir=project_dir,
+                project_dir=self._project_dir("agent_profiles"),
                 active_languages=self._active_languages,
             )
         return cast(AgentProfileRepository, self._cache["agent_profiles"])

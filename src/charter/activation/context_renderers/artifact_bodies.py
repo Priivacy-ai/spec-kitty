@@ -12,13 +12,10 @@ from __future__ import annotations
 import json
 import re
 
-from charter.activation.context_renderers.fetch_stanza import render_fetch_stanza
-
 __all__ = [
     "_format_full_artifact_payload_body",
     "_format_inline_agent_profile_body",
     "_format_inline_directive_body",
-    "_format_inline_glossary_body",
     "_format_inline_paradigm_body",
     "_format_inline_procedure_body",
     "_format_inline_step_contract_body",
@@ -29,58 +26,10 @@ __all__ = [
     "_jsonable_artifact_value",
 ]
 
-# WP01 (deliver-loaded-doctrine): the when-doing clause for the glossary fetch
-# pointer. ``encounter`` is one of the six ``_WHEN_DOING_RE`` lead-ins (see
-# ``fetch_stanza``), so it survives clause normalisation byte-unchanged.
-_GLOSSARY_FETCH_WHEN = "encounter one of these terms"
-
 # S1192: shared "Steps:" section header, referenced by every inline body
 # formatter below that lists a doctrine artifact's ``steps`` sequence
 # (tactic / procedure / mission-step-contract).
 _STEPS_SECTION_HEADER = "    Steps:"
-
-
-def _append_step_lines(body_lines: list[str], step: object) -> None:
-    """Append a step's ``title`` line, plus its ``description`` as a sub-line.
-
-    WP01 (deliver-loaded-doctrine, FR-004): a step's authored ``description`` --
-    the concrete "how" -- renders as an additional indented sub-line beneath the
-    ``title``. When the ``description`` is absent, empty, or whitespace the
-    output is byte-identical to the pre-WP01 title-only line.
-    """
-    step_title = getattr(step, "title", str(step))
-    body_lines.append(f"      - {step_title}")
-    description = getattr(step, "description", None)
-    if isinstance(description, str) and description.strip():
-        body_lines.append(f"        {description.strip()}")
-
-
-def _format_inline_glossary_body(pack: object) -> list[str]:
-    """Render a glossary pack as term surfaces (names) + a fetch pointer (NFR-001).
-
-    Emits the pack id/heading, a ``Terms:`` line listing every term *surface*
-    (name) -- and **never** its ``definition`` (NFR-001 token budget) -- and a
-    ``--include glossary-pack:<id>`` fetch stanza so an agent can pull the full
-    definitions on demand. Defensive ``getattr`` keeps the renderer decoupled
-    from the concrete :class:`~charter.offering.glossary_packs.models.GlossaryPack` shape.
-    """
-    pack_id = str(getattr(pack, "id", "") or "")
-    body_lines: list[str] = [f"    - {pack_id}"]
-    terms = getattr(pack, "terms", None) or []
-    surfaces = [
-        surface
-        for term in terms
-        if (surface := str(getattr(term, "surface", "") or "").strip())
-    ]
-    if surfaces:
-        body_lines.append(f"      Terms: {', '.join(surfaces)}")
-    body_lines.extend(
-        render_fetch_stanza(
-            selector=f"glossary-pack:{pack_id}",
-            when_clause=_GLOSSARY_FETCH_WHEN,
-        )
-    )
-    return body_lines
 
 
 def _format_profile_directive_code(raw: object) -> str:
@@ -221,7 +170,8 @@ def _format_inline_tactic_body(tactic: object) -> list[str]:
     if isinstance(steps, list) and steps:
         body_lines.append(_STEPS_SECTION_HEADER)
         for step in steps:
-            _append_step_lines(body_lines, step)
+            step_title = getattr(step, "title", str(step))
+            body_lines.append(f"      - {step_title}")
     return body_lines
 
 
@@ -259,7 +209,8 @@ def _format_inline_procedure_body(procedure: object) -> list[str]:
     if isinstance(steps, list) and steps:
         body_lines.append(_STEPS_SECTION_HEADER)
         for step in steps:
-            _append_step_lines(body_lines, step)
+            step_title = getattr(step, "title", str(step))
+            body_lines.append(f"      - {step_title}")
     return body_lines
 
 

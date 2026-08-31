@@ -1046,10 +1046,10 @@ _CATEGORY_C_ORG_DOCTRINE_CLOSEOUT: frozenset[SymbolKey] = frozenset(
             "ActivationPlan", "49697a5e9d4ea41ac9531c0b4bb6605a8aa71bf116e0dfbf1af2eee33a935a53", source_module="charter.activation.activation_engine"
         ),  # charter.activation.activation_engine::ActivationPlan
         SymbolKey(
-            "DeactivationPlan", "ea81133908c5385ae013a8057ac7f863386247ba90b64e212b54be895d7e1615", source_module="charter.activation.cascade"
+            "DeactivationPlan", "527c491b7df6c1369bc3f4c7491626817a5a3a2ede574ffe4527168fde17bf43", source_module="charter.activation.cascade"
         ),  # charter.activation.cascade::DeactivationPlan
         SymbolKey(
-            "REFERENCE_RELATIONS", "95fca0816d6568e68a953c321ec3ca6c5a45a7903f064fdbcb4d87bc1558632b", source_module="charter.activation.cascade"
+            "REFERENCE_RELATIONS", "923c7531fa07a59396d69e256ee38a05448b62f4d75cde08c9fbaa932376a8ca", source_module="charter.activation.cascade"
         ),  # charter.activation.cascade::REFERENCE_RELATIONS
         SymbolKey(
             "ReferencedArtifact", "80d3c02ebae2c466ff75be630ecfd259036be62ea0a1394dbab6503f75414afc", source_module="charter.activation.cascade"
@@ -1924,17 +1924,47 @@ _CATEGORY_D_CHARTER_CODE_TOPOLOGY_RELOCATION_FORWARD_API: frozenset[SymbolKey] =
 )
 
 
-# ---------- E. charter-activation-split forward API (#3664, M2b) ----------
-# The pure merge remains re-exported on charter.drg while live callers import
-# it from charter.activation.drg_activation alongside the activation-aware DRG
-# loaders. The module_path key disambiguates the byte-identical re-export.
+# ---------- E. charter-activation-split forward API (#806) ----------
+# EXPERIMENTAL deliberately retains its replay semantics, so these restored
+# upstream helpers are public but currently unwired. TODO(triage): #925 owns
+# their wire-or-prune disposition.
 _CATEGORY_E_CHARTER_ACTIVATION_SPLIT_FORWARD_API: frozenset[SymbolKey] = frozenset(
     {
+        SymbolKey(
+            "collect_operating_procedure_entries",
+            "920c731339863df1f529706ba22c93ade27a8c8ef52642da390a5278a584ee52",
+            source_module="charter.offering.agent_profiles.operating_procedures",
+        ),
+        SymbolKey(
+            "node_universe",
+            "5142c3de4d27055c754f6ec90c522b0db269b1bbfc65907e5ce6a4ff7024efd9",
+            source_module="charter.offering.agent_profiles.operating_procedures",
+        ),
+        SymbolKey(
+            "resolve_operating_procedure_entries",
+            "daba04557548601ed3c0179c19890e7a8e0b657fae4624c0d45a596c72470844",
+            source_module="charter.offering.agent_profiles.operating_procedures",
+        ),
+        SymbolKey(
+            "overlay_scan_is_recursive",
+            "74c0f3834ccd993ee796cd659396e51009a34ffe926429bc26455a7b956ca140",
+            source_module="charter.offering.discovery_recursion",
+        ),
+        SymbolKey(
+            "collect_org_governance_scope_edges",
+            "5922bd85e78df3616fb572adb1b2922a3390dd210122c3b6f20eb67d4b7e7dc3",
+            source_module="charter.offering.drg.org_governance",
+        ),
+        SymbolKey(
+            "walk_project_agent_profile_nodes",
+            "4b668328c6da91ec93c4cbac7e0ffc17a0febd9c71a9e654fe069d1c7362b0a0",
+            source_module="charter.offering.drg.project_scan",
+        ),
         SymbolKey(
             "merge_three_layers",
             "a474c1190d82c971ec43ab922f13e85ca488cea98ff3b56d1e077f386ab89b90",
             module_path="charter.drg",
-            source_module="charter.drg",
+            source_module="charter.offering.drg.merge",
         ),
     }
 )

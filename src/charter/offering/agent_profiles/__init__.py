@@ -10,6 +10,7 @@ from charter.offering.agent_profiles.diagnostics import SkippedProfile
 from charter.offering.agent_profiles.profile import (
     AgentProfile,
     CollaborationContract,
+    ContextSources,
     DirectiveRef,
     ModeDefault,
     Role,
@@ -27,6 +28,7 @@ __all__ = [
     "Specialization",
     "CollaborationContract",
     "SpecializationContext",
+    "ContextSources",
     "ModeDefault",
     "DirectiveRef",
     # Task context

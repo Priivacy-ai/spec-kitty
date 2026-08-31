@@ -118,7 +118,7 @@ def built_in_graph_source() -> Path:
     This is the ``packs/built-in/`` pack root, which holds the per-kind
     ``*.graph.yaml`` fragments (mission #2680 sharded the former single
     ``graph.yaml`` monolith; the relocation mission flattened the fragments out
-    of ``src/doctrine/`` into ``packs/built-in/``). Resolving to the *directory*
+    of ``src/charter/offering/`` into ``packs/built-in/``). Resolving to the *directory*
     -- rather than a specific ``graph.yaml`` file -- is what let
     :func:`load_built_in_graph` absorb the monolith->fragment migration
     transparently, with no call-site changes, and keeps either layout loadable
@@ -128,7 +128,7 @@ def built_in_graph_source() -> Path:
     :func:`charter.offering.pack_paths.built_in_root`. This is deliberately
     **fail-closed**: if no ``packs/built-in/`` root can be located,
     :class:`~charter.offering.pack_paths.PackRootNotFound` propagates rather than falling
-    back to an emptied ``src/doctrine/`` tree that would silently yield a partial
+    back to an emptied ``src/charter/offering/`` tree that would silently yield a partial
     or empty graph (DIR-005). The resolver stays in-layer (doctrine) and never
     imports upward into charter (C-004).
     """

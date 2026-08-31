@@ -67,10 +67,6 @@ from charter.activation.context_renderers.fetch_stanza import (
     fetch_stanza_lines,
     format_selector,
 )
-from charter.offering.artifact_kinds import (
-    CHARTER_ACTIVATABLE_PLURAL_TO_SINGULAR,
-    CHARTER_ACTIVATABLE_SINGULAR_TO_PLURAL,
-)
 
 
 __all__ = ["render_activation_stanza"]
@@ -109,21 +105,19 @@ _ACTION_PROSE: dict[str, str] = {
 }
 
 
-#: Mapping of the charter-activatable (plural) ``DoctrineService`` property
+#: Mapping of the eight canonical (plural) ``DoctrineService`` property
 #: names to the corresponding ``service.<property>`` attribute name.  Used
 #: by :func:`_infer_kind` to scan the service when an operator omits
 #: ``artifact_kind``.
-#:
-#: Derived from the single charter-activatable kind authority (FR-004): the
-#: property name equals the plural for every kind. The prior hand-copied literal
-#: had drifted two kinds behind (missing ``glossary_packs`` and
-#: ``anti_patterns``), blinding kind inference for those kinds (#2981). Deriving
-#: it restores ``glossary_packs`` inference (a real ``service.glossary_packs``
-#: repo); ``anti_patterns`` is inert here — :func:`_infer_kind` reads it via
-#: ``getattr(service, prop, None)`` and there is no ``service.anti_patterns``
-#: repo, so it simply never matches.
 _KIND_TO_PROPERTY: dict[str, str] = {
-    plural: plural for plural in CHARTER_ACTIVATABLE_SINGULAR_TO_PLURAL.values()
+    "directives": "directives",
+    "tactics": "tactics",
+    "styleguides": "styleguides",
+    "toolguides": "toolguides",
+    "paradigms": "paradigms",
+    "procedures": "procedures",
+    "agent_profiles": "agent_profiles",
+    "mission_step_contracts": "mission_step_contracts",
 }
 
 
@@ -283,15 +277,22 @@ def _singular_kind(plural_kind: str) -> str:
     plural-canonical kind back to the singular form expected by the
     selector.  Unknown plurals are returned unchanged so a future kind
     addition doesn't crash the renderer.
-
-    Derived from the single charter-activatable kind authority
-    (:data:`charter.offering.artifact_kinds.CHARTER_ACTIVATABLE_PLURAL_TO_SINGULAR`,
-    FR-004) — no local plural↔singular kind dict.  The prior local literal had
-    drifted two kinds behind (missing ``glossary_packs`` and ``anti_patterns``),
-    so ``_singular_kind("glossary_packs")`` failed open and rendered the plural
-    token verbatim (#2981); deriving it fixes that.
     """
-    return CHARTER_ACTIVATABLE_PLURAL_TO_SINGULAR.get(plural_kind, plural_kind)
+    # Local mapping mirrors the inverse of
+    # ``charter.activation.activations._SINGULAR_TO_PLURAL_KIND``.  Kept local to
+    # avoid leaking a private symbol across modules; the canonical
+    # plural set is small and stable (8 kinds).
+    inverse = {
+        "directives": "directive",
+        "tactics": "tactic",
+        "styleguides": "styleguide",
+        "toolguides": "toolguide",
+        "paradigms": "paradigm",
+        "procedures": "procedure",
+        "agent_profiles": "agent_profile",
+        "mission_step_contracts": "mission_step_contract",
+    }
+    return inverse.get(plural_kind, plural_kind)
 
 
 def _infer_kind(artifact_id: str, service: object) -> str | None:

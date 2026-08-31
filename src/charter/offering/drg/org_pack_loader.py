@@ -432,10 +432,10 @@ class OrgDRGFragment(BaseModel):
     One instance per configured ``organisation_packs:`` entry. The loader
     (:func:`load_org_pack`) produces a single fragment per pack root.
     ``layer_index`` (1..N) is assigned by the caller
-    (``charter.activation.drg_activation.load_org_drg``) once it knows the declaration order.
+    (``charter.drg.load_org_drg``) once it knows the declaration order.
     ``provenance_marker`` is the fixed string ``"org"`` — every node and
     edge from this fragment is tagged ``source: org:<pack_name>`` in the
-    resolved DRG (see ``charter.activation.drg_activation.merge_three_layers``).
+    resolved DRG (see ``charter.drg.merge_three_layers``).
     """
 
     model_config = ConfigDict(extra="forbid")
@@ -480,7 +480,7 @@ def load_org_pack(
         ``source_ref``, and ``layer_index`` fields are set from the
         caller-supplied arguments, overriding any values present in the
         YAML file (per the operator-authority rule in the original
-        ``charter.activation.drg_activation.load_org_drg`` implementation).
+        ``charter.drg.load_org_drg`` implementation).
 
     Raises
     ------
@@ -552,11 +552,7 @@ def load_org_pack(
     # tell machine provenance from an author's ``reason:`` without matching on
     # the generated text — a string the emitter above owns and could reword.
     authored_edges: list[Any] = list(fragment_data.get("edges") or [])
-    fragment_data["edges"] = (
-        authored_edges
-        + _collect_augmentation_edges(pack_root)
-        + _collect_governance_scope_edges(pack_root)
-    )
+    fragment_data["edges"] = authored_edges + _collect_augmentation_edges(pack_root)
 
     try:
         return OrgDRGFragment.model_validate(fragment_data)
@@ -652,39 +648,6 @@ def _collect_augmentation_edges(pack_root: Path) -> list[_ProjectedOrgDRGEdge]:
         for yaml_file in _augmentation_files(pack_root / plural, plural, glob):
             edges.extend(_projection_edges_for_file(yaml_file, urn_kind))
     return edges
-
-
-def _collect_governance_scope_edges(pack_root: Path) -> list[_ProjectedOrgDRGEdge]:
-    """Project org-tier ``governance-profile.yaml`` selections into scope edges (#3629).
-
-    Org packs carry type-wide governance at
-    ``<pack_root>/mission_types/<type>/governance-profile.yaml`` -- a path shape
-    the built-in extractor's missions-root glob never sees. Reading each such
-    profile's ``selected_*`` lists here mints
-    ``mission_type:<type> --scope--> <artifact>`` projection edges so an
-    org-tier selection reaches the merged DRG rather than being silently unread
-    (WP03 / T014). An unresolved selection is minted as a dangling scope edge,
-    which :func:`charter.offering.drg.validator.validate_dangling_references` (via
-    ``assert_valid`` in :func:`charter.activation._drg_helpers.load_validated_graph`) then
-    raises on -- no dedicated governance-scope guard is required.
-
-    The reader is imported lazily so importing this loader does not pull the
-    (heavier) migration extractor into every consumer; org-pack loading is not a
-    hot path.
-    """
-    from charter.offering.drg.org_governance import (  # noqa: PLC0415 — lazy: keeps the migration extractor off this module's import surface (org-pack load is cold)
-        collect_org_governance_scope_edges,
-    )
-
-    return [
-        _ProjectedOrgDRGEdge(
-            source=selection.source,
-            target=selection.target,
-            relation=Relation.SCOPE.value,
-            generated_reason=selection.generated_reason,
-        )
-        for selection in collect_org_governance_scope_edges(pack_root)
-    ]
 
 
 # ---------------------------------------------------------------------------

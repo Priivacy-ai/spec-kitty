@@ -1,17 +1,19 @@
 profile-id: "human-in-charge"
 name: "Human in Charge"
-description: "Workflow sentinel indicating this work package requires direct human
-  execution. No agent identity is injected. The HIC remains accountable for the deliverable."
+description: "Workflow sentinel indicating this work package requires direct human execution. No agent identity is injected. The HIC remains accountable for the deliverable."
 schema-version: "1.0"
 roles:
-- human-in-charge
+  - human-in-charge
 sentinel: true
 capabilities:
-- "Human judgment"
-- "Direct action"
+  - "Human judgment"
+  - "Direct action"
 routing-priority: 100
 max-concurrent-tasks: 1
 
+context-sources:
+  doctrine-layers: []
+  directives: []
 
 purpose: |
   Signal that this work package is assigned to a human executor.
@@ -19,24 +21,23 @@ purpose: |
   for the deliverable and its quality.
 
 specialization:
-  primary-focus: "Human execution — this WP requires direct human action or collaborative
-    human-AI work"
+  primary-focus: "Human execution — this WP requires direct human action or collaborative human-AI work"
   avoidance-boundary: "Fully automated execution without human oversight"
 
 collaboration:
   handoff-to:
-  - reviewer
+    - reviewer
   output-artifacts:
-  - "Human-executed deliverable"
+    - "Human-executed deliverable"
   canonical-verbs:
-  - approve
-  - decide
-  - execute
+    - approve
+    - decide
+    - execute
 
 mode-defaults:
-- mode: "direct"
-  description: "Direct human execution without agent intermediary"
-  use-case: "Work packages that require human judgment, approval, or direct action"
+  - mode: "direct"
+    description: "Direct human execution without agent intermediary"
+    use-case: "Work packages that require human judgment, approval, or direct action"
 
 directive-references: []
 

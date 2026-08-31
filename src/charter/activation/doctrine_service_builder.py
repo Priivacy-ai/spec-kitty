@@ -93,13 +93,12 @@ def _build_doctrine_service(
     repo_root: Path,
     *,
     org_roots: list[Path] | None = None,
-    agent_profile_overlay_dir: Path | None = None,
 ) -> _doctrine_service_module.DoctrineService:
     """Build a DoctrineService for the given repo root.
 
     The project-root candidate list (in priority order):
     1. ``.kittify/doctrine/``  — Phase 3 synthesis target (FR-009 / T025).
-    2. ``src/doctrine/``       — code-local built-in-layer path.
+    2. ``src/charter/offering/``       — code-local built-in-layer path.
     3. ``doctrine/``           — flat fallback.
 
     Discovery is conditional on directory presence so legacy (pre-synthesis)
@@ -112,12 +111,6 @@ def _build_doctrine_service(
     of org doctrine snapshot paths) so the resulting service includes the
     configured org layer in provenance tracking.  Charter-internal callers
     omit the argument and get the built-in-plus-project baseline.
-
-    #3176 (WP02): callers may also supply *agent_profile_overlay_dir* to point
-    the inner service's agent-profile project overlay at an arbitrary path
-    (e.g. ``.kittify/agent_profiles``). Like *org_roots*, it is passed into
-    :class:`~charter.offering.service.DoctrineService` **only when set**, so
-    charter-internal callers that omit it see byte-identical kwargs (NFR-002).
     """
     from charter.offering.service import DoctrineService
     # Patch seam, see module docstring.
@@ -131,34 +124,18 @@ def _build_doctrine_service(
     # ``resolve_doctrine_root()`` here would point at the emptied ``src/doctrine``
     # tree and silently load nothing.
     project_root = resolve_project_root(repo_root)
-    active_languages = infer_repo_languages(repo_root)
-    # Only pass ``org_roots``/``agent_profile_overlay_dir`` when each carries a
-    # value so charter-internal callers see byte-identical kwargs (preserves
-    # existing test stubs and downstream constructors that may not declare the
-    # parameters). Nested rather than ``**kwargs``-unpacked so ``mypy --strict``
-    # can still type-check every argument against the constructor signature.
-    if agent_profile_overlay_dir is not None:
-        if org_roots:
-            return DoctrineService(
-                project_root=project_root,
-                active_languages=active_languages,
-                org_roots=org_roots,
-                agent_profile_overlay_dir=agent_profile_overlay_dir,
-            )
-        return DoctrineService(
-            project_root=project_root,
-            active_languages=active_languages,
-            agent_profile_overlay_dir=agent_profile_overlay_dir,
-        )
+    # Only pass ``org_roots`` when it carries paths so charter-internal
+    # callers see byte-identical kwargs (preserves existing test stubs and
+    # downstream constructors that may not declare the parameter).
     if org_roots:
         return DoctrineService(
             project_root=project_root,
-            active_languages=active_languages,
+            active_languages=infer_repo_languages(repo_root),
             org_roots=org_roots,
         )
     return DoctrineService(
         project_root=project_root,
-        active_languages=active_languages,
+        active_languages=infer_repo_languages(repo_root),
     )
 
 
@@ -180,10 +157,7 @@ def _self_resolve_existing_org_roots(repo_root: Path) -> list[Path]:
 
 
 def _build_activation_aware_doctrine_service(
-    repo_root: Path,
-    *,
-    org_roots: list[Path] | None = None,
-    agent_profile_overlay_dir: Path | None = None,
+    repo_root: Path, *, org_roots: list[Path] | None = None
 ) -> _ActivationAwareDoctrineService:
     """Build an *activation-aware* doctrine service for ``--include`` fetches.
 
@@ -222,29 +196,13 @@ def _build_activation_aware_doctrine_service(
     resolved_org_roots = (
         org_roots if org_roots is not None else _self_resolve_existing_org_roots(repo_root)
     )
-    # Forward ``agent_profile_overlay_dir`` only when set: the common ``None``
-    # case must reach ``_build_doctrine_service`` with the byte-identical
-    # ``(repo_root, org_roots=...)`` call the ``charter.activation.context`` monkeypatch
-    # stubs (``lambda repo_root, *, org_roots=None: ...``) expect — passing the
-    # extra kwarg unconditionally raises ``TypeError`` against those stubs
-    # (NFR-002). The overlay is still threaded through whenever a caller
-    # (e.g. the profiles projection) actually supplies it.
-    if agent_profile_overlay_dir is not None:
-        inner = _build_doctrine_service(
-            repo_root,
-            org_roots=resolved_org_roots,
-            agent_profile_overlay_dir=agent_profile_overlay_dir,
-        )
-    else:
-        inner = _build_doctrine_service(repo_root, org_roots=resolved_org_roots)
+    inner = _build_doctrine_service(repo_root, org_roots=resolved_org_roots)
     pack_context = PackContext.from_config(repo_root)
     return ActivationAwareDoctrineService(inner, pack_context=pack_context)
 
 
 def build_activation_aware_doctrine_service(
     repo_root: Path,
-    *,
-    agent_profile_overlay_dir: Path | None = None,
 ) -> _ActivationAwareDoctrineService:
     """Build the ONE canonical activation-aware ``DoctrineService`` (FR-008, C-001).
 
@@ -259,13 +217,13 @@ def build_activation_aware_doctrine_service(
     always self-resolved).
 
     Unlike the private :func:`_build_activation_aware_doctrine_service`, this
-    public function exposes no ``org_roots`` override — every current call site
-    wants the fully-resolved, activation-aware service; a caller that needs an
-    explicit ``org_roots`` override (or the unfiltered diagnostic mode,
-    ``pack_context=None``) constructs :class:`charter.activation.resolver.DoctrineService`
-    directly, per the "unfiltered-diagnostic contract" documented in this
-    mission's ``data-model.md``. The one override it does forward is
-    *agent_profile_overlay_dir* (see below).
+    public function takes only *repo_root* — no override parameter — because
+    every current call site wants the fully-resolved, activation-aware
+    service; a caller that needs an explicit ``org_roots`` override (or the
+    unfiltered diagnostic mode, ``pack_context=None``) constructs
+    :class:`charter.activation.resolver.DoctrineService` directly, per the
+    "unfiltered-diagnostic contract" documented in this mission's
+    ``data-model.md``.
 
     Parameters
     ----------
@@ -288,23 +246,5 @@ def build_activation_aware_doctrine_service(
     to close, re-created *inside* this one module. Only one body may
     construct the wrapper now; this function exists purely for the
     no-override call shape every current caller wants.
-
-    #3176 (WP02): the optional *agent_profile_overlay_dir* is the one override
-    this public builder does forward — it points the inner service's
-    agent-profile project overlay at a caller-chosen path (e.g.
-    ``.kittify/agent_profiles``). Note that the production consumer
-    ``specify_cli.tool_surface.profiles.projection.default_profile_repository``
-    does NOT use this public builder: it calls the private
-    :func:`_build_activation_aware_doctrine_service` with ``org_roots=[]`` to
-    suppress org-root self-resolution (C-008 — org profiles must enter
-    exclusively through the activation gate, which this self-resolving public
-    builder cannot express) while still threading the overlay seam. This
-    public ``agent_profile_overlay_dir`` param is therefore test-covered
-    (``tests/charter/test_builder_overlay_seam.py``) but has no current
-    production caller; it is kept because it is harmless and exercised. Default
-    ``None`` keeps the delegation byte-identical (NFR-002); this stays a thin
-    delegate — no second wrapper construction site (C-006).
     """
-    return _build_activation_aware_doctrine_service(
-        repo_root, agent_profile_overlay_dir=agent_profile_overlay_dir
-    )
+    return _build_activation_aware_doctrine_service(repo_root)

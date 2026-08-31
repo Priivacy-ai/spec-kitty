@@ -20,7 +20,7 @@ history:
 
 **Read this first if you are implementing this task!**
 
-- **Has review feedback?**: Check the `review_ref` field in the event log (via `spec-kitty agent tasks status` or the Activity Log below).
+- **Has review feedback?**: Check the `review_ref` field in the event log (via `spec-kitty agent status` or the Activity Log below).
 - **You must address all feedback** before your work is complete. Feedback items are your implementation TODO list.
 - **Report progress**: As you address each feedback item, update the Activity Log explaining what you changed.
 

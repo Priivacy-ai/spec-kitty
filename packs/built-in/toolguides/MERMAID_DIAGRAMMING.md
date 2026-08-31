@@ -201,7 +201,7 @@ flowchart LR
 ```
 
 Theme snippets are available as copy-paste templates in
-`src/doctrine/templates/diagrams/mermaid/themes/`.
+`src/charter/offering/templates/diagrams/mermaid/themes/`.
 
 ## Rendering
 
@@ -279,7 +279,7 @@ mmdc -i diagram.mmd -o diagram.svg -c mermaid-config.json
 ## Template Library
 
 Spec Kitty ships ready-to-copy Mermaid templates in
-`src/doctrine/templates/diagrams/mermaid/examples/`:
+`src/charter/offering/templates/diagrams/mermaid/examples/`:
 
 - `causal-map-mermaid-template.md`
 - `content-map-mermaid-template.md`
@@ -289,7 +289,7 @@ Spec Kitty ships ready-to-copy Mermaid templates in
 - `structure-meta-model-mermaid-template.md`
 - `system-map-mermaid-template.md`
 
-Theme snippets are in `src/doctrine/templates/diagrams/themes/`:
+Theme snippets are in `src/charter/offering/templates/diagrams/themes/`:
 
 - `mermaid-theme-common-template.md`
 - `mermaid-theme-bluegray-conversation-template.md`

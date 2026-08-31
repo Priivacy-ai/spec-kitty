@@ -324,13 +324,9 @@ spec-kitty doctrine validate .kittify/
 ### Agent Profiles (Role-Based WP Assignment)
 
 Agent profiles define roles, specializations, and boundaries for work
-package assignment. Each profile has these sections: purpose,
+package assignment. Each profile has 6 sections: context_sources, purpose,
 specialization (languages, frameworks, boundaries), collaboration (handoffs,
-outputs), mode_defaults, and initialization_declaration. Doctrine references
-are authored on the top-level `*-references` fields (`directive-references`,
-`tactic-references`, `toolguide-references`, `styleguide-references`); the
-retired `context-sources` block was removed (mission
-`doctrine-drg-silent-drop-boundary`; #3629).
+outputs), mode_defaults, and initialization_declaration.
 
 Profiles do not use relationship fields such as `specializes_from`. Lineage and
 specialization relationships belong in the doctrine DRG; profile matching uses

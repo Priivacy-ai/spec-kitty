@@ -34,10 +34,6 @@ definitions:
       id:
         type: string
         minLength: 1
-      when:
-        type: string
-      reason:
-        type: string
 properties:
   id:
     type: string

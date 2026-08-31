@@ -622,9 +622,6 @@ edges:
   target: tactic:refactoring-guard-clauses-before-polymorphism
   relation: suggests
   when: Use guard clauses to flatten the source function before extracting per-rule helpers; the flattened form makes rule boundaries visible
-- source: tactic:change-apply-smallest-viable-diff
-  target: directive:RECONCILE_CHANGE_SCOPE_TENSIONS
-  relation: suggests
 - source: tactic:code-documentation-analysis
   target: directive:DIRECTIVE_001
   relation: suggests

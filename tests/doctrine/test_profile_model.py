@@ -19,6 +19,7 @@ from pydantic import ValidationError
 from charter.offering.agent_profiles.profile import (
     AgentProfile,
     CollaborationContract,
+    ContextSources,
     DirectiveRef,
     ModeDefault,
     Role,
@@ -55,7 +56,7 @@ class TestAgentProfileOne:
     """One: Single profile with all fields populated."""
 
     def test_full_profile_creation(self):
-        """Profile with all sections populated."""
+        """Profile with all 6 sections populated."""
         profile = AgentProfile(
             profile_id="architect",
             name="Architect",
@@ -65,6 +66,11 @@ class TestAgentProfileOne:
             capabilities=["read", "write", "search", "edit", "bash"],
             routing_priority=50,
             max_concurrent_tasks=3,
+            context_sources=ContextSources(
+                doctrine_layers=["general_guidelines", "operational_guidelines"],
+                directives=["001", "003", "007"],
+                additional=[],
+            ),
             purpose="Clarify and decompose complex socio-technical systems",
             specialization=Specialization(
                 primary_focus="System decomposition, design interfaces, ADRs",
@@ -257,55 +263,46 @@ class TestAgentProfileInterface:
         assert profile.routing_priority == 75
         assert profile.max_concurrent_tasks == 3
 
-    def test_references_survive_schema_declared_artifact_lists(self):
-        """Runtime model preserves all canonical ``*-references`` surfaces."""
+    def test_context_sources_preserve_schema_declared_artifact_lists(self):
+        """Runtime model preserves all schema-approved context-sources lists."""
         data = {
-            "profile-id": "reference-artifacts",
-            "name": "Reference Artifacts",
-            "purpose": "Prove *-references artifact lists survive validation",
+            "profile-id": "context-source-artifacts",
+            "name": "Context Source Artifacts",
+            "purpose": "Prove context-sources artifact lists survive validation",
             "roles": ["reviewer"],
             "specialization": {"primary-focus": "testing"},
-            "directive-references": [
-                {"code": "001", "name": "Integrity", "rationale": "boundaries"},
-            ],
-            "tactic-references": [
-                {"id": "code-review-incremental", "rationale": "review discipline"},
-            ],
-            "toolguide-references": [
-                {"id": "python-review-checks", "rationale": "python review"},
-            ],
-            "styleguide-references": [
-                {"id": "python-conventions", "rationale": "python style"},
-            ],
+            "context-sources": {
+                "doctrine-layers": ["directives", "tactics", "toolguides"],
+                "directives": ["001"],
+                "tactics": ["code-review-incremental"],
+                "toolguides": ["python-review-checks"],
+                "styleguides": ["python-conventions"],
+                "additional": ["review-checklist"],
+            },
         }
 
         profile = AgentProfile.model_validate(data)
 
-        assert [r.id for r in profile.tactic_references] == ["code-review-incremental"]
-        assert [r.id for r in profile.toolguide_references] == ["python-review-checks"]
-        assert [r.id for r in profile.styleguide_references] == ["python-conventions"]
+        assert profile.context_sources.tactics == ["code-review-incremental"]
+        assert profile.context_sources.toolguides == ["python-review-checks"]
+        assert profile.context_sources.styleguides == ["python-conventions"]
 
-    def test_retired_context_sources_block_is_rejected(self):
-        """Authoring the retired ``context-sources`` surface fails loud at load.
-
-        The consolidation in mission doctrine-drg-silent-drop-boundary-01M0PE7E
-        removed ``context-sources`` from the model; ``extra="forbid"`` turns any
-        residual authoring into an explicit load error rather than a silent drop
-        (FR-006).
-        """
+    def test_context_sources_reject_unknown_keys(self):
+        """Runtime context-sources must not silently drop unsupported fields."""
         data = {
-            "profile-id": "retired-context-sources",
-            "name": "Retired Context Sources",
-            "purpose": "Prove the retired context-sources block is rejected",
+            "profile-id": "context-source-unknown",
+            "name": "Context Source Unknown",
+            "purpose": "Prove unsupported context-sources fields are explicit errors",
             "roles": ["reviewer"],
             "specialization": {"primary-focus": "testing"},
             "context-sources": {
+                "doctrine-layers": ["directives"],
                 "directives": ["001"],
-                "tactics": ["code-review-incremental"],
+                "unknown-guide-kind": ["silent-drop"],
             },
         }
 
-        with pytest.raises(ValidationError, match="context-sources"):
+        with pytest.raises(ValidationError, match="unknown-guide-kind"):
             AgentProfile.model_validate(data)
 
 

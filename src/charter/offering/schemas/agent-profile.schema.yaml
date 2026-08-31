@@ -50,6 +50,40 @@ definitions:
         description: Standard verbs for this agent's actions
         items:
           type: string
+  agent_context_sources:
+    type: object
+    additionalProperties: false
+    properties:
+      doctrine-layers:
+        type: array
+        description: Doctrine layers this agent consults
+        items:
+          type: string
+      directives:
+        type: array
+        description: Directive IDs this agent references
+        items:
+          type: string
+      tactics:
+        type: array
+        description: Tactic IDs this agent references
+        items:
+          type: string
+      toolguides:
+        type: array
+        description: Toolguide IDs this agent references
+        items:
+          type: string
+      styleguides:
+        type: array
+        description: Styleguide IDs this agent references
+        items:
+          type: string
+      additional:
+        type: array
+        description: Additional context sources
+        items:
+          type: string
   agent_directive_reference:
     type: object
     additionalProperties: false
@@ -275,6 +309,8 @@ properties:
     type: string
   effort:
     type: string
+  context-sources:
+    $ref: '#/definitions/agent_context_sources'
   specialization:
     $ref: '#/definitions/agent_specialization'
   collaboration:

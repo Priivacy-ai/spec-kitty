@@ -317,7 +317,7 @@ class TestGrainCallersForwardMissionType:
 
 class TestScopeRouterForwardsGrain:
     def test_build_with_scope_forwards_feature_dir(self, tmp_path: Path) -> None:
-        from charter import scope_router
+        from charter.activation import scope_router
 
         feature_dir = tmp_path / "kitty-specs" / "999-demo"
         feature_dir.mkdir(parents=True)

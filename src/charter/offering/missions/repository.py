@@ -21,14 +21,14 @@ ParsedConfig = dict[str, Any] | list[Any]
 #: independently-typed copy of the literal (mission
 #: ``resolution-activation-foundation-01KZ9FKG``, WP02, FR-012). Mission
 #: ``doctrine-consumer-surface-missions-extraction-01KZ6G6H`` (WP05) relocated
-#: the missions data subdirectories from ``src/doctrine/missions`` to
+#: the missions data subdirectories from ``src/charter/offering/missions`` to
 #: ``packs/built-in/missions`` -- ``packs/`` ships as a fixed-name,
 #: site-packages-level sibling of every top-level package (the root
 #: ``pyproject.toml``'s ``force-include = {"packs" = "packs"}``), so this is a
 #: **literal** relative path, not a bare "missions" match. A bare "missions"
 #: pattern would still match one ancestor level above this module's own
 #: containing directory (``src/doctrine``) -- i.e. it would find
-#: ``src/doctrine/missions`` itself, the now data-less directory this
+#: ``src/charter/offering/missions`` itself, the now data-less directory this
 #: module's own 11 ``.py`` logic modules still live in -- before ever
 #: considering the real data. A fully-qualified ``packs/built-in/missions``
 #: pattern structurally cannot make that mistake.
@@ -218,7 +218,7 @@ class MissionTemplateRepository:
     # ------------------------------------------------------------------
 
     def get_command_template(self, mission: str, name: str) -> TemplateResult | None:
-        """Read a command template's content from doctrine assets.
+        """Read a command template's content from charter.offering assets.
 
         Looks first for legacy
         ``<missions_root>/<mission>/command-templates/<name>.md``, then for
@@ -243,7 +243,7 @@ class MissionTemplateRepository:
             return None
 
     def get_content_template(self, mission: str, name: str) -> TemplateResult | None:
-        """Read a content template's content from doctrine assets.
+        """Read a content template's content from charter.offering assets.
 
         Looks for ``<missions_root>/<mission>/templates/<name>``.
 
@@ -316,7 +316,7 @@ class MissionTemplateRepository:
     # ------------------------------------------------------------------
 
     def get_action_index(self, mission: str, action: str) -> ConfigResult | None:
-        """Read and parse an action's index.yaml from doctrine assets.
+        """Read and parse an action's index.yaml from charter.offering assets.
 
         Args:
             mission: Mission name.
@@ -340,7 +340,7 @@ class MissionTemplateRepository:
             return None
 
     def get_action_guidelines(self, mission: str, action: str) -> TemplateResult | None:
-        """Read an action's guidelines.md from doctrine assets.
+        """Read an action's guidelines.md from charter.offering assets.
 
         Args:
             mission: Mission name.
@@ -360,7 +360,7 @@ class MissionTemplateRepository:
             return None
 
     def get_mission_config(self, mission: str) -> ConfigResult | None:
-        """Read and parse a mission's mission.yaml from doctrine assets.
+        """Read and parse a mission's mission.yaml from charter.offering assets.
 
         Args:
             mission: Mission name.

@@ -453,14 +453,15 @@ _CATEGORY_7_GRANDFATHERED_ORPHANS: frozenset[str] = frozenset(
         #   governance-evidence seam (append-only policy-audit.jsonl);
         #   wiring is design work tracked in a follow-up issue, not deleted.
         "specify_cli.policy.audit",
-        # - charter.parser: CharterParser/CharterSection are re-exported by the
-        #   lazy charter facade, but no other src/ file parses charter.md directly.
-        #   TODO(triage): wire or fold this parser in a follow-up to #806.
+        # charter-activation-split (#806) restored EXPERIMENTAL replay
+        # semantics, leaving these activation-adjacent seams without static
+        # src/ callers. TODO(triage): #925 owns wire-or-prune disposition.
         "charter.parser",
-        # - charter.activation.template_resolver: CharterTemplateResolver is
-        #   re-exported by the lazy charter facade and superseded in practice by
-        #   DoctrineService. TODO(triage): wire or prune it in a follow-up to #806.
         "charter.activation.template_resolver",
+        "charter.offering.agent_profiles.operating_procedures",
+        "charter.offering.discovery_recursion",
+        "charter.offering.drg.org_governance",
+        "charter.offering.drg.project_scan",
         # sync.admission_operations: REMOVED (issue-5-delete-sync-transport,
         # 2026-08-25). The module was deleted outright with the sync transport;
         # its #3262 WP11 wiring consumer no longer exists, so there is nothing

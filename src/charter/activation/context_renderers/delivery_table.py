@@ -106,49 +106,18 @@ _ACTION_BUNDLE_DELIVERY_BY_KIND: dict[NodeKind, _KindDelivery] = {
     NodeKind.TOOLGUIDE: _KindDelivery("toolguides", _Gate.ACTIVATED),
     NodeKind.PROCEDURE: _KindDelivery("procedures", _Gate.ACTIVATED),  # WP10: flipped
     NodeKind.ASSET: _KindDelivery("assets", _Gate.ALL),  # WP10: flipped, ungated (D4)
-    # WP01 (deliver-loaded-doctrine, FR-001/FR-002): a glossary pack activated
-    # and graph-reachable is executing-agent context no other charter surface
-    # delivers on this path -- flipped into its own slot, activation-gated.
-    NodeKind.GLOSSARY_PACK: _KindDelivery("glossary_packs", _Gate.ACTIVATED),
-    # Excluded (slot=None) -- each carries a stated reason in
-    # ``_DELIVERY_REASON_BY_KIND`` below (the machine-checkable authority), NOT
-    # ASSET's untreated twin (B-1a):
+    # Excluded (slot=None) with a stated reason, NOT ASSET's untreated twin:
     NodeKind.PARADIGM: _KindDelivery(None, _Gate.ACTIVATED),  # charter selection block
     NodeKind.AGENT_PROFILE: _KindDelivery(None, _Gate.ACTIVATED),  # profile channel (FR-020)
     NodeKind.MISSION_STEP_CONTRACT: _KindDelivery(None, _Gate.ACTIVATED),  # step executor
-    NodeKind.ANTI_PATTERN: _KindDelivery(None, _Gate.ACTIVATED),  # validation-tier topology only
+    NodeKind.GLOSSARY_PACK: _KindDelivery(None, _Gate.ACTIVATED),
+    NodeKind.ANTI_PATTERN: _KindDelivery(None, _Gate.ACTIVATED),
     NodeKind.TEMPLATE: _KindDelivery(None, _Gate.ALL),  # template-file selection (C-004)
     # Not artefacts this bundle carries:
     NodeKind.ACTION: _KindDelivery(None, _Gate.ALL),
     NodeKind.MISSION_TYPE: _KindDelivery(None, _Gate.ALL),
     NodeKind.GLOSSARY: _KindDelivery(None, _Gate.ALL),
     NodeKind.GLOSSARY_SCOPE: _KindDelivery(None, _Gate.ALL),
-}
-
-
-#: The stated reason each ``slot=None`` kind is excluded from the bundle -- the
-#: machine-checkable half of "state the exclusions" (B-1a): exclusion and
-#: ignorance must be distinguishable, so every excluded kind says WHY here.
-#: Keyed by exactly the ``slot=None`` kinds of ``_ACTION_BUNDLE_DELIVERY_BY_KIND``
-#: -- a partial NodeKind map by construction (delivered kinds have no exclusion
-#: reason). ``tests/charter/test_action_bundle_delivery.py`` asserts this covers
-#: every ``None``-slot kind (and only those), so a future ``None`` row added
-#: without a reason reddens rather than passing as an unexplained blank. It is a
-#: documented, intentional partial (an audit sidecar, never read via ``[kind]``
-#: on a delivered kind); the totality guard exempts it in
-#: ``tests/doctrine/drg/test_kind_mapping_totality.py::_EXEMPT_GET_PARTIALS``.
-_DELIVERY_REASON_BY_KIND: dict[NodeKind, str] = {
-    NodeKind.PARADIGM: "delivered via the charter selection block, not the action bundle",
-    NodeKind.AGENT_PROFILE: "delivered through the profile channel (FR-020), not the action bundle",
-    NodeKind.MISSION_STEP_CONTRACT: "consumed by the step executor, not a bundle artefact",
-    NodeKind.ANTI_PATTERN: (
-        "validation-tier topology only (rejects edges) -- never a delivered bundle artefact"
-    ),
-    NodeKind.TEMPLATE: "template-file selection (C-004), not a doctrine bundle artefact",
-    NodeKind.ACTION: "an action node is the resolution root, not a delivered artefact",
-    NodeKind.MISSION_TYPE: "a mission-type node is graph structure, not a delivered artefact",
-    NodeKind.GLOSSARY: "a glossary namespace node is graph structure, not a delivered artefact",
-    NodeKind.GLOSSARY_SCOPE: "a glossary-scope node is graph structure, not a delivered artefact",
 }
 
 

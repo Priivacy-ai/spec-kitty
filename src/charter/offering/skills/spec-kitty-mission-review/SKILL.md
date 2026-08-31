@@ -526,6 +526,10 @@ ADR `docs/adr/3.x/2026-04-26-3-e2e-hard-gate.md`), mission review
 runs four hard gates in order. A FAIL on any gate produces a FAIL verdict
 in Step 9 unless the operator-exception path documented below is used.
 
+`SPEC_KITTY_ENABLE_SAAS_SYNC=1` opts the contract and cross-repo gates into the
+tracker-hosted rollout path. It does not restore the removed standalone sync
+transport.
+
 ### Gate 1: Contract tests (FR-023)
 
 ```bash

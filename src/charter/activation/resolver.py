@@ -25,7 +25,7 @@ hatch, for provenance-scan callers that need raw ``list_all()``/
 Finally (FR-003, charter-sole-door-bypass-closure-01KZ3WAA WP05) this module
 is the **sole charter-layer door** onto ``doctrine/resolver.py``'s 6-tier
 asset resolution chain. The tier functions themselves stay in
-``doctrine/resolver.py`` (charter must import doctrine, never the reverse);
+``doctrine/resolver.py`` (charter must import charter.offering, never the reverse);
 what lives here is the entry point — see the "6-tier resolution axis"
 section of :class:`DoctrineService`. Before WP05,
 ``charter.activation.template_resolver.CharterTemplateResolver`` was a *second*
@@ -672,41 +672,46 @@ def _resolve_tools_selection(
     return sorted(available_tools), "registry_only"
 
 
-def _resolve_directive_base(
+def _resolve_directives_selection(
     doctrine: DoctrineSelectionConfig,
     directives_cfg: DirectivesConfig,
     doctrine_catalog: DoctrineCatalog,
     repo_root: Path,
-    diagnostics: list[str],
 ) -> tuple[list[str], str]:
-    """Resolve the *base* directive set and its provenance label, before the
-    additive project-local layer (see :func:`_resolve_directives_selection`).
+    """Resolve directive list from charter selection, local declarations, or the
+    config-activated set (FR-007 — the catalog-wide fallback is retired).
 
-    Base authority order:
+    Resolution order, unchanged for the first two branches:
 
-    1. ``doctrine.selected_directives`` (explicit charter selection) → validated
+    1. ``charter.offering.selected_directives`` (explicit charter selection) → validated
        against the local + built-in catalog, source ``"charter"``.
-    2. else ``PackContext.activated_directives`` when configured → source
-       ``"activation"`` (the ``frozenset()`` opt-out resolves to ``[]``, still
-       ``"activation"``).
-    3. else (bare, unconfigured project) → the built-in catalog default
-       (``sorted(doctrine_catalog.directives)``), source ``"catalog_fallback"``,
-       with a diagnostic naming the fallback and its size (previously silent).
+    2. ``directives_cfg.directives`` (local ``directives.yaml`` declarations,
+       used when the charter selection is empty) → source ``"catalog_fallback"``
+       (label preserved; this branch is untouched by FR-007).
+
+    When BOTH are empty (the true "no authored selection at all" case), the
+    directives now come from :attr:`~charter.activation.pack_context.PackContext.
+    activated_directives` — the SAME config-activated set the doctrine layer's
+    ``DoctrineService`` wrapper filters by — instead of the full built-in
+    catalog. This retires ``resolve_project_governance`` as a second,
+    divergent directive authority (FR-007).
 
     Three-state guard (``pack_context.py:144``), preserved verbatim:
 
     * ``activated_directives is None`` (key absent from config; e.g. a bare,
-      unconfigured project) → the catalog default.
+      unconfigured project) → the EXISTING catalog default
+      (``sorted(doctrine_catalog.directives)``), source ``"catalog_fallback"``
+      unchanged. Bare projects must keep seeing the built-in canon.
     * ``activated_directives == frozenset()`` (explicit opt-out) → ``[]``,
       source ``"activation"``.
     * ``activated_directives == {ids}`` → ``sorted(ids)``, source
       ``"activation"``.
 
-    The ``is None`` check is deliberate and MUST NOT be collapsed to a
+    The ``is not None`` check is deliberate and MUST NOT be collapsed to a
     truthiness check (``activated_directives or frozenset()`` /
     ``if activated_directives:``): ``frozenset()`` is falsy, so a truthiness
     collapse would silently re-route the explicit opt-out case back to the
-    catalog default it exists to suppress.
+    29-directive catalog default it exists to suppress.
     """
     local_ids = {d.id for d in directives_cfg.directives}
     valid_ids = set(local_ids)
@@ -719,71 +724,20 @@ def _resolve_directive_base(
             raise GovernanceResolutionError(
                 [
                     "Charter selected unavailable directive(s): " + ", ".join(missing),
-                    "Declare these IDs in the charter.yaml 'directives:' section "
-                    "or add them to packs/built-in/directives/.",
+                    "Declare these IDs in directives.yaml or add them to packs/built-in/directives/.",
                 ]
             )
         return list(doctrine.selected_directives), "charter"
+
+    if directives_cfg.directives:
+        return [d.id for d in directives_cfg.directives], "catalog_fallback"
 
     from charter.activation.pack_context import PackContext  # noqa: PLC0415 — lazy; avoids circular import
 
     activated_directives = PackContext.from_config(repo_root).activated_directives
     if activated_directives is None:
-        base = sorted(doctrine_catalog.directives)
-        diagnostics.append(
-            f"No activated directive set configured; using built-in catalog default ({len(base)} directives)."
-        )
-        return base, "catalog_fallback"
+        return sorted(doctrine_catalog.directives), "catalog_fallback"
     return sorted(activated_directives), "activation"
-
-
-def _resolve_directives_selection(
-    doctrine: DoctrineSelectionConfig,
-    directives_cfg: DirectivesConfig,
-    doctrine_catalog: DoctrineCatalog,
-    repo_root: Path,
-    diagnostics: list[str],
-) -> tuple[list[str], str]:
-    """Resolve the effective directive list as the base set **plus** an additive
-    project-local layer declared in ``charter.yaml``'s ``directives:`` section.
-
-    The base set + its provenance label come from
-    :func:`_resolve_directive_base` (explicit charter selection → config
-    activation → built-in catalog default). Project-local directives declared in
-    the ``charter.yaml`` ``directives:`` section are then **unioned** onto that
-    base — they never replace it (the historical branch-2 replace dropped the
-    entire resolved set; see #3728). Mirrors the union-plus-diagnostic shape of
-    :func:`_resolve_tools_selection`.
-
-    * No local declarations → ``(base, base_source)`` unchanged.
-    * One or more local declarations → ``(dedup(base ++ local), f"{base_source}
-      +project_local")`` with a diagnostic naming how many/which local
-      directives merged and onto which base. Base order is preserved and no base
-      id is ever dropped (INV-1/INV-2/INV-3/INV-5).
-    """
-    base, base_source = _resolve_directive_base(
-        doctrine, directives_cfg, doctrine_catalog, repo_root, diagnostics
-    )
-
-    local_ids = [d.id for d in directives_cfg.directives]
-    if not local_ids:
-        return base, base_source
-
-    resolved = list(dict.fromkeys([*base, *local_ids]))
-    base_set = set(base)
-    added = [d for d in local_ids if d not in base_set]
-    if added:
-        diagnostics.append(
-            f"Merged {len(added)} project-local directive(s) onto the {base_source} set: "
-            + ", ".join(added)
-            + "."
-        )
-    else:
-        diagnostics.append(
-            f"All {len(local_ids)} project-local directive(s) already present in the "
-            f"{base_source} set; none added: " + ", ".join(local_ids) + "."
-        )
-    return resolved, f"{base_source}+project_local"
 
 
 def _resolve_template_set_selection(
@@ -821,11 +775,9 @@ def resolve_project_governance(
     """Resolve active governance from project + org charter selection data.
 
     This resolver consumes the charter-mediated **project + org** doctrine
-    selections from the hand-authored ``.kittify/charter/charter.yaml``
-    ``governance:`` and ``directives:`` sections (the retired standalone
-    ``governance.yaml`` / ``directives.yaml`` files are no longer read).  It is
-    intentionally *narrow* to that surface: it does NOT read ``meta.json`` or
-    per-mission overrides.
+    selections at ``.kittify/charter/governance.yaml`` and
+    ``.kittify/charter/directives.yaml``.  It is intentionally *narrow* to
+    that surface: it does NOT read ``meta.json`` or per-mission overrides.
 
     The companion resolver
     :func:`charter.activation.mission_type_profiles.resolve_mission_type_context`
@@ -851,7 +803,7 @@ def resolve_project_governance(
     available_tools = tool_registry or set(DEFAULT_TOOL_REGISTRY)
     resolved_tools, tools_source = _resolve_tools_selection(doctrine, available_tools, diagnostics)
     resolved_directives, directives_source = _resolve_directives_selection(
-        doctrine, directives_cfg, doctrine_catalog, repo_root, diagnostics
+        doctrine, directives_cfg, doctrine_catalog, repo_root
     )
     template_set, template_set_source = _resolve_template_set_selection(
         doctrine, doctrine_catalog, fallback_template_set, diagnostics

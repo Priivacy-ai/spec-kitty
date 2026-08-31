@@ -83,11 +83,11 @@ class MissionTypeRepository:
 
         Mission ``doctrine-consumer-surface-missions-extraction-01KZ6G6H``
         (FR-005) relocated ``mission_types/`` from
-        ``src/doctrine/missions/mission_types`` to
+        ``src/charter/offering/missions/mission_types`` to
         ``packs/built-in/missions/mission_types``. This now delegates to the
         one promoted missions-root authority
         (:meth:`~charter.offering.missions.repository.MissionTemplateRepository.default_missions_root`,
-        FR-004) instead of its own ``importlib.resources.files("doctrine")``
+        FR-004) instead of its own ``importlib.resources.files("charter.offering")``
         literal -- the retired literal would silently resolve to the now
         data-less ``src/doctrine`` package tree post-relocation, and its bare
         ``Path(__file__).parent / "mission_types"`` fallback would resolve to
@@ -206,33 +206,19 @@ class MissionTypeRepository:
 # ----------------------------------------------------------------------------
 
 
-def _inject_projected_fields(
-    raw: dict[str, Any],
-    *,
-    mission_type_id: str,
-    pack_context: _PackContextLike | None = None,
-) -> dict[str, Any]:
+def _inject_projected_fields(raw: dict[str, Any], *, mission_type_id: str) -> dict[str, Any]:
     """Overlay the WP02 ``action_sequence`` projection onto *raw* YAML fields.
 
-    Resolves *mission_type_id*'s step set through
-    :meth:`MissionStepRepository.resolve_all_for_mission_type`, forwarding
-    *pack_context* unchanged, and derives ``action_sequence`` via
-    :func:`~charter.offering.missions.step_projection.project_action_sequence`.
-
-    ``pack_context`` (mission ``mission-types-empty-action-sequence-01M0RMCA``
-    WP01, #3701): this parameter defaults to ``None``, which resolves the
-    **builtin-only** step set -- exactly this function's pre-WP01 behavior,
-    still what :meth:`MissionTypeRepository._load`'s zero-argument call site
-    (line 165, deliberately untouched, FR-005/C-001) receives. Callers that
-    hold a real ``pack_context`` -- :func:`_load_layered_mission_type_file`,
-    threaded down from :func:`resolve_layered_mission_types` -- now forward
-    it here, so org/project overrides reach this projection instead of being
-    silently dropped. Before WP01, this parameter did not exist and the call
-    below hardcoded ``pack_context=None`` unconditionally, so every
-    org/project mission type relying on step-file projection (no explicit
-    ``action_sequence:`` authored in its own ``<type>.yaml``) always
-    projected an empty sequence, regardless of what its callers held (issue
-    #3701).
+    Resolves *mission_type_id*'s **builtin-only** step set
+    (``pack_context=None`` -- org/project overrides never leak into this
+    repository-load-time injection) and derives ``action_sequence`` via
+    :func:`~charter.offering.missions.step_projection.project_action_sequence`. Org
+    and project overrides are instead handled by the layered mission-type
+    lookup this mission introduces (mission ``up-mission-type-seam-01KZY1JB``,
+    WP03/WP04) -- not by any earlier runtime consumer switch (WP06 in
+    ``kitty-specs/mission-step-authority-01KXNZMT/`` was a caching-authority
+    switch that routes existing authority reads through the cached
+    projection seam; it is not an org/project resolution seam).
 
     **Transitional fallback (``action_sequence`` only, C-007-retained):**
     ``action_sequence`` is still YAML-authored for every built-in mission
@@ -256,7 +242,7 @@ def _inject_projected_fields(
     """
     steps = list(
         MissionStepRepository.default()
-        .resolve_all_for_mission_type(mission_type_id, pack_context=pack_context)
+        .resolve_all_for_mission_type(mission_type_id, pack_context=None)
         .values()
     )
 
@@ -324,9 +310,7 @@ _ORG_MISSION_TYPES_SUBDIR = "mission_types"
 _PROJECT_MISSION_TYPES_RELATIVE: tuple[str, ...] = (".kittify", "missions", "mission_types")
 
 
-def _load_layered_mission_type_file(
-    yaml_file: Path, *, pack_context: _PackContextLike | None = None
-) -> MissionType:
+def _load_layered_mission_type_file(yaml_file: Path) -> MissionType:
     """Parse and validate one mission-type YAML file for the layered lookup.
 
     Mirrors :meth:`MissionTypeRepository._load`'s per-file logic (the same
@@ -344,13 +328,6 @@ def _load_layered_mission_type_file(
     ``tests/doctrine/missions/test_mission_type_repository.py`` and this
     WP's commit history for the pre-fix RED evidence).
 
-    ``pack_context`` (mission ``mission-types-empty-action-sequence-01M0RMCA``
-    WP01, #3701): forwarded unchanged to :func:`_inject_projected_fields` so
-    its step-file projection sees the same layered ``pack_context`` this
-    file's own scan is running under, instead of the previously-hardcoded
-    ``pack_context=None``. Threaded down from :func:`scan_mission_types_dir`,
-    itself threaded from :func:`resolve_layered_mission_types`.
-
     Raises
     ------
     ValueError
@@ -367,9 +344,7 @@ def _load_layered_mission_type_file(
         raise ValueError(f"Malformed YAML in mission-type file {yaml_file}: {exc}") from exc
     if not isinstance(raw, dict):
         raise ValueError(f"Expected a YAML mapping in {yaml_file}; got {type(raw).__name__}")
-    payload = _inject_projected_fields(
-        raw, mission_type_id=yaml_file.stem, pack_context=pack_context
-    )
+    payload = _inject_projected_fields(raw, mission_type_id=yaml_file.stem)
     mission_type = MissionType.model_validate(payload)
     expected_id = yaml_file.stem
     if mission_type.id != expected_id:
@@ -381,9 +356,7 @@ def _load_layered_mission_type_file(
     return mission_type
 
 
-def scan_mission_types_dir(
-    directory: Path, *, pack_context: _PackContextLike | None = None
-) -> list[MissionType]:
+def scan_mission_types_dir(directory: Path) -> list[MissionType]:
     """Return every :class:`MissionType` in *directory*, scanned flat/non-recursive (FR-005).
 
     Public (PR-CONTRACT-002, pre-merge squad, mission
@@ -395,22 +368,7 @@ def scan_mission_types_dir(
     shape) so that the pre-activation availability catalog loud-fails on the
     identical malformed/unreadable input :func:`resolve_layered_mission_types`
     already loud-fails on post-activation, instead of re-deriving a second,
-    tolerant copy of this scan (DIRECTIVE_044). That call site (FR-008,
-    ``charter/pack_manager.py:865``) is deliberately left untouched -- it
-    keeps calling this with no *pack_context*, which remains valid via the
-    new keyword default below, and is safe because it only reads
-    ``.id``/``.layer``, never ``.action_sequence``.
-
-    ``pack_context`` (mission ``mission-types-empty-action-sequence-01M0RMCA``
-    WP01, #3701): forwarded unchanged to :func:`_load_layered_mission_type_file`
-    for every YAML file this scan finds, so each file's own
-    ``_inject_projected_fields`` step-file projection sees the same layered
-    ``pack_context`` :func:`resolve_layered_mission_types` is resolving
-    under. Previously this scan never forwarded *any* ``pack_context`` to
-    the files it loaded, regardless of the layer being scanned -- the actual
-    root cause of #3701, one level deeper than the top-level
-    :func:`resolve_layered_mission_types` entry point (which already
-    accepted ``pack_context`` correctly).
+    tolerant copy of this scan (DIRECTIVE_044).
 
     Two distinct non-error-shaped outcomes, and one that must raise:
 
@@ -445,9 +403,7 @@ def scan_mission_types_dir(
             f"mission-type directory exists but cannot be read: {directory}: {exc}"
         ) from exc
     yaml_files = sorted(entry for entry in entries if entry.name.endswith(".yaml"))
-    return [
-        _load_layered_mission_type_file(f, pack_context=pack_context) for f in yaml_files
-    ]
+    return [_load_layered_mission_type_file(f) for f in yaml_files]
 
 
 @functools.cache
@@ -556,7 +512,7 @@ def resolve_layered_mission_types(
     index: dict[str, MissionType] = {}
 
     for base_dir in mission_types_dirs:
-        for mission_type in scan_mission_types_dir(base_dir, pack_context=pack_context):
+        for mission_type in scan_mission_types_dir(base_dir):
             index[mission_type.id] = mission_type
 
     if pack_context is not None:
@@ -566,12 +522,12 @@ def resolve_layered_mission_types(
             if pack_root in protected_pack_roots:
                 continue  # already handled by the built-in-equivalent layer above
             org_dir = pack_root / _ORG_MISSION_TYPES_SUBDIR
-            for mission_type in scan_mission_types_dir(org_dir, pack_context=pack_context):
+            for mission_type in scan_mission_types_dir(org_dir):
                 org_index.setdefault(mission_type.id, mission_type)  # earliest pack_root wins
         index.update(org_index)
 
         project_dir = pack_context.repo_root.joinpath(*_PROJECT_MISSION_TYPES_RELATIVE)
-        for mission_type in scan_mission_types_dir(project_dir, pack_context=pack_context):
+        for mission_type in scan_mission_types_dir(project_dir):
             index[mission_type.id] = mission_type  # project always wins
 
     return index

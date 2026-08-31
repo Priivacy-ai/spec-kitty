@@ -26,8 +26,8 @@ source for a project — the single git-tracked, structured file nesting
 `.kittify/charter/charter.md` is a curated, human-readable companion the
 runtime never parses or resolves policy from. A repository may also keep
 public governance docs outside `.kittify/`; those docs are human-facing
-authority unless `charter.yaml`'s `governance.doctrine.governance_references`
-points at them. The doctrine layer (`src/doctrine/`) provides the
+authority unless `charter.yaml`'s `governance.charter.offering.governance_references`
+points at them. The doctrine layer (`src/charter/offering/`) provides the
 reusable knowledge artifacts (directives, tactics, paradigms, styleguides,
 toolguides, procedures, agent profiles, step contracts) that the charter
 references.
@@ -214,7 +214,7 @@ the runtime reads it without any parse/extract step in between.
      them except a deliberate hand edit.
    - Flat-root activation keys (`activated_kinds`, `activated_directives`,
      `mission_type_activations`, …) — **hand-authored**, mirrors
-     `src/charter/packs/default.yaml`.
+     `src/charter/activation/packs/default.yaml`.
    - `catalog` / `metadata` — **generator-refreshed**. `charter generate`
      rewrites these two sections deterministically on every run (doctrine
      reference manifest, generation timestamp); everything else in the file
@@ -228,7 +228,7 @@ the runtime reads it without any parse/extract step in between.
    parses it for policy — it exists purely for human review/onboarding, and
    optionally to summarize `charter.yaml` or point at a public constitution.
    If the repository also has a public constitution or handbook, reference
-   it from `charter.yaml`'s `governance.doctrine.governance_references` (or
+   it from `charter.yaml`'s `governance.charter.offering.governance_references` (or
    `authority_paths`), not just from the companion prose.
 
 `.kittify/config.yaml` carries a single `charter:` pointer (default
@@ -411,14 +411,11 @@ procedure = service.procedures.get("refactoring")
 # procedure.prerequisites → what must be true before starting
 ```
 
-**Agent Profiles** — Role definitions with these sections: purpose,
-specialization, collaboration, mode_defaults, and initialization_declaration.
-Doctrine references are authored on the top-level `*-references` fields
-(`directive-references`, `tactic-references`, `toolguide-references`,
-`styleguide-references`) — the retired `context-sources` block was removed
-(mission `doctrine-drg-silent-drop-boundary`; #3629). Relationship fields such
-as `specializes_from` are not profile fields; lineage belongs in the doctrine
-DRG. Profiles support weighted matching against task context (DDR-011 algorithm).
+**Agent Profiles** — Role definitions with 6 sections: context_sources,
+purpose, specialization, collaboration, mode_defaults, and
+initialization_declaration. Relationship fields such as `specializes_from` are
+not profile fields; lineage belongs in the doctrine DRG. Profiles support
+weighted matching against task context (DDR-011 algorithm).
 
 ```python
 profile = service.agent_profiles.get("implementer")
@@ -666,9 +663,9 @@ reports `synced=False` / `files_written=[]`, regardless of `--force`.
 `charter.activation.resolver.DoctrineService` — built through
 `charter.activation.doctrine_service_builder.build_activation_aware_doctrine_service` —
 is the single, sanctioned entry point for programmatic access to all doctrine
-artifacts. It wraps the inner `doctrine.service.DoctrineService` and applies
-charter activation filtering; never construct `doctrine.service.DoctrineService`
-or `doctrine.agent_profiles.AgentProfileRepository` directly (five
+artifacts. It wraps the inner `charter.offering.service.DoctrineService` and applies
+charter activation filtering; never construct `charter.offering.service.DoctrineService`
+or `charter.offering.agent_profiles.AgentProfileRepository` directly (five
 architectural gates in `tests/architectural/` ban that construction outside
 this module).
 

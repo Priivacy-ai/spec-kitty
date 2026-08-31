@@ -7,7 +7,7 @@ single unified model:
 
 * ``charter.offering.missions.models.MissionStep`` (legacy schema-validation shape
   for ``mission.yaml``) — REPLACED by the unified model below.
-* ``doctrine.mission_step_contracts.models.MissionStep`` (legacy
+* ``charter.offering.mission_step_contracts.models.MissionStep`` (legacy
   governance-delegation shape for step contracts) — that subpackage is
   retired entirely (T007). The legacy step-contract types (`DelegatesTo`,
   `MissionStepContract`, etc.) relocate to
@@ -221,7 +221,7 @@ class MissionType(BaseModel):
     """Governed descriptor for a built-in or extension mission type.
 
     Each built-in mission type is stored as a YAML file under
-    ``src/doctrine/missions/mission_types/{id}.yaml``.  The ``id`` field
+    ``src/charter/offering/missions/mission_types/{id}.yaml``.  The ``id`` field
     must match the filename stem; this invariant is enforced by
     ``MissionTypeRepository``, not by the model itself.
 

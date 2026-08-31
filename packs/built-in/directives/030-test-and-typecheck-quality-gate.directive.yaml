@@ -26,11 +26,3 @@ validation_criteria:
 references:
   - type: styleguide
     id: tiered-standards
-  # Promoted from the hand-authored overlay to source-artifact frontmatter
-  # (single canonical authority) by mission kind-complete-cascade-orphan-wiring
-  # -01M0FQCD, WP02 (#3009). ``when``/``reason`` copied verbatim from the
-  # retired overlay edge; the directive->toolguide reference emits ``suggests``.
-  - type: toolguide
-    id: sonar
-    when: running SonarQube static analysis and gating on NEW-code coverage, code smells, security hotspots and duplication
-    reason: The quality gate suggests the Sonar toolguide as the static-analysis gate that carries the size/complexity/duplication metrics that do not belong in a per-file test gate; the `when` is the new toolguide's own scope. Delivered at implement/review.

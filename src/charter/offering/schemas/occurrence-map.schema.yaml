@@ -62,13 +62,13 @@ definitions:
       field_path:
         description: >-
           Optional dot-separated YAML field path (e.g.
-          "tactic-references") scoping this exception to ONE field
+          "context-sources.tactics") scoping this exception to ONE field
           inside files matching `path` (WP02, FR-002/C-005). Without this,
           `path` overrides the WHOLE file's verdict — which cannot express a
           mission whose exemptions are field-scoped when every governed file
           ALSO carries entries the category-level action must still classify
           normally (e.g. an agent profile's `directive-references` field
-          must never change while `tactic-references` in the SAME
+          must never change while `context-sources.directives` in the SAME
           file migrates). When present, the file's category-level action
           still governs the whole file, and the reviewer-facing diff check
           additionally records that `field_path` is pinned to `action`
@@ -78,7 +78,7 @@ definitions:
 
           KNOWN LIMITATION — do not read the zero-producer lint's green as
           coverage of this slot. `field_path` collides as a BARE NAME with
-          unrelated locals in six src/doctrine/**/validation.py modules, so it
+          unrelated locals in six src/charter/offering/**/validation.py modules, so it
           reads as "produced" whether or not any artefact authors it. Verified
           by mutation: deleting every deliberate producer leaves that lint
           green. Closing it needs per-kind namespacing in the lint, which its

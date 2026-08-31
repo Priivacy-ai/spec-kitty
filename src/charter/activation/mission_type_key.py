@@ -18,9 +18,7 @@ The canonicalizer is deliberately **pure and minimal**:
 
 from __future__ import annotations
 
-from typing import Any
-
-__all__ = ["canonical_mission_type_key", "read_mission_type"]
+__all__ = ["canonical_mission_type_key"]
 
 
 def canonical_mission_type_key(raw: str | None) -> str | None:
@@ -49,41 +47,3 @@ def canonical_mission_type_key(raw: str | None) -> str | None:
         return None
     key = raw.strip()
     return key or None
-
-
-def read_mission_type(meta: dict[str, Any]) -> str | None:
-    """Return the canonical mission-type key recorded in a ``meta.json`` dict.
-
-    This is the **one** runtime-neutral reader that every in-scope mission-type
-    reader delegates to (rc3 M5, FR-001). It reads **only** the canonical
-    ``mission_type`` field — the legacy ``mission`` field is deliberately NOT
-    consulted (FR-002, operator ruling 2026-08-20: legacy ``{"mission": …}``
-    resolution is retired; a legacy-only mission must be backfilled via
-    ``spec-kitty migrate backfill-mission-type`` before it resolves again).
-
-    The field value is routed through :func:`canonical_mission_type_key`, so a
-    typeless / absent / blank / non-string value maps to ``None`` (the neutral
-    result) — it is NEVER substituted with a ``software-dev`` (or any) default
-    (FR-003).
-
-    Args:
-        meta: An already-read ``meta.json`` mapping (dict-in — file I/O stays
-            with each caller, FR-001 design decision #1). A non-mapping is not
-            accepted here; callers guard the load.
-
-    Returns:
-        The canonical mission-type key, or ``None`` when the mission is typeless
-        (absent / blank ``mission_type``, or a non-string value).
-
-    Examples:
-        >>> read_mission_type({"mission_type": "research"})
-        'research'
-        >>> read_mission_type({"mission_type": "  software-dev  "})
-        'software-dev'
-        >>> read_mission_type({"mission": "software-dev"}) is None  # legacy retired
-        True
-        >>> read_mission_type({}) is None
-        True
-    """
-    raw = meta.get("mission_type")
-    return canonical_mission_type_key(raw if isinstance(raw, str) else None)

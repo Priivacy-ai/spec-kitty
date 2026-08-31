@@ -74,7 +74,7 @@ class TestCharterYamlRoundTrip:
 
         assert charter.governance == governance
         assert charter.directives == directives
-        assert charter.activation.catalog == catalog
+        assert charter.catalog == catalog
 
     def test_governance_and_directives_deserialize_from_dumped_dict(self) -> None:
         """G1: governance/directives deserialize into the existing

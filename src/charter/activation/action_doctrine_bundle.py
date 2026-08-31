@@ -21,7 +21,7 @@ from __future__ import annotations
 
 import logging
 from collections.abc import Mapping
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from pathlib import Path
 from typing import TYPE_CHECKING
 
@@ -59,11 +59,6 @@ class _ActionDoctrineBundle:
     procedure_ids: list[str]
     asset_ids: list[str]
     service: _doctrine_service_module.DoctrineService
-    # WP01 (deliver-loaded-doctrine, FR-001/FR-002): glossary-pack ids delivered
-    # to the ``glossary_packs`` slot, mirroring ``procedure_ids``/``asset_ids``.
-    # Defaulted (not a trailing required field) so the pre-existing bundle
-    # constructors that predate the glossary slot stay valid byte-for-byte.
-    glossary_pack_ids: list[str] = field(default_factory=list)
     # WP15 (progressive disclosure, out-of-map): the resolved DRG and the
     # traversal roots, carried so the JSON entrypoint can render each artefact's
     # ``references[]`` and split the requires-eager / suggests-linked cadence
@@ -78,17 +73,6 @@ class _ActionDoctrineBundle:
     # requires-eager/inline set (see ``progressive_disclosure.link_references``
     # ``bridge_urns``).
     bridge_urns: tuple[str, ...] = ()
-    # WP02 (governance-at-the-gate, FR-009): co-delivered ``in_tension_with``
-    # pairs mapped to the reconciler(s) that bridge BOTH sides, carried
-    # verbatim from ``ResolvedContext.tension_arbiters`` -- see that
-    # attribute's docstring for the field shape and why it is a tuple of
-    # tuples rather than a dict (frozen-dataclass hashability). Defaulted
-    # trailing field so every pre-existing bundle constructor stays valid.
-    tension_arbiters: tuple[tuple[str, tuple[str, ...]], ...] = ()
-    # WP02: co-delivered ``in_tension_with`` pairs with no reachable
-    # reconciler, carried verbatim from
-    # ``ResolvedContext.unarbitrated_tensions``.
-    unarbitrated_tensions: tuple[tuple[str, str], ...] = ()
 
 
 def _resolve_action_bundle(
@@ -174,10 +158,7 @@ def _load_action_doctrine_bundle(
     from charter.activation._drg_helpers import load_validated_graph
     from charter.activation.context import _build_doctrine_service  # noqa: PLC0415
     from charter.activation.context_renderers.delivery_table import _classify_artifact_urns
-    from charter.activation.drg_activation import (
-        filter_graph_by_activation,
-        load_org_drg,
-    )
+    from charter.activation.drg_activation import filter_graph_by_activation
     from charter.activation.mission_type_profiles import resolve_mission_type_key
     from charter.offering.drg.loader import DRGLoadError
     from charter.offering.drg.query import resolve_context
@@ -199,18 +180,11 @@ def _load_action_doctrine_bundle(
     merged_graph: DRGGraph | None = None
     roots: tuple[str, ...] = ()
     bridge_urns: tuple[str, ...] = ()
-    tension_arbiters: tuple[tuple[str, tuple[str, ...]], ...] = ()
-    unarbitrated_tensions: tuple[tuple[str, str], ...] = ()
     # A typeless mission has no action:<type>/<action> node to resolve; skip the
     # DRG action resolution entirely so no doctrine is inferred (FR-003a).
     if resolved_type is not None:
         try:
-            merged = load_validated_graph(
-                repo_root,
-                org_root=org_root,
-                org_roots=org_roots,
-                org_fragments=load_org_drg(repo_root, strict=False),
-            )
+            merged = load_validated_graph(repo_root, org_root=org_root, org_roots=org_roots)
             # FR-032, FR-035 (WP08): apply activation filter before resolving context.
             if pack_context is not None:
                 merged = filter_graph_by_activation(merged, pack_context)
@@ -245,11 +219,6 @@ def _load_action_doctrine_bundle(
             # set as bridge URNs restores it as a reference source without
             # making it delivered or inline.
             bridge_urns = tuple(resolved.artifact_urns)
-            # WP02 (FR-009): carried verbatim from ``resolve_context`` --
-            # no second graph walk here, the bundle just forwards what
-            # ``resolved`` already computed.
-            tension_arbiters = resolved.tension_arbiters
-            unarbitrated_tensions = resolved.unarbitrated_tensions
         except DRGLoadError as exc:
             _LOGGER.warning(
                 "DRG action resolution skipped for %s/%s: %s. "
@@ -267,7 +236,6 @@ def _load_action_doctrine_bundle(
         toolguide_ids=list(ids_by_slot.get("toolguides", ())),
         procedure_ids=list(ids_by_slot.get("procedures", ())),
         asset_ids=list(ids_by_slot.get("assets", ())),
-        glossary_pack_ids=list(ids_by_slot.get("glossary_packs", ())),
         service=_build_doctrine_service(
             repo_root,
             org_roots=org_roots if org_roots else ([org_root] if org_root else None),
@@ -275,6 +243,4 @@ def _load_action_doctrine_bundle(
         merged=merged_graph,
         roots=roots,
         bridge_urns=bridge_urns,
-        tension_arbiters=tension_arbiters,
-        unarbitrated_tensions=unarbitrated_tensions,
     )
