@@ -11,7 +11,7 @@ pins the two halves of the fix, which have deliberately different red-timing
 (research.md D10 — do not conflate them):
 
 **Case (a) — the committed-first ATDD red** (``TestAuthoredRetrospectiveIsEmitted``):
-``charter.sync.load_governance_config`` must preserve an authored
+``charter.activation.sync.load_governance_config`` must preserve an authored
 ``governance.retrospective`` block and ``compiler.write_compiled_charter`` must
 emit it. RED on first authoring (no field exists yet).
 
@@ -44,11 +44,11 @@ from typing import Any
 import pytest
 from ruamel.yaml import YAML
 
-from charter.charter_yaml_io import load_charter_yaml, save_charter_yaml
-from charter.compiler import CompiledCharter, compile_charter, write_compiled_charter
-from charter.interview import default_interview
-from charter.schemas import GovernanceConfig, emit_yaml
-from charter.sync import load_governance_config
+from charter.activation.charter_yaml_io import load_charter_yaml, save_charter_yaml
+from charter.activation.compiler import CompiledCharter, compile_charter, write_compiled_charter
+from charter.activation.interview import default_interview
+from charter.activation.schemas import GovernanceConfig, emit_yaml
+from charter.activation.sync import load_governance_config
 
 pytestmark = pytest.mark.fast
 
@@ -78,7 +78,7 @@ _DEFAULT_GOVERNANCE_YAML_GOLDEN = (
     "  main_branch: main\n"
     "  dev_branch:\n"
     "  rules: []\n"
-    "doctrine:\n"
+    "charter:\n"
     "  selected_paradigms: []\n"
     "  selected_directives: []\n"
     "  selected_tactics: []\n"
@@ -125,7 +125,7 @@ def _bootstrap_into(
     The output directory deliberately differs from the canonical
     ``.kittify/charter/`` so no ``charter.yaml`` pre-exists there: that is the
     branch which seeds ``governance`` from
-    :func:`charter.sync.load_governance_config` (the FR-005b emitter seam).
+    :func:`charter.activation.sync.load_governance_config` (the FR-005b emitter seam).
     """
     output_dir = root / ".kittify" / subdir
     write_compiled_charter(output_dir, compiled, repo_root=root)

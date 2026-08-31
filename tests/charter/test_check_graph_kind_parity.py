@@ -1,8 +1,8 @@
-"""Tests for ``charter.consistency_check._check_graph_kind_parity`` (WP02, T007).
+"""Tests for ``charter.activation.consistency_check._check_graph_kind_parity`` (WP02, T007).
 
 Mission ``drg-relation-parity-activation-gate-01KY48PD``. T007 re-points
 ``_check_graph_kind_parity`` from KIND-granular to per-ID, consuming the
-WP01-corrected :func:`charter.drg.filter_graph_by_activation` gate directly
+WP01-corrected :func:`charter.activation.drg_activation.filter_graph_by_activation` gate directly
 (plan.md IC-02) -- a deliberate **behavior upgrade**, not a pure refactor.
 
 Covers:
@@ -38,11 +38,11 @@ from pathlib import Path
 
 import pytest
 
-import charter._drg_helpers as drg_helpers
-from charter import consistency_check
-from charter.consistency_check import run_consistency_check
+import charter.activation._drg_helpers as drg_helpers
+from charter.activation import consistency_check
+from charter.activation.consistency_check import run_consistency_check
 from charter.drg import DRGGraph
-from charter.invocation_context import ProjectContext
+from charter.activation.invocation_context import ProjectContext
 
 pytestmark = pytest.mark.unit
 

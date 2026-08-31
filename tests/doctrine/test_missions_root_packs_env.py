@@ -1,7 +1,7 @@
 """Regression: both mission-asset resolvers honor SPEC_KITTY_PACKS_ROOT (WP02).
 
 Mission ``resolution-activation-foundation-01KZ9FKG``, WP02, T008. Before this
-mission, ``doctrine.missions.repository.MissionTemplateRepository.default_missions_root``
+mission, ``charter.offering.missions.repository.MissionTemplateRepository.default_missions_root``
 walked its own ``env_override=None`` sibling search and never consulted
 ``SPEC_KITTY_PACKS_ROOT`` at all -- only the door,
 ``kernel.paths.get_package_asset_root``, honored it. A project that set
@@ -33,7 +33,7 @@ from pathlib import Path
 
 import pytest
 
-from doctrine.missions.repository import MissionTemplateRepository
+from charter.offering.missions.repository import MissionTemplateRepository
 from kernel.paths import get_package_asset_root
 
 pytestmark = [pytest.mark.fast, pytest.mark.doctrine]

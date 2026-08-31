@@ -104,7 +104,7 @@ from specify_cli.mission_metadata import load_meta
 from specify_cli.status import CanonicalStatusNotFoundError, get_wp_lane
 
 if TYPE_CHECKING:
-    from charter.invocation_context import OperationalContext as OperationalContextT
+    from charter.activation.invocation_context import OperationalContext as OperationalContextT
 
 # Local literal duplicates of runtime_bridge's module constants — avoids a
 # circular top-level import back into runtime_bridge for four small string
@@ -697,7 +697,7 @@ def _resolve_tech_stack_for_profile(
     ``applies_to_languages`` / specialization-context languages (charter/meta
     per data-model §7). This is best-effort: any resolution failure yields an
     empty frozenset rather than raising, so populating an
-    :class:`~charter.invocation_context.OperationalContext` never blocks a
+    :class:`~charter.activation.invocation_context.OperationalContext` never blocks a
     claim or decision. The lookup is read-only and creates no worktree or
     status side effects (NFR-004).
     """
@@ -712,7 +712,7 @@ def _resolve_tech_stack_for_profile(
         # no such method — so this call site needs the raw accessor, not the
         # filtered property (contracts/charter-doctrine-service-contract.md
         # "Lineage/mutation accessor semantics").
-        from charter.doctrine_service_builder import (  # noqa: PLC0415
+        from charter.activation.doctrine_service_builder import (  # noqa: PLC0415
             build_activation_aware_doctrine_service,
         )
 
@@ -769,9 +769,9 @@ def build_operational_context_for_claim(
             when ``None``.
 
     Returns:
-        A populated :class:`~charter.invocation_context.OperationalContext`.
+        A populated :class:`~charter.activation.invocation_context.OperationalContext`.
     """
-    from charter.invocation_context import build_operational_context  # noqa: PLC0415
+    from charter.activation.invocation_context import build_operational_context  # noqa: PLC0415
     from runtime.next import runtime_bridge as _rb  # noqa: PLC0415
 
     resolved_profile = active_profile
@@ -811,7 +811,7 @@ def _build_operational_context_for_decision(
     ``step_id`` / ``mission_state`` as the current activity, and derives the
     tech stack from the resolved profile. Read-only; no side effects (NFR-004).
     """
-    from charter.invocation_context import build_operational_context  # noqa: PLC0415
+    from charter.activation.invocation_context import build_operational_context  # noqa: PLC0415
     from runtime.next import runtime_bridge as _rb  # noqa: PLC0415
 
     activity = step_id or mission_state

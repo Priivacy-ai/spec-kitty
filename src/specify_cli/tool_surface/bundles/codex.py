@@ -264,11 +264,11 @@ class CodexBundleProjector:
         import shutil  # noqa: PLC0415 — deferred to avoid top-level import cost
 
         try:
-            import doctrine  # noqa: PLC0415
+            import charter.offering as _charter_offering  # noqa: PLC0415
         except ImportError:
             return
 
-        doctrine_root = Path(doctrine.__file__).parent
+        doctrine_root = Path(_charter_offering.__file__).parent
         hooks_src = doctrine_root / "hooks"
         if not hooks_src.is_dir():
             return
@@ -296,11 +296,11 @@ class CodexBundleProjector:
         import shutil  # noqa: PLC0415 — deferred to avoid top-level import cost
 
         try:
-            import doctrine  # noqa: PLC0415
+            import charter.offering as _charter_offering  # noqa: PLC0415
         except ImportError:
             return
 
-        mcp_src = Path(doctrine.__file__).parent / _MCP_JSON_NAME
+        mcp_src = Path(_charter_offering.__file__).parent / _MCP_JSON_NAME
         if not mcp_src.is_file():
             return
 

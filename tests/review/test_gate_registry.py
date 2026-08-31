@@ -136,6 +136,30 @@ def test_dispatch_via_get_gate_handler_matches_direct_registry_access() -> None:
     assert get_gate_handler(_HANDLER_NAME).run(ctx) == GATE_REGISTRY[_HANDLER_NAME].run(ctx)
 
 
+def test_handler_delegates_status_observer_unchanged(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Registry indirection carries the public renderer seam by identity."""
+    canned_verdict = GateVerdict(
+        outcome=GateOutcome.NO_COVERAGE,
+        scope=ScopeResult.from_override(()),
+    )
+    observed: list[object] = []
+
+    def observer(event: object) -> None:
+        observed.append(event)
+
+    def fake_evaluate(*args: object, **kwargs: object) -> GateVerdict:
+        del args
+        assert kwargs["status_observer"] is observer
+        return canned_verdict
+
+    monkeypatch.setattr(gate_registry, "evaluate_pre_review_gate", fake_evaluate)
+
+    result = get_gate_handler(_HANDLER_NAME).run(_build_context(status_observer=observer))
+
+    assert result is canned_verdict
+    assert observed == []
+
+
 # ---------------------------------------------------------------------------
 # No-Exit guarantee (T019.4)
 # ---------------------------------------------------------------------------

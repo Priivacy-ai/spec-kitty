@@ -61,14 +61,17 @@ from specify_cli.cli.console import console, sanitize_terminal_text
 from kernel.clock import datetime, now_utc
 
 from specify_cli.auth import get_token_manager
-from specify_cli.auth.server_target import resolve_server_target
+from specify_cli.auth.server_target import ServerTargetSplitBrainError, resolve_server_target
 from specify_cli.auth.session import StoredSession
 from specify_cli.auth.token_manager import _refresh_lock_path
+from specify_cli.auth.verdict import HealthVerdict, evaluate_auth_verdict
+from specify_cli.cli.commands._auth_saas_target import (
+    format_saas_mismatch_warning,
+    saas_source_name,
+)
 from specify_cli.cli.commands._auth_status import (
     format_duration,
-    format_saas_mismatch_warning,
     format_storage_backend,
-    saas_source_name,
 )
 from specify_cli.core.file_lock import (
     LockRecord,
@@ -156,6 +159,7 @@ class DoctorReport:
     auth_root: Path
     session: SessionSummary | None
     refresh_lock: LockSummary
+    auth_verdict: HealthVerdict
     findings: list[Finding] = field(default_factory=list)
 
 
@@ -193,11 +197,7 @@ def _read_session_summary() -> tuple[SessionSummary | None, Any]:
 
     now = now_utc()
     access_remaining = (session.access_token_expires_at - now).total_seconds()
-    refresh_remaining: float | None = (
-        None
-        if session.refresh_token_expires_at is None
-        else (session.refresh_token_expires_at - now).total_seconds()
-    )
+    refresh_remaining: float | None = None if session.refresh_token_expires_at is None else (session.refresh_token_expires_at - now).total_seconds()
 
     in_memory_drift = _detect_persisted_drift(tm, session)
 
@@ -274,6 +274,7 @@ def _compute_findings(
     *,
     session: SessionSummary | None,
     refresh_lock: LockSummary,
+    auth_verdict: HealthVerdict,
 ) -> list[Finding]:
     """Compute :class:`Finding` list from the read-only state snapshots.
 
@@ -292,9 +293,7 @@ def _compute_findings(
                 severity="critical",
                 summary="No active session",
                 remediation_command="spec-kitty auth login",
-                remediation_description=(
-                    "Authenticate with the SaaS to establish a session."
-                ),
+                remediation_description=("Authenticate with the SaaS to establish a session."),
             )
         )
 
@@ -304,34 +303,21 @@ def _compute_findings(
             Finding(
                 id="F-003",
                 severity="critical",
-                summary=(
-                    f"Refresh lock stuck (age {refresh_lock.age_s:.1f}s > "
-                    f"threshold {refresh_lock.stuck_threshold_s:.1f}s)"
-                ),
+                summary=(f"Refresh lock stuck (age {refresh_lock.age_s:.1f}s > threshold {refresh_lock.stuck_threshold_s:.1f}s)"),
                 remediation_command="spec-kitty auth doctor --unstick-lock",
-                remediation_description=(
-                    "Force-release the refresh lock when its age exceeds the "
-                    "stuck threshold."
-                ),
+                remediation_description=("Force-release the refresh lock when its age exceeds the stuck threshold."),
             )
         )
 
     # F-006 — persisted/in-memory drift (after no in-flight refresh).
-    if (
-        session is not None
-        and session.in_memory_drift
-        and not refresh_lock.held
-    ):
+    if session is not None and session.in_memory_drift and not refresh_lock.held:
         findings.append(
             Finding(
                 id="F-006",
                 severity="warn",
                 summary="Persisted session differs from in-memory state",
                 remediation_command="spec-kitty auth doctor",
-                remediation_description=(
-                    "Re-run after a CLI command to confirm the divergence has "
-                    "settled (typical during in-flight refresh)."
-                ),
+                remediation_description=("Re-run after a CLI command to confirm the divergence has settled (typical during in-flight refresh)."),
             )
         )
 
@@ -343,18 +329,33 @@ def _compute_findings(
                 Finding(
                     id="F-007",
                     severity="warn",
-                    summary=(
-                        f"Lock holder is on a different host "
-                        f"(holder={refresh_lock.holder_host}, this={local_host})"
-                    ),
+                    summary=(f"Lock holder is on a different host (holder={refresh_lock.holder_host}, this={local_host})"),
                     remediation_command=None,
-                    remediation_description=(
-                        "Manual investigation required (NFS-shared auth root)."
-                    ),
+                    remediation_description=("Manual investigation required (NFS-shared auth root)."),
                 )
             )
 
+    auth_finding = _auth_verdict_finding(session, auth_verdict)
+    if auth_finding is not None:
+        findings.append(auth_finding)
+
     return findings
+
+
+def _auth_verdict_finding(
+    session: SessionSummary | None,
+    auth_verdict: HealthVerdict,
+) -> Finding | None:
+    """Emit F-008 when a present session is not confirmed healthy."""
+    if session is None or auth_verdict.state == "ok":
+        return None
+    return Finding(
+        id="F-008",
+        severity="critical" if auth_verdict.state == "fail" else "warn",
+        summary=f"Session health not confirmed: {auth_verdict.evidence}",
+        remediation_command=auth_verdict.remediation,
+        remediation_description=("The access token could not be confirmed valid; re-authenticate or re-run with --server to probe the live session."),
+    )
 
 
 def compute_exit_code(findings: list[Finding]) -> int:
@@ -423,7 +424,6 @@ async def _check_server_session() -> ServerSessionStatus:
     short-circuits before any refresh is attempted (issue #253).
     """
     from specify_cli.auth import get_token_manager  # noqa: PLC0415 (avoid circular at module level)
-    from specify_cli.auth.config import get_saas_base_url  # noqa: PLC0415
     import httpx  # noqa: PLC0415
 
     from specify_cli.auth.errors import (  # noqa: PLC0415
@@ -450,17 +450,19 @@ async def _check_server_session() -> ServerSessionStatus:
     except TokenRefreshError:
         return ServerSessionStatus(
             active=False,
-            error=(
-                "Could not refresh access token; "
-                "run `spec-kitty auth login` if this persists."
-            ),
+            error=("Could not refresh access token; run `spec-kitty auth login` if this persists."),
         )
     except Exception:  # noqa: BLE001 - token acquisition failures are translated to doctor status
         return ServerSessionStatus(active=False, error="Could not obtain access token.")
 
     try:
-        saas_url = get_saas_base_url()
-    except Exception:  # noqa: BLE001 - SaaS config failure is reported as inactive server status
+        # Route the bearer-token-bearing send through the canonical resolver
+        # (#307), failing closed on an ambiguous env/config disagreement like
+        # the other no-human-in-the-loop hosted sends (see #117, #297).
+        saas_url = resolve_server_target(process_wide_override=False).resolved_server_url
+    except ServerTargetSplitBrainError as exc:
+        return ServerSessionStatus(active=False, error=f"SaaS URL mismatch: {exc}")
+    except Exception:  # noqa: BLE001 - SaaS config/resolution failure is reported as inactive server status
         return ServerSessionStatus(active=False, error="SaaS URL not configured")
 
     url = f"{saas_url}/api/v1/session-status"
@@ -493,7 +495,11 @@ async def _check_server_session() -> ServerSessionStatus:
 # ---------------------------------------------------------------------------
 
 
-def assemble_report(*, stuck_threshold_s: float = 60.0) -> DoctorReport:
+def assemble_report(
+    *,
+    stuck_threshold_s: float = 60.0,
+    server_probe: ServerSessionStatus | None = None,
+) -> DoctorReport:
     """Gather local-only state into a :class:`DoctorReport`. No mutation.
 
     All inputs are local files (allowed by C-007). The function never
@@ -501,20 +507,24 @@ def assemble_report(*, stuck_threshold_s: float = 60.0) -> DoctorReport:
     responsibility of :func:`doctor_impl` when the user opts in via
     ``--unstick-lock``.
     """
-    session_summary, _raw_session = _read_session_summary()
+    now = now_utc()
+    session_summary, raw_session = _read_session_summary()
+    auth_verdict = evaluate_auth_verdict(raw_session, now, server_probe=server_probe)
     refresh_lock = _read_lock_summary(stuck_threshold_s)
 
     findings = _compute_findings(
         session=session_summary,
         refresh_lock=refresh_lock,
+        auth_verdict=auth_verdict,
     )
 
     return DoctorReport(
         schema_version=_SCHEMA_VERSION,
-        generated_at=now_utc(),
+        generated_at=now,
         auth_root=_read_auth_root(),
         session=session_summary,
         refresh_lock=refresh_lock,
+        auth_verdict=auth_verdict,
         findings=findings,
     )
 
@@ -530,10 +540,7 @@ def render_report(report: DoctorReport, console: Console, *, show_server_hint: b
     # Always present in offline mode — encourage server-aware check.
     if show_server_hint:
         console.print()
-        console.print(
-            "[dim]Run [bold]spec-kitty auth doctor --server[/bold] "
-            "to verify server session status.[/dim]"
-        )
+        console.print("[dim]Run [bold]spec-kitty auth doctor --server[/bold] to verify server session status.[/dim]")
 
 
 def _render_identity_section(report: DoctorReport, console: Console) -> None:
@@ -560,13 +567,9 @@ def _render_token_section(report: DoctorReport, console: Console) -> None:
         if access is not None:
             console.print(f"  Access token:   {format_duration(access)}")
         if report.session.refresh_token_remaining_s is None:
-            console.print(
-                "  Refresh token:  [dim]server-managed (legacy)[/dim]"
-            )
+            console.print("  Refresh token:  [dim]server-managed (legacy)[/dim]")
         else:
-            console.print(
-                f"  Refresh token:  {format_duration(report.session.refresh_token_remaining_s)}"
-            )
+            console.print(f"  Refresh token:  {format_duration(report.session.refresh_token_remaining_s)}")
     console.print()
 
 
@@ -576,15 +579,9 @@ def _render_storage_section(report: DoctorReport, console: Console) -> None:
     if report.session is None or report.session.storage_backend is None:
         console.print("  (no session)")
     else:
-        console.print(
-            "  Backend:        "
-            f"{escape(sanitize_terminal_text(format_storage_backend(report.session.storage_backend)))}"
-        )
+        console.print(f"  Backend:        {escape(sanitize_terminal_text(format_storage_backend(report.session.storage_backend)))}")
         if report.session.in_memory_drift:
-            console.print(
-                "  [dim]Note: persisted differs from in-memory "
-                "(typical during in-flight refresh)[/dim]"
-            )
+            console.print("  [dim]Note: persisted differs from in-memory (typical during in-flight refresh)[/dim]")
     console.print()
 
 
@@ -598,24 +595,20 @@ def _render_lock_section(lock: LockSummary, console: Console) -> None:
         end_style = "[/red]" if lock.stuck else ""
         console.print(f"  {style}Held by PID:    {lock.holder_pid}{end_style}")
         if lock.started_at is not None:
-            console.print(
-                f"  Acquired at:    {lock.started_at.isoformat()}"
-            )
+            console.print(f"  Acquired at:    {lock.started_at.isoformat()}")
         if lock.age_s is not None:
             console.print(f"  Age:            {lock.age_s:.1f}s")
         holder_host = lock.holder_host or UNKNOWN_DISPLAY
         console.print(f"  Host:           {escape(sanitize_terminal_text(holder_host))}")
         if lock.stuck:
-            console.print(
-                f"  [red]Stuck (age > {lock.stuck_threshold_s:.1f}s)[/red]"
-            )
+            console.print(f"  [red]Stuck (age > {lock.stuck_threshold_s:.1f}s)[/red]")
     console.print()
 
 
 def _render_findings_section(report: DoctorReport, console: Console) -> None:
     """Section 5 — Findings & Remediation."""
     console.print("[bold]Findings[/bold]")
-    if not report.findings:
+    if report.auth_verdict.state == "ok" and not report.findings:
         console.print("  No problems detected.")
     else:
         severity_color = {
@@ -626,21 +619,12 @@ def _render_findings_section(report: DoctorReport, console: Console) -> None:
         for finding in report.findings:
             color = severity_color[finding.severity]
             console.print(
-                f"  [[{color}]{finding.severity}[/{color}]] "
-                f"{escape(sanitize_terminal_text(finding.id))}: "
-                f"{escape(sanitize_terminal_text(finding.summary))}"
+                f"  [[{color}]{finding.severity}[/{color}]] {escape(sanitize_terminal_text(finding.id))}: {escape(sanitize_terminal_text(finding.summary))}"
             )
             if finding.remediation_command is not None:
-                description = (
-                    f" — {finding.remediation_description}"
-                    if finding.remediation_description
-                    else ""
-                )
+                description = f" — {finding.remediation_description}" if finding.remediation_description else ""
                 command = escape(sanitize_terminal_text(finding.remediation_command))
-                console.print(
-                    "      Run: "
-                    f"{command}{escape(sanitize_terminal_text(description))}"
-                )
+                console.print(f"      Run: {command}{escape(sanitize_terminal_text(description))}")
 
 
 def render_report_json(report: DoctorReport) -> str:
@@ -654,11 +638,7 @@ def render_report_json(report: DoctorReport) -> str:
         "schema_version": report.schema_version,
         "generated_at": report.generated_at.isoformat(),
         "auth_root": str(report.auth_root),
-        "session": (
-            None
-            if report.session is None
-            else dataclasses.asdict(report.session)
-        ),
+        "session": (None if report.session is None else dataclasses.asdict(report.session)),
         "refresh_lock": _lock_summary_to_dict(report.refresh_lock),
         "findings": [_finding_to_dict(f) for f in report.findings],
     }
@@ -670,9 +650,7 @@ def _lock_summary_to_dict(lock: LockSummary) -> dict[str, Any]:
     return {
         "held": lock.held,
         "holder_pid": lock.holder_pid,
-        "started_at": (
-            lock.started_at.isoformat() if lock.started_at is not None else None
-        ),
+        "started_at": (lock.started_at.isoformat() if lock.started_at is not None else None),
         "age_s": lock.age_s,
         "stuck": lock.stuck,
         "stuck_threshold_s": lock.stuck_threshold_s,
@@ -710,6 +688,7 @@ def _run_unstick_lock(
     *,
     stuck_threshold: float,
     messages: list[str],
+    server_probe: ServerSessionStatus | None = None,
 ) -> DoctorReport:
     """Orchestrate the ``--unstick-lock`` phase. Returns a refreshed report."""
     if not any(f.id == "F-003" for f in report.findings):
@@ -720,34 +699,29 @@ def _run_unstick_lock(
     if removed:
         messages.append("--unstick-lock: stuck lock released.")
     else:
-        messages.append(
-            "--unstick-lock: lock not removed (fresh, missing, or unreadable)."
-        )
-    return assemble_report(stuck_threshold_s=stuck_threshold)
+        messages.append("--unstick-lock: lock not removed (fresh, missing, or unreadable).")
+    return assemble_report(
+        stuck_threshold_s=stuck_threshold,
+        server_probe=server_probe,
+    )
 
 
 def _render_server_status(status: ServerSessionStatus) -> None:
     """Render the optional server-session block in human output."""
     console.print("[bold]Server Session[/bold]")
     if status.active:
-        sid = sanitize_terminal_text(status.session_id or UNKNOWN_DISPLAY)
-        console.print(f"  Status:  [green]active[/green] (session: {escape(sid)})")
+        sid = status.session_id or UNKNOWN_DISPLAY
+        console.print(f"  Status:  [green]active[/green] (session: {sid})")
     else:
         reason = status.error or "unknown"
         if reason == "re-authenticate":
-            console.print(
-                "  Status:  [red]invalid[/red] — "
-                "Run [bold]spec-kitty auth login[/bold] to re-authenticate."
-            )
+            console.print("  Status:  [red]invalid[/red] — Run [bold]spec-kitty auth login[/bold] to re-authenticate.")
         else:
             # escape(): `reason` can be the issuer-mismatch message, which
             # names the resolved-config source and may contain a literal
             # `[sync]`-shaped substring (#182) — unescaped, Rich markup
             # either drops the bracketed text or raises MarkupError.
-            console.print(
-                "  Status:  [yellow]check failed[/yellow] — "
-                f"{escape(sanitize_terminal_text(reason))}"
-            )
+            console.print(f"  Status:  [yellow]check failed[/yellow] — {escape(reason)}")
     console.print()
 
 
@@ -776,17 +750,23 @@ def doctor_impl(
     calls ``GET /api/v1/session-status``. The default path (server=False)
     makes ZERO outbound network calls (C-007).
     """
-    report = assemble_report(stuck_threshold_s=stuck_threshold)
+    server_status: ServerSessionStatus | None = None
+    if server:
+        server_status = asyncio.run(_check_server_session())
+
+    report = assemble_report(
+        stuck_threshold_s=stuck_threshold,
+        server_probe=server_status,
+    )
     repair_messages: list[str] = []
 
     if unstick_lock:
         report = _run_unstick_lock(
-            report, stuck_threshold=stuck_threshold, messages=repair_messages
+            report,
+            stuck_threshold=stuck_threshold,
+            messages=repair_messages,
+            server_probe=server_status,
         )
-
-    server_status: ServerSessionStatus | None = None
-    if server:
-        server_status = asyncio.run(_check_server_session())
 
     if json_output:
         # JSON consumers read the post-repair report state directly.

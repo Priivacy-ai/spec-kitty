@@ -2,9 +2,9 @@
 
 Mission `doctrine-template-asset-kinds-01KX2YQ7` (#2495 + #2469). These
 fixtures are consumed by `tests/doctrine/test_template_asset_e2e.py` and
-exercise the **real** loader (`doctrine.drg.org_pack_loader.load_org_pack`),
-merge (`doctrine.drg.merge.merge_three_layers`), and query
-(`doctrine.drg.query.resolve_transitive_refs`) path — no mocked shortcuts.
+exercise the **real** loader (`charter.offering.drg.org_pack_loader.load_org_pack`),
+merge (`charter.offering.drg.merge.merge_three_layers`), and query
+(`charter.offering.drg.query.resolve_transitive_refs`) path — no mocked shortcuts.
 
 Modeled on a realistic Regnology-shaped org pack (see
 `kitty-specs/doctrine-template-asset-kinds-01KX2YQ7/quickstart.md`).

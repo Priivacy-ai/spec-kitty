@@ -81,7 +81,9 @@ async def login_impl(*, headless: bool, force: bool) -> None:
     if tm.is_authenticated and not force:
         session = tm.get_current_session()
         assert session is not None  # is_authenticated guarantees this
-        console.print(f"[green]+ Already logged in as {session.email}[/green]")
+        console.print(
+            f"[green]+ Already logged in as {escape(session.email)}[/green]"
+        )
         console.print(
             "Run [bold]spec-kitty auth login --force[/bold] to re-authenticate, "
             "or [bold]spec-kitty auth logout[/bold] first."
@@ -185,7 +187,7 @@ async def _run_device_flow(tm: TokenManager, saas_url: str) -> None:
 def _print_success(session: StoredSession) -> None:
     """Print the post-login success message."""
     console.print()
-    console.print(f"[green]+ Authenticated as {session.email}[/green]")
+    console.print(f"[green]+ Authenticated as {escape(session.email)}[/green]")
     if session.teams:
         default_team = next(
             (t for t in session.teams if t.id == session.default_team_id),
@@ -193,7 +195,7 @@ def _print_success(session: StoredSession) -> None:
         )
         if default_team:
             suffix = " [Private Teamspace]" if default_team.is_private_teamspace else ""
-            console.print(f"  Default team: {default_team.name}{suffix}")
+            console.print(f"  Default team: {escape(default_team.name)}{suffix}")
 
 
 __all__ = ["login_impl"]

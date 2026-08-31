@@ -9,7 +9,7 @@ Three locked cases (R-2 / FR-009):
 3. ``.kittify/doctrine/`` present but empty → ``project_root`` points there but
    repositories resolve to empty overlays with no shipped-layer impact.
 
-Also covers ``charter._doctrine_paths.resolve_project_root`` directly and
+Also covers ``charter.activation._doctrine_paths.resolve_project_root`` directly and
 verifies the compiler's ``_default_doctrine_service`` uses it correctly.
 """
 
@@ -17,8 +17,8 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from charter._doctrine_paths import resolve_project_root, _PROJECT_ROOT_CANDIDATES
-from charter.compiler import _default_doctrine_service
+from charter.activation._doctrine_paths import resolve_project_root, _PROJECT_ROOT_CANDIDATES
+from charter.activation.compiler import _default_doctrine_service
 
 
 # ---------------------------------------------------------------------------
@@ -67,10 +67,10 @@ class TestResolveProjectRoot:
     def test_kittify_doctrine_takes_priority_over_src_doctrine(
         self, tmp_path: Path
     ) -> None:
-        """Phase 3 candidate outranks legacy src/doctrine/ candidate."""
+        """Phase 3 candidate outranks legacy src/charter/offering/ candidate."""
         kittify_doctrine = tmp_path / ".kittify" / "doctrine"
         kittify_doctrine.mkdir(parents=True)
-        src_doctrine = tmp_path / "src" / "doctrine"
+        src_doctrine = tmp_path / "src" / "charter" / "offering"
         src_doctrine.mkdir(parents=True)
         result = resolve_project_root(tmp_path)
         assert result == kittify_doctrine
@@ -78,8 +78,8 @@ class TestResolveProjectRoot:
     def test_falls_back_to_src_doctrine_when_kittify_absent(
         self, tmp_path: Path
     ) -> None:
-        """When .kittify/doctrine/ absent, legacy src/doctrine/ wins."""
-        src_doctrine = tmp_path / "src" / "doctrine"
+        """When .kittify/doctrine/ absent, legacy src/charter/offering/ wins."""
+        src_doctrine = tmp_path / "src" / "charter" / "offering"
         src_doctrine.mkdir(parents=True)
         result = resolve_project_root(tmp_path)
         assert result == src_doctrine
@@ -87,7 +87,7 @@ class TestResolveProjectRoot:
     def test_falls_back_to_flat_doctrine_when_both_absent(
         self, tmp_path: Path
     ) -> None:
-        """When .kittify/doctrine/ and src/doctrine/ absent, flat doctrine/ wins."""
+        """When .kittify/doctrine/ and src/charter/offering/ absent, flat doctrine/ wins."""
         flat_doctrine = tmp_path / "doctrine"
         flat_doctrine.mkdir()
         result = resolve_project_root(tmp_path)
@@ -104,7 +104,7 @@ class TestResolveProjectRoot:
     def test_candidate_order_is_kittify_src_flat(self) -> None:
         """_PROJECT_ROOT_CANDIDATES tuple has the expected order."""
         assert _PROJECT_ROOT_CANDIDATES[0] == ".kittify/doctrine"
-        assert _PROJECT_ROOT_CANDIDATES[1] == "src/doctrine"
+        assert _PROJECT_ROOT_CANDIDATES[1] == "src/charter/offering"
         assert _PROJECT_ROOT_CANDIDATES[2] == "doctrine"
 
 
@@ -160,19 +160,19 @@ class TestDefaultDoctrineService:
     def test_legacy_src_doctrine_candidate_still_resolves_when_kittify_absent(
         self, tmp_path: Path
     ) -> None:
-        """Legacy src/doctrine/ candidate resolves when .kittify/doctrine/ absent."""
+        """Legacy src/charter/offering/ candidate resolves when .kittify/doctrine/ absent."""
         _write_min_config(tmp_path)
-        src_doctrine = tmp_path / "src" / "doctrine"
+        src_doctrine = tmp_path / "src" / "charter" / "offering"
         src_doctrine.mkdir(parents=True)
         project_root = self._project_root_from_service(tmp_path)
         assert project_root == src_doctrine
 
     def test_kittify_doctrine_outranks_src_doctrine(self, tmp_path: Path) -> None:
-        """Phase 3 candidate beats legacy src/doctrine/ (priority ordering)."""
+        """Phase 3 candidate beats legacy src/charter/offering/ (priority ordering)."""
         _write_min_config(tmp_path)
         kittify_doctrine = tmp_path / ".kittify" / "doctrine"
         kittify_doctrine.mkdir(parents=True)
-        src_doctrine = tmp_path / "src" / "doctrine"
+        src_doctrine = tmp_path / "src" / "charter" / "offering"
         src_doctrine.mkdir(parents=True)
         project_root = self._project_root_from_service(tmp_path)
         assert project_root == kittify_doctrine
@@ -186,7 +186,7 @@ class TestContextDoctrineService:
     """The context module's _build_doctrine_service uses the same candidate list."""
 
     def _project_root_from_context_service(self, repo_root: Path) -> Path | None:
-        from charter.context import _build_doctrine_service
+        from charter.activation.context import _build_doctrine_service
         svc = _build_doctrine_service(repo_root)
         return getattr(svc, "_project_root", None)
 
