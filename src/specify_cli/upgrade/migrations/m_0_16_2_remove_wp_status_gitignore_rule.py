@@ -14,6 +14,7 @@ The fix:
 
 from __future__ import annotations
 
+import os
 import re
 from pathlib import Path
 
@@ -67,6 +68,11 @@ def remove_wp_status_entries(gitignore_path: Path, dry_run: bool = False) -> tup
     """
     changes: list[str] = []
     errors: list[str] = []
+
+    if gitignore_path.is_symlink():
+        target = os.readlink(gitignore_path)
+        errors.append(f".gitignore is a symlink to {target!r}; refusing to follow it")
+        return changes, errors
 
     if not gitignore_path.exists():
         changes.append("No .gitignore file found")
@@ -124,6 +130,11 @@ class RemoveWpStatusGitignoreRuleMigration(BaseMigration):
     def can_apply(self, project_path: Path) -> tuple[bool, str]:
         """Check readability/writability preconditions for .gitignore."""
         gitignore_path = project_path / ".gitignore"
+
+        if gitignore_path.is_symlink():
+            target = os.readlink(gitignore_path)
+            return False, f".gitignore is a symlink to {target!r}; refusing to follow it"
+
         if not gitignore_path.exists():
             return True, ""
 

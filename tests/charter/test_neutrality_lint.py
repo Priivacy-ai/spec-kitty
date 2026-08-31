@@ -74,7 +74,7 @@ def test_fault_injection_catches_regression(tmp_path: Path) -> None:
     point the scanner at the tmp tree only, with no allowlist coverage. The
     scanner must fail and must record a PY-001 ("pytest") hit.
     """
-    fake_root = tmp_path / "src" / "doctrine" / "fake"
+    fake_root = tmp_path / "src" / "charter" / "offering" / "fake"
     fake_root.mkdir(parents=True)
     (fake_root / "generic.md").write_text(
         "To run tests, invoke pytest on the command line.\n",
@@ -91,7 +91,7 @@ def test_fault_injection_catches_regression(tmp_path: Path) -> None:
 
     result = run_neutrality_lint(
         repo_root=tmp_path,
-        scan_roots=[tmp_path / "src" / "doctrine"],
+        scan_roots=[tmp_path / "src" / "charter" / "offering"],
         allowlist_path=empty_allowlist,
     )
     assert not result.passed
@@ -129,7 +129,7 @@ def test_default_scan_roots_include_relocated_builtin_missions(tmp_path: Path) -
 
     Mission ``doctrine-consumer-surface-missions-extraction-01KZ6G6H`` (FR-005,
     N-04) moved the doctrine ``missions/`` data subdirectories from
-    ``src/doctrine/missions`` to ``packs/built-in/missions``. Without this
+    ``src/charter/offering/missions`` to ``packs/built-in/missions``. Without this
     root, the lint would silently stop scanning those relocated prompts and
     content templates while staying green — a gate-coverage loss with no red
     test, distinct from a wrong-resolution bug. This test reds against a
@@ -189,7 +189,7 @@ def test_fault_injection_respects_allowlist(tmp_path: Path) -> None:
     as evidence that a language-scoped file can legitimately ship with
     language-specific terminology.
     """
-    fake_root = tmp_path / "src" / "doctrine" / "python-scoped"
+    fake_root = tmp_path / "src" / "charter" / "offering" / "python-scoped"
     fake_root.mkdir(parents=True)
     fake_file = fake_root / "py-guide.md"
     fake_file.write_text(
@@ -201,7 +201,7 @@ def test_fault_injection_respects_allowlist(tmp_path: Path) -> None:
     allowlist.write_text(
         "schema_version: '1'\n"
         "paths:\n"
-        "  - path: src/doctrine/python-scoped/py-guide.md\n"
+        "  - path: src/charter/offering/python-scoped/py-guide.md\n"
         "    rationale: Intentionally scoped to Python for this test.\n"
         "    added_in: '3.2.0'\n",
         encoding="utf-8",
@@ -209,7 +209,7 @@ def test_fault_injection_respects_allowlist(tmp_path: Path) -> None:
 
     result = run_neutrality_lint(
         repo_root=tmp_path,
-        scan_roots=[tmp_path / "src" / "doctrine"],
+        scan_roots=[tmp_path / "src" / "charter" / "offering"],
         allowlist_path=allowlist,
     )
     # No hits because the one offending file is allowlisted.
@@ -222,7 +222,7 @@ def test_fault_injection_respects_allowlist(tmp_path: Path) -> None:
 def test_setup_doctor_failure_signatures_are_allowlisted(tmp_path: Path) -> None:
     """The setup-doctor failure catalog may mention Python recovery commands."""
     repo_root = Path(__file__).resolve().parents[2]
-    target = repo_root / "src" / "doctrine" / "skills" / "spec-kitty-setup-doctor" / "references" / "common-failure-signatures.md"
+    target = repo_root / "src" / "charter" / "offering" / "skills" / "spec-kitty-setup-doctor" / "references" / "common-failure-signatures.md"
     project_allowlist = repo_root / "src" / "charter" / "neutrality" / "language_scoped_allowlist.yaml"
 
     empty_allowlist = tmp_path / "allow.yaml"
@@ -245,39 +245,40 @@ def test_setup_doctor_failure_signatures_are_allowlisted(tmp_path: Path) -> None
 
 def test_stale_allowlist_entry_is_reported(tmp_path: Path) -> None:
     """An allowlist entry that resolves to zero files must be flagged as stale."""
-    (tmp_path / "src" / "doctrine").mkdir(parents=True)
+    (tmp_path / "src" / "charter" / "offering").mkdir(parents=True)
 
     allowlist = tmp_path / "allow.yaml"
     allowlist.write_text(
-        "schema_version: '1'\npaths:\n  - path: src/doctrine/does-not-exist.md\n    rationale: Intentionally stale for test.\n    added_in: '3.2.0'\n",
+        "schema_version: '1'\npaths:\n  - path: src/charter/offering/does-not-exist.md\n    rationale: Intentionally stale for test.\n    added_in: '3.2.0'\n",
         encoding="utf-8",
     )
 
     result = run_neutrality_lint(
         repo_root=tmp_path,
-        scan_roots=[tmp_path / "src" / "doctrine"],
+        scan_roots=[tmp_path / "src" / "charter" / "offering"],
         allowlist_path=allowlist,
     )
     assert not result.passed
-    assert "src/doctrine/does-not-exist.md" in result.stale_allowlist_entries
+    assert "src/charter/offering/does-not-exist.md" in result.stale_allowlist_entries
 
 
 def test_glob_allowlist_matches_files(tmp_path: Path) -> None:
     """Glob allowlist entries must suppress hits in matching files AND not be flagged stale."""
-    scoped_dir = tmp_path / "src" / "doctrine" / "python-scoped"
+    scoped_dir = tmp_path / "src" / "charter" / "offering" / "python-scoped"
     scoped_dir.mkdir(parents=True)
     (scoped_dir / "one.md").write_text("run pytest here\n", encoding="utf-8")
     (scoped_dir / "two.md").write_text("also pytest here\n", encoding="utf-8")
 
     allowlist = tmp_path / "allow.yaml"
     allowlist.write_text(
-        "schema_version: '1'\npaths:\n  - path: src/doctrine/python-scoped/*.md\n    rationale: Glob-scoped to a python directory.\n    added_in: '3.2.0'\n",
+        "schema_version: '1'\npaths:\n  - path: src/charter/offering/python-scoped/*.md\n"
+        "    rationale: Glob-scoped to a python directory.\n    added_in: '3.2.0'\n",
         encoding="utf-8",
     )
 
     result = run_neutrality_lint(
         repo_root=tmp_path,
-        scan_roots=[tmp_path / "src" / "doctrine"],
+        scan_roots=[tmp_path / "src" / "charter" / "offering"],
         allowlist_path=allowlist,
     )
     assert result.passed, f"Expected glob allowlist to suppress all hits; got hits={result.hits} stale={result.stale_allowlist_entries}"
@@ -285,7 +286,7 @@ def test_glob_allowlist_matches_files(tmp_path: Path) -> None:
 
 def test_glob_allowlist_star_does_not_cross_directory_segments(tmp_path: Path) -> None:
     """Allowlist exemption matching must use the same segment semantics as stale checks."""
-    scoped_dir = tmp_path / "src" / "doctrine" / "python-scoped"
+    scoped_dir = tmp_path / "src" / "charter" / "offering" / "python-scoped"
     nested_dir = scoped_dir / "nested"
     nested_dir.mkdir(parents=True)
     (scoped_dir / "allowed.md").write_text("run pytest here\n", encoding="utf-8")
@@ -293,36 +294,37 @@ def test_glob_allowlist_star_does_not_cross_directory_segments(tmp_path: Path) -
 
     allowlist = tmp_path / "allow.yaml"
     allowlist.write_text(
-        "schema_version: '1'\npaths:\n  - path: src/doctrine/python-scoped/*.md\n    rationale: One directory only.\n    added_in: '3.2.0'\n",
+        "schema_version: '1'\npaths:\n  - path: src/charter/offering/python-scoped/*.md\n    rationale: One directory only.\n    added_in: '3.2.0'\n",
         encoding="utf-8",
     )
 
     result = run_neutrality_lint(
         repo_root=tmp_path,
-        scan_roots=[tmp_path / "src" / "doctrine"],
+        scan_roots=[tmp_path / "src" / "charter" / "offering"],
         allowlist_path=allowlist,
     )
 
     assert not result.stale_allowlist_entries
     hit_files = {hit.file.as_posix() for hit in result.hits}
-    assert hit_files == {"src/doctrine/python-scoped/nested/not-allowed.md"}
+    assert hit_files == {"src/charter/offering/python-scoped/nested/not-allowed.md"}
 
 
 def test_glob_allowlist_double_star_matches_zero_directory_segments(tmp_path: Path) -> None:
     """``**`` exemptions must match the same paths that make the entry non-stale."""
-    scoped_dir = tmp_path / "src" / "doctrine" / "python-scoped"
+    scoped_dir = tmp_path / "src" / "charter" / "offering" / "python-scoped"
     scoped_dir.mkdir(parents=True)
     (scoped_dir / "guide.md").write_text("run pytest here\n", encoding="utf-8")
 
     allowlist = tmp_path / "allow.yaml"
     allowlist.write_text(
-        "schema_version: '1'\npaths:\n  - path: src/doctrine/python-scoped/**/*.md\n    rationale: Recursive python guide exemption.\n    added_in: '3.2.0'\n",
+        "schema_version: '1'\npaths:\n  - path: src/charter/offering/python-scoped/**/*.md\n"
+        "    rationale: Recursive python guide exemption.\n    added_in: '3.2.0'\n",
         encoding="utf-8",
     )
 
     result = run_neutrality_lint(
         repo_root=tmp_path,
-        scan_roots=[tmp_path / "src" / "doctrine"],
+        scan_roots=[tmp_path / "src" / "charter" / "offering"],
         allowlist_path=allowlist,
     )
 
@@ -331,7 +333,7 @@ def test_glob_allowlist_double_star_matches_zero_directory_segments(tmp_path: Pa
 
 def test_regex_term_reports_accurate_column(tmp_path: Path) -> None:
     """A regex-kind banned term must report file:line:column that points at the match."""
-    scan_root = tmp_path / "src" / "doctrine"
+    scan_root = tmp_path / "src" / "charter" / "offering"
     scan_root.mkdir(parents=True)
     # "pip install" is a regex term (PY-003). Place it at a non-zero column.
     target = scan_root / "regex-hit.md"
@@ -356,7 +358,7 @@ def test_regex_term_reports_accurate_column(tmp_path: Path) -> None:
 
 def test_case_sensitive_false_matches_literal_and_regex_terms(tmp_path: Path) -> None:
     """Per-term ``case_sensitive: false`` must make literal and regex terms ignore case."""
-    scan_root = tmp_path / "src" / "doctrine"
+    scan_root = tmp_path / "src" / "charter" / "offering"
     scan_root.mkdir(parents=True)
     target = scan_root / "mixed-case.md"
     target.write_text("Run PyTest, then use PIP INSTALL foo.\n", encoding="utf-8")
@@ -394,7 +396,7 @@ def test_case_sensitive_false_matches_literal_and_regex_terms(tmp_path: Path) ->
 
 def test_banned_terms_remain_case_sensitive_by_default(tmp_path: Path) -> None:
     """Omitted ``case_sensitive`` keeps the schema default: exact-case matching."""
-    scan_root = tmp_path / "src" / "doctrine"
+    scan_root = tmp_path / "src" / "charter" / "offering"
     scan_root.mkdir(parents=True)
     target = scan_root / "mixed-case-default.md"
     target.write_text("Run PyTest, then use PIP INSTALL foo.\n", encoding="utf-8")

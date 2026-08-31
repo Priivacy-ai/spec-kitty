@@ -41,30 +41,30 @@ class SkillRegistry:
     @classmethod
     def from_local_repo(cls, repo_root: Path) -> SkillRegistry:
         """Create registry from local dev checkout."""
-        return cls(repo_root / "src" / "doctrine" / "skills")
+        return cls(repo_root / "src" / "charter" / "offering" / "skills")
 
     @classmethod
     def from_package(cls) -> SkillRegistry:
         """Create registry from installed package.
 
-        The doctrine tree is a sibling top-level package
-        (``site-packages/doctrine/skills``), so we resolve it via
-        ``importlib.resources`` directly. A development-mode fallback walks
-        up from ``specify_cli`` to ``src/doctrine/skills``.
+        The doctrine skills tree now lives under the ``charter.offering``
+        package (``site-packages/charter/offering/skills``), so we resolve it
+        via ``importlib.resources`` directly. A development-mode fallback
+        walks up from ``specify_cli`` to ``src/charter/offering/skills``.
         """
         import importlib.resources
 
-        # Installed package: doctrine is a sibling top-level package
+        # Installed package: charter.offering carries the doctrine skills tree
         try:
-            doctrine_root = importlib.resources.files("doctrine")
+            doctrine_root = importlib.resources.files("charter.offering")
             skills_path = Path(str(doctrine_root / "skills"))
             if skills_path.is_dir():
                 return cls(skills_path)
         except (ModuleNotFoundError, TypeError):
             pass
 
-        # Development fallback: src/doctrine/skills relative to specify_cli
-        dev_path = Path(__file__).resolve().parent.parent.parent / "doctrine" / "skills"
+        # Development fallback: src/charter/offering/skills relative to specify_cli
+        dev_path = Path(__file__).resolve().parent.parent.parent / "charter" / "offering" / "skills"
         return cls(dev_path)
 
     def discover_skills(self) -> list[CanonicalSkill]:

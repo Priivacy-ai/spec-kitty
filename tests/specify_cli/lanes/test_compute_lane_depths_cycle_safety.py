@@ -1,23 +1,27 @@
-"""Lock the fix from commit 72ff0d723: _compute_lane_depths handles cycles.
+"""Lock low-level depth safety and public cycle rejection behavior.
 
-A self-loop or arbitrary cycle in the lane dependency graph must NOT
-trigger ``RecursionError: maximum recursion depth exceeded``. Cycle
-detection is best-effort (the depth value for cycle members may not
-reflect graph reality), but the function MUST return a valid dict
-without blowing the stack.
+A self-loop or arbitrary cycle passed directly to the depth helper must not
+trigger ``RecursionError``. Public lane computation rejects cycles before
+asking that helper to process them.
 
 Regression test for FR-015 of mission test-stabilization-and-debt-pass-01KSF9HJ.
 """
+
 from __future__ import annotations
 
 import pytest
 
-from specify_cli.lanes.compute import LaneComputationError, _compute_lane_depths, compute_lanes
+from specify_cli.lanes.compute import (
+    LaneDependencyCycleError,
+    _compute_lane_depths,
+    compute_lanes,
+)
 from specify_cli.lanes.models import ExecutionLane
 from specify_cli.ownership.models import WorkProductKind, OwnershipManifest
 
 
-pytestmark = [pytest.mark.fast]
+pytestmark = [pytest.mark.unit, pytest.mark.fast]
+
 
 def _make_lane(lane_id: str) -> ExecutionLane:
     """Minimal ExecutionLane factory for tests.
@@ -87,8 +91,8 @@ def test_independent_lanes_get_depth_zero():
     assert depths == {"lane-a": 0, "lane-b": 0, "lane-c": 0}
 
 
-def test_compute_lanes_cycle_fails_loud_before_depth_assignment():
-    """A lane-level cycle with no collapse events must fail before depth assignment."""
+def test_compute_lanes_rejects_cycle_when_no_collapses() -> None:
+    """Public computation rejects a lane cycle with structured diagnostics."""
     graph = {"WP01": ["WP02"], "WP02": ["WP01"]}
     manifests = {
         "WP01": OwnershipManifest(
@@ -103,5 +107,10 @@ def test_compute_lanes_cycle_fails_loud_before_depth_assignment():
         ),
     }
 
-    with pytest.raises(LaneComputationError, match="Execution lane dependency graph contains a cycle"):
+    with pytest.raises(LaneDependencyCycleError) as exc_info:
         compute_lanes(graph, manifests, "cycle-demo")
+
+    error = exc_info.value
+    assert error.cycle_path == ("lane-a", "lane-b", "lane-a")
+    assert tuple(lane.lane_id for lane in error.cycle_lanes) == ("lane-a", "lane-b")
+    assert tuple(lane.wp_ids for lane in error.cycle_lanes) == (("WP01",), ("WP02",))

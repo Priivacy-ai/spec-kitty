@@ -5,7 +5,7 @@ vocabularies that were previously re-declared across five+ modules with three
 incompatible spellings (research R-009):
 
 1. **Operator kind tokens** (hyphenated CLI surface, e.g. ``agent-profile``) →
-   canonical :class:`~doctrine.artifact_kinds.ArtifactKind`. That mapping lives
+   canonical :class:`~charter.offering.artifact_kinds.ArtifactKind`. That mapping lives
    on the enum itself (:meth:`ArtifactKind.from_operator_token`); this module
    re-exports the related error type for charter callers.
 
@@ -43,20 +43,20 @@ from pathlib import Path
 from ruamel.yaml import YAML
 from ruamel.yaml.error import YAMLError
 
-from doctrine.artifact_kinds import (
+from charter.offering.artifact_kinds import (
     CHARTER_KIND_TOKENS,
     MISSION_TYPE_TOKEN,
     PROJECT_KIND_DIRS as _PROJECT_KIND_DIRS,
     ArtifactKind,
     MissionTypeNotAnArtifactKind,
 )
-from doctrine.pack_paths import (
+from charter.offering.pack_paths import (
     BuiltInContentDirNotAvailable,
     PackRootNotFound,
     built_in_dir,
 )
 
-#: Public re-export of :data:`doctrine.artifact_kinds.PROJECT_KIND_DIRS`.
+#: Public re-export of :data:`charter.offering.artifact_kinds.PROJECT_KIND_DIRS`.
 #:
 #: Landing-fold addition (write-side-seam-matrix-tracer Wave B / #3070):
 #: ``specify_cli.cli.commands.doctrine``'s ``new`` scaffolder needs the
@@ -98,7 +98,7 @@ _ID_FIELD_BY_KIND: dict[ArtifactKind, str] = {
 }
 _DEFAULT_ID_FIELD = "id"
 #: The project-tier overlay directory name per kind is the single canonical
-#: authority :data:`doctrine.artifact_kinds.PROJECT_KIND_DIRS` (imported and
+#: authority :data:`charter.offering.artifact_kinds.PROJECT_KIND_DIRS` (imported and
 #: re-exported above as ``PROJECT_KIND_DIRS`` — the runtime→charter→doctrine
 #: boundary facade for this mapping; see ``cli/commands/doctrine.py``'s
 #: ``new`` scaffolder for the consumer). It is *total*, so
@@ -154,7 +154,7 @@ def _scan_roots(
     longer used as a scan root itself: built-in content was flattened out of
     ``<doctrine_root>/<kind>/built-in`` into ``packs/built-in/<kind>``
     (relocation mission doctrine-built-in-seam-consolidation-01KYW3TX, WP02),
-    which resolves via the shared :func:`~doctrine.pack_paths.built_in_dir`
+    which resolves via the shared :func:`~charter.offering.pack_paths.built_in_dir`
     seam below instead. ``org_roots`` contributes, for each root, the flat
     ``<root>/<plural>`` layout (``recursive=False``) that every real org
     pack uses today, matching the live loader's own non-recursive org glob
@@ -164,18 +164,18 @@ def _scan_roots(
     legacy shape is accepted here for config-stem *resolution* only, and
     whether it also loads at runtime is kind-dependent: the live loader's
     (``DoctrineService``/``BaseDoctrineRepository``) org-layer scan reuses
-    :meth:`doctrine.base.BaseDoctrineRepository._project_scan`, whose
+    :meth:`charter.offering.base.BaseDoctrineRepository._project_scan`, whose
     *default* is the flat, non-recursive glob (``base.py``'s
     ``_project_scan``, reused for both org and project layers) -- for most
     kinds this default is never overridden, so the live loader does not
     read an org pack's nested ``built-in/`` subdirectory for those kinds.
     Verified by direct inspection of every ``BaseDoctrineRepository``
-    subclass under ``src/doctrine/``: exactly two override
+    subclass under ``src/charter/offering/``: exactly two override
     ``_project_scan`` to ``rglob`` instead --
-    :class:`~doctrine.styleguides.repository.StyleguideRepository`
-    (``src/doctrine/styleguides/repository.py:59-61``) and
-    :class:`~doctrine.assets.repository.AssetRepository`
-    (``src/doctrine/assets/repository.py:130-132``) -- so for the
+    :class:`~charter.offering.styleguides.repository.StyleguideRepository`
+    (``src/charter/offering/styleguides/repository.py:59-61``) and
+    :class:`~charter.offering.assets.repository.AssetRepository`
+    (``src/charter/offering/assets/repository.py:130-132``) -- so for the
     ``styleguide`` and ``asset`` kinds specifically, the live loader's
     org-layer scan *is* recursive and *does* read a nested ``built-in/``
     subdirectory under an org root. For every other kind, a config-stem
@@ -186,7 +186,7 @@ def _scan_roots(
     contribute ``<root>/doctrine/<singular>`` for live ``.kittify/doctrine``
     overlays.
 
-    The ``recursive`` flag mirrors :class:`doctrine.base.BaseDoctrineRepository`
+    The ``recursive`` flag mirrors :class:`charter.offering.base.BaseDoctrineRepository`
     (the live loader backing ``DoctrineService``/DRG resolution), whose
     three-source pattern is *built-in rglob + org glob + project glob*: several
     built-in kinds (tactics, styleguides, toolguides) organize artifacts into

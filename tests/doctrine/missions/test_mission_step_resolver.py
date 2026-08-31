@@ -24,8 +24,8 @@ from pathlib import Path
 
 import pytest
 
-from doctrine.missions.mission_step_repository import MissionStepRepository, StepKey
-from doctrine.missions.models import MissionStep
+from charter.offering.missions.mission_step_repository import MissionStepRepository, StepKey
+from charter.offering.missions.models import MissionStep
 
 pytestmark = [pytest.mark.fast, pytest.mark.doctrine]
 

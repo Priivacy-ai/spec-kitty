@@ -5,7 +5,7 @@ absorbed the former WP09 Gate 4 into WP06 (post-tasks squad restructure —
 the gate only ever guarded WP06's own surface).
 
 WP06 closed 2 of 3 duplicate hardcodes that independently reconstructed the
-shipped ``src/doctrine/missions`` root via a ``Path(__file__)``-relative
+shipped ``src/charter/offering/missions`` root via a ``Path(__file__)``-relative
 literal containing ``"doctrine"`` immediately followed by ``"missions"`` as
 adjacent path-join components:
 
@@ -14,10 +14,10 @@ adjacent path-join components:
   fallback tuple (T023)
 
 Both now delegate to the ONE promoted authority,
-:meth:`~doctrine.missions.repository.MissionTemplateRepository.default_missions_root`.
+:meth:`~charter.offering.missions.repository.MissionTemplateRepository.default_missions_root`.
 This gate makes that closure durable: it is a **zero-tolerance** scan (no
 allow-list) for that exact literal shape anywhere in ``src/`` outside the one
-promoted authority module, ``src/doctrine/missions/repository.py``.
+promoted authority module, ``src/charter/offering/missions/repository.py``.
 
 Landing-fold gate hardening (A6): three widenings
 ----------------------------------------------------
@@ -44,7 +44,7 @@ Scope note (named residual, not silently fixed) — spellings deliberately
 left uncaught by this gate, even after the A6 widening
 ------------------------------------------------------------------------------
 * **Root-relative anchor, not ``Path(__file__)``-relative** (e.g.
-  ``repo_root / "src" / "doctrine" / "missions"``) — a post-tasks squad pass
+  ``repo_root / "src" / "charter" / "offering" / "missions"``) — a post-tasks squad pass
   found 3 such sites this gate does not police:
 
   * ``src/kernel/paths.py`` (around lines 89-90)
@@ -93,7 +93,7 @@ pytestmark = pytest.mark.architectural
 #: Every other module must call
 #: ``MissionTemplateRepository.default_missions_root()`` instead of
 #: reconstructing the literal itself.
-AUTHORITY_REL_PATH = "src/doctrine/missions/repository.py"
+AUTHORITY_REL_PATH = "src/charter/offering/missions/repository.py"
 
 #: The two path-join components this gate looks for, adjacent, in that order.
 _GUARDED_COMPONENTS = ("doctrine", "missions")

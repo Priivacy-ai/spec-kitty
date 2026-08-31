@@ -294,6 +294,33 @@ class TestAssemblePack:
         assert "refusing to delete non-pack" in " ".join(result.errors)
         assert marker.read_text(encoding="utf-8") == "keep\n"
 
+    def test_force_recognises_fetched_artifactory_pack_manifest(
+        self, tmp_path: Path
+    ) -> None:
+        pack = _make_pack(tmp_path, "alpha", directives=["NEW-ART-001"])
+        output = tmp_path / "fetched-artifactory-pack"
+        output.mkdir()
+        (output / "pack-manifest.yaml").write_text(
+            textwrap.dedent(
+                """\
+                artifact_counts: {}
+                fetched_at: '2026-08-22T12:00:00Z'
+                pack_version: 3.2.7
+                source_type: artifactory
+                source_url: https://artifactory.example.com/artifactory/repo/pack.tar.gz
+                """
+            ),
+            encoding="utf-8",
+        )
+        marker = output / "old-artifact.txt"
+        marker.write_text("old\n", encoding="utf-8")
+
+        result = assemble_pack([pack], output, force=True)
+
+        assert result.ok is True, result.errors
+        assert not marker.exists()
+        assert (output / "directives" / "new-art-001.directive.yaml").is_file()
+
     def test_force_allows_replacing_previous_pack_output(
         self, tmp_path: Path
     ) -> None:

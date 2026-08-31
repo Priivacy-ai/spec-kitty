@@ -18,4 +18,11 @@
 # specify_cli.next (#612) shims deleted; canonical imports are
 # glossary.* and runtime.next.* respectively.
 
-shims: []
+shims:
+  - legacy_path: doctrine
+    canonical_import: charter.offering
+    introduced_in_release: "3.2.6"
+    removal_target_release: "3.3.0"
+    tracker_issue: "#805"
+    grandfathered: false
+    notes: "Lazy PEP 562 shim for CR-06; dotted doctrine.* submodule imports are intentionally unsupported."

@@ -418,7 +418,10 @@ class BookkeepingTransaction(AbstractContextManager["BookkeepingTransaction"]):
                 operation=operation,
                 capability=capability,
             )
-            caller_verdict = WorkflowMutationPolicy.assert_allowed(caller_change_set)
+            caller_verdict = WorkflowMutationPolicy.assert_allowed(
+                caller_change_set,
+                coord_available=True,
+            )
             if isinstance(caller_verdict, Refused):
                 explicit_coord_branch = _coordination_branch_from_meta(
                     repo_root, safe_mission_slug, safe_mid8,
@@ -491,7 +494,18 @@ class BookkeepingTransaction(AbstractContextManager["BookkeepingTransaction"]):
             operation=operation,
             capability=capability,
         )
-        verdict = WorkflowMutationPolicy.assert_allowed(change_set)
+        from specify_cli.coordination.commit_router import (
+            mission_has_coordination_branch,
+        )
+
+        coord_available = mission_has_coordination_branch(
+            repo_root,
+            safe_mission_slug,
+        )
+        verdict = WorkflowMutationPolicy.assert_allowed(
+            change_set,
+            coord_available=coord_available,
+        )
         if isinstance(verdict, Refused):
             raise BookkeepingPolicyRefused(verdict)
         # ``Allowed`` — fall through.

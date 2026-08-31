@@ -9,7 +9,7 @@ These tests assert two facts on the *real* shipped DRG:
 
 The mission spec (C-007) explicitly forbids mocking
 ``charter._drg_helpers.load_validated_graph`` or
-``doctrine.drg.query.resolve_context`` in real-runtime tests. These tests
+``charter.offering.drg.query.resolve_context`` in real-runtime tests. These tests
 read the on-disk graph and call the production resolver directly.
 """
 
@@ -20,7 +20,7 @@ from pathlib import Path
 import pytest
 
 from charter._drg_helpers import load_validated_graph
-from doctrine.drg.query import resolve_context
+from charter.offering.drg.query import resolve_context
 
 # The 5 advancing research actions covered by the mission-runtime sidecar.
 
@@ -45,7 +45,7 @@ COMPOSITION_RESOLUTION_DEPTH: int = 2
 def _repo_root() -> Path:
     """Locate the repository root via a delete-stable ``pyproject.toml`` marker.
 
-    Keyed on ``pyproject.toml`` rather than ``src/doctrine/graph.yaml`` so the
+    Keyed on ``pyproject.toml`` rather than ``src/charter/offering/graph.yaml`` so the
     finder survives the WP05 monolith->fragment migration: the shipped
     ``graph.yaml`` is deleted, but ``pyproject.toml`` is not.
     """
@@ -69,7 +69,7 @@ def test_research_action_nodes_exist(action: str) -> None:
 def test_research_action_resolve_context_non_empty(action: str) -> None:
     """`resolve_context()` returns non-empty artifact_urns for each action.
 
-    Uses the *real* composition resolver (`doctrine.drg.query.resolve_context`)
+    Uses the *real* composition resolver (`charter.offering.drg.query.resolve_context`)
     and the *real* `load_validated_graph` — no mocks, per spec C-007.
     """
     graph = load_validated_graph(_repo_root())

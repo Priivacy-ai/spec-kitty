@@ -60,7 +60,7 @@ from charter.mission_type_profiles import (
     existing_mission_types,
     resolve_mission_type_context,
 )
-from doctrine.missions.mission_type_repository import builtin_mission_type_id_set
+from charter.offering.missions.mission_type_repository import builtin_mission_type_id_set
 
 pytestmark = [pytest.mark.fast]
 

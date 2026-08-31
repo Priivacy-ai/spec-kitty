@@ -3,8 +3,8 @@
 import pytest
 from pydantic import ValidationError
 
-from doctrine.artifact_kinds import ArtifactKind
-from doctrine.directives.models import Directive, Enforcement
+from charter.offering.artifact_kinds import ArtifactKind
+from charter.offering.directives.models import Directive, Enforcement
 pytestmark = [pytest.mark.fast, pytest.mark.doctrine]
 
 
@@ -38,7 +38,7 @@ class TestDirective:
         assert directive.title == "Test Directive"
         assert directive.enforcement == Enforcement.REQUIRED
         # Post-WP02: inline `tactic_refs` has been excised from the Directive
-        # model; cross-artifact relationships live in src/doctrine/graph.yaml.
+        # model; cross-artifact relationships live in src/charter/offering/graph.yaml.
         assert not hasattr(directive, "tactic_refs")
         assert directive.scope is None
         assert directive.procedures == []

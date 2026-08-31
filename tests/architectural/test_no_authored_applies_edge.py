@@ -14,11 +14,11 @@ from typing import Any
 import pytest
 from ruamel.yaml import YAML
 
-from doctrine.drg.loader import load_graph_or_dir
-from doctrine.drg.migration.hand_authored_overlay import (
+from charter.offering.drg.loader import load_graph_or_dir
+from charter.offering.drg.migration.hand_authored_overlay import (
     generate_reference_graph_with_overlay,
 )
-from doctrine.drg.models import DRGEdge, DRGGraph, DRGNode, NodeKind, Relation
+from charter.offering.drg.models import DRGEdge, DRGGraph, DRGNode, NodeKind, Relation
 
 pytestmark = pytest.mark.architectural
 

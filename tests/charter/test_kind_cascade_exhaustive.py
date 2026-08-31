@@ -46,8 +46,8 @@ from charter.pack_manager import (
 )
 from charter.synthesizer.project_drg import _node_kind_for, emit_project_layer
 from charter.synthesizer.request import SynthesisTarget
-from doctrine.artifact_kinds import ArtifactKind, _NON_AUGMENTATION_ELIGIBLE_KINDS
-from doctrine.drg.models import DRGGraph
+from charter.offering.artifact_kinds import ArtifactKind, _NON_AUGMENTATION_ELIGIBLE_KINDS
+from charter.offering.drg.models import DRGGraph
 from specify_cli.cli.commands.charter.list_cmd import _KIND_ORDER
 
 pytestmark = [pytest.mark.unit]
@@ -66,7 +66,7 @@ class TestContextGenericArtifactIncludeExcludesNonBareProbeableKinds:
 
     This is a comprehension filter, not a lookup-table crash — the WP07
     totality guard cannot see it. It must exclude every member of
-    :data:`doctrine.artifact_kinds._NON_AUGMENTATION_ELIGIBLE_KINDS`
+    :data:`charter.offering.artifact_kinds._NON_AUGMENTATION_ELIGIBLE_KINDS`
     (currently ``TEMPLATE`` and ``ASSET``), not just a private
     ``is not ArtifactKind.TEMPLATE`` check.
     """

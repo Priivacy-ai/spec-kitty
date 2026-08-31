@@ -29,7 +29,7 @@ import pytest
 from ruamel.yaml import YAML
 
 from charter.context import build_charter_context
-from doctrine.drg.models import DRGGraph
+from charter.offering.drg.models import DRGGraph
 from tests.charter.test_context_org_governance import _write_config
 
 pytestmark = pytest.mark.fast
@@ -120,7 +120,7 @@ def _bootstrap_text(repo_root: Path) -> str:
     with (
         patch("charter._drg_helpers.load_validated_graph", return_value=mock_graph),
         patch("charter.catalog.resolve_doctrine_root", return_value=repo_root),
-        patch("doctrine.drg.validator.assert_valid"),
+        patch("charter.offering.drg.validator.assert_valid"),
         patch("charter.sync.ensure_charter_bundle_fresh", return_value=None),
     ):
         result = build_charter_context(

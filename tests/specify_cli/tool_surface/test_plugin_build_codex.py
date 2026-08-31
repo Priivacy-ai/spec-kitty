@@ -390,7 +390,7 @@ class TestMcpCompanion:
         ``_generate_plugin_json``) so the doctrine-root monkeypatch only
         affects the MCP companion lookup and not the unrelated skill renderer.
         """
-        import doctrine
+        import charter.offering as doctrine  # shim retired; code reads charter.offering.__file__
 
         # Point the doctrine root at a fake package dir carrying a .mcp.json.
         fake_doctrine_root = tmp_path / "fake_doctrine"

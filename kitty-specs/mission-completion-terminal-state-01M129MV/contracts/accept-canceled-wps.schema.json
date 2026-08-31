@@ -1,0 +1,24 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "accept-canceled-wps",
+  "title": "accept --json canceled_wps field",
+  "description": "Contract for the canceled_wps array emitted by `spec-kitty accept --json` (NFR-003). Accept-eligible cancellations only; non-provenance cancellations appear under blockers, not here.",
+  "type": "object",
+  "required": ["canceled_wps"],
+  "properties": {
+    "canceled_wps": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["wp_id", "reason", "actor", "at"],
+        "properties": {
+          "wp_id": { "type": "string", "pattern": "^WP[0-9]+$" },
+          "reason": { "type": "string", "minLength": 1, "description": "operator-authored note (reason_source=operator)" },
+          "actor": { "type": "string", "minLength": 1 },
+          "at": { "type": "string", "format": "date-time" }
+        }
+      }
+    }
+  }
+}

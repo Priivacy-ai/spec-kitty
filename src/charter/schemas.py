@@ -206,7 +206,15 @@ class GovernanceConfig(BaseModel):
     commits: CommitConfig = Field(default_factory=CommitConfig)
     performance: PerformanceConfig = Field(default_factory=PerformanceConfig)
     branch_strategy: BranchStrategyConfig = Field(default_factory=BranchStrategyConfig)
-    doctrine: DoctrineSelectionConfig = Field(default_factory=DoctrineSelectionConfig)
+    charter: DoctrineSelectionConfig = Field(default_factory=DoctrineSelectionConfig)
+    """Charter-level selection of active doctrine elements (CR-01: field
+    renamed from ``doctrine`` -- ``kitty-specs/retire-doctrine-term-
+    01M0JMK9/inventory.md`` line 163). The value CLASS name
+    ``DoctrineSelectionConfig`` is unchanged (renamed separately, M2); only
+    this field key flips. No populate-by-name alias: the legacy ``doctrine``
+    key is read via a dict-level compat shim in
+    ``charter.sync.load_governance_config``, not a pydantic alias (a silent
+    alias remap would defeat that shim's warn-once contract)."""
     activations: list[ActivationEntry] = Field(default_factory=list)
     """Charter-level activation registry (FR-006 / WP01 T008). The registry
     lives on :class:`GovernanceConfig` (the top-level governance namespace),
