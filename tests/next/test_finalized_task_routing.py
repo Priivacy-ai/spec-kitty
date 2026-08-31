@@ -225,6 +225,22 @@ def test_query_routes_operator_canceled_wp_to_accept(tmp_path: Path) -> None:
     assert decision.preview_step == "accept"
 
 
+def test_finalized_done_tally_cannot_promote_canceled_wp_to_done(tmp_path: Path) -> None:
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    feature_dir, _ = _scaffold(
+        repo,
+        {"WP01": Lane.DONE, "WP02": Lane.CANCELED},
+        canceled_reason_source="operator",
+    )
+
+    from runtime.next.runtime_bridge import _finalized_task_board_override_step
+
+    progress = {"total_wps": 2, "done_wps": 2}
+
+    assert _finalized_task_board_override_step(feature_dir, progress) == "accept"
+
+
 def test_query_blocks_synthetic_canceled_wp(tmp_path: Path) -> None:
     repo = tmp_path / "repo"
     repo.mkdir()
