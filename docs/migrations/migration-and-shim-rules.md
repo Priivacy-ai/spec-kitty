@@ -2,7 +2,7 @@
 title: Migration and Shim Ownership Rules
 description: The migration and shim ownership rulebook governing bundle/runtime migrations and back-compat shims during package extraction, which every extraction mission must cite.
 doc_status: active
-updated: '2026-04-20'
+updated: '2026-08-31'
 ---
 # Migration and Shim Ownership Rules
 
@@ -42,6 +42,14 @@ A migration module lives under `src/specify_cli/upgrade/migrations/` and is name
 **Idempotency requirement**: `apply()` must be safe to call multiple times on the same project. Use existence checks (`if not target.exists()`) or content-hash comparisons rather than unconditional writes. A failed partial migration followed by a retry must produce the same final state as a successful first run.
 
 **Dry-run contract**: When `dry_run=True`, `apply()` must not write any files, run any shell commands, or emit any git commits. It should report what it *would* do to stdout (using `rich` where appropriate). The dry-run path must be exercised by at least one test.
+
+**Detection reachability**: `MigrationRunner` calls `detect()` before `can_apply()` and
+`apply()`, so a write-path safety guard is end-to-end reachable only when the same
+unsafe path cannot make `detect()` return `False` first. `Path.exists()` follows
+symlinks and returns `False` for a dangling symlink; a `detect()` existence check
+can therefore skip the migration before a later `can_apply()`/`apply()` guard runs.
+Close unsafe reads in both the detection and write paths, and record that
+reachability dependency in the migration PR's blast-radius note.
 
 **Test expectations**: Each migration module must have a corresponding test in `tests/specify_cli/upgrade/migrations/` that:
 1. Creates a synthetic project directory via `tmp_path`.
