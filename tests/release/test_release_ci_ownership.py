@@ -149,19 +149,28 @@ def test_ci_windows_configures_private_git_dependencies_before_install() -> None
     assert 'git config --global "url.https://x-access-token:${GH_TOKEN}@github.com/.insteadOf" "https://github.com/"' in configure_step["run"]
 
 
-def test_docs_pages_deploys_only_from_promotion_repo_and_skips_when_pages_is_unavailable() -> None:
+def test_docs_pages_deploys_only_from_promotion_repo_and_fails_transient_setup_errors() -> None:
     workflow = load_workflow("docs-pages.yml")
     pages_job = workflow["jobs"]["pages"]
-    setup_step = pages_job["steps"][0]
+    probe_step, setup_step = pages_job["steps"]
     build_job = workflow["jobs"]["build"]
     deploy_job = workflow["jobs"]["deploy"]
 
-    assert pages_job["outputs"] == {"configured": "${{ steps.setup-pages.outcome }}"}
+    assert pages_job["outputs"] == {"configured": "${{ steps.probe-pages.outputs.available }}"}
+    assert probe_step["id"] == "probe-pages"
+    assert probe_step["env"]["GITHUB_TOKEN"] == "${{ github.token }}"
+    assert 'status="$(curl' in probe_step["run"]
+    assert "200)" in probe_step["run"]
+    assert 'echo "available=true" >> "$GITHUB_OUTPUT"' in probe_step["run"]
+    assert "404)" in probe_step["run"]
+    assert 'echo "available=false" >> "$GITHUB_OUTPUT"' in probe_step["run"]
+    assert "::error::GitHub Pages configuration probe failed with HTTP $status." in probe_step["run"]
     assert setup_step["id"] == "setup-pages"
+    assert setup_step["if"] == "steps.probe-pages.outputs.available == 'true'"
     assert setup_step["uses"] == "actions/configure-pages@v6"
-    assert setup_step["continue-on-error"] is True
+    assert "continue-on-error" not in setup_step
     assert build_job["needs"] == ["pages"]
-    assert build_job["if"] == "needs.pages.outputs.configured == 'success'"
+    assert build_job["if"] == "needs.pages.outputs.configured == 'true' && needs.pages.result == 'success'"
     assert deploy_job["if"] == "github.repository == 'Priivacy-ai/spec-kitty' && github.ref == 'refs/heads/main' && needs.build.result == 'success'"
 
 
