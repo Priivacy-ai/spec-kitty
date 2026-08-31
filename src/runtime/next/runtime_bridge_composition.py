@@ -523,6 +523,7 @@ def _check_composed_action_guard(
         )
     try:
         return _cores.evaluate_guards_strict(snapshot)
+    # #3412 (FR-009/FR-010): NEVER widen this to also catch MalformedManifestError -- that would re-launder a malformed manifest into a tolerant empty result.
     except _cores.UnregisteredMissionFamilyError:
         logger.warning(
             "Unregistered mission_family %r reached the composed guard path; "
