@@ -20,6 +20,10 @@ Use this checklist for releases from `main`.
 
 ### Release-Line Sanity
 
+- **P3.4b prerequisite:** `.github/workflows/release.yml` and
+  `release-readiness.yml` are deliberately deferred to the P3.4b release-topology
+  sibling. Land that sibling before relying on this checklist's automated
+  publishing or Release Readiness Check steps.
 - [ ] Confirm the default branch is `main`.
 - [ ] Confirm `1.x-maintenance` exists and is marked maintenance-only.
 - [ ] Confirm open PRs are targeted intentionally:
