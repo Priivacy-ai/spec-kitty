@@ -1128,6 +1128,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **The dossier-emitter positional-call guard now catches attribute-chain and aliased-import call shapes it previously missed — test-only, no runtime behavior change.** (#3676) The guard's own docstring had framed the gap as an accepted design boundary ("this guard does simple Name-based matching only... widening the detector to handle aliasing is explicitly deferred until a real aliased call site exists"), but a gate a caller can silently route around by either call shape isn't evidence of anything for those shapes. **Before:** `tests/architectural/test_dossier_emitter_positional_guard.py`'s detector matched only bare-`Name` positional calls to the guarded `emit_*` functions, so `module.emit_artifact_indexed(...)` (attribute-chain) and `ei(...)` where `ei` came from `from ... import emit_artifact_indexed as ei` (aliased-import) both passed through unflagged. **After:** the detector resolves an attribute-chain call to its final attribute name, and resolves a same-file `ImportFrom` alias back to its original imported name via a syntactic alias map built once per file (attributing an aliased violation to the resolved original name, not the alias); two new positive-control fixtures — a planted attribute-chain call and a planted aliased-import call — fail (RED) against the pre-widening detector and pass (GREEN) against the post-widening one. No `src/` file is touched; the guard lives entirely in `tests/architectural/`.
 
+- **Expected-artifacts loading now uses one cached charter authority.** (#3770,
+  #3412) Runtime, resolver, dossier, and charter consumers share org-first
+  precedence and schema validation. Present malformed or unreadable manifests
+  fail loudly; only genuinely absent manifests degrade to `None`. An
+  architectural gate forbids new direct model construction outside the
+  authority. See ADR 2026-08-31-1.
+
 ## [3.2.6rc2] - 2026-08-20
 
 _The 3.2.6rc2 candidate shipped 2026-08-20 (rc1 shipped 2026-08-12)._

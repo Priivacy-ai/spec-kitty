@@ -190,3 +190,4 @@ Use the shared template at [`docs/architecture/adr-template.md`](../../architect
 | 2026-08-16 | [Operator configuration resolves through one kernel env-expansion seam; committed provenance stores tokens](2026-08-16-5-operator-config-env-expansion-seam.md) |
 | 2026-08-27 | [Install-agnostic pre-commit hook fallback + spec-kitty migrate repin-hooks](2026-08-27-1-precommit-hook-stable-entrypoint-and-repin-migration.md) |
 | 2026-08-28 | [A project path_conventions override precedes the doctrine default, without changing the blocking policy](2026-08-28-1-project-path-convention-override-precedes-doctrine.md) |
+| 2026-08-31 | [Relocate the expected-artifacts.yaml loader authority into charter, sibling error model](2026-08-31-1-expected-artifacts-loader-relocation.md) |
