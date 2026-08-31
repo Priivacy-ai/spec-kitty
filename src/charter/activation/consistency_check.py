@@ -1089,6 +1089,11 @@ def _resolve_full_drg(repo_root: Path) -> DRGGraph:
     cache when ``run_consistency_check`` has established one (#3808);
     otherwise loads directly -- unchanged standalone behavior for scan_*
     callers outside ``run_consistency_check``.
+
+    When the cache is active the ``repo_root`` argument is not re-read -- the
+    scope's DRG is returned. Safe because every gate in a ``_gate_resources_scope``
+    derives from one ``ctx`` (same ``repo_root``); revisit if a caller ever passes
+    a divergent ``repo_root`` into a scan while a scope is active.
     """
     resources = _GATE_RESOURCES.get()
     if resources is not None:
@@ -1103,6 +1108,10 @@ def _resolve_directives(repo_root: Path, pack_context: PackContext) -> Directive
     :class:`_GateResources` cache when established (#3808); otherwise builds
     directly -- unchanged standalone behavior for scan_* callers outside
     ``run_consistency_check``.
+
+    When the cache is active the ``repo_root``/``pack_context`` arguments are not
+    re-read -- the scope's directives are returned. Safe for the same one-``ctx``
+    reason as ``_resolve_full_drg``.
     """
     resources = _GATE_RESOURCES.get()
     if resources is not None:

@@ -4,7 +4,10 @@ The M2b split (mission ``charter-activation-split-01M16ZSE``, #3807) relocated
 the activation-side ``charter`` modules from ``src/charter/<mod>.py`` into
 ``src/charter/activation/<mod>.py``. Import statements are re-pointed and
 guarded by the sibling C-004 boundary gate
-(``test_charter_offering_does_not_import_activation.py``); this module closes
+(``test_charter_offering_does_not_import_activation.py``). It is also distinct
+from ``test_charter_path_literal_authority.py`` (which owns *which* current
+charter path literals are canonical/allowlisted -- the SSOT authority); this
+module instead closes
 the class of straggler an import-rewrite pass does not touch at all: a *string
 literal* that spells out the old dotted path or the old file path, never
 executed as an import and therefore invisible to any import-based scanner.
