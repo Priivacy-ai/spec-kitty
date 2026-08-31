@@ -26,7 +26,9 @@ from pathlib import Path
 
 import pytest
 
+from charter.activation._drg_helpers import load_validated_graph
 from charter.activation.context import build_charter_context_json
+from charter.offering.drg.query import resolve_context
 
 pytestmark = [pytest.mark.doctrine, pytest.mark.unit]
 
@@ -91,12 +93,12 @@ def test_plan_specify_tasks_retrospect_retain_003(tmp_path: Path) -> None:
     analogy (spec.md Edge Cases). This is a regression guard, not new
     behaviour this WP introduces.
     """
+    graph = load_validated_graph(tmp_path)
     for action in ("plan", "specify", "tasks", "retrospect"):
-        payload = build_charter_context_json(
-            tmp_path, action=action, mission_type="software-dev"
+        resolved = resolve_context(
+            graph, f"action:software-dev/{action}", depth=1
         )
-        ids = _delivered_directive_ids(payload)
-        assert _DIRECTIVE_003 in ids, (
+        assert "directive:DIRECTIVE_003" in resolved.artifact_urns, (
             f"DIRECTIVE_003 must remain scoped onto the retained '{action}' "
-            f"action; delivered directives were: {sorted(ids)}"
+            f"action; delivered artifacts were: {sorted(resolved.artifact_urns)}"
         )
