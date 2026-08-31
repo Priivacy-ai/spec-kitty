@@ -1,0 +1,16 @@
+{
+  "coordination_branch": "kitty/mission-expected-artifacts-loader-unification-01M1C9VQ",
+  "created_at": "2026-08-31T16:18:56.612768+00:00",
+  "flattened": false,
+  "friendly_name": "Unify expected-artifacts.yaml Loading + Close Org-Tier Fail-Loud Gap",
+  "mission_id": "01M1C9VQZ28CFRW741WRADS6SZ",
+  "mission_number": null,
+  "mission_slug": "expected-artifacts-loader-unification-01M1C9VQ",
+  "mission_type": "software-dev",
+  "pr_bound": true,
+  "purpose_context": "Four copies of the same manifest-loading logic have drifted apart, and a syntactically broken org-authored manifest still degrades to 'not found' — hiding a real misconfiguration. This mission routes every load through the one cached authority and makes a present-but-corrupt org manifest fail loud and distinct from an absent one (issues #3770 + #3412, epic #3410, milestone 3.2.6).",
+  "purpose_tldr": "One canonical loader for expected-artifacts manifests, and a corrupt org manifest fails loudly instead of silently vanishing.",
+  "slug": "expected-artifacts-loader-unification-01M1C9VQ",
+  "target_branch": "fix/expected-artifacts-loader-unification",
+  "topology": "coord"
+}
