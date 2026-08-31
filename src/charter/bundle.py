@@ -272,6 +272,12 @@ def validate_synthesis_state(repo_root: Path) -> BundleValidationResult:
        listed ``content_hash`` values against on-disk bytes.
     4. Stale ``.kittify/charter/.staging/<runid>.failed/`` directories produce
        a warning (not an error) — R-7 accumulation signal (quickstart §8).
+    5. No doubled-leaf artifact directories exist (``provenance/provenance/``,
+       ``doctrine/styleguide/styleguide/``, …) — #3819. Checks 1/2 above are
+       blind to this corruption: they key off ``Path.name`` after an
+       ``rglob`` walk, so a doubled copy with the same basename as its
+       correctly-placed sibling never trips a missing/orphaned-sidecar
+       error. See :func:`_check_no_doubled_leaf_paths`.
 
     Parameters
     ----------
@@ -290,6 +296,8 @@ def validate_synthesis_state(repo_root: Path) -> BundleValidationResult:
     doctrine_root = repo_root / DOCTRINE_DIR
     provenance_root = repo_root / PROVENANCE_DIR
     manifest_path = repo_root / SYNTHESIS_MANIFEST_PATH
+
+    _check_no_doubled_leaf_paths(repo_root, provenance_root, doctrine_root, result)
 
     artifact_files = _collect_artifact_files(doctrine_root) if doctrine_root.exists() else []
     provenance_files = sorted(provenance_root.glob("*.yaml")) if provenance_root.exists() else []
@@ -347,6 +355,45 @@ def _check_stale_failed_dirs(repo_root: Path, result: BundleValidationResult) ->
             result.warnings.append(
                 f"Stale failed staging directory found: {d.relative_to(repo_root)} "
                 "(inspect cause.yaml, then remove to suppress this warning)"
+            )
+
+
+#: Directory leaves a synthesis writer can double-append onto a base that
+#: already ends in that same leaf (#3819): ``provenance_root`` (the
+#: provenance sidecar tree) and each per-kind doctrine subdirectory.
+_DOUBLED_LEAF_BASES: tuple[str, ...] = ("directive", "tactic", "styleguide")
+
+
+def _check_no_doubled_leaf_paths(
+    repo_root: Path,
+    provenance_root: Path,
+    doctrine_root: Path,
+    result: BundleValidationResult,
+) -> None:
+    """Flag a doubled-leaf synthesis-writer defect (#3819).
+
+    A path-join defect can append a directory leaf onto a base that already
+    ends in that same leaf, producing byte-identical duplicates nested one
+    level too deep: ``.kittify/charter/provenance/provenance/<file>`` or
+    ``.kittify/doctrine/styleguide/styleguide/<file>``.
+    :func:`_check_artifacts_have_provenance` / :func:`_check_provenance_have_artifacts`
+    cannot catch this class of corruption — they key off ``Path.name`` after
+    an ``rglob`` walk, so a doubled copy sharing its correctly-placed
+    sibling's basename never trips a missing/orphaned-sidecar error. This
+    check inspects the directory structure directly instead.
+    """
+    candidates = [(provenance_root, "provenance")]
+    candidates.extend((doctrine_root / kind, kind) for kind in _DOUBLED_LEAF_BASES)
+
+    for base, leaf in candidates:
+        doubled_dir = base / leaf
+        if not doubled_dir.is_dir():
+            continue
+        for offender in sorted(p for p in doubled_dir.rglob("*") if p.is_file()):
+            result.errors.append(
+                "Doubled-leaf synthesis artifact detected: "
+                f"'{offender.relative_to(repo_root)}' — a path-join wrote into "
+                f"'{leaf}/{leaf}/' instead of the canonical '{leaf}/' (#3819)."
             )
 
 
