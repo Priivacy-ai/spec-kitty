@@ -6,6 +6,7 @@ from specify_cli.core.constants import KITTY_SPECS_DIR
 import logging
 import os
 import re
+from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
@@ -724,6 +725,37 @@ def read_target_branch_from_meta(feature_dir: Path) -> str | None:
     return str(value) if value else None
 
 
+def read_retention_from_meta(
+    primary_meta_dir: Path,
+) -> tuple[object | None, object | None]:
+    """Read raw ``retain_branches`` / ``retain_worktrees`` from meta.json.
+
+    Thin adapter over :func:`load_meta_fail_closed`, mirroring
+    :func:`read_target_branch_from_meta`. Values are returned RAW
+    (uncoerced) so :func:`resolve_merge_retention` can distinguish a real
+    JSON boolean from a malformed value (e.g. ``""``, ``0``, ``"true"``)
+    that must never be silently ``bool()``-coerced (fail-closed doctrine,
+    #3131 NFR-001).
+
+    Args:
+        primary_meta_dir: Mission directory (primary partition) containing
+            (or expected to contain) ``meta.json``.
+
+    Returns:
+        ``(retain_branches_raw, retain_worktrees_raw)``. Both are ``None``
+        when meta.json is absent or the field is absent.
+
+    Raises:
+        MissionMetaReadError: When meta.json exists but is corrupt or
+            unreadable. Callers MUST NOT silently swallow this — the error
+            must propagate so corruption is visible (fail-closed doctrine).
+    """
+    data = load_meta_fail_closed(primary_meta_dir)
+    if not data:
+        return None, None
+    return data.get("retain_branches"), data.get("retain_worktrees")
+
+
 def get_feature_target_branch(repo_root: Path, mission_slug: str) -> str:
     """Get target branch for a feature by reading meta.json directly.
 
@@ -849,6 +881,150 @@ def resolve_merge_target_branch(
             if value:  # non-null, non-empty
                 return str(value), "meta.json"
     return fallback, "primary_branch"
+
+
+@dataclass(frozen=True)
+class RetentionDecision:
+    """Effective post-merge cleanup decision (#3131).
+
+    Produced by :func:`resolve_merge_retention`, the single authority that
+    turns tri-state CLI flags plus mission ``meta.json`` retention policy
+    into the resolved cleanup decision consumed by the merge executor, the
+    dry-run forecast, and the abort path -- see
+    ``contracts/retention-resolver-contract.md``.
+
+    Attributes:
+        delete_branch: Whether lane/mission branches are deleted.
+        remove_worktree: Whether lane worktrees are removed.
+        teardown_coordination: Coupled coord decision -- ``delete_branch
+            AND remove_worktree`` (tear down coord topology only when
+            both resources are being cleaned up).
+        branch_source: Provenance of ``delete_branch`` -- one of ``"cli"``,
+            ``"meta"``, ``"default"``.
+        worktree_source: Provenance of ``remove_worktree`` -- one of
+            ``"cli"``, ``"meta"``, ``"default"``.
+        warnings: Operator-visible messages (retention honored, or a
+            malformed meta value was treated as retaining).
+        override_notices: Recorded notices when an explicit CLI delete
+            overrode a mission retention policy.
+    """
+
+    delete_branch: bool
+    remove_worktree: bool
+    teardown_coordination: bool
+    branch_source: str
+    worktree_source: str
+    warnings: tuple[str, ...]
+    override_notices: tuple[str, ...]
+
+
+def _resolve_one(
+    *, label: str, explicit: bool | None, raw_retain: object | None
+) -> tuple[bool, str, str | None, str | None]:
+    """Resolve one retention field: explicit CLI flag > meta.json > default.
+
+    Precedence per ``contracts/retention-resolver-contract.md`` (#3131):
+    an explicit CLI flag always wins; otherwise a real JSON ``True`` in
+    meta.json retains the resource (with a warning); a present-but-not-a
+    real-``bool`` meta value is ambiguous and is ALSO treated as retaining
+    (fail-closed -- ``isinstance(True, int)`` is ``True``, so this checks
+    ``isinstance(value, bool)`` explicitly and never falls back to
+    ``bool()`` coercion); absence or ``False`` falls through to the default
+    (delete/remove).
+
+    Args:
+        label: Human-readable resource name for messages (``"branches"`` or
+            ``"worktrees"``).
+        explicit: The tri-state CLI flag for this resource (``None`` means
+            the flag was not supplied).
+        raw_retain: The RAW ``retain_<label>`` value read from meta.json
+            (see :func:`read_retention_from_meta`).
+
+    Returns:
+        ``(effective, source, warning, override_notice)``. ``effective`` is
+        ``True`` when the resource should be deleted/removed. ``warning``
+        and ``override_notice`` are ``None`` when not applicable.
+    """
+    meta_is_malformed = raw_retain is not None and not isinstance(raw_retain, bool)
+    meta_retains = raw_retain is True or meta_is_malformed
+
+    if explicit is not None:
+        override = None
+        if explicit and meta_retains:
+            override = f"explicit delete overrode retention policy for {label}"
+        return explicit, "cli", None, override
+
+    if raw_retain is True:
+        warning = f"retention honored for {label} (source: meta.json)"
+        return False, "meta", warning, None
+
+    if meta_is_malformed:
+        warning = (
+            f"malformed retain_{label} value in meta.json ({raw_retain!r}); "
+            "treated as retaining (fail-closed)"
+        )
+        return False, "meta", warning, None
+
+    return True, "default", None, None
+
+
+def resolve_merge_retention(
+    primary_meta_dir: Path,
+    *,
+    explicit_delete_branch: bool | None,
+    explicit_remove_worktree: bool | None,
+) -> RetentionDecision:
+    """Resolve the effective post-merge cleanup decision (#3131).
+
+    Thin adapter over :func:`read_retention_from_meta`, mirroring the shape
+    of :func:`resolve_merge_target_branch`. The single authority shared by
+    the merge executor, the dry-run forecast, and the abort path so they
+    never disagree about what gets cleaned up.
+
+    Args:
+        primary_meta_dir: Mission directory (primary partition) containing
+            (or expected to contain) ``meta.json``.
+        explicit_delete_branch: Tri-state ``--delete-branch`` /
+            ``--keep-branch`` CLI resolution (``None`` = flag unset).
+        explicit_remove_worktree: Tri-state ``--remove-worktree`` /
+            ``--keep-worktree`` CLI resolution (``None`` = flag unset).
+
+    Returns:
+        The resolved :class:`RetentionDecision`.
+
+    Raises:
+        MissionMetaReadError: When meta.json exists but is corrupt or
+            unreadable. Callers MUST NOT silently swallow this -- the error
+            must propagate so corruption is visible (fail-closed doctrine);
+            the caller aborts the merge with a non-zero exit.
+    """
+    raw_branches, raw_worktrees = read_retention_from_meta(primary_meta_dir)
+
+    delete_branch, branch_source, branch_warning, branch_override = _resolve_one(
+        label="branches", explicit=explicit_delete_branch, raw_retain=raw_branches
+    )
+    remove_worktree, worktree_source, worktree_warning, worktree_override = (
+        _resolve_one(
+            label="worktrees",
+            explicit=explicit_remove_worktree,
+            raw_retain=raw_worktrees,
+        )
+    )
+
+    warnings = tuple(w for w in (branch_warning, worktree_warning) if w is not None)
+    override_notices = tuple(
+        n for n in (branch_override, worktree_override) if n is not None
+    )
+
+    return RetentionDecision(
+        delete_branch=delete_branch,
+        remove_worktree=remove_worktree,
+        teardown_coordination=delete_branch and remove_worktree,
+        branch_source=branch_source,
+        worktree_source=worktree_source,
+        warnings=warnings,
+        override_notices=override_notices,
+    )
 
 
 def require_explicit_feature(feature: str | None, *, command_hint: str = "") -> str:

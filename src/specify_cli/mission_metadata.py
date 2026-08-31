@@ -86,6 +86,8 @@ class MissionMetaOptional(TypedDict, total=False):
     source_description: str
     mission_branch: str
     change_mode: str
+    retain_branches: bool
+    retain_worktrees: bool
 
 
 # ---------------------------------------------------------------------------
