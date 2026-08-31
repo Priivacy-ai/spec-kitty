@@ -52,7 +52,7 @@ from kernel.clock import now_utc_iso
 logger = logging.getLogger(__name__)
 
 
-def _undelivered(event_type: str, payload: dict[str, Any] | None = None) -> dict[str, Any] | None:
+def _undelivered(event_type: str, _payload: dict[str, Any] | None = None) -> dict[str, Any] | None:
     """Drop an otherwise-valid dossier event envelope: no transport remains.
 
     The CLI→SaaS sync transport was deleted (Ephemeral Team Status redesign);
@@ -329,8 +329,6 @@ def emit_artifact_missing(
     mission_type: str | None = None,
     manifest_step: str | None = None,
     checked_at: str | None = None,
-    last_known_content_hash_sha256: str | None = None,
-    last_known_size_bytes: int | None = None,
     context_diagnostics: dict[str, str] | None = None,
     **kwargs: Any,
 ) -> dict[str, Any] | None:
@@ -342,8 +340,18 @@ def emit_artifact_missing(
     legacy = _consume_legacy_values(
         args,
         kwargs,
-        names=("reason_detail", "blocking"),
-        defaults={"reason_detail": None, "blocking": True},
+        names=(
+            "reason_detail",
+            "blocking",
+            "last_known_content_hash_sha256",
+            "last_known_size_bytes",
+        ),
+        defaults={
+            "reason_detail": None,
+            "blocking": True,
+            "last_known_content_hash_sha256": None,
+            "last_known_size_bytes": None,
+        },
     )
     reason_detail = _optional_str(legacy["reason_detail"])
     blocking = bool(legacy["blocking"])
@@ -508,8 +516,7 @@ def emit_parity_drift_detected(
             expected_hash=baseline_parity_hash,
             actual_hash=local_parity_hash,
             drift_kind=cast(
-                "Literal['artifact_added', 'artifact_removed', 'artifact_mutated', "
-                "'anomaly_introduced', 'anomaly_resolved', 'manifest_version_changed']",
+                "Literal['artifact_added', 'artifact_removed', 'artifact_mutated', 'anomaly_introduced', 'anomaly_resolved', 'manifest_version_changed']",
                 drift_kind or "anomaly_introduced",
             ),
             detected_at=detected_at or now_utc_iso(),
