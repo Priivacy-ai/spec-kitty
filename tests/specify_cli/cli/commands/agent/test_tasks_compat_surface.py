@@ -153,7 +153,10 @@ _TASKS_STATUS_CMD: tuple[str, ...] = (  # WP07 (wave2) — 23 symbols (#2816: +g
     "_render_stale_status",
 )
 
-_TASKS_MOVE_TASK: tuple[str, ...] = (  # WP05 (wave2); grown to 75 via WP09, +1 (_binding_role_for_lane) = 76, -1 (_mt_pre_review_gate_verdict retired, WP04) = 75
+# WP05 (wave2): grown to 75 via WP09, +1 (_binding_role_for_lane) = 76,
+# -1 (_mt_pre_review_gate_verdict retired, WP04) = 75, +1 (#2573 human
+# status observer) = 76.
+_TASKS_MOVE_TASK: tuple[str, ...] = (
     # (#2513/#2160: +uncheck/clear-markers/reset-rollback; #2573: +gate
     # skip-reason pair; WP07 #2649: +param-object + commit/uncheck degod helpers;
     # #2639: +complete-deferred-readiness + pre-review-dirty-paths;
@@ -242,6 +245,7 @@ _TASKS_MOVE_TASK: tuple[str, ...] = (  # WP05 (wave2); grown to 75 via WP09, +1 
     "_mt_resolve_transition_gate_verdicts",
     "_mt_dispatch_one_gate",
     "_mt_dispatch_transition_gates",
+    "_mt_human_gate_status_observer",
     "_mt_collect_transition_gate_verdicts",
     "_mt_resolve_transition_gate_inputs",
     "_mt_gate_representative",
@@ -434,7 +438,7 @@ def test_no_required_symbol_duplicated_in_survey() -> None:
     assert total_declared == len(SYMBOL_TO_MODULE)
 
 
-def test_guard_covers_full_161_symbol_surface() -> None:
+def test_guard_covers_full_162_symbol_surface() -> None:
     """Traceability pin: the guard's total symbol count matches the sum of
     the 6 seams' counts recorded in the seam files' own docstrings at
     authoring time (8 + 15 + 20 + 21 + 65 + 13 = 142). A change here is
@@ -528,5 +532,15 @@ def test_guard_covers_full_161_symbol_surface() -> None:
     162 -> 163. sync-transport deletion (issue #5) retired the two
     mark-status helpers whose only job was the deleted HistoryAdded /
     dossier-push emissions (_ms_emit_history, _ms_dossier_sync):
-    163 -> 161."""
-    assert len(SYMBOL_TO_MODULE) == 161  # golden-count: cardinality-is-contract
+    163 -> 161.
+    #2573 then added ``_mt_human_gate_status_observer`` as the presentation-only
+    status callback for the pre-review gate (tasks_move_task 75 -> 76):
+    161 -> 162."""
+    # TODO(under-investigation, operator-flagged): the operator doubts this
+    # consolidated compat guard earns its ROI. Every seam-local symbol addition
+    # costs a three-part edit — register in the per-seam tuple, add an identity
+    # re-export in tasks.py, AND bump this hardcoded cardinality — for arguably
+    # low incremental regression-catch value over the identity-re-export guard
+    # alone. Revisit whether the golden-count ratchet should be relaxed or
+    # dropped (see M4 #3578 integration, which paid this tax for 4 helpers).
+    assert len(SYMBOL_TO_MODULE) == 162  # golden-count: cardinality-is-contract
