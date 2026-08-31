@@ -52,6 +52,10 @@ from tests.mocked_env import setup_mocked_env
 
 pytestmark = [pytest.mark.integration, pytest.mark.git_repo]
 
+_VERDICT_SAVE_MEDIAN_QUARANTINE = pytest.mark.quarantine(
+    reason="spec-kitty#901: wall-clock median budget flakes under shared-runner xdist load; passes alone and on serial re-run"
+)
+
 _MISSION = "verdict-save-performance"
 _MISSION_ID = "01M0SBENCHMARK000000000000"
 _WP_ID = "WP01"
@@ -351,6 +355,7 @@ def test_uncontended_verdict_fixture_runs_the_real_durable_command(
 
 @pytest.mark.performance
 @pytest.mark.benchmark(group="review")
+@_VERDICT_SAVE_MEDIAN_QUARANTINE
 def test_uncontended_real_verdict_save_median_is_below_two_seconds(
     tmp_path: Path,
     capsys: pytest.CaptureFixture[str],
