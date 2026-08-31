@@ -53,7 +53,11 @@ from specify_cli.coordination.surface_resolver import (
 )
 from specify_cli.core.git_ops import has_remote, run_command
 from kernel.clock import now_utc_iso
-from specify_cli.core.paths import get_main_repo_root
+from specify_cli.core.paths import (
+    MissionMetaReadError,
+    get_main_repo_root,
+    resolve_merge_retention,
+)
 from specify_cli.git.bookkeeping_commit import (
     commit_coord_seed_bookkeeping,
     commit_merge_bookkeeping,
@@ -312,6 +316,19 @@ class _MergeRunState:
     # derivation contract). A genuinely-pre-existing-``done`` WP is excluded by
     # construction. Unused off the coord path.
     pre_target_done_write_set: list[str] = field(default_factory=list)
+
+    # #3131 FR-004/INV-2: the COUPLED coord-topology teardown decision --
+    # ``resolve_merge_retention(...).teardown_coordination`` (delete_branch AND
+    # remove_worktree). For a coord mission the coordination branch, its
+    # ``coordination_branch`` marker, and its worktree are ONE atomic unit
+    # (#3086 flatten-atomicity); this single flag gates all three together in
+    # ``_phase_cleanup_worktrees_and_branches`` instead of splitting them across
+    # the standalone ``delete_branch`` / ``remove_worktree`` gates, which could
+    # tear down the branch while stranding the worktree (or vice versa). Lives
+    # in the DEFAULTED region (not next to the required ``delete_branch`` /
+    # ``remove_worktree`` fields at ~303-304) so the pre-existing
+    # ``_MergeRunState`` construction sites that predate #3131 keep compiling.
+    teardown_coordination: bool = False
 
 
 def _phase_gates_and_state(run: _MergeRunState) -> None:
@@ -1409,6 +1426,127 @@ def _flatten_coordination_metadata_after_branch_delete(run: _MergeRunState) -> N
         )
 
 
+def _is_coord_topology_mission(run: _MergeRunState) -> bool:
+    """Detect coord topology via the same signal the flatten helper uses (#3131).
+
+    A ``coordination_branch`` key present in the (target) meta.json marks a
+    coordination-topology mission whose mission/coord branch, marker, and
+    worktree are ONE atomic unit (INV-2) — see
+    :func:`_flatten_coordination_metadata_after_branch_delete`, which early-
+    returns on this same absence. Reusing that exact signal (rather than
+    inventing a second detector) keeps the two functions from silently
+    disagreeing about what counts as "coord". Its absence means either the
+    mission is ``single_branch``/``lanes`` topology, or a prior partial run
+    already flattened it — either way the coupled gate below is inert and the
+    mission-branch deletion falls back to the plain ``delete_branch`` gate
+    (no behavior change, #3131 T008).
+    """
+    from specify_cli.mission_metadata import load_meta_or_empty
+
+    meta = load_meta_or_empty(run.target_feature_dir)
+    return "coordination_branch" in meta
+
+
+def _delete_mission_branch(run: _MergeRunState) -> None:
+    """Delete the mission/coordination branch from git, if it exists."""
+    lanes_manifest = run.lanes_manifest
+    ret, _, _ = run_command(
+        ["git", "rev-parse", "--verify", f"refs/heads/{lanes_manifest.mission_branch}"],
+        capture=True,
+        check_return=False,
+        cwd=run.main_repo,
+    )
+    if ret == 0:
+        run_command(
+            ["git", "branch", "-D", lanes_manifest.mission_branch],
+            cwd=run.main_repo,
+            check_return=False,
+        )
+    else:
+        logger.debug(
+            "Mission branch %s does not exist, skipping deletion",
+            lanes_manifest.mission_branch,
+        )
+
+
+def _teardown_coord_worktree(run: _MergeRunState) -> None:
+    """Coordination worktree teardown (WP07/FR-016/SC-10).
+
+    The shared ``teardown_coordination_topology`` seam (FR-004) persists the
+    retrospective to its durable home BEFORE destroying the worktree
+    (persist-before-destroy, FR-005), then performs the idempotent worktree
+    removal that safely no-ops for legacy missions that never created a
+    coordination worktree (FR-017, empty ``mid8``).
+    """
+    from specify_cli.coordination.teardown import teardown_coordination_topology
+    from specify_cli.core.paths import load_meta_fail_closed as _load_meta
+
+    # FR-007 route: ``route-unwrapped`` census site -- a corrupt meta.json
+    # surfaces the typed ``MissionMetaReadError`` (never a raw
+    # ``ValueError``) and PROPAGATES, exactly as the raw read did before.
+    _meta_for_teardown = _load_meta(run.feature_dir)
+    _mid8_for_teardown = (
+        str(_meta_for_teardown.get("mid8", "")).strip()
+        if isinstance(_meta_for_teardown, dict)
+        else ""
+    )
+    teardown_coordination_topology(
+        run.main_repo,
+        run.mission_slug,
+        _mid8_for_teardown,
+    )
+    logger.debug(
+        "Coordination topology teardown for %s-%s completed",
+        run.mission_slug,
+        _mid8_for_teardown,
+    )
+
+
+def _teardown_coordination_triple(run: _MergeRunState) -> None:
+    """Coord branch + marker-flatten + coord-worktree -- ONE atomic unit.
+
+    #3131 INV-2 / T008: for a coord-topology mission these three resources
+    must always be mutually consistent (all retained, or all torn down
+    together) -- never a branch deleted while its marker/worktree survive
+    (or vice versa), which reintroduces #3086 or strands a coord husk. Called
+    only when ``run.teardown_coordination`` (``delete_branch AND
+    remove_worktree``) is True.
+    """
+    _delete_mission_branch(run)
+    _flatten_coordination_metadata_after_branch_delete(run)
+    _teardown_coord_worktree(run)
+
+
+def _cleanup_mission_branch_and_coordination(run: _MergeRunState) -> None:
+    """Topology-aware mission/coordination cleanup (#3131 T008).
+
+    A coord-topology mission couples its mission/coordination branch, marker,
+    and worktree under the single ``teardown_coordination`` decision (INV-2)
+    so a partial-retention request (only ``delete_branch`` or only
+    ``remove_worktree``) never half-tears the coord triple. A non-coord
+    mission (``single_branch``/``lanes``) has no coordination branch/marker/
+    worktree, so its mission-branch deletion stays on the plain
+    ``delete_branch`` gate exactly as before this change (no behavior
+    change) -- and the (harmless, no-op) flatten + coord-worktree-teardown
+    calls stay wired to their original standalone gates too.
+    """
+    if _is_coord_topology_mission(run):
+        if run.teardown_coordination:
+            _teardown_coordination_triple(run)
+            console.print("  Cleaned up mission/coordination branch + worktree")
+        return
+
+    if run.delete_branch:
+        _delete_mission_branch(run)
+        # issue #3086: the coordination branch is now gone from git; flatten the
+        # mission's meta.json in the SAME gate so we can never delete the branch
+        # yet strand the paired ``coordination_branch`` marker. A no-op here
+        # (non-coord mission carries no ``coordination_branch`` key).
+        _flatten_coordination_metadata_after_branch_delete(run)
+    if run.remove_worktree:
+        _teardown_coord_worktree(run)
+
+
 def _phase_cleanup_worktrees_and_branches(run: _MergeRunState) -> None:
     """Worktree removal + lane/mission branch deletion + coordination teardown."""
     from specify_cli.lanes.branch_naming import lane_branch_name, worktree_dir_name, worktree_path
@@ -1453,7 +1591,11 @@ def _phase_cleanup_worktrees_and_branches(run: _MergeRunState) -> None:
             workspace_name = worktree_dir_name(run.mission_slug, mission_id=None, lane_id=lane.lane_id)
             delete_context(run.main_repo, workspace_name)
 
-    # -- T005: Branch deletion with retry tolerance --
+    # -- T005: LANE branch deletion with retry tolerance --
+    # #3131 T008: lane branches stay keyed to the plain ``delete_branch`` gate
+    # regardless of topology — only the MISSION/coordination branch (below) is
+    # topology-aware and coupled to ``teardown_coordination`` for a coord
+    # mission.
     if run.delete_branch:
         for lane in lanes_manifest.lanes:
             if is_planning_lane(lane):
@@ -1473,64 +1615,12 @@ def _phase_cleanup_worktrees_and_branches(run: _MergeRunState) -> None:
                 )
             else:
                 logger.debug("Branch %s does not exist, skipping deletion", branch_name)
+        console.print(f"  Cleaned up {len(lanes_manifest.lanes)} lane branch(es)")
 
-        ret, _, _ = run_command(
-            ["git", "rev-parse", "--verify", f"refs/heads/{lanes_manifest.mission_branch}"],
-            capture=True,
-            check_return=False,
-            cwd=run.main_repo,
-        )
-        if ret == 0:
-            run_command(
-                ["git", "branch", "-D", lanes_manifest.mission_branch],
-                cwd=run.main_repo,
-                check_return=False,
-            )
-        else:
-            logger.debug("Mission branch %s does not exist, skipping deletion", lanes_manifest.mission_branch)
-        console.print(f"  Cleaned up {len(lanes_manifest.lanes)} lane branch(es) + mission branch")
-
-        # issue #3086: the coordination branch is now gone from git; flatten the
-        # mission's meta.json in the SAME gate so we can never delete the branch
-        # yet strand the paired ``coordination_branch`` marker (the 100%-hit-rate
-        # ``CoordinationBranchDeleted`` crash on every later resolve). Decoupled
-        # from the ``remove_worktree`` gate below on purpose.
-        _flatten_coordination_metadata_after_branch_delete(run)
-
-    # -- WP07 / FR-016 / SC-10: Coordination worktree teardown --
-    #
-    # The shared ``teardown_coordination_topology`` seam (FR-004) persists the
-    # retrospective to its durable home BEFORE destroying the worktree
-    # (persist-before-destroy, FR-005), then performs the idempotent worktree
-    # removal that safely no-ops for legacy missions that never created a
-    # coordination worktree (FR-017). Without this seam, the coordination
-    # worktree is destroyed here while ``run_retrospective_postcondition`` fires
-    # only afterwards in the outer ``merge()`` — the merge-path destroy-before-
-    # persist ordering bug. Destroy stays best-effort inside the seam; persist
-    # runs OUTSIDE that swallow.
-    if run.remove_worktree:
-        from specify_cli.coordination.teardown import teardown_coordination_topology
-        from specify_cli.core.paths import load_meta_fail_closed as _load_meta
-
-        # FR-007 route: ``route-unwrapped`` census site -- a corrupt meta.json
-        # surfaces the typed ``MissionMetaReadError`` (never a raw
-        # ``ValueError``) and PROPAGATES, exactly as the raw read did before.
-        _meta_for_teardown = _load_meta(run.feature_dir)
-        _mid8_for_teardown = (
-            str(_meta_for_teardown.get("mid8", "")).strip()
-            if isinstance(_meta_for_teardown, dict)
-            else ""
-        )
-        teardown_coordination_topology(
-            run.main_repo,
-            run.mission_slug,
-            _mid8_for_teardown,
-        )
-        logger.debug(
-            "Coordination topology teardown for %s-%s completed",
-            run.mission_slug,
-            _mid8_for_teardown,
-        )
+    # -- #3131 T008: MISSION/coordination branch + marker + worktree --
+    # Topology-aware and (for coord) coupled under ``teardown_coordination``;
+    # see ``_cleanup_mission_branch_and_coordination`` for the INV-2 rationale.
+    _cleanup_mission_branch_and_coordination(run)
 
 
 def _phase_finalize_and_summary(run: _MergeRunState) -> None:
@@ -1582,6 +1672,7 @@ def _run_lane_based_merge_locked(
     push: bool,
     delete_branch: bool,
     remove_worktree: bool,
+    teardown_coordination: bool = False,
     strategy: MergeStrategy = MergeStrategy.SQUASH,
     assume_yes: bool = False,
     skip_review_artifact_check: bool = False,
@@ -1658,6 +1749,7 @@ def _run_lane_based_merge_locked(
         push=push,
         delete_branch=delete_branch,
         remove_worktree=remove_worktree,
+        teardown_coordination=teardown_coordination,
         strategy=strategy,
         assume_yes=assume_yes,
         planning_artifact_only=planning_artifact_only,
@@ -1693,8 +1785,8 @@ def _run_lane_based_merge(
     mission_slug: str,
     *,
     push: bool,
-    delete_branch: bool,
-    remove_worktree: bool,
+    delete_branch: bool | None,
+    remove_worktree: bool | None,
     target_override: str | None = None,
     strategy: MergeStrategy = MergeStrategy.SQUASH,
     allow_sparse_checkout: bool = False,
@@ -1708,8 +1800,16 @@ def _run_lane_based_merge(
         repo_root: Repository root.
         mission_slug: Feature slug.
         push: Push to origin after merge.
-        delete_branch: Delete lane branches after merge.
-        remove_worktree: Remove lane worktrees after merge.
+        delete_branch: Tri-state ``--delete-branch``/``--keep-branch`` CLI
+            resolution (#3131). ``None`` means the operator did not pass
+            either flag, in which case :func:`~specify_cli.core.paths.resolve_merge_retention`
+            resolves the effective decision from the mission's ``meta.json``
+            retention policy (falling back to the historical default —
+            delete — when no policy is recorded). An explicit ``True``/
+            ``False`` always wins over the mission's policy (with a recorded
+            override notice when it overrides a retaining policy).
+        remove_worktree: Tri-state ``--remove-worktree``/``--keep-worktree``
+            CLI resolution; same resolution rule as ``delete_branch``.
         target_override: Override target branch.
         strategy: Merge strategy for the mission→target step (FR-005, FR-006).
             Lane→mission step always uses merge commits regardless of this value.
@@ -1780,6 +1880,28 @@ def _run_lane_based_merge(
     canonical_mission_id = identity.mission_id
     canonical_id = identity.mission_id if identity.mission_id is not None else mission_slug
 
+    # -- #3131 T007: resolve the retention decision ONCE, off primary_meta_dir --
+    # (NOT the locked driver's coord STATUS husk — the partition trap). Emitted
+    # operator-visibly (FR-005/FR-006); a corrupt meta.json aborts the merge
+    # with a clean error, mirroring ``resolve_merge_target_branch`` handling.
+    try:
+        retention = resolve_merge_retention(
+            primary_meta_dir,
+            explicit_delete_branch=delete_branch,
+            explicit_remove_worktree=remove_worktree,
+        )
+    except MissionMetaReadError as exc:
+        console.print(
+            "[red]Error:[/red] Cannot resolve the merge retention policy: "
+            f"{exc}. meta.json exists but is corrupt or unreadable; fix it "
+            "before merging."
+        )
+        raise typer.Exit(1) from exc
+    for warning in retention.warnings:
+        console.print(f"[yellow]Warning:[/yellow] {warning}")
+    for notice in retention.override_notices:
+        console.print(f"[yellow]Notice:[/yellow] {notice}")
+
     effective_push = _effective_push_requested(main_repo, canonical_id, push)
     if effective_push:
         _enforce_target_branch_sync_preflight(
@@ -1827,8 +1949,9 @@ def _run_lane_based_merge(
             feature_dir=feature_dir,
             lanes_manifest=lanes_manifest,
             push=effective_push,
-            delete_branch=delete_branch,
-            remove_worktree=remove_worktree,
+            delete_branch=retention.delete_branch,
+            remove_worktree=retention.remove_worktree,
+            teardown_coordination=retention.teardown_coordination,
             strategy=strategy,
             assume_yes=assume_yes,
             skip_review_artifact_check=skip_review_artifact_check,

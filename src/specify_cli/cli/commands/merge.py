@@ -66,7 +66,11 @@ from specify_cli import __version__ as SPEC_KITTY_VERSION
 from specify_cli.cli.console import console
 from specify_cli.cli.helpers import show_banner
 from specify_cli.core.context_validation import require_main_repo
-from specify_cli.core.paths import MissionMetaReadError, get_main_repo_root
+from specify_cli.core.paths import (
+    MissionMetaReadError,
+    get_main_repo_root,
+    resolve_merge_retention,
+)
 from specify_cli.git.sparse_checkout import (
     SparseCheckoutPreflightError,
 )
@@ -263,11 +267,22 @@ def _teardown_coordination_for_abort(
     resolvable slug), but the actual teardown routes through the shared
     ``teardown_coordination_topology`` seam (FR-004) OUTSIDE that swallow so the
     persist-before-destroy leg (FR-005) is not masked as "best-effort cleanup".
+
+    #3131 FR-012/T009: an ``--abort`` has no ``--keep-worktree`` flag of its
+    own, so the mission's ``meta.json`` retention policy is the ONLY signal —
+    resolved with both explicit flags unset (``None``). When the policy
+    requests worktree retention, the destroy leg is skipped entirely (INV-1:
+    no silent deletion) and a notice is printed. A corrupt ``meta.json`` here
+    falls through the same best-effort slug/meta swallow as everything else in
+    this resolution block (an abort must not itself crash on unreadable meta);
+    the practical effect is fail-closed anyway — an unresolved policy means the
+    destroy leg is skipped, never that it proceeds.
     """
     from specify_cli.coordination.teardown import teardown_coordination_topology
     from specify_cli.core.paths import load_meta_fail_closed as _load_meta
 
     abort_teardown_args: tuple[Path, str, str] | None = None
+    retain_worktree = False
     try:
         main_for_abort = get_main_repo_root(repo_root)
         coord_slug = resolved
@@ -286,16 +301,31 @@ def _teardown_coordination_for_abort(
         )
         meta = _load_meta(feature_dir)
         mid8 = str(meta.get("mid8", "")).strip() if isinstance(meta, dict) else ""
+        retention = resolve_merge_retention(
+            feature_dir,
+            explicit_delete_branch=None,
+            explicit_remove_worktree=None,
+        )
+        for warning in retention.warnings:
+            console.print(f"[yellow]Warning:[/yellow] {warning}")
+        retain_worktree = not retention.remove_worktree
         abort_teardown_args = (main_for_abort, coord_slug, mid8)
-    except Exception as exc:  # noqa: BLE001 — slug resolution is best-effort
+    except Exception as exc:  # noqa: BLE001 — slug/meta resolution is best-effort
         logger.debug(
             "Coordination teardown during --abort skipped (unresolved slug/meta): %s",
             exc,
         )
 
-    if abort_teardown_args is not None:
-        # Persist-before-destroy runs OUTSIDE the resolution swallow.
-        teardown_coordination_topology(*abort_teardown_args)
+    if abort_teardown_args is None:
+        return
+    if retain_worktree:
+        console.print(
+            "[yellow]Notice:[/yellow] retention honored for worktrees "
+            "(source: meta.json) — coordination worktree kept during abort."
+        )
+        return
+    # Persist-before-destroy runs OUTSIDE the resolution swallow.
+    teardown_coordination_topology(*abort_teardown_args)
 
 
 def _dispatch_abort(repo_root: Path, mission: str | None) -> None:
@@ -435,8 +465,8 @@ def _run_real_merge(
     resolved_mission: str,
     resolved_target_branch: str,
     resolved_strategy: MergeStrategy,
-    delete_branch: bool,
-    remove_worktree: bool,
+    delete_branch: bool | None,
+    remove_worktree: bool | None,
     push: bool,
     allow_sparse_checkout: bool,
     yes: bool,
@@ -491,8 +521,26 @@ def merge(
         "--strategy",
         help="Strategy for the branch-integration step (git merge of mission\u2192target): merge | squash | rebase. Default: squash.",
     ),
-    delete_branch: bool | None = typer.Option(None, "--delete-branch/--keep-branch", help="Delete lane branches after merge"),
-    remove_worktree: bool | None = typer.Option(None, "--remove-worktree/--keep-worktree", help="Remove lane worktrees after merge"),
+    delete_branch: bool | None = typer.Option(
+        None,
+        "--delete-branch/--keep-branch",
+        help=(
+            "Delete lane branches after merge. Unset (the default) defers to the "
+            "mission's meta.json retention policy (#3131), falling back to "
+            "delete when no policy is recorded. Passing either flag explicitly "
+            "always wins over the mission's policy."
+        ),
+    ),
+    remove_worktree: bool | None = typer.Option(
+        None,
+        "--remove-worktree/--keep-worktree",
+        help=(
+            "Remove lane worktrees after merge. Unset (the default) defers to "
+            "the mission's meta.json retention policy (#3131), falling back to "
+            "remove when no policy is recorded. Passing either flag explicitly "
+            "always wins over the mission's policy."
+        ),
+    ),
     push: bool = typer.Option(False, "--push", help="Publish to origin after the local merge (the operator publish step; distinct from local lane consolidation)"),
     target_branch: str = typer.Option(None, "--target", help="Target branch for the branch-integration step (auto-detected)"),
     dry_run: bool = typer.Option(False, "--dry-run", help="Show what would be done without executing"),
@@ -625,9 +673,6 @@ def merge(
             json_output=json_output,
         )
 
-    effective_delete_branch = delete_branch if delete_branch is not None else True
-    effective_remove_worktree = remove_worktree if remove_worktree is not None else True
-
     if dry_run:
         # WP06 (#2057): the dry-run preview + payload build lives in the
         # ``forecast`` seam. Behavior + JSON key set preserved byte-for-byte
@@ -637,8 +682,8 @@ def merge(
             resolved_feature=resolved_mission,
             resolved_target_branch=resolved_target_branch,
             resolved_strategy=resolved_strategy,
-            delete_branch=effective_delete_branch,
-            remove_worktree=effective_remove_worktree,
+            delete_branch=delete_branch,
+            remove_worktree=remove_worktree,
             push=push,
             json_output=json_output,
         )
@@ -653,8 +698,8 @@ def merge(
         resolved_mission=resolved_mission,
         resolved_target_branch=resolved_target_branch,
         resolved_strategy=resolved_strategy,
-        delete_branch=effective_delete_branch,
-        remove_worktree=effective_remove_worktree,
+        delete_branch=delete_branch,
+        remove_worktree=remove_worktree,
         push=push,
         allow_sparse_checkout=allow_sparse_checkout,
         yes=yes,
