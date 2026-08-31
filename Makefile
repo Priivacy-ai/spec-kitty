@@ -42,21 +42,16 @@ test-fast: ## Run fast tier of the typical blast-radius dirs (target <2 min)
 	env -u FORCE_COLOR NO_COLOR=1 PWHEADLESS=1 uv run pytest $(FAST_TIER_DIRS) \
 	  -m "$(FAST_TIER_MARKERS)" -n auto --dist loadfile -p no:cacheprovider -q
 
-# GOAL.md requires make test-full green in <30 min on every repo's main.
-# Last confirmed: 792.70s (13m12s) total across all three passes below @
-# 26c07f66c (2026-08-27, sk-cirun-cli-26c07f66 — see the CI agent's baseline,
-# the programme planning repository's state/ci-baseline/spec-kitty.json) —
-# comfortably under budget, no further tiering/cutting needed right now
-# (#29). Re-measure via the CI agent's baseline, not a local run, if a
-# future change bloats the suite materially.
+# Keep make test-full green in under 30 minutes on main. Re-measure if a
+# future change materially bloats the suite.
 #
 # Each test-full pass writes its failure, if any, to this marker instead of
 # stopping the target: a red parallel pass must not skip the stress/timing
 # passes, or a CI round-trip diagnosing red main gets signal on only one of
-# the three families (planning#44). The final recipe line aggregates.
+# the three families. The final recipe line aggregates.
 TEST_FULL_STATUS := .test-full-status
 
-test-full: ## Run everything: one parallel pass + serial marker passes (CI agent's target)
+test-full: ## Run everything: one parallel pass + serial marker passes
 	@rm -f $(TEST_FULL_STATUS)
 	env -u FORCE_COLOR NO_COLOR=1 PWHEADLESS=1 uv run pytest tests/ \
 	  -m "$(PARALLEL_UNSAFE_MARKERS)" -n auto --dist loadfile -p no:cacheprovider -q || touch $(TEST_FULL_STATUS)
