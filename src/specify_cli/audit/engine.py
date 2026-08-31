@@ -23,6 +23,7 @@ from __future__ import annotations
 from specify_cli.core.constants import KITTY_SPECS_DIR
 from specify_cli.core.utils import safe_is_dir
 from collections import Counter
+import json
 from pathlib import Path
 from typing import Any
 
@@ -297,6 +298,56 @@ def _compute_repo_findings_by_slug(
     return attributed
 
 
+def _merge_checkout_disagreements(
+    mission_results: list[MissionAuditResult],
+    resolved_root: Path,
+    invoking_cwd: Path,
+    allowed_dirs: frozenset[Path] | None,
+) -> None:
+    """Fold invoking-checkout-vs-primary disagreement into per-mission findings.
+
+    From a foreign lane worktree, reading only ``resolved_root`` (the
+    re-anchored primary) at both ends would report a false green even when
+    the invoking checkout's own mission state disagrees with it.
+    ``audit_invocation_disagreement`` (``migration.mission_state``'s
+    ``--audit`` counterpart of ``enforce_primary_write_ownership``'s
+    ``--fix`` refusal) is itself a no-op unless ``invoking_cwd`` really is a
+    linked worktree of ``resolved_root``, so calling it from an owner
+    invocation (the common case) never adds a finding.
+
+    ``allowed_dirs`` is the already-resolved ``--mission`` scoping from
+    :func:`_resolve_mission_filter` (a slug-named directory, or ``None`` for
+    "scan everything") — never the raw ``--mission`` handle, which may be a
+    ``mission_id``/``mid8`` that would never string-match a directory slug in
+    ``_compare_checkout_mission_state``.
+    """
+    from specify_cli.migration.mission_state import audit_invocation_disagreement
+
+    from .models import Severity
+
+    mission_slug = next(iter(allowed_dirs)).name if allowed_dirs else None
+    disagreements = audit_invocation_disagreement(
+        invoking_cwd, resolved_root, mission=mission_slug
+    )
+    if not disagreements:
+        return
+
+    by_slug = {r.mission_slug: r for r in mission_results}
+    for disagreement in disagreements:
+        result = by_slug.get(disagreement.mission_slug)
+        if result is None:
+            continue
+        result.findings.append(
+            MissionFinding(
+                code="CHECKOUT_DISAGREEMENT",
+                severity=Severity.ERROR,
+                artifact_path=disagreement.artifact,
+                detail=json.dumps(disagreement.to_dict(), sort_keys=True),
+            )
+        )
+        result.findings.sort(key=lambda f: (f.artifact_path, f.code))
+
+
 def _slug_to_finding_severity(code: str) -> Any:
     """Return the severity for a repo-level finding code."""
     from .models import Severity
@@ -470,6 +521,13 @@ def run_audit(options: AuditOptions) -> RepoAuditReport:
             if slug in by_slug:
                 by_slug[slug].findings.extend(findings)
                 by_slug[slug].findings.sort(key=lambda f: (f.artifact_path, f.code))
+
+    # Invoking-checkout-vs-primary disagreement (no-op unless invoking_cwd
+    # is set and really is a linked worktree of repo_root).
+    if options.invoking_cwd is not None:
+        _merge_checkout_disagreements(
+            mission_results, options.repo_root, options.invoking_cwd, allowed_dirs
+        )
 
     # Build and return the final report
     return _build_report(mission_results)
