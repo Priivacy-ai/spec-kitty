@@ -310,8 +310,13 @@ FLOOR_MARGIN = 2
 # against the corrected 144 (``floor == live - 3``; band
 # ``live - MARGIN(4) <= floor < live`` holds: 140 <= 141 < 144), strictly
 # satisfying the anti-vacuity check (same convention as the entries above).
+# RAISED 2026-08-28 (#3712 landing / #3773): the verdict-durability fix added
+# one routed ``load_meta_fail_closed(identity.feature_dir)`` call site (the
+# committed-annotation path for stored ``LANES`` missions). Live rises
+# 142 -> 143 on this convergence base; floor raised 141 -> 142, staying within
+# the four-site margin (``139 <= 142 < 143``).
 ROUTED_LOAD_META_FLOOR_MARGIN = 4
-ROUTED_LOAD_META_FLOOR = 141
+ROUTED_LOAD_META_FLOOR = 142
 
 
 # --------------------------------------------------------------------------- #

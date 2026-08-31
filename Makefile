@@ -1,6 +1,6 @@
 .DEFAULT_GOAL := help
 
-.PHONY: help dev-setup lint format-check typecheck test-fast test-full
+.PHONY: help dev-setup lint format-check typecheck test-fast test-full convergence-census
 
 help: ## Show available targets
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | \
@@ -19,6 +19,10 @@ lint: ## Run ruff linter
 # runs this target locally (#558).
 format-check: ## Run ruff formatter check on the whole repo (issue #473's gate)
 	uv run ruff format --check .
+
+convergence-census: ## Fetch upstream and report convergence dispositions
+	git fetch old
+	uv run python scripts/convergence/census_status.py
 
 typecheck: ## Run targeted mypy strict type checking
 	uv run mypy --strict src/specify_cli/runtime/agent_commands.py

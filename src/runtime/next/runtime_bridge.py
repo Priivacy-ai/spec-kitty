@@ -197,6 +197,7 @@ KITTIFY_DIR = ".kittify"
 # MISSION_RUNTIME_YAML / MISSION_YAML moved to runtime_bridge_io.py (T017 —
 # their only residual users, the discovery cluster, moved with them).
 
+
 class DecisionGitLogUnavailable(RuntimeError):
     """Decision audit logging cannot be made durable for a modern mission."""
 
@@ -267,9 +268,7 @@ def _mission_routes_through_coordination(
     # state, before any coord probe (read-side-seam-primary-primitive-closure-
     # 01KYKMMT WP07, T032 — FR-004/FR-015).
     if effective_root is None:
-        feature_dir = placement_seam(repo_root, mission_slug).read_dir(
-            MissionArtifactKind.PRIMARY_METADATA
-        )
+        feature_dir = placement_seam(repo_root, mission_slug).read_dir(MissionArtifactKind.PRIMARY_METADATA)
     else:
         from mission_runtime import mission_context_for
 
@@ -278,9 +277,7 @@ def _mission_routes_through_coordination(
             mission_slug,
             effective_root=effective_root,
         )
-        feature_dir = mission_context.artifact(
-            MissionArtifactKind.PRIMARY_METADATA
-        ).read_dir
+        feature_dir = mission_context.artifact(MissionArtifactKind.PRIMARY_METADATA).read_dir
     try:
         topology = read_topology(feature_dir)
     except (FileNotFoundError, ValueError, OSError, MissionMetaReadError):
@@ -302,9 +299,7 @@ def _wrap_with_decision_git_log(
     blocked.
     """
     if effective_root is None:
-        coord_routing_topology = _mission_routes_through_coordination(
-            mission_slug, repo_root
-        )
+        coord_routing_topology = _mission_routes_through_coordination(mission_slug, repo_root)
     else:
         coord_routing_topology = _mission_routes_through_coordination(
             mission_slug,
@@ -327,12 +322,8 @@ def _wrap_with_decision_git_log(
                 mission_slug,
                 effective_root=effective_root,
             )
-            coordination_branch = mission_context.artifact(
-                MissionArtifactKind.STATUS_STATE
-            ).commit_target.ref
-            primary_metadata_dir = mission_context.artifact(
-                MissionArtifactKind.PRIMARY_METADATA
-            ).read_dir
+            coordination_branch = mission_context.artifact(MissionArtifactKind.STATUS_STATE).commit_target.ref
+            primary_metadata_dir = mission_context.artifact(MissionArtifactKind.PRIMARY_METADATA).read_dir
             mission_id = resolve_mission_identity(primary_metadata_dir).mission_id
 
         # T019 (#2531 WP05): mid8 derivation + the fail-closed mid8-required
@@ -365,9 +356,7 @@ def _wrap_with_decision_git_log(
             if worktree_root_candidate.exists():
                 worktree_root = worktree_root_candidate
             elif effective_root is None:
-                worktree_root = CoordinationWorkspace.resolve(
-                    repo_root, mission_slug, _mid8
-                )
+                worktree_root = CoordinationWorkspace.resolve(repo_root, mission_slug, _mid8)
             else:
                 worktree_root = _resolve_owned_coordination_workspace(
                     CoordinationWorkspace,
@@ -398,8 +387,7 @@ def _wrap_with_decision_git_log(
                 "without durable decision evidence."
             ) from exc
         logger.warning(
-            "DecisionGitLog construction failed for mission %s; "
-            "falling back to plain emitter.",
+            "DecisionGitLog construction failed for mission %s; falling back to plain emitter.",
             mission_slug,
             exc_info=True,
         )
@@ -426,9 +414,7 @@ def _resolve_owned_coordination_workspace(
     attempts = 20
     for attempt in range(attempts):
         try:
-            resolved: Path = workspace_type.resolve(
-                repo_root, mission_slug, mid8
-            )
+            resolved: Path = workspace_type.resolve(repo_root, mission_slug, mid8)
             return resolved
         except subprocess.CalledProcessError as exc:
             if not _is_transient_git_worktree_contention(exc):
@@ -445,19 +431,9 @@ def _is_transient_git_worktree_contention(
     """Recognize only Git's shared lock-contention diagnostics."""
     if getattr(exc, "returncode", None) != 128:
         return False
-    output = "\n".join(
-        str(value)
-        for value in (getattr(exc, "stderr", ""), getattr(exc, "stdout", ""))
-        if value
-    ).casefold()
-    lock_exists = "file exists" in output and (
-        "config.lock" in output or ("unable to create" in output and ".lock" in output)
-    )
-    return lock_exists or (
-        "could not lock config file" in output and "file exists" in output
-    ) or (
-        "another git process" in output and "lock" in output
-    )
+    output = "\n".join(str(value) for value in (getattr(exc, "stderr", ""), getattr(exc, "stdout", "")) if value).casefold()
+    lock_exists = "file exists" in output and ("config.lock" in output or ("unable to create" in output and ".lock" in output))
+    return lock_exists or ("could not lock config file" in output and "file exists" in output) or ("another git process" in output and "lock" in output)
 
 
 # FR-001 / C-IC02: the typed read-path codes whose fidelity MUST be preserved
@@ -499,10 +475,7 @@ class MissionNotFoundError(Exception):
 
     def __init__(self, handle: str, next_step: str | None = None) -> None:
         self.handle = handle
-        self.next_step = next_step or (
-            "Run 'spec-kitty mission list' to see available missions, then "
-            f"re-run with a valid handle (attempted: '{handle}')."
-        )
+        self.next_step = next_step or (f"Run 'spec-kitty mission list' to see available missions, then re-run with a valid handle (attempted: '{handle}').")
         super().__init__(f"Mission not found: '{handle}'")
 
 
@@ -542,8 +515,7 @@ def _parse_requirement_refs_from_tasks_md(tasks_content: str) -> dict[str, list[
     intra-seam-call trap research.md §Compat documents for
     ``_primary_runtime_feature_dir``)."""
     return {
-        wp_id: _cores._collect_requirement_refs_for_section(section_content)
-        for wp_id, section_content in _parse_wp_sections_from_tasks_md(tasks_content).items()
+        wp_id: _cores._collect_requirement_refs_for_section(section_content) for wp_id, section_content in _parse_wp_sections_from_tasks_md(tasks_content).items()
     }
 
 
@@ -579,9 +551,7 @@ def _build_retrospective_facilitator_callback(
 ) -> Any:
     """Thin compat delegate — forwards to
     :func:`runtime_bridge_retrospective._build_retrospective_facilitator_callback`."""
-    return _retrospective_seam._build_retrospective_facilitator_callback(
-        mission_slug, repo_root, provenance_kind
-    )
+    return _retrospective_seam._build_retrospective_facilitator_callback(mission_slug, repo_root, provenance_kind)
 
 
 def _resolve_retrospective_policy_for_runtime(
@@ -664,9 +634,7 @@ def _build_run_ref(*, run_id: str, run_dir: str, mission_type: str) -> MissionRu
     Passes this module's own ``MissionRunRef`` binding through explicitly
     (rather than letting the io module close over its own import) so tests
     that monkeypatch ``runtime_bridge.MissionRunRef`` observe the substitution."""
-    return _io_seam._build_run_ref(
-        run_id=run_id, run_dir=run_dir, mission_type=mission_type, run_ref_cls=MissionRunRef
-    )
+    return _io_seam._build_run_ref(run_id=run_id, run_dir=run_dir, mission_type=mission_type, run_ref_cls=MissionRunRef)
 
 
 # ---------------------------------------------------------------------------
@@ -764,10 +732,7 @@ def _wp_blocks_step(step_id: str, state: Any) -> bool:
         # (for_review or approved) or completed (done/canceled).
         # is_run_affecting is True for all active lanes; we further restrict
         # to only allow advancement for the "handed off" active lanes.
-        return (
-            state.is_blocked
-            or (state.is_run_affecting and lane not in (Lane.FOR_REVIEW, Lane.APPROVED))
-        )
+        return state.is_blocked or (state.is_run_affecting and lane not in (Lane.FOR_REVIEW, Lane.APPROVED))
     if step_id == "review":
         return lane not in (Lane.DONE, Lane.APPROVED)
     return False
@@ -799,13 +764,9 @@ def _check_cli_guards(step_id: str, feature_dir: Path, *, mission_family: str | 
     Returns list of failure descriptions; empty list means all guards pass.
     """
     mission_family = mission_family if mission_family is not None else get_mission_type(feature_dir)
-    snapshot = _io_seam.gather_artifact_presence(
-        feature_dir, mission_family=mission_family, step_id=step_id
-    )
+    snapshot = _io_seam.gather_artifact_presence(feature_dir, mission_family=mission_family, step_id=step_id)
     if step_id in ("implement", "review"):
-        snapshot = dataclasses.replace(
-            snapshot, wp_advance_ready=_should_advance_wp_step(step_id, feature_dir)
-        )
+        snapshot = dataclasses.replace(snapshot, wp_advance_ready=_should_advance_wp_step(step_id, feature_dir))
     return _cores.evaluate_guards_strict(snapshot)
 
 
@@ -1047,9 +1008,7 @@ def _should_dispatch_via_composition(
     (FR-008 selection seam; FR-012 compat surface, #2531 WP08). See the seam
     module's docstring for the full order-critical charter-lookup /
     custom-widening contract."""
-    return _composition._should_dispatch_via_composition(
-        mission, step_id, run_dir=run_dir, repo_root=repo_root
-    )
+    return _composition._should_dispatch_via_composition(mission, step_id, run_dir=run_dir, repo_root=repo_root)
 
 
 def _resolve_step_agent_profile(run_dir: Path, step_id: str) -> str | None:
@@ -1070,9 +1029,7 @@ def _resolve_runtime_contract_for_step(
     :func:`runtime_bridge_composition._resolve_runtime_contract_for_step`
     (identity-only compat surface — GUARD_B_ONLY_IMPORT_SURFACE in
     contracts/compat-surface.md; #2531 WP08)."""
-    return _composition._resolve_runtime_contract_for_step(
-        repo_root=repo_root, run_dir=run_dir, mission=mission, step_id=step_id
-    )
+    return _composition._resolve_runtime_contract_for_step(repo_root=repo_root, run_dir=run_dir, mission=mission, step_id=step_id)
 
 
 def _count_source_documented_events(feature_dir: Path) -> int:
@@ -1100,9 +1057,7 @@ def _check_composed_action_guard(
     :func:`runtime_bridge_composition._check_composed_action_guard`
     (FR-012 compat surface, #2531 WP08). See the seam module's docstring for
     the full guard-branch-family / legacy-vs-composition-only contract."""
-    return _composition._check_composed_action_guard(
-        action, feature_dir, mission=mission, legacy_step_id=legacy_step_id
-    )
+    return _composition._check_composed_action_guard(action, feature_dir, mission=mission, legacy_step_id=legacy_step_id)
 
 
 def _dispatch_via_composition(
@@ -1241,9 +1196,7 @@ def get_or_start_run(
     Run mapping stored in .kittify/runtime/feature-runs.json:
     { "042-test-feature": { "run_id": "abc", "run_dir": "..." } }
     """
-    return _io_seam.get_or_start_run(
-        mission_slug, repo_root, mission_type, emitter=emitter
-    )
+    return _io_seam.get_or_start_run(mission_slug, repo_root, mission_type, emitter=emitter)
 
 
 # ---------------------------------------------------------------------------
@@ -1252,17 +1205,13 @@ def get_or_start_run(
 # ---------------------------------------------------------------------------
 
 
-def _resolve_run_dir_for_mission(
-    repo_root: Path, mission_slug: str
-) -> Path | None:
+def _resolve_run_dir_for_mission(repo_root: Path, mission_slug: str) -> Path | None:
     """Thin compat delegate — forwards to
     :func:`runtime_bridge_io._resolve_run_dir_for_mission`."""
     return _io_seam._resolve_run_dir_for_mission(repo_root, mission_slug)
 
 
-def _resolve_tech_stack_for_profile(
-    repo_root: Path, profile_id: str | None
-) -> frozenset[str]:
+def _resolve_tech_stack_for_profile(repo_root: Path, profile_id: str | None) -> frozenset[str]:
     """Thin compat delegate — forwards to
     :func:`runtime_bridge_io._resolve_tech_stack_for_profile`."""
     return _io_seam._resolve_tech_stack_for_profile(repo_root, profile_id)
@@ -1383,6 +1332,27 @@ def _materialize_decision(
     return _cores.step_or_blocked(envelope, guard_failures, prompt_exists=_prompt_exists)
 
 
+def _primary_mission_is_completed(primary_metadata_dir: Path) -> bool:
+    """Return whether the PRIMARY checkout proves the mission is MERGED.
+
+    Deliberately gated on the merge marker alone (squad pass 1 on PR #845):
+    ``is_mission_completed`` is also True for an unmerged mission whose WPs are
+    all terminal, and short-circuiting there skips the final advance that
+    appends ``MissionRunCompleted`` and runs the retrospective completion gate.
+    Fail-closed and non-raising: a corrupt primary ``meta.json``
+    (``MissionMetaReadError``) reads as not-merged.
+    """
+    from specify_cli.core.paths import MissionMetaReadError
+    from specify_cli.status import StoreError, is_mission_merged
+
+    if not (primary_metadata_dir / "meta.json").is_file():
+        return False
+    try:
+        return bool(is_mission_merged(primary_metadata_dir))
+    except (StoreError, MissionMetaReadError):
+        return False
+
+
 @dataclasses.dataclass(frozen=True)
 class DecideNextContext:
     """Frozen value carrier threading ``decide_next_via_runtime``'s shared
@@ -1433,7 +1403,7 @@ def _dn_bootstrap(
     """
     if effective_root is None:
         feature_dir = _resolve_runtime_feature_dir(repo_root, mission_slug)
-        primary_metadata_dir: Path | None = None
+        primary_metadata_dir: Path | None = _primary_runtime_feature_dir(repo_root, mission_slug)
     else:
         from mission_runtime import MissionArtifactKind, mission_context_for
 
@@ -1442,15 +1412,9 @@ def _dn_bootstrap(
             mission_slug,
             effective_root=effective_root,
         )
-        status_dir = mission_context.artifact(
-            MissionArtifactKind.STATUS_STATE
-        ).read_dir
-        primary_metadata_dir = mission_context.artifact(
-            MissionArtifactKind.PRIMARY_METADATA
-        ).read_dir
-        feature_dir = (
-            status_dir if status_dir.is_dir() else primary_metadata_dir
-        )
+        status_dir = mission_context.artifact(MissionArtifactKind.STATUS_STATE).read_dir
+        primary_metadata_dir = mission_context.artifact(MissionArtifactKind.PRIMARY_METADATA).read_dir
+        feature_dir = status_dir if status_dir.is_dir() else primary_metadata_dir
     now = now_utc_iso()
 
     if not feature_dir.is_dir():
@@ -1475,12 +1439,20 @@ def _dn_bootstrap(
     from mission_runtime import MissionArtifactKind, placement_seam  # noqa: PLC0415
 
     mission_type = get_mission_type(
-        placement_seam(repo_root, mission_slug).read_dir(
-            MissionArtifactKind.PRIMARY_METADATA
-        )
-        if primary_metadata_dir is None
-        else primary_metadata_dir
+        placement_seam(repo_root, mission_slug).read_dir(MissionArtifactKind.PRIMARY_METADATA) if primary_metadata_dir is None else primary_metadata_dir
     )
+    if primary_metadata_dir is not None and _primary_mission_is_completed(primary_metadata_dir):
+        return None, _materialize_decision(
+            _cores.DecisionEnvelope(
+                kind=DecisionKind.terminal,
+                agent=agent,
+                mission_slug=mission_slug,
+                mission=mission_type,
+                mission_state="done",
+                timestamp=now,
+                reason="Mission is already completed",
+            )
+        )
     sync_emitter = RuntimeEventEmitter.for_feature(
         feature_dir=feature_dir,
         mission_slug=mission_slug,
@@ -1489,9 +1461,7 @@ def _dn_bootstrap(
     # Wrap with DecisionGitLog so decision events are durably committed to
     # the coordination branch (spec-kitty #1546, FR-001–FR-005).
     if effective_root is None:
-        emitter_for_engine: Any = _wrap_with_decision_git_log(
-            sync_emitter, mission_slug, repo_root
-        )
+        emitter_for_engine: Any = _wrap_with_decision_git_log(sync_emitter, mission_slug, repo_root)
     else:
         emitter_for_engine = _wrap_with_decision_git_log(
             sync_emitter,
@@ -1664,12 +1634,7 @@ def _dn_dependency_gate(ctx: DecideNextContext) -> Decision | None:
             )
 
     # Check guards for non-WP software-dev steps before advancing.
-    if (
-        ctx.result == "success"
-        and current_step_id
-        and not _is_wp_iteration_step(current_step_id)
-        and mission_type == MISSION_TYPE_SOFTWARE_DEV
-    ):
+    if ctx.result == "success" and current_step_id and not _is_wp_iteration_step(current_step_id) and mission_type == MISSION_TYPE_SOFTWARE_DEV:
         guard_failures = _check_cli_guards(current_step_id, feature_dir, mission_family=mission_type)
         if guard_failures:
             action, wp_id, workspace_path = _state_to_action(
@@ -1692,9 +1657,7 @@ def _dn_dependency_gate(ctx: DecideNextContext) -> Decision | None:
                     mission_type,
                 )
             else:
-                prompt_error = (
-                    f"no action mapped for step '{current_step_id}'; cannot resolve prompt"
-                )
+                prompt_error = f"no action mapped for step '{current_step_id}'; cannot resolve prompt"
             # WP06 (FR-006/FR-013) / WP07 (FR-011): step_or_blocked never
             # issues kind=step with an unresolvable prompt_file — it falls
             # back to kind=blocked using this pre-computed reason (matches
@@ -1849,9 +1812,7 @@ def _dn_composition_dispatch(ctx: DecideNextContext) -> Decision | None:
             contract=runtime_contract,
         )
         if composition_failures:
-            return _dn_composition_blocked_decision(
-                ctx, current_step_id, composition_failures
-            )
+            return _dn_composition_blocked_decision(ctx, current_step_id, composition_failures)
         # Composition succeeded; advance run state via the
         # composition-specific advancement helper and short-circuit the
         # legacy ``runtime_next_step`` fall-through (FR-001/FR-002). The
@@ -1889,11 +1850,7 @@ def _dn_composition_dispatch(ctx: DecideNextContext) -> Decision | None:
                     mission=mission_type,
                     mission_state=current_step_id,
                     timestamp=now,
-                    reason=(
-                        f"Run-state advancement after composition failed for "
-                        f"{mission_type}/{composed_action}: "
-                        f"{type(exc).__name__}: {exc}"
-                    ),
+                    reason=(f"Run-state advancement after composition failed for {mission_type}/{composed_action}: {type(exc).__name__}: {exc}"),
                     progress=progress,
                     origin=origin,
                     run_id=run_ref.run_id,
@@ -2041,10 +1998,7 @@ def _dn_decision_materialize(ctx: DecideNextContext) -> Decision:
                     mission=ctx.mission_type,
                     mission_state=ctx.current_step_id or "unknown",
                     timestamp=ctx.now,
-                    reason=(
-                        "Cannot read run state.json / run.events.jsonl before "
-                        "speculative engine advance; refusing to advance"
-                    ),
+                    reason=("Cannot read run state.json / run.events.jsonl before speculative engine advance; refusing to advance"),
                     progress=ctx.progress,
                     origin=ctx.origin,
                 )
@@ -2080,9 +2034,7 @@ def _dn_decision_materialize(ctx: DecideNextContext) -> Decision:
         )
 
     if block_on_retrospective and runtime_decision.kind == DecisionKind.terminal:
-        gate_decision = _dn_terminal_retrospective_gate(
-            ctx, policy_error, buffer, pre_state_bytes, pre_events_size
-        )
+        gate_decision = _dn_terminal_retrospective_gate(ctx, policy_error, buffer, pre_state_bytes, pre_events_size)
         if gate_decision is not None:
             return gate_decision
 
@@ -2092,11 +2044,7 @@ def _dn_decision_materialize(ctx: DecideNextContext) -> Decision:
     if buffer is not None:
         buffer.flush(ctx.sync_emitter)
 
-    if (
-        retrospective_enabled
-        and not block_on_retrospective
-        and runtime_decision.kind == DecisionKind.terminal
-    ):
+    if retrospective_enabled and not block_on_retrospective and runtime_decision.kind == DecisionKind.terminal:
         mission_id = _resolve_mission_id_for_terminus(ctx.feature_dir)
         _run_retrospective_learning_capture(
             mission_id=mission_id,
@@ -2146,9 +2094,7 @@ def decide_next_via_runtime(
     5. Map NextDecision -> Decision (preserving JSON contract)
     """
     if effective_root is None:
-        ctx, early_decision = _dn_bootstrap(
-            agent, mission_slug, result, repo_root
-        )
+        ctx, early_decision = _dn_bootstrap(agent, mission_slug, result, repo_root)
     else:
         ctx, early_decision = _dn_bootstrap(
             agent,
@@ -2515,8 +2461,7 @@ def answer_decision_via_runtime(
         # remediation, mis-routing the operator. Log the context, then re-raise
         # the typed ActionContextError so the command layer surfaces its code.
         logger.warning(
-            "answer_decision_via_runtime: read-path error (%s) for mission %r in "
-            "repo %s — cannot answer decision %r",
+            "answer_decision_via_runtime: read-path error (%s) for mission %r in repo %s — cannot answer decision %r",
             exc.code,
             mission_slug,
             repo_root,
@@ -2530,9 +2475,7 @@ def answer_decision_via_runtime(
             feature_dir,
             decision_id,
         )
-        raise MissionRuntimeError(
-            f"Mission {mission_slug!r} not found; cannot answer decision {decision_id!r}"
-        )
+        raise MissionRuntimeError(f"Mission {mission_slug!r} not found; cannot answer decision {decision_id!r}")
     mission_type = get_mission_type(feature_dir)
     run_ref = get_or_start_run(mission_slug, repo_root, mission_type)
     sync_emitter = RuntimeEventEmitter.for_feature(
@@ -2550,9 +2493,7 @@ def answer_decision_via_runtime(
         )
     # Wrap with DecisionGitLog so the answered decision is committed to the
     # coordination branch (spec-kitty #1546, FR-001–FR-005).
-    answer_emitter: Any = _wrap_with_decision_git_log(
-        sync_emitter, mission_slug, repo_root
-    )
+    answer_emitter: Any = _wrap_with_decision_git_log(sync_emitter, mission_slug, repo_root)
     actor = ActorIdentity(actor_id=agent, actor_type=actor_type)
     runtime_provide_decision_answer(
         run_ref,

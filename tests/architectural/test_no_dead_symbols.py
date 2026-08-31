@@ -162,7 +162,25 @@ _CATEGORY_A_SLICE_F_DEFERRED: frozenset[SymbolKey] = frozenset(
         # that land with the F1-strict cutover. TODO(triage): wire or drop from __all__.
         SymbolKey(
             "append_lifecycle_event",
-            "6695d4df0c44533bb9ae576a365562e7c79745ec7e2b8b0fe4e7b3571fbc2c0e",
+            "3534b0a120eafa5dc1cc295cb539f18cd9737f4003b4c124ce57e7842ad5a1d0",
+            source_module="specify_cli.status.lifecycle_events",
+        ),
+        # specify_cli.status.lifecycle_events::emit_artifact_phase_local -- convergence
+        # #813: retained local half of the lifecycle persistence/fanout split. Its hosted
+        # setup-plan consumer was an explicitly dropped retired hunk. TODO(triage): #813
+        # wire this split half when a non-retired hosted consumer lands.
+        SymbolKey(
+            "emit_artifact_phase_local",
+            "e285765b04611be105c42a29d3f4f13beb49fed64afe517243f5a1cc8fa1439f",
+            source_module="specify_cli.status.lifecycle_events",
+        ),
+        # specify_cli.status.lifecycle_events::fanout_lifecycle_event_hosted -- convergence
+        # #813: retained hosted half of the lifecycle persistence/fanout split. Its hosted
+        # setup-plan consumer was an explicitly dropped retired hunk. TODO(triage): #813
+        # wire this split half when a non-retired hosted consumer lands.
+        SymbolKey(
+            "fanout_lifecycle_event_hosted",
+            "6807f7943a4c7f909f816db58882b43f5889279cffa8754ed138ab22c28f6350",
             source_module="specify_cli.status.lifecycle_events",
         ),
         # specify_cli.status.migrate_lifecycle_envelope::MigrationAction -- M2
@@ -381,7 +399,7 @@ _CATEGORY_B_GRANDFATHERED_LEGACY: frozenset[SymbolKey] = frozenset(
         # (issue-5-delete-sync-transport): the auth-doctor daemon section died with
         # the sync transport; the dataclass is gone from _auth_doctor.
         SymbolKey(
-            "DoctorReport", "f67b56299c5fe794033b42a7c5390519ce0f197bb7976a0aaa9b668d2993221a", source_module="specify_cli.cli.commands._auth_doctor"
+            "DoctorReport", "9d02d77be32202c48b37532815694b720249563faea3da5cf3042b207730f6bf", source_module="specify_cli.cli.commands._auth_doctor"
         ),  # specify_cli.cli.commands._auth_doctor::DoctorReport
         SymbolKey(
             "Finding", "d47a46e21c6dc7c48f4654c3c1e88ca76cc25ae2b81b9efaaaea90649e8b2065", source_module="specify_cli.cli.commands._auth_doctor"
@@ -398,7 +416,7 @@ _CATEGORY_B_GRANDFATHERED_LEGACY: frozenset[SymbolKey] = frozenset(
         # kernel-clock-single-door PR #3305: body now calls kernel.clock.now_utc()
         # instead of datetime.now(UTC), per the clock single-door migration)
         SymbolKey(
-            "assemble_report", "e051060c599e629ffa35ef3762389ec265873962c55c57cec3cb4611e860a19f", source_module="specify_cli.cli.commands._auth_doctor"
+            "assemble_report", "e132afb32edcad67772bbe2d608e87ce9f387a7b688291f9c919f63542eb5e45", source_module="specify_cli.cli.commands._auth_doctor"
         ),  # specify_cli.cli.commands._auth_doctor::assemble_report
         # specify_cli.cli.commands._auth_doctor::compute_exit_code
         SymbolKey("compute_exit_code", "060144b6c7b405770cc41179f7c74273e8618e6271027c42794a87f567516179", source_module="specify_cli.cli.commands._auth_doctor"),
@@ -1783,6 +1801,44 @@ _CATEGORY_C_CHARTER_FACADE_FORWARD_API_01KZPDSR: frozenset[SymbolKey] = frozense
 )
 
 
+# ---------- C. charter-authority-flip (01M14RB3) forward public API (#3664) ----------
+# Two intentional public symbols landed by the doctrine->charter governing-term
+# flip that have no cross-file `src/` caller yet, both content-tier (unique
+# bare_name, no live collision):
+#
+# * ``charter.interview::InterviewAnswersRegressionError`` -- raised by
+#   ``write_interview_answers(..., fail_closed_on_regression=True)``. That
+#   opt-in flag has no production caller today: the only caller is
+#   ``tests/charter/test_answers_migration.py`` (which asserts on the error
+#   directly), and the answers-migration script
+#   ``scripts/migrate_charter_interview_answers.py`` deliberately does NOT use
+#   this writer at all -- it does byte-preserving anchored substitution to
+#   survive the archive-freeze gate. So this is test-only forward public API,
+#   exposed by design so that future/external migration callers can catch it.
+# * ``charter.sync::LegacyGovernanceKeyWarning`` -- the ``UserWarning`` subclass
+#   ``_warn_legacy_governance_key_once()`` raises internally (same module, so
+#   invisible to the cross-file caller graph); ``tests/charter/
+#   test_governance_key_compat.py`` asserts on it via ``pytest.warns(...)``.
+#   Public by design so any consumer can filter/assert on the specific
+#   warning class rather than a bare ``UserWarning``.
+_CATEGORY_C_CHARTER_AUTHORITY_FLIP_FORWARD_API: frozenset[SymbolKey] = frozenset(
+    {
+        # charter.interview::InterviewAnswersRegressionError
+        SymbolKey(
+            "InterviewAnswersRegressionError",
+            "af534399168d1c78dd7722884aeffc6366eb378779c8dfe91a2545843e1518c2",
+            source_module="charter.interview",
+        ),
+        # charter.sync::LegacyGovernanceKeyWarning
+        SymbolKey(
+            "LegacyGovernanceKeyWarning",
+            "3558fe165f51db3ae52de1abf6c15ce0ececf072f8ac8871cb98c3bbd8d9a1e6",
+            source_module="charter.sync",
+        ),
+    }
+)
+
+
 # Aggregate. The gate consults this; the per-category frozensets are
 # the surface introspected by the ratchet-baseline meta-test
 # (``tests/architectural/test_ratchet_baselines.py``). Entries are
@@ -1820,6 +1876,7 @@ _SYMBOL_ALLOWLIST: frozenset[SymbolKey] = (
     | _CATEGORY_C_DELIVERY_RAIL_FORWARD_API
     | _CATEGORY_C_DOCTRINE_API_SURFACE_BRIDGE_3179
     | _CATEGORY_C_CHARTER_FACADE_FORWARD_API_01KZPDSR
+    | _CATEGORY_C_CHARTER_AUTHORITY_FLIP_FORWARD_API
 )
 
 

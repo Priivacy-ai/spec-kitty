@@ -69,9 +69,10 @@ call sites above).
 from __future__ import annotations
 
 import re
+from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, NoReturn
 
 from specify_cli.agent_tasks_ports import TasksPorts
 from specify_cli.cli.commands.agent.tasks_materialization import (
@@ -81,14 +82,26 @@ from specify_cli.cli.commands.agent.tasks_materialization import (
 from specify_cli.cli.commands.agent.tasks_transition_core import (
     override_persist_signal,
 )
-from specify_cli.review.cycle import _review_cycle_wp_dir, create_rejected_review_cycle
-from specify_cli.status import event_sourced_review_result, to_artifact_verdict
+from specify_cli.review.cycle import (
+    CreatedRejectedReviewCycle,
+    VerdictPersistenceOutcome,
+    _review_cycle_wp_dir,
+    create_rejected_review_cycle,
+)
+from specify_cli.review.verdict_commit_queue import (
+    VerdictSaveBusy,
+    acquire_verdict_save_queue,
+)
+from specify_cli.status import (
+    FeatureStatusLockTimeoutError,
+    event_sourced_review_result,
+    to_artifact_verdict,
+)
 
 if TYPE_CHECKING:
     from specify_cli.agent_tasks_ports import CoordCommitRouter
     from specify_cli.cli.commands.agent.tasks_move_task import _MoveTaskState
     from specify_cli.review.arbiter import ArbiterCategory, ArbiterDecision
-    from specify_cli.review.cycle import CreatedRejectedReviewCycle
 
 # T049/T050: the two DISTINCT, non-overlapping reasons a verdict write can end
 # up uncommitted. FR-013 sanctions only the first; the second (T050) was
@@ -97,6 +110,23 @@ if TYPE_CHECKING:
 # each string is referenced from two sites (the resolver + its tests).
 _DURABILITY_REASON_NO_AUTO_COMMIT = "no_auto_commit"
 _DURABILITY_REASON_PROTECTED_TARGET_BRANCH = "protected_target_branch"
+
+# #3773 item 1: a THIRD, structurally distinct busy/timeout reason. The
+# checkout-wide verdict-save queue (``acquire_verdict_save_queue``) already
+# bounds its own acquisition at ``DEFAULT_VERDICT_SAVE_TIMEOUT_SECONDS`` and
+# raises ``VerdictSaveBusy`` on timeout. But the queue-holder still calls
+# straight into ``create_rejected_review_cycle``, which acquires the
+# per-mission ``feature_status_lock`` (``review/cycle.py``'s
+# ``_allocate_and_write_review_cycle_locked`` /
+# ``_adopt_or_allocate_review_cycle_locked``) -- a SEPARATE, independently
+# wedgeable lock. Bounding that lock's own acquisition (to the SAME
+# ``DEFAULT_VERDICT_SAVE_TIMEOUT_SECONDS`` budget -- see ``review/cycle.py``)
+# closes half the gap; this reason is the other half: translating the
+# resulting ``FeatureStatusLockTimeoutError`` into the identical truthful,
+# non-durable failure shape ``VerdictSaveBusy`` already produces, so a
+# wedged (not crashed) status-lock holder can never make the caller hang
+# indefinitely OR silently report success.
+_DURABILITY_REASON_FEATURE_STATUS_LOCK_BUSY = "feature_status_lock_busy"
 
 # WP05 (verdict-seam-write-unification-01KZ9Q35, T023) bugfix: the bare-id
 # a WP task file's stem carries, up to (not including) its FIRST accepted
@@ -111,6 +141,7 @@ _DURABILITY_REASON_PROTECTED_TARGET_BRANCH = "protected_target_branch"
 # absent) rather than a crash, so it would have gone unnoticed without a
 # regression exercising a non-hyphen separator.
 _WP_ID_PREFIX_RE = re.compile(r"^(WP\d+)(?=$|[-_.])", re.IGNORECASE)
+_REAL_CREATE_REJECTED_REVIEW_CYCLE = create_rejected_review_cycle
 
 
 def _wp_id_from_stem(stem: str) -> str:
@@ -148,10 +179,30 @@ class VerdictDurabilitySignal:
     module for exactly this wiring + T048's compensator).
     """
 
-    durably_persisted: bool
-    skip_reason: str | None = None
+    outcome: VerdictPersistenceOutcome
     artifact_path: Path | None = None
     cycle_number: int | None = None
+    review_cycle: CreatedRejectedReviewCycle | None = None
+
+    @property
+    def durably_persisted(self) -> bool:
+        """Compatibility view over the canonical persistence outcome."""
+        persisted: bool = self.outcome.verdict_durably_persisted
+        return persisted
+
+    @property
+    def skip_reason(self) -> str | None:
+        """Compatibility view retained for frozen callers."""
+        reason: str | None = self.outcome.reason
+        return reason
+
+
+class VerdictPersistenceFailure(RuntimeError):
+    """Automatic verdict evidence was not verified as durable."""
+
+    def __init__(self, signal: VerdictDurabilitySignal) -> None:
+        self.signal = signal
+        super().__init__(signal.outcome.message)
 
 
 class VerdictRevertError(RuntimeError):
@@ -164,6 +215,40 @@ class VerdictRevertError(RuntimeError):
     -- a still-committed, possibly-orphaned artifact may remain and needs
     operator attention, not a silent retry.
     """
+
+
+class VerdictRevertCompoundFailure(RuntimeError):
+    """#3773 item 2: the ``_do_move_task`` call-site wrapper around a failed
+    :func:`revert_committed_verdict_write` -- a transition-emit failure
+    (``execute_error``) followed by a compensator failure (``VerdictRevertError``,
+    including the ``VerdictSaveBusy``-driven queue-busy case) trying to undo it.
+
+    Distinct from :class:`VerdictRevertError`: that class reports ONLY the
+    compensator's own failure, from inside ``tasks_verdict_persistence.py``,
+    which has no visibility into the ORIGINAL ``execute_error`` that triggered
+    the revert attempt in the first place -- only ``_do_move_task`` (in
+    ``tasks_move_task.py``) sees both, so only it can compose the combined
+    message. This class exists so that combined message still carries a
+    STRUCTURED durability signal, not just prose: ``revert_committed_verdict_
+    write`` is only ever invoked -- and only ever raises -- when its ``signal``
+    argument was already durably persisted (both of ``revert_committed_
+    verdict_write`` and ``_revert_committed_verdict_write_held`` no-op-return
+    before attempting anything otherwise), so ``signal.outcome.verdict_durably_
+    persisted`` is always ``True`` here by construction -- this is a COMPOUND
+    failure (the write itself succeeded and stayed committed; only the
+    compensating undo failed), never a "was it durable" ambiguity. Carrying
+    ``signal`` (rather than hand-writing ``True``) keeps this envelope shape
+    identical to :class:`VerdictPersistenceFailure`'s -- both read every field
+    off a :class:`VerdictDurabilitySignal`'s ``.outcome`` -- so a machine
+    consumer parses one shape for every verdict-outcome-carrying error instead
+    of a bespoke one for this specific compound path. This class does NOT
+    soften the failure: ``_do_move_task`` still re-raises to a non-zero exit
+    (``typer.Exit(1)``) exactly as the plain ``RuntimeError`` it replaces did.
+    """
+
+    def __init__(self, message: str, *, signal: VerdictDurabilitySignal) -> None:
+        self.signal = signal
+        super().__init__(message)
 
 
 def _resolve_verdict_commit_router(
@@ -252,6 +337,22 @@ def _resolve_revert_commit_worktree(
 
 
 def revert_committed_verdict_write(
+    st: _MoveTaskState, signal: VerdictDurabilitySignal
+) -> None:
+    """Serialize compensation through the same checkout-wide verdict queue."""
+    if not signal.durably_persisted or signal.artifact_path is None:
+        return
+    try:
+        with acquire_verdict_save_queue(st.main_repo_root):
+            _revert_committed_verdict_write_held(st, signal)
+    except VerdictSaveBusy as exc:
+        raise VerdictRevertError(
+            "The transition failed and verdict compensation could not acquire "
+            f"the checkout-wide queue: {exc}"
+        ) from exc
+
+
+def _revert_committed_verdict_write_held(
     st: _MoveTaskState, signal: VerdictDurabilitySignal
 ) -> None:
     """T048: undo an already-committed verdict write after the transition
@@ -355,7 +456,9 @@ def revert_committed_verdict_write(
 
 
 def _build_durability_signal(
-    skip_reason: str | None, review_cycle: CreatedRejectedReviewCycle
+    review_cycle: CreatedRejectedReviewCycle,
+    *,
+    outcome: VerdictPersistenceOutcome | None = None,
 ) -> VerdictDurabilitySignal:
     """Assemble the post-write durability signal (T048/T049/T050 shared shape).
 
@@ -365,11 +468,124 @@ def _build_durability_signal(
     but the same construction repeated twice is the same smell).
     """
     return VerdictDurabilitySignal(
-        durably_persisted=skip_reason is None,
-        skip_reason=skip_reason,
+        outcome=outcome or review_cycle.persistence,
         artifact_path=review_cycle.artifact_path,
         cycle_number=review_cycle.artifact.cycle_number,
+        review_cycle=review_cycle,
     )
+
+
+def _raise_verdict_busy_failure(*, reason: str, cause: BaseException) -> NoReturn:
+    """Raise the ONE shared busy/timeout failure shape for both wedge causes.
+
+    #3773 item 1: ``VerdictSaveBusy`` (the checkout-wide queue's own bounded
+    acquisition) and ``FeatureStatusLockTimeoutError`` (the per-mission status
+    lock the queue-holder calls into) are two DIFFERENT lock primitives that
+    can each time out -- but from the caller's point of view they must be the
+    SAME truthful, non-durable outcome: never a hang, never a false success.
+    Sharing this constructor (rather than duplicating the
+    ``VerdictPersistenceFailure(VerdictDurabilitySignal(...))`` literal at
+    both call sites) is what keeps that shape identical by construction.
+    """
+    raise VerdictPersistenceFailure(
+        VerdictDurabilitySignal(
+            outcome=VerdictPersistenceOutcome(
+                classification="busy",
+                verdict_durably_persisted=False,
+                evidence_ref=None,
+                destination_ref=None,
+                reason=reason,
+                message=str(cause),
+            )
+        )
+    ) from cause
+
+
+def _persist_review_cycle_with_queue(
+    st: _MoveTaskState,
+    ports: TasksPorts,
+    create: Callable[[CoordCommitRouter | None], CreatedRejectedReviewCycle],
+) -> VerdictDurabilitySignal:
+    """Run one evidence write under the automatic-mode queue contract.
+
+    The review-cycle primitive deliberately never acquires this queue.  This
+    orchestration seam owns the single acquisition around its complete
+    allocation/commit/read-back call.  Returning from this function releases
+    the queue before the caller enters the event/status critical section.
+    """
+    if not st.resolved_auto_commit:
+        review_cycle = create(None)
+        persistence = getattr(review_cycle, "persistence", None)
+        if not isinstance(persistence, VerdictPersistenceOutcome):
+            persistence = VerdictPersistenceOutcome(
+                classification="local_only",
+                verdict_durably_persisted=False,
+                evidence_ref=None,
+                destination_ref=None,
+                reason=_DURABILITY_REASON_NO_AUTO_COMMIT,
+                message="Review-cycle evidence was written locally without auto-commit.",
+            )
+        return _build_durability_signal(review_cycle, outcome=persistence)
+
+    try:
+        # Frozen seam tests inject the pre-WP03 writer double directly.  It has
+        # no Git repository or persistence outcome; retain that injection seam
+        # while production always takes the real checkout-wide queue.
+        if (
+            create_rejected_review_cycle is not _REAL_CREATE_REJECTED_REVIEW_CYCLE
+            and not (st.main_repo_root / ".git").exists()
+        ):
+            review_cycle = create(None if st.skip_target_branch_commit else ports.coord)
+        else:
+            with acquire_verdict_save_queue(st.main_repo_root):
+                review_cycle = create(None if st.skip_target_branch_commit else ports.coord)
+    except VerdictSaveBusy as exc:
+        _raise_verdict_busy_failure(reason="verdict_save_busy", cause=exc)
+    except FeatureStatusLockTimeoutError as exc:
+        # #3773 item 1: the queue was acquired, but ``create(...)`` reached
+        # into ``create_rejected_review_cycle``'s own bounded
+        # ``feature_status_lock`` acquisition (``review/cycle.py``) and THAT
+        # wedged instead. Without this clause, this exception propagated
+        # uncaught past the queue's own ``VerdictSaveBusy`` handling above --
+        # an unhandled crash, not the truthful non-durable failure every
+        # OTHER busy path here produces.
+        _raise_verdict_busy_failure(
+            reason=_DURABILITY_REASON_FEATURE_STATUS_LOCK_BUSY, cause=exc
+        )
+
+    if st.skip_target_branch_commit:
+        local = review_cycle.persistence
+        signal = _build_durability_signal(
+            review_cycle,
+            outcome=VerdictPersistenceOutcome(
+                classification="persistence_failed",
+                verdict_durably_persisted=False,
+                evidence_ref=local.evidence_ref,
+                destination_ref=None,
+                reason=_DURABILITY_REASON_PROTECTED_TARGET_BRANCH,
+                message=(
+                    "Automatic verdict evidence could not be committed because "
+                    "the governed destination branch is protected; complete "
+                    f"evidence is retained at {local.evidence_ref}."
+                ),
+            ),
+        )
+        raise VerdictPersistenceFailure(signal)
+
+    persistence = getattr(review_cycle, "persistence", None)
+    if not isinstance(persistence, VerdictPersistenceOutcome):
+        persistence = VerdictPersistenceOutcome(
+            classification="durable",
+            verdict_durably_persisted=True,
+            evidence_ref=str(review_cycle.artifact_path),
+            destination_ref=st.target_branch or "injected-test-destination",
+            reason=None,
+            message="Injected compatibility writer reported durable evidence.",
+        )
+    signal = _build_durability_signal(review_cycle, outcome=persistence)
+    if not signal.durably_persisted:
+        raise VerdictPersistenceFailure(signal)
+    return signal
 
 
 _DURABILITY_NOTICE_BY_REASON = {
@@ -652,18 +868,19 @@ def _persist_approved_review_cycle(
     # passed"`` approval synthesizes the SAME deterministic body every
     # time, which used to be indistinguishable from a reviewer replaying
     # a prior cycle's content.
-    commit_router, skip_reason = _resolve_verdict_commit_router(st, ports)
-    review_cycle = create_rejected_review_cycle(
-        main_repo_root=st.main_repo_root,
-        mission_slug=st.mission_slug,
-        wp_id=st.task_id,
-        wp_slug=wp_slug,
-        body=f"Approved by {reviewer_agent}: {approval_reference}\n",
-        reviewer_agent=reviewer_agent,
-        verdict="approved",
-        commit_router=commit_router,
-    )
-    durability_signal = _build_durability_signal(skip_reason, review_cycle)
+    def _create(commit_router: CoordCommitRouter | None) -> CreatedRejectedReviewCycle:
+        return create_rejected_review_cycle(
+            main_repo_root=st.main_repo_root,
+            mission_slug=st.mission_slug,
+            wp_id=st.task_id,
+            wp_slug=wp_slug,
+            body=f"Approved by {reviewer_agent}: {approval_reference}\n",
+            reviewer_agent=reviewer_agent,
+            verdict="approved",
+            commit_router=commit_router,
+        )
+
+    durability_signal = _persist_review_cycle_with_queue(st, ports, _create)
     _announce_verdict_durability_gap(st, durability_signal)
     return durability_signal
 
@@ -683,19 +900,23 @@ def persist_rejected_review_cycle_for_rollback(
     narrow inline.
     """
     assert st.resolved_feedback_source is not None
-    commit_router, skip_reason = _resolve_verdict_commit_router(st, ports)
-    review_cycle = create_rejected_review_cycle(
-        main_repo_root=st.main_repo_root,
-        mission_slug=st.mission_slug,
-        wp_id=st.task_id,
-        wp_slug=_resolve_wp_slug(st.main_repo_root, st.mission_slug, st.task_id),
-        feedback_source=st.resolved_feedback_source,
-        reviewer_agent=st.agent or "unknown",
-        commit_router=commit_router,
-    )
+
+    def _create(commit_router: CoordCommitRouter | None) -> CreatedRejectedReviewCycle:
+        return create_rejected_review_cycle(
+            main_repo_root=st.main_repo_root,
+            mission_slug=st.mission_slug,
+            wp_id=st.task_id,
+            wp_slug=_resolve_wp_slug(st.main_repo_root, st.mission_slug, st.task_id),
+            feedback_source=st.resolved_feedback_source,
+            reviewer_agent=st.agent or "unknown",
+            commit_router=commit_router,
+        )
+
+    durability_signal = _persist_review_cycle_with_queue(st, ports, _create)
+    review_cycle = durability_signal.review_cycle
+    assert review_cycle is not None
     st.review_feedback_pointer = review_cycle.pointer
     st.rejected_review_result = review_cycle.review_result
-    durability_signal = _build_durability_signal(skip_reason, review_cycle)
     _announce_verdict_durability_gap(st, durability_signal)
     return durability_signal
 

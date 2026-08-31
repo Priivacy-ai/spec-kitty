@@ -1,0 +1,49 @@
+{
+  "event_count": 4,
+  "last_event_id": "01M14SH5YXRE5B0A689R1RFJCP",
+  "materialized_at": "2026-08-28T18:18:52.253429+00:00",
+  "mission_number": "",
+  "mission_slug": "charter-authority-flip-01M14RB3",
+  "mission_type": "software-dev",
+  "summary": {
+    "approved": 0,
+    "blocked": 0,
+    "canceled": 0,
+    "claimed": 0,
+    "done": 0,
+    "for_review": 0,
+    "in_progress": 0,
+    "in_review": 0,
+    "planned": 4
+  },
+  "work_packages": {
+    "WP01": {
+      "actor": "finalize-tasks",
+      "force_count": 0,
+      "lane": "planned",
+      "last_event_id": "01M14SH33W7SM4ZXNS1WQWGAWT",
+      "last_transition_at": "2026-08-28T18:18:49.340484+00:00"
+    },
+    "WP02": {
+      "actor": "finalize-tasks",
+      "force_count": 0,
+      "lane": "planned",
+      "last_event_id": "01M14SH42HY5M7SBRH0MQXBP8P",
+      "last_transition_at": "2026-08-28T18:18:50.321835+00:00"
+    },
+    "WP03": {
+      "actor": "finalize-tasks",
+      "force_count": 0,
+      "lane": "planned",
+      "last_event_id": "01M14SH514BFV2T8XJTF49PB5P",
+      "last_transition_at": "2026-08-28T18:18:51.300357+00:00"
+    },
+    "WP04": {
+      "actor": "finalize-tasks",
+      "force_count": 0,
+      "lane": "planned",
+      "last_event_id": "01M14SH5YXRE5B0A689R1RFJCP",
+      "last_transition_at": "2026-08-28T18:18:52.253429+00:00"
+    }
+  }
+}

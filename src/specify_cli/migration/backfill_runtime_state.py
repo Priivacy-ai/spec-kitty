@@ -1652,11 +1652,66 @@ def _seed_field_label(expected: StatusEvent | InnerStateChanged) -> str:
     )
 
 
+def _subtask_seed_is_superseded_by_legitimate_history(
+    expected: StatusEvent | InnerStateChanged,
+    actual: StatusEvent | InnerStateChanged,
+    stream: EventStream,
+) -> bool:
+    """Accept an immutable planned seed only when real history proves completion."""
+    if not isinstance(expected, InnerStateChanged) or not isinstance(
+        actual, InnerStateChanged
+    ):
+        return False
+    expected_subtasks = expected.delta.to_dict().get("subtasks")
+    actual_subtasks = actual.delta.to_dict().get("subtasks")
+    if not isinstance(expected_subtasks, dict) or not isinstance(
+        actual_subtasks, dict
+    ):
+        return False
+    if expected_subtasks.keys() != actual_subtasks.keys():
+        return False
+    changed = False
+    for task_id, expected_status in expected_subtasks.items():
+        actual_status = actual_subtasks[task_id]
+        if actual_status == expected_status:
+            continue
+        if (
+            actual_status != Status.PLANNED.value
+            or expected_status != Status.DONE.value
+        ):
+            return False
+        changed = True
+    if not changed:
+        return False
+
+    try:
+        seed_at = _parse_ordering_timestamp(actual.at, wp_id=actual.wp_id)
+        has_exact_later_witness = any(
+            event.wp_id == actual.wp_id
+            and not _is_migration_actor(event.actor)
+            and _parse_ordering_timestamp(event.at, wp_id=event.wp_id) > seed_at
+            and event.delta.to_dict().get("subtasks") == expected_subtasks
+            for event in stream.annotations
+        )
+    except MigrationOrderingError:
+        return False
+    if not has_exact_later_witness:
+        return False
+
+    authentic = _stream_without_migration(stream)
+    snapshot = reduce(authentic.transitions, authentic.annotations)
+    return bool(
+        snapshot.work_packages.get(actual.wp_id, {}).get("subtasks")
+        == expected_subtasks
+    )
+
+
 def _seed_row_mismatch(
     expected: StatusEvent | InnerStateChanged,
     actual: StatusEvent | InnerStateChanged | None,
     field_name: str,
     legacy_carriers: dict[str, _LegacyCarrier],
+    stream: EventStream,
 ) -> str | None:
     """Return one expected seed row's mismatch text, or ``None`` if it is sound.
 
@@ -1677,6 +1732,10 @@ def _seed_row_mismatch(
     if _event_payload_without_at(actual) == _event_payload_without_at(expected):
         return None
     if _matches_legacy_contract(actual, legacy_carriers):
+        return None
+    if field_name == "subtasks" and _subtask_seed_is_superseded_by_legitimate_history(
+        expected, actual, stream
+    ):
         return None
     return (
         f"{expected.wp_id}: {field_name} mismatch "
@@ -1727,6 +1786,7 @@ def _verify_expected_seed_events(
             actual_by_id.get(expected.event_id),
             _seed_field_label(expected),
             legacy_carriers,
+            stream,
         )
         if mismatch is not None:
             mismatches.append(mismatch)
