@@ -4416,6 +4416,16 @@ pages:
     - {slug: "step-implement", text: "Step: implement", level: 3}
     - {slug: "step-review", text: "Step: review", level: 3}
     - {slug: "step-retrospect", text: "Step: retrospect", level: 3}
+  - path: "docs/architecture/charter-backend-service-future.md"
+    title: "Charter Backend Service (Future — Backlog)"
+    divio_type: "none"
+    abstract: "Preliminary backlog design for a separate charter/doctrine resolution process behind a stable API/MCP endpoint: remote compute, shared caching, out-of-cycle precompute. Not 3.2.6."
+    anchors:
+    - {slug: "1-motivation", text: "1. Motivation", level: 2}
+    - {slug: "2-design-constraints-carried-from-the-near-term-work", text: "2. Design constraints (carried from the near-term work)", level: 2}
+    - {slug: "3-transport-options-to-evaluate-not-yet-decided", text: "3. Transport options (to evaluate, not yet decided)", level: 2}
+    - {slug: "4-open-questions", text: "4. Open questions", level: 2}
+    - {slug: "5-non-goals", text: "5. Non-goals", level: 2}
   - path: "docs/architecture/charter-pack-usage-journey.md"
     title: "Charter Pack Usage Journey: Apply, Generate, and the Dispatch Safety Net"
     divio_type: "none"
@@ -5036,6 +5046,30 @@ pages:
     - {slug: "uv-tool-2", text: "uv tool", level: 3}
     - {slug: "recommendation", text: "Recommendation", level: 2}
     - {slug: "see-also", text: "See also", level: 2}
+  - path: "docs/architecture/profile-load-reliability.md"
+    title: "Profile-Load Reliability (Squads & WP Prompts)"
+    divio_type: "none"
+    abstract: "Why adversarial and research squads stopped loading charter agent profiles, and the 3.2.6 fix: resolve-then-inject, fail-loud dispatch, and a /spk-load-profile primitive."
+    anchors:
+    - {slug: "1-symptoms", text: "1. Symptoms", level: 2}
+    - {slug: "2-root-cause-a-charter-activation-allowlist-gap-issue-1", text: "2. Root cause — a charter activation-allowlist gap (Issue 1)", level: 2}
+    - {slug: "2-1-the-gate", text: "2.1 The gate", level: 3}
+    - {slug: "2-2-the-regression-commit", text: "2.2 The regression commit", level: 3}
+    - {slug: "2-3-it-ships-upstream", text: "2.3 It ships upstream", level: 3}
+    - {slug: "2-4-the-seam-gap-why-it-s-silent", text: "2.4 The seam gap (why it's silent)", level: 3}
+    - {slug: "3-secondary-finding-wp-prompt-naming-hygiene-issue-2-low", text: "3. Secondary finding — WP-prompt naming hygiene (Issue 2, LOW)", level: 2}
+    - {slug: "4-near-term-stabilization-design-3-2-6-scope", text: "4. Near-term stabilization design (3.2.6 scope)", level: 2}
+    - {slug: "4-1-fix-the-activation-data-close-by-construction", text: "4.1 Fix the activation data (close by construction)", level: 3}
+    - {slug: "4-2-orchestrator-resolves-then-injects-the-durable-seam-fix", text: "4.2 Orchestrator-resolves-then-injects (the durable seam fix)", level: 3}
+    - {slug: "4-3-the-spk-load-profile-primitive", text: "4.3 The `/spk-load-profile <id> <instructions>` primitive", level: 3}
+    - {slug: "4-4-wp-prompt-hygiene-low-optional", text: "4.4 WP-prompt hygiene (LOW, optional)", level: 3}
+    - {slug: "5-scope-boundary", text: "5. Scope boundary", level: 2}
+    - {slug: "6-dialectic-review-outcomes-2026-08-30", text: "6. Dialectic review outcomes (2026-08-30)", level: 2}
+    - {slug: "d1-resolution-locus-4-2-hybrid-sharpened", text: "D1 — Resolution locus (§4.2): **hybrid, sharpened**", level: 3}
+    - {slug: "d2-backend-service-4-2-future-charter-backend-service-future-md-keep-backlog-0-8-0-85-convergent", text: "D2 — Backend service (§4.2-future / charter-backend-service-future.md): **keep backlog** (0.8 / 0.85, convergent)", level: 3}
+    - {slug: "d3-spk-load-profile-shape-4-3-consolidate-but-reconcile-with-spec-kitty-dispatch", text: "D3 — `/spk-load-profile` shape (§4.3): **consolidate, but reconcile with `spec-kitty dispatch`**", level: 3}
+    - {slug: "d4-issue-1-fix-4-1-vs-4-2-data-first-seam-closes-0-85-0-85-convergent-on-sequencing", text: "D4 — Issue 1 fix (§4.1 vs §4.2): **data-first, seam-closes** (0.85 / 0.85, convergent on sequencing)", level: 3}
+    - {slug: "new-tickets-surfaced-by-the-dialectic-filed-post-review", text: "New tickets surfaced by the dialectic (filed post-review)", level: 3}
   - path: "docs/architecture/retrospective-learning-loop.md"
     title: "Understanding the Retrospective Learning Loop"
     divio_type: "none"
