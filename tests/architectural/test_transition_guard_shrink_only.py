@@ -28,27 +28,22 @@ Bundle key flips), while every KEPT domain occurrence is left untouched.
 
 **Baseline: M1's own OPENING four-root fingerprint, computed from git at run
 time — never a committed token-bearing fixture (C-COR-4 / spec.md:61).** The
-baseline is the census taken at the mission base commit
-:data:`_MISSION_BASE_REV` (the pre-WP01 state). It is derived live via
+baseline is the census taken at the EXP port base
+:data:`_MISSION_BASE_REV` (the merge-base with ``origin/main`` when this port
+began, before WP01). It is derived live via
 ``git grep`` at that rev rather than stored, so no token-bearing baseline file
 lives under ``kitty-specs/`` (or anywhere tracked) — M6's later deletion of the
 guard therefore never surfaces as a ``D`` entry under an archive root, keeping
 ``test_archive_root_byte_identical`` green at M6.
 
 **Fail-closed under CI, skip-only locally.** The 4 baseline-dependent gate
-tests need :data:`_MISSION_BASE_REV` present in the checkout's object DB. A
-shallow (depth-1) checkout — the GitHub Actions default — never has it, which
-previously made every one of the 4 gates silently SKIP in the only CI job that
-collects this module (the ``corpus`` marker pole in ``module-packs.yml``),
-leaving only the baseline-independent teeth test running: the ratchet never
-actually fired in CI. ``module-packs.yml`` now fetches full history
-(``fetch-depth: 0``, mirroring ``ci-quality.yml`` / ``docs-build-pr.yml``), so
-the baseline should always be reachable there. As a second line of defense,
-:func:`_require_baseline` still distinguishes the two environments: under a
-genuine local shallow clone (no ``CI`` env var) it skips, but under CI
-(``CI=true``) an unreachable baseline now FAILS the gate outright instead of
-skipping, so a future checkout regression cannot silently reintroduce the
-false-green.
+tests need :data:`_MISSION_BASE_REV` present in the checkout's object DB. The
+EXP port base is reachable from this fork's refs, including the full clone used
+by deterministic CI. :func:`_require_baseline` still distinguishes the two
+environments: under a genuine local shallow clone (no ``CI`` env var) it skips,
+but under CI (``CI=true``) an unreachable baseline FAILS the gate outright
+instead of skipping, so a future checkout regression cannot silently reintroduce
+the false-green.
 
 **Four fixed exclusion roots** (``DM-01M0P6C8C7Q6SPBT412V39RPN0``): the immutable
 historical-record roots ``kitty-specs/``,
@@ -114,9 +109,10 @@ pytestmark = [pytest.mark.architectural, pytest.mark.git_repo, pytest.mark.docs_
 # ``test_no_legacy_terminology.py``).
 _TOKEN = "doc" + "trine"
 
-# M1's opening four-root fingerprint base: the pre-WP01 mission base commit. The
-# baseline census is derived live from this rev at run time — never stored.
-_MISSION_BASE_REV = "fc4acaa897"
+# M1's opening four-root fingerprint base on the EXP side: the merge-base with
+# origin/main when the convergence port began. The baseline census is derived
+# live from this rev at run time — never stored.
+_MISSION_BASE_REV = "efc0003b563d4a447e29bbfc726bf97c5179a209"
 
 # Immutable historical-record roots — audit boundaries, never scanned.
 _EXCLUSION_ROOTS: tuple[str, ...] = (
@@ -208,7 +204,7 @@ def _baseline_is_reachable() -> bool:
 def _require_baseline() -> None:
     """Entry gate for the 4 baseline-dependent gate tests.
 
-    Local dev with a genuinely shallow clone: skip — the mission base commit
+    Local dev with a genuinely shallow clone: skip — the EXP port base commit
     was never fetched and that is an environment limitation, not a finding.
     Under CI (``CI=true``): FAIL CLOSED — a CI checkout that cannot see the
     baseline must not silently skip the shrink-only ratchet. This is the fix
@@ -218,13 +214,8 @@ def _require_baseline() -> None:
     if _baseline_is_reachable():
         return
     if os.environ.get("CI") == "true":
-        pytest.fail(
-            f"mission base commit {_MISSION_BASE_REV} not reachable in this CI "
-            "checkout — the checkout step must fetch full history "
-            "(fetch-depth: 0) so the shrink-only ratchet can run instead of "
-            "silently skipping"
-        )
-    pytest.skip(f"mission base commit {_MISSION_BASE_REV} not reachable in this checkout")
+        pytest.fail(f"EXP port base commit {_MISSION_BASE_REV} not reachable in this CI checkout — the shrink-only ratchet cannot run")
+    pytest.skip(f"EXP port base commit {_MISSION_BASE_REV} not reachable in this checkout")
 
 
 def _census(rev: str | None) -> Census:

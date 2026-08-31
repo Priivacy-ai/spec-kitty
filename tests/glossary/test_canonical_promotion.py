@@ -88,18 +88,18 @@ def _resolve_wp02_base_commit() -> str | None:
     (``7b0c2d3ed53cd47ad50e4f75da84c7b9ca4c3044``), but a squash-merge onto a
     landing PR rewrites history and orphans any commit pinned before the
     squash -- that SHA is unreachable post-squash (``git show <sha>:...``
-    exits 128). Resolved instead as ``git merge-base upstream/main HEAD``,
+    exits 128). Resolved instead as ``git merge-base origin/main HEAD``,
     the mission's true base on its lane, the same convention
     ``tests/architectural/_home_pin_gate.py``'s ``HISTORY_REF`` uses.
 
-    Returns ``None`` (rather than raising) if ``upstream/main`` cannot be
-    resolved locally (e.g. a shallow clone with no ``upstream`` remote
+    Returns ``None`` (rather than raising) if ``origin/main`` cannot be
+    resolved locally (e.g. a shallow clone with no ``origin`` remote
     configured) -- callers skip rather than false-red, mirroring
     ``tests/architectural/test_charter_owner_map_executed.py``'s
     ``_git_diff_is_empty`` shallow-clone guard.
     """
     result = subprocess.run(
-        ["git", "merge-base", "upstream/main", "HEAD"],
+        ["git", "merge-base", "origin/main", "HEAD"],
         cwd=REPO_ROOT,
         capture_output=True,
         text=True,
@@ -144,7 +144,6 @@ WP02_RELATED_FRONTMATTER_REFERRERS: tuple[str, ...] = (
 #: just a path-token flip). Used by the diff-shape / no-double-funding check.
 WP02_PATH_TOKEN_ONLY_REFERRERS: tuple[str, ...] = (
     "docs/adr/3.x/2026-07-21-1-in-tension-with-drg-edge.md",
-    "docs/adr/3.x/2026-08-22-2-retire-doctrine-term-charter-is-the-canonical-vocabulary.md",
     *WP02_RELATED_FRONTMATTER_REFERRERS,
     "docs/plans/doctrine/org-doctrine-layer-architecture-review.md",
     "docs/plans/engineering-notes/drg-completeness-2843-research.md",
@@ -158,19 +157,6 @@ WP02_PATH_TOKEN_ONLY_REFERRERS: tuple[str, ...] = (
     "src/doctrine/templates/README.md",
     "tests/architectural/test_no_dead_doctrine_paths.py",
 )
-
-#: The one referrer in the hand-edit set that legitimately keeps BOTH the
-#: pre- and post-rename path in the same sentence: it narrates the M1
-#: transaction itself ("M1 atomically updates `docs/context/doctrine.md` ->
-#: `docs/context/charter.md`"). Flipping the pre-image mention there would
-#: corrupt the ADR's own before/after description into a nonsensical
-#: `charter.md` -> `charter.md`, so it is deliberately left untouched -- this
-#: is exactly the double-funding/self-mutation hazard the paula-HIGH
-#: diff-shape check (T007b) exists to catch.
-_ADR_WITH_INTENTIONAL_BOTH_NAMES = (
-    "docs/adr/3.x/2026-08-22-2-retire-doctrine-term-charter-is-the-canonical-vocabulary.md"
-)
-
 
 def _git_show(rel_path: str, base_commit: str) -> str:
     """Return *rel_path*'s content at *base_commit* (WP02's pre-rename base)."""
@@ -240,8 +226,8 @@ def test_wp02_referrer_diffs_are_exactly_the_path_token() -> None:
     base_commit = _resolve_wp02_base_commit()
     if base_commit is None:
         pytest.skip(
-            "upstream/main not resolvable in this checkout (likely a shallow "
-            "clone with no upstream remote) -- cannot resolve WP02's base commit"
+            "origin/main not resolvable in this checkout (likely a shallow "
+            "clone) -- cannot resolve WP02's base commit"
         )
     violations: list[str] = []
     for rel_path in WP02_PATH_TOKEN_ONLY_REFERRERS:
@@ -263,19 +249,15 @@ def test_wp02_referrer_diffs_are_exactly_the_path_token() -> None:
 @pytest.mark.architectural
 def test_wp02_owned_referrers_flip_at_least_one_line() -> None:
     """Self-mutation teeth for the diff-shape check above: every referrer in
-    the hand-edit set, except the one ADR that legitimately narrates both the
-    pre- and post-rename name in its own before/after sentence (see
-    ``_ADR_WITH_INTENTIONAL_BOTH_NAMES``), must have actually changed."""
+    the hand-edit set must have actually changed."""
     base_commit = _resolve_wp02_base_commit()
     if base_commit is None:
         pytest.skip(
-            "upstream/main not resolvable in this checkout (likely a shallow "
-            "clone with no upstream remote) -- cannot resolve WP02's base commit"
+            "origin/main not resolvable in this checkout (likely a shallow "
+            "clone) -- cannot resolve WP02's base commit"
         )
     unchanged: list[str] = []
     for rel_path in WP02_PATH_TOKEN_ONLY_REFERRERS:
-        if rel_path == _ADR_WITH_INTENTIONAL_BOTH_NAMES:
-            continue
         if _git_show(rel_path, base_commit) == (REPO_ROOT / rel_path).read_text(encoding="utf-8"):
             unchanged.append(rel_path)
     assert not unchanged, f"Expected a path-token flip that never landed: {unchanged}"
