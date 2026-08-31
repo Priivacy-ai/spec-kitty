@@ -52,6 +52,18 @@ __all__: list[str] = []
 
 _CANONICAL_MODULE = "charter.offering"
 
+__deprecated__ = True
+__canonical_import__ = "charter.offering"
+__removal_release__ = "3.3.0"
+__deprecation_message__ = (
+    "The top-level 'doctrine' package has moved to 'charter.offering' "
+    "(mission charter-code-topology-01M152G1, CR-06). Replace "
+    "'import doctrine' / 'from doctrine import X' with "
+    "'import charter.offering' / 'from charter.offering import X'. "
+    "This compatibility shim (src/doctrine.py) is tracked for removal "
+    "in docs/migrations/shim-registry.yaml."
+)
+
 _warned = False
 
 
@@ -62,12 +74,7 @@ def _warn_once() -> None:
         return
     _warned = True
     warnings.warn(
-        "The top-level 'doctrine' package has moved to 'charter.offering' "
-        "(mission charter-code-topology-01M152G1, CR-06). Replace "
-        "'import doctrine' / 'from doctrine import X' with "
-        "'import charter.offering' / 'from charter.offering import X'. "
-        "This compatibility shim (src/doctrine.py) is tracked for removal "
-        "in docs/migrations/shim-registry.yaml.",
+        __deprecation_message__,
         DeprecationWarning,
         stacklevel=3,
     )
