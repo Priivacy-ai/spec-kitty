@@ -794,7 +794,6 @@ def _event_mutant_worker(
     with ExitStack() as stack:
         stack.enter_context(patch.dict(os.environ, {"SPECIFY_REPO_ROOT": str(repo)}))
         stack.enter_context(patch("specify_cli.status.emit._saas_fan_out"))
-        stack.enter_context(patch("specify_cli.status.emit.fire_dossier_sync"))
         lock_targets = {
             "tasks": "specify_cli.cli.commands.agent.tasks.feature_status_lock",
             "emit": "specify_cli.status.emit.feature_status_lock",
