@@ -79,7 +79,7 @@ def test_equivalent_multi_cycle_inputs_have_byte_identical_diagnostics() -> None
     captures.extend(_stable_cycle_facts(reverse=False) for _ in range(5))
 
     serialized = [capture[0] for capture in captures]
-    assert len(set(serialized)) == 1
+    assert set(serialized) == {serialized[0]}
 
     error = captures[0][1]
     assert error.error_code == "LANE_DEPENDENCY_CYCLE"

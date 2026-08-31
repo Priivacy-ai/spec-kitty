@@ -7,7 +7,7 @@ command ``create()`` is a thin wrapper around this function.
 
 from __future__ import annotations
 
-from specify_cli.core.constants import KITTY_SPECS_DIR
+import contextlib
 import logging
 import re
 import shutil
@@ -18,6 +18,7 @@ from typing import Any
 
 from ulid import ULID
 
+from specify_cli.core.constants import KITTY_SPECS_DIR
 from mission_runtime import (
     CommitTarget,
     MissionArtifactKind,
@@ -856,11 +857,13 @@ def _create_mission_core_impl(
         from specify_cli.identity.project import load_identity
         from specify_cli.status import (
             MISSION_CREATED,
+            _resolve_local_actor,
             emit_mission_created_local,
             read_lifecycle_events,
         )
 
         _identity = load_identity(resolved_root / ".kittify" / "config.yaml")
+        creation_actor = _resolve_local_actor()
         expected_created_payload = build_mission_created_payload(
             mission_slug=mission_slug_formatted,
             mission_id=meta.get("mission_id"),
@@ -872,6 +875,7 @@ def _create_mission_core_impl(
             purpose_tldr=normalized_purpose_tldr,
             purpose_context=normalized_purpose_context,
             created_at=str(meta[_META_KEY_CREATED_AT]) if meta.get(_META_KEY_CREATED_AT) else None,
+            actor=creation_actor,
         )
         emit_mission_created_local(
             feature_dir,
@@ -887,6 +891,7 @@ def _create_mission_core_impl(
             purpose_tldr=normalized_purpose_tldr,
             purpose_context=normalized_purpose_context,
             created_at=str(meta[_META_KEY_CREATED_AT]) if meta.get(_META_KEY_CREATED_AT) else None,
+            actor=creation_actor,
         )
         created_events = [event for event in read_lifecycle_events(feature_dir / "status.events.jsonl") if event.get("event_type") == MISSION_CREATED]
         if len(created_events) != 1:

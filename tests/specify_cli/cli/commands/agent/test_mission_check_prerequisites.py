@@ -231,7 +231,10 @@ def test_resume_probe_reports_ambiguous_duplicate_human_slug(tmp_path: Path) -> 
 
     assert payload["resume_state"] == "ambiguous"
     assert payload["error_code"] == "MISSION_RESUME_AMBIGUOUS"
-    assert len(payload["candidates"]) == 2
+    assert {candidate["mission_id"] for candidate in payload["candidates"]} == {
+        "01ABCDEF000000000000000000",
+        "01BCDEFG000000000000000000",
+    }
 
 
 def test_resume_probe_reports_malformed_partial_scaffold(tmp_path: Path) -> None:

@@ -383,9 +383,7 @@ class TestLaneLevelDependencies:
             "WP03": _manifest(["src/b/sub/**"]),
         }
 
-        with pytest.raises(
-            LaneComputationError, match="Execution-lane dependency cycle detected"
-        ):
+        with pytest.raises(LaneComputationError, match="Execution-lane dependency cycle detected"):
             compute_lanes(graph, manifests, "test-feat")
 
 

@@ -47,7 +47,6 @@ from specify_cli.core.commit_guard import GuardCapability
 from specify_cli.core.constants import KITTY_SPECS_DIR
 from specify_cli.core.dependency_graph import detect_cycles, validate_dependencies
 from specify_cli.core.paths import (
-    assert_safe_path_segment,
     get_main_repo_root,
     get_status_read_root,
     load_meta_fail_closed,
