@@ -590,6 +590,7 @@ def _create_mission_core_impl(
         resolve_create_time_write_target(planning_branch)
         if ownership_claim is not None and ownership_claim.validation_result is OwnershipValidationResult.OWNED
         else None
+    )
     if not normalized_friendly_name:
         normalized_friendly_name = default_mission_display_name(mission_slug)
 
