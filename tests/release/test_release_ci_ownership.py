@@ -127,6 +127,17 @@ def test_ci_windows_filter_can_read_pull_request_files() -> None:
     }
 
 
+def test_ci_windows_configures_private_git_dependencies_before_install() -> None:
+    workflow = load_workflow("ci-windows.yml")
+    steps = workflow["jobs"]["windows-critical"]["steps"]
+    step_names = [step.get("name") for step in steps]
+
+    assert step_names.index("Configure private git dependencies") < step_names.index("Install spec-kitty-cli (editable) + test deps")
+    configure_step = steps[step_names.index("Configure private git dependencies")]
+    assert configure_step["env"]["GH_TOKEN"] == "${{ secrets.SK_CI_TOKEN }}"
+    assert 'git config --global "url.https://x-access-token:${GH_TOKEN}@github.com/.insteadOf" "https://github.com/"' in configure_step["run"]
+
+
 @pytest.mark.parametrize("name", sorted(RESTORED_WORKFLOWS))
 def test_restored_workflows_use_stock_runners(name: str) -> None:
     text = workflow_text(name)
