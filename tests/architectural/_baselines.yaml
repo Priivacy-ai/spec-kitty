@@ -58,7 +58,10 @@ test_no_dead_modules:
   # state_contract, workspace_context — 8->1 SHRINK. WP02 then re-anchored
   # tasks_support's ~35 test sites onto specify_cli.task_utils and deleted the
   # module, draining the last row: 1->0 SHRINK. Category fully drained.)
-  category_4_backcompat_shims: 0
+  # justification: 0 -> 1 (charter-code-topology-01M152G1, M2): `doctrine`
+  # (src/doctrine.py) is an intentional deprecation shim for legacy external
+  # `import doctrine` callers during the CR-06 compatibility window.
+  category_4_backcompat_shims: 1
   # justification: 2 not-yet-wired adapter modules (specify_cli.doctrine.pack_descriptor,
   # specify_cli.doctrine.pack_lineage) from the pack-metadata library-first slice
   # (#3500-#3503, ADR 2026-08-16-1); production wiring is the deferred integration WP

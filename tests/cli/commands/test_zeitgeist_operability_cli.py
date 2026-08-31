@@ -34,9 +34,9 @@ def state_root(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
 
 @pytest.fixture()
 def no_git_ancestry_inside_tmp_path(tmp_path: Path) -> None:
-    """Pin the ancestor-origin-leak boundary (#441/#589's shape, also fixed
-    in ``tests/zeitgeist_client/test_mcp_stdio.py`` and
-    ``test_resolution.py``): without this, a test that ``chdir``s into a
+    """Pin the ancestor-origin-leak boundary (#441/#589's shape; the same
+    boundary is pinned separately in ``tests/zeitgeist_client/test_mcp_stdio.py``
+    and ``test_resolution.py``): without this, a test that ``chdir``s into a
     repo-less ``tmp_path`` subdirectory and asserts resolution fails closed
     can instead walk upward past ``tmp_path`` into whatever git checkout the
     pytest ``--basetemp`` happens to sit inside (e.g. this repo's own

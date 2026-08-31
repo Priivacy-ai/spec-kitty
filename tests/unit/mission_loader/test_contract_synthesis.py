@@ -8,7 +8,7 @@ of the form ``custom:<mission-key>:<step-id>``.
 
 from __future__ import annotations
 
-from doctrine.missions.step_contracts import MissionStepContract
+from charter.offering.missions.step_contracts import MissionStepContract
 
 from specify_cli.mission_loader.contract_synthesis import synthesize_contracts
 from runtime.next._internal_runtime.schema import (

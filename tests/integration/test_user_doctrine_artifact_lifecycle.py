@@ -227,7 +227,7 @@ def _write_charter(repo_root: Path, body: str) -> Path:
 # charter-context path, so callers still write it too.
 
 
-# Global selection: charter.yaml governance.doctrine.selected_styleguides.
+# Global selection: charter.yaml governance.charter.offering.selected_styleguides.
 # ``catalog.languages`` is the authoritative #2773 source for the active
 # project language set (``charter.language_scope.infer_repo_languages``). The
 # caveman styleguide is scoped ``applies_to_languages: [python, generic]``, so a
@@ -364,7 +364,7 @@ def test_case_1_project_styleguide_appears_in_implement_prompt(
         f"any of {body_markers!r} — found none. This indicates the renderer "
         "is emitting a catalog-miss placeholder rather than rendering the "
         "actual styleguide body. Verify (a) the fixture YAML parses cleanly "
-        "against `Styleguide` (src/doctrine/styleguides/) and (b) "
+        "against `Styleguide` (src/charter/offering/styleguides/) and (b) "
         "_render_selected_artifacts (src/charter/context.py) inlines the body."
     )
 

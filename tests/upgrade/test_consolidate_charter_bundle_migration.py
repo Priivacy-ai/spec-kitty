@@ -94,7 +94,7 @@ references:
   kind: directive
   title: Keep migrations idempotent
   summary: Every migration must be safe to re-run.
-  source_path: src/doctrine/directives/built-in/001.directive.yaml
+  source_path: src/charter/offering/directives/built-in/001.directive.yaml
   local_path: _LIBRARY/directive-001.md
 """
 

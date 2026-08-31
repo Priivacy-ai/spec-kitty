@@ -51,8 +51,8 @@ from charter.context_renderers.artifact_bodies import (
 from charter.context_renderers.section_bodies import render_critical_section_include
 
 if TYPE_CHECKING:
-    import doctrine.service as _doctrine_service_module
-    from doctrine.artifact_kinds import ArtifactKind
+    import charter.offering.service as _doctrine_service_module
+    from charter.offering.artifact_kinds import ArtifactKind
 
     from charter.repository_protocol import ArtifactRepository
 
@@ -75,7 +75,7 @@ def _render_template_include(
     """Render a ``template:<mission>/<name>`` selector via WP18 (FR-034).
 
     Resolves the mission-qualified template ID through the doctrine
-    6-tier chain (:func:`doctrine.template_catalog.resolve_template_by_id`)
+    6-tier chain (:func:`charter.offering.template_catalog.resolve_template_by_id`)
     and renders the resolved template file's content. The project root
     (the directory containing ``.kittify/``) is supplied as data so the
     project-scoped override/legacy tiers participate in resolution.
@@ -85,8 +85,8 @@ def _render_template_include(
     resolving the project root is re-raised rather than swallowed, matching
     WP12's fail-closed contract for the context entry point.
     """
-    from doctrine.resolver import ResolutionTier
-    from doctrine.template_catalog import TierRoot, resolve_template_by_id
+    from charter.offering.resolver import ResolutionTier
+    from charter.offering.template_catalog import TierRoot, resolve_template_by_id
 
     project_root = resolve_project_root(repo_root)
 
@@ -125,7 +125,7 @@ def _render_template_include(
 
 def _default_missions_root() -> Path:
     """Return the doctrine-bundled missions root (PACKAGE_DEFAULT tier)."""
-    from doctrine.missions import MissionTemplateRepository
+    from charter.offering.missions import MissionTemplateRepository
 
     return MissionTemplateRepository.default_missions_root()
 
@@ -176,7 +176,7 @@ def _render_generic_artifact_include(
 ) -> str:
     """Resolve a best-effort ``artifact:<id>`` selector emitted by activations."""
 
-    from doctrine.artifact_kinds import _NON_AUGMENTATION_ELIGIBLE_KINDS, ArtifactKind
+    from charter.offering.artifact_kinds import _NON_AUGMENTATION_ELIGIBLE_KINDS, ArtifactKind
 
     # Derive the candidate kinds from the canonical ArtifactKind set rather
     # than re-declaring a parallel tuple (R-009 / CC-4). Members of the
@@ -305,13 +305,13 @@ def _render_section_include_selector(
 
 
 def _resolve_include_kind(kind: str, selector: str) -> ArtifactKind:
-    """Resolve *kind* to its canonical :class:`~doctrine.artifact_kinds.ArtifactKind`.
+    """Resolve *kind* to its canonical :class:`~charter.offering.artifact_kinds.ArtifactKind`.
 
     Raises ``ValueError`` (not the raw doctrine exception) when the
     operator-facing ``mission-type`` token is used — mission types are not
     addressable governance artifacts.
     """
-    from doctrine.artifact_kinds import ArtifactKind, MissionTypeNotAnArtifactKind
+    from charter.offering.artifact_kinds import ArtifactKind, MissionTypeNotAnArtifactKind
 
     try:
         return ArtifactKind.from_operator_token(kind)
@@ -372,7 +372,7 @@ def _render_catalog_kind_include_selector(
     (the caller raises the "unsupported kind" error using the original,
     pre-resolution *kind* token for a user-facing message).
     """
-    from doctrine.artifact_kinds import ArtifactKind
+    from charter.offering.artifact_kinds import ArtifactKind
 
     if canonical_kind == ArtifactKind.DIRECTIVE.value:
         return _render_directive_include(service.directives, identifier, selector)

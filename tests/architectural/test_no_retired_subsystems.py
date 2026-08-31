@@ -11,6 +11,7 @@ from __future__ import annotations
 import ast
 import json
 import re
+import tomllib
 from pathlib import Path
 from typing import Any
 
@@ -103,6 +104,8 @@ _BANNED_IMPORT_PREFIXES = (
 )
 
 _MANIFEST_PATH = _REPO_ROOT / "src/specify_cli/_completion_manifest.json"
+_RUFF_PATH = _REPO_ROOT / "ruff.toml"
+_RETIRED_RUFF_SYNC_PREFIX = "src/specify_cli/sync/"
 _RETIRED_CLI_PREFIXES = (
     ("sync",),
     ("doctor", _ORPHAN_DAEMONS),
@@ -310,6 +313,16 @@ def _retired_surface_violations(root: Path) -> list[str]:
     return sorted(violations)
 
 
+def _retired_ruff_ignore_violations(path: Path) -> list[str]:
+    config = tomllib.loads(path.read_text(encoding="utf-8"))
+    lint = config.get("lint", {})
+    per_file_ignores = {
+        **lint.get("per-file-ignores", {}),
+        **lint.get("extend-per-file-ignores", {}),
+    }
+    return [f"retired Ruff per-file ignore: {pattern}" for pattern in per_file_ignores if pattern.startswith(_RETIRED_RUFF_SYNC_PREFIX)]
+
+
 def test_no_retired_paths_exist() -> None:
     assert _retired_path_violations(_REPO_ROOT) == []
 
@@ -407,6 +420,19 @@ def test_cli_guard_rejects_planted_fixture(tmp_path: Path) -> None:
 
 def test_shipped_prose_has_no_retired_surface() -> None:
     assert _retired_surface_violations(_REPO_ROOT) == []
+
+
+def test_ruff_has_no_retired_sync_per_file_ignores() -> None:
+    assert _retired_ruff_ignore_violations(_RUFF_PATH) == []
+
+
+def test_ruff_guard_rejects_planted_fixture(tmp_path: Path) -> None:
+    ruff_path = tmp_path / "ruff.toml"
+    ruff_path.write_text(
+        '[lint.extend-per-file-ignores]\n"src/specify_cli/sync/clock.py" = ["F401"]\n',
+        encoding="utf-8",
+    )
+    assert _retired_ruff_ignore_violations(ruff_path) == ["retired Ruff per-file ignore: src/specify_cli/sync/clock.py"]
 
 
 def test_prose_guard_rejects_planted_fixture_but_allows_sanctioned_tokens(tmp_path: Path) -> None:

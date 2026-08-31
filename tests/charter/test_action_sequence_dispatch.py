@@ -17,7 +17,7 @@ Patching strategy:
   resolve_layered_mission_types via sys.modules for the inner import.
 
 WP04 update (mission up-mission-type-seam-01KZY1JB, FR-002): ``_resolve_action_slot``
-now calls the new, layered ``doctrine.missions.mission_type_repository.resolve_layered_mission_types``
+now calls the new, layered ``charter.offering.missions.mission_type_repository.resolve_layered_mission_types``
 factory (WP03) instead of the built-in-only ``MissionTypeRepository.default()`` --
 a repository-call swap, not argument-threading (see that function's own
 docstring). The ``sys.modules`` injection below was updated to expose
@@ -132,7 +132,7 @@ def _inject_mission_type_repository_mock(
     """Inject a mock ``resolve_layered_mission_types`` module into sys.modules.
 
     WP04: ``_resolve_action_slot`` calls
-    ``doctrine.missions.mission_type_repository.resolve_layered_mission_types``
+    ``charter.offering.missions.mission_type_repository.resolve_layered_mission_types``
     (WP03's layered factory), not ``MissionTypeRepository.default()`` --
     a repository-call swap. *mock_repo* already exposes the ``.get(id)``
     interface the returned roster needs, so it doubles as the fake factory's
@@ -143,18 +143,18 @@ def _inject_mission_type_repository_mock(
     mock_resolve_layered = MagicMock(return_value=mock_repo)
 
     # Need both the package and the specific module
-    fake_pkg = types.ModuleType("doctrine.missions")
-    fake_module = types.ModuleType("doctrine.missions.mission_type_repository")
+    fake_pkg = types.ModuleType("charter.offering.missions")
+    fake_module = types.ModuleType("charter.offering.missions.mission_type_repository")
     fake_module.resolve_layered_mission_types = mock_resolve_layered  # type: ignore[attr-defined]
 
     saved: dict = {}
-    for key in ("doctrine.missions", "doctrine.missions.mission_type_repository"):
+    for key in ("charter.offering.missions", "charter.offering.missions.mission_type_repository"):
         saved[key] = sys.modules.get(key)
 
-    # Only inject the specific module (don't override doctrine.missions if it exists)
-    if "doctrine.missions" not in sys.modules:
-        sys.modules["doctrine.missions"] = fake_pkg
-    sys.modules["doctrine.missions.mission_type_repository"] = fake_module
+    # Only inject the specific module (don't override charter.offering.missions if it exists)
+    if "charter.offering.missions" not in sys.modules:
+        sys.modules["charter.offering.missions"] = fake_pkg
+    sys.modules["charter.offering.missions.mission_type_repository"] = fake_module
     return saved
 
 
@@ -311,13 +311,13 @@ class TestResolveActionSequence:
 
         mock_resolve_layered = MagicMock(side_effect=counting_roster_factory)
 
-        fake_module = types.ModuleType("doctrine.missions.mission_type_repository")
+        fake_module = types.ModuleType("charter.offering.missions.mission_type_repository")
         fake_module.resolve_layered_mission_types = mock_resolve_layered  # type: ignore[attr-defined]
 
         saved: dict = {}
-        for key in ("doctrine.missions.mission_type_repository",):
+        for key in ("charter.offering.missions.mission_type_repository",):
             saved[key] = sys.modules.get(key)
-        sys.modules["doctrine.missions.mission_type_repository"] = fake_module
+        sys.modules["charter.offering.missions.mission_type_repository"] = fake_module
 
         try:
             with patch(

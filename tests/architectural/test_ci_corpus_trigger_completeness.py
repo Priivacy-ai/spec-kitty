@@ -101,7 +101,7 @@ _CORPUS_DATA_ROOTS = (
 # to exclude modules whose only "corpus" signal is a synthetic tmp_path
 # construction, a literal error-message string assertion, or a stale
 # pre-relocation path that no longer resolves to any real content on disk
-# (e.g. `src/doctrine/<kind>/built-in/` -- doctrine content kinds other than
+# (e.g. `src/charter/offering/<kind>/built-in/` -- doctrine content kinds other than
 # `skills`/`templates` relocated to `packs/built-in/<kind>/`; several
 # compliance tests were never updated and now glob a directory that no
 # longer exists -- vacuously passing, a pre-existing staleness bug outside

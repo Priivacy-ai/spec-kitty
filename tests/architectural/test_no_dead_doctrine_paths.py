@@ -111,7 +111,7 @@ def _escapes_boundary(
     the surrounding monorepo checkout to keep the link alive.
 
     Crucially, this is a per-link *union* test, not a per-root test: a link
-    from ``src/doctrine/**`` into ``packs/built-in/**`` (or the reverse) is
+    from ``src/charter/offering/**`` into ``packs/built-in/**`` (or the reverse) is
     NOT a boundary escape when both trees are members of *boundary_roots* --
     ``scan_doctrine_cross_links_shipped()`` treats both shipped roots as one
     corpus, so the escape/no-escape verdict must agree with that model
@@ -207,14 +207,14 @@ def scan_doctrine_cross_links(
 
 
 def scan_doctrine_cross_links_shipped() -> CrossLinkScan:
-    """Gate C over the shipped doctrine markdown: ``src/doctrine/`` merged with
+    """Gate C over the shipped doctrine markdown: ``src/charter/offering/`` merged with
     ``packs/built-in/``.
 
     The in-boundary set for *both* sub-scans is the union of both shipped
     roots (mission ``doctrine-consumer-surface-missions-extraction-01KZ6G6H``
     WP02 cycle-2, B1): a link is a ``boundary_escape`` only when it lands
     outside every shipped root, not merely outside whichever single root it
-    was scanned under. Without this, a link crossing ``src/doctrine/`` <->
+    was scanned under. Without this, a link crossing ``src/charter/offering/`` <->
     ``packs/built-in/`` escaped the boundary of its own scan root even though
     the two scans are merged into one corpus two lines below -- silently
     exempting a genuinely broken cross-tree link from resolution checking
@@ -250,19 +250,19 @@ def test_code_example_links_would_false_red_without_their_discriminator() -> Non
     excluded = sorted({(site.path, site.text) for site in scan.code_examples})
     # Relocated (mission relocate-builtin-doctrine-packs-01KYT87F): the toolguide
     # markdown moved to the flattened ``packs/built-in/toolguides/`` home; the
-    # SKILL.md stays under ``src/doctrine/skills/`` (skills did not move).
+    # SKILL.md stays under ``src/charter/offering/skills/`` (skills did not move).
     # ``spk-doctrine-show-me`` carries byte-pinned portable copies of both
     # guides, so their fenced link examples intentionally appear twice.
     assert excluded == [
         ("packs/built-in/toolguides/MERMAID_DIAGRAMMING.md", "diagram.svg"),
         ("packs/built-in/toolguides/PLANTUML_DIAGRAMMING.md", "diagram.svg"),
-        ("src/doctrine/skills/spec-kitty-spdd-reasons/SKILL.md", "../spec.md#x"),
+        ("src/charter/offering/skills/spec-kitty-spdd-reasons/SKILL.md", "../spec.md#x"),
         (
-            "src/doctrine/skills/spk-doctrine-show-me/assets/MERMAID_DIAGRAMMING.md",
+            "src/charter/offering/skills/spk-doctrine-show-me/assets/MERMAID_DIAGRAMMING.md",
             "diagram.svg",
         ),
         (
-            "src/doctrine/skills/spk-doctrine-show-me/assets/PLANTUML_DIAGRAMMING.md",
+            "src/charter/offering/skills/spk-doctrine-show-me/assets/PLANTUML_DIAGRAMMING.md",
             "diagram.svg",
         ),
     ], f"C1's effect set moved: {excluded}"
@@ -273,9 +273,9 @@ def test_placeholder_links_would_false_red_without_their_discriminator() -> None
     scan = scan_doctrine_cross_links_shipped()
     excluded = sorted({(site.path, site.text) for site in scan.placeholders})
     assert excluded == [
-        ("src/doctrine/templates/guides/HOW-TO.template.md", "../explanation/{topic}.md"),
-        ("src/doctrine/templates/guides/HOW-TO.template.md", "../reference/{file}.md"),
-        ("src/doctrine/templates/guides/HOW-TO.template.md", "./{related-guide}.md"),
+        ("src/charter/offering/templates/guides/HOW-TO.template.md", "../explanation/{topic}.md"),
+        ("src/charter/offering/templates/guides/HOW-TO.template.md", "../reference/{file}.md"),
+        ("src/charter/offering/templates/guides/HOW-TO.template.md", "./{related-guide}.md"),
     ], f"C2's effect set moved: {excluded}"
 
 
@@ -425,7 +425,7 @@ def test_cross_link_scope_is_pinned() -> None:
 
     Relocated (mission relocate-builtin-doctrine-packs-01KYT87F): Gate C now
     covers BOTH shipped trees, so the in-scope corpus is the union of
-    ``src/doctrine/`` markdown (skills, templates, package READMEs — the
+    ``src/charter/offering/`` markdown (skills, templates, package READMEs — the
     ``missions`` subtree still lives here and is still excluded) and the
     relocated ``packs/built-in/`` markdown (toolguides, pack READMEs).
     """
@@ -438,7 +438,7 @@ def test_cross_link_scope_is_pinned() -> None:
             if skipped not in path.parents
         }
     assert _DOCTRINE_ROOT.is_dir() and _PACKS_ROOT.is_dir()
-    assert not any(path.startswith("src/doctrine/missions/") for path in in_scope)
+    assert not any(path.startswith("src/charter/offering/missions/") for path in in_scope)
     # Pinned near the live combined count (159 = 141 under src/doctrine + 18 under
     # packs/built-in), not at a token floor. The exclusion is subtree-shaped, so
     # this assertion is the only thing standing between Gate C and a silencing

@@ -1,6 +1,6 @@
 """Unit tests for toolguide schema validation."""
 
-from doctrine.toolguides.validation import validate_toolguide
+from charter.offering.toolguides.validation import validate_toolguide
 import pytest
 pytestmark = [pytest.mark.fast, pytest.mark.doctrine]
 

@@ -423,3 +423,17 @@ class TestReadIgnoreFileText:
                 read_ignore_file_text(path)
         finally:
             path.unlink(missing_ok=True)
+
+    def test_vanishing_symlink_is_still_rejected(self, temp_dir, monkeypatch):
+        """A failure while resolving a symlink for the error message must not
+        replace `GitignorePathError` if the symlink is unlinked concurrently."""
+        path = temp_dir / ".gitignore"
+        path.symlink_to(temp_dir / "missing-target")
+
+        def readlink_raises(*args, **kwargs):
+            raise FileNotFoundError(f"simulated vanished symlink: {args}")
+
+        monkeypatch.setattr(os, "readlink", readlink_raises)
+
+        with pytest.raises(GitignorePathError):
+            read_ignore_file_text(path)

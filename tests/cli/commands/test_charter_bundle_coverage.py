@@ -1,6 +1,6 @@
 """Coverage tests for ``specify_cli.cli.commands.charter_bundle`` (A/B/C split).
 
-Tactic: function-over-form-testing (src/doctrine/tactics/built-in/testing/).
+Tactic: function-over-form-testing (src/charter/offering/tactics/built-in/testing/).
 Structure: AAA (Arrange / Act / Assert).
 """
 

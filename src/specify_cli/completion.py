@@ -87,7 +87,9 @@ def _build_command_tree(manifest: dict[str, Any]) -> Any:
         command.deprecated = bool(node.get("deprecated", False))
         return command
 
-    return build(manifest, PROG_NAME)
+    root_children = dict(manifest.get("commands", {}))
+    root = {**manifest, "commands": root_children}
+    return build(root, PROG_NAME)
 
 
 _MANIFEST_FILENAME = "_completion_manifest.json"

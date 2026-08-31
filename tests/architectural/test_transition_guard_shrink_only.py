@@ -153,10 +153,7 @@ def _is_governing_line(content: str) -> bool:
 # to grow.
 _CR01_CONTROL_PATHS: frozenset[str] = frozenset(
     {
-        "tests/architectural/test_charter_owner_map_executed.py",
-        "tests/architectural/test_glossary_authority_parity.py",
         "tests/charter/test_answers_migration.py",
-        "tests/glossary/test_canonical_promotion.py",
     }
 )
 

@@ -15,8 +15,8 @@ from __future__ import annotations
 
 import pytest
 
-from doctrine.drg.models import DRGEdge, DRGGraph, DRGNode, NodeKind, Relation
-from doctrine.drg.validator import (
+from charter.offering.drg.models import DRGEdge, DRGGraph, DRGNode, NodeKind, Relation
+from charter.offering.drg.validator import (
     _validate_duplicate_edges,
     dangling_endpoints,
     duplicate_edge_triples,

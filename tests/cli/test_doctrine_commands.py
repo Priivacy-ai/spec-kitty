@@ -107,7 +107,7 @@ def test_mission_type_list_json_is_valid() -> None:
 
     # Output must be parseable JSON.
     try:
-        data = json.loads(result.output.strip())
+        data = json.loads(result.stdout.strip())
     except json.JSONDecodeError as exc:
         pytest.fail(f"JSON output is not valid JSON: {exc}\n\nOutput:\n{result.output}")
 
@@ -121,7 +121,7 @@ def test_mission_type_list_json_has_required_keys() -> None:
 
     assert result.exit_code == 0, result.output
 
-    data = json.loads(result.output.strip())
+    data = json.loads(result.stdout.strip())
     assert isinstance(data, list)
 
     for item in data:
@@ -136,7 +136,7 @@ def test_mission_type_list_json_contains_built_in_software_dev() -> None:
 
     assert result.exit_code == 0, result.output
 
-    data = json.loads(result.output.strip())
+    data = json.loads(result.stdout.strip())
     assert isinstance(data, list)
 
     sw_dev = next((item for item in data if item["id"] == "software-dev"), None)
@@ -151,7 +151,7 @@ def test_mission_type_list_json_all_built_in_types() -> None:
 
     assert result.exit_code == 0, result.output
 
-    data = json.loads(result.output.strip())
+    data = json.loads(result.stdout.strip())
     ids = {item["id"] for item in data}
     expected = {"software-dev", "documentation", "research", "plan"}
     assert expected <= ids, (
@@ -188,7 +188,7 @@ def test_mission_type_list_json_source_layers_canonical() -> None:
 
     assert result.exit_code == 0, result.output
 
-    data = json.loads(result.output.strip())
+    data = json.loads(result.stdout.strip())
     canonical_layers = {"built-in", "org", "project"}
     for item in data:
         assert item["source_layer"] in canonical_layers, (
@@ -213,7 +213,7 @@ def test_mission_type_list_includes_registered_org_type_regardless_of_activation
     ever comes from ``_collect_built_in_mission_types()``, so an org-only id
     is simply absent from the output, not mislabeled).
     """
-    from doctrine.missions.mission_type_repository import MissionTypeRepository
+    from charter.offering.missions.mission_type_repository import MissionTypeRepository
 
     from charter.pack_context import PackContext
 
@@ -235,7 +235,7 @@ def test_mission_type_list_includes_registered_org_type_regardless_of_activation
         MissionTypeRepository.cache_clear()
 
     assert result.exit_code == 0, result.output
-    data = json.loads(result.output.strip())
+    data = json.loads(result.stdout.strip())
     ids = {item["id"] for item in data}
     assert "qa" in ids, f"org-registered 'qa' missing from listing: {data!r}"
     qa_row = next(item for item in data if item["id"] == "qa")
