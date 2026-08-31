@@ -13,7 +13,7 @@ import subprocess
 import sys
 from types import SimpleNamespace
 from typing import Any
-from unittest.mock import MagicMock, patch
+from unittest.mock import patch
 import warnings
 
 import pytest

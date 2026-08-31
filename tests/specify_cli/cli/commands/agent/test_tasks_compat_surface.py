@@ -153,7 +153,10 @@ _TASKS_STATUS_CMD: tuple[str, ...] = (  # WP07 (wave2) — 23 symbols (#2816: +g
     "_render_stale_status",
 )
 
-_TASKS_MOVE_TASK: tuple[str, ...] = (  # WP05 (wave2); grown to 75 via WP09, +1 (_binding_role_for_lane) = 76, -1 (_mt_pre_review_gate_verdict retired, WP04) = 75, +1 (#2573 human status observer) = 76
+# WP05 (wave2): grown to 75 via WP09, +1 (_binding_role_for_lane) = 76,
+# -1 (_mt_pre_review_gate_verdict retired, WP04) = 75, +1 (#2573 human
+# status observer) = 76.
+_TASKS_MOVE_TASK: tuple[str, ...] = (
     # (#2513/#2160: +uncheck/clear-markers/reset-rollback; #2573: +gate
     # skip-reason pair; WP07 #2649: +param-object + commit/uncheck degod helpers;
     # #2639: +complete-deferred-readiness + pre-review-dirty-paths;
