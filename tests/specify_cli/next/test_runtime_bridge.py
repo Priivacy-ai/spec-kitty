@@ -81,12 +81,26 @@ def test_is_run_affecting_matches_expected_routing():
 # ---------------------------------------------------------------------------
 
 
-def _write_status_events(feature_dir: Path, wp_lanes: dict[str, Lane]) -> None:
-    """Write a minimal status.events.jsonl with given WP lanes."""
+def _write_status_events(
+    feature_dir: Path,
+    wp_lanes: dict[str, Lane],
+    *,
+    provenance: dict[str, str] | None = None,
+) -> None:
+    """Write a minimal status.events.jsonl with given WP lanes.
+
+    ``provenance`` (T007, #3780) optionally maps a WP id whose ``final_lane``
+    is ``CANCELED`` to a ``reason_source`` value — ``"operator"`` marks an
+    operator-authored cancellation (a real, non-empty note). A WP omitted
+    from ``provenance`` (the default) writes the CLI's synthetic
+    cancellation shape (``reason=None, reason_source=None``) — the
+    fail-closed case ``committed_authority.wp_ending`` must still block on.
+    """
     from specify_cli.status.models import Lane as _Lane
 
     events_path = feature_dir / "status.events.jsonl"
     lines = []
+    provenance = provenance or {}
     # Build events: planned -> (claimed) -> actual_lane for each WP
     for wp_id, final_lane in wp_lanes.items():
         # Always start with planned
@@ -105,7 +119,7 @@ def _write_status_events(feature_dir: Path, wp_lanes: dict[str, Lane]) -> None:
             "wp_id": wp_id,
         }))
         if final_lane != _Lane.PLANNED:
-            lines.append(json.dumps({
+            event: dict[str, object] = {
                 "actor": "test",
                 "at": "2026-04-09T00:01:00+00:00",
                 "event_id": f"01TEST{wp_id}CLAIM",
@@ -118,7 +132,11 @@ def _write_status_events(feature_dir: Path, wp_lanes: dict[str, Lane]) -> None:
                 "review_ref": None,
                 "to_lane": str(final_lane),
                 "wp_id": wp_id,
-            }))
+            }
+            if final_lane == _Lane.CANCELED and wp_id in provenance:
+                event["reason_source"] = provenance[wp_id]
+                event["reason"] = "Operator-authored cancellation for test"
+            lines.append(json.dumps(event))
     events_path.write_text("\n".join(lines) + "\n", encoding="utf-8")
 
 
@@ -311,6 +329,66 @@ def test_should_not_advance_review_one_in_review(feature_dir: Path) -> None:
 
     from runtime.next.runtime_bridge import _should_advance_wp_step
     assert _should_advance_wp_step("review", feature_dir) is False
+
+
+@pytest.mark.regression
+def test_should_advance_review_canceled_with_operator_provenance(feature_dir: Path) -> None:
+    """#3780: a canceled WP carrying operator-authored provenance advances
+    review — committed_authority.wp_ending's ``acceptable`` fold routes
+    through ``is_acceptable_ending(has_provenance=True)``."""
+    tasks = feature_dir / "tasks"
+    _write_wp_file(tasks, "WP01")
+    _write_status_events(
+        feature_dir,
+        {"WP01": Lane.CANCELED},
+        provenance={"WP01": "operator"},
+    )
+
+    from runtime.next.runtime_bridge import _should_advance_wp_step
+    assert _should_advance_wp_step("review", feature_dir) is True
+
+
+@pytest.mark.regression
+def test_should_advance_implement_canceled_with_operator_provenance(feature_dir: Path) -> None:
+    """#3780: operator-provenance cancellation also advances implement (a
+    canceled WP is not run-affecting regardless of provenance, but this
+    pins the truth table's implement row explicitly)."""
+    tasks = feature_dir / "tasks"
+    _write_wp_file(tasks, "WP01")
+    _write_status_events(
+        feature_dir,
+        {"WP01": Lane.CANCELED},
+        provenance={"WP01": "operator"},
+    )
+
+    from runtime.next.runtime_bridge import _should_advance_wp_step
+    assert _should_advance_wp_step("implement", feature_dir) is True
+
+
+@pytest.mark.regression
+def test_should_not_advance_review_synthetic_cancellation(feature_dir: Path) -> None:
+    """#3780: a synthetic cancellation (no operator provenance) still BLOCKS
+    review — the fail-closed half of the truth table. This is the case that
+    fails on base (lane-only predicate treats CANCELED as never blocking
+    review, i.e. it does NOT distinguish provenance at all)."""
+    tasks = feature_dir / "tasks"
+    _write_wp_file(tasks, "WP01")
+    _write_status_events(feature_dir, {"WP01": Lane.CANCELED})  # no provenance -> synthetic
+
+    from runtime.next.runtime_bridge import _should_advance_wp_step
+    assert _should_advance_wp_step("review", feature_dir) is False
+
+
+@pytest.mark.regression
+def test_should_advance_implement_synthetic_cancellation(feature_dir: Path) -> None:
+    """#3780: a synthetic cancellation still does NOT block implement — a
+    canceled WP is never run-affecting there, independent of provenance."""
+    tasks = feature_dir / "tasks"
+    _write_wp_file(tasks, "WP01")
+    _write_status_events(feature_dir, {"WP01": Lane.CANCELED})
+
+    from runtime.next.runtime_bridge import _should_advance_wp_step
+    assert _should_advance_wp_step("implement", feature_dir) is True
 
 
 def test_should_advance_no_wps(feature_dir: Path) -> None:
