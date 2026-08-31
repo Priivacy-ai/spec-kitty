@@ -22,7 +22,6 @@ See: kitty-specs/042-local-mission-dossier-authority-parity-export/data-model.md
 """
 
 from enum import StrEnum
-from pathlib import Path
 
 from pydantic import BaseModel, ConfigDict, Field
 
@@ -125,31 +124,6 @@ class ExpectedArtifactManifest(BaseModel):
         default_factory=list,
         description="Artifacts optional regardless of mission step",
     )
-
-    @classmethod
-    def from_yaml_file(cls, path: Path) -> "ExpectedArtifactManifest":
-        """Load manifest from YAML file.
-
-        Args:
-            path: Path to YAML manifest file
-
-        Returns:
-            ExpectedArtifactManifest instance
-
-        Raises:
-            FileNotFoundError: If file doesn't exist
-            ValueError: If YAML is invalid
-        """
-        import ruamel.yaml
-
-        yaml = ruamel.yaml.YAML()
-        with open(path) as f:
-            data = yaml.load(f)
-
-        if data is None:
-            data = {}
-
-        return cls(**data)
 
     def get_step_ids(self) -> list[str]:
         """Return all step IDs in required_by_step.

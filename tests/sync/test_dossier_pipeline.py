@@ -792,11 +792,16 @@ def test_real_load_manifest_schema_error_names_origin_through_sync_feature_dossi
     own distinctive origin ("test-fixture") -- together the two tests prove
     BOTH consumers surface the origin from the one real producer, not just
     one of them.
+
+    WP01 (#3770) relocated the ``_doctrine_repository`` seam from
+    ``specify_cli.dossier.manifest`` into ``charter.activation.manifest_loader``
+    alongside the load+cache logic that owns it, so the monkeypatch below
+    targets the new module.
     """
     import ruamel.yaml
     from charter.offering.missions.repository import ConfigResult
 
-    import specify_cli.dossier.manifest as manifest_module
+    import charter.activation.manifest_loader as manifest_loader_module
     from specify_cli.dossier.manifest import ManifestRegistry
 
     feature_dir = tmp_path / "047-real-e2e"
@@ -812,7 +817,7 @@ def test_real_load_manifest_schema_error_names_origin_through_sync_feature_dossi
         def get_expected_artifacts(self, mission: str) -> ConfigResult | None:
             return ConfigResult(content=content, origin=distinctive_origin, parsed=parsed)
 
-    monkeypatch.setattr(manifest_module, "_doctrine_repository", lambda: _FakeRepository())
+    monkeypatch.setattr(manifest_loader_module, "_doctrine_repository", lambda: _FakeRepository())
     ManifestRegistry.clear_cache()
 
     ns = _make_namespace()

@@ -442,10 +442,29 @@ class TestManifestIntegration:
 
 
 class TestManifestYAMLFormat:
-    """Test YAML file format and loading."""
+    """Test manifest loading from the shipped YAML files.
+
+    T003 (WP01 / #3770): ``ExpectedArtifactManifest.from_yaml_file`` was
+    deleted -- it constructed via ``cls(**data)``, a bare-construction path
+    the arch-gate forbidding bare ``model_validate(``/bare
+    ``ExpectedArtifactManifest(`` cannot police (FR-013/D6). These three
+    tests are migrated to the canonical loader
+    (``ManifestRegistry.load_manifest``, which internally reads the same
+    on-disk files via ``MissionTemplateRepository.get_expected_artifacts``
+    and applies ``model_validate``), preserving the original intent (each
+    shipped manifest loads and reports the right ``mission_type``).
+    """
+
+    def setup_method(self):
+        """Clear cache before each test."""
+        ManifestRegistry.clear_cache()
+
+    def teardown_method(self):
+        """Clear cache after each test."""
+        ManifestRegistry.clear_cache()
 
     def test_from_yaml_file_software_dev(self):
-        """Load software-dev manifest from YAML file."""
+        """Load software-dev manifest through the canonical loader."""
         yaml_path = (
             Path(__file__).parent.parent.parent
             / "packs"
@@ -455,11 +474,12 @@ class TestManifestYAMLFormat:
             / "expected-artifacts.yaml"
         )
         assert yaml_path.exists(), f"Manifest file not found: {yaml_path}"
-        manifest = ExpectedArtifactManifest.from_yaml_file(yaml_path)
+        manifest = ManifestRegistry.load_manifest("software-dev")
+        assert manifest is not None
         assert manifest.mission_type == "software-dev"
 
     def test_from_yaml_file_research(self):
-        """Load research manifest from YAML file."""
+        """Load research manifest through the canonical loader."""
         yaml_path = (
             Path(__file__).parent.parent.parent
             / "packs"
@@ -469,11 +489,12 @@ class TestManifestYAMLFormat:
             / "expected-artifacts.yaml"
         )
         assert yaml_path.exists(), f"Manifest file not found: {yaml_path}"
-        manifest = ExpectedArtifactManifest.from_yaml_file(yaml_path)
+        manifest = ManifestRegistry.load_manifest("research")
+        assert manifest is not None
         assert manifest.mission_type == "research"
 
     def test_from_yaml_file_documentation(self):
-        """Load documentation manifest from YAML file."""
+        """Load documentation manifest through the canonical loader."""
         yaml_path = (
             Path(__file__).parent.parent.parent
             / "packs"
@@ -483,8 +504,116 @@ class TestManifestYAMLFormat:
             / "expected-artifacts.yaml"
         )
         assert yaml_path.exists(), f"Manifest file not found: {yaml_path}"
-        manifest = ExpectedArtifactManifest.from_yaml_file(yaml_path)
+        manifest = ManifestRegistry.load_manifest("documentation")
+        assert manifest is not None
         assert manifest.mission_type == "documentation"
+
+
+# ---------------------------------------------------------------------------
+# T005 (WP01, mission expected-artifacts-loader-unification-01M1C9VQ, #3770):
+# shim re-export object-identity contract
+# (contracts/shim-reexport-surface.md) + cache-delegate characterization.
+#
+# All tests below are CHARACTERIZATION (green-stays-green), never
+# @pytest.mark.regression (D8) -- they lock a refactor-time invariant, not a
+# behavior that was ever red on main.
+# ---------------------------------------------------------------------------
+
+
+class TestManifestLoaderShimReexportSurface:
+    """FR-002/contracts/shim-reexport-surface.md: the four relocated names
+    (`ManifestRegistry`, `load_manifest`, `ManifestSchemaError`,
+    `MalformedManifestError`) still resolve from the OLD
+    `specify_cli.dossier.manifest` path after WP01's relocation, with OBJECT
+    IDENTITY to the new charter-resident authority -- not a re-implemented
+    copy. Identity (not mere equality) matters because 8+ pre-existing
+    `except ManifestSchemaError`/`except MalformedManifestError` catch sites
+    (`sync/namespace.py`, `sync/dossier_pipeline.py`, and this file's own
+    tests) must keep catching errors the charter authority raises.
+    """
+
+    def test_manifest_schema_error_is_the_same_object_as_charter_authority(self) -> None:
+        import specify_cli.dossier.manifest as legacy_module
+        from charter.activation.manifest_loader import (
+            ManifestSchemaError as CharterManifestSchemaError,
+        )
+
+        assert legacy_module.ManifestSchemaError is CharterManifestSchemaError
+
+    def test_malformed_manifest_error_is_the_same_object_as_charter_authority(self) -> None:
+        import specify_cli.dossier.manifest as legacy_module
+        from charter.offering.missions.repository import (
+            MalformedManifestError as CharterMalformedManifestError,
+        )
+
+        assert legacy_module.MalformedManifestError is CharterMalformedManifestError
+
+    def test_load_manifest_function_is_the_same_object_as_charter_authority(self) -> None:
+        import specify_cli.dossier.manifest as legacy_module
+        from charter.activation.manifest_loader import load_manifest as charter_load_manifest
+
+        assert legacy_module.load_manifest is charter_load_manifest
+
+    def test_manifest_registry_still_resolves_from_old_path(self) -> None:
+        """`ManifestRegistry` itself never moved (D3) -- still importable
+        from the old path, still exposing `load_manifest` as a callable."""
+        from specify_cli.dossier.manifest import ManifestRegistry as LegacyManifestRegistry
+
+        assert LegacyManifestRegistry is ManifestRegistry
+        assert callable(LegacyManifestRegistry.load_manifest)
+
+    def test_manifest_registry_load_manifest_delegate_returns_same_object_as_authority(
+        self,
+    ) -> None:
+        """Delegate parity (contract's 4th bullet): `ManifestRegistry.load_manifest(...)`
+        returns the SAME object the charter authority itself returns for
+        identical inputs -- not a re-wrapped/copied value. The second call
+        hits the (shared) cache, so identity here also exercises the
+        cache-delegate path below.
+        """
+        from charter.activation.manifest_loader import load_manifest as charter_load_manifest
+
+        ManifestRegistry.clear_cache()
+        via_registry = ManifestRegistry.load_manifest("software-dev")
+        via_authority = charter_load_manifest("software-dev")
+
+        assert via_registry is not None
+        assert via_registry is via_authority
+
+
+class TestManifestRegistryCacheDelegatesToCharterAuthority:
+    """NFR-002: `ManifestRegistry._cache` is the SAME dict object as
+    `charter.activation.manifest_loader._cache` (an alias, not a copy) --
+    the cache-introspection tests in `TestManifestRegistryOrgTier` below
+    (cache-key shape, cross-root non-shadowing, declaration order) exercise
+    this same shared object through the delegate and must keep passing
+    unchanged; these two tests pin the aliasing itself.
+    """
+
+    def setup_method(self) -> None:
+        ManifestRegistry.clear_cache()
+
+    def teardown_method(self) -> None:
+        ManifestRegistry.clear_cache()
+
+    def test_manifest_registry_cache_is_the_same_object_as_charter_authority_cache(
+        self,
+    ) -> None:
+        from charter.activation.manifest_loader import _cache as charter_cache
+
+        assert ManifestRegistry._cache is charter_cache
+
+    def test_manifest_registry_clear_cache_clears_charter_authority_cache(self) -> None:
+        from charter.activation.manifest_loader import _cache as charter_cache
+
+        ManifestRegistry.load_manifest("software-dev")
+        assert len(charter_cache) > 0
+        assert len(ManifestRegistry._cache) > 0
+
+        ManifestRegistry.clear_cache()
+
+        assert len(charter_cache) == 0
+        assert len(ManifestRegistry._cache) == 0
 
 
 # ---------------------------------------------------------------------------
@@ -819,11 +948,15 @@ class TestSchemaHardeningAndLoudFailure:
         https://github.com/Priivacy-ai/spec-kitty/issues/3412. Routes the
         typo'd fixture through the same
         `_doctrine_repository().get_expected_artifacts()` seam the real loader
-        uses (manifest.py:200), by monkeypatching `_doctrine_repository` to
-        return a fake repository whose `get_expected_artifacts()` serves the
-        fixture's parsed YAML as a real `ConfigResult`.
+        uses -- WP01 (#3770) relocated that seam from
+        `specify_cli.dossier.manifest` into
+        `charter.activation.manifest_loader` alongside the load+cache logic
+        it belongs to, so the monkeypatch below targets the new module -- by
+        monkeypatching `_doctrine_repository` to return a fake repository
+        whose `get_expected_artifacts()` serves the fixture's parsed YAML as
+        a real `ConfigResult`.
         """
-        import specify_cli.dossier.manifest as manifest_module
+        import charter.activation.manifest_loader as manifest_loader_module
         from charter.offering.missions.repository import ConfigResult
 
         content = self._TYPO_FIXTURE_PATH.read_text(encoding="utf-8")
@@ -836,7 +969,7 @@ class TestSchemaHardeningAndLoudFailure:
             def get_expected_artifacts(self, mission: str) -> ConfigResult | None:
                 return ConfigResult(content=content, origin="test-fixture", parsed=parsed)
 
-        monkeypatch.setattr(manifest_module, "_doctrine_repository", lambda: _FakeRepository())
+        monkeypatch.setattr(manifest_loader_module, "_doctrine_repository", lambda: _FakeRepository())
 
         with pytest.raises(ManifestSchemaError) as exc_info:
             ManifestRegistry.load_manifest("typo-fixture")
@@ -863,7 +996,7 @@ class TestSchemaHardeningAndLoudFailure:
         f"...: {exc}"`) shows the file without needing to know to read a PEP
         678 exception note.
         """
-        import specify_cli.dossier.manifest as manifest_module
+        import charter.activation.manifest_loader as manifest_loader_module
         from charter.offering.missions.repository import ConfigResult
 
         content = self._TYPO_FIXTURE_PATH.read_text(encoding="utf-8")
@@ -877,7 +1010,7 @@ class TestSchemaHardeningAndLoudFailure:
             def get_expected_artifacts(self, mission: str) -> ConfigResult | None:
                 return ConfigResult(content=content, origin=distinctive_origin, parsed=parsed)
 
-        monkeypatch.setattr(manifest_module, "_doctrine_repository", lambda: _FakeRepository())
+        monkeypatch.setattr(manifest_loader_module, "_doctrine_repository", lambda: _FakeRepository())
 
         with pytest.raises(ManifestSchemaError) as exc_info:
             ManifestRegistry.load_manifest("typo-fixture")
