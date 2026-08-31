@@ -3042,6 +3042,27 @@ pages:
     - {slug: "neutral", text: "Neutral", level: 3}
     - {slug: "confirmation", text: "Confirmation", level: 2}
     - {slug: "more-information", text: "More Information", level: 2}
+  - path: "docs/adr/3.x/2026-08-31-1-expected-artifacts-loader-relocation.md"
+    title: "ADR: Relocate the expected-artifacts.yaml loader authority into charter, sibling error model"
+    divio_type: "none"
+    abstract: "The canonical expected-artifacts.yaml loader moves into charter/activation for one shared authority under C-001, keeping MalformedManifestError and ManifestSchemaError as siblings."
+    anchors:
+    - {slug: "context-and-problem-statement", text: "Context and Problem Statement", level: 2}
+    - {slug: "the-c-001-boundary", text: "The C-001 boundary", level: 3}
+    - {slug: "decision-drivers", text: "Decision Drivers", level: 2}
+    - {slug: "decision-outcome", text: "Decision Outcome", level: 2}
+    - {slug: "a-the-relocated-authority", text: "(a) The relocated authority", level: 3}
+    - {slug: "b-the-sibling-error-model-not-a-single-canonicalized-channel", text: "(b) The sibling error model, not a single canonicalized channel", level: 3}
+    - {slug: "c-the-deprecation-shim-contract", text: "(c) The deprecation-shim contract", level: 3}
+    - {slug: "d-manifestregistry-stays-in-specify-cli", text: "(d) `ManifestRegistry` stays in `specify_cli`", level: 3}
+    - {slug: "e-c-006-a-corrupt-org-override-now-hard-blocks-a-registered-built-in-family", text: "(e) C-006 — a corrupt org override now hard-blocks a registered built-in family", level: 3}
+    - {slug: "considered-options", text: "Considered Options", level: 2}
+    - {slug: "consequences", text: "Consequences", level: 2}
+    - {slug: "positive", text: "Positive", level: 3}
+    - {slug: "negative", text: "Negative", level: 3}
+    - {slug: "neutral", text: "Neutral", level: 3}
+    - {slug: "confirmation", text: "Confirmation", level: 2}
+    - {slug: "more-information", text: "More Information", level: 2}
   - path: "docs/adr/3.x/README.md"
     title: "3.x ADRs"
     divio_type: "none"

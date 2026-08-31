@@ -1131,8 +1131,11 @@ def _resolve_expected_artifacts_slot(
             function ever makes a None-vs-present decision. Not caught
             here: this slot must not re-swallow it.
         MalformedManifestError: A *found* manifest that fails to parse as
-            YAML at all -- propagated unchanged from the authority
-            (built-in tier only, today).
+            YAML at all (or is present-but-unreadable, or a non-mapping)
+            -- propagated unchanged from the authority, for BOTH tiers
+            (mission ``expected-artifacts-loader-unification-01M1C9VQ``,
+            #3412, closed the org-tier gap; the built-in tier already
+            raised this in ``1763bf2ae3``).
     """
     if not is_registered:
         return None
