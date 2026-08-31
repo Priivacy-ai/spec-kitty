@@ -385,15 +385,19 @@ def test_shared_package_drift_fails_when_lock_does_not_match_manifest(
     assert "spec-kitty-events uv.lock version 4.0.0 does not match release authority 4.0.1" in result.stdout
 
 
+_SHARED_SOURCE_REPO_URLS = {
+    package: f"https://github.com/spec-kitty/EXPERIMENTAL-{package}"
+    for package in ("spec-kitty-events", "spec-kitty-tracker")
+}
 _SANCTIONED_GIT_DEPS = {
-    "spec-kitty-events": (
-        "spec-kitty-events @ git+https://github.com/spec-kitty/"
-        "EXPERIMENTAL-spec-kitty-events@9fe707345469aaaf5d232247724a0e6a08925645"
-    ),
-    "spec-kitty-tracker": (
-        "spec-kitty-tracker @ git+https://github.com/spec-kitty/"
-        "EXPERIMENTAL-spec-kitty-tracker@67a6ecc91f4b4a5fa82492a80ced4f49ce98851e"
-    ),
+    package: (
+        f"{package} @ git+{url}"
+        f"@{revision}"
+    )
+    for package, url, revision in (
+        ("spec-kitty-events", _SHARED_SOURCE_REPO_URLS["spec-kitty-events"], "9fe707345469aaaf5d232247724a0e6a08925645"),
+        ("spec-kitty-tracker", _SHARED_SOURCE_REPO_URLS["spec-kitty-tracker"], "67a6ecc91f4b4a5fa82492a80ced4f49ce98851e"),
+    )
 }
 
 
@@ -452,8 +456,11 @@ def test_shared_package_drift_fails_on_unsanctioned_events_direct_reference(tmp_
     write_pyproject(
         cli,
         dependencies=[
-            "spec-kitty-events @ git+https://github.int.exe.xyz/spec-kitty/"
-            "EXPERIMENTAL-spec-kitty-events@9fe707345469aaaf5d232247724a0e6a08925645",
+            "spec-kitty-events @ git+"
+            + _SHARED_SOURCE_REPO_URLS["spec-kitty-events"].replace(
+                "https://github.com", "https://github.int.exe.xyz"
+            )
+            + "@9fe707345469aaaf5d232047724a0e6a08925645",
             "spec-kitty-tracker>=0.4,<0.5",
         ],
     )

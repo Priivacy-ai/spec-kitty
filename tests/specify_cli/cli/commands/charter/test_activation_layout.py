@@ -5,7 +5,7 @@ when a ``<pack>/doctrine/`` subdirectory existed (``_layer_roots.resolve_layer_r
 and scanned the nested ``<pack>/doctrine/<plural>/org/`` location
 (``pack_manager._scan_layer_dirs``). Runtime, by contrast, resolves org packs from
 the *flat* ``<pack>/<plural>/`` layout via
-``doctrine.drg.org_pack_config.resolve_org_roots`` and feeds those roots to
+``charter.offering.drg.org_pack_config.resolve_org_roots`` and feeds those roots to
 ``DoctrineService`` — so a runtime-resolvable org profile failed to activate with
 "Unknown agent-profile ID".
 

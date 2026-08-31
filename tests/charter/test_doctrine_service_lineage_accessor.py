@@ -19,8 +19,8 @@ import pytest
 
 from charter.pack_context import PackContext
 from charter.resolver import DoctrineService
-from doctrine.agent_profiles import AgentProfileRepository
-from doctrine.service import DoctrineService as InnerDoctrineService
+from charter.offering.agent_profiles import AgentProfileRepository
+from charter.offering.service import DoctrineService as InnerDoctrineService
 
 pytestmark = pytest.mark.fast
 

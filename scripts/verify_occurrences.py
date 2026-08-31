@@ -54,7 +54,7 @@ def _iter_candidate_files(include_globs: list[str]) -> list[Path]:
 def _matches_any_glob(rel_path: str, globs: list[str]) -> bool:
     for pattern in globs:
         # fnmatch gives us classic glob semantics; also try an anchored prefix
-        # so a pattern like 'src/doctrine/**' matches any descendant.
+        # so a pattern like 'src/charter/offering/**' matches any descendant.
         if fnmatch.fnmatch(rel_path, pattern):
             return True
         if pattern.endswith("/**") and rel_path.startswith(pattern[:-3] + "/"):

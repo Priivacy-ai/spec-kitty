@@ -40,8 +40,8 @@ from charter.mission_steps import (
     MissionStepContractStep,
 )
 from charter.pack_context import PackContext
-from doctrine.drg.models import DRGGraph, DRGNode
-from doctrine.missions.step_contracts import GateBinding
+from charter.offering.drg.models import DRGGraph, DRGNode
+from charter.offering.missions.step_contracts import GateBinding
 from specify_cli.mission_step_contracts.executor import StepContractExecutor
 from specify_cli.review import gate_bindings
 from specify_cli.review.gate_bindings import (

@@ -39,12 +39,12 @@ from charter.context_renderers.profile_sections import (
     _render_profile_tactics,
 )
 from charter.profile_resolution import _reset_agent_profile_cache
-from doctrine.agent_profiles import (
+from charter.offering.agent_profiles import (
     AgentProfile,
     AgentProfileRepository,
     DirectiveRef,
 )
-from doctrine.agent_profiles.profile import ArtifactRef
+from charter.offering.agent_profiles.profile import ArtifactRef
 
 
 pytestmark = pytest.mark.fast
@@ -128,7 +128,7 @@ def _call_build(
     _setup_fixture_repo(tmp_path)
 
     yaml = YAML(typ="safe")
-    from doctrine.drg.models import DRGGraph
+    from charter.offering.drg.models import DRGGraph
 
     graph_data = yaml.load(StringIO(_MINIMAL_GRAPH_YAML))
     mock_graph = DRGGraph.model_validate(graph_data)
@@ -142,9 +142,9 @@ def _call_build(
     _reset_agent_profile_cache()
 
     with (
-        patch("doctrine.drg.loader.load_graph", side_effect=_patched_load_graph),
+        patch("charter.offering.drg.loader.load_graph", side_effect=_patched_load_graph),
         patch("charter.catalog.resolve_doctrine_root", return_value=tmp_path),
-        patch("doctrine.drg.validator.assert_valid"),
+        patch("charter.offering.drg.validator.assert_valid"),
     ):
         result = build_charter_context(
             tmp_path,

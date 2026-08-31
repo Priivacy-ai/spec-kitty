@@ -3,7 +3,7 @@
 A mission type's *action grain* is the union, across every action a mission
 type defines, of the doctrine artifacts scoped to that action (an
 ``ActionIndex`` per ``<mission_type>/actions/<action>/index.yaml``,
-``src/doctrine/missions/action_index.py``). Three consumers each need this
+``src/charter/offering/missions/action_index.py``). Three consumers each need this
 union:
 
 * the resolver (``charter.mission_type_profiles.resolve_mission_type_context``,
@@ -21,7 +21,7 @@ Layer rule
 ----------
 ``src/charter/`` MUST NOT import ``specify_cli`` (C-001); importing from
 ``doctrine`` is the canonical dependency direction and is used here
-(:mod:`doctrine.missions.action_index`).
+(:mod:`charter.offering.missions.action_index`).
 
 Circular-import guard
 ----------------------
@@ -39,7 +39,7 @@ Scope cap
 ---------
 Aggregation reads the **built-in** missions root only
 (``builtin_missions_root()`` =
-``src/doctrine/missions``). No project/org action-index overlay exists today;
+``src/charter/offering/missions``). No project/org action-index overlay exists today;
 building a multi-root or field-merge engine here is explicitly out of scope
 for this module.
 """
@@ -48,7 +48,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from doctrine.missions.action_index import ActionIndex, load_action_index
+from charter.offering.missions.action_index import ActionIndex, load_action_index
 
 # ``aggregate_action_grain`` and ``scan_builtin_cross_grain_duplicates`` are
 # exported: both now have a real ``src`` caller.  ``aggregate_action_grain``
@@ -97,7 +97,7 @@ def aggregate_action_grain(built_in_dir: Path, mission_type: str) -> dict[str, l
 
     Enumerates ``<built_in_dir>/<mission_type>/actions/*`` (sorted for
     deterministic ordering), loads each action's :class:`ActionIndex` via
-    :func:`~doctrine.missions.action_index.load_action_index`, and
+    :func:`~charter.offering.missions.action_index.load_action_index`, and
     concatenates the per-action mappings (:func:`action_index_to_mapping`)
     for each governance kind.
 
@@ -123,7 +123,7 @@ def aggregate_action_grain(built_in_dir: Path, mission_type: str) -> dict[str, l
     ----------
     built_in_dir:
         The shipped missions root (``builtin_missions_root()``
-        == ``src/doctrine/missions``), **not** a project ``repo_root``.
+        == ``src/charter/offering/missions``), **not** a project ``repo_root``.
     mission_type:
         The mission type key (e.g. ``"software-dev"``).
 
@@ -158,7 +158,7 @@ def scan_builtin_cross_grain_duplicates(built_in_dir: Path | None = None) -> lis
 
     IC-11 dup-scan: for every shipped mission type — enumerated from the
     doctrine ``mission_types/*.yaml`` source via
-    :class:`~doctrine.missions.mission_type_repository.MissionTypeRepository`,
+    :class:`~charter.offering.missions.mission_type_repository.MissionTypeRepository`,
     NOT a hardcoded roster, so a newly-shipped type is covered automatically —
     loads the type grain (``governance-profile.yaml`` ``selected_*``) and the
     action grain (:func:`aggregate_action_grain`) and unions them through
@@ -173,7 +173,7 @@ def scan_builtin_cross_grain_duplicates(built_in_dir: Path | None = None) -> lis
     built_in_dir:
         The shipped missions root. Defaults to
         ``builtin_missions_root()``
-        (``src/doctrine/missions``).
+        (``src/charter/offering/missions``).
 
     Returns
     -------
@@ -203,7 +203,7 @@ def scan_builtin_cross_grain_duplicates(built_in_dir: Path | None = None) -> lis
     # Lazy: the doctrine mission_types/*.yaml roster (post-review hardening —
     # enumerate the derived source, not a hardcoded list, so a new type is
     # auto-covered).
-    from doctrine.missions.mission_type_repository import (  # noqa: PLC0415
+    from charter.offering.missions.mission_type_repository import (  # noqa: PLC0415
         MissionTypeRepository,
     )
 

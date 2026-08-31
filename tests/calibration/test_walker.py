@@ -14,7 +14,7 @@ from pathlib import Path
 
 import pytest
 
-from doctrine.drg.loader import built_in_graph_source
+from charter.offering.drg.loader import built_in_graph_source
 from specify_cli.calibration.walker import (
     CalibrationFinding,
     EdgeChange,
@@ -140,7 +140,7 @@ def test_overlay_loading_does_not_break_when_file_absent(tmp_path: Path) -> None
     """Walker works when no overlay file exists for the mission."""
     # tmp_path has no graph source; seed it from the repo's shipped built-in DRG
     # via the seam so the walker can resolve a real graph from repo_root=tmp_path.
-    src_dir = tmp_path / "src" / "doctrine"
+    src_dir = tmp_path / "src" / "charter" / "offering"
     src_dir.mkdir(parents=True)
     _copy_built_in_graph_source(src_dir)
 
@@ -151,7 +151,7 @@ def test_overlay_loading_does_not_break_when_file_absent(tmp_path: Path) -> None
 
 def test_overlay_add_edge_extends_resolved_scope(tmp_path: Path) -> None:
     """An overlay add_edge increases the resolved scope for the targeted action."""
-    src_dir = tmp_path / "src" / "doctrine"
+    src_dir = tmp_path / "src" / "charter" / "offering"
     src_dir.mkdir(parents=True)
     _copy_built_in_graph_source(src_dir)
 

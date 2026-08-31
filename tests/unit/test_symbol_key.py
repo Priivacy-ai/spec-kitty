@@ -15,7 +15,7 @@ Covers (WP01 T007):
 * facade-dict resolution, BOTH shapes (sync 2-tuple + runtime 1-value).
 * the live collision classifier: a synthetic reproduction of the real
   ``ArtifactKind`` trio shape (three modules each doing
-  ``from doctrine.artifact_kinds import ArtifactKind``) -> module_path
+  ``from charter.offering.artifact_kinds import ArtifactKind``) -> module_path
   escalation or fail-closed.
 * ``None``-key fail-closed (never silently exempted) + ``unresolved_reason``.
 * a perf-budget assertion on ``classify_collisions``.
@@ -236,9 +236,9 @@ def test_single_alias_hash_differs_for_different_bound_names() -> None:
 def test_resolve_symbol_key_bare_import_from_single_name() -> None:
     """The real ArtifactKind-trio shape: a bare ``from M import Name`` (no
     asname) must resolve via the single-alias path, not fall through to None."""
-    src = "from doctrine.artifact_kinds import ArtifactKind\n"
+    src = "from charter.offering.artifact_kinds import ArtifactKind\n"
     module = _module(src)
-    key = resolve_symbol_key("ArtifactKind", "doctrine.directives", module)
+    key = resolve_symbol_key("ArtifactKind", "charter.offering.directives", module)
     assert key is not None
     assert key.bare_name == "ArtifactKind"
 
@@ -375,11 +375,11 @@ def test_non_facade_module_has_no_facade_entry_for_unrelated_name() -> None:
 # each doing a bare `from <origin> import Name` re-export of the SAME name.
 # Under alias_body_hash this text is byte-identical ("ArtifactKind") across
 # all three sites, so the live index correctly detects the collision --
-# exactly mirroring src/doctrine/{directives,procedures,tactics}/__init__.py.
+# exactly mirroring src/charter/offering/{directives,procedures,tactics}/__init__.py.
 _TRIO_MODULES = {
-    "doctrine.directives": "from doctrine.artifact_kinds import ArtifactKind\n__all__ = ['ArtifactKind']\n",
-    "doctrine.procedures": "from doctrine.artifact_kinds import ArtifactKind\n__all__ = ['ArtifactKind']\n",
-    "doctrine.tactics": "from doctrine.artifact_kinds import ArtifactKind\n__all__ = ['ArtifactKind']\n",
+    "charter.offering.directives": "from charter.offering.artifact_kinds import ArtifactKind\n__all__ = ['ArtifactKind']\n",
+    "charter.offering.procedures": "from charter.offering.artifact_kinds import ArtifactKind\n__all__ = ['ArtifactKind']\n",
+    "charter.offering.tactics": "from charter.offering.artifact_kinds import ArtifactKind\n__all__ = ['ArtifactKind']\n",
 }
 
 
@@ -402,21 +402,21 @@ def test_classify_collisions_rederives_artifact_kind_trio() -> None:
 def test_key_tier_escalates_collision_to_module_path_when_disambiguating() -> None:
     corpus = _artifact_kind_trio_corpus()
     index = classify_collisions(corpus)
-    module = corpus["doctrine.directives"]
-    candidate = resolve_symbol_key("ArtifactKind", "doctrine.directives", module, corpus=corpus)
+    module = corpus["charter.offering.directives"]
+    candidate = resolve_symbol_key("ArtifactKind", "charter.offering.directives", module, corpus=corpus)
     assert candidate is not None
-    escalated = key_tier(candidate, "doctrine.directives", index)
+    escalated = key_tier(candidate, "charter.offering.directives", index)
     assert escalated is not None
-    assert escalated.module_path == "doctrine.directives"
-    assert escalated.as_tuple() == ("ArtifactKind", "doctrine.directives", escalated.body_hash)
+    assert escalated.module_path == "charter.offering.directives"
+    assert escalated.as_tuple() == ("ArtifactKind", "charter.offering.directives", escalated.body_hash)
 
 
 def test_key_tier_fails_closed_without_a_module_path_to_disambiguate() -> None:
     """D-3: a collision with no module_path supplied cannot be escalated -- fail-closed."""
     corpus = _artifact_kind_trio_corpus()
     index = classify_collisions(corpus)
-    module = corpus["doctrine.directives"]
-    candidate = resolve_symbol_key("ArtifactKind", "doctrine.directives", module, corpus=corpus)
+    module = corpus["charter.offering.directives"]
+    candidate = resolve_symbol_key("ArtifactKind", "charter.offering.directives", module, corpus=corpus)
     assert candidate is not None
     assert key_tier(candidate, None, index) is None
 
@@ -426,8 +426,8 @@ def test_key_tier_fails_closed_when_module_path_does_not_participate() -> None:
     disambiguate -- fail-closed rather than silently accepted."""
     corpus = _artifact_kind_trio_corpus()
     index = classify_collisions(corpus)
-    module = corpus["doctrine.directives"]
-    candidate = resolve_symbol_key("ArtifactKind", "doctrine.directives", module, corpus=corpus)
+    module = corpus["charter.offering.directives"]
+    candidate = resolve_symbol_key("ArtifactKind", "charter.offering.directives", module, corpus=corpus)
     assert candidate is not None
     assert key_tier(candidate, "some.unrelated.module", index) is None
 
@@ -650,7 +650,7 @@ def test_source_module_ignored_by_equality_content_tier() -> None:
     in source_module (None vs set) compare equal."""
     resolver_key = SymbolKey(bare_name="ArtifactKind", body_hash="deadbeef")
     allowlist_key = SymbolKey(
-        bare_name="ArtifactKind", body_hash="deadbeef", source_module="doctrine.artifact_kinds"
+        bare_name="ArtifactKind", body_hash="deadbeef", source_module="charter.offering.artifact_kinds"
     )
     assert resolver_key == allowlist_key
 
@@ -659,13 +659,13 @@ def test_source_module_ignored_by_equality_collision_tier() -> None:
     """G1, escalated tier: an equal (bare_name, module_path, body_hash) triple
     still compares equal regardless of source_module."""
     resolver_key = SymbolKey(
-        bare_name="ArtifactKind", body_hash="deadbeef", module_path="doctrine.directives"
+        bare_name="ArtifactKind", body_hash="deadbeef", module_path="charter.offering.directives"
     )
     allowlist_key = SymbolKey(
         bare_name="ArtifactKind",
         body_hash="deadbeef",
-        module_path="doctrine.directives",
-        source_module="doctrine.artifact_kinds",
+        module_path="charter.offering.directives",
+        source_module="charter.offering.artifact_kinds",
     )
     assert resolver_key == allowlist_key
 
@@ -677,7 +677,7 @@ def test_source_module_ignored_by_hash_and_frozenset_membership() -> None:
     allowlist frozenset whose entry carries a non-None source_module."""
     resolver_key = SymbolKey(bare_name="ArtifactKind", body_hash="deadbeef")
     allowlist_entry = SymbolKey(
-        bare_name="ArtifactKind", body_hash="deadbeef", source_module="doctrine.artifact_kinds"
+        bare_name="ArtifactKind", body_hash="deadbeef", source_module="charter.offering.artifact_kinds"
     )
     assert hash(resolver_key) == hash(allowlist_entry)
     allowlist = frozenset({allowlist_entry})

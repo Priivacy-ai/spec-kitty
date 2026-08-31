@@ -27,12 +27,12 @@ from typing import TYPE_CHECKING
 
 # Single source of truth for the resolution enum / result dataclass.
 # Re-exported via the charter.resolution facade (which itself re-exports
-# from doctrine.resolver, preserving object identity) so every importer
+# from charter.offering.resolver, preserving object identity) so every importer
 # shares one class identity — otherwise `ResolutionTier.X == ResolutionTier.X`
 # fails across modules and test suites that import from both paths flake on
 # `is`/`==`. Historical note: prior to 2026-04-15 this module defined its
 # own duplicate ResolutionTier/ResolutionResult, which caused ~30 CI failures
-# on the release-readiness job where doctrine.test_resolver and
+# on the release-readiness job where charter.offering.test_resolver and
 # runtime.test_resolver_unit ran in the same session. The charter facade
 # route was adopted in mission charter-mediated-doctrine-selection-01KRTZCA
 # (WP07) to enforce the runtime → charter → doctrine boundary.
@@ -41,7 +41,7 @@ from charter.resolution import ResolutionResult, ResolutionTier
 from specify_cli.core.paths import assert_safe_path_segment
 
 if TYPE_CHECKING:
-    from doctrine.missions import ExpectedArtifactManifest
+    from charter.offering.missions import ExpectedArtifactManifest
 
 __all__ = [
     "ResolutionResult",
@@ -542,16 +542,34 @@ def _load_expected_artifact_manifest(mission_type: str) -> ExpectedArtifactManif
     (NFR-003). Returns ``None`` when the doctrine tree has no manifest for
     *mission_type* (unregistered/custom type -- degrades gracefully, mirrors
     ``ManifestRegistry.load_manifest``).
+
+    Raises:
+        ManifestSchemaError: If a manifest exists for *mission_type* but
+            fails schema validation -- names the origin file and chains the
+            underlying :class:`pydantic.ValidationError` as ``__cause__``,
+            the same domain-error shape ``ManifestRegistry.load_manifest``
+            raises for its own manifest-load boundary.
     """
+    from pydantic import ValidationError  # noqa: PLC0415
+
     from charter.missions import (  # noqa: PLC0415
         ExpectedArtifactManifest,
         MissionTemplateRepository,
     )
+    from specify_cli.dossier.manifest import ManifestSchemaError  # noqa: PLC0415
 
     config = MissionTemplateRepository.default().get_expected_artifacts(mission_type)
     if config is None:
         return None
-    return ExpectedArtifactManifest.model_validate(config.parsed)
+    try:
+        return ExpectedArtifactManifest.model_validate(config.parsed)
+    except ValidationError as exc:
+        # Same domain-error boundary as `ManifestRegistry.load_manifest`
+        # (specify_cli.dossier.manifest) -- a schema-invalid
+        # expected-artifacts.yaml must fail loud with the origin file and
+        # cause attached, never leak the raw pydantic exception type across
+        # this module's boundary (squad finding on #233, planning#249).
+        raise ManifestSchemaError(mission_type, config.origin) from exc
 
 
 def resolve_configured_artifact_name(
@@ -565,7 +583,7 @@ def resolve_configured_artifact_name(
     projected from ``expected-artifacts.yaml``'s ``path_pattern`` (via
     :func:`charter.missions.project_artifact_name_set`, the runtime->charter->
     doctrine facade),
-    never from :attr:`~doctrine.missions.models.MissionStepTemplateRef.template_file`.
+    never from :attr:`~charter.offering.missions.models.MissionStepTemplateRef.template_file`.
 
     Args:
         artifact_key: Stable manifest key, e.g. ``"input.spec.main"``.
@@ -578,6 +596,9 @@ def resolve_configured_artifact_name(
         ArtifactNameConfigurationError: If *mission_type* is an unsafe path
             segment, has no expected-artifacts manifest, or has no mapping
             for *artifact_key*.
+        ManifestSchemaError: If *mission_type* has an expected-artifacts
+            manifest but it fails schema validation -- see
+            :func:`_load_expected_artifact_manifest`.
     """
     try:
         assert_safe_path_segment(mission_type)
@@ -624,6 +645,11 @@ def required_artifacts_for(step: str, mission_type: str = "software-dev") -> lis
     Returns:
         Blocking filenames for *step*, or an empty list when *mission_type*
         has no expected-artifacts manifest (unregistered/custom type).
+
+    Raises:
+        ManifestSchemaError: If *mission_type* has an expected-artifacts
+            manifest but it fails schema validation -- see
+            :func:`_load_expected_artifact_manifest`.
     """
     manifest = _load_expected_artifact_manifest(mission_type)
     if manifest is None:
@@ -633,11 +659,11 @@ def required_artifacts_for(step: str, mission_type: str = "software-dev") -> lis
 
 
 #: URN prefix identifying a template node's DRG identity, mirroring
-#: ``doctrine.drg.models.NodeKind.TEMPLATE.value`` (``"template"``).
+#: ``charter.offering.drg.models.NodeKind.TEMPLATE.value`` (``"template"``).
 _TEMPLATE_URN_PREFIX = "template:"
 
 #: ``resolve_template_by_id`` only consults ``TierRoot.project_dir`` for the
-#: override/legacy tiers (verified against ``doctrine.template_catalog``);
+#: override/legacy tiers (verified against ``charter.offering.template_catalog``);
 #: ``missions_root`` matters solely to the discovery surface
 #: (``discover_templates``), which this URN lane never calls. A fixed,
 #: non-existent sentinel keeps that fact explicit instead of silently

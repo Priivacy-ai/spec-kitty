@@ -30,7 +30,7 @@ def test_doctrine_import_and_profile_repo_smoke() -> None:
             sys.executable,
             "-c",
             (
-                "from doctrine.agent_profiles import AgentProfileRepository; "
+                "from charter.offering.agent_profiles import AgentProfileRepository; "
                 "repo = AgentProfileRepository(project_dir=None); "
                 "assert repo.get('implementer-ivan') is not None"
             ),

@@ -393,6 +393,7 @@ def ensure_workspace_materialized(
     workspace: ResolvedWorkspace,
     wp_id: str,
     create_workspace: Callable[[], None],
+    reenter_self_heal: Callable[[], None],
 ) -> None:
     """Ensure the already-resolved *workspace* is materialized on disk.
 
@@ -407,19 +408,39 @@ def ensure_workspace_materialized(
     workspace could be resolved" on a verified read-path — is exactly what this
     function eliminates.
 
+    FR-005/#3281 (C-006): when the workspace already exists, *reenter_self_heal*
+    is invoked instead of a bare early return — a retry over a leftover lane
+    worktree (missing the recorded planning SHA, or an approved dependency-lane
+    tip merged after this worktree was created) must re-enter the allocator's
+    idempotent reuse-path self-heal, not silently short-circuit. This does NOT
+    break the #1832/#1833 single-resolution invariant: *create_workspace* (a
+    SECOND resolution authority / full ``top_level_implement``) still never
+    runs when the workspace exists — only the dedicated, already-idempotent
+    self-heal callable does, and it is a true no-op resume when the workspace's
+    ancestry is already correct (the merge helpers' own
+    ``git merge-base --is-ancestor`` short-circuit makes "ancestry-correct" and
+    "stale" converge on the same call with different observable effect).
+
     A pure side-effect seam: it mutates disk (and re-stats the resolved context
     in place) but returns nothing — the caller already holds the canonical
     ``ResolvedWorkspace`` and must not rebind it to a second value.
 
     Raises:
-        typer.Exit: husk detected, creation attempted from a worktree, or the
-            path was not materialized after creation.
+        typer.Exit: husk detected, creation attempted from a worktree, the
+            path was not materialized after creation, or self-heal raised.
     """
     if workspace.is_husk:
         print(f"Error: {husk_resolution_error(workspace.worktree_path)}")
         raise typer.Exit(1)
 
     if workspace.exists:
+        try:
+            reenter_self_heal()
+        except typer.Exit:
+            raise
+        except Exception as e:
+            print(f"Error self-healing workspace for {wp_id}: {e}")
+            raise typer.Exit(1) from e
         return
 
     cwd = Path.cwd().resolve()
@@ -625,7 +646,16 @@ def implement_check_dependency_gate(
     if self_lane not in (Lane.PLANNED, Lane.CLAIMED):
         return
 
-    readiness = dependency_readiness_for_wp(normalized_wp_id, wp_meta.dependencies, dependency_lanes)
+    # Thread per-dependency provenance (the reduced snapshot state dicts) into
+    # the gate so a canceled-with-operator-provenance dependency counts as
+    # resolved (FR-009). Collapsing to the lane-only map here would make the
+    # provenance-aware authority inert at the CLI claim path (pedro HIGH).
+    readiness = dependency_readiness_for_wp(
+        normalized_wp_id,
+        wp_meta.dependencies,
+        dependency_lanes,
+        provenance=dependency_snapshot.work_packages,
+    )
     if not readiness.satisfied:
         blocked = ", ".join(readiness.unsatisfied)
         print(

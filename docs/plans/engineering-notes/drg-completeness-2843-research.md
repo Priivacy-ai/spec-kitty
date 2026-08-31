@@ -50,7 +50,7 @@ Both are native sub-issues of epic #2466.
   applies, vocabulary`.
 - **Dual-doc:** the content-equality parity test `tests/doctrine/test_relation_doc_parity.py`
   guards `docs/architecture/doctrine-relationships.md` (widen `_SCOPED_RELATIONS` 3→15); also
-  extend `docs/context/doctrine.md` (decision pending: bring it under the parity check too).
+  extend `docs/context/charter.md` (decision pending: bring it under the parity check too).
 - **Not transcription:** `applies` vs `scope` are semantically contested/mis-wired (`applies`
   has 1 edge, `scope` 157) — an adjudication; `vocabulary`/`refines`/`delegates_to` are "never
   emitted" today and must be described as intended-but-dormant.

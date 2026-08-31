@@ -2,7 +2,7 @@
 
 ``load_built_in_graph`` / ``built_in_graph_source`` are the single accessor
 every source reader of the shipped DRG must route through. Routing every reader
-to the *directory* is what let WP05 delete the ``src/doctrine/graph.yaml``
+to the *directory* is what let WP05 delete the ``src/charter/offering/graph.yaml``
 monolith and flip all consumers to ``*.graph.yaml`` fragments with no
 call-site edits — this test locks in the post-flip sharded layout.
 """
@@ -11,7 +11,7 @@ from __future__ import annotations
 
 import pytest
 
-from doctrine.drg.loader import (
+from charter.offering.drg.loader import (
     built_in_graph_source,
     load_built_in_graph,
 )

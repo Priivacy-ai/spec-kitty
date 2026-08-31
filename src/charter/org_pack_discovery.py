@@ -63,12 +63,12 @@ _REQUIRED_KIND_FIELDS: tuple[str, ...] = (
 def _enumerate_org_pack_paths(repo_root: Path) -> list[tuple[str, Path]]:
     """Return configured ``(pack_name, local_path)`` pairs.
 
-    The shared parser lives in ``doctrine.drg.org_pack_config`` so charter,
+    The shared parser lives in ``charter.offering.drg.org_pack_config`` so charter,
     DRG composition, and specify_cli registry paths consume one config
     contract.
     """
     try:
-        from doctrine.drg.org_pack_config import load_pack_registry  # noqa: PLC0415
+        from charter.offering.drg.org_pack_config import load_pack_registry  # noqa: PLC0415
     except ImportError:
         return []
     try:
@@ -198,7 +198,7 @@ def _load_doctrine_selection(repo_root: Path) -> DoctrineSelectionConfig:
 
     try:
         governance = load_governance_config(repo_root)
-        selection = governance.doctrine
+        selection = governance.charter
     except Exception:  # noqa: BLE001 — best-effort governance load
         selection = DoctrineSelectionConfig()
 

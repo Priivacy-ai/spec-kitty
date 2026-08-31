@@ -22,6 +22,8 @@ from specify_cli.upgrade.runner import UpgradeResult
 
 
 pytestmark = [pytest.mark.unit, pytest.mark.fast]
+
+
 def test_git_status_paths_parses_modified_files(tmp_path: Path, monkeypatch) -> None:
     """Porcelain output with modified files is parsed correctly."""
     # Simulate: " M src/foo.py\0 M src/bar.py\0"
@@ -46,14 +48,79 @@ def test_git_status_paths_parses_added_and_untracked(tmp_path: Path, monkeypatch
 
 
 def test_git_status_paths_handles_rename(tmp_path: Path, monkeypatch) -> None:
-    """Rename entries use the destination (new) path."""
-    # git status -z for rename: "R  old.py\0new.py\0"
-    raw = b"R  old.py\0new.py\0"
+    """Rename entries use the destination (new) path.
+
+    In ``--porcelain -z`` output the field order is *reversed* relative to
+    the human format: ``R  <new>\0<old>\0`` (git-status(1), "Porcelain
+    Format Version 1"). The previous fixture here encoded the order
+    backwards, which let the parser silently keep the *old* name (#2492).
+    """
+    raw = b"R  new.py\0old.py\0"
     fake_result = MagicMock(returncode=0, stdout=raw)
     monkeypatch.setattr(subprocess, "run", lambda *_a, **_kw: fake_result)
     paths = autocommit.git_status_paths(tmp_path)
     assert "new.py" in paths
     assert "old.py" not in paths
+
+
+def test_git_status_paths_handles_rename_followed_by_other_entry(tmp_path: Path, monkeypatch) -> None:
+    """The source field of a rename is consumed, so the entry after it is
+    still parsed as its own path (no off-by-one)."""
+    raw = b"R  new.py\0old.py\0 M docs/x.md\0"
+    fake_result = MagicMock(returncode=0, stdout=raw)
+    monkeypatch.setattr(subprocess, "run", lambda *_a, **_kw: fake_result)
+    assert autocommit.git_status_paths(tmp_path) == {"new.py", "docs/x.md"}
+
+
+def test_git_status_paths_handles_real_git_rename(tmp_path: Path) -> None:
+    """Against real git (not a fixture): a staged rename reports the new name
+    and not the old one, so the commit-set never names a path that no longer
+    exists (#2492)."""
+
+    def git(*args: str) -> None:
+        subprocess.run(["git", *args], cwd=tmp_path, check=True, capture_output=True)
+
+    git("init", "-q")
+    git("config", "user.email", "test@example.com")
+    git("config", "user.name", "Test")
+    (tmp_path / "old.py").write_text("print('hi')\n", encoding="utf-8")
+    git("add", "old.py")
+    git("commit", "-qm", "add old.py")
+    git("mv", "old.py", "new.py")
+
+    paths = autocommit.git_status_paths(tmp_path)
+
+    assert paths is not None
+    assert "new.py" in paths
+    assert "old.py" not in paths
+
+
+def test_prepare_copy_stages_only_destination_when_source_was_clean(
+    tmp_path: Path,
+    monkeypatch,
+) -> None:
+    """Copy identity protects ownership without staging the unchanged source."""
+    raw = b"C  new.py\0old.py\0"
+    fake_result = MagicMock(returncode=0, stdout=raw)
+    monkeypatch.setattr(subprocess, "run", lambda *_a, **_kw: fake_result)
+
+    files = autocommit.prepare_upgrade_commit_files(tmp_path, baseline_paths=set())
+
+    assert files == [Path("new.py")]
+
+
+def test_prepare_copy_excludes_destination_when_source_was_dirty(
+    tmp_path: Path,
+    monkeypatch,
+) -> None:
+    """A copy of pre-run operator dirt remains operator-owned at its new path."""
+    raw = b"C  new.py\0old.py\0"
+    fake_result = MagicMock(returncode=0, stdout=raw)
+    monkeypatch.setattr(subprocess, "run", lambda *_a, **_kw: fake_result)
+
+    files = autocommit.prepare_upgrade_commit_files(tmp_path, baseline_paths={"old.py"})
+
+    assert files == []
 
 
 def test_git_status_paths_returns_none_on_failure(tmp_path: Path, monkeypatch) -> None:
@@ -94,18 +161,48 @@ def test_eligible_rejects_empty(tmp_path: Path) -> None:
     assert autocommit.is_upgrade_commit_eligible("", tmp_path) is False
 
 
-def test_eligible_rejects_whitespace_only(tmp_path: Path) -> None:
-    assert autocommit.is_upgrade_commit_eligible("   ", tmp_path) is False
+def test_eligible_preserves_whitespace_only_filename(tmp_path: Path) -> None:
+    """Spaces are valid Git path bytes and must not alias another filename."""
+    assert autocommit.is_upgrade_commit_eligible("   ", tmp_path) is True
 
 
-def test_eligible_rejects_root_level_file(tmp_path: Path) -> None:
-    assert autocommit.is_upgrade_commit_eligible("README.md", tmp_path) is False
+# Root-level files written by the upgrade run (clean at baseline, dirty
+# after) are committed like any other path: the gitignore-backfill
+# migrations (.gitignore, #2385), the merge-driver / diff-attribute
+# migrations (.gitattributes), m_3_2_8_provision_kitty_env (.claudeignore)
+# and the session-presence surfaces AGENTS.md / GEMINI.md (surface repair,
+# #2491) all write at the root. A depth-based "no '/' → skip" rule plus a
+# hand-kept allowlist drifted four times and left them dirty (#2492
+# follow-up); ownership is the pre-run baseline, not the path depth.
+_ROOT_FILES_UPGRADE_WRITES = [".gitignore", ".gitattributes", ".claudeignore", "AGENTS.md", "GEMINI.md"]
 
 
-def test_eligible_accepts_root_gitignore(tmp_path: Path) -> None:
-    """The gitignore-backfill migrations write the root .gitignore; leaving it
-    dirty is exactly the merge-blocking churn #2385 reports."""
-    assert autocommit.is_upgrade_commit_eligible(".gitignore", tmp_path) is True
+@pytest.mark.parametrize("path", _ROOT_FILES_UPGRADE_WRITES)
+def test_eligible_accepts_root_files_upgrade_writes(tmp_path: Path, path: str) -> None:
+    assert autocommit.is_upgrade_commit_eligible(path, tmp_path) is True
+
+
+@pytest.mark.parametrize("path", ["README.md", "CLAUDE.md", "pyproject.toml"])
+def test_eligible_root_files_are_not_special_cased_by_depth(tmp_path: Path, path: str) -> None:
+    """Eligibility does not depend on path depth. Pre-existing operator edits
+    to these files are kept out of the commit by the baseline (see
+    ``test_prepare_upgrade_commit_files_excludes_preexisting_changes`` and
+    the real-git test below), not by a filename or depth rule."""
+    assert autocommit.is_upgrade_commit_eligible(path, tmp_path) is True
+
+
+@pytest.mark.parametrize("path", [".gitignore", ".zshrc", "AGENTS.md", "README.md"])
+def test_eligible_rejects_root_files_when_checkout_is_home(path: str) -> None:
+    """When the checkout *is* ``$HOME`` (#3652 hazard) root-level files are the
+    operator's dotfiles and are never committed, whatever their name."""
+    assert autocommit.is_upgrade_commit_eligible(path, Path.home().resolve()) is False
+
+
+def test_eligible_accepts_nested_paths_when_checkout_is_home(tmp_path: Path) -> None:
+    """Only root-level files and ``~/.kittify`` are excluded in ``$HOME``;
+    a nested project's own files remain eligible (unchanged behaviour)."""
+    home = Path.home().resolve()
+    assert autocommit.is_upgrade_commit_eligible("Code/demo/.kittify/metadata.yaml", home) is True
 
 
 def test_eligible_rejects_parent_traversal(tmp_path: Path) -> None:
@@ -126,10 +223,13 @@ def test_eligible_rejects_home_kittify(monkeypatch) -> None:
 # ---------------------------------------------------------------------------
 
 
-def test_prepare_upgrade_commit_files_excludes_root_files(
+def test_prepare_upgrade_commit_files_includes_root_files_written_by_the_run(
     tmp_path: Path,
     monkeypatch,
 ) -> None:
+    """Root files dirty after the run but clean at baseline were written by
+    the run and are part of the commit-set; root files already dirty at
+    baseline are excluded — by the baseline, not by their depth."""
     project_path = tmp_path / "project"
     project_path.mkdir()
 
@@ -140,17 +240,24 @@ def test_prepare_upgrade_commit_files_excludes_root_files(
             ".kittify/metadata.yaml",
             "kitty-specs/001-test/tasks/WP01.md",
             "README.md",
+            "CLAUDE.md",
+            ".gitattributes",
             "AGENTS.md",
             "docs/guides/upgrade.md",
         },
     )
 
-    files = autocommit.prepare_upgrade_commit_files(project_path, baseline_paths=set())
+    files = autocommit.prepare_upgrade_commit_files(
+        project_path,
+        baseline_paths={"README.md", "CLAUDE.md"},
+    )
 
     assert {str(path) for path in files} == {
         ".kittify/metadata.yaml",
         "kitty-specs/001-test/tasks/WP01.md",
         "docs/guides/upgrade.md",
+        ".gitattributes",
+        "AGENTS.md",
     }
 
 
@@ -186,6 +293,8 @@ def test_prepare_upgrade_commit_files_skips_home_level_kittify(monkeypatch) -> N
         "git_status_paths",
         lambda _repo: {
             ".kittify/metadata.yaml",
+            ".gitignore",
+            ".zshrc",
             "Code/demo/.kittify/metadata.yaml",
             "Code/demo/kitty-specs/001-test/tasks/WP01.md",
         },
@@ -193,6 +302,8 @@ def test_prepare_upgrade_commit_files_skips_home_level_kittify(monkeypatch) -> N
 
     files = autocommit.prepare_upgrade_commit_files(project_path, baseline_paths=set())
 
+    # ~/.kittify and root-level dotfiles never enter a commit when the
+    # checkout is $HOME itself (#3652 hazard).
     assert {str(path) for path in files} == {
         "Code/demo/.kittify/metadata.yaml",
         "Code/demo/kitty-specs/001-test/tasks/WP01.md",
@@ -477,42 +588,42 @@ def test_commit_skipped_on_detached_head(
     assert warning == autocommit.DETACHED_HEAD_WARNING
 
 
-def test_commit_falls_back_to_main_when_branch_detection_fails(
+def test_commit_skipped_when_branch_detection_fails(
     tmp_path: Path,
     monkeypatch,
 ) -> None:
-    """When `git branch --show-current` raises, destination_ref falls back to
-    "main" and the commit fires normally — no warning is emitted."""
+    """When `git branch --show-current` raises, the commit is skipped with a
+    warning — never fabricate "main" (FR-013/C7). A prior version of this
+    behavior fell back to a hardcoded "main" ref and committed anyway; that
+    risked landing upgrade churn on a branch the checkout was never on."""
     monkeypatch.setattr(
         autocommit,
         "prepare_upgrade_commit_files",
         lambda _checkout, baseline_paths: [Path(".kittify/metadata.yaml")],
     )
-    captured: dict[str, object] = {}
-
-    def _fake_safe_commit(**kwargs: object) -> object:
-        captured.update(kwargs)
-        return object()
-
-    monkeypatch.setattr(autocommit, "safe_commit", _fake_safe_commit)
+    monkeypatch.setattr(
+        autocommit,
+        "safe_commit",
+        lambda **_kw: (_ for _ in ()).throw(
+            AssertionError("safe_commit must not run when branch detection fails")
+        ),
+    )
     monkeypatch.setattr(
         subprocess,
         "check_output",
-        lambda *_a, **_kw: (_ for _ in ()).throw(
-            subprocess.CalledProcessError(1, "git")
-        ),
+        lambda *_a, **_kw: (_ for _ in ()).throw(subprocess.CalledProcessError(1, "git")),
     )
 
-    committed, _paths, warning = autocommit.commit_touched_checkout(
+    committed, committed_paths, warning = autocommit.commit_touched_checkout(
         checkout=tmp_path,
         baseline_paths=set(),
         from_version="3.2.3",
         to_version="3.2.4",
     )
 
-    assert committed is True
-    assert warning is None
-    assert captured["target"].ref == "main"
+    assert committed is False
+    assert committed_paths == [".kittify/metadata.yaml"]
+    assert warning == autocommit.BRANCH_DETECTION_FAILED_WARNING
 
 
 def test_collect_manual_review_paths_deduplicates() -> None:
@@ -547,7 +658,14 @@ def test_collect_manual_review_paths_deduplicates() -> None:
 
 
 def _setup_upgrade_project(tmp_path: Path) -> Path:
-    """Create a minimal .kittify project structure for upgrade() tests."""
+    """Create a minimal .kittify project structure for upgrade() tests.
+
+    Also a real (if minimal) git repo: ``commit_touched_checkout`` (FR-013/C7)
+    genuinely runs ``git branch --show-current`` in this checkout and, since
+    the fail-safe fix, no longer fabricates a "main" ref when that fails — a
+    non-git tmp_path would now legitimately skip every auto-commit in these
+    tests with a warning instead of the fixture's intended "committed" outcome.
+    """
     kittify_dir = tmp_path / ".kittify"
     kittify_dir.mkdir()
     metadata_file = kittify_dir / "metadata.yaml"
@@ -562,6 +680,11 @@ def _setup_upgrade_project(tmp_path: Path) -> Path:
         "migrations:\n"
         "  applied: []\n"
     )
+    subprocess.run(["git", "init", "-q", "-b", "main"], cwd=tmp_path, check=True)
+    subprocess.run(["git", "config", "user.email", "test@example.com"], cwd=tmp_path, check=True)
+    subprocess.run(["git", "config", "user.name", "Test"], cwd=tmp_path, check=True)
+    subprocess.run(["git", "add", "."], cwd=tmp_path, check=True)
+    subprocess.run(["git", "commit", "-q", "-m", "init"], cwd=tmp_path, check=True)
     return tmp_path
 
 
@@ -1235,9 +1358,7 @@ def test_upgrade_auto_commits_clean_run_when_no_manual_review(
             from_version="1.0.0a1",
             to_version="3.2.0a4",
             migrations_applied=["3.2.0a4_safe_globalize_commands"],
-            migration_results={
-                "3.2.0a4_safe_globalize_commands": MigrationResult(success=True)
-            },
+            migration_results={"3.2.0a4_safe_globalize_commands": MigrationResult(success=True)},
         ),
     )
     monkeypatch.setattr(
@@ -1270,9 +1391,7 @@ def test_upgrade_auto_commits_clean_run_when_no_manual_review(
 # ---------------------------------------------------------------------------
 
 
-def test_upgrade_worktrees_only_delegates_to_private_impl(
-    tmp_path: Path, monkeypatch
-) -> None:
+def test_upgrade_worktrees_only_delegates_to_private_impl(tmp_path: Path, monkeypatch) -> None:
     """upgrade_worktrees_only() must call _upgrade_worktrees with an empty
     migrations list, forwarding target_version, dry_run, and auto_commit.
 
@@ -1316,9 +1435,7 @@ def test_upgrade_worktrees_only_delegates_to_private_impl(
     assert calls[0]["auto_commit"] is False
 
 
-def test_upgrade_worktrees_only_passes_auto_commit(
-    tmp_path: Path, monkeypatch
-) -> None:
+def test_upgrade_worktrees_only_passes_auto_commit(tmp_path: Path, monkeypatch) -> None:
     """auto_commit=True is forwarded through the public entry point."""
     from specify_cli.upgrade.runner import MigrationRunner
 

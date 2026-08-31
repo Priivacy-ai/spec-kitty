@@ -17,34 +17,70 @@ body verbatim and raises ``ReviewCycleError`` -- caught by ``_do_move_task``'s
 generic ``except Exception`` and re-raised as ``typer.Exit(1)``. The WP can
 never be approved a second time through the ordinary machine path.
 
-Drives the REAL ``_do_move_task`` orchestrator (Fake ports, no real git) so
-this is a genuine end-to-end reproduction of the collision, not merely a
-unit test of the guard.
+Drives the REAL ``_do_move_task`` orchestrator with a real Git checkout and
+artifact commit router, while retaining injected non-durability ports, so this
+is a genuine end-to-end reproduction of the collision, not merely a unit test
+of the guard.
 """
 
 from __future__ import annotations
 
+import json
+import subprocess
+from collections.abc import Sequence
 from pathlib import Path
 
 import pytest
 import typer
 
+from mission_runtime import MissionArtifactKind
 from specify_cli.cli.commands.agent.tasks import _do_move_task, _MoveTaskArgs
-from specify_cli.agent_tasks_ports import CommitStatusResult, TasksPorts
+from specify_cli.agent_tasks_ports import (
+    CommitArtifactResult,
+    CommitStatusResult,
+    MissionHandle,
+    RealCoordCommitRouter,
+    TasksPorts,
+)
+from specify_cli.core.commit_guard import GuardCapability
+from specify_cli.git.protection_policy import ProtectionPolicy
+from specify_cli.status import TransitionRequest
 from specify_cli.status.models import Lane, StatusEvent
 from specify_cli.status.store import append_event
 from tests.mocked_env import setup_mocked_env
 from tests.specify_cli.cli.commands.agent.test_tasks_ports import (
-    FakeCoordCommitRouter,
     FakeFsReader,
     FakeGitOps,
     FakeRender,
 )
 
-pytestmark = pytest.mark.fast
+pytestmark = [pytest.mark.integration, pytest.mark.git_repo]
 
 _MISSION = "approval-body-collision"
+_MISSION_ID = "01HQZZZZZZZZZZZZZZZZZZZZZZ"
 _WP_ID = "WP01"
+
+
+def _init_repo(path: Path) -> None:
+    """Create the smallest governed Git destination used by verdict saves."""
+    subprocess.run(
+        ["git", "init", "-b", "wip-lane"],
+        cwd=path,
+        check=True,
+        capture_output=True,
+    )
+    subprocess.run(
+        ["git", "config", "user.name", "Test User"],
+        cwd=path,
+        check=True,
+        capture_output=True,
+    )
+    subprocess.run(
+        ["git", "config", "user.email", "test@example.com"],
+        cwd=path,
+        check=True,
+        capture_output=True,
+    )
 
 
 def _build_wp_file(tmp_path: Path, mission_slug: str, wp_id: str) -> tuple[Path, Path]:
@@ -53,6 +89,10 @@ def _build_wp_file(tmp_path: Path, mission_slug: str, wp_id: str) -> tuple[Path,
     tasks_dir = feature_dir / "tasks"
     tasks_dir.mkdir(parents=True, exist_ok=True)
     (tmp_path / ".kittify").mkdir(exist_ok=True)
+    (feature_dir / "meta.json").write_text(
+        json.dumps({"mission_id": _MISSION_ID, "mission_slug": mission_slug}),
+        encoding="utf-8",
+    )
     wp_file = tasks_dir / f"{wp_id}-test.md"
     wp_file.write_text(
         f"---\n"
@@ -127,16 +167,51 @@ def _seed_rejection_result_event(feature_dir: Path, wp_id: str) -> None:
 
 
 def _fake_ports(feature_dir: Path) -> TasksPorts:
-    coord = FakeCoordCommitRouter(
-        write_dir=feature_dir,
-        status_result=CommitStatusResult(event=None, skipped=False),
-    )
+    coord = _RealArtifactFixtureRouter(feature_dir)
     return TasksPorts(
         fs=FakeFsReader(default_planning_dir=feature_dir),
         coord=coord,
         git=FakeGitOps(),
         render=FakeRender(),
     )
+
+
+class _RealArtifactFixtureRouter:
+    """Use real Git durability while keeping status emission fixture-controlled."""
+
+    def __init__(self, write_dir: Path) -> None:
+        self.write_dir = write_dir
+        self._real = RealCoordCommitRouter()
+
+    def feature_write_dir(self, mission: MissionHandle) -> Path:
+        del mission
+        return self.write_dir
+
+    def commit_status(
+        self,
+        request: TransitionRequest,
+        *,
+        capability: GuardCapability,
+    ) -> CommitStatusResult:
+        del request, capability
+        return CommitStatusResult(event=None, skipped=False)
+
+    def commit_artifact(
+        self,
+        mission: MissionHandle,
+        paths: Sequence[Path],
+        message: str,
+        *,
+        kind: MissionArtifactKind,
+        policy: ProtectionPolicy,
+    ) -> CommitArtifactResult:
+        return self._real.commit_artifact(
+            mission,
+            paths,
+            message,
+            kind=kind,
+            policy=policy,
+        )
 
 
 def _run_move(
@@ -192,6 +267,14 @@ def test_reject_approve_reject_approve_with_identical_note_succeeds(
     because its synthesized body collides with the first approval's body.
     """
     feature_dir, wp_file = _build_wp_file(tmp_path, _MISSION, _WP_ID)
+    _init_repo(tmp_path)
+    subprocess.run(["git", "add", "-A"], cwd=tmp_path, check=True, capture_output=True)
+    subprocess.run(
+        ["git", "commit", "-m", "seed approval collision fixture"],
+        cwd=tmp_path,
+        check=True,
+        capture_output=True,
+    )
     ports = _fake_ports(feature_dir)
     wp_dir = feature_dir / "tasks" / wp_file.stem
 
@@ -234,10 +317,21 @@ def test_reject_approve_reject_approve_with_identical_note_succeeds(
             "with the provenance guard (M1)"
         )
 
-    assert (wp_dir / "review-cycle-4.md").exists(), (
-        "cycle 4 (the second approval) was never written -- the collision "
-        "blocked the write entirely"
-    )
-    assert "Approved by" in (wp_dir / "review-cycle-4.md").read_text(
-        encoding="utf-8"
-    )
+    # The identical approval adopts the already committed cycle-2 record.  A
+    # new cycle-4 file would duplicate the same evidence instead of preserving
+    # the retained-record idempotence contract.
+    assert not (wp_dir / "review-cycle-4.md").exists()
+    cycle2 = wp_dir / "review-cycle-2.md"
+    destination = subprocess.run(
+        [
+            "git",
+            "show",
+            "wip-lane:kitty-specs/approval-body-collision/tasks/"
+            "WP01-test/review-cycle-2.md",
+        ],
+        cwd=tmp_path,
+        check=True,
+        capture_output=True,
+    ).stdout
+    assert destination == cycle2.read_bytes()
+    assert "Approved by" in cycle2.read_text(encoding="utf-8")

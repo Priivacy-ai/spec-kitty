@@ -24,10 +24,10 @@ def test_prepare_mutants_environment_copies_missing_siblings_without_overwriting
     mutants_root = repo_root / "mutants"
     source_root = repo_root / "src"
     (source_root / "specify_cli" / "dossier").mkdir(parents=True)
-    (source_root / "doctrine").mkdir(parents=True)
+    (source_root / "charter" / "offering").mkdir(parents=True)
     (source_root / "specify_cli" / "dossier" / "api.py").write_text("original api\n", encoding="utf-8")
     (source_root / "specify_cli" / "dossier" / "models.py").write_text("original models\n", encoding="utf-8")
-    (source_root / "doctrine" / "core.py").write_text("doctrine core\n", encoding="utf-8")
+    (source_root / "charter" / "offering" / "core.py").write_text("doctrine core\n", encoding="utf-8")
     (mutants_root / "src" / "specify_cli" / "dossier").mkdir(parents=True)
     (mutants_root / "src" / "specify_cli" / "dossier" / "api.py").write_text("mutated api\n", encoding="utf-8")
 
@@ -41,7 +41,7 @@ def test_prepare_mutants_environment_copies_missing_siblings_without_overwriting
     # Assert
     assert (mutants_root / "src" / "specify_cli" / "dossier" / "api.py").read_text(encoding="utf-8") == "mutated api\n"
     assert (mutants_root / "src" / "specify_cli" / "dossier" / "models.py").read_text(encoding="utf-8") == "original models\n"
-    assert (mutants_root / "src" / "doctrine" / "core.py").read_text(encoding="utf-8") == "doctrine core\n"
+    assert (mutants_root / "src" / "charter" / "offering" / "core.py").read_text(encoding="utf-8") == "doctrine core\n"
     assert mutants_root / "src" / "specify_cli" / "dossier" / "models.py" in copied
     assert mutants_root / "src" / "specify_cli" / "dossier" / "api.py" not in copied
 
@@ -90,16 +90,16 @@ def test_missing_required_paths_reports_missing_entries(tmp_path: Path) -> None:
 
     # Assumption check
     assert (mutants_root / "src" / "specify_cli" / "frontmatter.py").exists()
-    assert not (mutants_root / "src" / "doctrine").exists()
+    assert not (mutants_root / "src" / "charter" / "offering").exists()
 
     # Act
     missing = missing_required_paths(
         mutants_root,
-        ["src/specify_cli/frontmatter.py", "src/doctrine"],
+        ["src/specify_cli/frontmatter.py", "src/charter/offering"],
     )
 
     # Assert
-    assert missing == ["src/doctrine"]
+    assert missing == ["src/charter/offering"]
 
 
 def test_main_returns_non_zero_when_required_paths_are_missing(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
@@ -111,7 +111,7 @@ def test_main_returns_non_zero_when_required_paths_are_missing(tmp_path: Path, c
     (mutants_root / "src" / "specify_cli").mkdir(parents=True)
 
     # Assumption check
-    assert not (mutants_root / "src" / "doctrine").exists()
+    assert not (mutants_root / "src" / "charter" / "offering").exists()
 
     # Act
     exit_code = main(
@@ -121,7 +121,7 @@ def test_main_returns_non_zero_when_required_paths_are_missing(tmp_path: Path, c
             "--mutants-root",
             str(mutants_root),
             "--require",
-            "src/doctrine",
+            "src/charter/offering",
         ]
     )
 

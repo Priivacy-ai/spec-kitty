@@ -15,6 +15,8 @@ import re
 import shutil
 from pathlib import Path
 
+from specify_cli.runtime.generated_writer import write_generated_file
+
 from ..metadata import ProjectMetadata, _LEGACY_MIGRATION_ID_MAP
 from ..registry import MigrationRegistry
 from .base import BaseMigration, MigrationResult
@@ -242,7 +244,7 @@ class CharterRenameMigration(BaseMigration):
                     continue
                 self._rewrite_file(file_path, project_path, dry_run, changes, errors)
 
-        # Rewrite deployed agent prompt files
+        # Rewrite deployed agent prompt files (generation-layer read-only)
         for agent_root, subdir in get_agent_dirs_for_project(project_path):
             agent_dir = project_path / agent_root / subdir
             if not agent_dir.exists():
@@ -250,7 +252,9 @@ class CharterRenameMigration(BaseMigration):
             for file_path in sorted(agent_dir.glob("spec-kitty.*.md")):
                 if not file_path.is_file():
                     continue
-                self._rewrite_file(file_path, project_path, dry_run, changes, errors)
+                self._rewrite_file(
+                    file_path, project_path, dry_run, changes, errors, read_only=True
+                )
 
     def _rewrite_file(
         self,
@@ -259,8 +263,18 @@ class CharterRenameMigration(BaseMigration):
         dry_run: bool,
         changes: list[str],
         errors: list[str],
+        *,
+        read_only: bool = False,
     ) -> None:
-        """Rewrite a single file, replacing constitution -> charter (case-preserving)."""
+        """Rewrite a single file, replacing constitution -> charter (case-preserving).
+
+        ``read_only`` must be ``True`` for targets the generation layer marks
+        read-only after writing (deployed agent command/skill files) so a
+        re-write does not raise ``PermissionError`` on a previously-generated
+        file (#3651) and the file is left in the same managed, read-only
+        state afterward. ``.kittify/charter/`` content is a plain project
+        artifact and stays writable (the default).
+        """
         try:
             content = file_path.read_text(encoding="utf-8")
         except (OSError, UnicodeDecodeError) as e:
@@ -276,7 +290,7 @@ class CharterRenameMigration(BaseMigration):
             changes.append(f"Would rewrite content in {rel}")
         else:
             try:
-                file_path.write_text(updated, encoding="utf-8")
+                write_generated_file(file_path, updated, read_only=read_only)
                 changes.append(f"Rewrote content in {rel}")
             except OSError as e:
                 errors.append(f"Failed to write {rel}: {e}")
@@ -307,7 +321,14 @@ class CharterRenameMigration(BaseMigration):
                         try:
                             shutil.move(str(old_cmd), str(new_cmd))
                             changes.append(f"Renamed {agent_root}/{subdir}/spec-kitty.constitution.md -> spec-kitty.charter.md")
-                            self._rewrite_file(new_cmd, project_path, dry_run=False, changes=changes, errors=errors)
+                            self._rewrite_file(
+                                new_cmd,
+                                project_path,
+                                dry_run=False,
+                                changes=changes,
+                                errors=errors,
+                                read_only=True,
+                            )
                         except OSError as e:
                             errors.append(f"Failed to rename {agent_root}/{subdir}/spec-kitty.constitution.md: {e}")
 
@@ -331,7 +352,14 @@ class CharterRenameMigration(BaseMigration):
                         # Rewrite content inside skill files
                         for file_path in sorted(new_skill.rglob("*")):
                             if file_path.is_file() and file_path.suffix in _TEXT_SUFFIXES:
-                                self._rewrite_file(file_path, project_path, dry_run=False, changes=changes, errors=errors)
+                                self._rewrite_file(
+                                    file_path,
+                                    project_path,
+                                    dry_run=False,
+                                    changes=changes,
+                                    errors=errors,
+                                    read_only=True,
+                                )
                     except OSError as e:
                         errors.append(f"Failed to rename {agent_root}/skills/spec-kitty-constitution-doctrine/: {e}")
 

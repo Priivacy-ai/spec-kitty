@@ -217,6 +217,7 @@ class TestMergeLaneToMission:
         assert ".worktrees/" not in result.errors[0]
         assert "repository-root checkout" in result.errors[0]
         assert "git checkout release/3.1.1 && git merge kitty/mission-010-feat" in result.errors[0]
+        assert "spec-kitty agent status materialize" in result.errors[0]
 
 
 class TestMergeMissionToTarget:

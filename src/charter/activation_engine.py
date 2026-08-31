@@ -482,7 +482,7 @@ def promote_activations(
         Maps a resolved ``config.yaml`` activation key (e.g.
         ``"activated_directives"``, ``"activated_tactics"``) to the
         config-stem IDs to append. Callers resolve the key themselves (e.g.
-        via ``doctrine.artifact_kinds`` or ``pack_manager.YAML_KEY_MAP`` — this
+        via ``charter.offering.artifact_kinds`` or ``pack_manager.YAML_KEY_MAP`` — this
         module has zero charter-internal imports and does not re-derive it).
         Omit a key entirely to skip it; an included key with no IDs still
         performs a single no-op commit for that key.
