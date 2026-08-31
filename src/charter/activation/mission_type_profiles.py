@@ -56,7 +56,7 @@ from dataclasses import dataclass, field
 from functools import cached_property
 from pathlib import Path
 from types import MappingProxyType
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, cast
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
@@ -1064,44 +1064,58 @@ def _resolve_expected_artifacts_slot(
 
     Populated from the now-canonical doctrine ``<type>/expected-artifacts.yaml``
     (WP10 / IC-07) after the upward reconcile, so the bundle carries the gate
-    manifest that the dossier reader also reads.  Returns the parsed manifest
-    mapping (doctrine-native; ``src/charter`` must not import ``specify_cli``,
-    C-001), or ``None`` when the type is unregistered, has no gate manifest, or
-    the parsed YAML is not a top-level mapping (a malformed manifest — every
-    shipped ``expected-artifacts.yaml`` is a mapping keyed on ``schema_version``
-    / ``mission_type`` / ``required_by_step`` / ...).
+    manifest that the dossier reader also reads. Returns ``None`` when the
+    type is unregistered or has no gate manifest at any tier.
 
-    FR-008 (WP05): an org-pack
-    ``<org_root>/missions/<mission_type>/expected-artifacts.yaml``
-    takes precedence over the built-in file, whole-file (not field-merged) —
-    see :func:`charter.activation.org_expected_artifacts.resolve_org_expected_artifacts`
-    (contract C-4). The built-in ``MissionTemplateRepository.default()`` read
-    below is the fallback only, reached when no configured org root has a
-    matching file (C-003: this WP adds no method to that class).
+    **Retired mirror, now validated (WP02, #3770, FR-006):** this slot used
+    to read the raw, UNVALIDATED parsed-YAML mapping directly off
+    ``MissionTemplateRepository`` -- bypassing schema validation entirely,
+    the mirror this mission most needed to fix. It now delegates the whole
+    load (org-tier included, FR-008/contract C-4) to
+    :func:`charter.activation.manifest_loader.load_manifest` (WP01's
+    relocated, cached authority; doctrine-native, so this stays C-001-safe --
+    ``charter.activation`` importing ``charter.activation`` is not a
+    boundary crossing) and re-projects the validated
+    :class:`~charter.offering.missions.expected_artifact_manifest.ExpectedArtifactManifest`
+    back to a plain mapping via ``.model_dump()`` -- preserving this slot's
+    existing ``Mapping``-shaped public contract (:attr:`ResolvedMissionType.expected_artifacts`,
+    NFR-001 byte-compatibility) while gaining real schema validation as a
+    side effect: a schema-invalid manifest now raises ``ManifestSchemaError``
+    (see Raises below) instead of silently handing a bad raw mapping to
+    every reader of this slot.
+
+    Absent ⇒ ``None`` unconditionally (the ``is_registered`` short-circuit
+    below, and the authority's own "no manifest at either tier" case) --
+    this slot's own guard-table input is unchanged by this WP (C-003).
+
+    Raises:
+        ManifestSchemaError: A *found*, syntactically-valid manifest that
+            fails schema validation (``extra="forbid"``) -- propagated
+            unchanged from the authority, for BOTH tiers, BEFORE this
+            function ever makes a None-vs-present decision. Not caught
+            here: this slot must not re-swallow it.
+        MalformedManifestError: A *found* manifest that fails to parse as
+            YAML at all -- propagated unchanged from the authority
+            (built-in tier only, today).
     """
     if not is_registered:
         return None
 
-    from charter.offering.drg.org_pack_config import resolve_existing_org_roots  # noqa: PLC0415 — lazy; mirrors resolve_org_dirs import elsewhere in this module
-    from charter.activation.org_expected_artifacts import resolve_org_expected_artifacts  # noqa: PLC0415
+    from charter.activation.manifest_loader import load_manifest  # noqa: PLC0415
 
-    org_roots = resolve_existing_org_roots(repo_root)
-    org_result: _ExpectedArtifactsManifest | None = resolve_org_expected_artifacts(
-        org_roots, mission_type
-    )
-    if org_result is not None:
-        return org_result
-
-    from charter.offering.missions.repository import MissionTemplateRepository  # noqa: PLC0415
-
-    repo = MissionTemplateRepository.default()
-    result = repo.get_expected_artifacts(mission_type)
-    if result is None:
+    manifest = load_manifest(mission_type, repo_root=repo_root)
+    if manifest is None:
         return None
-    parsed = result.parsed
-    if not isinstance(parsed, Mapping):
-        return None
-    return parsed
+    # `charter.*` is `follow_imports = "skip"` in [tool.mypy] (pyproject.toml)
+    # so this module's mypy run doesn't walk unrelated pre-existing strict
+    # debt elsewhere in the charter package; that also erases `load_manifest`'s
+    # real (pydantic model) return type down to `Any`, so `.model_dump()`'s
+    # actual `dict[str, Any]` return type is invisible here too. The cast
+    # documents the type `model_dump()` actually returns at runtime -- mypy
+    # is not wrong about the code, only blind to it through this boundary
+    # (mirrors the identical rationale on `_resolve_org_manifest_mapping` in
+    # `runtime.next.runtime_bridge_io`).
+    return cast("_ExpectedArtifactsManifest", manifest.model_dump())
 
 
 def _resolve_template_set_slot(

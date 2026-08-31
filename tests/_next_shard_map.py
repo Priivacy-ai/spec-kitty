@@ -128,6 +128,7 @@ _RUNTIME_SHARD_3_FILES: tuple[str, ...] = (
     # authority WP01 landed here without its conflicted WP02 sibling, so the
     # new test file registers now, mirroring upstream's own shard-3 row.
     "tests/runtime/next/test_committed_authority.py",
+    "tests/runtime/next/test_presence_filenames.py",
     "tests/runtime/test_bootstrap_unit.py",
     "tests/runtime/test_bootstrap_version_fallback.py",
     "tests/runtime/test_bridge_engine.py",
