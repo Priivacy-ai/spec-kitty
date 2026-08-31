@@ -44,7 +44,7 @@ class TestGitignoreManager:
     @pytest.fixture
     def temp_file(self):
         """Create a temporary file for testing."""
-        with tempfile.NamedTemporaryFile(mode='w', delete=False) as tmpfile:
+        with tempfile.NamedTemporaryFile(mode="w", delete=False) as tmpfile:
             tmpfile.write("test content")
             tmpfile_path = Path(tmpfile.name)
         yield tmpfile_path
@@ -365,12 +365,12 @@ class TestGitignoreManager:
         """Test ProtectionResult object has expected structure."""
         result = manager.protect_all_agents()
 
-        assert hasattr(result, 'success')
-        assert hasattr(result, 'modified')
-        assert hasattr(result, 'entries_added')
-        assert hasattr(result, 'entries_skipped')
-        assert hasattr(result, 'errors')
-        assert hasattr(result, 'warnings')
+        assert hasattr(result, "success")
+        assert hasattr(result, "modified")
+        assert hasattr(result, "entries_added")
+        assert hasattr(result, "entries_skipped")
+        assert hasattr(result, "errors")
+        assert hasattr(result, "warnings")
 
         assert isinstance(result.entries_added, list)
         assert isinstance(result.entries_skipped, list)
@@ -610,6 +610,17 @@ class TestReadIgnoreFileText:
         path = temp_dir / ".gitignore"
         path.write_bytes(b"\xef\xbb\xbf.claude/\n")
         assert read_ignore_file_text(path) == ".claude/\n"
+
+    def test_errors_ignore_tolerates_invalid_utf8(self, temp_dir):
+        """Some call sites pass errors="ignore" to tolerate undecodable
+        bytes; without it this raises UnicodeDecodeError."""
+        path = temp_dir / ".gitignore"
+        path.write_bytes(b"kitty-specs/\n\xff\xfe.claude/\n")
+
+        with pytest.raises(UnicodeDecodeError):
+            read_ignore_file_text(path)
+
+        assert read_ignore_file_text(path, errors="ignore") == "kitty-specs/\n.claude/\n"
 
     def test_symlinked_file_is_rejected(self, temp_dir):
         outside_target = temp_dir.parent / f"outside-target-{os.getpid()}.txt"
