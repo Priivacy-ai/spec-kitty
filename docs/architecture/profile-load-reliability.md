@@ -16,8 +16,8 @@ squads recently stopped loading charter agent profiles**, and defines the **near
 work makes possible is a **separate, backlog-scoped** design — see
 [Charter Backend Service (Future)](charter-backend-service-future.md).
 
-> **Provenance.** Root cause established 2026-08-30 by a five-agent corroboration squad
-> (researcher, debugger, reviewer, architect lenses), each profile-loaded through the
+> **Provenance.** Root cause established 2026-08-30 by five agents across four lenses
+> (researcher, debugger, reviewer, architect), each profile-loaded through the
 > charter API. The squad overturned an initial mis-attribution (see §2.4) and converged
 > on the activation-allowlist root cause with live-command and git evidence.
 
@@ -27,7 +27,7 @@ work makes possible is a **separate, backlog-scoped** design — see
 > (`/spk-load-profile`, §4.3), #3813 (WP-prompt hygiene, §4.4), #3816 (`directive:<id>`
 > selector bug, §6 D1). In **Product backlog**: #3815 (charter-backend design spike) and
 > #3814 (research/doc template parity — demoted post scope-review as purely additive).
-> Hard dependency edges are encoded on the issues: #3810→#3811→#3812→#3813/#3814
+> Hard dependency edges are encoded on the issues: #3810→#3811→#3812→#3813 (#3814 is a latent backlog edge — applies only if scheduled)
 > (#3816 is a *soft* compaction edge on #3811, not a hard block).
 
 ## 1. Symptoms
@@ -70,14 +70,16 @@ matches "recently stopped."
 
 ### 2.3 It ships upstream
 
-`src/charter/packs/default.yaml:187` — the built-in default charter pack — carries the
-same allowlist and **also omits both profiles**. **Every new project inherits the gap**,
+`src/charter/activation/packs/default.yaml:187` — the built-in default charter pack — carries its own
+narrower (16-entry) allowlist that **also omits both profiles**. **Every new project inherits the gap**,
 not just this dogfooding checkout.
 
 ### 2.4 The seam gap (why it's silent)
 
-The `adversarial-squad` skill (`SKILL.md:43,47`) **hardcodes** the persona names
-`doctrine-daphne` and `randy-reducer` with no reconciliation against the activated set.
+The `adversarial-squad` skill
+(`src/charter/offering/skills/adversarial-squad/SKILL.md`, `randy-reducer` at line 43,
+`doctrine-daphne` at line 47) **hardcodes** those persona names with no reconciliation
+against the activated set.
 Its fallback clause sanctions reading the raw YAML **only for "a read-only harness that
 cannot invoke the CLI."** A *de-activation* `EXIT 1` is a **different failure mode the
 clause does not cover** — so a compliant delegate has no sanctioned recovery and proceeds
@@ -116,10 +118,10 @@ orchestrator-injects contract closes the failure **class**.
 Activate the two doctrine lenses everywhere the allowlist is authored:
 - This project: `spec-kitty charter activate agent-profile doctrine-daphne randy-reducer`
   (or edit `charter.yaml` + `charter sync`).
-- Upstream default pack: add both to `src/charter/packs/default.yaml:187`.
+- Upstream default pack: add both to `src/charter/activation/packs/default.yaml:187`.
 - **Regression guard:** a test asserting *every lens the `adversarial-squad` skill names
   resolves `EXIT 0`* (or, equivalently, source-profile-count parity for squad-eligible
-  lenses). This closes the defect class per directive 043 (close-by-construction).
+  lenses). This discharges directive 043 (close-by-construction) for these two instances; the failure **class** closes on §4.2 — see §6 D4.
 
 ### 4.2 Orchestrator-resolves-then-injects (the durable seam fix)
 
@@ -127,15 +129,19 @@ Make the **orchestrator** — the one context that reliably *can* resolve — lo
 **once**, with overlays / `specializes_from` lineage / `enhances`/`overrides` applied, and
 **inject the resolved profile + compact action context inline** into each delegate prompt.
 Consequences:
-- Removes the subagent's dependency on **any** runtime call (CLI *or* backend). Works for
+- Removes the subagent's **mandatory** dependency on a runtime call (CLI *or* backend) — the
+  injected floor is self-contained; on-demand pulls remain `required-capable` per §6 D1. Works for
   read-only, shell-less, headless, and stale-cached-copy harnesses alike.
 - **Fail-loud by construction:** an unresolved / de-activated lens errors *at the
   orchestrator*, which substitutes, activates, or aborts — a delegate can **never** be
   dispatched unprofiled. This is what converts Issue 1's class from "silent unprofiled" to
   "loud at dispatch."
+- **Provenance:** injected delegates run as sub-invocations under the orchestrator's own Op
+  trail ([governed profile invocation](governed-profile-invocation.md)) — they open no
+  separate Op, keeping the audit record uniform with the `dispatch --profile` path (§4.3).
 - Use `charter context`'s existing `mode: compact`; inject profile-init + boundaries +
   directive **IDs**, not full bodies. Keep a *hybrid*: a runtime pull for an on-demand
-  tactic stays **allowed where available**, never **required**.
+  tactic stays **allowed where available** (sharpened to `required-capable` in §6 D1).
 
 ### 4.3 The `/spk-load-profile <id> <instructions>` primitive
 
@@ -144,7 +150,8 @@ dispatch primitive `/spk-load-profile <name|id> <instructions>` that both **reso
 profile and **carries the task** the profiled agent runs — the surface the orchestrator
 emits under §4.2. Retain the two existing names as **redirecting aliases** (they are
 test-locked — redirect, never delete). *(New surface: `/spk-load-profile` does not exist
-today.)*
+today.)* Per §6 D3 this is a redirect/emitter over `dispatch --profile`, **not** a third
+resolution engine (directive 044).
 
 ### 4.4 WP-prompt hygiene (LOW, optional)
 
@@ -184,7 +191,7 @@ Four dialectic squads (thesis ↔ antithesis, 8 profile-loaded delegates) stress
 ### D1 — Resolution locus (§4.2): **hybrid, sharpened**
 
 Thesis (inject, 0.8) and antithesis (live-resolve, HIGH-on-facts) agree the answer is the
-hybrid §4.2:123 already names, but both narrow it:
+hybrid §4.2 already names, but both narrow it:
 - **Injection carries a fail-loud FLOOR** — resolved profile identity + boundaries + proof
   of successful resolution, **pinned at dispatch**. This is what makes "never dispatch
   unprofiled" true and is the *only* path for CLI-less/shell-less/headless harnesses.
@@ -194,9 +201,9 @@ hybrid §4.2:123 already names, but both narrow it:
   that need it. Do **not** freeze *everything*.
 - **Two new must-fix findings (live-verified by the antithesis):**
   1. **`spec-kitty charter context --include directive:<id>` returns `EXIT 1` "No directive
-     found"** for every directive ID tested (agent-profile / tactic / section selectors
+     found"** for every directive ID tested (agent-profile and tactic selectors
      work; the *directive* selector does not). This makes "inject IDs, not bodies"
-     (§4.2:121) a **dead end** — delegates cannot expand injected directive IDs. Fix the
+     (§4.2) a **dead end** — delegates cannot expand injected directive IDs. Fix the
      selector, or inject directive bodies. **Filed as #3816 (3.2.6, P1, Bug).**
   2. **Sequencing dependency: §4.1 must land before any §4.2 injection rollout.** Injecting
      a resolved roster *today* would freeze the current 23-of-25 allowlist (daphne/randy
@@ -237,7 +244,7 @@ free-text positional is the wrong shape. **§4.3 is amended:**
 
 ### D4 — Issue 1 fix (§4.1 vs §4.2): **data-first, seam-closes** (0.85 / 0.85, convergent on sequencing)
 
-- **§4.1 data fix is the correct PRIMARY *first* move** — smallest surface, clears the
+- **§4.1 data fix is the correct primary *first* move** — smallest surface, clears the
   freeze, restores squads, and (with the guard) discharges directive 043 for these two
   instances. Apply at **both** authoring sites (`charter.yaml` + `default.yaml:187`).
 - **§4.2 is the actual *class* close** — data alone leaves the fail-open fallback and the
