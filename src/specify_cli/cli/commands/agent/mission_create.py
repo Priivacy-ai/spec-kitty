@@ -437,6 +437,8 @@ def _run_create_core_phase(
     owned_checkout: Path | None,
     json_output: bool,
     topology: MissionTopology = MissionTopology.COORD,
+    retain_branches: bool = False,
+    retain_worktrees: bool = False,
 ) -> MissionCreationResult:
     """Invoke ``create_mission_core`` with the deterministic error funnel.
 
@@ -466,6 +468,8 @@ def _run_create_core_phase(
             topology=topology,
             force_recreate_coordination_branch=force_recreate_coordination_branch,
             owned_checkout=owned_checkout.resolve() if owned_checkout is not None else None,
+            retain_branches=retain_branches,
+            retain_worktrees=retain_worktrees,
         )
     except CoordinationBranchDiverged as exc:
         # Structured error path (NFR-007): emit a stable error_code payload
@@ -691,6 +695,20 @@ def create_mission(
             ),
         ),
     ] = None,
+    retain_branches: Annotated[
+        bool,
+        typer.Option(
+            "--retain-branches",
+            help="Opt this mission's branches out of post-merge cleanup deletion.",
+        ),
+    ] = False,
+    retain_worktrees: Annotated[
+        bool,
+        typer.Option(
+            "--retain-worktrees",
+            help="Opt this mission's worktrees out of post-merge cleanup deletion.",
+        ),
+    ] = False,
 ) -> None:
     """Create new mission directory structure in the project root checkout.
 
@@ -761,6 +779,8 @@ def create_mission(
             force_recreate_coordination_branch=force_recreate_coordination_branch,
             owned_checkout=owned_checkout,
             json_output=json_output,
+            retain_branches=retain_branches,
+            retain_worktrees=retain_worktrees,
         )
     _emit_create_result_phase(
         result,
