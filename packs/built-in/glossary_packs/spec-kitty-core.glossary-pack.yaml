@@ -93,9 +93,10 @@ terms:
   status: active
   surface: change mode
 - confidence: 0.95
-  definition: A governance document synthesizing a project's purpose, 
-    constraints, team norms, and doctrine into a durable reference artifact. 
-    Produced by the charter interview workflow.
+  definition: A governance document synthesizing a project's purpose,
+    constraints, team norms, and the body of project-specific governance
+    artifacts — directives, tactics, and styleguides — into a durable
+    reference artifact. Produced by the charter interview workflow.
   status: active
   surface: charter
 - confidence: 0.95
@@ -157,12 +158,6 @@ terms:
     agent profiles and action scopes.
   status: active
   surface: directive
-- confidence: 0.95
-  definition: The body of project-specific governance artifacts — directives, 
-    tactics, and styleguides — that shape how agents and humans collaborate on a
-    project.
-  status: active
-  surface: doctrine
 - confidence: 0.95
   definition: The directed graph of interconnected doctrine directives, tactics,
     and styleguides that defines a project's governance structure. Abbreviated 

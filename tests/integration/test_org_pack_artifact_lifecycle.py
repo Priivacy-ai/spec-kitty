@@ -327,8 +327,8 @@ def test_case_2_org_styleguide_collision_with_builtin_warns(tmp_path: Path) -> N
     fired). Mission B WP04 must verify / extend the collision pipeline for
     every artifact kind that becomes per-artifact selectable.
     """
-    from doctrine.base import DoctrineLayerCollisionWarning
-    from doctrine.service import DoctrineService
+    from charter.offering.base import DoctrineLayerCollisionWarning
+    from charter.offering.service import DoctrineService
 
     consumer = tmp_path / "consumer"
     consumer.mkdir()

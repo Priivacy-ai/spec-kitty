@@ -1699,7 +1699,7 @@ class TestCustomMissionComposition:
         ``MissionStepContractRepository.get_by_action(...)`` which has
         no record and raises :class:`StepContractExecutionError`.
         """
-        from doctrine.missions.step_contracts import (
+        from charter.offering.missions.step_contracts import (
             MissionStepContract,
             MissionStepContractStep as MissionStep,
         )

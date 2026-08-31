@@ -10,28 +10,12 @@ from collections.abc import Iterable, Mapping
 from dataclasses import dataclass
 import re
 from pathlib import Path
+from typing import Any
 
 from specify_cli.status import Lane
 from specify_cli.status import resolve_lane_alias
 from specify_cli.status import read_wp_frontmatter
-
-
-# A dependency satisfies the readiness gate once its work is reviewed and
-# accepted. Both lanes count:
-#   * ``approved`` — review passed, merge pending. This is the pre-merge
-#     terminal lane a WP reaches during normal mission execution.
-#   * ``done`` — merged/integrated into the mission target branch.
-#
-# ``done`` is emitted ONLY by the whole-mission ``spec-kitty merge`` run
-# (``_mark_wp_merged_done`` in ``cli/commands/merge.py``), which itself refuses
-# to complete until every WP in the mission has reached ``done``. Requiring a
-# dependency to be strictly ``done`` would therefore deadlock every same-mission
-# dependency chain: a dependent WP could never start, so the mission could never
-# merge, so the dependency could never reach ``done``. Accepting ``approved`` as
-# well is what makes intra-mission dependency ordering possible, and it matches
-# the existing merge dependency gate (``policy/merge_gates.py`` treats
-# ``{approved, done}`` as satisfied) and the retrospective generator.
-_SATISFYING_DEPENDENCY_LANES: tuple[Lane, ...] = (Lane.APPROVED, Lane.DONE)
+from specify_cli.status_lanes import has_operator_provenance, is_acceptable_ending
 
 
 @dataclass(frozen=True)
@@ -51,30 +35,59 @@ def dependency_readiness_for_wp(
     wp_id: str,
     dependencies: Iterable[str],
     wp_lanes: Mapping[str, Lane | str],
+    provenance: Mapping[str, Mapping[str, Any] | None] | None = None,
 ) -> DependencyReadiness:
-    """Return whether every dependency is in ``approved`` or ``done``.
+    """Return whether every dependency has reached an acceptable ending.
 
-    A dependency is satisfied once its work is reviewed and accepted — i.e. its
-    lane is ``approved`` (review passed, merge pending) or ``done`` (merged).
-    ``for_review``, ``in_review``, ``blocked``, ``canceled``, missing status,
-    and every other lane are not ready.
+    A dependency is satisfied once it has reached a mission ending the shared
+    acceptable-ending authority (:func:`is_acceptable_ending`, WP02) accepts:
 
-    The ``approved`` lane is deliberately included: ``done`` is emitted only by
-    the whole-mission merge, so gating strictly on ``done`` would deadlock every
-    same-mission dependency chain. See ``_SATISFYING_DEPENDENCY_LANES`` above and
-    the aligned merge gate in ``policy/merge_gates.py``.
+      * ``approved`` — review passed, merge pending. ``done`` is emitted only by
+        the whole-mission merge, so gating strictly on ``done`` would deadlock
+        every same-mission dependency chain; accepting ``approved`` is what makes
+        intra-mission dependency ordering possible (this matches the merge
+        dependency gate in ``policy/merge_gates.py`` and the retrospective
+        generator).
+      * ``done`` — merged/integrated into the mission target branch.
+      * ``canceled`` **with operator-authored provenance** — a documented
+        cancellation is a valid removal of the dependency (FR-009). A ``canceled``
+        dependency *without* provenance (a synthetic, undocumented cancellation)
+        stays non-satisfying, consistent with FR-003.
+
+    Every other lane — ``for_review``, ``in_review``, ``blocked``, missing
+    status, etc. — is not ready.
+
+    ``provenance`` maps each dependency's WP id to its reduced status snapshot
+    (the ``StatusSnapshot.work_packages`` state dict), from which operator
+    provenance is read via :func:`has_operator_provenance`. It is **optional**:
+    when omitted (the default), no dependency carries provenance, so a
+    ``canceled`` dependency is treated as non-satisfying — preserving the legacy
+    lane-only behaviour for read-only callers that do not thread provenance.
     """
     deps = tuple(dependencies)
-    unsatisfied = tuple(
-        dep
-        for dep in deps
-        if _dependency_lane(wp_lanes.get(dep, Lane.PLANNED)) not in _SATISFYING_DEPENDENCY_LANES
-    )
+    unsatisfied = tuple(dep for dep in deps if not _dependency_resolved(dep, wp_lanes, provenance))
     return DependencyReadiness(
         wp_id=wp_id,
         dependencies=deps,
         unsatisfied=unsatisfied,
     )
+
+
+def _dependency_resolved(
+    dep: str,
+    wp_lanes: Mapping[str, Lane | str],
+    provenance: Mapping[str, Mapping[str, Any] | None] | None,
+) -> bool:
+    """Return whether one dependency has reached an acceptable ending.
+
+    Consults the shared acceptable-ending authority (WP02) rather than a local
+    lane set, resolving operator provenance from the optional ``provenance`` map.
+    """
+    lane = _dependency_lane(wp_lanes.get(dep, Lane.PLANNED))
+    if lane is None:
+        return False
+    snapshot = provenance.get(dep) if provenance is not None else None
+    return is_acceptable_ending(str(lane), has_provenance=has_operator_provenance(snapshot))
 
 
 def _dependency_lane(value: Lane | str) -> Lane | None:

@@ -21,7 +21,7 @@ from pathlib import Path
 
 import pytest
 
-from doctrine.missions.mission_type_repository import (
+from charter.offering.missions.mission_type_repository import (
     MissionTypeRepository,
     builtin_mission_type_id_set,
     builtin_mission_type_ids,

@@ -152,15 +152,15 @@ class TestBindDispatch:
             result = service.bind(
                 provider="beads",
                 workspace="ws",
-                doctrine_mode="external_authoritative",
-                doctrine_field_owners={},
+                ownership_mode="external_authoritative",
+                ownership_field_owners={},
                 credentials={},
             )
             mock_bind.assert_called_once_with(
                 provider="beads",
                 workspace="ws",
-                doctrine_mode="external_authoritative",
-                doctrine_field_owners={},
+                ownership_mode="external_authoritative",
+                ownership_field_owners={},
                 credentials={},
             )
             assert result.provider == "beads"
@@ -365,8 +365,8 @@ class TestBindSaaSDiscoveryFlow:
             result = service.bind(
                 provider="beads",
                 workspace="ws",
-                doctrine_mode="external_authoritative",
-                doctrine_field_owners={},
+                ownership_mode="external_authoritative",
+                ownership_field_owners={},
                 credentials={},
             )
             mock_bind.assert_called_once()

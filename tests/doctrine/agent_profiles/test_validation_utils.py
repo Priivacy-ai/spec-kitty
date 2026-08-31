@@ -1,4 +1,4 @@
-"""Tests for doctrine.agent_profiles.validation and capabilities utilities.
+"""Tests for charter.offering.agent_profiles.validation and capabilities utilities.
 
 Covers mutation-prone areas:
 - is_agent_profile_file: suffix and stem boundary checks
@@ -13,9 +13,9 @@ from pathlib import Path
 
 import pytest
 
-from doctrine.agent_profiles.capabilities import get_capabilities
-from doctrine.agent_profiles.profile import Role
-from doctrine.agent_profiles.validation import (
+from charter.offering.agent_profiles.capabilities import get_capabilities
+from charter.offering.agent_profiles.profile import Role
+from charter.offering.agent_profiles.validation import (
     is_agent_profile_file,
     validate_agent_profile_yaml,
 )

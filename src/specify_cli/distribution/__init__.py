@@ -17,8 +17,10 @@ from specify_cli.distribution.package_name import (
 )
 from specify_cli.distribution.profile import (
     DISTRIBUTION_PROFILE_GROUP,
+    DegradedDistributionProfile,
     DistributionProfile,
     clear_distribution_profile_cache,
+    is_degraded_distribution_profile,
     resolve_distribution_profile,
     stock_distribution_profile,
 )
@@ -33,7 +35,9 @@ __all__ = [
     "CLI_PACKAGE_GROUP",
     "DEFAULT_CLI_PACKAGE_NAME",
     "DISTRIBUTION_PROFILE_GROUP",
+    "DegradedDistributionProfile",
     "DistributionProfile",
+    "is_degraded_distribution_profile",
     "PROVIDER_SELECT_ENV_VAR",
     "UPGRADE_PROVIDER_GROUP",
     "clear_cli_package_name_cache",

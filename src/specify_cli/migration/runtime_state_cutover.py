@@ -134,7 +134,21 @@ class PlacementMismatchError(RuntimeError):
     :func:`_resolve_primary_home_or_degrade`. Conflating the two would let a
     resolver crash masquerade as this contract's fail-close (anti-scaffold;
     see WP01 T001).
+
+    Carries ``seeded_count`` (FR-015, #3390): the flip is reached only AFTER
+    the seed phase has already run for real on a live invocation, so a mismatch
+    here can abort with genuine on-disk residue (an already-appended
+    ``status.events.jsonl``) that the raising site itself has no
+    :class:`CutoverResult` to report. :func:`cutover_mission` stamps the real
+    seeded count onto this exception before it escapes, so any caller that
+    catches it (:func:`cutover_repo`, the upgrade migration's corpus walker)
+    can build an honest, non-under-reporting result instead of silently
+    defaulting back to zero.
     """
+
+    def __init__(self, message: str, *, seeded_count: int = 0) -> None:
+        super().__init__(message)
+        self.seeded_count = seeded_count
 
 
 def _resolve_primary_home_or_degrade(feature_dir: Path) -> Path | None:
@@ -309,7 +323,17 @@ def cutover_mission(
     if dry_run:
         return CutoverResult(slug=slug, flipped=False, would_flip=True, seeded_count=seed.seeded_count, verify=verify)
 
-    _flip_phase(feature_dir)
+    try:
+        _flip_phase(feature_dir)
+    except PlacementMismatchError as exc:
+        # FR-015 (#3390): the seed phase above already wrote real events to
+        # disk (a live run) before the flip aborted. Stamp the true count onto
+        # the exception so a caller that catches this (cutover_repo, the
+        # upgrade migration's corpus walker) does not silently under-report
+        # that on-disk residue by defaulting a fresh CutoverResult back to
+        # seeded_count=0.
+        exc.seeded_count = seed.seeded_count
+        raise
     return CutoverResult(slug=slug, flipped=True, seeded_count=seed.seeded_count, verify=verify)
 
 
@@ -434,7 +458,14 @@ def cutover_repo(
             results.append(cutover_mission(feature_dir, dry_run=dry_run))
         except PlacementMismatchError as exc:
             results.append(
-                CutoverResult(slug=feature_dir.name, flipped=False, error=str(exc))
+                CutoverResult(
+                    slug=feature_dir.name,
+                    flipped=False,
+                    error=str(exc),
+                    # FR-015 (#3390): preserve the real on-disk seed count the
+                    # exception carries rather than defaulting to 0 (under-report).
+                    seeded_count=exc.seeded_count,
+                )
             )
     return results
 

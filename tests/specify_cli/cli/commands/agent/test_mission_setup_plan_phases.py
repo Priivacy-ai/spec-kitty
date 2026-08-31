@@ -152,6 +152,57 @@ def test_spec_gate_passes_when_committed_and_substantive(monkeypatch: pytest.Mon
     assert blocked is False
 
 
+def test_spec_gate_evaluator_builds_missing_result_without_reporting(
+    tmp_path: Path,
+) -> None:
+    feature_dir = tmp_path / "001-demo"
+    feature_dir.mkdir()
+
+    outcome, message = seam._evaluate_spec_gate(
+        feature_dir / "spec.md",
+        feature_dir,
+        "001-demo",
+        tmp_path,
+        target_branch="main",
+        current_branch="main",
+    )
+
+    assert outcome is not None
+    assert outcome.exit_code == 1
+    assert outcome.render_kind == "error"
+    assert outcome.payload["error_code"] == "SPEC_FILE_MISSING"
+    assert message is not None
+    assert "Required spec not found" in message
+
+
+def test_spec_gate_evaluator_builds_blocked_result_without_reporting(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    feature_dir = tmp_path / "001-demo"
+    feature_dir.mkdir()
+    spec_file = feature_dir / "spec.md"
+    spec_file.write_text("# stub")
+    monkeypatch.setattr("specify_cli.missions._substantive.is_committed", lambda *a, **k: True)
+    monkeypatch.setattr("specify_cli.missions._substantive.is_substantive", lambda *a, **k: False)
+
+    outcome, message = seam._evaluate_spec_gate(
+        spec_file,
+        feature_dir,
+        "001-demo",
+        tmp_path,
+        target_branch="main",
+        current_branch="main",
+    )
+
+    assert outcome is not None
+    assert outcome.exit_code == 0
+    assert outcome.render_kind == "blocked"
+    assert outcome.payload["error_code"] == "SPEC_NOT_SUBSTANTIVE_OR_UNCOMMITTED"
+    assert message is not None
+    assert "Blocked" in message
+
+
 # ---------------------------------------------------------------------------
 # _scaffold_plan_template
 # ---------------------------------------------------------------------------
@@ -937,3 +988,28 @@ def test_emit_result_json_scaffold_only(monkeypatch: pytest.MonkeyPatch, tmp_pat
     assert emitted["scaffold_only"] is True
     assert emitted["phase_complete"] is False
     assert "blocked_reason" not in emitted
+
+
+def test_build_result_is_side_effect_free(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    monkeypatch.setattr(seam, "_emit_json", lambda *_args: pytest.fail("builder emitted JSON"))
+
+    outcome = seam._build_setup_plan_result(
+        plan_file=tmp_path / "plan.md",
+        spec_file=tmp_path / "spec.md",
+        feature_dir=tmp_path,
+        mission_slug="001-demo",
+        plan_is_substantive=False,
+        plan_blocked_reason=None,
+        plan_commit_result=None,
+        gap_analysis_path=None,
+        generators_detected=[],
+        target_branch="main",
+        current_branch="main",
+        plan_scaffold_only=True,
+    )
+
+    assert outcome.exit_code == 0
+    assert outcome.render_kind == "scaffold"
+    assert outcome.payload["result"] == "success"
+    assert outcome.payload["scaffold_only"] is True
+    assert outcome.payload["phase_complete"] is False

@@ -255,9 +255,10 @@ surfaces and are not converted into event-journal rows by that mission.
 > additive, NFR-006/C-006).** The **wire** protocol in this section is unchanged:
 > the request body, the per-event `status` vocabulary (`success` / `duplicate` /
 > `rejected`), and every fixture below stay exactly as specified. What changes is
-> only the **local CLI behavior** for *event payload* rows once a `DeliveryReceiver`
-> drives delivery (the canonical source of this mapping is
-> `src/specify_cli/delivery/receivers.py`):
+> only the **local CLI behavior** for *event payload* rows while the (since-retired) local
+> receiver drove delivery (the canonical source of this mapping was
+> `src/specify_cli/delivery/receivers.py`, removed with the delivery subsystem on this line —
+> spec-kitty#5 / PR #114; the table is retained as historical wire-contract documentation):
 >
 > | Per-event / batch outcome | Local event-row effect after this mission |
 > |---|---|
@@ -525,7 +526,7 @@ The CLI categorizes batch errors using keyword matching (from `src/specify_cli/s
 
 | Category | Keywords | CLI Action Suggestion |
 |----------|----------|-----------------------|
-| `schema_mismatch` | `invalid`, `schema`, `field`, `missing`, `type` | `Run 'spec-kitty sync diagnose' to inspect invalid events` |
+| `schema_mismatch` | `invalid`, `schema`, `field`, `missing`, `type` | `Inspect the invalid event with --report <file.json>` |
 | `auth_expired` | `token`, `expired`, `unauthorized`, `401` | `Run 'spec-kitty auth login' to refresh credentials` |
 | `server_error` | `internal`, `500`, `timeout`, `unavailable` | `Retry later or check server status` |
 | `unknown` | (no keywords match) | `Inspect the failure report for details: --report <file.json>` |
@@ -938,7 +939,7 @@ See [tracker-snapshot-publish.md](../../kitty-specs/048-tracker-publish-resource
 4. If project_uuid is missing: queue locally only (no batch send)
 5. If authenticated + WebSocket connected: send via WebSocket
 6. Otherwise: queue to SQLite offline queue (~/.spec-kitty/queue.db)
-7. On next `spec-kitty sync` or background flush:
+7. On the retired background flush:
    a. drain_queue(limit=1000) retrieves events FIFO
    b. Gzip compress and POST to /api/v1/events/batch/
    c. Parse per-event results

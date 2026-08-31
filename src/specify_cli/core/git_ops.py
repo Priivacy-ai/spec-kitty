@@ -185,6 +185,15 @@ def get_current_branch(path: Path | None = None) -> str | None:
 def has_remote(repo_path: Path, remote_name: str = "origin") -> bool:
     """Check if repository has a configured remote.
 
+    Deliberately uses ``git remote get-url`` (the transport view, which
+    applies any global ``url.<base>.insteadOf`` rewrite) rather than
+    ``git config --get``: only the exit code is consulted, never the URL
+    value, and every caller uses this to gate a push/fetch (e.g.
+    ``merge/executor.py``'s ``if push and has_remote(...)``) — "does a
+    push have somewhere to go" is exactly the transport question. Not an
+    identity/slug site, so #111's raw-config criterion does not apply here
+    (triaged in spec-kitty#113).
+
     Args:
         repo_path: Repository root path
         remote_name: Remote name to check (default: "origin")

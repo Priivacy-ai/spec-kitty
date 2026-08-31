@@ -5,7 +5,7 @@ original Mission B WP01–WP02 folded into the proposed scope):
 
     Ship one ``governance-profile.yaml`` per mission type
     (``software-dev``, ``documentation``, ``research``, ``plan``) under
-    ``src/doctrine/missions/<type>/governance-profile.yaml``. Each
+    ``src/charter/offering/missions/<type>/governance-profile.yaml``. Each
     profile declares default selections and default activations for that
     mission type. The charter resolver reads ``meta.json mission_type``,
     picks the matching profile, and unions its declarations into the
@@ -49,7 +49,7 @@ _REQUIRED_MISSION_TYPES = ("software-dev", "documentation", "research", "plan")
 @pytest.mark.parametrize("mission_type", _REQUIRED_MISSION_TYPES)
 def test_mission_type_ships_governance_profile_yaml(mission_type: str) -> None:
     """Each canonical mission type MUST ship a
-    ``src/doctrine/missions/<type>/governance-profile.yaml`` file.
+    ``src/charter/offering/missions/<type>/governance-profile.yaml`` file.
 
     Fails today because none of the four files exist. Mission B WP06
     creates them with mission-type-appropriate default selections.

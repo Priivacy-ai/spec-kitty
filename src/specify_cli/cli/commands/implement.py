@@ -1319,7 +1319,8 @@ def _ensure_wp_claim_preconditions(status_feature_dir: Path, wp_id: str, declare
     from specify_cli.status import reduce as _reduce_events
     from specify_cli.status import read_events as _read_events
 
-    wp_lanes = {_wp_id: _state.get("lane", Lane.GENESIS) for _wp_id, _state in _reduce_events(_read_events(status_feature_dir)).work_packages.items()}
+    _snapshot = _reduce_events(_read_events(status_feature_dir))
+    wp_lanes = {_wp_id: _state.get("lane", Lane.GENESIS) for _wp_id, _state in _snapshot.work_packages.items()}
     # T012 / Contract 3: reject unseeded WPs BEFORE any workspace
     # allocation. A genesis WP has not been through finalize-tasks; the
     # user must run it first to seed the genesis→planned bootstrap event.
@@ -1329,7 +1330,13 @@ def _ensure_wp_claim_preconditions(status_feature_dir: Path, wp_id: str, declare
         # so programmatic callers catching WorkPackageStartRejected see this
         # path too (review M5).
         raise WorkPackageStartRejected(f"WP {wp_id} is not finalized; run `spec-kitty agent mission finalize-tasks`")
-    dependency_readiness = dependency_readiness_for_wp(wp_id, declared_deps, wp_lanes)
+    # Thread per-dependency provenance so a canceled-with-operator-provenance
+    # dependency counts as resolved (FR-009). `spec-kitty implement WP##` is the
+    # primary claim command (CLAUDE.md: "the only supported way to prepare a
+    # workspace"); collapsing to a lane-only map here would leave the #2945
+    # strand trap open on the main claim path (review REJECT), mirroring the
+    # workflow_executor gate fix.
+    dependency_readiness = dependency_readiness_for_wp(wp_id, declared_deps, wp_lanes, provenance=_snapshot.work_packages)
     if not dependency_readiness.satisfied:
         blocked = ", ".join(dependency_readiness.unsatisfied)
         raise ValueError(f"dependencies_not_satisfied: {wp_id} depends on {blocked}; all dependencies must be approved or done before implementation can start")

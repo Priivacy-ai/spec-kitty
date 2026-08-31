@@ -13,7 +13,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from doctrine.spdd_reasons.template_renderer import (
+from charter.offering.spdd_reasons.template_renderer import (
     REASONS_BLOCK_END,
     REASONS_BLOCK_START,
     process_spdd_blocks,
@@ -25,7 +25,7 @@ pytestmark = [pytest.mark.unit, pytest.mark.fast]
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 # Mission doctrine-consumer-surface-missions-extraction-01KZ6G6H (FR-005)
-# relocated mission-steps/ from src/doctrine/missions/mission-steps to
+# relocated mission-steps/ from src/charter/offering/missions/mission-steps to
 # packs/built-in/missions/mission-steps.
 REVIEW_TEMPLATE_PATH = (
     REPO_ROOT

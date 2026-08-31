@@ -54,7 +54,7 @@ import pytest
 from ruamel.yaml import YAML
 
 from charter.pack_context import PackContext
-from doctrine.missions.step_contracts import MissionStepContractRepository
+from charter.offering.missions.step_contracts import MissionStepContractRepository
 from specify_cli.mission_step_contracts.executor import (
     StepContractExecutionContext,
     StepContractExecutionResult,

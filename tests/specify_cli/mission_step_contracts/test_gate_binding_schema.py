@@ -26,7 +26,7 @@ from pathlib import Path
 import pytest
 from pydantic import ValidationError
 
-from doctrine.missions.step_contracts import (
+from charter.offering.missions.step_contracts import (
     GateBinding,
     MissionStepContract,
     MissionStepContractRepository,

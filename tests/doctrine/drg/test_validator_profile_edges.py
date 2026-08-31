@@ -11,8 +11,8 @@ from __future__ import annotations
 
 import pytest
 
-from doctrine.drg.models import DRGEdge, DRGGraph, DRGNode, NodeKind, Relation
-from doctrine.drg.validator import (
+from charter.offering.drg.models import DRGEdge, DRGGraph, DRGNode, NodeKind, Relation
+from charter.offering.drg.validator import (
     _validate_lineage_acyclicity,
     _validate_profile_edge_endpoints,
     validate_graph,

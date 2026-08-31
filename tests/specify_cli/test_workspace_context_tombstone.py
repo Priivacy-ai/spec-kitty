@@ -183,7 +183,7 @@ def test_cancel_tombstones_lane_context_when_all_lane_wps_terminal(tmp_path: Pat
     _seed_planned_on_coord(repo, "WP01", "01SEEDWP01TOMBSTONE00000A")
     context_path = _write_orphan_context(repo)
 
-    event = emit_status_transition_transactional(_cancel_request(repo, "WP01"), sync_dossier=False)
+    event = emit_status_transition_transactional(_cancel_request(repo, "WP01"))
 
     assert event.to_lane == Lane.CANCELED
     assert not context_path.exists()
@@ -202,7 +202,7 @@ def test_cancel_does_not_tombstone_when_lane_still_active(tmp_path: Path) -> Non
     _seed_planned_on_coord(repo, "WP02", "01SEEDWP02TOMBSTONE00000C")
     context_path = _write_orphan_context(repo)
 
-    emit_status_transition_transactional(_cancel_request(repo, "WP01"), sync_dossier=False)
+    emit_status_transition_transactional(_cancel_request(repo, "WP01"))
 
     assert context_path.exists()
 
@@ -214,7 +214,7 @@ def test_tombstone_is_noop_for_still_active_mission_without_lanes_json(tmp_path:
     repo = _build_coord_repo(tmp_path, lane_wp_ids=["WP01"], with_lanes_json=False)
     _seed_planned_on_coord(repo, "WP01", "01SEEDWP01TOMBSTONE00000D")
 
-    event = emit_status_transition_transactional(_cancel_request(repo, "WP01"), sync_dossier=False)
+    event = emit_status_transition_transactional(_cancel_request(repo, "WP01"))
 
     assert event.to_lane == Lane.CANCELED
     # No workspaces dir was ever created — the hook must not create one either.
@@ -230,7 +230,7 @@ def test_non_cancel_transition_unaffected_by_tombstone_hook(tmp_path: Path) -> N
     context_path = _write_orphan_context(repo)
 
     event = emit_status_transition_transactional(
-        _cancel_request(repo, "WP01", to_lane="claimed"), sync_dossier=False
+        _cancel_request(repo, "WP01", to_lane="claimed")
     )
 
     assert event.to_lane == Lane.CLAIMED
