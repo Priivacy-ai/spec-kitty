@@ -74,9 +74,10 @@ def first_set_sync_disable_env(environ: Mapping[str, str] | None = None) -> str 
     """Return the first :data:`SYNC_DISABLE_ENV_VARS` name whose value is truthy, else None.
 
     Single source of truth for "is a sync-disable env active, and which one".
-    The pre-review gate builds its skip reason from this, so the vocabulary and
-    the ``is_truthy`` grammar are defined once.
-    ``environ`` defaults to ``os.environ``.
+    The pre-review gate builds its skip reason from this helper, while the
+    per-test isolation fixtures consume :data:`SYNC_DISABLE_ENV_VARS`, so the
+    vocabulary and the ``is_truthy`` grammar are defined once. ``environ``
+    defaults to ``os.environ``.
     """
     env: Mapping[str, str] = os.environ if environ is None else environ
     for name in SYNC_DISABLE_ENV_VARS:
