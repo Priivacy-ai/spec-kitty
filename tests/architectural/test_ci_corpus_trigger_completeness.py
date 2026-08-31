@@ -25,26 +25,36 @@ investigate-squad-findings.md, R-WP01-a and R-WP01-b):
    registry, so a NEW corpus reader (or one silently un-marked) forces a
    conscious update here rather than reopening #3008 for that module.
 
-Retired (planning#57): Gate-0/Gate-1 presence (the six ``test_corpus_globs_*``
-/ ``test_fast_tests_corpus_*`` checks above) were verified LIVE against the
-real ``.github/workflows/ci-quality.yml`` — the leftover pre-programme GitHub
-Actions YAML deleted per PROGRAM.md §2. With no workflow YAML left to parse,
-those checks (and their shared ``_load_workflow()`` helper) have no remaining
-subject matter and were removed with the file. The marker-completeness half
-(R-WP01-a: the curated registry, its non-emptiness floor, and the
-``pytest.ini`` registration check) never read a workflow file and stays.
+The restored interim ``ci-quality.yml`` removes Gate 0 entirely by running on
+every pull request and main push, so corpus-only changes cannot silently skip
+the producer. The marker-completeness half below stays unchanged.
 """
 
 from __future__ import annotations
 
 import re
 from pathlib import Path
+from typing import Any
 
 import pytest
+import yaml
 
 pytestmark = pytest.mark.architectural
 
 _REPO_ROOT = Path(__file__).resolve().parents[2]
+_CI_QUALITY = _REPO_ROOT / ".github" / "workflows" / "ci-quality.yml"
+
+
+def _load_workflow() -> dict[str, Any]:
+    return yaml.safe_load(_CI_QUALITY.read_text(encoding="utf-8"))
+
+
+def test_corpus_changes_trigger_reduced_ci_quality_live() -> None:
+    workflow = _load_workflow()
+    on_section = workflow.get("on") or workflow[True]
+
+    for event in ("pull_request", "push"):
+        assert "paths" not in on_section[event]
 
 # The authoritative corpus glob set (T001 on.paths / T002 dorny filter) --
 # discrete lines only: GitHub `on.paths` does not support `{a,b}` brace
