@@ -1,5 +1,5 @@
 """Credential resolution for a checkout: cached relay credential, or mint
-one from Team Kitty, or a remembered no (E3 — EXPERIMENTAL-spec-kitty#9).
+one from Team Kitty, or a remembered no (E3 — Priivacy-ai/spec-kitty#9).
 
 The seam contract this serves (design page ``ephemeral-team-status.html``,
 CLI column): every status transition resolves credentials for its own
@@ -445,7 +445,7 @@ def cached_answer(key: str, *, repo_slug: str, host: str | None) -> tuple[bool, 
     to be configured. This is the offline fast path the module docstring
     promises; a caller must be able to reach it even when nothing is
     configured to authenticate with yet, so it never needs a gateway
-    (EXPERIMENTAL-spec-kitty#151).
+    (Priivacy-ai/spec-kitty#151).
 
     Returns ``(True, credential)`` for a positive cache hit, ``(True,
     None)`` for a remembered negative still inside its TTL, or ``(False,
@@ -582,7 +582,7 @@ def resolve_credentials(
         deadline: Share a caller's already-open Git budget (e.g. the same
             one a presence/focus resolution in the same handler invocation
             is using) instead of allocating a fresh ``repo_identity.Deadline()``
-            here (EXPERIMENTAL-spec-kitty#203).
+            here (Priivacy-ai/spec-kitty#203).
     """
     cwd_str = str(cwd)
     try:
@@ -605,7 +605,7 @@ def resolve_credentials(
 
     # A cache hit answers offline and must not require auth to be
     # configured — checking before the gateway is built, not after
-    # (EXPERIMENTAL-spec-kitty#151).
+    # (Priivacy-ai/spec-kitty#151).
     if not force:
         hit, value = cached_answer(key, repo_slug=slug, host=host)
         if hit:
@@ -669,7 +669,7 @@ def resolve_focus_capability(
             invocation is using) instead of allocating a fresh
             ``repo_identity.Deadline()`` here — previously this always
             opened its own, stacking a third independent budget onto one
-            broadcast (EXPERIMENTAL-spec-kitty#203).
+            broadcast (Priivacy-ai/spec-kitty#203).
     """
     cwd_str = str(cwd)
     try:
