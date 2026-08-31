@@ -63,19 +63,14 @@ def test_implement_lacks_003_but_review_still_delivers_it(tmp_path: Path) -> Non
     added to ``review/index.yaml`` directly -- load-bearing per the
     calibrator note above, not a residual calibrated copy).
     """
-    implement_payload = build_charter_context_json(
-        tmp_path, action="implement", mission_type="software-dev"
-    )
-    review_payload = build_charter_context_json(
-        tmp_path, action="review", mission_type="software-dev"
-    )
+    implement_payload = build_charter_context_json(tmp_path, action="implement", mission_type="software-dev")
+    review_payload = build_charter_context_json(tmp_path, action="review", mission_type="software-dev")
 
     implement_ids = _delivered_directive_ids(implement_payload)
     review_ids = _delivered_directive_ids(review_payload)
 
     assert _DIRECTIVE_003 not in implement_ids, (
-        "DIRECTIVE_003 must no longer be scoped onto the implement action "
-        f"(FR-005); delivered implement directives were: {sorted(implement_ids)}"
+        f"DIRECTIVE_003 must no longer be scoped onto the implement action (FR-005); delivered implement directives were: {sorted(implement_ids)}"
     )
     assert _DIRECTIVE_003 in review_ids, (
         "DIRECTIVE_003 must be delivered to the review action, sourced from "
@@ -95,10 +90,7 @@ def test_plan_specify_tasks_retrospect_retain_003(tmp_path: Path) -> None:
     """
     graph = load_validated_graph(tmp_path)
     for action in ("plan", "specify", "tasks", "retrospect"):
-        resolved = resolve_context(
-            graph, f"action:software-dev/{action}", depth=1
-        )
+        resolved = resolve_context(graph, f"action:software-dev/{action}", depth=1)
         assert "directive:DIRECTIVE_003" in resolved.artifact_urns, (
-            f"DIRECTIVE_003 must remain scoped onto the retained '{action}' "
-            f"action; delivered artifacts were: {sorted(resolved.artifact_urns)}"
+            f"DIRECTIVE_003 must remain scoped onto the retained '{action}' action; delivered artifacts were: {sorted(resolved.artifact_urns)}"
         )

@@ -53,9 +53,7 @@ def _tension_graph() -> DRGGraph:
         DRGEdge(source=_ACTION_URN, target=_UNARBITRATED_A, relation=Relation.SCOPE),
         DRGEdge(source=_ACTION_URN, target=_UNARBITRATED_B, relation=Relation.SCOPE),
         DRGEdge(source=_DIRECTIVE_024, target=_DIRECTIVE_025, relation=Relation.IN_TENSION_WITH),
-        DRGEdge(
-            source=_UNARBITRATED_A, target=_UNARBITRATED_B, relation=Relation.IN_TENSION_WITH
-        ),
+        DRGEdge(source=_UNARBITRATED_A, target=_UNARBITRATED_B, relation=Relation.IN_TENSION_WITH),
         DRGEdge(source=_RECONCILER, target=_DIRECTIVE_024, relation=Relation.RECONCILES_TENSION),
         DRGEdge(source=_RECONCILER, target=_DIRECTIVE_025, relation=Relation.RECONCILES_TENSION),
     ]

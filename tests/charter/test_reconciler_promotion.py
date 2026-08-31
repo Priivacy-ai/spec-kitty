@@ -65,12 +65,8 @@ def test_shipped_corpus_enforcement_histogram() -> None:
     for directive in directives:
         histogram[directive.enforcement] += 1
 
-    assert histogram[Enforcement.REQUIRED] == _BASELINE_HISTOGRAM[Enforcement.REQUIRED], (
-        "No directive may be newly promoted to 'required' by this change."
-    )
-    assert histogram[Enforcement.LENIENT_ADHERENCE] == (
-        _BASELINE_HISTOGRAM[Enforcement.LENIENT_ADHERENCE] + 1
-    )
+    assert histogram[Enforcement.REQUIRED] == _BASELINE_HISTOGRAM[Enforcement.REQUIRED], "No directive may be newly promoted to 'required' by this change."
+    assert histogram[Enforcement.LENIENT_ADHERENCE] == (_BASELINE_HISTOGRAM[Enforcement.LENIENT_ADHERENCE] + 1)
     assert histogram[Enforcement.ADVISORY] == _BASELINE_HISTOGRAM[Enforcement.ADVISORY] - 1
 
 
@@ -91,7 +87,4 @@ def test_only_the_reconciler_yaml_value_changed() -> None:
     # Every remaining directive must still resolve to exactly one of the
     # three known levels -- a cheap sanity guard that nothing else drifted.
     for directive_id, directive in directives.items():
-        assert directive.enforcement in _BASELINE_HISTOGRAM, (
-            f"{directive_id} has an unrecognized enforcement level: "
-            f"{directive.enforcement!r}"
-        )
+        assert directive.enforcement in _BASELINE_HISTOGRAM, f"{directive_id} has an unrecognized enforcement level: {directive.enforcement!r}"
