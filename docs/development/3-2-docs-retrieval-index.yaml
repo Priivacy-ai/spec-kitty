@@ -8135,6 +8135,7 @@ pages:
     - {slug: "keep-branches", text: "Keep Branches", level: 3}
     - {slug: "keep-both", text: "Keep Both", level: 3}
     - {slug: "explicit-cleanup", text: "Explicit Cleanup", level: 3}
+    - {slug: "mission-retention-policy", text: "Mission Retention Policy", level: 3}
     - {slug: "push-after-merge", text: "Push After Merge", level: 2}
     - {slug: "merge-from-the-repository-root-checkout", text: "Merge from the repository root checkout", level: 2}
     - {slug: "target-branch", text: "target branch", level: 2}
