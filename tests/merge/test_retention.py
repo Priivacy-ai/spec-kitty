@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import pytest
 from pathlib import Path
 
 from specify_cli.merge.retention import (
@@ -33,15 +34,46 @@ def _write_spec(tmp_path: Path, constraint: str, status: str) -> MissionFixture:
     return mission
 
 
-def test_load_mission_retention_reads_only_accepted_constraints(
+@pytest.mark.parametrize(
+    ("constraint", "retains_branch", "retains_worktree"),
+    [
+        ("Keep branches and worktrees after merge.", True, True),
+        ("Keep branches after merge.", True, False),
+        ("Preserve worktrees after merging.", False, True),
+        ("Never delete branches or worktrees after merge.", True, True),
+        (
+            "Keep branches after merge; do not keep worktrees after merge.",
+            True,
+            False,
+        ),
+    ],
+)
+def test_load_mission_retention_detects_each_retained_artifact(
     tmp_path: Path,
+    constraint: str,
+    retains_branch: bool,
+    retains_worktree: bool,
 ) -> None:
+    mission = _write_spec(tmp_path, constraint, "Accepted")
+    retention = load_mission_retention(mission.repo_root, mission.mission_slug)
+    assert retention is not None
+    assert retention.retains_branch is retains_branch
+    assert retention.retains_worktree is retains_worktree
+
+
+@pytest.mark.parametrize("status", ["Open", "Approved", "Confirmed", "Binding", "Locked"])
+def test_load_mission_retention_reads_terminal_constraint_statuses(tmp_path: Path, status: str) -> None:
     mission = _write_spec(
         tmp_path,
-        "Keep branches and worktrees after merge unless separately directed.",
-        "Open",
+        "Keep branches after merge.",
+        status,
     )
-    assert load_mission_retention(mission.repo_root, mission.mission_slug) is None
+    retention = load_mission_retention(mission.repo_root, mission.mission_slug)
+    if status == "Open":
+        assert retention is None
+    else:
+        assert retention is not None
+        assert retention.retains_branch is True
 
 
 def test_load_mission_retention_ignores_negated_retention(
@@ -59,6 +91,8 @@ def test_retention_cleanup_conflicts_requires_each_explicit_choice() -> None:
     retention = MissionRetention(
         constraint_id="C-005",
         constraint="Keep branches and worktrees after merge.",
+        retains_branch=True,
+        retains_worktree=True,
     )
     assert (
         retention_cleanup_conflicts(
@@ -68,6 +102,18 @@ def test_retention_cleanup_conflicts_requires_each_explicit_choice() -> None:
         )
         == ()
     )
+
+    branch_only = MissionRetention(
+        constraint_id="C-006",
+        constraint="Keep branches after merge.",
+        retains_branch=True,
+        retains_worktree=False,
+    )
+    assert retention_cleanup_conflicts(
+        branch_only,
+        delete_branch=None,
+        remove_worktree=None,
+    ) == ("branch",)
     assert retention_cleanup_conflicts(
         retention,
         delete_branch=None,
