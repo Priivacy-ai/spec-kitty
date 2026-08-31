@@ -650,7 +650,7 @@ Terms describing lifecycle and runtime orchestration semantics.
 
 | | |
 |---|---|
-| **Definition** | "The drain" names the act of taking locally-durable records and sending them onward, and it has had **three** distinct referents in this codebase — two live, one retired. It is an overload of the same class as [Routing](#routing) and `primary` / `merge` above, and it is entered here for the same reason those are: the ambiguity has already produced a defect, not merely a risk. Bare "the drain" is not resolvable from context in the `sync` / `delivery` / `event_journal` modules, where more than one referent is in scope in the same file. The three: the **dispatch-selection drain** (`delivery/selection.py`, live, and the referent of a bare "the drain" in consent/egress prose); the **body drain** (`sync/background.py`, live, artifact bodies); and the **retired queue-backed drain** (`sync/batch.py`, removed by #3167, retained as a named referent so historical mentions stay resolvable). Always name the sense. |
+| **Definition** | "The drain" is retired historical terminology. It previously named dispatch-selection, artifact-body, or queue-backed flows. Bare use is not resolvable from context; name the concrete current operation instead. |
 | **Context** | Orchestration |
 | **Status** | canonical |
 | **Applicable to** | `3.x` |
