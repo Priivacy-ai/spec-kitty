@@ -3645,6 +3645,27 @@ def test_no_false_negative_module_attr_detector() -> None:
     assert not _symbol_has_caller("Foo", "declaring_module", ps, sub_idx), "declaring_module::Foo must NOT be rescued by alias.Foo where alias→other_pkg"
 
 
+def test_no_false_negative_unaliased_submodule_attr_detector() -> None:
+    """An unaliased submodule import rescues only that real submodule."""
+    src = "from parent import target_mod\ntarget_mod.Bar"
+    tree = ast.parse(src)
+    alias_map, _ = _build_alias_map_and_consts(tree, "")
+    ps: dict[str, set[str]] = {}
+    _record_module_attr_edges(tree, alias_map, ps, frozenset({"parent.target_mod"}))
+    sub_idx = _submodule_index(ps)
+
+    assert _symbol_has_caller("Bar", "parent.target_mod", ps, sub_idx)
+
+    collision_src = "from parent import SomeClass\nSomeClass.NAME"
+    collision_tree = ast.parse(collision_src)
+    collision_alias_map, _ = _build_alias_map_and_consts(collision_tree, "")
+    collision_ps: dict[str, set[str]] = {}
+    _record_module_attr_edges(collision_tree, collision_alias_map, collision_ps, frozenset({"parent"}))
+    collision_sub_idx = _submodule_index(collision_ps)
+
+    assert not _symbol_has_caller("NAME", "parent", collision_ps, collision_sub_idx)
+
+
 def test_no_false_negative_getattr_detector() -> None:
     """Detector (d) must rescue the resolved module's symbol only."""
     src = "import target_mod\ngetattr(target_mod, 'Bar')"
