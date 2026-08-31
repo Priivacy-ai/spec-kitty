@@ -18,7 +18,7 @@ The existing factory `.github/workflows/ci.yml` remains untouched and is not an 
 | `.github/workflows/docs-build-pr.yml` | defer | A PR-side docs build can be reduced later; `docs-pages.yml` provides the required deploy-side producer for this phase. |
 | `.github/workflows/docs-freshness.yml` | defer | Current docs tests already cover freshness invariants; a separate workflow needs path-scope reconciliation first. |
 | `.github/workflows/doctrine-charter-tests.yml` | defer | Its suites belong to the factory CI topology; restoring a second producer before topology reconciliation would duplicate authority. |
-| `.github/workflows/module-doctrine-fast.yml` | defer | The reduced `ci-quality.yml` intentionally excludes the old modular suite topology. |
+| `.github/workflows/module-doctrine-fast.yml` | defer | The reduced `ci-quality.yml` intentionally excludes the old modular suite topology; any restored parallel fast selector must also exclude `timing` (#94). |
 | `.github/workflows/module-doctrine-integration.yml` | defer | The reduced `ci-quality.yml` intentionally excludes the old modular suite topology. |
 | `.github/workflows/module-kernel.yml` | defer | The reduced `ci-quality.yml` intentionally excludes the old modular suite topology. |
 | `.github/workflows/module-packs.yml` | defer | The reduced `ci-quality.yml` intentionally excludes the old modular suite topology. |
