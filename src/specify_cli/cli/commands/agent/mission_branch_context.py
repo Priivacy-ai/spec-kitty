@@ -39,7 +39,11 @@ from specify_cli.cli.console import console
 import typer
 
 from specify_cli.core.git_ops import get_current_branch
-from specify_cli.core.paths import get_status_read_root, read_target_branch_from_meta
+from specify_cli.core.paths import (
+    get_main_repo_root,
+    get_status_read_root,
+    read_target_branch_from_meta,
+)
 from specify_cli.missions._resolve_planning_branch import (
     load_mission_target_branch,
 )
@@ -391,8 +395,11 @@ def branch_context(
 
         # ``locate_project_root`` deliberately re-anchors linked worktrees to
         # the primary checkout for shared metadata reads. Branch identity is
-        # invocation-owned state, so read it from the invoking checkout.
-        current_branch = _mission.get_current_branch(get_status_read_root(Path.cwd()))
+        # invocation-owned state, but only within the repository being queried.
+        caller_root = get_status_read_root(Path.cwd())
+        if get_main_repo_root(caller_root).resolve() != get_main_repo_root(repo_root).resolve():
+            caller_root = repo_root
+        current_branch = _mission.get_current_branch(caller_root)
         if not current_branch or current_branch == "HEAD":
             error_msg = "Must be on a branch to resolve branch context (detached HEAD detected)."
             if json_output:
