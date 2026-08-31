@@ -6,7 +6,7 @@ must forward that annotation onto the delivered bundle verbatim -- see
 ``tests/doctrine/drg/test_tension_arbiters.py`` for the ``resolve_context``-level
 coverage this file assumes and does not re-derive.
 
-Follows the ``charter._drg_helpers.load_validated_graph`` patch pattern from
+Follows the ``charter.activation._drg_helpers.load_validated_graph`` patch pattern from
 ``tests/charter/test_activation_consumers.py`` so the graph is hermetic (no
 dependency on the shipped corpus's current shape) while exercising the real
 ``_load_action_doctrine_bundle`` -> ``resolve_context`` wiring end to end.
@@ -19,7 +19,7 @@ from unittest.mock import patch
 
 import pytest
 
-from charter.action_doctrine_bundle import _load_action_doctrine_bundle
+from charter.activation.action_doctrine_bundle import _load_action_doctrine_bundle
 from charter.offering.drg.models import DRGEdge, DRGGraph, DRGNode, NodeKind, Relation
 
 pytestmark = [pytest.mark.fast]
@@ -69,7 +69,10 @@ def _tension_graph() -> DRGGraph:
 
 
 def test_bundle_carries_tension_arbiters_and_unarbitrated_tensions(tmp_path: Path) -> None:
-    with patch("charter._drg_helpers.load_validated_graph", return_value=_tension_graph()):
+    with patch(
+        "charter.activation._drg_helpers.load_validated_graph",
+        return_value=_tension_graph(),
+    ):
         bundle = _load_action_doctrine_bundle(
             repo_root=tmp_path,
             action="implement",
@@ -86,7 +89,10 @@ def test_bundle_tension_fields_are_hashable_tuples(tmp_path: Path) -> None:
     """Brownfield constraint (tasks.md WP02 T2): tuples, not dict/list, so the
     frozen ``_ActionDoctrineBundle`` construction site stays valid and any
     hashable-context use of the bundle's fields does not raise."""
-    with patch("charter._drg_helpers.load_validated_graph", return_value=_tension_graph()):
+    with patch(
+        "charter.activation._drg_helpers.load_validated_graph",
+        return_value=_tension_graph(),
+    ):
         bundle = _load_action_doctrine_bundle(
             repo_root=tmp_path,
             action="implement",
