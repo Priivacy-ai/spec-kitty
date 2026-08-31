@@ -3,8 +3,11 @@ from __future__ import annotations
 import re
 from pathlib import Path
 
+import click
 import pytest
+from typer.main import get_command
 
+from specify_cli import app
 from specify_cli.skills.registry import SkillRegistry
 
 
@@ -110,6 +113,36 @@ def test_spk_skill_bodies_stay_concise() -> None:
         body = skill_md.read_text(encoding="utf-8").split("---\n", 2)[2]
 
         assert len(body.splitlines()) <= 80, f"{skill_name} body is too long"
+
+
+def test_skill_command_literals_resolve_against_live_cli() -> None:
+    root_command = get_command(app)
+    errors: list[str] = []
+
+    for skill_md in sorted(SKILLS_ROOT.rglob("SKILL.md")):
+        text = skill_md.read_text(encoding="utf-8")
+        for literal in re.findall(r"`(spec-kitty\s+[^`]+)`(?!\s+not found)", text):
+            command = root_command
+            command_path: list[str] = []
+            for token in literal.split()[1:]:
+                if token.startswith("-") or token in {"...", "…"}:
+                    break
+                if token.startswith("<") and token.endswith(">"):
+                    break
+                if not isinstance(command, click.Group):
+                    break
+                next_command = command.commands.get(token)
+                if next_command is None:
+                    break
+                command_path.append(token)
+                command = next_command
+
+            if not command_path:
+                errors.append(
+                    f"{skill_md.relative_to(REPO_ROOT)}: `{literal}` resolves no command"
+                )
+
+    assert not errors, "\n".join(errors)
 
 
 def test_spk_skill_map_mentions_every_public_skill() -> None:
