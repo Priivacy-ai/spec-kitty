@@ -139,10 +139,15 @@ class TestLibraryApi:
         raised `ValidationError` propagates through `Indexer.index_feature()`
         (Decision 3: the indexer adds no catch of its own) up to this
         pre-existing reconcile.py wrapper.
+
+        WP01 (#3770) relocated the `_doctrine_repository` seam from
+        `specify_cli.dossier.manifest` into `charter.activation.manifest_loader`
+        alongside the load+cache logic that owns it, so the monkeypatch below
+        targets the new module.
         """
         import ruamel.yaml
 
-        import specify_cli.dossier.manifest as manifest_module
+        import charter.activation.manifest_loader as manifest_loader_module
         from charter.offering.missions.repository import ConfigResult
         from specify_cli.cli.commands.reconcile import (
             _DEFAULT_MISSION_TYPE,
@@ -164,7 +169,7 @@ class TestLibraryApi:
             def get_expected_artifacts(self, mission: str) -> ConfigResult | None:
                 return ConfigResult(content=content, origin="test-fixture", parsed=parsed)
 
-        monkeypatch.setattr(manifest_module, "_doctrine_repository", lambda: _FakeRepository())
+        monkeypatch.setattr(manifest_loader_module, "_doctrine_repository", lambda: _FakeRepository())
 
         result = reconcile_mission_dossier(slug, repo_root=tmp_path, mission_type=_DEFAULT_MISSION_TYPE)
 

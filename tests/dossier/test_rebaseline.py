@@ -408,10 +408,15 @@ class TestRebaselineErrorBranches:
         `Indexer.index_feature()` for the bad mission only, captured here as a
         per-mission `error="reindex_failed: ..."` while the other mission's
         outcome is unaffected (sweep continues).
+
+        WP01 (#3770) relocated the `_doctrine_repository` seam from
+        `specify_cli.dossier.manifest` into `charter.activation.manifest_loader`
+        alongside the load+cache logic that owns it, so the monkeypatch below
+        targets the new module.
         """
         import ruamel.yaml
 
-        import specify_cli.dossier.manifest as manifest_module
+        import charter.activation.manifest_loader as manifest_loader_module
         import specify_cli.mission as mission_module
         from charter.offering.missions.repository import ConfigResult
         from specify_cli.dossier.manifest import ManifestRegistry
@@ -431,7 +436,7 @@ class TestRebaselineErrorBranches:
         content = fixture_path.read_text(encoding="utf-8")
         yaml = ruamel.yaml.YAML(typ="safe")
         parsed = yaml.load(content)
-        real_repository = manifest_module._doctrine_repository()
+        real_repository = manifest_loader_module._doctrine_repository()
 
         class _FakeRepository:
             def get_expected_artifacts(self, mission: str) -> ConfigResult | None:
@@ -439,7 +444,7 @@ class TestRebaselineErrorBranches:
                     return ConfigResult(content=content, origin="test-fixture", parsed=parsed)
                 return real_repository.get_expected_artifacts(mission)
 
-        monkeypatch.setattr(manifest_module, "_doctrine_repository", lambda: _FakeRepository())
+        monkeypatch.setattr(manifest_loader_module, "_doctrine_repository", lambda: _FakeRepository())
 
         def _fake_mission_type(feature_dir: Path) -> str:
             return "typo-fixture" if feature_dir.name == bad_slug else "software-dev"
