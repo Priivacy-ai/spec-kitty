@@ -138,7 +138,7 @@ A file lock (`~/.spec-kitty/credentials.lock`) prevents concurrent access.
 
 ## 2. Event Envelope Field Reference
 
-Every event sent to the batch endpoint has these envelope fields. The Pydantic `Event` model in `src/specify_cli/spec_kitty_events/models.py` enforces the core fields. The `EventEmitter` in `src/specify_cli/sync/emitter.py` adds extended fields for routing and observability.
+This historical batch-endpoint contract describes the retired sync transport. The Pydantic `Event` model in `src/specify_cli/spec_kitty_events/models.py` remains as historical schema context; `src/specify_cli/sync/emitter.py` was deleted with that transport and is not a live CLI source.
 
 ### 2.1 Core Fields (Pydantic `Event` model)
 
@@ -341,7 +341,7 @@ Any non-200/400/401 status code is treated as a server error. All events are mar
 
 ## 4. Event Types and Payload Schemas
 
-The CLI emits 8 event types. Each has a defined payload schema enforced by `_PAYLOAD_RULES` in `src/specify_cli/sync/emitter.py`.
+The retired CLI transport emitted 8 event types. Its `_PAYLOAD_RULES` implementation was deleted with `src/specify_cli/sync/emitter.py`; this section is retained as wire-contract history.
 
 ### 4.1 WPStatusChanged
 
@@ -520,7 +520,7 @@ The CLI resolves the user-facing alias `doing` to `in_progress` at input boundar
 
 ## 6. Error Categorization
 
-The CLI categorizes batch errors using keyword matching (from `src/specify_cli/sync/batch.py`). The SaaS team should be aware of what triggers each category so error messages can be actionable.
+The retired CLI transport categorized batch errors using keyword matching. Its `src/specify_cli/sync/batch.py` implementation was deleted; these categories remain historical wire-contract documentation.
 
 ### 6.1 Categories
 
@@ -952,12 +952,6 @@ See [tracker-snapshot-publish.md](../../kitty-specs/048-tracker-publish-resource
 | Component | File (relative to repo root) |
 |-----------|------------------------------|
 | Pydantic Event model | `src/specify_cli/spec_kitty_events/models.py` |
-| EventEmitter + payload rules | `src/specify_cli/sync/emitter.py` |
-| Batch sync + error categorization | `src/specify_cli/sync/batch.py` |
-| Authentication (JWT flow) | `src/specify_cli/sync/auth.py` |
-| Offline queue (SQLite) | `src/specify_cli/sync/queue.py` |
-| Sync config (server URL) | `src/specify_cli/sync/config.py` |
-| Project identity (UUID, slug) | `src/specify_cli/sync/project_identity.py` |
-| Git metadata (branch, SHA) | `src/specify_cli/sync/git_metadata.py` |
+| Retired sync transport | Deleted with issue #5; this appendix is historical only |
 | SaaS fan-out (canonical 7-lane) | `src/specify_cli/status/emit.py` (`_saas_fan_out`) |
-| Public event API | `src/specify_cli/sync/events.py` |
+| Retired public event API | Deleted with issue #5 |
