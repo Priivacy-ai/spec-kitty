@@ -2508,7 +2508,6 @@ pages:
     - {slug: "decision-outcome", text: "Decision Outcome", level: 2}
     - {slug: "scope-the-migration-happens-now-in-this-mission", text: "Scope: the migration happens now, in this mission", level: 3}
     - {slug: "amendment-2026-07-26-three-decisions-taken-after-this-adr-was-first-accepted", text: "Amendment (2026-07-26) — three decisions taken after this ADR was first accepted", level: 3}
-    - {slug: "amendment-2026-08-22-relation-scope-s-two-grain-overload-is-deliberate-accepted-debt-3633", text: "Amendment (2026-08-22) — `Relation.SCOPE`'s two-grain overload is deliberate accepted debt (#3633)", level: 3}
     - {slug: "consequences", text: "Consequences", level: 3}
     - {slug: "immediate-application-to-2935-the-mission-that-surfaced-this", text: "Immediate application to #2935 (the mission that surfaced this)", level: 3}
     - {slug: "confirmation", text: "Confirmation", level: 3}
@@ -2945,81 +2944,21 @@ pages:
     - {slug: "c-kernel-expander-token-provenance-two-tier-kitty-env-chosen", text: "C. Kernel expander + token provenance + two-tier `.kitty.env` (chosen)", level: 3}
     - {slug: "d-new-spec-kitty-config-home-locator-var", text: "D. New `SPEC_KITTY_CONFIG_HOME` locator var", level: 3}
     - {slug: "more-information", text: "More Information", level: 2}
-  - path: "docs/adr/3.x/2026-08-20-1-cascade-kind-complete-relation-set.md"
-    title: "ADR: The Charter Cascade Follows the Action Hop and Proposes Only Charter-Activatable Kinds"
+  - path: "docs/adr/3.x/2026-08-27-1-precommit-hook-stable-entrypoint-and-repin-migration.md"
+    title: "Install-agnostic pre-commit hook fallback + spec-kitty migrate repin-hooks"
     divio_type: "none"
-    abstract: "The charter cascade follows the action hop (scope + instantiates) so activating a mission type reaches its governance, and proposes only charter-activatable kinds."
-    anchors:
-    - {slug: "context-and-problem-statement", text: "Context and Problem Statement", level: 2}
-    - {slug: "decision-drivers", text: "Decision Drivers", level: 2}
-    - {slug: "considered-options", text: "Considered Options", level: 2}
-    - {slug: "decision", text: "Decision", level: 2}
-    - {slug: "relations-deliberately-kept-out-of-the-followed-set", text: "Relations deliberately kept out of the followed set", level: 3}
-    - {slug: "symmetry", text: "Symmetry", level: 3}
-    - {slug: "consequences", text: "Consequences", level: 2}
-    - {slug: "related", text: "Related", level: 2}
-  - path: "docs/adr/3.x/2026-08-21-1-charter-gate-predicate-inversion.md"
-    title: "ADR: Charter/runtime gates test the declared entity, not a coarse hardcoded set"
-    divio_type: "none"
-    abstract: "Charter/runtime gates test the declared entity, not a coarse hardcoded set; two deliberate reversals (non-bootstrap actions deliver, typo types hard-fail) ship under this ADR."
-    anchors:
-    - {slug: "context-and-problem-statement", text: "Context and Problem Statement", level: 2}
-    - {slug: "decision", text: "Decision", level: 2}
-    - {slug: "two-deliberate-behaviour-reversals-this-is-not-a-byte-identical-refactor", text: "Two deliberate behaviour reversals (this is NOT a byte-identical refactor)", level: 3}
-    - {slug: "red-by-design-test-reversals-each-must-be-reversed-never-fixed-back", text: "Red-by-design test reversals (each MUST be reversed, never \"fixed back\")", level: 3}
-    - {slug: "resolved-design-decisions-pushed-here-by-the-post-spec-squad", text: "Resolved design decisions (pushed here by the POST-SPEC squad)", level: 3}
-    - {slug: "consequences", text: "Consequences", level: 2}
-    - {slug: "alternatives-considered", text: "Alternatives considered", level: 2}
-  - path: "docs/adr/3.x/2026-08-22-1-canonical-mission-type-reader-legacy-retirement.md"
-    title: "ADR 2026-08-22-1: Canonical mission-type reader; legacy `mission`-field resolution retired"
-    divio_type: "none"
-    abstract: "One shared `read_mission_type(meta)` seam becomes the sole mission-type resolution authority; the legacy `mission` field and silent `software-dev` default are retired."
-    anchors:
-    - {slug: "context", text: "Context", level: 2}
-    - {slug: "decision", text: "Decision", level: 2}
-    - {slug: "1-one-shared-reader-read-mission-type-meta-dict-str-none", text: "1. One shared reader: `read_mission_type(meta: dict) -> str | None`", level: 3}
-    - {slug: "2-legacy-mission-read-and-silent-software-dev-default-retired", text: "2. Legacy `mission` read and silent `software-dev` default retired", level: 3}
-    - {slug: "3-structural-gate-fr-010", text: "3. Structural gate (FR-010)", level: 3}
-    - {slug: "4-fr-009-inline-reads-unchanged", text: "4. FR-009 inline reads unchanged", level: 3}
-    - {slug: "consequences", text: "Consequences", level: 2}
-    - {slug: "deliberate-behavior-change-with-blast-radius", text: "Deliberate behavior change, with blast radius", level: 3}
-    - {slug: "the-m0-backfill-is-the-safety-net-and-must-run-first", text: "The M0 backfill is the safety net — and must run first", level: 3}
-    - {slug: "user-visible-surfaces-now-show-the-true-type", text: "User-visible surfaces now show the true type", level: 3}
-    - {slug: "references", text: "References", level: 2}
-  - path: "docs/adr/3.x/2026-08-22-1-performance-test-pipeline.md"
-    title: "ADR: Statistical performance-test pipeline (pytest-benchmark), off the PR path, per-domain"
-    divio_type: "none"
-    abstract: "Adopt pytest-benchmark + a per-domain performance.yml pipeline; all wall-clock performance tests run there only, off the PR path; the single-shot on-PR timing gate is retired."
-    anchors:
-    - {slug: "context-and-problem-statement", text: "Context and Problem Statement", level: 2}
-    - {slug: "decision", text: "Decision", level: 2}
-    - {slug: "what-moves-and-what-explicitly-does-not", text: "What moves and what explicitly does NOT", level: 3}
-    - {slug: "migration-is-per-domain-and-incremental", text: "Migration is per-domain and incremental", level: 3}
-    - {slug: "consequences", text: "Consequences", level: 2}
-    - {slug: "alternatives-considered", text: "Alternatives considered", level: 2}
-    - {slug: "references", text: "References", level: 2}
-  - path: "docs/adr/3.x/2026-08-22-2-retire-doctrine-term-charter-is-the-canonical-vocabulary.md"
-    title: "ADR: Retire the doctrine term — Charter is the canonical vocabulary"
-    divio_type: "none"
-    abstract: "Retires the `doctrine` term for `charter` across the repo outside the immutable kitty-specs archive and in installations; M1 makes it effective, M2–M5 execute, M6 proves zero."
+    abstract: "Pre-commit hook falls back to a PATH-resolved spec-kitty entrypoint when its pinned interpreter is gone, and a repair command re-pins already-broken repos."
     anchors:
     - {slug: "context-and-problem-statement", text: "Context and Problem Statement", level: 2}
     - {slug: "decision-drivers", text: "Decision Drivers", level: 2}
     - {slug: "considered-options", text: "Considered Options", level: 2}
     - {slug: "decision-outcome", text: "Decision Outcome", level: 2}
-    - {slug: "canonical-vocabulary", text: "Canonical vocabulary", level: 3}
-    - {slug: "explicit-operator-override-effective-at-i1", text: "Explicit operator override (effective at I1)", level: 3}
-    - {slug: "complete-scope-and-owners", text: "Complete scope and owners", level: 3}
-    - {slug: "fixed-seams-and-identifier-mappings", text: "Fixed seams and identifier mappings", level: 3}
-    - {slug: "m1-charter-authority-update-per-artifact-owner-map", text: "M1 — Charter authority update (per-artifact owner map)", level: 3}
-    - {slug: "m2-m6-execution-summary", text: "M2–M6 — execution summary", level: 3}
-    - {slug: "guard-and-exact-terminal-audit", text: "Guard and exact terminal audit", level: 3}
     - {slug: "consequences", text: "Consequences", level: 3}
     - {slug: "confirmation", text: "Confirmation", level: 3}
     - {slug: "pros-and-cons-of-the-options", text: "Pros and Cons of the Options", level: 2}
-    - {slug: "a-user-facing-rename-only", text: "A. User-facing rename only", level: 3}
-    - {slug: "b-complete-extinction-outside-the-immutable-archive-chosen", text: "B. Complete extinction outside the immutable archive (chosen)", level: 3}
-    - {slug: "c-hard-break-now", text: "C. Hard break now", level: 3}
+    - {slug: "a-automatic-silent-self-heal-on-every-commit", text: "A. Automatic silent self-heal on every commit", level: 3}
+    - {slug: "b-install-agnostic-fallback-entrypoint-one-time-repin-command-chosen", text: "B. Install-agnostic fallback entrypoint + one-time repin command (chosen)", level: 3}
+    - {slug: "c-drop-the-pin-always-resolve-off-path", text: "C. Drop the pin, always resolve off `PATH`", level: 3}
     - {slug: "more-information", text: "More Information", level: 2}
   - path: "docs/adr/3.x/2026-08-28-1-project-path-convention-override-precedes-doctrine.md"
     title: "ADR: A project path_conventions override precedes the doctrine default, without changing the blocking policy"
@@ -3095,6 +3034,7 @@ pages:
     divio_type: "none"
     abstract: "Reference for spec-kitty agent subcommands. Learn how agent-only actions like config, status, decision, and retrospect behave in workflows."
     anchors:
+    - {slug: "ambiguous-mission-selectors", text: "Ambiguous mission selectors", level: 2}
     - {slug: "getting-started", text: "Getting Started", level: 2}
     - {slug: "practical-usage", text: "Practical Usage", level: 2}
     - {slug: "spec-kitty-agent", text: "spec-kitty agent", level: 2}
@@ -3489,9 +3429,7 @@ pages:
     - {slug: "spec-kitty-doctor-mission-state", text: "spec-kitty doctor mission-state", level: 2}
     - {slug: "spec-kitty-doctor-mission-type", text: "spec-kitty doctor mission-type", level: 2}
     - {slug: "spec-kitty-doctor-ops", text: "spec-kitty doctor ops", level: 2}
-    - {slug: "spec-kitty-doctor-orphan-daemons", text: "spec-kitty doctor orphan-daemons", level: 2}
     - {slug: "spec-kitty-doctor-provenance", text: "spec-kitty doctor provenance", level: 2}
-    - {slug: "spec-kitty-doctor-restart-daemon", text: "spec-kitty doctor restart-daemon", level: 2}
     - {slug: "spec-kitty-doctor-review-cycle-reconcile", text: "spec-kitty doctor review-cycle-reconcile", level: 2}
     - {slug: "spec-kitty-doctor-shim-registry", text: "spec-kitty doctor shim-registry", level: 2}
     - {slug: "spec-kitty-doctor-skills", text: "spec-kitty doctor skills", level: 2}
@@ -3534,14 +3472,15 @@ pages:
     - {slug: "spec-kitty-materialize", text: "spec-kitty materialize", level: 2}
     - {slug: "spec-kitty-merge", text: "spec-kitty merge", level: 2}
     - {slug: "spec-kitty-migrate", text: "spec-kitty migrate", level: 2}
-    - {slug: "spec-kitty-migrate-backfill-mission-type", text: "spec-kitty migrate backfill-mission-type", level: 2}
     - {slug: "spec-kitty-migrate-backfill-identity", text: "spec-kitty migrate backfill-identity", level: 2}
+    - {slug: "spec-kitty-migrate-backfill-mission-type", text: "spec-kitty migrate backfill-mission-type", level: 2}
     - {slug: "spec-kitty-migrate-backfill-provenance", text: "spec-kitty migrate backfill-provenance", level: 2}
     - {slug: "spec-kitty-migrate-backfill-runtime-state", text: "spec-kitty migrate backfill-runtime-state", level: 2}
     - {slug: "spec-kitty-migrate-backfill-topology", text: "spec-kitty migrate backfill-topology", level: 2}
     - {slug: "spec-kitty-migrate-charter-encoding", text: "spec-kitty migrate charter-encoding", level: 2}
     - {slug: "spec-kitty-migrate-normalize-lifecycle", text: "spec-kitty migrate normalize-lifecycle", level: 2}
     - {slug: "spec-kitty-migrate-rebaseline-dossier-hashes", text: "spec-kitty migrate rebaseline-dossier-hashes", level: 2}
+    - {slug: "spec-kitty-migrate-repin-hooks", text: "spec-kitty migrate repin-hooks", level: 2}
     - {slug: "spec-kitty-migrate-rewrite-opposed-by", text: "spec-kitty migrate rewrite-opposed-by", level: 2}
     - {slug: "spec-kitty-mission", text: "spec-kitty mission", level: 2}
     - {slug: "spec-kitty-mission-close", text: "spec-kitty mission close", level: 2}
@@ -3565,6 +3504,10 @@ pages:
     - {slug: "spec-kitty-mission-type-run", text: "spec-kitty mission-type run", level: 2}
     - {slug: "spec-kitty-mission-type-show", text: "spec-kitty mission-type show", level: 2}
     - {slug: "spec-kitty-mission-type-switch", text: "spec-kitty mission-type switch", level: 2}
+    - {slug: "spec-kitty-moments", text: "spec-kitty moments", level: 2}
+    - {slug: "spec-kitty-moments-off", text: "spec-kitty moments off", level: 2}
+    - {slug: "spec-kitty-moments-on", text: "spec-kitty moments on", level: 2}
+    - {slug: "spec-kitty-moments-status", text: "spec-kitty moments status", level: 2}
     - {slug: "spec-kitty-next", text: "spec-kitty next", level: 2}
     - {slug: "spec-kitty-ops", text: "spec-kitty ops", level: 2}
     - {slug: "spec-kitty-ops-log", text: "spec-kitty ops log", level: 2}
@@ -3596,34 +3539,12 @@ pages:
     - {slug: "spec-kitty-retrospect-create", text: "spec-kitty retrospect create", level: 2}
     - {slug: "spec-kitty-retrospect-summary", text: "spec-kitty retrospect summary", level: 2}
     - {slug: "spec-kitty-review", text: "spec-kitty review", level: 2}
+    - {slug: "spec-kitty-routes", text: "spec-kitty routes", level: 2}
     - {slug: "spec-kitty-safe-commit", text: "spec-kitty safe-commit", level: 2}
     - {slug: "spec-kitty-session-start", text: "spec-kitty session-start", level: 2}
     - {slug: "spec-kitty-session-stop", text: "spec-kitty session-stop", level: 2}
     - {slug: "spec-kitty-spec-commit", text: "spec-kitty spec-commit", level: 2}
     - {slug: "spec-kitty-specify", text: "spec-kitty specify", level: 2}
-    - {slug: "spec-kitty-sync", text: "spec-kitty sync", level: 2}
-    - {slug: "spec-kitty-sync-archive", text: "spec-kitty sync archive", level: 2}
-    - {slug: "spec-kitty-sync-diagnose", text: "spec-kitty sync diagnose", level: 2}
-    - {slug: "spec-kitty-sync-doctor", text: "spec-kitty sync doctor", level: 2}
-    - {slug: "spec-kitty-sync-gc", text: "spec-kitty sync gc", level: 2}
-    - {slug: "spec-kitty-sync-import-history", text: "spec-kitty sync import-history", level: 2}
-    - {slug: "spec-kitty-sync-migrate", text: "spec-kitty sync migrate", level: 2}
-    - {slug: "spec-kitty-sync-mode", text: "spec-kitty sync mode", level: 2}
-    - {slug: "spec-kitty-sync-now", text: "spec-kitty sync now", level: 2}
-    - {slug: "spec-kitty-sync-opt-in", text: "spec-kitty sync opt-in", level: 2}
-    - {slug: "spec-kitty-sync-opt-out", text: "spec-kitty sync opt-out", level: 2}
-    - {slug: "spec-kitty-sync-project-store-history", text: "spec-kitty sync project_store_history", level: 2}
-    - {slug: "spec-kitty-sync-project-store-migrate", text: "spec-kitty sync project_store_migrate", level: 2}
-    - {slug: "spec-kitty-sync-project-store-preview", text: "spec-kitty sync project_store_preview", level: 2}
-    - {slug: "spec-kitty-sync-project-store-quarantine", text: "spec-kitty sync project_store_quarantine", level: 2}
-    - {slug: "spec-kitty-sync-project-store-status", text: "spec-kitty sync project_store_status", level: 2}
-    - {slug: "spec-kitty-sync-purge", text: "spec-kitty sync purge", level: 2}
-    - {slug: "spec-kitty-sync-routes", text: "spec-kitty sync routes", level: 2}
-    - {slug: "spec-kitty-sync-server", text: "spec-kitty sync server", level: 2}
-    - {slug: "spec-kitty-sync-share", text: "spec-kitty sync share", level: 2}
-    - {slug: "spec-kitty-sync-status", text: "spec-kitty sync status", level: 2}
-    - {slug: "spec-kitty-sync-unshare", text: "spec-kitty sync unshare", level: 2}
-    - {slug: "spec-kitty-sync-workspace", text: "spec-kitty sync workspace", level: 2}
     - {slug: "spec-kitty-tasks", text: "spec-kitty tasks", level: 2}
     - {slug: "spec-kitty-tracker", text: "spec-kitty tracker", level: 2}
     - {slug: "spec-kitty-tracker-bind", text: "spec-kitty tracker bind", level: 2}
@@ -3643,11 +3564,25 @@ pages:
     - {slug: "spec-kitty-upgrade", text: "spec-kitty upgrade", level: 2}
     - {slug: "spec-kitty-validate-encoding", text: "spec-kitty validate-encoding", level: 2}
     - {slug: "spec-kitty-validate-tasks", text: "spec-kitty validate-tasks", level: 2}
-    - {slug: "spec-kitty-verify-setup", text: "spec-kitty verify_setup", level: 2}
+    - {slug: "spec-kitty-verify-setup", text: "spec-kitty verify-setup", level: 2}
     - {slug: "spec-kitty-workflow", text: "spec-kitty workflow", level: 2}
     - {slug: "spec-kitty-workflow-export", text: "spec-kitty workflow export", level: 2}
     - {slug: "spec-kitty-workflow-import", text: "spec-kitty workflow import", level: 2}
     - {slug: "spec-kitty-workflow-list", text: "spec-kitty workflow list", level: 2}
+    - {slug: "spec-kitty-zeitgeist", text: "spec-kitty zeitgeist", level: 2}
+    - {slug: "spec-kitty-zeitgeist-operability", text: "spec-kitty zeitgeist operability", level: 2}
+    - {slug: "spec-kitty-zeitgeist-operability-drill-rollback", text: "spec-kitty zeitgeist operability drill-rollback", level: 2}
+    - {slug: "spec-kitty-zeitgeist-operability-drill-rotation", text: "spec-kitty zeitgeist operability drill-rotation", level: 2}
+    - {slug: "spec-kitty-zeitgeist-operability-drill-timeout", text: "spec-kitty zeitgeist operability drill-timeout", level: 2}
+    - {slug: "spec-kitty-zeitgeist-operability-report", text: "spec-kitty zeitgeist operability report", level: 2}
+    - {slug: "spec-kitty-zeitgeist-outbox", text: "spec-kitty zeitgeist outbox", level: 2}
+    - {slug: "spec-kitty-zeitgeist-outbox-approve", text: "spec-kitty zeitgeist outbox approve", level: 2}
+    - {slug: "spec-kitty-zeitgeist-outbox-list", text: "spec-kitty zeitgeist outbox list", level: 2}
+    - {slug: "spec-kitty-zeitgeist-outbox-reject", text: "spec-kitty zeitgeist outbox reject", level: 2}
+    - {slug: "spec-kitty-zeitgeist-outbox-revoke", text: "spec-kitty zeitgeist outbox revoke", level: 2}
+    - {slug: "spec-kitty-zeitgeist-outbox-show", text: "spec-kitty zeitgeist outbox show", level: 2}
+    - {slug: "spec-kitty-zeitgeist-status", text: "spec-kitty zeitgeist status", level: 2}
+    - {slug: "spec-kitty-zeitgeist-watch", text: "spec-kitty zeitgeist watch", level: 2}
   - path: "docs/api/configuration.md"
     title: "Configuration Reference"
     divio_type: "none"
@@ -4562,16 +4497,6 @@ pages:
     - {slug: "glossary-pack", text: "Glossary pack", level: 3}
     - {slug: "anti-pattern", text: "Anti-pattern", level: 3}
     - {slug: "where-to-go-next", text: "Where to go next", level: 2}
-  - path: "docs/architecture/doctrine-projection-and-delivery.md"
-    title: "Profile-channel projection and delivery"
-    divio_type: "explanation"
-    abstract: "Why styleguide/toolguide profile citations render pointer-only, and how to read the operating_procedures_unresolved diagnostic — for pack authors."
-    anchors:
-    - {slug: "two-contracts-one-loaded-profile", text: "Two contracts, one loaded profile", level: 2}
-    - {slug: "contract-1-styleguide-toolguide-are-pointer-only-by-design", text: "Contract 1 — styleguide/toolguide are pointer-only by design", level: 2}
-    - {slug: "contract-2-the-operating-procedures-unresolved-diagnostic", text: "Contract 2 — the `operating_procedures_unresolved` diagnostic", level: 2}
-    - {slug: "what-this-page-does-not-cover", text: "What this page does not cover", level: 2}
-    - {slug: "see-also", text: "See also", level: 2}
   - path: "docs/architecture/doctrine-relationships.md"
     title: "Doctrine relationships: lineage, delegation, augmentation, and action resolution"
     divio_type: "none"
@@ -5411,43 +5336,42 @@ pages:
     divio_type: "none"
     abstract: "Canonical changelog for the Spec Kitty CLI and templates, following Keep a Changelog and Semantic Versioning, with added, breaking, and fixed entries per release."
     anchors:
-    - {slug: "unreleased-3-2-6rc4", text: "[Unreleased] - 3.2.6rc4", level: 2}
-    - {slug: "breaking", text: "💥 Breaking", level: 3}
+    - {slug: "unreleased-3-2-6rc5", text: "[Unreleased] - 3.2.6rc5", level: 2}
+    - {slug: "breaking-removed", text: "💥 Breaking / 🗑️ Removed", level: 3}
     - {slug: "added", text: "✨ Added", level: 3}
-    - {slug: "fixed", text: "🐛 Fixed", level: 3}
     - {slug: "changed", text: "♻️ Changed", level: 3}
-    - {slug: "changed-2", text: "♻️ Changed", level: 3}
+    - {slug: "fixed", text: "🐛 Fixed", level: 3}
     - {slug: "3-2-6rc2-2026-08-20", text: "[3.2.6rc2] - 2026-08-20", level: 2}
     - {slug: "added-2", text: "✨ Added", level: 3}
-    - {slug: "changed-3", text: "♻️ Changed", level: 3}
+    - {slug: "changed-2", text: "♻️ Changed", level: 3}
     - {slug: "fixed-2", text: "🐛 Fixed", level: 3}
     - {slug: "breaking-changes", text: "💥 Breaking Changes", level: 3}
     - {slug: "3-2-6rc1-2026-08-12", text: "[3.2.6rc1] - 2026-08-12", level: 2}
     - {slug: "added-3", text: "✨ Added", level: 3}
     - {slug: "fixed-3", text: "🐛 Fixed", level: 3}
-    - {slug: "changed-4", text: "♻️ Changed", level: 3}
+    - {slug: "changed-3", text: "♻️ Changed", level: 3}
     - {slug: "breaking-changes-2", text: "💥 Breaking Changes", level: 3}
     - {slug: "3-2-5-2026-07-08", text: "[3.2.5] - 2026-07-08", level: 2}
     - {slug: "added-4", text: "✨ Added", level: 3}
     - {slug: "fixed-4", text: "🐛 Fixed", level: 3}
-    - {slug: "changed-5", text: "♻️ Changed", level: 3}
+    - {slug: "changed-4", text: "♻️ Changed", level: 3}
     - {slug: "breaking-changes-3", text: "💥 Breaking Changes", level: 3}
     - {slug: "3-2-4-2026-07-05", text: "[3.2.4] - 2026-07-05", level: 2}
     - {slug: "breaking-changes-4", text: "💥 Breaking Changes", level: 3}
-    - {slug: "changed-6", text: "♻️ Changed", level: 3}
+    - {slug: "changed-5", text: "♻️ Changed", level: 3}
     - {slug: "fixed-5", text: "🐛 Fixed", level: 3}
     - {slug: "3-2-3-2026-06-29", text: "[3.2.3] - 2026-06-29", level: 2}
     - {slug: "added-5", text: "✨ Added", level: 3}
     - {slug: "breaking-changes-5", text: "💥 Breaking Changes", level: 3}
     - {slug: "fixed-6", text: "🐛 Fixed", level: 3}
-    - {slug: "changed-7", text: "♻️ Changed", level: 3}
+    - {slug: "changed-6", text: "♻️ Changed", level: 3}
     - {slug: "3-2-2-2026-06-24", text: "[3.2.2] - 2026-06-24", level: 2}
     - {slug: "added-6", text: "✨ Added", level: 3}
     - {slug: "fixed-7", text: "🐛 Fixed", level: 3}
     - {slug: "contract", text: "⚠️ Contract", level: 3}
     - {slug: "3-2-1-2026-06-18", text: "[3.2.1] - 2026-06-18", level: 2}
     - {slug: "fixed-8", text: "🐛 Fixed", level: 3}
-    - {slug: "changed-8", text: "🔧 Changed", level: 3}
+    - {slug: "changed-7", text: "🔧 Changed", level: 3}
     - {slug: "fixed-security-follow-up", text: "🐛 Fixed (security follow-up)", level: 3}
     - {slug: "3-2-0-2026-06-16", text: "[3.2.0] - 2026-06-16", level: 2}
     - {slug: "added-changed", text: "✨ Added / 🔧 Changed", level: 3}
@@ -5460,16 +5384,16 @@ pages:
     - {slug: "3-2-0rc43-2026-06-11", text: "[3.2.0rc43] - 2026-06-11", level: 2}
     - {slug: "added-changed-2", text: "✨ Added / 🔧 Changed", level: 3}
     - {slug: "3-2-0rc42-2026-06-11", text: "[3.2.0rc42] - 2026-06-11", level: 2}
-    - {slug: "changed-9", text: "💥 Changed", level: 3}
+    - {slug: "changed-8", text: "💥 Changed", level: 3}
     - {slug: "fixed-11", text: "🐛 Fixed", level: 3}
     - {slug: "added-changed-3", text: "✨ Added / 🔧 Changed", level: 3}
     - {slug: "3-2-0rc41-2026-06-08", text: "[3.2.0rc41] - 2026-06-08", level: 2}
     - {slug: "added-8", text: "✨ Added", level: 3}
-    - {slug: "changed-10", text: "🔧 Changed", level: 3}
+    - {slug: "changed-9", text: "🔧 Changed", level: 3}
     - {slug: "fixed-12", text: "🐛 Fixed", level: 3}
     - {slug: "3-2-0rc40-2026-06-07", text: "[3.2.0rc40] - 2026-06-07", level: 2}
     - {slug: "added-9", text: "✨ Added", level: 3}
-    - {slug: "changed-11", text: "🔧 Changed", level: 3}
+    - {slug: "changed-10", text: "🔧 Changed", level: 3}
     - {slug: "fixed-13", text: "🐛 Fixed", level: 3}
     - {slug: "3-2-0rc39-2026-06-07", text: "[3.2.0rc39] - 2026-06-07", level: 2}
     - {slug: "added-10", text: "✨ Added", level: 3}
@@ -5481,44 +5405,44 @@ pages:
     - {slug: "fixed-15", text: "🐛 Fixed", level: 3}
     - {slug: "3-2-0rc37-2026-06-04", text: "[3.2.0rc37] - 2026-06-04", level: 2}
     - {slug: "added-12", text: "Added", level: 3}
-    - {slug: "changed-12", text: "Changed", level: 3}
+    - {slug: "changed-11", text: "Changed", level: 3}
     - {slug: "fixed-16", text: "Fixed", level: 3}
     - {slug: "3-2-0rc36-2026-06-03", text: "[3.2.0rc36] - 2026-06-03", level: 2}
-    - {slug: "changed-13", text: "Changed", level: 3}
+    - {slug: "changed-12", text: "Changed", level: 3}
     - {slug: "3-2-0rc35-2026-06-02", text: "[3.2.0rc35] - 2026-06-02", level: 2}
     - {slug: "added-13", text: "Added", level: 3}
-    - {slug: "changed-14", text: "Changed", level: 3}
+    - {slug: "changed-13", text: "Changed", level: 3}
     - {slug: "fixed-17", text: "Fixed", level: 3}
     - {slug: "3-2-0rc34-2026-06-02", text: "[3.2.0rc34] - 2026-06-02", level: 2}
-    - {slug: "changed-15", text: "Changed", level: 3}
+    - {slug: "changed-14", text: "Changed", level: 3}
     - {slug: "fixed-18", text: "Fixed", level: 3}
     - {slug: "3-2-0rc33-2026-06-01", text: "[3.2.0rc33] - 2026-06-01", level: 2}
-    - {slug: "changed-16", text: "Changed", level: 3}
+    - {slug: "changed-15", text: "Changed", level: 3}
     - {slug: "3-2-0rc32-2026-06-01", text: "[3.2.0rc32] - 2026-06-01", level: 2}
     - {slug: "added-14", text: "Added", level: 3}
-    - {slug: "changed-17", text: "Changed", level: 3}
+    - {slug: "changed-16", text: "Changed", level: 3}
     - {slug: "fixed-19", text: "Fixed", level: 3}
     - {slug: "documentation", text: "Documentation", level: 3}
     - {slug: "3-2-0rc31-rolled-into-rc32", text: "[3.2.0rc31] (rolled into rc32)", level: 2}
     - {slug: "fixed-20", text: "Fixed", level: 3}
     - {slug: "3-2-0rc30-2026-05-29", text: "[3.2.0rc30] - 2026-05-29", level: 2}
     - {slug: "added-15", text: "Added", level: 3}
-    - {slug: "changed-18", text: "Changed", level: 3}
+    - {slug: "changed-17", text: "Changed", level: 3}
     - {slug: "fixed-21", text: "Fixed", level: 3}
     - {slug: "security-lint", text: "Security / Lint", level: 3}
     - {slug: "3-2-0rc29-2026-05-29", text: "[3.2.0rc29] - 2026-05-29", level: 2}
     - {slug: "added-16", text: "Added", level: 3}
-    - {slug: "changed-19", text: "Changed", level: 3}
+    - {slug: "changed-18", text: "Changed", level: 3}
     - {slug: "fixed-22", text: "Fixed", level: 3}
     - {slug: "deferred", text: "Deferred", level: 3}
     - {slug: "3-2-0rc28-2026-05-27", text: "[3.2.0rc28] - 2026-05-27", level: 2}
-    - {slug: "changed-20", text: "Changed", level: 3}
+    - {slug: "changed-19", text: "Changed", level: 3}
     - {slug: "fixed-23", text: "Fixed", level: 3}
     - {slug: "3-2-0rc27-2026-05-26", text: "[3.2.0rc27] - 2026-05-26", level: 2}
     - {slug: "fixed-24", text: "Fixed", level: 3}
     - {slug: "3-2-0rc26-2026-05-26", text: "[3.2.0rc26] - 2026-05-26", level: 2}
     - {slug: "breaking-changes-6", text: "Breaking changes", level: 3}
-    - {slug: "changed-21", text: "Changed", level: 3}
+    - {slug: "changed-20", text: "Changed", level: 3}
     - {slug: "added-17", text: "Added", level: 3}
     - {slug: "3-2-0rc25-2026-05-23", text: "[3.2.0rc25] - 2026-05-23", level: 2}
     - {slug: "3-2-0rc24-2026-05-22", text: "[3.2.0rc24] - 2026-05-22", level: 2}
@@ -5538,31 +5462,31 @@ pages:
     - {slug: "3-2-0rc10-2026-05-17", text: "[3.2.0rc10] - 2026-05-17", level: 2}
     - {slug: "3-2-0rc9-rolled-into-rc10", text: "[3.2.0rc9] (rolled into rc10)", level: 2}
     - {slug: "added-18", text: "Added", level: 3}
-    - {slug: "changed-22", text: "Changed", level: 3}
+    - {slug: "changed-21", text: "Changed", level: 3}
     - {slug: "fixed-25", text: "Fixed", level: 3}
     - {slug: "documentation-2", text: "Documentation", level: 3}
     - {slug: "deferred-2", text: "Deferred", level: 3}
     - {slug: "removed", text: "Removed", level: 3}
     - {slug: "3-2-0rc8-2026-05-14", text: "[3.2.0rc8] - 2026-05-14", level: 2}
-    - {slug: "changed-23", text: "Changed", level: 3}
+    - {slug: "changed-22", text: "Changed", level: 3}
     - {slug: "fixed-26", text: "Fixed", level: 3}
     - {slug: "3-2-0rc7-2026-05-12", text: "[3.2.0rc7] - 2026-05-12", level: 2}
     - {slug: "added-19", text: "Added", level: 3}
-    - {slug: "changed-24", text: "Changed", level: 3}
+    - {slug: "changed-23", text: "Changed", level: 3}
     - {slug: "fixed-27", text: "Fixed", level: 3}
     - {slug: "3-2-0rc6-2026-05-11", text: "[3.2.0rc6] - 2026-05-11", level: 2}
-    - {slug: "changed-25", text: "Changed", level: 3}
+    - {slug: "changed-24", text: "Changed", level: 3}
     - {slug: "fixed-28", text: "Fixed", level: 3}
     - {slug: "3-2-0rc5-2026-05-11", text: "[3.2.0rc5] - 2026-05-11", level: 2}
-    - {slug: "changed-26", text: "Changed", level: 3}
+    - {slug: "changed-25", text: "Changed", level: 3}
     - {slug: "fixed-29", text: "Fixed", level: 3}
     - {slug: "3-2-0rc4-2026-05-11", text: "[3.2.0rc4] - 2026-05-11", level: 2}
-    - {slug: "changed-27", text: "Changed", level: 3}
+    - {slug: "changed-26", text: "Changed", level: 3}
     - {slug: "3-2-0rc3-2026-05-06", text: "[3.2.0rc3] - 2026-05-06", level: 2}
     - {slug: "fixed-30", text: "Fixed", level: 3}
     - {slug: "3-2-0rc2-2026-05-05", text: "[3.2.0rc2] - 2026-05-05", level: 2}
     - {slug: "added-20", text: "Added", level: 3}
-    - {slug: "changed-28", text: "Changed", level: 3}
+    - {slug: "changed-27", text: "Changed", level: 3}
     - {slug: "3-2-0rc1-2026-05-05", text: "[3.2.0rc1] - 2026-05-05", level: 2}
     - {slug: "fixed-31", text: "Fixed", level: 3}
     - {slug: "release-validation", text: "Release Validation", level: 3}
@@ -5586,45 +5510,45 @@ pages:
     - {slug: "tranche-2-acceptance-pass-sc-001-sc-008", text: "Tranche-2 acceptance pass (SC-001..SC-008)", level: 3}
     - {slug: "3-2-0a5-2026-04-27", text: "[3.2.0a5] - 2026-04-27", level: 2}
     - {slug: "fixed-37", text: "Fixed", level: 3}
-    - {slug: "changed-29", text: "Changed", level: 3}
+    - {slug: "changed-28", text: "Changed", level: 3}
     - {slug: "removed-2", text: "Removed", level: 3}
     - {slug: "internal-6", text: "Internal", level: 3}
     - {slug: "added-22", text: "Added", level: 3}
-    - {slug: "changed-30", text: "Changed", level: 3}
+    - {slug: "changed-29", text: "Changed", level: 3}
     - {slug: "removed-3", text: "Removed", level: 3}
     - {slug: "fixed-38", text: "Fixed", level: 3}
     - {slug: "added-documentation-mission-composition-rewrite-502-461-phase-6-wp6-4", text: "Added - Documentation mission composition rewrite (#502, #461, Phase 6 WP6.4)", level: 3}
     - {slug: "added-23", text: "Added", level: 3}
-    - {slug: "changed-31", text: "Changed", level: 3}
+    - {slug: "changed-30", text: "Changed", level: 3}
     - {slug: "deferred-3", text: "Deferred", level: 3}
     - {slug: "out-of-scope-tracked-separately", text: "Out of scope (tracked separately)", level: 3}
     - {slug: "migration-notes", text: "Migration notes", level: 3}
     - {slug: "added-phase-4-trail-follow-on", text: "Added (Phase 4 trail follow-on)", level: 3}
     - {slug: "fixed-39", text: "Fixed", level: 3}
-    - {slug: "changed-32", text: "Changed", level: 3}
+    - {slug: "changed-31", text: "Changed", level: 3}
     - {slug: "3-2-0a4-2026-04-21", text: "[3.2.0a4] - 2026-04-21", level: 2}
     - {slug: "added-24", text: "Added", level: 3}
     - {slug: "added-25", text: "Added", level: 3}
     - {slug: "3-2-0a3-2026-04-21", text: "[3.2.0a3] - 2026-04-21", level: 2}
     - {slug: "fixed-40", text: "Fixed", level: 3}
     - {slug: "3-2-0a2-2026-04-21", text: "[3.2.0a2] - 2026-04-21", level: 2}
-    - {slug: "changed-33", text: "Changed", level: 3}
+    - {slug: "changed-32", text: "Changed", level: 3}
     - {slug: "removed-4", text: "Removed", level: 3}
     - {slug: "3-2-0a1-2026-04-20", text: "[3.2.0a1] - 2026-04-20", level: 2}
     - {slug: "added-26", text: "Added", level: 3}
-    - {slug: "changed-34", text: "Changed", level: 3}
+    - {slug: "changed-33", text: "Changed", level: 3}
     - {slug: "fixed-41", text: "Fixed", level: 3}
     - {slug: "removed-5", text: "Removed", level: 3}
     - {slug: "3-1-8-2026-04-29", text: "[3.1.8] - 2026-04-29", level: 2}
     - {slug: "fixed-42", text: "Fixed", level: 3}
     - {slug: "3-1-7-2026-04-28", text: "[3.1.7] - 2026-04-28", level: 2}
     - {slug: "fixed-43", text: "Fixed", level: 3}
-    - {slug: "changed-35", text: "Changed", level: 3}
+    - {slug: "changed-34", text: "Changed", level: 3}
     - {slug: "3-1-6-2026-04-20", text: "[3.1.6] - 2026-04-20", level: 2}
     - {slug: "fixed-44", text: "Fixed", level: 3}
     - {slug: "docs-2", text: "Docs", level: 3}
     - {slug: "3-1-5-2026-04-16", text: "[3.1.5] - 2026-04-16", level: 2}
-    - {slug: "changed-36", text: "Changed", level: 3}
+    - {slug: "changed-35", text: "Changed", level: 3}
     - {slug: "fixed-45", text: "Fixed", level: 3}
     - {slug: "docs-3", text: "Docs", level: 3}
     - {slug: "3-1-4-2026-04-15", text: "[3.1.4] - 2026-04-15", level: 2}
@@ -5635,7 +5559,7 @@ pages:
     - {slug: "3-1-2-2026-04-15", text: "[3.1.2] - 2026-04-15", level: 2}
     - {slug: "fixed-ci-recovery-release-readiness", text: "Fixed - CI recovery & release readiness", level: 3}
     - {slug: "added-27", text: "Added", level: 3}
-    - {slug: "changed-37", text: "Changed", level: 3}
+    - {slug: "changed-36", text: "Changed", level: 3}
     - {slug: "unchanged-explicitly", text: "Unchanged (explicitly)", level: 3}
     - {slug: "refs", text: "Refs", level: 3}
     - {slug: "fixed-48", text: "Fixed", level: 3}
@@ -5648,26 +5572,26 @@ pages:
     - {slug: "fixed-50", text: "Fixed", level: 3}
     - {slug: "3-1-2a2-2026-04-11", text: "[3.1.2a2] - 2026-04-11", level: 2}
     - {slug: "added-30", text: "Added", level: 3}
-    - {slug: "changed-38", text: "Changed", level: 3}
+    - {slug: "changed-37", text: "Changed", level: 3}
     - {slug: "fixed-51", text: "Fixed", level: 3}
     - {slug: "3-1-2a1-2026-04-10", text: "[3.1.2a1] - 2026-04-10", level: 2}
     - {slug: "added-31", text: "Added", level: 3}
-    - {slug: "changed-39", text: "Changed", level: 3}
+    - {slug: "changed-38", text: "Changed", level: 3}
     - {slug: "fixed-52", text: "Fixed", level: 3}
     - {slug: "3-1-1-2026-04-09", text: "[3.1.1] - 2026-04-09", level: 2}
     - {slug: "added-32", text: "Added", level: 3}
-    - {slug: "changed-40", text: "Changed", level: 3}
+    - {slug: "changed-39", text: "Changed", level: 3}
     - {slug: "fixed-53", text: "Fixed", level: 3}
     - {slug: "3-1-1a3-2026-04-07", text: "[3.1.1a3] - 2026-04-07", level: 2}
     - {slug: "added-33", text: "Added", level: 3}
-    - {slug: "changed-41", text: "Changed", level: 3}
+    - {slug: "changed-40", text: "Changed", level: 3}
     - {slug: "3-1-1a2-2026-04-07", text: "[3.1.1a2] - 2026-04-07", level: 2}
     - {slug: "fixed-54", text: "Fixed", level: 3}
     - {slug: "added-34", text: "Added", level: 3}
-    - {slug: "changed-42", text: "Changed", level: 3}
+    - {slug: "changed-41", text: "Changed", level: 3}
     - {slug: "3-1-1a1-2026-04-07", text: "[3.1.1a1] - 2026-04-07", level: 2}
     - {slug: "added-35", text: "Added", level: 3}
-    - {slug: "changed-43", text: "Changed", level: 3}
+    - {slug: "changed-42", text: "Changed", level: 3}
     - {slug: "fixed-55", text: "Fixed", level: 3}
     - {slug: "3-1-0-2026-04-07", text: "[3.1.0] - 2026-04-07", level: 2}
     - {slug: "added-36", text: "Added", level: 3}
@@ -5687,10 +5611,10 @@ pages:
     - {slug: "fixed-60", text: "Fixed", level: 3}
     - {slug: "3-1-0a3-2026-04-05", text: "[3.1.0a3] - 2026-04-05", level: 2}
     - {slug: "fixed-61", text: "Fixed", level: 3}
-    - {slug: "changed-44", text: "Changed", level: 3}
+    - {slug: "changed-43", text: "Changed", level: 3}
     - {slug: "added-41", text: "Added", level: 3}
     - {slug: "3-1-0a2-2026-04-05", text: "[3.1.0a2] - 2026-04-05", level: 2}
-    - {slug: "changed-45", text: "Changed", level: 3}
+    - {slug: "changed-44", text: "Changed", level: 3}
     - {slug: "fixed-62", text: "Fixed", level: 3}
     - {slug: "documentation-3", text: "Documentation", level: 3}
     - {slug: "3-0-3-2026-04-01", text: "[3.0.3] - 2026-04-01", level: 2}
@@ -5717,7 +5641,7 @@ pages:
     - {slug: "fixed-68", text: "🐛 Fixed", level: 3}
     - {slug: "2-1-0-2026-03-21", text: "[2.1.0] - 2026-03-21", level: 2}
     - {slug: "added-46", text: "✅ Added", level: 3}
-    - {slug: "changed-46", text: "🔧 Changed", level: 3}
+    - {slug: "changed-45", text: "🔧 Changed", level: 3}
     - {slug: "deprecated", text: "⚠️ Deprecated", level: 3}
     - {slug: "removed-7", text: "🗑️ Removed", level: 3}
     - {slug: "2-0-11-2026-03-20", text: "[2.0.11] - 2026-03-20", level: 2}
@@ -5725,17 +5649,17 @@ pages:
     - {slug: "2-0-10-2026-03-20", text: "[2.0.10] - 2026-03-20", level: 2}
     - {slug: "added-47", text: "✅ Added", level: 3}
     - {slug: "fixed-69", text: "🐛 Fixed", level: 3}
-    - {slug: "changed-47", text: "🔧 Changed", level: 3}
+    - {slug: "changed-46", text: "🔧 Changed", level: 3}
     - {slug: "2-0-9-2026-03-15", text: "[2.0.9] - 2026-03-15", level: 2}
     - {slug: "added-48", text: "✅ Added", level: 3}
     - {slug: "fixed-70", text: "🐛 Fixed", level: 3}
-    - {slug: "changed-48", text: "🔧 Changed", level: 3}
+    - {slug: "changed-47", text: "🔧 Changed", level: 3}
     - {slug: "2-0-8-2026-03-11", text: "[2.0.8] - 2026-03-11", level: 2}
     - {slug: "fixed-71", text: "🐛 Fixed", level: 3}
     - {slug: "2-0-7-2026-03-11", text: "[2.0.7] - 2026-03-11", level: 2}
     - {slug: "added-49", text: "✅ Added", level: 3}
     - {slug: "fixed-72", text: "🐛 Fixed", level: 3}
-    - {slug: "changed-49", text: "🔧 Changed", level: 3}
+    - {slug: "changed-48", text: "🔧 Changed", level: 3}
     - {slug: "2-0-6-2026-03-10", text: "[2.0.6] - 2026-03-10", level: 2}
     - {slug: "fixed-73", text: "🐛 Fixed", level: 3}
     - {slug: "2-0-5-2026-03-10", text: "[2.0.5] - 2026-03-10", level: 2}
@@ -5744,15 +5668,15 @@ pages:
     - {slug: "documentation-5", text: "📄 Documentation", level: 3}
     - {slug: "2-0-4-2026-03-06", text: "[2.0.4] - 2026-03-06", level: 2}
     - {slug: "fixed-75", text: "🐛 Fixed", level: 3}
-    - {slug: "changed-50", text: "🔧 Changed", level: 3}
+    - {slug: "changed-49", text: "🔧 Changed", level: 3}
     - {slug: "2-0-2-2026-02-27", text: "[2.0.2] - 2026-02-27", level: 2}
     - {slug: "added-51", text: "✅ Added", level: 3}
-    - {slug: "changed-51", text: "🔧 Changed", level: 3}
+    - {slug: "changed-50", text: "🔧 Changed", level: 3}
     - {slug: "2-0-1-2026-02-26", text: "[2.0.1] - 2026-02-26", level: 2}
     - {slug: "fixed-76", text: "🐛 Fixed", level: 3}
-    - {slug: "changed-52", text: "🔧 Changed", level: 3}
+    - {slug: "changed-51", text: "🔧 Changed", level: 3}
     - {slug: "2-0-0-2026-02-22", text: "[2.0.0] - 2026-02-22", level: 2}
-    - {slug: "changed-53", text: "🔧 Changed", level: 3}
+    - {slug: "changed-52", text: "🔧 Changed", level: 3}
     - {slug: "fixed-77", text: "🐛 Fixed", level: 3}
     - {slug: "2-0-0a5-2026-02-14", text: "[2.0.0a5] - 2026-02-14", level: 2}
     - {slug: "fixed-78", text: "🐛 Fixed", level: 3}
@@ -5777,7 +5701,7 @@ pages:
     - {slug: "0-13-6-2026-01-27", text: "[0.13.6] - 2026-01-27", level: 2}
     - {slug: "fixed-86", text: "🐛 Fixed", level: 3}
     - {slug: "added-52", text: "Added", level: 3}
-    - {slug: "changed-54", text: "Changed", level: 3}
+    - {slug: "changed-53", text: "Changed", level: 3}
     - {slug: "fixed-non-critical", text: "Fixed (Non-Critical)", level: 3}
     - {slug: "0-13-5-2026-01-26", text: "[0.13.5] - 2026-01-26", level: 2}
     - {slug: "fixed-87", text: "🐛 Fixed", level: 3}
@@ -5837,13 +5761,13 @@ pages:
     - {slug: "breaking-changes-8", text: "🔒 Breaking Changes", level: 3}
     - {slug: "0-10-8-2025-12-30", text: "[0.10.8] - 2025-12-30", level: 2}
     - {slug: "fixed-100", text: "🐛 Fixed", level: 3}
-    - {slug: "changed-55", text: "🔧 Changed", level: 3}
+    - {slug: "changed-54", text: "🔧 Changed", level: 3}
     - {slug: "0-10-7-2025-12-30", text: "[0.10.7] - 2025-12-30", level: 2}
     - {slug: "fixed-101", text: "🐛 Fixed", level: 3}
     - {slug: "closed-2", text: "🔄 Closed", level: 3}
     - {slug: "0-10-6-2025-12-18", text: "[0.10.6] - 2025-12-18", level: 2}
     - {slug: "added-60", text: "✨ Added", level: 3}
-    - {slug: "changed-56", text: "🔧 Changed", level: 3}
+    - {slug: "changed-55", text: "🔧 Changed", level: 3}
     - {slug: "fixed-102", text: "🐛 Fixed", level: 3}
     - {slug: "0-9-4-2025-12-17", text: "[0.9.4] - 2025-12-17", level: 2}
     - {slug: "documentation-validation", text: "📚 Documentation & Validation", level: 3}
@@ -5855,13 +5779,13 @@ pages:
     - {slug: "bug-fixes-improvements", text: "🔧 Bug Fixes & Improvements", level: 3}
     - {slug: "added-61", text: "🆕 Added", level: 3}
     - {slug: "fixed-105", text: "🐛 Fixed", level: 3}
-    - {slug: "changed-57", text: "🔧 Changed", level: 3}
+    - {slug: "changed-56", text: "🔧 Changed", level: 3}
     - {slug: "migration", text: "🚀 Migration", level: 3}
     - {slug: "0-9-0-2025-12-17", text: "[0.9.0] - 2025-12-17", level: 2}
     - {slug: "major-release-frontmatter-only-lane-management", text: "🎯 Major Release: Frontmatter-Only Lane Management", level: 3}
     - {slug: "breaking-changes-9", text: "⚠️ Breaking Changes", level: 3}
     - {slug: "added-62", text: "🆕 Added", level: 3}
-    - {slug: "changed-58", text: "🔧 Changed", level: 3}
+    - {slug: "changed-57", text: "🔧 Changed", level: 3}
     - {slug: "documentation-10", text: "📚 Documentation", level: 3}
     - {slug: "testing", text: "🧪 Testing", level: 3}
     - {slug: "migration-guide", text: "🚀 Migration Guide", level: 3}
@@ -5874,7 +5798,7 @@ pages:
     - {slug: "0-8-0-2025-12-15", text: "[0.8.0] - 2025-12-15", level: 2}
     - {slug: "breaking-changes-10", text: "Breaking Changes", level: 3}
     - {slug: "added-64", text: "Added", level: 3}
-    - {slug: "changed-59", text: "Changed", level: 3}
+    - {slug: "changed-58", text: "Changed", level: 3}
     - {slug: "deprecated-2", text: "Deprecated", level: 3}
     - {slug: "migration-guide-2", text: "Migration Guide", level: 3}
     - {slug: "0-7-4-2025-12-14", text: "[0.7.4] - 2025-12-14", level: 2}
@@ -5892,7 +5816,7 @@ pages:
     - {slug: "fixed-112", text: "Fixed", level: 3}
     - {slug: "0-6-6-2025-12-13", text: "[0.6.6] - 2025-12-13", level: 2}
     - {slug: "fixed-113", text: "Fixed", level: 3}
-    - {slug: "changed-60", text: "Changed", level: 3}
+    - {slug: "changed-59", text: "Changed", level: 3}
     - {slug: "0-6-5-2025-12-13", text: "[0.6.5] - 2025-12-13", level: 2}
     - {slug: "added-67", text: "Added", level: 3}
     - {slug: "fixed-114", text: "Fixed", level: 3}
@@ -5906,27 +5830,27 @@ pages:
     - {slug: "fixed-118", text: "Fixed", level: 3}
     - {slug: "0-6-0-2025-11-16", text: "[0.6.0] - 2025-11-16", level: 2}
     - {slug: "fixed-119", text: "Fixed", level: 3}
-    - {slug: "changed-61", text: "Changed", level: 3}
+    - {slug: "changed-60", text: "Changed", level: 3}
     - {slug: "added-68", text: "Added", level: 3}
     - {slug: "0-5-3-2025-11-15", text: "[0.5.3] - 2025-11-15", level: 2}
     - {slug: "fixed-120", text: "Fixed", level: 3}
-    - {slug: "changed-62", text: "Changed", level: 3}
+    - {slug: "changed-61", text: "Changed", level: 3}
     - {slug: "added-69", text: "Added", level: 3}
-    - {slug: "changed-63", text: "Changed", level: 3}
+    - {slug: "changed-62", text: "Changed", level: 3}
     - {slug: "removed-8", text: "Removed", level: 3}
     - {slug: "0-5-2-2025-11-14", text: "[0.5.2] - 2025-11-14", level: 2}
     - {slug: "fixed-121", text: "Fixed", level: 3}
-    - {slug: "changed-64", text: "Changed", level: 3}
+    - {slug: "changed-63", text: "Changed", level: 3}
     - {slug: "added-70", text: "Added", level: 3}
     - {slug: "0-5-1-2025-11-14", text: "[0.5.1] - 2025-11-14", level: 2}
     - {slug: "added-71", text: "Added", level: 3}
-    - {slug: "changed-65", text: "Changed", level: 3}
+    - {slug: "changed-64", text: "Changed", level: 3}
     - {slug: "fixed-122", text: "Fixed", level: 3}
     - {slug: "documentation-11", text: "Documentation", level: 3}
     - {slug: "testing-2", text: "Testing", level: 3}
     - {slug: "0-5-0-2025-11-13", text: "[0.5.0] - 2025-11-13", level: 2}
     - {slug: "added-72", text: "Added", level: 3}
-    - {slug: "changed-66", text: "Changed", level: 3}
+    - {slug: "changed-65", text: "Changed", level: 3}
     - {slug: "fixed-123", text: "Fixed", level: 3}
     - {slug: "documentation-12", text: "Documentation", level: 3}
     - {slug: "testing-3", text: "Testing", level: 3}
@@ -5934,16 +5858,16 @@ pages:
     - {slug: "fixed-124", text: "Fixed", level: 3}
     - {slug: "0-4-12-2025-11-13", text: "[0.4.12] - 2025-11-13", level: 2}
     - {slug: "added-73", text: "Added", level: 3}
-    - {slug: "changed-67", text: "Changed", level: 3}
+    - {slug: "changed-66", text: "Changed", level: 3}
     - {slug: "0-4-11-2025-11-13", text: "[0.4.11] - 2025-11-13", level: 2}
     - {slug: "fixed-125", text: "Fixed", level: 3}
     - {slug: "added-74", text: "Added", level: 3}
-    - {slug: "changed-68", text: "Changed", level: 3}
+    - {slug: "changed-67", text: "Changed", level: 3}
     - {slug: "0-4-10-2025-11-13", text: "[0.4.10] - 2025-11-13", level: 2}
     - {slug: "fixed-126", text: "Fixed", level: 3}
     - {slug: "0-4-9-2025-11-13", text: "[0.4.9] - 2025-11-13", level: 2}
     - {slug: "added-75", text: "Added", level: 3}
-    - {slug: "changed-69", text: "Changed", level: 3}
+    - {slug: "changed-68", text: "Changed", level: 3}
     - {slug: "fixed-127", text: "Fixed", level: 3}
     - {slug: "llm-context-improvements", text: "LLM Context Improvements", level: 3}
     - {slug: "testing-4", text: "Testing", level: 3}
@@ -5951,78 +5875,78 @@ pages:
     - {slug: "backward-compatibility", text: "Backward Compatibility", level: 3}
     - {slug: "0-4-12-2025-11-11", text: "[0.4.12] - 2025-11-11", level: 2}
     - {slug: "added-76", text: "Added", level: 3}
-    - {slug: "changed-70", text: "Changed", level: 3}
+    - {slug: "changed-69", text: "Changed", level: 3}
     - {slug: "0-4-11-2025-11-11", text: "[0.4.11] - 2025-11-11", level: 2}
     - {slug: "added-77", text: "Added", level: 3}
-    - {slug: "changed-71", text: "Changed", level: 3}
+    - {slug: "changed-70", text: "Changed", level: 3}
     - {slug: "0-4-10-2025-11-11", text: "[0.4.10] - 2025-11-11", level: 2}
     - {slug: "added-78", text: "Added", level: 3}
-    - {slug: "changed-72", text: "Changed", level: 3}
+    - {slug: "changed-71", text: "Changed", level: 3}
     - {slug: "0-4-8-2025-11-10", text: "[0.4.8] - 2025-11-10", level: 2}
     - {slug: "added-79", text: "Added", level: 3}
-    - {slug: "changed-73", text: "Changed", level: 3}
+    - {slug: "changed-72", text: "Changed", level: 3}
     - {slug: "fixed-128", text: "Fixed", level: 3}
     - {slug: "security-2", text: "Security", level: 3}
     - {slug: "removed-9", text: "Removed", level: 3}
     - {slug: "0-4-7-2025-11-07", text: "[0.4.7] - 2025-11-07", level: 2}
     - {slug: "added-80", text: "Added", level: 3}
-    - {slug: "changed-74", text: "Changed", level: 3}
+    - {slug: "changed-73", text: "Changed", level: 3}
     - {slug: "fixed-129", text: "Fixed", level: 3}
     - {slug: "0-4-5-2025-11-06", text: "[0.4.5] - 2025-11-06", level: 2}
     - {slug: "added-81", text: "Added", level: 3}
-    - {slug: "changed-75", text: "Changed", level: 3}
+    - {slug: "changed-74", text: "Changed", level: 3}
     - {slug: "security-3", text: "Security", level: 3}
     - {slug: "0-4-6-2025-11-06", text: "[0.4.6] - 2025-11-06", level: 2}
     - {slug: "fixed-130", text: "Fixed", level: 3}
     - {slug: "0-4-4-2025-11-06", text: "[0.4.4] - 2025-11-06", level: 2}
     - {slug: "security-4", text: "Security", level: 3}
-    - {slug: "changed-76", text: "Changed", level: 3}
+    - {slug: "changed-75", text: "Changed", level: 3}
     - {slug: "0-3-2-2025-11-03", text: "[0.3.2] - 2025-11-03", level: 2}
     - {slug: "added-82", text: "Added", level: 3}
-    - {slug: "changed-77", text: "Changed", level: 3}
+    - {slug: "changed-76", text: "Changed", level: 3}
     - {slug: "security-5", text: "Security", level: 3}
     - {slug: "0-3-1-2025-11-03", text: "[0.3.1] - 2025-11-03", level: 2}
-    - {slug: "changed-78", text: "Changed", level: 3}
+    - {slug: "changed-77", text: "Changed", level: 3}
     - {slug: "documentation-13", text: "Documentation", level: 3}
     - {slug: "0-3-0-2025-11-02", text: "[0.3.0] - 2025-11-02", level: 2}
     - {slug: "added-83", text: "Added", level: 3}
-    - {slug: "changed-79", text: "Changed", level: 3}
+    - {slug: "changed-78", text: "Changed", level: 3}
     - {slug: "fixed-131", text: "Fixed", level: 3}
     - {slug: "0-2-20-2025-11-02", text: "[0.2.20] - 2025-11-02", level: 2}
     - {slug: "added-84", text: "Added", level: 3}
-    - {slug: "changed-80", text: "Changed", level: 3}
+    - {slug: "changed-79", text: "Changed", level: 3}
     - {slug: "security-6", text: "Security", level: 3}
     - {slug: "0-2-3-2025-10-29", text: "[0.2.3] - 2025-10-29", level: 2}
     - {slug: "added-85", text: "Added", level: 3}
-    - {slug: "changed-81", text: "Changed", level: 3}
+    - {slug: "changed-80", text: "Changed", level: 3}
     - {slug: "0-2-2-2025-10-29", text: "[0.2.2] - 2025-10-29", level: 2}
     - {slug: "added-86", text: "Added", level: 3}
-    - {slug: "changed-82", text: "Changed", level: 3}
+    - {slug: "changed-81", text: "Changed", level: 3}
     - {slug: "0-2-1-2025-10-29", text: "[0.2.1] - 2025-10-29", level: 2}
     - {slug: "added-87", text: "Added", level: 3}
-    - {slug: "changed-83", text: "Changed", level: 3}
+    - {slug: "changed-82", text: "Changed", level: 3}
     - {slug: "0-2-0-2025-10-28", text: "[0.2.0] - 2025-10-28", level: 2}
     - {slug: "added-88", text: "Added", level: 3}
-    - {slug: "changed-84", text: "Changed", level: 3}
+    - {slug: "changed-83", text: "Changed", level: 3}
     - {slug: "fixed-132", text: "Fixed", level: 3}
     - {slug: "removed-10", text: "Removed", level: 3}
     - {slug: "0-1-3-2025-10-28", text: "[0.1.3] - 2025-10-28", level: 2}
     - {slug: "fixed-133", text: "Fixed", level: 3}
     - {slug: "0-1-2-2025-10-28", text: "[0.1.2] - 2025-10-28", level: 2}
-    - {slug: "changed-85", text: "Changed", level: 3}
+    - {slug: "changed-84", text: "Changed", level: 3}
     - {slug: "0-1-1-2025-10-07", text: "[0.1.1] - 2025-10-07", level: 2}
     - {slug: "added-89", text: "Added", level: 3}
-    - {slug: "changed-86", text: "Changed", level: 3}
+    - {slug: "changed-85", text: "Changed", level: 3}
     - {slug: "0-1-0-2025-10-07", text: "[0.1.0] - 2025-10-07", level: 2}
-    - {slug: "changed-87", text: "Changed", level: 3}
+    - {slug: "changed-86", text: "Changed", level: 3}
     - {slug: "0-0-20-2025-10-07", text: "[0.0.20] - 2025-10-07", level: 2}
-    - {slug: "changed-88", text: "Changed", level: 3}
+    - {slug: "changed-87", text: "Changed", level: 3}
     - {slug: "0-0-19-2025-10-07", text: "[0.0.19] - 2025-10-07", level: 2}
-    - {slug: "changed-89", text: "Changed", level: 3}
+    - {slug: "changed-88", text: "Changed", level: 3}
     - {slug: "added-90", text: "Added", level: 3}
     - {slug: "0-0-18-2025-10-06", text: "[0.0.18] - 2025-10-06", level: 2}
     - {slug: "added-91", text: "Added", level: 3}
-    - {slug: "changed-90", text: "Changed", level: 3}
+    - {slug: "changed-89", text: "Changed", level: 3}
   - path: "docs/changelog/index.md"
     title: "Changelog"
     divio_type: "reference"
@@ -6714,6 +6638,11 @@ pages:
     anchors:
     - {slug: "files", text: "Files", level: 2}
     - {slug: "validation", text: "Validation", level: 2}
+  - path: "docs/convergence/interim-ci-producer.md"
+    title: "interim-ci-producer"
+    divio_type: "none"
+    abstract: "The existing factory `.github/workflows/ci.yml` remains untouched and is not an upstream restore."
+    anchors: []
   - path: "docs/development/agent-memory-migration-manifest.md"
     title: "Agent-Memory Migration Manifest"
     divio_type: "reference"
@@ -6737,18 +6666,6 @@ pages:
     - {slug: "cluster-b-8212-ci-14", text: "Cluster B &#8212; CI (14)", level: 2}
     - {slug: "cluster-c-8212-status-mission-sync-18", text: "Cluster C &#8212; Status / mission / sync (18)", level: 2}
     - {slug: "corrections-surfaced-this-run", text: "Corrections surfaced this run", level: 2}
-  - path: "docs/development/ci-draft-ready.md"
-    title: "CI contract: draft vs ready, and green-before-RFR"
-    divio_type: "how-to"
-    abstract: "How CI Quality behaves differently for draft and ready PRs, the red-first re-run, and the rule to monitor a draft run green before flipping to ready-for-review."
-    anchors:
-    - {slug: "the-contract-in-one-picture", text: "The contract in one picture", level: 2}
-    - {slug: "draft-pr-fail-fast-for-quick-iteration", text: "Draft PR: fail-fast for quick iteration", level: 2}
-    - {slug: "ready-pr-full-relevant-signal", text: "Ready PR: full *relevant* signal", level: 2}
-    - {slug: "red-first-re-run-fail-fastest-on-a-still-broken-fix", text: "Red-first re-run: fail fastest on a still-broken fix", level: 2}
-    - {slug: "the-rule-monitor-draft-to-green-before-flipping-to-ready-sc-006", text: "The rule: monitor draft to green before flipping to ready (SC-006)", level: 2}
-    - {slug: "merge-gate-unchanged-in-both-modes", text: "Merge-gate: unchanged in both modes", level: 2}
-    - {slug: "see-also", text: "See also", level: 2}
   - path: "docs/development/contributing.md"
     title: "Contributing to Spec Kitty"
     divio_type: "how-to"
@@ -6770,7 +6687,6 @@ pages:
     - {slug: "troubleshooting-shared-package-import-issues", text: "Troubleshooting Shared Package Import Issues", level: 3}
     - {slug: "how-test-isolation-works", text: "How Test Isolation Works", level: 3}
     - {slug: "submitting-a-pull-request", text: "Submitting a pull request", level: 2}
-    - {slug: "draft-vs-ready-ci", text: "Draft vs ready CI", level: 3}
     - {slug: "maintainer-guides", text: "Maintainer guides", level: 2}
     - {slug: "development-workflow", text: "Development workflow", level: 2}
     - {slug: "release-process", text: "Release Process", level: 2}
@@ -6934,7 +6850,6 @@ pages:
     - {slug: "what-uv-sync-frozen-does", text: "What `uv sync --frozen` does", level: 3}
     - {slug: "when-to-run-it", text: "When to run it", level: 3}
     - {slug: "typer-click-version-skew-spec-kitty-review-preflight", text: "Typer/click version skew (`spec-kitty review` preflight)", level: 2}
-    - {slug: "running-the-ci-residual-selection-locally", text: "Running the CI residual selection locally", level: 2}
     - {slug: "pre-review-regression-gate-move-task-to-for-review", text: "Pre-review regression gate (`move-task --to for_review`)", level: 2}
     - {slug: "review-cycle-artifacts-and-the-merge-gate", text: "Review-cycle artifacts and the merge gate", level: 2}
     - {slug: "issue-matrix-discovery-and-issue-verdict-actor", text: "Issue-matrix discovery and `issue-verdict --actor`", level: 2}
@@ -6979,6 +6894,7 @@ pages:
     divio_type: "none"
     abstract: "Reference material for maintainers — friction inventories, coverage-signal reconciliation, seam ledgers, standing orders, red-main policy, and terminology exemptions."
     anchors:
+    - {slug: "docs-site-publication-source", text: "Docs site publication source", level: 2}
     - {slug: "see-also", text: "See also", level: 2}
   - path: "docs/development/reference/known-friction-points.md"
     title: "Known Current Friction Points"
@@ -7128,7 +7044,9 @@ pages:
     - {slug: "the-local-command", text: "The local command", level: 2}
     - {slug: "why-dist-loadfile-never-bare-dist-load", text: "Why `--dist loadfile` (never bare `--dist load`)", level: 2}
     - {slug: "per-worker-home-isolation-the-master-enabler", text: "Per-worker HOME isolation (the master enabler)", level: 2}
-    - {slug: "the-serial-daemon-pass", text: "The serial daemon pass", level: 2}
+    - {slug: "per-run-pytest-temp-root", text: "Per-run pytest temp root", level: 2}
+    - {slug: "tmp-path-retention-policy", text: "`tmp_path` retention policy", level: 2}
+    - {slug: "the-serial-marker-passes", text: "The serial marker passes", level: 2}
     - {slug: "volume-env-gates-spec-kitty-ulid-volume-full", text: "Volume env gates (`SPEC_KITTY_ULID_VOLUME_FULL`)", level: 2}
     - {slug: "running-the-stability-ratchet-locally", text: "Running the stability ratchet locally", level: 2}
     - {slug: "validate-the-acceleration-copy-pasteable", text: "Validate the acceleration (copy-pasteable)", level: 2}
@@ -9024,7 +8942,7 @@ pages:
   - path: "docs/operations/identity-boundary-ci-gate.md"
     title: "Identity-Boundary CI Gate"
     divio_type: "none"
-    abstract: "The drift-detector required CI check running the canonical-registry recognition test on every PR to catch drift against the consumer-recognition contract (an #1247 gate)."
+    abstract: "Retired record of the former drift-detector required CI check, which ran the canonical-registry recognition test on every PR until the sync transport it policed was deleted."
     anchors:
     - {slug: "admin-action", text: "Admin Action", level: 2}
   - path: "docs/operations/index.md"
@@ -9180,7 +9098,7 @@ pages:
   - path: "docs/operations/start-branch-coord-divergence.md"
     title: "Recovery: --start-branch Coordination Divergence"
     divio_type: "none"
-    abstract: "Recovery when agent mission create --start-branch plus coord topology diverges the coordination branch from the primary planning commit, blocking every lane claim."
+    abstract: "Recovery when agent mission create <mission_slug> --start-branch plus coord topology diverges the coordination branch from the primary planning commit, blocking every lane claim."
     anchors:
     - {slug: "why-this-happens", text: "Why this happens", level: 2}
     - {slug: "no-shipped-fix-for-this-case", text: "No shipped `--fix` for this case", level: 2}
@@ -9550,14 +9468,6 @@ pages:
     - {slug: "location-hotspot", text: "Location hotspot", level: 3}
     - {slug: "how-the-debt-maps-onto-the-roadmap", text: "How the debt maps onto the roadmap", level: 2}
     - {slug: "recommended-sequence", text: "Recommended sequence", level: 2}
-  - path: "docs/plans/code-quality/sync-env-census.md"
-    title: "SPEC_KITTY_* env census — sync surface"
-    divio_type: "none"
-    abstract: "Env census of the sync surface: a live or retired verdict for every SPEC_KITTY_* reference, proving the Wave-4 de-god deleted no environment name."
-    anchors:
-    - {slug: "census-8-references-all-live-1-historical-retired", text: "Census (8 references, all `live`; 1 historical `retired`)", level: 2}
-    - {slug: "verdict-rationale", text: "Verdict rationale", level: 3}
-    - {slug: "anti-deletion-invariant-fr-007", text: "Anti-deletion invariant (FR-007)", level: 2}
   - path: "docs/plans/code-quality/targeted-cleanup-scoping.md"
     title: "Targeted Cleanup Scoping — sync.py and walker.py"
     divio_type: "none"
@@ -9755,7 +9665,6 @@ pages:
     - {slug: "composition-ledger-nfr-004-family-e-3063-analysis-terminology-reasons-canvas-family", text: "Composition ledger (NFR-004) — Family E (#3063 ANALYSIS / TERMINOLOGY / REASONS-CANVAS family)", level: 2}
     - {slug: "family-f-3063-orphan-governance-directives-operator-interview-outcome-accept-no-edges-authored", text: "Family F (#3063 ORPHAN GOVERNANCE DIRECTIVES) — operator interview outcome, ACCEPT (no edges authored)", level: 2}
     - {slug: "composition-ledger-nfr-004-mission-rehome-writing-comms-doctrine-01kz9v0s-wp04", text: "Composition ledger (NFR-004) — mission `rehome-writing-comms-doctrine-01KZ9V0S` (WP04)", level: 2}
-    - {slug: "composition-ledger-nfr-004-mission-kind-complete-cascade-orphan-wiring-01m0fqcd-wp02-3009-residual", text: "Composition ledger (NFR-004) — mission `kind-complete-cascade-orphan-wiring-01M0FQCD` (WP02, #3009 RESIDUAL)", level: 2}
     - {slug: "composition-ledger-nfr-002-nfr-004-reachability-companion-metric-mission-drg-reachability-metric-wiring-01kzs5vr-wp01-3009-point-3", text: "Composition ledger (NFR-002/NFR-004) — reachability companion metric (mission `drg-reachability-metric-wiring-01KZS5VR`, WP01, #3009 point 3)", level: 2}
     - {slug: "the-six-curated-edges-curated-artifact-edges-src-doctrine-drg-migration-extractor-py", text: "The six curated edges (`_CURATED_ARTIFACT_EDGES`, `src/doctrine/drg/migration/extractor.py`)", level: 3}
     - {slug: "the-companion-metric-moves-action-unreachable-shipped-88-75", text: "The companion metric moves: `_ACTION_UNREACHABLE_SHIPPED` 88 → 75", level: 3}
@@ -12211,39 +12120,6 @@ pages:
     abstract: "Landing page for the 2.x architecture initiatives: active or exploratory, intentionally non-canonical work that feeds future architecture decisions."
     anchors:
     - {slug: "current-initiatives", text: "Current Initiatives", level: 2}
-  - path: "docs/plans/initiatives/rc3-friction-burndown/index.md"
-    title: "rc3 fail-loud friction burndown"
-    divio_type: "none"
-    abstract: "Collection index for the eight-mission rc3 crux: the fail-silent/fail-open friction burndown under epic #3410 — program overview plus delivery approach and sequencing."
-    anchors:
-    - {slug: "documents", text: "Documents", level: 2}
-    - {slug: "see-also", text: "See also", level: 2}
-  - path: "docs/plans/initiatives/rc3-friction-burndown/rc3-friction-burndown-approach.md"
-    title: "rc3 friction burndown: delivery approach & sequencing"
-    divio_type: "none"
-    abstract: "The rc3 delivery plan: dependency DAG, wave sequencing (backfill gate, M7-before-M6, M1-before-M8), per-mission size/risk, the M3/M5 behavior-change sign-offs, and the land plan."
-    anchors:
-    - {slug: "dependency-dag", text: "Dependency DAG", level: 2}
-    - {slug: "wave-sequencing", text: "Wave sequencing", level: 2}
-    - {slug: "wave-0-ship-the-p0-and-open-the-gate", text: "Wave 0 — ship the P0 and open the gate", level: 3}
-    - {slug: "wave-1-independent-cross-cutting-first", text: "Wave 1 — independent, cross-cutting first", level: 3}
-    - {slug: "wave-2-gated-behavior-changers-and-the-deep-fixes", text: "Wave 2 — gated behavior-changers and the deep fixes", level: 3}
-    - {slug: "per-mission-size-risk", text: "Per-mission size & risk", level: 2}
-    - {slug: "deliberate-behavior-change-sign-offs-m3-m5-and-the-shared-prerequisite", text: "Deliberate behavior-change sign-offs (M3, M5) and the shared prerequisite", level: 2}
-    - {slug: "the-3488-keep-the-invariant-not-the-fix-note", text: "The #3488 \"keep-the-invariant-not-the-fix\" note", level: 2}
-    - {slug: "rc3-cut-land-plan", text: "rc3 cut & land plan", level: 2}
-    - {slug: "integration-notes-cross-mission-coordination-surface", text: "Integration notes (cross-mission coordination surface)", level: 2}
-    - {slug: "see-also", text: "See also", level: 2}
-  - path: "docs/plans/initiatives/rc3-friction-burndown/rc3-friction-burndown-overview.md"
-    title: "rc3 fail-loud friction burndown: program overview"
-    divio_type: "none"
-    abstract: "Program BLUF for the eight-mission rc3 crux — the fail-silent/fail-open root cause under epic #3410, the mission table, and what changes for users and operators."
-    anchors:
-    - {slug: "the-root-cause-in-one-paragraph", text: "The root cause in one paragraph", level: 2}
-    - {slug: "the-two-clusters", text: "The two clusters", level: 2}
-    - {slug: "the-eight-missions", text: "The eight missions", level: 2}
-    - {slug: "what-changes-for-users-and-operators", text: "What changes for users and operators", level: 2}
-    - {slug: "see-also", text: "See also", level: 2}
   - path: "docs/plans/initiatives/test_improvement/IMPLEMENTATION_COMPLETE.md"
     title: "🎉 Encoding & Plan Validation Test Suite - COMPLETE"
     divio_type: "none"
@@ -12446,22 +12322,6 @@ pages:
     - {slug: "recommended-tracker-actions", text: "Recommended tracker actions", level: 2}
     - {slug: "sequencing", text: "Sequencing", level: 2}
     - {slug: "open-questions-for-the-operator", text: "Open questions for the operator", level: 2}
-  - path: "docs/plans/investigations/2026-08-declared-but-inert-doctrine-seams.md"
-    title: "Research: the declared-but-inert doctrine/DRG seam family (#3608, #3530, #3629)"
-    divio_type: "none"
-    abstract: "Research brief for the declared-but-inert doctrine/DRG seam family: the shared declaration-vs-consumption root cause and per-issue accuracy verdicts (#3608, #3530, #3629)."
-    anchors:
-    - {slug: "shared-root-cause", text: "Shared root cause", level: 2}
-    - {slug: "mechanism-taxonomy", text: "Mechanism taxonomy", level: 3}
-    - {slug: "relationship-map", text: "Relationship map", level: 3}
-    - {slug: "family-provenance-already-recognized-in-the-tickets", text: "Family/provenance already recognized in the tickets", level: 3}
-    - {slug: "per-issue-accuracy-verdicts", text: "Per-issue accuracy verdicts", level: 2}
-    - {slug: "3608-drg-node-kinds-hand-copy-drift-still-valid-numbers-shifted", text: "#3608 — `_DRG_NODE_KINDS` hand-copy drift — **STILL VALID (numbers shifted)**", level: 3}
-    - {slug: "3530-org-tier-doctrine-loads-but-reaches-no-consumer-tracking-largely-resolved-verify-and-close-candidate", text: "#3530 — org-tier doctrine loads but reaches no consumer (tracking) — **LARGELY RESOLVED; verify-and-close candidate**", level: 3}
-    - {slug: "3514-test-allowlist-shrink-only-documented-but-absent-still-valid-p0", text: "#3514 — `test_allowlist_shrink_only` documented but absent — **STILL VALID (P0)**", level: 3}
-    - {slug: "3511-pack-metadata-integration-cutover-still-valid-all-seams-inert", text: "#3511 — pack-metadata integration cutover — **STILL VALID (all seams inert)**", level: 3}
-    - {slug: "3629-m2-drg-projection-follow-ups-still-valid-all-three-parts", text: "#3629 — M2 DRG-projection follow-ups — **STILL VALID (all three parts)**", level: 3}
-    - {slug: "suggested-disposition", text: "Suggested disposition", level: 2}
   - path: "docs/plans/investigations/2026-08-pack-level-metadata-manifest.md"
     title: "Pack-level metadata manifest: constituent parts + lineage"
     divio_type: "none"
@@ -12544,27 +12404,6 @@ pages:
     - {slug: "success-criteria-mandatory", text: "Success Criteria *(mandatory)*", level: 2}
     - {slug: "measurable-outcomes", text: "Measurable Outcomes", level: 3}
     - {slug: "out-of-scope", text: "Out of scope", level: 2}
-  - path: "docs/plans/investigations/friction-bugs-processing-charter-root-cause.md"
-    title: "Processing & charter friction bugs: shared root causes and mission scope"
-    divio_type: "none"
-    abstract: "Five-lens root-cause analysis of a seven-issue processing-and-charter friction defect class, code-verified against main, with a scoped mission seed and open specify decisions."
-    anchors:
-    - {slug: "0-the-one-paragraph-answer", text: "0. The one-paragraph answer", level: 2}
-    - {slug: "1-the-missing-shared-contract", text: "1. The missing shared contract", level: 2}
-    - {slug: "2-cluster-a-charter-doctrine-drg-reach", text: "2. Cluster A — charter/doctrine DRG-reach", level: 2}
-    - {slug: "2-1-whack-a-carrier-at-the-drg-extract-emit-seam-3605-3604", text: "2.1 Whack-a-carrier at the DRG extract/emit seam — #3605 + #3604", level: 3}
-    - {slug: "2-2-coarse-proxy-predicate-a-fail-open-gate-in-front-of-a-finer-capability-3596-3598", text: "2.2 Coarse-proxy predicate — a fail-open gate in front of a finer capability — #3596 + #3598", level: 3}
-    - {slug: "2-3-n-disagreeing-readers-of-meta-json-mission-type-bonus", text: "2.3 N-disagreeing readers of `meta.json` mission-type (bonus)", level: 3}
-    - {slug: "3-cluster-b-processing-workflow", text: "3. Cluster B — processing/workflow", level: 2}
-    - {slug: "4-consolidation-dedup-verdict", text: "4. Consolidation & dedup verdict", level: 2}
-    - {slug: "5-proposed-mission-shape-order", text: "5. Proposed mission shape & order", level: 2}
-    - {slug: "6-decisions-the-spec-must-resolve", text: "6. Decisions the spec must resolve", level: 2}
-    - {slug: "7-risks-blast-radius", text: "7. Risks / blast-radius", level: 2}
-    - {slug: "8-terminology-to-pin-in-the-spec", text: "8. Terminology to pin in the spec", level: 2}
-    - {slug: "9-prior-art-status", text: "9. Prior-art status", level: 2}
-    - {slug: "10-implementation-readiness-code-inspection-squad", text: "10. Implementation-readiness (code-inspection squad)", level: 2}
-    - {slug: "11-expanded-scope-related-issues-discovery-squad", text: "11. Expanded scope (related-issues discovery squad)", level: 2}
-    - {slug: "see-also", text: "See also", level: 2}
   - path: "docs/plans/investigations/index.md"
     title: "Investigations"
     divio_type: "none"
@@ -12615,6 +12454,15 @@ pages:
     - {slug: "4-mapping-to-epic-acceptance-criteria", text: "4. Mapping to epic acceptance criteria", level: 2}
     - {slug: "5-recommended-next-steps-architecture-view", text: "5. Recommended next steps (architecture view)", level: 2}
     - {slug: "6-verdict", text: "6. Verdict", level: 2}
+  - path: "docs/plans/investigations/issue-797-events-tracker-fork-census.md"
+    title: "Issue #797 Analysis: Events and Tracker Fork Census"
+    divio_type: "none"
+    abstract: "Read-only census of the EXPERIMENTAL events and tracker lines against their public/PyPI predecessors, with the D6 publication recommendation."
+    anchors:
+    - {slug: "recommendation-for-d6", text: "Recommendation for D6", level: 2}
+    - {slug: "events-census", text: "Events census", level: 2}
+    - {slug: "tracker-census", text: "Tracker census", level: 2}
+    - {slug: "evidence-commands", text: "Evidence commands", level: 2}
   - path: "docs/plans/investigations/loop-friction-fastfollow-spec.md"
     title: "Fast-Follow Spec: Implement-Loop Friction Quick-Wins"
     divio_type: "none"
@@ -13505,6 +13353,12 @@ pages:
     anchors:
     - {slug: "what-spec-kitty-init-does", text: "What `spec-kitty init` does", level: 2}
     - {slug: "authoring-your-project-charter", text: "Authoring your project charter", level: 2}
+  - path: "docs/plans/zeitgeist-client-wp01-remaining.md"
+    title: "zeitgeist_client WP01 — remaining scope"
+    divio_type: "none"
+    abstract: "Status note for the bundled Zeitgeist client (Bead Z1-T1): the committed source of truth for what is left in WP01 after the Z4/Z6/Z7/Z8/O1-C client stack landed."
+    anchors:
+    - {slug: "not-yet-implemented", text: "Not yet implemented", level: 2}
   - path: "docs/reports/test-sanitation/assertive-test-suite-sanitation-01KZME3P/final-report.md"
     title: "Assertive Test-Suite Sanitation — Final Report"
     divio_type: "none"

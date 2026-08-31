@@ -188,9 +188,5 @@ Use the shared template at [`docs/architecture/adr-template.md`](../../architect
 | 2026-08-16 | [spec-kitty-internal Is One Public Org Pack, Consumed via the Org Tier, Never Force-Shipped](2026-08-16-3-spec-kitty-internal-is-a-public-org-pack-not-force-shipped.md) |
 | 2026-08-16 | [Default-off pre-release (rc) consumer channel, gated by SPEC_KITTY_PRERELEASE](2026-08-16-4-rc-release-channel.md) |
 | 2026-08-16 | [Operator configuration resolves through one kernel env-expansion seam; committed provenance stores tokens](2026-08-16-5-operator-config-env-expansion-seam.md) |
-| 2026-08-20 | [The Charter Cascade Follows the Action Hop and Proposes Only Charter-Activatable Kinds](2026-08-20-1-cascade-kind-complete-relation-set.md) |
-| 2026-08-21 | [Charter/runtime gates test the declared entity, not a coarse hardcoded set](2026-08-21-1-charter-gate-predicate-inversion.md) |
-| 2026-08-22 | [Statistical performance-test pipeline (pytest-benchmark), off the PR path, per-domain](2026-08-22-1-performance-test-pipeline.md) |
-| 2026-08-22 | [ADR 2026-08-22-1: Canonical mission-type reader; legacy `mission`-field resolution retired](2026-08-22-1-canonical-mission-type-reader-legacy-retirement.md) |
-| 2026-08-22 | [Retire the doctrine term — Charter is the canonical vocabulary](2026-08-22-2-retire-doctrine-term-charter-is-the-canonical-vocabulary.md) |
+| 2026-08-27 | [Install-agnostic pre-commit hook fallback + spec-kitty migrate repin-hooks](2026-08-27-1-precommit-hook-stable-entrypoint-and-repin-migration.md) |
 | 2026-08-28 | [A project path_conventions override precedes the doctrine default, without changing the blocking policy](2026-08-28-1-project-path-convention-override-precedes-doctrine.md) |
