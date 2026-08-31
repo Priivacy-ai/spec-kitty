@@ -600,16 +600,19 @@ def _persist_recovered_pr_bound_contract(
     return True
 
 
-def _enforce_branch_contract_write_ownership(*, json_output: bool) -> None:
-    """Refuse branch-contract metadata writes from a foreign linked worktree."""
-    invoking_root = get_status_read_root(Path.cwd())
-    canonical_target = get_main_repo_root(invoking_root)
-    if invoking_root == canonical_target:
+def _enforce_branch_contract_write_ownership(primary_dir: Path, *, json_output: bool) -> None:
+    """Refuse branch-contract writes from a checkout that does not own the mission."""
+    target_owner = get_status_read_root(primary_dir).resolve()
+    target_repository = get_main_repo_root(target_owner).resolve()
+    ambient_checkout = get_status_read_root(Path.cwd()).resolve()
+    ambient_repository = get_main_repo_root(ambient_checkout).resolve()
+    invoking_checkout = ambient_checkout if ambient_repository == target_repository else target_owner
+    if invoking_checkout == target_owner:
         return
 
     message = (
-        "Refusing to write: this invocation does not own the canonical target "
-        f"checkout {canonical_target}. Run the command from that checkout, or "
+        "Refusing to write: this invocation does not own the target mission "
+        f"checkout {target_owner}. Run the command from that checkout, or "
         "target a checkout this invocation owns."
     )
     if json_output:
@@ -636,7 +639,7 @@ def _persist_branch_contract_for_finalize(
     original_target = (load_meta_fail_closed(primary_dir) or {}).get("target_branch")
     needs_write = bool(target_branch_override and target_branch_override.strip() and original_target != planning_branch)
     if needs_write:
-        _enforce_branch_contract_write_ownership(json_output=json_output)
+        _enforce_branch_contract_write_ownership(primary_dir, json_output=json_output)
     recovered = _persist_recovered_pr_bound_contract(
         primary_dir,
         planning_branch=planning_branch,
