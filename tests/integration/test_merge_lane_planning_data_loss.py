@@ -1690,3 +1690,62 @@ class TestRetentionConstraintSurvivesCleanup:
         output = getattr(result, "output", "") or ""
         assert "malformed retain_branches value in meta.json" in output
         assert "malformed retain_worktrees value in meta.json" in output
+
+    def test_dry_run_forecast_reflects_coord_retention_end_to_end(
+        self, tmp_path: Path
+    ) -> None:
+        """#3131 FR-008/SC-003: the CLI ``merge --dry-run`` path (not just the
+        forecast seam in isolation) threads the unset tri-state flags through
+        ``resolve_merge_retention`` and reports the RESOLVED retain decision.
+        Closes the merge.py -> run_dry_run_forecast wiring seam (the None->True
+        collapse that FR-008's fold removed) with an end-to-end CLI assertion."""
+        slug = _RETENTION_SLUG + "-dryrun"
+        mission_branch = f"kitty/mission-{slug}"
+        _init_git_repo(tmp_path)
+
+        feature_dir = tmp_path / "kitty-specs" / slug
+        (feature_dir / "tasks").mkdir(parents=True)
+        _write_coord_retaining_meta(feature_dir, slug)
+        meta_path = feature_dir / "meta.json"
+        meta = json.loads(meta_path.read_text(encoding="utf-8"))
+        meta["mission_slug"] = slug
+        meta["coordination_branch"] = mission_branch
+        meta["mission_branch"] = mission_branch
+        meta_path.write_text(json.dumps(meta, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+        _write_lanes_manifest(
+            feature_dir,
+            slug,
+            code_wp_ids=["WP01"],
+            planning_wp_ids=[],
+            mission_branch=mission_branch,
+        )
+        _git(tmp_path, "add", ".")
+        _git(tmp_path, "commit", "-m", f"chore({slug}): bootstrap dry-run retaining mission")
+        _git(tmp_path, "branch", mission_branch, "main")
+
+        # NO cleanup flags: the CLI default (unset tri-state) must resolve
+        # through the mission's retention policy, not the pre-#3131 delete default.
+        result = _invoke_merge_cli(
+            tmp_path,
+            ["--mission", slug, "--dry-run", "--json"],
+        )
+        exit_code = getattr(result, "exit_code", None)
+        assert exit_code == 0, (
+            f"dry-run must succeed (output: {getattr(result, 'output', None)!r}, "
+            f"exception: {getattr(result, 'exception', None)!r})"
+        )
+        output = getattr(result, "output", "") or ""
+        # The forecast prints a JSON object (possibly after a preamble line).
+        json_line = next(
+            line for line in output.splitlines() if line.strip().startswith("{")
+        )
+        payload = json.loads(json_line)
+        # FR-008: resolved retain decision, not the flag-echo default.
+        assert payload["delete_branch"] is False, (
+            "FR-008 regression: CLI --dry-run did not honor meta retention "
+            f"(payload delete_branch={payload.get('delete_branch')!r}). The "
+            "merge.py -> run_dry_run_forecast wiring must pass the raw tri-state."
+        )
+        assert payload["remove_worktree"] is False
+        assert payload["retention"]["branch_source"] == "meta"
+        assert payload["retention"]["worktree_source"] == "meta"

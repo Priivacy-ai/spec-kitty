@@ -619,12 +619,22 @@ def _resolve_lane_merge_retention(
     passthrough to ``merge/executor.py``), so NFR-003 ("all cleanup paths")
     requires it to route through the same
     :func:`~specify_cli.core.paths.resolve_merge_retention` authority rather
-    than deleting unconditionally. Mirrors the executor's topology-aware
-    coupling (#3131 T008 / INV-2): for a coord-topology mission (its primary
-    meta.json carries a ``coordination_branch`` key) the mission/coordination
-    branch is only deletable when BOTH ``delete_branch`` and
-    ``remove_worktree`` resolve True (``teardown_coordination``); for a
-    non-coord mission it stays keyed to ``delete_branch`` alone.
+    than deleting unconditionally. This mirrors the executor's topology-aware
+    coupling **GATE** (#3131 T008 / INV-2): for a coord-topology mission (its
+    primary meta.json carries a ``coordination_branch`` key) the
+    mission/coordination branch is only deletable when BOTH ``delete_branch``
+    and ``remove_worktree`` resolve True (``teardown_coordination``); for a
+    non-coord mission it stays keyed to ``delete_branch`` alone. This guarantees
+    a **retaining** coord mission's branch is never deleted here (NFR-003).
+
+    Scope note: only the deletion GATE mirrors the executor. The orchestrator
+    does NOT perform the executor's full coordination-triple teardown
+    (``_teardown_coordination_triple``: coord-marker flatten + coord-worktree
+    removal) — it only deletes the mission branch. A NON-retaining coord mission
+    merged through orchestrator-api therefore leaves the ``coordination_branch``
+    marker/worktree un-torn-down (a pre-existing orchestrator-api limitation,
+    tracked separately, NOT introduced by #3131). Full coord teardown is the
+    executor/CLI ``spec-kitty merge`` path's responsibility.
     """
     from mission_runtime import MissionArtifactKind, placement_seam
     from specify_cli.core.paths import resolve_merge_retention
@@ -695,8 +705,13 @@ def _apply_lane_merge_cleanup(
                 check_return=False,
             )
 
-    # MISSION/coordination branch: topology-aware (#3131 T008/T010 parity —
-    # see ``_resolve_lane_merge_retention``).
+    # MISSION/coordination branch: the DELETION GATE is topology-aware (#3131
+    # T008/T010 — see ``_resolve_lane_merge_retention``), so a retaining coord
+    # mission's branch is never deleted here. NOTE: unlike the executor's
+    # ``_teardown_coordination_triple``, this path does NOT flatten the
+    # ``coordination_branch`` marker or remove the coord worktree — full coord
+    # teardown is the executor/CLI path's job (pre-existing orchestrator-api
+    # limitation, tracked separately).
     if mission_branch_deletable:
         run_command(
             ["git", "branch", "-D", lanes_manifest.mission_branch],
