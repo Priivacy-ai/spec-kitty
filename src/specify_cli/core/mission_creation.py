@@ -371,6 +371,8 @@ def create_mission_core(
     force_recreate_coordination_branch: bool = False,
     allow_worktree_context: bool = False,
     owned_checkout: Path | None = None,
+    retain_branches: bool = False,
+    retain_worktrees: bool = False,
 ) -> MissionCreationResult:
     """Create a new mission, restoring git state if creation fails (FR-011).
 
@@ -424,6 +426,8 @@ def create_mission_core(
             force_recreate_coordination_branch=force_recreate_coordination_branch,
             allow_worktree_context=allow_worktree_context,
             owned_checkout=owned_checkout,
+            retain_branches=retain_branches,
+            retain_worktrees=retain_worktrees,
         )
     except BaseException:
         # Re-raised below; the rollback is pure cleanup and must not swallow or
@@ -453,6 +457,8 @@ def _create_mission_core_impl(
     force_recreate_coordination_branch: bool = False,
     allow_worktree_context: bool = False,
     owned_checkout: Path | None = None,
+    retain_branches: bool = False,
+    retain_worktrees: bool = False,
 ) -> MissionCreationResult:
     """Create a new feature with all scaffolding.
 
@@ -510,6 +516,16 @@ def _create_mission_core_impl(
         against the independently resolved primary checkout before the existing
         worktree-context guard can be bypassed. ``None`` preserves the existing
         guard and write-root behavior exactly.
+    retain_branches:
+        Create-time retention opt-in (#3131 FR-009). When ``True``, mints
+        ``retain_branches: true`` into ``meta.json`` so downstream ``spec-kitty
+        merge`` cleanup honors the policy from creation. Defaults to
+        ``False``, in which case the field is left ABSENT from ``meta.json``
+        (never written as ``false``) so non-retaining missions stay
+        byte-identical to pre-#3131 output (FR-010, SC-004).
+    retain_worktrees:
+        Create-time retention opt-in (#3131 FR-009) for worktrees, mirroring
+        ``retain_branches``. Defaults to ``False`` (field left ABSENT).
 
     Returns
     -------
@@ -725,6 +741,15 @@ def _create_mission_core_impl(
     meta.setdefault(_META_KEY_CREATED_AT, now_utc_iso())
     if pr_bound:
         meta["pr_bound"] = True
+
+    # Create-time retention opt-in (#3131 FR-009, T014). Write each field ONLY
+    # when True -- a non-retaining mission (the default) must leave both
+    # fields field-ABSENT, never a written ``false``, so its meta.json stays
+    # byte-identical to pre-#3131 output (FR-010, SC-004).
+    if retain_branches:
+        meta["retain_branches"] = True
+    if retain_worktrees:
+        meta["retain_worktrees"] = True
 
     # ------------------------------------------------------------------
     # 6.5 Coordination branch (WP03 / issue #1348, #2218)
