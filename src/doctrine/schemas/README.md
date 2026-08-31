@@ -26,5 +26,5 @@ tests and CI checks.
 
 ## Glossary Reference
 
-See [Schema (Doctrine Artifact)](../../../docs/context/doctrine.md#schema-doctrine-artifact)
+See [Schema (Doctrine Artifact)](../../../docs/context/charter.md#schema-doctrine-artifact)
 in the doctrine glossary context.

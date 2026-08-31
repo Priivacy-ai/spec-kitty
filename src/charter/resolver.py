@@ -794,7 +794,7 @@ def resolve_project_governance(
     governance = load_governance_config(repo_root)
     directives_cfg = load_directives_config(repo_root)
     doctrine_catalog = load_doctrine_catalog()
-    doctrine = governance.doctrine
+    doctrine = governance.charter
     diagnostics: list[str] = []
 
     selected_paradigms = list(doctrine.selected_paradigms)

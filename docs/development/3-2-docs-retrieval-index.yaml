@@ -6145,37 +6145,13 @@ pages:
     - {slug: "bootstrap-vs-compact-context", text: "Bootstrap vs Compact Context", level: 2}
     - {slug: "key-governance-files", text: "Key Governance Files", level: 2}
     - {slug: "see-also", text: "See Also", level: 2}
-  - path: "docs/context/configuration-project-structure.md"
-    title: "Context: Configuration and Project Structure"
+  - path: "docs/context/charter.md"
+    title: "Context: Charter"
     divio_type: "none"
-    abstract: "Glossary context defining where policy, runtime configuration, and mission artifacts live in a Spec Kitty project (.kittify/, kitty-specs/, and related terms)."
+    abstract: "Glossary context for the canonical Charter governing term (glossary authority 3) plus the Doctrine domain model and artifact taxonomy for governance behavior and constraints."
     anchors:
-    - {slug: "context-configuration-and-project-structure", text: "Context: Configuration and Project Structure", level: 2}
-    - {slug: "kittify", text: "`.kittify/`", level: 3}
-    - {slug: "kitty-specs", text: "`kitty-specs/`", level: 3}
-    - {slug: "worktrees", text: "`.worktrees/`", level: 3}
-    - {slug: "glossary", text: "`glossary/`", level: 3}
-    - {slug: "bootstrap-candidate", text: "Bootstrap (Candidate)", level: 3}
-    - {slug: "project-charter", text: "Project Charter", level: 3}
-    - {slug: "charter-library", text: "Charter Library", level: 3}
-  - path: "docs/context/contextive-glossaries.md"
-    title: "Contextive Glossary Integration"
-    divio_type: "how-to"
-    abstract: "How Spec Kitty generates Contextive-compatible YAML glossaries from the canonical glossary markdown, giving IDE users in-editor term hover panels without duplication."
-    anchors:
-    - {slug: "how-it-works", text: "How it works", level: 2}
-    - {slug: "running-the-generator", text: "Running the generator", level: 2}
-    - {slug: "where-the-mapping-lives", text: "Where the mapping lives", level: 2}
-    - {slug: "adding-a-new-scope-mapping", text: "Adding a new scope mapping", level: 2}
-    - {slug: "available-context-slugs", text: "Available context slugs", level: 2}
-    - {slug: "ci-enforcement", text: "CI enforcement", level: 2}
-    - {slug: "do-not-edit-generated-files", text: "Do not edit generated files", level: 2}
-  - path: "docs/context/doctrine.md"
-    title: "Context: Doctrine"
-    divio_type: "none"
-    abstract: "Glossary context for the Doctrine domain model and artifact taxonomy: how reusable governance knowledge is structured into composable behavior and constraints."
-    anchors:
-    - {slug: "context-doctrine", text: "Context: Doctrine", level: 2}
+    - {slug: "context-charter", text: "Context: Charter", level: 2}
+    - {slug: "charter", text: "charter", level: 3}
     - {slug: "doctrine-domain", text: "Doctrine Domain", level: 3}
     - {slug: "guideline", text: "Guideline", level: 3}
     - {slug: "paradigm", text: "Paradigm", level: 3}
@@ -6229,6 +6205,31 @@ pages:
     - {slug: "symbol-level-dead-code", text: "Symbol-level Dead Code", level: 3}
     - {slug: "catalog-miss", text: "Catalog Miss", level: 3}
     - {slug: "all-declaration-convention", text: "`__all__` Declaration Convention", level: 3}
+  - path: "docs/context/configuration-project-structure.md"
+    title: "Context: Configuration and Project Structure"
+    divio_type: "none"
+    abstract: "Glossary context defining where policy, runtime configuration, and mission artifacts live in a Spec Kitty project (.kittify/, kitty-specs/, and related terms)."
+    anchors:
+    - {slug: "context-configuration-and-project-structure", text: "Context: Configuration and Project Structure", level: 2}
+    - {slug: "kittify", text: "`.kittify/`", level: 3}
+    - {slug: "kitty-specs", text: "`kitty-specs/`", level: 3}
+    - {slug: "worktrees", text: "`.worktrees/`", level: 3}
+    - {slug: "glossary", text: "`glossary/`", level: 3}
+    - {slug: "bootstrap-candidate", text: "Bootstrap (Candidate)", level: 3}
+    - {slug: "project-charter", text: "Project Charter", level: 3}
+    - {slug: "charter-library", text: "Charter Library", level: 3}
+  - path: "docs/context/contextive-glossaries.md"
+    title: "Contextive Glossary Integration"
+    divio_type: "how-to"
+    abstract: "How Spec Kitty generates Contextive-compatible YAML glossaries from the canonical glossary markdown, giving IDE users in-editor term hover panels without duplication."
+    anchors:
+    - {slug: "how-it-works", text: "How it works", level: 2}
+    - {slug: "running-the-generator", text: "Running the generator", level: 2}
+    - {slug: "where-the-mapping-lives", text: "Where the mapping lives", level: 2}
+    - {slug: "adding-a-new-scope-mapping", text: "Adding a new scope mapping", level: 2}
+    - {slug: "available-context-slugs", text: "Available context slugs", level: 2}
+    - {slug: "ci-enforcement", text: "CI enforcement", level: 2}
+    - {slug: "do-not-edit-generated-files", text: "Do not edit generated files", level: 2}
   - path: "docs/context/dossier.md"
     title: "Context: Dossier"
     divio_type: "none"
