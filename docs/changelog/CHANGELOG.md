@@ -1439,6 +1439,10 @@ _The 3.2.6rc2 candidate shipped 2026-08-20 (rc1 shipped 2026-08-12)._
 
 ### 🐛 Fixed
 
+- **Windows skill-content migrations no longer fail with `WinError 5` when replacing a managed read-only `SKILL.md` (#802; upstream #3771).** The shared bounded-directory writer clears the destination's write attribute before its atomic replace and restores the previous mode afterward, so migrations update read-only skill files without weakening their managed state. A POSIX unit regression simulates Windows' read-only-destination replacement failure, so the defect is covered without a Windows runner.
+
+- **HTTPS doctrine bundle fetches now persist ETags separately from pack versions and safely resolve Artifactory `version` metadata.** Existing `source_type: https` URLs with a valid `/artifactory/<repository>/<item>` path are recognized automatically; `source_type: artifactory` is also available to enforce that intent. Successful downloads are buffered before one exact-item AQL response co-attests the `version` property and SHA-256, and the checksum must match those exact bytes before extraction or snapshot promotion. Conditional validators are reused only for the same query-free source and an intact local snapshot; query-bearing URLs always fetch unconditionally rather than collapsing distinct resources or persisting signed parameters. A 304 deliberately leaves the prior snapshot and sampled version byte-for-byte unchanged.
+
 - **`safe-commit`/`spec-commit` and work-package prompts now print commands you
   can actually run — before, they named invocations that error out when
   copy-pasted (`#3577`).** The protected-branch commit refusals told operators to
