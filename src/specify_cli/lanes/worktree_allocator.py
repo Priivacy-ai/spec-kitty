@@ -435,9 +435,29 @@ def allocate_lane_worktree(
     # coordination_branch / mission_branch parentage (never in place of it —
     # see the ADR's coord-descent guard). A no-op when the manifest predates
     # this field (backward compatible).
-    _merge_recorded_planning_commit(
-        repo_root, worktree_path, lane.lane_id, lanes_manifest.planning_commit_sha
-    )
+    #
+    # FR-006/#3281 (T010): fresh-path atomicity, scoped. A conflict here is
+    # not itself catastrophic — the merge helper already aborts the
+    # half-merge before raising (the worktree's tree is clean, never left
+    # conflicted) — but without this, the just-created worktree stays
+    # registered with nothing further ever touching it: a bare retry would
+    # hit ``worktree_path.exists()`` above and take the REUSE route, which
+    # re-runs this exact merge and fails identically forever. Removing the
+    # worktree (branch intentionally kept — see below) makes a retry take
+    # the CRASH-RECOVERY route instead, which re-attaches and re-runs the
+    # same idempotent self-heal, so the operator's manual fix (per the
+    # error's own ``next_step``) is picked up on the next attempt.
+    try:
+        _merge_recorded_planning_commit(
+            repo_root, worktree_path, lane.lane_id, lanes_manifest.planning_commit_sha
+        )
+    except PlanningCommitMergeConflictError:
+        # Only the WORKTREE is removed, not the branch: a retry then resolves
+        # via the crash-recovery path above (branch exists, worktree dir
+        # gone), which re-attaches and re-merges rather than needing this
+        # function to duplicate that recovery logic.
+        _remove_lane_worktree(repo_root, worktree_path)
+        raise
 
     # #1684 fresh-path propagation: merge approved dependency-lane tips on top
     # of the chosen base (coordination or legacy mission branch) so the
@@ -864,4 +884,40 @@ def _recover_lane_worktree(
         raise RuntimeError(
             f"Failed to recover worktree at {worktree_path}: "
             f"{result.stderr.strip()}"
+        )
+
+
+def _remove_lane_worktree(repo_root: Path, worktree_path: Path) -> None:
+    """Remove a just-created lane worktree (fresh-path atomicity, FR-006/#3281/T010).
+
+    Sibling to :func:`_create_lane_worktree` / :func:`_recover_lane_worktree`.
+    Used ONLY on a fresh-path :func:`_merge_recorded_planning_commit` conflict:
+    that merge helper already aborts the half-merge (the worktree's tree is
+    clean, never left conflicted) before raising, so a targeted
+    ``git worktree remove`` is enough — no heavy rollback machinery is built
+    here (deliberately scoped per the post-plan squad's LOW-severity
+    disposition for FR-006). ``--force`` is used defensively (e.g. a
+    just-registered sparse-checkout config file) even though the tree is
+    expected clean.
+
+    Only the WORKTREE registration is removed; the branch is intentionally
+    left intact so a retry resolves via :func:`allocate_lane_worktree`'s
+    crash-recovery route (branch exists, worktree dir gone) rather than this
+    helper duplicating that recovery logic.
+
+    Best-effort: a removal failure is reported to stderr but does not raise
+    or shadow the caller's original :class:`PlanningCommitMergeConflictError`
+    — leaving a worktree registered is a secondary, recoverable-by-operator
+    hygiene concern, never the primary failure this WP fixes.
+    """
+    result = subprocess.run(
+        ["git", "worktree", "remove", "--force", str(worktree_path)],
+        cwd=str(repo_root),
+        capture_output=True,
+        text=True,
+    )
+    if result.returncode != 0:
+        print(
+            f"Warning: failed to remove leftover lane worktree {worktree_path} "
+            f"after a planning-commit merge conflict: {result.stderr.strip()}"
         )
