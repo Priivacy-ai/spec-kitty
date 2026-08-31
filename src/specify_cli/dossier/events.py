@@ -34,17 +34,25 @@ Priivacy-ai/spec-kitty-end-to-end-testing#37.
 from __future__ import annotations
 
 import logging
-import re
-from typing import Any
+from typing import Any, Literal, cast
 
-from pydantic import BaseModel, Field, field_validator
+from spec_kitty_events import (
+    ArtifactIdentity,
+    ContentHashRef,
+    LocalNamespaceTuple,
+    MissionDossierArtifactIndexedPayload,
+    MissionDossierArtifactMissingPayload,
+    MissionDossierParityDriftDetectedPayload,
+    MissionDossierSnapshotComputedPayload,
+    ProvenanceRef,
+)
 
 from kernel.clock import now_utc_iso
 
 logger = logging.getLogger(__name__)
 
 
-def _undelivered(event_type: str) -> dict[str, Any] | None:
+def _undelivered(event_type: str, _payload: dict[str, Any] | None = None) -> dict[str, Any] | None:
     """Drop an otherwise-valid dossier event envelope: no transport remains.
 
     The CLI→SaaS sync transport was deleted (Ephemeral Team Status redesign);
@@ -61,13 +69,15 @@ def _undelivered(event_type: str) -> dict[str, Any] | None:
     return None
 
 
-# ── Canonical sub-objects (mirror `spec_kitty_events` schemas) ─────────
+# ── Canonical sub-objects (imported from `spec_kitty_events`) ──────────
+#
+# The canonical package owns the wire-shape models; this module only adapts
+# legacy CLI call signatures to those models.
 
 
 # Server schema (`artifact_identity`) defines six artifact classes — no
 # ``other`` fallback. Legacy CLI code occasionally produced ``other``; we
 # map it to ``runtime`` at the wire boundary so events still land.
-ARTIFACT_CLASS_ENUM = {"input", "workflow", "output", "evidence", "policy", "runtime"}
 _LEGACY_ARTIFACT_CLASS_MAP = {"other": "runtime"}
 
 
@@ -76,148 +86,6 @@ def _normalize_artifact_class(value: str) -> str:
     if value in _LEGACY_ARTIFACT_CLASS_MAP:
         return _LEGACY_ARTIFACT_CLASS_MAP[value]
     return value
-
-
-class LocalNamespaceTuple(BaseModel):
-    """Minimum collision-safe key for parity baseline scoping.
-
-    Mirrors ``spec_kitty_events/local_namespace_tuple.schema.json``.
-    """
-
-    model_config = {"extra": "forbid"}
-
-    project_uuid: str = Field(..., min_length=1)
-    mission_slug: str = Field(..., min_length=1)
-    target_branch: str = Field(..., min_length=1)
-    mission_type: str = Field(..., min_length=1)
-    manifest_version: str = Field(..., min_length=1)
-    step_id: str | None = Field(default=None)
-
-
-class ArtifactIdentity(BaseModel):
-    """Canonical identity for one artifact instance.
-
-    Mirrors ``spec_kitty_events/artifact_identity.schema.json``.
-    """
-
-    model_config = {"extra": "forbid"}
-
-    mission_type: str = Field(..., min_length=1)
-    path: str = Field(..., min_length=1)
-    artifact_class: str = Field(...)
-    wp_id: str | None = Field(default=None)
-    run_id: str | None = Field(default=None)
-
-    @field_validator("artifact_class")
-    @classmethod
-    def _validate_class(cls, v: str) -> str:
-        if v not in ARTIFACT_CLASS_ENUM:
-            raise ValueError(f"artifact_class must be one of {sorted(ARTIFACT_CLASS_ENUM)}; got {v!r}")
-        return v
-
-
-class ContentHashRef(BaseModel):
-    """Content fingerprint with optional size and encoding metadata.
-
-    Mirrors ``spec_kitty_events/content_hash_ref.schema.json``.
-    """
-
-    model_config = {"extra": "forbid"}
-
-    algorithm: str = Field(...)
-    hash: str = Field(..., min_length=1)
-    size_bytes: int | None = Field(default=None, ge=0)
-    encoding: str | None = Field(default=None)
-
-    @field_validator("algorithm")
-    @classmethod
-    def _validate_algorithm(cls, v: str) -> str:
-        if v not in {"sha256", "sha512", "md5"}:
-            raise ValueError(f"algorithm must be sha256/sha512/md5; got {v!r}")
-        return v
-
-    @field_validator("hash")
-    @classmethod
-    def _validate_hash(cls, v: str) -> str:
-        if not re.match(r"^[A-Fa-f0-9]+$", v):
-            raise ValueError("hash must be a hex-encoded string")
-        return v.lower()
-
-
-# ── Top-level event payloads (wire shape) ──────────────────────────────
-
-
-class MissionDossierArtifactIndexedPayload(BaseModel):
-    """Wire payload for ``MissionDossierArtifactIndexed``.
-
-    Mirrors ``spec_kitty_events/mission_dossier_artifact_indexed_payload``.
-    Required: ``namespace``, ``artifact_id``, ``content_ref``, ``indexed_at``.
-    """
-
-    model_config = {"extra": "forbid"}
-
-    namespace: LocalNamespaceTuple
-    artifact_id: ArtifactIdentity
-    content_ref: ContentHashRef
-    indexed_at: str = Field(..., min_length=1)
-    provenance: dict[str, Any] | None = Field(default=None)
-    step_id: str | None = Field(default=None)
-    context_diagnostics: dict[str, str] | None = Field(default=None)
-    supersedes: ArtifactIdentity | None = Field(default=None)
-
-
-class MissionDossierArtifactMissingPayload(BaseModel):
-    """Wire payload for ``MissionDossierArtifactMissing``.
-
-    Required: ``namespace``, ``expected_identity``, ``manifest_step``, ``checked_at``.
-    """
-
-    model_config = {"extra": "forbid"}
-
-    namespace: LocalNamespaceTuple
-    expected_identity: ArtifactIdentity
-    manifest_step: str = Field(..., min_length=1)
-    checked_at: str = Field(..., min_length=1)
-    last_known_ref: ContentHashRef | None = Field(default=None)
-    remediation_hint: str | None = Field(default=None)
-    context_diagnostics: dict[str, str] | None = Field(default=None)
-
-
-class MissionDossierSnapshotComputedPayload(BaseModel):
-    """Wire payload for ``MissionDossierSnapshotComputed``.
-
-    Required: ``namespace``, ``snapshot_hash``, ``artifact_count``,
-    ``anomaly_count``, ``computed_at``.
-    """
-
-    model_config = {"extra": "forbid"}
-
-    namespace: LocalNamespaceTuple
-    snapshot_hash: str = Field(..., min_length=1)
-    artifact_count: int = Field(..., ge=0)
-    anomaly_count: int = Field(..., ge=0)
-    computed_at: str = Field(..., min_length=1)
-    algorithm: str | None = Field(default=None)
-    context_diagnostics: dict[str, str] | None = Field(default=None)
-
-
-class MissionDossierParityDriftDetectedPayload(BaseModel):
-    """Wire payload for ``MissionDossierParityDriftDetected``.
-
-    Required: ``namespace``, ``expected_hash``, ``actual_hash``,
-    ``drift_kind``, ``detected_at``.
-    """
-
-    model_config = {"extra": "forbid"}
-
-    namespace: LocalNamespaceTuple
-    expected_hash: str = Field(..., min_length=1)
-    actual_hash: str = Field(..., min_length=1)
-    drift_kind: str = Field(..., min_length=1)
-    detected_at: str = Field(..., min_length=1)
-    artifact_ids_changed: list[ArtifactIdentity] | None = Field(default=None)
-    rebuild_hint: str | None = Field(default=None)
-    context_diagnostics: dict[str, str] | None = Field(default=None)
 
 
 # ── Internal helpers ───────────────────────────────────────────────────
@@ -378,7 +246,7 @@ def emit_artifact_indexed(
     mission_type: str | None = None,
     indexed_at: str | None = None,
     context_diagnostics: dict[str, str] | None = None,
-    provenance: dict[str, Any] | None = None,
+    provenance: ProvenanceRef | dict[str, Any] | None = None,
     **kwargs: Any,
 ) -> dict[str, Any] | None:
     """Emit ``MissionDossierArtifactIndexed`` in the namespaced envelope.
@@ -387,6 +255,10 @@ def emit_artifact_indexed(
     preserved as informational diagnostics rather than top-level fields —
     the server schema (``additionalProperties: False``) does not accept
     them at the top level.
+
+    ``provenance`` must match the canonical ``ProvenanceRef`` shape. An
+    invalid value raises rather than being absorbed into the routine
+    validation-failure path.
 
     Returns ``None``: the envelope is validated and then dropped locally
     (no transport remains — see :func:`_undelivered`).
@@ -406,6 +278,9 @@ def emit_artifact_indexed(
         _missing_namespace_log("MissionDossierArtifactIndexed")
         return None
 
+    if provenance is not None and not isinstance(provenance, ProvenanceRef):
+        provenance = ProvenanceRef.model_validate(provenance)
+
     effective_mission_type = mission_type or ns.mission_type
     try:
         identity = _build_artifact_identity(
@@ -424,7 +299,7 @@ def emit_artifact_indexed(
         # discover them without violating ``additionalProperties: False``.
         diagnostics.setdefault("artifact_key", artifact_key)
         diagnostics.setdefault("required_status", required_status)
-        MissionDossierArtifactIndexedPayload(
+        payload = MissionDossierArtifactIndexedPayload(
             namespace=ns,
             artifact_id=identity,
             content_ref=content_ref,
@@ -437,7 +312,10 @@ def emit_artifact_indexed(
         logger.exception("Payload validation failed for MissionDossierArtifactIndexed: %s", exc)
         return None
 
-    return _undelivered("MissionDossierArtifactIndexed")
+    return _undelivered(
+        "MissionDossierArtifactIndexed",
+        payload.model_dump(exclude_none=True, mode="json"),
+    )
 
 
 def emit_artifact_missing(
@@ -451,8 +329,6 @@ def emit_artifact_missing(
     mission_type: str | None = None,
     manifest_step: str | None = None,
     checked_at: str | None = None,
-    last_known_content_hash_sha256: str | None = None,
-    last_known_size_bytes: int | None = None,
     context_diagnostics: dict[str, str] | None = None,
     **kwargs: Any,
 ) -> dict[str, Any] | None:
@@ -464,8 +340,18 @@ def emit_artifact_missing(
     legacy = _consume_legacy_values(
         args,
         kwargs,
-        names=("reason_detail", "blocking"),
-        defaults={"reason_detail": None, "blocking": True},
+        names=(
+            "reason_detail",
+            "blocking",
+            "last_known_content_hash_sha256",
+            "last_known_size_bytes",
+        ),
+        defaults={
+            "reason_detail": None,
+            "blocking": True,
+            "last_known_content_hash_sha256": None,
+            "last_known_size_bytes": None,
+        },
     )
     reason_detail = _optional_str(legacy["reason_detail"])
     blocking = bool(legacy["blocking"])
@@ -490,18 +376,12 @@ def emit_artifact_missing(
         diagnostics.setdefault("reason_code", reason_code)
         if reason_detail:
             diagnostics.setdefault("reason_detail", reason_detail)
-        last_known = None
-        if last_known_content_hash_sha256:
-            last_known = _build_content_ref(
-                content_hash_sha256=last_known_content_hash_sha256,
-                size_bytes=last_known_size_bytes,
-            )
-        MissionDossierArtifactMissingPayload(
+        payload = MissionDossierArtifactMissingPayload(
             namespace=ns,
             expected_identity=identity,
             manifest_step=manifest_step or "default",
             checked_at=checked_at or now_utc_iso(),
-            last_known_ref=last_known,
+            last_known_ref=None,
             remediation_hint=reason_detail,
             context_diagnostics=diagnostics or None,
         )
@@ -509,7 +389,10 @@ def emit_artifact_missing(
         logger.exception("Payload validation failed for MissionDossierArtifactMissing: %s", exc)
         return None
 
-    return _undelivered("MissionDossierArtifactMissing")
+    return _undelivered(
+        "MissionDossierArtifactMissing",
+        payload.model_dump(exclude_none=True, mode="json"),
+    )
 
 
 def emit_snapshot_computed(
@@ -557,7 +440,7 @@ def emit_snapshot_computed(
             optional_present=optional_present,
             context_diagnostics=context_diagnostics,
         )
-        MissionDossierSnapshotComputedPayload(
+        payload = MissionDossierSnapshotComputedPayload(
             namespace=ns,
             snapshot_hash=parity_hash_sha256,
             artifact_count=total_artifacts,
@@ -570,7 +453,10 @@ def emit_snapshot_computed(
         logger.exception("Payload validation failed for MissionDossierSnapshotComputed: %s", exc)
         return None
 
-    return _undelivered("MissionDossierSnapshotComputed")
+    return _undelivered(
+        "MissionDossierSnapshotComputed",
+        payload.model_dump(exclude_none=True, mode="json"),
+    )
 
 
 def emit_parity_drift_detected(
@@ -625,13 +511,16 @@ def emit_parity_drift_detected(
                 )
                 for path in all_missing
             ] or None
-        MissionDossierParityDriftDetectedPayload(
+        payload = MissionDossierParityDriftDetectedPayload(
             namespace=ns,
             expected_hash=baseline_parity_hash,
             actual_hash=local_parity_hash,
-            drift_kind=drift_kind or "anomaly_introduced",
+            drift_kind=cast(
+                "Literal['artifact_added', 'artifact_removed', 'artifact_mutated', 'anomaly_introduced', 'anomaly_resolved', 'manifest_version_changed']",
+                drift_kind or "anomaly_introduced",
+            ),
             detected_at=detected_at or now_utc_iso(),
-            artifact_ids_changed=artifacts_changed,
+            artifact_ids_changed=tuple(artifacts_changed) if artifacts_changed else None,
             rebuild_hint=rebuild_hint,
             context_diagnostics=diagnostics or None,
         )
@@ -639,4 +528,7 @@ def emit_parity_drift_detected(
         logger.exception("Payload validation failed for MissionDossierParityDriftDetected: %s", exc)
         return None
 
-    return _undelivered("MissionDossierParityDriftDetected")
+    return _undelivered(
+        "MissionDossierParityDriftDetected",
+        payload.model_dump(exclude_none=True, mode="json"),
+    )

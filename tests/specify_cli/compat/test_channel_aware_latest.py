@@ -1,8 +1,8 @@
 """Tests for the rc release-channel opt-in path (T025, C-CHN-2).
 
 Covers:
-- ``core.upgrade_probe.probe_github_releases`` — channel-aware classification so an
-  installed rc build stops reading ``AHEAD_OF_RELEASE`` when opted in, while
+- ``core.upgrade_probe.probe_pypi`` — channel-aware classification so an
+  installed rc build stops reading ``AHEAD_OF_PYPI`` when opted in, while
   the default (unset) path is unchanged (T022).
 - ``compat.planner._resolve_latest_version`` / ``_cache_version_key`` — the
   single channel read threaded to the provider call, and folded into the
@@ -32,73 +32,73 @@ from specify_cli.compat.cache import NagCache
 from specify_cli.compat.planner import Invocation, _cache_version_key, _resolve_latest_version, plan
 from specify_cli.compat.provider import FakeLatestVersionProvider, LatestVersionResult
 from specify_cli.compat.upgrade_hint import build_upgrade_hint
-from specify_cli.core.upgrade_probe import GITHUB_RELEASES_URL, UpgradeChannel, probe_github_releases
+from specify_cli.core.upgrade_probe import PYPI_JSON_URL, UpgradeChannel, probe_pypi
 
 pytestmark = pytest.mark.fast
 
 _NOW = datetime(2026, 4, 27, 12, 0, 0, tzinfo=UTC)
 
 
-def _make_release_payload(releases: list[str]) -> list[dict[str, object]]:
-    return [{"tag_name": f"v{version}", "draft": False} for version in releases]
+def _make_pypi_payload(latest: str, releases: list[str]) -> dict[str, Any]:
+    return {"info": {"version": latest}, "releases": {v: [] for v in releases}}
 
 
 # ---------------------------------------------------------------------------
-# probe_github_releases channel awareness (T022)
+# probe_pypi channel awareness (T022)
 # ---------------------------------------------------------------------------
 
 
-class TestProbeGithubReleasesChannelAware:
+class TestProbePypiChannelAware:
     @respx.mock
-    def test_default_off_released_rc_ahead_of_stable_unchanged(self, monkeypatch: pytest.MonkeyPatch) -> None:
-        """Regression guard: a released rc can still be ahead of stable.
+    def test_default_off_ahead_of_pypi_unchanged(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        """Regression guard: the pre-WP05 AHEAD_OF_PYPI scenario is untouched.
 
-        Installed 3.2.0rc7 is newer than the stable 3.1.0 and is itself a
-        current-org release, so with the prerelease channel unset it is ahead
-        of the selected stable release.
+        Installed 3.2.0rc7 is newer than the stable 3.1.0, and NOT itself
+        published (releases only contains 3.0.0/3.1.0) — with the channel
+        unset this must still classify AHEAD_OF_PYPI, exactly as before T022.
         """
         monkeypatch.delenv("SPEC_KITTY_PRERELEASE", raising=False)
-        respx.get(GITHUB_RELEASES_URL).mock(return_value=httpx.Response(200, json=_make_release_payload(["3.0.0", "3.1.0", "3.2.0rc7"])))
+        respx.get(PYPI_JSON_URL).mock(return_value=httpx.Response(200, json=_make_pypi_payload("3.1.0", ["3.0.0", "3.1.0"])))
 
-        result = probe_github_releases("3.2.0rc7")
+        result = probe_pypi("3.2.0rc7")
 
-        assert result.channel == UpgradeChannel.AHEAD_OF_RELEASE
-        assert result.latest_release_version == "3.1.0"
+        assert result.channel == UpgradeChannel.AHEAD_OF_PYPI
+        assert result.latest_pypi_version == "3.1.0"
 
     @respx.mock
     def test_explicit_prerelease_false_matches_default(self, monkeypatch: pytest.MonkeyPatch) -> None:
         monkeypatch.delenv("SPEC_KITTY_PRERELEASE", raising=False)
-        respx.get(GITHUB_RELEASES_URL).mock(return_value=httpx.Response(200, json=_make_release_payload(["3.0.0", "3.1.0", "3.2.0rc7"])))
-        default_result = probe_github_releases("3.2.0rc7")
+        respx.get(PYPI_JSON_URL).mock(return_value=httpx.Response(200, json=_make_pypi_payload("3.1.0", ["3.0.0", "3.1.0"])))
+        default_result = probe_pypi("3.2.0rc7")
 
-        respx.get(GITHUB_RELEASES_URL).mock(return_value=httpx.Response(200, json=_make_release_payload(["3.0.0", "3.1.0", "3.2.0rc7"])))
-        explicit_result = probe_github_releases("3.2.0rc7", prerelease=False)
+        respx.get(PYPI_JSON_URL).mock(return_value=httpx.Response(200, json=_make_pypi_payload("3.1.0", ["3.0.0", "3.1.0"])))
+        explicit_result = probe_pypi("3.2.0rc7", prerelease=False)
 
         assert default_result.channel == explicit_result.channel
-        assert default_result.latest_release_version == explicit_result.latest_release_version
+        assert default_result.latest_pypi_version == explicit_result.latest_pypi_version
 
     @respx.mock
     def test_opted_in_rc_build_stops_reading_ahead_of_pypi(self) -> None:
         """C-CHN-2: an installed rc that IS the newest published release
         reclassifies as ALREADY_CURRENT once its own channel is consulted.
         """
-        respx.get(GITHUB_RELEASES_URL).mock(return_value=httpx.Response(200, json=_make_release_payload(["3.0.0", "3.1.0", "3.2.0rc7"])))
+        respx.get(PYPI_JSON_URL).mock(return_value=httpx.Response(200, json=_make_pypi_payload("3.1.0", ["3.0.0", "3.1.0", "3.2.0rc7"])))
 
-        result = probe_github_releases("3.2.0rc7", prerelease=True)
+        result = probe_pypi("3.2.0rc7", prerelease=True)
 
-        assert result.channel != UpgradeChannel.AHEAD_OF_RELEASE
+        assert result.channel != UpgradeChannel.AHEAD_OF_PYPI
         assert result.channel == UpgradeChannel.ALREADY_CURRENT
-        assert result.latest_release_version == "3.2.0rc7"
+        assert result.latest_pypi_version == "3.2.0rc7"
 
     @respx.mock
     def test_prerelease_none_resolves_via_channel_env(self, monkeypatch: pytest.MonkeyPatch) -> None:
         """``prerelease=None`` (the production default) reads core.channel."""
         monkeypatch.setenv("SPEC_KITTY_PRERELEASE", "1")
-        respx.get(GITHUB_RELEASES_URL).mock(return_value=httpx.Response(200, json=_make_release_payload(["3.0.0", "3.1.0", "3.2.0rc7"])))
+        respx.get(PYPI_JSON_URL).mock(return_value=httpx.Response(200, json=_make_pypi_payload("3.1.0", ["3.0.0", "3.1.0", "3.2.0rc7"])))
 
-        result = probe_github_releases("3.2.0rc7")
+        result = probe_pypi("3.2.0rc7")
 
-        assert result.latest_release_version == "3.2.0rc7"
+        assert result.latest_pypi_version == "3.2.0rc7"
 
 
 # ---------------------------------------------------------------------------

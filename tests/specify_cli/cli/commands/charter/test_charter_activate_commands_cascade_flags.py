@@ -105,10 +105,10 @@ class TestActivateCommand:
     def test_activate_cascade_calls_with_true(self, project_root: Path) -> None:
         """--cascade flag passes cascade=True to CharterPackManager.activate (DD-4: parameter kept for stability)."""
         from unittest.mock import patch
-        from charter.pack_manager import ActivationResult
+        from charter.activation.pack_manager import ActivationResult
 
         mock_result = ActivationResult(activated=["my-directive"], warnings=[])
-        with patch("charter.pack_manager.CharterPackManager.activate", return_value=mock_result) as mock_activate:
+        with patch("charter.activation.pack_manager.CharterPackManager.activate", return_value=mock_result) as mock_activate:
             runner.invoke(
                 charter_app,
                 [

@@ -292,8 +292,6 @@ def maybe_emit_no_upgrade_notice(command_name: str) -> bool:
           ``try/except`` for defence-in-depth.
         - Uses the existing ``should_check_version`` gate; does not introduce
           a parallel decision point.
-        - Uses the current programme's GitHub Releases channel, not public
-          package indexes.
     """
     try:
         if not should_check_version(command_name):
@@ -301,7 +299,7 @@ def maybe_emit_no_upgrade_notice(command_name: str) -> bool:
 
         from specify_cli.distribution import resolve_distribution_profile
 
-        if resolve_distribution_profile().disable_no_upgrade_notifier:
+        if resolve_distribution_profile().disable_public_pypi_notifier:
             return False
 
         # Deferred import to keep this module light and to avoid pulling httpx

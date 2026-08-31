@@ -5,12 +5,12 @@ was implemented independently in three places:
 
 - ``cli/commands/upgrade.py::_version_is_newer`` — caught the broad
   ``Exception`` (``# noqa: BLE001``) rather than the specific parse failure.
-- ``core/upgrade_probe.py::_classify`` — a richer release-channel classifier
+- ``core/upgrade_probe.py::_classify`` — a richer PyPI-channel classifier
   that needs version *parsing* and *ordering* as building blocks alongside
   releases-membership checks; only its comparison sub-logic is unified here.
 - ``session_presence/manager.py::_upgrade_is_available`` — added to fix #2413,
   where a bare inequality (``avail != current``) reported "upgrade available"
-  whenever the cached latest release lagged the installed version (fresh release
+  whenever the cached PyPI latest lagged the installed version (fresh release
   not yet cached, rc/dev installs), instead of comparing ordering.
 
 This module is the single source of truth for both operations. It is pure

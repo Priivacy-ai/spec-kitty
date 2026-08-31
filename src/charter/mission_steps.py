@@ -1,7 +1,7 @@
 """Charter facade for mission-step-contract types.
 
 This module is the charter-layer proxy for runtime callers that historically
-imported from ``doctrine.mission_step_contracts`` (now retired). The
+imported from ``charter.offering.mission_step_contracts`` (now retired). The
 runtime → charter → doctrine boundary (ADR 2026-03-27-1, tightened by
 mission ``charter-mediated-doctrine-selection-01KRTZCA``) requires runtime
 modules under ``src/specify_cli/`` to reach doctrine artifacts only through
@@ -9,8 +9,8 @@ charter facades.
 
 WP01 of mission ``charter-doctrine-mission-type-configuration-01KSWJVX``
 relocated the legacy contract types into
-:mod:`doctrine.missions.step_contracts`. The unified mission-step model
-(FR-011) now lives at :class:`doctrine.missions.models.MissionStep`; the
+:mod:`charter.offering.missions.step_contracts`. The unified mission-step model
+(FR-011) now lives at :class:`charter.offering.missions.models.MissionStep`; the
 legacy ``MissionStepContract`` shape is preserved as a compatibility
 surface for the runtime contract registry and on-disk
 ``*.step-contract.yaml`` loader.
@@ -27,10 +27,10 @@ type aliases.
 # __all__ when WP02 (mission up-mission-type-seam-01KZY1JB) deleted
 # resolve_mission_steps, the last src/ importer reached through this facade.
 # Direct callers still reach the same object via the charter.missions facade
-# or doctrine.missions.mission_step_repository directly.
-from doctrine.missions.mission_step_repository import MissionStepRepository as MissionStepRepository
-from doctrine.missions.models import MissionStep as MissionStep  # compat re-export (test-consumed); dropped from __all__ when last src importer was retyped
-from doctrine.missions.step_contracts import (
+# or charter.offering.missions.mission_step_repository directly.
+from charter.offering.missions.mission_step_repository import MissionStepRepository as MissionStepRepository
+from charter.offering.missions.models import MissionStep as MissionStep  # compat re-export (test-consumed); dropped from __all__ when last src importer was retyped
+from charter.offering.missions.step_contracts import (
     GateBinding,
     MissionStepContract,
     MissionStepInput,

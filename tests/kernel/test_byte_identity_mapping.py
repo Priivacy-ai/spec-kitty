@@ -107,13 +107,13 @@ REGISTRY: dict[str, RegisteredSite] = {
         producer=lambda: str(now_epoch()),
         prior_signature=lambda instant: str(instant.timestamp()),
     ),
-    # WP05 (doctrine): src/doctrine/versioning.py's migrate_v1_to_v2 stamps a
+    # WP05 (doctrine): src/charter/offering/versioning.py's migrate_v1_to_v2 stamps a
     # sidecar's missing `produced_at` from the sidecar's file mtime. Prior
     # site: `datetime.fromtimestamp(mtime, tz=UTC).isoformat()`. Migrated
     # onto the door's `from_epoch(mtime).isoformat()` -- `from_epoch` is
     # defined as exactly `datetime.fromtimestamp(value, tz=UTC)` (WP04), so
     # this is a byte-identical delegation, not a reformat.
-    "doctrine.versioning.migrate_v1_to_v2#produced_at": RegisteredSite(
+    "charter.offering.versioning.migrate_v1_to_v2#produced_at": RegisteredSite(
         producer=lambda: from_epoch(_FIXED_INSTANT.timestamp()).isoformat(),
         prior_signature=lambda instant: datetime.fromtimestamp(instant.timestamp(), tz=UTC).isoformat(),
     ),
@@ -149,7 +149,7 @@ REGISTRY: dict[str, RegisteredSite] = {
     # --- WP07 (charter) ---------------------------------------------------
     # charter/_io.py's ingestion-provenance "at" field. Prior:
     # `datetime.now(tz=UTC).isoformat()` -> now_utc_iso().
-    "charter._io.now#at": RegisteredSite(
+    "charter.activation._io.now#at": RegisteredSite(
         producer=now_utc_iso,
         prior_signature=lambda instant: instant.isoformat(),
     ),
@@ -157,88 +157,88 @@ REGISTRY: dict[str, RegisteredSite] = {
     # see also test_compiler_persisted_goldens.py for the pre-migration
     # golden byte capture). Prior: `datetime.now(UTC).strftime(
     # "%Y-%m-%dT%H:%M:%SZ")` -> now_utc_stamp().
-    "charter.compiler._build_metadata_dict#generated_at": RegisteredSite(
+    "charter.activation.compiler._build_metadata_dict#generated_at": RegisteredSite(
         producer=now_utc_stamp,
         prior_signature=lambda instant: instant.strftime("%Y-%m-%dT%H:%M:%SZ"),
     ),
     # charter/compiler.py's rendered `charter.md` "Generated: <stamp>" line.
     # Same prior contract as the metadata site above (both were
     # `datetime.now(UTC).strftime(...)` -> now_utc_stamp()).
-    "charter.compiler._render_charter_markdown#now": RegisteredSite(
+    "charter.activation.compiler._render_charter_markdown#now": RegisteredSite(
         producer=now_utc_stamp,
         prior_signature=lambda instant: instant.strftime("%Y-%m-%dT%H:%M:%SZ"),
     ),
     # charter/context_state.py's persisted context-state.json first-load
     # timestamp (see also test_context_leaf_seams.py's golden). Prior:
     # `datetime.now(UTC).strftime("%Y-%m-%dT%H:%M:%SZ")` -> now_utc_stamp().
-    "charter.context_state._mark_action_loaded#timestamp": RegisteredSite(
+    "charter.activation.context_state._mark_action_loaded#timestamp": RegisteredSite(
         producer=now_utc_stamp,
         prior_signature=lambda instant: instant.strftime("%Y-%m-%dT%H:%M:%SZ"),
     ),
     # charter/evidence/code_reader.py's retired `_utcnow_iso()` helper (named
     # "utcnow" but was already aware -- `datetime.now(tz=UTC).isoformat()`).
     # Both call sites now call now_utc_iso() directly.
-    "charter.evidence.code_reader#detected_at": RegisteredSite(
+    "charter.activation.evidence.code_reader#detected_at": RegisteredSite(
         producer=now_utc_iso,
         prior_signature=lambda instant: instant.isoformat(),
     ),
     # charter/evidence/corpus_loader.py's `loaded_at`. Prior:
     # `datetime.datetime.now(datetime.UTC).isoformat()` (module-style import)
     # -> now_utc_iso().
-    "charter.evidence.corpus_loader#loaded_at": RegisteredSite(
+    "charter.activation.evidence.corpus_loader#loaded_at": RegisteredSite(
         producer=now_utc_iso,
         prior_signature=lambda instant: instant.isoformat(),
     ),
     # charter/evidence/orchestrator.py's `collected_at`. Same module-style
     # prior contract as corpus_loader above.
-    "charter.evidence.orchestrator#collected_at": RegisteredSite(
+    "charter.activation.evidence.orchestrator#collected_at": RegisteredSite(
         producer=now_utc_iso,
         prior_signature=lambda instant: instant.isoformat(),
     ),
     # charter/pack_manager.py's charter.md backup filename suffix (see also
     # test_pack_manager_persisted_goldens.py). Prior (in-function import):
     # `datetime.now(tz=UTC).strftime("%Y%m%dT%H%M%SZ")` -> now_utc_compact_stamp().
-    "charter.pack_manager.MergePacksAction#backup_ts": RegisteredSite(
+    "charter.activation.pack_manager.MergePacksAction#backup_ts": RegisteredSite(
         producer=now_utc_compact_stamp,
         prior_signature=lambda instant: instant.strftime("%Y%m%dT%H%M%SZ"),
     ),
     # charter/synthesizer/generated_artifact_adapter.py's `generated_at`
     # derived from the source file's mtime. Prior:
     # `datetime.fromtimestamp(path.stat().st_mtime, tz=UTC)` -> from_epoch(mtime).
-    "charter.synthesizer.generated_artifact_adapter#generated_at": RegisteredSite(
+    "charter.activation.synthesizer.generated_artifact_adapter#generated_at": RegisteredSite(
         producer=lambda: from_epoch(_FIXED_INSTANT.timestamp()).isoformat(),
         prior_signature=lambda instant: datetime.fromtimestamp(instant.timestamp(), tz=UTC).isoformat(),
     ),
     # charter/synthesizer/project_drg.py's project-overlay DRG `generated_at`
     # (persisted `doctrine/graph.yaml`). Prior: `datetime.now(UTC).isoformat(
     # timespec="seconds")` -> now_utc_seconds().
-    "charter.synthesizer.project_drg.emit_project_layer#generated_at": RegisteredSite(
+    "charter.activation.synthesizer.project_drg.emit_project_layer#generated_at": RegisteredSite(
         producer=now_utc_seconds,
         prior_signature=lambda instant: instant.isoformat(timespec="seconds"),
     ),
     # charter/synthesizer/resynthesize_pipeline.py's merged manifest
     # `created_at`. Prior (in-function import): `datetime.now(tz=UTC).isoformat()`
     # -> now_utc_iso().
-    "charter.synthesizer.resynthesize_pipeline#created_at": RegisteredSite(
+    "charter.activation.synthesizer.resynthesize_pipeline#created_at": RegisteredSite(
         producer=now_utc_iso,
         prior_signature=lambda instant: instant.isoformat(),
     ),
     # charter/synthesizer/staging.py's staging-log "timestamp" field. Prior:
     # `datetime.now(tz=UTC).isoformat()` -> now_utc_iso().
-    "charter.synthesizer.staging#timestamp": RegisteredSite(
+    "charter.activation.synthesizer.staging#timestamp": RegisteredSite(
         producer=now_utc_iso,
         prior_signature=lambda instant: instant.isoformat(),
     ),
     # charter/synthesizer/synthesize_pipeline.py's ProvenanceEntry
     # `produced_at` (two identical call sites). Prior:
     # `datetime.now(timezone.utc).isoformat()` -> now_utc_iso().
-    "charter.synthesizer.synthesize_pipeline#produced_at": RegisteredSite(
+    "charter.activation.synthesizer.synthesize_pipeline#produced_at": RegisteredSite(
         producer=now_utc_iso,
         prior_signature=lambda instant: instant.isoformat(),
     ),
     # charter/synthesizer/write_pipeline.py's promoted-provenance `created_at`.
     # Prior: `datetime.now(tz=UTC).isoformat()` -> now_utc_iso().
-    "charter.synthesizer.write_pipeline#created_at": RegisteredSite(
+    "charter.activation.synthesizer.write_pipeline#created_at": RegisteredSite(
         producer=now_utc_iso,
         prior_signature=lambda instant: instant.isoformat(),
     ),
@@ -293,7 +293,7 @@ REGISTRY: dict[str, RegisteredSite] = {
     ),
     # core/upgrade_probe.py's persisted `UpgradeProbeResult.probed_at` (JSON
     # upgrade-check cache). Prior: `datetime.now(UTC)` -> `now_utc()`.
-    "specify_cli.core.upgrade_probe.probe_github_releases#probed_at": RegisteredSite(
+    "specify_cli.core.upgrade_probe.probe_pypi#probed_at": RegisteredSite(
         producer=lambda: now_utc().isoformat(),
         prior_signature=lambda instant: instant.isoformat(),
     ),

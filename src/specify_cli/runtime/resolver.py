@@ -27,21 +27,21 @@ from typing import TYPE_CHECKING
 
 # Single source of truth for the resolution enum / result dataclass.
 # Re-exported via the charter.resolution facade (which itself re-exports
-# from doctrine.resolver, preserving object identity) so every importer
+# from charter.offering.resolver, preserving object identity) so every importer
 # shares one class identity — otherwise `ResolutionTier.X == ResolutionTier.X`
 # fails across modules and test suites that import from both paths flake on
 # `is`/`==`. Historical note: prior to 2026-04-15 this module defined its
 # own duplicate ResolutionTier/ResolutionResult, which caused ~30 CI failures
-# on the release-readiness job where doctrine.test_resolver and
+# on the release-readiness job where charter.offering.test_resolver and
 # runtime.test_resolver_unit ran in the same session. The charter facade
 # route was adopted in mission charter-mediated-doctrine-selection-01KRTZCA
 # (WP07) to enforce the runtime → charter → doctrine boundary.
-from charter.mission_type_profiles import ResolvedMissionType
+from charter.activation.mission_type_profiles import ResolvedMissionType
 from charter.resolution import ResolutionResult, ResolutionTier
 from specify_cli.core.paths import assert_safe_path_segment
 
 if TYPE_CHECKING:
-    from doctrine.missions import ExpectedArtifactManifest
+    from charter.offering.missions import ExpectedArtifactManifest
 
 __all__ = [
     "ResolutionResult",
@@ -245,10 +245,10 @@ def _package_default_path(
     call site the WP asked to document.**
 
     Before this change this helper went through
-    ``charter.template_resolver.CharterTemplateResolver``, obtained from an
+    ``charter.activation.template_resolver.CharterTemplateResolver``, obtained from an
     ``lru_cache``d ``_charter_template_resolver_for(missions_root)`` factory
     keyed on a ``missions_root`` *string*, while the canonical charter factory
-    (``charter.resolver.DoctrineService``) is built from a ``repo_root`` by the
+    (``charter.activation.resolver.DoctrineService``) is built from a ``repo_root`` by the
     unified builder. Those two construction contracts do not compose, and the
     mapping is resolved as follows:
 
@@ -267,7 +267,7 @@ def _package_default_path(
     read, and would newly make template resolution fail-closed on a malformed
     ``.kittify/config.yaml`` — a project could then no longer resolve the
     templates its repair commands need. The ``lru_cache`` that used to live
-    here has moved into ``charter.resolver._mission_template_repository``,
+    here has moved into ``charter.activation.resolver._mission_template_repository``,
     alongside the resolution entry point, so repeated tier-6 lookups still
     reuse one repository.
 
@@ -277,7 +277,7 @@ def _package_default_path(
     scope. Only the tier-6 hop is charter-mediated, which is why the factory
     exposes a tier-6-only entry point at all.
     """
-    from charter.resolver import DoctrineService  # noqa: PLC0415 — lazy: keeps the charter import off module load
+    from charter.activation.resolver import DoctrineService  # noqa: PLC0415 — lazy: keeps the charter import off module load
 
     return DoctrineService.resolve_package_default_asset_path(
         missions_root=pkg_missions,
@@ -583,7 +583,7 @@ def resolve_configured_artifact_name(
     projected from ``expected-artifacts.yaml``'s ``path_pattern`` (via
     :func:`charter.missions.project_artifact_name_set`, the runtime->charter->
     doctrine facade),
-    never from :attr:`~doctrine.missions.models.MissionStepTemplateRef.template_file`.
+    never from :attr:`~charter.offering.missions.models.MissionStepTemplateRef.template_file`.
 
     Args:
         artifact_key: Stable manifest key, e.g. ``"input.spec.main"``.
@@ -659,11 +659,11 @@ def required_artifacts_for(step: str, mission_type: str = "software-dev") -> lis
 
 
 #: URN prefix identifying a template node's DRG identity, mirroring
-#: ``doctrine.drg.models.NodeKind.TEMPLATE.value`` (``"template"``).
+#: ``charter.offering.drg.models.NodeKind.TEMPLATE.value`` (``"template"``).
 _TEMPLATE_URN_PREFIX = "template:"
 
 #: ``resolve_template_by_id`` only consults ``TierRoot.project_dir`` for the
-#: override/legacy tiers (verified against ``doctrine.template_catalog``);
+#: override/legacy tiers (verified against ``charter.offering.template_catalog``);
 #: ``missions_root`` matters solely to the discovery surface
 #: (``discover_templates``), which this URN lane never calls. A fixed,
 #: non-existent sentinel keeps that fact explicit instead of silently
@@ -835,7 +835,7 @@ def resolve_mission(
     # canonical charter factory; see _package_default_path's docstring for the
     # construction-contract mapping this call site shares.
     try:
-        from charter.resolver import DoctrineService  # noqa: PLC0415 — lazy, mirrors _package_default_path
+        from charter.activation.resolver import DoctrineService  # noqa: PLC0415 — lazy, mirrors _package_default_path
 
         pkg_missions = get_package_asset_root()
         pkg_path = DoctrineService.resolve_package_default_mission_config_path(

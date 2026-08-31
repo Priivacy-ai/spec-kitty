@@ -1436,7 +1436,7 @@ def show_mission_type(
     Exits with code 1 and lists registered IDs when ``mission_type_id``
     is not an activated type.
     """
-    from charter.mission_type_profiles import (  # noqa: PLC0415
+    from charter.activation.mission_type_profiles import (  # noqa: PLC0415
         MissionTypeEmptyActionSequenceError,
         UnknownMissionTypeError,
         existing_mission_types,

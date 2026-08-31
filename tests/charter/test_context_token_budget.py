@@ -11,14 +11,14 @@ import re
 
 import pytest
 
-from charter.context_renderers import (
+from charter.activation.context_renderers import (
     BUDGET_DEFAULT,
     RenderedSection,
     apply_token_budget,
     fetch_stanza,
     warning_line,
 )
-from charter.context_renderers.fetch_stanza import (
+from charter.activation.context_renderers.fetch_stanza import (
     DEFAULT_WHEN_CLAUSE,
     format_selector,
 )
@@ -196,7 +196,7 @@ class TestWarningLine:
         assert joined.rstrip().endswith(warning_line(len(notes), budget))
 
     def test_production_context_budget_counts_warning_line(self) -> None:
-        from charter.context_renderers.token_budget import _enforce_token_budget
+        from charter.activation.context_renderers.token_budget import _enforce_token_budget
 
         section_block = "S" * 1_000
         profile_block = "P" * 400
@@ -246,7 +246,7 @@ class TestHeaderSurvivesSubstitution:
     header after token-budget substitution."""
 
     def test_single_header_body_keeps_header_after_swap(self) -> None:
-        from charter.context_renderers.token_budget import _enforce_token_budget
+        from charter.activation.context_renderers.token_budget import _enforce_token_budget
 
         header_line = "Profile-Cited Directives (reviewer-renata):"
         profile_block = header_line + "\n" + ("x" * 40_000)
@@ -268,7 +268,7 @@ class TestHeaderSurvivesSubstitution:
     def test_multi_kind_profile_block_keeps_every_populated_header(self) -> None:
         """profile_block joins several kind-blocks (directives, tactics, ...);
         ALL of their headers must survive, not just the first one swapped."""
-        from charter.context_renderers.token_budget import _enforce_token_budget
+        from charter.activation.context_renderers.token_budget import _enforce_token_budget
 
         directives_header = "Profile-Cited Directives (reviewer-renata):"
         tactics_header = "Profile-Cited Tactics (reviewer-renata):"
@@ -300,7 +300,7 @@ class TestHeaderSurvivesSubstitution:
     def test_action_critical_section_block_keeps_outer_header_after_swap(
         self,
     ) -> None:
-        from charter.context_renderers.token_budget import _enforce_token_budget
+        from charter.activation.context_renderers.token_budget import _enforce_token_budget
 
         header_line = "Action-Critical Charter Sections (implement):"
         section_block = header_line + "\n" + ("y" * 40_000)
@@ -321,7 +321,7 @@ class TestHeaderSurvivesSubstitution:
         """A section with no separate header line (single-line body, the
         RenderedSection.header='' by-design case) still swaps its ENTIRE
         body — the header-preservation fix must not change this baseline."""
-        from charter.context_renderers.token_budget import _enforce_token_budget
+        from charter.activation.context_renderers.token_budget import _enforce_token_budget
 
         body_only = "z" * 40_000
         text = "Preamble.\n\n" + body_only
@@ -488,7 +488,7 @@ class TestAggregateUnderBudget:
     def test_aggregate_self_sufficiency_under_budget(self, tmp_path) -> None:
         from pathlib import Path
 
-        from charter.context import build_charter_context
+        from charter.activation.context import build_charter_context
 
         # Use the spec-kitty repo's own charter as a representative fixture.
         repo_root = Path(__file__).resolve().parents[2]

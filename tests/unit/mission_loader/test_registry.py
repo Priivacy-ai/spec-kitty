@@ -14,7 +14,7 @@ from unittest.mock import MagicMock
 
 import pytest
 
-from doctrine.missions.step_contracts import (
+from charter.offering.missions.step_contracts import (
     MissionStepContract,
     MissionStepContractRepository,
     MissionStepContractStep as MissionStep,

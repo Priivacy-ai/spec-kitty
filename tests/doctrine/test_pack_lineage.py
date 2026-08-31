@@ -18,7 +18,7 @@ import pytest
 
 pytestmark = [pytest.mark.unit, pytest.mark.fast]
 
-from charter.org_extends import resolve_extends_order
+from charter.activation.org_extends import resolve_extends_order
 from specify_cli.doctrine.pack_lineage import (
     PackLineageCycleError,
     UnresolvedDoctrinePackError,

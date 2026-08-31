@@ -907,6 +907,10 @@ def _prepare_event(
             force=request.force,
             execution_mode=request.execution_mode,
             reason=request.reason,
+            # Provenance discriminator (FR-001): threaded from the request so the
+            # canonical move-task command's cancel event carries operator/synthetic
+            # onto the persisted StatusEvent (the transactional emit path).
+            reason_source=request.reason_source,
             review_ref=request.review_ref,
             evidence=done_evidence,
             review_result=request.review_result,
@@ -1380,6 +1384,33 @@ def emit_status_transition_transactional(
         return event
 
 
+def _lanes_annotation_transaction_available(
+    identity: _TransactionIdentity, mission_slug: str
+) -> bool:
+    """Return whether a stored LANES mission can commit a primary annotation.
+
+    Modern ``LANES`` missions have no distinct coordination branch, but their
+    target branch still supports the same ``BookkeepingTransaction`` used by
+    the preceding lane transition.  ``SINGLE_BRANCH`` and legacy/flat missions
+    retain their historical uncommitted annotation behavior.
+    """
+    from mission_runtime import MissionTopology  # noqa: PLC0415
+    from specify_cli.core.paths import (  # noqa: PLC0415
+        MissionMetaReadError,
+        load_meta_fail_closed,
+    )
+
+    try:
+        meta = load_meta_fail_closed(identity.feature_dir)
+    except (OSError, MissionMetaReadError):
+        return False
+    return (
+        meta is not None
+        and meta.get("topology") == MissionTopology.LANES.value
+        and _transaction_topology_available(identity, mission_slug)
+    )
+
+
 def emit_inner_state_changed_transactional(
     feature_dir: Path,
     wp_id: str,
@@ -1402,24 +1433,15 @@ def emit_inner_state_changed_transactional(
     the coordination ref and a caller such as ``move-task`` returns a clean tree
     (#2939) rather than one dirtied by a written-but-uncommitted annotation.
 
-    On a coord-less topology (``SINGLE_BRANCH`` / ``LANES`` / flat — i.e. no
-    ``coordination_branch`` declared in meta) it delegates to the uncommitted
-    ``emit_inner_state_changed`` so the primary-write behaviour is byte-identical
-    to the pre-fix path (no-op parity — the #2939 asymmetry only exists on
-    coord, where the lane hop commits but the annotation did not). The
-    coord-vs-primary decision reads the identity's own ``coordination_branch``
-    directly, NOT the shared ``_transaction_topology_available`` authority
-    :func:`emit_status_transition_transactional` gates on: that predicate's
-    legacy-meta fallback arm (``identity.transaction_meta_exists``) is trivially
-    true for a coord-less mission whose ``mission_slug`` already embeds its
-    ``mid8`` (the modern 083+ naming convention — the "transaction dir" and the
-    primary feature dir compose to the SAME on-disk name), which would wrongly
-    route a coord-less annotation into ``BookkeepingTransaction.acquire`` and
-    trip its destination-ref protected-branch policy gate
-    (``test_flat_topology_annotation_still_lands``, #2939 regression coverage).
-    Reusing it here was tried and reverted for that reason; the bare
-    ``coordination_branch is None`` check stays the correct, narrower predicate
-    for THIS off-axis annotation path.
+    A modern stored ``LANES`` mission has no distinct coordination branch, but
+    its primary target branch supports the same transaction as its preceding
+    lane transition. Its annotation therefore commits there too. Stored
+    ``SINGLE_BRANCH`` and genuinely flat/legacy missions still delegate to the
+    uncommitted ``emit_inner_state_changed`` for byte-identical no-op parity.
+    The narrow :func:`_lanes_annotation_transaction_available` predicate reads
+    the stored topology before consulting transaction availability, avoiding
+    the over-broad legacy-meta arm that previously made a flat mission look
+    transactional (``test_flat_topology_annotation_still_lands``).
 
     Regardless of which predicate decides "attempt a transaction", the coord
     worktree may still turn out to be unmaterializable (e.g. a
@@ -1461,7 +1483,10 @@ def emit_inner_state_changed_transactional(
             repo_root=repo_root,
         )
 
-    if identity.coordination_branch is None:
+    if (
+        identity.coordination_branch is None
+        and not _lanes_annotation_transaction_available(identity, mission_slug)
+    ):
         return _uncommitted_emit()
 
     annotation = _annotate(

@@ -1,10 +1,10 @@
 """Tests for `spec-kitty charter pack {list,path,apply}` (#3064 follow-up).
 
-`src/doctrine/assets/built-in/charter_scaffold_minimal.yml` (+ sidecar) was a
+`src/charter/offering/assets/built-in/charter_scaffold_minimal.yml` (+ sidecar) was a
 doctrine *asset* despite being structurally a charter pack — the same shape
-as `src/charter/packs/default.yaml` (`activated_kinds` /
+as `src/charter/activation/packs/default.yaml` (`activated_kinds` /
 `mission_type_activations` / `activated_directives` / `activated_tactics`).
-It has been relocated to `src/charter/packs/minimal.yaml`, first-class
+It has been relocated to `src/charter/activation/packs/minimal.yaml`, first-class
 alongside `default.yaml`, and is now discoverable/applyable via an on-demand
 pack CLI instead of `doctrine asset path`.
 
@@ -27,8 +27,8 @@ import pytest
 from ruamel.yaml import YAML
 from typer.testing import CliRunner
 
-from charter.catalog import load_doctrine_catalog
-from charter.pack_context import charter_activated_urns
+from charter.activation.catalog import load_doctrine_catalog
+from charter.activation.pack_context import charter_activated_urns
 from specify_cli.cli.commands.charter import charter_app
 from specify_cli.invocation.empty_charter import is_charter_empty
 
@@ -37,7 +37,7 @@ pytestmark = [pytest.mark.unit, pytest.mark.fast]
 runner = CliRunner()
 
 _REPO_ROOT = Path(__file__).resolve().parents[5]
-_PACKS_DIR = _REPO_ROOT / "src" / "charter" / "packs"
+_PACKS_DIR = _REPO_ROOT / "src" / "charter" / "activation" / "packs"
 _MINIMAL_PATH = _PACKS_DIR / "minimal.yaml"
 _DEFAULT_PATH = _PACKS_DIR / "default.yaml"
 

@@ -66,6 +66,8 @@ def load_auth_context(repo_root: Path | None = None) -> AuthContext:
        (#198): its access token as the bearer, paired with the canonical
        server target (:func:`specify_cli.auth.server_target.resolve_server_target`)
        — refreshed first through the renewable-session flow when expired.
+       Its ``team_slug`` comes only from ``SPEC_KITTY_TEAM_SLUG``; a
+       repo-local file may not scope an operator's stored session.
     4. Raises ``SaasAuthError`` if no token is found, or if no SaaS URL is
        supplied by any source (D-5: no hardcoded domain fallback).
 
@@ -113,7 +115,8 @@ def load_auth_context(repo_root: Path | None = None) -> AuthContext:
     # broadly scoped than what a checkout should be able to redirect. The
     # same invariant applies to team_slug: it is a per-request scope selector
     # (zeitgeist_client/resolution.py), so the file may only supply it
-    # alongside its own token, never as an override of an env-resolved token.
+    # alongside its own token, never as an override of an env-resolved token
+    # or the stored OAuth session.
     if env_token:
         token = env_token
         url = env_url or _server_target_url()
@@ -124,7 +127,7 @@ def load_auth_context(repo_root: Path | None = None) -> AuthContext:
     else:
         token = ""
         url = env_url or file_url
-        team_slug = team_slug or file_team_slug
+        team_slug = env_team_slug
 
     if not token:
         bridged = _oauth_session_context()

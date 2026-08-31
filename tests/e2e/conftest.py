@@ -21,7 +21,7 @@ import yaml
 from tests._support.fixture_pollution import scrub_repo_mission_overrides
 from tests.test_isolation_helpers import get_installed_version, run_cli_subprocess
 from specify_cli.migration.schema_version import MAX_SUPPORTED_SCHEMA, SCHEMA_CAPABILITIES
-from charter.sync import sync as sync_charter
+from charter.activation.sync import sync as sync_charter
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 E2E_STATUS_COMMIT_BRANCH = "e2e-status-commit"
@@ -296,7 +296,7 @@ def e2e_project(tmp_path: Path) -> Path:
         "`.kittify/charter/generated/`). It exists so `DoctrineService` discovers a\n"
         "project layer and the runtime can advance; it is intentionally empty.\n\n"
         "The runtime falls back to the in-package built-in doctrine\n"
-        "(`src/doctrine/`) for all artifact lookups until the LLM harness writes\n"
+        "(`src/charter/offering/`) for all artifact lookups until the LLM harness writes\n"
         "project-local artifacts under `.kittify/charter/generated/` and you re-run\n"
         "`spec-kitty charter synthesize`.\n",
         encoding="utf-8",

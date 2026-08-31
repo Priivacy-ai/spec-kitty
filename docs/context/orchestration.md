@@ -4,7 +4,7 @@ description: 'Glossary context for orchestration: lifecycle and runtime orchestr
 doc_status: active
 updated: '2026-07-30'
 related:
-- docs/context/doctrine.md
+- docs/context/charter.md
 - docs/context/identity.md
 - docs/context/system-events.md
 - docs/context/technology-foundations.md
@@ -116,7 +116,7 @@ Terms describing lifecycle and runtime orchestration semantics.
 | **Context** | Orchestration |
 | **Status** | canonical |
 | **Applicable to** | `1.x`, `2.x` |
-| **Related terms** | [Mission Type](#mission-type), [step contract](#step-contract), [Procedure](./doctrine.md#procedure) |
+| **Related terms** | [Mission Type](#mission-type), [step contract](#step-contract), [Procedure](./charter.md#procedure) |
 
 ---
 
@@ -128,7 +128,7 @@ Terms describing lifecycle and runtime orchestration semantics.
 | **Context** | Orchestration |
 | **Status** | canonical |
 | **Applicable to** | `1.x`, `2.x` |
-| **Related terms** | [Mission Action](#mission-action), [Mission-Runtime YAML](#mission-runtime-yaml), [Procedure](./doctrine.md#procedure) |
+| **Related terms** | [Mission Action](#mission-action), [Mission-Runtime YAML](#mission-runtime-yaml), [Procedure](./charter.md#procedure) |
 
 ---
 
@@ -140,7 +140,7 @@ Terms describing lifecycle and runtime orchestration semantics.
 | **Context** | Orchestration |
 | **Status** | canonical (generic prose only) |
 | **Applicable to** | `1.x`, `2.x` |
-| **Rule** | Use [Mission Type](#mission-type), [Mission Action](#mission-action), [step contract](#step-contract), or [Procedure](./doctrine.md#procedure) when precision matters. |
+| **Rule** | Use [Mission Type](#mission-type), [Mission Action](#mission-action), [step contract](#step-contract), or [Procedure](./charter.md#procedure) when precision matters. |
 
 ---
 
@@ -650,11 +650,13 @@ Terms describing lifecycle and runtime orchestration semantics.
 
 | | |
 |---|---|
-| **Definition** | "The drain" names the act of taking locally-durable records and sending them onward, and it has had **three** distinct referents in this codebase — two live, one retired. It is an overload of the same class as [Routing](#routing) and `primary` / `merge` above, and it is entered here for the same reason those are: the ambiguity has already produced a defect, not merely a risk. Bare "the drain" is not resolvable from context in the `sync` / `delivery` / `event_journal` modules, where more than one referent is in scope in the same file. The three: the **dispatch-selection drain** (`delivery/selection.py`, live, and the referent of a bare "the drain" in consent/egress prose); the **body drain** (`sync/background.py`, live, artifact bodies); and the **retired queue-backed drain** (`sync/batch.py`, removed by #3167, retained as a named referent so historical mentions stay resolvable). Always name the sense. |
+| **Definition** | "The drain" is retired historical terminology on this line. It previously named three distinct flows — the **dispatch-selection drain** (`delivery/selection.py`), the **body drain** (`sync/background.py`), and the **queue-backed event drain** (`sync/batch.py`, removed upstream by #3167) — all of which were deleted with the `sync` / `delivery` / `event_journal` subsystems (spec-kitty#5 / PR #114). The entry is retained as a named referent so historical prose, commit messages and issue threads that say "the drain" stay resolvable. Bare use is not resolvable from context; in new prose, name the concrete current operation instead. |
+
 | **Context** | Orchestration |
 | **Status** | canonical |
 | **Applicable to** | `3.x` |
-| **Governed senses** | **The dispatch-selection drain** (live) — selecting durable journal rows for delivery and handing them to the dispatcher. Owning module: `specify_cli/delivery/selection.py`; the dispatcher it feeds is `specify_cli/delivery/dispatcher.py`. This is the referent bound by existing prose such as `sync/__init__.py`'s "the same funnel the drain (`delivery/selection.py`) and the emitter use", so an unqualified "the drain" in a consent or egress context most often means **this** one. *Do NOT use when* the subject is artifact bodies rather than events — that is the body drain, below. — **The body drain** (live) — uploading dossier artifact **bodies** from the offline body queue. Owning site: `specify_cli/sync/background.py:280`, backed by `specify_cli/sync/body_queue.py`. A separate queue, a separate seam, and a separate consent consult from the event path. *Do NOT use when* the subject is events — the two drains are not one mechanism with two payload types. — **The retired queue-backed event drain** — the `batch_sync` / `sync_all_queued_events` senders in `specify_cli/sync/batch.py`, which POSTed batches of queued events. **Removed by #3167**; the module's remaining helpers (error categorisation, failure reporting, summary rendering) are live and are not a drain. Retained here as a named referent, not as a live sense: historical prose, commit messages and issue threads still say "the drain" meaning this, and a reader who resolves such a mention to the dispatch-selection drain will conclude a gate exists where none was. |
+| **Governed senses** | All three senses are historical on this line: **the dispatch-selection drain** (formerly `specify_cli/delivery/selection.py`, feeding `delivery/dispatcher.py`), **the body drain** (formerly `specify_cli/sync/background.py` backed by `sync/body_queue.py`), and **the queue-backed event drain** (formerly `specify_cli/sync/batch.py`, removed upstream by #3167 before the subsystem deletion). None has a successor mechanism: mission status is ephemeral via Zeitgeist, and dossier artifacts render server-side from git. A reader resolving a historical "the drain" mention consults this entry, not current code. |
+
 | **Note (why this entry exists)** | The overload was load-bearing, not cosmetic. #3167's own first-draft specification asserted that a **true** docstring was false — it read `sync/runtime.py`'s claim that "the drain" walks the per-project consent chain as referring to `sync/batch.py` (which walked a different chain) instead of to `delivery/selection.py` (which does walk it). The proposed correction would have rewritten correct documentation and, in the natural rewrite, claimed consent coverage for a module that had no production caller — manufacturing exactly the false-pointer class that mission existed to remove. A false pointer is how an auditor concludes a gate exists. |
 | **Do NOT use when** | Never write bare "the drain" in governed prose or in `src/` docstrings. Write "the dispatch-selection drain", "the body drain", or "the retired queue-backed drain" — or link this entry. Also do not use "the drain" for the [Lane Consolidation](#lane-consolidation) or status-event flush paths; those are not drains and have their own terms. |
 | **Related terms** | [Routing](#routing) (the retired sync fan-out sense decided *whether* a checkout participates, never what "the drain" means), [Lane Consolidation](#lane-consolidation), [Mission](#mission) |

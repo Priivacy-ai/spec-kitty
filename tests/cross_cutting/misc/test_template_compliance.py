@@ -134,12 +134,12 @@ def test_command_templates_removed():
     spec_kitty_root = Path(__file__).parent.parent.parent.parent
     missions_dir = spec_kitty_root / "src" / "specify_cli" / "missions"
     templates_dir = spec_kitty_root / "src" / "specify_cli" / "templates"
-    doctrine_missions_dir = spec_kitty_root / "src" / "doctrine" / "missions"
-    doctrine_templates_dir = spec_kitty_root / "src" / "doctrine" / "templates"
+    doctrine_missions_dir = spec_kitty_root / "src" / "charter" / "offering" / "missions"
+    doctrine_templates_dir = spec_kitty_root / "src" / "charter" / "offering" / "templates"
     # Mission doctrine-consumer-surface-missions-extraction-01KZ6G6H (FR-005)
-    # relocated missions/ from src/doctrine/missions to packs/built-in/missions;
+    # relocated missions/ from src/charter/offering/missions to packs/built-in/missions;
     # scan the relocated tree too so this stays a real coverage gate rather
-    # than silently scanning only the now data-less src/doctrine/missions.
+    # than silently scanning only the now data-less src/charter/offering/missions.
     relocated_missions_dir = spec_kitty_root / "packs" / "built-in" / "missions"
 
     # software-dev/command-templates/ is the canonical source for prompt-driven
@@ -205,9 +205,9 @@ def test_no_command_templates_in_mission_dirs():
     """
     spec_kitty_root = Path(__file__).parent.parent.parent.parent
     missions_dir = spec_kitty_root / "src" / "specify_cli" / "missions"
-    doctrine_dir = spec_kitty_root / "src" / "doctrine" / "missions"
+    doctrine_dir = spec_kitty_root / "src" / "charter" / "offering" / "missions"
     # Mission doctrine-consumer-surface-missions-extraction-01KZ6G6H (FR-005)
-    # relocated missions/ from src/doctrine/missions to packs/built-in/missions;
+    # relocated missions/ from src/charter/offering/missions to packs/built-in/missions;
     # scan the relocated tree too, for the same reason noted above.
     relocated_missions_dir = spec_kitty_root / "packs" / "built-in" / "missions"
 

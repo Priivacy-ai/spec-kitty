@@ -2,7 +2,7 @@
 
 This module is the charter-layer proxy for runtime callers that historically
 imported the mission-template, mission-type, and mission-step repository
-surfaces directly from ``doctrine.missions.*``. The runtime → charter →
+surfaces directly from ``charter.offering.missions.*``. The runtime → charter →
 doctrine boundary (ADR 2026-03-27-1, tightened by mission
 ``charter-mediated-doctrine-selection-01KRTZCA`` and re-affirmed by mission
 ``doctrine-public-api-surface-01KZPDSR``) requires runtime modules under
@@ -17,26 +17,26 @@ not part of the ``spec-kitty-doctrine`` wheel's public contract).
 This file is a **pure re-export** module — no behaviour, no wrappers, no type
 aliases. Object identity is preserved (e.g.
 ``charter.missions.MissionTemplateRepository is
-doctrine.missions.repository.MissionTemplateRepository``), enforced by
+charter.offering.missions.repository.MissionTemplateRepository``), enforced by
 ``tests/architectural/test_charter_facades_reexport_doctrine.py``.
 """
 
-from doctrine.missions.expected_artifact_manifest import (
+from charter.offering.missions.expected_artifact_manifest import (
     ArtifactClassEnum,
     ExpectedArtifactManifest,
     ExpectedArtifactSpec,
 )
-from doctrine.missions.mission_step_repository import MissionStepRepository
-from doctrine.missions.mission_type_repository import (
+from charter.offering.missions.mission_step_repository import MissionStepRepository
+from charter.offering.missions.mission_type_repository import (
     MissionTypeRepository,
     builtin_mission_type_ids,
     resolve_layered_mission_types,
 )
-from doctrine.missions.repository import (
+from charter.offering.missions.repository import (
     MissionsRootNotFound,
     MissionTemplateRepository,
 )
-from doctrine.missions.step_projection import (
+from charter.offering.missions.step_projection import (
     project_artifact_name_set,
     project_template_set,
 )

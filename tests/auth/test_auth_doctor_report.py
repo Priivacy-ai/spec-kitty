@@ -26,6 +26,7 @@ from __future__ import annotations
 import io
 import json
 import time
+from dataclasses import replace
 from kernel.clock import datetime, now_utc, parse_iso, timedelta
 from pathlib import Path
 from unittest.mock import AsyncMock, MagicMock, patch
@@ -136,7 +137,7 @@ def _capture_render(report: DoctorReport) -> str:
 
 
 def test_renders_authenticated_no_findings(monkeypatch: pytest.MonkeyPatch) -> None:
-    """Healthy state ⇒ all 5 sections render; findings empty; exit 0."""
+    """Healthy state renders all sections with a confirmed ``ok`` verdict."""
     session = _make_session(
         refresh_token_expires_at=now_utc() + timedelta(days=30)
     )
@@ -149,6 +150,10 @@ def test_renders_authenticated_no_findings(monkeypatch: pytest.MonkeyPatch) -> N
     assert report.findings == []
     assert compute_exit_code(report.findings) == 0
 
+    assert report.auth_verdict.state == "ok"
+    assert report.auth_verdict.evidence
+    assert not any(f.id == "F-008" for f in report.findings)
+
     rendered = _capture_render(report)
     for section in (
         "Identity",
@@ -159,6 +164,89 @@ def test_renders_authenticated_no_findings(monkeypatch: pytest.MonkeyPatch) -> N
     ):
         assert section in rendered, f"section {section!r} missing from rendered output"
     assert "No problems detected." in rendered
+
+
+def test_hostile_session_display_values_render_literally(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Session-file strings must not be interpreted as Rich markup (#737)."""
+    session = _make_session(
+        refresh_token_expires_at=now_utc() + timedelta(days=30)
+    )
+    _patch_state(monkeypatch, session=session)
+    report = assemble_report()
+    assert report.session is not None
+    report = replace(
+        report,
+        session=replace(
+            report.session,
+            user_email="user[/]example.test",
+            session_id="session[/]id",
+            storage_backend="file[/]backend",
+        ),
+    )
+
+    rendered = _capture_render(report)
+
+    assert "user[/]example.test" in rendered
+    assert "session[/]id" in rendered
+    assert "Unknown (file[/]backend)" in rendered
+
+
+def test_expired_access_valid_refresh_local_is_unknown(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """An expired access token with an unproven refresh chain is unknown."""
+    session = _make_session(refresh_token_expires_at=now_utc() + timedelta(days=30))
+    session = replace(session, access_token_expires_at=now_utc() - timedelta(minutes=1))
+    _patch_state(monkeypatch, session=session)
+
+    report = assemble_report()
+
+    assert report.auth_verdict.state == "unknown"
+    assert any(f.id == "F-008" for f in report.findings)
+    assert any("expired" in f.summary.lower() for f in report.findings)
+
+    rendered = _capture_render(report)
+    assert "No problems detected" not in rendered
+    assert "F-008" in rendered
+
+
+def test_expired_access_and_refresh_yields_critical_finding(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Expired access and refresh tokens produce a critical F-008 finding."""
+    session = _make_session(refresh_token_expires_at=now_utc() - timedelta(days=1))
+    session = replace(session, access_token_expires_at=now_utc() - timedelta(minutes=1))
+    _patch_state(monkeypatch, session=session)
+
+    report = assemble_report()
+
+    assert report.auth_verdict.state == "fail"
+    f008 = next(f for f in report.findings if f.id == "F-008")
+    assert f008.severity == "critical"
+    assert "expired" in f008.summary.lower()
+    assert f008.remediation_command == "spec-kitty auth login"
+    assert compute_exit_code(report.findings) == 1
+
+    rendered = _capture_render(report)
+    assert "No problems detected" not in rendered
+
+
+def test_expired_access_valid_refresh_with_live_server_probe_is_ok(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A live server probe resolves an expired access token to ``ok``."""
+    session = _make_session(refresh_token_expires_at=now_utc() + timedelta(days=30))
+    session = replace(session, access_token_expires_at=now_utc() - timedelta(minutes=1))
+    _patch_state(monkeypatch, session=session)
+
+    report = assemble_report(
+        server_probe=ServerSessionStatus(active=True, session_id="s1")
+    )
+
+    assert report.auth_verdict.state == "ok"
+    assert not any(f.id == "F-008" for f in report.findings)
 
 
 def test_renders_unauthenticated(monkeypatch: pytest.MonkeyPatch) -> None:

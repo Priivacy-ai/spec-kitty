@@ -27,7 +27,7 @@ if TYPE_CHECKING:
 
 import ulid as _ulid_mod  # matches codebase pattern: status/emit.py, core/mission_creation.py
 
-from charter.context import build_charter_context
+from charter.activation.context import build_charter_context
 from mission_runtime import CommitTarget
 from specify_cli.core.commit_guard import GuardCapability
 from kernel.clock import now_utc_iso
@@ -71,7 +71,7 @@ def _compute_recommendation(profile: AgentProfile, action: str) -> RoutingRecomm
     """
     # Function-local charter-door imports keep model-routing lazy (no import-time
     # cost when routing is unused). The charter facade fronts
-    # doctrine.model_task_routing at symbol level (FR-004): import the callables
+    # charter.offering.model_task_routing at symbol level (FR-004): import the callables
     # directly rather than the whole module.
     from charter.model_routing import evaluate, load
 

@@ -10,6 +10,8 @@ Precedence for :func:`resolve_distribution_profile`:
 
 Never raises. Multi-registration picks the first entry point name
 alphabetically (same deterministic rule as the upgrade-provider resolver).
+A registered profile that cannot be loaded or constructed resolves to the
+degraded sentinel instead of substituting the public-PyPI stock profile.
 """
 
 from __future__ import annotations
@@ -18,7 +20,11 @@ import logging
 from dataclasses import dataclass, replace
 from importlib.metadata import EntryPoint, entry_points
 
-from specify_cli.compat.provider import LatestVersionProvider, PyPIProvider
+from specify_cli.compat.provider import (
+    LatestVersionProvider,
+    NoNetworkProvider,
+    PyPIProvider,
+)
 from specify_cli.distribution.package_name import (
     DEFAULT_CLI_PACKAGE_NAME,
     resolve_cli_package_name,
@@ -27,8 +33,10 @@ from specify_cli.distribution.upgrade_provider import resolve_upgrade_provider
 
 __all__ = [
     "DISTRIBUTION_PROFILE_GROUP",
+    "DegradedDistributionProfile",
     "DistributionProfile",
     "clear_distribution_profile_cache",
+    "is_degraded_distribution_profile",
     "resolve_distribution_profile",
     "stock_distribution_profile",
 ]
@@ -53,8 +61,8 @@ class DistributionProfile:
         index_url: Primary simple/PyPI-compatible index for remediation argv.
         extra_index_url: Secondary index for remediation argv.
         data_freshness_seconds: Optional TTL override for re-query decisions.
-        disable_no_upgrade_notifier: When ``True``, suppress the stock
-            "no upgrade available" notice.
+        disable_public_pypi_notifier: When ``True``, suppress the stock
+            public-PyPI “no upgrade” notice.
         version_label: Optional ``--version`` banner label; ``None`` means use
             ``package_name``.
     """
@@ -65,8 +73,13 @@ class DistributionProfile:
     index_url: str | None = None
     extra_index_url: str | None = None
     data_freshness_seconds: int | None = None
-    disable_no_upgrade_notifier: bool = False
+    disable_public_pypi_notifier: bool = False
     version_label: str | None = None
+
+
+@dataclass(frozen=True)
+class DegradedDistributionProfile(DistributionProfile):
+    """Fail-closed profile returned when a registered profile cannot load."""
 
 
 def clear_distribution_profile_cache() -> None:
@@ -84,9 +97,14 @@ def stock_distribution_profile() -> DistributionProfile:
         index_url=None,
         extra_index_url=None,
         data_freshness_seconds=None,
-        disable_no_upgrade_notifier=False,
+        disable_public_pypi_notifier=False,
         version_label=None,
     )
+
+
+def is_degraded_distribution_profile(profile: DistributionProfile) -> bool:
+    """Return whether *profile* is the fail-closed distribution sentinel."""
+    return isinstance(profile, DegradedDistributionProfile)
 
 
 def resolve_distribution_profile() -> DistributionProfile:
@@ -109,11 +127,7 @@ def _resolve_distribution_profile_uncached() -> DistributionProfile:
     if selected is None:
         return _synthesize_from_phase1()
 
-    loaded_profile = _profile_from_entry_point(selected)
-    if loaded_profile is not None:
-        return loaded_profile
-
-    return _synthesize_from_phase1()
+    return _profile_from_entry_point(selected)
 
 
 def _synthesize_from_phase1() -> DistributionProfile:
@@ -146,48 +160,55 @@ def _select_entry_point(discovered: list[EntryPoint]) -> EntryPoint | None:
     return sorted(discovered, key=lambda entry: entry.name)[0]
 
 
-def _profile_from_entry_point(entry: EntryPoint) -> DistributionProfile | None:
+def _profile_from_entry_point(entry: EntryPoint) -> DistributionProfile:
     try:
         loaded = entry.load()
     except Exception:
-        _log.debug(
-            "spec_kitty.distribution_profile entry point %r failed to load; using stock profile",
+        _log.error(
+            "spec_kitty.distribution_profile entry point %r failed to load; using the degraded profile and disabling remediation",
             entry.name,
             exc_info=True,
         )
-        return None
+        return _degraded_profile()
 
     try:
         if isinstance(loaded, DistributionProfile):
             return loaded
         if isinstance(loaded, type):
             instance = loaded()
-            return instance if isinstance(instance, DistributionProfile) else None
-        if callable(loaded):
+            if isinstance(instance, DistributionProfile):
+                return instance
+        elif callable(loaded):
             value = loaded()
-            return value if isinstance(value, DistributionProfile) else None
+            if isinstance(value, DistributionProfile):
+                return value
     except TypeError:
-        # The likeliest cause is a fork's factory still passing a retired
-        # DistributionProfile field name (e.g. disable_public_pypi_notifier,
-        # renamed to disable_no_upgrade_notifier — see the Breaking Changes
-        # entry in docs/changelog/CHANGELOG.md) as a keyword argument the
-        # current dataclass no longer accepts. Log loudly (not debug) so the
-        # packager notices instead of silently getting the stock profile.
         _log.error(
             "spec_kitty.distribution_profile entry point %r raised TypeError "
-            "while constructing its DistributionProfile — likely an outdated "
-            "field name after a breaking rename (see docs/changelog/CHANGELOG.md); "
-            "falling back to the stock profile.",
+            "while constructing its DistributionProfile; "
+            "using the degraded profile and disabling remediation.",
             entry.name,
             exc_info=True,
         )
-        return None
+        return _degraded_profile()
     except Exception:
-        _log.debug(
-            "spec_kitty.distribution_profile entry point %r raised while constructing a profile; using stock profile",
+        _log.error(
+            "spec_kitty.distribution_profile entry point %r raised while constructing a profile; using the degraded profile and disabling remediation",
             entry.name,
             exc_info=True,
         )
-        return None
+        return _degraded_profile()
 
-    return None
+    _log.error(
+        "spec_kitty.distribution_profile entry point %r did not produce a DistributionProfile; using the degraded profile and disabling remediation",
+        entry.name,
+    )
+    return _degraded_profile()
+
+
+def _degraded_profile() -> DegradedDistributionProfile:
+    return DegradedDistributionProfile(
+        package_name="",
+        upgrade_provider=NoNetworkProvider(),
+        disable_public_pypi_notifier=True,
+    )

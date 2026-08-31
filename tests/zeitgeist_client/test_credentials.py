@@ -214,12 +214,12 @@ def test_host_and_repo_slug_round_trip_verbatim(state_root: Path):
         token="tok-a",
         token_kind="shared_team",
         host="github.int.exe.xyz",
-        repo_slug="spec-kitty/EXPERIMENTAL-spec-kitty",
+        repo_slug="Priivacy-ai/spec-kitty",
     )
     loaded = credentials.load(repo="github.com/acme/spec-kitty")
     assert loaded is not None
     assert loaded.host == "github.int.exe.xyz"
-    assert loaded.repo_slug == "spec-kitty/EXPERIMENTAL-spec-kitty"
+    assert loaded.repo_slug == "Priivacy-ai/spec-kitty"
 
 
 def test_empty_host_is_rejected_when_provided(state_root: Path):
@@ -337,7 +337,7 @@ def test_owner_only_mode_holds_across_every_write_path(state_root: Path):
 
 
 def test_a_loose_pre_e3_file_is_tightened_on_read(state_root: Path):
-    """[squad] EXPERIMENTAL-spec-kitty#37 MINOR: a store/dir left loose by a
+    """[squad] Priivacy-ai/spec-kitty#37 MINOR: a store/dir left loose by a
     pre-E3 write (the old ``tmp_path.open("wb")`` path, no chmod, landing at
     the ambient umask) must not stay group/other-readable until the next
     write — ``load()`` alone must tighten it, since a manual checkout may

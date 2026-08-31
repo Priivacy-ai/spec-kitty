@@ -51,13 +51,23 @@ packs/built-in/missions/mission-steps/{mission_type}/{step_id}/prompt.md  (SOURC
 
 ## ⚠️ CRITICAL: Git Workflow — Branches, PRs, and Merges
 
-This repo is part of the `EXPERIMENTAL-spec-kitty-*` programme. **`main` IS the integration branch**: every PR targets `main`, nothing deploys on merge, and nothing on GitHub enforces anything — no branch protection, no required reviews (the pre-programme `.github/workflows/` YAML has been deleted; see PROGRAM.md §2 and planning#57). The binding process is the programme constitution — [`EXPERIMENTAL-spec-kitty-planning/PROGRAM.md`](https://github.com/spec-kitty/EXPERIMENTAL-spec-kitty-planning/blob/main/PROGRAM.md) §5–§9:
+This repository uses **`main` as the integration branch**. Open a topic branch, target it with a pull request, and let repository review and branch-protection settings enforce the merge gate. GitHub Actions are live here, including the Blacksmith deterministic-CI producer in `.github/workflows/ci.yml`; see [the planning repository's Blacksmith CI contract](https://github.com/spec-kitty/EXPERIMENTAL-spec-kitty-planning/blob/main/docs/BLACKSMITH-CI.md).
 
-- **Never push to `main`.** One issue → one branch (`issue-<n>-<slug>`, cut from `main`) → one PR targeting `main` (§5). Implementers never merge; the merge agent does (§9).
+- **Never push to `main`.** Create a topic branch from the current `main`, open a PR targeting `main`, and let the repository merge controls handle publication.
 - `spec-kitty merge` consolidates lanes into your **local** `main` only; it never publishes to the remote. Qualify local vs origin when naming the branch (see the `primary`/`merge` footgun note under Terminology Canon).
-- On exe.dev VMs `gh issue` / `gh pr` fail behind the integration proxy — use `gh api repos/<owner>/<repo>/...` (see `bin/GH-API.md` in the planning repo).
+- If your GitHub CLI installation cannot use issue or pull-request commands in a restricted environment, use the GitHub web interface or an authenticated GitHub API client.
 
-**Test policy (§6):** run every test you write or change plus your blast radius, and record commands + counts in the PR. Baseline is `make test-fast`; add the test files of every module your diff touches, and run `tests/architectural/` in full. Do **not** run `make test-full` or any whole-repo suite — the CI agent owns that.
+### Convergence ports
+
+- Port commits from the pre-fork line with `git cherry-pick -x` so authorship and provenance are preserved.
+- Before applying a commit, classify it with `git show --stat <sha> -- <retired paths>`.
+- If every touched path is retired, record the commit as `DROP` in the convergence map and do not port it.
+- For a mixed commit, drop the retired hunks and cite the omitted hunks under `Dropped hunks:`.
+- Every convergence PR carries `Retired-surface scan: 0 hits`, computed over added diff lines with the canonical regex in [planning `PROGRAM.md` §5](https://github.com/spec-kitty/EXPERIMENTAL-spec-kitty-planning/blob/main/PROGRAM.md#5-the-pr-protocol).
+- Never add `# noqa: TID251` for a retired module.
+- Never resolve a kept-file conflict with `theirs` without re-running `tests/architectural/test_no_retired_subsystems.py`.
+
+**Test policy:** run every test you write or change plus your blast radius, and record commands + counts in the PR. Baseline is `make test-fast`; add the test files of every module your diff touches, and run `tests/architectural/` in full.
 
 ---
 
@@ -154,7 +164,7 @@ for agent_root, subdir in agent_dirs:
 1. **Add to `AI_CHOICES`** in `src/specify_cli/__init__.py` and `agent_folder_map`.
 2. **Update CLI help text** — `--ai` param description, docstrings, error messages.
 3. **Update `README.md`** Supported AI Agents section.
-4. **No release-script update needed.** The pre-programme `.github/workflows/scripts/create-release-packages.sh` and `create-github-release.sh` (which used to need a new-agent entry here) were deleted with the rest of `.github/workflows/` — see PROGRAM.md §2 and planning#57; this programme has no GitHub Actions release automation to update (see *PyPI Release* below).
+4. **No release-script update needed.** Release automation is centralized and does not require a per-agent entry; follow `RELEASE_CHECKLIST.md`.
 5. **Add to `AGENT_DIRS`** in `src/specify_cli/upgrade/migrations/m_0_9_1_complete_lane_migration.py`.
 6. **CLI tool check** (only for agents with required CLI tools, not IDE-based ones):
    ```python
@@ -193,7 +203,7 @@ New architectural designs → `architecture/` following `docs/architecture/READM
 
 ```bash
 make test-fast    # fast tier of the typical blast-radius directories (target <2 min)
-make test-full    # everything, parallel + serial passes — CI's target, not PR validation
+make test-full    # everything, parallel + serial passes
 ruff check .
 ```
 
@@ -201,8 +211,9 @@ Both make targets set `PWHEADLESS=1` themselves and need the synced dev environm
 
 ### Test policy — what you must run for a change
 
-- **`make test-fast`** is the shared baseline: the fast tier (`(fast or unit)`, with every slow tier deselected by marker) of the subsystem directories a blast radius typically covers — `tests/unit tests/status tests/cli tests/specify_cli/runtime`. Run it for every change.
-- **`make test-full`** runs everything in three passes: one `-n auto --dist loadfile` parallel pass over `tests/` with the parallel-unsafe `stress`/`timing` families deselected by marker, then two dedicated `-n0` serial passes — `-m "stress and not windows_ci"`, then `-m timing`. CI owns this target; it is not how you validate a PR locally. (The former fourth pass ran the deleted sync daemon's fixed-port suites via `tests/_real_port_suites.py`; both died with the sync transport, issue #5.)
+- **`make test-fast`** is the shared baseline for ordinary changes. It runs the fast tier (`(fast or unit)`, with every slow tier deselected by marker) over the subsystem directories a blast radius typically covers: `tests/unit tests/status tests/cli tests/specify_cli/runtime`.
+- **Run targeted module tests as well.** The fast tier is a baseline, not a substitute for the tests that directly cover the files and behavior you changed.
+- **`make test-full`** runs everything in three passes: one `-n auto --dist loadfile` parallel pass over `tests/` with the parallel-unsafe `stress`/`timing` families deselected by marker, then two dedicated `-n0` serial passes — `-m "stress and not windows_ci"`, then `-m timing`. Use it for release-level changes or when a narrow blast radius cannot establish safety. The former fixed-port sync pass no longer exists.
 
 **Computing your blast radius — run this in addition to `make test-fast`:**
 
@@ -242,14 +253,22 @@ red that is **NOT your change**. Before treating a failure as yours, classify it
 1. **Pre-existing known-P0 reds** honestly red main (ADR `2026-07-17-1`); e.g. #2736, #2772,
    #1834. Do **not** "fix" them — leave them red. Confirm by running the same test on the
    merge-base / `upstream/main` (via `PYTHONPATH=<worktree>/src`), or check the tracker.
-2. **CI-environment failures** — auth (`logged_out_on_connected_teamspace`) and the sync
-   disable toggles (`SPEC_KITTY_SYNC_MINIMAL_IMPORT` / `SPEC_KITTY_SYNC_DISABLE`, which also
-   skip the pre-review gate). These pass locally; they are config, not your diff.
+2. **CI-environment failures** — auth (`logged_out_on_connected_teamspace`) and the
+   gate opt-outs (`SPEC_KITTY_SYNC_MINIMAL_IMPORT` / `SPEC_KITTY_SYNC_DISABLE`).
+   These pass locally; they are config, not your diff.
 3. **Stale-install false reds** — code that shells out to `spec-kitty` (e.g. the
    `merge-driver-*` commands) only fires after `pip install -e .`; a stale install reports
    false reds until you reinstall.
+4. **Stale-venv false reds** — a `ModuleNotFoundError` (or other import failure) for a
+   package that *is* declared and pinned (`pyproject.toml` / `uv.lock`) usually means the
+   local `.venv` was never (re)synced to that pin, not a real regression. Re-run
+   `uv sync --frozen --all-extras` and retry before recording the failure as pre-existing or
+   unrelated — a stale venv is indistinguishable from real breakage in raw pytest output
+   (#648: a PR's `## Tests run` excluded a whole test file over exactly
+   this; a clean `uv sync --frozen --all-extras` reproduced 1621/1621 passing, no exclusion
+   needed).
 Only failures that are red on your branch **and** green on the base are yours to fold. Never
-green-wash category 1, and never misattribute categories 2–3 to your own work. Full policy:
+green-wash category 1, and never misattribute categories 2–4 to your own work. Full policy:
 [docs/development/testing/testing-flakiness.md](docs/development/testing/testing-flakiness.md#test-run-baseline-red-gotcha).
 
 ## Code Style
@@ -283,7 +302,7 @@ Treat these as code-shaping constraints, not post-hoc cleanup:
 
 ## PyPI Release
 
-No releases happen inside this programme. `.github/workflows/release.yml` still exists with live triggers (`push: tags: ['v*.*.*']` plus `workflow_dispatch`) — Actions are inert here (0 runs ever, including across merges to `main`), but the workflow itself remains wired: if Actions are ever re-enabled, a pushed tag fires it. Pushing a tag (`git push origin vX.Y.Z`) is a tag-ref push, not a push to `main`, so the "never push to `main`" rule above does not cover it — **do not push tags either.** If the Human-in-Control explicitly requests a release, treat that as its own decision. Historical mechanics: [CONTRIBUTING.md](CONTRIBUTING.md#release-process).
+Follow [`RELEASE_CHECKLIST.md`](RELEASE_CHECKLIST.md) for PyPI and GitHub releases. Publication is owner+controller-executed only after the required checks pass. Contributors do not push release tags as part of an ordinary change; that restriction applies until the [#830 release phase](https://github.com/spec-kitty/EXPERIMENTAL-spec-kitty/issues/830). `release.yml` is not present in this EXPERIMENTAL checkout.
 
 ---
 
@@ -440,7 +459,7 @@ Full runbook: [docs/migrations/mission-id-canonical-identity.md](docs/migrations
 ## Shared Package Boundary (2026-04-25)
 
 - **Runtime:** `src/runtime/next/_internal_runtime/` (canonical). `src/specify_cli/next/` is a deprecation shim removed in 3.3.0 — do not anchor new code there. `spec-kitty-runtime` PyPI package is retired.
-- **Events / Tracker:** External PyPI dependencies. Consume only via `spec_kitty_events.*` / `spec_kitty_tracker.*` public imports. Vendored copies removed.
+- **Events / Tracker:** Consume only via `spec_kitty_events.*` / `spec_kitty_tracker.*` public imports. Vendored copies are removed. In the EXPERIMENTAL programme, these packages resolve from exact git-rev pins per [planning `PROGRAM.md` §2](https://github.com/spec-kitty/EXPERIMENTAL-spec-kitty-planning/blob/main/PROGRAM.md) and the [internal-distribution ADR](https://github.com/spec-kitty/EXPERIMENTAL-spec-kitty-planning/blob/main/decisions/ADR-INTERNAL-PYTHON-PACKAGE-DISTRIBUTION-2026-08-27.md); PyPI ranges return with [#830 Phase 3](https://github.com/spec-kitty/EXPERIMENTAL-spec-kitty/issues/830).
 - **Dev editable/path overrides:** never committed in `pyproject.toml [tool.uv.sources]`. See [docs/development/how-to/local-overrides.md](docs/development/how-to/local-overrides.md).
 
 Enforced by `tests/architectural/test_shared_package_boundary.py`, `test_pyproject_shape.py`, and the `clean-install-verification` CI job.
@@ -508,17 +527,21 @@ edges:
 
 `AgentProfileRepository.skipped_profiles` exposes load failures without filesystem rescans. Included in `spec-kitty doctor doctrine --json`. A pack with invalid profiles is NOT reported healthy even if DRG counts are valid (FR-010).
 
-### Deferred Items
+### Upstream Deferred-Item References
 
-- [#1622](https://github.com/Priivacy-ai/spec-kitty/issues/1622): `coordination.status_service` dead-symbol debt
-- [#1623](https://github.com/Priivacy-ai/spec-kitty/issues/1623): `doctor.py` god-module split (FR-012)
-- [#1624](https://github.com/Priivacy-ai/spec-kitty/issues/1624): `_tag_source` provenance sidecar typing (FR-013)
+These Priivacy-ai links are upstream references, not work items for this EXPERIMENTAL repository:
+
+- [#1622](https://github.com/Priivacy-ai/spec-kitty/issues/1622) (upstream): `coordination.status_service` dead-symbol debt
+- [#1623](https://github.com/Priivacy-ai/spec-kitty/issues/1623) (upstream): `doctor.py` god-module split (FR-012)
+- [#1624](https://github.com/Priivacy-ai/spec-kitty/issues/1624) (upstream): `_tag_source` provenance sidecar typing (FR-013)
 
 ---
 
 ## Branches and CI
 
-Nothing on GitHub enforces the workflow in this programme's repos — no branch protection, no required reviews, and no deploy wired to a merge (the pre-programme `.github/workflows/` YAML has been deleted; see PROGRAM.md §2 and planning#57); [`PROGRAM.md`](https://github.com/spec-kitty/EXPERIMENTAL-spec-kitty-planning/blob/main/PROGRAM.md) §5–§9 does (see *Git Workflow* above). `spec-kitty merge` still consolidates into **local** `main` only — do NOT use `spec-kitty merge --push` or `git push origin main`; publish via an `issue-<n>-<slug>` branch and a PR targeting `main`, and let the merge agent merge.
+GitHub branch protection and review requirements enforce the repository workflow. `spec-kitty merge` still consolidates into **local** `main` only — do NOT use `spec-kitty merge --push` or `git push origin main`; publish via a topic branch and a PR targeting `main`.
+
+Live GitHub Actions are part of that workflow. `ci.yml` is the Blacksmith producer for the programme's deterministic merge-gate suite; the planning configuration `SK_CI_ACTIONS_REPOS` at `infra/models.env:77` includes `spec-kitty`, `spec-kitty-tracker`, `spec-kitty-events`, and `zeitgeist`. `ci-quality.yml` and `protect-main.yml` are [#830 Phase-1](https://github.com/spec-kitty/EXPERIMENTAL-spec-kitty/issues/830) infrastructure. `ci-windows.yml`, `docs-pages.yml`, and `check-spec-kitty-events-alignment.yml` are also live.
 
 ---
 
@@ -575,7 +598,7 @@ unset GITHUB_TOKEN && gh issue comment <issue> --body "..."
 
 ## Other Notes
 
-Never claim frontend works without Playwright proof. API responses don't guarantee UI works; frontend can fail silently (404 caught, shows fallback). This is enforced, not aspirational: the runnable regression guard lives at [`tests/ui/test_dashboard_wp_modal.py`](tests/ui/test_dashboard_wp_modal.py) (`PWHEADLESS=1 .venv/bin/python -m pytest tests/ui/ -q` — **not** a bare `uv run`, which re-syncs the environment and destroys a hand-built `.venv`; this has cost mission `sync-sleep-count-3136` four venv rebuilds), used to run headless in CI via the now-deleted `.github/workflows/ui-e2e.yml` (pre-programme GitHub Actions cruft removed per PROGRAM.md §2 and planning#57 — run the local command above instead), and is copy-template documented in [`docs/development/testing/ui-e2e.md`](docs/development/testing/ui-e2e.md) — extend that suite instead of asserting UI behavior from API responses alone.
+Never claim frontend works without Playwright proof. API responses don't guarantee UI works; frontend can fail silently (404 caught, shows fallback). This is enforced, not aspirational: the runnable regression guard lives at [`tests/ui/test_dashboard_wp_modal.py`](tests/ui/test_dashboard_wp_modal.py) (`PWHEADLESS=1 .venv/bin/python -m pytest tests/ui/ -q` — **not** a bare `uv run`, which re-syncs the environment and destroys a hand-built `.venv`). The suite is documented in [`docs/development/testing/ui-e2e.md`](docs/development/testing/ui-e2e.md) — extend it instead of asserting UI behavior from API responses alone.
 
 ---
 

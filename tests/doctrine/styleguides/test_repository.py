@@ -5,8 +5,8 @@ from pathlib import Path
 import pytest
 from ruamel.yaml import YAML
 
-from doctrine.styleguides.repository import StyleguideRepository
-from doctrine.styleguides.validation import validate_styleguide
+from charter.offering.styleguides.repository import StyleguideRepository
+from charter.offering.styleguides.validation import validate_styleguide
 pytestmark = [pytest.mark.fast, pytest.mark.doctrine]
 
 
@@ -94,7 +94,7 @@ class TestStyleguideRepository:
     def test_save_writes_valid_yaml(
         self, tmp_path: Path, sample_styleguide_data: dict
     ) -> None:
-        from doctrine.styleguides.models import Styleguide
+        from charter.offering.styleguides.models import Styleguide
 
         project_dir = tmp_path / "project"
         repo = StyleguideRepository(
@@ -115,7 +115,7 @@ class TestStyleguideRepository:
     def test_save_raises_without_project_dir(
         self, tmp_path: Path, sample_styleguide_data: dict
     ) -> None:
-        from doctrine.styleguides.models import Styleguide
+        from charter.offering.styleguides.models import Styleguide
 
 
         repo = StyleguideRepository(built_in_dir=tmp_path / "empty")

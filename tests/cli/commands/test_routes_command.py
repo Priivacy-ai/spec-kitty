@@ -1,4 +1,4 @@
-"""``spec-kitty routes`` (EXPERIMENTAL-spec-kitty#10): which team admits
+"""``spec-kitty routes`` (Priivacy-ai/spec-kitty#10): which team admits
 this checkout, and which relay carries its moments.
 
 Covers the three answers the command can honestly give — admitted (team +
@@ -239,7 +239,7 @@ def test_cached_credential_answers_offline_without_asking_team_kitty(state_root:
 def test_cached_credential_answers_offline_even_with_nothing_configured_to_authenticate_with(
     state_root: Path, clone: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    """EXPERIMENTAL-spec-kitty#151: a checkout with a valid stored credential
+    """Priivacy-ai/spec-kitty#151: a checkout with a valid stored credential
     but no auth configured anywhere (no env vars, no saas-auth.json, no
     `auth login` session) must still answer offline — the gateway is never
     needed for a cache hit."""
@@ -300,6 +300,25 @@ def test_cached_negative_answers_offline(state_root: Path, auth_env: None, clone
     result = runner.invoke(app, ["routes"])
     assert result.exit_code == 0
     assert "not admitted to any team — no relay" in result.stdout
+
+
+def test_cached_negative_is_loaded_once_for_routes(state_root: Path, auth_env: None, clone: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """The offline negative found by ``cached_answer`` is reused by routes."""
+    credentials.store_negative(repo="github.com/acme/widget", reason="stale-reason")
+    original_load_negative = credentials.load_negative
+    load_calls = 0
+
+    def count_negative_load(*, repo: str) -> credentials.NegativeEntry | None:
+        nonlocal load_calls
+        load_calls += 1
+        return original_load_negative(repo=repo)
+
+    monkeypatch.setattr(credentials, "load_negative", count_negative_load)
+
+    result = runner.invoke(app, ["routes"])
+
+    assert result.exit_code == 0
+    assert load_calls == 1
 
 
 # --- faults -----------------------------------------------------------------

@@ -18,6 +18,8 @@ import os
 import re
 from pathlib import Path
 
+from specify_cli.gitignore_manager import IgnoreFilePathError, read_ignore_file_text
+
 from ..registry import MigrationRegistry
 from .base import BaseMigration, MigrationResult
 
@@ -70,13 +72,15 @@ def find_blocking_entries(gitignore_path: Path) -> list[tuple[int, str]]:
 
     Returns list of (line_number, line_content) tuples.
     Line numbers are 1-indexed for user display.
+
+    Raises:
+        IgnoreFilePathError: If `gitignore_path` is a symlink.
     """
-    if not gitignore_path.exists():
+    content = read_ignore_file_text(gitignore_path, errors="ignore")
+    if not content:
         return []
 
     blocking_entries = []
-    content = gitignore_path.read_text(encoding="utf-8-sig", errors="ignore")
-
     for i, line in enumerate(content.splitlines(), start=1):
         if is_blocking_pattern(line):
             blocking_entries.append((i, line.strip()))
@@ -102,8 +106,8 @@ def remove_blocking_entries(gitignore_path: Path, dry_run: bool = False) -> tupl
         return changes, errors
 
     try:
-        content = gitignore_path.read_text(encoding="utf-8-sig", errors="ignore")
-    except OSError as e:
+        content = read_ignore_file_text(gitignore_path, errors="ignore")
+    except (OSError, IgnoreFilePathError) as e:
         errors.append(f"Failed to read .gitignore: {e}")
         return changes, errors
 
@@ -155,7 +159,13 @@ class RemoveKittySpecsFromGitignoreMigration(BaseMigration):
     def detect(self, project_path: Path) -> bool:
         """Check if .gitignore contains blocking kitty-specs/ entries."""
         gitignore_path = project_path / ".gitignore"
-        blocking_entries = find_blocking_entries(gitignore_path)
+        try:
+            blocking_entries = find_blocking_entries(gitignore_path)
+        except IgnoreFilePathError:
+            # Fail closed: report as needing the migration rather than
+            # silently skipping. can_apply() below re-checks the same
+            # symlink and blocks apply(), so this never follows it.
+            return True
         return len(blocking_entries) > 0
 
     def can_apply(self, project_path: Path) -> tuple[bool, str]:
@@ -170,9 +180,9 @@ class RemoveKittySpecsFromGitignoreMigration(BaseMigration):
             return True, ""
 
         try:
-            gitignore_path.read_text(encoding="utf-8-sig", errors="ignore")
+            read_ignore_file_text(gitignore_path, errors="ignore")
             return True, ""
-        except OSError as e:
+        except (OSError, IgnoreFilePathError) as e:
             return False, f".gitignore is not readable: {e}"
 
     def apply(self, project_path: Path, dry_run: bool = False) -> MigrationResult:

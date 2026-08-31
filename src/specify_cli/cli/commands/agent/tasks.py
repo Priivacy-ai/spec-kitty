@@ -309,6 +309,16 @@ from specify_cli.cli.commands.agent.tasks_shared import (
     _wp_branch_merged_into_target as _wp_branch_merged_into_target,
 )
 
+# WP05 (#3590): advisory authoring-time un-terminable-work detector. Pure matcher
+# lives in the owned ``tasks_authoring`` package; the ``check-terminability``
+# command below owns only the file I/O + rendering (FR-007/FR-008, C-005 — no
+# ``mission_finalize.py`` coupling).
+from specify_cli.tasks_authoring import (
+    TRIGGER_SET_VERSION,
+    PostIntegrationWarning,
+    scan_work_package,
+)
+
 # Re-exported lane helpers consumed by tests via
 # ``from ...agent.tasks import <name>`` even though tasks.py uses them only
 # indirectly; listed in ``__all__`` so the re-export is explicit (C-007).
@@ -428,6 +438,7 @@ from specify_cli.cli.commands.agent.tasks_move_task import (
     _mt_gather_late_facts as _mt_gather_late_facts,
     _mt_gather_review_facts as _mt_gather_review_facts,
     _mt_hop_actor as _mt_hop_actor,
+    _mt_hop_reason_source as _mt_hop_reason_source,
     _mt_hop_review_result as _mt_hop_review_result,
     _mt_issue_matrix_facts as _mt_issue_matrix_facts,
     _mt_output as _mt_output,
@@ -473,6 +484,7 @@ from specify_cli.cli.commands.agent.tasks_move_task import (
     _mt_collect_transition_gate_verdicts as _mt_collect_transition_gate_verdicts,
     _mt_dispatch_one_gate as _mt_dispatch_one_gate,
     _mt_dispatch_transition_gates as _mt_dispatch_transition_gates,
+    _mt_human_gate_status_observer as _mt_human_gate_status_observer,
     _mt_emit_skipped_gate as _mt_emit_skipped_gate,
     _mt_emit_transition_gate_effect as _mt_emit_transition_gate_effect,
     # WP16 (lifecycle-gate-execution-context-01KY72GQ, IC-07f): the retired
@@ -1345,6 +1357,124 @@ def list_dependents(
                 console.print(f"\n[yellow]⚠️  Changes to {wp_id} may impact: {', '.join(dependents)}[/yellow]")
             console.print()
 
+    except Exception as e:
+        _output_error(json_output, str(e))
+        raise typer.Exit(1) from None
+
+
+# WP05 (#3590): guidance printed alongside a warning so the operator knows the
+# remedy — re-home the post-integration obligation, don't try to satisfy it in
+# the lane. Hoisted to a constant (Sonar S1192) so the human and any future
+# surface share one wording.
+_TERMINABILITY_GUIDANCE = (
+    "Re-home post-integration content to a tracked post-merge obligations "
+    "document; a work package's acceptance criteria must be verifiable in its "
+    "own diff."
+)
+
+
+def _collect_terminability_warnings(tasks_dir: Path) -> list[PostIntegrationWarning]:
+    """Read every WP file under ``tasks_dir`` and run the pure detector on each.
+
+    This is the I/O boundary for the advisory check: it maps each ``WP*.md`` to
+    its ``(wp_id, text)`` pair and delegates matching to
+    :func:`scan_work_package` (which stays pure). Warnings are returned in
+    (file, document) order.
+    """
+    warnings: list[PostIntegrationWarning] = []
+    for task_file in sorted(tasks_dir.glob("WP*.md")):
+        if task_file.name.lower() == "readme.md":
+            continue
+        content = task_file.read_text(encoding="utf-8-sig")
+        frontmatter, body, _ = split_frontmatter(content)
+        wp_id = extract_scalar(frontmatter, "work_package_id") or task_file.stem
+        warnings.extend(scan_work_package(wp_id, body))
+    return warnings
+
+
+def _render_terminability(
+    warnings: list[PostIntegrationWarning],
+    mission_slug: str,
+    json_output: bool,
+) -> None:
+    """Render advisory warnings (JSON envelope or human console). Never blocks."""
+    if json_output:
+        render = RealRender()
+        print(
+            render.json_envelope(
+                {
+                    "mission": mission_slug,
+                    "trigger_set_version": TRIGGER_SET_VERSION,
+                    "warnings": [w.to_dict() for w in warnings],
+                    "count": len(warnings),
+                    "guidance": _TERMINABILITY_GUIDANCE if warnings else None,
+                }
+            )
+        )
+        return
+    if not warnings:
+        console.print(
+            f"[green]✓[/green] No un-terminable-work warnings for {mission_slug}."
+        )
+        return
+    console.print(
+        f"[yellow]⚠️  {len(warnings)} un-terminable-work warning(s) for "
+        f"{mission_slug} (advisory — authoring is not blocked):[/yellow]\n"
+    )
+    for warning in warnings:
+        console.print(
+            f"  [bold]{warning.wp_id}[/bold] matched "
+            f"[cyan]{warning.matched_phrase!r}[/cyan]: {warning.criterion_excerpt}"
+        )
+    console.print(f"\n[dim]{_TERMINABILITY_GUIDANCE}[/dim]")
+
+
+@app.command(name="check-terminability")
+def check_terminability(
+    mission: Annotated[str | None, typer.Option("--mission", help="Mission slug")] = None,
+    json_output: Annotated[bool, typer.Option("--json", help="Output JSON format")] = False,
+) -> None:
+    """Advisory scan for work packages that can only be terminated post-integration.
+
+    Warns when a WP's acceptance criteria contain a post-integration trigger
+    phrase (the #3590 trap) — content that cannot be verified in the WP's own
+    diff. This is **advisory only**: it never refuses or fails authoring
+    (FR-008) — it exits 0 even when warnings fire. It does not touch the
+    finalize / lane-compute path (C-005).
+
+    Examples:
+        spec-kitty agent tasks check-terminability --mission my-mission --json
+    """
+    try:
+        repo_root = locate_project_root()
+        if repo_root is None:
+            _output_error(json_output, "Could not locate project root")
+            raise typer.Exit(1)
+
+        mission_slug = _find_mission_slug(
+            explicit_mission=mission, json_output=json_output, repo_root=repo_root
+        )
+        main_repo_root, _ = _ensure_target_branch_checked_out(
+            repo_root, mission_slug, json_output
+        )
+        # tasks/ is PRIMARY-partition (WORK_PACKAGE_TASK), same seam as list-tasks.
+        tasks_dir = (
+            placement_seam(main_repo_root, mission_slug).read_dir(
+                MissionArtifactKind.WORK_PACKAGE_TASK
+            )
+            / "tasks"
+        )
+        if not tasks_dir.exists():
+            _output_error(json_output, f"Tasks directory not found: {tasks_dir}")
+            raise typer.Exit(1)
+
+        warnings = _collect_terminability_warnings(tasks_dir)
+        _render_terminability(warnings, mission_slug, json_output)
+        # FR-008: advisory only. Warnings never yield a non-zero exit — the
+        # command returns normally here (exit 0) even when ``warnings`` is
+        # non-empty.
+    except typer.Exit:
+        raise
     except Exception as e:
         _output_error(json_output, str(e))
         raise typer.Exit(1) from None

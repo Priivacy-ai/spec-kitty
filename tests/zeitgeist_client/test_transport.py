@@ -562,7 +562,7 @@ def test_offer_event_publish_rejected_when_capability_token_kind_does_not_grant_
     behavior under test). Pin the double's raw status too so a future
     accidental drop of ``event.publish`` from ``_ALL_MANAGED_OPS`` fails
     this test loudly (422) instead of silently passing for the wrong
-    reason.
+    reason. The payload pins the specific 403 detail as well.
     """
     client = _kinded_client(managed_control_double, kind="focus")
     result = client.offer(
@@ -571,7 +571,10 @@ def test_offer_event_publish_rejected_when_capability_token_kind_does_not_grant_
     )
     assert result.outcome == transport.OfferOutcome.REJECTED
     assert managed_control_double.applied_op_count("event.publish") == 0
-    assert managed_control_double.last_response_status() == 403
+    assert managed_control_double.last_response_status() == (
+        403,
+        {"detail": "capability does not grant op event.publish"},
+    )
 
 
 def test_offer_rejected_when_authorization_bearer_is_wrong(managed_control_double):
