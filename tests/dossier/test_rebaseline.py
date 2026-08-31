@@ -476,7 +476,7 @@ class TestRebaselineErrorBranches:
 
 
 def _write_org_pack_config(repo_root: Path, *, packs: list[tuple[str, Path]]) -> None:
-    """Write ``<repo_root>/.kittify/config.yaml`` with a ``charter.offering.org.packs``
+    """Write ``<repo_root>/.kittify/config.yaml`` with a ``doctrine.org.packs``
     registry -- mirrors ``tests/dossier/test_manifest.py``'s helper of the
     same name/shape (duplicated locally to keep this owned test file
     self-contained rather than cross-importing another test module's

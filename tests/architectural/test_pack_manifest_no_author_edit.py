@@ -39,7 +39,7 @@ import pytest
 import yaml
 
 from charter.offering.pack_paths import built_in_root
-from specify_cli.charter.offering.builtin_manifest import (
+from specify_cli.doctrine.builtin_manifest import (
     MANIFEST_FILENAME,
     generate_builtin_manifest,
 )

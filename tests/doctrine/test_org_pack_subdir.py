@@ -47,7 +47,7 @@ def _make_pack(tmp_path: Path, *, subdir: str | None = None) -> OrgPackConfig:
 def _write_config_with_subdir(
     repo_root: Path, *, pack_path: str, subdir: str | None = None
 ) -> None:
-    """Write a canonical charter.offering.org.packs config.yaml entry."""
+    """Write a canonical doctrine.org.packs config.yaml entry."""
     config_dir = repo_root / ".kittify"
     config_dir.mkdir(parents=True, exist_ok=True)
     subdir_line = f"\n        subdir: {subdir}" if subdir is not None else ""

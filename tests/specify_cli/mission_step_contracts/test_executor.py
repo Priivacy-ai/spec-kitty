@@ -259,7 +259,7 @@ def write_org_pack_config(repo_root: Path, org_root: Path, *, pack_name: str = O
     ``resolve_org_dirs`` (FR-001/FR-005, list-shaped, joins ``subdir`` onto
     this root) and ``_enumerate_org_pack_paths`` (FR-002, single-path,
     first-match on this same root) — both read the identical
-    ``charter.offering.org.packs`` config this helper writes.
+    ``doctrine.org.packs`` config this helper writes.
     """
     config_dir = repo_root / ".kittify"
     config_dir.mkdir(parents=True, exist_ok=True)

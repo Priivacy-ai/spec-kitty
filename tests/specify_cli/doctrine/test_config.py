@@ -1,4 +1,4 @@
-"""Tests for ``specify_cli.charter.offering.config`` and the ``doctrine fetch`` CLI.
+"""Tests for ``specify_cli.doctrine.config`` and the ``doctrine fetch`` CLI.
 
 Covers the matrix from WP05 T026:
 
@@ -25,8 +25,8 @@ from charter.offering.drg.org_pack_config import (
     resolve_org_roots,
     save_pack_registry,
 )
-from specify_cli.charter.offering.config import load_pack_registry
-from specify_cli.charter.offering.sources.protocol import FetchResult
+from specify_cli.doctrine.config import load_pack_registry
+from specify_cli.doctrine.sources.protocol import FetchResult
 
 
 # ----------------------------------------------------------------------
@@ -419,7 +419,7 @@ class TestDoctrineFetchCLI:
             )
 
         monkeypatch.setattr(
-            "specify_cli.charter.offering.snapshot.fetch_pack", fake_fetch_pack
+            "specify_cli.doctrine.snapshot.fetch_pack", fake_fetch_pack
         )
 
         runner = CliRunner()
@@ -453,7 +453,7 @@ class TestDoctrineFetchCLI:
         )
         fetched_names: list[str] = []
         monkeypatch.setattr(
-            "specify_cli.charter.offering.snapshot.fetch_pack",
+            "specify_cli.doctrine.snapshot.fetch_pack",
             lambda pack, repo_root: (
                 fetched_names.append(pack.name)
                 or FetchResult(ok=True, artifacts_written=1, pack_version=None)
@@ -502,7 +502,7 @@ class TestDoctrineFetchCLI:
             """,
         )
         monkeypatch.setattr(
-            "specify_cli.charter.offering.snapshot.fetch_pack",
+            "specify_cli.doctrine.snapshot.fetch_pack",
             lambda pack, repo_root: FetchResult(
                 ok=False, artifacts_written=0, pack_version=None,
                 errors=["network unreachable"],

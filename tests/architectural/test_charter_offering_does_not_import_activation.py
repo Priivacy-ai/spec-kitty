@@ -103,9 +103,7 @@ def _is_activation_module(module: str) -> bool:
     (e.g. a hypothetical ``charter.activation_log``) is correctly *not*
     flagged.
     """
-    return module in _ACTIVATION_MODULES or any(
-        module.startswith(f"{m}.") for m in _ACTIVATION_MODULES
-    )
+    return module in _ACTIVATION_MODULES or any(module.startswith(f"{m}.") for m in _ACTIVATION_MODULES)
 
 
 def _dotted_module_name(path: Path, package_root: Path) -> str:

@@ -56,7 +56,7 @@ def project_with_malformed_org_mission_type(tmp_path: Path) -> Path:
     """A project with a real, config.yaml-registered org pack whose
     ``mission_types/broken.yaml`` is syntactically malformed YAML.
 
-    Deliberately real filesystem + real ``charter.offering.org.packs`` config (no
+    Deliberately real filesystem + real ``doctrine.org.packs`` config (no
     ``PackContext.from_config`` mock) -- this mirrors the finding's own
     reproduction and the ``tests/integration/test_org_pack_artifact_lifecycle.py``
     org-pack registration convention.

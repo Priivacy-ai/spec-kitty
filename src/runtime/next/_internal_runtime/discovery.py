@@ -96,7 +96,7 @@ class DiscoveryContext(BaseModel):
     user_home: Path = Field(default_factory=lambda: Path.home())
     builtin_roots: list[Path] = Field(default_factory=list)
     #: Org-pack doctrine roots (FR-007), one per configured
-    #: ``charter.offering.org.packs[]`` entry. Populated by callers via the lazy
+    #: ``doctrine.org.packs[]`` entry. Populated by callers via the lazy
     #: ``charter.drg.resolve_org_roots(repo_root)`` facade -- this module
     #: never resolves org roots itself, matching DEC-004's discipline that
     #: ``src/runtime/next/**`` stays a pure consumer of the already-resolved

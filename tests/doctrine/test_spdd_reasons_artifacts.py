@@ -13,7 +13,7 @@ import pytest
 from charter.offering.pack_paths import resolve_pack_root
 from charter.offering.service import DoctrineService
 
-from tests.charter.offering.conftest import DOCTRINE_SOURCE_ROOT
+from tests.doctrine.conftest import DOCTRINE_SOURCE_ROOT
 
 pytestmark = [pytest.mark.fast, pytest.mark.doctrine, pytest.mark.corpus]
 

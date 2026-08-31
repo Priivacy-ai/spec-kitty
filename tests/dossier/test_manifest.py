@@ -499,7 +499,7 @@ class TestManifestYAMLFormat:
 
 
 def _write_org_pack_config(repo_root: Path, *, packs: list[tuple[str, Path]]) -> None:
-    """Write ``<repo_root>/.kittify/config.yaml`` with a ``charter.offering.org.packs``
+    """Write ``<repo_root>/.kittify/config.yaml`` with a ``doctrine.org.packs``
     registry only -- no mission-type-activation block, since
     ``ManifestRegistry.load_manifest`` reads org packs directly via
     ``resolve_org_roots``/``resolve_org_expected_artifacts``, not through the

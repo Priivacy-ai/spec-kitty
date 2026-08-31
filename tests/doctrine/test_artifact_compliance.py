@@ -13,7 +13,7 @@ import pytest
 import yaml
 from jsonschema import Draft202012Validator  # type: ignore[import-untyped]
 
-from tests.charter.offering.conftest import DOCTRINE_SOURCE_ROOT, REPO_ROOT
+from tests.doctrine.conftest import DOCTRINE_SOURCE_ROOT, REPO_ROOT
 
 pytestmark = [pytest.mark.doctrine, pytest.mark.fast]
 

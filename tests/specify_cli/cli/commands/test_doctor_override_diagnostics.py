@@ -89,7 +89,7 @@ def _write_org_override_pack(repo_root: Path) -> Path:
 
 
 def _write_config(repo_root: Path, pack_root: Path) -> None:
-    """Write the canonical ``charter.offering.org.packs`` config that ``load_org_drg`` reads."""
+    """Write the canonical ``doctrine.org.packs`` config that ``load_org_drg`` reads."""
     kittify = repo_root / ".kittify"
     kittify.mkdir(exist_ok=True)
     (kittify / "config.yaml").write_text(

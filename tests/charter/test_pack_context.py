@@ -302,7 +302,7 @@ def test_activated_mission_types_read_from_config(tmp_path: Path) -> None:
 
 
 def test_org_pack_names_and_roots_populated(tmp_path: Path) -> None:
-    """When charter.offering.org.packs is present, org_pack_names and pack_roots are populated."""
+    """When doctrine.org.packs is present, org_pack_names and pack_roots are populated."""
     # Create a fake pack directory
     pack_dir = tmp_path / "acme-pack"
     pack_dir.mkdir()

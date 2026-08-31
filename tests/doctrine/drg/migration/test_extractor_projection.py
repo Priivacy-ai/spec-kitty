@@ -32,7 +32,7 @@ from charter.offering.drg.migration.hand_authored_overlay import (
 )
 from charter.offering.drg.models import Relation
 from charter.offering.missions.mission_step_repository import MissionStepRepository
-from tests.charter.offering._builtin_inventory import (
+from tests.doctrine._builtin_inventory import (
     pure_builtin_node_count,
     shipped_builtin_node_count,
 )

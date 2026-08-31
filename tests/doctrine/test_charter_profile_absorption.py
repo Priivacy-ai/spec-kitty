@@ -32,7 +32,7 @@ from charter.synthesizer.manifest import (
     verify_manifest_hash,
 )
 from charter.offering.artifact_kinds import ArtifactKind
-from specify_cli.charter.offering.pack_manifest import (
+from specify_cli.doctrine.pack_manifest import (
     CharterProfile,
     absorb_synthesis_manifest,
 )

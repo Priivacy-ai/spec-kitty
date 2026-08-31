@@ -2,7 +2,7 @@
 
 ``HttpsBundleSource`` downloads a tar.gz or zip archive over HTTPS, extracts
 it into ``target_dir`` and returns a :class:`FetchResult`.  Atomic-write
-semantics are layered on by :func:`specify_cli.charter.offering.snapshot.write_snapshot`.
+semantics are layered on by :func:`specify_cli.doctrine.snapshot.write_snapshot`.
 """
 
 from __future__ import annotations

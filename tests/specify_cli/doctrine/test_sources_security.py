@@ -103,7 +103,7 @@ class TestSafeExtractTarPathTraversal:
 
     def test_normal_member_is_extracted(self, tmp_path: Path) -> None:
         """Sanity: a legitimate archive member is extracted correctly."""
-        from specify_cli.charter.offering.sources.https_source import _safe_extract_tar  # noqa: PLC0415
+        from specify_cli.doctrine.sources.https_source import _safe_extract_tar  # noqa: PLC0415
 
         data = _make_tar_gz([("file.yaml", b"key: value\n")])
         with tarfile.open(fileobj=io.BytesIO(data), mode="r:gz") as tf:
@@ -123,7 +123,7 @@ class TestSafeExtractTarPathTraversal:
         self, tmp_path: Path, evil_name: str
     ) -> None:
         """Path-traversal entries must raise TarError, not extract."""
-        from specify_cli.charter.offering.sources.https_source import _safe_extract_tar  # noqa: PLC0415
+        from specify_cli.doctrine.sources.https_source import _safe_extract_tar  # noqa: PLC0415
 
         data = _make_tar_gz([(evil_name, b"evil\n")])
         with tarfile.open(fileobj=io.BytesIO(data), mode="r:gz") as tf, pytest.raises(tarfile.TarError, match="(?i)path traversal|Refusing"):
@@ -135,7 +135,7 @@ class TestSafeExtractTarPathTraversal:
 
         This is the exact attack vector fixed by the P1 patch (2026-05).
         """
-        from specify_cli.charter.offering.sources.https_source import _safe_extract_tar  # noqa: PLC0415
+        from specify_cli.doctrine.sources.https_source import _safe_extract_tar  # noqa: PLC0415
 
         # Create the target dir so its suffix-neighbor has the same str prefix.
         target_dir = tmp_path / "target"
@@ -165,7 +165,7 @@ class TestSafeExtractTarSymlinkRejection:
 
     def test_symlink_entry_is_rejected(self, tmp_path: Path) -> None:
         """Symlink entries must raise TarError before extraction begins."""
-        from specify_cli.charter.offering.sources.https_source import _safe_extract_tar  # noqa: PLC0415
+        from specify_cli.doctrine.sources.https_source import _safe_extract_tar  # noqa: PLC0415
 
         data = _make_tar_gz_with_symlink("etc", "/etc")
         with tarfile.open(fileobj=io.BytesIO(data), mode="r:gz") as tf, pytest.raises(tarfile.TarError, match="(?i)symlink|Refusing"):
@@ -173,7 +173,7 @@ class TestSafeExtractTarSymlinkRejection:
 
     def test_hardlink_entry_is_rejected(self, tmp_path: Path) -> None:
         """Hardlink entries must raise TarError before extraction begins."""
-        from specify_cli.charter.offering.sources.https_source import _safe_extract_tar  # noqa: PLC0415
+        from specify_cli.doctrine.sources.https_source import _safe_extract_tar  # noqa: PLC0415
 
         data = _make_tar_gz_with_hardlink("shadow", "/etc/shadow")
         with tarfile.open(fileobj=io.BytesIO(data), mode="r:gz") as tf, pytest.raises(tarfile.TarError, match="(?i)symlink|hardlink|Refusing"):
@@ -181,7 +181,7 @@ class TestSafeExtractTarSymlinkRejection:
 
     def test_symlink_does_not_land_on_disk(self, tmp_path: Path) -> None:
         """No symlink must appear on disk after a rejected extraction."""
-        from specify_cli.charter.offering.sources.https_source import _safe_extract_tar  # noqa: PLC0415
+        from specify_cli.doctrine.sources.https_source import _safe_extract_tar  # noqa: PLC0415
 
         data = _make_tar_gz_with_symlink("mylink", "/etc")
         with (
@@ -213,14 +213,14 @@ class TestSafeExtractZipPathTraversal:
     def test_path_traversal_is_rejected(
         self, tmp_path: Path, evil_name: str
     ) -> None:
-        from specify_cli.charter.offering.sources.https_source import _safe_extract_zip  # noqa: PLC0415
+        from specify_cli.doctrine.sources.https_source import _safe_extract_zip  # noqa: PLC0415
 
         data = _make_zip([(evil_name, b"evil\n")])
         with zipfile.ZipFile(io.BytesIO(data)) as zf, pytest.raises(zipfile.BadZipFile, match="(?i)path traversal|Refusing"):
             _safe_extract_zip(zf, tmp_path)
 
     def test_sibling_prefix_bypass_is_rejected(self, tmp_path: Path) -> None:
-        from specify_cli.charter.offering.sources.https_source import _safe_extract_zip  # noqa: PLC0415
+        from specify_cli.doctrine.sources.https_source import _safe_extract_zip  # noqa: PLC0415
 
         target_dir = tmp_path / "target"
         target_dir.mkdir()
@@ -268,7 +268,7 @@ class TestApiSourceFilenameTraversal:
         self, tmp_path: Path, evil_filename: str
     ) -> None:
         """Evil filenames from /artifacts/{type} are silently skipped (not written)."""
-        from specify_cli.charter.offering.sources.api_source import ApiSource  # noqa: PLC0415
+        from specify_cli.doctrine.sources.api_source import ApiSource  # noqa: PLC0415
 
         source = ApiSource(url="https://example.com/api")
 
@@ -292,7 +292,7 @@ class TestApiSourceFilenameTraversal:
 
     def test_safe_filename_is_written(self, tmp_path: Path) -> None:
         """A safe filename from the server IS written correctly."""
-        from specify_cli.charter.offering.sources.api_source import ApiSource  # noqa: PLC0415
+        from specify_cli.doctrine.sources.api_source import ApiSource  # noqa: PLC0415
 
         source = ApiSource(url="https://example.com/api")
         artifact_response = _make_api_response(
@@ -317,7 +317,7 @@ class TestApiSourceFilenameTraversal:
         self, tmp_path: Path, evil_filename: str
     ) -> None:
         """Evil filenames from /drg-extensions are silently skipped."""
-        from specify_cli.charter.offering.sources.api_source import ApiSource  # noqa: PLC0415
+        from specify_cli.doctrine.sources.api_source import ApiSource  # noqa: PLC0415
 
         source = ApiSource(url="https://example.com/api")
         drg_response = _make_api_response(
@@ -342,8 +342,8 @@ class TestHttpsBundleSourceSizeLimits:
     def test_declared_raw_archive_limit_is_rejected(
         self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
     ) -> None:
-        from specify_cli.charter.offering.sources import https_source  # noqa: PLC0415
-        from specify_cli.charter.offering.sources.https_source import HttpsBundleSource  # noqa: PLC0415
+        from specify_cli.doctrine.sources import https_source  # noqa: PLC0415
+        from specify_cli.doctrine.sources.https_source import HttpsBundleSource  # noqa: PLC0415
 
         monkeypatch.setattr(https_source, "MAX_ARCHIVE_BYTES", 4)
         source = HttpsBundleSource(url="https://example.com/pack.zip")
@@ -362,8 +362,8 @@ class TestHttpsBundleSourceSizeLimits:
     def test_streamed_raw_archive_limit_is_rejected(
         self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
     ) -> None:
-        from specify_cli.charter.offering.sources import https_source  # noqa: PLC0415
-        from specify_cli.charter.offering.sources.https_source import HttpsBundleSource  # noqa: PLC0415
+        from specify_cli.doctrine.sources import https_source  # noqa: PLC0415
+        from specify_cli.doctrine.sources.https_source import HttpsBundleSource  # noqa: PLC0415
 
         monkeypatch.setattr(https_source, "MAX_ARCHIVE_BYTES", 3)
         source = HttpsBundleSource(url="https://example.com/pack.zip")
@@ -379,8 +379,8 @@ class TestHttpsBundleSourceSizeLimits:
     def test_tar_extracted_byte_limit_is_rejected(
         self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
     ) -> None:
-        from specify_cli.charter.offering.sources import https_source  # noqa: PLC0415
-        from specify_cli.charter.offering.sources.https_source import _safe_extract_tar  # noqa: PLC0415
+        from specify_cli.doctrine.sources import https_source  # noqa: PLC0415
+        from specify_cli.doctrine.sources.https_source import _safe_extract_tar  # noqa: PLC0415
 
         monkeypatch.setattr(https_source, "MAX_EXTRACTED_BYTES", 1)
         data = _make_tar_gz([("file.yaml", b"xx")])
@@ -397,8 +397,8 @@ class TestHttpsBundleSourceSizeLimits:
     def test_zip_member_count_limit_is_rejected(
         self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
     ) -> None:
-        from specify_cli.charter.offering.sources import https_source  # noqa: PLC0415
-        from specify_cli.charter.offering.sources.https_source import _safe_extract_zip  # noqa: PLC0415
+        from specify_cli.doctrine.sources import https_source  # noqa: PLC0415
+        from specify_cli.doctrine.sources.https_source import _safe_extract_zip  # noqa: PLC0415
 
         monkeypatch.setattr(https_source, "MAX_ARCHIVE_MEMBERS", 0)
         data = _make_zip([("file.yaml", b"x")])
@@ -421,7 +421,7 @@ class TestHttpsBundleSourceSizeLimits:
 def test_git_source_redacts_injected_oauth_token_from_stderr(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    from specify_cli.charter.offering.sources.git_source import GitSource  # noqa: PLC0415
+    from specify_cli.doctrine.sources.git_source import GitSource  # noqa: PLC0415
 
     token = "ghp_secret/with@reserved"
     monkeypatch.setenv("GIT_TOKEN", token)

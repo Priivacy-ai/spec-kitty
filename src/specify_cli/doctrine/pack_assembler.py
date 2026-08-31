@@ -600,7 +600,7 @@ def _merge_org_charters_to_output(
 
     # Lazy import — model may not exist yet.
     try:
-        from specify_cli.charter.offering.org_charter import (
+        from specify_cli.doctrine.org_charter import (
             OrgCharterPolicy,
         )
     except ModuleNotFoundError:

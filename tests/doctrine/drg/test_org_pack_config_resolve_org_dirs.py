@@ -22,7 +22,7 @@ _SUBDIR = "mission_step_contracts"
 
 
 def _write_config(repo_root: Path, packs: list[tuple[str, Path]]) -> None:
-    """Write a canonical ``charter.offering.org.packs`` config.yaml with *packs* in order.
+    """Write a canonical ``doctrine.org.packs`` config.yaml with *packs* in order.
 
     Each entry is ``(name, local_path)``, written in the given declaration order
     so ordering/precedence tests can rely on the YAML list order matching the
@@ -51,7 +51,7 @@ class TestEmptyAndSinglePack:
         assert resolve_org_dirs(tmp_path, _SUBDIR) == []
 
     def test_no_org_packs_entries_returns_empty_list(self, tmp_path: Path) -> None:
-        """config.yaml exists but declares no charter.offering.org.packs entries."""
+        """config.yaml exists but declares no doctrine.org.packs entries."""
         _write_config(tmp_path, [])
         assert resolve_org_dirs(tmp_path, _SUBDIR) == []
 

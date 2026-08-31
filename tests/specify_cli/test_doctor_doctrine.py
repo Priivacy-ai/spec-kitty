@@ -414,7 +414,7 @@ _VALID_ORG_SIBLING = dedent(
 def repo_with_inline_ref_org_profile(tmp_path: Path) -> Path:
     """Repo whose ORG doctrine layer holds an inline-ref profile + a valid sibling.
 
-    Registers the pack via the canonical ``charter.offering.org.packs[]`` config so
+    Registers the pack via the canonical ``doctrine.org.packs[]`` config so
     ``resolve_org_roots`` picks it up as an org layer (not the project layer),
     exercising the eager/all-or-nothing org load path the #1584 false-healthy
     class lives on.

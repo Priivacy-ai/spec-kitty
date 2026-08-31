@@ -1,4 +1,4 @@
-"""Tests for ``specify_cli.charter.offering.pack_assembler``."""
+"""Tests for ``specify_cli.doctrine.pack_assembler``."""
 
 from __future__ import annotations
 
@@ -8,7 +8,7 @@ from pathlib import Path
 
 import pytest
 
-from specify_cli.charter.offering.pack_assembler import (
+from specify_cli.doctrine.pack_assembler import (
     AssemblyResult,
     assemble_pack,
     render_assembly_result,
@@ -355,13 +355,13 @@ class TestAssemblePack:
         """
         from unittest.mock import patch
 
-        from specify_cli.charter.offering.pack_validator import ValidationResult
+        from specify_cli.doctrine.pack_validator import ValidationResult
 
         pack = _make_pack(tmp_path, "alpha", directives=["V-001"])
         output = tmp_path / "out"
 
         with patch(
-            "specify_cli.charter.offering.pack_assembler.validate_pack",
+            "specify_cli.doctrine.pack_assembler.validate_pack",
             return_value=ValidationResult(ok=True),
         ) as mock_validate:
             result = assemble_pack([pack], output)

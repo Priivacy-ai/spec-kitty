@@ -656,7 +656,7 @@ def _resolve_tools_selection(
     pre-union behaviour so operators continue to see the "fallback applied"
     cue when their charter omits the declaration.
     """
-    selected_tools = charter.offering.available_tools
+    selected_tools = doctrine.available_tools
     if selected_tools:
         unioned = sorted(set(selected_tools) | available_tools)
         added_from_charter = sorted(set(selected_tools) - available_tools)
@@ -718,8 +718,8 @@ def _resolve_directives_selection(
     if doctrine_catalog.directives:
         valid_ids.update(doctrine_catalog.directives)
 
-    if charter.offering.selected_directives:
-        missing = sorted(d for d in charter.offering.selected_directives if d not in valid_ids)
+    if doctrine.selected_directives:
+        missing = sorted(d for d in doctrine.selected_directives if d not in valid_ids)
         if missing:
             raise GovernanceResolutionError(
                 [
@@ -727,7 +727,7 @@ def _resolve_directives_selection(
                     "Declare these IDs in directives.yaml or add them to packs/built-in/directives/.",
                 ]
             )
-        return list(charter.offering.selected_directives), "charter"
+        return list(doctrine.selected_directives), "charter"
 
     if directives_cfg.directives:
         return [d.id for d in directives_cfg.directives], "catalog_fallback"
@@ -747,20 +747,20 @@ def _resolve_template_set_selection(
     diagnostics: list[str],
 ) -> tuple[str, str]:
     """Resolve template set from charter selection or fallback."""
-    if charter.offering.template_set:
+    if doctrine.template_set:
         if (
             "template_sets" in doctrine_catalog.domains_present
-            and charter.offering.template_set not in doctrine_catalog.template_sets
+            and doctrine.template_set not in doctrine_catalog.template_sets
         ):
             raise GovernanceResolutionError(
                 [
-                    f"Charter selected unavailable template_set: '{charter.offering.template_set}'",
+                    f"Charter selected unavailable template_set: '{doctrine.template_set}'",
                     "Available template sets: "
                     + (", ".join(sorted(doctrine_catalog.template_sets)) or "(none)"),
                     "Update charter template_set to a value available in doctrine missions.",
                 ]
             )
-        return charter.offering.template_set, "charter"
+        return doctrine.template_set, "charter"
 
     diagnostics.append(f"Template set not selected in charter; fallback '{fallback_template_set}' applied.")
     return fallback_template_set, "fallback"
@@ -797,7 +797,7 @@ def resolve_project_governance(
     doctrine = governance.charter
     diagnostics: list[str] = []
 
-    selected_paradigms = list(charter.offering.selected_paradigms)
+    selected_paradigms = list(doctrine.selected_paradigms)
     _validate_paradigm_selection(selected_paradigms, doctrine_catalog)
 
     available_tools = tool_registry or set(DEFAULT_TOOL_REGISTRY)

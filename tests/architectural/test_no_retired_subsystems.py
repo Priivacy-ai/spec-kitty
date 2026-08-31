@@ -422,7 +422,7 @@ def test_prose_guard_rejects_planted_fixture_but_allows_sanctioned_tokens(tmp_pa
             "event_journal",
         )
     )
-    (tmp_path / "src/charter/offering/planted.md").write_text(
+    (tmp_path / "src/doctrine/planted.md").write_text(
         f"{planted_surface}\n",
         encoding="utf-8",
     )
@@ -433,12 +433,12 @@ def test_prose_guard_rejects_planted_fixture_but_allows_sanctioned_tokens(tmp_pa
     violations = _retired_surface_violations(tmp_path)
     assert violations == sorted(
         {
-            f"src/charter/offering/planted.md:1: {_READONLY_IDENTITY}",
-            "src/charter/offering/planted.md:1: SPEC_KITTY_DIR",
-            f"src/charter/offering/planted.md:1: {_RETIRED_SYNC_DOCTOR}",
-            f"src/charter/offering/planted.md:1: {_ORPHAN_DAEMONS}",
-            f"src/charter/offering/planted.md:1: {_PROJECT_SYNC_STORE}",
-            f"src/charter/offering/planted.md:1: {_DELIVERY_RECEIVER}",
-            "src/charter/offering/planted.md:1: event_journal",
+            f"src/doctrine/planted.md:1: {_READONLY_IDENTITY}",
+            "src/doctrine/planted.md:1: SPEC_KITTY_DIR",
+            f"src/doctrine/planted.md:1: {_RETIRED_SYNC_DOCTOR}",
+            f"src/doctrine/planted.md:1: {_ORPHAN_DAEMONS}",
+            f"src/doctrine/planted.md:1: {_PROJECT_SYNC_STORE}",
+            f"src/doctrine/planted.md:1: {_DELIVERY_RECEIVER}",
+            "src/doctrine/planted.md:1: event_journal",
         }
     )

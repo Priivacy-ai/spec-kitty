@@ -1,7 +1,7 @@
 """Deterministic generator for the built-in pack's ``pack-manifest.yaml``.
 
 Enumerates the doctrine artifacts shipped under ``packs/built-in/`` and emits
-the single canonical :class:`~specify_cli.charter.offering.pack_manifest.PackManifest`
+the single canonical :class:`~specify_cli.doctrine.pack_manifest.PackManifest`
 (WP01 / IC-02). It emits **only** ``pack-manifest.yaml`` — never the authored
 ``pack.yaml`` (reserved for WP04) and never a ``pack_version`` field (the
 built-in reads that from the authored descriptor, WP04).
@@ -10,7 +10,7 @@ Enumeration is **file-first** (DRG graph nodes carry no source path): for each
 of the nine artifact kinds that ship a content directory
 (:attr:`ArtifactKind.has_built_in_content_dir`) it globs the kind's files,
 reads each artifact's canonical id, and records a
-:class:`~specify_cli.charter.offering.pack_manifest.Constituent`. Because every shipped
+:class:`~specify_cli.doctrine.pack_manifest.Constituent`. Because every shipped
 DRG artifact node is minted from exactly these files, enumerating the files
 enumerates 100 % of the artifact nodes (SC-002).
 

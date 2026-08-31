@@ -15,7 +15,7 @@ import jsonschema
 from ruamel.yaml import YAML
 
 from charter.offering.drg.migration.id_normalizer import normalize_directive_id
-from tests.charter.offering.conftest import DOCTRINE_SOURCE_ROOT, REPO_ROOT
+from tests.doctrine.conftest import DOCTRINE_SOURCE_ROOT, REPO_ROOT
 
 pytestmark = [pytest.mark.fast, pytest.mark.doctrine, pytest.mark.corpus]
 

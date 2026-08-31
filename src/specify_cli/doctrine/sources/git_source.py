@@ -2,7 +2,7 @@
 
 ``GitSource`` is a *persistent* clone manager: ``target_dir`` IS the working
 repository — ``.git/`` is preserved across fetches.  The atomic-write pattern
-in :mod:`specify_cli.charter.offering.snapshot` deliberately does NOT apply here; git
+in :mod:`specify_cli.doctrine.snapshot` deliberately does NOT apply here; git
 provides its own consistency guarantees via ``fetch`` + ``reset --hard``.
 
 Authentication relies on the system git config (SSH keys, credential helper).

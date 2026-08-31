@@ -21,7 +21,7 @@ from typing import Any
 import pytest
 import requests
 
-from specify_cli.charter.offering.sources import (
+from specify_cli.doctrine.sources import (
     ApiSource,
     FetchResult,
     GitSource,
@@ -130,7 +130,7 @@ class TestGitSource:
             ],
             side_effects={"clone": _make_fake_clone(directives_count=2)},
         )
-        monkeypatch.setattr("specify_cli.charter.offering.sources.git_source.subprocess.run", runner)
+        monkeypatch.setattr("specify_cli.doctrine.sources.git_source.subprocess.run", runner)
 
         result = GitSource(url="git@example.com:org/d.git").fetch(target)
 
@@ -156,7 +156,7 @@ class TestGitSource:
                 (0, "v1.3.0\n", ""),  # describe
             ],
         )
-        monkeypatch.setattr("specify_cli.charter.offering.sources.git_source.subprocess.run", runner)
+        monkeypatch.setattr("specify_cli.doctrine.sources.git_source.subprocess.run", runner)
 
         result = GitSource(url="git@example.com:org/d.git").fetch(target)
 
@@ -182,7 +182,7 @@ class TestGitSource:
             script=[(128, "", "fatal: repo not found")],
             side_effects={"clone": _partial_clone},
         )
-        monkeypatch.setattr("specify_cli.charter.offering.sources.git_source.subprocess.run", runner)
+        monkeypatch.setattr("specify_cli.doctrine.sources.git_source.subprocess.run", runner)
 
         result = GitSource(url="git@example.com:org/d.git").fetch(target)
 
@@ -197,7 +197,7 @@ class TestGitSource:
         (target / "directives" / "A.yaml").write_text("id: a\n")
 
         runner = _GitRunRecorder(script=[(1, "", "network unreachable")])
-        monkeypatch.setattr("specify_cli.charter.offering.sources.git_source.subprocess.run", runner)
+        monkeypatch.setattr("specify_cli.doctrine.sources.git_source.subprocess.run", runner)
 
         result = GitSource(url="git@example.com:org/d.git").fetch(target)
 
@@ -215,7 +215,7 @@ class TestGitSource:
             script=[(0, "", ""), (0, "v1\n", "")],
             side_effects={"clone": _make_fake_clone(directives_count=1)},
         )
-        monkeypatch.setattr("specify_cli.charter.offering.sources.git_source.subprocess.run", runner)
+        monkeypatch.setattr("specify_cli.doctrine.sources.git_source.subprocess.run", runner)
 
         result = GitSource(url="https://example.com/org/d.git").fetch(target)
 
@@ -232,7 +232,7 @@ class TestGitSource:
             script=[(0, "", ""), (0, "v1\n", "")],
             side_effects={"clone": _make_fake_clone(directives_count=1)},
         )
-        monkeypatch.setattr("specify_cli.charter.offering.sources.git_source.subprocess.run", runner)
+        monkeypatch.setattr("specify_cli.doctrine.sources.git_source.subprocess.run", runner)
 
         GitSource(url="git@example.com:org/d.git").fetch(target)
         clone_argv = runner.calls[0]
@@ -248,7 +248,7 @@ class TestGitSource:
             ],
             side_effects={"clone": _make_fake_clone()},
         )
-        monkeypatch.setattr("specify_cli.charter.offering.sources.git_source.subprocess.run", runner)
+        monkeypatch.setattr("specify_cli.doctrine.sources.git_source.subprocess.run", runner)
 
         result = GitSource(url="git@example.com:org/d.git", ref="v1.0.0").fetch(target)
 
@@ -369,11 +369,11 @@ class TestHttpsBundleSource:
             return _FakeResponse(status_code=500, url=url)
 
         monkeypatch.setattr(
-            "specify_cli.charter.offering.sources.https_source.requests.get",
+            "specify_cli.doctrine.sources.https_source.requests.get",
             _unexpected_get,
         )
         monkeypatch.setattr(
-            "specify_cli.charter.offering.sources.https_source.requests.post",
+            "specify_cli.doctrine.sources.https_source.requests.post",
             _unexpected_get,
         )
 
@@ -407,7 +407,7 @@ class TestHttpsBundleSource:
             return _FakeResponse(status_code=500, url=url)
 
         monkeypatch.setattr(
-            "specify_cli.charter.offering.sources.https_source.requests.get",
+            "specify_cli.doctrine.sources.https_source.requests.get",
             _fake_get,
         )
 
@@ -459,7 +459,7 @@ class TestHttpsBundleSource:
             calls.append(url)
             return _FakeResponse(status_code=404, url=url)
 
-        monkeypatch.setattr("specify_cli.charter.offering.sources.https_source.requests.get", _fake_get)
+        monkeypatch.setattr("specify_cli.doctrine.sources.https_source.requests.get", _fake_get)
         source = _AlternatingSource(url=trusted_url)
 
         result = source.fetch(tmp_path / "snapshot")
@@ -484,9 +484,9 @@ class TestHttpsBundleSource:
         def _fake_get(url: str, **kwargs: Any) -> _FakeResponse:
             return response
 
-        monkeypatch.setattr("specify_cli.charter.offering.sources.https_source.requests.get", _fake_get)
+        monkeypatch.setattr("specify_cli.doctrine.sources.https_source.requests.get", _fake_get)
         monkeypatch.setattr(
-            "specify_cli.charter.offering.sources.https_source.requests.post",
+            "specify_cli.doctrine.sources.https_source.requests.post",
             lambda *_args, **_kwargs: pytest.fail("non-Artifactory source used AQL"),
         )
 
@@ -516,7 +516,7 @@ class TestHttpsBundleSource:
                 url=url,
             )
 
-        monkeypatch.setattr("specify_cli.charter.offering.sources.https_source.requests.get", _fake_get)
+        monkeypatch.setattr("specify_cli.doctrine.sources.https_source.requests.get", _fake_get)
 
         result = HttpsBundleSource(url="https://cdn.example.com/pack.tar.gz").fetch(target)
 
@@ -585,8 +585,8 @@ class TestHttpsBundleSource:
         monkeypatch.delenv("SPEC_KITTY_ORG_AUTH_HEADER", raising=False)
         monkeypatch.delenv("SPEC_KITTY_ORG_TOKEN", raising=False)
         monkeypatch.setenv(auth_env, auth_value)
-        monkeypatch.setattr("specify_cli.charter.offering.sources.https_source.requests.get", _fake_get)
-        monkeypatch.setattr("specify_cli.charter.offering.sources.https_source.requests.post", _fake_post)
+        monkeypatch.setattr("specify_cli.doctrine.sources.https_source.requests.get", _fake_get)
+        monkeypatch.setattr("specify_cli.doctrine.sources.https_source.requests.post", _fake_post)
 
         result = HttpsBundleSource(url=artifact_url, source_type=source_type).fetch(target)
 
@@ -637,8 +637,8 @@ class TestHttpsBundleSource:
                 url=url,
             )
 
-        monkeypatch.setattr("specify_cli.charter.offering.sources.https_source.requests.get", _fake_get)
-        monkeypatch.setattr("specify_cli.charter.offering.sources.https_source.requests.post", _fake_post)
+        monkeypatch.setattr("specify_cli.doctrine.sources.https_source.requests.get", _fake_get)
+        monkeypatch.setattr("specify_cli.doctrine.sources.https_source.requests.post", _fake_post)
 
         result = HttpsBundleSource(url=artifact_url).fetch(tmp_path / "snapshot")
 
@@ -702,8 +702,8 @@ class TestHttpsBundleSource:
                 url=url,
             )
 
-        monkeypatch.setattr("specify_cli.charter.offering.sources.https_source.requests.get", _fake_get)
-        monkeypatch.setattr("specify_cli.charter.offering.sources.https_source.requests.post", _fake_post)
+        monkeypatch.setattr("specify_cli.doctrine.sources.https_source.requests.get", _fake_get)
+        monkeypatch.setattr("specify_cli.doctrine.sources.https_source.requests.post", _fake_post)
 
         result = HttpsBundleSource(url=artifact_url).fetch(tmp_path / "snapshot")
 
@@ -731,7 +731,7 @@ class TestHttpsBundleSource:
 
         monkeypatch.setenv("SPEC_KITTY_ORG_TOKEN", "retry-token")
         monkeypatch.setattr(
-            "specify_cli.charter.offering.sources.https_source.requests.get",
+            "specify_cli.doctrine.sources.https_source.requests.get",
             lambda _url, **_kwargs: download_response,
         )
 
@@ -739,8 +739,8 @@ class TestHttpsBundleSource:
             aql_headers.append(dict(kwargs.get("headers") or {}))
             return next(responses)
 
-        monkeypatch.setattr("specify_cli.charter.offering.sources.https_source.requests.post", _fake_post)
-        monkeypatch.setattr("specify_cli.charter.offering.sources.https_source.time.sleep", lambda _s: None)
+        monkeypatch.setattr("specify_cli.doctrine.sources.https_source.requests.post", _fake_post)
+        monkeypatch.setattr("specify_cli.doctrine.sources.https_source.time.sleep", lambda _s: None)
 
         result = HttpsBundleSource(
             url=artifact_url,
@@ -799,7 +799,7 @@ class TestHttpsBundleSource:
             calls.append(url)
             return _FakeResponse(status_code=500, url=url)
 
-        monkeypatch.setattr("specify_cli.charter.offering.sources.https_source.requests.get", _fake_get)
+        monkeypatch.setattr("specify_cli.doctrine.sources.https_source.requests.get", _fake_get)
 
         result = HttpsBundleSource(
             url=item_url,
@@ -835,8 +835,8 @@ class TestHttpsBundleSource:
                 url=url,
             )
 
-        monkeypatch.setattr("specify_cli.charter.offering.sources.https_source.requests.get", _fake_get)
-        monkeypatch.setattr("specify_cli.charter.offering.sources.https_source.requests.post", _fake_post)
+        monkeypatch.setattr("specify_cli.doctrine.sources.https_source.requests.get", _fake_get)
+        monkeypatch.setattr("specify_cli.doctrine.sources.https_source.requests.post", _fake_post)
 
         result = HttpsBundleSource(url=artifact_url, source_type="artifactory").fetch(tmp_path / "snapshot")
 
@@ -871,8 +871,8 @@ class TestHttpsBundleSource:
                 url=url,
             )
 
-        monkeypatch.setattr("specify_cli.charter.offering.sources.https_source.requests.get", _fake_get)
-        monkeypatch.setattr("specify_cli.charter.offering.sources.https_source.requests.post", _fake_post)
+        monkeypatch.setattr("specify_cli.doctrine.sources.https_source.requests.get", _fake_get)
+        monkeypatch.setattr("specify_cli.doctrine.sources.https_source.requests.post", _fake_post)
 
         result = HttpsBundleSource(url=artifact_url, source_type="artifactory").fetch(tmp_path / "snapshot")
 
@@ -902,8 +902,8 @@ class TestHttpsBundleSource:
                 url=url,
             )
 
-        monkeypatch.setattr("specify_cli.charter.offering.sources.https_source.requests.get", _fake_get)
-        monkeypatch.setattr("specify_cli.charter.offering.sources.https_source.requests.post", _fake_post)
+        monkeypatch.setattr("specify_cli.doctrine.sources.https_source.requests.get", _fake_get)
+        monkeypatch.setattr("specify_cli.doctrine.sources.https_source.requests.post", _fake_post)
 
         result = HttpsBundleSource(url=artifact_url, source_type="artifactory").fetch(tmp_path / "snapshot")
 
@@ -918,7 +918,7 @@ class TestHttpsBundleSource:
             captured["headers"] = kwargs.get("headers") or {}
             return _FakeResponse(status_code=304, body=b"", reason="Not Modified")
 
-        monkeypatch.setattr("specify_cli.charter.offering.sources.https_source.requests.get", _fake_get)
+        monkeypatch.setattr("specify_cli.doctrine.sources.https_source.requests.get", _fake_get)
 
         result = HttpsBundleSource(
             url="https://example.com/pack.tar.gz",
@@ -936,7 +936,7 @@ class TestHttpsBundleSource:
     def test_unsolicited_304_without_validator_fails(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
         response = _FakeResponse(status_code=304, reason="Not Modified")
         monkeypatch.setattr(
-            "specify_cli.charter.offering.sources.https_source.requests.get",
+            "specify_cli.doctrine.sources.https_source.requests.get",
             lambda _url, **_kwargs: response,
         )
 
@@ -958,7 +958,7 @@ class TestHttpsBundleSource:
                 url=url,
             )
 
-        monkeypatch.setattr("specify_cli.charter.offering.sources.https_source.requests.get", _fake_get)
+        monkeypatch.setattr("specify_cli.doctrine.sources.https_source.requests.get", _fake_get)
 
         result = HttpsBundleSource(
             url="https://example.com/pack.zip",
@@ -973,7 +973,7 @@ class TestHttpsBundleSource:
         def _fake_get(url: str, **kwargs: Any) -> _FakeResponse:
             return _FakeResponse(status_code=401, body=b"", reason="Unauthorized")
 
-        monkeypatch.setattr("specify_cli.charter.offering.sources.https_source.requests.get", _fake_get)
+        monkeypatch.setattr("specify_cli.doctrine.sources.https_source.requests.get", _fake_get)
 
         result = HttpsBundleSource(url="https://example.com/pack.tar.gz").fetch(tmp_path / "snapshot")
 
@@ -1002,8 +1002,8 @@ class TestHttpsBundleSource:
         def _fake_get(url: str, **kwargs: Any) -> _FakeResponse:
             return next(responses)
 
-        monkeypatch.setattr("specify_cli.charter.offering.sources.https_source.requests.get", _fake_get)
-        monkeypatch.setattr("specify_cli.charter.offering.sources.https_source.time.sleep", lambda _s: None)
+        monkeypatch.setattr("specify_cli.doctrine.sources.https_source.requests.get", _fake_get)
+        monkeypatch.setattr("specify_cli.doctrine.sources.https_source.time.sleep", lambda _s: None)
 
         result = HttpsBundleSource(url="https://example.com/pack.tar.gz").fetch(tmp_path / "snapshot")
 
@@ -1016,7 +1016,7 @@ class TestHttpsBundleSource:
         def _fail(_url: str, **_kwargs: Any) -> _FakeResponse:
             raise requests.ConnectionError(f"failed for {secret_url}")
 
-        monkeypatch.setattr("specify_cli.charter.offering.sources.https_source.requests.get", _fail)
+        monkeypatch.setattr("specify_cli.doctrine.sources.https_source.requests.get", _fail)
 
         result = HttpsBundleSource(url=secret_url).fetch(tmp_path / "snapshot")
 
@@ -1040,7 +1040,7 @@ class TestHttpsBundleSource:
             )
 
         monkeypatch.setenv("SPEC_KITTY_ORG_TOKEN", "tok123")
-        monkeypatch.setattr("specify_cli.charter.offering.sources.https_source.requests.get", _fake_get)
+        monkeypatch.setattr("specify_cli.doctrine.sources.https_source.requests.get", _fake_get)
 
         HttpsBundleSource(url="https://example.com/pack.tar.gz").fetch(tmp_path / "snapshot")
 
@@ -1116,7 +1116,7 @@ class TestApiSource:
                 "/version": _json_response({"version": "v1.4.2"}),
             }
         )
-        monkeypatch.setattr("specify_cli.charter.offering.sources.api_source.requests.request", server)
+        monkeypatch.setattr("specify_cli.doctrine.sources.api_source.requests.request", server)
 
         result = ApiSource(url="https://example.com/api").fetch(target)
 
@@ -1147,7 +1147,7 @@ class TestApiSource:
                 # /drg-extensions and /version both fall through to 404.
             }
         )
-        monkeypatch.setattr("specify_cli.charter.offering.sources.api_source.requests.request", server)
+        monkeypatch.setattr("specify_cli.doctrine.sources.api_source.requests.request", server)
 
         result = ApiSource(url="https://example.com/api", ref="v0.9").fetch(target)
 
@@ -1160,7 +1160,7 @@ class TestApiSource:
         target = tmp_path / "snapshot"
         # All endpoints 404 -> default type list, all empty.
         server = _FakeApiServer(routes={})
-        monkeypatch.setattr("specify_cli.charter.offering.sources.api_source.requests.request", server)
+        monkeypatch.setattr("specify_cli.doctrine.sources.api_source.requests.request", server)
 
         result = ApiSource(url="https://example.com/api").fetch(target)
 
@@ -1175,7 +1175,7 @@ class TestApiSource:
     def test_auth_header_override(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
         target = tmp_path / "snapshot"
         server = _FakeApiServer(routes={"/artifact-types": _json_response({"types": []})})
-        monkeypatch.setattr("specify_cli.charter.offering.sources.api_source.requests.request", server)
+        monkeypatch.setattr("specify_cli.doctrine.sources.api_source.requests.request", server)
         monkeypatch.setenv("SPEC_KITTY_ORG_AUTH_HEADER", "Basic dXNlcjpwYXNz")
 
         ApiSource(url="https://example.com/api").fetch(target)
@@ -1185,7 +1185,7 @@ class TestApiSource:
 
     def test_credential_error_propagates(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
         server = _FakeApiServer(routes={"/artifact-types": _FakeResponse(status_code=401, body=b"", reason="Unauthorized")})
-        monkeypatch.setattr("specify_cli.charter.offering.sources.api_source.requests.request", server)
+        monkeypatch.setattr("specify_cli.doctrine.sources.api_source.requests.request", server)
 
         result = ApiSource(url="https://example.com/api").fetch(tmp_path / "snapshot")
 

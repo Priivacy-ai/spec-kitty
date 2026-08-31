@@ -161,7 +161,7 @@ DISPOSITION: dict[str, str] = {
 #: (ArtifactKind) directly while being owned by no migration WP. Mission
 #: ``doctrine-public-api-surface-01KZPDSR`` WP07 folded it in (out-of-map, justified):
 #: its ArtifactKind import now routes through ``charter.drg`` and its
-#: ``specify_cli.charter.offering.org_charter`` usage is a first-party call into the exempt
+#: ``specify_cli.doctrine.org_charter`` usage is a first-party call into the exempt
 #: management surface (not a laundered doctrine symbol). The set is now empty; any NEW
 #: orphan (reached, unowned, not listed here) fails ``test_no_reached_file_is_orphaned``.
 #: Tracker: #3179.

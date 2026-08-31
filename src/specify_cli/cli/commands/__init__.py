@@ -182,7 +182,7 @@ def register_commands(app: typer.Typer) -> None:
     from . import dispatch as dispatch_module
     from . import docs as docs_module
     from . import doctor as doctor_module
-    from . import charter.offering as doctrine_module
+    from . import doctrine as doctrine_module
     from . import glossary as glossary_module
     from . import implement as implement_module
     from . import intake as intake_module

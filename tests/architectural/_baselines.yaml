@@ -34,39 +34,36 @@ test_no_dead_modules:
   category_1_auto_discovered_migrations: 101  # justification: 96 after PR #3007 added m_3_2_6_retire_rtk_search_tooling, an auto-discovered upgrade migration that cleans up the retired rtk-search-tooling toolguide activation from existing consumer configs (#3009 operator ruling). +1 (96->97, PR #3070): m_3_2_x_normalize_activation_absence, an auto-discovered migration (@MigrationRegistry.register, pkgutil.iter_modules) that normalizes activation absence during charter-activation unification — no static importer, so registration not suppression. +1 (97->98, write-side-seam-matrix-tracer-01KYP3MH WP05/FR-008, commit 09f740bd4): m_3_2_6_issue_matrix_driver_repoint, an auto-discovered migration (@MigrationRegistry.register, pkgutil.iter_modules, wired via cli/commands/upgrade.py's auto_discover_migrations()) that repoints the #2804 gate-artifact merge driver from issue-matrix.md to issue-matrix.json — no static importer, same false-positive class as every sibling m_3_2_6_* entry. +1 (98->99, review-cycle-verdict-seam-rebuild-01KZ2W7W WP18/T079): m_3_2_7_review_cycle_merge_driver, an auto-discovered migration (@MigrationRegistry.register, pkgutil.iter_modules) that installs the fail-closed review-cycle-*.md merge driver for already-initialized clones — no static importer, same false-positive class as every sibling driver-seeding migration. +1 (99->100, verdict-seam-write-unification-01KZ9Q35 pre-merge remediation, #3236): m_zz_verdict_provenance_backfill, an auto-discovered migration (@MigrationRegistry.register, pkgutil.iter_modules) that runs the FR-012/SC-008 verdict-provenance backfill over every kitty-specs/ mission on upgrade — no static importer, same false-positive class as its m_zz_runtime_state_backfill sibling. +1 (100->101, WIRE-M2-03, 2026-08-22): m_3_2_9_migrate_lifecycle_envelope, an auto-discovered migration (@MigrationRegistry.register, pkgutil.iter_modules) that wires the F2-T1 one-shot F1-strict lifecycle-envelope rewrite into spec-kitty upgrade — no static importer, same false-positive class as every sibling entry. Category 1 exists precisely to enumerate auto-discovered migration modules that have no static importer.
   # justification: 3 schema generator modules consumed by
   # scripts/generate_schemas.py via importlib.import_module.
-  # Shrunk from 4 → 3 when charter.offering.missions.models gained a live
+  # Shrunk from 4 → 3 when doctrine.missions.models gained a live
   # src/ caller via MissionTypeRepository (WP14 mission-type commands).
   # 3 -> 4 (common-docs-consolidation post-merge remediation): added
-  # charter.offering.directives.common_docs, a constant module (COMMON_DOCS_DIRECTIVE_ID)
+  # doctrine.directives.common_docs, a constant module (COMMON_DOCS_DIRECTIVE_ID)
   # consumed by scripts/docs/anti_sprawl_ratchet.py.
   # 4 -> 3 (#2851 follow-up: anti-sprawl ratchet retired): the ratchet was its
-  # only consumer, so charter.offering.directives.common_docs was deleted with it.
+  # only consumer, so doctrine.directives.common_docs was deleted with it.
   category_2_build_schema_generators: 3  # justification: 3 schema generator modules consumed by scripts/generate_schemas.py
   # justification: 1 external/CLI entry point invoked outside the
   # spec-kitty import graph (commit_guard_hook). Shrunk from 4 by
   # retire-standalone-tasks-cli WP04 (FR-007): the 3 standalone-tasks-surface
   # module entries dropped with the deleted surface (shrink — burn-down ok).
   # 1 -> 2 (doctrine-charter-split-unification-01KZ0SRB WP12/D7): added
-  # charter.offering.hatch_build, a hatchling custom build-hook module loaded via
-  # src/charter/offering/pyproject.toml's [tool.hatch.build.hooks.custom] `path =
+  # doctrine.hatch_build, a hatchling custom build-hook module loaded via
+  # src/doctrine/pyproject.toml's [tool.hatch.build.hooks.custom] `path =
   # "hatch_build.py"` declaration -- never imported from src/ Python code,
   # same external-entrypoint class as commit_guard_hook.
-  # 2 -> 1 (charter-code-topology-01M152G1, S5, MAP-BUILD): the dormant,
-  # never-built spec-kitty-doctrine wheel groundwork (src/charter/offering/
-  # pyproject.toml + hatch_build.py, née src/charter/offering/...) was DELETED
-  # outright rather than relocated. charter.offering.hatch_build no longer
-  # exists as a module, so its allowlist entry is removed too (shrink — no
-  # extra workflow steps needed).
-  category_3_external_cli_entrypoints: 1
+  category_3_external_cli_entrypoints: 2
   # justification: 0 documented backward-compat shim modules. (unshim-wave1 WP01
   # #2289 deleted the 7 other category_4 shims — acceptance_matrix,
   # core.identity_aliases, doc_generators, doc_state, gap_analysis,
   # state_contract, workspace_context — 8->1 SHRINK. WP02 then re-anchored
   # tasks_support's ~35 test sites onto specify_cli.task_utils and deleted the
   # module, draining the last row: 1->0 SHRINK. Category fully drained.)
-  category_4_backcompat_shims: 0
-  # justification: 2 not-yet-wired adapter modules (specify_cli.charter.offering.pack_descriptor,
-  # specify_cli.charter.offering.pack_lineage) from the pack-metadata library-first slice
+  # justification: 0 -> 1 (charter-code-topology-01M152G1, M2): `doctrine`
+  # (src/doctrine.py) is an intentional deprecation shim for legacy external
+  # `import doctrine` callers during the CR-06 compatibility window.
+  category_4_backcompat_shims: 1
+  # justification: 2 not-yet-wired adapter modules (specify_cli.doctrine.pack_descriptor,
+  # specify_cli.doctrine.pack_lineage) from the pack-metadata library-first slice
   # (#3500-#3503, ADR 2026-08-16-1); production wiring is the deferred integration WP
   # tracked in #3518. Grown 0->2 for PR #3507 (charter.extractor previously drained
   # this category to 0).
@@ -75,7 +72,7 @@ test_no_dead_modules:
   # next/_internal_runtime/ frozen by shared-package-boundary-cutover.
   category_6_frozen_runtime_reexports: 3
   # Slice F WP01 T002 inherits 10 grandfathered orphans; T005-T007
-  # delete 3 (charter.offering.templates.repository,
+  # delete 3 (doctrine.templates.repository,
   # glossary.prompts, glossary.rendering)
   # bringing the live size to 7. Per C-006 this category MUST shrink
   # by >= 2 entries per major release; target = 0 by 4.0.
@@ -84,7 +81,7 @@ test_no_dead_modules:
   # predicates into the `spec-kitty doctor doctrine` runtime caller
   # (specify_cli.cli.commands._doctrine_collect), so the module now has a real
   # src/ caller and is no longer an orphan; WP09 narrowed its __all__ to those
-  # three live functions and retired the charter.offering.drg.override_policy allowlist
+  # three live functions and retired the doctrine.drg.override_policy allowlist
   # entry. Re-lowered 7 -> 6, reversing the prior deliberate bump.
   # 6 -> 2 (unshim-wave1-01KWKVHB #2292, WP01 T005 + WP03 T008): deleted
   # task_profile, sync.replay, sync.tracker_client_glue and
@@ -268,7 +265,7 @@ test_no_inert_schema_slots:
   masking_suppressions: 13
 
 # tests/architectural/test_reference_enum_ratchet.py
-# The four `<kind>_reference.type` enums in src/charter/offering/schemas/. `_BASELINE`
+# The four `<kind>_reference.type` enums in src/doctrine/schemas/. `_BASELINE`
 # there is a mutable, shrink-only member set; Charter Burn-down Policy (a) puts
 # every such allowlist under a baseline here, so widening an enum needs the
 # `# justification:` diff rather than a one-line module edit. Counted as flat

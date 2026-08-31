@@ -77,7 +77,7 @@ import pytest
 from charter.offering.drg.loader import load_graph_or_dir
 from charter.offering.drg.models import DRGGraph, DRGNode, NodeKind, Relation
 from charter.offering.drg.query import ResolveTransitiveRefsResult, resolve_transitive_refs
-from tests.charter.offering._builtin_inventory import shipped_builtin_node_count
+from tests.doctrine._builtin_inventory import shipped_builtin_node_count
 
 pytestmark = [pytest.mark.doctrine, pytest.mark.fast, pytest.mark.corpus]
 

@@ -209,7 +209,7 @@ def hash_manifest_payload(
 
     The **one** manifest-hashing primitive, shared by both the charter
     ``SynthesisManifest`` (via :func:`compute_manifest_hash`) and the unified
-    ``PackManifest`` (``specify_cli.charter.offering.pack_manifest``). Keeping the SHA
+    ``PackManifest`` (``specify_cli.doctrine.pack_manifest``). Keeping the SHA
     here — the module's existing designated raw-SHA owner — means no second
     hasher is ever introduced (RR-SF2 / T005).
 

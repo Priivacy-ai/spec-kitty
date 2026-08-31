@@ -3,7 +3,7 @@
 The operator-facing config shape belongs below both ``charter`` and
 ``specify_cli`` so every consumer sees the same configured packs. New writes
 use the canonical ``charter_packs.org.packs`` schema (CR-04, mission
-``charter-code-topology-01M152G1`` S4); the retired ``charter.offering.org.packs``
+``charter-code-topology-01M152G1`` S4); the retired ``doctrine.org.packs``
 shape and the older top-level ``organisation_packs`` form are both read as
 legacy compatibility through this same parser so neither can drift
 independently. See :func:`load_pack_registry` for the full precedence order.
@@ -99,7 +99,7 @@ class OrgPackEnvVarUnsetError(ValueError):
 
 class LegacyOrgPackDoctrineKeyWarning(UserWarning):
     """Emitted once per process when ``.kittify/config.yaml`` still carries
-    the retired ``charter.offering.org.packs`` block instead of the canonical
+    the retired ``doctrine.org.packs`` block instead of the canonical
     ``charter_packs.org.packs`` (CR-04, mission
     ``charter-code-topology-01M152G1`` S4)."""
 
@@ -117,7 +117,7 @@ def _warn_legacy_org_pack_doctrine_key_once() -> None:
     ``_warn_legacy_org_pack_doctrine_key_once.cache_clear()``.
     """
     warnings.warn(
-        "'.kittify/config.yaml' uses the legacy 'charter.offering.org.packs' key; "
+        "'.kittify/config.yaml' uses the legacy 'doctrine.org.packs' key; "
         "reading it as 'charter_packs.org.packs'. Update config.yaml (or "
         "run `spec-kitty charter pack apply`) to adopt the canonical key.",
         LegacyOrgPackDoctrineKeyWarning,
@@ -173,7 +173,7 @@ def resolve_relative_path_within_root(root: Path, relative_path: str) -> Path:
 
     Shared containment primitive: :meth:`OrgPackConfig.effective_root` uses
     this for ``subdir`` containment, and
-    ``specify_cli.charter.offering.pack_validator._check_asset_path_containment``
+    ``specify_cli.doctrine.pack_validator._check_asset_path_containment``
     reuses it for ASSET sidecar manifest ``path`` containment (FR-009 /
     NFR-005) — a single canonical escape-detection implementation rather than
     a hand-rolled resolve-then-``relative_to`` at each call site.
@@ -439,7 +439,7 @@ def load_pack_registry(repo_root: Path, *, quiet: bool = False) -> PackRegistry:
     Legacy read shapes, in precedence order (CR-04, mission
     ``charter-code-topology-01M152G1`` S4):
 
-    1. ``charter.offering.org.packs[]`` -- same shape as the canonical block under
+    1. ``doctrine.org.packs[]`` -- same shape as the canonical block under
        the retired top-level key. Read silently forward-mapped, with a
        process-wide one-shot :class:`LegacyOrgPackDoctrineKeyWarning` (never
        both keys warned about: a config carrying BOTH ``charter_packs`` and

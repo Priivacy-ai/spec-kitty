@@ -426,7 +426,7 @@ REGISTRY: dict[str, RegisteredSite] = {
     # cache "Date" fallback). Prior: `datetime.now(UTC).strftime(
     # "%Y-%m-%dT%H:%M:%SZ")` -> now_utc_stamp() (one representative entry;
     # both modules shared the identical prior expression).
-    "specify_cli.charter.offering.snapshot._iso_now#fetched_at": RegisteredSite(
+    "specify_cli.doctrine.snapshot._iso_now#fetched_at": RegisteredSite(
         producer=now_utc_stamp,
         prior_signature=lambda instant: instant.strftime("%Y-%m-%dT%H:%M:%SZ"),
     ),

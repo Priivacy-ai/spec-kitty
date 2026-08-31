@@ -336,11 +336,6 @@ _CATEGORY_3_EXTERNAL_CLI_ENTRYPOINTS: frozenset[str] = frozenset(
         # commit_guard_hook_cmd.commit_guard_hook_cli(), so it is no longer
         # genuinely dead -- it no longer belongs in this build-script-only
         # allowlist.
-        # charter.offering.hatch_build: a hatchling custom build-hook module, loaded
-        # by hatchling itself via the `path = "hatch_build.py"` declaration
-        # in src/charter/offering/pyproject.toml's [tool.hatch.build.hooks.custom]
-        # table -- never imported from src/ Python code (WP12, D7).
-        "charter.offering.hatch_build",
     }
 )
 
@@ -407,8 +402,8 @@ _CATEGORY_5_WP_IN_FLIGHT_ADAPTERS: frozenset[str] = frozenset(
         # These two modules are the not-yet-wired adapters awaiting that WP; the
         # AST ratchet test_pack_lineage_no_parallel_resolver.py + the schema/
         # identity/counts unit suites exercise them meanwhile.
-        "specify_cli.charter.offering.pack_descriptor",
-        "specify_cli.charter.offering.pack_lineage",
+        "specify_cli.doctrine.pack_descriptor",
+        "specify_cli.doctrine.pack_lineage",
     }
 )
 

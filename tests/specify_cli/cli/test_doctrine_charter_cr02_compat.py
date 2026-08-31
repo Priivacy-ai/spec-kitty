@@ -93,9 +93,7 @@ def test_charter_group_canonical_routes(tmp_path: Path, monkeypatch: pytest.Monk
     assert activated_rows
     assert all(row["action_sequence"] for row in activated_rows)
 
-    everything = runner.invoke(
-        charter_app, ["mission-type", "list", "--include-inactive", "--json"]
-    )
+    everything = runner.invoke(charter_app, ["mission-type", "list", "--include-inactive", "--json"])
     assert everything.exit_code == 0, everything.output
     all_rows = json.loads(everything.output)
 

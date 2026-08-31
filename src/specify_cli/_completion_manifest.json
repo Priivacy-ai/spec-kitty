@@ -758,7 +758,7 @@
        "deprecated": false
       },
       "validate": {
-       "help": "Validate an org doctrine pack using schema and DRG checks (FR-006).\n\nCalls the WP06 :func:`specify_cli.charter.offering.pack_validator.validate_pack`\nloader.  Prints per-file findings with file paths.  Exits non-zero when\nat least one error is found.",
+       "help": "Validate an org doctrine pack using schema and DRG checks (FR-006).\n\nCalls the WP06 :func:`specify_cli.doctrine.pack_validator.validate_pack`\nloader.  Prints per-file findings with file paths.  Exits non-zero when\nat least one error is found.",
        "hidden": false,
        "deprecated": false
       }

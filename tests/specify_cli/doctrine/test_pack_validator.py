@@ -1,4 +1,4 @@
-"""Tests for ``specify_cli.charter.offering.pack_validator``.
+"""Tests for ``specify_cli.doctrine.pack_validator``.
 
 These tests build minimal, schema-valid artifact fixtures in ``tmp_path`` and
 exercise :func:`validate_pack` against each of the documented error categories.
@@ -13,7 +13,7 @@ from unittest.mock import patch
 import pytest
 from ruamel.yaml import YAML
 
-from specify_cli.charter.offering.pack_validator import (
+from specify_cli.doctrine.pack_validator import (
     ValidationResult,
     _check_profile_skipped_diagnostics,
     render_validation_result,

@@ -299,7 +299,7 @@ def test_build_discovery_context_anchors_on_repo_root(tmp_path: Path) -> None:
 
 
 def _write_org_pack_config(repo_root: Path, *, pack_name: str, local_path: Path) -> None:
-    """Write a canonical ``charter.offering.org.packs[].local_path`` config.yaml entry."""
+    """Write a canonical ``doctrine.org.packs[].local_path`` config.yaml entry."""
     config_dir = repo_root / ".kittify"
     config_dir.mkdir(parents=True, exist_ok=True)
     (config_dir / "config.yaml").write_text(
@@ -346,7 +346,7 @@ def test_build_discovery_context_populates_org_roots_from_configured_pack(
 
 
 def test_build_discovery_context_org_roots_empty_when_unconfigured(tmp_path: Path) -> None:
-    """NFR-005/SC-007: with no `charter.offering.org.packs` entries (no
+    """NFR-005/SC-007: with no `doctrine.org.packs` entries (no
     `.kittify/config.yaml` at all -- the overwhelmingly common case),
     `org_roots` is empty and every other field stays exactly what it was
     before this WP -- a verified no-op."""
@@ -413,7 +413,7 @@ def test_build_discovery_context_malformed_config_still_resolves_with_zero_org_r
     config_dir = repo_root / ".kittify"
     config_dir.mkdir(parents=True)
     (config_dir / "config.yaml").write_text(
-        "not: [valid, charter.offering.org.packs shape\n", encoding="utf-8"
+        "not: [valid, doctrine.org.packs shape\n", encoding="utf-8"
     )
 
     with warnings.catch_warnings(record=True) as caught:
@@ -443,7 +443,7 @@ def test_runtime_template_key_malformed_config_still_resolves_project_legacy(
     config_dir = repo_root / ".kittify"
     config_dir.mkdir(parents=True)
     (config_dir / "config.yaml").write_text(
-        "not: [valid, charter.offering.org.packs shape\n", encoding="utf-8"
+        "not: [valid, doctrine.org.packs shape\n", encoding="utf-8"
     )
     legacy_mission = repo_root / ".kittify" / "missions" / "software-dev" / "mission.yaml"
     _write_runtime_mission_yaml(legacy_mission, key="software-dev")
@@ -460,7 +460,7 @@ def test_build_discovery_context_declared_but_broken_org_pack_still_warns(
     tmp_path: Path,
 ) -> None:
     """Positive case for the two fixes above: a config that DOES declare
-    ``charter.offering.org.packs`` but fails schema validation (two packs sharing
+    ``doctrine.org.packs`` but fails schema validation (two packs sharing
     the same ``name``) is a genuinely misconfigured org pack -- the operator
     demonstrably opted in and deserves to know it's broken. Unlike the
     unparseable-file case, that signal must remain a loud ``UserWarning``

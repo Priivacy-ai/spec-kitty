@@ -82,7 +82,7 @@ def _read_authored_pack_version(pack_root: Path) -> str | None:
     """Read ``pack_version`` from an authored ``pack.yaml`` sibling, if any.
 
     IC-06 / FR-008 (pack-metadata-manifest-unification-01M052PT, WP04):
-    mirrors :func:`specify_cli.charter.offering.pack_assembler._read_authored_pack_version`
+    mirrors :func:`specify_cli.doctrine.pack_assembler._read_authored_pack_version`
     (duplicated rather than imported to keep this collect-layer module's
     import discipline — collect → model/render/shared, never reaching into
     the assembler — intact). Returns ``None`` when no authored descriptor
@@ -166,14 +166,14 @@ def _summarize_org_charter(snapshot_path: Path) -> dict[str, object]:
     """Inspect ``org-charter.yaml`` in *snapshot_path* and return a JSON-able summary.
 
     Gracefully degrades when the optional
-    ``specify_cli.charter.offering.org_charter`` module is not yet shipped (WP09).
+    ``specify_cli.doctrine.org_charter`` module is not yet shipped (WP09).
     """
     charter_path = snapshot_path / "org-charter.yaml"
     if not charter_path.exists():
         return {"present": False}
 
     try:
-        from specify_cli.charter.offering.org_charter import load_org_charter_policy
+        from specify_cli.doctrine.org_charter import load_org_charter_policy
     except ImportError:
         # Module not yet shipped — surface presence without policy details.
         return {"present": True, "module_available": False}
@@ -893,7 +893,7 @@ def _read_org_required(repo_root: Path) -> dict[str, list[str]]:
     org_required: dict[str, list[str]] = {kind: [] for kind in _SELECTION_KIND_PLURALS}
     try:
         from charter.invocation_context import ProjectContext
-        from specify_cli.charter.offering.org_charter import load_org_charter_policies
+        from specify_cli.doctrine.org_charter import load_org_charter_policies
 
         _pack_ctx = None
         try:

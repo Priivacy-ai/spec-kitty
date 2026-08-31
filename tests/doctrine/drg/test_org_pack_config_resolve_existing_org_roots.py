@@ -27,7 +27,7 @@ pytestmark = [pytest.mark.fast, pytest.mark.doctrine]
 
 
 def _write_config(repo_root: Path, packs: list[tuple[str, Path]]) -> None:
-    """Write a canonical ``charter.offering.org.packs`` config.yaml with *packs* in order."""
+    """Write a canonical ``doctrine.org.packs`` config.yaml with *packs* in order."""
     config_dir = repo_root / ".kittify"
     config_dir.mkdir(parents=True, exist_ok=True)
     if not packs:

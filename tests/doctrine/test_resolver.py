@@ -576,7 +576,7 @@ def test_charter_resolution_tier_is_doctrine_resolution_tier_by_identity() -> No
 
 
 def _write_org_pack_config(repo_root: Path, *, pack_name: str, local_path: Path) -> None:
-    """Write a canonical ``charter.offering.org.packs[].local_path`` config.yaml entry."""
+    """Write a canonical ``doctrine.org.packs[].local_path`` config.yaml entry."""
     config_dir = repo_root / ".kittify"
     config_dir.mkdir(parents=True, exist_ok=True)
     (config_dir / "config.yaml").write_text(
@@ -698,7 +698,7 @@ def test_no_org_packs_configured_is_a_noop_in_doctrine_resolver(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """NFR-005/SC-007: with zero ``charter.offering.org.packs`` entries (no
+    """NFR-005/SC-007: with zero ``doctrine.org.packs`` entries (no
     ``.kittify/config.yaml`` at all -- the overwhelmingly common case),
     resolution is byte-identical to before this WP: same path, same tier."""
     project = tmp_path / "project"
@@ -738,7 +738,7 @@ def test_malformed_org_config_still_resolves_package_default_in_doctrine_resolve
     project = tmp_path / "project"
     kittify = project / ".kittify"
     kittify.mkdir(parents=True)
-    (kittify / "config.yaml").write_text("not: [valid, charter.offering.org.packs shape\n", encoding="utf-8")
+    (kittify / "config.yaml").write_text("not: [valid, doctrine.org.packs shape\n", encoding="utf-8")
 
     fake_repo = _build_fake_repo(tmp_path / "package-root")
 
@@ -760,7 +760,7 @@ def test_declared_but_broken_org_pack_still_warns_in_doctrine_resolver(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """Positive case for the fix above: a config that DOES declare
-    ``charter.offering.org.packs`` but fails schema validation (two packs sharing
+    ``doctrine.org.packs`` but fails schema validation (two packs sharing
     the same ``name``) is a genuinely misconfigured org pack -- the operator
     demonstrably opted in and deserves to know it's broken. Unlike the
     unparseable-file case above, that signal must remain a loud

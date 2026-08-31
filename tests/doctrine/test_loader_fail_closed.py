@@ -23,7 +23,7 @@ from charter.offering.drg.loader import (
     load_built_in_graph,
 )
 from charter.offering.pack_paths import PackRootNotFound
-from tests.charter.offering._builtin_inventory import shipped_builtin_node_count
+from tests.doctrine._builtin_inventory import shipped_builtin_node_count
 
 pytestmark = [pytest.mark.fast, pytest.mark.doctrine, pytest.mark.corpus]
 

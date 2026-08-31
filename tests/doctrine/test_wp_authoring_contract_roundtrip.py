@@ -36,7 +36,7 @@ from specify_cli.ownership.frontmatter_source import (
 )
 from specify_cli.ownership.validation import validate_glob_matches, validate_ownership
 from specify_cli.status import WPMetadata
-from tests.charter.offering.conftest import BUILT_IN_MISSIONS_ROOT, REPO_ROOT
+from tests.doctrine.conftest import BUILT_IN_MISSIONS_ROOT, REPO_ROOT
 
 pytestmark = [pytest.mark.fast, pytest.mark.doctrine, pytest.mark.corpus]
 

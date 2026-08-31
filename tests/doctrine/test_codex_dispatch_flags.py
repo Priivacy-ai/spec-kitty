@@ -6,7 +6,7 @@ from pathlib import Path
 
 import pytest
 
-from tests.charter.offering.conftest import DOCTRINE_SOURCE_ROOT, REPO_ROOT
+from tests.doctrine.conftest import DOCTRINE_SOURCE_ROOT, REPO_ROOT
 
 pytestmark = [pytest.mark.doctrine, pytest.mark.fast]
 

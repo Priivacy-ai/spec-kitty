@@ -1266,7 +1266,7 @@ def _project_has_doctrine_overrides(repo_root: Path) -> bool:
     doctrine = apply_legacy_governance_selection_key_compat(governance).get("charter")
     if not isinstance(doctrine, dict):
         return False
-    for key, value in charter.offering.items():
+    for key, value in doctrine.items():
         if not key.startswith("selected_"):
             continue
         if isinstance(value, list) and value:

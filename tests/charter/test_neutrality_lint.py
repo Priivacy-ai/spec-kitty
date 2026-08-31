@@ -271,7 +271,8 @@ def test_glob_allowlist_matches_files(tmp_path: Path) -> None:
 
     allowlist = tmp_path / "allow.yaml"
     allowlist.write_text(
-        "schema_version: '1'\npaths:\n  - path: src/charter/offering/python-scoped/*.md\n    rationale: Glob-scoped to a python directory.\n    added_in: '3.2.0'\n",
+        "schema_version: '1'\npaths:\n  - path: src/charter/offering/python-scoped/*.md\n"
+        "    rationale: Glob-scoped to a python directory.\n    added_in: '3.2.0'\n",
         encoding="utf-8",
     )
 
@@ -316,7 +317,8 @@ def test_glob_allowlist_double_star_matches_zero_directory_segments(tmp_path: Pa
 
     allowlist = tmp_path / "allow.yaml"
     allowlist.write_text(
-        "schema_version: '1'\npaths:\n  - path: src/charter/offering/python-scoped/**/*.md\n    rationale: Recursive python guide exemption.\n    added_in: '3.2.0'\n",
+        "schema_version: '1'\npaths:\n  - path: src/charter/offering/python-scoped/**/*.md\n"
+        "    rationale: Recursive python guide exemption.\n    added_in: '3.2.0'\n",
         encoding="utf-8",
     )
 

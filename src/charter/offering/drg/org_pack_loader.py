@@ -137,7 +137,7 @@ _MISSION_TYPE_UNIVERSE_EXTENSION: frozenset[str] = frozenset({"mission_types"})
 # ``_AUGMENTATION_PLURAL_KINDS`` (the same 5 kinds, "kept in sync" by comment).
 # FR-030 collapses them to ONE source here. Adding a kind is a one-line change
 # in :data:`AUGMENTATION_ELIGIBLE_KINDS`; both the loader auto-emitter and
-# ``specify_cli.charter.offering.pack_validator`` derive from it.
+# ``specify_cli.doctrine.pack_validator`` derive from it.
 #
 # Coverage is now all 9 augmentation-eligible kinds (FR-028, T015): the
 # original five (tactic, styleguide, paradigm, procedure, agent_profile) plus
@@ -286,7 +286,7 @@ _AUGMENTATION_GLOBS: dict[str, str] = {
 def augmentation_plural_kinds() -> frozenset[str]:
     """Return the plural directory names of all augmentation-eligible kinds.
 
-    FR-030 single-source derivation: ``specify_cli.charter.offering.pack_validator``
+    FR-030 single-source derivation: ``specify_cli.doctrine.pack_validator``
     imports this instead of re-declaring its own ``_AUGMENTATION_PLURAL_KINDS``
     table. Includes ``mission_step_contracts`` and ``mission_types`` (the
     newly-covered kinds, T015 / FR-032).

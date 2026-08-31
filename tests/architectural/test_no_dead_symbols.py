@@ -251,62 +251,62 @@ _CATEGORY_A_SLICE_F_DEFERRED: frozenset[SymbolKey] = frozenset(
             "ensure_pack_identity", "ca9b5b99abe23a15555eca6452a326aede2faf85c70518c1a17b8dc345b349bb", source_module="charter.offering.drg.org_pack_config"
         ),  # charter.offering.drg.org_pack_config::ensure_pack_identity
         SymbolKey(
-            "GENERATED_BY", "124f8f0fc76bb7fc39e58268421f79fe2044c7901abf8ed50a4dfd4a64556322", source_module="specify_cli.charter.offering.builtin_manifest"
-        ),  # specify_cli.charter.offering.builtin_manifest::GENERATED_BY
-        # specify_cli.charter.offering.builtin_manifest::MANIFEST_FILENAME
-        SymbolKey("MANIFEST_FILENAME", "8d9c9bfddfbfe8e93bbc740dd033d34cb77d0b373b30e7118a1c93649bc3590a", source_module="specify_cli.charter.offering.builtin_manifest"),
-        # specify_cli.charter.offering.builtin_manifest::build_builtin_manifest
+            "GENERATED_BY", "124f8f0fc76bb7fc39e58268421f79fe2044c7901abf8ed50a4dfd4a64556322", source_module="specify_cli.doctrine.builtin_manifest"
+        ),  # specify_cli.doctrine.builtin_manifest::GENERATED_BY
+        # specify_cli.doctrine.builtin_manifest::MANIFEST_FILENAME
+        SymbolKey("MANIFEST_FILENAME", "8d9c9bfddfbfe8e93bbc740dd033d34cb77d0b373b30e7118a1c93649bc3590a", source_module="specify_cli.doctrine.builtin_manifest"),
+        # specify_cli.doctrine.builtin_manifest::build_builtin_manifest
         SymbolKey(
-            "build_builtin_manifest", "f9a428de9a2dc22e79265005c2e7629c49c9e707ae3079911bda1081d598f976", source_module="specify_cli.charter.offering.builtin_manifest"
+            "build_builtin_manifest", "f9a428de9a2dc22e79265005c2e7629c49c9e707ae3079911bda1081d598f976", source_module="specify_cli.doctrine.builtin_manifest"
         ),
-        # specify_cli.charter.offering.builtin_manifest::enumerate_constituents
+        # specify_cli.doctrine.builtin_manifest::enumerate_constituents
         SymbolKey(
-            "enumerate_constituents", "d063e2da3dc64d421fb3a141db384b7515a09939629c536376de32c4ac42bfab", source_module="specify_cli.charter.offering.builtin_manifest"
+            "enumerate_constituents", "d063e2da3dc64d421fb3a141db384b7515a09939629c536376de32c4ac42bfab", source_module="specify_cli.doctrine.builtin_manifest"
         ),
-        # specify_cli.charter.offering.pack_lineage::PackLineageCycleError
-        SymbolKey("PackLineageCycleError", "0e7c672a0f7e02520fb8b8dcb5e48c08c6745831760be28b3eec4277ce7635d1", source_module="specify_cli.charter.offering.pack_lineage"),
-        # specify_cli.charter.offering.pack_lineage::UnresolvedDoctrinePackError
+        # specify_cli.doctrine.pack_lineage::PackLineageCycleError
+        SymbolKey("PackLineageCycleError", "0e7c672a0f7e02520fb8b8dcb5e48c08c6745831760be28b3eec4277ce7635d1", source_module="specify_cli.doctrine.pack_lineage"),
+        # specify_cli.doctrine.pack_lineage::UnresolvedDoctrinePackError
         SymbolKey(
-            "UnresolvedDoctrinePackError", "606f77e976b58a6cdc360bdc40a563b024e6598f01ad6866e1ca48477a60f097", source_module="specify_cli.charter.offering.pack_lineage"
+            "UnresolvedDoctrinePackError", "606f77e976b58a6cdc360bdc40a563b024e6598f01ad6866e1ca48477a60f097", source_module="specify_cli.doctrine.pack_lineage"
         ),
-        # specify_cli.charter.offering.pack_lineage::UnresolvedPackParentError
+        # specify_cli.doctrine.pack_lineage::UnresolvedPackParentError
         SymbolKey(
-            "UnresolvedPackParentError", "d61ea19665cc7e37035675c8ac779074707d253b3597f848db168c500df73c92", source_module="specify_cli.charter.offering.pack_lineage"
+            "UnresolvedPackParentError", "d61ea19665cc7e37035675c8ac779074707d253b3597f848db168c500df73c92", source_module="specify_cli.doctrine.pack_lineage"
         ),
-        # specify_cli.charter.offering.pack_lineage::resolve_accompanying_doctrine_pack
+        # specify_cli.doctrine.pack_lineage::resolve_accompanying_doctrine_pack
         SymbolKey(
             "resolve_accompanying_doctrine_pack",
             "dbc882bbbfa45f20c1ee4f86ffe0561d6955f067279c82e5e0768807874870bf",
-            source_module="specify_cli.charter.offering.pack_lineage",
+            source_module="specify_cli.doctrine.pack_lineage",
         ),
-        # specify_cli.charter.offering.pack_lineage::resolve_pack_lineage_order
+        # specify_cli.doctrine.pack_lineage::resolve_pack_lineage_order
         SymbolKey(
-            "resolve_pack_lineage_order", "f9b3114c48e1e4ad07968ce4e752d697bd5272f58f40626b6ff363b2517102c9", source_module="specify_cli.charter.offering.pack_lineage"
+            "resolve_pack_lineage_order", "f9b3114c48e1e4ad07968ce4e752d697bd5272f58f40626b6ff363b2517102c9", source_module="specify_cli.doctrine.pack_lineage"
         ),
         SymbolKey(
-            "CharterProfile", "e819b8ef6ee1d90a233d35df96668e478d793c8edcf11a3320587042e9e58377", source_module="specify_cli.charter.offering.pack_manifest"
-        ),  # specify_cli.charter.offering.pack_manifest::CharterProfile
-        # specify_cli.charter.offering.pack_manifest::HASH_EXCLUDED_FIELDS
-        SymbolKey("HASH_EXCLUDED_FIELDS", "3c3581a0092e43f9586c79cf55dccee76fa9d480fa58e469fd3118c5e47747e3", source_module="specify_cli.charter.offering.pack_manifest"),
+            "CharterProfile", "e819b8ef6ee1d90a233d35df96668e478d793c8edcf11a3320587042e9e58377", source_module="specify_cli.doctrine.pack_manifest"
+        ),  # specify_cli.doctrine.pack_manifest::CharterProfile
+        # specify_cli.doctrine.pack_manifest::HASH_EXCLUDED_FIELDS
+        SymbolKey("HASH_EXCLUDED_FIELDS", "3c3581a0092e43f9586c79cf55dccee76fa9d480fa58e469fd3118c5e47747e3", source_module="specify_cli.doctrine.pack_manifest"),
         SymbolKey(
-            "SCHEMA_VERSION", "d5eae924852db12511f61d775992ee1a06e6d9021b5a9623c442e387b873f9db", source_module="specify_cli.charter.offering.pack_manifest"
-        ),  # specify_cli.charter.offering.pack_manifest::SCHEMA_VERSION
-        # specify_cli.charter.offering.pack_manifest::absorb_synthesis_manifest
+            "SCHEMA_VERSION", "d5eae924852db12511f61d775992ee1a06e6d9021b5a9623c442e387b873f9db", source_module="specify_cli.doctrine.pack_manifest"
+        ),  # specify_cli.doctrine.pack_manifest::SCHEMA_VERSION
+        # specify_cli.doctrine.pack_manifest::absorb_synthesis_manifest
         SymbolKey(
-            "absorb_synthesis_manifest", "00945ab34f76cd761d46fb785c6bd556bc4804a61935760698d83877c9886693", source_module="specify_cli.charter.offering.pack_manifest"
+            "absorb_synthesis_manifest", "00945ab34f76cd761d46fb785c6bd556bc4804a61935760698d83877c9886693", source_module="specify_cli.doctrine.pack_manifest"
         ),
         # Public deferred hash API from #3500-#3503; body changed during #3165 hardening.
         SymbolKey(
-            "compute_pack_manifest_hash", "84e647d338a9494466004cc96eb08fc67307a5ff36f479a870f3adc936920d7b", source_module="specify_cli.charter.offering.pack_manifest"
+            "compute_pack_manifest_hash", "84e647d338a9494466004cc96eb08fc67307a5ff36f479a870f3adc936920d7b", source_module="specify_cli.doctrine.pack_manifest"
         ),
         SymbolKey(
-            "counts_by_kind", "7251aec17a859f0c24347f77d55f59328003829e77f87437a2f15dedc656738d", source_module="specify_cli.charter.offering.pack_manifest"
-        ),  # specify_cli.charter.offering.pack_manifest::counts_by_kind
-        # specify_cli.charter.offering.pack_manifest::load_pack_manifest
-        SymbolKey("load_pack_manifest", "beddcbcf37b0a4e7fc2be56adc9149fce863e53e05e51bd1f2d4e8dad26847b2", source_module="specify_cli.charter.offering.pack_manifest"),
+            "counts_by_kind", "7251aec17a859f0c24347f77d55f59328003829e77f87437a2f15dedc656738d", source_module="specify_cli.doctrine.pack_manifest"
+        ),  # specify_cli.doctrine.pack_manifest::counts_by_kind
+        # specify_cli.doctrine.pack_manifest::load_pack_manifest
+        SymbolKey("load_pack_manifest", "beddcbcf37b0a4e7fc2be56adc9149fce863e53e05e51bd1f2d4e8dad26847b2", source_module="specify_cli.doctrine.pack_manifest"),
         SymbolKey(
-            "sort_constituents", "00ba026bae02e3ad0d3d368cc78afe8806b62e71e5c407e8a102841315aa0fe2", source_module="specify_cli.charter.offering.pack_manifest"
-        ),  # specify_cli.charter.offering.pack_manifest::sort_constituents
+            "sort_constituents", "00ba026bae02e3ad0d3d368cc78afe8806b62e71e5c407e8a102841315aa0fe2", source_module="specify_cli.doctrine.pack_manifest"
+        ),  # specify_cli.doctrine.pack_manifest::sort_constituents
     }
 )
 
@@ -558,26 +558,26 @@ _CATEGORY_B_GRANDFATHERED_LEGACY: frozenset[SymbolKey] = frozenset(
         # function's body changed while its grandfathered-dead status (no src/
         # importer; only tests exercise it) did not.
         SymbolKey(
-            "GovernancePolicy", "46ddf246ad782f50222cdff721814f7880aa33c8d000a88110475e71b78a6f7c", source_module="specify_cli.charter.offering.org_charter"
-        ),  # specify_cli.charter.offering.org_charter::GovernancePolicy
+            "GovernancePolicy", "46ddf246ad782f50222cdff721814f7880aa33c8d000a88110475e71b78a6f7c", source_module="specify_cli.doctrine.org_charter"
+        ),  # specify_cli.doctrine.org_charter::GovernancePolicy
         # Hash refreshed for the write-side-seam-matrix-tracer landing fold
         # (Wave B / #3070) ASSET-kind tuple extension (added the ``assets``
         # member); still grandfathered-dead (no external src/ importer --
         # only internal use + a private ``_REQUIRED_KIND_FIELDS`` copy in
         # ``src/charter/context.py``). Body-sensitive key => extending the
         # tuple changes its content hash (see ``_symbol_key.py`` Body-sensitivity).
-        # specify_cli.charter.offering.org_charter::REQUIRED_KIND_FIELDS
-        SymbolKey("REQUIRED_KIND_FIELDS", "6845e2186c122993ab17b0352e5ac72f9c821e031e96de06cb5bd996f2f0f327", source_module="specify_cli.charter.offering.org_charter"),
-        # specify_cli.charter.offering.org_charter::apply_org_charter_pre_fill
+        # specify_cli.doctrine.org_charter::REQUIRED_KIND_FIELDS
+        SymbolKey("REQUIRED_KIND_FIELDS", "6845e2186c122993ab17b0352e5ac72f9c821e031e96de06cb5bd996f2f0f327", source_module="specify_cli.doctrine.org_charter"),
+        # specify_cli.doctrine.org_charter::apply_org_charter_pre_fill
         SymbolKey(
-            "apply_org_charter_pre_fill", "559da0a61fd4f6255212b449ad4de219cb758f57501e1c5adcc1f5e5f801385b", source_module="specify_cli.charter.offering.org_charter"
+            "apply_org_charter_pre_fill", "559da0a61fd4f6255212b449ad4de219cb758f57501e1c5adcc1f5e5f801385b", source_module="specify_cli.doctrine.org_charter"
         ),
         SymbolKey(
-            "AssemblyResult", "3af243769584cf1b5e44b1a04238c6a9f879b3cd8c34e05414c046d2220202f0", source_module="specify_cli.charter.offering.pack_assembler"
-        ),  # specify_cli.charter.offering.pack_assembler::AssemblyResult
+            "AssemblyResult", "3af243769584cf1b5e44b1a04238c6a9f879b3cd8c34e05414c046d2220202f0", source_module="specify_cli.doctrine.pack_assembler"
+        ),  # specify_cli.doctrine.pack_assembler::AssemblyResult
         SymbolKey(
-            "ConflictItem", "ba27993ebb52415cc1de33833e170bcaf33a09aed1db8ebf396d778466992f57", source_module="specify_cli.charter.offering.pack_assembler"
-        ),  # specify_cli.charter.offering.pack_assembler::ConflictItem
+            "ConflictItem", "ba27993ebb52415cc1de33833e170bcaf33a09aed1db8ebf396d778466992f57", source_module="specify_cli.doctrine.pack_assembler"
+        ),  # specify_cli.doctrine.pack_assembler::ConflictItem
         SymbolKey(
             "ArtifactDetailResponse", "6ab904af861ebc649ce5950673d6be8ef4b65f323addde067ea3bcf61bb03f49", source_module="specify_cli.dossier.api"
         ),  # specify_cli.dossier.api::ArtifactDetailResponse
@@ -1023,10 +1023,10 @@ _CATEGORY_C_WP_IN_FLIGHT_CHARTER_ACTIVATION: frozenset[SymbolKey] = frozenset(
         SymbolKey(
             "StepRemovalWarning", "508dec1c957b44c16c889862c20780e4d64148a0918785d8edd5ff094aa66ccf", source_module="specify_cli.charter_activate"
         ),  # specify_cli.charter_activate::StepRemovalWarning
-        # specify_cli.charter.offering.org_charter::OrgCharterCycleError
-        SymbolKey("OrgCharterCycleError", "15ac7dc4906c07d6bbfeab8cd3051ed1872032f497dfe23b680eb118c0126740", source_module="specify_cli.charter.offering.org_charter"),
-        # specify_cli.charter.offering.org_charter::OrgCharterExtensionError
-        SymbolKey("OrgCharterExtensionError", "5351ebd8c29db6ce6682b7c0a92db5b9f433157d77f4c1985e030d0b8f7aae69", source_module="specify_cli.charter.offering.org_charter"),
+        # specify_cli.doctrine.org_charter::OrgCharterCycleError
+        SymbolKey("OrgCharterCycleError", "15ac7dc4906c07d6bbfeab8cd3051ed1872032f497dfe23b680eb118c0126740", source_module="specify_cli.doctrine.org_charter"),
+        # specify_cli.doctrine.org_charter::OrgCharterExtensionError
+        SymbolKey("OrgCharterExtensionError", "5351ebd8c29db6ce6682b7c0a92db5b9f433157d77f4c1985e030d0b8f7aae69", source_module="specify_cli.doctrine.org_charter"),
     }
 )
 
@@ -1053,12 +1053,16 @@ _CATEGORY_C_ORG_DOCTRINE_CLOSEOUT: frozenset[SymbolKey] = frozenset(
         ),  # charter.cascade::ReferencedArtifact
         SymbolKey("SharedSkip", "5eaddd3d5d18e386fc96f4ad558b21289c0bf7955cc70cfadca308d234f3ff5b", source_module="charter.cascade"),  # charter.cascade::SharedSkip
         # charter.offering.drg.org_pack_loader::AUGMENTATION_RELATIONS
-        SymbolKey("AUGMENTATION_RELATIONS", "724f4741d69125ccfd2bb664f8f05739fb4a2372220636958b84476741738af0", source_module="charter.offering.drg.org_pack_loader"),
+        SymbolKey(
+            "AUGMENTATION_RELATIONS", "724f4741d69125ccfd2bb664f8f05739fb4a2372220636958b84476741738af0", source_module="charter.offering.drg.org_pack_loader"
+        ),
         SymbolKey(
             "TOPOLOGY_KINDS", "eb1deec7b602719bb1ada5074ee99c1bf01b1df4faa1370845f9e8f65b341e9e", source_module="charter.offering.drg.org_pack_loader"
         ),  # charter.offering.drg.org_pack_loader::TOPOLOGY_KINDS
         # charter.offering.drg.org_pack_loader::merge_topology_artifact
-        SymbolKey("merge_topology_artifact", "8b3946b11d7220f921e402afa6152d2d33907b8743465c34a56e681e676539e9", source_module="charter.offering.drg.org_pack_loader"),
+        SymbolKey(
+            "merge_topology_artifact", "8b3946b11d7220f921e402afa6152d2d33907b8743465c34a56e681e676539e9", source_module="charter.offering.drg.org_pack_loader"
+        ),
         # ``template_id_for`` and ``template_urn`` left the allowlist in
         # mission-step-creatability-01KXQA6R WP06 (S-C / #2724): the DRG
         # extractor's template-instantiation pass
@@ -1714,9 +1718,13 @@ _CATEGORY_C_DELIVERY_RAIL_FORWARD_API: frozenset[SymbolKey] = frozenset(
         # reference in src/charter/context_renderers/profile_sections.py:341 is a
         # prose comment, not an import/call — so it stays allowlisted, hash-refreshed.)
         # charter.offering.drg.reachability::PROFILE_CHANNEL_RELATIONS
-        SymbolKey("PROFILE_CHANNEL_RELATIONS", "17b05fe56e1ba52f5efca0f1cebe40e0ed1ab3232b80111f8e47e51176203fb5", source_module="charter.offering.drg.reachability"),
+        SymbolKey(
+            "PROFILE_CHANNEL_RELATIONS", "17b05fe56e1ba52f5efca0f1cebe40e0ed1ab3232b80111f8e47e51176203fb5", source_module="charter.offering.drg.reachability"
+        ),
         # charter.offering.drg.reachability::action_channel_reachable
-        SymbolKey("action_channel_reachable", "12033bfeabd0a031f426ef16f55dbc9ee765a0d1c8ad09a822847a1d91b42d10", source_module="charter.offering.drg.reachability"),
+        SymbolKey(
+            "action_channel_reachable", "12033bfeabd0a031f426ef16f55dbc9ee765a0d1c8ad09a822847a1d91b42d10", source_module="charter.offering.drg.reachability"
+        ),
         SymbolKey(
             "action_seed_urns", "65ce52327f352629e39db6b4d922f14aa86e9e3ef71725a856e70567f0b66d04", source_module="charter.offering.drg.reachability"
         ),  # charter.offering.drg.reachability::action_seed_urns
@@ -2985,8 +2993,8 @@ _WIDENED_SCOPE_GRANDFATHERED_470: frozenset[str] = frozenset(
         "specify_cli.doc_analysis.doc_state::update_documentation_state",
         "specify_cli.doc_analysis.gap_analysis::detect_version_mismatch",
         "specify_cli.doc_analysis.gap_analysis::run_gap_analysis_for_feature",
-        "specify_cli.charter.offering.org_charter::org_charter_to_json_block",
-        "specify_cli.charter.offering.pack_descriptor::PackDescriptor",
+        "specify_cli.doctrine.org_charter::org_charter_to_json_block",
+        "specify_cli.doctrine.pack_descriptor::PackDescriptor",
         "specify_cli.dossier.hasher::WP_DESCRIPTIVE_PROJECTION_FIELDS",
         "specify_cli.dossier.hasher::WP_RUNTIME_PROJECTION_FIELDS",
         "specify_cli.git.commit_helpers::logger",

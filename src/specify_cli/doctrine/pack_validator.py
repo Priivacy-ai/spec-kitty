@@ -29,7 +29,7 @@ Validation performs (in order):
    manifest is, and cross-pack id-uniqueness is intentionally NOT enforced
    here (see WP03's merge scan).
 8. **Optional org-charter.yaml schema validation** (gracefully skipped when
-   the ``specify_cli.charter.offering.org_charter`` module is not yet shipped —
+   the ``specify_cli.doctrine.org_charter`` module is not yet shipped —
    WP09 owns that file).
 
 Issue ``category`` values surfaced via ``ValidationIssue.category``:
@@ -1293,7 +1293,7 @@ def _validate_org_charter(
 ) -> list[ValidationIssue]:
     """Validate optional ``pack_dir/org-charter.yaml``.
 
-    Gracefully degrades when ``specify_cli.charter.offering.org_charter`` is not
+    Gracefully degrades when ``specify_cli.doctrine.org_charter`` is not
     available (WP09 ships that module).
     """
     issues: list[ValidationIssue] = []
@@ -1303,7 +1303,7 @@ def _validate_org_charter(
 
     # Lazy import — WP09 has not necessarily shipped yet.
     try:
-        from specify_cli.charter.offering.org_charter import (
+        from specify_cli.doctrine.org_charter import (
             OrgCharterPolicy,
         )
     except ModuleNotFoundError:

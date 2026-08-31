@@ -1,11 +1,11 @@
-"""CR-04 compat shim: ``.kittify/config.yaml`` ``charter.offering.org.packs`` ->
+"""CR-04 compat shim: ``.kittify/config.yaml`` ``doctrine.org.packs`` ->
 ``charter_packs.org.packs`` (mission ``charter-code-topology-01M152G1`` S4).
 
 Precedent for the read-both / canonical-wins / warn-once shape:
 ``charter.sync`` CR-01 (``src/charter/sync.py:245-311``).
 
 Precedence order exercised here: ``charter_packs.org.packs`` (canonical, no
-warning) -> ``charter.offering.org.packs`` (legacy, warns once) -> top-level
+warning) -> ``doctrine.org.packs`` (legacy, warns once) -> top-level
 ``organisation_packs`` (oldest legacy, unchanged pre-existing
 ``DeprecationWarning`` every call -- CR-04 does not touch that tier).
 """
@@ -43,32 +43,20 @@ def _write_config(repo_root: Path, text: str) -> Path:
 
 
 class TestCanonicalCharterPacksKeyReadsSilently:
-    def test_charter_packs_org_packs_reads_without_warning(
-        self, tmp_path: Path, recwarn: pytest.WarningsRecorder
-    ) -> None:
+    def test_charter_packs_org_packs_reads_without_warning(self, tmp_path: Path, recwarn: pytest.WarningsRecorder) -> None:
         org_root = tmp_path / "org-pack"
         org_root.mkdir()
         _write_config(
             tmp_path,
-            (
-                "charter_packs:\n"
-                "  org:\n"
-                "    packs:\n"
-                "      - name: example-org\n"
-                f"        local_path: {org_root}\n"
-            ),
+            (f"charter_packs:\n  org:\n    packs:\n      - name: example-org\n        local_path: {org_root}\n"),
         )
 
         registry = load_pack_registry(tmp_path)
 
         assert registry.names() == ["example-org"]
-        assert not any(
-            issubclass(w.category, LegacyOrgPackDoctrineKeyWarning) for w in recwarn.list
-        )
+        assert not any(issubclass(w.category, LegacyOrgPackDoctrineKeyWarning) for w in recwarn.list)
 
-    def test_charter_packs_wins_over_doctrine_org_when_both_present(
-        self, tmp_path: Path, recwarn: pytest.WarningsRecorder
-    ) -> None:
+    def test_charter_packs_wins_over_doctrine_org_when_both_present(self, tmp_path: Path, recwarn: pytest.WarningsRecorder) -> None:
         canonical_root = tmp_path / "canonical-pack"
         canonical_root.mkdir()
         legacy_root = tmp_path / "legacy-pack"
@@ -94,66 +82,42 @@ class TestCanonicalCharterPacksKeyReadsSilently:
         assert registry.names() == ["canonical-org"]
         # Canonical wins silently -- no nag for an operator who already has
         # both keys (mirrors CR-01's `apply_legacy_governance_selection_key_compat`).
-        assert not any(
-            issubclass(w.category, LegacyOrgPackDoctrineKeyWarning) for w in recwarn.list
-        )
+        assert not any(issubclass(w.category, LegacyOrgPackDoctrineKeyWarning) for w in recwarn.list)
 
 
 class TestLegacyDoctrineOrgKeyWarnsOnce:
-    def test_doctrine_org_packs_reads_with_warning(
-        self, tmp_path: Path, recwarn: pytest.WarningsRecorder
-    ) -> None:
+    def test_doctrine_org_packs_reads_with_warning(self, tmp_path: Path, recwarn: pytest.WarningsRecorder) -> None:
         org_root = tmp_path / "org-pack"
         org_root.mkdir()
         _write_config(
             tmp_path,
-            (
-                "doctrine:\n"
-                "  org:\n"
-                "    packs:\n"
-                "      - name: legacy-org\n"
-                f"        local_path: {org_root}\n"
-            ),
+            (f"doctrine:\n  org:\n    packs:\n      - name: legacy-org\n        local_path: {org_root}\n"),
         )
 
         registry = load_pack_registry(tmp_path)
 
         assert registry.names() == ["legacy-org"]
-        assert any(
-            issubclass(w.category, LegacyOrgPackDoctrineKeyWarning) for w in recwarn.list
-        )
+        assert any(issubclass(w.category, LegacyOrgPackDoctrineKeyWarning) for w in recwarn.list)
 
-    def test_doctrine_org_packs_warns_only_once_per_process(
-        self, tmp_path: Path, recwarn: pytest.WarningsRecorder
-    ) -> None:
+    def test_doctrine_org_packs_warns_only_once_per_process(self, tmp_path: Path, recwarn: pytest.WarningsRecorder) -> None:
         org_root = tmp_path / "org-pack"
         org_root.mkdir()
         _write_config(
             tmp_path,
-            (
-                "doctrine:\n"
-                "  org:\n"
-                "    packs:\n"
-                "      - name: legacy-org\n"
-                f"        local_path: {org_root}\n"
-            ),
+            (f"doctrine:\n  org:\n    packs:\n      - name: legacy-org\n        local_path: {org_root}\n"),
         )
 
         load_pack_registry(tmp_path)
         load_pack_registry(tmp_path)
         load_pack_registry(tmp_path)
 
-        warnings_seen = [
-            w for w in recwarn.list if issubclass(w.category, LegacyOrgPackDoctrineKeyWarning)
-        ]
+        warnings_seen = [w for w in recwarn.list if issubclass(w.category, LegacyOrgPackDoctrineKeyWarning)]
         assert len(warnings_seen) == 1
 
 
 class TestSavePackRegistryWritesCanonicalShape:
     def test_save_writes_charter_packs_not_doctrine(self, tmp_path: Path) -> None:
-        registry = PackRegistry(
-            packs=[OrgPackConfig(name="example-org", local_path=tmp_path / "pack")]
-        )
+        registry = PackRegistry(packs=[OrgPackConfig(name="example-org", local_path=tmp_path / "pack")])
 
         save_pack_registry(tmp_path, registry)
 
@@ -161,17 +125,11 @@ class TestSavePackRegistryWritesCanonicalShape:
         assert "charter_packs" in raw
         assert "doctrine" not in raw
 
-    def test_save_then_load_round_trips_via_canonical_key(
-        self, tmp_path: Path, recwarn: pytest.WarningsRecorder
-    ) -> None:
-        registry = PackRegistry(
-            packs=[OrgPackConfig(name="example-org", local_path=tmp_path / "pack")]
-        )
+    def test_save_then_load_round_trips_via_canonical_key(self, tmp_path: Path, recwarn: pytest.WarningsRecorder) -> None:
+        registry = PackRegistry(packs=[OrgPackConfig(name="example-org", local_path=tmp_path / "pack")])
 
         save_pack_registry(tmp_path, registry)
         loaded = load_pack_registry(tmp_path)
 
         assert loaded.names() == ["example-org"]
-        assert not any(
-            issubclass(w.category, LegacyOrgPackDoctrineKeyWarning) for w in recwarn.list
-        )
+        assert not any(issubclass(w.category, LegacyOrgPackDoctrineKeyWarning) for w in recwarn.list)

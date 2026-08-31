@@ -540,7 +540,7 @@ def filter_graph_by_activation(
 # WP11 T064-drg — PackContext wiring audit
 # ---------------------------------------------------------------------------
 # WP10 / T063 established that ``_resolve_chain()`` and ``_merge_chain()`` in
-# ``specify_cli.charter.offering.org_charter`` are config-clean: they operate on the
+# ``specify_cli.doctrine.org_charter`` are config-clean: they operate on the
 # ``pack_set`` argument and never read ``.kittify/config.yaml`` directly.
 # The single config-reading path is
 # ``load_org_charter_policies(repo_root, pack_context=...)``, which already
@@ -561,6 +561,6 @@ def filter_graph_by_activation(
 # ``docs/architecture/00_landscape/README.md``). Runtime callers that need to
 # both filter the graph and load org-charter policies must invoke
 # :func:`filter_graph_by_activation` here and
-# ``specify_cli.charter.offering.org_charter.load_org_charter_policies`` from their
+# ``specify_cli.doctrine.org_charter.load_org_charter_policies`` from their
 # own (specify_cli-layer) call site, passing the same ``PackContext`` to
 # both.

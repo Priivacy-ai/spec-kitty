@@ -46,7 +46,7 @@ def _authority_paths(charter_file: Path) -> list[str]:
     data = YAML(typ="safe").load(charter_file.read_text(encoding="utf-8"))
     # charter.yaml nests under ``governance``; governance.yaml is flat.
     doctrine = data.get("governance", data).get("doctrine", {})
-    return list(charter.offering.get("authority_paths", []))
+    return list(doctrine.get("authority_paths", []))
 
 
 def test_declared_charter_authority_paths_resolve() -> None:

@@ -411,7 +411,7 @@ class TestStep4_PackValidatorVocabulary:
         if not _has_built_in_doctrine():
             pytest.skip("shipped doctrine not on disk in this environment")
 
-        from specify_cli.charter.offering.pack_validator import validate_pack
+        from specify_cli.doctrine.pack_validator import validate_pack
 
         _write_pack_tactic(tmp_path, artifact_id=_BUILT_IN_TACTIC_ID)
         result = validate_pack(tmp_path)
@@ -439,7 +439,7 @@ class TestStep4_PackValidatorVocabulary:
         if not _has_built_in_doctrine():
             pytest.skip("shipped doctrine not on disk in this environment")
 
-        from specify_cli.charter.offering.pack_validator import validate_pack
+        from specify_cli.doctrine.pack_validator import validate_pack
 
         _write_pack_tactic(
             tmp_path,
@@ -463,7 +463,7 @@ class TestStep4_PackValidatorVocabulary:
         if not _has_built_in_doctrine():
             pytest.skip("shipped doctrine not on disk in this environment")
 
-        from specify_cli.charter.offering.pack_validator import validate_pack
+        from specify_cli.doctrine.pack_validator import validate_pack
 
         _write_pack_tactic(
             tmp_path,
@@ -558,7 +558,7 @@ class TestStep5_NoShippedLayerLabel:
         if not _has_built_in_doctrine():
             pytest.skip("shipped doctrine not on disk in this environment")
 
-        from specify_cli.charter.offering.pack_validator import (
+        from specify_cli.doctrine.pack_validator import (
             render_validation_result,
             validate_pack,
         )

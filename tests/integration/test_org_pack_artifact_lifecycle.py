@@ -267,7 +267,7 @@ def test_case_2_required_styleguides_in_org_charter_pre_fills(tmp_path: Path) ->
     After Mission B WP04: schema field exists, interview data carries
     the selection field, and the union runs.
     """
-    from specify_cli.charter.offering.org_charter import apply_org_charter_to_interview
+    from specify_cli.doctrine.org_charter import apply_org_charter_to_interview
 
     consumer = tmp_path / "consumer"
     consumer.mkdir()

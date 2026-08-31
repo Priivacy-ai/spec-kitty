@@ -36,7 +36,7 @@ from typer.testing import CliRunner
 from charter.catalog import load_doctrine_catalog
 from charter.offering.glossary_packs import GlossaryPackRepository
 from specify_cli.cli.commands.doctor import app as doctor_app
-from tests.charter.offering._builtin_inventory import (
+from tests.doctrine._builtin_inventory import (
     builtin_glossary_term_count,
     builtin_profile_count,
     shipped_builtin_node_count,

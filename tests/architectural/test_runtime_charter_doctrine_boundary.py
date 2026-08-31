@@ -154,7 +154,7 @@ _LAZY_BASELINE_ALLOWLIST: frozenset[str] = frozenset(
 #: first-party re-export "laundering" conduit. ``config.py`` re-exports the
 #: shared org-pack-config contract; WP05 closes the conduit, which forces the
 #: stale-entry eviction below. A consumer-side check is impossible: ``from
-#: specify_cli.charter.offering.config import load_pack_registry`` (laundered) and ``…
+#: specify_cli.doctrine.config import load_pack_registry`` (laundered) and ``…
 #: import assert_pack_local_paths_exist`` (genuine first-party) are byte-identical
 #: import syntax, so the rule must be enforced at the SOURCE module's ``__all__``.
 # WP05 (01KZPDSR / C-005, FR-004) CLOSED the ``config.py`` conduit: the

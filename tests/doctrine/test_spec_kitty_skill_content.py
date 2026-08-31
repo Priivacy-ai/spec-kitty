@@ -6,7 +6,7 @@ import re
 
 import pytest
 
-from tests.charter.offering.conftest import DOCTRINE_SOURCE_ROOT
+from tests.doctrine.conftest import DOCTRINE_SOURCE_ROOT
 
 pytestmark = [pytest.mark.fast, pytest.mark.doctrine]
 

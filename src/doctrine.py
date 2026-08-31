@@ -1,22 +1,22 @@
 """Deprecated compatibility shim for the top-level ``doctrine`` package (CR-06).
 
 Mission ``charter-code-topology-01M152G1`` relocated the top-level
-``src/charter/offering/`` package (the offer catalogue: agent profiles, directives,
+``src/doctrine/`` package (the offer catalogue: agent profiles, directives,
 paradigms, procedures, styleguides, tactics, missions, glossary packs, DRG,
 skills, etc.) to ``src/charter/offering/`` (MAP-000 / CR-06 in
 ``kitty-specs/charter-code-topology-01M152G1/contracts/canonical-operator-surface-map.md``).
-The ``src/charter/offering/`` *directory* no longer exists — this is a single MODULE
+The ``src/doctrine/`` *directory* no longer exists — this is a single MODULE
 file, not a package, kept only so pre-existing external/legacy callers that
-still spell the import as ``import charter.offering`` or ``from charter.offering import X``
+still spell the import as ``import doctrine`` or ``from doctrine import X``
 keep working during the deprecation window.
 
 Canonical replacement
 ----------------------
 Replace every ``doctrine.<name>`` reference with ``charter.offering.<name>``:
 
-- ``import charter.offering`` -> ``import charter.offering``
-- ``from charter.offering import X`` -> ``from charter.offering import X``
-- ``from charter.offering.missions.repository import Y`` -> ``from charter.offering.missions.repository import Y``
+- ``import doctrine`` -> ``import charter.offering``
+- ``from doctrine import X`` -> ``from charter.offering import X``
+- ``from doctrine.missions.repository import Y`` -> ``from charter.offering.missions.repository import Y``
 
 Mechanics
 ---------
@@ -25,15 +25,16 @@ A module-level ``__getattr__`` (PEP 562, the same lazy-re-export shape as
 real ``charter.offering`` package: first as an already-bound attribute of
 ``charter.offering`` (covers top-level re-exports like ``ArtifactKind``, and
 any submodule ``charter/offering/__init__.py`` itself imports), then as a
-``charter.offering.<name>`` submodule import (covers ``from charter.offering import
+``charter.offering.<name>`` submodule import (covers ``from doctrine import
 resolver``-style module-form access to a submodule the package ``__init__``
 does not eagerly import). Every resolved attribute is cached on this shim
 module's ``globals()`` so repeat access after the first does not re-run the
 lookup.
 
 Deprecation signal (warn-once discipline, mirrors
-``src/specify_cli/retrospective/deprecation.py``): the first attribute access
-in a process emits a ``DeprecationWarning`` naming the canonical replacement;
+``src/specify_cli/retrospective/deprecation.py``): the first import or
+attribute access in a process emits a ``DeprecationWarning`` naming the
+canonical replacement;
 subsequent accesses in the same process are silent (NFR-006-style one-warning-
 per-process budget) so normal test/CI runs are not flooded.
 
@@ -63,7 +64,7 @@ def _warn_once() -> None:
     warnings.warn(
         "The top-level 'doctrine' package has moved to 'charter.offering' "
         "(mission charter-code-topology-01M152G1, CR-06). Replace "
-        "'import charter.offering' / 'from charter.offering import X' with "
+        "'import doctrine' / 'from doctrine import X' with "
         "'import charter.offering' / 'from charter.offering import X'. "
         "This compatibility shim (src/doctrine.py) is tracked for removal "
         "in docs/migrations/shim-registry.yaml.",
@@ -80,7 +81,7 @@ def __getattr__(name: str) -> Any:
     package with its own ``__path__``; if this shim ever cached that list
     under its own ``__path__`` attribute, Python's import machinery would
     start treating the *shim* as a package too (``hasattr(sys.modules["doctrine"],
-    "__path__")`` becomes true), and a subsequent ``import charter.offering.<sub>``
+    "__path__")`` becomes true), and a subsequent ``import doctrine.<sub>``
     would silently succeed by re-executing the target source file under the
     ``doctrine.<sub>`` name -- a second, distinct module object from
     ``charter.offering.<sub>``, breaking object identity for anything that
@@ -102,3 +103,6 @@ def __getattr__(name: str) -> Any:
             raise AttributeError(f"module {__name__!r} has no attribute {name!r}") from exc
     globals()[name] = value
     return value
+
+
+_warn_once()

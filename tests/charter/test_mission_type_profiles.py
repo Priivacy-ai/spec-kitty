@@ -838,12 +838,12 @@ def _write_org_pack_config(
     activated_mission_types: list[str],
 ) -> None:
     """Write a single, real ``.kittify/config.yaml`` carrying both the
-    mission-type activation set and the ``charter.offering.org.packs`` registry.
+    mission-type activation set and the ``doctrine.org.packs`` registry.
 
     Combines the shape ``test_mission_type_profile_override.py``'s
     ``_git_init_minimal`` writes (``mission_type_activations``) with the
     shape ``tests/doctrine/drg/test_org_pack_config_resolve_org_dirs.py``'s
-    ``_write_config`` writes (``charter.offering.org.packs``) into one file, so both
+    ``_write_config`` writes (``doctrine.org.packs``) into one file, so both
     ``existing_mission_types()`` and ``resolve_org_dirs()`` — and therefore
     the real ``resolve_mission_type_context()`` seam under test — read
     exactly what an operator would configure. No ``PackContext`` mocking:

@@ -19,7 +19,7 @@ from charter.offering.agent_profiles.profile import AgentProfile, Role
 from charter.offering.agent_profiles.repository import AgentProfileRepository
 from charter.offering.agent_profiles.validation import validate_agent_profile_yaml
 from charter.offering.pack_paths import resolve_pack_root
-from tests.charter.offering._builtin_inventory import builtin_profile_ids
+from tests.doctrine._builtin_inventory import builtin_profile_ids
 
 pytestmark = [pytest.mark.fast, pytest.mark.doctrine, pytest.mark.corpus]
 

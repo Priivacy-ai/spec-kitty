@@ -4,7 +4,7 @@ This module defines the **single canonical** pack-metadata manifest schema that
 replaces the two divergent formats that shipped previously (WP01 / IC-01):
 
 * per-kind ``artifact_counts`` for org / fetched packs
-  (``specify_cli.charter.offering.snapshot.write_pack_manifest``), and
+  (``specify_cli.doctrine.snapshot.write_pack_manifest``), and
 * the enumerated ``artifacts[]`` list of the charter bundle
   (``charter.synthesizer.manifest.SynthesisManifest``).
 

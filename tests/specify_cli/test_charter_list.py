@@ -88,7 +88,7 @@ def layered_project(tmp_path: Path) -> Path:
     kittify = repo / ".kittify"
     kittify.mkdir(parents=True)
 
-    # Org pack on disk, registered via the charter.offering.org.packs config block.
+    # Org pack on disk, registered via the doctrine.org.packs config block.
     org_pack = tmp_path / "org-pack"
     _write_directive(
         org_pack / "doctrine" / "directives" / "org",

@@ -206,7 +206,7 @@ class TestRelationshipPackFixtures:
         and survives the merge as a SPECIALIZES_FROM edge."""
         fragment = load_org_pack("lineage-pack", _FIXTURES / "lineage-pack", 1)
         assert isinstance(fragment, OrgDRGFragment)
-        from tests.charter.offering._relationship_graph import empty_built_in  # noqa: PLC0415
+        from tests.doctrine._relationship_graph import empty_built_in  # noqa: PLC0415
 
         merged = merge_three_layers(
             built_in=empty_built_in(), org_fragments=[fragment], project=None
@@ -249,7 +249,7 @@ class TestRelationshipPackFixtures:
         WPs, not WP07. We therefore merge the bridge-supported subset here and
         leave the mission-type edge as a fragment-level authoring assertion above.
         """
-        from tests.charter.offering._relationship_graph import empty_built_in  # noqa: PLC0415
+        from tests.doctrine._relationship_graph import empty_built_in  # noqa: PLC0415
 
         fragment = load_org_pack(
             "augment-all-kinds-pack", _FIXTURES / "augment-all-kinds-pack", 1

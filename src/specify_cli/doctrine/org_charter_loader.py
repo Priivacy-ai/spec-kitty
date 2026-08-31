@@ -10,7 +10,7 @@ The charter layer is forbidden from importing ``specify_cli`` (ADR
 2026-03-27-1).  All org-layer policy reads therefore happen here; the result
 is passed *as data* into the charter layer.
 
-WP09 owns ``specify_cli.charter.offering.org_charter`` (the policy schema + loader).
+WP09 owns ``specify_cli.doctrine.org_charter`` (the policy schema + loader).
 This module imports that loader lazily so WP07 ships independently — when
 WP09 is not yet installed, the org-charter block degrades to
 ``{"present": false, "packs": []}``.
@@ -47,7 +47,7 @@ def load_org_charter_json_block(org_roots: list[Path] | None) -> dict[str, Any]:
     Returns the empty block (``present=False``, ``packs=[]``) when:
 
     * ``org_roots`` is empty or ``None``;
-    * the optional WP09 module ``specify_cli.charter.offering.org_charter`` is not
+    * the optional WP09 module ``specify_cli.doctrine.org_charter`` is not
       installed;
     * none of the configured packs ship an ``org-charter.yaml``.
     """
@@ -55,7 +55,7 @@ def load_org_charter_json_block(org_roots: list[Path] | None) -> dict[str, Any]:
         return dict(_EMPTY_BLOCK)
 
     try:
-        from specify_cli.charter.offering.org_charter import (
+        from specify_cli.doctrine.org_charter import (
             load_org_charter_policy,
         )
     except ImportError:

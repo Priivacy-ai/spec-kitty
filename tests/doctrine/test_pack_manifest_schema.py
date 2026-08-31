@@ -14,7 +14,7 @@ import pytest
 from pydantic import TypeAdapter, ValidationError
 
 from charter.offering.artifact_kinds import ArtifactKind
-from specify_cli.charter.offering.pack_manifest import (
+from specify_cli.doctrine.pack_manifest import (
     HASH_EXCLUDED_FIELDS,
     SCHEMA_VERSION,
     CharterProfile,

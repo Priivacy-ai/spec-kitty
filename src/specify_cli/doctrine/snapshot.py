@@ -9,7 +9,7 @@ partial snapshot:
 3. Write ``pack-manifest.yaml`` into the staged effective root.
 4. Replace ``local_path`` with the complete staged tree using a single rename.
 
-:class:`specify_cli.charter.offering.sources.git_source.GitSource` deliberately
+:class:`specify_cli.doctrine.sources.git_source.GitSource` deliberately
 does NOT use this helper.  Git owns ``target_dir`` and provides its own
 consistency story via ``fetch`` + ``reset --hard``.
 """
@@ -648,12 +648,12 @@ def _build_source(pack: OrgPackConfig) -> OrgDoctrineSource:
     if pack.source_type is None:
         raise ValueError(
             f"Pack '{pack.name}' has no source_type configured; "
-            "set charter.offering.org.packs[].source_type to one of: git, https, artifactory, api."
+            "set doctrine.org.packs[].source_type to one of: git, https, artifactory, api."
         )
     if not pack.url:
         raise ValueError(
             f"Pack '{pack.name}' has source_type={pack.source_type!r} "
-            "but no url; set charter.offering.org.packs[].url."
+            "but no url; set doctrine.org.packs[].url."
         )
 
     if pack.source_type == "git":

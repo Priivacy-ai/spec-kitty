@@ -459,7 +459,7 @@ def _collect_org_layer_status(repo_root: Path) -> dict[str, Any]:
     Per the charter layer architectural boundary (kernel <- doctrine <-
     charter <- specify_cli), we use ``charter.drg.load_org_drg`` directly
     rather than the ``specify_cli`` config path.  The caller may also pass
-    the repo root to ``specify_cli.charter.offering.config`` for richer pack metadata;
+    the repo root to ``specify_cli.doctrine.config`` for richer pack metadata;
     this implementation stays purely charter-layer.
     """
     from charter.drg import (  # noqa: PLC0415

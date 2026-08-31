@@ -213,7 +213,7 @@ class TestFailClosed:
 class TestNoOrgPacksShortCircuit:
     def test_no_org_packs_returns_empty(self, tmp_path: Path) -> None:
         """No declared org packs → empty result (nothing to resolve)."""
-        # A config with no charter.offering.org.packs at all.
+        # A config with no doctrine.org.packs at all.
         kittify = tmp_path / ".kittify"
         kittify.mkdir(parents=True, exist_ok=True)
         with (kittify / "config.yaml").open("w", encoding="utf-8") as fh:

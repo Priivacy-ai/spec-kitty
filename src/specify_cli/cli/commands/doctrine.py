@@ -30,11 +30,11 @@ Surface area:
   activation state (FR-013 / WP13).
 
 Both ``pack validate`` and ``pack assemble`` are implemented by WP06; their
-heavy lifting lives in :mod:`specify_cli.charter.offering.pack_validator` and
-:mod:`specify_cli.charter.offering.pack_assembler` so this module only handles
+heavy lifting lives in :mod:`specify_cli.doctrine.pack_validator` and
+:mod:`specify_cli.doctrine.pack_assembler` so this module only handles
 argument parsing and exit-code mapping. ``new`` and ``validate`` are owned
 by WP09 (Mission B) and reuse the same schema registry from
-:mod:`specify_cli.charter.offering.pack_validator`.
+:mod:`specify_cli.doctrine.pack_validator`.
 """
 
 from __future__ import annotations
@@ -135,7 +135,7 @@ def fetch(
     """Fetch org doctrine pack(s) from their configured remote sources."""
     from charter.drg import load_pack_registry
     from specify_cli.core.paths import locate_project_root
-    from specify_cli.charter.offering.snapshot import fetch_pack
+    from specify_cli.doctrine.snapshot import fetch_pack
 
     repo_root = locate_project_root()
     if repo_root is None:
@@ -149,7 +149,7 @@ def fetch(
     if not registry.packs:
         console.print("[red]No org doctrine packs configured.[/red]")
         console.print(
-            "Add a [bold]charter.offering.org.packs[/bold] block to "
+            "Add a [bold]doctrine.org.packs[/bold] block to "
             ".kittify/config.yaml. See the contract at "
             "kitty-specs/layered-doctrine-org-layer-*/contracts/config-schema.yaml."
         )
@@ -281,7 +281,7 @@ def regenerate_graph(
         write_reference_graph_with_overlay,
     )
     from charter.drg import DRGValidationError
-    from specify_cli.charter.offering.builtin_manifest import (
+    from specify_cli.doctrine.builtin_manifest import (
         builtin_manifest_is_fresh,
         generate_builtin_manifest,
     )
@@ -402,7 +402,7 @@ def pack_validate(
     Exits 0 when the pack passes validation (advisories do not affect the
     exit code) and 1 when at least one error is reported.
     """
-    from specify_cli.charter.offering.pack_validator import (
+    from specify_cli.doctrine.pack_validator import (
         render_validation_result,
         validate_pack,
     )
@@ -449,7 +449,7 @@ def pack_assemble(
     Exits 0 on success and 1 when conflicts block the merge or when the
     assembled output fails validation.
     """
-    from specify_cli.charter.offering.pack_assembler import (
+    from specify_cli.doctrine.pack_assembler import (
         assemble_pack,
         render_assembly_result,
     )
@@ -699,7 +699,7 @@ def new(
     # registry in pack_validator is the canonical source of truth.
     from ruamel.yaml import YAML
 
-    from specify_cli.charter.offering.pack_validator import _artifact_schema_registry
+    from specify_cli.doctrine.pack_validator import _artifact_schema_registry
 
     schema_cls = _artifact_schema_registry()[plural][1]
     parsed = YAML(typ="safe").load(stub_text)
@@ -792,7 +792,7 @@ def _validate_single_artifact(
     from ruamel.yaml import YAML
     from ruamel.yaml.error import YAMLError
 
-    from specify_cli.charter.offering.pack_validator import _artifact_schema_registry
+    from specify_cli.doctrine.pack_validator import _artifact_schema_registry
 
     detected = _detect_artifact_kind(path)
     if detected is None:
@@ -880,7 +880,7 @@ def validate(
 # ----------------------------------------------------------------------
 
 #: Minimal ``org-charter.yaml`` body.  All fields are optional in
-#: :class:`specify_cli.charter.offering.org_charter.OrgCharterPolicy`; the stub
+#: :class:`specify_cli.doctrine.org_charter.OrgCharterPolicy`; the stub
 #: carries the schema_version sentinel and a TODO org_name as a
 #: quickstart hint.
 _ORG_CHARTER_STUB = """\
@@ -994,11 +994,11 @@ def org_validate(
 ) -> None:
     """Validate an org doctrine pack using schema and DRG checks (FR-006).
 
-    Calls the WP06 :func:`specify_cli.charter.offering.pack_validator.validate_pack`
+    Calls the WP06 :func:`specify_cli.doctrine.pack_validator.validate_pack`
     loader.  Prints per-file findings with file paths.  Exits non-zero when
     at least one error is found.
     """
-    from specify_cli.charter.offering.pack_validator import (
+    from specify_cli.doctrine.pack_validator import (
         render_validation_result,
         validate_pack,
     )
@@ -1034,7 +1034,7 @@ def org_validate(
                 try:
                     OrgDRGFragment.model_validate(frag_data)
                 except PydanticValidationError as exc:
-                    from specify_cli.charter.offering.pack_validator import ValidationIssue, ValidationResult
+                    from specify_cli.doctrine.pack_validator import ValidationIssue, ValidationResult
 
                     extra_error = ValidationIssue(
                         severity="error",

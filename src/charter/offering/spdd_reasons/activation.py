@@ -129,18 +129,18 @@ def _governance_selects_pack(governance: Any) -> bool:
     if not isinstance(doctrine, dict):
         return False
 
-    paradigms = _coerce_str_list(charter.offering.get("selected_paradigms"))
+    paradigms = _coerce_str_list(doctrine.get("selected_paradigms"))
     if PARADIGM_ID in paradigms:
         return True
 
     # ``selected_tactics`` is not part of the formal Pydantic schema today, but
     # we read it as a raw key so projects (or future schema additions) that
     # carry tactic selections are detected without a schema change.
-    tactics = _coerce_str_list(charter.offering.get("selected_tactics"))
+    tactics = _coerce_str_list(doctrine.get("selected_tactics"))
     if TACTIC_FILL_ID in tactics or TACTIC_REVIEW_ID in tactics:
         return True
 
-    directives = _coerce_str_list(charter.offering.get("selected_directives"))
+    directives = _coerce_str_list(doctrine.get("selected_directives"))
     if _directive_id_matches(directives):
         return True
 
