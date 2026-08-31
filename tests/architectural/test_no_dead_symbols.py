@@ -3259,16 +3259,25 @@ def test_extract_public_module_level_names_scoping() -> None:
 def test_used_within_own_module() -> None:
     """Unit test for `_used_within_own_module` (#470 mutation-proofing).
 
-    True iff *name* is referenced as an ``ast.Name`` Load anywhere in the
-    tree. A Store-only reference (the name's own definition, with no later
-    use) or no reference at all must return False -- the mutation the squad
-    demonstrated (an unconditional `return True`) would rescue every
-    widened-in offender regardless of real intra-module use.
+    True iff *name* is referenced as an ``ast.Name`` Load that can resolve to
+    the module-level binding. A Store-only reference, no reference at all, or
+    a load shadowed by a local binding in an enclosing function scope must
+    return False -- the mutation the squad demonstrated (an unconditional
+    `return True`) would rescue every widened-in offender regardless of real
+    intra-module use.
     """
     referenced_tree = ast.parse("logger = get_logger()\ndef use():\n    return logger\n")
     unreferenced_tree = ast.parse("logger = get_logger()\n")
+    local_shadow_tree = ast.parse("logger = get_logger()\ndef use():\n    logger = logging.getLogger(__name__)\n    return logger\n")
+    parameter_shadow_tree = ast.parse("logger = get_logger()\ndef use(logger):\n    return logger\n")
+    nested_shadow_tree = ast.parse("logger = get_logger()\ndef outer():\n    logger = logging.getLogger(__name__)\n    def inner():\n        return logger\n    return inner\n")
+    comprehension_shadow_tree = ast.parse("logger = get_logger()\nvalues = [logger for logger in loggers]\n")
     assert _used_within_own_module(referenced_tree, "logger") is True
     assert _used_within_own_module(unreferenced_tree, "logger") is False
+    assert _used_within_own_module(local_shadow_tree, "logger") is False
+    assert _used_within_own_module(parameter_shadow_tree, "logger") is False
+    assert _used_within_own_module(nested_shadow_tree, "logger") is False
+    assert _used_within_own_module(comprehension_shadow_tree, "logger") is False
     assert _used_within_own_module(unreferenced_tree, "nonexistent_name") is False
 
 
