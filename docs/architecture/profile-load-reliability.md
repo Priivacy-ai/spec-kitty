@@ -45,6 +45,7 @@ The loading **mechanism is healthy**. In live testing, 7/7 *activated* profiles 
 code or template regression.
 
 ### 2.1 The gate
+
 `src/specify_cli/cli/commands/profiles_cmd.py:337` (FR-014, introduced in #1636
 `488fe34e0c`) refuses any profile absent from the charter's `activated_agent_profiles`
 allowlist:
@@ -59,6 +60,7 @@ missing**. Count check: **25 source profiles, 23 activated → the 2 omitted are
 2 the squad skill recommends.**
 
 ### 2.2 The regression commit
+
 `9a99801f1b` (2026-08-08, *"feat(charter): activate writing-comms & diagramming doctrine
 set"*) first **materialized** the allowlist (23 entries) in
 `.kittify/charter/charter.yaml:1744`, silently omitting `doctrine-daphne` and
@@ -67,11 +69,13 @@ built-in profiles resolved (NFR-001 back-compat), so squads worked before that d
 matches "recently stopped."
 
 ### 2.3 It ships upstream
+
 `src/charter/packs/default.yaml:187` — the built-in default charter pack — carries the
 same allowlist and **also omits both profiles**. **Every new project inherits the gap**,
 not just this dogfooding checkout.
 
 ### 2.4 The seam gap (why it's silent)
+
 The `adversarial-squad` skill (`SKILL.md:43,47`) **hardcodes** the persona names
 `doctrine-daphne` and `randy-reducer` with no reconciliation against the activated set.
 Its fallback clause sanctions reading the raw YAML **only for "a read-only harness that
@@ -108,6 +112,7 @@ Three coordinated changes. The activation-data fix restores squads immediately; 
 orchestrator-injects contract closes the failure **class**.
 
 ### 4.1 Fix the activation data (close by construction)
+
 Activate the two doctrine lenses everywhere the allowlist is authored:
 - This project: `spec-kitty charter activate agent-profile doctrine-daphne randy-reducer`
   (or edit `charter.yaml` + `charter sync`).
@@ -117,6 +122,7 @@ Activate the two doctrine lenses everywhere the allowlist is authored:
   lenses). This closes the defect class per directive 043 (close-by-construction).
 
 ### 4.2 Orchestrator-resolves-then-injects (the durable seam fix)
+
 Make the **orchestrator** — the one context that reliably *can* resolve — load each lens
 **once**, with overlays / `specializes_from` lineage / `enhances`/`overrides` applied, and
 **inject the resolved profile + compact action context inline** into each delegate prompt.
@@ -132,6 +138,7 @@ Consequences:
   tactic stays **allowed where available**, never **required**.
 
 ### 4.3 The `/spk-load-profile <id> <instructions>` primitive
+
 Consolidate `spk-doctrine-profile-load` + the `ad-hoc-profile-load` alias into a single
 dispatch primitive `/spk-load-profile <name|id> <instructions>` that both **resolves** the
 profile and **carries the task** the profiled agent runs — the surface the orchestrator
@@ -140,6 +147,7 @@ test-locked — redirect, never delete). *(New surface: `/spk-load-profile` does
 today.)*
 
 ### 4.4 WP-prompt hygiene (LOW, optional)
+
 If pursued, rename WP-template references `/ad-hoc-profile-load → /spk-load-profile`,
 **keeping the leading slash**, and:
 - **Exclude** the alias-*declaring* surfaces (`spk-doctrine-profile-load/SKILL.md:35`,
@@ -174,6 +182,7 @@ Four dialectic squads (thesis ↔ antithesis, 8 profile-loaded delegates) stress
 **amends** the sections named. Confidence figures are the delegates' own.
 
 ### D1 — Resolution locus (§4.2): **hybrid, sharpened**
+
 Thesis (inject, 0.8) and antithesis (live-resolve, HIGH-on-facts) agree the answer is the
 hybrid §4.2:123 already names, but both narrow it:
 - **Injection carries a fail-loud FLOOR** — resolved profile identity + boundaries + proof
@@ -196,6 +205,7 @@ hybrid §4.2:123 already names, but both narrow it:
      self-heals once §4.1 lands; an injected one cannot.
 
 ### D2 — Backend service (§4.2-future / charter-backend-service-future.md): **keep backlog** (0.8 / 0.85, convergent)
+
 Both sides independently affirm the existing scope filing. The backend is the *right*
 boundary and *right to defer*. Hard gates before it leaves backlog:
 - Land §4.1 + §4.2 **first** — the backend fixes zero Issue-1 defects; a warm cache over
@@ -211,6 +221,7 @@ boundary and *right to defer*. Hard gates before it leaves backlog:
   checkout, not CWD — the environment-drift motivation is real but not yet urgent.)*
 
 ### D3 — `/spk-load-profile` shape (§4.3): **consolidate, but reconcile with `spec-kitty dispatch`**
+
 Thesis (0.72) and antithesis (moderate-high) converge: consolidation's atomicity win is
 real **for the orchestrator-emitted dispatch case**, but a naive `<id> <instructions>`
 free-text positional is the wrong shape. **§4.3 is amended:**
@@ -225,6 +236,7 @@ free-text positional is the wrong shape. **§4.3 is amended:**
   independently of task text.
 
 ### D4 — Issue 1 fix (§4.1 vs §4.2): **data-first, seam-closes** (0.85 / 0.85, convergent on sequencing)
+
 - **§4.1 data fix is the correct PRIMARY *first* move** — smallest surface, clears the
   freeze, restores squads, and (with the guard) discharges directive 043 for these two
   instances. Apply at **both** authoring sites (`charter.yaml` + `default.yaml:187`).
@@ -237,6 +249,7 @@ free-text positional is the wrong shape. **§4.3 is amended:**
 - **Do not mark Issue 1 closed on §4.1 alone** — close it on §4.2; track §4.1 as mitigation.
 
 ### New tickets surfaced by the dialectic (filed post-review)
+
 - **[Bug]** `charter context --include directive:<id>` selector returns `EXIT 1` for valid
   directive IDs (D1.i above) — blocks the inject-IDs compaction strategy. **Filed #3816.**
 - **[Constraint]** the fail-loud contract's guard and injector must consume one canonical
