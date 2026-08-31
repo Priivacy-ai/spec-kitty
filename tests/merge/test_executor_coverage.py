@@ -10,6 +10,8 @@ removed). Behaviour-preserving: no executor source is modified.
 
 from __future__ import annotations
 
+import json
+import subprocess
 from pathlib import Path
 from types import SimpleNamespace
 from unittest.mock import patch
@@ -37,6 +39,7 @@ def _make_run(
     push: bool = False,
     remove_worktree: bool = True,
     delete_branch: bool = True,
+    teardown_coordination: bool | None = None,
 ) -> ex._MergeRunState:
     lanes_manifest = SimpleNamespace(
         target_branch="main",
@@ -45,6 +48,15 @@ def _make_run(
     )
     state = MergeState(
         mission_id="01ID", mission_slug="m", target_branch="main", wp_order=["WP01"]
+    )
+    # #3131: mirrors resolve_merge_retention's coupling rule (delete_branch AND
+    # remove_worktree) so existing call sites that already pass both True keep
+    # exercising the coord-teardown gate without every call site needing an
+    # explicit teardown_coordination= kwarg.
+    resolved_teardown_coordination = (
+        (delete_branch and remove_worktree)
+        if teardown_coordination is None
+        else teardown_coordination
     )
     run = ex._MergeRunState(
         main_repo=tmp_path,
@@ -58,6 +70,7 @@ def _make_run(
         push=push,
         delete_branch=delete_branch,
         remove_worktree=remove_worktree,
+        teardown_coordination=resolved_teardown_coordination,
         strategy=ex.MergeStrategy.SQUASH,
         assume_yes=True,
         planning_artifact_only=planning_artifact_only,
@@ -790,3 +803,284 @@ def test_render_stale_findings_all_grades(tmp_path: Path) -> None:
         elapsed_seconds=0.1, files_scanned=2, findings_per_100_loc=1.0,
     )
     ex._render_stale_findings(report)
+
+
+# ---------------------------------------------------------------------------
+# #3131 T011 — WP02 owned unit assertions for the retention-enforcement gates.
+# ---------------------------------------------------------------------------
+
+
+def _assert_partial_retention_retains_coord_triple(
+    tmp_path: Path, *, delete_branch: bool, remove_worktree: bool
+) -> None:
+    """One (delete_branch, remove_worktree) case of the partial-retention
+    coord-coupling gate — extracted so the loop caller stays closure-free
+    (each fake-command call list is scoped to its own call, not a loop var)."""
+    calls: list[list[str]] = []
+
+    def _fake_cmd(args: list[str], **kwargs: object) -> tuple[int, str, str]:
+        calls.append(list(args))
+        return (0, "", "")
+
+    run = _make_run(
+        tmp_path,
+        remove_worktree=remove_worktree,
+        delete_branch=delete_branch,
+        teardown_coordination=False,
+    )
+    with (
+        patch("specify_cli.lanes.branch_naming.lane_branch_name", return_value="kitty/lane-a"),
+        patch("specify_cli.lanes.branch_naming.worktree_path", return_value=tmp_path / "absent"),
+        patch("specify_cli.lanes.compute.is_planning_lane", return_value=False),
+        patch.object(ex, "_worktree_removal_delay", return_value=0),
+        patch.object(ex, "run_command", side_effect=_fake_cmd),
+        patch(
+            "specify_cli.mission_metadata.load_meta_or_empty",
+            return_value={"coordination_branch": "kitty/mission-m", "mid8": "deadbeef"},
+        ),
+        patch("specify_cli.post_merge.retrospective_terminus.run_retrospective_postcondition"),
+        patch("specify_cli.coordination.workspace.CoordinationWorkspace") as cw_mock,
+        patch.object(ex, "commit_merge_bookkeeping") as commit_mock,
+    ):
+        ex._phase_cleanup_worktrees_and_branches(run)
+
+    mission_branch_deletes = [
+        c for c in calls if c[:3] == ["git", "branch", "-D"] and c[3:] == ["kitty/mission-m"]
+    ]
+    assert not mission_branch_deletes, (
+        f"delete_branch={delete_branch}, remove_worktree={remove_worktree}: "
+        f"mission/coordination branch was deleted despite teardown_coordination"
+        f"=False. calls={calls!r}"
+    )
+    commit_mock.assert_not_called()
+    cw_mock.teardown.assert_not_called()
+
+
+def test_teardown_coordination_gate_retains_coord_triple_on_partial_retention(
+    tmp_path: Path,
+) -> None:
+    """#3131 T008/T011/INV-2: partial retention (delete_branch XOR
+    remove_worktree, so ``teardown_coordination=False``) must not delete the
+    mission/coordination branch or attempt the coord-worktree teardown —
+    both cases (delete_branch=True/remove_worktree=False and the reverse)."""
+    _assert_partial_retention_retains_coord_triple(
+        tmp_path, delete_branch=True, remove_worktree=False
+    )
+    _assert_partial_retention_retains_coord_triple(
+        tmp_path, delete_branch=False, remove_worktree=True
+    )
+
+
+def test_scratch_workspace_cleanup_stays_ungated_under_full_retention(
+    tmp_path: Path,
+) -> None:
+    """#3131 FR-013/C-006: the merge SCRATCH workspace cleanup runs regardless
+    of the branch/worktree retention decision — retention only ever protects
+    the mission's OWN branches/worktrees, never the merge's disposable scratch
+    workspace."""
+    run = _make_run(
+        tmp_path, remove_worktree=False, delete_branch=False, teardown_coordination=False
+    )
+    with (
+        patch.object(ex, "cleanup_merge_workspace") as cleanup_mock,
+        patch.object(ex, "clear_state"),
+        patch.object(ex, "_emit_merge_diff_summary"),
+        patch.object(ex, "emit_mission_closed"),
+    ):
+        ex._phase_finalize_and_summary(run)
+    cleanup_mock.assert_called_once()
+
+
+def _init_abort_repo(tmp_path: Path, slug: str, *, retain_worktrees: bool) -> Path:
+    """Minimal real git repo + primary meta.json for ``--abort`` teardown tests."""
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    subprocess.run(["git", "init", "-q", "-b", "main", str(repo)], check=True)
+    subprocess.run(["git", "-C", str(repo), "config", "user.email", "t@example.com"], check=True)
+    subprocess.run(["git", "-C", str(repo), "config", "user.name", "Test"], check=True)
+    subprocess.run(["git", "-C", str(repo), "config", "commit.gpgsign", "false"], check=True)
+    (repo / "README.md").write_text("seed\n", encoding="utf-8")
+    fdir = repo / "kitty-specs" / slug
+    fdir.mkdir(parents=True)
+    meta: dict[str, object] = {
+        "mission_slug": slug,
+        "mission_id": "01ABORT0000000000000000001",
+        "mid8": "01ABORT0",
+        "coordination_branch": f"kitty/mission-{slug}",
+        "target_branch": "main",
+    }
+    if retain_worktrees:
+        meta["retain_worktrees"] = True
+    (fdir / "meta.json").write_text(json.dumps(meta), encoding="utf-8")
+    subprocess.run(["git", "-C", str(repo), "add", "-A"], check=True)
+    subprocess.run(["git", "-C", str(repo), "commit", "-q", "-m", "seed mission"], check=True)
+    return repo
+
+
+def test_teardown_coordination_for_abort_retains_worktree_when_meta_retains(
+    tmp_path: Path,
+) -> None:
+    """#3131 FR-012/T009: ``merge --abort`` must NOT destroy a coordination
+    worktree the mission's meta.json asks to retain (INV-1: no silent
+    deletion)."""
+    from specify_cli.cli.commands.merge import _teardown_coordination_for_abort
+
+    slug = "abort-retain-repro"
+    repo = _init_abort_repo(tmp_path, slug, retain_worktrees=True)
+
+    with patch(
+        "specify_cli.coordination.teardown.teardown_coordination_topology"
+    ) as mock_teardown:
+        _teardown_coordination_for_abort(repo, slug, None)
+
+    mock_teardown.assert_not_called()
+
+
+def test_teardown_coordination_for_abort_destroys_worktree_when_no_policy(
+    tmp_path: Path,
+) -> None:
+    """FR-010 companion: a mission with NO retention policy keeps the
+    pre-#3131 ``--abort`` teardown behavior byte-identical."""
+    from specify_cli.cli.commands.merge import _teardown_coordination_for_abort
+
+    slug = "abort-default-repro"
+    repo = _init_abort_repo(tmp_path, slug, retain_worktrees=False)
+
+    with patch(
+        "specify_cli.coordination.teardown.teardown_coordination_topology"
+    ) as mock_teardown:
+        _teardown_coordination_for_abort(repo, slug, None)
+
+    mock_teardown.assert_called_once()
+
+
+def test_merge_resume_threads_raw_retention_flags_unchanged(tmp_path: Path) -> None:
+    """#3131 FR-007: a ``--resume``d merge must fall through into the SAME
+    retention resolution as a fresh merge — the resume dispatch must not
+    special-case the cleanup flags into concrete bools before
+    ``_run_real_merge``, which would bypass ``resolve_merge_retention``."""
+    from specify_cli.cli.commands import merge as merge_mod
+
+    captured: dict[str, object] = {}
+
+    def _fake_run_real_merge(_repo_root: object, **kwargs: object) -> None:
+        captured.update(kwargs)
+
+    with (
+        patch.object(merge_mod, "find_repo_root", return_value=tmp_path),
+        patch.object(merge_mod, "_enforce_git_preflight"),
+        patch.object(merge_mod, "_dispatch_resume", return_value="m"),
+        patch.object(merge_mod, "_resolve_slug_or_exit", return_value="m"),
+        patch.object(merge_mod, "load_state", return_value=None),
+        patch.object(
+            merge_mod, "_resolve_target_branch", return_value=("main", "meta.json")
+        ),
+        patch.object(merge_mod, "_validate_target_branch"),
+        patch.object(merge_mod, "_run_real_merge", side_effect=_fake_run_real_merge),
+    ):
+        merge_mod.merge(
+            strategy=None,
+            delete_branch=None,
+            remove_worktree=None,
+            push=False,
+            target_branch=None,
+            dry_run=False,
+            json_output=False,
+            mission="m",
+            resume=True,
+            abort=False,
+            context_token=None,
+            keep_workspace=False,
+            allow_sparse_checkout=False,
+            yes=True,
+            skip_review_artifact_check=False,
+            note=None,
+        )
+
+    assert captured.get("delete_branch") is None, (
+        "resume must NOT coerce the unset tri-state delete_branch flag into a "
+        f"concrete bool before _run_real_merge; got {captured.get('delete_branch')!r}"
+    )
+    assert captured.get("remove_worktree") is None, (
+        "resume must NOT coerce the unset tri-state remove_worktree flag into "
+        f"a concrete bool before _run_real_merge; got {captured.get('remove_worktree')!r}"
+    )
+
+
+def _init_orchestrator_retention_repo(
+    tmp_path: Path, slug: str, *, retain: bool, is_coord: bool
+) -> Path:
+    """Minimal real git repo + primary meta.json for the orchestrator resolver."""
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    subprocess.run(["git", "init", "-q", "-b", "main", str(repo)], check=True)
+    subprocess.run(["git", "-C", str(repo), "config", "user.email", "t@example.com"], check=True)
+    subprocess.run(["git", "-C", str(repo), "config", "user.name", "Test"], check=True)
+    subprocess.run(["git", "-C", str(repo), "config", "commit.gpgsign", "false"], check=True)
+    fdir = repo / "kitty-specs" / slug
+    fdir.mkdir(parents=True)
+    meta: dict[str, object] = {
+        "mission_slug": slug,
+        "mission_id": "01ORCH000000000000000000001",
+        "mid8": "01ORCH00",
+        "target_branch": "main",
+    }
+    if is_coord:
+        meta["coordination_branch"] = f"kitty/mission-{slug}"
+    if retain:
+        meta["retain_branches"] = True
+        meta["retain_worktrees"] = True
+    (fdir / "meta.json").write_text(json.dumps(meta), encoding="utf-8")
+    subprocess.run(["git", "-C", str(repo), "add", "-A"], check=True)
+    subprocess.run(["git", "-C", str(repo), "commit", "-q", "-m", "seed mission"], check=True)
+    return repo
+
+
+def test_orchestrator_execute_lane_merge_resolves_retention_for_coord_mission(
+    tmp_path: Path,
+) -> None:
+    """#3131 C-007/T010: ``orchestrator_api._execute_lane_merge`` routes
+    through ``resolve_merge_retention`` and (topology-aware) does not mark the
+    mission/coordination branch deletable for a retaining coord mission —
+    the exact NFR-003 gap the hardcoded ``delete_branch=True,
+    remove_worktree=True`` caller used to reach."""
+    from specify_cli.orchestrator_api.commands import _resolve_lane_merge_retention
+
+    slug = "orch-retain-coord-repro"
+    repo = _init_orchestrator_retention_repo(tmp_path, slug, retain=True, is_coord=True)
+
+    retention, mission_branch_deletable = _resolve_lane_merge_retention(
+        repo, slug, delete_branch=None, remove_worktree=None
+    )
+
+    assert retention.delete_branch is False
+    assert retention.remove_worktree is False
+    assert mission_branch_deletable is False, (
+        "a retaining COORD mission driven through the orchestrator entry must "
+        "not mark the mission/coordination branch deletable"
+    )
+
+
+def test_orchestrator_execute_lane_merge_non_coord_stays_on_delete_branch_gate(
+    tmp_path: Path,
+) -> None:
+    """Topology-aware parity with the executor (#3131 T008): a non-coord
+    mission's mission-branch deletability tracks ``delete_branch`` alone, not
+    the coupled ``teardown_coordination`` -- so an explicit delete with
+    worktrees kept still deletes the (non-coordination) mission branch."""
+    from specify_cli.orchestrator_api.commands import _resolve_lane_merge_retention
+
+    slug = "orch-non-coord-repro"
+    repo = _init_orchestrator_retention_repo(tmp_path, slug, retain=False, is_coord=False)
+
+    retention, mission_branch_deletable = _resolve_lane_merge_retention(
+        repo, slug, delete_branch=True, remove_worktree=False
+    )
+
+    assert retention.delete_branch is True
+    assert retention.remove_worktree is False
+    assert retention.teardown_coordination is False
+    assert mission_branch_deletable is True, (
+        "a non-coord mission's mission-branch deletion must stay keyed to "
+        "delete_branch alone, not the coupled teardown_coordination"
+    )
