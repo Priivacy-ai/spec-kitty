@@ -77,36 +77,38 @@ def test_all_slice_f_terms_are_canonical_in_doctrine_context() -> None:
 # ---------------------------------------------------------------------------
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
+_WP02_BASE_COMMIT = "73609a064a444fbec6d1bd45d350574151017e1d"
 
 
 @functools.lru_cache(maxsize=1)
 def _resolve_wp02_base_commit() -> str | None:
-    """The commit WP02 branched its work from, resolved dynamically.
+    """The reachable integration-main commit immediately before WP02 landed.
 
     Used only to diff-check the SHAPE of this WP's own referrer edits below --
     not a live runtime dependency. Originally pinned to a literal SHA
     (``7b0c2d3ed53cd47ad50e4f75da84c7b9ca4c3044``), but a squash-merge onto a
     landing PR rewrites history and orphans any commit pinned before the
     squash -- that SHA is unreachable post-squash (``git show <sha>:...``
-    exits 128). Resolved instead as ``git merge-base origin/main HEAD``,
-    the mission's true base on its lane, the same convention
-    ``tests/architectural/_home_pin_gate.py``'s ``HISTORY_REF`` uses.
+    exits 128). ``merge-base origin/main HEAD`` cannot replace it: on the PR
+    lane it resolves to pre-mission main, but after landing it resolves to
+    HEAD and empties the diff. The immediate pre-#854 integration commit is
+    the stable, reachable pre-rename base in this repository's history.
 
-    Returns ``None`` (rather than raising) if ``origin/main`` cannot be
-    resolved locally (e.g. a shallow clone with no ``origin`` remote
-    configured) -- callers skip rather than false-red, mirroring
+    Returns ``None`` (rather than raising) if that historical commit is
+    unavailable locally (e.g. a shallow clone) -- callers skip rather than
+    false-red, mirroring
     ``tests/architectural/test_charter_owner_map_executed.py``'s
     ``_git_diff_is_empty`` shallow-clone guard.
     """
     result = subprocess.run(
-        ["git", "merge-base", "origin/main", "HEAD"],
+        ["git", "cat-file", "-e", f"{_WP02_BASE_COMMIT}^{{commit}}"],
         cwd=REPO_ROOT,
         capture_output=True,
         text=True,
     )
     if result.returncode != 0:
         return None
-    return result.stdout.strip()
+    return _WP02_BASE_COMMIT
 
 _AGENT_PROFILE_NAMES = [
     "architect-alphonso",
@@ -226,8 +228,8 @@ def test_wp02_referrer_diffs_are_exactly_the_path_token() -> None:
     base_commit = _resolve_wp02_base_commit()
     if base_commit is None:
         pytest.skip(
-            "origin/main not resolvable in this checkout (likely a shallow "
-            "clone) -- cannot resolve WP02's base commit"
+            "WP02 base commit unavailable in this checkout (likely a shallow "
+            "clone) -- cannot diff against the pre-rename base"
         )
     violations: list[str] = []
     for rel_path in WP02_PATH_TOKEN_ONLY_REFERRERS:
@@ -253,8 +255,8 @@ def test_wp02_owned_referrers_flip_at_least_one_line() -> None:
     base_commit = _resolve_wp02_base_commit()
     if base_commit is None:
         pytest.skip(
-            "origin/main not resolvable in this checkout (likely a shallow "
-            "clone) -- cannot resolve WP02's base commit"
+            "WP02 base commit unavailable in this checkout (likely a shallow "
+            "clone) -- cannot diff against the pre-rename base"
         )
     unchanged: list[str] = []
     for rel_path in WP02_PATH_TOKEN_ONLY_REFERRERS:
