@@ -51,7 +51,7 @@ packs/built-in/missions/mission-steps/{mission_type}/{step_id}/prompt.md  (SOURC
 
 ## ⚠️ CRITICAL: Git Workflow — Branches, PRs, and Merges
 
-This repository uses **`main` as the integration branch**. Open a topic branch, target it with a pull request, and let repository review and branch-protection settings enforce the merge gate.
+This repository uses **`main` as the integration branch**. Open a topic branch, target it with a pull request, and let repository review and branch-protection settings enforce the merge gate. GitHub Actions are live here, including the Blacksmith deterministic-CI producer in `.github/workflows/ci.yml`; see [the planning repository's Blacksmith CI contract](https://github.com/spec-kitty/EXPERIMENTAL-spec-kitty-planning/blob/main/docs/BLACKSMITH-CI.md).
 
 - **Never push to `main`.** Create a topic branch from the current `main`, open a PR targeting `main`, and let the repository merge controls handle publication.
 - `spec-kitty merge` consolidates lanes into your **local** `main` only; it never publishes to the remote. Qualify local vs origin when naming the branch (see the `primary`/`merge` footgun note under Terminology Canon).
@@ -302,7 +302,7 @@ Treat these as code-shaping constraints, not post-hoc cleanup:
 
 ## PyPI Release
 
-Follow [`RELEASE_CHECKLIST.md`](RELEASE_CHECKLIST.md) for PyPI and GitHub releases. A maintainer performs publication only after the required checks pass; contributors do not push release tags as part of an ordinary change.
+Follow [`RELEASE_CHECKLIST.md`](RELEASE_CHECKLIST.md) for PyPI and GitHub releases. Publication is owner+controller-executed only after the required checks pass. Contributors do not push release tags as part of an ordinary change; that restriction applies until the [#830 release phase](https://github.com/spec-kitty/EXPERIMENTAL-spec-kitty/issues/830). `release.yml` is not present in this EXPERIMENTAL checkout.
 
 ---
 
@@ -459,7 +459,7 @@ Full runbook: [docs/migrations/mission-id-canonical-identity.md](docs/migrations
 ## Shared Package Boundary (2026-04-25)
 
 - **Runtime:** `src/runtime/next/_internal_runtime/` (canonical). `src/specify_cli/next/` is a deprecation shim removed in 3.3.0 — do not anchor new code there. `spec-kitty-runtime` PyPI package is retired.
-- **Events / Tracker:** External PyPI dependencies. Consume only via `spec_kitty_events.*` / `spec_kitty_tracker.*` public imports. Vendored copies removed.
+- **Events / Tracker:** Consume only via `spec_kitty_events.*` / `spec_kitty_tracker.*` public imports. Vendored copies are removed. In the EXPERIMENTAL programme, these packages resolve from exact git-rev pins per [planning `PROGRAM.md` §2](https://github.com/spec-kitty/EXPERIMENTAL-spec-kitty-planning/blob/main/PROGRAM.md) and the [internal-distribution ADR](https://github.com/spec-kitty/EXPERIMENTAL-spec-kitty-planning/blob/main/decisions/ADR-INTERNAL-PYTHON-PACKAGE-DISTRIBUTION-2026-08-27.md); PyPI ranges return with [#830 Phase 3](https://github.com/spec-kitty/EXPERIMENTAL-spec-kitty/issues/830).
 - **Dev editable/path overrides:** never committed in `pyproject.toml [tool.uv.sources]`. See [docs/development/how-to/local-overrides.md](docs/development/how-to/local-overrides.md).
 
 Enforced by `tests/architectural/test_shared_package_boundary.py`, `test_pyproject_shape.py`, and the `clean-install-verification` CI job.
@@ -527,17 +527,21 @@ edges:
 
 `AgentProfileRepository.skipped_profiles` exposes load failures without filesystem rescans. Included in `spec-kitty doctor doctrine --json`. A pack with invalid profiles is NOT reported healthy even if DRG counts are valid (FR-010).
 
-### Deferred Items
+### Upstream Deferred-Item References
 
-- [#1622](https://github.com/Priivacy-ai/spec-kitty/issues/1622): `coordination.status_service` dead-symbol debt
-- [#1623](https://github.com/Priivacy-ai/spec-kitty/issues/1623): `doctor.py` god-module split (FR-012)
-- [#1624](https://github.com/Priivacy-ai/spec-kitty/issues/1624): `_tag_source` provenance sidecar typing (FR-013)
+These Priivacy-ai links are upstream references, not work items for this EXPERIMENTAL repository:
+
+- [#1622](https://github.com/Priivacy-ai/spec-kitty/issues/1622) (upstream): `coordination.status_service` dead-symbol debt
+- [#1623](https://github.com/Priivacy-ai/spec-kitty/issues/1623) (upstream): `doctor.py` god-module split (FR-012)
+- [#1624](https://github.com/Priivacy-ai/spec-kitty/issues/1624) (upstream): `_tag_source` provenance sidecar typing (FR-013)
 
 ---
 
 ## Branches and CI
 
 GitHub branch protection and review requirements enforce the repository workflow. `spec-kitty merge` still consolidates into **local** `main` only — do NOT use `spec-kitty merge --push` or `git push origin main`; publish via a topic branch and a PR targeting `main`.
+
+Live GitHub Actions are part of that workflow. `ci.yml` is the Blacksmith producer for the programme's deterministic merge-gate suite; the planning configuration `SK_CI_ACTIONS_REPOS` at `infra/models.env:77` includes `spec-kitty`, `spec-kitty-tracker`, `spec-kitty-events`, and `zeitgeist`. `ci-quality.yml` and `protect-main.yml` are [#830 Phase-1](https://github.com/spec-kitty/EXPERIMENTAL-spec-kitty/issues/830) infrastructure. `ci-windows.yml`, `docs-pages.yml`, and `check-spec-kitty-events-alignment.yml` are also live.
 
 ---
 
