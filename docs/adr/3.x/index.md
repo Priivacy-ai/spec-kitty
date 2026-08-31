@@ -194,3 +194,4 @@ Use the shared template at [`docs/architecture/adr-template.md`](../../architect
 | 2026-08-22 | [ADR 2026-08-22-1: Canonical mission-type reader; legacy `mission`-field resolution retired](2026-08-22-1-canonical-mission-type-reader-legacy-retirement.md) |
 | 2026-08-22 | [Retire the doctrine term — Charter is the canonical vocabulary](2026-08-22-2-retire-doctrine-term-charter-is-the-canonical-vocabulary.md) |
 | 2026-08-28 | [A project path_conventions override precedes the doctrine default, without changing the blocking policy](2026-08-28-1-project-path-convention-override-precedes-doctrine.md) |
+| 2026-08-31 | [Relocate the expected-artifacts.yaml loader authority into charter, sibling error model](2026-08-31-1-expected-artifacts-loader-relocation.md) |
