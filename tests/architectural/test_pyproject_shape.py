@@ -19,7 +19,10 @@ _UV_LOCK = _REPO_ROOT / "uv.lock"
 _SRC = _REPO_ROOT / "src"
 _SHARED_PACKAGES = ("spec-kitty-events", "spec-kitty-tracker")
 _RETIRED_PACKAGE = "spec-kitty-runtime"
+_RETIRED_CONFIG_PACKAGES = ("spec-kitty-runtime", "websockets")
+_DOTTED = chr(46)
 _SHIPPED_TREES = ("specify_cli", "runtime")
+_RETIRED_MYPY_PREFIX = _DOTTED.join(("specify_cli", "sync"))
 _DEP_NAME_TERMINATORS = "[=<>!~;@ "
 # The sanctioned direct references (controller-qa on #58, PROGRAM.md §2's
 # wheel-installability exception): pinned-rev git dependencies on the shared
@@ -237,3 +240,116 @@ def test_requests_dependency_comment_names_its_real_retained_consumer() -> None:
         "expected both doctrine-source fetchers to import requests directly; "
         f"found: {consumers}"
     )
+
+
+def _dependency_table_entries(data: dict[str, Any]) -> list[tuple[str, str]]:
+    entries: list[tuple[str, str]] = []
+    build_system = data.get("build-system", {})
+    entries.extend(("build-system.requires", entry) for entry in build_system.get("requires", []))
+    project = data.get("project", {})
+    entries.extend(("project.dependencies", entry) for entry in project.get("dependencies", []))
+    for group, group_entries in project.get("optional-dependencies", {}).items():
+        entries.extend((f"project.optional-dependencies.{group}", entry) for entry in group_entries)
+    for group, group_entries in data.get("dependency-groups", {}).items():
+        entries.extend((f"dependency-groups.{group}", entry) for entry in group_entries)
+    return entries
+
+
+def _dependency_config_violations(
+    data: dict[str, Any],
+    lock: dict[str, Any],
+    pyproject_text: str,
+    makefile_text: str,
+) -> list[str]:
+    failures: list[str] = []
+    for table, entry in _dependency_table_entries(data):
+        package = _dep_name(entry)
+        if package in _RETIRED_CONFIG_PACKAGES:
+            failures.append(f"retired dependency in {table}: {entry}")
+        if package == "spec-kitty-events" and "<8" in entry:
+            failures.append(f"retired spec-kitty-events range in {table}: {entry}")
+
+    sources = data.get("tool", {}).get("uv", {}).get("sources", {})
+    failures.extend(f"retired dependency source: {package}" for package in _RETIRED_CONFIG_PACKAGES if package in sources)
+    locked_names = {item.get("name") for item in lock.get("package", [])}
+    failures.extend(f"retired dependency in uv.lock: {package}" for package in _RETIRED_CONFIG_PACKAGES if package in locked_names)
+
+    for override in data.get("tool", {}).get("mypy", {}).get("overrides", []):
+        modules = override.get("module", [])
+        modules = [modules] if isinstance(modules, str) else modules
+        failures.extend(f"retired mypy override: {module}" for module in modules if module.startswith(_RETIRED_MYPY_PREFIX))
+
+    also_copy = data.get("tool", {}).get("mutmut", {}).get("also_copy", [])
+    also_copy = [also_copy] if isinstance(also_copy, str) else also_copy
+    failures.extend(f"retired mutmut copy: {path}" for path in also_copy if path.startswith("src/specify_cli/sync"))
+
+    if "_real_port_suites" in makefile_text:
+        failures.append("Makefile still names _real_port_suites")
+    if "http client for batch sync" in pyproject_text.lower():
+        failures.append("pyproject.toml still cites the retired batch-sync HTTP client")
+    return sorted(failures)
+
+
+def test_dependency_and_config_shape_has_no_retired_subsystems() -> None:
+    data = _load_pyproject()
+    lock = _load_uv_lock()
+    pyproject_text = _PYPROJECT.read_text(encoding="utf-8")
+    makefile_text = (_REPO_ROOT / "Makefile").read_text(encoding="utf-8")
+    assert _dependency_config_violations(data, lock, pyproject_text, makefile_text) == []
+
+
+def test_dependency_config_guard_rejects_planted_fixture(tmp_path: Path) -> None:
+    pyproject_path = tmp_path / "pyproject.toml"
+    lock_path = tmp_path / "uv.lock"
+    makefile_path = tmp_path / "Makefile"
+    pyproject_path.write_text(
+        "\n".join(
+            [
+                "[build-system]",
+                'requires = ["spec-kitty-runtime>=1"]',
+                "[project]",
+                'dependencies = ["websockets", "spec-kitty-events<8"]',
+                "[project.optional-dependencies]",
+                'bad = ["spec-kitty-runtime"]',
+                "[dependency-groups]",
+                'bad = ["websockets"]',
+                "[tool.uv.sources]",
+                'spec-kitty-runtime = { path = "../runtime" }',
+                "[tool.mutmut]",
+                'also_copy = "src/specify_cli/sync/"',
+                "[[tool.mypy.overrides]]",
+                f'module = "{_RETIRED_MYPY_PREFIX}*"',
+                "# HTTP client for batch sync",
+            ]
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+    lock_path.write_text(
+        "\n".join(
+            [
+                "[[package]]",
+                'name = "spec-kitty-runtime"',
+                "[[package]]",
+                'name = "websockets"',
+            ]
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+    makefile_path.write_text("test-fast:\n\tuv run pytest tests/_real_port_suites.py\n", encoding="utf-8")
+    failures = _dependency_config_violations(
+        tomllib.loads(pyproject_path.read_text(encoding="utf-8")),
+        tomllib.loads(lock_path.read_text(encoding="utf-8")),
+        pyproject_path.read_text(encoding="utf-8"),
+        makefile_path.read_text(encoding="utf-8"),
+    )
+    assert "retired dependency in build-system.requires: spec-kitty-runtime>=1" in failures
+    assert "retired dependency in project.dependencies: websockets" in failures
+    assert "retired spec-kitty-events range in project.dependencies: spec-kitty-events<8" in failures
+    assert "retired dependency source: spec-kitty-runtime" in failures
+    assert "retired dependency in uv.lock: websockets" in failures
+    assert f"retired mypy override: {_RETIRED_MYPY_PREFIX}*" in failures
+    assert "retired mutmut copy: src/specify_cli/sync/" in failures
+    assert "Makefile still names _real_port_suites" in failures
+    assert "pyproject.toml still cites the retired batch-sync HTTP client" in failures

@@ -3141,6 +3141,22 @@ ignore = [
 "click.exceptions.UsageError".msg = "Use typer.UsageError or the _CLICK_USAGE_ERRORS shim — click.exceptions.UsageError is unrelated to typer's vendored copy in typer>=0.26 (TID251 / Gap 5)."
 "click.exceptions.Abort".msg = "Use typer.Abort (typer's public surface) — click.exceptions.Abort is unrelated to typer's vendored copy in typer>=0.26 (TID251 / Gap 5)."
 
+"specify_cli\u002esync".msg = "Retired subsystem; see tests/architectural/test_no_retired_subsystems.py (#795)."
+"specify_cli\u002edelivery".msg = "Retired subsystem; see tests/architectural/test_no_retired_subsystems.py (#795)."
+"specify_cli\u002eevent_journal".msg = "Retired subsystem; see tests/architectural/test_no_retired_subsystems.py (#795)."
+"specify_cli\u002esaas".msg = "Retired subsystem; see tests/architectural/test_no_retired_subsystems.py (#795)."
+"specify_cli\u002eegress".msg = "Retired subsystem; see tests/architectural/test_no_retired_subsystems.py (#795)."
+"specify_cli\u002eegress_consent".msg = "Retired subsystem; see tests/architectural/test_no_retired_subsystems.py (#795)."
+"specify_cli\u002ecli.commands.sync".msg = "Retired subsystem; see tests/architectural/test_no_retired_subsystems.py (#795)."
+"specify_cli\u002ecli.commands._daemon_doctor".msg = "Retired subsystem; see tests/architectural/test_no_retired_subsystems.py (#795)."
+"specify_cli\u002edossier.emitter_adapter".msg = "Retired subsystem; see tests/architectural/test_no_retired_subsystems.py (#795)."
+"specify_cli\u002edossier.drift_detector".msg = "Retired subsystem; see tests/architectural/test_no_retired_subsystems.py (#795)."
+"specify_cli\u002eteam_projection.write".msg = "Retired subsystem; see tests/architectural/test_no_retired_subsystems.py (#795)."
+"specify_cli\u002eteam_projection.attestation".msg = "Retired subsystem; see tests/architectural/test_no_retired_subsystems.py (#795)."
+"specify_cli\u002ecore.batch_partition".msg = "Retired subsystem; see tests/architectural/test_no_retired_subsystems.py (#795)."
+"specify_cli\u002emigration.envelope_seam".msg = "Retired subsystem; see tests/architectural/test_no_retired_subsystems.py (#795)."
+"websockets".msg = "Retired dependency; see tests/architectural/test_no_retired_subsystems.py (#795)."
+
 [tool.ruff.lint.mccabe]
 max-complexity = 15  # Match SonarCloud S3776 threshold
 
@@ -3194,7 +3210,6 @@ module = [
     "specify_cli.dashboard.lifecycle",
     "specify_cli.dashboard.scanner",
     "specify_cli.dossier.api",
-    "specify_cli.dossier.drift_detector",
     "specify_cli.dossier.indexer",
     "specify_cli.dossier.manifest",
     "specify_cli.dossier.models",

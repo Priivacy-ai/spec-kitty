@@ -26,7 +26,7 @@ typecheck: ## Run targeted mypy strict type checking
 # The subsystem directories an implementer's blast radius typically covers
 # (see AGENTS.md "Test policy"). `make test-fast` is a baseline, not a
 # substitute for running the tests of the modules your diff actually touches.
-FAST_TIER_DIRS := tests/unit tests/status tests/cli tests/specify_cli/runtime
+FAST_TIER_DIRS := tests/unit tests/status tests/cli tests/specify_cli/runtime tests/architectural/test_no_retired_subsystems.py
 
 # Fast tier = pure-logic tests only; every slow tier is deselected by marker.
 FAST_TIER_MARKERS = (fast or unit) and not slow and not e2e and not integration and not regression and not distribution and not live_adapter and not stress and not windows_ci and not platform_darwin

@@ -57,6 +57,16 @@ This repo is part of the `EXPERIMENTAL-spec-kitty-*` programme. **`main` IS the 
 - `spec-kitty merge` consolidates lanes into your **local** `main` only; it never publishes to the remote. Qualify local vs origin when naming the branch (see the `primary`/`merge` footgun note under Terminology Canon).
 - On exe.dev VMs `gh issue` / `gh pr` fail behind the integration proxy — use `gh api repos/<owner>/<repo>/...` (see `bin/GH-API.md` in the planning repo).
 
+### Convergence ports
+
+- Port commits from the pre-fork line with `git cherry-pick -x` so authorship and provenance are preserved.
+- Before applying a commit, classify it with `git show --stat <sha> -- <retired paths>`.
+- If every touched path is retired, record the commit as `DROP` in the convergence map and do not port it.
+- For a mixed commit, drop the retired hunks and cite the omitted hunks under `Dropped hunks:`.
+- Every convergence PR carries `Retired-surface scan: 0 hits`, computed over added diff lines with the planning #1703 regex.
+- Never add `# noqa: TID251` for a retired module.
+- Never resolve a kept-file conflict with `theirs` without re-running `tests/architectural/test_no_retired_subsystems.py`.
+
 **Test policy (§6):** run every test you write or change plus your blast radius, and record commands + counts in the PR. Baseline is `make test-fast`; add the test files of every module your diff touches, and run `tests/architectural/` in full. Do **not** run `make test-full` or any whole-repo suite — the CI agent owns that.
 
 ---
@@ -242,9 +252,9 @@ red that is **NOT your change**. Before treating a failure as yours, classify it
 1. **Pre-existing known-P0 reds** honestly red main (ADR `2026-07-17-1`); e.g. #2736, #2772,
    #1834. Do **not** "fix" them — leave them red. Confirm by running the same test on the
    merge-base / `upstream/main` (via `PYTHONPATH=<worktree>/src`), or check the tracker.
-2. **CI-environment failures** — auth (`logged_out_on_connected_teamspace`) and the sync
-   disable toggles (`SPEC_KITTY_SYNC_MINIMAL_IMPORT` / `SPEC_KITTY_SYNC_DISABLE`, which also
-   skip the pre-review gate). These pass locally; they are config, not your diff.
+2. **CI-environment failures** — auth (`logged_out_on_connected_teamspace`) and the
+   gate opt-outs (`SPEC_KITTY_SYNC_MINIMAL_IMPORT` / `SPEC_KITTY_SYNC_DISABLE`).
+   These pass locally; they are config, not your diff.
 3. **Stale-install false reds** — code that shells out to `spec-kitty` (e.g. the
    `merge-driver-*` commands) only fires after `pip install -e .`; a stale install reports
    false reds until you reinstall.
