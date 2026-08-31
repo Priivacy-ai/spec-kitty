@@ -70,6 +70,8 @@ jobs:
     env:
       PYTHONUTF8: "1"
       SPEC_KITTY_ENABLE_SAAS_SYNC: "0"
+      TMP: ${{ runner.temp }}
+      TEMP: ${{ runner.temp }}
     steps:
       - uses: actions/checkout@v6
 
