@@ -72,9 +72,7 @@ EXCLUDED_REL_PATHS: frozenset[str] = frozenset(
 
 # The variable-name heuristic half of the scanner (contract rule: var names
 # ``meta_path|meta_file|meta_json|target_meta_path``).
-META_PATH_VAR_NAMES: frozenset[str] = frozenset(
-    {"meta_path", "meta_file", "meta_json", "target_meta_path"}
-)
+META_PATH_VAR_NAMES: frozenset[str] = frozenset({"meta_path", "meta_file", "meta_json", "target_meta_path"})
 
 # The canonical reader family a routed call site targets.
 #
@@ -310,13 +308,17 @@ FLOOR_MARGIN = 2
 # against the corrected 144 (``floor == live - 3``; band
 # ``live - MARGIN(4) <= floor < live`` holds: 140 <= 141 < 144), strictly
 # satisfying the anti-vacuity check (same convention as the entries above).
-# RAISED 2026-08-28 (#3712 landing / #3773): the verdict-durability fix added
-# one routed ``load_meta_fail_closed(identity.feature_dir)`` call site (the
-# committed-annotation path for stored ``LANES`` missions). Live rises
-# 142 -> 143 on this convergence base; floor raised 141 -> 142, staying within
-# the four-site margin (``139 <= 142 < 143``).
+# RAISED 2026-08-22 (post-#3659 main refresh): the consolidated landing added
+# two genuine routed sites: mission-check-prerequisites resume metadata now
+# uses ``load_meta_fail_closed``, and merge-baseline decoding now uses
+# ``decode_meta``. Live rises 144 -> 146; floor raised 141 -> 143 to preserve
+# the established 3-below-live gap (``142 <= 143 < 146``).
+# RAISED 2026-08-24 (#2938): four legacy branch-contract call sites now route
+# through ``load_meta_fail_closed``. Live rises 146 -> 150; floor raised
+# 143 -> 146, the lowest permitted value within the four-site margin
+# (``146 <= 146 < 150``).
 ROUTED_LOAD_META_FLOOR_MARGIN = 4
-ROUTED_LOAD_META_FLOOR = 142
+ROUTED_LOAD_META_FLOOR = 146
 
 
 # --------------------------------------------------------------------------- #
@@ -346,8 +348,7 @@ def _require_str(mapping: dict[str, object], key: str, context: str) -> str:
     value = mapping.get(key)
     if not isinstance(value, str) or not value.strip():
         raise AllowlistEntryError(
-            f"allow-list entry {context} is missing a non-empty {key!r} field "
-            f"(got {value!r}); every deferred site needs an explicit {key} — no silent drift"
+            f"allow-list entry {context} is missing a non-empty {key!r} field (got {value!r}); every deferred site needs an explicit {key} — no silent drift"
         )
     return value
 
@@ -389,18 +390,14 @@ def load_baseline(path: Path) -> int:
     return value
 
 
-def staleness_twin_guard(
-    allowlist_keys: set[InlineMetaReadKey], live_keys: set[InlineMetaReadKey]
-) -> list[InlineMetaReadKey]:
+def staleness_twin_guard(allowlist_keys: set[InlineMetaReadKey], live_keys: set[InlineMetaReadKey]) -> list[InlineMetaReadKey]:
     """Return allow-list keys with no matching live call site (mechanic 4).
 
     A non-empty result is a stale-entry failure: the allow-list sanctions a site
     whose frozen token no longer matches any live call site — the entry must be
     evicted (routed away) or re-approved, never left silently masking.
     """
-    return sorted(
-        allowlist_keys - live_keys, key=lambda k: (k.rel_path, k.enclosing_qualname, k.token)
-    )
+    return sorted(allowlist_keys - live_keys, key=lambda k: (k.rel_path, k.enclosing_qualname, k.token))
 
 
 # --------------------------------------------------------------------------- #
@@ -426,9 +423,7 @@ def _qualname_from_parents(parents: dict[int, ast.AST], target: ast.AST) -> str:
     return ".".join(reversed(chain)) if chain else "<module>"
 
 
-def _enclosing_function(
-    parents: dict[int, ast.AST], target: ast.AST
-) -> ast.FunctionDef | ast.AsyncFunctionDef | None:
+def _enclosing_function(parents: dict[int, ast.AST], target: ast.AST) -> ast.FunctionDef | ast.AsyncFunctionDef | None:
     cur: ast.AST | None = target
     while cur is not None:
         cur = parents.get(id(cur))
@@ -578,9 +573,7 @@ def _assigned_value(fn: ast.FunctionDef | ast.AsyncFunctionDef, name: str) -> as
 _MAX_ASSIGNMENT_HOPS = 5
 
 
-def _follow_assignment_chain(
-    fn: ast.FunctionDef | ast.AsyncFunctionDef, name: str, hops_remaining: int
-) -> ast.expr | None:
+def _follow_assignment_chain(fn: ast.FunctionDef | ast.AsyncFunctionDef, name: str, hops_remaining: int) -> ast.expr | None:
     """Follow *name*'s most recent same-scope binding through further bare ``Name``
     bindings (``y = x``) up to *hops_remaining* hops.
 
@@ -623,9 +616,7 @@ def _extract_read_base(expr: ast.expr) -> ast.expr | None:
     return None
 
 
-def _read_source_base(
-    arg: ast.expr, fn: ast.FunctionDef | ast.AsyncFunctionDef | None
-) -> ast.expr | None:
+def _read_source_base(arg: ast.expr, fn: ast.FunctionDef | ast.AsyncFunctionDef | None) -> ast.expr | None:
     """Resolve *arg* (the sole positional arg to ``json.loads``/``json.load``) to its path base.
 
     Handles the inline forms (``X.read_text(...)``, ``open(X, ...)``, ``X.open(...)``)
@@ -645,12 +636,7 @@ def _read_source_base(
 
 def _is_meta_json_join(expr: ast.expr) -> bool:
     """True for an inline ``<dir> / "meta.json"`` path join."""
-    return (
-        isinstance(expr, ast.BinOp)
-        and isinstance(expr.op, ast.Div)
-        and isinstance(expr.right, ast.Constant)
-        and expr.right.value == "meta.json"
-    )
+    return isinstance(expr, ast.BinOp) and isinstance(expr.op, ast.Div) and isinstance(expr.right, ast.Constant) and expr.right.value == "meta.json"
 
 
 def is_meta_path_expr(
@@ -848,17 +834,11 @@ def _count_kernel_l1_meta_decoders(src_root: Path) -> int:
         return 0
     bindings = _collect_json_import_bindings(tree)
     return sum(
-        1
-        for node in ast.walk(tree)
-        if isinstance(node, ast.Call)
-        and node.args
-        and (_is_json_loads_call(node, bindings) or _is_json_load_call(node, bindings))
+        1 for node in ast.walk(tree) if isinstance(node, ast.Call) and node.args and (_is_json_loads_call(node, bindings) or _is_json_load_call(node, bindings))
     )
 
 
-def independent_meta_decoders(
-    src_root: Path, allowlist: set[InlineMetaReadKey]
-) -> set[str]:
+def independent_meta_decoders(src_root: Path, allowlist: set[InlineMetaReadKey]) -> set[str]:
     """Return the repo-relative modules that decode meta content as an authority.
 
     An *independent* meta decoder is a site that applies the malformed definition
@@ -902,9 +882,7 @@ def test_inline_meta_read_key_is_hashable_and_value_keyed() -> None:
 def test_loader_rejects_entry_without_rationale(tmp_path: Path) -> None:
     bad = tmp_path / "bad.yaml"
     bad.write_text(
-        "inline_meta_read:\n"
-        "  - file: f.py\n    qualname: foo.bar\n    token: x\n"
-        "    line: 10\n    issue: 'https://x/1'\n",
+        "inline_meta_read:\n  - file: f.py\n    qualname: foo.bar\n    token: x\n    line: 10\n    issue: 'https://x/1'\n",
         encoding="utf-8",
     )
     with pytest.raises(AllowlistEntryError, match="rationale"):
@@ -914,9 +892,7 @@ def test_loader_rejects_entry_without_rationale(tmp_path: Path) -> None:
 def test_loader_rejects_entry_without_issue(tmp_path: Path) -> None:
     bad = tmp_path / "bad.yaml"
     bad.write_text(
-        "inline_meta_read:\n"
-        "  - file: f.py\n    qualname: foo.bar\n    token: x\n"
-        "    line: 10\n    rationale: 'deferred'\n",
+        "inline_meta_read:\n  - file: f.py\n    qualname: foo.bar\n    token: x\n    line: 10\n    rationale: 'deferred'\n",
         encoding="utf-8",
     )
     with pytest.raises(AllowlistEntryError, match="issue"):
@@ -926,9 +902,7 @@ def test_loader_rejects_entry_without_issue(tmp_path: Path) -> None:
 def test_loader_rejects_entry_without_token(tmp_path: Path) -> None:
     bad = tmp_path / "bad.yaml"
     bad.write_text(
-        "inline_meta_read:\n"
-        "  - file: f.py\n    qualname: foo.bar\n    line: 10\n"
-        "    rationale: 'deferred'\n    issue: 'https://x/1'\n",
+        "inline_meta_read:\n  - file: f.py\n    qualname: foo.bar\n    line: 10\n    rationale: 'deferred'\n    issue: 'https://x/1'\n",
         encoding="utf-8",
     )
     with pytest.raises(AllowlistEntryError, match="token"):
@@ -938,9 +912,7 @@ def test_loader_rejects_entry_without_token(tmp_path: Path) -> None:
 def test_loader_rejects_non_integer_line(tmp_path: Path) -> None:
     bad = tmp_path / "bad.yaml"
     bad.write_text(
-        "inline_meta_read:\n"
-        "  - file: f.py\n    qualname: foo.bar\n    token: x\n"
-        "    line: not-a-number\n    rationale: 'deferred'\n    issue: 'https://x/1'\n",
+        "inline_meta_read:\n  - file: f.py\n    qualname: foo.bar\n    token: x\n    line: not-a-number\n    rationale: 'deferred'\n    issue: 'https://x/1'\n",
         encoding="utf-8",
     )
     with pytest.raises(AllowlistEntryError, match="line locator"):
@@ -983,31 +955,19 @@ def test_is_meta_path_expr_rejects_other_join_suffix() -> None:
 def _fn_with_call(src: str) -> tuple[ast.Call, ast.FunctionDef | ast.AsyncFunctionDef | None]:
     tree = ast.parse(src)
     parents = _parent_map(tree)
-    call = next(
-        n
-        for n in ast.walk(tree)
-        if isinstance(n, ast.Call) and (_is_json_loads_call(n) or _is_json_load_call(n))
-    )
+    call = next(n for n in ast.walk(tree) if isinstance(n, ast.Call) and (_is_json_loads_call(n) or _is_json_load_call(n)))
     return call, _enclosing_function(parents, call)
 
 
 def test_read_source_base_direct_read_text() -> None:
-    call, fn = _fn_with_call(
-        "def f(feature_dir):\n"
-        "    meta_path = feature_dir / 'meta.json'\n"
-        "    return json.loads(meta_path.read_text(encoding='utf-8'))\n"
-    )
+    call, fn = _fn_with_call("def f(feature_dir):\n    meta_path = feature_dir / 'meta.json'\n    return json.loads(meta_path.read_text(encoding='utf-8'))\n")
     base = _read_source_base(call.args[0], fn)
     assert base is not None
     assert is_meta_path_expr(base) is True
 
 
 def test_read_source_base_direct_open_call() -> None:
-    call, fn = _fn_with_call(
-        "def f(feature_dir):\n"
-        "    meta_path = feature_dir / 'meta.json'\n"
-        "    return json.load(open(meta_path, encoding='utf-8'))\n"
-    )
+    call, fn = _fn_with_call("def f(feature_dir):\n    meta_path = feature_dir / 'meta.json'\n    return json.load(open(meta_path, encoding='utf-8'))\n")
     base = _read_source_base(call.args[0], fn)
     assert base is not None
     assert is_meta_path_expr(base) is True
@@ -1016,10 +976,7 @@ def test_read_source_base_direct_open_call() -> None:
 def test_read_source_base_traces_named_assignment() -> None:
     """The ``src/charter/_io.py`` shape: a two-hop ``meta_text = meta_path.read_text()``."""
     call, fn = _fn_with_call(
-        "def f(feature_dir):\n"
-        "    meta_path = feature_dir / 'meta.json'\n"
-        "    meta_text = meta_path.read_text(encoding='utf-8')\n"
-        "    return json.loads(meta_text)\n"
+        "def f(feature_dir):\n    meta_path = feature_dir / 'meta.json'\n    meta_text = meta_path.read_text(encoding='utf-8')\n    return json.loads(meta_text)\n"
     )
     base = _read_source_base(call.args[0], fn)
     assert base is not None
@@ -1028,12 +985,7 @@ def test_read_source_base_traces_named_assignment() -> None:
 
 def test_read_source_base_traces_with_statement_binding() -> None:
     """The migration shape: ``with meta_json.open() as f: json.load(f)``."""
-    call, fn = _fn_with_call(
-        "def f(feature_dir):\n"
-        "    meta_json = feature_dir / 'meta.json'\n"
-        "    with meta_json.open() as fh:\n"
-        "        return json.load(fh)\n"
-    )
+    call, fn = _fn_with_call("def f(feature_dir):\n    meta_json = feature_dir / 'meta.json'\n    with meta_json.open() as fh:\n        return json.load(fh)\n")
     base = _read_source_base(call.args[0], fn)
     assert base is not None
     assert is_meta_path_expr(base) is True
@@ -1047,9 +999,7 @@ def test_read_source_base_returns_none_for_unrelated_read() -> None:
 
 
 def test_module_is_json_accepts_aliased_import() -> None:
-    call, _fn = _fn_with_call(
-        "def f(meta_path):\n    return _json.loads(meta_path.read_text())\n"
-    )
+    call, _fn = _fn_with_call("def f(meta_path):\n    return _json.loads(meta_path.read_text())\n")
     assert _is_json_loads_call(call) is True
 
 
@@ -1058,11 +1008,7 @@ def test_is_meta_path_expr_resolves_arbitrary_name_via_assignment() -> None:
     """Vector-1 fix: the assignment-hop is structural, not gated on the fixed
     variable-name vocabulary -- an arbitrarily-named local (``mpath``, not one of
     the four canonical names) still resolves to its join expression."""
-    call, fn = _fn_with_call(
-        "def f(feature_dir):\n"
-        "    mpath = feature_dir / 'meta.json'\n"
-        "    return json.loads(mpath.read_text(encoding='utf-8'))\n"
-    )
+    call, fn = _fn_with_call("def f(feature_dir):\n    mpath = feature_dir / 'meta.json'\n    return json.loads(mpath.read_text(encoding='utf-8'))\n")
     base = _read_source_base(call.args[0], fn)
     assert base is not None
     assert is_meta_path_expr(base, fn) is True
@@ -1079,12 +1025,7 @@ def test_is_meta_path_expr_without_fn_context_rejects_arbitrary_name() -> None:
 def test_is_meta_path_expr_resolves_two_hop_reassignment_chain() -> None:
     """Vector-3 fix: ``y = x`` reassignment indirection (a second hop past the
     pre-existing one-hop resolution) still resolves to the join expression."""
-    call, fn = _fn_with_call(
-        "def f(feature_dir):\n"
-        "    x = feature_dir / 'meta.json'\n"
-        "    y = x\n"
-        "    return json.loads(y.read_text(encoding='utf-8'))\n"
-    )
+    call, fn = _fn_with_call("def f(feature_dir):\n    x = feature_dir / 'meta.json'\n    y = x\n    return json.loads(y.read_text(encoding='utf-8'))\n")
     base = _read_source_base(call.args[0], fn)
     assert base is not None
     assert is_meta_path_expr(base, fn) is True
@@ -1116,9 +1057,7 @@ def test_follow_assignment_chain_respects_hop_limit() -> None:
     src_lines.append(f"    return v{_MAX_ASSIGNMENT_HOPS + 1}")
     tree = ast.parse("\n".join(src_lines) + "\n")
     fn = next(n for n in ast.walk(tree) if isinstance(n, ast.FunctionDef))
-    resolved = _follow_assignment_chain(
-        fn, f"v{_MAX_ASSIGNMENT_HOPS + 1}", _MAX_ASSIGNMENT_HOPS
-    )
+    resolved = _follow_assignment_chain(fn, f"v{_MAX_ASSIGNMENT_HOPS + 1}", _MAX_ASSIGNMENT_HOPS)
     assert resolved is None
 
 
@@ -1126,12 +1065,7 @@ def test_collect_json_import_bindings_resolves_all_forms() -> None:
     """Vector-2 fix: ``import json``/``import json as X``/``from json import
     loads``/``from json import load as Y`` all resolve to their real local
     binding names -- not a hardcoded ``json``/``_json`` literal match."""
-    tree = ast.parse(
-        "import json\n"
-        "import json as _json\n"
-        "from json import loads\n"
-        "from json import load as _load\n"
-    )
+    tree = ast.parse("import json\nimport json as _json\nfrom json import loads\nfrom json import load as _load\n")
     bindings = _collect_json_import_bindings(tree)
     assert bindings.module_names == {"json", "_json"}
     assert bindings.loads_names == {"loads"}
@@ -1151,10 +1085,7 @@ def test_is_json_loads_call_resolves_from_import_binding() -> None:
 def test_is_json_loads_call_resolves_arbitrary_module_alias() -> None:
     """``import json as <anything>`` (not just ``json``/``_json``) resolves via
     *bindings*, closing the hardcoded-alias gap."""
-    tree = ast.parse(
-        "import json as totally_arbitrary_alias\n"
-        "def f(x):\n    return totally_arbitrary_alias.loads(x)\n"
-    )
+    tree = ast.parse("import json as totally_arbitrary_alias\ndef f(x):\n    return totally_arbitrary_alias.loads(x)\n")
     bindings = _collect_json_import_bindings(tree)
     call = next(n for n in ast.walk(tree) if isinstance(n, ast.Call))
     assert _is_json_loads_call(call, bindings) is True
@@ -1300,8 +1231,7 @@ def test_routed_load_meta_floor() -> None:
         "through the canonical reader family."
     )
     assert len(routed) > ROUTED_LOAD_META_FLOOR, (
-        "ROUTED_LOAD_META_FLOOR must be a concrete census integer strictly below "
-        "the live routed count, not '>= len(routed)' (anti-vacuous)."
+        "ROUTED_LOAD_META_FLOOR must be a concrete census integer strictly below the live routed count, not '>= len(routed)' (anti-vacuous)."
     )
     assert len(routed) - ROUTED_LOAD_META_FLOOR <= ROUTED_LOAD_META_FLOOR_MARGIN, (
         f"ROUTED_LOAD_META_FLOOR ({ROUTED_LOAD_META_FLOOR}) is more than "
@@ -1332,8 +1262,7 @@ def test_allowlist_shrink_only() -> None:
     keys = load_allowlist(ALLOWLIST_PATH)
     baseline = load_baseline(ALLOWLIST_PATH)
     assert len(keys) <= baseline, (
-        f"inline_meta_read allow-list ({len(keys)}) exceeds baseline ({baseline}) "
-        "— entries may only be removed (routed away), never added"
+        f"inline_meta_read allow-list ({len(keys)}) exceeds baseline ({baseline}) — entries may only be removed (routed away), never added"
     )
 
 
@@ -1359,11 +1288,7 @@ def test_new_inline_meta_read_is_flagged(tmp_path: Path) -> None:
     assert any("PlantedReader.load" in v for v in violations)
 
     # Sanctioned (tool-derived key, never hand-typed) -> GREEN.
-    site_key = next(
-        s.key
-        for s in scan_inline_meta_reads(scratch_src)
-        if s.key.enclosing_qualname == "PlantedReader.load"
-    )
+    site_key = next(s.key for s in scan_inline_meta_reads(scratch_src) if s.key.enclosing_qualname == "PlantedReader.load")
     assert check_inline_meta_read_gate(scratch_src, {site_key}) == []
 
 
@@ -1414,18 +1339,13 @@ def test_routed_count_floor_blocks_mass_allowlist(tmp_path: Path) -> None:
     # "Mass allow-list" the drain: sanction every discovered site instead of
     # routing the code onto load_meta*.
     mass_allowlist = {site.key for site in sites}
-    assert check_inline_meta_read_gate(scratch_src, mass_allowlist) == [], (
-        "sanity: the mass allow-list must make the INLINE gate green"
-    )
+    assert check_inline_meta_read_gate(scratch_src, mass_allowlist) == [], "sanity: the mass allow-list must make the INLINE gate green"
 
     # The routed-count census is INDEPENDENT of the allow-list: mass-allow-listing
     # manufactures zero routing evidence in this fixture.
     routed = scan_routed_load_meta_calls(scratch_src)
     required_routed_floor = len(sites)  # one routed call should replace each drained read
-    assert len(routed) < required_routed_floor, (
-        "self-test invariant broken: a mass allow-list in this fixture must NOT be "
-        "accompanied by genuine routed calls"
-    )
+    assert len(routed) < required_routed_floor, "self-test invariant broken: a mass allow-list in this fixture must NOT be accompanied by genuine routed calls"
     # This is exactly the failure shape ROUTED_LOAD_META_FLOOR catches on the real
     # tree: a floor requiring routed growth reds when routing didn't happen.
 
@@ -1458,10 +1378,7 @@ def test_fr010_kernel_l1_is_the_single_authority() -> None:
     second decode call inside the kernel module -- or its disappearance -- is a
     regression this pins directly (complements the tree-wide enumeration above).
     """
-    assert _count_kernel_l1_meta_decoders(SRC_ROOT) == 1, (
-        "kernel.meta_decode must contain exactly one json decode call (the single "
-        "malformed authority)."
-    )
+    assert _count_kernel_l1_meta_decoders(SRC_ROOT) == 1, "kernel.meta_decode must contain exactly one json decode call (the single malformed authority)."
 
 
 def test_fr010_completeness_no_hidden_meta_bypass() -> None:
@@ -1475,10 +1392,8 @@ def test_fr010_completeness_no_hidden_meta_bypass() -> None:
     """
     allowlist = set(load_allowlist(ALLOWLIST_PATH))
     unrouted = [site for site in scan_inline_meta_reads(SRC_ROOT) if site.key not in allowlist]
-    assert unrouted == [], (
-        "FR-010 completeness: un-routed meta.json bypass read(s) beyond the "
-        "enumerated allow-list:\n"
-        + "\n".join(f"  {s.rel_path}:{s.lineno} ({s.key.enclosing_qualname})" for s in unrouted)
+    assert unrouted == [], "FR-010 completeness: un-routed meta.json bypass read(s) beyond the enumerated allow-list:\n" + "\n".join(
+        f"  {s.rel_path}:{s.lineno} ({s.key.enclosing_qualname})" for s in unrouted
     )
 
 
@@ -1499,9 +1414,7 @@ def test_fr010_canary_flags_planted_meta_decoder(tmp_path: Path) -> None:
         "        return json.loads(meta_path.read_text(encoding='utf-8'))\n",
     )
     decoders = independent_meta_decoders(scratch_src, set())
-    assert "src/fr010_planted_pkg/reader.py" in decoders, (
-        "self-test: a planted meta json.loads must surface as an independent decoder"
-    )
+    assert "src/fr010_planted_pkg/reader.py" in decoders, "self-test: a planted meta json.loads must surface as an independent decoder"
 
 
 def test_fr010_canary_allowed_shapes_do_not_trip(tmp_path: Path) -> None:
@@ -1527,20 +1440,15 @@ def test_fr010_canary_allowed_shapes_do_not_trip(tmp_path: Path) -> None:
         "        return json.loads(text)\n",
     )
     assert scan_inline_meta_reads(scratch_src) == [], (
-        "self-test: neither the raw-content kernel-L1 shape nor the generic-path "
-        "row-matrix shape may be flagged as a meta-content read"
+        "self-test: neither the raw-content kernel-L1 shape nor the generic-path row-matrix shape may be flagged as a meta-content read"
     )
     # And on the REAL tree the row-matrix decoder is not surfaced as a meta read.
     row_matrix = [
         site
         for site in scan_inline_meta_reads(SRC_ROOT)
-        if site.rel_path.endswith("cli/commands/merge_driver.py")
-        and site.key.enclosing_qualname == "_parse_json_document"
+        if site.rel_path.endswith("cli/commands/merge_driver.py") and site.key.enclosing_qualname == "_parse_json_document"
     ]
-    assert row_matrix == [], (
-        "the row-matrix decoder (_parse_json_document) must be excluded from the "
-        "meta scope (it decodes issue/row-matrix docs, not meta.json)"
-    )
+    assert row_matrix == [], "the row-matrix decoder (_parse_json_document) must be excluded from the meta scope (it decodes issue/row-matrix docs, not meta.json)"
 
 
 # --- timing (fast-tier budget) ----------------------------------------------

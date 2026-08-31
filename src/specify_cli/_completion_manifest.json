@@ -96,7 +96,7 @@
        "deprecated": false
       },
       "check-prerequisites": {
-       "help": "Validate mission structure and prerequisites.\n\nThis command is designed for AI agents to call programmatically.\n\nExamples:\n    spec-kitty agent mission check-prerequisites --json\n    spec-kitty agent mission check-prerequisites --mission 020-my-feature --paths-only --json",
+       "help": "Validate mission structure and prerequisites.\n\nThis command is designed for AI agents to call programmatically.\n\nExamples:\n    spec-kitty agent mission check-prerequisites --json\n    spec-kitty agent mission check-prerequisites --mission 020-my-feature --paths-only --json\n    spec-kitty agent mission check-prerequisites --mission my-feature --resume-probe --json",
        "hidden": false,
        "deprecated": false
       },
