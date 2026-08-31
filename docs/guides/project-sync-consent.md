@@ -17,7 +17,7 @@ related:
 
 > **Removed in 3.2.6; kept as historical record.** The per-project hosted-sync
 > consent and store model described here was removed with the CLI→SaaS sync
-> transport. This page is scheduled for deletion in 3.2.7 (D13).
+> transport. This page is scheduled for deletion in 3.2.7.
 
 *Guidance dated 2026-08-13, covering the consent model shipped by mission
 `per-project-sync-consent-ledgers-01KZKMQZ` (core `#3262`, companion SaaS
