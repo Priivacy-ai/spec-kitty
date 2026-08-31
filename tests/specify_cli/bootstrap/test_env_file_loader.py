@@ -211,8 +211,8 @@ class TestFailPolicy:
         docstring on ``_read_tier`` for why: an absent ``.kitty.env`` is the
         default state for nearly every project, so a ``UserWarning`` on every
         CLI invocation would be noise, and concretely breaks the
-        clean-stderr-on-import contract other suites already pin (a bare
-        ``import specify_cli`` must not print anything).
+        clean-stderr-on-import contract pinned by
+        ``test_bare_import_emits_no_stderr`` below.
         """
         caplog.set_level(logging.DEBUG, logger="specify_cli.bootstrap.env_file")
         home = tmp_path / "state-home"
@@ -584,6 +584,31 @@ def test_control_without_kitty_env_seeds_nothing(tmp_path: Path) -> None:
     assert result.returncode == 0, result.stderr
     assert result.stdout.strip() == "", (
         "control run (no .kitty.env) must not seed SPEC_KITTY_SYNC_MINIMAL_IMPORT; "
+        f"stdout={result.stdout!r} stderr={result.stderr}"
+    )
+
+
+@pytest.mark.integration
+def test_bare_import_emits_no_stderr(tmp_path: Path) -> None:
+    """A bare ``import specify_cli`` at a real process boundary is silent."""
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    env = _subprocess_env(tmp_path)
+    env.pop("SPEC_KITTY_TEST_MODE", None)
+
+    result = subprocess.run(
+        [sys.executable, "-c", "import specify_cli"],
+        cwd=repo,
+        env=env,
+        text=True,
+        capture_output=True,
+        timeout=60,
+    )
+
+    assert result.returncode == 0, result.stderr
+    assert result.stdout == ""
+    assert result.stderr == "", (
+        "a bare import must not print to stdout or stderr; "
         f"stdout={result.stdout!r} stderr={result.stderr}"
     )
 

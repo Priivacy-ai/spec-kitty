@@ -155,9 +155,8 @@ def _read_tier(path: Path) -> dict[str, str]:
     existing project (before the WP04 provision migration creates one), so a
     user-visible ``UserWarning`` on every single CLI invocation would be pure
     noise, and -- concretely -- breaks the clean-stderr-on-import contract
-    other suites already pin for a bare ``import specify_cli`` (see
-    ``TestFailPolicy.test_absent_home_file_continues_silently_at_user_level``
-    in ``tests/specify_cli/bootstrap/test_env_file_loader.py``). Present-but-unreadable
+    ``tests/specify_cli/bootstrap/test_env_file_loader.py::test_bare_import_emits_no_stderr``
+    pins for a bare ``import specify_cli``. Present-but-unreadable
     (permission bits, bad encoding, a directory instead of a file, ...) ->
     :class:`OperatorEnvFileUnreadableError` (fail loud, C-LDR-3) -- that
     condition is both rare and actionable, unlike a simply-absent file. A
