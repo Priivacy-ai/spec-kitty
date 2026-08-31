@@ -47,6 +47,7 @@ EXPECTED_DRY_RUN_PAYLOAD_KEYS = frozenset(
         "mission_branch",
         "lanes",
         "would_assign_mission_number",
+        "retention",
     }
 )
 
@@ -128,6 +129,49 @@ def test_clean_forecast_json_payload_key_set(
     assert payload["mission_slug"] == mission.mission_slug
     assert payload["strategy"] == "squash"
     assert payload["push"] is False
+
+
+def test_retaining_mission_forecast_reports_resolved_retention(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """FR-008 (#3131): a mission with ``retain_branches``/``retain_worktrees``
+    in meta.json and NO explicit CLI flags reports the RESOLVED cleanup
+    decision (both False) plus ``retention`` provenance, not raw flag echo.
+    """
+    mission = create_mission_fixture(tmp_path)
+    meta_path = mission.mission_dir / "meta.json"
+    meta = json.loads(meta_path.read_text(encoding="utf-8"))
+    meta["retain_branches"] = True
+    meta["retain_worktrees"] = True
+    meta_path.write_text(json.dumps(meta, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+
+    write_work_package(mission, WorkPackageSpec(lane="approved"))
+    append_status_event(
+        mission, from_lane=Lane.FOR_REVIEW, to_lane=Lane.APPROVED,
+        event_id="01KVXHDKFORECAST00000004",
+    )
+    _lanes_json_for(mission)
+    monkeypatch.setattr(
+        "specify_cli.merge.forecast.get_main_repo_root", lambda _r: mission.repo_root
+    )
+
+    forecast.run_dry_run_forecast(
+        repo_root=mission.repo_root,
+        resolved_feature=mission.mission_slug,
+        resolved_target_branch="main",
+        resolved_strategy=MergeStrategy.SQUASH,
+        delete_branch=None,
+        remove_worktree=None,
+        push=False,
+        json_output=True,
+    )
+    payload = json.loads(capsys.readouterr().out.strip().splitlines()[-1])
+    assert frozenset(payload) == EXPECTED_DRY_RUN_PAYLOAD_KEYS
+    assert payload["delete_branch"] is False
+    assert payload["remove_worktree"] is False
+    assert payload["retention"]["branch_source"] == "meta"
+    assert payload["retention"]["worktree_source"] == "meta"
+    assert payload["retention"]["warnings"]
 
 
 def test_review_artifact_conflict_blocks_json(
