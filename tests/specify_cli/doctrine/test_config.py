@@ -19,7 +19,7 @@ import typer
 import yaml
 from typer.testing import CliRunner
 
-from doctrine.drg.org_pack_config import (
+from charter.offering.drg.org_pack_config import (
     OrgPackConfig,
     PackRegistry,
     resolve_org_roots,
@@ -57,7 +57,7 @@ class TestLoadPackRegistry:
                   - name: security
                     local_path: /opt/sec
                     source_type: git
-                    url: git@example.com:sec/doctrine.git
+                    url: git@example.com:sec/charter.offering.git
                     ref: v1.0.0
                   - name: architecture
                     local_path: /opt/arch
@@ -163,7 +163,7 @@ class TestLoadPackRegistry:
                     bogus_field: oops
             """,
         )
-        with pytest.warns(UserWarning, match="Invalid doctrine.org"):
+        with pytest.warns(UserWarning, match="Invalid org-pack config"):
             registry = load_pack_registry(tmp_path)
         assert registry.packs == []
 
@@ -272,7 +272,7 @@ class TestSavePackRegistry:
         save_pack_registry(tmp_path, registry)
 
         data = yaml.safe_load((tmp_path / ".kittify" / "config.yaml").read_text())
-        assert data["doctrine"]["org"]["packs"] == [
+        assert data["charter_packs"]["org"]["packs"] == [
             {
                 "name": "security",
                 "local_path": "/opt/sec",
@@ -304,7 +304,7 @@ class TestSavePackRegistry:
         assert data["vcs"] == {"provider": "github"}
         assert data["agents"] == {"available": ["claude", "codex"]}
         assert data["doctrine"]["other_setting"] == "keep_me"
-        assert data["doctrine"]["org"]["packs"][0]["name"] == "security"
+        assert data["charter_packs"]["org"]["packs"][0]["name"] == "security"
 
     def test_round_trip(self, tmp_path: Path) -> None:
         original = PackRegistry(
@@ -402,11 +402,11 @@ class TestDoctrineFetchCLI:
                   - name: security
                     local_path: /opt/sec
                     source_type: git
-                    url: git@example.com:sec/doctrine.git
+                    url: git@example.com:sec/charter.offering.git
                   - name: architecture
                     local_path: /opt/arch
                     source_type: git
-                    url: git@example.com:arch/doctrine.git
+                    url: git@example.com:arch/charter.offering.git
             """,
         )
         fetched_names: list[str] = []
@@ -444,11 +444,11 @@ class TestDoctrineFetchCLI:
                   - name: security
                     local_path: /opt/sec
                     source_type: git
-                    url: git@example.com:sec/doctrine.git
+                    url: git@example.com:sec/charter.offering.git
                   - name: architecture
                     local_path: /opt/arch
                     source_type: git
-                    url: git@example.com:arch/doctrine.git
+                    url: git@example.com:arch/charter.offering.git
             """,
         )
         fetched_names: list[str] = []
@@ -474,7 +474,7 @@ class TestDoctrineFetchCLI:
                   - name: security
                     local_path: /opt/sec
                     source_type: git
-                    url: git@example.com:sec/doctrine.git
+                    url: git@example.com:sec/charter.offering.git
             """,
         )
         runner = CliRunner()
@@ -498,7 +498,7 @@ class TestDoctrineFetchCLI:
                   - name: security
                     local_path: /opt/sec
                     source_type: git
-                    url: git@example.com:sec/doctrine.git
+                    url: git@example.com:sec/charter.offering.git
             """,
         )
         monkeypatch.setattr(

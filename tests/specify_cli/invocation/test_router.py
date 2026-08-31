@@ -63,7 +63,7 @@ def _make_mock_registry(profile_specs: list[dict]) -> MagicMock:
 
     This bypasses the shipped-profile merge issue for pure unit tests.
     """
-    from doctrine.agent_profiles.profile import Role
+    from charter.offering.agent_profiles.profile import Role
 
     mock_profiles = []
     for spec in profile_specs:
@@ -168,28 +168,28 @@ class TestNormalizeTokens:
 
 class TestCanonicalVerbMap:
     def test_implement_maps_to_implementer_role(self) -> None:
-        from doctrine.agent_profiles.profile import Role
+        from charter.offering.agent_profiles.profile import Role
 
         action, role = CANONICAL_VERB_MAP["implement"]
         assert action == "implement"
         assert role == Role.IMPLEMENTER
 
     def test_review_maps_to_reviewer_role(self) -> None:
-        from doctrine.agent_profiles.profile import Role
+        from charter.offering.agent_profiles.profile import Role
 
         action, role = CANONICAL_VERB_MAP["review"]
         assert action == "review"
         assert role == Role.REVIEWER
 
     def test_plan_maps_to_planner_role(self) -> None:
-        from doctrine.agent_profiles.profile import Role
+        from charter.offering.agent_profiles.profile import Role
 
         action, role = CANONICAL_VERB_MAP["plan"]
         assert action == "plan"
         assert role == Role.PLANNER
 
     def test_fix_maps_to_implementer_role(self) -> None:
-        from doctrine.agent_profiles.profile import Role
+        from charter.offering.agent_profiles.profile import Role
 
         action, role = CANONICAL_VERB_MAP["fix"]
         assert action == "implement"

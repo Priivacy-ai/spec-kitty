@@ -2,18 +2,17 @@
 
 Pins the invariant from
 ``docs/adr/3.x/2026-04-26-2-auth-transport-boundary.md``: the
-sync, tracker, and websocket subsystems MUST acquire HTTP transports
+tracker and websocket subsystems MUST acquire HTTP transports
 from ``specify_cli.auth.transport`` (or the auth-internal SaaS-fallback
 helper). Direct ``httpx.Client(...)`` / ``httpx.AsyncClient(...)``
 calls in those subsystems are a regression of FR-030.
 
 Walked subsystems
 -----------------
-* ``src/specify_cli/sync/``
 * ``src/specify_cli/tracker/``
 * ``src/specify_cli/auth/websocket/`` (the websocket-token provisioning
-  surface — the actual websocket connection lives in
-  ``src/specify_cli/sync/client.py`` which is already covered above)
+  surface; the sync package's own websocket connection client was walked
+  here too until it was deleted along with that package, issue #5)
 
 Allowlist
 ---------
@@ -43,7 +42,6 @@ _SRC = _REPO_ROOT / "src" / "specify_cli"
 
 # Subsystems that MUST go through the centralized auth transport.
 _WALKED_SUBSYSTEMS: tuple[Path, ...] = (
-    _SRC / "sync",
     _SRC / "tracker",
     _SRC / "auth" / "websocket",
 )

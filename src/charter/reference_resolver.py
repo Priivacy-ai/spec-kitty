@@ -7,10 +7,10 @@ from typing import TYPE_CHECKING
 from charter._drg_helpers import load_validated_graph
 from charter.catalog import resolve_doctrine_root
 from charter.drg import filter_graph_by_activation
-from doctrine.drg.loader import load_built_in_graph
-from doctrine.drg.models import DRGGraph, Relation
-from doctrine.drg.query import ResolveTransitiveRefsResult, resolve_transitive_refs
-from doctrine.drg.validator import assert_valid
+from charter.offering.drg.loader import load_built_in_graph
+from charter.offering.drg.models import DRGGraph, Relation
+from charter.offering.drg.query import ResolveTransitiveRefsResult, resolve_transitive_refs
+from charter.offering.drg.validator import assert_valid
 
 if TYPE_CHECKING:
     from charter.pack_context import PackContext
@@ -31,7 +31,7 @@ def resolve_references_transitively(
     """Resolve transitive doctrine artifacts reachable from *directive_ids*.
 
     This preserves the public charter helper contract while delegating the
-    actual traversal to ``doctrine.drg.query.resolve_transitive_refs``.
+    actual traversal to ``charter.offering.drg.query.resolve_transitive_refs``.
 
     Parameters
     ----------

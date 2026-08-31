@@ -92,6 +92,34 @@ _REPLACE_SLOTS: tuple[str, ...] = (
 #: is cleared. See :func:`_apply_annotation_delta`.
 _CLAIM_RELEASE_SLOTS: tuple[str, ...] = ("agent", "shell_pid", "shell_pid_created_at")
 
+#: Prefixes of the CLI's auto-synthesized cancel reasons
+#: (``tasks_transition_core.build_transition_plan``): ``"Force move to <lane>"``
+#: and ``"move-task: <old> -> <lane>"``. A legacy canceled event — one written
+#: before the ``reason_source`` field existed — whose ``reason`` matches one of
+#: these is classified ``synthetic``; any other non-empty reason is treated as
+#: operator-authored (NFR-002 backward-compat, data-model.md entity 1).
+_SYNTHETIC_REASON_PREFIXES: tuple[str, ...] = ("Force move to ", "move-task: ")
+
+
+def _cancellation_reason_source(event: StatusEvent) -> str:
+    """Classify a canceled event's provenance as ``operator`` or ``synthetic``.
+
+    The durable :attr:`StatusEvent.reason_source` wins when present (events
+    written after FR-001). For a legacy event that predates the field
+    (``reason_source is None``), infer from ``reason``: an empty/whitespace
+    reason, or one matching a known synthetic template prefix, is ``synthetic``;
+    any other non-empty reason is ``operator`` (NFR-002).
+    """
+    if event.reason_source is not None:
+        return event.reason_source
+    reason = event.reason
+    if reason is None or not reason.strip():
+        return "synthetic"
+    if reason.startswith(_SYNTHETIC_REASON_PREFIXES):
+        return "synthetic"
+    return "operator"
+
+
 SNAPSHOT_FILENAME = "status.json"
 
 
@@ -213,6 +241,14 @@ def _wp_state_from_event(
         )
     elif previous is not None and "review_result" in previous:
         state["review_result"] = previous["review_result"]
+
+    # Cancellation provenance projection (FR-001 / R2 / data-model entity 2):
+    # expose the operator reason + its provenance ONLY for a canceled snapshot,
+    # derived purely from the event log (C-002). Every non-canceled snapshot is
+    # byte-identical to before — these keys are never written otherwise (NFR-002).
+    if event.to_lane == Lane.CANCELED:
+        state["cancellation_reason"] = event.reason
+        state["reason_source"] = _cancellation_reason_source(event)
 
     return state
 

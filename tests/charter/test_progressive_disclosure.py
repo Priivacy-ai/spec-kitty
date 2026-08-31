@@ -28,7 +28,7 @@ from pathlib import Path
 import pytest
 
 from charter import progressive_disclosure as pd
-from doctrine.drg.models import DRGEdge, DRGGraph, DRGNode, NodeKind, Relation
+from charter.offering.drg.models import DRGEdge, DRGGraph, DRGNode, NodeKind, Relation
 
 pytestmark = [pytest.mark.integration, pytest.mark.git_repo]
 

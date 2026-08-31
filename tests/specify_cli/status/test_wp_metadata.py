@@ -606,8 +606,6 @@ class TestReadWpFrontmatter:
         import specify_cli.status.emit as status_emit
 
         monkeypatch.setattr(status_emit, "_saas_fan_out", lambda *a, **k: None, raising=False)
-        monkeypatch.setattr(status_emit, "fire_dossier_sync", lambda *a, **k: None, raising=False)
-
         feature_dir = tmp_path / "kitty-specs" / "pid-snapshot"
         (feature_dir / "tasks").mkdir(parents=True)
         (feature_dir / "meta.json").write_text('{"status_phase": 0}', encoding="utf-8")

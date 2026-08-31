@@ -1,4 +1,12 @@
 extend = "pyproject.toml"
+
+# Governed immutable research artifacts: per-mission scratch/evidence scripts
+# checked in under kitty-specs/<mission>/research/ for audit-trail purposes
+# (e.g. kitty-specs/isolated-home-pin-guard-r1a-01KZNMA3/research/
+# spec_kitty_home_pin_evidence/{clf.py,step3.py}). They are not runtime or
+# test code, are not meant to be edited after the fact, and were never held
+# to repo lint conventions. Exclude the whole research/ subtree rather than
+# per-file-ignores so future mission research directories don't reopen this.
 extend-exclude = ["kitty-specs/*/research/**"]
 
 # Generated Ruff baseline for the legacy lint debt present on origin/main as of 2026-05-01.
@@ -7,9 +15,9 @@ extend-exclude = ["kitty-specs/*/research/**"]
 "src/charter/evidence/code_reader.py" = ["C901", "F401", "SIM103"]
 "src/charter/resolution.py" = ["SIM108"]
 "src/charter/synthesizer/synthesize_pipeline.py" = ["UP017"]
-"src/doctrine/shared/scoping.py" = ["UP035"]
-"src/doctrine/spdd_reasons/activation.py" = ["SIM103"]
-"src/doctrine/versioning.py" = ["C901", "UP017", "UP035", "UP042"]
+"src/charter/offering/shared/scoping.py" = ["UP035"]
+"src/charter/offering/spdd_reasons/activation.py" = ["SIM103"]
+"src/charter/offering/versioning.py" = ["C901", "UP017", "UP035", "UP042"]
 "src/specify_cli/agent_utils/directories.py" = ["F401", "UP035"]
 "src/specify_cli/agent_utils/status.py" = ["C901", "E501", "SIM108"]
 "src/specify_cli/auth/flows/revoke.py" = ["S105"]
@@ -94,13 +102,6 @@ extend-exclude = ["kitty-specs/*/research/**"]
 "src/specify_cli/skills/manifest.py" = ["F401"]
 "src/specify_cli/status/models.py" = ["F401"]
 "src/specify_cli/status/validate.py" = ["ARG001"]
-"src/specify_cli/sync/clock.py" = ["F401"]
-"src/specify_cli/sync/daemon.py" = ["F401", "SIM102", "SIM103", "SIM105", "SIM108", "UP035", "UP042"]
-"src/specify_cli/sync/dossier_pipeline.py" = ["C901"]
-"src/specify_cli/sync/namespace.py" = ["UP042"]
-"src/specify_cli/sync/replay.py" = ["UP035"]
-"src/specify_cli/sync/runtime_event_emitter.py" = ["UP037"]
-"src/specify_cli/sync/tracker_client_glue.py" = ["F401", "S311", "UP035"]
 "src/specify_cli/tracker/ticket_context.py" = ["E741"]
 "src/specify_cli/upgrade/feature_meta.py" = ["F401", "SIM108"]
 "src/specify_cli/upgrade/migrations/m_0_10_12_charter_cleanup.py" = ["ARG002"]

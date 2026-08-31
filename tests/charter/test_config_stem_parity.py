@@ -39,7 +39,7 @@ from charter.kind_vocabulary import (
     resolve_artifact_urn,
     resolve_config_id,
 )
-from doctrine.artifact_kinds import ArtifactKind
+from charter.offering.artifact_kinds import ArtifactKind
 
 pytestmark = [pytest.mark.unit]
 

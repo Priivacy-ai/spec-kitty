@@ -23,7 +23,9 @@ from specify_cli.gitignore_manager import (  # noqa: E402
     RUNTIME_PROTECTED_ENTRIES,
     AgentDirectory,
     GitignoreManager,
+    GitignorePathError,
     ProtectionResult,
+    read_ignore_file_text,
 )
 
 # Total entries: agents + runtime (derived from state contract)
@@ -374,3 +376,274 @@ class TestGitignoreManager:
         assert isinstance(result.entries_skipped, list)
         assert isinstance(result.errors, list)
         assert isinstance(result.warnings, list)
+
+
+class TestGitignoreSymlinkSafety:
+    """Regression coverage for issue #582: gitignore_manager must not read or
+    write through a `.gitignore` that is a symlink."""
+
+    @pytest.fixture
+    def temp_dir(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            yield Path(tmpdir)
+
+    @pytest.fixture
+    def manager(self, temp_dir):
+        return GitignoreManager(temp_dir)
+
+    def _make_symlinked_gitignore(self, manager, temp_dir) -> Path:
+        """Point .gitignore at an outside-the-project target via a symlink."""
+        outside_target = temp_dir.parent / f"outside-target-{os.getpid()}.txt"
+        outside_target.write_text("do-not-touch\n")
+        manager.gitignore_path.symlink_to(outside_target)
+        return outside_target
+
+    def test_ensure_entries_rejects_symlink(self, manager, temp_dir):
+        """ensure_entries() must refuse to write through a symlinked .gitignore."""
+        outside_target = self._make_symlinked_gitignore(manager, temp_dir)
+        try:
+            with pytest.raises(GitignorePathError):
+                manager.ensure_entries([".claude/"])
+            # The symlink's target must be untouched.
+            assert outside_target.read_text() == "do-not-touch\n"
+        finally:
+            outside_target.unlink(missing_ok=True)
+
+    def test_protect_all_agents_reports_symlink_as_error(self, manager, temp_dir):
+        """The ProtectionResult contract still holds: no exception escapes."""
+        outside_target = self._make_symlinked_gitignore(manager, temp_dir)
+        try:
+            result = manager.protect_all_agents()
+            assert not result.success
+            assert any("symlink" in e.lower() for e in result.errors)
+            assert outside_target.read_text() == "do-not-touch\n"
+        finally:
+            outside_target.unlink(missing_ok=True)
+
+    def test_dangling_symlink_is_also_rejected(self, manager, temp_dir):
+        """A symlink to a target that doesn't exist must still be rejected.
+
+        `Path.exists()` follows symlinks and returns False for a dangling one,
+        so the guard must trigger on `is_symlink()` directly, not `exists()`.
+        """
+        missing_target = temp_dir.parent / f"missing-target-{os.getpid()}.txt"
+        manager.gitignore_path.symlink_to(missing_target)
+        try:
+            with pytest.raises(GitignorePathError):
+                manager.ensure_entries([".claude/"])
+        finally:
+            manager.gitignore_path.unlink(missing_ok=True)
+
+    def test_normal_file_write_survives_symlink_guard(self, manager):
+        """Sanity check: a regular (non-symlink) .gitignore still works."""
+        result = manager.ensure_entries([".claude/"])
+        assert result
+        assert ".claude/" in manager.gitignore_path.read_text()
+        assert not manager.gitignore_path.is_symlink()
+
+    def test_write_preserves_existing_file_mode(self, manager):
+        """The atomic replace should not narrow an existing .gitignore's mode."""
+        manager.gitignore_path.write_text("existing\n")
+        os.chmod(manager.gitignore_path, 0o640)
+
+        manager.ensure_entries([".claude/"])
+
+        mode = manager.gitignore_path.stat().st_mode & 0o777
+        assert mode == 0o640
+
+    def test_new_file_respects_umask_not_mkstemp_default(self, manager):
+        """A brand-new .gitignore must land at the umask-respecting mode.
+
+        `tempfile.mkstemp()` always creates its tempfile at 0600 regardless
+        of the process umask. For a pre-existing `.gitignore` the atomic
+        write replicates its mode, but for a brand-new one (the common
+        `spec-kitty init` path) there is no existing mode to replicate, so
+        without an explicit chmod the file would keep mkstemp's 0600 instead
+        of the 0644-under-umask-022 that `write_text()` used to produce.
+        """
+        assert not manager.gitignore_path.exists()
+        old_umask = os.umask(0o022)
+        try:
+            manager.ensure_entries([".claude/"])
+        finally:
+            os.umask(old_umask)
+
+        mode = manager.gitignore_path.stat().st_mode & 0o777
+        assert mode == 0o644
+
+    def test_atomic_write_does_not_follow_a_symlink_planted_after_the_guard(self, manager, temp_dir, monkeypatch):
+        """#643: the ``_reject_symlink()`` check-then-use guard only proves a
+        symlink wasn't present *at check time*; the property that actually
+        makes the write safe against one appearing afterward is
+        ``os.replace()`` itself never following the destination directory
+        entry. A pre-planted symlink can't isolate that property here --
+        ``_open_no_follow()``'s kernel-level ``O_NOFOLLOW`` independently
+        blocks both the read path and the pre-write permission probe the
+        moment ``.gitignore`` exists as a symlink, before either implementation
+        would ever reach its differing final-write line. So this starts from
+        a brand-new project (no ``.gitignore`` yet, matching ``spec-kitty
+        init``) and hooks ``tempfile.mkstemp`` -- the first thing
+        ``_atomic_write()`` does once its own pre-checks have already passed
+        cleanly against the not-yet-existing path, and unchanged by the
+        finding's own mutation -- to plant a symlink to an outside target at
+        that exact moment, simulating the guard-to-write race without needing
+        a real one. This must pass with the real ``os.replace()``-based
+        ``_atomic_write`` and fail if a following write (e.g. plain
+        ``write_text()``) is swapped in for it instead."""
+        outside_target = temp_dir.parent / f"outside-target-{os.getpid()}.txt"
+        outside_target.write_text("do-not-touch\n")
+        assert not manager.gitignore_path.exists()
+
+        real_mkstemp = tempfile.mkstemp
+
+        def planting_mkstemp(*args, **kwargs):
+            manager.gitignore_path.symlink_to(outside_target)
+            return real_mkstemp(*args, **kwargs)
+
+        monkeypatch.setattr(tempfile, "mkstemp", planting_mkstemp)
+        try:
+            result = manager.ensure_entries([".claude/"])
+
+            assert result
+            assert outside_target.read_text() == "do-not-touch\n"
+            assert not manager.gitignore_path.is_symlink()
+            assert ".claude/" in manager.gitignore_path.read_text()
+        finally:
+            outside_target.unlink(missing_ok=True)
+
+    def test_permission_denied_still_raised_on_readonly_file(self, manager):
+        """os.replace() ignores the target's mode bits; the manager must not.
+
+        A read-only `.gitignore` must still surface PermissionError so
+        `_protect_entries` reports it, exactly as the pre-fix direct
+        `write_text()` did — an `os.replace()`-only implementation would
+        silently clobber it instead, since rename() only checks the parent
+        directory's permissions.
+        """
+        manager.gitignore_path.touch()
+        os.chmod(manager.gitignore_path, 0o444)
+        try:
+            with pytest.raises(PermissionError):
+                manager.ensure_entries([".claude/"])
+        finally:
+            os.chmod(manager.gitignore_path, 0o644)
+
+    def test_read_does_not_follow_symlink_planted_after_the_guard(self, manager, temp_dir, monkeypatch):
+        """The read must be no-follow, not just guarded by an earlier lstat.
+
+        `_reject_symlink()` is a check-then-use `lstat`: a `.gitignore` that
+        is a regular file when the guard runs but becomes a symlink to an
+        outside secret before the actual read would previously still be
+        followed by `Path.read_text()`, copying the secret's bytes into
+        `.gitignore`. Simulate that exact race by neutering the guard and
+        planting the symlink immediately before `ensure_entries()` reads —
+        the read itself must refuse to follow it.
+        """
+        manager.gitignore_path.write_text("existing\n")
+        secret = temp_dir.parent / f"secret-{os.getpid()}.txt"
+        secret.write_text("do-not-leak\n")
+
+        monkeypatch.setattr(manager, "_reject_symlink", lambda: None)
+        try:
+            manager.gitignore_path.unlink()
+            manager.gitignore_path.symlink_to(secret)
+
+            with pytest.raises(GitignorePathError):
+                manager.ensure_entries([".claude/"])
+
+            # The secret must never have been read into .gitignore, and
+            # .gitignore must still be the symlink (untouched), not a
+            # regular file carrying the secret's content.
+            assert manager.gitignore_path.is_symlink()
+            assert secret.read_text() == "do-not-leak\n"
+        finally:
+            manager.gitignore_path.unlink(missing_ok=True)
+            secret.unlink(missing_ok=True)
+
+    def test_write_probe_does_not_follow_symlink_planted_after_the_guard(self, manager, temp_dir, monkeypatch):
+        """The pre-replace permission probe must also be no-follow.
+
+        Same race as above, but for `_atomic_write()`'s `O_WRONLY` probe: a
+        `.gitignore` that becomes a symlink between the guard and the probe
+        must not have the probe silently succeed against the symlink's
+        target.
+        """
+        manager.gitignore_path.write_text("existing\n")
+        os.chmod(manager.gitignore_path, 0o640)
+        secret = temp_dir.parent / f"secret-write-{os.getpid()}.txt"
+        secret.write_text("do-not-leak\n")
+
+        monkeypatch.setattr(manager, "_reject_symlink", lambda: None)
+        try:
+            manager.gitignore_path.unlink()
+            manager.gitignore_path.symlink_to(secret)
+
+            with pytest.raises(GitignorePathError):
+                manager._atomic_write("new content\n")
+
+            assert manager.gitignore_path.is_symlink()
+            assert secret.read_text() == "do-not-leak\n"
+        finally:
+            manager.gitignore_path.unlink(missing_ok=True)
+            secret.unlink(missing_ok=True)
+
+
+class TestReadIgnoreFileText:
+    """Coverage for `read_ignore_file_text` (issue #626): migration `detect()`
+    logic must not read `.gitignore`/`.claudeignore` content through a
+    symlink the way a bare `Path.read_text()`/`.exists()` pair would."""
+
+    @pytest.fixture
+    def temp_dir(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            yield Path(tmpdir)
+
+    def test_missing_file_returns_empty_string(self, temp_dir):
+        assert read_ignore_file_text(temp_dir / ".gitignore") == ""
+
+    def test_regular_file_is_read_normally(self, temp_dir):
+        path = temp_dir / ".gitignore"
+        path.write_text(".claude/\n")
+        assert read_ignore_file_text(path) == ".claude/\n"
+
+    def test_utf8_sig_bom_is_stripped_by_default(self, temp_dir):
+        path = temp_dir / ".gitignore"
+        path.write_bytes(b"\xef\xbb\xbf.claude/\n")
+        assert read_ignore_file_text(path) == ".claude/\n"
+
+    def test_symlinked_file_is_rejected(self, temp_dir):
+        outside_target = temp_dir.parent / f"outside-target-{os.getpid()}.txt"
+        outside_target.write_text("do-not-touch\n")
+        path = temp_dir / ".gitignore"
+        path.symlink_to(outside_target)
+        try:
+            with pytest.raises(GitignorePathError):
+                read_ignore_file_text(path)
+        finally:
+            outside_target.unlink(missing_ok=True)
+
+    def test_dangling_symlink_is_also_rejected(self, temp_dir):
+        """`Path.exists()` follows symlinks and returns False for a dangling
+        one, so the guard must trigger on `is_symlink()` directly."""
+        missing_target = temp_dir.parent / f"missing-target-{os.getpid()}.txt"
+        path = temp_dir / ".gitignore"
+        path.symlink_to(missing_target)
+        try:
+            with pytest.raises(GitignorePathError):
+                read_ignore_file_text(path)
+        finally:
+            path.unlink(missing_ok=True)
+
+    def test_vanishing_symlink_is_still_rejected(self, temp_dir, monkeypatch):
+        """A failure while resolving a symlink for the error message must not
+        replace `GitignorePathError` if the symlink is unlinked concurrently."""
+        path = temp_dir / ".gitignore"
+        path.symlink_to(temp_dir / "missing-target")
+
+        def readlink_raises(*args, **kwargs):
+            raise FileNotFoundError(f"simulated vanished symlink: {args}")
+
+        monkeypatch.setattr(os, "readlink", readlink_raises)
+
+        with pytest.raises(GitignorePathError):
+            read_ignore_file_text(path)

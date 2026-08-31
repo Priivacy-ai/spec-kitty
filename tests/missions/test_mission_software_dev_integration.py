@@ -17,7 +17,7 @@ from pathlib import Path
 
 import yaml
 
-from doctrine.missions.repository import MissionTemplateRepository
+from charter.offering.missions.repository import MissionTemplateRepository
 from specify_cli.mission_v1.schema import (
     is_v1_mission,
     validate_mission_v1,

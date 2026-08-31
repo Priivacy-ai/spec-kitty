@@ -1,8 +1,8 @@
 ---
 title: 'Team Kitty (SaaS): the end-to-end hosted-sync flow'
 description: 'The opt-in-to-delivery flow for hosted Team Kitty sync — consent, store migration, admission, auth, history disclosure, and the 3-gate drain — with a Mermaid diagram.'
-doc_status: active
-updated: '2026-08-16'
+doc_status: deprecated
+updated: '2026-08-31'
 related:
 - docs/operations/sync-drain.md
 - docs/guides/project-sync-consent.md
@@ -13,6 +13,10 @@ related:
 - docs/api/environment-variables.md
 ---
 # Team Kitty (SaaS): the end-to-end hosted-sync flow
+
+> **Removed in 3.2.6; kept as historical record.** This architecture page
+> describes the deleted CLI→SaaS sync flow, not the current Team Kitty dossier
+> reader. It is scheduled for deletion in 3.2.7 (D13).
 
 This page was written because the hosted-sync flow kept being reasoned about one gate at a
 time — a `sync doctor` false-green, a stale `sync enable` message, a consent-vs-admission

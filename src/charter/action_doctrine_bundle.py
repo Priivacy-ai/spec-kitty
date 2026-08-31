@@ -27,8 +27,8 @@ from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from charter.pack_context import PackContext
-    from doctrine.drg.models import DRGGraph
-    import doctrine.service as _doctrine_service_module
+    from charter.offering.drg.models import DRGGraph
+    import charter.offering.service as _doctrine_service_module
 
 from charter.org_pack_discovery import _load_doctrine_selection
 from charter.profile_resolution import _normalize_directive_id
@@ -99,7 +99,7 @@ def _resolve_action_bundle(
     effective_org_root = org_root
     effective_org_roots: list[Path] | None = None
     if effective_org_root is None:
-        from doctrine.drg.org_pack_config import resolve_existing_org_roots  # noqa: PLC0415
+        from charter.offering.drg.org_pack_config import resolve_existing_org_roots  # noqa: PLC0415
 
         effective_org_roots = resolve_existing_org_roots(repo_root)
         if effective_org_roots:
@@ -160,8 +160,8 @@ def _load_action_doctrine_bundle(
     from charter.context_renderers.delivery_table import _classify_artifact_urns
     from charter.drg import filter_graph_by_activation
     from charter.mission_type_profiles import resolve_mission_type_key
-    from doctrine.drg.loader import DRGLoadError
-    from doctrine.drg.query import resolve_context
+    from charter.offering.drg.loader import DRGLoadError
+    from charter.offering.drg.query import resolve_context
 
     doctrine_selection = _load_doctrine_selection(repo_root)
     resolved_type = resolve_mission_type_key(

@@ -68,11 +68,11 @@ from ..registry import MigrationRegistry
 from .base import BaseMigration, MigrationResult
 
 #: Kinds eligible for answers -> config promotion. Mirrors the 8-kind charter
-#: activation universe (``doctrine.artifact_kinds.CHARTER_KIND_TOKENS`` minus
+#: activation universe (``charter.offering.artifact_kinds.CHARTER_KIND_TOKENS`` minus
 #: the ``mission-type`` outlier, which has no ``selected_<kind>`` answers key
 #: and no per-artefact config-stem/URN pair). ``TEMPLATE``/``ASSET`` are
 #: excluded — they are not charter-activatable (see
-#: ``doctrine.artifact_kinds._NON_AUGMENTATION_ELIGIBLE_KINDS``).
+#: ``charter.offering.artifact_kinds._NON_AUGMENTATION_ELIGIBLE_KINDS``).
 _PROMOTABLE_KINDS: tuple[ArtifactKind, ...] = (
     ArtifactKind.DIRECTIVE,
     ArtifactKind.TACTIC,
