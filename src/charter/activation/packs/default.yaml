@@ -189,6 +189,7 @@ activated_agent_profiles:
   - curator-carla
   - debugger-debbie
   - designer-dagmar
+  - doctrine-daphne
   - frontend-freddy
   - generic-agent
   - human-in-charge
@@ -198,6 +199,7 @@ activated_agent_profiles:
   - paula-patterns
   - planner-priti
   - python-pedro
+  - randy-reducer
   - researcher-robbie
   - retrospective-facilitator
   - reviewer-renata
