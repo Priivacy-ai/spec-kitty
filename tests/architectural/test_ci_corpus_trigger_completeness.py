@@ -101,7 +101,7 @@ _CORPUS_DATA_ROOTS = (
 # to exclude modules whose only "corpus" signal is a synthetic tmp_path
 # construction, a literal error-message string assertion, or a stale
 # pre-relocation path that no longer resolves to any real content on disk
-# (e.g. `src/doctrine/<kind>/built-in/` -- doctrine content kinds other than
+# (e.g. `src/charter/offering/<kind>/built-in/` -- doctrine content kinds other than
 # `skills`/`templates` relocated to `packs/built-in/<kind>/`; several
 # compliance tests were never updated and now glob a directory that no
 # longer exists -- vacuously passing, a pre-existing staleness bug outside
@@ -110,6 +110,7 @@ _CORPUS_DATA_ROOTS = (
 _CORPUS_MARKED_MODULES = frozenset(
     {
         "tests/architectural/test_bare_prose_corpus_ratchet.py",
+        "tests/architectural/test_transition_guard_shrink_only.py",
         "tests/charter/synthesizer/test_manifest.py",
         "tests/architectural/test_pack_manifest_no_author_edit.py",
         "tests/contract/test_example_round_trip.py",

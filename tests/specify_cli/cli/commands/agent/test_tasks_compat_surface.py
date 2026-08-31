@@ -153,10 +153,11 @@ _TASKS_STATUS_CMD: tuple[str, ...] = (  # WP07 (wave2) — 23 symbols (#2816: +g
     "_render_stale_status",
 )
 
+# WP05 (wave2): grown to 75 via WP09, +1 (_binding_role_for_lane) = 76,
+# -1 (_mt_pre_review_gate_verdict retired, WP04) = 75, +1 (#2573 human
+# status observer) = 76, +1 (#3590 WP01 _mt_hop_reason_source) = 77 on the
+# experimental convergence base, then +4 (#3578 rollback-signal quartet) = 81.
 _TASKS_MOVE_TASK: tuple[str, ...] = (
-    # WP05 (wave2); grown to 75 via WP09, +1 (_binding_role_for_lane) = 76,
-    # -1 (_mt_pre_review_gate_verdict retired, WP04) = 75;
-    # +4 (#3578 rollback-signal quartet) = 79
     # (#2513/#2160: +uncheck/clear-markers/reset-rollback; #2573: +gate
     # skip-reason pair; WP07 #2649: +param-object + commit/uncheck degod helpers;
     # #2639: +complete-deferred-readiness + pre-review-dirty-paths;
@@ -188,6 +189,9 @@ _TASKS_MOVE_TASK: tuple[str, ...] = (
     "_mt_current_event_lane",
     "_mt_hop_review_result",
     "_mt_hop_actor",
+    # #3590 WP01 (operator-authored cancellation provenance): the reason_source
+    # resolver feeding the status-event hop — a native move-task seam def.
+    "_mt_hop_reason_source",
     "_mt_emit_transitions",
     # WP10 (wp-runtime-state-eviction, closeout reconciliation): the god-write
     # cut (WP06/WP07, FR-006/FR-007/FR-008) DELETED the frontmatter-writing
@@ -251,6 +255,7 @@ _TASKS_MOVE_TASK: tuple[str, ...] = (
     "_mt_resolve_transition_gate_verdicts",
     "_mt_dispatch_one_gate",
     "_mt_dispatch_transition_gates",
+    "_mt_human_gate_status_observer",
     "_mt_collect_transition_gate_verdicts",
     "_mt_resolve_transition_gate_inputs",
     "_mt_gate_representative",
@@ -333,10 +338,7 @@ SYMBOL_TO_MODULE: dict[str, str] = {}
 for _module_name, _symbols in _SEAM_GROUPS.items():
     for _symbol in _symbols:
         if _symbol in SYMBOL_TO_MODULE:
-            raise AssertionError(
-                f"symbol {_symbol!r} claimed by both {SYMBOL_TO_MODULE[_symbol]!r} "
-                f"and {_module_name!r} — seam groups must be disjoint."
-            )
+            raise AssertionError(f"symbol {_symbol!r} claimed by both {SYMBOL_TO_MODULE[_symbol]!r} and {_module_name!r} — seam groups must be disjoint.")
         SYMBOL_TO_MODULE[_symbol] = _module_name
 
 #: Non-callable natively-defined symbols per seam that the callable-based
@@ -358,11 +360,7 @@ def _native_module_defs(module_name: str) -> set[str]:
     production source rather than trusted on faith.
     """
     module = _SEAM_MODULES[module_name]
-    callable_defs = {
-        name
-        for name, obj in vars(module).items()
-        if getattr(obj, "__module__", None) == module.__name__ and callable(obj)
-    }
+    callable_defs = {name for name, obj in vars(module).items() if getattr(obj, "__module__", None) == module.__name__ and callable(obj)}
     return callable_defs | set(_EXTRA_NON_CALLABLE_NATIVE_DEFS.get(module_name, frozenset()))
 
 
@@ -381,10 +379,7 @@ def test_tasks_binding_is_seam_object(symbol: str, module_name: str) -> None:
     ``<residual_module>.<symbol>`` — a genuine identity re-export, not a
     coincidental native redefinition on ``tasks``."""
     seam_module = _SEAM_MODULES[module_name]
-    assert hasattr(tasks, symbol), (
-        f"tasks.{symbol} no longer resolves — a re-export from {module_name} "
-        "was dropped."
-    )
+    assert hasattr(tasks, symbol), f"tasks.{symbol} no longer resolves — a re-export from {module_name} was dropped."
     assert getattr(tasks, symbol) is getattr(seam_module, symbol), (
         f"tasks.{symbol} is NOT the same object as {module_name}.{symbol} — "
         "the compat re-export is a copy, not an identity re-export (breaks "
@@ -408,8 +403,7 @@ def test_guard_symbol_is_genuinely_native_to_its_seam(symbol: str, module_name: 
     attributed to the wrong seam) that a bare identity check alone would not
     reliably surface."""
     assert symbol in _native_module_defs(module_name), (
-        f"{symbol!r} is mapped to {module_name!r} in the guard but is not "
-        f"natively defined there — check SYMBOL_TO_MODULE / the seam group."
+        f"{symbol!r} is mapped to {module_name!r} in the guard but is not natively defined there — check SYMBOL_TO_MODULE / the seam group."
     )
 
 
@@ -428,10 +422,7 @@ def test_guard_keyset_is_superset_of_all_six_seams_native_defs() -> None:
 
     guard_keys = set(SYMBOL_TO_MODULE)
     missing = union_of_native_defs - guard_keys
-    assert not missing, (
-        "Symbols natively defined in a seam module but missing from the "
-        f"consolidated compat guard: {sorted(missing)}"
-    )
+    assert not missing, f"Symbols natively defined in a seam module but missing from the consolidated compat guard: {sorted(missing)}"
     assert union_of_native_defs <= guard_keys
 
 
@@ -443,7 +434,7 @@ def test_no_required_symbol_duplicated_in_survey() -> None:
     assert total_declared == len(SYMBOL_TO_MODULE)
 
 
-def test_guard_covers_full_165_symbol_surface() -> None:
+def test_guard_covers_full_167_symbol_surface() -> None:
     """Traceability pin: the guard's total symbol count matches the sum of
     the 6 seams' counts recorded in the seam files' own docstrings at
     authoring time (8 + 15 + 20 + 21 + 65 + 13 = 142). A change here is
@@ -540,7 +531,7 @@ def test_guard_covers_full_165_symbol_surface() -> None:
     163 -> 161. #3578 (M4 operator-signal sweep) added the four rollback-to-
     ``planned`` signal symbols — ``_RollbackResetSummary``,
     ``_mt_build_rollback_summary``, ``_mt_apply_rollback_signal`` and
-    ``_mt_rollback_signal_lines`` (tasks_move_task 75 -> 79): 161 -> 165."""
+    ``_mt_rollback_signal_lines`` (tasks_move_task 77 -> 81): 163 -> 167."""
     # TODO(under-investigation, operator-flagged): the operator doubts this
     # consolidated compat guard earns its ROI. Every seam-local symbol addition
     # costs a three-part edit — register in the per-seam tuple, add an identity
@@ -548,4 +539,4 @@ def test_guard_covers_full_165_symbol_surface() -> None:
     # low incremental regression-catch value over the identity-re-export guard
     # alone. Revisit whether the golden-count ratchet should be relaxed or
     # dropped (see M4 #3578 integration, which paid this tax for 4 helpers).
-    assert len(SYMBOL_TO_MODULE) == 165  # golden-count: cardinality-is-contract
+    assert len(SYMBOL_TO_MODULE) == 167  # golden-count: cardinality-is-contract

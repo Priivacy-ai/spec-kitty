@@ -8,19 +8,19 @@ doctrine boundary (ADR 2026-03-27-1, re-affirmed by mission
 
 **Symbol-level, not whole-module.** This door re-exports the leaf callables and
 result types (``load``, ``evaluate``, ``RoutingRecommendation``,
-``CatalogLoadResult``) — never the ``doctrine.model_task_routing.loader`` /
+``CatalogLoadResult``) — never the ``charter.offering.model_task_routing.loader`` /
 ``.evaluator`` submodules. A whole-module re-export would pass the identity gate
 but defeat curation (FR-003, NFR-002, contract C2 "symbol-level rule").
 
 These symbols are dispositioned ``PUBLIC`` in the WP01 census
-(``doctrine.model_task_routing``), so they are re-exported from the curated
-public surface ``doctrine.api`` (not the origin submodules directly). This gives
-the PUBLIC wheel symbols a live in-repo caller — the from-``doctrine.api`` wiring
+(``charter.offering.model_task_routing``), so they are re-exported from the curated
+public surface ``charter.offering.api`` (not the origin submodules directly). This gives
+the PUBLIC wheel symbols a live in-repo caller — the from-``charter.offering.api`` wiring
 the no-dead-symbol gate and the strict T007 live-caller assertion depend on.
-Object identity is unchanged: ``charter.model_routing.load is doctrine.api.load
-is doctrine.model_task_routing.loader.load``.
+Object identity is unchanged: ``charter.model_routing.load is charter.offering.api.load
+is charter.offering.model_task_routing.loader.load``.
 
-There is no import cycle: ``doctrine.model_task_routing`` and ``doctrine.api``
+There is no import cycle: ``charter.offering.model_task_routing`` and ``charter.offering.api``
 depend only on ``doctrine`` / ``kernel``, never on ``charter`` or
 ``specify_cli``.
 
@@ -29,7 +29,7 @@ aliases. Enforced by
 ``tests/architectural/test_charter_facades_reexport_doctrine.py``.
 """
 
-from doctrine.api import (
+from charter.offering.api import (
     CatalogLoadResult,
     RoutingRecommendation,
     evaluate,

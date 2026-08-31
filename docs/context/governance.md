@@ -5,7 +5,7 @@ doc_status: active
 updated: '2026-06-05'
 related:
 - docs/context/configuration-project-structure.md
-- docs/context/doctrine.md
+- docs/context/charter.md
 - docs/context/identity.md
 ---
 ## Context: Governance
@@ -92,7 +92,7 @@ Terms describing rule ownership, precedence, and policy controls in Spec Kitty.
 | **Context** | Governance |
 | **Status** | canonical |
 | **Applicable to** | `1.x`, `2.x` |
-| **Related terms** | [Charter](#charter), [Charter Interview](#charter-interview), [Doctrine Catalog](./doctrine.md#doctrine-catalog) |
+| **Related terms** | [Charter](#charter), [Charter Interview](#charter-interview), [Doctrine Catalog](./charter.md#doctrine-catalog) |
 
 ---
 
@@ -104,7 +104,7 @@ Terms describing rule ownership, precedence, and policy controls in Spec Kitty.
 | **Context** | Governance |
 | **Status** | canonical |
 | **Applicable to** | `1.x`, `2.x` |
-| **Related terms** | [Charter Compiler](#charter-compiler), [Doctrine Catalog](./doctrine.md#doctrine-catalog) |
+| **Related terms** | [Charter Compiler](#charter-compiler), [Doctrine Catalog](./charter.md#doctrine-catalog) |
 
 ---
 

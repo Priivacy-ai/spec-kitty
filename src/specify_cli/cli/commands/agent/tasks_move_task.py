@@ -73,7 +73,7 @@ import typer
 if TYPE_CHECKING:
     from collections.abc import Sequence
 
-    from doctrine.missions.step_contracts import GateBinding
+    from charter.offering.missions.step_contracts import GateBinding
 
 from mission_runtime import MissionArtifactKind, placement_seam
 from specify_cli.agent_tasks_ports import (
@@ -101,6 +101,8 @@ from specify_cli.cli.commands.agent.tasks_transition_core import (
 )
 from specify_cli.cli.commands.agent.tasks_verdict_persistence import (
     VerdictDurabilitySignal,
+    VerdictPersistenceFailure,
+    VerdictRevertCompoundFailure,
     _persist_approved_review_cycle,
     persist_arbiter_override_decision,
     persist_rejected_review_cycle_for_rollback,
@@ -146,6 +148,7 @@ from specify_cli.status import (
     ReviewResult,
     ResolvedBinding,
     StatusEvent,
+    TransitionError,
     TransitionRequest,
     WPInnerStateDelta,
     emission_event_verdict,
@@ -159,10 +162,10 @@ from specify_cli.task_utils import (
 from specify_cli.upgrade.pre30_guard import Pre30LayoutError, check_pre30_layout
 
 
-
 def _default_move_task_ports() -> TasksPorts:
     """Production port bundle for ``move_task`` (coord router bound to tasks.py)."""
     from specify_cli.cli.commands.agent import tasks as _tasks
+
     return TasksPorts(
         fs=_tasks.RealFsReader(),
         # move_task routes BOTH seams through the ``tasks`` namespace (it was the
@@ -266,6 +269,10 @@ class _MoveTaskState:
     # target lane is ``planned``; read by ``_mt_output`` to emit the human line +
     # JSON fields. ``None`` on every non-rollback move.
     rollback_reset_summary: _RollbackResetSummary | None = None
+    # Authoritative from-lane resolved inside the status lock immediately
+    # before the current transition attempt.  ``old_lane`` predates verdict
+    # queue waiting and can be stale when a concurrent reviewer moves first.
+    authoritative_lane_at_emit: Lane | None = None
 
 
 # --- phase A: resolve targets (I/O) -----------------------------------------
@@ -274,6 +281,7 @@ class _MoveTaskState:
 def _mt_warn_worktree_kitty_specs(st: _MoveTaskState) -> None:
     """Informational note when a worktree carries a stale ``kitty-specs/`` copy."""
     from specify_cli.cli.commands.agent import tasks as _tasks
+
     cwd = Path.cwd().resolve()
     if not (is_worktree_context(cwd) and not st.json_output and cwd != st.main_repo_root):
         return
@@ -294,16 +302,12 @@ def _mt_warn_worktree_kitty_specs(st: _MoveTaskState) -> None:
         assert_safe_path_segment(st.mission_slug)
     except ValueError:
         logging.getLogger(__name__).warning(
-            "Refusing to probe worktree kitty-specs/ with unsafe mission_slug %r "
-            "(traversal guard); skipping the informational note.",
+            "Refusing to probe worktree kitty-specs/ with unsafe mission_slug %r (traversal guard); skipping the informational note.",
             st.mission_slug,
         )
         return
     if (worktree_kitty / st.mission_slug / "tasks").exists():
-        _tasks.console.print(
-            f"[dim]Note: Using planning repo's kitty-specs/ on {st.target_branch} "
-            "(worktree copy ignored)[/dim]"
-        )
+        _tasks.console.print(f"[dim]Note: Using planning repo's kitty-specs/ on {st.target_branch} (worktree copy ignored)[/dim]")
 
 
 def _mt_resolve_current_agent(st: _MoveTaskState) -> str | None:
@@ -329,6 +333,7 @@ def _mt_resolve_current_agent(st: _MoveTaskState) -> str | None:
 def _mt_resolve_targets(st: _MoveTaskState, ports: TasksPorts) -> None:
     """Resolve roots/branch/feature-dir and load the WP + its canonical lane."""
     from specify_cli.cli.commands.agent import tasks as _tasks
+
     st.target_lane = Lane(ensure_lane(st.to))
     repo_root = _tasks.locate_project_root()
     if repo_root is None:
@@ -337,15 +342,9 @@ def _mt_resolve_targets(st: _MoveTaskState, ports: TasksPorts) -> None:
     st.repo_root = repo_root
     # FR-010 / FR-019: one-shot sparse-checkout warning before any read/mutate.
     _tasks._emit_sparse_session_warning(repo_root, command="spec-kitty agent tasks move-task")
-    st.resolved_auto_commit = (
-        _tasks.get_auto_commit_default(repo_root) if st.auto_commit is None else st.auto_commit
-    )
-    st.mission_slug = _tasks._find_mission_slug(
-        explicit_mission=st.mission, json_output=st.json_output, repo_root=repo_root
-    )
-    st.main_repo_root, st.target_branch = _tasks._ensure_target_branch_checked_out(
-        repo_root, st.mission_slug, st.json_output
-    )
+    st.resolved_auto_commit = _tasks.get_auto_commit_default(repo_root) if st.auto_commit is None else st.auto_commit
+    st.mission_slug = _tasks._find_mission_slug(explicit_mission=st.mission, json_output=st.json_output, repo_root=repo_root)
+    st.main_repo_root, st.target_branch = _tasks._ensure_target_branch_checked_out(repo_root, st.mission_slug, st.json_output)
     from specify_cli.cli.commands.agent.workflow import _resolve_dispatch_binding
 
     claim_mission_id: str | None = None
@@ -356,9 +355,7 @@ def _mt_resolve_targets(st: _MoveTaskState, ports: TasksPorts) -> None:
         # ``mission_id`` (resolve_mission_identity). WP08 (T036): dropped the
         # caller-side canonicalizer fold — redundant with the seam's own
         # internal fold for a PRIMARY-partition kind.
-        primary_feature_dir = placement_seam(
-            st.main_repo_root, st.mission_slug
-        ).read_dir(MissionArtifactKind.PRIMARY_METADATA)
+        primary_feature_dir = placement_seam(st.main_repo_root, st.mission_slug).read_dir(MissionArtifactKind.PRIMARY_METADATA)
         claim_mission_id = resolve_mission_identity(primary_feature_dir).mission_id
     st.resolved_binding = _resolve_dispatch_binding(
         model=st.model,
@@ -369,20 +366,14 @@ def _mt_resolve_targets(st: _MoveTaskState, ports: TasksPorts) -> None:
         wp_id=st.task_id,
         action="review" if st.target_lane == Lane.IN_REVIEW else "implement",
     )
-    st.skip_target_branch_commit = (
-        _tasks._skip_target_branch_commit(st.main_repo_root, st.mission_slug, st.target_branch)
-        if st.resolved_auto_commit
-        else False
-    )
+    st.skip_target_branch_commit = _tasks._skip_target_branch_commit(st.main_repo_root, st.mission_slug, st.target_branch) if st.resolved_auto_commit else False
     # Protected-branch status-commit refusal — a hard early exit that MUST fire
     # before the authoritative event-log read below (``_read_transactional_wp_lane``),
     # matching the pre-rewire order. Deferring it into the decision core (pass 1)
     # let an un-bootstrapped event log raise "Canonical status not found" first,
     # masking the protected-branch refusal (issue #1386 regression).
     if st.resolved_auto_commit and not st.skip_target_branch_commit:
-        protected_error = _tasks._protected_branch_status_commit_error(
-            st.target_branch, st.main_repo_root, "spec-kitty agent tasks move-task"
-        )
+        protected_error = _tasks._protected_branch_status_commit_error(st.target_branch, st.main_repo_root, "spec-kitty agent tasks move-task")
         if protected_error is not None:
             self_review_error = _self_review_fallback_option_error(
                 enabled=st.self_review_fallback,
@@ -396,9 +387,7 @@ def _mt_resolve_targets(st: _MoveTaskState, ports: TasksPorts) -> None:
                 raise typer.Exit(1)
             _tasks._output_error(st.json_output, protected_error)
             raise typer.Exit(1)
-    st.tracker_ref_values = tuple(
-        t.strip() for t in (st.tracker_ref or []) if t and t.strip()
-    )
+    st.tracker_ref_values = tuple(t.strip() for t in (st.tracker_ref or []) if t and t.strip())
     _mt_warn_worktree_kitty_specs(st)
     # Boundary guard — hard-reject pre-3.0 layout before any WP mutation.
     # WP06 FR-010 (T027): the shared coord-status dir STAYS on the coord husk.
@@ -440,11 +429,7 @@ def _mt_resolve_feedback(st: _MoveTaskState) -> tuple[str | None, bool, bool, st
     if st.review_feedback_file is None:
         return None, False, False, None
     candidate = st.review_feedback_file.expanduser()
-    candidate = (
-        candidate.resolve()
-        if candidate.is_absolute()
-        else (Path.cwd() / candidate).resolve()
-    )
+    candidate = candidate.resolve() if candidate.is_absolute() else (Path.cwd() / candidate).resolve()
     source_str = str(candidate)
     exists = candidate.exists()
     is_file = candidate.is_file()
@@ -524,9 +509,7 @@ def _lane_deliverable_paths(worktree_path: Path, porcelain: str) -> tuple[Path, 
     return tuple(paths)
 
 
-def _drop_lane_coord_residue(
-    worktree_path: Path, paths: tuple[Path, ...]
-) -> tuple[Path, ...]:
+def _drop_lane_coord_residue(worktree_path: Path, paths: tuple[Path, ...]) -> tuple[Path, ...]:
     """Seam-A guard for the raw lane-deliverable commit (#2549 / FR-003 / T012).
 
     ``_mt_commit_lane_deliverables`` commits lane deliverables through a RAW
@@ -579,9 +562,7 @@ def _mt_commit_lane_deliverables(st: _MoveTaskState) -> None:
     from specify_cli.lanes.persistence import CorruptLanesError, MissingLanesError
 
     try:
-        workspace = _tasks.resolve_workspace_for_wp(
-            st.main_repo_root, st.mission_slug, st.task_id
-        )
+        workspace = _tasks.resolve_workspace_for_wp(st.main_repo_root, st.mission_slug, st.task_id)
     except (ValueError, FileNotFoundError, MissingLanesError, CorruptLanesError):
         # No resolvable lane workspace (missions without lanes.json included) —
         # nothing to recover; the readiness guard stays authoritative.
@@ -630,21 +611,16 @@ def _mt_commit_lane_deliverables(st: _MoveTaskState) -> None:
             paths=paths,
         )
         if not st.json_output:
-            _tasks.console.print(
-                f"[cyan]Committed lane deliverables for {st.task_id} on "
-                f"{workspace.branch_name} before review.[/cyan]"
-            )
+            _tasks.console.print(f"[cyan]Committed lane deliverables for {st.task_id} on {workspace.branch_name} before review.[/cyan]")
     except Exception as exc:  # noqa: BLE001 — best-effort; the guard explains on failure
         if not st.json_output:
-            _tasks.console.print(
-                f"[yellow]Warning:[/yellow] could not auto-commit lane deliverables "
-                f"for {st.task_id}: {exc}"
-            )
+            _tasks.console.print(f"[yellow]Warning:[/yellow] could not auto-commit lane deliverables for {st.task_id}: {exc}")
 
 
 def _mt_gather_review_facts(st: _MoveTaskState) -> None:
     """Gather the early (guard-gating) facts and build the pass-1 request."""
     from specify_cli.cli.commands.agent import tasks as _tasks
+
     assert st.wp is not None
     # Protected-branch refusal already fired as a hard early exit in
     # ``_mt_resolve_targets`` (before the event-log read) — if the branch were
@@ -653,15 +629,11 @@ def _mt_gather_review_facts(st: _MoveTaskState) -> None:
     review_verdict: str | None = None
     review_artifact_name: str | None = None
     if st.target_lane in (Lane.APPROVED, Lane.DONE):
-        review_verdict, st.verdict_artifact_path, review_artifact_name = (
-            resolve_review_verdict_facts(st.wp.path)
-        )
+        review_verdict, st.verdict_artifact_path, review_artifact_name = resolve_review_verdict_facts(st.wp.path)
     feedback = _mt_resolve_feedback(st)
     unchecked_subtasks: tuple[str, ...] = ()
     if st.target_lane in (Lane.FOR_REVIEW, Lane.APPROVED, Lane.DONE) and not st.force:
-        unchecked_subtasks = tuple(
-            _tasks._check_unchecked_subtasks(st.repo_root, st.mission_slug, st.task_id, st.force)
-        )
+        unchecked_subtasks = tuple(_tasks._check_unchecked_subtasks(st.repo_root, st.mission_slug, st.task_id, st.force))
     review_ready = True
     review_guidance: tuple[str, ...] = ()
     if st.target_lane in (Lane.FOR_REVIEW, Lane.APPROVED, Lane.DONE):
@@ -670,11 +642,7 @@ def _mt_gather_review_facts(st: _MoveTaskState) -> None:
         # every other read-only guard before that gate; readiness is refreshed
         # immediately after the deferred commit. Other lanes and explicit
         # no-auto-commit moves retain their original validation order.
-        defer_readiness = (
-            st.target_lane == Lane.FOR_REVIEW
-            and st.resolved_auto_commit
-            and not st.force
-        )
+        defer_readiness = st.target_lane == Lane.FOR_REVIEW and st.resolved_auto_commit and not st.force
         if not defer_readiness:
             is_valid, guidance = _tasks._validate_ready_for_review(
                 st.repo_root,
@@ -701,11 +669,7 @@ def _mt_complete_deferred_for_review_readiness(st: _MoveTaskState) -> None:
     """Commit deliverables and refresh readiness only after the gate permits."""
     from specify_cli.cli.commands.agent import tasks as _tasks
 
-    if not (
-        st.target_lane == Lane.FOR_REVIEW
-        and st.resolved_auto_commit
-        and not st.force
-    ):
+    if not (st.target_lane == Lane.FOR_REVIEW and st.resolved_auto_commit and not st.force):
         return
     assert st.request is not None
     _mt_commit_lane_deliverables(st)
@@ -746,12 +710,11 @@ def _mt_fire_override_persist(st: _MoveTaskState) -> None:
 def _mt_done_ancestry_facts(st: _MoveTaskState) -> tuple[str | None, bool, str]:
     """Late fact: done-transition execution mode + branch-merge ancestry."""
     from specify_cli.cli.commands.agent import tasks as _tasks
+
     if st.target_lane != Lane.DONE:
         return None, False, ""
     try:
-        done_workspace = _tasks.resolve_workspace_for_wp(
-            st.main_repo_root, st.mission_slug, st.task_id
-        )
+        done_workspace = _tasks.resolve_workspace_for_wp(st.main_repo_root, st.mission_slug, st.task_id)
         done_execution_mode: str | None = done_workspace.execution_mode
     except (ValueError, FileNotFoundError):
         done_execution_mode = "code_change"
@@ -791,9 +754,7 @@ def _mt_issue_matrix_facts(st: _MoveTaskState) -> str | None:
     blocker: str | None = _issue_matrix_approval_blocker(
         st.feature_dir,
         target_lane=st.target_lane,
-        primary_feature_dir=placement_seam(st.main_repo_root, st.mission_slug).read_dir(
-            MissionArtifactKind.SPEC
-        ),
+        primary_feature_dir=placement_seam(st.main_repo_root, st.mission_slug).read_dir(MissionArtifactKind.SPEC),
     )
     return blocker
 
@@ -801,28 +762,24 @@ def _mt_issue_matrix_facts(st: _MoveTaskState) -> str | None:
 def _mt_approval_facts(st: _MoveTaskState) -> tuple[str | None, str | None]:
     """Late fact: auto-detected reviewer + defaulted approval reference."""
     from specify_cli.cli.commands.agent import tasks as _tasks
+
     if st.target_lane not in (Lane.APPROVED, Lane.DONE):
         return None, None
     effective_reviewer = st.reviewer or _tasks._detect_reviewer_name()
     user_note = st.note.strip() if isinstance(st.note, str) else st.note
-    effective_approval_ref = (
-        st.approval_ref
-        or (user_note if user_note else None)
-        or f"auto-approval:{st.task_id}:{format_stamp(now_utc(), '%Y%m%d')}"
-    )
+    effective_approval_ref = st.approval_ref or (user_note if user_note else None) or f"auto-approval:{st.task_id}:{format_stamp(now_utc(), '%Y%m%d')}"
     return effective_reviewer, effective_approval_ref
 
 
 def _mt_gather_late_facts(st: _MoveTaskState) -> None:
     """Gather pass-2 facts (allowed to raise) and rebuild the request."""
     from specify_cli.cli.commands.agent import tasks as _tasks
+
     assert st.request is not None
     done_execution_mode, done_merged, done_merge_msg = _mt_done_ancestry_facts(st)
     issue_matrix_blocker = _mt_issue_matrix_facts(st)
     effective_reviewer, effective_approval_ref = _mt_approval_facts(st)
-    is_arbiter_override = _tasks._detect_arbiter_override(
-        st.feature_dir, st.task_id, st.old_lane, resolve_lane_alias(st.target_lane), st.force
-    )
+    is_arbiter_override = _tasks._detect_arbiter_override(st.feature_dir, st.task_id, st.old_lane, resolve_lane_alias(st.target_lane), st.force)
     st.request = replace(
         st.request,
         done_execution_mode=done_execution_mode,
@@ -843,6 +800,7 @@ def _mt_fire_arbiter_persist(st: _MoveTaskState) -> None:
     event to the rejection it overrides.
     """
     from specify_cli.cli.commands.agent import tasks as _tasks
+
     assert st.request is not None
     if not arbiter_persist_signal(st.request):
         return
@@ -861,6 +819,7 @@ def _mt_fire_arbiter_persist(st: _MoveTaskState) -> None:
 def _mt_run_decision(st: _MoveTaskState) -> None:
     """Two-pass pure decision; RefuseExit1 short-circuits with the guard output."""
     from specify_cli.cli.commands.agent import tasks as _tasks
+
     assert st.request is not None
     # OLD-timing override persist BEFORE the guard sequence (pass 1).
     _mt_fire_override_persist(st)
@@ -1083,13 +1042,7 @@ def _mt_pre_review_dirty_paths(worktree_path: Path) -> tuple[str, ...]:
         return ()
     filtered = _tasks._filter_runtime_state_paths(status.stdout)
     paths = _lane_deliverable_paths(worktree_path, filtered)
-    return tuple(
-        sorted(
-            str(path.relative_to(worktree_path))
-            for path in paths
-            if path.is_relative_to(worktree_path)
-        )
-    )
+    return tuple(sorted(str(path.relative_to(worktree_path)) for path in paths if path.is_relative_to(worktree_path)))
 
 
 def _mt_pre_review_gate_with_override_scope(
@@ -1098,6 +1051,7 @@ def _mt_pre_review_gate_with_override_scope(
     repo_root: Path,
     baseline: BaselineTestResult | None,
     progress_callback: Callable[[float], None] | None = None,
+    status_observer: pre_review_gate.GateStatusObserver | None = None,
 ) -> pre_review_gate.GateVerdict:
     """Compose a verdict for an EXPLICIT override scope (FR-004).
 
@@ -1133,6 +1087,7 @@ def _mt_pre_review_gate_with_override_scope(
         repo_root=repo_root,
         baseline=baseline,
         progress_callback=progress_callback,
+        status_observer=status_observer,
     )
 
 
@@ -1176,7 +1131,7 @@ def _mt_pre_review_gate_metadata(
 ) -> dict[str, Any]:
     """The FR-004 transition-evidence payload recorded via ``policy_metadata``."""
     scope = verdict.scope
-    return {
+    metadata: dict[str, Any] = {
         "outcome": verdict.outcome.value,
         "reason": verdict.reason,
         "new_failure_count": len(verdict.new_failures),
@@ -1191,6 +1146,25 @@ def _mt_pre_review_gate_metadata(
         "force_bypassed": force_bypassed,
         "run_state": verdict.run_state.value,
     }
+    assessment = verdict.budget_assessment
+    if assessment is not None:
+        metadata.update(
+            {
+                "budget_classification": assessment.classification.value,
+                "scope_identity": assessment.scope_identity.value,
+                "effective_budget_seconds": assessment.effective_budget_seconds,
+                "matched_budget_rule": assessment.matched_rule_id,
+                "classification_candidate": verdict.classification_candidate,
+                "observed_elapsed_seconds": verdict.observed_elapsed_seconds,
+                "classification_guidance": assessment.guidance,
+            }
+        )
+        if verdict.outcome is pre_review_gate.GateOutcome.SCOPE_OVERSIZED:
+            metadata["recovery_choices"] = [
+                "Select a bounded pre_review_test_scope",
+                "Use --skip-pre-review-gate explicitly",
+            ]
+    return metadata
 
 
 #: Pre-merge finding (#572/#1979/#2283): the opt-in block
@@ -1226,16 +1200,11 @@ def _mt_pre_review_gate_console_warning(verdict: pre_review_gate.GateVerdict, *,
         shard_count = len(verdict.scope.matched_shard_groups) + len(verdict.scope.matched_composite_dirs)
         nodeids = ", ".join(failure.test for failure in verdict.new_failures[:5])
         more = f" (+{len(verdict.new_failures) - 5} more)" if len(verdict.new_failures) > 5 else ""
-        return (
-            f"[yellow]Pre-review regression gate:[/yellow] {len(verdict.new_failures)} new failure(s) "
-            f"across {shard_count} affected shard(s) — {nodeids}{more}"
-        )
+        return f"[yellow]Pre-review regression gate:[/yellow] {len(verdict.new_failures)} new failure(s) across {shard_count} affected shard(s) — {nodeids}{more}"
     if outcome in (pre_review_gate.GateOutcome.NO_COVERAGE, pre_review_gate.GateOutcome.UNVERIFIED_BASELINE):
         if block_enabled:
             return (
-                "[yellow]Pre-review regression gate:[/yellow] "
-                f"{_PRE_REVIEW_BLOCK_UNENFORCEABLE_HINT} "
-                f"(outcome={outcome.value}: {verdict.reason or 'unverified'})"
+                f"[yellow]Pre-review regression gate:[/yellow] {_PRE_REVIEW_BLOCK_UNENFORCEABLE_HINT} (outcome={outcome.value}: {verdict.reason or 'unverified'})"
             )
         return f"[dim]Pre-review regression gate: {outcome.value} — {verdict.reason or 'unverified'}[/dim]"
     if outcome is pre_review_gate.GateOutcome.SOURCE_MISMATCH:
@@ -1246,6 +1215,14 @@ def _mt_pre_review_gate_console_warning(verdict: pre_review_gate.GateVerdict, *,
         return f"[yellow]Pre-review regression gate: {outcome.value} — {verdict.reason or 'unverified'}[/yellow]"
     if outcome in (pre_review_gate.GateOutcome.TIMED_OUT, pre_review_gate.GateOutcome.CANCELLED):
         return f"[red]Pre-review regression gate: {outcome.value} — {verdict.reason or 'interrupted'}[/red]"
+    if outcome is pre_review_gate.GateOutcome.SCOPE_OVERSIZED:
+        targets = ", ".join(verdict.scope.test_targets) or "(empty)"
+        return (
+            "[red]Pre-review regression gate: scope_oversized — validation did not start; "
+            f"targets={targets}; {verdict.reason or 'scope exceeds the effective budget'}. "
+            "The work package remains in its prior lane. Recovery choices: select a bounded "
+            "pre_review_test_scope or use --skip-pre-review-gate explicitly.[/red]"
+        )
     if outcome is pre_review_gate.GateOutcome.NO_NEW_FAILURES:
         return "[dim]Pre-review regression gate: no new failures[/dim]"
     # Defensive: a future ``GateOutcome`` member must never silently render as
@@ -1387,7 +1364,12 @@ def _mt_resolve_gate_baseline(st: _MoveTaskState) -> BaselineTestResult | None:
     return BaselineTestResult.load(baseline_read_dir / "tasks" / wp_slug / "baseline-tests.json")
 
 
-def _mt_build_transition_gate_context(st: _MoveTaskState, inputs: _TransitionGateInputs) -> TransitionGateContext:
+def _mt_build_transition_gate_context(
+    st: _MoveTaskState,
+    inputs: _TransitionGateInputs,
+    *,
+    status_observer: pre_review_gate.GateStatusObserver | None = None,
+) -> TransitionGateContext:
     """Assemble the ``TransitionGateContext`` handed to every handler (data-model §8)."""
     return TransitionGateContext(
         changed_files=inputs.changed_files,
@@ -1397,6 +1379,7 @@ def _mt_build_transition_gate_context(st: _MoveTaskState, inputs: _TransitionGat
         force=st.force,
         from_lane=st.old_lane,
         to_lane=st.target_lane,
+        status_observer=status_observer,
     )
 
 
@@ -1460,10 +1443,37 @@ def _mt_dispatch_transition_gates(
     return [_mt_dispatch_one_gate(binding, ctx, handler_lookup) for binding in bindings]
 
 
-_PRE_REVIEW_GATE_RUNNING_NOTICE = (
-    "[cyan]Pre-review regression gate: running scoped tests at head "
-    "(may take a few minutes)...[/cyan]"
-)
+_PRE_REVIEW_GATE_RUNNING_NOTICE = "[cyan]Pre-review regression gate: running scoped tests at head (may take a few minutes)...[/cyan]"
+
+
+def _mt_human_gate_status_observer(_tasks: Any) -> pre_review_gate.GateStatusObserver:
+    """Build the sole human renderer for engine-owned gate status events.
+
+    The callback is presentation-only: it cannot classify a scope, decide a
+    verdict, or mutate transition state. JSON callers never construct it.
+    """
+
+    def _observe(event: pre_review_gate.GateStatusEvent) -> None:
+        if isinstance(event, pre_review_gate.ScopeAssessed):
+            assessment = event.assessment
+            targets = ", ".join(assessment.scope_identity.normalized_targets) or "(empty)"
+            suffix = ""
+            if assessment.classification.value == "unknown":
+                suffix = "; no reviewed metadata matches, so validation will run under the existing timeout"
+            _tasks.console.print(
+                "[cyan]Pre-review gate scope assessment: "
+                f"{assessment.classification.value}; targets={targets}; "
+                f"effective budget={assessment.effective_budget_seconds:g}s{suffix}[/cyan]"
+            )
+            return
+
+        elapsed = event.observed_elapsed_seconds
+        if elapsed <= 0:
+            _tasks.console.print(f"[cyan]Pre-review gate validation started; phase={event.phase}; elapsed={elapsed:g}s[/cyan]")
+            return
+        _tasks.console.print(f"[cyan]Pre-review gate still running; phase={event.phase}; elapsed={elapsed:g}s[/cyan]")
+
+    return _observe
 
 
 def _mt_collect_transition_gate_verdicts(
@@ -1489,9 +1499,8 @@ def _mt_collect_transition_gate_verdicts(
     (FR-008/012), never a silent vanish.
     """
     wp = getattr(st, "wp", None)
-    override_targets = (
-        _mt_pre_review_scope_override(wp.frontmatter, st.main_repo_root) if wp is not None else None
-    )
+    status_observer = None if st.json_output else _mt_human_gate_status_observer(_tasks)
+    override_targets = _mt_pre_review_scope_override(wp.frontmatter, st.main_repo_root) if wp is not None else None
     if override_targets is not None:
         if not st.json_output:
             _tasks.console.print(_PRE_REVIEW_GATE_RUNNING_NOTICE)
@@ -1501,6 +1510,7 @@ def _mt_collect_transition_gate_verdicts(
                     override_targets,
                     repo_root=inputs.gate_repo_root,
                     baseline=_mt_resolve_gate_baseline(st),
+                    status_observer=status_observer,
                 ),
                 changed_files=inputs.changed_files,
             )
@@ -1512,7 +1522,7 @@ def _mt_collect_transition_gate_verdicts(
         return [_mt_empty_scope_verdict(resolution.reason)]
     if not st.json_output:
         _tasks.console.print(_PRE_REVIEW_GATE_RUNNING_NOTICE)
-    ctx = _mt_build_transition_gate_context(st, inputs)
+    ctx = _mt_build_transition_gate_context(st, inputs, status_observer=status_observer)
     return _mt_dispatch_transition_gates(list(resolution.active), ctx)
 
 
@@ -1528,11 +1538,7 @@ def _mt_resolve_transition_gate_inputs(
     """
     worktree_path = _mt_resolve_pre_review_workspace(st)
     dirty_before = _mt_pre_review_dirty_paths(worktree_path) if worktree_path is not None else ()
-    changed_files = (
-        _mt_pre_review_changed_files(worktree_path, st.target_branch)
-        if worktree_path is not None
-        else ()
-    )
+    changed_files = _mt_pre_review_changed_files(worktree_path, st.target_branch) if worktree_path is not None else ()
     inputs = _TransitionGateInputs(
         worktree_path=worktree_path,
         changed_files=changed_files,
@@ -1577,9 +1583,7 @@ def _mt_resolve_transition_gate_verdicts(
         return None, (), [_mt_empty_scope_verdict(f"pre-review gate resolution failed — unverified: {exc}")]
 
 
-def _mt_gate_representative(
-    aggregate: Any, verdicts: Sequence[pre_review_gate.GateVerdict]
-) -> pre_review_gate.GateVerdict:
+def _mt_gate_representative(aggregate: Any, verdicts: Sequence[pre_review_gate.GateVerdict]) -> pre_review_gate.GateVerdict:
     """The single verdict the metadata / block message render from.
 
     Deterministic and, for the half-A single-handler reality, always the one
@@ -1622,10 +1626,9 @@ def _mt_translate_gate_verdicts(
     )
     if terminal:
         metadata["transition_applied"] = False
-    console_lines = tuple(
-        _mt_pre_review_gate_console_warning(verdict, block_enabled=block_enabled)
-        for verdict in aggregate.warnings
-    ) or (_mt_pre_review_gate_console_warning(representative, block_enabled=block_enabled),)
+    console_lines = tuple(_mt_pre_review_gate_console_warning(verdict, block_enabled=block_enabled) for verdict in aggregate.warnings) or (
+        _mt_pre_review_gate_console_warning(representative, block_enabled=block_enabled),
+    )
     return _TransitionGateEffect(
         metadata=metadata,
         console_lines=console_lines,
@@ -1640,7 +1643,10 @@ def _mt_emit_skipped_gate(st: _MoveTaskState, _tasks: Any, skip_reason: str) -> 
     """Record + announce a skipped gate (escape hatch, #2573 FR-002)."""
     verdict = _mt_empty_scope_verdict(f"gate skipped — {skip_reason}")
     st.pre_review_gate_metadata = _mt_pre_review_gate_metadata(
-        verdict, block_enabled=False, blocked=False, force_bypassed=False,
+        verdict,
+        block_enabled=False,
+        blocked=False,
+        force_bypassed=False,
     )
     if not st.json_output:
         _tasks.console.print(f"[yellow]Pre-review regression gate: SKIPPED ({skip_reason})[/yellow]")
@@ -1669,7 +1675,17 @@ def _mt_emit_transition_gate_effect(
         )
         raise typer.Exit(1)
     if effect.blocked:
-        _tasks._output_error(st.json_output, _mt_pre_review_gate_block_message(effect.representative))
+        block_message = _mt_pre_review_gate_block_message(effect.representative)
+        _tasks._output_error(
+            st.json_output,
+            block_message,
+            diagnostic={
+                "result": "error",
+                "error": block_message,
+                "transition_applied": False,
+                "pre_review_gate": st.pre_review_gate_metadata,
+            },
+        )
         raise typer.Exit(1)
 
 
@@ -1723,9 +1739,7 @@ def _mt_run_transition_gates(st: _MoveTaskState) -> None:
     _mt_emit_transition_gate_effect(st, effect, _tasks)
 
 
-def _mt_enrol_gate_byproducts(
-    worktree_path: Path | None, dirty_before: tuple[str, ...]
-) -> dict[Path, bytes | None]:
+def _mt_enrol_gate_byproducts(worktree_path: Path | None, dirty_before: tuple[str, ...]) -> dict[Path, bytes | None]:
     """Enrol any path a bound gate's subprocess created into the owner (C3).
 
     A gate handler may spawn a scoped pytest run that creates cache/coverage
@@ -1753,9 +1767,7 @@ def _mt_enrol_gate_byproducts(
     # quarantined module, so the cross-module call surfaces as ``Any`` here;
     # pinning it re-establishes the known concrete return type without a
     # suppression (mirrors ``_mt_resolve_pre_review_workspace``'s own idiom).
-    snapshots: dict[Path, bytes | None] = enroll_subprocess_byproducts(
-        created, trusted_roots=(worktree_path,)
-    )
+    snapshots: dict[Path, bytes | None] = enroll_subprocess_byproducts(created, trusted_roots=(worktree_path,))
     return snapshots
 
 
@@ -1806,6 +1818,7 @@ def _mt_finalize_plan(st: _MoveTaskState, ports: TasksPorts) -> None:
     writer only fires for ``APPROVED``/``DONE``), so at most one assigns it.
     """
     from specify_cli.cli.commands.agent import tasks as _tasks
+
     assert st.decision is not None
     decision = st.decision
     st.emit_plan = decision.plan
@@ -1831,25 +1844,27 @@ def _mt_finalize_plan(st: _MoveTaskState, ports: TasksPorts) -> None:
             st.agent = declared_agent
     if st.target_lane in (Lane.APPROVED, Lane.DONE):
         st.pending_verdict_write = _persist_approved_review_cycle(st, ports)
+        durability_signal = st.pending_verdict_write
+        if durability_signal is not None and durability_signal.durably_persisted and durability_signal.review_cycle is not None and st.evidence_dict is not None:
+            # DoneEvidence and ReviewResult share one approval identity. Once
+            # Git verification succeeds, replace the earlier caller token with
+            # the canonical review-cycle pointer; the token remains preserved
+            # in the committed artifact body without becoming event authority.
+            canonical_result = durability_signal.review_cycle.review_result
+            st.evidence_dict["review"] = {
+                "reviewer": canonical_result.reviewer,
+                "verdict": canonical_result.verdict,
+                "reference": canonical_result.reference,
+            }
     if decision.done_override_note and not st.json_output:
-        _tasks.console.print(
-            "[yellow]⚠️  Proceeding with done override; reason recorded in "
-            "history/events.[/yellow]"
-        )
+        _tasks.console.print("[yellow]⚠️  Proceeding with done override; reason recorded in history/events.[/yellow]")
     # SC-007: WP06 owns the two ``in_review -> *`` edges re-scoped from WP02.
     # Build the structured review outcome BEFORE the plan rebuild so it can be
     # threaded into ``build_transition_plan`` (WP02's optional ``review_result``
     # seam) — the FSM then accepts those backward edges force-free instead of
     # promoting ``emit_force=True``.
     st.plan_review_result = _mt_plan_review_result(st)
-    if (
-        decision.planned_rollback
-        or decision.arbiter_forward
-        or (
-            st.old_lane == Lane.IN_REVIEW
-            and st.target_lane in (Lane.PLANNED, Lane.IN_PROGRESS)
-        )
-    ):
+    if decision.planned_rollback or decision.arbiter_forward or (st.old_lane == Lane.IN_REVIEW and st.target_lane in (Lane.PLANNED, Lane.IN_PROGRESS)):
         st.emit_plan = build_transition_plan(
             old_lane=str(st.old_lane),
             target_lane=str(st.target_lane),
@@ -1889,6 +1904,10 @@ def _mt_plan_review_result(st: _MoveTaskState) -> ReviewResult | None:
     A rejection to ``planned`` already minted a structured result via the review
     cycle (:attr:`rejected_review_result`); reuse it so its ``reference`` matches
     the emitted ``review_ref`` (the ``_check_review_result_consistency`` guard).
+    Likewise, an automatic approval that durably verified a review-cycle artifact
+    reuses that cycle's canonical result so the event references the exact evidence
+    bytes. Local-only and no-cycle approval paths retain their historical caller
+    reference because they have no verified durable evidence identity to claim.
     """
     if st.old_lane != Lane.IN_REVIEW:
         return None
@@ -1896,19 +1915,18 @@ def _mt_plan_review_result(st: _MoveTaskState) -> ReviewResult | None:
         return st.rejected_review_result
     reviewer = _mt_resolve_reviewer_identity(st)
     if st.target_lane in (Lane.APPROVED, Lane.DONE):
+        durability_signal = st.pending_verdict_write
+        if durability_signal is not None and durability_signal.durably_persisted and durability_signal.review_cycle is not None:
+            return durability_signal.review_cycle.review_result
         # FR-005: route through the canonical bridge instead of hardcoding
         # the event-vocabulary literal -- this hop is an approval outcome
         # (the emission-scoped "approved" artifact verdict), so its event
         # verdict is derived the same way any other approval is.
         verdict = emission_event_verdict(APPROVED)
-        reference = (st.approval_ref or f"approval:{st.task_id}").strip() or (
-            f"approval:{st.task_id}"
-        )
+        reference = (st.approval_ref or f"approval:{st.task_id}").strip() or (f"approval:{st.task_id}")
     else:
         verdict = emission_event_verdict(REJECTED)
-        reference = (
-            st.review_feedback_pointer or st.note_text or f"review:{st.task_id}"
-        ).strip() or f"review:{st.task_id}"
+        reference = (st.review_feedback_pointer or st.note_text or f"review:{st.task_id}").strip() or f"review:{st.task_id}"
     return ReviewResult(reviewer=reviewer, verdict=verdict, reference=reference)
 
 
@@ -1918,6 +1936,7 @@ def _mt_plan_review_result(st: _MoveTaskState) -> ReviewResult | None:
 def _mt_current_event_lane(st: _MoveTaskState) -> str:
     """The WP's current canonical lane (the emit chain's from-lane seed)."""
     from specify_cli.cli.commands.agent import tasks as _tasks
+
     current_event_lane: str | None = None
     for existing_event in reversed(
         _tasks.read_events_transactional(
@@ -1933,9 +1952,7 @@ def _mt_current_event_lane(st: _MoveTaskState) -> str:
         # No canonical state — finalize-tasks must run first (#1589).
         from specify_cli.status import uninitialized_status_error
 
-        raise RuntimeError(
-            uninitialized_status_error(st.mission_slug, st.task_id, st.feature_dir)
-        )
+        raise RuntimeError(uninitialized_status_error(st.mission_slug, st.task_id, st.feature_dir))
     return current_event_lane
 
 
@@ -1946,13 +1963,33 @@ def _mt_hop_review_result(
     target: str,
     hop_actor: str,
 ) -> ReviewResult | None:
-    """Auto-construct a ``ReviewResult`` when a hop leaves ``in_review``."""
+    """Select the authoritative ``ReviewResult`` when a hop leaves review."""
     rejected = st.rejected_review_result
-    in_review = (event is not None and event.to_lane == Lane.IN_REVIEW) or (
-        event is None and current_event_lane == Lane.IN_REVIEW
-    )
-    if in_review and target == Lane.PLANNED and rejected is not None:
-        return rejected
+    in_review = (event is not None and event.to_lane == Lane.IN_REVIEW) or (event is None and current_event_lane == Lane.IN_REVIEW)
+    durability_signal = st.pending_verdict_write
+    if target == Lane.PLANNED and rejected is not None:
+        if in_review:
+            return rejected
+        if durability_signal is not None and durability_signal.durably_persisted and durability_signal.review_cycle is not None:
+            # A queued rejection may have resolved its plan from ``in_review``
+            # before the preceding writer emits.  By the time this writer owns
+            # the status transaction, the canonical lane is then ``planned``
+            # and its serialized hop is ``planned -> planned``.  The durable
+            # cycle created by *this* invocation remains the verdict authority:
+            # preserve that exact verified result on the self-transition rather
+            # than dropping it merely because another writer moved the lane.
+            return durability_signal.review_cycle.review_result
+    if (
+        in_review
+        and st.plan_review_result is not None
+        and durability_signal is not None
+        and durability_signal.durably_persisted
+        and durability_signal.review_cycle is not None
+    ):
+        # A verified review-cycle is the evidence identity for this approval.
+        # Prefer the canonical plan result over the older DoneEvidence approval
+        # token; local-only and no-cycle paths continue through the legacy arm.
+        return st.plan_review_result
     if in_review and st.evidence_dict is not None:
         review_section = st.evidence_dict.get("review", {})
         return ReviewResult(
@@ -1968,22 +2005,10 @@ def _mt_hop_review_result(
     return None
 
 
-def _mt_hop_actor(
-    st: _MoveTaskState, event: StatusEvent | None, current_event_lane: str, target: str
-) -> str:
+def _mt_hop_actor(st: _MoveTaskState, event: StatusEvent | None, current_event_lane: str, target: str) -> str:
     """Resolve the actor for one emit hop (impl handoff preserves the WP agent)."""
-    from_lane_for_hop = (
-        event.to_lane if event is not None else resolve_lane_alias(current_event_lane)
-    )
-    return (
-        st.agent
-        or (
-            st.current_agent
-            if from_lane_for_hop == Lane.IN_PROGRESS and target == Lane.FOR_REVIEW
-            else None
-        )
-        or "user"
-    )
+    from_lane_for_hop = event.to_lane if event is not None else resolve_lane_alias(current_event_lane)
+    return st.agent or (st.current_agent if from_lane_for_hop == Lane.IN_PROGRESS and target == Lane.FOR_REVIEW else None) or "user"
 
 
 def _mt_shell_pid_baseline(pid: int) -> str | None:
@@ -2002,9 +2027,7 @@ def _mt_shell_pid_baseline(pid: int) -> str | None:
     return baseline
 
 
-def _mt_hop_policy_metadata(
-    st: _MoveTaskState, target: str
-) -> dict[str, Any] | None:
+def _mt_hop_policy_metadata(st: _MoveTaskState, target: str) -> dict[str, Any] | None:
     """Resolve the ``policy_metadata`` sidecar for one emit hop.
 
     FR-004: the claim triple (``shell_pid``/``shell_pid_created_at``/``agent``)
@@ -2019,13 +2042,30 @@ def _mt_hop_policy_metadata(
 
         pid = int(st.shell_pid)
         baseline = _mt_shell_pid_baseline(pid)
-        claim_metadata: dict[str, Any] = build_claim_policy_metadata(
-            pid, baseline or "", st.agent or st.actor or "unknown"
-        )
+        claim_metadata: dict[str, Any] = build_claim_policy_metadata(pid, baseline or "", st.agent or st.actor or "unknown")
         return claim_metadata
     if target == Lane.FOR_REVIEW and st.pre_review_gate_metadata is not None:
         return {"pre_review_gate": st.pre_review_gate_metadata}
     return None
+
+
+def _mt_hop_reason_source(st: _MoveTaskState, target: str) -> str | None:
+    """Resolve the ``reason_source`` provenance discriminator for one emit hop.
+
+    FR-001 (mission completion-terminal-state): a cancellation is accept-eligible
+    only when the operator authored the reason via ``--note``. Scoped to the
+    ``canceled`` target — every other lane hop leaves ``reason_source`` ``None``
+    (provenance is not tracked for non-cancel moves; the synthetic default reason
+    they carry is unchanged). A non-empty operator note (trimmed, so a
+    whitespace-only ``--note`` is not operator-authored, T002) yields
+    ``"operator"``; a bare ``--force`` cancel with no note — or a whitespace note
+    — yields ``"synthetic"``, which is what makes FR-003's blocker reachable
+    through the canonical command.
+    """
+    if resolve_lane_alias(target) != Lane.CANCELED:
+        return None
+    note = st.note.strip() if isinstance(st.note, str) else None
+    return "operator" if note else "synthetic"
 
 
 def _binding_role_for_lane(lane: Lane | str) -> str | None:
@@ -2056,10 +2096,9 @@ def _mt_emit_transitions(st: _MoveTaskState, ports: TasksPorts) -> None:
     event: StatusEvent | None = None
     final_hop_actor = st.actor
     for target in emit_plan.transition_targets:
+        st.authoritative_lane_at_emit = event.to_lane if event is not None else Lane(resolve_lane_alias(current_event_lane))
         hop_actor = _mt_hop_actor(st, event, current_event_lane, target)
-        hop_review_result = _mt_hop_review_result(
-            st, event, current_event_lane, target, hop_actor
-        )
+        hop_review_result = _mt_hop_review_result(st, event, current_event_lane, target, hop_actor)
         hop_policy_metadata = _mt_hop_policy_metadata(st, target)
         binding_role = _binding_role_for_lane(target)
         transition_actor: str | dict[str, str | None] = hop_actor
@@ -2091,20 +2130,13 @@ def _mt_emit_transitions(st: _MoveTaskState, ports: TasksPorts) -> None:
                 actor=transition_actor,
                 force=emit_force,
                 reason=emit_reason,
+                reason_source=_mt_hop_reason_source(st, target),
                 evidence=st.evidence_dict if target in (Lane.APPROVED, Lane.DONE) else None,
                 policy_metadata=hop_policy_metadata,
                 review_ref=emit_review_ref,
                 workspace_context=f"move-task:{st.main_repo_root}",
-                subtasks_complete=(
-                    True
-                    if target in (Lane.FOR_REVIEW, Lane.APPROVED) and not emit_force
-                    else None
-                ),
-                implementation_evidence_present=(
-                    True
-                    if target in (Lane.FOR_REVIEW, Lane.APPROVED) and not emit_force
-                    else None
-                ),
+                subtasks_complete=(True if target in (Lane.FOR_REVIEW, Lane.APPROVED) and not emit_force else None),
+                implementation_evidence_present=(True if target in (Lane.FOR_REVIEW, Lane.APPROVED) and not emit_force else None),
                 repo_root=st.main_repo_root,
                 review_result=hop_review_result,
                 annotation_delta=annotation_delta,
@@ -2147,9 +2179,7 @@ class _RollbackResetSummary:
         return len(self.reset_ids)
 
 
-def _mt_build_rollback_summary(
-    st: _MoveTaskState, ports: TasksPorts, reset: Mapping[str, Lane]
-) -> _RollbackResetSummary:
+def _mt_build_rollback_summary(st: _MoveTaskState, ports: TasksPorts, reset: Mapping[str, Lane]) -> _RollbackResetSummary:
     """Compute the #3578 operator summary for a rollback-to-``planned`` delta.
 
     ``reset`` is the already-resolved reset map (its keys are the authored
@@ -2166,12 +2196,8 @@ def _mt_build_rollback_summary(
     never_completed: tuple[str, ...] = ()
     if roster:
         handle = MissionHandle(repo_root=st.main_repo_root, mission_slug=st.mission_slug)
-        feature_dir = ports.fs.planning_read_dir(
-            handle, kind=MissionArtifactKind.TASKS_INDEX
-        )
-        not_done = set(
-            unchecked_subtask_ids_from_snapshot(feature_dir, st.task_id, roster)
-        )
+        feature_dir = ports.fs.planning_read_dir(handle, kind=MissionArtifactKind.TASKS_INDEX)
+        not_done = set(unchecked_subtask_ids_from_snapshot(feature_dir, st.task_id, roster))
         previously_completed = tuple(tid for tid in roster if tid not in not_done)
         never_completed = tuple(tid for tid in roster if tid in not_done)
     return _RollbackResetSummary(
@@ -2183,9 +2209,7 @@ def _mt_build_rollback_summary(
     )
 
 
-def _mt_rollback_subtasks_reset(
-    st: _MoveTaskState, ports: TasksPorts
-) -> dict[str, Lane]:
+def _mt_rollback_subtasks_reset(st: _MoveTaskState, ports: TasksPorts) -> dict[str, Lane]:
     """Subtask-reset delta for a rollback to ``planned`` (#2513, via the log).
 
     A WP rolled back to ``planned`` must be fully re-implemented — leaving its
@@ -2204,9 +2228,7 @@ def _mt_rollback_subtasks_reset(
     from specify_cli.core.subtask_rows import authored_subtask_roster
 
     handle = MissionHandle(repo_root=st.main_repo_root, mission_slug=st.mission_slug)
-    feature_dir = ports.fs.planning_read_dir(
-        handle, kind=MissionArtifactKind.TASKS_INDEX
-    )
+    feature_dir = ports.fs.planning_read_dir(handle, kind=MissionArtifactKind.TASKS_INDEX)
     roster = authored_subtask_roster(feature_dir, st.task_id)
     return dict.fromkeys(roster, Lane.PLANNED)
 
@@ -2221,9 +2243,7 @@ def _mt_reassignment_binding_fields(st: _MoveTaskState) -> dict[str, Any]:
     return binding_fields
 
 
-def _build_claim_review_override(
-    st: _MoveTaskState, ports: TasksPorts
-) -> dict[str, Any]:
+def _build_claim_review_override(st: _MoveTaskState, ports: TasksPorts) -> dict[str, Any]:
     """Compute the rollback-to-``planned`` off-axis field additions.
 
     SIDE EFFECT (#3578, adversarial review finding 1a): besides returning the
@@ -2362,11 +2382,7 @@ def _mt_emit_runtime_state(st: _MoveTaskState, ports: TasksPorts) -> None:
     delta = WPInnerStateDelta(**fields)
     if delta.is_empty():
         return
-    emitter = (
-        emit_inner_state_changed_transactional
-        if st.resolved_auto_commit
-        else emit_inner_state_changed
-    )
+    emitter = emit_inner_state_changed_transactional if st.resolved_auto_commit else emit_inner_state_changed
     emitter(
         st.feature_dir,
         st.task_id,
@@ -2403,6 +2419,7 @@ def _mt_release_review_lock(st: _MoveTaskState) -> None:
     the recorded transition; failures are logged, never fatal.
     """
     from specify_cli.cli.commands.agent import tasks as _tasks
+
     release_from = (Lane.FOR_REVIEW, Lane.IN_REVIEW, Lane.IN_PROGRESS)
     release_to = (Lane.APPROVED, Lane.PLANNED)
     if not (st.old_lane in release_from and st.target_lane in release_to):
@@ -2410,9 +2427,7 @@ def _mt_release_review_lock(st: _MoveTaskState) -> None:
     try:
         from specify_cli.review.lock import ReviewLock
 
-        lock_workspace = _tasks.resolve_workspace_for_wp(
-            st.main_repo_root, st.mission_slug, st.task_id
-        )
+        lock_workspace = _tasks.resolve_workspace_for_wp(st.main_repo_root, st.mission_slug, st.task_id)
         ReviewLock.release(Path(lock_workspace.worktree_path))
     except Exception as _release_exc:  # pragma: no cover - defensive
         logging.getLogger(__name__).warning(
@@ -2426,6 +2441,7 @@ def _mt_release_review_lock(st: _MoveTaskState) -> None:
 def _mt_execute(st: _MoveTaskState, ports: TasksPorts) -> None:
     """Emit the transition(s) + persist the WP file under the status lock."""
     from specify_cli.cli.commands.agent import tasks as _tasks
+
     with _tasks.feature_status_lock(st.main_repo_root, st.mission_slug):
         _mt_emit_transitions(st, ports)
         if st.self_review_fallback:
@@ -2451,17 +2467,15 @@ def _mt_execute(st: _MoveTaskState, ports: TasksPorts) -> None:
 def _mt_output(st: _MoveTaskState) -> None:
     """Emit the success envelope + dependent-WP warnings (coord skip arm aware)."""
     from specify_cli.cli.commands.agent import tasks as _tasks
+
     assert st.decision is not None and st.wp is not None
     event_fields = _tasks._status_event_result_fields(st.event)
     # WP03: the coord skip arm's polymorphic ``--json`` envelope is driven by the
     # core decision (``Emit.skip_primary``), not the raw fact.
-    status_events_path = (
-        _tasks._coord_status_events_path(st.main_repo_root, st.mission_slug)
-        if st.decision.skip_primary
-        else None
-    )
+    status_events_path = _tasks._coord_status_events_path(st.main_repo_root, st.mission_slug) if st.decision.skip_primary else None
     result: dict[str, object] = {
         "result": "success",
+        "transition_applied": True,
         "task_id": st.task_id,
         "old_lane": st.old_lane,
         "new_lane": st.target_lane,
@@ -2473,10 +2487,7 @@ def _mt_output(st: _MoveTaskState) -> None:
     }
     if st.decision.skip_primary:
         result["wp_file_update"] = "skipped"
-        result["wp_file_update_reason"] = (
-            "protected branch with coordination topology; status event "
-            "is authoritative on the coordination branch"
-        )
+        result["wp_file_update_reason"] = "protected branch with coordination topology; status event is authoritative on the coordination branch"
         if st.agent:
             result["frontmatter_fields_skipped"] = ["agent"]
     if st.review_feedback_pointer is not None:
@@ -2489,27 +2500,30 @@ def _mt_output(st: _MoveTaskState) -> None:
     # ``--no-auto-commit`` case from the protected-primary-coord case (T050) —
     # present only when non-durable, since a durable write has no "reason".
     if st.pending_verdict_write is not None:
-        result["verdict_durably_persisted"] = st.pending_verdict_write.durably_persisted
-        if st.pending_verdict_write.skip_reason is not None:
-            result["verdict_durability_skip_reason"] = st.pending_verdict_write.skip_reason
+        outcome = st.pending_verdict_write.outcome
+        if "review_feedback" not in result and st.pending_verdict_write.review_cycle is not None:
+            result["review_feedback"] = st.pending_verdict_write.review_cycle.pointer
+        result["verdict_durably_persisted"] = outcome.verdict_durably_persisted
+        result["durability_classification"] = outcome.classification
+        result["durability_reason"] = outcome.reason
+        result["evidence_ref"] = outcome.evidence_ref
+        result["destination_ref"] = outcome.destination_ref
+        if outcome.reason is not None:
+            result["verdict_durability_skip_reason"] = outcome.reason
     message = f"[green]✓[/green] Moved {st.task_id} from {st.old_lane} to {st.target_lane}"
     # #3578: surface the rollback-to-``planned`` deltas that were previously
     # silent — the subtask reset count (+ work-state split, FR-003) and the two
-    # sibling actions (claim release, review-override clear) — as BOTH JSON fields
-    # and a human line, so an operator knows what to re-mark before re-review.
+    # sibling actions (claim release, review-override clear) — as both JSON
+    # fields and a human line, so an operator knows what to re-mark.
     if st.rollback_reset_summary is not None:
         _mt_apply_rollback_signal(result, st.rollback_reset_summary)
         message += "\n" + _mt_rollback_signal_lines(st.rollback_reset_summary)
     _tasks._output_result(st.json_output, result, message)
     # Check for dependent WP warnings when moving to for_review (T083).
-    _tasks._check_dependent_warnings(
-        st.repo_root, st.mission_slug, st.task_id, st.target_lane, st.json_output
-    )
+    _tasks._check_dependent_warnings(st.repo_root, st.mission_slug, st.task_id, st.target_lane, st.json_output)
 
 
-def _mt_apply_rollback_signal(
-    result: dict[str, object], summary: _RollbackResetSummary
-) -> None:
+def _mt_apply_rollback_signal(result: dict[str, object], summary: _RollbackResetSummary) -> None:
     """Add the #3578 rollback operator signal to the ``--json`` envelope."""
     result["subtasks_reset_count"] = summary.reset_count
     result["subtasks_reset_ids"] = list(summary.reset_ids)
@@ -2525,10 +2539,7 @@ def _mt_rollback_signal_lines(summary: _RollbackResetSummary) -> str:
     # but also a plain ``claimed -> planned`` un-claim or ``blocked -> planned``
     # (adversarial review finding 1b): all three reset the roster, so avoid
     # implying the WP necessarily came from review.
-    lines = [
-        f"[yellow]↺ Reset {summary.reset_count} subtask(s) to planned[/yellow] "
-        "— re-mark completed work before this WP re-enters review."
-    ]
+    lines = [f"[yellow]↺ Reset {summary.reset_count} subtask(s) to planned[/yellow] — re-mark completed work before this WP re-enters review."]
     if summary.previously_completed:
         lines.append(
             f"  • {len(summary.previously_completed)} completed in an earlier "
@@ -2536,14 +2547,8 @@ def _mt_rollback_signal_lines(summary: _RollbackResetSummary) -> str:
             "don't rebuild from scratch."
         )
     if summary.never_completed:
-        lines.append(
-            f"  • {len(summary.never_completed)} never completed "
-            f"({', '.join(summary.never_completed)})."
-        )
-    lines.append(
-        "  • runtime claim released; any review-override cleared "
-        "(the WP exposes no live claim and no superseded approval)."
-    )
+        lines.append(f"  • {len(summary.never_completed)} never completed ({', '.join(summary.never_completed)}).")
+    lines.append("  • runtime claim released; any review-override cleared (the WP exposes no live claim and no superseded approval).")
     return "\n".join(lines)
 
 
@@ -2610,9 +2615,13 @@ def _do_move_task(args: _MoveTaskArgs, *, ports: TasksPorts | None = None) -> No
     see :class:`tasks_verdict_persistence.VerdictRevertError`'s rationale;
     the bare original exception (unchanged type/traceback) is re-raised on a
     successful revert, and only a revert FAILURE escalates to a new,
-    explicitly compounded error.
+    explicitly compounded error (:class:`tasks_verdict_persistence.
+    VerdictRevertCompoundFailure`, #3773 item 2 -- carries the durability
+    signal so the ``--json`` envelope's ``verdict_durably_persisted`` field
+    stays populated on this compound path too, not just prose).
     """
     from specify_cli.cli.commands.agent import tasks as _tasks
+
     ports = ports or _default_move_task_ports()
     st = _MoveTaskState(
         task_id=args.task_id,
@@ -2657,11 +2666,17 @@ def _do_move_task(args: _MoveTaskArgs, *, ports: TasksPorts | None = None) -> No
                 try:
                     revert_committed_verdict_write(st, st.pending_verdict_write)
                 except Exception as revert_error:
-                    raise RuntimeError(
+                    # #3773 item 2: carry the structured durability signal on
+                    # this compound-failure path (not just prose) -- see
+                    # ``VerdictRevertCompoundFailure``'s docstring for why
+                    # ``st.pending_verdict_write`` is always durably-persisted
+                    # here.
+                    raise VerdictRevertCompoundFailure(
                         f"Transition emit failed for {st.task_id} ({execute_error}); "
                         f"the FR-002 revert-compensator ALSO failed to undo the "
                         f"already-committed verdict write ({revert_error}). Operator "
-                        f"attention required -- a committed verdict may still exist."
+                        f"attention required -- a committed verdict may still exist.",
+                        signal=st.pending_verdict_write,
                     ) from execute_error
             raise
         _mt_output(st)
@@ -2677,14 +2692,56 @@ def _do_move_task(args: _MoveTaskArgs, *, ports: TasksPorts | None = None) -> No
                 stack_trace=traceback.format_exc(),
                 agent_id=args.agent,
             )
-        diagnostic = e.to_diagnostic() if isinstance(e, EventPersistenceError) else None
-        if diagnostic is not None and st.canonical_lane is not None:
+        if isinstance(e, VerdictPersistenceFailure):
+            outcome = e.signal.outcome
+            diagnostic: dict[str, object] | None = {
+                "result": "error",
+                "error": str(e),
+                "verdict_durably_persisted": outcome.verdict_durably_persisted,
+                "durability_classification": outcome.classification,
+                "durability_reason": outcome.reason,
+                "evidence_ref": outcome.evidence_ref,
+                "destination_ref": outcome.destination_ref,
+            }
+        elif isinstance(e, VerdictRevertCompoundFailure):
+            # #3773 item 2: same envelope shape as the ``VerdictPersistenceFailure``
+            # branch above -- every field read off the SAME ``VerdictDurabilitySignal
+            # .outcome`` shape, so a machine consumer parses one shape for both. This
+            # is the revert-compensator-also-failed compound path (VerdictRevertError,
+            # including the ``VerdictSaveBusy`` queue-busy case): the verdict write
+            # itself was already durably committed (``VerdictRevertCompoundFailure``'s
+            # docstring), so ``outcome.verdict_durably_persisted`` reads ``True`` here
+            # -- never a guess, never a hand-written literal.
+            outcome = e.signal.outcome
+            diagnostic = {
+                "result": "error",
+                "error": str(e),
+                "verdict_durably_persisted": outcome.verdict_durably_persisted,
+                "durability_classification": outcome.classification,
+                "durability_reason": outcome.reason,
+                "evidence_ref": outcome.evidence_ref,
+                "destination_ref": outcome.destination_ref,
+            }
+        elif isinstance(e, TransitionError):
+            current_lane = st.authoritative_lane_at_emit or st.old_lane
+            diagnostic = {
+                "result": "error",
+                "code": "invalid_transition",
+                "error": str(e),
+                "current_lane": current_lane.value,
+                "requested_lane": (st.canonical_lane or resolve_lane_alias(str(st.target_lane))),
+                "verdict_durably_persisted": False,
+                "evidence_ref": None,
+                "destination_ref": None,
+            }
+        else:
+            diagnostic = e.to_diagnostic() if isinstance(e, EventPersistenceError) else None
+        if diagnostic is not None and st.canonical_lane is not None and not isinstance(e, TransitionError):
             diagnostic["failed_event_to_lane"] = diagnostic.get("to_lane")
             diagnostic["to_lane"] = st.canonical_lane
             diagnostic["requested_lane"] = st.canonical_lane
         _tasks._output_error(args.json_output, str(e), diagnostic=diagnostic)
         raise typer.Exit(1) from None
-
 
 
 # ===========================================================================
@@ -2714,9 +2771,7 @@ def _coord_status_events_path(repo_root: Path, mission_slug: str) -> Path | None
 
         # Topology resolver (FR-004): resolve the on-disk mid8 from the embedded
         # ``<slug>-<mid8>`` tail; "" for a legacy/flattened mission (no coord dir).
-        mid8 = resolve_transaction_mid8(
-            mission_slug, mission_id=None, mid8=None, coordination_branch=None
-        )
+        mid8 = resolve_transaction_mid8(mission_slug, mission_id=None, mid8=None, coordination_branch=None)
         if not mid8:
             return None
         # Delegate the idempotent ``<slug>-<mid8>`` compose to the seam so the
@@ -2785,9 +2840,7 @@ def _detect_arbiter_override(
         from specify_cli.review.arbiter import _is_arbiter_override
     except ImportError:
         return False
-    return bool(
-        _is_arbiter_override(feature_dir, task_id, old_lane, target_canonical, force)
-    )
+    return bool(_is_arbiter_override(feature_dir, task_id, old_lane, target_canonical, force))
 
 
 def _run_arbiter_override(

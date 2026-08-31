@@ -2,7 +2,7 @@
 title: 'Coordination-branch trust & reconciliation model — mission scope (#2841)'
 description: 'Pre-spec scope for the coord-branch trust friction-remediation mission (#2841): the missing write-placement model, the solution shape, and the locked design decisions.'
 doc_status: deprecated
-updated: '2026-07-22'
+updated: '2026-08-27'
 related:
 - docs/adr/3.x/2026-06-27-1-common-docs-reconciliation.md
 - docs/plans/engineering-notes/index.md

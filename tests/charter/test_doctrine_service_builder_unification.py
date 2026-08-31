@@ -42,7 +42,7 @@ from ruamel.yaml import YAML
 from charter.doctrine_service_builder import (
     build_activation_aware_doctrine_service as charter_builder,
 )
-from doctrine.drg.org_pack_config import OrgPackConfig, PackRegistry, save_pack_registry
+from charter.offering.drg.org_pack_config import OrgPackConfig, PackRegistry, save_pack_registry
 from specify_cli.doctrine_service_factory import (
     build_activation_aware_doctrine_service as specify_cli_builder,
 )
@@ -167,7 +167,7 @@ def test_specify_cli_entry_point_delegates_to_charter_builder(
 
 #: A gated kind whose repository actually consumes ``active_languages``
 #: (``paradigms``/``directives``/``mission_step_contracts``/``glossary_packs``
-#: do not — see ``src/doctrine/service.py``'s per-property construction).
+#: do not — see ``src/charter/offering/service.py``'s per-property construction).
 #: Used by the two axis tests below to observe the service-level resolution.
 _LANGUAGE_SCOPED_KIND = "tactics"
 
@@ -187,7 +187,7 @@ def test_active_languages_resolution_identical_across_entry_points(repo_root: Pa
     carries the same ``_active_languages`` value the service resolved — rather
     than reaching into the wrapper's ``._inner`` directly. Uses ``tactics``
     (not ``paradigms``) because ``paradigms`` does not consume
-    ``active_languages`` at all (``src/doctrine/service.py``).
+    ``active_languages`` at all (``src/charter/offering/service.py``).
     """
     from charter.language_scope import infer_repo_languages
 
@@ -282,7 +282,7 @@ def test_bare_project_admits_language_scoped_builtin_profiles(tmp_path: Path) ->
     and NO interview transcript (``.kittify/charter/interview/answers.yaml``)
     has no active-language *signal at all* -- ``infer_repo_languages`` must
     resolve this to ``None`` ("unknown"), not an explicitly empty list.
-    ``doctrine.shared.scoping.applies_to_languages_match`` treats ``None`` as
+    ``charter.offering.shared.scoping.applies_to_languages_match`` treats ``None`` as
     admit-all and an empty active set as admit-none for scoped artifacts, so
     conflating "no signal" with "explicitly no languages" silently drops
     every language-scoped built-in profile from the catalog.

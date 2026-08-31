@@ -325,7 +325,7 @@ constituents:
   kind: directive
   path: directives/use-mutation-testing-to-validate-test-quality.directive.yaml
   provenance_path:
-- content_hash: 07122952c2843b3b49bbdc68d3d6b5ac00dc3509933c1369fea8cf1ac555b9bd
+- content_hash: 98c2becf0671ad92ce09f96954e8fdedebd6ad43e4d66887e7c8c3dbc3476e3d
   id: spec-kitty-core
   kind: glossary_pack
   path: glossary_packs/spec-kitty-core.glossary-pack.yaml
@@ -1340,7 +1340,7 @@ constituents:
 fetched_at:
 generated_at:
 generated_by: spec-kitty doctrine regenerate-graph
-manifest_hash: ba8178fecf0e97ce5eff6dc946ee060cfcec422969e8e107e1cadcaa979896d4
+manifest_hash: bacffd52284a86674deac53be2edc68d9dcba585af59d5ce574fb70ea1c9fffa
 schema_version: '1'
 source_type: built-in
 source_url:

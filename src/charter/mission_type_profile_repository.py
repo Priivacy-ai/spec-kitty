@@ -4,7 +4,7 @@ A project may override a mission type's governance **without editing the project
 charter or shipped doctrine** (FR-011) by dropping a
 ``.kittify/doctrine/mission_types/<type>/governance-profile.yaml`` file.  That
 override is resolved through the *existing* ``doctrine/base.py`` builtin → org →
-project overlay (field-merge + :class:`~doctrine.base.DoctrineLayerCollisionWarning`)
+project overlay (field-merge + :class:`~charter.offering.base.DoctrineLayerCollisionWarning`)
 — **not** a bespoke second merge.  :class:`MissionTypeProfileRepository` is the
 adapter that lets :class:`~charter.mission_type_profiles.MissionTypeProfile` ride
 that stack.
@@ -38,13 +38,13 @@ from __future__ import annotations
 from pathlib import Path
 
 from charter.mission_type_profiles import MissionTypeProfile
-from doctrine.base import BaseDoctrineRepository
-from doctrine.pack_paths import built_in_missions_root as _pack_paths_built_in_missions_root
+from charter.offering.base import BaseDoctrineRepository
+from charter.offering.pack_paths import built_in_missions_root as _pack_paths_built_in_missions_root
 
 __all__ = ["MissionTypeProfileRepository", "builtin_missions_root"]
 
 #: Shipped built-in profiles live at
-#: ``src/doctrine/missions/<type>/governance-profile.yaml``; project overrides
+#: ``src/charter/offering/missions/<type>/governance-profile.yaml``; project overrides
 #: mirror that shape under ``.kittify/doctrine/mission_types/<type>/``.
 _GOVERNANCE_PROFILE_GLOB = "governance-profile.yaml"
 
@@ -55,24 +55,11 @@ _PROJECT_OVERRIDE_PARTS: tuple[str, ...] = (".kittify", "doctrine", "mission_typ
 def builtin_missions_root() -> Path:
     """Shipped profiles root: ``packs/built-in/missions``.
 
-    Thin delegate (FR-004, #3575) directly onto the ONE canonical
-    missions-root authority, :func:`~doctrine.pack_paths.built_in_missions_root`
-    — this accessor is not a second, co-equal path-hardcode. The delegation
-    is layer-rule-clean (charter → doctrine, no ``specify_cli``) and
-    byte-identical in the return value to the previous hop through
-    :meth:`~doctrine.missions.repository.MissionTemplateRepository.default_missions_root`
-    (itself a thin wrapper over the same ``pack_paths`` call plus an
-    existence check — see behaviour note below).
-
-    Behaviour note: unlike ``default_missions_root()``, this accessor does
-    **not** fail closed with ``MissionsRootNotFound`` when the missions
-    directory is missing from disk — it returns the joined path
-    unconditionally, per :func:`~doctrine.pack_paths.built_in_missions_root`'s
-    own contract. No current caller of this accessor catches
-    ``MissionsRootNotFound``, so this is not a behaviour change for any
-    known call site in a healthy install; a caller that needs the fail-closed
-    guarantee should call ``MissionTemplateRepository.default_missions_root()``
-    directly instead.
+    Thin delegate (FR-004, #3575) directly onto the one canonical
+    :func:`~charter.offering.pack_paths.built_in_missions_root` authority.
+    Unlike ``MissionTemplateRepository.default_missions_root()``, this
+    accessor returns the joined path without performing the repository
+    existence check.
 
     Public module-level accessor (#2668) so cross-module consumers (e.g.
     ``charter.action_grain``, ``charter.mission_type_profiles``) no longer
@@ -115,7 +102,7 @@ class MissionTypeProfileRepository(BaseDoctrineRepository[MissionTypeProfile]):
         The project overlay is
         ``<repo_root>/.kittify/doctrine/mission_types/<type>/governance-profile.yaml``.
         The directory need not exist — an absent overlay simply yields the
-        shipped baseline (see :meth:`~doctrine.base.BaseDoctrineRepository._load`).
+        shipped baseline (see :meth:`~charter.offering.base.BaseDoctrineRepository._load`).
         """
         return cls(
             org_dirs=org_dirs,

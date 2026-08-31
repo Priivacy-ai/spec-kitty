@@ -21,12 +21,17 @@ enforced rather than advisory) and asserts ``ruff format --check .`` exits 0.
 That puts the gate inside ``make test-full``, so the CI agent's existing
 green/red verdict covers it with no change needed to the planning repo's
 ``bin/ci-run.sh``.
+
+The second guard keeps the formatter-debt ratchet itself live: Ruff silently
+accepts excluded paths that no longer exist, so a deleted file can leave an
+exclude entry behind (issue #671).
 """
 
 from __future__ import annotations
 
 import subprocess
 import sys
+import tomllib
 from pathlib import Path
 
 import pytest
@@ -52,4 +57,17 @@ def test_ruff_format_check_is_clean_on_whole_repo() -> None:
         "add it to [tool.ruff.format].exclude in pyproject.toml with a "
         "comment explaining why (the formatter-debt ratchet).\n"
         f"stdout:\n{proc.stdout}\nstderr:\n{proc.stderr}"
+    )
+
+
+def test_formatter_debt_exclude_only_names_live_files() -> None:
+    """The formatter-debt ratchet cannot outlive the files it excludes."""
+    with (_REPO_ROOT / "pyproject.toml").open("rb") as pyproject_file:
+        pyproject = tomllib.load(pyproject_file)
+
+    excluded_files = pyproject["tool"]["ruff"]["format"]["exclude"]
+    missing_files = [excluded_file for excluded_file in excluded_files if not (_REPO_ROOT / excluded_file).is_file()]
+
+    assert missing_files == [], (
+        f"[tool.ruff.format].exclude names files that do not exist -- remove the stale formatter-debt entries from pyproject.toml.\nmissing: {missing_files}"
     )

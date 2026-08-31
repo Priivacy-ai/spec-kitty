@@ -1,21 +1,10 @@
 # Release Checklist
 
-Use this checklist for private CLI releases from `main`.
+Use this checklist for releases from `main`.
 
-> `main` is the primary release line and publishes private GitHub Releases only
-> for the duration of the EXPERIMENTAL programme.
-> PyPI, GitHub Actions publishing, signing, and public release visibility are
-> out of scope per `PROGRAM.md` §2 and
-> `decisions/HIC-PRIVATE-CLI-RELEASES-2026-08-26.md`.
-> `1.x-maintenance` is deprecated overall, reserved for critical maintenance only,
-> and should not receive new releases during the programme.
-> Historical 2.x release notes remain in Git tags and changelog history; new
-> stable and prerelease 3.x releases ship from `main`.
->
-> **No GitHub Actions in this programme.** The pre-programme `.github/workflows/`
-> YAML (including `release.yml` and `release-readiness.yml`) has been deleted
-> (PROGRAM.md §2, planning#57). Run release evidence locally, then publish with
-> `spec-kitty-planning/bin/release-cli.sh`.
+> `main` is the primary release line and publishes both GitHub releases and PyPI packages.
+> `1.x-maintenance` is deprecated overall, reserved for critical maintenance only, and should not receive new PyPI releases.
+> Historical 2.x release notes remain in Git tags and changelog history; new stable and prerelease 3.x releases ship from `main`.
 
 ## Pre-Release Preparation
 
@@ -36,8 +25,7 @@ Use this checklist for private CLI releases from `main`.
 - [ ] Confirm open PRs are targeted intentionally:
   - New product work should target `main`.
   - Maintenance-only fixes should target `1.x-maintenance`.
-- [ ] Confirm no release step depends on PyPI publishing or `.github/workflows/`
-  automation during the programme.
+- [ ] Confirm PyPI Trusted Publishing is configured for `spec-kitty-cli` against `.github/workflows/release.yml`.
 
 ### Code Quality
 
@@ -90,7 +78,7 @@ Use this checklist for private CLI releases from `main`.
 
 The charter requires release-candidate verification to include the full CLI
 suite and cross-repo behavior evidence. Run these locally from a trusted runner
-before tagging; do not rely on the tag-time publish step to run live
+before tagging; do not rely on the tag-time publish workflow to run live
 canary or cross-repo end-to-end suites.
 
 - [ ] Record the full CLI test-suite result from `pytest tests/ -v`.
@@ -161,22 +149,28 @@ gh pr create --base main --title "Release X.Y.Z" --fill
 
 ### 4. Wait for CI and Review
 
-- [ ] The `Release Readiness Check` and `CI Quality` GitHub Actions jobs these bullets
-  historically named no longer exist (`.github/workflows/` deleted, planning#57) — instead,
-  record locally-run equivalents (Code Quality section above) and their pass/fail evidence
-  in the PR.
-- [ ] Confirm shared-package drift against the current SaaS consumer pins using
-  `scripts/release/check_shared_package_drift.py` (see Code Quality above), since the
-  `Check Shared Package Drift` workflow job no longer exists.
-- [ ] The PR satisfies the active repository policy (`PROGRAM.md` §5–§9) — nothing on
-  GitHub enforces this; the merge agent's review is the gate.
+- [ ] `Release Readiness Check` passes for release metadata.
+- [ ] `CI Quality` passes for tests, wheel build, lockfile, exact install, and
+  SaaS consumer compatibility evidence or has explicitly accepted non-blocking failures with
+  issue links.
+- [ ] `Check Shared Package Drift` passes against the current SaaS consumer
+  pins.
+- [ ] `Protect Main Branch` is expected to pass for the eventual merge or
+  tagged release commit path.
 - [ ] Maintainer approval is recorded.
 - [ ] Any release-note or install-doc feedback is resolved.
 
-### 5. Hand Off the Release PR
+### 5. Merge the Release PR
 
-- [ ] Do not merge it manually. The programme merge agent merges with a merge
-      commit after the `PROGRAM.md` §5–§9 gates pass.
+- [ ] Use a merge strategy that leaves a PR marker in the main-branch commit
+      message so the `Protect Main Branch` workflow can verify provenance.
+      Today that means squash-merge for release PRs; do not use `--rebase`
+      unless the protection workflow has been updated to recognize rebased PR
+      commits.
+
+```bash
+gh pr merge --squash --delete-branch
+```
 
 ### 6. Tag the Release from `main`
 
@@ -194,79 +188,72 @@ git tag -a vX.Y.ZaN -m "Release vX.Y.ZaN"
 git push origin vX.Y.ZaN
 ```
 
-If this release depends on a newly pinned shared package, make sure the private
-release will bundle that adjacent wheel from the exact pinned commit before
-tagging the CLI.
+If this release depends on a newly pinned shared package, release that upstream
+package first, verify it is installable from PyPI, and only then tag the CLI.
 
-### 7. Publish the Private GitHub Release
+### 7. Monitor Automated Publishing
 
-There is no automated publishing workflow in this programme —
-`.github/workflows/release.yml` has been deleted (PROGRAM.md §2, planning#57).
-Perform the evidence steps locally, then publish through the private release
-script from the planning repo.
-
-- [ ] Run tests (`pytest tests/ -v`).
-- [ ] Validate release metadata (`python scripts/release/validate_release.py --mode branch --tag-pattern "v*.*.*"`).
-- [ ] Check shared-package drift (`scripts/release/check_shared_package_drift.py`).
-- [ ] Prove exact wheel installability with plain `pip` (`scripts/release/check_exact_install.py`).
-- [ ] Validate candidate compatibility against the SaaS consumer contract (`scripts/release/check_candidate_consumer_compat.py`).
-- [ ] From a checkout of `spec-kitty-planning` on a machine with GitHub release
-  upload access, build and publish the private release:
+- [ ] Watch `.github/workflows/release.yml`:
   ```bash
-  bin/release-cli.sh vX.Y.Z --repo ../spec-kitty --events-repo ../spec-kitty-events --tracker-repo ../spec-kitty-tracker
+  gh run watch
   ```
-- [ ] Verify `bin/release-cli.sh`:
-  - builds the `spec-kitty-cli` wheel from the tag
-  - builds each required internal adjacent wheel (`spec-kitty-events`, and
-    `spec-kitty-tracker` when the CLI pins it by git direct reference)
-  - rewrites the CLI wheel's internal direct-git dependencies to exact adjacent
-    wheel versions for the built artifact only
-  - proves the wheel set installs in a fresh isolated environment
-  - uploads the wheels and release notes to the private GitHub Release
+- [ ] Verify the workflow:
+  - runs tests
+  - validates release metadata
+  - checks shared-package drift
+  - proves exact wheel installability with plain `pip`
+  - validates candidate compatibility against the SaaS consumer contract
+  - builds distributions
+  - publishes after tag-time release checks pass
+  - creates the GitHub release
+  - publishes to PyPI
+  - verifies exact installability from PyPI with no local wheel
 - [ ] Confirm release-candidate hygiene was already recorded before the tag:
   live canary and cross-repo end-to-end suites are required pre-release
-  operator evidence, not tag-time publish jobs.
+  operator evidence, not tag-time publish workflow jobs.
 - [ ] If this is a prerelease, confirm GitHub marks the release as `Pre-release`.
-- [ ] Verify publication succeeded separately from branch health — a successful
-  GitHub Release proves publication only; it does not prove that `main` is green.
-- [ ] Re-run the local test/quality/drift commands above against the released commit
-  and record the results (or every known failure, with an issue link) before using
-  the release as launch-gate evidence — there is no CI Quality / Check Shared
-  Package Drift workflow to query for this.
+- [ ] Verify the publishing workflow result separately from branch health.
+  A successful PyPI/GitHub release proves publication only; it does not prove
+  that `main` is green.
+- [ ] Verify CI Quality, Check Shared Package Drift, and other release evidence
+  checks on the released commit are green, or record every failing check with an
+  issue link before using the release as launch-gate evidence:
+  ```bash
+  gh run list --commit "$(git rev-parse HEAD)" --limit 20
+  ```
 - [ ] Verify the GitHub release payload:
   ```bash
   gh release view vX.Y.Z
-  gh release download vX.Y.Z --dir /tmp/spec-kitty-release-check -p "*.whl"
+  gh release download vX.Y.Z --dir /tmp/spec-kitty-release-check
   ```
-- [ ] Verify the private release carries every wheel a clean install needs:
-  `spec-kitty-cli`, `spec-kitty-events`, and `spec-kitty-tracker` when bundled
-  by `bin/release-cli.sh`.
 
 ## Post-Release Verification
 
 ### Package Availability
 
-- [ ] Verify the private GitHub Release is visible to authenticated teammates and
-  includes the wheel set plus release notes:
+- [ ] Verify PyPI shows the new version:
   ```bash
-  gh release view vX.Y.Z -R spec-kitty/EXPERIMENTAL-spec-kitty
+  python -m pip index versions spec-kitty-cli
   ```
-- [ ] Download the private release wheels into a clean directory:
+- [ ] Verify the GitHub release is public and includes the wheel, sdist, and checksums.
+- [ ] If this is a prerelease, verify installation with:
   ```bash
-  gh release download vX.Y.Z -R spec-kitty/EXPERIMENTAL-spec-kitty -p "*.whl" -D dist
+  python -m pip install --upgrade --pre "spec-kitty-cli==X.Y.ZaN"
   ```
 
 ### Installation and Upgrade
 
 - [ ] Test a fresh install:
   ```bash
-  uv tool install --find-links dist spec-kitty-cli
+  python -m pip install --force-reinstall spec-kitty-cli==X.Y.Z
   spec-kitty --version
   ```
-- [ ] Test an exact prerelease install path from the downloaded wheel set:
+- [ ] Test an exact prerelease install path in a clean virtualenv:
   ```bash
-  uv tool install --find-links dist "spec-kitty-cli==X.Y.ZaN"
-  spec-kitty --version
+  python -m venv /tmp/spec-kitty-release-check
+  /tmp/spec-kitty-release-check/bin/python -m pip install --upgrade pip
+  /tmp/spec-kitty-release-check/bin/python -m pip install "spec-kitty-cli==X.Y.ZaN"
+  /tmp/spec-kitty-release-check/bin/spec-kitty --version
   ```
 - [ ] Test upgrade from the previous stable release on a sample project.
 
@@ -276,24 +263,20 @@ script from the planning repo.
 - [ ] If release-track policy changed, call it out explicitly:
   - `main` is the stable `3.x` line
   - `1.x-maintenance` is deprecated maintenance-only
-  - PyPI is out of scope during the EXPERIMENTAL programme
+  - no new `1.x` PyPI releases are planned
 
 ## Maintenance-Line Policy
 
 - [ ] Only cut `1.x-maintenance` releases for critical fixes.
-- [ ] Do not publish `1.x-maintenance` releases during the programme unless a
-  critical-fix issue explicitly calls for one.
-- [ ] If a `1.x-maintenance` release is needed, use private GitHub tags/releases
-  only and state clearly that the line is deprecated.
+- [ ] Do not publish new `1.x` releases to PyPI.
+- [ ] If a `1.x-maintenance` release is needed, use GitHub tags/releases only and state clearly that the line is deprecated.
 
 ## Rollback Procedure
 
 If a critical issue is discovered after release:
 
 1. Cut a hotfix from `vX.Y.Z` and release `X.Y.(Z+1)` as soon as practical.
-2. If the private GitHub Release artifact is broken and no hotfix is ready yet,
-   mark the release as draft or replace the affected asset, then update the
-   release notes with the replacement plan.
+2. If the PyPI artifact is broken and no hotfix is ready yet, yank the PyPI release and update the GitHub release notes with the replacement plan.
 3. Prefer forward fixes over deleting published tags.
 
 ## Common Gotchas
@@ -302,16 +285,14 @@ If a critical issue is discovered after release:
   bump `pyproject.toml` to a higher semantic version.
 - **Validation fails with "CHANGELOG.md lacks a populated section"**:
   add `## [X.Y.Z]` with real release notes before tagging.
-- **Private release publish fails**:
-  check that the publishing machine has GitHub release upload access and that
-  the release tag matches the CLI version.
+- **PyPI publish fails**:
+  check PyPI Trusted Publishing configuration for the workflow and repository, not a legacy token secret.
 - **Fresh install still shows the old version**:
-  verify the downloaded wheel directory contains only the intended release
-  assets, then reinstall with `uv tool install --force --find-links dist spec-kitty-cli`.
-- **Prerelease install does not resolve from the private wheel set**:
-  stop and inspect the built wheel's `Requires-Dist`, the adjacent internal
-  wheel versions, and any newly pinned shared packages.
+  wait a few minutes for package indexes to refresh, then retry with `pip cache purge` if needed.
+- **Prerelease install does not resolve**:
+  stop and inspect the published dependency metadata, starting with the built
+  wheel's `Requires-Dist` and any newly pinned shared packages.
 
 ---
 
-**Last Updated**: 2026-08-27
+**Last Updated**: 2026-08-31

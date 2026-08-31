@@ -639,16 +639,6 @@ STATE_SURFACES: tuple[StateSurface, ...] = (
         owner_module="tracker/credentials",
         creation_trigger="spec-kitty tracker bind",
     ),
-    StateSurface(
-        name="credential_lock",
-        path_pattern="~/.spec-kitty/credentials.lock",
-        root=StateRoot.GLOBAL_SYNC,
-        format=StateFormat.LOCKFILE,
-        authority=AuthorityClass.LOCAL_RUNTIME,
-        git_class=GitClass.OUTSIDE_REPO,
-        owner_module="tracker/credentials",
-        creation_trigger="credential write serialization",
-    ),
     # -----------------------------------------------------------------------
     # lamport_clock through project_sync_migration_reports below describe
     # on-disk surfaces of the hosted CLI<->SaaS sync transport deleted in

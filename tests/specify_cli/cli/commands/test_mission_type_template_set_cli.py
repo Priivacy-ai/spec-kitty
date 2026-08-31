@@ -166,7 +166,7 @@ def test_show_succeeds_and_reports_real_layer_for_activated_org_type(
     only the built-in-only ``MissionTypeRepository.default()``), so this test
     cannot even reach sites (2)/(3) until site (1) is fixed too.
     """
-    from doctrine.missions.mission_type_repository import MissionTypeRepository
+    from charter.offering.missions.mission_type_repository import MissionTypeRepository
 
     from charter.pack_context import PackContext
 
@@ -234,7 +234,7 @@ def test_show_exits_cleanly_for_activated_org_type_with_empty_action_sequence(
     whose action sequence is empty must exit 1 with a clean error message --
     never an uncaught ``MissionTypeEmptyActionSequenceError`` traceback.
     """
-    from doctrine.missions.mission_type_repository import MissionTypeRepository
+    from charter.offering.missions.mission_type_repository import MissionTypeRepository
 
     from charter.pack_context import PackContext
 

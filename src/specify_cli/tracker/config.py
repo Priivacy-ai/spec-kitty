@@ -2,7 +2,9 @@
 
 from __future__ import annotations
 
+import functools
 import io
+import warnings
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, ClassVar, Final
@@ -24,6 +26,43 @@ ALL_SUPPORTED_PROVIDERS: frozenset[str] = SAAS_PROVIDERS | LOCAL_PROVIDERS
 
 class TrackerConfigError(RuntimeError):
     """Raised when tracker configuration is invalid."""
+
+
+# ---------------------------------------------------------------------------
+# CR-03 (mission `charter-code-topology-01M152G1` S4): tracker mode key
+# `doctrine` -> `ownership` (NOT `charter` -- this surface names field
+# OWNERSHIP, a distinct concept from the charter/doctrine topology rename).
+# Precedent for the read-both/canonical-wins/warn-once shape: `charter.sync`
+# CR-01 (`src/charter/sync.py:245-311`).
+# ---------------------------------------------------------------------------
+_CANONICAL_OWNERSHIP_KEY: Final = "ownership"
+_LEGACY_OWNERSHIP_KEY: Final = "doctrine"
+
+
+class LegacyTrackerOwnershipKeyWarning(UserWarning):
+    """Emitted once per process when a project's ``tracker:`` block still
+    carries the retired ``doctrine`` ownership surface instead of the
+    canonical ``ownership`` surface (CR-03)."""
+
+
+@functools.lru_cache(maxsize=1)
+def _warn_legacy_ownership_key_once() -> None:
+    """Emit the CR-03 compat warning exactly once per process.
+
+    Gated by ``lru_cache`` rather than the ``warnings`` module's own de-dup
+    filter (precedent: ``charter.sync._warn_legacy_governance_key_once``,
+    CR-01) -- a caller running under a stricter ``filterwarnings``
+    configuration could otherwise turn a *repeated* warning into a hard
+    failure. Tests reset this gate via
+    ``_warn_legacy_ownership_key_once.cache_clear()``.
+    """
+    warnings.warn(
+        "tracker: the legacy 'doctrine' ownership key/option was used; "
+        "reading it as 'ownership'. Use the canonical config key or "
+        "`--ownership-mode`.",
+        LegacyTrackerOwnershipKeyWarning,
+        stacklevel=3,
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -119,11 +158,11 @@ class TrackerProjectConfig:
     display_label: str | None = None
     provider_context: dict[str, str] | None = None
     workspace: str | None = None
-    doctrine_mode: str = "external_authoritative"
-    doctrine_field_owners: dict[str, str] = field(default_factory=dict)
+    ownership_mode: str = "external_authoritative"
+    ownership_field_owners: dict[str, str] = field(default_factory=dict)
     #: Channel-2 tracker egress (#3108 FR-002). Holds the **raw loaded value**,
     #: never a narrowed ``enum | None`` or ``bool | None`` -- measured on the
-    #: ``doctrine_mode`` precedent above: a known field whose value the parser
+    #: ``ownership_mode`` precedent above: a known field whose value the parser
     #: cannot use is silently replaced by its default on round trip, which
     #: would let a `bind` convert a recorded ``refused`` into a permitting
     #: absence. ``EGRESS_ABSENT`` means the key was missing; any other value
@@ -172,9 +211,14 @@ class TrackerProjectConfig:
             "display_label": self.display_label,
             "provider_context": dict(self.provider_context) if self.provider_context else None,
             "workspace": self.workspace,
-            "doctrine": {
-                "mode": self.doctrine_mode,
-                "field_owners": dict(self.doctrine_field_owners),
+            # CR-03: writes only ever emit the canonical `ownership` key now.
+            # A stale `doctrine` key already on disk (a KNOWN key, per
+            # `_KNOWN_KEYS` below -- never captured into `_extra`) is dropped
+            # on save, same as CR-04's `save_pack_registry`: an operator who
+            # binds again adopts the canonical key by construction.
+            _CANONICAL_OWNERSHIP_KEY: {
+                "mode": self.ownership_mode,
+                "field_owners": dict(self.ownership_field_owners),
             },
         }
         # FR-009: a write must never plant a decision. Omit `egress` entirely
@@ -188,28 +232,58 @@ class TrackerProjectConfig:
 
     _KNOWN_KEYS: ClassVar[frozenset[str]] = frozenset({
         "provider", "binding_ref", "project_slug", "display_label",
-        "provider_context", "workspace", "doctrine", _EGRESS_KEY,
+        "provider_context", "workspace",
+        _CANONICAL_OWNERSHIP_KEY, _LEGACY_OWNERSHIP_KEY, _EGRESS_KEY,
     })
+
+    @staticmethod
+    def _parse_ownership_block(block: object) -> tuple[str, dict[str, str]] | None:
+        """Parse an ``ownership``- or ``doctrine``-shaped mode/field_owners block.
+
+        Returns ``None`` when *block* is not a mapping (the caller's "this
+        key wasn't a usable block" signal), else the parsed
+        ``(mode, field_owners)`` pair -- shared by both the canonical and
+        legacy readers below since the two keys carry an identical shape
+        (CR-03).
+        """
+        if not isinstance(block, dict):
+            return None
+        mode = "external_authoritative"
+        mode_value = block.get("mode")
+        if isinstance(mode_value, str) and mode_value.strip():
+            mode = mode_value.strip()
+        field_owners: dict[str, str] = {}
+        raw_field_owners = block.get("field_owners")
+        if isinstance(raw_field_owners, dict):
+            field_owners = {
+                str(key): str(value)
+                for key, value in raw_field_owners.items()
+                if str(key).strip() and str(value).strip()
+            }
+        return mode, field_owners
 
     @classmethod
     def from_dict(cls, data: dict[str, object] | None) -> TrackerProjectConfig:
         if not isinstance(data, dict):
             return cls()
 
-        doctrine = data.get("doctrine")
-        doctrine_mode = "external_authoritative"
-        doctrine_field_owners: dict[str, str] = {}
-        if isinstance(doctrine, dict):
-            mode_value = doctrine.get("mode")
-            if isinstance(mode_value, str) and mode_value.strip():
-                doctrine_mode = mode_value.strip()
-            field_owners = doctrine.get("field_owners")
-            if isinstance(field_owners, dict):
-                doctrine_field_owners = {
-                    str(key): str(value)
-                    for key, value in field_owners.items()
-                    if str(key).strip() and str(value).strip()
-                }
+        # CR-03 (mission `charter-code-topology-01M152G1` S4): canonical
+        # `ownership` key wins outright when present -- silently, no warning,
+        # even if a stale legacy `doctrine` key is also there (CR-01
+        # precedent: an operator who already carries the canonical key is
+        # never nagged about a legacy value nothing reads any more). Only
+        # when `ownership` is entirely absent does the legacy `doctrine` key
+        # get read, with a one-shot deprecation notice.
+        ownership_mode = "external_authoritative"
+        ownership_field_owners: dict[str, str] = {}
+        canonical_parsed = cls._parse_ownership_block(data.get(_CANONICAL_OWNERSHIP_KEY))
+        if canonical_parsed is not None:
+            ownership_mode, ownership_field_owners = canonical_parsed
+        else:
+            legacy_parsed = cls._parse_ownership_block(data.get(_LEGACY_OWNERSHIP_KEY))
+            if legacy_parsed is not None:
+                _warn_legacy_ownership_key_once()
+                ownership_mode, ownership_field_owners = legacy_parsed
 
         provider = data.get("provider")
         binding_ref = data.get("binding_ref")
@@ -247,8 +321,8 @@ class TrackerProjectConfig:
             ),
             provider_context=provider_context,
             workspace=str(workspace).strip() if isinstance(workspace, str) and workspace.strip() else None,
-            doctrine_mode=doctrine_mode,
-            doctrine_field_owners=doctrine_field_owners,
+            ownership_mode=ownership_mode,
+            ownership_field_owners=ownership_field_owners,
             egress=egress,
             _extra=extra,
         )

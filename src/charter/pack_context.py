@@ -15,7 +15,7 @@ Layer rule
 ----------
 ``src/charter/`` MUST NOT import from ``specify_cli`` (C-001, hard
 ratchet pinned by ``tests/architectural/test_layer_rules.py``).  This
-module uses only stdlib + ``doctrine.drg.org_pack_config`` (which is
+module uses only stdlib + ``charter.offering.drg.org_pack_config`` (which is
 within the allowed layer boundary for charter→doctrine reads).
 """
 
@@ -70,7 +70,7 @@ class CharterPackConfigError(KittyInternalConsistencyError):
 
 #: All built-in artifact kinds (plural form used by DoctrineService).
 #: Mirrors ``charter.activations._ALLOWED_KINDS`` and
-#: ``doctrine.drg.org_pack_loader._ORG_DRG_CANONICAL_KINDS``. ``templates``
+#: ``charter.offering.drg.org_pack_loader._ORG_DRG_CANONICAL_KINDS``. ``templates``
 #: and ``assets`` move in lockstep with those two mirrors — the drift guard in
 #: ``tests/doctrine/test_org_pack_augmentation.py`` fails if any one of the
 #: three is updated alone.
@@ -258,7 +258,7 @@ class PackContext:
         org_pack_names, org_pack_roots = _read_org_packs(repo_root, data)
 
         # --- pack_roots ------------------------------------------------
-        builtin_root = Path(__file__).parent.parent / "doctrine"
+        builtin_root = Path(__file__).parent / "offering"
         pack_roots: tuple[Path, ...] = (builtin_root, *org_pack_roots)
 
         return cls(
@@ -341,7 +341,7 @@ def resolve_charter_yaml_pointer(repo_root: Path, config_data: dict[str, Any]) -
 # These two forms are reconciled at exactly ONE place — the two functions below
 # — rather than by scattered ``.replace()`` calls (WP06 risk row). The id
 # translation is delegated to the canonical
-# ``doctrine.drg.migration.id_normalizer.artifact_to_urn`` — the same algorithm
+# ``charter.offering.drg.migration.id_normalizer.artifact_to_urn`` — the same algorithm
 # the DRG extractor uses to mint node URNs — so the store form and the node form
 # can never drift.
 #
@@ -366,7 +366,7 @@ def _resolve_activation_kind(kind: str) -> str:
     naming the accepted kinds rather than silently inferring an identity.
     """
     # Lazy: charter→doctrine read, mirrors the NFR-001 import-time-I/O convention.
-    from doctrine.artifact_kinds import (  # noqa: PLC0415
+    from charter.offering.artifact_kinds import (  # noqa: PLC0415
         ArtifactKind,
     )
 
@@ -402,7 +402,7 @@ def normalize_activation_identifier(kind: str, identifier: str) -> str:
         The stored identifier (file slug or node id).
     """
     # Lazy: charter→doctrine read, mirrors the NFR-001 import-time-I/O convention.
-    from doctrine.drg.migration.id_normalizer import (  # noqa: PLC0415
+    from charter.offering.drg.migration.id_normalizer import (  # noqa: PLC0415
         artifact_to_urn,
     )
 
@@ -711,7 +711,7 @@ def _read_activated_anti_patterns(data: dict[str, Any]) -> frozenset[str] | None
 def _read_org_packs(repo_root: Path, _data: dict[str, Any]) -> tuple[tuple[str, ...], tuple[Path, ...]]:
     """Resolve org pack names and root paths from config data.
 
-    Delegates to ``doctrine.drg.org_pack_config.load_pack_registry``
+    Delegates to ``charter.offering.drg.org_pack_config.load_pack_registry``
     so that legacy ``organisation_packs`` form and deprecation warnings
     are handled consistently with the rest of the codebase.
 
@@ -724,7 +724,7 @@ def _read_org_packs(repo_root: Path, _data: dict[str, Any]) -> tuple[tuple[str, 
     names: list[str] = []
     roots: list[Path] = []
     try:
-        from doctrine.drg.org_pack_config import (  # noqa: PLC0415
+        from charter.offering.drg.org_pack_config import (  # noqa: PLC0415
             OrgPackEnvVarUnsetError,
             OrgPackSubdirEscapeError,
             load_pack_registry,

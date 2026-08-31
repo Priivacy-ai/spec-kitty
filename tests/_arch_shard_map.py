@@ -290,7 +290,7 @@ _ARCH_SHARD_3_FILES: tuple[str, ...] = (
     # Added post-data-model.md (new files, mission
     # charter-sole-door-bypass-closure-01KZ3WAA landing-fold gate hardening --
     # the five sole-door durability gates (agent-profile repository, raw
-    # DoctrineService, doctrine.resolver import ban, missions-root hardcode
+    # DoctrineService, charter.offering.resolver import ban, missions-root hardcode
     # ban, ._inner reach-around ban) were never appended to this map when
     # WP04/WP06/WP09 landed them, leaving them selected by zero arch_shard_N
     # marker until the default_fallback hash-bucket auto-cover picked them up

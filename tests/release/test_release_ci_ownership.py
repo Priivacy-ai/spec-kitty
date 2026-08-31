@@ -141,6 +141,22 @@ def test_ci_windows_configures_private_git_dependencies_before_install() -> None
     assert 'git config --global "url.https://x-access-token:${GH_TOKEN}@github.com/.insteadOf" "https://github.com/"' in configure_step["run"]
 
 
+def test_docs_pages_deploys_only_from_promotion_repo_and_skips_when_pages_is_unavailable() -> None:
+    workflow = load_workflow("docs-pages.yml")
+    pages_job = workflow["jobs"]["pages"]
+    setup_step = pages_job["steps"][0]
+    build_job = workflow["jobs"]["build"]
+    deploy_job = workflow["jobs"]["deploy"]
+
+    assert pages_job["outputs"] == {"configured": "${{ steps.setup-pages.outcome }}"}
+    assert setup_step["id"] == "setup-pages"
+    assert setup_step["uses"] == "actions/configure-pages@v6"
+    assert setup_step["continue-on-error"] is True
+    assert build_job["needs"] == ["pages"]
+    assert build_job["if"] == "needs.pages.outputs.configured == 'success'"
+    assert deploy_job["if"] == "github.repository == 'Priivacy-ai/spec-kitty' && github.ref == 'refs/heads/main' && needs.build.result == 'success'"
+
+
 @pytest.mark.parametrize("name", sorted(RESTORED_WORKFLOWS))
 def test_restored_workflows_use_stock_runners(name: str) -> None:
     text = workflow_text(name)

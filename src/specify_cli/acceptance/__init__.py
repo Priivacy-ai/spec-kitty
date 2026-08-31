@@ -16,10 +16,9 @@ from specify_cli.core.agent_config import get_auto_commit_default
 from specify_cli.core.paths import load_meta_fail_closed, read_target_branch_from_meta
 from specify_cli.decisions.models import DecisionStatus
 from specify_cli.decisions.store import load_index
-from specify_cli.mission import MissionError, get_mission_for_feature
+from specify_cli.mission import Mission, MissionError, get_mission_for_feature
 from specify_cli.mission_metadata import record_acceptance, resolve_mission_identity, write_meta
 from specify_cli.status import CanonicalStatusNotFoundError
-from specify_cli.status import Lane
 from specify_cli.status import EVENTS_FILENAME, SNAPSHOT_FILENAME, StoreError
 
 from specify_cli.task_utils import (
@@ -33,6 +32,7 @@ from specify_cli.task_utils import (
 from specify_cli.task_utils.support import TaskCliError
 from specify_cli.runtime.resolver import resolve_configured_artifact_name
 from specify_cli.upgrade.pre30_guard import check_pre30_layout
+from specify_cli.validators.paths import _normalize_path_token
 
 # WP04 (coord-authority-trio-degod-01KX7094) split: pure lane-gate/workflow-evidence
 # checks live in ``gates_core`` (T022), pure WP-summary/path-convention helpers live
@@ -57,10 +57,12 @@ from .gates_core import (
 from .summary_core import (
     WorkPackageState,
     _build_recommended_fix_order,
+    build_canceled_wp_report,
     build_warnings,
     build_work_package_state,
     evaluate_path_conventions,
 )
+from specify_cli.status_lanes import has_operator_provenance, is_acceptable_ending
 
 logger = logging.getLogger(__name__)
 
@@ -142,13 +144,23 @@ def __getattr__(name: str) -> str | tuple[str, str, str, str, str, str]:
 
 
 _DECISION_ID_MARKER = "decision_id:"
-_ACCEPTED_READY_LANES = frozenset({"approved", "done"})
+# WP02 (mission-completion-terminal-state): the former ``_ACCEPTED_READY_LANES``
+# module constant is retired onto the single acceptable-ending authority
+# (``specify_cli.status_lanes.is_acceptable_ending``, FR-005 / directive 044).
 
 _LEGACY_NOT_DONE_LANES = ("planned", "claimed", "doing", "in_progress", "for_review")
+# The ``canceled`` hint (FR-003) names the WP and states that operator-authored
+# cancellation provenance is required — a synthetic cancellation (``--force``
+# with no operator ``--note``) cannot be used to skip work silently. The trailing
+# "reopen or replace it … approved or done" guidance is retained so the message
+# stays actionable for an operator who did not mean to cancel.
 _ACTIONABLE_LANE_BLOCKER_HINTS = {
     "in_review": "review is still in progress; complete the review and move the work package to approved or done",
     "blocked": "work package is blocked; resolve the blocker and move the work package to approved or done",
-    "canceled": "work package is canceled; reopen or replace it, then move the work package to approved or done",
+    "canceled": (
+        "work package is canceled; operator-authored cancellation provenance required "
+        "— reopen or replace it, then move the work package to approved or done"
+    ),
 }
 
 
@@ -359,11 +371,50 @@ class AcceptanceSummary:
     skipped_checks: list[AcceptanceCheckDiagnostic] = field(default_factory=list)
     blocked_checks: list[AcceptanceCheckDiagnostic] = field(default_factory=list)
     recommended_fix_order: list[str] = field(default_factory=list)
+    #: Accept-eligible cancellations (operator provenance) in the pinned NFR-003
+    #: shape ``{wp_id, reason, actor, at}``. A synthetic cancellation is NOT here
+    #: — it surfaces as a blocker via :meth:`outstanding` instead.
+    canceled_wps: list[dict[str, str]] = field(default_factory=list)
+
+    def _operator_provenance_by_wp(self) -> dict[str, bool]:
+        """Per-WP operator-provenance lookup carried from the bucketing seam."""
+        return {wp.work_package_id: wp.has_operator_provenance for wp in self.work_packages}
 
     @property
     def all_done(self) -> bool:
-        """True when all WPs are approved or done (no WPs still in progress or review)."""
-        return not any(wp_ids for lane, wp_ids in self.lanes.items() if lane not in _ACCEPTED_READY_LANES)
+        """True when every WP is at an acceptable ending AND the mission delivered something.
+
+        Decides the ``canceled`` case PER-WP (T009): the provenance-free lane
+        bucket cannot tell an operator cancellation from a synthetic one, so
+        acceptability is evaluated through the single
+        :func:`~specify_cli.status_lanes.is_acceptable_ending` authority with the
+        per-WP provenance carried onto :class:`WorkPackageState`. ``approved`` /
+        ``done`` are always acceptable; ``canceled`` only with operator
+        provenance; every other lane blocks.
+
+        The vacuous guard is preserved: a mission with no tracked WPs is
+        ``all_done`` (nothing outstanding). The spec "delivered nothing" guard is
+        explicit and separate: a mission whose WPs are ALL canceled (none reached
+        ``approved``/``done``) is NOT complete even though each cancellation is an
+        acceptable ending on its own.
+        """
+        provenance = self._operator_provenance_by_wp()
+        saw_wp = False
+        delivered_something = False
+        for lane, wp_ids in self.lanes.items():
+            for wp_id in wp_ids:
+                saw_wp = True
+                if not is_acceptable_ending(lane, has_provenance=provenance.get(wp_id, False)):
+                    return False
+                # ``is_acceptable_ending(lane, has_provenance=False)`` is True
+                # for exactly ``approved``/``done`` — the lanes that count as
+                # delivered work (a canceled ending, even acceptable, delivered
+                # nothing on its own).
+                if is_acceptable_ending(lane, has_provenance=False):
+                    delivered_something = True
+        if not saw_wp:
+            return True
+        return delivered_something
 
     @property
     def ok(self) -> bool:
@@ -378,12 +429,53 @@ class AcceptanceSummary:
             and not self.path_violations
         )
 
+    def _lane_blockers(self) -> list[str]:
+        """Actionable lane blockers, with operator-canceled WPs excluded.
+
+        A ``canceled`` WP with operator-authored provenance is an acceptable
+        ending (reported under ``canceled_wps``), never a blocker (FR-001/FR-002);
+        a synthetic cancellation stays a blocker naming the missing provenance
+        (FR-003). Every other actionable lane (``in_review``/``blocked``) is a
+        blocker as before (FR-006).
+        """
+        provenance = self._operator_provenance_by_wp()
+        blockers: list[str] = []
+        for lane in _ACTIONABLE_LANE_BLOCKER_HINTS:
+            for wp_id in self.lanes.get(lane, []):
+                if lane == "canceled" and provenance.get(wp_id, False):
+                    continue
+                blockers.append(_format_lane_blocker(lane, wp_id))
+        return blockers
+
+    def _delivered_nothing_blockers(self) -> list[str]:
+        """Explicit "delivered nothing" guard (spec Edge Case).
+
+        When every tracked WP is at an acceptable ending but NONE reached
+        ``approved``/``done`` (i.e. all are canceled), the mission delivered
+        nothing and must not be silently reported complete. This is an explicit
+        check, not an accident of terminal-lane classification.
+        """
+        provenance = self._operator_provenance_by_wp()
+        saw_wp = False
+        delivered_something = False
+        for lane, wp_ids in self.lanes.items():
+            for wp_id in wp_ids:
+                saw_wp = True
+                if not is_acceptable_ending(lane, has_provenance=provenance.get(wp_id, False)):
+                    return []  # a real blocker already fires elsewhere
+                if is_acceptable_ending(lane, has_provenance=False):
+                    delivered_something = True
+        if saw_wp and not delivered_something:
+            return ["mission delivered nothing: every work package is canceled; none reached approved or done"]
+        return []
+
     def outstanding(self) -> dict[str, list[str]]:
         buckets = {
             "not_done": [
                 *(wp_id for lane in _LEGACY_NOT_DONE_LANES for wp_id in self.lanes.get(lane, [])),
             ],
-            "lane_blockers": [_format_lane_blocker(lane, wp_id) for lane in _ACTIONABLE_LANE_BLOCKER_HINTS for wp_id in self.lanes.get(lane, [])],
+            "lane_blockers": self._lane_blockers(),
+            "delivered_nothing": self._delivered_nothing_blockers(),
             "metadata": self.metadata_issues,
             "activity": self.activity_issues,
             "unchecked_tasks": self.unchecked_tasks,
@@ -435,6 +527,7 @@ class AcceptanceSummary:
             "skipped_checks": [item.to_dict() for item in self.skipped_checks],
             "blocked_checks": [item.to_dict() for item in self.blocked_checks],
             "recommended_fix_order": self.recommended_fix_order,
+            "canceled_wps": self.canceled_wps,
             "all_done": self.all_done,
             "ok": self.ok,
         }
@@ -456,6 +549,10 @@ class AcceptanceResult:
     approved_wps: list[str] = field(default_factory=list)
     done_wps: list[str] = field(default_factory=list)
     merge_pending_wps: list[str] = field(default_factory=list)
+    #: NFR-003 ``accept --json`` field: accept-eligible cancellations in the
+    #: pinned ``{wp_id, reason, actor, at}`` shape (schema
+    #: ``contracts/accept-canceled-wps.schema.json``). Distinct from blockers.
+    canceled_wps: list[dict[str, str]] = field(default_factory=list)
 
     def to_dict(self) -> dict[str, object]:
         return {
@@ -472,6 +569,7 @@ class AcceptanceResult:
             "approved_wps": self.approved_wps,
             "done_wps": self.done_wps,
             "merge_pending_wps": self.merge_pending_wps,
+            "canceled_wps": self.canceled_wps,
             "summary": self.summary.to_dict(),
         }
 
@@ -582,14 +680,41 @@ def _iter_clarification_decision_ids(text: str) -> Iterable[str]:
             yield decision_id_text.split(maxsplit=1)[0]
 
 
-def _missing_artifacts(feature_dir: Path) -> tuple[list[str], list[str]]:
+# Fallback optional-artifact tokens used when a mission is absent or its config
+# carries no ``artifacts`` block (#3785). This mirrors the historical hardcoded
+# list; it deliberately omits software-dev's ``checklists/`` — the mission's own
+# ``artifacts.optional`` declaration is the SSOT when available (FR-006).
+_FALLBACK_OPTIONAL_ARTIFACTS: tuple[str, ...] = (
+    QUICKSTART_FILE,
+    DATA_MODEL_FILE,
+    RESEARCH_FILE,
+    "contracts",
+)
+
+
+def _optional_artifact_tokens(mission: Mission | None) -> list[str]:
+    """Optional-artifact tokens for a mission (#3785, FR-006).
+
+    Prefers the mission's declared ``artifacts.optional`` (via the null-safe
+    :meth:`Mission.get_optional_artifacts`) so the set stays the single source of
+    truth — including software-dev's ``checklists/``. Falls back to
+    :data:`_FALLBACK_OPTIONAL_ARTIFACTS` when there is no mission (``MissionError``)
+    OR the mission config has no ``artifacts`` attribute. The ``getattr`` guard is
+    load-bearing (C-009): the #3783 regression injects an artifacts-less
+    ``SimpleNamespace`` config, on which ``get_optional_artifacts()`` would raise
+    ``AttributeError`` (paths.py:160 uses the same guard).
+    """
+    if mission is not None and getattr(mission.config, "artifacts", None) is not None:
+        return list(mission.get_optional_artifacts())
+    return list(_FALLBACK_OPTIONAL_ARTIFACTS)
+
+
+def _missing_artifacts(feature_dir: Path, mission: Mission | None) -> tuple[list[str], list[str]]:
     required = [feature_dir / _spec_file(), feature_dir / _plan_file(), feature_dir / _tasks_file()]
-    optional = [
-        feature_dir / QUICKSTART_FILE,
-        feature_dir / DATA_MODEL_FILE,
-        feature_dir / RESEARCH_FILE,
-        feature_dir / "contracts",
-    ]
+    # ``Path`` normalizes trailing slashes, so a ``contracts/`` token maps to the
+    # same relative string ``contracts`` the ``_normalize_path_token`` dedup expects
+    # (C-003: severity for ``contracts/`` is decided downstream, unchanged here).
+    optional = [feature_dir / token for token in _optional_artifact_tokens(mission)]
     missing_required = [str(p.relative_to(feature_dir)) for p in required if not p.exists()]
     missing_optional = [str(p.relative_to(feature_dir)) for p in optional if not p.exists()]
     return missing_required, missing_optional
@@ -929,15 +1054,27 @@ def _validate_wp_readiness(
     events_path: Path,
     activity_issues: list[str],
 ) -> None:
-    """WPs must be in 'approved' or 'done' for acceptance."""
+    """WPs must be at an acceptable ending for acceptance (FR-005).
+
+    Routed through the single :func:`~specify_cli.status_lanes.is_acceptable_ending`
+    authority: ``approved``/``done`` unconditionally, plus a ``canceled`` WP that
+    carries operator-authored provenance (read from this same coord-surface
+    snapshot via the shared :func:`~specify_cli.status_lanes.has_operator_provenance`
+    accessor). A synthetic cancellation or any non-terminal lane still produces
+    an activity issue here (FR-003/FR-006); its FR-003-specific "operator-authored
+    cancellation provenance required" diagnostic is surfaced by
+    :meth:`AcceptanceSummary.outstanding`'s lane blockers.
+    """
     if not (events_path.exists() and snapshot_wps):
         return
     for wp_id in expected_wp_ids:
         wp_snapshot = snapshot_wps.get(wp_id)
         if wp_snapshot is None:
             activity_issues.append(f"{wp_id}: no canonical state found in status.events.jsonl")
-        elif wp_snapshot.get("lane") not in {Lane.APPROVED, Lane.DONE}:
-            activity_issues.append(f"{wp_id}: canonical lane is '{wp_snapshot.get('lane')}', expected 'approved' or 'done'")
+            continue
+        lane = wp_snapshot.get("lane")
+        if not is_acceptable_ending(str(lane), has_provenance=has_operator_provenance(wp_snapshot)):
+            activity_issues.append(f"{wp_id}: canonical lane is '{lane}', expected 'approved' or 'done'")
 
 
 def _target_branch_for_feature(feature_dir: Path) -> str | None:
@@ -1006,6 +1143,7 @@ def collect_feature_summary(
     primary_slug = feature_dir.name
 
     expected_wp_ids: list[str] = []
+    canceled_wps: list[dict[str, str]] = []
     for wp in _iter_work_packages(repo_root, primary_slug):
         wp_id = wp.work_package_id or wp.path.stem
         expected_wp_ids.append(wp_id)
@@ -1026,7 +1164,25 @@ def collect_feature_summary(
         metadata_issues.extend(wp_metadata_issues)
         work_packages.append(state)
 
+        # FR-002/NFR-003: an operator-canceled WP is reported separately (the
+        # provenance/reason/actor/at read from the coord-surface snapshot that
+        # ``status_feature_dir`` already resolves), decided per-WP at the
+        # bucketing seam — the provenance-free lane bucket cannot carry it.
+        canceled_entry = build_canceled_wp_report(wp_id, wp_snapshot)
+        if canceled_entry is not None:
+            canceled_wps.append(canceled_entry)
+
     _validate_wp_readiness(expected_wp_ids, snapshot_wps, status_feature_dir / EVENTS_FILENAME, activity_issues)
+
+    # Provenance-aware terminality for the FR-009 unchecked-task normalization
+    # (T007): the lane-only view cannot see whether a ``canceled`` WP is
+    # operator-authored, so decide it here from the per-WP data and thread the
+    # authoritative flag into ``_normalized_unchecked_tasks``. Mirrors the
+    # ``_all_work_packages_terminal`` "no tracked WP → not terminal" guard.
+    all_packages_acceptable = bool(work_packages) and all(
+        is_acceptable_ending(state.lane, has_provenance=state.has_operator_provenance)
+        for state in work_packages
+    )
 
     # FR-002 (#2085): PLANNING reads (spec/plan/tasks/research/data-model/quickstart)
     # resolve the PRIMARY surface via the WP01 kind-aware seam; the STATUS reads above
@@ -1046,14 +1202,27 @@ def collect_feature_summary(
             planning_read_dir / "data-model.md",
         ]
     )
-    missing_required, missing_optional = _missing_artifacts(planning_read_dir)
-
     try:
         mission = get_mission_for_feature(feature_dir)
     except MissionError:
         mission = None
 
-    path_violations, path_convention_warning = evaluate_path_conventions(mission, repo_root, feature_dir, planning_read_dir, strict_metadata=strict_metadata)
+    # #3785 T012: the mission is fetched BEFORE _missing_artifacts so the optional
+    # set is derived from the mission's declared artifacts.optional (SSOT, FR-006)
+    # instead of a drifted hardcoded list. Nothing between depended on the old order.
+    missing_required, missing_optional = _missing_artifacts(planning_read_dir, mission)
+
+    path_violations, path_convention_warning, dedup_tokens = evaluate_path_conventions(
+        mission,
+        repo_root,
+        feature_dir,
+        planning_read_dir,
+        strict_metadata=strict_metadata,
+    )
+    if dedup_tokens:
+        # FR-002: apply the dedup query result explicitly — evaluate_path_conventions
+        # is a pure query and never mutates our list itself (summary_core.py).
+        missing_optional = [entry for entry in missing_optional if _normalize_path_token(entry) not in dedup_tokens]
 
     warnings = build_warnings(
         missing_optional=missing_optional,
@@ -1084,7 +1253,9 @@ def collect_feature_summary(
     )
     _check_workflow_run_evidence(repo_root, read_feature_dir, branch, activity_issues)
 
-    normalized_unchecked_tasks = _normalized_unchecked_tasks(unchecked_tasks, lanes)
+    normalized_unchecked_tasks = _normalized_unchecked_tasks(
+        unchecked_tasks, lanes, all_packages_acceptable=all_packages_acceptable
+    )
     recommended_fix_order = _build_recommended_fix_order(
         lanes=lanes,
         metadata_issues=metadata_issues,
@@ -1119,6 +1290,7 @@ def collect_feature_summary(
         skipped_checks=skipped_checks,
         blocked_checks=blocked_checks,
         recommended_fix_order=recommended_fix_order,
+        canceled_wps=canceled_wps,
     )
 
 
@@ -1408,6 +1580,7 @@ def perform_acceptance(
         approved_wps=lane_derivations["approved_wps"],
         done_wps=lane_derivations["done_wps"],
         merge_pending_wps=lane_derivations["merge_pending_wps"],
+        canceled_wps=summary.canceled_wps,
     )
 
 

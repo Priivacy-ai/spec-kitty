@@ -30,6 +30,7 @@ from specify_cli.tracker.config import (
     TrackerProjectConfig,
     load_tracker_config,
     require_repo_root,
+    _warn_legacy_ownership_key_once,
 )
 from specify_cli.identity.project import ensure_identity
 from specify_cli.core.saas_sync_config import is_saas_sync_enabled, saas_sync_disabled_message
@@ -577,10 +578,16 @@ def bind_command(
         "--workspace",
         help="Provider workspace/team/project identifier (local providers only)",
     ),
-    doctrine_mode: str = typer.Option(
-        "external_authoritative",
+    ownership_mode: str | None = typer.Option(
+        None,
+        "--ownership-mode",
+        help="Ownership mode: external_authoritative | spec_kitty_authoritative | split_ownership",
+    ),
+    doctrine_mode: str | None = typer.Option(
+        None,
         "--doctrine-mode",
-        help="Doctrine mode: external_authoritative | spec_kitty_authoritative | split_ownership",
+        help="Deprecated alias for --ownership-mode",
+        hidden=True,
     ),
     field_owners: list[str] = typer.Option(
         [],
@@ -652,9 +659,13 @@ def bind_command(
                 )
                 raise typer.Exit(code=1)
 
-            mode = doctrine_mode.strip().lower()
+            selected_mode = ownership_mode or doctrine_mode or "external_authoritative"
+            if doctrine_mode is not None and ownership_mode is None:
+                _warn_legacy_ownership_key_once()
+
+            mode = selected_mode.strip().lower()
             if mode not in set(_doctrine_modes()):
-                raise TrackerServiceError(f"Invalid doctrine mode '{doctrine_mode}'. Expected one of: {', '.join(_doctrine_modes())}")
+                raise TrackerServiceError(f"Invalid ownership mode '{selected_mode}'. Expected one of: {', '.join(_doctrine_modes())}")
 
             parsed_field_owners = parse_kv_pairs(field_owners)
             parsed_credentials = parse_kv_pairs(credentials)
@@ -662,16 +673,16 @@ def bind_command(
             config = _service().bind(
                 provider=provider_normalized,
                 workspace=workspace,
-                doctrine_mode=mode,
-                doctrine_field_owners=parsed_field_owners,
+                ownership_mode=mode,
+                ownership_field_owners=parsed_field_owners,
                 credentials=parsed_credentials,
             )
 
             typer.echo("Tracker binding saved")
             typer.echo(f"- provider: {config.provider}")
             typer.echo(f"- workspace: {config.workspace}")
-            typer.echo(f"- doctrine_mode: {config.doctrine_mode}")
-            typer.echo(f"- field_owners: {len(config.doctrine_field_owners)}")
+            typer.echo(f"- ownership_mode: {config.ownership_mode}")
+            typer.echo(f"- field_owners: {len(config.ownership_field_owners)}")
             typer.echo(f"- credentials_saved: {'yes' if bool(parsed_credentials) else 'no'}")
             return
 

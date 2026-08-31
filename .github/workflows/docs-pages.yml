@@ -37,8 +37,20 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
+  pages:
+    runs-on: ubuntu-latest
+    outputs:
+      configured: ${{ steps.setup-pages.outcome }}
+    steps:
+      - name: Setup Pages
+        id: setup-pages
+        uses: actions/configure-pages@v6
+        continue-on-error: true
+
   build:
     runs-on: ubuntu-latest
+    needs: [pages]
+    if: needs.pages.outputs.configured == 'success'
     # The docs scripts import first-party src-layout packages: seo_postprocess.py
     # imports `kernel.clock` (src/kernel/), and glossary_linker.py / seo_verify.py
     # import `scripts.docs.*` (seo_verify transitively pulls in seo_postprocess ->
@@ -129,8 +141,8 @@ jobs:
       # Position is load-bearing (C-B9): it runs AFTER redirect-stub generation
       # and its coverage check, so it sees the stubs and can assert they are
       # correctly excluded from indexing and from sitemap.xml; and BEFORE
-      # `Setup Pages`/`Upload artifact`, so a metadata regression fails the
-      # build instead of reaching the deployed site. Placing it earlier would
+      # `Upload artifact`, so a metadata regression fails the build instead of
+      # reaching the deployed site. Placing it earlier would
       # leave stub regressions unobserved. The verifier is strictly read-only —
       # it never mutates docs/_site.
       # Deploy-side trigger note (FR-007): this workflow — and therefore this
@@ -144,9 +156,6 @@ jobs:
       - name: Verify built-output SEO metadata (FR-005, FR-008, FR-012)
         run: python3 scripts/docs/seo_verify.py --site-dir docs/_site --strict
 
-      - name: Setup Pages
-        uses: actions/configure-pages@v6
-
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v5
         with:
@@ -155,7 +164,7 @@ jobs:
   deploy:
     runs-on: ubuntu-latest
     needs: build
-    if: github.ref == 'refs/heads/main'
+    if: github.repository == 'Priivacy-ai/spec-kitty' && github.ref == 'refs/heads/main' && needs.build.result == 'success'
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}

@@ -473,7 +473,6 @@ def test_section_e_sync_surfaces_present():
     expected = {
         "sync_config",
         "sync_credentials",
-        "credential_lock",
         "lamport_clock",
         "active_queue_scope",
         "legacy_queue",
@@ -482,6 +481,15 @@ def test_section_e_sync_surfaces_present():
     }
     missing = expected - names
     assert not missing, f"Missing Section E surfaces: {missing}"
+
+
+def test_credential_lock_surface_is_removed():
+    """The credential store locks its own file, not a lockfile sidecar."""
+    assert all(surface.name != "credential_lock" for surface in STATE_SURFACES)
+    assert all(
+        surface.path_pattern != "~/.spec-kitty/credentials.lock"
+        for surface in STATE_SURFACES
+    )
 
 
 def test_section_e_historical_sync_rows_retain_original_authority():
