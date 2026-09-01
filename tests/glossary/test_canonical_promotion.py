@@ -198,6 +198,14 @@ def _context_sources_consolidation_expected(rel_path: str, old_lines: list[str])
         )
     if rel_path == "docs/architecture/doctrine-kinds.md":
         text = text.replace(
+            "src/charter/kind_vocabulary.py",
+            "src/charter/activation/kind_vocabulary.py",
+        )
+        text = text.replace(
+            "src/charter/context.py",
+            "src/charter/activation/context.py",
+        )
+        text = text.replace(
             '  context-sources: "<AgentContextSources | null>"\n',
             "",
         )

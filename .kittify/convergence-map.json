@@ -2,6 +2,43 @@
   "base_commit": "38090b6493dd9fdf77826200348a82a22c5f61c4",
   "clusters": [
     {
+      "census_commit_count": 13,
+      "classification": "CONFLICT",
+      "commits": [
+        "e71573402dbf354ad9e5ca1e13e0f38c8bd310a5",
+        "fff9003bca2586cf53740c5f2836c64494c0d302",
+        "b88d9e4fc7a88f531013a196625459df9e6e4cec",
+        "98dfa9b2b6c7c6ece7b081caaf2336a2da57bc07",
+        "e931f75c42e58f3a90005393d984fb4f1586041a",
+        "db58423736998e80ec1f7150e17869d06375ac5d",
+        "c54486413bc984380e41c74d80161559be2f917b",
+        "97d00b572a31f47f42e8f2320612ade4897ef12d",
+        "7c0e047df2c978ba342e9971d59de9b00e1251ef",
+        "6464c4887fca5418495073eaa895b4d97c67e9fd",
+        "9260909f04477bbb16644083b1df69b2b434166c",
+        "eff63532607d2f292efc16e3f8bfd0e61e0544aa",
+        "c73aed0148d51c44c06ad9ccfaa4b86a26cc847b"
+      ],
+      "disposition": "PORT",
+      "evidence": "https://github.com/spec-kitty/EXPERIMENTAL-spec-kitty/issues/1026",
+      "id": "PR#3820-profile-load-manual-re-port",
+      "summary": "Manual re-port of the tidy-charter-cutover enabler bundle and profile-load architecture line"
+    },
+    {
+      "census_commit_count": 4,
+      "classification": "CLEAN (patch-equivalent on EXP main)",
+      "commits": [
+        "d64212009ccff35a96694ba77a5c5ff48612e562",
+        "83592db9a0756d78ba15c6cbfe0f05e018527bd4",
+        "c156c5afad40efbd99ef393fd0188291923073eb",
+        "63a35473c70bfee1f4ed9e44bf662ca418a0d65b"
+      ],
+      "disposition": "PORT",
+      "evidence": "https://github.com/spec-kitty/EXPERIMENTAL-spec-kitty/issues/1026",
+      "id": "profile-load-followups-patch-equivalent",
+      "summary": "Profile-load follow-ups already present on EXP main"
+    },
+    {
       "census_commit_count": 6,
       "classification": "**CONFLICT**",
       "commits": [
