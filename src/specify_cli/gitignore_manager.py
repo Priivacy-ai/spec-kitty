@@ -95,11 +95,8 @@ def read_ignore_file_text(path: Path, encoding: str = "utf-8-sig", errors: str |
         fd = _open_no_follow(path, os.O_RDONLY)
     except FileNotFoundError:
         return ""
-    try:
-        with os.fdopen(fd, encoding=encoding, errors=errors) as f:
-            return f.read()
-    except UnicodeError as exc:
-        raise GitignorePathError(f"{path} is not valid {encoding}; refusing to decode it") from exc
+    with os.fdopen(fd, encoding=encoding, errors=errors) as f:
+        return f.read()
 
 
 def is_gitignore_path_ignored(project_path: Path, relative_path: str) -> bool | None:
@@ -213,7 +210,12 @@ def is_gitignore_root_effectively_ignored(
                 "`spec-kitty upgrade` (or `spec-kitty init` during initialization)."
             )
 
-    content = read_ignore_file_text(project_path / ".gitignore")
+    try:
+        content = read_ignore_file_text(project_path / ".gitignore")
+    except UnicodeError as exc:
+        raise GitignorePathError(
+            f"{project_path / '.gitignore'} is not valid UTF-8; refusing to decode it"
+        ) from exc
     if not content:
         return False
 

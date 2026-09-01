@@ -15,6 +15,21 @@ logger = logging.getLogger(__name__)
 
 _GITDIR_PREFIX = "gitdir:"
 
+
+def _is_repo_directory_boundary(git_path: Path, candidate: Path) -> bool:
+    """Return whether a ``.git`` directory is a usable repository boundary.
+
+    A real repository carries ``HEAD``. Headless markers are accepted only when
+    the candidate also carries a Spec Kitty project marker; this keeps cheap
+    unit fixtures usable without treating an unrelated empty ``.git`` directory
+    in a shared ancestor as a repository.
+    """
+    return git_path.is_dir() and (
+        (git_path / "HEAD").is_file()
+        or (candidate / KITTY_SPECS_DIR).is_dir()
+        or (candidate / KITTIFY_DIR).is_dir()
+    )
+
 # ---------------------------------------------------------------------------
 # Canonical safe-path-segment validator (FR-001 / D-1)
 #
@@ -260,7 +275,7 @@ def locate_project_root(start: Path | None = None, *, stop: Path | None = None) 
                 # If we can't read or parse the .git file, continue searching
                 pass
 
-        elif git_path.is_dir() and (git_path / "HEAD").is_file():
+        elif _is_repo_directory_boundary(git_path, candidate):
             # A ``.git`` *directory* is a repo boundary: a regular repo, the
             # main repo of a worktree set, OR a nested clone living inside an
             # outer primary. Stop here — consistently with
@@ -442,7 +457,7 @@ def resolve_canonical_root(cwd: Path | None = None) -> Path:
     for candidate in [start, *start.parents]:
         git_path = candidate / ".git"
 
-        if git_path.is_dir() and (git_path / "HEAD").is_file():
+        if _is_repo_directory_boundary(git_path, candidate):
             # Regular repo (or main repo of a worktree set).
             return candidate.resolve()
 

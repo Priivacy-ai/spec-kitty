@@ -124,11 +124,11 @@ class TestProceduresTypedArray:
         assert procedure_ids, "fixture sanity: >=1 procedure delivered"
         assert procedure_ids <= reference_ids, "moving procedure into repos_by_kind must preserve reference completeness"
 
-    def test_schema_version_bumped_to_1_1_0(self, tmp_path: Path) -> None:
-        """The versioned contract bumps atomically with the shape change (C-005)."""
-        assert CONTEXT_SCHEMA_VERSION == "1.1.0"
+    def test_schema_version_tracks_the_combined_contract(self, tmp_path: Path) -> None:
+        """The versioned contract includes procedures and directives-source (C-005)."""
+        assert CONTEXT_SCHEMA_VERSION == "1.3.0"
         payload = _implement_payload(tmp_path)
-        assert payload["context_schema_version"] == "1.1.0"
+        assert payload["context_schema_version"] == "1.3.0"
 
     def test_procedures_recorded_in_top_level_ledger(self) -> None:
         """``procedures`` is declared in the top-level key ledger."""
