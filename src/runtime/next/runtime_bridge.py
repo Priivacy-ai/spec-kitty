@@ -2419,8 +2419,10 @@ def query_current_state(
     (``mission_terminal_verdict`` is ``terminal``) short-circuits to
     ``kind: query`` / ``mission_state: "done"`` — query mode's structural
     ``kind: query`` contract (never ``kind: terminal`` here); a
-    ``blocked_conflict`` verdict short-circuits to ``kind: blocked``. A
-    ``"none"`` verdict falls through unchanged (F5), so
+    ``blocked_conflict`` verdict short-circuits to ``kind: query`` /
+    ``mission_state: "blocked"`` — never ``kind: blocked`` here either, so
+    query mode's ``kind: query`` invariant holds for both terminal
+    outcomes. A ``"none"`` verdict falls through unchanged (F5), so
     ``_finalized_task_board_override_step`` (D9) never runs for a merged
     mission.
 
