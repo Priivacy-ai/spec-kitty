@@ -44,6 +44,7 @@ _DRG_NODE_KINDS: frozenset[str] = frozenset({
     "agent_profile",
     "action",
     "glossary_scope",
+    "mission_type",
 })
 
 

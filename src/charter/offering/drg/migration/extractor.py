@@ -541,6 +541,31 @@ def _kind_for_type(ref_type: str) -> NodeKind | None:
     return _KIND_MAP.get(ref_type)
 
 
+def _reference_edge_kwargs(ref: dict[str, Any]) -> dict[str, str | None]:
+    """Curated edge metadata (``when``/``reason``) for a ``{type, id, when?,
+    reason?}`` reference dict, carried symmetrically onto its DRG edge.
+
+    The single authority for the ``when``/``reason``-bearing ``references``
+    branches -- **directive, tactic (top- and step-level), paradigm, and
+    procedure** -- so none silently drops a field. Before this, the tactic
+    branches read only ``when`` while directive/paradigm read both, so a future
+    overlay-to-frontmatter promotion (the #3009 residual mechanism) on a tactic
+    source would have lost its rationale at the extractor. Both default to
+    ``None``, so any bare ``{type, id}`` reference is unchanged.
+
+    The ``procedure`` references branch was wired through this helper in #3605
+    (WP01): shipped procedure references already author ``reason`` in YAML,
+    which that branch previously dropped at the extractor -- a silent metadata
+    loss, not a triple change, so no golden re-ledger was required (the edge
+    (source, target, relation) set is unchanged; only ``when``/``reason`` gained
+    values). Note also that end-to-end frontmatter promotion for a non-directive
+    source additionally needs that kind's reference *model* + generated schema
+    to accept ``reason`` (only :class:`DirectiveReference` does today); the
+    extractor carrying the field is necessary but not sufficient.
+    """
+    return {"when": ref.get("when"), "reason": ref.get("reason")}
+
+
 def _add_ref_edge(
     *,
     nodes_by_urn: dict[str, DRGNode],
@@ -810,17 +835,14 @@ def extract_artifact_edges(  # noqa: C901
                 ref_id = ref.get("id", "")
                 if not ref_type or not ref_id:
                     continue
-                tgt_kind = _kind_for_type(ref_type)
-                if tgt_kind is None:
-                    continue
-                tgt_urn = artifact_to_urn(ref_type, ref_id)
-                _ensure_node(nodes_by_urn, tgt_urn, tgt_kind)
-                _add_edge(
-                    DRGEdge(
-                        source=src_urn,
-                        target=tgt_urn,
-                        relation=_relation_for_procedure_ref_type(ref_type),
-                    )
+                _add_ref_edge(
+                    nodes_by_urn=nodes_by_urn,
+                    add_edge=_add_edge,
+                    source=src_urn,
+                    ref_type=ref_type,
+                    ref_id=ref_id,
+                    relation=_relation_for_procedure_ref_type(ref_type),
+                    **_reference_edge_kwargs(ref),
                 )
 
     # --- Agent profiles ---
@@ -1227,6 +1249,87 @@ def extract_mission_type_edges(doctrine_root: Path) -> list[DRGEdge]:
     return edges
 
 
+#: ``governance-profile.yaml`` ``selected_*`` list field name -> the artifact
+#: kind its bare-id entries name, for the ``scope`` edges emitted by
+#: :func:`extract_governance_profile_scope_edges` (#3604). Mirrors
+#: ``_ACTION_SCOPE_FIELDS`` (action-index scope fields) but keyed on the
+#: ``selected_*`` field names declared by
+#: :class:`charter.mission_type_profiles.MissionTypeProfile` -- the two field
+#: sets are named differently (one is action-grain, the other type-grain) so a
+#: single shared table would obscure which grain a field belongs to.
+_GOVERNANCE_PROFILE_SCOPE_FIELDS: tuple[tuple[str, str], ...] = (
+    ("selected_directives", "directive"),
+    ("selected_tactics", "tactic"),
+    ("selected_paradigms", "paradigm"),
+    ("selected_styleguides", "styleguide"),
+    ("selected_toolguides", "toolguide"),
+    ("selected_procedures", "procedure"),
+    ("selected_agent_profiles", "agent_profile"),
+    ("selected_mission_step_contracts", "mission_step_contract"),
+)
+
+
+def extract_governance_profile_scope_edges(doctrine_root: Path) -> list[DRGEdge]:
+    """Emit ``mission_type:<id> --scope--> <gov>`` edges from each shipped
+    ``governance-profile.yaml``'s ``selected_*`` lists (#3604).
+
+    Before this pass, no extraction step ever read
+    ``packs/built-in/missions/<type>/governance-profile.yaml`` -- a type's
+    *type-wide* governance selections (as distinct from its *action-grain*
+    ``actions/*/index.yaml`` selections, which :func:`extract_action_edges`
+    already projects) reached no DRG edge at all. ``mission_type:plan``
+    authors ONLY type-wide governance (1 directive, 9 tactics, 3 paradigms, 1
+    styleguide; empty action grains -- research.md grounding), so its cascade
+    was silently empty. This closes that gap identically for all four
+    built-in mission types (documentation, plan, research, software-dev).
+
+    Every ``selected_*`` entry is a **bare id** (a plain string, not a
+    ``{type, id, when?, reason?}`` reference dict), so the target URN is built
+    directly via :func:`~doctrine.drg.migration.id_normalizer.artifact_to_urn`
+    rather than routed through :func:`_reference_edge_kwargs` (which expects a
+    reference *dict* to pull optional ``when``/``reason`` metadata from --
+    metadata a bare string never carries).
+
+    Mints no nodes: every target kind here (directive, tactic, paradigm,
+    procedure, agent_profile via :func:`extract_artifact_edges`; styleguide,
+    toolguide via :func:`_discover_built_in_artifact_nodes`;
+    mission_step_contract via :func:`_discover_mission_step_contract_nodes`)
+    and the ``mission_type:<id>`` source (via
+    :func:`_discover_mission_type_nodes`) are minted by earlier passes in
+    :func:`generate_graph`, mirroring :func:`extract_mission_type_edges`'s
+    same node-free edge-only shape.
+    """
+    edges: list[DRGEdge] = []
+    seen_triples: set[tuple[str, str, str]] = set()
+    missions_dir = _missions_root(doctrine_root)
+    if not missions_dir.is_dir():
+        return edges
+
+    for profile_path in sorted(missions_dir.glob("*/governance-profile.yaml")):
+        data = _load_yaml(profile_path)
+        if data is None:
+            continue
+        mission_type_id: str = data.get("mission_type", profile_path.parent.name)
+        source_urn = artifact_to_urn("mission_type", mission_type_id)
+
+        for field_name, kind in _GOVERNANCE_PROFILE_SCOPE_FIELDS:
+            for raw_id in data.get(field_name, []) or []:
+                target_urn = artifact_to_urn(kind, raw_id)
+                triple = (source_urn, target_urn, Relation.SCOPE.value)
+                if triple in seen_triples:
+                    continue
+                seen_triples.add(triple)
+                edges.append(
+                    DRGEdge(
+                        source=source_urn,
+                        target=target_urn,
+                        relation=Relation.SCOPE,
+                    )
+                )
+
+    return edges
+
+
 def extract_template_instantiation_edges(
     doctrine_root: Path,
 ) -> tuple[list[DRGNode], list[DRGEdge]]:
@@ -1345,8 +1448,18 @@ def generate_graph(
     # Step 5: Merge all edges (mission_type->action edges join before
     # calibration + the deterministic sort so they are treated uniformly)
     mission_type_edges = extract_mission_type_edges(doctrine_root)
+    # Step 5b (#3604, T007): type-wide governance-profile.yaml selections as
+    # direct mission_type --scope--> gov edges (distinct from the action-grain
+    # scope edges action_edges already carries).
+    governance_profile_scope_edges = extract_governance_profile_scope_edges(
+        doctrine_root
+    )
     all_edges = (
-        artifact_edges + action_edges + mission_type_edges + template_instantiation_edges
+        artifact_edges
+        + action_edges
+        + mission_type_edges
+        + governance_profile_scope_edges
+        + template_instantiation_edges
     )
 
     # Step 6: Calibrate surfaces
