@@ -15,7 +15,7 @@ from pathlib import Path
 
 import pytest
 
-from charter.doctrine_service_builder import build_activation_aware_doctrine_service
+from charter.activation.doctrine_service_builder import build_activation_aware_doctrine_service
 from charter.offering.service import DoctrineService
 
 pytestmark = [pytest.mark.unit, pytest.mark.fast]

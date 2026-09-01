@@ -286,7 +286,7 @@ class TestGoldenParityUnaffectedByPackContextThreading:
         with "one walk for the single type this test resolves" (the actual
         claim under test).
         """
-        from charter.pack_context import PackContext
+        from charter.activation.pack_context import PackContext
 
         org_root = tmp_path / "org-pack"
         (org_root / "mission_types").mkdir(parents=True)

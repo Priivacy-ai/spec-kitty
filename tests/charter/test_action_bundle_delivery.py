@@ -235,7 +235,7 @@ def test_glossary_pack_delivers_to_glossary_packs_slot() -> None:
 
 def test_empty_slot_map_grows_a_glossary_packs_accumulator() -> None:
     """The slot accumulator is derived from the table, so the new slot appears."""
-    from charter.context_renderers.delivery_table import _empty_slot_map
+    from charter.activation.context_renderers.delivery_table import _empty_slot_map
 
     assert "glossary_packs" in _empty_slot_map()
 
@@ -247,7 +247,7 @@ def test_every_none_slot_kind_has_a_machine_checkable_stated_reason() -> None:
     keyed by the excluded kinds, so a future ``None`` row added without a reason
     reddens here rather than passing as an unexplained blank.
     """
-    from charter.context_renderers.delivery_table import (
+    from charter.activation.context_renderers.delivery_table import (
         _ACTION_BUNDLE_DELIVERY_BY_KIND,
         _DELIVERY_REASON_BY_KIND,
     )

@@ -532,7 +532,7 @@ class TestLayeredProjectionThreadsPackContext:
     step-file projection (no explicit ``action_sequence:`` authored)
     resolved ``action_sequence = None``/``[]`` and the governed entry point
     (``charter.mission_type_profiles.resolve_mission_type_context``) raised
-    :class:`~charter.mission_type_profiles.MissionTypeEmptyActionSequenceError`.
+    :class:`~charter.activation.mission_type_profiles.MissionTypeEmptyActionSequenceError`.
 
     Both assertions in this class MUST fail against the pre-fix production
     code (T002 step 2) and pass once T003's threading lands (T003 step 7) --
@@ -587,7 +587,7 @@ class TestLayeredProjectionThreadsPackContext:
         inventing a new patch shape)."""
         from unittest.mock import patch
 
-        from charter.mission_type_profiles import resolve_mission_type_context
+        from charter.activation.mission_type_profiles import resolve_mission_type_context
 
         org_root = tmp_path / "org"
         self._write_steps_only_org_fixture(org_root, "qa")

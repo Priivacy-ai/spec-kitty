@@ -12,7 +12,7 @@ from __future__ import annotations
 import json
 import re
 
-from charter.context_renderers.fetch_stanza import render_fetch_stanza
+from charter.activation.context_renderers.fetch_stanza import render_fetch_stanza
 
 __all__ = [
     "_format_full_artifact_payload_body",

@@ -27,7 +27,7 @@ from typing import Any
 import pytest
 
 import charter.context as context_module
-from charter.context import build_charter_context_include
+from charter.activation.context import build_charter_context_include
 
 
 pytestmark = pytest.mark.fast

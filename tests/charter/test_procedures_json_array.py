@@ -32,8 +32,8 @@ from pathlib import Path
 
 import pytest
 
-from charter.context import build_charter_context_json
-from charter.context_contract import (
+from charter.activation.context import build_charter_context_json
+from charter.activation.context_contract import (
     CONTEXT_CONTRACT_TOP_LEVEL_KEYS,
     CONTEXT_SCHEMA_VERSION,
 )
