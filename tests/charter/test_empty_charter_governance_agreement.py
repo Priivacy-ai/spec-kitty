@@ -29,7 +29,7 @@ from pathlib import Path
 
 import pytest
 
-from charter.context import build_charter_context
+from charter.activation.context import build_charter_context
 from specify_cli.invocation.empty_charter import resolve_generic_fallback
 
 #: This module git-inits a real repo via subprocess (`_init_wholly_empty_repo`)

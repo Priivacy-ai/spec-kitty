@@ -3,8 +3,8 @@ primitive (FR-004, mission doctrine-consumer-surface-missions-extraction-01KZ6G6
 
 Before this file the primitive had NO direct test coverage: it was exercised
 only transitively through its three callers' own tests
-(``kernel.paths.get_package_asset_root``, ``doctrine.pack_paths._resolve_built_in``,
-``doctrine.missions.repository.MissionTemplateRepository.default_missions_root``).
+(``kernel.paths.get_package_asset_root``, ``charter.offering.pack_paths._resolve_built_in``,
+``charter.offering.missions.repository.MissionTemplateRepository.default_missions_root``).
 That gap is exactly why two regressions (a wheel-unresolvable sibling pattern,
 and a checkout-root env-var ordering bug) both shipped past review in cycle 1
 without a single test catching either — see review-cycle-1.md. This module
@@ -117,7 +117,7 @@ def build_post_relocation_wheel_shaped_site_packages(tmp_path: Path) -> tuple[Pa
 
     Mission ``doctrine-consumer-surface-missions-extraction-01KZ6G6H``
     (FR-005) moved the missions DATA subdirectories from
-    ``src/doctrine/missions`` to ``packs/built-in/missions``. This fixture
+    ``src/charter/offering/missions`` to ``packs/built-in/missions``. This fixture
     contains BOTH:
 
     * the now data-less ``site-packages/doctrine/missions`` directory (the
@@ -136,7 +136,7 @@ def build_post_relocation_wheel_shaped_site_packages(tmp_path: Path) -> tuple[Pa
     resolves correctly, and that the still-existing data-less sibling is not
     mistakenly preferred. Returns ``(site, kernel_anchor, repository_anchor)``
     so both ``kernel.paths.get_package_asset_root()`` and
-    ``doctrine.missions.repository.MissionTemplateRepository.default_missions_root()``
+    ``charter.offering.missions.repository.MissionTemplateRepository.default_missions_root()``
     caller-pattern tests can share one fixture shape.
     """
     site = tmp_path / "site-packages"
@@ -236,13 +236,13 @@ class TestEditableCheckoutShapedAnchor:
         repo = tmp_path / "repo"
         anchor = repo / "src" / "kernel" / "paths.py"
         anchor.parent.mkdir(parents=True)
-        sibling = repo / "src" / "doctrine" / "missions"
+        sibling = repo / "src" / "charter" / "offering" / "missions"
         sibling.mkdir(parents=True)
 
         result = resolve_installed_sibling(
             anchor_file=anchor,
             env_override=None,
-            sibling_relative_path=PurePosixPath("*") / "missions",
+            sibling_relative_path=PurePosixPath("*") / "*" / "missions",
         )
 
         assert result == sibling
@@ -260,7 +260,7 @@ class TestEditableCheckoutShapedAnchor:
         real_repo = tmp_path / "real-repo"
         real_pkg = real_repo / "src" / "kernel"
         real_pkg.mkdir(parents=True)
-        sibling = real_repo / "src" / "doctrine" / "missions"
+        sibling = real_repo / "src" / "charter" / "offering" / "missions"
         sibling.mkdir(parents=True)
 
         # Symlinked "site" view onto the real package dir; the symlink's own
@@ -274,7 +274,7 @@ class TestEditableCheckoutShapedAnchor:
         result = resolve_installed_sibling(
             anchor_file=anchor,
             env_override=None,
-            sibling_relative_path=PurePosixPath("*") / "missions",
+            sibling_relative_path=PurePosixPath("*") / "*" / "missions",
         )
 
         assert result == sibling
@@ -448,22 +448,22 @@ class TestMissionsRootNotFoundFailClosedPath:
     (charter DIRECTIVE_041 re-pin discipline): ``default_missions_root()`` no
     longer calls ``resolve_installed_sibling`` directly, so it no longer
     translates a ``SiblingPathNotFound`` itself. It now delegates to
-    :func:`doctrine.pack_paths.built_in_missions_root` (a thin join onto the
+    :func:`charter.offering.pack_paths.built_in_missions_root` (a thin join onto the
     single built-in-pack-root authority) and raises ``MissionsRootNotFound``
     directly from its own ``.is_dir()`` check on the joined ``missions`` leaf.
     These tests re-point at that mechanism: monkeypatching
     ``repository_module.built_in_missions_root`` to answer a path with no
     ``missions`` leaf on disk is the equivalent fail-closed trigger in the new
     implementation -- this is the new fail-closed path introduced by FR-004 in
-    ``doctrine.missions.repository.MissionTemplateRepository``; cycle-1 review
+    ``charter.offering.missions.repository.MissionTemplateRepository``; cycle-1 review
     noted it was never reached by any test.
     """
 
     def test_missing_missions_leaf_raises_missions_root_not_found(
         self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
     ) -> None:
-        from doctrine.missions import repository as repository_module
-        from doctrine.missions.repository import (
+        from charter.offering.missions import repository as repository_module
+        from charter.offering.missions.repository import (
             MissionsRootNotFound,
             MissionTemplateRepository,
         )
@@ -481,8 +481,8 @@ class TestMissionsRootNotFoundFailClosedPath:
         self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
     ) -> None:
         """MissionTemplateRepository.default() also fails closed, via the same path."""
-        from doctrine.missions import repository as repository_module
-        from doctrine.missions.repository import (
+        from charter.offering.missions import repository as repository_module
+        from charter.offering.missions.repository import (
             MissionsRootNotFound,
             MissionTemplateRepository,
         )
@@ -537,7 +537,7 @@ class TestDefaultMissionsRootWheelLayout:
         """The caller-level wheel test for mission #3091's own thesis (WP05).
 
         Mission ``doctrine-consumer-surface-missions-extraction-01KZ6G6H``
-        (FR-005) relocated the missions data from ``src/doctrine/missions``
+        (FR-005) relocated the missions data from ``src/charter/offering/missions``
         to ``packs/built-in/missions``, falsifying this test's own pre-move
         fixture (a lone data-less ``doctrine/missions`` directory with
         nothing else to find). Uses
@@ -551,7 +551,7 @@ class TestDefaultMissionsRootWheelLayout:
         one ancestor level above this module's own file, before ever reaching
         ``packs/built-in``) -- see ``MissionsRootNotFound``'s docstring.
         """
-        from doctrine.missions.repository import MissionTemplateRepository
+        from charter.offering.missions.repository import MissionTemplateRepository
 
         site, kernel_anchor, repository_anchor = build_post_relocation_wheel_shaped_site_packages(
             tmp_path

@@ -2,7 +2,7 @@
 title: Investigations
 description: Scope and compatibility investigations — issue analyses, schema-generation research, and mission review reports.
 doc_status: draft
-updated: '2026-08-01'
+updated: '2026-08-30'
 related:
 - docs/plans/index.md
 ---
@@ -16,6 +16,9 @@ reports.
 
 Open designs and unshipped scope still worth consulting:
 
+- [Issue #797: Events and Tracker Fork Census](issue-797-events-tracker-fork-census.md) —
+  read-only ancestry, PyPI-source, and publication-workflow evidence for D6; recommends
+  events 8.2.0 and tracker 0.5.2, and records the missing public tracker repository.
 - [Write-path topology: ambient-location root cause and remediation options](write-path-topology-root-cause.md) —
   dialectic-squad-corroborated root cause for the #3129 defect class (14 issues); scoped
   remediation options for a future mission; rejects the batch-reparent/new-P0-epic action.

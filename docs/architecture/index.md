@@ -67,6 +67,8 @@ boundary rule and layout).
 - [Understanding the org doctrine layer](org-doctrine-layer.md) — built-in/org/project doctrine resolution.
 - [Understanding Charter: synthesis, DRG, and governed context](charter-synthesis-drg.md).
 - [Understanding governed profile invocation](governed-profile-invocation.md) — standalone dispatch under governance.
+- [Profile-load reliability](profile-load-reliability.md) — why squads stopped loading charter agent profiles, and the 3.2.6 stabilization design.
+- [Charter backend service (future)](charter-backend-service-future.md) — preliminary backlog design for a deployable charter/doctrine resolution endpoint.
 - [Documentation Mission Guide](documentation-mission.md) — the Documentation Kitty mission.
 - [Understanding the retrospective learning loop](retrospective-learning-loop.md) — the four-category model.
 - [The Artifact Placement Seam](artifact-placement-seam.md) — the layer model deciding which physical tree a mission artifact resolves to, and where callers bypass it.

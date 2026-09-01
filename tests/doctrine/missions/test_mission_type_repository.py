@@ -23,11 +23,11 @@ from pathlib import Path
 import pytest
 from pydantic import ValidationError
 
-from doctrine.missions.mission_type_repository import (
+from charter.offering.missions.mission_type_repository import (
     MissionTypeRepository,
     resolve_layered_mission_types,
 )
-from doctrine.missions.models import MissionType
+from charter.offering.missions.models import MissionType
 
 pytestmark = [pytest.mark.fast, pytest.mark.doctrine, pytest.mark.corpus]
 
@@ -130,7 +130,7 @@ def _builtin_repo() -> MissionTypeRepository:
 
     Mission ``doctrine-consumer-surface-missions-extraction-01KZ6G6H``
     (FR-005) relocated ``mission_types/`` from
-    ``src/doctrine/missions/mission_types`` to
+    ``src/charter/offering/missions/mission_types`` to
     ``packs/built-in/missions/mission_types``.
     """
     mission_types_dir = (
@@ -207,8 +207,8 @@ class TestBuiltinYamlFiles:
         """S-C cutover (WP01, C-005): ``template_set`` is no longer a ``MissionType``
         field -- migrated to the step-authority projection (mirrors
         ``TestSoftwareDevProjectionParity`` in ``test_softwaredev_roundtrip.py``)."""
-        from doctrine.missions.mission_step_repository import MissionStepRepository
-        from doctrine.missions.step_projection import project_template_set
+        from charter.offering.missions.mission_step_repository import MissionStepRepository
+        from charter.offering.missions.step_projection import project_template_set
 
         steps = list(
             MissionStepRepository.default()
@@ -225,8 +225,8 @@ class TestBuiltinYamlFiles:
         on ``scoping`` and a ``plan`` ref on ``methodology``, with per-type-unique
         ``template_file`` names (NFR-006) -- mirrors ``test_software_dev_template_set``
         above."""
-        from doctrine.missions.mission_step_repository import MissionStepRepository
-        from doctrine.missions.step_projection import project_template_set
+        from charter.offering.missions.mission_step_repository import MissionStepRepository
+        from charter.offering.missions.step_projection import project_template_set
 
         steps = list(
             MissionStepRepository.default()
@@ -246,8 +246,8 @@ class TestBuiltinYamlFiles:
         above. ``documentation`` was removed from the now-deleted
         ``test_non_software_builtin_template_set_is_explicitly_null``
         parametrization once WP02 authored these refs."""
-        from doctrine.missions.mission_step_repository import MissionStepRepository
-        from doctrine.missions.step_projection import project_template_set
+        from charter.offering.missions.mission_step_repository import MissionStepRepository
+        from charter.offering.missions.step_projection import project_template_set
 
         steps = list(
             MissionStepRepository.default()
@@ -267,8 +267,8 @@ class TestBuiltinYamlFiles:
         removed from the now-deleted
         ``test_non_software_builtin_template_set_is_explicitly_null``
         parametrization once WP04 authored these refs."""
-        from doctrine.missions.mission_step_repository import MissionStepRepository
-        from doctrine.missions.step_projection import project_template_set
+        from charter.offering.missions.mission_step_repository import MissionStepRepository
+        from charter.offering.missions.step_projection import project_template_set
 
         steps = list(
             MissionStepRepository.default()
@@ -429,7 +429,7 @@ def _builtin_mission_types_dir() -> Path:
 
 @dataclass(frozen=True)
 class _StubPackContext:
-    """Minimal structural stand-in for ``charter.pack_context.PackContext``.
+    """Minimal structural stand-in for ``charter.activation.pack_context.PackContext``.
 
     Mirrors ``tests/doctrine/missions/test_mission_step_resolver.py``'s own
     ``_StubPackContext`` -- satisfies ``_PackContextLike`` (``pack_roots``,

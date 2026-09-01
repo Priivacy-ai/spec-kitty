@@ -19,24 +19,6 @@ capabilities:
 routing-priority: 80
 max-concurrent-tasks: 5
 
-context-sources:
-  doctrine-layers:
-    - paradigms
-    - directives
-    - tactics
-  directives:
-    - "010"
-    - "024"
-    - "025"
-    - "030"
-    - "034"
-    - "051"
-  additional:
-    - coding-standards
-    - accessibility-guidelines
-    - design-system-tokens
-    - bdd-scenario-lifecycle-procedure
-
 purpose: >
   Translate UI specifications and component designs into tested, accessible, performant
   browser code. Frontend Freddy implements the browser rendering layer: components,
@@ -79,12 +61,6 @@ collaboration:
     - e2e-tests
     - pull-request
     - implementation-notes
-  operating-procedures:
-    - tdd-red-green-refactor
-    - self-review-quality-gate
-    - code-review-checklist
-    - test-coverage-requirement
-    - bug-fixing-checklist
   canonical-verbs:
     - implement
     - fix
@@ -203,6 +179,8 @@ tactic-references:
       Run the full registry/freshness/lifecycle-script/Node-LTS/incident-IoC
       checklist before accepting a new or changed npm dependency, and record the
       evidence rather than an aspirational statement of intent.
+  - id: tdd-red-green-refactor
+    rationale: Drives frontend implementation through red-green-refactor; migrated from a misfiled operating-procedures entry (it names a tactic, not a procedure).
 
 directive-references:
   - code: "010"

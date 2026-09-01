@@ -14,7 +14,7 @@ own hand-authored ``.kittify/charter/charter.md`` happens to carry both
 headings — a false-green per ``research.md`` Decision 1).
 
 The fix lives entirely in
-``charter.context_renderers.section_bodies.render_critical_section_include``:
+``charter.activation.context_renderers.section_bodies.render_critical_section_include``:
 both of its ``return None`` sites for a *recognized* critical-section slug
 (``if body is None: return None`` when the heading is absent from the
 charter content, and the historical dead-end this fed at
@@ -48,8 +48,8 @@ from pathlib import Path
 
 import pytest
 
-from charter.context import build_charter_context_include
-from charter.context_renderers.section_bodies import (
+from charter.activation.context import build_charter_context_include
+from charter.activation.context_renderers.section_bodies import (
     CODE_REVIEW_CHECKLIST,
     TERMINOLOGY_CANON,
     render_critical_section_include,

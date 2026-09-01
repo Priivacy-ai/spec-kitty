@@ -18,7 +18,7 @@ It lives in ``kernel`` (the dependency-free root) rather than
 callers import it directly from ``kernel.atomic``.
 
 Phase 1 (#1914) ships :func:`substantively_equal` with charter synthesis as its
-first adopter (via ``src/charter/synthesizer/write_pipeline.py``). A
+first adopter (via ``src/charter/activation/synthesizer/write_pipeline.py``). A
 ``write_if_changed`` convenience that gates :func:`atomic_write` on this core —
 for byte-comparable writers like status.json (#524) — is deferred to the
 Phase-2 convergence so it lands with its first real consumer (the symbol-level

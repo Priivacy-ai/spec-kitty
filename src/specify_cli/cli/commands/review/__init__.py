@@ -30,12 +30,10 @@ from specify_cli.cli.commands._test_env_check import (  # noqa: F401
     ENV_SKEW_REMEDIATION,
     EnvSkew,
     PackageSkew,
-    ResidualSelectorNotFound,
     TestExtraMissing,
     assert_pytest_available,
     assert_typer_click_lock_parity,
     format_env_skew_message,
-    run_local_residual_selection,
 )
 from specify_cli.compat._detect.install_method import InstallMethod  # noqa: F401
 from specify_cli.compat._detect.runtime import InstalledCliRuntime, detect_runtime
@@ -141,27 +139,6 @@ def _check_env_skew(console: object, repo_root: Path) -> list[PackageSkew]:
             f"  [yellow]![/yellow]  {format_env_skew_message(mismatches)}"
         )
     return mismatches
-
-
-def _run_local_residual_and_exit(console: object, repo_root: Path) -> None:
-    """Run the CI residual `(unit or contract)` selection locally, then exit.
-
-    Standalone local command (FR-002): mirrors the CI `unit-contract-residual`
-    job's marker selection, read live from the CI workflow so it can never
-    hand-copy a divergent `-m` string (NFR-002). Skips the rest of the
-    mission-scoped review gates -- this is a pre-push hygiene check, not a
-    mission review.
-    """
-    console.print(  # type: ignore[attr-defined]
-        "\nRunning the local CI-residual selection over tests/ "
-        "((unit or contract) and not (...))...\n"
-    )
-    try:
-        result = run_local_residual_selection(repo_root)
-    except ResidualSelectorNotFound as exc:
-        console.print(f"[red]Error:[/red] {exc}")  # type: ignore[attr-defined]
-        raise typer.Exit(2) from exc
-    raise typer.Exit(result.returncode)
 
 
 def _resolve_repo_root(console: object) -> Path:
@@ -391,18 +368,6 @@ def review_mission(
             show_default=False,
         ),
     ] = None,
-    check_residual: Annotated[
-        bool,
-        typer.Option(
-            "--check-residual",
-            help=(
-                "Run the CI residual (unit or contract) marker selection "
-                "locally over tests/, then exit -- skips the mission-scoped "
-                "review gates. The -m expression is read live from the CI "
-                "workflow, never hand-copied."
-            ),
-        ),
-    ] = False,
 ) -> None:
     """Validate a merged mission: WP lane check, dead-code scan, BLE001 audit.
 
@@ -418,9 +383,6 @@ def review_mission(
     except TestExtraMissing:
         _fail_missing_test_extra(console)
     _check_env_skew(console, repo_root)
-
-    if check_residual:
-        _run_local_residual_and_exit(console, repo_root)
 
     handle = _require_mission_handle(mission, console)
     resolved = resolve_mission_handle(handle, repo_root)

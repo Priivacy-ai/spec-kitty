@@ -303,8 +303,8 @@ def pytest_collection_modifyitems(items: list[pytest.Item]) -> None:
     skip_windows = pytest.mark.skip(reason="windows_ci: requires sys.platform == 'win32'")
     # Quarantine chokepoint (single, un-bypassable). Per the flakiness policy a
     # quarantined test is held out of every normal/blocking run so it can never
-    # turn main red or block an unrelated PR; the non-blocking quarantine-
-    # visibility CI job sets SPEC_KITTY_RUN_QUARANTINE=1 to run it for real.
+    # turn main red or block an unrelated PR; visibility requires the explicit
+    # SPEC_KITTY_RUN_QUARANTINE=1 opt-in (no hosted CI lane schedules it today).
     apply_quarantine_skip = not quarantine_opted_in(os.environ)
     skip_quarantine = quarantine_skip_mark()
     for item in items:
@@ -453,7 +453,7 @@ def _isolate_global_encoding_provenance(
 ) -> None:
     """Keep relative charter provenance writes inside each test sandbox.
 
-    ``charter._io`` intentionally routes non-mission inputs to the relative
+    ``charter.activation._io`` intentionally routes non-mission inputs to the relative
     ``.kittify/encoding-provenance/global.jsonl`` sink.  Tests commonly load
     absolute files from ``tmp_path`` while pytest's process CWD remains the
     source checkout; under xdist those otherwise append the same ignored
@@ -462,7 +462,7 @@ def _isolate_global_encoding_provenance(
     the production resolver unchanged, and CLI subprocesses retain their own
     project CWD.
     """
-    import charter._io as charter_io
+    import charter.activation._io as charter_io
 
     original_route = charter_io._route_provenance_path
     isolated_sink = tmp_path / ".kittify" / "encoding-provenance" / "global.jsonl"

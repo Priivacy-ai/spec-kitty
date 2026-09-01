@@ -215,8 +215,8 @@ class SaaSTrackerService:
                 else self._config.provider_context
             ),
             workspace=self._config.workspace,
-            doctrine_mode=self._config.doctrine_mode,
-            doctrine_field_owners=self._config.doctrine_field_owners,
+            ownership_mode=self._config.ownership_mode,
+            ownership_field_owners=self._config.ownership_field_owners,
             # FR-011 site B1: an explicit carry beside (not instead of) the
             # `_extra` carry below. Before egress was promoted to a known key it
             # rode along inside `_extra` for free; promoting it (#3108 FR-002)
@@ -344,8 +344,8 @@ class SaaSTrackerService:
             ),
             provider_context=provider_context,
             workspace=self._config.workspace if same_provider else None,
-            doctrine_mode=self._config.doctrine_mode,
-            doctrine_field_owners=dict(self._config.doctrine_field_owners),
+            ownership_mode=self._config.ownership_mode,
+            ownership_field_owners=dict(self._config.ownership_field_owners),
             egress=self._config.egress,
             _extra=dict(self._config._extra),
         )

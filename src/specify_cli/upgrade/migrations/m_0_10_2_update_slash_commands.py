@@ -4,6 +4,8 @@ from __future__ import annotations
 
 from pathlib import Path
 
+from specify_cli.runtime.generated_writer import write_generated_file
+
 from ..registry import MigrationRegistry
 from .base import BaseMigration, MigrationResult
 from .m_0_9_1_complete_lane_migration import get_agent_dirs_for_project
@@ -127,7 +129,7 @@ class UpdateSlashCommandsMigration(BaseMigration):
                 if dry_run:
                     changes.append(f"Would update {agent_root}: {dest_path.name}")
                 else:
-                    dest_path.write_text(template_path.read_text(encoding="utf-8"), encoding="utf-8")
+                    write_generated_file(dest_path, template_path.read_text(encoding="utf-8"))
                     updated_count += 1
 
             if updated_count > 0:

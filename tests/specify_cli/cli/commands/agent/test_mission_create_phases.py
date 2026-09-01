@@ -47,16 +47,12 @@ def _mk_result(tmp_path: Path, **over: Any) -> Any:
 
 def test_start_branch_phase_noop_when_absent(tmp_path: Path) -> None:
     # No exception, no switch attempted.
-    seam._resolve_start_branch_phase(
-        repo_root=tmp_path, start_branch=None, target_branch="main", json_output=True
-    )
+    seam._resolve_start_branch_phase(repo_root=tmp_path, start_branch=None, target_branch="main", json_output=True)
 
 
 def test_start_branch_phase_rejects_target_mismatch(tmp_path: Path) -> None:
     with pytest.raises(typer.Exit) as exc:
-        seam._resolve_start_branch_phase(
-            repo_root=tmp_path, start_branch="feat-a", target_branch="feat-b", json_output=True
-        )
+        seam._resolve_start_branch_phase(repo_root=tmp_path, start_branch="feat-a", target_branch="feat-b", json_output=True)
     assert exc.value.exit_code == 1
 
 
@@ -65,9 +61,7 @@ def test_start_branch_phase_switches_when_matching(monkeypatch: pytest.MonkeyPat
     from specify_cli.cli.commands.agent import mission as mission_module
 
     monkeypatch.setattr(mission_module, "_switch_to_start_branch", lambda _r, b: calls.append(b))
-    seam._resolve_start_branch_phase(
-        repo_root=tmp_path, start_branch="feat-a", target_branch="feat-a", json_output=True
-    )
+    seam._resolve_start_branch_phase(repo_root=tmp_path, start_branch="feat-a", target_branch="feat-a", json_output=True)
     assert calls == ["feat-a"]
 
 
@@ -79,9 +73,7 @@ def test_start_branch_phase_switch_failure_exits(monkeypatch: pytest.MonkeyPatch
 
     monkeypatch.setattr(mission_module, "_switch_to_start_branch", _boom)
     with pytest.raises(typer.Exit):
-        seam._resolve_start_branch_phase(
-            repo_root=tmp_path, start_branch="feat-a", target_branch=None, json_output=True
-        )
+        seam._resolve_start_branch_phase(repo_root=tmp_path, start_branch="feat-a", target_branch=None, json_output=True)
 
 
 # ---------------------------------------------------------------------------
@@ -169,6 +161,7 @@ def test_run_create_core_phase_returns_result(monkeypatch: pytest.MonkeyPatch, t
         friendly_name=None,
         purpose_tldr=None,
         purpose_context=None,
+        pr_bound=False,
         force_recreate_coordination_branch=False,
         owned_checkout=None,
         json_output=True,
@@ -192,6 +185,7 @@ def test_run_create_core_phase_handles_creation_error(monkeypatch: pytest.Monkey
             friendly_name=None,
             purpose_tldr=None,
             purpose_context=None,
+            pr_bound=False,
             force_recreate_coordination_branch=False,
             owned_checkout=None,
             json_output=True,

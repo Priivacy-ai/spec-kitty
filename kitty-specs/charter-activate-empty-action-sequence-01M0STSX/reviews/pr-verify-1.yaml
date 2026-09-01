@@ -1,0 +1,106 @@
+schema: review-verify/v1
+complete: true
+phase: pr
+mission: charter-activate-empty-action-sequence-01M0STSX
+verifications:
+- id: PR-CONTRACT-001
+  verdict: closed
+  reason: |
+    Verified as reviewer-renata (directives 001 architectural-integrity, 024
+    locality-of-change, 030 test/typecheck-quality-gate, 032 conceptual-alignment,
+    041 tests-as-scaffold-not-friction; tactics code-review-incremental,
+    reverse-speccing, test-scaffolding-as-design-smell applied; 051
+    supply-chain-install-safety not applicable, no dependency changes).
+
+    1. COVERAGE: read both new tests in full
+       (tests/charter/test_mission_type_profiles.py, added by commit
+       4fa687f79). test_extends_fallback_to_also_empty_parent_still_raises
+       writes a parent whose own action_sequence is None and a qa mission
+       type extending it with action_sequence=None too, then asserts
+       validate_activatable_mission_type("qa", ...) raises
+       MissionTypeEmptyActionSequenceError.
+       test_extends_fallback_to_nonexistent_parent_still_raises writes only
+       the qa mission type, with extends="nonexistent-parent" (no such YAML
+       written anywhere), same assertion. Both scenarios named by the finding
+       (parent also empty, AND parent unresolvable) are pinned -- not just one.
+
+    2. INDEPENDENT GUARD-DEFEAT PROOF (I did not trust the fixer's word; I
+       reproduced it myself from a byte-identical-to-HEAD tree, blocking in
+       the foreground):
+       - Backed up src/charter/mission_type_profiles.py to scratchpad
+         (mission_type_profiles.py.bak2) before mutating.
+       - Edited line 1084 inside validate_activatable_mission_type from
+         `if not action_sequence:` to `if False:  # GUARD-DEFEAT PROOF`,
+         defeating the fail-closed check the two new tests exist to pin.
+       - Ran: `PWHEADLESS=1 .venv/bin/python -m pytest
+         tests/charter/test_mission_type_profiles.py -k "extends_fallback"
+         -q -p no:cacheprovider`
+         Real output:
+           .FF                                                       [100%]
+           FAILED ...test_extends_fallback_to_also_empty_parent_still_raises
+             Failed: DID NOT RAISE MissionTypeEmptyActionSequenceError
+           FAILED ...test_extends_fallback_to_nonexistent_parent_still_raises
+             Failed: DID NOT RAISE MissionTypeEmptyActionSequenceError
+           2 failed, 1 passed, 32 deselected in 0.95s
+         (the "1 passed" is the pre-existing sibling success-path test,
+         which correctly keeps passing under the defeated guard since it
+         never expects a raise -- confirming the two new tests, and only
+         them, are what pin this branch.)
+       - Restored the file from the scratchpad backup. `git diff --stat --
+         src/charter/mission_type_profiles.py` and
+         `git status --porcelain -uno` both empty -- byte-identical to HEAD.
+       - Re-ran the same -k filter: `3 passed, 32 deselected in 0.92s` --
+         confirms restoration did not leave the suite in a different state.
+       This reproduces the fixer's claimed proof independently rather than
+       accepting it on trust, per this seat's mandate.
+
+    3. SCOPE: `git show 4fa687f79 --stat` shows exactly two files touched:
+       tests/charter/test_mission_type_profiles.py (+66) and
+       kitty-specs/.../tracer-design-decisions.md (+32). No production file
+       (src/**) is touched. This matches the finding's own remediation,
+       which asked only for test coverage, and matches the refuter's scope
+       ruling that only validate_activatable_mission_type's (wholly-new,
+       this-mission's) half was in scope -- _resolve_action_slot's identical
+       pre-existing fallback logic (confirmed pre-existing via `git show
+       bb9a56226:src/charter/mission_type_profiles.py`) was correctly left
+       untouched, and test_action_sequence_dispatch.py was not modified.
+
+    4. SK-81 NATURAL-PATH CHECK: read the fixture code directly. Both new
+       tests call `_write_org_pack_config(tmp_path, packs=[("acme",
+       org_root)], activated_mission_types=[])` -- the candidate "qa" is
+       explicitly left OUT of mission_type_activations -- then assert
+       `"qa" not in existing_mission_types(tmp_path)` immediately before
+       invoking `mission_type_profiles.validate_activatable_mission_type
+       ("qa", repo_root=tmp_path)`. No `patch()` anywhere in either test.
+       This is the identical fixture shape as the pre-existing sibling
+       success-path test (test_extends_fallback_to_non_empty_parent_does_not_raise)
+       one class above it, which the refuter already validated as the
+       natural operator path. No pre-seeding of the candidate into
+       activations was found -- the SK-81 trap does not apply here.
+
+    5. NEW FINDINGS: none. No production code changed; no new test
+       fixture pattern (patch/mock/pre-seeding) introduced; the tracer
+       doc addition is documentation of the fix, in scope, non-executable.
+
+    Gate count I ran myself (foreground, blocking, ~2m22s):
+    `time PWHEADLESS=1 .venv/bin/python -m pytest
+     tests/charter/test_mission_type_profiles.py
+     tests/specify_cli/cli/commands/charter/ -q -p no:cacheprovider`
+    Real output: `164 passed, 3 warnings in 141.18s (0:02:21)` -- matches
+    the claimed post-fix count exactly (162 before this commit's two tests,
+    164 after). The 3 warnings are a pre-existing DeprecationWarning
+    (organisation_packs) unrelated to this fix, not failures.
+
+    Verdict: PR-CONTRACT-001 is closed. Both named scenarios are pinned by
+    tests using the natural operator path, the guard-defeat proof is
+    independently reproduced with real DID NOT RAISE output, the fix is
+    strictly scoped to the test file plus tracer doc, and no new finding
+    was introduced.
+  evidence:
+  - code: "tests/charter/test_mission_type_profiles.py:1382-1447 (commit 4fa687f79) -- test_extends_fallback_to_also_empty_parent_still_raises and test_extends_fallback_to_nonexistent_parent_still_raises, both under pytest.raises(MissionTypeEmptyActionSequenceError)"
+  - code: "src/charter/mission_type_profiles.py:1084 -- `if not action_sequence:` inside validate_activatable_mission_type; independently replaced with `if False:` for the guard-defeat proof, then restored (git diff empty after restore)"
+  - code: "command + real output: `PWHEADLESS=1 .venv/bin/python -m pytest tests/charter/test_mission_type_profiles.py -k \"extends_fallback\" -q -p no:cacheprovider` under the defeated guard -> `.FF` / `2 failed, 1 passed, 32 deselected in 0.95s`, both failures `Failed: DID NOT RAISE MissionTypeEmptyActionSequenceError`; same command after restore -> `3 passed, 32 deselected in 0.92s`"
+  - code: "command + real output: `git show 4fa687f79 --stat` -> `tests/charter/test_mission_type_profiles.py | 66 ++` and `.../tracer-design-decisions.md | 32 ++`, 2 files changed, 98 insertions(+), 0 production files"
+  - code: "command + real output: `time PWHEADLESS=1 .venv/bin/python -m pytest tests/charter/test_mission_type_profiles.py tests/specify_cli/cli/commands/charter/ -q -p no:cacheprovider` -> `164 passed, 3 warnings in 141.18s (0:02:21)`"
+  - code: "tests/charter/test_mission_type_profiles.py:1382-1447 fixture check -- `_write_org_pack_config(..., activated_mission_types=[])` (candidate 'qa' left OUT) followed by `assert \"qa\" not in existing_mission_types(tmp_path)` before invocation, no patch() -- natural operator path, SK-81 trap does not apply"
+new_findings: []

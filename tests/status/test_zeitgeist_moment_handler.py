@@ -31,7 +31,7 @@ import subprocess
 import sys
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any
+from typing import Any, cast
 
 import jsonschema
 import pytest
@@ -254,7 +254,7 @@ def _load_control_envelope_schema() -> dict[str, Any]:
         f"(got {digest}) -- re-vendor deliberately from a pinned "
         "EXPERIMENTAL-zeitgeist commit and update _ZEITGEIST_SCHEMA_DIGEST"
     )
-    return json.loads(raw)
+    return cast(dict[str, Any], json.loads(raw))
 
 
 def _assert_event_args(args: dict[str, Any]) -> None:
@@ -470,7 +470,7 @@ def test_transition_broadcasts_one_moment_plus_its_liveness_frames(monkeypatch: 
 def test_one_broadcast_shares_one_git_deadline_across_credentials_presence_and_focus(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """EXPERIMENTAL-spec-kitty#203: credential resolution, presence identity
+    """Priivacy-ai/spec-kitty#203: credential resolution, presence identity
     (via ``ClientConfig.for_repository``), and the focus capability lookup
     each used to open their OWN fresh ``repo_identity.Deadline`` — three
     independent 2.0s budgets stacking under the fan-out seam's 10s bound.

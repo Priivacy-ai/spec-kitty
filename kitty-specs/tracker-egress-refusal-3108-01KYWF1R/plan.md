@@ -1623,3 +1623,5 @@ reading this plan adopts.
 12. **The upstream `#3108` issue text and `egress-inventory.md` entry E20 remain wrong** and this
     Mission does not correct them in place. The Problem section of `spec.md` states the correction
     with its measurement. Whether to comment on the issue is a tasks-phase call.
+
+13. **Reconciliation (#782).** The shipped G4 guard supersedes the prior 5/6 census: it pins **five enclosing functions and five call expressions** — the three local gates, `SaaSTrackerClient._current_tracker_egress_verdict`, and `_check_sync_readiness`. The sync-doctor renderer was deleted with the sync transport; `_request` reaches the verdict only through the hosted helper.

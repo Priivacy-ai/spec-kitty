@@ -1,0 +1,97 @@
+schema: review-findings/v1
+complete: true
+phase: pr
+lens_group: confirmed
+mission: charter-activate-empty-action-sequence-01M0STSX
+squad: R1-R3 report-only (code phase), plus orchestrator-routed fix, anchored
+  verification, fresh sweep, and one arbiter ruling.
+disposition_summary: |
+  Raw: 4 findings across 3 lens groups + 1 fresh sweep.
+  Fixed and verified closed: 1 (PR-CONTRACT-001).
+  Overruled by arbiter: 1 (PR-FRESH-001, severity 4 -> 0, non-blocking).
+  Accepted with stated reason: 2 (PR-FRESH-002 sev 2, PR-FRESH-003 sev 1).
+  Surviving merge-blocking findings (severity >=4): NONE.
+findings:
+- id: PR-CONTRACT-001
+  severity: 2
+  disposition: fixed-and-verified
+  title: extends-fallback-to-also-empty (or unresolvable) parent had no pinning test
+  resolution: |
+    Fixed in commit 4fa687f79 by a fresh fixer (not the author, not any reviewer
+    of this round): two negative-path tests added to
+    TestValidateActivatableMissionTypeExtendsFallback. Scope held to the test
+    file plus tracer; no production line changed, because the code was already
+    correct.
+    Verified closed at reviews/pr-verify-1.yaml (verdict: closed) by an anchored
+    verifier that independently reproduced the guard-defeat proof: with
+    `if not action_sequence:` neutered, both new tests fail
+    `DID NOT RAISE MissionTypeEmptyActionSequenceError`; restored byte-identical.
+    Scope split honored per reviews/pr-refute-1.yaml: the new
+    validate_activatable_mission_type surface is in scope; _resolve_action_slot's
+    pre-existing half of the same fallback is NOT, and remains unpinned in
+    tests/charter/test_action_sequence_dispatch.py. Disclosed as a known gap.
+- id: PR-FRESH-001
+  severity: 0
+  severity_original: 4
+  disposition: overruled-by-arbiter
+  title: CLI extends-fallback happy-path test passes identically with the fix reverted
+  resolution: |
+    OVERRULED at reviews/pr-arbiter-1.yaml. Ruling is final for this run and
+    REPLACES the acceptance bar for this finding.
+    The claim was empirically false. The arbiter applied a semantic mutation
+    rather than a full revert: replacing _resolve_with_extends_fallback(mission,
+    roster) with the naive list(mission.action_sequence or []) -- a live gate
+    that forgets the extends fallback, i.e. the FR-005 regression class -- makes
+    the contested CLI test FAIL at the CLI seam on the operator-facing surface
+    ("Error: mission type `qa` resolved from layer `org` has an empty action
+    sequence. / assert 1 == 0"). It is genuine, mutation-sensitive FR-005
+    CLI-level coverage.
+    The rubric clause "passes with the change reverted -> severity 4" is a PROXY
+    for "detects no defect in the shipped change". For a test asserting the guard
+    correctly does NOT fire, revert-insensitivity is a logical necessity: the
+    revert removes the only mechanism that could make it fail. Applying the proxy
+    literally demands a test that cannot exist. The proxy is miscalibrated on this
+    pair -- under full revert the sibling unit test fails only with AttributeError
+    (symbol absent), not on behaviour.
+    The proposed remedy was itself rejected as a defect (directive 041): a spy
+    assertion pins a call, not a behaviour, and would freeze the call topology
+    against the refactor PR-FRESH-002 contemplates.
+    NEW ACCEPTANCE BAR for any later verifier: for a test asserting "the new guard
+    correctly does not fire for input X", the bar is (a) does it fail under a
+    semantic mutation of the shipped fix's own logic at the layer it asserts on,
+    and (b) is the harmful direction pinned by a sibling at that layer. Both YES.
+    Remedy: n/a. Do NOT add a spy assertion, re-word the docstring, or restructure
+    the test.
+- id: PR-FRESH-002
+  severity: 2
+  disposition: accepted-with-stated-reason
+  title: validate_activatable_mission_type's internal PackContext.from_config re-load
+    can raise CharterPackConfigError, which activate_cmd's `except ValueError` would
+    not catch
+  resolution: |
+    ACCEPTED, not fixed. Stated reason:
+    (1) Unreachable in the current call graph -- nothing mutates config between
+        activate_cmd's earlier validate_pack_config call and this second load
+        within a single invocation. The fresh sweep that raised it says so itself.
+    (2) Both available fixes are disproportionate to an unreachable latent path on
+        a mission whose plan committed to a two-file blast radius. Widening the
+        handler to catch CharterPackConfigError risks masking genuine config
+        errors behind the gate's own message; restructuring the pack-context load
+        to share one resolution is a real refactor touching a shared file that
+        three concurrently open PRs (#3707, #3708, #3711) also touch.
+    (3) The charter's change-scope reconciliation (smallest-viable-diff picks the
+        file set -> Boy Scout cleans inside it -> Locality is the brake) puts this
+        outside the set this mission legitimately opened.
+    Carried forward: disclosed in the PR body so a maintainer can triage it, and
+    recorded in tracer-design-decisions.md. NOT silently dropped.
+- id: PR-FRESH-003
+  severity: 1
+  disposition: accepted-with-stated-reason
+  title: test-fixture helpers duplicated across the two new test files rather than shared
+  resolution: |
+    ACCEPTED, not fixed. Stated reason: the duplication is deliberate and
+    documented in an in-file comment; the two files sit in different test trees
+    (tests/charter/ vs tests/specify_cli/cli/commands/charter/) with different
+    pytest markers and different CI shards. Extracting a shared helper would add a
+    cross-tree import for a severity-1 tidy, on files three open PRs are also
+    editing. Nit recorded, not actioned.

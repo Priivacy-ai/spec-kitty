@@ -1,0 +1,89 @@
+{
+  "mission_slug": "durable-concurrent-review-cycle-records-01M0QRX7",
+  "mission_number": "",
+  "mission_type": "software-dev",
+  "overall_verdict": "pass",
+  "criteria": [
+    {
+      "criterion_id": "FR-001",
+      "description": "A successful verdict response guarantees that both the current-verdict fact and referenced evidence record are durable.",
+      "proof_type": "automated_test",
+      "evidence": "WP03/WP04 approved suites; exact production-path baseline in native run 32734018925 proves every reported success has committed current-verdict and evidence records.",
+      "pass_fail": "pass",
+      "verified_by": "codex",
+      "verified_at": "2026-08-24T14:06:56.267392+00:00",
+      "notes": "Acceptance criterion finalized from spec.md FR-001."
+    },
+    {
+      "criterion_id": "FR-002",
+      "description": "A submission that reaches the 10-second queue timeout or is independently forbidden by state policy returns an explicit causal refusal.",
+      "proof_type": "automated_test",
+      "evidence": "Approved WP02 queue and WP04 structured-refusal tests prove 10-second typed queue timeout plus typed invalid-transition refusal without false durability.",
+      "pass_fail": "pass",
+      "verified_by": "codex",
+      "verified_at": "2026-08-24T14:06:59.608372+00:00",
+      "notes": "Acceptance criterion finalized from spec.md FR-002."
+    },
+    {
+      "criterion_id": "FR-003",
+      "description": "Two successful concurrent submissions retain two distinct evidence records without overwrite or impersonation.",
+      "proof_type": "automated_test",
+      "evidence": "tests/integration/test_review_durability_matrix.py::test_sc004_two_concurrent_processes_never_clobber_a_verdict_over_50_iterations; native run 32734018925 passed on Ubuntu, macOS, Windows.",
+      "pass_fail": "pass",
+      "verified_by": "codex",
+      "verified_at": "2026-08-24T14:07:02.879699+00:00",
+      "notes": "Acceptance criterion finalized from spec.md FR-003."
+    },
+    {
+      "criterion_id": "FR-004",
+      "description": "Human and machine-readable results distinguish durable success, explicit refusal, and intentionally non-committed operation.",
+      "proof_type": "automated_test",
+      "evidence": "Approved WP04 durability response tests, WP05 topology matrix, and WP06 real-save benchmark distinguish durable, explicit-refusal, and intentionally non-committed outcomes.",
+      "pass_fail": "pass",
+      "verified_by": "codex",
+      "verified_at": "2026-08-24T14:07:06.166933+00:00",
+      "notes": "Acceptance criterion finalized from spec.md FR-004."
+    },
+    {
+      "criterion_id": "FR-005",
+      "description": "A refused or interrupted submission leaves no orphan that prevents an identical retry from succeeding without manual repair.",
+      "proof_type": "automated_test",
+      "evidence": "Approved WP03 adoption/recovery and WP04 retry/failure-shape suites prove refused/interrupted submissions leave no orphan and identical retry succeeds.",
+      "pass_fail": "pass",
+      "verified_by": "codex",
+      "verified_at": "2026-08-24T14:07:09.465462+00:00",
+      "notes": "Acceptance criterion finalized from spec.md FR-005."
+    },
+    {
+      "criterion_id": "FR-006",
+      "description": "The current-verdict authority and referenced evidence record agree for every completed submission.",
+      "proof_type": "automated_test",
+      "evidence": "Approved WP01 production oracle plus WP03/WP04 event-to-evidence correlation/read-back tests prove successful authority pointers resolve to committed identical evidence.",
+      "pass_fail": "pass",
+      "verified_by": "codex",
+      "verified_at": "2026-08-24T14:07:12.768285+00:00",
+      "notes": "Acceptance criterion finalized from spec.md FR-006."
+    },
+    {
+      "criterion_id": "FR-007",
+      "description": "The durability contract holds across all supported mission topologies and automatic-commit modes.",
+      "proof_type": "automated_test",
+      "evidence": "tests/integration/review/test_verdict_save_topologies.py and test_reject_from_in_review.py passed 20/20 across governed mission topology and automatic-commit cells.",
+      "pass_fail": "pass",
+      "verified_by": "codex",
+      "verified_at": "2026-08-24T14:07:16.077468+00:00",
+      "notes": "Acceptance criterion finalized from spec.md FR-007."
+    },
+    {
+      "criterion_id": "FR-008",
+      "description": "The concurrency acceptance test exercises the production reviewer entry point and fails when either event serialization or evidence commitment is removed.",
+      "proof_type": "automated_test",
+      "evidence": "Native run 32734018925 passed exact real-entry baseline and independent event/evidence mutants on Ubuntu, macOS, Windows; both mutants fail causally when their production protection is disabled.",
+      "pass_fail": "pass",
+      "verified_by": "codex",
+      "verified_at": "2026-08-24T14:07:19.395835+00:00",
+      "notes": "Acceptance criterion finalized from spec.md FR-008."
+    }
+  ],
+  "negative_invariants": []
+}

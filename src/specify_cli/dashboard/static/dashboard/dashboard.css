@@ -406,6 +406,29 @@ body {
     margin-top: 6px;
 }
 
+.next-action-callout {
+    margin-top: 20px;
+    padding: 12px 16px;
+    background: #fffbeb;
+    border-left: 4px solid #f59e0b;
+    border-radius: 6px;
+    font-size: 0.95em;
+    color: #92400e;
+}
+
+.next-action-callout .next-action-icon {
+    margin-right: 6px;
+    color: #f59e0b;
+}
+
+.next-action-callout code {
+    background: #fef3c7;
+    padding: 2px 6px;
+    border-radius: 4px;
+    font-family: monospace;
+    font-size: 0.9em;
+}
+
 .progress-bar {
     width: 100%;
     height: 6px;
@@ -532,11 +555,34 @@ body {
     border-left-width: 4px;
 }
 
+.card-header-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    margin-bottom: 5px;
+}
+
 .card-id {
     font-weight: 600;
     color: #6b7280;
     font-size: 0.85em;
-    margin-bottom: 5px;
+}
+
+.card-avatar {
+    flex-shrink: 0;
+    width: 22px;
+    height: 22px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #111827;
+    background-color: hsl(var(--avatar-hue), 65%, 82%);
+    border: 1px solid hsl(var(--avatar-hue), 45%, 38%);
+    font-size: 0.7em;
+    font-weight: 700;
+    line-height: 1;
 }
 
 .card-title {
