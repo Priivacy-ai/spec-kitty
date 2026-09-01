@@ -159,7 +159,8 @@ def _read_wp_frontmatter(wp_file: Path) -> tuple[WPMetadata, str]:
     """Route ``read_wp_frontmatter`` through ``mission`` (patch seam)."""
     from specify_cli.cli.commands.agent import mission as _mission
 
-    return _mission.read_wp_frontmatter(wp_file)
+    frontmatter: tuple[WPMetadata, str] = _mission.read_wp_frontmatter(wp_file)
+    return frontmatter
 
 
 def _resolve_planning_branch_via_mission(repo_root: Path, primary_dir: Path, *, target_branch_override: str | None) -> str:
@@ -419,7 +420,7 @@ def _resolve_repo_root(json_output: bool) -> Path:
     """
     from specify_cli.cli.commands.agent import mission as _mission
 
-    repo_root = _mission.locate_project_root()
+    repo_root: Path | None = _mission.locate_project_root()
     if repo_root is None:
         if json_output:
             _emit_json({"error": PROJECT_ROOT_NOT_FOUND})
@@ -443,7 +444,7 @@ def _resolve_mission_slug(repo_root: Path, feature: str | None, *, json_output: 
     cwd = Path.cwd().resolve()
     ambiguous: ActionContextError | None
     try:
-        mission_dir_name = _resolve_mission_dir_name_primary_anchored(repo_root, feature)
+        mission_dir_name: str | None = _resolve_mission_dir_name_primary_anchored(repo_root, feature)
     except MissionSelectorAmbiguous as ambiguous_error:
         ambiguous = ActionContextError(ambiguous_error.error_code, str(ambiguous_error))
     else:
@@ -453,7 +454,7 @@ def _resolve_mission_slug(repo_root: Path, feature: str | None, *, json_output: 
         return mission_dir_name
 
     try:
-        feature_dir = _mission._find_feature_directory(repo_root, cwd, explicit_feature=feature)
+        feature_dir: Path = _mission._find_feature_directory(repo_root, cwd, explicit_feature=feature)
     except (ValueError, ActionContextError) as detection_error:
         payload = _build_setup_plan_detection_error(
             repo_root,
@@ -2127,9 +2128,10 @@ def _resolve_acceptance_matrix_home(repo_root: Path, planning_dir: Path) -> Path
     from specify_cli.coordination.surface_resolver import CoordinationBranchDeleted
 
     try:
-        return _acceptance_matrix_read_dir(repo_root, planning_dir)
+        read_dir: Path = _acceptance_matrix_read_dir(repo_root, planning_dir)
     except CoordinationBranchDeleted:
         return planning_dir
+    return read_dir
 
 
 def _scaffold_acceptance_matrix_if_lane_based(

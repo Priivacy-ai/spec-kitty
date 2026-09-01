@@ -855,13 +855,31 @@ def _staged_tree_is_empty(repo_path: Path) -> bool:
     return result.returncode == 0
 
 
-def _run_commit_capture_sha(repo_path: Path, commit_message: str) -> tuple[str | None, str]:
+def _run_commit_capture_sha(repo_path: Path, commit_message: str) -> tuple[str | None, str, str]:
     """Run ``git commit``.
 
-    Returns ``(new SHA, "")`` on success, or ``(None, combined_output)`` on
-    failure — where ``combined_output`` carries git's stdout+stderr so the
-    caller can tell an empty changeset apart from a genuine commit failure
-    (e.g. a failing pre-commit hook) instead of collapsing both to ``None``.
+    Returns ``(new_sha, stdout, stderr)``. ``new_sha`` is ``None`` on failure.
+    ``stdout`` and ``stderr`` are kept SEPARATE rather than merged, because the
+    two streams mean different things on the success path:
+
+    - ``stdout`` carries git's own routine commit summary (``[branch sha]
+      message``, ``N files changed``, ``create mode ...``) — printed on
+      *every* successful commit, not a signal worth an operator's attention.
+    - ``stderr`` is where the spec-kitty commit guard's warn-mode warning
+      lands (``commit_guard_hook.py`` writes via
+      ``print(..., file=sys.stderr)`` and exits 0, #3580).
+
+    Merging both into ``combined`` and surfacing it on every successful commit
+    (the #3580 fix as first landed) made the routine stdout summary look like
+    a guard warning on every single commit — noise that defeats the fix's
+    purpose. Keeping the streams separate lets the caller log stdout at DEBUG
+    and reserve WARNING for non-empty stderr.
+
+    The FAILURE path is unaffected by this split: callers still combine both
+    streams for ``RuntimeError`` detail text, and ``_staged_tree_is_empty`` —
+    not this output — remains the sole authority for the
+    empty-changeset-vs-genuine-failure classification (audit BLOCK_MATERIAL,
+    PR #3269).
     """
     commit_result = subprocess.run(
         ["git", "-c", "commit.gpgsign=false", "commit", "-m", commit_message],
@@ -873,10 +891,9 @@ def _run_commit_capture_sha(repo_path: Path, commit_message: str) -> tuple[str |
         check=False,
     )
     if commit_result.returncode != 0:
-        combined = f"{commit_result.stdout}\n{commit_result.stderr}".strip()
-        return None, combined
+        return None, commit_result.stdout, commit_result.stderr
     sha = _run_git_text(repo_path, ["rev-parse", "HEAD"])
-    return sha, ""
+    return sha, commit_result.stdout, commit_result.stderr
 
 
 
@@ -1102,8 +1119,33 @@ def safe_commit(  # noqa: C901 -- sequential validation gates; splitting harms r
         except SafeCommitBackstopError as exc:
             backstop_error = exc
         else:
-            new_sha, commit_output = _run_commit_capture_sha(worktree_root, message)
+            new_sha, commit_stdout, commit_stderr = _run_commit_capture_sha(worktree_root, message)
             commit_created = new_sha is not None
+            if commit_created:
+                # SUCCESS path: stdout is git's own routine commit summary
+                # (`[branch sha] message`, `N files changed`, ...), printed on
+                # every successful commit -- not operator-actionable, so it
+                # goes to DEBUG rather than crowding the WARNING channel.
+                if commit_stdout.strip():
+                    logger.debug(
+                        "git commit in %s: %s",
+                        worktree_root,
+                        commit_stdout.strip(),
+                    )
+                # stderr is where a pre-commit hook writes (e.g. the
+                # spec-kitty commit guard in warn mode, #3580, which prints
+                # via `print(..., file=sys.stderr)` and exits 0). Non-empty
+                # stderr on an otherwise-successful commit is the genuine
+                # signal `capture_output=True` would otherwise swallow --
+                # warn-mode still commits; only the discarded signal was the
+                # defect. Gating on stderr (not "any output") keeps the
+                # channel meaningful: it no longer fires on every commit.
+                if commit_stderr.strip():
+                    logger.warning(
+                        "git commit in %s produced warnings on a successful commit: %s",
+                        worktree_root,
+                        commit_stderr.strip(),
+                    )
             if not commit_created:
                 # AUTHORITY: staged state, not git's output text (audit
                 # BLOCK_MATERIAL, PR #3269). A rejecting pre-commit hook can
@@ -1113,12 +1155,14 @@ def safe_commit(  # noqa: C901 -- sequential validation gates; splitting harms r
                 # that as a benign no-op. `_staged_tree_is_empty` cannot be
                 # fooled by hook output: it is only True when the index
                 # genuinely matches HEAD.
+                commit_output = f"{commit_stdout}\n{commit_stderr}".strip()
                 if _staged_tree_is_empty(worktree_root):
                     # Benign no-op: staged content already matches HEAD. The
                     # commit router maps this distinct message to "unchanged".
                     raise RuntimeError(f"safe_commit: nothing to commit for destination_ref={destination_ref!r} (empty changeset)")
                 # Genuine failure (rejecting pre-commit hook, lock, etc.) — carry
-                # git's own output so it is NOT mistaken for an empty changeset.
+                # git's own combined output so it is NOT mistaken for an empty
+                # changeset (failure-path behavior unchanged: both streams).
                 detail = f": {commit_output}" if commit_output else ""
                 raise RuntimeError(f"safe_commit: git commit failed in {worktree_root} for destination_ref={destination_ref!r}{detail}")
     finally:
