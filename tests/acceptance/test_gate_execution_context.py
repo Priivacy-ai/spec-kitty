@@ -22,16 +22,20 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
+from typing import Any, cast
 
 import pytest
+from typer.testing import CliRunner
 
 from mission_runtime import MissionArtifactKind, TopologySurface
+from specify_cli import app as cli_app
 from specify_cli.acceptance.execution_context import (
     CannotEvaluate,
     CannotEvaluateReason,
     GateExecutionContext,
     GateSurfaceRefMismatch,
     LifecyclePhase,
+    _git_head_of,
     build_gate_execution_context,
     declared_home_surface,
 )
@@ -81,6 +85,18 @@ def _seed_matrix(feature_dir: Path, *, verdict: str, marker: str) -> None:
         ],
     )
     write_acceptance_matrix(feature_dir, matrix)
+
+
+def _run_public_accept_diagnosis(mission_slug: str) -> dict[str, Any]:
+    """Invoke ``spec-kitty accept`` and return its read-only JSON result."""
+    result = CliRunner().invoke(
+        cli_app,
+        ["accept", "--mission", mission_slug, "--diagnose", "--json", "--lenient"],
+        catch_exceptions=False,
+    )
+
+    assert result.exit_code == 0, result.output
+    return cast(dict[str, Any], json.loads(result.output))
 
 
 def _plain_context(
@@ -221,7 +237,7 @@ def test_gate_execution_context_is_immutable() -> None:
     """GEC-1 shape: the value object a gate is handed is frozen — no in-place patch."""
     ctx = _plain_context(surface=Path("/p"), surface_kind=TopologySurface.PRIMARY)
     with pytest.raises((AttributeError, TypeError)):
-        ctx.surface = Path("/elsewhere")  # type: ignore[misc]
+        ctx.surface = Path("/elsewhere")
 
 
 # ===========================================================================
@@ -243,6 +259,52 @@ def test_assert_at_ref_passes_on_agreement() -> None:
     """C5: when the surface is at its ref, the gate proceeds (no raise)."""
     ctx = _plain_context(surface=Path("/p"), surface_kind=TopologySurface.COORD, ref="sha-abc")
     ctx.assert_at_ref(head_of=lambda _s: "sha-abc")  # must not raise
+
+
+def test_git_head_of_detached_checkout_returns_head_sentinel(
+    flat_topology_mission: ctf.FlatTopologyContext,
+) -> None:
+    """C5: a real detached checkout resolves to the no-branch ``HEAD`` sentinel."""
+    ctx = flat_topology_mission
+    ctf._git(ctx.repo, "checkout", "--detach", "HEAD")
+    assert ctf._git(ctx.repo, "branch", "--show-current") == ""
+
+    assert _git_head_of(ctx.repo) == "HEAD"
+
+
+def test_accept_command_normalizes_detached_head_before_matrix_gate(
+    flat_topology_mission: ctf.FlatTopologyContext,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """The public command normalizes detached HEAD and refuses at its branch gate.
+
+    On the current operator path, a detached invocation becomes ``branch=None``
+    and is rejected before an acceptance-matrix ``GateExecutionContext`` can be
+    built. The observable contract is therefore the JSON branch value, blocker,
+    and skipped matrix checks rather than a private HEAD-resolver return value.
+    """
+    ctx = flat_topology_mission
+    ctf._git(ctx.repo, "checkout", "--detach", "HEAD")
+    _seed_matrix(
+        ctx.primary_feature_dir,
+        verdict="fail",
+        marker="DETACHED-HEAD-MUST-NOT-REACH-MATRIX",
+    )
+    assert ctf._git(ctx.repo, "branch", "--show-current") == ""
+    monkeypatch.chdir(ctx.repo)
+
+    payload = _run_public_accept_diagnosis(ctx.slug)
+
+    assert payload["branch"] is None
+    assert any("detached HEAD" in issue for issue in payload["activity_issues"])
+    assert any(
+        item["check"] == "mission_branch" for item in payload["blocked_checks"]
+    )
+    assert any(
+        item["check"] == "acceptance_matrix_presence"
+        for item in payload["skipped_checks"]
+    )
+    assert not any("verdict is" in issue for issue in payload["activity_issues"])
 
 
 # ===========================================================================
@@ -531,6 +593,40 @@ def test_gec2_primary_ref_agreement_still_judges(
 
     assert not any(c.check == "acceptance_matrix_cannot_evaluate" for c in blocked), blocked
     assert any("verdict is 'fail'" in issue for issue in activity_issues), activity_issues
+
+
+def test_accept_command_forwards_normal_branch_to_matrix_gate(
+    flat_topology_mission: ctf.FlatTopologyContext,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """The public accept path preserves the invocation branch through matrix judgement.
+
+    The mission branch deliberately differs from target ``main``. The seeded FAIL
+    verdict remains observable only when every production forwarding hop preserves
+    that branch: dropping it either trips the branch gate or yields a surface-ref
+    mismatch before the matrix can be judged.
+    """
+    ctx = flat_topology_mission
+    mission_branch = f"kitty/mission-{ctx.slug}"
+    ctf._git(ctx.repo, "switch", "-c", mission_branch)
+    _seed_matrix(
+        ctx.primary_feature_dir,
+        verdict="fail",
+        marker="INVOCATION-BRANCH-FLOW-THROUGH",
+    )
+    monkeypatch.chdir(ctx.repo)
+
+    payload = _run_public_accept_diagnosis(ctx.slug)
+
+    assert payload["branch"] == mission_branch
+    assert any("verdict is 'fail'" in issue for issue in payload["activity_issues"])
+    assert not any(
+        item["check"] in {"mission_branch", "acceptance_matrix_cannot_evaluate"}
+        for item in payload["blocked_checks"]
+    )
+    assert not any(
+        "GATE_SURFACE_REF_MISMATCH" in issue for issue in payload["activity_issues"]
+    )
 
 
 # ===========================================================================

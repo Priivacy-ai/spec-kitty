@@ -70,6 +70,7 @@ from charter.activation.sync import apply_legacy_governance_selection_key_compat
 if TYPE_CHECKING:
     from charter.activation.mission_type_profile_repository import MissionTypeProfileRepository
     from charter.offering.missions.mission_step_repository import _PackContextLike
+    from charter.offering.missions.models import MissionType
 
 __all__ = [
     "CrossGrainDoubleDeclarationError",
@@ -83,6 +84,7 @@ __all__ = [
     "resolve_action_sequence_layer",
     "resolve_mission_type_context",
     "resolve_mission_type_key",
+    "validate_activatable_mission_type",
 ]
 
 
@@ -946,16 +948,7 @@ def _resolve_action_slot(
         # sequence.
         raise UnknownMissionTypeError(mission_type, registered_ids=registered)
 
-    action_sequence = list(mission.action_sequence or [])
-
-    # Resolve extends: chain (single level — top-level extends only). Only
-    # attempted when the type's own sequence is empty; a parent that is
-    # itself unresolvable or also empty leaves action_sequence empty, so the
-    # FR-004 check below still fires rather than silently returning [].
-    if not action_sequence and mission.extends is not None:
-        parent = roster.get(mission.extends)
-        if parent is not None:
-            action_sequence = list(parent.action_sequence or [])
+    action_sequence = _resolve_with_extends_fallback(mission, roster)
 
     if not action_sequence:
         # FR-004/CL-003 (WP06): an org- or project-layer type -- built-in
@@ -972,6 +965,93 @@ def _resolve_action_slot(
         raise MissionTypeEmptyActionSequenceError(mission_type, layer)
 
     return action_sequence
+
+
+def _resolve_with_extends_fallback(
+    mission: MissionType, roster: Mapping[str, MissionType]
+) -> list[str]:
+    """Own action_sequence, or single-level extends fallback if own is empty.
+
+    Factored out of :func:`_resolve_action_slot` (WP01, mission
+    charter-activate-empty-action-sequence-01M0STSX) so both it and
+    :func:`validate_activatable_mission_type` converge on the exact same
+    extends-fallback rule instead of inlining it twice (DRY). Only a
+    single-level fallback is attempted -- top-level ``extends`` only, no
+    chain traversal -- mirroring :func:`_resolve_action_slot`'s pre-existing
+    behavior exactly. A parent that is itself unresolvable or also empty
+    leaves the result empty, deferring the "empty action sequence" decision
+    to the caller rather than making it here.
+    """
+    action_sequence = list(mission.action_sequence or [])
+    if not action_sequence and mission.extends is not None:
+        parent = roster.get(mission.extends)
+        if parent is not None:
+            action_sequence = list(parent.action_sequence or [])
+    return action_sequence
+
+
+def validate_activatable_mission_type(mission_type_id: str, *, repo_root: Path) -> None:
+    """Fail-closed activation-time gate (FR-001/NFR-001): raise if *mission_type_id*
+    would resolve an empty action sequence (after the single-level ``extends``
+    fallback) were it activated. No-ops when *mission_type_id* has no resolvable
+    YAML in any layer at all -- that configuration inconsistency is already governed
+    by ``plan_activation``'s ``UnknownActivationIdError`` (raised moments later,
+    inside ``CharterPackManager.activate()`` via the ``available_ids`` membership
+    check), which this function does not weaken, duplicate, or race (FR-004 note:
+    this is a *different* pre-existing check than the read path's
+    ``UnknownMissionTypeError``, and this function defers to the activation-time one).
+    Bridge to spec.md's Edge Cases: spec.md names the read path's
+    ``UnknownMissionTypeError`` as the general governance for "no resolvable YAML in
+    any layer"; on this activation-time path specifically, it is
+    ``plan_activation``'s ``available_ids`` membership check -- a distinct,
+    pre-existing gate on a different module -- that actually fires first, before this
+    function's caller (``activate_cmd``) is ever reached for such a candidate. The
+    two named errors are not in tension: each is simply the check that governs its
+    own path (read vs. activation-time), and this function correctly no-ops rather
+    than re-deriving or racing either one.
+
+    Deliberately called from the CLI seam (``activate.py``), NOT from
+    ``activation_engine.plan_activation()``/``commit_plan()``: that module's own
+    docstring states it performs no filesystem discovery and no ``config.yaml``
+    load of its own (C-008) -- resolving whether a candidate's action sequence is
+    empty requires exactly the filesystem-touching resolution
+    :func:`_resolve_action_slot` performs. This function unconditionally runs that
+    same resolution (not gated on ``is_registered``, unlike
+    :func:`_resolve_action_slot`) precisely because, at activation time, the
+    candidate is by definition not yet registered -- gating on ``is_registered``
+    here would short-circuit to a no-op and reproduce the defect this function
+    exists to close (issue #3702).
+
+    Raises
+    ------
+    MissionTypeEmptyActionSequenceError
+        If the candidate's own action sequence, or its single-level ``extends``
+        fallback, is empty.
+    """
+    from charter.activation.pack_context import PackContext  # noqa: PLC0415 — lazy; avoids circular
+    from charter.offering.missions.mission_type_repository import (  # noqa: PLC0415
+        resolve_layered_mission_types,
+    )
+    from charter.offering.missions.repository import MissionTemplateRepository  # noqa: PLC0415
+
+    pack_context = PackContext.from_config(repo_root)
+    mission_types_dirs = (MissionTemplateRepository.default_missions_root() / "mission_types",)
+    roster = resolve_layered_mission_types(mission_types_dirs, pack_context)
+    mission = roster.get(mission_type_id)
+    if mission is None:
+        # No resolvable YAML in any layer -- not this function's concern
+        # (see docstring); plan_activation's UnknownActivationIdError
+        # governs that case.
+        return
+
+    action_sequence = _resolve_with_extends_fallback(mission, roster)
+    if not action_sequence:
+        layer = resolve_action_sequence_layer(
+            mission_type_id,
+            mission_types_dirs=mission_types_dirs,
+            pack_context=pack_context,
+        )
+        raise MissionTypeEmptyActionSequenceError(mission_type_id, layer)
 
 
 def _resolve_expected_artifacts_slot(
@@ -991,7 +1071,8 @@ def _resolve_expected_artifacts_slot(
     shipped ``expected-artifacts.yaml`` is a mapping keyed on ``schema_version``
     / ``mission_type`` / ``required_by_step`` / ...).
 
-    FR-008 (WP05): an org-pack ``<org_root>/<mission_type>/expected-artifacts.yaml``
+    FR-008 (WP05): an org-pack
+    ``<org_root>/missions/<mission_type>/expected-artifacts.yaml``
     takes precedence over the built-in file, whole-file (not field-merged) —
     see :func:`charter.activation.org_expected_artifacts.resolve_org_expected_artifacts`
     (contract C-4). The built-in ``MissionTemplateRepository.default()`` read

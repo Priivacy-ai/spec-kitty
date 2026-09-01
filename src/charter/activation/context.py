@@ -36,6 +36,7 @@ from charter.activation.context_json import (
     _bundle_root_for_json as _bundle_root_for_json,
     _project_charter_json_block as _project_charter_json_block,
     _project_directive_entries as _project_directive_entries,
+    _project_directive_entries_with_source as _project_directive_entries_with_source,
 )
 from charter.activation.context_renderers.artifact_bodies import (
     _jsonable_artifact_value as _jsonable_artifact_value,
@@ -457,6 +458,10 @@ def build_charter_context_json(
     non-bootstrap actions).
     """
     normalized = action.strip().lower()
+    # Single governance resolution: both ``all_directives`` and the resolution-
+    # level ``directives_source`` provenance come from one
+    # ``resolve_project_governance`` call (no double-resolve per payload).
+    all_directives, directives_source = _project_directive_entries_with_source(repo_root)
     payload: dict[str, object] = {
         "context_schema_version": CONTEXT_SCHEMA_VERSION,
         "action": normalized,
@@ -464,7 +469,12 @@ def build_charter_context_json(
         "tactics": [],
         "styleguides": [],
         "toolguides": [],
-        "all_directives": _project_directive_entries(repo_root),
+        "all_directives": all_directives,
+        # NEW (#3728, FR-007): resolution-level provenance — which branch
+        # resolved the directive set (``"catalog_fallback+project_local"`` etc.),
+        # or ``null`` when the resolver raised. Distinct from the per-entry
+        # ``all_directives[].source`` artifact-origin field.
+        "directives_source": directives_source,
         "references": [],
         "project_charter": _project_charter_json_block(repo_root),
         "org_charter": (

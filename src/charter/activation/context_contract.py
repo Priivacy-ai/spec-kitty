@@ -37,7 +37,7 @@ from __future__ import annotations
 #: payload shape. Bump this whenever ``CONTEXT_CONTRACT_TOP_LEVEL_KEYS``
 #: changes. Semantic-version string (``MAJOR.MINOR.PATCH``); not tied to
 #: the package release version.
-CONTEXT_SCHEMA_VERSION = "1.1.0"
+CONTEXT_SCHEMA_VERSION = "1.3.0"
 
 #: The complete set of top-level keys the ``build_charter_context_json``
 #: payload may carry, across both bootstrap (``mode == "bootstrap"``) and
@@ -58,6 +58,13 @@ CONTEXT_SCHEMA_VERSION = "1.1.0"
 #: into the flat ``references[]`` link set (via ``build_disclosure_payload``'s
 #: ``extra_delivered``) and never promoted. Do not "fix" this by adding an
 #: ``assets`` key: the omission is the contract.
+
+#: **``directives_source`` provenance (#3728, FR-007, bumped to 1.2.0).** A
+#: top-level string|null key naming which branch resolved the directive set
+#: (``GovernanceResolution.metadata["directives_source"]``, e.g.
+#: ``"catalog_fallback+project_local"``). It is *distinct* from the per-entry
+#: ``all_directives[].source`` (artifact origin ``project``/``builtin``/``org``):
+#: "which branch resolved the set" vs. "where did this one directive come from".
 #: * ``tests/charter/test_context_parity.py`` --
 #:   ``TestJsonEntryPointParity::test_json_entry_point_is_valid_bootstrap_payload``
 #:   (the structural guard on a bootstrap-mode payload), which asserts the
@@ -83,6 +90,7 @@ CONTEXT_CONTRACT_TOP_LEVEL_KEYS: frozenset[str] = frozenset(
         "toolguides",
         "procedures",
         "all_directives",
+        "directives_source",
         "references",
         "project_charter",
         "org_charter",

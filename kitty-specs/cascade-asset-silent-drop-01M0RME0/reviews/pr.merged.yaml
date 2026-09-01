@@ -1,0 +1,57 @@
+schema: review-findings/v1
+complete: true
+phase: pr
+lens_group: merged
+mission: cascade-asset-silent-drop-01M0RME0
+# R2 merge/dedup performed by the orchestrator. Inputs:
+#   pr.boundary.findings.yaml  (architect-alphonso) - 2 findings, both severity 3
+#   pr.contract.findings.yaml  (reviewer-renata)    - 0 findings
+#   pr.tests.findings.yaml     (debugger-debbie)    - 0 findings
+# No duplicates across groups: only one group reported. The two findings address
+# distinct concerns (cross-module symbol privacy vs. intra-function duplication)
+# and are carried forward unmerged, ids preserved.
+findings:
+  - id: pr-boundary-001
+    lens: boundary
+    severity: 3
+    title: deactivate.py imports a private (underscore-prefixed) symbol from a sibling command module, escalating past the module's own public-API contract
+    evidence:
+      - code: "src/specify_cli/cli/commands/charter/activate.py:57"
+      - code: "src/specify_cli/cli/commands/charter/activate.py:178"
+      - code: "src/specify_cli/cli/commands/charter/deactivate.py:47"
+      - code: "src/specify_cli/cli/commands/charter/_common.py:1-6"
+    claim: >
+      `deactivate.py` imports `_render_kind_filtered_line` from `activate.py`
+      (deactivate.py:47). Prior cross-module imports from activate.py
+      (`RESYNTHESIZE_HELP`, `render_pack_config_error`, `run_full_synthesize`,
+      `validate_pack_config`) are all unprefixed. `_render_kind_filtered_line` is
+      the first leading-underscore, explicitly module-private symbol to cross this
+      command-module boundary, signalling to a future reader of activate.py that
+      the helper is safe to rename or inline when deactivate.py now depends on it.
+      The codebase has a designated seam for this case, `_common.py` ("Shared
+      helpers used by multiple `charter` subcommands").
+    remediation: >
+      Move `KIND_FILTERED_LABEL` and `_render_kind_filtered_line` into `_common.py`
+      and import from there in both modules; or rename without the underscore and
+      add to activate.py's `__all__` to make the cross-module contract explicit.
+
+  - id: pr-boundary-002
+    lens: boundary
+    severity: 3
+    title: "ID-resolution-with-fallback logic copy-pasted twice in the same function instead of extracted"
+    evidence:
+      - code: "src/specify_cli/cli/commands/charter/deactivate.py:165-172"
+      - code: "src/specify_cli/cli/commands/charter/deactivate.py:207-216"
+      - code: "src/specify_cli/cli/commands/charter/activate.py:165-173"
+    claim: >
+      `_render_cascade_deactivation` contains two byte-identical URN-to-config-id
+      resolution blocks fifteen lines apart: the pre-existing `plan.deactivate`
+      loop (165-172) and the new `plan.not_cascaded_kind_filtered` loop this diff
+      adds (207-216). Both partition the URN, take `ArtifactKind(...).operator_token`,
+      then `resolve_config_id` with an `except (UnknownArtifactIdError, ValueError)`
+      fallback to the URN tail. Self-inconsistent with this PR's own stated DRY
+      rationale for extracting `_render_kind_filtered_line`.
+    remediation: >
+      Extract `_resolve_config_id_or_fallback(urn, *, doctrine_root, org_roots,
+      layer_roots) -> str` and call it from both loops (or from `_common.py` if
+      shared with activate.py's `_drg_id_to_config_id`, same try/except shape).

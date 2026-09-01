@@ -1,0 +1,42 @@
+schema: review-findings/v1
+complete: true
+phase: pr
+lens_group: confirmed
+mission: cascade-asset-silent-drop-01M0RME0
+# R3 outcome: both merged findings REFUTED. Confirmed set is empty.
+#
+# This empty set is accompanied by the full trail -- an empty confirmed set alone
+# is indistinguishable from a squad that never ran. Evidence chain:
+#   pr.boundary.findings.yaml  2 findings, severity 3
+#   pr.contract.findings.yaml  0 findings
+#   pr.tests.findings.yaml     0 findings
+#   pr.merged.yaml             2 carried forward, no dedup required
+#   pr.refute-1.yaml           2 refuted, 0 confirmed
+#
+# Refutation reasons, independently re-verified by the orchestrator:
+#
+# pr-boundary-001 (underscore symbol crossing a sibling command module):
+#   REFUTED on two independent grounds.
+#   (a) The "first case / real escalation" premise is empirically false.
+#       `charter/__init__.py:49-55` imports four underscore-prefixed symbols
+#       (`_build_doctrine_service_with_org_layer`, `_ensure_gitignore_entries`,
+#       `_is_inside_git_worktree`, `_stage_charter_files`) from sibling command
+#       module `charter/generate.py`; `charter/pack.py:192-196` imports three of
+#       the same shape. The pattern is established, not novel.
+#   (b) Placement was a pre-recorded plan decision, not an ad hoc choice.
+#       plan.md:682 (WP-B) mandates "Add the shared `_render_kind_filtered_line`
+#       helper + label constant in `activate.py`"; plan.md:457 requires the helper
+#       be shared and "never inlined at any of the three call sites".
+#
+# pr-boundary-002 (duplicated ID-resolution-with-fallback block):
+#   REFUTED as out of scope. `git diff origin/main...HEAD --
+#   src/specify_cli/cli/commands/charter/deactivate.py` is pure addition -- zero
+#   removed lines. This branch introduces only the
+#   `for urn in sorted(plan.not_cascaded_kind_filtered):` loop (~205-216). The
+#   cited `plan.deactivate` loop (165-172) is pre-existing and untouched. The new
+#   block deliberately mirrors established logic (its own comment states it makes
+#   "the SAME `resolve_config_id(...)` call ... the `plan.deactivate` loop above
+#   already makes"). Remediation would require editing pre-existing unrelated code
+#   in a targeted fix PR -- the opportunistic scope widening the repo's standing
+#   rule treats as a defect in its own right.
+findings: []

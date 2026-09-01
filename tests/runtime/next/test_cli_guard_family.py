@@ -31,10 +31,13 @@ from __future__ import annotations
 import json
 from pathlib import Path
 from typing import Any, cast
+from unittest.mock import MagicMock
 
 import pytest
 
 from runtime.next import runtime_bridge as rb
+from runtime.next._internal_runtime import MissionRunRef
+from runtime.next.decision import DecisionKind
 from runtime.next.runtime_bridge import _check_cli_guards
 from runtime.next.runtime_bridge_cores import (
     _GUARD_TABLES,
@@ -42,6 +45,7 @@ from runtime.next.runtime_bridge_cores import (
     UnregisteredMissionFamilyError,
     evaluate_guards_strict,
 )
+from runtime.next.runtime_bridge_composition import _check_composed_action_guard
 from runtime.next.runtime_bridge_io import gather_artifact_presence
 from specify_cli.mission import get_mission_type
 from specify_cli.status.models import Lane, StatusEvent
@@ -273,3 +277,250 @@ class TestIssue3627WpIterationUnregisteredFamilyDegrades:
 
         with pytest.raises(RuntimeError, match="unexpected guard evaluation failure"):
             rb._dn_dependency_gate(ctx)
+
+
+# ---------------------------------------------------------------------------
+# WP03 (#3704, FR-003/NFR-004) -- ``repo_root`` call-site convergence.
+#
+# WP01 (guard predicate) and WP02 (org-tier resolution in
+# ``gather_artifact_presence``) are only reachable from a unit test that
+# calls the leaf function directly -- NOT from the real
+# CLI/WP-iteration/composed-action entry points, all three of which drop
+# ``repo_root`` on the floor today even though the enclosing function
+# already holds it as a local. These tests pin AC-1/AC-2 (via the
+# composed-action guard, org-tier only -- no built-in manifest, so the
+# defect is genuinely exercised) and AC-8 (via ``_dn_dependency_gate``'s two
+# distinct ``_check_cli_guards`` call sites).
+# ---------------------------------------------------------------------------
+
+
+def _write_org_pack_config(repo_root: Path, *, packs: list[tuple[str, Path]]) -> None:
+    config_dir = repo_root / ".kittify"
+    config_dir.mkdir(parents=True, exist_ok=True)
+    lines = ["doctrine:", "  org:", "    packs:"]
+    for name, local_path in packs:
+        lines.append(f"      - name: {name}")
+        lines.append(f"        local_path: {local_path}")
+    (config_dir / "config.yaml").write_text("\n".join(lines) + "\n", encoding="utf-8")
+
+
+def _write_org_manifest(org_root: Path, mission_type: str, yaml_text: str) -> None:
+    target_dir = org_root / "missions" / mission_type
+    target_dir.mkdir(parents=True, exist_ok=True)
+    (target_dir / "expected-artifacts.yaml").write_text(yaml_text, encoding="utf-8")
+
+
+_QA_FAMILY = "qa"
+_QA_ORG_YAML = """\
+schema_version: "1.0"
+mission_type: "qa"
+manifest_version: "org-1"
+required_always: []
+required_by_step:
+  accept:
+    - artifact_key: "output.qa.coverage"
+      artifact_class: "output"
+      path_pattern: "qa-coverage.json"
+      blocking: true
+optional_always: []
+"""
+
+
+class TestAC1AC2ComposedActionGuardOrgTierConvergence:
+    """AC-1/AC-2: a custom family ``qa`` with ONLY an org-tier manifest
+    (deliberately no built-in manifest -- proves the composed-action guard
+    genuinely reaches the org tier, not merely "some manifest happened to
+    resolve"). Absent -> ``guard_failures`` non-empty and the resulting
+    ``Decision.kind`` is ``blocked`` (AC-1); present -> ``guard_failures``
+    is empty, provable by flipping presence (AC-2)."""
+
+    def _make_project(self, tmp_path: Path) -> tuple[Path, Path]:
+        project_root = tmp_path / "project"
+        project_root.mkdir()
+        org_root = tmp_path / "org-pack"
+        _write_org_manifest(org_root, _QA_FAMILY, _QA_ORG_YAML)
+        _write_org_pack_config(project_root, packs=[("acme", org_root)])
+        feature_dir = project_root / "kitty-specs" / "042-qa-mission"
+        feature_dir.mkdir(parents=True)
+        return project_root, feature_dir
+
+    def test_absent_artifact_blocks_via_org_tier(self, tmp_path: Path) -> None:
+        project_root, feature_dir = self._make_project(tmp_path)
+
+        failures = _check_composed_action_guard("accept", feature_dir, mission=_QA_FAMILY, repo_root=project_root)
+
+        assert failures != []
+        assert any("qa-coverage.json" in failure for failure in failures)
+
+        run_dir = tmp_path / "run"
+        run_dir.mkdir(parents=True, exist_ok=True)
+        run_ref = MissionRunRef(run_id="run-qa", run_dir=str(run_dir), mission_key="042-qa-mission")
+        ctx = rb.DecideNextContext(
+            agent="agent-x",
+            mission_slug="042-qa-mission",
+            result="success",
+            repo_root=project_root,
+            feature_dir=feature_dir,
+            now="2026-08-24T00:00:00+00:00",
+            mission_type=_QA_FAMILY,
+            sync_emitter=cast(Any, object()),
+            emitter_for_engine=cast(Any, object()),
+            origin={},
+            progress=None,
+            run_ref=run_ref,
+            run_dir=run_dir,
+            current_step_id="accept",
+        )
+
+        decision = rb._dn_composition_blocked_decision(ctx, "accept", failures)
+
+        assert decision.kind == DecisionKind.blocked
+        assert decision.guard_failures == failures
+
+    def test_present_artifact_passes_via_genuine_evaluation(self, tmp_path: Path) -> None:
+        project_root, feature_dir = self._make_project(tmp_path)
+
+        failures_absent = _check_composed_action_guard("accept", feature_dir, mission=_QA_FAMILY, repo_root=project_root)
+        assert failures_absent != []
+
+        (feature_dir / "qa-coverage.json").write_text("{}", encoding="utf-8")
+        failures_present = _check_composed_action_guard("accept", feature_dir, mission=_QA_FAMILY, repo_root=project_root)
+
+        assert failures_present == []
+
+
+# ---------------------------------------------------------------------------
+# AC-8 -- ``resolve_org_roots`` (via ``resolve_existing_org_roots``, the
+# primitive ``_resolve_org_manifest_mapping`` actually calls) is invoked
+# with the real, non-``None`` ``repo_root`` the enclosing function already
+# holds -- at BOTH of ``_dn_dependency_gate``'s two distinct
+# ``_check_cli_guards`` call sites.
+# ---------------------------------------------------------------------------
+
+_CUSTOM_ORG_ONLY_FAMILY = "custom-onboarding-mission"
+_CUSTOM_ORG_ONLY_YAML = f"""\
+schema_version: "1.0"
+mission_type: "{_CUSTOM_ORG_ONLY_FAMILY}"
+manifest_version: "1"
+required_always: []
+required_by_step:
+  implement:
+    - artifact_key: "output.custom.thing"
+      artifact_class: "output"
+      path_pattern: "custom-thing.md"
+      blocking: true
+optional_always: []
+"""
+
+_SOFTWARE_DEV_ORG_OVERRIDE_YAML = """\
+schema_version: "1.0"
+mission_type: "software-dev"
+manifest_version: "org-override-1"
+required_always: []
+required_by_step:
+  specify:
+    - artifact_key: "output.sd.org-extra"
+      artifact_class: "output"
+      path_pattern: "org-extra-artifact.md"
+      blocking: true
+optional_always: []
+"""
+
+
+class TestAC8RepoRootThreadedThroughDnDependencyGate:
+    def test_wp_iteration_pre_check_threads_real_repo_root(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+        """TASKS-VERIFY-001: the WP-iteration pre-check call site
+        (~line 1608) is the ONLY one a custom, guard-table-unregistered
+        family can structurally reach."""
+        project_root = tmp_path / "project"
+        project_root.mkdir()
+        org_root = tmp_path / "org-pack"
+        _write_org_manifest(org_root, _CUSTOM_ORG_ONLY_FAMILY, _CUSTOM_ORG_ONLY_YAML)
+        _write_org_pack_config(project_root, packs=[("acme", org_root)])
+
+        feature_dir = project_root / "kitty-specs" / "042-custom-mission"
+        _write_meta(feature_dir, _CUSTOM_ORG_ONLY_FAMILY)
+        _seed_wp(feature_dir, "WP01", "approved")
+
+        run_dir = tmp_path / "run"
+        run_dir.mkdir(parents=True, exist_ok=True)
+        run_ref = MissionRunRef(run_id="run-custom", run_dir=str(run_dir), mission_key="042-custom-mission")
+        ctx = rb.DecideNextContext(
+            agent="agent-x",
+            mission_slug="042-custom-mission",
+            result="success",
+            repo_root=project_root,
+            feature_dir=feature_dir,
+            now="2026-08-24T00:00:00+00:00",
+            mission_type=_CUSTOM_ORG_ONLY_FAMILY,
+            sync_emitter=cast(Any, object()),
+            emitter_for_engine=cast(Any, object()),
+            origin={"mission_tier": "custom", "mission_path": _CUSTOM_ORG_ONLY_FAMILY},
+            progress={"total_wps": 1},
+            run_ref=run_ref,
+            run_dir=run_dir,
+            current_step_id="implement",
+        )
+
+        from charter import drg as charter_drg
+
+        real_resolve_existing_org_roots = charter_drg.resolve_existing_org_roots
+        spy = MagicMock(side_effect=real_resolve_existing_org_roots)
+        monkeypatch.setattr(charter_drg, "resolve_existing_org_roots", spy)
+
+        rb._dn_dependency_gate(ctx)
+
+        assert spy.call_count >= 1
+        assert spy.call_args_list[0].args[0] == project_root
+        assert project_root is not None
+
+    def test_cli_pre_check_threads_real_repo_root(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+        """TASKS-VERIFY-001 fix: the ``software-dev``-scoped CLI pre-check
+        call site (~line 1643) is the one a custom family can NEVER reach
+        (gated by ``get_mission_type(feature_dir) ==
+        MISSION_TYPE_SOFTWARE_DEV``) -- exercised here via a ``software-dev``
+        mission at a non-WP-iteration step. Presence-flip is NOT used
+        (TASKS-FRESH-001): ``_evaluate_software_dev_guards`` never reads
+        ``blocking_artifact_names``, so only the org-tier consult call
+        itself -- unconditional inside ``gather_artifact_presence`` -- is
+        assertable here."""
+        project_root = tmp_path / "project"
+        project_root.mkdir()
+        org_root = tmp_path / "org-pack"
+        _write_org_manifest(org_root, "software-dev", _SOFTWARE_DEV_ORG_OVERRIDE_YAML)
+        _write_org_pack_config(project_root, packs=[("acme", org_root)])
+
+        feature_dir = project_root / "kitty-specs" / "042-sd-feature"
+        _write_meta(feature_dir, "software-dev")
+        (feature_dir / "spec.md").write_text("# spec\n", encoding="utf-8")
+
+        run_dir = tmp_path / "run"
+        run_dir.mkdir(parents=True, exist_ok=True)
+        run_ref = MissionRunRef(run_id="run-sd", run_dir=str(run_dir), mission_key="042-sd-feature")
+        ctx = rb.DecideNextContext(
+            agent="agent-x",
+            mission_slug="042-sd-feature",
+            result="success",
+            repo_root=project_root,
+            feature_dir=feature_dir,
+            now="2026-08-24T00:00:00+00:00",
+            mission_type="software-dev",
+            sync_emitter=cast(Any, object()),
+            emitter_for_engine=cast(Any, object()),
+            origin={},
+            progress=None,
+            run_ref=run_ref,
+            run_dir=run_dir,
+            current_step_id="specify",
+        )
+
+        from charter import drg as charter_drg
+
+        real_resolve_existing_org_roots = charter_drg.resolve_existing_org_roots
+        spy = MagicMock(side_effect=real_resolve_existing_org_roots)
+        monkeypatch.setattr(charter_drg, "resolve_existing_org_roots", spy)
+
+        rb._dn_dependency_gate(ctx)
+
+        assert spy.call_count >= 1
+        assert spy.call_args_list[0].args[0] == project_root

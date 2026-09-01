@@ -81,6 +81,14 @@ def test_dashboard_features_polling_guards_malformed_payloads():
     assert "response.ok" in source
 
 
+def test_dashboard_overview_polling_includes_lifecycle_state():
+    source = DASHBOARD_JS.read_text(encoding="utf-8")
+
+    assert "next_action: item.next_action" in source
+    assert "mission_status: item.mission_status" in source
+    assert "kanban_stats: item.kanban_stats" in source
+
+
 def test_dashboard_overview_mission_copy_uses_text_nodes():
     source = DASHBOARD_JS.read_text(encoding="utf-8")
 
@@ -89,8 +97,10 @@ def test_dashboard_overview_mission_copy_uses_text_nodes():
     assert "titleEl.textContent = `Mission Run: ${feature.name}`;" in source
     assert "introEl.textContent = purposeTldr;" in source
     assert "contextEl.textContent = purposeContext;" in source
-    assert "overviewContent.replaceChildren(header, statusSummary, artifactsHeading, artifactsGrid);" in source
+    assert "overviewContent.replaceChildren(...overviewChildren);" in source
     assert "overviewContent.innerHTML" not in source
+    assert "command.textContent = nextAction;" in source
+    assert "el.innerHTML" not in source
     assert "<h3>Mission Run: ${feature.name}" not in source
     assert "${purposeTldr}</p>" not in source
     assert "${purposeContext}</p>" not in source

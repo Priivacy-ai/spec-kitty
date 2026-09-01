@@ -56,7 +56,7 @@ from typing import Any, Literal
 
 from rich.console import Console
 from rich.markup import escape
-from specify_cli.cli.console import console
+from specify_cli.cli.console import console, sanitize_terminal_text
 
 from kernel.clock import datetime, now_utc
 
@@ -354,10 +354,7 @@ def _auth_verdict_finding(
         severity="critical" if auth_verdict.state == "fail" else "warn",
         summary=f"Session health not confirmed: {auth_verdict.evidence}",
         remediation_command=auth_verdict.remediation,
-        remediation_description=(
-            "The access token could not be confirmed valid; re-authenticate or "
-            "re-run with --server to probe the live session."
-        ),
+        remediation_description=("The access token could not be confirmed valid; re-authenticate or re-run with --server to probe the live session."),
     )
 
 
@@ -553,8 +550,10 @@ def _render_identity_section(report: DoctorReport, console: Console) -> None:
         console.print("  [red]X Not authenticated[/red]")
         console.print("  Run [bold]spec-kitty auth login[/bold] to authenticate.")
     else:
-        console.print(f"  User:           {escape(str(report.session.user_email))}")
-        console.print(f"  Session ID:     {escape(str(report.session.session_id))}")
+        user_email = report.session.user_email or UNKNOWN_DISPLAY
+        session_id = report.session.session_id or UNKNOWN_DISPLAY
+        console.print(f"  User:           {escape(sanitize_terminal_text(user_email))}")
+        console.print(f"  Session ID:     {escape(sanitize_terminal_text(session_id))}")
     console.print()
 
 
@@ -581,7 +580,8 @@ def _render_storage_section(report: DoctorReport, console: Console) -> None:
         console.print("  (no session)")
     else:
         console.print(
-            f"  Backend:        {escape(format_storage_backend(report.session.storage_backend))}"
+            f"  Backend:        "
+            f"{escape(sanitize_terminal_text(format_storage_backend(report.session.storage_backend)))}"
         )
         if report.session.in_memory_drift:
             console.print("  [dim]Note: persisted differs from in-memory (typical during in-flight refresh)[/dim]")
@@ -601,7 +601,8 @@ def _render_lock_section(lock: LockSummary, console: Console) -> None:
             console.print(f"  Acquired at:    {lock.started_at.isoformat()}")
         if lock.age_s is not None:
             console.print(f"  Age:            {lock.age_s:.1f}s")
-        console.print(f"  Host:           {lock.holder_host}")
+        holder_host = lock.holder_host or UNKNOWN_DISPLAY
+        console.print(f"  Host:           {escape(sanitize_terminal_text(holder_host))}")
         if lock.stuck:
             console.print(f"  [red]Stuck (age > {lock.stuck_threshold_s:.1f}s)[/red]")
     console.print()
@@ -620,10 +621,20 @@ def _render_findings_section(report: DoctorReport, console: Console) -> None:
         }
         for finding in report.findings:
             color = severity_color[finding.severity]
-            console.print(f"  [[{color}]{finding.severity}[/{color}]] {finding.id}: {finding.summary}")
+            console.print(
+                f"  [[{color}]{finding.severity}[/{color}]] {escape(sanitize_terminal_text(finding.id))}: {escape(sanitize_terminal_text(finding.summary))}"
+            )
             if finding.remediation_command is not None:
-                description = f" — {finding.remediation_description}" if finding.remediation_description else ""
-                console.print(f"      Run: {finding.remediation_command}{description}")
+                description = (
+                    f" — {finding.remediation_description}"
+                    if finding.remediation_description
+                    else ""
+                )
+                command = escape(sanitize_terminal_text(finding.remediation_command))
+                console.print(
+                    "      Run: "
+                    f"{command}{escape(sanitize_terminal_text(description))}"
+                )
 
 
 def render_report_json(report: DoctorReport) -> str:

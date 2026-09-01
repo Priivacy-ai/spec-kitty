@@ -13,7 +13,7 @@ from __future__ import annotations
 
 from rich.markup import escape
 
-from specify_cli.cli.console import console
+from specify_cli.cli.console import console, sanitize_terminal_text
 
 from specify_cli.auth.errors import ConfigurationError
 from specify_cli.auth.server_target import (
@@ -59,7 +59,7 @@ def print_saas_endpoint() -> ResolvedServerTarget | None:
         # attacker- or fat-finger-controlled and can contain
         # `[sync]`/`[/]`-shaped substrings (#182's rationale applies here too).
         console.print(f"{_SAAS_STATUS_LABEL}[red]split-brain[/red] [dim](env and config.toml disagree)[/dim]")
-        console.print(f"  [yellow]{escape(str(exc))}[/yellow]")
+        console.print(f"  [yellow]{escape(sanitize_terminal_text(str(exc)))}[/yellow]")
         return
     except ConfigurationError:
         # escape(): the remedy names `[sync].server_url` — unescaped, Rich
@@ -72,7 +72,10 @@ def print_saas_endpoint() -> ResolvedServerTarget | None:
     # attacker- or fat-finger-controlled) — unescaped, Rich markup either
     # drops the bracketed text or raises MarkupError out of console.print,
     # which would violate this module's own never-fail invariant (#182).
-    console.print(f"{_SAAS_STATUS_LABEL}{escape(target.resolved_server_url)} [dim]{escape(format_saas_provenance(target))}[/dim]")
+    console.print(
+        f"{_SAAS_STATUS_LABEL}{escape(sanitize_terminal_text(target.resolved_server_url))} "
+        f"[dim]{escape(sanitize_terminal_text(format_saas_provenance(target)))}[/dim]"
+    )
     return target
 
 
@@ -90,14 +93,14 @@ def print_saas_target(session: StoredSession) -> None:
         resolved_server_url=target.resolved_server_url,
     )
     if warning is not None:
-        console.print(f"  [yellow]{escape(warning)}[/yellow]")
+        console.print(f"  [yellow]{escape(sanitize_terminal_text(warning))}[/yellow]")
 
 
 def _print_session_issuer(issuer_url: str | None) -> None:
     """Print where the stored session was minted, when the session knows it."""
     if issuer_url is None:
         return
-    console.print(f"  Session SaaS:   {escape(_normalize_endpoint(issuer_url))} [dim](authenticated session)[/dim]")
+    console.print(f"  Session SaaS:   {escape(sanitize_terminal_text(_normalize_endpoint(issuer_url)))} [dim](authenticated session)[/dim]")
 
 
 def saas_source_name(target: ResolvedServerTarget) -> str:

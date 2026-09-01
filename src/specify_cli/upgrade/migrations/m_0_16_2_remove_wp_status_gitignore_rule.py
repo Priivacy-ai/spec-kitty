@@ -36,6 +36,16 @@ PATTERNS_TO_REMOVE = [
 ]
 
 
+def _gitignore_symlink_refusal(gitignore_path: Path) -> str:
+    if not gitignore_path.is_symlink():
+        return ""
+    try:
+        target = os.readlink(gitignore_path)
+    except OSError as exc:
+        return f".gitignore is a symlink; refusing to follow it (could not resolve target: {exc})"
+    return f".gitignore is a symlink to {target!r}; refusing to follow it"
+
+
 def is_wp_status_ignore_pattern(line: str) -> bool:
     """Return True when a line matches stale WP status ignore entries."""
     stripped = line.strip()
@@ -74,9 +84,9 @@ def remove_wp_status_entries(gitignore_path: Path, dry_run: bool = False) -> tup
     changes: list[str] = []
     errors: list[str] = []
 
-    if gitignore_path.is_symlink():
-        target = os.readlink(gitignore_path)
-        errors.append(f".gitignore is a symlink to {target!r}; refusing to follow it")
+    symlink_refusal = _gitignore_symlink_refusal(gitignore_path)
+    if symlink_refusal:
+        errors.append(symlink_refusal)
         return changes, errors
 
     if not gitignore_path.exists():
@@ -143,9 +153,9 @@ class RemoveWpStatusGitignoreRuleMigration(BaseMigration):
         """Check readability/writability preconditions for .gitignore."""
         gitignore_path = project_path / ".gitignore"
 
-        if gitignore_path.is_symlink():
-            target = os.readlink(gitignore_path)
-            return False, f".gitignore is a symlink to {target!r}; refusing to follow it"
+        symlink_refusal = _gitignore_symlink_refusal(gitignore_path)
+        if symlink_refusal:
+            return False, symlink_refusal
 
         if not gitignore_path.exists():
             return True, ""
