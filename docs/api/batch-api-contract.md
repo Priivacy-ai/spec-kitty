@@ -138,7 +138,7 @@ A file lock (`~/.spec-kitty/credentials.lock`) prevents concurrent access.
 
 ## 2. Event Envelope Field Reference
 
-This historical batch-endpoint contract describes the retired sync transport. The Pydantic `Event` model in `src/specify_cli/spec_kitty_events/models.py` remains as historical schema context; `src/specify_cli/sync/emitter.py` was deleted with that transport and is not a live CLI source.
+This historical batch-endpoint contract describes the retired sync transport. The external `spec-kitty-events` package's Pydantic `Event` model remains the schema reference; `src/specify_cli/sync/emitter.py` was deleted with that transport and is not a live CLI source.
 
 ### 2.1 Core Fields (Pydantic `Event` model)
 
@@ -949,9 +949,9 @@ See [tracker-snapshot-publish.md](../../kitty-specs/048-tracker-publish-resource
 
 ## Appendix B: Source File Reference
 
-| Component | File (relative to repo root) |
-|-----------|------------------------------|
-| Pydantic Event model | `src/specify_cli/spec_kitty_events/models.py` |
+| Component | File / source |
+|-----------|---------------|
+| Pydantic Event model | External `spec-kitty-events` dependency, pinned at `c93dbfbf5243330349452a31d05bca2ece26ceea` (`pyproject.toml`) |
 | Retired sync transport | Deleted with issue #5; this appendix is historical only |
 | SaaS fan-out (canonical 7-lane) | `src/specify_cli/status/emit.py` (`_saas_fan_out`) |
 | Retired public event API | Deleted with issue #5 |
