@@ -31,7 +31,7 @@ test_no_dead_modules:
   # wp-lane-state-machine-fsm): upstream #1756 added m_3_3_0_session_presence_all_harnesses
   # and m_3_3_0_session_presence_claude_code; both auto-discovered via
   # pkgutil.iter_modules, never statically imported. Growth here is expected/routine.
-  category_1_auto_discovered_migrations: 101  # justification: 96 after PR #3007 added m_3_2_6_retire_rtk_search_tooling, an auto-discovered upgrade migration that cleans up the retired rtk-search-tooling toolguide activation from existing consumer configs (#3009 operator ruling). +1 (96->97, PR #3070): m_3_2_x_normalize_activation_absence, an auto-discovered migration (@MigrationRegistry.register, pkgutil.iter_modules) that normalizes activation absence during charter-activation unification — no static importer, so registration not suppression. +1 (97->98, write-side-seam-matrix-tracer-01KYP3MH WP05/FR-008, commit 09f740bd4): m_3_2_6_issue_matrix_driver_repoint, an auto-discovered migration (@MigrationRegistry.register, pkgutil.iter_modules, wired via cli/commands/upgrade.py's auto_discover_migrations()) that repoints the #2804 gate-artifact merge driver from issue-matrix.md to issue-matrix.json — no static importer, same false-positive class as every sibling m_3_2_6_* entry. +1 (98->99, review-cycle-verdict-seam-rebuild-01KZ2W7W WP18/T079): m_3_2_7_review_cycle_merge_driver, an auto-discovered migration (@MigrationRegistry.register, pkgutil.iter_modules) that installs the fail-closed review-cycle-*.md merge driver for already-initialized clones — no static importer, same false-positive class as every sibling driver-seeding migration. +1 (99->100, verdict-seam-write-unification-01KZ9Q35 pre-merge remediation, #3236): m_zz_verdict_provenance_backfill, an auto-discovered migration (@MigrationRegistry.register, pkgutil.iter_modules) that runs the FR-012/SC-008 verdict-provenance backfill over every kitty-specs/ mission on upgrade — no static importer, same false-positive class as its m_zz_runtime_state_backfill sibling. +1 (100->101, WIRE-M2-03, 2026-08-22): m_3_2_9_migrate_lifecycle_envelope, an auto-discovered migration (@MigrationRegistry.register, pkgutil.iter_modules) that wires the F2-T1 one-shot F1-strict lifecycle-envelope rewrite into spec-kitty upgrade — no static importer, same false-positive class as every sibling entry. Category 1 exists precisely to enumerate auto-discovered migration modules that have no static importer.
+  category_1_auto_discovered_migrations: 104  # justification: 96 after PR #3007 added m_3_2_6_retire_rtk_search_tooling, an auto-discovered upgrade migration that cleans up the retired rtk-search-tooling toolguide activation from existing consumer configs (#3009 operator ruling). +1 (96->97, PR #3070): m_3_2_x_normalize_activation_absence, an auto-discovered migration (@MigrationRegistry.register, pkgutil.iter_modules) that normalizes activation absence during charter-activation unification — no static importer, so registration not suppression. +1 (97->98, write-side-seam-matrix-tracer-01KYP3MH WP05/FR-008, commit 09f740bd4): m_3_2_6_issue_matrix_driver_repoint, an auto-discovered migration (@MigrationRegistry.register, pkgutil.iter_modules, wired via cli/commands/upgrade.py's auto_discover_migrations()) that repoints the #2804 gate-artifact merge driver from issue-matrix.md to issue-matrix.json — no static importer, same false-positive class as every sibling m_3_2_6_* entry. +1 (98->99, review-cycle-verdict-seam-rebuild-01KZ2W7W WP18/T079): m_3_2_7_review_cycle_merge_driver, an auto-discovered migration (@MigrationRegistry.register, pkgutil.iter_modules) that installs the fail-closed review-cycle-*.md merge driver for already-initialized clones — no static importer, same false-positive class as every sibling driver-seeding migration. +1 (99->100, verdict-seam-write-unification-01KZ9Q35 pre-merge remediation, #3236): m_zz_verdict_provenance_backfill, an auto-discovered migration (@MigrationRegistry.register, pkgutil.iter_modules) that runs the FR-012/SC-008 verdict-provenance backfill over every kitty-specs/ mission on upgrade — no static importer, same false-positive class as its m_zz_runtime_state_backfill sibling. +1 (100->101, WIRE-M2-03, 2026-08-22): m_3_2_9_migrate_lifecycle_envelope, an auto-discovered migration (@MigrationRegistry.register, pkgutil.iter_modules) that wires the F2-T1 one-shot F1-strict lifecycle-envelope rewrite into spec-kitty upgrade — no static importer, same false-positive class as every sibling entry. +1 (101->102, issue #820): m_3_3_1_context_sources_consolidation, an auto-discovered migration that consolidates consumer agent-profile context-sources onto canonical reference fields. +2 (102->104, PR-3659 convergence): m_3_2_6rc3_lint_report_gitignore_backfill and m_3_2_6rc3_narrow_cursor_gitignore, both auto-discovered upgrade migrations with no static importer.
   # justification: 3 schema generator modules consumed by
   # scripts/generate_schemas.py via importlib.import_module.
   # Shrunk from 4 → 3 when doctrine.missions.models gained a live
@@ -58,7 +58,10 @@ test_no_dead_modules:
   # state_contract, workspace_context — 8->1 SHRINK. WP02 then re-anchored
   # tasks_support's ~35 test sites onto specify_cli.task_utils and deleted the
   # module, draining the last row: 1->0 SHRINK. Category fully drained.)
-  category_4_backcompat_shims: 0
+  # justification: 0 -> 1 (charter-code-topology-01M152G1, M2): `doctrine`
+  # (src/doctrine.py) is an intentional deprecation shim for legacy external
+  # `import doctrine` callers during the CR-06 compatibility window.
+  category_4_backcompat_shims: 1
   # justification: 2 not-yet-wired adapter modules (specify_cli.doctrine.pack_descriptor,
   # specify_cli.doctrine.pack_lineage) from the pack-metadata library-first slice
   # (#3500-#3503, ADR 2026-08-16-1); production wiring is the deferred integration WP
@@ -125,14 +128,14 @@ test_no_dead_modules:
   # All four now have live src/ callers and are no longer orphans; none remain open. Shrink --
   # fully reverses the M2-canonical-integration deferral bump above.
   #
-  # 3 -> 4 (EXPERIMENTAL-spec-kitty#9, E3 credential resolution, 2026-08-25):
+  # 3 -> 4 (Priivacy-ai/spec-kitty#9, E3 credential resolution, 2026-08-25):
   # zeitgeist_client.resolution is the seam library the #8 zeitgeist handler will
   # call at fan-out — written library-first with its contract pinned by tests,
   # no src/ caller yet. Follow-up tracker ticket per FR-303:
-  # EXPERIMENTAL-spec-kitty#8 (the wiring consumer); the entry burns when that
+  # Priivacy-ai/spec-kitty#8 (the wiring consumer); the entry burns when that
   # lands, per the stale-entry check.
   #
-  # 4 -> 3 (EXPERIMENTAL-spec-kitty#8, E3 zeitgeist moment handler, 2026-08-25):
+  # 4 -> 3 (Priivacy-ai/spec-kitty#8, E3 zeitgeist moment handler, 2026-08-25):
   # the wiring landed — status/zeitgeist_bridge.py resolves credentials through
   # zeitgeist_client.resolution at the fan-out seam, so the module has a live
   # src/ caller and its Cat-7 entry is burned.
@@ -150,7 +153,7 @@ test_no_dead_modules:
   # dossier.drift_detector, migration.envelope_seam) were each adjudicated
   # PRUNE and deleted outright -- none had a viable low-risk wiring target
   # after the sync transport's removal (issue #5). TODO(triage) notes burned.
-  category_7_grandfathered_orphans: 2
+  category_7_grandfathered_orphans: 8  # justification: M2b (#806) leaves six activation-adjacent orphan modules; wire-or-prune follow-up is #925.
 
 # tests/architectural/test_migration_chain_integrity.py
 test_migration_chain_integrity:
@@ -279,10 +282,10 @@ test_reference_enum_ratchet:
 # adding a file requires this diff plus a `# justification:` naming why the
 # sink carries no project data, or why its consent seam is sound.
 test_egress_consent_boundary:
-  # justification: 27 files hold a transmit primitive with a recorded reason —
+  # justification: 28 files hold a transmit primitive with a recorded reason —
   # 12 gated by a named consent seam on the data's own project_uuid (E1/E2/E3
   # and E6-E13), 1 per-project transport whose every caller is separately
-  # seamed (E14), and 14 that are
+  # seamed (E14), and 15 that are
   # not project egress at all — auth/OAuth token traffic, the doctrine fetch,
   # the readiness probe, four localhost control endpoints and `sync doctor`'s
   # empty-body connectivity probe (E18). Each was verified individually, not
@@ -308,7 +311,7 @@ test_egress_consent_boundary:
   # is independently pinned in test_egress_consent_boundary.py.
   # Both sides of the #14 merge moved this counter off 28, in opposite
   # directions, and both allowances are kept:
-  # - EXPERIMENTAL-spec-kitty#9 (E3 ephemeral-team-status) ADDED
+  # - Priivacy-ai/spec-kitty#9 (E3 ephemeral-team-status) ADDED
   #   specify_cli/zeitgeist_client/resolution.py — the capability mint POSTs
   #   {'repo_slug', 'kind'} to Team Kitty to *receive* a relay token;
   #   credential traffic gated by team membership over Bearer auth, not
@@ -336,7 +339,11 @@ test_egress_consent_boundary:
   # (sync/daemon.py, sync/daemon_protocol.py, sync/orphan_sweep.py). saas/readiness.py
   # re-homed verbatim to tracker/saas_readiness.py (same E18 reason, new address).
   # Recorded so the ceiling does not silently hold free files.
-  egress_allowlist_files: 14
+  # 14 -> 15 (#217): doctrine HTTPS fetches now query Artifactory AQL for the
+  # configured public pack item's version and SHA-256. The query identifies
+  # repo/path/name from the operator-configured doctrine URL and returns
+  # metadata; it transmits no project data.
+  egress_allowlist_files: 15
   # justification: 0. The module asserts this set is EMPTY, so any entry is a
   # red build; pinning the baseline at 0 makes recording one cost a second
   # visible diff here as well. Growth is a NEW unconsented egress path — the
@@ -344,4 +351,3 @@ test_egress_consent_boundary:
   # to fix the path, never to register it. E1/E2/E3 were the founding entries
   # (FR-028/029/030) and moved to egress_allowlist_files when they landed.
   known_ungated_files: 0
-

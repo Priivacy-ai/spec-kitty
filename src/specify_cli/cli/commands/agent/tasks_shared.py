@@ -45,6 +45,7 @@ from specify_cli.coordination.coherence import is_coord_residue_churn
 from specify_cli.core.constants import KITTY_SPECS_DIR, is_occurrence_map_path
 from specify_cli.core.vcs.git import git_diff_names_checked, merge_base_changed_files
 from specify_cli.mission_metadata import resolve_mission_identity
+from specify_cli.missions._read_path_resolver import MissionSelectorAmbiguous
 from specify_cli.status import is_dossier_snapshot as _is_dossier_snapshot
 
 logger = logging.getLogger(__name__)
@@ -246,9 +247,31 @@ def _find_mission_slug(
         # Note: repo_root from locate_project_root() already resolves to the main
         # checkout; get_main_repo_root() here guards against caller passing a
         # worktree path directly.
-        legacy_dir = placement_seam(
-            _tasks.get_main_repo_root(repo_root), raw_handle
-        ).read_dir(MissionArtifactKind.PRIMARY_METADATA)
+        try:
+            legacy_dir = placement_seam(
+                _tasks.get_main_repo_root(repo_root), raw_handle
+            ).read_dir(MissionArtifactKind.PRIMARY_METADATA)
+        except MissionSelectorAmbiguous as exc:
+            # This read-path resolver family raises BEFORE resolve_mission_handle
+            # ever runs (#241), so an ambiguous handle must map onto the SAME
+            # shared {"success": False, "error_code": ..., "error": ...,
+            # "handle": ..., "candidates": [...]} envelope resolve_mission_handle
+            # emits below for AmbiguousHandleError/MissionNotFoundError — not the
+            # bare {"error": str(exc)} the generic command-level exception
+            # handler would otherwise produce.
+            envelope = {
+                "success": False,
+                "error_code": exc.error_code,
+                "error": str(exc),
+                "handle": exc.handle,
+                "candidates": exc.candidates,
+            }
+            if json_output:
+                render = render or _tasks.RealRender()
+                print(render.json_envelope(envelope))
+                raise typer.Exit(1) from None
+            _tasks.console.print(f"[red]Error:[/red] {exc}")
+            raise typer.Exit(2) from None
         if legacy_dir.exists():
             # F-001: the candidate resolver canonicalizes mid8/ULID/numeric
             # handles, so the resolved directory's NAME — not the raw operator

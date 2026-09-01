@@ -153,7 +153,11 @@ def test_org_pack_in_monorepo_with_custom_workflow(tmp_complex_setup: Path) -> N
 
     All three axes must operate without interfering with each other.
     """
-    from charter.drg import DRGGraph, load_org_drg, merge_three_layers  # noqa: PLC0415
+    from charter.drg import DRGGraph
+    from charter.activation.drg_activation import (
+        load_org_drg,
+        merge_three_layers,
+    )
 
     # ---- Axis 1: three-layer DRG ----------------------------------------
     fragments = load_org_drg(tmp_complex_setup)
@@ -177,7 +181,7 @@ def test_org_pack_in_monorepo_with_custom_workflow(tmp_complex_setup: Path) -> N
     assert merged is not None, "Axis 1 failure: merge_three_layers returned None"
 
     # ---- Axis 2: CharterScope monorepo resolution ------------------------
-    from charter.scope import CharterScope  # noqa: PLC0415
+    from charter.activation.scope import CharterScope  # noqa: PLC0415
 
     deep_auth_path = tmp_complex_setup / "packages" / "auth" / "some" / "deep" / "dir"
     scope = CharterScope.resolve(tmp_complex_setup, deep_auth_path)
@@ -222,7 +226,7 @@ def test_org_pack_drg_does_not_affect_default_workflow(
 ) -> None:
     """Axis 1 × Axis 3 isolation: loading an org DRG must not alter the default
     workflow for a mission that does NOT set workflow_id."""
-    from charter.drg import load_org_drg  # noqa: PLC0415
+    from charter.activation.drg_activation import load_org_drg
     from runtime.next._internal_runtime.planner import (  # noqa: PLC0415
         resolve_next_workflow_action,
     )
@@ -259,8 +263,8 @@ def test_monorepo_scope_resolution_does_not_affect_drg(
 ) -> None:
     """Axis 2 × Axis 1 isolation: resolving a charter scope must not alter the
     DRG fragment list."""
-    from charter.drg import load_org_drg  # noqa: PLC0415
-    from charter.scope import CharterScope  # noqa: PLC0415
+    from charter.activation.drg_activation import load_org_drg
+    from charter.activation.scope import CharterScope  # noqa: PLC0415
 
     # Axis 2 operation first — resolve the web scope
     web_dir = tmp_complex_setup / "packages" / "web"
@@ -338,7 +342,7 @@ def test_governance_context_production_path_uses_monorepo_charter(
 
     from unittest.mock import patch  # noqa: PLC0415
 
-    from charter.context import CharterContextResult  # noqa: PLC0415
+    from charter.activation.context import CharterContextResult  # noqa: PLC0415
     from runtime.next.prompt_builder import _governance_context  # noqa: PLC0415
 
     repo_root = tmp_complex_setup
@@ -354,7 +358,7 @@ def test_governance_context_production_path_uses_monorepo_charter(
     ) -> CharterContextResult:
         captured_scope_roots.append(resolved_root)
         # Return a minimal stub so the rest of the pipeline proceeds.
-        from charter.context import build_charter_context  # noqa: PLC0415
+        from charter.activation.context import build_charter_context  # noqa: PLC0415
         try:
             return build_charter_context(resolved_root, **kwargs)
         except Exception:
@@ -367,7 +371,7 @@ def test_governance_context_production_path_uses_monorepo_charter(
             )
 
     with patch(
-        "charter.scope_router.build_charter_context",
+        "charter.activation.scope_router.build_charter_context",
         side_effect=_capturing_build_charter_context,
     ):
         _governance_context(repo_root, feature_dir=deep_auth_path, action="implement")

@@ -58,7 +58,7 @@ class ProfileRegistry:
       explicitly empty list (landing-fold regression fix: a prior revision
       of this unification returned ``[]`` for that case, which dropped
       every language-scoped profile instead of admitting all of them — see
-      ``charter.language_scope.infer_repo_languages``'s docstring for the
+      ``charter.activation.language_scope.infer_repo_languages``'s docstring for the
       ``None``-vs-``[]`` contract). The filter still narrows the catalog for
       a *configured* project whose compiled charter or interview transcript
       names a real, non-empty language subset (e.g. this repository's own

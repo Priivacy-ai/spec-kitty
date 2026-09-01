@@ -1,4 +1,4 @@
-"""Tests for the WP02 projection seam (``doctrine.missions.step_projection``).
+"""Tests for the WP02 projection seam (``charter.offering.missions.step_projection``).
 
 Covers (T008):
 
@@ -26,10 +26,10 @@ from pathlib import Path
 
 import pytest
 
-from doctrine.missions.mission_step_repository import MissionStepRepository
-from doctrine.missions.mission_type_repository import MissionTypeRepository
-from doctrine.missions.models import MissionStep, MissionStepTemplateRef
-from doctrine.missions.step_projection import (
+from charter.offering.missions.mission_step_repository import MissionStepRepository
+from charter.offering.missions.mission_type_repository import MissionTypeRepository
+from charter.offering.missions.models import MissionStep, MissionStepTemplateRef
+from charter.offering.missions.step_projection import (
     iter_template_refs,
     project_action_sequence,
     project_template_set,

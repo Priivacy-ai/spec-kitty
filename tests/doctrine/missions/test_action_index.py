@@ -1,4 +1,4 @@
-"""Tests for doctrine.missions.action_index.load_action_index.
+"""Tests for charter.offering.missions.action_index.load_action_index.
 
 Targets mutation-prone areas:
 - Path construction (mission / "actions" / action / "index.yaml")
@@ -19,7 +19,7 @@ from pathlib import Path
 
 import pytest
 
-from doctrine.missions.action_index import ActionIndex, ActionIndexError, load_action_index
+from charter.offering.missions.action_index import ActionIndex, ActionIndexError, load_action_index
 
 pytestmark = [pytest.mark.fast, pytest.mark.doctrine]
 

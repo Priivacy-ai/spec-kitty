@@ -11,19 +11,19 @@ Pre-fix, both tactics dangle:
 * ``model-task-routing`` does not exist as an artifact at all.
 * ``autonomous-operation-protocol`` exists and is activated
   (``.kittify/config.yaml`` ``activated_tactics``) but has no inbound
-  directive ``suggests`` edge in ``src/doctrine/graph.yaml``, so it is not
+  directive ``suggests`` edge in ``src/charter/offering/graph.yaml``, so it is not
   directive-reachable and does not resolve in the compiled charter
   references.
 
 These tests assert resolution via two independent, non-fakeable routes:
 
-1. Real DRG traversal over the shipped ``src/doctrine/graph.yaml``
-   (:func:`doctrine.drg.query.resolve_transitive_refs`) starting from an
+1. Real DRG traversal over the shipped ``src/charter/offering/graph.yaml``
+   (:func:`charter.offering.drg.query.resolve_transitive_refs`) starting from an
    activated directive -- proves the graph edge exists, not just that a
    string appears somewhere.
-2. The real charter compiler (:func:`charter.compiler.compile_charter`)
+2. The real charter compiler (:func:`charter.activation.compiler.compile_charter`)
    against the project's own interview answers and a real
-   ``doctrine.service.DoctrineService`` rooted at ``src/doctrine`` -- proves
+   ``charter.offering.service.DoctrineService`` rooted at ``src/doctrine`` -- proves
    the resolved reference carries the tactic's actual body (``purpose``),
    which is what ``charter context`` surfaces downstream, not merely an id
    string dropped into ``references.yaml`` by hand.
@@ -35,13 +35,13 @@ from pathlib import Path
 
 import pytest
 
-from charter.compiler import compile_charter
-from charter.interview import read_interview_answers
-from doctrine.drg.loader import load_built_in_graph
-from doctrine.drg.models import DRGGraph, Relation
-from doctrine.drg.query import resolve_transitive_refs
-from doctrine.drg.validator import assert_valid
-from doctrine.service import DoctrineService
+from charter.activation.compiler import compile_charter
+from charter.activation.interview import read_interview_answers
+from charter.offering.drg.loader import load_built_in_graph
+from charter.offering.drg.models import DRGGraph, Relation
+from charter.offering.drg.query import resolve_transitive_refs
+from charter.offering.drg.validator import assert_valid
+from charter.offering.service import DoctrineService
 
 pytestmark = [pytest.mark.fast, pytest.mark.doctrine]
 
@@ -92,7 +92,7 @@ def test_model_task_routing_tactic_reachable_via_drg_traversal() -> None:
 
     assert "model-task-routing" in result.tactics, (
         "tactic:model-task-routing is not reachable from an activated directive "
-        "via a suggests edge in src/doctrine/graph.yaml -- the charter's "
+        "via a suggests edge in src/charter/offering/graph.yaml -- the charter's "
         "`model_task_routing` reference dangles."
     )
 

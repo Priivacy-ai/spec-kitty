@@ -5,7 +5,7 @@ from pathlib import Path
 import pytest
 from ruamel.yaml import YAML
 
-from doctrine.toolguides.repository import ToolguideRepository
+from charter.offering.toolguides.repository import ToolguideRepository
 pytestmark = [pytest.mark.fast, pytest.mark.doctrine]
 
 
@@ -46,7 +46,7 @@ class TestToolguideRepository:
         assert repo.list_all() == []
 
     def test_save_writes_valid_yaml(self, tmp_path: Path, sample_toolguide_data: dict) -> None:
-        from doctrine.toolguides.models import Toolguide
+        from charter.offering.toolguides.models import Toolguide
 
         project_dir = tmp_path / "project"
         repo = ToolguideRepository(built_in_dir=tmp_path / "empty", project_dir=project_dir)
@@ -62,7 +62,7 @@ class TestToolguideRepository:
         assert data["id"] == "test-toolguide"
 
     def test_save_raises_without_project_dir(self, tmp_path: Path, sample_toolguide_data: dict) -> None:
-        from doctrine.toolguides.models import Toolguide
+        from charter.offering.toolguides.models import Toolguide
 
 
         repo = ToolguideRepository(built_in_dir=tmp_path / "empty")
@@ -84,7 +84,7 @@ class TestToolguideRepository:
             "id": "merge-test",
             "tool": "bash",
             "title": "Base Title",
-            "guide_path": "src/doctrine/toolguides/built-in/POWERSHELL_SYNTAX.md",
+            "guide_path": "src/charter/offering/toolguides/built-in/POWERSHELL_SYNTAX.md",
             "summary": "Base summary",
         }
         override = {
@@ -92,7 +92,7 @@ class TestToolguideRepository:
             "id": "merge-test",
             "tool": "powershell",
             "title": "Overridden Title",
-            "guide_path": "src/doctrine/toolguides/built-in/POWERSHELL_SYNTAX.md",
+            "guide_path": "src/charter/offering/toolguides/built-in/POWERSHELL_SYNTAX.md",
             "summary": "Overridden summary",
             "commands": ["spec-kitty"],
         }
@@ -125,7 +125,7 @@ class TestToolguideRepository:
                     "id": "python-toolguide",
                     "tool": "pytest",
                     "title": "Python Toolguide",
-                    "guide_path": "src/doctrine/toolguides/built-in/python.md",
+                    "guide_path": "src/charter/offering/toolguides/built-in/python.md",
                     "summary": "Python checks",
                     "applies_to_languages": ["python"],
                 },
@@ -138,7 +138,7 @@ class TestToolguideRepository:
                     "id": "generic-toolguide",
                     "tool": "git",
                     "title": "Generic Toolguide",
-                    "guide_path": "src/doctrine/toolguides/built-in/generic.md",
+                    "guide_path": "src/charter/offering/toolguides/built-in/generic.md",
                     "summary": "Generic checks",
                 },
                 handle,
@@ -168,7 +168,7 @@ class TestToolguideRepository:
                     "id": "merge-test",
                     "tool": "bash",
                     "title": "Base Title",
-                    "guide_path": "src/doctrine/toolguides/built-in/base.md",
+                    "guide_path": "src/charter/offering/toolguides/built-in/base.md",
                     "summary": "Base summary",
                 },
                 handle,
@@ -180,7 +180,7 @@ class TestToolguideRepository:
                     "id": "merge-test",
                     "tool": "pytest",
                     "title": "Python Override",
-                    "guide_path": "src/doctrine/toolguides/built-in/python.md",
+                    "guide_path": "src/charter/offering/toolguides/built-in/python.md",
                     "summary": "Python summary",
                     "applies_to_languages": ["python"],
                 },
@@ -193,7 +193,7 @@ class TestToolguideRepository:
                     "id": "python-only",
                     "tool": "pytest",
                     "title": "Python Only",
-                    "guide_path": "src/doctrine/toolguides/built-in/python.md",
+                    "guide_path": "src/charter/offering/toolguides/built-in/python.md",
                     "summary": "Python summary",
                     "applies_to_languages": ["python"],
                 },

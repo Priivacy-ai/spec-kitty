@@ -1,7 +1,7 @@
 """Guard tests for ``specify_cli.charter_pack_registry`` (#3064 follow-up).
 
 ``PER_KIND_ACTIVATION_KEYS`` used to be a hand-written eight-key tuple that
-could silently drift from ``charter.pack_manager.YAML_KEY_MAP`` (the
+could silently drift from ``charter.activation.pack_manager.YAML_KEY_MAP`` (the
 canonical charter-kind -> ``config.yaml``-key table) if a new charter kind
 was ever added. It is now derived from ``YAML_KEY_MAP.values()`` with
 ``mission_type_activations`` (the documented ``mission-type`` outlier) and
@@ -24,7 +24,7 @@ from __future__ import annotations
 
 import pytest
 
-from charter.pack_manager import YAML_KEY_MAP
+from charter.activation.pack_manager import YAML_KEY_MAP
 from specify_cli.charter_pack_registry import (
     ACTIVATION_KEYS,
     BUILTIN_PACKS,

@@ -63,17 +63,17 @@ def test_org_pack_overriding_shipped_invariant_is_permitted_with_warning(
     """A same-kind org override of a shipped (built-in) node is PERMITTED by the
     merge and surfaced as a WARNING for operator visibility; a per-repo
     replaceable-builtins governance test decides whether the override is
-    sanctioned (``doctrine.drg.merge._warn_builtin_override``). Retired the prior
+    sanctioned (``charter.offering.drg.merge._warn_builtin_override``). Retired the prior
     hard-fail ``OrgDRGConflictError`` expectation when the merge moved to
     warn-not-raise."""
     import logging  # noqa: PLC0415
 
-    from charter.drg import merge_three_layers  # noqa: PLC0415
+    from charter.activation.drg_activation import merge_three_layers
 
     built_in = _built_in_graph_with_node("directive:caveman-comments")
     org_fragment = _fragment_overriding("caveman-comments")
 
-    with caplog.at_level(logging.WARNING, logger="doctrine.drg.merge"):
+    with caplog.at_level(logging.WARNING, logger="charter.offering.drg.merge"):
         merged = merge_three_layers(
             built_in=built_in,
             org_fragments=[org_fragment],
@@ -100,12 +100,12 @@ def test_org_pack_body_path_referencing_specify_cli_is_layer_rule_violation() ->
     """FR-005 — an org node whose ``body_path`` reaches across the layer
     boundary (e.g. into ``src/specify_cli/``) fails with
     ``OrgDRGConflictError(kind='layer_rule_violation')``."""
-    from charter.drg import (  # noqa: PLC0415
+    from charter.drg import (
         DRGGraph,
         OrgDRGConflictError,
         OrgDRGFragment,
-        merge_three_layers,
     )
+    from charter.activation.drg_activation import merge_three_layers
 
     built_in = DRGGraph(
         schema_version="1.0",

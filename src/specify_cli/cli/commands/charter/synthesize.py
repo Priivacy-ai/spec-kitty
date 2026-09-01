@@ -140,7 +140,7 @@ def charter_synthesize(  # noqa: C901
     **minimal artifact set** the runtime requires:
 
     1. ``.kittify/doctrine/`` — directory marker. ``DoctrineService``'s
-       project-root resolver (``src/charter/_doctrine_paths.py``) is a
+       project-root resolver (``src/charter/activation/_doctrine_paths.py``) is a
        presence-only check; an empty directory is a valid project layer.
     2. ``.kittify/doctrine/PROVENANCE.md`` — human-readable record of the
        fresh-project seed path, citing #839.
@@ -177,8 +177,8 @@ def charter_synthesize(  # noqa: C901
     on-disk overlay make a plain run refuse (exit 1); backed divergence is
     always preserved and reported, never a refusal.
     """
-    from charter.synthesizer.errors import NeutralityGateViolation, SynthesisError, render_error_panel
-    from charter.synthesizer.reconcile import DRGLoadError
+    from charter.activation.synthesizer.errors import NeutralityGateViolation, SynthesisError, render_error_panel
+    from charter.activation.synthesizer.reconcile import DRGLoadError
 
     # WP03 amendment #3 (defense in depth): coerce a non-bool prune/dry_run
     # sentinel to False before any mode-selection logic acts on it. See
@@ -217,7 +217,7 @@ def charter_synthesize(  # noqa: C901
         # synthesize fell through to the production adapter and crashed.
         # charter.yaml is the canonical fresh-project signal; when it is absent
         # we fall through to the existing pipeline so callers that mock
-        # charter.synthesizer.synthesize keep their established behaviour.
+        # charter.activation.synthesizer.synthesize keep their established behaviour.
         charter_yaml = repo_root / CHARTER_YAML
         is_fresh_project_synthesize = (
             adapter == "generated"
@@ -432,8 +432,8 @@ def charter_synthesize(  # noqa: C901
         # write_pipeline.promote(), so it is intentionally not gated there.
         _raise_if_bundle_incomplete(repo_root)
 
-        from charter.synthesizer import synthesize
-        from charter.synthesizer.reconcile import SynthesizeMode
+        from charter.activation.synthesizer import synthesize
+        from charter.activation.synthesizer.reconcile import SynthesizeMode
 
         # FR-007: an unparseable on-disk overlay raises DRGLoadError from
         # INSIDE this call (reconcile_synthesis runs before any write, in
@@ -522,7 +522,7 @@ def charter_synthesize(  # noqa: C901
             }, indent=2, sort_keys=True))
         raise typer.Exit(code=1) from e
     except SynthesisError as e:
-        from charter.synthesizer.errors import GeneratedArtifactMissingError as _GAME
+        from charter.activation.synthesizer.errors import GeneratedArtifactMissingError as _GAME
 
         render_error_panel(e, err_console)
         if isinstance(e, _GAME):

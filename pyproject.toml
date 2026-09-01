@@ -1,6 +1,6 @@
 [project]
 name = "spec-kitty-cli"
-version = "3.2.6rc2"
+version = "3.2.6rc5"
 description = "Spec Kitty, a tool for Specification Driven Development (SDD) agentic projects, with kanban and git worktree isolation."
 readme = "README.md"
 license = { file = "LICENSE" }
@@ -116,6 +116,7 @@ Changelog = "https://github.com/Priivacy-ai/spec-kitty/blob/main/CHANGELOG.md"
 test = [
     "pytest>=9.0.3,<9.1",  # CVE-2025-71176 fix (>=9.0.3); <9.1 avoids the pytest 9.1.x reorder_items INTERNALERROR ('Function' not subscriptable) that trips CI's pip-resolved collection order (#2884). Aligns CI pip jobs with uv.lock's 9.0.3.
     "pytest-asyncio>=0.21.0",  # Required for async tests
+    "pytest-benchmark>=5.2.3",  # Statistical off-PR performance pipeline (ADR 2026-08-22-1)
     "pytest-cov>=4.1.0",  # Required by CI coverage flags
     "pytest-timeout>=2.2.0",  # Required by mutmut pytest_add_cli_args --timeout flag
     "pytest-xdist>=3.8.0",  # Parallelize large CI shards with --dist loadfile
@@ -124,7 +125,7 @@ test = [
     "diff-cover>=10.0.0",  # Enforce changed-line coverage in CI
     "chardet>=3.0.4,<6",  # Pin chardet below 6.x to avoid requests compatibility warning
     "build>=1.0.0",  # Required for distribution tests (wheel building)
-    "hatchling>=1.27.0",  # BuildHookInterface import for tests/doctrine/test_hatch_build.py (in-process coverage of the doctrine wheel's custom build hook; already a [build-system] requirement, pinned here so it's importable outside build isolation)
+    "hatchling>=1.27.0",  # Already a [build-system] requirement; pinned here so it's importable outside build isolation. (charter-code-topology-01M152G1, S5: its prior sole rationale, tests/doctrine/test_hatch_build.py's in-process BuildHookInterface coverage of the dormant doctrine wheel, was deleted with the dormant spec-kitty-doctrine wheel groundwork per MAP-BUILD -- kept as a lockfile-neutral no-op rather than risk uv.lock drift for a redundant-but-harmless test-extra pin.)
     "mutmut>=3.5.0",  # Mutation testing
     "pytestarch>=4.0.0",  # Architectural dependency testing (ADR 2026-03-27-1)
 ]
@@ -159,24 +160,25 @@ build-backend = "hatchling.build"
 allow-direct-references = true
 
 [tool.hatch.build.targets.wheel]
-packages = ["src/kernel", "src/glossary", "src/mission_runtime", "src/runtime", "src/specify_cli", "src/doctrine", "src/charter"]
+packages = ["src/kernel", "src/glossary", "src/mission_runtime", "src/runtime", "src/specify_cli", "src/charter"]
 exclude = [
     "src/specify_cli/**/tests/**",
-    # Build-tooling debris, not runtime code: src/doctrine/hatch_build.py imports
-    # hatchling (a build-time-only dependency) to power the NESTED
-    # src/doctrine/pyproject.toml's standalone-wheel build hook (see that
-    # file's own [tool.hatch.build.targets.wheel] comment); it has no runtime
-    # caller. The two nested src/*/pyproject.toml manifests describe the
-    # dormant kernel/doctrine wheel groundwork (docs/adr/3.x/2026-08-02-1-
-    # charter-wheel-assessment.md) and are themselves package metadata, never
-    # imported. Shipping either inside the runtime wheel is pure packaging
-    # pollution for every consumer of `spec-kitty-cli` (#3163).
-    "src/doctrine/hatch_build.py",
+    # Build-tooling debris, not runtime code: src/kernel/pyproject.toml is
+    # dormant packaging metadata for the planned standalone spec-kitty-kernel
+    # wheel (docs/adr/3.x/2026-08-02-1-charter-wheel-assessment.md); it is
+    # never imported at runtime. Shipping it inside the runtime wheel is pure
+    # packaging pollution for every consumer of `spec-kitty-cli` (#3163).
+    #
+    # The sibling dormant spec-kitty-doctrine wheel groundwork
+    # (src/charter/offering/pyproject.toml + hatch_build.py) was DELETED
+    # outright (charter-code-topology-01M152G1, S5; MAP-BUILD) rather than
+    # excluded here — it was never built or published by any CI job, so the
+    # dormant-wheel exclude entries for it are retired along with the files.
     "src/*/pyproject.toml",
 ]
 # Include all non-Python files (templates, configs, etc.)
 # Runtime command templates are package assets under specify_cli/missions;
-# doctrine/missions holds the governance/action-bundle side of the surface.
+# charter/offering/missions holds the governance/action-bundle side of the surface.
 artifacts = [
     "src/specify_cli/**/*.md",
     "src/specify_cli/**/*.yaml",
@@ -190,17 +192,29 @@ artifacts = [
     "src/runtime/**/*.jsonl",
     "src/charter/**/*.yaml",
     "src/charter/**/*.yml",
-    "src/doctrine/**/*.md",
-    "src/doctrine/**/*.yaml",
-    "src/doctrine/**/*.yml",
-    "src/doctrine/**/*.json",
-    "src/doctrine/**/*.csv",
-    "src/doctrine/**/*.template",
+    # R2 wheel silent-drop fix (charter-code-topology-01M152G1, S5): the
+    # broader src/charter/** glob (files directly under src/charter/, e.g.
+    # ERROR_CODES.md, plus everything under offering/) shipped only *.yaml/
+    # *.yml before this change, silently dropping src/charter/activation/ERROR_CODES.md
+    # and src/charter/README.md from the wheel. Widen to the same extension
+    # set the offering/ subtree already ships (.md/.json/.csv/.template) so
+    # the top-level charter docs/config surface is not silently excluded.
+    "src/charter/**/*.md",
+    "src/charter/**/*.json",
+    "src/charter/**/*.csv",
+    "src/charter/**/*.template",
+    "src/charter/offering/**/*.md",
+    "src/charter/offering/**/*.yaml",
+    "src/charter/offering/**/*.yml",
+    "src/charter/offering/**/*.json",
+    "src/charter/offering/**/*.csv",
+    "src/charter/offering/**/*.template",
 ]
 # Relocated built-in doctrine packs (mission relocate-builtin-doctrine-packs-01KYT87F).
 # `packs/` is a top-level tree, NOT under `src/`, so the `packages`/`artifacts`
 # globs above never match it. `force-include` lands `packs/` as a site-packages
-# sibling of the `doctrine` package — exactly what the kernel sibling-path
+# sibling of the `charter` package (nesting the former top-level `doctrine`
+# package as `charter.offering`) — exactly what the kernel sibling-path
 # ancestor walk (`kernel.sibling_paths.resolve_installed_sibling`, which
 # `resolve_pack_root("built-in")` now delegates to since #3091/#3204) expects:
 # it walks up from an installed module to the ancestor holding `packs/built-in`.
@@ -209,7 +223,7 @@ artifacts = [
 # consumers. Other repo-local packs (e.g. `packs/internal/`, the maintainer-only
 # org-tier pack) must NOT be force-included into the wheel. Guarded by
 # tests/cross_cutting/packaging/test_packaging_safety.py.
-force-include = { "packs/built-in" = "packs/built-in" }
+force-include = { "packs/built-in" = "packs/built-in", "src/doctrine.py" = "doctrine.py" }
 
 [tool.hatch.build.targets.sdist]
 include = [
@@ -219,7 +233,7 @@ include = [
     # relocate-builtin-doctrine-packs-01KYT87F, WP05 / NFR-002). Scoped to
     # `packs/built-in/**` so the maintainer-only `packs/internal/` pack never ships.
     "packs/built-in/**",
-    "src/doctrine/curation/imports/**/*",
+    "src/charter/offering/curation/imports/**/*",
     "README.md",
     "LICENSE",
     "CHANGELOG.md",
@@ -266,7 +280,6 @@ exclude = [
     "kitty-specs/unified-charter-bundle-chokepoint-01KP5Q2G/baseline/capture.py",
     "packs/built-in/assets/docs_structural_lint.py",
     "scripts/analysis/caacs_miner.py",
-    "scripts/check_nfr_003_latency.py",
     "scripts/check_patch_targets.py",
     "scripts/ci/check_dangling_deferrals.py",
     "scripts/ci/quality_gate_decision.py",
@@ -307,7 +320,6 @@ exclude = [
     "scripts/measure-wp-prompt.py",
     "scripts/mutants/attribute_sleep_count_3115.py",
     "scripts/mutants/neutralise_reset_token_manager_3115.py",
-    "scripts/mutants/nonterminating_dispatch_3115.py",
     "scripts/patch_seam_census.py",
     "scripts/release/check_candidate_consumer_compat.py",
     "scripts/release/check_exact_install.py",
@@ -317,118 +329,118 @@ exclude = [
     "scripts/sync_all_contributors.py",
     "scripts/verify_batch_retirement_3167.py",
     "scripts/verify_occurrences.py",
-    "src/charter/_activation_render.py",
-    "src/charter/_catalog_miss.py",
-    "src/charter/_diagnostics.py",
-    "src/charter/_doctrine_paths.py",
-    "src/charter/_drg_helpers.py",
-    "src/charter/_io.py",
-    "src/charter/action_doctrine_bundle.py",
-    "src/charter/action_grain.py",
-    "src/charter/activation_engine.py",
-    "src/charter/activations.py",
+    "src/charter/activation/_activation_render.py",
+    "src/charter/activation/_catalog_miss.py",
+    "src/charter/activation/_diagnostics.py",
+    "src/charter/activation/_doctrine_paths.py",
+    "src/charter/activation/_drg_helpers.py",
+    "src/charter/activation/_io.py",
+    "src/charter/activation/action_doctrine_bundle.py",
+    "src/charter/activation/action_grain.py",
+    "src/charter/activation/activation_engine.py",
+    "src/charter/activation/activations.py",
     "src/charter/bundle.py",
-    "src/charter/cascade.py",
-    "src/charter/catalog.py",
-    "src/charter/charter_yaml_io.py",
-    "src/charter/compact.py",
-    "src/charter/compiler.py",
-    "src/charter/consistency_check.py",
-    "src/charter/context.py",
-    "src/charter/context_renderers/activation_block.py",
-    "src/charter/context_renderers/artifact_bodies.py",
-    "src/charter/context_renderers/authority_paths.py",
-    "src/charter/context_renderers/bootstrap_text.py",
-    "src/charter/context_renderers/catalog_diagnosis.py",
-    "src/charter/context_renderers/delivery_table.py",
-    "src/charter/context_renderers/profile_sections.py",
-    "src/charter/context_renderers/reference_pointers.py",
-    "src/charter/context_renderers/section_bodies.py",
-    "src/charter/context_renderers/selection_block.py",
-    "src/charter/context_renderers/template_include.py",
-    "src/charter/context_renderers/token_budget.py",
-    "src/charter/corpus/__init__.py",
-    "src/charter/doctrine_service_builder.py",
+    "src/charter/activation/cascade.py",
+    "src/charter/activation/catalog.py",
+    "src/charter/activation/charter_yaml_io.py",
+    "src/charter/activation/compact.py",
+    "src/charter/activation/compiler.py",
+    "src/charter/activation/consistency_check.py",
+    "src/charter/activation/context.py",
+    "src/charter/activation/context_renderers/activation_block.py",
+    "src/charter/activation/context_renderers/artifact_bodies.py",
+    "src/charter/activation/context_renderers/authority_paths.py",
+    "src/charter/activation/context_renderers/bootstrap_text.py",
+    "src/charter/activation/context_renderers/catalog_diagnosis.py",
+    "src/charter/activation/context_renderers/delivery_table.py",
+    "src/charter/activation/context_renderers/profile_sections.py",
+    "src/charter/activation/context_renderers/reference_pointers.py",
+    "src/charter/activation/context_renderers/section_bodies.py",
+    "src/charter/activation/context_renderers/selection_block.py",
+    "src/charter/activation/context_renderers/template_include.py",
+    "src/charter/activation/context_renderers/token_budget.py",
+    "src/charter/activation/corpus/__init__.py",
+    "src/charter/activation/doctrine_service_builder.py",
     "src/charter/drg.py",
-    "src/charter/evidence/__init__.py",
-    "src/charter/evidence/code_reader.py",
-    "src/charter/evidence/corpus_loader.py",
-    "src/charter/evidence/orchestrator.py",
-    "src/charter/governance_references.py",
+    "src/charter/activation/evidence/__init__.py",
+    "src/charter/activation/evidence/code_reader.py",
+    "src/charter/activation/evidence/corpus_loader.py",
+    "src/charter/activation/evidence/orchestrator.py",
+    "src/charter/activation/governance_references.py",
     "src/charter/hasher.py",
-    "src/charter/interview.py",
-    "src/charter/invocation_context.py",
-    "src/charter/kind_vocabulary.py",
-    "src/charter/language_scope.py",
-    "src/charter/mission_type_profiles.py",
-    "src/charter/neutrality/lint.py",
-    "src/charter/org_expected_artifacts.py",
-    "src/charter/org_extends.py",
-    "src/charter/org_pack_discovery.py",
-    "src/charter/pack_context.py",
-    "src/charter/pack_manager.py",
-    "src/charter/profile_resolution.py",
-    "src/charter/progressive_disclosure.py",
-    "src/charter/reference_resolver.py",
+    "src/charter/activation/interview.py",
+    "src/charter/activation/invocation_context.py",
+    "src/charter/activation/kind_vocabulary.py",
+    "src/charter/activation/language_scope.py",
+    "src/charter/activation/mission_type_profiles.py",
+    "src/charter/activation/neutrality/lint.py",
+    "src/charter/activation/org_expected_artifacts.py",
+    "src/charter/activation/org_extends.py",
+    "src/charter/activation/org_pack_discovery.py",
+    "src/charter/activation/pack_context.py",
+    "src/charter/activation/pack_manager.py",
+    "src/charter/activation/profile_resolution.py",
+    "src/charter/activation/progressive_disclosure.py",
+    "src/charter/activation/reference_resolver.py",
     "src/charter/resolution.py",
-    "src/charter/resolver.py",
-    "src/charter/schemas.py",
-    "src/charter/scope.py",
-    "src/charter/synthesizer/adapter.py",
-    "src/charter/synthesizer/artifact_naming.py",
-    "src/charter/synthesizer/errors.py",
-    "src/charter/synthesizer/evidence.py",
-    "src/charter/synthesizer/fixture_adapter.py",
-    "src/charter/synthesizer/generated_artifact_adapter.py",
-    "src/charter/synthesizer/interview_mapping.py",
-    "src/charter/synthesizer/manifest.py",
-    "src/charter/synthesizer/orchestrator.py",
-    "src/charter/synthesizer/path_guard.py",
-    "src/charter/synthesizer/project_drg.py",
-    "src/charter/synthesizer/reconcile.py",
-    "src/charter/synthesizer/request.py",
-    "src/charter/synthesizer/resynthesize_pipeline.py",
-    "src/charter/synthesizer/synthesize_pipeline.py",
-    "src/charter/synthesizer/targets.py",
-    "src/charter/synthesizer/topic_resolver.py",
-    "src/charter/synthesizer/validation_gate.py",
-    "src/charter/synthesizer/write_pipeline.py",
-    "src/charter/template_resolver.py",
-    "src/doctrine/agent_profiles/profile.py",
-    "src/doctrine/agent_profiles/repository.py",
-    "src/doctrine/agent_profiles/schema_models.py",
-    "src/doctrine/agent_profiles/validation.py",
-    "src/doctrine/artifact_kinds.py",
-    "src/doctrine/assets/repository.py",
-    "src/doctrine/base.py",
-    "src/doctrine/directives/models.py",
-    "src/doctrine/drg/loader.py",
-    "src/doctrine/drg/merge.py",
-    "src/doctrine/drg/migration/calibrator.py",
-    "src/doctrine/drg/migration/extractor.py",
-    "src/doctrine/drg/models.py",
-    "src/doctrine/drg/org_pack_config.py",
-    "src/doctrine/drg/org_pack_loader.py",
-    "src/doctrine/drg/override_policy.py",
-    "src/doctrine/drg/query.py",
-    "src/doctrine/drg/reachability.py",
-    "src/doctrine/drg/validator.py",
-    "src/doctrine/glossary_packs/models.py",
-    "src/doctrine/missions/action_index.py",
-    "src/doctrine/missions/mission_step_repository.py",
-    "src/doctrine/missions/mission_type_repository.py",
-    "src/doctrine/missions/models.py",
-    "src/doctrine/missions/primitives.py",
-    "src/doctrine/missions/repository.py",
-    "src/doctrine/missions/step_contracts.py",
-    "src/doctrine/model_task_routing/evaluator.py",
-    "src/doctrine/paradigms/__init__.py",
-    "src/doctrine/resolver.py",
-    "src/doctrine/shared/exceptions.py",
-    "src/doctrine/spdd_reasons/charter_context.py",
-    "src/doctrine/styleguides/repository.py",
-    "src/doctrine/template_catalog.py",
-    "src/doctrine/versioning.py",
+    "src/charter/activation/resolver.py",
+    "src/charter/activation/schemas.py",
+    "src/charter/activation/scope.py",
+    "src/charter/activation/synthesizer/adapter.py",
+    "src/charter/activation/synthesizer/artifact_naming.py",
+    "src/charter/activation/synthesizer/errors.py",
+    "src/charter/activation/synthesizer/evidence.py",
+    "src/charter/activation/synthesizer/fixture_adapter.py",
+    "src/charter/activation/synthesizer/generated_artifact_adapter.py",
+    "src/charter/activation/synthesizer/interview_mapping.py",
+    "src/charter/activation/synthesizer/manifest.py",
+    "src/charter/activation/synthesizer/orchestrator.py",
+    "src/charter/activation/synthesizer/path_guard.py",
+    "src/charter/activation/synthesizer/project_drg.py",
+    "src/charter/activation/synthesizer/reconcile.py",
+    "src/charter/activation/synthesizer/request.py",
+    "src/charter/activation/synthesizer/resynthesize_pipeline.py",
+    "src/charter/activation/synthesizer/synthesize_pipeline.py",
+    "src/charter/activation/synthesizer/targets.py",
+    "src/charter/activation/synthesizer/topic_resolver.py",
+    "src/charter/activation/synthesizer/validation_gate.py",
+    "src/charter/activation/synthesizer/write_pipeline.py",
+    "src/charter/activation/template_resolver.py",
+    "src/charter/offering/agent_profiles/profile.py",
+    "src/charter/offering/agent_profiles/repository.py",
+    "src/charter/offering/agent_profiles/schema_models.py",
+    "src/charter/offering/agent_profiles/validation.py",
+    "src/charter/offering/artifact_kinds.py",
+    "src/charter/offering/assets/repository.py",
+    "src/charter/offering/base.py",
+    "src/charter/offering/directives/models.py",
+    "src/charter/offering/drg/loader.py",
+    "src/charter/offering/drg/merge.py",
+    "src/charter/offering/drg/migration/calibrator.py",
+    "src/charter/offering/drg/migration/extractor.py",
+    "src/charter/offering/drg/models.py",
+    "src/charter/offering/drg/org_pack_config.py",
+    "src/charter/offering/drg/org_pack_loader.py",
+    "src/charter/offering/drg/override_policy.py",
+    "src/charter/offering/drg/query.py",
+    "src/charter/offering/drg/reachability.py",
+    "src/charter/offering/drg/validator.py",
+    "src/charter/offering/glossary_packs/models.py",
+    "src/charter/offering/missions/action_index.py",
+    "src/charter/offering/missions/mission_step_repository.py",
+    "src/charter/offering/missions/mission_type_repository.py",
+    "src/charter/offering/missions/models.py",
+    "src/charter/offering/missions/primitives.py",
+    "src/charter/offering/missions/repository.py",
+    "src/charter/offering/missions/step_contracts.py",
+    "src/charter/offering/model_task_routing/evaluator.py",
+    "src/charter/offering/paradigms/__init__.py",
+    "src/charter/offering/resolver.py",
+    "src/charter/offering/shared/exceptions.py",
+    "src/charter/offering/spdd_reasons/charter_context.py",
+    "src/charter/offering/styleguides/repository.py",
+    "src/charter/offering/template_catalog.py",
+    "src/charter/offering/versioning.py",
     "src/glossary/checkpoint.py",
     "src/glossary/chokepoint.py",
     "src/glossary/clarification.py",
@@ -927,7 +939,6 @@ exclude = [
     "src/specify_cli/tasks/issue_matrix.py",
     "src/specify_cli/tasks/issue_matrix_migration.py",
     "src/specify_cli/tasks/issue_reference_discovery.py",
-    "src/specify_cli/team_projection/mission_view.py",
     "src/specify_cli/template/asset_generator.py",
     "src/specify_cli/template/manager.py",
     "src/specify_cli/template/renderer.py",
@@ -1066,7 +1077,6 @@ exclude = [
     "tests/_support/coverage_safety/ratchet.py",
     "tests/_support/coverage_safety/test_ratchet.py",
     "tests/_support/quarantine.py",
-    "tests/_support/test_shared_build_artifacts.py",
     "tests/_support/test_wall_clock_assertions.py",
     "tests/_support/wall_clock_assertions.py",
     "tests/acceptance/test_gate_execution_context.py",
@@ -1175,7 +1185,6 @@ exclude = [
     "tests/architectural/test_doctrine_missions_stale_path_sweep.py",
     "tests/architectural/test_doctrine_public_surface.py",
     "tests/architectural/test_doctrine_regenerate_graph_roundtrip.py",
-    "tests/architectural/test_doctrine_wheel_closure.py",
     "tests/architectural/test_dossier_emitter_positional_guard.py",
     "tests/architectural/test_drg_writer_discovery.py",
     "tests/architectural/test_egress_consent_boundary.py",
@@ -2138,7 +2147,7 @@ exclude = [
     "tests/readiness/test_coordinator_nag_passthrough.py",
     "tests/readiness/test_coordinator_suppression_matrix.py",
     "tests/readiness/test_upgrade_ux.py",
-    "tests/regression/test_issue_3307_cli_emits_contract_invalid_unforced_rollback.py",
+    "tests/specify_cli/cli/commands/agent/test_issue_3307_cli_emits_contract_invalid_unforced_rollback.py",
     "tests/regressions/test_changelog_regex_redos.py",
     "tests/regressions/test_doctor_missionrepairresult_findings.py",
     "tests/regressions/test_issue_101_utf8_startup.py",
@@ -2958,7 +2967,6 @@ exclude = [
     "tests/tasks/test_pre_commit_wp_guard_unit.py",
     "tests/tasks/test_tasks_2x_unit.py",
     "tests/tasks/test_tasks_support.py",
-    "tests/team_projection/test_mission_view.py",
     "tests/test_dashboard/__init__.py",
     "tests/test_dashboard/test_api_charter.py",
     "tests/test_dashboard/test_api_handler.py",
@@ -3142,6 +3150,22 @@ ignore = [
 "click.exceptions.UsageError".msg = "Use typer.UsageError or the _CLICK_USAGE_ERRORS shim — click.exceptions.UsageError is unrelated to typer's vendored copy in typer>=0.26 (TID251 / Gap 5)."
 "click.exceptions.Abort".msg = "Use typer.Abort (typer's public surface) — click.exceptions.Abort is unrelated to typer's vendored copy in typer>=0.26 (TID251 / Gap 5)."
 
+"specify_cli\u002esync".msg = "Retired subsystem; see tests/architectural/test_no_retired_subsystems.py (#795)."
+"specify_cli\u002edelivery".msg = "Retired subsystem; see tests/architectural/test_no_retired_subsystems.py (#795)."
+"specify_cli\u002eevent_journal".msg = "Retired subsystem; see tests/architectural/test_no_retired_subsystems.py (#795)."
+"specify_cli\u002esaas".msg = "Retired subsystem; see tests/architectural/test_no_retired_subsystems.py (#795)."
+"specify_cli\u002eegress".msg = "Retired subsystem; see tests/architectural/test_no_retired_subsystems.py (#795)."
+"specify_cli\u002eegress_consent".msg = "Retired subsystem; see tests/architectural/test_no_retired_subsystems.py (#795)."
+"specify_cli\u002ecli.commands.sync".msg = "Retired subsystem; see tests/architectural/test_no_retired_subsystems.py (#795)."
+"specify_cli\u002ecli.commands._daemon_doctor".msg = "Retired subsystem; see tests/architectural/test_no_retired_subsystems.py (#795)."
+"specify_cli\u002edossier.emitter_adapter".msg = "Retired subsystem; see tests/architectural/test_no_retired_subsystems.py (#795)."
+"specify_cli\u002edossier.drift_detector".msg = "Retired subsystem; see tests/architectural/test_no_retired_subsystems.py (#795)."
+"specify_cli\u002eteam_projection.write".msg = "Retired subsystem; see tests/architectural/test_no_retired_subsystems.py (#795)."
+"specify_cli\u002eteam_projection.attestation".msg = "Retired subsystem; see tests/architectural/test_no_retired_subsystems.py (#795)."
+"specify_cli\u002ecore.batch_partition".msg = "Retired subsystem; see tests/architectural/test_no_retired_subsystems.py (#795)."
+"specify_cli\u002emigration.envelope_seam".msg = "Retired subsystem; see tests/architectural/test_no_retired_subsystems.py (#795)."
+"websockets".msg = "Retired dependency; see tests/architectural/test_no_retired_subsystems.py (#795)."
+
 [tool.ruff.lint.mccabe]
 max-complexity = 15  # Match SonarCloud S3776 threshold
 
@@ -3160,10 +3184,13 @@ module = ["specify_cli.*"]
 follow_imports = "skip"
 
 [[tool.mypy.overrides]]
-# When checking charter.neutrality in isolation, mypy walks into other charter
-# submodules (interview, resolver, context, …) that have pre-existing strict
-# issues being addressed in a separate mission. Skip them so that
-# ``mypy --strict src/charter/neutrality/`` reports only neutrality's own issues.
+# When checking charter.activation.neutrality in isolation, mypy walks into other
+# charter submodules (interview, resolver, context, …) that have pre-existing
+# strict issues being addressed in a separate mission. Skip them so that
+# ``mypy --strict src/charter/activation/neutrality/`` reports only neutrality's
+# own issues. ``charter.*`` also covers ``charter.activation.*`` /
+# ``charter.offering.*`` (mission charter-activation-split-01M16ZSE relocated
+# the activation-layer modules under charter.activation).
 module = ["charter.*"]
 follow_imports = "skip"
 
@@ -3183,7 +3210,6 @@ module = [
     "specify_cli.cli.commands.init",
     "specify_cli.cli.commands.merge",
     "specify_cli.cli.commands.next_cmd",
-    "specify_cli.cli.commands.sync",
     "specify_cli.cli.commands.tracker",
     "specify_cli.cli.commands.upgrade",
     "specify_cli.cli.ui",
@@ -3215,12 +3241,6 @@ module = [
     "specify_cli.orchestrator_api.commands",
     "specify_cli.scripts.validate_encoding",
     "specify_cli.status.validate",
-    "specify_cli.sync.auth",
-    "specify_cli.sync.background",
-    "specify_cli.sync.batch",
-    "specify_cli.sync.client",
-    "specify_cli.sync.emitter",
-    "specify_cli.sync.runtime",
     "specify_cli.template.github_client",
     "specify_cli.tracker.factory",
     "specify_cli.tracker.service",
@@ -3325,15 +3345,14 @@ also_copy = [
 
     ".pytest_cache/spec-kitty-test-venv/",  # Pre-seeded venv so test_venv fixture skips rebuild
     "src/specify_cli/*.py",  # Copy all top-level modules (frontmatter, etc.)
+    "src/doctrine.py",       # CR-06 deprecation shim re-exporting charter.offering
     "src/kernel/",           # Copy kernel package for shared utilities
-    "src/doctrine/",         # Copy doctrine package for imports
-    "src/charter/",          # Copy charter package
+    "src/charter/",          # Copy charter package (nests the relocated doctrine offering)
     "src/specify_cli/status/",  # Copy status module for status transitions
     "src/glossary/",          # Copy canonical glossary package
     "src/specify_cli/cli/",   # Copy CLI commands
     "src/specify_cli/agent_utils/",  # Copy agent utilities
     "src/specify_cli/git/",  # Copy git utilities
-    "src/specify_cli/sync/",  # Copy sync module
     "src/runtime/next/",  # Copy canonical next runtime module
     "src/specify_cli/validators/",  # Copy validators
     "src/specify_cli/template/",  # Copy template utilities

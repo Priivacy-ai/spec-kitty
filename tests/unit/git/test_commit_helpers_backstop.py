@@ -151,11 +151,14 @@ def test_windows_separator_in_expected_is_normalized(git_repo: Path) -> None:
     assert_staging_area_matches_expected(git_repo, ["subdir\\alpha.txt"])
 
 
-def test_git_probe_failure_raises(tmp_path: Path) -> None:
+def test_git_probe_failure_raises(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
     """If the ``git diff --cached`` probe fails, raise with '<probe-failed>' sentinel."""
     # Not a git repo → git diff returns non-zero.
     non_repo = tmp_path / "not-a-repo"
     non_repo.mkdir()
+    monkeypatch.setenv("GIT_CEILING_DIRECTORIES", str(tmp_path))
 
     with pytest.raises(SafeCommitBackstopError) as exc_info:
         assert_staging_area_matches_expected(non_repo, ["anything.txt"])

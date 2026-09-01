@@ -27,27 +27,28 @@ from typing import TYPE_CHECKING
 
 # Single source of truth for the resolution enum / result dataclass.
 # Re-exported via the charter.resolution facade (which itself re-exports
-# from doctrine.resolver, preserving object identity) so every importer
+# from charter.offering.resolver, preserving object identity) so every importer
 # shares one class identity — otherwise `ResolutionTier.X == ResolutionTier.X`
 # fails across modules and test suites that import from both paths flake on
 # `is`/`==`. Historical note: prior to 2026-04-15 this module defined its
 # own duplicate ResolutionTier/ResolutionResult, which caused ~30 CI failures
-# on the release-readiness job where doctrine.test_resolver and
+# on the release-readiness job where charter.offering.test_resolver and
 # runtime.test_resolver_unit ran in the same session. The charter facade
 # route was adopted in mission charter-mediated-doctrine-selection-01KRTZCA
 # (WP07) to enforce the runtime → charter → doctrine boundary.
-from charter.mission_type_profiles import ResolvedMissionType
+from charter.activation.mission_type_profiles import ResolvedMissionType
 from charter.resolution import ResolutionResult, ResolutionTier
 from specify_cli.core.paths import assert_safe_path_segment
 
 if TYPE_CHECKING:
-    from doctrine.missions import ExpectedArtifactManifest
+    from charter.missions import ExpectedArtifactManifest
 
 __all__ = [
     "ResolutionResult",
     "ResolutionTier",
     "TemplateConfigurationError",
     "TemplateURNError",
+    "required_artifacts_for",
     "resolve_command",
     "resolve_configured_artifact_name",
     "resolve_configured_template",
@@ -245,10 +246,10 @@ def _package_default_path(
     call site the WP asked to document.**
 
     Before this change this helper went through
-    ``charter.template_resolver.CharterTemplateResolver``, obtained from an
+    ``charter.activation.template_resolver.CharterTemplateResolver``, obtained from an
     ``lru_cache``d ``_charter_template_resolver_for(missions_root)`` factory
     keyed on a ``missions_root`` *string*, while the canonical charter factory
-    (``charter.resolver.DoctrineService``) is built from a ``repo_root`` by the
+    (``charter.activation.resolver.DoctrineService``) is built from a ``repo_root`` by the
     unified builder. Those two construction contracts do not compose, and the
     mapping is resolved as follows:
 
@@ -267,7 +268,7 @@ def _package_default_path(
     read, and would newly make template resolution fail-closed on a malformed
     ``.kittify/config.yaml`` — a project could then no longer resolve the
     templates its repair commands need. The ``lru_cache`` that used to live
-    here has moved into ``charter.resolver._mission_template_repository``,
+    here has moved into ``charter.activation.resolver._mission_template_repository``,
     alongside the resolution entry point, so repeated tier-6 lookups still
     reuse one repository.
 
@@ -277,7 +278,7 @@ def _package_default_path(
     scope. Only the tier-6 hop is charter-mediated, which is why the factory
     exposes a tier-6-only entry point at all.
     """
-    from charter.resolver import DoctrineService  # noqa: PLC0415 — lazy: keeps the charter import off module load
+    from charter.activation.resolver import DoctrineService  # noqa: PLC0415 — lazy: keeps the charter import off module load
 
     return DoctrineService.resolve_package_default_asset_path(
         missions_root=pkg_missions,
@@ -530,28 +531,71 @@ def resolve_configured_template(
         ) from exc
 
 
-def _load_expected_artifact_manifest(mission_type: str) -> ExpectedArtifactManifest | None:
+def _load_expected_artifact_manifest(
+    mission_type: str, repo_root: Path | None = None
+) -> ExpectedArtifactManifest | None:
     """Load and validate *mission_type*'s expected-artifacts manifest (read-only).
 
     Consumes :meth:`charter.missions.MissionTemplateRepository.get_expected_artifacts`
     -- the single per-type filename authority (FR-009) -- without modifying
-    ``doctrine/missions/repository.py``. Built-in/project tier only (no org
-    lookup; matches :meth:`~specify_cli.dossier.manifest.ManifestRegistry.load_manifest`'s
-    default, repo-root-less behavior), which is sufficient for the four
-    built-in mission types this seam guarantees byte-compatible output for
-    (NFR-003). Returns ``None`` when the doctrine tree has no manifest for
-    *mission_type* (unregistered/custom type -- degrades gracefully, mirrors
-    ``ManifestRegistry.load_manifest``).
+    ``charter.offering.missions.repository``. Returns ``None`` when neither
+    tier has a manifest for *mission_type* (unregistered/custom type --
+    degrades gracefully, mirrors ``ManifestRegistry.load_manifest``).
+
+    When *repo_root* is given and resolves to one or more existing configured
+    org roots, an org-pack
+    ``<org_root>/missions/<mission_type>/expected-artifacts.yaml`` takes
+    precedence over the built-in file, whole-file -- never field-merged with
+    it. *repo_root* is optional and defaults to ``None`` (no org lookup,
+    built-in tree only).
+
+    Raises:
+        ManifestSchemaError: If a found manifest fails schema validation. The
+            error carries a branch-specific origin and chains the underlying
+            :class:`pydantic.ValidationError` as ``__cause__``.
     """
+    from pydantic import ValidationError  # noqa: PLC0415
+
     from charter.missions import (  # noqa: PLC0415
         ExpectedArtifactManifest,
         MissionTemplateRepository,
     )
+    from specify_cli.dossier.manifest import ManifestSchemaError  # noqa: PLC0415
+
+    org_roots = _resolve_existing_org_roots_for_manifest(repo_root)
+    if org_roots:
+        from charter.activation.org_expected_artifacts import (  # noqa: PLC0415
+            resolve_org_expected_artifacts,
+        )
+
+        org_parsed = resolve_org_expected_artifacts(org_roots, mission_type)
+        if org_parsed is not None:
+            try:
+                return ExpectedArtifactManifest.model_validate(org_parsed)
+            except ValidationError as exc:
+                origin = (
+                    f"org-tier expected-artifacts.yaml for mission type {mission_type!r} "
+                    f"(no single source file path available; checked org roots: "
+                    f"{', '.join(str(root) for root in org_roots)})"
+                )
+                raise ManifestSchemaError(mission_type, origin) from exc
 
     config = MissionTemplateRepository.default().get_expected_artifacts(mission_type)
     if config is None:
         return None
-    return ExpectedArtifactManifest.model_validate(config.parsed)
+    try:
+        return ExpectedArtifactManifest.model_validate(config.parsed)
+    except ValidationError as exc:
+        raise ManifestSchemaError(mission_type, config.origin) from exc
+
+
+def _resolve_existing_org_roots_for_manifest(repo_root: Path | None) -> list[Path]:
+    """Return existing configured org doctrine roots for *repo_root*, or ``[]``."""
+    if repo_root is None:
+        return []
+    from charter.drg import resolve_existing_org_roots  # noqa: PLC0415
+
+    return [root / "missions" for root in resolve_existing_org_roots(repo_root)]
 
 
 def resolve_configured_artifact_name(
@@ -563,9 +607,8 @@ def resolve_configured_artifact_name(
     Twins :func:`resolve_configured_template`'s per-type filename seam
     without adding a second filename authority (squad §S2): the mapping is
     projected from ``expected-artifacts.yaml``'s ``path_pattern`` (via
-    :func:`charter.missions.project_artifact_name_set`, the runtime->charter->
-    doctrine facade),
-    never from :attr:`~doctrine.missions.models.MissionStepTemplateRef.template_file`.
+    :func:`charter.offering.missions.project_artifact_name_set`),
+    never from :attr:`~charter.offering.missions.models.MissionStepTemplateRef.template_file`.
 
     Args:
         artifact_key: Stable manifest key, e.g. ``"input.spec.main"``.
@@ -578,6 +621,9 @@ def resolve_configured_artifact_name(
         ArtifactNameConfigurationError: If *mission_type* is an unsafe path
             segment, has no expected-artifacts manifest, or has no mapping
             for *artifact_key*.
+        ManifestSchemaError: If *mission_type* has an expected-artifacts
+            manifest but it fails schema validation -- see
+            :func:`_load_expected_artifact_manifest`.
     """
     try:
         assert_safe_path_segment(mission_type)
@@ -609,7 +655,9 @@ def resolve_configured_artifact_name(
     return mapped_filename
 
 
-def required_artifacts_for(step: str, mission_type: str = "software-dev") -> list[str]:
+def required_artifacts_for(
+    step: str, mission_type: str = "software-dev", repo_root: Path | None = None
+) -> list[str]:
     """Return the blocking artifact filenames required at *step* (FR-009).
 
     Combines ``required_always`` with ``required_by_step[step]`` (mirroring
@@ -620,12 +668,20 @@ def required_artifacts_for(step: str, mission_type: str = "software-dev") -> lis
     Args:
         step: Mission step id (e.g. ``"specify"``, ``"plan"``).
         mission_type: Mission-type id (default ``"software-dev"``).
+        repo_root: Project root to resolve org-pack overrides for (FR-008),
+            or ``None`` (default) for built-in-tree-only resolution --
+            forwarded to :func:`_load_expected_artifact_manifest` unchanged.
 
     Returns:
         Blocking filenames for *step*, or an empty list when *mission_type*
         has no expected-artifacts manifest (unregistered/custom type).
+
+    Raises:
+        ManifestSchemaError: If *mission_type* has an expected-artifacts
+            manifest but it fails schema validation -- see
+            :func:`_load_expected_artifact_manifest`.
     """
-    manifest = _load_expected_artifact_manifest(mission_type)
+    manifest = _load_expected_artifact_manifest(mission_type, repo_root=repo_root)
     if manifest is None:
         return []
     specs = [*manifest.required_always, *manifest.required_by_step.get(step, [])]
@@ -633,11 +689,11 @@ def required_artifacts_for(step: str, mission_type: str = "software-dev") -> lis
 
 
 #: URN prefix identifying a template node's DRG identity, mirroring
-#: ``doctrine.drg.models.NodeKind.TEMPLATE.value`` (``"template"``).
+#: ``charter.offering.drg.models.NodeKind.TEMPLATE.value`` (``"template"``).
 _TEMPLATE_URN_PREFIX = "template:"
 
 #: ``resolve_template_by_id`` only consults ``TierRoot.project_dir`` for the
-#: override/legacy tiers (verified against ``doctrine.template_catalog``);
+#: override/legacy tiers (verified against ``charter.offering.template_catalog``);
 #: ``missions_root`` matters solely to the discovery surface
 #: (``discover_templates``), which this URN lane never calls. A fixed,
 #: non-existent sentinel keeps that fact explicit instead of silently
@@ -809,7 +865,7 @@ def resolve_mission(
     # canonical charter factory; see _package_default_path's docstring for the
     # construction-contract mapping this call site shares.
     try:
-        from charter.resolver import DoctrineService  # noqa: PLC0415 — lazy, mirrors _package_default_path
+        from charter.activation.resolver import DoctrineService  # noqa: PLC0415 — lazy, mirrors _package_default_path
 
         pkg_missions = get_package_asset_root()
         pkg_path = DoctrineService.resolve_package_default_mission_config_path(

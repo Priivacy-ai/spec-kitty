@@ -1,0 +1,113 @@
+schema: review-findings/v1
+complete: true
+phase: spec
+lens_group: confirmed
+mission: charter-activate-empty-action-sequence-01M0STSX
+findings:
+- id: SPEC-GOV-001
+  lens: non-goals-boundary-accuracy
+  severity: 3
+  title: Non-goal claim for
+  evidence:
+  - artifact: "spec.md \xA7 Non-goals \u2014 \"#3701 / PR #3707\" bullet"
+  - artifact: "spec.md \xA7 C-004 (Targeted test surface \u2014 names `tests/charter/test_mission_type_profiles.py`\
+      \ as this mission's own primary test target)"
+  - code: 'PR #3707 (`gh pr diff 3707`), diff hunk to `tests/charter/test_mission_type_profiles.py` (helper
+      `_write_org_mission_step_yaml` signature change to optional args, plus one new call added inside
+      `TestPackContextProjection::test_org_pack_type_projects_real_action_sequence_and_template_set`)'
+  claim: "The spec's non-goals bullet for #3701/PR#3707 states \"It touches a different package tier (`doctrine/`,\
+    \ not `charter/` or `specify_cli/`)\". Verified against the live, open PR #3707's diff, this is inaccurate:\
+    \ PR #3707 also modifies `tests/charter/test_mission_type_profiles.py` \u2014 a file squarely under\
+    \ the `charter/` test tier, and the exact file C-004 names as this mission's own primary test target.\
+    \ This is the same category of overlap the very next non-goals bullet (#3703/PR#3708) correctly flags;\
+    \ PR #3707 shares that same file too, but the spec's own methodology for calling out shared-file rebase\
+    \ risk is applied inconsistently \u2014 present for #3703/PR#3708, silently dropped for #3701/PR#3707.\n"
+  remediation: 'Add a parallel caveat to the #3701/PR#3707 non-goals bullet, mirroring the #3703/PR#3708
+    bullet''s phrasing: note that PR #3707 also touches `tests/charter/test_mission_type_profiles.py`
+    (a small, localized change) and that a routine rebase on that file is expected, same as already stated
+    for PR #3711 and PR #3708. Narrow "different package tier" to explicitly scope it to the *production*
+    diff only.
+
+    '
+  source_ids:
+  - SPEC-GOV-001
+- id: SPEC-GOV-002
+  lens: Scope / plan-commit-seam-call-site-precision
+  severity: 3
+  title: C-003's named call sites ("inside plan_activation" / "before commit_plan") contradict C-007's
+    two-file blast radius, and "inside plan_activation" conflicts with that module's own no-filesystem-discovery
+    contract
+  evidence:
+  - artifact: "spec.md \xA7 Constraints, C-003 (Plan/commit seam awareness)"
+  - artifact: "spec.md \xA7 Constraints, C-007 (Two-file blast radius)"
+  - artifact: "spec.md \xA7 Non-Functional Requirements, NFR-002"
+  - code: "src/charter/activation_engine.py:193 (def plan_activation) and :358 (def commit_plan) \u2014\
+      \ both defined in activation_engine.py"
+  - code: "src/charter/pack_manager.py:572-641 (CharterPackManager.activate \u2014 the literal `commit_plan(target_path,\
+      \ data, plan, save=save)` call site is at line 641, inside pack_manager.py)"
+  - code: "src/charter/activation_engine.py:36-43 (module docstring: \"this module performs no filesystem\
+      \ discovery and no config.yaml load of its own\" \u2014 inputs are passed in as data, C-008)"
+  - code: "src/specify_cli/cli/commands/charter/activate.py:551-565 (activate_cmd already resolves mission-type-specific\
+      \ state via `_emit_step_removal_warnings(kind, artifact_id, repo_root)` immediately before calling\
+      \ `manager.activate(...)` \u2014 a precedented, C-007-compatible call site)"
+  claim: "C-003 names two candidate call sites for the new fail-closed check: \"inside plan_activation\"\
+    \ or \"a mission-type-specific guard evaluated before commit_plan runs\". Both `plan_activation` and\
+    \ `commit_plan` are defined in `src/charter/activation_engine.py` (verified), and the literal `commit_plan(...)`\
+    \ call site a pre-commit_plan guard would sit \"before\" lives inside `CharterPackManager.activate()`\
+    \ in `src/charter/pack_manager.py` (verified, line 641). Neither `activation_engine.py` nor `pack_manager.py`\
+    \ is one of the two files C-007 names as the mission's blast radius (`src/specify_cli/cli/commands/charter/activate.py`\
+    \ and `src/charter/mission_type_profiles.py`). An implementer following C-003's literal wording would\
+    \ violate C-007 by construction \u2014 a third file must be touched. Separately, \"inside plan_activation\"\
+    \ is doubly non-viable on architectural grounds: the module's own docstring states it \"performs no\
+    \ filesystem discovery and no config.yaml load of its own\" and receives all inputs as data \u2014\
+    \ but resolving a candidate's action sequence requires exactly the filesystem-touching resolution\
+    \ `_resolve_action_slot` performs. NFR-002's broader phrasing (\"any other module under src/charter/\
+    \ or src/kernel/\") suggests the spec authors anticipated the fix might land somewhere other than\
+    \ the two C-007 files, reinforcing this is a real, unresolved tension rather than a typo. The reading\
+    \ that reconciles C-003, C-007, NFR-002 and activation_engine's purity docstring: the guard is invoked\
+    \ from `activate_cmd` in `activate.py` \u2014 mirroring the existing `_emit_step_removal_warnings`\
+    \ call immediately preceding `manager.activate(...)` \u2014 calling a new helper added to `mission_type_profiles.py`,\
+    \ never touching `activation_engine.py`/`pack_manager.py` at all. The spec does not state this reading;\
+    \ it names the activation_engine.py functions instead, which is exactly the misleading cue an implementer\
+    \ or plan-phase author would naturally follow.\n"
+  remediation: "Reword C-003 to drop the \"inside plan_activation\" option (architecturally non-viable\
+    \ given activation_engine.py's own no-filesystem-discovery/data-only contract, and outside C-007's\
+    \ blast radius) and replace \"a mission-type-specific guard evaluated before commit_plan runs\" with\
+    \ an explicit statement that the guard is invoked from `activate_cmd` in `activate.py` (the existing\
+    \ `_emit_step_removal_warnings` call site is the precedent \u2014 same file, same point in the flow,\
+    \ before `manager.activate()` is ever called) backed by a new helper function added to `mission_type_profiles.py`,\
+    \ consistent with C-007's two-file blast radius and NFR-002's `__all__`/dead-symbol obligation. If\
+    \ the plan phase later decides a pack_manager.py/activation_engine.py call site is actually preferable,\
+    \ C-007 must be updated to reflect the real (three-file) blast radius rather than silently exceeded.\n"
+  source_ids:
+  - SPEC-GOV-002
+  - SPEC-ARCH-001
+- id: SPEC-VERIFY-001
+  lens: methodological-trap-enforcement
+  severity: 3
+  title: Natural-path precondition is stated in prose only; the nearest reusable test helper's signature
+    invites accidental pre-seeding
+  evidence:
+  - artifact: "spec.md \xA7 Edge Cases (\"The pre-seeded-vs-natural-path trap\")"
+  - artifact: "spec.md \xA7 SC-004"
+  - code: tests/charter/test_mission_type_profiles.py:846-873 (_write_org_pack_config)
+  - code: 'tests/specify_cli/cli/commands/charter/test_charter_activate_commands_core.py:40-55 (project_root
+      fixture pre-seeds mission_type_activations: [software-dev])'
+  claim: 'The spec correctly identifies and forbids the SK-81 pre-seeding trap in prose and SC-004 correctly
+    requires at least one natural-path test, but neither pins the concrete fixture obligation this requires.
+    The nearest reusable helper in the mission''s own named target file, `_write_org_pack_config(repo_root,
+    *, packs, activated_mission_types)`, conflates "declare an org pack" and "set mission_type_activations"
+    into a single call whose two list parameters are populated together in every existing call site in
+    that file (8 instances). A test author reaching for this helper by convention has an obvious path
+    to also pre-seed `<T>`, reproducing the exact trap the spec warns against one level up, inside this
+    mission''s own test authorship.
+
+    '
+  remediation: "Add one concrete sentence to the Edge Cases entry (or a new line under C-004/SC-004) naming\
+    \ the required fixture shape for the natural-path test: declare the org pack (`doctrine.org.packs`\
+    \ in config.yaml plus the `mission_types/<T>.yaml` file) while passing `activated_mission_types` that\
+    \ excludes `<T>` \u2014 whether via `_write_org_pack_config` with `<T>` omitted from that list, or\
+    \ an equivalent fixture \u2014 and assert `<T>` is absent from `mission_type_activations` immediately\
+    \ before invoking `charter activate mission-type <T>`.\n"
+  source_ids:
+  - SPEC-VERIFY-001

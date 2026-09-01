@@ -123,6 +123,12 @@ def test_create_feature_on_main_records_target_branch(tmp_path, monkeypatch):
     repo = _init_repo(tmp_path, "main")
     _setup_kittify(repo)
     monkeypatch.chdir(repo)
+    # Creating on a protected ``main`` branch commits meta.json to it; the
+    # documented operator escape hatch is the ONE sanctioned waiver (the test
+    # repo IS the solo operator who owns main). Without it, safe_commit rightly
+    # refuses the protected-branch commit (#3673 made this refusal fail loud
+    # instead of the pre-fix contextlib.suppress that let it silently succeed).
+    monkeypatch.setenv("SPEC_KITTY_ALLOW_PROTECTED_BRANCH_COMMITS", "1")
     # Assumption check
     assert (repo / ".kittify").exists()
     # Act
@@ -146,6 +152,9 @@ def test_create_feature_on_master_records_target_branch(tmp_path, monkeypatch):
     repo = _init_repo(tmp_path, "master")
     _setup_kittify(repo)
     monkeypatch.chdir(repo)
+    # ``master`` is a protected branch too; same operator-owned-repo waiver as
+    # the ``main`` case above (see that test for the #3673 rationale).
+    monkeypatch.setenv("SPEC_KITTY_ALLOW_PROTECTED_BRANCH_COMMITS", "1")
     # Assumption check
     assert (repo / ".kittify").exists()
     # Act

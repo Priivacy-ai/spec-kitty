@@ -139,7 +139,7 @@ def test_mission_review_skill_documents_contract_gate() -> None:
     candidates: list[Path] = []
     for root in (
         _REPO_ROOT / ".kittify" / "skills",
-        _REPO_ROOT / "src" / "doctrine" / "skills",
+        _REPO_ROOT / "src" / "charter" / "offering" / "skills",
         _REPO_ROOT / "kitty-specs" / "stability-and-hygiene-hardening-2026-04-01KQ4ARB",
     ):
         if not root.exists():

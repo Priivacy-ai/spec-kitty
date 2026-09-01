@@ -23,3 +23,8 @@ integrity_rules:
 validation_criteria:
   - Each new behavior has a corresponding test that was written before the production code.
   - Bug fixes include a regression test that fails without the fix — and that failure is the bug's observable symptom (verified by running against the unfixed code), not a missing-new-symbol collection error.
+references:
+  - type: styleguide
+    id: given-when-then-authoring
+  - type: toolguide
+    id: gherkin

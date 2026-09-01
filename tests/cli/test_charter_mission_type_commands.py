@@ -150,9 +150,9 @@ def test_charter_mission_type_list_reports_real_layer_for_activated_org_type(
     into the ``source_layer: "unknown"`` / ``action_sequence: []`` tolerate
     branch even though it resolves fine end to end (User Story 1 AC1).
     """
-    from doctrine.missions.mission_type_repository import MissionTypeRepository
+    from charter.offering.missions.mission_type_repository import MissionTypeRepository
 
-    from charter.pack_context import PackContext
+    from charter.activation.pack_context import PackContext
 
     org_root = tmp_path / "org-pack"
     _write_org_mission_type_yaml(org_root, "qa", action_sequence=["design", "implement"])
@@ -166,7 +166,7 @@ def test_charter_mission_type_list_reports_real_layer_for_activated_org_type(
     monkeypatch.chdir(tmp_path)
     MissionTypeRepository.cache_clear()
     try:
-        with patch("charter.pack_context.PackContext.from_config", return_value=pack_context):
+        with patch("charter.activation.pack_context.PackContext.from_config", return_value=pack_context):
             result = runner.invoke(charter_app, ["mission-type", "list", "--json"])
     finally:
         MissionTypeRepository.cache_clear()
@@ -192,15 +192,25 @@ def test_sc001_org_pack_mission_type_resolves_across_all_four_cli_surfaces(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     """SC-001 capstone: T016-T019's fixes assembled into one coherent scenario."""
-    from doctrine.missions.mission_type_repository import MissionTypeRepository
+    from charter.offering.missions.mission_type_repository import MissionTypeRepository
 
-    from charter.mission_type_profiles import resolve_mission_type_context
-    from charter.pack_context import PackContext
+    from charter.activation.mission_type_profiles import resolve_mission_type_context
+    from charter.activation.pack_context import PackContext
     from specify_cli.core.mission_creation import create_mission_core
 
     _git_init_minimal(tmp_path)
     subprocess.run(
         ["git", "commit", "-m", "init", "--allow-empty"],
+        cwd=tmp_path,
+        check=True,
+        capture_output=True,
+    )
+    # create_mission_core commits planning artifacts via safe_commit, which
+    # refuses protected branches (e.g. "main") since FR-001 removed the
+    # swallowed-exception fallback -- check out a non-protected feature
+    # branch first, exactly as the product's own error message instructs.
+    subprocess.run(
+        ["git", "checkout", "-b", "feature/qa-mission"],
         cwd=tmp_path,
         check=True,
         capture_output=True,
@@ -214,6 +224,14 @@ def test_sc001_org_pack_mission_type_resolves_across_all_four_cli_surfaces(
         artifact_key="spec",
         template_file="qa-spec-template.md",
     )
+    _write_org_mission_step_yaml(
+        org_root,
+        "qa",
+        "implement",
+        artifact_key="implementation",
+        template_file="qa-implementation-template.md",
+        sequence_index=1,
+    )
     # create_mission_core's template-copy step resolves the declared
     # template_file through runtime.resolver's own 5-tier chain (C-004: out
     # of this mission's scope) -- for a scratch, org-only type, the project
@@ -222,6 +240,10 @@ def test_sc001_org_pack_mission_type_resolves_across_all_four_cli_surfaces(
     overrides_dir = tmp_path / ".kittify" / "overrides" / "templates"
     overrides_dir.mkdir(parents=True, exist_ok=True)
     (overrides_dir / "qa-spec-template.md").write_text("# QA Spec\n", encoding="utf-8")
+    (overrides_dir / "qa-implementation-template.md").write_text(
+        "# QA Implementation\n",
+        encoding="utf-8",
+    )
     pack_context = PackContext(
         activated_kinds=frozenset(),
         activated_mission_types=frozenset({"qa"}),
@@ -233,7 +255,7 @@ def test_sc001_org_pack_mission_type_resolves_across_all_four_cli_surfaces(
     monkeypatch.chdir(tmp_path)
     MissionTypeRepository.cache_clear()
     try:
-        with patch("charter.pack_context.PackContext.from_config", return_value=pack_context):
+        with patch("charter.activation.pack_context.PackContext.from_config", return_value=pack_context):
             # Surface 1: mission create -- the created mission's projected
             # action sequence and template set match the org-pack's declared
             # steps exactly (User Story 1 AC2).
@@ -248,7 +270,10 @@ def test_sc001_org_pack_mission_type_resolves_across_all_four_cli_surfaces(
             assert result.meta.get("mission_type") == "qa"
             bundle = resolve_mission_type_context(tmp_path, mission_type="qa")
             assert bundle.action_sequence == ["design", "implement"]
-            assert dict(bundle.template_set) == {"spec": "qa-spec-template.md"}
+            assert dict(bundle.template_set) == {
+                "spec": "qa-spec-template.md",
+                "implementation": "qa-implementation-template.md",
+            }
 
             # Surface 2: charter mission-type list (FR-006) -- real layer,
             # not "unknown".
@@ -275,11 +300,17 @@ def test_sc001_org_pack_mission_type_resolves_across_all_four_cli_surfaces(
 
             # Surface 4: doctrine mission-type list (FR-008) -- the type
             # appears with the correct layer, a true all-layers listing.
+            #
+            # CR-02 (mission charter-code-topology-01M152G1 S4): `doctrine_app`
+            # now carries a deprecation-notice `@app.callback()` that writes
+            # to stderr (`err=True`) -- parse `.stdout` (stdout only), not
+            # `.output` (Click 8.2+'s stdout+stderr merge), so that notice
+            # never lands inside the JSON payload under test here.
             doctrine_result = runner.invoke(doctrine_app, ["mission-type", "list", "--json"])
             assert doctrine_result.exit_code == 0, doctrine_result.output
             doctrine_row = next(
                 row
-                for row in json.loads(doctrine_result.output.strip())
+                for row in json.loads(doctrine_result.stdout.strip())
                 if row["id"] == "qa"
             )
             assert doctrine_row["source_layer"] == "org"

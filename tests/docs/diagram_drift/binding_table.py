@@ -11,14 +11,14 @@ from __future__ import annotations
 from dataclasses import dataclass
 from enum import StrEnum
 
-from doctrine.agent_profiles.schema_models import (
+from charter.offering.agent_profiles.schema_models import (
     AgentProfileSchema,
     AgentSpecialization,
 )
-from doctrine.artifact_kinds import ArtifactKind
-from doctrine.drg.models import DRGEdge, DRGNode, NodeKind, Relation
-from doctrine.missions.action_index import ActionIndex
-from doctrine.missions.step_contracts import (
+from charter.offering.artifact_kinds import ArtifactKind
+from charter.offering.drg.models import DRGEdge, DRGNode, NodeKind, Relation
+from charter.offering.missions.action_index import ActionIndex
+from charter.offering.missions.step_contracts import (
     MissionStepContract,
     MissionStepContractStep,
 )

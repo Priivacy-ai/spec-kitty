@@ -150,7 +150,7 @@ node_modules/
 
         expected_new_entries = TOTAL_PROTECTED_ENTRIES - 3
         assert len(result.entries_added) == expected_new_entries
-        assert ".cursor/" in result.entries_added
+        assert ".cursor/rules/spec-kitty.mdc" in result.entries_added
 
         # Verify no duplicates in file
         content = gitignore_path.read_text()
