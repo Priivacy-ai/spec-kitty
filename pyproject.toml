@@ -2209,7 +2209,6 @@ exclude = [
     "tests/review/test_lock.py",
     "tests/review/test_pre_review_gate_engine.py",
     "tests/review/test_pre_review_gate_integration.py",
-    "tests/review/test_pre_review_gate_interpreter.py",
     "tests/review/test_pre_review_gate_source_mismatch.py",
     "tests/review/test_prompt_metadata.py",
     "tests/review/test_reader_polarity_merge_gate_regression.py",
