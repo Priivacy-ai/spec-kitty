@@ -156,6 +156,6 @@ def test_missing_mission_returns_parseable_json_outcome(tmp_path: Path) -> None:
     assert result.exit_code == 1
     payload = json.loads(result.output)
     assert payload["status"] == "error"
-    assert payload["outcome"] == "mission_not_found"
-    assert payload["error"] == "mission_not_found"
+    assert payload["outcome"] == "MISSION_NOT_FOUND"
+    assert payload["error"] == "MISSION_NOT_FOUND"
     assert payload["next_action"]

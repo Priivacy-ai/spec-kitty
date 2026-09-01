@@ -268,7 +268,7 @@ class TestAmbiguousHandleErrorJson:
             resolve_mission("080", repo_root)
         err = exc_info.value
         d = err.to_dict()
-        assert d["error"] == "ambiguous_mission_handle"
+        assert d["error"] == "MISSION_AMBIGUOUS_SELECTOR"
         assert d["handle"] == "080"
         assert isinstance(d["candidates"], list)
         assert {c["slug"] for c in d["candidates"]} == {"080-alpha", "080-beta"}

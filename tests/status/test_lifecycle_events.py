@@ -250,6 +250,53 @@ def test_mission_created_local_actor_falls_back_to_cli(feature_dir: Path, monkey
     assert envelope["payload"]["actor"] == "cli"
 
 
+def test_mission_created_local_oversized_email_falls_back_to_cli(feature_dir: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """A resolved email over the zeitgeist attrs codec's 240-byte-per-value
+    bound must degrade to ``"cli"`` at emit time (#74) — otherwise the value
+    passes producer-time validation (no ``max_length`` on the contract) and
+    ``to_zeitgeist_attrs`` only rejects it later, silently dropping the whole
+    moment instead of just its WHO."""
+    from spec_kitty_events.zeitgeist_attrs import ZEITGEIST_ATTRS_MAX_BYTES
+
+    oversized_email = ("a" * (ZEITGEIST_ATTRS_MAX_BYTES + 10)) + "@example.com"
+    calls = _fake_git_config(monkeypatch, stdout=f"{oversized_email}\n")
+
+    envelope = emit_mission_created_local(
+        feature_dir,
+        mission_slug="demo-mission",
+        mission_id="01ULID",
+        mission_number=None,
+        mission_type="software-dev",
+        target_branch="main",
+    )
+
+    assert envelope is not None
+    assert envelope["payload"]["actor"] == "cli"
+    assert calls and calls[0][:3] == ["git", "config", "user.email"]
+
+
+def test_mission_created_local_boundary_length_email_is_kept(feature_dir: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """An email exactly at the byte bound is still a valid actor — only
+    strictly-over-bound values fall back."""
+    from spec_kitty_events.zeitgeist_attrs import ZEITGEIST_ATTRS_MAX_BYTES
+
+    boundary_email = "a" * (ZEITGEIST_ATTRS_MAX_BYTES - len("@example.com")) + "@example.com"
+    assert len(boundary_email.encode("utf-8")) == ZEITGEIST_ATTRS_MAX_BYTES
+    _fake_git_config(monkeypatch, stdout=f"{boundary_email}\n")
+
+    envelope = emit_mission_created_local(
+        feature_dir,
+        mission_slug="demo-mission",
+        mission_id="01ULID",
+        mission_number=None,
+        mission_type="software-dev",
+        target_branch="main",
+    )
+
+    assert envelope is not None
+    assert envelope["payload"]["actor"] == boundary_email
+
+
 def test_mission_created_local_explicit_actor_wins_without_identity_probe(feature_dir: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """A pinned actor bypasses resolution entirely (other git use is fine —
     the write lock legitimately shells out to git around the append)."""
