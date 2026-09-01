@@ -1814,7 +1814,6 @@ exclude = [
     "tests/git_ops/test_commit_message_spec_number.py",
     "tests/git_ops/test_detection.py",
     "tests/git_ops/test_git_preflight.py",
-    "tests/git_ops/test_git_sync_workspace_merge_env.py",
     "tests/git_ops/test_mark_status_pipe_table.py",
     "tests/git_ops/test_safe_commit_commit_failure_classification.py",
     "tests/git_ops/test_safe_commit_helper_integration.py",
