@@ -56,8 +56,10 @@ def load_auth_context(repo_root: Path | None = None) -> AuthContext:
        (#237: a repo-local URL must not redirect an env-supplied token).
        Its ``team_slug`` comes only from ``SPEC_KITTY_TEAM_SLUG``, for the
        same reason: the file must not override the scope of an env-resolved
-       token. ``.kittify/saas-auth.json`` is not read at all when both
-       ``SPEC_KITTY_SAAS_TOKEN`` and ``SPEC_KITTY_SAAS_URL`` are already set.
+       token. ``.kittify/saas-auth.json`` is not read at all once
+       ``SPEC_KITTY_SAAS_TOKEN`` is set — its url and team_slug are never
+       consulted then either, so reading it would only risk failing on a
+       malformed file the caller never needed (#291).
     2. ``.kittify/saas-auth.json`` relative to *repo_root* (if provided) —
        its ``token`` paired with its own ``saas_url`` and ``team_slug``
        (falling back to ``SPEC_KITTY_SAAS_URL`` / ``SPEC_KITTY_TEAM_SLUG``
@@ -91,13 +93,14 @@ def load_auth_context(repo_root: Path | None = None) -> AuthContext:
     file_url = ""
     file_token = ""
     file_team_slug: str | None = None
-    # Only touch the file when env hasn't already fully resolved token+url —
-    # a fully-env-configured caller never needed the file before #237 either
-    # (main:66-72), and reading it anyway both risks the same
-    # checkout-controls-a-trusted-session hazard for team_slug below and
-    # turns a merely-present malformed file into a hard failure for a caller
-    # who never needed it.
-    if repo_root is not None and not (env_token and env_url):
+    # Only touch the file when there is no env token — the file's token,
+    # url, and team_slug are all discarded once env_token is set (#237: an
+    # env-supplied token never pairs with a checkout-controlled url/scope),
+    # so a caller with env_token set never needed the file, regardless of
+    # whether SPEC_KITTY_SAAS_URL is also set (#291: reading it anyway turned
+    # a merely-present malformed file into a hard failure for such a caller,
+    # even though every field it could have contributed was already dead).
+    if repo_root is not None and not env_token:
         auth_file = repo_root / ".kittify" / "saas-auth.json"
         if auth_file.exists():
             try:
