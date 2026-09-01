@@ -20,6 +20,7 @@ import os
 import time
 from pathlib import Path
 
+from charter.hasher import hash_content
 import pytest
 
 from specify_cli.audit import AuditOptions, RepoAuditReport, run_audit
@@ -448,6 +449,18 @@ def test_invoking_cwd_disagreement_adds_checkout_disagreement_finding(tmp_path: 
 
     result = next(m for m in report.missions if m.mission_slug == slug)
     assert "CHECKOUT_DISAGREEMENT" in {f.code for f in result.findings}
+    finding = next(f for f in result.findings if f.code == "CHECKOUT_DISAGREEMENT")
+    invoking_sha256 = hash_content(
+        (lane / "kitty-specs" / slug / "status.json").read_text(encoding="utf-8")
+    ).removeprefix("sha256:")
+    primary_sha256 = hash_content(
+        (primary / "kitty-specs" / slug / "status.json").read_text(encoding="utf-8")
+    ).removeprefix("sha256:")
+    assert finding.detail == (
+        "status.json disagrees with primary "
+        f"(invoking sha256 {invoking_sha256}, "
+        f"primary sha256 {primary_sha256})"
+    )
 
 
 def test_invoking_cwd_owner_reports_no_disagreement(tmp_path: Path) -> None:
