@@ -1023,11 +1023,11 @@ def validate_activatable_mission_type(mission_type_id: str, *, repo_root: Path) 
         If the candidate's own action sequence, or its single-level ``extends``
         fallback, is empty.
     """
-    from charter.pack_context import PackContext  # noqa: PLC0415 — lazy; avoids circular
-    from doctrine.missions.mission_type_repository import (  # noqa: PLC0415
+    from charter.activation.pack_context import PackContext  # noqa: PLC0415 — lazy; avoids circular
+    from charter.offering.missions.mission_type_repository import (  # noqa: PLC0415
         resolve_layered_mission_types,
     )
-    from doctrine.missions.repository import MissionTemplateRepository  # noqa: PLC0415
+    from charter.offering.missions.repository import MissionTemplateRepository  # noqa: PLC0415
 
     pack_context = PackContext.from_config(repo_root)
     mission_types_dirs = (MissionTemplateRepository.default_missions_root() / "mission_types",)

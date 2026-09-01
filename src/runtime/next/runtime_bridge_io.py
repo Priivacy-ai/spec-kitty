@@ -908,8 +908,8 @@ def _presence_filenames_for(
     from charter.offering.missions import (  # noqa: PLC0415
         ExpectedArtifactManifest,
         MissionTemplateRepository,
-        project_artifact_name_set,
     )
+    from charter.offering.missions.step_projection import project_artifact_name_set  # noqa: PLC0415
     from pydantic import ValidationError  # noqa: PLC0415
 
     from specify_cli.dossier.manifest import ManifestSchemaError  # noqa: PLC0415
@@ -968,12 +968,12 @@ def _resolve_org_manifest_mapping(
     """
     if repo_root is None:
         return None, []
-    from charter.drg import resolve_existing_org_roots  # noqa: PLC0415
+    from charter.drg import resolve_org_dirs  # noqa: PLC0415
     from charter.activation.org_expected_artifacts import (  # noqa: PLC0415
         resolve_org_expected_artifacts,
     )
 
-    org_roots = resolve_existing_org_roots(repo_root)
+    org_roots = resolve_org_dirs(repo_root, "missions")
     if not org_roots:
         return None, []
     # `charter.*` is `follow_imports = "skip"` in [tool.mypy] (pyproject.toml)
