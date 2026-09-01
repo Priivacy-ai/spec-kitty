@@ -1,6 +1,6 @@
 [project]
 name = "spec-kitty-cli"
-version = "3.2.6rc2"
+version = "3.2.6"
 description = "Spec Kitty, a tool for Specification Driven Development (SDD) agentic projects, with kanban and git worktree isolation."
 readme = "README.md"
 license = { file = "LICENSE" }
@@ -63,37 +63,18 @@ dependencies = [
     "pydantic>=2.0",
     "packaging>=23.0",
     "psutil>=5.9.0",  # Cross-platform process management for dashboard
-    # spec-kitty-events / spec-kitty-tracker: internal programme dependencies.
-    # Their public-surface contracts are pinned in
+    # spec-kitty-events / spec-kitty-tracker: public shared-package
+    # dependencies. Their public-surface contracts are pinned in
     # tests/contract/spec_kitty_events_consumer/ and
     # tests/contract/spec_kitty_tracker_consumer/. spec-kitty-runtime is
     # intentionally absent: the CLI's runtime surface is internalized under
     # src/runtime/next/ (see WP01 of mission
     # shared-package-boundary-cutover-01KQ22DS), and absence is enforced by
     # tests/architectural/test_pyproject_shape.py.
-    # spec-kitty-events 8.0.0 deletes the offline sync/legacy/cutover surfaces
-    # and moves the volatile mission/WP families' support rows to volatile
-    # durability; the zeitgeist_attrs codecs (to_/from_zeitgeist_attrs) are the
-    # canonical projection for ephemeral team-status moments. The envelope-level
-    # cutover gate is gone from validate_event; fail-closed gating lives in
-    # spec_kitty_events.strict.validate_strict_envelope. 8.0.0 adds the
-    # canonical `genesis` lane contract that src/specify_cli/status/emit.py's
-    # capability gate (_EVENTS_SUPPORTS_GENESIS) already degrades gracefully
-    # without.
-    # Pinned past 8.0.0 to events#77 (DecisionPointOpened/Resolved join
-    # VOLATILE_EVENT_TYPES; bounded moment summaries for
-    # SUMMARY_SOURCE_EVENT_TYPES) plus #81/#82 (zeitgeist_attrs rejects
-    # non-printable control characters), the exact commit this pin lands on
-    # (spec-kitty#324) — a strict superset of the SHA #324 itself named, and
-    # still an exact commit per PROGRAM.md §2, never a branch.
-    # For the programme, both shared packages resolve from exact git
-    # SHAs, never PyPI (PROGRAM.md §2; planning#31). The CLI installs as a wheel
-    # in a clean environment, so each pin lives in the dependency itself:
-    # [tool.uv.sources] does not travel into the wheel's Requires-Dist
-    # (controller-qa on #58). The host is always github.com, never the exe.dev
-    # github.int.exe.xyz forge proxy, which laptops cannot resolve.
-    "spec-kitty-events @ git+https://github.com/spec-kitty/EXPERIMENTAL-spec-kitty-events@c93dbfbf5243330349452a31d05bca2ece26ceea",
-    "spec-kitty-tracker @ git+https://github.com/spec-kitty/EXPERIMENTAL-spec-kitty-tracker@67a6ecc91f4b4a5fa82492a80ced4f49ce98851e",
+    # The bounded ranges keep clean-wheel installs on the public release train
+    # while preserving the release authority's compatibility contract.
+    "spec-kitty-events>=9,<10",
+    "spec-kitty-tracker>=0.5.2,<0.6",
     "toml>=0.10.2",  # Config file parsing
     "tomli-w>=1.0.0",  # TOML write serialiser (stdlib tomllib is read-only)
     "filelock>=3.13.0",  # Credential storage locking
@@ -156,9 +137,6 @@ spec-kitty = "specify_cli:main"
 requires = ["hatchling==1.31.0"]
 build-backend = "hatchling.build"
 
-[tool.hatch.metadata]
-allow-direct-references = true
-
 [tool.hatch.build.targets.wheel]
 packages = ["src/kernel", "src/glossary", "src/mission_runtime", "src/runtime", "src/specify_cli", "src/charter"]
 exclude = [
@@ -195,7 +173,7 @@ artifacts = [
     # R2 wheel silent-drop fix (charter-code-topology-01M152G1, S5): the
     # broader src/charter/** glob (files directly under src/charter/, e.g.
     # ERROR_CODES.md, plus everything under offering/) shipped only *.yaml/
-    # *.yml before this change, silently dropping src/charter/ERROR_CODES.md
+    # *.yml before this change, silently dropping src/charter/activation/ERROR_CODES.md
     # and src/charter/README.md from the wheel. Widen to the same extension
     # set the offering/ subtree already ships (.md/.json/.csv/.template) so
     # the top-level charter docs/config surface is not silently excluded.
@@ -284,7 +262,6 @@ exclude = [
     "kitty-specs/unified-charter-bundle-chokepoint-01KP5Q2G/baseline/capture.py",
     "packs/built-in/assets/docs_structural_lint.py",
     "scripts/analysis/caacs_miner.py",
-    "scripts/check_nfr_003_latency.py",
     "scripts/check_patch_targets.py",
     "scripts/ci/check_dangling_deferrals.py",
     "scripts/ci/quality_gate_decision.py",
@@ -334,83 +311,83 @@ exclude = [
     "scripts/sync_all_contributors.py",
     "scripts/verify_batch_retirement_3167.py",
     "scripts/verify_occurrences.py",
-    "src/charter/_activation_render.py",
-    "src/charter/_catalog_miss.py",
-    "src/charter/_diagnostics.py",
-    "src/charter/_doctrine_paths.py",
-    "src/charter/_drg_helpers.py",
-    "src/charter/_io.py",
-    "src/charter/action_doctrine_bundle.py",
-    "src/charter/action_grain.py",
-    "src/charter/activation_engine.py",
-    "src/charter/activations.py",
+    "src/charter/activation/_activation_render.py",
+    "src/charter/activation/_catalog_miss.py",
+    "src/charter/activation/_diagnostics.py",
+    "src/charter/activation/_doctrine_paths.py",
+    "src/charter/activation/_drg_helpers.py",
+    "src/charter/activation/_io.py",
+    "src/charter/activation/action_doctrine_bundle.py",
+    "src/charter/activation/action_grain.py",
+    "src/charter/activation/activation_engine.py",
+    "src/charter/activation/activations.py",
     "src/charter/bundle.py",
-    "src/charter/cascade.py",
-    "src/charter/catalog.py",
-    "src/charter/charter_yaml_io.py",
-    "src/charter/compact.py",
-    "src/charter/compiler.py",
-    "src/charter/consistency_check.py",
-    "src/charter/context.py",
-    "src/charter/context_renderers/activation_block.py",
-    "src/charter/context_renderers/artifact_bodies.py",
-    "src/charter/context_renderers/authority_paths.py",
-    "src/charter/context_renderers/bootstrap_text.py",
-    "src/charter/context_renderers/catalog_diagnosis.py",
-    "src/charter/context_renderers/delivery_table.py",
-    "src/charter/context_renderers/profile_sections.py",
-    "src/charter/context_renderers/reference_pointers.py",
-    "src/charter/context_renderers/section_bodies.py",
-    "src/charter/context_renderers/selection_block.py",
-    "src/charter/context_renderers/template_include.py",
-    "src/charter/context_renderers/token_budget.py",
-    "src/charter/corpus/__init__.py",
-    "src/charter/doctrine_service_builder.py",
+    "src/charter/activation/cascade.py",
+    "src/charter/activation/catalog.py",
+    "src/charter/activation/charter_yaml_io.py",
+    "src/charter/activation/compact.py",
+    "src/charter/activation/compiler.py",
+    "src/charter/activation/consistency_check.py",
+    "src/charter/activation/context.py",
+    "src/charter/activation/context_renderers/activation_block.py",
+    "src/charter/activation/context_renderers/artifact_bodies.py",
+    "src/charter/activation/context_renderers/authority_paths.py",
+    "src/charter/activation/context_renderers/bootstrap_text.py",
+    "src/charter/activation/context_renderers/catalog_diagnosis.py",
+    "src/charter/activation/context_renderers/delivery_table.py",
+    "src/charter/activation/context_renderers/profile_sections.py",
+    "src/charter/activation/context_renderers/reference_pointers.py",
+    "src/charter/activation/context_renderers/section_bodies.py",
+    "src/charter/activation/context_renderers/selection_block.py",
+    "src/charter/activation/context_renderers/template_include.py",
+    "src/charter/activation/context_renderers/token_budget.py",
+    "src/charter/activation/corpus/__init__.py",
+    "src/charter/activation/doctrine_service_builder.py",
     "src/charter/drg.py",
-    "src/charter/evidence/__init__.py",
-    "src/charter/evidence/code_reader.py",
-    "src/charter/evidence/corpus_loader.py",
-    "src/charter/evidence/orchestrator.py",
-    "src/charter/governance_references.py",
+    "src/charter/activation/evidence/__init__.py",
+    "src/charter/activation/evidence/code_reader.py",
+    "src/charter/activation/evidence/corpus_loader.py",
+    "src/charter/activation/evidence/orchestrator.py",
+    "src/charter/activation/governance_references.py",
     "src/charter/hasher.py",
-    "src/charter/interview.py",
-    "src/charter/invocation_context.py",
-    "src/charter/kind_vocabulary.py",
-    "src/charter/language_scope.py",
-    "src/charter/mission_type_profiles.py",
-    "src/charter/neutrality/lint.py",
-    "src/charter/org_expected_artifacts.py",
-    "src/charter/org_extends.py",
-    "src/charter/org_pack_discovery.py",
-    "src/charter/pack_context.py",
-    "src/charter/pack_manager.py",
-    "src/charter/profile_resolution.py",
-    "src/charter/progressive_disclosure.py",
-    "src/charter/reference_resolver.py",
+    "src/charter/activation/interview.py",
+    "src/charter/activation/invocation_context.py",
+    "src/charter/activation/kind_vocabulary.py",
+    "src/charter/activation/language_scope.py",
+    "src/charter/activation/mission_type_profiles.py",
+    "src/charter/activation/neutrality/lint.py",
+    "src/charter/activation/org_expected_artifacts.py",
+    "src/charter/activation/org_extends.py",
+    "src/charter/activation/org_pack_discovery.py",
+    "src/charter/activation/pack_context.py",
+    "src/charter/activation/pack_manager.py",
+    "src/charter/activation/profile_resolution.py",
+    "src/charter/activation/progressive_disclosure.py",
+    "src/charter/activation/reference_resolver.py",
     "src/charter/resolution.py",
-    "src/charter/resolver.py",
-    "src/charter/schemas.py",
-    "src/charter/scope.py",
-    "src/charter/synthesizer/adapter.py",
-    "src/charter/synthesizer/artifact_naming.py",
-    "src/charter/synthesizer/errors.py",
-    "src/charter/synthesizer/evidence.py",
-    "src/charter/synthesizer/fixture_adapter.py",
-    "src/charter/synthesizer/generated_artifact_adapter.py",
-    "src/charter/synthesizer/interview_mapping.py",
-    "src/charter/synthesizer/manifest.py",
-    "src/charter/synthesizer/orchestrator.py",
-    "src/charter/synthesizer/path_guard.py",
-    "src/charter/synthesizer/project_drg.py",
-    "src/charter/synthesizer/reconcile.py",
-    "src/charter/synthesizer/request.py",
-    "src/charter/synthesizer/resynthesize_pipeline.py",
-    "src/charter/synthesizer/synthesize_pipeline.py",
-    "src/charter/synthesizer/targets.py",
-    "src/charter/synthesizer/topic_resolver.py",
-    "src/charter/synthesizer/validation_gate.py",
-    "src/charter/synthesizer/write_pipeline.py",
-    "src/charter/template_resolver.py",
+    "src/charter/activation/resolver.py",
+    "src/charter/activation/schemas.py",
+    "src/charter/activation/scope.py",
+    "src/charter/activation/synthesizer/adapter.py",
+    "src/charter/activation/synthesizer/artifact_naming.py",
+    "src/charter/activation/synthesizer/errors.py",
+    "src/charter/activation/synthesizer/evidence.py",
+    "src/charter/activation/synthesizer/fixture_adapter.py",
+    "src/charter/activation/synthesizer/generated_artifact_adapter.py",
+    "src/charter/activation/synthesizer/interview_mapping.py",
+    "src/charter/activation/synthesizer/manifest.py",
+    "src/charter/activation/synthesizer/orchestrator.py",
+    "src/charter/activation/synthesizer/path_guard.py",
+    "src/charter/activation/synthesizer/project_drg.py",
+    "src/charter/activation/synthesizer/reconcile.py",
+    "src/charter/activation/synthesizer/request.py",
+    "src/charter/activation/synthesizer/resynthesize_pipeline.py",
+    "src/charter/activation/synthesizer/synthesize_pipeline.py",
+    "src/charter/activation/synthesizer/targets.py",
+    "src/charter/activation/synthesizer/topic_resolver.py",
+    "src/charter/activation/synthesizer/validation_gate.py",
+    "src/charter/activation/synthesizer/write_pipeline.py",
+    "src/charter/activation/template_resolver.py",
     "src/charter/offering/agent_profiles/profile.py",
     "src/charter/offering/agent_profiles/repository.py",
     "src/charter/offering/agent_profiles/schema_models.py",
@@ -1794,7 +1771,6 @@ exclude = [
     "tests/git_ops/test_commit_message_spec_number.py",
     "tests/git_ops/test_detection.py",
     "tests/git_ops/test_git_preflight.py",
-    "tests/git_ops/test_git_sync_workspace_merge_env.py",
     "tests/git_ops/test_mark_status_pipe_table.py",
     "tests/git_ops/test_safe_commit_commit_failure_classification.py",
     "tests/git_ops/test_safe_commit_helper_integration.py",
@@ -2124,7 +2100,7 @@ exclude = [
     "tests/readiness/test_coordinator_nag_passthrough.py",
     "tests/readiness/test_coordinator_suppression_matrix.py",
     "tests/readiness/test_upgrade_ux.py",
-    "tests/regression/test_issue_3307_cli_emits_contract_invalid_unforced_rollback.py",
+    "tests/specify_cli/cli/commands/agent/test_issue_3307_cli_emits_contract_invalid_unforced_rollback.py",
     "tests/regressions/test_changelog_regex_redos.py",
     "tests/regressions/test_doctor_missionrepairresult_findings.py",
     "tests/regressions/test_issue_101_utf8_startup.py",
@@ -2183,7 +2159,8 @@ exclude = [
     "tests/review/test_fix_prompt.py",
     "tests/review/test_gate_bindings.py",
     "tests/review/test_lock.py",
-    "tests/review/test_pre_review_gate_interpreter.py",
+    "tests/review/test_pre_review_gate_engine.py",
+    "tests/review/test_pre_review_gate_integration.py",
     "tests/review/test_pre_review_gate_source_mismatch.py",
     "tests/review/test_prompt_metadata.py",
     "tests/review/test_reader_polarity_merge_gate_regression.py",
@@ -3143,10 +3120,13 @@ module = ["specify_cli.*"]
 follow_imports = "skip"
 
 [[tool.mypy.overrides]]
-# When checking charter.neutrality in isolation, mypy walks into other charter
-# submodules (interview, resolver, context, …) that have pre-existing strict
-# issues being addressed in a separate mission. Skip them so that
-# ``mypy --strict src/charter/neutrality/`` reports only neutrality's own issues.
+# When checking charter.activation.neutrality in isolation, mypy walks into other
+# charter submodules (interview, resolver, context, …) that have pre-existing
+# strict issues being addressed in a separate mission. Skip them so that
+# ``mypy --strict src/charter/activation/neutrality/`` reports only neutrality's
+# own issues. ``charter.*`` also covers ``charter.activation.*`` /
+# ``charter.offering.*`` (mission charter-activation-split-01M16ZSE relocated
+# the activation-layer modules under charter.activation).
 module = ["charter.*"]
 follow_imports = "skip"
 

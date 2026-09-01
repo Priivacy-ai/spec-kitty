@@ -7,9 +7,9 @@ took only pack #1 (first-match-wins). Pack #2's ``mission_step_contract``
 loaded into the repository overlay (chain-correct) but its graph nodes /
 ``delegates_to`` edges were absent from the DRG (first-only) -- the executor
 disagreed with itself. This module pins the primitive-level fix:
-:func:`charter._drg_helpers.load_validated_graph` accepts ``org_roots: list[Path]``
+:func:`charter.activation._drg_helpers.load_validated_graph` accepts ``org_roots: list[Path]``
 and folds every root in declaration order, later-declared-wins (mirroring
-``charter.offering.base._apply_overlay_layer`` and ``charter.org_expected_artifacts``).
+``charter.offering.base._apply_overlay_layer`` and ``charter.activation.org_expected_artifacts``).
 
 The executor-level self-consistency proof (repo loads pack #2's contract AND
 its ``delegates_to`` target resolves in the DRG) lives alongside the existing
@@ -26,7 +26,7 @@ from unittest.mock import patch
 
 import pytest
 
-from charter._drg_helpers import load_validated_graph
+from charter.activation._drg_helpers import load_validated_graph
 from charter.offering.drg.loader import load_graph_or_dir
 
 pytestmark = pytest.mark.fast
@@ -35,7 +35,7 @@ pytestmark = pytest.mark.fast
 def _built_in_from(root: Path) -> Any:
     """Load a fixture built-in graph from *root* (mirrors
     ``test_merged_graph_on_live_path.py``'s established seam-injection
-    pattern: patch ``charter._drg_helpers.load_built_in_graph`` rather than
+    pattern: patch ``charter.activation._drg_helpers.load_built_in_graph`` rather than
     depending on the real shipped doctrine tree)."""
     return load_graph_or_dir(root)
 
@@ -114,7 +114,7 @@ class TestChainFoldsBothPacks:
         )
 
         with patch(
-            "charter._drg_helpers.load_built_in_graph",
+            "charter.activation._drg_helpers.load_built_in_graph",
             side_effect=lambda: _built_in_from(built_in_root),
         ):
             merged = load_validated_graph(tmp_path, org_roots=[org_root_a, org_root_b])
@@ -153,7 +153,7 @@ class TestChainFoldsBothPacks:
         )
 
         with patch(
-            "charter._drg_helpers.load_built_in_graph",
+            "charter.activation._drg_helpers.load_built_in_graph",
             side_effect=lambda: _built_in_from(built_in_root),
         ):
             merged = load_validated_graph(tmp_path, org_roots=[org_root_z, org_root_a])
@@ -167,7 +167,7 @@ class TestUrnCollisionLaterDeclaredWins:
     """Both packs declare the SAME node URN with a different label -- the
     later-declared pack (#2) must win, mirroring the repository overlay's
     established later-declared-wins precedence
-    (``charter.offering.base._apply_overlay_layer``, ``charter.org_expected_artifacts``).
+    (``charter.offering.base._apply_overlay_layer``, ``charter.activation.org_expected_artifacts``).
     """
 
     def test_pack_b_label_wins_on_urn_collision(self, tmp_path: Path) -> None:
@@ -188,7 +188,7 @@ class TestUrnCollisionLaterDeclaredWins:
         )
 
         with patch(
-            "charter._drg_helpers.load_built_in_graph",
+            "charter.activation._drg_helpers.load_built_in_graph",
             side_effect=lambda: _built_in_from(built_in_root),
         ):
             merged = load_validated_graph(tmp_path, org_roots=[org_root_a, org_root_b])
@@ -213,7 +213,7 @@ class TestBackCompatSingleOrgRoot:
         )
 
         with patch(
-            "charter._drg_helpers.load_built_in_graph",
+            "charter.activation._drg_helpers.load_built_in_graph",
             side_effect=lambda: _built_in_from(built_in_root),
         ):
             merged = load_validated_graph(tmp_path, org_root=org_root)
@@ -224,7 +224,7 @@ class TestBackCompatSingleOrgRoot:
         built_in_root = _empty_built_in(tmp_path)
 
         with patch(
-            "charter._drg_helpers.load_built_in_graph",
+            "charter.activation._drg_helpers.load_built_in_graph",
             side_effect=lambda: _built_in_from(built_in_root),
         ):
             merged = load_validated_graph(tmp_path)

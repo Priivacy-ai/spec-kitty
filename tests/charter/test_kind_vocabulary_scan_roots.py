@@ -21,8 +21,8 @@ from pathlib import Path
 
 import pytest
 
-from charter import kind_vocabulary
-from charter.kind_vocabulary import (
+from charter.activation import kind_vocabulary
+from charter.activation.kind_vocabulary import (
     _built_in_scan_dir,
     _layer_candidate_dir,
     _layer_scan_dirs,

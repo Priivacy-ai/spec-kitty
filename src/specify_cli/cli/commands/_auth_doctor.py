@@ -56,12 +56,12 @@ from typing import Any, Literal
 
 from rich.console import Console
 from rich.markup import escape
-from specify_cli.cli.console import console
+from specify_cli.cli.console import console, sanitize_terminal_text
 
 from kernel.clock import datetime, now_utc
 
 from specify_cli.auth import get_token_manager
-from specify_cli.auth.server_target import ServerTargetSplitBrainError, resolve_server_target
+from specify_cli.auth.server_target import ResolvedServerTarget, ServerTargetSplitBrainError, resolve_server_target
 from specify_cli.auth.session import StoredSession
 from specify_cli.auth.token_manager import _refresh_lock_path
 from specify_cli.auth.verdict import HealthVerdict, evaluate_auth_verdict
@@ -354,10 +354,7 @@ def _auth_verdict_finding(
         severity="critical" if auth_verdict.state == "fail" else "warn",
         summary=f"Session health not confirmed: {auth_verdict.evidence}",
         remediation_command=auth_verdict.remediation,
-        remediation_description=(
-            "The access token could not be confirmed valid; re-authenticate or "
-            "re-run with --server to probe the live session."
-        ),
+        remediation_description=("The access token could not be confirmed valid; re-authenticate or re-run with --server to probe the live session."),
     )
 
 
@@ -382,13 +379,13 @@ def compute_exit_code(findings: list[Finding]) -> int:
 # ---------------------------------------------------------------------------
 
 
-def _server_issuer_mismatch_error(tm: Any) -> str | None:
+def _server_issuer_mismatch_error(tm: Any, target: ResolvedServerTarget | None = None) -> str | None:
     """Return a mismatch message when the stored session predates the resolved server.
 
     Best-effort and side-effect-free: this never touches the token manager's
-    persisted state, and any failure to read the current session or resolve
-    the server target is treated as "cannot determine" rather than blocking
-    the caller — the normal ``get_access_token`` path decides in that case.
+    persisted state, and any failure to read the current session is treated
+    as "cannot determine" rather than blocking the caller — the normal
+    ``get_access_token`` path decides in that case.
     ``asyncio.iscoroutine`` guards a test double built from a bare
     ``AsyncMock`` (its unconfigured attributes return coroutines, unlike the
     real synchronous ``TokenManager.get_current_session``); closing it avoids
@@ -403,10 +400,11 @@ def _server_issuer_mismatch_error(tm: Any) -> str | None:
         return None
     if not isinstance(session, StoredSession) or session.issuer_url is None:
         return None
-    try:
-        target = resolve_server_target()
-    except Exception:  # noqa: BLE001 - unresolved server target: fall through to the normal check
-        return None
+    if target is None:
+        try:
+            target = resolve_server_target()
+        except Exception:  # noqa: BLE001 - standalone diagnostic remains best-effort
+            return None
     # Explicit annotation: `specify_cli.*` is checked with follow_imports = "skip"
     # (pyproject.toml), so mypy sees format_saas_mismatch_warning's return as Any.
     warning: str | None = format_saas_mismatch_warning(
@@ -439,7 +437,16 @@ async def _check_server_session() -> ServerSessionStatus:
 
     tm = get_token_manager()
 
-    mismatch = _server_issuer_mismatch_error(tm)
+    try:
+        # Resolve once so issuer diagnostics and the bearer-token request use
+        # the same configured target (#762).
+        target = resolve_server_target(process_wide_override=False)
+    except ServerTargetSplitBrainError as exc:
+        return ServerSessionStatus(active=False, error=f"SaaS URL mismatch: {exc}")
+    except Exception:  # noqa: BLE001 - SaaS config/resolution failure is reported as inactive server status
+        return ServerSessionStatus(active=False, error="SaaS URL not configured")
+
+    mismatch = _server_issuer_mismatch_error(tm, target)
     if mismatch is not None:
         return ServerSessionStatus(active=False, error=mismatch)
 
@@ -458,15 +465,7 @@ async def _check_server_session() -> ServerSessionStatus:
     except Exception:  # noqa: BLE001 - token acquisition failures are translated to doctor status
         return ServerSessionStatus(active=False, error="Could not obtain access token.")
 
-    try:
-        # Route the bearer-token-bearing send through the canonical resolver
-        # (#307), failing closed on an ambiguous env/config disagreement like
-        # the other no-human-in-the-loop hosted sends (see #117, #297).
-        saas_url = resolve_server_target(process_wide_override=False).resolved_server_url
-    except ServerTargetSplitBrainError as exc:
-        return ServerSessionStatus(active=False, error=f"SaaS URL mismatch: {exc}")
-    except Exception:  # noqa: BLE001 - SaaS config/resolution failure is reported as inactive server status
-        return ServerSessionStatus(active=False, error="SaaS URL not configured")
+    saas_url = target.resolved_server_url
 
     url = f"{saas_url}/api/v1/session-status"
     headers = {"Authorization": f"Bearer {access_token}"}
@@ -553,8 +552,10 @@ def _render_identity_section(report: DoctorReport, console: Console) -> None:
         console.print("  [red]X Not authenticated[/red]")
         console.print("  Run [bold]spec-kitty auth login[/bold] to authenticate.")
     else:
-        console.print(f"  User:           {report.session.user_email}")
-        console.print(f"  Session ID:     {report.session.session_id}")
+        user_email = report.session.user_email or UNKNOWN_DISPLAY
+        session_id = report.session.session_id or UNKNOWN_DISPLAY
+        console.print(f"  User:           {escape(sanitize_terminal_text(user_email))}")
+        console.print(f"  Session ID:     {escape(sanitize_terminal_text(session_id))}")
     console.print()
 
 
@@ -580,7 +581,10 @@ def _render_storage_section(report: DoctorReport, console: Console) -> None:
     if report.session is None or report.session.storage_backend is None:
         console.print("  (no session)")
     else:
-        console.print(f"  Backend:        {format_storage_backend(report.session.storage_backend)}")
+        console.print(
+            f"  Backend:        "
+            f"{escape(sanitize_terminal_text(format_storage_backend(report.session.storage_backend)))}"
+        )
         if report.session.in_memory_drift:
             console.print("  [dim]Note: persisted differs from in-memory (typical during in-flight refresh)[/dim]")
     console.print()
@@ -599,7 +603,8 @@ def _render_lock_section(lock: LockSummary, console: Console) -> None:
             console.print(f"  Acquired at:    {lock.started_at.isoformat()}")
         if lock.age_s is not None:
             console.print(f"  Age:            {lock.age_s:.1f}s")
-        console.print(f"  Host:           {lock.holder_host}")
+        holder_host = lock.holder_host or UNKNOWN_DISPLAY
+        console.print(f"  Host:           {escape(sanitize_terminal_text(holder_host))}")
         if lock.stuck:
             console.print(f"  [red]Stuck (age > {lock.stuck_threshold_s:.1f}s)[/red]")
     console.print()
@@ -618,10 +623,20 @@ def _render_findings_section(report: DoctorReport, console: Console) -> None:
         }
         for finding in report.findings:
             color = severity_color[finding.severity]
-            console.print(f"  [[{color}]{finding.severity}[/{color}]] {finding.id}: {finding.summary}")
+            console.print(
+                f"  [[{color}]{finding.severity}[/{color}]] {escape(sanitize_terminal_text(finding.id))}: {escape(sanitize_terminal_text(finding.summary))}"
+            )
             if finding.remediation_command is not None:
-                description = f" — {finding.remediation_description}" if finding.remediation_description else ""
-                console.print(f"      Run: {finding.remediation_command}{description}")
+                description = (
+                    f" — {finding.remediation_description}"
+                    if finding.remediation_description
+                    else ""
+                )
+                command = escape(sanitize_terminal_text(finding.remediation_command))
+                console.print(
+                    "      Run: "
+                    f"{command}{escape(sanitize_terminal_text(description))}"
+                )
 
 
 def render_report_json(report: DoctorReport) -> str:

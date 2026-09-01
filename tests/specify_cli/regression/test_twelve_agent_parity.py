@@ -251,7 +251,12 @@ def test_only_canonical_baseline_is_committed() -> None:
     committed = sorted(
         p.relative_to(BASELINE_DIR).as_posix()
         for p in BASELINE_DIR.rglob("*")
-        if p.is_file() and p.name != "__init__.py"
+        if p.is_file()
+        and p.name != "__init__.py"
+        # Python bytecode cache for this package's __init__.py — a local
+        # runtime artifact of importing it during collection, never
+        # committed (standard-gitignored), not a baseline fixture.
+        and "__pycache__" not in p.parts
     )
     assert committed == ["claude/specify.md", "gemini/specify.toml"], (
         f"Expected only the per-branch canonical baselines, found: {committed}"

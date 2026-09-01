@@ -1,6 +1,6 @@
 """WP17 unit tests — ``charter context --include`` selector routing.
 
-Pins the behaviour of :func:`charter.context.build_charter_context_include`
+Pins the behaviour of :func:`charter.activation.context.build_charter_context_include`
 after WP17 routed the selector kind through the canonical
 :meth:`charter.offering.artifact_kinds.ArtifactKind.from_operator_token` resolver
 (WP01) and wired ``template:<mission>/<name>`` through WP18's
@@ -28,14 +28,15 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
+from types import SimpleNamespace
 from typing import Any
 
 import pytest
 
-import charter.context as context_module
-from charter.pack_context import CharterPackConfigError
-from charter.context import build_charter_context_include
-from charter.context_renderers import template_include as template_include_module
+import charter.activation.context as context_module
+from charter.activation.pack_context import CharterPackConfigError
+from charter.activation.context import build_charter_context_include
+from charter.activation.context_renderers import template_include as template_include_module
 
 
 pytestmark = pytest.mark.fast
@@ -197,6 +198,24 @@ class TestAgentProfileInclude:
             build_charter_context_include(tmp_path, "agent-profile:nope")
 
 
+class TestDirectiveInclude:
+    def test_active_directive_slug_resolves_to_its_canonical_id(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """#3816: active directive slugs must work in the public include selector."""
+        directive = SimpleNamespace(title="Boy Scout Rule", intent="Keep scope tidy.")
+        _patch_service(
+            monkeypatch,
+            _StubService(directives=_StubRepo({"DIRECTIVE_025": directive})),
+        )
+
+        text = build_charter_context_include(
+            tmp_path, "directive:025-boy-scout-rule"
+        )
+
+        assert "Directive DIRECTIVE_025: Boy Scout Rule" in text
+
+
 # ---------------------------------------------------------------------------
 # Sibling hyphenated kinds (FR-024)
 # ---------------------------------------------------------------------------
@@ -276,7 +295,7 @@ class TestTemplateInclude:
         # ``context_renderers/template_include.py``; it resolves
         # ``resolve_project_root`` through ITS OWN module globals (a bare
         # name reference), so the patch target must follow the code, not
-        # stay on ``charter.context`` (which merely re-exports the render
+        # stay on ``charter.activation.context`` (which merely re-exports the render
         # function for FR-009 test-import preservation).
         monkeypatch.setattr(
             template_include_module, "resolve_project_root", _raise_pack_config_error

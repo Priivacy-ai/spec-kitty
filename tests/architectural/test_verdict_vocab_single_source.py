@@ -71,7 +71,7 @@ import pytest
 
 from specify_cli.status import verdict_vocab
 from specify_cli.status.models import ReviewOverride, WPInnerStateDelta
-from specify_cli.status.reducer import _apply_annotation_delta
+from spec_kitty_events.diary import _apply_annotation_delta
 
 # 2026-08-07 (landing fix, verdict-seam-write-unification #3245): this module
 # shipped with no module-level pytestmark, making it invisible to every

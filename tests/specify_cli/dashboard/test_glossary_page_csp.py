@@ -149,7 +149,7 @@ def test_glossary_javascript_subresources_are_same_origin() -> None:
     navigations (see ``:71-77`` above), they are top-level navigations, not
     CSP-restricted subresources, and ``DASHBOARD_CSP`` sets no
     ``navigate-to``/``form-action`` restriction that would apply."""
-    js = GLOSSARY_JS.read_text(encoding="utf-8")
+    js = _strip_js_comments(GLOSSARY_JS.read_text(encoding="utf-8"))
     urls = [first or second for first, second in _JS_URL_LITERAL_RE.findall(js)]
     assert urls, "glossary.js should reference at least one URL literal"
     foreign = [url for url in urls if not (url.startswith("/") or url.startswith("data:"))]
@@ -167,6 +167,17 @@ def test_glossary_javascript_href_navigation_is_not_flagged_as_subresource() -> 
     assert urls == []
 
 
+def test_glossary_javascript_url_scan_ignores_comment_prose() -> None:
+    js = _strip_js_comments(
+        """
+        // This file no longer does fetch('https://old-cdn.example.com/glossary.json').
+        const resp = await fetch('/api/glossary-terms');
+        """
+    )
+    urls = [first or second for first, second in _JS_URL_LITERAL_RE.findall(js)]
+    assert urls == ["/api/glossary-terms"]
+
+
 _CSS_URL_RE = re.compile(r"""url\(\s*['"]?([^'")]+)['"]?\s*\)""")
 
 
@@ -174,10 +185,20 @@ def test_glossary_css_has_no_foreign_url_reference() -> None:
     """glossary.css carries no ``url(...)`` references today; this guards
     against one being added later that points off-origin (e.g. a CDN font
     or background image), which the CSP would block at load time."""
-    css = GLOSSARY_CSS.read_text(encoding="utf-8")
+    css = _strip_css_comments(GLOSSARY_CSS.read_text(encoding="utf-8"))
     urls = _CSS_URL_RE.findall(css)
     foreign = [url for url in urls if not (url.startswith("/") or url.startswith("data:"))]
     assert foreign == [], f"non-same-origin url() reference(s) blocked by the CSP: {foreign}"
+
+
+def test_glossary_css_url_scan_ignores_comment_prose() -> None:
+    css = _strip_css_comments(
+        """
+        /* The pre-#71 draft used url(https://old-cdn.example.com/font.woff2). */
+        .logo { background-image: url('/static/dashboard/logo.png'); }
+        """
+    )
+    assert _CSS_URL_RE.findall(css) == ["/static/dashboard/logo.png"]
 
 
 def test_glossary_static_assets_exist_and_are_non_empty() -> None:

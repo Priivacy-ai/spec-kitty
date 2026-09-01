@@ -287,7 +287,17 @@ class SaaSTrackerClient:
         monotonic_clock: Callable[[], float] | None = None,
         jitter_randbelow: Callable[[int], int] | None = None,
     ) -> None:
-        self._project_root = Path(project_root).resolve() if project_root is not None else None
+        if project_root is None:
+            self._project_root = None
+        else:
+            try:
+                self._project_root = Path(project_root).resolve()
+            except (OSError, RuntimeError) as exc:
+                raise SaaSTrackerClientError(
+                    f"Cannot resolve project root {project_root}: {exc}",
+                    error_code="project_root_resolution_failed",
+                    details={"project_root": str(project_root), "reason": str(exc)},
+                ) from exc
         # Canonical server-target authority (#2146, re-homed from the deleted
         # sync config in issue #5): resolve the URL we will actually hit —
         # folding in SPEC_KITTY_SAAS_URL precedence — instead of the raw
@@ -755,6 +765,13 @@ class SaaSTrackerClient:
         """
         window_seconds = self._IDEMPOTENCY_RESEND_WINDOW.total_seconds()
         resend_bucket = int(now_utc().timestamp() // window_seconds)
+        # No `default=str` (#315): every real payload here already came from
+        # `json.loads` on its way in, so the fallback's only actual effect
+        # was to make a non-JSON-serialisable member (an object with no
+        # stable `__str__`, e.g. its default `repr` memory address, or a
+        # `set`'s hash-seed-dependent iteration order) mint a different
+        # digest per process instead of raising loudly — the opposite of
+        # this method's determinism contract above.
         canonical = json_module.dumps(
             {
                 "project_root": str(self._project_root) if self._project_root is not None else "",
@@ -763,7 +780,6 @@ class SaaSTrackerClient:
                 "resend_bucket": resend_bucket,
             },
             sort_keys=True,
-            default=str,
         )
         return hashlib.sha256(canonical.encode("utf-8")).hexdigest()  # noqa: TID251 - idempotency-key body checksum, not charter content
 

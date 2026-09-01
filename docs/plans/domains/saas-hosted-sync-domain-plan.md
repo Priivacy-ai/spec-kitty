@@ -17,7 +17,7 @@ related:
 # SaaS & Hosted Sync — Domain Plan
 
 > **Removed in 3.2.6; kept as historical record.** This durable plan describes
-> the deleted CLI→SaaS sync domain. It is scheduled for deletion in 3.2.7 (D13).
+> the deleted CLI→SaaS sync domain. It is scheduled for deletion in 3.2.7.
 
 **Audience:** the project maintainer — technical, time-pressed, wants signal over ritual.
 

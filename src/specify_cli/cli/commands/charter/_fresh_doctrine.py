@@ -11,7 +11,7 @@ from pathlib import Path
 
 # T031 (#839 minimal artifact set): the runtime consumes ``.kittify/doctrine/``
 # via ``DoctrineService(project_root=...)``. The candidate-list resolver in
-# ``src/charter/_doctrine_paths.py::resolve_project_root`` treats project-root
+# ``src/charter/activation/_doctrine_paths.py::resolve_project_root`` treats project-root
 # discovery as **directory-presence only** — an empty ``.kittify/doctrine/`` is
 # a valid candidate, and the built-in layer (``packs/built-in/``) supplies content
 # until the project layer is populated. The minimal artifact set
@@ -47,7 +47,7 @@ References
 ----------
 - GitHub issue: https://github.com/Priivacy-ai/spec-kitty/issues/839
 - Spec assumption A2: public CLI synthesize works on a fresh project.
-- Project-root resolution: `src/charter/_doctrine_paths.py`.
+- Project-root resolution: `src/charter/activation/_doctrine_paths.py`.
 """
 
 
@@ -55,8 +55,8 @@ def _fresh_seed_manifest_text() -> str:
     """Build the deterministic built-in-only synthesis manifest text."""
     from importlib.metadata import version as _pkg_version
 
-    from charter.synthesizer.manifest import SynthesisManifest, finalize_manifest
-    from charter.synthesizer.synthesize_pipeline import canonical_yaml
+    from charter.activation.synthesizer.manifest import SynthesisManifest, finalize_manifest
+    from charter.activation.synthesizer.synthesize_pipeline import canonical_yaml
 
     try:
         synthesizer_version = _pkg_version("spec-kitty-cli")
@@ -127,7 +127,7 @@ def _materialize_fresh_doctrine(repo_root: Path) -> list[str]:
     # Mirrors the synthesizer's own post-condition (project_drg.
     # apply_post_condition, has_project_graph=False) for the path that bypasses
     # the synthesizer. FR-007: both sites route through the one shared helper.
-    from charter.synthesizer.graph_residue import unlink_stale_project_graph  # noqa: PLC0415
+    from charter.activation.synthesizer.graph_residue import unlink_stale_project_graph  # noqa: PLC0415
 
     unlink_stale_project_graph(doctrine_dir)
 

@@ -1,0 +1,54 @@
+schema: review-findings/v1
+complete: true
+phase: plan
+lens_group: arch
+mission: charter-activate-empty-action-sequence-01M0STSX
+findings:
+  - id: PLAN-ARCH-001
+    lens: Citation precision
+    severity: 2
+    title: "__all__ insertion-point citation is factually wrong: alphabetical order puts the new symbol at the end of the list, not right after UnknownMissionTypeError"
+    evidence:
+      - artifact: "plan.md § `__all__` / dead-symbol governance (charter C-007, binding)"
+      - code: "src/charter/mission_type_profiles.py:71-83 (`__all__` list)"
+    claim: >
+      The plan states the new public symbol "lands in
+      src/charter/mission_type_profiles.py's existing __all__ list
+      (mission_type_profiles.py:71-83), inserted alphabetically between
+      UnknownMissionTypeError and existing_mission_types — i.e. immediately
+      after "UnknownMissionTypeError", per the list's existing sort order."
+      Verified against the live file, the existing __all__ list (lines 71-83)
+      IS exactly `sorted()` order (confirmed by running Python's `sorted()`
+      over the extracted list and diffing — it round-trips byte-identical).
+      But `sorted()` is a plain ASCII/case-sensitive comparison, under which
+      all uppercase-first class names (`CrossGrainDoubleDeclarationError` …
+      `UnknownMissionTypeError`) sort before all lowercase-first function
+      names (`existing_mission_types` … `resolve_mission_type_key`) — that is
+      why `UnknownMissionTypeError` happens to sit immediately before
+      `existing_mission_types` today, not because the list groups "classes"
+      and "functions" separately. `validate_activatable_mission_type` is a
+      lowercase-first function name; inserting it into `sorted(__all__ +
+      ["validate_activatable_mission_type"])` places it at the very END of
+      the list, after `"resolve_mission_type_key",` (verified: running
+      `sorted()` on the list with the new name appended returns it as the
+      last element). The plan's instructed insertion point — immediately
+      after `"UnknownMissionTypeError",`, before `"existing_mission_types",`
+      — does NOT match "the list's existing sort order" it invokes as
+      justification; it would leave the `__all__` list out of alphabetical
+      order after the edit, contradicting the very invariant the plan cites
+      to justify the placement. (No CI gate currently enforces sort order on
+      this specific module's `__all__` — `test_no_dead_symbols.py` only
+      checks for a live caller, and `test_public_surface_all_is_sorted_and_unique`
+      in `tests/architectural/test_doctrine_public_surface.py` governs
+      `doctrine.api.__all__`, a different module — so this will not fail CI,
+      but an implementer following the plan's literal instruction produces a
+      file that is demonstrably not "alphabetically sorted" as claimed,
+      which is the exact class of avoidable rework this lens exists to catch.
+    remediation: >
+      Correct the plan's `__all__` / dead-symbol governance section to
+      instruct insertion at the end of the list, immediately after
+      `"resolve_mission_type_key",` and before the closing `]` — that is the
+      position `sorted()` actually produces for a lowercase-first function
+      name — or drop the "per the list's existing sort order" justification
+      and state plainly that the insertion point is a style choice, not a
+      sort-order requirement.

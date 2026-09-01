@@ -281,7 +281,7 @@ _SINGULAR_PROJECT_DIR_KINDS: frozenset[ArtifactKind] = frozenset(
 #: under in a project overlay (``.kittify/doctrine/<dir>/``). This is the single
 #: source of truth the ``doctrine new`` scaffolder, :class:`DoctrineService`'s
 #: project-dir resolver (``charter.offering.service``), and the charter resolvers
-#: (``charter.kind_vocabulary`` / ``charter.pack_manager``) all import — **no
+#: (``charter.activation.kind_vocabulary`` / ``charter.activation.pack_manager``) all import — **no
 #: consumer re-declares it** (the module docstring's "no second kind
 #: enumeration" rule). ``doctrine`` is the lowest layer, so charter and
 #: specify_cli import *down* into it (C-001-legal).

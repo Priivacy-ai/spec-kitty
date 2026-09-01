@@ -9,7 +9,7 @@ shipped ``src/charter/offering/missions`` root via a ``Path(__file__)``-relative
 literal containing ``"doctrine"`` immediately followed by ``"missions"`` as
 adjacent path-join components:
 
-* ``charter.mission_type_profile_repository.builtin_missions_root()`` (T022)
+* ``charter.activation.mission_type_profile_repository.builtin_missions_root()`` (T022)
 * ``specify_cli.runtime.home.get_package_asset_root()``'s ``dev_roots``
   fallback tuple (T023)
 

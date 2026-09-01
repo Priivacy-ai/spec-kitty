@@ -171,9 +171,6 @@ references:
   - type: directive
     id: DIRECTIVE_001
     reason: Triage findings that surface load-bearing complexity or single-author critical modules feed architectural-integrity decisions.
-  - type: directive
-    id: DIRECTIVE_003
-    reason: The accepted triage report is itself a documented decision input and is linked from any subsequent ADR or prestudy.
 notes: |
   Out of scope.
 

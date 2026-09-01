@@ -1,0 +1,23 @@
+# review-verify/v1 — canonical format for fix-verification output.
+schema: review-verify/v1
+complete: true
+phase: spec
+results:
+  - id: SPEC-FRESH-001
+    status: resolved
+    reason: >
+      spec.md's Key Entities `AcceptanceSummary` bullet now names FR-002's mechanism an
+      "interface change, not a post-hoc comparison" and matches live code exactly
+      (evaluate_path_conventions in src/specify_cli/acceptance/summary_core.py:110-148
+      collapses PathValidationResult.missing_paths into one format_errors() string before
+      returning it as the pinned 2-tuple); it correctly requires the new optional_missing
+      input to be an additive, defaulted keyword-only parameter rather than a return-arity
+      change, which verifiably does not break the literal `violations, warning =
+      evaluate_path_conventions(...)` destructures in
+      test_strict_metadata_true_blocks_with_violation and
+      test_strict_metadata_false_downgrades_to_warning (confirmed by reading both tests);
+      it states an explicit token-normalization rule for the bare "contracts" token vs.
+      FR-001's resolved path string; and tracer-design-decisions.md carries a matching
+      "Correction (post spec-review, SPEC-FRESH-001)" section cross-referencing spec.md
+      with no unnegated "post-hoc cross-reference" language left in either file (only
+      instances found are the corrected, negated statement).

@@ -13,15 +13,15 @@ import pytest
 
 from charter.offering.service import DoctrineService
 from specify_cli.cli.commands.charter import app
-from charter.catalog import DoctrineCatalog
-from charter.compiler import compile_charter, write_compiled_charter
+from charter.activation.catalog import DoctrineCatalog
+from charter.activation.compiler import compile_charter, write_compiled_charter
 
-from charter.interview import (
+from charter.activation.interview import (
     LocalSupportDeclaration,
     apply_answer_overrides,
     default_interview,
 )
-from charter.resolver import resolve_governance_for_profile
+from charter.activation.resolver import resolve_governance_for_profile
 
 runner = CliRunner()
 pytestmark = [pytest.mark.non_sandbox, pytest.mark.integration, pytest.mark.git_repo]
@@ -235,7 +235,7 @@ def test_profile_aware_charter_compilation_resolves_transitive_references(
     # recorded as an unresolved reference. Patch it to the same synthetic graph
     # the resolver used so both seams agree.
     with patch(
-        "charter.compiler.resolve_doctrine_root",
+        "charter.activation.compiler.resolve_doctrine_root",
         return_value=built_in_root,
     ), patch(
         "charter.offering.drg.loader.load_built_in_graph",

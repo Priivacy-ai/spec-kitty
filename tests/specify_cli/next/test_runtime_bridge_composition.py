@@ -27,6 +27,7 @@ from __future__ import annotations
 
 from pathlib import Path
 from types import SimpleNamespace
+from typing import Any, cast
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -35,6 +36,8 @@ from specify_cli.mission_step_contracts.executor import (
     StepContractExecutionContext,
     StepContractExecutionError,
 )
+from runtime.next import runtime_bridge as rb
+from runtime.next._internal_runtime import MissionRunRef
 from runtime.next.runtime_bridge import (
     _check_composed_action_guard,
     _dispatch_via_composition,
@@ -79,7 +82,7 @@ def _mock_resolve_mission_type_context(
     Used as an autouse fixture patch so integration tests don't need a live
     MissionTypeRepository (which is provided by a later WP).
     """
-    from charter.mission_type_profiles import UnknownMissionTypeError
+    from charter.activation.mission_type_profiles import UnknownMissionTypeError
 
     result = _KNOWN_ACTION_SEQUENCES.get(mission_type)
     if result is None:
@@ -96,7 +99,7 @@ def _mock_charter_resolve(monkeypatch: pytest.MonkeyPatch) -> None:
     by a later WP; this autouse fixture patches the call for all tests in this
     module so they remain self-contained.
     """
-    import charter.mission_type_profiles as _cmt
+    import charter.activation.mission_type_profiles as _cmt
 
     monkeypatch.setattr(
         _cmt,
@@ -179,7 +182,7 @@ def test_should_dispatch_fires_for_software_dev_composed_actions(
 
     sw_actions = ["specify", "plan", "tasks", "implement", "review"]
     with patch(
-        "charter.mission_type_profiles.resolve_mission_type_context",
+        "charter.activation.mission_type_profiles.resolve_mission_type_context",
         return_value=SimpleNamespace(action_sequence=sw_actions),
     ):
         for action in sw_actions:
@@ -192,11 +195,11 @@ def test_should_dispatch_falls_through_for_unknown_mission_helper(
     tmp_path: Path,
 ) -> None:
     """Any mission type unknown to charter falls through (C-008)."""
-    from charter.mission_type_profiles import UnknownMissionTypeError
+    from charter.activation.mission_type_profiles import UnknownMissionTypeError
     from unittest.mock import patch
 
     with patch(
-        "charter.mission_type_profiles.resolve_mission_type_context",
+        "charter.activation.mission_type_profiles.resolve_mission_type_context",
         side_effect=UnknownMissionTypeError("documentation"),
     ):
         for action in ("specify", "plan", "tasks", "implement", "review"):
@@ -208,7 +211,7 @@ def test_should_dispatch_falls_through_for_unknown_mission_helper(
             )
 
     with patch(
-        "charter.mission_type_profiles.resolve_mission_type_context",
+        "charter.activation.mission_type_profiles.resolve_mission_type_context",
         side_effect=UnknownMissionTypeError("other"),
     ):
         for action in ("specify", "plan", "tasks", "implement", "review"):
@@ -226,7 +229,7 @@ def test_should_dispatch_falls_through_for_unknown_step_id_helper(
 
     sw_actions = ["specify", "plan", "tasks", "implement", "review"]
     with patch(
-        "charter.mission_type_profiles.resolve_mission_type_context",
+        "charter.activation.mission_type_profiles.resolve_mission_type_context",
         return_value=SimpleNamespace(action_sequence=sw_actions),
     ):
         for step_id in ("accept", "merge", "bootstrap", "unknown_step"):
@@ -348,7 +351,7 @@ def test_dispatch_falls_through_for_unknown_mission(tmp_path: Path) -> None:
     unknown to charter raise UnknownMissionTypeError and the predicate degrades
     to False gracefully.
     """
-    from charter.mission_type_profiles import UnknownMissionTypeError
+    from charter.activation.mission_type_profiles import UnknownMissionTypeError
 
     # Pre-condition: the executor is never called when the predicate is False.
     def _raise_unknown(
@@ -359,7 +362,7 @@ def test_dispatch_falls_through_for_unknown_mission(tmp_path: Path) -> None:
     with (
         patch("specify_cli.mission_step_contracts.executor.StepContractExecutor.execute") as mock_execute,
         patch(
-            "charter.mission_type_profiles.resolve_mission_type_context",
+            "charter.activation.mission_type_profiles.resolve_mission_type_context",
             side_effect=_raise_unknown,
         ),
     ):
@@ -389,7 +392,7 @@ def test_dispatch_falls_through_for_unknown_step_id(tmp_path: Path) -> None:
     """
     sw_actions = ["specify", "plan", "tasks", "implement", "review"]
     with patch(
-        "charter.mission_type_profiles.resolve_mission_type_context",
+        "charter.activation.mission_type_profiles.resolve_mission_type_context",
         return_value=SimpleNamespace(action_sequence=sw_actions),
     ):
         for step_id in ("accept", "merge", "bootstrap", "unknown_step"):
@@ -1783,3 +1786,199 @@ class TestCustomMissionComposition:
             )
         finally:
             registry.clear()
+
+
+# ---------------------------------------------------------------------------
+# WP04 T027 (#3704, AC-10) -- end-to-end demonstration that a custom mission
+# family gates on its own declared filenames, at the conventional org-tier
+# layout (`<org_root>/missions/<type>/expected-artifacts.yaml`), reachable
+# now that this branch is stacked on #3708's path-anchor fix.
+#
+# Unlike ``TestAC1AC2ComposedActionGuardOrgTierConvergence`` above (which
+# calls the leaf ``_check_composed_action_guard`` directly and then hand-
+# builds a ``Decision`` via ``_dn_composition_blocked_decision``), this test
+# drives the real decision-walk phase function ``_dn_dependency_gate`` --
+# the exact, unmodified callable ``decide_next_via_runtime`` invokes as
+# Phase 2 of its ``for phase in (_dn_dependency_gate, _dn_composition_dispatch,
+# _dn_decision_materialize):`` loop (see that function's docstring). This is
+# structurally the ONLY call site a custom, guard-table-unregistered family
+# can reach without opting into composition dispatch (frozen-template
+# ``agent_profile``/``contract_ref`` widening is a different, orthogonal
+# feature -- AC-10 is about guard evaluation reaching the org-tier manifest,
+# not about composed-action dispatch), per
+# ``TestAC8RepoRootThreadedThroughDnDependencyGate``'s own docstring.
+#
+# The walk asserts BOTH halves on the real ``Decision``/gate-release the
+# production code actually produces:
+#   * absent blocking artifact -> ``_dn_dependency_gate`` returns a real
+#     ``Decision`` with ``kind == DecisionKind.blocked`` and
+#     ``guard_failures`` naming the missing file.
+#   * artifact created -> ``_dn_dependency_gate`` returns ``None`` -- the
+#     documented "no phase blocked, fall through to the next phase" signal --
+#     and a second, real phase call (``_dn_composition_dispatch``, also
+#     unmodified) is chained on top and independently confirmed to release
+#     control too, so the walk demonstrates the guard no longer holds the
+#     run at *any* reachable phase once the artifact exists.
+# ---------------------------------------------------------------------------
+
+
+def _t027_write_org_pack_config(repo_root: Path, *, org_name: str, org_root: Path) -> None:
+    config_dir = repo_root / ".kittify"
+    config_dir.mkdir(parents=True, exist_ok=True)
+    (config_dir / "config.yaml").write_text(
+        "doctrine:\n"
+        "  org:\n"
+        "    packs:\n"
+        f"      - name: {org_name}\n"
+        f"        local_path: {org_root}\n",
+        encoding="utf-8",
+    )
+
+
+def _t027_write_org_manifest(org_root: Path, mission_type: str, yaml_text: str) -> None:
+    # Conventional org-tier layout fixed by #3703/PR #3708:
+    # <org_root>/missions/<mission_type>/expected-artifacts.yaml
+    target_dir = org_root / "missions" / mission_type
+    target_dir.mkdir(parents=True, exist_ok=True)
+    (target_dir / "expected-artifacts.yaml").write_text(yaml_text, encoding="utf-8")
+
+
+def _t027_write_meta(feature_dir: Path, mission_type: str) -> None:
+    import json as _json
+
+    feature_dir.mkdir(parents=True, exist_ok=True)
+    (feature_dir / "meta.json").write_text(
+        _json.dumps({"mission_type": mission_type}), encoding="utf-8"
+    )
+
+
+def _t027_seed_approved_wp(feature_dir: Path, wp_id: str) -> None:
+    """Seed one WP file plus a canonical status event placing it in ``approved``
+    -- all WPs "handed off", so the WP-iteration pre-check proceeds to the
+    guard check instead of staying in WP-iteration mode."""
+    from specify_cli.status.models import Lane, StatusEvent
+    from specify_cli.status.store import append_event
+
+    tasks_dir = feature_dir / "tasks"
+    tasks_dir.mkdir(exist_ok=True)
+    (tasks_dir / f"{wp_id}.md").write_text(
+        f"---\nwork_package_id: {wp_id}\ntitle: {wp_id} task\n---\n# {wp_id}\nDo something.\n",
+        encoding="utf-8",
+    )
+    event = StatusEvent(
+        event_id=f"t027-{wp_id}-approved",
+        mission_slug=feature_dir.name,
+        wp_id=wp_id,
+        from_lane=Lane.PLANNED,
+        to_lane=Lane.APPROVED,
+        at="2026-08-24T00:00:00+00:00",
+        actor="test",
+        force=True,
+        execution_mode="worktree",
+    )
+    append_event(feature_dir, event)
+
+
+_T027_QA_FAMILY = "qa"
+_T027_QA_ORG_YAML = """\
+schema_version: "1.0"
+mission_type: "qa"
+manifest_version: "org-1"
+required_always: []
+required_by_step:
+  implement:
+    - artifact_key: "output.qa.coverage"
+      artifact_class: "output"
+      path_pattern: "qa-coverage.json"
+      blocking: true
+optional_always: []
+"""
+
+
+class TestAC10CustomFamilyOrgTierNextDecisionWalk:
+    """WP04 T027 -- AC-10 end-to-end: a custom ``qa`` family with ONLY an
+    org-tier manifest at the conventional layout gates on its own declared
+    filename, walked through the real decision-phase functions."""
+
+    def _make_project(self, tmp_path: Path) -> tuple[Path, Path]:
+        project_root = tmp_path / "project"
+        project_root.mkdir()
+        org_root = tmp_path / "org-pack"
+        _t027_write_org_manifest(org_root, _T027_QA_FAMILY, _T027_QA_ORG_YAML)
+        _t027_write_org_pack_config(project_root, org_name="acme", org_root=org_root)
+
+        feature_dir = project_root / "kitty-specs" / "042-qa-mission"
+        _t027_write_meta(feature_dir, _T027_QA_FAMILY)
+        _t027_seed_approved_wp(feature_dir, "WP01")
+        return project_root, feature_dir
+
+    def _make_ctx(self, project_root: Path, feature_dir: Path, run_dir: Path) -> rb.DecideNextContext:
+        run_dir.mkdir(parents=True, exist_ok=True)
+        run_ref = MissionRunRef(
+            run_id="run-qa-t027", run_dir=str(run_dir), mission_key="042-qa-mission"
+        )
+        return rb.DecideNextContext(
+            agent="agent-x",
+            mission_slug="042-qa-mission",
+            result="success",
+            repo_root=project_root,
+            feature_dir=feature_dir,
+            now="2026-08-24T00:00:00+00:00",
+            mission_type=_T027_QA_FAMILY,
+            sync_emitter=cast(Any, object()),
+            emitter_for_engine=cast(Any, object()),
+            origin={"mission_tier": "custom", "mission_path": _T027_QA_FAMILY},
+            progress={"total_wps": 1},
+            run_ref=run_ref,
+            run_dir=run_dir,
+            current_step_id="implement",
+        )
+
+    def test_absent_blocking_artifact_blocks_the_real_decision_walk(
+        self, tmp_path: Path
+    ) -> None:
+        project_root, feature_dir = self._make_project(tmp_path)
+        ctx = self._make_ctx(project_root, feature_dir, tmp_path / "run")
+
+        # qa-coverage.json does not exist on disk.
+        decision = rb._dn_dependency_gate(ctx)
+
+        assert decision is not None, (
+            "Phase 2 of the real decide_next_via_runtime walk must hold the "
+            "run in place when the org-tier manifest's blocking artifact is "
+            "absent -- returning None here would mean the walk silently "
+            "advanced past an unmet blocking:true requirement (#3704)."
+        )
+        assert decision.kind == DecisionKind.blocked
+        assert decision.guard_failures != []
+        assert any("qa-coverage.json" in failure for failure in decision.guard_failures), (
+            f"expected the org-tier manifest's declared filename in "
+            f"guard_failures, got {decision.guard_failures!r}"
+        )
+
+    def test_artifact_created_advances_the_real_decision_walk(self, tmp_path: Path) -> None:
+        project_root, feature_dir = self._make_project(tmp_path)
+        ctx = self._make_ctx(project_root, feature_dir, tmp_path / "run")
+
+        # Flip presence: same context, same manifest, only the artifact's
+        # existence on disk changes -- proves the guard is genuinely
+        # re-evaluated, not a fixture that only ever exercises one branch.
+        (feature_dir / "qa-coverage.json").write_text("{}", encoding="utf-8")
+
+        gate_decision = rb._dn_dependency_gate(ctx)
+        assert gate_decision is None, (
+            "Phase 2 must release the run (return None -- the documented "
+            "'no phase blocked, fall through' signal) once the declared "
+            f"blocking artifact exists; got {gate_decision!r}"
+        )
+
+        # Chain the next real, unmodified phase to confirm the walk
+        # genuinely continues toward advancement rather than being
+        # silently re-blocked one phase later.
+        composition_decision = rb._dn_composition_dispatch(ctx)
+        assert composition_decision is None, (
+            "qa has no charter-registered action sequence and no "
+            "agent_profile/contract_ref widening on this run's frozen "
+            "template, so composition dispatch must also fall through "
+            f"cleanly; got {composition_decision!r}"
+        )

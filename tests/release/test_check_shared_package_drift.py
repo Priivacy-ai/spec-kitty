@@ -12,12 +12,7 @@ import pytest
 
 pytestmark = [pytest.mark.integration]
 
-SCRIPT = (
-    Path(__file__).resolve().parents[2]
-    / "scripts"
-    / "release"
-    / "check_shared_package_drift.py"
-)
+SCRIPT = Path(__file__).resolve().parents[2] / "scripts" / "release" / "check_shared_package_drift.py"
 
 
 def write_pyproject(path: Path, *, dependencies: list[str], overrides: list[str] | None = None) -> None:
@@ -49,7 +44,7 @@ def write_lockfile(path: Path, *, versions: dict[str, str]) -> None:
             [
                 "version = 1",
                 "revision = 3",
-                "requires-python = \">=3.11\"",
+                'requires-python = ">=3.11"',
                 "",
                 *[
                     f'[[package]]\nname = "{name}"\nversion = "{version}"\nsource = {{ registry = "https://pypi.org/simple" }}\n'
@@ -385,90 +380,32 @@ def test_shared_package_drift_fails_when_lock_does_not_match_manifest(
     assert "spec-kitty-events uv.lock version 4.0.0 does not match release authority 4.0.1" in result.stdout
 
 
-_SHARED_SOURCE_REPO_URLS = {
-    package: f"https://github.com/spec-kitty/EXPERIMENTAL-{package}"
-    for package in ("spec-kitty-events", "spec-kitty-tracker")
-}
-_SANCTIONED_GIT_DEPS = {
-    package: (
-        f"{package} @ git+{url}"
-        f"@{revision}"
-    )
-    for package, url, revision in (
-        ("spec-kitty-events", _SHARED_SOURCE_REPO_URLS["spec-kitty-events"], "9fe707345469aaaf5d232247724a0e6a08925645"),
-        ("spec-kitty-tracker", _SHARED_SOURCE_REPO_URLS["spec-kitty-tracker"], "67a6ecc91f4b4a5fa82492a80ced4f49ce98851e"),
-    )
-}
-
-
-def test_shared_package_drift_passes_with_sanctioned_shared_git_references(
+def test_shared_package_drift_fails_on_cli_direct_reference(
     tmp_path: Path,
 ) -> None:
-    """PROGRAM.md §2 permits full-SHA github.com refs for CLI dependencies."""
+    """CLI shared dependencies must resolve from public index ranges."""
     cli = tmp_path / "pyproject.toml"
     lockfile = tmp_path / "uv.lock"
     write_manifest(
         tmp_path / ".kittify" / "release" / "shared-package-compatibility.json",
-        events_range="",
-        events_version="8.0.0",
-        tracker_range="",
+        events_range=">=9,<10",
+        events_version="9.1.4",
+        tracker_range=">=0.5.2,<0.6",
         tracker_version="0.5.2",
     )
 
     write_pyproject(
         cli,
         dependencies=[
-            _SANCTIONED_GIT_DEPS["spec-kitty-events"],
-            _SANCTIONED_GIT_DEPS["spec-kitty-tracker"],
+            "spec-kitty-events @ git+https://github.com/Priivacy-ai/spec-kitty-events@9fe707345469aaaf5d232247724a0e6a08925645",
+            "spec-kitty-tracker>=0.5.2,<0.6",
         ],
     )
     write_lockfile(
         lockfile,
         versions={
-            "spec-kitty-events": "8.0.0",
+            "spec-kitty-events": "9.1.4",
             "spec-kitty-tracker": "0.5.2",
-        },
-    )
-
-    result = run_check(
-        tmp_path,
-        "--pyproject",
-        str(cli),
-        "--lockfile",
-        str(lockfile),
-    )
-
-    assert result.returncode == 0, result.stdout + result.stderr
-    assert "Shared package drift check passed." in result.stdout
-
-
-def test_shared_package_drift_fails_on_unsanctioned_events_direct_reference(tmp_path: Path) -> None:
-    """Only the exact sanctioned github.com pinned-rev reference is admitted
-    — any other direct reference (foreign host, here) stays forbidden."""
-    cli = tmp_path / "pyproject.toml"
-    lockfile = tmp_path / "uv.lock"
-    write_manifest(
-        tmp_path / ".kittify" / "release" / "shared-package-compatibility.json",
-        events_range="",
-        events_version="8.0.0",
-    )
-
-    write_pyproject(
-        cli,
-        dependencies=[
-            "spec-kitty-events @ git+"
-            + _SHARED_SOURCE_REPO_URLS["spec-kitty-events"].replace(
-                "https://github.com", "https://github.int.exe.xyz"
-            )
-            + "@9fe707345469aaaf5d232047724a0e6a08925645",
-            "spec-kitty-tracker>=0.4,<0.5",
-        ],
-    )
-    write_lockfile(
-        lockfile,
-        versions={
-            "spec-kitty-events": "8.0.0",
-            "spec-kitty-tracker": "0.4.2",
         },
     )
 
@@ -484,38 +421,38 @@ def test_shared_package_drift_fails_on_unsanctioned_events_direct_reference(tmp_
     assert "spec-kitty-events: direct references are forbidden" in result.stderr
 
 
-def test_shared_package_drift_fails_when_saas_uses_events_direct_reference(tmp_path: Path) -> None:
-    """The wheel-installability exception is scoped to the CLI's own
-    constraint; a downstream consumer's exact-pin requirement still forbids
-    a direct reference."""
+def test_shared_package_drift_fails_when_saas_uses_direct_reference(tmp_path: Path) -> None:
+    """No consumer context is permitted to use a direct shared-package reference."""
     cli = tmp_path / "pyproject.toml"
     lockfile = tmp_path / "uv.lock"
     saas = tmp_path / "saas.toml"
     write_manifest(
         tmp_path / ".kittify" / "release" / "shared-package-compatibility.json",
-        events_range="",
-        events_version="8.0.0",
+        events_range=">=9,<10",
+        events_version="9.1.4",
+        tracker_range=">=0.5.2,<0.6",
+        tracker_version="0.5.2",
     )
 
     write_pyproject(
         cli,
         dependencies=[
-            _SANCTIONED_GIT_DEPS["spec-kitty-events"],
-            "spec-kitty-tracker>=0.4,<0.5",
+            "spec-kitty-events>=9,<10",
+            "spec-kitty-tracker>=0.5.2,<0.6",
         ],
     )
     write_lockfile(
         lockfile,
         versions={
-            "spec-kitty-events": "8.0.0",
-            "spec-kitty-tracker": "0.4.2",
+            "spec-kitty-events": "9.1.4",
+            "spec-kitty-tracker": "0.5.2",
         },
     )
     write_pyproject(
         saas,
         dependencies=[
-            _SANCTIONED_GIT_DEPS["spec-kitty-events"],
-            "spec-kitty-tracker==0.4.2",
+            "spec-kitty-events @ git+https://github.com/Priivacy-ai/spec-kitty-events@9fe707345469aaaf5d232047724a0e6a08925645",
+            "spec-kitty-tracker==0.5.2",
         ],
     )
 

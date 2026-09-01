@@ -18,6 +18,7 @@ import pytest
 from ruamel.yaml import YAML
 
 from kernel.paths import get_package_asset_root
+from specify_cli.upgrade.migrations import m_3_2_8_provision_kitty_env as provision_module
 from specify_cli.upgrade.migrations.m_3_2_8_provision_kitty_env import (
     ClaudeignorePathError,
     GOVERNED_SECRET_VARS,
@@ -433,6 +434,67 @@ class TestNonRegularIgnoreFiles:
 
         assert _read_ignore_file_text(path) == "node_modules/\n*.log\n"
 
+    @pytest.mark.skipif(sys.platform != "linux", reason="counts descriptors through /proc/self/fd")
+    def test_atomic_write_closes_temp_fd_when_mode_change_fails(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """A pre-write mode-change failure must not leak the temporary-file fd."""
+
+        def fail_mode_change(*args: object, **kwargs: object) -> None:
+            raise OSError("mode change failed")
+
+        monkeypatch.setattr(provision_module.os, "chmod", fail_mode_change)
+        monkeypatch.setattr(provision_module.os, "fchmod", fail_mode_change)
+
+        path = tmp_path / ".claudeignore"
+        path.touch()
+
+        def open_fd_count() -> int:
+            return len(os.listdir("/proc/self/fd"))
+
+        before = open_fd_count()
+        for _ in range(20):
+            with pytest.raises(OSError, match="mode change failed"):
+                _atomic_write_claudeignore(path, "irrelevant\n")
+        after = open_fd_count()
+
+        assert after == before
+        assert list(tmp_path.glob(".claudeignore.*.tmp")) == []
+
+    def test_atomic_write_treats_file_vanishing_after_existence_check_as_new(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """A delete between the existence/probe syscalls must take the new-file path."""
+
+        path = tmp_path / ".claudeignore"
+        path.write_text("existing\n", encoding="utf-8")
+        original_open = provision_module._open_claudeignore_no_follow
+
+        def delete_then_open(probe_path: Path, flags: int) -> int:
+            probe_path.unlink()
+            return original_open(probe_path, flags)
+
+        monkeypatch.setattr(provision_module, "_open_claudeignore_no_follow", delete_then_open)
+        _atomic_write_claudeignore(path, "replacement\n")
+
+        assert path.read_text(encoding="utf-8") == "replacement\n"
+
+    def test_atomic_write_existing_file_does_not_change_process_umask(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """Existing-file writes must not open even a momentary global umask window."""
+
+        def fail_umask_change(*args: object, **kwargs: object) -> None:
+            raise AssertionError("process umask was changed")
+
+        monkeypatch.setattr(provision_module.os, "umask", fail_umask_change)
+        path = tmp_path / ".claudeignore"
+        path.write_text("existing\n", encoding="utf-8")
+
+        _atomic_write_claudeignore(path, "replacement\n")
+
+        assert path.read_text(encoding="utf-8") == "replacement\n"
+
 # ---------------------------------------------------------------------------
 # .claudeignore symlink safety (issue #627, sibling of #582/#618's fix for
 # the same class of bug in GitignoreManager's .gitignore handling)
@@ -468,6 +530,19 @@ class TestClaudeignoreSymlinkSafety:
         """
         missing_target = tmp_path.parent / f"missing-claudeignore-target-{os.getpid()}.txt"
         (tmp_path / ".claudeignore").symlink_to(missing_target)
+
+        migration = ProvisionKittyEnvMigration()
+        with pytest.raises(ClaudeignorePathError):
+            migration.apply(tmp_path, dry_run=False)
+
+    def test_vanishing_symlink_is_still_rejected(self, tmp_path: Path, monkeypatch) -> None:
+        missing_target = tmp_path.parent / f"missing-claudeignore-target-{os.getpid()}.txt"
+        (tmp_path / ".claudeignore").symlink_to(missing_target)
+
+        def readlink_raises(*args, **kwargs):
+            raise FileNotFoundError(f"simulated vanished symlink: {args}")
+
+        monkeypatch.setattr(os, "readlink", readlink_raises)
 
         migration = ProvisionKittyEnvMigration()
         with pytest.raises(ClaudeignorePathError):

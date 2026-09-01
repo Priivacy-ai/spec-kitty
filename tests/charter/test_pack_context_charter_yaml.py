@@ -1,6 +1,6 @@
 """Unit tests for the activation relocation onto ``charter.yaml`` (WP02, T010).
 
-Covers the read seam (``charter.pack_context.PackContext.from_config``)
+Covers the read seam (``charter.activation.pack_context.PackContext.from_config``)
 after the activation state moves from ``.kittify/config.yaml`` into
 ``charter.yaml``, reached via the config's ``charter:`` pointer
 (data-model.md INV-2/INV-4/INV-5/INV-8, contracts/active-doctrine-resolution.md).
@@ -26,7 +26,7 @@ from pathlib import Path
 
 import pytest
 
-from charter.pack_context import CharterPackConfigError, PackContext
+from charter.activation.pack_context import CharterPackConfigError, PackContext
 
 
 pytestmark = [pytest.mark.fast]
@@ -311,7 +311,7 @@ def test_migrated_project_ignores_stale_activated_keys_left_in_config(
 
 
 def test_resolve_charter_yaml_pointer_absent_returns_none(tmp_path: Path) -> None:
-    from charter.pack_context import resolve_charter_yaml_pointer
+    from charter.activation.pack_context import resolve_charter_yaml_pointer
 
     assert resolve_charter_yaml_pointer(tmp_path, {}) is None
 
@@ -319,7 +319,7 @@ def test_resolve_charter_yaml_pointer_absent_returns_none(tmp_path: Path) -> Non
 def test_resolve_charter_yaml_pointer_resolves_relative_to_repo_root(
     tmp_path: Path,
 ) -> None:
-    from charter.pack_context import resolve_charter_yaml_pointer
+    from charter.activation.pack_context import resolve_charter_yaml_pointer
 
     resolved = resolve_charter_yaml_pointer(
         tmp_path, {"charter": ".kittify/charter/charter.yaml"}
@@ -336,7 +336,7 @@ def test_resolve_charter_yaml_pointer_mapping_value_is_not_a_pointer(
     resolve to ``None`` (legacy inline read) rather than being stringified into
     a bogus ``.../{'synthesis_inputs': ...}`` path that then "does not exist".
     Mirrors ``load_url_list_from_config``'s tolerance for the same shape."""
-    from charter.pack_context import resolve_charter_yaml_pointer
+    from charter.activation.pack_context import resolve_charter_yaml_pointer
 
     inline = {"charter": {"synthesis_inputs": {"url_list": ["https://example.com/g"]}}}
 

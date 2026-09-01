@@ -50,7 +50,7 @@ def _load_org_fragments(repo_root: Path) -> list[OrgDRGFragment]:
     suite is allowed to reach across layers. A repo with no ``organisation_packs``
     yields an empty list (the common case, including this repo).
     """
-    from charter.drg import load_org_drg  # noqa: PLC0415 — cross-layer test reach
+    from charter.activation.drg_activation import load_org_drg
 
     fragments: list[OrgDRGFragment] = load_org_drg(repo_root)
     return fragments

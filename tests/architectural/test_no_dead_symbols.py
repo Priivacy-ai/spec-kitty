@@ -149,6 +149,15 @@ _SRC_ROOT = _REPO_ROOT / "src"
 
 _CATEGORY_A_SLICE_F_DEFERRED: frozenset[SymbolKey] = frozenset(
     {
+        # specify_cli.dashboard.server::BackgroundPortReportError -- #577:
+        # deliberately exported typed failure contract for callers that need to
+        # distinguish detached-child startup failures. No runtime caller catches
+        # it yet. TODO(triage): wire the first caller or drop from __all__ (FR-303).
+        SymbolKey(
+            "BackgroundPortReportError",
+            "37ae16b8b6363406df0eff14e6a8438305592f244a74124eb646fcc02ef96fb1",
+            source_module="specify_cli.dashboard.server",
+        ),
         # specify_cli.dashboard.csp::DASHBOARD_CSP -- M2 canonical integration 2026-08-22: D2-T1 dashboard CSP policy constant.
         # WIRE-M2-02 (2026-08-22): send_csp_header() (below) is now wired into all 35 send_response()
         # sites across handlers/{base,api,features,glossary,lint,static}.py, so the module itself is no
@@ -213,30 +222,32 @@ _CATEGORY_A_SLICE_F_DEFERRED: frozenset[SymbolKey] = frozenset(
         # it directly. MigrationAction/MigrationManifest/MigrationRowResult above stay
         # allowlisted -- the wrapper only names the function, never those three types.
         SymbolKey(
-            "CatalogMissCause", "77f08f1610245bbd1a390b4f8dd581bc92dace80d6fcc5feab4112884171dea5", source_module="charter._catalog_miss"
-        ),  # charter._catalog_miss::CatalogMissCause
+            "CatalogMissCause", "77f08f1610245bbd1a390b4f8dd581bc92dace80d6fcc5feab4112884171dea5", source_module="charter.activation._catalog_miss"
+        ),  # charter.activation._catalog_miss::CatalogMissCause
         SymbolKey(
-            "CharterCatalogMissError", "f0f2057a37b2ac491094023a2059ce8904848d1ae6e6e63e84b627fc508ab1b8", source_module="charter._catalog_miss"
-        ),  # charter._catalog_miss::CharterCatalogMissError
-        # charter._catalog_miss::CharterCatalogMissWarning
-        SymbolKey("CharterCatalogMissWarning", "7e5a4824e4b5a66125cf3e5ac266279983bfd23e5a02f3abd661eefaa0f93be8", source_module="charter._catalog_miss"),
-        # charter.activations::ALLOWED_MISSION_TYPES (body_hash refreshed WP03/#2669: derived from builtin_mission_type_id_set())
+            "CharterCatalogMissError", "f0f2057a37b2ac491094023a2059ce8904848d1ae6e6e63e84b627fc508ab1b8", source_module="charter.activation._catalog_miss"
+        ),  # charter.activation._catalog_miss::CharterCatalogMissError
+        # charter.activation._catalog_miss::CharterCatalogMissWarning
         SymbolKey(
-            "ALLOWED_MISSION_TYPES", "66f78adc4726573209f4e4eba6c766601762ead6492b8a86131ef45184ef69fd", source_module="charter.activations"
-        ),  # charter.activations::ALLOWED_MISSION_TYPES
+            "CharterCatalogMissWarning", "7e5a4824e4b5a66125cf3e5ac266279983bfd23e5a02f3abd661eefaa0f93be8", source_module="charter.activation._catalog_miss"
+        ),
+        # charter.activation.activations::ALLOWED_MISSION_TYPES (body_hash refreshed WP03/#2669: derived from builtin_mission_type_id_set())
         SymbolKey(
-            "REGISTERED_TRIGGERS", "4582c6fc202160e4708ef2cec5b63a041e7331f9dc704abd9020800abe042c0f", source_module="charter.activations"
-        ),  # charter.activations::REGISTERED_TRIGGERS
-        # charter.compact::CompactView (body_hash refreshed WP11/T061: widened to carry every delivered kind)
+            "ALLOWED_MISSION_TYPES", "66f78adc4726573209f4e4eba6c766601762ead6492b8a86131ef45184ef69fd", source_module="charter.activation.activations"
+        ),  # charter.activation.activations::ALLOWED_MISSION_TYPES
         SymbolKey(
-            "CompactView", "eb8e865d277128be5a9f75d070b2acf3110794ed3650a38ad54507f648d872d9", source_module="charter.compact"
-        ),  # charter.compact::CompactView
+            "REGISTERED_TRIGGERS", "4582c6fc202160e4708ef2cec5b63a041e7331f9dc704abd9020800abe042c0f", source_module="charter.activation.activations"
+        ),  # charter.activation.activations::REGISTERED_TRIGGERS
+        # charter.activation.compact::CompactView (body_hash refreshed WP11/T061: widened to carry every delivered kind)
         SymbolKey(
-            "extract_section_anchors", "98ff665e1c40a10a69f25707ce30f4be7366667f472fb3abb3f457b8370e6633", source_module="charter.compact"
-        ),  # charter.compact::extract_section_anchors
+            "CompactView", "eb8e865d277128be5a9f75d070b2acf3110794ed3650a38ad54507f648d872d9", source_module="charter.activation.compact"
+        ),  # charter.activation.compact::CompactView
         SymbolKey(
-            "StagedArtifact", "e5cac178a00a1ab09ab3a43c31edee223c69f455e050f12dd172742c15e25f8b", source_module="charter.synthesizer.write_pipeline"
-        ),  # charter.synthesizer.write_pipeline::StagedArtifact
+            "extract_section_anchors", "98ff665e1c40a10a69f25707ce30f4be7366667f472fb3abb3f457b8370e6633", source_module="charter.activation.compact"
+        ),  # charter.activation.compact::extract_section_anchors
+        SymbolKey(
+            "StagedArtifact", "e5cac178a00a1ab09ab3a43c31edee223c69f455e050f12dd172742c15e25f8b", source_module="charter.activation.synthesizer.write_pipeline"
+        ),  # charter.activation.synthesizer.write_pipeline::StagedArtifact
         SymbolKey(
             "is_re2_active", "1f449ff66fa7793bd2911da921304f2668c6c449879c96292bf8c6a8a8b2efe9", source_module="kernel._safe_re"
         ),  # kernel._safe_re::is_re2_active
@@ -245,8 +256,10 @@ _CATEGORY_A_SLICE_F_DEFERRED: frozenset[SymbolKey] = frozenset(
         # wired to production callers until the deferred integration WP (#3518).
         # library-first slice; the AST ratchet + schema/identity/counts/lineage unit
         # suites exercise these meanwhile. Operator-confirmed deferred-API landing.
-        # charter.synthesizer.manifest::compute_manifest_hash
-        SymbolKey("compute_manifest_hash", "976c4625daa4d8bc9612ad055b4076e879ab68aa5df7cba27c16ce90f5c51ef4", source_module="charter.synthesizer.manifest"),
+        # charter.activation.synthesizer.manifest::compute_manifest_hash
+        SymbolKey(
+            "compute_manifest_hash", "976c4625daa4d8bc9612ad055b4076e879ab68aa5df7cba27c16ce90f5c51ef4", source_module="charter.activation.synthesizer.manifest"
+        ),
         SymbolKey(
             "ensure_pack_identity", "ca9b5b99abe23a15555eca6452a326aede2faf85c70518c1a17b8dc345b349bb", source_module="charter.offering.drg.org_pack_config"
         ),  # charter.offering.drg.org_pack_config::ensure_pack_identity
@@ -564,13 +577,13 @@ _CATEGORY_B_GRANDFATHERED_LEGACY: frozenset[SymbolKey] = frozenset(
         # (Wave B / #3070) ASSET-kind tuple extension (added the ``assets``
         # member); still grandfathered-dead (no external src/ importer --
         # only internal use + a private ``_REQUIRED_KIND_FIELDS`` copy in
-        # ``src/charter/context.py``). Body-sensitive key => extending the
+        # ``src/charter/activation/context.py``). Body-sensitive key => extending the
         # tuple changes its content hash (see ``_symbol_key.py`` Body-sensitivity).
         # specify_cli.doctrine.org_charter::REQUIRED_KIND_FIELDS
         SymbolKey("REQUIRED_KIND_FIELDS", "6845e2186c122993ab17b0352e5ac72f9c821e031e96de06cb5bd996f2f0f327", source_module="specify_cli.doctrine.org_charter"),
         # specify_cli.doctrine.org_charter::apply_org_charter_pre_fill
         SymbolKey(
-            "apply_org_charter_pre_fill", "559da0a61fd4f6255212b449ad4de219cb758f57501e1c5adcc1f5e5f801385b", source_module="specify_cli.doctrine.org_charter"
+            "apply_org_charter_pre_fill", "e3a5d7e2e5d16803128180ed9c1e34256ed4ff2f1e1315a8d9ffefce8a1f0e95", source_module="specify_cli.doctrine.org_charter"
         ),
         SymbolKey(
             "AssemblyResult", "3af243769584cf1b5e44b1a04238c6a9f879b3cd8c34e05414c046d2220202f0", source_module="specify_cli.doctrine.pack_assembler"
@@ -907,13 +920,15 @@ _CATEGORY_B_GRANDFATHERED_LEGACY: frozenset[SymbolKey] = frozenset(
 
 _CATEGORY_C_WP_IN_FLIGHT_CHARTER_SCOPE: frozenset[SymbolKey] = frozenset(
     {
-        # charter.consistency_check::ConsistencyReport entry pruned
+        # charter.activation.consistency_check::ConsistencyReport entry pruned
         # (doctrine-tension-edges-01KY1WPC): removed from __all__ instead of
         # re-pinning the hash -- no external caller imports it by name (only
         # consumed via attribute access on run_consistency_check()'s return
         # value), matching this file's own CharterYamlCorruptError precedent.
-        # charter.invocation_context::ContextPreconditionError
-        SymbolKey("ContextPreconditionError", "ed270fe330c24f71db20d7c033d1246499b83b3bad558fc526fc4620bddd67af", source_module="charter.invocation_context"),
+        # charter.activation.invocation_context::ContextPreconditionError
+        SymbolKey(
+            "ContextPreconditionError", "ed270fe330c24f71db20d7c033d1246499b83b3bad558fc526fc4620bddd67af", source_module="charter.activation.invocation_context"
+        ),
     }
 )
 
@@ -1006,11 +1021,11 @@ _CATEGORY_C_WP_IN_FLIGHT_UNIFIED_MISSION_STEP: frozenset[SymbolKey] = frozenset(
 _CATEGORY_C_WP_IN_FLIGHT_CHARTER_ACTIVATION: frozenset[SymbolKey] = frozenset(
     {
         SymbolKey(
-            "ActivationResult", "3caa63e1d20b223d5052be3797c81a938ab823a04087c3fe7a4ca6fa7d82aec7", source_module="charter.pack_manager"
-        ),  # charter.pack_manager::ActivationResult
+            "ActivationResult", "3caa63e1d20b223d5052be3797c81a938ab823a04087c3fe7a4ca6fa7d82aec7", source_module="charter.activation.pack_manager"
+        ),  # charter.activation.pack_manager::ActivationResult
         SymbolKey(
-            "MergeResult", "cc0c8d09dc8bd0cc0152b7bee385aefdedb9f555cc1e6ac4593a009b38b25093", source_module="charter.pack_manager"
-        ),  # charter.pack_manager::MergeResult
+            "MergeResult", "cc0c8d09dc8bd0cc0152b7bee385aefdedb9f555cc1e6ac4593a009b38b25093", source_module="charter.activation.pack_manager"
+        ),  # charter.activation.pack_manager::MergeResult
         SymbolKey(
             "StepKey", "6b982c25b6d2735411195c4e785e71c6178eca1ce51e18c0b656f7f44bdd0edc", source_module="charter.offering.missions.mission_step_repository"
         ),  # charter.offering.missions.mission_step_repository::StepKey
@@ -1037,18 +1052,29 @@ _CATEGORY_C_WP_IN_FLIGHT_CHARTER_ACTIVATION: frozenset[SymbolKey] = frozenset(
 _CATEGORY_C_ORG_DOCTRINE_CLOSEOUT: frozenset[SymbolKey] = frozenset(
     {
         SymbolKey(
-            "ActivationPlan", "49697a5e9d4ea41ac9531c0b4bb6605a8aa71bf116e0dfbf1af2eee33a935a53", source_module="charter.activation_engine"
-        ),  # charter.activation_engine::ActivationPlan
+            "ActivationPlan", "49697a5e9d4ea41ac9531c0b4bb6605a8aa71bf116e0dfbf1af2eee33a935a53", source_module="charter.activation.activation_engine"
+        ),  # charter.activation.activation_engine::ActivationPlan
+        # Re-pinned 2026-08-24 (#3705): WP04 added the ``not_cascaded_kind_filtered``
+        # field to this dataclass so ``charter deactivate --cascade`` can report the
+        # kind-filtered nodes it previously dropped in silence (C-002 symmetry). The
+        # allowlist is content-hash keyed, so a legitimate body change drifts the pin
+        # and the gate reports the symbol as un-allowlisted. Category C is re-derived
+        # each cycle by design, so this is a re-pin, not a new exemption: the symbol's
+        # status is unchanged (still no src/ importer -- it is the public return type
+        # of ``deactivation_plan()``, consumed by the CLI layer and tests).
+        # Prior hash: 527c491b7df6c1369bc3f4c7491626817a5a3a2ede574ffe4527168fde17bf43
         SymbolKey(
-            "DeactivationPlan", "527c491b7df6c1369bc3f4c7491626817a5a3a2ede574ffe4527168fde17bf43", source_module="charter.cascade"
-        ),  # charter.cascade::DeactivationPlan
+            "DeactivationPlan", "ea81133908c5385ae013a8057ac7f863386247ba90b64e212b54be895d7e1615", source_module="charter.activation.cascade"
+        ),  # charter.activation.cascade::DeactivationPlan
         SymbolKey(
-            "REFERENCE_RELATIONS", "923c7531fa07a59396d69e256ee38a05448b62f4d75cde08c9fbaa932376a8ca", source_module="charter.cascade"
-        ),  # charter.cascade::REFERENCE_RELATIONS
+            "REFERENCE_RELATIONS", "923c7531fa07a59396d69e256ee38a05448b62f4d75cde08c9fbaa932376a8ca", source_module="charter.activation.cascade"
+        ),  # charter.activation.cascade::REFERENCE_RELATIONS
         SymbolKey(
-            "ReferencedArtifact", "80d3c02ebae2c466ff75be630ecfd259036be62ea0a1394dbab6503f75414afc", source_module="charter.cascade"
-        ),  # charter.cascade::ReferencedArtifact
-        SymbolKey("SharedSkip", "5eaddd3d5d18e386fc96f4ad558b21289c0bf7955cc70cfadca308d234f3ff5b", source_module="charter.cascade"),  # charter.cascade::SharedSkip
+            "ReferencedArtifact", "80d3c02ebae2c466ff75be630ecfd259036be62ea0a1394dbab6503f75414afc", source_module="charter.activation.cascade"
+        ),  # charter.activation.cascade::ReferencedArtifact
+        SymbolKey(
+            "SharedSkip", "5eaddd3d5d18e386fc96f4ad558b21289c0bf7955cc70cfadca308d234f3ff5b", source_module="charter.activation.cascade"
+        ),  # charter.activation.cascade::SharedSkip
         # charter.offering.drg.org_pack_loader::AUGMENTATION_RELATIONS
         SymbolKey(
             "AUGMENTATION_RELATIONS", "724f4741d69125ccfd2bb664f8f05739fb4a2372220636958b84476741738af0", source_module="charter.offering.drg.org_pack_loader"
@@ -1253,23 +1279,10 @@ _CATEGORY_C_MERGE_DECOMP_SHIM_REEXPORT_2057: frozenset[SymbolKey] = frozenset(
         SymbolKey(
             "_already_baked", "42470ebca7e82026542624079c0cbafeaa3a5dc53ca3a653b2a4c196492bd93c", source_module="specify_cli.merge.ordering"
         ),  # specify_cli.merge.ordering::_already_baked
-        # specify_cli.merge.ordering::_compute_next_mission_number_or_none
-        SymbolKey(
-            "_compute_next_mission_number_or_none", "a1b9c06e3368d481c463b2c09a7a9055923219ddc4de8cd33d6d52bc5f73182d", source_module="specify_cli.merge.ordering"
-        ),
         # specify_cli.merge.ordering::_is_assigned_mission_number
         SymbolKey("_is_assigned_mission_number", "4da9f3fde4e20df83693697787af0a7ef0e4399b21c99bd102b9b3a899e34fe1", source_module="specify_cli.merge.ordering"),
         # specify_cli.merge.ordering::_mark_mission_number_baked
         SymbolKey("_mark_mission_number_baked", "aa2e64b018e1d7ecc47f73211c291d16934d659b8f4b07b472e200225d99e72b", source_module="specify_cli.merge.ordering"),
-        # specify_cli.merge.ordering::_write_mission_number_to_branch (body_hash
-        # refreshed lifecycle-gate-execution-context: body edited, key is
-        # content-tier and body-sensitive by design -- see _symbol_key.py
-        # "Body-sensitivity" note; still a seam-internal helper, zero cross-file
-        # src/ caller)
-        # specify_cli.merge.ordering::_write_mission_number_to_branch
-        SymbolKey(
-            "_write_mission_number_to_branch", "38e9704c5b132c12d81d3be921a257f0e340f58264fba5909703bb088b523fc2", source_module="specify_cli.merge.ordering"
-        ),
         SymbolKey(
             "check_push_safety", "893124ff3029dec30c538fd54577881f4afa05002067b4f1033ce550f52e0460", source_module="specify_cli.merge.push_preflight"
         ),  # specify_cli.merge.push_preflight::check_push_safety
@@ -1367,8 +1380,9 @@ _CATEGORY_C_LAYOUT_CUTOVER_AUTHORITY_SURFACE: frozenset[SymbolKey] = frozenset()
 # :func:`_imports_by_target` proper, so the gate now recognises these 4
 # names as live via ``_runtime_bridge_module()``'s call-bound accessor
 # pattern WITHOUT a permanent allowlist row; the 4 entries are removed
-# here in the same commit. Unaliased ``from X import Y`` bindings now map
-# to ``X.Y`` too, with the real-module guard rejecting symbol aliases.
+# here in the same commit. ``_build_alias_map_and_consts`` records both
+# aliased and unaliased ``from X import Y`` bindings as ``X.Y``, with the
+# real-module guard rejecting symbol aliases and admitting submodules.
 # Converting the call sites to a direct
 # ``from runtime.next.runtime_bridge import get_or_start_run`` was
 # considered and rejected: it would defeat the very patchability the
@@ -1464,7 +1478,7 @@ _CATEGORY_C_URN_RESOLUTION_LANE: frozenset[SymbolKey] = frozenset(
 
 
 # ---------- C. consolidate-charter-bundle WP01 shared write-helper vocabulary ----------
-# ``charter.charter_yaml_io.update_charter_yaml_section`` (the INV-9 single
+# ``charter.activation.charter_yaml_io.update_charter_yaml_section`` (the INV-9 single
 # writer all three charter.yaml mutators -- activation_engine.commit_plan,
 # pack_manager.merge_defaults, compiler.write_compiled_charter -- route
 # through) IS wired with a live src/ caller. ``OWNED_SECTIONS`` (the public
@@ -1486,69 +1500,37 @@ _CATEGORY_C_URN_RESOLUTION_LANE: frozenset[SymbolKey] = frozenset(
 _CATEGORY_C_WP_IN_FLIGHT_CHARTER_YAML_IO_WRITE_HELPER: frozenset[SymbolKey] = frozenset(
     {
         SymbolKey(
-            "OWNED_SECTIONS", "64c7a3f3de0c69de219050aed3e63d0f50a2ad8162997d0efa52be16deff81c3", source_module="charter.charter_yaml_io"
-        ),  # charter.charter_yaml_io::OWNED_SECTIONS
-        # charter.charter_yaml_io::UnknownCharterYamlSectionError
-        SymbolKey("UnknownCharterYamlSectionError", "9671c9b4163dbb4c718cf85bc3850ed8643fbf1d92ea63c7e296040e7197328a", source_module="charter.charter_yaml_io"),
+            "OWNED_SECTIONS", "64c7a3f3de0c69de219050aed3e63d0f50a2ad8162997d0efa52be16deff81c3", source_module="charter.activation.charter_yaml_io"
+        ),  # charter.activation.charter_yaml_io::OWNED_SECTIONS
+        # charter.activation.charter_yaml_io::UnknownCharterYamlSectionError
+        SymbolKey(
+            "UnknownCharterYamlSectionError", "9671c9b4163dbb4c718cf85bc3850ed8643fbf1d92ea63c7e296040e7197328a", source_module="charter.activation.charter_yaml_io"
+        ),
     }
 )
 
 
 # ---------- C. scopesource-gate-followup-01KY6S9P WP04 single-factory-construction hub ----------
-# WP04 (this WP, epic #2535 half A follow-up, tracker #2873) landed the FR-014
-# rewire: ``tasks_move_task._mt_resolve_scope_source`` now delegates to WP02's
-# ``resolve_scope_source`` factory instead of hard-constructing
-# ``GateCoverageScopeSource`` directly, and ``pre_review_gate.py`` no longer
-# imports ``GateCoverageScopeSource`` at all (its former direct uses --
-# ``_live_filter_groups``/``_live_composite_routing`` -- were retired
-# alongside the census tier they backed, FR-001). Every concrete
-# ``ScopeSource`` implementer below is genuinely alive at runtime --
-# ``resolve_scope_source`` selects and constructs one of them on every
-# ``for_review`` move -- but by DESIGN (the structural-Protocol port,
-# ``ScopeSource``/``ScopeBreakdownSource``) callers outside this module never
-# name the concrete class: they receive a value through the factory and use
-# it polymorphically (``scope_source.test_command()``, ``.scope_breakdown()``,
-# ``.file_to_scope()``), so this cross-module-import gate's heuristic never
-# sees a wiring edge for the concrete classes themselves, no matter how
-# thoroughly they are exercised. Proven live + correct end-to-end by ~40
-# tests across ``tests/review/test_scope_source.py``,
-# ``test_pre_review_gate_engine.py``, and ``test_baseline_lifecycle.py``.
+# ``resolve_scope_source`` constructs ``DeclaredCommandScopeSource`` in-module
+# and callers consume it through the structural ``ScopeSource`` port.
 _CATEGORY_C_SCOPE_SOURCE_FACTORY_CONSTRUCTED: frozenset[SymbolKey] = frozenset(
     {
-        # specify_cli.review.scope_source::GateCoverageScopeSource -- constructed
-        # exclusively via resolve_scope_source() (same-module) since WP04's FR-014
-        # rewire; real caller confirmed via tasks_move_task._mt_resolve_scope_source
-        # -> resolve_scope_source -> GateCoverageScopeSource(...).
-        # Content-hash re-pin (landing fold #2892): parse_results now consumes
-        # parse_mode's result in its branch condition (was a discarded call),
-        # moving the class body hash b6749c1 -> 07f52ef. Still same-module-constructed.
-        # specify_cli.review.scope_source::GateCoverageScopeSource
-        SymbolKey("GateCoverageScopeSource", "07f52ef5a1d46d26494964082ad14dbe83e7009c88987837e4096b3de4226be8", source_module="specify_cli.review.scope_source"),
         # specify_cli.review.scope_source::DeclaredCommandScopeSource -- constructed
         # exclusively via resolve_scope_source() (same-module); consumed
         # cross-module only structurally, through the ScopeSource port (never
         # imported by concrete name outside scope_source.py by design).
-        # Content-hash re-pin (landing fold, mission scopesource-gate-followup):
-        # parse_mode/parse_results were stabilized to an outcome-invariant
-        # strategy label (SOURCE_MISMATCH fail-open fix), moving the class body
-        # hash 0ed7a0e -> fac6a9d. Symbol is still same-module-constructed only.
+        # Content-hash re-pin (#380): the class body survived the workflow
+        # coverage-source retirement, still same-module-constructed only.
         # specify_cli.review.scope_source::DeclaredCommandScopeSource
         SymbolKey(
-            "DeclaredCommandScopeSource", "fac6a9dffbf00049014f5397114a40ed36ebc4be66a09a23028dd7422400e6b9", source_module="specify_cli.review.scope_source"
+            "DeclaredCommandScopeSource", "2d2989e4a5e20940ac0a14f3f6d0ff24202cfd0f0bcbaecdb98dd63efd88e76f", source_module="specify_cli.review.scope_source"
         ),
-        # specify_cli.review.scope_source::FileScopeBreakdown -- the return value
-        # of GateCoverageScopeSource.scope_breakdown(); consumed structurally
-        # (attribute access) by pre_review_gate._scope_result_from_breakdown,
-        # never imported there by concrete type name.
+        # specify_cli.review.scope_source::FileScopeBreakdown -- the return
+        # value of injected narrowing sources' scope_breakdown(); consumed
+        # structurally by pre_review_gate._scope_result_from_breakdown.
         SymbolKey(
             "FileScopeBreakdown", "870689c5e51f6e752f05b416fa7fc03111f98f07263f8d330cfb2383ef1193ae", source_module="specify_cli.review.scope_source"
         ),  # specify_cli.review.scope_source::FileScopeBreakdown
-        # specify_cli.review.scope_source::ScopeBreakdownMixin -- inherited only
-        # by GateCoverageScopeSource, same-module; the mixin's file_to_scope
-        # default projection (FR-006) is exercised by every narrowing-source
-        # test but the mixin class itself is never imported cross-module.
-        # specify_cli.review.scope_source::ScopeBreakdownMixin
-        SymbolKey("ScopeBreakdownMixin", "c54d14c1c0c52cbd24231e9cc6bbf90ea9c988b830edce5628bb5d32da27fae4", source_module="specify_cli.review.scope_source"),
     }
 )
 
@@ -1637,7 +1619,7 @@ _CATEGORY_C_LIFECYCLE_GATE_EXECUTION_CONTEXT_2841: frozenset[SymbolKey] = frozen
 # The delivery-rail public API built by mission
 # ``doctrine-delivery-reachability-01KYMXD6``: the WP08 per-channel
 # reachability helpers (``src/charter/offering/drg/reachability.py``) and the WP07
-# activation-partition helpers (``src/charter/pack_context.py``).
+# activation-partition helpers (``src/charter/activation/pack_context.py``).
 #
 # WP03 UPDATE (mission ``doctrine-delivery-activation-01KYQVQK`` — the planned
 # "walk-update" fast-follow itself): this mission wired the *profile* channel.
@@ -1658,10 +1640,10 @@ _CATEGORY_C_LIFECYCLE_GATE_EXECUTION_CONTEXT_2841: frozenset[SymbolKey] = frozen
 # docs/plans/doctrine/delivery-reachability-wiring-table.md). Target = 0 once a
 # later mission wires each remaining helper from a runtime caller.
 #
-# The WP15 progressive-disclosure module (``src/charter/progressive_disclosure.py``)
+# The WP15 progressive-disclosure module (``src/charter/activation/progressive_disclosure.py``)
 # is a DIFFERENT case, landing-fold-corrected (PR #3070, E1): its delivery
 # entry points (``build_disclosure_payload``, ``collect_typed_artifacts``,
-# ``requires_closure``) ARE wired -- ``charter.context`` calls them directly
+# ``requires_closure``) ARE wired -- ``charter.activation.context`` calls them directly
 # (``context.py:3513``, ``context.py:3375``, ``context.py:1238``) -- so they
 # carry no allowlist entry at all; the gate's module-attribute detector
 # recognises the caller and never flags them. The module's remaining helpers
@@ -1679,9 +1661,11 @@ _CATEGORY_C_LIFECYCLE_GATE_EXECUTION_CONTEXT_2841: frozenset[SymbolKey] = frozen
 # forward-API docstring) and has zero ``src/`` callers today.
 _CATEGORY_C_DELIVERY_RAIL_FORWARD_API: frozenset[SymbolKey] = frozenset(
     {
-        # charter.pack_context::ActivationReachabilityPartition
-        SymbolKey("ActivationReachabilityPartition", "16f04ac28e60241772fae3e88ebe14fa1e4b234c2fc216673cc9d075f285b661", source_module="charter.pack_context"),
-        # charter_activated_urns: charter.pack_context::charter_activated_urns
+        # charter.activation.pack_context::ActivationReachabilityPartition
+        SymbolKey(
+            "ActivationReachabilityPartition", "16f04ac28e60241772fae3e88ebe14fa1e4b234c2fc216673cc9d075f285b661", source_module="charter.activation.pack_context"
+        ),
+        # charter_activated_urns: charter.activation.pack_context::charter_activated_urns
         # -- re-allowlisted (charter-pack-usage-journey-01KYWWTF WP01/T006b,
         # #3118). It is the documented FR-017 "single activation authority"
         # and stays public/__all__-exported for the DRG reachability/
@@ -1697,24 +1681,28 @@ _CATEGORY_C_DELIVERY_RAIL_FORWARD_API: frozenset[SymbolKey] = frozenset(
         # since-removed caller). Re-allowlisting on caller removal, not
         # deleting/de-exporting, matches that precedent.
         SymbolKey(
-            "charter_activated_urns", "5003eed5e2d30c222f2108ba89da31d8531cdeb468898d01b3fa96020bd62830", source_module="charter.pack_context"
-        ),  # charter.pack_context::charter_activated_urns
-        # charter.pack_context::normalize_activation_identifier
+            "charter_activated_urns", "5003eed5e2d30c222f2108ba89da31d8531cdeb468898d01b3fa96020bd62830", source_module="charter.activation.pack_context"
+        ),  # charter.activation.pack_context::charter_activated_urns
+        # charter.activation.pack_context::normalize_activation_identifier
         # Hash re-pinned (mission charter-code-topology-01M152G1, #3664): the
         # src/doctrine/ -> src/charter/offering/ relocation shifted this
         # module's body enough to change its content-tier body_hash; no
         # semantic change, no new/removed caller -- see FR-303 process note
         # at the top of this allowlist for the re-pin-only case.
-        SymbolKey("normalize_activation_identifier", "9f7d92e2fc1d29bac413ee0aedb51ec14bf4288bf04f2a96ca2e9807e32e5cdd", source_module="charter.pack_context"),
-        # charter.pack_context::partition_activated_unreachable
-        SymbolKey("partition_activated_unreachable", "a128040a4804e409225402613ffbe128932fa1862881810bbb3bd3cfd1241fb4", source_module="charter.pack_context"),
         SymbolKey(
-            "partition_delivery", "7a90e7fc7bfaa802edcb2f675f4cce8f0e7e6db3fbe184b68b64a4a03d194841", source_module="charter.progressive_disclosure"
-        ),  # charter.progressive_disclosure::partition_delivery
+            "normalize_activation_identifier", "9f7d92e2fc1d29bac413ee0aedb51ec14bf4288bf04f2a96ca2e9807e32e5cdd", source_module="charter.activation.pack_context"
+        ),
+        # charter.activation.pack_context::partition_activated_unreachable
+        SymbolKey(
+            "partition_activated_unreachable", "a128040a4804e409225402613ffbe128932fa1862881810bbb3bd3cfd1241fb4", source_module="charter.activation.pack_context"
+        ),
+        SymbolKey(
+            "partition_delivery", "7a90e7fc7bfaa802edcb2f675f4cce8f0e7e6db3fbe184b68b64a4a03d194841", source_module="charter.activation.progressive_disclosure"
+        ),  # charter.activation.progressive_disclosure::partition_delivery
         # charter.offering.drg.reachability::PROFILE_CHANNEL_RELATIONS (body_hash refreshed
         # WP03/doctrine-delivery-activation-01KYQVQK: WP01 added Relation.SUGGESTS to
         # the frozenset, changing its body; still no ``src/`` importer — the sole
-        # reference in src/charter/context_renderers/profile_sections.py:341 is a
+        # reference in src/charter/activation/context_renderers/profile_sections.py:341 is a
         # prose comment, not an import/call — so it stays allowlisted, hash-refreshed.)
         # charter.offering.drg.reachability::PROFILE_CHANNEL_RELATIONS
         SymbolKey(
@@ -1818,7 +1806,7 @@ _CATEGORY_C_CHARTER_FACADE_FORWARD_API_01KZPDSR: frozenset[SymbolKey] = frozense
 # flip that have no cross-file `src/` caller yet, both content-tier (unique
 # bare_name, no live collision):
 #
-# * ``charter.interview::InterviewAnswersRegressionError`` -- raised by
+# * ``charter.activation.interview::InterviewAnswersRegressionError`` -- raised by
 #   ``write_interview_answers(..., fail_closed_on_regression=True)``. That
 #   opt-in flag has no production caller today: the only caller is
 #   ``tests/charter/test_answers_migration.py`` (which asserts on the error
@@ -1827,7 +1815,7 @@ _CATEGORY_C_CHARTER_FACADE_FORWARD_API_01KZPDSR: frozenset[SymbolKey] = frozense
 #   this writer at all -- it does byte-preserving anchored substitution to
 #   survive the archive-freeze gate. So this is test-only forward public API,
 #   exposed by design so that future/external migration callers can catch it.
-# * ``charter.sync::LegacyGovernanceKeyWarning`` -- the ``UserWarning`` subclass
+# * ``charter.activation.sync::LegacyGovernanceKeyWarning`` -- the ``UserWarning`` subclass
 #   ``_warn_legacy_governance_key_once()`` raises internally (same module, so
 #   invisible to the cross-file caller graph); ``tests/charter/
 #   test_governance_key_compat.py`` asserts on it via ``pytest.warns(...)``.
@@ -1835,17 +1823,17 @@ _CATEGORY_C_CHARTER_FACADE_FORWARD_API_01KZPDSR: frozenset[SymbolKey] = frozense
 #   warning class rather than a bare ``UserWarning``.
 _CATEGORY_C_CHARTER_AUTHORITY_FLIP_FORWARD_API: frozenset[SymbolKey] = frozenset(
     {
-        # charter.interview::InterviewAnswersRegressionError
+        # charter.activation.interview::InterviewAnswersRegressionError
         SymbolKey(
             "InterviewAnswersRegressionError",
             "af534399168d1c78dd7722884aeffc6366eb378779c8dfe91a2545843e1518c2",
-            source_module="charter.interview",
+            source_module="charter.activation.interview",
         ),
-        # charter.sync::LegacyGovernanceKeyWarning
+        # charter.activation.sync::LegacyGovernanceKeyWarning
         SymbolKey(
             "LegacyGovernanceKeyWarning",
             "3558fe165f51db3ae52de1abf6c15ce0ececf072f8ac8871cb98c3bbd8d9a1e6",
-            source_module="charter.sync",
+            source_module="charter.activation.sync",
         ),
     }
 )
@@ -1854,7 +1842,7 @@ _CATEGORY_C_CHARTER_AUTHORITY_FLIP_FORWARD_API: frozenset[SymbolKey] = frozenset
 # ---------- D. charter-code-topology-01M152G1 doctrine->charter.offering relocation forward API (#3664) ----------
 # Three symbols surfaced by the src/doctrine/ -> src/charter/offering/
 # package relocation (mission ``charter-code-topology-01M152G1``, PR #3664).
-# (A fourth casualty of the same relocation, ``charter.pack_context::
+# (A fourth casualty of the same relocation, ``charter.activation.pack_context::
 # normalize_activation_identifier``, was NOT a new entry here -- it already
 # had a Category C allowlist row above that the relocation's body-hash shift
 # orphaned; that row was re-pinned in place rather than duplicated, per
@@ -1866,7 +1854,7 @@ _CATEGORY_C_CHARTER_AUTHORITY_FLIP_FORWARD_API: frozenset[SymbolKey] = frozenset
 # * ``charter.offering.drg.org_pack_config::LegacyOrgPackDoctrineKeyWarning``
 #   -- raised internally by the module's own legacy-key compat warn-once
 #   helper (same module, so invisible to the cross-file caller graph), same
-#   shape as the established ``charter.sync::LegacyGovernanceKeyWarning`` /
+#   shape as the established ``charter.activation.sync::LegacyGovernanceKeyWarning`` /
 #   ``specify_cli.tracker.config::LegacyTrackerOwnershipKeyWarning``
 #   precedent above: public by design so a consumer can filter/assert on the
 #   specific warning class. Asserted on via ``pytest.warns(...)`` in
@@ -1903,6 +1891,32 @@ _CATEGORY_D_CHARTER_CODE_TOPOLOGY_RELOCATION_FORWARD_API: frozenset[SymbolKey] =
             "LegacyDoctrineRootWarning",
             "0045ea27dd2aac495a318ee0c8d799ce67b54fa4966e7286423210115079d8f7",
             source_module="kernel.doctrine_root",
+        ),
+    }
+)
+
+
+# ---------- E. charter-activation-split forward API (#806) ----------
+# EXPERIMENTAL deliberately retains its replay semantics, so these restored
+# upstream helpers are public but currently unwired. TODO(triage): #925 owns
+# their wire-or-prune disposition.
+_CATEGORY_E_CHARTER_ACTIVATION_SPLIT_FORWARD_API: frozenset[SymbolKey] = frozenset(
+    {
+        SymbolKey(
+            "overlay_scan_is_recursive",
+            "74c0f3834ccd993ee796cd659396e51009a34ffe926429bc26455a7b956ca140",
+            source_module="charter.offering.discovery_recursion",
+        ),
+        SymbolKey(
+            "walk_project_agent_profile_nodes",
+            "4b668328c6da91ec93c4cbac7e0ffc17a0febd9c71a9e654fe069d1c7362b0a0",
+            source_module="charter.offering.drg.project_scan",
+        ),
+        SymbolKey(
+            "merge_three_layers",
+            "a474c1190d82c971ec43ab922f13e85ca488cea98ff3b56d1e077f386ab89b90",
+            module_path="charter.drg",
+            source_module="charter.offering.drg.merge",
         ),
     }
 )
@@ -1947,6 +1961,7 @@ _SYMBOL_ALLOWLIST: frozenset[SymbolKey] = (
     | _CATEGORY_C_CHARTER_FACADE_FORWARD_API_01KZPDSR
     | _CATEGORY_C_CHARTER_AUTHORITY_FLIP_FORWARD_API
     | _CATEGORY_D_CHARTER_CODE_TOPOLOGY_RELOCATION_FORWARD_API
+    | _CATEGORY_E_CHARTER_ACTIVATION_SPLIT_FORWARD_API
 )
 
 
@@ -2084,7 +2099,7 @@ def _iter_src_python_files() -> list[Path]:
 def _module_dotted(path: Path) -> str:
     """Return the dotted module name for *path* relative to ``src/``.
 
-    ``src/charter/mission_type_profiles.py`` -> ``charter.mission_type_profiles``.
+    ``src/charter/activation/mission_type_profiles.py`` -> ``charter.activation.mission_type_profiles``.
     For ``__init__.py`` the package itself is returned (``charter``).
     """
     rel = path.relative_to(_SRC_ROOT).with_suffix("")
@@ -2471,39 +2486,67 @@ class _ModuleLevelNameUseVisitor(ast.NodeVisitor):
     def __init__(self, name: str) -> None:
         self.name = name
         self.found = False
-        self.function_scopes: list[tuple[bool, bool]] = []
-        self.comprehension_scopes: list[bool] = []
+        self.scopes: list[tuple[str, bool, bool]] = []
 
-    def _name_is_shadowed(self) -> bool:
-        for is_shadowed in reversed(self.comprehension_scopes):
-            if is_shadowed:
-                return True
-        for is_shadowed, global_declared in reversed(self.function_scopes):
+    def _name_is_shadowed(self, *, skip_class_scopes: bool = False) -> bool:
+        crossed_scope_boundary = skip_class_scopes
+        for kind, is_shadowed, global_declared in reversed(self.scopes):
+            if kind == "class" and crossed_scope_boundary:
+                continue
             if global_declared:
                 return False
             if is_shadowed:
                 return True
+            crossed_scope_boundary = True
         return False
 
+    def _mark_current_scope_shadowed(self) -> None:
+        if not self.scopes:
+            return
+        kind, _, global_declared = self.scopes[-1]
+        if not global_declared:
+            self.scopes[-1] = (kind, True, global_declared)
+
+    def _mark_current_scope_global(self) -> None:
+        if not self.scopes:
+            return
+        kind, is_shadowed, _ = self.scopes[-1]
+        self.scopes[-1] = (kind, is_shadowed, True)
+
     def visit_Name(self, node: ast.Name) -> None:
-        if node.id == self.name and isinstance(node.ctx, ast.Load) and not self._name_is_shadowed():
+        if node.id != self.name:
+            return
+        if not isinstance(node.ctx, ast.Load):
+            if self.scopes and self.scopes[-1][0] == "class":
+                self._mark_current_scope_shadowed()
+            return
+        if not self._name_is_shadowed():
             self.found = True
+
+    def visit_alias(self, node: ast.alias) -> None:
+        bound_name = node.asname or node.name.rpartition(".")[2]
+        if bound_name == self.name and self.scopes and self.scopes[-1][0] == "class":
+            self._mark_current_scope_shadowed()
+
+    def visit_Global(self, node: ast.Global) -> None:
+        if self.name in node.names and self.scopes and self.scopes[-1][0] == "class":
+            self._mark_current_scope_global()
 
     def _visit_function_body(self, node: ast.FunctionDef | ast.AsyncFunctionDef | ast.Lambda) -> None:
         binds_name, global_declared, nonlocal_declared = _classify_function_scope(node, self.name)
         if global_declared:
             is_shadowed = False
         elif nonlocal_declared:
-            is_shadowed = self._name_is_shadowed()
+            is_shadowed = self._name_is_shadowed(skip_class_scopes=True)
         else:
-            is_shadowed = self._name_is_shadowed() or binds_name
-        self.function_scopes.append((is_shadowed, global_declared))
+            is_shadowed = self._name_is_shadowed(skip_class_scopes=True) or binds_name
+        self.scopes.append(("function", is_shadowed, global_declared))
         if isinstance(node, ast.Lambda):
             self.visit(node.body)
         else:
             for statement in node.body:
                 self.visit(statement)
-        self.function_scopes.pop()
+        self.scopes.pop()
 
     def visit_FunctionDef(self, node: ast.FunctionDef) -> None:
         _visit_function_outer_expressions(self, node)
@@ -2520,15 +2563,29 @@ class _ModuleLevelNameUseVisitor(ast.NodeVisitor):
             self.visit(default)
         self._visit_function_body(node)
 
+    def visit_ClassDef(self, node: ast.ClassDef) -> None:
+        for decorator in node.decorator_list:
+            self.visit(decorator)
+        for base in node.bases:
+            self.visit(base)
+        for keyword in node.keywords:
+            self.visit(keyword.value)
+        if node.name == self.name and self.scopes and self.scopes[-1][0] == "class":
+            self._mark_current_scope_shadowed()
+        self.scopes.append(("class", False, False))
+        for statement in node.body:
+            self.visit(statement)
+        self.scopes.pop()
+
     def _visit_comprehension(self, node: ast.ListComp | ast.SetComp | ast.GeneratorExp | ast.DictComp) -> None:
         if node.generators:
             self.visit(node.generators[0].iter)
-        self.comprehension_scopes.append(False)
+        self.scopes.append(("comprehension", False, False))
         for index, generator in enumerate(node.generators):
             if index > 0:
                 self.visit(generator.iter)
             if _target_binds_name(generator.target, self.name):
-                self.comprehension_scopes[-1] = True
+                self._mark_current_scope_shadowed()
             for condition in generator.ifs:
                 self.visit(condition)
         if isinstance(node, ast.DictComp):
@@ -2536,7 +2593,7 @@ class _ModuleLevelNameUseVisitor(ast.NodeVisitor):
             self.visit(node.value)
         else:
             self.visit(node.elt)
-        self.comprehension_scopes.pop()
+        self.scopes.pop()
 
     def visit_ListComp(self, node: ast.ListComp) -> None:
         self._visit_comprehension(node)
@@ -2716,7 +2773,7 @@ def _symbol_has_caller(
       -- the parent re-exports the name via its own ``__all__``;
     * any submodule of ``mod_dotted`` (``X.startswith(mod_dotted + ".")``)
       -- this covers package ``__init__.py`` re-exports: a name listed
-      in ``charter.__all__`` and imported via ``charter.compiler``
+      in ``charter.__all__`` and imported via ``charter.activation.compiler``
       proves the symbol is live runtime code.
 
     The third rule is necessary because the WP08 anti-pattern we gate
@@ -3106,16 +3163,16 @@ def _compute_dangling(
 # decision outside this widening's mandate -- flagged in #633.
 _WIDENED_SCOPE_GRANDFATHERED_470: frozenset[str] = frozenset(
     {
-        "charter._io::load_charter_bytes",
+        "charter.activation._io::load_charter_bytes",
         "charter.bundle::DIRECTIVES_YAML",
         "charter.bundle::GOVERNANCE_YAML",
         "charter.bundle::METADATA_YAML",
-        "charter.catalog::DEFAULT_TEMPLATE_SET",
-        "charter.context::NONE_LABEL",
-        "charter.context_contract::CONTEXT_CONTRACT_TOP_LEVEL_KEYS",
-        "charter.evidence.code_reader::LANGUAGE_EXTENSIONS",
-        "charter.synthesizer.adapter::BatchCapableSynthesisAdapter",
-        "charter.synthesizer.synthesize_pipeline::run",
+        "charter.activation.catalog::DEFAULT_TEMPLATE_SET",
+        "charter.activation.context::NONE_LABEL",
+        "charter.activation.context_contract::CONTEXT_CONTRACT_TOP_LEVEL_KEYS",
+        "charter.activation.evidence.code_reader::LANGUAGE_EXTENSIONS",
+        "charter.activation.synthesizer.adapter::BatchCapableSynthesisAdapter",
+        "charter.activation.synthesizer.synthesize_pipeline::run",
         "charter.offering.agent_profiles.schema_models::AgentProfileSchema",
         "charter.offering.agent_profiles.validation::is_agent_profile_file",
         "charter.offering.directives.validation::validate_directive",
@@ -3534,8 +3591,8 @@ def test_used_within_own_module() -> None:
 
     True iff *name* is referenced as an ``ast.Name`` Load that can resolve to
     the module-level binding. A Store-only reference, no reference at all, or
-    a load shadowed by a local binding in an enclosing function scope must
-    return False -- the mutation the squad demonstrated (an unconditional
+    a load shadowed by a local binding in an enclosing function or class
+    body scope must return False -- the mutation the squad demonstrated (an unconditional
     `return True`) would rescue every widened-in offender regardless of real
     intra-module use.
     """
@@ -3547,12 +3604,18 @@ def test_used_within_own_module() -> None:
         "logger = get_logger()\ndef outer():\n    logger = logging.getLogger(__name__)\n    def inner():\n        return logger\n    return inner\n"
     )
     comprehension_shadow_tree = ast.parse("logger = get_logger()\nvalues = [logger for logger in loggers]\n")
+    class_shadow_tree = ast.parse("logger = get_logger()\nclass Runner:\n    logger = logging.getLogger(__name__)\n    uses = logger\n")
+    class_pre_binding_tree = ast.parse("logger = get_logger()\nclass Runner:\n    uses = logger\n    logger = logging.getLogger(__name__)\n")
+    class_method_tree = ast.parse("logger = get_logger()\nclass Runner:\n    logger = logging.getLogger(__name__)\n    def use(self):\n        return logger\n")
     assert _used_within_own_module(referenced_tree, "logger") is True
     assert _used_within_own_module(unreferenced_tree, "logger") is False
     assert _used_within_own_module(local_shadow_tree, "logger") is False
     assert _used_within_own_module(parameter_shadow_tree, "logger") is False
     assert _used_within_own_module(nested_shadow_tree, "logger") is False
     assert _used_within_own_module(comprehension_shadow_tree, "logger") is False
+    assert _used_within_own_module(class_shadow_tree, "logger") is False
+    assert _used_within_own_module(class_pre_binding_tree, "logger") is True
+    assert _used_within_own_module(class_method_tree, "logger") is True
     assert _used_within_own_module(unreferenced_tree, "nonexistent_name") is False
 
 

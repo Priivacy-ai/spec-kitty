@@ -11,14 +11,14 @@ Covers (T006):
    Roster B lazy-derivation lands.
 
 2. **Import-time-I/O regression guard (green-stays-green)** — importing the
-   two "hot" charter modules (``charter.mission_type_profiles``,
-   ``charter.pack_context``) must trigger AT MOST ONE cached read of the
+   two "hot" charter modules (``charter.activation.mission_type_profiles``,
+   ``charter.activation.pack_context``) must trigger AT MOST ONE cached read of the
    doctrine ``mission_types/`` directory, and a second read anywhere in the
    same process must trigger ZERO further reads (NFR-001 / SC-005). The
    bound is ``<=1``, not a literal zero: importing either hot module first
    runs ``charter/__init__.py`` (the package init any submodule import
-   executes), which eagerly imports ``charter.activations`` as part of its
-   public re-export surface — and ``charter.activations.ALLOWED_MISSION_TYPES``
+   executes), which eagerly imports ``charter.activation.activations`` as part of its
+   public re-export surface — and ``charter.activation.activations.ALLOWED_MISSION_TYPES``
    is a module-scope value derived from the accessor (the C-012 carve-out —
    it must stay an importable frozenset VALUE for the unowned
    ``test_activation_registry_schema.py``, so it cannot be made lazy without
@@ -55,7 +55,7 @@ from pathlib import Path
 import pytest
 
 import charter.offering
-from charter.pack_context import PackContext
+from charter.activation.pack_context import PackContext
 from charter.offering.missions.mission_type_repository import (
     MissionTypeRepository,
     builtin_mission_type_ids,
@@ -194,15 +194,15 @@ _IMPORT_SPY_SCRIPT = textwrap.dedent(
 
     MissionTypeRepository.default = classmethod(_spy)
 
-    import charter.mission_type_profiles  # noqa: F401
-    import charter.pack_context  # noqa: F401
+    import charter.activation.mission_type_profiles  # noqa: F401
+    import charter.activation.pack_context  # noqa: F401
 
     after_import = len(_calls)
     if after_import > 1:
         print(
             f"MissionTypeRepository.default() called {after_import} time(s) at import "
             "time -- expected at most 1 (the C-012 carve-out read inherited via the "
-            "eager charter/__init__.py -> charter.activations chain)",
+            "eager charter/__init__.py -> charter.activation.activations chain)",
             file=sys.stderr,
         )
         sys.exit(1)
@@ -281,7 +281,7 @@ class TestHotModulesTriggerZeroImportTimeIo:
 
     NFR-001's bound is ``<=1``, not a literal zero: importing either hot
     module runs ``charter/__init__.py`` first (the package init any
-    submodule import executes), which eagerly imports ``charter.activations``
+    submodule import executes), which eagerly imports ``charter.activation.activations``
     — whose ``ALLOWED_MISSION_TYPES`` is a module-scope value derived from
     the accessor (the C-012 carve-out, see ``charter/activations.py``). That
     carve-out read is the ONE this test bounds; it must never repeat (proven
@@ -320,7 +320,7 @@ class TestHotModulesTriggerZeroImportTimeIo:
             )
 
         assert result.returncode == 0, (
-            "importing charter.mission_type_profiles / charter.pack_context "
+            "importing charter.activation.mission_type_profiles / charter.activation.pack_context "
             "triggered unbounded mission_types/ I/O (NFR-001, <=1 cached read "
             f"expected):\nstdout={result.stdout}\nstderr={result.stderr}"
         )

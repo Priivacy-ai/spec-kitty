@@ -20,15 +20,15 @@ from typing import Any
 import pytest
 
 from charter.bundle import compute_bundle_content_hash
-from charter.synthesizer import (
+from charter.activation.synthesizer import (
     FixtureAdapter,
     SynthesisRequest,
     SynthesisTarget,
     synthesize,
 )
-from charter.synthesizer.errors import TopicSelectorUnresolvedError
-from charter.synthesizer.resynthesize_pipeline import run as resynthesize_run
-from charter.synthesizer.topic_resolver import resolve as resolve_topic
+from charter.activation.synthesizer.errors import TopicSelectorUnresolvedError
+from charter.activation.synthesizer.resynthesize_pipeline import run as resynthesize_run
+from charter.activation.synthesizer.topic_resolver import resolve as resolve_topic
 from specify_cli.charter_runtime.freshness import compute_freshness
 
 
@@ -338,7 +338,7 @@ class TestNfr004FailClosed:
 class TestSc008UnresolvedSla:
     def test_unresolved_selector_under_2_seconds(self) -> None:
         """SC-008: resolver returns TopicSelectorUnresolvedError < 2 s."""
-        from charter.synthesizer.request import SynthesisTarget
+        from charter.activation.synthesizer.request import SynthesisTarget
 
         artifacts = [
             SynthesisTarget(
@@ -369,7 +369,7 @@ class TestSc008UnresolvedSla:
 
     def test_unresolved_selector_repeated_calls_fast(self) -> None:
         """SC-008: multiple cold-cache calls remain fast (no warm-up required)."""
-        from charter.synthesizer.request import SynthesisTarget
+        from charter.activation.synthesizer.request import SynthesisTarget
 
         artifacts: list[SynthesisTarget] = []
         drg: dict[str, Any] = {"nodes": [], "edges": []}

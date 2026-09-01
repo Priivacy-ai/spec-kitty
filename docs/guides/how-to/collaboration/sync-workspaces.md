@@ -11,7 +11,7 @@ related:
 # How to Sync Workspaces
 
 > **Removed in 3.2.6; kept as historical record.** The workspace-sync workflow
-> described here is retired. This page is scheduled for deletion in 3.2.7 (D13).
+> described here is retired. This page is scheduled for deletion in 3.2.7.
 
 Keep your workspace up to date with upstream changes from dependent work packages.
 

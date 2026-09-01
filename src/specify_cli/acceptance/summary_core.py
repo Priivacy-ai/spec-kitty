@@ -24,7 +24,7 @@ from specify_cli.config.path_conventions import load_project_path_conventions
 from specify_cli.mission import get_deliverables_path
 from specify_cli.status_lanes import has_operator_provenance, is_acceptable_ending
 from specify_cli.task_utils import WorkPackage
-from specify_cli.validators.paths import _normalize_path_token, artifact_tokens_for_mission, validate_mission_paths
+from specify_cli.validators.paths import artifact_tokens_for_mission, normalize_path_token, validate_mission_paths
 
 from .gates_core import AcceptanceCheckDiagnostic
 
@@ -159,7 +159,7 @@ def evaluate_path_conventions(
     the empty-directory workaround (issue #1892). ``validate_mission_paths`` is
     invoked non-strict here so the caller owns the blocking decision rather
     than catching a raise. When ``mission`` has no path conventions this is a
-    no-op: ``([], None)``.
+    no-op: ``([], None, frozenset())``.
     """
     if not (mission and mission.config.paths):
         return [], None, frozenset()
@@ -180,7 +180,7 @@ def evaluate_path_conventions(
         return [], None, frozenset()
     if strict_metadata:
         artifact_tokens = artifact_tokens_for_mission(mission)
-        dedup_tokens = frozenset(_normalize_path_token(token) for token in path_result.missing_artifact_tokens if _normalize_path_token(token) in artifact_tokens)
+        dedup_tokens = frozenset(normalize_path_token(token) for token in path_result.missing_artifact_tokens if normalize_path_token(token) in artifact_tokens)
         return [path_result.format_errors() or _PATH_CONVENTIONS_NOT_SATISFIED], None, dedup_tokens
     return [], path_result.format_warnings() or _PATH_CONVENTIONS_NOT_SATISFIED, frozenset()
 

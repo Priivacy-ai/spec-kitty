@@ -14,6 +14,7 @@ pytestmark = [pytest.mark.fast]
 ROOT = Path(__file__).resolve().parents[2]
 WORKFLOWS = ROOT / ".github" / "workflows"
 CONVERGENCE_MAP = ROOT / "docs" / "convergence" / "interim-ci-producer.md"
+RELEASE_CHECKLIST = ROOT / "RELEASE_CHECKLIST.md"
 
 RESTORED_WORKFLOWS = {
     "ci-quality.yml",
@@ -21,6 +22,8 @@ RESTORED_WORKFLOWS = {
     "ci-windows.yml",
     "docs-pages.yml",
     "check-spec-kitty-events-alignment.yml",
+    "release-readiness.yml",
+    "release.yml",
 }
 
 UPSTREAM_WORKFLOW_PATHS = {
@@ -71,6 +74,13 @@ def load_workflow(name: str) -> dict[str, Any]:
 
 def workflow_text(name: str) -> str:
     return (WORKFLOWS / name).read_text(encoding="utf-8")
+
+
+def test_release_checklist_marks_deferred_publish_workflows_as_p3_4b_prerequisite() -> None:
+    checklist = RELEASE_CHECKLIST.read_text(encoding="utf-8")
+    assert "P3.4b prerequisite" in checklist
+    assert "release.yml" in checklist
+    assert "release-readiness.yml" in checklist
 
 
 def test_reduced_ci_quality_has_exact_jobs() -> None:
@@ -141,19 +151,28 @@ def test_ci_windows_configures_private_git_dependencies_before_install() -> None
     assert 'git config --global "url.https://x-access-token:${GH_TOKEN}@github.com/.insteadOf" "https://github.com/"' in configure_step["run"]
 
 
-def test_docs_pages_deploys_only_from_promotion_repo_and_skips_when_pages_is_unavailable() -> None:
+def test_docs_pages_deploys_only_from_promotion_repo_and_fails_transient_setup_errors() -> None:
     workflow = load_workflow("docs-pages.yml")
     pages_job = workflow["jobs"]["pages"]
-    setup_step = pages_job["steps"][0]
+    probe_step, setup_step = pages_job["steps"]
     build_job = workflow["jobs"]["build"]
     deploy_job = workflow["jobs"]["deploy"]
 
-    assert pages_job["outputs"] == {"configured": "${{ steps.setup-pages.outcome }}"}
+    assert pages_job["outputs"] == {"configured": "${{ steps.probe-pages.outputs.available }}"}
+    assert probe_step["id"] == "probe-pages"
+    assert probe_step["env"]["GITHUB_TOKEN"] == "${{ github.token }}"
+    assert 'status="$(curl' in probe_step["run"]
+    assert "200)" in probe_step["run"]
+    assert 'echo "available=true" >> "$GITHUB_OUTPUT"' in probe_step["run"]
+    assert "404)" in probe_step["run"]
+    assert 'echo "available=false" >> "$GITHUB_OUTPUT"' in probe_step["run"]
+    assert "::error::GitHub Pages configuration probe failed with HTTP $status." in probe_step["run"]
     assert setup_step["id"] == "setup-pages"
+    assert setup_step["if"] == "steps.probe-pages.outputs.available == 'true'"
     assert setup_step["uses"] == "actions/configure-pages@v6"
-    assert setup_step["continue-on-error"] is True
+    assert "continue-on-error" not in setup_step
     assert build_job["needs"] == ["pages"]
-    assert build_job["if"] == "needs.pages.outputs.configured == 'success'"
+    assert build_job["if"] == "needs.pages.outputs.configured == 'true' && needs.pages.result == 'success'"
     assert deploy_job["if"] == "github.repository == 'Priivacy-ai/spec-kitty' && github.ref == 'refs/heads/main' && needs.build.result == 'success'"
 
 
@@ -163,6 +182,38 @@ def test_restored_workflows_use_stock_runners(name: str) -> None:
 
     assert "blacksmith" not in text.lower()
     assert "runner-group" not in text.lower()
+
+
+def test_release_wheel_gate_counts_charter_offering_and_skills() -> None:
+    workflow = load_workflow("release.yml")
+    step = next(step for step in workflow["jobs"]["build-release"]["steps"] if step.get("name") == "Verify wheel contents")
+    run = step["run"]
+
+    assert "git ls-files src/charter/offering" in run
+    assert "find " in run
+    assert "wheel_check/charter/offering" in run
+    assert "git ls-files src/charter/offering/skills" in run
+    assert "wheel_check/charter/offering/skills" in run
+    assert "git ls-files src/doctrine" not in run
+
+
+def test_release_readiness_cutover_guard_uses_public_lock_dependencies() -> None:
+    workflow = load_workflow("release-readiness.yml")
+    job = workflow["jobs"]["cutover-guard"]
+    job_dump = repr(job)
+
+    assert "pip install -e ." not in job_dump
+    assert "git+https" not in job_dump
+    assert ".cutover-deps" not in job_dump
+    assert "grep -vE" not in job_dump
+
+    install = next(step for step in job["steps"] if step.get("name") == "Install the source-only guard environment")
+    assert "uv export --frozen --no-dev" in install["run"]
+    assert "python -m pip install -r .cutover-requirements.lock.txt" in install["run"]
+
+    guard = next(step for step in job["steps"] if step.get("name") == "Run cutover guard (fail-closed on any un-cut-over mission)")
+    assert "PYTHONPATH=src" in guard["run"]
+    assert "from specify_cli.cli.commands.cutover_guard import cutover_guard" in guard["run"]
 
 
 def test_convergence_map_dispositions_every_upstream_workflow_and_script() -> None:

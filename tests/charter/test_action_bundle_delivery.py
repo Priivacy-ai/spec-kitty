@@ -25,9 +25,9 @@ from pathlib import Path
 
 import pytest
 
-from charter import context
-from charter.drg import filter_graph_by_activation
-from charter.pack_context import PackContext
+from charter.activation import context
+from charter.activation.drg_activation import filter_graph_by_activation
+from charter.activation.pack_context import PackContext
 from charter.offering.drg.models import DRGEdge, DRGGraph, DRGNode, NodeKind, Relation
 from charter.offering.drg.query import resolve_context
 
@@ -209,7 +209,7 @@ def test_delivered_equals_gate_intersect_reachable_through_real_pipeline() -> No
 
 
 def test_governance_resolution_carries_asset_field() -> None:
-    from charter.resolver import GovernanceResolution
+    from charter.activation.resolver import GovernanceResolution
 
     field_names = {f.name for f in dataclasses.fields(GovernanceResolution)}
     assert "assets" in field_names, "GovernanceResolution must carry assets, parallel to procedures"

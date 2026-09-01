@@ -1,7 +1,7 @@
 """Portable provenance path normalizer (doctrine layer).
 
 Single 3-class ``source_path`` normalizer shared by both provenance carriers
--- the charter catalog (``charter.compiler._doctrine_yaml_reference``) and
+-- the charter catalog (``charter.activation.compiler._doctrine_yaml_reference``) and
 the agent-profile projection manifest
 (``specify_cli.tool_surface.profiles.projection._manifest_source_path``) --
 so a committed ``charter.yaml`` / ``agent_profiles_manifest.json`` never
@@ -105,7 +105,7 @@ def to_portable_source_path(path: Path | str, *, project_root: Path | None) -> s
     Args:
         path: the source path to normalize. An empty string/path returns
             ``""`` unchanged (mirrors the pre-existing ``_trim_source_path``
-            empty-input contract in ``charter.compiler``).
+            empty-input contract in ``charter.activation.compiler``).
         project_root: the project root used to classify an in-tree,
             non-built-in path as repo-relative (class b). ``None`` disables
             class (b) entirely -- such a path then falls through to class

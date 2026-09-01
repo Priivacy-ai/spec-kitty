@@ -7,7 +7,7 @@ import io
 import warnings
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any, ClassVar, Final, cast
+from typing import Any, ClassVar, Final
 
 from ruamel.yaml import YAML
 
@@ -32,8 +32,8 @@ class TrackerConfigError(RuntimeError):
 # CR-03 (mission `charter-code-topology-01M152G1` S4): tracker mode key
 # `doctrine` -> `ownership` (NOT `charter` -- this surface names field
 # OWNERSHIP, a distinct concept from the charter/doctrine topology rename).
-# Precedent for the read-both/canonical-wins/warn-once shape: `charter.sync`
-# CR-01 (`src/charter/sync.py:245-311`).
+# Precedent for the read-both/canonical-wins/warn-once shape: `charter.activation.sync`
+# CR-01 (`src/charter/activation/sync.py:245-311`).
 # ---------------------------------------------------------------------------
 _CANONICAL_OWNERSHIP_KEY: Final = "ownership"
 _LEGACY_OWNERSHIP_KEY: Final = "doctrine"
@@ -50,7 +50,7 @@ def _warn_legacy_ownership_key_once() -> None:
     """Emit the CR-03 compat warning exactly once per process.
 
     Gated by ``lru_cache`` rather than the ``warnings`` module's own de-dup
-    filter (precedent: ``charter.sync._warn_legacy_governance_key_once``,
+    filter (precedent: ``charter.activation.sync._warn_legacy_governance_key_once``,
     CR-01) -- a caller running under a stricter ``filterwarnings``
     configuration could otherwise turn a *repeated* warning into a hard
     failure. Tests reset this gate via
@@ -333,7 +333,8 @@ def require_repo_root() -> Path:
     repo_root = locate_project_root(Path.cwd())
     if repo_root is None:
         raise TrackerConfigError("Not inside a spec-kitty project. Run this command from a project with .kittify/.")
-    return cast(Path, repo_root)
+    root: Path = repo_root
+    return root
 
 
 def _config_path(repo_root: Path) -> Path:

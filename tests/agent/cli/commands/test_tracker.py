@@ -43,7 +43,7 @@ def _stub_check_readiness(request, monkeypatch):
     # recorded consent, so the real gate would refuse. Stub it to permit for
     # *every* test in this file — including `no_readiness_stub` ones, which
     # drive `_check_sync_readiness` directly — because egress consent is out of
-    # scope here (it has its own suite under `tests/sync/tracker/`); this file
+    # scope here (it has its own suite under `tests/tracker/`); this file
     # asserts command dispatch/rendering only.
     monkeypatch.setattr(
         "specify_cli.cli.commands.tracker.tracker_egress_verdict",
@@ -801,6 +801,33 @@ def test_sync_push_json(mock_service_fn, monkeypatch) -> None:
     assert data["status"] == "complete"
 
 
+@patch("specify_cli.cli.commands.tracker.require_repo_root")
+@patch("specify_cli.cli.commands.tracker.load_tracker_config")
+@patch("specify_cli.cli.commands.tracker._service")
+def test_sync_push_saas_human_output_includes_identity_path(mock_service_fn, mock_load_cfg, mock_repo_root, monkeypatch, tmp_path) -> None:
+    """sync push human output shows identity_path (#1221), matching sync pull."""
+    from specify_cli.tracker.config import TrackerProjectConfig
+
+    app = _make_app(monkeypatch)
+    mock_svc = MagicMock()
+    mock_svc.sync_push.return_value = {
+        "status": "complete",
+        "identity_path": {"type": "user_link", "provider": "linear"},
+        "summary": {"total": 1, "succeeded": 1, "failed": 0, "skipped": 0},
+    }
+    mock_service_fn.return_value = mock_svc
+    mock_load_cfg.return_value = TrackerProjectConfig(provider="linear", project_slug="proj")
+    mock_repo_root.return_value = tmp_path
+
+    items_file = tmp_path / "items.json"
+    items_file.write_text('[{"ref": {"system": "linear", "id": "LIN-1", "workspace": "team"}, "action": "update"}]')
+
+    result = runner.invoke(app, ["sync", "push", "--items-json", str(items_file)])
+    assert result.exit_code == 0, result.output
+    assert "- provider: linear" in result.output
+    assert "- type: user_link" in result.output
+
+
 # ---------------------------------------------------------------------------
 # sync run: JSON output
 # ---------------------------------------------------------------------------
@@ -821,6 +848,24 @@ def test_sync_run_json(mock_service_fn, monkeypatch) -> None:
     assert result.exit_code == 0
     data = json.loads(result.output)
     assert data["status"] == "complete"
+
+
+@patch("specify_cli.cli.commands.tracker._service")
+def test_sync_run_saas_human_output_includes_identity_path(mock_service_fn, monkeypatch) -> None:
+    """sync run human output shows identity_path (#1221), matching sync pull."""
+    app = _make_app(monkeypatch)
+    mock_svc = MagicMock()
+    mock_svc.sync_run.return_value = {
+        "status": "complete",
+        "identity_path": {"type": "installation", "provider": "linear"},
+        "summary": {"total": 8, "succeeded": 8, "failed": 0, "skipped": 0},
+    }
+    mock_service_fn.return_value = mock_svc
+
+    result = runner.invoke(app, ["sync", "run"])
+    assert result.exit_code == 0, result.output
+    assert "- provider: linear" in result.output
+    assert "- type: installation" in result.output
 
 
 # ---------------------------------------------------------------------------

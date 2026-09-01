@@ -65,7 +65,7 @@ isolated home directory. The isolation is set up in `tests/conftest.py`:
 - `pytest_configure` points `HOME` / `USERPROFILE` and the XDG dirs
   (`XDG_CONFIG_HOME`, `XDG_DATA_HOME`, `XDG_STATE_HOME`) at a per-worker base
   **before collection**, so modules that bind a home-derived path at import time
-  (for example `specify_cli.sync.daemon.SPEC_KITTY_DIR`) resolve into the
+  (for example paths derived from `get_runtime_root()`) resolve into the
   isolated home.
 - An autouse, function-scoped fixture re-asserts the `HOME` / `USERPROFILE` / XDG
   env vars for every test, keyed by worker id, so call-time `Path.home()` reads
@@ -106,13 +106,15 @@ choice as usual (`…/run-<pid>/popen-gwN`). Consequences worth knowing:
 - An explicit `--basetemp` still wins untouched — whoever passes one owns its
   lifecycle.
 - Retention is outcome-gated (#76): a healthy run (`ExitCode.OK`) leaves
-  nothing behind — the run dir is removed at interpreter exit. A run that
-  fails, errors, or is interrupted keeps its private basetemp tree instead, so
-  `tmp_path` contents from that run ARE available for post-mortem inspection,
-  bounded by the 24 h stale-crash sweep below (which also catches a run that
-  never reaches `pytest_sessionfinish`, e.g. a SIGKILL, since the exit-gated
-  reap never runs for it either). This differs from pytest's own default
-  3-session retention, which keeps every session's tree regardless of outcome.
+  nothing behind — it removes the run's dir at interpreter exit. A run with
+  failures, errors, or an interruption keeps its private basetemp tree instead,
+  so `tmp_path` contents from that run ARE available for post-mortem inspection,
+  bounded by the 24 h stale-crash sweep the next run performs at controller
+  startup (`STALE_RUN_MAX_AGE_S`, swept from `install_run_basetemp`; it also
+  catches a run that never reaches `pytest_sessionfinish`, e.g. a SIGKILL,
+  since the exit-gated reap never runs for it either). This differs from
+  pytest's own default 3-session retention, which keeps the last three
+  sessions' trees regardless of outcome.
 
 ## `tmp_path` retention policy
 

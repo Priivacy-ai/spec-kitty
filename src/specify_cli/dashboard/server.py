@@ -16,6 +16,7 @@ from specify_cli.core.loopback_http import create_loopback_server, serve_loopbac
 from .handlers.router import DashboardRouter
 
 __all__ = [
+    "BackgroundPortReportError",
     "PortUnavailableError",
     "find_free_port",
     "start_dashboard",
@@ -31,6 +32,20 @@ class PortUnavailableError(StructuredError):
     """
 
     error_code: str = "DASHBOARD_PORT_UNAVAILABLE"
+
+
+class BackgroundPortReportError(StructuredError):
+    """Raised when a detached dashboard child does not report a valid bound port.
+
+    Carries the child's exit status when it is known so callers can branch on
+    the typed value and contextual attribute rather than parsing the message.
+    """
+
+    error_code: str = "DASHBOARD_BACKGROUND_PORT_REPORT_FAILED"
+
+    def __init__(self, message: str, *, exit_code: int | None) -> None:
+        super().__init__(message)
+        self.exit_code = exit_code
 
 
 def find_free_port(start_port: int = 9237, max_attempts: int = 100) -> int:
@@ -124,6 +139,24 @@ def _background_script(
     )
 
 
+def _background_port_report_error(
+    proc: subprocess.Popen[bytes], raw_report: bytes
+) -> BackgroundPortReportError:
+    exit_code = proc.poll()
+    if exit_code is None:
+        try:
+            exit_code = proc.wait(timeout=0.1)
+        except subprocess.TimeoutExpired:
+            exit_code = None
+
+    process_state = f"child exited with status {exit_code}" if exit_code is not None else "child is still running but closed the reporting pipe"
+    detail = f"invalid port report {raw_report!r}" if raw_report else "no port report"
+    return BackgroundPortReportError(
+        f"Detached dashboard process failed to report its bound port for port=0 ({detail}; {process_state}).",
+        exit_code=exit_code,
+    )
+
+
 def start_dashboard(
     project_dir: Path,
     port: int | None = None,
@@ -162,23 +195,36 @@ def start_dashboard(
         port_fd = pipe[1] if pipe is not None else None
 
         script = _background_script(project_dir_abs, port, project_token, port_fd)
-        proc = subprocess.Popen(
-            [sys.executable, '-c', script],
-            stdout=subprocess.DEVNULL,
-            stderr=subprocess.DEVNULL,
-            stdin=subprocess.DEVNULL,
-            start_new_session=True,
-            pass_fds=(port_fd,) if port_fd is not None else (),
-        )
+        try:
+            proc = subprocess.Popen(
+                [sys.executable, '-c', script],
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL,
+                stdin=subprocess.DEVNULL,
+                start_new_session=True,
+                pass_fds=(port_fd,) if port_fd is not None else (),
+            )
+        except Exception:
+            if pipe is not None:
+                os.close(pipe[0])
+                os.close(pipe[1])
+            raise
 
         if pipe is not None:
             read_fd, write_fd = pipe
             os.close(write_fd)  # our copy; the child's own copy keeps the pipe open until it reports back
             chunks = []
-            while chunk := os.read(read_fd, 32):
-                chunks.append(chunk)
-            os.close(read_fd)
-            port = int(b"".join(chunks).decode())
+            try:
+                while chunk := os.read(read_fd, 32):
+                    chunks.append(chunk)
+            finally:
+                os.close(read_fd)
+
+            raw_report = b"".join(chunks)
+            try:
+                port = int(raw_report.decode())
+            except (UnicodeDecodeError, ValueError) as exc:
+                raise _background_port_report_error(proc, raw_report) from exc
 
         return port, proc.pid
 

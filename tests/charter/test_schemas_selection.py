@@ -1,13 +1,13 @@
 """Unit tests for the additive ``selected_<kind>`` parity fields on
-:class:`charter.schemas.DoctrineSelectionConfig` and their byte-stable
-emission via :func:`charter.schemas.emit_yaml` (WP01 of mission
+:class:`charter.activation.schemas.DoctrineSelectionConfig` and their byte-stable
+emission via :func:`charter.activation.schemas.emit_yaml` (WP01 of mission
 ``charter-mediated-doctrine-selection-01KRTZCA``).
 
 Coverage:
   * Defaulting: a freshly-constructed ``DoctrineSelectionConfig`` exposes
     all five new fields as empty lists.
   * Byte-stability (NFR-005): emitted YAML omits the empty new fields
-    because they live in :data:`charter.schemas._OPTIONAL_EMPTY_OMIT_KEYS`.
+    because they live in :data:`charter.activation.schemas._OPTIONAL_EMPTY_OMIT_KEYS`.
   * Round-trip: populating a new field survives ``emit_yaml`` →
     ``YAML().load(...)``.
 """
@@ -19,7 +19,7 @@ from pathlib import Path
 import pytest
 from ruamel.yaml import YAML
 
-from charter.schemas import (
+from charter.activation.schemas import (
     DoctrineSelectionConfig,
     GovernanceConfig,
     _OPTIONAL_EMPTY_OMIT_KEYS,
@@ -123,7 +123,7 @@ def test_governance_config_carries_activations_field(tmp_path: Path) -> None:
     """T008: ``GovernanceConfig.activations`` lives at the top level (not on
     ``DoctrineSelectionConfig``); defaults to empty; round-trips through
     ``emit_yaml`` with an entry; stays out of YAML when empty (NFR-005)."""
-    from charter.activations import ActivationEntry
+    from charter.activation.activations import ActivationEntry
 
     # Defaulting
     gov = GovernanceConfig()

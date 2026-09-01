@@ -35,7 +35,7 @@ from typing import Any, cast
 import pytest
 from ruamel.yaml import YAML
 
-from charter.synthesizer import (
+from charter.activation.synthesizer import (
     FixtureAdapter,
     SynthesisRequest,
     SynthesisTarget,

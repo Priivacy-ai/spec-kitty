@@ -59,7 +59,7 @@ _REPO_ROOT: Path = Path(__file__).resolve().parents[2]
 
 # The warning text fragment that MUST appear in stderr (or stdout) when a
 # charter selects a styleguide ID that is not present in the doctrine catalog.
-# This string appears in ``charter._catalog_miss.emit_catalog_miss_warning``
+# This string appears in ``charter.activation._catalog_miss.emit_catalog_miss_warning``
 # as the common prefix of every catalog-miss message.
 _CATALOG_MISS_MARKER: str = "Charter catalog miss"
 
@@ -134,7 +134,7 @@ def _write_charter_with_typo(repo: Path, typo_id: str) -> None:
     #2773 consolidated the compiled bundle into the authoritative
     ``.kittify/charter/charter.yaml``; doctrine selections are now read from
     ``governance.charter.offering.selected_<kind>`` (via
-    ``charter.sync.load_governance_config``), NOT from a fenced YAML block in
+    ``charter.activation.sync.load_governance_config``), NOT from a fenced YAML block in
     the curated ``charter.md``. The typo'd ID therefore lives in
     ``charter.yaml`` so the catalog-miss warning path is exercised end-to-end.
     A minimal ``charter.md`` companion is still written because the bootstrap

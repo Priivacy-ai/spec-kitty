@@ -62,13 +62,13 @@ definitions:
       field_path:
         description: >-
           Optional dot-separated YAML field path (e.g.
-          "context-sources.tactics") scoping this exception to ONE field
+          "tactic-references") scoping this exception to ONE field
           inside files matching `path` (WP02, FR-002/C-005). Without this,
           `path` overrides the WHOLE file's verdict — which cannot express a
           mission whose exemptions are field-scoped when every governed file
           ALSO carries entries the category-level action must still classify
           normally (e.g. an agent profile's `directive-references` field
-          must never change while `context-sources.directives` in the SAME
+          must never change while `tactic-references` in the SAME
           file migrates). When present, the file's category-level action
           still governs the whole file, and the reviewer-facing diff check
           additionally records that `field_path` is pinned to `action`

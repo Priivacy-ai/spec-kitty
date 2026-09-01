@@ -1,4 +1,4 @@
-"""Unit tests for ``charter.pack_manager`` (WP04, T019).
+"""Unit tests for ``charter.activation.pack_manager`` (WP04, T019).
 
 Covers:
 - ``YAML_KEY_MAP``: entry count, mission-type outlier, value naming conventions
@@ -23,9 +23,9 @@ from pathlib import Path
 import pytest
 import yaml
 
-from charter.activation_engine import UnknownActivationIdError
-from charter.invocation_context import ProjectContext
-from charter.pack_manager import (
+from charter.activation.activation_engine import UnknownActivationIdError
+from charter.activation.invocation_context import ProjectContext
+from charter.activation.pack_manager import (
     CharterPackManager,
     YAML_KEY_MAP,
 )
@@ -228,7 +228,7 @@ class TestDeactivateNoneState:
         guidance) for the CLI (WP12) to surface, so the engine/manager never
         touch process state.
         """
-        from charter.activation_engine import NoActivationRestrictionsError
+        from charter.activation.activation_engine import NoActivationRestrictionsError
 
         with pytest.raises(NoActivationRestrictionsError, match="spec-kitty upgrade"):
             manager.deactivate(ctx, kind="directive", artifact_id="something")
@@ -446,7 +446,7 @@ class TestDeactivateCascadeAndInvalidKind:
 #
 # Pre-fix, ``_resolve_layer_candidate`` only resolves a directory for
 # ``kind is None`` (mission-type) when ``layer == "built-in"``; org/project
-# fall through to the final ``return None`` (src/charter/pack_manager.py,
+# fall through to the final ``return None`` (src/charter/activation/pack_manager.py,
 # confirmed live before this WP's change). Every test class below was
 # written and run RED against that pre-fix body before the production fix
 # was made -- see WP05's report for the captured pre-fix pytest output.
@@ -479,7 +479,7 @@ class TestResolveLayerCandidateMissionTypeLayers:
     """
 
     def test_org_layer_resolves_to_pack_root_mission_types(self, tmp_path: Path) -> None:
-        from charter.pack_manager import _resolve_layer_candidate
+        from charter.activation.pack_manager import _resolve_layer_candidate
 
         candidate = _resolve_layer_candidate(
             "org", tmp_path, None, "missions/mission_types", layered=False
@@ -492,7 +492,7 @@ class TestResolveLayerCandidateMissionTypeLayers:
         so the resolved directory is ``.kittify/missions/mission_types`` -- a flat
         sibling of, not nested inside, ``.kittify/missions/<mission_name>/``.
         """
-        from charter.pack_manager import _resolve_layer_candidate
+        from charter.activation.pack_manager import _resolve_layer_candidate
 
         candidate = _resolve_layer_candidate(
             "project", tmp_path, None, "missions/mission_types", layered=False
@@ -502,7 +502,7 @@ class TestResolveLayerCandidateMissionTypeLayers:
     def test_built_in_layer_branch_is_unaffected(self, tmp_path: Path) -> None:
         """The pre-existing built-in-layer branch for ``kind is None`` must be
         untouched by adding the org/project branch."""
-        from charter.pack_manager import _resolve_layer_candidate
+        from charter.activation.pack_manager import _resolve_layer_candidate
         from charter.offering.missions.repository import MissionTemplateRepository
 
         candidate = _resolve_layer_candidate(

@@ -117,7 +117,7 @@ or read the YAML files directly from `packs/built-in/<kind>/` (artifacts live at
 `<type>/<pack>/[<category>/]<name>` — ADR 2026-07-26-2):
 
 ```python
-from charter.doctrine_service_builder import build_activation_aware_doctrine_service
+from charter.activation.doctrine_service_builder import build_activation_aware_doctrine_service
 
 service = build_activation_aware_doctrine_service(project_root)
 
@@ -214,7 +214,7 @@ the runtime reads it without any parse/extract step in between.
      them except a deliberate hand edit.
    - Flat-root activation keys (`activated_kinds`, `activated_directives`,
      `mission_type_activations`, …) — **hand-authored**, mirrors
-     `src/charter/packs/default.yaml`.
+     `src/charter/activation/packs/default.yaml`.
    - `catalog` / `metadata` — **generator-refreshed**. `charter generate`
      rewrites these two sections deterministically on every run (doctrine
      reference manifest, generation timestamp); everything else in the file
@@ -411,11 +411,14 @@ procedure = service.procedures.get("refactoring")
 # procedure.prerequisites → what must be true before starting
 ```
 
-**Agent Profiles** — Role definitions with 6 sections: context_sources,
-purpose, specialization, collaboration, mode_defaults, and
-initialization_declaration. Relationship fields such as `specializes_from` are
-not profile fields; lineage belongs in the doctrine DRG. Profiles support
-weighted matching against task context (DDR-011 algorithm).
+**Agent Profiles** — Role definitions with these sections: purpose,
+specialization, collaboration, mode_defaults, and initialization_declaration.
+Doctrine references are authored on the top-level `*-references` fields
+(`directive-references`, `tactic-references`, `toolguide-references`,
+`styleguide-references`) — the retired `context-sources` block was removed
+(mission `doctrine-drg-silent-drop-boundary`; #3629). Relationship fields such
+as `specializes_from` are not profile fields; lineage belongs in the doctrine
+DRG. Profiles support weighted matching against task context (DDR-011 algorithm).
 
 ```python
 profile = service.agent_profiles.get("implementer")
@@ -454,7 +457,7 @@ There is no `doctrine list` or `doctrine show` CLI command. Use the programmatic
 `DoctrineService` API or read artifact YAML files directly:
 
 ```python
-from charter.doctrine_service_builder import build_activation_aware_doctrine_service
+from charter.activation.doctrine_service_builder import build_activation_aware_doctrine_service
 
 service = build_activation_aware_doctrine_service(project_root)
 
@@ -660,8 +663,8 @@ reports `synced=False` / `files_written=[]`, regardless of `--force`.
 
 ## Programmatic Doctrine Access (DoctrineService)
 
-`charter.resolver.DoctrineService` — built through
-`charter.doctrine_service_builder.build_activation_aware_doctrine_service` —
+`charter.activation.resolver.DoctrineService` — built through
+`charter.activation.doctrine_service_builder.build_activation_aware_doctrine_service` —
 is the single, sanctioned entry point for programmatic access to all doctrine
 artifacts. It wraps the inner `charter.offering.service.DoctrineService` and applies
 charter activation filtering; never construct `charter.offering.service.DoctrineService`
@@ -670,7 +673,7 @@ architectural gates in `tests/architectural/` ban that construction outside
 this module).
 
 ```python
-from charter.doctrine_service_builder import build_activation_aware_doctrine_service
+from charter.activation.doctrine_service_builder import build_activation_aware_doctrine_service
 
 service = build_activation_aware_doctrine_service(project_root)
 ```

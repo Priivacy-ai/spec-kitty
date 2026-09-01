@@ -2,8 +2,8 @@
 
 Covers the shared, declaration-order, existing-path-filtered primitive that
 :func:`charter.offering.drg.org_pack_config.resolve_org_dirs` and every runtime
-"does this org root actually exist" consumer (``charter.mission_type_profiles``,
-``specify_cli.dossier.manifest``, ``charter.doctrine_service_builder``) now
+"does this org root actually exist" consumer (``charter.activation.mission_type_profiles``,
+``specify_cli.dossier.manifest``, ``charter.activation.doctrine_service_builder``) now
 route onto, instead of each re-implementing the same filter comprehension
 independently.
 """

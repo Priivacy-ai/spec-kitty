@@ -1,17 +1,17 @@
 """T033 (WP06, #2532) — focused unit tests for the 5 service/profile-
-resolution seams extracted from ``charter.context``: ``context_json``,
+resolution seams extracted from ``charter.activation.context``: ``context_json``,
 ``org_pack_discovery``, ``action_doctrine_bundle``, ``profile_resolution``,
 and ``doctrine_service_builder``.
 
 Each seam module is imported from its NEW home (not re-exported through
-``charter.context``) so these tests pin the seam itself, independent of the
+``charter.activation.context``) so these tests pin the seam itself, independent of the
 FR-009 preserved-surface re-export — mirroring the WP04/WP05 precedent
 (``tests/charter/test_context_leaf_seams.py`` /
 ``tests/charter/test_context_render_seams.py``). Also doubles as the
 seam-existence manifest's real-consumer wiring for ``context_json``,
 ``action_doctrine_bundle``, and ``doctrine_service_builder`` — the 3 seams
 whose only OTHER consumer is a lazy, function-local import from
-``charter.context`` itself (see ``tests/charter/test_context_decomposition_completion.py``).
+``charter.activation.context`` itself (see ``tests/charter/test_context_decomposition_completion.py``).
 """
 
 from __future__ import annotations
@@ -21,11 +21,11 @@ from unittest.mock import patch
 
 import pytest
 
-from charter.action_doctrine_bundle import (
+from charter.activation.action_doctrine_bundle import (
     _ActionDoctrineBundle,
     _load_action_doctrine_bundle,
 )
-from charter.context_json import (
+from charter.activation.context_json import (
     _EMPTY_ORG_CHARTER,
     _bundle_root_for_json,
     _load_project_directives,
@@ -33,14 +33,14 @@ from charter.context_json import (
     _project_charter_json_block,
     _relative_json_path,
 )
-from charter.doctrine_service_builder import _build_doctrine_service
-from charter.org_pack_discovery import (
+from charter.activation.doctrine_service_builder import _build_doctrine_service
+from charter.activation.org_pack_discovery import (
     _enumerate_org_pack_paths,
     _load_doctrine_selection,
     _missing_pack_diagnostic,
     _read_org_required_selections,
 )
-from charter.profile_resolution import (
+from charter.activation.profile_resolution import (
     _existing_org_roots,
     _normalize_directive_id,
     _reset_agent_profile_cache,
@@ -89,20 +89,20 @@ def test_empty_org_charter_shape() -> None:
 
 class TestBundleRootForJson:
     def test_falls_back_to_repo_root_when_sync_raises(self, tmp_path: Path) -> None:
-        with patch("charter.sync.ensure_charter_bundle_fresh", side_effect=RuntimeError("boom")):
+        with patch("charter.activation.sync.ensure_charter_bundle_fresh", side_effect=RuntimeError("boom")):
             assert _bundle_root_for_json(tmp_path) == tmp_path
 
     def test_uses_canonical_root_from_sync_result(self, tmp_path: Path) -> None:
         canonical = tmp_path / "canonical"
         canonical.mkdir()
         result = type("SyncResult", (), {"canonical_root": canonical})()
-        with patch("charter.sync.ensure_charter_bundle_fresh", return_value=result):
+        with patch("charter.activation.sync.ensure_charter_bundle_fresh", return_value=result):
             assert _bundle_root_for_json(tmp_path) == canonical
 
 
 class TestProjectCharterJsonBlock:
     def test_absent_charter_reports_present_false(self, tmp_path: Path) -> None:
-        with patch("charter.sync.ensure_charter_bundle_fresh", return_value=None):
+        with patch("charter.activation.sync.ensure_charter_bundle_fresh", return_value=None):
             block = _project_charter_json_block(tmp_path)
         assert block["present"] is False
         assert "bytes" not in block
@@ -114,7 +114,7 @@ class TestLoadProjectDirectives:
             raise RuntimeError("no config")
 
         with patch(
-            "charter.resolver.resolve_project_governance",
+            "charter.activation.resolver.resolve_project_governance",
             return_value=type("Res", (), {"directives": ["DIRECTIVE_001"]})(),
         ):
             local_by_id, directive_ids = _load_project_directives(tmp_path, _raise)
@@ -218,7 +218,7 @@ class TestExistingOrgRoots:
 
 
 def test_reset_agent_profile_cache_clears_both_stores() -> None:
-    import charter.profile_resolution as pr
+    import charter.activation.profile_resolution as pr
 
     pr._ACTIVATION_AWARE_PROFILE_MAPS[Path("/some/repo")] = {}
     _reset_agent_profile_cache()
@@ -242,9 +242,9 @@ class TestBuildDoctrineService:
         built_in_root = tmp_path / "built-in"
         built_in_root.mkdir()
         with (
-            patch("charter.catalog.resolve_doctrine_root", return_value=built_in_root),
+            patch("charter.activation.catalog.resolve_doctrine_root", return_value=built_in_root),
             patch("charter.offering.service.DoctrineService", _StubDoctrineService),
-            patch("charter.context.infer_repo_languages", return_value=["python"]),
+            patch("charter.activation.context.infer_repo_languages", return_value=["python"]),
         ):
             _build_doctrine_service(tmp_path, org_roots=None)
         assert "org_roots" not in calls
@@ -260,9 +260,9 @@ class TestBuildDoctrineService:
         built_in_root.mkdir()
         org_root = tmp_path / "org"
         with (
-            patch("charter.catalog.resolve_doctrine_root", return_value=built_in_root),
+            patch("charter.activation.catalog.resolve_doctrine_root", return_value=built_in_root),
             patch("charter.offering.service.DoctrineService", _StubDoctrineService),
-            patch("charter.context.infer_repo_languages", return_value=["python"]),
+            patch("charter.activation.context.infer_repo_languages", return_value=["python"]),
         ):
             _build_doctrine_service(tmp_path, org_roots=[org_root])
         assert calls["org_roots"] == [org_root]

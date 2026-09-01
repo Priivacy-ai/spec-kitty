@@ -62,6 +62,7 @@ from specify_cli.retrospective.writer import (
     write_gen_record,
     write_record,
 )
+from specify_cli.runtime.resolver import resolve_configured_artifact_name
 from specify_cli.status import reduce as reduce_status_events
 from specify_cli.status import read_events
 
@@ -231,6 +232,15 @@ def _canonical_events_dir(repo_root: Path, mission_slug: str, fallback_dir: Path
     return surface.parent
 
 
+def _required_planning_artifact_filenames() -> tuple[str, str, str]:
+    """Return today's (spec, plan, tasks) filenames via the resolved artifact-name seam."""
+    return (
+        resolve_configured_artifact_name("input.spec.main"),
+        resolve_configured_artifact_name("output.plan.main"),
+        resolve_configured_artifact_name("output.tasks.list"),
+    )
+
+
 def _mission_artifacts_sufficient_for_empty_record(
     feature_dir: Path,
     *,
@@ -244,7 +254,7 @@ def _mission_artifacts_sufficient_for_empty_record(
     status surface (FR-009 / #1735), which diverges from ``feature_dir`` under
     coordination topology.
     """
-    for required in ("spec.md", "plan.md", "tasks.md"):
+    for required in _required_planning_artifact_filenames():
         if not (feature_dir / required).is_file():
             return False
     tasks_dir = feature_dir / "tasks"
@@ -393,8 +403,8 @@ def synthesize_cmd(
                         "schema_version": "1",
                         "command": "agent.retrospect.synthesize",
                         "status": "error",
-                        "outcome": "mission_not_found",
-                        "error": "mission_not_found",
+                        "outcome": "MISSION_NOT_FOUND",
+                        "error": "MISSION_NOT_FOUND",
                         "handle": exc.handle,
                         "next_action": "Check the mission handle or run `spec-kitty agent mission list`.",
                     }
@@ -415,7 +425,7 @@ def synthesize_cmd(
                         "schema_version": "1",
                         "command": "agent.retrospect.synthesize",
                         "status": "error",
-                        "outcome": "ambiguous_mission_handle",
+                        "outcome": "MISSION_AMBIGUOUS_SELECTOR",
                     }
                 )
             )

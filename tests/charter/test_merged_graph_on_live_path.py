@@ -13,7 +13,7 @@ from unittest.mock import patch
 
 import pytest
 
-from charter._drg_helpers import load_validated_graph
+from charter.activation._drg_helpers import load_validated_graph
 from charter.offering.drg.loader import load_graph_or_dir
 
 pytestmark = pytest.mark.fast
@@ -45,9 +45,9 @@ def test_load_validated_graph_invokes_assert_valid(tmp_path: Path) -> None:
     )
 
     with patch(
-        "charter._drg_helpers.load_built_in_graph",
+        "charter.activation._drg_helpers.load_built_in_graph",
         side_effect=lambda: _built_in_from(built_in_root),
-    ), patch("charter._drg_helpers.assert_valid") as mock_validator:
+    ), patch("charter.activation._drg_helpers.assert_valid") as mock_validator:
         load_validated_graph(tmp_path)
     assert mock_validator.called, "assert_valid() was not called"
 
@@ -80,7 +80,7 @@ def test_load_validated_graph_overlays_project_graph(tmp_path: Path) -> None:
     )
 
     with patch(
-        "charter._drg_helpers.load_built_in_graph",
+        "charter.activation._drg_helpers.load_built_in_graph",
         side_effect=lambda: _built_in_from(built_in_root),
     ):
         graph = load_validated_graph(tmp_path)
@@ -107,7 +107,7 @@ def test_load_validated_graph_rejects_invalid_merge(tmp_path: Path) -> None:
         encoding="utf-8",
     )
     with patch(
-        "charter._drg_helpers.load_built_in_graph",
+        "charter.activation._drg_helpers.load_built_in_graph",
         side_effect=lambda: _built_in_from(built_in_root),
     ):
         with pytest.raises(Exception):  # noqa: B017, assert_valid may raise a variety

@@ -150,7 +150,7 @@ from typing import TYPE_CHECKING, Any
 from kernel.clock import now_utc_iso
 
 if TYPE_CHECKING:
-    from charter.invocation_context import OperationalContext as OperationalContextT
+    from charter.activation.invocation_context import OperationalContext as OperationalContextT
 
 from runtime.next._internal_runtime import (
     DiscoveryContext,
@@ -664,6 +664,9 @@ def _finalized_task_board_override_step(
     This is intentionally narrow: it only overrides stale early runtime phases
     after a mission already has tasks.md, finalized WP files, and canonical WP
     lane state. It does not reorder non-finalized mission DAG execution.
+    A board whose WPs all reach acceptable endings reports ``accept``; ``done``
+    remains reserved for a board whose reduced lanes are all done, so an
+    operator-canceled WP is never reported as done.
     """
     if progress is None:
         return None
@@ -684,51 +687,53 @@ def _finalized_task_board_override_step(
     if _find_first_wp_by_lane(feature_dir, "in_review", status_dir=status_dir) is not None:
         return "blocked:review_in_progress"
 
-    acceptable_endings = _count_acceptable_wp_endings(
+    done_endings, acceptable_endings = _count_wp_endings(
         feature_dir,
         status_dir=status_dir,
     )
-    done = int(progress.get("done_wps", 0) or 0)
-    if done == total:
-        return "done"
     if acceptable_endings == total:
-        return "accept"
+        return "done" if done_endings == total else "accept"
     return "blocked:no_actionable_wp"
 
 
-def _count_acceptable_wp_endings(
+def _reduced_wp_lane(wp_snapshot: Mapping[str, Any] | None) -> str:
+    """Return the canonical lane slot from a reduced WP snapshot."""
+    if wp_snapshot is None:
+        return str(Lane.UNINITIALIZED)
+    return str(wp_snapshot.get("lane", Lane.GENESIS))
+
+
+def _count_wp_endings(
     feature_dir: Path,
     *,
     status_dir: Path | None = None,
-) -> int:
-    """Count WP files whose reduced lane is an acceptable mission ending."""
+) -> tuple[int, int]:
+    """Count WP files whose reduced lanes are done and acceptable endings."""
     tasks_dir = feature_dir / "tasks"
     if not tasks_dir.is_dir():
-        return 0
+        return 0, 0
 
     lane_read_dir = status_dir if status_dir is not None else feature_dir
     try:
         wp_snapshots = get_all_wp_snapshots(lane_read_dir)
     except CanonicalStatusNotFoundError:
-        return 0
+        return 0, 0
 
     acceptable_endings = 0
+    done_endings = 0
     for wp_file in sorted(tasks_dir.glob(TASKS_GLOB)):
         wp_match = re.match(r"(WP\d+)", wp_file.stem)
         wp_id = wp_match.group(1) if wp_match else wp_file.stem
         wp_snapshot = wp_snapshots.get(wp_id)
-        lane = (
-            wp_snapshot.get("lane", Lane.GENESIS)
-            if wp_snapshot is not None
-            else Lane.UNINITIALIZED
-        )
+        lane = _reduced_wp_lane(wp_snapshot)
+        if lane == str(Lane.DONE):
+            done_endings += 1
         if is_acceptable_ending(
-            str(lane),
+            lane,
             has_provenance=has_operator_provenance(wp_snapshot),
         ):
             acceptable_endings += 1
-    return acceptable_endings
-
+    return done_endings, acceptable_endings
 
 def _should_advance_wp_step(step_id: str, feature_dir: Path) -> bool:
     """Check if all WPs are done for this phase, meaning we should advance.
@@ -752,11 +757,7 @@ def _should_advance_wp_step(step_id: str, feature_dir: Path) -> bool:
         wp_match = re.match(r"(WP\d+)", wp_file.stem)
         wp_id = wp_match.group(1) if wp_match else wp_file.stem
         wp_snapshot = wp_snapshots.get(wp_id)
-        raw_lane = (
-            Lane(wp_snapshot.get("lane", Lane.GENESIS))
-            if wp_snapshot is not None
-            else Lane.UNINITIALIZED
-        )
+        raw_lane = _reduced_wp_lane(wp_snapshot)
         try:
             state = wp_state_for(raw_lane)
         except ValueError:
@@ -807,7 +808,13 @@ TASKS_ARTIFACT = "tasks.md"
 STATE_FILE = "state.json"
 
 
-def _check_cli_guards(step_id: str, feature_dir: Path, *, mission_family: str | None = None) -> list[str]:
+def _check_cli_guards(
+    step_id: str,
+    feature_dir: Path,
+    *,
+    mission_family: str | None = None,
+    repo_root: Path | None = None,
+) -> list[str]:
     """Thin compat delegate — forwards to
     :func:`runtime_bridge_cores.evaluate_guards` over a
     :func:`runtime_bridge_io.gather_artifact_presence` snapshot (#2531 WP06,
@@ -820,10 +827,21 @@ def _check_cli_guards(step_id: str, feature_dir: Path, *, mission_family: str | 
     primary-anchored mission type. Direct callers may omit it to preserve the
     legacy feature-dir lookup behavior.
 
+    ``repo_root`` (#3704 WP03, FR-003) is forwarded to
+    :func:`runtime_bridge_io.gather_artifact_presence` for org-tier
+    ``expected-artifacts.yaml`` resolution (#3704 WP02, FR-008); defaults to
+    ``None`` (built-in tree only — today's exact behavior for every existing
+    caller that does not yet pass a real ``repo_root``).
+
     Returns list of failure descriptions; empty list means all guards pass.
     """
     mission_family = mission_family if mission_family is not None else get_mission_type(feature_dir)
-    snapshot = _io_seam.gather_artifact_presence(feature_dir, mission_family=mission_family, step_id=step_id)
+    snapshot = _io_seam.gather_artifact_presence(
+        feature_dir,
+        mission_family=mission_family,
+        step_id=step_id,
+        repo_root=repo_root,
+    )
     if step_id in ("implement", "review"):
         snapshot = dataclasses.replace(snapshot, wp_advance_ready=_should_advance_wp_step(step_id, feature_dir))
     return _cores.evaluate_guards_strict(snapshot)
@@ -1111,12 +1129,19 @@ def _check_composed_action_guard(
     *,
     mission: str = "software-dev",
     legacy_step_id: str | None = None,
+    repo_root: Path | None = None,
 ) -> list[str]:
     """Thin compat delegate — forwards to
     :func:`runtime_bridge_composition._check_composed_action_guard`
     (FR-012 compat surface, #2531 WP08). See the seam module's docstring for
-    the full guard-branch-family / legacy-vs-composition-only contract."""
-    return _composition._check_composed_action_guard(action, feature_dir, mission=mission, legacy_step_id=legacy_step_id)
+    the full guard-branch-family / legacy-vs-composition-only contract.
+
+    ``repo_root`` (#3704 WP03, FR-003) is forwarded unchanged; defaults to
+    ``None`` (built-in tree only, matching every existing caller of this
+    compat surface that does not yet pass a real ``repo_root``)."""
+    return _composition._check_composed_action_guard(
+        action, feature_dir, mission=mission, legacy_step_id=legacy_step_id, repo_root=repo_root
+    )
 
 
 def _dispatch_via_composition(
@@ -1674,8 +1699,18 @@ def _dn_dependency_gate(ctx: DecideNextContext) -> Decision | None:
             )
         # All WPs done for this step — check guards before advancing.
         try:
-            guard_failures = _check_cli_guards(current_step_id, feature_dir, mission_family=mission_type)
+            guard_failures = _check_cli_guards(
+                current_step_id,
+                feature_dir,
+                mission_family=mission_type,
+                repo_root=repo_root,
+            )
         except _cores.UnregisteredMissionFamilyError:
+            logger.warning(
+                "Unregistered mission_family %r reached the CLI guard path; "
+                "returning a neutral (empty) guard result.",
+                mission_type,
+            )
             guard_failures = []
         if guard_failures:
             return _build_wp_iteration_decision(
@@ -1692,9 +1727,29 @@ def _dn_dependency_gate(ctx: DecideNextContext) -> Decision | None:
                 guard_failures=guard_failures,
             )
 
-    # Check guards for non-WP software-dev steps before advancing.
+    # Check guards for non-WP steps before advancing.
+    #
+    # This CLI-native pre-check (#3407 M3) is scoped to the ``software-dev``
+    # mission family only. Its ``kind=step`` "re-issue the current step"
+    # semantic belongs to software-dev's linear specify → plan → tasks CLI
+    # vocabulary; it must NOT pre-empt composition dispatch for the other
+    # families. For ``documentation`` / ``research`` / ``plan`` and every
+    # custom mission type, the composed-action guard (Phase 3) is the
+    # authority — it surfaces the same missing-artifact failure as a
+    # ``kind=blocked`` decision (the fail-CLOSED contract, spec.md AC of the
+    # documentation/research runtime walks) and, unlike ``_check_cli_guards``
+    # here, degrades gracefully for guard-table-unregistered custom families
+    # instead of raising ``UnregisteredMissionFamilyError``. Gating on the
+    # family keeps software-dev byte-identical to its pre-#3407 behavior
+    # (AC-14) while restoring the correct blocked decision for the composed
+    # families (WP06 wrongly routed them through this ``kind=step`` path).
     if ctx.result == "success" and current_step_id and not _is_wp_iteration_step(current_step_id) and mission_type == MISSION_TYPE_SOFTWARE_DEV:
-        guard_failures = _check_cli_guards(current_step_id, feature_dir, mission_family=mission_type)
+        guard_failures = _check_cli_guards(
+            current_step_id,
+            feature_dir,
+            mission_family=mission_type,
+            repo_root=repo_root,
+        )
         if guard_failures:
             action, wp_id, workspace_path = _state_to_action(
                 current_step_id,

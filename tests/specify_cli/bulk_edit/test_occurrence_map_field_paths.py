@@ -443,13 +443,22 @@ class TestB2RealExemptionSet:
         them as *quantities* ("188 GOVERNANCE occurrences across 17 files"), and
         the claim the criterion makes is about the size of the exemption set a
         field-path map has to be able to express, not about which individual
-        ``(file, field, detail)`` triples make it up. Naming 188 triples here
+        ``(file, field, detail)`` triples make it up. Naming the triples here
         would restate ``inline_reference_inventory``'s output rather than pin
         the criterion, and the per-triple contract is already asserted by
         ``test_every_real_governance_field_is_expressible_as_field_path_exception``
         below, which iterates every real ``(path, field_name)`` pair. The *file*
         sets are a different matter and are pinned by name — a file leaving
         GOVERNANCE while another joins is exactly the drift a count cannot see.
+
+        NOTE (mission doctrine-drg-silent-drop-boundary-01M0PE7E, #3629 p1): the
+        GOVERNANCE occurrence total dropped from 224 to 92 when the retired
+        ``context-sources.*`` profile surface was removed. GOVERNANCE now counts
+        only ``directive-references`` codes (the ``context-sources`` sibling keys
+        it also counted no longer exist). The GOVERNANCE *file* set is unchanged
+        — the 24 built-in profiles that carry ``directive-references`` — because
+        every profile that authored ``context-sources`` also authored
+        ``directive-references``.
         """
         inv = _load_inventory_module()
         inventory = inv.collect()
@@ -462,8 +471,9 @@ class TestB2RealExemptionSet:
             e.path for e in inventory.entries if e.disposition == inv.MIGRATE
         }
 
-        # Occurrences (SC-011's own units) — see the docstring.
-        assert len(gov) == 224  # golden-count: cardinality-is-contract
+        # Occurrences (SC-011's own units) — see the docstring. 224 -> 92 after
+        # the context-sources removal (mission doctrine-drg-silent-drop-boundary).
+        assert len(gov) == 92  # golden-count: cardinality-is-contract
         assert len(raw) == 14  # golden-count: cardinality-is-contract
         # Files (the inexpressibility argument's actual unit — plan.md IC-02 /
         # this WP's context section; SC-011's wording conflates the two).
@@ -508,10 +518,33 @@ class TestB2RealExemptionSet:
                 "writing/kitty-glossary-writing",
             )
         }, "the RAW_MATERIAL file set moved — SC-011's 7 files are built-in styleguides"
-        assert gov_files <= migrate_files, (
-            "every GOVERNANCE file must also carry MIGRATE entries — this IS "
-            "the inexpressibility this WP exists to fix"
-        )
+        # Post-consolidation (mission doctrine-drg-silent-drop-boundary): the
+        # retired ``context-sources.directives`` used to add a MIGRATE entry to
+        # EVERY governed profile, so the original "every GOVERNANCE file also
+        # carries MIGRATE" universal subset held. With ``context-sources`` gone,
+        # the governed profiles split cleanly: 12 still carry BOTH a GOVERNANCE
+        # (``directive-references``) and a MIGRATE (``tactic-references``) field
+        # in the same file — these are the ones the field-path inexpressibility
+        # argument still targets and are named here — and 12 now carry ONLY the
+        # GOVERNANCE field (a file-level exclusion suffices for those). Naming
+        # the overlap by file pins the drift a bare subset check would miss.
+        assert gov_files & migrate_files == {
+            f"agent_profiles/{name}.agent.yaml"
+            for name in (
+                "architect-alphonso",
+                "comms-cleo",
+                "debugger-debbie",
+                "frontend-freddy",
+                "implementer-ivan",
+                "java-jenny",
+                "lexical-larry",
+                "node-norris",
+                "paula-patterns",
+                "python-pedro",
+                "randy-reducer",
+                "reviewer-renata",
+            )
+        }, "the GOVERNANCE/MIGRATE overlap (profiles carrying both a governed and a migrated field) moved"
         # The overlap is the harder half of the same argument: these five files
         # need per-field disposition, so name them rather than count them.
         assert raw_files & migrate_files == {

@@ -1,0 +1,222 @@
+name: Release Readiness Check
+
+on:
+  pull_request:
+    branches:
+      - main
+      - 2.x
+    paths:
+      - pyproject.toml
+      - .kittify/metadata.yaml
+      - CHANGELOG.md
+      - uv.lock
+      - scripts/release/**
+      - RELEASE_CHECKLIST.md
+      - .github/workflows/release-readiness.yml
+      # FR-008 / R1 (mission runtime-state-birth-cutover-all-paths): kitty-specs/**
+      # otherwise triggers NO test workflow at all, so a corpus-only mission PR
+      # (touching only kitty-specs/<mission>/...) would run zero CI. This path
+      # entry exists solely to give the cutover-guard job below somewhere to
+      # fire from; it must NOT be removed without relocating that job.
+      - kitty-specs/**
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Optional tag to validate (for dry runs)'
+        required: false
+        type: string
+  schedule:
+    # Run nightly to monitor release metadata drift
+    - cron: '0 2 * * *'
+
+concurrency:
+  group: release-readiness-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  check-readiness:
+    runs-on: ubuntu-latest
+    if: ${{ !contains(github.event.pull_request.labels.*.name, 'pr:deferred') && !contains(github.event.pull_request.labels.*.name, 'pr:skip-ci') }}
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: '3.12'
+          cache: 'pip'
+
+      - name: Install validator dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install pyyaml
+
+      - name: Detect release metadata changes
+        if: github.event_name == 'pull_request'
+        id: metadata_changes
+        uses: dorny/paths-filter@v4
+        with:
+          filters: |
+            version_sources:
+              - 'pyproject.toml'
+              - '.kittify/metadata.yaml'
+              - 'CHANGELOG.md'
+              - 'uv.lock'
+            version_bump:
+              - 'pyproject.toml'
+            validator_surface:
+              - 'scripts/release/**'
+              - '.github/workflows/release-readiness.yml'
+
+      - name: Validate release metadata
+        if: >-
+          github.event_name != 'pull_request' ||
+          steps.metadata_changes.outputs.version_sources == 'true' ||
+          steps.metadata_changes.outputs.validator_surface == 'true'
+        id: validate
+        continue-on-error: true
+        run: |
+          if [[ -n "${{ inputs.tag }}" ]]; then
+            echo "Running validation in tag mode for dry run: ${{ inputs.tag }}"
+            echo "scope=tag" >> "$GITHUB_OUTPUT"
+            python scripts/release/validate_release.py --mode tag --tag "${{ inputs.tag }}" --tag-pattern "v*.*.*"
+          elif [[ "${{ github.event_name }}" != "pull_request" || "${{ steps.metadata_changes.outputs.version_bump }}" == "true" ]]; then
+            echo "Running validation in branch mode"
+            echo "scope=full" >> "$GITHUB_OUTPUT"
+            python scripts/release/validate_release.py --mode branch --tag-pattern "v*.*.*"
+          else
+            echo "Running version-source consistency gate"
+            echo "scope=consistency" >> "$GITHUB_OUTPUT"
+            python scripts/release/validate_release.py --mode branch --consistency-only --tag-pattern "v*.*.*"
+          fi
+
+      - name: Generate readiness summary
+        if: always()
+        run: |
+          echo "# Release Readiness Report" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+
+          if [[ "${{ steps.validate.outcome }}" == "success" && "${{ steps.validate.outputs.scope }}" == "consistency" ]]; then
+            echo "✅ **Version-source consistency checks passed**" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "Release-version sources agree:" >> $GITHUB_STEP_SUMMARY
+            echo "- pyproject.toml, .kittify/metadata.yaml, CHANGELOG.md, and uv.lock are consistent" >> $GITHUB_STEP_SUMMARY
+            echo "- Changelog entry exists and is populated for the current source version" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "This was a consistency-only validation. It did not check whether the branch is release-ready, whether the version was bumped, or whether version progression is monotonic." >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "Use CI Quality and Check Shared Package Drift on the same commit for test, package, and compatibility evidence." >> $GITHUB_STEP_SUMMARY
+          elif [[ "${{ steps.validate.outcome }}" == "success" ]]; then
+            echo "✅ **All readiness checks passed**" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "This branch is ready for release:" >> $GITHUB_STEP_SUMMARY
+            echo "- Version is properly bumped" >> $GITHUB_STEP_SUMMARY
+            echo "- pyproject.toml, .kittify/metadata.yaml, CHANGELOG.md, and uv.lock agree" >> $GITHUB_STEP_SUMMARY
+            echo "- Changelog entry exists and is populated" >> $GITHUB_STEP_SUMMARY
+            echo "- Version progression is monotonic" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "This workflow validates release metadata only. CI Quality owns tests, wheel build, exact-install, and SaaS consumer compatibility checks; Check Shared Package Drift owns shared-package pin drift checks." >> $GITHUB_STEP_SUMMARY
+            echo "Do not summarize a release as green until CI Quality and Check Shared Package Drift have also passed on the same commit." >> $GITHUB_STEP_SUMMARY
+          elif [[ "${{ github.event_name }}" == "pull_request" && "${{ steps.metadata_changes.outputs.version_sources }}" != "true" && "${{ steps.metadata_changes.outputs.validator_surface }}" != "true" ]]; then
+            echo "✅ **Release metadata validation skipped**" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "Release metadata validation was skipped because this pull request does not modify release-version sources or validator logic." >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "This workflow no longer repeats CI Quality or shared-package drift work. Use CI Quality and Check Shared Package Drift on the same commit for test, package, and compatibility evidence." >> $GITHUB_STEP_SUMMARY
+          else
+            echo "❌ **Readiness checks failed**" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "Please complete the following before merging:" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "### Required Actions" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "1. **Version Bump** - Update version in \`pyproject.toml\`" >> $GITHUB_STEP_SUMMARY
+            echo "2. **Version Sync** - Keep \`pyproject.toml\`, \`.kittify/metadata.yaml\`, \`CHANGELOG.md\`, and \`uv.lock\` consistent" >> $GITHUB_STEP_SUMMARY
+            echo "3. **Changelog Entry** - Add release notes under \`## [X.Y.Z]\` in \`CHANGELOG.md\`" >> $GITHUB_STEP_SUMMARY
+            echo "4. **Version Progression** - Ensure new version > latest tag" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "See the validation output above for specific errors." >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "📖 **Reference**: [Release Checklist](https://github.com/${{ github.repository }}/blob/main/RELEASE_CHECKLIST.md)" >> $GITHUB_STEP_SUMMARY
+          fi
+
+      - name: Fail if validation failed
+        if: >-
+          (github.event_name != 'pull_request' ||
+          steps.metadata_changes.outputs.version_sources == 'true' ||
+          steps.metadata_changes.outputs.validator_surface == 'true') &&
+          steps.validate.outcome != 'success'
+        run: |
+          echo "::error::Release readiness checks failed. Review the validation output and job summary for details."
+          exit 1
+
+  # ---------------------------------------------------------------------------
+  # cutover-guard: FR-008 / R1 (mission runtime-state-birth-cutover-all-paths).
+  # Fail-closed pre-merge gate: every kitty-specs/<mission>/ corpus touched by
+  # this PR's diff must be cut over to event-log-authoritative runtime state
+  # (see contracts/pre-merge-guard.md). This job is deliberately hosted here,
+  # NOT in ci-quality.yml (that workflow's `changes`/src `dorny/paths-filter`
+  # gate would make a corpus-only diff skip it — a required check that is
+  # `if:`-skipped reports neutral and does NOT block merge, the exact footgun
+  # this job exists to avoid). It therefore:
+  #   - carries NO `changes`/paths-filter step gate of its own — it always
+  #     executes when this workflow runs;
+  #   - depends only on `kitty-specs/**` being present in this workflow's
+  #     top-level `on.pull_request.paths` (above) so a corpus-only PR
+  #     triggers the workflow at all;
+  #   - must be registered as a REQUIRED status check in branch protection
+  #     (see docs/development/cutover-guard.md) for the fail-closed guarantee
+  #     to hold — an unregistered check can be ignored by a merge button.
+  # ---------------------------------------------------------------------------
+  cutover-guard:
+    runs-on: ubuntu-latest
+    if: >-
+      github.event_name == 'pull_request' &&
+      !contains(github.event.pull_request.labels.*.name, 'pr:deferred') &&
+      !contains(github.event.pull_request.labels.*.name, 'pr:skip-ci')
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: '3.12'
+          cache: 'pip'
+          cache-dependency-path: uv.lock
+
+      - name: Set up uv
+        uses: astral-sh/setup-uv@v8.1.0
+
+      - name: Install the source-only guard environment
+        run: |
+          python -m pip install --upgrade pip
+          uv export --frozen --no-dev --no-hashes \
+            --no-emit-package spec-kitty-cli \
+            --output-file .cutover-requirements.lock.txt
+          python -m pip install -r .cutover-requirements.lock.txt
+
+      - name: Hydrate base-ref remote-tracking branch if missing
+        run: |
+          if ! git show-ref --verify --quiet "refs/remotes/origin/${{ github.base_ref }}"; then
+            git -c http.extraheader="AUTHORIZATION: bearer ${{ github.token }}" \
+              fetch origin \
+              "${{ github.base_ref }}:refs/remotes/origin/${{ github.base_ref }}"
+          fi
+
+      - name: Run cutover guard (fail-closed on any un-cut-over mission)
+        run: |
+          PYTHONPATH=src python - <<'PY'
+          from specify_cli.cli.commands.cutover_guard import cutover_guard
+
+          cutover_guard(base_ref="origin/${{ github.base_ref }}")
+          PY

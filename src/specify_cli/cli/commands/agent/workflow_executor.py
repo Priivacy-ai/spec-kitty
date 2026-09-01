@@ -591,8 +591,8 @@ def implement_check_wp_charter_precondition(main_repo_root: Path, wp: WorkPackag
     if not wp_profile:
         return
 
-    from charter.exceptions import CharterActivationError
-    from charter.invocation_context import ProjectContext
+    from charter.activation.exceptions import CharterActivationError
+    from charter.activation.invocation_context import ProjectContext
 
     pack_ctx = ProjectContext.from_repo(main_repo_root).require_pack_context()
     activated = pack_ctx.activated_agent_profiles
@@ -1215,8 +1215,8 @@ def implement_capture_baseline(
         # inject the shared factory so implement-time capture activates
         # ``_capture_baseline_via_scope_source`` -- the SAME
         # test_command()/parse_results() authority the pre-review head run
-        # uses, honoring whichever ScopeSource the repo resolves to
-        # (DeclaredCommandScopeSource / GateCoverageScopeSource). Resolved
+        # uses. The factory resolves only ``DeclaredCommandScopeSource`` after
+        # the workflow-derived source was retired. Resolved
         # against the SAME ``main_repo_root`` the baseline artifact placement
         # below already uses -- not a freshly reconstructed root.
         baseline = capture_baseline(

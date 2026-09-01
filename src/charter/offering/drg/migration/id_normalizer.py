@@ -1,6 +1,6 @@
 """Normalize directive IDs between slug and DIRECTIVE_NNN formats.
 
-Reuses the same algorithm as ``src/charter/context.py:_normalize_directive_id``
+Reuses the same algorithm as ``src/charter/activation/context.py:_normalize_directive_id``
 but exposed as a standalone, importable module for the DRG migration pipeline.
 """
 
@@ -33,7 +33,7 @@ def normalize_directive_id(raw: str) -> str:
     # the hyphens (``USE-C4-MODEL-TECHNIQUES``), a form that is NOT the node URN,
     # so slug-form references and activations dangled / mis-normalized (#3009).
     # Fold hyphens to underscores to converge on the canonical node id, matching
-    # ``charter.kind_vocabulary.resolve_artifact_urn``.
+    # ``charter.activation.kind_vocabulary.resolve_artifact_urn``.
     return raw.upper().replace("-", "_")
 
 

@@ -60,16 +60,19 @@ _NEXT_SHARD_3_FILES: tuple[str, ...] = (
 # Whole-file assignments under ``tests/specify_cli/next``.
 _SPECIFY_CLI_NEXT_SHARD_1_FILES: tuple[str, ...] = (
     "tests/specify_cli/next/test_decision_validation.py",
+    "tests/specify_cli/next/test_next_output_preservation.py",
     "tests/specify_cli/next/test_runtime_bridge.py",
     "tests/specify_cli/next/test_runtime_bridge_dispatch.py",
     "tests/specify_cli/next/test_workflow_software_dev_default_is_byte_stable.py",
 )
 _SPECIFY_CLI_NEXT_SHARD_2_FILES: tuple[str, ...] = (
     "tests/specify_cli/next/test_decision_dispatch.py",
+    "tests/specify_cli/next/test_next_cold_start_performance.py",
     "tests/specify_cli/next/test_workflow_command.py",
     "tests/specify_cli/next/test_workflow_registry.py",
 )
 _SPECIFY_CLI_NEXT_SHARD_3_FILES: tuple[str, ...] = (
+    "tests/specify_cli/next/test_next_import_footprint.py",
     "tests/specify_cli/next/test_runtime_bridge_composition.py",
     "tests/specify_cli/next/test_runtime_bridge_documentation_composition.py",
     "tests/specify_cli/next/test_runtime_bridge_research_composition.py",
@@ -87,6 +90,7 @@ _SPECIFY_CLI_NEXT_SHARD_3_FILES: tuple[str, ...] = (
 # (test_next_shard_marker_completeness.py) still sees a total, disjoint
 # partition of every test under `tests/runtime`.
 _RUNTIME_SHARD_1_FILES: tuple[str, ...] = (
+    "tests/runtime/next/test_cli_guard_family.py",
     "tests/runtime/next/test_import_paths.py",
     "tests/runtime/next/test_runtime_bridge_cancel_provenance.py",
     "tests/runtime/test_agent_skills.py",
@@ -105,6 +109,7 @@ _RUNTIME_SHARD_1_FILES: tuple[str, ...] = (
     "tests/runtime/test_workspace_context_unit.py",
 )
 _RUNTIME_SHARD_2_FILES: tuple[str, ...] = (
+    "tests/runtime/next/test_pertype_presence_gate.py",
     "tests/runtime/test_banner_visibility.py",
     "tests/runtime/test_bridge_composition.py",
     "tests/runtime/test_bridge_decision_builder.py",
