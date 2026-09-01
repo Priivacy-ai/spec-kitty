@@ -63,37 +63,18 @@ dependencies = [
     "pydantic>=2.0",
     "packaging>=23.0",
     "psutil>=5.9.0",  # Cross-platform process management for dashboard
-    # spec-kitty-events / spec-kitty-tracker: internal programme dependencies.
-    # Their public-surface contracts are pinned in
+    # spec-kitty-events / spec-kitty-tracker: public shared-package
+    # dependencies. Their public-surface contracts are pinned in
     # tests/contract/spec_kitty_events_consumer/ and
     # tests/contract/spec_kitty_tracker_consumer/. spec-kitty-runtime is
     # intentionally absent: the CLI's runtime surface is internalized under
     # src/runtime/next/ (see WP01 of mission
     # shared-package-boundary-cutover-01KQ22DS), and absence is enforced by
     # tests/architectural/test_pyproject_shape.py.
-    # spec-kitty-events 8.0.0 deletes the offline sync/legacy/cutover surfaces
-    # and moves the volatile mission/WP families' support rows to volatile
-    # durability; the zeitgeist_attrs codecs (to_/from_zeitgeist_attrs) are the
-    # canonical projection for ephemeral team-status moments. The envelope-level
-    # cutover gate is gone from validate_event; fail-closed gating lives in
-    # spec_kitty_events.strict.validate_strict_envelope. 8.0.0 adds the
-    # canonical `genesis` lane contract that src/specify_cli/status/emit.py's
-    # capability gate (_EVENTS_SUPPORTS_GENESIS) already degrades gracefully
-    # without.
-    # Pinned past 8.0.0 to events#77 (DecisionPointOpened/Resolved join
-    # VOLATILE_EVENT_TYPES; bounded moment summaries for
-    # SUMMARY_SOURCE_EVENT_TYPES) plus #81/#82 (zeitgeist_attrs rejects
-    # non-printable control characters), the exact commit this pin lands on
-    # (spec-kitty#324) — a strict superset of the SHA #324 itself named, and
-    # still an exact commit per PROGRAM.md §2, never a branch.
-    # For the programme, both shared packages resolve from exact git
-    # SHAs, never PyPI (PROGRAM.md §2; planning#31). The CLI installs as a wheel
-    # in a clean environment, so each pin lives in the dependency itself:
-    # [tool.uv.sources] does not travel into the wheel's Requires-Dist
-    # (controller-qa on #58). The host is always github.com, never the exe.dev
-    # github.int.exe.xyz forge proxy, which laptops cannot resolve.
-    "spec-kitty-events @ git+https://github.com/spec-kitty/EXPERIMENTAL-spec-kitty-events@c93dbfbf5243330349452a31d05bca2ece26ceea",
-    "spec-kitty-tracker @ git+https://github.com/spec-kitty/EXPERIMENTAL-spec-kitty-tracker@67a6ecc91f4b4a5fa82492a80ced4f49ce98851e",
+    # The bounded ranges keep clean-wheel installs on the public release train
+    # while preserving the release authority's compatibility contract.
+    "spec-kitty-events>=9,<10",
+    "spec-kitty-tracker>=0.5.2,<0.6",
     "toml>=0.10.2",  # Config file parsing
     "tomli-w>=1.0.0",  # TOML write serialiser (stdlib tomllib is read-only)
     "filelock>=3.13.0",  # Credential storage locking
@@ -155,9 +136,6 @@ spec-kitty = "specify_cli:main"
 # `2.4`. Keep this in lockstep with uv.lock's hatchling entry.
 requires = ["hatchling==1.31.0"]
 build-backend = "hatchling.build"
-
-[tool.hatch.metadata]
-allow-direct-references = true
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/kernel", "src/glossary", "src/mission_runtime", "src/runtime", "src/specify_cli", "src/charter"]

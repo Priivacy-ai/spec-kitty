@@ -231,6 +231,49 @@ class TestBuildContextV2:
         assert result.mode == "compact"
         assert result.first_load is False
 
+    def test_json_undeclared_action_with_resolved_type_returns_compact(
+        self, tmp_path: Path
+    ) -> None:
+        """AC-2 companion (WP02, #3596, ADR
+        2026-08-21-1-charter-gate-predicate-inversion, squad S3).
+
+        Isolates the predicate from type-resolution: ``mission_type`` DOES
+        resolve (``software-dev``, matching ``_MINIMAL_GRAPH_YAML``'s only
+        node ``action:software-dev/implement``) but the requested action
+        (``custom-action``) has no declared ``action:software-dev/custom-action``
+        node. The result must still be ``compact`` — proving the gate is
+        node-URN membership, not merely "did a type resolve". Exercises the
+        ``--json`` entry point (``build_charter_context_json``), the sibling
+        surface to ``test_non_bootstrap_action_returns_compact`` above (which
+        pins the same invariant on the plain-text entry point) — keep BOTH
+        green; this is a companion, not a replacement.
+        """
+        _setup_fixture_repo(tmp_path)
+
+        from io import StringIO
+
+        from charter.offering.drg.models import DRGGraph
+        from ruamel.yaml import YAML
+
+        yaml = YAML(typ="safe")
+        graph_data = yaml.load(StringIO(_MINIMAL_GRAPH_YAML))
+        mock_graph = DRGGraph.model_validate(graph_data)
+
+        with (
+            patch(
+                "charter.activation._drg_helpers.load_validated_graph",
+                return_value=mock_graph,
+            ),
+            patch("charter.activation.catalog.resolve_doctrine_root", return_value=tmp_path),
+            patch("charter.offering.drg.validator.assert_valid"),
+        ):
+            payload = build_charter_context_json(
+                tmp_path, action="custom-action", mission_type="software-dev"
+            )
+
+        assert payload["mode"] == "compact"
+        assert payload["directives"] == []
+
     def test_compact_text_contains_governance_reference_diagnostics(self, tmp_path: Path) -> None:
         """Compact context preserves declared supporting governance docs."""
         _setup_fixture_repo(tmp_path)

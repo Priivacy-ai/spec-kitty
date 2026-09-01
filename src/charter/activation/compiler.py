@@ -417,8 +417,13 @@ def compile_charter(
     )
 
     # Validate and normalize local support file declarations.
+    # FR-008 (#3596, WP02): repo_root feeds the declared-node acceptance
+    # source (charter.interview._declared_action_labels) alongside the
+    # fast-path BOOTSTRAP_ACTIONS constant, so a declared non-fast-path
+    # action (e.g. "tasks") is retained rather than warn-dropped.
     valid_local, local_errors = validate_local_support_declarations(
-        list(interview.local_supporting_files or [])
+        list(interview.local_supporting_files or []),
+        repo_root=repo_root,
     )
     diagnostics.extend(local_errors)
 

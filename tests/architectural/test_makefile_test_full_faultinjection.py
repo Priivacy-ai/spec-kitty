@@ -117,6 +117,7 @@ def _run_live(tmp_path: Path, fail_on_calls: str) -> tuple[int, list[str]]:
 def test_full_runs_every_pass_and_reds_when_any_pass_fails_live(tmp_path: Path, fail_on_calls: str) -> None:
     returncode, calls = _run_live(tmp_path, fail_on_calls)
     assert len(calls) == 3, f"expected all 3 test-full passes to run (uv invoked 3x), got {calls}"
+    assert all(call.startswith("run --frozen pytest ") for call in calls)
     assert returncode != 0, "test-full must exit non-zero when any pass fails"
 
 

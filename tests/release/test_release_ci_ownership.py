@@ -198,7 +198,7 @@ def test_release_wheel_gate_counts_charter_offering_and_skills() -> None:
     assert "git ls-files src/doctrine" not in run
 
 
-def test_release_readiness_cutover_guard_avoids_git_direct_references() -> None:
+def test_release_readiness_cutover_guard_keeps_deferred_events_bridge() -> None:
     workflow = load_workflow("release-readiness.yml")
     job = workflow["jobs"]["cutover-guard"]
     job_dump = repr(job)
@@ -207,14 +207,15 @@ def test_release_readiness_cutover_guard_avoids_git_direct_references() -> None:
     assert "git+https" not in job_dump
 
     checkout = next(step for step in job["steps"] if step.get("name") == "Check out the pinned events source")
-    pyproject = tomllib.loads((ROOT / "pyproject.toml").read_text(encoding="utf-8"))
-    events_dependency = next(dependency for dependency in pyproject["project"]["dependencies"] if dependency.startswith("spec-kitty-events @ "))
-    pinned_rev = re.search(r"@([0-9a-f]{40})$", events_dependency)
+    lock = tomllib.loads((ROOT / "uv.lock").read_text(encoding="utf-8"))
+    events_package = next(package for package in lock["package"] if package["name"] == "spec-kitty-events")
+    pinned_rev = re.search(r"rev=([0-9a-f]{40})", events_package["source"]["git"])
     assert pinned_rev is not None
     assert checkout["with"]["ref"] == pinned_rev.group(1)
 
     install = next(step for step in job["steps"] if step.get("name") == "Install the source-only guard environment")
     assert "uv export --frozen --no-dev" in install["run"]
+    assert "grep -vE ' @ git[+]'" in install["run"]
     assert "python -m pip install -r .cutover-requirements.pypi.txt" in install["run"]
     assert "python -m pip install --no-deps .cutover-deps/spec-kitty-events" in install["run"]
 
