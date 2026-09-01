@@ -6,7 +6,7 @@ The implement/next boundary reconciler (``_attempt_auto_refresh`` in
 -- no ``--prune``, no ``--dry-run`` -- which is WP01/WP03's
 ``SynthesizeMode.preserve`` default: a plain run never drops backed content
 and exits 0 for backed divergence. This module proves that at the boundary,
-end to end against the REAL ``charter.synthesizer`` reconciliation seam (not
+end to end against the REAL ``charter.activation.synthesizer`` reconciliation seam (not
 a hand-faked stand-in), and pins the companion self-clearing contract
 (amendment #2): a successful heal re-stamps the synthesis manifest's
 ``bundle_content_hash`` (via ``rewrite_manifest``, called unconditionally by
@@ -16,7 +16,7 @@ its own and a second boundary call is not re-blocked.
 Only the ``subprocess.run`` call for ``spec-kitty charter synthesize`` is
 faked (no real CLI/subprocess is spawned, matching the existing
 ``charter_preflight``/``charter_runtime`` test convention) -- but the fake
-invokes the real ``charter.synthesizer.orchestrator.synthesize()`` library
+invokes the real ``charter.activation.synthesizer.orchestrator.synthesize()`` library
 entry point in-process with a ``FixtureAdapter``, so the reconciliation,
 manifest re-stamp, and freshness recompute this module asserts on are all
 production code, not test doubles.
@@ -54,8 +54,8 @@ import pytest
 from ruamel.yaml import YAML
 from typer.testing import CliRunner
 
-from charter.synthesizer import FixtureAdapter, SynthesisRequest, SynthesisTarget, synthesize
-from charter.synthesizer.reconcile import SynthesizeMode
+from charter.activation.synthesizer import FixtureAdapter, SynthesisRequest, SynthesisTarget, synthesize
+from charter.activation.synthesizer.reconcile import SynthesizeMode
 from specify_cli.charter_runtime.freshness import compute_freshness
 from specify_cli.charter_runtime.preflight import run_charter_preflight
 from specify_cli.charter_runtime.preflight import runner as runner_module

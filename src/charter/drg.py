@@ -1,29 +1,44 @@
-"""Charter facade for DRG (Doctrine Reference Graph) types + org layer (Slice F).
+"""Charter facade for DRG (Doctrine Reference Graph) offering types.
 
 This module is the charter-layer proxy for runtime callers that historically
-imported from ``doctrine.drg`` directly. The runtime → charter → doctrine
+imported from ``charter.offering.drg`` directly. The runtime → charter → doctrine
 boundary (ADR 2026-03-27-1, tightened by mission
 ``charter-mediated-doctrine-selection-01KRTZCA``) requires runtime modules
 under ``src/specify_cli/`` to reach doctrine artifacts only through such
 charter facades.
 
-This file is partly a pure re-export module — and partly the home of the
-Slice F WP06 organisation-tier DRG loader (``load_org_drg``,
-``merge_three_layers``, ``OrgDRGConflictError``). The org-DRG additions live
-in the charter layer per the architectural constraint that anything new in the
-doctrine-overlay space must be reachable by ``specify_cli`` only through
-``charter``.
+This file is a pure re-export module — the offering-type surface only
+(``ArtifactKind``, ``DRGNode``, ``NodeKind``, the org-DRG schema/exception
+types, and the loader/query functions that live in ``charter.offering.drg.*``).
 
-Schema / fragment models live in ``doctrine.drg.org_pack_loader``
+Schema / fragment models live in ``charter.offering.drg.org_pack_loader``
 (PR #1119 DDD-boundary fix): ``OrgDRGFragment``, ``OrgPackMissingError``.
 Charter re-exports them here so existing ``from charter.drg import …`` call
 sites remain valid without crossing the layer boundary directly.
+
+Activation-aware logic split (mission ``charter-activation-split-01M16ZSE``,
+DEC-1): the org-DRG loader (``load_org_drg``) and the FR-018 activation
+filter (``filter_graph_by_activation`` + its private helpers) now live in
+:mod:`charter.activation.drg_activation` — they read project-charter
+activation state (:class:`~charter.activation.pack_context.PackContext`),
+which is an activation concern, not an offering-type concern. Import those
+two from there:
+
+    from charter.activation.drg_activation import (
+        filter_graph_by_activation,
+        load_org_drg,
+    )
+
+``merge_three_layers`` is a pure ``charter.offering.drg.merge`` re-export
+(no activation state), so it stays available on this offering facade too and
+is *also* re-exported from ``charter.activation.drg_activation`` for callers
+already importing the split trio — both paths resolve the same symbol.
 
 Slice F WP06 design notes
 -------------------------
 
 The org-DRG fragment schema (``OrgDRGFragment``) intentionally uses a
-simpler node/edge shape than ``doctrine.drg.models.DRGNode`` /
+simpler node/edge shape than ``charter.offering.drg.models.DRGNode`` /
 ``DRGEdge``. The reason is C-009: the contract round-trip gate exercises
 the YAML example in
 ``kitty-specs/<mission>/contracts/org-drg-schema.md`` which uses plural
@@ -32,7 +47,7 @@ kinds (``kind: directives``) and human-friendly fields (``id``, ``title``,
 satisfy both surfaces:
 
 * Fragment-side parsing uses private node/edge models declared in
-  ``doctrine.drg.org_pack_loader``. Their ``kind`` field is constrained
+  ``charter.offering.drg.org_pack_loader``. Their ``kind`` field is constrained
   to the Mission B 8-kind plural universe (C-009 binding).
 * ``merge_three_layers`` bridges fragment nodes onto the built-in DRG by
   minting URNs of the form ``<singular_kind>:<id>`` (e.g. ``directive:sox-controls``).
@@ -48,26 +63,17 @@ contract YAML shape that the FR-140 round-trip gate enforces.
 
 from __future__ import annotations
 
-from pathlib import Path
-
-from charter.catalog import resolve_doctrine_root
-from charter.kind_vocabulary import (
-    MissionTypeNotAnArtifactKind,
-    UnknownArtifactIdError,
-    resolve_artifact_urn,
-)
-# ArtifactKind is re-exported from the curated public surface ``doctrine.api``
-# (not ``doctrine.artifact_kinds`` directly) so the PUBLIC wheel symbol gains a
-# live in-repo caller — the from-``doctrine.api`` wiring the no-dead-symbol gate
+# ArtifactKind is re-exported from the curated public surface ``charter.offering.api``
+# (not ``charter.offering.artifact_kinds`` directly) so the PUBLIC wheel symbol gains a
+# live in-repo caller — the from-``charter.offering.api`` wiring the no-dead-symbol gate
 # (``tests/architectural/test_no_dead_symbols.py``) and the strict T007
 # live-caller assertion (``test_doctrine_public_surface.py``) depend on. Object
-# identity is unchanged: ``doctrine.api.ArtifactKind is
-# doctrine.artifact_kinds.ArtifactKind`` (mission ``doctrine-public-api-surface``
+# identity is unchanged: ``charter.offering.api.ArtifactKind is
+# charter.offering.artifact_kinds.ArtifactKind`` (mission ``doctrine-public-api-surface``
 # WP03, FR-003 / NFR-002 / contract C1).
-from charter.pack_context import PackContext
-from doctrine.api import ArtifactKind
-from doctrine.base import DoctrineLayerCollisionWarning
-from doctrine.drg import (
+from charter.offering.api import ArtifactKind
+from charter.offering.base import DoctrineLayerCollisionWarning
+from charter.offering.drg import (
     DRGLoadError,
     DRGValidationError,
     load_built_in_graph,
@@ -76,22 +82,22 @@ from doctrine.drg import (
     merge_layers,
     validate_dangling_references,
 )
-from doctrine.drg.merge import (
+from charter.offering.drg.merge import (
     OrgDRGConflict,
     OrgDRGConflictError,
-    UnknownRelationError,
     merge_three_layers,
+    UnknownRelationError,
 )
-from doctrine.drg.merge import (
+from charter.offering.drg.merge import (
     bridge_org_edge_to_drg_edge,
 )
-from doctrine.drg.migration.extractor import (
+from charter.offering.drg.migration.extractor import (
     FIELDS_WITHHELD_FROM_GRAPH_OUTPUT,
     graph_document_to_dict,
     model_to_graph_dict,
 )
-from doctrine.drg.models import DRGEdge, DRGGraph, DRGNode, NodeKind, Relation
-from doctrine.drg.org_pack_config import (
+from charter.offering.drg.models import DRGEdge, DRGGraph, DRGNode, NodeKind, Relation
+from charter.offering.drg.org_pack_config import (
     OrgPackEnvVarUnsetError,
     OrgPackSubdirEscapeError,
     load_pack_registry as load_pack_registry,
@@ -99,31 +105,17 @@ from doctrine.drg.org_pack_config import (
     resolve_org_dirs,
     resolve_org_roots,
 )
-from doctrine.drg.org_pack_loader import (
+from charter.offering.drg.org_pack_loader import (
     OrgDRGFragment,
     OrgPackMissingError,
+    OrgPackParseError,
+    OrgPackSchemaError,
     load_org_pack,
 )
-from doctrine.drg.query import ResolvedContext, resolve_context
+from charter.offering.drg.query import ResolvedContext, resolve_context
 
-# Canonical three-layer merge now lives in ``doctrine.drg.merge`` (WP03,
-# mission ``org-doctrine-profile-integrity-activation-closure-01KT1TV1``). The
-# merge is pure graph logic and must not depend on charter/specify_cli; this
-# module re-exports the public names below so existing
-# ``from charter.drg import merge_three_layers`` (and the conflict types) call
-# sites keep working without crossing the layer boundary directly. Charter
-# retains only the activation-aware filter/aggregation
-# (:func:`filter_graph_by_activation`), which is a charter concern.
-#
-# ``validate_dangling_references`` rides the same rule. It is the post-merge
-# completeness check every runtime caller that merges the COMPLETE graph must
-# run (see its docstring for the predicate), so it belongs beside
-# ``merge_three_layers`` on the facade rather than being imported from
-# ``doctrine.drg.validator`` inside a runtime function — a form that reaches
-# past charter into doctrine and that the boundary ratchet
-# (``tests/architectural/test_runtime_charter_doctrine_boundary.py``) cannot
-# see, because it only inspects module-level imports.
 __all__ = [
+    "merge_three_layers",
     "ArtifactKind",
     "DRGEdge",
     "DRGGraph",
@@ -138,19 +130,19 @@ __all__ = [
     "OrgDRGFragment",
     "OrgPackEnvVarUnsetError",
     "OrgPackMissingError",
+    "OrgPackParseError",
+    "OrgPackSchemaError",
     "OrgPackSubdirEscapeError",
     "Relation",
     "ResolvedContext",
     "UnknownRelationError",
     "bridge_org_edge_to_drg_edge",
-    "filter_graph_by_activation",
     "graph_document_to_dict",
     "load_built_in_graph",
     "load_graph",
     "load_graph_or_dir",
-    "load_org_drg",
+    "load_org_pack",
     "merge_layers",
-    "merge_three_layers",
     "model_to_graph_dict",
     "resolve_context",
     "resolve_existing_org_roots",
@@ -158,409 +150,3 @@ __all__ = [
     "resolve_org_roots",
     "validate_dangling_references",
 ]
-
-# ---------------------------------------------------------------------------
-# Loader (FR-001, FR-004, NEW-1)
-# ---------------------------------------------------------------------------
-
-
-def load_org_drg(repo_root: Path) -> list[OrgDRGFragment]:
-    """Load all configured org packs from ``.kittify/config.yaml``.
-
-    Returns one :class:`OrgDRGFragment` per pack in declaration order.
-    Layer indices are assigned ``1..N``.
-
-    This function is project-config-aware (charter-domain): it reads the
-    shared org-pack registry contract from
-    :func:`doctrine.drg.org_pack_config.load_pack_registry` and resolves each
-    pack's local path relative to *repo_root*. Per-pack schema parsing and
-    validation is delegated to :func:`doctrine.drg.org_pack_loader.load_org_pack`.
-
-    Parameters
-    ----------
-    repo_root:
-        Repository root containing ``.kittify/config.yaml``. When the
-        config is absent or has no ``doctrine.org`` pack entries, the
-        function returns ``[]`` (NFR-001 backward compatibility — repos
-        with no org packs behave identically to today).
-
-    Raises
-    ------
-    OrgPackMissingError:
-        When a configured pack's ``path`` does not exist on disk
-        (FR-004).
-    NotImplementedError:
-        When a pack declares ``source: url`` or ``source: package`` —
-        only ``local_path`` is shipped in this mission (NEW-1).
-    """
-    registry = load_pack_registry(repo_root)
-    fragments: list[OrgDRGFragment] = []
-    for layer_index, pack in enumerate(registry.packs, start=1):
-        fragments.append(load_org_pack(pack.name, pack.effective_root(repo_root), layer_index))
-    return fragments
-
-
-# ---------------------------------------------------------------------------
-# Merge (relocated to ``doctrine.drg.merge`` — WP03)
-# ---------------------------------------------------------------------------
-# The canonical three-layer merge (``merge_three_layers`` and its bridging
-# helpers, plus ``OrgDRGConflict`` / ``OrgDRGConflictError`` /
-# ``UnknownRelationError``) now lives in :mod:`doctrine.drg.merge`. It is pure
-# graph logic with no charter/specify_cli dependency. This module imports and
-# re-exports those names (see the imports + ``__all__`` above) so existing
-# ``from charter.drg import merge_three_layers`` call sites keep working. Only
-# the activation-aware filtering below remains charter-owned.
-
-
-# ---------------------------------------------------------------------------
-# Activation filter (FR-006, FR-018, WP11)
-# ---------------------------------------------------------------------------
-# Mission ``charter-doctrine-mission-type-configuration-01KSWJVX`` WP11.
-#
-# FR-018 specifies that DRG traversal is activation-filtered: only doctrine
-# artifacts that are explicitly activated in the project charter are visible
-# to charter-mediated resolution. "Activated" and "registered" are synonyms
-# per the data-model. The filter is sourced from ``PackContext``:
-#
-# * ``PackContext.activated_kinds``           — plural artifact kinds the
-#                                                charter has opted in to.
-# * ``PackContext.activated_mission_types``   — mission type IDs the charter
-#                                                has opted in to.
-#
-# FR-006's two-tier directive scope is honoured by this filter because
-# mission-type-scoped directives only enter the resolved set when that
-# mission type is activated. Project-scoped directives
-# (``required_directives`` from the top-level charter) are never gated by
-# the activation filter — they apply unconditionally to every mission.
-#
-# CRITICAL INVARIANT (WP11 T069): the activation filter applies ONLY to
-# charter-mediated resolution paths. Direct doctrine-API callers
-# (``MissionTemplateRepository.get(...)``, ``service.directives.get(...)``,
-# etc.) bypass this filter and continue to return non-activated artifacts.
-# This is by design: non-activated artifacts are non-canonical for charter
-# resolution but remain reachable on operator request.
-
-
-#: Inverse of :data:`_PLURAL_TO_SINGULAR`, used to map a URN's singular kind
-#: prefix (e.g. ``"directive"``) back to its plural form (e.g.
-#: ``"directives"``) so the activation filter can check membership in
-#: :attr:`PackContext.activated_kinds`.
-_SINGULAR_TO_PLURAL: dict[str, str] = {
-    "directive": "directives",
-    "tactic": "tactics",
-    "styleguide": "styleguides",
-    "toolguide": "toolguides",
-    "paradigm": "paradigms",
-    "procedure": "procedures",
-    "agent_profile": "agent_profiles",
-    "mission_step_contract": "mission_step_contracts",
-    "glossary_pack": "glossary_packs",
-    "anti_pattern": "anti_patterns",
-}
-
-
-#: Per-kind ``PackContext`` field names for per-artifact-ID gate (FR-038, WP08).
-#: Maps a singular URN kind prefix to the corresponding ``PackContext`` attribute
-#: that holds the three-state frozenset of activated artifact IDs.
-_SINGULAR_TO_PER_KIND_FIELD: dict[str, str] = {
-    "directive":             "activated_directives",
-    "tactic":                "activated_tactics",
-    "styleguide":            "activated_styleguides",
-    "toolguide":             "activated_toolguides",
-    "paradigm":              "activated_paradigms",
-    "procedure":             "activated_procedures",
-    "agent_profile":         "activated_agent_profiles",
-    "mission_step_contract": "activated_mission_step_contracts",
-    "glossary_pack":         "activated_glossary_packs",
-    "anti_pattern":          "activated_anti_patterns",
-}
-
-
-#: URN kind prefixes that represent mission steps. When the filter encounters
-#: one of these kinds, it consults ``activated_mission_types`` (via the
-#: ``_owning_mission_type`` heuristic below) instead of ``activated_kinds``.
-_MISSION_STEP_SINGULAR_KINDS: frozenset[str] = frozenset({"mission_step_contract"})
-
-
-#: Singular kinds excluded from stem->canonical-URN resolution (WP01).
-#:
-#: ``anti_pattern`` has no dedicated artifact file / config stem: it is a
-#: re-kinded, tagged node living inside another kind's YAML fragment, never
-#: a standalone ``*.anti_pattern.yaml`` file (see
-#: ``doctrine.artifact_kinds`` module docstring and its ``glob_pattern``
-#: entry, which is declared for enum completeness but never matches a real
-#: file). ``PackContext.activated_anti_patterns`` therefore already holds
-#: the canonical/direct artifact id, not a config stem needing resolution —
-#: routing it through :func:`charter.kind_vocabulary.resolve_artifact_urn`
-#: would always raise :class:`UnknownArtifactIdError` and silently drop
-#: every anti-pattern node. This mirrors the reference tension-scan's
-#: ``_CLI_KIND_TO_DRG_SINGULAR`` (``consistency_check.py:89-99``), which
-#: likewise omits ``anti_pattern`` from stem-resolution treatment.
-_NO_STEM_RESOLUTION_KINDS: frozenset[str] = frozenset({"anti_pattern"})
-
-
-def _split_urn(urn: str) -> tuple[str, str]:
-    """Split ``"<kind>:<id>"`` into ``(kind, id)``.
-
-    Returns ``(urn, "")`` when the URN is malformed (no colon). Defensive
-    against hand-constructed graphs that bypass DRGNode validation —
-    ``str.partition(":")`` yields ``(whole, "", "")`` in that case so the
-    identifier comes back empty and the activation filter routes the node
-    through the default-allow branch.
-    """
-    head, _sep, tail = urn.partition(":")
-    return (head, tail)
-
-
-def _owning_mission_type(urn: str) -> str | None:
-    """Best-effort recovery of the mission type ID that owns a mission-step URN.
-
-    Mission-step contract URNs in the doctrine universe encode the owning
-    mission type as the first path segment of the identifier portion. The
-    runtime layout writes contracts under
-    ``doctrine/missions/<mission-type>/mission_step_contracts/...`` and the
-    canonical URN form is ``mission_step_contract:<mission-type>/<id>``.
-
-    When the URN is not in that shape (e.g. an org-pack-authored step that
-    has not been bound to a built-in mission type), this returns ``None``;
-    the activation filter treats such steps as project-scoped and lets them
-    through. WP08 / WP09 will tighten the convention once mission-type-owned
-    org packs land.
-    """
-    _kind, identifier = _split_urn(urn)
-    if not identifier:
-        return None
-    head, sep, _ = identifier.partition("/")
-    if not sep:
-        return None
-    return head
-
-
-def _resolve_activated_urns_for_kind(
-    node_kind: str,
-    activated_ids: frozenset[str] | None,
-    *,
-    doctrine_root: Path,
-    org_roots: list[Path],
-) -> frozenset[str] | None:
-    """Resolve one kind's config-stem activation set to canonical URNs.
-
-    Preserves the three-state semantics of :class:`PackContext`'s per-kind
-    fields: ``None`` (key absent from config) stays ``None`` (default-allow);
-    an explicit empty set resolves to an empty ``frozenset`` (block-all).
-
-    Lifted (WP01, per ``contracts/activation-gate-contract.md``) from the
-    soon-to-be-deleted tension-scan's ``_resolve_activated_urns_for_kind``
-    (``consistency_check.py:874-905``): unknown/unresolvable stems are
-    skipped, never raised (:class:`UnknownArtifactIdError`) -- they are
-    already surfaced separately by ``_check_unknown_references``, and this
-    gate must never raise (it is consumed by five callers, including the
-    fail-closed-**report** ``_check_graph_kind_parity``).
-
-    ``node_kind`` values in :data:`_NO_STEM_RESOLUTION_KINDS` (currently only
-    ``anti_pattern``) bypass filesystem resolution entirely: their
-    ``PackContext`` field already holds canonical/direct ids, not config
-    stems, so each id is wrapped into a URN directly.
-    """
-    if activated_ids is None:
-        return None
-    if node_kind in _NO_STEM_RESOLUTION_KINDS:
-        return frozenset(f"{node_kind}:{raw_id}" for raw_id in activated_ids)
-    try:
-        kind_enum = ArtifactKind.from_operator_token(node_kind)
-    except MissionTypeNotAnArtifactKind:
-        # Defensive parity with the reference pattern; unreachable via the
-        # gate's fixed kind domain (_SINGULAR_TO_PER_KIND_FIELD never keys on
-        # "mission-type"), kept for symmetry should that domain ever grow.
-        return frozenset()
-
-    urns: set[str] = set()
-    for stem in activated_ids:
-        try:
-            urns.add(
-                resolve_artifact_urn(
-                    kind_enum, stem, doctrine_root=doctrine_root, org_roots=org_roots
-                )
-            )
-        except UnknownArtifactIdError:
-            continue  # Skip-with-report (contract): _check_unknown_references reports it.
-    return frozenset(urns)
-
-
-def _resolve_activated_urns_by_kind(
-    pack_context: PackContext,
-) -> dict[str, frozenset[str] | None]:
-    """Batch-resolve every per-kind activation set to canonical URNs, once.
-
-    Called once per :func:`filter_graph_by_activation` invocation -- never
-    per node -- so resolution is O(kinds x stems), not O(nodes x stems x
-    filesystem-walk). ``doctrine_root`` is sourced from
-    :func:`charter.catalog.resolve_doctrine_root` (the same source the
-    surviving compiler ``references.yaml`` projection uses), never
-    ``pack_context.pack_roots[0]`` (research.md D2 install-layout guard).
-    """
-    doctrine_root = resolve_doctrine_root()
-    org_roots = list(pack_context.org_roots)
-    return {
-        node_kind: _resolve_activated_urns_for_kind(
-            node_kind,
-            getattr(pack_context, per_kind_field, None),
-            doctrine_root=doctrine_root,
-            org_roots=org_roots,
-        )
-        for node_kind, per_kind_field in _SINGULAR_TO_PER_KIND_FIELD.items()
-    }
-
-
-def _node_is_activated(
-    node_kind: str,
-    artifact_id: str,
-    pack_context: PackContext,
-    resolved_urns_by_kind: dict[str, frozenset[str] | None],
-) -> bool:
-    """Return ``True`` when the artifact is visible under the activation filter.
-
-    Parameters
-    ----------
-    node_kind:
-        Singular URN kind prefix (e.g. ``"directive"``, ``"tactic"``).
-    artifact_id:
-        Identifier portion of the URN (the part after the first ``":"``).
-        An empty string (malformed URN) bypasses the per-artifact-ID gate.
-    pack_context:
-        Activation state from the project charter.
-    resolved_urns_by_kind:
-        Pre-resolved (WP01) canonical-URN sets per singular kind, built once
-        by :func:`_resolve_activated_urns_by_kind` in
-        :func:`filter_graph_by_activation`. This keeps ``_node_is_activated``
-        a pure membership check with no filesystem I/O.
-
-    Decision tree:
-
-    1. Mission-step contract nodes (``mission_step_contract:<owner>/<id>``):
-       activated iff the recovered owner mission type is in
-       ``activated_mission_types``. Steps that cannot be owner-attributed
-       fall through to the kind filter (defensive default-allow).
-    2. All other kinds: the singular URN prefix is mapped to its plural form
-       and checked against ``activated_kinds``. An unknown kind (e.g. an
-       extension kind not yet in :data:`_SINGULAR_TO_PLURAL`) is allowed
-       through so the filter never silently swallows new artifact kinds —
-       the DRG schema validator is the gatekeeper for kind legality.
-    3. Per-artifact-ID gate (FR-038, WP08; canonical-URN corrected, WP01):
-       after the kind-level check, the pre-resolved canonical-URN set for
-       this kind is consulted. ``None`` (key absent from config) means all
-       IDs are allowed. An empty frozenset (explicit empty list) blocks all
-       IDs. A non-empty frozenset gates by full URN membership (not the bare
-       artifact id). An empty *artifact_id* (malformed URN) bypasses this
-       gate (default-allow).
-    """
-    # Step 1: mission-step contract kind check.
-    if node_kind in _MISSION_STEP_SINGULAR_KINDS:
-        # Reconstruct the URN to reuse _owning_mission_type which expects a full URN.
-        pseudo_urn = f"{node_kind}:{artifact_id}"
-        owner = _owning_mission_type(pseudo_urn)
-        if owner is not None:
-            return owner in pack_context.activated_mission_types
-        # Fall through: ownerless step relies on kind filter.
-
-    # Step 2: kind-level gate.
-    plural = _SINGULAR_TO_PLURAL.get(node_kind)
-    if plural is None:
-        return True
-    if plural not in pack_context.activated_kinds:
-        return False
-
-    # Step 3: per-artifact-ID gate (FR-038, WP08), full-URN comparison (WP01).
-    resolved_urns = resolved_urns_by_kind.get(node_kind)
-    # artifact_id="" (malformed URN) → bypass (default-allow)
-    if resolved_urns is not None and artifact_id:
-        node_urn = f"{node_kind}:{artifact_id}"
-        if node_urn not in resolved_urns:
-            return False
-
-    return True
-
-
-def filter_graph_by_activation(
-    graph: DRGGraph,
-    pack_context: PackContext,
-) -> DRGGraph:
-    """Return a copy of *graph* limited to artifacts activated in *pack_context*.
-
-    Applies the FR-018 activation filter:
-
-    * Mission-step contract nodes are kept only when their owning mission
-      type is in :attr:`PackContext.activated_mission_types`.
-    * All other artifact kinds are kept only when their plural kind is in
-      :attr:`PackContext.activated_kinds`.
-    * Per-kind activated-ID sets (e.g. :attr:`PackContext.activated_directives`)
-      hold config **stems**; WP01 resolves them to canonical URNs once per
-      call (:func:`_resolve_activated_urns_by_kind`) via
-      :func:`charter.kind_vocabulary.resolve_artifact_urn` and compares on
-      the node's full URN -- see ``contracts/activation-gate-contract.md``.
-    * Edges are kept only when both endpoints survive node filtering. This
-      preserves the graph invariant that an edge always points to a node in
-      the same graph; downstream traversal code does not need to special-
-      case dangling edges.
-
-    The function never mutates *graph*; it builds a fresh :class:`DRGGraph`.
-
-    See module docstring for the FR-006 / FR-018 binding and the WP11 T069
-    invariant: this filter applies only to charter-mediated resolution.
-    Direct doctrine-API callers (``DoctrineService.<repo>.get(...)``,
-    ``MissionTemplateRepository.get(...)``) are exempt.
-    """
-    resolved_urns_by_kind = _resolve_activated_urns_by_kind(pack_context)
-    surviving_nodes = [
-        n for n in graph.nodes
-        if _node_is_activated(*_split_urn(n.urn), pack_context, resolved_urns_by_kind)
-    ]
-    surviving_urns = {n.urn for n in surviving_nodes}
-    surviving_edges = [
-        e
-        for e in graph.edges
-        if e.source in surviving_urns and e.target in surviving_urns
-    ]
-    # ``model_construct`` skips the URN-prefix validators on each node/edge.
-    # The input *graph* was already validated upstream, and we are returning
-    # a strict subset of its nodes and edges, so the output is invariant-
-    # preserving by construction. Skipping revalidation also keeps the
-    # filter agnostic to extension kinds (e.g. mission-step URNs whose
-    # singular form may not yet be enumerated in :class:`NodeKind`).
-    return DRGGraph.model_construct(
-        schema_version=graph.schema_version,
-        generated_at=graph.generated_at,
-        generated_by=graph.generated_by,
-        nodes=surviving_nodes,
-        edges=surviving_edges,
-    )
-
-
-# ---------------------------------------------------------------------------
-# WP11 T064-drg — PackContext wiring audit
-# ---------------------------------------------------------------------------
-# WP10 / T063 established that ``_resolve_chain()`` and ``_merge_chain()`` in
-# ``specify_cli.doctrine.org_charter`` are config-clean: they operate on the
-# ``pack_set`` argument and never read ``.kittify/config.yaml`` directly.
-# The single config-reading path is
-# ``load_org_charter_policies(repo_root, pack_context=...)``, which already
-# accepts a :class:`PackContext` (WP09 T061-sig).
-#
-# T064-drg asked WP11 to find any ``load_org_charter_policies(repo_root)``
-# call inside ``src/charter/drg.py`` and pass a ``PackContext`` to it. After
-# audit no such call exists — this module has always loaded its DRG layers
-# via :func:`load_graph` (built-in), :func:`load_org_drg` (org packs, which
-# already routes through the charter-layer pack registry), and the project
-# layer is supplied by the caller. PackContext therefore reaches this module
-# only through the :func:`filter_graph_by_activation` surface above, which is
-# the FR-018 access point for runtime resolvers.
-#
-# Layer boundary note: ``src/charter/`` cannot import from
-# ``specify_cli.doctrine.*`` (the dependency rule is
-# ``kernel <- doctrine <- charter <- specify_cli`` per
-# ``docs/architecture/00_landscape/README.md``). Runtime callers that need to
-# both filter the graph and load org-charter policies must invoke
-# :func:`filter_graph_by_activation` here and
-# ``specify_cli.doctrine.org_charter.load_org_charter_policies`` from their
-# own (specify_cli-layer) call site, passing the same ``PackContext`` to
-# both.

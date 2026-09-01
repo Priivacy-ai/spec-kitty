@@ -6,7 +6,7 @@ Covers FR-001 through FR-004:
 - FR-003: resolved scope surfaces the required FR-003 minimum URN kinds.
 - FR-004: (contract) the resolver is deterministic (same inputs -> same scope set).
 
-It exercises the resolve_context function from doctrine.drg.query against the
+It exercises the resolve_context function from charter.offering.drg.query against the
 shipped graph, which is served read-only from the session-scoped
 ``shipped_drg_graph`` fixture in ``tests/doctrine/conftest.py`` (WP03/T012) so
 the shipped graph is built once per session rather than once per module.
@@ -18,9 +18,9 @@ from pathlib import Path
 
 import pytest
 
-from doctrine.agent_profiles.repository import AgentProfileRepository
-from doctrine.drg.models import DRGGraph, NodeKind
-from doctrine.drg.query import resolve_context
+from charter.offering.agent_profiles.repository import AgentProfileRepository
+from charter.offering.drg.models import DRGGraph, NodeKind
+from charter.offering.drg.query import resolve_context
 
 pytestmark = [pytest.mark.fast, pytest.mark.doctrine, pytest.mark.corpus]
 

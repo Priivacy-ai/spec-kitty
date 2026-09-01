@@ -21,12 +21,15 @@ It is loaded as an **org-tier** pack (registered in `.kittify/config.yaml` under
 
 ```
 packs/internal/
-├── org-charter.yaml                          # pack name/description + required_* activation lists
-├── drg/fragment.yaml                         # SINGLE DRG fragment (org tier), not sharded *.graph.yaml
+├── org-charter.yaml                              # pack name/description + required_* activation lists
+├── drg/fragment.yaml                             # SINGLE DRG fragment (org tier), not sharded *.graph.yaml;
+│                                                 #   declares the directive, glossary-pack, and procedure nodes below
+├── directives/
+│   └── operator-signal-contract.directive.yaml   # OPERATOR_SIGNAL_CONTRACT node — a path that decides must also signal
 ├── glossary_packs/
-│   └── spk-internal.glossary-pack.yaml       # maintainer/engineering glossary (net-new internal terms)
+│   └── spk-internal.glossary-pack.yaml           # spk-internal-glossary node — maintainer/engineering glossary
 └── procedures/
-    └── landing-contributor-prs.procedure.yaml
+    └── landing-contributor-prs.procedure.yaml    # landing-contributor-prs node — maintainer runbook
 ```
 
 ## Reference, don't duplicate
@@ -35,7 +38,8 @@ A lot of maintainer-flavoured doctrine already ships in `packs/built-in/`
 (`red-main-release-discipline`, `tracker-organisation-workflow`,
 `pr-agent-worktree-isolation`, `mission-tracer-files`, …). This pack **references**
 those via DRG `refines` edges rather than re-authoring them. Only genuinely
-repo-only residue (PR-landing specifics, the internal glossary) is authored here.
+repo-only residue (PR-landing specifics, the internal glossary, the
+maintainer-only `OPERATOR_SIGNAL_CONTRACT` directive) is authored here.
 
 > First-step scaffold. See the initiative synthesis for the deferred decisions
 > (built-in ownership inversion, open-packs as the permanent home, private-vs-public

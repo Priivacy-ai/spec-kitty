@@ -1,6 +1,6 @@
 """Fresh-init ``mission_type_activations`` provisioning (FR-009/010/011).
 
-The provisioned surface is ``src/charter/packs/default.yaml`` — the same
+The provisioned surface is ``src/charter/activation/packs/default.yaml`` — the same
 shipped file the ``3.2.0rc35_default_charter_pack`` upgrade migration reads
 (``specify_cli.upgrade.migrations.m_3_2_0rc35_default_charter_pack``).  This
 module is the *fresh-init* counterpart: it seeds a brand-new project's
@@ -10,8 +10,8 @@ not leave new projects with zero mission types.
 
 **Seed-read is shared, write is not.** The actual "what is the authored
 ``mission_type_activations`` list, or fail closed" question is answered by
-:func:`charter.default_pack.load_default_mission_type_activations` — the
-same helper ``charter.compiler.provision_mission_type_activations`` (the
+:func:`charter.activation.default_pack.load_default_mission_type_activations` — the
+same helper ``charter.activation.compiler.provision_mission_type_activations`` (the
 ``spec-kitty charter generate`` path) consumes, so the two provisioners can
 never seed a divergent set from the same shipped ``default.yaml``. This
 module still owns its own path resolution
@@ -24,7 +24,7 @@ D-07):
 
 * **Copy, not re-scan.** The authored ``mission_type_activations`` list is
   copied verbatim from ``default.yaml``. It is never re-derived via
-  ``doctrine.missions.mission_type_repository.builtin_mission_type_id_set()``
+  ``charter.offering.missions.mission_type_repository.builtin_mission_type_id_set()``
   (the disk-scanned, ``SPEC_KITTY_PACKS_ROOT``-sensitive built-in-type
   roster) — that would make this seam depend on the pack-root resolver at
   runtime, defeating the "disjoint halves" property the mission establishes.
@@ -47,8 +47,8 @@ from typing import Any
 
 from ruamel.yaml import YAML
 
-from charter.default_pack import load_default_mission_type_activations
-from charter.pack_context import CharterPackConfigError
+from charter.activation.default_pack import load_default_mission_type_activations
+from charter.activation.pack_context import CharterPackConfigError
 from specify_cli.charter_pack_registry import (
     merge_pack_into_config,
     resolve_builtin_pack_path,
@@ -79,7 +79,7 @@ class DefaultCharterPackMissingError(RuntimeError):
 
     Fresh-init provisioning (FR-011) fails closed rather than writing an
     implicit or empty ``mission_type_activations`` set when
-    ``src/charter/packs/default.yaml`` is missing or does not declare the
+    ``src/charter/activation/packs/default.yaml`` is missing or does not declare the
     key — a broken spec-kitty install, never a legitimate project state.
     """
 
@@ -90,8 +90,8 @@ def _load_default_pack_activations() -> list[Any]:
     Path resolution stays local (``resolve_builtin_pack_path``, the same
     seam ``spec-kitty charter pack`` and the rc35 migration use); the actual
     parse-and-validate step delegates to the shared, fail-closed
-    :func:`charter.default_pack.load_default_mission_type_activations` so
-    this provisioner and ``charter.compiler.provision_mission_type_activations``
+    :func:`charter.activation.default_pack.load_default_mission_type_activations` so
+    this provisioner and ``charter.activation.compiler.provision_mission_type_activations``
     (the ``spec-kitty charter generate`` path) can never read a divergent
     activation set from the same shipped file (squad-found maintainability
     defect: the two used to be independent, near-identical readers).
@@ -129,7 +129,7 @@ def provision_default_mission_type_activations(project_path: Path) -> bool:
     """Seed ``.kittify/config.yaml``'s ``mission_type_activations`` for a fresh project.
 
     Copies the authored ``mission_type_activations`` list from the shipped
-    ``src/charter/packs/default.yaml`` into ``project_path/.kittify/config.yaml``
+    ``src/charter/activation/packs/default.yaml`` into ``project_path/.kittify/config.yaml``
     (C-A3), but only when the key is entirely absent — an authored empty list
     (``mission_type_activations: []``, C-008/C-A2) or any already-present
     list (custom entries included, C-A5/I-8) is left untouched. Re-running

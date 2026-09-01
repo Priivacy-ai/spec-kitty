@@ -35,14 +35,14 @@ _POINTER_CAP_LINES = 30
 # Objective covered set: modules with a drift-guard-bound code model.
 # (readme relative path, strict_pointer_only)
 #
-# `src/doctrine/missions/` is a bound-model module but is EXCLUDED: it is on the
+# `src/charter/offering/missions/` is a bound-model module but is EXCLUDED: it is on the
 # pack-relocation content manifest (tests/doctrine/test_pack_relocation_guard.py),
 # which forbids a README under that path. Its schema docs live in
 # mission-type-resolution.md (linked from the code models directly).
 _RELOCATION_EXCLUDED = frozenset({"missions"})
 _COVERED: tuple[tuple[str, bool], ...] = (
-    ("src/doctrine/drg/README.md", True),  # authored here (pointer-only)
-    ("src/doctrine/agent_profiles/README.md", False),  # pre-existing rich README, extended
+    ("src/charter/offering/drg/README.md", True),  # authored here (pointer-only)
+    ("src/charter/offering/agent_profiles/README.md", False),  # pre-existing rich README, extended
 )
 
 

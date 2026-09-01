@@ -22,9 +22,10 @@ contract changes.
 
 from __future__ import annotations
 
+import subprocess
 from pathlib import Path
 
-from specify_cli.gitignore_manager import GitignoreManager
+from specify_cli.gitignore_manager import GitignoreManager, read_ignore_file_text
 
 from ..registry import MigrationRegistry
 from .base import BaseMigration, MigrationResult
@@ -44,12 +45,10 @@ _EQUIVALENT_ENTRIES: dict[str, frozenset[str]] = {
 
 
 def _read_gitignore_entries(project_path: Path) -> set[str]:
-    gitignore_path = project_path / ".gitignore"
-    if not gitignore_path.exists():
-        return set()
+    content = read_ignore_file_text(project_path / ".gitignore")
     return {
         line.strip()
-        for line in gitignore_path.read_text(encoding="utf-8-sig").splitlines()
+        for line in content.splitlines()
         if line.strip() and not line.lstrip().startswith("#")
     }
 
@@ -61,6 +60,47 @@ def _missing_entries(project_path: Path) -> list[str]:
         for entry, equivalents in _EQUIVALENT_ENTRIES.items()
         if equivalents.isdisjoint(present)
     ]
+
+
+def _untrack_tracked_paths(project_path: Path, entries: list[str]) -> list[str]:
+    """Untrack any of ``entries`` that are already git-tracked (FR-010, #3393).
+
+    Adding a path to ``.gitignore`` alone does not stop git from tracking a
+    path that was already committed -- the working tree stays dirty (`git
+    status` keeps showing modifications) even though the path is "ignored"
+    going forward. The post-condition this migration must hold is: no path is
+    both tracked and gitignored. ``git rm --cached`` drops the path from the
+    index while leaving the working-tree file untouched.
+
+    Best-effort and silent on failure: a project that is not a git repo (or
+    has no ``git`` binary available) is left exactly as before -- matching
+    this migration's existing fail-open posture (``can_apply`` only checks
+    that ``project_path`` exists).
+    """
+    candidates = [entry.rstrip("/") for entry in entries]
+    try:
+        listed = subprocess.run(
+            ["git", "-C", str(project_path), "ls-files", "-z", "--", *candidates],
+            capture_output=True,
+            check=True,
+        )
+    except (OSError, subprocess.CalledProcessError):
+        return []
+
+    tracked = sorted({p for p in listed.stdout.decode("utf-8").split("\0") if p})
+    if not tracked:
+        return []
+
+    try:
+        subprocess.run(
+            ["git", "-C", str(project_path), "rm", "--cached", "-r", "-q", "--", *tracked],
+            capture_output=True,
+            check=True,
+        )
+    except (OSError, subprocess.CalledProcessError):
+        return []
+
+    return tracked
 
 
 @MigrationRegistry.register
@@ -92,7 +132,7 @@ class AgentsSkillsGitignoreBackfillMigration(BaseMigration):
             )
 
         GitignoreManager(project_path).ensure_entries(missing)
-        return MigrationResult(
-            success=True,
-            changes_made=[f"Added gitignore entry: {entry}" for entry in missing],
-        )
+        untracked = _untrack_tracked_paths(project_path, missing)
+        changes = [f"Added gitignore entry: {entry}" for entry in missing]
+        changes.extend(f"Untracked previously-tracked path: {path}" for path in untracked)
+        return MigrationResult(success=True, changes_made=changes)

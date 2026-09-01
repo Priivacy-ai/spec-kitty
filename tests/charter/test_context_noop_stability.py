@@ -38,7 +38,7 @@ from pathlib import Path
 
 import pytest
 
-from charter.context import build_charter_context
+from charter.activation.context import build_charter_context
 
 # Real subprocess git clones/checkouts against a throwaway temp repo: not a
 # pure-logic test, and structurally incompatible with mutmut's forked sandbox.
@@ -68,7 +68,7 @@ def _clone_doctrine_tracked_repo(dest: Path) -> Path:
 
     The committed ``charter.yaml`` now carries the WP04 (C-A1)
     ``mission_type_activations`` provisioning key (emitted by the charter
-    generation path — ``charter.compiler.provision_mission_type_activations``),
+    generation path — ``charter.activation.compiler.provision_mission_type_activations``),
     so the clone is already a provisioned, ``PackContext.from_config``-readable
     baseline with no fixture-side append/commit required.
     """

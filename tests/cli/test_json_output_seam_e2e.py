@@ -34,7 +34,13 @@ def test_json_command_output_is_loadable() -> None:
     result = runner.invoke(app, ["mission-type", "list", "--json"])
 
     assert result.exit_code == 0, result.output
-    payload = json.loads(result.output)
+    # CR-02 (mission charter-code-topology-01M152G1 S4): `doctrine`'s
+    # `@app.callback()` now writes a deprecation notice to stderr on every
+    # invocation -- parse `.stdout` (stdout only), not `.output` (Click
+    # 8.2+'s stdout+stderr merge), so the JSON sink under test here stays
+    # exactly what this test's own docstring promises: the stdout sink,
+    # isolated from anything else the process wrote.
+    payload = json.loads(result.stdout)
     assert isinstance(payload, list)
 
 
@@ -54,5 +60,11 @@ def test_json_stays_plain_even_when_console_is_styled() -> None:
         console.set_plain(True)
 
     assert result.exit_code == 0, result.output
-    assert _ESC not in result.output
-    assert isinstance(json.loads(result.output), list)
+    # CR-02 (mission charter-code-topology-01M152G1 S4): checked against
+    # `.stdout` (the JSON sink this test's own docstring names), not
+    # `.output` -- `doctrine`'s `@app.callback()` deprecation notice
+    # legitimately renders in colour on stderr under `color=True`
+    # (`typer.secho(..., fg=typer.colors.YELLOW, err=True)`), which is a
+    # different stream with no "must stay plain" contract of its own.
+    assert _ESC not in result.stdout
+    assert isinstance(json.loads(result.stdout), list)

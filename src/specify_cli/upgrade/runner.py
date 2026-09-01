@@ -15,12 +15,14 @@ from packaging.version import InvalidVersion, Version
 from rich.console import Console
 
 from specify_cli.core.constants import KITTIFY_DIR, WORKTREES_DIR
+from specify_cli.gitignore_manager import GitignorePathError
 from specify_cli.migration.schema_version import (
     REQUIRED_SCHEMA_VERSION,
     get_project_schema_version,
 )
 
 from . import autocommit
+from .autocommit import capture_upgrade_baseline
 from .detector import VersionDetector
 from .metadata import ProjectMetadata
 from .migrations.base import BaseMigration, MigrationResult
@@ -41,6 +43,13 @@ class UpgradeResult:
     errors: list[str] = field(default_factory=list)
     warnings: list[str] = field(default_factory=list)
     dry_run: bool = False
+    # Fatal per-worktree migration failures (FR-012, #3376). Distinct from
+    # ``errors`` (which already carries the same messages for backward
+    # compatibility): this is the structured channel the finalizer/outcome
+    # layer (WP04) reads to flip effective success + exit code non-zero.
+    # A worktree migration that could not be applied (``can_apply`` refusal)
+    # stays warning-only and is intentionally NOT classified fatal here.
+    worktree_failures: list[str] = field(default_factory=list)
     # Per-migration ``MigrationResult`` keyed by migration_id. Used by the
     # CLI --json path to surface schema-shaped reports emitted by individual
     # migrations (e.g. 3.2.0rc35_unified_bundle's contract-shaped payload).
@@ -143,6 +152,7 @@ class MigrationRunner:
                 if worktrees_result.get("errors"):
                     result.errors.extend(worktrees_result["errors"])
                     result.warnings.append("Some worktrees had issues - check errors above")
+                result.worktree_failures.extend(worktrees_result.get("worktree_failures", []))
 
             result.warnings.append(f"No migrations needed from {from_version} to {target_version}")
             return result
@@ -193,9 +203,7 @@ class MigrationRunner:
 
         # Update and save metadata for main project
         if not dry_run:
-            self._finalize_main_metadata(
-                metadata, target_version, result, pre_run_schema_version
-            )
+            self._finalize_main_metadata(metadata, target_version, result, pre_run_schema_version)
 
         # Handle worktrees
         if include_worktrees:
@@ -203,8 +211,17 @@ class MigrationRunner:
             result.warnings.extend(worktrees_result.get("warnings", []))
             if worktrees_result.get("errors"):
                 result.errors.extend(worktrees_result["errors"])
-                # Don't fail the whole upgrade for worktree issues
+                # This generic `errors`/`warnings` channel is observability-only
+                # and never flips the exit code by itself. The SAME failure
+                # messages (populated together at lines ~443-445 above, in
+                # `_upgrade_worktrees`) are also recorded below into
+                # `worktree_failures` — THAT channel is fatal: FR-012 /
+                # `UpgradeOutcome.effective_success` treats a non-empty
+                # `worktree_failures` as a real failure and flips the exit
+                # code to 1, so a broken worktree is never silently reported
+                # as `success: true` (#3392).
                 result.warnings.append("Some worktrees had issues - check errors above")
+            result.worktree_failures.extend(worktrees_result.get("worktree_failures", []))
 
         return result
 
@@ -260,8 +277,37 @@ class MigrationRunner:
                 "skipped",
             )
 
-        # Check if migration is needed via detection
-        if not migration.detect(self.project_path):
+        # Check if migration is needed via detection. A symlinked
+        # `.gitignore`/`.claudeignore` makes detect() fail closed with
+        # GitignorePathError (gitignore_manager.py) rather than follow the
+        # symlink. Treat that as a migration FAILURE, not a skip: a "skip"
+        # here would report the upgrade as successful and let
+        # _finalize_main_metadata bump metadata.version/schema_version past
+        # this migration, permanently stranding it (it would never be
+        # re-considered even after the symlink is replaced with a real file,
+        # per MigrationRegistry.get_applicable's from_v/to_v window). Failing
+        # closed instead leaves the pre-run schema/version untouched so the
+        # next `spec-kitty upgrade` retries once the symlink is gone.
+        try:
+            migration_needed = migration.detect(self.project_path)
+        except GitignorePathError as exc:
+            if not dry_run:
+                self._record_migration_result(
+                    metadata,
+                    self.kittify_dir,
+                    migration.migration_id,
+                    "failed",
+                    f"Cannot safely detect: {exc}",
+                )
+            return (
+                MigrationResult(
+                    success=False,
+                    errors=[f"Cannot safely detect {migration.migration_id}: {exc}"],
+                ),
+                "failed",
+            )
+
+        if not migration_needed:
             # Migration not needed - project doesn't have old state
             if not dry_run:
                 self._record_migration_result(
@@ -271,9 +317,11 @@ class MigrationRunner:
                     "skipped",
                     "Not applicable",
                 )
-            return (MigrationResult(
-                success=True,
-                warnings=[f"Migration {migration.migration_id} not needed (project already in target state)"],),
+            return (
+                MigrationResult(
+                    success=True,
+                    warnings=[f"Migration {migration.migration_id} not needed (project already in target state)"],
+                ),
                 "skipped",
             )
 
@@ -288,8 +336,19 @@ class MigrationRunner:
                 "failed",
             )
 
-        # Apply the migration
-        result = migration.apply(self.project_path, dry_run=dry_run)
+        # Apply the migration. Same TOCTOU-safe handling as detect() above --
+        # a symlink swapped in between detect() and apply() fails closed as a
+        # migration failure, not an unhandled crash.
+        try:
+            result = migration.apply(self.project_path, dry_run=dry_run)
+        except GitignorePathError as exc:
+            return (
+                MigrationResult(
+                    success=False,
+                    errors=[f"Cannot apply {migration.migration_id}: {exc}"],
+                ),
+                "failed",
+            )
 
         # Record in metadata
         if not dry_run:
@@ -325,7 +384,7 @@ class MigrationRunner:
         Returns:
             Dict with warnings and errors lists
         """
-        result: dict[str, Any] = {"warnings": [], "errors": []}
+        result: dict[str, Any] = {"warnings": [], "errors": [], "worktree_failures": []}
         worktree_migrations = [migration for migration in migrations if migration.runs_on_worktrees]
 
         if migrations and not worktree_migrations:
@@ -342,15 +401,14 @@ class MigrationRunner:
 
             wt_kittify = worktree / KITTIFY_DIR
             has_upgradeable_state = wt_kittify.exists() or (
-                bool(worktree_migrations)
-                and ((worktree / KITTY_SPECS_DIR).exists() or (worktree / ".specify").exists())
+                bool(worktree_migrations) and ((worktree / KITTY_SPECS_DIR).exists() or (worktree / ".specify").exists())
             )
             if not has_upgradeable_state:
                 continue
 
             # Baseline BEFORE any write to this worktree, so the auto-commit
             # below stages only the churn this upgrade run introduces (#2385).
-            wt_baseline = autocommit.git_status_paths(worktree) if auto_commit and not dry_run else None
+            wt_baseline = capture_upgrade_baseline(worktree) if auto_commit and not dry_run else None
 
             # Load or create worktree metadata
             wt_metadata = ProjectMetadata.load(wt_kittify)
@@ -367,13 +425,44 @@ class MigrationRunner:
             # self-healing path silently regresses (#1873, regression of #1857).
             worktree_metadata_dirty = wt_metadata_synthesized
             worktree_manual_review = False
+            # FR-009 (#3376): a NEW per-worktree flag distinct from
+            # ``worktree_metadata_dirty``/``worktree_manual_review`` above --
+            # the loop previously tracked no success/failure boolean at all.
+            # Sticky for the remainder of this worktree's migrations: once any
+            # migration fails here, the schema_version stamp below must stay
+            # suppressed even if a later migration in the same worktree
+            # succeeds. This is a guard (leave whatever is present on disk),
+            # not a restore -- no per-worktree pre-run schema is captured.
+            worktree_failed = False
 
             # Apply migrations to worktree
             for migration in worktree_migrations:
                 if wt_metadata.has_migration(migration.migration_id):
                     continue
 
-                if not migration.detect(worktree):
+                # Same fail-closed handling as the main checkout in
+                # _apply_migration: a symlinked ignore file makes detect()
+                # raise GitignorePathError rather than follow it. Record it
+                # as a failure, not a skip -- a "skip" record would be
+                # indistinguishable from "not applicable" and could read as
+                # settled, when the migration was never actually evaluated.
+                try:
+                    migration_needed = migration.detect(worktree)
+                except GitignorePathError as exc:
+                    result["errors"].append(
+                        f"Worktree {worktree.name}: Cannot safely detect {migration.migration_id}: {exc}"
+                    )
+                    if not dry_run and self._record_migration_result(
+                        wt_metadata,
+                        wt_kittify,
+                        migration.migration_id,
+                        "failed",
+                        f"Cannot safely detect: {exc}",
+                    ):
+                        worktree_metadata_dirty = True
+                    continue
+
+                if not migration_needed:
                     # Only mark dirty when a NEW record was written; an
                     # already-recorded "skipped" migration is a no-op and must
                     # not bump last_upgraded_at on every re-run (issue #1872).
@@ -389,12 +478,16 @@ class MigrationRunner:
 
                 can_apply, reason = migration.can_apply(worktree)
                 if not can_apply:
-                    result["warnings"].append(
-                        f"Worktree {worktree.name}: Cannot apply {migration.migration_id}: {reason}"
-                    )
+                    result["warnings"].append(f"Worktree {worktree.name}: Cannot apply {migration.migration_id}: {reason}")
                     continue
 
-                migration_result = migration.apply(worktree, dry_run=dry_run)
+                try:
+                    migration_result = migration.apply(worktree, dry_run=dry_run)
+                except GitignorePathError as exc:
+                    result["errors"].append(
+                        f"Worktree {worktree.name}: Cannot apply {migration.migration_id}: {exc}"
+                    )
+                    continue
                 if migration_result.manual_review_required:
                     worktree_manual_review = True
 
@@ -421,7 +514,10 @@ class MigrationRunner:
                         # failed migration is not an upgrade, so it must not
                         # bump last_upgraded_at. The failure record itself is
                         # already persisted by _record_migration_result.
-                    result["errors"].extend([f"Worktree {worktree.name}: {e}" for e in migration_result.errors])
+                    worktree_failed = True
+                    failure_messages = [f"Worktree {worktree.name}: {e}" for e in migration_result.errors]
+                    result["errors"].extend(failure_messages)
+                    result["worktree_failures"].extend(failure_messages)
 
             # Save worktree metadata only when something material changed
             # (a migration record was written, metadata was synthesized fresh,
@@ -437,7 +533,11 @@ class MigrationRunner:
                     wt_metadata.save(wt_kittify)
                 # ProjectMetadata.save() rewrites metadata.yaml from its fixed
                 # model, so stamp after save just like the main project path.
-                if REQUIRED_SCHEMA_VERSION is not None:
+                # FR-009 (#3376): guarded by worktree_failed -- a worktree with
+                # any failed migration must not have schema_version advanced.
+                # Leave whatever value is already present (no pre-run capture
+                # exists for worktrees, unlike the main path's restore).
+                if REQUIRED_SCHEMA_VERSION is not None and not worktree_failed:
                     self._stamp_schema_version(wt_kittify, REQUIRED_SCHEMA_VERSION)
 
                 # Commit this worktree's upgrade churn on its own branch
@@ -550,9 +650,7 @@ class MigrationRunner:
             # branch is unreachable in normal operation. Log instead of raising
             # so a corrupted dev environment surfaces a diagnostic. See FU-4 in
             # kitty-specs/release-3-2-0a5-tranche-1-01KQ7YXH/follow-ups.md.
-            logger.warning(
-                "schema_version stamp skipped: %s does not exist", metadata_path
-            )
+            logger.warning("schema_version stamp skipped: %s does not exist", metadata_path)
             return
 
         try:
@@ -578,11 +676,7 @@ class MigrationRunner:
 
         data["spec_kitty"]["schema_version"] = schema_version
 
-        header = (
-            "# Spec Kitty Project Metadata\n"
-            "# Auto-generated by spec-kitty init/upgrade\n"
-            "# DO NOT EDIT MANUALLY\n\n"
-        )
+        header = "# Spec Kitty Project Metadata\n# Auto-generated by spec-kitty init/upgrade\n# DO NOT EDIT MANUALLY\n\n"
         buf = io.StringIO()
         buf.write(header)
         yaml.dump(data, buf, default_flow_style=False, sort_keys=False)

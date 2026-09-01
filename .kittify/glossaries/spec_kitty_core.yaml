@@ -88,7 +88,7 @@ terms:
     status: active
 
   - surface: charter
-    definition: "A governance document synthesizing a project's purpose, constraints, team norms, and doctrine into a durable reference artifact. Produced by the charter interview workflow."
+    definition: "A governance document synthesizing a project's purpose, constraints, team norms, and the body of project-specific governance artifacts — directives, tactics, and styleguides — into a durable reference artifact. Produced by the charter interview workflow."
     confidence: 0.95
     status: active
 
@@ -148,11 +148,6 @@ terms:
 
   - surface: directive
     definition: A doctrine artifact encoding a specific governance rule or constraint. The primary building block of project doctrine; referenced by agent profiles and action scopes.
-    confidence: 0.95
-    status: active
-
-  - surface: doctrine
-    definition: The body of project-specific governance artifacts — directives, tactics, and styleguides — that shape how agents and humans collaborate on a project.
     confidence: 0.95
     status: active
 

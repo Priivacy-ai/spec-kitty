@@ -14,8 +14,9 @@ from pathlib import Path
 
 import pytest
 
-from doctrine.drg.loader import built_in_graph_source
+from charter.offering.drg.loader import built_in_graph_source
 from specify_cli.calibration.walker import (
+    _REQUIRED_SCOPE,
     CalibrationFinding,
     EdgeChange,
     walk_mission,
@@ -91,6 +92,92 @@ def test_expected_steps_present(mission_key: str, expected_steps: list[str]) -> 
 
 
 # ---------------------------------------------------------------------------
+# Byte-stability guard: named constants must equal the exact URN literals they
+# replaced. Expected sets are spelled with raw strings so the assertion is
+# independent of the module constants (a constant value drift fails here).
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.parametrize(
+    "key,expected",
+    [
+        (
+            ("software-dev", "action:software-dev/specify"),
+            frozenset({
+                "directive:DIRECTIVE_003",
+                "directive:DIRECTIVE_010",
+                "tactic:requirements-validation-workflow",
+            }),
+        ),
+        (
+            ("software-dev", "action:software-dev/implement"),
+            frozenset({
+                "directive:DIRECTIVE_024",
+                "directive:DIRECTIVE_025",
+                "directive:DIRECTIVE_028",
+                "directive:DIRECTIVE_029",
+                "directive:DIRECTIVE_030",
+                "directive:DIRECTIVE_034",
+                "tactic:acceptance-test-first",
+                "tactic:autonomous-operation-protocol",
+                "tactic:change-apply-smallest-viable-diff",
+                "tactic:quality-gate-verification",
+                "tactic:stopping-conditions",
+                "tactic:tdd-red-green-refactor",
+                "toolguide:efficient-local-tooling",
+            }),
+        ),
+        (
+            # Pins the two re-inlined-constant fixes (DIRECTIVE_010, DIRECTIVE_037),
+            # plus DIRECTIVE_003 (mission governance-at-the-gate WP03, FR-005):
+            # moved off `implement` onto `review` as a REQUIRED positive guard
+            # (no longer a silently-tolerated calibrator-sourced extra).
+            ("software-dev", "action:software-dev/review"),
+            frozenset({
+                "directive:DIRECTIVE_003",
+                "directive:DIRECTIVE_010",
+                "directive:DIRECTIVE_024",
+                "directive:DIRECTIVE_025",
+                "directive:DIRECTIVE_028",
+                "directive:DIRECTIVE_029",
+                "directive:DIRECTIVE_030",
+                "directive:DIRECTIVE_034",
+                "directive:DIRECTIVE_037",
+                "tactic:acceptance-test-first",
+                "tactic:usage-examples-sync",
+                "tactic:quality-gate-verification",
+                "tactic:review-intent-and-risk-first",
+                "tactic:stopping-conditions",
+            }),
+        ),
+        (
+            ("erp-custom", "action:software-dev/implement"),
+            frozenset({
+                "directive:DIRECTIVE_024",
+                "directive:DIRECTIVE_025",
+                "directive:DIRECTIVE_028",
+                "directive:DIRECTIVE_029",
+                "directive:DIRECTIVE_030",
+                "directive:DIRECTIVE_034",
+                "tactic:acceptance-test-first",
+                "tactic:autonomous-operation-protocol",
+                "tactic:change-apply-smallest-viable-diff",
+                "tactic:quality-gate-verification",
+                "tactic:stopping-conditions",
+                "tactic:tdd-red-green-refactor",
+                "toolguide:efficient-local-tooling",
+            }),
+        ),
+    ],
+)
+def test_required_scope_membership_is_byte_stable(
+    key: tuple[str, str], expected: frozenset[str]
+) -> None:
+    """Constant-backed frozensets equal the exact URN literals they replaced."""
+    assert _REQUIRED_SCOPE[key] == expected
+
+
+# ---------------------------------------------------------------------------
 # Unit tests: CalibrationFinding shape
 # ---------------------------------------------------------------------------
 
@@ -140,7 +227,7 @@ def test_overlay_loading_does_not_break_when_file_absent(tmp_path: Path) -> None
     """Walker works when no overlay file exists for the mission."""
     # tmp_path has no graph source; seed it from the repo's shipped built-in DRG
     # via the seam so the walker can resolve a real graph from repo_root=tmp_path.
-    src_dir = tmp_path / "src" / "doctrine"
+    src_dir = tmp_path / "src" / "charter" / "offering"
     src_dir.mkdir(parents=True)
     _copy_built_in_graph_source(src_dir)
 
@@ -151,7 +238,7 @@ def test_overlay_loading_does_not_break_when_file_absent(tmp_path: Path) -> None
 
 def test_overlay_add_edge_extends_resolved_scope(tmp_path: Path) -> None:
     """An overlay add_edge increases the resolved scope for the targeted action."""
-    src_dir = tmp_path / "src" / "doctrine"
+    src_dir = tmp_path / "src" / "charter" / "offering"
     src_dir.mkdir(parents=True)
     _copy_built_in_graph_source(src_dir)
 

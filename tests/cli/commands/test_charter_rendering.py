@@ -4,7 +4,7 @@ These tests assert on stable message substrings in CLI output.  They use
 CliRunner to capture Rich-rendered text and check for substrings that are
 stable across Rich versions and terminal widths.  No full-snapshot assertions.
 
-Tactic: function-over-form-testing (src/doctrine/tactics/built-in/testing/).
+Tactic: function-over-form-testing (src/charter/offering/tactics/built-in/testing/).
 Structure: AAA (Arrange / Act / Assert).
 """
 
@@ -55,7 +55,7 @@ def test_sync_renders_error_message_when_sync_reports_error(tmp_path: Path) -> N
 
     with (
         patch("specify_cli.cli.commands.charter.find_repo_root", return_value=project),
-        patch("charter.sync.sync", return_value=fake_result),
+        patch("charter.activation.sync.sync", return_value=fake_result),
     ):
         result = runner.invoke(app, ["sync"])
 
@@ -78,7 +78,7 @@ def test_sync_renders_success_message_when_synced(tmp_path: Path) -> None:
 
     with (
         patch("specify_cli.cli.commands.charter.find_repo_root", return_value=project),
-        patch("charter.sync.sync", return_value=fake_result),
+        patch("charter.activation.sync.sync", return_value=fake_result),
     ):
         result = runner.invoke(app, ["sync"])
 
@@ -102,7 +102,7 @@ def test_sync_renders_already_in_sync_when_noop(tmp_path: Path) -> None:
 
     with (
         patch("specify_cli.cli.commands.charter.find_repo_root", return_value=project),
-        patch("charter.sync.sync", return_value=fake_result),
+        patch("charter.activation.sync.sync", return_value=fake_result),
     ):
         result = runner.invoke(app, ["sync"])
 
@@ -232,8 +232,8 @@ def test_context_renders_action_name_in_output(tmp_path: Path) -> None:
 
     with (
         patch("specify_cli.cli.commands.charter.find_repo_root", return_value=project),
-        patch("charter.context.build_charter_context", return_value=fake_ctx),
-        patch("charter.context.BOOTSTRAP_ACTIONS", {"specify", "plan"}),
+        patch("charter.activation.context.build_charter_context", return_value=fake_ctx),
+        patch("charter.activation.context.BOOTSTRAP_ACTIONS", {"specify", "plan"}),
     ):
         result = runner.invoke(app, ["context", "--action", "review"])
 
@@ -296,8 +296,8 @@ def test_context_json_uses_same_depth_as_rendered_context(tmp_path: Path) -> Non
 
     with (
         patch("specify_cli.cli.commands.charter.find_repo_root", return_value=project),
-        patch("charter.context.build_charter_context", return_value=fake_ctx),
-        patch("charter.context.build_charter_context_json", side_effect=_json_builder),
+        patch("charter.activation.context.build_charter_context", return_value=fake_ctx),
+        patch("charter.activation.context.build_charter_context_json", side_effect=_json_builder),
         patch("charter.drg.resolve_org_roots", return_value=[]),
         patch(
             "specify_cli.doctrine.org_charter_loader.load_org_charter_json_block",
@@ -331,8 +331,8 @@ def test_context_renders_error_on_task_cli_error(tmp_path: Path) -> None:
 
     with (
         patch("specify_cli.cli.commands.charter.find_repo_root", return_value=project),
-        patch("charter.context.build_charter_context", side_effect=TaskCliError("charter context unavailable")),
-        patch("charter.context.BOOTSTRAP_ACTIONS", {"specify", "plan"}),
+        patch("charter.activation.context.build_charter_context", side_effect=TaskCliError("charter context unavailable")),
+        patch("charter.activation.context.BOOTSTRAP_ACTIONS", {"specify", "plan"}),
     ):
         result = runner.invoke(app, ["context", "--action", "plan"])
 
@@ -349,7 +349,7 @@ def test_context_include_renders_selector_without_action(tmp_path: Path) -> None
         patch("specify_cli.cli.commands.charter.find_repo_root", return_value=project),
         patch("charter.drg.resolve_org_roots", return_value=[]),
         patch(
-            "charter.context.build_charter_context_include",
+            "charter.activation.context.build_charter_context_include",
             return_value="### Regression Vigilance\nRule body.",
         ) as include_builder,
     ):
@@ -370,8 +370,8 @@ def test_activation_stanza_include_command_is_registered_cli_surface(
 ) -> None:
     """Regression for #1464: activation stanzas must not point at a missing option."""
 
-    from charter._activation_render import render_activation_stanza
-    from charter.activations import ActivationEntry
+    from charter.activation._activation_render import render_activation_stanza
+    from charter.activation.activations import ActivationEntry
 
     project = _project(tmp_path)
     stanza = render_activation_stanza(
@@ -394,7 +394,7 @@ def test_activation_stanza_include_command_is_registered_cli_surface(
         patch("specify_cli.cli.commands.charter.find_repo_root", return_value=project),
         patch("charter.drg.resolve_org_roots", return_value=[]),
         patch(
-            "charter.context.build_charter_context_include",
+            "charter.activation.context.build_charter_context_include",
             return_value="Styleguide caveman-comments: Caveman",
         ) as include_builder,
     ):
@@ -420,7 +420,7 @@ def test_context_include_json_renders_machine_envelope(tmp_path: Path) -> None:
         patch("specify_cli.cli.commands.charter.find_repo_root", return_value=project),
         patch("charter.drg.resolve_org_roots", return_value=[]),
         patch(
-            "charter.context.build_charter_context_include",
+            "charter.activation.context.build_charter_context_include",
             return_value="### Regression Vigilance\nRule body.",
         ),
     ):
@@ -445,7 +445,7 @@ def test_context_include_renders_value_error(tmp_path: Path) -> None:
         patch("specify_cli.cli.commands.charter.find_repo_root", return_value=project),
         patch("charter.drg.resolve_org_roots", return_value=[]),
         patch(
-            "charter.context.build_charter_context_include",
+            "charter.activation.context.build_charter_context_include",
             side_effect=ValueError("bad selector"),
         ),
     ):

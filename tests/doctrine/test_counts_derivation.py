@@ -23,7 +23,7 @@ from pathlib import Path
 
 import pytest
 
-from doctrine.artifact_kinds import ArtifactKind
+from charter.offering.artifact_kinds import ArtifactKind
 from specify_cli.doctrine.pack_manifest import (
     Constituent,
     counts_by_kind,

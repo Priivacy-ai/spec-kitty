@@ -1,4 +1,4 @@
-"""Tests for ``charter.consistency_check`` (WP07, T033).
+"""Tests for ``charter.activation.consistency_check`` (WP07, T033).
 
 Covers:
 - ``test_coherent_when_all_activated_ids_exist_in_doctrine``: All activated IDs
@@ -22,9 +22,9 @@ from pathlib import Path
 
 import pytest
 
-from charter.consistency_check import ConsistencyReport, run_consistency_check
-from charter.invocation_context import ProjectContext
-from charter.pack_context import PackContext
+from charter.activation.consistency_check import ConsistencyReport, run_consistency_check
+from charter.activation.invocation_context import ProjectContext
+from charter.activation.pack_context import PackContext
 
 pytestmark = pytest.mark.unit
 
@@ -223,7 +223,7 @@ def test_no_activation_keys_skips_doctrine_scan(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """A minimal project has no IDs to validate, so it must not scan doctrine."""
-    import charter.consistency_check as consistency_check
+    import charter.activation.consistency_check as consistency_check
 
     ctx = _ctx_with_config_no_activation_keys(tmp_path, "# minimal valid project\n")
 

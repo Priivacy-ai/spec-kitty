@@ -9,8 +9,9 @@ byte-identical against this frozen baseline.
 It pins the five invariants from
 ``kitty-specs/decompose-agent-tasks-god-module-01KVWVAR/contracts/cli-surface-contract.md``:
 
-* **CONTRACT-1** -- ``agent tasks --help`` exposes exactly the 9 documented
-  commands (no additions/removals/renames).
+* **CONTRACT-1** -- ``agent tasks --help`` exposes exactly the 10 documented
+  commands (no additions/removals/renames). ``check-terminability`` (#3590,
+  WP05) is the tenth: an advisory post-integration authoring-warning scan.
 * **CONTRACT-2** -- each command exposes (at least) the documented flags with
   unchanged names.
 * **CONTRACT-3** -- exit codes are unchanged: ``0`` success, ``1``
@@ -88,7 +89,8 @@ def _wide_help_console(monkeypatch: pytest.MonkeyPatch) -> None:
     """
     force_wide_help_console(monkeypatch)
 
-# The 9 frozen commands (CONTRACT-1).
+# The 10 frozen commands (CONTRACT-1). ``check-terminability`` (#3590, WP05)
+# joined the surface as the advisory post-integration authoring-warning scan.
 COMMANDS = (
     "move-task",
     "mark-status",
@@ -99,6 +101,7 @@ COMMANDS = (
     "validate-workflow",
     "status",
     "list-dependents",
+    "check-terminability",
 )
 
 # The documented flags per command (CONTRACT-2). The live command may expose
@@ -138,6 +141,7 @@ CONTRACT_FLAGS: dict[str, tuple[str, ...]] = {
     "validate-workflow": ("--mission", "--json"),
     "status": ("--mission", "--json", "--stale-threshold"),
     "list-dependents": ("--mission", "--json"),
+    "check-terminability": ("--mission", "--json"),
 }
 
 
@@ -172,8 +176,8 @@ def _command_flags(name: str) -> set[str]:
 # ---------------------------------------------------------------------------
 
 
-def test_top_level_help_lists_exactly_the_nine_commands() -> None:
-    """CONTRACT-1: the command group exposes exactly the 9 frozen commands."""
+def test_top_level_help_lists_exactly_the_ten_commands() -> None:
+    """CONTRACT-1: the command group exposes exactly the 10 frozen commands."""
     assert set(_click_group().commands.keys()) == set(COMMANDS)
 
 

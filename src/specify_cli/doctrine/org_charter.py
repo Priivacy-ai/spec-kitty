@@ -15,7 +15,7 @@ for the pack registry and (b) call into the pure ``charter`` data helper
 that performs the YAML side-effect.
 
 The pure side-effect (writing to ``answers.yaml``) is implemented in
-``charter.interview.apply_org_charter_pre_fill_to_answers``.  That charter
+``charter.activation.interview.apply_org_charter_pre_fill_to_answers``.  That charter
 helper accepts the merged policy data as plain Python (dict + list) so it
 never imports from this layer — the WP07 ``_resolve_org_root`` pattern.
 
@@ -40,17 +40,17 @@ from typing import TYPE_CHECKING, Any
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 from ruamel.yaml import YAML
 
-from charter.activations import ActivationEntry, _activation_identity_key
-from charter.default_pack import load_default_pack_activation_ids
-from charter.kind_vocabulary import (
+from charter.activation.activations import ActivationEntry, _activation_identity_key
+from charter.activation.default_pack import load_default_pack_activation_ids
+from charter.activation.kind_vocabulary import (
     UnknownArtifactIdError,
     resolve_artifact_urn,
     resolve_config_id,
 )
-from doctrine.artifact_kinds import ArtifactKind
+from charter.offering.artifact_kinds import ArtifactKind
 
 if TYPE_CHECKING:
-    from charter.pack_context import PackContext
+    from charter.activation.pack_context import PackContext
 
 __all__ = [
     "GovernancePolicy",
@@ -70,7 +70,7 @@ __all__ = [
 # Constants — the canonical list of artifact kinds an org pack can mandate.
 #
 # Naming parity rule (Mission B WP01 + WP06): every entry here corresponds
-# to a ``selected_<kind>`` field on :class:`charter.schemas.DoctrineSelectionConfig`
+# to a ``selected_<kind>`` field on :class:`charter.activation.schemas.DoctrineSelectionConfig`
 # and a ``required_<kind>`` field on :class:`OrgCharterPolicy`.  The
 # byte-identical parity is pinned by
 # ``tests/architectural/test_artifact_selection_completeness.py``.
@@ -126,7 +126,7 @@ class OrgCharterPolicy(BaseModel):
     Mission B WP06 extends this model with one ``required_<kind>`` list
     per :data:`REQUIRED_KIND_FIELDS` entry.  Each list mirrors the
     matching ``selected_<kind>`` field on
-    :class:`charter.schemas.DoctrineSelectionConfig` (parity pinned by
+    :class:`charter.activation.schemas.DoctrineSelectionConfig` (parity pinned by
     ``tests/architectural/test_artifact_selection_completeness.py``).
     Empty defaults preserve NFR-005 backward compatibility — existing
     ``org-charter.yaml`` files that only declare ``required_directives``
@@ -212,7 +212,7 @@ class MissingDoctrinePackError(RuntimeError):
 
     The exception message is also rendered into the bootstrap charter
     context text as a hard-error diagnostic (see
-    :mod:`charter.context._missing_pack_diagnostic`) so callers that do
+    :mod:`charter.activation.context._missing_pack_diagnostic`) so callers that do
     not catch the exception still surface the error in the prompt body.
     """
 
@@ -271,14 +271,14 @@ def _yaml() -> YAML:
 # ---------------------------------------------------------------------------
 # T014 — org-required union into the project's activation source
 #
-# ``promote_activations`` (charter.activation_engine, WP06) is the single
+# ``promote_activations`` (charter.activation.activation_engine, WP06) is the single
 # append-only write path used below. It never re-derives the built-in id
 # universe itself (C-008: default ids arrive as caller-supplied data), so
 # this module loads the shipped default pack directly.
 #
 # consolidate-charter-bundle WP02: the write target itself (``config.yaml``
 # vs the migrated ``charter.yaml``) is resolved by
-# :func:`charter.pack_manager.resolve_activation_write_target` — the single
+# :func:`charter.activation.pack_manager.resolve_activation_write_target` — the single
 # shared pointer-resolution implementation on the write side (INV-2/INV-5),
 # so this module no longer maintains its own config-loading duplicate.
 # ---------------------------------------------------------------------------
@@ -318,8 +318,8 @@ def _normalize_required_ids(
     """Normalize every id in *raw_ids* (a ``required_<kind_plural>`` list) to stem form.
 
     ``config.activated_<kind>`` stores config/file-stem ids and the
-    derivation reads stems (:mod:`charter.compiler`,
-    :func:`~charter.kind_vocabulary.resolve_artifact_urn`) — promoting an
+    derivation reads stems (:mod:`charter.activation.compiler`,
+    :func:`~charter.activation.kind_vocabulary.resolve_artifact_urn`) — promoting an
     org-required id verbatim in its natural canonical form
     (e.g. ``DIRECTIVE_001``) writes a value the derivation can never match,
     crashing the compiled reference set even for a built-in org-required
@@ -350,7 +350,7 @@ def _promote_org_required_to_config(
     inert — org-required artefacts would silently stop reaching the compiled
     reference set. This promotes the SAME ids directly into
     ``.kittify/config.yaml`` through
-    :func:`charter.activation_engine.promote_activations`, the shared
+    :func:`charter.activation.activation_engine.promote_activations`, the shared
     append-only primitive (WP06) — the only write path used here (no
     hand-rolled second writer, no direct ``save`` call).
 
@@ -365,14 +365,14 @@ def _promote_org_required_to_config(
     Only kinds with a non-empty ``required_<kind>`` are included in the
     promotion set, so kinds the org pack does not mandate are left in their
     existing three-state ``config.yaml`` shape — an absent key still means
-    "all built-ins active" (:meth:`charter.pack_context.PackContext.from_config`)
+    "all built-ins active" (:meth:`charter.activation.pack_context.PackContext.from_config`)
     for those kinds.
 
     Absent-key safety: for a kind whose ``activated_<kind>`` key is not yet
     present in ``config.yaml``, ``promote_activations`` needs the real
     built-in id set as ``default_ids`` or it would write a bare restrictive
     list and silently drop every other built-in for that kind (the WP06
-    LAND-BLOCKER). :func:`~charter.default_pack.load_default_pack_activation_ids`
+    LAND-BLOCKER). :func:`~charter.activation.default_pack.load_default_pack_activation_ids`
     supplies that real set — never an empty/omitted default.
     """
     required_by_kind: dict[str, list[str]] = {
@@ -383,9 +383,9 @@ def _promote_org_required_to_config(
     if not required_by_kind:
         return []
 
-    from charter.activation_engine import promote_activations
-    from charter.catalog import resolve_doctrine_root
-    from charter.pack_manager import resolve_activation_write_target
+    from charter.activation.activation_engine import promote_activations
+    from charter.activation.catalog import resolve_doctrine_root
+    from charter.activation.pack_manager import resolve_activation_write_target
 
     try:
         doctrine_root: Path | None = resolve_doctrine_root()
@@ -478,7 +478,7 @@ def _resolve_chain(
 
     Delegates the topology walk (cycle detection, missing-base detection,
     base-first ordering) to the canonical charter-layer resolver
-    :func:`charter.org_extends.resolve_extends_order`. This module no longer
+    :func:`charter.activation.org_extends.resolve_extends_order`. This module no longer
     maintains its own depth-first walk — per C-005 / R-10 there is a single
     ``extends:`` resolution mechanism, and the charter-layer functions are it
     (FR-008). This loader only maps the resolved order back to the loaded
@@ -508,7 +508,7 @@ def _resolve_chain(
     OrgCharterCycleError
         When a cycle is detected (a pack already in the chain re-appears).
     """
-    from charter.org_extends import (
+    from charter.activation.org_extends import (
         ExtendsBaseNotFoundError,
         ExtendsCycleError,
         resolve_extends_order,
@@ -692,7 +692,7 @@ def load_org_charter_policies(
     repo_root:
         Repository root containing ``.kittify/config.yaml``.
     pack_context:
-        Optional pre-validated :class:`charter.pack_context.PackContext`
+        Optional pre-validated :class:`charter.activation.pack_context.PackContext`
         (FR-001 / WP09 T061-sig).  When supplied, pack discovery and
         ``extends:`` chain resolution use
         :attr:`PackContext.pack_roots` instead of reading
@@ -709,7 +709,7 @@ def load_org_charter_policies(
     if not registry.packs:
         return OrgCharterPolicy()
 
-    from doctrine.drg.org_pack_config import (
+    from charter.offering.drg.org_pack_config import (
         OrgPackEnvVarUnsetError,
         OrgPackSubdirEscapeError,
     )
@@ -796,7 +796,7 @@ def apply_org_charter_pre_fill(repo_root: Path) -> list[str]:
     ``charter`` layer (which cannot import ``specify_cli``) so the
     dependency direction is preserved.
     """
-    from charter.invocation_context import ProjectContext
+    from charter.activation.invocation_context import ProjectContext
     from specify_cli.doctrine.config import load_pack_registry
 
     registry = load_pack_registry(repo_root)
@@ -820,7 +820,7 @@ def apply_org_charter_pre_fill(repo_root: Path) -> list[str]:
     answers_path = repo_root / ".kittify" / "charter" / "interview" / "answers.yaml"
 
     # The pure data helper lives in the charter layer.
-    from charter.interview import apply_org_charter_pre_fill_to_answers
+    from charter.activation.interview import apply_org_charter_pre_fill_to_answers
 
     result: list[str] = apply_org_charter_pre_fill_to_answers(
         answers_path=answers_path,

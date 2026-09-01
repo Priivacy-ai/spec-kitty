@@ -159,9 +159,13 @@ _ALLOWED_SITES_FILES: dict[tuple[str, str], str] = {
     # exception before this more specific fail-closed one could raise) — no git
     # worktree is ever created/looked up from this value; it is raised
     # immediately.
-    ("_coord_mid8", "coord_candidate = repo_root"): (
-        "src/specify_cli/coordination/surface_resolver.py"
-    ),
+    # (PR #845/#801: the composed join was line-joined by ruff format when the
+    # merged-primary pre-check landed above it — same site, same disposition,
+    # token updated to the single-line form.)
+    (
+        "_coord_mid8",
+        "coord_candidate = repo_root / / / KITTY_SPECS_DIR / mission_slug ,",
+    ): "src/specify_cli/coordination/surface_resolver.py",
     # ── workspace.py: CoordinationWorkspaceIdentityUnresolved diagnostic (idiom 2) ──
     # post-merge addition (coord-primary-partition-lock-01KWZ46V, same commit):
     # the exception's message is a human-readable string that names the

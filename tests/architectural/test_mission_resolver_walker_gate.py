@@ -36,6 +36,11 @@ _LEGACY_WALKER_ALLOWLIST = frozenset(
         # audit_mission_types()'s docstring for the full explanation.
         "src/specify_cli/cli/commands/_mission_type_audit.py",
         "src/specify_cli/cli/commands/agent/mission_feature_resolution.py",
+        # #3619 / PR #3660: the pre-create collision probe must see partial
+        # and legacy numbered directories that MissionResolver intentionally
+        # skips (missing/malformed meta or no mission_id), otherwise it can
+        # authorize duplicate creation through an existing scaffold.
+        "src/specify_cli/cli/commands/agent/mission_check_prerequisites.py",
         "src/specify_cli/git/sparse_checkout.py",
         "src/specify_cli/release/changelog.py",
         "src/specify_cli/missions/_read_path_resolver.py",
@@ -87,18 +92,12 @@ def _rel(path: Path) -> str:
 
 
 def _is_allowlisted(rel: str) -> bool:
-    return (
-        rel == _SANCTIONED_RESOLVER_MODULE
-        or rel in _LEGACY_WALKER_ALLOWLIST
-        or any(rel.startswith(prefix) for prefix in _MIGRATION_WALKER_DIR_PREFIXES)
-    )
+    return rel == _SANCTIONED_RESOLVER_MODULE or rel in _LEGACY_WALKER_ALLOWLIST or any(rel.startswith(prefix) for prefix in _MIGRATION_WALKER_DIR_PREFIXES)
 
 
 def _references_kitty_specs(node: ast.AST) -> bool:
     return any(
-        (isinstance(item, ast.Name) and item.id == "KITTY_SPECS_DIR")
-        or (isinstance(item, ast.Constant) and item.value == "kitty-specs")
-        for item in ast.walk(node)
+        (isinstance(item, ast.Name) and item.id == "KITTY_SPECS_DIR") or (isinstance(item, ast.Constant) and item.value == "kitty-specs") for item in ast.walk(node)
     )
 
 
@@ -109,15 +108,8 @@ def _tainted_names_in_file(tree: ast.AST) -> set[str]:
             args = node.args.posonlyargs + node.args.args + node.args.kwonlyargs
             tainted.update(arg.arg for arg in args if arg.arg in _SPECS_NAME_VOCABULARY)
         elif isinstance(node, ast.Assign) and _references_kitty_specs(node.value):
-            tainted.update(
-                target.id for target in node.targets if isinstance(target, ast.Name)
-            )
-        elif (
-            isinstance(node, ast.AnnAssign)
-            and node.value is not None
-            and isinstance(node.target, ast.Name)
-            and _references_kitty_specs(node.value)
-        ):
+            tainted.update(target.id for target in node.targets if isinstance(target, ast.Name))
+        elif isinstance(node, ast.AnnAssign) and node.value is not None and isinstance(node.target, ast.Name) and _references_kitty_specs(node.value):
             tainted.add(node.target.id)
     return tainted
 
@@ -131,10 +123,7 @@ def _find_raw_walker_calls(path: Path) -> list[tuple[int, str]]:
         if isinstance(node, ast.Call)
         and isinstance(node.func, ast.Attribute)
         and node.func.attr in _ENUMERATION_METHODS
-        and (
-            (isinstance(node.func.value, ast.Name) and node.func.value.id in tainted)
-            or _references_kitty_specs(node.func.value)
-        )
+        and ((isinstance(node.func.value, ast.Name) and node.func.value.id in tainted) or _references_kitty_specs(node.func.value))
     ]
 
 
@@ -153,6 +142,5 @@ def test_no_unsanctioned_raw_kitty_specs_enumeration_in_src() -> None:
     assert scanned, "src/ corpus is empty; the architectural gate did not execute"
     violations = _scan_tree_for_violations(_SRC_ROOT)
     assert not violations, (
-        "Raw kitty-specs enumeration bypasses MissionResolver; route the read "
-        f"through the resolver or document a distinct corpus walk: {violations}"
+        f"Raw kitty-specs enumeration bypasses MissionResolver; route the read through the resolver or document a distinct corpus walk: {violations}"
     )

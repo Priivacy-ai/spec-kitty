@@ -65,13 +65,13 @@ def context(
     ),
 ) -> None:
     """Render charter context for a specific workflow action."""
-    from charter.context import (
+    from charter.activation.context import (
         BOOTSTRAP_ACTIONS,
         build_charter_context,
         build_charter_context_include,
         build_charter_context_json,
     )
-    from charter.context_contract import CONTEXT_SCHEMA_VERSION
+    from charter.activation.context_contract import CONTEXT_SCHEMA_VERSION
 
     from charter.drg import resolve_org_roots
     from specify_cli.doctrine.org_charter_loader import load_org_charter_json_block
@@ -88,7 +88,7 @@ def context(
         # / ``build_charter_context_json`` must NOT receive this truncated
         # value — an explicit (already-truncated) ``org_root`` is honoured
         # verbatim by ``_resolve_action_bundle`` and never widens into the
-        # full chain (``charter.action_doctrine_bundle._resolve_action_bundle``
+        # full chain (``charter.activation.action_doctrine_bundle._resolve_action_bundle``
         # docstring). Passing ``org_root=None`` through to those two calls
         # instead lets the charter-layer self-resolution walk the FULL
         # declaration-ordered org-pack chain via ``resolve_existing_org_roots``.
@@ -176,7 +176,7 @@ def context(
                         "project_charter": structured.get(
                             "project_charter",
                             # FR-006: kept consistent with the producer
-                            # (``charter.context_json._project_charter_json_block``) --
+                            # (``charter.activation.context_json._project_charter_json_block``) --
                             # ``present``/``path`` key on the authoritative
                             # ``charter.yaml`` bundle, not the display-only
                             # ``charter.md``.

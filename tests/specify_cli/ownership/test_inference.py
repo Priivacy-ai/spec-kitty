@@ -7,6 +7,7 @@ import pytest
 from specify_cli.ownership.inference import (
     SRC_FALLBACK_GLOB,
     SRC_FALLBACK_WARNING,
+    detect_post_integration_acceptance,
     infer_authoritative_surface,
     infer_execution_mode,
     infer_owned_files,
@@ -297,3 +298,70 @@ class TestSrcFallbackWarning:
         content = "Do something generic with no paths."
         globs, _warnings = infer_owned_files(content, "057-feature")
         assert SRC_FALLBACK_GLOB in globs
+
+
+# ---------------------------------------------------------------------------
+# #227: a nested sub-heading under Acceptance Criteria must not truncate scope
+# ---------------------------------------------------------------------------
+
+
+class TestAcceptanceCriteriaScopeHeadingDepth:
+    def test_marker_under_nested_subheading_is_detected(self) -> None:
+        content = """---
+work_package_id: WP01
+title: t
+---
+# WP01
+## Acceptance Criteria
+- foo
+### Notes
+- the dashboard is only observable once merged
+"""
+        warnings = detect_post_integration_acceptance(content, ["src/x.py"])
+        assert warnings
+        assert "once merged" in warnings[0]
+
+    def test_scope_still_closes_on_sibling_heading(self) -> None:
+        """A heading at the same level as the acceptance heading still closes scope."""
+        content = """---
+work_package_id: WP01
+title: t
+---
+# WP01
+## Acceptance Criteria
+- foo
+## Implementation Notes
+- the dashboard is only observable once merged
+"""
+        warnings = detect_post_integration_acceptance(content, ["src/x.py"])
+        assert warnings == []
+
+    def test_scope_closes_on_shallower_heading(self) -> None:
+        """A heading shallower than the acceptance heading closes scope."""
+        content = """---
+work_package_id: WP01
+title: t
+---
+## Acceptance Criteria
+- foo
+# Next Section
+- the dashboard is only observable once merged
+"""
+        warnings = detect_post_integration_acceptance(content, ["src/x.py"])
+        assert warnings == []
+
+    def test_marker_under_doubly_nested_subheading_is_detected(self) -> None:
+        """Depth-tracking holds for more than one level of nesting."""
+        content = """---
+work_package_id: WP01
+title: t
+---
+## Acceptance Criteria
+- foo
+### Notes
+#### Details
+- the dashboard is only observable once merged
+"""
+        warnings = detect_post_integration_acceptance(content, ["src/x.py"])
+        assert warnings
+        assert "once merged" in warnings[0]

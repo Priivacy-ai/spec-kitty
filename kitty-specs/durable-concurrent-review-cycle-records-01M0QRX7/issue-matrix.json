@@ -1,0 +1,41 @@
+{
+  "rows": {
+    "#2929": {
+      "evidence_ref": "Follow-up: #2929 remains open and owns the baseline-capture harness defect outside this mission. WP06 independently reproduced its synthetic <gate-coverage-junit> record, then ruled out a hidden WP06 regression: a620efa10 changes only the owned test module; focused module 2 passed, downstream durability suite 85 passed, Ruff/strict mypy passed, coverage 95%, and causal reversal of 8ed1ff5ac made the new oracle fail as expected.",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "deferred-with-followup",
+      "wp": "WP06"
+    },
+    "#3235": {
+      "evidence_ref": "All seven WPs independently approved; native run https://github.com/Priivacy-ai/spec-kitty/actions/runs/32734018925 passed the exact baseline and both mutation nodes on Linux, macOS, and Windows; enforced diff coverage 95% in CI Quality run https://github.com/Priivacy-ai/spec-kitty/actions/runs/32734019233.",
+      "fr": "FR-001, FR-002, FR-003, FR-004, FR-005, FR-006, FR-007, FR-008",
+      "nfr": "NFR-001, NFR-002, NFR-003, NFR-004, NFR-005, NFR-006",
+      "repo": "Priivacy-ai/spec-kitty",
+      "sc": "SC-001, SC-002, SC-003, SC-004, SC-005, SC-006, SC-007",
+      "scope": "P0 durability fix for concurrent automatic review-cycle verdict saves, truthful refusal/recovery, governed topology coverage, performance, and native CI proof",
+      "source_file": "spec.md",
+      "title": "P0 data-loss race: concurrent review-cycle commits can silently lose or leave uncommitted a verdict (SC-004 NOT MET)",
+      "verdict": "fixed",
+      "wp": "WP07"
+    },
+    "#3712": {
+      "evidence_ref": "Draft PR https://github.com/Priivacy-ai/spec-kitty/pull/3712 contains the reviewed implementation; all WPs approved and acceptance matrix passes. Final mission review and PR readiness remain workflow gates, not feature implementation gaps.",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "fixed",
+      "wp": "WP07"
+    }
+  },
+  "schema_version": 1
+}

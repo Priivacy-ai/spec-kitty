@@ -23,8 +23,8 @@ from __future__ import annotations
 
 import pytest
 
-from doctrine.artifact_kinds import ArtifactKind
-from doctrine.missions.step_contracts import MissionStepContract, MissionStepContractRepository
+from charter.offering.artifact_kinds import ArtifactKind
+from charter.offering.missions.step_contracts import MissionStepContract, MissionStepContractRepository
 
 pytestmark = [pytest.mark.doctrine, pytest.mark.fast]
 

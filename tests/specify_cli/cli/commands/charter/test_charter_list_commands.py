@@ -155,7 +155,7 @@ class TestListShowAvailable:
         """--show-available calls list_available and shows doctrine entries not activated."""
         # Mock list_available to return a known set
         with patch(
-            "charter.pack_manager.CharterPackManager.list_available",
+            "charter.activation.pack_manager.CharterPackManager.list_available",
             return_value=frozenset(["doctrine-entry-1", "doctrine-entry-2"]),
         ):
             result = _invoke_list(empty_project_root, "--show-available")
@@ -166,7 +166,7 @@ class TestListShowAvailable:
     def test_show_available_hides_already_activated(self, project_with_directive: Path) -> None:
         """Already-activated artifacts don't appear in the 'Available' column."""
         with patch(
-            "charter.pack_manager.CharterPackManager.list_available",
+            "charter.activation.pack_manager.CharterPackManager.list_available",
             return_value=frozenset(["python-style-guide", "other-directive"]),
         ):
             result = _invoke_list(project_with_directive, "--show-available")
