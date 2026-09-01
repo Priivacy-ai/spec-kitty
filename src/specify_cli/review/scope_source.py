@@ -43,8 +43,9 @@ if TYPE_CHECKING:
 
 # ``resolve_scope_source`` (FR-003/FR-014, WP02) is the selection-wiring
 # authority: repos use their configured ``review.test_command`` when present.
-# With no configured command, the source returns ``None`` and the gate emits
-# the normal visible ``NO_COVERAGE`` warning. The former Spec-Kitty-only
+# With no configured command, the source's ``test_command()`` returns ``None``
+# and the gate emits the normal visible ``NO_COVERAGE`` warning. The former
+# Spec-Kitty-only
 # ``GateCoverageScopeSource`` path depended on deleted GitHub Actions workflow
 # files and was retired by issue #380.
 __all__ = [
@@ -452,13 +453,11 @@ def scope_source_identity(scope_source: ScopeSource, raw: RawRunResult) -> str:
     :meth:`ScopeSource.parse_mode` and NEVER re-inspects ``raw`` itself
     (T007 anti-duplication guard, post-plan paula GAP): re-deriving the mode
     here a second time would re-create the exact lock-step-drift pattern this
-    mission retires — e.g. ``GateCoverageScopeSource`` is junit-only even
-    when its artifact is *missing* (a synthetic junit-shaped failure), so a
-    uniform re-inspection of ``raw`` would mislabel that case as
-    ``"text"``/``"none"``.
+    mission retires: the source's strategy decision and the parser actually
+    used could disagree.
 
     The command is deliberately absent from the token — NFR-005 carries
-    command equality separately (see :func:`resolve_scope_source`'s dual-root
-    ``test_command()`` parity, pinned in ``test_scope_source.py``).
+    command equality separately (see the declared command's ``test_command()``
+    contract, pinned in ``test_scope_source.py``).
     """
     return f"{type(scope_source).__name__}/{scope_source.parse_mode(raw)}"

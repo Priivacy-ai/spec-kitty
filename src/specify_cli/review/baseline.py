@@ -478,9 +478,7 @@ def _run_command_for_baseline(command: list[str], *, cwd: Path) -> RawRunResult:
     the caller still holds the worktree open — is what makes the artifact
     locatable at all; without it, ``raw.output_artifact_path.exists()``
     would check a path relative to the wrong directory regardless of when
-    ``parse_results`` runs. ``GateCoverageScopeSource`` already emits an
-    absolute path in its own tempdir (unrelated to ``cwd``), so this is a
-    no-op for it — ``is_absolute()`` short-circuits.
+    ``parse_results`` runs. Absolute ``--junitxml`` paths are used as-is.
 
     Issue #3612 fast-follow (regression review finding, post-#3612):
     ``DeclaredCommandScopeSource.test_command()`` now renders a ``["sh",
@@ -561,9 +559,7 @@ def _capture_baseline_via_scope_source(
     :func:`_run_command_for_baseline`) only exists while the worktree is
     still alive; parsing after the block exited (the prior, buggy ordering)
     silently lost it, degrading every declared-command baseline failure to
-    the generic whole-run synthetic placeholder. ``GateCoverageScopeSource``
-    parses an absolute path in its own tempdir, so this reordering is a
-    no-op for it — its behaviour is unaffected either way.
+    the generic whole-run synthetic placeholder.
     """
     command = scope_source.test_command()
     if not command:
