@@ -30,19 +30,19 @@ from typing import Any
 
 import pytest
 
-import charter.context as context_module
-from charter.context import (
+import charter.activation.context as context_module
+from charter.activation.context import (
     _default_agent_profile_repository,
     _jsonable_artifact_value,
     _load_agent_profile,
     _render_doctrine_artifact_include,
 )
-from charter.context_renderers.artifact_bodies import (
+from charter.activation.context_renderers.artifact_bodies import (
     _format_full_artifact_payload_body,
     _format_inline_directive_body,
     _format_profile_directive_code,
 )
-from charter.context_renderers.selection_block import (
+from charter.activation.context_renderers.selection_block import (
     _SELECTED_AGENT_PROFILES_HEADER,
     _SELECTED_MISSION_STEP_CONTRACTS_HEADER,
     _SELECTED_PROCEDURES_HEADER,
@@ -57,9 +57,9 @@ from charter.context_renderers.selection_block import (
     _render_selected_toolguides,
     _render_selection_block,
 )
-from charter.context_renderers.token_budget import _PROFILE_INLINE_BODY_LIMIT_CHARS
-from charter.profile_resolution import _reset_agent_profile_cache
-from charter.schemas import DoctrineSelectionConfig
+from charter.activation.context_renderers.token_budget import _PROFILE_INLINE_BODY_LIMIT_CHARS
+from charter.activation.profile_resolution import _reset_agent_profile_cache
+from charter.activation.schemas import DoctrineSelectionConfig
 
 
 pytestmark = pytest.mark.fast

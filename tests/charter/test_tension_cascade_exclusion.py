@@ -2,7 +2,7 @@
 
 T032 (``tests/charter/test_cascade.py``) proves the exclusion at the
 data-structure level: ``in_tension_with``/``reconciles_tension``/``rejects``
-are never members of ``charter.cascade.REFERENCE_RELATIONS``. This module
+are never members of ``charter.activation.cascade.REFERENCE_RELATIONS``. This module
 proves the exclusion matters at the CLI/cascade level (INV-003): activating
 one side of a real, built-in tension pair never auto-activates the other
 side via ``--cascade all``, and activating the built-in reconciliation

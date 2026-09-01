@@ -1,0 +1,41 @@
+schema: review-findings/v1
+complete: true
+phase: analyze
+lens_group: gov
+mission: accept-path-remediation-honesty-01M0TWZP
+findings:
+  - id: ANALYZE-GOV-001
+    lens: verdict-rule-correctness / silent-success-check
+    severity: 3
+    title: "analysis-report.md's YAML carrier under-declares its own input_artifacts against the report's stated Scope and its findings' actual evidence sources"
+    evidence:
+      - artifact: "analysis-report.md frontmatter, `input_artifacts:` block (lines 9-21) — lists only spec.md, plan.md, tasks.md, and `charter` (pointing to `.kittify/charter/charter.yaml`), each with a sha256 hash"
+      - artifact: "analysis-report.md § 'Specification Analysis Report', 'Scope' line (line 51) — states the report's actual scope as 'spec.md, plan.md, tasks.md, tasks/WP01-04*.md, wps.yaml, charter.md, mission tracer files.'"
+      - artifact: "analysis-report.md findings table — A1 cites `tracer-design-decisions.md` and `tasks/WP02-stop-double-reporting.md`; A2 cites `tasks/WP04-red-first-tests.md`; A3 cites `tasks/WP01-resolved-path-correctness.md` and `tasks/WP02-stop-double-reporting.md`; A4 cites `wps.yaml` and `tasks/WP04-red-first-tests.md` frontmatter — none of these five files (the four `tasks/WP0N*.md` files, `wps.yaml`, and the tracer files) appear in the hashed `input_artifacts:` block"
+    claim: >
+      The `analysis-findings`-style YAML carrier exists specifically as a machine-readable
+      provenance/audit trail (sha256-pinned per DIRECTIVE_048 version-governance: cite the
+      current canonical version, never a stale copy). In this report the carrier's
+      `input_artifacts` list is materially narrower than both (a) the report's own prose
+      "Scope" line, and (b) the actual evidence base every one of its four findings draws
+      on. Three out of four findings (A1, A2, A4) are grounded in files — `tasks/WP01-04*.md`,
+      `wps.yaml`, `tracer-design-decisions.md` — that carry no hash in the carrier at all, so
+      a downstream consumer trusting only the machine-readable block (rather than reading the
+      Markdown body) would not know these files were read, cannot verify they weren't
+      re-read/re-hashed after generation, and would materially undercount what analysis was
+      actually performed. Separately, the prose Scope line names `charter.md` while the
+      carrier hashes `charter.yaml` — a naming mismatch between the two halves of the same
+      artifact for the very file the carrier is supposed to pin. On a mission whose entire
+      subject is honest, non-vacuous reporting (`accept-path-remediation-honesty`), the
+      report's own self-declared provenance record should not itself be incomplete relative
+      to what it actually analyzed.
+    remediation: >
+      Add sha256-hashed entries to `input_artifacts` for every file the findings table
+      actually cites as evidence — at minimum `tasks/WP01-resolved-path-correctness.md`,
+      `tasks/WP02-stop-double-reporting.md`, `tasks/WP04-red-first-tests.md`, `wps.yaml`, and
+      `tracer-design-decisions.md` (and `tracer-approach.md` / `tracer-tooling-friction.md` if
+      the "mission tracer files" Scope line is meant to cover all three, not just the one
+      actually cited) — or narrow the prose Scope line to match what the carrier actually
+      pins. Also either add a `charter.md` entry alongside `charter.yaml` or clarify in prose
+      that `charter.yaml` is being treated as the canonical machine-compiled source of
+      `charter.md`'s content for hashing purposes.

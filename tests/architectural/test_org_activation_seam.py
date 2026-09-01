@@ -78,7 +78,7 @@ _SEAM_SYMBOLS = (
 # activation seam and MUST NOT splice raw org roots. Relative to ``src/``.
 _ORG_HONOURING_SURFACES: tuple[str, ...] = (
     "specify_cli/invocation/registry.py",
-    "charter/context.py",
+    "charter/activation/context.py",
     "specify_cli/tool_surface/profiles/projection.py",
 )
 
@@ -178,7 +178,7 @@ _VIOLATION_FIXTURE = """
 from pathlib import Path
 
 from charter.profiles import AgentProfileRepository
-from doctrine.drg.org_pack_config import resolve_org_roots
+from charter.offering.drg.org_pack_config import resolve_org_roots
 from specify_cli.invocation.org_profiles import resolve_activated_org_profiles
 
 

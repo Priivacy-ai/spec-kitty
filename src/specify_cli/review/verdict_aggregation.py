@@ -17,9 +17,10 @@ in ``tests/review/test_verdict_aggregation.py`` (squad finding R-F3,
 (``_mt_run_pre_review_gate``, ``tasks_move_task.py``: terminal check at :1270
 BEFORE the block at :1298):
 
-1. **Terminal interruption** -- if ANY verdict is ``TIMED_OUT``/``CANCELLED``:
-   hard-stop, ``transition_applied=False`` (hook raises ``Exit(1)``). Checked
-   BEFORE the block.
+1. **Terminal refusal/interruption** -- if ANY verdict is
+   ``SCOPE_OVERSIZED``/``TIMED_OUT``/``CANCELLED``: hard-stop,
+   ``transition_applied=False`` (hook raises ``Exit(1)``). Checked BEFORE the
+   block.
 2. **Opt-in block** -- else block iff
    ``block_enabled AND any(v.outcome == NEW_FAILURES) AND not force`` (hook raises
    ``Exit(1)``).
@@ -54,10 +55,8 @@ __all__ = [
     "aggregate_verdicts",
 ]
 
-#: The two terminal (hard-stop) outcomes. C-003: no new hard-stop is introduced.
-_TERMINAL_OUTCOMES: frozenset[GateOutcome] = frozenset(
-    {GateOutcome.TIMED_OUT, GateOutcome.CANCELLED}
-)
+#: Terminal (hard-stop) outcomes, including deterministic pre-launch refusal.
+_TERMINAL_OUTCOMES: frozenset[GateOutcome] = frozenset({GateOutcome.TIMED_OUT, GateOutcome.CANCELLED, GateOutcome.SCOPE_OVERSIZED})
 
 
 class AggregateDecision(StrEnum):
@@ -97,16 +96,14 @@ class AggregateVerdict:
 
 
 def _first_terminal(verdicts: Sequence[GateVerdict]) -> GateVerdict | None:
-    """Return the first ``TIMED_OUT``/``CANCELLED`` verdict, or ``None``."""
+    """Return the first interruption or oversized-refusal verdict, or ``None``."""
     for verdict in verdicts:
         if verdict.outcome in _TERMINAL_OUTCOMES:
             return verdict
     return None
 
 
-def _should_block(
-    *, block_enabled: bool, force: bool, blocking: Sequence[GateVerdict]
-) -> bool:
+def _should_block(*, block_enabled: bool, force: bool, blocking: Sequence[GateVerdict]) -> bool:
     """The opt-in block predicate: enabled AND >=1 NEW_FAILURES AND not forced."""
     return block_enabled and bool(blocking) and not force
 

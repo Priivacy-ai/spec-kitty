@@ -51,7 +51,7 @@ def test_tracker_saas_client_does_not_reference_legacy_classes() -> None:
 
     source = inspect.getsource(t)
     # The real source file must not define or import AuthClient or
-    # CredentialStore. A test-only shim lives in tests/sync/tracker/conftest.py
+    # CredentialStore. A test-only shim lives in tests/tracker/conftest.py
     # and is NOT part of production source.
     assert "class AuthClient" not in source
     assert "class CredentialStore" not in source

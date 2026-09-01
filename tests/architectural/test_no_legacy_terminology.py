@@ -48,17 +48,19 @@ _EXCLUDED_PATH_FRAGMENTS: tuple[str, ...] = (
     # (docs/adr/ only, not the rest of docs/) is pinned by
     # test_docs_adr_exemption_is_narrow below.
     "docs/adr/",
-    # src/doctrine/glossary_packs/built-in/ ships the migrated built-in
-    # glossary pack (mission glossary-pack-doctrine-kind-01KY30SW, WP03),
-    # whose data faithfully carries the seed's DEPRECATED entries
-    # ("ceremony commit", "status-writing operation") and the
-    # `synonyms_to_avoid` list on "status commit" -- i.e. it *documents*
-    # the forbidden legacy terms as data, the same way this test's own
-    # `_FORBIDDEN_TERMS` construction or a dictionary defining a banned word
-    # does. That is quoted/cataloged terminology, not active prose using it
-    # -- the same historical-artifact rationale as the docs/adr/ exemption
-    # above, applied to doctrine glossary data instead of decision records.
-    "src/doctrine/glossary_packs/built-in/",
+    # packs/built-in/glossary_packs/ ships the built-in glossary pack, whose
+    # data faithfully carries the seed's DEPRECATED entries ("ceremony commit",
+    # "status-writing operation") and the `synonyms_to_avoid` list on "status
+    # commit" -- i.e. it *documents* the forbidden legacy terms as data, the
+    # same way this test's own `_FORBIDDEN_TERMS` construction or a dictionary
+    # defining a banned word does. That is quoted/cataloged terminology, not
+    # active prose using it -- the same historical-artifact rationale as the
+    # docs/adr/ exemption above, applied to glossary pack data instead of
+    # decision records. (The pack moved here from the retired
+    # `src/charter/offering/glossary_packs/built-in/` location; `packs/` is not in
+    # `_SCAN_ROOTS` today, so this exemption is kept forward-correct at the
+    # pack's canonical home for when the pack tree enters the scan scope.)
+    "packs/built-in/glossary_packs/",
     ".worktrees/",
     ".venv/",
     "node_modules/",
@@ -229,8 +231,8 @@ _LANE_CONSOLIDATION_PHRASE_BASELINE: frozenset[str] = frozenset(
         "docs/plans/engineering-notes/naming-identity-ssot-strangler/00-OVERVIEW.md",
         "docs/plans/engineering-notes/naming-identity-ssot-strangler/randy-reducer-split-brain-map.md",
         "packs/built-in/procedures/mission-wrap-up-sequence.procedure.yaml",
-        "src/doctrine/skills/spec-kitty-git-workflow/references/git-operations-matrix.md",
-        "src/doctrine/skills/spec-kitty-implement-review/SKILL.md",
+        "src/charter/offering/skills/spec-kitty-git-workflow/references/git-operations-matrix.md",
+        "src/charter/offering/skills/spec-kitty-implement-review/SKILL.md",
         "src/specify_cli/lanes/merge.py",
         "src/specify_cli/lanes/stale_check.py",
         "src/specify_cli/merge/git_probes.py",
@@ -408,42 +410,41 @@ def test_lane_consolidation_baseline_entries_are_currently_real() -> None:
 
 
 def test_glossary_pack_builtin_exemption_is_narrow() -> None:
-    """glossary_packs/built-in/ data is exempt; the rest of the package is not.
+    """packs/built-in/glossary_packs/ data is exempt; the rest of the tree is not.
 
-    Mission glossary-pack-doctrine-kind-01KY30SW (WP03) migrated the full
-    104-term seed -- including its DEPRECATED entries and the
-    ``synonyms_to_avoid`` list on "status commit" -- into
-    ``src/doctrine/glossary_packs/built-in/*.glossary-pack.yaml``. That data
+    The built-in glossary pack ships the full seed -- including its DEPRECATED
+    entries and the ``synonyms_to_avoid`` list on "status commit" -- at
+    ``packs/built-in/glossary_packs/*.glossary-pack.yaml``. That data
     *documents* the forbidden legacy terms (same rationale as docs/adr/'s
     quoted-history exemption above), so it is exempt.
 
-    This test pins the exemption as *narrow*: only the ``built-in/`` pack
-    data directory is excluded. Real code elsewhere in the same
-    ``glossary_packs`` package (or anywhere else under ``src/``) must still be
-    scanned, so an actual regression there is caught.
+    This test pins the exemption as *narrow*: only the pack-data directory is
+    excluded. Real code elsewhere (a sibling ``packs/`` subtree, or anything
+    under ``src/``) must still be scanned, so an actual regression there is
+    caught.
     """
     forbidden = _FORBIDDEN_TERMS[0]
 
     pack_hit = (
-        "src/doctrine/glossary_packs/built-in/spec-kitty-core.glossary-pack.yaml:"
+        "packs/built-in/glossary_packs/spec-kitty-core.glossary-pack.yaml:"
         f"88:  surface: {forbidden} commit"
     )
     assert _line_is_excluded(pack_hit), (
-        "src/doctrine/glossary_packs/built-in/ hits must be exempt -- the pack "
+        "packs/built-in/glossary_packs/ hits must be exempt -- the pack "
         "faithfully documents the seed's deprecated/forbidden terminology "
         "as data, not active prose using it."
     )
 
-    # Real code in the same package (and elsewhere under src/) must remain in
-    # scope: an exemption here would be a package-wide carve-out.
+    # Real code / a sibling pack subtree (and anything under src/) must remain
+    # in scope: an exemption here would be an over-broad carve-out.
     still_scanned = (
-        f"src/doctrine/glossary_packs/models.py:10:# never say {forbidden}",
-        f"src/doctrine/glossary_packs/repository.py:5:# {forbidden} is banned",
-        f"src/doctrine/drg/models.py:1:# {forbidden}",
+        f"packs/built-in/procedures/some-procedure.yaml:3:# never say {forbidden}",
+        f"src/charter/offering/glossary_packs/models.py:10:# {forbidden} is banned",
+        f"src/charter/offering/drg/models.py:1:# {forbidden}",
     )
     for hit in still_scanned:
         assert not _line_is_excluded(hit), (
-            f"Non-built-in-pack path must still be scanned for legacy terms: "
-            f"{hit!r}. The glossary_packs/built-in/ exemption must not "
-            "blanket-exempt the whole package or the rest of src/."
+            f"Non-pack-data path must still be scanned for legacy terms: "
+            f"{hit!r}. The packs/built-in/glossary_packs/ exemption must not "
+            "blanket-exempt sibling pack subtrees or the rest of the tree."
         )

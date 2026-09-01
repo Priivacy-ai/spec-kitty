@@ -35,7 +35,7 @@ Reported-live honesty, not reconstruction:
 * ``signal.kind == "revoked"`` is scoped: only the named ``session_ref``'s
   presence/focus entries are removed, matching the relay's own
   ``session_revoke`` scoping (F3 N30).
-* An ``event`` frame (E1's status moment, EXPERIMENTAL-spec-kitty#10) is
+* An ``event`` frame (E1's status moment, Priivacy-ai/spec-kitty#10) is
   accepted — before #10 it was silently dropped by the ``frame.type``
   discriminator, so a watch could never show the moment the demo path turns
   on — but it is the one frame type that leaves no trace in ``StreamState``
@@ -158,7 +158,7 @@ from . import grammar
 
 FrameType = Literal["presence", "focus", "signal", "event"]
 
-# "event" (EXPERIMENTAL-spec-kitty#10) is the E1 status-moment frame the
+# "event" (Priivacy-ai/spec-kitty#10) is the E1 status-moment frame the
 # relay emits for one fire-and-forget ``event.publish`` — activity ABOUT a
 # session, never liveness OF one. Accepting it here is what lets
 # ``filtered_stream.watch()`` deliver it at all; see ``_apply_event`` for why

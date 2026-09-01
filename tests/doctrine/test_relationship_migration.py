@@ -3,8 +3,8 @@
 Built-in doctrine relationships that used to be authored as artifact *fields*
 (``specializes-from`` / ``enhances`` / ``overrides``) are migrated into typed
 DRG ``specializes_from`` / ``enhances`` / ``overrides`` **edges** in the shipped
-per-kind DRG fragments (``src/doctrine/<kind>.graph.yaml``, sharded by edge
-source kind). The migration must be *zero-loss*: every
+per-kind DRG fragments (``src/charter/offering/<kind>.graph.yaml``, sharded by
+edge source kind). The migration must be *zero-loss*: every
 field-authored relationship discovered in the built-in artifacts has exactly one
 corresponding edge in the merged DRG.
 
@@ -27,10 +27,10 @@ from ruamel.yaml import YAML
 
 pytestmark = [pytest.mark.doctrine, pytest.mark.fast, pytest.mark.corpus]
 
-from doctrine.drg.loader import load_built_in_graph
-from doctrine.drg.merge import merge_three_layers
-from doctrine.drg.models import Relation
-from doctrine.drg.org_pack_loader import OrgDRGFragment, load_org_pack
+from charter.offering.drg.loader import load_built_in_graph
+from charter.offering.drg.merge import merge_three_layers
+from charter.offering.drg.models import Relation
+from charter.offering.drg.org_pack_loader import OrgDRGFragment, load_org_pack
 
 # The relationship fields whose values were migrated into DRG edges, mapped to
 # the canonical relation each projects to. Derived directly from the migration
@@ -55,7 +55,7 @@ _BUILT_IN_KIND_DIRS: dict[str, str] = {
 
 
 def _doctrine_root() -> Path:
-    return Path(str(files("doctrine")))
+    return Path(str(files("charter.offering")))
 
 
 def _artifact_id(data: dict) -> str | None:
@@ -242,7 +242,7 @@ class TestRelationshipPackFixtures:
         assert ("org-mission-type", "overrides") in edge_relations
 
     def test_augment_pack_merges_for_bridge_supported_kinds(self) -> None:
-        """The merge bridge in ``doctrine.drg.merge`` mints URNs for the kinds it
+        """The merge bridge in ``charter.offering.drg.merge`` mints URNs for the kinds it
         knows (directive, toolguide, mission-step-contract). ``mission_types`` is
         admitted by the loader (FR-032) but the merge plural->singular bridge does
         not yet map it — that bridge extension is owned by the DRG merge/parity

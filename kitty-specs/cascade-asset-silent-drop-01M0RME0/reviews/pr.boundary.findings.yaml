@@ -1,0 +1,75 @@
+schema: review-findings/v1
+complete: false
+phase: pr
+lens_group: boundary
+mission: cascade-asset-silent-drop-01M0RME0
+findings:
+  - id: pr-boundary-001
+    lens: boundary
+    severity: 3
+    title: deactivate.py imports a private (underscore-prefixed) symbol from a sibling command module, escalating past the module's own public-API contract
+    evidence:
+      - code: "src/specify_cli/cli/commands/charter/activate.py:57"
+      - code: "src/specify_cli/cli/commands/charter/activate.py:178"
+      - code: "src/specify_cli/cli/commands/charter/deactivate.py:47"
+      - code: "src/specify_cli/cli/commands/charter/_common.py:1-6"
+    claim: >
+      `deactivate.py` imports `_render_kind_filtered_line` from `activate.py`
+      (deactivate.py:47). Every symbol `deactivate.py` previously imported from
+      `activate.py` (`RESYNTHESIZE_HELP`, `render_pack_config_error`,
+      `run_full_synthesize`, `validate_pack_config`) is unprefixed -- i.e. already
+      outside `activate.py`'s own `__all__` (which lists only `activate_cmd` and
+      `run_full_synthesize`, activate.py:57) but at least following normal Python
+      "public unless prefixed" convention. `_render_kind_filtered_line` is the
+      first case of a leading-underscore, explicitly module-private symbol
+      crossing this command-module boundary. That is a real escalation, not
+      mere repetition of the existing precedent the task brief raises: it
+      signals to any future reader of `activate.py` that this helper is safe to
+      rename/inline/remove as a local implementation detail, when in fact
+      `deactivate.py` now depends on it. The codebase already has a designated
+      seam for this exact situation -- `_common.py`, whose docstring says
+      "Shared helpers used by multiple `charter` subcommands" (_common.py:1-6)
+      -- but this helper and its backing `KIND_FILTERED_LABEL` constant
+      (activate.py:77) were added to `activate.py` instead of that shared
+      module, then reached into from `deactivate.py` rather than being placed
+      where the codebase's own convention says shared cross-command code goes.
+    remediation: >
+      Move `KIND_FILTERED_LABEL` and `_render_kind_filtered_line` (and, if kept
+      shared, `_drg_id_to_config_id`) into `_common.py` (or a new dedicated
+      module) and have both `activate.py` and `deactivate.py` import from
+      there. Alternatively, rename the helper without a leading underscore and
+      add it to `activate.py`'s `__all__` to make the cross-module contract
+      explicit.
+
+  - id: pr-boundary-002
+    lens: boundary
+    severity: 3
+    title: "ID-resolution-with-fallback logic copy-pasted twice in the same function instead of extracted, contradicting this diff's own DRY rationale for the sibling render helper"
+    evidence:
+      - code: "src/specify_cli/cli/commands/charter/deactivate.py:165-172"
+      - code: "src/specify_cli/cli/commands/charter/deactivate.py:207-216"
+    claim: >
+      `_render_cascade_deactivation` in `deactivate.py` contains two
+      byte-for-byte-identical blocks fifteen lines apart: the pre-existing
+      `plan.deactivate` loop (deactivate.py:165-172) and the new
+      `plan.not_cascaded_kind_filtered` loop this diff adds
+      (deactivate.py:207-216). Both do exactly: `kind_value, _, _ =
+      urn.partition(":")`, `kind_token = ArtifactKind(kind_value).operator_token`,
+      then `try: config_id = resolve_config_id(urn, doctrine_root=...,
+      org_roots=..., layer_roots=...) except (UnknownArtifactIdError,
+      ValueError): config_id = urn.partition(":")[2]`. This is the exact
+      "duplicated logic that should have gone to a shared seam" pattern the
+      review brief calls out, and it is self-inconsistent with this same PR's
+      own stated rationale: the PR explicitly extracts `_render_kind_filtered_line`
+      / `KIND_FILTERED_LABEL` to a shared helper specifically to avoid
+      "re-coining" wording (Sonar S1192, per the comment at
+      deactivate.py:198-204), yet copy-pastes the URN-to-config-id resolution
+      that precedes it in the very same function.
+    remediation: >
+      Extract a small local helper, e.g. `_resolve_config_id_or_fallback(urn,
+      *, doctrine_root, org_roots, layer_roots) -> str`, in `deactivate.py`
+      (or `_common.py` if shared with `activate.py`'s `_drg_id_to_config_id`,
+      which implements the same try/except-fallback shape at
+      activate.py:165-173) and call it from both loops.
+
+complete: true

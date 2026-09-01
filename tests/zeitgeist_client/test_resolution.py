@@ -1,4 +1,4 @@
-"""E3 credential resolution (EXPERIMENTAL-spec-kitty#9): cached relay
+"""E3 credential resolution (Priivacy-ai/spec-kitty#9): cached relay
 credential, capability mint on miss/expiry, short-TTL negative answers.
 
 Three layers are covered separately:
@@ -245,7 +245,7 @@ class TestStoreKeyForCheckout:
     def test_hosted_checkout_yields_its_store_key(self, clone: Path) -> None:
         assert resolution.store_key_for_checkout(clone) == "github.com/acme/widget"
 
-    def test_directory_with_no_git_identity_has_no_key(self, tmp_path: Path) -> None:
+    def test_directory_with_no_git_identity_has_no_key(self, tmp_path: Path, no_git_ancestry_inside_tmp_path: None) -> None:
         plain = tmp_path / "not-a-repo"
         plain.mkdir()
         assert resolution.store_key_for_checkout(plain) is None
@@ -417,15 +417,16 @@ def test_missing_or_garbled_stamps_never_expire() -> None:
     assert resolution._expired("not-a-stamp") is False
 
 
-def test_naive_stamp_never_raises_and_never_expires() -> None:
-    """[controller-qa] MAJOR regression: ``expires_at`` is stored verbatim
-    from the mint, and a stamp with no UTC offset parses fine but cannot be
-    compared against the aware clock — ``aware >= naive`` raises
-    ``TypeError``, which used to escape ``_expired`` (it caught only
-    ``ValueError``) and then ``resolve_credentials`` itself, straight into
-    the fire-and-forget seam. A naive stamp is treated like any other
-    unparseable one: never expired, never raised."""
-    assert resolution._expired("2026-08-25T12:00:00") is False  # naive, in the past
+def test_naive_stamp_never_raises_and_is_coerced_to_utc() -> None:
+    """[squad] #14 MINOR (#36): ``expires_at`` is stored verbatim from the
+    mint, and a stamp with no UTC offset (a self-hosted Team Kitty running
+    ``USE_TZ=False``) parses fine but cannot be compared against the aware
+    clock — ``aware >= naive`` raises ``TypeError``. Rather than treat that
+    as unparseable and pin the entry to "never expires" forever, the naive
+    stamp is assumed UTC and compared normally: never raises, and expires
+    exactly when an equivalent aware stamp would."""
+    assert resolution._expired("2026-08-25T12:00:00") is True  # naive, in the past
+    assert resolution._expired("2999-01-01T00:00:00") is False  # naive, in the future
 
 
 # ---------------------------------------------------------------------------
@@ -474,15 +475,16 @@ class TestCacheShortCircuits:
         assert credentials.load_negative(repo=KEY) is not None
 
     def test_naive_stamp_on_a_stored_credential_answers_from_cache(self, state_root: Path) -> None:
-        """[controller-qa] MAJOR regression, end to end through the cache
-        path: a stored entry whose verbatim stamp has no UTC offset must
-        answer from the store — never raise out of resolution."""
+        """End to end through the cache path: a stored entry whose verbatim
+        stamp has no UTC offset must answer from the store — never raise
+        out of resolution — for as long as the coerced-to-UTC stamp says
+        it is still valid."""
         credentials.store(
             repo=KEY,
             relay_url="http://naive",
             token="tok",
             token_kind="presence",
-            expires_at="2026-08-25T12:00:00",
+            expires_at="2999-01-01T00:00:00",  # naive, far in the future
         )
         gateway = ScriptedGateway()
         stored = resolution._resolve(key=KEY, repo_slug=SLUG, host=HOST, gateway=gateway, kind=KIND_PRESENCE, force=False)
@@ -493,17 +495,85 @@ class TestCacheShortCircuits:
 
     def test_naive_stamp_on_a_negative_answer_stays_silent_without_raising(self, state_root: Path) -> None:
         """And on the negative path: an unparseable-at-comparison stamp must
-        not turn "stay silent" into "raise"."""
-        credentials.store_negative(repo=KEY, reason="no_match", expires_at="2026-08-25T12:00:00")
+        not turn "stay silent" into "raise" — for as long as the coerced
+        stamp says the negative TTL has not lapsed."""
+        credentials.store_negative(repo=KEY, reason="no_match", expires_at="2999-01-01T00:00:00")
         gateway = ScriptedGateway()
         assert resolution._resolve(key=KEY, repo_slug=SLUG, host=HOST, gateway=gateway, kind=KIND_PRESENCE, force=False) is None
         assert gateway.admission_calls == [] and gateway.mint_calls == []
 
+    def test_expired_naive_stamp_on_a_stored_credential_falls_through_to_the_mint(self, state_root: Path) -> None:
+        """[squad] #14 MINOR (#36): a naive stamp in the past must not pin
+        the credential as immortal — it falls through to the mint exactly
+        like an equivalent aware expired stamp would."""
+        credentials.store(
+            repo=KEY,
+            relay_url="http://stale-naive",
+            token="tok",
+            token_kind="presence",
+            expires_at="2026-08-25T12:00:00",  # naive, in the past
+        )
+        gateway = ScriptedGateway()
+        stored = resolution._resolve(key=KEY, repo_slug=SLUG, host=HOST, gateway=gateway, kind=KIND_PRESENCE, force=False)
+        assert stored is not None
+        assert stored.relay_url == "http://relay"  # the freshly minted one, not the stale cache
+        assert len(gateway.admission_calls) == 1 and len(gateway.mint_calls) == 1
+
+    def test_expired_naive_stamp_on_a_negative_answer_asks_again(self, state_root: Path) -> None:
+        """[squad] #14 MINOR (#36): a naive stamp in the past on a negative
+        entry must not pin "stay silent" forever — it retries the network
+        exactly like an equivalent aware expired negative stamp would."""
+        credentials.store_negative(repo=KEY, reason="no_match", expires_at="2026-08-25T12:00:00")
+        gateway = ScriptedGateway()
+        stored = resolution._resolve(key=KEY, repo_slug=SLUG, host=HOST, gateway=gateway, kind=KIND_PRESENCE, force=False)
+        assert stored is not None  # this time admitted, per ScriptedGateway()'s default script
+        assert len(gateway.admission_calls) == 1
+
+
+class TestCachedAnswer:
+    """:func:`resolution.cached_answer` — the gateway-free peek `_resolve`
+    and `resolve_credentials` both build on (Priivacy-ai/spec-kitty#151)."""
+
+    def test_miss_when_nothing_stored(self, state_root: Path) -> None:
+        assert resolution.cached_answer(KEY, repo_slug=SLUG, host=HOST) == (False, None, None)
+
+    def test_hit_on_an_unexpired_positive(self, state_root: Path) -> None:
+        credentials.store(repo=KEY, relay_url="http://cached", token="tok", token_kind="presence", expires_at=_iso_in(3600))
+        hit, value, negative = resolution.cached_answer(KEY, repo_slug=SLUG, host=HOST)
+        assert hit is True
+        assert value is not None
+        assert negative is None
+        assert value.relay_url == "http://cached"
+
+    def test_hit_on_an_unexpired_negative(self, state_root: Path) -> None:
+        credentials.store_negative(repo=KEY, reason="no_match", expires_at=_iso_in(300))
+        hit, value, negative = resolution.cached_answer(KEY, repo_slug=SLUG, host=HOST)
+        assert hit is True
+        assert value is None
+        assert negative is not None
+        assert negative.reason == "no_match"
+
+    def test_miss_on_an_expired_positive(self, state_root: Path) -> None:
+        credentials.store(repo=KEY, relay_url="http://stale", token="tok", token_kind="presence", expires_at=_iso_in(-1))
+        assert resolution.cached_answer(KEY, repo_slug=SLUG, host=HOST) == (False, None, None)
+
+    def test_miss_on_an_out_of_scope_entry(self, state_root: Path) -> None:
+        credentials.store(
+            repo=KEY,
+            relay_url="http://cached",
+            token="tok",
+            token_kind="presence",
+            expires_at=_iso_in(3600),
+            host="gitlab.com",
+            repo_slug="other/repo",
+        )
+        assert resolution.cached_answer(KEY, repo_slug=SLUG, host=HOST) == (False, None, None)
+
 
 class TestScopeRevalidation:
-    """Squad finding on #123: the store key is the bare repo NAME, which two
-    differently-hosted repos can share -- a same-name checkout must not be
-    served a credential minted for a different (host, repo_slug)."""
+    """Squad finding on #123: the store key was the bare repo NAME, which
+    two differently-hosted repos could share -- #132 moved the key to
+    ``resolution.store_key``'s ``host/owner/repo``."""
 
     def test_cache_hit_for_the_same_scope_is_trusted(self, state_root: Path) -> None:
         credentials.store(
@@ -735,7 +805,12 @@ class TestResolveCredentialsEndToEnd:
         assert cached is not None
         assert second.admission_calls == [] and second.mint_calls == []
 
-    def test_directory_with_no_git_identity_stays_silent(self, state_root: Path, tmp_path: Path) -> None:
+    def test_directory_with_no_git_identity_stays_silent(
+        self,
+        state_root: Path,
+        tmp_path: Path,
+        no_git_ancestry_inside_tmp_path: None,
+    ) -> None:
         plain = tmp_path / "not-a-repo"
         plain.mkdir()
         gateway = ScriptedGateway()
@@ -1017,6 +1092,47 @@ class TestDefaultGatewayConstruction:
         assert resolution.resolve_credentials(clone, auth_repo_root=clone) is None
         assert credentials.load(repo="github.com/acme/widget") is None
 
+    def test_cached_credential_answers_offline_even_when_nothing_is_configured_to_authenticate_with(
+        self, state_root: Path, monkeypatch: pytest.MonkeyPatch, clone: Path
+    ) -> None:
+        """Priivacy-ai/spec-kitty#151: a stored credential must answer
+        offline before the gateway is ever built, so a checkout with a
+        cached credential but no auth configured anywhere still gets it —
+        not the quiet ``None`` an auth failure would otherwise produce."""
+        monkeypatch.delenv("SPEC_KITTY_SAAS_URL", raising=False)
+        monkeypatch.delenv("SPEC_KITTY_SAAS_TOKEN", raising=False)
+        monkeypatch.delenv("SPEC_KITTY_TEAM_SLUG", raising=False)
+        credentials.store(
+            repo="github.com/acme/widget",
+            relay_url="http://relay",
+            token="bearer",
+            token_kind=KIND_PRESENCE,
+            expires_at=_iso_in(3600),
+            host="github.com",
+            repo_slug="acme/widget",
+            team="demo",
+        )
+        stored = resolution.resolve_credentials(clone, auth_repo_root=clone)
+        assert stored is not None
+        assert stored.team == "demo"
+
+    def test_cached_negative_answers_offline_even_when_nothing_is_configured_to_authenticate_with(
+        self, state_root: Path, monkeypatch: pytest.MonkeyPatch, clone: Path
+    ) -> None:
+        """Same fix, the remembered-negative branch."""
+        monkeypatch.delenv("SPEC_KITTY_SAAS_URL", raising=False)
+        monkeypatch.delenv("SPEC_KITTY_SAAS_TOKEN", raising=False)
+        monkeypatch.delenv("SPEC_KITTY_TEAM_SLUG", raising=False)
+        credentials.store_negative(repo="github.com/acme/widget", reason="stale-reason")
+        assert resolution.resolve_credentials(clone, auth_repo_root=clone) is None
+        # Distinguishing "cached no" from "auth error, no answer" matters to
+        # callers like `spec-kitty routes` — confirm it stayed a cache hit,
+        # not a fall-through past a `SaasAuthError`, via the negative record
+        # itself: still present and unexpired, never touched by this call.
+        negative = credentials.load_negative(repo="github.com/acme/widget")
+        assert negative is not None
+        assert negative.reason == "stale-reason"
+
 
 # --- #10: the admitting team is recorded with the mint ----------------------
 
@@ -1036,6 +1152,31 @@ class TestMintRecordsAdmittingTeam:
         stored = resolution._resolve(key=KEY, repo_slug=SLUG, host=HOST, gateway=gateway, kind=KIND_PRESENCE, force=False)
         assert stored is not None
         assert stored.team is None
+
+    def test_remint_with_missing_admission_team_preserves_existing_team(self, state_root: Path) -> None:
+        credentials.store(
+            repo=KEY,
+            relay_url="http://relay",
+            token="old-bearer",
+            token_kind=KIND_PRESENCE,
+            expires_at=_iso_in(-1),
+            host=HOST,
+            repo_slug=SLUG,
+            team="demo",
+        )
+        credentials.store_focus_capability(
+            repo=KEY,
+            capability_credential="focus-jwt",
+            expires_at=_iso_in(1200),
+        )
+        gateway = ScriptedGateway(admission={"admitted": True})
+
+        stored = resolution._resolve(key=KEY, repo_slug=SLUG, host=HOST, gateway=gateway, kind=KIND_PRESENCE, force=False)
+
+        assert stored is not None
+        assert stored.team == "demo"
+        assert stored.focus_capability_credential == "focus-jwt"
+        assert gateway.mint_calls == [{"repo_slug": SLUG, "kind": KIND_PRESENCE, "team_slug": None}]
 
 
 # ---------------------------------------------------------------------------

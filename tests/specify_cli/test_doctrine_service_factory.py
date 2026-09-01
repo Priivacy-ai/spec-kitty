@@ -6,7 +6,7 @@ from pathlib import Path
 
 import pytest
 
-from charter.resolver import DoctrineService
+from charter.activation.resolver import DoctrineService
 from specify_cli.doctrine_service_factory import (
     build_activation_aware_doctrine_service,
 )

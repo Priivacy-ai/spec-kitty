@@ -210,7 +210,7 @@ def test_c2e_no_noop_despite_stale_for_crlf_or_bom(
     endings) makes both surfaces agree. This pins that both surfaces report
     the SAME staleness on a CRLF/BOM charter — no noop-despite-stale.
     """
-    from charter._io import load_charter_file  # noqa: PLC0415
+    from charter.activation._io import load_charter_file  # noqa: PLC0415
     from charter.hasher import hash_content  # noqa: PLC0415
 
     charter_dir = tmp_path / ".kittify" / "charter"

@@ -85,14 +85,14 @@ def tmp_repo_without_org_pack(tmp_path: Path) -> Path:
 
 def test_provenance_suffix_returns_empty_for_no_map() -> None:
     """When org_source_map is None, suffix is empty (built-in artifacts unchanged)."""
-    from charter.context_renderers.selection_block import _provenance_suffix
+    from charter.activation.context_renderers.selection_block import _provenance_suffix
 
     assert _provenance_suffix("some-directive", None) == ""
 
 
 def test_provenance_suffix_returns_empty_for_artifact_not_in_map() -> None:
     """When artifact not in map, suffix is empty."""
-    from charter.context_renderers.selection_block import _provenance_suffix
+    from charter.activation.context_renderers.selection_block import _provenance_suffix
 
     result = _provenance_suffix("built-in-directive", {"org-directive": "example-org"})
     assert result == ""
@@ -100,7 +100,7 @@ def test_provenance_suffix_returns_empty_for_artifact_not_in_map() -> None:
 
 def test_provenance_suffix_returns_org_pack_suffix() -> None:
     """When artifact is in map with a pack name, suffix is '(source: org, pack: <name>)'."""
-    from charter.context_renderers.selection_block import _provenance_suffix
+    from charter.activation.context_renderers.selection_block import _provenance_suffix
 
     result = _provenance_suffix("sox-controls", {"sox-controls": "acme-compliance"})
     assert result == " (source: org, pack: acme-compliance)"
@@ -108,7 +108,7 @@ def test_provenance_suffix_returns_org_pack_suffix() -> None:
 
 def test_provenance_suffix_collapses_to_bare_org_for_empty_pack() -> None:
     """When pack name is empty string, suffix collapses to '(source: org)'."""
-    from charter.context_renderers.selection_block import _provenance_suffix
+    from charter.activation.context_renderers.selection_block import _provenance_suffix
 
     result = _provenance_suffix("sox-controls", {"sox-controls": ""})
     assert result == " (source: org)"
@@ -126,7 +126,7 @@ def test_build_action_org_source_map_empty_when_no_org_packs(
 
     This ensures 23 governance-contract fixtures remain byte-identical.
     """
-    from charter.context_renderers.selection_block import _build_action_org_source_map
+    from charter.activation.context_renderers.selection_block import _build_action_org_source_map
 
     result = _build_action_org_source_map(tmp_repo_without_org_pack, ["some-directive"])
     assert result == {}
@@ -136,7 +136,7 @@ def test_build_action_org_source_map_empty_for_empty_artifact_ids(
     tmp_repo_with_org_pack: Path,
 ) -> None:
     """When artifact_ids is empty, source map is always {}."""
-    from charter.context_renderers.selection_block import _build_action_org_source_map
+    from charter.activation.context_renderers.selection_block import _build_action_org_source_map
 
     result = _build_action_org_source_map(tmp_repo_with_org_pack, [])
     assert result == {}
@@ -146,7 +146,7 @@ def test_build_action_org_source_map_returns_org_entries(
     tmp_repo_with_org_pack: Path,
 ) -> None:
     """When an org pack contributes 'sox-controls', source map contains that entry."""
-    from charter.context_renderers.selection_block import _build_action_org_source_map
+    from charter.activation.context_renderers.selection_block import _build_action_org_source_map
 
     result = _build_action_org_source_map(
         tmp_repo_with_org_pack, ["sox-controls", "some-other-directive"]
@@ -185,7 +185,7 @@ def _make_mock_repository(artifacts: dict[str, dict]) -> MagicMock:
 
 def test_extend_named_artifact_lines_no_org_source_map_no_suffix() -> None:
     """Without org_source_map, no '(source: org)' suffix is appended (NFR-001)."""
-    from charter.context_renderers.selection_block import _extend_named_artifact_lines
+    from charter.activation.context_renderers.selection_block import _extend_named_artifact_lines
 
     repo = _make_mock_repository(
         {"DIRECTIVE_001": {"title": "Test Directive", "intent": "Do stuff."}}
@@ -207,7 +207,7 @@ def test_extend_named_artifact_lines_no_org_source_map_no_suffix() -> None:
 
 def test_extend_named_artifact_lines_org_source_map_adds_suffix() -> None:
     """When artifact is in org_source_map, '(source: org, pack: <name>)' is appended."""
-    from charter.context_renderers.selection_block import _extend_named_artifact_lines
+    from charter.activation.context_renderers.selection_block import _extend_named_artifact_lines
 
     repo = _make_mock_repository(
         {"sox-controls": {"title": "SOX Controls", "intent": "Audit compliance."}}
@@ -229,7 +229,7 @@ def test_extend_named_artifact_lines_org_source_map_adds_suffix() -> None:
 
 def test_extend_named_artifact_lines_builtin_no_suffix_org_artifact_with_suffix() -> None:
     """Option B: only org artifacts get suffix; built-in artifacts unchanged."""
-    from charter.context_renderers.selection_block import _extend_named_artifact_lines
+    from charter.activation.context_renderers.selection_block import _extend_named_artifact_lines
 
     repo = _make_mock_repository(
         {

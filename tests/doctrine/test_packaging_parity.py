@@ -2,7 +2,7 @@
 ``relocate-builtin-doctrine-packs-01KYT87F``, WP05 — FR-007 / NFR-002).
 
 ``packs/built-in/`` must ship **completely** in BOTH the monolith wheel and the
-sdist, and a clean-venv install must be able to ``import doctrine`` and resolve
+sdist, and a clean-venv install must be able to ``import charter.offering`` and resolve
 the built-in pack root to a real, complete on-disk tree.
 
 The parity contract is **live-tree**: the built artifact's ``packs/built-in/``
@@ -170,7 +170,7 @@ def test_sdist_ships_built_in_packs_at_exact_parity(
 # Scope guard: this WP depends only on WP03. The loader repoint that makes
 # ``load_built_in_graph()`` read the relocated fragments is WP04, and the
 # full-graph (326/922) proof from a clean install lives in WP07. Here we assert
-# ONLY packaging truth: ``import doctrine`` succeeds and
+# ONLY packaging truth: ``import charter.offering`` succeeds and
 # ``resolve_pack_root("built-in")`` yields a complete, real on-disk tree.
 # --------------------------------------------------------------------------- #
 
@@ -186,7 +186,7 @@ def test_clean_venv_install_imports_and_resolves_built_in(
     tmp_path: Path,
 ) -> None:
     """Install the wheel into a clean venv (declared deps only, no repo ``src/``)
-    and prove ``import doctrine`` + ``resolve_pack_root('built-in')`` reach a
+    and prove ``import charter.offering`` + ``resolve_pack_root('built-in')`` reach a
     complete installed tree with 0 missing live-tree files."""
     wheel, _sdist = built_artifacts
     venv_dir = tmp_path / "clean-venv"
@@ -213,11 +213,11 @@ def test_clean_venv_install_imports_and_resolves_built_in(
     probe = (
         "import json, sys\n"
         "from pathlib import Path\n"
-        "import doctrine  # noqa: F401 — import must succeed from the wheel\n"
-        "from doctrine.pack_paths import resolve_pack_root\n"
+        "import charter.offering  # noqa: F401 — import must succeed from the wheel\n"
+        "from charter.offering.pack_paths import resolve_pack_root\n"
         "root = resolve_pack_root('built-in')\n"
         "assert root.is_dir(), f'pack root not a dir: {root}'\n"
-        "# Fail-closed contract: never resolve into a src/doctrine/ tree.\n"
+        "# Fail-closed contract: never resolve into a src/charter/offering/ tree.\n"
         "assert 'src/doctrine' not in root.as_posix(), root.as_posix()\n"
         "rels = json.loads(sys.argv[1])\n"
         "missing = [r for r in rels if not (root / r).is_file()]\n"

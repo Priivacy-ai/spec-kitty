@@ -7,6 +7,7 @@ guidance.
 """
 from __future__ import annotations
 from pathlib import Path
+from typing import Any
 
 from .models import Lane
 from .store import EVENTS_FILENAME
@@ -97,3 +98,19 @@ def get_all_wp_lanes(feature_dir: Path) -> dict[str, Lane]:
         wp_id: Lane(state.get("lane", Lane.GENESIS))
         for wp_id, state in snapshot.work_packages.items()
     }
+
+
+def get_all_wp_snapshots(feature_dir: Path) -> dict[str, dict[str, Any]]:
+    """Get reduced WP snapshots from the canonical event log.
+
+    Raises ``CanonicalStatusNotFoundError`` when the event log is absent.
+    WPs with no events are not included.
+    """
+    _require_event_log(feature_dir)
+    from .reducer import reduce
+    from .store import read_events
+
+    events = read_events(feature_dir)
+    if not events:
+        return {}
+    return dict(reduce(events).work_packages)

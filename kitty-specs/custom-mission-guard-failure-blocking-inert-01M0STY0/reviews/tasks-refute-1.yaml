@@ -1,0 +1,17 @@
+schema: review-refute/v1
+complete: true
+phase: tasks
+batch: 1
+verdicts:
+  - id: TASKS-SEQ-001
+    verdict: confirmed
+    reason: Live `gh pr view 3708` returns state MERGED/mergedAt 2026-08-24T14:01:27Z and live `gh pr list --state open` returns exactly 17 PRs (excluding #3707/#3708) not 19, matching the finding's own re-run figures and refuting tasks.md's "unmerged"/"19 open PRs including #3708" prose at the quoted lines 65-66 and 195-201, which I verified against the actual file text.
+  - id: TASKS-VERIFY-001
+    verdict: confirmed
+    reason: Reading runtime_bridge.py:1580-1650 confirms the CLI pre-check at ~1643 is gated by `get_mission_type(feature_dir) == MISSION_TYPE_SOFTWARE_DEV`, and reading WP03's T016-T022 and WP04's T023-T029 in full confirms no named test scenario uses a software-dev family to assert resolve_org_roots receives a genuine repo_root at that specific call site — T017's only AC-8 test is scoped to a custom family (which structurally can only reach the WP-iteration branch at ~1608), and T023's byte-identical suite would not detect a broken/dropped repo_root forward at 1643 since software-dev has no org-tier scenario in this mission's scope.
+  - id: TASKS-VERIFY-002
+    verdict: refuted
+    reason: The finding's central supporting citation — "plan.md's own stated rule ... 'We'll run the tests' is not a gate statement" — does not exist anywhere in plan.md/tasks.md/WP files; plan.md:376 actually says "never 'we'll run the tests'" in an unrelated context (naming concrete per-WP pytest file scope), and WP04's own Gates section ("patch() target validation N/A unless T027's demonstration adds test code") shows the transcript-or-test optionality in T027 is a deliberate, anticipated choice, not an oversight contradicting mission doctrine.
+  - id: TASKS-VERIFY-003
+    verdict: confirmed
+    reason: Reading WP02's T008 (org pack present, asserts org wins) and T009 (org pack present, mixed blocking across two steps) in full confirms neither names a case with repo_root supplied but no org-tier file present, and a grep for "repo_root" in the two owned test files (test_configured_artifact_name.py, test_pertype_presence_gate.py) returns zero hits, confirming this fallback branch of the newly-added org-tier-aware wrapper logic (T010-T013) has no named test case anywhere in WP02.

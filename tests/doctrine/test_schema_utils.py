@@ -1,4 +1,4 @@
-"""Tests for doctrine.shared.schema_utils.SchemaUtilities.
+"""Tests for charter.offering.shared.schema_utils.SchemaUtilities.
 
 Verifies that the shared schema loader correctly loads all shipped schemas
 and returns valid dicts usable by jsonschema validators.
@@ -10,7 +10,7 @@ from __future__ import annotations
 
 import pytest
 
-from doctrine.shared.schema_utils import SchemaUtilities
+from charter.offering.shared.schema_utils import SchemaUtilities
 
 
 # All artifact type names that must have a corresponding schema.

@@ -46,7 +46,7 @@ class FixRuntimeNextResultDefaultMigration(BaseMigration):
         errors: list[str] = []
 
         try:
-            doctrine_root = files("doctrine")
+            doctrine_root = files("charter.offering")
             canonical_path = doctrine_root.joinpath(
                 "skills", _SKILL_NAME, "SKILL.md"
             )

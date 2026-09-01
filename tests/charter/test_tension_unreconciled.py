@@ -33,22 +33,22 @@ from pathlib import Path
 
 import pytest
 
-import charter._drg_helpers as drg_helpers
-from charter import consistency_check
-from charter.consistency_check import (
+import charter.activation._drg_helpers as drg_helpers
+from charter.activation import consistency_check
+from charter.activation.consistency_check import (
     ConsistencyReport,
     TensionFinding,
     run_consistency_check,
     scan_unreconciled_tensions,
 )
 from charter.drg import DRGEdge, DRGGraph, DRGNode, NodeKind, Relation
-from charter.invocation_context import ProjectContext
+from charter.activation.invocation_context import ProjectContext
 
 pytestmark = pytest.mark.unit
 
 # ---------------------------------------------------------------------------
 # Real built-in doctrine identifiers used throughout (see WP02's hand-
-# authored edges in src/doctrine/directive.graph.yaml):
+# authored edges in src/charter/offering/directive.graph.yaml):
 #   directive:DIRECTIVE_024 <-> directive:DIRECTIVE_025
 #   directive:DIRECTIVE_025 <-> tactic:change-apply-smallest-viable-diff
 #   directive:RECONCILE_CHANGE_SCOPE_TENSIONS reconciles both pairs.
@@ -287,7 +287,7 @@ def test_two_distinct_reconcilers_bridge_pair_per_side(
     distinct activatable stem -- its actual doctrine content is irrelevant
     here) bridges ``_URN_025`` only. Together they satisfy the per-side rule
     for the whole pair, matching ``_tension_reconciled_urns``'s set-membership
-    semantics (``src/charter/consistency_check.py``): the reconciled-URN set
+    semantics (``src/charter/activation/consistency_check.py``): the reconciled-URN set
     is built by unioning targets across ALL active ``reconciles_tension``
     edges, regardless of which active artefact each edge originates from.
     Both real stems are used (rather than a synthetic reconciler URN) so

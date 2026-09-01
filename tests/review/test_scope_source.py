@@ -254,15 +254,19 @@ def test_load_gate_coverage_module_marks_consumer_repo_when_unavailable(tmp_path
     assert excinfo.value.is_consumer_repo is True
 
 
-def test_gate_coverage_uses_the_live_authorities_against_the_real_repo() -> None:
-    """No override -> the live ``tests.architectural._gate_coverage``
-    authorities load for real against THIS repo — the "unreachable unless
-    selected" claim (FR-009) only holds if the live path genuinely works."""
+def test_gate_coverage_live_authorities_parse_restored_windows_workflow() -> None:
+    """No override -> the live workflow authority is read and parsed.
+
+    This un-neuters the planning#57 retirement guard for the restored interim
+    topology: the source repo must resolve its real ``ci-windows.yml`` filter
+    groups without the former missing-authority degrade, while the obsolete
+    sync path filters must stay absent.
+    """
     impl = GateCoverageScopeSource(repo_root=_REPO_ROOT)
 
-    targets = impl.file_to_scope("src/specify_cli/review/scope_source.py")
-
-    assert isinstance(targets, tuple)
+    assert set(impl.filter_groups) == {"windows_critical"}
+    assert "tests/sync/" not in impl.filter_groups["windows_critical"]
+    assert impl.file_to_scope("src/specify_cli/review/scope_source.py") == ()
 
 
 def test_gate_coverage_parse_results_missing_artifact_is_surfaced_not_swallowed(tmp_path: Path) -> None:

@@ -1,4 +1,4 @@
-"""Unit tests for ``charter.invocation_context``."""
+"""Unit tests for ``charter.activation.invocation_context``."""
 
 from __future__ import annotations
 
@@ -6,7 +6,7 @@ from pathlib import Path
 
 import pytest
 
-from charter.invocation_context import (
+from charter.activation.invocation_context import (
     ContextPreconditionError,
     OperationalContext,
     ProjectContext,

@@ -163,7 +163,7 @@ class TestSynthesizeHappyPath:
         evidence + request builders exactly as the canonical sibling
         ``tests/charter/test_references_missing_failclosed.py::
         test_synthesize_json_succeeds_past_preflight_when_bundle_complete``
-        does — so the production ``charter.synthesizer.synthesize`` mock is
+        does — so the production ``charter.activation.synthesizer.synthesize`` mock is
         genuinely exercised. Unlike that sibling (which only asserts
         ``result == "success"``), this test locks the *envelope formatting*
         that is covered nowhere else: ``adapter`` sourced from the synth
@@ -188,7 +188,7 @@ class TestSynthesizeHappyPath:
             "specify_cli.cli.commands.charter._build_synthesis_request",
             return_value=(SimpleNamespace(), SimpleNamespace()),
         ), patch(
-            "charter.synthesizer.synthesize", return_value=mock_result
+            "charter.activation.synthesizer.synthesize", return_value=mock_result
         ), patch(
             "specify_cli.cli.commands.charter._load_written_artifacts_from_manifest",
             return_value=[
@@ -247,7 +247,7 @@ class TestSynthesizeHappyPath:
             "specify_cli.cli.commands.charter._build_synthesis_request",
             return_value=(SimpleNamespace(), SimpleNamespace()),
         ), patch(
-            "charter.synthesizer.synthesize", return_value=mock_result
+            "charter.activation.synthesizer.synthesize", return_value=mock_result
         ), patch(
             "specify_cli.cli.commands.charter._load_written_artifacts_from_manifest",
             return_value=[
@@ -453,4 +453,5 @@ class TestSynthesizeErrorPaths:
 
         assert result.exit_code == 1, result.output
         # The informative body — previously swallowed — must be present.
-        assert "does not exist" in result.output.lower(), result.output
+        assert "does-not-exist/charter.yaml" in result.output
+        assert "Remediation:" in result.output

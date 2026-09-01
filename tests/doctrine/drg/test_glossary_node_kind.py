@@ -12,11 +12,11 @@ from typing import TYPE_CHECKING
 
 import pytest
 
-from doctrine.drg.models import DRGNode, NodeKind
-from doctrine.drg.validator import assert_valid
+from charter.offering.drg.models import DRGNode, NodeKind
+from charter.offering.drg.validator import assert_valid
 
 if TYPE_CHECKING:
-    from doctrine.drg.models import DRGGraph
+    from charter.offering.drg.models import DRGGraph
 
 pytestmark = [pytest.mark.fast, pytest.mark.corpus]
 

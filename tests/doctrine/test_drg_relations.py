@@ -15,8 +15,8 @@ from __future__ import annotations
 
 import pytest
 
-from doctrine.drg.models import DRGEdge, DRGGraph, DRGNode, NodeKind, Relation
-from doctrine.drg.query import resolve_transitive_refs, walk_edges
+from charter.offering.drg.models import DRGEdge, DRGGraph, DRGNode, NodeKind, Relation
+from charter.offering.drg.query import resolve_transitive_refs, walk_edges
 
 pytestmark = [pytest.mark.doctrine, pytest.mark.fast]
 

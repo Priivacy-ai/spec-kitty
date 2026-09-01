@@ -42,9 +42,9 @@ from unittest.mock import patch
 import pytest
 from ruamel.yaml import YAML
 
-from charter.context import CharterContextResult, build_charter_context
-from charter.profile_resolution import _reset_agent_profile_cache
-from doctrine.drg.models import DRGGraph
+from charter.activation.context import CharterContextResult, build_charter_context
+from charter.activation.profile_resolution import _reset_agent_profile_cache
+from charter.offering.drg.models import DRGGraph
 
 pytestmark = pytest.mark.fast
 
@@ -276,10 +276,10 @@ def _resolve_bootstrap(repo_root: Path) -> CharterContextResult:
     mock_graph = DRGGraph.model_validate(yaml.load(StringIO(_ACTIVATION_MINIMAL_GRAPH_YAML)))
 
     with (
-        patch("charter._drg_helpers.load_validated_graph", return_value=mock_graph),
-        patch("charter.catalog.resolve_doctrine_root", return_value=repo_root),
-        patch("doctrine.drg.validator.assert_valid"),
-        patch("charter.sync.ensure_charter_bundle_fresh", return_value=None),
+        patch("charter.activation._drg_helpers.load_validated_graph", return_value=mock_graph),
+        patch("charter.activation.catalog.resolve_doctrine_root", return_value=repo_root),
+        patch("charter.offering.drg.validator.assert_valid"),
+        patch("charter.activation.sync.ensure_charter_bundle_fresh", return_value=None),
     ):
         return build_charter_context(
             repo_root, action="implement", depth=2, mark_loaded=False,

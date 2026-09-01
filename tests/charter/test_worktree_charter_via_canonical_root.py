@@ -112,8 +112,8 @@ def test_build_charter_context_from_worktree_uses_canonical_root(tmp_path: Path)
     bundle no longer means "these three files now exist"; it means the
     resolver correctly anchors at the main checkout regardless.
     """
-    from charter.context import build_charter_context
-    from charter.sync import ensure_charter_bundle_fresh
+    from charter.activation.context import build_charter_context
+    from charter.activation.sync import ensure_charter_bundle_fresh
 
     main_root = _init_main_checkout(tmp_path / "main").resolve()
     worktree_root = _add_linked_worktree(
@@ -156,7 +156,7 @@ def test_chokepoint_from_worktree_points_at_main_checkout(tmp_path: Path) -> Non
     """FR-010 direct probe: ``SyncResult.canonical_root`` from a worktree
     invocation equals the main-checkout path, not the worktree path.
     """
-    from charter.sync import ensure_charter_bundle_fresh
+    from charter.activation.sync import ensure_charter_bundle_fresh
 
     main_root = _init_main_checkout(tmp_path / "main").resolve()
     worktree_root = _add_linked_worktree(
@@ -205,7 +205,7 @@ def test_worktree_bundle_never_materializes_locally(tmp_path: Path) -> None:
     still-real invariant: the worktree's charter dir gains no legacy
     derivative as a side effect of a chokepoint call routed through it.
     """
-    from charter.sync import ensure_charter_bundle_fresh
+    from charter.activation.sync import ensure_charter_bundle_fresh
 
     main_root = _init_main_checkout(tmp_path / "main").resolve()
     worktree_root = _add_linked_worktree(
@@ -245,7 +245,7 @@ def test_loaders_from_worktree_return_canonical_content(tmp_path: Path) -> None:
     readers therefore saw an empty charter even though the chokepoint
     itself was correct.
     """
-    from charter.sync import load_directives_config, load_governance_config
+    from charter.activation.sync import load_directives_config, load_governance_config
 
     main_root = _init_main_checkout(tmp_path / "main").resolve()
     worktree_root = _add_linked_worktree(

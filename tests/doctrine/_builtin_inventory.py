@@ -119,7 +119,7 @@ def pure_builtin_node_count() -> int:
 
 def hand_authored_node_count() -> int:
     """Number of hand-authored overlay nodes the extractor cannot mint."""
-    from doctrine.drg.migration.hand_authored_overlay import HAND_AUTHORED_NODES
+    from charter.offering.drg.migration.hand_authored_overlay import HAND_AUTHORED_NODES
 
     return len(HAND_AUTHORED_NODES)
 

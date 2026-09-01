@@ -16,7 +16,7 @@ not honoured in that branch, since it sits outside the detector's ASCII
 ``$``-token scope.
 
 :func:`find_unresolved_token` / :func:`find_empty_env_token` are the shared
-detection primitives (migrated from ``doctrine.drg.org_pack_config``, T002):
+detection primitives (migrated from ``charter.offering.drg.org_pack_config``, T002):
 the first finds a surviving ``${VAR}``/``$VAR`` token after expansion; the
 second finds a token whose variable is set-but-blank (a case
 ``expandvars``/``expandraw`` consumes silently, leaving no residue for the
@@ -34,7 +34,7 @@ detector into the two RAISING policies:
 
 Why a third, non-raising shape is exposed at all
 -------------------------------------------------
-``doctrine.drg.org_pack_config._expand_path_template`` carries its OWN
+``charter.offering.drg.org_pack_config._expand_path_template`` carries its OWN
 structured exception (``OrgPackEnvVarUnsetError``) and its own "set but
 blank" fail-loud guard, both byte-preserved across this WP (T004). Routing
 that caller through the RAISING ``expand_env_template(..., inject_defaults=False)``
@@ -75,7 +75,7 @@ __all__ = [
 #: internally. Without this flag ``\w`` would match Unicode word characters
 #: too, so this detector could report a longer/different token than the one
 #: ``expandvars`` actually considered for non-ASCII input. The single shared
-#: detector (migrated here from ``doctrine.drg.org_pack_config``, T002) --
+#: detector (migrated here from ``charter.offering.drg.org_pack_config``, T002) --
 #: downstream callers import :func:`find_unresolved_token` /
 #: :func:`find_empty_env_token` rather than re-compiling this pattern.
 _ENV_VAR_TOKEN_RE = re.compile(r"\$\{[^}]+\}|\$[A-Za-z_]\w*", re.ASCII)
@@ -138,7 +138,7 @@ def expand_raw_template(raw: str, environ: Mapping[str, str] | None = None) -> s
     """Pure ``${VAR}``/``$VAR`` + ``~`` expansion. Never raises.
 
     When ``environ`` is ``None`` (the default, and the only mode
-    ``doctrine.drg.org_pack_config`` uses -- T004) this delegates directly to
+    ``charter.offering.drg.org_pack_config`` uses -- T004) this delegates directly to
     ``os.path.expanduser(os.path.expandvars(raw))``: the real process
     environment and the real platform-specific expansion semantics, byte-
     identical to the pre-WP01 ``org_pack_config._expand_path_template`` body.

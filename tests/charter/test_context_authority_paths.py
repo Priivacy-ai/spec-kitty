@@ -1,7 +1,7 @@
 """WP04 unit tests — ``render_authority_paths`` (FR-003).
 
 These tests exercise the pure renderer in
-``charter.context_renderers.authority_paths`` against the six-row table
+``charter.activation.context_renderers.authority_paths`` against the six-row table
 in the WP04 task spec (subtask T017).  They pin:
 
 * default entries surface only when their directory exists on disk;
@@ -15,13 +15,13 @@ from pathlib import Path
 
 import pytest
 
-from charter.context_renderers import (
+from charter.activation.context_renderers import (
     AUTHORITY_PATHS_HEADER,
     DEFAULT_CHARTER_DECLARED_WHEN_CLAUSE,
     render_authority_paths,
 )
-from charter.context_renderers.authority_paths import DEFAULT_AUTHORITY_PATHS
-from charter.schemas import DoctrineSelectionConfig
+from charter.activation.context_renderers.authority_paths import DEFAULT_AUTHORITY_PATHS
+from charter.activation.schemas import DoctrineSelectionConfig
 
 pytestmark = pytest.mark.fast
 

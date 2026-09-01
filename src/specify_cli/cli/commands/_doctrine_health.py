@@ -17,7 +17,7 @@ The two invariants this module enforces:
   surfaces can never drift.
 
 Invalid-profile diagnostics are a verbatim passthrough of the WP05
-:class:`~doctrine.agent_profiles.diagnostics.SkippedProfile` records returned by
+:class:`~charter.offering.agent_profiles.diagnostics.SkippedProfile` records returned by
 ``AgentProfileRepository.skipped_profiles()`` — they are *not* scraped from
 warning text (FR-008/FR-009).
 """

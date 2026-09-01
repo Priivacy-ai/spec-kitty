@@ -6,9 +6,9 @@ from pathlib import Path
 
 import pytest
 
-from doctrine.agent_profiles.profile import TaskContext
-from doctrine.agent_profiles.repository import AgentProfileRepository
-from doctrine.drg.models import DRGEdge, DRGGraph, DRGNode, NodeKind, Relation
+from charter.offering.agent_profiles.profile import TaskContext
+from charter.offering.agent_profiles.repository import AgentProfileRepository
+from charter.offering.drg.models import DRGEdge, DRGGraph, DRGNode, NodeKind, Relation
 
 pytestmark = [pytest.mark.fast, pytest.mark.doctrine, pytest.mark.corpus]
 
@@ -373,7 +373,7 @@ specialization:
 # ---------------------------------------------------------------------------
 
 # Post-relocation the shipped agent profiles live flattened under
-# ``packs/built-in/agent_profiles/`` (the old ``src/doctrine/agent_profiles/built-in/``
+# ``packs/built-in/agent_profiles/`` (the old ``src/charter/offering/agent_profiles/built-in/``
 # tree is emptied). Reading the old path here silently returned zero profiles,
 # so every assertion in this module passed VACUOUSLY (false-green; FR-008).
 _SHIPPED_PROFILE_DIR = Path(__file__).parent.parent.parent / "packs" / "built-in" / "agent_profiles"

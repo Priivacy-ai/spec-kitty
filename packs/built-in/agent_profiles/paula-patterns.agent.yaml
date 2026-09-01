@@ -16,27 +16,6 @@ capabilities:
 routing-priority: 65
 max-concurrent-tasks: 1
 
-context-sources:
-  doctrine-layers:
-    - directives
-    - tactics
-    - paradigms
-  directives:
-    - "001"
-    - "003"
-    - "030"
-    - "032"
-    - "041"
-  tactics:
-    - paula-patterns-architecture-scout-review
-    - anti-corruption-layer
-    - domain-event-capture
-    - review-intent-and-risk-first
-  additional:
-    - architecture-decision-records
-    - compatibility-contracts
-    - prior-review-findings
-
 purpose: >
   Review recurring architecture failures where localized fixes keep exposing
   the same missing boundary, ownership decision, durable state model, or
@@ -76,10 +55,6 @@ collaboration:
     - release-fix-decision
     - long-term-architecture-issue
     - compatibility-risk-notes
-  operating-procedures:
-    - architecture-scout-dispatch
-    - release-vs-long-term-synthesis
-    - boundary-ownership-triage
   canonical-verbs:
     - scout
     - synthesize

@@ -28,7 +28,7 @@ from unittest.mock import patch
 import pytest
 from typer.testing import CliRunner
 
-from charter.context import build_charter_context, build_charter_context_json
+from charter.activation.context import build_charter_context, build_charter_context_json
 from specify_cli.cli.commands.charter import app
 from specify_cli.cli.commands.charter._status_collectors import (
     _collect_charter_sync_status,
@@ -52,7 +52,7 @@ class TestJourney4ContextBundleAuthority:
     ) -> None:
         _setup_fixture_repo(tmp_path)
 
-        from doctrine.drg.models import DRGGraph
+        from charter.offering.drg.models import DRGGraph
         from ruamel.yaml import YAML
 
         yaml = YAML(typ="safe")
@@ -60,9 +60,9 @@ class TestJourney4ContextBundleAuthority:
         mock_graph = DRGGraph.model_validate(graph_data)
 
         with (
-            patch("charter._drg_helpers.load_validated_graph", return_value=mock_graph),
-            patch("charter.catalog.resolve_doctrine_root", return_value=tmp_path),
-            patch("doctrine.drg.validator.assert_valid"),
+            patch("charter.activation._drg_helpers.load_validated_graph", return_value=mock_graph),
+            patch("charter.activation.catalog.resolve_doctrine_root", return_value=tmp_path),
+            patch("charter.offering.drg.validator.assert_valid"),
         ):
             before = build_charter_context(
                 tmp_path, action="implement", depth=2, mission_type="software-dev"
@@ -75,9 +75,9 @@ class TestJourney4ContextBundleAuthority:
         (tmp_path / ".kittify" / "charter" / "charter.md").unlink()
 
         with (
-            patch("charter._drg_helpers.load_validated_graph", return_value=mock_graph),
-            patch("charter.catalog.resolve_doctrine_root", return_value=tmp_path),
-            patch("doctrine.drg.validator.assert_valid"),
+            patch("charter.activation._drg_helpers.load_validated_graph", return_value=mock_graph),
+            patch("charter.activation.catalog.resolve_doctrine_root", return_value=tmp_path),
+            patch("charter.offering.drg.validator.assert_valid"),
         ):
             after = build_charter_context(
                 tmp_path, action="implement", depth=2, mission_type="software-dev"
@@ -162,7 +162,7 @@ class TestFR006JsonPresentSignalFlip:
             "mission_type_activations:\n  - software-dev\n", encoding="utf-8"
         )
 
-        from charter.sync import SyncResult
+        from charter.activation.sync import SyncResult
 
         sync_result = SyncResult(
             synced=False,
@@ -171,7 +171,7 @@ class TestFR006JsonPresentSignalFlip:
             extraction_mode="",
             canonical_root=tmp_path,
         )
-        with patch("charter.sync.ensure_charter_bundle_fresh", return_value=sync_result):
+        with patch("charter.activation.sync.ensure_charter_bundle_fresh", return_value=sync_result):
             payload = build_charter_context_json(tmp_path, action="plan", depth=1)
 
         # The FR-006 flip: charter.md was NEVER written in this fixture. A
@@ -183,13 +183,13 @@ class TestFR006JsonPresentSignalFlip:
         # Survives charter.md deletion when it later appears then disappears
         # again (SC-002), not just "never existed".
         (charter_dir / "charter.md").write_text("# Charter\n", encoding="utf-8")
-        with patch("charter.sync.ensure_charter_bundle_fresh", return_value=sync_result):
+        with patch("charter.activation.sync.ensure_charter_bundle_fresh", return_value=sync_result):
             with_md = build_charter_context_json(tmp_path, action="plan", depth=1)
         assert with_md["project_charter"]["present"] is True
         assert with_md["project_charter"]["charter_md_present"] is True
 
         (charter_dir / "charter.md").unlink()
-        with patch("charter.sync.ensure_charter_bundle_fresh", return_value=sync_result):
+        with patch("charter.activation.sync.ensure_charter_bundle_fresh", return_value=sync_result):
             after_delete = build_charter_context_json(tmp_path, action="plan", depth=1)
         assert after_delete["project_charter"]["present"] is True
         assert after_delete["project_charter"]["charter_md_present"] is False
@@ -283,7 +283,7 @@ class TestFoldCLegacyCharterMdOnlyPresentFlipCell:
             "mission_type_activations:\n  - software-dev\n", encoding="utf-8"
         )
 
-        from charter.sync import SyncResult
+        from charter.activation.sync import SyncResult
 
         # ``build_charter_context_json`` -> ``_project_charter_json_block``
         # resolves its bundle root via ``ensure_charter_bundle_fresh``,
@@ -299,7 +299,7 @@ class TestFoldCLegacyCharterMdOnlyPresentFlipCell:
             extraction_mode="",
             canonical_root=tmp_path,
         )
-        with patch("charter.sync.ensure_charter_bundle_fresh", return_value=sync_result):
+        with patch("charter.activation.sync.ensure_charter_bundle_fresh", return_value=sync_result):
             payload = build_charter_context_json(tmp_path, action="plan", depth=1)
 
         # Sanity: the stub must not have let anything else mutate the
@@ -333,7 +333,7 @@ class TestFoldCLegacyCharterMdOnlyPresentFlipCell:
             "mission_type_activations:\n  - software-dev\n", encoding="utf-8"
         )
 
-        from doctrine.drg.models import DRGGraph
+        from charter.offering.drg.models import DRGGraph
         from ruamel.yaml import YAML
 
         yaml = YAML(typ="safe")
@@ -341,9 +341,9 @@ class TestFoldCLegacyCharterMdOnlyPresentFlipCell:
         mock_graph = DRGGraph.model_validate(graph_data)
 
         with (
-            patch("charter._drg_helpers.load_validated_graph", return_value=mock_graph),
-            patch("charter.catalog.resolve_doctrine_root", return_value=tmp_path),
-            patch("doctrine.drg.validator.assert_valid"),
+            patch("charter.activation._drg_helpers.load_validated_graph", return_value=mock_graph),
+            patch("charter.activation.catalog.resolve_doctrine_root", return_value=tmp_path),
+            patch("charter.offering.drg.validator.assert_valid"),
         ):
             result = build_charter_context(
                 tmp_path, action="implement", depth=2, mission_type="software-dev"

@@ -14,9 +14,9 @@ from pathlib import Path
 
 import pytest
 
-from charter.synthesizer.errors import FixtureAdapterMissingError
-from charter.synthesizer.fixture_adapter import FixtureAdapter
-from charter.synthesizer.request import (
+from charter.activation.synthesizer.errors import FixtureAdapterMissingError
+from charter.activation.synthesizer.fixture_adapter import FixtureAdapter
+from charter.activation.synthesizer.request import (
     SynthesisRequest,
     SynthesisTarget,
     compute_inputs_hash,
