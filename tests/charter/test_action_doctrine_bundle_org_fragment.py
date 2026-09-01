@@ -34,9 +34,7 @@ def _register_pack(repo_root: Path, org_root: Path, *, name: str = "test-org") -
     kit = repo_root / ".kittify"
     kit.mkdir(parents=True, exist_ok=True)
     (kit / "config.yaml").write_text(
-        yaml.safe_dump(
-            {"doctrine": {"org": {"packs": [{"name": name, "local_path": str(org_root)}]}}}
-        ),
+        yaml.safe_dump({"doctrine": {"org": {"packs": [{"name": name, "local_path": str(org_root)}]}}}),
         encoding="utf-8",
     )
 
@@ -126,14 +124,11 @@ def test_fragment_node_and_edge_are_folded_once_not_twice(tmp_path: Path) -> Non
     )
 
     assert bundle.merged is not None
-    node_count = sum(
-        1 for node in bundle.merged.nodes if str(node.urn) == "directive:FRAG_DIR_A"
-    )
+    node_count = sum(1 for node in bundle.merged.nodes if str(node.urn) == "directive:FRAG_DIR_A")
     edge_count = sum(
         1
         for edge in bundle.merged.edges
-        if (str(edge.source), str(edge.target), edge.relation.value)
-        == ("directive:FRAG_DIR_A", "directive:FRAG_DIR_B", "refines")
+        if (str(edge.source), str(edge.target), edge.relation.value) == ("directive:FRAG_DIR_A", "directive:FRAG_DIR_B", "refines")
     )
 
     assert node_count == 1

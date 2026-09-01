@@ -462,9 +462,7 @@ _CATEGORY_7_GRANDFATHERED_ORPHANS: frozenset[str] = frozenset(
         # src/ callers. TODO(triage): #925 owns wire-or-prune disposition.
         "charter.parser",
         "charter.activation.template_resolver",
-        "charter.offering.agent_profiles.operating_procedures",
         "charter.offering.discovery_recursion",
-        "charter.offering.drg.org_governance",
         "charter.offering.drg.project_scan",
         # sync.admission_operations: REMOVED (issue-5-delete-sync-transport,
         # 2026-08-25). The module was deleted outright with the sync transport;

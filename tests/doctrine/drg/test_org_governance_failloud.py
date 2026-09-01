@@ -78,17 +78,7 @@ def _register_pack(repo_root: Path, pack_root: Path) -> None:
     kittify = repo_root / ".kittify"
     kittify.mkdir(parents=True, exist_ok=True)
     (kittify / "config.yaml").write_text(
-        yaml.safe_dump(
-            {
-                "doctrine": {
-                    "org": {
-                        "packs": [
-                            {"name": "gov-pack", "local_path": str(pack_root)}
-                        ]
-                    }
-                }
-            }
-        ),
+        yaml.safe_dump({"doctrine": {"org": {"packs": [{"name": "gov-pack", "local_path": str(pack_root)}]}}}),
         encoding="utf-8",
     )
 
@@ -112,9 +102,7 @@ def _load_merged_via_production_path(repo_root: Path):
 
 
 class TestOrgGovernanceScopeProductionPath:
-    def test_fictional_selection_fails_loud_naming_the_target(
-        self, tmp_path: Path
-    ) -> None:
+    def test_fictional_selection_fails_loud_naming_the_target(self, tmp_path: Path) -> None:
         """A nonexistent ``selected_*`` becomes a dangling scope edge that the
         merged-graph validation raises on -- the production fail-loud, no
         dedicated governance-scope guard needed."""
@@ -130,9 +118,7 @@ class TestOrgGovernanceScopeProductionPath:
         ):
             _load_merged_via_production_path(repo_root)
 
-    def test_valid_selection_resolves_and_mints_its_scope_edge(
-        self, tmp_path: Path
-    ) -> None:
+    def test_valid_selection_resolves_and_mints_its_scope_edge(self, tmp_path: Path) -> None:
         """A resolvable selection does not raise and reaches the merged DRG as a
         ``mission_type --scope--> agent_profile`` edge."""
         repo_root = tmp_path / "repo"
@@ -143,15 +129,9 @@ class TestOrgGovernanceScopeProductionPath:
 
         merged = _load_merged_via_production_path(repo_root)
 
-        scope_targets = {
-            edge.target
-            for edge in merged.edges
-            if edge.source == f"mission_type:{_MISSION_TYPE}"
-            and edge.relation is Relation.SCOPE
-        }
+        scope_targets = {edge.target for edge in merged.edges if edge.source == f"mission_type:{_MISSION_TYPE}" and edge.relation is Relation.SCOPE}
         assert f"agent_profile:{_VALID_PROFILE}" in scope_targets, (
-            "the org-tier governance selection must reach the merged DRG as a "
-            "mission_type --scope--> edge, not be silently unread"
+            "the org-tier governance selection must reach the merged DRG as a mission_type --scope--> edge, not be silently unread"
         )
 
 
@@ -171,18 +151,14 @@ class TestOrgGovernanceScopeEdgeMinting:
 
         fragment = load_org_pack("gov-pack", pack_root, 1)
 
-        minted = {
-            (edge.source, str(edge.relation), edge.target) for edge in fragment.edges
-        }
+        minted = {(edge.source, str(edge.relation), edge.target) for edge in fragment.edges}
         assert (
             f"mission_type:{_MISSION_TYPE}",
             "scope",
             f"agent_profile:{_VALID_PROFILE}",
         ) in minted
 
-    def test_fictional_selection_is_minted_as_a_scope_edge(
-        self, tmp_path: Path
-    ) -> None:
+    def test_fictional_selection_is_minted_as_a_scope_edge(self, tmp_path: Path) -> None:
         """A fictional ``selected_*`` is still minted -- it becomes a dangling
         scope edge in the fragment, which the merged-graph validation (not a
         pre-merge single-pack read) then raises on."""
@@ -193,9 +169,7 @@ class TestOrgGovernanceScopeEdgeMinting:
 
         fragment = load_org_pack("gov-pack", pack_root, 1)
 
-        minted = {
-            (edge.source, str(edge.relation), edge.target) for edge in fragment.edges
-        }
+        minted = {(edge.source, str(edge.relation), edge.target) for edge in fragment.edges}
         assert (
             f"mission_type:{_MISSION_TYPE}",
             "scope",

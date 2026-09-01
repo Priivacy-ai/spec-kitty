@@ -76,11 +76,7 @@ _REFERENCE_ATTR = {
 def _profile_edges(graph_path: Path) -> set[tuple[str, str, str]]:
     assert YAML is not None
     data = YAML(typ="safe").load(graph_path.read_text(encoding="utf-8"))
-    return {
-        (e["source"], e["target"], e["relation"])
-        for e in (data.get("edges") or [])
-        if str(e.get("source", "")).startswith("agent_profile:")
-    }
+    return {(e["source"], e["target"], e["relation"]) for e in (data.get("edges") or []) if str(e.get("source", "")).startswith("agent_profile:")}
 
 
 class TestMigrationDataMovingBranch:
@@ -184,11 +180,7 @@ class TestShippedProfilesFailLoud:
 
     def test_no_shipped_profile_authors_context_sources(self) -> None:
         profiles_dir = built_in_root() / "agent_profiles"
-        offenders = [
-            path.name
-            for path in sorted(profiles_dir.glob("*.agent.yaml"))
-            if "context-sources" in path.read_text(encoding="utf-8")
-        ]
+        offenders = [path.name for path in sorted(profiles_dir.glob("*.agent.yaml")) if "context-sources" in path.read_text(encoding="utf-8")]
         assert offenders == [], f"profiles still authoring context-sources: {offenders}"
 
     def test_authoring_context_sources_is_rejected(self) -> None:
@@ -223,9 +215,6 @@ class TestGoldenDiffIsOnlyTheLedgeredDelta:
         added = after - before
         removed = before - after
         assert added == _LEDGERED_ADDED, (
-            "unledgered agent_profile edge(s) appeared in the golden — either a "
-            f"real regression or a missing ledger entry (21): {added ^ _LEDGERED_ADDED}"
+            f"unledgered agent_profile edge(s) appeared in the golden — either a real regression or a missing ledger entry (21): {added ^ _LEDGERED_ADDED}"
         )
-        assert removed == _LEDGERED_REMOVED, (
-            f"agent_profile edge(s) unexpectedly removed from the golden: {removed}"
-        )
+        assert removed == _LEDGERED_REMOVED, f"agent_profile edge(s) unexpectedly removed from the golden: {removed}"

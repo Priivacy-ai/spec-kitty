@@ -164,9 +164,7 @@ def _fixture_suggested_doctrine_graph() -> DRGGraph:
         generated_by="test_emit_delivery_bind:_fixture_suggested_doctrine_graph",
         nodes=[
             DRGNode(urn="agent_profile:fr008-bind-fixture", kind=NodeKind.AGENT_PROFILE),
-            DRGNode(
-                urn=f"paradigm:{_SUGGESTED_PARADIGM_ID}", kind=NodeKind.PARADIGM
-            ),
+            DRGNode(urn=f"paradigm:{_SUGGESTED_PARADIGM_ID}", kind=NodeKind.PARADIGM),
         ],
         edges=[
             DRGEdge(
@@ -222,15 +220,9 @@ def _fixture_profile() -> AgentProfile:
                     "rationale": "bind test",
                 }
             ],
-            "tactic-references": [
-                {"id": "fixture-tactic", "rationale": "bind test"}
-            ],
-            "styleguide-references": [
-                {"id": "fixture-styleguide", "rationale": "bind test"}
-            ],
-            "toolguide-references": [
-                {"id": "fixture-toolguide", "rationale": "bind test"}
-            ],
+            "tactic-references": [{"id": "fixture-tactic", "rationale": "bind test"}],
+            "styleguide-references": [{"id": "fixture-styleguide", "rationale": "bind test"}],
+            "toolguide-references": [{"id": "fixture-toolguide", "rationale": "bind test"}],
         }
     )
 
@@ -238,22 +230,10 @@ def _fixture_profile() -> AgentProfile:
 def _fixture_service() -> SimpleNamespace:
     """A ``DoctrineService``-shaped stub: every catalog resolves, deterministically."""
     return SimpleNamespace(
-        directives=_StubCatalogRepo(
-            {"DIRECTIVE_999": SimpleNamespace(intent="Do the fixture thing.")}
-        ),
-        tactics=_StubCatalogRepo(
-            {
-                "fixture-tactic": SimpleNamespace(
-                    name="Fixture Tactic", purpose="A fixture tactic body.", steps=[]
-                )
-            }
-        ),
-        styleguides=_StubCatalogRepo(
-            {"fixture-styleguide": SimpleNamespace(title="Fixture Styleguide")}
-        ),
-        toolguides=_StubCatalogRepo(
-            {"fixture-toolguide": SimpleNamespace(title="Fixture Toolguide")}
-        ),
+        directives=_StubCatalogRepo({"DIRECTIVE_999": SimpleNamespace(intent="Do the fixture thing.")}),
+        tactics=_StubCatalogRepo({"fixture-tactic": SimpleNamespace(name="Fixture Tactic", purpose="A fixture tactic body.", steps=[])}),
+        styleguides=_StubCatalogRepo({"fixture-styleguide": SimpleNamespace(title="Fixture Styleguide")}),
+        toolguides=_StubCatalogRepo({"fixture-toolguide": SimpleNamespace(title="Fixture Toolguide")}),
         procedures=_StubCatalogRepo(
             {
                 "fixture-procedure": SimpleNamespace(
@@ -263,9 +243,7 @@ def _fixture_service() -> SimpleNamespace:
                 )
             }
         ),
-        paradigms=_StubCatalogRepo(
-            {_SUGGESTED_PARADIGM_ID: SimpleNamespace(title="Fixture Paradigm")}
-        ),
+        paradigms=_StubCatalogRepo({_SUGGESTED_PARADIGM_ID: SimpleNamespace(title="Fixture Paradigm")}),
         agent_profiles=_StubAgentProfileChannel(
             procedure_ids=["fixture-procedure"],
             reached=frozenset({f"paradigm:{_SUGGESTED_PARADIGM_ID}"}),
@@ -359,12 +337,9 @@ def _is_consistent(channel: _ProjectedChannel, mode: _DeliveryMode) -> bool:
 #: inlined) rather than hand-typed, so the attestation is bound to the
 #: product's own words the same way ``_STYLEGUIDE_TOOLGUIDE_POINTER_ONLY_REASON``
 #: is a named product constant for the styleguide/toolguide channels.
-_SUGGESTED_DOCTRINE_POINTER_ONLY_REASON: str = (
-    render_profile_suggested_doctrine.__doc__ or ""
-)
+_SUGGESTED_DOCTRINE_POINTER_ONLY_REASON: str = render_profile_suggested_doctrine.__doc__ or ""
 assert "NFR-003" in _SUGGESTED_DOCTRINE_POINTER_ONLY_REASON, (
-    "render_profile_suggested_doctrine's docstring must document the "
-    "NFR-003 link-only rationale this test attests"
+    "render_profile_suggested_doctrine's docstring must document the NFR-003 link-only rationale this test attests"
 )
 
 
@@ -429,10 +404,7 @@ def test_real_projected_channels_are_delivered_or_attested_pointer_only() -> Non
     """
     block = _render_profile_sections(_fixture_profile(), _fixture_service())
 
-    results = {
-        channel.name: _classify_delivery(block, channel)
-        for channel in _REAL_PROJECTED_CHANNELS
-    }
+    results = {channel.name: _classify_delivery(block, channel) for channel in _REAL_PROJECTED_CHANNELS}
 
     assert results == {
         "directive": "body",
@@ -444,8 +416,7 @@ def test_real_projected_channels_are_delivered_or_attested_pointer_only() -> Non
     }
     for channel in _REAL_PROJECTED_CHANNELS:
         assert _is_consistent(channel, results[channel.name]), (
-            f"channel {channel.name!r} classified as {results[channel.name]!r} "
-            "violates the FR-008 body-or-attested-pointer-only invariant"
+            f"channel {channel.name!r} classified as {results[channel.name]!r} violates the FR-008 body-or-attested-pointer-only invariant"
         )
 
 
@@ -485,9 +456,7 @@ def test_governance_profile_scope_field_table_is_bound_to_model_schema() -> None
     load, and then vanish at the DRG projection seam -- the #3604 defect this
     mission closed. This guard reddens on that drift (both directions)."""
     table_fields = {name for name, _kind in _GOVERNANCE_PROFILE_SCOPE_FIELDS}
-    model_fields = {
-        n for n in MissionTypeProfile.model_fields if n.startswith("selected_")
-    }
+    model_fields = {n for n in MissionTypeProfile.model_fields if n.startswith("selected_")}
 
     assert table_fields == model_fields, (
         "_GOVERNANCE_PROFILE_SCOPE_FIELDS has diverged from "
@@ -639,11 +608,7 @@ def test_direct_citation_channels_are_emitted_by_enumeration_over_the_delivery_r
     ``_ProjectedChannel.emitted_requires_edge_kind``'s docstring for why
     those three have no citation-to-requires edge shape to check here.
     """
-    direct_citation_channels = [
-        channel
-        for channel in _REAL_PROJECTED_CHANNELS
-        if channel.emitted_requires_edge_kind is not None
-    ]
+    direct_citation_channels = [channel for channel in _REAL_PROJECTED_CHANNELS if channel.emitted_requires_edge_kind is not None]
     assert {channel.name for channel in direct_citation_channels} == {
         "directive",
         "tactic",

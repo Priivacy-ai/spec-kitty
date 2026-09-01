@@ -50,8 +50,7 @@ def _inject_selected_agent_profile(pack_root: Path, selected_id: str) -> None:
     profile_path = pack_root / _RESEARCH_PROFILE_REL
     original = profile_path.read_text(encoding="utf-8")
     assert _EMPTY_AGENT_PROFILES_MARKER in original, (
-        "fixture drift: research governance-profile.yaml no longer ships an "
-        "empty selected_agent_profiles list to mutate"
+        "fixture drift: research governance-profile.yaml no longer ships an empty selected_agent_profiles list to mutate"
     )
     profile_path.write_text(
         original.replace(
@@ -66,9 +65,7 @@ def _inject_selected_agent_profile(pack_root: Path, selected_id: str) -> None:
 class TestGenerateGraphGovernanceScopeWiring:
     """End-to-end pin on ``generate_graph``'s governance-scope fail-loud wiring."""
 
-    def test_fictional_selection_raises_naming_mission_type_field_and_id(
-        self, tmp_path: Path
-    ) -> None:
+    def test_fictional_selection_raises_naming_mission_type_field_and_id(self, tmp_path: Path) -> None:
         pack_root = _copy_real_pack_root(tmp_path)
         _inject_selected_agent_profile(pack_root, "does-not-exist")
 
@@ -86,13 +83,5 @@ class TestGenerateGraphGovernanceScopeWiring:
 
         graph = generate_graph(pack_root, tmp_path / "output" / "graph.yaml")
 
-        scope_edge_targets = {
-            edge.target
-            for edge in graph.edges
-            if edge.source == "mission_type:research"
-            and edge.relation.value == "scope"
-        }
-        assert "agent_profile:researcher-robbie" in scope_edge_targets, (
-            "a valid governance selection must mint its mission_type --scope--> "
-            "edge, not be dropped"
-        )
+        scope_edge_targets = {edge.target for edge in graph.edges if edge.source == "mission_type:research" and edge.relation.value == "scope"}
+        assert "agent_profile:researcher-robbie" in scope_edge_targets, "a valid governance selection must mint its mission_type --scope--> edge, not be dropped"

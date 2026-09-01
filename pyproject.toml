@@ -280,7 +280,6 @@ exclude = [
     "kitty-specs/unified-charter-bundle-chokepoint-01KP5Q2G/baseline/capture.py",
     "packs/built-in/assets/docs_structural_lint.py",
     "scripts/analysis/caacs_miner.py",
-    "scripts/check_nfr_003_latency.py",
     "scripts/check_patch_targets.py",
     "scripts/ci/check_dangling_deferrals.py",
     "scripts/ci/quality_gate_decision.py",
