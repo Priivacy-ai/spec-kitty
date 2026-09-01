@@ -91,12 +91,13 @@ def _declared_action_labels(repo_root: Path) -> frozenset[str]:
     ``charter.reference_resolver``'s own ``load_validated_graph`` call site.
     """
     from charter.offering.drg.loader import DRGLoadError  # noqa: PLC0415 -- leaf import, no cycle risk
+    from charter.offering.drg.validator import DRGValidationError  # noqa: PLC0415 -- leaf import, no cycle risk
 
     from charter.activation._drg_helpers import load_validated_graph  # noqa: PLC0415 -- see cycle note below
 
     try:
         merged = load_validated_graph(repo_root)
-    except (DRGLoadError, OSError):
+    except (DRGLoadError, DRGValidationError, OSError):
         return frozenset()
     return frozenset(
         urn.split("/", 1)[1]

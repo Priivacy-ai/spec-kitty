@@ -60,6 +60,33 @@ class TestDeclaredNonFastPathActionAccepted:
         assert valid[0].action is None
         assert any("deploy" in e for e in errors)
 
+    def test_malformed_project_drg_degrades_to_fast_path(self, tmp_path: Path) -> None:
+        """A malformed overlay falls back to fast-path-only acceptance."""
+        overlay = tmp_path / ".kittify" / "doctrine" / "graph.yaml"
+        overlay.parent.mkdir(parents=True)
+        overlay.write_text(
+            """\
+            schema_version: '1.0'
+            generated_at: STATIC
+            generated_by: test
+            nodes:
+            - urn: action:software-dev/customstep
+              kind: action
+              label: customstep
+            edges:
+            - source: action:software-dev/customstep
+              target: directive:does-not-exist
+              relation: requires
+            """,
+            encoding="utf-8",
+        )
+        decls = [LocalSupportDeclaration(path="docs/guide.md", action="tasks")]
+
+        valid, errors = validate_local_support_declarations(decls, repo_root=tmp_path)
+
+        assert valid[0].action is None
+        assert any("tasks" in error for error in errors)
+
 
 class TestBackwardCompatibleWithoutRepoRoot:
     """repo_root is optional (existing callers, existing tests) -- omitting it
