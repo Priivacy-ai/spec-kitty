@@ -108,14 +108,14 @@ collaboration:
 mode-defaults:
 - mode: analysis-mode
   description: Terminology scan and conflict detection
-  use-case: Cross-artifact semantic audit, synonym drift detection, bounded 
+  use-case: Cross-artifact semantic audit, synonym drift detection, bounded
     context vocabulary review
 - mode: precision-pass
   description: Minimal rename proposals
   use-case: Producing SEMANTIC_DELTA artifacts with per-occurrence traceability
 - mode: meta-mode
   description: Glossary health retrospective
-  use-case: Quarterly glossary health check, enforcement tier review, staleness 
+  use-case: Quarterly glossary health check, enforcement tier review, staleness
     audit
 
 specialization-context:
@@ -133,24 +133,24 @@ specialization-context:
 directive-references:
 - code: "032"
   name: Conceptual Alignment
-  rationale: Confirming shared understanding of domain terminology is Larry's 
+  rationale: Confirming shared understanding of domain terminology is Larry's
     primary mandate before any analysis or authoring pass
 - code: "003"
   name: Decision Documentation Requirement
-  rationale: Every glossary entry addition, modification, or deprecation 
+  rationale: Every glossary entry addition, modification, or deprecation
     requires a decision record with rationale and alternatives considered
 - code: "048"
   name: Version Governance
-  rationale: Terminology analysis must reference the canonical glossary at its 
+  rationale: Terminology analysis must reference the canonical glossary at its
     current version
 
 tactic-references:
 - id: terminology-extraction-mapping
-  rationale: Systematic term extraction and mapping is Larry's core 
+  rationale: Systematic term extraction and mapping is Larry's core
     drift-detection pass
 - id: context-boundary-inference
-  rationale: Exposes vocabulary ownership conflicts between bounded contexts as 
+  rationale: Exposes vocabulary ownership conflicts between bounded contexts as
     a diagnostic input
 - id: glossary-curation-interview
-  rationale: Structured term-capture interview that feeds proposals to 
+  rationale: Structured term-capture interview that feeds proposals to
     curator-carla for acceptance
