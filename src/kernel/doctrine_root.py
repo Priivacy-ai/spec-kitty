@@ -7,11 +7,11 @@ that cutover: a READ-side dual-root resolver only (canonical-preferred,
 legacy-fallback with a warn-once notice). M3 performs the actual on-disk
 data move and flips write call sites over; nothing in this module writes or
 moves any file. Precedent for the read-both/canonical-wins/warn-once shape:
-``charter.sync``'s CR-01 governance-selection-key compat
-(``src/charter/sync.py:245-311``).
+``charter.activation.sync``'s CR-01 governance-selection-key compat
+(``src/charter/activation/sync.py:245-311``).
 
 Lives in ``kernel`` -- not ``charter`` or ``specify_cli`` -- because both
-``charter.synthesizer.*`` (the live-tree write/reconcile pipeline) and
+``charter.activation.synthesizer.*`` (the live-tree write/reconcile pipeline) and
 ``specify_cli.doctrine_synthesizer.apply`` (the retrospective-proposal
 applier) need to resolve the same project-local root, and the
 kernel<-charter<-specify_cli layer direction means kernel is the only shared
@@ -58,7 +58,7 @@ def _warn_legacy_doctrine_root_once() -> None:
 
     Gated by ``lru_cache`` rather than the ``warnings`` module's own de-dup
     filter for the same reason as every other CR shim in this mission
-    (precedent: ``charter.sync._warn_legacy_governance_key_once``, CR-01) --
+    (precedent: ``charter.activation.sync._warn_legacy_governance_key_once``, CR-01) --
     a caller running under a stricter ``filterwarnings`` configuration could
     otherwise turn a *repeated* warning into a hard failure. Tests reset this
     gate via ``_warn_legacy_doctrine_root_once.cache_clear()``.

@@ -492,35 +492,48 @@ def test_credential_lock_surface_is_removed():
     )
 
 
-def test_section_e_historical_sync_rows_retain_original_authority():
-    """#689 is metadata-only: owner_module/creation_trigger/notes were
-    updated to mark these rows historical, but authority/deprecated must
-    stay at their pre-#689 values (StateSurface.to_dict(), `doctor
-    state-roots`, and get_surfaces_by_authority() all read them; #689
-    explicitly excludes "any behavioral change to state handling").
-    """
+def test_section_e_historical_sync_rows_are_fully_tombstoned():
+    """Historical sync rows are deprecated and excluded from live authorities."""
     surfaces_by_name = {s.name: s for s in STATE_SURFACES}
-    expected_authority = {
-        "lamport_clock": AuthorityClass.AUTHORITATIVE,
-        "active_queue_scope": AuthorityClass.LOCAL_RUNTIME,
-        "sync_daemon_control": AuthorityClass.LOCAL_RUNTIME,
-        "legacy_queue": AuthorityClass.AUTHORITATIVE,
-        "scoped_queue": AuthorityClass.AUTHORITATIVE,
-        "project_sync_store": AuthorityClass.AUTHORITATIVE,
-        "project_sync_egress_lock": AuthorityClass.LOCAL_RUNTIME,
-        "project_sync_layout_generation": AuthorityClass.AUTHORITATIVE,
-        "project_sync_layout_generation_lock": AuthorityClass.LOCAL_RUNTIME,
-        "project_sync_layout_generation_marker": AuthorityClass.AUTHORITATIVE,
-        "project_sync_migration_reports": AuthorityClass.LOCAL_RUNTIME,
+    historical_names = {
+        "lamport_clock",
+        "active_queue_scope",
+        "sync_daemon_control",
+        "legacy_queue",
+        "scoped_queue",
+        "project_sync_store",
+        "project_sync_egress_lock",
+        "project_sync_layout_generation",
+        "project_sync_layout_generation_lock",
+        "project_sync_layout_generation_marker",
+        "project_sync_migration_reports",
     }
-    for name, authority in expected_authority.items():
+    for name in historical_names:
         surface = surfaces_by_name[name]
-        assert surface.authority == authority, (
-            f"{name}: expected authority={authority}, got {surface.authority}"
-        )
-        assert surface.deprecated is False, f"{name}: expected deprecated=False, got {surface.deprecated}"
+        assert surface.authority is AuthorityClass.DEPRECATED
+        assert surface.deprecated is True
         assert surface.owner_module == "legacy"
         assert surface.creation_trigger == "historical"
+        assert surface.to_dict()["authority"] == AuthorityClass.DEPRECATED.value
+        assert surface.to_dict()["deprecated"] is True
+
+    live_authorities = {
+        AuthorityClass.AUTHORITATIVE,
+        AuthorityClass.LOCAL_RUNTIME,
+    }
+    authority_names = {
+        authority: {surface.name for surface in get_surfaces_by_authority(authority)}
+        for authority in live_authorities
+    }
+    assert all(
+        name not in names
+        for names in authority_names.values()
+        for name in historical_names
+    )
+    tracker_cache = surfaces_by_name["tracker_cache"]
+    assert tracker_cache.authority is AuthorityClass.AUTHORITATIVE
+    assert tracker_cache.deprecated is False
+    assert tracker_cache.name in authority_names[AuthorityClass.AUTHORITATIVE]
 
 
 def test_section_f_global_runtime_present():

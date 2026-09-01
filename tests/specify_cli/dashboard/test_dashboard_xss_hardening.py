@@ -18,7 +18,7 @@ def test_overview_panel_avoids_innerhtml_sink() -> None:
     content = DASHBOARD_JS.read_text()
     assert "document.getElementById('overview-content').innerHTML" not in content
     assert "overviewContent.innerHTML" not in content
-    assert "overviewContent.replaceChildren(header, statusSummary, artifactsHeading, artifactsGrid);" in content
+    assert "overviewContent.replaceChildren(...overviewChildren);" in content
 
 
 def test_feature_selector_builds_options_with_dom_nodes() -> None:
@@ -93,3 +93,11 @@ def test_card_avatar_palette_meets_wcag_aa_text_contrast() -> None:
         ratios.append((lighter + 0.05) / (darker + 0.05))
 
     assert min(ratios) >= 4.5
+
+
+def test_card_avatar_trims_identity_before_guard_and_initials() -> None:
+    """A whitespace-only identity is absent, not a blank avatar circle."""
+    content = DASHBOARD_JS.read_text()
+    assert "const identity = [task.agent_profile, task.role, task.agent, task.assignee]" in content
+    assert ".find(value => typeof value === 'string' && value.trim())?.trim() || '';" in content
+    assert "[identity[0], identity[1] || '']" in content

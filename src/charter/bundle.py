@@ -1,6 +1,6 @@
 """Unified charter bundle manifest (v1.0.0).
 
-Declares the files ``src/charter/sync.py :: sync()`` materializes as the
+Declares the files ``src/charter/activation/sync.py :: sync()`` materializes as the
 project's governance bundle. v1.0.0 scope is limited to the three
 sync-produced derivatives. See
 ``docs/architecture/06_unified_charter_bundle.md`` for the full contract and
@@ -9,9 +9,9 @@ for the JSON Schema.
 
 Out of v1.0.0 scope (per C-012):
 
-* ``references.yaml`` — produced by ``src/charter/compiler.py``.
+* ``references.yaml`` — produced by ``src/charter/activation/compiler.py``.
 * ``context-state.json`` — runtime state written by
-  ``src/charter/context.py :: build_charter_context``.
+  ``src/charter/activation/context.py :: build_charter_context``.
 
 Expanding the manifest requires a schema bump and a new migration; the
 project ``.gitignore`` MAY carry additional entries for those files.
@@ -327,7 +327,7 @@ def _manifest_is_fresh_seed(manifest_path: Path) -> bool:
     validation.
     """
     try:
-        from .synthesizer.manifest import load_yaml as load_manifest  # noqa: PLC0415
+        from .activation.synthesizer.manifest import load_yaml as load_manifest  # noqa: PLC0415
 
         manifest = load_manifest(manifest_path)
     except Exception:  # noqa: BLE001
@@ -413,7 +413,7 @@ def _check_manifest_integrity(repo_root: Path, result: BundleValidationResult) -
     if not manifest_path.exists():
         return
     try:
-        from .synthesizer.manifest import (  # noqa: PLC0415
+        from .activation.synthesizer.manifest import (  # noqa: PLC0415
             load_yaml as load_manifest,
             verify as verify_manifest,
             verify_manifest_hash,

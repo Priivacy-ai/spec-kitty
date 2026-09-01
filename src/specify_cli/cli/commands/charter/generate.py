@@ -26,21 +26,21 @@ def _build_doctrine_service_with_org_layer(repo_root: Path) -> Any:
 
     FR-002/FR-008 unification (charter-sole-door-bypass-closure-01KZ3WAA
     WP01): thin call-through to the single canonical builder,
-    :func:`charter.doctrine_service_builder.build_activation_aware_doctrine_service`
+    :func:`charter.activation.doctrine_service_builder.build_activation_aware_doctrine_service`
     — replaces the former inline "build raw, then best-effort wrap" pattern
     that lived here (and independently in
     ``specify_cli.charter_runtime.lint.checks.org_layer`` and
     ``specify_cli.doctrine_service_factory``, C-001). The unified builder
     always self-resolves org roots and always computes ``active_languages``,
     and it always returns the activation-aware
-    :class:`charter.resolver.DoctrineService` wrapper — it never falls back
+    :class:`charter.activation.resolver.DoctrineService` wrapper — it never falls back
     to a raw, unwrapped service, closing the fail-open gap FR-002 named at
     this site (the previous code's ``pack_context`` resolution was wrapped in
     a bare ``except Exception: pass`` that silently degraded to an
     unfiltered service on ANY failure, not just the "not yet available"
     case it was written for).
     """
-    from charter.doctrine_service_builder import build_activation_aware_doctrine_service
+    from charter.activation.doctrine_service_builder import build_activation_aware_doctrine_service
 
     return build_activation_aware_doctrine_service(repo_root)
 
@@ -150,7 +150,7 @@ def _sync_charter_if_present(charter_path: Path, charter_dir: Path) -> Any:
     ``charter.md`` yet -- skip the step entirely rather than surfacing a
     "file not found" as a ``generate`` failure.
     """
-    from charter.sync import sync as sync_charter  # noqa: PLC0415
+    from charter.activation.sync import sync as sync_charter  # noqa: PLC0415
 
     if not charter_path.exists():
         return None
@@ -215,7 +215,7 @@ def _load_interview_for_generate(
     profile: str,
 ) -> tuple[Any, str, str]:
     """Resolve interview payload, source label, and mission for generation."""
-    from charter.interview import read_interview_answers
+    from charter.activation.interview import read_interview_answers
 
     interview_data = read_interview_answers(answers_path) if from_interview else None
     if from_interview and interview_data is None:
@@ -271,12 +271,12 @@ def generate(
       gitignore updates, or staging. Update the symlink target directly or
       replace it with a regular runtime charter.
     """
-    from charter.compiler import (
+    from charter.activation.compiler import (
         compile_charter,
         provision_mission_type_activations,
         write_compiled_charter,
     )
-    from charter.pack_context import PackContext
+    from charter.activation.pack_context import PackContext
 
     try:
         repo_root = _charter_pkg.find_repo_root()

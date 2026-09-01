@@ -19,8 +19,8 @@ from pathlib import Path
 import pytest
 from ruamel.yaml import YAML
 
-from charter.compiler import CompiledCharter, compile_charter, write_compiled_charter
-from charter.interview import default_interview
+from charter.activation.compiler import CompiledCharter, compile_charter, write_compiled_charter
+from charter.activation.interview import default_interview
 
 pytestmark = pytest.mark.fast
 

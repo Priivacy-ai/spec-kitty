@@ -186,7 +186,7 @@ RELATION_DESCRIPTIONS: dict[Relation, str] = {
         "``procedure:onboard-external-agent-to-pack``) was retyped to "
         "``requires`` because it was that procedure's only inbound edge and "
         "left the profile's own operating procedure unreachable. The relation "
-        "itself is not dead -- ``charter.synthesizer.project_drg`` emits it "
+        "itself is not dead -- ``charter.activation.synthesizer.project_drg`` emits it "
         "during project-tier synthesis and the orphan lint accepts it as an "
         "inbound edge on a ``directive`` node -- so what is forbidden is "
         "authoring one into the shipped tree, not the relation existing. "

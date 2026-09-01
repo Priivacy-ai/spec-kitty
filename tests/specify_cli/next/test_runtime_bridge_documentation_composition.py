@@ -77,10 +77,10 @@ def test_documentation_in_composed_actions(tmp_path: Path) -> None:
     saved = sys.modules.get("charter.offering.missions.mission_type_repository")
     sys.modules["charter.offering.missions.mission_type_repository"] = fake_module
     try:
-        from charter.mission_type_profiles import resolve_mission_type_context
+        from charter.activation.mission_type_profiles import resolve_mission_type_context
 
         with patch(
-            "charter.mission_type_profiles.existing_mission_types",
+            "charter.activation.mission_type_profiles.existing_mission_types",
             return_value=["documentation", "plan", "research", "software-dev"],
         ):
             result = resolve_mission_type_context(

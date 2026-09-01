@@ -2,7 +2,7 @@
 ``charter_packs.org.packs`` (mission ``charter-code-topology-01M152G1`` S4).
 
 Precedent for the read-both / canonical-wins / warn-once shape:
-``charter.sync`` CR-01 (``src/charter/sync.py:245-311``).
+``charter.activation.sync`` CR-01 (``src/charter/activation/sync.py:245-311``).
 
 Precedence order exercised here: ``charter_packs.org.packs`` (canonical, no
 warning) -> ``doctrine.org.packs`` (legacy, warns once) -> top-level
@@ -30,7 +30,7 @@ pytestmark = [pytest.mark.fast, pytest.mark.doctrine]
 
 @pytest.fixture(autouse=True)
 def _reset_warn_once_gate() -> None:
-    """Each test gets a fresh warn-once gate (precedent: charter.sync tests)."""
+    """Each test gets a fresh warn-once gate (precedent: charter.activation.sync tests)."""
     _warn_legacy_org_pack_doctrine_key_once.cache_clear()
 
 

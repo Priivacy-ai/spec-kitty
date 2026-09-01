@@ -20,8 +20,8 @@ from pathlib import Path
 
 import pytest
 
-from charter.synthesizer.errors import PathGuardViolation
-from charter.synthesizer.path_guard import PathGuard
+from charter.activation.synthesizer.errors import PathGuardViolation
+from charter.activation.synthesizer.path_guard import PathGuard
 
 
 # ---------------------------------------------------------------------------
@@ -232,9 +232,12 @@ class TestNoDirectWritesInSynthesizer:
     _EXEMPT_FILES = {"path_guard.py"}
 
     def _find_synthesizer_dir(self) -> Path:
-        """Locate src/charter/synthesizer/ relative to this test file."""
+        """Locate src/charter/activation/synthesizer/ relative to this test file.
+
+        Relocated by mission charter-activation-split-01M16ZSE (MAP-A MOVE).
+        """
         repo_root = Path(__file__).parent.parent.parent.parent
-        return repo_root / "src" / "charter" / "synthesizer"
+        return repo_root / "src" / "charter" / "activation" / "synthesizer"
 
     # Patterns that indicate a call is delegating through a PathGuard variable
     # rather than writing directly.  A line that already contains a PathGuard

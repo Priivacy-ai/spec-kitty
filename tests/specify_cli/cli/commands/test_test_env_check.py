@@ -4,8 +4,7 @@ T005 from WP01 of mission review-merge-gate-hardening-3-2-x-01KRC57C.
 FR-001, FR-002: prevent PATH fallthrough to system pytest in gate commands.
 
 Also covers WP01 of mission ci-local-preflight-parity-01KWXWY0 (#2283
-Phase 3): the typer/click uv.lock-parity check (FR-001) and the local
-CI-residual selection runner (FR-002).
+Phase 3): the typer/click uv.lock-parity check (FR-001).
 """
 
 from __future__ import annotations
@@ -19,18 +18,13 @@ import pytest
 
 from specify_cli.cli.commands._test_env_check import (
     ENV_SKEW_FAIL_CLOSED_ENV_VAR,
-    CI_RESIDUAL_JOB_NAME,
     EnvSkew,
     PackageSkew,
-    ResidualSelectorNotFound,
     TestExtraMissing,
     assert_pytest_available,
     assert_typer_click_lock_parity,
-    build_local_residual_command,
     check_typer_click_lock_parity,
     format_env_skew_message,
-    read_ci_residual_marker_expr,
-    run_local_residual_selection,
 )
 
 
@@ -228,135 +222,3 @@ class TestTyperClickLockParity:
         # version now diverges from the (changed) lock.
         _write_uv_lock(tmp_path, {"typer": "0.25.0", "click": "8.3.3"})
         assert check_typer_click_lock_parity(tmp_path) == [PackageSkew("typer", "0.25.0", "0.24.2")]
-
-
-# ---------------------------------------------------------------------------
-# T002 -- local CI-residual selection runner (FR-002)
-# ---------------------------------------------------------------------------
-
-
-_RESIDUAL_WORKFLOW_TEMPLATE = """\
-jobs:
-  unit-contract-residual:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v6
-      - run: uv sync --frozen --all-extras
-      - name: "Run unit/contract residual (full-tree marker selection)"
-        run: |
-          uv run python -m pytest tests/ \\
-            -m "{marker_expr}" \\
-            -q --tb=short \\
-            -n auto --dist loadfile \\
-            --durations=25
-"""
-
-
-def _write_ci_workflow_fixture(tmp_path: Path, marker_expr: str) -> Path:
-    workflow_path = tmp_path / "ci-quality.yml"
-    workflow_path.write_text(_RESIDUAL_WORKFLOW_TEMPLATE.format(marker_expr=marker_expr), encoding="utf-8")
-    return workflow_path
-
-
-class TestLocalResidualRunner:
-    """FR-002: the local CI-residual `-m` selection runner."""
-
-    def test_reads_marker_expr_from_fixture_workflow(self, tmp_path: Path) -> None:
-        workflow_path = _write_ci_workflow_fixture(tmp_path, "(unit or contract) and not (fast or slow)")
-        expr = read_ci_residual_marker_expr(workflow_path)
-        assert expr == "(unit or contract) and not (fast or slow)"
-
-    def test_marker_expr_is_read_live_not_hardcoded(self, tmp_path: Path) -> None:
-        """Mutating the source selector changes the runner's selection.
-
-        This is the DoD's explicit single-sourcing proof (NFR-002): the
-        expression is re-parsed from the workflow file on every call, so a
-        later edit to the CI job is picked up automatically with no
-        hand-copied duplicate anywhere in this module.
-        """
-        workflow_path = _write_ci_workflow_fixture(tmp_path, "unit or contract")
-        assert read_ci_residual_marker_expr(workflow_path) == "unit or contract"
-
-        # Mutate the *source* selector in place.
-        workflow_path.write_text(
-            _RESIDUAL_WORKFLOW_TEMPLATE.format(marker_expr="(unit or contract) and not slow"),
-            encoding="utf-8",
-        )
-        assert read_ci_residual_marker_expr(workflow_path) == "(unit or contract) and not slow"
-
-    @pytest.mark.skip(
-        reason=(
-            "The real .github/workflows/ci-quality.yml this sanity check parsed"
-            " was deleted (pre-programme GitHub Actions cruft, PROGRAM.md §2,"
-            " planning#57). read_ci_residual_marker_expr() itself is still"
-            " covered by the fixture-based tests above; the local"
-            " CI-residual-selection CLI feature it backs has no live source of"
-            " truth to read from until a follow-up decides its replacement"
-            " (see the PR that deleted the workflow directory for details)."
-        )
-    )
-    def test_reads_the_real_ci_workflow_marker_expr(self) -> None:
-        """Sanity/integration check against the actual repo workflow file.
-
-        Proves the parser works against the real
-        .github/workflows/ci-quality.yml shape, not just a synthetic fixture.
-        """
-        repo_root = Path(__file__).resolve().parents[4]
-        workflow_path = repo_root / ".github" / "workflows" / "ci-quality.yml"
-        expr = read_ci_residual_marker_expr(workflow_path)
-        assert "unit" in expr
-        assert "contract" in expr
-        assert "not (" in expr
-
-    def test_missing_job_raises_residual_selector_not_found(self, tmp_path: Path) -> None:
-        workflow_path = tmp_path / "ci-quality.yml"
-        workflow_path.write_text(
-            "jobs:\n  some-other-job:\n    runs-on: ubuntu-latest\n",
-            encoding="utf-8",
-        )
-        with pytest.raises(ResidualSelectorNotFound):
-            read_ci_residual_marker_expr(workflow_path)
-
-    def test_missing_workflow_file_raises_residual_selector_not_found(self, tmp_path: Path) -> None:
-        with pytest.raises(ResidualSelectorNotFound):
-            read_ci_residual_marker_expr(tmp_path / "does-not-exist.yml")
-
-    def test_job_name_is_the_documented_residual_job(self) -> None:
-        assert CI_RESIDUAL_JOB_NAME == "unit-contract-residual"
-
-    def test_build_local_residual_command_uses_live_marker_expr(self, tmp_path: Path) -> None:
-        workflow_path = _write_ci_workflow_fixture(tmp_path, "unit or contract")
-        command = build_local_residual_command(tmp_path, workflow_path=workflow_path)
-
-        assert command[0] == sys.executable
-        assert command[1:4] == ["-m", "pytest", str(tmp_path / "tests")]
-        assert command[4:6] == ["-m", "unit or contract"]
-        assert "-q" in command
-
-    def test_run_local_residual_selection_invokes_the_built_command(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-        """The runner actually shells out to the single-sourced command."""
-        workflow_path = _write_ci_workflow_fixture(tmp_path, "unit or contract")
-
-        captured: dict[str, object] = {}
-
-        def _fake_run(args: list[str], *, cwd: Path, **_kwargs: object) -> subprocess.CompletedProcess[bytes]:
-            captured["args"] = args
-            captured["cwd"] = cwd
-            return subprocess.CompletedProcess(args=args, returncode=0)
-
-        monkeypatch.setattr(subprocess, "run", _fake_run)
-
-        result = run_local_residual_selection(tmp_path, workflow_path=workflow_path)
-
-        assert result.returncode == 0
-        assert captured["cwd"] == tmp_path
-        args = captured["args"]
-        assert isinstance(args, list)
-        assert args[0] == sys.executable
-        assert "-m" in args and "pytest" in args
-        assert "unit or contract" in args
-
-    def test_run_local_residual_selection_propagates_missing_selector(self, tmp_path: Path) -> None:
-        """No workflow present -> ResidualSelectorNotFound, not a subprocess crash."""
-        with pytest.raises(ResidualSelectorNotFound):
-            run_local_residual_selection(tmp_path, workflow_path=tmp_path / "absent.yml")

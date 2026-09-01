@@ -25,7 +25,7 @@ from charter import (
     sync,
 )
 from charter.bundle import CHARTER_YAML
-from charter.sync import SyncResult, ensure_charter_bundle_fresh
+from charter.activation.sync import SyncResult, ensure_charter_bundle_fresh
 
 pytestmark = pytest.mark.fast
 
@@ -94,7 +94,7 @@ directives:
     def test_load_governance_config_missing_charter_yaml_returns_empty(
         self, tmp_path: Path, caplog: pytest.LogCaptureFixture
     ) -> None:
-        with caplog.at_level(logging.INFO, logger="charter.sync"):
+        with caplog.at_level(logging.INFO, logger="charter.activation.sync"):
             config = load_governance_config(tmp_path)
 
         assert isinstance(config, GovernanceConfig)
@@ -106,7 +106,7 @@ directives:
     def test_load_directives_config_missing_charter_yaml_returns_empty(
         self, tmp_path: Path, caplog: pytest.LogCaptureFixture
     ) -> None:
-        with caplog.at_level(logging.INFO, logger="charter.sync"):
+        with caplog.at_level(logging.INFO, logger="charter.activation.sync"):
             config = load_directives_config(tmp_path)
 
         assert isinstance(config, DirectivesConfig)
@@ -208,14 +208,14 @@ class TestEnsureCharterBundleFresh:
         charter_dir.mkdir(parents=True)
         (charter_dir / "charter.md").write_text("## Testing\n\nCoverage: 80%", encoding="utf-8")
 
-        with patch("charter.sync.sync") as mock_sync:
+        with patch("charter.activation.sync.sync") as mock_sync:
             mock_sync.return_value = SyncResult(
                 synced=False, stale_before=False, files_written=[],
                 extraction_mode="", error="Engine unavailable",
                 canonical_root=tmp_path,
             )
             caplog.clear()
-            with caplog.at_level(logging.WARNING, logger="charter.sync"):
+            with caplog.at_level(logging.WARNING, logger="charter.activation.sync"):
                 result = ensure_charter_bundle_fresh(tmp_path)
 
         assert result is not None

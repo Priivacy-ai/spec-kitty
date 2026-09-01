@@ -41,7 +41,7 @@ metadata:
 ```
 
 Activation keys are flat at the `charter.yaml` root (not nested under an
-`activation:` mapping), matching `src/charter/packs/default.yaml`.
+`activation:` mapping), matching `src/charter/activation/packs/default.yaml`.
 
 ---
 

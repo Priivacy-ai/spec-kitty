@@ -873,3 +873,7 @@ nothing at all about the local half. Two rows are what the checkout actually has
   only for its own delegation assertions — and the acceptance suite for this Mission patches
   `_build_engine` **nowhere**, asserted by a grep-based pin over the new test files with its input
   count printed.
+
+### Reconciliation note — 2026-08-31 (#782)
+
+The executable G4 guard is the current authority: the census is **five enclosing functions and five call expressions** — the three local sync gates, `SaaSTrackerClient._current_tracker_egress_verdict`, and `_check_sync_readiness`. Earlier references to `_request`, the deleted sync-doctor renderer, or a sixth expression are retired historical prose. FR-004's unconditional hosted literal belongs to `_current_tracker_egress_verdict`, not `_request`.

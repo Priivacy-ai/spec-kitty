@@ -41,15 +41,15 @@ from charter.offering.drg.models import DRGEdge, DRGGraph, DRGNode, NodeKind, Re
 from charter.offering.drg.validator import validate_graph
 from charter.offering.missions.mission_type_repository import builtin_mission_type_ids
 
-from charter.synthesizer.fixture_adapter import FixtureAdapter
-from charter.synthesizer.interview_mapping import (
+from charter.activation.synthesizer.fixture_adapter import FixtureAdapter
+from charter.activation.synthesizer.interview_mapping import (
     mission_type_urn_candidate,
     resolve_sections,
 )
-from charter.synthesizer.project_drg import emit_project_layer
-from charter.synthesizer.request import SynthesisRequest, SynthesisTarget
-from charter.synthesizer.synthesize_pipeline import run_all
-from charter.synthesizer.targets import build_targets
+from charter.activation.synthesizer.project_drg import emit_project_layer
+from charter.activation.synthesizer.request import SynthesisRequest, SynthesisTarget
+from charter.activation.synthesizer.synthesize_pipeline import run_all
+from charter.activation.synthesizer.targets import build_targets
 
 pytestmark = [pytest.mark.unit]
 

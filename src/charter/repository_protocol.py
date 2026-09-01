@@ -1,6 +1,6 @@
 """Structural typing seam for doctrine artifact repositories (FR-010, NFR-005).
 
-``charter.context`` and ``charter.progressive_disclosure`` both accept a
+``charter.activation.context`` and ``charter.activation.progressive_disclosure`` both accept a
 doctrine artifact repository (``DirectiveRepository``, ``TacticRepository``,
 ...) at several call sites, historically typed as bare ``object`` and
 therefore needing ``# type: ignore[attr-defined]`` at every ``.get(...)`` /
@@ -32,7 +32,7 @@ class ArtifactRepository(Protocol[T]):
     """Structural contract satisfied by every concrete doctrine repository.
 
     Kept intentionally minimal -- two methods, the only ones the retyped call
-    sites in ``charter.context`` / ``charter.progressive_disclosure`` invoke.
+    sites in ``charter.activation.context`` / ``charter.activation.progressive_disclosure`` invoke.
     Widen this Protocol rather than introducing a second one if a future call
     site needs another repository method (keep one clean typed seam).
     """

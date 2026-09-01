@@ -535,22 +535,27 @@ class TestCachedAnswer:
     and `resolve_credentials` both build on (Priivacy-ai/spec-kitty#151)."""
 
     def test_miss_when_nothing_stored(self, state_root: Path) -> None:
-        assert resolution.cached_answer(KEY, repo_slug=SLUG, host=HOST) == (False, None)
+        assert resolution.cached_answer(KEY, repo_slug=SLUG, host=HOST) == (False, None, None)
 
     def test_hit_on_an_unexpired_positive(self, state_root: Path) -> None:
         credentials.store(repo=KEY, relay_url="http://cached", token="tok", token_kind="presence", expires_at=_iso_in(3600))
-        hit, value = resolution.cached_answer(KEY, repo_slug=SLUG, host=HOST)
+        hit, value, negative = resolution.cached_answer(KEY, repo_slug=SLUG, host=HOST)
         assert hit is True
         assert value is not None
+        assert negative is None
         assert value.relay_url == "http://cached"
 
     def test_hit_on_an_unexpired_negative(self, state_root: Path) -> None:
         credentials.store_negative(repo=KEY, reason="no_match", expires_at=_iso_in(300))
-        assert resolution.cached_answer(KEY, repo_slug=SLUG, host=HOST) == (True, None)
+        hit, value, negative = resolution.cached_answer(KEY, repo_slug=SLUG, host=HOST)
+        assert hit is True
+        assert value is None
+        assert negative is not None
+        assert negative.reason == "no_match"
 
     def test_miss_on_an_expired_positive(self, state_root: Path) -> None:
         credentials.store(repo=KEY, relay_url="http://stale", token="tok", token_kind="presence", expires_at=_iso_in(-1))
-        assert resolution.cached_answer(KEY, repo_slug=SLUG, host=HOST) == (False, None)
+        assert resolution.cached_answer(KEY, repo_slug=SLUG, host=HOST) == (False, None, None)
 
     def test_miss_on_an_out_of_scope_entry(self, state_root: Path) -> None:
         credentials.store(
@@ -562,7 +567,7 @@ class TestCachedAnswer:
             host="gitlab.com",
             repo_slug="other/repo",
         )
-        assert resolution.cached_answer(KEY, repo_slug=SLUG, host=HOST) == (False, None)
+        assert resolution.cached_answer(KEY, repo_slug=SLUG, host=HOST) == (False, None, None)
 
 
 class TestScopeRevalidation:
@@ -1147,6 +1152,31 @@ class TestMintRecordsAdmittingTeam:
         stored = resolution._resolve(key=KEY, repo_slug=SLUG, host=HOST, gateway=gateway, kind=KIND_PRESENCE, force=False)
         assert stored is not None
         assert stored.team is None
+
+    def test_remint_with_missing_admission_team_preserves_existing_team(self, state_root: Path) -> None:
+        credentials.store(
+            repo=KEY,
+            relay_url="http://relay",
+            token="old-bearer",
+            token_kind=KIND_PRESENCE,
+            expires_at=_iso_in(-1),
+            host=HOST,
+            repo_slug=SLUG,
+            team="demo",
+        )
+        credentials.store_focus_capability(
+            repo=KEY,
+            capability_credential="focus-jwt",
+            expires_at=_iso_in(1200),
+        )
+        gateway = ScriptedGateway(admission={"admitted": True})
+
+        stored = resolution._resolve(key=KEY, repo_slug=SLUG, host=HOST, gateway=gateway, kind=KIND_PRESENCE, force=False)
+
+        assert stored is not None
+        assert stored.team == "demo"
+        assert stored.focus_capability_credential == "focus-jwt"
+        assert gateway.mint_calls == [{"repo_slug": SLUG, "kind": KIND_PRESENCE, "team_slug": None}]
 
 
 # ---------------------------------------------------------------------------

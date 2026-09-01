@@ -3,7 +3,7 @@
 Mission ``charter-sole-door-bypass-closure-01KZ3WAA`` / WP06. Before this WP,
 3 sites independently constructed the shipped ``src/charter/offering/missions`` root:
 
-1. ``charter.mission_type_profile_repository.builtin_missions_root()`` — a
+1. ``charter.activation.mission_type_profile_repository.builtin_missions_root()`` — a
    ``Path(__file__).resolve().parents[1] / "doctrine" / "missions"`` literal.
 2. ``specify_cli.runtime.home.get_package_asset_root()``'s ``dev_roots``
    fallback tuple — a ``Path(__file__).parents[2] / "doctrine" / "missions"``
@@ -34,7 +34,7 @@ from pathlib import Path
 
 import pytest
 
-from charter.mission_type_profile_repository import builtin_missions_root
+from charter.activation.mission_type_profile_repository import builtin_missions_root
 from charter.offering.missions.repository import MissionTemplateRepository
 from charter.offering.pack_paths import built_in_missions_root as pack_paths_built_in_missions_root
 from specify_cli.runtime import home as home_module

@@ -14,7 +14,7 @@ related:
 # Sync-Drain Runbook: the 3-Gate Order and the Doctor False-Green Trap
 
 > **Removed in 3.2.6; kept as historical record.** The CLI→SaaS sync transport
-> described here is gone. This page is scheduled for deletion in 3.2.7 (D13).
+> described here is gone. This page is scheduled for deletion in 3.2.7.
 
 An event captured locally does not ship to a Teamspace until it clears three
 gates, evaluated **in this order** by the drain (see

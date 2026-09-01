@@ -9,9 +9,9 @@ from specify_cli.cli.console import CliConsole
 from specify_cli.cli.console import console
 from rich.table import Table
 
-from charter.invocation_context import ProjectContext
-from charter.kind_vocabulary import CHARTER_KIND_TOKENS
-from charter.pack_manager import AvailableArtifact, CharterPackManager
+from charter.activation.invocation_context import ProjectContext
+from charter.activation.kind_vocabulary import CHARTER_KIND_TOKENS
+from charter.activation.pack_manager import AvailableArtifact, CharterPackManager
 from charter.resolution import ResolutionTier
 from charter.template_catalog import TemplateRef, TierRoot, discover_templates
 

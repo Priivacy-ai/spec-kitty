@@ -36,7 +36,7 @@ _REMEDIATION_BODY = (
 
 def _raise_charter_config_error(**_kwargs: object) -> None:
     """Stand-in for ``create_mission_core`` that fails the charter-pack gate."""
-    from charter.pack_context import CharterPackConfigError
+    from charter.activation.pack_context import CharterPackConfigError
 
     raise CharterPackConfigError(_REMEDIATION_BODY)
 

@@ -39,10 +39,10 @@ from typing import Any, cast
 import pytest
 from ruamel.yaml import YAML
 
-from charter.synthesizer import FixtureAdapter, SynthesisRequest, SynthesisTarget, synthesize
-from charter.synthesizer.errors import ProjectDRGValidationError
-from charter.synthesizer.reconcile import _RECONCILE_REMEDIATIONS, ReconciliationConflict, _edge_label
-from charter.synthesizer.validation_gate import _edge_conflict_key, validate
+from charter.activation.synthesizer import FixtureAdapter, SynthesisRequest, SynthesisTarget, synthesize
+from charter.activation.synthesizer.errors import ProjectDRGValidationError
+from charter.activation.synthesizer.reconcile import _RECONCILE_REMEDIATIONS, ReconciliationConflict, _edge_label
+from charter.activation.synthesizer.validation_gate import _edge_conflict_key, validate
 from charter.offering.drg.models import DRGEdge, DRGGraph, DRGNode, NodeKind, Relation
 
 pytestmark = [pytest.mark.unit]

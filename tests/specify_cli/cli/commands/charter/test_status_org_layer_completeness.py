@@ -127,13 +127,16 @@ def test_collect_org_layer_status_surfaces_a_failed_merge_check(
     it turns "the completeness check crashed" into "no findings", which is the
     same false-clean one level further down.
     """
-    import charter.drg as charter_drg
+    import charter.activation.drg_activation as drg_activation
     from specify_cli.cli.commands.charter import _collect_org_layer_status
 
     def _boom(**_kwargs: object) -> object:
         raise RuntimeError("merge exploded")
 
-    monkeypatch.setattr(charter_drg, "merge_three_layers", _boom)
+    # ``_collect_org_layer_status`` imports ``merge_three_layers`` from
+    # ``charter.activation.drg_activation`` (its re-export site), not from the
+    # ``charter.drg`` facade — patch the module production actually calls.
+    monkeypatch.setattr(drg_activation, "merge_three_layers", _boom)
 
     result = _collect_org_layer_status(tmp_repo_with_org_pack)
 

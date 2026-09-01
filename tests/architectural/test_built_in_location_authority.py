@@ -41,7 +41,7 @@ three independent contract clauses:
 
 Known pre-existing exemption (read before extending ``_KNOWN_JOIN_ALLOWLIST``)
 --------------------------------------------------------------------------------
-``src/charter/kind_vocabulary.py``'s ``_scan_roots`` iterates ``org_roots`` and
+``src/charter/activation/kind_vocabulary.py``'s ``_scan_roots`` iterates ``org_roots`` and
 joins ``root / kind.plural / "built-in"`` -- syntactically a filesystem join
 (C3.1's third limb), but *semantically* it is the **ORG tier's** own legacy
 nested-pack contract (``<org_root>/<plural>/built-in``, documented in-file:
@@ -137,7 +137,7 @@ _AUTHORITY_FILE = Path("src/charter/offering/pack_paths.py")
 #: built-in-tier reconstruction.
 _KNOWN_JOIN_ALLOWLIST: frozenset[tuple[Path, int]] = frozenset(
     {
-        # src/charter/kind_vocabulary.py::_org_scan_dirs -- org-tier legacy
+        # src/charter/activation/kind_vocabulary.py::_org_scan_dirs -- org-tier legacy
         # nested-pack join (`flat / "built-in"`), NOT a built-in-tier
         # reconstruction. See module docstring.
         # FRESHENED 2026-08-11 (#3317 landing): the join was extracted out of
@@ -172,7 +172,7 @@ _KNOWN_JOIN_ALLOWLIST: frozenset[tuple[Path, int]] = frozenset(
         # DROPPED the "Known residual (tracked #3426)" paragraph now that #3426
         # is fixed by this mission. M2's relocation docstring then pushes the
         # unchanged `flat / "built-in"` join down from line 269 to line 283.
-        (Path("src/charter/kind_vocabulary.py"), 283),
+        (Path("src/charter/activation/kind_vocabulary.py"), 283),
         # src/kernel/paths.py::_MISSION_ASSETS_SIBLING_PATTERN -- a relative
         # SHAPE constant (input to kernel.sibling_paths.resolve_installed_sibling),
         # not a filesystem join against a concrete root. kernel cannot import
@@ -221,14 +221,14 @@ _KNOWN_JOIN_ALLOWLIST: frozenset[tuple[Path, int]] = frozenset(
         # `src/charter/offering/templates/AGENTS.md` (relocated from
         # `src/doctrine/templates/`), pushing this join down one line.
         (Path("src/specify_cli/template/manager.py"), 166),
-        # src/charter/neutrality/lint.py::_default_scan_roots -- scans a
+        # src/charter/activation/neutrality/lint.py::_default_scan_roots -- scans a
         # caller-supplied `repo_root` (tmp_path-rooted in tests; see
         # tests/charter/test_neutrality_lint.py::test_default_scan_roots_include_relocated_builtin_missions),
         # not this installation's own built-in tier. See module docstring
         # class 2.
-        # FRESHENED (charter-code-topology-01M152G1 landing): line 353 -> 362;
+        # FRESHENED (charter-activation-split-01M16ZSE M2b landing): line 362 -> 379;
         # behaviour-preserving, same caller-supplied-root join.
-        (Path("src/charter/neutrality/lint.py"), 362),
+        (Path("src/charter/activation/neutrality/lint.py"), 379),
     }
 )
 

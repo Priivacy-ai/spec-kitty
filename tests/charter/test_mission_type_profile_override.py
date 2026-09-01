@@ -24,8 +24,8 @@ from pathlib import Path
 import pytest
 from ruamel.yaml import YAML
 
-from charter.mission_type_profile_repository import MissionTypeProfileRepository
-from charter.mission_type_profiles import (
+from charter.activation.mission_type_profile_repository import MissionTypeProfileRepository
+from charter.activation.mission_type_profiles import (
     MissionTypeProfile,
     resolve_mission_type_context,
 )

@@ -644,6 +644,17 @@ class TestReadIgnoreFileText:
         path.write_bytes(b"\xef\xbb\xbf.claude/\n")
         assert read_ignore_file_text(path) == ".claude/\n"
 
+    def test_errors_ignore_tolerates_invalid_utf8(self, temp_dir):
+        """Some call sites pass errors="ignore" to tolerate undecodable
+        bytes; without it this raises UnicodeDecodeError."""
+        path = temp_dir / ".gitignore"
+        path.write_bytes(b"kitty-specs/\n\xff\xfe.claude/\n")
+
+        with pytest.raises(UnicodeDecodeError):
+            read_ignore_file_text(path)
+
+        assert read_ignore_file_text(path, errors="ignore") == "kitty-specs/\n.claude/\n"
+
     def test_symlinked_file_is_rejected(self, temp_dir):
         outside_target = temp_dir.parent / f"outside-target-{os.getpid()}.txt"
         outside_target.write_text("do-not-touch\n")

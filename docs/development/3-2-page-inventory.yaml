@@ -1472,6 +1472,12 @@
   owning_workstream: none
   current_target: true
   notes: null
+- path: docs/architecture/charter-backend-service-future.md
+  tag: current
+  divio_type: none
+  owning_workstream: none
+  current_target: true
+  notes: null
 - path: docs/architecture/charter-pack-usage-journey.md
   tag: current
   divio_type: none
@@ -1637,6 +1643,12 @@
 - path: docs/architecture/pip-vs-pipx-vs-uv.md
   tag: current
   divio_type: explanation
+  owning_workstream: none
+  current_target: true
+  notes: null
+- path: docs/architecture/profile-load-reliability.md
+  tag: current
+  divio_type: none
   owning_workstream: none
   current_target: true
   notes: null

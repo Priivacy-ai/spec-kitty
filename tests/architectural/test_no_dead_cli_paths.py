@@ -355,9 +355,9 @@ def test_project_tier_graph_path_would_false_red_without_its_discriminator() -> 
     kept_paths = {site.path for site in scan.violations} | {site.path for site in scan.forbidding_mentions}
     excluded = sorted(naive_paths - kept_paths)
     assert excluded == [
+        "src/charter/activation/synthesizer/manifest.py",
+        "src/charter/activation/synthesizer/project_drg.py",
         "src/charter/offering/drg/merge.py",
-        "src/charter/synthesizer/manifest.py",
-        "src/charter/synthesizer/project_drg.py",
         "src/glossary/drg_builder.py",
         "src/specify_cli/charter_runtime/freshness/computer.py",
         "src/specify_cli/state/contract.py",

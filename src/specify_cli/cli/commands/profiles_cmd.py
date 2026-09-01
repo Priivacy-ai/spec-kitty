@@ -31,7 +31,7 @@ def _activated_agent_profiles(repo_root: Path) -> frozenset[str] | None:
     if not (repo_root / _KITTIFY_DIR / "config.yaml").exists():
         return None
 
-    from charter.pack_context import PackContext
+    from charter.activation.pack_context import PackContext
 
     activated: frozenset[str] | None = PackContext.from_config(repo_root).activated_agent_profiles
     return activated

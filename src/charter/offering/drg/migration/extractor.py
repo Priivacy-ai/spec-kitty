@@ -1567,7 +1567,7 @@ def model_to_graph_dict(model: BaseModel) -> dict[str, Any]:
     list, so a field added to the model is written without anyone remembering
     to update this function. This is the **public, canonical** DRG mapping
     writer (T001, mission ``doctrine-delivery-reachability``): every sibling
-    write path — ``charter.synthesizer.project_drg`` and
+    write path — ``charter.activation.synthesizer.project_drg`` and
     ``specify_cli.migration.rewrite_opposed_by`` — routes through it so no writer
     restates the field list by hand. It is registered as a ``MappingWriter`` in
     ``specify_cli.drg_writers.registry``; the registry's completeness gate

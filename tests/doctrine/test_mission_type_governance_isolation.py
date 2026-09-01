@@ -2,7 +2,7 @@
 
 WP12 — the join. These are **behavioural** assertions on the *resolved URN set*
 that a real mission of each type surfaces through the single charter-mediated
-seam (:func:`charter.mission_type_profiles.resolve_mission_type_context`).
+seam (:func:`charter.activation.mission_type_profiles.resolve_mission_type_context`).
 They deliberately do **not** ratchet on code shape — they assert on the doctrine a
 mission would actually be governed by.
 
@@ -29,7 +29,7 @@ this test pins that it never leaks into the other three domains.
 
 WP03 wired the live action-grain union into ``bundle.governance`` itself (lazily,
 behind a ``cached_property`` thunk — accessing ``.governance`` now triggers the
-real ``charter.action_grain.aggregate_action_grain`` union, covering EVERY
+real ``charter.activation.action_grain.aggregate_action_grain`` union, covering EVERY
 action the mission type ships, not just a probe subset). WP05 reconciled this
 test onto that single source (C-002 / FR-006): ``_resolve_union`` used to
 independently re-union ``load_action_index`` over a probe action list — a
@@ -47,7 +47,7 @@ from pathlib import Path
 
 import pytest
 
-from charter.mission_type_profiles import (
+from charter.activation.mission_type_profiles import (
     ResolvedGovernance,
     UnknownMissionTypeError,
     resolve_mission_type_context,
@@ -185,7 +185,7 @@ def _resolve_union(mission_type: str, *, repo_root: Path) -> set[str]:
     Reads ``resolve_mission_type_context(...).governance`` directly — post-WP03
     that property already carries the FR-013 union of the type grain
     (``governance-profile.yaml``) with the FULL action grain (every action the
-    mission type ships, via :func:`charter.action_grain.aggregate_action_grain`),
+    mission type ships, via :func:`charter.activation.action_grain.aggregate_action_grain`),
     not a probe subset. This is the single production union (C-002); no second,
     independent ``load_action_index`` loop is performed here.
     """

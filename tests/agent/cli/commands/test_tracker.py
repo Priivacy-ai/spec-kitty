@@ -43,7 +43,7 @@ def _stub_check_readiness(request, monkeypatch):
     # recorded consent, so the real gate would refuse. Stub it to permit for
     # *every* test in this file — including `no_readiness_stub` ones, which
     # drive `_check_sync_readiness` directly — because egress consent is out of
-    # scope here (it has its own suite under `tests/sync/tracker/`); this file
+    # scope here (it has its own suite under `tests/tracker/`); this file
     # asserts command dispatch/rendering only.
     monkeypatch.setattr(
         "specify_cli.cli.commands.tracker.tracker_egress_verdict",

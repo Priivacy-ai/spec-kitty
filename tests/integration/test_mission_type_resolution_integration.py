@@ -17,7 +17,7 @@ pins three acceptance criteria end-to-end:
   a checkable positive assertion rather than a vibe.
 
 WP03 wired the live action-grain union into ``bundle.governance`` itself
-(lazily, via :func:`charter.action_grain.aggregate_action_grain` — covering
+(lazily, via :func:`charter.activation.action_grain.aggregate_action_grain` — covering
 EVERY action the mission type ships). WP05 reconciled
 ``_resolve_union_from_mission`` onto that single source (C-002 / FR-006): it
 used to independently re-union ``load_action_index`` over the type's own
@@ -33,7 +33,7 @@ from pathlib import Path
 
 import pytest
 
-from charter.mission_type_profiles import (
+from charter.activation.mission_type_profiles import (
     ResolvedGovernance,
     UnknownMissionTypeError,
     resolve_mission_type_context,

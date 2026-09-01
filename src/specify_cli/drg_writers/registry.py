@@ -18,7 +18,7 @@ kinds of thing (contract ``writer-registry.md``):
 
 Mission ``doctrine-delivery-activation`` WP05 (#3075/#2977) grew
 ``DOCUMENT_WRITERS`` from one member to four: the three sites that used to
-hand-restate the five document-level keys (``charter.synthesizer.project_drg``,
+hand-restate the five document-level keys (``charter.activation.synthesizer.project_drg``,
 ``specify_cli.migration.rewrite_opposed_by``,
 ``specify_cli.doctrine.pack_assembler``) now delegate to
 ``graph_document_to_dict`` and join the registry. A companion static-scan
@@ -27,7 +27,7 @@ discovery gate (``tests/architectural/test_drg_writer_discovery.py``) scans
 site cannot repeat this blind spot by simply never joining this tuple.
 
 **Hosting (layer constraint).** This module lives in ``src/specify_cli/`` — the
-top layer — because a ``Final`` tuple naming ``charter.synthesizer.project_drg``
+top layer — because a ``Final`` tuple naming ``charter.activation.synthesizer.project_drg``
 *and* ``specify_cli.migration.rewrite_opposed_by`` cannot sit in ``doctrine`` or
 ``charter`` without reversing an import-layer edge. The members are wired here
 **explicitly** — there is no import-time self-registration, which would make
@@ -51,7 +51,7 @@ from charter.drg import (
     graph_document_to_dict,
     model_to_graph_dict,
 )
-from charter.synthesizer import project_drg as _project_drg
+from charter.activation.synthesizer import project_drg as _project_drg
 
 from specify_cli.doctrine import pack_assembler as _pack_assembler
 from specify_cli.migration import rewrite_opposed_by as _rewrite_opposed_by
@@ -168,7 +168,7 @@ MAPPING_WRITERS: Final[tuple[MappingWriter, ...]] = (
         edge_fn=model_to_graph_dict,
     ),
     _FunctionMappingWriter(
-        name="charter.synthesizer.project_drg",
+        name="charter.activation.synthesizer.project_drg",
         node_fn=_project_drg._node_to_dict,
         edge_fn=_project_drg._edge_to_dict,
     ),
@@ -185,7 +185,7 @@ DOCUMENT_WRITERS: Final[tuple[DocumentWriter, ...]] = (
         document_fn=graph_document_to_dict,
     ),
     _FunctionDocumentWriter(
-        name="charter.synthesizer.project_drg._document_dict",
+        name="charter.activation.synthesizer.project_drg._document_dict",
         document_fn=_project_drg._document_dict,
     ),
     _FunctionDocumentWriter(

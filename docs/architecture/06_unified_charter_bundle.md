@@ -63,7 +63,7 @@ by the manifest. They are produced by separate pipelines with their own
 lifecycle and ownership:
 
 - **`.kittify/charter/context-state.json`** — runtime state written by
-  [`src/charter/context.py`](../../src/charter/context.py) inside
+  [`src/charter/activation/context.py`](../../src/charter/activation/context.py) inside
   `build_charter_context()`. This is lazy, per-invocation runtime
   state; it is not part of any reproducibility contract and is
   intentionally absent from the manifest.
@@ -110,7 +110,7 @@ resolver reads the pointer, then loads that file. The pointer may redirect
 to a sibling, shared, or cross-project charter — a swap is a one-line config
 change. `config.yaml` no longer carries the flat `activated_*` /
 `mission_type_activations` keys itself; those moved to `charter.yaml`'s
-root (flat, matching `src/charter/packs/default.yaml`) as part of the same
+root (flat, matching `src/charter/activation/packs/default.yaml`) as part of the same
 inversion — `config.yaml` keeps only the pointer plus `org_packs`.
 
 A `charter:` pointer to a missing or unreadable file fails loud; there is no

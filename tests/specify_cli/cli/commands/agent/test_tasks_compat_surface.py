@@ -219,6 +219,12 @@ _TASKS_MOVE_TASK: tuple[str, ...] = (
     "_mt_reassignment_binding_fields",
     "_mt_resolve_current_agent",
     "_mt_hop_policy_metadata",
+    # governance-at-the-gate WP04 (#3682, FR-006, IC-04): the APPROVED/DONE
+    # hop's policy_metadata sidecar builder and the per-hop review_ref
+    # resolver (derives review_ref from the SAME hop_review_result object
+    # used as review_result, so the two can never diverge) (81 -> 83).
+    "_mt_approval_policy_metadata",
+    "_mt_hop_review_ref",
     "_mt_plan_review_result",
     "_mt_rollback_subtasks_reset",
     "_mt_shell_pid_baseline",
@@ -528,10 +534,22 @@ def test_guard_covers_full_167_symbol_surface() -> None:
     162 -> 163. sync-transport deletion (issue #5) retired the two
     mark-status helpers whose only job was the deleted HistoryAdded /
     dossier-push emissions (_ms_emit_history, _ms_dossier_sync):
-    163 -> 161. #3578 (M4 operator-signal sweep) added the four rollback-to-
+    163 -> 161.
+    #2573 then added ``_mt_human_gate_status_observer`` as the presentation-only
+    status callback for the pre-review gate (tasks_move_task 75 -> 76):
+    161 -> 162. #3590 WP01 (operator-authored cancellation provenance) added
+    ``_mt_hop_reason_source`` — the reason_source resolver feeding the
+    status-event hop, a native move-task seam def: 162 -> 163 on the
+    experimental convergence base. governance-at-the-gate WP04 (#3682,
+    FR-006, IC-04) added
+    ``_mt_approval_policy_metadata`` and ``_mt_hop_review_ref`` — the
+    APPROVED/DONE approval-gate policy_metadata sidecar builder and the
+    per-hop review_ref resolver that derives from the SAME hop_review_result
+    object used as review_result (tasks_move_task 81 -> 83): 163 -> 165.
+    #3578 (M4 operator-signal sweep) then added the four rollback-to-
     ``planned`` signal symbols — ``_RollbackResetSummary``,
     ``_mt_build_rollback_summary``, ``_mt_apply_rollback_signal`` and
-    ``_mt_rollback_signal_lines`` (tasks_move_task 77 -> 81): 163 -> 167."""
+    ``_mt_rollback_signal_lines`` (tasks_move_task 83 -> 87): 165 -> 169."""
     # TODO(under-investigation, operator-flagged): the operator doubts this
     # consolidated compat guard earns its ROI. Every seam-local symbol addition
     # costs a three-part edit — register in the per-seam tuple, add an identity
@@ -539,4 +557,4 @@ def test_guard_covers_full_167_symbol_surface() -> None:
     # low incremental regression-catch value over the identity-re-export guard
     # alone. Revisit whether the golden-count ratchet should be relaxed or
     # dropped (see M4 #3578 integration, which paid this tax for 4 helpers).
-    assert len(SYMBOL_TO_MODULE) == 167  # golden-count: cardinality-is-contract
+    assert len(SYMBOL_TO_MODULE) == 169  # golden-count: cardinality-is-contract

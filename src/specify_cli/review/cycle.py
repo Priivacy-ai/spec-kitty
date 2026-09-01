@@ -767,6 +767,7 @@ def _allocate_and_write_review_cycle_while_locked(
     reviewer_agent: str,
     affected_files: list[AffectedFile],
     body: str,
+    reproduction_command: str | None = None,
 ) -> tuple[ReviewCycleArtifact, Path, str]:
     """Allocate, write, and validate with an already-held status lock."""
     cycle_n = ReviewCycleArtifact.next_cycle_number(sub_artifact_dir)
@@ -778,6 +779,7 @@ def _allocate_and_write_review_cycle_while_locked(
         reviewer_agent=reviewer_agent or "unknown",
         reviewed_at=now_utc().strftime(UTC_SECOND_TIMESTAMP_FORMAT),
         affected_files=affected_files,
+        reproduction_command=reproduction_command,
         body=body,
     )
     validate_review_artifact(artifact)
@@ -829,6 +831,7 @@ def _allocate_and_write_review_cycle_locked(
     reviewer_agent: str,
     affected_files: list[AffectedFile],
     body: str,
+    reproduction_command: str | None = None,
 ) -> tuple[ReviewCycleArtifact, Path, str]:
     """Allocate the next cycle number, build, write, and validate the artifact.
 
@@ -877,6 +880,7 @@ def _allocate_and_write_review_cycle_locked(
             reviewer_agent=reviewer_agent or "unknown",
             affected_files=affected_files,
             body=body,
+            reproduction_command=reproduction_command,
         )
 
 
@@ -889,6 +893,7 @@ def _adopt_or_allocate_review_cycle_locked(
     reviewer_agent: str,
     affected_files: list[AffectedFile],
     body: str,
+    reproduction_command: str | None = None,
 ) -> tuple[ReviewCycleArtifact, Path, str, bool]:
     """Adopt identical retained evidence or allocate a new record.
 
@@ -922,6 +927,7 @@ def _adopt_or_allocate_review_cycle_locked(
                     reviewer_agent=reviewer_agent,
                     affected_files=affected_files,
                     body=body,
+                    reproduction_command=reproduction_command,
                 )
             )
             return artifact, artifact_path, filename, False
@@ -984,6 +990,7 @@ def _adopt_or_allocate_review_cycle_locked(
                     reviewer_agent=reviewer_agent,
                     affected_files=affected_files,
                     body=body,
+                    reproduction_command=reproduction_command,
                 )
             )
             return artifact, artifact_path, filename, False
@@ -1008,6 +1015,7 @@ def create_rejected_review_cycle(
     affected_files: list[dict[str, str]] | None = None,
     verdict: Literal["approved", "rejected"] = "rejected",
     commit_router: CoordCommitRouter | None = None,
+    reproduction_command: str | None = None,
 ) -> CreatedRejectedReviewCycle:
     """Create or adopt evidence and return a typed persistence outcome.
 
@@ -1018,6 +1026,14 @@ def create_rejected_review_cycle(
     adopt identical retained evidence before allocating a new cycle. This
     function never acquires the checkout-wide verdict queue; WP04 invokes it
     while holding the sole lease.
+
+    ``reproduction_command`` (governance-at-the-gate WP04 / FR-007, additive):
+    optional evidence-capture field threaded straight onto the written
+    :class:`~specify_cli.review.artifacts.ReviewCycleArtifact`. ``None`` by
+    default so every pre-existing caller stays byte-identical; the
+    first-pass-approval writer (``tasks_verdict_persistence._persist_approved_
+    review_cycle``) is the first caller to populate it, with the exact
+    ``move-task`` command that reproduces the decision.
 
     Exactly one of ``feedback_source`` / ``body`` must be supplied:
 
@@ -1094,6 +1110,7 @@ def create_rejected_review_cycle(
             reviewer_agent=reviewer_agent,
             affected_files=parsed_affected,
             body=resolved_body,
+            reproduction_command=reproduction_command,
         )
         already_committed = False
     else:
@@ -1106,6 +1123,7 @@ def create_rejected_review_cycle(
                 reviewer_agent=reviewer_agent,
                 affected_files=parsed_affected,
                 body=resolved_body,
+                reproduction_command=reproduction_command,
             )
         )
     pointer = build_review_cycle_pointer(safe_mission_slug, safe_wp_slug, filename)

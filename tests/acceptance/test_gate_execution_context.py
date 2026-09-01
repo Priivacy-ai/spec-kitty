@@ -22,11 +22,14 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
+from typing import Any, cast
 
 import pytest
+from typer.testing import CliRunner
 
 from mission_runtime import MissionArtifactKind, TopologySurface
 from specify_cli.acceptance import _resolve_git_context
+from specify_cli import app as cli_app
 from specify_cli.acceptance.execution_context import (
     _DETACHED_HEAD_SENTINEL,
     CannotEvaluate,
@@ -87,6 +90,18 @@ def _seed_matrix(feature_dir: Path, *, verdict: str, marker: str) -> None:
     write_acceptance_matrix(feature_dir, matrix)
 
 
+def _run_public_accept_diagnosis(mission_slug: str) -> dict[str, Any]:
+    """Invoke ``spec-kitty accept`` and return its read-only JSON result."""
+    result = CliRunner().invoke(
+        cli_app,
+        ["accept", "--mission", mission_slug, "--diagnose", "--json", "--lenient"],
+        catch_exceptions=False,
+    )
+
+    assert result.exit_code == 0, result.output
+    return cast(dict[str, Any], json.loads(result.output))
+
+
 def _plain_context(
     *,
     surface: Path,
@@ -103,9 +118,7 @@ def _plain_context(
     )
 
 
-def _build_create_window_coord(
-    tmp_path: Path, *, coord_branch_exists: bool
-) -> tuple[Path, str, Path]:
+def _build_create_window_coord(tmp_path: Path, *, coord_branch_exists: bool) -> tuple[Path, str, Path]:
     """Materialise a coord-routing mission whose coord worktree is NOT created.
 
     ``coord_branch_exists=True`` → UNMATERIALIZED (branch present, no worktree — the
@@ -161,8 +174,7 @@ def test_below_minimum_phase_returns_not_applicable() -> None:
 
     Not a pass and not a fail — a distinguishable cannot-evaluate naming its surface.
     """
-    ctx = _plain_context(surface=Path("/x"), surface_kind=TopologySurface.PRIMARY,
-                         phase=LifecyclePhase.REVIEW)
+    ctx = _plain_context(surface=Path("/x"), surface_kind=TopologySurface.PRIMARY, phase=LifecyclePhase.REVIEW)
     outcome = ctx.not_applicable_below(LifecyclePhase.ACCEPT)
     assert isinstance(outcome, CannotEvaluate)
     assert outcome.reason is CannotEvaluateReason.BELOW_MINIMUM_PHASE
@@ -214,9 +226,7 @@ def test_gec5_materialized_coord_home_can_hold() -> None:
 
 def test_cannot_evaluate_is_a_distinct_outcome_type() -> None:
     """C2: cannot-evaluate is a distinguishable type, not a pass/fail string."""
-    outcome = _plain_context(
-        surface=Path("/p"), surface_kind=TopologySurface.PRIMARY
-    ).surface_cannot_hold(TopologySurface.COORD)
+    outcome = _plain_context(surface=Path("/p"), surface_kind=TopologySurface.PRIMARY).surface_cannot_hold(TopologySurface.COORD)
     assert isinstance(outcome, CannotEvaluate)
     assert outcome.reason.value not in {"pass", "fail", "pending"}
 
@@ -225,7 +235,7 @@ def test_gate_execution_context_is_immutable() -> None:
     """GEC-1 shape: the value object a gate is handed is frozen — no in-place patch."""
     ctx = _plain_context(surface=Path("/p"), surface_kind=TopologySurface.PRIMARY)
     with pytest.raises((AttributeError, TypeError)):
-        ctx.surface = Path("/elsewhere")  # type: ignore[misc]
+        ctx.surface = Path("/elsewhere")
 
 
 # ===========================================================================
@@ -271,6 +281,47 @@ def test_git_head_of_attached_checkout_returns_branch_name(tmp_path: Path) -> No
     assert _git_head_of(repo) == "main"
 
 
+def test_git_head_of_detached_checkout_returns_head_sentinel(
+    flat_topology_mission: ctf.FlatTopologyContext,
+) -> None:
+    """C5: a real detached checkout resolves to the no-branch ``HEAD`` sentinel."""
+    ctx = flat_topology_mission
+    ctf._git(ctx.repo, "checkout", "--detach", "HEAD")
+    assert ctf._git(ctx.repo, "branch", "--show-current") == ""
+
+    assert _git_head_of(ctx.repo) == "HEAD"
+
+
+def test_accept_command_normalizes_detached_head_before_matrix_gate(
+    flat_topology_mission: ctf.FlatTopologyContext,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """The public command normalizes detached HEAD and refuses at its branch gate.
+
+    On the current operator path, a detached invocation becomes ``branch=None``
+    and is rejected before an acceptance-matrix ``GateExecutionContext`` can be
+    built. The observable contract is therefore the JSON branch value, blocker,
+    and skipped matrix checks rather than a private HEAD-resolver return value.
+    """
+    ctx = flat_topology_mission
+    ctf._git(ctx.repo, "checkout", "--detach", "HEAD")
+    _seed_matrix(
+        ctx.primary_feature_dir,
+        verdict="fail",
+        marker="DETACHED-HEAD-MUST-NOT-REACH-MATRIX",
+    )
+    assert ctf._git(ctx.repo, "branch", "--show-current") == ""
+    monkeypatch.chdir(ctx.repo)
+
+    payload = _run_public_accept_diagnosis(ctx.slug)
+
+    assert payload["branch"] is None
+    assert any("detached HEAD" in issue for issue in payload["activity_issues"])
+    assert any(item["check"] == "mission_branch" for item in payload["blocked_checks"])
+    assert any(item["check"] == "acceptance_matrix_presence" for item in payload["skipped_checks"])
+    assert not any("verdict is" in issue for issue in payload["activity_issues"])
+
+
 # ===========================================================================
 # Total resolution over the four CoordState answers (T017 / C3) — real resolver
 # ===========================================================================
@@ -311,12 +362,13 @@ def test_build_context_unmaterialized_stamps_primary_without_raising(tmp_path: P
 
     A DECLARED answer for that state, not a degradation — it does NOT raise.
     """
-    repo, slug, primary_feature_dir = _build_create_window_coord(
-        tmp_path, coord_branch_exists=True
-    )
+    repo, slug, primary_feature_dir = _build_create_window_coord(tmp_path, coord_branch_exists=True)
     ctx = build_gate_execution_context(
-        repo, slug, MissionArtifactKind.ACCEPTANCE_MATRIX,
-        phase=LifecyclePhase.ACCEPT, ref="main",
+        repo,
+        slug,
+        MissionArtifactKind.ACCEPTANCE_MATRIX,
+        phase=LifecyclePhase.ACCEPT,
+        ref="main",
     )
     assert ctx.surface_kind is TopologySurface.PRIMARY
     assert ctx.surface == primary_feature_dir
@@ -329,8 +381,11 @@ def test_build_context_deleted_coord_branch_raises(tmp_path: Path) -> None:
     repo, slug, _primary = _build_create_window_coord(tmp_path, coord_branch_exists=False)
     with pytest.raises(CoordinationBranchDeleted) as excinfo:
         build_gate_execution_context(
-            repo, slug, MissionArtifactKind.ACCEPTANCE_MATRIX,
-            phase=LifecyclePhase.ACCEPT, ref="main",
+            repo,
+            slug,
+            MissionArtifactKind.ACCEPTANCE_MATRIX,
+            phase=LifecyclePhase.ACCEPT,
+            ref="main",
         )
     assert excinfo.value.error_code == "COORDINATION_BRANCH_DELETED"
 
@@ -396,7 +451,11 @@ def test_c1_gate_judges_handed_surface_not_ambient(
     skipped: list[AcceptanceCheckDiagnostic] = []
     blocked: list[AcceptanceCheckDiagnostic] = []
     _evaluate_acceptance_matrix(
-        ctx.repo, ctx.primary_feature_dir, activity_issues, skipped, blocked,
+        ctx.repo,
+        ctx.primary_feature_dir,
+        activity_issues,
+        skipped,
+        blocked,
         mutate_matrix=False,
     )
 
@@ -418,24 +477,23 @@ def test_gec5_create_window_gate_refuses_instead_of_passing(tmp_path: Path) -> N
     and pass by default (#2885). GEC-5 refuses: a distinguishable cannot-evaluate
     naming its reason + surface, and NO silent pass.
     """
-    repo, slug, primary_feature_dir = _build_create_window_coord(
-        tmp_path, coord_branch_exists=True
-    )
+    repo, slug, primary_feature_dir = _build_create_window_coord(tmp_path, coord_branch_exists=True)
     _seed_matrix(primary_feature_dir, verdict="pass", marker="PRIMARY-EMPTY-STAND-IN")
 
     activity_issues: list[str] = []
     skipped: list[AcceptanceCheckDiagnostic] = []
     blocked: list[AcceptanceCheckDiagnostic] = []
     _evaluate_acceptance_matrix(
-        repo, primary_feature_dir, activity_issues, skipped, blocked,
+        repo,
+        primary_feature_dir,
+        activity_issues,
+        skipped,
+        blocked,
         mutate_matrix=False,
     )
 
     assert any(c.check == "acceptance_matrix_cannot_evaluate" for c in blocked), blocked
-    assert any(
-        CannotEvaluateReason.SURFACE_CANNOT_HOLD_FACT.value in issue
-        for issue in activity_issues
-    ), activity_issues
+    assert any(CannotEvaluateReason.SURFACE_CANNOT_HOLD_FACT.value in issue for issue in activity_issues), activity_issues
     # It is NOT a verdict — no pass/fail verdict issue was recorded.
     assert not any("verdict is" in issue for issue in activity_issues)
 
@@ -461,8 +519,13 @@ def test_gec2_primary_ref_drift_gate_refuses_instead_of_passing(
     skipped: list[AcceptanceCheckDiagnostic] = []
     blocked: list[AcceptanceCheckDiagnostic] = []
     _evaluate_acceptance_matrix(
-        ctx.repo, ctx.primary_feature_dir, activity_issues, skipped, blocked,
-        mutate_matrix=False, branch="stale-observed-branch",
+        ctx.repo,
+        ctx.primary_feature_dir,
+        activity_issues,
+        skipped,
+        blocked,
+        mutate_matrix=False,
+        branch="stale-observed-branch",
     )
 
     assert any(c.check == "acceptance_matrix_cannot_evaluate" for c in blocked), blocked
@@ -471,9 +534,7 @@ def test_gec2_primary_ref_drift_gate_refuses_instead_of_passing(
     assert not any("verdict is" in issue for issue in activity_issues)
 
 
-def test_gec2_real_cross_checkout_branch_drift_gate_refuses(
-    flat_topology_mission: ctf.FlatTopologyContext, tmp_path: Path
-) -> None:
+def test_gec2_real_cross_checkout_branch_drift_gate_refuses(flat_topology_mission: ctf.FlatTopologyContext, tmp_path: Path) -> None:
     """GEC-2 / C5, the REAL production trigger: two genuinely divergent checkouts.
 
     ``test_gec2_primary_ref_drift_gate_refuses_instead_of_passing`` proves the
@@ -509,9 +570,7 @@ def test_gec2_real_cross_checkout_branch_drift_gate_refuses(
 
     # A PASS matrix on the genuine primary surface: WITHOUT GEC-2 this is read
     # and judged, silently ignoring the real cross-checkout drift.
-    _seed_matrix(
-        ctx.primary_feature_dir, verdict="pass", marker="CROSS-CHECKOUT-DRIFT-PASS"
-    )
+    _seed_matrix(ctx.primary_feature_dir, verdict="pass", marker="CROSS-CHECKOUT-DRIFT-PASS")
 
     activity_issues: list[str] = []
     skipped: list[AcceptanceCheckDiagnostic] = []
@@ -535,9 +594,7 @@ def test_gec2_real_cross_checkout_branch_drift_gate_refuses(
     assert not any("verdict is" in issue for issue in activity_issues)
 
 
-def test_resolve_git_context_branch_forwards_through_check_lane_gates(
-    flat_topology_mission: ctf.FlatTopologyContext, tmp_path: Path
-) -> None:
+def test_resolve_git_context_branch_forwards_through_check_lane_gates(flat_topology_mission: ctf.FlatTopologyContext, tmp_path: Path) -> None:
     """#2909 item 2: the invocation-checkout ``branch`` is not dropped mid-chain.
 
     ``test_gec2_real_cross_checkout_branch_drift_gate_refuses`` proves GEC-2/C5 at
@@ -576,13 +633,9 @@ def test_resolve_git_context_branch_forwards_through_check_lane_gates(
     # A PASS matrix on the genuine primary surface: if `branch` were dropped
     # anywhere in the chain, this would be read and judged, silently ignoring
     # the real cross-checkout drift.
-    _seed_matrix(
-        ctx.primary_feature_dir, verdict="pass", marker="E2E-CROSS-CHECKOUT-PASS"
-    )
+    _seed_matrix(ctx.primary_feature_dir, verdict="pass", marker="E2E-CROSS-CHECKOUT-PASS")
 
-    branch, _worktree_root, _primary_repo_root, _git_dirty = _resolve_git_context(
-        linked_worktree
-    )
+    branch, _worktree_root, _primary_repo_root, _git_dirty = _resolve_git_context(linked_worktree)
     # `_resolve_git_context` read the invocation checkout's real HEAD.
     assert branch == mission_branch
 
@@ -601,15 +654,9 @@ def test_resolve_git_context_branch_forwards_through_check_lane_gates(
 
     # The branch reached the acceptance-matrix gate: it refused the drift
     # instead of judging the seeded PASS matrix.
-    assert any(
-        c.check == "acceptance_matrix_cannot_evaluate" for c in blocked
-    ), blocked
-    assert any(
-        "GATE_SURFACE_REF_MISMATCH" in issue for issue in activity_issues
-    ), activity_issues
-    assert any(
-        mission_branch in issue for issue in activity_issues
-    ), activity_issues
+    assert any(c.check == "acceptance_matrix_cannot_evaluate" for c in blocked), blocked
+    assert any("GATE_SURFACE_REF_MISMATCH" in issue for issue in activity_issues), activity_issues
+    assert any(mission_branch in issue for issue in activity_issues), activity_issues
     assert any("'main'" in issue for issue in activity_issues), activity_issues
     # It is NOT a verdict — no pass/fail verdict issue was recorded.
     assert not any("verdict is" in issue for issue in activity_issues)
@@ -631,12 +678,46 @@ def test_gec2_primary_ref_agreement_still_judges(
     skipped: list[AcceptanceCheckDiagnostic] = []
     blocked: list[AcceptanceCheckDiagnostic] = []
     _evaluate_acceptance_matrix(
-        ctx.repo, ctx.primary_feature_dir, activity_issues, skipped, blocked,
-        mutate_matrix=False, branch="main",
+        ctx.repo,
+        ctx.primary_feature_dir,
+        activity_issues,
+        skipped,
+        blocked,
+        mutate_matrix=False,
+        branch="main",
     )
 
     assert not any(c.check == "acceptance_matrix_cannot_evaluate" for c in blocked), blocked
     assert any("verdict is 'fail'" in issue for issue in activity_issues), activity_issues
+
+
+def test_accept_command_forwards_normal_branch_to_matrix_gate(
+    flat_topology_mission: ctf.FlatTopologyContext,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """The public accept path preserves the invocation branch through matrix judgement.
+
+    The mission branch deliberately differs from target ``main``. The seeded FAIL
+    verdict remains observable only when every production forwarding hop preserves
+    that branch: dropping it either trips the branch gate or yields a surface-ref
+    mismatch before the matrix can be judged.
+    """
+    ctx = flat_topology_mission
+    mission_branch = f"kitty/mission-{ctx.slug}"
+    ctf._git(ctx.repo, "switch", "-c", mission_branch)
+    _seed_matrix(
+        ctx.primary_feature_dir,
+        verdict="fail",
+        marker="INVOCATION-BRANCH-FLOW-THROUGH",
+    )
+    monkeypatch.chdir(ctx.repo)
+
+    payload = _run_public_accept_diagnosis(ctx.slug)
+
+    assert payload["branch"] == mission_branch
+    assert any("verdict is 'fail'" in issue for issue in payload["activity_issues"])
+    assert not any(item["check"] in {"mission_branch", "acceptance_matrix_cannot_evaluate"} for item in payload["blocked_checks"])
+    assert not any("GATE_SURFACE_REF_MISMATCH" in issue for issue in payload["activity_issues"])
 
 
 # ===========================================================================
@@ -665,12 +746,20 @@ def test_c7_identical_defect_identical_outcome_coord_and_flat(
     coord_issues: list[str] = []
     flat_issues: list[str] = []
     _evaluate_acceptance_matrix(
-        coord_topology_mission.repo, coord_topology_mission.primary_feature_dir,
-        coord_issues, [], [], mutate_matrix=False,
+        coord_topology_mission.repo,
+        coord_topology_mission.primary_feature_dir,
+        coord_issues,
+        [],
+        [],
+        mutate_matrix=False,
     )
     _evaluate_acceptance_matrix(
-        flat_topology_mission.repo, flat_topology_mission.primary_feature_dir,
-        flat_issues, [], [], mutate_matrix=False,
+        flat_topology_mission.repo,
+        flat_topology_mission.primary_feature_dir,
+        flat_issues,
+        [],
+        [],
+        mutate_matrix=False,
     )
 
     coord_fail = any("verdict is 'fail'" in i for i in coord_issues)
@@ -692,9 +781,7 @@ def test_c6_recorded_judgement_names_surface_and_ref(
     Built through the real gate-context door so the ``ref`` is the mission's own
     target branch (a resolvable identifier), not a synthetic literal.
     """
-    ctx = _acceptance_gate_context(
-        coord_topology_mission.repo, coord_topology_mission.primary_feature_dir
-    )
+    ctx = _acceptance_gate_context(coord_topology_mission.repo, coord_topology_mission.primary_feature_dir)
     # The context (and thus any verdict/refusal derived from it) names its surface+ref.
     assert ctx.surface_kind is TopologySurface.COORD
     assert ctx.ref == "main"  # the mission's recorded target_branch
@@ -710,7 +797,5 @@ def test_fixture_smoke_no_resolver_patched(
     assert coord_topology_mission.coord_feature_dir.exists()
     assert (coord_topology_mission.repo / ".worktrees").exists()
     # meta.json on primary declares coord topology (drives the real resolver).
-    meta = json.loads(
-        (coord_topology_mission.primary_feature_dir / "meta.json").read_text(encoding="utf-8")
-    )
+    meta = json.loads((coord_topology_mission.primary_feature_dir / "meta.json").read_text(encoding="utf-8"))
     assert meta["topology"] == "coord"

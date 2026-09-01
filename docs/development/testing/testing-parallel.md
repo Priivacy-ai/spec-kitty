@@ -106,13 +106,15 @@ choice as usual (`…/run-<pid>/popen-gwN`). Consequences worth knowing:
 - An explicit `--basetemp` still wins untouched — whoever passes one owns its
   lifecycle.
 - Retention is outcome-gated (#76): a healthy run (`ExitCode.OK`) leaves
-  nothing behind — the run dir is removed at interpreter exit. A run that
-  fails, errors, or is interrupted keeps its private basetemp tree instead, so
-  `tmp_path` contents from that run ARE available for post-mortem inspection,
-  bounded by the 24 h stale-crash sweep below (which also catches a run that
-  never reaches `pytest_sessionfinish`, e.g. a SIGKILL, since the exit-gated
-  reap never runs for it either). This differs from pytest's own default
-  3-session retention, which keeps every session's tree regardless of outcome.
+  nothing behind — it removes the run's dir at interpreter exit. A run with
+  failures, errors, or an interruption keeps its private basetemp tree instead,
+  so `tmp_path` contents from that run ARE available for post-mortem inspection,
+  bounded by the 24 h stale-crash sweep the next run performs at controller
+  startup (`STALE_RUN_MAX_AGE_S`, swept from `install_run_basetemp`; it also
+  catches a run that never reaches `pytest_sessionfinish`, e.g. a SIGKILL,
+  since the exit-gated reap never runs for it either). This differs from
+  pytest's own default 3-session retention, which keeps the last three
+  sessions' trees regardless of outcome.
 
 ## `tmp_path` retention policy
 

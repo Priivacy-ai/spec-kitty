@@ -13,7 +13,7 @@ Patching strategy:
   Tests for existing_mission_types() itself patch the lazy-imported module at its
   source path using sys.modules injection.
 - Tests for _action_sequence() patch existing_mission_types() directly
-  (at charter.mission_type_profiles.existing_mission_types) and inject
+  (at charter.activation.mission_type_profiles.existing_mission_types) and inject
   resolve_layered_mission_types via sys.modules for the inner import.
 
 WP04 update (mission up-mission-type-seam-01KZY1JB, FR-002): ``_resolve_action_slot``
@@ -41,7 +41,7 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from charter.mission_type_profiles import (
+from charter.activation.mission_type_profiles import (
     MissionTypeProfile,
     UnknownMissionTypeError,
     existing_mission_types,
@@ -105,15 +105,15 @@ def _inject_pack_context_mock(activated: frozenset[str]) -> tuple[MagicMock, dic
     mock_pack_context_cls = MagicMock()
     mock_pack_context_cls.from_config.return_value = mock_ctx
 
-    # Build a fake charter.pack_context module
-    fake_module = types.ModuleType("charter.pack_context")
+    # Build a fake charter.activation.pack_context module
+    fake_module = types.ModuleType("charter.activation.pack_context")
     fake_module.PackContext = mock_pack_context_cls  # type: ignore[attr-defined]
 
     saved: dict = {}
-    for key in ("charter.pack_context",):
+    for key in ("charter.activation.pack_context",):
         saved[key] = sys.modules.get(key)
 
-    sys.modules["charter.pack_context"] = fake_module
+    sys.modules["charter.activation.pack_context"] = fake_module
     return mock_ctx, saved
 
 
@@ -235,7 +235,7 @@ class TestResolveActionSequence:
 
         try:
             with patch(
-                "charter.mission_type_profiles.existing_mission_types",
+                "charter.activation.mission_type_profiles.existing_mission_types",
                 return_value=["documentation", "plan", "research", "software-dev"],
             ):
                 result = _action_sequence("software-dev", tmp_path)
@@ -247,7 +247,7 @@ class TestResolveActionSequence:
     def test_nonexistent_raises_unknown_mission_type_error(self, tmp_path: Path) -> None:
         """_action_sequence('nonexistent', ...) raises UnknownMissionTypeError."""
         with patch(
-            "charter.mission_type_profiles.existing_mission_types",
+            "charter.activation.mission_type_profiles.existing_mission_types",
             return_value=["documentation", "plan", "research", "software-dev"],
         ), pytest.raises(UnknownMissionTypeError) as exc_info:
             _action_sequence("nonexistent-type", tmp_path)
@@ -259,7 +259,7 @@ class TestResolveActionSequence:
         registered = ["documentation", "plan", "research", "software-dev"]
 
         with patch(
-            "charter.mission_type_profiles.existing_mission_types",
+            "charter.activation.mission_type_profiles.existing_mission_types",
             return_value=registered,
         ), pytest.raises(UnknownMissionTypeError) as exc_info:
             _action_sequence("unknown-type", tmp_path)
@@ -278,7 +278,7 @@ class TestResolveActionSequence:
 
         try:
             with patch(
-                "charter.mission_type_profiles.existing_mission_types",
+                "charter.activation.mission_type_profiles.existing_mission_types",
                 return_value=["software-dev"],
             ):
                 result = _action_sequence("software-dev", tmp_path)
@@ -321,7 +321,7 @@ class TestResolveActionSequence:
 
         try:
             with patch(
-                "charter.mission_type_profiles.existing_mission_types",
+                "charter.activation.mission_type_profiles.existing_mission_types",
                 return_value=["software-dev"],
             ):
                 _action_sequence("software-dev", tmp_path)
@@ -349,7 +349,7 @@ class TestResolveActionSequence:
 
         try:
             with patch(
-                "charter.mission_type_profiles.existing_mission_types",
+                "charter.activation.mission_type_profiles.existing_mission_types",
                 return_value=["software-dev", "custom-dev"],
             ):
                 result = _action_sequence("custom-dev", tmp_path)
@@ -374,7 +374,7 @@ class TestResolveActionSequence:
 
         try:
             with patch(
-                "charter.mission_type_profiles.existing_mission_types",
+                "charter.activation.mission_type_profiles.existing_mission_types",
                 return_value=["software-dev", "custom-dev"],
             ):
                 result = _action_sequence("custom-dev", tmp_path)
@@ -432,7 +432,7 @@ class TestMissionTypeProfileNoLiteralConstraint:
         registered = ["documentation", "plan", "research", "software-dev"]
 
         with patch(
-            "charter.mission_type_profiles.existing_mission_types",
+            "charter.activation.mission_type_profiles.existing_mission_types",
             return_value=registered,
         ), pytest.raises(UnknownMissionTypeError) as exc_info:
             _action_sequence("custom-type", tmp_path)

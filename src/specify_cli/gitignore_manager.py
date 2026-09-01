@@ -30,6 +30,11 @@ class GitignorePathError(Exception):
     """
 
 
+# Kept as a compatibility alias for migrations that predate the manager-wide
+# name consolidation; both names signal the same fail-closed condition.
+IgnoreFilePathError = GitignorePathError
+
+
 def _get_umask() -> int:
     """Return the process umask without permanently changing it.
 
@@ -61,7 +66,7 @@ def _open_no_follow(path: Path, flags: int) -> int:
         raise
 
 
-def read_ignore_file_text(path: Path, encoding: str = "utf-8-sig") -> str:
+def read_ignore_file_text(path: Path, encoding: str = "utf-8-sig", errors: str | None = None) -> str:
     """Read an ignore file's text content, refusing to follow a symlink.
 
     Used for presence/content checks against `.gitignore`/`.claudeignore`
@@ -74,6 +79,9 @@ def read_ignore_file_text(path: Path, encoding: str = "utf-8-sig") -> str:
     Args:
         path: Path to the ignore file (e.g. `.gitignore` or `.claudeignore`).
         encoding: Text encoding to decode with.
+        errors: Decode error handler passed through to `Path.read_text()`
+            (e.g. `"ignore"` to tolerate undecodable bytes). `None` uses
+            strict decoding.
 
     Returns:
         The file's text content, or `""` if it does not exist.
@@ -85,7 +93,7 @@ def read_ignore_file_text(path: Path, encoding: str = "utf-8-sig") -> str:
         fd = _open_no_follow(path, os.O_RDONLY)
     except FileNotFoundError:
         return ""
-    with os.fdopen(fd, encoding=encoding) as f:
+    with os.fdopen(fd, encoding=encoding, errors=errors) as f:
         return f.read()
 
 

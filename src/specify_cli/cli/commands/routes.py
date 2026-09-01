@@ -126,10 +126,8 @@ def routes(as_json: bool = _JSON_OPTION) -> None:
     # and must not require auth to be configured first (Priivacy-ai/spec-kitty#151):
     # only a genuine cache miss needs the gateway (and thus a working auth
     # context) at all.
-    hit, stored = resolution.cached_answer(key, repo_slug=slug, host=host)
-    if hit:
-        negative = credentials.load_negative(repo=key) if stored is None else None
-    else:
+    hit, stored, negative = resolution.cached_answer(key, repo_slug=slug, host=host)
+    if not hit:
         gateway = _gateway_for(Path(os.getcwd()))
         stored = resolution.resolve_credentials(os.getcwd(), gateway=gateway)
         negative = credentials.load_negative(repo=key)

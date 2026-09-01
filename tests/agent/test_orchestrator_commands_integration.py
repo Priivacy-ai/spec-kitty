@@ -1434,6 +1434,39 @@ class TestAcceptMission:
         assert data["error_code"] == "MISSION_NOT_READY"
         assert "WP02" in data["data"]["incomplete_wps"]
 
+    def test_malformed_path_conventions_returns_envelope(self, tmp_path):
+        repo_root, mission_dir = _make_mission(tmp_path, "099-test-mission")
+        mission_slug = "099-test-mission"
+        (repo_root / ".kittify").mkdir()
+        (repo_root / ".kittify" / "config.yaml").write_text(
+            "project:\n  path_conventions:\n    workspace: 123\n",
+            encoding="utf-8",
+        )
+
+        _emit_planned_to_approved(mission_dir, mission_slug, "WP01")
+        _emit_planned_to_approved(mission_dir, mission_slug, "WP02")
+
+        with patch(
+            "specify_cli.orchestrator_api.commands._get_main_repo_root",
+            return_value=repo_root,
+        ):
+            result = runner.invoke(
+                app,
+                [
+                    "accept-mission",
+                    "--mission",
+                    mission_slug,
+                    "--actor",
+                    "claude",
+                ],
+            )
+
+        assert result.exit_code == 1, result.output
+        data = json.loads(result.output)
+        assert data["success"] is False
+        assert data["error_code"] == "MISSION_NOT_READY"
+        assert "project.path_conventions.workspace" in data["data"]["message"]
+
 
 # ── merge-mission ─────────────────────────────────────────────────
 

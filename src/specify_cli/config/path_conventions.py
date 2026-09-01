@@ -106,8 +106,9 @@ def load_project_path_conventions(repo_root: Path) -> dict[str, str]:
             # `validate_mission_paths`, which always exists — silently defeating strict
             # enforcement (SC-006/SC-007) instead of naming the missing directory.
             raise PathConventionsConfigError(f"{_SECTION}.{key} must not be empty or blank.")
-        candidate = Path(value)
+        normalized_value = value.strip()
+        candidate = Path(normalized_value)
         if candidate.is_absolute() or ".." in candidate.parts:
             raise PathConventionsConfigError(f"{_SECTION}.{key} must be a repo-relative path with no '..' traversal, got {value!r}.")
-        override[key] = value
+        override[key] = normalized_value
     return override

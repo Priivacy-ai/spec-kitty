@@ -364,7 +364,11 @@ def _mt_resolve_targets(st: _MoveTaskState, ports: TasksPorts) -> None:
         repo_root=st.main_repo_root,
         mission_id=claim_mission_id,
         wp_id=st.task_id,
-        action="review" if st.target_lane == Lane.IN_REVIEW else "implement",
+        # FR-006 (IC-04): APPROVED/DONE are reviewer-role decisions, not
+        # implementer ones -- resolving them with action="implement" (the
+        # pre-WP04 brownfield gap) stamped the WRONG profile/model onto the
+        # approval's policy_metadata (``_mt_approval_policy_metadata``).
+        action=("review" if st.target_lane in (Lane.IN_REVIEW, Lane.APPROVED, Lane.DONE) else "implement"),
     )
     st.skip_target_branch_commit = _tasks._skip_target_branch_commit(st.main_repo_root, st.mission_slug, st.target_branch) if st.resolved_auto_commit else False
     # Protected-branch status-commit refusal — a hard early exit that MUST fire
@@ -1865,6 +1869,28 @@ def _mt_finalize_plan(st: _MoveTaskState, ports: TasksPorts) -> None:
     # promoting ``emit_force=True``.
     st.plan_review_result = _mt_plan_review_result(st)
     if decision.planned_rollback or decision.arbiter_forward or (st.old_lane == Lane.IN_REVIEW and st.target_lane in (Lane.PLANNED, Lane.IN_PROGRESS)):
+        # FR-006 (IC-04) NOTE: a forward ``in_review -> {approved,done}`` edge
+        # is deliberately NOT added to this trigger. An earlier attempt widened
+        # it here and threaded ``st.plan_review_result.reference`` into
+        # ``emit_review_ref`` via ``build_transition_plan`` — but
+        # ``st.plan_review_result`` (computed above) and the ``hop_review_
+        # result`` ``_mt_emit_transitions`` independently selects via
+        # ``_mt_hop_review_result`` are NOT always the same object: on a
+        # non-durably-persisted write (``--no-auto-commit`` / local-only),
+        # ``_mt_hop_review_result`` falls back to ``st.evidence_dict["review"]``
+        # (built from ``effective_approval_ref``, which considers ``--note``)
+        # while ``_mt_plan_review_result``'s non-durable fallback does not —
+        # two independently-computed reference strings that can diverge,
+        # tripping ``_check_review_result_consistency``'s "review_ref must
+        # match review_result.reference" guard (caught by the REAL CLI in
+        # ``tests/integration/test_review_cycle_rejection_only.py::
+        # test_approving_a_rejected_wp_writes_no_verdict_artifact`` — the
+        # FAKE-ports orchestration test never exercises that guard). FR-006's
+        # ``review_ref`` is instead derived per-hop, directly from the SAME
+        # ``hop_review_result`` object that becomes the request's
+        # ``review_result`` — see ``_mt_emit_transitions`` below — guaranteeing
+        # consistency by construction rather than by keeping two independent
+        # computations in sync.
         st.emit_plan = build_transition_plan(
             old_lane=str(st.old_lane),
             target_lane=str(st.target_lane),
@@ -2027,6 +2053,35 @@ def _mt_shell_pid_baseline(pid: int) -> str | None:
     return baseline
 
 
+def _mt_approval_policy_metadata(st: _MoveTaskState) -> dict[str, Any]:
+    """FR-006 (IC-04): the APPROVED/DONE hop's ``policy_metadata`` sidecar.
+
+    Gate-side decision evidence — closes the brownfield gap where an approval
+    event carried no ``policy_metadata`` at all. ``tool`` is the effective
+    reviewer identity already resolved onto ``st.request`` by
+    ``_mt_gather_late_facts`` (``_mt_approval_facts``, auto-detected from git
+    when ``--reviewer`` is absent); it falls back through ``st.reviewer`` /
+    ``st.agent`` / ``st.actor`` for callers that construct ``_MoveTaskState``
+    directly without running the full pipeline (unit tests). ``profile``/
+    ``model`` come from ``st.resolved_binding`` — re-resolved with
+    ``action="review"`` at ``_mt_resolve_targets`` for an APPROVED/DONE
+    target so this never stamps the wrong (IMPLEMENT-action) profile/model
+    onto a reviewer's decision. Always returns a non-``None`` dict (SC-006):
+    an absent binding still yields explicit ``None`` profile/model fields
+    rather than omitting the sidecar entirely.
+    """
+    tool = (st.request.effective_reviewer if st.request is not None else None) or st.reviewer or st.agent or st.actor or "unknown"
+    binding = st.resolved_binding
+    metadata: dict[str, Any] = {
+        "tool": tool,
+        "profile": binding.agent_profile if binding is not None else None,
+        "model": binding.model if binding is not None else None,
+    }
+    if st.shell_pid:
+        metadata["shell_pid"] = st.shell_pid
+    return metadata
+
+
 def _mt_hop_policy_metadata(st: _MoveTaskState, target: str) -> dict[str, Any] | None:
     """Resolve the ``policy_metadata`` sidecar for one emit hop.
 
@@ -2034,8 +2089,9 @@ def _mt_hop_policy_metadata(st: _MoveTaskState, target: str) -> dict[str, Any] |
     rides the real ``planned -> claimed`` transition's ``policy_metadata`` — the
     reducer's claim fold extracts those exact keys into the snapshot runtime
     slots (``build_claim_policy_metadata`` is the WP01 shape authority). The
-    pre-review-gate metadata rides the ``* -> for_review`` hop. ``None``
-    otherwise.
+    pre-review-gate metadata rides the ``* -> for_review`` hop. FR-006: the
+    APPROVED/DONE hop carries the gate-side decision-evidence sidecar
+    (``_mt_approval_policy_metadata``, IC-04). ``None`` otherwise.
     """
     if target == Lane.CLAIMED and st.shell_pid:
         from specify_cli.status import build_claim_policy_metadata
@@ -2046,6 +2102,8 @@ def _mt_hop_policy_metadata(st: _MoveTaskState, target: str) -> dict[str, Any] |
         return claim_metadata
     if target == Lane.FOR_REVIEW and st.pre_review_gate_metadata is not None:
         return {"pre_review_gate": st.pre_review_gate_metadata}
+    if target in (Lane.APPROVED, Lane.DONE):
+        return _mt_approval_policy_metadata(st)
     return None
 
 
@@ -2077,12 +2135,41 @@ def _binding_role_for_lane(lane: Lane | str) -> str | None:
     :func:`_mt_reassignment_binding_fields` (the off-transition reassignment
     path, which always wants a role and falls back to ``"implementer"`` at
     its own call site — collapses the previously duplicated role map).
+
+    FR-006 (IC-04): APPROVED/DONE are also reviewer-role decisions — the
+    approving/completing actor, never the implementer — so the resolved
+    binding's structured actor (``build_self_asserting_actor``) and
+    annotation delta are stamped there too, symmetric with IN_REVIEW.
     """
     if lane == Lane.CLAIMED:
         return "implementer"
-    if lane == Lane.IN_REVIEW:
+    if lane in (Lane.IN_REVIEW, Lane.APPROVED, Lane.DONE):
         return "reviewer"
     return None
+
+
+def _mt_hop_review_ref(emit_review_ref: str | None, target: str, hop_review_result: ReviewResult | None) -> str | None:
+    """FR-006 (IC-04): resolve one hop's ``review_ref``.
+
+    ``emit_review_ref`` (the plan-level value ``build_transition_plan`` sets
+    ONLY for backward/rollback hops) always wins when already populated. For
+    a forward APPROVED/DONE hop it is derived from the SAME ``hop_review_
+    result`` object this hop already threads onto the request's
+    ``review_result`` — never independently recomputed — so
+    ``_check_review_result_consistency``'s "review_ref must match
+    review_result.reference" guard can never observe a mismatch (an earlier
+    approach rebuilt ``st.emit_plan`` with ``st.plan_review_result``
+    instead, which is a SEPARATE computation from ``hop_review_result`` on
+    the non-durably-persisted approval path — see the note on
+    ``_mt_finalize_plan``'s plan-rebuild trigger for the exact divergence
+    that tripped).
+    """
+    if emit_review_ref is not None:
+        return emit_review_ref
+    if target not in (Lane.APPROVED, Lane.DONE) or hop_review_result is None:
+        return None
+    candidate = getattr(hop_review_result, "reference", None)
+    return candidate if isinstance(candidate, str) and candidate.strip() else None
 
 
 def _mt_emit_transitions(st: _MoveTaskState, ports: TasksPorts) -> None:
@@ -2133,7 +2220,7 @@ def _mt_emit_transitions(st: _MoveTaskState, ports: TasksPorts) -> None:
                 reason_source=_mt_hop_reason_source(st, target),
                 evidence=st.evidence_dict if target in (Lane.APPROVED, Lane.DONE) else None,
                 policy_metadata=hop_policy_metadata,
-                review_ref=emit_review_ref,
+                review_ref=_mt_hop_review_ref(emit_review_ref, target, hop_review_result),
                 workspace_context=f"move-task:{st.main_repo_root}",
                 subtasks_complete=(True if target in (Lane.FOR_REVIEW, Lane.APPROVED) and not emit_force else None),
                 implementation_evidence_present=(True if target in (Lane.FOR_REVIEW, Lane.APPROVED) and not emit_force else None),

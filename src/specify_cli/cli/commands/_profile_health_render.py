@@ -294,13 +294,15 @@ def _render_org_layer_section(repo_root: Path, console: Console) -> None:
     misconfiguration.  All exceptions are caught and rendered as findings
     so ``doctor doctrine`` always returns a usable report.
     """
-    from charter.drg import (  # noqa: PLC0415
+    from charter.drg import (
         OrgDRGConflictError,
         OrgPackMissingError,
         load_built_in_graph,
+        validate_dangling_references,
+    )
+    from charter.activation.drg_activation import (
         load_org_drg,
         merge_three_layers,
-        validate_dangling_references,
     )
 
     console.print("\n[bold]Organisation Layer[/bold] (WP07 / FR-007)")

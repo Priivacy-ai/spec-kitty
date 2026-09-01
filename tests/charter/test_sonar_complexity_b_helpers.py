@@ -9,11 +9,11 @@ indirectly through the public entry points).
 
 Sections:
 
-* ``TestInterviewMappingHelpers`` — ``src/charter/synthesizer/interview_mapping.py``
+* ``TestInterviewMappingHelpers`` — ``src/charter/activation/synthesizer/interview_mapping.py``
   (``normalize_interview_snapshot``'s S3776 finding, cc ~18 -> decomposed).
-* ``TestSectionBodiesHelpers`` — ``src/charter/context_renderers/section_bodies.py``
+* ``TestSectionBodiesHelpers`` — ``src/charter/activation/context_renderers/section_bodies.py``
   (``_find_next_section_start``'s S3776 finding, cc ~18 -> decomposed).
-* ``TestProfileSectionsHelpers`` — ``src/charter/context_renderers/profile_sections.py``
+* ``TestProfileSectionsHelpers`` — ``src/charter/activation/context_renderers/profile_sections.py``
   (``render_profile_selector_refs`` cc ~18 and ``_render_profile_directives``
   cc ~17 -> decomposed; plus the S1192 duplicate-literal hoist onto
   ``_PROFILE_CODE_CHANGE_WHEN``).
@@ -25,20 +25,20 @@ from typing import Any
 
 import pytest
 
-from charter._catalog_miss import CharterCatalogMissWarning
-from charter.context_renderers.profile_sections import (
+from charter.activation._catalog_miss import CharterCatalogMissWarning
+from charter.activation.context_renderers.profile_sections import (
     _PROFILE_CODE_CHANGE_WHEN,
     _catalog_miss_lines,
     _render_directive_entry,
     _render_selector_entry,
     _resolve_catalog_artifact,
 )
-from charter.context_renderers.section_bodies import (
+from charter.activation.context_renderers.section_bodies import (
     _close_fence_if_matched,
     _heading_offset_if_match,
     _open_fence_if_started,
 )
-from charter.synthesizer.interview_mapping import (
+from charter.activation.synthesizer.interview_mapping import (
     _copy_alias_answer_into_canonical_section,
     _extract_languages_from_alias,
     _normalize_language_scope_section,
