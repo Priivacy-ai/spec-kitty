@@ -847,10 +847,27 @@ def _persist_approved_review_cycle(
         return None
     wp_slug = _resolve_wp_slug(st.main_repo_root, st.mission_slug, st.task_id)
     lookup = event_sourced_review_result(st.feature_dir, st.task_id)
-    if not lookup.slot_present or lookup.result is None:
+    # FR-007 (T2 / IC-04): a malformed/damaged event-sourced slot
+    # (``slot_present=True, result=None``) stays a no-op, UNCHANGED — the
+    # reader (``event_sourced_review_result``) already fails closed rather
+    # than fabricate a verdict, and this writer must not paper over that
+    # ambiguity with a synthesized approval write.
+    if lookup.slot_present and lookup.result is None:
         return None
-    if lookup.result.verdict != "changes_requested":
+    # :852 idempotency (unchanged, PRESERVED): the current event-sourced
+    # verdict is already something other than a stale rejection (i.e.
+    # already ``approved``) -- never a redundant/duplicate write.
+    if lookup.result is not None and lookup.result.verdict != "changes_requested":
         return None
+    # FR-007 (T2, brownfield gap closed): a genuine first-pass approval —
+    # NO prior event-sourced verdict slot at all (``lookup.slot_present``
+    # False) — used to be an unconditional no-op here, so a first-pass
+    # approve authored NO ``review-cycle-N.md`` evidence artifact at all
+    # (SC-006). It now falls through to the SAME write this function
+    # already used for the "stale rejection -> fresh approval" flip,
+    # reusing ``create_rejected_review_cycle(..., verdict="approved")`` —
+    # already verdict-symmetric — rather than a second writer.
+    #
     # Real reviewer_agent (matches ``_mt_plan_review_result``'s own
     # fallback chain) — never the literal "unknown" for a genuine
     # approval.
@@ -858,6 +875,14 @@ def _persist_approved_review_cycle(
     approval_reference = (
         st.approval_ref or st.note_text or f"approval:{st.task_id}"
     ).strip() or f"approval:{st.task_id}"
+    # SC-006: the artifact carries at least a reproduction_command —
+    # auto-derived from the decision already made (NFR-005), never a new
+    # hand-filled field: the exact ``move-task`` invocation that reproduces
+    # this approval.
+    reproduction_command = (
+        f"spec-kitty agent tasks move-task {st.task_id} --to approved "
+        f"--mission {st.mission_slug}"
+    )
     # M1 (adversarial squad, PR #3156): the approval body is synthesized
     # by THIS caller, not supplied by a reviewer — pass it via ``body=``
     # rather than a throwaway ``feedback_source`` file. This both drops
@@ -878,6 +903,7 @@ def _persist_approved_review_cycle(
             reviewer_agent=reviewer_agent,
             verdict="approved",
             commit_router=commit_router,
+            reproduction_command=reproduction_command,
         )
 
     durability_signal = _persist_review_cycle_with_queue(st, ports, _create)

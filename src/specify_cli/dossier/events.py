@@ -64,6 +64,10 @@ def _undelivered(event_type: str, _payload: dict[str, Any] | None = None) -> dic
     drift emitters, via :func:`_absorb_delivery_authority_kwargs` on the two
     artifact emitters — so callers (``sync/dossier_pipeline.py`` until its own
     deletion) keep working.
+
+    ``_payload`` is retained only as a test-capture seam. Production callers
+    construct and validate it before reaching this no-transport drop point;
+    tests monkeypatch this function to inspect that validated payload.
     """
     logger.debug("Dossier event %s validated but not delivered: no transport", event_type)
     return None
@@ -353,6 +357,10 @@ def emit_artifact_missing(
             "last_known_size_bytes": None,
         },
     )
+    # The two legacy last-known fields are accepted for caller compatibility
+    # and then intentionally dropped: the canonical payload's
+    # ``last_known_ref`` is a ``ProvenanceRef``, not a ``ContentHashRef``, so
+    # there is no lossless conversion from the split hash/size pair.
     reason_detail = _optional_str(legacy["reason_detail"])
     blocking = bool(legacy["blocking"])
     if not blocking:

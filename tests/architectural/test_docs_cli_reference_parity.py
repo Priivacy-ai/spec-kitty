@@ -199,6 +199,17 @@ def test_deprecated_paths_classified(reference_text: str, agent_reference_text: 
     )
 
 
+def test_retired_check_residual_option_is_absent(reference_text: str) -> None:
+    """The unreachable residual flag must not survive in help or docs."""
+    from typer.testing import CliRunner
+
+    result = CliRunner().invoke(_build_live_app(), ["review", "--help"])
+
+    assert result.exit_code == 0, result.output
+    assert "--check-residual" not in result.output
+    assert "--check-residual" not in reference_text
+
+
 # ---------------------------------------------------------------------------
 # FR-018: skill-doc / CLI parity guard for ``agent profile`` subcommands.
 # ---------------------------------------------------------------------------

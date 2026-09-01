@@ -52,5 +52,12 @@ def test_card_avatar_falls_back_through_identity_fields_and_handles_absence() ->
     them are set.
     """
     content = DASHBOARD_JS.read_text()
-    assert "const identity = task.agent_profile || task.role || task.agent || task.assignee || '';" in content
+    assert "task.agent_profile || task.role || task.agent || task.assignee || ''" in content
     assert "if (!identity) {\n        return '';\n    }" in content
+
+
+def test_card_avatar_trims_identity_before_guard_and_initials() -> None:
+    """A whitespace-only identity is absent, not a blank avatar circle."""
+    content = DASHBOARD_JS.read_text()
+    assert "const identity = (task.agent_profile || task.role || task.agent || task.assignee || '').trim();" in content
+    assert "[identity[0], identity[1] || '']" in content

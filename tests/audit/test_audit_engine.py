@@ -399,3 +399,109 @@ def test_unstattable_mission_candidate_does_not_crash_the_audit(tmp_path: Path) 
         f"of the corpus: {slugs!r}"
     )
     assert "m-link" not in slugs, "the unstattable candidate itself cannot be audited"
+
+
+# ---------------------------------------------------------------------------
+# Test 10: `invoking_cwd` — invoking-checkout-vs-primary disagreement (#251)
+# ---------------------------------------------------------------------------
+
+
+def _make_primary_and_lane(
+    tmp_path: Path, slug: str, mission_id: str, *, primary_status: str, lane_status: str
+) -> tuple[Path, Path]:
+    """Fabricate a primary checkout and a linked lane worktree pointing at it.
+
+    Mirrors ``tests/specify_cli/migration/test_mission_state_identity.py``'s
+    fixture: ``_linked_worktree_primary`` parses ``.git`` directly (stdlib
+    only, no real git needed), so a ``.git`` directory on the primary plus a
+    ``gitdir:`` pointer file on the lane is enough.
+    """
+    primary = (tmp_path / "primary").resolve()
+    lane = (tmp_path / "lane-d").resolve()
+    (primary / ".git" / "worktrees" / "lane-d").mkdir(parents=True, exist_ok=True)
+    lane.mkdir(parents=True, exist_ok=True)
+    (lane / ".git").write_text(f"gitdir: {primary}/.git/worktrees/lane-d\n", encoding="utf-8")
+    _write_meta(primary / "kitty-specs" / slug, mission_id)
+    (primary / "kitty-specs" / slug / "status.json").write_text(primary_status, encoding="utf-8")
+    lane_mission = lane / "kitty-specs" / slug
+    lane_mission.mkdir(parents=True, exist_ok=True)
+    (lane_mission / "status.json").write_text(lane_status, encoding="utf-8")
+    return primary, lane
+
+
+def test_invoking_cwd_disagreement_adds_checkout_disagreement_finding(tmp_path: Path) -> None:
+    """From a foreign lane worktree, invoking-vs-primary disagreement surfaces as a finding.
+
+    Without wiring ``AuditOptions.invoking_cwd`` into the engine, ``--audit``
+    anchored to the primary reads the primary's own ``status.json`` at both
+    ends and reports a false green even when the invoking lane's mission
+    state has diverged (#251).
+    """
+    slug = "checkout-disagreement-mission"
+    primary, lane = _make_primary_and_lane(
+        tmp_path, slug, _ULID_D, primary_status='{"v": "primary"}', lane_status='{"v": "lane"}'
+    )
+
+    report = run_audit(
+        AuditOptions(repo_root=primary, scan_root=primary / "kitty-specs", invoking_cwd=lane)
+    )
+
+    result = next(m for m in report.missions if m.mission_slug == slug)
+    assert "CHECKOUT_DISAGREEMENT" in {f.code for f in result.findings}
+
+
+def test_invoking_cwd_owner_reports_no_disagreement(tmp_path: Path) -> None:
+    """An owner invocation (``invoking_cwd`` IS the primary) never false-reds."""
+    slug = "checkout-agreement-mission"
+    primary, _lane = _make_primary_and_lane(
+        tmp_path, slug, _ULID_E, primary_status='{"v": "primary"}', lane_status='{"v": "lane"}'
+    )
+
+    report = run_audit(
+        AuditOptions(repo_root=primary, scan_root=primary / "kitty-specs", invoking_cwd=primary)
+    )
+
+    result = next(m for m in report.missions if m.mission_slug == slug)
+    assert "CHECKOUT_DISAGREEMENT" not in {f.code for f in result.findings}
+
+
+def test_invoking_cwd_omitted_skips_disagreement_check(tmp_path: Path) -> None:
+    """Omitting ``invoking_cwd`` (the default) never adds the finding — existing callers unaffected."""
+    slug = "checkout-disagreement-mission-no-invoking-cwd"
+    primary, _lane = _make_primary_and_lane(
+        tmp_path, slug, _ULID_A, primary_status='{"v": "primary"}', lane_status='{"v": "lane"}'
+    )
+
+    report = run_audit(AuditOptions(repo_root=primary, scan_root=primary / "kitty-specs"))
+
+    result = next(m for m in report.missions if m.mission_slug == slug)
+    assert "CHECKOUT_DISAGREEMENT" not in {f.code for f in result.findings}
+
+
+def test_invoking_cwd_disagreement_survives_non_slug_mission_filter(tmp_path: Path) -> None:
+    """``--mission`` scoped by a non-slug handle must still surface the disagreement.
+
+    Regression pin: the merge helper resolves ``--mission`` through the
+    engine's already-resolved ``allowed_dirs``, never by re-matching the raw
+    handle against directory slugs — a ``mission_id`` handle never
+    string-matches a slug in ``_compare_checkout_mission_state``, so passing
+    the raw handle through would silently drop the finding for any
+    non-slug ``--mission`` filter.
+    """
+    slug = "checkout-disagreement-by-id"
+    mission_id = _ULID_B
+    primary, lane = _make_primary_and_lane(
+        tmp_path, slug, mission_id, primary_status='{"v": "primary"}', lane_status='{"v": "lane"}'
+    )
+
+    report = run_audit(
+        AuditOptions(
+            repo_root=primary,
+            scan_root=primary / "kitty-specs",
+            mission_filter=mission_id,
+            invoking_cwd=lane,
+        )
+    )
+
+    assert [m.mission_slug for m in report.missions] == [slug]
+    assert "CHECKOUT_DISAGREEMENT" in {f.code for f in report.missions[0].findings}

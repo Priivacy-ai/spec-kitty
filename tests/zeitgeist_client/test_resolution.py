@@ -1153,6 +1153,31 @@ class TestMintRecordsAdmittingTeam:
         assert stored is not None
         assert stored.team is None
 
+    def test_remint_with_missing_admission_team_preserves_existing_team(self, state_root: Path) -> None:
+        credentials.store(
+            repo=KEY,
+            relay_url="http://relay",
+            token="old-bearer",
+            token_kind=KIND_PRESENCE,
+            expires_at=_iso_in(-1),
+            host=HOST,
+            repo_slug=SLUG,
+            team="demo",
+        )
+        credentials.store_focus_capability(
+            repo=KEY,
+            capability_credential="focus-jwt",
+            expires_at=_iso_in(1200),
+        )
+        gateway = ScriptedGateway(admission={"admitted": True})
+
+        stored = resolution._resolve(key=KEY, repo_slug=SLUG, host=HOST, gateway=gateway, kind=KIND_PRESENCE, force=False)
+
+        assert stored is not None
+        assert stored.team == "demo"
+        assert stored.focus_capability_credential == "focus-jwt"
+        assert gateway.mint_calls == [{"repo_slug": SLUG, "kind": KIND_PRESENCE, "team_slug": None}]
+
 
 # ---------------------------------------------------------------------------
 # resolve_focus_capability (#186): the second lease a wired client needs

@@ -2470,6 +2470,7 @@ __all__ = [
     "MissionStateDryRunError",
     "MissionStateRepairError",
     "TeamspaceDryRunReport",
+    "audit_invocation_disagreement",
     "rebuild_mission_event_log",
     "repair_duplicate_key_artifacts",
     "repair_repo",

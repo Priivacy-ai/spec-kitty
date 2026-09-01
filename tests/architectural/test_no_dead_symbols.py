@@ -149,6 +149,15 @@ _SRC_ROOT = _REPO_ROOT / "src"
 
 _CATEGORY_A_SLICE_F_DEFERRED: frozenset[SymbolKey] = frozenset(
     {
+        # specify_cli.dashboard.server::BackgroundPortReportError -- #577:
+        # deliberately exported typed failure contract for callers that need to
+        # distinguish detached-child startup failures. No runtime caller catches
+        # it yet. TODO(triage): wire the first caller or drop from __all__ (FR-303).
+        SymbolKey(
+            "BackgroundPortReportError",
+            "37ae16b8b6363406df0eff14e6a8438305592f244a74124eb646fcc02ef96fb1",
+            source_module="specify_cli.dashboard.server",
+        ),
         # specify_cli.dashboard.csp::DASHBOARD_CSP -- M2 canonical integration 2026-08-22: D2-T1 dashboard CSP policy constant.
         # WIRE-M2-02 (2026-08-22): send_csp_header() (below) is now wired into all 35 send_response()
         # sites across handlers/{base,api,features,glossary,lint,static}.py, so the module itself is no

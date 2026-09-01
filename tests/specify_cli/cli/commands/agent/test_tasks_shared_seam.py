@@ -28,10 +28,12 @@ Seam checklist (per-symbol evidence):
 
 from __future__ import annotations
 
+import json
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
 import pytest
+import typer as typer_module
 from typer.testing import CliRunner
 
 from specify_cli.cli.commands.agent import tasks, tasks_shared
@@ -76,6 +78,44 @@ def test_patched_get_main_repo_root_intercepts_find_mission_slug(tmp_path: Path)
             "tasks-py-degod-wave2-01KWH9EQ", json_output=True, repo_root=tmp_path
         )
     root_mock.assert_called_once_with(tmp_path)
+
+
+def test_ambiguous_handle_maps_to_shared_json_envelope(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """#241: an ambiguous handle from the ``placement_seam`` short-circuit call
+
+    (which runs BEFORE ``resolve_mission_handle``) must land on the shared
+    ``{"success": False, "error_code": ...}`` envelope, matching
+    ``resolve_mission_handle``'s ``AmbiguousHandleError`` branch, instead of
+    escaping as an untyped ``{"error": ...}`` dict.
+    """
+    from specify_cli.missions._read_path_resolver import MissionSelectorAmbiguous
+
+    exc = MissionSelectorAmbiguous(
+        handle="charter", candidates=["020-charter", "030-charter"]
+    )
+    seam_mock = MagicMock()
+    seam_mock.read_dir.side_effect = exc
+    with (
+        patch(f"{_TASKS}.get_main_repo_root", return_value=tmp_path),
+        patch(
+            "specify_cli.cli.commands.agent.tasks_shared.placement_seam",
+            return_value=seam_mock,
+        ),
+        pytest.raises(typer_module.Exit) as exc_info,
+    ):
+        tasks._find_mission_slug("charter", json_output=True, repo_root=tmp_path)
+
+    assert exc_info.value.exit_code == 1
+    payload = json.loads(capsys.readouterr().out)
+    assert payload == {
+        "success": False,
+        "error_code": "MISSION_AMBIGUOUS_SELECTOR",
+        "error": str(exc),
+        "handle": "charter",
+        "candidates": ["020-charter", "030-charter"],
+    }
 
 
 def test_patched_get_main_repo_root_intercepts_ensure_target_branch(tmp_path: Path) -> None:
