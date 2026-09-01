@@ -901,9 +901,14 @@ async def test_check_server_session_no_issuer_proceeds_normally(
     assert result.active is True
 
 
-def test_server_issuer_mismatch_error_none_when_session_missing() -> None:
+def test_server_issuer_mismatch_error_none_when_session_missing(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     """No session at all ⇒ no mismatch to report (the ordinary NotAuthenticatedError path decides)."""
     tm = _FakeTokenManagerWithSession(None)
+    monkeypatch.setattr(
+        _auth_doctor, "resolve_server_target", lambda: _fake_target("https://team.spec-kitty.ai")
+    )
     assert _server_issuer_mismatch_error(tm) is None
 
 
