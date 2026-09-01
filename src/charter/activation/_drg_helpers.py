@@ -33,7 +33,9 @@ from charter.offering.drg.loader import (
     load_graph_or_dir,
     merge_layers,
 )
-from charter.offering.drg.models import DRGGraph
+from charter.offering.drg.merge import merge_three_layers
+from charter.offering.drg.models import DRGEdge, DRGGraph
+from charter.offering.drg.org_pack_loader import OrgDRGFragment
 from charter.offering.drg.validator import assert_valid
 
 _LOGGER = logging.getLogger(__name__)
@@ -60,6 +62,7 @@ def load_validated_graph(
     org_root: Path | None = None,
     *,
     org_roots: list[Path] | None = None,
+    org_fragments: list[OrgDRGFragment] | None = None,
 ) -> DRGGraph:
     """Load the built-in + org-chain + project DRG overlay and validate the result.
 
@@ -102,6 +105,10 @@ def load_validated_graph(
             takes precedence over *org_root* — passing ``org_roots=[]``
             explicitly means "no org layer", distinct from omitting the
             argument (which falls back to *org_root*).
+        org_fragments: The org ``drg/fragment.yaml`` layer, resolved by the
+            runtime caller. When supplied, fragment edges are folded through
+            :func:`charter.offering.drg.merge.merge_three_layers`; when omitted,
+            the legacy two-layer merge is byte-behaviourally unchanged.
 
     Returns:
         A validated :class:`DRGGraph`.
@@ -117,13 +124,13 @@ def load_validated_graph(
             org_root = _resolve_org_root(repo_root)
         roots = [org_root] if org_root else []
 
-    merged = load_built_in_graph()
+    root_merged = load_built_in_graph()
     for root in roots:
         # An org root that ships a root-level DRG graph (`graph.yaml` or
         # `*.graph.yaml`) contributes its charter-DRG layer; one that is
         # present-but-malformed still fails loud inside `load_graph_or_dir`.
         if root and root.exists() and has_graph_files(root):
-            merged = merge_layers(merged, load_graph_or_dir(root))
+            root_merged = merge_layers(root_merged, load_graph_or_dir(root))
             continue
         # A configured, on-disk org root with NO root-level DRG graph
         # contributes no charter-DRG layer. Degrade it to "no org DRG layer"
@@ -133,16 +140,12 @@ def load_validated_graph(
         # its healthy sibling roots down. This is the durable per-root-degrade
         # sliver of the superseded #3401, retargeted to the #3387 org model.
         #
-        # SCOPE — do not overstate what cascade sees. Charter cascade reads
-        # root-level `*.graph.yaml` ONLY. Edges an org pack authors solely in
-        # `drg/fragment.yaml` (the #3387 `OrgDRGFragment` shape) are read only
-        # by the separate diagnostic merge path (`load_org_pack` →
-        # `merge_three_layers`, surfaced in `doctor doctrine` / `charter list`)
-        # and are invisible to cascade — before and after this guard. That
-        # `drg/fragment.yaml` gap is NOT flagged by `drg_root_graph_missing`
-        # either: that finding globs `drg/*.graph.yaml` (a different shape),
-        # not `fragment.yaml`. So the WARNING below is the operator's only
-        # signal that a configured pack contributed nothing to cascade.
+        # SCOPE (post DRG read-path bridge). Charter runtime callers can read
+        # two org shapes: root-level `*.graph.yaml` here, and
+        # `drg/fragment.yaml` edges through `org_fragments` below. A pack
+        # shipping only a fragment is not graphless for a caller that supplies
+        # that fragment layer; for a caller that omits it, the fragment remains
+        # invisible and must still be disclosed.
         #
         # D-005 ("degrade, but never silent"), matching the per-root warning
         # `mission_step_contracts.executor._load_graph_degrading_malformed_org_pack`
@@ -150,14 +153,21 @@ def load_validated_graph(
         # or never reach this branch, so this does not double-warn them; the
         # `activate` / `deactivate` / `gate_bindings` callers — which do not
         # pre-probe — get their only signal here.
-        if root and root.exists():
+        fragment_exists = bool(root) and root.exists() and (root / "drg" / "fragment.yaml").exists()
+        if root and root.exists() and (not fragment_exists or org_fragments is None):
+            missing_shape = (
+                "and no drg/fragment.yaml"
+                if not fragment_exists
+                else "but this call supplied no org_fragments layer"
+            )
             _LOGGER.warning(
                 "Org pack at %s ships no root-level DRG graph "
-                "(graph.yaml / *.graph.yaml); it contributes no doctrine graph "
-                "to cascade and was skipped. Any requires/suggests edges "
-                "authored only in drg/fragment.yaml are not read by the "
-                "cascade path.",
+                "(graph.yaml / *.graph.yaml) %s; it contributes no dependency "
+                "graph to cascade and was skipped. Author a root-level "
+                "*.graph.yaml, or supply its drg/fragment.yaml through "
+                "org_fragments, to contribute requires/suggests edges.",
                 root,
+                missing_shape,
             )
 
     project_dir = repo_root / ".kittify" / "doctrine"
@@ -167,9 +177,38 @@ def load_validated_graph(
         else None
     )
 
-    merged = merge_layers(merged, project)
+    merged = _fold_final_layers(root_merged, org_fragments, project)
     assert_valid(merged)
     return merged
+
+
+def _fold_final_layers(
+    root_merged: DRGGraph,
+    org_fragments: list[OrgDRGFragment] | None,
+    project: DRGGraph | None,
+) -> DRGGraph:
+    """Fold project and optional org fragments without forking edge identity."""
+    if org_fragments:
+        merged = merge_three_layers(
+            built_in=root_merged, org_fragments=org_fragments, project=project
+        )
+        return _collapse_duplicate_edge_triples(merged)
+    return merge_layers(root_merged, project)
+
+
+def _collapse_duplicate_edge_triples(graph: DRGGraph) -> DRGGraph:
+    """Collapse exact duplicate edges produced by dual root/fragment folding."""
+    seen: set[tuple[str, str, str]] = set()
+    deduped: list[DRGEdge] = []
+    for edge in graph.edges:
+        key = (edge.source, edge.target, edge.relation.value)
+        if key in seen:
+            continue
+        seen.add(key)
+        deduped.append(edge)
+    if len(deduped) == len(graph.edges):
+        return graph
+    return graph.model_copy(update={"edges": deduped})
 
 
 __all__ = [

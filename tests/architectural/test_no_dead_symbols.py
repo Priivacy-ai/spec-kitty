@@ -1937,29 +1937,9 @@ _CATEGORY_D_CHARTER_CODE_TOPOLOGY_RELOCATION_FORWARD_API: frozenset[SymbolKey] =
 _CATEGORY_E_CHARTER_ACTIVATION_SPLIT_FORWARD_API: frozenset[SymbolKey] = frozenset(
     {
         SymbolKey(
-            "collect_operating_procedure_entries",
-            "920c731339863df1f529706ba22c93ade27a8c8ef52642da390a5278a584ee52",
-            source_module="charter.offering.agent_profiles.operating_procedures",
-        ),
-        SymbolKey(
-            "node_universe",
-            "5142c3de4d27055c754f6ec90c522b0db269b1bbfc65907e5ce6a4ff7024efd9",
-            source_module="charter.offering.agent_profiles.operating_procedures",
-        ),
-        SymbolKey(
-            "resolve_operating_procedure_entries",
-            "daba04557548601ed3c0179c19890e7a8e0b657fae4624c0d45a596c72470844",
-            source_module="charter.offering.agent_profiles.operating_procedures",
-        ),
-        SymbolKey(
             "overlay_scan_is_recursive",
             "74c0f3834ccd993ee796cd659396e51009a34ffe926429bc26455a7b956ca140",
             source_module="charter.offering.discovery_recursion",
-        ),
-        SymbolKey(
-            "collect_org_governance_scope_edges",
-            "5922bd85e78df3616fb572adb1b2922a3390dd210122c3b6f20eb67d4b7e7dc3",
-            source_module="charter.offering.drg.org_governance",
         ),
         SymbolKey(
             "walk_project_agent_profile_nodes",

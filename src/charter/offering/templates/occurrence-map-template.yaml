@@ -44,7 +44,7 @@ exceptions:
   # path-glob form above cannot express this because it overrides the WHOLE
   # file, and the same file needs a DIFFERENT action on its other fields
   # (e.g. an agent profile whose `directive-references` must never change
-  # while `context-sources.directives` in the SAME file is being migrated).
+  # while `tactic-references` in the SAME file is being migrated).
   # - path: "<path glob matching the governed file(s)>"
   #   field_path: "<dotted.yaml.field.path>"
   #   action: do_not_change

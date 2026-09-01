@@ -169,7 +169,7 @@ def _load_action_doctrine_bundle(
     from charter.activation._drg_helpers import load_validated_graph
     from charter.activation.context import _build_doctrine_service  # noqa: PLC0415
     from charter.activation.context_renderers.delivery_table import _classify_artifact_urns
-    from charter.activation.drg_activation import filter_graph_by_activation
+    from charter.activation.drg_activation import filter_graph_by_activation, load_org_drg
     from charter.activation.mission_type_profiles import resolve_mission_type_key
     from charter.offering.drg.loader import DRGLoadError
     from charter.offering.drg.query import resolve_context
@@ -197,7 +197,12 @@ def _load_action_doctrine_bundle(
     # DRG action resolution entirely so no doctrine is inferred (FR-003a).
     if resolved_type is not None:
         try:
-            merged = load_validated_graph(repo_root, org_root=org_root, org_roots=org_roots)
+            merged = load_validated_graph(
+                repo_root,
+                org_root=org_root,
+                org_roots=org_roots,
+                org_fragments=load_org_drg(repo_root, strict=False),
+            )
             # FR-032, FR-035 (WP08): apply activation filter before resolving context.
             if pack_context is not None:
                 merged = filter_graph_by_activation(merged, pack_context)

@@ -1,126 +1,126 @@
 charter:
 constituents:
-- content_hash: 8ed372b0e8c6e02cac1cb6c2c675a918d82d29d3861aa737cada054036658b51
+- content_hash: ec2b0fc1c4770c89e584adebeae416b943493df2753a73f7a60169471e5ee91d
   id: analyst-annie
   kind: agent_profile
   path: agent_profiles/analyst-annie.agent.yaml
   provenance_path:
-- content_hash: 091d6223b873fdd15233b3970053f88bb7cd61ada223e2ab7532ef188eda2844
+- content_hash: 97be12624a998dfae064529a4fac959cb25e2d61cff1eefe6e206f31e78014ff
   id: architect-alphonso
   kind: agent_profile
   path: agent_profiles/architect-alphonso.agent.yaml
   provenance_path:
-- content_hash: 027b1640fcede2c102b163f05958b913532260405af15623b6cd17d5cc483d87
+- content_hash: 280238243c6ff359aae39d06a99db9f5775c5c1fff91bffbfa014329de1c9620
   id: comms-cleo
   kind: agent_profile
   path: agent_profiles/comms-cleo.agent.yaml
   provenance_path:
-- content_hash: cc6b08c3391abe890ff2dc35b4d7faa3e6cb6566cacedfab2eb570fa9248cb0a
+- content_hash: 5b389532a6646522f3d1bafb07f232fb6e39f43488d56e0f4be691e525cf9093
   id: curator-carla
   kind: agent_profile
   path: agent_profiles/curator-carla.agent.yaml
   provenance_path:
-- content_hash: 2aa4396ee2d102e49d4a0f076ed7d1a7a8e3d2da8c9d1dc6cc32843db780e7ac
+- content_hash: e22df3c8a040fea35dd2a03509b8b21da117fa66a412aa274439b5b93b2474cb
   id: debugger-debbie
   kind: agent_profile
   path: agent_profiles/debugger-debbie.agent.yaml
   provenance_path:
-- content_hash: 1428bfeabd57c8cd636d72d587b11799b84a0f4d325aea24880f6d8e4083f6c7
+- content_hash: 868b02e713161c5f77faa76df57b641f177724d169a663fd60e54eab4c66702f
   id: designer-dagmar
   kind: agent_profile
   path: agent_profiles/designer-dagmar.agent.yaml
   provenance_path:
-- content_hash: c5d3a2f12e1563ab00a8ddd4e09580d32b27b37f5f58e3e6dc8f20dc9cee853a
+- content_hash: e97e20c245ab5dfbca810629a0be46666c9d85867e32440fa5a644fe525d1a8e
   id: diagram-daisy
   kind: agent_profile
   path: agent_profiles/diagram-daisy.agent.yaml
   provenance_path:
-- content_hash: 0c62322ff4fcda250fc74b2a54830e90033d378b4107d28fee91a90bf2b984a5
+- content_hash: 1f6357cd142813f497c96abf951a7c25fb99d056af31dbd5d7f0282b48ec86cf
   id: doctrine-daphne
   kind: agent_profile
   path: agent_profiles/doctrine-daphne.agent.yaml
   provenance_path:
-- content_hash: 18bbb8b92ed33fed4568a7c4a10643656ae51e0658e8f7a502a20f6288e4869f
+- content_hash: 3d437f143eac5062673f67cd5b2f0e1ff61114cab12af342f5a26127b9b36c70
   id: frontend-freddy
   kind: agent_profile
   path: agent_profiles/frontend-freddy.agent.yaml
   provenance_path:
-- content_hash: 0e01f1d14aa139e2611966b14d8087d0bb87cbcd1cdc969287e453e2c871a449
+- content_hash: c7f194a6af7dee105d4e7eeeb99c09f890dd310e6de51ec535233f0a459108e2
   id: generic-agent
   kind: agent_profile
   path: agent_profiles/generic-agent.agent.yaml
   provenance_path:
-- content_hash: 9fa261018d624b5316c57b3c745b29e24a40e1e5014d59505b62794426a661fc
+- content_hash: 8ec13207d607c41e7a8ed54c8ffe59365eff24b08e42aaa7189a181faecc40ca
   id: human-in-charge
   kind: agent_profile
   path: agent_profiles/human-in-charge.agent.yaml
   provenance_path:
-- content_hash: 7ba48415be7adf3ea2afddeb7f8afd86b7ef5cc24bd43007f25410f928cab635
+- content_hash: 173864c3da2d192565a14b473a984a4d23f07ced08474e7dd077d8fd18c1666f
   id: implementer-ivan
   kind: agent_profile
   path: agent_profiles/implementer-ivan.agent.yaml
   provenance_path:
-- content_hash: 9835a284bf8a64c1b568eb13a39b345d95307ffaf3061d01e0243c1f7065c433
+- content_hash: da07e2c52a6c730b83ca9935a4976c831f1972538702b2aa91709940201b34d1
   id: java-jenny
   kind: agent_profile
   path: agent_profiles/java-jenny.agent.yaml
   provenance_path:
-- content_hash: d8b4d31d54e0c113150bf38ef3bbde76243d159f2da7b9b8b981e04b014e3c02
+- content_hash: 66e45c1812df79ae1195a0427baa9d0b3cc7d964e40e2bed8c887cbc3d613b5f
   id: lexical-larry
   kind: agent_profile
   path: agent_profiles/lexical-larry.agent.yaml
   provenance_path:
-- content_hash: 21fde99793ee8903ac7489c4185b41189cd48e8280a353d55f248041179b6b98
+- content_hash: b7a1b0305d1fdfa826a3d1fb2d8d0c37022ddb3fba0c62c89bd0dde78ead98f9
   id: minutes-maker-mahad
   kind: agent_profile
   path: agent_profiles/minutes-maker-mahad.agent.yaml
   provenance_path:
-- content_hash: 5d4b5509b57b1a7fa328105921d05b02977a37b508ba1a8cb3b3c3ba33d170b5
+- content_hash: 8bc673d323d963598b30e46d941d4cbe3151de4d509445d945b63e2a9c9cf674
   id: node-norris
   kind: agent_profile
   path: agent_profiles/node-norris.agent.yaml
   provenance_path:
-- content_hash: 9e9a7e204fe7f3c66a120e2c36d9e9cf519e489f88982cce1c65114fde527899
+- content_hash: 9a77e5bc10ecda6fff4464f7ed3dab08ad25a8db7d94a70981699d17358ca9ab
   id: paula-patterns
   kind: agent_profile
   path: agent_profiles/paula-patterns.agent.yaml
   provenance_path:
-- content_hash: a75a69594825554fc286c1c7a6d7a70707ba6a0724686cf6f3546a33b92a4a87
+- content_hash: ff91fb7d097934f17e9b2d3fb8b782c2fdc7afde8aef0f96648c2efe10394d41
   id: planner-priti
   kind: agent_profile
   path: agent_profiles/planner-priti.agent.yaml
   provenance_path:
-- content_hash: 3bda1107743f47513ffe9820ba84727c42b83613bcfac1ca02dc70ad5092acb6
+- content_hash: 133b6b21db718b4826497372999d4fd0a1ada38e406036bbf9417e3e2ec1b4aa
   id: python-pedro
   kind: agent_profile
   path: agent_profiles/python-pedro.agent.yaml
   provenance_path:
-- content_hash: 495904c9937c2977f2696a6c0e5ce38903a6b3eb85600953882c81caaea7d098
+- content_hash: 27f3b27a66470422a932b0f7e2c3759501409b263b58842b8b34528af9b37bcf
   id: randy-reducer
   kind: agent_profile
   path: agent_profiles/randy-reducer.agent.yaml
   provenance_path:
-- content_hash: afd5f0c5caee89258f78421bc6908b7fc2dcc42c5ae78be1fd6c269eacb2127a
+- content_hash: f51b516086eeeaad75ca8634febb8819ce87bc82380971e0623769507ea32e40
   id: researcher-robbie
   kind: agent_profile
   path: agent_profiles/researcher-robbie.agent.yaml
   provenance_path:
-- content_hash: de4e2d2c641e773180e84ea3bc60beb937e66aadcef6012db392289a088275c4
+- content_hash: d6f039737ce343e1376b84cd00deaefdaaf10145c7169d491f2f426d608fcf42
   id: retrospective-facilitator
   kind: agent_profile
   path: agent_profiles/retrospective-facilitator.agent.yaml
   provenance_path:
-- content_hash: 6f0a40e7d0584f951e18e5f040043b05c84c20c1aa61313f99dd9eca7caa54bf
+- content_hash: 6ed595685f47c86596a7a7ed3c1dae26b0408193813c1104b78e54d59ac01c4e
   id: reviewer-renata
   kind: agent_profile
   path: agent_profiles/reviewer-renata.agent.yaml
   provenance_path:
-- content_hash: a7de3f3d8b49e5bd2d749469132221c0b5f14fb4d148f803e21bc107779eeed8
+- content_hash: 351cc3f66935bc681e347e89ead3d7bce80912a176311d6bd2ba0ca85da22d63
   id: scribe-sally
   kind: agent_profile
   path: agent_profiles/scribe-sally.agent.yaml
   provenance_path:
-- content_hash: 0bac561a014f11420b669d252b3996579a925421f625f345dbbbbd885e547264
+- content_hash: de4acb3c1542511c86da9ffd7b49c36c5d3e9e305fab2492f09e9a6a79b14388
   id: synthesizer-sam
   kind: agent_profile
   path: agent_profiles/synthesizer-sam.agent.yaml
@@ -195,7 +195,7 @@ constituents:
   kind: directive
   path: directives/029-agent-commit-signing-policy.directive.yaml
   provenance_path:
-- content_hash: c6cce4fdf132db0f2721a51619dcb05ba61bba580314b8b31551c31815de3bd8
+- content_hash: af685d1a468c60d017a2f42a974783bb9959e0476f7e74f65b7055714d148e95
   id: DIRECTIVE_030
   kind: directive
   path: directives/030-test-and-typecheck-quality-gate.directive.yaml
@@ -215,7 +215,7 @@ constituents:
   kind: directive
   path: directives/033-targeted-staging-policy.directive.yaml
   provenance_path:
-- content_hash: 14a28077ad76d7bfd135c75f459983541b45692bf8cc9e48e3b9141a506fd5be
+- content_hash: 70c0aad5cd86231563973f3b2ec00f700b67421d8def49d3e7f4bee9bfd4a834
   id: DIRECTIVE_034
   kind: directive
   path: directives/034-test-first-development.directive.yaml
@@ -250,7 +250,7 @@ constituents:
   kind: directive
   path: directives/040-recurring-bug-structural-intervention.directive.yaml
   provenance_path:
-- content_hash: 692d87864ca8d584a4f4941bccdc72e6a1c9c68a0e50f76c8879e7218934b866
+- content_hash: 423e1acb5541c3a59069c8c26e0b8121322d2357728b58adcb55987b1e8b8517
   id: DIRECTIVE_041
   kind: directive
   path: directives/041-tests-as-scaffold-not-friction.directive.yaml
@@ -1340,7 +1340,7 @@ constituents:
 fetched_at:
 generated_at:
 generated_by: spec-kitty doctrine regenerate-graph
-manifest_hash: 6426a833167ce3990842f5bed985a520e96229e1f81dac5d74e216640e6e57fd
+manifest_hash: b86c090e0f5b42cbfb086591a2d675decd1706a4e0910f961565695e92094f86
 schema_version: '1'
 source_type: built-in
 source_url:

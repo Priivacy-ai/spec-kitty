@@ -62,19 +62,6 @@ def _reject_retired_profile_relationship_fields(data: Any) -> Any:
 # ---------------------------------------------------------------------------
 
 
-class AgentContextSources(BaseModel):
-    """Doctrine context sources this agent loads."""
-
-    model_config = ConfigDict(frozen=True, extra="forbid", populate_by_name=True)
-
-    doctrine_layers: list[str] = Field(default_factory=list, alias="doctrine-layers")
-    directives: list[str] = Field(default_factory=list)
-    tactics: list[str] = Field(default_factory=list)
-    toolguides: list[str] = Field(default_factory=list)
-    styleguides: list[str] = Field(default_factory=list)
-    additional: list[str] = Field(default_factory=list)
-
-
 class AgentSpecialization(BaseModel):
     """Agent specialization definition."""
 
@@ -230,10 +217,7 @@ class AgentProfileSchema(BaseModel):
     preferred_model: str | None = Field(default=None, alias="model")
     effort: str | None = Field(default=None, alias="effort")
 
-    # Section 1: Context sources
-    context_sources: AgentContextSources | None = Field(default=None, alias="context-sources")
-
-    # Section 2: Specialization
+    # Specialization
     specialization: AgentSpecialization
 
     # Section 3: Collaboration contract

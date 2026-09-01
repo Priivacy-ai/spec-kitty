@@ -942,7 +942,18 @@ def test_malformed_org_pack_drg_degrades_with_warning_instead_of_crashing(
     # no-org-pack baseline (test_three_delegated_steps_...).
     assert [step.step_id for step in result.steps] == ["alpha", "beta", "gamma"]
 
-    warnings = [record for record in caplog.records if record.levelno == logging.WARNING]
+    # Scope the count to the EXECUTOR logger: this test pins the executor's
+    # root-graph pre-probe degrade WARNING. Since mission
+    # ``doctrine-drg-silent-drop-boundary`` the fragment layer (``charter.drg``)
+    # ALSO warns per-pack for this pack's malformed fragment -- an orthogonal,
+    # honest signal on a different logger that this assertion deliberately
+    # ignores.
+    warnings = [
+        record
+        for record in caplog.records
+        if record.levelno == logging.WARNING
+        and record.name == "specify_cli.mission_step_contracts.executor"
+    ]
     assert len(warnings) == 1, [record.getMessage() for record in caplog.records]
     message = warnings[0].getMessage()
     assert str(org_root) in message
@@ -1225,7 +1236,18 @@ def test_chain_per_root_degrade_pack_a_survives_malformed_pack_b(
     assert [d.urn for d in result.steps[0].resolved_delegations] == [ORG_FIXTURE_DIRECTIVE_URN]
     assert result.steps[0].unresolved_candidates == ()
 
-    warnings = [record for record in caplog.records if record.levelno == logging.WARNING]
+    # Scope the count to the EXECUTOR logger: this test pins the executor's
+    # per-root degrade WARNING (#3525 Fold B). Since mission
+    # ``doctrine-drg-silent-drop-boundary`` the fragment layer (``charter.drg``)
+    # ALSO warns per-pack for pack B's malformed fragment -- an orthogonal,
+    # honest signal on a different logger that this assertion deliberately
+    # ignores.
+    warnings = [
+        record
+        for record in caplog.records
+        if record.levelno == logging.WARNING
+        and record.name == "specify_cli.mission_step_contracts.executor"
+    ]
     assert len(warnings) == 1, [record.getMessage() for record in caplog.records]
     message = warnings[0].getMessage()
     assert str(org_root_b) in message

@@ -330,29 +330,28 @@ class TestNoOrgPackRegression:
 
 
 class TestGraphlessPackInChainDegradesPerRoot:
-    """A chain pack that ships **no root-level ``*.graph.yaml``** contributes
-    no charter-DRG layer, so ``load_validated_graph`` skips just that root
-    (``has_graph_files`` is ``False``) and every other, healthy pack in the
-    chain still resolves -- per-root degrade, not whole-bundle collapse.
+    """A chain pack that ships **neither a root-level ``*.graph.yaml`` nor a
+    ``drg/fragment.yaml``** contributes no charter-DRG layer, so
+    ``load_validated_graph`` skips just that root (``has_graph_files`` is
+    ``False``) and ``load_org_drg(strict=False)`` skips it too -- every other,
+    healthy pack in the chain still resolves. Per-root degrade, not
+    whole-bundle collapse.
 
     This is the durable per-root behaviour the superseded #3401 was going to
     supply (its guide-shape ``drg/*.graph.yaml`` mechanism was superseded by
     #3387; only this graphless-root runtime sliver survives). It is folded
-    into ``_drg_helpers.load_validated_graph`` during this PR's landing.
-    Before the guard, this call site's single ``except DRGLoadError`` wrapper
-    collapsed the WHOLE bundle whenever any one root was graphless, taking a
-    structurally-fine sibling pack down with it.
+    into ``_drg_helpers.load_validated_graph``. Before the guard, this call
+    site's single ``except DRGLoadError`` wrapper collapsed the WHOLE bundle
+    whenever any one root was graphless, taking a structurally-fine sibling
+    pack down with it.
 
-    The graphless root's own ``drg/fragment.yaml`` (the #3387 ``OrgDRGFragment``
-    shape) is invisible to this runtime cascade path by design -- it is read
-    only by the separate diagnostic merge path (surfaced in ``doctor doctrine``
-    / ``charter list``). Note this gap is NOT covered by the
-    ``drg_root_graph_missing`` validator finding, which globs the different
-    ``drg/*.graph.yaml`` shape, not ``fragment.yaml``. So skipping the root
-    here is a deliberate degrade (with a per-root WARNING from
-    ``load_validated_graph``), not a swallowed error -- see
-    ``TestGraphlessPackWithFragmentEdgeIsInvisibleToCascade`` in
-    ``test_org_cascade_chain.py`` for the pinned edge-carrying case.
+    Note (#3530/#3693): a pack's ``drg/fragment.yaml`` is **no longer invisible
+    to this runtime path** -- the action-doctrine-bundle seam now threads
+    ``load_org_drg(repo_root, strict=False)``, so a *present* fragment is read
+    and (when malformed) fails loud. That fragment-is-read behaviour is pinned
+    by ``test_action_doctrine_bundle_org_fragment.py`` and
+    ``test_org_pack_chain_delivery.py``; this test deliberately ships *no*
+    fragment so it isolates the pure graphless-root per-root-degrade case.
     """
 
     def test_graphless_second_pack_skipped_healthy_pack_survives(
@@ -364,15 +363,12 @@ class TestGraphlessPackInChainDegradesPerRoot:
         org_root_a = tmp_path / "org-pack-a"
         _write_org_pack(org_root_a, directive_id=_PACK_A_ID, directive_urn=_PACK_A_URN)
 
-        # Graphless: directory exists on disk but ships no root-level
-        # ``*.graph.yaml``. Its ``drg/fragment.yaml`` is the #3387
-        # ``OrgDRGFragment`` shape, which this runtime cascade path does not
-        # read (has_graph_files(org_root_b) is False -> the root is skipped).
+        # Graphless: the directory exists on disk but ships neither a
+        # root-level ``*.graph.yaml`` (has_graph_files is False -> the graph
+        # loader skips it) nor a ``drg/fragment.yaml`` (load_org_drg(strict=
+        # False) skips it too). The pack therefore contributes nothing.
         org_root_b = tmp_path / "graphless-org-pack-b"
-        (org_root_b / "drg").mkdir(parents=True)
-        (org_root_b / "drg" / "fragment.yaml").write_text(
-            "kind: directives\n", encoding="utf-8"
-        )
+        org_root_b.mkdir(parents=True)
         _write_config(repo_root, [org_root_a, org_root_b])
 
         # Must not raise, and must not collapse the whole bundle.

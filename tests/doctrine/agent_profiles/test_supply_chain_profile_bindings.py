@@ -152,10 +152,21 @@ class TestReviewerRenataCarriesAdversarialEvidenceVocabulary:
             "directive-references"
         )
 
-    def test_adversarial_evidence_disposition_context_source_present(
+    def test_adversarial_evidence_disposition_binding_present(
         self, profile: AgentProfile
     ) -> None:
-        assert "adversarial-evidence-disposition" in profile.context_sources.additional, (
-            "reviewer-renata: expected 'adversarial-evidence-disposition' in "
-            f"context-sources.additional, got {profile.context_sources.additional}"
+        """The adversarial-evidence-disposition binding is re-homed onto a
+        canonical reference rationale.
+
+        Mission doctrine-drg-silent-drop-boundary-01M0PE7E retired the
+        ``context-sources.additional`` surface where this binding used to live.
+        It is NOT silently dropped: the ``supply-chain-install-safety``
+        tactic-reference rationale already names the adversarial-evidence
+        disposition contract explicitly, which this test now pins.
+        """
+        rationales = "\n".join(ref.rationale for ref in profile.tactic_references).lower()
+        assert "adversarial-evidence-contract" in rationales, (
+            "reviewer-renata: expected the adversarial-evidence disposition "
+            "binding to survive on a tactic-reference rationale after the "
+            "context-sources consolidation"
         )
