@@ -9,7 +9,6 @@ It replaces the fragmented approach where only .codex/ was protected.
 import contextlib
 import errno
 import os
-import stat
 import subprocess
 import tempfile
 from dataclasses import dataclass, field
