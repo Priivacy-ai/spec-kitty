@@ -291,3 +291,55 @@ class TestMissionTerminalVerdict:
             verdict = mission_terminal_verdict(tmp_path, _SLUG)
 
         assert verdict == "terminal"
+
+
+class TestCommittedWpLane:
+    """``committed_wp_lane`` (D10/IC-04) — the board's per-WP lane source.
+
+    Gated on the committed ``mission_number`` exactly like
+    ``mission_terminal_verdict``: PRIMARY is authoritative only once merged.
+    """
+
+    @pytest.mark.regression
+    def test_none_when_not_merged_even_with_primary_decoy_log(self, tmp_path: Path) -> None:
+        """#2947 coord regression: an in-flight mission (``mission_number`` absent)
+        whose PRIMARY surface carries a decoy event log must yield ``None`` — the
+        ``mission_number`` gate short-circuits BEFORE the decoy is read — so the
+        board falls back to its coordination-aware read (the real COORD lane)
+        instead of misreporting the stale PRIMARY decoy.
+
+        RED before the gate: ``has_event_log`` alone was true for the decoy, so
+        ``committed_wp_lane`` returned the decoy lane (``blocked``) and clobbered
+        a genuine COORD ``in_progress``.
+        """
+        from runtime.next.committed_authority import committed_wp_lane
+
+        primary = tmp_path / "kitty-specs" / _SLUG
+        _write_meta(primary, mission_number=None)  # in-flight, not merged
+        _seed(primary, "WP01", from_lane=Lane.IN_PROGRESS, to_lane=Lane.BLOCKED)  # decoy
+
+        with patch(
+            "runtime.next.runtime_bridge_identity._primary_runtime_feature_dir",
+            return_value=primary,
+        ):
+            lane = committed_wp_lane(tmp_path, _SLUG, "WP01")
+
+        assert lane is None
+
+    def test_returns_committed_lane_when_merged(self, tmp_path: Path) -> None:
+        """A merged mission (``mission_number`` assigned) reads the PRIMARY
+        committed lane — the #2947 board fix for a stale-coord-worktree merged
+        mission."""
+        from runtime.next.committed_authority import committed_wp_lane
+
+        primary = tmp_path / "kitty-specs" / _SLUG
+        _write_meta(primary, mission_number=7)
+        _seed(primary, "WP01", from_lane=Lane.APPROVED, to_lane=Lane.DONE)
+
+        with patch(
+            "runtime.next.runtime_bridge_identity._primary_runtime_feature_dir",
+            return_value=primary,
+        ):
+            lane = committed_wp_lane(tmp_path, _SLUG, "WP01")
+
+        assert lane == Lane.DONE
