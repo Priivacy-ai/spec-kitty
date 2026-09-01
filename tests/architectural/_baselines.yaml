@@ -153,7 +153,7 @@ test_no_dead_modules:
   # dossier.drift_detector, migration.envelope_seam) were each adjudicated
   # PRUNE and deleted outright -- none had a viable low-risk wiring target
   # after the sync transport's removal (issue #5). TODO(triage) notes burned.
-  category_7_grandfathered_orphans: 8  # justification: M2b (#806) leaves six activation-adjacent orphan modules; wire-or-prune follow-up is #925.
+  category_7_grandfathered_orphans: 5  # justification: 8->5 after the latest main merge wired discovery_recursion, org_governance, and project_scan; the remaining orphan disposition is tracked by #925.
 
 # tests/architectural/test_migration_chain_integrity.py
 test_migration_chain_integrity:
