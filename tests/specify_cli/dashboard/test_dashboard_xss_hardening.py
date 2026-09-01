@@ -15,7 +15,7 @@ def test_overview_panel_avoids_innerhtml_sink() -> None:
     content = DASHBOARD_JS.read_text()
     assert "document.getElementById('overview-content').innerHTML" not in content
     assert "overviewContent.innerHTML" not in content
-    assert "overviewContent.replaceChildren(header, statusSummary, artifactsHeading, artifactsGrid);" in content
+    assert "overviewContent.replaceChildren(...overviewChildren);" in content
 
 
 def test_feature_selector_builds_options_with_dom_nodes() -> None:

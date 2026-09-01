@@ -416,6 +416,21 @@ function loadOverview() {
     progressBar.appendChild(progressFill);
     completedCard.appendChild(progressBar);
 
+    const nextAction = feature.next_action;
+    const nextActionEl = nextAction ? (() => {
+        const el = document.createElement('div');
+        el.className = 'next-action-callout';
+        const icon = document.createElement('span');
+        icon.className = 'next-action-icon';
+        icon.textContent = '▶';
+        const label = document.createElement('strong');
+        label.textContent = 'Next step:';
+        const command = document.createElement('code');
+        command.textContent = nextAction;
+        el.append(icon, document.createTextNode(' '), label, document.createTextNode(' '), command);
+        return el;
+    })() : null;
+
     const artifactsHeading = document.createElement('h3');
     artifactsHeading.style.marginTop = '30px';
     artifactsHeading.style.marginBottom = '15px';
@@ -436,7 +451,10 @@ function loadOverview() {
         artifactsGrid.appendChild(item);
     });
 
-    overviewContent.replaceChildren(header, statusSummary, artifactsHeading, artifactsGrid);
+    const overviewChildren = [header, statusSummary];
+    if (nextActionEl) overviewChildren.push(nextActionEl);
+    overviewChildren.push(artifactsHeading, artifactsGrid);
+    overviewContent.replaceChildren(...overviewChildren);
 }
 
 function loadKanban() {
@@ -1353,11 +1371,16 @@ function updateFeatureListSilent(features) {
     }
     updateSidebarState();
 
-    // Detect artifact changes and reload overview if artifacts changed
+    // Refresh every value rendered by the overview. Lifecycle markers can
+    // change without changing artifacts (for example merge or acceptance).
     if (currentPage === 'overview' && oldFeature && feature) {
-        const oldArtifacts = JSON.stringify(oldFeature.artifacts);
-        const newArtifacts = JSON.stringify(feature.artifacts);
-        if (oldArtifacts !== newArtifacts) {
+        const overviewState = item => JSON.stringify({
+            artifacts: item.artifacts,
+            next_action: item.next_action,
+            mission_status: item.mission_status,
+            kanban_stats: item.kanban_stats,
+        });
+        if (overviewState(oldFeature) !== overviewState(feature)) {
             loadOverview();
         }
     }
