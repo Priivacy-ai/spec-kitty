@@ -106,7 +106,6 @@ from specify_cli.status import (
     read_event_stream,
     reduce,
 )
-from specify_cli.event_journal.journal import ProjectLayoutRequiredError
 from specify_cli.workspace import canonicalize_feature_dir
 
 from .mission_state import deterministic_ulid

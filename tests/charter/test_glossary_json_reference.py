@@ -31,7 +31,7 @@ from pathlib import Path
 
 import pytest
 
-from charter import progressive_disclosure as pd
+from charter.activation import progressive_disclosure as pd
 from charter.activation.context import build_charter_context_json
 from charter.activation.context_contract import (
     CONTEXT_CONTRACT_TOP_LEVEL_KEYS,

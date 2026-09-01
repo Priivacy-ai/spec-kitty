@@ -40,7 +40,7 @@ from typing import Annotated, Literal, cast
 from specify_cli.cli.console import console
 import typer
 
-from charter import resolve_mission_type_context
+from charter.activation.mission_type_profiles import resolve_mission_type_context
 from charter.resolution import ResolutionResult
 from mission_runtime import MissionArtifactKind, placement_seam
 from specify_cli.core.checkout_identity import Intent, resolve_checkout_identity

@@ -21,7 +21,7 @@ from pathlib import Path
 import pytest
 from ruamel.yaml import YAML
 
-from charter import kind_vocabulary
+from charter.activation import kind_vocabulary
 from charter.activation.kind_vocabulary import _iter_artifact_paths
 from charter.offering.artifact_kinds import ArtifactKind
 from charter.offering.discovery_recursion import overlay_scan_is_recursive
