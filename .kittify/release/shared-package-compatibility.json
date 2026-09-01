@@ -6,9 +6,9 @@
       "package": "spec-kitty-events",
       "source_repo": "Priivacy-ai/spec-kitty-events",
       "cli_range": ">=9,<10",
-      "locked_version": "9.1.4",
+      "locked_version": "9.1.6",
       "contract_surface": "volatile mission/WP families + zeitgeist attrs codecs; sync/legacy/cutover deleted",
-      "resolution_note": "The CLI consumes the public PyPI release train with a bounded range; 9.1.4 is the release-authority lock target."
+      "resolution_note": "The CLI consumes the public PyPI release train with a bounded range; 9.1.6 is the release-authority lock target."
     },
     {
       "package": "spec-kitty-tracker",
