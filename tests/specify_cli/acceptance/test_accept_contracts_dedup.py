@@ -204,9 +204,7 @@ def test_optional_artifacts_missing_prints_at_most_once(monkeypatch: pytest.Monk
 # ---------------------------------------------------------------------------
 
 
-def test_lenient_mode_returns_no_dedup_tokens(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
+def test_lenient_mode_returns_no_dedup_tokens(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """FR-008 guard: dedup tokens are emitted only in strict mode.
 
     The advisory branch must not ask the caller to suppress the optional
@@ -271,9 +269,7 @@ def _patch_path_result(monkeypatch: pytest.MonkeyPatch, missing_artifact_tokens:
     )
 
 
-def test_membership_filter_di_genuine_collision_outcome(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
+def test_membership_filter_di_genuine_collision_outcome(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """(d-i): outcome check for a genuine collision -- NOT a filter-presence guard.
 
     The returned token set contains only the genuine artifact token; the
@@ -293,9 +289,7 @@ def test_membership_filter_di_genuine_collision_outcome(
     assert dedup_tokens == frozenset({"contracts"})
 
 
-def test_membership_filter_dii_filter_presence_regression_guard(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
+def test_membership_filter_dii_filter_presence_regression_guard(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """(d-ii): the actual filter-presence regression guard (TASKS-FRESH-003).
 
     ``"contracts"`` is a genuine artifact_tokens member (SHOULD be removed);
@@ -318,9 +312,7 @@ def test_membership_filter_dii_filter_presence_regression_guard(
     assert dedup_tokens == frozenset({"contracts"})
 
 
-def test_membership_filter_diii_full_token_vs_basename_guard(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
+def test_membership_filter_diii_full_token_vs_basename_guard(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """(d-iii): full-token (not basename) comparison guard (TASKS-FRESH3-001).
 
     ``"docs/contracts"`` and ``"api/contracts"`` share a final path segment

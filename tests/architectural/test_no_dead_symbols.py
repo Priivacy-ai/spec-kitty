@@ -1052,8 +1052,8 @@ _CATEGORY_C_WP_IN_FLIGHT_CHARTER_ACTIVATION: frozenset[SymbolKey] = frozenset(
 _CATEGORY_C_ORG_DOCTRINE_CLOSEOUT: frozenset[SymbolKey] = frozenset(
     {
         SymbolKey(
-	            "ActivationPlan", "49697a5e9d4ea41ac9531c0b4bb6605a8aa71bf116e0dfbf1af2eee33a935a53", source_module="charter.activation.activation_engine"
-	        ),  # charter.activation.activation_engine::ActivationPlan
+            "ActivationPlan", "49697a5e9d4ea41ac9531c0b4bb6605a8aa71bf116e0dfbf1af2eee33a935a53", source_module="charter.activation.activation_engine"
+        ),  # charter.activation.activation_engine::ActivationPlan
         # Re-pinned 2026-08-24 (#3705): WP04 added the ``not_cascaded_kind_filtered``
         # field to this dataclass so ``charter deactivate --cascade`` can report the
         # kind-filtered nodes it previously dropped in silence (C-002 symmetry). The
@@ -1064,8 +1064,8 @@ _CATEGORY_C_ORG_DOCTRINE_CLOSEOUT: frozenset[SymbolKey] = frozenset(
         # of ``deactivation_plan()``, consumed by the CLI layer and tests).
         # Prior hash: 527c491b7df6c1369bc3f4c7491626817a5a3a2ede574ffe4527168fde17bf43
         SymbolKey(
-	            "DeactivationPlan", "ea81133908c5385ae013a8057ac7f863386247ba90b64e212b54be895d7e1615", source_module="charter.activation.cascade"
-	        ),  # charter.activation.cascade::DeactivationPlan
+            "DeactivationPlan", "ea81133908c5385ae013a8057ac7f863386247ba90b64e212b54be895d7e1615", source_module="charter.activation.cascade"
+        ),  # charter.activation.cascade::DeactivationPlan
         SymbolKey(
             "REFERENCE_RELATIONS", "923c7531fa07a59396d69e256ee38a05448b62f4d75cde08c9fbaa932376a8ca", source_module="charter.activation.cascade"
         ),  # charter.activation.cascade::REFERENCE_RELATIONS

@@ -148,12 +148,8 @@ def test_assertion1_reported_path_is_the_resolved_location_not_the_bare_token(
     result = validate_mission_paths(mission, repo_root, feature_dir=feature_dir)
 
     expected_resolved = f"kitty-specs/{slug}/contracts/"
-    assert result.missing_paths == [expected_resolved], (
-        f"expected exactly the resolved location {expected_resolved!r}, got {result.missing_paths!r}"
-    )
-    assert "contracts/" not in result.missing_paths, (
-        "the bare declared token must not be reported in place of the resolved location"
-    )
+    assert result.missing_paths == [expected_resolved], f"expected exactly the resolved location {expected_resolved!r}, got {result.missing_paths!r}"
+    assert "contracts/" not in result.missing_paths, "the bare declared token must not be reported in place of the resolved location"
 
 
 # ---------------------------------------------------------------------------
@@ -189,9 +185,7 @@ def test_assertion2_contracts_surfaces_through_exactly_one_channel(
         f"path_violations={summary.path_violations!r}"
     )
     assert in_violations, "the blocking path_violations side must be the one that wins (C-001)"
-    assert summary.ok is False, (
-        "the reconciliation must not flip the pass/fail boundary (C-001) -- .ok must stay False"
-    )
+    assert summary.ok is False, "the reconciliation must not flip the pass/fail boundary (C-001) -- .ok must stay False"
 
 
 # ---------------------------------------------------------------------------
@@ -201,9 +195,7 @@ def test_assertion2_contracts_surfaces_through_exactly_one_channel(
 # ---------------------------------------------------------------------------
 
 
-def test_assertion3_json_payload_reports_contracts_through_exactly_one_key(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
+def test_assertion3_json_payload_reports_contracts_through_exactly_one_key(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """FR-002 Edge Case / Scenario 4 of User Story 2, via the real ``accept``
     CLI's ``--json`` output.
 

@@ -64,9 +64,7 @@ def custom_mission_repo(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None
     missions_root = tmp_path / "missions-root"
     custom_dir = missions_root / _CUSTOM_MISSION_TYPE
     custom_dir.mkdir(parents=True)
-    (custom_dir / "expected-artifacts.yaml").write_text(
-        _CUSTOM_EXPECTED_ARTIFACTS_YAML, encoding="utf-8"
-    )
+    (custom_dir / "expected-artifacts.yaml").write_text(_CUSTOM_EXPECTED_ARTIFACTS_YAML, encoding="utf-8")
 
     monkeypatch.setattr(
         MissionTemplateRepository,
@@ -98,9 +96,7 @@ optional_always: []
 
 
 @pytest.fixture
-def qa_family_manifest_with_no_blocking_artifacts_at_step(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
+def qa_family_manifest_with_no_blocking_artifacts_at_step(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """A family with a manifest present (built-in-tier-shaped, per this
     story's own Independent Test framing) whose ``required_by_step`` has no
     entry for ``_QA_STEP_ID`` -- so ``blocking_artifact_names`` resolves to
@@ -121,35 +117,25 @@ class TestCustomFamilyPresenceGateFailsClosedBothDirections:
     """AC-10: ``gather_artifact_presence`` -- the named entry point -- gates
     a custom family on its own filename, both directions."""
 
-    def test_present_filename_is_detected(
-        self, tmp_path: Path, custom_mission_repo: None
-    ) -> None:
+    def test_present_filename_is_detected(self, tmp_path: Path, custom_mission_repo: None) -> None:
         feature_dir = tmp_path / "feature"
         feature_dir.mkdir()
         (feature_dir / _CUSTOM_FILENAME).write_text("# custom\n", encoding="utf-8")
 
-        snapshot = gather_artifact_presence(
-            feature_dir, mission_family=_CUSTOM_MISSION_TYPE, step_id=_CUSTOM_STEP_ID
-        )
+        snapshot = gather_artifact_presence(feature_dir, mission_family=_CUSTOM_MISSION_TYPE, step_id=_CUSTOM_STEP_ID)
 
         assert _CUSTOM_FILENAME in snapshot.present_artifacts
 
-    def test_absent_filename_is_not_detected(
-        self, tmp_path: Path, custom_mission_repo: None
-    ) -> None:
+    def test_absent_filename_is_not_detected(self, tmp_path: Path, custom_mission_repo: None) -> None:
         feature_dir = tmp_path / "feature"
         feature_dir.mkdir()
         # _CUSTOM_FILENAME deliberately NOT created.
 
-        snapshot = gather_artifact_presence(
-            feature_dir, mission_family=_CUSTOM_MISSION_TYPE, step_id=_CUSTOM_STEP_ID
-        )
+        snapshot = gather_artifact_presence(feature_dir, mission_family=_CUSTOM_MISSION_TYPE, step_id=_CUSTOM_STEP_ID)
 
         assert _CUSTOM_FILENAME not in snapshot.present_artifacts
 
-    def test_unrelated_builtin_filename_never_leaks_into_custom_family(
-        self, tmp_path: Path, custom_mission_repo: None
-    ) -> None:
+    def test_unrelated_builtin_filename_never_leaks_into_custom_family(self, tmp_path: Path, custom_mission_repo: None) -> None:
         """A custom family's presence set is genuinely per-type -- a
         built-in filename that happens to also exist on disk (e.g.
         ``spec.md``) is not spuriously reported present for a custom
@@ -158,9 +144,7 @@ class TestCustomFamilyPresenceGateFailsClosedBothDirections:
         feature_dir.mkdir()
         (feature_dir / "spec.md").write_text("# spec\n", encoding="utf-8")
 
-        snapshot = gather_artifact_presence(
-            feature_dir, mission_family=_CUSTOM_MISSION_TYPE, step_id=_CUSTOM_STEP_ID
-        )
+        snapshot = gather_artifact_presence(feature_dir, mission_family=_CUSTOM_MISSION_TYPE, step_id=_CUSTOM_STEP_ID)
 
         assert snapshot.present_artifacts == frozenset()
 
@@ -174,16 +158,12 @@ class TestCustomFamilyPresenceGateFailsClosedBothDirections:
         feature_dir = tmp_path / "feature-qa"
         feature_dir.mkdir()
 
-        snapshot = gather_artifact_presence(
-            feature_dir, mission_family=_QA_MISSION_TYPE, step_id=_QA_STEP_ID
-        )
+        snapshot = gather_artifact_presence(feature_dir, mission_family=_QA_MISSION_TYPE, step_id=_QA_STEP_ID)
 
         assert snapshot.blocking_artifact_names == frozenset()
         assert evaluate_guards_strict(snapshot) == []
 
-    def test_no_manifest_at_any_tier_still_raises_despite_same_empty_required_artifacts(
-        self, tmp_path: Path
-    ) -> None:
+    def test_no_manifest_at_any_tier_still_raises_despite_same_empty_required_artifacts(self, tmp_path: Path) -> None:
         """AC-9 family (b): a genuinely typeless family with NO manifest at
         any tier (``blocking_artifact_names is None``) still raises --
         distinguishing it from family (a) above even though both would
@@ -192,9 +172,7 @@ class TestCustomFamilyPresenceGateFailsClosedBothDirections:
         feature_dir = tmp_path / "feature-typeless"
         feature_dir.mkdir()
 
-        snapshot = gather_artifact_presence(
-            feature_dir, mission_family="totally-unregistered-family", step_id="whatever"
-        )
+        snapshot = gather_artifact_presence(feature_dir, mission_family="totally-unregistered-family", step_id="whatever")
 
         assert snapshot.blocking_artifact_names is None
         with pytest.raises(UnregisteredMissionFamilyError):
@@ -214,9 +192,7 @@ def test_unregistered_family_guard_dispatch_strict_raise_is_retained(
     feature_dir = tmp_path / "feature"
     feature_dir.mkdir()
 
-    snapshot = gather_artifact_presence(
-        feature_dir, mission_family="totally-unregistered-family", step_id="whatever"
-    )
+    snapshot = gather_artifact_presence(feature_dir, mission_family="totally-unregistered-family", step_id="whatever")
 
     with pytest.raises(UnregisteredMissionFamilyError):
         evaluate_guards_strict(snapshot)
@@ -260,9 +236,7 @@ def org_presence_family_repo(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) ->
     missions_root = tmp_path / "missions-root-org-presence"
     family_dir = missions_root / _ORG_PRESENCE_FAMILY
     family_dir.mkdir(parents=True)
-    (family_dir / "expected-artifacts.yaml").write_text(
-        _ORG_PRESENCE_BUILTIN_YAML, encoding="utf-8"
-    )
+    (family_dir / "expected-artifacts.yaml").write_text(_ORG_PRESENCE_BUILTIN_YAML, encoding="utf-8")
 
     monkeypatch.setattr(
         MissionTemplateRepository,
@@ -317,9 +291,7 @@ class TestGatherArtifactPresenceOrgTier:
     """AC-4/AC-5/AC-6: org file wins whole-file; only ``blocking: true``
     absences surface in ``blocking_artifact_names``."""
 
-    def test_org_manifest_wins_whole_file_over_built_in_control(
-        self, tmp_path: Path, org_presence_family_repo: None
-    ) -> None:
+    def test_org_manifest_wins_whole_file_over_built_in_control(self, tmp_path: Path, org_presence_family_repo: None) -> None:
         project_root = tmp_path / "project"
         project_root.mkdir()
         org_root = tmp_path / "org-pack"
@@ -339,9 +311,7 @@ class TestGatherArtifactPresenceOrgTier:
         # must NOT leak into the org-resolved blocking set.
         assert snapshot.blocking_artifact_names == frozenset({"org-one-required.md"})
 
-    def test_blocking_false_absence_never_surfaces_at_any_declared_step(
-        self, tmp_path: Path, org_presence_family_repo: None
-    ) -> None:
+    def test_blocking_false_absence_never_surfaces_at_any_declared_step(self, tmp_path: Path, org_presence_family_repo: None) -> None:
         """AC-5: a ``blocking: false`` entry's absence never produces a
         guard failure, at every step it's declared for."""
         project_root = tmp_path / "project"
@@ -368,9 +338,7 @@ class TestGatherArtifactPresenceOrgTier:
         assert "org-one-optional.md" not in snapshot_step_one.blocking_artifact_names
         assert snapshot_step_two.blocking_artifact_names == frozenset({"org-two-required.md"})
 
-    def test_repo_root_with_no_org_pack_falls_through_to_built_in_control_unchanged(
-        self, tmp_path: Path, org_presence_family_repo: None
-    ) -> None:
+    def test_repo_root_with_no_org_pack_falls_through_to_built_in_control_unchanged(self, tmp_path: Path, org_presence_family_repo: None) -> None:
         """TASKS-VERIFY-003 fix: ``repo_root`` supplied but no org pack
         resolves for it -- the org-tier consult's "no match" path must fall
         through cleanly to the built-in-tier manifest, distinct from the
@@ -392,11 +360,7 @@ class TestGatherArtifactPresenceOrgTier:
             step_id=_ORG_STEP_ONE,
         )
 
-        assert (
-            with_repo_root.blocking_artifact_names
-            == without_repo_root.blocking_artifact_names
-            == frozenset({"builtin-one.md"})
-        )
+        assert with_repo_root.blocking_artifact_names == without_repo_root.blocking_artifact_names == frozenset({"builtin-one.md"})
 
 
 # ---------------------------------------------------------------------------
@@ -442,9 +406,7 @@ def broken_schema_builtin_repo(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) 
     missions_root = tmp_path / "missions-root-broken-schema"
     broken_dir = missions_root / _BROKEN_SCHEMA_MISSION_TYPE
     broken_dir.mkdir(parents=True)
-    (broken_dir / "expected-artifacts.yaml").write_text(
-        _BROKEN_SCHEMA_BUILTIN_YAML, encoding="utf-8"
-    )
+    (broken_dir / "expected-artifacts.yaml").write_text(_BROKEN_SCHEMA_BUILTIN_YAML, encoding="utf-8")
     monkeypatch.setattr(
         MissionTemplateRepository,
         "default",
@@ -459,9 +421,7 @@ class TestGatherArtifactPresenceRaisesManifestSchemaErrorAtBothTiers:
     ``gather_artifact_presence``, at both the built-in and org tiers.
     """
 
-    def test_built_in_tier_schema_invalid_manifest_raises_via_gather_artifact_presence(
-        self, tmp_path: Path, broken_schema_builtin_repo: None
-    ) -> None:
+    def test_built_in_tier_schema_invalid_manifest_raises_via_gather_artifact_presence(self, tmp_path: Path, broken_schema_builtin_repo: None) -> None:
         from specify_cli.dossier.manifest import ManifestSchemaError
 
         feature_dir = tmp_path / "feature"
@@ -479,9 +439,7 @@ class TestGatherArtifactPresenceRaisesManifestSchemaErrorAtBothTiers:
         # Built-in branch: `config.origin` is a real, reachable attribute.
         assert _BROKEN_SCHEMA_MISSION_TYPE in exc.origin
 
-    def test_org_tier_schema_invalid_manifest_raises_via_gather_artifact_presence(
-        self, tmp_path: Path
-    ) -> None:
+    def test_org_tier_schema_invalid_manifest_raises_via_gather_artifact_presence(self, tmp_path: Path) -> None:
         from specify_cli.dossier.manifest import ManifestSchemaError
 
         project_root = tmp_path / "project-broken-org-schema"

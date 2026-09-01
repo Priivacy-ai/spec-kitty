@@ -22,7 +22,6 @@ from ruamel.yaml import YAML
 
 from charter.activation.action_grain import scan_builtin_cross_grain_duplicates
 from charter.activation.mission_type_profiles import (
-    existing_mission_types,
     MissionTypeEmptyActionSequenceError,
     MissionTypeProfile,
     UnknownMissionTypeError,

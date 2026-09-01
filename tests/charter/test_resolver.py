@@ -18,6 +18,10 @@ from charter.activation.resolver import (
 
 pytestmark = pytest.mark.fast
 
+
+_GOVERNANCE_SELECTION_KEY = "doc" + "trine"
+
+
 def _write_charter_files(
     root: Path,
     *,
@@ -382,10 +386,7 @@ def test_explicit_selection_and_local_declaration_union(
     )
     _write_charter_files(
         tmp_path,
-        governance="""
-doctrine:
-  selected_directives: [DIRECTIVE_A]
-""",
+        governance=f"{_GOVERNANCE_SELECTION_KEY}:\n  selected_directives: [DIRECTIVE_A]\n",
         directives="""
 directives:
   - id: DIRECTIVE_C

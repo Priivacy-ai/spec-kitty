@@ -41,7 +41,7 @@ from charter.resolution import ResolutionResult, ResolutionTier
 from specify_cli.core.paths import assert_safe_path_segment
 
 if TYPE_CHECKING:
-    from charter.offering.missions import ExpectedArtifactManifest
+    from charter.missions import ExpectedArtifactManifest
 
 __all__ = [
     "ResolutionResult",
@@ -556,7 +556,7 @@ def _load_expected_artifact_manifest(
     """
     from pydantic import ValidationError  # noqa: PLC0415
 
-    from charter.offering.missions import (  # noqa: PLC0415
+    from charter.missions import (  # noqa: PLC0415
         ExpectedArtifactManifest,
         MissionTemplateRepository,
     )
@@ -593,9 +593,9 @@ def _resolve_existing_org_roots_for_manifest(repo_root: Path | None) -> list[Pat
     """Return existing configured org doctrine roots for *repo_root*, or ``[]``."""
     if repo_root is None:
         return []
-    from charter.drg import resolve_org_dirs  # noqa: PLC0415
+    from charter.drg import resolve_existing_org_roots  # noqa: PLC0415
 
-    return resolve_org_dirs(repo_root, "missions")
+    return [root / "missions" for root in resolve_existing_org_roots(repo_root)]
 
 
 def resolve_configured_artifact_name(
@@ -642,7 +642,7 @@ def resolve_configured_artifact_name(
             reason="has no expected-artifacts manifest",
         )
 
-    from charter.offering.missions.step_projection import project_artifact_name_set  # noqa: PLC0415
+    from charter.missions import project_artifact_name_set  # noqa: PLC0415
 
     name_set = project_artifact_name_set(manifest) or {}
     mapped_filename = name_set.get(artifact_key)
