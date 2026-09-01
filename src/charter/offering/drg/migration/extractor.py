@@ -1289,7 +1289,7 @@ def extract_governance_profile_scope_edges(doctrine_root: Path) -> list[DRGEdge]
 
     Every ``selected_*`` entry is a **bare id** (a plain string, not a
     ``{type, id, when?, reason?}`` reference dict), so the target URN is built
-    directly via :func:`~doctrine.drg.migration.id_normalizer.artifact_to_urn`
+    directly via :func:`~charter.offering.drg.migration.id_normalizer.artifact_to_urn`
     rather than routed through :func:`_reference_edge_kwargs` (which expects a
     reference *dict* to pull optional ``when``/``reason`` metadata from --
     metadata a bare string never carries).

@@ -116,13 +116,13 @@ from charter.context_renderers.profile_sections import (
     render_profile_toolguides,
 )
 from charter.mission_type_profiles import MissionTypeProfile
-from doctrine.agent_profiles import AgentProfile
-from doctrine.drg.migration.extractor import (
+from charter.offering.agent_profiles import AgentProfile
+from charter.offering.drg.migration.extractor import (
     _GOVERNANCE_PROFILE_SCOPE_FIELDS,
     extract_artifact_edges,
 )
-from doctrine.drg.migration.id_normalizer import artifact_to_urn
-from doctrine.drg.models import DRGEdge, DRGGraph, DRGNode, NodeKind, Relation
+from charter.offering.drg.migration.id_normalizer import artifact_to_urn
+from charter.offering.drg.models import DRGEdge, DRGGraph, DRGNode, NodeKind, Relation
 
 pytestmark = pytest.mark.fast
 

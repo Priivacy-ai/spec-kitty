@@ -461,7 +461,7 @@ def _mission_type_yaml_steps_only(mission_type_id: str) -> str:
     WP01/NFR-001's steps-only fixture shape: the org/project mission-type
     YAML authors only ``schema_version``/``id``/``display_name``, so
     ``action_sequence`` must come entirely from step-file projection
-    (:func:`~doctrine.missions.step_projection.project_action_sequence`) --
+    (:func:`~charter.offering.missions.step_projection.project_action_sequence`) --
     the exact defect shape issue #3701 reports (``_inject_projected_fields``
     hardcoding ``pack_context=None`` means this projection was always empty
     for org/project types). ``_mission_type_yaml`` above always writes an

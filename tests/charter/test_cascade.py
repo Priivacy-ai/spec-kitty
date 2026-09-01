@@ -477,10 +477,10 @@ def freshly_extracted_graph() -> DRGGraph:
     same content the goldens carry.
 
     This fixture calls
-    :func:`~doctrine.drg.migration.hand_authored_overlay.generate_reference_graph_with_overlay`
+    :func:`~charter.offering.drg.migration.hand_authored_overlay.generate_reference_graph_with_overlay`
     directly against the real shipped doctrine tree rather than loading the
     goldens through :func:`load_built_in_graph`. That function -- NOT bare
-    :func:`~doctrine.drg.migration.extractor.generate_graph` -- is the correct
+    :func:`~charter.offering.drg.migration.extractor.generate_graph` -- is the correct
     live-extraction reference: it is the exact pipeline
     ``spec-kitty doctrine regenerate-graph`` runs (pure extraction, written to
     a throwaway scratch dir, then merged with the hand-authored overlay via

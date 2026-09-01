@@ -270,7 +270,7 @@ def _referenced_artifacts(graph: DRGGraph, source_urn: str) -> list[ReferencedAr
     action hop via ``scope``/``instantiates``), filtered twice: non-artifact nodes
     (actions, glossary) are dropped because :func:`_kind_of` returns ``None``, and
     non-activatable artifact kinds (``template``/``asset``) are dropped via the
-    canonical :data:`~doctrine.artifact_kinds.CHARTER_ACTIVATABLE_KINDS` set (ADR
+    canonical :data:`~charter.offering.artifact_kinds.CHARTER_ACTIVATABLE_KINDS` set (ADR
     2026-08-20-1). The closure still *reaches* those nodes — traversal reach and
     candidacy are separate concerns — but they are never cascade candidates.
     Result is sorted by ``(kind, artifact_id)`` for deterministic rendering.
