@@ -260,7 +260,7 @@ def locate_project_root(start: Path | None = None, *, stop: Path | None = None) 
                 # If we can't read or parse the .git file, continue searching
                 pass
 
-        elif git_path.is_dir() and (git_path / "HEAD").is_file():
+        elif git_path.is_dir():
             # A ``.git`` *directory* is a repo boundary: a regular repo, the
             # main repo of a worktree set, OR a nested clone living inside an
             # outer primary. Stop here — consistently with
@@ -442,7 +442,7 @@ def resolve_canonical_root(cwd: Path | None = None) -> Path:
     for candidate in [start, *start.parents]:
         git_path = candidate / ".git"
 
-        if git_path.is_dir() and (git_path / "HEAD").is_file():
+        if git_path.is_dir():
             # Regular repo (or main repo of a worktree set).
             return candidate.resolve()
 

@@ -95,11 +95,8 @@ def read_ignore_file_text(path: Path, encoding: str = "utf-8-sig", errors: str |
         fd = _open_no_follow(path, os.O_RDONLY)
     except FileNotFoundError:
         return ""
-    try:
-        with os.fdopen(fd, encoding=encoding, errors=errors) as f:
-            return f.read()
-    except UnicodeError as exc:
-        raise GitignorePathError(f"{path} is not valid {encoding}; refusing to decode it") from exc
+    with os.fdopen(fd, encoding=encoding, errors=errors) as f:
+        return f.read()
 
 
 def is_gitignore_path_ignored(project_path: Path, relative_path: str) -> bool | None:
