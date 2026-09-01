@@ -382,6 +382,14 @@ class TestPush:
         assert first_key == expected_key
         assert second_key == expected_key
 
+    def test_content_digest_raises_for_non_json_payload(self, client: SaaSTrackerClient) -> None:
+        """A non-serialisable payload must fail loudly instead of being
+        stringified into a per-process idempotency key (#315)."""
+        payload = {"provider": "jira", "project_slug": "proj-1", "items": [{"opaque": object()}]}
+
+        with pytest.raises(TypeError, match="not JSON serializable"):
+            client._content_digest(client._PUSH_PATH, payload)
+
     @patch("specify_cli.tracker.saas_client.httpx.Client")
     def test_push_idempotency_key_pins_explicit_project_root_in_digest(
         self, mock_cls: MagicMock, mock_credential_store: MagicMock, mock_sync_config: MagicMock, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
