@@ -52,9 +52,7 @@ def test_overlay_dir_exposes_project_profile(tmp_path: Path) -> None:
     """With the overlay set, the seeded project profile is visible through the seam."""
     overlay_dir = _seed_project_profile(tmp_path)
 
-    service = build_activation_aware_doctrine_service(
-        tmp_path, agent_profile_overlay_dir=overlay_dir
-    )
+    service = build_activation_aware_doctrine_service(tmp_path, agent_profile_overlay_dir=overlay_dir)
     ids = {p.profile_id for p in service.agent_profile_repository.list_all()}
 
     assert _PROFILE_ID in ids

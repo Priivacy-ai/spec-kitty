@@ -69,14 +69,8 @@ class TestSingleTolerantReaderAuthority:
         import inspect
 
         tree = ast.parse(inspect.getsource(importlib.import_module(module)))
-        called = {
-            node.func.id
-            for node in ast.walk(tree)
-            if isinstance(node, ast.Call) and isinstance(node.func, ast.Name)
-        }
-        assert shared_reader_call in called, (
-            f"{module} must CALL {shared_reader_call} (the shared tolerant reader), not just reference it"
-        )
+        called = {node.func.id for node in ast.walk(tree) if isinstance(node, ast.Call) and isinstance(node.func, ast.Name)}
+        assert shared_reader_call in called, f"{module} must CALL {shared_reader_call} (the shared tolerant reader), not just reference it"
 
 
 class TestAuditClassifierKeepsRawDict:

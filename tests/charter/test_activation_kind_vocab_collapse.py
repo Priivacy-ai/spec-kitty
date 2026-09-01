@@ -76,9 +76,7 @@ def test_activations_maps_are_the_derived_authority() -> None:
 
 
 def test_kind_to_property_covers_all_activatable_plurals() -> None:
-    assert set(_activation_render._KIND_TO_PROPERTY) == set(
-        CHARTER_ACTIVATABLE_SINGULAR_TO_PLURAL.values()
-    )
+    assert set(_activation_render._KIND_TO_PROPERTY) == set(CHARTER_ACTIVATABLE_SINGULAR_TO_PLURAL.values())
     # property name == plural for every kind
     assert all(k == v for k, v in _activation_render._KIND_TO_PROPERTY.items())
 

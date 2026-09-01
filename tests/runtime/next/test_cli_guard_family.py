@@ -57,9 +57,7 @@ pytestmark = [pytest.mark.unit, pytest.mark.fast]
 
 def _write_meta(feature_dir: Path, mission_type: str) -> None:
     feature_dir.mkdir(parents=True, exist_ok=True)
-    (feature_dir / "meta.json").write_text(
-        json.dumps({"mission_type": mission_type}), encoding="utf-8"
-    )
+    (feature_dir / "meta.json").write_text(json.dumps({"mission_type": mission_type}), encoding="utf-8")
 
 
 def _seed_wp(feature_dir: Path, wp_id: str, lane: str) -> None:
@@ -67,8 +65,7 @@ def _seed_wp(feature_dir: Path, wp_id: str, lane: str) -> None:
     tasks_dir = feature_dir / "tasks"
     tasks_dir.mkdir(exist_ok=True)
     (tasks_dir / f"{wp_id}.md").write_text(
-        f"---\nwork_package_id: {wp_id}\nlane: {lane}\ntitle: {wp_id} task\n---\n"
-        f"# {wp_id}\nDo something.\n",
+        f"---\nwork_package_id: {wp_id}\nlane: {lane}\ntitle: {wp_id} task\n---\n# {wp_id}\nDo something.\n",
         encoding="utf-8",
     )
     event = StatusEvent(
@@ -169,9 +166,7 @@ class TestFamilyKeyIdentity:
         assert set(_GUARD_TABLES) == set(BUILT_IN_MISSION_TYPES)
 
     @pytest.mark.parametrize("mission_type", BUILT_IN_MISSION_TYPES)
-    def test_get_mission_type_round_trips_to_the_guard_table_key(
-        self, tmp_path: Path, mission_type: str
-    ) -> None:
+    def test_get_mission_type_round_trips_to_the_guard_table_key(self, tmp_path: Path, mission_type: str) -> None:
         feature_dir = tmp_path / "kitty-specs" / "042-identity-feature"
         _write_meta(feature_dir, mission_type)
 
@@ -230,9 +225,7 @@ class TestIssue3627WpIterationUnregisteredFamilyDegrades:
 
         run_dir = tmp_path / "run"
         run_dir.mkdir(parents=True, exist_ok=True)
-        run_ref = rb.MissionRunRef(
-            run_id="run-042", run_dir=str(run_dir), mission_key="042-custom-mission"
-        )
+        run_ref = rb.MissionRunRef(run_id="run-042", run_dir=str(run_dir), mission_key="042-custom-mission")
 
         return rb.DecideNextContext(
             agent="agent-x",
@@ -265,9 +258,7 @@ class TestIssue3627WpIterationUnregisteredFamilyDegrades:
 
         assert decision is None
 
-    def test_wp_iteration_guard_only_swallows_the_unregistered_family_error(
-        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
+    def test_wp_iteration_guard_only_swallows_the_unregistered_family_error(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
         """Companion negative case: the fix's ``except`` clause is scoped to
         ``UnregisteredMissionFamilyError`` alone -- any other exception
         raised by ``_check_cli_guards`` (a genuinely unexpected failure, not

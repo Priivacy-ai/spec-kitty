@@ -142,11 +142,7 @@ def _discover_producers() -> tuple[str, ...]:
     tree = ast.parse(source)
     names: list[str] = []
     for node in ast.walk(tree):
-        if (
-            isinstance(node, ast.Call)
-            and isinstance(node.func, ast.Name)
-            and node.func.id.startswith("_compute_")
-        ):
+        if isinstance(node, ast.Call) and isinstance(node.func, ast.Name) and node.func.id.startswith("_compute_"):
             names.append(node.func.id)
     return tuple(dict.fromkeys(names))  # de-duplicated, first-seen order
 
@@ -187,9 +183,7 @@ def _discover_remediation_emitting_states_full() -> tuple[tuple[int, str, str], 
     module_string_constants: dict[str, str] = {
         target.id: node.value.value
         for node in tree.body
-        if isinstance(node, ast.Assign)
-        and isinstance(node.value, ast.Constant)
-        and isinstance(node.value.value, str)
+        if isinstance(node, ast.Assign) and isinstance(node.value, ast.Constant) and isinstance(node.value.value, str)
         for target in node.targets
         if isinstance(target, ast.Name)
     }
@@ -207,10 +201,7 @@ def _discover_remediation_emitting_states_full() -> tuple[tuple[int, str, str], 
             for kw in node.keywords:
                 if kw.arg == "remediation" and (
                     (isinstance(kw.value, ast.Constant) and kw.value.value is not None)
-                    or (
-                        isinstance(kw.value, ast.Name)
-                        and kw.value.id in module_string_constants
-                    )
+                    or (isinstance(kw.value, ast.Name) and kw.value.id in module_string_constants)
                 ):
                     # ``kw.value.lineno`` (not ``node.lineno``, which is the
                     # call's opening line) so the reported line matches
@@ -236,9 +227,7 @@ def _discover_remediation_emitting_states() -> tuple[int, ...]:
     remediation-emitting branch shrinks this tuple and turns
     ``test_remediation_state_floor_is_pinned`` red (C-EFF-4).
     """
-    return tuple(
-        lineno for lineno, _function, _state in _discover_remediation_emitting_states_full()
-    )
+    return tuple(lineno for lineno, _function, _state in _discover_remediation_emitting_states_full())
 
 
 def _check_name_for_producer(producer_function_name: str) -> str:
@@ -256,8 +245,7 @@ def _check_name_for_producer(producer_function_name: str) -> str:
     """
     prefix = "_compute_"
     assert producer_function_name.startswith(prefix), (
-        f"producer function {producer_function_name!r} does not follow the "
-        f"{prefix!r} naming convention _check_name_for_producer relies on"
+        f"producer function {producer_function_name!r} does not follow the {prefix!r} naming convention _check_name_for_producer relies on"
     )
     return producer_function_name.removeprefix(prefix)
 
@@ -345,8 +333,7 @@ def test_remediation_state_floor_is_pinned() -> None:
 def test_producer_floor_is_pinned() -> None:
     producers = _discover_producers()
     assert len(producers) == _PRODUCER_FLOOR, (
-        "NFR-001: check-producer count drifted from the pinned floor "
-        f"({_PRODUCER_FLOOR}); found {len(producers)}: {producers}."
+        f"NFR-001: check-producer count drifted from the pinned floor ({_PRODUCER_FLOOR}); found {len(producers)}: {producers}."
     )
 
 
@@ -445,17 +432,12 @@ def _composed_command_for_layer(repo_root: Path, layer: str) -> str:
     helper's contract already binds the surface it lives on.
     """
     result = run_charter_preflight(repo_root, auto_refresh=False)
-    assert result.blocked_reason is not None, (
-        f"expected a blocked_reason naming {layer!r}; preflight passed unexpectedly "
-        f"(checks={result.checks!r})"
-    )
+    assert result.blocked_reason is not None, f"expected a blocked_reason naming {layer!r}; preflight passed unexpectedly (checks={result.checks!r})"
     for line in result.blocked_reason.splitlines():
         match = _BLOCKED_LINE_RE.match(line)
         if match and match.group("name") == layer:
             return match.group("command")
-    raise AssertionError(
-        f"no blocked_reason line named layer {layer!r}: {result.blocked_reason!r}"
-    )
+    raise AssertionError(f"no blocked_reason line named layer {layer!r}: {result.blocked_reason!r}")
 
 
 def _layer_state(repo_root: Path, layer: str) -> str:
@@ -653,17 +635,12 @@ def test_case_table_matches_ast_derived_states() -> None:
     membership has already been decided semantically.
     """
     discovered_full = _discover_remediation_emitting_states_full()
-    exempt_linenos = {
-        lineno
-        for lineno, function, state in discovered_full
-        if (function, state) in _EXEMPT_STATES
-    }
+    exempt_linenos = {lineno for lineno, function, state in discovered_full if (function, state) in _EXEMPT_STATES}
     discovered = {lineno for lineno, _function, _state in discovered_full}
     covered = {c.lineno for c in _CASES}
     expected = discovered - exempt_linenos
     assert covered == expected, (
-        "driver table must cover every non-exempt AST-derived remediation-"
-        f"emitting state; missing={expected - covered} extra={covered - expected}"
+        f"driver table must cover every non-exempt AST-derived remediation-emitting state; missing={expected - covered} extra={covered - expected}"
     )
 
 
@@ -711,9 +688,7 @@ def test_mechanism_detects_an_ineffective_remediation(
     """
     build_f2_legacy_bundle_no_charter_yaml(tmp_path)
     with pytest.raises(AssertionError, match="did not change"):
-        _assert_remediation_effective(
-            tmp_path, "charter_source", "spec-kitty charter status", run_cli
-        )
+        _assert_remediation_effective(tmp_path, "charter_source", "spec-kitty charter status", run_cli)
 
 
 # ---------------------------------------------------------------------------
@@ -801,9 +776,7 @@ def test_h2_strengthened_assertion_catches_nonzero_exit_despite_state_change(
 
     def fake_run_cli(project_path: Path, *args: str) -> subprocess.CompletedProcess[str]:
         seed_charter_yaml(project_path)  # writes a genuinely valid, fresh charter.yaml
-        return subprocess.CompletedProcess(
-            args=["spec-kitty", *args], returncode=17, stdout="", stderr="boom failure\n"
-        )
+        return subprocess.CompletedProcess(args=["spec-kitty", *args], returncode=17, stdout="", stderr="boom failure\n")
 
     with pytest.raises(AssertionError, match="non-zero"):
         _assert_remediation_effective(
@@ -857,9 +830,7 @@ def test_assert_remediation_effective_recognizes_a_genuinely_effective_remediati
     repo_root = tmp_path
     _fixture_charter_source_missing(repo_root)
     before = _layer_state(repo_root, "charter_source")
-    assert before == "missing", (
-        f"fixture invariant violated: expected charter_source to start 'missing', got {before!r}"
-    )
+    assert before == "missing", f"fixture invariant violated: expected charter_source to start 'missing', got {before!r}"
 
     # Does not raise == the driver detected the state change (green). If this fixture were
     # still artificially minimal (pre review-cycle-1), this call would raise "did not change",
@@ -867,10 +838,7 @@ def test_assert_remediation_effective_recognizes_a_genuinely_effective_remediati
     _assert_remediation_effective(repo_root, "charter_source", "spec-kitty upgrade --yes", run_cli)
 
     after = _layer_state(repo_root, "charter_source")
-    assert after == "fresh", (
-        "expected `spec-kitty upgrade --yes` to fully resolve charter_source to 'fresh' "
-        f"against a realistic F2 fixture; got {after!r}"
-    )
+    assert after == "fresh", f"expected `spec-kitty upgrade --yes` to fully resolve charter_source to 'fresh' against a realistic F2 fixture; got {after!r}"
 
 
 # ---------------------------------------------------------------------------
@@ -935,9 +903,7 @@ def test_f2_remediation_composes_upgrade_yes_and_preserves_legacy_content(
         f"a content-discarding remediation would produce a default charter with no such "
         f"marker. Written charter.yaml:\n{written}"
     )
-    assert distinctive_title in written, (
-        "the legacy directive's title must survive the F2 remediation into charter.yaml"
-    )
+    assert distinctive_title in written, "the legacy directive's title must survive the F2 remediation into charter.yaml"
 
 
 # ---------------------------------------------------------------------------
@@ -961,13 +927,8 @@ def test_exempt_check_output_names_check_with_no_command(tmp_path: Path) -> None
 
     lines_by_name = {line.split(" ", 1)[0]: line for line in result.blocked_reason.splitlines()}
     states_by_name = {c.name: c.state for c in result.checks}
-    exempt_names = {
-        _check_name_for_producer(function) for function, _state in _EXEMPT_STATES
-    }
-    assert exempt_names <= lines_by_name.keys(), (
-        f"expected a blocked_reason line for every exempt check {sorted(exempt_names)!r}: "
-        f"{result.blocked_reason!r}"
-    )
+    exempt_names = {_check_name_for_producer(function) for function, _state in _EXEMPT_STATES}
+    assert exempt_names <= lines_by_name.keys(), f"expected a blocked_reason line for every exempt check {sorted(exempt_names)!r}: {result.blocked_reason!r}"
 
     for name in exempt_names:
         line = lines_by_name[name]
@@ -1002,7 +963,4 @@ def test_backfill_cannot_return(tmp_path: Path) -> None:
 
     result = run_charter_preflight(repo_root, auto_refresh=False)
     assert result.blocked_reason is not None
-    assert "charter status" not in result.blocked_reason, (
-        "the runner backfilled a command for a check with no remediation: "
-        f"{result.blocked_reason!r}"
-    )
+    assert "charter status" not in result.blocked_reason, f"the runner backfilled a command for a check with no remediation: {result.blocked_reason!r}"

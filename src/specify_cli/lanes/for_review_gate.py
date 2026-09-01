@@ -52,9 +52,7 @@ class GateDecision:
     base_ref: str | None = None
 
 
-def resolve_lane_base_ref(
-    main_repo_root: Path, mission_slug: str, manifest: object
-) -> str:
+def resolve_lane_base_ref(main_repo_root: Path, mission_slug: str, manifest: object) -> str:
     """The ref the lane was parented on -- the base for the commit gate.
 
     Uses the canonical placement authority (``resolve_placement_only``) -- the
@@ -74,23 +72,14 @@ def resolve_lane_base_ref(
         # base-ref read under coord topology: STATUS_STATE keeps the coord ref;
         # a primary kind would read the primary ref and corrupt the gate's
         # `rev-list <base>..HEAD` ancestry check.
-        return str(
-            resolve_placement_only(
-                main_repo_root, mission_slug, kind=MissionArtifactKind.STATUS_STATE
-            ).ref
-        )
+        return str(resolve_placement_only(main_repo_root, mission_slug, kind=MissionArtifactKind.STATUS_STATE).ref)
     except ActionContextError:
         from specify_cli.core.git_ops import resolve_primary_branch
 
-        return str(
-            getattr(manifest, "mission_branch", "")
-            or resolve_primary_branch(main_repo_root)
-        )
+        return str(getattr(manifest, "mission_branch", "") or resolve_primary_branch(main_repo_root))
 
 
-def _resolve_lane(
-    main_repo_root: Path, mission_slug: str, wp_id: str
-) -> tuple[LanesManifest, ExecutionLane] | None:
+def _resolve_lane(main_repo_root: Path, mission_slug: str, wp_id: str) -> tuple[LanesManifest, ExecutionLane] | None:
     """Resolve ``(manifest, lane)`` for ``wp_id``, or ``None`` when gate-exempt.
 
     ``None`` means the gate does not apply: no ``lanes.json`` (legacy / non-lane
@@ -105,9 +94,7 @@ def _resolve_lane(
 
     from .persistence import read_lanes_json
 
-    planning_dir = placement_seam(main_repo_root, mission_slug).read_dir(
-        MissionArtifactKind.WORK_PACKAGE_TASK
-    )
+    planning_dir = placement_seam(main_repo_root, mission_slug).read_dir(MissionArtifactKind.WORK_PACKAGE_TASK)
     manifest = read_lanes_json(planning_dir)
     lane = manifest.lane_for_wp(wp_id) if manifest is not None else None
     if manifest is None or lane is None:

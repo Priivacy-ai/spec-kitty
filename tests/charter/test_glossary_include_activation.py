@@ -137,9 +137,7 @@ _LEAKY_DEFINITION = "The canonical unit of work."
 
 
 class TestGlossaryPackActivationGate:
-    def test_activated_pack_renders_definitions(
-        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
+    def test_activated_pack_renders_definitions(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
         # Parity: an ACTIVATED pack renders its term definitions via the
         # catalog renderer, exactly as it did on the unwrapped service.
         _write_activation_config(tmp_path, activated=["domain-terms"])
@@ -154,9 +152,7 @@ class TestGlossaryPackActivationGate:
         assert _LEAKY_DEFINITION in text
         assert "Lane: A parallel execution branch." in text
 
-    def test_non_activated_pack_is_gated(
-        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
+    def test_non_activated_pack_is_gated(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
         # The pack exists in doctrine but is NOT in the activated list, so the
         # activation gate filters it out -> structured miss (ValueError), and
         # the withheld definitions never leak into the (empty) output.
@@ -175,9 +171,7 @@ class TestGlossaryPackActivationGate:
             text = ""
         assert _LEAKY_DEFINITION not in text
 
-    def test_empty_activation_list_gates_all_packs(
-        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
+    def test_empty_activation_list_gates_all_packs(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
         # Explicit empty list (opt-out) -> no pack is activated -> gated.
         _write_activation_config(tmp_path, activated=[])
         _patch_service(
@@ -188,9 +182,7 @@ class TestGlossaryPackActivationGate:
         with pytest.raises(ValueError, match="No glossary_pack found"):
             build_charter_context_include(tmp_path, "glossary-pack:domain-terms")
 
-    def test_no_activation_key_renders_unrestricted(
-        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
+    def test_no_activation_key_renders_unrestricted(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
         # No ``activated_glossary_packs`` key => resolves to None => the gate is
         # a no-op (admit all) => the pack renders (pre-R2 parity for projects
         # that never restrict glossary activation).
@@ -212,9 +204,7 @@ class TestGlossaryPackActivationGate:
 
 
 class TestGlossaryRoutesActivationAwareService:
-    def test_glossary_builds_activation_aware_service(
-        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
+    def test_glossary_builds_activation_aware_service(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
         # R2 guard: the glossary include branch MUST build the activation-aware
         # service (the gate), not the plain one alone.
         _write_activation_config(tmp_path, activated=["domain-terms"])
@@ -228,9 +218,7 @@ class TestGlossaryRoutesActivationAwareService:
             built.append(repo_root)
             return real_builder(repo_root, org_roots=org_roots)
 
-        monkeypatch.setattr(
-            context_module, "_build_activation_aware_doctrine_service", _record
-        )
+        monkeypatch.setattr(context_module, "_build_activation_aware_doctrine_service", _record)
 
         build_charter_context_include(tmp_path, "glossary-pack:domain-terms")
 

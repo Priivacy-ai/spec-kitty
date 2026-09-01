@@ -61,15 +61,10 @@ def _resolver_paths(pack: Path, kind: ArtifactKind, tmp: Path) -> list[Path]:
 
 
 @pytest.mark.parametrize("kind", _GLOBBED_KINDS, ids=lambda k: k.value)
-def test_resolver_discovers_nested_overlay_artifact_for_every_kind(
-    kind: ArtifactKind, tmp_path: Path
-) -> None:
+def test_resolver_discovers_nested_overlay_artifact_for_every_kind(kind: ArtifactKind, tmp_path: Path) -> None:
     pack = tmp_path / "orgpack"
     probe = _nested_probe(pack, kind, f"{kind.value}-probe")
-    assert probe in _resolver_paths(pack, kind, tmp_path), (
-        f"resolver did not discover nested {kind.value} artifact -> recursion "
-        "divergence for this kind"
-    )
+    assert probe in _resolver_paths(pack, kind, tmp_path), f"resolver did not discover nested {kind.value} artifact -> recursion divergence for this kind"
 
 
 def test_authority_is_recursive_for_every_kind() -> None:
@@ -92,12 +87,7 @@ def test_loader_and_resolver_agree_for_nested_tactic(tmp_path: Path) -> None:
         (pack / "tactics" / "deep" / "agree.tactic.yaml").open("w", encoding="utf-8"),
     )
 
-    loader_found = (
-        TacticRepository(built_in_dir=built_in, org_dirs=[pack / "tactics"]).get(
-            "agree-tactic"
-        )
-        is not None
-    )
+    loader_found = TacticRepository(built_in_dir=built_in, org_dirs=[pack / "tactics"]).get("agree-tactic") is not None
     resolver_found = any(
         p.name == "agree.tactic.yaml"
         for p in _iter_artifact_paths(
@@ -131,10 +121,7 @@ def test_loader_and_resolver_agree_for_nested_agent_profile(tmp_path: Path) -> N
         (pack / "agent_profiles" / "team" / "agree.agent.yaml").open("w", encoding="utf-8"),
     )
 
-    loader_found = (
-        AgentProfileRepository(org_dirs=[pack / "agent_profiles"]).get("agree-profile")
-        is not None
-    )
+    loader_found = AgentProfileRepository(org_dirs=[pack / "agent_profiles"]).get("agree-profile") is not None
     resolver_found = any(
         p.name == "agree.agent.yaml"
         for p in _iter_artifact_paths(
@@ -198,12 +185,7 @@ def test_nested_builtin_component_stays_in_parity(tmp_path: Path) -> None:
         nested.open("w", encoding="utf-8"),
     )
 
-    loader_found = (
-        TacticRepository(built_in_dir=built_in, org_dirs=[pack / "tactics"]).get(
-            "deep-builtin-tactic"
-        )
-        is not None
-    )
+    loader_found = TacticRepository(built_in_dir=built_in, org_dirs=[pack / "tactics"]).get("deep-builtin-tactic") is not None
     resolver_found = any(
         p.name == "deep.tactic.yaml"
         for p in _iter_artifact_paths(
@@ -214,10 +196,7 @@ def test_nested_builtin_component_stays_in_parity(tmp_path: Path) -> None:
         )
     )
     assert loader_found is True
-    assert resolver_found is True, (
-        "nested <category>/built-in/ artifact must resolve (immediate-child "
-        "exclusion only) -- else loader<->resolver divergence returns"
-    )
+    assert resolver_found is True, "nested <category>/built-in/ artifact must resolve (immediate-child exclusion only) -- else loader<->resolver divergence returns"
 
 
 def test_top_level_builtin_still_reserved_flat_wins(tmp_path: Path) -> None:
@@ -232,9 +211,7 @@ def test_top_level_builtin_still_reserved_flat_wins(tmp_path: Path) -> None:
     pack = tmp_path / "orgpack"
     (pack / "tactics" / "built-in").mkdir(parents=True)
     (pack / "tactics" / "flatwin.tactic.yaml").write_text("id: FLAT_WIN\n", encoding="utf-8")
-    (pack / "tactics" / "built-in" / "flatwin.tactic.yaml").write_text(
-        "id: LEGACY_LOSE\n", encoding="utf-8"
-    )
+    (pack / "tactics" / "built-in" / "flatwin.tactic.yaml").write_text("id: LEGACY_LOSE\n", encoding="utf-8")
     urn = resolve_artifact_urn(
         ArtifactKind.TACTIC,
         "flatwin",
@@ -258,23 +235,14 @@ def test_no_base_repository_reoverrides_project_scan_non_recursively() -> None:
     """
     from charter.offering.base import BaseDoctrineRepository
 
-    offenders = [
-        cls.__name__
-        for cls in BaseDoctrineRepository.__subclasses__()
-        if "_project_scan" in cls.__dict__
-    ]
-    assert not offenders, (
-        "these repositories re-declare _project_scan instead of inheriting the "
-        f"authority-driven recursive base: {offenders}"
-    )
+    offenders = [cls.__name__ for cls in BaseDoctrineRepository.__subclasses__() if "_project_scan" in cls.__dict__]
+    assert not offenders, f"these repositories re-declare _project_scan instead of inheriting the authority-driven recursive base: {offenders}"
 
 
 # ── T028: falsifiability -- reintroduced divergence reddens the parity check ──
 
 
-def test_reintroduced_divergence_breaks_resolver_discovery(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
+def test_reintroduced_divergence_breaks_resolver_discovery(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """Both directions on one commit: with the authority intact the nested probe
     resolves; monkeypatching the authority to non-recursive for TACTIC makes the
     resolver stop discovering it -- exactly the divergence the parity gate above

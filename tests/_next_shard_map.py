@@ -106,6 +106,7 @@ _RUNTIME_SHARD_1_FILES: tuple[str, ...] = (
 )
 _RUNTIME_SHARD_2_FILES: tuple[str, ...] = (
     "tests/runtime/test_banner_visibility.py",
+    "tests/runtime/next/test_cli_guard_family.py",
     "tests/runtime/test_bridge_composition.py",
     "tests/runtime/test_bridge_decision_builder.py",
     "tests/runtime/test_bridge_io.py",

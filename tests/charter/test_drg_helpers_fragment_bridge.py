@@ -168,9 +168,7 @@ class TestLoadOrgDrgStrict:
         assert [f.pack_name for f in strict] == ["fragment-pack"]
         assert [f.pack_name for f in resilient] == ["fragment-pack"]
 
-    def test_strict_false_preserves_true_layer_index_of_siblings(
-        self, tmp_path: Path
-    ) -> None:
+    def test_strict_false_preserves_true_layer_index_of_siblings(self, tmp_path: Path) -> None:
         """A skipped fragment-less pack does NOT renumber its siblings — the
         surviving pack keeps its full-registry ``layer_index`` (here 2)."""
         root_only = _make_root_graph_only_pack(tmp_path, "pack1")
@@ -200,9 +198,7 @@ class TestLoadValidatedGraphOrgFragments:
         """FR-001/FR-002: a supplied org fragment's ``A requires B`` edge is
         folded via ``merge_three_layers`` and appears in ``.edges``."""
         graph = load_validated_graph(tmp_path, org_fragments=[_org_edge()])
-        assert self._has_bridge_edge(graph), (
-            "org fragment requires edge was not folded into the graph"
-        )
+        assert self._has_bridge_edge(graph), "org fragment requires edge was not folded into the graph"
 
     def test_omitting_org_fragments_is_inert(self, tmp_path: Path) -> None:
         """FR-003: omitting ``org_fragments`` yields the pre-existing graph —
@@ -215,9 +211,7 @@ class TestLoadValidatedGraphOrgFragments:
         assert not self._has_bridge_edge(empty)
         # Omitting and passing [] are the same "no org layer" path.
         assert {n.urn for n in without.nodes} == {n.urn for n in empty.nodes}
-        assert {(e.source, e.target, e.relation) for e in without.edges} == {
-            (e.source, e.target, e.relation) for e in empty.edges
-        }
+        assert {(e.source, e.target, e.relation) for e in without.edges} == {(e.source, e.target, e.relation) for e in empty.edges}
 
     def test_supplying_fragment_only_adds_the_org_edge(self, tmp_path: Path) -> None:
         """The bridge is purely additive: the fragment run's edge set is the
@@ -245,12 +239,8 @@ def _make_both_shapes_pack(repo_root: Path, name: str) -> Path:
     Case 1 requires to collapse to a single edge."""
     pack_dir = repo_root / name
     (pack_dir / "directives").mkdir(parents=True)
-    (pack_dir / "directives" / "a.directive.yaml").write_text(
-        "id: DIRECTIVE_A\ntype: directive\ntitle: a\n", encoding="utf-8"
-    )
-    (pack_dir / "directives" / "b.directive.yaml").write_text(
-        "id: DIRECTIVE_B\ntype: directive\ntitle: b\n", encoding="utf-8"
-    )
+    (pack_dir / "directives" / "a.directive.yaml").write_text("id: DIRECTIVE_A\ntype: directive\ntitle: a\n", encoding="utf-8")
+    (pack_dir / "directives" / "b.directive.yaml").write_text("id: DIRECTIVE_B\ntype: directive\ntitle: b\n", encoding="utf-8")
     (pack_dir / "fixture.graph.yaml").write_text(
         dedent(
             """\
@@ -299,9 +289,7 @@ def _make_both_shapes_pack(repo_root: Path, name: str) -> Path:
 class TestSameEdgeInBothShapesDedups:
     _EDGE = ("directive:DIRECTIVE_A", "directive:DIRECTIVE_B", "requires")
 
-    def test_same_edge_in_root_graph_and_fragment_collapses_to_one(
-        self, tmp_path: Path
-    ) -> None:
+    def test_same_edge_in_root_graph_and_fragment_collapses_to_one(self, tmp_path: Path) -> None:
         """Spec Edge Case 1: a pack declaring ``A requires B`` in BOTH a root
         ``*.graph.yaml`` and ``drg/fragment.yaml`` loads without raising and the
         graph carries exactly ONE such edge (no double-count) — the composition
@@ -316,11 +304,5 @@ class TestSameEdgeInBothShapesDedups:
             org_roots=resolve_existing_org_roots(tmp_path),
             org_fragments=load_org_drg(tmp_path, strict=False),
         )
-        matches = [
-            (e.source, e.target, e.relation.value)
-            for e in graph.edges
-            if (e.source, e.target, e.relation.value) == self._EDGE
-        ]
-        assert matches == [self._EDGE], (
-            f"expected exactly one A→B requires edge, got {len(matches)}: {matches}"
-        )
+        matches = [(e.source, e.target, e.relation.value) for e in graph.edges if (e.source, e.target, e.relation.value) == self._EDGE]
+        assert matches == [self._EDGE], f"expected exactly one A→B requires edge, got {len(matches)}: {matches}"

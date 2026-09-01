@@ -65,9 +65,7 @@ def test_nested_org_tactic_is_discovered(tmp_path: Path) -> None:
     repo = TacticRepository(built_in_dir=built_in, org_dirs=[org])
 
     assert repo.get("flat-one") is not None, "flat tactic must still load"
-    assert repo.get("nested-one") is not None, (
-        "nested org tactic must be discovered (was silently dropped pre-fix)"
-    )
+    assert repo.get("nested-one") is not None, "nested org tactic must be discovered (was silently dropped pre-fix)"
 
 
 def test_nested_project_tactic_is_discovered(tmp_path: Path) -> None:
@@ -127,9 +125,7 @@ def test_flat_layout_discovery_is_unchanged(tmp_path: Path) -> None:
 
     assert repo.get("a-flat") is not None
     assert repo.get("b-flat") is not None
-    assert {"a-flat", "b-flat"} == {
-        tid for tid in ("a-flat", "b-flat") if repo.get(tid) is not None
-    }
+    assert {"a-flat", "b-flat"} == {tid for tid in ("a-flat", "b-flat") if repo.get(tid) is not None}
 
 
 def test_kind_specific_glob_excludes_provenance_and_markdown(tmp_path: Path) -> None:

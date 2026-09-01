@@ -93,10 +93,7 @@ def test_glossary_render_never_inlines_definitions() -> None:
     text = _render(_pack("builtin"))
 
     for definition in _DEFINITIONS:
-        assert definition not in text, (
-            f"definition {definition!r} was inlined — NFR-001 forbids it "
-            "(surfaces + pointer only)"
-        )
+        assert definition not in text, f"definition {definition!r} was inlined — NFR-001 forbids it (surfaces + pointer only)"
 
 
 def test_org_sourced_pack_renders_identically_to_builtin() -> None:

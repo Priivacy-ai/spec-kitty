@@ -86,10 +86,7 @@ def test_nested_clone_boundary_resolvers_agree(tmp_path: Path) -> None:
     # resolve_canonical_root already stops at the nested clone (rule 1).
     assert canonical == nested
     # find_repo_root must agree — not re-anchor up to the outer primary.
-    assert detected == nested, (
-        "find_repo_root re-anchored past the nested-clone .git-dir boundary "
-        f"to {detected} instead of stopping at {nested}"
-    )
+    assert detected == nested, f"find_repo_root re-anchored past the nested-clone .git-dir boundary to {detected} instead of stopping at {nested}"
     assert detected != primary
 
 

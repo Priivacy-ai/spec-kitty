@@ -41,9 +41,7 @@ def test_unresolved_entry_flips_healthy_and_records_finding(
         reason="no_node",
         resolved_kind=None,
     )
-    monkeypatch.setattr(
-        opmod, "resolve_operating_procedure_entries", lambda *a, **k: [fake]
-    )
+    monkeypatch.setattr(opmod, "resolve_operating_procedure_entries", lambda *a, **k: [fake])
     report = DoctrineHealthReport()
 
     _run_operating_procedures_check(report)
@@ -77,7 +75,4 @@ def test_scan_error_is_recorded_not_raised(monkeypatch: pytest.MonkeyPatch) -> N
     _run_operating_procedures_check(report)
 
     assert report.healthy is False
-    assert any(
-        "operating-procedures scan error" in str(e)
-        for e in report.org_drg.get("errors", [])
-    )
+    assert any("operating-procedures scan error" in str(e) for e in report.org_drg.get("errors", []))

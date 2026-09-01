@@ -113,9 +113,7 @@ def _walk_to_in_review(tmp_path: Path, feature_dir: Path) -> None:
 
 
 @pytest.mark.regression
-def test_emit_only_lifecycle_reaches_approved_with_verdict(
-    tmp_path: Path, feature_dir: Path
-) -> None:
+def test_emit_only_lifecycle_reaches_approved_with_verdict(tmp_path: Path, feature_dir: Path) -> None:
     """#3547/#1734: emit alone advances in_review -> approved via a verdict.
 
     On base this is RED: ``emit`` has no ``--review-result-json`` option, so the
@@ -123,9 +121,7 @@ def test_emit_only_lifecycle_reaches_approved_with_verdict(
     """
     _walk_to_in_review(tmp_path, feature_dir)
 
-    verdict = json.dumps(
-        {"reviewer": "alice", "verdict": "approved", "reference": "PR#1"}
-    )
+    verdict = json.dumps({"reviewer": "alice", "verdict": "approved", "reference": "PR#1"})
     result = _emit(tmp_path, "--to", "approved", "--review-result-json", verdict, "--json")
 
     assert result.exit_code == 0, f"stdout: {result.output}"
@@ -138,32 +134,22 @@ def test_emit_only_lifecycle_reaches_done(tmp_path: Path, feature_dir: Path) -> 
     """The full emit-only walk in_progress -> ... -> approved -> done succeeds."""
     _walk_to_in_review(tmp_path, feature_dir)
 
-    verdict = json.dumps(
-        {"reviewer": "alice", "verdict": "approved", "reference": "PR#1"}
-    )
-    approved = _emit(
-        tmp_path, "--to", "approved", "--review-result-json", verdict, "--json"
-    )
+    verdict = json.dumps({"reviewer": "alice", "verdict": "approved", "reference": "PR#1"})
+    approved = _emit(tmp_path, "--to", "approved", "--review-result-json", verdict, "--json")
     assert approved.exit_code == 0, f"approved failed: {approved.output}"
 
-    evidence = json.dumps(
-        {"review": {"reviewer": "alice", "verdict": "approved", "reference": "PR#1"}}
-    )
+    evidence = json.dumps({"review": {"reviewer": "alice", "verdict": "approved", "reference": "PR#1"}})
     done = _emit(tmp_path, "--to", "done", "--evidence-json", evidence, "--json")
     assert done.exit_code == 0, f"done failed: {done.output}"
     assert _extract_json(done.output)["to_lane"] == "done"
 
 
 @pytest.mark.regression
-def test_emit_rejects_malformed_review_result_json(
-    tmp_path: Path, feature_dir: Path
-) -> None:
+def test_emit_rejects_malformed_review_result_json(tmp_path: Path, feature_dir: Path) -> None:
     """A malformed verdict is rejected via the hoisted parser's error shape."""
     _walk_to_in_review(tmp_path, feature_dir)
 
-    result = _emit(
-        tmp_path, "--to", "approved", "--review-result-json", "{not json"
-    )
+    result = _emit(tmp_path, "--to", "approved", "--review-result-json", "{not json")
     assert result.exit_code == 1, f"stdout: {result.output}"
     assert "--review-result-json" in result.output
 
@@ -222,15 +208,7 @@ _GATE_MISSION_ID = "01KGATE00000000000000000000"
 _GATE_MISSION_DIRNAME = f"{_GATE_MISSION_SLUG}-{_GATE_MID8}"
 _GATE_COORD_BRANCH = f"kitty/mission-{_GATE_MISSION_DIRNAME}"
 
-_GATE_WP_FILE = (
-    "---\n"
-    "work_package_id: WP01\n"
-    "title: Test WP01\n"
-    "dependencies: []\n"
-    "subtasks: []\n"
-    "---\n\n"
-    "# WP01\n"
-)
+_GATE_WP_FILE = "---\nwork_package_id: WP01\ntitle: Test WP01\ndependencies: []\nsubtasks: []\n---\n\n# WP01\n"
 
 
 def _gate_valid_policy_json() -> str:
@@ -248,9 +226,7 @@ def _gate_valid_policy_json() -> str:
 
 
 def _gate_git(repo: Path, *args: str) -> subprocess.CompletedProcess[str]:
-    return subprocess.run(
-        ["git", *args], cwd=repo, check=True, capture_output=True, text=True
-    )
+    return subprocess.run(["git", *args], cwd=repo, check=True, capture_output=True, text=True)
 
 
 def _gate_manifest() -> LanesManifest:
@@ -297,9 +273,7 @@ def _gate_seed_planned_on_coord(repo: Path) -> None:
     worktree = repo / ".worktrees" / "seed-coord"
     _gate_git(repo, "worktree", "add", "-q", str(worktree), _GATE_COORD_BRANCH)
     append_event_log(
-        EventLogWriteContract.coordination_transaction_append(
-            worktree / "kitty-specs" / _GATE_MISSION_DIRNAME
-        ),
+        EventLogWriteContract.coordination_transaction_append(worktree / "kitty-specs" / _GATE_MISSION_DIRNAME),
         seed,
     )
     _gate_git(worktree, "add", "-A")
@@ -339,8 +313,7 @@ def _gate_build_mission(repo: Path) -> Path:
     )
     (feature_dir / "tasks" / "WP01.md").write_text(_GATE_WP_FILE, encoding="utf-8")
     (feature_dir / "tasks.md").write_text(
-        "# Tasks\n\n## WP01 Test WP01\n\n"
-        "- [x] T001 subtask for WP01\n- [x] T002 subtask for WP01\n",
+        "# Tasks\n\n## WP01 Test WP01\n\n- [x] T001 subtask for WP01\n- [x] T002 subtask for WP01\n",
         encoding="utf-8",
     )
     write_lanes_json(feature_dir, _gate_manifest())
@@ -429,9 +402,7 @@ def test_emit_force_bypasses_for_review_gate(tmp_path: Path) -> None:
     repo = _gate_build_mission(tmp_path / "force")
     _gate_start_implementation(repo)
 
-    result = _gate_emit(
-        repo, "--to", "for_review", "--force", "--reason", "nothing to commit"
-    )
+    result = _gate_emit(repo, "--to", "for_review", "--force", "--reason", "nothing to commit")
 
     assert result.exit_code == 0, result.output
     assert _extract_json(result.output)["to_lane"] == "for_review"

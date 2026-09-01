@@ -121,9 +121,7 @@ def test_dict_reader_parity_with_shared_seam(name: str, meta: dict[str, Any]) ->
 @pytest.mark.parametrize("name", sorted(_FILE_ADAPTERS))
 def test_file_reader_parity_with_shared_seam(name: str, meta: dict[str, Any], tmp_path: Path) -> None:
     reference = _adapt_seam(meta)
-    assert _FILE_ADAPTERS[name](meta, tmp_path) == reference, (
-        f"{name} diverges from read_mission_type for {meta!r}"
-    )
+    assert _FILE_ADAPTERS[name](meta, tmp_path) == reference, f"{name} diverges from read_mission_type for {meta!r}"
 
 
 # ---------------------------------------------------------------------------
@@ -211,11 +209,7 @@ def _legacy_mission_reads(tree: ast.AST) -> list[int]:
 
 def _software_dev_literals(tree: ast.AST) -> list[int]:
     """Line numbers of ``"software-dev"`` string constants (fallback candidates)."""
-    return [
-        node.lineno
-        for node in ast.walk(tree)
-        if isinstance(node, ast.Constant) and node.value == _DEFAULT_LITERAL
-    ]
+    return [node.lineno for node in ast.walk(tree) if isinstance(node, ast.Constant) and node.value == _DEFAULT_LITERAL]
 
 
 @pytest.mark.parametrize(
@@ -254,6 +248,5 @@ def test_no_legacy_read_or_software_dev_fallback(module_path: str) -> None:
     default = _software_dev_literals(tree)
     if default and "default" not in allowed:
         pytest.fail(
-            f"{module_path} carries a 'software-dev' literal at line(s) {default} "
-            f"(FR-003). Remove the silent default, or add an encoded allow-list exemption."
+            f"{module_path} carries a 'software-dev' literal at line(s) {default} (FR-003). Remove the silent default, or add an encoded allow-list exemption."
         )

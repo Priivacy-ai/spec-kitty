@@ -126,8 +126,7 @@ def test_narrow_opt_in_review_cycle_persists_under_review_cycle_kind_without_mov
     # (1) PHYSICAL write did NOT move — still the PRIMARY tasks home.
     rel = str(created.artifact_path.relative_to(ctx.repo))
     assert rel == f"kitty-specs/{ctx.slug}/tasks/WP01/review-cycle-1.md", (
-        f"{_ISSUE}: the physical write must stay in the PRIMARY tasks home; a "
-        f"write-side default flip would move it into the coord worktree. Got {rel!r}."
+        f"{_ISSUE}: the physical write must stay in the PRIMARY tasks home; a write-side default flip would move it into the coord worktree. Got {rel!r}."
     )
 
     # (2) Commit through the REAL router — even with the caller's plainest kind
@@ -147,16 +146,12 @@ def test_narrow_opt_in_review_cycle_persists_under_review_cycle_kind_without_mov
     coord_rel = f"kitty-specs/{ctx.slug}/tasks/WP01/review-cycle-1.md"
     coord_show = _git(ctx.repo, "show", f"{ctx.coord_branch}:{coord_rel}")
     assert coord_show.returncode == 0, (
-        f"{_ISSUE}: review-cycle-1.md must be persisted under the REVIEW_CYCLE "
-        f"(COORD) partition {ctx.coord_branch!r}: {coord_show.stderr}"
+        f"{_ISSUE}: review-cycle-1.md must be persisted under the REVIEW_CYCLE (COORD) partition {ctx.coord_branch!r}: {coord_show.stderr}"
     )
     assert "Reviewer feedback:" in coord_show.stdout
 
     primary_show = _git(ctx.repo, "show", f"main:{rel}")
-    assert primary_show.returncode != 0, (
-        f"{_ISSUE}: review-cycle-1.md must NOT be left as a stale PRIMARY copy:\n"
-        f"{primary_show.stdout}"
-    )
+    assert primary_show.returncode != 0, f"{_ISSUE}: review-cycle-1.md must NOT be left as a stale PRIMARY copy:\n{primary_show.stdout}"
 
 
 def test_verdict_reader_authority_is_decoupled_from_write_side_kind(
@@ -187,12 +182,9 @@ def test_verdict_reader_authority_is_decoupled_from_write_side_kind(
 
     # The reader's authority is the COORD status husk (STATUS_STATE) — exactly
     # where ``emit_status_transition`` writes the ``review_result`` slot.
-    status_state_dir = placement_seam(ctx.repo, ctx.slug).read_dir(
-        MissionArtifactKind.STATUS_STATE
-    )
+    status_state_dir = placement_seam(ctx.repo, ctx.slug).read_dir(MissionArtifactKind.STATUS_STATE)
     assert reader_authority == status_state_dir == ctx.coord_feature_dir, (
-        f"{_ISSUE}: the verdict reader must resolve the STATUS_STATE (coord "
-        f"husk) authority, got {reader_authority}"
+        f"{_ISSUE}: the verdict reader must resolve the STATUS_STATE (coord husk) authority, got {reader_authority}"
     )
 
     # The write-side ``tasks/<wp>/`` home stays PRIMARY (WORK_PACKAGE_TASK) —
@@ -200,8 +192,7 @@ def test_verdict_reader_authority_is_decoupled_from_write_side_kind(
     # invisible to verdict resolution.
     assert write_side_dir == ctx.primary_feature_dir / "tasks" / "WP01", write_side_dir
     assert reader_authority != write_side_dir, (
-        f"{_ISSUE}: reader authority and write-side home must be decoupled so "
-        "the write-side kind cannot disturb verdict resolution"
+        f"{_ISSUE}: reader authority and write-side home must be decoupled so the write-side kind cannot disturb verdict resolution"
     )
 
 

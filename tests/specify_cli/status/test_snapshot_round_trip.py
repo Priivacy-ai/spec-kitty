@@ -94,10 +94,7 @@ def _replay(feature_dir: Path) -> StatusSnapshot:
 
 
 def _projected_review_results(snapshot: StatusSnapshot) -> dict[str, object]:
-    return {
-        wp_id: state.get("review_result")
-        for wp_id, state in snapshot.work_packages.items()
-    }
+    return {wp_id: state.get("review_result") for wp_id, state in snapshot.work_packages.items()}
 
 
 def test_generator_is_non_vacuous() -> None:
@@ -116,18 +113,14 @@ def test_snapshot_round_trips_by_value(tmp_path: Path) -> None:
 
     # Non-vacuity at the projection level: the field under test is populated.
     baseline_projection = _projected_review_results(baseline)
-    assert baseline_projection["WPA"] is not None, (
-        "projection must carry a non-None review_result (non-vacuous property)"
-    )
+    assert baseline_projection["WPA"] is not None, "projection must carry a non-None review_result (non-vacuous property)"
 
     # Persist → read → reduce (a real round-trip through the serializer).
     _persist(tmp_path, [e.to_dict() for e in events])
     replayed = _replay(tmp_path)
 
     # Deep, value-level equality on the full per-WP projection.
-    assert replayed.work_packages == baseline.work_packages, (
-        "replayed projection must equal the snapshot by value"
-    )
+    assert replayed.work_packages == baseline.work_packages, "replayed projection must equal the snapshot by value"
     assert _projected_review_results(replayed) == baseline_projection
 
 
@@ -157,10 +150,5 @@ def test_corrupted_value_replay_fails(tmp_path: Path) -> None:
     # Key still present on both sides — but the VALUE differs, so a value-level
     # comparison must fail (a key-only fake would wrongly pass here).
     assert "review_result" in replayed.work_packages["WPA"]
-    assert replayed.work_packages != baseline.work_packages, (
-        "a corrupted review_result value must break value-level equality"
-    )
-    assert (
-        _projected_review_results(replayed)["WPA"]
-        != _projected_review_results(baseline)["WPA"]
-    )
+    assert replayed.work_packages != baseline.work_packages, "a corrupted review_result value must break value-level equality"
+    assert _projected_review_results(replayed)["WPA"] != _projected_review_results(baseline)["WPA"]

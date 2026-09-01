@@ -66,12 +66,8 @@ def test_singular_to_plural_round_trips() -> None:
 
 
 def test_maps_cover_exactly_the_activatable_kinds() -> None:
-    assert set(CHARTER_ACTIVATABLE_SINGULAR_TO_PLURAL) == {
-        k.value for k in CHARTER_ACTIVATABLE_KINDS
-    }
-    assert set(CHARTER_ACTIVATABLE_SINGULAR_TO_PLURAL.values()) == {
-        k.plural for k in CHARTER_ACTIVATABLE_KINDS
-    }
+    assert set(CHARTER_ACTIVATABLE_SINGULAR_TO_PLURAL) == {k.value for k in CHARTER_ACTIVATABLE_KINDS}
+    assert set(CHARTER_ACTIVATABLE_SINGULAR_TO_PLURAL.values()) == {k.plural for k in CHARTER_ACTIVATABLE_KINDS}
 
 
 def test_glossary_pack_and_anti_pattern_present() -> None:

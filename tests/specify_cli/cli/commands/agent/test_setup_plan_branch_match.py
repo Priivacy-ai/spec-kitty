@@ -130,9 +130,7 @@ def _run_setup_plan_from(
         with (
             patch.object(mission_mod, "locate_project_root", return_value=primary),
             patch.object(mission_mod, "_enforce_git_preflight"),
-            patch.object(
-                mission_mod, "_find_feature_directory", return_value=feature_dir
-            ),
+            patch.object(mission_mod, "_find_feature_directory", return_value=feature_dir),
         ):
             result = runner.invoke(
                 mission_mod.app,
@@ -158,9 +156,7 @@ def _run_setup_plan_from(
 # --------------------------------------------------------------------------- #
 # T018 — red-first: divergent lane falsely reports matches_target on base.
 # --------------------------------------------------------------------------- #
-def test_divergent_lane_reports_honest_branch_mismatch(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
+def test_divergent_lane_reports_honest_branch_mismatch(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """A lane on a DIVERGENT branch must report ``branch_matches_target: false``.
 
     Base (bug): ``setup_plan`` reads the primary's HEAD (== the mission target), so
@@ -184,9 +180,7 @@ def test_divergent_lane_reports_honest_branch_mismatch(
 # --------------------------------------------------------------------------- #
 # T019 — positive: a lane whose HEAD matches the meta target reports true.
 # --------------------------------------------------------------------------- #
-def test_matching_lane_reports_branch_match_true(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
+def test_matching_lane_reports_branch_match_true(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """A lane on the mission's ``meta.json`` target reports ``branch_matches_target: true``.
 
     The positive direction that a hardcoded ``false`` cannot satisfy: the primary is
@@ -208,9 +202,7 @@ def test_matching_lane_reports_branch_match_true(
 # --------------------------------------------------------------------------- #
 # Owner invocation unchanged — run from the primary, on the mission target.
 # --------------------------------------------------------------------------- #
-def test_owner_invocation_from_primary_unchanged(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
+def test_owner_invocation_from_primary_unchanged(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """From the primary checkout (on the mission target) the result is unchanged: true.
 
     Guards the deliberate primary-anchored behavior — an owner invocation resolves
