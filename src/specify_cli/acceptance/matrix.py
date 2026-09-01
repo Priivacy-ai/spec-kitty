@@ -72,6 +72,27 @@ POST_CONSOLIDATION_PHASE_NAME = "POST_CONSOLIDATION"
 # the pending-dominates rule. A future rename must touch both call sites.
 SCAFFOLD_TODO_MARKER = "TODO: replace with a real acceptance criterion"
 
+# FR-008 (governance-at-the-gate WP04 / IC-04): the ONLY ``proof_type`` a
+# criterion row is auto-populated from WP review evidence. Design decision
+# (recorded here, not just in the mission's tasks.md): population is
+# AUTO-DERIVED, never a hand-filled artifact (NFR-005) -- but it is scoped
+# to ``code_review`` because that is the one proof type whose evidence IS
+# "every tracked WP carries a durable, gate-captured review verdict" (the
+# exact fact T1/T2 now record). ``automated_test``/``manual_qa`` criteria
+# need their own evidence this gate cannot fabricate without lying about
+# what was actually verified, and ``negative_invariant`` rows already have
+# a dedicated, independent verification engine
+# (:func:`enforce_negative_invariants`) -- auto-passing either from mere WP
+# approval would be a fabricated verdict, not a derived one.
+AUTO_DERIVABLE_PROOF_TYPES: frozenset[str] = frozenset({"code_review"})
+
+# The auto-derivation note appended to a populated criterion's ``notes`` so an
+# operator reading the matrix can tell a gate-derived row apart from one a
+# reviewer hand-verified through ``agent mission acceptance-verdict``.
+_AUTO_DERIVED_NOTE = (
+    "Auto-derived from WP review evidence (IC-04 gate-side capture, FR-008)."
+)
+
 
 def _is_empty_scaffold(criterion: AcceptanceCriterion) -> bool:
     """True iff ``criterion`` is the empty ``finalize-tasks`` placeholder row.
@@ -726,6 +747,130 @@ def enforce_negative_invariants(
         updated = _check_invariant(repo_root, ni)
         results.append(_stamp_provenance(updated, context))
     return results
+
+
+def populate_criteria_from_review_evidence(
+    status_feature_dir: Path, criteria: list[AcceptanceCriterion]
+) -> list[AcceptanceCriterion]:
+    """FR-008 (IC-04): auto-derive ``pending`` ``code_review`` rows from WP evidence.
+
+    Closes the "criterion rows never populated" gap (governance-at-the-gate
+    WP04, US2): before this, a criterion's ``pass_fail`` never left the
+    ``scaffold_acceptance_matrix`` default of ``"pending"`` unless an operator
+    hand-invoked ``agent mission acceptance-verdict`` — forcing every accept
+    onto ``--allow-fail``. Design decision (see :data:`AUTO_DERIVABLE_
+    PROOF_TYPES`): population is auto-derived from the decision already made
+    (NFR-005) — the T1/T2 gate-side evidence capture (an approval event's
+    ``policy_metadata``/``review_ref`` and its ``review-cycle-N.md``) — never
+    a fresh hand-filled judgement; it is intentionally scoped to
+    ``code_review``-typed criteria only.
+
+    Forward-only (NI-2-style preservation, mirrored from
+    :func:`enforce_negative_invariants`): a criterion already judged
+    (``pass_fail != "pending"``) is left untouched — this NEVER re-judges a
+    standing verdict, including one an operator hand-authored via
+    ``acceptance-verdict``. The empty ``finalize-tasks`` scaffold placeholder
+    (:func:`_is_empty_scaffold`) is also skipped — it carries no real
+    ``code_review`` intent to auto-derive.
+
+    All-or-nothing per mission: population only fires when EVERY tracked WP
+    is ``approved``/``done`` AND every one of them carries a durable
+    event-sourced review verdict whose ``verdict`` is itself ``"approved"``
+    (:func:`~specify_cli.status.reducer.event_sourced_review_result`). The
+    verdict check (not just slot-presence) matters because the reducer
+    carries a WP's ``review_result`` slot FORWARD across any transition that
+    does not leave ``in_review`` (``reducer._wp_state_from_event``) — a WP
+    force-approved from a non-``in_review`` lane after a genuine rejection
+    can be lane-``approved`` while its event-sourced slot still holds the
+    REJECTING reviewer's ``changes_requested`` result. Reading that as proof
+    would fabricate an approval attribution. A mission with any WP short of
+    a genuine approved verdict is left exactly as it was — ``pending`` —
+    rather than derive a partial, misleading pass; the existing
+    pending-verdict block in ``gates_core._evaluate_acceptance_matrix``
+    continues to hold accept closed in that case, unchanged.
+
+    A missing/corrupted status log degrades to a no-op (returns ``criteria``
+    unchanged) rather than raising — this is an additive enrichment layered
+    on top of the pre-existing block-on-pending gate, not a new hard
+    dependency the gate can be broken by.
+    """
+    pending_targets = {
+        c.criterion_id
+        for c in criteria
+        if c.pass_fail == "pending"  # noqa: S105  # verdict value, not a secret
+        and c.proof_type in AUTO_DERIVABLE_PROOF_TYPES
+        and not _is_empty_scaffold(c)
+    }
+    if not pending_targets:
+        return criteria
+
+    from specify_cli.status import (
+        StoreError,
+        event_sourced_review_result,
+        read_event_stream,
+        reduce,
+    )
+
+    try:
+        stream = read_event_stream(status_feature_dir)
+        wp_states = reduce(stream.transitions, stream.annotations).work_packages
+    except StoreError:
+        # Degrade to a no-op (leave rows pending → the block-on-pending gate still
+        # holds accept closed) rather than break an otherwise-passing accept when
+        # ``read_event_stream`` cannot read a missing/corrupt status log. The
+        # ``reduce()`` call is kept inside this ``try`` defensively (pre-merge review
+        # MINOR: it was outside the guard), though it operates on already-parsed
+        # events and does not itself raise ``StoreError``.
+        return criteria
+    if not wp_states:
+        return criteria
+    if not all(state.get("lane") in ("approved", "done") for state in wp_states.values()):
+        return criteria
+
+    reviewers: list[str] = []
+    references: list[str] = []
+    for wp_id in sorted(wp_states):
+        lookup = event_sourced_review_result(status_feature_dir, wp_id)
+        if (
+            not lookup.slot_present
+            or lookup.result is None
+            or lookup.result.verdict != "approved"
+        ):
+            # Incomplete evidence chain (a WP approved before T1/T2 landed,
+            # or via a path that never recorded review_result) -- stay
+            # pending rather than derive a verdict this gate cannot prove.
+            # M1 (WP04 review, evidence-integrity): a WP whose lane is
+            # approved/done but whose event-sourced ``review_result`` slot
+            # is NOT itself ``verdict == "approved"`` (e.g. a stale
+            # ``changes_requested`` result the reducer carries forward
+            # because a force-approve bypassed a fresh in_review exit,
+            # ``reducer._wp_state_from_event``'s ``from_lane != IN_REVIEW``
+            # inheritance) must NEVER be read as approval proof -- that
+            # would stamp the criterion ``pass`` citing the REJECTING
+            # reviewer and the rejection's own review-cycle reference, a
+            # fabricated approval attribution.
+            return criteria
+        reviewers.append(lookup.result.reviewer)
+        references.append(f"{wp_id}:{lookup.result.reference}")
+
+    from kernel.clock import now_utc_iso
+
+    verified_at = now_utc_iso()
+    evidence = "; ".join(references)
+    verified_by = ", ".join(dict.fromkeys(reviewers))
+    return [
+        replace(
+            c,
+            pass_fail="pass",  # noqa: S106  # verdict value, not a secret
+            verified_by=verified_by,
+            verified_at=verified_at,
+            evidence=evidence,
+            notes=(f"{c.notes} {_AUTO_DERIVED_NOTE}" if c.notes else _AUTO_DERIVED_NOTE),
+        )
+        if c.criterion_id in pending_targets
+        else c
+        for c in criteria
+    ]
 
 
 def _should_defer(

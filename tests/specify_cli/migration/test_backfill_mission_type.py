@@ -20,7 +20,7 @@ from pathlib import Path
 
 import pytest
 
-from charter.mission_type_profile_repository import MissionTypeProfileRepository
+from charter.activation.mission_type_profile_repository import MissionTypeProfileRepository
 from specify_cli.mission import MissionNotFoundError
 from specify_cli.migration.backfill_mission_type import (
     LEGACY_MISSION_KEY,

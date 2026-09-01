@@ -22,8 +22,8 @@ from typing import Any
 
 import pytest
 
-import charter.context as context_module
-from charter.context import build_charter_context_include
+import charter.activation.context as context_module
+from charter.activation.context import build_charter_context_include
 
 
 pytestmark = pytest.mark.fast
@@ -37,7 +37,7 @@ pytestmark = pytest.mark.fast
 class _StubRepo:
     """Repository stub exposing both ``get`` and ``list_all``.
 
-    The activation-aware wrapper (:class:`charter.resolver.DoctrineService`)
+    The activation-aware wrapper (:class:`charter.activation.resolver.DoctrineService`)
     calls ``agent_profiles.list_all()`` to build its filtered dict, so the
     profile repo stub must provide ``list_all`` in addition to the ``get``
     used by the unwrapped render path.
@@ -218,7 +218,7 @@ class TestScopedToAgentProfileOnly:
         # activation-aware wrapper, whether or not a restriction is configured.
         # The unrestricted (``None``) case stays byte-identical in *behaviour*
         # because the wrapper's None branch admits every profile.
-        from charter.resolver import DoctrineService as ActivationAwareDoctrineService
+        from charter.activation.resolver import DoctrineService as ActivationAwareDoctrineService
 
         stub = _StubService(
             agent_profiles=_StubRepo(

@@ -4,7 +4,7 @@ import pytest
 import tempfile
 from pathlib import Path
 
-from charter.schemas import (
+from charter.activation.schemas import (
     BranchStrategyConfig,
     CommitConfig,
     Directive,
@@ -69,18 +69,18 @@ class TestGovernanceConfig:
         assert isinstance(config.testing, CharterTestingConfig)
         assert isinstance(config.quality, QualityConfig)
         assert isinstance(config.performance, PerformanceConfig)
-        assert isinstance(config.doctrine, DoctrineSelectionConfig)
+        assert isinstance(config.charter, DoctrineSelectionConfig)
         assert config.enforcement == {}
 
     def test_custom_nested_values(self) -> None:
         config = GovernanceConfig(
             testing=CharterTestingConfig(min_coverage=90, tdd_required=True),
             quality=QualityConfig(linting="ruff"),
-            doctrine=DoctrineSelectionConfig(selected_paradigms=["test-first"]),
+            charter=DoctrineSelectionConfig(selected_paradigms=["test-first"]),
         )
         assert config.testing.min_coverage == 90
         assert config.quality.linting == "ruff"
-        assert config.doctrine.selected_paradigms == ["test-first"]
+        assert config.charter.selected_paradigms == ["test-first"]
 
 
 class TestDirective:

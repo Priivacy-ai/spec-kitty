@@ -1101,8 +1101,28 @@ def _branch_resolvable(repo_root: Path, branch: str) -> bool:
     return False
 
 
-def _emit_selector_error(exc: Exception) -> None:
-    """Render a structured ``MISSION_AMBIGUOUS_SELECTOR`` error and exit non-zero."""
+def _emit_selector_error(exc: Exception, *, json_output: bool = False) -> None:
+    """Render a structured ``MISSION_AMBIGUOUS_SELECTOR`` error and exit non-zero.
+
+    When ``json_output`` is set, emits the same shared ``{"success": False,
+    "error_code": ..., "error": ..., "handle": ..., "candidates": [...]}``
+    JSON envelope used elsewhere for ``MissionSelectorAmbiguous`` (e.g.
+    ``status.py``/``tasks_shared.py``'s ``_find_mission_slug``), instead of
+    Rich-formatted text on stdout (spec-kitty#477).
+    """
+    if json_output:
+        print(
+            json.dumps(
+                {
+                    "success": False,
+                    "error_code": getattr(exc, "error_code", "MISSION_AMBIGUOUS_SELECTOR"),
+                    "error": str(exc),
+                    "handle": getattr(exc, "handle", ""),
+                    "candidates": getattr(exc, "candidates", []),
+                }
+            )
+        )
+        return
     console.print(f"[red]MISSION_AMBIGUOUS_SELECTOR[/red]\n{exc}")
 
 
@@ -1146,7 +1166,7 @@ def reopen_cmd(
     try:
         resolved = _resolve_mission_handle(repo_root, handle)
     except MissionSelectorAmbiguous as exc:
-        _emit_selector_error(exc)
+        _emit_selector_error(exc, json_output=json_output)
         raise typer.Exit(1) from exc
 
     # Fail-closed predicate (a): meta.json absent / corrupt (no resolvable mission_id).
@@ -1278,7 +1298,7 @@ def follow_up_cmd(
     try:
         resolved = _resolve_mission_handle(repo_root, handle)
     except MissionSelectorAmbiguous as exc:
-        _emit_selector_error(exc)
+        _emit_selector_error(exc, json_output=json_output)
         raise typer.Exit(1) from exc
 
     if not resolved.mission_id:
@@ -1416,7 +1436,7 @@ def show_mission_type(
     Exits with code 1 and lists registered IDs when ``mission_type_id``
     is not an activated type.
     """
-    from charter.mission_type_profiles import (  # noqa: PLC0415
+    from charter.activation.mission_type_profiles import (  # noqa: PLC0415
         MissionTypeEmptyActionSequenceError,
         UnknownMissionTypeError,
         existing_mission_types,

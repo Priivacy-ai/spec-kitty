@@ -359,11 +359,33 @@ def _load_gate_coverage_module(repo_root: Path) -> ModuleType:
 
 
 def _default_filter_groups(repo_root: Path) -> dict[str, tuple[str, ...]]:
-    """Live ``group -> globs`` map, straight from ``aggregate_filter_groups()``."""
+    """Live ``group -> globs`` map, straight from ``aggregate_filter_groups()``.
+
+    ``load_workflow_models()`` reads the restored suite-running workflow off
+    disk (``WORKFLOWS_DIR``). If that authority is missing, the read raises
+    ``OSError`` (``FileNotFoundError`` in practice). That is the SAME
+    "authority missing" condition ``_load_gate_coverage_module`` already
+    guards against for an unimportable/cross-repo module — folded into the
+    identical :class:`GateAuthoritiesUnavailable` signal so it degrades the
+    same way (an "unverified scope" ``no_coverage`` warn, never a crash or a
+    silent green) rather than propagating a raw, unhandled ``OSError``.
+    """
+    from specify_cli.review.pre_review_gate import GateAuthoritiesUnavailable
+
     module = _load_gate_coverage_module(repo_root)
     load_workflow_models = cast("_LoadWorkflowModels", module.load_workflow_models)
     aggregate_filter_groups = cast("_AggregateFilterGroups", module.aggregate_filter_groups)
-    return aggregate_filter_groups(load_workflow_models())
+    resolved_root = repo_root.resolve()
+    try:
+        models = load_workflow_models()
+    except OSError as exc:
+        is_consumer_repo = not _is_spec_kitty_source_repo(resolved_root)
+        raise GateAuthoritiesUnavailable(
+            f"{_GATE_COVERAGE_MODULE_NAME}.load_workflow_models() could not read its "
+            f"live .github/workflows/*.yml authorities under {resolved_root}: {exc}",
+            is_consumer_repo=is_consumer_repo,
+        ) from exc
+    return aggregate_filter_groups(models)
 
 
 def _default_composite_routing(repo_root: Path) -> Mapping[str, _CompositeRoute]:

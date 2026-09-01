@@ -1,0 +1,80 @@
+schema: review-verify/v1
+complete: true
+phase: spec
+results:
+  - id: SPEC-GOV-001
+    status: resolved
+    reason: >-
+      Both absolute /home/jeroennouws paths are gone (readiness probe now cited by name
+      only, SK-76 by ledger-entry ID only); grep for /home/jeroennouws over current
+      spec.md returns nothing.
+  - id: SPEC-GOV-002
+    status: resolved
+    reason: >-
+      FR-006 now names the verifier explicitly, stating it is verified by the
+      pre-merge review squad / accept gate checking the PR body, not by a work
+      package or an automated test, and that a specific reviewer step at mission
+      close owns SC-005 — closing the no-named-verifier gap.
+  - id: SPEC-ARCH-001
+    status: resolved
+    reason: >-
+      New C-006 explicitly forbids threading dropped nodes through
+      CascadeScope.selects() or the existing activated/skipped_by_scope/candidates
+      bucketing loops, and mandates a --cascade all test that dropped nodes never
+      land in those buckets. Verified against current code that selects() is at
+      cascade.py line 178, the activation bucket call at line 374, and the
+      deactivation candidate loop at lines 533-535, all matching the new citation.
+  - id: SPEC-ARCH-002
+    status: resolved
+    reason: >-
+      FR-001 now requires the single-pass shape (existing loop over reachable
+      returns both partitions) and constrains any sibling helper to call one
+      shared kind-classification predicate rather than reimplement the
+      CHARTER_ACTIVATABLE_KINDS test, closing the parallel-authority risk.
+  - id: SPEC-VERIFY-001
+    status: resolved
+    reason: >-
+      New FR-005a plus Acceptance Scenario 2 and an updated FAILS-if clause
+      explicitly require the has_skipped-equivalent guard to also fire when only
+      the new kind-filtered field is populated. Verified has_skipped (cascade.py
+      lines 408-410) and its sole guard in activate.py (lines 404-405) match the
+      citations now used in the spec.
+  - id: SPEC-VERIFY-002
+    status: resolved
+    reason: >-
+      New FR-009 requires exactly one shared rendering helper defining the
+      kind-filtered label, invoked by all three call sites (FR-003/FR-005/FR-007),
+      closing the divergent-wording risk per remediation option (b).
+  - id: SPEC-VERIFY-003
+    status: resolved
+    reason: >-
+      FR-004's trigger is now explicitly narrowed to require at least one
+      kind-filtered node (not merely zero landing in activated), with an explicit
+      carve-out stating pure scope-narrowing does not trigger the message — a
+      real, falsifiable distinction, not a restatement.
+  - id: SPEC-VERIFY-004
+    status: resolved
+    reason: >-
+      A new Test-run scope note before Success Criteria directs SC-001/004/006
+      verification to be scoped to tests/charter/test_cascade.py and CLI tests,
+      and to classify other red against CLAUDE.md's known-red baseline before
+      attributing it to the mission.
+  - id: SPEC-VERIFY-005
+    status: resolved
+    reason: >-
+      NFR-001 through NFR-004 each now carry a concrete, falsifiable Fails-if
+      clause (e.g. NFR-001 ties directly to the FR-005a has_skipped corner)
+      rather than remaining bare must statements.
+  - id: SPEC-VERIFY-006
+    status: resolved
+    reason: >-
+      FR-005's citation is corrected to activate.py lines 383-417. Verified
+      directly that _render_no_cascade_warning spans exactly 383-417 (line 417
+      is the Hint print), with the next def starting at 420.
+  - id: SPEC-VERIFY-007
+    status: resolved
+    reason: >-
+      FR-007's citation is corrected to deactivate.py lines 133-194. Verified
+      directly that _render_cascade_deactivation spans exactly 133-194 (the
+      skipped_shared loop ends at 194), with the next def (deactivate_cmd)
+      starting at 197.

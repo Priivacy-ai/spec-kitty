@@ -1,6 +1,6 @@
 """Governance-as-test: built-in DRG overrides must be sanctioned by the repo.
 
-The three-layer merge (:mod:`doctrine.drg.merge`) PERMITS a same-kind org node
+The three-layer merge (:mod:`charter.offering.drg.merge`) PERMITS a same-kind org node
 to override a built-in node in place (recorded as a ``node_override`` conflict
 with ``resolution_applied == "org_override"`` and a warning). The merge does
 NOT decide whether *this* repo sanctions a given override — that is a per-repo
@@ -23,11 +23,11 @@ from pathlib import Path
 
 import pytest
 
-from doctrine.drg.loader import built_in_graph_source, load_graph_or_dir
-from doctrine.drg.merge import merge_three_layers
-from doctrine.drg.models import DRGGraph, DRGNode, NodeKind
-from doctrine.drg.org_pack_loader import OrgDRGFragment
-from doctrine.drg.override_policy import (
+from charter.offering.drg.loader import built_in_graph_source, load_graph_or_dir
+from charter.offering.drg.merge import merge_three_layers
+from charter.offering.drg.models import DRGGraph, DRGNode, NodeKind
+from charter.offering.drg.org_pack_loader import OrgDRGFragment
+from charter.offering.drg.override_policy import (
     ReplaceableBuiltinsPolicy,
     find_overridden_builtin_urns,
     find_unsanctioned_overrides,
@@ -50,7 +50,7 @@ def _load_org_fragments(repo_root: Path) -> list[OrgDRGFragment]:
     suite is allowed to reach across layers. A repo with no ``organisation_packs``
     yields an empty list (the common case, including this repo).
     """
-    from charter.drg import load_org_drg  # noqa: PLC0415 — cross-layer test reach
+    from charter.activation.drg_activation import load_org_drg
 
     fragments: list[OrgDRGFragment] = load_org_drg(repo_root)
     return fragments
@@ -144,6 +144,6 @@ def test_real_merge_override_is_detected_and_governed() -> None:
 
 
 def _policy(*entries: tuple[str, str]) -> ReplaceableBuiltinsPolicy:
-    from doctrine.drg.override_policy import ReplaceableBuiltin
+    from charter.offering.drg.override_policy import ReplaceableBuiltin
 
     return ReplaceableBuiltinsPolicy(entries=tuple(ReplaceableBuiltin(urn=u, reason=r) for u, r in entries))

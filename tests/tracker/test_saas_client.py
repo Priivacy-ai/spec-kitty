@@ -7,12 +7,16 @@ parsing, and network errors.
 
 from __future__ import annotations
 
+import hashlib
+import json as json_module
+from pathlib import Path
 from typing import Any
 from unittest.mock import MagicMock, patch
 
 import httpx
 import pytest
 
+from kernel.clock import datetime
 from specify_cli.tracker.saas_client import (
     SaaSTrackerClient,
     SaaSTrackerClientError,
@@ -25,6 +29,35 @@ pytestmark = pytest.mark.fast
 # ---------------------------------------------------------------------------
 # Fixtures
 # ---------------------------------------------------------------------------
+
+
+def _expected_idempotency_key(
+    *,
+    project_root: Path | None,
+    write_kind: str,
+    payload: dict[str, Any],
+    at: datetime,
+) -> str:
+    """Independently recompute the digest ``_content_digest`` promises to mint.
+
+    Reimplements the documented contract (canonical JSON, ``sort_keys=True``,
+    sha256) from scratch rather than calling ``_content_digest`` — the only
+    form of assertion that fails when the implementation drifts from that
+    contract, e.g. by folding in a per-instance/per-call salt (#313).
+    """
+    window_seconds = SaaSTrackerClient._IDEMPOTENCY_RESEND_WINDOW.total_seconds()
+    resend_bucket = int(at.timestamp() // window_seconds)
+    canonical = json_module.dumps(
+        {
+            "project_root": str(project_root) if project_root is not None else "",
+            "write_kind": write_kind,
+            "payload": payload,
+            "resend_bucket": resend_bucket,
+        },
+        sort_keys=True,
+        default=str,
+    )
+    return "logical-operation:write:" + hashlib.sha256(canonical.encode("utf-8")).hexdigest()  # noqa: TID251 - idempotency-key body checksum, not charter content
 
 
 def _make_response(
@@ -311,24 +344,113 @@ class TestPush:
         assert len(idem_key.removeprefix("logical-operation:write:")) == 64  # golden-count: cardinality-is-contract
 
     @patch("specify_cli.tracker.saas_client.httpx.Client")
-    def test_push_idempotency_key_deterministic_across_invocations(self, mock_cls: MagicMock, client: SaaSTrackerClient) -> None:
+    def test_push_idempotency_key_deterministic_across_invocations(self, mock_cls: MagicMock, client: SaaSTrackerClient, monkeypatch: pytest.MonkeyPatch) -> None:
         """A resend of an unchanged write (e.g. after a crash) must mint the
         same key so the server's receipt store dedupes it (#61) — a random
-        key per invocation silently re-applies the write instead."""
+        key per invocation silently re-applies the write instead.
+
+        Asserting each key against an independently recomputed digest (not
+        just ``first_key == second_key``) pins the cross-*process* property:
+        a per-instance salt would still make two calls on the SAME instance
+        collide while breaking determinism for a resend from a fresh process
+        (#313)."""
+        from kernel.clock import now_utc
+
         mock_http = MagicMock()
         mock_cls.return_value.__enter__ = MagicMock(return_value=mock_http)
         mock_cls.return_value.__exit__ = MagicMock(return_value=False)
         mock_http.request.return_value = _make_response(200, {"pushed": 1})
 
-        client.push("jira", "proj-1", [{"title": "Bug"}])
+        frozen = now_utc()
+        monkeypatch.setattr("specify_cli.tracker.saas_client.now_utc", lambda: frozen)
+
+        items = [{"title": "Bug"}]
+        client.push("jira", "proj-1", items)
         _, kwargs = mock_http.request.call_args
         first_key = kwargs["headers"]["Idempotency-Key"]
 
-        client.push("jira", "proj-1", [{"title": "Bug"}])
+        client.push("jira", "proj-1", items)
         _, kwargs = mock_http.request.call_args
         second_key = kwargs["headers"]["Idempotency-Key"]
 
-        assert first_key == second_key
+        expected_key = _expected_idempotency_key(
+            project_root=client._project_root,
+            write_kind=client._PUSH_PATH,
+            payload={"provider": "jira", "project_slug": "proj-1", "items": items},
+            at=frozen,
+        )
+
+        assert first_key == expected_key
+        assert second_key == expected_key
+
+    @patch("specify_cli.tracker.saas_client.httpx.Client")
+    def test_push_idempotency_key_pins_explicit_project_root_in_digest(
+        self, mock_cls: MagicMock, mock_credential_store: MagicMock, mock_sync_config: MagicMock, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """The digest's ``project_root`` branch is exercised with a concrete,
+        non-default path — not only the fixture's tmp-path stand-in — so a
+        derivation that silently drops or mis-stringifies it is caught
+        (#313)."""
+        from kernel.clock import now_utc
+
+        explicit_root = tmp_path / "explicit-project-root"
+        explicit_root.mkdir()
+        client = SaaSTrackerClient(
+            credential_store=mock_credential_store,
+            sync_config=mock_sync_config,
+            timeout=5.0,
+            project_root=explicit_root,
+        )
+        assert client._project_root == explicit_root
+
+        mock_http = MagicMock()
+        mock_cls.return_value.__enter__ = MagicMock(return_value=mock_http)
+        mock_cls.return_value.__exit__ = MagicMock(return_value=False)
+        mock_http.request.return_value = _make_response(200, {"pushed": 1})
+
+        frozen = now_utc()
+        monkeypatch.setattr("specify_cli.tracker.saas_client.now_utc", lambda: frozen)
+
+        items = [{"title": "Bug"}]
+        client.push("jira", "proj-1", items)
+        _, kwargs = mock_http.request.call_args
+        actual_key = kwargs["headers"]["Idempotency-Key"]
+
+        expected_key = _expected_idempotency_key(
+            project_root=explicit_root,
+            write_kind=client._PUSH_PATH,
+            payload={"provider": "jira", "project_slug": "proj-1", "items": items},
+            at=frozen,
+        )
+
+        assert actual_key == expected_key
+
+    def test_project_root_is_resolved_so_a_relative_root_is_not_cwd_dependent(
+        self,
+        tmp_path: Path,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        """A relative ``project_root`` must resolve to the same absolute path
+        (and therefore the same idempotency digest) regardless of which
+        directory the process happened to be run from (#314): storing the
+        raw ``Path(project_root)`` made ``_content_digest`` cwd-dependent."""
+        from kernel.clock import now_utc
+
+        project_dir = tmp_path / "proj"
+        project_dir.mkdir()
+        monkeypatch.chdir(tmp_path)
+        frozen = now_utc()
+        monkeypatch.setattr("specify_cli.tracker.saas_client.now_utc", lambda: frozen)
+
+        relative_client = SaaSTrackerClient(timeout=5.0, project_root=Path("proj"))
+        absolute_client = SaaSTrackerClient(timeout=5.0, project_root=project_dir)
+
+        assert relative_client._project_root == project_dir.resolve()
+        assert relative_client._project_root.is_absolute()
+        payload = {"provider": "jira", "project_slug": "proj-1", "items": [{"title": "Bug"}]}
+        relative_digest = relative_client._content_digest(relative_client._PUSH_PATH, payload)
+        absolute_digest = absolute_client._content_digest(absolute_client._PUSH_PATH, payload)
+        assert relative_digest == absolute_digest
 
     @patch("specify_cli.tracker.saas_client.httpx.Client")
     def test_push_idempotency_key_changes_with_payload(self, mock_cls: MagicMock, client: SaaSTrackerClient) -> None:
@@ -487,13 +609,22 @@ class TestRun:
         assert len(idem_key.removeprefix("logical-operation:write:")) == 64  # golden-count: cardinality-is-contract
 
     @patch("specify_cli.tracker.saas_client.httpx.Client")
-    def test_run_idempotency_key_deterministic_across_invocations(self, mock_cls: MagicMock, client: SaaSTrackerClient) -> None:
+    def test_run_idempotency_key_deterministic_across_invocations(self, mock_cls: MagicMock, client: SaaSTrackerClient, monkeypatch: pytest.MonkeyPatch) -> None:
         """Same rationale as push (#61): a resend after process death must
-        collide with the earlier attempt's key, not mint a fresh one."""
+        collide with the earlier attempt's key, not mint a fresh one.
+
+        Asserting against an independently recomputed digest, rather than
+        only ``first_key == second_key``, pins the cross-*process* property
+        rather than an incidental per-instance one (#313)."""
+        from kernel.clock import now_utc
+
         mock_http = MagicMock()
         mock_cls.return_value.__enter__ = MagicMock(return_value=mock_http)
         mock_cls.return_value.__exit__ = MagicMock(return_value=False)
         mock_http.request.return_value = _make_response(200, {"ok": True})
+
+        frozen = now_utc()
+        monkeypatch.setattr("specify_cli.tracker.saas_client.now_utc", lambda: frozen)
 
         client.run("jira", "proj-1")
         _, kwargs = mock_http.request.call_args
@@ -503,7 +634,15 @@ class TestRun:
         _, kwargs = mock_http.request.call_args
         second_key = kwargs["headers"]["Idempotency-Key"]
 
-        assert first_key == second_key
+        expected_key = _expected_idempotency_key(
+            project_root=client._project_root,
+            write_kind=client._RUN_PATH,
+            payload={"provider": "jira", "project_slug": "proj-1", "pull_first": True, "limit": 100},
+            at=frozen,
+        )
+
+        assert first_key == expected_key
+        assert second_key == expected_key
 
     @patch("specify_cli.tracker.saas_client.httpx.Client")
     def test_run_idempotency_key_differs_from_push_for_same_project(self, mock_cls: MagicMock, client: SaaSTrackerClient) -> None:
@@ -773,6 +912,27 @@ class TestConstructorDefaults:
             sync_config=mock_sync_config,
         )
         assert c._credential_store is mock_credential_store
+
+    @pytest.mark.parametrize(("exception", "reason"), [(RuntimeError, "symlink loop"), (OSError, "cwd removed")])
+    def test_project_root_resolution_failures_are_client_errors(
+        self,
+        tmp_path: Path,
+        monkeypatch: pytest.MonkeyPatch,
+        exception: type[BaseException],
+        reason: str,
+    ) -> None:
+        project_root = tmp_path / "proj"
+
+        def unresolved_path(self: Path) -> Path:
+            raise exception(reason)
+
+        monkeypatch.setattr(Path, "resolve", unresolved_path)
+
+        with pytest.raises(SaaSTrackerClientError, match="Cannot resolve project root") as exc_info:
+            SaaSTrackerClient(project_root=project_root)
+
+        assert exc_info.value.error_code == "project_root_resolution_failed"
+        assert exc_info.value.details == {"project_root": str(project_root), "reason": reason}
 
 
 # ---------------------------------------------------------------------------

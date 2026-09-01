@@ -1,7 +1,6 @@
 action: implement
 directives:
   - 001-architectural-integrity-standard
-  - 003-decision-documentation-requirement
   - 010-specification-fidelity-requirement
   - 024-locality-of-change
   - 025-boy-scout-rule

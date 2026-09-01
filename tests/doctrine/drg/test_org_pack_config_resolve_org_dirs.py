@@ -12,9 +12,9 @@ from pathlib import Path
 
 import pytest
 
-from doctrine.drg.org_pack_config import resolve_org_dirs, resolve_org_roots
+from charter.offering.drg.org_pack_config import resolve_org_dirs, resolve_org_roots
 
-_LOGGER_NAME = "doctrine.drg.org_pack_config"
+_LOGGER_NAME = "charter.offering.drg.org_pack_config"
 
 pytestmark = [pytest.mark.fast, pytest.mark.doctrine]
 

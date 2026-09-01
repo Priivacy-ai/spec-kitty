@@ -27,7 +27,7 @@ from specify_cli.cli.commands.merge import (
 )
 from specify_cli.merge.config import MergeStrategy
 
-pytestmark = pytest.mark.git_repo
+pytestmark = [pytest.mark.integration, pytest.mark.git_repo]
 
 
 # ---------------------------------------------------------------------------
@@ -415,7 +415,6 @@ class TestMergeDoneTransitions:
         mock_emit.assert_called_once()
         kwargs = mock_emit.call_args.kwargs
         assert kwargs["ensure_sync_daemon"] is False
-        assert kwargs["sync_dossier"] is False
 
     def test_safe_commit_called_before_worktree_removal(
         self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch

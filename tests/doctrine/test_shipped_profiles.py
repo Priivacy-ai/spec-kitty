@@ -15,10 +15,10 @@ from pathlib import Path
 import pytest
 from ruamel.yaml import YAML
 
-from doctrine.agent_profiles.profile import AgentProfile, Role
-from doctrine.agent_profiles.repository import AgentProfileRepository
-from doctrine.agent_profiles.validation import validate_agent_profile_yaml
-from doctrine.pack_paths import resolve_pack_root
+from charter.offering.agent_profiles.profile import AgentProfile, Role
+from charter.offering.agent_profiles.repository import AgentProfileRepository
+from charter.offering.agent_profiles.validation import validate_agent_profile_yaml
+from charter.offering.pack_paths import resolve_pack_root
 from tests.doctrine._builtin_inventory import builtin_profile_ids
 
 pytestmark = [pytest.mark.fast, pytest.mark.doctrine, pytest.mark.corpus]
@@ -31,13 +31,13 @@ REPO_ROOT = Path(__file__).resolve().parents[2]
 BUILT_IN_DIR = resolve_pack_root("built-in") / "agent_profiles"
 MISSION_RUNTIME_DIRS = (
     # Mission doctrine-consumer-surface-missions-extraction-01KZ6G6H (FR-005)
-    # relocated missions/ from src/doctrine/missions to packs/built-in/missions.
+    # relocated missions/ from src/charter/offering/missions to packs/built-in/missions.
     REPO_ROOT / "packs" / "built-in" / "missions",
     REPO_ROOT / ".kittify" / "overrides" / "missions",
 )
-# The Python-package README (``src/doctrine/agent_profiles/README.md``) was NOT
+# The Python-package README (``src/charter/offering/agent_profiles/README.md``) was NOT
 # relocated; the built-in-pack README moved to the flattened pack dir.
-AGENT_PROFILES_README = REPO_ROOT / "src" / "doctrine" / "agent_profiles" / "README.md"
+AGENT_PROFILES_README = REPO_ROOT / "src" / "charter" / "offering" / "agent_profiles" / "README.md"
 BUILT_IN_README = BUILT_IN_DIR / "README.md"
 
 # Derived from the shipped ``packs/built-in/agent_profiles/*.agent.yaml`` source
@@ -433,16 +433,12 @@ class TestShippedProfilesCollaboration:
 
 
 class TestShippedProfilesContextSources:
-    """Verify context sources are defined."""
+    """Verify the canonical ``*-references`` doctrine surface is defined.
 
-    @pytest.mark.parametrize("profile_id", sorted(_AGENT_PROFILE_IDS))
-    def test_context_sources_has_doctrine_layers(self, repo: AgentProfileRepository, profile_id: str):
-        """Each profile has at least one doctrine layer configured."""
-        profile = repo.get(profile_id)
-        assert profile is not None
-        assert len(profile.context_sources.doctrine_layers) > 0, (
-            f"Profile '{profile_id}' has no doctrine layers in context_sources"
-        )
+    The retired ``context-sources`` surface was removed in mission
+    doctrine-drg-silent-drop-boundary-01M0PE7E; profiles now carry references
+    solely on the top-level ``*-references`` fields.
+    """
 
     @pytest.mark.parametrize("profile_id", sorted(_AGENT_PROFILE_IDS))
     def test_directive_references_are_defined(self, repo: AgentProfileRepository, profile_id: str):
@@ -483,16 +479,27 @@ class TestShippedProfilesContextSources:
             ),
         ],
     )
-    def test_context_sources_preserve_shipped_tactic_lists(
+    def test_shipped_tactic_references_include_expected(
         self,
         repo: AgentProfileRepository,
         profile_id: str,
         expected_tactics: list[str],
     ):
-        """Shipped context-sources.tactics survive repository validation/loading."""
+        """Shipped tactic references survive loading and cover the tactics that
+        the retired ``context-sources.tactics`` surface used to pin.
+
+        The consolidation folded ``context-sources.tactics`` (a subset) onto the
+        canonical ``tactic-references`` surface; every previously-pinned tactic
+        must remain reachable there.
+        """
         profile = repo.get(profile_id)
         assert profile is not None
-        assert profile.context_sources.tactics == expected_tactics
+        tactic_ids = {ref.id for ref in profile.tactic_references}
+        missing = [t for t in expected_tactics if t not in tactic_ids]
+        assert missing == [], (
+            f"Profile '{profile_id}' lost tactic references {missing} in the "
+            f"context-sources consolidation; present: {sorted(tactic_ids)}"
+        )
 
 
 class TestShippedProfilesPerformance:

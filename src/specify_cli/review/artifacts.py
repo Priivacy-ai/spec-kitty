@@ -270,7 +270,12 @@ class ReviewCycleArtifact:
         if self.body:
             content += f"\n{self.body}"
 
-        path.write_text(content, encoding="utf-8")
+        # Write bytes so the canonical LF representation is identical on every
+        # platform.  Text-mode writes with ``newline=None`` translate ``\n`` to
+        # CRLF on Windows, while Git's clean conversion can store LF in the
+        # governed-ref blob; exact durability read-back must compare the same
+        # bytes on both sides rather than normalize that mismatch away.
+        path.write_bytes(content.encode("utf-8"))
 
     @classmethod
     def from_file(cls, path: Path) -> ReviewCycleArtifact:

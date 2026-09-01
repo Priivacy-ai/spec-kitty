@@ -1,11 +1,11 @@
 """Tests for FR-014 DRG auto-emit on org pack load (WP06 T036).
 
 When a pack artifact declares ``enhances: <id>`` or ``overrides: <id>``,
-:func:`doctrine.drg.org_pack_loader.load_org_pack` MUST auto-emit a matching
+:func:`charter.offering.drg.org_pack_loader.load_org_pack` MUST auto-emit a matching
 edge into the pack's DRG fragment. A hand-authored duplicate of the same edge
 contributes once to the merged graph, deduplicated by
 ``(source, target, relation)`` — see
-:class:`doctrine.drg.merge._OrgEdgeCollector` for why that reconciliation is
+:class:`charter.offering.drg.merge._OrgEdgeCollector` for why that reconciliation is
 owned by the merge rather than by this loader.
 """
 
@@ -15,9 +15,9 @@ from pathlib import Path
 
 import pytest
 
-from doctrine.drg.merge import merge_three_layers
-from doctrine.drg.models import DRGGraph, Relation
-from doctrine.drg.org_pack_loader import OrgPackSchemaError, load_org_pack
+from charter.offering.drg.merge import merge_three_layers
+from charter.offering.drg.models import DRGGraph, Relation
+from charter.offering.drg.org_pack_loader import OrgPackSchemaError, load_org_pack
 
 pytestmark = [pytest.mark.unit, pytest.mark.fast]
 

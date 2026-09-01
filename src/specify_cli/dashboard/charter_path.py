@@ -11,7 +11,7 @@ secondary, never an override):
   deletion (#3150) *and* does not regress projects that have authored a
   ``charter.md`` but have not yet compiled ``charter.yaml`` (landing-fold
   fix, matching the yaml-or-md prose-presence gate in
-  ``charter.context`` and the md-only fallback in
+  ``charter.activation.context`` and the md-only fallback in
   ``cli/commands/charter/_status_collectors.py``).
 * :func:`resolve_project_charter_path` -- the prose body reader. Keys on
   ``charter.md`` (unchanged from pre-#3150 behaviour) for callers that
@@ -53,7 +53,7 @@ def _resolve_canonical_root_loud(project_dir: Path) -> Path | None:
     """Resolve the canonical (main-checkout) project root, degrading to ``None``.
 
     Uses ``charter.resolution.resolve_canonical_repo_root`` directly rather
-    than the ``charter.sync.ensure_charter_bundle_fresh`` chokepoint: that
+    than the ``charter.activation.sync.ensure_charter_bundle_fresh`` chokepoint: that
     chokepoint's own contract returns ``None`` whenever ``charter.md`` is
     absent (it exists to refresh bundle derivatives *from* ``charter.md``,
     so "nothing to refresh" is correct for its purpose) -- which would sink
@@ -91,7 +91,7 @@ def resolve_project_charter_presence(project_dir: Path) -> Path | None:
     ``charter.yaml`` has not been compiled yet (a project that authored a
     charter but has not run ``charter sync``/compile), so presence does not
     regress that far more common case: this mirrors the yaml-or-md
-    prose-presence gate in ``charter.context`` (C-003) and the md-only
+    prose-presence gate in ``charter.activation.context`` (C-003) and the md-only
     fallback added to ``cli/commands/charter/_status_collectors.py`` in the
     same PR. Returns the absolute path to whichever file is present
     (``charter.yaml`` when both exist), ``None`` when neither exists. Does
@@ -123,7 +123,7 @@ def resolve_project_charter_presence(project_dir: Path) -> Path | None:
 def resolve_project_charter_path(project_dir: Path) -> Path | None:
     """Resolve the project-level charter *prose body* file path.
 
-    Routes through ``charter.sync.ensure_charter_bundle_fresh`` (FR-004
+    Routes through ``charter.activation.sync.ensure_charter_bundle_fresh`` (FR-004
     chokepoint) so the canonical-root resolver picks up the main checkout
     even when the dashboard scans a worktree path. The return value is the
     absolute path to ``<canonical_root>/.kittify/charter/charter.md`` when
@@ -139,7 +139,7 @@ def resolve_project_charter_path(project_dir: Path) -> Path | None:
         GitCommonDirUnavailableError,
         NotInsideRepositoryError,
     )
-    from charter.sync import ensure_charter_bundle_fresh
+    from charter.activation.sync import ensure_charter_bundle_fresh
 
     project_dir = Path(project_dir)
 
@@ -157,7 +157,7 @@ def resolve_project_charter_path(project_dir: Path) -> Path | None:
     if sync_result is None or sync_result.canonical_root is None:
         return None
 
-    # Explicit annotation: charter.sync/charter.bundle are under a
+    # Explicit annotation: charter.activation.sync/charter.bundle are under a
     # follow_imports = "skip" mypy override (pre-existing project-wide
     # setting for charter.*), so this expression resolves to Any at the
     # call site without this local pin (NFR-002).

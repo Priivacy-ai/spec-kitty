@@ -37,9 +37,7 @@ _CORPUS_DOCS = (
 _BLOCK_RE = re.compile(r"```plantuml\s*\n(@start\w+.*?@end\w+)\s*\n```", re.DOTALL)
 # An external ref = an http(s) URL to a real host. Loopback and the SVG/XLink XML
 # namespace declarations (www.w3.org, always present on any <svg> root) are not egress.
-_EXTERNAL_URL_RE = re.compile(
-    r"https?://(?!127\.0\.0\.1|localhost|www\.w3\.org)", re.IGNORECASE
-)
+_EXTERNAL_URL_RE = re.compile(r"https?://(?!127\.0\.0\.1|localhost|www\.w3\.org)", re.IGNORECASE)
 
 
 def _docker_available() -> bool:
@@ -77,7 +75,7 @@ def test_no_external_urls_in_corpus_sources() -> None:
 
 
 @pytest.mark.skipif(not _docker_available(), reason="docker unavailable")
-def test_full_corpus_renders_offline_error_free(tmp_path: Path) -> None:
+def test_full_corpus_renders_offline_error_free() -> None:
     _ensure_jar()
     jar = _REPO_ROOT / "plantuml.jar"
     pins = plantuml_invoke.load_pins()
@@ -86,7 +84,7 @@ def test_full_corpus_renders_offline_error_free(tmp_path: Path) -> None:
     for rel, source in corpus:
         # render_startyaml runs docker --network=none + SANDBOX and fails closed on
         # any error SVG — so a clean return IS an error-free offline render.
-        svg = plantuml_invoke.render_startyaml(source, workdir=tmp_path, jar_path=jar, pins=pins)
+        svg = plantuml_invoke.render_startyaml(source, workdir=_REPO_ROOT, jar_path=jar, pins=pins)
         assert svg.strip(), f"{rel}: empty SVG"
         assert not plantuml_invoke.svg_is_error(svg), f"{rel}: error SVG"
         # No remote xlink/image refs leaked into the rendered output.

@@ -360,7 +360,7 @@ def _profile_with_parent() -> tuple[str, str] | None:
     which case the lineage-warning tests skip (the warning path is exercised
     only when real lineage exists).
     """
-    from doctrine.agent_profiles.repository import AgentProfileRepository
+    from charter.offering.agent_profiles.repository import AgentProfileRepository
 
     repo = AgentProfileRepository()
     for profile_id in sorted(p.profile_id for p in repo.list_all()):

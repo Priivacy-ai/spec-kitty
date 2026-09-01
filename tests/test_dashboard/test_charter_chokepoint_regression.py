@@ -57,17 +57,37 @@ def _normalize(raw: str) -> str:
     return json.dumps(data, indent=2, sort_keys=True) + "\n"
 
 
-def test_dashboard_typed_contracts_are_byte_identical_to_baseline(tmp_path: Path) -> None:
-    """Byte-identical assertion against the committed baseline.
+def _remove_dashboard_extensions(data: dict[str, object]) -> dict[str, object]:
+    """Remove the explicitly versioned fields added after the frozen baseline."""
+    features = data.get("features")
+    if not isinstance(features, list):
+        return data
 
-    On failure, a unified diff of the canonical JSON representation is
-    included so the diagnostician can see exactly which key(s) drifted.
+    for feature in features:
+        if not isinstance(feature, dict):
+            continue
+        assert feature["mission_status"] in {"active", "planned", "done", "draft"}
+        assert feature["next_action"] is None or isinstance(feature["next_action"], str)
+        feature.pop("mission_status")
+        feature.pop("next_action")
+    return data
+
+
+def test_dashboard_typed_contracts_are_byte_identical_to_baseline(tmp_path: Path) -> None:
+    """Byte-identical historical contract assertion against the baseline.
+
+    The archived baseline predates ``mission_status`` and ``next_action``.
+    Those two fields are checked for presence and type, then removed before
+    comparing every historical field byte-for-byte in canonical JSON form. On
+    failure, a unified diff shows exactly which pre-existing key(s) drifted.
     """
     assert _BASELINE_SCRIPT.exists(), f"baseline capture script missing: {_BASELINE_SCRIPT}"
     assert _BASELINE_JSON.exists(), f"baseline JSON anchor missing: {_BASELINE_JSON}"
 
-    expected = _normalize(_BASELINE_JSON.read_text(encoding="utf-8"))
-    actual = _normalize(_run_capture(tmp_path))
+    expected_data = json.loads(_BASELINE_JSON.read_text(encoding="utf-8"))
+    actual_data = _remove_dashboard_extensions(json.loads(_run_capture(tmp_path)))
+    expected = _normalize(json.dumps(expected_data))
+    actual = _normalize(json.dumps(actual_data))
 
     if expected == actual:
         return

@@ -16,7 +16,7 @@ import typer
 from ruamel.yaml import YAML
 from specify_cli.cli.console import console
 
-from charter.invocation_context import ProjectContext
+from charter.activation.invocation_context import ProjectContext
 from specify_cli.charter_pack_registry import (
     BUILTIN_PACKS,
     UnknownPackError,
@@ -40,7 +40,7 @@ def consistency_check_cmd(
     repo_root: Path = typer.Option(Path("."), hidden=True),
 ) -> None:
     """Run consistency check against activated doctrine artifacts (FR-011)."""
-    from charter.consistency_check import run_consistency_check  # noqa: PLC0415
+    from charter.activation.consistency_check import run_consistency_check  # noqa: PLC0415
 
     ctx = ProjectContext.from_repo(repo_root)
     report = run_consistency_check(ctx)
@@ -54,7 +54,7 @@ def consistency_check_cmd(
             for ref in report.unknown_references:
                 console.print(f"  [red]Unknown reference:[/red] {ref}")
             for ref in report.missing_from_doctrine:
-                console.print(f"  [yellow]Missing from doctrine:[/yellow] {ref}")
+                console.print(f"  [yellow]Missing from charter.offering:[/yellow] {ref}")
             for v in report.kind_violations:
                 console.print(f"  [red]Kind violation:[/red] {v}")
             for ref in report.reference_id_divergences:
@@ -165,7 +165,7 @@ def _compile_bundle_after_merge(repo_root: Path, *, pack_name: str) -> list[str]
 
     *pack_name* is threaded straight into
     ``_load_interview_for_generate(..., profile=pack_name)`` instead of a
-    hardcoded ``"minimal"``: :func:`charter.interview.default_interview`'s
+    hardcoded ``"minimal"``: :func:`charter.activation.interview.default_interview`'s
     ``profile`` argument has exactly one live branch --
     ``if profile == "minimal": answers = {filtered 7-question subset}``,
     else the full ``QUESTION_ORDER`` (11 questions) is used -- and today's
@@ -179,14 +179,14 @@ def _compile_bundle_after_merge(repo_root: Path, *, pack_name: str) -> list[str]
     ``default`` gets today, not a new failure mode. The derived value ends
     up in the compiled ``charter.yaml`` catalog's ``USER:PROJECT_PROFILE``
     reference content (``_user_profile_reference`` in
-    :mod:`charter.compiler`), which is exactly where this bug was
+    :mod:`charter.activation.compiler`), which is exactly where this bug was
     observable and where the regression test below asserts it.
 
     Raises :class:`_ApplyCompileGitWorktreeError` when *repo_root* is not
     inside a git working tree.
     """
-    from charter.compiler import compile_charter, write_compiled_charter  # noqa: PLC0415
-    from charter.pack_context import PackContext  # noqa: PLC0415
+    from charter.activation.compiler import compile_charter, write_compiled_charter  # noqa: PLC0415
+    from charter.activation.pack_context import PackContext  # noqa: PLC0415
 
     from specify_cli.cli.commands.charter._common import _interview_path  # noqa: PLC0415
     from specify_cli.cli.commands.charter.generate import (  # noqa: PLC0415

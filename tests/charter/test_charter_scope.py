@@ -1,10 +1,10 @@
 """Slice F WP09 — CharterScope unit suite.
 
-Targets `src/charter/scope.py`. Exercises:
+Targets `src/charter/activation/scope.py`. Exercises:
   - CharterScope.default(repo_root) constructor (FR-009, FR-011)
   - CharterScope.resolve(repo_root, feature_dir) — happy + edge paths (FR-010)
   - CharterScopeConfig Pydantic round-trip (FR-140 bridge — turns the
-    `charter.scope.CharterScopeConfig` round-trip case from SKIPPED to PASSED)
+    `charter.activation.scope.CharterScopeConfig` round-trip case from SKIPPED to PASSED)
   - CharterScopeConflict / CharterScopeNotFound exception surface (FR-008)
 
 covers: FR-008, FR-009, FR-010, FR-011 — expected GREEN at: WP09 final commit
@@ -67,7 +67,7 @@ def tmp_monorepo(tmp_path: Path) -> Path:
 
 
 def test_default_scope_constructs_with_repo_root() -> None:
-    from charter.scope import CharterScope
+    from charter.activation.scope import CharterScope
 
     repo_root = Path("/nonexistent/some-repo")
     scope = CharterScope.default(repo_root)
@@ -79,7 +79,7 @@ def test_default_scope_constructs_with_repo_root() -> None:
 
 def test_default_scope_is_frozen() -> None:
     """CharterScope is a frozen dataclass: cannot mutate after construction."""
-    from charter.scope import CharterScope
+    from charter.activation.scope import CharterScope
 
     scope = CharterScope.default(Path("/nonexistent/repo"))
     with pytest.raises(dataclasses.FrozenInstanceError):
@@ -94,7 +94,7 @@ def test_default_scope_is_frozen() -> None:
 def test_resolve_without_config_returns_default(
     tmp_repo_without_config: Path,
 ) -> None:
-    from charter.scope import CharterScope
+    from charter.activation.scope import CharterScope
 
     scope = CharterScope.resolve(tmp_repo_without_config, tmp_repo_without_config)
     assert scope.config_source == "repo_root_default"
@@ -105,7 +105,7 @@ def test_resolve_with_empty_scopes_returns_default(
     tmp_repo_with_empty_scopes: Path,
 ) -> None:
     """config.yaml without charter_scopes key — still default path."""
-    from charter.scope import CharterScope
+    from charter.activation.scope import CharterScope
 
     scope = CharterScope.resolve(
         tmp_repo_with_empty_scopes, tmp_repo_with_empty_scopes
@@ -119,7 +119,7 @@ def test_resolve_with_empty_scopes_returns_default(
 
 
 def test_resolve_with_config_walks_upward(tmp_monorepo: Path) -> None:
-    from charter.scope import CharterScope
+    from charter.activation.scope import CharterScope
 
     deep = tmp_monorepo / "packages" / "auth" / "src" / "internal"
     scope = CharterScope.resolve(tmp_monorepo, deep)
@@ -128,7 +128,7 @@ def test_resolve_with_config_walks_upward(tmp_monorepo: Path) -> None:
 
 
 def test_resolve_returns_scope_root_at_exact_match(tmp_monorepo: Path) -> None:
-    from charter.scope import CharterScope
+    from charter.activation.scope import CharterScope
 
     feature_dir = tmp_monorepo / "packages" / "web"
     scope = CharterScope.resolve(tmp_monorepo, feature_dir)
@@ -138,7 +138,7 @@ def test_resolve_returns_scope_root_at_exact_match(tmp_monorepo: Path) -> None:
 def test_charter_scope_not_found_when_feature_dir_outside_any_scope(
     tmp_monorepo: Path,
 ) -> None:
-    from charter.scope import CharterScope, CharterScopeNotFound
+    from charter.activation.scope import CharterScope, CharterScopeNotFound
 
     outside = tmp_monorepo / "not-a-package" / "deep"
     outside.mkdir(parents=True)
@@ -157,7 +157,7 @@ def test_charter_scope_not_found_when_feature_dir_outside_any_scope(
 
 def test_charter_scope_config_accepts_valid_payload() -> None:
     """Valid charter_scopes payload round-trips through CharterScopeConfig."""
-    from charter.scope import CharterScopeConfig
+    from charter.activation.scope import CharterScopeConfig
 
     payload = {
         "charter_scopes": [
@@ -173,7 +173,7 @@ def test_charter_scope_config_accepts_valid_payload() -> None:
 
 def test_charter_scope_config_accepts_entry_without_name() -> None:
     """`name` is optional per the contract."""
-    from charter.scope import CharterScopeConfig
+    from charter.activation.scope import CharterScopeConfig
 
     payload = {"charter_scopes": [{"root": "packages/auth"}]}
     model = CharterScopeConfig.model_validate(payload)
@@ -184,7 +184,7 @@ def test_charter_scope_config_rejects_empty_root() -> None:
     """Empty root is rejected — matches the invalid round-trip case."""
     import pydantic
 
-    from charter.scope import CharterScopeConfig
+    from charter.activation.scope import CharterScopeConfig
 
     payload = {
         "charter_scopes": [
@@ -203,7 +203,7 @@ def test_charter_scope_config_rejects_empty_root() -> None:
 
 def test_scope_module_declares_all() -> None:
     """C-007: scope.py declares __all__ with the public surface."""
-    import charter.scope as scope_mod
+    import charter.activation.scope as scope_mod
 
     assert hasattr(scope_mod, "__all__")
     public_names = set(scope_mod.__all__)
@@ -215,7 +215,7 @@ def test_scope_module_declares_all() -> None:
 
 def test_scope_router_module_declares_all() -> None:
     """C-007: scope_router.py declares __all__ with the public surface."""
-    import charter.scope_router as router_mod
+    import charter.activation.scope_router as router_mod
 
     assert hasattr(router_mod, "__all__")
     assert "build_with_scope" in router_mod.__all__
@@ -225,7 +225,7 @@ def test_scope_router_does_not_import_specify_cli() -> None:
     """NFR-003: charter layer must not depend on specify_cli."""
     from pathlib import Path as _P
 
-    src = _P(__file__).resolve().parents[2] / "src" / "charter" / "scope_router.py"
+    src = _P(__file__).resolve().parents[2] / "src" / "charter" / "activation" / "scope_router.py"
     text = src.read_text()
     assert "from specify_cli" not in text
     assert "import specify_cli" not in text

@@ -1,0 +1,63 @@
+schema: review-findings/v1
+complete: true
+phase: plan
+lens_group: fresh
+mission: custom-mission-guard-failure-blocking-inert-01M0STY0
+findings:
+  - id: PLAN-FRESH-001
+    lens: fresh-eyes (ledger citation accuracy, PLAN-GOV-002 remediation follow-through)
+    severity: 2
+    title: >
+      tracer-tooling-friction.md's fix-round citation groups SK-63 into the "warned but
+      completed" bucket, but the ledger's own SK-63 entry says that command never completed —
+      it hung forever without exiting or committing
+    evidence:
+      - artifact: "tracer-tooling-friction.md, first entry (2026-08-24), line: \"this occurrence matches SK-63/SK-65's milder variant — warned but completed, JSON payload returned\""
+      - code: "/home/jeroennouws/dev/SK-missions/SPEC-KITTY-LEDGER.md:4812 (\"### SK-63 — record-analysis prints its \\\"success\\\": true JSON, then hangs forever without committing\"; body: \"Then it did not exit, and it never committed. Observed still running 5m17s later\")"
+      - code: "/home/jeroennouws/dev/SK-missions/SPEC-KITTY-LEDGER.md:4880 (\"### SK-65 — the machine layout sticks in CUTOVER_PENDING...\"; body: \"Measured cost here: finalize-tasks sat ~95 seconds before exiting... It did eventually succeed\")"
+      - code: "/home/jeroennouws/dev/SK-missions/SPEC-KITTY-LEDGER.md:487 (SK-70 entry's own relationship note: \"SK-63 at least returns its JSON before hanging\" — i.e. SK-63 is explicitly described as hanging, not completing)"
+    claim: >
+      This fix round (addressing PLAN-GOV-002) correctly moved the tracer entry from a vague
+      "#3283 shared-lock-timeout class" pointer to specific SK-IDs — a genuine improvement — but
+      the specific characterization it lands on is inaccurate. This mission's own occurrence
+      "took >120s (backgrounded, completed under 3 min)" and then exited normally with a JSON
+      `"result": "success"` payload — i.e. the process returned control to the caller. SK-65's
+      entry describes exactly that shape ("sat ~95 seconds before exiting... did eventually
+      succeed"). SK-63's entry describes a categorically different and worse shape: the process
+      prints its success JSON and then **never exits or commits at all** ("Observed still
+      running 5m17s later... it did not exit, and it never committed"); SK-70's own text
+      explicitly contrasts the two ("SK-63 at least returns its JSON before hanging" — i.e. SK-63
+      hangs, it does not complete). By grouping "SK-63/SK-65" together as one "milder
+      variant — warned but completed," the tracer entry misattributes SK-63's actual (non-
+      completing) symptom to this (completing) occurrence, when only SK-65 is the correct match.
+      This is exactly the kind of citation-accuracy slip the ledger-numbering/citation lesson
+      this same session's memory flags generally, and it undercuts the fix round's own stated
+      goal (citing the specific SK-ID that documents "this precise command and warning text").
+    remediation: >
+      Narrow the tracer entry's citation to SK-65 as the actual match (warned, stalled, then
+      completed with a success JSON) and either drop SK-63 from the "milder variant" bucket or
+      cite it separately as the more severe non-completing sibling this occurrence did NOT
+      reproduce (mirroring SK-70's own wording distinguishing the two). SK-70 itself remains
+      correctly cited as the full-hang sibling this occurrence also did not reproduce.
+
+  - id: PLAN-FRESH-002
+    lens: fresh-eyes (cross-reference correctness, PLAN-VERIFY-001 remediation follow-through)
+    severity: 1
+    title: >
+      New "Coverage budget note" points to the "Coverage-floored shards" bullet as "below", but
+      that bullet is earlier in the same document (above), not below
+    evidence:
+      - artifact: "plan.md § Per-WP pytest invocation, \"Coverage budget note\" (new paragraph): \"(see \\\"Gate set for this mission\\\" § \\\"Coverage-floored shards\\\" below)\""
+      - artifact: "plan.md § Gate set for this mission, \"Coverage-floored shards\" bullet (starts well before the Coverage budget note paragraph, under the same top-level heading)"
+    claim: >
+      The fix round added a new "Coverage budget note" paragraph right after the "Per-WP pytest
+      invocation" code block. It directs the reader to "Gate set for this mission" §
+      "Coverage-floored shards" and labels that section "below" — but "Coverage-floored shards"
+      is the ENFORCED-gate bullet that appears earlier in the very same "Gate set for this
+      mission" section, well above the "Per-WP pytest invocation" heading and this new note. The
+      directional pointer is backwards. Low-impact since the section name itself is enough to
+      locate it in a short document, but it is a genuine, fix-round-introduced broken
+      cross-reference of exactly the kind this review pass was asked to check for.
+    remediation: >
+      Change "below" to "above" in the Coverage budget note's parenthetical, or drop the
+      directional word entirely and rely on the named section/bullet title alone.

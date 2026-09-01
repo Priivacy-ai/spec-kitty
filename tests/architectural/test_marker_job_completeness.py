@@ -51,6 +51,10 @@ Honest three-state split (re-derived live at implement, 2026-07-04, NFR-004;
 The name-level completeness here is complementary to the set-level orphan
 route oracle (``test_ci_collection_completeness.py``): that pins every test's marker SET reaches a
 gate; this pins every registered marker NAME has a routing home (Decision 4).
+
+The interim convergence topology restores only the ``windows_ci`` marker gate.
+The live routing check below re-opens that subset; the former multi-marker
+routing ledger remains retired with the deferred suite-topology workflows.
 """
 
 from __future__ import annotations
@@ -227,27 +231,9 @@ def _live_registered() -> set[str]:
     return set(gc.registered_markers())
 
 
-def _live_routed() -> set[str]:
-    return set(gc.routed_marker_names(gc.load_gates()))
-
-
-def test_structural_marker_states_live() -> None:
-    """The live registry/gate/ledger satisfy the collection-free state rules."""
-    violations = structural_marker_violations(
-        registered=_live_registered(),
-        routed_by_marker=_live_routed(),
-        ci_invisible=CI_INVISIBLE,
-    )
-    assert not violations, "marker-state structural violations:\n" + "\n".join(violations)
-
-
-def test_unit_and_contract_are_routed_by_marker_live() -> None:
-    """The mission's core claim: ``unit``/``contract`` positively selected by a gate."""
-    routed = _live_routed()
-    assert {"unit", "contract"} <= routed, (
-        "unit/contract must be ROUTED-BY-MARKER (FR-002 residual job selects "
-        f"them); live routed-by-marker set: {sorted(routed)}"
-    )
+def test_restored_windows_ci_marker_is_routed_live() -> None:
+    """The restored direct suite runner positively selects ``windows_ci``."""
+    assert gc.routed_marker_names(gc.load_gates()) == frozenset({"windows_ci"})
 
 
 def test_ci_invisible_keys_are_registered_live() -> None:
@@ -267,91 +253,6 @@ def test_wp07_changed_classes_have_one_owner_and_only_secondary_overlap() -> Non
             assert routes[route_id]["role"] in secondary_roles, (
                 f"{class_id} overlap {route_id} is not an explicit secondary role"
             )
-
-
-# ---------------------------------------------------------------------------
-# Live state-(ii) verification (collection-based — reuses the orphan model).
-# ---------------------------------------------------------------------------
-
-
-def _reachable_by_path_markers() -> set[str]:
-    """Markers with >=1 collected carrier where EVERY carrier reaches a gate.
-
-    Reuses ``_gate_coverage``'s collection + compiled gates (the orphan model)
-    so every ROUTED-BY-PATH claim is machine-verified, never hand-asserted.
-    """
-    gates = gc.load_gates()
-    compiled = [gc.CompiledGate(g) for g in gates]
-    reachable: dict[str, bool] = {}
-    for test in gc.collect_universe():
-        relpath, nodeid = test["relpath"], test["nodeid"]
-        markers = set(test["markers"])
-        hit = any(cg.selects(relpath, nodeid, markers) for cg in compiled)
-        for marker in markers:
-            reachable[marker] = reachable.get(marker, True) and hit
-    return {m for m, ok in reachable.items() if ok}
-
-
-@pytest.mark.slow
-def test_three_state_completeness_live_via_orphan_model() -> None:
-    """Every registered marker has a verified home (state ii via the orphan model).
-
-    Collection-based (NFR-001 exempt: state (ii) may reuse the orphan model's
-    collection). This proves the ROUTED-BY-PATH claims and the anti-dumping
-    property against the live suite, and is the arm that reds if a future marker
-    lands with orphan carriers and no ledger entry.
-    """
-    registered = _live_registered()
-    routed = _live_routed()
-    reachable = _reachable_by_path_markers() & registered
-    violations = reachability_marker_violations(
-        registered=registered,
-        routed_by_marker=routed,
-        ci_invisible=set(CI_INVISIBLE),
-        reachable_by_path=reachable,
-    )
-    assert not violations, "marker three-state completeness violations:\n" + "\n".join(
-        violations
-    )
-
-
-# ---------------------------------------------------------------------------
-# Residual-expression consistency (FR-001 edge case; ⊇-shaped, not ==).
-# ---------------------------------------------------------------------------
-
-
-def _residual_gate() -> gc.Gate:
-    positive = {"unit", "contract"}
-    residuals = [
-        g
-        for g in gc.load_gates()
-        if g.marker_expr and positive <= gc.positive_marker_tokens(g.marker_expr)
-    ]
-    assert len(residuals) == 1, (
-        "exactly one gate must positively select both unit and contract (the "
-        f"FR-002 residual job); found {len(residuals)}"
-    )
-    return residuals[0]
-
-
-def test_residual_expression_excludes_every_routed_runnable_marker() -> None:
-    """The residual negates AT LEAST every routed runnable marker (⊇, not ==).
-
-    A routed runnable marker missing from the negation would let the residual
-    job double-run tests already covered by a marker shard (NFR-003). The set is
-    ⊇-shaped: the residual also excludes the path-routed `e2e`/`distribution`
-    families, which are not routed-by-marker.
-    """
-    expr = _residual_gate().marker_expr
-    assert expr is not None
-    negated = negated_marker_tokens(expr)
-    runnable = _live_routed() - {"unit", "contract"}
-    missing = runnable - negated
-    assert not missing, (
-        "residual expression must exclude every routed runnable marker to avoid "
-        f"double-runs; missing from its negation: {sorted(missing)}"
-    )
-    assert {"unit", "contract"} <= gc.positive_marker_tokens(expr)
 
 
 def test_negated_marker_tokens_is_sign_aware() -> None:
@@ -384,30 +285,6 @@ def test_positive_marker_tokens_grammar_divergence_guard() -> None:
 # ---------------------------------------------------------------------------
 
 
-def test_faultinjection_synthetic_unrouted_marker_reds() -> None:
-    """(a) A registered marker with no gate and no ledger entry reds naming it."""
-    registered = _live_registered() | {"synthetic_probe_marker"}
-    routed = _live_routed()
-    reachable = registered - routed - set(CI_INVISIBLE)  # synthetic assumed a carrier-less name
-    reachable.discard("synthetic_probe_marker")
-    violations = reachability_marker_violations(
-        registered=registered,
-        routed_by_marker=routed,
-        ci_invisible=set(CI_INVISIBLE),
-        reachable_by_path=reachable,
-    )
-    assert any("synthetic_probe_marker" in v and "NO CI home" in v for v in violations), violations
-
-    # Adding it to CI_INVISIBLE with a reason clears the violation (green path).
-    healed = reachability_marker_violations(
-        registered=registered,
-        routed_by_marker=routed,
-        ci_invisible=set(CI_INVISIBLE) | {"synthetic_probe_marker"},
-        reachable_by_path=reachable,
-    )
-    assert not any("synthetic_probe_marker" in v for v in healed)
-
-
 def test_faultinjection_derouted_unit_reds(tmp_path: Path) -> None:
     """(b) A fixture gate set WITHOUT the unit-selecting residual reds on ``unit``."""
     # A residual job dropped from the gate set: `unit` is no longer positively
@@ -435,26 +312,6 @@ def test_faultinjection_derouted_unit_reds(tmp_path: Path) -> None:
     assert any("'unit'" in v and "ROUTED-BY-MARKER" in v for v in violations), violations
 
 
-def test_faultinjection_unit_in_ci_invisible_still_reds() -> None:
-    """(c) MANDATORY ineligibility guard: ``unit`` in CI_INVISIBLE reds ANYWAY.
-
-    The defeat attempt: de-route ``unit`` AND paper over it by adding it to the
-    allowlist. Completeness would be "satisfied" (unit has a home), but the
-    ineligibility hard-assert reds regardless — the mission's core guard.
-    """
-    routed = _live_routed() - {"unit"}  # de-routed
-    ledger = dict(CI_INVISIBLE)
-    ledger["unit"] = "bogus — attempting to exempt the authoring default"
-
-    violations = structural_marker_violations(
-        registered=_live_registered(),
-        routed_by_marker=routed,
-        ci_invisible=ledger,
-    )
-    assert any("'unit'" in v and "INELIGIBLE" in v for v in violations), violations
-    assert any("'unit'" in v and "ROUTED-BY-MARKER" in v for v in violations), violations
-
-
 def test_faultinjection_residual_missing_routed_marker_reds() -> None:
     """A residual expression that forgets to negate a routed marker reds (⊇ arm)."""
     # `fast` is routed-by-marker but this residual fails to exclude it.
@@ -464,16 +321,3 @@ def test_faultinjection_residual_missing_routed_marker_reds() -> None:
     missing = runnable - negated
     assert missing == {"fast"}, missing
 
-
-def test_faultinjection_ci_invisible_dumping_ground_reds() -> None:
-    """A marker wrongly parked in CI_INVISIBLE while it has reachable carriers reds."""
-    registered = _live_registered()
-    routed = _live_routed()
-    # Pretend `doctrine` (a real routed-by-path marker) was mislabeled invisible.
-    violations = reachability_marker_violations(
-        registered=registered,
-        routed_by_marker=routed,
-        ci_invisible=set(CI_INVISIBLE) | {"doctrine"},
-        reachable_by_path={"doctrine"},
-    )
-    assert any("'doctrine'" in v and "dumping-ground" in v for v in violations), violations
