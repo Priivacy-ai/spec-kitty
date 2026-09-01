@@ -33,6 +33,7 @@ import logging
 from pathlib import Path
 import shutil
 import subprocess
+from collections.abc import Mapping
 from typing import Annotated, Literal, cast
 
 from specify_cli.cli.console import console
@@ -153,6 +154,15 @@ class CommitToBranchResult:
     placement_ref: str
     commit_hash: str | None = None
     diagnostic: str | None = None
+
+
+@dataclass(frozen=True, slots=True)
+class SetupPlanLocalOutcome:
+    """Authoritative setup-plan payload and its pre-existing process exit."""
+
+    payload: Mapping[str, object]
+    exit_code: int
+    render_kind: Literal["success", "scaffold", "blocked", "error"]
 
 
 # write-surface-coherence WP02 (T007): the ``artifact_type`` → canonical
@@ -290,28 +300,6 @@ def _resolve_setup_plan_feature_dir(repo_root: Path, feature: str | None, *, jso
         raise typer.Exit(1) from None
 
 
-def _emit_spec_missing(spec_file: Path, feature_dir: Path, mission_slug: str, *, json_output: bool) -> None:
-    """Emit the SPEC_FILE_MISSING payload and exit 1."""
-    payload: dict[str, object] = {
-        "error_code": "SPEC_FILE_MISSING",
-        "error": f"Required spec not found for mission '{mission_slug}': {spec_file.resolve()}",
-        "mission_slug": mission_slug,
-        "feature_dir": str(feature_dir.resolve()),
-        "spec_file": str(spec_file.resolve()),
-        "remediation": [
-            f"Restore the missing spec file at {spec_file.resolve()}",
-            f"Or select another mission explicitly: {SETUP_PLAN_COMMAND_NAME} --mission <mission-slug> --json",
-        ],
-    }
-    if json_output:
-        _emit_json(payload)
-    else:
-        console.print(f"[red]Error:[/red] {payload['error']}")
-        for step in cast(list[str], payload["remediation"]):
-            console.print(f"  - {step}")
-    raise typer.Exit(1)
-
-
 def _enforce_spec_gate(
     spec_file: Path,
     feature_dir: Path,
@@ -328,8 +316,52 @@ def _enforce_spec_gate(
     the blocked payload as a side effect. Returns ``False`` when the spec passes.
     Raises ``typer.Exit(1)`` when the spec file is entirely missing.
     """
+    outcome, human_message = _evaluate_spec_gate(
+        spec_file,
+        feature_dir,
+        mission_slug,
+        repo_root,
+        target_branch=target_branch,
+        current_branch=current_branch,
+    )
+    if outcome is None:
+        return False
+    if json_output:
+        _emit_json(dict(outcome.payload))
+    elif human_message is not None:
+        console.print(human_message)
+    if outcome.exit_code:
+        raise typer.Exit(outcome.exit_code)
+    return True
+
+
+def _evaluate_spec_gate(
+    spec_file: Path,
+    feature_dir: Path,
+    mission_slug: str,
+    repo_root: Path,
+    *,
+    target_branch: str,
+    current_branch: str,
+) -> tuple[SetupPlanLocalOutcome | None, str | None]:
+    """Build, but do not report, the authoritative local spec-gate result."""
     if not spec_file.exists():
-        _emit_spec_missing(spec_file, feature_dir, mission_slug, json_output=json_output)
+        payload: dict[str, object] = {
+            "error_code": "SPEC_FILE_MISSING",
+            "error": f"Required spec not found for mission '{mission_slug}': {spec_file.resolve()}",
+            "mission_slug": mission_slug,
+            "feature_dir": str(feature_dir.resolve()),
+            "spec_file": str(spec_file.resolve()),
+            "remediation": [
+                f"Restore the missing spec file at {spec_file.resolve()}",
+                f"Or select another mission explicitly: {SETUP_PLAN_COMMAND_NAME} --mission <mission-slug> --json",
+            ],
+        }
+        message = "\n".join(
+            [f"[red]Error:[/red] {payload['error']}"]
+            + [f"  - {step}" for step in cast(list[str], payload["remediation"])]
+        )
+        return SetupPlanLocalOutcome(payload, 1, "error"), message
 
     # FR-011: single read-surface commit check. ``spec_file`` is the
     # READ-resolved surface — since gate-read-surface-completion WP02 it is
@@ -346,7 +378,7 @@ def _enforce_spec_gate(
     spec_is_committed = is_committed(spec_file, repo_root, diagnostics=_commit_diagnostics)
     spec_is_substantive = is_substantive(spec_file, "spec")
     if spec_is_committed and spec_is_substantive:
-        return False
+        return None, None
 
     blocked_reason = (
         "spec.md must be committed AND substantive before setup-plan can run. "
@@ -365,11 +397,15 @@ def _enforce_spec_gate(
         "spec_substantive": spec_is_substantive,
         "spec_commit_surfaces_checked": _commit_diagnostics,
     }
-    if json_output:
-        _emit_json(_inject_branch_contract(payload, target_branch=target_branch, current_branch=current_branch))
-    else:
-        console.print(f"[yellow]Blocked:[/yellow] {blocked_reason}")
-    return True
+    rendered_payload = _inject_branch_contract(
+        payload,
+        target_branch=target_branch,
+        current_branch=current_branch,
+    )
+    return (
+        SetupPlanLocalOutcome(rendered_payload, 0, "blocked"),
+        f"[yellow]Blocked:[/yellow] {blocked_reason}",
+    )
 
 
 def _resolve_plan_template(repo_root: Path, feature_dir: Path) -> ResolutionResult:
@@ -744,7 +780,7 @@ def _run_documentation_wiring(
     return gap_analysis_path, generators_detected
 
 
-def _emit_setup_plan_result(
+def _build_setup_plan_result(
     *,
     plan_file: Path,
     spec_file: Path,
@@ -757,10 +793,9 @@ def _emit_setup_plan_result(
     generators_detected: list[GeneratorConfig],
     target_branch: str,
     current_branch: str,
-    json_output: bool,
     plan_scaffold_only: bool = False,
-) -> None:
-    """Emit the setup-plan result in JSON or human form.
+) -> SetupPlanLocalOutcome:
+    """Build the authoritative setup-plan result without rendering it.
 
     FR-009 / #2566: ``plan_scaffold_only=True`` marks the first happy-path
     scaffold write (a pristine, byte-identical-to-template plan.md) as a
@@ -769,10 +804,6 @@ def _emit_setup_plan_result(
     stays tied to ``plan_is_substantive`` alone, so the scaffold_only case
     still reports ``phase_complete: false``.
     """
-    if not json_output:
-        console.print(f"[green]✓[/green] Plan scaffolded: {plan_file}")
-        return
-
     result: dict[str, object] = {
         "result": "success" if (plan_is_substantive or plan_scaffold_only) else "blocked",
         "phase_complete": plan_is_substantive,
@@ -798,7 +829,52 @@ def _emit_setup_plan_result(
         result["gap_analysis"] = gap_analysis_path
     if generators_detected:
         result["generators_detected"] = generators_detected
-    _emit_json(_inject_branch_contract(result, target_branch=target_branch, current_branch=current_branch))
+    result = _inject_branch_contract(result, target_branch=target_branch, current_branch=current_branch)
+    render_kind: Literal["success", "scaffold", "blocked", "error"] = (
+        "scaffold"
+        if plan_scaffold_only
+        else "success"
+        if plan_is_substantive
+        else "blocked"
+    )
+    return SetupPlanLocalOutcome(result, 0, render_kind)
+
+
+def _emit_setup_plan_result(
+    *,
+    plan_file: Path,
+    spec_file: Path,
+    feature_dir: Path,
+    mission_slug: str,
+    plan_is_substantive: bool,
+    plan_blocked_reason: str | None,
+    plan_commit_result: CommitToBranchResult | None,
+    gap_analysis_path: str | None,
+    generators_detected: list[GeneratorConfig],
+    target_branch: str,
+    current_branch: str,
+    json_output: bool,
+    plan_scaffold_only: bool = False,
+) -> None:
+    """Compatibility reporter backed by the side-effect-free result builder."""
+    outcome = _build_setup_plan_result(
+        plan_file=plan_file,
+        spec_file=spec_file,
+        feature_dir=feature_dir,
+        mission_slug=mission_slug,
+        plan_is_substantive=plan_is_substantive,
+        plan_blocked_reason=plan_blocked_reason,
+        plan_commit_result=plan_commit_result,
+        gap_analysis_path=gap_analysis_path,
+        generators_detected=generators_detected,
+        target_branch=target_branch,
+        current_branch=current_branch,
+        plan_scaffold_only=plan_scaffold_only,
+    )
+    if not json_output:
+        console.print(f"[green]✓[/green] Plan scaffolded: {plan_file}")
+        return
+    _emit_json(dict(outcome.payload))
 
 
 def setup_plan(
@@ -952,5 +1028,3 @@ def setup_plan(
         else:
             console.print(f"[red]Error:[/red] {e}")
         raise typer.Exit(1) from None
-
-

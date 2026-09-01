@@ -100,6 +100,45 @@ def test_auto_retry_raises_when_worktree_missing(monkeypatch: pytest.MonkeyPatch
         )
 
 
+def test_auto_retry_forwards_cleanup_choices(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    from specify_cli.cli.commands.agent import mission as mission_mod
+
+    captured: dict[str, object] = {}
+
+    class _Result:
+        returncode = 0
+
+    def _run(cmd: list[str], **kwargs: object) -> _Result:
+        captured["cmd"] = cmd
+        captured["kwargs"] = kwargs
+        return _Result()
+
+    monkeypatch.delenv("SPEC_KITTY_AUTORETRY", raising=False)
+    monkeypatch.setattr(seam.subprocess, "run", _run)
+    monkeypatch.setattr(mission_mod, "_get_current_branch", lambda _r: "main")
+    monkeypatch.setattr(mission_mod, "_find_feature_worktree", lambda _r, _s: tmp_path / "001-demo")
+
+    with pytest.raises(SystemExit) as exc:
+        seam._maybe_auto_retry_in_worktree(
+            tmp_path,
+            "001-demo",
+            "main",
+            "merge",
+            push=False,
+            dry_run=False,
+            keep_branch=None,
+            keep_worktree=False,
+        )
+
+    assert exc.value.code == 0
+    cmd = captured["cmd"]
+    assert isinstance(cmd, list)
+    assert "--keep-branch" not in cmd
+    assert "--delete-branch" not in cmd
+    assert "--keep-worktree" not in cmd
+    assert "--remove-worktree" in cmd
+
+
 # ---------------------------------------------------------------------------
 # _delegate_to_top_level_merge (parameter mapping / keep-flag inversion)
 # ---------------------------------------------------------------------------
@@ -123,6 +162,50 @@ def test_delegate_inverts_keep_flags(monkeypatch: pytest.MonkeyPatch) -> None:
     assert captured["push"] is True
     assert captured["mission"] == "001-demo"
     assert captured["target_branch"] == "main"
+
+
+def test_delegate_preserves_unset_cleanup_flags(monkeypatch: pytest.MonkeyPatch) -> None:
+    captured: dict[str, object] = {}
+    from specify_cli.cli.commands.agent import mission as mission_mod
+
+    def _fake_merge(**kwargs: object) -> None:
+        captured.update(kwargs)
+
+    monkeypatch.setattr(mission_mod, "top_level_merge", _fake_merge)
+    seam._delegate_to_top_level_merge(
+        "001-demo",
+        "main",
+        "merge",
+        push=True,
+        dry_run=False,
+        keep_branch=None,
+        keep_worktree=None,
+    )
+    assert captured["delete_branch"] is None
+    assert captured["remove_worktree"] is None
+
+
+def test_delegate_maps_explicit_agent_delete_flags(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    captured: dict[str, object] = {}
+    from specify_cli.cli.commands.agent import mission as mission_mod
+
+    def _fake_merge(**kwargs: object) -> None:
+        captured.update(kwargs)
+
+    monkeypatch.setattr(mission_mod, "top_level_merge", _fake_merge)
+    seam._delegate_to_top_level_merge(
+        "001-demo",
+        "main",
+        "merge",
+        push=False,
+        dry_run=False,
+        keep_branch=False,
+        keep_worktree=False,
+    )
+    assert captured["delete_branch"] is True
+    assert captured["remove_worktree"] is True
 
 
 def test_delegate_propagates_typer_exit(monkeypatch: pytest.MonkeyPatch) -> None:

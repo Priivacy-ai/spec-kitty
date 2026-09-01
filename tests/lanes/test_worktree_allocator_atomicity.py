@@ -27,6 +27,7 @@ from specify_cli.lanes.branch_naming import lane_branch_name, worktree_path
 from specify_cli.lanes.models import ExecutionLane, LanesManifest
 from specify_cli.lanes.worktree_allocator import (
     DependencyLaneMergeConflictError,
+    PlanningCommitMergeConflictError,
     _merge_dependency_lane_tips,
     allocate_lane_worktree,
 )
@@ -83,7 +84,9 @@ def _lane(lane_id: str, *, depends: tuple[str, ...] = (), group: int = 0) -> Exe
     )
 
 
-def _manifest(lanes: list[ExecutionLane]) -> LanesManifest:
+def _manifest(
+    lanes: list[ExecutionLane], *, planning_commit_sha: str | None = None
+) -> LanesManifest:
     return LanesManifest(
         version=1,
         mission_slug=MISSION_SLUG,
@@ -91,6 +94,7 @@ def _manifest(lanes: list[ExecutionLane]) -> LanesManifest:
         mission_branch=f"kitty/mission-{MISSION_SLUG}",
         target_branch=TARGET_BRANCH,
         lanes=lanes,
+        planning_commit_sha=planning_commit_sha,
         computed_at="2026-06-15T12:00:00+00:00",
         computed_from="test",
     )
@@ -253,3 +257,87 @@ def test_1915_all_clean_deps_still_merge(tmp_path: Path) -> None:
     assert (lane_c_wt / "a.txt").exists()
     assert (lane_c_wt / "b.txt").exists()
     assert _git(lane_c_wt, "status", "--porcelain").stdout.strip() == ""
+
+
+# ---------------------------------------------------------------------------
+# T010 (#3281/FR-006) — fresh-path atomicity: a conflicting recorded planning
+# commit must leave no registered worktree behind.
+# ---------------------------------------------------------------------------
+
+
+def _setup_fresh_path_planning_conflict(repo: Path) -> tuple[LanesManifest, str]:
+    """Build a fresh no-dependency lane whose recorded planning commit conflicts.
+
+    ``shared.txt`` is added independently on two branches that share a common
+    ancestor from BEFORE either added it (a genuine "add/add" conflict, the
+    same shape ``test_wp_integrity_p0_repro.py`` uses) — ``main`` (which the
+    fresh lane worktree is parented on) gets one version, an independent
+    ``planning-src`` ref gets a different one and becomes the recorded
+    ``planning_commit_sha``.
+    """
+    # main: add shared.txt AFTER the init commit both refs share.
+    (repo / SHARED_FILE).write_text("main version\n")
+    _git(repo, "add", SHARED_FILE)
+    _git(repo, "commit", "-m", "main: write shared file")
+
+    # planning-src: an independent ref off the ORIGINAL init commit (before
+    # main's shared.txt existed) that adds shared.txt with DIFFERENT content.
+    _git(repo, "branch", "planning-src", "HEAD~1")
+    _git(repo, "checkout", "planning-src")
+    (repo / SHARED_FILE).write_text("planning version\n")
+    _git(repo, "add", SHARED_FILE)
+    _git(repo, "commit", "-m", "planning-src: write shared file")
+    planning_commit_sha = _git(repo, "rev-parse", "HEAD").stdout.strip()
+    _git(repo, "checkout", "main")
+
+    lane_a = _lane("lane-a")
+    manifest = _manifest([lane_a], planning_commit_sha=planning_commit_sha)
+    return manifest, planning_commit_sha
+
+
+def test_3281_fresh_path_conflict_leaves_no_registered_worktree(
+    tmp_path: Path,
+) -> None:
+    """RED-FIRST T010/FR-006: a fresh-path planning-commit conflict must not
+    leave a registered-but-abandoned worktree behind.
+
+    Before the fix, ``allocate_lane_worktree`` created the worktree + branch,
+    then raised ``PlanningCommitMergeConflictError`` on the merge without
+    cleaning up — ``git worktree list`` still showed the lane registered even
+    though nothing further would ever touch it (a bare retry would take the
+    REUSE route and fail identically forever, per #3281 decision #2). The
+    atomic fix removes the worktree registration (keeping the branch, so a
+    retry resolves via the crash-recovery route) so a retry can actually
+    self-heal once the conflict is resolved upstream.
+    """
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    _make_git_repo(repo)
+
+    manifest, planning_commit_sha = _setup_fresh_path_planning_conflict(repo)
+
+    with pytest.raises(PlanningCommitMergeConflictError) as exc:
+        allocate_lane_worktree(repo, MISSION_SLUG, "WP-lane-a", manifest)
+
+    assert exc.value.planning_commit_sha == planning_commit_sha
+
+    # Atomicity: no worktree remains registered for the lane's predicted path.
+    expected_path = worktree_path(repo, MISSION_SLUG, mission_id=None, lane_id="lane-a")
+    assert not expected_path.exists(), (
+        "a conflicting fresh-path planning-commit merge left a registered "
+        f"worktree behind at {expected_path} (#3281 FR-006)."
+    )
+    registered = _git(repo, "worktree", "list", "--porcelain").stdout
+    assert str(expected_path) not in registered, (
+        "the lane worktree is still registered in `git worktree list` after "
+        "the fresh-path conflict was supposed to roll it back atomically."
+    )
+
+    # The branch is intentionally KEPT (not removed) so a retry resolves via
+    # the allocator's crash-recovery route rather than failing identically.
+    lane_branch = lane_branch_name(MISSION_SLUG, "lane-a")
+    branches = _git(repo, "branch", "--list", lane_branch).stdout
+    assert lane_branch in branches, (
+        "the lane branch must survive the atomic worktree removal so a "
+        "retry can re-attach via crash-recovery (#3281 decision #2)."
+    )

@@ -14,14 +14,14 @@ from __future__ import annotations
 
 import pytest
 
-from charter.synthesizer.evidence import (
+from charter.activation.synthesizer.evidence import (
     CodeSignals,
     CorpusEntry,
     CorpusSnapshot,
     EvidenceBundle,
 )
-from charter.synthesizer.interview_mapping import normalize_interview_snapshot
-from charter.synthesizer.request import (
+from charter.activation.synthesizer.interview_mapping import normalize_interview_snapshot
+from charter.activation.synthesizer.request import (
     SynthesisRequest,
     SynthesisTarget,
     compute_inputs_hash,

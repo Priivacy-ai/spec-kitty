@@ -6,7 +6,7 @@ Mission ``supply-chain-security-checks-layer-01KZBFBS``. WP02 already pins the
 asserts ``"051-supply-chain-install-safety"``/``"supply-chain-install-safety"``
 appear in the parsed ``index.yaml`` lists). This module is deliberately a
 different, deeper binding class: it proves the artifacts are reachable through
-:func:`doctrine.drg.query.resolve_context` -- the single canonical action-context
+:func:`charter.offering.drg.query.resolve_context` -- the single canonical action-context
 walk the runtime actually uses (see ``doctrine/drg/reachability.py``) -- and
 that the reachability is a *direct scope edge*, not incidental transitive
 reachability through an unrelated ``suggests``/``requires`` chain.
@@ -16,9 +16,9 @@ from __future__ import annotations
 
 import pytest
 
-from doctrine.drg.loader import load_built_in_graph
-from doctrine.drg.models import DRGGraph, Relation
-from doctrine.drg.query import resolve_context
+from charter.offering.drg.loader import load_built_in_graph
+from charter.offering.drg.models import DRGGraph, Relation
+from charter.offering.drg.query import resolve_context
 
 pytestmark = [pytest.mark.fast, pytest.mark.doctrine, pytest.mark.corpus]
 

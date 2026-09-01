@@ -5,7 +5,7 @@ Equivalence/regression proof, not a smoke test. Three things are asserted:
 1. **Tier ordering is unchanged.** For each of the five tiers (OVERRIDE,
    LEGACY, GLOBAL_MISSION, GLOBAL, PACKAGE_DEFAULT) the factory-routed call
    returns exactly the ``ResolutionResult`` the pre-existing
-   ``doctrine.resolver`` entry point returns, walked top-down by removing the
+   ``charter.offering.resolver`` entry point returns, walked top-down by removing the
    winning tier's file and re-resolving.
 2. **The old call sites' results are preserved.** ``CharterTemplateResolver``
    (now a thin delegate) and ``specify_cli/runtime/resolver.py``'s tier-5 hop
@@ -13,7 +13,7 @@ Equivalence/regression proof, not a smoke test. Three things are asserted:
    produced before the consolidation — including the
    ``SPEC_KITTY_TEMPLATE_ROOT`` override the runtime tier-5 hop honours.
 3. **The tier functions were not moved or duplicated.** The factory methods
-   are proven to *delegate* to ``doctrine.resolver``'s functions (patching the
+   are proven to *delegate* to ``charter.offering.resolver``'s functions (patching the
    doctrine function changes the factory's answer), which is the falsifiable
    form of "``doctrine/resolver.py`` is untouched".
 """
@@ -25,13 +25,13 @@ from pathlib import Path
 
 import pytest
 
-import charter.resolver as charter_resolver_module
-import doctrine.resolver as doctrine_resolver_module
+import charter.activation.resolver as charter_resolver_module
+import charter.offering.resolver as doctrine_resolver_module
 import specify_cli.runtime.resolver as runtime_resolver_module
 from charter.resolution import ResolutionResult, ResolutionTier
-from charter.resolver import DoctrineService
-from charter.template_resolver import CharterTemplateResolver
-from doctrine.missions.repository import MissionTemplateRepository
+from charter.activation.resolver import DoctrineService
+from charter.activation.template_resolver import CharterTemplateResolver
+from charter.offering.missions.repository import MissionTemplateRepository
 
 pytestmark = pytest.mark.fast
 
@@ -72,7 +72,7 @@ def fake_home(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
 def package_missions_root(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
     """A synthetic package missions root, wired into BOTH tier-5 lookups.
 
-    ``doctrine.resolver``'s tier 5 uses ``MissionTemplateRepository.default()``
+    ``charter.offering.resolver``'s tier 5 uses ``MissionTemplateRepository.default()``
     while ``specify_cli/runtime/resolver.py``'s uses
     ``get_package_asset_root()``. That divergence is pre-existing, named
     deferred debt (out of FR-003's scope); this fixture pins both to the same
@@ -98,7 +98,7 @@ def project_dir(tmp_path: Path) -> Path:
 
 
 # ---------------------------------------------------------------------------
-# 1. Tier ordering: factory result == doctrine.resolver result, tier by tier
+# 1. Tier ordering: factory result == charter.offering.resolver result, tier by tier
 # ---------------------------------------------------------------------------
 
 
@@ -444,21 +444,24 @@ def test_only_charter_resolver_imports_the_doctrine_tier_functions() -> None:
     """One charter-layer door: the seam FR-003 closes stays closed.
 
     ``charter/template_resolver.py`` and ``specify_cli/runtime/resolver.py``
-    must not name ``doctrine.resolver`` in an import at all; ``charter/
+    must not name ``charter.offering.resolver`` in an import at all; ``charter/
     resolver.py`` is the sole charter-layer importer of its tier functions.
     """
-    src = Path(charter_resolver_module.__file__).parent.parent
-    for module_path in (src / "charter" / "template_resolver.py", src / "specify_cli" / "runtime" / "resolver.py"):
+    src = Path(charter_resolver_module.__file__).parent.parent.parent
+    for module_path in (
+        src / "charter" / "activation" / "template_resolver.py",
+        src / "specify_cli" / "runtime" / "resolver.py",
+    ):
         body = module_path.read_text(encoding="utf-8")
         offending = [
             line.strip()
             for line in body.splitlines()
-            if line.lstrip().startswith(("import ", "from ")) and "doctrine.resolver" in line
+            if line.lstrip().startswith(("import ", "from ")) and "charter.offering.resolver" in line
         ]
-        assert not offending, f"{module_path} must not import doctrine.resolver: {offending}"
+        assert not offending, f"{module_path} must not import charter.offering.resolver: {offending}"
 
-    charter_body = (src / "charter" / "resolver.py").read_text(encoding="utf-8")
-    assert "from doctrine.resolver import (" in charter_body
+    charter_body = (src / "charter" / "activation" / "resolver.py").read_text(encoding="utf-8")
+    assert "from charter.offering.resolver import (" in charter_body
 
 
 def test_mission_template_repository_cache_reuses_one_instance(tmp_path: Path) -> None:

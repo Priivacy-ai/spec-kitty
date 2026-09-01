@@ -20,9 +20,11 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
+from specify_cli.config.path_conventions import load_project_path_conventions
 from specify_cli.mission import get_deliverables_path
+from specify_cli.status_lanes import has_operator_provenance, is_acceptable_ending
 from specify_cli.task_utils import WorkPackage
-from specify_cli.validators.paths import validate_mission_paths
+from specify_cli.validators.paths import artifact_tokens_for_mission, normalize_path_token, validate_mission_paths
 
 from .gates_core import AcceptanceCheckDiagnostic
 
@@ -44,6 +46,13 @@ class WorkPackageState:
     has_lane_entry: bool
     latest_lane: str | None
     metadata: dict[str, str | None] = field(default_factory=dict)
+    #: Operator-authored cancellation provenance carried from the reduced
+    #: snapshot at the bucketing seam (WP02 / FR-001). The provenance-free
+    #: ``lane -> [wp_id]`` bucket cannot distinguish a canceled WP with an
+    #: operator reason from a synthetic one; carrying the flag per-WP here lets
+    #: the acceptable-ending decision for the ``canceled`` case be made per-WP
+    #: rather than lane-level. ``False`` for every non-canceled WP.
+    has_operator_provenance: bool = False
 
 
 def build_work_package_state(
@@ -96,8 +105,33 @@ def build_work_package_state(
         has_lane_entry=canonical_lane is not None,
         latest_lane=canonical_lane,
         metadata=metadata,
+        # Read provenance through the single shared accessor (no inlined
+        # ``reason_source == "operator"``); ``False`` for every non-canceled WP.
+        has_operator_provenance=has_operator_provenance(wp_snapshot),
     )
     return state, metadata_issues
+
+
+def build_canceled_wp_report(wp_id: str, wp_snapshot: Mapping[str, Any] | None) -> dict[str, str] | None:
+    """Return the ``canceled_wps`` report entry for an operator-canceled WP, else ``None``.
+
+    Pure builder for the NFR-003 ``accept --json`` ``canceled_wps`` array: an
+    accept-eligible (operator-provenance) canceled WP yields the pinned shape
+    ``{wp_id, reason, actor, at}`` read from the reduced snapshot slots
+    (``cancellation_reason`` / ``actor`` / ``last_transition_at``); every other
+    WP — including a synthetic cancellation, which stays a blocker, not a report
+    entry — yields ``None``. Provenance is decided through the single shared
+    :func:`has_operator_provenance` accessor.
+    """
+    if not has_operator_provenance(wp_snapshot):
+        return None
+    snapshot = wp_snapshot or {}
+    return {
+        "wp_id": wp_id,
+        "reason": str(snapshot.get("cancellation_reason") or ""),
+        "actor": str(snapshot.get("actor") or ""),
+        "at": str(snapshot.get("last_transition_at") or ""),
+    }
 
 
 def _path_prefix_for_mission(mission: Any, feature_dir: Path) -> str | None:
@@ -114,8 +148,8 @@ def evaluate_path_conventions(
     planning_read_dir: Path,
     *,
     strict_metadata: bool,
-) -> tuple[list[str], str | None]:
-    """Evaluate mission path conventions; returns (path_violations, warning).
+) -> tuple[list[str], str | None, frozenset[str]]:
+    """Evaluate mission path conventions; returns violations, warning, and dedup tokens.
 
     Mission path conventions block acceptance by default, but under
     ``--lenient`` (``strict_metadata=False``) they are advisory: surfaced as a
@@ -125,10 +159,10 @@ def evaluate_path_conventions(
     the empty-directory workaround (issue #1892). ``validate_mission_paths`` is
     invoked non-strict here so the caller owns the blocking decision rather
     than catching a raise. When ``mission`` has no path conventions this is a
-    no-op: ``([], None)``.
+    no-op: ``([], None, frozenset())``.
     """
     if not (mission and mission.config.paths):
-        return [], None
+        return [], None, frozenset()
 
     # Mission-artifact paths (e.g. ``contracts/``) live on the PRIMARY mission
     # surface, not the repo root — resolve them via the canonical
@@ -140,12 +174,15 @@ def evaluate_path_conventions(
         strict=False,
         path_prefix=_path_prefix_for_mission(mission, feature_dir),
         feature_dir=planning_read_dir,
+        path_overrides=load_project_path_conventions(repo_root),
     )
     if not path_result.missing_paths:
-        return [], None
+        return [], None, frozenset()
     if strict_metadata:
-        return [path_result.format_errors() or _PATH_CONVENTIONS_NOT_SATISFIED], None
-    return [], path_result.format_warnings() or _PATH_CONVENTIONS_NOT_SATISFIED
+        artifact_tokens = artifact_tokens_for_mission(mission)
+        dedup_tokens = frozenset(normalize_path_token(token) for token in path_result.missing_artifact_tokens if normalize_path_token(token) in artifact_tokens)
+        return [path_result.format_errors() or _PATH_CONVENTIONS_NOT_SATISFIED], None, dedup_tokens
+    return [], path_result.format_warnings() or _PATH_CONVENTIONS_NOT_SATISFIED, frozenset()
 
 
 def build_warnings(
@@ -170,7 +207,18 @@ def _has_blocked_check(blocked_checks: list[AcceptanceCheckDiagnostic], check: s
 
 
 def _has_non_terminal_lane(lanes: dict[str, list[str]]) -> bool:
-    return any(wp_ids for lane, wp_ids in lanes.items() if lane not in {"approved", "done"})
+    """True when any lane bucket holds a WP that is not unconditionally acceptable.
+
+    Routes the retired inlined ``{"approved", "done"}`` set through the single
+    acceptable-ending authority (FR-005 / directive 044). This is the
+    provenance-free ``lane -> [wp_id]`` recommended-fix view, so it evaluates the
+    predicate at ``has_provenance=False`` — identifying exactly the
+    unconditionally-acceptable ``approved``/``done`` lanes and treating every
+    other lane (``canceled`` included) as a fix candidate. The per-WP
+    provenance-aware acceptability decision lives on
+    ``AcceptanceSummary.all_done`` / ``.canceled_wps``.
+    """
+    return any(wp_ids for lane, wp_ids in lanes.items() if not is_acceptable_ending(lane, has_provenance=False))
 
 
 def _has_issue_containing(issues: list[str], needle: str) -> bool:

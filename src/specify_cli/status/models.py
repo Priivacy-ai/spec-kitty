@@ -343,6 +343,15 @@ class StatusEvent:
     force: bool
     execution_mode: str  # "worktree" or "direct_repo"
     reason: str | None = None
+    # Provenance discriminator for the human ``reason`` (FR-001, mission
+    # completion-terminal-state). ``"operator"`` iff the reason was authored by
+    # the operator (a non-empty ``--note``); ``"synthetic"`` for the CLI's
+    # auto-backfilled default (``"Force move to <lane>"`` / ``"move-task: …"``).
+    # ``None`` for legacy events written before this field existed (NFR-002) and
+    # for transitions where provenance is not tracked (only cancellations set it
+    # today). Emitted to the wire only when populated so pre-existing event-log
+    # lines stay byte-identical.
+    reason_source: str | None = None
     review_ref: str | None = None
     evidence: DoneEvidence | None = None
     review_result: ReviewResult | None = None
@@ -372,6 +381,10 @@ class StatusEvent:
         }
         if self.review_result is not None:
             d["review_result"] = self.review_result.to_dict()
+        # Emit only when populated so legacy event-log lines (and their golden
+        # fixtures) stay byte-identical — mirrors mission_id / review_result.
+        if self.reason_source is not None:
+            d["reason_source"] = self.reason_source
         if self.mission_id is not None:
             d["mission_id"] = self.mission_id
         return d
@@ -402,6 +415,8 @@ class StatusEvent:
             force=data["force"],
             execution_mode=data["execution_mode"],
             reason=data.get("reason"),
+            # None for legacy events written before reason_source existed (NFR-002).
+            reason_source=data.get("reason_source"),
             review_ref=data.get("review_ref"),
             evidence=DoneEvidence.from_dict(evidence_data) if evidence_data else None,
             review_result=(
@@ -842,6 +857,10 @@ class TransitionRequest:
     to_lane: str | None = None
     force: bool = False
     reason: str | None = None
+    # Provenance discriminator carried onto the emitted event's ``reason_source``
+    # (FR-001). Set to ``"operator"`` / ``"synthetic"`` at the cancel emit site;
+    # ``None`` (the default) for every transition that does not track provenance.
+    reason_source: str | None = None
     # Actor
     actor: ActorField | None = None
     execution_mode: str = "worktree"

@@ -1,0 +1,110 @@
+# review-findings/v1 — canonical format for lens-session and fresh-sweep output.
+schema: review-findings/v1
+complete: true
+phase: plan
+lens_group: fresh2
+mission: accept-path-remediation-honesty-01M0TWZP
+findings:
+  - id: PLAN-FRESH2-001
+    lens: structural-root-cause (debugger-debbie / directive 032 conceptual-alignment)
+    severity: 3
+    title: "Test-strategy table cites a WP1 'build-path companion assertion' that WP1's own Revert Test section never describes"
+    evidence:
+      - artifact: "plan.md § Test strategy per Acceptance Scenario, row \"US1 | 2 (build/repo-root path reporting unchanged) | WP1 | WP1 revert test's build-path companion assertion (existing repo-root case re-asserted, not newly introduced)\""
+      - artifact: "plan.md § WP1 — resolved-path correctness, \"Revert test\" subsection (lines ~413-428) — describes only a mission-artifact-tagged (`contracts/`) fixture; no build/repo-root ('`src/`'-style) assertion appears anywhere in that subsection"
+      - code: "tests/specify_cli/acceptance/test_acceptance_cores.py:235-245, :247-257 — the two SC-005-pinned `evaluate_path_conventions` tests monkeypatch `specify_cli.acceptance.summary_core.validate_mission_paths` outright (`lambda *_a, **_k: SimpleNamespace(missing_paths=[\"src/\"], format_errors=...)`), so they never exercise `validate_mission_paths`'s real build-path resolution logic that WP1 refactors"
+      - code: "tests/agent/test_validators_unit.py:193-201 (`test_validate_paths_warns_when_missing`) — the actual unmocked test that would catch a WP1 regression in the build-path branch; not named anywhere in the plan's WP1 section or the Test-strategy table"
+    claim: >
+      The Test Strategy table asserts that US1 Acceptance Scenario 2 (build/repo-root path
+      reporting unchanged) is covered by "WP1 revert test's build-path companion assertion" —
+      implying WP1's own new, red-first revert test (described in WP1's "Revert test"
+      subsection) contains an assertion on a build/repo-root fixture. It does not: that
+      subsection's two numbered assertions are both scoped explicitly to "a mission-artifact-tagged
+      path convention (`contracts/`) missing under a real `feature_dir`" — there is no
+      companion build-path case anywhere in WP1's text. Separately, the two pre-existing
+      "pinned" `evaluate_path_conventions` tests that this plan repeatedly leans on
+      (`test_strict_metadata_true_blocks_with_violation` / `_false_downgrades_to_warning`)
+      cannot be the real coverage either, since both monkeypatch `validate_mission_paths`
+      away entirely and therefore never touch the refactored resolution/reporting code WP1
+      changes. Real (if uncredited) regression protection for the build-path branch does
+      exist via the untouched `tests/agent/test_validators_unit.py` unit tests
+      (e.g. `test_validate_paths_warns_when_missing`), but the plan never names them as the
+      source of Scenario 2's coverage, and its own cross-reference table points at a test
+      that, as written, does not exist. A WP1 implementer following the table at face value
+      would either believe coverage exists where it doesn't, or duplicate it by writing a
+      redundant build-path assertion the plan never asked for.
+    remediation: >
+      Either (a) add an explicit build/repo-root companion assertion to WP1's own "Revert
+      test" subsection (mirroring the two-point structure already used for the
+      artifact-tagged case, asserting `missing_paths`/`warnings` for a missing `src/`-style
+      path stay `project_root`-relative and unchanged), or (b) fix the Test Strategy table's
+      US1/Scenario-2 row to correctly name `tests/agent/test_validators_unit.py::test_validate_paths_warns_when_missing`
+      (or equivalent already-passing, unmocked test) as the actual regression guard, rather
+      than a "WP1 revert test" assertion that is not present in WP1's own section.
+
+  - id: PLAN-FRESH2-002
+    lens: dual-system-divergence-mapping (debugger-debbie / directive 032 conceptual-alignment)
+    severity: 3
+    title: "WP2's blanket 'already feature_dir-relative by construction' claim about missing_paths_feature_relative contradicts WP1's own description of the build/repo-root branch's entries"
+    evidence:
+      - artifact: "plan.md § WP1 — resolved-path correctness, new-field bullets (lines ~395-405): \"For a build/repo-root entry (the `else:` branch, `:201-202`), append `_normalize_path_token(resolved)` instead — a defined, harmless placeholder ... It can never spuriously match a real `optional_missing` token\" — `resolved` in that branch is `full_path.relative_to(project_root)` (or `str(full_path)` fallback), i.e. project_root-relative, NOT feature_dir-relative"
+      - artifact: "plan.md § WP2 — stop double-reporting, Token normalization bullet (lines ~480-486): \"build a set of `_normalize_path_token(token)` over `path_result.missing_paths_feature_relative` (each entry is already `feature_dir`-relative by construction — WP1 populates it directly from the declared token for artifact-tagged entries — so `_normalize_path_token` here only performs its ordinary slash-strip, not a re-derivation)\""
+      - code: "src/specify_cli/validators/paths.py:194-208 — the loop's `else:` branch (`:201-202`, `full_path = project_root / candidate`) is the one WP1 assigns the placeholder value to; it is structurally the project_root-relative branch, mutually exclusive with the `elif` artifact-tagged branch WP2's justification cites"
+    claim: >
+      The new field's own name (`missing_paths_feature_relative`) and WP2's blanket
+      parenthetical both assert every entry in the list is feature_dir-relative "by
+      construction." That is only true for artifact-tagged entries. WP1's own text is more
+      careful and honest about the build/repo-root case, calling its value "a defined,
+      harmless placeholder" that is explicitly `_normalize_path_token(resolved)` where
+      `resolved` there is project_root-relative, not feature_dir-relative — i.e. the field
+      is semantically mixed-namespace: feature_dir-relative for artifact-tagged entries,
+      project_root-relative for everything else, despite carrying a name and a
+      cross-referenced justification that claims uniform feature_dir-relative semantics.
+      WP1's "can never spuriously match" guarantee is not a structural property of the
+      design — it holds only because today's hardcoded `_missing_artifacts()` literal list
+      (`QUICKSTART_FILE`, `DATA_MODEL_FILE`, `RESEARCH_FILE`, `"contracts"`) happens to
+      contain no build-path-shaped token. If a future mission type's build-path convention
+      and a future addition to that hardcoded literal list ever shared a normalized token
+      (e.g. both "docs"), WP2's dedup would silently strip a legitimate, non-redundant
+      `optional_missing` warning because the mixed-namespace field would produce a false
+      token match. No test in this plan exercises the build/repo-root branch's contribution
+      to `missing_paths_feature_relative` at all — WP2's own revert test is scoped to the
+      `contracts/` artifact-tagged fixture only, so this mismatch is unverified by
+      construction, not merely undertested.
+    remediation: >
+      Either rename the field (or split it) so its name does not promise feature_dir-relative
+      semantics for entries that are not, or make WP2's comparison structurally exclude
+      build/repo-root entries from the token-normalization set (e.g. only insert
+      artifact-tagged entries into it, using the same `artifact_tokens` membership check
+      `validate_mission_paths` already computes, rather than blindly consuming the whole
+      parallel list). At minimum, correct WP2's parenthetical so it does not claim a
+      uniform property WP1's own text disproves for the build/repo-root case.
+
+  - id: PLAN-FRESH2-003
+    lens: five-whys-cartographer (debugger-debbie / directive 001 architectural integrity)
+    severity: 2
+    title: "New-field population is specified for only 2 of validate_mission_paths's 3 mutually-exclusive branches, leaving the absolute-declared-path case unaddressed"
+    evidence:
+      - artifact: "plan.md § WP1 — resolved-path correctness, new-field bullets (lines ~395-405): enumerates exactly two cases — \"For an artifact-tagged entry (the `elif` ... branch)\" and \"For a build/repo-root entry (the `else:` branch)\" — no third bullet for the `if candidate.is_absolute():` branch"
+      - code: "src/specify_cli/validators/paths.py:196-202 — the loop is a 3-way `if candidate.is_absolute(): ... elif ... in artifact_tokens: ... else: ...`, all three of which fall through to the same `result.missing_paths.append(resolved)` / `result.warnings.append(...)` call site the new field must stay parallel-indexed with"
+      - artifact: "spec.md § Edge Cases: \"A declared path is absolute ... resolution and reporting are unaffected by this mission ... Story 1 must not change this case's behavior\""
+    claim: >
+      WP1's own text states the new field must stay "parallel-indexed with `missing_paths`"
+      for every entry appended there, but its two enumerated bullets ("artifact-tagged" /
+      "build/repo-root") map onto only 2 of the loop's 3 mutually-exclusive branches for
+      computing `full_path`/`resolved`. The `if candidate.is_absolute():` branch is never
+      mentioned, so the plan gives no explicit instruction for what
+      `missing_paths_feature_relative` should contain for an absolute declared path — an
+      edge case spec.md explicitly pins as "unaffected by this mission." A literal
+      implementation of the two enumerated bullets (e.g. `if artifact-tagged: ... else: ...`,
+      collapsing the absolute-path case into the same "else" bucket used for build/repo-root
+      entries) would likely resolve this safely by accident, but the plan does not say so,
+      and an implementer who instead mirrors `full_path`'s 3-way branch structure literally
+      for the new field has no directed answer for the third arm.
+    remediation: >
+      Add a third bullet (or an explicit note that the absolute-path case is folded into the
+      "build/repo-root" bucket) to WP1's new-field population instructions, so all three of
+      `validate_mission_paths`'s mutually-exclusive branches are accounted for, matching the
+      section's own "parallel-indexed" invariant and spec.md's Edge Case pin that this
+      mission must not change absolute-path behavior.
+

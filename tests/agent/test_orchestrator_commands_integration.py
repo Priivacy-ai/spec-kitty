@@ -28,9 +28,6 @@ def _disable_status_side_effects(monkeypatch: pytest.MonkeyPatch) -> None:
     import specify_cli.status.emit as status_emit
 
     monkeypatch.setattr(status_emit, "_saas_fan_out", lambda *args, **kwargs: None)
-    monkeypatch.setattr(status_emit, "fire_dossier_sync", lambda *args, **kwargs: None)
-
-
 # ── Fixtures ──────────────────────────────────────────────────────
 
 
@@ -65,6 +62,7 @@ def _make_mission(tmp_path: Path, mission_slug: str = "099-test-mission") -> tup
     mission_dir = repo_root / "kitty-specs" / mission_slug
     tasks_dir = mission_dir / "tasks"
     tasks_dir.mkdir(parents=True)
+    (repo_root / ".git").mkdir()
 
     for wp_id in ("WP01", "WP02"):
         (tasks_dir / f"{wp_id}.md").write_text(
@@ -202,6 +200,35 @@ def _emit_planned_to_approved(
             reference="review-001",
         ),
     ))
+
+
+def _emit_planned_to_canceled(
+    mission_dir: Path,
+    mission_slug: str,
+    wp_id: str,
+    *,
+    reason_source: str | None,
+    actor: str = "test",
+) -> None:
+    """Cancel a planned WP, stamping the provenance discriminator (FR-009).
+
+    ``reason_source="operator"`` marks a documented (operator-authored)
+    cancellation whose dependents must become claimable; any other value (or
+    ``None``) is a synthetic cancellation that stays dependency-blocking.
+    """
+    from specify_cli.status.emit import emit_status_transition
+
+    emit_status_transition(
+        TransitionRequest(
+            feature_dir=mission_dir,
+            mission_slug=mission_slug,
+            wp_id=wp_id,
+            to_lane="canceled",
+            actor=actor,
+            reason="replan",
+            reason_source=reason_source,
+        )
+    )
 
 
 # ── contract-version ──────────────────────────────────────────────
@@ -565,6 +592,92 @@ class TestStartImplementation:
         assert data["success"] is True
         assert data["data"]["wp_id"] == "WP02"
         assert data["data"]["to_lane"] == "in_progress"
+
+    def test_operator_canceled_dependency_admits_claim(self, tmp_path):
+        """FR-009: start-implementation (the external-API CLAIM gate) admits a
+        dependent of a canceled-with-operator-provenance dependency.
+
+        A documented (operator-authored) cancellation is an acceptable ending,
+        so WP02 must no longer be stranded on the orchestrator-api claim path —
+        parity with implement.py's ``_ensure_wp_claim_preconditions``.
+        """
+        repo_root, mission_dir = _make_mission(tmp_path, "099-test-mission")
+        mission_slug = "099-test-mission"
+        (mission_dir / "tasks" / "WP02.md").write_text(
+            "---\nwork_package_id: WP02\ntitle: Test WP02\nlane: planned\ndependencies: [WP01]\nsubtasks: []\n---\n\n# WP02\n",
+            encoding="utf-8",
+        )
+        _emit_planned_to_canceled(mission_dir, mission_slug, "WP01", reason_source="operator")
+
+        with patch(
+            "specify_cli.orchestrator_api.commands._get_main_repo_root",
+            return_value=repo_root,
+        ):
+            result = runner.invoke(
+                app,
+                [
+                    "start-implementation",
+                    "--mission",
+                    mission_slug,
+                    "--wp",
+                    "WP02",
+                    "--actor",
+                    "claude",
+                    "--policy",
+                    _valid_policy_json(),
+                ],
+            )
+
+        assert result.exit_code == 0, result.output
+        data = json.loads(result.output)
+        assert data["success"] is True
+        assert data["data"]["wp_id"] == "WP02"
+        assert data["data"]["to_lane"] == "in_progress"
+
+    def test_synthetic_canceled_dependency_still_blocks_claim(self, tmp_path):
+        """FR-009: a synthetic (undocumented) cancellation stays dependency-blocking.
+
+        Without operator provenance the cancellation is not an acceptable
+        ending, so start-implementation must still reject WP02 fail-closed.
+        """
+        repo_root, mission_dir = _make_mission(tmp_path, "099-test-mission")
+        mission_slug = "099-test-mission"
+        (mission_dir / "tasks" / "WP02.md").write_text(
+            "---\nwork_package_id: WP02\ntitle: Test WP02\nlane: planned\ndependencies: [WP01]\nsubtasks: []\n---\n\n# WP02\n",
+            encoding="utf-8",
+        )
+        _emit_planned_to_canceled(mission_dir, mission_slug, "WP01", reason_source="synthetic")
+
+        from specify_cli.status.store import read_events
+
+        before_events = read_events(mission_dir)
+
+        with patch(
+            "specify_cli.orchestrator_api.commands._get_main_repo_root",
+            return_value=repo_root,
+        ):
+            result = runner.invoke(
+                app,
+                [
+                    "start-implementation",
+                    "--mission",
+                    mission_slug,
+                    "--wp",
+                    "WP02",
+                    "--actor",
+                    "claude",
+                    "--policy",
+                    _valid_policy_json(),
+                ],
+            )
+
+        assert result.exit_code == 1
+        data = json.loads(result.output)
+        assert data["success"] is False
+        assert data["error_code"] == "DEPENDENCIES_NOT_SATISFIED"
+        assert data["data"]["wp_id"] == "WP02"
+        assert data["data"]["unsatisfied_dependencies"] == ["WP01"]
+        assert read_events(mission_dir) == before_events
 
     def test_resume_in_progress_wp_not_blocked_by_unsatisfied_dependency(self, tmp_path):
         """Re-running start on an already in_progress WP must not be dep-gated.
@@ -1321,6 +1434,39 @@ class TestAcceptMission:
         assert data["error_code"] == "MISSION_NOT_READY"
         assert "WP02" in data["data"]["incomplete_wps"]
 
+    def test_malformed_path_conventions_returns_envelope(self, tmp_path):
+        repo_root, mission_dir = _make_mission(tmp_path, "099-test-mission")
+        mission_slug = "099-test-mission"
+        (repo_root / ".kittify").mkdir()
+        (repo_root / ".kittify" / "config.yaml").write_text(
+            "project:\n  path_conventions:\n    workspace: 123\n",
+            encoding="utf-8",
+        )
+
+        _emit_planned_to_approved(mission_dir, mission_slug, "WP01")
+        _emit_planned_to_approved(mission_dir, mission_slug, "WP02")
+
+        with patch(
+            "specify_cli.orchestrator_api.commands._get_main_repo_root",
+            return_value=repo_root,
+        ):
+            result = runner.invoke(
+                app,
+                [
+                    "accept-mission",
+                    "--mission",
+                    mission_slug,
+                    "--actor",
+                    "claude",
+                ],
+            )
+
+        assert result.exit_code == 1, result.output
+        data = json.loads(result.output)
+        assert data["success"] is False
+        assert data["error_code"] == "MISSION_NOT_READY"
+        assert "project.path_conventions.workspace" in data["data"]["message"]
+
 
 # ── merge-mission ─────────────────────────────────────────────────
 
@@ -1701,6 +1847,7 @@ def _make_mission_with_suffixed_wps(tmp_path: Path, mission_slug: str = "040-tes
     mission_dir = repo_root / "kitty-specs" / mission_slug
     tasks_dir = mission_dir / "tasks"
     tasks_dir.mkdir(parents=True)
+    (repo_root / ".git").mkdir()
 
     (tasks_dir / "WP01-core-setup.md").write_text(
         "---\nwork_package_id: WP01\ntitle: Core Setup\nlane: planned\ndependencies: []\nsubtasks: []\n---\n\n# WP01\n",

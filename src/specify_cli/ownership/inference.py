@@ -108,13 +108,30 @@ _ACCEPTANCE_HEADING = re.compile(r"(?i)(?:acceptance|success\s+crit|review\s+gui
 _HEADING_LINE = re.compile(r"^#{1,6}\s")
 
 
+def _heading_level(line: str) -> int:
+    """Return a Markdown heading line's depth (number of leading ``#``)."""
+    return len(line) - len(line.lstrip("#"))
+
+
 def _acceptance_criteria_scope(wp_body: str) -> str:
-    """Return text under acceptance/success-criteria headings."""
+    """Return text under acceptance/success-criteria headings.
+
+    Tracks heading depth: once an acceptance heading opens the scope, a
+    sub-heading nested deeper than it (e.g. ``### Notes`` under
+    ``## Acceptance Criteria``) stays inside scope. The scope only closes on
+    a heading at or above the opening heading's level.
+    """
     scoped: list[str] = []
     capturing = False
+    scope_level = 0
     for line in wp_body.splitlines():
         if _HEADING_LINE.match(line):
+            level = _heading_level(line)
+            if capturing and level > scope_level:
+                continue
             capturing = bool(_ACCEPTANCE_HEADING.search(line))
+            if capturing:
+                scope_level = level
             continue
         if capturing:
             scoped.append(line)

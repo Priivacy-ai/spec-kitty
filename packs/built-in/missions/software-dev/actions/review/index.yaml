@@ -1,5 +1,6 @@
 action: review
 directives:
+  - 003-decision-documentation-requirement
   - 010-specification-fidelity-requirement
   - 037-living-documentation-sync
   - 030-test-and-typecheck-quality-gate

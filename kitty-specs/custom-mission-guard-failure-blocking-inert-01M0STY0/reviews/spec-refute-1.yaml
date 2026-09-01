@@ -1,0 +1,64 @@
+# review-refute/v1 — canonical format for refuter-batch verdicts.
+schema: review-refute/v1
+complete: true
+phase: spec
+batch: 1
+verdicts:
+  - id: SPEC-GOV-001
+    verdict: confirmed
+    reason: >-
+      grep across spec.md finds zero standalone AC-1..AC-N labels anywhere (the Clarifications
+      section literally promises "AC-1 onward, see below" at line 81, but every other AC-N
+      substring is the disclaimed pre-existing AC-10/AC-13/AC-14), and the Acceptance Scenarios
+      under both User Story 1 and User Story 2 use unlabeled 1/2/3 numbering that resets per
+      story, exactly as the finding describes.
+  - id: SPEC-ARCH-001
+    verdict: confirmed
+    reason: >-
+      Read live: runtime_bridge_io.py:841 _presence_filenames_for(mission_family) and :931
+      gather_artifact_presence take no repo_root; runtime_bridge.py's enclosing dispatch function
+      calls _check_cli_guards(current_step_id, feature_dir) twice (~1608, ~1643) with repo_root
+      as a live local used immediately before/after via resolve_mission_path(mission_type,
+      repo_root) and _build_wp_iteration_decision(..., repo_root, ...); runtime_bridge_composition.py:504
+      _dispatch_via_composition already requires repo_root as a keyword param yet its guard call
+      at line ~626 drops it — all matching the finding's citations exactly, and FR-004's own text
+      ("does not require every current call site to change shape simultaneously") gives literal
+      license to leave this unthreaded.
+  - id: SPEC-ARCH-002
+    verdict: confirmed
+    reason: >-
+      tests/architectural/test_bridge_cores_import_boundary.py exists, is a genuine full ast.walk
+      (catches in-function/in-try imports per its own collect_non_stdlib_imports docstring, not
+      just module-level), asserts zero non-stdlib imports out of runtime_bridge_cores.py besides
+      runtime.next.decision, and passes now (14 passed, verified via `uv run pytest`); cores.py's
+      evaluate_guards_strict/evaluate_guards sit at the exact cited lines (676-681 dict, 693 .get()
+      call, 699 def evaluate_guards) and resolver.py's required_artifacts_for (634) calls
+      _load_expected_artifact_manifest (555) which imports charter.missions — a real non-stdlib
+      edge — so FR-001/FR-003/FR-006's literal text (the "FR-001 evaluator consulting
+      required_artifacts_for") does conflict with the currently-green gate if implemented inside
+      cores.py as FR-003 names it.
+  - id: SPEC-VERIFY-001
+    verdict: confirmed
+    reason: >-
+      The comment block directly above _GUARD_BRANCH_FLOOR = 18 (test_bridge_parity.py:1170-1195)
+      attributes the 18-vs-16 history entirely to the #3407/M3 CLI-pre-check family-scoping fix in
+      runtime_bridge.py (_check_cli_guards being scoped to software-dev only), with zero mention of
+      FR-005's _presence_filenames_for family-scoped gathering in runtime_bridge_io.py — NFR-004's
+      "FR-005's family-scoping preservation is the specific mechanism" attribution is verifiably
+      wrong per the docstring it cites as its own source.
+  - id: SPEC-VERIFY-002
+    verdict: confirmed
+    reason: >-
+      spec.md contains zero occurrences of "3284" or "baseline-red" anywhere (grep confirms), gh
+      confirms issue #3284 is genuinely OPEN with title "main full suite has 23 untracked failures
+      and 2 errors after bootstrap prewarm" (matching the "~23 known-red / 2 errors" figure), and
+      CLAUDE.md's baseline-red gotcha section documents the real 3-way classification protocol the
+      finding describes — none of this is acknowledged in NFR-003 or Clarifications despite the
+      mission's own stacked-branch setup being called out at length elsewhere in the same section.
+  - id: SPEC-VERIFY-003
+    verdict: confirmed
+    reason: >-
+      runtime_bridge_cores.py confirms _GUARD_TABLES is declared at lines 676-681 (the dict
+      literal, no .get() call in that range) while the actual `_GUARD_TABLES.get(snapshot.mission_family)`
+      call is one function down at line 693 inside evaluate_guards_strict, exactly as the finding
+      states.

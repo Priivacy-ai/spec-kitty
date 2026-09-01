@@ -3,7 +3,7 @@ reconciliation WP01, amendment #3).
 
 ``duplicate_edge_triples`` / ``dangling_endpoints`` are the extracted SSOT
 both ``validate_graph`` (string formatting) and
-``charter.synthesizer.reconcile`` (preserved-vs-new-emit provenance
+``charter.activation.synthesizer.reconcile`` (preserved-vs-new-emit provenance
 classification) consume. This module pins:
 
 1. The structured helpers themselves return the right edges.
@@ -15,8 +15,8 @@ from __future__ import annotations
 
 import pytest
 
-from doctrine.drg.models import DRGEdge, DRGGraph, DRGNode, NodeKind, Relation
-from doctrine.drg.validator import (
+from charter.offering.drg.models import DRGEdge, DRGGraph, DRGNode, NodeKind, Relation
+from charter.offering.drg.validator import (
     _validate_duplicate_edges,
     dangling_endpoints,
     duplicate_edge_triples,

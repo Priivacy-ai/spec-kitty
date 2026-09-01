@@ -1,6 +1,6 @@
 """Command-Skill Renderer for shared-root command-skill agents.
 
-Turns a ``src/doctrine/missions/mission-steps/<mission_type>/<step_id>/prompt.md``
+Turns a ``src/charter/offering/missions/mission-steps/<mission_type>/<step_id>/prompt.md``
 source file into a :class:`RenderedSkill` (YAML frontmatter + markdown body)
 that can be written as a ``SKILL.md`` file for command-skill agents such as
 Codex, Vibe, Pi, and Letta Code.
@@ -394,7 +394,7 @@ def render(
     ----------
     template_path:
         Absolute path to a
-        ``src/doctrine/missions/mission-steps/<mission_type>/<step_id>/prompt.md``
+        ``src/charter/offering/missions/mission-steps/<mission_type>/<step_id>/prompt.md``
         source file.
     agent_key:
         Must be one of :data:`SUPPORTED_AGENTS`.

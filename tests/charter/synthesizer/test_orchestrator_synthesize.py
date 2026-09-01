@@ -18,7 +18,7 @@ from collections.abc import Mapping
 
 import pytest
 
-from charter.synthesizer import (
+from charter.activation.synthesizer import (
     DuplicateTargetError,
     FixtureAdapter,
     ProjectDRGValidationError,
@@ -26,7 +26,7 @@ from charter.synthesizer import (
     SynthesisTarget,
     synthesize,
 )
-from charter.synthesizer.synthesize_pipeline import ProvenanceEntry, run_all
+from charter.activation.synthesizer.synthesize_pipeline import ProvenanceEntry, run_all
 
 
 # ---------------------------------------------------------------------------
@@ -198,7 +198,7 @@ class TestSynthesizeEntryPoint:
         tmp_path: Path,
     ) -> None:
         """synthesize() returns a SynthesisResult object."""
-        from charter.synthesizer.orchestrator import SynthesisResult
+        from charter.activation.synthesizer.orchestrator import SynthesisResult
         result = synthesize(full_request, adapter=adapter, repo_root=tmp_path)
         assert isinstance(result, SynthesisResult)
 
@@ -392,7 +392,7 @@ class TestNoOpStableSynthesis:
         sidecars and synthesis manifest must remain byte-for-byte unchanged so
         the working tree stays clean (#1912).
         """
-        from charter.synthesizer.manifest import MANIFEST_PATH
+        from charter.activation.synthesizer.manifest import MANIFEST_PATH
 
         req_a = self._request_with_run_id(
             "01AAAAAAAAAAAAAAAAAAAAAAAAA",
@@ -447,7 +447,7 @@ class TestDuplicateTargetError:
         # a custom adapter patched to inject a duplicate.
         # Instead, we test via targets.detect_duplicates directly with an
         # explicit duplicate.
-        from charter.synthesizer.targets import detect_duplicates
+        from charter.activation.synthesizer.targets import detect_duplicates
 
         target_a = SynthesisTarget(
             kind="tactic",
@@ -476,7 +476,7 @@ class TestDuplicateTargetError:
         self,
     ) -> None:
         """DuplicateTargetError message contains kind, slug, and occurrence count."""
-        from charter.synthesizer.targets import detect_duplicates
+        from charter.activation.synthesizer.targets import detect_duplicates
 
         target = SynthesisTarget(
             kind="directive",
@@ -634,7 +634,7 @@ class TestSynthesizeWritesToDisk:
         tmp_path: Path,
     ) -> None:
         """synthesize() produces .kittify/charter/synthesis-manifest.yaml on disk."""
-        from charter.synthesizer.manifest import MANIFEST_PATH
+        from charter.activation.synthesizer.manifest import MANIFEST_PATH
 
         result = synthesize(full_request, adapter=adapter, repo_root=tmp_path)
 
@@ -644,7 +644,7 @@ class TestSynthesizeWritesToDisk:
             "write_pipeline.promote was not called from synthesize()"
         )
         # The result is still a SynthesisResult
-        from charter.synthesizer.orchestrator import SynthesisResult
+        from charter.activation.synthesizer.orchestrator import SynthesisResult
         assert isinstance(result, SynthesisResult)
 
     def test_synthesize_writes_artifacts_to_doctrine(
@@ -720,8 +720,8 @@ class TestSynthesizeWritesToDisk:
         monkeypatch: pytest.MonkeyPatch,
     ) -> None:
         """FR-008: validation runs before promote and preserves diagnostics on failure."""
-        from charter.synthesizer.errors import ProjectDRGValidationError
-        from charter.synthesizer.manifest import MANIFEST_PATH
+        from charter.activation.synthesizer.errors import ProjectDRGValidationError
+        from charter.activation.synthesizer.manifest import MANIFEST_PATH
 
         def fail_validate(_staging_dir: Path, _shipped_drg: object, conflicts: object = ()) -> None:
             # WP02: validate() now takes an optional `conflicts` kwarg
@@ -734,7 +734,7 @@ class TestSynthesizeWritesToDisk:
                 merged_graph_summary="forced by test",
             )
 
-        monkeypatch.setattr("charter.synthesizer.validation_gate.validate", fail_validate)
+        monkeypatch.setattr("charter.activation.synthesizer.validation_gate.validate", fail_validate)
 
         with pytest.raises(ProjectDRGValidationError, match="synthetic validation failure"):
             synthesize(full_request, adapter=adapter, repo_root=tmp_path)

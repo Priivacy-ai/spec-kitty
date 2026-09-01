@@ -3,11 +3,11 @@
 charter-sole-door-bypass-closure-01KZ3WAA WP01. Proves the C-001 unification
 closed a real divergence: prior to this mission,
 ``specify_cli.doctrine_service_factory.build_activation_aware_doctrine_service``
-and ``charter.doctrine_service_builder._build_activation_aware_doctrine_service``
+and ``charter.activation.doctrine_service_builder._build_activation_aware_doctrine_service``
 were two independent implementations that silently disagreed on two axes
 (``active_languages`` computation and ``org_roots`` self-resolution). Both are
 now thin call-throughs to the single canonical
-:func:`charter.doctrine_service_builder.build_activation_aware_doctrine_service`.
+:func:`charter.activation.doctrine_service_builder.build_activation_aware_doctrine_service`.
 
 Per the post-tasks squad's sequencing correction (data-model.md "Sequencing
 note superseded"), this is written ONCE against the full 9-kind surface in a
@@ -24,7 +24,7 @@ nothing about the gated properties themselves. It is replaced by
 ``test_gated_property_matches_raw_repository_for_bare_project``, which
 compares each entry point's gated view against an INDEPENDENTLY-derived
 expectation built from the raw repository via the public
-:meth:`charter.resolver.DoctrineService.raw_repository` accessor (FR-002
+:meth:`charter.activation.resolver.DoctrineService.raw_repository` accessor (FR-002
 Option A) — never ``._inner`` directly (MINOR 4: avoids tripping WP04/T017's
 forthcoming zero-tolerance ``._inner``-on-doctrine-service gate from a test
 file outside ``src/charter/**``). This also proves the bare-project catalog
@@ -39,10 +39,10 @@ from pathlib import Path
 import pytest
 from ruamel.yaml import YAML
 
-from charter.doctrine_service_builder import (
+from charter.activation.doctrine_service_builder import (
     build_activation_aware_doctrine_service as charter_builder,
 )
-from doctrine.drg.org_pack_config import OrgPackConfig, PackRegistry, save_pack_registry
+from charter.offering.drg.org_pack_config import OrgPackConfig, PackRegistry, save_pack_registry
 from specify_cli.doctrine_service_factory import (
     build_activation_aware_doctrine_service as specify_cli_builder,
 )
@@ -145,7 +145,7 @@ def test_specify_cli_entry_point_delegates_to_charter_builder(
     ``specify_cli`` entry point -- proving it is a thin re-export, not an
     independent second implementation that merely happens to agree today.
     """
-    import charter.doctrine_service_builder as builder_module
+    import charter.activation.doctrine_service_builder as builder_module
     from specify_cli.doctrine_service_factory import (
         build_activation_aware_doctrine_service as specify_cli_entry_point,
     )
@@ -167,13 +167,13 @@ def test_specify_cli_entry_point_delegates_to_charter_builder(
 
 #: A gated kind whose repository actually consumes ``active_languages``
 #: (``paradigms``/``directives``/``mission_step_contracts``/``glossary_packs``
-#: do not — see ``src/doctrine/service.py``'s per-property construction).
+#: do not — see ``src/charter/offering/service.py``'s per-property construction).
 #: Used by the two axis tests below to observe the service-level resolution.
 _LANGUAGE_SCOPED_KIND = "tactics"
 
 #: Per-kind key attribute for building an ``{key: item}`` dict from
 #: ``list_all()`` — mirrors each gated property's own key extraction in
-#: ``charter.resolver.DoctrineService`` (``agent_profiles`` keys on
+#: ``charter.activation.resolver.DoctrineService`` (``agent_profiles`` keys on
 #: ``profile_id``; every other kind keys on ``id``).
 _KEY_ATTR_BY_PROP: dict[str, str] = {"agent_profiles": "profile_id"}
 
@@ -182,14 +182,14 @@ def test_active_languages_resolution_identical_across_entry_points(repo_root: Pa
     """FR-008 axis 1: ``active_languages`` is always computed, identically.
 
     MINOR 4 cycle-2 fix: reads the resolved value off a raw repository via
-    the public :meth:`~charter.resolver.DoctrineService.raw_repository`
+    the public :meth:`~charter.activation.resolver.DoctrineService.raw_repository`
     accessor (FR-002 Option A) — every repository the service constructs
     carries the same ``_active_languages`` value the service resolved — rather
     than reaching into the wrapper's ``._inner`` directly. Uses ``tactics``
     (not ``paradigms``) because ``paradigms`` does not consume
-    ``active_languages`` at all (``src/doctrine/service.py``).
+    ``active_languages`` at all (``src/charter/offering/service.py``).
     """
-    from charter.language_scope import infer_repo_languages
+    from charter.activation.language_scope import infer_repo_languages
 
     expected = infer_repo_languages(repo_root)
     assert expected, "fixture must exercise a non-empty active_languages resolution"
@@ -208,7 +208,7 @@ def test_org_roots_resolution_identical_across_entry_points(repo_root: Path) -> 
 
     MINOR 4 cycle-2 fix: compares the per-kind org directories a raw
     repository was constructed with (derived 1:1 from ``org_roots``) via the
-    public :meth:`~charter.resolver.DoctrineService.raw_repository` accessor,
+    public :meth:`~charter.activation.resolver.DoctrineService.raw_repository` accessor,
     rather than reaching into the wrapper's ``._inner._org_roots`` directly.
     """
     result_a = charter_builder(repo_root)
@@ -223,7 +223,7 @@ def test_org_roots_resolution_identical_across_entry_points(repo_root: Path) -> 
 def _expected_dict_from_raw_repository(service: object, prop: str) -> dict[str, object]:
     """Independently derive the expected gated-property dict from the raw repository.
 
-    Uses the public :meth:`charter.resolver.DoctrineService.raw_repository`
+    Uses the public :meth:`charter.activation.resolver.DoctrineService.raw_repository`
     accessor (FR-002 Option A) rather than reaching into ``._inner`` directly
     (MINOR 4) — the non-fakeable reference the MAJOR 3 fix below compares
     against. Keys on the same attribute each gated property itself uses
@@ -282,7 +282,7 @@ def test_bare_project_admits_language_scoped_builtin_profiles(tmp_path: Path) ->
     and NO interview transcript (``.kittify/charter/interview/answers.yaml``)
     has no active-language *signal at all* -- ``infer_repo_languages`` must
     resolve this to ``None`` ("unknown"), not an explicitly empty list.
-    ``doctrine.shared.scoping.applies_to_languages_match`` treats ``None`` as
+    ``charter.offering.shared.scoping.applies_to_languages_match`` treats ``None`` as
     admit-all and an empty active set as admit-none for scoped artifacts, so
     conflating "no signal" with "explicitly no languages" silently drops
     every language-scoped built-in profile from the catalog.

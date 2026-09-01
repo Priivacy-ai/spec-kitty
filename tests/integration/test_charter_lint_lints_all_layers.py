@@ -65,7 +65,7 @@ def test_charter_lint_lists_all_three_layers_with_named_provenance(
     # Sanity: the contract symbol must exist (we link the CLI behaviour
     # to the loader). If WP06 hasn't landed yet, this collects as an
     # ImportError, keeping the test RED.
-    from charter.drg import load_org_drg  # noqa: PLC0415, F401
+    from charter.activation.drg_activation import load_org_drg  # noqa: PLC0415, F401
 
     import os
 

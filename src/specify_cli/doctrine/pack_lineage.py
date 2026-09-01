@@ -10,14 +10,14 @@ pack-metadata manifest unification:
 
 C-002 / NFR-001 (no parallel resolver)
 ---------------------------------------
-``charter.org_extends.resolve_extends_order`` is the **single** canonical
+``charter.activation.org_extends.resolve_extends_order`` is the **single** canonical
 resolver for lineage-chain topology (cycle detection, missing-base
 detection, base-first ordering). The live ``extends:`` field feeds it a
 **name-keyed** edge map today (``org_charter.py:517,525``). This module does
 **not** introduce a second walker: :func:`resolve_pack_lineage_order` is a
 data-only ``pack_id -> resolvable key`` adapter that builds a name-keyed
 edge map and delegates the entire walk — including cycle and missing-base
-detection — to :func:`charter.org_extends.resolve_extends_order`. No
+detection — to :func:`charter.activation.org_extends.resolve_extends_order`. No
 traversal, recursion, or graph algorithm of its own lives in this module.
 
 Lineage authority (two-key period, IC-05/PP-M1): the live ``extends:``
@@ -40,7 +40,7 @@ from __future__ import annotations
 
 from collections.abc import Collection, Mapping
 
-from charter.org_extends import (
+from charter.activation.org_extends import (
     ExtendsBaseNotFoundError,
     ExtendsCycleError,
     resolve_extends_order,
@@ -65,7 +65,7 @@ _UNRESOLVED_KEY_PREFIX = "\x00unresolved-pack-id:"
 class UnresolvedPackParentError(ValueError):
     """Raised when a ``parent_pack`` edge cannot be resolved (fail-closed).
 
-    Mirrors :class:`charter.org_extends.ExtendsBaseNotFoundError`: a
+    Mirrors :class:`charter.activation.org_extends.ExtendsBaseNotFoundError`: a
     ``parent_pack`` pointing at a ``pack_id`` with no known resolvable key
     (e.g. a pre-``pack_id``-backfill pack, per IC-05/Q2) is reported here
     rather than silently dropped or treated as a root pack.
@@ -84,7 +84,7 @@ class UnresolvedPackParentError(ValueError):
 class PackLineageCycleError(ValueError):
     """Raised when a ``parent_pack`` chain contains a cycle (fail-closed).
 
-    Mirrors :class:`charter.org_extends.ExtendsCycleError`, reported in
+    Mirrors :class:`charter.activation.org_extends.ExtendsCycleError`, reported in
     terms of ``pack_id`` rather than the internal resolvable key.
     """
 
@@ -147,7 +147,7 @@ def resolve_pack_lineage_order(
     *parent_edges* (``pack_id -> parent pack_id | None``) and *pack_names*
     (``pack_id -> resolvable key``, i.e. the pack's ``name``), then
     delegates the entire walk to
-    :func:`charter.org_extends.resolve_extends_order` -- the single
+    :func:`charter.activation.org_extends.resolve_extends_order` -- the single
     canonical lineage resolver (C-002/NFR-001). No new traversal is
     performed here.
 
