@@ -176,12 +176,17 @@ def repo_config_path(project_root: Path) -> Path:
 
 def locate_repo_root(cwd: Path | None = None) -> Path | None:
     """The Spec Kitty checkout containing ``cwd``, or ``None`` when there is
-    none. Function-scoped import: the resolver drags in a large
+    none. A Git checkout without the canonical ``.kittify`` marker is not a
+    Spec Kitty checkout for this preference surface. Function-scoped import:
+    the resolver drags in a large
     ``specify_cli.core`` graph no other reader of this module should pay for
     (same lazy-import discipline ``cli/commands/zeitgeist.py`` records)."""
     from specify_cli.core.paths import locate_project_root  # noqa: PLC0415
 
-    return locate_project_root(cwd if cwd is not None else Path.cwd())
+    project_root = locate_project_root(cwd if cwd is not None else Path.cwd())
+    if project_root is None or not (project_root / REPO_CONFIG_DIRNAME).is_dir():
+        return None
+    return project_root
 
 
 def _read_section(path: Path) -> tuple[dict[str, Any], str | None]:

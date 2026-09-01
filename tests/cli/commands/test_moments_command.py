@@ -213,6 +213,17 @@ def test_repo_scope_outside_any_checkout_refuses(kittify_home: Path) -> None:
     assert "--repo needs a Spec Kitty checkout" in result.stdout
 
 
+def test_repo_scope_inside_git_checkout_without_kittify_refuses(kittify_home: Path, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    checkout = tmp_path / "git-checkout"
+    (checkout / ".git").mkdir(parents=True)
+    monkeypatch.chdir(checkout)
+
+    result = runner.invoke(moments_app, ["off", "--repo"])
+
+    assert result.exit_code == 1
+    assert "--repo needs a Spec Kitty checkout" in result.stdout
+
+
 def test_off_preserves_unrelated_keys_in_an_existing_config(kittify_home: Path) -> None:
     (kittify_home / "config.toml").write_text('[moments]\nkinds = ["MissionCreated"]\n[other]\nkeep = "yes"\n')
     result = runner.invoke(moments_app, ["off"])
