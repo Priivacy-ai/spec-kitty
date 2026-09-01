@@ -1,3 +1,8 @@
+---
+doc_status: active
+updated: '2026-08-27'
+---
+
 | sha | kind | disposition | evidence | one-line rationale |
 |---|---|---|---|---|
 | d56f24e11 | fix | applies | Current `src/charter/kind_vocabulary.py:240-252` documents a live residual: nested org styleguides load at runtime but are not resolved by charter activation, and says the correct fix is a single recursion authority. | The recursion-parity defect survives on this line even though parts of the kind vocabulary were later consolidated. |
