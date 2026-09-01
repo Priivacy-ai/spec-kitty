@@ -564,7 +564,7 @@ def identity(cwd: str, budget: float = GIT_BUDGET_S, *, deadline: Deadline | Non
     budget — e.g. one status transition resolving credentials, presence
     identity, and a focus capability in the same handler invocation — so the
     three don't each stack their own ``budget`` on top of the others past a
-    fan-out's own bound (EXPERIMENTAL-spec-kitty#203). Omit it to allocate a
+    fan-out's own bound (Priivacy-ai/spec-kitty#203). Omit it to allocate a
     fresh ``Deadline(budget)``, correct when this is the call's only Git
     consumer.
 

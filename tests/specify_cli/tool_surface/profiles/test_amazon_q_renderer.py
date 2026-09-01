@@ -7,7 +7,7 @@ from pathlib import Path
 
 import pytest
 
-from doctrine.agent_profiles.profile import AgentProfile
+from charter.offering.agent_profiles.profile import AgentProfile
 from specify_cli.tool_surface.profiles.amazon_q_renderer import (
     FORMAT_AMAZON_Q_AGENT,
     AmazonQProfileRenderer,

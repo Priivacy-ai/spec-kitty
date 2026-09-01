@@ -38,7 +38,7 @@ _NOW = datetime(2026, 4, 23, 16, 0, 0, tzinfo=UTC)
 def _make_entry(
     decision_id: str = "01KPXFGJ0000000000000000A1",
     mission_slug: str = "test-mission-01ABC",
-    question_id: str = "charter.scope",
+    question_id: str = "charter.activation.scope",
     question_text: str = "What is the scope?",
     entered_pending_at: datetime = _NOW,
     widen_response: dict | None = None,

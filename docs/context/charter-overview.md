@@ -111,12 +111,12 @@ Projects that already publish governance outside `.kittify/`, for example
 `.kittify/charter/charter.yaml`. Spec Kitty does not require the public document, `charter.yaml`,
 and `charter.md` to be byte-for-byte equal — `charter.yaml` is the only one the runtime resolves.
 
-Declare supporting docs under `governance.doctrine.governance_references` in `charter.yaml`
+Declare supporting docs under `governance.charter.governance_references` in `charter.yaml`
 (the interview's equivalent answer writes into this same section):
 
 ```yaml
 governance:
-  doctrine:
+  charter:
     governance_references:
       - spec/constitution.md
 ```

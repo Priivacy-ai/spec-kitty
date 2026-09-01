@@ -1,8 +1,8 @@
 """WP06 (mission #2680) — behaviour-preserving equality + totality proofs.
 
 These are the correctness gate on the whole sharding migration (WP05 deleted the
-``src/doctrine/graph.yaml`` monolith and replaced it with per-kind
-``src/doctrine/<kind>.graph.yaml`` fragments). They certify that the sharded,
+``src/charter/offering/graph.yaml`` monolith and replaced it with per-kind
+``src/charter/offering/<kind>.graph.yaml`` fragments). They certify that the sharded,
 on-disk layout reconstructs *exactly* the same graph the extractor composes in
 memory — no node, edge, or node-kind lost or duplicated by the shard/merge round
 trip.
@@ -29,17 +29,17 @@ from pathlib import Path
 
 import pytest
 
-from doctrine.drg.loader import (
+from charter.offering.drg.loader import (
     built_in_graph_source,
     load_built_in_graph,
     load_graph,
 )
-from doctrine.drg.migration.extractor import _dump_graph_document
-from doctrine.drg.migration.hand_authored_overlay import (
+from charter.offering.drg.migration.extractor import _dump_graph_document
+from charter.offering.drg.migration.hand_authored_overlay import (
     generate_reference_graph_with_overlay,
 )
-from doctrine.drg.models import DRGEdge, DRGGraph, DRGNode
-from doctrine.drg.validator import assert_valid
+from charter.offering.drg.models import DRGEdge, DRGGraph, DRGNode
+from charter.offering.drg.validator import assert_valid
 
 pytestmark = [pytest.mark.unit, pytest.mark.fast, pytest.mark.corpus]
 
@@ -164,7 +164,7 @@ def reference_graph() -> DRGGraph:
     also carries hand-authored ``in_tension_with``/``reconciles_tension``/
     ``rejects`` edges and ``anti_pattern`` nodes the extractor has no
     frontmatter mechanism to mint (C-005) — so the reference must include the
-    same enumerable overlay (``doctrine.drg.migration.hand_authored_overlay``)
+    same enumerable overlay (``charter.offering.drg.migration.hand_authored_overlay``)
     or every equality proof below would spuriously report the hand-authored
     content as "missing" from a bare extractor regeneration.
     """
@@ -174,7 +174,7 @@ def reference_graph() -> DRGGraph:
 
 @pytest.fixture(scope="module")
 def sharded_graph() -> DRGGraph:
-    """The graph reloaded from the on-disk ``src/doctrine/*.graph.yaml`` shards."""
+    """The graph reloaded from the on-disk ``src/charter/offering/*.graph.yaml`` shards."""
     return load_built_in_graph()
 
 

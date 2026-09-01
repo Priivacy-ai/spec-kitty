@@ -1,4 +1,4 @@
-"""Unit tests for :mod:`charter._activation_render` — the WP05 body of
+"""Unit tests for :mod:`charter.activation._activation_render` — the WP05 body of
 the activation-stanza renderer.
 
 Coverage (per WP05 T025):
@@ -24,8 +24,8 @@ import re
 
 import pytest
 
-from charter._activation_render import render_activation_stanza
-from charter.activations import ALLOWED_ACTIONS, ActivationEntry, REGISTERED_TRIGGERS
+from charter.activation._activation_render import render_activation_stanza
+from charter.activation.activations import ALLOWED_ACTIONS, ActivationEntry, REGISTERED_TRIGGERS
 
 
 pytestmark = [pytest.mark.unit]

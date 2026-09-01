@@ -66,7 +66,7 @@ def _load_merged_drg(repo_root: Path) -> Any | None:
     - any other error occurs.
     """
     try:
-        from doctrine.drg.models import DRGGraph
+        from charter.offering.drg.models import DRGGraph
         from ruamel.yaml import YAML
 
         drg_dir = repo_root / ".kittify" / "doctrine"

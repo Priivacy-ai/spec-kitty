@@ -9,10 +9,12 @@ loudly if a later change empties, staples, or de-seeds the committed corpus —
 the exact regression that would make WP04's *unconditional* snapshot readers
 reduce to an empty snapshot and go red.
 
-It is **read-only** over the committed corpus, resolved through the production
-:func:`locate_project_root` surface (the same resolver the ``migrate
-backfill-runtime-state`` CLI walks), so it observes exactly the corpus the
-runtime would. The proof surface is the reduced snapshot + the WP01
+It is **read-only** over the committed corpus in this test file's own checkout.
+The path is deliberately not resolved through the ambient project root: CI runs
+from a detached git worktree, and the production resolver intentionally follows
+that worktree back to the sibling main checkout. Using it here would combine
+PR-head code with main-head corpus data. The proof surface is the reduced
+snapshot + the WP01
 :func:`verify_backfill` fail-closed parity check — not a synthetic fixture.
 
 Scope notes:
@@ -54,7 +56,6 @@ from pathlib import Path
 
 import pytest
 
-from specify_cli.core.paths import locate_project_root
 from specify_cli.migration.backfill_runtime_state import (
     _claim_anchors,
     _seed_id,
@@ -88,14 +89,28 @@ _SELF_MISSION = "runtime-state-corpus-cutover-01KXZ0AX"
 #: makes this brittle, while a catastrophic emptying still fails loudly.
 _MIN_BACKFILLED_RUNTIME_MISSIONS = 100
 
+def _test_checkout_root() -> Path:
+    """Return the checkout containing this guard, including in a CI worktree."""
+    return Path(__file__).resolve().parents[3]
+
+
 def _kitty_specs() -> Path:
-    """Resolve the committed ``kitty-specs/`` corpus via the production resolver."""
-    root = locate_project_root()
-    corpus: Path | None = root / "kitty-specs" if root is not None else None
-    if corpus is not None and corpus.is_dir():
+    """Return the committed ``kitty-specs/`` corpus from this exact checkout."""
+    corpus = _test_checkout_root() / "kitty-specs"
+    if corpus.is_dir():
         return corpus
-    pytest.skip("no kitty-specs corpus resolvable for this project")
+    pytest.skip("no kitty-specs corpus in this test checkout")
     raise AssertionError("unreachable")  # pragma: no cover — pytest.skip is NoReturn
+
+
+def test_kitty_specs_is_pinned_to_this_checkout(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The guard never follows an ambient root override to another corpus."""
+    (tmp_path / "kitty-specs").mkdir()
+    monkeypatch.setenv("SPECIFY_REPO_ROOT", str(tmp_path))
+
+    assert _kitty_specs() == _test_checkout_root() / "kitty-specs"
 
 
 def _backfilled_runtime_missions(corpus: Path) -> list[Path]:
@@ -279,9 +294,7 @@ def test_no_repo_root_event_file() -> None:
     All seed writes resolve through ``canonicalize_feature_dir`` inside the
     library, so no ``status.events.jsonl`` ever lands beside the repo root.
     """
-    root = locate_project_root()
-    if root is None:
-        pytest.skip("no spec-kitty project root resolvable")
+    root = _test_checkout_root()
     assert not (root / "status.events.jsonl").exists(), (
         "a status.events.jsonl exists at the repository root — a backfill write "
         "escaped canonicalize_feature_dir (INV-5 / #2815 regression)"

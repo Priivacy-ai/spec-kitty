@@ -64,9 +64,9 @@ class FixGlossaryContextSkillMigration(BaseMigration):
         changes: list[str] = []
         errors: list[str] = []
 
-        # Load canonical content from doctrine package
+        # Load canonical content from charter.offering package
         try:
-            doctrine_root = files("doctrine")
+            doctrine_root = files("charter.offering")
             canonical_path = doctrine_root.joinpath(
                 "skills", _SKILL_NAME, "SKILL.md"
             )

@@ -26,6 +26,7 @@ from __future__ import annotations
 import io
 import json
 import time
+from dataclasses import replace
 from kernel.clock import datetime, now_utc, parse_iso, timedelta
 from pathlib import Path
 from unittest.mock import AsyncMock, MagicMock, patch
@@ -33,7 +34,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 from rich.console import Console
 
-from specify_cli.auth.server_target import OverrideMode, ResolvedServerTarget
+from specify_cli.auth.server_target import OverrideMode, ResolvedServerTarget, SAAS_URL_ENV_VAR
 from specify_cli.auth.session import StoredSession, Team
 from specify_cli.cli.commands import _auth_doctor
 from specify_cli.cli.commands._auth_doctor import (
@@ -136,7 +137,7 @@ def _capture_render(report: DoctorReport) -> str:
 
 
 def test_renders_authenticated_no_findings(monkeypatch: pytest.MonkeyPatch) -> None:
-    """Healthy state ⇒ all 5 sections render; findings empty; exit 0."""
+    """Healthy state renders all sections with a confirmed ``ok`` verdict."""
     session = _make_session(
         refresh_token_expires_at=now_utc() + timedelta(days=30)
     )
@@ -149,6 +150,10 @@ def test_renders_authenticated_no_findings(monkeypatch: pytest.MonkeyPatch) -> N
     assert report.findings == []
     assert compute_exit_code(report.findings) == 0
 
+    assert report.auth_verdict.state == "ok"
+    assert report.auth_verdict.evidence
+    assert not any(f.id == "F-008" for f in report.findings)
+
     rendered = _capture_render(report)
     for section in (
         "Identity",
@@ -159,6 +164,89 @@ def test_renders_authenticated_no_findings(monkeypatch: pytest.MonkeyPatch) -> N
     ):
         assert section in rendered, f"section {section!r} missing from rendered output"
     assert "No problems detected." in rendered
+
+
+def test_hostile_session_display_values_render_literally(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Session-file strings must not be interpreted as Rich markup (#737)."""
+    session = _make_session(
+        refresh_token_expires_at=now_utc() + timedelta(days=30)
+    )
+    _patch_state(monkeypatch, session=session)
+    report = assemble_report()
+    assert report.session is not None
+    report = replace(
+        report,
+        session=replace(
+            report.session,
+            user_email="user[/]example.test",
+            session_id="session[/]id",
+            storage_backend="file[/]backend",
+        ),
+    )
+
+    rendered = _capture_render(report)
+
+    assert "user[/]example.test" in rendered
+    assert "session[/]id" in rendered
+    assert "Unknown (file[/]backend)" in rendered
+
+
+def test_expired_access_valid_refresh_local_is_unknown(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """An expired access token with an unproven refresh chain is unknown."""
+    session = _make_session(refresh_token_expires_at=now_utc() + timedelta(days=30))
+    session = replace(session, access_token_expires_at=now_utc() - timedelta(minutes=1))
+    _patch_state(monkeypatch, session=session)
+
+    report = assemble_report()
+
+    assert report.auth_verdict.state == "unknown"
+    assert any(f.id == "F-008" for f in report.findings)
+    assert any("expired" in f.summary.lower() for f in report.findings)
+
+    rendered = _capture_render(report)
+    assert "No problems detected" not in rendered
+    assert "F-008" in rendered
+
+
+def test_expired_access_and_refresh_yields_critical_finding(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Expired access and refresh tokens produce a critical F-008 finding."""
+    session = _make_session(refresh_token_expires_at=now_utc() - timedelta(days=1))
+    session = replace(session, access_token_expires_at=now_utc() - timedelta(minutes=1))
+    _patch_state(monkeypatch, session=session)
+
+    report = assemble_report()
+
+    assert report.auth_verdict.state == "fail"
+    f008 = next(f for f in report.findings if f.id == "F-008")
+    assert f008.severity == "critical"
+    assert "expired" in f008.summary.lower()
+    assert f008.remediation_command == "spec-kitty auth login"
+    assert compute_exit_code(report.findings) == 1
+
+    rendered = _capture_render(report)
+    assert "No problems detected" not in rendered
+
+
+def test_expired_access_valid_refresh_with_live_server_probe_is_ok(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A live server probe resolves an expired access token to ``ok``."""
+    session = _make_session(refresh_token_expires_at=now_utc() + timedelta(days=30))
+    session = replace(session, access_token_expires_at=now_utc() - timedelta(minutes=1))
+    _patch_state(monkeypatch, session=session)
+
+    report = assemble_report(
+        server_probe=ServerSessionStatus(active=True, session_id="s1")
+    )
+
+    assert report.auth_verdict.state == "ok"
+    assert not any(f.id == "F-008" for f in report.findings)
 
 
 def test_renders_unauthenticated(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -390,7 +478,11 @@ async def test_check_server_session_active(monkeypatch: pytest.MonkeyPatch) -> N
     monkeypatch.setattr(_auth_module, "get_token_manager", lambda: mock_tm)
 
     with (
-        patch("specify_cli.auth.config.get_saas_base_url", return_value="https://saas.example.com"),
+        patch.object(
+            _auth_doctor,
+            "resolve_server_target",
+            lambda **_kwargs: _fake_target("https://saas.example.com"),
+        ),
         patch("httpx.AsyncClient", return_value=mock_client),
     ):
         result = await _check_server_session()
@@ -417,7 +509,11 @@ async def test_check_server_session_401(monkeypatch: pytest.MonkeyPatch) -> None
     monkeypatch.setattr(_auth_module, "get_token_manager", lambda: mock_tm)
 
     with (
-        patch("specify_cli.auth.config.get_saas_base_url", return_value="https://saas.example.com"),
+        patch.object(
+            _auth_doctor,
+            "resolve_server_target",
+            lambda **_kwargs: _fake_target("https://saas.example.com"),
+        ),
         patch("httpx.AsyncClient", return_value=mock_client),
     ):
         result = await _check_server_session()
@@ -444,7 +540,11 @@ async def test_check_server_session_network_error(monkeypatch: pytest.MonkeyPatc
     monkeypatch.setattr(_auth_module, "get_token_manager", lambda: mock_tm)
 
     with (
-        patch("specify_cli.auth.config.get_saas_base_url", return_value="https://saas.example.com"),
+        patch.object(
+            _auth_doctor,
+            "resolve_server_target",
+            lambda **_kwargs: _fake_target("https://saas.example.com"),
+        ),
         patch("httpx.AsyncClient", return_value=mock_client),
     ):
         result = await _check_server_session()
@@ -453,6 +553,47 @@ async def test_check_server_session_network_error(monkeypatch: pytest.MonkeyPatc
     assert result.error is not None
     assert "ConnectError" in result.error
     # Access token must not appear in the error.
+    assert "tok" not in result.error
+
+
+async def test_check_server_session_split_brain_fails_closed(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    """An ambiguous env/config target is reported without making the send."""
+    home = tmp_path / "split-brain-home"
+    home.mkdir()
+    monkeypatch.setenv("SPEC_KITTY_HOME", str(home))
+    (home / "config.toml").write_text(
+        '[sync]\nserver_url = "https://configured.example.com"\n', encoding="utf-8"
+    )
+    monkeypatch.setenv(SAAS_URL_ENV_VAR, "https://env-override.example.com")
+
+    session = _make_session(refresh_token_expires_at=now_utc() + timedelta(days=30))
+    assert session.issuer_url is None
+
+    class _TmWithAccessToken:
+        def get_current_session(self) -> StoredSession:
+            return session
+
+        async def get_access_token(self) -> str:
+            return "tok"
+
+    import specify_cli.auth as _auth_module
+    monkeypatch.setattr(_auth_module, "get_token_manager", lambda: _TmWithAccessToken())
+
+    with patch(
+        "httpx.AsyncClient",
+        side_effect=AssertionError("the bearer-token send must fail closed"),
+    ):
+        result = await _check_server_session()
+
+    assert result.active is False
+    assert result.error is not None
+    assert result.error.startswith("SaaS URL mismatch:")
+    assert "configured.example.com" in result.error
+    assert "env-override.example.com" in result.error
+    assert SAAS_URL_ENV_VAR in result.error
     assert "tok" not in result.error
 
 
@@ -582,7 +723,9 @@ async def test_check_server_session_issuer_mismatch_skips_refresh(
         _auth_module, "get_token_manager", lambda: _FakeTokenManagerWithSession(session)
     )
     monkeypatch.setattr(
-        _auth_doctor, "resolve_server_target", lambda: _fake_target("https://team.spec-kitty.ai")
+        _auth_doctor,
+        "resolve_server_target",
+        lambda **_kwargs: _fake_target("https://team.spec-kitty.ai"),
     )
 
     result = await _check_server_session()
@@ -610,7 +753,9 @@ async def test_check_server_session_issuer_matches_proceeds_normally(
         _auth_module, "get_token_manager", lambda: _TmMatchingIssuer(session)
     )
     monkeypatch.setattr(
-        _auth_doctor, "resolve_server_target", lambda: _fake_target("https://team.spec-kitty.ai")
+        _auth_doctor,
+        "resolve_server_target",
+        lambda **_kwargs: _fake_target("https://team.spec-kitty.ai"),
     )
 
     mock_response = MagicMock()
@@ -645,7 +790,9 @@ async def test_check_server_session_no_issuer_proceeds_normally(
     import specify_cli.auth as _auth_module
     monkeypatch.setattr(_auth_module, "get_token_manager", lambda: _TmNoIssuer(session))
     monkeypatch.setattr(
-        _auth_doctor, "resolve_server_target", lambda: _fake_target("https://team.spec-kitty.ai")
+        _auth_doctor,
+        "resolve_server_target",
+        lambda **_kwargs: _fake_target("https://team.spec-kitty.ai"),
     )
 
     mock_response = MagicMock()
@@ -677,7 +824,9 @@ def test_server_issuer_mismatch_error_none_on_bare_async_mock(
     """A bare ``AsyncMock`` test double (unconfigured ``get_current_session``) is treated as unknown, not a mismatch."""
     tm = AsyncMock()
     monkeypatch.setattr(
-        _auth_doctor, "resolve_server_target", lambda: _fake_target("https://team.spec-kitty.ai")
+        _auth_doctor,
+        "resolve_server_target",
+        lambda **_kwargs: _fake_target("https://team.spec-kitty.ai"),
     )
     assert _server_issuer_mismatch_error(tm) is None
 

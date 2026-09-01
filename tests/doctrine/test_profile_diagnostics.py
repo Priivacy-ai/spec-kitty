@@ -11,9 +11,9 @@ from pathlib import Path
 
 import pytest
 
-from doctrine.agent_profiles import SkippedProfile
-from doctrine.agent_profiles.repository import AgentProfileRepository
-from doctrine.drg.models import DRGEdge, DRGGraph, DRGNode, NodeKind, Relation
+from charter.offering.agent_profiles import SkippedProfile
+from charter.offering.agent_profiles.repository import AgentProfileRepository
+from charter.offering.drg.models import DRGEdge, DRGGraph, DRGNode, NodeKind, Relation
 
 pytestmark = [pytest.mark.fast, pytest.mark.doctrine, pytest.mark.corpus]
 
@@ -180,7 +180,7 @@ def test_shipped_builtins_have_zero_diagnostics() -> None:
 
 def test_service_preserves_diagnostics_without_rescan() -> None:
     """FR-007: accessing service.agent_profiles twice yields the same cached repo."""
-    from doctrine.service import DoctrineService
+    from charter.offering.service import DoctrineService
 
     service = DoctrineService()
     repo_a = service.agent_profiles

@@ -214,12 +214,12 @@ def test_host_and_repo_slug_round_trip_verbatim(state_root: Path):
         token="tok-a",
         token_kind="shared_team",
         host="github.int.exe.xyz",
-        repo_slug="spec-kitty/EXPERIMENTAL-spec-kitty",
+        repo_slug="Priivacy-ai/spec-kitty",
     )
     loaded = credentials.load(repo="github.com/acme/spec-kitty")
     assert loaded is not None
     assert loaded.host == "github.int.exe.xyz"
-    assert loaded.repo_slug == "spec-kitty/EXPERIMENTAL-spec-kitty"
+    assert loaded.repo_slug == "Priivacy-ai/spec-kitty"
 
 
 def test_empty_host_is_rejected_when_provided(state_root: Path):
@@ -337,7 +337,7 @@ def test_owner_only_mode_holds_across_every_write_path(state_root: Path):
 
 
 def test_a_loose_pre_e3_file_is_tightened_on_read(state_root: Path):
-    """[squad] EXPERIMENTAL-spec-kitty#37 MINOR: a store/dir left loose by a
+    """[squad] Priivacy-ai/spec-kitty#37 MINOR: a store/dir left loose by a
     pre-E3 write (the old ``tmp_path.open("wb")`` path, no chmod, landing at
     the ambient umask) must not stay group/other-readable until the next
     write — ``load()`` alone must tighten it, since a manual checkout may
@@ -599,7 +599,9 @@ def test_reminting_with_a_new_relay_url_drops_the_stale_focus_lease(state_root: 
     the main credential's rewrite points at a different relay -- serving it
     would get every focus frame rejected until the stale lease expires."""
     _seed_main_credential()
-    credentials.store_focus_capability(repo="github.com/acme/widget", capability_credential="focus-jwt", expires_at=_iso_in(1200))
+    credentials.store_focus_capability(
+        repo="github.com/acme/widget", capability_credential="focus-jwt", expires_at=_iso_in(1200)
+    )
 
     credentials.store(
         repo="github.com/acme/widget",

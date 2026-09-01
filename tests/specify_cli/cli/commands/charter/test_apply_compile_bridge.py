@@ -27,7 +27,7 @@ Covers mission `charter-pack-usage-journey-01KYWWTF` FR-003/FR-004/FR-008:
   correspondence, not a coincidence -- so `apply default --compile` silently
   reusing minimal's filtered interview was a real bug. The fix threads the
   applied pack `name` straight into `profile=`;
-  `charter.interview.default_interview`'s only live branch is `"minimal"`
+  `charter.activation.interview.default_interview`'s only live branch is `"minimal"`
   vs "everything else", so today's two built-in packs (`default`/`minimal`)
   map onto it exactly. See `test_apply_compile_derives_interview_profile_*`
   below for the regression pin.
@@ -45,8 +45,8 @@ import pytest
 from ruamel.yaml import YAML
 from typer.testing import CliRunner
 
-from charter.charter_yaml_io import load_charter_yaml
-from charter.interview import MINIMAL_QUESTION_ORDER, QUESTION_ORDER, CharterInterview
+from charter.activation.charter_yaml_io import load_charter_yaml
+from charter.activation.interview import MINIMAL_QUESTION_ORDER, QUESTION_ORDER, CharterInterview
 from specify_cli.cli.commands.charter import charter_app
 from specify_cli.upgrade.migrations.m_unify_charter_activation_finalize import (
     ACTIVATION_KEYS,
@@ -197,7 +197,7 @@ def test_apply_compile_converges_with_finalize_migration_producer(
     here, so it falls back to empty schema defaults -- while
     `write_compiled_charter`'s bootstrap path (the seam `apply --compile`
     chains) derives `governance`/`directives` from
-    `charter.sync.load_governance_config`/`load_directives_config` and
+    `charter.activation.sync.load_governance_config`/`load_directives_config` and
     resolves `catalog.references` from the live doctrine catalog. Those are
     two legitimately different provenance paths for the SAME sections
     (compiler.py's `_bootstrap_charter_yaml` docstring), so per FR-008's
@@ -269,7 +269,7 @@ def test_apply_compile_converges_with_finalize_migration_producer(
 def _capture_compiled_interview(project_root: Path, name: str) -> tuple[object, CharterInterview]:
     """Run `apply <name> --compile` and capture the interview passed to
     `compile_charter` (the real function still runs; the wrapper only spies)."""
-    from charter.compiler import compile_charter as _real_compile_charter
+    from charter.activation.compiler import compile_charter as _real_compile_charter
 
     captured: dict[str, CharterInterview] = {}
 
@@ -277,7 +277,7 @@ def _capture_compiled_interview(project_root: Path, name: str) -> tuple[object, 
         captured["interview"] = interview
         return _real_compile_charter(interview=interview, **kwargs)
 
-    with patch("charter.compiler.compile_charter", side_effect=_spy):
+    with patch("charter.activation.compiler.compile_charter", side_effect=_spy):
         result = _apply(project_root, name, "--compile")
 
     assert result.exit_code == 0, result.output  # type: ignore[attr-defined]

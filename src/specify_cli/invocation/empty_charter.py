@@ -46,7 +46,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from charter.pack_context import PackContext
+from charter.activation.pack_context import PackContext
 from charter.profiles import DEFAULT_ROLE_CAPABILITIES, Role
 from specify_cli.invocation.router import CANONICAL_VERB_MAP, RouterDecision, _normalize_tokens
 

@@ -107,6 +107,35 @@ def test_status_json_reports_invalid_filters_as_a_sorted_list(kittify_home: Path
     assert payload["invalid_filters"] == ["teammates"]
 
 
+def test_status_warns_on_a_kinds_entry_that_is_not_a_known_family_name(kittify_home: Path) -> None:
+    """#210: #190's own examples spell ``kinds`` dotted (``wp.move``); the
+    real wire vocabulary is the family name (``WPStatusChanged``). A
+    developer who copies that spelling must see why it will never match,
+    not just a quiet, seemingly-active filter."""
+    (kittify_home / "config.toml").write_text('[moments]\nkinds = ["wp.move"]\n')
+    result = runner.invoke(moments_app, ["status"])
+    assert result.exit_code == 0
+    assert "kinds: wp.move" in result.stdout
+    assert "wp.move" in result.stdout.split("kinds:")[1].split("\n")[1]
+    assert "not a known event-kind name" in result.stdout
+
+
+def test_status_json_reports_unknown_kinds(kittify_home: Path) -> None:
+    (kittify_home / "config.toml").write_text('[moments]\nkinds = ["wp.move"]\n')
+    result = runner.invoke(moments_app, ["status", "--json"])
+    assert result.exit_code == 0
+    payload = json.loads(result.stdout)
+    assert payload["kinds_unknown"] == ["wp.move"]
+
+
+def test_status_does_not_warn_on_a_known_family_name(kittify_home: Path) -> None:
+    (kittify_home / "config.toml").write_text('[moments]\nkinds = ["WPStatusChanged"]\n')
+    result = runner.invoke(moments_app, ["status"])
+    assert result.exit_code == 0
+    assert "kinds: WPStatusChanged" in result.stdout
+    assert "not a known event-kind name" not in result.stdout
+
+
 def test_status_reports_a_repo_override_over_the_global_value(kittify_home: Path, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """Both files present: repo wins AND status says so — "quiet in THIS
     checkout only" must be visible as exactly that."""

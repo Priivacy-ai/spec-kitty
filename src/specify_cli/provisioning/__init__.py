@@ -6,7 +6,7 @@ key at all, relying on an implicit config-absent backfill elsewhere in the
 charter runtime. That implicit backfill is removed in WP04; this package is
 its load-bearing prerequisite: it seeds a brand-new project's
 ``.kittify/config.yaml`` with an explicit, non-empty ``mission_type_activations``
-list **copied** from the shipped ``src/charter/packs/default.yaml`` (never
+list **copied** from the shipped ``src/charter/activation/packs/default.yaml`` (never
 re-derived by scanning the mission-type catalog), and fails closed with an
 actionable error if that shipped pack cannot be found.
 """

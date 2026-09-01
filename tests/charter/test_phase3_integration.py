@@ -24,12 +24,12 @@ from pathlib import Path
 
 import pytest
 
-from charter.synthesizer.evidence import (    CodeSignals,
+from charter.activation.synthesizer.evidence import (    CodeSignals,
     CorpusEntry,
     CorpusSnapshot,
     EvidenceBundle,
 )
-from charter.synthesizer.request import SynthesisRequest, SynthesisTarget
+from charter.activation.synthesizer.request import SynthesisRequest, SynthesisTarget
 
 # Marked for mutmut sandbox skip — see ADR 2026-04-20-1.
 # Reason: trampoline bug: subprocess
@@ -111,7 +111,7 @@ def test_phase3_evidence_bundle_structure() -> None:
 
 def test_phase3_hash_differentiation() -> None:
     """Gate 2: enriched evidence produces a different inputs_hash than no evidence."""
-    from charter.synthesizer.request import compute_inputs_hash
+    from charter.activation.synthesizer.request import compute_inputs_hash
 
     target = SynthesisTarget(
         kind="tactic",
@@ -148,7 +148,7 @@ def test_phase3_hash_differentiation() -> None:
 
 def test_phase3_provenance_fields_exist() -> None:
     """Gate 3: ProvenanceEntry Pydantic model has evidence_bundle_hash and corpus_snapshot_id."""
-    from charter.synthesizer.synthesize_pipeline import ProvenanceEntry
+    from charter.activation.synthesizer.synthesize_pipeline import ProvenanceEntry
 
     # ProvenanceEntry is a Pydantic model (not a dataclass), so use model_fields.
     field_names = set(ProvenanceEntry.model_fields.keys())
@@ -203,7 +203,7 @@ def test_phase3_synthesis_request_carries_evidence() -> None:
 
 def test_phase3_is_generic_scoped_logic() -> None:
     """Gate 5: _is_generic_scoped returns correct results for all scope combinations."""
-    from charter.synthesizer.write_pipeline import _is_generic_scoped
+    from charter.activation.synthesizer.write_pipeline import _is_generic_scoped
 
     # No evidence → all artifacts are generic-scoped
     assert _is_generic_scoped("tactic", "testing-philosophy", None) is True
@@ -238,7 +238,7 @@ def test_phase3_is_generic_scoped_logic() -> None:
 
 def test_phase3_neutrality_violation_structure() -> None:
     """Gate 6: NeutralityGateViolation is a dataclass with artifact_urn, detected_terms, staging_dir."""
-    from charter.synthesizer.errors import NeutralityGateViolation
+    from charter.activation.synthesizer.errors import NeutralityGateViolation
 
     field_names = {f.name for f in dataclasses.fields(NeutralityGateViolation)}
     assert "artifact_urn" in field_names, (
@@ -259,7 +259,7 @@ def test_phase3_neutrality_violation_structure() -> None:
 
 def test_phase3_corpus_loader_returns_snapshot() -> None:
     """Gate 7: CorpusLoader.load() returns a valid CorpusSnapshot for Python."""
-    from charter.evidence.corpus_loader import CorpusLoader
+    from charter.activation.evidence.corpus_loader import CorpusLoader
 
     snap = CorpusLoader().load("python+django+pytest")
 
@@ -282,7 +282,7 @@ def test_phase3_corpus_loader_returns_snapshot() -> None:
 
 def test_phase3_code_reader_detects_python(tmp_path: Path) -> None:
     """Gate 8: CodeReadingCollector identifies primary_language='python' for a Python project."""
-    from charter.evidence.code_reader import CodeReadingCollector
+    from charter.activation.evidence.code_reader import CodeReadingCollector
 
     # Create minimal Python project structure
     (tmp_path / "pyproject.toml").write_text(
@@ -363,8 +363,8 @@ def test_phase3_dry_run_evidence_smoke() -> None:
 
 def test_phase3_fixture_adapter_evidence_hash() -> None:
     """Evidence changes the hash, and the fixture adapter resolves the enriched-evidence fixture."""
-    from charter.synthesizer.fixture_adapter import FixtureAdapter, FixtureAdapterMissingError
-    from charter.synthesizer.request import compute_inputs_hash, short_hash
+    from charter.activation.synthesizer.fixture_adapter import FixtureAdapter, FixtureAdapterMissingError
+    from charter.activation.synthesizer.request import compute_inputs_hash, short_hash
 
     target = SynthesisTarget(
         kind="tactic",

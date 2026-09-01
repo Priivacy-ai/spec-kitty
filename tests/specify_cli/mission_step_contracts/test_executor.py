@@ -13,9 +13,9 @@ from unittest.mock import patch
 import pytest
 from ruamel.yaml import YAML
 
-from charter._drg_helpers import load_validated_graph
+from charter.activation._drg_helpers import load_validated_graph
 from charter.drg import resolve_context
-from doctrine.missions.step_contracts import MissionStepContractRepository
+from charter.offering.missions.step_contracts import MissionStepContractRepository
 from specify_cli.invocation.writer import EVENTS_DIR
 from specify_cli.mission_step_contracts.executor import (
     StepContractExecutionContext,
@@ -29,7 +29,7 @@ pytestmark = pytest.mark.fast
 
 def test_charter_mission_steps_facade_reexports_step_inputs() -> None:
     """The runtime-facing facade exposes the doctrine input model by identity."""
-    from doctrine.missions.step_contracts import MissionStepInput
+    from charter.offering.missions.step_contracts import MissionStepInput
 
     facade = importlib.reload(importlib.import_module("charter.mission_steps"))
 
@@ -704,7 +704,7 @@ def test_resolve_pack_context_propagates_org_pack_env_var_unset_error(
     into a ``None`` return.  This test kills the mutation that would widen the
     handler back to a bare ``except Exception: return None``.
     """
-    from doctrine.drg.org_pack_config import OrgPackEnvVarUnsetError  # noqa: PLC0415
+    from charter.offering.drg.org_pack_config import OrgPackEnvVarUnsetError  # noqa: PLC0415
 
     repo_root = tmp_path / "repo"
     repo_root.mkdir()
@@ -714,7 +714,7 @@ def test_resolve_pack_context_propagates_org_pack_env_var_unset_error(
     )
 
     executor = StepContractExecutor(repo_root=repo_root)
-    with patch("charter.pack_context.PackContext.from_config", side_effect=error), pytest.raises(OrgPackEnvVarUnsetError):
+    with patch("charter.activation.pack_context.PackContext.from_config", side_effect=error), pytest.raises(OrgPackEnvVarUnsetError):
         executor._resolve_pack_context(repo_root)
 
 
@@ -886,7 +886,7 @@ def test_malformed_org_pack_drg_degrades_with_warning_instead_of_crashing(
     a hard block.
 
     ``StepContractExecutor``'s org-root resolution comment claims to mirror
-    ``charter.action_doctrine_bundle._resolve_action_bundle``'s graceful
+    ``charter.activation.action_doctrine_bundle._resolve_action_bundle``'s graceful
     degrade (catch ``DRGLoadError``, warn, continue with built-in + project
     doctrine only) -- this pins that the executor actually does that for its
     own ``load_validated_graph`` call, not just cites the precedent.
@@ -895,7 +895,7 @@ def test_malformed_org_pack_drg_degrades_with_warning_instead_of_crashing(
     out of ``execute()`` -- confirmed via
     ``pytest tests/specify_cli/mission_step_contracts/test_executor.py::test_malformed_org_pack_drg_degrades_with_warning_instead_of_crashing``
     against ``git stash`` of the executor fix, which fails with exactly:
-    ``doctrine.drg.loader.DRGLoadError: No DRG graph files found in
+    ``charter.offering.drg.loader.DRGLoadError: No DRG graph files found in
     directory: <tmp>/malformed-org-pack``.
     """
     repo_root = tmp_path / "repo"

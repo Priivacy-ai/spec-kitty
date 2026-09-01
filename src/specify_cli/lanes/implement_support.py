@@ -13,11 +13,13 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from kernel.clock import now_utc_iso
+from mission_runtime import MissionArtifactKind, placement_seam
 from specify_cli.ownership.models import WorkProductKind
 from specify_cli.lanes.lane_env import lane_test_env
-from specify_cli.lanes.models import LanesManifest
-from specify_cli.lanes.branch_naming import worktree_dir_name as _worktree_dir_name
+from specify_cli.lanes.models import ExecutionLane, LanesManifest
+from specify_cli.lanes.branch_naming import lane_branch_name, worktree_dir_name as _worktree_dir_name
 from specify_cli.lanes._git import branch_exists
+from specify_cli.lanes.persistence import read_lanes_json
 from specify_cli.lanes.worktree_allocator import (
     _read_coordination_branch,
     allocate_lane_worktree,
@@ -228,3 +230,262 @@ def _rev_parse(repo_root: Path, ref: str) -> str:
         check=False,
     )
     return result.stdout.strip() if result.returncode == 0 else "unknown"
+
+
+# ---------------------------------------------------------------------------
+# #3281 (WP03) -- lane-allocation retry self-heal + post-materialize ancestry
+# gate (FR-005/FR-006/FR-007, C-005/C-006, C-WP03).
+# ---------------------------------------------------------------------------
+
+
+def _planning_dir(main_repo_root: Path, mission_slug: str) -> Path:
+    """PRIMARY-partition mission dir (where ``lanes.json`` lives) for *mission_slug*.
+
+    Routes through the kind-aware placement seam -- the same seam
+    :func:`_read_coordination_branch` above and ``orchestrator_api``'s
+    ``_planning_read_dir`` use -- so this can never diverge from where the
+    allocator itself reads ``lanes.json``/``meta.json``, independent of
+    topology (coord-topology missions carry a SEPARATE status/coord dir that
+    does NOT hold ``lanes.json``, #2118).
+    """
+    return placement_seam(main_repo_root, mission_slug).read_dir(
+        MissionArtifactKind.WORK_PACKAGE_TASK
+    )
+
+
+def reenter_lane_self_heal(
+    main_repo_root: Path, mission_slug: str, wp_id: str,
+) -> Path | None:
+    """Idempotent self-heal re-entry for a stale lane workspace (FR-005/#3281/C-006).
+
+    Calls :func:`~specify_cli.lanes.worktree_allocator._merge_recorded_planning_commit`
+    and :func:`~specify_cli.lanes.worktree_allocator._merge_dependency_lane_tips`
+    DIRECTLY -- the exact two calls the allocator's own reuse-path self-heal
+    makes -- rather than delegating to the full
+    :func:`~specify_cli.lanes.worktree_allocator.allocate_lane_worktree`. That
+    full function also runs ``_validate_worktree_clean`` (a real ``git
+    status``), which is a DIFFERENT concern (guarding a NEW WP picking up a
+    dirty worktree from a prior WP in the same lane) this retry-self-heal
+    seam must not couple to: re-entering self-heal for the SAME in-flight WP
+    must not hard-fail just because the agent has legitimate uncommitted
+    work-in-progress, and git's own merge machinery already refuses a merge
+    that would conflict with dirty local changes -- no separate upfront gate
+    is needed here.
+
+    A workspace whose ancestry is already correct is a true no-op: both merge
+    helpers short-circuit on their own ``git merge-base --is-ancestor`` check
+    (and a manifest with no ``planning_commit_sha`` / no ``depends_on_lanes``
+    short-circuits before any git call at all), so calling this on a retry
+    never creates a redundant merge commit and never shells out to git for a
+    lane with nothing recorded to merge -- preserving the #1832/#1833 no-op-
+    resume behaviour observably, even though it is no longer a bare early
+    return.
+
+    Returns the worktree path on success, or ``None`` for a legacy/non-lane
+    mission (no ``lanes.json``), a WP not assigned to any lane, or a
+    not-yet-materialized workspace -- nothing to self-heal in any of those
+    cases. A genuine merge conflict propagates as the allocator's own
+    structured exception; this helper does not swallow it.
+    """
+    from specify_cli.lanes.worktree_allocator import (
+        _merge_dependency_lane_tips,
+        _merge_recorded_planning_commit,
+    )
+
+    manifest = read_lanes_json(_planning_dir(main_repo_root, mission_slug))
+    if manifest is None:
+        return None
+    lane = manifest.lane_for_wp(wp_id)
+    if lane is None:
+        return None
+    workspace_path: Path
+    workspace_path, _branch = predict_lane_worktree(main_repo_root, mission_slug, lane.lane_id)
+    if not workspace_path.exists():
+        return None
+    _merge_recorded_planning_commit(
+        main_repo_root, workspace_path, lane.lane_id, manifest.planning_commit_sha
+    )
+    _merge_dependency_lane_tips(main_repo_root, workspace_path, mission_slug, lane, manifest)
+    return workspace_path
+
+
+@dataclass(frozen=True)
+class AncestryCheckResult:
+    """Outcome of the POST-materialize claim-ancestry predicate (C-WP03/FR-007).
+
+    ``ok=True`` for a legacy/non-lane WP (nothing to check) or when every
+    required ref -- the recorded planning-artifact commit and each APPROVED
+    dependency lane's tip -- is a git ancestor of the workspace HEAD.
+    ``missing_refs`` names what is not yet an ancestor, for the caller's
+    refusal message; empty when ``ok`` is True.
+    """
+
+    ok: bool
+    missing_refs: tuple[str, ...] = ()
+
+
+def _workspace_head(workspace_path: Path) -> str | None:
+    """Return the commit SHA at ``workspace_path``'s HEAD, or ``None``."""
+    result = subprocess.run(
+        ["git", "rev-parse", "HEAD"],
+        cwd=str(workspace_path),
+        capture_output=True,
+        text=True,
+    )
+    if result.returncode != 0:
+        return None
+    return result.stdout.strip() or None
+
+
+def _is_git_ancestor(workspace_path: Path, ref: str, head: str) -> bool:
+    """``True`` iff ``ref`` is a git ancestor of ``head``, checked at ``workspace_path``."""
+    result = subprocess.run(
+        ["git", "merge-base", "--is-ancestor", ref, head],
+        cwd=str(workspace_path),
+        capture_output=True,
+        text=True,
+    )
+    return result.returncode == 0
+
+
+def _dependency_lane_status(mission_dir: Path) -> dict[str, str]:
+    """Map every WP id to its current lane, read from the STATUS event log.
+
+    ``mission_dir`` is the coord-aware STATUS surface (``read_events``'s
+    contract), distinct from :func:`_planning_dir`'s PRIMARY surface --
+    callers resolve each once and pass both in rather than this helper
+    re-deriving either (FR-007 keeps the two partitions explicit, #2118).
+    """
+    from specify_cli.status import Lane, read_events, reduce
+
+    events = read_events(mission_dir)
+    if not events:
+        return {}
+    snapshot = reduce(events)
+    return {
+        wp_id: str(state.get("lane", Lane.PLANNED))
+        for wp_id, state in snapshot.work_packages.items()
+    }
+
+
+def _approved_dependency_lane_refs(
+    main_repo_root: Path,
+    mission_slug: str,
+    mission_dir: Path,
+    lane: ExecutionLane,
+    lanes_manifest: LanesManifest,
+) -> list[tuple[str, str]]:
+    """``(dep_lane_id, branch)`` pairs for every FULLY APPROVED dependency lane.
+
+    A dependency lane still in flight (any of its WPs not yet
+    ``approved``/``done``) is intentionally OMITTED -- it is not yet an
+    ancestry requirement. This is what keeps an approved same-mission
+    dependency from deadlocking (C-005): the PRE-materialize dependency-status
+    gate (``implement_check_dependency_gate`` / ``start_implementation``'s own
+    readiness check) already blocks the claim transition until each of THIS
+    WP's declared dependencies is approved; this predicate only additionally
+    asserts that the approved sibling-lane CODE actually landed in the merged
+    tip, never that an in-flight one has.
+
+    A dependency lane whose branch does not resolve (merged-and-deleted
+    post-mission, mirroring ``_merge_dependency_lane_tips``'s own skip) is
+    likewise omitted -- there is nothing left to assert ancestry against.
+    """
+    from specify_cli.status import Lane
+
+    dependency_lanes = _dependency_lane_status(mission_dir)
+    by_id = {dep_lane.lane_id: dep_lane for dep_lane in lanes_manifest.lanes}
+
+    refs: list[tuple[str, str]] = []
+    for dep_id in lane.depends_on_lanes:
+        dep_lane = by_id.get(dep_id)
+        if dep_lane is None or not dep_lane.wp_ids:
+            continue
+        all_approved = all(
+            dependency_lanes.get(wp_id) in (Lane.APPROVED, Lane.DONE)
+            for wp_id in dep_lane.wp_ids
+        )
+        if not all_approved:
+            continue
+        branch = lane_branch_name(mission_slug, dep_id)
+        if not branch_exists(main_repo_root, branch):
+            continue
+        refs.append((dep_id, branch))
+    return refs
+
+
+def check_claim_ancestry(
+    main_repo_root: Path,
+    mission_slug: str,
+    mission_dir: Path,
+    wp_id: str,
+    workspace_path: Path,
+) -> AncestryCheckResult:
+    """THE shared POST-materialize claim-ancestry predicate (C-WP03/FR-007/C-005).
+
+    MUST be called AFTER the workspace is materialized/self-healed and keyed
+    on the MERGED tip -- never pre-materialize and never on a live/unmerged
+    branch tip (C-005's deadlock hazard: evaluating ancestry before the
+    self-heal merges run rejects an already-approved same-mission dependency
+    that simply has not been merged into THIS lane yet).
+
+    The single definition all three claim sites call (the boundary-leak fix):
+    the CLI seam (``workflow.py``, between ``_ensure_workspace_materialized``
+    and claim emission) and BOTH of ``orchestrator_api/commands.py``'s claim
+    paths (``start_implementation``'s composite and ``transition``'s raw
+    ``--to claimed``) -- so no caller independently re-derives (and
+    potentially diverges on) this decision.
+    """
+    manifest = read_lanes_json(_planning_dir(main_repo_root, mission_slug))
+    if manifest is None:
+        return AncestryCheckResult(ok=True)
+    lane = manifest.lane_for_wp(wp_id)
+    if lane is None:
+        return AncestryCheckResult(ok=True)
+
+    head = _workspace_head(workspace_path)
+    if head is None:
+        # A workspace whose HEAD cannot even be read is orthogonal to THIS
+        # predicate -- husk detection (`ResolvedWorkspace.is_husk`) and the
+        # post-create "workspace was not materialized" check already cover a
+        # genuinely broken/absent worktree upstream of this gate. Failing
+        # permissively here (nothing to assert, not a refusal) keeps this
+        # predicate scoped to its one job -- ancestry -- rather than
+        # re-diagnosing workspace health.
+        return AncestryCheckResult(ok=True)
+
+    missing: list[str] = []
+    if manifest.planning_commit_sha and not _is_git_ancestor(
+        workspace_path, manifest.planning_commit_sha, head
+    ):
+        missing.append(f"recorded planning commit {manifest.planning_commit_sha}")
+    for dep_id, branch in _approved_dependency_lane_refs(
+        main_repo_root, mission_slug, mission_dir, lane, manifest
+    ):
+        if not _is_git_ancestor(workspace_path, branch, head):
+            missing.append(f"approved dependency lane {dep_id} ({branch})")
+
+    return AncestryCheckResult(ok=not missing, missing_refs=tuple(missing))
+
+
+def resolve_claim_ancestry_gate(
+    main_repo_root: Path,
+    mission_slug: str,
+    mission_dir: Path,
+    wp_id: str,
+    workspace_path: Path,
+) -> AncestryCheckResult:
+    """Ancestry check with self-heal-coupled retry (C-005/FR-005+FR-007 land together).
+
+    On a failed :func:`check_claim_ancestry`, re-enters the idempotent
+    self-heal (:func:`reenter_lane_self_heal`) ONCE and rechecks -- callers
+    hard-refuse the claim ONLY on this final result, never the bare first
+    check, so a workspace that simply had not been self-healed yet never
+    spuriously blocks a legitimate claim (a gate without self-heal is a
+    dead-end retry, FR-005+FR-007's explicit pairing).
+    """
+    result = check_claim_ancestry(main_repo_root, mission_slug, mission_dir, wp_id, workspace_path)
+    if result.ok:
+        return result
+    reenter_lane_self_heal(main_repo_root, mission_slug, wp_id)
+    return check_claim_ancestry(main_repo_root, mission_slug, mission_dir, wp_id, workspace_path)

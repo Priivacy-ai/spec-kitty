@@ -3,7 +3,7 @@
 Covers the write seam after activation moves from ``.kittify/config.yaml``
 into ``charter.yaml``:
 
-* :func:`charter.pack_manager.resolve_activation_write_target` — the shared
+* :func:`charter.activation.pack_manager.resolve_activation_write_target` — the shared
   pointer-resolution primitive used by ``CharterPackManager.activate`` /
   ``deactivate`` / ``merge_defaults`` and by the two other activation
   writers (``specify_cli.cli.commands.charter.interview``,
@@ -29,10 +29,10 @@ from pathlib import Path
 import pytest
 import yaml as pyyaml
 
-from charter.activation_engine import ActivationPlan, commit_plan
-from charter.invocation_context import ProjectContext
-from charter.pack_context import CharterPackConfigError
-from charter.pack_manager import CharterPackManager, resolve_activation_write_target
+from charter.activation.activation_engine import ActivationPlan, commit_plan
+from charter.activation.invocation_context import ProjectContext
+from charter.activation.pack_context import CharterPackConfigError
+from charter.activation.pack_manager import CharterPackManager, resolve_activation_write_target
 
 pytestmark = pytest.mark.unit
 

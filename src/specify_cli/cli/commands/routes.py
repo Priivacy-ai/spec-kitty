@@ -1,5 +1,5 @@
 """``spec-kitty routes`` — where this checkout broadcasts, and who admits it
-(EXPERIMENTAL-spec-kitty#10, replacing the reshaped TEAM-ADMIT-M2-11).
+(Priivacy-ai/spec-kitty#10, replacing the reshaped TEAM-ADMIT-M2-11).
 
 The old ``spec-kitty sync routes`` answered a question the deleted sync
 transport owned: where does my data go, and which teams see it. With the
@@ -9,13 +9,17 @@ or, just as valid an answer, *no team admits it, so this checkout produces
 nothing anywhere*. This command prints exactly that, read from the same
 seam every status transition already uses.
 
-One code path, no second implementation: :func:`routes` calls
-:func:`zeitgeist_client.resolution.resolve_credentials` — the E3 seam whose
-cache / remembered-negative / mint branches every transition rides. That
-means the command hits the network only when the store genuinely cannot
-answer yet (a fresh login, an expired stamp), stores whatever Team Kitty
-answers — positive credential or short-TTL negative — exactly as a
-transition would, and reports honestly which of the three states it is in:
+One code path, no second implementation: :func:`routes` reads the same
+store every status transition does — :func:`zeitgeist_client.resolution.cached_answer`
+for the offline peek, then :func:`zeitgeist_client.resolution.resolve_credentials`
+(the E3 seam whose cache / remembered-negative / mint branches every
+transition rides) only when that peek misses. A cache hit — positive or a
+remembered negative — must answer without ever requiring auth to be
+configured (Priivacy-ai/spec-kitty#151); only a genuine miss touches the
+network, mints if the store still cannot answer, and stores whatever Team
+Kitty answers — positive credential or short-TTL negative — exactly as a
+transition would. The command reports honestly which of the three states
+it is in:
 
 * a stored credential answers offline, instantly;
 * a remembered negative ("no team admits this repo") answers offline too,
@@ -45,6 +49,7 @@ from typing import Any
 import typer
 from rich.markup import escape
 
+from specify_cli.auth.server_target import ServerTargetSplitBrainError
 from specify_cli.cli.console import console
 from specify_cli.saas_client.auth import load_auth_context
 from specify_cli.saas_client.errors import SaasAuthError
@@ -87,6 +92,8 @@ def _gateway_for(cwd: Path) -> resolution.SaasCapabilityGateway:
     try:
         ctx = load_auth_context(repo_root=cwd)
     except SaasAuthError as exc:
+        if isinstance(exc.__cause__, ServerTargetSplitBrainError):
+            _fail(escape(str(exc)))
         _fail(f"nothing configured to authenticate with ({escape(str(exc))}). Run `spec-kitty auth login` first.")
     return resolution.SaasCapabilityGateway(ctx.saas_url, ctx.token, team_slug=ctx.team_slug)
 
@@ -114,10 +121,16 @@ def _print_routes(payload: dict[str, Any]) -> None:
 def routes(as_json: bool = _JSON_OPTION) -> None:
     """Show which team admits this checkout and which relay carries its moments."""
     key, slug, host = _resolve_checkout()
-    gateway = _gateway_for(Path(os.getcwd()))
 
-    stored = resolution.resolve_credentials(os.getcwd(), gateway=gateway)
-    negative = credentials.load_negative(repo=key)
+    # A cached answer — positive or a remembered negative — answers offline
+    # and must not require auth to be configured first (Priivacy-ai/spec-kitty#151):
+    # only a genuine cache miss needs the gateway (and thus a working auth
+    # context) at all.
+    hit, stored, negative = resolution.cached_answer(key, repo_slug=slug, host=host)
+    if not hit:
+        gateway = _gateway_for(Path(os.getcwd()))
+        stored = resolution.resolve_credentials(os.getcwd(), gateway=gateway)
+        negative = credentials.load_negative(repo=key)
 
     payload: dict[str, Any]
     if stored is not None:

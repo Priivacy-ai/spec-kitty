@@ -14,7 +14,7 @@ from pathlib import Path
 
 import pytest
 
-from charter.charter_yaml_io import (
+from charter.activation.charter_yaml_io import (
     OWNED_SECTIONS,
     UnknownCharterYamlSectionError,
     load_charter_yaml,

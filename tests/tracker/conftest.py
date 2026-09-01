@@ -1,4 +1,4 @@
-"""Shared fixtures for ``tests/sync/tracker/``.
+"""Shared fixtures for ``tests/tracker/``.
 
 After the WP08 HTTP-transport rewire, ``SaaSTrackerClient`` no longer accepts a
 ``credential_store`` argument — tokens are fetched through the process-wide

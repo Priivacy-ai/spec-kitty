@@ -149,15 +149,15 @@ def _per_artifact_activation_keys() -> tuple[str, ...]:
     are excluded: they are coarser gates with their own still-valid
     built-in-default absence semantics.
 
-    Lazy, function-scoped import of :data:`charter.pack_manager.ACTIVATION_YAML_KEYS`
-    -- mirrors the established idiom in :func:`charter.charter_yaml_io._activation_keys`
-    and :func:`charter.compiler._legacy_activation_keys` -- so registry discovery
+    Lazy, function-scoped import of :data:`charter.activation.pack_manager.ACTIVATION_YAML_KEYS`
+    -- mirrors the established idiom in :func:`charter.activation.charter_yaml_io._activation_keys`
+    and :func:`charter.activation.compiler._legacy_activation_keys` -- so registry discovery
     stays import-cheap (C-002): a module-level import would pull ``charter.*``
     machinery into every migration-registry scan. A hand-listed tuple here
     previously risked the same drift FR-010/SC-005 fixed for the other two
     copies; deriving it keeps all three in lockstep with the authority.
     """
-    from charter.pack_manager import (  # noqa: PLC0415 -- avoids import cycle / keeps registry discovery cheap
+    from charter.activation.pack_manager import (  # noqa: PLC0415 -- avoids import cycle / keeps registry discovery cheap
         ACTIVATION_YAML_KEYS,
     )
 
@@ -211,7 +211,7 @@ def _resolved_charter_yaml(project_path: Path, config_data: dict[str, Any]) -> P
     non-string legacy inline mapping, or names a file that does not exist — in
     every such case the legacy ``config.yaml`` is the activation store.
     """
-    from charter.pack_context import resolve_charter_yaml_pointer  # noqa: PLC0415 -- lazy (C-002)
+    from charter.activation.pack_context import resolve_charter_yaml_pointer  # noqa: PLC0415 -- lazy (C-002)
 
     charter_path: Path | None = resolve_charter_yaml_pointer(project_path, config_data)
     if charter_path is None or not charter_path.exists():
@@ -306,7 +306,7 @@ def _normalize_charter_yaml(charter_path: Path, missing: list[str]) -> None:
     Routed through the shared INV-9 write helper so governance / directives /
     catalog / metadata and already-present activation keys survive byte-for-byte.
     """
-    from charter.charter_yaml_io import update_charter_yaml_section  # noqa: PLC0415 -- lazy (C-002)
+    from charter.activation.charter_yaml_io import update_charter_yaml_section  # noqa: PLC0415 -- lazy (C-002)
 
     update_charter_yaml_section(charter_path, "activation", {key: [] for key in missing})
 

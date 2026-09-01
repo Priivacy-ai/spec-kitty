@@ -10,7 +10,7 @@ from __future__ import annotations
 
 import pytest
 
-from charter.mission_type_key import canonical_mission_type_key
+from charter.activation.mission_type_key import canonical_mission_type_key
 
 pytestmark = [pytest.mark.unit]
 

@@ -12,7 +12,7 @@ reconciliation-01KZJQN6/tasks/WP05-activation-coverage-rename.md``:
    directly and the stale name is confirmed gone -- guards against a
    stale-name regression.
 4. Sentinel-prune regression (T023b, #3270 re-introduction guard): spies on
-   ``charter.synthesizer.synthesize``'s ``mode=`` kwarg to prove the
+   ``charter.activation.synthesizer.synthesize``'s ``mode=`` kwarg to prove the
    explicit ``prune=False`` passed at the WP05 call site resolves to
    ``SynthesizeMode.preserve`` for BOTH ``activate`` and ``deactivate`` --
    an in-process caller that forgot the explicit flag would leak a truthy
@@ -46,8 +46,8 @@ import pytest
 from ruamel.yaml import YAML
 from typer.testing import CliRunner
 
-from charter.synthesizer import FixtureAdapter, SynthesisRequest, SynthesisTarget, synthesize
-from charter.synthesizer.reconcile import SynthesizeMode
+from charter.activation.synthesizer import FixtureAdapter, SynthesisRequest, SynthesisTarget, synthesize
+from charter.activation.synthesizer.reconcile import SynthesizeMode
 from specify_cli.cli.commands.charter import charter_app
 
 pytestmark = [pytest.mark.integration, pytest.mark.git_repo]
@@ -186,7 +186,7 @@ def _graph_path(repo_root: Path) -> Path:
 
 
 def _manifest_path(repo_root: Path) -> Path:
-    from charter.synthesizer.manifest import MANIFEST_PATH
+    from charter.activation.synthesizer.manifest import MANIFEST_PATH
 
     return repo_root / MANIFEST_PATH
 
@@ -201,9 +201,9 @@ def _inject_backed_legacy_content(repo_root: Path) -> None:
     """
     import hashlib
 
-    from charter.synthesizer.manifest import ManifestArtifactEntry, finalize_manifest, load_yaml as load_manifest
-    from charter.synthesizer.provenance import load_yaml as load_provenance
-    from charter.synthesizer.synthesize_pipeline import canonical_yaml
+    from charter.activation.synthesizer.manifest import ManifestArtifactEntry, finalize_manifest, load_yaml as load_manifest
+    from charter.activation.synthesizer.provenance import load_yaml as load_provenance
+    from charter.activation.synthesizer.synthesize_pipeline import canonical_yaml
 
     doctrine_dir = repo_root / ".kittify" / "doctrine"
     graph_path = _graph_path(repo_root)
@@ -286,7 +286,7 @@ def _invoke_with_resynthesize(
     ``test_synthesize_cli_reconcile.py`` established) plus fakes ``generate``
     (a no-op -- WP05 does not own the generate pipeline). Every other line
     from ``activate_cmd``/``deactivate_cmd`` through ``run_full_synthesize``
-    to the real ``charter.synthesizer.synthesize`` reconcile seam runs for
+    to the real ``charter.activation.synthesizer.synthesize`` reconcile seam runs for
     real. Returns ``(CliRunner result, synthesize spy)`` so callers can
     additionally assert on the ``mode=`` kwarg actually passed (T023b).
     """
@@ -302,7 +302,7 @@ def _invoke_with_resynthesize(
             return_value=(request, syn_adapter),
         ),
         patch.object(generate_module, "generate", Mock(return_value=None)),
-        patch("charter.synthesizer.synthesize", synth_spy),
+        patch("charter.activation.synthesizer.synthesize", synth_spy),
     ):
         result = runner.invoke(
             charter_app,

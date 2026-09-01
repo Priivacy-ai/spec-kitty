@@ -19,7 +19,7 @@ Supported orphan-detection rules
 Prior to this fix, ``directive`` nodes required an inbound ``"governs"``
 edge and ``adr`` nodes required inbound ``"supersedes"`` or ``"references"``.
 None of ``governs``, ``supersedes``, or ``references`` is a member of the
-``Relation`` enum (``src/doctrine/drg/models.py``), so those edges could
+``Relation`` enum (``src/charter/offering/drg/models.py``), so those edges could
 never be authored — the rules misfired on every built-in directive/adr node
 regardless of how well-connected it actually was (issue #2737). The
 ``directive`` rule now checks the relations the graph actually emits; the

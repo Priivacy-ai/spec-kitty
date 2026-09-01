@@ -12,7 +12,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from pathlib import Path
 
-from charter.resolver import (
+from charter.activation.resolver import (
     GovernanceResolutionError,
     resolve_project_governance,
 )
@@ -152,7 +152,7 @@ def check_governance_resolution(project_dir: Path) -> DoctorCheck:
             True,
             (
                 f"Resolved governance with template fallback '{resolution.template_set}'. "
-                "Set doctrine.template_set in charter to make this explicit."
+                "Set charter.offering.template_set in charter to make this explicit."
             ),
             "warning",
         )

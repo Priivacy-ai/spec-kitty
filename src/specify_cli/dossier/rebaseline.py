@@ -95,96 +95,34 @@ a worktree" — reached transitively via ``workflow.py:791``,
 (``cli/commands/migrate_cmd.py``, ``rebaseline_dossier_hashes``) resolves
 its own ``repo_root`` the same way.
 
-*(B) Indirect fan-out — the previously-unexamined pathway.*
-``sync/__init__.py``'s ``_dossier_sync_handler`` (``sync/__init__.py:198``,
-registered at import time via ``register_default_handlers()`` at
-``sync/__init__.py:455-456``, gated only by the test-only
-``SPEC_KITTY_SYNC_MINIMAL_IMPORT`` env var) forwards straight into
-``trigger_feature_dossier_sync_if_enabled``. It is invoked via
-``fire_dossier_sync`` (``status/adapters.py:219``) from
-``status/emit.py:806`` (inside ``emit_status_transition``) and
-``status/emit.py:966`` (inside ``emit_status_transition_batch``) — this
-repo's canonical entry point for every WP lane transition. Both call sites
-pass ``repo_root`` **as given by the caller**, not re-derived internally:
-``emit_status_transition``/``emit_status_transition_batch`` take
-``repo_root: Path | None`` as a plain parameter and only fire the sync when
-it is not ``None`` (``status/emit.py:805``, ``:963-966``). The transactional
-wrapper most production callers actually use,
-``emit_status_transition_transactional``
-(``coordination/status_transition.py:1295``), routes dossier sync through
-``_defer_dossier_sync`` (``status_transition.py:945``, invoked at
-``status_transition.py:1384`` and, from the batch variant, ``:1642``) with
-``repo_root=request.repo_root`` — the RAW ``TransitionRequest.repo_root``
-field (``status/models.py:839``, default ``None``), not the internally
-re-resolved ``identity.repo_root`` the same function uses for its own
-``BookkeepingTransaction`` locking. So the question this WP must answer is
-empirical: what value does every production ``TransitionRequest`` that
-reaches this fan-out actually carry in ``repo_root``? Traced every
-production constructor that sets it explicitly:
-
-- ``cli/commands/implement.py:1441`` — ``repo_root=find_repo_root()``
-  (``implement.py:1132``/``:1763``), the same worktree-aware primitive as
-  (A).
-- ``cli/commands/agent/workflow_executor.py:783`` (``start_implementation_
-  status``, the claim path) and ``:1685`` (``start_review_status``, the
-  review-claim path) — both ``repo_root=main_repo_root``, sourced from
-  ``workflow.py:791``'s ``get_main_repo_root(repo_root)`` per (A) above.
-- ``cli/commands/agent/tasks_move_task.py:2086`` (``_mt_emit_transitions``,
-  the ``spec-kitty agent tasks move-task`` command — an emit call site not
-  covered by the original enumeration) — ``repo_root=st.main_repo_root``,
-  set in ``_mt_resolve_targets`` via ``tasks_shared.py:184``'s
-  ``_ensure_target_branch_checked_out`` → ``get_main_repo_root(repo_root)``
-  (explicit in-code comment there: "keep main-repo-root resolution so
-  canonical serialization pins to the primary checkout regardless of where
-  the operator stands").
-- ``cli/commands/agent/status.py:331`` (``MissionStatus.transition()``, via
-  ``status/aggregate.py:605``, the single production caller of that
-  aggregate method) — ``repo_root=main_repo_root``, resolved at
-  ``status.py:149`` via ``get_main_repo_root(repo_root)``.
-- ``merge/done_bookkeeping.py:228`` and ``:382`` — ``repo_root=repo_root``
-  (param), threaded from ``merge/executor.py``'s ``run.main_repo`` per (A).
-- ``orchestrator_api/commands.py:1435`` — ``repo_root=main_repo_root``, via
-  ``_get_main_repo_root()`` → ``get_main_repo_root(cwd)``
-  (``orchestrator_api/commands.py:245-253``).
-- ``lanes/recovery.py:813`` (crash recovery, ``execution_mode="worktree"``)
-  — ``repo_root=repo_root`` (param), threaded from ``implement.py``'s
-  ``find_repo_root()``-rooted flow.
-- ``status/work_package_lifecycle.py`` (``start_implementation_status``/
-  ``start_review_status``, called from the ``workflow_executor.py`` and
-  ``orchestrator_api/commands.py`` sites above) — passes through the same
-  already-resolved ``repo_root`` its callers supply.
-
-Every one of these resolves through ``get_main_repo_root()``,
-``find_repo_root()``, or ``locate_project_root()`` before it ever reaches
-``TransitionRequest.repo_root`` — so, empirically, no production
-``fire_dossier_sync`` call observed today carries a worktree-scoped
-``repo_root``. One asymmetric gap surfaced during this trace (noted, not a
-worktree-exposure risk, and out of this WP's scope to fix):
-``status/bootstrap.py:163`` constructs a ``TransitionRequest`` for the
-``finalize-tasks`` genesis→planned bootstrap seed with no ``repo_root=`` at
-all, so — per the ``is not None`` guard above — dossier sync is silently
-*skipped* there rather than mis-scoped.
+*(B) Indirect fan-out — removed (issue #677).* This section previously
+traced a second pathway into ``trigger_feature_dossier_sync_if_enabled``:
+``sync/__init__.py``'s ``_dossier_sync_handler``, registered at import time
+via ``register_default_handlers()``, forwarded into it via
+``status/adapters.py``'s ``fire_dossier_sync``/``register_dossier_sync_handler``
+registry, fired from ``status/emit.py`` (inside
+``emit_status_transition``/``emit_status_transition_batch``) and the
+transactional wrapper's ``_defer_dossier_sync``. That registrant lived in
+``sync/__init__.py``, which issue #5 deleted along with the rest of the sync
+transport — leaving the registry with zero production registrants ever
+since: every call to ``fire_dossier_sync`` fanned out over an empty handler
+list and was, in practice, a no-op. Issue #677 removed the now-dead seam
+(``fire_dossier_sync``, ``register_dossier_sync_handler``, the registry, and
+every call site) rather than leave a permanently-empty registry in place.
+The worktree-safety analysis this section used to carry no longer applies —
+there is no fan-out left to be worktree-unsafe.
 
 ``.kittify/dossiers/`` is also gitignored (``.gitignore:66,82,86,87``), so a
 worktree checkout cannot inherit a stray recorded snapshot via git either.
 
-Net: every real write path for a recorded snapshot funnels through the
-PRIMARY/main checkout, never a ``.worktrees/<slug>-<mid8>-lane-<id>/`` path
-— but this holds only because every current constructor of a
-dossier-sync-carrying request happens to thread a main-checkout-resolved
-value; ``repo_root`` is not re-derived or worktree-corrected at the
-``fire_dossier_sync``/``_defer_dossier_sync`` boundary itself. A future
-caller that constructs a ``TransitionRequest`` with an unresolved cwd-based
-``repo_root`` (e.g. plain ``Path(".")`` from inside a worktree, mirroring
-the example in this module's own sibling docstring at
-``status/aggregate.py:9``, which is safe today only because its one real
-caller — ``status.py:152``/``:193`` — overrides it with
-``get_main_repo_root``) would silently defeat this invariant with no gate
-to catch it; a regression here would not fail loudly, it would just read
-the wrong project's org config. Derivation (B) — deriving ``repo_root``
-per-snapshot from ``feature_dir.parent.parent`` inside
-``rebaseline_snapshot_file`` — is therefore correct as specced today, with
-**no** worktree-aware correction needed in ``rebaseline.py`` itself.
+Net: with (B) gone, every real write path for a recorded snapshot is a
+direct call from (A) above, and every one of those nine call sites resolves
+its own ``repo_root`` via ``get_main_repo_root()``, ``find_repo_root()``, or
+``locate_project_root()`` — all worktree-aware, all resolving to the
+PRIMARY/main checkout. So a recorded snapshot still never gets written from
+a ``.worktrees/<slug>-<mid8>-lane-<id>/`` path; that invariant no longer
+depends on how any indirect fan-out resolves ``repo_root``, since none
+remains.
 
 **Fail-safe, not forced.** The derivation still only holds because every
 production writer's PRIMARY-partition resolution is literally

@@ -16,7 +16,7 @@ governance:
   branch_strategy:
     main_branch: main
     rules: []
-  doctrine:
+  charter:
     selected_paradigms: []
     selected_directives: []
     selected_tactics: []
