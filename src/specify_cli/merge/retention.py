@@ -25,6 +25,8 @@ _MERGE_TIMING = re.compile(
 )
 _BRANCH = re.compile(r"\bbranch(?:es)?\b", re.IGNORECASE)
 _WORKTREE = re.compile(r"\bwork[- ]?trees?\b", re.IGNORECASE)
+_ABBREVIATION = re.compile(r"\b(?:e\.g|i\.e|etc)\.", re.IGNORECASE)
+_SENTENCE_BOUNDARY = re.compile(r"[.;!?]")
 _TERMINAL_STATUSES = frozenset({"accepted", "approved", "confirmed", "binding", "locked"})
 
 
@@ -39,7 +41,7 @@ class MissionRetention:
 
 
 def load_mission_retention(repo_root: Path, mission_slug: str) -> MissionRetention | None:
-    """Read the mission's canonical spec and return its retention constraint.
+    """Read the mission's canonical spec and return its retained artifacts.
 
     Only a terminal constraint row can retain cleanup artifacts. Terminal
     status values are Accepted, Approved, Confirmed, Binding, and Locked.
@@ -51,6 +53,10 @@ def load_mission_retention(repo_root: Path, mission_slug: str) -> MissionRetenti
     if not spec_path.is_file():
         return None
 
+    constraint_id: str | None = None
+    constraint: str | None = None
+    retains_branch = False
+    retains_worktree = False
     for row in spec_path.read_text(encoding="utf-8").splitlines():
         cells = [cell.strip() for cell in row.strip().strip("|").split("|")]
         if len(cells) < 6:
@@ -59,15 +65,23 @@ def load_mission_retention(repo_root: Path, mission_slug: str) -> MissionRetenti
             continue
         if cells[-1].casefold() not in _TERMINAL_STATUSES:
             continue
-        retains_branch, retains_worktree = _retained_artifacts(cells[2])
-        if retains_branch or retains_worktree:
-            return MissionRetention(
-                constraint_id=cells[0],
-                constraint=cells[2],
-                retains_branch=retains_branch,
-                retains_worktree=retains_worktree,
-            )
-    return None
+        row_retains_branch, row_retains_worktree = _retained_artifacts(cells[2])
+        if not (row_retains_branch or row_retains_worktree):
+            continue
+        if constraint_id is None:
+            constraint_id = cells[0]
+            constraint = cells[2]
+        retains_branch = retains_branch or row_retains_branch
+        retains_worktree = retains_worktree or row_retains_worktree
+
+    if constraint_id is None or constraint is None:
+        return None
+    return MissionRetention(
+        constraint_id=constraint_id,
+        constraint=constraint,
+        retains_branch=retains_branch,
+        retains_worktree=retains_worktree,
+    )
 
 
 def _retained_artifacts(constraint: str) -> tuple[bool, bool]:
@@ -81,7 +95,11 @@ def _retained_artifacts(constraint: str) -> tuple[bool, bool]:
 
     branch_retentions: list[bool] = []
     worktree_retentions: list[bool] = []
-    for sentence in re.split(r"[.;!?]", constraint):
+    without_abbreviation_periods = _ABBREVIATION.sub(
+        lambda match: match.group(0).replace(".", ""),
+        constraint,
+    )
+    for sentence in _SENTENCE_BOUNDARY.split(without_abbreviation_periods):
         if not _MERGE_TIMING.search(sentence):
             continue
         clauses = re.split(
