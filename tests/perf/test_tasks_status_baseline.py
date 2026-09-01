@@ -52,7 +52,7 @@ from specify_cli.status.models import Lane, StatusEvent
 from specify_cli.status.store import append_event
 from tests.mocked_env import setup_mocked_env
 
-pytestmark = [pytest.mark.slow]
+pytestmark = [pytest.mark.slow, pytest.mark.timing]
 
 runner = CliRunner()
 

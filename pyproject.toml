@@ -1,6 +1,6 @@
 [project]
 name = "spec-kitty-cli"
-version = "3.2.6rc2"
+version = "3.2.6rc5"
 description = "Spec Kitty, a tool for Specification Driven Development (SDD) agentic projects, with kanban and git worktree isolation."
 readme = "README.md"
 license = { file = "LICENSE" }
@@ -2148,7 +2148,7 @@ exclude = [
     "tests/readiness/test_coordinator_nag_passthrough.py",
     "tests/readiness/test_coordinator_suppression_matrix.py",
     "tests/readiness/test_upgrade_ux.py",
-    "tests/regression/test_issue_3307_cli_emits_contract_invalid_unforced_rollback.py",
+    "tests/specify_cli/cli/commands/agent/test_issue_3307_cli_emits_contract_invalid_unforced_rollback.py",
     "tests/regressions/test_changelog_regex_redos.py",
     "tests/regressions/test_doctor_missionrepairresult_findings.py",
     "tests/regressions/test_issue_101_utf8_startup.py",

@@ -147,6 +147,7 @@ _REQUIRED_SCOPE: dict[tuple[str, str], frozenset[str]] = {
         "toolguide:efficient-local-tooling",
     }),
     ("software-dev", "action:software-dev/review"): frozenset({
+        "directive:DIRECTIVE_003",
         "directive:DIRECTIVE_010",
         "directive:DIRECTIVE_024",
         "directive:DIRECTIVE_025",

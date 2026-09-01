@@ -416,6 +416,21 @@ function loadOverview() {
     progressBar.appendChild(progressFill);
     completedCard.appendChild(progressBar);
 
+    const nextAction = feature.next_action;
+    const nextActionEl = nextAction ? (() => {
+        const el = document.createElement('div');
+        el.className = 'next-action-callout';
+        const icon = document.createElement('span');
+        icon.className = 'next-action-icon';
+        icon.textContent = '▶';
+        const label = document.createElement('strong');
+        label.textContent = 'Next step:';
+        const command = document.createElement('code');
+        command.textContent = nextAction;
+        el.append(icon, document.createTextNode(' '), label, document.createTextNode(' '), command);
+        return el;
+    })() : null;
+
     const artifactsHeading = document.createElement('h3');
     artifactsHeading.style.marginTop = '30px';
     artifactsHeading.style.marginBottom = '15px';
@@ -436,7 +451,10 @@ function loadOverview() {
         artifactsGrid.appendChild(item);
     });
 
-    overviewContent.replaceChildren(header, statusSummary, artifactsHeading, artifactsGrid);
+    const overviewChildren = [header, statusSummary];
+    if (nextActionEl) overviewChildren.push(nextActionEl);
+    overviewChildren.push(artifactsHeading, artifactsGrid);
+    overviewContent.replaceChildren(...overviewChildren);
 }
 
 function loadKanban() {
@@ -499,7 +517,7 @@ function renderKanban(lanes, weightedPercentage) {
         <div class="status-card agents">
             <div class="status-label">Active Agents</div>
             <div class="status-value">${agents.size}</div>
-            <div class="status-detail">${agents.size > 0 ? Array.from(agents).join(', ') : 'none'}</div>
+            <div class="status-detail">${agents.size > 0 ? Array.from(agents).map(escapeHtml).join(', ') : 'none'}</div>
         </div>
     `;
 
@@ -509,10 +527,10 @@ function renderKanban(lanes, weightedPercentage) {
         return `
         <div class="${cardClass}" role="button">
             <div class="card-header-row">
-                <div class="card-id">${task.id}</div>
+                <div class="card-id">${escapeHtml(task.id)}</div>
                 ${profileAvatarHtml(task)}
             </div>
-            <div class="card-title">${task.title}</div>
+            <div class="card-title">${escapeHtml(task.title)}</div>
             <div class="card-meta">
                 ${task.agent ? `<span class="badge agent">${escapeHtml(task.agent)}</span>` : ''}
                 ${task.agent_profile ? `<span class="badge profile">${escapeHtml(task.agent_profile)}</span>` : ''}
@@ -1119,7 +1137,8 @@ function escapeHtmlAttr(text) {
 // KanbanTaskData actually populates) and renders nothing when a WP has none
 // of them set, so legacy/unassigned cards are unaffected.
 function profileAvatarHtml(task) {
-    const identity = (task.agent_profile || task.role || task.agent || task.assignee || '').trim();
+    const identity = [task.agent_profile, task.role, task.agent, task.assignee]
+        .find(value => typeof value === 'string' && value.trim())?.trim() || '';
     if (!identity) {
         return '';
     }
@@ -1133,7 +1152,7 @@ function profileAvatarHtml(task) {
     }
     const hue = hash % 360;
     const label = escapeHtmlAttr(identity);
-    return `<div class="card-avatar" style="background-color: hsl(${hue}, 55%, 45%)" title="${label}" aria-label="${label}">${escapeHtml(initials)}</div>`;
+    return `<div class="card-avatar" style="--avatar-hue: ${hue}" title="${label}" aria-label="${label}">${escapeHtml(initials)}</div>`;
 }
 
 function showCharter() {
@@ -1353,11 +1372,16 @@ function updateFeatureListSilent(features) {
     }
     updateSidebarState();
 
-    // Detect artifact changes and reload overview if artifacts changed
+    // Refresh every value rendered by the overview. Lifecycle markers can
+    // change without changing artifacts (for example merge or acceptance).
     if (currentPage === 'overview' && oldFeature && feature) {
-        const oldArtifacts = JSON.stringify(oldFeature.artifacts);
-        const newArtifacts = JSON.stringify(feature.artifacts);
-        if (oldArtifacts !== newArtifacts) {
+        const overviewState = item => JSON.stringify({
+            artifacts: item.artifacts,
+            next_action: item.next_action,
+            mission_status: item.mission_status,
+            kanban_stats: item.kanban_stats,
+        });
+        if (overviewState(oldFeature) !== overviewState(feature)) {
             loadOverview();
         }
     }

@@ -96,7 +96,8 @@ def _render_refusal(verdict: TrackerEgressVerdict) -> str:
     them; it is not a path-local message string (FR-012).
     """
     if not verdict.remedies:
-        return cast("str", verdict.message)
+        message: str = verdict.message
+        return message
     remedy_lines = "\n".join(f"  - {remedy}" for remedy in verdict.remedies)
     return f"{verdict.message}\nRemedies:\n{remedy_lines}"
 
@@ -334,7 +335,8 @@ class LocalTrackerService:
 
     def map_list(self) -> list[dict[str, Any]]:
         _, _, store = self._load_runtime()
-        return cast(list[dict[str, Any]], store.list_mappings())
+        mappings: list[dict[str, Any]] = store.list_mappings()
+        return mappings
 
     # ------------------------------------------------------------------
     # private helpers
@@ -357,16 +359,14 @@ class LocalTrackerService:
         server_url = str(credentials.get("server_url") or credentials.get("base_url") or "")
         username = str(credentials.get("username") or credentials.get("email") or "")
         team_slug = str(credentials.get("team_slug") or "")
-        return cast(
-            Path,
-            default_tracker_db_path(
-                provider=str(config.provider),
-                workspace=str(config.workspace),
-                server_url=server_url,
-                username=username,
-                team_slug=team_slug,
-            ),
+        db_path: Path = default_tracker_db_path(
+            provider=str(config.provider),
+            workspace=str(config.workspace),
+            server_url=server_url,
+            username=username,
+            team_slug=team_slug,
         )
+        return db_path
 
     def _build_engine(self, config: TrackerProjectConfig, credentials: dict[str, Any], store: TrackerSqliteStore) -> Any:
         try:

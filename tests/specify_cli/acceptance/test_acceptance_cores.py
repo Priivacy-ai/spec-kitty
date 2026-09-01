@@ -475,6 +475,60 @@ class TestEvaluateAcceptanceMatrix:
 
         assert enforce_calls and write_calls
 
+    def test_populate_criteria_from_review_evidence_called_when_mutate_true(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """FR-008 (IC-04, T3): ``_evaluate_acceptance_matrix`` threads the
+        matrix's ``criteria`` and the coord-resolved status surface into
+        :func:`~specify_cli.acceptance.matrix.populate_criteria_from_review_
+        evidence` BEFORE the verdict is read, when ``mutate_matrix=True``."""
+        original_criteria = [SimpleNamespace(criterion_id="AC-001")]
+        populated_criteria = [SimpleNamespace(criterion_id="AC-001", pass_fail="pass")]
+        matrix = SimpleNamespace(
+            criteria=original_criteria, negative_invariants=[], overall_verdict="pass"
+        )
+        monkeypatch.setattr("specify_cli.acceptance.matrix.read_acceptance_matrix", lambda _fd: matrix)
+        monkeypatch.setattr("specify_cli.acceptance.matrix.validate_matrix_evidence", lambda _m: [])
+        monkeypatch.setattr("specify_cli.acceptance.matrix.write_acceptance_matrix", lambda _fd, _m: None)
+        populate_calls: list[Any] = []
+
+        def _populate(status_dir: Path, criteria: Any) -> Any:
+            populate_calls.append((status_dir, criteria))
+            return populated_criteria
+
+        monkeypatch.setattr(
+            "specify_cli.acceptance.matrix.populate_criteria_from_review_evidence", _populate
+        )
+
+        _evaluate_acceptance_matrix(tmp_path, tmp_path, [], [], [], mutate_matrix=True)
+
+        assert populate_calls
+        assert populate_calls[0][1] is original_criteria
+        assert matrix.criteria is populated_criteria
+
+    def test_populate_criteria_from_review_evidence_skipped_when_mutate_false(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """Diagnose mode (``mutate_matrix=False``) never mutates the matrix --
+        the population call must not fire either, symmetric with the
+        negative-invariants arm."""
+        original_criteria = [SimpleNamespace(criterion_id="AC-001")]
+        matrix = SimpleNamespace(
+            criteria=original_criteria, negative_invariants=[], overall_verdict="pass"
+        )
+        monkeypatch.setattr("specify_cli.acceptance.matrix.read_acceptance_matrix", lambda _fd: matrix)
+        monkeypatch.setattr("specify_cli.acceptance.matrix.validate_matrix_evidence", lambda _m: [])
+
+        def _fail(*_a: Any, **_k: Any) -> Any:
+            raise AssertionError("must not populate/write in diagnose mode")
+
+        monkeypatch.setattr("specify_cli.acceptance.matrix.populate_criteria_from_review_evidence", _fail)
+        monkeypatch.setattr("specify_cli.acceptance.matrix.write_acceptance_matrix", _fail)
+
+        _evaluate_acceptance_matrix(tmp_path, tmp_path, [], [], [], mutate_matrix=False)
+
+        assert matrix.criteria is original_criteria
+
     def test_negative_invariants_skipped_when_mutate_false(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
         matrix = SimpleNamespace(negative_invariants=[SimpleNamespace(name="no-secrets")], overall_verdict="pass")
         monkeypatch.setattr("specify_cli.acceptance.matrix.read_acceptance_matrix", lambda _fd: matrix)

@@ -340,9 +340,20 @@ def capture_guard_calls(monkeypatch: pytest.MonkeyPatch, bridge_module: Any) -> 
     real_composed = bridge_module._check_composed_action_guard
 
     def _cli_spy(
-        step_id: str, feature_dir: Path, *, mission_family: str | None = None
+        step_id: str,
+        feature_dir: Path,
+        *,
+        mission_family: str | None = None,
+        repo_root: Path | None = None,
     ) -> list[str]:
-        result: list[str] = list(real_cli(step_id, feature_dir, mission_family=mission_family))
+        result: list[str] = list(
+            real_cli(
+                step_id,
+                feature_dir,
+                mission_family=mission_family,
+                repo_root=repo_root,
+            )
+        )
         calls.append(GuardCall("cli", step_id, None, None, list(result)))
         return result
 
@@ -352,9 +363,16 @@ def capture_guard_calls(monkeypatch: pytest.MonkeyPatch, bridge_module: Any) -> 
         *,
         mission: str = "software-dev",
         legacy_step_id: str | None = None,
+        repo_root: Path | None = None,
     ) -> list[str]:
         result: list[str] = list(
-            real_composed(action, feature_dir, mission=mission, legacy_step_id=legacy_step_id)
+            real_composed(
+                action,
+                feature_dir,
+                mission=mission,
+                legacy_step_id=legacy_step_id,
+                repo_root=repo_root,
+            )
         )
         calls.append(GuardCall("composed", action, mission, legacy_step_id, list(result)))
         return result

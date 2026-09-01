@@ -9,6 +9,9 @@ from pathlib import Path
 from collections.abc import Sequence
 
 from rich.console import Console
+from rich.markup import escape
+
+from specify_cli.cli.console import sanitize_terminal_text
 
 ConsoleType = Console | None
 
@@ -74,12 +77,16 @@ def run_command(
     except subprocess.CalledProcessError as exc:
         if check_return:
             resolved_console = _resolve_console(console)
+            command = escape(
+                sanitize_terminal_text(cmd if isinstance(cmd, str) else " ".join(cmd))
+            )
             resolved_console.print(
-                f"[red]Error running command:[/red] {cmd if isinstance(cmd, str) else ' '.join(cmd)}"
+                f"[red]Error running command:[/red] {command}"
             )
             resolved_console.print(f"[red]Exit code:[/red] {exc.returncode}")
             if exc.stderr:
-                resolved_console.print(f"[red]Error output:[/red] {exc.stderr.strip()}")
+                error_output = escape(sanitize_terminal_text(exc.stderr.strip()))
+                resolved_console.print(f"[red]Error output:[/red] {error_output}")
         raise
 
 
@@ -127,7 +134,8 @@ def init_git_repo(project_path: Path, quiet: bool = False, console: ConsoleType 
         return True
     except subprocess.CalledProcessError as exc:
         if not quiet:
-            resolved_console.print(f"[red]Error initializing git repository:[/red] {exc}")
+            error = escape(sanitize_terminal_text(str(exc)))
+            resolved_console.print(f"[red]Error initializing git repository:[/red] {error}")
         return False
     finally:
         os.chdir(original_cwd)

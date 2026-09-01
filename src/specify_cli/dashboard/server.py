@@ -16,6 +16,7 @@ from specify_cli.core.loopback_http import create_loopback_server, serve_loopbac
 from .handlers.router import DashboardRouter
 
 __all__ = [
+    "BackgroundPortReportError",
     "PortUnavailableError",
     "find_free_port",
     "start_dashboard",
@@ -31,6 +32,20 @@ class PortUnavailableError(StructuredError):
     """
 
     error_code: str = "DASHBOARD_PORT_UNAVAILABLE"
+
+
+class BackgroundPortReportError(StructuredError):
+    """Raised when a detached dashboard child does not report a valid bound port.
+
+    Carries the child's exit status when it is known so callers can branch on
+    the typed value and contextual attribute rather than parsing the message.
+    """
+
+    error_code: str = "DASHBOARD_BACKGROUND_PORT_REPORT_FAILED"
+
+    def __init__(self, message: str, *, exit_code: int | None) -> None:
+        super().__init__(message)
+        self.exit_code = exit_code
 
 
 def find_free_port(start_port: int = 9237, max_attempts: int = 100) -> int:
@@ -124,7 +139,9 @@ def _background_script(
     )
 
 
-def _background_port_report_error(proc: subprocess.Popen[bytes], raw_report: bytes) -> RuntimeError:
+def _background_port_report_error(
+    proc: subprocess.Popen[bytes], raw_report: bytes
+) -> BackgroundPortReportError:
     exit_code = proc.poll()
     if exit_code is None:
         try:
@@ -134,7 +151,10 @@ def _background_port_report_error(proc: subprocess.Popen[bytes], raw_report: byt
 
     process_state = f"child exited with status {exit_code}" if exit_code is not None else "child is still running but closed the reporting pipe"
     detail = f"invalid port report {raw_report!r}" if raw_report else "no port report"
-    return RuntimeError(f"Detached dashboard process failed to report its bound port for port=0 ({detail}; {process_state}).")
+    return BackgroundPortReportError(
+        f"Detached dashboard process failed to report its bound port for port=0 ({detail}; {process_state}).",
+        exit_code=exit_code,
+    )
 
 
 def start_dashboard(

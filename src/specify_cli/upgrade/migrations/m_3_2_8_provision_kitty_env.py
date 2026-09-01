@@ -92,8 +92,8 @@ from __future__ import annotations
 import contextlib
 import errno
 import os
+import secrets
 import stat
-import tempfile
 from pathlib import Path
 
 from ruamel.yaml import YAML
@@ -352,7 +352,13 @@ def _reject_claudeignore_symlink(path: Path) -> None:
     so the guard and the use are the same syscall.
     """
     if path.is_symlink():
-        target = os.readlink(path)
+        try:
+            target = os.readlink(path)
+        except OSError as exc:
+            raise ClaudeignorePathError(
+                f".claudeignore is a symlink; refusing to read or write through it: {path} "
+                f"(could not resolve target: {exc})"
+            ) from exc
         raise ClaudeignorePathError(
             f".claudeignore is a symlink to {target!r}; refusing to read or write through it: {path}"
         )
@@ -385,20 +391,6 @@ def _open_claudeignore_no_follow(path: Path, flags: int) -> int:
         raise
 
 
-def _current_umask() -> int:
-    """Read the process umask without permanently changing it.
-
-    ``os.umask()`` is set-and-return-old -- there is no read-only form --
-    so this restores the previous value immediately after reading it. Used
-    to give a brand-new ``.claudeignore`` the same umask-respecting mode
-    ``Path.write_text()`` would have given it, instead of leaving
-    ``tempfile.mkstemp()``'s unconditional ``0o600``.
-    """
-    previous = os.umask(0)
-    os.umask(previous)
-    return previous
-
-
 def _atomic_write_claudeignore(path: Path, content: str) -> None:
     """Write ``.claudeignore`` atomically without following a symlink.
 
@@ -410,32 +402,58 @@ def _atomic_write_claudeignore(path: Path, content: str) -> None:
     """
     _reject_claudeignore_symlink(path)
     existing_mode: int | None = None
-    if path.exists():
-        # os.replace() (rename) only requires write access to the parent
-        # directory, not to the file it replaces, so it would otherwise
-        # silently clobber a read-only .claudeignore. Probe with a real
-        # open() to preserve the PermissionError a direct write raises --
-        # through a no-follow fd, so a symlink swapped in since the guard
-        # above both fails closed AND can't substitute its target's mode
-        # for the real file's (fstat() reads whatever inode this fd is
-        # actually attached to, never a followed symlink target).
+    # os.replace() (rename) only requires write access to the parent directory,
+    # not to the file it replaces, so it would otherwise silently clobber a
+    # read-only .claudeignore. Probe with a real open() to preserve the
+    # PermissionError a direct write raises -- through a no-follow fd, so a
+    # symlink swapped in since the guard above both fails closed AND can't
+    # substitute its target's mode for the real file's (fstat() reads whatever
+    # inode this fd is actually attached to, never a followed symlink target).
+    try:
         probe_fd = _open_claudeignore_no_follow(path, os.O_WRONLY)
+    except FileNotFoundError:
+        existing_mode = None
+    else:
         try:
             existing_mode = stat.S_IMODE(os.fstat(probe_fd).st_mode)
         finally:
             os.close(probe_fd)
-    fd, tmp_path = tempfile.mkstemp(
-        dir=path.parent,
-        prefix=".claudeignore.",
-        suffix=".tmp",
-    )
+
+    temporary_flags = os.O_WRONLY | os.O_CREAT | os.O_EXCL | getattr(os, "O_NOFOLLOW", 0)
+    for _ in range(100):
+        tmp_path = path.parent / f".claudeignore.{os.getpid()}.{secrets.token_hex(8)}.tmp"
+        try:
+            fd = os.open(tmp_path, temporary_flags, 0o666)
+            break
+        except FileExistsError:
+            continue
+    else:
+        raise FileExistsError(f"could not create a unique temporary file beside {path}")
+
     try:
-        new_file_mode = 0o666 & ~_current_umask()
-        os.chmod(tmp_path, existing_mode if existing_mode is not None else new_file_mode)
-        with os.fdopen(fd, "w", encoding="utf-8") as handle:
-            handle.write(content)
+        try:
+            if existing_mode is not None:
+                os.fchmod(fd, existing_mode)
+            remaining = memoryview(content.encode("utf-8"))
+            while remaining:
+                written = os.write(fd, remaining)
+                if written == 0:
+                    raise OSError(f"temporary file beside {path} accepted zero bytes")
+                remaining = remaining[written:]
+        finally:
+            os.close(fd)
+        # Replace only after the fd is closed. An open fd from os.open carries no
+        # FILE_SHARE_DELETE on Windows, so it blocks MoveFileExW there -- replacing
+        # while the fd was still open failed every .claudeignore write on that
+        # platform (issue #655 squad pass-1 MAJOR). Mirrors the repo's established
+        # close-before-replace idiom in coordination/atomic_write.py's
+        # _write_and_replace_via_parent_fd.
         os.replace(tmp_path, path)
     except BaseException:
+        # Covers both failure stages -- a write/fchmod failure (fd already closed
+        # by the inner finally, tmp left behind) and an os.replace failure (fd
+        # closed, tmp still present). The fd is closed exactly once, so there is no
+        # double-close.
         with contextlib.suppress(OSError):
             os.unlink(tmp_path)
         raise

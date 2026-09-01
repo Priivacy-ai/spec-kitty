@@ -32,7 +32,7 @@ from specify_cli.task_utils import (
 from specify_cli.task_utils.support import TaskCliError
 from specify_cli.runtime.resolver import resolve_configured_artifact_name
 from specify_cli.upgrade.pre30_guard import check_pre30_layout
-from specify_cli.validators.paths import _normalize_path_token
+from specify_cli.validators.paths import normalize_path_token
 
 # WP04 (coord-authority-trio-degod-01KX7094) split: pure lane-gate checks live
 # in ``gates_core`` (T022), pure WP-summary/path-convention helpers live
@@ -704,7 +704,7 @@ def _optional_artifact_tokens(mission: Mission | None) -> list[str]:
 def _missing_artifacts(feature_dir: Path, mission: Mission | None) -> tuple[list[str], list[str]]:
     required = [feature_dir / _spec_file(), feature_dir / _plan_file(), feature_dir / _tasks_file()]
     # ``Path`` normalizes trailing slashes, so a ``contracts/`` token maps to the
-    # same relative string ``contracts`` the ``_normalize_path_token`` dedup expects
+    # same relative string ``contracts`` the ``normalize_path_token`` dedup expects
     # (C-003: severity for ``contracts/`` is decided downstream, unchanged here).
     optional = [feature_dir / token for token in _optional_artifact_tokens(mission)]
     missing_required = [str(p.relative_to(feature_dir)) for p in required if not p.exists()]
@@ -1214,7 +1214,7 @@ def collect_feature_summary(
     if dedup_tokens:
         # FR-002: apply the dedup query result explicitly — evaluate_path_conventions
         # is a pure query and never mutates our list itself (summary_core.py).
-        missing_optional = [entry for entry in missing_optional if _normalize_path_token(entry) not in dedup_tokens]
+        missing_optional = [entry for entry in missing_optional if normalize_path_token(entry) not in dedup_tokens]
 
     warnings = build_warnings(
         missing_optional=missing_optional,

@@ -149,6 +149,15 @@ _SRC_ROOT = _REPO_ROOT / "src"
 
 _CATEGORY_A_SLICE_F_DEFERRED: frozenset[SymbolKey] = frozenset(
     {
+        # specify_cli.dashboard.server::BackgroundPortReportError -- #577:
+        # deliberately exported typed failure contract for callers that need to
+        # distinguish detached-child startup failures. No runtime caller catches
+        # it yet. TODO(triage): wire the first caller or drop from __all__ (FR-303).
+        SymbolKey(
+            "BackgroundPortReportError",
+            "37ae16b8b6363406df0eff14e6a8438305592f244a74124eb646fcc02ef96fb1",
+            source_module="specify_cli.dashboard.server",
+        ),
         # specify_cli.dashboard.csp::DASHBOARD_CSP -- M2 canonical integration 2026-08-22: D2-T1 dashboard CSP policy constant.
         # WIRE-M2-02 (2026-08-22): send_csp_header() (below) is now wired into all 35 send_response()
         # sites across handlers/{base,api,features,glossary,lint,static}.py, so the module itself is no
@@ -1045,8 +1054,17 @@ _CATEGORY_C_ORG_DOCTRINE_CLOSEOUT: frozenset[SymbolKey] = frozenset(
         SymbolKey(
             "ActivationPlan", "49697a5e9d4ea41ac9531c0b4bb6605a8aa71bf116e0dfbf1af2eee33a935a53", source_module="charter.activation.activation_engine"
         ),  # charter.activation.activation_engine::ActivationPlan
+        # Re-pinned 2026-08-24 (#3705): WP04 added the ``not_cascaded_kind_filtered``
+        # field to this dataclass so ``charter deactivate --cascade`` can report the
+        # kind-filtered nodes it previously dropped in silence (C-002 symmetry). The
+        # allowlist is content-hash keyed, so a legitimate body change drifts the pin
+        # and the gate reports the symbol as un-allowlisted. Category C is re-derived
+        # each cycle by design, so this is a re-pin, not a new exemption: the symbol's
+        # status is unchanged (still no src/ importer -- it is the public return type
+        # of ``deactivation_plan()``, consumed by the CLI layer and tests).
+        # Prior hash: 527c491b7df6c1369bc3f4c7491626817a5a3a2ede574ffe4527168fde17bf43
         SymbolKey(
-            "DeactivationPlan", "527c491b7df6c1369bc3f4c7491626817a5a3a2ede574ffe4527168fde17bf43", source_module="charter.activation.cascade"
+            "DeactivationPlan", "ea81133908c5385ae013a8057ac7f863386247ba90b64e212b54be895d7e1615", source_module="charter.activation.cascade"
         ),  # charter.activation.cascade::DeactivationPlan
         SymbolKey(
             "REFERENCE_RELATIONS", "923c7531fa07a59396d69e256ee38a05448b62f4d75cde08c9fbaa932376a8ca", source_module="charter.activation.cascade"
@@ -1261,23 +1279,10 @@ _CATEGORY_C_MERGE_DECOMP_SHIM_REEXPORT_2057: frozenset[SymbolKey] = frozenset(
         SymbolKey(
             "_already_baked", "42470ebca7e82026542624079c0cbafeaa3a5dc53ca3a653b2a4c196492bd93c", source_module="specify_cli.merge.ordering"
         ),  # specify_cli.merge.ordering::_already_baked
-        # specify_cli.merge.ordering::_compute_next_mission_number_or_none
-        SymbolKey(
-            "_compute_next_mission_number_or_none", "a1b9c06e3368d481c463b2c09a7a9055923219ddc4de8cd33d6d52bc5f73182d", source_module="specify_cli.merge.ordering"
-        ),
         # specify_cli.merge.ordering::_is_assigned_mission_number
         SymbolKey("_is_assigned_mission_number", "4da9f3fde4e20df83693697787af0a7ef0e4399b21c99bd102b9b3a899e34fe1", source_module="specify_cli.merge.ordering"),
         # specify_cli.merge.ordering::_mark_mission_number_baked
         SymbolKey("_mark_mission_number_baked", "aa2e64b018e1d7ecc47f73211c291d16934d659b8f4b07b472e200225d99e72b", source_module="specify_cli.merge.ordering"),
-        # specify_cli.merge.ordering::_write_mission_number_to_branch (body_hash
-        # refreshed lifecycle-gate-execution-context: body edited, key is
-        # content-tier and body-sensitive by design -- see _symbol_key.py
-        # "Body-sensitivity" note; still a seam-internal helper, zero cross-file
-        # src/ caller)
-        # specify_cli.merge.ordering::_write_mission_number_to_branch
-        SymbolKey(
-            "_write_mission_number_to_branch", "38e9704c5b132c12d81d3be921a257f0e340f58264fba5909703bb088b523fc2", source_module="specify_cli.merge.ordering"
-        ),
         SymbolKey(
             "check_push_safety", "893124ff3029dec30c538fd54577881f4afa05002067b4f1033ce550f52e0460", source_module="specify_cli.merge.push_preflight"
         ),  # specify_cli.merge.push_preflight::check_push_safety
@@ -1375,8 +1380,9 @@ _CATEGORY_C_LAYOUT_CUTOVER_AUTHORITY_SURFACE: frozenset[SymbolKey] = frozenset()
 # :func:`_imports_by_target` proper, so the gate now recognises these 4
 # names as live via ``_runtime_bridge_module()``'s call-bound accessor
 # pattern WITHOUT a permanent allowlist row; the 4 entries are removed
-# here in the same commit. Unaliased ``from X import Y`` bindings now map
-# to ``X.Y`` too, with the real-module guard rejecting symbol aliases.
+# here in the same commit. ``_build_alias_map_and_consts`` records both
+# aliased and unaliased ``from X import Y`` bindings as ``X.Y``, with the
+# real-module guard rejecting symbol aliases and admitting submodules.
 # Converting the call sites to a direct
 # ``from runtime.next.runtime_bridge import get_or_start_run`` was
 # considered and rejected: it would defeat the very patchability the
@@ -2500,39 +2506,67 @@ class _ModuleLevelNameUseVisitor(ast.NodeVisitor):
     def __init__(self, name: str) -> None:
         self.name = name
         self.found = False
-        self.function_scopes: list[tuple[bool, bool]] = []
-        self.comprehension_scopes: list[bool] = []
+        self.scopes: list[tuple[str, bool, bool]] = []
 
-    def _name_is_shadowed(self) -> bool:
-        for is_shadowed in reversed(self.comprehension_scopes):
-            if is_shadowed:
-                return True
-        for is_shadowed, global_declared in reversed(self.function_scopes):
+    def _name_is_shadowed(self, *, skip_class_scopes: bool = False) -> bool:
+        crossed_scope_boundary = skip_class_scopes
+        for kind, is_shadowed, global_declared in reversed(self.scopes):
+            if kind == "class" and crossed_scope_boundary:
+                continue
             if global_declared:
                 return False
             if is_shadowed:
                 return True
+            crossed_scope_boundary = True
         return False
 
+    def _mark_current_scope_shadowed(self) -> None:
+        if not self.scopes:
+            return
+        kind, _, global_declared = self.scopes[-1]
+        if not global_declared:
+            self.scopes[-1] = (kind, True, global_declared)
+
+    def _mark_current_scope_global(self) -> None:
+        if not self.scopes:
+            return
+        kind, is_shadowed, _ = self.scopes[-1]
+        self.scopes[-1] = (kind, is_shadowed, True)
+
     def visit_Name(self, node: ast.Name) -> None:
-        if node.id == self.name and isinstance(node.ctx, ast.Load) and not self._name_is_shadowed():
+        if node.id != self.name:
+            return
+        if not isinstance(node.ctx, ast.Load):
+            if self.scopes and self.scopes[-1][0] == "class":
+                self._mark_current_scope_shadowed()
+            return
+        if not self._name_is_shadowed():
             self.found = True
+
+    def visit_alias(self, node: ast.alias) -> None:
+        bound_name = node.asname or node.name.rpartition(".")[2]
+        if bound_name == self.name and self.scopes and self.scopes[-1][0] == "class":
+            self._mark_current_scope_shadowed()
+
+    def visit_Global(self, node: ast.Global) -> None:
+        if self.name in node.names and self.scopes and self.scopes[-1][0] == "class":
+            self._mark_current_scope_global()
 
     def _visit_function_body(self, node: ast.FunctionDef | ast.AsyncFunctionDef | ast.Lambda) -> None:
         binds_name, global_declared, nonlocal_declared = _classify_function_scope(node, self.name)
         if global_declared:
             is_shadowed = False
         elif nonlocal_declared:
-            is_shadowed = self._name_is_shadowed()
+            is_shadowed = self._name_is_shadowed(skip_class_scopes=True)
         else:
-            is_shadowed = self._name_is_shadowed() or binds_name
-        self.function_scopes.append((is_shadowed, global_declared))
+            is_shadowed = self._name_is_shadowed(skip_class_scopes=True) or binds_name
+        self.scopes.append(("function", is_shadowed, global_declared))
         if isinstance(node, ast.Lambda):
             self.visit(node.body)
         else:
             for statement in node.body:
                 self.visit(statement)
-        self.function_scopes.pop()
+        self.scopes.pop()
 
     def visit_FunctionDef(self, node: ast.FunctionDef) -> None:
         _visit_function_outer_expressions(self, node)
@@ -2549,15 +2583,29 @@ class _ModuleLevelNameUseVisitor(ast.NodeVisitor):
             self.visit(default)
         self._visit_function_body(node)
 
+    def visit_ClassDef(self, node: ast.ClassDef) -> None:
+        for decorator in node.decorator_list:
+            self.visit(decorator)
+        for base in node.bases:
+            self.visit(base)
+        for keyword in node.keywords:
+            self.visit(keyword.value)
+        if node.name == self.name and self.scopes and self.scopes[-1][0] == "class":
+            self._mark_current_scope_shadowed()
+        self.scopes.append(("class", False, False))
+        for statement in node.body:
+            self.visit(statement)
+        self.scopes.pop()
+
     def _visit_comprehension(self, node: ast.ListComp | ast.SetComp | ast.GeneratorExp | ast.DictComp) -> None:
         if node.generators:
             self.visit(node.generators[0].iter)
-        self.comprehension_scopes.append(False)
+        self.scopes.append(("comprehension", False, False))
         for index, generator in enumerate(node.generators):
             if index > 0:
                 self.visit(generator.iter)
             if _target_binds_name(generator.target, self.name):
-                self.comprehension_scopes[-1] = True
+                self._mark_current_scope_shadowed()
             for condition in generator.ifs:
                 self.visit(condition)
         if isinstance(node, ast.DictComp):
@@ -2565,7 +2613,7 @@ class _ModuleLevelNameUseVisitor(ast.NodeVisitor):
             self.visit(node.value)
         else:
             self.visit(node.elt)
-        self.comprehension_scopes.pop()
+        self.scopes.pop()
 
     def visit_ListComp(self, node: ast.ListComp) -> None:
         self._visit_comprehension(node)
@@ -3563,8 +3611,8 @@ def test_used_within_own_module() -> None:
 
     True iff *name* is referenced as an ``ast.Name`` Load that can resolve to
     the module-level binding. A Store-only reference, no reference at all, or
-    a load shadowed by a local binding in an enclosing function scope must
-    return False -- the mutation the squad demonstrated (an unconditional
+    a load shadowed by a local binding in an enclosing function or class
+    body scope must return False -- the mutation the squad demonstrated (an unconditional
     `return True`) would rescue every widened-in offender regardless of real
     intra-module use.
     """
@@ -3576,12 +3624,18 @@ def test_used_within_own_module() -> None:
         "logger = get_logger()\ndef outer():\n    logger = logging.getLogger(__name__)\n    def inner():\n        return logger\n    return inner\n"
     )
     comprehension_shadow_tree = ast.parse("logger = get_logger()\nvalues = [logger for logger in loggers]\n")
+    class_shadow_tree = ast.parse("logger = get_logger()\nclass Runner:\n    logger = logging.getLogger(__name__)\n    uses = logger\n")
+    class_pre_binding_tree = ast.parse("logger = get_logger()\nclass Runner:\n    uses = logger\n    logger = logging.getLogger(__name__)\n")
+    class_method_tree = ast.parse("logger = get_logger()\nclass Runner:\n    logger = logging.getLogger(__name__)\n    def use(self):\n        return logger\n")
     assert _used_within_own_module(referenced_tree, "logger") is True
     assert _used_within_own_module(unreferenced_tree, "logger") is False
     assert _used_within_own_module(local_shadow_tree, "logger") is False
     assert _used_within_own_module(parameter_shadow_tree, "logger") is False
     assert _used_within_own_module(nested_shadow_tree, "logger") is False
     assert _used_within_own_module(comprehension_shadow_tree, "logger") is False
+    assert _used_within_own_module(class_shadow_tree, "logger") is False
+    assert _used_within_own_module(class_pre_binding_tree, "logger") is True
+    assert _used_within_own_module(class_method_tree, "logger") is True
     assert _used_within_own_module(unreferenced_tree, "nonexistent_name") is False
 
 

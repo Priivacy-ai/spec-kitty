@@ -631,6 +631,13 @@ def test_uv_tool_remediation_omits_uv_tool_dir_for_default_tool_dir(
     )
 
 
+# ---------------------------------------------------------------------------
+# _check_env_skew CLI-seam coverage (#2283 Phase 3
+# pre-merge findings): these behaviors previously had zero test coverage,
+# which is how the tuple-repr bug in the fail-closed branch shipped.
+# ---------------------------------------------------------------------------
+
+
 def test_check_env_skew_fail_closed_emits_clean_message_not_tuple_repr(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,

@@ -1,0 +1,164 @@
+# review-findings/v1 — canonical format for lens-session and fresh-sweep output.
+schema: review-findings/v1
+complete: true             # flip to true ONLY at the very end, after the yaml self-check passes
+phase: plan
+lens_group: arch
+mission: accept-path-remediation-honesty-01M0TWZP
+findings:
+  - id: PLAN-ARCH-001
+    lens: Layering
+    severity: 4
+    title: "Plan's 'No kernel/doctrine coupling' claim is contradicted by acceptance/__init__.py's actual imports"
+    evidence:
+      - artifact: "plan.md § Which seam the change lands on, \"No kernel/doctrine coupling\" (lines 87-93): \"None of the four files import from `src/kernel/`, `src/doctrine/`, or `src/mission_loader/`\""
+      - artifact: "plan.md § Summary (lines 19-22): \"landing entirely on the CLI/validators/acceptance layer with zero kernel or doctrine coupling\""
+      - code: "src/specify_cli/acceptance/__init__.py:10 (`from kernel.clock import now_utc_stamp`)"
+      - code: "src/specify_cli/acceptance/__init__.py:14 (`from kernel.paths import to_posix`)"
+      - code: "src/specify_cli/acceptance/__init__.py:205 (`basename = to_posix(path).rsplit(\"/\", 1)[-1]`) and :1367 (`timestamp = now_utc_stamp()`) — both imports are genuinely used, not dead"
+    claim: >
+      The plan states unconditionally, twice (Summary and the "Which seam" section), that
+      none of the four touched files import from `src/kernel/`. This is false: one of the
+      four files the plan itself lists as touched, `src/specify_cli/acceptance/__init__.py`,
+      imports `kernel.clock.now_utc_stamp` (line 10) and `kernel.paths.to_posix` (line 14),
+      both resolving to real modules under `src/kernel/` (confirmed: `src/kernel/clock.py`,
+      `src/kernel/paths.py` exist and `python3 -c "import kernel; print(kernel.__file__)"`
+      resolves to `src/kernel/__init__.py`), and both imports are live call sites, not dead
+      code. Per the severity rubric this is a plan claim about existing code that is
+      directly contradicted by the code itself — exactly the kind of claim my brief asked
+      me to verify against the actual imports rather than trust the plan's description. It
+      does not change WP2's specific edit (the mutation logic doesn't add a new kernel
+      import), but it does mean the plan's own Constitution Check / architectural-alignment
+      gate ("no new seam, no kernel/doctrine coupling") rests on a factually wrong premise
+      about the file it is editing, which a reviewer trusting the plan's self-audit would
+      not catch without independently grepping the file.
+    remediation: >
+      Correct the "No kernel/doctrine coupling" section (and the Summary's "zero kernel or
+      doctrine coupling" line) to state precisely what is actually true: this mission
+      introduces no NEW kernel/doctrine import or read (WP1-4's edits touch only
+      validators/acceptance-local logic), but `acceptance/__init__.py` already imports
+      `kernel.clock.now_utc_stamp` and `kernel.paths.to_posix` for pre-existing, unrelated
+      functionality untouched by this mission. Do not claim zero kernel imports across the
+      four files when one of them demonstrably has two.
+
+  - id: PLAN-ARCH-002
+    lens: Spec fidelity
+    severity: 2
+    title: "NFR-003 (Terminology canon compliance) has no corresponding plan element"
+    evidence:
+      - artifact: "spec.md § Non-Functional Requirements, NFR-003 (line 276): \"All new/changed operator-facing strings ... use 'Mission' (never 'feature'/'feature*' aliases), per AGENTS.md's Terminology Canon.\""
+      - artifact: "plan.md — no occurrence of \"NFR-003\" or \"terminology\" anywhere in the document (grepped the full 675-line file)"
+    claim: >
+      Every other FR/NFR in spec.md's Requirements tables is explicitly named in at least
+      one WP's "Covers" list or the Baseline-honesty/Gate-set sections (FR-001..FR-008,
+      NFR-001, NFR-002 all appear). NFR-003 is the sole exception: it never appears in
+      plan.md. WP3 (honest remediation text) and WP2 (dedup print removal) both introduce
+      new operator-facing strings that NFR-003 directly governs, so this isn't an inert
+      requirement for this mission's scope — yet no WP's revert test, "Covers" list, or the
+      Gate set section ties NFR-003 to anything. The existing repo-wide terminology guard
+      (`tests/architectural/test_no_legacy_terminology.py`, referenced in this repo's
+      CLAUDE.md) would likely catch a literal "feature" regression in CI regardless, which
+      keeps this from being a high-severity gap, but the plan's own stated intent (every FR
+      maps to a plan element) is not met for this one NFR.
+    remediation: >
+      Add one line to WP3's (or WP2's) "Covers" list noting NFR-003 and stating explicitly
+      how it is satisfied for this mission's new strings (e.g. "all new/changed strings use
+      'Mission'/'mission', never 'feature'; enforced independently by
+      tests/architectural/test_no_legacy_terminology.py, which runs in this diff's gated
+      core_misc job").
+
+  - id: PLAN-ARCH-003
+    lens: Contracts
+    severity: 3
+    title: "WP3's proposed format_errors() 'mode-signal boolean parameter' is functionally vacuous — both of its call sites always pass the same value"
+    evidence:
+      - artifact: "plan.md § WP3 (lines 450-456): \"format_errors() accepts a mode-signal — a boolean parameter (e.g. strict_mode: bool or equivalent) threaded from the caller ... PathValidationError (raised only from the strict=True code path in validate_mission_paths) always passes the strict-mode variant since it can only be reached when strict.\""
+      - code: "src/specify_cli/validators/paths.py:24 (`message = result.format_errors() or \"Path convention validation failed.\"` inside `PathValidationError.__init__`, reached only when `validate_mission_paths(..., strict=True)`)"
+      - code: "src/specify_cli/acceptance/summary_core.py:147 (`return [path_result.format_errors() or _PATH_CONVENTIONS_NOT_SATISFIED], None`, inside the `if strict_metadata:` branch of `evaluate_path_conventions` — the only other branch, `strict_metadata=False`, calls `format_warnings()` instead, never `format_errors()`)"
+      - code: "`grep -rn '\\.format_errors(' src/` returns exactly these two call sites, both gated on an already-true strict condition"
+    claim: >
+      `format_errors()` is called in exactly two places in `src/`, and both are reachable
+      only when the caller is already in the strict/blocking branch (`strict=True` in
+      `validate_mission_paths`, or `strict_metadata=True` in `evaluate_path_conventions`).
+      The plan's own text admits this ("always passes the strict-mode variant since it can
+      only be reached when strict") while simultaneously framing the new boolean parameter
+      as conditioning the wording on "the actual mode in effect for this run" — implying
+      variable behavior that does not exist anywhere in the current call graph. A parameter
+      whose value is a compile-time constant at every call site adds an unreachable/
+      untested branch (the "false" case), which this repo's own Sonar Expectations
+      (CLAUDE.md: "Do not leave empty or effect-free" constructs; every branch needs tests)
+      would flag on review, likely causing rework inside WP3.
+    remediation: >
+      Drop the boolean parameter from WP3's design. Since `format_errors()` is definitionally
+      only ever invoked in the strict/blocking context (that is the entire reason the
+      strict/lenient split exists as two separate methods, `format_errors()` vs.
+      `format_warnings()`), the new "--lenient"-pointer wording can simply be added
+      unconditionally to `format_errors()`'s existing trailing-prose lines — no new parameter,
+      no branch, no risk of an untested code path.
+
+  - id: PLAN-ARCH-004
+    lens: Contracts
+    severity: 3
+    title: "WP2's pinned token-normalization rule (basename/last-path-component match) is looser than spec.md's own suggested comparable-token form and risks false-positive dedup for future dual-declared tokens"
+    evidence:
+      - artifact: "plan.md § WP2, \"Token normalization\" (lines 384-395): \"compare optional_missing's bare token against Path(missing_path_entry).name (or the last path component) after slash-stripping, not full-string equality\""
+      - artifact: "spec.md § Key Entities, `AcceptanceSummary` paragraph (lines 333-340): \"WP2 must define how they're reduced to a common, comparable token (e.g. both relative to feature_dir, slash-stripped)\""
+      - code: "src/specify_cli/acceptance/__init__.py:594 (`missing_optional = [str(p.relative_to(feature_dir)) for p in optional if not p.exists()]`) — optional_missing's own entries are already feature_dir-relative, multi-segment-capable strings, not bare basenames"
+    claim: >
+      spec.md's own suggested normalization ("both relative to feature_dir, slash-stripped")
+      compares full feature_dir-relative paths and would correctly distinguish two
+      differently-located dual-declared tokens that happen to share a basename (e.g. a
+      future `docs/contracts` optional artifact vs. an unrelated `api/contracts` declared
+      path). The plan's chosen normalization instead compares only the *last path segment*
+      (`Path(...).name`), which cannot distinguish those two cases — it would silently drop
+      the wrong `missing_optional` entry (or the right one for the wrong reason) if such a
+      collision ever arose. For today's single fixture (`"contracts"`, a single-segment
+      token with no nested path), the two approaches happen to produce identical results —
+      verified: `Path("kitty-specs/<slug>/contracts/").name == "contracts"` — so this does
+      not break any current test, but it is a strictly weaker comparable-token definition
+      than the one spec.md itself modeled, baked into a mechanism that operates generally
+      over the whole `optional_missing` list (not hardcoded to the literal string
+      "contracts"), so the risk is latent rather than hypothetical for any future
+      mission-type dual declaration.
+    remediation: >
+      Normalize both sides to the feature_dir-relative, slash-stripped form spec.md itself
+      suggests (e.g. compute `missing_paths`'s entry relative to `feature_dir` when
+      possible, matching `optional_missing`'s own `str(p.relative_to(feature_dir))` shape)
+      rather than basename-only matching — this closes the collision risk with no added
+      complexity, since the resolved string is already being computed relative to a base
+      elsewhere in WP1's own fix. If basename matching is kept deliberately for simplicity,
+      say so explicitly in WP2's design and note the scope limit (single-segment
+      `artifacts.optional` tokens only) as a documented constraint, not an implicit one.
+
+  - id: PLAN-ARCH-005
+    lens: Contracts
+    severity: 3
+    title: "WP2 does not pin whether the in-place optional_missing dedup mutation fires only in strict mode or unconditionally whenever missing_paths is non-empty"
+    evidence:
+      - artifact: "plan.md § WP2, \"Propagation mechanism\" (lines 396-404): describes passing `optional_missing_to_dedup=missing_optional` into the existing call site, but does not state whether the in-place mutation is gated on `strict_metadata`"
+      - artifact: "spec.md § User Story 2, Acceptance Scenario 1 (lines 102-110): scoped explicitly to \"accept runs in default (strict) mode\""
+      - artifact: "spec.md § Edge Cases (lines 236-244): \"format_warnings()'s lenient-mode output ... is unchanged by this mission\""
+      - code: "src/specify_cli/acceptance/summary_core.py:110-150 (`evaluate_path_conventions`): the function has two mutually-exclusive branches after `missing_paths` is confirmed non-empty — `if strict_metadata: return [format_errors()...]` vs. the trailing `return [], format_warnings()...` (lenient) — the dedup mutation could be placed before that branch (fires in both modes) or inside the strict branch only (fires only in strict mode); the plan text is consistent with either placement"
+      - code: "src/specify_cli/acceptance/summary_core.py:151-161 (`build_warnings`): in lenient mode `path_violations` is always `[]`, so `missing_optional`'s \"Optional artifacts missing: ...\" line and the separate `path_convention_warning` text would both still fire today for a lenient-mode run on the dual-declared fixture — whether WP2's dedup also collapses that lenient-mode pair is exactly what the plan leaves unspecified"
+    claim: >
+      Spec's own Acceptance Scenario 1 for FR-002 is scoped explicitly to strict mode, and
+      the double-severity *contradiction* FR-002 is fixing (non-blocking vs. blocking, "in
+      the same run") is structurally impossible in lenient mode — `path_violations` is
+      always empty there, so there is no severity conflict to reconcile, only a cosmetic
+      double-mention. The plan's propagation-mechanism text describes only where the
+      `optional_missing_to_dedup=missing_optional` keyword argument is threaded at the call
+      site, not where inside `evaluate_path_conventions` the actual list mutation happens
+      relative to the `if strict_metadata:` branch. An implementer could reasonably place
+      the mutation before that branch (deduping in both modes, silently changing what
+      lenient-mode's `AcceptanceSummary.warnings` contains for this fixture) or only inside
+      it (matching spec's literal "strict mode" scoping). Neither reading breaks a pinned
+      test today, but the plan gives the WP2 implementer no explicit instruction to resolve
+      this, and a reviewer applying spec.md's Acceptance Scenario 1 literally would expect
+      the strict-mode-only reading — a mismatch here is exactly the kind of ambiguity likely
+      to surface as review pushback and rework inside WP2.
+    remediation: >
+      State explicitly in WP2 whether the dedup mutation fires only inside the
+      `if strict_metadata:` branch (matching spec's literal "default (strict) mode" scoping
+      in Acceptance Scenario 1) or unconditionally whenever `missing_paths` is non-empty.
+      Add one Acceptance-Scenario-equivalent test for the lenient-mode case on the
+      dual-declared fixture so whichever choice is made is pinned and checkable, not left to
+      implementer discretion.

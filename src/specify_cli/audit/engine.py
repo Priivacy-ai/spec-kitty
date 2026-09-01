@@ -23,7 +23,6 @@ from __future__ import annotations
 from specify_cli.core.constants import KITTY_SPECS_DIR
 from specify_cli.core.utils import safe_is_dir
 from collections import Counter
-import json
 from pathlib import Path
 from typing import Any
 
@@ -342,7 +341,11 @@ def _merge_checkout_disagreements(
                 code="CHECKOUT_DISAGREEMENT",
                 severity=Severity.ERROR,
                 artifact_path=disagreement.artifact,
-                detail=json.dumps(disagreement.to_dict(), sort_keys=True),
+                detail=(
+                    f"{disagreement.artifact} disagrees with primary "
+                    f"(invoking sha256 {disagreement.invoking_sha256 or 'missing'}, "
+                    f"primary sha256 {disagreement.primary_sha256 or 'missing'})"
+                ),
             )
         )
         result.findings.sort(key=lambda f: (f.artifact_path, f.code))

@@ -135,7 +135,9 @@ _EXPECTED_FLAGS: dict[str, frozenset[str]] = {
             "--push",
             "--dry-run",
             "--keep-branch",
+            "--delete-branch",
             "--keep-worktree",
+            "--remove-worktree",
             "--auto-retry",
             "--no-auto-retry",
         }

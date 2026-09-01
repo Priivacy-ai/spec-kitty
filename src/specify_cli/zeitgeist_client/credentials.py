@@ -339,6 +339,26 @@ def _positive_entry(
     return entry
 
 
+def _previous_team_if_unambiguous(
+    *,
+    previous: dict[str, str],
+    relay_url: str,
+    host: str | None,
+    repo_slug: str | None,
+) -> str | None:
+    """Return the previous team when a same-scope remint has no new signal."""
+    previous_team = previous.get("team")
+    if previous_team is None:
+        return None
+    if previous.get("relay_url") != relay_url:
+        return None
+    if previous.get("host") != host:
+        return None
+    if previous.get("repo_slug") != repo_slug:
+        return None
+    return previous_team
+
+
 def store(
     *,
     repo: str,
@@ -367,6 +387,14 @@ def store(
     lock = _locked()
     with lock:
         data = _read_all()
+        previous = data.get(repo) or {}
+        if team is None:
+            team = _previous_team_if_unambiguous(
+                previous=previous,
+                relay_url=relay_url,
+                host=host,
+                repo_slug=repo_slug,
+            )
         data[repo] = _positive_entry(
             relay_url=relay_url,
             token=token,
@@ -376,7 +404,7 @@ def store(
             host=host,
             repo_slug=repo_slug,
             team=team,
-            previous=data.get(repo) or {},
+            previous=previous,
         )
         _write_all(data)
 

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import re
+import tomllib
 from pathlib import Path
 from typing import Any
 
@@ -22,6 +23,8 @@ RESTORED_WORKFLOWS = {
     "ci-windows.yml",
     "docs-pages.yml",
     "check-spec-kitty-events-alignment.yml",
+    "release-readiness.yml",
+    "release.yml",
 }
 
 UPSTREAM_WORKFLOW_PATHS = {
@@ -180,6 +183,44 @@ def test_restored_workflows_use_stock_runners(name: str) -> None:
 
     assert "blacksmith" not in text.lower()
     assert "runner-group" not in text.lower()
+
+
+def test_release_wheel_gate_counts_charter_offering_and_skills() -> None:
+    workflow = load_workflow("release.yml")
+    step = next(step for step in workflow["jobs"]["build-release"]["steps"] if step.get("name") == "Verify wheel contents")
+    run = step["run"]
+
+    assert "git ls-files src/charter/offering" in run
+    assert "find " in run
+    assert "wheel_check/charter/offering" in run
+    assert "git ls-files src/charter/offering/skills" in run
+    assert "wheel_check/charter/offering/skills" in run
+    assert "git ls-files src/doctrine" not in run
+
+
+def test_release_readiness_cutover_guard_avoids_git_direct_references() -> None:
+    workflow = load_workflow("release-readiness.yml")
+    job = workflow["jobs"]["cutover-guard"]
+    job_dump = repr(job)
+
+    assert "pip install -e ." not in job_dump
+    assert "git+https" not in job_dump
+
+    checkout = next(step for step in job["steps"] if step.get("name") == "Check out the pinned events source")
+    pyproject = tomllib.loads((ROOT / "pyproject.toml").read_text(encoding="utf-8"))
+    events_dependency = next(dependency for dependency in pyproject["project"]["dependencies"] if dependency.startswith("spec-kitty-events @ "))
+    pinned_rev = re.search(r"@([0-9a-f]{40})$", events_dependency)
+    assert pinned_rev is not None
+    assert checkout["with"]["ref"] == pinned_rev.group(1)
+
+    install = next(step for step in job["steps"] if step.get("name") == "Install the source-only guard environment")
+    assert "uv export --frozen --no-dev" in install["run"]
+    assert "python -m pip install -r .cutover-requirements.pypi.txt" in install["run"]
+    assert "python -m pip install --no-deps .cutover-deps/spec-kitty-events" in install["run"]
+
+    guard = next(step for step in job["steps"] if step.get("name") == "Run cutover guard (fail-closed on any un-cut-over mission)")
+    assert "PYTHONPATH=src" in guard["run"]
+    assert "from specify_cli.cli.commands.cutover_guard import cutover_guard" in guard["run"]
 
 
 def test_convergence_map_dispositions_every_upstream_workflow_and_script() -> None:

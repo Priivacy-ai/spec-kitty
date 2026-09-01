@@ -138,7 +138,6 @@ def check_typer_click_lock_parity(project_root: Path, *, packages: tuple[str, ..
             mismatches.append(PackageSkew(package, locked, installed))
     return mismatches
 
-
 def format_env_skew_message(mismatches: list[PackageSkew]) -> str:
     """Render a human-readable, diagnostic-coded skew report for ``mismatches``."""
     rows = "\n".join(f"  - {m.package}: locked={m.locked}, installed={m.installed if m.installed is not None else '<not installed>'}" for m in mismatches)

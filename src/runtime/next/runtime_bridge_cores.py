@@ -366,6 +366,16 @@ class _ArtifactPresenceSnapshotLike(Protocol):
     reach stays intact, without adding a new gather concern to the WP05
     port or its already-green test suite.
 
+    ``blocking_artifact_names`` (WP01/WP02, FR-001/FR-002/FR-006, #3704
+    Part 1) is ``frozenset[str] | None``: ``None`` means no expected-
+    artifacts manifest is reachable at any tier for this mission family
+    (the existing ``evaluate_guards_strict`` strict raise is unchanged in
+    this state); a real, possibly-empty ``frozenset`` means a manifest WAS
+    resolved and names the blocking artifacts for this step, to be
+    compared against ``present_artifacts``. Preserve this distinction with
+    ``is None`` — never bare falsiness, which would silently collapse it
+    (SPEC-FRESH-001).
+
     Declared via read-only ``@property`` getters (not plain attribute
     annotations) so this Protocol is satisfied by ``ArtifactPresenceSnapshot``
     -- a ``@dataclass(frozen=True)`` -- whose fields are read-only; a plain
@@ -390,6 +400,9 @@ class _ArtifactPresenceSnapshotLike(Protocol):
 
     @property
     def wp_advance_ready(self) -> bool | None: ...
+
+    @property
+    def blocking_artifact_names(self) -> frozenset[str] | None: ...
 
 
 _CLI_TASKS_STEP_IDS = frozenset({"tasks_outline", "tasks_packages", "tasks_finalize"})
@@ -690,11 +703,29 @@ def evaluate_guards_strict(snapshot: _ArtifactPresenceSnapshotLike) -> list[str]
     logged at WARNING, degrades to ``[]``) and
     ``_check_composed_action_guard`` (``runtime_bridge_composition.py``,
     T005 — caught, logged at WARNING, degrades to ``[]``).
+
+    WP01 (FR-001/FR-002/FR-006, #3704 Part 1): when the family is not in
+    ``_GUARD_TABLES``, this no longer unconditionally raises. It checks
+    ``snapshot.blocking_artifact_names`` — data already gathered by
+    :func:`~runtime.next.runtime_bridge_io.gather_artifact_presence`, never
+    computed here (this module stays a stdlib-only pure leaf; see
+    ``_ArtifactPresenceSnapshotLike``'s docstring / the import-boundary
+    gate). ``None`` (no expected-artifacts manifest reachable at any tier)
+    keeps the original fail-closed raise — unchanged. A real, possibly-empty
+    ``frozenset`` means a manifest WAS resolved for this custom family, so
+    the dispatch miss is evaluated genuinely instead: the blocking artifacts
+    not already in ``present_artifacts`` are returned (empty list when the
+    blocking set is fully satisfied). Uses ``is None`` explicitly —
+    ``frozenset()`` is falsy in Python, and bare falsiness would silently
+    collapse the None-vs-frozenset() distinction SPEC-FRESH-001 requires.
     """
     guard_table_entry = _GUARD_TABLES.get(snapshot.mission_family)
-    if guard_table_entry is None:
+    if guard_table_entry is not None:
+        return guard_table_entry(snapshot)
+    if snapshot.blocking_artifact_names is None:
         raise UnregisteredMissionFamilyError(snapshot.mission_family)
-    return guard_table_entry(snapshot)
+    missing = snapshot.blocking_artifact_names - snapshot.present_artifacts
+    return sorted(missing)
 
 
 def evaluate_guards(snapshot: _ArtifactPresenceSnapshotLike) -> list[str]:
