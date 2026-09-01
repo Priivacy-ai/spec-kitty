@@ -104,7 +104,7 @@ from typing import Literal
 
 import pytest
 
-from charter.context_renderers.profile_sections import (
+from charter.activation.context_renderers.profile_sections import (
     _PROFILE_SECTION_RENDERERS,
     _STYLEGUIDE_TOOLGUIDE_POINTER_ONLY_REASON,
     _render_profile_directives,
@@ -115,7 +115,7 @@ from charter.context_renderers.profile_sections import (
     render_profile_suggested_doctrine,
     render_profile_toolguides,
 )
-from charter.mission_type_profiles import MissionTypeProfile
+from charter.activation.mission_type_profiles import MissionTypeProfile
 from charter.offering.agent_profiles import AgentProfile
 from charter.offering.drg.migration.extractor import (
     _GOVERNANCE_PROFILE_SCOPE_FIELDS,

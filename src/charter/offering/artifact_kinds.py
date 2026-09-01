@@ -311,8 +311,18 @@ PROJECT_KIND_DIRS: dict[ArtifactKind, str] = {
 }
 
 
+#: The artifact kinds that may be activated directly or reached by a charter
+#: cascade. Templates and assets are traversable graph nodes but are not
+#: activation candidates.
+CHARTER_ACTIVATABLE_KINDS: frozenset[ArtifactKind] = frozenset(ArtifactKind) - {
+    ArtifactKind.TEMPLATE,
+    ArtifactKind.ASSET,
+}
+
+
 __all__ = [
     "ArtifactKind",
+    "CHARTER_ACTIVATABLE_KINDS",
     "CHARTER_KIND_TOKENS",
     "MISSION_TYPE_TOKEN",
     "PROJECT_KIND_DIRS",
