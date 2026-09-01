@@ -28,6 +28,7 @@ from specify_cli.core.mission_creation import MissionCreationResult
 
 from specify_cli.cli.commands.agent.mission import app as mission_app
 from specify_cli.core.mission_creation import create_mission_core
+from specify_cli.core.paths import MissionMetaReadError
 from specify_cli.missions._create import (
     CoordinationBranchDiverged,
     coordination_branch_name,
@@ -64,8 +65,7 @@ def _init_repo(repo: Path) -> None:
     # creation with ``CharterPackConfigError`` exactly as a real
     # unprovisioned project would. Declare the built-ins the create tests use.
     (repo / ".kittify" / "config.yaml").write_text(
-        "mission_type_activations:\n  - software-dev\n  - documentation\n"
-        "  - research\n  - plan\n",
+        "mission_type_activations:\n  - software-dev\n  - documentation\n  - research\n  - plan\n",
         encoding="utf-8",
     )
     subprocess.run(["git", "init", "-b", "main"], cwd=repo, capture_output=True, check=True)
@@ -79,10 +79,7 @@ def _mission_summary(slug: str) -> dict[str, str]:
     return {
         "friendly_name": title,
         "purpose_tldr": f"Deliver {title} cleanly for the team.",
-        "purpose_context": (
-            f"This mission delivers {title} so product and engineering can move "
-            "forward with a clear outcome and shared understanding."
-        ),
+        "purpose_context": (f"This mission delivers {title} so product and engineering can move forward with a clear outcome and shared understanding."),
     }
 
 
@@ -94,10 +91,7 @@ def _mission_summary_args(title: str) -> list[str]:
         "--purpose-tldr",
         f"Deliver {title} cleanly for the team.",
         "--purpose-context",
-        (
-            f"This mission delivers {title} so product and engineering can move "
-            "forward with a clear outcome and shared understanding."
-        ),
+        (f"This mission delivers {title} so product and engineering can move forward with a clear outcome and shared understanding."),
     ]
 
 
@@ -649,16 +643,31 @@ def test_pr_bound_create_start_branch_switches_before_scaffold_writes(tmp_path: 
     assert meta["target_branch"] == "feat/json-pr-bound-branch"
 
     rel_meta = meta_path.relative_to(tmp_path).as_posix()
-    assert subprocess.run(
-        ["git", "-C", str(tmp_path), "cat-file", "-e", f"main:{rel_meta}"],
-        capture_output=True,
-        check=False,
-    ).returncode != 0
-    assert subprocess.run(
-        ["git", "-C", str(tmp_path), "cat-file", "-e", f"feat/json-pr-bound-branch:{rel_meta}"],
-        capture_output=True,
-        check=False,
-    ).returncode == 0
+    assert (
+        subprocess.run(
+            ["git", "-C", str(tmp_path), "cat-file", "-e", f"main:{rel_meta}"],
+            capture_output=True,
+            check=False,
+        ).returncode
+        != 0
+    )
+    assert (
+        subprocess.run(
+            ["git", "-C", str(tmp_path), "cat-file", "-e", f"feat/json-pr-bound-branch:{rel_meta}"],
+            capture_output=True,
+            check=False,
+        ).returncode
+        == 0
+    )
+    committed_meta = json.loads(
+        _git(
+            tmp_path,
+            "show",
+            f"feat/json-pr-bound-branch:{rel_meta}",
+        ).stdout
+    )
+    assert committed_meta["pr_bound"] is True
+    assert committed_meta["target_branch"] == "feat/json-pr-bound-branch"
 
 
 def test_start_branch_target_branch_mismatch_refuses_before_switch(tmp_path: Path) -> None:
@@ -693,3 +702,253 @@ def test_start_branch_target_branch_mismatch_refuses_before_switch(tmp_path: Pat
     assert _git(tmp_path, "branch", "--show-current").stdout.strip() == "main"
     assert not _branch_exists(tmp_path, "feat/json-pr-bound-mismatch")
     assert list((tmp_path / "kitty-specs").iterdir()) == []
+
+
+@pytest.mark.parametrize("branch_preexists", [False, True])
+def test_failed_create_restores_original_branch_without_deleting_preexisting_start_branch(
+    tmp_path: Path,
+    branch_preexists: bool,
+) -> None:
+    """Issue #3619: early create must roll back its bootstrap branch on failure."""
+    _init_repo(tmp_path)
+    start_branch = "feat/failing-early-create"
+    if branch_preexists:
+        _git(tmp_path, "branch", start_branch)
+
+    runner = CliRunner()
+    with (
+        patch(f"{_CORE_MODULE}.locate_project_root", return_value=tmp_path),
+        patch(f"{_CORE_MODULE}.is_worktree_context", return_value=False),
+        patch("specify_cli.cli.commands.agent.mission.locate_project_root", return_value=tmp_path),
+    ):
+        result = runner.invoke(
+            mission_app,
+            [
+                "create",
+                "failing-early-create",
+                "--start-branch",
+                start_branch,
+                "--json",
+                "--friendly-name",
+                "",
+                "--purpose-tldr",
+                "A valid purpose that reaches core validation.",
+                "--purpose-context",
+                "A valid context that leaves friendly-name validation as the failure.",
+            ],
+        )
+
+    assert result.exit_code == 1
+    assert "non-empty friendly_name" in result.output
+    assert _git(tmp_path, "branch", "--show-current").stdout.strip() == "main"
+    assert _branch_exists(tmp_path, start_branch) is branch_preexists
+    assert list((tmp_path / "kitty-specs").iterdir()) == []
+
+
+def test_resume_probe_command_reports_not_found_amid_unrelated_mission(tmp_path: Path) -> None:
+    """A successful absence probe stays distinct from generic resolution errors."""
+    _init_repo(tmp_path)
+    _create(tmp_path, "existing-one")
+
+    runner = CliRunner()
+    with (
+        patch("specify_cli.cli.commands.agent.mission.locate_project_root", return_value=tmp_path),
+        patch("specify_cli.cli.commands.agent.mission._enforce_git_preflight"),
+    ):
+        result = runner.invoke(
+            mission_app,
+            [
+                "check-prerequisites",
+                "--mission",
+                "new-one",
+                "--resume-probe",
+                "--json",
+            ],
+        )
+
+    assert result.exit_code == 0, result.output
+    payload = _json_payload_from_output(result.output)
+    assert payload["result"] == "success"
+    assert payload["resume_state"] == "not_found"
+    assert payload["handle"] == "new-one"
+
+
+def test_resume_probe_command_returns_nonzero_for_malformed_partial_scaffold(tmp_path: Path) -> None:
+    """A partial write is recoverable evidence, never permission to duplicate."""
+    _init_repo(tmp_path)
+    partial = tmp_path / "kitty-specs" / "partial-01ABCDEF"
+    partial.mkdir()
+    (partial / "spec.md").write_text("# Partial\n", encoding="utf-8")
+
+    runner = CliRunner()
+    with (
+        patch("specify_cli.cli.commands.agent.mission.locate_project_root", return_value=tmp_path),
+        patch("specify_cli.cli.commands.agent.mission._enforce_git_preflight"),
+    ):
+        result = runner.invoke(
+            mission_app,
+            [
+                "check-prerequisites",
+                "--mission",
+                "partial",
+                "--resume-probe",
+                "--json",
+            ],
+        )
+
+    assert result.exit_code == 1
+    payload = _json_payload_from_output(result.output)
+    assert payload["resume_state"] == "malformed"
+    assert payload["error_code"] == "MISSION_RESUME_MALFORMED"
+
+
+@pytest.mark.parametrize("meta_text", ["{not-json}", "[]"])
+def test_resume_probe_command_rejects_corrupt_or_non_object_meta(
+    tmp_path: Path,
+    meta_text: str,
+) -> None:
+    """Invalid metadata never degrades into duplicate-creation permission."""
+    _init_repo(tmp_path)
+    feature_dir = tmp_path / "kitty-specs" / "invalid-meta-01ABCDEF"
+    feature_dir.mkdir()
+    (feature_dir / "meta.json").write_text(meta_text, encoding="utf-8")
+    (feature_dir / "spec.md").write_text("# Partial\n", encoding="utf-8")
+
+    runner = CliRunner()
+    with (
+        patch("specify_cli.cli.commands.agent.mission.locate_project_root", return_value=tmp_path),
+        patch("specify_cli.cli.commands.agent.mission._enforce_git_preflight"),
+    ):
+        result = runner.invoke(
+            mission_app,
+            [
+                "check-prerequisites",
+                "--mission",
+                "invalid-meta",
+                "--resume-probe",
+                "--json",
+            ],
+        )
+
+    assert result.exit_code == 1
+    payload = _json_payload_from_output(result.output)
+    assert payload["resume_state"] == "malformed"
+    assert payload["error_code"] == "MISSION_RESUME_MALFORMED"
+    assert [path.name for path in (tmp_path / "kitty-specs").iterdir()] == [feature_dir.name]
+
+
+def test_resume_probe_command_rejects_unreadable_meta(tmp_path: Path) -> None:
+    """A typed I/O failure stays fail-closed at the public CLI boundary."""
+    _init_repo(tmp_path)
+    feature_dir = tmp_path / "kitty-specs" / "unreadable-meta-01ABCDEF"
+    feature_dir.mkdir()
+    meta_path = feature_dir / "meta.json"
+    meta_path.write_text("{}", encoding="utf-8")
+    (feature_dir / "spec.md").write_text("# Partial\n", encoding="utf-8")
+    read_error = MissionMetaReadError(meta_path, OSError("permission denied"))
+
+    runner = CliRunner()
+    with (
+        patch("specify_cli.cli.commands.agent.mission.locate_project_root", return_value=tmp_path),
+        patch("specify_cli.cli.commands.agent.mission._enforce_git_preflight"),
+        patch("specify_cli.core.paths.load_meta_fail_closed", side_effect=read_error),
+    ):
+        result = runner.invoke(
+            mission_app,
+            [
+                "check-prerequisites",
+                "--mission",
+                "unreadable-meta",
+                "--resume-probe",
+                "--json",
+            ],
+        )
+
+    assert result.exit_code == 1
+    payload = _json_payload_from_output(result.output)
+    assert payload["resume_state"] == "malformed"
+    assert payload["error_code"] == "MISSION_RESUME_MALFORMED"
+    assert "permission denied" in " ".join(payload["problems"])
+    assert [path.name for path in (tmp_path / "kitty-specs").iterdir()] == [feature_dir.name]
+
+
+def test_explicit_research_create_keeps_scaffold_meta_and_event_type_coherent(tmp_path: Path) -> None:
+    """The pre-create type selection must reach every canonical creation surface."""
+    _init_repo(tmp_path)
+
+    result = _create(tmp_path, "research-bootstrap", mission="research")
+
+    meta = json.loads((result.feature_dir / "meta.json").read_text(encoding="utf-8"))
+    spec = (result.feature_dir / "spec.md").read_text(encoding="utf-8")
+    events = [json.loads(line) for line in (result.feature_dir / "status.events.jsonl").read_text(encoding="utf-8").splitlines() if line.strip()]
+    created = next(event for event in events if event["event_type"] == "MissionCreated")
+
+    assert meta["mission_type"] == "research"
+    assert "# Research Specification" in spec
+    assert created["payload"]["mission_type"] == "research"
+    assert created["payload"]["mission_slug"] == meta["mission_slug"]
+    assert created["payload"]["friendly_name"] == meta["friendly_name"]
+    assert created["payload"]["purpose_tldr"] == meta["purpose_tldr"]
+    assert created["payload"]["purpose_context"] == meta["purpose_context"]
+
+
+@pytest.mark.parametrize("branch_preexists", [False, True])
+def test_mission_created_persistence_failure_is_nonzero_and_probe_recoverable(
+    tmp_path: Path,
+    branch_preexists: bool,
+) -> None:
+    """Create cannot report success without its canonical identity event."""
+    _init_repo(tmp_path)
+    start_branch = "feat/event-persistence-failure"
+    (tmp_path / "user-change.txt").write_text("preserve me\n", encoding="utf-8")
+    _git(tmp_path, "add", "user-change.txt")
+    staged_before = _git(tmp_path, "diff", "--cached", "--name-only").stdout.splitlines()
+    original_start_tip: str | None = None
+    if branch_preexists:
+        _git(tmp_path, "branch", start_branch)
+        original_start_tip = _git(tmp_path, "rev-parse", start_branch).stdout.strip()
+
+    runner = CliRunner()
+    with (
+        patch(f"{_CORE_MODULE}.locate_project_root", return_value=tmp_path),
+        patch(f"{_CORE_MODULE}.is_worktree_context", return_value=False),
+        patch("specify_cli.status.emit_mission_created_local", return_value=None),
+        patch("specify_cli.cli.commands.agent.mission.locate_project_root", return_value=tmp_path),
+    ):
+        result = runner.invoke(
+            mission_app,
+            [
+                "create",
+                "event-persistence-failure",
+                "--start-branch",
+                start_branch,
+                "--json",
+                *_mission_summary_args("Event Persistence Failure"),
+            ],
+        )
+
+        probe = runner.invoke(
+            mission_app,
+            [
+                "check-prerequisites",
+                "--mission",
+                "event-persistence-failure",
+                "--resume-probe",
+                "--json",
+            ],
+        )
+
+    assert result.exit_code == 1
+    assert "Local canonical MissionCreated persistence failed" in result.output
+    assert _git(tmp_path, "branch", "--show-current").stdout.strip() == "main"
+    assert _branch_exists(tmp_path, start_branch) is branch_preexists
+    if original_start_tip is not None:
+        assert _git(tmp_path, "rev-parse", start_branch).stdout.strip() == original_start_tip
+    assert _git(tmp_path, "diff", "--cached", "--name-only").stdout.splitlines() == staged_before
+    partial_dirs = list((tmp_path / "kitty-specs").iterdir())
+    assert len(partial_dirs) == 1  # golden-count: cardinality-is-contract
+
+    assert probe.exit_code == 1
+    probe_payload = _json_payload_from_output(probe.output)
+    assert probe_payload["resume_state"] == "malformed"
+    assert "MissionCreated" in " ".join(probe_payload["problems"])

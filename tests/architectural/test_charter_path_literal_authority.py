@@ -34,24 +34,24 @@ therefore only counts a charter filename constant when it sits in a genuine
 
 Prose, docstrings, log messages and exception text are structurally excluded.
 
-Scope decision (D6 open decision, resolved here): the gate DOES police ``src/doctrine/**``
+Scope decision (D6 open decision, resolved here): the gate DOES police ``src/charter/offering/**``
 -------------------------------------------------------------------------------------------
-``research.md`` D6 left open whether the gate polices ``src/doctrine/**`` or
+``research.md`` D6 left open whether the gate polices ``src/charter/offering/**`` or
 scopes only to ``src/charter/`` + ``src/specify_cli/``. **Decision: it polices
 the whole of ``src/``, doctrine included, with the doctrine sites carried as
 named allowlist entries.**
 
-Rationale. ``src/doctrine/`` genuinely *cannot* route onto the
+Rationale. ``src/charter/offering/`` genuinely *cannot* route onto the
 ``charter.bundle`` authority: the enforced layering is
 ``runtime -> charter -> doctrine`` (``test_runtime_charter_doctrine_boundary.py``),
-and ``src/doctrine/versioning.py`` states the rule in its own module docstring
+and ``src/charter/offering/versioning.py`` states the rule in its own module docstring
 ("This module must NOT import from charter.*"). Importing
-``charter.bundle.CHARTER_YAML`` from doctrine would invert the dependency
+``charter.bundle.CHARTER_YAML`` from charter.offering would invert the dependency
 direction and break the Shared Package Boundary ADR (doctrine ships as its own
 wheel). So the doctrine sites are permanently deferred, not fixable.
 
 That is an argument for *allowlisting* them, NOT for scoping them out. Scoping
-``src/doctrine/**`` out of the scan would be precisely the blanket directory
+``src/charter/offering/**`` out of the scan would be precisely the blanket directory
 glob D10 forbids: it would let an unbounded number of FUTURE charter path
 literals into doctrine, silently. Policing doctrine with a bounded, named,
 shrink-only allowlist means each existing site is justified in writing and any
@@ -385,7 +385,7 @@ def _charter_bundle_name_bindings(tree: ast.Module) -> dict[str, str]:
        blind spot from (1): a local alias never touches ``charter.bundle`` at
        all, so the import-based resolution above cannot see it, yet the
        presence-gate shape it feeds is identical. Two real, live sites
-       (``src/charter/sync.py`` / ``src/charter/pack_manager.py``) use exactly
+       (``src/charter/activation/sync.py`` / ``src/charter/activation/pack_manager.py``) use exactly
        this form.
     """
     bindings: dict[str, str] = {}

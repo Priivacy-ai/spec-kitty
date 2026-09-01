@@ -504,7 +504,7 @@ class ManagedControlState:
     dedup: dict[tuple, dict] = field(default_factory=dict)
     focus_started: set = field(default_factory=set)
     last_headers: dict[str, str] = field(default_factory=dict)
-    last_status: int | None = None
+    last_status: tuple[int, dict[str, Any]] | None = None
 
     def authorized(self, header_value: str | None) -> bool:
         if not header_value:
@@ -654,8 +654,8 @@ class ManagedControlDouble:
         with self._state.lock:
             return dict(self._state.last_headers)
 
-    def last_response_status(self) -> int | None:
-        """The raw HTTP status of the most recently answered request.
+    def last_response_status(self) -> tuple[int, dict[str, Any]] | None:
+        """The raw HTTP status and JSON payload of the most recently answered POST.
 
         ``offer()``/``OfferResult`` collapse every non-2xx into
         ``OfferOutcome.REJECTED`` (#352), so a test that must distinguish
@@ -665,7 +665,8 @@ class ManagedControlDouble:
         """
         assert self._state is not None
         with self._state.lock:
-            return self._state.last_status
+            response = self._state.last_status
+            return None if response is None else (response[0], dict(response[1]))
 
     def set_shared_token(self, value: str) -> None:
         """Reconfigure the ``Authorization: Bearer`` secret the running
@@ -698,13 +699,13 @@ class ManagedControlDouble:
                 state = double._state
                 assert state is not None
                 if self.path != "/managed/control":
-                    self._send_json(404, {"detail": "not found"})
-                    return
-                length = int(self.headers.get("Content-Length", "0") or "0")
-                raw = self.rfile.read(length) if length else b"{}"
-                status, payload = _dispatch_managed_control(state, self.headers, raw)
+                    status, payload = 404, {"detail": "not found"}
+                else:
+                    length = int(self.headers.get("Content-Length", "0") or "0")
+                    raw = self.rfile.read(length) if length else b"{}"
+                    status, payload = _dispatch_managed_control(state, self.headers, raw)
                 with state.lock:
-                    state.last_status = status
+                    state.last_status = status, dict(payload)
                 self._send_json(status, payload)
 
         return _Handler

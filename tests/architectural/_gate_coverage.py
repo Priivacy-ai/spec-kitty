@@ -79,13 +79,15 @@ JobKey = tuple[str, str]
 REPO_ROOT = Path(__file__).resolve().parents[2]
 WORKFLOWS_DIR = REPO_ROOT / ".github" / "workflows"
 
-# The interim convergence topology restores only ``ci-windows.yml`` as a
-# direct pytest suite runner. ``ci-quality.yml`` is deliberately reduced to
-# lint/build/install/lock jobs and invokes no pytest; the factory ``ci.yml``
-# delegates suite execution to the planning CI scripts rather than embedding a
-# pytest command; and the other restored producers do not run tests.
+# The interim convergence topology restores ``ci-windows.yml`` and the tag-time
+# ``release.yml`` as direct pytest suite runners. ``ci-quality.yml`` is
+# deliberately reduced to lint/build/install/lock jobs and invokes no pytest;
+# the factory ``ci.yml`` delegates suite execution to the planning CI scripts
+# rather than embedding a pytest command; and the other restored producers do
+# not run tests.
 WORKFLOW_FILES: tuple[str, ...] = (
     "ci-windows.yml",
+    "release.yml",
 )
 
 _COLLECT_PLUGIN = "tests.architectural._gate_collect_plugin"

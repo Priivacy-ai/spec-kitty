@@ -11,7 +11,7 @@ related:
 
 > **Removed in 3.2.6; kept as historical record.** The sync daemon and its
 > cleanup commands described here are gone. This page is scheduled for deletion
-> in 3.2.7 (D13).
+> in 3.2.7.
 
 This runbook covers the two-command operator path for diagnosing and cleaning
 up stale Spec Kitty sync daemons that accumulate after upgrades. It covers

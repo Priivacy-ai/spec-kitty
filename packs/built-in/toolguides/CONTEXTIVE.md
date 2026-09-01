@@ -153,7 +153,7 @@ so they are immediately enforceable in the IDE.
 ### Bounded Context Canvas
 
 Section 7 (Ubiquitous Language) of the
-[Bounded Context Canvas](../../../src/doctrine/templates/architecture/bounded-context-canvas-template.md)
+[Bounded Context Canvas](../../../src/charter/offering/templates/architecture/bounded-context-canvas-template.md)
 should be backed by a Contextive glossary file. This ensures the canvas
 is not just documentation but an active, enforceable artifact.
 

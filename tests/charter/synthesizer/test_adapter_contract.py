@@ -2,7 +2,7 @@
 
 Verifies:
 1. FixtureAdapter is isinstance-compatible with SynthesisAdapter (runtime-checkable).
-2. contract file (contracts/adapter.py) and implementation (src/charter/synthesizer/adapter.py)
+2. contract file (contracts/adapter.py) and implementation (src/charter/activation/synthesizer/adapter.py)
    expose structurally identical shapes — same field names, same method signatures.
 3. AdapterOutput carries optional override fields; effective identity uses override-first.
 """
@@ -14,9 +14,9 @@ from pathlib import Path
 
 import pytest
 
-from charter.synthesizer.adapter import AdapterOutput, SynthesisAdapter
-from charter.synthesizer.fixture_adapter import FixtureAdapter
-from charter.synthesizer.request import SynthesisRequest, SynthesisTarget
+from charter.activation.synthesizer.adapter import AdapterOutput, SynthesisAdapter
+from charter.activation.synthesizer.fixture_adapter import FixtureAdapter
+from charter.activation.synthesizer.request import SynthesisRequest, SynthesisTarget
 from kernel.clock import now_utc
 
 
@@ -60,7 +60,7 @@ class TestContractStructuralEquivalence:
     """Verify that the planning contract file and the implementation are structurally identical.
 
     The contract file is at kitty-specs/.../contracts/adapter.py.
-    The implementation is at src/charter/synthesizer/adapter.py.
+    The implementation is at src/charter/activation/synthesizer/adapter.py.
 
     We check that both define the same Protocol fields and method names.
     If they diverge, this test fails immediately — before ADR amendment happens.
@@ -140,7 +140,7 @@ class TestContractStructuralEquivalence:
         import dataclasses
 
         contract_fields = {f.name for f in dataclasses.fields(contract.SynthesisRequest)}
-        from charter.synthesizer.request import SynthesisRequest as ImplReq
+        from charter.activation.synthesizer.request import SynthesisRequest as ImplReq
         impl_fields = {f.name for f in dataclasses.fields(ImplReq)}
         assert contract_fields == impl_fields, (
             f"SynthesisRequest field mismatch.\n"

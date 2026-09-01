@@ -41,7 +41,7 @@ class TestOrgDoctrineSourceProtocol:
     """The runtime_checkable protocol must accept all three concrete sources."""
 
     def test_git_source_satisfies_protocol(self) -> None:
-        source = GitSource(url="git@example.com:org/doctrine.git")
+        source = GitSource(url="git@example.com:org/charter.offering.git")
         assert isinstance(source, OrgDoctrineSource)
 
     def test_https_source_satisfies_protocol(self) -> None:

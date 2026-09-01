@@ -166,8 +166,8 @@ def _collect_charter_sync_status(repo_root: Path) -> dict[str, Any]:
 def _collect_governance_reference_status(repo_root: Path) -> dict[str, Any]:
     """Collect charter-declared supporting governance doc diagnostics."""
     try:
-        from charter.governance_references import collect_governance_reference_status
-        from charter.sync import load_governance_config
+        from charter.activation.governance_references import collect_governance_reference_status
+        from charter.activation.sync import load_governance_config
 
         governance = load_governance_config(repo_root)
         statuses = collect_governance_reference_status(
@@ -205,7 +205,7 @@ def _collect_generated_input_status(repo_root: Path) -> dict[str, Any]:
 
 
 def _collect_manifest_status(repo_root: Path) -> tuple[dict[str, Any], Any | None]:
-    from charter.synthesizer.manifest import MANIFEST_PATH, load_yaml, verify
+    from charter.activation.synthesizer.manifest import MANIFEST_PATH, load_yaml, verify
 
     manifest_path = repo_root / MANIFEST_PATH
     doctrine_root = repo_root / ".kittify" / "doctrine"
@@ -295,7 +295,7 @@ def _collect_provenance_status(
     *,
     include_entries: bool,
 ) -> dict[str, Any]:
-    from charter.synthesizer.provenance import load_yaml as load_provenance
+    from charter.activation.synthesizer.provenance import load_yaml as load_provenance
 
     provenance_root = repo_root / ".kittify" / "charter" / "provenance"
     paths = sorted(provenance_root.glob("*.yaml"))
@@ -457,18 +457,20 @@ def _collect_org_layer_status(repo_root: Path) -> dict[str, Any]:
     for repos without org pack configuration — no spurious section added.
 
     Per the charter layer architectural boundary (kernel <- doctrine <-
-    charter <- specify_cli), we use ``charter.drg.load_org_drg`` directly
+    charter <- specify_cli), we use ``charter.activation.drg_activation.load_org_drg`` directly
     rather than the ``specify_cli`` config path.  The caller may also pass
     the repo root to ``specify_cli.doctrine.config`` for richer pack metadata;
     this implementation stays purely charter-layer.
     """
-    from charter.drg import (  # noqa: PLC0415
+    from charter.drg import (
         OrgDRGConflictError,
         OrgPackMissingError,
         load_built_in_graph,
+        validate_dangling_references,
+    )
+    from charter.activation.drg_activation import (
         load_org_drg,
         merge_three_layers,
-        validate_dangling_references,
     )
 
     result: dict[str, Any] = {

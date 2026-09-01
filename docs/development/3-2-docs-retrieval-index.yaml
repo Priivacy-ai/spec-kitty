@@ -1973,6 +1973,7 @@ pages:
     - {slug: "what-changes", text: "What changes", level: 3}
     - {slug: "what-stays-the-same", text: "What stays the same", level: 3}
     - {slug: "what-is-now-explicit", text: "What is now explicit", level: 3}
+    - {slug: "amendments", text: "Amendments", level: 2}
     - {slug: "references", text: "References", level: 2}
   - path: "docs/adr/3.x/2026-06-07-2-session-presence-multi-harness-architecture.md"
     title: "Session Presence: Multi-Harness Architecture for Orientation and Upgrade Checking"
@@ -2943,6 +2944,43 @@ pages:
     - {slug: "c-kernel-expander-token-provenance-two-tier-kitty-env-chosen", text: "C. Kernel expander + token provenance + two-tier `.kitty.env` (chosen)", level: 3}
     - {slug: "d-new-spec-kitty-config-home-locator-var", text: "D. New `SPEC_KITTY_CONFIG_HOME` locator var", level: 3}
     - {slug: "more-information", text: "More Information", level: 2}
+  - path: "docs/adr/3.x/2026-08-27-1-precommit-hook-stable-entrypoint-and-repin-migration.md"
+    title: "Install-agnostic pre-commit hook fallback + spec-kitty migrate repin-hooks"
+    divio_type: "none"
+    abstract: "Pre-commit hook falls back to a PATH-resolved spec-kitty entrypoint when its pinned interpreter is gone, and a repair command re-pins already-broken repos."
+    anchors:
+    - {slug: "context-and-problem-statement", text: "Context and Problem Statement", level: 2}
+    - {slug: "decision-drivers", text: "Decision Drivers", level: 2}
+    - {slug: "considered-options", text: "Considered Options", level: 2}
+    - {slug: "decision-outcome", text: "Decision Outcome", level: 2}
+    - {slug: "consequences", text: "Consequences", level: 3}
+    - {slug: "confirmation", text: "Confirmation", level: 3}
+    - {slug: "pros-and-cons-of-the-options", text: "Pros and Cons of the Options", level: 2}
+    - {slug: "a-automatic-silent-self-heal-on-every-commit", text: "A. Automatic silent self-heal on every commit", level: 3}
+    - {slug: "b-install-agnostic-fallback-entrypoint-one-time-repin-command-chosen", text: "B. Install-agnostic fallback entrypoint + one-time repin command (chosen)", level: 3}
+    - {slug: "c-drop-the-pin-always-resolve-off-path", text: "C. Drop the pin, always resolve off `PATH`", level: 3}
+    - {slug: "more-information", text: "More Information", level: 2}
+  - path: "docs/adr/3.x/2026-08-28-1-project-path-convention-override-precedes-doctrine.md"
+    title: "ADR: A project path_conventions override precedes the doctrine default, without changing the blocking policy"
+    divio_type: "none"
+    abstract: "A project path_conventions override remaps resolved accept directories ahead of the mission-type doctrine default, leaving the #3783 blocking policy unchanged."
+    anchors:
+    - {slug: "context-and-problem-statement", text: "Context and Problem Statement", level: 2}
+    - {slug: "decision-drivers", text: "Decision Drivers", level: 2}
+    - {slug: "decision-outcome", text: "Decision Outcome", level: 2}
+    - {slug: "precedence-order-per-key", text: "Precedence order (per key)", level: 3}
+    - {slug: "remap-only", text: "Remap-only", level: 3}
+    - {slug: "deliberate-non-reversal-of-3783", text: "Deliberate non-reversal of #3783", level: 3}
+    - {slug: "why-deliverables-is-excluded-the-value-artifact-token-coupling-c-010", text: "Why `deliverables` is excluded — the value ↔ artifact-token coupling (C-010)", level: 3}
+    - {slug: "fail-closed-scope", text: "Fail-closed scope", level: 3}
+    - {slug: "layout-auto-detection-2744-is-the-deliberate-next-step", text: "Layout auto-detection (#2744) is the deliberate next step", level: 3}
+    - {slug: "considered-options", text: "Considered Options", level: 2}
+    - {slug: "consequences", text: "Consequences", level: 2}
+    - {slug: "positive", text: "Positive", level: 3}
+    - {slug: "negative", text: "Negative", level: 3}
+    - {slug: "neutral", text: "Neutral", level: 3}
+    - {slug: "confirmation", text: "Confirmation", level: 2}
+    - {slug: "more-information", text: "More Information", level: 2}
   - path: "docs/adr/3.x/README.md"
     title: "3.x ADRs"
     divio_type: "none"
@@ -2996,6 +3034,7 @@ pages:
     divio_type: "none"
     abstract: "Reference for spec-kitty agent subcommands. Learn how agent-only actions like config, status, decision, and retrospect behave in workflows."
     anchors:
+    - {slug: "ambiguous-mission-selectors", text: "Ambiguous mission selectors", level: 2}
     - {slug: "getting-started", text: "Getting Started", level: 2}
     - {slug: "practical-usage", text: "Practical Usage", level: 2}
     - {slug: "spec-kitty-agent", text: "spec-kitty agent", level: 2}
@@ -3046,9 +3085,11 @@ pages:
     - {slug: "spec-kitty-agent-status-validate", text: "spec-kitty agent status validate", level: 2}
     - {slug: "spec-kitty-agent-tasks", text: "spec-kitty agent tasks", level: 2}
     - {slug: "spec-kitty-agent-tasks-add-history", text: "spec-kitty agent tasks add-history", level: 2}
+    - {slug: "spec-kitty-agent-tasks-check-terminability", text: "spec-kitty agent tasks check-terminability", level: 2}
     - {slug: "spec-kitty-agent-tasks-finalize-tasks", text: "spec-kitty agent tasks finalize-tasks", level: 2}
     - {slug: "spec-kitty-agent-tasks-list-dependents", text: "spec-kitty agent tasks list-dependents", level: 2}
     - {slug: "spec-kitty-agent-tasks-list-tasks", text: "spec-kitty agent tasks list-tasks", level: 2}
+    - {slug: "spec-kitty-agent-tasks-check-terminability", text: "spec-kitty agent tasks check-terminability", level: 2}
     - {slug: "spec-kitty-agent-tasks-map-requirements", text: "spec-kitty agent tasks map-requirements", level: 2}
     - {slug: "spec-kitty-agent-tasks-mark-status", text: "spec-kitty agent tasks mark-status", level: 2}
     - {slug: "spec-kitty-agent-tasks-move-task", text: "spec-kitty agent tasks move-task", level: 2}
@@ -3241,6 +3282,13 @@ pages:
     - {slug: "when-to-reach-for-it", text: "When to reach for it", level: 2}
     - {slug: "how-to-load-it-from-your-harness", text: "How to load it from your harness", level: 2}
     - {slug: "see-also", text: "See also", level: 2}
+  - path: "docs/api/auth-whoami-output.md"
+    title: "auth whoami output reference"
+    divio_type: "none"
+    abstract: "Full stdout shape of spec-kitty auth whoami, including the SaaS diagnostic lines the generated --help text doesn't mention."
+    anchors:
+    - {slug: "what-prints-in-order", text: "What prints, in order", level: 2}
+    - {slug: "why-the-split-exists", text: "Why the split exists", level: 2}
   - path: "docs/api/batch-api-contract.md"
     title: "Batch Event Ingest API Contract"
     divio_type: "reference"
@@ -3389,9 +3437,7 @@ pages:
     - {slug: "spec-kitty-doctor-mission-state", text: "spec-kitty doctor mission-state", level: 2}
     - {slug: "spec-kitty-doctor-mission-type", text: "spec-kitty doctor mission-type", level: 2}
     - {slug: "spec-kitty-doctor-ops", text: "spec-kitty doctor ops", level: 2}
-    - {slug: "spec-kitty-doctor-orphan-daemons", text: "spec-kitty doctor orphan-daemons", level: 2}
     - {slug: "spec-kitty-doctor-provenance", text: "spec-kitty doctor provenance", level: 2}
-    - {slug: "spec-kitty-doctor-restart-daemon", text: "spec-kitty doctor restart-daemon", level: 2}
     - {slug: "spec-kitty-doctor-review-cycle-reconcile", text: "spec-kitty doctor review-cycle-reconcile", level: 2}
     - {slug: "spec-kitty-doctor-shim-registry", text: "spec-kitty doctor shim-registry", level: 2}
     - {slug: "spec-kitty-doctor-skills", text: "spec-kitty doctor skills", level: 2}
@@ -3400,7 +3446,6 @@ pages:
     - {slug: "spec-kitty-doctor-tool-surfaces", text: "spec-kitty doctor tool-surfaces", level: 2}
     - {slug: "spec-kitty-doctor-topology", text: "spec-kitty doctor topology", level: 2}
     - {slug: "spec-kitty-doctor-workspaces", text: "spec-kitty doctor workspaces", level: 2}
-    - {slug: "spec-kitty-doctrine", text: "spec-kitty doctrine", level: 2}
     - {slug: "spec-kitty-doctrine-asset", text: "spec-kitty doctrine asset", level: 2}
     - {slug: "spec-kitty-doctrine-asset-list", text: "spec-kitty doctrine asset list", level: 2}
     - {slug: "spec-kitty-doctrine-asset-path", text: "spec-kitty doctrine asset path", level: 2}
@@ -3435,12 +3480,14 @@ pages:
     - {slug: "spec-kitty-merge", text: "spec-kitty merge", level: 2}
     - {slug: "spec-kitty-migrate", text: "spec-kitty migrate", level: 2}
     - {slug: "spec-kitty-migrate-backfill-identity", text: "spec-kitty migrate backfill-identity", level: 2}
+    - {slug: "spec-kitty-migrate-backfill-mission-type", text: "spec-kitty migrate backfill-mission-type", level: 2}
     - {slug: "spec-kitty-migrate-backfill-provenance", text: "spec-kitty migrate backfill-provenance", level: 2}
     - {slug: "spec-kitty-migrate-backfill-runtime-state", text: "spec-kitty migrate backfill-runtime-state", level: 2}
     - {slug: "spec-kitty-migrate-backfill-topology", text: "spec-kitty migrate backfill-topology", level: 2}
     - {slug: "spec-kitty-migrate-charter-encoding", text: "spec-kitty migrate charter-encoding", level: 2}
     - {slug: "spec-kitty-migrate-normalize-lifecycle", text: "spec-kitty migrate normalize-lifecycle", level: 2}
     - {slug: "spec-kitty-migrate-rebaseline-dossier-hashes", text: "spec-kitty migrate rebaseline-dossier-hashes", level: 2}
+    - {slug: "spec-kitty-migrate-repin-hooks", text: "spec-kitty migrate repin-hooks", level: 2}
     - {slug: "spec-kitty-migrate-rewrite-opposed-by", text: "spec-kitty migrate rewrite-opposed-by", level: 2}
     - {slug: "spec-kitty-mission", text: "spec-kitty mission", level: 2}
     - {slug: "spec-kitty-mission-close", text: "spec-kitty mission close", level: 2}
@@ -3464,6 +3511,10 @@ pages:
     - {slug: "spec-kitty-mission-type-run", text: "spec-kitty mission-type run", level: 2}
     - {slug: "spec-kitty-mission-type-show", text: "spec-kitty mission-type show", level: 2}
     - {slug: "spec-kitty-mission-type-switch", text: "spec-kitty mission-type switch", level: 2}
+    - {slug: "spec-kitty-moments", text: "spec-kitty moments", level: 2}
+    - {slug: "spec-kitty-moments-off", text: "spec-kitty moments off", level: 2}
+    - {slug: "spec-kitty-moments-on", text: "spec-kitty moments on", level: 2}
+    - {slug: "spec-kitty-moments-status", text: "spec-kitty moments status", level: 2}
     - {slug: "spec-kitty-next", text: "spec-kitty next", level: 2}
     - {slug: "spec-kitty-ops", text: "spec-kitty ops", level: 2}
     - {slug: "spec-kitty-ops-log", text: "spec-kitty ops log", level: 2}
@@ -3495,34 +3546,12 @@ pages:
     - {slug: "spec-kitty-retrospect-create", text: "spec-kitty retrospect create", level: 2}
     - {slug: "spec-kitty-retrospect-summary", text: "spec-kitty retrospect summary", level: 2}
     - {slug: "spec-kitty-review", text: "spec-kitty review", level: 2}
+    - {slug: "spec-kitty-routes", text: "spec-kitty routes", level: 2}
     - {slug: "spec-kitty-safe-commit", text: "spec-kitty safe-commit", level: 2}
     - {slug: "spec-kitty-session-start", text: "spec-kitty session-start", level: 2}
     - {slug: "spec-kitty-session-stop", text: "spec-kitty session-stop", level: 2}
     - {slug: "spec-kitty-spec-commit", text: "spec-kitty spec-commit", level: 2}
     - {slug: "spec-kitty-specify", text: "spec-kitty specify", level: 2}
-    - {slug: "spec-kitty-sync", text: "spec-kitty sync", level: 2}
-    - {slug: "spec-kitty-sync-archive", text: "spec-kitty sync archive", level: 2}
-    - {slug: "spec-kitty-sync-diagnose", text: "spec-kitty sync diagnose", level: 2}
-    - {slug: "spec-kitty-sync-doctor", text: "spec-kitty sync doctor", level: 2}
-    - {slug: "spec-kitty-sync-gc", text: "spec-kitty sync gc", level: 2}
-    - {slug: "spec-kitty-sync-import-history", text: "spec-kitty sync import-history", level: 2}
-    - {slug: "spec-kitty-sync-migrate", text: "spec-kitty sync migrate", level: 2}
-    - {slug: "spec-kitty-sync-mode", text: "spec-kitty sync mode", level: 2}
-    - {slug: "spec-kitty-sync-now", text: "spec-kitty sync now", level: 2}
-    - {slug: "spec-kitty-sync-opt-in", text: "spec-kitty sync opt-in", level: 2}
-    - {slug: "spec-kitty-sync-opt-out", text: "spec-kitty sync opt-out", level: 2}
-    - {slug: "spec-kitty-sync-project-store-history", text: "spec-kitty sync project_store_history", level: 2}
-    - {slug: "spec-kitty-sync-project-store-migrate", text: "spec-kitty sync project_store_migrate", level: 2}
-    - {slug: "spec-kitty-sync-project-store-preview", text: "spec-kitty sync project_store_preview", level: 2}
-    - {slug: "spec-kitty-sync-project-store-quarantine", text: "spec-kitty sync project_store_quarantine", level: 2}
-    - {slug: "spec-kitty-sync-project-store-status", text: "spec-kitty sync project_store_status", level: 2}
-    - {slug: "spec-kitty-sync-purge", text: "spec-kitty sync purge", level: 2}
-    - {slug: "spec-kitty-sync-routes", text: "spec-kitty sync routes", level: 2}
-    - {slug: "spec-kitty-sync-server", text: "spec-kitty sync server", level: 2}
-    - {slug: "spec-kitty-sync-share", text: "spec-kitty sync share", level: 2}
-    - {slug: "spec-kitty-sync-status", text: "spec-kitty sync status", level: 2}
-    - {slug: "spec-kitty-sync-unshare", text: "spec-kitty sync unshare", level: 2}
-    - {slug: "spec-kitty-sync-workspace", text: "spec-kitty sync workspace", level: 2}
     - {slug: "spec-kitty-tasks", text: "spec-kitty tasks", level: 2}
     - {slug: "spec-kitty-tracker", text: "spec-kitty tracker", level: 2}
     - {slug: "spec-kitty-tracker-bind", text: "spec-kitty tracker bind", level: 2}
@@ -3542,11 +3571,25 @@ pages:
     - {slug: "spec-kitty-upgrade", text: "spec-kitty upgrade", level: 2}
     - {slug: "spec-kitty-validate-encoding", text: "spec-kitty validate-encoding", level: 2}
     - {slug: "spec-kitty-validate-tasks", text: "spec-kitty validate-tasks", level: 2}
-    - {slug: "spec-kitty-verify-setup", text: "spec-kitty verify_setup", level: 2}
+    - {slug: "spec-kitty-verify-setup", text: "spec-kitty verify-setup", level: 2}
     - {slug: "spec-kitty-workflow", text: "spec-kitty workflow", level: 2}
     - {slug: "spec-kitty-workflow-export", text: "spec-kitty workflow export", level: 2}
     - {slug: "spec-kitty-workflow-import", text: "spec-kitty workflow import", level: 2}
     - {slug: "spec-kitty-workflow-list", text: "spec-kitty workflow list", level: 2}
+    - {slug: "spec-kitty-zeitgeist", text: "spec-kitty zeitgeist", level: 2}
+    - {slug: "spec-kitty-zeitgeist-operability", text: "spec-kitty zeitgeist operability", level: 2}
+    - {slug: "spec-kitty-zeitgeist-operability-drill-rollback", text: "spec-kitty zeitgeist operability drill-rollback", level: 2}
+    - {slug: "spec-kitty-zeitgeist-operability-drill-rotation", text: "spec-kitty zeitgeist operability drill-rotation", level: 2}
+    - {slug: "spec-kitty-zeitgeist-operability-drill-timeout", text: "spec-kitty zeitgeist operability drill-timeout", level: 2}
+    - {slug: "spec-kitty-zeitgeist-operability-report", text: "spec-kitty zeitgeist operability report", level: 2}
+    - {slug: "spec-kitty-zeitgeist-outbox", text: "spec-kitty zeitgeist outbox", level: 2}
+    - {slug: "spec-kitty-zeitgeist-outbox-approve", text: "spec-kitty zeitgeist outbox approve", level: 2}
+    - {slug: "spec-kitty-zeitgeist-outbox-list", text: "spec-kitty zeitgeist outbox list", level: 2}
+    - {slug: "spec-kitty-zeitgeist-outbox-reject", text: "spec-kitty zeitgeist outbox reject", level: 2}
+    - {slug: "spec-kitty-zeitgeist-outbox-revoke", text: "spec-kitty zeitgeist outbox revoke", level: 2}
+    - {slug: "spec-kitty-zeitgeist-outbox-show", text: "spec-kitty zeitgeist outbox show", level: 2}
+    - {slug: "spec-kitty-zeitgeist-status", text: "spec-kitty zeitgeist status", level: 2}
+    - {slug: "spec-kitty-zeitgeist-watch", text: "spec-kitty zeitgeist watch", level: 2}
   - path: "docs/api/configuration.md"
     title: "Configuration Reference"
     divio_type: "none"
@@ -6602,6 +6645,11 @@ pages:
     anchors:
     - {slug: "files", text: "Files", level: 2}
     - {slug: "validation", text: "Validation", level: 2}
+  - path: "docs/convergence/interim-ci-producer.md"
+    title: "interim-ci-producer"
+    divio_type: "none"
+    abstract: "The existing factory `.github/workflows/ci.yml` remains untouched and is not an upstream restore."
+    anchors: []
   - path: "docs/development/agent-memory-migration-manifest.md"
     title: "Agent-Memory Migration Manifest"
     divio_type: "reference"
@@ -7003,7 +7051,9 @@ pages:
     - {slug: "the-local-command", text: "The local command", level: 2}
     - {slug: "why-dist-loadfile-never-bare-dist-load", text: "Why `--dist loadfile` (never bare `--dist load`)", level: 2}
     - {slug: "per-worker-home-isolation-the-master-enabler", text: "Per-worker HOME isolation (the master enabler)", level: 2}
-    - {slug: "the-serial-daemon-pass", text: "The serial daemon pass", level: 2}
+    - {slug: "per-run-pytest-temp-root", text: "Per-run pytest temp root", level: 2}
+    - {slug: "tmp-path-retention-policy", text: "`tmp_path` retention policy", level: 2}
+    - {slug: "the-serial-marker-passes", text: "The serial marker passes", level: 2}
     - {slug: "volume-env-gates-spec-kitty-ulid-volume-full", text: "Volume env gates (`SPEC_KITTY_ULID_VOLUME_FULL`)", level: 2}
     - {slug: "running-the-stability-ratchet-locally", text: "Running the stability ratchet locally", level: 2}
     - {slug: "validate-the-acceleration-copy-pasteable", text: "Validate the acceleration (copy-pasteable)", level: 2}
@@ -8899,7 +8949,7 @@ pages:
   - path: "docs/operations/identity-boundary-ci-gate.md"
     title: "Identity-Boundary CI Gate"
     divio_type: "none"
-    abstract: "The drift-detector required CI check running the canonical-registry recognition test on every PR to catch drift against the consumer-recognition contract (an #1247 gate)."
+    abstract: "Retired record of the former drift-detector required CI check, which ran the canonical-registry recognition test on every PR until the sync transport it policed was deleted."
     anchors:
     - {slug: "admin-action", text: "Admin Action", level: 2}
   - path: "docs/operations/index.md"
@@ -12411,6 +12461,15 @@ pages:
     - {slug: "4-mapping-to-epic-acceptance-criteria", text: "4. Mapping to epic acceptance criteria", level: 2}
     - {slug: "5-recommended-next-steps-architecture-view", text: "5. Recommended next steps (architecture view)", level: 2}
     - {slug: "6-verdict", text: "6. Verdict", level: 2}
+  - path: "docs/plans/investigations/issue-797-events-tracker-fork-census.md"
+    title: "Issue #797 Analysis: Events and Tracker Fork Census"
+    divio_type: "none"
+    abstract: "Read-only census of the EXPERIMENTAL events and tracker lines against their public/PyPI predecessors, with the D6 publication recommendation."
+    anchors:
+    - {slug: "recommendation-for-d6", text: "Recommendation for D6", level: 2}
+    - {slug: "events-census", text: "Events census", level: 2}
+    - {slug: "tracker-census", text: "Tracker census", level: 2}
+    - {slug: "evidence-commands", text: "Evidence commands", level: 2}
   - path: "docs/plans/investigations/loop-friction-fastfollow-spec.md"
     title: "Fast-Follow Spec: Implement-Loop Friction Quick-Wins"
     divio_type: "none"
@@ -13301,6 +13360,12 @@ pages:
     anchors:
     - {slug: "what-spec-kitty-init-does", text: "What `spec-kitty init` does", level: 2}
     - {slug: "authoring-your-project-charter", text: "Authoring your project charter", level: 2}
+  - path: "docs/plans/zeitgeist-client-wp01-remaining.md"
+    title: "zeitgeist_client WP01 — remaining scope"
+    divio_type: "none"
+    abstract: "Status note for the bundled Zeitgeist client (Bead Z1-T1): the committed source of truth for what is left in WP01 after the Z4/Z6/Z7/Z8/O1-C client stack landed."
+    anchors:
+    - {slug: "not-yet-implemented", text: "Not yet implemented", level: 2}
   - path: "docs/reports/test-sanitation/assertive-test-suite-sanitation-01KZME3P/final-report.md"
     title: "Assertive Test-Suite Sanitation — Final Report"
     divio_type: "none"

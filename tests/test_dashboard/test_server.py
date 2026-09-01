@@ -1,5 +1,6 @@
 import os
 import socket
+import subprocess
 
 from specify_cli.dashboard import server
 
@@ -63,6 +64,56 @@ def test_start_dashboard_background_ephemeral_port_reads_back_actual_port(monkey
     assert port == 23456
     assert pid == 54321
     assert calls["kwargs"]["pass_fds"]
+
+
+def test_start_dashboard_background_ephemeral_port_empty_report_names_child_exit(monkeypatch, tmp_path):
+    class FakeProcess:
+        pid = 54321
+
+        def __init__(self, _args, **_kwargs):
+            pass
+
+        def poll(self):
+            return 17
+
+    monkeypatch.setattr(server, "subprocess", type("S", (), {"Popen": FakeProcess, "DEVNULL": None}))
+
+    with pytest.raises(
+        server.BackgroundPortReportError,
+        match="no port report; child exited with status 17",
+    ) as exc_info:
+        server.start_dashboard(tmp_path, port=0, background_process=True, project_token="abc")
+    assert exc_info.value.error_code == "DASHBOARD_BACKGROUND_PORT_REPORT_FAILED"
+    assert exc_info.value.exit_code == 17
+
+
+def test_start_dashboard_background_ephemeral_port_invalid_report_is_contextual(monkeypatch, tmp_path):
+    class FakeProcess:
+        pid = 54321
+
+        def __init__(self, _args, **kwargs):
+            for fd in kwargs.get("pass_fds") or ():
+                os.write(fd, b"not-a-port")
+
+        def poll(self):
+            return None
+
+        def wait(self, timeout):
+            raise server.subprocess.TimeoutExpired("dashboard", timeout)
+
+    monkeypatch.setattr(
+        server,
+        "subprocess",
+        type("S", (), {"Popen": FakeProcess, "DEVNULL": None, "TimeoutExpired": subprocess.TimeoutExpired}),
+    )
+
+    with pytest.raises(
+        server.BackgroundPortReportError,
+        match="invalid port report b'not-a-port'",
+    ) as exc_info:
+        server.start_dashboard(tmp_path, port=0, background_process=True, project_token="abc")
+    assert exc_info.value.error_code == "DASHBOARD_BACKGROUND_PORT_REPORT_FAILED"
+    assert exc_info.value.exit_code is None
 
 
 def test_start_dashboard_foreground_starts_thread(monkeypatch, tmp_path):

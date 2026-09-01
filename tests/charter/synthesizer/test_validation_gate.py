@@ -1,4 +1,4 @@
-"""Tests for src/charter/synthesizer/validation_gate.py (T022).
+"""Tests for src/charter/activation/synthesizer/validation_gate.py (T022).
 
 Covers:
 - Accept valid overlay (merged graph passes validate_graph).
@@ -19,9 +19,9 @@ from pathlib import Path
 import pytest
 from ruamel.yaml import YAML
 
-from charter.synthesizer.errors import ProjectDRGValidationError
-from charter.synthesizer.validation_gate import validate
-from doctrine.drg.models import DRGEdge, DRGGraph, DRGNode, NodeKind, Relation
+from charter.activation.synthesizer.errors import ProjectDRGValidationError
+from charter.activation.synthesizer.validation_gate import validate
+from charter.offering.drg.models import DRGEdge, DRGGraph, DRGNode, NodeKind, Relation
 
 
 # ---------------------------------------------------------------------------

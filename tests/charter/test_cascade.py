@@ -1,4 +1,4 @@
-"""Unit tests for ``charter.cascade`` (WP11, T052).
+"""Unit tests for ``charter.activation.cascade`` (WP11, T052).
 
 Covers the pure cascade engine:
 
@@ -17,7 +17,7 @@ from __future__ import annotations
 
 import pytest
 
-from charter.cascade import (
+from charter.activation.cascade import (
     REFERENCE_RELATIONS,
     CascadeScope,
     DeactivationPlan,
@@ -26,8 +26,8 @@ from charter.cascade import (
     deactivation_plan,
     referenced_but_not_cascaded,
 )
-from doctrine.artifact_kinds import ArtifactKind, MissionTypeNotAnArtifactKind
-from doctrine.drg.models import DRGEdge, DRGGraph, DRGNode, NodeKind, Relation
+from charter.offering.artifact_kinds import ArtifactKind, MissionTypeNotAnArtifactKind
+from charter.offering.drg.models import DRGEdge, DRGGraph, DRGNode, NodeKind, Relation
 
 pytestmark = pytest.mark.unit
 

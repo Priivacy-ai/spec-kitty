@@ -591,8 +591,8 @@ def implement_check_wp_charter_precondition(main_repo_root: Path, wp: WorkPackag
     if not wp_profile:
         return
 
-    from charter.exceptions import CharterActivationError
-    from charter.invocation_context import ProjectContext
+    from charter.activation.exceptions import CharterActivationError
+    from charter.activation.invocation_context import ProjectContext
 
     pack_ctx = ProjectContext.from_repo(main_repo_root).require_pack_context()
     activated = pack_ctx.activated_agent_profiles
@@ -646,7 +646,16 @@ def implement_check_dependency_gate(
     if self_lane not in (Lane.PLANNED, Lane.CLAIMED):
         return
 
-    readiness = dependency_readiness_for_wp(normalized_wp_id, wp_meta.dependencies, dependency_lanes)
+    # Thread per-dependency provenance (the reduced snapshot state dicts) into
+    # the gate so a canceled-with-operator-provenance dependency counts as
+    # resolved (FR-009). Collapsing to the lane-only map here would make the
+    # provenance-aware authority inert at the CLI claim path (pedro HIGH).
+    readiness = dependency_readiness_for_wp(
+        normalized_wp_id,
+        wp_meta.dependencies,
+        dependency_lanes,
+        provenance=dependency_snapshot.work_packages,
+    )
     if not readiness.satisfied:
         blocked = ", ".join(readiness.unsatisfied)
         print(

@@ -7,7 +7,7 @@ command ``create()`` is a thin wrapper around this function.
 
 from __future__ import annotations
 
-from specify_cli.core.constants import KITTY_SPECS_DIR
+import contextlib
 import logging
 import re
 import shutil
@@ -18,6 +18,7 @@ from typing import Any
 
 from ulid import ULID
 
+from specify_cli.core.constants import KITTY_SPECS_DIR
 from mission_runtime import (
     CommitTarget,
     MissionArtifactKind,
@@ -34,6 +35,7 @@ from specify_cli.core.checkout_ownership import (
 from specify_cli.core.commit_guard import GuardCapability
 from specify_cli.core.git_ops import get_current_branch, is_git_repo
 from specify_cli.core.mission_payload import (
+    build_mission_created_payload,
     default_mission_display_name,
     default_mission_purpose_context,
 )
@@ -45,6 +47,7 @@ from specify_cli.git.commit_helpers import (
     SafeCommitDestinationNotFound,
     SafeCommitHeadMismatch,
 )
+from specify_cli.git.ref_advance import RefRestoreError, restore_branch_ref
 from specify_cli.lanes.branch_naming import mission_dir_name, resolve_mid8
 from specify_cli.mission_metadata import load_meta_or_empty, validate_purpose_summary
 
@@ -273,6 +276,8 @@ def _restore_git_state_after_failed_create(
     repo_root: Path,
     *,
     original_branch: str | None,
+    original_commit: str | None,
+    original_index_tree: str | None,
     pre_existing_coordination_branches: frozenset[str],
 ) -> None:
     """Best-effort rollback of a failed mission-create's git side-effects.
@@ -300,6 +305,34 @@ def _restore_git_state_after_failed_create(
                 text=True,
                 check=False,
             )
+        if original_commit is not None:
+            current_tip_result = subprocess.run(
+                ["git", "-C", str(repo_root), "rev-parse", "HEAD"],
+                capture_output=True,
+                text=True,
+                check=False,
+            )
+            current_tip = current_tip_result.stdout.strip() if current_tip_result.returncode == 0 else None
+            if current_tip and current_tip != original_commit:
+                # A late failure can occur after the metadata commit. Restore
+                # only this branch ref with compare-and-swap; keep the partial
+                # scaffold in the worktree for resume-probe diagnosis.
+                with contextlib.suppress(RefRestoreError):
+                    restore_branch_ref(
+                        repo_root,
+                        original_branch,
+                        original_commit,
+                        expected_current_sha=current_tip,
+                    )
+            if original_index_tree is not None:
+                # Restore the exact pre-invocation index, including unrelated
+                # staged user changes, without touching worktree files.
+                subprocess.run(
+                    ["git", "-C", str(repo_root), "read-tree", original_index_tree],
+                    capture_output=True,
+                    text=True,
+                    check=False,
+                )
     # 2. Delete only the coordination branches that appeared during this create.
     orphaned = _list_coordination_branches(repo_root) - pre_existing_coordination_branches
     for branch in sorted(orphaned):
@@ -325,6 +358,7 @@ def create_mission_core(
     friendly_name: str | None = None,
     purpose_tldr: str | None = None,
     purpose_context: str | None = None,
+    pr_bound: bool = False,
     topology: MissionTopology = MissionTopology.COORD,
     force_recreate_coordination_branch: bool = False,
     allow_worktree_context: bool = False,
@@ -338,11 +372,34 @@ def create_mission_core(
     and deletes the orphan coordination branch the aborted run minted (#3339).
     See :func:`_create_mission_core_impl` for the full parameter contract.
     """
-    rollback_root = repo_root if repo_root is not None else locate_project_root()
+    # An explicit owned checkout is the write/commit surface. Snapshot that
+    # checkout rather than the canonical primary so a late failure restores
+    # the branch ref and index that this invocation actually mutated.
+    rollback_root = owned_checkout.resolve() if owned_checkout is not None else repo_root
+    if rollback_root is None:
+        rollback_root = locate_project_root()
     original_branch: str | None = None
+    original_commit: str | None = None
+    original_index_tree: str | None = None
     pre_existing_coordination_branches: frozenset[str] = frozenset()
     if rollback_root is not None and is_git_repo(rollback_root):
         original_branch = get_current_branch(rollback_root)
+        original_commit_result = subprocess.run(
+            ["git", "-C", str(rollback_root), "rev-parse", "HEAD"],
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+        if original_commit_result.returncode == 0:
+            original_commit = original_commit_result.stdout.strip()
+        original_index_result = subprocess.run(
+            ["git", "-C", str(rollback_root), "write-tree"],
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+        if original_index_result.returncode == 0:
+            original_index_tree = original_index_result.stdout.strip()
         pre_existing_coordination_branches = _list_coordination_branches(rollback_root)
 
     try:
@@ -354,6 +411,7 @@ def create_mission_core(
             friendly_name=friendly_name,
             purpose_tldr=purpose_tldr,
             purpose_context=purpose_context,
+            pr_bound=pr_bound,
             topology=topology,
             force_recreate_coordination_branch=force_recreate_coordination_branch,
             allow_worktree_context=allow_worktree_context,
@@ -366,6 +424,8 @@ def create_mission_core(
             _restore_git_state_after_failed_create(
                 rollback_root,
                 original_branch=original_branch,
+                original_commit=original_commit,
+                original_index_tree=original_index_tree,
                 pre_existing_coordination_branches=pre_existing_coordination_branches,
             )
         raise
@@ -380,6 +440,7 @@ def _create_mission_core_impl(
     friendly_name: str | None = None,
     purpose_tldr: str | None = None,
     purpose_context: str | None = None,
+    pr_bound: bool = False,
     topology: MissionTopology = MissionTopology.COORD,
     force_recreate_coordination_branch: bool = False,
     allow_worktree_context: bool = False,
@@ -414,6 +475,9 @@ def _create_mission_core_impl(
     purpose_context:
         Optional short paragraph explaining the mission in stakeholder terms.
         When omitted, it defaults to a branch-aware summary sentence.
+    pr_bound:
+        Persist the confirmed pull-request binding in the initial metadata
+        write and commit. Defaults to ``False``.
     topology:
         Operator's create-time mission shape (#2218). Defaults to
         :attr:`MissionTopology.COORD` for backward-compat. The coordination
@@ -448,7 +512,7 @@ def _create_mission_core_impl(
     ------
     MissionCreationError
         On any validation or creation failure.
-    charter.pack_context.CharterPackConfigError
+    charter.activation.pack_context.CharterPackConfigError
         When the project has no activated mission types (an absent or empty
         ``mission_type_activations`` set). This is the WP04 fail-closed at the
         mission-create / mission-type-use boundary: ``PackContext``
@@ -538,11 +602,11 @@ def _create_mission_core_impl(
     # Resolve the activated mission's specification template before creating
     # any mission state. A configuration failure must not leave a directory,
     # metadata, or lifecycle events that look like a successful creation.
-    from charter.mission_type_profiles import (
+    from charter.activation.mission_type_profiles import (
         existing_mission_types,
         resolve_mission_type_context,
     )
-    from charter.pack_context import CharterPackConfigError
+    from charter.activation.pack_context import CharterPackConfigError
     from specify_cli.runtime.resolver import resolve_configured_template
 
     # Fail-closed at the mission-create / mission-type-use boundary (WP04
@@ -651,6 +715,8 @@ def _create_mission_core_impl(
     meta.setdefault(_META_KEY_MISSION_TYPE, mission or "software-dev")
     meta.setdefault("target_branch", planning_branch)
     meta.setdefault(_META_KEY_CREATED_AT, now_utc_iso())
+    if pr_bound:
+        meta["pr_bound"] = True
 
     # ------------------------------------------------------------------
     # 6.5 Coordination branch (WP03 / issue #1348, #2218)
@@ -785,9 +851,28 @@ def _create_mission_core_impl(
     # ------------------------------------------------------------------
     try:
         from specify_cli.identity.project import load_identity
-        from specify_cli.status import emit_mission_created_local
+        from specify_cli.status import (
+            MISSION_CREATED,
+            _resolve_local_actor,
+            emit_mission_created_local,
+            read_lifecycle_events,
+        )
 
         _identity = load_identity(resolved_root / ".kittify" / "config.yaml")
+        creation_actor = _resolve_local_actor()
+        expected_created_payload = build_mission_created_payload(
+            mission_slug=mission_slug_formatted,
+            mission_id=meta.get("mission_id"),
+            mission_number=None,
+            mission_type=str(meta.get(_META_KEY_MISSION_TYPE) or mission or "software-dev"),
+            target_branch=planning_branch,
+            wp_count=0,
+            friendly_name=normalized_friendly_name,
+            purpose_tldr=normalized_purpose_tldr,
+            purpose_context=normalized_purpose_context,
+            created_at=str(meta[_META_KEY_CREATED_AT]) if meta.get(_META_KEY_CREATED_AT) else None,
+            actor=creation_actor,
+        )
         emit_mission_created_local(
             feature_dir,
             mission_slug=mission_slug_formatted,
@@ -802,13 +887,25 @@ def _create_mission_core_impl(
             purpose_tldr=normalized_purpose_tldr,
             purpose_context=normalized_purpose_context,
             created_at=str(meta[_META_KEY_CREATED_AT]) if meta.get(_META_KEY_CREATED_AT) else None,
+            actor=creation_actor,
         )
+        created_events = [event for event in read_lifecycle_events(feature_dir / "status.events.jsonl") if event.get("event_type") == MISSION_CREATED]
+        if len(created_events) != 1:
+            raise MissionCreationError(f"expected exactly one persisted MissionCreated event, found {len(created_events)}")
+        persisted_created = created_events[0]
+        if (
+            persisted_created.get("aggregate_id") != meta.get("mission_id")
+            or persisted_created.get("aggregate_type") != "Mission"
+            or persisted_created.get("payload") != expected_created_payload
+        ):
+            raise MissionCreationError("persisted MissionCreated event does not match the canonical creation snapshot")
     except Exception as _local_evt_exc:  # noqa: BLE001
-        logger.warning(
-            "Local canonical MissionCreated persistence failed for %s: %s",
-            mission_slug_formatted,
-            _local_evt_exc,
-        )
+        raise MissionCreationError(
+            "Local canonical MissionCreated persistence failed for "
+            f"{mission_slug_formatted!r}: {_local_evt_exc}. The partial scaffold "
+            "is retained for explicit resume-probe diagnosis; do not retry create "
+            "until it is repaired or removed."
+        ) from _local_evt_exc
 
     # Mission creation immediately scaffolds ``spec.md`` and opens
     # the specify phase. Record ``SpecifyStarted`` against the canonical

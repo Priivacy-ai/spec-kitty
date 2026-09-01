@@ -1,4 +1,4 @@
-"""Tests for :func:`doctrine.drg.query.resolve_transitive_refs`.
+"""Tests for :func:`charter.offering.drg.query.resolve_transitive_refs`.
 
 Covers all 7 contract dimensions from
 ``kitty-specs/excise-doctrine-curation-and-inline-references-01KP54J6/contracts/resolve-transitive-refs.contract.md``:
@@ -11,7 +11,7 @@ Covers all 7 contract dimensions from
 6. Behavioral equivalence with the legacy transitive resolver on a graph
    whose edges mirror pre-WP02 ``tactic_refs`` chains. Uses a synthetic
    doctrine service because WP02 already removed the ``tactic_refs``
-   attribute from :class:`doctrine.directives.models.Directive`, so the
+   attribute from :class:`charter.offering.directives.models.Directive`, so the
    legacy resolver can no longer follow shipped inline refs.
 7. ``max_depth`` forwarded correctly to :func:`walk_edges`.
 """
@@ -20,12 +20,12 @@ from __future__ import annotations
 
 import pytest
 
-from doctrine.drg.models import DRGEdge, DRGGraph, DRGNode, NodeKind, Relation
-from doctrine.drg.query import (
+from charter.offering.drg.models import DRGEdge, DRGGraph, DRGNode, NodeKind, Relation
+from charter.offering.drg.query import (
     ResolveTransitiveRefsResult,
     resolve_transitive_refs,
 )
-from doctrine.drg.validator import assert_valid
+from charter.offering.drg.validator import assert_valid
 
 pytestmark = [pytest.mark.doctrine, pytest.mark.fast, pytest.mark.corpus]
 

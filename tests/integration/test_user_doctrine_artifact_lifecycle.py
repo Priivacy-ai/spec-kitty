@@ -221,15 +221,15 @@ def _write_charter(repo_root: Path, body: str) -> Path:
 # #2773 consolidated the compiled bundle into the git-tracked, authoritative
 # ``.kittify/charter/charter.yaml``. Doctrine selections and the activation
 # registry are hand-authored there under the ``governance:`` section and read
-# via ``charter.sync.load_governance_config`` (the fenced-YAML-in-``charter.md``
+# via ``charter.activation.sync.load_governance_config`` (the fenced-YAML-in-``charter.md``
 # extractor is retired). These helpers seed that authoritative surface; the
 # curated ``charter.md`` remains a required companion for the bootstrap
 # charter-context path, so callers still write it too.
 
 
-# Global selection: charter.yaml governance.doctrine.selected_styleguides.
+# Global selection: charter.yaml governance.charter.offering.selected_styleguides.
 # ``catalog.languages`` is the authoritative #2773 source for the active
-# project language set (``charter.language_scope.infer_repo_languages``). The
+# project language set (``charter.activation.language_scope.infer_repo_languages``). The
 # caveman styleguide is scoped ``applies_to_languages: [python, generic]``, so a
 # python project charter is required for it to survive language-scope filtering
 # — exactly the scenario this test pins (a python-scoped styleguide surfacing in
@@ -315,7 +315,7 @@ def test_case_1_project_styleguide_appears_in_implement_prompt(
     See ``docs/development/doctrine-artifact-selection-preflight.md`` →
     "Case 1 — project-layer caveman, support analysis", step 3.
     """
-    from charter.context import build_charter_context
+    from charter.activation.context import build_charter_context
 
     repo_root = project_with_caveman_styleguide
     _write_charter(repo_root, _CHARTER_SELECTING_STYLEGUIDE)
@@ -339,7 +339,7 @@ def test_case_1_project_styleguide_appears_in_implement_prompt(
         "`caveman-comments` — either by ID + body or by ID + fetch command + "
         "canonical when-doing conditional. Today the resolver ignores "
         "`selected_styleguides` because `DoctrineSelectionConfig` has no such field "
-        "(see src/charter/schemas.py). Mission B WP04 adds the field and the "
+        "(see src/charter/activation/schemas.py). Mission B WP04 adds the field and the "
         "matching renderer (_render_selected_styleguides). See "
         "docs/development/mission-b-proposed-scope.md → WP04."
     )
@@ -364,8 +364,8 @@ def test_case_1_project_styleguide_appears_in_implement_prompt(
         f"any of {body_markers!r} — found none. This indicates the renderer "
         "is emitting a catalog-miss placeholder rather than rendering the "
         "actual styleguide body. Verify (a) the fixture YAML parses cleanly "
-        "against `Styleguide` (src/doctrine/styleguides/) and (b) "
-        "_render_selected_artifacts (src/charter/context.py) inlines the body."
+        "against `Styleguide` (src/charter/offering/styleguides/) and (b) "
+        "_render_selected_artifacts (src/charter/activation/context.py) inlines the body."
     )
 
 
@@ -390,7 +390,7 @@ def test_case_1_styleguide_via_charter_directive_wrapper_works_today(
     See pre-flight → "Net for Case 1: today you can get partial coverage by
     (a) authoring a wrapper directive..."
     """
-    from charter.context import build_charter_context
+    from charter.activation.context import build_charter_context
 
     repo_root = project_with_caveman_styleguide
     _write_charter(repo_root, _CHARTER_SELECTING_DIRECTIVE_WRAPPER)
@@ -433,13 +433,13 @@ def test_case_1_selected_styleguides_field_round_trips(
     ``.kittify/charter/charter.yaml``; the prose->triad ``governance.yaml``
     scrape (and the extractor) is retired. Selections are hand-authored under
     ``governance.doctrine`` in ``charter.yaml`` and read via
-    ``charter.sync.load_governance_config``. This test therefore round-trips
+    ``charter.activation.sync.load_governance_config``. This test therefore round-trips
     through the authoritative reader instead of the retired ``governance.yaml``
     derivative — the real invariant it always pinned is that
     ``DoctrineSelectionConfig.selected_styleguides`` exists and carries the
     declared id.
     """
-    from charter.sync import ensure_charter_bundle_fresh, load_governance_config
+    from charter.activation.sync import ensure_charter_bundle_fresh, load_governance_config
 
     repo_root = project_with_caveman_styleguide
     _write_charter(repo_root, _CHARTER_SELECTING_STYLEGUIDE)
@@ -506,7 +506,7 @@ def test_case_1_styleguide_render_includes_trigger_stanza(
     See pre-flight → "Two activation modes — global vs context-scoped",
     and mission-b-proposed-scope.md → WP05.
     """
-    from charter.context import build_charter_context
+    from charter.activation.context import build_charter_context
 
     repo_root = project_with_caveman_styleguide
     _write_charter(repo_root, _CHARTER_WITH_CONTEXT_SCOPED_ACTIVATION)

@@ -1,4 +1,4 @@
-"""Unit tests for charter.mission_type_profiles (WP05).
+"""Unit tests for charter.activation.mission_type_profiles (WP05).
 
 Covers:
 - MissionTypeProfile.mission_type accepts any str (no Literal constraint)
@@ -20,17 +20,17 @@ from unittest.mock import patch
 import pytest
 from ruamel.yaml import YAML
 
-from charter.action_grain import scan_builtin_cross_grain_duplicates
-from charter.mission_type_profiles import (
+from charter.activation.action_grain import scan_builtin_cross_grain_duplicates
+from charter.activation.mission_type_profiles import (
     MissionTypeEmptyActionSequenceError,
     MissionTypeProfile,
     UnknownMissionTypeError,
     _load_mission_type_profile,
     resolve_mission_type_context,
 )
-from charter.pack_context import PackContext
-from doctrine.base import DoctrineLayerCollisionWarning
-from doctrine.missions.mission_type_repository import MissionTypeRepository
+from charter.activation.pack_context import PackContext
+from charter.offering.base import DoctrineLayerCollisionWarning
+from charter.offering.missions.mission_type_repository import MissionTypeRepository
 
 
 pytestmark = [pytest.mark.unit, pytest.mark.git_repo]
@@ -193,7 +193,7 @@ class TestResolveMissionTypeGovernanceValidation:
 
         # Mock existing_mission_types to return a controlled set including software-dev
         with patch(
-            "charter.mission_type_profiles.existing_mission_types",
+            "charter.activation.mission_type_profiles.existing_mission_types",
             return_value=["documentation", "plan", "research", "software-dev"],
         ):
             bundle = resolve_mission_type_context(tmp_path, feature_dir=feature_dir)
@@ -215,11 +215,11 @@ class TestResolveMissionTypeGovernanceValidation:
         # Mock: no project overrides, limited activation set
         with (
             patch(
-                "charter.mission_type_profiles.existing_mission_types",
+                "charter.activation.mission_type_profiles.existing_mission_types",
                 return_value=["documentation", "plan", "research", "software-dev"],
             ),
             patch(
-                "charter.mission_type_profiles._project_has_doctrine_overrides",
+                "charter.activation.mission_type_profiles._project_has_doctrine_overrides",
                 return_value=False,
             ),
             pytest.raises(UnknownMissionTypeError) as exc_info,
@@ -243,11 +243,11 @@ class TestResolveMissionTypeGovernanceValidation:
         activated = ["documentation", "plan", "research", "software-dev"]
         with (
             patch(
-                "charter.mission_type_profiles.existing_mission_types",
+                "charter.activation.mission_type_profiles.existing_mission_types",
                 return_value=activated,
             ),
             patch(
-                "charter.mission_type_profiles._project_has_doctrine_overrides",
+                "charter.activation.mission_type_profiles._project_has_doctrine_overrides",
                 return_value=False,
             ),
             pytest.raises(UnknownMissionTypeError) as exc_info,
@@ -275,11 +275,11 @@ class TestResolveMissionTypeGovernanceValidation:
 
         with (
             patch(
-                "charter.mission_type_profiles.existing_mission_types",
+                "charter.activation.mission_type_profiles.existing_mission_types",
                 return_value=["documentation", "plan", "research", "software-dev"],
             ),
             patch(
-                "charter.mission_type_profiles._project_has_doctrine_overrides",
+                "charter.activation.mission_type_profiles._project_has_doctrine_overrides",
                 return_value=True,
             ),
         ):
@@ -316,7 +316,7 @@ class TestResolveMissionTypeGovernanceValidation:
         # has no resolvable MissionTypeProfile / mission-type YAML on disk.
         with (
             patch(
-                "charter.mission_type_profiles.existing_mission_types",
+                "charter.activation.mission_type_profiles.existing_mission_types",
                 return_value=["my-custom"],
             ),
             pytest.raises(UnknownMissionTypeError) as exc_info,
@@ -374,7 +374,7 @@ class TestResolveMissionTypeGovernanceValidation:
         # no resolvable MissionTypeProfile / mission-type YAML on disk.
         with (
             patch(
-                "charter.mission_type_profiles.existing_mission_types",
+                "charter.activation.mission_type_profiles.existing_mission_types",
                 return_value=["my-custom", "research", "software-dev"],
             ),
             pytest.raises(UnknownMissionTypeError) as exc_info,
@@ -409,7 +409,7 @@ class TestResolveMissionTypeGovernanceValidation:
         )
 
         with patch(
-            "charter.mission_type_profiles.existing_mission_types",
+            "charter.activation.mission_type_profiles.existing_mission_types",
             return_value=["software-dev"],
         ):
             bundle = resolve_mission_type_context(tmp_path, feature_dir=feature_dir)
@@ -549,7 +549,7 @@ class TestPackContextProjection:
         )
 
         with patch(
-            "charter.pack_context.PackContext.from_config", return_value=pack_context
+            "charter.activation.pack_context.PackContext.from_config", return_value=pack_context
         ):
             bundle = resolve_mission_type_context(tmp_path, mission_type="qa")
 
@@ -603,7 +603,7 @@ class TestPackContextProjection:
         )
 
         with (
-            patch("charter.pack_context.PackContext.from_config", return_value=pack_context),
+            patch("charter.activation.pack_context.PackContext.from_config", return_value=pack_context),
             pytest.raises(MissionTypeEmptyActionSequenceError) as exc_info,
         ):
             resolve_mission_type_context(tmp_path, mission_type="shared")
@@ -652,7 +652,7 @@ class TestResolveActionSequenceLayerHelper:
         other layer has the file either, the helper falls through to the
         honest ``"built-in"`` default rather than raising a second error.
         """
-        from charter.mission_type_profiles import resolve_action_sequence_layer
+        from charter.activation.mission_type_profiles import resolve_action_sequence_layer
 
         mission_types_dirs = (tmp_path / "builtin-equivalent" / "mission_types",)
         pack_context = PackContext(
@@ -713,7 +713,7 @@ class TestEmptyActionSequenceLoudFail:
         )
 
         with (
-            patch("charter.pack_context.PackContext.from_config", return_value=pack_context),
+            patch("charter.activation.pack_context.PackContext.from_config", return_value=pack_context),
             pytest.raises(MissionTypeEmptyActionSequenceError) as exc_info,
         ):
             resolve_mission_type_context(tmp_path, mission_type="qa")
@@ -790,7 +790,7 @@ class TestMissionCreatePropagatesEmptyActionSequenceError:
         )
 
         with (
-            patch("charter.pack_context.PackContext.from_config", return_value=pack_context),
+            patch("charter.activation.pack_context.PackContext.from_config", return_value=pack_context),
             pytest.raises(MissionTypeEmptyActionSequenceError) as exc_info,
         ):
             create_mission_core(
@@ -1098,7 +1098,7 @@ class TestOrgTierExpectedArtifactsThreading:
 
 
 class TestActionGrainBuiltinOnlyPathUnaffected:
-    """T019 (WP04): `charter.action_grain`'s built-in-only call site — which
+    """T019 (WP04): `charter.activation.action_grain`'s built-in-only call site — which
     calls `_load_mission_type_profile(mission_type)` with NO `repo_root`
     (`action_grain.py`, inside `scan_builtin_cross_grain_duplicates`) — must
     stay built-in-only even when an org pack declaring a `mission_types`

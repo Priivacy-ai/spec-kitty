@@ -1,10 +1,10 @@
 """WP17 unit tests — ``charter context --include`` selector routing.
 
-Pins the behaviour of :func:`charter.context.build_charter_context_include`
+Pins the behaviour of :func:`charter.activation.context.build_charter_context_include`
 after WP17 routed the selector kind through the canonical
-:meth:`doctrine.artifact_kinds.ArtifactKind.from_operator_token` resolver
+:meth:`charter.offering.artifact_kinds.ArtifactKind.from_operator_token` resolver
 (WP01) and wired ``template:<mission>/<name>`` through WP18's
-:func:`doctrine.template_catalog.resolve_template_by_id` (FR-022/023/024/034).
+:func:`charter.offering.template_catalog.resolve_template_by_id` (FR-022/023/024/034).
 
 Coverage:
 
@@ -32,10 +32,10 @@ from typing import Any
 
 import pytest
 
-import charter.context as context_module
-from charter.pack_context import CharterPackConfigError
-from charter.context import build_charter_context_include
-from charter.context_renderers import template_include as template_include_module
+import charter.activation.context as context_module
+from charter.activation.pack_context import CharterPackConfigError
+from charter.activation.context import build_charter_context_include
+from charter.activation.context_renderers import template_include as template_include_module
 
 
 pytestmark = pytest.mark.fast
@@ -276,7 +276,7 @@ class TestTemplateInclude:
         # ``context_renderers/template_include.py``; it resolves
         # ``resolve_project_root`` through ITS OWN module globals (a bare
         # name reference), so the patch target must follow the code, not
-        # stay on ``charter.context`` (which merely re-exports the render
+        # stay on ``charter.activation.context`` (which merely re-exports the render
         # function for FR-009 test-import preservation).
         monkeypatch.setattr(
             template_include_module, "resolve_project_root", _raise_pack_config_error

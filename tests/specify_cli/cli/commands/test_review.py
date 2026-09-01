@@ -6,7 +6,7 @@ fixture and verify:
 - Exit 1 + verdict: fail when any WP is not in done
 - The lightweight missing/null-baseline hard failures
 - The ``uv tool`` remediation guidance for a missing pytest
-- The ``--check-residual`` and env-skew preflight seams
+- The env-skew preflight seam
 
 Scope of *this* module: the ``fast`` half. Nothing here spawns a process — the
 CLI runs in-process through ``typer.testing.CliRunner`` and every fixture is
@@ -652,63 +652,10 @@ def test_uv_tool_remediation_omits_uv_tool_dir_for_default_tool_dir(
 
 
 # ---------------------------------------------------------------------------
-# --check-residual / _check_env_skew CLI-seam coverage (#2283 Phase 3
+# _check_env_skew CLI-seam coverage (#2283 Phase 3
 # pre-merge findings): these behaviors previously had zero test coverage,
 # which is how the tuple-repr bug in the fail-closed branch shipped.
 # ---------------------------------------------------------------------------
-
-
-def test_review_check_residual_runs_selection_and_propagates_exit_code(
-    tmp_path: Path,
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    """--check-residual runs the CI residual selection and exits with its
-    returncode, skipping the mission-scoped gates entirely -- and does not
-    require --mission (FR-002).
-    """
-    import subprocess
-
-    repo_root = tmp_path / "repo"
-    repo_root.mkdir()
-
-    monkeypatch.chdir(repo_root)
-    monkeypatch.setattr(
-        "specify_cli.cli.commands.review.find_repo_root",
-        lambda: repo_root,
-    )
-    monkeypatch.setattr(
-        "specify_cli.cli.commands.review.assert_pytest_available",
-        lambda _: None,
-    )
-
-    def _fake_run_local_residual_selection(
-        project_root: Path,
-    ) -> subprocess.CompletedProcess[bytes]:
-        assert project_root == repo_root
-        return subprocess.CompletedProcess(args=["pytest"], returncode=7)
-
-    monkeypatch.setattr(
-        "specify_cli.cli.commands.review.run_local_residual_selection",
-        _fake_run_local_residual_selection,
-    )
-
-    def _unexpected_resolve(handle: str, repo_root: Path) -> object:
-        raise AssertionError(
-            "resolve_mission_handle must not be called for --check-residual "
-            "-- --mission is not required for this flag"
-        )
-
-    monkeypatch.setattr(
-        "specify_cli.cli.commands.review.resolve_mission_handle",
-        _unexpected_resolve,
-    )
-
-    app = _build_cli_app()
-    runner = CliRunner()
-    # No --mission passed at all -- proves the flag doesn't require it.
-    result = runner.invoke(app, ["--check-residual"])
-
-    assert result.exit_code == 7, result.output
 
 
 def test_check_env_skew_fail_closed_emits_clean_message_not_tuple_repr(

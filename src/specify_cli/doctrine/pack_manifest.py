@@ -6,7 +6,7 @@ replaces the two divergent formats that shipped previously (WP01 / IC-01):
 * per-kind ``artifact_counts`` for org / fetched packs
   (``specify_cli.doctrine.snapshot.write_pack_manifest``), and
 * the enumerated ``artifacts[]`` list of the charter bundle
-  (``charter.synthesizer.manifest.SynthesisManifest``).
+  (``charter.activation.synthesizer.manifest.SynthesisManifest``).
 
 The enumerated shape is promoted to the canonical ``constituents[]`` inventory.
 A charter pack additionally carries a :class:`CharterProfile` block preserving
@@ -18,7 +18,7 @@ Design references:
 * ``kitty-specs/pack-metadata-manifest-unification-01M052PT/data-model.md``
 
 Hashing is delegated to the **single** canonical manifest hasher
-(:func:`charter.synthesizer.manifest.hash_manifest_payload`) — this module
+(:func:`charter.activation.synthesizer.manifest.hash_manifest_payload`) — this module
 never introduces a second SHA-256 implementation (RR-SF2 / T005). The
 ``generated_at`` / ``generated_by`` provenance fields are excluded from both
 the ``manifest_hash`` and the byte-diff assertion so re-generating an unchanged
@@ -41,9 +41,9 @@ from pydantic import (
 )
 from ruamel.yaml import YAML
 
-from charter.synthesizer.manifest import SynthesisManifest, hash_manifest_payload
-from charter.synthesizer.synthesize_pipeline import canonical_yaml
-from doctrine.artifact_kinds import ArtifactKind
+from charter.activation.synthesizer.manifest import SynthesisManifest, hash_manifest_payload
+from charter.activation.synthesizer.synthesize_pipeline import canonical_yaml
+from charter.offering.artifact_kinds import ArtifactKind
 
 #: Current unified pack-manifest schema version (DIR-018 shape gate).
 SCHEMA_VERSION = "1"
@@ -79,7 +79,7 @@ class Constituent(BaseModel):
 
     kind: ArtifactKind
     """Canonical artifact kind — widened from the charter manifest's 3-kind
-    literal to the shared :class:`~doctrine.artifact_kinds.ArtifactKind` so the
+    literal to the shared :class:`~charter.offering.artifact_kinds.ArtifactKind` so the
     built-in pack's kinds pass the shared model (PP-S4)."""
 
     id: str
@@ -102,7 +102,7 @@ class CharterProfile(BaseModel):
     """Charter-only manifest field-set carried on a charter pack (PP-M2).
 
     Carries the **entire** charter-only contract of
-    ``charter.synthesizer.manifest.SynthesisManifest`` so absorption drops no
+    ``charter.activation.synthesizer.manifest.SynthesisManifest`` so absorption drops no
     working field. ``built_in_only`` is load-bearing across the
     ``charter_runtime`` freshness / preflight / lint readers and MUST survive.
     """
@@ -199,7 +199,7 @@ def sort_constituents(constituents: Sequence[Constituent]) -> list[Constituent]:
 def compute_pack_manifest_hash(manifest: PackManifest) -> str:
     """Compute ``manifest_hash`` via the single canonical hasher.
 
-    Delegates to :func:`charter.synthesizer.manifest.hash_manifest_payload`
+    Delegates to :func:`charter.activation.synthesizer.manifest.hash_manifest_payload`
     (the one SHA-256 + ``canonical_yaml`` primitive) over every field except
     :data:`HASH_EXCLUDED_FIELDS`. ``mode="json"`` normalizes the
     :class:`ArtifactKind` enum members to their string values so the payload is
@@ -235,7 +235,7 @@ def finalize_pack_manifest(manifest: PackManifest) -> PackManifest:
 def dump_pack_manifest_bytes(manifest: PackManifest) -> bytes:
     """Serialize *manifest* to deterministic canonical YAML bytes.
 
-    Reuses :func:`charter.synthesizer.synthesize_pipeline.canonical_yaml` (the
+    Reuses :func:`charter.activation.synthesizer.synthesize_pipeline.canonical_yaml` (the
     single source of truth for YAML serialization) so the bytes are stable
     under identical inputs. Constituents are canonically ordered first.
     """

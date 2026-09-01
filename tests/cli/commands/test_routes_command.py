@@ -302,6 +302,25 @@ def test_cached_negative_answers_offline(state_root: Path, auth_env: None, clone
     assert "not admitted to any team — no relay" in result.stdout
 
 
+def test_cached_negative_is_loaded_once_for_routes(state_root: Path, auth_env: None, clone: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """The offline negative found by ``cached_answer`` is reused by routes."""
+    credentials.store_negative(repo="github.com/acme/widget", reason="stale-reason")
+    original_load_negative = credentials.load_negative
+    load_calls = 0
+
+    def count_negative_load(*, repo: str) -> credentials.NegativeEntry | None:
+        nonlocal load_calls
+        load_calls += 1
+        return original_load_negative(repo=repo)
+
+    monkeypatch.setattr(credentials, "load_negative", count_negative_load)
+
+    result = runner.invoke(app, ["routes"])
+
+    assert result.exit_code == 0
+    assert load_calls == 1
+
+
 # --- faults -----------------------------------------------------------------
 
 

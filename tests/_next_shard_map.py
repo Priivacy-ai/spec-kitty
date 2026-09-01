@@ -88,6 +88,7 @@ _SPECIFY_CLI_NEXT_SHARD_3_FILES: tuple[str, ...] = (
 # partition of every test under `tests/runtime`.
 _RUNTIME_SHARD_1_FILES: tuple[str, ...] = (
     "tests/runtime/next/test_import_paths.py",
+    "tests/runtime/next/test_runtime_bridge_cancel_provenance.py",
     "tests/runtime/test_agent_skills.py",
     "tests/runtime/test_bridge_cores.py",
     "tests/runtime/test_bridge_decide_next.py",

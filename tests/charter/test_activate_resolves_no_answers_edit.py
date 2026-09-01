@@ -1,7 +1,7 @@
 """T013/T027 (#2524 class) regression: ``charter activate``/``deactivate``
 mutate ONLY ``.kittify/config.yaml`` ``activated_*`` -- never
 ``.kittify/charter/interview/answers.yaml`` -- and the compiled charter
-reference set (:func:`charter.compiler.compile_charter`, the source
+reference set (:func:`charter.activation.compiler.compile_charter`, the source
 ``references.yaml`` is written from) tracks that mutation directly, with no
 dangling reference left behind on deactivate.
 
@@ -19,13 +19,13 @@ import pytest
 from click.testing import Result
 from typer.testing import CliRunner
 
-from charter.charter_yaml_io import save_charter_yaml
-from charter.compiler import compile_charter
-from charter.interview import default_interview, read_interview_answers
-from charter.pack_context import PackContext
-from charter.schemas import DirectivesConfig, DoctrineSelectionConfig, GovernanceConfig
-from doctrine.service import DoctrineService
-from doctrine.spdd_reasons.activation import clear_activation_cache, is_spdd_reasons_active
+from charter.activation.charter_yaml_io import save_charter_yaml
+from charter.activation.compiler import compile_charter
+from charter.activation.interview import default_interview, read_interview_answers
+from charter.activation.pack_context import PackContext
+from charter.activation.schemas import DirectivesConfig, DoctrineSelectionConfig, GovernanceConfig
+from charter.offering.service import DoctrineService
+from charter.offering.spdd_reasons.activation import clear_activation_cache, is_spdd_reasons_active
 from specify_cli.cli.commands.charter import charter_app
 
 pytestmark = [pytest.mark.fast, pytest.mark.doctrine]
@@ -181,8 +181,8 @@ class TestSpddActivationDoesNotFlip:
 
     ``generate.py`` runs ``sync_charter`` right after ``compile_charter``;
     the compiler's ``## Governance Activation`` render feeds
-    ``governance.yaml`` ``doctrine.selected_*``, which
-    :func:`doctrine.spdd_reasons.activation.is_spdd_reasons_active` keys on
+    ``governance.yaml`` ``charter.offering.selected_*``, which
+    :func:`charter.offering.spdd_reasons.activation.is_spdd_reasons_active` keys on
     (paradigm ``structured-prompt-driven-development``, tactics
     ``reasons-canvas-fill``/``reasons-canvas-review``, or directive
     ``DIRECTIVE_038``).

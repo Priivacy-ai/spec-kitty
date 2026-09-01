@@ -155,9 +155,10 @@ def _read_tier(path: Path) -> dict[str, str]:
     existing project (before the WP04 provision migration creates one), so a
     user-visible ``UserWarning`` on every single CLI invocation would be pure
     noise, and -- concretely -- breaks the clean-stderr-on-import contract
-    other suites already pin for a bare ``import specify_cli`` (see
-    ``TestFailPolicy.test_absent_home_file_continues_silently_at_user_level``
-    in ``tests/specify_cli/bootstrap/test_env_file_loader.py``). Present-but-unreadable
+    ``tests/specify_cli/bootstrap/test_env_file_loader.py``'s
+    ``test_bare_import_emits_no_stderr`` and
+    ``test_bare_import_without_operator_env_file_is_silent`` pin for a bare
+    ``import specify_cli``. Present-but-unreadable
     (permission bits, bad encoding, a directory instead of a file, ...) ->
     :class:`OperatorEnvFileUnreadableError` (fail loud, C-LDR-3) -- that
     condition is both rare and actionable, unlike a simply-absent file. A
@@ -198,9 +199,9 @@ def _read_config_env_file_pointer(repo_root: Path | None) -> str | None:
     choke the ~30 config readers") -- a targeted scan for the TOP-LEVEL
     (zero-indent -- i.e. not nested under ``doctrine:`` or any other
     section) ``env_file:`` key, stdlib-only. This keeps the key outside
-    ``doctrine.drg.org_pack_config.PackRegistry``'s ``extra="forbid"``
-    model, which validates only the ``doctrine.org`` subsection of this same
-    file (``src/doctrine/drg/org_pack_config.py:307``) -- a sibling
+    ``charter.offering.drg.org_pack_config.PackRegistry``'s ``extra="forbid"``
+    model, which validates only the ``charter.offering.org`` subsection of this same
+    file (``src/charter/offering/drg/org_pack_config.py:307``) -- a sibling
     top-level key is invisible to it.
 
     Returns the raw (unexpanded) value, or ``None`` when there's no repo, no

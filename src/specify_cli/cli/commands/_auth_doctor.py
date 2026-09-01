@@ -553,8 +553,8 @@ def _render_identity_section(report: DoctorReport, console: Console) -> None:
         console.print("  [red]X Not authenticated[/red]")
         console.print("  Run [bold]spec-kitty auth login[/bold] to authenticate.")
     else:
-        console.print(f"  User:           {report.session.user_email}")
-        console.print(f"  Session ID:     {report.session.session_id}")
+        console.print(f"  User:           {escape(str(report.session.user_email))}")
+        console.print(f"  Session ID:     {escape(str(report.session.session_id))}")
     console.print()
 
 
@@ -580,7 +580,9 @@ def _render_storage_section(report: DoctorReport, console: Console) -> None:
     if report.session is None or report.session.storage_backend is None:
         console.print("  (no session)")
     else:
-        console.print(f"  Backend:        {format_storage_backend(report.session.storage_backend)}")
+        console.print(
+            f"  Backend:        {escape(format_storage_backend(report.session.storage_backend))}"
+        )
         if report.session.in_memory_drift:
             console.print("  [dim]Note: persisted differs from in-memory (typical during in-flight refresh)[/dim]")
     console.print()

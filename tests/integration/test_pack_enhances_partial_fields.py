@@ -18,8 +18,8 @@ from textwrap import dedent
 
 import pytest
 
-from doctrine.tactics.models import Tactic, TacticStep
-from doctrine.tactics.repository import TacticRepository
+from charter.offering.tactics.models import Tactic, TacticStep
+from charter.offering.tactics.repository import TacticRepository
 
 pytestmark = [pytest.mark.integration, pytest.mark.doctrine]
 

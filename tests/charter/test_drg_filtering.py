@@ -43,10 +43,12 @@ from charter.drg import (
     DRGNode,
     DRGEdge,
     NodeKind,
+)
+from charter.activation.drg_activation import (
     filter_graph_by_activation,
     _node_is_activated,
 )
-from charter.pack_context import PackContext
+from charter.activation.pack_context import PackContext
 
 pytestmark = [pytest.mark.unit]
 

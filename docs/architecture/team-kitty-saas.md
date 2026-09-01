@@ -16,7 +16,7 @@ related:
 
 > **Removed in 3.2.6; kept as historical record.** This architecture page
 > describes the deleted CLI→SaaS sync flow, not the current Team Kitty dossier
-> reader. It is scheduled for deletion in 3.2.7 (D13).
+> reader. It is scheduled for deletion in 3.2.7.
 
 This page was written because the hosted-sync flow kept being reasoned about one gate at a
 time — a `sync doctor` false-green, a stale `sync enable` message, a consent-vs-admission

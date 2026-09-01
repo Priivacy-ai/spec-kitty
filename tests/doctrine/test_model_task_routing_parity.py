@@ -11,14 +11,15 @@ import yaml
 from jsonschema import Draft202012Validator
 from pydantic import ValidationError
 
-from doctrine.model_task_routing.models import ModelToTaskType
+from charter.offering.model_task_routing.models import ModelToTaskType
 
 pytestmark = [pytest.mark.fast, pytest.mark.doctrine]
 
 SCHEMA_PATH = (
     Path(__file__).resolve().parents[2]
     / "src"
-    / "doctrine"
+    / "charter"
+    / "offering"
     / "schemas"
     / "model-to-task_type.schema.yaml"
 )

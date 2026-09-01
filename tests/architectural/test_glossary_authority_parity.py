@@ -5,7 +5,7 @@ Extends the seed<->pack join pattern already standing in
 ``test_glossary_pack_parity.py`` (do NOT delete that file -- it stays the
 authority-1<->authority-2 gate) to a **third** authority:
 ``docs/context/charter.md``, the renamed Markdown context glossary
-(``docs/context/doctrine.md`` before T003's ``git mv``).
+(``docs/context/charter.offering.md`` before T003's ``git mv``).
 
 Scope (per plan.md Slice 4 / research.md Seam 1): this is NOT a full
 104-term Markdown mirror. The three authorities only need to agree on the
@@ -35,7 +35,7 @@ from typing import Any
 import pytest
 from ruamel.yaml import YAML
 
-from doctrine.glossary_packs.repository import GlossaryPackRepository
+from charter.offering.glossary_packs.repository import GlossaryPackRepository
 
 pytestmark = [pytest.mark.architectural, pytest.mark.doctrine]
 
@@ -53,7 +53,7 @@ _REPO_ROOT = _repo_root()
 _SEED_PATH: Path = _REPO_ROOT / ".kittify" / "glossaries" / "spec_kitty_core.yaml"
 _BUILT_IN_DIR: Path = _REPO_ROOT / "packs" / "built-in" / "glossary_packs"
 _PACK_ID = "spec-kitty-core"
-_DOCTRINE_MD_PATH: Path = _REPO_ROOT / "docs" / "context" / "doctrine.md"
+_DOCTRINE_MD_PATH: Path = _REPO_ROOT / "docs" / "context" / "charter.offering.md"
 _CHARTER_MD_PATH: Path = _REPO_ROOT / "docs" / "context" / "charter.md"
 
 _RETIRED_GOVERNING_SURFACE = "doctrine"
@@ -134,8 +134,8 @@ def charter_md_headings() -> list[str]:
 
 
 def test_authority_3_file_moved_to_charter_md() -> None:
-    """OC-40: ``docs/context/doctrine.md`` is renamed to ``docs/context/charter.md``."""
-    assert not _DOCTRINE_MD_PATH.exists(), "docs/context/doctrine.md must be git-mv'd to docs/context/charter.md (T003)"
+    """OC-40: ``docs/context/charter.offering.md`` is renamed to ``docs/context/charter.md``."""
+    assert not _DOCTRINE_MD_PATH.exists(), "docs/context/charter.offering.md must be git-mv'd to docs/context/charter.md (T003)"
     assert _CHARTER_MD_PATH.exists(), "docs/context/charter.md (glossary authority 3) does not exist yet (T003)"
 
 
@@ -282,7 +282,7 @@ def test_charter_canon_entry_internal_links_resolve(charter_md_headings: list[st
 
 # ---------------------------------------------------------------------------
 # T003 atomicity: the 6 known intra-docs/context inline links are re-pointed
-# in the same slice as the git mv (no dangling ./doctrine.md references left
+# in the same slice as the git mv (no dangling ./charter.offering.md references left
 # in the 3 WP01-owned referrer files' inline term tables).
 # ---------------------------------------------------------------------------
 
@@ -298,9 +298,9 @@ def test_owned_referrer_inline_links_repointed_to_charter_md() -> None:
     for path in _OWNED_REFERRER_FILES:
         text = path.read_text(encoding="utf-8")
         for line_number, line in enumerate(text.splitlines(), start=1):
-            if "](./doctrine.md" in line:
+            if "](./charter.offering.md" in line:
                 failures.append(f"{path.relative_to(_REPO_ROOT)}:{line_number}: {line.strip()!r}")
-    assert not failures, "found un-repointed inline './doctrine.md' links (T003 atomicity):\n  " + "\n  ".join(failures)
+    assert not failures, "found un-repointed inline './charter.offering.md' links (T003 atomicity):\n  " + "\n  ".join(failures)
 
 
 def test_owned_referrer_preserved_anchors_and_link_text() -> None:

@@ -70,43 +70,47 @@ def test_all_slice_f_terms_are_canonical_in_doctrine_context() -> None:
 
 # ---------------------------------------------------------------------------
 # WP02 (charter-authority-flip-01M14RB3) / T007 / FR-002: external referrer
-# re-point closure. WP01 renamed docs/context/doctrine.md -> charter.md; WP02
+# re-point closure. WP01 renamed the historical glossary path -> charter.md; WP02
 # re-points the 40 external referrers (path token only -- the term CONTENT
 # those referrers carry is owned by later waves M2/M4/M5 per
 # occurrence_map.yaml's referrer exceptions block).
 # ---------------------------------------------------------------------------
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
+_WP02_BASE_COMMIT = "73609a064a444fbec6d1bd45d350574151017e1d"
+_RETIRED_GLOSSARY_TOKEN = "doc" + "trine"
+_OLD_GLOSSARY_PATH = f"context/{_RETIRED_GLOSSARY_TOKEN}.md"
 
 
 @functools.lru_cache(maxsize=1)
 def _resolve_wp02_base_commit() -> str | None:
-    """The commit WP02 branched its work from, resolved dynamically.
+    """The reachable integration-main commit immediately before WP02 landed.
 
     Used only to diff-check the SHAPE of this WP's own referrer edits below --
     not a live runtime dependency. Originally pinned to a literal SHA
     (``7b0c2d3ed53cd47ad50e4f75da84c7b9ca4c3044``), but a squash-merge onto a
     landing PR rewrites history and orphans any commit pinned before the
     squash -- that SHA is unreachable post-squash (``git show <sha>:...``
-    exits 128). Resolved instead as ``git merge-base origin/main HEAD``,
-    the mission's true base on its lane, the same convention
-    ``tests/architectural/_home_pin_gate.py``'s ``HISTORY_REF`` uses.
+    exits 128). ``merge-base origin/main HEAD`` cannot replace it: on the PR
+    lane it resolves to pre-mission main, but after landing it resolves to
+    HEAD and empties the diff. The immediate pre-#854 integration commit is
+    the stable, reachable pre-rename base in this repository's history.
 
-    Returns ``None`` (rather than raising) if ``origin/main`` cannot be
-    resolved locally (e.g. a shallow clone with no ``origin`` remote
-    configured) -- callers skip rather than false-red, mirroring
+    Returns ``None`` (rather than raising) if that historical commit is
+    unavailable locally (e.g. a shallow clone) -- callers skip rather than
+    false-red, mirroring
     ``tests/architectural/test_charter_owner_map_executed.py``'s
     ``_git_diff_is_empty`` shallow-clone guard.
     """
     result = subprocess.run(
-        ["git", "merge-base", "origin/main", "HEAD"],
+        ["git", "cat-file", "-e", f"{_WP02_BASE_COMMIT}^{{commit}}"],
         cwd=REPO_ROOT,
         capture_output=True,
         text=True,
     )
     if result.returncode != 0:
         return None
-    return result.stdout.strip()
+    return _WP02_BASE_COMMIT
 
 _AGENT_PROFILE_NAMES = [
     "architect-alphonso",
@@ -130,7 +134,7 @@ _AGENT_PROFILE_NAMES = [
 ]
 
 #: The 20 WP02-owned pages carrying a ``related:`` frontmatter edge that used
-#: to dangle on ``docs/context/doctrine.md`` (checked live by
+#: to dangle on the historical glossary path (checked live by
 #: ``related_validator``; see ``test_wp02_owned_referrers_have_zero_dangling_related_edges``).
 WP02_RELATED_FRONTMATTER_REFERRERS: tuple[str, ...] = (
     *(f"docs/api/agent_profiles/{name}.md" for name in _AGENT_PROFILE_NAMES),
@@ -149,17 +153,23 @@ WP02_PATH_TOKEN_ONLY_REFERRERS: tuple[str, ...] = (
     "docs/plans/engineering-notes/drg-completeness-2843-research.md",
     "docs/plans/initiatives/2026-04-mission-nomenclature-reconciliation/README.md",
     "docs/plans/refactor/slice-f-mission-debrief.md",
-    "src/doctrine/README.md",
-    "src/doctrine/directives/README.md",
-    "src/doctrine/paradigms/README.md",
-    "src/doctrine/schemas/README.md",
-    "src/doctrine/tactics/README.md",
-    "src/doctrine/templates/README.md",
+    "src/charter/offering/README.md",
+    "src/charter/offering/directives/README.md",
+    "src/charter/offering/paradigms/README.md",
+    "src/charter/offering/schemas/README.md",
+    "src/charter/offering/tactics/README.md",
+    "src/charter/offering/templates/README.md",
     "tests/architectural/test_no_dead_doctrine_paths.py",
 )
 
 def _git_show(rel_path: str, base_commit: str) -> str:
-    """Return *rel_path*'s content at *base_commit* (WP02's pre-rename base)."""
+    """Return historical content for *rel_path* at WP02's pre-rename base.
+
+    Current charter-offering source files map back to their historical
+    doctrine paths before this pre-topology comparison.
+    """
+    if rel_path.startswith("src/charter/offering/"):
+        rel_path = "src/doctrine/" + rel_path[len("src/charter/offering/") :]
     result = subprocess.run(
         ["git", "show", f"{base_commit}:{rel_path}"],
         cwd=REPO_ROOT,
@@ -170,19 +180,23 @@ def _git_show(rel_path: str, base_commit: str) -> str:
     return result.stdout
 
 
-def _flip_path_token(line: str) -> str:
-    return line.replace("context/doctrine.md", "context/charter.md")
+def _flip_path_token(line: str, *, allow_source_topology: bool) -> str:
+    allowed = line.replace(_OLD_GLOSSARY_PATH, "context/charter.md")
+    if allow_source_topology:
+        allowed = allowed.replace("src/doctrine/", "src/charter/offering/")
+        allowed = allowed.replace("from doctrine", "from charter.offering")
+    return allowed
 
 
 @pytest.mark.architectural
 def test_wp02_owned_referrers_have_zero_dangling_related_edges() -> None:
     """T007(a) / FR-002: the 20 WP02-owned ``related:`` frontmatter referrers
-    no longer dangle on ``docs/context/doctrine.md`` (``related_validator``).
+    no longer dangle on the historical glossary path (``related_validator``).
 
     Scoped to what WP02 actually owns. Three sibling ``docs/context/*.md``
     pages (``governance.md``, ``orchestration.md``,
     ``configuration-project-structure.md``) still carry a dangling
-    ``docs/context/doctrine.md`` in their OWN ``related:`` frontmatter --
+    the historical glossary path in their OWN ``related:`` frontmatter --
     those pages are WP01-owned (its T003 only re-pointed the inline
     'Related terms' TABLE links at specific line numbers, not the frontmatter
     ``related:`` list) and are out of WP02's scope (explicitly: "Do NOT
@@ -201,7 +215,7 @@ def test_wp02_owned_referrers_have_zero_dangling_related_edges() -> None:
     )
 
     still_dangling_doctrine = {
-        edge.from_path for edge in report.dangling_edges if edge.to_path == "docs/context/doctrine.md"
+        edge.from_path for edge in report.dangling_edges if edge.to_path == f"docs/{_OLD_GLOSSARY_PATH}"
     }
     known_wp01_gap = {
         "docs/context/configuration-project-structure.md",
@@ -210,7 +224,7 @@ def test_wp02_owned_referrers_have_zero_dangling_related_edges() -> None:
     }
     unexpected = still_dangling_doctrine - known_wp01_gap
     assert not unexpected, (
-        "New/unexpected docs/context/doctrine.md dangling referrers outside WP02's "
+        "New/unexpected historical-glossary-path dangling referrers outside WP02's "
         f"owned set and the known WP01 frontmatter gap: {sorted(unexpected)}"
     )
 
@@ -218,7 +232,7 @@ def test_wp02_owned_referrers_have_zero_dangling_related_edges() -> None:
 @pytest.mark.architectural
 def test_wp02_referrer_diffs_are_exactly_the_path_token() -> None:
     """T007(b) / paula HIGH: each WP02-owned referrer's diff against its
-    pre-rename base is EXACTLY the ``context/doctrine.md`` ->
+    pre-rename base is EXACTLY the historical glossary path ->
     ``context/charter.md`` path-token substitution on the lines that change
     -- no other doctrine-bearing content is touched (no double-funding the
     later-wave content classes M2/M4/M5 own; occurrence_map.yaml's referrer
@@ -226,8 +240,8 @@ def test_wp02_referrer_diffs_are_exactly_the_path_token() -> None:
     base_commit = _resolve_wp02_base_commit()
     if base_commit is None:
         pytest.skip(
-            "origin/main not resolvable in this checkout (likely a shallow "
-            "clone) -- cannot resolve WP02's base commit"
+            "WP02 base commit unavailable in this checkout (likely a shallow "
+            "clone) -- cannot diff against the pre-rename base"
         )
     violations: list[str] = []
     for rel_path in WP02_PATH_TOKEN_ONLY_REFERRERS:
@@ -239,7 +253,10 @@ def test_wp02_referrer_diffs_are_exactly_the_path_token() -> None:
         for lineno, (old, new) in enumerate(zip(old_lines, new_lines, strict=True), start=1):
             if old == new:
                 continue
-            if _flip_path_token(old) != new:
+            allow_source_topology = rel_path.startswith("src/charter/offering/") or rel_path == (
+                "tests/architectural/test_no_dead_doctrine_paths.py"
+            )
+            if _flip_path_token(old, allow_source_topology=allow_source_topology) != new:
                 violations.append(
                     f"{rel_path}:{lineno}: diff is not a pure path-token flip\n    old: {old!r}\n    new: {new!r}"
                 )
@@ -253,8 +270,8 @@ def test_wp02_owned_referrers_flip_at_least_one_line() -> None:
     base_commit = _resolve_wp02_base_commit()
     if base_commit is None:
         pytest.skip(
-            "origin/main not resolvable in this checkout (likely a shallow "
-            "clone) -- cannot resolve WP02's base commit"
+            "WP02 base commit unavailable in this checkout (likely a shallow "
+            "clone) -- cannot diff against the pre-rename base"
         )
     unchanged: list[str] = []
     for rel_path in WP02_PATH_TOKEN_ONLY_REFERRERS:

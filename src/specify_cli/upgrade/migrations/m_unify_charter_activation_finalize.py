@@ -10,11 +10,11 @@ charter bundle files (``governance.yaml``, ``directives.yaml``,
 retires the four files and mints the ``.kittify/config.yaml`` ``charter:``
 pointer (INV-2). It lands LAST so no consumer of the retired surfaces is
 left orphaned -- every earlier WP already re-points its readers onto
-``charter.yaml`` directly (``charter.sync.load_governance_config`` /
-``load_directives_config``, ``charter.pack_context.PackContext.from_config``,
-``charter.consistency_check``).
+``charter.yaml`` directly (``charter.activation.sync.load_governance_config`` /
+``load_directives_config``, ``charter.activation.pack_context.PackContext.from_config``,
+``charter.activation.consistency_check``).
 
-Body pattern: ``src/doctrine/versioning.py:299 migrate_v1_to_v2``
+Body pattern: ``src/charter/offering/versioning.py:299 migrate_v1_to_v2``
 (yaml -> yaml write-and-stamp), NOT the rc35 refresh-only shape. Registered
 via ``@MigrationRegistry.register``; ``runs_on_worktrees = False`` (a
 project-identity/config-level fold, not a worktree concern). ``charter.*``
@@ -88,7 +88,7 @@ LEGACY_BUNDLE_FILENAMES: tuple[str, ...] = (
 )
 
 #: Flat root activation keys relocated from ``config.yaml`` onto ``charter.yaml``
-#: (paula BLOCKER-1). Mirrors ``charter.charter_yaml_io._ACTIVATION_KEYS``.
+#: (paula BLOCKER-1). Mirrors ``charter.activation.charter_yaml_io._ACTIVATION_KEYS``.
 #:
 #: WP05 / FR-010 / C4.2: this used to be a hand-written literal tuple
 #: (duplicated, not imported, so this migration's registry-discovery import
@@ -96,7 +96,7 @@ LEGACY_BUNDLE_FILENAMES: tuple[str, ...] = (
 #: missing ``activated_glossary_packs`` (10 vs 11 keys), so this migration
 #: silently DROPPED an activated glossary pack's activation on migration (a
 #: live data-loss drift, SC-005). It is now DERIVED from the single authority
-#: ``charter.pack_manager.ACTIVATION_YAML_KEYS`` via :func:`_activation_keys`
+#: ``charter.activation.pack_manager.ACTIVATION_YAML_KEYS`` via :func:`_activation_keys`
 #: (module ``__getattr__`` below), so the two vocabularies can never
 #: independently drift again (guarded by
 #: ``tests/charter/test_activation_vocabulary_setequal.py``). The
@@ -111,17 +111,17 @@ LEGACY_BUNDLE_FILENAMES: tuple[str, ...] = (
 def _activation_keys() -> tuple[str, ...]:
     """Return the flat activation-key vocabulary, derived from the authority.
 
-    Lazy, function-scoped import of ``charter.pack_manager.
+    Lazy, function-scoped import of ``charter.activation.pack_manager.
     ACTIVATION_YAML_KEYS`` -- importing anything under the ``charter``
     package eagerly pulls its pydantic-heavy ``charter/__init__.py`` (the
-    package re-exports its full public surface, including ``charter.schemas``),
+    package re-exports its full public surface, including ``charter.activation.schemas``),
     which would make every ``spec-kitty`` invocation pay that cost merely by
     discovering this migration module (``auto_discover_migrations`` imports
     every migration module via ``pkgutil`` at CLI-startup time). Deferring the
     import to call time means only an actual migration run (or a test that
     calls this helper) pays it -- registry discovery itself stays cheap.
     """
-    from charter.pack_manager import ACTIVATION_YAML_KEYS  # noqa: PLC0415 -- lazy charter import (C-002); keeps registry-discovery cheap
+    from charter.activation.pack_manager import ACTIVATION_YAML_KEYS  # noqa: PLC0415 -- lazy charter import (C-002); keeps registry-discovery cheap
 
     return ACTIVATION_YAML_KEYS
 
@@ -163,7 +163,7 @@ def _charter_yaml_path(project_path: Path) -> Path:
 
 
 def _yaml_roundtrip_loader() -> YAML:
-    """Comment/quote-preserving loader -- mirrors ``charter.charter_yaml_io``."""
+    """Comment/quote-preserving loader -- mirrors ``charter.activation.charter_yaml_io``."""
     yaml = YAML()
     yaml.preserve_quotes = True
     yaml.width = 4096
@@ -221,7 +221,7 @@ def _compose_charter_yaml_document(
     "all built-ins active" to "none active", MG1 / SC-008) and an explicit
     ``[]`` stays ``[]``.
     """
-    from charter.schemas import (  # noqa: PLC0415 -- lazy charter import (C-002)
+    from charter.activation.schemas import (  # noqa: PLC0415 -- lazy charter import (C-002)
         CharterCatalog,
         CharterCatalogReference,
         CharterYaml,
@@ -229,7 +229,7 @@ def _compose_charter_yaml_document(
         DirectivesConfig,
         GovernanceConfig,
     )
-    from charter.sync import (  # noqa: PLC0415 -- lazy charter import (C-002)
+    from charter.activation.sync import (  # noqa: PLC0415 -- lazy charter import (C-002)
         apply_legacy_governance_selection_key_compat,
     )
 
@@ -241,7 +241,7 @@ def _compose_charter_yaml_document(
     # CR-01 (charter-authority-flip-01M14RB3 WP03): the retired standalone
     # governance.yaml this migration reads predates the doctrine -> charter
     # selection-key rename, so it may still carry the legacy key. Apply the
-    # same dict-level compat the canonical loader uses (charter.sync.
+    # same dict-level compat the canonical loader uses (charter.activation.sync.
     # load_governance_config) before validating -- otherwise pydantic's
     # default extra="ignore" would silently drop the whole selection block
     # instead of failing loud, defeating this function's own "schema drift
@@ -288,7 +288,7 @@ def _write_new_charter_yaml(charter_yaml_path: Path, document: dict[str, Any]) -
     Not the Landmine-3 clobber: this path only runs when ``charter.yaml``
     does not exist yet, so there is no prior authored content to destroy.
     """
-    from charter.charter_yaml_io import save_charter_yaml  # noqa: PLC0415
+    from charter.activation.charter_yaml_io import save_charter_yaml  # noqa: PLC0415
 
     save_charter_yaml(charter_yaml_path, document)
 
@@ -299,14 +299,14 @@ def _relocate_activation_onto_existing_charter_yaml(
     """Merge config-embedded activation onto an ALREADY-authoritative ``charter.yaml``.
 
     Routed through the shared INV-9 write helper
-    (:func:`charter.charter_yaml_io.update_charter_yaml_section`) so
+    (:func:`charter.activation.charter_yaml_io.update_charter_yaml_section`) so
     governance/directives/catalog/metadata/overrides survive byte-for-byte
     (Landmine 3) -- this branch never reconstructs the whole document from
     the legacy files, because a pre-existing ``charter.yaml`` is presumed
     authoritative (hand-authored edits may already have diverged from
     whatever the retired triad last held).
     """
-    from charter.charter_yaml_io import update_charter_yaml_section  # noqa: PLC0415
+    from charter.activation.charter_yaml_io import update_charter_yaml_section  # noqa: PLC0415
 
     activation = {key: config_data[key] for key in _activation_keys() if key in config_data}
     if activation:
@@ -368,8 +368,8 @@ class ConsolidateCharterBundleMigration(BaseMigration):
 
     Fail-loud (MG3/C-003) is enforced by the read-side charter chokepoints
     this migration's earlier sibling WPs already re-pointed onto
-    ``charter.yaml`` (``charter.pack_context.PackContext.from_config``,
-    ``charter.consistency_check``, ``specify_cli.cli.commands.charter.
+    ``charter.yaml`` (``charter.activation.pack_context.PackContext.from_config``,
+    ``charter.activation.consistency_check``, ``specify_cli.cli.commands.charter.
     _synthesis._raise_if_bundle_incomplete``) -- those raise the re-homed
     #2530 error (naming this migration as the remediation) whenever a
     ``charter.yaml``-dependent operation runs against an un-migrated project.

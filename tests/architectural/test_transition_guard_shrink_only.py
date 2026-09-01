@@ -58,7 +58,7 @@ tree may only shrink or hold: no new path, no per-path count increase, and no ne
 :data:`_CR01_CONTROL_PATHS` — the CR-01 / ATDD *control* test files that name the
 retired term as test data (the methodology's ``control_record`` exception). The
 ≤3 CR-01 *products* proper — the warn-compat legacy-key reader in
-``src/charter/sync.py`` (``_LEGACY_GOVERNANCE_SELECTION_KEY``) — are a string
+``src/charter/activation/sync.py`` (``_LEGACY_GOVERNANCE_SELECTION_KEY``) — are a string
 literal, not a governing marker, so they never enter this census; they are
 audited separately by ``tests/charter/test_governance_key_compat.py`` and the
 mission's closing audit.
@@ -153,10 +153,7 @@ def _is_governing_line(content: str) -> bool:
 # to grow.
 _CR01_CONTROL_PATHS: frozenset[str] = frozenset(
     {
-        "tests/architectural/test_charter_owner_map_executed.py",
-        "tests/architectural/test_glossary_authority_parity.py",
         "tests/charter/test_answers_migration.py",
-        "tests/glossary/test_canonical_promotion.py",
     }
 )
 

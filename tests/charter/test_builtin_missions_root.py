@@ -1,14 +1,14 @@
 """RED-first coverage for the promoted ``builtin_missions_root()`` accessor (#2668).
 
 ``MissionTypeProfileRepository._default_built_in_dir`` is a private classmethod
-that two out-of-class call sites (``charter.action_grain``,
-``charter.mission_type_profiles``) had to reach around ``# noqa: SLF001`` to
+that two out-of-class call sites (``charter.activation.action_grain``,
+``charter.activation.mission_type_profiles``) had to reach around ``# noqa: SLF001`` to
 use. This test pins the public module-level replacement: it must resolve to
 the same missions root the constructor already uses, so the promotion is a
 byte-identical refactor (no behavior change).
 
 Mission ``doctrine-consumer-surface-missions-extraction-01KZ6G6H`` (FR-005)
-relocated the missions data from ``src/doctrine/missions`` to
+relocated the missions data from ``src/charter/offering/missions`` to
 ``packs/built-in/missions`` and additionally converged
 ``builtin_missions_root()`` onto the FR-004 kernel sibling-path primitive (via
 ``MissionTemplateRepository.default_missions_root()``) rather than a path
@@ -22,11 +22,11 @@ from __future__ import annotations
 
 import pytest
 
-from charter.mission_type_profile_repository import (
+from charter.activation.mission_type_profile_repository import (
     MissionTypeProfileRepository,
     builtin_missions_root,
 )
-from doctrine.missions.repository import MissionTemplateRepository
+from charter.offering.missions.repository import MissionTemplateRepository
 
 pytestmark = [pytest.mark.unit]
 

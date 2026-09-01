@@ -1,9 +1,9 @@
 """T004 — the two built-in location authorities (WP01, contract C1.1-C1.6).
 
-Covers :func:`doctrine.pack_paths.built_in_root` and
-:func:`doctrine.pack_paths.built_in_dir`: positive resolution for a shipped
+Covers :func:`charter.offering.pack_paths.built_in_root` and
+:func:`charter.offering.pack_paths.built_in_dir`: positive resolution for a shipped
 content-dir kind, the derived 3-kind carve-out raise, and proof that the
-carve-out is *computed* from :attr:`~doctrine.artifact_kinds.ArtifactKind.
+carve-out is *computed* from :attr:`~charter.offering.artifact_kinds.ArtifactKind.
 has_built_in_content_dir` rather than hand-listed in ``pack_paths.py``
 (FR-001 / FR-001b / FR-005 / NFR-005).
 
@@ -18,9 +18,9 @@ from __future__ import annotations
 
 import pytest
 
-from doctrine import artifact_kinds, pack_paths
-from doctrine.artifact_kinds import ArtifactKind
-from doctrine.pack_paths import (
+from charter.offering import artifact_kinds, pack_paths
+from charter.offering.artifact_kinds import ArtifactKind
+from charter.offering.pack_paths import (
     BuiltInContentDirNotAvailable,
     built_in_dir,
     built_in_root,
@@ -152,15 +152,15 @@ class TestRepositoryDefaultsRouteThroughAuthority:
     @pytest.mark.parametrize(
         ("repo_cls_path", "kind"),
         [
-            ("doctrine.agent_profiles.repository.AgentProfileRepository", ArtifactKind.AGENT_PROFILE),
-            ("doctrine.assets.repository.AssetRepository", ArtifactKind.ASSET),
-            ("doctrine.directives.repository.DirectiveRepository", ArtifactKind.DIRECTIVE),
-            ("doctrine.glossary_packs.repository.GlossaryPackRepository", ArtifactKind.GLOSSARY_PACK),
-            ("doctrine.paradigms.repository.ParadigmRepository", ArtifactKind.PARADIGM),
-            ("doctrine.procedures.repository.ProcedureRepository", ArtifactKind.PROCEDURE),
-            ("doctrine.styleguides.repository.StyleguideRepository", ArtifactKind.STYLEGUIDE),
-            ("doctrine.tactics.repository.TacticRepository", ArtifactKind.TACTIC),
-            ("doctrine.toolguides.repository.ToolguideRepository", ArtifactKind.TOOLGUIDE),
+            ("charter.offering.agent_profiles.repository.AgentProfileRepository", ArtifactKind.AGENT_PROFILE),
+            ("charter.offering.assets.repository.AssetRepository", ArtifactKind.ASSET),
+            ("charter.offering.directives.repository.DirectiveRepository", ArtifactKind.DIRECTIVE),
+            ("charter.offering.glossary_packs.repository.GlossaryPackRepository", ArtifactKind.GLOSSARY_PACK),
+            ("charter.offering.paradigms.repository.ParadigmRepository", ArtifactKind.PARADIGM),
+            ("charter.offering.procedures.repository.ProcedureRepository", ArtifactKind.PROCEDURE),
+            ("charter.offering.styleguides.repository.StyleguideRepository", ArtifactKind.STYLEGUIDE),
+            ("charter.offering.tactics.repository.TacticRepository", ArtifactKind.TACTIC),
+            ("charter.offering.toolguides.repository.ToolguideRepository", ArtifactKind.TOOLGUIDE),
         ],
     )
     def test_default_built_in_dir_matches_authority(self, repo_cls_path: str, kind: ArtifactKind) -> None:
@@ -176,20 +176,20 @@ class TestDRGRootCallersRouteThroughAuthority:
     """T003: the 2 DRG root callers resolve via ``built_in_root()``."""
 
     def test_loader_built_in_graph_source_matches_authority(self) -> None:
-        from doctrine.drg.loader import built_in_graph_source
+        from charter.offering.drg.loader import built_in_graph_source
 
         assert built_in_graph_source() == built_in_root()
 
     def test_extractor_artifacts_root_matches_authority_for_package_root(self) -> None:
-        from doctrine.drg.migration.extractor import _artifacts_root
-        from doctrine.pack_paths import doctrine_package_dir
+        from charter.offering.drg.migration.extractor import _artifacts_root
+        from charter.offering.pack_paths import doctrine_package_dir
 
         doctrine_pkg_dir = doctrine_package_dir()
         assert doctrine_pkg_dir is not None
         assert _artifacts_root(doctrine_pkg_dir) == built_in_root()
 
     def test_extractor_uses_the_shared_doctrine_package_dir_function(self) -> None:
-        """The extractor imports :func:`doctrine.pack_paths.doctrine_package_dir`
+        """The extractor imports :func:`charter.offering.pack_paths.doctrine_package_dir`
         rather than carrying its own byte-identical copy (FOLD 5 dedup,
         mission ``doctrine-built-in-seam-consolidation-01KYW3TX``).
 
@@ -197,8 +197,8 @@ class TestDRGRootCallersRouteThroughAuthority:
         equal-valued) the ``pack_paths`` function -- the strongest proof the
         duplicate definition was deleted rather than merely made to agree.
         """
-        from doctrine.drg.migration import extractor
-        from doctrine.pack_paths import doctrine_package_dir
+        from charter.offering.drg.migration import extractor
+        from charter.offering.pack_paths import doctrine_package_dir
 
         assert extractor.doctrine_package_dir is doctrine_package_dir
         assert not hasattr(extractor, "_doctrine_package_dir")

@@ -19,9 +19,9 @@ import warnings
 import pytest
 from typer.testing import CliRunner
 
-from charter.pack_context import PackContext
-from doctrine.drg.models import DRGGraph, DRGNode, NodeKind
-from doctrine.drg.org_pack_config import OrgPackEnvVarUnsetError
+from charter.activation.pack_context import PackContext
+from charter.offering.drg.models import DRGGraph, DRGNode, NodeKind
+from charter.offering.drg.org_pack_config import OrgPackEnvVarUnsetError
 from specify_cli.agent_tasks_ports import (
     CommitArtifactResult,
     CommitStatusResult,

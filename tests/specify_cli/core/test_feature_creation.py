@@ -10,7 +10,7 @@ from unittest.mock import patch
 
 import pytest
 
-from charter.mission_type_profiles import ResolvedMissionType
+from charter.activation.mission_type_profiles import ResolvedMissionType
 from specify_cli.core.adapters import (
     register_pending_origin_consumer,
     reset_origin_consumer,
@@ -121,7 +121,7 @@ def test_create_uses_configured_non_conventional_spec_override(tmp_path: Path) -
         patch(f"{_CORE_MODULE}.is_git_repo", return_value=True),
         patch(f"{_CORE_MODULE}.get_current_branch", return_value="main"),
         patch(
-            "charter.mission_type_profiles.resolve_mission_type_context",
+            "charter.activation.mission_type_profiles.resolve_mission_type_context",
             return_value=_configured_mission_context({"spec": mapped_name}),
         ),
         patch(f"{_CORE_MODULE}._commit_feature_file"),
@@ -149,7 +149,7 @@ def test_create_uses_configured_package_default_spec(tmp_path: Path) -> None:
         patch(f"{_CORE_MODULE}.is_git_repo", return_value=True),
         patch(f"{_CORE_MODULE}.get_current_branch", return_value="main"),
         patch(
-            "charter.mission_type_profiles.resolve_mission_type_context",
+            "charter.activation.mission_type_profiles.resolve_mission_type_context",
             return_value=_configured_mission_context({"spec": mapped_name}),
         ),
         patch(
@@ -185,7 +185,7 @@ def test_create_fails_before_scaffolding_for_invalid_spec_mapping(
         patch(f"{_CORE_MODULE}.is_git_repo", return_value=True),
         patch(f"{_CORE_MODULE}.get_current_branch", return_value="main"),
         patch(
-            "charter.mission_type_profiles.resolve_mission_type_context",
+            "charter.activation.mission_type_profiles.resolve_mission_type_context",
             return_value=_configured_mission_context(
                 template_set,
                 mission_type="documentation",
@@ -216,7 +216,7 @@ def test_create_fails_before_scaffolding_for_unresolved_mapped_spec(tmp_path: Pa
         patch(f"{_CORE_MODULE}.is_git_repo", return_value=True),
         patch(f"{_CORE_MODULE}.get_current_branch", return_value="main"),
         patch(
-            "charter.mission_type_profiles.resolve_mission_type_context",
+            "charter.activation.mission_type_profiles.resolve_mission_type_context",
             return_value=_configured_mission_context({"spec": mapped_name}),
         ),
         patch(
