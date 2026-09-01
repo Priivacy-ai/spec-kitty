@@ -87,9 +87,7 @@ class PackageSkew:
     installed: str | None
 
 
-def _read_uv_lock_versions(
-    uv_lock_path: Path, packages: tuple[str, ...] = GUARDED_LOCK_PACKAGES
-) -> dict[str, str]:
+def _read_uv_lock_versions(uv_lock_path: Path, packages: tuple[str, ...] = GUARDED_LOCK_PACKAGES) -> dict[str, str]:
     """Parse ``uv.lock`` (TOML) and return ``{package: locked_version}``.
 
     Reads the lockfile LIVE via :mod:`tomllib` -- the single source of truth
@@ -116,9 +114,7 @@ def _installed_version(package: str) -> str | None:
         return None
 
 
-def check_typer_click_lock_parity(
-    project_root: Path, *, packages: tuple[str, ...] = GUARDED_LOCK_PACKAGES
-) -> list[PackageSkew]:
+def check_typer_click_lock_parity(project_root: Path, *, packages: tuple[str, ...] = GUARDED_LOCK_PACKAGES) -> list[PackageSkew]:
     """Compare uv.lock-pinned typer/click versions to the installed ones.
 
     Returns the list of mismatches (empty if none, or if ``uv.lock`` is
@@ -144,21 +140,11 @@ def check_typer_click_lock_parity(
 
 def format_env_skew_message(mismatches: list[PackageSkew]) -> str:
     """Render a human-readable, diagnostic-coded skew report for ``mismatches``."""
-    rows = "\n".join(
-        f"  - {m.package}: locked={m.locked}, "
-        f"installed={m.installed if m.installed is not None else '<not installed>'}"
-        for m in mismatches
-    )
-    return (
-        f"{ENV_SKEW_DIAGNOSTIC_CODE}: local typer/click versions diverge from "
-        f"uv.lock:\n{rows}\n"
-        f"Run `{ENV_SKEW_REMEDIATION}` to restore parity with CI."
-    )
+    rows = "\n".join(f"  - {m.package}: locked={m.locked}, installed={m.installed if m.installed is not None else '<not installed>'}" for m in mismatches)
+    return f"{ENV_SKEW_DIAGNOSTIC_CODE}: local typer/click versions diverge from uv.lock:\n{rows}\nRun `{ENV_SKEW_REMEDIATION}` to restore parity with CI."
 
 
-def assert_typer_click_lock_parity(
-    project_root: Path, *, fail_closed: bool | None = None
-) -> list[PackageSkew]:
+def assert_typer_click_lock_parity(project_root: Path, *, fail_closed: bool | None = None) -> list[PackageSkew]:
     """Preflight: warn (default) or raise ``EnvSkew`` (opt-in) on lock drift.
 
     ``fail_closed`` defaults to the truthiness of

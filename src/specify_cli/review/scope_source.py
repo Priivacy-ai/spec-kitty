@@ -1,4 +1,4 @@
-"""``ScopeSource`` port + its two implementations (WP02, mission
+"""``ScopeSource`` port + its portable implementation (WP02, mission
 ``doctrine-controlled-transition-gates-01KY51Z7``, epic #2535 half A).
 
 ``ScopeSource`` is the injectable seam that lets the pre-review gate become
@@ -14,7 +14,7 @@ value instead).
 the shared canonical merge-base+diff SSOT
 (``core.vcs.git.merge_base_changed_files``, surfaced via
 ``tasks_move_task.py``), passed *into* the gate rather than re-derived per
-implementation, so the two implementations below cannot diverge on "which
+implementation, so implementations cannot diverge on "which
 files changed". Do not "helpfully" add a ``changed_files`` method here — that
 is the exact drift this port design forbids.
 
@@ -29,40 +29,29 @@ bodies that need them, never at module top. Those types stay in their
 current home (``baseline.py`` / ``pre_review_gate.py``) — they are not
 duplicated here.
 """
+
 from __future__ import annotations
 
-import abc
-import fnmatch
-import importlib
-import sys
 import tempfile
-from collections.abc import Callable, Mapping
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from functools import cached_property
 from pathlib import Path
-from types import ModuleType
-from typing import TYPE_CHECKING, ClassVar, Protocol, TypeGuard, cast, runtime_checkable
-
-from kernel.paths import to_posix
-from specify_cli.review._interpreter import resolve_pytest_command
+from typing import TYPE_CHECKING, Protocol, TypeGuard, runtime_checkable
 
 if TYPE_CHECKING:
     from specify_cli.review.baseline import BaselineFailure
 
 # ``resolve_scope_source`` (FR-003/FR-014, WP02) is the selection-wiring
-# authority: a repo with ``review.test_command`` configured (a non-pytest
-# consumer) routes to the portable ``DeclaredCommandScopeSource``; otherwise
-# (including spec-kitty's own repo, which sets no ``review.test_command``) it
-# routes to the internal ``GateCoverageScopeSource``. Both classes and the
-# factory/identity/predicate helpers below are public, cross-module symbols —
-# WP03 (baseline capture) and WP04 (head diff) import them directly.
+# authority: repos use their configured ``review.test_command`` when present.
+# With no configured command, the source returns ``None`` and the gate emits
+# the normal visible ``NO_COVERAGE`` warning. The former Spec-Kitty-only
+# ``GateCoverageScopeSource`` path depended on deleted GitHub Actions workflow
+# files and was retired by issue #380.
 __all__ = [
     "UNKNOWN_SOURCE_IDENTITY",
     "DeclaredCommandScopeSource",
     "FileScopeBreakdown",
-    "GateCoverageScopeSource",
     "RawRunResult",
-    "ScopeBreakdownMixin",
     "ScopeBreakdownSource",
     "ScopeSource",
     "empty_scope_is_coverage_gap",
@@ -175,17 +164,11 @@ class FileScopeBreakdown:
 
 @runtime_checkable
 class ScopeBreakdownSource(Protocol):
-    """Optional :class:`ScopeSource` refinement for census-*narrowing* impls.
+    """Optional :class:`ScopeSource` refinement for narrowing implementations.
 
-    A source that satisfies this protocol (only :class:`GateCoverageScopeSource`
-    in half A) both (a) exposes the per-file shard/composite breakdown via
-    :meth:`scope_breakdown`, and (b) declares — by satisfying the protocol at
-    all — that an EMPTY derived scope is a coverage gap (a ``no_coverage`` warn),
-    exactly as the incumbent ``derive_test_scope`` + ``evaluate_with_scope``
-    treated it. A plain :class:`ScopeSource` (``DeclaredCommandScopeSource`` or an
-    arbitrary injected stub) does NOT narrow by file: its empty per-file scope is
-    not a gap — it runs its whole declared suite — so it deliberately does not
-    implement this refinement.
+    The built-in source deliberately does not implement this. It runs the
+    whole declared command instead of narrowing by changed file, so an empty
+    per-file scope is not a coverage gap.
     """
 
     def scope_breakdown(self, path: str) -> FileScopeBreakdown:
@@ -194,7 +177,7 @@ class ScopeBreakdownSource(Protocol):
 
 
 # ---------------------------------------------------------------------------
-# Two independent predicates + ScopeBreakdownMixin (FR-005/FR-006, T008/T009)
+# Two independent predicates (FR-005/FR-006, T008/T009)
 # ---------------------------------------------------------------------------
 
 
@@ -226,334 +209,6 @@ def empty_scope_is_coverage_gap(source: ScopeSource) -> bool:
     this un-weld retires.
     """
     return bool(getattr(source, "treats_empty_scope_as_coverage_gap", False))
-
-
-class ScopeBreakdownMixin(abc.ABC):
-    """Default ``file_to_scope`` projection for a breakdown-capable source (FR-006).
-
-    A ``Protocol`` default body never reaches a *structural* implementer, so
-    this is an ABC/mixin instead: a source that INHERITS it gets
-    ``file_to_scope`` for free — a thin projection over its own
-    :meth:`scope_breakdown` — and gains the
-    ``treats_empty_scope_as_coverage_gap = True`` policy marker.
-    :class:`DeclaredCommandScopeSource` deliberately does NOT inherit this: its
-    empty per-file scope is not a coverage gap (it always runs its whole
-    declared suite), so :func:`empty_scope_is_coverage_gap` stays ``False``
-    for it.
-    """
-
-    treats_empty_scope_as_coverage_gap: ClassVar[bool] = True
-
-    @abc.abstractmethod
-    def scope_breakdown(self, path: str) -> FileScopeBreakdown: ...
-
-    def file_to_scope(self, path: str) -> tuple[str, ...]:
-        """The flat ``test_targets`` projection of :meth:`scope_breakdown`."""
-        return self.scope_breakdown(path).test_targets
-
-
-# ---------------------------------------------------------------------------
-# GateCoverageScopeSource — internal, behaviour-preserving (FR-002/FR-009)
-# ---------------------------------------------------------------------------
-
-# This module is the SOLE home of the census derivation: it owns a PRIVATE
-# copy of these constants/helpers so it never has to import pre_review_gate.py
-# at module scope (that would recreate the exact cycle the guard above avoids).
-# The formerly-duplicated originals in pre_review_gate.py were retired by
-# mission #2873 (the dead census tier); do NOT reintroduce a second copy there.
-_SRC_PACKAGE_PREFIX = "src/specify_cli/"
-_TESTS_PREFIX = "tests/"
-_GATE_COVERAGE_MODULE_NAME = "tests.architectural._gate_coverage"
-
-# Mirrors _gate_coverage._CompositeRoute: (target_group, target_shard, cone_roots).
-_CompositeRoute = tuple[str | None, str | None, tuple[str, ...]]
-_EMPTY_COMPOSITE_ROUTE: _CompositeRoute = (None, None, ())
-
-_NAMED_CATCHALL_GROUPS: frozenset[str] = frozenset({"core_misc", "e2e"})
-_WHOLE_SRC_TREE_GLOB = "src/**"
-
-_JUNIT_ARTIFACT_FILENAME = "pre-review-junit.xml"
-
-_LoadWorkflowModels = Callable[[], dict[str, object]]
-_AggregateFilterGroups = Callable[[dict[str, object]], dict[str, tuple[str, ...]]]
-
-
-def _resolve_excluded_catchall_groups(filter_groups: Mapping[str, tuple[str, ...]]) -> frozenset[str]:
-    """Private copy of ``pre_review_gate.resolve_excluded_catchall_groups`` (FR-009)."""
-    whole_tree_groups = {name for name, globs in filter_groups.items() if _WHOLE_SRC_TREE_GLOB in globs}
-    return _NAMED_CATCHALL_GROUPS | whole_tree_groups
-
-
-def _glob_matches_file(glob_pattern: str, file_path: str) -> bool:
-    """Private copy of ``pre_review_gate._glob_matches_file`` (FR-009)."""
-    pattern = to_posix(glob_pattern)
-    path = to_posix(file_path)
-    if pattern.endswith("/**"):
-        prefix = pattern[: -len("/**")]
-        return path == prefix or path.startswith(f"{prefix}/")
-    if "*" in pattern:
-        return fnmatch.fnmatch(path, pattern)
-    return path == pattern
-
-
-def _glob_to_pytest_target(glob_pattern: str) -> str:
-    """Private copy of ``pre_review_gate._glob_to_pytest_target`` (FR-009)."""
-    normalized = to_posix(glob_pattern)
-    if normalized.endswith("/**"):
-        return normalized[: -len("/**")]
-    return normalized
-
-
-def _src_dir_segment(file_path: str) -> str | None:
-    """Private copy of ``pre_review_gate._src_dir_segment`` (FR-009)."""
-    if not file_path.startswith(_SRC_PACKAGE_PREFIX):
-        return None
-    segment = file_path[len(_SRC_PACKAGE_PREFIX) :].split("/", 1)[0]
-    if not segment or segment.endswith(".py"):
-        return None
-    return segment
-
-
-def _is_spec_kitty_source_repo(repo_root: Path) -> bool:
-    """Private internal filesystem probe (FR-009).
-
-    MUST NOT gate impl selection — activation (WP09), not this probe,
-    decides which ``ScopeSource`` runs. Used only to fill
-    ``GateAuthoritiesUnavailable.is_consumer_repo`` with the same signal
-    ``pre_review_gate.py`` uses today.
-    """
-    return (repo_root / "tests" / "architectural" / "_gate_coverage.py").is_file()
-
-
-def _load_gate_coverage_module(repo_root: Path) -> ModuleType:
-    """Import the live CI-topology model for ``repo_root`` (private, FR-009).
-
-    A PRIVATE copy of the runtime ``_gate_coverage`` import: unreachable
-    unless :class:`GateCoverageScopeSource` is selected by activation.
-    ``GateAuthoritiesUnavailable`` is imported lazily from its current home
-    (``pre_review_gate.py``) to avoid a module-top import cycle.
-    """
-    from specify_cli.review.pre_review_gate import GateAuthoritiesUnavailable
-
-    resolved_root = repo_root.resolve()
-    repo_str = str(resolved_root)
-    if repo_str not in sys.path:
-        sys.path.insert(0, repo_str)
-    is_consumer_repo = not _is_spec_kitty_source_repo(resolved_root)
-    try:
-        module = importlib.import_module(_GATE_COVERAGE_MODULE_NAME)
-    except ImportError as exc:
-        raise GateAuthoritiesUnavailable(
-            f"{_GATE_COVERAGE_MODULE_NAME} is not importable under {resolved_root}: {exc}",
-            is_consumer_repo=is_consumer_repo,
-        ) from exc
-    module_file = getattr(module, "__file__", None)
-    if module_file is None or resolved_root not in Path(module_file).resolve().parents:
-        raise GateAuthoritiesUnavailable(
-            f"{_GATE_COVERAGE_MODULE_NAME} resolved to {module_file!r}, outside "
-            f"{resolved_root} — refusing a cross-repo authorities import.",
-            is_consumer_repo=is_consumer_repo,
-        )
-    return module
-
-
-def _default_filter_groups(repo_root: Path) -> dict[str, tuple[str, ...]]:
-    """Live ``group -> globs`` map, straight from ``aggregate_filter_groups()``.
-
-    ``load_workflow_models()`` reads the restored suite-running workflow off
-    disk (``WORKFLOWS_DIR``). If that authority is missing, the read raises
-    ``OSError`` (``FileNotFoundError`` in practice). That is the SAME
-    "authority missing" condition ``_load_gate_coverage_module`` already
-    guards against for an unimportable/cross-repo module — folded into the
-    identical :class:`GateAuthoritiesUnavailable` signal so it degrades the
-    same way (an "unverified scope" ``no_coverage`` warn, never a crash or a
-    silent green) rather than propagating a raw, unhandled ``OSError``.
-    """
-    from specify_cli.review.pre_review_gate import GateAuthoritiesUnavailable
-
-    module = _load_gate_coverage_module(repo_root)
-    load_workflow_models = cast("_LoadWorkflowModels", module.load_workflow_models)
-    aggregate_filter_groups = cast("_AggregateFilterGroups", module.aggregate_filter_groups)
-    resolved_root = repo_root.resolve()
-    try:
-        models = load_workflow_models()
-    except OSError as exc:
-        is_consumer_repo = not _is_spec_kitty_source_repo(resolved_root)
-        raise GateAuthoritiesUnavailable(
-            f"{_GATE_COVERAGE_MODULE_NAME}.load_workflow_models() could not read its "
-            f"live .github/workflows/*.yml authorities under {resolved_root}: {exc}",
-            is_consumer_repo=is_consumer_repo,
-        ) from exc
-    return aggregate_filter_groups(models)
-
-
-def _default_composite_routing(repo_root: Path) -> Mapping[str, _CompositeRoute]:
-    """Live composite-dir -> ``(target_group, target_shard, cone_roots)`` routing plan."""
-    module = _load_gate_coverage_module(repo_root)
-    return cast("Mapping[str, _CompositeRoute]", module._COMPOSITE_ROUTING)
-
-
-@dataclass
-class GateCoverageScopeSource(ScopeBreakdownMixin):
-    """Reproduces today's exact Spec-Kitty pre-review behaviour (FR-002).
-
-    Zero behaviour change (NFR-001): the ``_gate_coverage`` census-narrowing
-    scope derivation, the pytest ``--junitxml``/``-q`` injection, and the
-    JUnit parse are all encapsulated *inside* this implementation.
-
-    ``filter_groups_override``/``composite_routing_override`` exist ONLY for
-    hermetic, offline unit tests (mirroring ``derive_test_scope``'s own
-    test-only override seam) — production callers must leave them ``None``
-    so the live ``tests.architectural._gate_coverage`` authorities apply.
-    """
-
-    repo_root: Path
-    filter_groups_override: Mapping[str, tuple[str, ...]] | None = None
-    composite_routing_override: Mapping[str, _CompositeRoute] | None = None
-    _junit_dir: Path | None = field(default=None, init=False, repr=False)
-
-    @cached_property
-    def _filter_groups(self) -> Mapping[str, tuple[str, ...]]:
-        if self.filter_groups_override is not None:
-            return self.filter_groups_override
-        return _default_filter_groups(self.repo_root)
-
-    @cached_property
-    def _composite_routing(self) -> Mapping[str, _CompositeRoute]:
-        if self.composite_routing_override is not None:
-            return self.composite_routing_override
-        return _default_composite_routing(self.repo_root)
-
-    @property
-    def filter_groups(self) -> Mapping[str, tuple[str, ...]]:
-        """Public read-only view of the resolved live ``group -> globs`` map.
-
-        The census authority ``derive_test_scope`` needs when it runs without
-        an explicit override — exposed so callers read it through the port
-        instead of reaching into the private ``_filter_groups`` cache.
-        """
-        return self._filter_groups
-
-    @property
-    def composite_routing(self) -> Mapping[str, _CompositeRoute]:
-        """Public read-only view of the resolved composite-dir routing plan.
-
-        Companion to :attr:`filter_groups` — the second live authority
-        ``derive_test_scope`` consumes, exposed as a public accessor.
-        """
-        return self._composite_routing
-
-    def test_command(self) -> list[str] | None:
-        """The incumbent pytest argv, injecting ``--junitxml``/``-q`` here.
-
-        Moved off the shared runner (``pre_review_gate.py``'s
-        ``run_scoped_tests_at_head``) into this implementation — the port's
-        sole authority for "what command proves the change" (FR-011).
-        """
-        junit_path = self._junit_output_path()
-        # Explicit annotation (not a bare return): this repo's mypy config skips
-        # ``specify_cli.*`` imports when a narrow single-file path is checked
-        # (`[[tool.mypy.overrides]] module = ["specify_cli.*"]` ->
-        # `follow_imports = "skip"`), which otherwise resolves
-        # ``resolve_pytest_command``'s return as ``Any`` and trips
-        # ``--warn-return-any`` under ``mypy --strict scope_source.py`` alone.
-        command: list[str] = resolve_pytest_command([f"--junitxml={junit_path}", "-q"], repo_root=self.repo_root)
-        return command
-
-    def scope_breakdown(self, path: str) -> FileScopeBreakdown:
-        """Today's ``_gate_coverage`` census narrowing for ONE changed file, WITH breakdown.
-
-        Mirrors ``derive_test_scope``'s own per-file classification so the
-        inverted hook can rebuild the incumbent ``ScopeResult`` metadata
-        byte-for-byte (NFR-001): a focused per-shard group contributes its own
-        ``tests/**`` globs (recorded in ``matched_shard_groups``); a focused
-        composite group contributes its dir's ``_COMPOSITE_ROUTING`` cone_roots
-        (recorded in ``matched_composite_dirs``, with an empty cone recorded in
-        ``empty_cone_composite_dirs``). A file matching only catch-all groups (or
-        no group) contributes nothing and reports ``contributes_scope=False``.
-        """
-        changed_file = to_posix(path)
-        excluded_groups = _resolve_excluded_catchall_groups(self._filter_groups)
-        focused_group_names = {
-            name
-            for name, globs in self._filter_groups.items()
-            if any(_glob_matches_file(g, changed_file) for g in globs)
-        } - excluded_groups
-        if not focused_group_names:
-            return FileScopeBreakdown(contributes_scope=False)
-
-        targets: set[str] = set()
-        shard_groups: set[str] = set()
-        composite_dirs: set[str] = set()
-        empty_cone_dirs: set[str] = set()
-        for group_name in focused_group_names:
-            test_globs = [g for g in self._filter_groups[group_name] if g.startswith(_TESTS_PREFIX)]
-            if test_globs:
-                shard_groups.add(group_name)
-                targets.update(_glob_to_pytest_target(g) for g in test_globs)
-                continue
-            dir_name = _src_dir_segment(changed_file)
-            if dir_name is None:
-                continue
-            _, _, cone_roots = self._composite_routing.get(dir_name, _EMPTY_COMPOSITE_ROUTE)
-            composite_dirs.add(dir_name)
-            if cone_roots:
-                targets.update(cone_roots)
-            else:
-                empty_cone_dirs.add(dir_name)
-        return FileScopeBreakdown(
-            test_targets=tuple(sorted(targets)),
-            matched_shard_groups=tuple(sorted(shard_groups)),
-            matched_composite_dirs=tuple(sorted(composite_dirs)),
-            empty_cone_composite_dirs=tuple(sorted(empty_cone_dirs)),
-            contributes_scope=True,
-        )
-
-    def parse_mode(self, _raw: RawRunResult) -> str:
-        """Always ``"junit_xml"`` — this source is junit-only (T007).
-
-        Matches :meth:`parse_results` exactly, INCLUDING the no-artifact
-        synthetic-failure case: a missing artifact still yields a
-        junit-shaped failure, never ``"text"``/``"none"``. The argument is
-        unused by design (underscore-prefixed, mirroring
-        :meth:`DeclaredCommandScopeSource.file_to_scope`'s own convention).
-        """
-        return "junit_xml"
-
-    def parse_results(self, raw: RawRunResult) -> tuple[BaselineFailure, ...]:
-        """Parse JUnit XML from ``raw.output_artifact_path`` (``_parse_junit_xml`` semantics).
-
-        Dispatches through :meth:`parse_mode` (T007 single-authority): this
-        source only ever has one mode, so the dispatch is a no-op branch, but
-        it keeps the "what mode did this run take" decision owned in exactly
-        one place.
-        """
-        from specify_cli.review.baseline import BaselineFailure, _parse_junit_xml
-
-        # T007 single-authority dispatch: the mode decision is owned by
-        # ``parse_mode`` and CONSUMED here in the branch condition (not a
-        # discarded call — #2892). For this junit-only source ``mode`` is always
-        # ``"junit_xml"``, so the extra disjunct never changes the outcome, but
-        # it folds a hypothetical non-junit mode into the same synthetic-failure
-        # path rather than leaving an untestable dead ``else``.
-        mode = self.parse_mode(raw)
-        artifact = raw.output_artifact_path
-        if mode != "junit_xml" or artifact is None or not artifact.exists():
-            return (
-                BaselineFailure(
-                    test="<gate-coverage-junit>",
-                    error="no JUnit XML artifact produced by the scoped run",
-                    file="unknown",
-                ),
-            )
-        _total, _passed, _failed, _skipped, failures = _parse_junit_xml(artifact)
-        return tuple(failures)
-
-    def _junit_output_path(self) -> Path:
-        """A stable-for-this-instance JUnit output path, allocated lazily."""
-        if self._junit_dir is None:
-            self._junit_dir = Path(tempfile.mkdtemp(prefix="spec-kitty-gate-coverage-"))
-        return self._junit_dir / _JUNIT_ARTIFACT_FILENAME
 
 
 # ---------------------------------------------------------------------------
@@ -756,9 +411,7 @@ class DeclaredCommandScopeSource:
             _total, _passed, _failed, _skipped, failures = _parse_junit_xml(artifact)
             return tuple(failures)
 
-        text_failures = _parse_declared_command_failure_lines(raw.stdout) + _parse_declared_command_failure_lines(
-            raw.stderr
-        )
+        text_failures = _parse_declared_command_failure_lines(raw.stdout) + _parse_declared_command_failure_lines(raw.stderr)
         if text_failures:
             return text_failures
         if raw.returncode != 0:
@@ -774,36 +427,18 @@ class DeclaredCommandScopeSource:
 def resolve_scope_source(
     repo_root: Path,
     *,
-    filter_groups_override: Mapping[str, tuple[str, ...]] | None = None,
-    composite_routing_override: Mapping[str, _CompositeRoute] | None = None,
+    filter_groups_override: object | None = None,
+    composite_routing_override: object | None = None,
 ) -> ScopeSource:
     """The ONE factory both baseline capture (WP03) and the head hook (WP04) call.
 
-    Selection (FR-014, the load-bearing operator decision — B-sel): a repo
-    with ``review.test_command`` configured (a non-pytest consumer) gets the
-    portable :class:`DeclaredCommandScopeSource`; otherwise — including
-    spec-kitty's OWN repo, which sets no ``review.test_command`` — gets the
-    internal :class:`GateCoverageScopeSource`. Reads the SAME config surface
-    :func:`specify_cli.review.baseline._get_test_command` reads; no new
-    config key is invented.
-
-    The two monkeypatch seams
-    (``tasks_move_task._pre_review_gate_filter_groups`` /
-    ``_pre_review_gate_composite_routing``) stay in ``tasks_move_task.py`` and
-    are threaded through here as ``*_override`` parameters — this factory
-    never imports back into ``tasks_move_task`` (no import cycle; both
-    current consumers already import THIS module).
+    The workflow-derived ``GateCoverageScopeSource`` path was retired after
+    this programme deleted GitHub Actions workflows. The historical override
+    parameters remain accepted for call-site compatibility, but they no
+    longer affect source selection.
     """
-    from specify_cli.review.baseline import _get_test_command
-
-    command_template, _output_format = _get_test_command(repo_root)
-    if command_template:
-        return DeclaredCommandScopeSource(repo_root=repo_root)
-    return GateCoverageScopeSource(
-        repo_root=repo_root,
-        filter_groups_override=filter_groups_override,
-        composite_routing_override=composite_routing_override,
-    )
+    _ = (filter_groups_override, composite_routing_override)
+    return DeclaredCommandScopeSource(repo_root=repo_root)
 
 
 def scope_source_identity(scope_source: ScopeSource, raw: RawRunResult) -> str:

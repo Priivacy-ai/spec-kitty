@@ -50,11 +50,6 @@ common network calls (``socket.*``, ``urllib.request.urlopen``,
 Two of the four cores modules carry a small number of ALREADY-DOCUMENTED,
 intentional I/O call sites (their own module docstrings say so explicitly):
 
-* ``gates_core.py::_workflow_evidence_missing`` reads one small, already-
-  scoped evidence file -- the same class of "lightweight, already-scoped
-  filesystem read" ``workflow_cores.py``'s own docstring carves out for its
-  status-event read (``.exists()`` / ``.glob()`` are not banned either, for
-  the same reason).
 * ``implement_cores.py``'s ``_SubprocessGitPort`` class is, by its own
   docstring, "the ONE git-subprocess I/O boundary in this module -- a thin
   adapter, not decision logic"; its working-tree comparison reads
@@ -231,11 +226,7 @@ def _scan_seam_violations(source: str) -> list[_SeamViolation]:
         for alias in node.names:
             name = alias.name
             if name in _FORBIDDEN_RAW_NAMES:
-                violations.append(
-                    _SeamViolation(
-                        node.lineno, name, module, "raw KITTY_SPECS_DIR-family primitive; never import directly"
-                    )
-                )
+                violations.append(_SeamViolation(node.lineno, name, module, "raw KITTY_SPECS_DIR-family primitive; never import directly"))
                 continue
             if module == _READ_PATH_RESOLVER_MODULE:
                 if name not in _SEAM_ALLOWED_READ_PATH_RESOLVER_NAMES:
@@ -244,8 +235,7 @@ def _scan_seam_violations(source: str) -> list[_SeamViolation]:
                             node.lineno,
                             name,
                             module,
-                            "not on the blessed read-path-resolver allowlist "
-                            "(_SEAM_ALLOWED_READ_PATH_RESOLVER_NAMES)",
+                            "not on the blessed read-path-resolver allowlist (_SEAM_ALLOWED_READ_PATH_RESOLVER_NAMES)",
                         )
                     )
             elif module == _MISSION_RUNTIME_MODULE and name in _FORBIDDEN_MISSION_RUNTIME_PATH_PRIMITIVES:
@@ -458,20 +448,6 @@ def find_banned_io_calls(source: str) -> list[_IoViolation]:
 # ---------------------------------------------------------------------------
 _IO_ALLOWLIST_SITES: tuple[ContentDescriptor, ...] = (
     ContentDescriptor(
-        rel_path="specify_cli/acceptance/gates_core.py",
-        qualname="_workflow_evidence_missing",
-        token_substring="evidence_path . read_text",
-        occurrence=None,
-        rationale=(
-            "_workflow_evidence_missing reads ONE small, already-scoped local "
-            "evidence file (workflow-evidence.md) -- the same class of "
-            "'lightweight, already-scoped filesystem read' workflow_cores.py's "
-            "own docstring carves out for its status-event read (.exists()/"
-            ".glob() are likewise not banned). Not a subprocess/worktree/network "
-            "operation."
-        ),
-    ),
-    ContentDescriptor(
         rel_path="specify_cli/cli/commands/implement_cores.py",
         qualname="_SubprocessGitPort.status_porcelain",
         token_substring="subprocess . run (",
@@ -490,9 +466,7 @@ _IO_ALLOWLIST_SITES: tuple[ContentDescriptor, ...] = (
         token_substring="subprocess . run (",
         occurrence=None,
         rationale=(
-            "_SubprocessGitPort.show_blob -- same injected-port I/O boundary as "
-            "status_porcelain above; the second (and last) subprocess call in "
-            "the module."
+            "_SubprocessGitPort.show_blob -- same injected-port I/O boundary as status_porcelain above; the second (and last) subprocess call in the module."
         ),
     ),
     ContentDescriptor(
@@ -552,8 +526,7 @@ def _io_allowlist_source(rel_path: str) -> str:
 #: import time if a descriptor is already ambiguous or dangling -- the
 #: earliest possible surfacing of a mis-authored ``token_substring``.
 _IO_ALLOWLIST_SEEDED_KEYS: dict[ContentDescriptor, CompositeKey] = {
-    descriptor: resolve_descriptor(_io_allowlist_source(descriptor.rel_path), descriptor)
-    for descriptor in _IO_ALLOWLIST_SITES
+    descriptor: resolve_descriptor(_io_allowlist_source(descriptor.rel_path), descriptor) for descriptor in _IO_ALLOWLIST_SITES
 }
 
 
@@ -567,10 +540,7 @@ def _build_io_allowlist() -> dict[tuple[str, str], str]:
     must match that shape (mirrors
     ``test_single_mission_surface_resolver.py``'s ``_build_allowlisted_raw_joins``).
     """
-    return {
-        (qualname, token_line): descriptor.rationale
-        for descriptor, (_rel_path, qualname, token_line) in _IO_ALLOWLIST_SEEDED_KEYS.items()
-    }
+    return {(qualname, token_line): descriptor.rationale for descriptor, (_rel_path, qualname, token_line) in _IO_ALLOWLIST_SEEDED_KEYS.items()}
 
 
 #: Composite-keyed allowlist: ``(qualname, token_line) -> rationale``.

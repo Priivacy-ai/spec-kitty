@@ -19,7 +19,6 @@ Error codes used:
                                  resolved (D11 fail-closed; FR-004 -- never a
                                  silent current-branch fallback)
   SAFE_COMMIT_*               -- structured safe_commit refusal/failure
-  WORKFLOW_EVIDENCE_REQUIRED  -- workflow files changed without runner proof
   PREFLIGHT_FAILED            -- preflight checks failed (for merge-mission)
   CONTRACT_VERSION_MISMATCH   -- provider version is below MIN_PROVIDER_VERSION
   UNSUPPORTED_STRATEGY        -- merge strategy not implemented
@@ -75,6 +74,38 @@ from typer.core import TyperGroup
 # eagerly evaluated default expression such as ``getattr(m, "Abort",
 # m.exceptions.Abort)``, which raised ``AttributeError`` at import time — and
 # typer's stable public ``typer.Abort``/``typer.Exit`` are always included.
+
+
+def _vendored_click_exception(name: str) -> type[BaseException] | None:
+    """Return ``typer._click``'s exception class ``name``, or ``None`` if absent.
+
+    Looks in the vendored ``exceptions`` submodule first, then the package
+    root, and never touches an attribute it has not confirmed exists.
+    """
+    module = getattr(typer_core, "_click", None)
+    if module is None:
+        return None
+    for holder in (getattr(module, "exceptions", None), module):
+        candidate = getattr(holder, name, None) if holder is not None else None
+        if isinstance(candidate, type) and issubclass(candidate, BaseException):
+            return candidate
+    return None
+
+
+def _exception_classes(*candidates: type[BaseException] | None) -> tuple[type[BaseException], ...]:
+    """Deduplicate ``candidates`` into an ``except``-clause tuple, dropping ``None``."""
+    classes: list[type[BaseException]] = []
+    for candidate in candidates:
+        if candidate is not None and candidate not in classes:
+            classes.append(candidate)
+    return tuple(classes)
+
+
+_CLICK_USAGE_ERRORS = _exception_classes(click.UsageError, _vendored_click_exception("UsageError"))
+_CLICK_ABORTS = _exception_classes(click.Abort, typer.Abort, _vendored_click_exception("Abort"))
+# ``typer.Exit`` is click's ``Exit`` on typer <= 0.25 and typer's own class on
+# >= 0.26, so it covers the standalone-click spelling in both eras (TID251).
+_EXIT = _exception_classes(typer.Exit, _vendored_click_exception("Exit"))
 
 
 def _vendored_click_exception(name: str) -> type[BaseException] | None:
@@ -416,9 +447,7 @@ def _planning_read_dir(main_repo_root: Path, mission_slug: str) -> Path:
     """
     from mission_runtime import MissionArtifactKind, placement_seam
 
-    return placement_seam(main_repo_root, mission_slug).read_dir(
-        MissionArtifactKind.WORK_PACKAGE_TASK
-    )
+    return placement_seam(main_repo_root, mission_slug).read_dir(MissionArtifactKind.WORK_PACKAGE_TASK)
 
 
 def _mission_identity_payload(mission_dir: Path) -> dict[str, str]:
@@ -563,9 +592,7 @@ def _execute_planning_only_merge(
                 assume_yes=True,
             )
     except typer.Exit as exc:
-        raise RuntimeError(
-            f"Planning-artifact closeout failed with exit code {exc.exit_code}"
-        ) from exc
+        raise RuntimeError(f"Planning-artifact closeout failed with exit code {exc.exit_code}") from exc
 
 
 def _execute_lane_merge(
@@ -648,9 +675,7 @@ def _execute_lane_merge(
         for lane in lanes_manifest.lanes:
             # Legacy lane-worktree grammar ({slug}-{lane}, no mid8) ⇒ mission_id=None
             # reproduces the historical name byte-identically (FR-005).
-            wt_path = worktree_path(
-                main_repo_root, mission_slug, mission_id=None, lane_id=lane.lane_id
-            )
+            wt_path = worktree_path(main_repo_root, mission_slug, mission_id=None, lane_id=lane.lane_id)
             if wt_path.exists():
                 run_command(
                     ["git", "worktree", "remove", str(wt_path), "--force"],
@@ -824,10 +849,7 @@ def list_ready(
     snapshot = reduce(read_events(mission_dir))
     dep_graph = build_dependency_graph(_planning_read_dir(main_repo_root, mission))
     wp_states = snapshot.work_packages
-    wp_lanes = {
-        dep_id: wp_state_for(state.get("lane", Lane.PLANNED)).lane
-        for dep_id, state in wp_states.items()
-    }
+    wp_lanes = {dep_id: wp_state_for(state.get("lane", Lane.PLANNED)).lane for dep_id, state in wp_states.items()}
 
     ready_wps = []
     for wp_id, deps in dep_graph.items():
@@ -965,15 +987,11 @@ def _lane_assignment_or_legacy(
     manifest = read_lanes_json(_planning_read_dir(main_repo_root, mission))
     lane = manifest.lane_for_wp(wp) if manifest is not None else None
     if manifest is None or lane is None:
-        return _StartWorkspace(
-            workspace_path=str(_wt_path(main_repo_root, mission, mission_id=None, lane_id=wp))
-        )
+        return _StartWorkspace(workspace_path=str(_wt_path(main_repo_root, mission, mission_id=None, lane_id=wp)))
     return manifest, lane
 
 
-def _resolve_start_workspace(
-    cmd: str, main_repo_root: Path, mission: str, mission_dir: Path, wp: str
-) -> _StartWorkspace:
+def _resolve_start_workspace(cmd: str, main_repo_root: Path, mission: str, mission_dir: Path, wp: str) -> _StartWorkspace:
     """Resolve (allocating if needed) the workspace for ``wp``.
 
     When the mission has a lanes manifest and ``wp`` is assigned to a lane, this
@@ -1052,9 +1070,7 @@ def _resolve_start_workspace(
     )
 
 
-def _resolve_existing_workspace(
-    main_repo_root: Path, mission: str, wp: str
-) -> _StartWorkspace:
+def _resolve_existing_workspace(main_repo_root: Path, mission: str, wp: str) -> _StartWorkspace:
     """Read-only companion of :func:`_resolve_start_workspace` (#2337).
 
     Resolves the WP's lane ``workspace_path`` + ``lane_branch`` for its EXISTING
@@ -1183,10 +1199,7 @@ def start_implementation(
             _fail(
                 cmd,
                 "DEPENDENCIES_NOT_SATISFIED",
-                (
-                    f"dependencies_not_satisfied: {wp} depends on {blocked}; "
-                    "all dependencies must be approved or done before implementation can start"
-                ),
+                (f"dependencies_not_satisfied: {wp} depends on {blocked}; all dependencies must be approved or done before implementation can start"),
                 {
                     **_mission_identity_payload(mission_dir),
                     "wp_id": wp,
@@ -1354,9 +1367,7 @@ def start_review(
 # ── Command 6: transition ──────────────────────────────────────────────────
 
 
-def _enforce_for_review_commit_gate(
-    cmd: str, main_repo_root: Path, mission: str, mission_dir: Path, wp: str, force: bool
-) -> None:
+def _enforce_for_review_commit_gate(cmd: str, main_repo_root: Path, mission: str, mission_dir: Path, wp: str, force: bool) -> None:
     """Reject an in_progress->for_review transition that has no commit on the lane.
 
     Thin orchestrator adapter over the shared, surface-neutral gate leaf
@@ -1522,9 +1533,7 @@ def transition(
 # ── Command 7: append-history ──────────────────────────────────────────────
 
 
-def _resolve_history_commit_args(
-    main_repo_root: Path, mission: str
-) -> tuple[Path, CommitTarget]:
+def _resolve_history_commit_args(main_repo_root: Path, mission: str) -> tuple[Path, CommitTarget]:
     """Resolve (worktree_root, target) for committing a WP prompt-file edit.
 
     The WP prompt file is a ``WORK_PACKAGE_TASK`` — a PRIMARY artifact kind
@@ -1554,9 +1563,7 @@ def _resolve_history_commit_args(
         # WORK_PACKAGE_TASK is a primary kind: the placement resolves to the
         # primary target branch for every topology (no coord transit). The WP
         # prompt edit therefore commits directly to the primary checkout.
-        placement = resolve_placement_only(
-            main_repo_root, mission, kind=MissionArtifactKind.WORK_PACKAGE_TASK
-        )
+        placement = resolve_placement_only(main_repo_root, mission, kind=MissionArtifactKind.WORK_PACKAGE_TASK)
     except ActionContextError as exc:
         raise PlacementResolutionRequired(
             "Cannot resolve the canonical write placement for this mission's "
@@ -1684,8 +1691,7 @@ def accept_mission(
     incomplete = [
         wp_id
         for wp_id in sorted(all_wp_ids)
-        if wp_state_for(snapshot.work_packages.get(wp_id, {}).get("lane", Lane.PLANNED)).lane
-        not in {Lane.APPROVED, Lane.DONE}
+        if wp_state_for(snapshot.work_packages.get(wp_id, {}).get("lane", Lane.PLANNED)).lane not in {Lane.APPROVED, Lane.DONE}
     ]
     if incomplete:
         _fail(
@@ -1724,21 +1730,6 @@ def accept_mission(
             },
         )
         return
-    workflow_evidence_issues = [
-        issue for issue in summary.activity_issues if issue.startswith("Workflow run evidence required:")
-    ]
-    if workflow_evidence_issues:
-        _fail(
-            cmd,
-            "WORKFLOW_EVIDENCE_REQUIRED",
-            workflow_evidence_issues[0],
-            {
-                **_mission_identity_payload(mission_dir),
-                "required_evidence_path": str(mission_dir / "workflow-evidence.md"),
-            },
-        )
-        return
-
     # Write acceptance record via centralized metadata writer
     from specify_cli.mission_metadata import record_acceptance
 
