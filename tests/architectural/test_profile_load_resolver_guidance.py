@@ -10,7 +10,7 @@ import pytest
 pytestmark = [pytest.mark.architectural, pytest.mark.fast]
 
 _REPO_ROOT = Path(__file__).resolve().parents[2]
-_SHIPPED_ROOTS = (_REPO_ROOT / "src" / "doctrine", _REPO_ROOT / "packs" / "built-in")
+_SHIPPED_ROOTS = (_REPO_ROOT / "src" / "charter" / "offering", _REPO_ROOT / "packs" / "built-in")
 _TEXT_SUFFIXES = frozenset({".md", ".yaml", ".yml"})
 _GUIDANCE_MARKERS = ("profile load", "profile-loaded", "agent profile show", ".agent.yaml")
 _RAW_READ = re.compile(

@@ -11,11 +11,11 @@ from collections import Counter
 from kernel.clock import datetime, now_utc, parse_iso
 from pathlib import Path
 
-from rich.console import Console
 from rich.panel import Panel
 from rich.table import Table
 from rich.text import Text
 
+from specify_cli.cli.console import CliConsole
 from specify_cli.core.paths import (
     get_main_repo_root,  # noqa: F401 — re-exported for test patching (see tests/agent/test_agent_utils_status.py and tests/contract/test_machine_facing_canonical_fields.py)
     get_status_read_root,
@@ -27,7 +27,7 @@ from specify_cli.status import PROGRESS_SEMANTICS, compute_done_percentage, comp
 from specify_cli.status import event_sourced_review_result, is_changes_requested, wp_state_for
 from specify_cli.task_utils import extract_scalar, split_frontmatter
 
-console = Console()
+console = CliConsole()
 
 # WP05 (verdict-seam-write-unification-01KZ9Q35, FR-002/FR-004/T024): the
 # board's stale/damaged-verdict detection used to glob ``review-cycle-*.md``

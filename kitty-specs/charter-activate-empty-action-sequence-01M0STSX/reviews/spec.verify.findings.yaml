@@ -1,0 +1,44 @@
+schema: review-findings/v1
+complete: true
+phase: spec
+lens_group: verify
+mission: charter-activate-empty-action-sequence-01M0STSX
+findings:
+  - id: SPEC-VERIFY-001
+    lens: methodological-trap-enforcement
+    severity: 3
+    title: "Natural-path precondition is stated in prose only; the nearest reusable test helper's signature invites accidental pre-seeding"
+    evidence:
+      - artifact: "spec.md § Edge Cases (\"The pre-seeded-vs-natural-path trap\")"
+      - artifact: "spec.md § SC-004"
+      - code: "tests/charter/test_mission_type_profiles.py:846-873 (_write_org_pack_config)"
+      - code: "tests/specify_cli/cli/commands/charter/test_charter_activate_commands_core.py:40-55 (project_root fixture pre-seeds mission_type_activations: [software-dev])"
+    claim: >
+      The spec correctly identifies and forbids the SK-81 pre-seeding trap in prose
+      ("declare the org pack, leave `<T>` out of `mission_type_activations`, then call
+      activation") and SC-004 correctly requires at least one natural-path test. But
+      neither the Edge Cases prose nor SC-004 pins the concrete fixture obligation this
+      requires. The nearest reusable helper in the mission's own named target file,
+      `_write_org_pack_config(repo_root, *, packs, activated_mission_types)`
+      (tests/charter/test_mission_type_profiles.py:846), conflates "declare an org pack"
+      and "set mission_type_activations" into a single call whose two list parameters
+      are populated together in every existing call site in that file (e.g. lines 905,
+      927, 975, 1023, 1053, 1096, 1139, 1180 all pass a non-empty `activated_mission_types`
+      alongside `packs`). A test author reaching for this helper to "declare the org pack"
+      for the new activation-time test has an obvious, convention-matching path to also
+      list `<T>` in `activated_mission_types` (that is what every existing call site does),
+      reproducing — one level up, inside this mission's own test authorship — exactly the
+      trap the spec's Edge Cases section warns against. C-004 names this same file as
+      in-scope test surface, so this is not a hypothetical adjacent file; it is the file
+      the mission's own tests will most likely extend.
+    remediation: >
+      Add one concrete sentence to the Edge Cases entry (or a new line under C-004/SC-004)
+      naming the required fixture shape for the natural-path test: e.g. "the natural-path
+      test must declare the org pack (`doctrine.org.packs` in config.yaml plus the
+      `mission_types/<T>.yaml` file) while passing `activated_mission_types` that excludes
+      `<T>` — whether via a new call to `_write_org_pack_config` with `<T>` omitted from
+      that list, or an equivalent fixture — and must assert `<T>` is absent from
+      `mission_type_activations` immediately before invoking `charter activate mission-type
+      <T>`." This closes the gap between "SC-004 requires a natural-path test" and "here is
+      exactly how a test author avoids the accidental-pre-seed footgun in the helper they
+      will naturally reach for."

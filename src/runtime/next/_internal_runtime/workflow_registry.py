@@ -7,8 +7,8 @@ Search precedence
 -----------------
 1. ``<project_root>/.kittify/overrides/workflows/<workflow_id>.workflow.yaml``
 2. ``<project_root>/.kittify/overrides/workflows/<workflow_id>.yaml``
-3. ``src/doctrine/workflows/<workflow_id>.workflow.yaml`` (built-in defaults)
-4. ``src/doctrine/workflows/_fixtures/<workflow_id>.workflow.yaml`` (test fixtures)
+3. ``src/charter/offering/workflows/<workflow_id>.workflow.yaml`` (built-in defaults)
+4. ``src/charter/offering/workflows/_fixtures/<workflow_id>.workflow.yaml`` (test fixtures)
 
 Layer rule (C-001 / NFR-003)
 -----------------------------
@@ -87,11 +87,13 @@ _WORKFLOW_ID_PATTERN: re.Pattern[str] = re.compile(r"[a-z0-9][a-z0-9-]*")
 #   2: runtime/
 #   3: src/
 #   4: <repo root>
-# So parents[3] / "src" / "doctrine" / "workflows" is the canonical root.
+# So parents[3] / "charter" / "offering" / "workflows" is the canonical root
+# (mission charter-code-topology-01M152G1 relocated src/charter/offering/ to
+# src/charter/offering/).
 # ---------------------------------------------------------------------------
 _RUNTIME_FILE = Path(__file__).resolve()
 _SRC_ROOT = _RUNTIME_FILE.parents[3]  # …/src/
-_WORKFLOWS_ROOT = _SRC_ROOT / "doctrine" / "workflows"
+_WORKFLOWS_ROOT = _SRC_ROOT / "charter" / "offering" / "workflows"
 
 _SEARCH_ROOTS: tuple[Path, ...] = (
     _WORKFLOWS_ROOT,

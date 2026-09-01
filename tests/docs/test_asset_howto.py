@@ -131,7 +131,13 @@ def test_documented_asset_flow_resolves_in_a_fresh_project(
         catch_exceptions=False,
     )
     assert result.exit_code == 0, result.output
-    resolved = Path(result.output.strip())
+    # CR-02 (mission charter-code-topology-01M152G1 S4): `doctrine_app` now
+    # carries a deprecation-notice `@app.callback()` that writes to stderr
+    # (`err=True`) -- parse `.stdout` (stdout only), matching what a real
+    # `$(spec-kitty doctrine asset path ...)` shell capture already gets
+    # (bash `$(...)` never captures stderr), not `.output` (Click 8.2+'s
+    # stdout+stderr merge).
+    resolved = Path(result.stdout.strip())
     assert resolved == blob_path.resolve() or resolved == blob_path, (
         f"documented command resolved {resolved}, expected the project blob "
         f"{blob_path}"

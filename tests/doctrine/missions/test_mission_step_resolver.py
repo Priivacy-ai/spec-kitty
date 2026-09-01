@@ -24,8 +24,8 @@ from pathlib import Path
 
 import pytest
 
-from doctrine.missions.mission_step_repository import MissionStepRepository, StepKey
-from doctrine.missions.models import MissionStep
+from charter.offering.missions.mission_step_repository import MissionStepRepository, StepKey
+from charter.offering.missions.models import MissionStep
 
 pytestmark = [pytest.mark.fast, pytest.mark.doctrine]
 
@@ -38,7 +38,7 @@ pytestmark = [pytest.mark.fast, pytest.mark.doctrine]
 
 @dataclass(frozen=True)
 class _StubPackContext:
-    """Minimal stand-in for charter.pack_context.PackContext (FR-012 tests)."""
+    """Minimal stand-in for charter.activation.pack_context.PackContext (FR-012 tests)."""
 
     pack_roots: tuple[Path, ...]
     repo_root: Path

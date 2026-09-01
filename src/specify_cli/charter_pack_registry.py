@@ -1,9 +1,10 @@
 """Built-in charter pack registry + shared pack -> ``config.yaml`` merge logic.
 
 A *charter pack* is a small YAML document shaped like
-``src/charter/packs/default.yaml``: ``activated_kinds``,
+``src/charter/activation/packs/default.yaml``: ``activated_kinds``,
 ``mission_type_activations``, and the per-kind ``activated_<plural>`` lists.
-Spec Kitty ships two built-in packs side by side in ``src/charter/packs/``:
+Spec Kitty ships two built-in packs side by side in
+``src/charter/activation/packs/``:
 
 * ``default`` — activates every built-in artifact across every kind.
 * ``minimal`` — a small, curated starting baseline (relocated from the
@@ -30,7 +31,7 @@ from typing import Any
 
 from ruamel.yaml import YAML
 
-from charter.pack_manager import YAML_KEY_MAP
+from charter.activation.pack_manager import YAML_KEY_MAP
 
 __all__ = [
     "PER_KIND_ACTIVATION_KEYS",
@@ -45,7 +46,7 @@ __all__ = [
 #: :data:`PER_KIND_ACTIVATION_KEYS`:
 #:
 #: * ``mission_type_activations`` -- the ``mission-type`` charter-kind token
-#:   is the documented outlier (``charter.pack_manager._yaml_key_for_token``):
+#:   is the documented outlier (``charter.activation.pack_manager._yaml_key_for_token``):
 #:   it does not follow the ``activated_<plural>`` pattern, and
 #:   :data:`ACTIVATION_KEYS` below already lists it separately.
 #: * ``activated_glossary_packs`` -- glossary-pack activation is intentionally
@@ -55,15 +56,15 @@ __all__ = [
 #:   ``m_3_2_x_normalize_activation_absence`` migration; folding it into the
 #:   packs' per-kind keys here would fight that migration's contract instead
 #:   of composing with it. Mirrors the special-case comment style in
-#:   ``charter.charter_yaml_io._ACTIVATION_KEYS``.
+#:   ``charter.activation.charter_yaml_io._ACTIVATION_KEYS``.
 _NON_PACK_ACTIVATION_KEYS: frozenset[str] = frozenset(
     {"mission_type_activations", "activated_glossary_packs"}
 )
 
 #: The per-kind activation keys a charter pack may populate. DERIVED from
-#: ``charter.pack_manager.YAML_KEY_MAP`` (the canonical charter-kind ->
+#: ``charter.activation.pack_manager.YAML_KEY_MAP`` (the canonical charter-kind ->
 #: ``config.yaml``-key table, itself derived from
-#: ``doctrine.artifact_kinds.CHARTER_KIND_TOKENS``) rather than hand-maintained,
+#: ``charter.offering.artifact_kinds.CHARTER_KIND_TOKENS``) rather than hand-maintained,
 #: so a newly added charter kind is picked up here automatically instead of
 #: silently drifting from the registry. See :data:`_NON_PACK_ACTIVATION_KEYS`
 #: for what is deliberately excluded and why; today's result is byte-identical
@@ -81,11 +82,13 @@ ACTIVATION_KEYS: tuple[str, ...] = (
 )
 
 #: Directory that ships the built-in charter packs, relative to this file:
-#: specify_cli/ -> src/ -> charter/packs/. Three ``.parent`` hops.
-_PACKS_DIR: Path = Path(__file__).parent.parent / "charter" / "packs"
+#: specify_cli/ -> src/ -> charter/activation/packs/. Two ``.parent`` hops.
+#: ``packs/`` relocated under ``charter/activation/`` by mission
+#: charter-activation-split-01M16ZSE (MAP-A MOVE).
+_PACKS_DIR: Path = Path(__file__).parent.parent / "charter" / "activation" / "packs"
 
 #: Shipped built-in pack names, mapped to a one-line operator-facing
-#: description. Both packs live at ``src/charter/packs/<name>.yaml``.
+#: description. Both packs live at ``src/charter/activation/packs/<name>.yaml``.
 BUILTIN_PACKS: dict[str, str] = {
     "default": "Activates every built-in artifact across every charter kind.",
     "minimal": (

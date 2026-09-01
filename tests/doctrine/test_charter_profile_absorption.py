@@ -10,7 +10,7 @@ T003 pins the charter-manifest reader surface green. Those readers
 ``charter_runtime/freshness/computer``, ``charter_runtime/preflight/runner``,
 ``charter_runtime/lint/findings``, ``cli/commands/charter_bundle``,
 ``doctrine/versioning``, and the two ``m_3_2_0rc35_charter_*`` migrations) all
-depend solely on the public ``charter.synthesizer.manifest`` contract
+depend solely on the public ``charter.activation.synthesizer.manifest`` contract
 (``SynthesisManifest`` schema, ``load_yaml`` / ``dump_yaml``,
 ``compute_manifest_hash`` / ``finalize_manifest`` / ``verify_manifest_hash``).
 Absorption must not perturb that contract, so these tests assert the on-disk
@@ -22,7 +22,7 @@ from __future__ import annotations
 
 import pytest
 
-from charter.synthesizer.manifest import (
+from charter.activation.synthesizer.manifest import (
     ManifestArtifactEntry,
     SynthesisManifest,
     compute_manifest_hash,
@@ -31,7 +31,7 @@ from charter.synthesizer.manifest import (
     load_yaml,
     verify_manifest_hash,
 )
-from doctrine.artifact_kinds import ArtifactKind
+from charter.offering.artifact_kinds import ArtifactKind
 from specify_cli.doctrine.pack_manifest import (
     CharterProfile,
     absorb_synthesis_manifest,

@@ -1,4 +1,4 @@
-"""Tests for doctrine.shared.scoping — language-scoping helpers.
+"""Tests for charter.offering.shared.scoping — language-scoping helpers.
 
 Extends the existing tests/doctrine/test_scoping.py with boundary-pair
 coverage needed to kill surviving mutants.
@@ -16,7 +16,7 @@ from __future__ import annotations
 
 import pytest
 
-from doctrine.shared.scoping import applies_to_languages_match, normalize_languages
+from charter.offering.shared.scoping import applies_to_languages_match, normalize_languages
 
 pytestmark = [pytest.mark.fast, pytest.mark.doctrine]
 

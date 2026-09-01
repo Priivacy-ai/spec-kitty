@@ -1,4 +1,4 @@
-"""Unit tests for ``charter.cascade`` (WP11, T052).
+"""Unit tests for ``charter.activation.cascade`` (WP11, T052).
 
 Covers the pure cascade engine:
 
@@ -17,7 +17,7 @@ from __future__ import annotations
 
 import pytest
 
-from charter.cascade import (
+from charter.activation.cascade import (
     REFERENCE_RELATIONS,
     CascadeScope,
     DeactivationPlan,
@@ -26,8 +26,8 @@ from charter.cascade import (
     deactivation_plan,
     referenced_but_not_cascaded,
 )
-from doctrine.artifact_kinds import ArtifactKind, MissionTypeNotAnArtifactKind
-from doctrine.drg.models import DRGEdge, DRGGraph, DRGNode, NodeKind, Relation
+from charter.offering.artifact_kinds import ArtifactKind, MissionTypeNotAnArtifactKind
+from charter.offering.drg.models import DRGEdge, DRGGraph, DRGNode, NodeKind, Relation
 
 pytestmark = pytest.mark.unit
 
@@ -248,6 +248,46 @@ def test_cascade_activation_no_references_is_empty() -> None:
 
 
 # ---------------------------------------------------------------------------
+# WP01 (#3705) — shared collection seam: kind-filtered nodes are collected,
+# not silently dropped (FR-001, FR-002; C-006 activation-side half)
+# ---------------------------------------------------------------------------
+
+
+def _mixed_kind_graph() -> DRGGraph:
+    """A source with one activatable-kind edge and one kind-filtered edge."""
+    return _graph(
+        nodes=[
+            _node("toolguide:qa-carrier-lint", NodeKind.TOOLGUIDE),
+            _node("tactic:qa", NodeKind.TACTIC),
+            _node("asset:qa-traceability-lint", NodeKind.ASSET),
+        ],
+        edges=[
+            _edge("toolguide:qa-carrier-lint", "tactic:qa", Relation.SUGGESTS),
+            _edge(
+                "toolguide:qa-carrier-lint",
+                "asset:qa-traceability-lint",
+                Relation.SUGGESTS,
+            ),
+        ],
+    )
+
+
+def test_cascade_activation_collects_kind_filtered_nodes() -> None:
+    graph = _mixed_kind_graph()
+    result = cascade_activation_targets(graph, "toolguide:qa-carrier-lint", CascadeScope.all())
+    assert result.activated == {"tactic": ["qa"]}
+    assert result.not_cascaded_kind_filtered == {"asset": ["qa-traceability-lint"]}
+
+
+def test_cascade_activation_kind_filtered_node_stays_out_of_activated_and_skipped() -> None:
+    graph = _mixed_kind_graph()
+    result = cascade_activation_targets(graph, "toolguide:qa-carrier-lint", CascadeScope.all())
+    assert "asset" not in result.activated
+    assert "asset" not in result.skipped_by_scope
+    assert result.not_cascaded_kind_filtered == {"asset": ["qa-traceability-lint"]}
+
+
+# ---------------------------------------------------------------------------
 # T050 — no-cascade warning (FR-013, Contract C3.2)
 # ---------------------------------------------------------------------------
 
@@ -365,3 +405,24 @@ def test_deactivation_transitive_shared_reference_is_skipped() -> None:
     assert plan.deactivate == ["tactic:a"]
     assert [s.urn for s in plan.skipped_shared] == ["tactic:deep"]
     assert plan.skipped_shared[0].referencing_active_urn == "agent_profile:renata"
+
+
+# ---------------------------------------------------------------------------
+# WP04 (#3705) — deactivation-side C-006 half: a kind-filtered node reached
+# by `deactivation_plan` must be reported and never leak into removal results.
+# ---------------------------------------------------------------------------
+
+
+def test_deactivation_plan_collects_kind_filtered_node_and_it_never_leaks() -> None:
+    graph = _mixed_kind_graph()
+    plan = deactivation_plan(
+        graph,
+        "toolguide:qa-carrier-lint",
+        CascadeScope.all(),
+        active_urns={"toolguide:qa-carrier-lint"},
+    )
+    assert isinstance(plan, DeactivationPlan)
+    assert plan.not_cascaded_kind_filtered == ["asset:qa-traceability-lint"]
+    assert "asset:qa-traceability-lint" not in plan.deactivate
+    assert all(skip.urn != "asset:qa-traceability-lint" for skip in plan.skipped_shared)
+    assert plan.deactivate == ["tactic:qa"]

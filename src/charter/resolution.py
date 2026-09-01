@@ -11,7 +11,7 @@ bundle chokepoint (FR-003, FR-006, NFR-003). It raises loudly per C-001 — no
 fallback handlers, no silent degradation.
 
 In addition, this module is the charter-layer facade for resolution-tier
-types from ``doctrine.resolver`` (``ResolutionResult``, ``ResolutionTier``).
+types from ``charter.offering.resolver`` (``ResolutionResult``, ``ResolutionTier``).
 The runtime → charter → doctrine boundary (ADR 2026-03-27-1, tightened by
 mission ``charter-mediated-doctrine-selection-01KRTZCA``) requires runtime
 modules under ``src/specify_cli/`` to reach doctrine artifacts only through
@@ -23,10 +23,10 @@ from __future__ import annotations
 
 from pathlib import Path
 
-# Charter facade re-exports for doctrine.resolver — see mission
+# Charter facade re-exports for charter.offering.resolver — see mission
 # charter-mediated-doctrine-selection-01KRTZCA, contract
 # contracts/charter-facade-modules.md.
-from doctrine.resolver import ResolutionResult, ResolutionTier
+from charter.offering.resolver import ResolutionResult, ResolutionTier
 
 # The single git-topology probe (mission write-path-integrity-01KZZD69 WP01,
 # #3373). This resolver is the richest historical copy — cached, classifying

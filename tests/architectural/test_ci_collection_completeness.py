@@ -43,6 +43,17 @@ pytestmark = [pytest.mark.architectural, pytest.mark.fast]
 
 _GATE_COVERAGE_MODULE = "_gate_coverage"
 
+
+def test_restored_windows_suite_runs_on_push_without_filter_match_live() -> None:
+    """A push to main runs the Windows suite even when no filter group matches."""
+    active = gc.active_job_keys(
+        gc.load_workflow_models(),
+        event_name=gc.PUSH_EVENT,
+        active_groups=frozenset(),
+    )
+
+    assert ("ci-windows.yml", "windows-critical") in active
+
 # Every ``_gate_coverage`` surface that reads or writes a frozen baseline. The
 # point of trap 1 is that this module reaches NONE of them.
 _BASELINE_SURFACES = frozenset(

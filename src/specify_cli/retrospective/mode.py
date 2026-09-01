@@ -106,7 +106,7 @@ def _read_charter_mode(repo_root: Path) -> str | None:
     start of the file) that contains a ``mode:`` key.
 
     No existing charter loader exposes a programmatic API for reading the
-    mode policy field — the ``charter.context`` module is a prompt-rendering
+    mode policy field — the ``charter.activation.context`` module is a prompt-rendering
     surface, not a structured data reader.  We therefore implement a minimal
     frontmatter parser here, consistent with the approach described in the
     WP04 spec (T017).
@@ -116,7 +116,7 @@ def _read_charter_mode(repo_root: Path) -> str | None:
     ``governance.retrospective`` (see :func:`~specify_cli.retrospective.policy.
     resolve_policy`).  ``mode:`` is deliberately NOT part of that flip: it is a
     top-level frontmatter key with no counterpart in
-    :class:`~charter.schemas.RetrospectiveGovernance`, whose keys mirror
+    :class:`~charter.activation.schemas.RetrospectiveGovernance`, whose keys mirror
     ``policy._KNOWN_KEYS`` exactly.  Minting a ``governance`` home for ``mode:``
     is a schema change (FR-005a scope), not a resolver change, so this reader
     stays frontmatter-only until that block exists.  The charter path constant

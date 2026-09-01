@@ -13,20 +13,6 @@ capabilities:
 routing-priority: 50
 max-concurrent-tasks: 5
 
-context-sources:
-  doctrine-layers:
-    - paradigms
-    - directives
-  directives:
-    - "010"
-    - "043"
-    - "044"
-    - "045"
-    - "051"
-  additional:
-    - coding-standards
-    - test-strategy
-
 purpose: >
   Implement software features, fix bugs, and write tests according to specifications
   and architectural decisions. Implementer Ivan translates design documents and task
@@ -58,9 +44,6 @@ collaboration:
     - integration-tests
     - pull-request
     - implementation-notes
-  operating-procedures:
-    - code-review-checklist
-    - test-coverage-requirement
   canonical-verbs:
     - implement
     - fix

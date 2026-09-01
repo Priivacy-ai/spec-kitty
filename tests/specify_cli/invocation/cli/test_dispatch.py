@@ -16,7 +16,7 @@ from ruamel.yaml import YAML
 from typer import Typer
 from typer.testing import CliRunner
 
-from charter.pack_context import PackContext
+from charter.activation.pack_context import PackContext
 from glossary.chokepoint import GlossaryObservationBundle
 from glossary.models import ConflictType, SemanticConflict, SenseRef, Severity, TermSurface
 from specify_cli import app as cli_app
@@ -91,7 +91,7 @@ def _write_configured_charter(project: Path) -> None:
 
 
 def _make_mock_registry(profile_specs: list[dict[str, object]]) -> MagicMock:
-    from doctrine.agent_profiles.profile import Role
+    from charter.offering.agent_profiles.profile import Role
 
     mock_profiles = []
     for spec in profile_specs:

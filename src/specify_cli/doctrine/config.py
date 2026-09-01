@@ -19,7 +19,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from doctrine.drg.org_pack_config import (
+from charter.offering.drg.org_pack_config import (
     OrgPackConfig as OrgPackConfig,
     PackRegistry as PackRegistry,
     load_pack_registry as load_pack_registry,

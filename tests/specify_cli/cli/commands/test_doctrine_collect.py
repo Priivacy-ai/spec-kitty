@@ -99,7 +99,7 @@ def test_collect_profile_health_records_crash(monkeypatch: pytest.MonkeyPatch, t
     # load to fail, so the crash is recorded into org_drg["errors"].
     monkeypatch.setattr(collect, "_collect_org_layer_data", lambda _r: {"errors": []})
 
-    import doctrine.service as svc
+    import charter.offering.service as svc
 
     def _boom(*_a: Any, **_k: Any) -> Any:
         raise RuntimeError("load failed")
@@ -181,7 +181,7 @@ class _FakeRepo:
 
 
 class _FakeService:
-    """Stands in for ``charter.resolver.DoctrineService`` (WP03, #2059 followup:
+    """Stands in for ``charter.activation.resolver.DoctrineService`` (WP03, #2059 followup:
     charter-sole-door-bypass-closure-01KZ3WAA T013). ``_resolve_artifact_source``
     now reads through the wrapper's ``raw_repository(plural)`` accessor rather
     than plain ``getattr(service, plural)`` (the gated per-kind properties on
@@ -244,7 +244,7 @@ def test_build_selection_block_dedup_and_order(monkeypatch: pytest.MonkeyPatch, 
     )
     monkeypatch.setattr(collect, "_resolve_artifact_source", lambda *a, **k: "built-in")
 
-    import doctrine.service as svc
+    import charter.offering.service as svc
 
     monkeypatch.setattr(svc, "DoctrineService", lambda **k: object())
 

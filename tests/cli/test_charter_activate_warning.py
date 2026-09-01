@@ -368,7 +368,7 @@ class TestCharterActivateCLI:
 
         with (
             patch(
-                "charter.mission_type_profiles.resolve_mission_type_context",
+                "charter.activation.mission_type_profiles.resolve_mission_type_context",
                 return_value=SimpleNamespace(action_sequence=["specify", "plan", "review"]),
             ),
             patch(
@@ -404,13 +404,13 @@ class TestCharterActivateCLI:
         roster scan -- "surfaced" now means a clean, operator-readable
         ``typer.Exit(1)`` naming the failure, not a raw traceback.
         """
-        from charter.mission_type_profiles import MissionTypeEmptyActionSequenceError
+        from charter.activation.mission_type_profiles import MissionTypeEmptyActionSequenceError
 
         (tmp_path / ".kittify").mkdir(exist_ok=True)
         (tmp_path / ".kittify" / "config.yaml").write_text("# empty\n", encoding="utf-8")
 
         with patch(
-            "charter.mission_type_profiles.resolve_mission_type_context",
+            "charter.activation.mission_type_profiles.resolve_mission_type_context",
             side_effect=MissionTypeEmptyActionSequenceError("qa", "org"),
         ):
             result = runner.invoke(

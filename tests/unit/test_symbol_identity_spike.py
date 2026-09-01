@@ -30,10 +30,10 @@ needs >2 implementation WPs, OR the body-hash proves unstable"):
    pushing "design" alone past a single WP.** A pure content key —
    ``(bare_name, body_hash)``, CANDIDATE A / :func:`relocation_only_identity`
    — is proven (below) to COLLIDE for the real
-   ``doctrine.directives::ArtifactKind`` / ``doctrine.procedures::ArtifactKind``
-   / ``doctrine.tactics::ArtifactKind`` fixture trio: all three re-export
+   ``charter.offering.directives::ArtifactKind`` / ``charter.offering.procedures::ArtifactKind``
+   / ``charter.offering.tactics::ArtifactKind`` fixture trio: all three re-export
    sites contain the byte-identical statement
-   ``from doctrine.artifact_kinds import ArtifactKind``, so their local
+   ``from charter.offering.artifact_kinds import ArtifactKind``, so their local
    definition-site text cannot distinguish them by content alone. Sanctioning
    any one of the three under CANDIDATE A silently sanctions all three —
    reproducing the exact T004 re-blinding bare-name-alone was banned to
@@ -100,9 +100,9 @@ RECOMMENDATION_REASON = (
 # in test_no_dead_symbols.py, not importable classes; read as source text).
 # ---------------------------------------------------------------------------
 
-_ARTIFACT_KIND_DIRECTIVES = _SRC_ROOT / "doctrine" / "directives" / "__init__.py"
-_ARTIFACT_KIND_PROCEDURES = _SRC_ROOT / "doctrine" / "procedures" / "__init__.py"
-_ARTIFACT_KIND_TACTICS = _SRC_ROOT / "doctrine" / "tactics" / "__init__.py"
+_ARTIFACT_KIND_DIRECTIVES = _SRC_ROOT / "charter" / "offering" / "directives" / "__init__.py"
+_ARTIFACT_KIND_PROCEDURES = _SRC_ROOT / "charter" / "offering" / "procedures" / "__init__.py"
+_ARTIFACT_KIND_TACTICS = _SRC_ROOT / "charter" / "offering" / "tactics" / "__init__.py"
 
 _GATE_DECISION_BRANCH_STRATEGY = (
     _SRC_ROOT / "specify_cli" / "cli" / "commands" / "_branch_strategy_gate.py"
@@ -210,10 +210,10 @@ def test_candidate_a_distinguishes_the_two_real_gate_decision_siblings() -> None
 
 
 def test_candidate_a_collides_on_the_real_artifact_kind_reexport_fanout() -> None:
-    """THE load-bearing negative finding: doctrine.directives::ArtifactKind,
-    doctrine.procedures::ArtifactKind, and doctrine.tactics::ArtifactKind are
+    """THE load-bearing negative finding: charter.offering.directives::ArtifactKind,
+    charter.offering.procedures::ArtifactKind, and charter.offering.tactics::ArtifactKind are
     three real T004 fixtures that all contain the byte-identical re-export
-    statement ``from doctrine.artifact_kinds import ArtifactKind``. CANDIDATE
+    statement ``from charter.offering.artifact_kinds import ArtifactKind``. CANDIDATE
     A cannot distinguish them by content alone -- proving a pure body-hash
     key is insufficient for real re-export fan-out."""
     directives_id = relocation_only_identity(_read(_ARTIFACT_KIND_DIRECTIVES), "ArtifactKind")
@@ -252,12 +252,12 @@ def test_hybrid_candidate_b_distinguishes_the_artifact_kind_fanout() -> None:
     """CANDIDATE B (module-path tiebreak) restores correctness for the same
     fixture trio CANDIDATE A collapses."""
     directives_id = hybrid_identity(
-        _read(_ARTIFACT_KIND_DIRECTIVES), "doctrine.directives", "ArtifactKind"
+        _read(_ARTIFACT_KIND_DIRECTIVES), "charter.offering.directives", "ArtifactKind"
     )
     procedures_id = hybrid_identity(
-        _read(_ARTIFACT_KIND_PROCEDURES), "doctrine.procedures", "ArtifactKind"
+        _read(_ARTIFACT_KIND_PROCEDURES), "charter.offering.procedures", "ArtifactKind"
     )
-    tactics_id = hybrid_identity(_read(_ARTIFACT_KIND_TACTICS), "doctrine.tactics", "ArtifactKind")
+    tactics_id = hybrid_identity(_read(_ARTIFACT_KIND_TACTICS), "charter.offering.tactics", "ArtifactKind")
 
     assert directives_id is not None
     assert procedures_id is not None
@@ -272,12 +272,12 @@ def test_t004_no_reblinding_proof_with_hybrid_key() -> None:
     another is sanctioned means the dead one is STILL CAUGHT -- no
     re-blinding."""
     directives_id = hybrid_identity(
-        _read(_ARTIFACT_KIND_DIRECTIVES), "doctrine.directives", "ArtifactKind"
+        _read(_ARTIFACT_KIND_DIRECTIVES), "charter.offering.directives", "ArtifactKind"
     )
     procedures_id = hybrid_identity(
-        _read(_ARTIFACT_KIND_PROCEDURES), "doctrine.procedures", "ArtifactKind"
+        _read(_ARTIFACT_KIND_PROCEDURES), "charter.offering.procedures", "ArtifactKind"
     )
-    tactics_id = hybrid_identity(_read(_ARTIFACT_KIND_TACTICS), "doctrine.tactics", "ArtifactKind")
+    tactics_id = hybrid_identity(_read(_ARTIFACT_KIND_TACTICS), "charter.offering.tactics", "ArtifactKind")
     assert directives_id and procedures_id and tactics_id
 
     # `directives` and `tactics` are sanctioned siblings; `procedures` is the

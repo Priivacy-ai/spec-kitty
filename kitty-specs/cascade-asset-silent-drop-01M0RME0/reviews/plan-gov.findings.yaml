@@ -1,0 +1,41 @@
+# review-findings/v1 — canonical format for lens-session and fresh-sweep output.
+schema: review-findings/v1
+complete: true
+phase: plan
+lens_group: gov
+mission: cascade-asset-silent-drop-01M0RME0
+findings:
+  - id: PLAN-GOV-001
+    lens: campsite-scope
+    severity: 2
+    title: "Plan §8 overclaims zero lint suppressions in the three touched CLI render functions"
+    evidence:
+      - artifact: "plan.md § 8 Campsite-clean scope (standing order 2)"
+      - code: "src/specify_cli/cli/commands/charter/activate.py:297"
+      - code: "src/specify_cli/cli/commands/charter/activate.py:395"
+      - code: "src/specify_cli/cli/commands/charter/deactivate.py:153"
+    claim: >
+      Plan §8 asserts, of the three CLI render functions this mission's WPs edit:
+      "_render_cascade_activation, _render_no_cascade_warning,
+      _render_cascade_deactivation are similarly clean — no dead branches, no
+      suppressed warnings, no TODO markers." Read live, this is inaccurate: every
+      one of the three carries a `# noqa: PLC0415` lint suppression on its deferred
+      `from charter._drg_helpers import load_validated_graph` import
+      (activate.py:297 inside `_render_cascade_activation`; activate.py:395 inside
+      `_render_no_cascade_warning`; deactivate.py:153 inside
+      `_render_cascade_deactivation`). The suppression is a pre-existing,
+      repo-wide lazy-import convention unrelated to this mission's domain (kind-
+      filtered reporting), so it does not change the plan's ultimate "no
+      campsite-clean commit" decision — but the specific evidentiary claim used to
+      support that decision is false as written, which is exactly the kind of
+      unverified "confident summary" the charter's Standing-Order throughline
+      warns against, in a section whose entire job is to have verified this by
+      reading the files live.
+    remediation: >
+      Correct plan §8's bullet to state that each of the three render functions
+      carries one pre-existing `# noqa: PLC0415` (a deferred local import, a
+      repo-wide lazy-import convention) rather than "no suppressed warnings," and
+      note explicitly that this is judged non-domain-matched debt (import-
+      ordering style, unrelated to the kind-filtered-node reporting this mission
+      adds) — so the no-campsite-clean-commit decision still stands, but on an
+      accurate record rather than an overclaim.

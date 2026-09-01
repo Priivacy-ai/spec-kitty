@@ -6,7 +6,7 @@ from pathlib import Path
 
 import pytest
 
-from doctrine.agent_profiles.repository import AgentProfileRepository
+from charter.offering.agent_profiles.repository import AgentProfileRepository
 
 pytestmark = [pytest.mark.fast, pytest.mark.doctrine, pytest.mark.corpus]
 
@@ -83,7 +83,7 @@ def test_hic_marker_survives_narrowed_activation(tmp_path: Path) -> None:
     [architect-alphonso]``) silently loses the sentinel marker even though
     ``profile.sentinel`` is a structural property, not an activation-gated
     one (exactly like ``get_provenance()``, which this same mission's
-    ``charter.resolver`` module deliberately keeps ungated via
+    ``charter.activation.resolver`` module deliberately keeps ungated via
     ``agent_profile_repository`` / ``raw_repository()``).
     """
     kittify = tmp_path / ".kittify"

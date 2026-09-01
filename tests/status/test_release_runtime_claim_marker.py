@@ -29,7 +29,8 @@ from __future__ import annotations
 import pytest
 
 from specify_cli.status.models import InnerStateChanged, Lane, WPInnerStateDelta
-from specify_cli.status.reducer import _apply_annotation_delta, reduce
+from spec_kitty_events.diary import _apply_annotation_delta
+from specify_cli.status.reducer import reduce
 
 pytestmark = [pytest.mark.fast]
 

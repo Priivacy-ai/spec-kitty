@@ -57,6 +57,51 @@ def _local_branch_exists(repo_root: Path, branch: str) -> bool:
     return result.returncode == 0
 
 
+_PROTECTED_BRANCH_ESCAPE_HATCH = "SPEC_KITTY_ALLOW_PROTECTED_BRANCH_COMMITS"
+
+
+def _protected_branch_refusal(
+    operation: str,
+    ref: str,
+    *,
+    coord_available: bool | None,
+) -> Refused:
+    """Build the protected-branch refusal, selecting a followable remedy."""
+    base_message = (
+        f"Refusing to record {operation!r}: "
+        f"destination ref {ref!r} is on this project's "
+        "protected branch list. "
+    )
+    if coord_available is False:
+        return Refused(
+            error_code=PROTECTED_BRANCH_REFUSED,
+            message=(
+                base_message
+                + "This mission uses a lanes or single-branch topology, which "
+                "mints no coordination worktree, so bookkeeping cannot be "
+                "redirected to one."
+            ),
+            destination_ref=ref,
+            next_step=(
+                f"Commit bookkeeping to a non-protected branch, or declare "
+                f"{ref!r} unprotected for this repo by setting "
+                f"{_PROTECTED_BRANCH_ESCAPE_HATCH} to a truthy value."
+            ),
+        )
+    return Refused(
+        error_code=PROTECTED_BRANCH_REFUSED,
+        message=(
+            base_message
+            + "Bookkeeping commits must target the coordination branch."
+        ),
+        destination_ref=ref,
+        next_step=(
+            "Re-run the command through the coordination "
+            "transaction; the coord worktree is auto-resolved."
+        ),
+    )
+
+
 def _remote_tracking_branch_exists(repo_root: Path, branch: str) -> bool:
     """Return True iff a remote-tracking ref matches the given name.
 
@@ -95,7 +140,11 @@ class WorkflowMutationPolicy:
     """
 
     @staticmethod
-    def assert_allowed(change_set: GitChangeSet) -> PolicyVerdict:
+    def assert_allowed(
+        change_set: GitChangeSet,
+        *,
+        coord_available: bool | None = None,
+    ) -> PolicyVerdict:
         """Inspect ``change_set.destination_ref``.
 
         Returns :class:`Allowed` if the would-be commit is permitted;
@@ -115,6 +164,11 @@ class WorkflowMutationPolicy:
         This function is pure aside from a few read-only ``git
         rev-parse`` probes. It never writes files, never touches the
         feature status lock, never mutates the index.
+
+        ``coord_available`` is supplied by the caller from the shared commit-router
+        topology predicate. It only selects the protected-branch remedy: ``False``
+        yields the no-coordination escape hatch, while ``True`` and ``None``
+        preserve the existing coordination-transaction remedy.
         """
         ref = change_set.destination_ref
         repo_root = change_set.repo_root
@@ -221,19 +275,10 @@ class WorkflowMutationPolicy:
             change_set.capability,
         )
         if not guard_verdict.allowed:
-            return Refused(
-                error_code=PROTECTED_BRANCH_REFUSED,
-                message=(
-                    f"Refusing to record {change_set.operation!r}: "
-                    f"destination ref {ref!r} is on this project's "
-                    "protected branch list. Bookkeeping commits must "
-                    "target the coordination branch."
-                ),
-                destination_ref=ref,
-                next_step=(
-                    "Re-run the command through the coordination "
-                    "transaction; the coord worktree is auto-resolved."
-                ),
+            return _protected_branch_refusal(
+                change_set.operation,
+                ref,
+                coord_available=coord_available,
             )
 
         return Allowed()

@@ -23,10 +23,13 @@ The non-uniform flip:
 Each clean-tree counterpart asserts the gate is **green** on a correct tree, so
 the RED is attributable to the seeded violation and not a perpetually-red gate.
 
-**Diff-scope proof (#3147, WP02 T012).** The bottom section proves the
-diff-scoped ``--changed-from`` mode both R2 (related-validator) and the
-body-link gate carry, through the SAME CLI path ``docs-freshness.yml`` invokes
-on ``pull_request``, over real (throwaway) git repos. Per B-WP02 in
+**Diff-scope proof (#3147, WP02 T012).** The bottom section preserves the
+original diff-scoped ``--changed-from`` proof for R2 (related-validator) and
+the body-link gate through the SAME CLI path ``docs-freshness.yml`` invokes on
+``pull_request``, over real (throwaway) git repos. The sibling audience and
+description gates added to that wiring by #3316 carry the same four-case proof
+in ``test_audience_resolves.py`` and ``test_description_length_gate.py``.
+Per B-WP02 in
 ``kitty-specs/ci-scoping-gate-reliability-01KZP80D/investigate-squad-findings.md``
 this is a **four**-case proof, not three — the fourth (resolved-zero-docs) is
 the load-bearing distinction the naive "empty changed-set -> ERROR" reading

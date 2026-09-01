@@ -6,7 +6,7 @@ from pathlib import Path
 
 import pytest
 
-from doctrine.agent_profiles.repository import AgentProfileRepository
+from charter.offering.agent_profiles.repository import AgentProfileRepository
 from specify_cli.tool_surface.profiles.manifest import (
     PROJECTION_VERSION,
     ProfileManifest,

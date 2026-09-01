@@ -6,7 +6,7 @@ This brings existing 2.0.11+ projects up to parity with fresh ``spec-kitty init`
 behavior for skill distribution.
 
 Scope:
-- Discovers all canonical skills from src/doctrine/skills/
+- Discovers all canonical skills from src/charter/offering/skills/
 - Installs skills for all configured agents per the capability matrix
 - Creates .kittify/skills-manifest.json with installed file tracking
 - Skips wrapper-only agents (no skill root)

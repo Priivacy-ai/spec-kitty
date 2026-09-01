@@ -1,0 +1,64 @@
+# review-findings/v1 — canonical format for lens-session and fresh-sweep output.
+schema: review-findings/v1
+complete: true
+phase: spec
+lens_group: fresh
+mission: accept-path-remediation-honesty-01M0TWZP
+findings:
+  - id: SPEC-FRESH-001
+    lens: "fresh-eyes / code-truth verification (Debugger Debbie: conceptual-alignment drift)"
+    severity: 4
+    title: >
+      Key Entities' FR-002 mechanism ("cross-reference... the resolved paths behind
+      path_violations") describes data `path_violations` does not contain — a pinned
+      SC-005 regression test locks it to a single already-rendered string, not a list
+      of resolved path tokens
+    evidence:
+      - artifact: "spec.md § Key Entities — `AcceptanceSummary` paragraph (\"FR-002's reconciliation is therefore a post-hoc cross-reference between these two already-computed result lists (`optional_missing`'s values vs. the resolved paths behind `path_violations`)\")"
+      - artifact: "spec.md § FR-002 row and § Success Criteria SC-005 (pins the three tests below as must-pass-unmodified)"
+      - code: "src/specify_cli/acceptance/summary_core.py:137-148 (`evaluate_path_conventions`) — when `strict_metadata` is true it returns `[path_result.format_errors() or _PATH_CONVENTIONS_NOT_SATISFIED], None`: a 0-or-1-element list whose single element is the FULL rendered `PathValidationResult.format_errors()` text (every missing path for the mission bundled into one human-readable paragraph), not one list entry per resolved path"
+      - code: "tests/specify_cli/acceptance/test_acceptance_cores.py:235-245 (`test_strict_metadata_true_blocks_with_violation`, one of the three SC-005-pinned tests) — asserts `violations == [\"missing src/\"]`, i.e. the literal return value of the stubbed `format_errors()`, confirming `path_violations` is (and per NFR-002 must remain) an already-rendered string list, not structured path data"
+      - code: "src/specify_cli/acceptance/__init__.py:585-595 (`_missing_artifacts`) — `missing_optional` entries are bare feature_dir-relative tokens like `\"contracts\"` (via `str(p.relative_to(feature_dir))`), a different string shape again from either `path_violations`'s rendered text or FR-001's proposed resolved-path reporting (e.g. `kitty-specs/<slug>/contracts/`)"
+    claim: >
+      The Key Entities section (corrected this round by SPEC-ARCH-001, and carrying that
+      finding's own remediation wording forward almost verbatim) tells the WP2 implementer
+      that FR-002's reconciliation is a "post-hoc cross-reference between two already-computed
+      result lists" — `optional_missing`'s values against "the resolved paths behind
+      `path_violations`." That phrasing presents `path_violations` as if it already holds a
+      list of individually comparable resolved-path strings. It does not: as coded today (and
+      as locked in by the SC-005-pinned `test_strict_metadata_true_blocks_with_violation`),
+      `evaluate_path_conventions` collapses `PathValidationResult.missing_paths` into ONE
+      opaque, fully-rendered `format_errors()` paragraph before it ever reaches
+      `AcceptanceSummary.path_violations` — the individual resolved-path tokens
+      (`PathValidationResult.missing_paths`, the thing that actually deserves the name "the
+      resolved paths behind path_violations") never escape `evaluate_path_conventions`'s local
+      scope in the current code. A literal implementation of the described cross-reference
+      (e.g. `set(missing_optional) & set(path_violations)`) would never match anything — one
+      side is a bare token ("contracts"), the other a multi-line rendered paragraph — so the
+      dedup would silently no-op, which is exactly the kind of drift the mission's own
+      Standing-Order-032 (conceptual alignment) framing exists to catch. Making the
+      reconciliation actually work requires an undisclosed interface change not scoped by any
+      FR: either widen `evaluate_path_conventions`'s return contract to also expose
+      `path_result.missing_paths` to `collect_feature_summary`, or push `missing_optional` down
+      into `evaluate_path_conventions` so it can exclude the matching token before rendering
+      `format_errors()`. Either path also has to reconcile a second, related mismatch the spec
+      doesn't address: `missing_optional`'s tokens are feature_dir-relative bare strings (e.g.
+      `"contracts"`), while FR-001's fix changes `missing_paths` to hold the newly-resolved,
+      more-qualified path string (e.g. `kitty-specs/<slug>/contracts/`) — the two sides won't
+      be string-equal even once both are structured lists, so the "cross-reference" needs an
+      explicit normalization rule the spec never states.
+    remediation: >
+      Replace the Key Entities/FR-002 mechanism description with the real data flow: state that
+      `PathValidationResult.missing_paths` (available only inside
+      `validate_mission_paths`/`evaluate_path_conventions`'s own scope) is the structured list
+      that must be threaded to the reconciliation point — either by (a) passing
+      `missing_optional` into `evaluate_path_conventions` so it can drop the matching entry
+      before collapsing the remainder into `format_errors()`, or (b) widening
+      `evaluate_path_conventions`'s return contract (e.g. a third return value) so
+      `collect_feature_summary` can do the cross-reference itself. Name this as an explicit WP2
+      design decision (it is an interface change, not a "post-hoc" pure comparison), specify the
+      token-normalization rule needed to compare `missing_optional`'s bare feature_dir-relative
+      tokens against `missing_paths`'s FR-001-resolved strings, and reconfirm that whichever
+      option is chosen still satisfies SC-005's pin that
+      `test_strict_metadata_true_blocks_with_violation` (asserting `violations == ["missing
+      src/"]`, a single rendered string) passes unmodified.

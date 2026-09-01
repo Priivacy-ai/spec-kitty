@@ -25,8 +25,9 @@ import yaml
 from click.testing import Result
 from typer.testing import CliRunner
 
-from charter.drg import filter_graph_by_activation, load_built_in_graph
-from charter.pack_context import PackContext
+from charter.drg import load_built_in_graph
+from charter.activation.drg_activation import filter_graph_by_activation
+from charter.activation.pack_context import PackContext
 from specify_cli.cli.commands.charter import charter_app
 
 pytestmark = [pytest.mark.fast]

@@ -6,18 +6,18 @@ This module is the charter-layer proxy for runtime callers that need the
 ``doctrine-public-api-surface-01KZPDSR``) requires runtime modules under
 ``src/specify_cli/`` to reach doctrine artifacts only through charter facades.
 
-``doctrine.glossary_packs`` is dispositioned ``FACADE-ONLY`` in the WP01 census
+``charter.offering.glossary_packs`` is dispositioned ``FACADE-ONLY`` in the WP01 census
 (fronted by a clean charter door but not part of the wheel's public contract),
-so ``GlossaryPack`` is re-exported from the ``doctrine.glossary_packs`` package
-surface (not from ``doctrine.api``).
+so ``GlossaryPack`` is re-exported from the ``charter.offering.glossary_packs`` package
+surface (not from ``charter.offering.api``).
 
 This file is a **pure re-export** module — no behaviour, no wrappers, no type
 aliases. Object identity is preserved (``charter.glossary_packs.GlossaryPack is
-doctrine.glossary_packs.GlossaryPack``), enforced by
+charter.offering.glossary_packs.GlossaryPack``), enforced by
 ``tests/architectural/test_charter_facades_reexport_doctrine.py``.
 """
 
-from doctrine.glossary_packs import GlossaryPack
+from charter.offering.glossary_packs import GlossaryPack
 
 __all__ = [
     "GlossaryPack",

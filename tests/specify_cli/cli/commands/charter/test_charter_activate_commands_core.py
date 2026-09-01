@@ -148,3 +148,154 @@ class TestActivateCommand:
         result = _invoke_activate(project_root, "tactic", "acceptance-test-first")
         assert result.exit_code == 0, result.output
         assert "Activated" in result.output
+
+
+# ---------------------------------------------------------------------------
+# WP01 (mission charter-activate-empty-action-sequence-01M0STSX) — T002/T003:
+# `charter activate mission-type <T>` activation-time empty-action-sequence
+# gate (FR-001/NFR-001).
+#
+# SK-81 methodological trap (binding, copied verbatim from plan.md /
+# tasks/WP01-activation-empty-action-sequence-gate.md -- do not paraphrase
+# or shorten): two prior observations of this defect recorded activation as
+# already failing by pre-seeding the candidate into `mission_type_activations`
+# before calling activation -- under that precondition the existing
+# read-path guard fires and the command never demonstrates the actual
+# defect. The regression test below uses the natural operator path instead:
+# the org pack is declared and `<T>` is left OUT of `mission_type_activations`
+# before the command under test is invoked; the org-pack YAML and the
+# activation-set config are written by two SEPARATE calls, never combined
+# into one. A pre-seeded-only test would pass with zero code changed
+# (spec.md SC-004) and is NOT accepted as coverage for FR-001/SC-001.
+#
+# This file has no `CliRunner`-free precedent for cross-importing the
+# private test helpers from `tests/charter/test_mission_type_profiles.py`
+# (`_write_layered_mission_type_yaml` / `_write_org_pack_config`), so the
+# two-call fixture shape is reproduced locally below rather than imported.
+# ---------------------------------------------------------------------------
+
+
+def _write_candidate_mission_type_yaml(
+    org_root: Path,
+    mission_type_id: str,
+    *,
+    action_sequence: list[str] | None = None,
+    extends: str | None = None,
+) -> None:
+    """Write a minimal org-pack mission-type YAML directly.
+
+    ``action_sequence=None`` omits the field entirely (the CL-003
+    empty-action-sequence edge case this gate closes).
+    """
+    mission_types_dir = org_root / "mission_types"
+    mission_types_dir.mkdir(parents=True, exist_ok=True)
+    lines = [
+        "schema_version: 1",
+        f"id: {mission_type_id}",
+        f"display_name: {mission_type_id.title()}",
+    ]
+    if action_sequence is not None:
+        lines.append("action_sequence:")
+        lines.extend(f"  - {step}" for step in action_sequence)
+    if extends is not None:
+        lines.append(f"extends: {extends}")
+    (mission_types_dir / f"{mission_type_id}.yaml").write_text(
+        "\n".join(lines) + "\n", encoding="utf-8"
+    )
+
+
+def _write_org_pack_activation_config(
+    tmp_path: Path,
+    *,
+    org_root: Path,
+    org_pack_name: str,
+    activated_mission_types: list[str],
+) -> Path:
+    """Write ``.kittify/config.yaml`` declaring the org pack + the
+    mission-type activation set -- a SEPARATE call from the YAML fixture
+    above (SK-81 trap: never combine the two into one call).
+    """
+    kittify = tmp_path / ".kittify"
+    kittify.mkdir(exist_ok=True)
+    lines = ["mission_type_activations:"]
+    for mission_type in activated_mission_types:
+        lines.append(f"  - {mission_type}")
+    lines += [
+        "doctrine:",
+        "  org:",
+        "    packs:",
+        f"      - name: {org_pack_name}",
+        f"        local_path: {org_root}",
+    ]
+    (kittify / "config.yaml").write_text("\n".join(lines) + "\n", encoding="utf-8")
+    return tmp_path
+
+
+class TestActivateMissionTypeEmptyActionSequenceGate:
+    """WP01: FR-001/NFR-001 activation-time gate, natural-operator-path
+    fixture per the SK-81 methodological trap above.
+    """
+
+    def test_empty_action_sequence_refuses_activation_without_mutating_config(
+        self, tmp_path: Path
+    ) -> None:
+        org_root = tmp_path / "org-pack"
+        _write_candidate_mission_type_yaml(org_root, "qa", action_sequence=None)
+        project_root = _write_org_pack_activation_config(
+            tmp_path,
+            org_root=org_root,
+            org_pack_name="acme",
+            activated_mission_types=[],
+        )
+
+        config_path = project_root / ".kittify" / "config.yaml"
+        before = yaml.safe_load(config_path.read_text())
+        # SK-81 trap guard: confirm the natural-operator precondition
+        # immediately before invoking -- "qa" must NOT already be
+        # registered.
+        assert "qa" not in (before.get("mission_type_activations") or [])
+        before_bytes = config_path.read_bytes()
+
+        result = _invoke_activate(project_root, "mission-type", "qa")
+
+        assert result.exit_code != 0, result.output
+        assert "qa" in result.output
+        assert "org" in result.output
+        assert config_path.read_bytes() == before_bytes
+
+    def test_extends_fallback_non_empty_parent_activates_successfully(
+        self, tmp_path: Path
+    ) -> None:
+        """AC4/FR-005: a candidate whose own ``action_sequence`` is empty
+        but whose single-level ``extends`` parent resolves non-empty
+        activates successfully.
+
+        Documented exception (plan.md, WP01 T003): this assertion is
+        expected GREEN already at the T003 commit -- it pins TODAY's
+        unconditional-success behavior for an unregistered candidate, not
+        the fix; activation already unconditionally succeeds today for any
+        unregistered candidate, including one whose extends chain would
+        resolve non-empty. Only the sibling unit-level extends test in
+        ``tests/charter/test_mission_type_profiles.py`` is RED at that
+        commit.
+        """
+        org_root = tmp_path / "org-pack"
+        _write_candidate_mission_type_yaml(
+            org_root, "parent", action_sequence=["specify", "plan"]
+        )
+        _write_candidate_mission_type_yaml(
+            org_root, "qa", action_sequence=None, extends="parent"
+        )
+        project_root = _write_org_pack_activation_config(
+            tmp_path,
+            org_root=org_root,
+            org_pack_name="acme",
+            activated_mission_types=[],
+        )
+
+        result = _invoke_activate(project_root, "mission-type", "qa")
+
+        assert result.exit_code == 0, result.output
+        config = project_root / ".kittify" / "config.yaml"
+        data = yaml.safe_load(config.read_text())
+        assert "qa" in data["mission_type_activations"]

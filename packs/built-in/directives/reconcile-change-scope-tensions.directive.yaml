@@ -12,7 +12,7 @@ intent: >
   change, instead of applying each in isolation, so the default doctrine
   pack stays coherent even though the underlying tension between the three
   rules is real and intentionally left unresolved at the rule level.
-enforcement: advisory
+enforcement: lenient-adherence
 scope: >
   Applies whenever a change is evaluated against DIRECTIVE_024, DIRECTIVE_025,
   or tactic:change-apply-smallest-viable-diff -- in practice, any code, test,
@@ -53,3 +53,11 @@ validation_criteria:
     without needing to guess which rule licensed it."
   - Any change that grew beyond the touched area carries an explicit
     rationale connecting it to the stated goal (Locality of Change).
+explicit_allowances:
+  - When the three source rules would each pick a different file set for a
+    genuinely small change, applying this directive's own default
+    resolution order (the procedures above) without a separate written
+    trade-off analysis is an acceptable lenient-adherence allowance in its
+    arbiter role, provided the resolution itself (what was folded in, what
+    was deferred, and why) is still recorded per this directive's own
+    procedure.

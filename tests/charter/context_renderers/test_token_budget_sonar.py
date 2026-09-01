@@ -28,7 +28,7 @@ import string
 
 import pytest
 
-from charter.context_renderers.token_budget import (
+from charter.activation.context_renderers.token_budget import (
     _HEADING_LINE_RE,
     RenderedSection,
     _collect_profile_block_candidates,
