@@ -1,8 +1,8 @@
 """CLI tests for ``spec-kitty doctrine asset`` (WP05, T026/T027).
 
 The asset operator surface is a *read-only* window over the WP04 resolution
-repository (:class:`doctrine.assets.repository.AssetRepository`, reached through
-:class:`doctrine.service.DoctrineService` ``.assets``):
+repository (:class:`charter.offering.assets.repository.AssetRepository`, reached through
+:class:`charter.offering.service.DoctrineService` ``.assets``):
 
 * ``asset list [--json]`` enumerates every resolvable asset with its source tier.
 * ``asset path <id> [--json]`` resolves one identifier to a filesystem path,
@@ -53,7 +53,7 @@ def test_asset_path_resolves_shipped_asset() -> None:
         catch_exceptions=False,
     )
     assert result.exit_code == 0, result.output
-    resolved = Path(result.output.strip())
+    resolved = Path(result.stdout.strip())  # CR-02: stderr now carries a deprecation notice
     assert resolved.is_file(), f"resolved path does not exist: {resolved}"
     assert resolved.name == "docs_structural_lint.py"
 
@@ -66,7 +66,7 @@ def test_asset_path_json_carries_id_path_and_tier() -> None:
         catch_exceptions=False,
     )
     assert result.exit_code == 0, result.output
-    payload = json.loads(result.output)
+    payload = json.loads(result.stdout)
     assert payload["id"] == _SHIPPED_ASSET_ID
     assert payload["tier"] == "builtin"
     assert payload["path"].endswith("docs_structural_lint.py")
@@ -103,7 +103,7 @@ def test_asset_list_json_is_a_record_list() -> None:
         catch_exceptions=False,
     )
     assert result.exit_code == 0, result.output
-    payload = json.loads(result.output)
+    payload = json.loads(result.stdout)
     assert isinstance(payload, list)
     shipped = next(row for row in payload if row["id"] == _SHIPPED_ASSET_ID)
     assert shipped["tier"] == "builtin"
@@ -125,7 +125,7 @@ def test_resolved_path_str_renders_marker_on_not_found_not_just_escape() -> None
     """
     from unittest.mock import create_autospec
 
-    from doctrine.assets.repository import AssetNotFoundError, AssetRepository
+    from charter.offering.assets.repository import AssetNotFoundError, AssetRepository
 
     from specify_cli.cli.commands._doctrine_asset import _UNRESOLVABLE, _resolved_path_str
 
@@ -137,7 +137,7 @@ def test_resolved_path_str_renders_marker_on_not_found_not_just_escape() -> None
 
 def test_asset_list_empty_prints_message_and_exits_zero(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """No resolvable manifests at all -> a friendly message, exit 0 (not a crash)."""
-    from doctrine.assets.repository import AssetRepository
+    from charter.offering.assets.repository import AssetRepository
 
     empty_built_in = tmp_path / "shipped" / "assets" / "built-in"
     empty_built_in.mkdir(parents=True)
@@ -152,7 +152,7 @@ def test_asset_list_empty_prints_message_and_exits_zero(tmp_path: Path, monkeypa
 
 def test_asset_path_escape_exits_nonzero_naming_it(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """A manifest whose blob path escapes its anchoring root refuses fail-closed (NFR-006)."""
-    from doctrine.assets.repository import AssetRepository
+    from charter.offering.assets.repository import AssetRepository
 
     built_in = tmp_path / "shipped" / "assets" / "built-in"
     _write_asset_manifest(
@@ -178,6 +178,6 @@ def test_asset_path_unknown_id_json_carries_id_and_error() -> None:
         catch_exceptions=False,
     )
     assert result.exit_code != 0
-    payload = json.loads(result.output)
+    payload = json.loads(result.stdout)
     assert payload["id"] == "no-such-asset-xyz"
     assert "no-such-asset-xyz" in payload["error"]

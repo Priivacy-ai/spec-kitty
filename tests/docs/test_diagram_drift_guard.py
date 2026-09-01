@@ -18,7 +18,7 @@ import pytest
 
 from tests.docs.diagram_drift import binding_table, guard
 from tests.docs.diagram_drift.binding_table import DiagramBinding, ModelKind
-from doctrine.drg.models import DRGNode
+from charter.offering.drg.models import DRGNode
 
 pytestmark = pytest.mark.unit
 
@@ -96,7 +96,7 @@ def test_nested_depth2_field_add_fails(monkeypatch: pytest.MonkeyPatch) -> None:
 def test_antipattern_class_is_distinct_from_anti_pattern_node_kind() -> None:
     from pydantic import BaseModel
 
-    from doctrine.styleguides.models import AntiPattern
+    from charter.offering.styleguides.models import AntiPattern
 
     # The styleguides AntiPattern is a real BaseModel example type...
     assert issubclass(AntiPattern, BaseModel)

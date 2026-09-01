@@ -154,9 +154,8 @@ spec-kitty merge
     a single `export` arms every project that shell subsequently touches, not just the
     repository you were standing in when you ran it.
 
-    This matters because the event journal is scoped per *producer*
-    (`~/.spec-kitty/event_journal/journal-<token>.db`), not per project. One
-    journal holds the events of every checkout on the machine.
+    The former per-producer delivery store was retired. No environment
+    variable recreates that machine-global store.
 
     If you work on more than one client's code on one machine — as consultants,
     contractors and agencies do — arming these in your shell profile makes every
@@ -166,13 +165,11 @@ spec-kitty merge
     [The `.kitty.env` file](#the-kittyenv-file) below): a value in
     `<repo>/.kittify/.kitty.env` only takes effect for `spec-kitty` invocations
     whose resolved project root is that repo, so setting either variable there
-    does not arm any other checkout on the machine. Combine it with per-project
-    consent (`spec-kitty sync opt-in` / `sync opt-out`) to decide what may
-    actually be delivered.
+    does not arm any other checkout on the machine.
 
     ```bash
     # Scoped to one invocation
-    SPEC_KITTY_ENABLE_SAAS_SYNC=1 spec-kitty sync now
+    SPEC_KITTY_ENABLE_SAAS_SYNC=1 spec-kitty auth login
 
     # Scoped to this repo only — write once, no per-shell export
     echo 'SPEC_KITTY_ENABLE_SAAS_SYNC=1' >> .kittify/.kitty.env
@@ -181,9 +178,8 @@ spec-kitty merge
     export SPEC_KITTY_ENABLE_SAAS_SYNC=1
     ```
 
-    Run `spec-kitty sync doctor` before draining to see, per project, what is
-    queued and whether it is consented, and `spec-kitty doctor env-file` to see
-    which tier is actually supplying each governed var.
+    Run `spec-kitty doctor env-file` to see which tier is actually supplying
+    each governed variable.
 
 ### SPEC_KITTY_ENABLE_SAAS_SYNC
 

@@ -38,9 +38,9 @@ import pytest
 import yaml
 from ruamel.yaml import YAML
 
-from charter.context_renderers import render_authority_paths
-from charter.context_renderers.authority_paths import DEFAULT_AUTHORITY_PATHS
-from charter.schemas import DoctrineSelectionConfig
+from charter.activation.context_renderers import render_authority_paths
+from charter.activation.context_renderers.authority_paths import DEFAULT_AUTHORITY_PATHS
+from charter.activation.schemas import DoctrineSelectionConfig
 from specify_cli.cli.commands.doctor import _print_overdue_details
 from specify_cli.compat.doctor import (
     ShimRegistryReport,

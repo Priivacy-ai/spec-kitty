@@ -1,4 +1,4 @@
-"""``spec-kitty routes`` (EXPERIMENTAL-spec-kitty#10): which team admits
+"""``spec-kitty routes`` (Priivacy-ai/spec-kitty#10): which team admits
 this checkout, and which relay carries its moments.
 
 Covers the three answers the command can honestly give — admitted (team +
@@ -24,7 +24,9 @@ from kernel.clock import now_utc, timedelta
 
 from specify_cli import app
 from specify_cli.auth import reset_token_manager
+from specify_cli.auth.server_target import ServerTargetSplitBrainError
 from specify_cli.auth.session import StoredSession, Team
+from specify_cli.saas_client.errors import SaasAuthError
 from specify_cli.zeitgeist_client import credentials, resolution
 from specify_cli.zeitgeist_client.resolution import GatewayError, MintedCredential
 
@@ -234,6 +236,45 @@ def test_cached_credential_answers_offline_without_asking_team_kitty(state_root:
     assert "team: demo · relay: http://relay" in result.stdout
 
 
+def test_cached_credential_answers_offline_even_with_nothing_configured_to_authenticate_with(
+    state_root: Path, clone: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Priivacy-ai/spec-kitty#151: a checkout with a valid stored credential
+    but no auth configured anywhere (no env vars, no saas-auth.json, no
+    `auth login` session) must still answer offline — the gateway is never
+    needed for a cache hit."""
+    monkeypatch.delenv("SPEC_KITTY_SAAS_URL", raising=False)
+    monkeypatch.delenv("SPEC_KITTY_SAAS_TOKEN", raising=False)
+    monkeypatch.delenv("SPEC_KITTY_TEAM_SLUG", raising=False)
+    credentials.store(
+        repo="github.com/acme/widget",
+        relay_url="http://relay",
+        token="bearer",
+        token_kind="presence",
+        expires_at=_iso_in(3600),
+        host="github.com",
+        repo_slug="acme/widget",
+        team="demo",
+    )
+
+    result = runner.invoke(app, ["routes"])
+    assert result.exit_code == 0
+    assert "team: demo · relay: http://relay" in result.stdout
+
+
+def test_cached_negative_answers_offline_even_with_nothing_configured_to_authenticate_with(state_root: Path, clone: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """Same fix, the remembered-negative branch: "not admitted" must not
+    require auth to be configured either."""
+    monkeypatch.delenv("SPEC_KITTY_SAAS_URL", raising=False)
+    monkeypatch.delenv("SPEC_KITTY_SAAS_TOKEN", raising=False)
+    monkeypatch.delenv("SPEC_KITTY_TEAM_SLUG", raising=False)
+    credentials.store_negative(repo="github.com/acme/widget", reason="stale-reason")
+
+    result = runner.invoke(app, ["routes"])
+    assert result.exit_code == 0
+    assert "not admitted to any team — no relay" in result.stdout
+
+
 # --- not admitted -----------------------------------------------------------
 
 
@@ -261,6 +302,25 @@ def test_cached_negative_answers_offline(state_root: Path, auth_env: None, clone
     assert "not admitted to any team — no relay" in result.stdout
 
 
+def test_cached_negative_is_loaded_once_for_routes(state_root: Path, auth_env: None, clone: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """The offline negative found by ``cached_answer`` is reused by routes."""
+    credentials.store_negative(repo="github.com/acme/widget", reason="stale-reason")
+    original_load_negative = credentials.load_negative
+    load_calls = 0
+
+    def count_negative_load(*, repo: str) -> credentials.NegativeEntry | None:
+        nonlocal load_calls
+        load_calls += 1
+        return original_load_negative(repo=repo)
+
+    monkeypatch.setattr(credentials, "load_negative", count_negative_load)
+
+    result = runner.invoke(app, ["routes"])
+
+    assert result.exit_code == 0
+    assert load_calls == 1
+
+
 # --- faults -----------------------------------------------------------------
 
 
@@ -282,6 +342,45 @@ def test_unauthenticated_checkout_exits_nonzero_with_a_login_hint(state_root: Pa
     result = runner.invoke(app, ["routes"])
     assert result.exit_code == 1
     assert "auth login" in result.stdout
+
+
+def test_config_source_refusal_survives_rich_rendering(clone: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """The auth refusal's ``[sync]`` source label is data, not Rich markup."""
+    from specify_cli.cli.commands import routes as routes_module
+
+    def _raise_config_source_mismatch(repo_root: Path) -> None:
+        raise SaasAuthError(
+            "Session is for https://other.example; config.toml [sync].server_url now points at https://team.example — run spec-kitty auth login --force"
+        )
+
+    monkeypatch.setattr(routes_module, "load_auth_context", _raise_config_source_mismatch)
+
+    result = runner.invoke(app, ["routes"])
+
+    assert result.exit_code == 1
+    assert "config.toml [sync].server_url now points at" in result.stdout
+
+
+def test_split_brain_auth_refusal_keeps_its_specific_remediation(clone: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """The route wrapper must not turn a split-brain refusal back into a login hint."""
+    from specify_cli.cli.commands import routes as routes_module
+
+    def _raise_split_brain(repo_root: Path) -> None:
+        cause = ServerTargetSplitBrainError(
+            configured_server_url="https://legit-team-kitty.example.com",
+            env_server_url="https://attacker.example.com",
+        )
+        raise SaasAuthError(str(cause)) from cause
+
+    monkeypatch.setattr(routes_module, "load_auth_context", _raise_split_brain)
+
+    result = runner.invoke(app, ["routes"])
+
+    assert result.exit_code == 1
+    assert "Server target split-brain detected" in result.stdout
+    assert "legit-team-kitty.example.com" in result.stdout
+    assert "attacker.example.com" in result.stdout
+    assert "Run `spec-kitty auth login` first." not in result.stdout
 
 
 # --- the documented login path (#198) ----------------------------------------

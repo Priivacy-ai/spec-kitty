@@ -1,0 +1,69 @@
+schema: review-findings/v1
+complete: true
+phase: plan
+lens_group: fresh
+mission: charter-activate-empty-action-sequence-01M0STSX
+findings:
+  - id: PLAN-FRESH-001
+    lens: conceptual-alignment
+    severity: 3
+    title: ATDD Sequencing opening paragraph contradicts commit 2's own RED/GREEN detail for the new AC4 CLI-level test
+    evidence:
+      - artifact: "plan.md § ATDD Sequencing (charter C-011, binding), lines 366-373"
+      - artifact: "plan.md § ATDD Sequencing, commit 2 body, lines 413-438 (specifically 422-434)"
+      - artifact: "plan.md § Project Structure, line 518"
+    claim: >
+      The revision added an opening paragraph asserting, categorically, "commits 1
+      and 2 are each diffed against the WP's `planning_base_branch` to confirm
+      their respective new tests are RED there." But commit 2 introduces TWO new
+      tests (a unit-level extends test and a CLI-level AC4 test), and the same
+      revision's own commit-2 detail explicitly states the CLI-level test is "not
+      RED against the pre-fix code" and "is expected GREEN at this commit and is
+      not part of this commit's RED signal" — directly contradicting the opening
+      paragraph's blanket claim. The Project Structure line ("AC4 GREEN-at-commit-2")
+      agrees with the detailed, correct account, not with the summary. A reader
+      who takes the ATDD Sequencing intro at face value (e.g. someone converting
+      this plan into tasks.md gates, or verifying C-011 compliance mechanically)
+      would expect commit 2's diff to show every new test failing, then flag the
+      already-passing AC4 CLI test as a C-011 violation — when in fact it is an
+      intentional, justified exception the plan itself explains two paragraphs
+      later.
+    remediation: >
+      Qualify the opening paragraph, e.g.: "commits 1 and 2 are each diffed
+      against `planning_base_branch`; commit 1's new tests, and commit 2's new
+      unit-level extends test, must show RED there — commit 2's new CLI-level
+      AC4 test is a documented exception (see commit 2 below) that is expected
+      GREEN already, since it pins today's un-fixed unconditional-success
+      behavior rather than the fix." This makes the binding-constraint summary
+      agree with the detail instead of contradicting it.
+
+  - id: PLAN-FRESH-002
+    lens: fresh-eyes
+    severity: 2
+    title: Project Structure comment overclaims that the single commit-1 CLI test covers AC1-AC3
+    evidence:
+      - artifact: "plan.md § Project Structure, line 518: \"+ 2 CLI-level ATDD tests (AC1-3 RED-first, AC4 GREEN-at-commit-2)\""
+      - artifact: "plan.md § ATDD Sequencing, commit 1 body, steps (a)-(e), lines 375-402"
+      - artifact: "spec.md § User Story 1, Acceptance Scenarios 1-4, lines 71-89"
+    claim: >
+      The revision changed the Project Structure tree comment from the generic,
+      pre-revision "+ CLI-level ATDD test (RED-first)" to the new, more specific
+      "AC1-3 RED-first" label. But commit 1's single new CLI-level test (steps
+      a-e) only exercises the refusal-path precondition (empty action sequence,
+      candidate absent from `mission_type_activations`) — i.e. Acceptance
+      Scenarios 1 and 2 (non-zero exit + naming, and config unmutated). It does
+      not exercise Acceptance Scenario 3 (non-empty sequence, activation
+      continues to succeed) at all, since that requires the opposite YAML
+      fixture precondition. AC3/FR-007 is instead covered by (a) a new
+      unit-level non-empty-case test in commit 1's own unit-test batch, and (b)
+      SC-003's reliance on "regression coverage over the existing healthy-path
+      tests remaining green" — neither of which is what "AC1-3 RED-first" (a
+      single CLI-level, CliRunner-driven test) implies to a reader scanning this
+      table for AC-to-test traceability.
+    remediation: >
+      Change the label to something accurate, e.g. "AC1-2 RED-first (unit-level
+      AC3 regression case also added; CLI-level AC3 already covered by existing
+      tests, no new CLI test needed), AC4 GREEN-at-commit-2" — or simply drop the
+      AC-numbering shorthand from this ASCII comment and let the prose sections
+      (which are already correct) carry the AC-to-test mapping.
+

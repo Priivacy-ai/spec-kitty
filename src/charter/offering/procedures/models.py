@@ -1,0 +1,121 @@
+"""
+Procedure domain model and value objects.
+
+A Procedure is a reusable, stateful workflow with defined entry/exit
+conditions, sequential or branching steps, and explicit actor roles.
+Unlike tactics (small composable techniques), procedures orchestrate
+multi-step flows that can be paused, resumed, and validated.
+"""
+
+from __future__ import annotations
+
+from enum import StrEnum
+from typing import Any
+
+from pydantic import BaseModel, ConfigDict, Field, model_validator
+
+from charter.offering.artifact_kinds import ArtifactKind
+
+_RETIRED_RELATIONSHIP_FIELDS = ("enhances", "overrides")
+
+
+def _reject_retired_relationship_fields(kind: str, data: Any) -> Any:
+    """Raise an actionable error if a retired relationship key is authored.
+
+    The ``enhances``/``overrides`` fields were retired in the FR-028 hard
+    cutover. Relationships are now authored exclusively as DRG fragment edges
+    merged into ``packs/built-in/*.graph.yaml``, never as inline artifact
+    fields.
+    """
+    if not isinstance(data, dict):
+        return data
+    present = [field for field in _RETIRED_RELATIONSHIP_FIELDS if field in data]
+    if present:
+        keys = ", ".join(repr(field) for field in present)
+        raise ValueError(
+            f"Retired relationship field(s) {keys} on {kind} are no longer "
+            f"accepted (FR-028 hard cutover). Author the relationship as a DRG "
+            f"edge (e.g. {{source: <kind>:<id>, target: <kind>:<id>, "
+            f"relation: enhances|overrides}}) in the fragment for the source "
+            f"kind, packs/built-in/{kind}.graph.yaml — not as an inline "
+            f"artifact field."
+        )
+    return data
+
+
+class ActorRole(StrEnum):
+    """Who performs a procedure step."""
+
+    HUMAN = "human"
+    AGENT = "agent"
+    SYSTEM = "system"
+
+
+class ProcedureAntiPattern(BaseModel):
+    """A named anti-pattern to avoid when following a procedure."""
+
+    model_config = ConfigDict(frozen=True, extra="forbid")
+
+    name: str = Field(min_length=1)
+    description: str = Field(min_length=1)
+
+
+class ProcedureReference(BaseModel):
+    """Cross-artifact reference within a procedure."""
+
+    model_config = ConfigDict(frozen=True, extra="forbid")
+
+    type: ArtifactKind
+    id: str
+    reason: str | None = None
+
+
+class ProcedureStep(BaseModel):
+    """A single step within a procedure.
+
+    Per-step tactic relationships are expressed as typed edges in
+    ``packs/built-in/*.graph.yaml`` (Phase 1 excision — mission
+    ``excise-doctrine-curation-and-inline-references-01KP54J6`` WP02). The
+    former inline ``tactic_refs`` field has been removed; with
+    ``extra="forbid"`` a procedure YAML that still declares step-level
+    ``tactic_refs`` will now fail Pydantic validation with ``extra_forbidden``.
+    WP03 adds a pre-Pydantic scan that raises the structured
+    ``InlineReferenceRejectedError`` with a migration hint.
+    """
+
+    model_config = ConfigDict(frozen=True, extra="forbid")
+
+    title: str
+    description: str | None = None
+    actor: ActorRole = ActorRole.AGENT
+    on_success: str | None = None
+    on_failure: str | None = None
+
+
+class Procedure(BaseModel):
+    """
+    A reusable orchestrated workflow with entry/exit conditions.
+
+    Procedures describe multi-step flows that can be paused, resumed,
+    and validated. They coordinate actors (human, agent, system) and
+    reference tactics for individual steps.
+    """
+
+    model_config = ConfigDict(frozen=True, extra="forbid", populate_by_name=True)
+
+    schema_version: str = Field(pattern=r"^1\.0$")
+    id: str = Field(pattern=r"^[a-z][a-z0-9-]*$")
+    name: str
+    purpose: str
+    entry_condition: str
+    exit_condition: str
+    steps: list[ProcedureStep] = Field(min_length=1)
+    anti_patterns: list[ProcedureAntiPattern] = Field(default_factory=list)
+    applies_to_languages: list[str] = Field(default_factory=list)
+    notes: str | None = None
+    references: list[ProcedureReference] = Field(default_factory=list)
+
+    @model_validator(mode="before")
+    @classmethod
+    def _reject_retired_relationship_fields(cls, data: Any) -> Any:
+        return _reject_retired_relationship_fields("procedure", data)

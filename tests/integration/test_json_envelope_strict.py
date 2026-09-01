@@ -364,8 +364,8 @@ def test_synthesize_json_stdout_is_strict_json_with_warnings(
     )
 
     # Inject a deterministic warning via the evidence-collector seam.
-    from charter.evidence.orchestrator import EvidenceResult
-    from charter.synthesizer.evidence import EvidenceBundle
+    from charter.activation.evidence.orchestrator import EvidenceResult
+    from charter.activation.synthesizer.evidence import EvidenceBundle
 
     fake_evidence = EvidenceResult(
         bundle=EvidenceBundle(

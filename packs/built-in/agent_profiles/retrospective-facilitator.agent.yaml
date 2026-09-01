@@ -12,20 +12,6 @@ capabilities:
 routing-priority: 60
 max-concurrent-tasks: 1
 
-context-sources:
-  doctrine-layers:
-    - directives
-    - tactics
-  directives:
-    - "003"
-    - "010"
-    - "018"
-  additional:
-    - charter-context
-    - drg-slice
-    - glossary
-    - mission-events
-
 purpose: >
   Facilitates a structured mission retrospective at mission terminus or via the
   explicit custom-mission marker step. Captures what helped, what did not help,
@@ -72,8 +58,6 @@ collaboration:
     - retrospective.yaml
     - retrospective-events
     - proposal-set
-  operating-procedures:
-    - retrospective-facilitation-protocol
   canonical-verbs:
     - retrospect
     - capture

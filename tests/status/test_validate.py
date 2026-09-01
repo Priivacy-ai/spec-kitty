@@ -566,6 +566,67 @@ class TestValidateMaterializationDrift:
         findings = validate_materialization_drift(tmp_path)
         assert any("retrospective snapshot" in f for f in findings)
 
+    def _assert_materializes_clean_with_target_urn(self, tmp_path: Path, target_urn: str) -> None:
+        """Shared body for the CR-05 prefix-tolerance pair below.
+
+        Materializes a ``retrospective.proposal.applied`` event carrying
+        *target_urn* and asserts it drifts clean -- i.e. the derived
+        ``status.json`` faithfully reflects what was just written, with no
+        drift findings. ``target_urn`` never participates in that
+        comparison (it is an opaque display string,
+        ``ProposalAppliedPayload.target_urn: str`` -- no format/prefix
+        validation), so this passing for both the legacy ``doctrine:`` and
+        canonical ``charter:`` prefixes is the durable-event-log tolerance
+        CR-05 requires, made explicit rather than incidental.
+        """
+        event = _make_event()
+        retro_event = {
+            "actor": {"kind": "agent", "id": "agent", "profile_id": None},
+            "at": "2026-02-08T12:01:00Z",
+            "event_id": "01HXYZ0123456789ABCDEFGHJM",
+            "event_name": "retrospective.proposal.applied",
+            "mid8": "01HXYZ01",
+            "mission_id": "01HXYZ0123456789ABCDEFGHJK",
+            "mission_slug": "034-test-feature",
+            "payload": {
+                "applied_by": {"kind": "agent", "id": "agent", "profile_id": None},
+                "kind": "synthesize_directive",
+                "proposal_id": "01HXYZ0123456789ABCDEFGHJN",
+                "provenance_ref": ".kittify/doctrine/directive/.provenance/example.yaml",
+                "target_urn": target_urn,
+            },
+        }
+        (tmp_path / "status.events.jsonl").write_text(
+            json.dumps(event, sort_keys=True) + "\n" + json.dumps(retro_event, sort_keys=True) + "\n",
+            encoding="utf-8",
+        )
+
+        from specify_cli.status.reducer import materialize
+
+        materialize(tmp_path)
+
+        findings = validate_materialization_drift(tmp_path)
+        assert findings == []
+
+    def test_urn_doctrine_prefix_parsed_with_warning(self, tmp_path: Path) -> None:
+        """CR-05: a legacy ``doctrine:directive:...`` ``target_urn`` -- the
+        shape every event written before this mission's producer cutover
+        durably carries -- must keep materializing drift-free forever. No
+        runtime ``warnings.warn`` fires here (the field is intentionally
+        unconstrained); "parsed with warning" names the CR's operator-facing
+        deprecation record for the producer side, not a validator side
+        effect -- see the same-named test in
+        ``tests/retrospective/test_reducer_integration.py``.
+        """
+        self._assert_materializes_clean_with_target_urn(tmp_path, "doctrine:directive:example")
+
+    def test_urn_charter_prefix_canonical(self, tmp_path: Path) -> None:
+        """CR-05 counterpart: the canonical ``charter:directive:...``
+        ``target_urn`` (what ``doctrine_synthesizer.apply`` now emits)
+        materializes drift-free identically to the legacy form above.
+        """
+        self._assert_materializes_clean_with_target_urn(tmp_path, "charter:directive:example")
+
 
 # ---------------------------------------------------------------------------
 # validate_derived_views

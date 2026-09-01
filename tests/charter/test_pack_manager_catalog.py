@@ -1,4 +1,4 @@
-"""Catalog-core tests for ``charter.pack_manager`` (WP09, T043).
+"""Catalog-core tests for ``charter.activation.pack_manager`` (WP09, T043).
 
 Covers the WP09 refactor surface:
 
@@ -21,18 +21,18 @@ from pathlib import Path
 import pytest
 import yaml
 
-from charter.activation_engine import (
+from charter.activation.activation_engine import (
     NoActivationRestrictionsError,
     UnknownActivationIdError,
 )
-from charter.invocation_context import ProjectContext
-from charter.pack_manager import (
+from charter.activation.invocation_context import ProjectContext
+from charter.activation.pack_manager import (
     YAML_KEY_MAP,
     AvailableArtifact,
     CharterPackManager,
     _resolve_layer_candidate,
 )
-from doctrine.artifact_kinds import CHARTER_KIND_TOKENS, ArtifactKind
+from charter.offering.artifact_kinds import CHARTER_KIND_TOKENS, ArtifactKind
 
 pytestmark = pytest.mark.unit
 
@@ -117,13 +117,13 @@ class TestKindTableParity:
         CC-4: kind validation/derivation routes through the canonical resolver,
         not a re-declared kind set.
         """
-        import charter.pack_manager as pm
+        import charter.activation.pack_manager as pm
 
         assert not hasattr(pm, "_KIND_TO_DOCTRINE_DIR")
 
     def test_module_routes_through_canonical_resolver(self) -> None:
         """``pack_manager`` imports the canonical kind resolver (WP01)."""
-        src = inspect.getsource(__import__("charter.pack_manager", fromlist=["x"]))
+        src = inspect.getsource(__import__("charter.activation.pack_manager", fromlist=["x"]))
         assert "from_operator_token" in src
         assert "CHARTER_KIND_TOKENS" in src
 
@@ -318,7 +318,7 @@ class TestActivationDelegation:
         """
         import ast
 
-        src = inspect.getsource(__import__("charter.pack_manager", fromlist=["x"]))
+        src = inspect.getsource(__import__("charter.activation.pack_manager", fromlist=["x"]))
         tree = ast.parse(src)
         calls = [
             node
@@ -336,7 +336,7 @@ class TestActivationDelegation:
 
     def test_module_calls_activation_engine(self) -> None:
         """Integration: the WP10 engine is actually invoked (not dead code)."""
-        src = inspect.getsource(__import__("charter.pack_manager", fromlist=["x"]))
+        src = inspect.getsource(__import__("charter.activation.pack_manager", fromlist=["x"]))
         assert "plan_activation(" in src
         assert "plan_deactivation(" in src
         assert "commit_plan(" in src
@@ -372,7 +372,7 @@ class TestResolveLayerCandidate:
     ) -> None:
         sentinel = tmp_path / "sentinel-built-in"
         monkeypatch.setattr(
-            "charter.pack_manager.built_in_dir", lambda kind: sentinel if kind is ArtifactKind.DIRECTIVE else None
+            "charter.activation.pack_manager.built_in_dir", lambda kind: sentinel if kind is ArtifactKind.DIRECTIVE else None
         )
         candidate = _resolve_layer_candidate(
             "built-in", tmp_path, ArtifactKind.DIRECTIVE, "doctrine/directives", layered=True
@@ -394,7 +394,7 @@ class TestResolveLayerCandidate:
         candidate = _resolve_layer_candidate(
             "built-in", tmp_path, None, "missions/mission_types", layered=False
         )
-        from doctrine.missions.repository import MissionTemplateRepository
+        from charter.offering.missions.repository import MissionTemplateRepository
 
         assert candidate == MissionTemplateRepository.default_missions_root() / "mission_types"
 

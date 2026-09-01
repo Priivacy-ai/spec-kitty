@@ -49,7 +49,7 @@ class TestGlossarySeedTermValid:
             see_also=[
                 {
                     "tactic": "secure-regex-catastrophic-backtracking",
-                    "path": "src/doctrine/tactics/shipped/secure-regex-catastrophic-backtracking.tactic.yaml",
+                    "path": "src/charter/offering/tactics/shipped/secure-regex-catastrophic-backtracking.tactic.yaml",
                 },
                 {"fr": "FR-008", "description": "Wall-clock regression test requirement"},
             ],

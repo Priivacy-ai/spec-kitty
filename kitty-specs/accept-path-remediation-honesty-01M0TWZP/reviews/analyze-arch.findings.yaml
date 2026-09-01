@@ -1,0 +1,6 @@
+schema: review-findings/v1
+complete: true
+phase: analyze
+lens_group: arch
+mission: accept-path-remediation-honesty-01M0TWZP
+findings: []

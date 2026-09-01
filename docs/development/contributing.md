@@ -2,7 +2,7 @@
 title: Contributing to Spec Kitty
 description: The full contributor guide for Spec Kitty — developer setup, running tests, submitting pull requests, AI-assistance disclosure, and the release process.
 doc_status: active
-updated: '2026-08-15'
+updated: '2026-08-22'
 audience: docs/context/audience/internal/lead-developer.md
 type: how-to
 related:
@@ -200,7 +200,7 @@ pytest tests/integration/test_version_isolation.py  # Isolation tests
 ```
 
 To run the suite in parallel (typically ≥2× faster on a ≥4-core machine), plus
-the serial daemon pass and the coverage-neutrality gates, see
+the serial marker passes and the coverage-neutrality gates, see
 [Running the test suite in parallel](testing/testing-parallel.md).
 
 ### Testing Unreleased Main or a Pull Request
@@ -391,6 +391,7 @@ Here are a few things you can do that will increase the likelihood of your pull 
 - Update documentation (`README.md`, `spec-driven.md`) if your changes affect user-facing features.
 - Keep your change as focused as possible. If there are multiple changes you would like to make that are not dependent upon each other, consider submitting them as separate pull requests.
 - Write a [good commit message](http://tbaggery.com/2008/04/19/a-note-about-git-commit-messages.html), and keep your history clean but not over-squashed: compress your own bookkeeping commits (fixups, "wip", formatting-only) into the related work, but keep genuinely separate logical/code changes as separate commits — each commit should be one coherent, reviewable change.
+- If a scoped change also carries incidental formatting-only diffs, call that out explicitly in the PR body so reviewers can distinguish behavior changes from formatting churn.
 - Write a PR body that leads with **impact** — what changes for a user or operator, in plain language, before any architecture or test-strategy detail. See [Review gates: PR body style](how-to/review-gates.md#pr-body-style-consumer-focused-bluf).
 - If your change is user-facing, add a consumer-focused entry to `docs/changelog/CHANGELOG.md` under `[Unreleased]` — impact-first, one line a user understands, not an internal-mechanism summary. See [Review gates: Changelog update and style](how-to/review-gates.md#changelog-update-and-style).
 - Test your changes with the Spec-Driven Development workflow to ensure compatibility.
@@ -418,32 +419,31 @@ When working on spec-kitty:
 
 ## Release Process
 
-Spec Kitty follows a structured release process using GitHub Actions for automated PyPI publishing.
-
-> **For AI agents**: Use the `/release` skill (`.claude/skills/release/SKILL.md`) for a step-by-step guide.
+The repository-root [Release Checklist](../../RELEASE_CHECKLIST.md) is the canonical release runbook. The summary below is intentionally subordinate to that checklist and must remain consistent with branch protection.
 
 ### Branch Strategy
 
-Spec Kitty maintains two long-lived branches:
+Spec Kitty's active release line is:
 
 - **`main`** — The release branch. All tags MUST be created from `main`.
-- **`2.x`** — Development branch for the next major version.
-
-If changes are made on `2.x`, cherry-pick them to `main` before releasing. The `2.x` branch may have test failures that do not affect `main`.
+- **`1.x-maintenance`** — Deprecated, critical-maintenance-only line; no new 3.x work or PyPI releases.
 
 ### Quick Release (Patch)
 
-For simple bug fixes or improvements already committed to `main`:
+For a small release whose product changes have already landed on `main`:
 
 ```bash
-# 1. Bump version and update changelog
+# 1. Create a release branch, then bump version and update changelog
+git checkout -b release/X.Y.Z main
 #    Edit pyproject.toml: version = "X.Y.Z"
 #    Edit CHANGELOG.md: add section after [Unreleased]
 
-# 2. Commit
+# 2. Commit on a release branch, push it, and merge its PR
 git add pyproject.toml CHANGELOG.md
-git commit -m "chore: Bump version to X.Y.Z"
-git push origin main
+git commit -m "chore(release): prepare X.Y.Z"
+git push origin release/X.Y.Z
+gh pr create --base main --title "Release X.Y.Z" --fill
+gh pr merge --squash --delete-branch
 
 # 3. Tag and push
 git tag -a vX.Y.Z -m "Release vX.Y.Z - Brief description"
@@ -501,7 +501,7 @@ For larger releases with multiple changes:
 5. **Wait for PR checks and merge**
    - The Release Readiness Check workflow validates version, changelog, and tests
    - Get approval from a maintainer
-   - Merge the PR (use "Merge commit" strategy, not squash)
+   - Squash-merge the PR so the main-protection workflow can verify its PR marker
 
 6. **Create and push the release tag**
    ```bash
@@ -536,7 +536,7 @@ Pushing a `v*.*.*` tag triggers `.github/workflows/release.yml`, which:
 1. Checks out the tagged commit
 2. Installs dependencies (including private `spec-kitty-events` via SSH deploy key)
 3. Verifies no version mismatch between source and installed package
-4. **Runs the full test suite** (2000+ tests)
+4. Runs release-specific tests; the broad module matrix remains owned by main CI
 5. Validates release metadata (`scripts/release/validate_release.py --mode tag`)
 6. Validates repository URLs match `pyproject.toml`
 7. Builds wheel and source distributions
@@ -549,15 +549,15 @@ Pushing a `v*.*.*` tag triggers `.github/workflows/release.yml`, which:
 
 Before tagging a release, ensure:
 
-- [ ] You are on the `main` branch (not `2.x`)
+- [ ] You are on the `main` branch
 - [ ] Version number follows semantic versioning
 - [ ] CHANGELOG.md is updated with emoji category headings
 - [ ] Tests pass locally: `pytest tests/`
-- [ ] If changes were on `2.x`, they have been cherry-picked to `main`
+- [ ] Broad CI, release readiness, and shared-package drift checks are green
 
 ### Important Notes
 
-- **Tags MUST be created from `main`** — the `2.x` branch has pre-existing test failures that cause the release workflow to fail
+- **Tags MUST be created from `main`** after the release PR lands
 - **Use annotated tags** — always use `git tag -a`, not `git tag`
 - **Monitor the release workflow** — watch for failures and be ready to fix issues
 - **PyPI is immutable** — once published, a version cannot be changed (only yanked)
@@ -579,8 +579,8 @@ The most common cause. To fix:
 
 ```bash
 # 1. Fix the failing test
-# 2. Commit and push to main
-# 3. Delete the broken tag
+# 2. Commit on a new release branch and merge its PR; never push main directly
+# 3. Delete the unpublished broken tag
 git tag -d vX.Y.Z
 git push origin :refs/tags/vX.Y.Z
 # 4. Re-tag from the fixed commit
@@ -588,9 +588,9 @@ git tag -a vX.Y.Z -m "Release vX.Y.Z - Brief description"
 git push origin vX.Y.Z
 ```
 
-#### Tag was created from wrong branch
+#### Tag was created from the wrong commit
 
-If you accidentally tagged from `2.x` instead of `main`:
+If you accidentally tagged a commit that is not on `main`:
 
 ```bash
 git tag -d vX.Y.Z

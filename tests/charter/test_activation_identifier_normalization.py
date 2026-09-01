@@ -2,7 +2,7 @@
 
 The activation store holds a directive as ``025-boy-scout-rule`` while the
 selector / DRG-node form is ``directive:DIRECTIVE_025``. WP06 reconciles the two
-forms at **one** boundary (:func:`charter.pack_context.normalize_activation_identifier`)
+forms at **one** boundary (:func:`charter.activation.pack_context.normalize_activation_identifier`)
 and partitions the activated-but-unreachable set into
 ``{not-a-node, node-but-unreachable}`` so that the ~25-artefact swing the
 normalization produces is **declared and excluded** from any reachability-progress
@@ -18,7 +18,7 @@ from __future__ import annotations
 
 import pytest
 
-from charter.pack_context import (
+from charter.activation.pack_context import (
     normalize_activation_identifier,
     partition_activated_unreachable,
 )

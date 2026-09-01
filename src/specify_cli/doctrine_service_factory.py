@@ -2,14 +2,14 @@
 
 This module exposes :func:`build_activation_aware_doctrine_service`, the one
 place profile surfaces (``profile list``/``profile show``, ``charter context
---include``) should call to obtain a :class:`charter.resolver.DoctrineService`
+--include``) should call to obtain a :class:`charter.activation.resolver.DoctrineService`
 that already has per-kind charter activation filters applied.
 
 FR-008 unification (charter-sole-door-bypass-closure-01KZ3WAA WP01): this
 function is now a **thin re-export** of the single canonical builder,
-:func:`charter.doctrine_service_builder.build_activation_aware_doctrine_service`
+:func:`charter.activation.doctrine_service_builder.build_activation_aware_doctrine_service`
 (C-001 — one factory, constructed by exactly one unified builder). Prior to
-this mission, this module and ``charter.doctrine_service_builder`` each held
+this mission, this module and ``charter.activation.doctrine_service_builder`` each held
 an independent implementation that silently diverged on two axes
 (``active_languages`` computation and ``org_roots`` self-resolution); see the
 charter-layer module's docstring for the resolved behaviour. This module is
@@ -26,7 +26,7 @@ This module lives in ``specify_cli.*`` precisely because it imports from
 ``specify_cli → charter → doctrine``.  It must **not** be placed inside
 ``charter.*`` or ``doctrine.*``, which are forbidden from importing
 ``specify_cli``.  The activation wrapper itself is **reused** from
-``charter.resolver`` (C-003); it is never re-implemented here.
+``charter.activation.resolver`` (C-003); it is never re-implemented here.
 """
 
 from __future__ import annotations
@@ -35,7 +35,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from charter.resolver import DoctrineService as ActivationAwareDoctrineService
+    from charter.activation.resolver import DoctrineService as ActivationAwareDoctrineService
 
 __all__ = ["build_activation_aware_doctrine_service"]
 
@@ -46,10 +46,10 @@ def build_activation_aware_doctrine_service(
     """Build an activation-filtered doctrine service for ``repo_root``.
 
     Thin re-export of
-    :func:`charter.doctrine_service_builder.build_activation_aware_doctrine_service`
+    :func:`charter.activation.doctrine_service_builder.build_activation_aware_doctrine_service`
     — see that function's docstring for the full construction contract
     (built-in + project + self-resolved org packs, ``active_languages``
-    always computed, wrapped with a :class:`~charter.pack_context.PackContext`
+    always computed, wrapped with a :class:`~charter.activation.pack_context.PackContext`
     built from ``.kittify/config.yaml``).
 
     The returned wrapper applies the three-state ``activated_agent_profiles``
@@ -67,10 +67,10 @@ def build_activation_aware_doctrine_service(
 
     Returns
     -------
-    charter.resolver.DoctrineService
+    charter.activation.resolver.DoctrineService
         The activation-aware wrapper around the inner doctrine service.
     """
-    from charter.doctrine_service_builder import (
+    from charter.activation.doctrine_service_builder import (
         build_activation_aware_doctrine_service as _canonical_builder,
     )
 

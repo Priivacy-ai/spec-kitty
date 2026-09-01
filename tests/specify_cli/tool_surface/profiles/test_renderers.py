@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from doctrine.agent_profiles.profile import AgentProfile
+from charter.offering.agent_profiles.profile import AgentProfile
 from specify_cli.tool_surface.profiles.amazon_q_renderer import AmazonQProfileRenderer
 from specify_cli.tool_surface.profiles.augment_renderer import AugmentProfileRenderer
 from specify_cli.tool_surface.profiles.codex_renderer import (

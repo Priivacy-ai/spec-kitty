@@ -23,6 +23,11 @@ breakage that stops matching ``audience:`` values — goes **RED** rather than
 silently reporting "0 dangling" over 0 examined. ``checked_count`` is emitted
 so a "0 dangling" result can never mean "0 checked".
 
+``--changed-from BASE_REF`` restricts the walk to changed ``docs/**/*.md``
+files on PRs. That mode intentionally skips the non-vacuity floor for a
+resolved empty docs diff and fails closed only when the Git base cannot be
+resolved. Without the flag, the whole-tree behavior and floor are unchanged.
+
 The resolver never mutates the docs tree and depends only on the standard
 library plus ``ruamel.yaml`` (already a project dependency). It is wired
 ``--strict`` on PR in ``docs-freshness.yml``; exit ``1`` on any dangling
@@ -42,7 +47,11 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Final
 
-from scripts.docs._guards import assert_examined_floor
+from scripts.docs._guards import (
+    GitDiffError,
+    assert_examined_floor,
+    resolve_changed_files,
+)
 from scripts.docs._inventory import parse_frontmatter
 
 __all__ = [
@@ -53,6 +62,7 @@ __all__ = [
     "build_parser",
     "main",
     "resolve_audiences",
+    "resolve_audiences_diff_scoped",
 ]
 
 DEFAULT_DOCS_ROOT: Final[str] = "docs"
@@ -130,14 +140,11 @@ def resolve_audiences(
 
     if docs_root.exists() and docs_root.is_dir():
         for md_path in sorted(docs_root.rglob("*.md")):
-            values = _read_audience(md_path)
-            if not values:
-                continue
-            from_rel = _repo_relative(md_path, repo_root)
-            for value in values:
-                checked_count += 1
-                if _is_reference(value) and not _resolves(value, repo_root, catalog):
-                    dangling.append(DanglingReference(from_path=from_rel, to_path=value))
+            file_checked, file_dangling = _audiences_in_file(
+                md_path, repo_root, catalog
+            )
+            checked_count += file_checked
+            dangling.extend(file_dangling)
 
     assert_examined_floor(
         checked_count,
@@ -149,6 +156,61 @@ def resolve_audiences(
 
     dangling.sort(key=lambda ref: (ref.from_path, ref.to_path))
     return AudienceReport(checked_count=checked_count, dangling_references=dangling)
+
+
+def resolve_audiences_diff_scoped(
+    *,
+    docs_root: Path,
+    repo_root: Path,
+    changed_files: list[str],
+    catalog_root: Path | None = None,
+) -> AudienceReport:
+    """Resolve ``audience:`` values only in changed ``docs_root`` Markdown.
+
+    Each in-scope page is checked whole-file. Deleted paths and changed files
+    outside ``docs_root/**/*.md`` are skipped. Unlike the whole-tree walk, this
+    mode deliberately has no non-vacuity floor: a successfully resolved diff
+    with no in-scope docs is a clean pass.
+
+    Accepted limitation (same as #3312): a PR that deletes or renames a persona
+    under ``docs/context/audience/`` without touching any referring page passes
+    this PR-scoped gate, because no referrer is in the diff. The ``push:main``
+    whole-tree run (:func:`resolve_audiences`) is the backstop that catches the
+    newly dangling references.
+    """
+    catalog = (catalog_root or repo_root / DEFAULT_CATALOG_ROOT).resolve()
+    docs_root_rel = _repo_relative(docs_root, repo_root)
+    checked_count = 0
+    dangling: list[DanglingReference] = []
+
+    for rel in sorted(changed_files):
+        if not (rel.startswith(f"{docs_root_rel}/") and rel.endswith(".md")):
+            continue
+        md_path = repo_root / rel
+        if not md_path.is_file():
+            continue
+        file_checked, file_dangling = _audiences_in_file(md_path, repo_root, catalog)
+        checked_count += file_checked
+        dangling.extend(file_dangling)
+
+    dangling.sort(key=lambda ref: (ref.from_path, ref.to_path))
+    return AudienceReport(checked_count=checked_count, dangling_references=dangling)
+
+
+def _audiences_in_file(
+    md_path: Path, repo_root: Path, catalog: Path
+) -> tuple[int, list[DanglingReference]]:
+    """Check all ``audience:`` values in one Markdown page."""
+    values = _read_audience(md_path)
+    if not values:
+        return 0, []
+    from_rel = _repo_relative(md_path, repo_root)
+    dangling = [
+        DanglingReference(from_path=from_rel, to_path=value)
+        for value in values
+        if _is_reference(value) and not _resolves(value, repo_root, catalog)
+    ]
+    return len(values), dangling
 
 
 def _read_audience(md_path: Path) -> list[str]:
@@ -227,17 +289,40 @@ def build_parser() -> argparse.ArgumentParser:
         action="store_true",
         help="Exit non-zero when any dangling 'audience:' reference is found.",
     )
+    parser.add_argument(
+        "--changed-from",
+        metavar="BASE_REF",
+        default=None,
+        help=(
+            "Diff-scope the walk to docs-root *.md files changed since "
+            "BASE_REF. Fails closed only when BASE_REF cannot be resolved; "
+            "a resolved diff with zero in-scope docs files is a clean pass."
+        ),
+    )
     return parser
 
 
 def main(argv: list[str] | None = None) -> int:
     """CLI entry point. Returns the process exit code."""
     args = build_parser().parse_args(argv)
-    report = resolve_audiences(
-        docs_root=args.docs_root,
-        repo_root=args.repo_root,
-        catalog_root=args.catalog_root,
-    )
+    if args.changed_from is not None:
+        try:
+            changed = resolve_changed_files(args.repo_root, args.changed_from)
+        except GitDiffError as exc:
+            sys.stderr.write(f"{_GATE_NAME}: ERROR: {exc}\n")
+            return 2
+        report = resolve_audiences_diff_scoped(
+            docs_root=args.docs_root,
+            repo_root=args.repo_root,
+            changed_files=changed,
+            catalog_root=args.catalog_root,
+        )
+    else:
+        report = resolve_audiences(
+            docs_root=args.docs_root,
+            repo_root=args.repo_root,
+            catalog_root=args.catalog_root,
+        )
     _emit(report, as_json=args.json)
     if args.strict and report.dangling_references:
         return 1

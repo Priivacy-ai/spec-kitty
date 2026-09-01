@@ -13,8 +13,8 @@ Non-Identity Inputs (distinct metadata keys), Bi-Directional Logic
 from pathlib import Path
 from unittest.mock import Mock, patch
 
-from doctrine.missions.glossary_hook import _read_glossary_check_metadata, execute_with_glossary
-from doctrine.missions.primitives import PrimitiveExecutionContext
+from charter.offering.missions.glossary_hook import _read_glossary_check_metadata, execute_with_glossary
+from charter.offering.missions.primitives import PrimitiveExecutionContext
 import pytest
 
 pytestmark = [pytest.mark.fast, pytest.mark.doctrine]
@@ -116,8 +116,8 @@ class TestGlossaryHookEnablement:
         ctx = _make_ctx({})
         # Patch get_runner to return None — simulates no runner registered
         with (
-            patch("doctrine.missions.glossary_hook.get_runner", return_value=None),
-            patch("doctrine.missions.glossary_hook.import_module", side_effect=ImportError),
+            patch("charter.offering.missions.glossary_hook.get_runner", return_value=None),
+            patch("charter.offering.missions.glossary_hook.import_module", side_effect=ImportError),
         ):
             result = execute_with_glossary(
                 primitive_fn=primitive_fn, context=ctx, repo_root=Path("/tmp")
@@ -129,8 +129,8 @@ class TestGlossaryHookEnablement:
         primitive_fn = Mock(return_value="ran")
         ctx = _make_ctx({})
         with (
-            patch("doctrine.missions.glossary_hook.get_runner", return_value=None),
-            patch("doctrine.missions.glossary_hook.import_module", side_effect=ImportError),
+            patch("charter.offering.missions.glossary_hook.get_runner", return_value=None),
+            patch("charter.offering.missions.glossary_hook.import_module", side_effect=ImportError),
         ):
             result = execute_with_glossary(
                 primitive_fn=primitive_fn, context=ctx, repo_root=Path("/tmp")

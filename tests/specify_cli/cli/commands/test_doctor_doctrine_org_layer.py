@@ -332,13 +332,16 @@ def test_collect_org_layer_data_surfaces_a_failed_merge_check(
     ``DoctrineHealthReport.healthy`` reads that array, so ``doctor doctrine``
     would exit 0 having verified nothing.
     """
-    import charter.drg as charter_drg
+    import charter.activation.drg_activation as drg_activation
     from specify_cli.cli.commands.doctor import _collect_org_layer_data
 
     def _boom(**_kwargs: object) -> object:
         raise RuntimeError("merge exploded")
 
-    monkeypatch.setattr(charter_drg, "merge_three_layers", _boom)
+    # ``_collect_org_layer_data`` imports ``merge_three_layers`` from
+    # ``charter.activation.drg_activation`` (its re-export site), not from the
+    # ``charter.drg`` facade — patch the module production actually calls.
+    monkeypatch.setattr(drg_activation, "merge_three_layers", _boom)
 
     result = _collect_org_layer_data(tmp_repo_with_org_pack)
 
