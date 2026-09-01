@@ -323,3 +323,48 @@ class TestNeverStartedMissionUnaffected:
 
         with pytest.raises(MissionNotFoundError, match="042-never-started"):
             query_current_state("claude", "042-never-started", tmp_path)
+
+
+# ---------------------------------------------------------------------------
+# Scenario 6 (F4): mission_number assigned, PRIMARY event log absent ->
+# "none" fall-through (distinct from Scenario 5, where mission_number itself
+# is absent)
+# ---------------------------------------------------------------------------
+
+
+class TestMissionNumberAssignedEventLogAbsent:
+    """F4 pin: ``mission_terminal_verdict`` declines (returns ``"none"``, not
+    ``"terminal"``/``"blocked_conflict"``) when ``meta.json.mission_number``
+    is assigned but the committed PRIMARY ``status.events.jsonl`` is
+    genuinely absent (``has_event_log`` False). This is distinct from
+    Scenario 5 (``TestNeverStartedMissionUnaffected``), which covers
+    ``mission_number`` itself being absent.
+
+    Scenario 1 (``TestMergedMissionAdvancingMode.
+    test_merged_mission_returns_terminal_and_creates_no_run``) already pins
+    the sibling "number present + folded log all-accepted -> terminal" case;
+    this test only adds the absent-log leg of that same short-circuit
+    (``_merged_mission_short_circuit`` in ``runtime_bridge.py`` returns
+    ``None`` for a ``"none"`` verdict, F5), so a future merge-fold change to
+    the short-circuit or to ``mission_terminal_verdict`` cannot silently
+    re-open #2947 by treating an absent log as terminal/blocked instead of
+    falling through to legacy (byte-identical, fail-safe) behavior."""
+
+    @pytest.mark.regression
+    def test_verdict_is_none_when_number_present_but_log_absent(self, tmp_path: Path) -> None:
+        from runtime.next.committed_authority import mission_terminal_verdict
+        from specify_cli.status import has_event_log
+
+        mission_slug = "042-merged-number-only"
+        primary_dir = tmp_path / "kitty-specs" / mission_slug
+        _write_meta(primary_dir, mission_slug, mission_number=13)
+        # Deliberately no _seed() call -- no status.events.jsonl is written.
+        assert not has_event_log(primary_dir)
+
+        with patch(
+            "runtime.next.runtime_bridge_identity._primary_runtime_feature_dir",
+            return_value=primary_dir,
+        ):
+            verdict = mission_terminal_verdict(tmp_path, mission_slug)
+
+        assert verdict == "none"
