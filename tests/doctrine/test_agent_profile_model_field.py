@@ -11,7 +11,7 @@ NFR-003 back-compat: existing profiles without the field must load unchanged.
 
 import pytest
 
-from doctrine.agent_profiles.profile import AgentProfile
+from charter.offering.agent_profiles.profile import AgentProfile
 
 pytestmark = [pytest.mark.doctrine, pytest.mark.fast]
 
@@ -102,14 +102,14 @@ class TestSchemaExposesModelEffort:
     """
 
     def test_schema_source_registers_fields_with_aliases(self):
-        from doctrine.agent_profiles.schema_models import AgentProfileSchema
+        from charter.offering.agent_profiles.schema_models import AgentProfileSchema
 
         assert "preferred_model" in AgentProfileSchema.model_fields
         assert AgentProfileSchema.model_fields["preferred_model"].alias == "model"
         assert "effort" in AgentProfileSchema.model_fields
 
     def test_generated_json_schema_exposes_model_and_effort(self):
-        from doctrine.agent_profiles.schema_models import AgentProfileSchema
+        from charter.offering.agent_profiles.schema_models import AgentProfileSchema
 
         props = AgentProfileSchema.model_json_schema(by_alias=True)["properties"]
         assert "model" in props, "profiles declaring model: would fail schema validation"

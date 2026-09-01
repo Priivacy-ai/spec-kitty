@@ -36,8 +36,8 @@ from click.testing import Result
 from typer import Typer
 from typer.testing import CliRunner
 
-from doctrine.model_task_routing import loader as real_loader
-from doctrine.model_task_routing.evaluator import RoutingCandidate, RoutingRecommendation
+from charter.offering.model_task_routing import loader as real_loader
+from charter.offering.model_task_routing.evaluator import RoutingCandidate, RoutingRecommendation
 from specify_cli import app as cli_app
 from specify_cli.cli.commands.dispatch import _render_rich_payload
 from specify_cli.invocation.executor import InvocationPayload, ProfileInvocationExecutor
@@ -161,11 +161,11 @@ def _write_catalog(
 # ``doctrine-public-api-surface-01KZPDSR`` WP06, ``_compute_recommendation``
 # imports ``load``/``evaluate`` FUNCTION-LOCALLY *from the charter facade*
 # ``charter.model_routing`` (symbol-level; the runtime -> charter -> doctrine
-# boundary forbids a module-level `from doctrine.*` import from specify_cli/,
+# boundary forbids a module-level `from charter.offering.*` import from specify_cli/,
 # see tests/architectural/test_runtime_charter_doctrine_boundary.py). Each call
 # re-resolves ``charter.model_routing.load`` afresh, so patching that attribute
 # is what actually takes effect -- patching the doctrine origin
-# ``doctrine.model_task_routing.loader.load`` no longer intercepts, because the
+# ``charter.offering.model_task_routing.loader.load`` no longer intercepts, because the
 # symbol-level facade holds an independent name binding to the same function
 # object. ``_load_from`` below must call this captured reference rather than
 # ``real_loader.load`` directly, or a patch installed via one of this file's own
@@ -174,7 +174,7 @@ _REAL_LOAD = real_loader.load
 
 
 def _load_from(fixture_path: Path) -> Callable[..., real_loader.CatalogLoadResult | None]:
-    """Build a ``doctrine.model_task_routing.loader.load`` replacement pinned at *fixture_path*.
+    """Build a ``charter.offering.model_task_routing.loader.load`` replacement pinned at *fixture_path*.
 
     Uses the real, injectable ``load(catalog_path=...)`` override (WP01) --
     the point is to exercise the actual loader against a fixture file, not to
@@ -325,7 +325,7 @@ def test_recommendation_absent_when_action_has_no_task_type_mapping(tmp_path: Pa
 
 def test_invoke_produces_recommendation_from_real_shipped_catalog_default_path(tmp_path: Path) -> None:
     """No fixture override: WP01's default loader path must agree with WP05's
-    shipped ``src/doctrine/model_task_routing/catalog/model-to-task_type.yaml``.
+    shipped ``src/charter/offering/model_task_routing/catalog/model-to-task_type.yaml``.
     """
     _setup_project(tmp_path)
     with patch("specify_cli.invocation.executor.build_charter_context", return_value=_COMPACT_CTX):

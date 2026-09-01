@@ -1,7 +1,7 @@
 """WP04 unit tests — ``render_critical_section_bodies`` (FR-001).
 
 These tests exercise the pure renderer in
-``charter.context_renderers.section_bodies`` against the five-row table
+``charter.activation.context_renderers.section_bodies`` against the five-row table
 in the WP04 task spec (subtask T018).  They pin:
 
 * verbatim section bodies surface when the heading is present;
@@ -16,7 +16,7 @@ import textwrap
 
 import pytest
 
-from charter.context_renderers import (
+from charter.activation.context_renderers import (
     CRITICAL_SECTION_WHEN_CLAUSES,
     critical_section_header,
     render_critical_section_bodies,

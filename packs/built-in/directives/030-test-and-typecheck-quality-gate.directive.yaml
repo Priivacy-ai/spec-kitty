@@ -26,3 +26,5 @@ validation_criteria:
 references:
   - type: styleguide
     id: tiered-standards
+  - type: toolguide
+    id: sonar

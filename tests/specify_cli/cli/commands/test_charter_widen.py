@@ -20,7 +20,7 @@ from pathlib import Path
 from unittest.mock import MagicMock, patch
 
 import pytest
-from charter.interview import MINIMAL_QUESTION_ORDER
+from charter.activation.interview import MINIMAL_QUESTION_ORDER
 from rich.console import Console
 from typer.testing import CliRunner
 

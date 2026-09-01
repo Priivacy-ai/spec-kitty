@@ -1,0 +1,76 @@
+# review-verify/v1
+schema: review-verify/v1
+complete: true
+phase: pr
+verdicts:
+  - id: pr-merged-001
+    verdict: resolved
+    reason: >
+      Independent reproduction (own monkeypatched script, not the fixer's or refuter's) drove
+      gather_artifact_presence directly with a schema-invalid manifest at both tiers on the live
+      checkout at a4ec387eb: built-in tier raised ManifestSchemaError(mission_type='verify-broken-schema',
+      origin='doctrine/verify-broken-schema/expected-artifacts.yaml'); org tier (forced via a real
+      .kittify/config.yaml org-pack entry, not a monkeypatch of the resolver) raised
+      ManifestSchemaError(mission_type='software-dev', origin="org-tier expected-artifacts.yaml for
+      mission type 'software-dev' (no single source file path available)") — neither leaked a bare
+      pydantic_core.ValidationError; a control run with a schema-valid manifest through the same
+      function returned the identical frozenset({'one.md'}) it always did, confirming no regression
+      to the valid-input path.
+new_findings: []
+notes: |
+  Non-vacuity of fb2c2142f (test commit, 23:03:23) vs a4ec387eb (fix commit, 23:08:18): test
+  genuinely precedes fix by commit timestamp and by content — TestGatherArtifactPresenceRaises
+  ManifestSchemaErrorAtBothTiers calls gather_artifact_presence itself (not required_artifacts_for),
+  at both a built-in-tier fixture (monkeypatched MissionTemplateRepository.default(), extra_forbidden
+  field) and an org-tier fixture (real .kittify/config.yaml + org pack file forcing the :904 branch,
+  missing required mission_type field). Reasoning from the code: before a4ec387eb, both branches of
+  _presence_filenames_for called ExpectedArtifactManifest.model_validate() with no try/except, so
+  these exact inputs would have raised bare pydantic_core.ValidationError, which is not a subclass of
+  ManifestSchemaError (manifest.py:104, deliberately not a ValidationError subclass) — pytest.raises
+  (ManifestSchemaError) would have failed to catch it. The test is red-first-genuine, not vacuous.
+
+  New-defect check (directive 001/024/041, tactic code-review-incremental): the wrap is a pure
+  try/except addition around each existing model_validate() call, locality-of-change scoped to
+  _presence_filenames_for only (24 respected) — no control flow, return type, or valid-input behavior
+  changed; confirmed by the control-manifest reproduction above returning byte-identical output.
+  Org-tier synthesized origin ("org-tier expected-artifacts.yaml for mission type ... (no single
+  source file path available)") is honest — it does not claim a file path it doesn't have — and
+  mirrors resolver.py::_load_expected_artifact_manifest's own org-tier construction almost exactly
+  (that sibling additionally names the checked org roots; this one omits them — a minor loss of
+  detail, not a misleading label, and not a regression since no prior code emitted anything better).
+  Built-in branch still reads config.origin unchanged. No silent-success path introduced: both
+  branches now raise a strictly more specific typed exception where they previously raised an
+  untyped one; nothing was converted to None/[]/swallowed.
+
+  Layering: only new imports are the four function-scoped `from ... import ...  # noqa: PLC0415`
+  lines inside _presence_filenames_for (pydantic.ValidationError, specify_cli.dossier.manifest.
+  ManifestSchemaError, alongside the two pre-existing lazy imports) — matches this file's existing
+  pattern exactly, no top-level import added. tests/architectural/test_bridge_cores_import_boundary.py:
+  14 passed.
+
+  #3412 deferred path: git diff of fb2c2142f and a4ec387eb touches only
+  tests/runtime/next/test_pertype_presence_gate.py and src/runtime/next/runtime_bridge_io.py
+  (_presence_filenames_for only) respectively — src/charter/org_expected_artifacts.py
+  (resolve_org_expected_artifacts, the #3412 YAML-syntax warn-and-None degrade path) is untouched by
+  either commit, confirmed by empty git-log/diff-stat over that file across the fb2c2142f..a4ec387eb
+  range. Explicit: untouched, yes.
+
+  Full-scope run: 1161 passed, 1 skipped, 0 failed, 273.88s — matches the required 1161 exactly
+  (baseline 1147 + fixer's pre-fix 1159 tip + 2 new tests = 1161).
+
+  Tree mutation: none. git status --porcelain before and after all checks shows only untracked
+  squad-trail files under kitty-specs/.../reviews/ (one new, pr.fresh.yaml, added by the concurrent
+  fresh-sweep agent — not by this review). HEAD held at a4ec387eb throughout; no checkout, restore,
+  edit, or commit was performed. All reproduction used monkeypatching/tempdir fixtures in a throwaway
+  /tmp script, deleted after use.
+
+  Profile: reviewer-renata (packs/built-in/agent_profiles/reviewer-renata.agent.yaml), loaded from
+  the checkout per instruction. Directives applied: 001 (architectural integrity — import-boundary
+  and layering check), 024 (locality of change — confirmed the fix diff is scoped to the wrap only),
+  030 (test/typecheck quality gate — ran the specified suite to completion), 032 (conceptual
+  alignment — checked the synthesized org-tier origin string for honesty/clarity), 041 (tests as
+  scaffold — verified the new test is red-first-genuine and asserts the real contract through
+  gather_artifact_presence, not the narrower required_artifacts_for). Tactics: code-review-incremental
+  (read intent first, then risk-categorized: swallow / origin-honesty / layering / silent-success),
+  reverse-speccing (reconstructed the pre-fix failure mode from the code to judge non-vacuity without
+  reverting).

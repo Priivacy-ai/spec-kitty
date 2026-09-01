@@ -8,15 +8,15 @@ from typing import Any
 import yaml
 import pytest
 
-from doctrine.drg.models import DRGGraph, NodeKind, Relation
-from doctrine.drg.query import resolve_transitive_refs
-from doctrine.drg.validator import assert_valid
-from doctrine.missions import MissionTemplateRepository
+from charter.offering.drg.models import DRGGraph, NodeKind, Relation
+from charter.offering.drg.query import resolve_transitive_refs
+from charter.offering.drg.validator import assert_valid
+from charter.offering.missions import MissionTemplateRepository
 
 pytestmark = [pytest.mark.fast, pytest.mark.doctrine, pytest.mark.corpus]
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
-DOCTRINE_ROOT = REPO_ROOT / "src" / "doctrine"
+DOCTRINE_ROOT = REPO_ROOT / "src" / "charter" / "offering"
 PACKS_BUILT_IN = REPO_ROOT / "packs" / "built-in"
 
 
@@ -28,7 +28,7 @@ def _load_yaml(path: Path) -> dict[str, Any]:
 
 def test_curated_doctrine_artifacts_exist_with_expected_kinds() -> None:
     # Pack content relocated to the flattened ``packs/built-in`` root; templates
-    # stay under ``src/doctrine/templates`` (relocate-builtin-doctrine-packs).
+    # stay under ``src/charter/offering/templates`` (relocate-builtin-doctrine-packs).
     expected_paths = [
         PACKS_BUILT_IN / "procedures/disciplined-defect-diagnosis.procedure.yaml",
         PACKS_BUILT_IN / "paradigms/deep-module-design.paradigm.yaml",

@@ -8,20 +8,20 @@ modules under ``src/specify_cli/`` to reach doctrine artifacts only through
 charter facades.
 
 These symbols are dispositioned ``PUBLIC`` in the WP01 census
-(``doctrine.assets.repository`` / ``doctrine.assets.models``), so they are
-re-exported from the curated public surface ``doctrine.api`` (not the origin
+(``charter.offering.assets.repository`` / ``charter.offering.assets.models``), so they are
+re-exported from the curated public surface ``charter.offering.api`` (not the origin
 submodules directly). This gives the PUBLIC wheel symbols a live in-repo caller —
-the from-``doctrine.api`` wiring the no-dead-symbol gate and the strict T007
+the from-``charter.offering.api`` wiring the no-dead-symbol gate and the strict T007
 live-caller assertion depend on. Object identity is unchanged:
-``charter.assets.AssetRepository is doctrine.api.AssetRepository is
-doctrine.assets.repository.AssetRepository``.
+``charter.assets.AssetRepository is charter.offering.api.AssetRepository is
+charter.offering.assets.repository.AssetRepository``.
 
 This file is a **pure re-export** module — no behaviour, no wrappers, no type
 aliases. Enforced by
 ``tests/architectural/test_charter_facades_reexport_doctrine.py``.
 """
 
-from doctrine.api import (
+from charter.offering.api import (
     AssetManifest,
     AssetNotFoundError,
     AssetPathEscapeError,

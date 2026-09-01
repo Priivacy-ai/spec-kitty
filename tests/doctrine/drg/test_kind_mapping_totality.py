@@ -4,8 +4,8 @@ WP07 / T029-T030 (C-005, FR-012). This module supersedes the narrower subset
 guard in ``test_nodekind_artifactkind.py::test_node_kind_remains_superset_of_artifact_kind``
 (kept for its own regression value; not duplicated here).
 
-Rationale: every time a new :class:`~doctrine.artifact_kinds.ArtifactKind` /
-:class:`~doctrine.drg.models.NodeKind` member is added (this mission added
+Rationale: every time a new :class:`~charter.offering.artifact_kinds.ArtifactKind` /
+:class:`~charter.offering.drg.models.NodeKind` member is added (this mission added
 ``TEMPLATE`` and ``ASSET``), any module-level dict table keyed by one of these
 enums silently becomes a trap for the *next* new kind unless it is either:
 
@@ -18,8 +18,8 @@ enums silently becomes a trap for the *next* new kind unless it is either:
 
 Naive totality ("every such dict must have every key") is provably wrong: it
 false-fails on four pre-existing, legitimately-partial tables
-(``charter.kind_vocabulary::_ID_FIELD_BY_KIND``/``_PROJECT_KIND_DIRS`` and
-``charter.pack_manager::_ID_FIELD_BY_KIND``/``_PROJECT_KIND_DIRS``). This guard
+(``charter.activation.kind_vocabulary::_ID_FIELD_BY_KIND``/``_PROJECT_KIND_DIRS`` and
+``charter.activation.pack_manager::_ID_FIELD_BY_KIND``/``_PROJECT_KIND_DIRS``). This guard
 distinguishes the two cases via :data:`_EXEMPT_GET_PARTIALS`, an explicit
 allow-list keyed by ``"<dotted.module>::<CONSTANT_NAME>"`` -- the exemption
 mechanism chosen over an inline marker comment because it puts the entire
@@ -36,8 +36,8 @@ from pathlib import Path
 
 import pytest
 
-from doctrine.artifact_kinds import ArtifactKind
-from doctrine.drg.models import NodeKind
+from charter.offering.artifact_kinds import ArtifactKind
+from charter.offering.drg.models import NodeKind
 
 pytestmark = [pytest.mark.doctrine, pytest.mark.fast]
 
@@ -64,11 +64,11 @@ _EXEMPT_GET_PARTIALS: frozenset[str] = frozenset(
     {
         # _id_field_for() / _declared_id() fall back to the "id" default field
         # for every kind that doesn't override it.
-        "charter.kind_vocabulary::_ID_FIELD_BY_KIND",
-        "charter.pack_manager::_ID_FIELD_BY_KIND",
+        "charter.activation.kind_vocabulary::_ID_FIELD_BY_KIND",
+        "charter.activation.pack_manager::_ID_FIELD_BY_KIND",
         # NOTE (WP03 T014): the two charter `_PROJECT_KIND_DIRS` partials were
         # retired here -- both modules now import the single total authority
-        # `doctrine.artifact_kinds.PROJECT_KIND_DIRS` (guard-visible, total), so
+        # `charter.offering.artifact_kinds.PROJECT_KIND_DIRS` (guard-visible, total), so
         # there is no local partial left to exempt.
         # WP01 (doctrine-tension-edges-01KY1WPC) added ArtifactKind.ANTI_PATTERN.
         # The sole read site (`executor.py`'s step-contract kind resolution)
@@ -225,7 +225,7 @@ def test_authority_missing_a_member_is_flagged_by_the_guard() -> None:
     string-keyed before WP03, no scan could have caught).
     """
     source = (
-        "from doctrine.artifact_kinds import ArtifactKind\n"
+        "from charter.offering.artifact_kinds import ArtifactKind\n"
         "PROJECT_KIND_DIRS: dict[ArtifactKind, str] = {\n"
         + "".join(f"    ArtifactKind.{member.name}: 'x',\n" for member in ArtifactKind if member is not ArtifactKind.ASSET)
         + "}\n"
@@ -238,7 +238,7 @@ def test_authority_missing_a_member_is_flagged_by_the_guard() -> None:
 
 def test_mixed_enum_and_plain_keys_raise_instead_of_silently_skipping() -> None:
     """An unrecognized dict shape must fail loudly, not be swallowed."""
-    source = "from doctrine.artifact_kinds import ArtifactKind\n_MIXED: dict = {\n    ArtifactKind.DIRECTIVE: 'x',\n    'plain-string-key': 'y',\n}\n"
+    source = "from charter.offering.artifact_kinds import ArtifactKind\n_MIXED: dict = {\n    ArtifactKind.DIRECTIVE: 'x',\n    'plain-string-key': 'y',\n}\n"
     tree = ast.parse(source, filename="<synthetic>")
     with pytest.raises(AssertionError, match="mixes enum-keyed"):
         _kind_keyed_dicts_in_module(tree, "synthetic")

@@ -40,7 +40,9 @@ import typer
 from rich.console import Console
 
 import specify_cli.cli.commands.accept as accept_cmd
+from specify_cli.acceptance import AcceptanceError
 from specify_cli.cli.commands.accept import accept
+from specify_cli.config.path_conventions import PathConventionsConfigError
 from specify_cli.lanes.models import ExecutionLane, LanesManifest
 from specify_cli.lanes.persistence import write_lanes_json
 from specify_cli.status.models import Lane, StatusEvent
@@ -182,6 +184,34 @@ def _capture_console(monkeypatch: pytest.MonkeyPatch) -> StringIO:
         Console(file=buf, highlight=False, markup=True, width=200),
     )
     return buf
+
+
+def test_malformed_path_conventions_renders_as_acceptance_error(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A malformed ``project.path_conventions`` section surfaces as a clean accept
+    blocking verdict (``AcceptanceError`` → the command's exit-1 handler), never a raw
+    traceback (adversarial squad NOTE, #3790).
+
+    Non-vacuous: dropping the ``except PathConventionsConfigError`` conversion in
+    ``_collect_summary_with_optional_repair`` lets the raw ``PathConventionsConfigError``
+    (a ``ValueError``, not an ``AcceptanceError``) propagate, failing this ``pytest.raises``.
+    """
+
+    def _raise_malformed(*_args: object, **_kwargs: object) -> object:
+        raise PathConventionsConfigError(
+            "project.path_conventions.workspace must not be empty or blank."
+        )
+
+    monkeypatch.setattr(accept_cmd, "collect_feature_summary", _raise_malformed)
+    with pytest.raises(AcceptanceError, match="path_conventions"):
+        accept_cmd._collect_summary_with_optional_repair(
+            Path("/nonexistent-repo"),
+            _SLUG,
+            strict_metadata=False,
+            mutate_matrix=False,
+            normalize_encoding=False,
+        )
 
 
 def _run_accept(*, normalize_encoding: bool, monkeypatch: pytest.MonkeyPatch) -> None:

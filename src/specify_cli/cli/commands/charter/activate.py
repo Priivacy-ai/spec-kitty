@@ -8,15 +8,15 @@ Wiring (R-011-D, Contracts C3.2/C3.3, C1.5)
 This is the live caller that finally wires the WP10 plan/commit engine and the
 WP11 scoped cascade engine into the CLI surface:
 
-* ``--cascade`` is parsed through :meth:`charter.cascade.CascadeScope.parse`
+* ``--cascade`` is parsed through :meth:`charter.activation.cascade.CascadeScope.parse`
   (WP11) into a real scope value object — it is **never** collapsed to a bool
   (Contract C3.3). Absence of ``--cascade`` routes through
-  :func:`charter.cascade.referenced_but_not_cascaded` so the operator is warned
+  :func:`charter.activation.cascade.referenced_but_not_cascaded` so the operator is warned
   about referenced-but-skipped artifacts (FR-013).
-* In-scope cascade targets (:func:`charter.cascade.cascade_activation_targets`)
-  are activated through the same :class:`~charter.pack_manager.CharterPackManager`
+* In-scope cascade targets (:func:`charter.activation.cascade.cascade_activation_targets`)
+  are activated through the same :class:`~charter.activation.pack_manager.CharterPackManager`
   seam as the direct activation, and rendered per kind (FR-014).
-* :class:`charter.pack_context.CharterPackConfigError` is caught and surfaced as
+* :class:`charter.activation.pack_context.CharterPackConfigError` is caught and surfaced as
   a clean exit-1 with its diagnostic code + remediation, before any mutation
   (FR-035 fail-closed, C1.5).
 """
@@ -31,22 +31,22 @@ import typer
 from rich.console import Console
 from specify_cli.cli.console import console
 
-from charter.cascade import (
+from charter.activation.cascade import (
     CascadeScope,
     cascade_activation_targets,
     referenced_but_not_cascaded,
 )
-from charter.catalog import resolve_doctrine_root
-from charter.invocation_context import ProjectContext
-from charter.kind_vocabulary import (
+from charter.activation.catalog import resolve_doctrine_root
+from charter.activation.invocation_context import ProjectContext
+from charter.activation.kind_vocabulary import (
     ArtifactKind,
     MissionTypeNotAnArtifactKind,
     UnknownArtifactIdError,
     resolve_artifact_urn,
     resolve_config_id,
 )
-from charter.pack_context import CharterPackConfigError, PackContext
-from charter.pack_manager import YAML_KEY_MAP, CharterPackManager
+from charter.activation.pack_context import CharterPackConfigError, PackContext
+from charter.activation.pack_manager import YAML_KEY_MAP, CharterPackManager
 
 from specify_cli.cli.commands.charter._layer_roots import (
     resolve_layer_roots,
@@ -61,6 +61,29 @@ RESYNTHESIZE_HELP = (
     "`charter synthesize` use) -- reconciles the freshness signal to fresh "
     "immediately. Default: off -- activation stays a fast config-only write "
     "and the signal reports stale until a later reconcile (NFR-001)."
+)
+
+#: FR-009 -- the ONE shared definition of the kind-filtered-node label,
+#: consumed by :func:`_render_kind_filtered_line` below (this WP's call site)
+#: and, in later WPs of this mission, by `_render_no_cascade_warning`
+#: (WP03) and `deactivate.py`'s `_render_cascade_deactivation` (WP04) --
+#: never re-coined at any of those call sites (Sonar S1192). Styled `[dim]`
+#: like the existing `Skipped (out of scope)` line, but with distinct
+#: literal text so the two remain grep-distinguishable (FR-008): a
+#: structurally non-activatable kind (`template`/`asset`, C-001) must never
+#: be mistaken for a scope-excluded one. Never phrased as a warning/error/
+#: failure (FR-003) -- issue #3705 is a silent-drop bug, not a failure.
+KIND_FILTERED_LABEL = "[dim]Not cascaded[/dim]: {kind_token}/{config_id} (kind not charter-activatable)"
+
+#: FR-004 -- the explicit zero-activatable-targets message. Printed once,
+#: never per-node, when the cascade resolved zero activatable targets AND at
+#: least one referenced node was specifically kind-filtered (never for a
+#: source with zero referenced nodes at all, and never for a pure
+#: scope-narrowing case -- see the exact trigger condition in
+#: `_render_cascade_activation` below).
+CASCADE_ZERO_ACTIVATABLE_TARGETS_MESSAGE = (
+    "[yellow]Cascade resolved zero activatable targets[/yellow] "
+    "(every referenced node was kind-filtered; see the lines above)."
 )
 
 
@@ -151,6 +174,19 @@ def _drg_id_to_config_id(
         return drg_id
 
 
+def _render_kind_filtered_line(kind_token: str, config_id: str) -> None:
+    """Render one line for a kind-filtered (structurally non-activatable) node.
+
+    FR-009: the single shared rendering helper -- WP03's
+    ``_render_no_cascade_warning`` extension and WP04's
+    ``deactivate._render_cascade_deactivation`` both call this same helper
+    (importing it from this module) rather than each re-coining the wording
+    (Sonar S1192). This WP (WP02) is the first call site, wired into
+    :func:`_render_cascade_activation` below.
+    """
+    console.print(KIND_FILTERED_LABEL.format(kind_token=kind_token, config_id=config_id))
+
+
 def _emit_step_removal_warnings(kind: str, artifact_id: str, repo_root: Path) -> None:
     """Emit in-flight step-removal warnings for the activation (FR-008).
 
@@ -172,7 +208,7 @@ def _emit_step_removal_warnings(kind: str, artifact_id: str, repo_root: Path) ->
     )
 
     try:
-        from charter.mission_type_profiles import (  # noqa: PLC0415
+        from charter.activation.mission_type_profiles import (  # noqa: PLC0415
             UnknownMissionTypeError,
             resolve_mission_type_context,
         )
@@ -207,6 +243,15 @@ def _emit_step_removal_warnings(kind: str, artifact_id: str, repo_root: Path) ->
     if removed:
         step_warnings = scan_inflight_missions(removed, repo_root / KITTY_SPECS_DIR)
         emit_step_removal_warnings(step_warnings, console)
+
+
+def _validate_mission_type_activatable(kind: str, artifact_id: str, repo_root: Path) -> None:
+    """FR-001 preflight: refuse activation of an empty-action-sequence mission type."""
+    if kind != "mission-type":
+        return
+    from charter.activation.mission_type_profiles import validate_activatable_mission_type  # noqa: PLC0415
+
+    validate_activatable_mission_type(artifact_id, repo_root=repo_root)
 
 
 def _activate_cascade_target(
@@ -293,7 +338,7 @@ def _render_cascade_activation(
     ID, not the raw DRG ID as a lossy fallback). Previously this call carried
     NO org roots at all.
     """
-    from charter._drg_helpers import load_validated_graph  # noqa: PLC0415
+    from charter.activation._drg_helpers import load_validated_graph  # noqa: PLC0415
 
     org_roots = resolve_org_root_chain(repo_root)
     graph = load_validated_graph(repo_root, org_roots=org_roots)
@@ -332,11 +377,44 @@ def _render_cascade_activation(
                 f"[dim]Skipped (out of scope)[/dim]: {kind_token}/{config_id}"
             )
 
+    # FR-003/FR-008 (issue #3705): render the kind-filtered nodes WP01's
+    # shared `_referenced_artifacts` seam collected instead of silently
+    # dropping them -- resolving each bare DRG id to its config-stem id
+    # FIRST, the same call the `activated`/`skipped_by_scope` loops above
+    # already make (an org-pack-2..N node's bare id and config-stem id can
+    # differ; every other line in this function already prints the
+    # operator-facing config-stem id).
+    for kind_value in sorted(result.not_cascaded_kind_filtered):
+        kind_token = ArtifactKind(kind_value).operator_token
+        for filtered_id in result.not_cascaded_kind_filtered[kind_value]:
+            config_id = _drg_id_to_config_id(
+                kind_value, filtered_id, doctrine_root, layer_roots, org_roots
+            )
+            _render_kind_filtered_line(kind_token, config_id)
+
+    # FR-004: fires ONLY when the cascade resolved zero activatable targets
+    # AND at least one referenced node was specifically kind-filtered --
+    # never for a source with zero referenced nodes at all, and never when any
+    # referenced node was scope-narrowed. The `not result.skipped_by_scope`
+    # clause covers both the pure scope-narrowing case (every referenced node
+    # is activatable-kind but excluded by a narrow --cascade <scope>) AND the
+    # mixed case (some scope-narrowed, some kind-filtered): in either the
+    # `Skipped (out of scope)` lines above already tell the full story (SC-007),
+    # and the "every referenced node was kind-filtered" summary would be a
+    # falsehood the moment a scope-skipped node exists. Deliberately NOT the
+    # broader "zero landed in `activated`" condition.
+    if (
+        not result.activated
+        and not result.skipped_by_scope
+        and result.not_cascaded_kind_filtered
+    ):
+        console.print(CASCADE_ZERO_ACTIVATABLE_TARGETS_MESSAGE)
+
 
 def _render_tension_warnings(repo_root: Path) -> None:
     """Surface unreconciled tension findings as activate-time warnings (FR-010).
 
-    Calls the SAME scan :func:`charter.consistency_check.scan_unreconciled_tensions`
+    Calls the SAME scan :func:`charter.activation.consistency_check.scan_unreconciled_tensions`
     that ``spec-kitty charter pack consistency-check`` uses (single canonical
     authority, contracts/tension-finding.md SC-001) so this warning and that
     JSON surface can never render a tension pair differently.
@@ -358,7 +436,7 @@ def _render_tension_warnings(repo_root: Path) -> None:
     surface (``ConsistencyReport.verification_errors``), which every project
     can run explicitly on demand.
     """
-    from charter.consistency_check import scan_unreconciled_tensions  # noqa: PLC0415
+    from charter.activation.consistency_check import scan_unreconciled_tensions  # noqa: PLC0415
 
     try:
         scan_ctx = ProjectContext.from_repo(repo_root)
@@ -387,7 +465,7 @@ def _render_no_cascade_warning(
     org-pack ``requires``/``suggests`` edge is invisible to this warning
     unless the DRG it walks actually contains org-pack nodes (FR-001 AC5).
     """
-    from charter._drg_helpers import load_validated_graph  # noqa: PLC0415
+    from charter.activation._drg_helpers import load_validated_graph  # noqa: PLC0415
 
     org_roots = resolve_org_root_chain(repo_root)
     graph = load_validated_graph(repo_root, org_roots=org_roots)
@@ -405,7 +483,35 @@ def _render_no_cascade_warning(
                 f"[yellow]Warning[/yellow]: referenced {kind_token}/{config_id} "
                 f"was not activated (no --cascade)."
             )
-    console.print(f"[yellow]Hint[/yellow]: {report.recovery_hint}")
+    # FR-005a: gated on `report.skipped` specifically (not the broader
+    # `has_skipped`) -- `recovery_hint` literally says "to activate the
+    # referenced artifacts", which is only true of `skipped` entries.
+    # Printing it for a source whose ONLY referenced nodes are kind-filtered
+    # would be exactly the misleading "--cascade would fix this" recovery
+    # hint FR-005's FAILS-if condition forbids for the per-node line -- this
+    # extends the same guarantee to the summary Hint line. Pre-existing
+    # behavior for every previously-reachable case (skipped non-empty) is
+    # unchanged: this branch was unreachable before this WP (has_skipped was
+    # `any(self.skipped.values())` alone, so reaching here already implied
+    # `report.skipped` was non-empty).
+    if report.skipped:
+        console.print(f"[yellow]Hint[/yellow]: {report.recovery_hint}")
+
+    # FR-005 (issue #3705): render the kind-filtered nodes WP01's shared
+    # `_referenced_artifacts` seam collected instead of silently dropping
+    # them, one render path over from `_render_cascade_activation` above --
+    # via the SAME shared helper (FR-009) so the wording is identical and
+    # never re-coined here. Never suggests `--cascade` as a recovery path:
+    # re-running with `--cascade` would NOT activate an asset/template.
+    # Resolves each bare DRG id to its config-stem id first, the same call
+    # the `report.skipped` loop above already makes.
+    for kind_value in sorted(report.not_cascaded_kind_filtered):
+        kind_token = ArtifactKind(kind_value).operator_token
+        for filtered_id in report.not_cascaded_kind_filtered[kind_value]:
+            config_id = _drg_id_to_config_id(
+                kind_value, filtered_id, doctrine_root, layer_roots, org_roots
+            )
+            _render_kind_filtered_line(kind_token, config_id)
 
 
 def run_full_synthesize(repo_root: Path) -> None:
@@ -542,6 +648,12 @@ def activate_cmd(
     # import, no second error-handling style.
     try:
         _emit_step_removal_warnings(kind, artifact_id, repo_root)
+    except ValueError as exc:
+        console.print(f"[red]Error:[/red] {exc}")
+        raise typer.Exit(1) from exc
+
+    try:
+        _validate_mission_type_activatable(kind, artifact_id, repo_root)
     except ValueError as exc:
         console.print(f"[red]Error:[/red] {exc}")
         raise typer.Exit(1) from exc

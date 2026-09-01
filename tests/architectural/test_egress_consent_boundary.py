@@ -567,7 +567,16 @@ _EGRESS_ALLOWLIST: dict[str, Allowance] = {
         inventory_id="E18",
         note="Fetches doctrine content inbound; the request carries no project data.",
     ),
-    # -- Credential traffic, not project egress (E3, EXPERIMENTAL-spec-kitty#9) --
+    "specify_cli/doctrine/sources/https_source.py": Allowance(
+        kind=AllowanceKind.NOT_PROJECT_DATA,
+        inventory_id="E18-#217",
+        note=(
+            "Inbound doctrine fetch. The Artifactory AQL query identifies the "
+            "configured public pack item (repo/path/name) and returns metadata; "
+            "it carries no project data."
+        ),
+    ),
+    # -- Credential traffic, not project egress (E3, Priivacy-ai/spec-kitty#9) --
     "specify_cli/zeitgeist_client/resolution.py": Allowance(
         kind=AllowanceKind.NOT_PROJECT_DATA,
         inventory_id="E3-#9",
@@ -1768,5 +1777,3 @@ def test_sender_aliases_resolve_transitively(tmp_path: Path) -> None:
     )
     sites = _scan_project_sinks(source_root=tmp_path)
     assert [(site.qualname, site.callee) for site in sites] == [("alias_chain", "client.post")]
-
-

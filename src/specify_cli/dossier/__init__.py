@@ -10,13 +10,13 @@ from .hasher import (
     wp_static_projection,
 )
 # C-001 relocation (WP04 / #3599): the manifest schema types now live in
-# doctrine.missions.expected_artifact_manifest -- re-exported from their new
+# charter.offering.missions.expected_artifact_manifest -- re-exported from their new
 # home (specify_cli -> doctrine is a legal direction). ManifestRegistry
 # stays specify_cli-owned and keeps importing from .manifest. The explicit
 # ``as <name>`` self-aliases are the standard PEP 484 explicit-re-export
 # marker (ruff/mypy both honor it) -- these three are deliberately NOT in
 # __all__ below: no other src/ file imports them via this package path
-# (indexer.py now goes straight to doctrine.missions), and adding them to
+# (indexer.py now goes straight to charter.offering.missions), and adding them to
 # __all__ without such a caller reds tests/architectural/test_no_dead_symbols.py.
 # The attribute is still importable for any external caller of this package.
 from charter.missions import (

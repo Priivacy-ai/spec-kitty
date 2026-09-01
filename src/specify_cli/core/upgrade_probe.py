@@ -1,17 +1,15 @@
-"""GitHub Releases upgrade probe with no-upgrade classification.
+"""PyPI upgrade probe with no-upgrade classification.
 
 This module is the network-touching half of the "no-upgrade available" UX
 introduced for FR-007 / WP09. It performs a single, timeout-bounded GET against
-the programme's GitHub Releases endpoint and classifies the installed CLI
-version.
+PyPI's JSON metadata endpoint and classifies the installed CLI version.
 
 The probe applies the **secure-design-checklist** tactic
 (`packs/built-in/tactics/secure-design-checklist.tactic.yaml`) to the new
 external surface. Specifically:
 
-- **Least Privilege**: a single GET against release metadata, no secrets, no PII.
+- **Least Privilege**: a single GET against a public endpoint, no auth, no PII.
 - **Fail-Safe Defaults**: every exception is caught and resolves to
-  packaged private-release identity on the private-repo 404 path, otherwise
   ``UpgradeChannel.UNKNOWN`` with the error captured. No exception escapes
   into the CLI hot path.
 - **Complete Mediation**: the timeout is enforced via ``httpx.Client(timeout=...)``
@@ -25,9 +23,6 @@ The probe **never** raises. Callers can rely on the returned
 
 from __future__ import annotations
 
-import importlib.resources
-import json
-import re
 from dataclasses import dataclass, field
 from enum import StrEnum
 from typing import Any
@@ -38,36 +33,31 @@ from kernel.clock import datetime, now_utc
 
 from specify_cli.core.version_compare import is_version_newer, try_parse_version
 
-GITHUB_RELEASES_URL = "https://api.github.com/repos/spec-kitty/EXPERIMENTAL-spec-kitty/releases?per_page=100"
-"""GitHub Releases endpoint for the programme's authoritative CLI release channel."""
-
-RELEASE_IDENTITY_RESOURCE = "release_identity.json"
-"""Packaged private-release identity used when GitHub hides the private repo."""
+PYPI_JSON_URL = "https://pypi.org/pypi/spec-kitty-cli/json"
+"""PyPI's standard JSON metadata endpoint for the ``spec-kitty-cli`` package."""
 
 DEFAULT_TIMEOUT_S = 2.0
 """Hard ceiling on the probe wall-clock budget. Any timeout resolves to UNKNOWN."""
 
-_RELEASE_COMMIT_RE = re.compile(r"^[0-9a-f]{40}$")
-
 
 class UpgradeChannel(StrEnum):
-    """Classification of installed CLI version relative to release metadata.
+    """Classification of installed CLI version relative to PyPI metadata.
 
     The four values correspond to the channel-classification rules in
     ``contracts/upgrade-probe-and-notifier.md``.
     """
 
     ALREADY_CURRENT = "already_current"
-    """Installed version equals the latest release (you're on the latest)."""
+    """Installed version equals PyPI ``info.version`` (you're on the latest)."""
 
     AHEAD_OF_PYPI = "ahead_of_pypi"
-    """Installed version > latest selected release and is itself a known release."""
+    """Installed version > PyPI ``info.version`` (RC/dev build ahead of release)."""
 
     NO_UPGRADE_PATH = "no_upgrade_path"
-    """Installed version not present in current-org GitHub Releases."""
+    """Installed version not present in PyPI ``releases`` (non-PyPI build)."""
 
     UPGRADE_AVAILABLE = "upgrade_available"
-    """Installed version is older than the latest release; existing nag owns it."""
+    """Installed version is older than PyPI ``info.version``; existing nag owns it."""
 
     UNKNOWN = "unknown"
     """Probe failed: timeout, HTTP error, parse error, or malformed response."""
@@ -75,7 +65,7 @@ class UpgradeChannel(StrEnum):
 
 @dataclass(frozen=True)
 class UpgradeProbeResult:
-    """Outcome of a single GitHub Releases probe.
+    """Outcome of a single PyPI probe.
 
     Frozen dataclass — caller cannot mutate. Serialized to JSON for the
     sibling notifier's cache; see ``upgrade_notifier`` for the cache schema.
@@ -85,17 +75,16 @@ class UpgradeProbeResult:
     """The value ``get_cli_version()`` returned at probe time."""
 
     latest_pypi_version: str | None
-    """Latest selected GitHub release version, or ``None`` when the probe failed.
+    """``info.version`` from PyPI, or ``None`` when the probe failed.
 
     Channel-aware (T022, C-CHN-2): when the rc channel is opted into (see
     ``prerelease`` on :func:`probe_pypi`), this is instead the highest
     version across ``releases`` (pre-releases included). Default-off (the
-    common case) this is the highest stable GitHub Release, falling back to
-    the highest release when the channel has no stable tag yet.
+    common case) this is byte-identical to ``info.version``.
     """
 
     channel: UpgradeChannel
-    """Classification of ``installed_version`` relative to release metadata."""
+    """Classification of ``installed_version`` relative to PyPI metadata."""
 
     probed_at: datetime
     """UTC timestamp of the probe. ISO-8601 when serialized to the cache."""
@@ -104,23 +93,11 @@ class UpgradeProbeResult:
     """Populated when ``channel == UNKNOWN``; otherwise ``None``."""
 
     releases: tuple[str, ...] = field(default=())
-    """All known GitHub release versions. Empty tuple on probe failure.
+    """All known PyPI release versions. Empty tuple on probe failure.
 
     Kept in the result so the notifier's cache layer can re-classify if the
     installed version changes mid-cache-window without re-probing.
     """
-
-
-@dataclass(frozen=True)
-class _ReleaseIdentity:
-    repository: str
-    version: str
-    release_tag: str | None
-    release_commit_sha: str | None
-
-    @property
-    def stamped(self) -> bool:
-        return self.release_tag == f"v{self.version}" and self.release_commit_sha is not None and _RELEASE_COMMIT_RE.fullmatch(self.release_commit_sha) is not None
 
 
 def probe_pypi(
@@ -130,7 +107,7 @@ def probe_pypi(
     transport: httpx.BaseTransport | None = None,
     prerelease: bool | None = None,
 ) -> UpgradeProbeResult:
-    """Query GitHub Releases and classify the installed CLI version.
+    """Query PyPI and classify the installed CLI version.
 
     Args:
         cli_version: The installed CLI version (from ``get_cli_version()``).
@@ -143,8 +120,10 @@ def probe_pypi(
             of its own call graph (the notifier caller doesn't thread the
             channel through), so it is the one place the flag is read rather
             than accepted as a required argument. When True (T022, C-CHN-2),
-            classification uses the highest version across all releases
-            (pre-releases included) instead of the latest stable release.
+            classification uses the highest version across all published
+            releases (pre-releases included) instead of PyPI's stable
+            ``info.version``, so an installed rc build is classified against
+            its own channel instead of always reading ``AHEAD_OF_PYPI``.
 
     Returns:
         A well-formed ``UpgradeProbeResult``. Never raises.
@@ -152,7 +131,7 @@ def probe_pypi(
     Notes:
         - The User-Agent identifies the CLI per the secure-design-checklist
           "Open Design" principle (auditable client identity).
-        - The function swallows ``Exception`` deliberately. Release / network
+        - The function swallows ``Exception`` deliberately. PyPI / network
           failures must not break the user's command invocation. The error
           message is captured in ``UpgradeProbeResult.error`` for debugging.
     """
@@ -161,7 +140,7 @@ def probe_pypi(
 
         prerelease = prerelease_enabled()
 
-    user_agent = f"spec-kitty-cli/{cli_version} (https://github.com/spec-kitty/EXPERIMENTAL-spec-kitty)"
+    user_agent = f"spec-kitty-cli/{cli_version} (https://github.com/Priivacy-ai/spec-kitty)"
     probed_at = now_utc()
 
     try:
@@ -173,27 +152,29 @@ def probe_pypi(
             client_kwargs["transport"] = transport
 
         with httpx.Client(**client_kwargs) as client:
-            response = client.get(GITHUB_RELEASES_URL)
+            response = client.get(PYPI_JSON_URL)
             response.raise_for_status()
             payload = response.json()
 
-        releases = _release_versions_from_payload(payload)
-        if not releases:
+        info = payload.get("info") or {}
+        latest = info.get("version")
+        if not isinstance(latest, str) or not latest:
             return _unknown(
                 cli_version,
                 probed_at,
-                "GitHub Releases response did not include release tags",
+                "PyPI response missing info.version",
             )
 
-        release_latest = _highest_release(releases, include_prerelease=True)
-        if release_latest is None:
+        releases_dict = payload.get("releases") or {}
+        if not isinstance(releases_dict, dict):
             return _unknown(
                 cli_version,
                 probed_at,
-                "GitHub Releases response did not include parseable release tags",
+                "PyPI response releases is not an object",
             )
-        stable_latest = _highest_release(releases, include_prerelease=False) or release_latest
-        channel_latest = _channel_latest(stable_latest, releases, prerelease=prerelease)
+        releases = tuple(releases_dict.keys())
+
+        channel_latest = _channel_latest(latest, releases, prerelease=prerelease)
         channel = _classify(cli_version, channel_latest, releases)
         return UpgradeProbeResult(
             installed_version=cli_version,
@@ -204,15 +185,6 @@ def probe_pypi(
             releases=releases,
         )
 
-    except httpx.HTTPStatusError as exc:
-        if exc.response.status_code == 404:
-            try:
-                fallback = _from_bundled_release_identity(cli_version, probed_at, prerelease=prerelease)
-                if fallback is not None:
-                    return fallback
-            except Exception as fallback_exc:  # noqa: BLE001 — the probe contract is never-raise
-                return _unknown(cli_version, probed_at, f"{type(fallback_exc).__name__}: {fallback_exc}")
-        return _unknown(cli_version, probed_at, f"{type(exc).__name__}: {exc}")
     except Exception as exc:  # noqa: BLE001 — fail-safe-default per secure-design-checklist
         return _unknown(cli_version, probed_at, f"{type(exc).__name__}: {exc}")
 
@@ -220,10 +192,11 @@ def probe_pypi(
 def _channel_latest(stable_latest: str, releases: tuple[str, ...], *, prerelease: bool) -> str:
     """Return the "latest" version to classify against, per the active channel.
 
-    Default (``prerelease=False``, C-CHN-1): the highest stable GitHub release.
-    Opted in (``prerelease=True``, C-CHN-2): the highest version across
-    *releases* (pre-releases included), reusing ``simple_index._highest_version``
-    as the single source of truth so this module and ``compat.provider`` never
+    Default (``prerelease=False``, C-CHN-1): *stable_latest* — PyPI's
+    maintainer-designated ``info.version`` — unchanged. Opted in
+    (``prerelease=True``, C-CHN-2): the highest version across *releases*
+    (pre-releases included), reusing ``simple_index._highest_version`` as the
+    single source of truth so this module and ``compat.provider`` never
     drift on "highest version, rc's included" semantics.
     """
     if not prerelease:
@@ -233,96 +206,6 @@ def _channel_latest(stable_latest: str, releases: tuple[str, ...], *, prerelease
 
     highest = _highest_version([stable_latest, *releases], include_prerelease=True)
     return highest if highest is not None else stable_latest
-
-
-def _release_versions_from_payload(payload: object) -> tuple[str, ...]:
-    """Extract sanitised release versions from the GitHub Releases JSON list."""
-    if not isinstance(payload, list):
-        return ()
-
-    versions: list[str] = []
-    for release in payload:
-        if not isinstance(release, dict):
-            continue
-        if release.get("draft") is True:
-            continue
-        tag = release.get("tag_name")
-        if not isinstance(tag, str):
-            continue
-        version = tag[1:] if tag.startswith("v") else tag
-        if try_parse_version(version) is not None:
-            versions.append(version)
-    return tuple(dict.fromkeys(versions))
-
-
-def _highest_release(releases: tuple[str, ...], *, include_prerelease: bool) -> str | None:
-    from specify_cli.distribution.simple_index import _highest_version
-
-    return _highest_version(list(releases), include_prerelease=include_prerelease)
-
-
-def _bundled_release_identity() -> _ReleaseIdentity | None:
-    """Read the private-release identity shipped inside the installed wheel."""
-    try:
-        text = importlib.resources.files("specify_cli").joinpath(RELEASE_IDENTITY_RESOURCE).read_text(encoding="utf-8")
-        payload = json.loads(text)
-    except (OSError, json.JSONDecodeError, ModuleNotFoundError):
-        return None
-
-    if not isinstance(payload, dict):
-        return None
-    if payload.get("repository") != "spec-kitty/EXPERIMENTAL-spec-kitty":
-        return None
-    version = payload.get("version")
-    if not isinstance(version, str) or try_parse_version(version) is None:
-        return None
-    release_tag = payload.get("release_tag")
-    if release_tag is not None and not isinstance(release_tag, str):
-        return None
-    release_commit_sha = payload.get("release_commit_sha")
-    if release_commit_sha is not None and not isinstance(release_commit_sha, str):
-        return None
-    return _ReleaseIdentity(
-        repository=payload["repository"],
-        version=version,
-        release_tag=release_tag,
-        release_commit_sha=release_commit_sha,
-    )
-
-
-def _from_bundled_release_identity(
-    cli_version: str,
-    probed_at: datetime,
-    *,
-    prerelease: bool,
-) -> UpgradeProbeResult | None:
-    identity = _bundled_release_identity()
-    if identity is None:
-        return None
-    if not identity.stamped:
-        return UpgradeProbeResult(
-            installed_version=cli_version,
-            latest_pypi_version=identity.version,
-            channel=UpgradeChannel.NO_UPGRADE_PATH if try_parse_version(cli_version) is not None else UpgradeChannel.UNKNOWN,
-            probed_at=probed_at,
-            error=None,
-            releases=(),
-        )
-
-    releases = (identity.version,)
-    release_latest = _highest_release(releases, include_prerelease=True)
-    if release_latest is None:
-        return None
-    stable_latest = _highest_release(releases, include_prerelease=False) or release_latest
-    channel_latest = _channel_latest(stable_latest, releases, prerelease=prerelease)
-    return UpgradeProbeResult(
-        installed_version=cli_version,
-        latest_pypi_version=channel_latest,
-        channel=_classify(cli_version, channel_latest, releases),
-        probed_at=probed_at,
-        error=None,
-        releases=releases,
-    )
 
 
 def _unknown(cli_version: str, probed_at: datetime, error: str) -> UpgradeProbeResult:
@@ -342,7 +225,7 @@ def _classify(
     latest: str,
     releases: tuple[str, ...],
 ) -> UpgradeChannel:
-    """Classify the installed version against release metadata per the contract.
+    """Classify the installed version against PyPI metadata per the contract.
 
     Returns ``UNKNOWN`` only when the installed version cannot be parsed as a
     PEP 440 version. Network/parse failures are handled upstream in
@@ -352,13 +235,8 @@ def _classify(
     if installed_ver is None:
         return UpgradeChannel.UNKNOWN
 
-    # A version that is not in the current org's release list is not a release
-    # build, even if its version number sorts ahead of the latest release.
-    if installed not in releases:
-        return UpgradeChannel.NO_UPGRADE_PATH
-
     # ``latest`` may be malformed — try_parse_version falls through to the
-    # upgrade-available classification below (via is_version_newer returning False)
+    # releases-membership check below (via is_version_newer returning False)
     # rather than raising.
     latest_ver = try_parse_version(latest)
 
@@ -367,6 +245,10 @@ def _classify(
     if is_version_newer(installed, latest):
         return UpgradeChannel.AHEAD_OF_PYPI
 
+    # installed != latest (or latest unparseable). Check releases membership.
+    if installed not in releases:
+        return UpgradeChannel.NO_UPGRADE_PATH
+
     # Installed version is in releases but is older than latest. There IS an
     # upgrade path, so the no-upgrade notifier must stay silent and let the
     # existing upgrade nag render the actionable prompt.
@@ -374,6 +256,7 @@ def _classify(
 
 
 __all__ = [
+    "PYPI_JSON_URL",
     "DEFAULT_TIMEOUT_S",
     "UpgradeChannel",
     "UpgradeProbeResult",

@@ -1,0 +1,36 @@
+schema: review-refute/v1
+complete: true
+phase: plan
+batch: 1
+verdicts:
+  - id: PLAN-GOV-001
+    verdict: confirmed
+    reason: >
+      Re-derived independently with python3 sorted() over the live 11-entry
+      __all__ list (src/charter/mission_type_profiles.py:71-83) plus
+      "validate_activatable_mission_type" — case-sensitive sort puts the new
+      lowercase symbol LAST (after "resolve_mission_type_key"), not between
+      "UnknownMissionTypeError" and "existing_mission_types" as plan.md:434-436
+      literally instructs.
+  - id: PLAN-GOV-002
+    verdict: confirmed
+    reason: >
+      spec.md AC4 (line ~lines under User Story 1, P1, "the mission's entire
+      reason for existing") is phrased as an operator/CLI-facing scenario, but
+      plan.md's commit 2 covers it only by asserting
+      validate_activatable_mission_type() directly (no CliRunner mention for
+      AC4, unlike commit 1's explicit CliRunner test for AC1/AC2); grep for
+      "extends" in both
+      tests/specify_cli/cli/commands/charter/test_charter_activate_commands_core.py
+      and tests/charter/test_mission_type_profiles.py returns zero matches,
+      confirming no existing CLI-level extends coverage exists either.
+  - id: PLAN-GOV-003
+    verdict: confirmed
+    reason: >
+      plan.md contains exactly one "**Verify RED**" (commit 1) and one
+      "**Verify GREEN**" (commit 3) checkpoint total — commit 2 only states in
+      prose that it "IS RED at the unit level" with no imperative
+      verification instruction, and the ATDD Sequencing section never states
+      which commit(s) the reviewer should diff against planning_base_branch
+      given charter.md:604-605's "the test was RED on planning_base_branch"
+      phrasing assumes a single test-introducing commit but this WP has two.

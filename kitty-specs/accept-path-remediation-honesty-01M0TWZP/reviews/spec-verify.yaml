@@ -1,0 +1,52 @@
+# review-verify/v1 — canonical format for fix-verification output.
+schema: review-verify/v1
+complete: true
+phase: spec
+results:
+  - id: SPEC-GOV-001
+    status: resolved
+    reason: >
+      FR-002, User Story 2 Acceptance Scenario 1, and C-001 now state the resolution
+      direction explicitly (path_violations wins, missing_optional's redundant entry
+      is dropped) and Scenario 2 pins AcceptanceSummary.ok as unchanged (False) for
+      the existing fixture, matching the code's actual .ok gate (verified in
+      acceptance/__init__.py: .ok checks missing_artifacts/path_violations, not
+      optional_missing) and closing the drift-into-#3016 risk C-001 now states
+      non-circularly.
+  - id: SPEC-GOV-003
+    status: resolved
+    reason: >
+      A new Edge Cases entry explicitly pins format_warnings()'s lenient-mode output
+      as unchanged by this mission and names it as the checkable guard against #2330,
+      cross-referenced from the Non-Goals #2330 line; verified against
+      validators/paths.py that format_warnings() and format_errors() do share the
+      same self.suggestions list, so the guard is substantive, not cosmetic.
+  - id: SPEC-ARCH-001
+    status: resolved
+    reason: >
+      Key Entities' AcceptanceSummary and mission.yaml entries were rewritten to
+      state _missing_artifacts() uses a hardcoded, mission-agnostic literal list
+      (no mission param, no mission.config.artifacts read) and that the
+      reconciliation is a post-hoc cross-reference between two already-computed
+      lists, not a YAML-join; tracer-design-decisions.md carries a matching
+      "Correction (post spec-review, SPEC-ARCH-001)" section; both match the live
+      code in acceptance/__init__.py (_missing_artifacts takes only feature_dir and
+      checks a literal list including "contracts") and summary_core.py
+      (evaluate_path_conventions is the side that reads mission.config.paths).
+  - id: SPEC-VERIFY-002
+    status: resolved
+    reason: >
+      User Story 3 Acceptance Scenario 4 now embeds the concrete, falsifiable
+      criterion directly in spec.md (--lenient pointer must appear before the
+      mkdir -p suggestion, which must be explicitly marked secondary/optional via
+      stated example wording) and states it is checkable by plain string-order/
+      string-content assertions with no external dependency on the tracer file —
+      the resolution is no longer confined to tracer-design-decisions.md alone.
+  - id: SPEC-VERIFY-003
+    status: resolved
+    reason: >
+      FR-007 and SC-004 now both name the required entry points explicitly
+      (validate_mission_paths and collect_feature_summary, or the accept CLI
+      command) and FR-007 explicitly excludes a hand-built PathValidationResult/
+      AcceptanceSummary stand-in, making the fixture requirement self-contained
+      rather than dependent on inferring coverage from NFR-001's general clause.

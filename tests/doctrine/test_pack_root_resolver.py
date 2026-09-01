@@ -1,4 +1,4 @@
-"""Resolution matrix for :func:`doctrine.pack_paths.resolve_pack_root` (WP02).
+"""Resolution matrix for :func:`charter.offering.pack_paths.resolve_pack_root` (WP02).
 
 Covers the three-step ``built-in`` resolution order (env override, ancestor
 walk, fail-closed -- FR-004) plus the ``org`` / ``project`` pass-through seam.
@@ -27,19 +27,19 @@ ancestor-walk step; there is no separate installed-wheel branch (see
 
 Re-pinned for mission ``resolution-activation-foundation-01KZ9FKG`` WP02
 (charter DIRECTIVE_041, test-remediation/re-pin discipline): before this
-mission, ``doctrine.pack_paths._resolve_built_in`` read
+mission, ``charter.offering.pack_paths._resolve_built_in`` read
 ``SPEC_KITTY_PACKS_ROOT`` and anchored its own ancestor walk on
 ``pack_paths.__file__`` directly. WP02 collapsed that onto the single kernel
 floor primitive, :func:`kernel.paths.get_built_in_pack_root` -- the env read
-and the ancestor-walk anchor now live there, not on ``doctrine.pack_paths``.
+and the ancestor-walk anchor now live there, not on ``charter.offering.pack_paths``.
 The behavior under test (env override, ancestor walk, fail-closed ->
 ``PackRootNotFound`` translation at the doctrine boundary) is unchanged and
 still meaningful, so every case below is re-pointed at the relocated seam
 rather than dropped: the env var is set/cleared directly (a plain literal,
 matching ``tests/kernel/test_paths.py``'s own convention) and ``__file__`` is
-patched on :mod:`kernel.paths` instead of ``doctrine.pack_paths``. ``files``
+patched on :mod:`kernel.paths` instead of ``charter.offering.pack_paths``. ``files``
 stays patched on ``pack_paths`` for symmetry with
-:func:`doctrine.pack_paths.doctrine_package_dir` callers, even though
+:func:`charter.offering.pack_paths.doctrine_package_dir` callers, even though
 ``_resolve_built_in`` has not called it directly since FR-004 -- so the
 resolver's inputs stay fully controlled and hermetic (the real repository
 tree is never consulted).
@@ -52,13 +52,13 @@ from pathlib import Path
 import pytest
 
 import kernel.paths as kernel_paths
-from doctrine import pack_paths
-from doctrine.pack_paths import PackRootNotFound, resolve_pack_root
+from charter.offering import pack_paths
+from charter.offering.pack_paths import PackRootNotFound, resolve_pack_root
 
 pytestmark = [pytest.mark.fast, pytest.mark.doctrine]
 
 #: WP02 relocated the ``SPEC_KITTY_PACKS_ROOT`` env read from
-#: ``doctrine.pack_paths`` onto :func:`kernel.paths.get_built_in_pack_root` (the
+#: ``charter.offering.pack_paths`` onto :func:`kernel.paths.get_built_in_pack_root` (the
 #: kernel-floor primitive ``_resolve_built_in`` now delegates to wholesale) --
 #: pinned here as a plain literal (matching ``tests/kernel/test_paths.py``'s own
 #: convention) rather than reaching into either module's private constant.
@@ -71,7 +71,7 @@ def _make_anchor_file(pkg_dir: Path) -> Path:
     The returned path is what :func:`_isolate` binds onto
     ``kernel.paths.__file__`` -- the real anchor
     :func:`kernel.paths.get_built_in_pack_root`'s ancestor walk starts from
-    post-WP02 delegation (previously this bound ``doctrine.pack_paths.__file__``).
+    post-WP02 delegation (previously this bound ``charter.offering.pack_paths.__file__``).
     """
     pkg_dir.mkdir(parents=True, exist_ok=True)
     return pkg_dir / "paths.py"
@@ -85,15 +85,15 @@ def _isolate(
 ) -> None:
     """Pin the resolver's discovery inputs at the relocated kernel seam.
 
-    ``doctrine.pack_paths._resolve_built_in`` (WP02, mission
+    ``charter.offering.pack_paths._resolve_built_in`` (WP02, mission
     ``resolution-activation-foundation-01KZ9FKG``) now delegates wholesale to
     :func:`kernel.paths.get_built_in_pack_root`, so both the
     ``SPEC_KITTY_PACKS_ROOT`` env read and the ancestor-walk anchor
     (``kernel.paths.__file__``) live at the kernel floor, not on
-    ``doctrine.pack_paths`` anymore -- ``pack_paths.__file__`` is no longer
+    ``charter.offering.pack_paths`` anymore -- ``pack_paths.__file__`` is no longer
     consulted by ``_resolve_built_in`` at all. ``files`` stays patched on
     ``pack_paths`` for symmetry with
-    :func:`doctrine.pack_paths.doctrine_package_dir` callers, though
+    :func:`charter.offering.pack_paths.doctrine_package_dir` callers, though
     ``_resolve_built_in`` itself never calls it (has not since FR-004).
     """
     monkeypatch.delenv(_PACKS_ROOT_ENV, raising=False)
@@ -126,7 +126,7 @@ def test_installed_layout_resolves_site_packages_sibling_via_ancestor_walk(tmp_p
     doctrine-consumer-surface-missions-extraction-01KZ6G6H), then re-pinned for
     mission ``resolution-activation-foundation-01KZ9FKG`` WP02:
     ``_resolve_built_in`` no longer resolves this via a distinct step 3
-    (``files("doctrine")`` or a ``Path(__file__).resolve().parent.parent`` probe
+    (``files("charter.offering")`` or a ``Path(__file__).resolve().parent.parent`` probe
     of its own) -- it delegates entirely to :func:`kernel.paths.get_built_in_pack_root`,
     whose *ancestor walk* reaches the site-packages level naturally because
     ``anchor.parent.parent`` is always one of ``anchor.parents``. ``module_file``
@@ -221,7 +221,7 @@ def test_fail_closed_when_no_packs_anywhere(tmp_path: Path, monkeypatch: pytest.
 def test_fail_closed_when_files_unavailable(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """No candidate anywhere in the ancestor walk -> fails closed.
 
-    The ``doctrine_dir=None`` isolation (``files("doctrine")`` raising) is
+    The ``doctrine_dir=None`` isolation (``files("charter.offering")`` raising) is
     kept for symmetry with ``_isolate``'s other callers but is not actually
     consulted here: ``_resolve_built_in`` no longer calls ``files()`` at all
     (FR-004) -- what makes this fail closed is that the ancestor walk from

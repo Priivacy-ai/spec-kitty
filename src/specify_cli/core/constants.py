@@ -50,7 +50,7 @@ def is_occurrence_map_path(path: str) -> bool:
 
 # Named scalar aliases for individual built-in mission-type identifiers, used at
 # the CLI comparison sites.  The canonical *roster* (the full built-in set) is
-# ``doctrine.missions.mission_type_repository.builtin_mission_type_ids`` (#2669) —
+# ``charter.offering.missions.mission_type_repository.builtin_mission_type_ids`` (#2669) —
 # these are per-type named constants for readability, not a competing roster.
 # All callers MUST import a name from here rather than embedding inline literals.
 MISSION_TYPE_SOFTWARE_DEV = "software-dev"

@@ -8,11 +8,14 @@ ships a worse bug than leaving both open:
 **Read end.** ``DRGNode``, ``DRGEdge`` and ``AgentProfile`` declared no
 ``extra`` policy, so Pydantic v2's ``extra="ignore"`` default applied: an
 authored key the model does not declare was dropped on load with no warning.
-Every sibling model under ``src/doctrine/**/models.py`` already declares
+Every sibling model under ``src/charter/offering/**/models.py`` already declares
 ``extra="forbid"`` (``tactics``, ``directives``, ``procedures``, ``paradigms``,
 ``missions``, ``styleguides``, ``toolguides``, ``assets``, ``glossary_packs``,
-``model_task_routing``, ``import_candidates``) and ``ContextSources`` does too —
+``model_task_routing``, ``import_candidates``) —
 ``drg/models.py`` and ``AgentProfile`` were the outliers, not the innovation.
+(The former ``ContextSources`` value object was retired in mission
+doctrine-drg-silent-drop-boundary-01M0PE7E; ``AgentProfile`` itself now carries
+the ``extra="forbid"`` boundary for the whole profile.)
 
 **Write end.** The extractor's ``_node_to_dict`` / ``_edge_to_dict`` restated
 their model's field names by hand. A field added to the model but not to the
@@ -89,12 +92,12 @@ import pytest
 from pydantic import BaseModel, Field, ValidationError
 from ruamel.yaml import YAML
 
-from doctrine.agent_profiles.profile import AgentProfile
-from doctrine.drg import loader as drg_loader
-from doctrine.drg import models as drg_models
-from doctrine.drg.loader import DRGLoadError
-from doctrine.drg.migration import extractor
-from doctrine.drg.models import DRGEdge, DRGGraph, DRGNode, NodeKind, Relation
+from charter.offering.agent_profiles.profile import AgentProfile
+from charter.offering.drg import loader as drg_loader
+from charter.offering.drg import models as drg_models
+from charter.offering.drg.loader import DRGLoadError
+from charter.offering.drg.migration import extractor
+from charter.offering.drg.models import DRGEdge, DRGGraph, DRGNode, NodeKind, Relation
 
 pytestmark = [pytest.mark.doctrine, pytest.mark.fast, pytest.mark.corpus]
 
@@ -648,7 +651,7 @@ def test_every_action_scope_field_kind_resolves_to_a_node_kind() -> None:
 
 
 def test_the_retired_relationship_error_does_not_point_at_a_dead_path() -> None:
-    """``src/doctrine/graph.yaml`` was retired for per-kind fragments (DD-7/DD-8).
+    """``src/charter/offering/graph.yaml`` was retired for per-kind fragments (DD-7/DD-8).
 
     An error message whose "do this instead" names a file that does not exist
     sends the reader looking for it. Pinned against the filesystem rather than
@@ -662,7 +665,7 @@ def test_the_retired_relationship_error_does_not_point_at_a_dead_path() -> None:
         AgentProfile.model_validate({**_VALID_PROFILE, "specializes-from": "other"})
 
     message = str(excinfo.value)
-    assert "src/doctrine/graph.yaml" not in message
+    assert "src/charter/offering/graph.yaml" not in message
     assert ".graph.yaml" in message
 
 
