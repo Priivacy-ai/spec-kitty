@@ -2,7 +2,7 @@
 
 This is the FR-011 / journey-4 contract gate for WP08 cycle 2.  The cycle-1
 ATDD spec at ``tests/missions/test_mission_type_profile_resolution.py``
-exercised ``charter.mission_type_profiles.resolve_mission_type_context``
+exercised ``charter.activation.mission_type_profiles.resolve_mission_type_context``
 in isolation, which proved the loader/resolver was *correct in a sandbox*
 but did NOT prove a real documentation mission flowing through the
 implement-prompt pipeline avoids the ``software-dev-default`` leak.

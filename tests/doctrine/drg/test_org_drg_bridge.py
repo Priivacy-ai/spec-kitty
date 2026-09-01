@@ -35,7 +35,7 @@ five", which overstates the unification by one):
   target fell back to ``directive:<id>``, miss → invented kind), and neither
   accepted the URN form the pack's own emitter produces. All four collapse
   into the single ordered precedence in
-  ``doctrine.drg.merge._resolve_edge_endpoint``.
+  ``charter.offering.drg.merge._resolve_edge_endpoint``.
 * **D4 — a second root cause, a different mechanism, a different module.** A
   hand-restated *node*-kind map, fixed by deriving it beside the universe it
   inverts (``org_pack_loader._derive_plural_to_singular``). Nothing to do with
@@ -52,7 +52,7 @@ adding ``Relation.IMPACTS`` to a bridge with a silent-drop path ships a
 relation that works for built-ins and silently fails for external packs.
 
 Every test here drives the **real** transport
-(:func:`doctrine.drg.merge.merge_three_layers`) — no reimplementation of the
+(:func:`charter.offering.drg.merge.merge_three_layers`) — no reimplementation of the
 resolution rules under test.
 """
 
@@ -66,10 +66,10 @@ from typing import Any
 import pytest
 import yaml
 
-from doctrine.drg.merge import OrgDRGConflictError, merge_three_layers
-from doctrine.drg.models import DRGEdge, DRGGraph, DRGNode, NodeKind, Relation
-from doctrine.drg.org_pack_loader import OrgDRGFragment, load_org_pack
-from doctrine.drg.validator import validate_dangling_references, validate_graph
+from charter.offering.drg.merge import OrgDRGConflictError, merge_three_layers
+from charter.offering.drg.models import DRGEdge, DRGGraph, DRGNode, NodeKind, Relation
+from charter.offering.drg.org_pack_loader import OrgDRGFragment, load_org_pack
+from charter.offering.drg.validator import validate_dangling_references, validate_graph
 
 pytestmark = [pytest.mark.unit, pytest.mark.corpus]
 
@@ -83,7 +83,7 @@ def _minter() -> dict[str, str]:
     symbol — a collection error would collapse the whole red map into one
     ``ImportError`` and hide which behaviours are actually broken.
     """
-    from doctrine.drg.org_pack_loader import ORG_PLURAL_TO_SINGULAR_KIND
+    from charter.offering.drg.org_pack_loader import ORG_PLURAL_TO_SINGULAR_KIND
 
     return ORG_PLURAL_TO_SINGULAR_KIND
 
@@ -258,7 +258,7 @@ class TestUnresolvableEndpointIsNeverSilent:
         """
         import typing
 
-        from doctrine.drg.merge import _CONFLICT_REMEDIATIONS, OrgDRGConflict
+        from charter.offering.drg.merge import _CONFLICT_REMEDIATIONS, OrgDRGConflict
 
         # ``from __future__ import annotations`` makes __annotations__ strings;
         # resolve them so the gate reads the real Literal members.
@@ -468,7 +468,7 @@ class TestPluralKindCoverageIsTotal:
         WP exists precisely because untyped failures were leaking out of the
         merge.
         """
-        from doctrine.drg.org_pack_loader import _ORG_DRG_KIND_ALIASES
+        from charter.offering.drg.org_pack_loader import _ORG_DRG_KIND_ALIASES
 
         accepted = sorted(_ORG_DRG_KIND_ALIASES)
         assert len(accepted) >= 12, "floor: the loader accepts >= 12 input forms"
@@ -492,7 +492,7 @@ class TestPluralKindCoverageIsTotal:
         added to the loader but not the minter fails, and a minter entry that
         no canonical kind resolves to fails too — no dead map entries.
         """
-        from doctrine.drg.org_pack_loader import _ORG_DRG_KIND_ALIASES
+        from charter.offering.drg.org_pack_loader import _ORG_DRG_KIND_ALIASES
 
         assert set(_minter()) == set(_ORG_DRG_KIND_ALIASES.values())
 
@@ -510,7 +510,7 @@ class TestPluralKindCoverageIsTotal:
         mutated = dict(_minter())
         removed = mutated.pop("mission_types")
         assert removed == "mission_type"
-        monkeypatch.setattr("doctrine.drg.merge.ORG_PLURAL_TO_SINGULAR_KIND", mutated, raising=True)
+        monkeypatch.setattr("charter.offering.drg.merge.ORG_PLURAL_TO_SINGULAR_KIND", mutated, raising=True)
 
         fragment = _fragment([{"id": "probe-node", "kind": "mission_types"}], [])
         with pytest.raises(OrgDRGConflictError) as excinfo:
@@ -519,7 +519,7 @@ class TestPluralKindCoverageIsTotal:
 
     def test_an_unmappable_plural_kind_is_a_typed_conflict_not_a_keyerror(self, monkeypatch: pytest.MonkeyPatch) -> None:
         """Even the impossible branch fails typed. D4's raw ``KeyError`` is gone."""
-        monkeypatch.setattr("doctrine.drg.merge.ORG_PLURAL_TO_SINGULAR_KIND", {})
+        monkeypatch.setattr("charter.offering.drg.merge.ORG_PLURAL_TO_SINGULAR_KIND", {})
         fragment = _fragment([{"id": "probe-node", "kind": "directives"}], [])
         with pytest.raises(OrgDRGConflictError):
             merge_three_layers(_graph(), [fragment], None)
@@ -831,7 +831,7 @@ class TestOneRelationshipYieldsOneEdge:
             )
 
         built_in = _built_in()
-        with caplog.at_level(logging.WARNING, logger="doctrine.drg.merge"):
+        with caplog.at_level(logging.WARNING, logger="charter.offering.drg.merge"):
             merged = merge_three_layers(
                 built_in,
                 [_pack("first", "SOX 404 evidence"), _pack("second", "GDPR Art. 30")],
@@ -874,7 +874,7 @@ class TestOneRelationshipYieldsOneEdge:
         )
 
         built_in = _built_in()
-        with caplog.at_level(logging.WARNING, logger="doctrine.drg.merge"):
+        with caplog.at_level(logging.WARNING, logger="charter.offering.drg.merge"):
             merged = merge_three_layers(built_in, [fragment], None)
 
         assert _org_edges(merged, built_in) == [
@@ -940,7 +940,7 @@ class TestOneRelationshipYieldsOneEdge:
             )
 
         built_in = _built_in()
-        with caplog.at_level(logging.WARNING, logger="doctrine.drg.merge"):
+        with caplog.at_level(logging.WARNING, logger="charter.offering.drg.merge"):
             merged = merge_three_layers(
                 built_in,
                 [_pack("first", first_reason), _pack("second", second_reason)],
@@ -1015,7 +1015,7 @@ class TestOneRelationshipYieldsOneEdge:
         ]
 
         built_in = _built_in()
-        with caplog.at_level(logging.WARNING, logger="doctrine.drg.merge"):
+        with caplog.at_level(logging.WARNING, logger="charter.offering.drg.merge"):
             merged = merge_three_layers(built_in, fragments, None)
 
         assert _org_edges(merged, built_in) == [
@@ -1078,7 +1078,7 @@ class TestQualifiedEndpointsAreCheckedOnceEveryLayerIsIn:
     did not: no production caller of :func:`merge_three_layers`
     (``_doctrine_collect``, ``charter.lint``, ``_profile_health_render``,
     ``charter._status_collectors``) called
-    :func:`doctrine.drg.validator.validate_graph` or ``assert_valid``. Measured
+    :func:`charter.offering.drg.validator.validate_graph` or ``assert_valid``. Measured
     consequence: a one-character typo in a qualified endpoint merged clean.
 
     ``merge_three_layers`` assembles all three layers, so by the time it
@@ -1115,7 +1115,7 @@ class TestQualifiedEndpointsAreCheckedOnceEveryLayerIsIn:
             ],
         )
 
-        with caplog.at_level("WARNING", logger="doctrine.drg.merge"):
+        with caplog.at_level("WARNING", logger="charter.offering.drg.merge"):
             merge_three_layers(_built_in(), [fragment], None)
 
         warnings = [r.getMessage() for r in caplog.records if r.levelname == "WARNING"]
@@ -1147,7 +1147,7 @@ class TestQualifiedEndpointsAreCheckedOnceEveryLayerIsIn:
             ],
         )
 
-        with caplog.at_level("WARNING", logger="doctrine.drg.merge"):
+        with caplog.at_level("WARNING", logger="charter.offering.drg.merge"):
             merged = merge_three_layers(_built_in(), [fragment], None)
 
         assert [r.getMessage() for r in caplog.records if r.levelname == "WARNING"] == []
@@ -1156,7 +1156,7 @@ class TestQualifiedEndpointsAreCheckedOnceEveryLayerIsIn:
     def test_the_named_compensating_control_is_reachable_and_agrees(self) -> None:
         """Executable form of the docstring's claim.
 
-        The bridge defers existence to :mod:`doctrine.drg.validator`. That
+        The bridge defers existence to :mod:`charter.offering.drg.validator`. That
         deferral only means anything if the check is (a) reachable as a public
         canonical function rather than a private helper each caller must
         re-implement, and (b) in agreement with what the merge warned about.
@@ -1184,7 +1184,7 @@ class TestQualifiedEndpointsAreCheckedOnceEveryLayerIsIn:
         """The post-assembly check is only affordable because the shipped graph
         is already clean — measured, not assumed."""
         from charter.drg import load_built_in_graph
-        from doctrine.drg.validator import validate_graph
+        from charter.offering.drg.validator import validate_graph
 
         built_in = load_built_in_graph()
         assert validate_graph(merge_three_layers(built_in, [], None)) == []
@@ -1214,7 +1214,7 @@ class TestQualifiedEndpointsAreCheckedOnceEveryLayerIsIn:
         )
 
         built_in = _built_in()
-        with caplog.at_level("WARNING", logger="doctrine.drg.merge"):
+        with caplog.at_level("WARNING", logger="charter.offering.drg.merge"):
             merged = merge_three_layers(built_in, [fragment], None)
 
         assert _org_edges(merged, built_in) == [
@@ -1266,7 +1266,7 @@ class TestQualifiedEndpointsAreCheckedOnceEveryLayerIsIn:
         landing in silence — i.e. the warning above comes from this check, not
         from something incidental elsewhere in the merge.
         """
-        import doctrine.drg.merge as merge_mod
+        import charter.offering.drg.merge as merge_mod
 
         monkeypatch.setattr(
             merge_mod,
@@ -1286,7 +1286,7 @@ class TestQualifiedEndpointsAreCheckedOnceEveryLayerIsIn:
             ],
         )
         built_in = _built_in()
-        with caplog.at_level("WARNING", logger="doctrine.drg.merge"):
+        with caplog.at_level("WARNING", logger="charter.offering.drg.merge"):
             merged = merge_three_layers(built_in, [fragment], None)
 
         assert ("directive:mine", "directive:builtin-alfa", "requires") in _org_edges(

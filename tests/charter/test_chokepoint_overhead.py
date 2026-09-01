@@ -16,7 +16,7 @@ import pytest
 from ruamel.yaml import YAML
 
 from charter.hasher import hash_content
-from charter.sync import ensure_charter_bundle_fresh
+from charter.activation.sync import ensure_charter_bundle_fresh
 
 # Marked for mutmut sandbox skip — see ADR 2026-04-20-1.
 # Reason: trampoline bug: subprocess

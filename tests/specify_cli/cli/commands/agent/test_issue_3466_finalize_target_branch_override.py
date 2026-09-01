@@ -221,6 +221,39 @@ def test_target_branch_override_reaches_wp_status_bookkeeping(
     assert json.loads(meta_show)["target_branch"] == FEATURE_BRANCH
 
 
+def test_branch_contract_write_ownership_uses_target_mission_checkout(
+    protected_target_repo: ProtectedTargetRepo,  # noqa: F811
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """The write gate follows the mission directory, not the primary-repo shape."""
+    from specify_cli.cli.commands.agent.mission_finalize import _enforce_branch_contract_write_ownership
+    from typer import Exit
+
+    repo = protected_target_repo.repo_root
+    mission_dir = repo / "kitty-specs" / "issue-3466-write-ownership"
+    mission_dir.mkdir(parents=True)
+    (mission_dir / "meta.json").write_text("{}\n", encoding="utf-8")
+    _git(repo, "add", "kitty-specs/issue-3466-write-ownership")
+    _git(repo, "commit", "-q", "-m", "seed write-ownership mission")
+
+    owner = repo.parent / "write-ownership-owner"
+    foreign = repo.parent / "write-ownership-foreign"
+    _git(repo, "worktree", "add", "-q", "-b", "op/write-ownership-owner", str(owner))
+    _git(repo, "worktree", "add", "-q", "-b", "op/write-ownership-foreign", str(foreign))
+
+    owner_mission = owner / "kitty-specs" / "issue-3466-write-ownership"
+    monkeypatch.chdir(owner)
+    _enforce_branch_contract_write_ownership(owner_mission, json_output=False)
+
+    monkeypatch.chdir(foreign)
+    with pytest.raises(Exit):
+        _enforce_branch_contract_write_ownership(owner_mission, json_output=False)
+
+    monkeypatch.chdir(owner)
+    with pytest.raises(Exit):
+        _enforce_branch_contract_write_ownership(mission_dir, json_output=False)
+
+
 # ---------------------------------------------------------------------------
 # SK3466-R-001: a failed downstream validation gate must not leave the
 # --target-branch persist dangling, uncommitted, in the working tree.

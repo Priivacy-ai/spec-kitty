@@ -292,8 +292,6 @@ def maybe_emit_no_upgrade_notice(command_name: str) -> bool:
           ``try/except`` for defence-in-depth.
         - Uses the existing ``should_check_version`` gate; does not introduce
           a parallel decision point.
-        - Uses the current programme's GitHub Releases channel, not public
-          package indexes.
     """
     try:
         if not should_check_version(command_name):

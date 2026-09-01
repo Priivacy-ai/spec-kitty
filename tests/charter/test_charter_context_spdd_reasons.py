@@ -17,7 +17,7 @@ from pathlib import Path
 import pytest
 from ruamel.yaml.error import YAMLError
 
-from doctrine.spdd_reasons import (
+from charter.offering.spdd_reasons import (
     append_spdd_reasons_guidance,
     clear_activation_cache,
     is_spdd_reasons_active,
@@ -353,7 +353,7 @@ class TestParadigmRoundTrip:
 
     This is a smoke test for the existing synthesizer plumbing, not a change
     in T010. ``selected_paradigms`` is already a first-class field on
-    ``DoctrineSelectionConfig`` (src/charter/schemas.py) and is wired through
+    ``DoctrineSelectionConfig`` (src/charter/activation/schemas.py) and is wired through
     interview → extractor → governance.yaml. The check below confirms the
     activation helper sees the paradigm when written to governance.yaml.
     """
@@ -362,14 +362,14 @@ class TestParadigmRoundTrip:
         clear_activation_cache()
 
     def test_paradigm_in_governance_activates_pack(self, tmp_path: Path) -> None:
-        from charter.charter_yaml_io import save_charter_yaml
-        from charter.schemas import DoctrineSelectionConfig, GovernanceConfig
+        from charter.activation.charter_yaml_io import save_charter_yaml
+        from charter.activation.schemas import DoctrineSelectionConfig, GovernanceConfig
 
         # Build a minimal GovernanceConfig with the paradigm selected, then
         # write it into charter.yaml's governance: section the way the
         # hand-authored charter would carry it.
         gov = GovernanceConfig(
-            doctrine=DoctrineSelectionConfig(
+            charter=DoctrineSelectionConfig(
                 selected_paradigms=["structured-prompt-driven-development"],
             )
         )
@@ -412,11 +412,11 @@ class TestSelectedTacticsRoundTrip:
     def test_tactic_only_selection_round_trips_to_governance_and_activates(
         self, tmp_path: Path
     ) -> None:
-        from charter.charter_yaml_io import save_charter_yaml
-        from charter.compiler import compile_charter
-        from charter.interview import default_interview
-        from charter.pack_context import PackContext
-        from charter.schemas import DoctrineSelectionConfig, GovernanceConfig
+        from charter.activation.charter_yaml_io import save_charter_yaml
+        from charter.activation.compiler import compile_charter
+        from charter.activation.interview import default_interview
+        from charter.activation.pack_context import PackContext
+        from charter.activation.schemas import DoctrineSelectionConfig, GovernanceConfig
 
         # 1. Build a PackContext that activates ONLY the canvas-fill tactic
         #    (every other kind explicitly narrowed to empty so nothing else
@@ -461,7 +461,7 @@ class TestSelectedTacticsRoundTrip:
         #    -- this is the same data the extractor used to scrape back out
         #    of the rendered markdown.
         governance = GovernanceConfig(
-            doctrine=DoctrineSelectionConfig(
+            charter=DoctrineSelectionConfig(
                 selected_paradigms=compiled.selected_paradigms,
                 selected_directives=compiled.selected_directives,
                 selected_tactics=compiled.selected_tactics,
@@ -469,7 +469,7 @@ class TestSelectedTacticsRoundTrip:
                 template_set=compiled.template_set,
             )
         )
-        assert "reasons-canvas-fill" in governance.doctrine.selected_tactics
+        assert "reasons-canvas-fill" in governance.charter.selected_tactics
 
         # 4. Write charter.yaml's governance: section the way the
         #    hand-authored charter would carry it, then let the activation

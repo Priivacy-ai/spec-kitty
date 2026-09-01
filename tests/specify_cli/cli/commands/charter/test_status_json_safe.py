@@ -228,7 +228,7 @@ class TestCharterStatusNoMutator:
                 "(C2-a / NFR-006 — read-only consumer)"
             )
 
-        with patch("charter.sync.ensure_charter_bundle_fresh", _boom):
+        with patch("charter.activation.sync.ensure_charter_bundle_fresh", _boom):
             result = _collect_charter_sync_status(charter_repo)
 
         assert result["available"] is True, result

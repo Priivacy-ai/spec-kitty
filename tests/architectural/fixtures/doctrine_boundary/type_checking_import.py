@@ -21,10 +21,10 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from doctrine.drg.models import ReferenceGraph  # noqa: F401
+    from charter.offering.drg.models import ReferenceGraph  # noqa: F401
 
 
 def build_graph() -> object:  # pragma: no cover - never executed
     if TYPE_CHECKING:
-        from doctrine.drg.loader import load_reference_graph  # noqa: F401
+        from charter.offering.drg.loader import load_reference_graph  # noqa: F401
     raise NotImplementedError

@@ -7,7 +7,12 @@ semantics are layered on by :func:`specify_cli.doctrine.snapshot.write_snapshot`
 
 from __future__ import annotations
 
+import hashlib
+import hmac
+import ipaddress
+import json
 import os
+import re
 import tarfile
 import tempfile
 import time
@@ -15,6 +20,7 @@ import zipfile
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
+from urllib.parse import SplitResult, unquote, urlsplit, urlunsplit
 
 import requests
 
@@ -23,10 +29,37 @@ from .protocol import FetchResult
 MAX_ARCHIVE_BYTES = 100 * 1024 * 1024
 MAX_EXTRACTED_BYTES = 512 * 1024 * 1024
 MAX_ARCHIVE_MEMBERS = 10_000
+_ARTIFACTORY_PATH_MARKER = "/artifactory/"
 
 
 class ArchiveSizeLimitError(Exception):
     """Raised when a fetched archive exceeds doctrine source safety limits."""
+
+
+@dataclass(frozen=True)
+class _ArtifactoryMetadata:
+    """Version and checksum co-attested by one Artifactory AQL result."""
+
+    version: str
+    sha256: str
+
+
+@dataclass(frozen=True)
+class _ArtifactoryItem:
+    """Exact Artifactory item identity plus its AQL endpoint."""
+
+    aql_url: str
+    repo: str
+    path: str
+    name: str
+
+
+@dataclass(frozen=True)
+class _BufferedArchive:
+    """Temporary archive plus its exact downloaded-body checksum."""
+
+    path: Path
+    sha256: str
 
 
 @dataclass
@@ -37,10 +70,33 @@ class HttpsBundleSource:
         url: Direct download URL for the archive.
         ref: Optional version pin used to populate ``pack_version`` when the
             server does not return an ``ETag`` header.
+        if_none_match: Optional ETag from a previous fetch.  Sent as
+            ``If-None-Match`` so an unchanged remote returns HTTP 304 and
+            skips the download body.
     """
 
     url: str
     ref: str | None = None
+    if_none_match: str | None = None
+    source_type: str = "https"
+
+    @property
+    def canonical_url(self) -> str | None:
+        """Return the single Requests-normalized URL used by every boundary."""
+        return _canonical_https_url(self.url)
+
+    @property
+    def is_artifactory(self) -> bool:
+        """Whether this source requires Artifactory provenance validation."""
+        canonical_url = self.canonical_url
+        parsed = _safe_urlsplit(canonical_url) if canonical_url is not None else None
+        return (
+            self.source_type == "artifactory"
+            or (
+                parsed is not None
+                and _ARTIFACTORY_PATH_MARKER in parsed.path
+            )
+        )
 
     # ------------------------------------------------------------------
     # Public API
@@ -49,14 +105,93 @@ class HttpsBundleSource:
         target_dir = Path(target_dir)
         target_dir.mkdir(parents=True, exist_ok=True)
 
+        canonical_url = self.canonical_url
+        if canonical_url is None:
+            return FetchResult(
+                ok=False,
+                artifacts_written=0,
+                pack_version=None,
+                errors=["HTTPS doctrine source URL is invalid."],
+            )
+
+        parsed = _safe_urlsplit(canonical_url)
+        assert parsed is not None
+        is_artifactory = (
+            self.source_type == "artifactory"
+            or _ARTIFACTORY_PATH_MARKER in parsed.path
+        )
+        artifactory_item = _artifactory_item(canonical_url)
+        if is_artifactory and artifactory_item is None:
+            return FetchResult(
+                ok=False,
+                artifacts_written=0,
+                pack_version=None,
+                errors=[
+                    "Artifactory source requires a valid Artifactory item URL "
+                    "containing /artifactory/<repo>/<item>."
+                ],
+            )
+
         try:
-            response = self._get_with_retry()
+            response = self._get_with_retry(canonical_url)
         except requests.RequestException as exc:
             return FetchResult(
                 ok=False,
                 artifacts_written=0,
                 pack_version=None,
-                errors=[f"Network error fetching {self.url}: {exc}"],
+                errors=[
+                    f"Network error fetching {_safe_url_for_error(canonical_url)}: "
+                    f"{type(exc).__name__}"
+                ],
+            )
+
+        try:
+            return self._consume_response(
+                response, target_dir, artifactory_item, canonical_url
+            )
+        finally:
+            response.close()
+
+    # ------------------------------------------------------------------
+    # Helpers
+    # ------------------------------------------------------------------
+    def _headers(self) -> dict[str, str]:
+        headers: dict[str, str] = {}
+        custom_header = os.environ.get("SPEC_KITTY_ORG_AUTH_HEADER")
+        if custom_header:
+            headers["Authorization"] = custom_header
+        else:
+            token = os.environ.get("SPEC_KITTY_ORG_TOKEN")
+            if token:
+                headers["Authorization"] = f"Bearer {token}"
+        if self.if_none_match:
+            headers["If-None-Match"] = self.if_none_match
+        return headers
+
+    def _consume_response(
+        self,
+        response: requests.Response,
+        target_dir: Path,
+        artifactory_item: _ArtifactoryItem | None,
+        canonical_url: str,
+    ) -> FetchResult:
+        """Validate, buffer, provenance-check, then extract one response."""
+        if response.status_code == 304:
+            if not self.if_none_match:
+                return FetchResult(
+                    ok=False,
+                    artifacts_written=0,
+                    pack_version=None,
+                    errors=[
+                        "Remote returned HTTP 304 without an If-None-Match validator."
+                    ],
+                )
+            return FetchResult(
+                ok=True,
+                artifacts_written=0,
+                pack_version=self.ref,
+                unchanged=True,
+                etag=self.if_none_match,
             )
 
         if response.status_code in (401, 403):
@@ -75,8 +210,8 @@ class HttpsBundleSource:
                 artifacts_written=0,
                 pack_version=None,
                 errors=[
-                    f"HTTP {response.status_code} fetching {self.url}: "
-                    f"{response.reason}"
+                    f"HTTP {response.status_code} fetching "
+                    f"{_safe_url_for_error(canonical_url)}."
                 ],
             )
 
@@ -93,7 +228,73 @@ class HttpsBundleSource:
                 ],
             )
 
+        buffered, buffer_error = self._buffer_archive(response, archive_kind)
+        if buffer_error is not None:
+            return FetchResult(
+                ok=False,
+                artifacts_written=0,
+                pack_version=None,
+                errors=[buffer_error],
+            )
+        assert buffered is not None
+
+        metadata: _ArtifactoryMetadata | None = None
+        if artifactory_item is not None:
+            metadata, metadata_error = self._fetch_artifactory_metadata(
+                artifactory_item, canonical_url
+            )
+            if metadata_error is not None:
+                buffered.path.unlink(missing_ok=True)
+                return FetchResult(
+                    ok=False,
+                    artifacts_written=0,
+                    pack_version=None,
+                    errors=[metadata_error],
+                )
+            assert metadata is not None
+            if not hmac.compare_digest(metadata.sha256, buffered.sha256):
+                buffered.path.unlink(missing_ok=True)
+                return FetchResult(
+                    ok=False,
+                    artifacts_written=0,
+                    pack_version=None,
+                    errors=[
+                        "JFrog metadata checksum does not match the downloaded "
+                        "archive; the mutable artifact changed during fetch."
+                    ],
+                )
+
+        try:
+            extracted = self._extract(buffered.path, target_dir, archive_kind)
+        except (
+            ArchiveSizeLimitError,
+            tarfile.TarError,
+            zipfile.BadZipFile,
+            OSError,
+        ) as exc:
+            return FetchResult(
+                ok=False,
+                artifacts_written=0,
+                pack_version=None,
+                errors=[f"Archive extraction failed: {exc}"],
+            )
+        finally:
+            buffered.path.unlink(missing_ok=True)
+
+        return FetchResult(
+            ok=True,
+            artifacts_written=extracted,
+            pack_version=metadata.version if metadata is not None else self.ref,
+            etag=response.headers.get("ETag"),
+        )
+
+    @staticmethod
+    def _buffer_archive(
+        response: requests.Response, archive_kind: str
+    ) -> tuple[_BufferedArchive | None, str | None]:
+        """Stream one bounded response body to disk and hash those exact bytes."""
         tmp_path: Path | None = None
+        digest = hashlib.sha256()  # noqa: TID251 - downloaded-body integrity checksum
         try:
             content_length = _parse_content_length(response.headers.get("Content-Length"))
             if content_length is not None and content_length > MAX_ARCHIVE_BYTES:
@@ -106,76 +307,125 @@ class HttpsBundleSource:
                 tmp_path = Path(tmp.name)
                 total = 0
                 for chunk in response.iter_content(chunk_size=64 * 1024):
-                    if chunk:
-                        total += len(chunk)
-                        if total > MAX_ARCHIVE_BYTES:
-                            raise ArchiveSizeLimitError(
-                                f"Archive exceeds raw byte limit: {total} > {MAX_ARCHIVE_BYTES}"
-                            )
-                        tmp.write(chunk)
-        except (ArchiveSizeLimitError, OSError) as exc:
+                    if not chunk:
+                        continue
+                    total += len(chunk)
+                    if total > MAX_ARCHIVE_BYTES:
+                        raise ArchiveSizeLimitError(
+                            f"Archive exceeds raw byte limit: {total} > {MAX_ARCHIVE_BYTES}"
+                        )
+                    digest.update(chunk)
+                    tmp.write(chunk)
+        except (ArchiveSizeLimitError, OSError, requests.RequestException) as exc:
             if tmp_path is not None:
                 tmp_path.unlink(missing_ok=True)
-            return FetchResult(
-                ok=False,
-                artifacts_written=0,
-                pack_version=None,
-                errors=[f"Failed to buffer archive: {exc}"],
+            detail = (
+                str(exc)
+                if not isinstance(exc, requests.RequestException)
+                else type(exc).__name__
             )
+            return None, f"Failed to buffer archive: {detail}"
+        assert tmp_path is not None
+        return _BufferedArchive(path=tmp_path, sha256=digest.hexdigest()), None
 
+    def _fetch_artifactory_metadata(
+        self, item: _ArtifactoryItem, canonical_url: str
+    ) -> tuple[_ArtifactoryMetadata | None, str | None]:
+        """Read one AQL result that co-attests version and body checksum."""
+        payload, error = self._post_artifactory_aql(item)
+        if error is not None:
+            return None, error
+        metadata = _extract_aql_metadata(payload, item)
+        if metadata is None:
+            return None, (
+                "JFrog AQL did not return the exact artifact with one non-empty "
+                "version property and a valid SHA-256 checksum: "
+                f"{_safe_url_for_error(canonical_url)}"
+            )
+        return metadata, None
+
+    def _post_artifactory_aql(
+        self,
+        item: _ArtifactoryItem,
+    ) -> tuple[object | None, str | None]:
+        """Fetch, decode, and close one co-attested JFrog AQL result."""
         try:
-            assert tmp_path is not None
-            extracted = self._extract(tmp_path, target_dir, archive_kind)
-        except (ArchiveSizeLimitError, tarfile.TarError, zipfile.BadZipFile, OSError) as exc:
-            return FetchResult(
-                ok=False,
-                artifacts_written=0,
-                pack_version=None,
-                errors=[f"Archive extraction failed: {exc}"],
-            )
+            response = self._post_artifactory_aql_with_retry(item)
+        except requests.RequestException as exc:
+            return None, f"Failed to read JFrog AQL metadata: {type(exc).__name__}"
+        try:
+            if response.status_code >= 400:
+                return None, (
+                    "Failed to read JFrog AQL metadata: "
+                    f"HTTP {response.status_code}"
+                )
+            try:
+                return response.json(), None
+            except (ValueError, TypeError):
+                return None, (
+                    "Failed to read JFrog AQL metadata: invalid JSON response"
+                )
         finally:
-            tmp_path.unlink(missing_ok=True)
+            response.close()
 
-        pack_version = self.ref or response.headers.get("ETag")
-        return FetchResult(
-            ok=True,
-            artifacts_written=extracted,
-            pack_version=pack_version,
-            errors=[],
+    def _post_artifactory_aql_with_retry(
+        self, item: _ArtifactoryItem
+    ) -> requests.Response:
+        headers = _without_conditional_header(self._headers())
+        headers["Content-Type"] = "text/plain"
+        criteria = json.dumps(
+            {
+                "repo": item.repo,
+                "path": item.path,
+                "name": item.name,
+                "type": "file",
+            },
+            separators=(",", ":"),
         )
+        query = (
+            f"items.find({criteria})"
+            '.include("repo","path","name","sha256","virtual_repos","@version")'
+        )
+        kwargs: dict[str, Any] = {
+            "headers": headers,
+            "data": query,
+            "timeout": 30,
+        }
+        response = requests.post(  # noqa: S113 - timeout supplied below
+            item.aql_url, **kwargs
+        )
+        if response.status_code == 429 or 500 <= response.status_code < 600:
+            delay = 2.0 if response.status_code >= 500 else 1.0
+            response.close()
+            time.sleep(delay)
+            response = requests.post(  # noqa: S113 - timeout supplied in kwargs
+                item.aql_url,
+                **kwargs,
+            )
+        return response
 
-    # ------------------------------------------------------------------
-    # Helpers
-    # ------------------------------------------------------------------
-    def _headers(self) -> dict[str, str]:
-        custom_header = os.environ.get("SPEC_KITTY_ORG_AUTH_HEADER")
-        if custom_header:
-            return {"Authorization": custom_header}
-        token = os.environ.get("SPEC_KITTY_ORG_TOKEN")
-        if token:
-            return {"Authorization": f"Bearer {token}"}
-        return {}
-
-    def _get_with_retry(self) -> requests.Response:
+    def _get_with_retry(self, request_url: str) -> requests.Response:
         response = requests.get(  # noqa: S113 - timeout supplied below
-            self.url,
+            request_url,
             headers=self._headers(),
             stream=True,
             timeout=30,
         )
         if 500 <= response.status_code < 600:
+            response.close()
             time.sleep(2.0)
             response = requests.get(
-                self.url,
+                request_url,
                 headers=self._headers(),
                 stream=True,
                 timeout=30,
             )
         elif response.status_code == 429:
             retry_after = _parse_retry_after(response.headers.get("Retry-After"))
+            response.close()
             time.sleep(retry_after)
             response = requests.get(
-                self.url,
+                request_url,
                 headers=self._headers(),
                 stream=True,
                 timeout=30,
@@ -207,6 +457,220 @@ class HttpsBundleSource:
 
         _flatten_single_top_dir(target_dir)
         return sum(1 for _ in target_dir.rglob("*.yaml"))
+
+
+def _artifactory_item(artifact_url: str) -> _ArtifactoryItem | None:
+    """Derive exact AQL item identity from an Artifactory download URL."""
+    canonical_url = _canonical_https_url(artifact_url)
+    if canonical_url is None:
+        return None
+    parsed = _safe_urlsplit(canonical_url)
+    assert parsed is not None
+    if _ARTIFACTORY_PATH_MARKER not in parsed.path:
+        return None
+    prefix, item_path = parsed.path.split(_ARTIFACTORY_PATH_MARKER, maxsplit=1)
+    segments = _decode_artifactory_segments(item_path)
+    if segments is None or len(segments) < 2:
+        return None
+    repository = segments[0]
+    path = "/".join(segments[1:-1]) or "."
+    name = segments[-1]
+    aql_path = f"{prefix}{_ARTIFACTORY_PATH_MARKER}api/search/aql"
+    return _ArtifactoryItem(
+        aql_url=urlunsplit(
+            (parsed.scheme, _safe_netloc(parsed), aql_path, "", "")
+        ),
+        repo=repository,
+        path=path,
+        name=name,
+    )
+
+
+def _decode_artifactory_segments(item_path: str) -> list[str] | None:
+    """Decode URL path segments without allowing encoded structure changes."""
+    raw_segments = item_path.split("/")
+    if not raw_segments or any(not segment for segment in raw_segments):
+        return None
+    decoded_segments: list[str] = []
+    for raw_segment in raw_segments:
+        if re.search(r"%(?![0-9A-Fa-f]{2})", raw_segment):
+            return None
+        try:
+            decoded = unquote(raw_segment, errors="strict")
+        except UnicodeDecodeError:
+            return None
+        if (
+            decoded in {".", ".."}
+            or "/" in decoded
+            or "\\" in decoded
+            or any(ord(character) < 32 or ord(character) == 127 for character in decoded)
+        ):
+            return None
+        decoded_segments.append(decoded)
+    return decoded_segments
+
+
+def _without_conditional_header(headers: dict[str, str]) -> dict[str, str]:
+    """Return request headers without an artifact-body conditional."""
+    return {
+        name: value
+        for name, value in headers.items()
+        if name.lower() != "if-none-match"
+    }
+
+
+def _safe_url_for_error(url: str) -> str:
+    """Return an archive URL safe to include in operator-visible errors."""
+    parsed = _safe_urlsplit(url)
+    if parsed is None:
+        return "<invalid HTTPS URL>"
+    return urlunsplit((parsed.scheme, _safe_netloc(parsed), parsed.path, "", ""))
+
+
+def _safe_urlsplit(url: str) -> SplitResult | None:
+    """Parse one URL without allowing malformed authorities to escape."""
+    try:
+        return urlsplit(url)
+    except ValueError:
+        return None
+
+
+def _canonical_https_url(url: str) -> str | None:
+    """Normalize one HTTPS URL once, rejecting parser-differential inputs."""
+    if (
+        "\\" in url
+        or re.search(r"%(?![0-9A-Fa-f]{2})", url)
+        or any(ord(char) < 32 or ord(char) == 127 for char in url)
+    ):
+        return None
+    canonical_url = url
+    for _ in range(4):
+        try:
+            prepared = requests.Request(
+                method="GET", url=canonical_url
+            ).prepare()
+        except (requests.RequestException, UnicodeError, ValueError):
+            return None
+        if prepared.url is None:
+            return None
+        if prepared.url == canonical_url:
+            break
+        canonical_url = prepared.url
+    else:
+        return None
+
+    parsed = _safe_urlsplit(canonical_url)
+    if parsed is None or parsed.scheme != "https" or not parsed.hostname:
+        return None
+    try:
+        _ = parsed.port
+    except ValueError:
+        return None
+    if not _is_valid_hostname(parsed.hostname):
+        return None
+    return canonical_url
+
+
+def _is_valid_hostname(hostname: str) -> bool:
+    """Validate an IP literal or IDNA DNS hostname before network access."""
+    if any(ord(char) <= 0x20 or ord(char) == 0x7F for char in hostname):
+        return False
+    try:
+        ipaddress.ip_address(hostname)
+    except ValueError:
+        pass
+    else:
+        return True
+
+    if "%" in hostname:
+        return False
+
+    candidate = hostname[:-1] if hostname.endswith(".") else hostname
+    if not candidate or len(candidate) > 253:
+        return False
+    if all(char.isdigit() or char == "." for char in candidate):
+        return False
+    try:
+        prepared = requests.Request(
+            method="GET", url=f"https://{candidate}/"
+        ).prepare()
+    except (requests.RequestException, UnicodeError, ValueError):
+        return False
+    if prepared.url is None:
+        return False
+    prepared_url = _safe_urlsplit(prepared.url)
+    if prepared_url is None or prepared_url.hostname is None:
+        return False
+    ascii_hostname = prepared_url.hostname
+    if len(ascii_hostname) > 253:
+        return False
+    labels = ascii_hostname.split(".")
+    return all(
+        label
+        and len(label) <= 63
+        and label[0] != "-"
+        and label[-1] != "-"
+        and all(
+            char.isascii() and (char.isalnum() or char == "-")
+            for char in label
+        )
+        for label in labels
+    )
+
+
+def _safe_netloc(parsed: Any) -> str:
+    """Rebuild a URL authority without embedded credentials."""
+    hostname = parsed.hostname or ""
+    if ":" in hostname:
+        hostname = f"[{hostname}]"
+    try:
+        port = parsed.port
+    except ValueError:
+        port = None
+    return f"{hostname}:{port}" if port is not None else hostname
+
+
+def _extract_aql_metadata(
+    payload: object, item: _ArtifactoryItem
+) -> _ArtifactoryMetadata | None:
+    """Validate one exact AQL item and return its co-attested provenance."""
+    if not isinstance(payload, dict):
+        return None
+    results = payload.get("results")
+    if not isinstance(results, list) or len(results) != 1:
+        return None
+    result = results[0]
+    if not isinstance(result, dict):
+        return None
+    virtual_repos = result.get("virtual_repos")
+    repo_matches = result.get("repo") == item.repo or (
+        isinstance(virtual_repos, list) and item.repo in virtual_repos
+    )
+    if (
+        not repo_matches
+        or result.get("path") != item.path
+        or result.get("name") != item.name
+    ):
+        return None
+    checksum = result.get("sha256")
+    if not isinstance(checksum, str):
+        return None
+    normalized = checksum.strip().lower()
+    if re.fullmatch(r"[0-9a-f]{64}", normalized) is None:
+        return None
+    properties = result.get("properties")
+    if not isinstance(properties, list):
+        return None
+    versions: list[str] = []
+    for prop in properties:
+        if not isinstance(prop, dict) or prop.get("key") != "version":
+            continue
+        value = prop.get("value")
+        if isinstance(value, str) and value.strip():
+            versions.append(value.strip())
+    if len(versions) != 1:
+        return None
+    return _ArtifactoryMetadata(version=versions[0], sha256=normalized)
 
 
 def _parse_retry_after(value: Any) -> float:

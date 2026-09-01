@@ -16,7 +16,7 @@ WP01-library-reconciliation-seam.md``:
    makes a direct ``synthesize(...)`` call raise, with no write.
 
 Plus: the reconciliation-conflict remediation completeness gate (mirrors
-``doctrine.drg.merge``'s ``test_every_conflict_class_carries_a_remediation_line``),
+``charter.offering.drg.merge``'s ``test_every_conflict_class_carries_a_remediation_line``),
 and focused unit coverage for the new helpers in ``reconcile.py`` (Sonar:
 "every new branch/helper needs tests in the same PR").
 """
@@ -31,21 +31,21 @@ from typing import Any, cast
 import pytest
 from ruamel.yaml import YAML
 
-from charter.synthesizer import (
+from charter.activation.synthesizer import (
     FixtureAdapter,
     SynthesisRequest,
     SynthesisTarget,
     synthesize,
 )
-from charter.synthesizer.manifest import (
+from charter.activation.synthesizer.manifest import (
     MANIFEST_PATH,
     ManifestArtifactEntry,
     SynthesisManifest,
     finalize_manifest,
     load_yaml as load_manifest,
 )
-from charter.synthesizer.synthesize_pipeline import canonical_yaml
-from charter.synthesizer.reconcile import (
+from charter.activation.synthesizer.synthesize_pipeline import canonical_yaml
+from charter.activation.synthesizer.reconcile import (
     ManifestDelta,
     ManifestEntryRef,
     NodeOrEdgeRef,
@@ -58,9 +58,9 @@ from charter.synthesizer.reconcile import (
     apply_prune,
     reconcile_synthesis,
 )
-from charter.synthesizer.project_drg import apply_post_condition
-from doctrine.drg.loader import DRGLoadError
-from doctrine.drg.models import DRGGraph
+from charter.activation.synthesizer.project_drg import apply_post_condition
+from charter.offering.drg.loader import DRGLoadError
+from charter.offering.drg.models import DRGGraph
 
 pytestmark = [pytest.mark.unit]
 
@@ -493,7 +493,7 @@ def test_prune_mode_excises_removable_content(
 
 
 # ---------------------------------------------------------------------------
-# Remediation completeness gate (mirrors doctrine.drg.merge's gate of the
+# Remediation completeness gate (mirrors charter.offering.drg.merge's gate of the
 # same name).
 # ---------------------------------------------------------------------------
 
@@ -502,7 +502,7 @@ def test_every_conflict_class_carries_a_remediation_line() -> None:
     """Every ``ReconciliationConflict.kind`` needs an operator remediation entry."""
     # ``from __future__ import annotations`` makes __annotations__ strings;
     # resolve them so the gate reads the real Literal members (mirrors
-    # doctrine.drg.merge's test_every_conflict_class_carries_a_remediation_line).
+    # charter.offering.drg.merge's test_every_conflict_class_carries_a_remediation_line).
     hints = typing.get_type_hints(ReconciliationConflict)
     declared = set(typing.get_args(hints["kind"]))
     assert declared == {"duplicate_triple", "preserved_dangling_endpoint"}
@@ -602,7 +602,7 @@ def test_backing_path_by_urn_resolves_backed_and_orphans_missing(
 
 def test_apply_prune_excises_removable_nodes_edges_and_manifest_entries() -> None:
     """Direct unit coverage for ``apply_prune`` (both the graph AND manifest branches)."""
-    from doctrine.drg.models import DRGEdge, DRGNode, NodeKind, Relation
+    from charter.offering.drg.models import DRGEdge, DRGNode, NodeKind, Relation
 
     keep_node = DRGNode(urn="tactic:keep", kind=NodeKind.TACTIC, label="Keep")
     prune_node = DRGNode(urn="tactic:prune-me", kind=NodeKind.TACTIC, label="Prune me")

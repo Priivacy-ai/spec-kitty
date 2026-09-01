@@ -1,5 +1,5 @@
 """Credential resolution for a checkout: cached relay credential, or mint
-one from Team Kitty, or a remembered no (E3 — EXPERIMENTAL-spec-kitty#9).
+one from Team Kitty, or a remembered no (E3 — Priivacy-ai/spec-kitty#9).
 
 The seam contract this serves (design page ``ephemeral-team-status.html``,
 CLI column): every status transition resolves credentials for its own
@@ -78,7 +78,7 @@ from specify_cli.saas_client.auth import AuthContext, load_auth_context
 from specify_cli.saas_client.errors import SaasAuthError
 
 from . import credentials, repo_identity
-from .credentials import StoredCredential
+from .credentials import NegativeEntry, StoredCredential
 
 logger = logging.getLogger(__name__)
 
@@ -439,6 +439,28 @@ def _default_gateway(auth_repo_root: Path) -> SaasCapabilityGateway:
     )
 
 
+def cached_answer(key: str, *, repo_slug: str, host: str | None) -> tuple[bool, StoredCredential | None, NegativeEntry | None]:
+    """Peek the local store for a still-valid answer — positive or a
+    remembered negative — without touching the network or requiring auth
+    to be configured. This is the offline fast path the module docstring
+    promises; a caller must be able to reach it even when nothing is
+    configured to authenticate with yet, so it never needs a gateway
+    (Priivacy-ai/spec-kitty#151).
+
+    Returns ``(True, credential, None)`` for a positive cache hit,
+    ``(True, None, negative)`` for a remembered negative still inside its
+    TTL, or ``(False, None, None)`` on a miss — the caller must resolve over
+    the network. Returning the negative entry lets callers report its reason
+    without another store read."""
+    stored = credentials.load(repo=key)
+    if stored is not None and not _expired(stored.expires_at) and _same_scope(stored, repo_slug=repo_slug, host=host):
+        return True, stored, None
+    negative = credentials.load_negative(repo=key)
+    if negative is not None and not _expired(negative.expires_at):
+        return True, None, negative
+    return False, None, None
+
+
 def _resolve(
     *,
     key: str,
@@ -451,12 +473,9 @@ def _resolve(
     """Resolution over an already-derived identity — the git-independent
     core, so every branch above is testable without a checkout."""
     if not force:
-        stored = credentials.load(repo=key)
-        if stored is not None and not _expired(stored.expires_at) and _same_scope(stored, repo_slug=repo_slug, host=host):
-            return stored
-        negative = credentials.load_negative(repo=key)
-        if negative is not None and not _expired(negative.expires_at):
-            return None
+        hit, value, _negative = cached_answer(key, repo_slug=repo_slug, host=host)
+        if hit:
+            return value
 
     try:
         answer = gateway.check_repo_admission(repo_slug=repo_slug, host=host)
@@ -565,7 +584,7 @@ def resolve_credentials(
         deadline: Share a caller's already-open Git budget (e.g. the same
             one a presence/focus resolution in the same handler invocation
             is using) instead of allocating a fresh ``repo_identity.Deadline()``
-            here (EXPERIMENTAL-spec-kitty#203).
+            here (Priivacy-ai/spec-kitty#203).
     """
     cwd_str = str(cwd)
     try:
@@ -584,6 +603,16 @@ def resolve_credentials(
         logger.debug("zeitgeist credentials: %s has no hosted remote to ask about", cwd_str)
         return None
 
+    key = store_key(host=host, repo_slug=slug)
+
+    # A cache hit answers offline and must not require auth to be
+    # configured — checking before the gateway is built, not after
+    # (Priivacy-ai/spec-kitty#151).
+    if not force:
+        hit, value, _negative = cached_answer(key, repo_slug=slug, host=host)
+        if hit:
+            return value
+
     resolved_gateway = gateway
     if resolved_gateway is None:
         try:
@@ -593,7 +622,7 @@ def resolve_credentials(
             return None
 
     return _resolve(
-        key=store_key(host=host, repo_slug=slug),
+        key=key,
         repo_slug=slug,
         host=host,
         gateway=resolved_gateway,
@@ -642,7 +671,7 @@ def resolve_focus_capability(
             invocation is using) instead of allocating a fresh
             ``repo_identity.Deadline()`` here — previously this always
             opened its own, stacking a third independent budget onto one
-            broadcast (EXPERIMENTAL-spec-kitty#203).
+            broadcast (Priivacy-ai/spec-kitty#203).
     """
     cwd_str = str(cwd)
     try:

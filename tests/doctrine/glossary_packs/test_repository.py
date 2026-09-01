@@ -5,9 +5,9 @@ from pathlib import Path
 import pytest
 from ruamel.yaml import YAML
 
-from doctrine.base import BaseDoctrineRepository
-from doctrine.glossary_packs.repository import GlossaryPackRepository
-from doctrine.service import DoctrineService
+from charter.offering.base import BaseDoctrineRepository
+from charter.offering.glossary_packs.repository import GlossaryPackRepository
+from charter.offering.service import DoctrineService
 
 pytestmark = [pytest.mark.fast, pytest.mark.doctrine]
 

@@ -10,18 +10,18 @@ What it proves
 --------------
 NFR-001 requires that every ``AgentProfileRepository(`` call site in ``src/``
 resolve its **bound qualname** to the originating module, and that zero of them
-resolve to ``doctrine.agent_profiles.repository.AgentProfileRepository`` outside
-the sole door (``src/charter/resolver.py``), the one unified builder
-(``src/charter/doctrine_service_builder.py``, FR-008), and the named,
+resolve to ``charter.offering.agent_profiles.repository.AgentProfileRepository`` outside
+the sole door (``src/charter/activation/resolver.py``), the one unified builder
+(``src/charter/activation/doctrine_service_builder.py``, FR-008), and the named,
 composite-key-anchored exclusions below.
 
 **Why a text grep is not acceptable here** (NFR-001, verbatim: "explicitly NOT a
 text-only grep"): the class is re-exported through several facades, so the same
 class is spelled ``charter.profiles.AgentProfileRepository`` in
 ``tool_surface/profiles/projection.py`` and
-``doctrine.agent_profiles.AgentProfileRepository`` in
-``charter/profile_resolution.py`` — both resolve to the single originating
-``doctrine.agent_profiles.repository.AgentProfileRepository``. Conversely, a
+``charter.offering.agent_profiles.AgentProfileRepository`` in
+``charter/activation/profile_resolution.py`` — both resolve to the single originating
+``charter.offering.agent_profiles.repository.AgentProfileRepository``. Conversely, a
 future ``AgentProfileRepository`` defined in some unrelated module would share
 the literal substring while being an entirely different class. This gate
 resolves each call site's bound name to a real ``(module, name)`` pair by AST
@@ -49,13 +49,13 @@ Gate 2.
 
 Structural exemptions (directory/file keyed, never line keyed)
 ---------------------------------------------------------------
-* ``src/doctrine/`` — the doctrine layer *owns* this class and the raw
-  ``doctrine.service.DoctrineService`` that composes it
+* ``src/charter/offering/`` — the doctrine layer *owns* this class and the raw
+  ``charter.offering.service.DoctrineService`` that composes it
   (``doctrine/service.py``'s ``DoctrineService.agent_profiles`` cache). That
   construction is the thing the sole door wraps, not a bypass of it — the same
   shape as Gate 5's ``src/charter/`` exemption.
-* ``src/charter/resolver.py`` — the sole door itself (NFR-001).
-* ``src/charter/doctrine_service_builder.py`` — the ONE unified builder
+* ``src/charter/activation/resolver.py`` — the sole door itself (NFR-001).
+* ``src/charter/activation/doctrine_service_builder.py`` — the ONE unified builder
   (FR-008/NFR-001).
 
 Named exclusions are **composite-key anchored, never whole-file**
@@ -89,7 +89,7 @@ The four named exclusions, and their provenance
    **Pre-sanctioned** by spec.md FR-001/C-006.
 2. ``cli/commands/profiles_cmd.py`` (``_profile_catalog``) — C-006, same
    ``.kittify/profiles`` rationale. **Pre-sanctioned** by spec.md FR-001/C-006.
-3. ``charter/profile_resolution.py`` (``_default_agent_profile_repository``) —
+3. ``charter/activation/profile_resolution.py`` (``_default_agent_profile_repository``) —
    FR-001's *confirmed bootstrap carve-out*: a zero-argument, module-level
    cached built-in-only repository with no ``repo_root`` from which to build a
    factory. spec.md FR-001 directs, verbatim, "document it as a genuine C-002
@@ -101,7 +101,7 @@ The four named exclusions, and their provenance
    as an in-scope FR-001 migration target and then could not close it: the
    factory's ``agent_profile_repository`` accessor is built from a raw service
    whose project-overlay directory comes from
-   ``charter._doctrine_paths.resolve_project_root``'s three fixed candidates
+   ``charter.activation._doctrine_paths.resolve_project_root``'s three fixed candidates
    (``.kittify/doctrine``, ``src/doctrine``, ``doctrine``), none of which is
    ``.kittify/agent_profiles``, and ``build_activation_aware_doctrine_service``
    exposes no parameter to retarget it. Both WP02's implementer and its reviewer
@@ -140,7 +140,7 @@ pytestmark = pytest.mark.architectural
 
 #: The originating qualname every sanctioned and unsanctioned spelling of the
 #: agent-profile repository collapses to. Named verbatim by spec.md NFR-001.
-AGENT_PROFILE_REPOSITORY_QUALNAME = "doctrine.agent_profiles.repository.AgentProfileRepository"
+AGENT_PROFILE_REPOSITORY_QUALNAME = "charter.offering.agent_profiles.repository.AgentProfileRepository"
 
 #: Gate 1 watches exactly one canonical class.
 AGENT_PROFILE_TARGETS = frozenset({AGENT_PROFILE_REPOSITORY_QUALNAME})
@@ -183,7 +183,7 @@ AGENT_PROFILE_EXCLUSIONS: tuple[ContentDescriptor, ...] = (
         ),
     ),
     ContentDescriptor(
-        rel_path="src/charter/profile_resolution.py",
+        rel_path="src/charter/activation/profile_resolution.py",
         qualname="_default_agent_profile_repository",
         token_substring="AgentProfileRepository ( )",
         occurrence=None,
@@ -205,7 +205,7 @@ AGENT_PROFILE_EXCLUSIONS: tuple[ContentDescriptor, ...] = (
             "PERMANENT CARVE-OUT. The .kittify/agent_profiles project-overlay "
             "directory is unreachable through the unified builder: the factory's inner "
             "service derives its project directory from "
-            "charter._doctrine_paths.resolve_project_root's three fixed "
+            "charter.activation._doctrine_paths.resolve_project_root's three fixed "
             "candidates (.kittify/doctrine, src/doctrine, doctrine), and "
             "build_activation_aware_doctrine_service exposes no parameter to "
             "retarget it. WP02's implementer and reviewer independently forced "
@@ -230,8 +230,8 @@ AGENT_PROFILE_EXCLUSIONS: tuple[ContentDescriptor, ...] = (
             "an explicit org_roots override for this: the public "
             "build_activation_aware_doctrine_service(repo_root) and "
             "_collect_profile_health(repo_root) both take only repo_root and "
-            "self-resolve org_roots, and charter.resolver.DoctrineService.__init__ "
-            "requires an already-constructed raw inner doctrine.service.DoctrineService "
+            "self-resolve org_roots, and charter.activation.resolver.DoctrineService.__init__ "
+            "requires an already-constructed raw inner charter.offering.service.DoctrineService "
             "to wrap, which is itself the construction the sibling gate forbids. "
             "Routing this through DoctrineService was tried on a previous tip and "
             "reverted precisely because it trips the sibling sole-door gate "
@@ -268,7 +268,7 @@ def check_agent_profile_gate(sites: list[ConstructionSite]) -> list[str]:
     return [
         f"{site.describe()} constructs the raw agent-profile repository outside "
         "the charter sole door (FR-001/NFR-001) — obtain it from "
-        "charter.resolver.DoctrineService.agent_profile_repository instead"
+        "charter.activation.resolver.DoctrineService.agent_profile_repository instead"
         for site in sites
         if not structurally_exempt(site.rel_path) and site.key not in excluded
     ]
@@ -290,7 +290,7 @@ def test_census_is_non_empty_and_includes_the_doctrine_owner() -> None:
     """
     census = agent_profile_census()
     assert len(census.sites) >= 5, [s.describe() for s in census.sites]
-    assert any(s.rel_path == "src/doctrine/service.py" for s in census.sites), [s.describe() for s in census.sites]
+    assert any(s.rel_path == "src/charter/offering/service.py" for s in census.sites), [s.describe() for s in census.sites]
     assert all(s.canonical == AGENT_PROFILE_REPOSITORY_QUALNAME for s in census.sites)
 
 
@@ -318,7 +318,7 @@ def test_no_raw_agent_profile_repository_construction_outside_the_sole_door() ->
 
 # =========================================================================== #
 # NFR-003 self-mutation proofs — function-local and nested scope, never
-# module-level-only (the WP10 lesson from doctrine-charter-split-unification).
+# module-level-only (the WP10 lesson from charter.offering-charter-split-unification).
 # =========================================================================== #
 
 

@@ -5,7 +5,7 @@ runs ``spec-kitty charter sync`` -> ``spec-kitty charter synthesize`` ->
 ``spec-kitty charter bundle validate``. None of those three steps recompiles
 the *compiled* references catalog embedded in ``.kittify/charter/charter.yaml``
 (``catalog.references`` -- the direct successor of the retired stand-alone
-``references.yaml`` file; see ``charter.compiler._build_catalog_dict``'s
+``references.yaml`` file; see ``charter.activation.compiler._build_catalog_dict``'s
 docstring: "Mirrors the retired ``references.yaml`` body"). Only
 ``spec-kitty charter generate`` recompiles that section, so a project whose
 ``.kittify/config.yaml`` activation changed without an intervening
@@ -41,7 +41,7 @@ non-degenerate condition, not a rubber stamp.
 
 NFR-006 (curated charter.md untouched)
 -----------------------------------------------------------
-``generate`` is safe to invoke here as-is: ``charter.compiler.
+``generate`` is safe to invoke here as-is: ``charter.activation.compiler.
 write_compiled_charter`` only ever refreshes ``charter.yaml``'s DERIVED
 ``catalog``/``metadata`` sections (round-tripped so authored
 ``governance``/``directives``/activation/``overrides`` survive

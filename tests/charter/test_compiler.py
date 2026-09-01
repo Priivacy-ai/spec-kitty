@@ -6,16 +6,16 @@ from unittest.mock import MagicMock
 
 import pytest
 
-from charter.catalog import DoctrineCatalog, load_doctrine_catalog
-from charter.compiler import _resolve_template_set, compile_charter, write_compiled_charter
-from charter.interview import (
+from charter.activation.catalog import DoctrineCatalog, load_doctrine_catalog
+from charter.activation.compiler import _resolve_template_set, compile_charter, write_compiled_charter
+from charter.activation.interview import (
     CharterInterview,
     LocalSupportDeclaration,
     apply_answer_overrides,
     default_interview,
     validate_local_support_declarations,
 )
-from charter.pack_context import PackContext
+from charter.activation.pack_context import PackContext
 
 pytestmark = pytest.mark.fast
 
@@ -273,7 +273,7 @@ def test_compile_with_repo_root_uses_project_drg_overlay(tmp_path: Path) -> None
 
     # Also create a project doctrine overlay dir so _default_doctrine_service
     # exercises the project-root branch (compiler.py lines 267-269).
-    (tmp_path / "src" / "doctrine").mkdir(parents=True)
+    (tmp_path / "src" / "charter" / "offering").mkdir(parents=True)
 
     compiled = compile_charter(
         mission="software-dev",
@@ -337,8 +337,7 @@ def test_compile_with_repo_root_handles_missing_shipped_graph(tmp_path: Path, mo
     that direct-root activation exists, so it is re-pinned rather than
     merely deleted.
     """
-    from charter import _drg_helpers as drg_helpers_module
-
+    from charter.activation import _drg_helpers as drg_helpers_module
     interview = default_interview(mission="software-dev", profile="minimal")
 
     # doctrine_service=None below makes compile_charter build its own

@@ -27,8 +27,10 @@ Design constraints (spec FR-001..FR-003, C-001):
 
 from __future__ import annotations
 
+from collections.abc import Mapping
 from dataclasses import dataclass
 from pathlib import Path
+from typing import Any
 
 from specify_cli.core.dependency_graph import build_dependency_graph, dependency_readiness_for_wp
 from specify_cli.status import Lane
@@ -92,7 +94,14 @@ def _read_candidate_wp_ids(tasks_dir: Path) -> list[str]:
     return candidates
 
 
-def _load_wp_lanes(feature_dir: Path) -> dict[str, Lane]:
+def _load_wp_states(feature_dir: Path) -> dict[str, Mapping[str, Any]]:
+    """Reduced per-WP snapshot states (lane **and** provenance), best-effort.
+
+    Returns the raw reduced ``work_packages`` state dicts so callers can derive
+    the lane map *and* thread per-dependency provenance (``reason_source``) into
+    :func:`dependency_readiness_for_wp` (FR-009). On any read/reduce failure the
+    map is empty — discovery is best-effort and must never raise.
+    """
     try:
         events = _read_events(feature_dir)
         if not events:
@@ -100,20 +109,25 @@ def _load_wp_lanes(feature_dir: Path) -> dict[str, Lane]:
         snapshot = _reduce_events(events)
     except Exception:  # noqa: BLE001 — discovery is best-effort; on read failure return empty
         return {}
-    # Genesis WPs are non-display but kept in the map (as GENESIS) so callers can
-    # detect and skip them (Contract 2, FR-008). reduce() always writes a string
-    # "lane"; the GENESIS default covers a (never-observed) missing key. Lane(...)
-    # coerces both a lane string and the GENESIS enum default (#1775 Randy-Reducer).
-    return {
-        wp_id: Lane(state.get("lane", Lane.GENESIS))
-        for wp_id, state in snapshot.work_packages.items()
-    }
+    return dict(snapshot.work_packages)
+
+
+def _wp_lanes_from_states(states: Mapping[str, Mapping[str, Any]]) -> dict[str, Lane]:
+    """Derive the lane map from reduced snapshot states.
+
+    Genesis WPs are non-display but kept in the map (as GENESIS) so callers can
+    detect and skip them (Contract 2, FR-008). reduce() always writes a string
+    "lane"; the GENESIS default covers a (never-observed) missing key. Lane(...)
+    coerces both a lane string and the GENESIS enum default (#1775 Randy-Reducer).
+    """
+    return {wp_id: Lane(state.get("lane", Lane.GENESIS)) for wp_id, state in states.items()}
 
 
 def _preview_from_candidates(
     candidates: list[str],
     wp_lanes: dict[str, Lane],
     dependency_graph: dict[str, list[str]],
+    provenance: Mapping[str, Mapping[str, Any] | None] | None = None,
 ) -> ClaimablePreview:
     has_active_candidate = False
     has_dependency_blocked_candidate = False
@@ -129,10 +143,15 @@ def _preview_from_candidates(
             has_genesis_candidate = True
             continue
         if lane == Lane.PLANNED:
+            # Thread per-dependency provenance so a dependent of a
+            # canceled-with-operator-provenance WP is surfaced as claimable
+            # rather than reported blocked (FR-009). The default (None) keeps
+            # the legacy lane-only behaviour for callers that pass no map.
             readiness = dependency_readiness_for_wp(
                 wp_id,
                 dependency_graph.get(wp_id, []),
                 wp_lanes,
+                provenance=provenance,
             )
             if not readiness.satisfied:
                 has_dependency_blocked_candidate = True
@@ -227,8 +246,13 @@ def preview_claimable_wp(
 
     # Read lanes from the canonical status event log (lane is event-log-only).
     # Dependency graph is a planning artifact → feature_dir (primary partition).
+    # Load the reduced states once and reuse them for both the lane map and the
+    # provenance map (FR-009) so a dependent of a canceled-with-operator-provenance
+    # WP is surfaced as claimable, mirroring the primary claim gates.
+    wp_states = _load_wp_states(_status_dir)
     return _preview_from_candidates(
         candidates,
-        _load_wp_lanes(_status_dir),
+        _wp_lanes_from_states(wp_states),
         build_dependency_graph(feature_dir),
+        provenance=wp_states,
     )

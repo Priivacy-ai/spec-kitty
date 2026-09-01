@@ -347,8 +347,8 @@ def test_all_new_fields_together(tmp_path: object) -> None:
         display_label="My GitHub Repo",
         provider_context={"org": "acme", "visibility": "private"},
         workspace="local-ws",
-        doctrine_mode="local_authoritative",
-        doctrine_field_owners={"title": "tracker", "status": "local"},
+        ownership_mode="local_authoritative",
+        ownership_field_owners={"title": "tracker", "status": "local"},
     )
     save_tracker_config(root, config)
     loaded = load_tracker_config(root)
@@ -358,8 +358,8 @@ def test_all_new_fields_together(tmp_path: object) -> None:
     assert loaded.display_label == "My GitHub Repo"
     assert loaded.provider_context == {"org": "acme", "visibility": "private"}
     assert loaded.workspace == "local-ws"
-    assert loaded.doctrine_mode == "local_authoritative"
-    assert loaded.doctrine_field_owners == {"title": "tracker", "status": "local"}
+    assert loaded.ownership_mode == "local_authoritative"
+    assert loaded.ownership_field_owners == {"title": "tracker", "status": "local"}
 
 
 def test_provider_context_none_roundtrip(tmp_path: object) -> None:
