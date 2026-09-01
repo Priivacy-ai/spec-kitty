@@ -27,8 +27,8 @@ The existing factory `.github/workflows/ci.yml` remains untouched and is not an 
 | `.github/workflows/plugin-validate.yml` | defer | Plugin validation is valuable but outside the interim CI producer and needs a current plugin-surface audit. |
 | `.github/workflows/regen-assets.yml` | defer | Generated-asset regeneration needs a current ownership and artifact audit before another producer is added. |
 | `.github/workflows/ui-e2e.yml` | defer | Cross-repo E2E belongs to the e2e repository and factory CI topology, not this interim CLI producer. |
-| `.github/workflows/release.yml` | defer | P3.4b sibling, blocked on release topology; explicitly not restored in this phase. |
-| `.github/workflows/release-readiness.yml` | defer | P3.4b sibling, blocked on release topology; explicitly not restored in this phase. |
+| `.github/workflows/release.yml` | restore | Restored on `ubuntu-latest` with the wheel-content gate re-pointed to `src/charter/offering` and its bundled skills. |
+| `.github/workflows/release-readiness.yml` | restore | Restored on `ubuntu-latest`; the cutover guard runs from source without resolving the CLI's git direct references. |
 | `.github/workflows/scripts/check-release-exists.sh` | defer | Release script; owned by the P3.4b release topology sibling. |
 | `.github/workflows/scripts/create-github-release.sh` | defer | Release script; owned by the P3.4b release topology sibling. |
 | `.github/workflows/scripts/create-release-packages.sh` | defer | Release script; owned by the P3.4b release topology sibling. |
