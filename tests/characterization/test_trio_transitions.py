@@ -37,6 +37,14 @@ from specify_cli.status import EVENTS_FILENAME, Lane, StatusEvent, append_event
 
 pytestmark = [pytest.mark.unit]
 
+_CORRUPTED_EVENTS_QUARANTINE = pytest.mark.quarantine(
+    reason="spec-kitty#1021: flakes under the full parallel main baseline"
+    " (main @a7b8bd306 2026-09-01T10:32Z and again @5396f812 2026-09-01T12:03Z);"
+    " passes on the serial re-run and in isolation. Root cause (hidden"
+    " cross-test nondeterminism in the status event-log read path) is tracked"
+    " in the issue; this quarantine is debt, remove on root-cause fix."
+)
+
 # Fixed base instant + a monotonic per-event offset -- deterministic ordering
 # for the reducer's ``(at, event_id)`` sort without any wall-clock read
 # (repo-local guard: no live ``datetime.now()`` inside test assertions).
@@ -138,6 +146,7 @@ class TestCollectSnapshotWpsAcrossTheDecisionLoop:
         assert len(activity_issues) == 1
         assert "finalize-tasks" in activity_issues[0]
 
+    @_CORRUPTED_EVENTS_QUARANTINE
     def test_corrupted_events_file_raises_acceptance_error(self, tmp_path: Path) -> None:
         feature_dir = tmp_path / "kitty-specs" / "trio-mission"
         feature_dir.mkdir(parents=True)
