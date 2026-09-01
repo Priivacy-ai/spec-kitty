@@ -11,23 +11,23 @@ branch/helper needs tests in the same PR" discipline.
 
 Covered helpers, one section per owning file:
 
-* ``charter.evidence.code_reader`` — ``_scan_tree`` / ``_detect_frameworks`` /
+* ``charter.activation.evidence.code_reader`` — ``_scan_tree`` / ``_detect_frameworks`` /
   ``_detect_test_frameworks`` / ``_build_stack_id`` (extracted from
   ``CodeReadingCollector._detect``, Sonar complexity 33 -> <=15).
 * ``specify_cli.charter_runtime.lint.checks.org_layer`` —
   ``_check_item_overrides_builtin`` / ``_scan_artifact_type_for_overrides``
   (extracted from ``OrgOverridesBuiltinChecker.run``, complexity 29 -> <=15).
-* ``charter.context_result_builders`` — ``build_missing_charter_context_result``
+* ``charter.activation.context_result_builders`` — ``build_missing_charter_context_result``
   (extracted from ``build_charter_context``, complexity 19 -> <=15).
-* ``charter.context_renderers.template_include`` — ``_resolve_include_kind``
+* ``charter.activation.context_renderers.template_include`` — ``_resolve_include_kind``
   (extracted from ``build_charter_context_include``, complexity 19 -> <=15).
-* ``charter.context_renderers.catalog_diagnosis`` — ``_ids_via_listing_attr`` /
+* ``charter.activation.context_renderers.catalog_diagnosis`` — ``_ids_via_listing_attr`` /
   ``_ids_from_items_dict`` (extracted from ``_available_catalog_ids``,
   complexity 20 -> <=15).
-* ``charter.compiler`` — ``_detect_local_support_overlap`` /
+* ``charter.activation.compiler`` — ``_detect_local_support_overlap`` /
   ``_local_support_summary`` / ``_local_support_content_lines`` (extracted
   from ``_build_local_support_references``, complexity 20 -> <=15).
-* ``charter.consistency_check`` — ``_find_owning_kind`` /
+* ``charter.activation.consistency_check`` — ``_find_owning_kind`` /
   ``_check_kind_violation_for_artifact`` (extracted from
   ``_check_kind_violations``, complexity 22 -> <=15).
 """
@@ -42,7 +42,7 @@ pytestmark = [pytest.mark.unit]
 
 
 # ---------------------------------------------------------------------------
-# charter.evidence.code_reader
+# charter.activation.evidence.code_reader
 # ---------------------------------------------------------------------------
 
 
@@ -52,7 +52,7 @@ class TestCodeReaderHelpers:
         path.write_text(content)
 
     def test_scan_tree_buckets_source_and_test_files(self, tmp_path: Path) -> None:
-        from charter.evidence.code_reader import CodeReadingCollector
+        from charter.activation.evidence.code_reader import CodeReadingCollector
 
         self._make_file(tmp_path / "pyproject.toml", "")
         self._make_file(tmp_path / "pkg" / "mod.py", "# source")
@@ -69,7 +69,7 @@ class TestCodeReaderHelpers:
         assert scan.js_files == 0
 
     def test_scan_tree_prunes_excluded_dirs(self, tmp_path: Path) -> None:
-        from charter.evidence.code_reader import CodeReadingCollector
+        from charter.activation.evidence.code_reader import CodeReadingCollector
 
         self._make_file(tmp_path / "node_modules" / "heavy.js", "// dep")
         self._make_file(tmp_path / "keep.py", "# kept")
@@ -80,7 +80,7 @@ class TestCodeReaderHelpers:
         assert any(f.endswith("keep.py") for f in scan.source_files)
 
     def test_detect_frameworks_matches_indicator_files(self) -> None:
-        from charter.evidence.code_reader import CodeReadingCollector
+        from charter.activation.evidence.code_reader import CodeReadingCollector
 
         frameworks = CodeReadingCollector._detect_frameworks(
             {"manage.py", "next.config.ts", "unrelated.txt"}
@@ -89,12 +89,12 @@ class TestCodeReaderHelpers:
         assert set(frameworks) == {"django", "nextjs"}
 
     def test_detect_frameworks_empty_when_no_match(self) -> None:
-        from charter.evidence.code_reader import CodeReadingCollector
+        from charter.activation.evidence.code_reader import CodeReadingCollector
 
         assert CodeReadingCollector._detect_frameworks({"README.md"}) == []
 
     def test_detect_test_frameworks_from_indicator(self) -> None:
-        from charter.evidence.code_reader import CodeReadingCollector
+        from charter.activation.evidence.code_reader import CodeReadingCollector
 
         test_fws = CodeReadingCollector._detect_test_frameworks(
             {"jest.config.js"}, [], "javascript"
@@ -103,7 +103,7 @@ class TestCodeReaderHelpers:
         assert test_fws == ["jest"]
 
     def test_detect_test_frameworks_python_pytest_fallback(self) -> None:
-        from charter.evidence.code_reader import CodeReadingCollector
+        from charter.activation.evidence.code_reader import CodeReadingCollector
 
         test_fws = CodeReadingCollector._detect_test_frameworks(
             set(), ["tests/test_thing.py"], "python"
@@ -112,7 +112,7 @@ class TestCodeReaderHelpers:
         assert test_fws == ["pytest"]
 
     def test_detect_test_frameworks_no_fallback_for_non_python(self) -> None:
-        from charter.evidence.code_reader import CodeReadingCollector
+        from charter.activation.evidence.code_reader import CodeReadingCollector
 
         test_fws = CodeReadingCollector._detect_test_frameworks(
             set(), ["tests/thing.test.ts"], "typescript"
@@ -121,7 +121,7 @@ class TestCodeReaderHelpers:
         assert test_fws == []
 
     def test_build_stack_id_unknown_language_short_circuits(self) -> None:
-        from charter.evidence.code_reader import CodeReadingCollector
+        from charter.activation.evidence.code_reader import CodeReadingCollector
 
         assert (
             CodeReadingCollector._build_stack_id("unknown", ["django"], ["pytest"])
@@ -129,7 +129,7 @@ class TestCodeReaderHelpers:
         )
 
     def test_build_stack_id_composes_language_framework_test(self) -> None:
-        from charter.evidence.code_reader import CodeReadingCollector
+        from charter.activation.evidence.code_reader import CodeReadingCollector
 
         stack_id = CodeReadingCollector._build_stack_id(
             "python", ["django"], ["pytest"]
@@ -138,7 +138,7 @@ class TestCodeReaderHelpers:
         assert stack_id == "python+django+pytest"
 
     def test_build_stack_id_language_only(self) -> None:
-        from charter.evidence.code_reader import CodeReadingCollector
+        from charter.activation.evidence.code_reader import CodeReadingCollector
 
         assert CodeReadingCollector._build_stack_id("go", [], []) == "go"
 
@@ -278,14 +278,14 @@ class TestOrgLayerHelpers:
 
 
 # ---------------------------------------------------------------------------
-# charter.context_result_builders
+# charter.activation.context_result_builders
 # ---------------------------------------------------------------------------
 
 
 class TestContextResultBuilders:
     def test_build_missing_charter_context_result(self, tmp_path: Path) -> None:
-        from charter.context_result_builders import build_missing_charter_context_result
-        from charter.context_state import _ContextStateBundle
+        from charter.activation.context_result_builders import build_missing_charter_context_result
+        from charter.activation.context_state import _ContextStateBundle
 
         state_bundle = _ContextStateBundle(
             state_path=tmp_path / "context-state.json",
@@ -305,8 +305,8 @@ class TestContextResultBuilders:
         assert "Charter file not found" in result.text
 
     def test_build_missing_charter_context_result_applies_augment(self, tmp_path: Path) -> None:
-        from charter.context_result_builders import build_missing_charter_context_result
-        from charter.context_state import _ContextStateBundle
+        from charter.activation.context_result_builders import build_missing_charter_context_result
+        from charter.activation.context_state import _ContextStateBundle
 
         state_bundle = _ContextStateBundle(
             state_path=tmp_path / "context-state.json",
@@ -326,41 +326,41 @@ class TestContextResultBuilders:
 
 
 # ---------------------------------------------------------------------------
-# charter.context_renderers.template_include
+# charter.activation.context_renderers.template_include
 # ---------------------------------------------------------------------------
 
 
 class TestResolveIncludeKind:
     def test_resolve_include_kind_normalises_hyphenated_token(self) -> None:
-        from doctrine.artifact_kinds import ArtifactKind
+        from charter.offering.artifact_kinds import ArtifactKind
 
-        from charter.context_renderers.template_include import _resolve_include_kind
+        from charter.activation.context_renderers.template_include import _resolve_include_kind
 
         resolved = _resolve_include_kind("agent-profile", "agent-profile:x")
 
         assert resolved is ArtifactKind.AGENT_PROFILE
 
     def test_resolve_include_kind_rejects_mission_type(self) -> None:
-        from charter.context_renderers.template_include import _resolve_include_kind
+        from charter.activation.context_renderers.template_include import _resolve_include_kind
 
         with pytest.raises(ValueError, match="mission-type"):
             _resolve_include_kind("mission-type", "mission-type:software-dev")
 
     def test_resolve_include_kind_unknown_token_fails_closed(self) -> None:
-        from charter.context_renderers.template_include import _resolve_include_kind
+        from charter.activation.context_renderers.template_include import _resolve_include_kind
 
         with pytest.raises(Exception):  # noqa: B017 -- canonical vocabulary error, class not re-exported here
             _resolve_include_kind("not-a-real-kind", "not-a-real-kind:x")
 
 
 # ---------------------------------------------------------------------------
-# charter.context_renderers.catalog_diagnosis
+# charter.activation.context_renderers.catalog_diagnosis
 # ---------------------------------------------------------------------------
 
 
 class TestCatalogDiagnosisHelpers:
     def test_ids_via_listing_attr_uses_list_all(self) -> None:
-        from charter.context_renderers.catalog_diagnosis import _ids_via_listing_attr
+        from charter.activation.context_renderers.catalog_diagnosis import _ids_via_listing_attr
 
         class _Item:
             def __init__(self, id_: str) -> None:
@@ -375,7 +375,7 @@ class TestCatalogDiagnosisHelpers:
         assert ids == ["a", "b"]
 
     def test_ids_via_listing_attr_returns_none_when_not_callable(self) -> None:
-        from charter.context_renderers.catalog_diagnosis import _ids_via_listing_attr
+        from charter.activation.context_renderers.catalog_diagnosis import _ids_via_listing_attr
 
         class _Repo:
             list_all = "not callable"
@@ -383,7 +383,7 @@ class TestCatalogDiagnosisHelpers:
         assert _ids_via_listing_attr(_Repo(), "list_all") is None
 
     def test_ids_via_listing_attr_returns_none_on_exception(self) -> None:
-        from charter.context_renderers.catalog_diagnosis import _ids_via_listing_attr
+        from charter.activation.context_renderers.catalog_diagnosis import _ids_via_listing_attr
 
         class _Repo:
             def list_all(self) -> list[str]:
@@ -392,7 +392,7 @@ class TestCatalogDiagnosisHelpers:
         assert _ids_via_listing_attr(_Repo(), "list_all") is None
 
     def test_ids_from_items_dict_filters_string_keys(self) -> None:
-        from charter.context_renderers.catalog_diagnosis import _ids_from_items_dict
+        from charter.activation.context_renderers.catalog_diagnosis import _ids_from_items_dict
 
         class _Repo:
             _items = {"a": object(), "b": object()}
@@ -400,20 +400,20 @@ class TestCatalogDiagnosisHelpers:
         assert sorted(_ids_from_items_dict(_Repo())) == ["a", "b"]
 
     def test_ids_from_items_dict_returns_empty_without_items(self) -> None:
-        from charter.context_renderers.catalog_diagnosis import _ids_from_items_dict
+        from charter.activation.context_renderers.catalog_diagnosis import _ids_from_items_dict
 
         assert _ids_from_items_dict(object()) == []
 
 
 # ---------------------------------------------------------------------------
-# charter.compiler
+# charter.activation.compiler
 # ---------------------------------------------------------------------------
 
 
 class TestLocalSupportHelpers:
     def test_detect_local_support_overlap_records_diagnostic(self) -> None:
-        from charter.compiler import _detect_local_support_overlap
-        from charter.interview import LocalSupportDeclaration
+        from charter.activation.compiler import _detect_local_support_overlap
+        from charter.activation.interview import LocalSupportDeclaration
 
         decl = LocalSupportDeclaration(
             path="docs/x.md", target_kind="directive", target_id="DIRECTIVE_001"
@@ -421,7 +421,7 @@ class TestLocalSupportHelpers:
         diagnostics: list[str] = []
 
         # built_in_ids carries "<KIND>:<ID>" keys (see
-        # charter.compiler._build_built_in_concept_ids), not bare artifact ids.
+        # charter.activation.compiler._build_built_in_concept_ids), not bare artifact ids.
         warning = _detect_local_support_overlap(
             decl, frozenset({"DIRECTIVE:DIRECTIVE_001"}), diagnostics
         )
@@ -431,8 +431,8 @@ class TestLocalSupportHelpers:
         assert len(diagnostics) == 1  # golden-count: cardinality-is-contract (records exactly one)
 
     def test_detect_local_support_overlap_no_target_returns_none(self) -> None:
-        from charter.compiler import _detect_local_support_overlap
-        from charter.interview import LocalSupportDeclaration
+        from charter.activation.compiler import _detect_local_support_overlap
+        from charter.activation.interview import LocalSupportDeclaration
 
         decl = LocalSupportDeclaration(path="docs/x.md")
         diagnostics: list[str] = []
@@ -441,8 +441,8 @@ class TestLocalSupportHelpers:
         assert diagnostics == []
 
     def test_detect_local_support_overlap_no_overlap_returns_none(self) -> None:
-        from charter.compiler import _detect_local_support_overlap
-        from charter.interview import LocalSupportDeclaration
+        from charter.activation.compiler import _detect_local_support_overlap
+        from charter.activation.interview import LocalSupportDeclaration
 
         decl = LocalSupportDeclaration(
             path="docs/x.md", target_kind="directive", target_id="DIRECTIVE_999"
@@ -458,8 +458,8 @@ class TestLocalSupportHelpers:
         assert diagnostics == []
 
     def test_local_support_summary_includes_target_and_action(self) -> None:
-        from charter.compiler import _local_support_summary
-        from charter.interview import LocalSupportDeclaration
+        from charter.activation.compiler import _local_support_summary
+        from charter.activation.interview import LocalSupportDeclaration
 
         decl = LocalSupportDeclaration(
             path="docs/x.md",
@@ -474,16 +474,16 @@ class TestLocalSupportHelpers:
         assert "(action: implement)" in summary
 
     def test_local_support_summary_bare_declaration(self) -> None:
-        from charter.compiler import _local_support_summary
-        from charter.interview import LocalSupportDeclaration
+        from charter.activation.compiler import _local_support_summary
+        from charter.activation.interview import LocalSupportDeclaration
 
         decl = LocalSupportDeclaration(path="docs/x.md")
 
         assert _local_support_summary(decl) == "Local support file."
 
     def test_local_support_content_lines_includes_warning(self) -> None:
-        from charter.compiler import _local_support_content_lines
-        from charter.interview import LocalSupportDeclaration
+        from charter.activation.compiler import _local_support_content_lines
+        from charter.activation.interview import LocalSupportDeclaration
 
         decl = LocalSupportDeclaration(
             path="docs/x.md",
@@ -500,8 +500,8 @@ class TestLocalSupportHelpers:
         assert "- Target ID: `DIRECTIVE_001`" in lines
 
     def test_local_support_content_lines_no_warning_omits_line(self) -> None:
-        from charter.compiler import _local_support_content_lines
-        from charter.interview import LocalSupportDeclaration
+        from charter.activation.compiler import _local_support_content_lines
+        from charter.activation.interview import LocalSupportDeclaration
 
         decl = LocalSupportDeclaration(path="docs/x.md")
 
@@ -511,13 +511,13 @@ class TestLocalSupportHelpers:
 
 
 # ---------------------------------------------------------------------------
-# charter.consistency_check
+# charter.activation.consistency_check
 # ---------------------------------------------------------------------------
 
 
 class TestKindViolationHelpers:
     def test_find_owning_kind_returns_first_match(self) -> None:
-        from charter.consistency_check import _find_owning_kind
+        from charter.activation.consistency_check import _find_owning_kind
 
         all_ids = {
             "directives": frozenset({"X"}),
@@ -527,21 +527,21 @@ class TestKindViolationHelpers:
         assert _find_owning_kind("Y", "directives", all_ids) == "tactics"
 
     def test_find_owning_kind_excludes_own_kind(self) -> None:
-        from charter.consistency_check import _find_owning_kind
+        from charter.activation.consistency_check import _find_owning_kind
 
         all_ids = {"directives": frozenset({"X"})}
 
         assert _find_owning_kind("X", "directives", all_ids) is None
 
     def test_find_owning_kind_returns_none_when_unowned(self) -> None:
-        from charter.consistency_check import _find_owning_kind
+        from charter.activation.consistency_check import _find_owning_kind
 
         all_ids = {"directives": frozenset({"X"}), "tactics": frozenset({"Y"})}
 
         assert _find_owning_kind("Z", "directives", all_ids) is None
 
     def test_check_kind_violation_for_artifact_records_mismatch(self) -> None:
-        from charter.consistency_check import _check_kind_violation_for_artifact
+        from charter.activation.consistency_check import _check_kind_violation_for_artifact
 
         all_ids = {"directives": frozenset(), "tactics": frozenset({"X"})}
         kind_violations: list[str] = []
@@ -554,7 +554,7 @@ class TestKindViolationHelpers:
         assert "belongs to kind 'tactics', not 'directives'" in kind_violations[0]
 
     def test_check_kind_violation_for_artifact_skips_already_flagged(self) -> None:
-        from charter.consistency_check import _check_kind_violation_for_artifact
+        from charter.activation.consistency_check import _check_kind_violation_for_artifact
 
         all_ids = {"directives": frozenset(), "tactics": frozenset({"X"})}
         kind_violations: list[str] = []
@@ -571,7 +571,7 @@ class TestKindViolationHelpers:
         assert kind_violations == []
 
     def test_check_kind_violation_for_artifact_skips_correct_kind(self) -> None:
-        from charter.consistency_check import _check_kind_violation_for_artifact
+        from charter.activation.consistency_check import _check_kind_violation_for_artifact
 
         all_ids = {"directives": frozenset({"X"})}
         kind_violations: list[str] = []

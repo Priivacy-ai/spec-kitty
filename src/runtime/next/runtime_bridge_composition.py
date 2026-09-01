@@ -179,7 +179,7 @@ def _should_dispatch_via_composition(
     # without it skip directly to the custom widening path.
     if repo_root is not None:
         try:
-            from charter.mission_type_profiles import (  # noqa: PLC0415
+            from charter.activation.mission_type_profiles import (  # noqa: PLC0415
                 resolve_mission_type_context,
             )
 
@@ -264,7 +264,7 @@ def _resolve_runtime_contract_for_step(
     """
     try:
         from charter.drg import resolve_org_dirs
-        from doctrine.missions.step_contracts import (
+        from charter.offering.missions.step_contracts import (
             MissionStepContractRepository,
         )
         from specify_cli.mission_loader.contract_synthesis import synthesize_contracts
@@ -314,19 +314,38 @@ def _composition_dispatch_inputs(
     patches it), so it is a plain internal helper re-exported into the
     residual (``decide_next_via_runtime`` still calls it bare) — no native
     delegate needed.
-    """
-    try:
-        from charter.mission_type_profiles import (  # noqa: PLC0415
-            resolve_mission_type_context,
-        )
 
-        action_sequence = resolve_mission_type_context(
-            repo_root, mission_type=mission
-        ).action_sequence
-        if action in action_sequence:
-            return None, None
-    except Exception:
-        pass
+    The short-circuit to ``(None, None)`` (letting
+    ``StepContractExecutor._resolve_profile_hint`` fall back to its own
+    ``_ACTION_PROFILE_DEFAULTS`` table) is gated on ``(mission, action)``
+    actually having an entry in that table — not merely on the action
+    appearing in the charter-resolved action sequence. A custom mission type
+    (e.g. an org-pack-registered ``qa`` mission) can resolve an action
+    sequence that includes an action with no built-in default; that table is
+    explicitly built-in-missions-only (see its own docstring), so such an
+    action must fall through to the frozen template's explicit
+    ``agent-profile``/``contract_ref`` binding instead of being silently
+    starved of a profile hint (#397 — the runtime discarded a frozen
+    ``agent-profile: researcher-robbie`` binding for a custom mission's
+    ``discovery`` action because this short-circuit fired unconditionally).
+    """
+    from specify_cli.mission_step_contracts.executor import (  # noqa: PLC0415
+        _ACTION_PROFILE_DEFAULTS,
+    )
+
+    if (mission, action) in _ACTION_PROFILE_DEFAULTS:
+        try:
+            from charter.activation.mission_type_profiles import (  # noqa: PLC0415
+                resolve_mission_type_context,
+            )
+
+            action_sequence = resolve_mission_type_context(
+                repo_root, mission_type=mission
+            ).action_sequence
+            if action in action_sequence:
+                return None, None
+        except Exception:
+            pass
 
     from runtime.next import runtime_bridge as _rb  # noqa: PLC0415
 
@@ -432,6 +451,7 @@ def _check_composed_action_guard(
     *,
     mission: str = "software-dev",
     legacy_step_id: str | None = None,
+    repo_root: Path | None = None,
 ) -> list[str]:
     """Evaluate the post-composition guard for a composed action.
 
@@ -440,7 +460,8 @@ def _check_composed_action_guard(
     T022; relocated here #2531 WP08). On this tolerant composed extension path
     an :class:`~runtime_bridge_cores.UnregisteredMissionFamilyError` is caught,
     logged at WARNING, and degraded to an explicit neutral (empty) result —
-    unlike the legacy CLI path (``_check_cli_guards``), which lets it raise.
+    matching the legacy CLI path (``_check_cli_guards``), which also catches
+    and logs it at WARNING before degrading to an empty result.
 
     Mirrors ``_check_cli_guards`` semantics for the composed actions.
 
@@ -473,11 +494,21 @@ def _check_composed_action_guard(
       whole composed action; the guard demands the **union** of all three
       legacy substep checks (no weakening).
 
+    ``repo_root`` (#3704 WP03, FR-003) is forwarded to
+    :func:`runtime_bridge_io.gather_artifact_presence` for org-tier
+    ``expected-artifacts.yaml`` resolution (#3704 WP02, FR-008); defaults to
+    ``None`` (built-in tree only — today's exact behavior for every existing
+    caller that does not yet pass a real ``repo_root``).
+
     Returns a list of failure descriptions; an empty list means all guards
     pass.
     """
     snapshot = _io_seam.gather_artifact_presence(
-        feature_dir, mission_family=mission, step_id=action, legacy_step_id=legacy_step_id
+        feature_dir,
+        mission_family=mission,
+        step_id=action,
+        legacy_step_id=legacy_step_id,
+        repo_root=repo_root,
     )
     if mission == "software-dev" and action in ("implement", "review"):
         # _should_advance_wp_step stays defined in the residual (untouched by
@@ -624,7 +655,7 @@ def _dispatch_via_composition(
     from runtime.next import runtime_bridge as _rb  # noqa: PLC0415
 
     failures = _rb._check_composed_action_guard(
-        action, feature_dir, mission=mission, legacy_step_id=legacy_step_id
+        action, feature_dir, mission=mission, legacy_step_id=legacy_step_id, repo_root=repo_root
     )
     if failures:
         return failures

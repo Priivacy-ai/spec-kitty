@@ -1,7 +1,7 @@
 """T023 (WP04, #2532) — focused unit tests for the extracted leaf/pure seams.
 
 Each seam module is imported from its NEW home (not re-exported through
-``charter.context``) so these tests pin the seam itself, independent of the
+``charter.activation.context``) so these tests pin the seam itself, independent of the
 FR-009 preserved-surface re-export. Complements
 ``tests/charter/test_context_parity.py`` (which proves the composed
 end-to-end behaviour is unchanged) by exercising each moved unit directly.
@@ -14,9 +14,9 @@ from pathlib import Path
 
 import pytest
 
-from charter._catalog_miss import CatalogMissCause
-from charter.charter_md_parsing import _extract_policy_summary, _find_section_start
-from charter.context_renderers.artifact_bodies import (
+from charter.activation._catalog_miss import CatalogMissCause
+from charter.activation.charter_md_parsing import _extract_policy_summary, _find_section_start
+from charter.activation.context_renderers.artifact_bodies import (
     _format_full_artifact_payload_body,
     _format_inline_agent_profile_body,
     _format_inline_directive_body,
@@ -29,11 +29,11 @@ from charter.context_renderers.artifact_bodies import (
     _format_profile_directive_code,
     _jsonable_artifact_value,
 )
-from charter.context_renderers.catalog_diagnosis import (
+from charter.activation.context_renderers.catalog_diagnosis import (
     _available_catalog_ids,
     _diagnose_catalog_miss,
 )
-from charter.context_state import (
+from charter.activation.context_state import (
     KITTIFY_DIRNAME,
     _MIN_EFFECTIVE_DEPTH,
     _ContextStateBundle,

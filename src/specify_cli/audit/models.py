@@ -195,9 +195,18 @@ class AuditOptions:
     (never hardcoded here — the engine resolves the default at call time).
     ``fail_on`` is ``None`` for "always exit 0"; set to ``Severity.ERROR``
     to fail on errors only, ``Severity.WARNING`` for errors+warnings, etc.
+    ``invoking_cwd``, when set to the real OS invocation directory, is
+    compared against ``repo_root`` (the caller's re-anchored primary
+    checkout) for invoking-checkout-vs-primary disagreement — the
+    ``--audit`` counterpart of ``enforce_primary_write_ownership``'s
+    ``--fix`` refusal. From a foreign lane worktree this catches mission
+    state that would otherwise read as a false green because ``repo_root``
+    is read at both ends. ``None`` (the default) skips the check entirely,
+    so existing callers/tests are unaffected.
     """
 
     repo_root: Path
     scan_root: Path | None = None
     mission_filter: str | None = None
+    invoking_cwd: Path | None = None
     fail_on: Severity | None = None

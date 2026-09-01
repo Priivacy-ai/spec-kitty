@@ -115,6 +115,11 @@ from specify_cli.merge.git_probes import (
 # WP06 (#2057): the merge --dry-run forecast (preview + payload build) lives in
 # the merge seam's ``forecast`` module; the command body delegates to it.
 from specify_cli.merge.forecast import run_dry_run_forecast
+from specify_cli.merge.retention import (
+    MISSION_RETENTION_CLEANUP_CONFLICT,
+    load_mission_retention,
+    retention_cleanup_conflicts,
+)
 # WP08 (#2057): done/approved transition emission, the done asserts, resume
 # reconcile, and the per-WP recording loop live in the merge seam's
 # ``done_bookkeeping`` module. _mark_wp_merged_done + the asserts are re-exported
@@ -363,6 +368,67 @@ def _dispatch_resume(repo_root: Path, mission: str | None) -> str | None:
     return existing_state.mission_slug if not mission_slug_raw else mission
 
 
+def _enforce_retention_cleanup(
+    repo_root: Path,
+    mission_slug: str,
+    *,
+    delete_branch: bool | None,
+    remove_worktree: bool | None,
+    json_output: bool,
+) -> None:
+    """Require explicit cleanup choices when a mission retains its artifacts."""
+
+    retention = load_mission_retention(get_main_repo_root(repo_root), mission_slug)
+    conflicts = retention_cleanup_conflicts(
+        retention,
+        delete_branch=delete_branch,
+        remove_worktree=remove_worktree,
+    )
+    if not conflicts:
+        return
+
+    remediation = [
+        "--keep-branch and/or --keep-worktree to retain those artifacts",
+        "--delete-branch and/or --remove-worktree to separately direct cleanup",
+    ]
+    if json_output:
+        print(
+            json.dumps(
+                {
+                    "spec_kitty_version": SPEC_KITTY_VERSION,
+                    "mission_slug": mission_slug,
+                    "blocked": True,
+                    "blockers": [
+                        {
+                            "diagnostic_code": MISSION_RETENTION_CLEANUP_CONFLICT,
+                            "retained": list(conflicts),
+                            "constraint_id": retention.constraint_id
+                            if retention
+                            else None,
+                            "remediation": remediation,
+                        }
+                    ],
+                    "diagnostic_code": MISSION_RETENTION_CLEANUP_CONFLICT,
+                }
+            )
+        )
+    else:
+        console.print(
+            "[red]Error:[/red] Mission retention constraint "
+            f"{retention.constraint_id if retention else '<unknown>'} requires an "
+            "explicit cleanup decision."
+        )
+        console.print(
+            "Omitted cleanup flags default to deletion; retained fields: "
+            + ", ".join(conflicts)
+            + "."
+        )
+        console.print(f"  diagnostic_code: {MISSION_RETENTION_CLEANUP_CONFLICT}")
+        for action in remediation:
+            console.print(f"  - {action}")
+    raise typer.Exit(1)
+
+
 def _run_real_merge(
     repo_root: Path,
     *,
@@ -425,8 +491,8 @@ def merge(
         "--strategy",
         help="Strategy for the branch-integration step (git merge of mission\u2192target): merge | squash | rebase. Default: squash.",
     ),
-    delete_branch: bool = typer.Option(True, "--delete-branch/--keep-branch", help="Delete lane branches after merge"),
-    remove_worktree: bool = typer.Option(True, "--remove-worktree/--keep-worktree", help="Remove lane worktrees after merge"),
+    delete_branch: bool | None = typer.Option(None, "--delete-branch/--keep-branch", help="Delete lane branches after merge"),
+    remove_worktree: bool | None = typer.Option(None, "--remove-worktree/--keep-worktree", help="Remove lane worktrees after merge"),
     push: bool = typer.Option(False, "--push", help="Publish to origin after the local merge (the operator publish step; distinct from local lane consolidation)"),
     target_branch: str = typer.Option(None, "--target", help="Target branch for the branch-integration step (auto-detected)"),
     dry_run: bool = typer.Option(False, "--dry-run", help="Show what would be done without executing"),
@@ -550,6 +616,18 @@ def merge(
         )
         raise typer.Exit(1)
 
+    if resolved_mission:
+        _enforce_retention_cleanup(
+            repo_root,
+            resolved_mission,
+            delete_branch=delete_branch,
+            remove_worktree=remove_worktree,
+            json_output=json_output,
+        )
+
+    effective_delete_branch = delete_branch if delete_branch is not None else True
+    effective_remove_worktree = remove_worktree if remove_worktree is not None else True
+
     if dry_run:
         # WP06 (#2057): the dry-run preview + payload build lives in the
         # ``forecast`` seam. Behavior + JSON key set preserved byte-for-byte
@@ -559,8 +637,8 @@ def merge(
             resolved_feature=resolved_mission,
             resolved_target_branch=resolved_target_branch,
             resolved_strategy=resolved_strategy,
-            delete_branch=delete_branch,
-            remove_worktree=remove_worktree,
+            delete_branch=effective_delete_branch,
+            remove_worktree=effective_remove_worktree,
             push=push,
             json_output=json_output,
         )
@@ -575,8 +653,8 @@ def merge(
         resolved_mission=resolved_mission,
         resolved_target_branch=resolved_target_branch,
         resolved_strategy=resolved_strategy,
-        delete_branch=delete_branch,
-        remove_worktree=remove_worktree,
+        delete_branch=effective_delete_branch,
+        remove_worktree=effective_remove_worktree,
         push=push,
         allow_sparse_checkout=allow_sparse_checkout,
         yes=yes,

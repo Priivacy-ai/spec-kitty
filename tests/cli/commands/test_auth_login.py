@@ -27,6 +27,11 @@ import pytest
 from typer.testing import CliRunner
 
 from specify_cli.auth import reset_token_manager
+from specify_cli.auth.errors import (
+    AuthenticationError,
+    BrowserLaunchError,
+    CallbackValidationError,
+)
 from specify_cli.auth.session import StoredSession, Team
 from specify_cli.cli.commands.auth import app
 
@@ -50,13 +55,24 @@ def _reset_tm(monkeypatch):
     reset_token_manager()
 
 
-def _make_session(email: str = "alice@example.com") -> StoredSession:
+def _make_session(
+    email: str = "alice@example.com",
+    team_name: str = "Team One",
+    is_private_teamspace: bool = False,
+) -> StoredSession:
     now = now_utc()
     return StoredSession(
         user_id="user-1",
         email=email,
         name="Alice",
-        teams=[Team(id="t1", name="Team One", role="owner")],
+        teams=[
+            Team(
+                id="t1",
+                name=team_name,
+                role="owner",
+                is_private_teamspace=is_private_teamspace,
+            )
+        ],
         default_team_id="t1",
         access_token="access-xyz",
         refresh_token="refresh-xyz",
@@ -283,6 +299,79 @@ class TestAuthLoginSaasLineRendering:
         assert f"SaaS: {bracketed}" in result.stdout
 
 
+class TestAuthLoginErrorMessageEscaping:
+    """#526: exception text printed on login error paths can carry a raw,
+    server-controlled body (e.g. a non-200 token-exchange response). Unescaped,
+    a value containing a closing-tag-like substring raises
+    ``rich.errors.MarkupError`` out of ``console.print`` instead of a clean
+    non-zero exit with a readable diagnostic."""
+
+    @pytest.mark.parametrize(
+        ("headless", "flow_class", "error_type", "expected_prefix"),
+        [
+            (
+                False,
+                "specify_cli.auth.flows.authorization_code.AuthorizationCodeFlow",
+                CallbackValidationError,
+                "Callback validation failed",
+            ),
+            (
+                False,
+                "specify_cli.auth.flows.authorization_code.AuthorizationCodeFlow",
+                BrowserLaunchError,
+                "Could not launch browser",
+            ),
+            (
+                False,
+                "specify_cli.auth.flows.authorization_code.AuthorizationCodeFlow",
+                AuthenticationError,
+                "Authentication failed",
+            ),
+            (
+                True,
+                "specify_cli.auth.flows.device_code.DeviceCodeFlow",
+                AuthenticationError,
+                "Device flow failed",
+            ),
+        ],
+        ids=("callback-validation", "browser-launch", "browser-auth", "device-auth"),
+    )
+    def test_markup_like_exception_text_does_not_crash(
+        self,
+        monkeypatch,
+        tmp_path,
+        headless,
+        flow_class,
+        error_type,
+        expected_prefix,
+    ):
+        runtime_root = tmp_path / "runtime-root"
+        runtime_root.mkdir(parents=True)
+        monkeypatch.setenv("SPEC_KITTY_HOME", str(runtime_root))
+        monkeypatch.setenv("SPEC_KITTY_SAAS_URL", "https://saas.test")
+
+        hostile_body = "Token exchange failed: HTTP 400 - bad [/] token"
+
+        async def _raise_auth_error(*_args, **_kwargs):
+            raise error_type(hostile_body)
+
+        with patch(
+            "specify_cli.cli.commands._auth_login.get_token_manager"
+        ) as mock_factory, patch(flow_class) as mock_flow_cls:
+            mock_factory.return_value.is_authenticated = False
+            mock_flow_cls.return_value.login = AsyncMock(
+                side_effect=_raise_auth_error
+            )
+            args = ["login", "--headless"] if headless else ["login"]
+            result = runner.invoke(app, args)
+
+        # A clean non-zero exit, not an unhandled MarkupError traceback.
+        assert result.exit_code == 1, result.stdout
+        assert "MarkupError" not in result.stdout
+        assert expected_prefix in result.stdout
+        assert hostile_body in result.stdout
+
+
 # ---------------------------------------------------------------------------
 # Already-authenticated / --force behavior
 # ---------------------------------------------------------------------------
@@ -312,6 +401,89 @@ class TestAuthLoginAlreadyAuthenticated:
         assert "Already logged in" in result.stdout
         assert existing.email in result.stdout
         assert not mock_browser.called
+
+    def test_renders_bracket_markup_in_existing_session_email(self):
+        existing = _make_session(email="alice[/]@example.com")
+
+        with patch(
+            "specify_cli.cli.commands._auth_login.get_token_manager"
+        ) as mock_factory:
+            mock_tm = mock_factory.return_value
+            mock_tm.is_authenticated = True
+            mock_tm.get_current_session.return_value = existing
+
+            result = runner.invoke(app, ["login"])
+
+        assert result.exit_code == 0, result.stdout
+        assert "Already logged in as alice[/]@example.com" in result.stdout
+        assert "MarkupError" not in result.stdout
+
+    def test_renders_bracket_markup_in_success_email(self):
+        session = _make_session(email="alice[/]@example.com")
+
+        async def _login(*_args, **_kwargs):
+            return session
+
+        with patch(
+            "specify_cli.cli.commands._auth_login.get_token_manager"
+        ) as mock_factory, patch(
+            "specify_cli.auth.flows.authorization_code.AuthorizationCodeFlow"
+        ) as mock_flow_cls:
+            mock_factory.return_value.is_authenticated = False
+            mock_flow_cls.return_value.login = AsyncMock(side_effect=_login)
+            result = runner.invoke(app, ["login"])
+
+        assert result.exit_code == 0, result.stdout
+        assert "Authenticated as alice[/]@example.com" in result.stdout
+        assert "MarkupError" not in result.stdout
+
+    def test_renders_bracket_markup_in_private_team_name_with_suffix(self):
+        session = _make_session(
+            team_name="A[/]C", is_private_teamspace=True
+        )
+
+        async def _login(*_args, **_kwargs):
+            return session
+
+        with patch(
+            "specify_cli.cli.commands._auth_login.get_token_manager"
+        ) as mock_factory, patch(
+            "specify_cli.auth.flows.authorization_code.AuthorizationCodeFlow"
+        ) as mock_flow_cls:
+            mock_factory.return_value.is_authenticated = False
+            mock_flow_cls.return_value.login = AsyncMock(side_effect=_login)
+            result = runner.invoke(app, ["login"])
+
+        assert result.exit_code == 0, result.stdout
+        assert "Default team: A[/]C [Private Teamspace]" in result.stdout
+        assert "MarkupError" not in result.stdout
+
+    def test_success_output_strips_terminal_controls_from_identity_bytes(self):
+        safe_name = "Zoë Ölafsdóttir 日本語 🐱"
+        hostile_suffix = "\x1b[2J\x1b]0;x\x07\x1b"
+        session = _make_session(
+            email=f"{safe_name}{hostile_suffix}",
+            team_name=f"{safe_name}{hostile_suffix}",
+        )
+
+        async def _login(*_args, **_kwargs):
+            return session
+
+        with patch(
+            "specify_cli.cli.commands._auth_login.get_token_manager"
+        ) as mock_factory, patch(
+            "specify_cli.auth.flows.authorization_code.AuthorizationCodeFlow"
+        ) as mock_flow_cls:
+            mock_factory.return_value.is_authenticated = False
+            mock_flow_cls.return_value.login = AsyncMock(side_effect=_login)
+            result = runner.invoke(app, ["login"])
+
+        emitted = result.stdout_bytes
+        assert result.exit_code == 0, result.stdout
+        assert safe_name.encode("utf-8") in emitted
+        assert b"\x1b" not in emitted
+        assert b"[2J" not in emitted
+        assert b"]0;x" not in emitted
 
     def test_force_reauthenticates_even_when_logged_in(self):
         existing = _make_session()

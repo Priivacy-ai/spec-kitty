@@ -21,7 +21,7 @@ from pathlib import Path
 from typing import Any
 from unittest.mock import MagicMock, patch
 
-from charter.interview import MINIMAL_QUESTION_ORDER
+from charter.activation.interview import MINIMAL_QUESTION_ORDER
 from typer.testing import CliRunner
 
 from specify_cli.cli.commands.charter import (

@@ -29,16 +29,19 @@ import json
 import sys
 from collections.abc import Callable
 from pathlib import Path
-from typing import Annotated, Any, TypeVar, cast
+from typing import TYPE_CHECKING, Annotated, Any, TypeVar, cast
 
 import typer
 from mission_runtime import MissionArtifactKind, placement_seam
 
-from specify_cli.core.checkout_ownership import (
-    CheckoutOwnershipError,
-    error_for_claim,
-    resolve_ownership_claim,
-)
+# WP01 (T002, #3789-adjacent honest hygiene): checkout_ownership is only
+# reachable on the ``owned_checkout is not None`` opt-in path, so it is
+# deferred to that call site — this keeps it out of the no-op/startup import
+# graph paid on every ``next`` invocation (including a query that never uses
+# it). Type-only import here keeps mypy resolving the annotation below.
+if TYPE_CHECKING:
+    from specify_cli.core.checkout_ownership import CheckoutOwnershipError
+
 from specify_cli.core.context_validation import require_main_repo
 from specify_cli.core.paths import (
     MissionMetaReadError,
@@ -159,6 +162,14 @@ def next_step(
     repo_root = ambient_root
     effective_root: Path | None = None
     if owned_checkout is not None:
+        # WP01 (T002): deferred from module scope — this branch is the only
+        # reachable use of checkout_ownership; see the TYPE_CHECKING import
+        # above for the rationale.
+        from specify_cli.core.checkout_ownership import (
+            error_for_claim,
+            resolve_ownership_claim,
+        )
+
         claim = resolve_ownership_claim(
             owned_checkout,
             resolved_primary=ambient_root,

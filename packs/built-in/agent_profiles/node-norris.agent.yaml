@@ -17,23 +17,6 @@ capabilities:
 routing-priority: 80
 max-concurrent-tasks: 5
 
-context-sources:
-  doctrine-layers:
-    - paradigms
-    - directives
-    - tactics
-  directives:
-    - "010"
-    - "024"
-    - "025"
-    - "030"
-    - "034"
-    - "051"
-  additional:
-    - coding-standards
-    - test-strategy
-    - api-design-guidelines
-
 purpose: >
   Implement reliable, non-blocking Node.js services with clear API contracts,
   disciplined event-loop usage, and full test coverage before handoff. Node Norris
@@ -76,12 +59,6 @@ collaboration:
     - integration-tests
     - pull-request
     - implementation-notes
-  operating-procedures:
-    - tdd-red-green-refactor
-    - self-review-quality-gate
-    - code-review-checklist
-    - test-coverage-requirement
-    - bug-fixing-checklist
   canonical-verbs:
     - implement
     - fix
@@ -197,6 +174,8 @@ tactic-references:
       Run the full registry/freshness/lifecycle-script/Node-LTS/incident-IoC
       checklist before accepting a new or changed npm dependency, and record the
       evidence rather than an aspirational statement of intent.
+  - id: tdd-red-green-refactor
+    rationale: Drives Node.js implementation through red-green-refactor; migrated from a misfiled operating-procedures entry (it names a tactic, not a procedure).
 
 directive-references:
   - code: "010"

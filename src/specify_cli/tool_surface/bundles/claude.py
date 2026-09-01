@@ -422,7 +422,7 @@ class ClaudeBundleProjector:
 def _built_in_profiles_dir() -> Path:
     """Return the path to the built-in agent profiles source directory.
 
-    Built-in content was flattened out of ``src/doctrine/agent_profiles/built-in``
+    Built-in content was flattened out of ``src/charter/offering/agent_profiles/built-in``
     into the ``packs/built-in/agent_profiles`` pack root (relocation mission);
     resolve it through the shared :func:`built_in_dir` seam (the single
     per-kind authority — no inline ``/ "built-in" / <plural>`` join). The

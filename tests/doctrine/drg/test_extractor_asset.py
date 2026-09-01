@@ -18,12 +18,12 @@ from pathlib import Path
 
 import pytest
 
-from doctrine.drg.migration.extractor import (
+from charter.offering.drg.migration.extractor import (
     _KIND_MAP,
     _discover_built_in_artifact_nodes,
     _kind_for_type,
 )
-from doctrine.drg.models import DRGNode, NodeKind
+from charter.offering.drg.models import DRGNode, NodeKind
 from specify_cli.cli.commands.doctrine import _detect_artifact_kind
 
 pytestmark = [pytest.mark.doctrine, pytest.mark.fast]

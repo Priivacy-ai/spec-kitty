@@ -6,7 +6,7 @@ merged in isolation (the fragment edges are the subject under test).
 
 from __future__ import annotations
 
-from doctrine.drg.models import DRGGraph
+from charter.offering.drg.models import DRGGraph
 
 
 def empty_built_in() -> DRGGraph:

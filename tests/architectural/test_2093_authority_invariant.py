@@ -65,7 +65,7 @@ import pytest
 import specify_cli.status as _status_facade
 from specify_cli.frontmatter import FrontmatterManager
 from specify_cli.status.models import Lane, StatusEvent, WPInnerStateDelta
-from specify_cli.status.reducer import _RUNTIME_SLOTS
+from spec_kitty_events.diary import _RUNTIME_SLOTS
 from specify_cli.status.store import append_event
 from specify_cli.task_utils import WorkPackage
 

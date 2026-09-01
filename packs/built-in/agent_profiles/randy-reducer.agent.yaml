@@ -16,31 +16,6 @@ capabilities:
 routing-priority: 70
 max-concurrent-tasks: 2
 
-context-sources:
-  doctrine-layers:
-    - paradigms
-    - directives
-    - tactics
-  directives:
-    - "001"
-    - "024"
-    - "030"
-    - "034"
-    - "025"
-    - "041"
-  tactics:
-    - semantic-compression-behavioral-boundary-mapping
-    - semantic-compression-redundancy-discovery
-    - semantic-compression-abstraction-extraction
-    - semantic-compression-dead-weight-elimination
-    - semantic-compression-semantic-consolidation
-    - semantic-compression-equivalence-verification
-    - test-scaffolding-as-design-smell
-  additional:
-    - semantic-compression-paradigm
-    - characterization-tests
-    - differential-testing
-
 purpose: >
   Reduce implementation size and complexity while preserving externally
   observable behavior. Randy Reducer maps the protected behavior first, finds
@@ -88,10 +63,6 @@ collaboration:
     - redundancy-map
     - reduction-diff
     - equivalence-evidence
-  operating-procedures:
-    - semantic-compression-workflow
-    - behavior-preserving-refactor
-    - equivalence-verification
   canonical-verbs:
     - map
     - reduce

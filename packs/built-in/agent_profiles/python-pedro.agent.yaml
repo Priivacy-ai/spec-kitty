@@ -17,29 +17,6 @@ capabilities:
 routing-priority: 80
 max-concurrent-tasks: 5
 
-context-sources:
-  doctrine-layers:
-    - paradigms
-    - directives
-    - tactics
-  directives:
-    - "010"
-    - "024"
-    - "025"
-    - "030"
-    - "041"
-    - "043"
-    - "044"
-    - "045"
-    - "051"
-  tactics:
-    - test-scaffolding-as-design-smell
-    - dependency-hygiene
-  additional:
-    - coding-standards
-    - test-strategy
-    - pyproject-toml
-
 purpose: >
   Deliver idiomatic, type-safe Python code with comprehensive test coverage.
   Python Pedro is a language-specialist implementer who translates design documents
@@ -80,11 +57,6 @@ collaboration:
     - integration-tests
     - pull-request
     - implementation-notes
-  operating-procedures:
-    - tdd-red-green-refactor
-    - self-review-quality-gate
-    - code-review-checklist
-    - test-coverage-requirement
   canonical-verbs:
     - implement
     - fix
@@ -210,3 +182,5 @@ tactic-references:
       Pin direct dependency versions in pyproject.toml/uv.lock, restrict resolution
       to PyPI, audit license compliance, and regenerate the SBOM after any
       dependency change — the pip/uv checks this tactic already covers for Python.
+  - id: tdd-red-green-refactor
+    rationale: Core Python red-green-refactor discipline; migrated from a misfiled operating-procedures entry (it names a tactic, not a procedure).

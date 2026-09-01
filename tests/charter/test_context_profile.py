@@ -28,23 +28,23 @@ from unittest.mock import patch
 import pytest
 from ruamel.yaml import YAML
 
-from charter.context import (
+from charter.activation.context import (
     _load_agent_profile,
     build_charter_context,
 )
-from charter.context_renderers.profile_sections import (
+from charter.activation.context_renderers.profile_sections import (
     _PROFILE_DIRECTIVES_HEADER_TPL,
     _PROFILE_TACTICS_HEADER_TPL,
     _render_profile_directives,
     _render_profile_tactics,
 )
-from charter.profile_resolution import _reset_agent_profile_cache
-from doctrine.agent_profiles import (
+from charter.activation.profile_resolution import _reset_agent_profile_cache
+from charter.offering.agent_profiles import (
     AgentProfile,
     AgentProfileRepository,
     DirectiveRef,
 )
-from doctrine.agent_profiles.profile import ArtifactRef
+from charter.offering.agent_profiles.profile import ArtifactRef
 
 
 pytestmark = pytest.mark.fast
@@ -128,7 +128,7 @@ def _call_build(
     _setup_fixture_repo(tmp_path)
 
     yaml = YAML(typ="safe")
-    from doctrine.drg.models import DRGGraph
+    from charter.offering.drg.models import DRGGraph
 
     graph_data = yaml.load(StringIO(_MINIMAL_GRAPH_YAML))
     mock_graph = DRGGraph.model_validate(graph_data)
@@ -142,9 +142,9 @@ def _call_build(
     _reset_agent_profile_cache()
 
     with (
-        patch("doctrine.drg.loader.load_graph", side_effect=_patched_load_graph),
-        patch("charter.catalog.resolve_doctrine_root", return_value=tmp_path),
-        patch("doctrine.drg.validator.assert_valid"),
+        patch("charter.offering.drg.loader.load_graph", side_effect=_patched_load_graph),
+        patch("charter.activation.catalog.resolve_doctrine_root", return_value=tmp_path),
+        patch("charter.offering.drg.validator.assert_valid"),
     ):
         result = build_charter_context(
             tmp_path,
@@ -201,7 +201,7 @@ class TestProfileSurfacing:
                 return None
 
         with patch(
-            "charter.context._default_agent_profile_repository",
+            "charter.activation.context._default_agent_profile_repository",
             return_value=_StubRepo(),
         ):
             text = _call_build(tmp_path, profile="synthetic-tactic-citer")
@@ -253,7 +253,7 @@ class TestProfileSurfacing:
                 return synthetic if profile_id == "synthetic-no-directives" else None
 
         with patch(
-            "charter.context._default_agent_profile_repository",
+            "charter.activation.context._default_agent_profile_repository",
             return_value=_StubRepo(),
         ):
             text = _call_build(tmp_path, profile="synthetic-no-directives")
@@ -290,7 +290,7 @@ class TestUnknownDirectiveIdHandling:
                 return synthetic if profile_id == "synthetic-bad-ref" else None
 
         with patch(
-            "charter.context._default_agent_profile_repository",
+            "charter.activation.context._default_agent_profile_repository",
             return_value=_StubRepo(),
         ):
             text = _call_build(tmp_path, profile="synthetic-bad-ref")

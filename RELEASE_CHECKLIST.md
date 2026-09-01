@@ -20,6 +20,10 @@ Use this checklist for releases from `main`.
 
 ### Release-Line Sanity
 
+- **P3.4b prerequisite:** `.github/workflows/release.yml` and
+  `release-readiness.yml` are deliberately deferred to the P3.4b release-topology
+  sibling. Land that sibling before relying on this checklist's automated
+  publishing or Release Readiness Check steps.
 - [ ] Confirm the default branch is `main`.
 - [ ] Confirm `1.x-maintenance` exists and is marked maintenance-only.
 - [ ] Confirm open PRs are targeted intentionally:
@@ -161,10 +165,17 @@ gh pr create --base main --title "Release X.Y.Z" --fill
 - [ ] Maintainer approval is recorded.
 - [ ] Any release-note or install-doc feedback is resolved.
 
-### 5. Hand Off the Release PR
+### 5. Merge the Release PR
 
-- [ ] Do not merge it manually. The programme merge agent merges with a merge
-      commit after the `PROGRAM.md` §5–§9 gates pass.
+- [ ] Use a merge strategy that leaves a PR marker in the main-branch commit
+      message so the `Protect Main Branch` workflow can verify provenance.
+      Today that means squash-merge for release PRs; do not use `--rebase`
+      unless the protection workflow has been updated to recognize rebased PR
+      commits.
+
+```bash
+gh pr merge --squash --delete-branch
+```
 
 ### 6. Tag the Release from `main`
 
@@ -289,4 +300,4 @@ If a critical issue is discovered after release:
 
 ---
 
-**Last Updated**: 2026-04-21
+**Last Updated**: 2026-08-31

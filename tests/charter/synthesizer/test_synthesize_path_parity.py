@@ -6,7 +6,7 @@ These tests pin two contracts the mission spec calls out as load-bearing:
   report ``written_artifacts[*].path`` byte-equal to the path a subsequent
   non-dry-run with the same ``SynthesisRequest`` writes. The two code
   paths share a single derivation function
-  (:func:`charter.synthesizer.write_pipeline.compute_written_artifacts`)
+  (:func:`charter.activation.synthesizer.write_pipeline.compute_written_artifacts`)
   so this test exists as a regression guard against drift.
 * **FR-005 (no user-visible PROJECT_000).** No envelope value (string,
   key, or substring) emitted on stdout contains the placeholder
@@ -35,9 +35,9 @@ from typing import Any
 import pytest
 from typer.testing import CliRunner
 
-from charter.synthesizer import FixtureAdapter, SynthesisRequest, SynthesisTarget
-from charter.synthesizer.synthesize_pipeline import run_all
-from charter.synthesizer.write_pipeline import (
+from charter.activation.synthesizer import FixtureAdapter, SynthesisRequest, SynthesisTarget
+from charter.activation.synthesizer.synthesize_pipeline import run_all
+from charter.activation.synthesizer.write_pipeline import (
     _artifact_id_from_provenance,
     compute_written_artifacts,
 )

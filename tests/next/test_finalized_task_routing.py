@@ -20,7 +20,12 @@ def _init_repo(repo: Path) -> None:
     subprocess.run(["git", "config", "user.name", "Test User"], cwd=repo, check=True, capture_output=True)
 
 
-def _scaffold(repo: Path, wps: dict[str, Lane]) -> tuple[Path, str]:
+def _scaffold(
+    repo: Path,
+    wps: dict[str, Lane],
+    *,
+    canceled_reason_source: str | None = None,
+) -> tuple[Path, str]:
     _init_repo(repo)
     (repo / ".kittify").mkdir()
     mission_slug = "001-finalized-routing"
@@ -49,6 +54,8 @@ def _scaffold(repo: Path, wps: dict[str, Lane]) -> tuple[Path, str]:
                 actor="fixture",
                 force=True,
                 execution_mode="worktree",
+                reason=("Operator chose to drop this work package" if lane is Lane.CANCELED else None),
+                reason_source=canceled_reason_source if lane is Lane.CANCELED else None,
             ),
         )
     subprocess.run(["git", "add", "."], cwd=repo, check=True, capture_output=True)
@@ -198,3 +205,56 @@ def test_finalized_without_actionable_wp_blocks(tmp_path: Path) -> None:
     from runtime.next.decision import _compute_wp_progress
 
     assert _finalized_task_board_override_step(feature_dir, _compute_wp_progress(feature_dir)) == "blocked:no_actionable_wp"
+
+
+def test_query_routes_operator_canceled_wp_to_accept(tmp_path: Path) -> None:
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    _, mission_slug = _scaffold(
+        repo,
+        {"WP01": Lane.DONE, "WP02": Lane.CANCELED},
+        canceled_reason_source="operator",
+    )
+
+    from runtime.next.runtime_bridge import query_current_state
+
+    decision = query_current_state("codex", mission_slug, repo)
+
+    assert decision.kind == DecisionKind.query
+    assert decision.mission_state == "accept"
+    assert decision.preview_step == "accept"
+
+
+def test_finalized_done_tally_cannot_promote_canceled_wp_to_done(tmp_path: Path) -> None:
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    feature_dir, _ = _scaffold(
+        repo,
+        {"WP01": Lane.DONE, "WP02": Lane.CANCELED},
+        canceled_reason_source="operator",
+    )
+
+    from runtime.next.runtime_bridge import _finalized_task_board_override_step
+
+    progress = {"total_wps": 2, "done_wps": 2}
+
+    assert _finalized_task_board_override_step(feature_dir, progress) == "accept"
+
+
+def test_query_blocks_synthetic_canceled_wp(tmp_path: Path) -> None:
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    _, mission_slug = _scaffold(
+        repo,
+        {"WP01": Lane.DONE, "WP02": Lane.CANCELED},
+        canceled_reason_source="synthetic",
+    )
+
+    from runtime.next.runtime_bridge import query_current_state
+
+    decision = query_current_state("codex", mission_slug, repo)
+
+    assert decision.kind == DecisionKind.query
+    assert decision.mission_state == "blocked"
+    assert decision.preview_step is None
+    assert decision.reason == "no actionable wp"
