@@ -198,9 +198,9 @@ jobs:
         uses: astral-sh/setup-uv@v8.1.0
 
       - name: Check out the pinned events source
-        # The CLI still carries git direct references while #828 is blocked.
-        # This bridge installs only the exact events commit the lockfile pins;
-        # it never asks pip to resolve either git direct reference.
+        # Temporary #828 bridge: while uv.lock still git-pins events because
+        # the 9.1.4 PyPI release is pending, install only the exact lock
+        # commit. The lock-completion commit removes this step.
         uses: actions/checkout@v6
         with:
           repository: spec-kitty/EXPERIMENTAL-spec-kitty-events

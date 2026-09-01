@@ -9,7 +9,7 @@ that lacks the ``test`` extra this fails with ``No module named pytest`` and
 the gate silently degrades to a false ``GateOutcome.NO_COVERAGE`` warn — the
 exact failure #2570.3 removes.
 
-``uv run --project <repo_root> ...`` re-resolves the project's own
+``uv run --frozen --project <repo_root> ...`` re-resolves the project's own
 ``uv``-managed environment (which DOES carry the test extras), so it is
 preferred whenever both ``uv`` is on ``PATH`` and the target looks like a
 ``uv``-managed project (a ``pyproject.toml`` at its root). There is no other
@@ -46,7 +46,7 @@ def resolve_pytest_command(pytest_args: Sequence[str], *, repo_root: Path) -> li
     Resolution order:
 
     1. ``uv`` is on ``PATH`` **and** ``<repo_root>/pyproject.toml`` exists ->
-       ``["uv", "run", "--project", str(repo_root), "python", "-m", "pytest", *pytest_args]``.
+       ``["uv", "run", "--frozen", "--project", str(repo_root), "python", "-m", "pytest", *pytest_args]``.
        ``uv run`` resolves the project's own managed virtualenv, which is
        where the ``test`` extra (and therefore ``pytest`` itself) actually
        lives.
@@ -56,5 +56,15 @@ def resolve_pytest_command(pytest_args: Sequence[str], *, repo_root: Path) -> li
        at its root — a named edge case: the AND's second leg).
     """
     if shutil.which("uv") is not None and (repo_root / "pyproject.toml").is_file():
-        return ["uv", "run", "--project", str(repo_root), "python", "-m", "pytest", *pytest_args]
+        return [
+            "uv",
+            "run",
+            "--frozen",
+            "--project",
+            str(repo_root),
+            "python",
+            "-m",
+            "pytest",
+            *pytest_args,
+        ]
     return [sys.executable, "-m", "pytest", *pytest_args]
