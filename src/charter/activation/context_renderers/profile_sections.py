@@ -72,6 +72,15 @@ __all__ = [
 ]
 
 
+# Styleguide and toolguide profile sections are pointer-only by design: their
+# bodies are fetched on demand rather than inlined on every profile load.
+_STYLEGUIDE_TOOLGUIDE_POINTER_ONLY_REASON: str = (
+    "styleguide/toolguide profile sections are pointer-only by design "
+    "(NFR-001 token budget): their bodies are pulled on demand via the "
+    "--include fetch stanza, never inlined on every profile load"
+)
+
+
 _PROFILE_DIRECTIVES_HEADER_TPL = "Profile-Cited Directives ({profile_id}):"
 _PROFILE_TACTICS_HEADER_TPL = "Profile-Cited Tactics ({profile_id}):"
 _PROFILE_STYLEGUIDES_HEADER_TPL = "Profile-Cited Styleguides ({profile_id}):"
