@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import re
-import tomllib
 from pathlib import Path
 from typing import Any
 
@@ -198,26 +197,19 @@ def test_release_wheel_gate_counts_charter_offering_and_skills() -> None:
     assert "git ls-files src/doctrine" not in run
 
 
-def test_release_readiness_cutover_guard_keeps_deferred_events_bridge() -> None:
+def test_release_readiness_cutover_guard_uses_public_lock_dependencies() -> None:
     workflow = load_workflow("release-readiness.yml")
     job = workflow["jobs"]["cutover-guard"]
     job_dump = repr(job)
 
     assert "pip install -e ." not in job_dump
     assert "git+https" not in job_dump
-
-    checkout = next(step for step in job["steps"] if step.get("name") == "Check out the pinned events source")
-    lock = tomllib.loads((ROOT / "uv.lock").read_text(encoding="utf-8"))
-    events_package = next(package for package in lock["package"] if package["name"] == "spec-kitty-events")
-    pinned_rev = re.search(r"rev=([0-9a-f]{40})", events_package["source"]["git"])
-    assert pinned_rev is not None
-    assert checkout["with"]["ref"] == pinned_rev.group(1)
+    assert ".cutover-deps" not in job_dump
+    assert "grep -vE" not in job_dump
 
     install = next(step for step in job["steps"] if step.get("name") == "Install the source-only guard environment")
     assert "uv export --frozen --no-dev" in install["run"]
-    assert "grep -vE ' @ git[+]'" in install["run"]
-    assert "python -m pip install -r .cutover-requirements.pypi.txt" in install["run"]
-    assert "python -m pip install --no-deps .cutover-deps/spec-kitty-events" in install["run"]
+    assert "python -m pip install -r .cutover-requirements.lock.txt" in install["run"]
 
     guard = next(step for step in job["steps"] if step.get("name") == "Run cutover guard (fail-closed on any un-cut-over mission)")
     assert "PYTHONPATH=src" in guard["run"]

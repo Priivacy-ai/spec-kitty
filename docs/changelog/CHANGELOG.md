@@ -2,7 +2,7 @@
 title: Changelog
 description: Canonical changelog for the Spec Kitty CLI and templates, following Keep a Changelog and Semantic Versioning, with added, breaking, and fixed entries per release.
 doc_status: active
-updated: '2026-08-31'
+updated: '2026-09-01'
 ---
 # Changelog
 
@@ -13,9 +13,8 @@ All notable changes to the Spec Kitty CLI and templates are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased] - 3.2.6rc5
+## [3.2.6] - 2026-09-01
 
-_The 3.2.6rc5 candidate cycle is open (rc2 shipped 2026-08-20). Entries land here as missions merge._
 ### 💥 Breaking / 🗑️ Removed
 
 - **Breaking — the redundant `context-sources.*` agent-profile surface is removed from the schema; profiles author references solely on the top-level `*-references` fields** (mission `doctrine-drg-silent-drop-boundary-01M0PE7E`, WP02; #3629 p1). The `context-sources` block (`directives` / `tactics` / `toolguides` / `styleguides` / `doctrine-layers` / `additional`) duplicated the canonical, DRG-provisioned `directive-references` / `tactic-references` / `toolguide-references` / `styleguide-references` surface and was mostly inert; only `context-sources.directives` minted a DRG edge, and every shipped profile already carried the same ids on `*-references`. **Before:** two parallel reference surfaces, one of which was silently dropped on delivery. **After:** one canonical surface — the model now declares `extra="forbid"` without a `context-sources` field, so a profile still authoring the block **fails to load loudly** rather than dropping it in silence. The extractor now projects `agent_profile` DRG edges from `*-references` (`directive-references` → `requires`, `tactic-references` → `requires`, and `toolguide-references` / `styleguide-references` → `suggests`). A consumer project that authored custom profiles with `context-sources` is migrated automatically by the `3_3_1_context_sources_consolidation` upgrade migration, which **set-merges** every reference id onto the matching `*-references` field (deduped, never appended) and drops the edge-less `doctrine-layers` / `additional` names with a logged note. Run `spec-kitty upgrade` (the migration is idempotent and safe to re-run); free-text `additional` bindings with no artifact-id shape are reported, not silently discarded.
