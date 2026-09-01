@@ -27,7 +27,7 @@ from typer.testing import CliRunner
 
 from specify_cli.cli.commands.agent.tasks import app
 from specify_cli.status.models import Lane, StatusEvent
-from specify_cli.status.store import append_event, read_events
+from specify_cli.status.store import StoreError, append_event, read_events
 from tests.mocked_env import setup_mocked_env
 
 pytestmark = pytest.mark.fast
@@ -135,3 +135,86 @@ def test_status_board_reports_committed_lanes_for_merged_mission(
     # rollup). After the fix: the committed PRIMARY lanes.
     assert lanes_by_id == {"WP01": "approved", "WP02": "done"}
     assert payload["by_lane"].get("planned", 0) == 0
+
+
+def _build_corrupt_primary_fixture(tmp_path: Path) -> tuple[Path, Path]:
+    """Build a PRIMARY whose committed event log is corrupt + a valid COORD.
+
+    The PRIMARY carries a genuinely-present but unparsable
+    ``status.events.jsonl`` (``has_event_log`` is True — the file exists — so
+    ``committed_wp_lane`` does not take its "genuinely absent" ``None`` early
+    exit; it must read through to ``wp_ending`` -> ``read_event_stream``,
+    which raises ``StoreError`` on the malformed line). The COORD checkout
+    carries a normal, valid event log so the board's own fallback lane read
+    (``_st_runtime_row``) has somewhere else to land -- isolating the
+    regression to exactly the committed-authority read this fold guards.
+    """
+    primary = tmp_path / "kitty-specs" / _SLUG
+    tasks_dir = primary / "tasks"
+    tasks_dir.mkdir(parents=True)
+    _write_wp_file(tasks_dir, "WP01")
+    (primary / "meta.json").write_text(
+        json.dumps(
+            {
+                "mission_slug": _SLUG,
+                "mission_id": "01KZCD00000000000000000AB",
+                "mission_number": 99,
+                "mission_type": "software-dev",
+                "coordination_branch": f"kitty/mission-{_SLUG}",
+            }
+        ),
+        encoding="utf-8",
+    )
+    # Malformed JSONL line -- present on disk (has_event_log() == True) but
+    # unparsable (StoreError on read), simulating a corrupted PRIMARY log.
+    (primary / "status.events.jsonl").write_text(
+        '{"event_id": "broken", "wp_id": "WP01", NOT_VALID_JSON\n',
+        encoding="utf-8",
+    )
+
+    coord = tmp_path / ".worktrees" / f"{_SLUG}-coord" / "kitty-specs" / _SLUG
+    coord.mkdir(parents=True)
+    _seed_lane(coord, "WP01", from_lane=Lane.GENESIS, to_lane=Lane.PLANNED)
+
+    return primary, coord
+
+
+@pytest.mark.regression
+def test_status_board_degrades_on_corrupt_primary_event_log(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """PR-introduced regression: a corrupt PRIMARY ``status.events.jsonl``
+    must not crash the board (``agent tasks status``).
+
+    Before this fold, ``committed_wp_lane`` -> ``wp_ending`` ->
+    ``read_event_stream`` raised ``StoreError`` UNWRAPPED inside the board's
+    per-WP row loop for a merged mission (``mission_number`` assigned) whose
+    committed PRIMARY log is corrupt/malformed -- crashing the whole command.
+    Before this PR (i.e. pre-committed-authority-read), the board degraded
+    gracefully because it never read the committed surface at all. This test
+    pins the degrade-not-crash contract: the board must still render, falling
+    back to the row's own (coordination-aware) lane source.
+    """
+    primary, coord = _build_corrupt_primary_fixture(tmp_path)
+
+    with pytest.raises(StoreError):
+        read_events(primary)
+
+    workspace = SimpleNamespace(execution_mode="code_change", resolution_kind="lane_workspace")
+    monkeypatch.chdir(tmp_path)
+
+    with (
+        setup_mocked_env(tmp_path, mission_slug=_SLUG, workspace_resolution=workspace),
+        patch(
+            "specify_cli.missions._read_path_resolver.resolve_handle_to_read_path",
+            return_value=coord,
+        ),
+    ):
+        result = runner.invoke(app, ["status", "--mission", _SLUG, "--json"])
+
+    assert result.exit_code == 0, result.output
+    payload = json.loads(result.output)
+    lanes_by_id = {wp["id"]: wp["lane"] for wp in payload["work_packages"]}
+
+    # Degraded: falls back to the coord-read lane instead of crashing.
+    assert lanes_by_id == {"WP01": "planned"}

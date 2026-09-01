@@ -89,6 +89,7 @@ from specify_cli.missions._read_path_resolver import (
 )
 from specify_cli.status import (
     PROGRESS_SEMANTICS,
+    CanonicalStatusNotFoundError,
     Lane,
     StatusEvent,
     StatusSnapshot,
@@ -327,10 +328,28 @@ def _st_load_work_packages(st: _StatusState) -> None:
         ``uninitialized`` result (WP absent from the PRIMARY snapshot) is
         likewise treated as "no committed data" -- that sentinel must never
         surface on the board (it is a non-display lane).
+
+        A CORRUPT (present-but-unparsable) PRIMARY event log also degrades to
+        ``None`` here -- the board must render, not crash, matching the
+        pre-existing defensive ``except Exception`` a few lines below that
+        already tolerates a corrupt event log for its own (non-committed)
+        read. ``CanonicalStatusNotFoundError`` is NOT part of this catch: a
+        genuinely-absent log is handled inside ``committed_wp_lane`` itself
+        (it checks ``has_event_log`` before ever reading), so this board-only
+        degrade path exists solely for parse/read failures on a log that DOES
+        exist on disk. Callers that need the fail-loud contract on a
+        genuinely-absent log (``wp_ending``, ``_should_advance_wp_step``) are
+        untouched -- this local except is scoped to the board's own display
+        fallback, not the shared committed-authority module.
         """
         if not wp_id:
             return None
-        lane = committed_wp_lane(st.main_repo_root, st.mission_slug, wp_id)
+        try:
+            lane = committed_wp_lane(st.main_repo_root, st.mission_slug, wp_id)
+        except CanonicalStatusNotFoundError:
+            raise
+        except Exception:
+            return None
         if lane is None or lane == Lane.UNINITIALIZED:
             return None
         return lane
