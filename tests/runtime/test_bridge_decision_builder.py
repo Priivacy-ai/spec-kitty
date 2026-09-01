@@ -428,9 +428,14 @@ def test_runtime_bridge_materializes_every_former_decision_site() -> None:
     triad (12 sites -> 4 calls) into 21 ``_materialize_decision(...)`` call
     sites (29 - 8 = 21; each triad saves 2 calls by folding its
     prompt-file-None / step / InvalidStepDecision-except trio into one
-    ``kind=step`` envelope call). A regression on this exact count catches a
-    silent re-introduction of an open-coded ``Decision(...)`` construction
-    that bypasses the builder."""
+    ``kind=step`` envelope call). #2947 then added the merged-mission
+    short-circuit, whose two verdicts (``kind=terminal`` and the
+    ``kind=blocked`` conflict/stale-workspace case) are emitted from
+    ``_merged_mission_short_circuit`` — two new builder-routed sites, so the
+    count is now 23 (21 + 2). Both go through ``_materialize_decision``; the
+    zero-open-coded-``Decision`` invariant is unchanged. A regression on this
+    exact count catches a silent re-introduction of an open-coded
+    ``Decision(...)`` construction that bypasses the builder."""
     source = inspect.getsource(rb)
     tree = ast.parse(source)
     materialize_calls = [
@@ -438,7 +443,7 @@ def test_runtime_bridge_materializes_every_former_decision_site() -> None:
         for call in _iter_calls(tree)
         if isinstance(call.func, ast.Name) and call.func.id == "_materialize_decision"
     ]
-    assert len(materialize_calls) == 21
+    assert len(materialize_calls) == 23
 
 
 def test_cores_module_is_the_sole_home_of_raw_decision_construction() -> None:
