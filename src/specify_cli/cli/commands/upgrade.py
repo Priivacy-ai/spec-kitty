@@ -1278,7 +1278,7 @@ def upgrade(
     if not json_output:
         show_banner()
 
-        baseline_changed_paths = capture_upgrade_baseline(project_path)
+    baseline_changed_paths = capture_upgrade_baseline(project_path)
 
     # Import upgrade system (lazy to avoid circular imports)
     from specify_cli.upgrade.detector import VersionDetector

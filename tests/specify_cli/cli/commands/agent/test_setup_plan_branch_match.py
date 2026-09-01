@@ -133,9 +133,6 @@ def _run_setup_plan_from(
             patch.object(
                 mission_mod, "_find_feature_directory", return_value=feature_dir
             ),
-            patch(
-                "specify_cli.sync.dossier_pipeline.trigger_feature_dossier_sync_if_enabled"
-            ),
         ):
             result = runner.invoke(
                 mission_mod.app,

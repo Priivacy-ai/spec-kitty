@@ -423,7 +423,7 @@ def test_string_keyed_authority_maps_are_total() -> None:
 #: is left un-collapsed under C-004 discipline. Follow-up: collapse onto
 #: :data:`charter.offering.artifact_kinds.CHARTER_ACTIVATABLE_SINGULAR_TO_PLURAL`.
 _CHARTER_PLURAL_SINGULAR_LITERAL_EXEMPT: frozenset[str] = frozenset(
-    {"charter.drg::_SINGULAR_TO_PLURAL"}
+    {"charter.offering.artifact_kinds::_PLURALS"}
 )
 
 #: The full charter-activatable singular→plural vocabulary (10 kinds). A literal

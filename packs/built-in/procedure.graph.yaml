@@ -233,10 +233,6 @@ edges:
   relation: requires
   reason: Triage findings that surface load-bearing complexity or single-author critical modules feed architectural-integrity decisions.
 - source: procedure:legacy-codebase-triage
-  target: directive:DIRECTIVE_003
-  relation: requires
-  reason: The accepted triage report is itself a documented decision input and is linked from any subsequent ADR or prestudy.
-- source: procedure:legacy-codebase-triage
   target: directive:DIRECTIVE_028
   relation: requires
   reason: Governs the local tooling (git, cloc, language-specific complexity probes) the procedure relies on.

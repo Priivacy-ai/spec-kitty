@@ -69,6 +69,17 @@ def find_repo_root(start: Path | None = None, *, stop: Path | None = None) -> Pa
     current = (start or Path.cwd()).resolve()
     boundary = stop.resolve() if stop is not None else None
 
+    for candidate in [current, *current.parents]:
+        git_path = candidate / ".git"
+        if git_path.is_file():
+            main_root = get_main_repo_root(candidate)
+            if main_root != candidate:
+                return main_root
+        elif git_path.is_dir() and (git_path / "HEAD").is_file():
+            return get_main_repo_root(candidate)
+        if boundary is not None and candidate == boundary:
+            break
+
     detected_root = locate_project_root(current, stop=stop)
     if detected_root is not None:
         return get_main_repo_root(detected_root)
@@ -77,7 +88,7 @@ def find_repo_root(start: Path | None = None, *, stop: Path | None = None) -> Pa
     for candidate in [current, *current.parents]:
         git_path = candidate / ".git"
 
-        if git_path.is_dir():
+        if git_path.is_dir() and (git_path / "HEAD").is_file():
             return get_main_repo_root(candidate)
 
         if git_path.is_file():

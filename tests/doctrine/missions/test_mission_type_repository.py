@@ -598,11 +598,11 @@ class TestLayeredProjectionThreadsPackContext:
 
         with (
             patch(
-                "charter.mission_type_profiles.existing_mission_types",
+                "charter.activation.mission_type_profiles.existing_mission_types",
                 return_value=["qa"],
             ),
             patch(
-                "charter.pack_context.PackContext.from_config",
+                "charter.activation.pack_context.PackContext.from_config",
                 return_value=ctx,
             ),
         ):

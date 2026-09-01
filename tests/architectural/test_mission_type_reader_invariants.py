@@ -135,7 +135,7 @@ def test_file_reader_parity_with_shared_seam(name: str, meta: dict[str, Any], tm
 # ``"software-dev"`` fallback — unless carried in the allow-list.
 IN_SCOPE_READER_MODULES: tuple[str, ...] = (
     "src/specify_cli/mission.py",
-    "src/charter/mission_type_profiles.py",
+    "src/charter/activation/mission_type_profiles.py",
     "src/specify_cli/dashboard/handlers/features.py",
     "src/specify_cli/dashboard/diagnostics.py",
     "src/specify_cli/mission_metadata.py",

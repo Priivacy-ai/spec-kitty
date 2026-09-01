@@ -387,7 +387,6 @@ def _gate_emit(repo: Path, *args: str):
             return_value=repo,
         ),
         patch("specify_cli.status.emit._saas_fan_out"),
-        patch("specify_cli.status.emit.fire_dossier_sync"),
     ):
         return runner.invoke(
             app,

@@ -29,7 +29,6 @@ class GitignorePathError(Exception):
     """
 
 
-SPEC_KITTY_GITIGNORE_MARKER = "# Added by Spec Kitty CLI (auto-managed)"
 _WORKTREES_ENTRY = f"{WORKTREES_DIR}/"
 _WORKTREES_PROBE = f"{WORKTREES_DIR}/.spec-kitty-ignore-probe"
 
@@ -97,8 +96,11 @@ def read_ignore_file_text(path: Path, encoding: str = "utf-8-sig", errors: str |
         fd = _open_no_follow(path, os.O_RDONLY)
     except FileNotFoundError:
         return ""
-    with os.fdopen(fd, encoding=encoding, errors=errors) as f:
-        return f.read()
+    try:
+        with os.fdopen(fd, encoding=encoding, errors=errors) as f:
+            return f.read()
+    except UnicodeError as exc:
+        raise GitignorePathError(f"{path} is not valid {encoding}; refusing to decode it") from exc
 
 
 def is_gitignore_path_ignored(project_path: Path, relative_path: str) -> bool | None:
@@ -128,8 +130,11 @@ def is_gitignore_path_ignored(project_path: Path, relative_path: str) -> bool | 
 def _has_git_control_path(project_path: Path) -> bool:
     """Return whether this path or an ancestor has Git control metadata."""
     return any(
-        candidate.joinpath(".git").exists()
-        or candidate.joinpath(".git").is_symlink()
+        candidate.joinpath(".git").is_file()
+        or (
+            candidate.joinpath(".git").is_dir()
+            and candidate.joinpath(".git", "HEAD").is_file()
+        )
         for candidate in (project_path, *project_path.parents)
     )
 

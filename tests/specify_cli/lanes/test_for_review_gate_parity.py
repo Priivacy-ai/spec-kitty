@@ -63,7 +63,6 @@ def _no_network(monkeypatch: pytest.MonkeyPatch) -> None:
     import specify_cli.status.emit as status_emit
 
     monkeypatch.setattr(status_emit, "_saas_fan_out", lambda *a, **k: None)
-    monkeypatch.setattr(status_emit, "fire_dossier_sync", lambda *a, **k: None)
 
 
 def _valid_policy_json() -> str:

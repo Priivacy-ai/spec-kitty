@@ -1340,7 +1340,7 @@ constituents:
 fetched_at:
 generated_at:
 generated_by: spec-kitty doctrine regenerate-graph
-manifest_hash: 74834f058eb9eabe3ff50452d5f316cf9415c1b275c1305c6a25d8af764f2dec
+manifest_hash: 1d1aa2f19e63f5458dd71d5b348ef49269f67c11f5e7bc308a47b8c758b7b9d8
 schema_version: '1'
 source_type: built-in
 source_url:

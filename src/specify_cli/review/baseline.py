@@ -683,7 +683,8 @@ def _find_repo_root(start: Path) -> Path | None:
     """Walk up from start until we find a .git directory or file."""
     current = start.resolve()
     for _ in range(20):  # limit depth
-        if (current / ".git").exists():
+        git_path = current / ".git"
+        if git_path.is_file() or (git_path.is_dir() and (git_path / "HEAD").is_file()):
             return current
         parent = current.parent
         if parent == current:

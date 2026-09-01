@@ -50,6 +50,13 @@ SAMPLE_JUNIT_XML = textwrap.dedent("""\
 """)
 
 
+def _make_fake_git_dir(repo: Path) -> None:
+    """Create the minimal metadata needed for a structural Git-root fixture."""
+    git_dir = repo / ".git"
+    git_dir.mkdir(parents=True)
+    (git_dir / "HEAD").write_text("ref: refs/heads/main\n", encoding="utf-8")
+
+
 def _make_baseline(
     wp_id: str = "WP04",
     failed: int = 2,
@@ -140,7 +147,7 @@ class TestCaptureBaseline:
     def _make_wp_dir(self, tmp_path: Path) -> tuple[Path, Path, Path]:
         """Set up a minimal fake repo structure."""
         repo = tmp_path / "repo"
-        (repo / ".git").mkdir(parents=True)
+        _make_fake_git_dir(repo)
         feature_dir = repo / "kitty-specs" / "066-test"
         (feature_dir / "tasks" / "WP04-test").mkdir(parents=True)
         return repo, feature_dir, feature_dir / "tasks" / "WP04-test"
@@ -782,7 +789,9 @@ class TestCoverageEdgeCases:
         assert result is None
 
         # With .git in parent
-        (tmp_path / ".git").mkdir()
+        git_dir = tmp_path / ".git"
+        git_dir.mkdir()
+        (git_dir / "HEAD").write_text("ref: refs/heads/main\n", encoding="utf-8")
         result = _find_repo_root(deep)
         assert result == tmp_path
 
@@ -808,7 +817,7 @@ class TestCoverageEdgeCases:
     def test_capture_baseline_skips_when_no_test_command_configured(self, tmp_path: Path) -> None:
         """No review.test_command means no subprocess work and no sentinel noise."""
         repo = tmp_path / "repo"
-        (repo / ".git").mkdir(parents=True)
+        _make_fake_git_dir(repo)
         feature_dir = repo / "kitty-specs" / "066-test"
         (feature_dir / "tasks" / "WP04-test").mkdir(parents=True)
 
@@ -828,7 +837,7 @@ class TestCoverageEdgeCases:
     def test_capture_baseline_git_rev_parse_fails(self, tmp_path: Path) -> None:
         """Sentinel returned when git rev-parse fails with non-zero exit."""
         repo = tmp_path / "repo"
-        (repo / ".git").mkdir(parents=True)
+        _make_fake_git_dir(repo)
         feature_dir = repo / "kitty-specs" / "066-test"
         (feature_dir / "tasks" / "WP04-test").mkdir(parents=True)
 
@@ -855,7 +864,7 @@ class TestCoverageEdgeCases:
 
     def test_capture_baseline_skips_unsupported_output_format(self, tmp_path: Path) -> None:
         repo = tmp_path / "repo"
-        (repo / ".git").mkdir(parents=True)
+        _make_fake_git_dir(repo)
         feature_dir = repo / "kitty-specs" / "066-test"
         (feature_dir / "tasks" / "WP04-test").mkdir(parents=True)
 
@@ -874,7 +883,7 @@ class TestCoverageEdgeCases:
     def test_capture_baseline_junit_xml_missing(self, tmp_path: Path) -> None:
         """Sentinel when JUnit XML is not produced (test runner didn't write it)."""
         repo = tmp_path / "repo"
-        (repo / ".git").mkdir(parents=True)
+        _make_fake_git_dir(repo)
         feature_dir = repo / "kitty-specs" / "066-test"
         (feature_dir / "tasks" / "WP04-test").mkdir(parents=True)
 
@@ -903,7 +912,7 @@ class TestCoverageEdgeCases:
     def test_capture_baseline_custom_test_runner_label(self, tmp_path: Path) -> None:
         """test_runner field is 'custom' when command doesn't include 'pytest'."""
         repo = tmp_path / "repo"
-        (repo / ".git").mkdir(parents=True)
+        _make_fake_git_dir(repo)
         feature_dir = repo / "kitty-specs" / "066-test"
         (feature_dir / "tasks" / "WP04-test").mkdir(parents=True)
 
