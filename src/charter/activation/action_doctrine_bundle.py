@@ -166,7 +166,7 @@ def _load_action_doctrine_bundle(
     entry. Callers that only ever supplied *org_root* (no chain resolved)
     keep the pre-fix single-root behaviour byte-identical.
     """
-    from charter.activation._drg_helpers import load_validated_graph
+    from charter.activation._drg_helpers import DRGProjectValidationError, load_validated_graph
     from charter.activation.context import _build_doctrine_service  # noqa: PLC0415
     from charter.activation.context_renderers.delivery_table import _classify_artifact_urns
     from charter.activation.drg_activation import filter_graph_by_activation, load_org_drg
@@ -184,9 +184,9 @@ def _load_action_doctrine_bundle(
 
     # The DRG load honours the built-in + org + project three-layer overlay
     # (WP07 T034; charter-internal callers pass org_root=None for two layers).
-    # A project authoring a doctrine artifact without a sibling ``*.graph.yaml``
-    # raises ``DRGLoadError``; that is orthogonal to charter-level selection
-    # rendering, so we collapse it to an empty bundle and log a WARNING (WP04).
+    # An unloadable overlay or a validation error introduced by the project
+    # overlay is orthogonal to charter-level selection rendering, so we collapse
+    # it to an empty bundle and log a WARNING (WP04).
     ids_by_slot: Mapping[str, tuple[str, ...]] = {}
     merged_graph: DRGGraph | None = None
     roots: tuple[str, ...] = ()
@@ -202,6 +202,7 @@ def _load_action_doctrine_bundle(
                 org_root=org_root,
                 org_roots=org_roots,
                 org_fragments=load_org_drg(repo_root, strict=False),
+                project_degrade=True,
             )
             # FR-032, FR-035 (WP08): apply activation filter before resolving context.
             if pack_context is not None:
@@ -242,7 +243,7 @@ def _load_action_doctrine_bundle(
             # ``resolved`` already computed.
             tension_arbiters = resolved.tension_arbiters
             unarbitrated_tensions = resolved.unarbitrated_tensions
-        except DRGLoadError as exc:
+        except (DRGLoadError, DRGProjectValidationError) as exc:
             _LOGGER.warning(
                 "DRG action resolution skipped for %s/%s: %s. "
                 "Charter-level selections still render.",
