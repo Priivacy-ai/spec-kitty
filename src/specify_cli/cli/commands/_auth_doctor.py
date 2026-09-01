@@ -61,7 +61,7 @@ from specify_cli.cli.console import console, sanitize_terminal_text
 from kernel.clock import datetime, now_utc
 
 from specify_cli.auth import get_token_manager
-from specify_cli.auth.server_target import ServerTargetSplitBrainError, resolve_server_target
+from specify_cli.auth.server_target import ResolvedServerTarget, ServerTargetSplitBrainError, resolve_server_target
 from specify_cli.auth.session import StoredSession
 from specify_cli.auth.token_manager import _refresh_lock_path
 from specify_cli.auth.verdict import HealthVerdict, evaluate_auth_verdict
@@ -379,13 +379,13 @@ def compute_exit_code(findings: list[Finding]) -> int:
 # ---------------------------------------------------------------------------
 
 
-def _server_issuer_mismatch_error(tm: Any) -> str | None:
+def _server_issuer_mismatch_error(tm: Any, target: ResolvedServerTarget | None = None) -> str | None:
     """Return a mismatch message when the stored session predates the resolved server.
 
     Best-effort and side-effect-free: this never touches the token manager's
-    persisted state, and any failure to read the current session or resolve
-    the server target is treated as "cannot determine" rather than blocking
-    the caller — the normal ``get_access_token`` path decides in that case.
+    persisted state, and any failure to read the current session is treated
+    as "cannot determine" rather than blocking the caller — the normal
+    ``get_access_token`` path decides in that case.
     ``asyncio.iscoroutine`` guards a test double built from a bare
     ``AsyncMock`` (its unconfigured attributes return coroutines, unlike the
     real synchronous ``TokenManager.get_current_session``); closing it avoids
@@ -400,10 +400,11 @@ def _server_issuer_mismatch_error(tm: Any) -> str | None:
         return None
     if not isinstance(session, StoredSession) or session.issuer_url is None:
         return None
-    try:
-        target = resolve_server_target()
-    except Exception:  # noqa: BLE001 - unresolved server target: fall through to the normal check
-        return None
+    if target is None:
+        try:
+            target = resolve_server_target()
+        except Exception:  # noqa: BLE001 - standalone diagnostic remains best-effort
+            return None
     # Explicit annotation: `specify_cli.*` is checked with follow_imports = "skip"
     # (pyproject.toml), so mypy sees format_saas_mismatch_warning's return as Any.
     warning: str | None = format_saas_mismatch_warning(
@@ -436,7 +437,16 @@ async def _check_server_session() -> ServerSessionStatus:
 
     tm = get_token_manager()
 
-    mismatch = _server_issuer_mismatch_error(tm)
+    try:
+        # Resolve once so issuer diagnostics and the bearer-token request use
+        # the same configured target (#762).
+        target = resolve_server_target(process_wide_override=False)
+    except ServerTargetSplitBrainError as exc:
+        return ServerSessionStatus(active=False, error=f"SaaS URL mismatch: {exc}")
+    except Exception:  # noqa: BLE001 - SaaS config/resolution failure is reported as inactive server status
+        return ServerSessionStatus(active=False, error="SaaS URL not configured")
+
+    mismatch = _server_issuer_mismatch_error(tm, target)
     if mismatch is not None:
         return ServerSessionStatus(active=False, error=mismatch)
 
@@ -455,15 +465,7 @@ async def _check_server_session() -> ServerSessionStatus:
     except Exception:  # noqa: BLE001 - token acquisition failures are translated to doctor status
         return ServerSessionStatus(active=False, error="Could not obtain access token.")
 
-    try:
-        # Route the bearer-token-bearing send through the canonical resolver
-        # (#307), failing closed on an ambiguous env/config disagreement like
-        # the other no-human-in-the-loop hosted sends (see #117, #297).
-        saas_url = resolve_server_target(process_wide_override=False).resolved_server_url
-    except ServerTargetSplitBrainError as exc:
-        return ServerSessionStatus(active=False, error=f"SaaS URL mismatch: {exc}")
-    except Exception:  # noqa: BLE001 - SaaS config/resolution failure is reported as inactive server status
-        return ServerSessionStatus(active=False, error="SaaS URL not configured")
+    saas_url = target.resolved_server_url
 
     url = f"{saas_url}/api/v1/session-status"
     headers = {"Authorization": f"Bearer {access_token}"}
