@@ -1946,6 +1946,16 @@ _CATEGORY_E_CHARTER_ACTIVATION_SPLIT_FORWARD_API: frozenset[SymbolKey] = frozens
             source_module="charter.offering.drg.org_governance",
         ),
         SymbolKey(
+            "overlay_scan_is_recursive",
+            "74c0f3834ccd993ee796cd659396e51009a34ffe926429bc26455a7b956ca140",
+            source_module="charter.offering.discovery_recursion",
+        ),
+        SymbolKey(
+            "walk_project_agent_profile_nodes",
+            "4b668328c6da91ec93c4cbac7e0ffc17a0febd9c71a9e654fe069d1c7362b0a0",
+            source_module="charter.offering.drg.project_scan",
+        ),
+        SymbolKey(
             "merge_three_layers",
             "a474c1190d82c971ec43ab922f13e85ca488cea98ff3b56d1e077f386ab89b90",
             module_path="charter.drg",

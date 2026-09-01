@@ -433,16 +433,12 @@ class TestShippedProfilesCollaboration:
 
 
 class TestShippedProfilesContextSources:
-    """Verify context sources are defined."""
+    """Verify the canonical ``*-references`` doctrine surface is defined.
 
-    @pytest.mark.parametrize("profile_id", sorted(_AGENT_PROFILE_IDS))
-    def test_context_sources_has_doctrine_layers(self, repo: AgentProfileRepository, profile_id: str):
-        """Each profile has at least one doctrine layer configured."""
-        profile = repo.get(profile_id)
-        assert profile is not None
-        assert len(profile.context_sources.doctrine_layers) > 0, (
-            f"Profile '{profile_id}' has no doctrine layers in context_sources"
-        )
+    The retired ``context-sources`` surface was removed in mission
+    doctrine-drg-silent-drop-boundary-01M0PE7E; profiles now carry references
+    solely on the top-level ``*-references`` fields.
+    """
 
     @pytest.mark.parametrize("profile_id", sorted(_AGENT_PROFILE_IDS))
     def test_directive_references_are_defined(self, repo: AgentProfileRepository, profile_id: str):
@@ -483,16 +479,27 @@ class TestShippedProfilesContextSources:
             ),
         ],
     )
-    def test_context_sources_preserve_shipped_tactic_lists(
+    def test_shipped_tactic_references_include_expected(
         self,
         repo: AgentProfileRepository,
         profile_id: str,
         expected_tactics: list[str],
     ):
-        """Shipped context-sources.tactics survive repository validation/loading."""
+        """Shipped tactic references survive loading and cover the tactics that
+        the retired ``context-sources.tactics`` surface used to pin.
+
+        The consolidation folded ``context-sources.tactics`` (a subset) onto the
+        canonical ``tactic-references`` surface; every previously-pinned tactic
+        must remain reachable there.
+        """
         profile = repo.get(profile_id)
         assert profile is not None
-        assert profile.context_sources.tactics == expected_tactics
+        tactic_ids = {ref.id for ref in profile.tactic_references}
+        missing = [t for t in expected_tactics if t not in tactic_ids]
+        assert missing == [], (
+            f"Profile '{profile_id}' lost tactic references {missing} in the "
+            f"context-sources consolidation; present: {sorted(tactic_ids)}"
+        )
 
 
 @pytest.mark.performance

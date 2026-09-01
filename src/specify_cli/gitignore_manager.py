@@ -96,6 +96,8 @@ def read_gitignore_text(gitignore_path: Path) -> str | None:
         fd = open_no_follow(gitignore_path, os.O_RDONLY)
     except FileNotFoundError:
         return None
+    except NoFollowPathError as exc:
+        raise GitignorePathError(f"Refusing to read symlinked .gitignore: {gitignore_path}") from exc
     except OSError as exc:
         raise GitignorePathError(f"Could not safely open .gitignore: {exc}") from exc
     try:

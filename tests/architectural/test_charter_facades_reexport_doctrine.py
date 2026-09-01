@@ -110,6 +110,13 @@ _FACADE_TABLE: dict[str, list[tuple[str, str]]] = {
         ("OrgDRGFragment", "charter.offering.drg.org_pack_loader"),
         ("OrgPackEnvVarUnsetError", "charter.offering.drg.org_pack_config"),
         ("OrgPackMissingError", "charter.offering.drg.org_pack_loader"),
+        # Added by mission ``doctrine-drg-silent-drop-boundary`` (#3530 landing):
+        # the executor's org-pack error handling and loader reach the offering
+        # layer only through ``charter.drg``, so these re-exports join the
+        # identity contract. All FACADE-ONLY; identity verified live.
+        ("OrgPackParseError", "charter.offering.drg.org_pack_loader"),
+        ("OrgPackSchemaError", "charter.offering.drg.org_pack_loader"),
+        ("load_org_pack", "charter.offering.drg.org_pack_loader"),
         ("OrgPackSubdirEscapeError", "charter.offering.drg.org_pack_config"),
         ("UnknownRelationError", "charter.offering.drg.merge"),
         ("graph_document_to_dict", "charter.offering.drg.migration.extractor"),

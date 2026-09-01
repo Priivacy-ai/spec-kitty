@@ -13,17 +13,6 @@ capabilities:
 routing-priority: 50
 max-concurrent-tasks: 4
 
-context-sources:
-  doctrine-layers:
-    - paradigms
-    - directives
-  directives:
-    - "031"
-  additional:
-    - design-system-tokens
-    - accessibility-guidelines
-    - brand-guidelines
-
 purpose: >
   Create user-centered interface designs and interaction patterns that are accessible,
   consistent, and aligned with product goals. Designer Dagmar translates user needs

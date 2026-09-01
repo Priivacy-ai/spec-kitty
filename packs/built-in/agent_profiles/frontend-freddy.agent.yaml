@@ -19,24 +19,6 @@ capabilities:
 routing-priority: 80
 max-concurrent-tasks: 5
 
-context-sources:
-  doctrine-layers:
-    - paradigms
-    - directives
-    - tactics
-  directives:
-    - "010"
-    - "024"
-    - "025"
-    - "030"
-    - "034"
-    - "051"
-  additional:
-    - coding-standards
-    - accessibility-guidelines
-    - design-system-tokens
-    - bdd-scenario-lifecycle-procedure
-
 purpose: >
   Translate UI specifications and component designs into tested, accessible, performant
   browser code. Frontend Freddy implements the browser rendering layer: components,

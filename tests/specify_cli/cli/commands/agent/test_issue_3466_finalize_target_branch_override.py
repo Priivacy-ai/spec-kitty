@@ -29,6 +29,7 @@ feature branch as HEAD. It runs the real ``finalize-tasks`` CLI command
 
 from __future__ import annotations
 
+import contextlib
 import json
 import subprocess
 from pathlib import Path
@@ -126,7 +127,19 @@ def _scaffold_mission_pinned_to_main(repo: Path) -> Path:
 def _run_finalize_with_override(
     repo: Path, target_branch_override: str, *, mission_slug: str = MISSION_SLUG
 ) -> Result:
+    # ``finalize-tasks`` enforces write-ownership from the AMBIENT invoking
+    # checkout (``resolve_checkout_identity(Path.cwd(), Intent.WRITE)``), not the
+    # mocked ``locate_project_root``. ``repo`` is a standalone git repo (its
+    # ``.git`` is a directory → self-owned); run inside it so the ownership check
+    # sees an owned checkout — as it does in a ``main`` CI checkout. Without the
+    # chdir the invoking cwd is whatever worktree runs the suite, so a linked
+    # worktree is refused with CHECKOUT_WRITE_OWNERSHIP_REFUSED (green on CI's
+    # own checkout, red in any linked worktree). This is a shared helper: the
+    # chdir is inert for the callers that assert exit-1 revert/error paths (they
+    # never reach the ownership gate) — it only un-blocks the ``exit_code == 0``
+    # callers, and their git-state assertions already pass an explicit ``cwd=repo``.
     with (
+        contextlib.chdir(repo),
         patch(
             "specify_cli.cli.commands.agent.mission.locate_project_root",
             return_value=repo,

@@ -95,6 +95,10 @@ _PROFILE_TOOLGUIDES_HEADER_TPL = "Profile-Cited Toolguides ({profile_id}):"
 # inline citation list, so the header reads "Resolved" rather than "Cited".
 _PROFILE_PROCEDURES_HEADER_TPL = "Profile-Resolved Procedures ({profile_id}):"
 _PROFILE_CODE_CHANGE_WHEN = "are about to apply a code change"
+_STYLEGUIDE_TOOLGUIDE_POINTER_ONLY_REASON = (
+    "Styleguide and toolguide bodies vary in shape and are fetched on demand "
+    "under the NFR-001 token budget."
+)
 
 # WP01 (deliver-loaded-doctrine, FR-005): the stated reason styleguide/toolguide
 # profile sections render pointer-only (``body_fn=None``). This is a DELIBERATE

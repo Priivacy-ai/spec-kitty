@@ -17,27 +17,6 @@ capabilities:
 routing-priority: 80
 max-concurrent-tasks: 5
 
-context-sources:
-  doctrine-layers:
-    - paradigms
-    - directives
-    - tactics
-  directives:
-    - "010"
-    - "024"
-    - "025"
-    - "030"
-    - "034"
-    - "051"
-  tactics:
-    - dependency-hygiene
-  additional:
-    - coding-standards
-    - test-strategy
-    - java-conventions
-    - maven-review-checks
-    - bdd-scenario-lifecycle-procedure
-
 purpose: >
   Deliver idiomatic, well-tested Java code that respects style conventions,
   passes all quality gates, and faithfully implements specifications.

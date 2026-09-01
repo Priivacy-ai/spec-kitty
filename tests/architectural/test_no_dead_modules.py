@@ -194,6 +194,10 @@ _CATEGORY_1_AUTO_DISCOVERED_MIGRATIONS: frozenset[str] = frozenset(
         "specify_cli.upgrade.migrations.m_3_2_0rc35_charter_manifest_defaults_repair",
         "specify_cli.upgrade.migrations.m_unify_charter_activation_finalize",
         "specify_cli.upgrade.migrations.m_3_2_0rc43_retire_profile_context_command",
+        # doctrine-drg-silent-drop-boundary (#3629): consumer-project migration
+        # that consolidates context-sources.* onto the *-references fields;
+        # auto-discovered, never statically imported.
+        "specify_cli.upgrade.migrations.m_3_3_1_context_sources_consolidation",
         # NOTE: WP01 (charter-pack-activation-layer-01KSYE4V) was expected to
         # add the three entries below.  They are added here as a WP01 gap fix
         # so the WP05 architectural gate passes before lanes are merged.
@@ -474,6 +478,8 @@ _CATEGORY_7_GRANDFATHERED_ORPHANS: frozenset[str] = frozenset(
         "charter.parser",
         "charter.activation.template_resolver",
         "charter.offering.drg.org_governance",
+        "charter.offering.discovery_recursion",
+        "charter.offering.drg.project_scan",
         # sync.admission_operations: REMOVED (issue-5-delete-sync-transport,
         # 2026-08-25). The module was deleted outright with the sync transport;
         # its #3262 WP11 wiring consumer no longer exists, so there is nothing

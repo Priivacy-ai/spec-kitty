@@ -14,17 +14,6 @@ capabilities:
 routing-priority: 50
 max-concurrent-tasks: 3
 
-context-sources:
-  doctrine-layers:
-    - paradigms
-    - directives
-  directives:
-    - "003"
-  additional:
-    - project-backlog
-    - team-capacity-data
-    - dependency-graph
-
 purpose: >
   Decompose missions and goals into actionable work packages, sequence them for
   parallel or sequential delivery, and identify dependencies and risks. Planner Priti

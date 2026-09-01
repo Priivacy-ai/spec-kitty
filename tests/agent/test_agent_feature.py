@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import contextlib
 import json
 import subprocess
 from pathlib import Path
@@ -237,6 +238,7 @@ class TestBranchContextCommand:
         self,
         mock_locate: Mock,
         tmp_path: Path,
+        monkeypatch: pytest.MonkeyPatch,
     ) -> None:
         """Do not treat a feature branch as primary just because origin/HEAD is absent."""
         mock_locate.return_value = tmp_path
@@ -252,6 +254,14 @@ class TestBranchContextCommand:
         subprocess.run(["git", "add", "README.md"], cwd=tmp_path, check=True)
         subprocess.run(["git", "commit", "-m", "Initial"], cwd=tmp_path, check=True, capture_output=True)
         subprocess.run(["git", "switch", "-c", "feat/checkout-upsell"], cwd=tmp_path, check=True, capture_output=True)
+
+        # ``branch-context`` resolves branch identity from the invoking checkout
+        # (``resolve_checkout_identity(Path.cwd(), ...)``), NOT from the mocked
+        # ``locate_project_root`` (which re-anchors linked worktrees to the
+        # primary checkout for shared metadata reads). The test must therefore
+        # run *inside* the repo it built, or the command reads the ambient
+        # checkout's branch instead of ``feat/checkout-upsell``.
+        monkeypatch.chdir(tmp_path)
 
         result = runner.invoke(app, ["branch-context", "--json"])
 
@@ -707,11 +717,25 @@ class TestCreateFeatureCommand:
 class TestCheckPrerequisitesCommand:
     """Tests for check-prerequisites command."""
 
+    @patch(
+        "specify_cli.cli.commands.agent.mission.get_current_branch",
+        return_value="main",
+    )
+    @patch(
+        "specify_cli.cli.commands.agent.mission_check_prerequisites._resolve_feature_target_branch",
+        return_value="main",
+    )
     @patch("specify_cli.cli.commands.agent.mission.locate_project_root")
     @patch("specify_cli.cli.commands.agent.mission._find_feature_directory")
     @patch("specify_cli.cli.commands.agent.mission.validate_feature_structure")
     def test_validates_prerequisites_json_output(
-        self, mock_validate: Mock, mock_find: Mock, mock_locate: Mock, tmp_path: Path
+        self,
+        mock_validate: Mock,
+        mock_find: Mock,
+        mock_locate: Mock,
+        mock_get_current_branch: Mock,
+        mock_resolve_target_branch: Mock,
+        tmp_path: Path,
     ):
         """Should validate prerequisites and output JSON format."""
         # Setup
@@ -820,11 +844,25 @@ class TestCheckPrerequisitesCommand:
         assert "Warnings:" in result.stdout
         assert "Missing recommended directory: checklists/" in result.stdout
 
+    @patch(
+        "specify_cli.cli.commands.agent.mission.get_current_branch",
+        return_value="main",
+    )
+    @patch(
+        "specify_cli.cli.commands.agent.mission_check_prerequisites._resolve_feature_target_branch",
+        return_value="main",
+    )
     @patch("specify_cli.cli.commands.agent.mission.locate_project_root")
     @patch("specify_cli.cli.commands.agent.mission._find_feature_directory")
     @patch("specify_cli.cli.commands.agent.mission.validate_feature_structure")
     def test_paths_only_flag_json(
-        self, mock_validate: Mock, mock_find: Mock, mock_locate: Mock, tmp_path: Path
+        self,
+        mock_validate: Mock,
+        mock_find: Mock,
+        mock_locate: Mock,
+        mock_get_current_branch: Mock,
+        mock_resolve_target_branch: Mock,
+        tmp_path: Path,
     ):
         """Should output only paths when --paths-only flag is used."""
         # Setup
@@ -1226,6 +1264,10 @@ requirement_refs:
                 "specify_cli.cli.commands.agent.mission._show_branch_context",
                 return_value=(None, "main"),
             ),
+            # ``finalize-tasks`` resolves write ownership from the ambient
+            # checkout, not the mocked project root. The fixture root is the
+            # canonical target, so running there makes the test deterministic.
+            contextlib.chdir(tmp_path),
             patch(
                 "specify_cli.coordination.commit_router.commit_for_mission",
                 return_value=CommitRouterResult(
@@ -1271,6 +1313,21 @@ class TestSetupPlanCommand:
             lambda *args, **kwargs: GitPreflightResult(repo_root=tmp_path),
         )
 
+    # ``setup-plan`` resolves the invoking checkout's branch via
+    # ``get_current_branch(resolve_checkout_identity(Path.cwd()).invoking_root)``
+    # (the FR-006/#3124 honest branch-match), NOT the mocked ``_show_branch_context``.
+    # That reads the AMBIENT checkout, so ``current_branch`` came out as whatever
+    # branch the worktree running the test happened to be on — green in a ``main``
+    # CI checkout, red in any non-``main`` worktree. Pin ``get_current_branch`` to
+    # ``main`` so the resolution is deterministic.
+    #
+    # This is a scaffold-shape test: with the pin, ``current_branch == "main"`` is a
+    # tautology, NOT the branch-honesty guard. The real invoking-vs-primary
+    # derivation contract (FR-006/#3124) is verified separately by
+    # ``tests/specify_cli/cli/commands/agent/test_setup_plan_branch_match.py``,
+    # which uses real ``git worktree add`` lanes with ``get_current_branch``
+    # deliberately UNPATCHED.
+    @patch("specify_cli.cli.commands.agent.mission.get_current_branch", return_value="main")
     @patch("specify_cli.cli.commands.agent.mission.locate_project_root")
     @patch("specify_cli.cli.commands.agent.mission._find_feature_directory")
     @patch("specify_cli.cli.commands.agent.mission._show_branch_context", return_value=(None, "main"))
@@ -1281,6 +1338,7 @@ class TestSetupPlanCommand:
         mock_show_branch: Mock,
         mock_find: Mock,
         mock_locate: Mock,
+        mock_get_current_branch: Mock,
         tmp_path: Path,
     ) -> None:
         """Should scaffold plan template and output JSON format."""

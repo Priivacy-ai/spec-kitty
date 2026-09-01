@@ -14,17 +14,6 @@ capabilities:
 routing-priority: 40
 max-concurrent-tasks: 6
 
-context-sources:
-  doctrine-layers:
-    - paradigms
-    - directives
-  directives:
-    - "018"
-  additional:
-    - glossary-index
-    - doctrine-catalog
-    - documentation-inventory
-
 purpose: >
   Maintain the health, consistency, and completeness of the project's knowledge base,
   doctrine layers, and documentation. Curator Carla organizes information, resolves

@@ -17,29 +17,6 @@ capabilities:
 routing-priority: 80
 max-concurrent-tasks: 5
 
-context-sources:
-  doctrine-layers:
-    - paradigms
-    - directives
-    - tactics
-  directives:
-    - "010"
-    - "024"
-    - "025"
-    - "030"
-    - "041"
-    - "043"
-    - "044"
-    - "045"
-    - "051"
-  tactics:
-    - test-scaffolding-as-design-smell
-    - dependency-hygiene
-  additional:
-    - coding-standards
-    - test-strategy
-    - pyproject-toml
-
 purpose: >
   Deliver idiomatic, type-safe Python code with comprehensive test coverage.
   Python Pedro is a language-specialist implementer who translates design documents

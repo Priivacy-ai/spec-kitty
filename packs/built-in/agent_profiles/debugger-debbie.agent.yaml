@@ -15,25 +15,6 @@ capabilities:
 routing-priority: 60
 max-concurrent-tasks: 1
 
-context-sources:
-  doctrine-layers:
-    - paradigms
-    - directives
-    - tactics
-    - toolguides
-  directives:
-    - "001"
-    - "003"
-    - "030"
-    - "032"
-  tactics:
-    - five-paradigm-parallel-debugging
-    - code-review-incremental
-    - review-intent-and-risk-first
-  additional:
-    - investigation-methodology
-    - postmortem-templates
-
 purpose: >
   Investigate stubborn, recurring, or shape-shifting bugs by dispatching a
   five-paradigm parallel debugging swarm. Each paradigm is a separate

@@ -132,9 +132,15 @@ def _count_inline_refs(doctrine_root: Path) -> int:  # noqa: C901
             data = _yaml.load(path)
             if not data:
                 continue
-            context_sources = data.get("context-sources", {}) or {}
-            total += len(context_sources.get("directives", []) or [])
+            # Consolidated onto the canonical ``*-references`` surface (mission
+            # doctrine-drg-silent-drop-boundary-01M0PE7E); the retired
+            # ``context-sources.directives`` projection is now
+            # ``directive-references``, and toolguide/styleguide references newly
+            # project as ``suggests`` edges.
+            total += len(data.get("directive-references", []) or [])
             total += len(data.get("tactic-references", []) or [])
+            total += len(data.get("toolguide-references", []) or [])
+            total += len(data.get("styleguide-references", []) or [])
 
     return total
 

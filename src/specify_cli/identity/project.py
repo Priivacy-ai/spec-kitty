@@ -27,7 +27,7 @@ from pathlib import Path
 from typing import Any
 from uuid import NAMESPACE_URL, UUID, uuid4, uuid5
 
-from rich.console import Console
+from specify_cli.cli.console import err_console, sanitize_terminal_text
 from ruamel.yaml import YAML
 
 logger = logging.getLogger(__name__)
@@ -706,5 +706,5 @@ def _warn_in_memory(reason: str = "Config not writable") -> None:
     sends them to ``chmod`` when the fix is a YAML error — the misdirected-cause
     class this mission has been closing elsewhere (#3030).
     """
-    console = Console(stderr=True)
-    console.print(f"[yellow]Warning: {reason}; using in-memory identity[/yellow]")
+    console = err_console
+    console.print(f"[yellow]Warning: {sanitize_terminal_text(reason)}; using in-memory identity[/yellow]")

@@ -458,6 +458,33 @@ class TestAuthLoginAlreadyAuthenticated:
         assert "Default team: A[/]C [Private Teamspace]" in result.stdout
         assert "MarkupError" not in result.stdout
 
+    def test_success_output_strips_terminal_controls_from_identity_bytes(self):
+        safe_name = "Zoë Ölafsdóttir 日本語 🐱"
+        hostile_suffix = "\x1b[2J\x1b]0;x\x07\x1b"
+        session = _make_session(
+            email=f"{safe_name}{hostile_suffix}",
+            team_name=f"{safe_name}{hostile_suffix}",
+        )
+
+        async def _login(*_args, **_kwargs):
+            return session
+
+        with patch(
+            "specify_cli.cli.commands._auth_login.get_token_manager"
+        ) as mock_factory, patch(
+            "specify_cli.auth.flows.authorization_code.AuthorizationCodeFlow"
+        ) as mock_flow_cls:
+            mock_factory.return_value.is_authenticated = False
+            mock_flow_cls.return_value.login = AsyncMock(side_effect=_login)
+            result = runner.invoke(app, ["login"])
+
+        emitted = result.stdout_bytes
+        assert result.exit_code == 0, result.stdout
+        assert safe_name.encode("utf-8") in emitted
+        assert b"\x1b" not in emitted
+        assert b"[2J" not in emitted
+        assert b"]0;x" not in emitted
+
     def test_force_reauthenticates_even_when_logged_in(self):
         existing = _make_session()
 
