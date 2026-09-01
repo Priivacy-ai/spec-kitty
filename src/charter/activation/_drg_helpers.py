@@ -143,8 +143,9 @@ def load_validated_graph(
         # SCOPE (post DRG read-path bridge). Charter runtime callers can read
         # two org shapes: root-level `*.graph.yaml` here, and
         # `drg/fragment.yaml` edges through `org_fragments` below. A pack
-        # shipping only a fragment is not graphless, so warn only when it has
-        # neither shape.
+        # shipping only a fragment is not graphless for a caller that supplies
+        # that fragment layer; for a caller that omits it, the fragment remains
+        # invisible and must still be disclosed.
         #
         # D-005 ("degrade, but never silent"), matching the per-root warning
         # `mission_step_contracts.executor._load_graph_degrading_malformed_org_pack`
@@ -152,14 +153,21 @@ def load_validated_graph(
         # or never reach this branch, so this does not double-warn them; the
         # `activate` / `deactivate` / `gate_bindings` callers — which do not
         # pre-probe — get their only signal here.
-        if root and root.exists() and not (root / "drg" / "fragment.yaml").exists():
+        fragment_exists = bool(root) and root.exists() and (root / "drg" / "fragment.yaml").exists()
+        if root and root.exists() and (not fragment_exists or org_fragments is None):
+            missing_shape = (
+                "and no drg/fragment.yaml"
+                if not fragment_exists
+                else "but this call supplied no org_fragments layer"
+            )
             _LOGGER.warning(
                 "Org pack at %s ships no root-level DRG graph "
-                "(graph.yaml / *.graph.yaml) and no drg/fragment.yaml; it "
-                "contributes no dependency graph to cascade and was skipped. "
-                "Author a root-level *.graph.yaml or a drg/fragment.yaml to "
-                "contribute requires/suggests edges.",
+                "(graph.yaml / *.graph.yaml) %s; it contributes no dependency "
+                "graph to cascade and was skipped. Author a root-level "
+                "*.graph.yaml, or supply its drg/fragment.yaml through "
+                "org_fragments, to contribute requires/suggests edges.",
                 root,
+                missing_shape,
             )
 
     project_dir = repo_root / ".kittify" / "doctrine"
