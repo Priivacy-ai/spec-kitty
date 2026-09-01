@@ -58,12 +58,14 @@ TEST_FULL_STATUS := .test-full-status
 test-full: ## Run everything: one parallel pass + serial marker passes
 	@rm -f $(TEST_FULL_STATUS)
 	env -u FORCE_COLOR NO_COLOR=1 PWHEADLESS=1 uv run --frozen pytest tests/ \
-	  -m "$(PARALLEL_UNSAFE_MARKERS)" -n auto --dist loadfile -p no:cacheprovider -q || touch $(TEST_FULL_STATUS)
+	  -m "$(PARALLEL_UNSAFE_MARKERS)" -n auto --dist loadfile -p no:cacheprovider -q || echo parallel >> $(TEST_FULL_STATUS)
 	# Serial passes: the two parallel-unsafe marker families, mirroring the
 	# stress-tests-serial / timing-nfr-serial CI jobs (--timeout guards a hung
 	# fork/process from stalling the lane indefinitely).
 	env -u FORCE_COLOR NO_COLOR=1 PWHEADLESS=1 uv run --frozen pytest tests/ \
-	  -m "stress and not windows_ci" -n0 --timeout=240 --timeout-method=signal -q || touch $(TEST_FULL_STATUS)
+	  -m "stress and not windows_ci" -n0 --timeout=240 --timeout-method=signal -q || echo stress >> $(TEST_FULL_STATUS)
 	env -u FORCE_COLOR NO_COLOR=1 PWHEADLESS=1 uv run --frozen pytest tests/ \
-	  -m timing -n0 --timeout=240 --timeout-method=signal -q || touch $(TEST_FULL_STATUS)
-	@if [ -f $(TEST_FULL_STATUS) ]; then rm -f $(TEST_FULL_STATUS); exit 1; fi
+	  -m timing -n0 --timeout=240 --timeout-method=signal -q || echo timing >> $(TEST_FULL_STATUS)
+	@if [ -s $(TEST_FULL_STATUS) ]; then \
+	  echo "test-full: FAILED passes: $$(tr '\n' ' ' < $(TEST_FULL_STATUS))"; \
+	  rm -f $(TEST_FULL_STATUS); exit 1; fi
