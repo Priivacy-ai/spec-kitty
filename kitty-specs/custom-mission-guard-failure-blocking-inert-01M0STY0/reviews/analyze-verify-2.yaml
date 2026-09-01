@@ -1,0 +1,8 @@
+schema: review-verify/v1
+complete: true
+phase: analyze
+verdicts:
+  - id: ANALYZE-FRESH-001
+    status: resolved
+    evidence: "tasks.md:358-370 and tasks/WP02-org-tier-manifest-resolution-and-campsite-clean.md:161-176 now specify two distinct branch-specific origin expressions (built-in: ManifestSchemaError(mission_type, config.origin); org-tier: a synthesized descriptive string naming mission_type + org roots checked), matching the real precedent at src/specify_cli/dossier/manifest.py:283-297 (org-tier synthesized origin) and :326-340 (built-in config.origin) verified by direct read; src/charter/org_expected_artifacts.py:54-56 confirms resolve_org_expected_artifacts returns Mapping[str, Any] | None with no .origin attribute, so the corrected org-tier expression no longer depends on a nonexistent attribute. tasks.md:369 and WP02:131 explicitly warn against masking the risk with a broad except Exception. T009b (tasks.md:345-354, WP02:161-176) now asserts ManifestSchemaError.origin is a non-empty descriptive string naming org tier + mission type for the org-tier branch specifically. analysis-report.md frontmatter independently read: verdict: ready, findings: []. git log -5 shows 26c80c758, e274e6eb0, de2bac388 all present; git status --porcelain -uno is clean."
+    reason: "The fix replaced the single shared config.origin expression with two branch-specific origin derivations, and the org-tier one is a faithful analog of ManifestRegistry.load_manifest's real per-branch technique, so the AttributeError risk on the org-tier branch is eliminated and the RED test now pins the corrected behavior."

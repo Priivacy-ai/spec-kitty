@@ -1,0 +1,22 @@
+schema: review-verify/v1
+complete: true
+phase: spec
+results:
+  - id: SPEC-GOV-001
+    status: resolved
+    reason: Real AC-1..AC-8 labels now exist as a single flat, cross-story-unique series (AC-1–AC-3 under User Story 1 at lines 135-148, AC-4–AC-8 under User Story 2 at lines 175-199), and the Clarifications section (lines 80-86) states the exact range/location instead of a dangling "see below" promise; grep confirms no orphaned AC-N references remain.
+  - id: SPEC-ARCH-001
+    status: resolved
+    reason: FR-004 now explicitly REQUIRES (not merely permits) gather_artifact_presence, _check_cli_guards, and _check_composed_action_guard to gain/forward repo_root from their real callers; live-source check confirms _dn_dependency_gate (runtime_bridge.py:1538) holds repo_root=ctx.repo_root as a local at line 1549 with _check_cli_guards calls at exactly lines 1608 and 1643, and _dispatch_via_composition (runtime_bridge_composition.py:502) takes repo_root as a required kwarg with its guard call at exactly line 626 dropping it — all citations match the live file precisely (runtime_bridge.py:1057/1071 are confirmed thin compat delegates forwarding to the composition module, so citing the composition module as the real implementation is correct).
+  - id: SPEC-ARCH-002
+    status: resolved
+    reason: FR-001/FR-003/FR-006 now correctly place the manifest-consulting logic in runtime_bridge_io.py, threaded into a new ArtifactPresenceSnapshot.blocking_artifact_names field (class confirmed at runtime_bridge_io.py:900, matching the cited line), keeping runtime_bridge_cores.py a pure consumer of snapshot data; this matches the live test_bridge_cores_import_boundary.py's actual AST-walk gate, which forbids any non-stdlib import out of runtime_bridge_cores.py other than runtime.next.decision, exactly the constraint FR-006 now honors by construction.
+  - id: SPEC-VERIFY-001
+    status: resolved
+    reason: NFR-004 now attributes the coverage-floor mechanism to _check_cli_guards' software-dev family-scoping (#3407/M3) rather than FR-005, with a cross-reference to test_non_software_dev_missing_artifact_owned_by_composed_guard; live source confirms _GUARD_BRANCH_FLOOR = 18 at test_bridge_parity.py:1196 and the regression test at line 1242, both matching the spec's citations exactly, and the test's own docstring/comment block corroborates the software-dev-scoping mechanism as the real cause.
+  - id: SPEC-VERIFY-002
+    status: resolved
+    reason: NFR-003 now contains an explicit "Accepted baseline" clause citing issue #3284 (~23 failures + 2 errors) and directs each WP to re-run its touched test files on fix/org-tier-expected-artifacts-3703 (not main) before implementing, applying CLAUDE.md's baseline-red classification protocol.
+  - id: SPEC-VERIFY-003
+    status: resolved
+    reason: FR-001's citation now reads "_GUARD_TABLES declared at runtime_bridge_cores.py:676-681; the .get() dispatch call itself is at runtime_bridge_cores.py:693" — live source confirms the dict literal spans exactly lines 676-681 and the .get(snapshot.mission_family) call is exactly at line 693 inside evaluate_guards_strict.

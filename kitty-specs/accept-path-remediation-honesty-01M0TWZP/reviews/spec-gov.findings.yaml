@@ -1,0 +1,115 @@
+# review-findings/v1 — canonical format for lens-session and fresh-sweep output.
+schema: review-findings/v1
+complete: true               # flip to true ONLY at the very end, after the yaml self-check passes
+phase: spec
+lens_group: gov
+mission: accept-path-remediation-honesty-01M0TWZP
+findings:
+  - id: SPEC-GOV-001
+    lens: Non-goal boundary discipline (mission-derived)
+    severity: 4
+    title: FR-002 does not specify which severity "wins" when reconciling the dual-declared fact, leaving the pass/fail boundary for contracts/ effectively open to drift into #3016's territory
+    evidence:
+      - artifact: "spec.md § FR-002 (line 236), § User Story 2 Acceptance Scenario 1 (lines 102-107), § C-001 (line 256)"
+      - code: "src/specify_cli/acceptance/__init__.py:369-378 (AcceptanceSummary.ok gates on `not self.path_violations` but NOT on `optional_missing`)"
+      - code: "src/specify_cli/acceptance/summary_core.py:129-148 (evaluate_path_conventions), src/specify_cli/acceptance/__init__.py:585-595 (_missing_artifacts) — the two independent computations FR-002 must reconcile"
+    claim: >
+      FR-002 and its Acceptance Scenario 1 say the dual-declared fact must resolve to
+      "exactly one of missing_optional (non-blocking) or path_violations (blocking) —
+      never both" but never state which one it resolves to. This is not a stylistic gap:
+      `AcceptanceSummary.ok` (acceptance/__init__.py:369-378) gates on `path_violations`
+      but not on `optional_missing`, so the resolution direction chosen by whoever
+      implements FR-002 directly decides whether `accept` in strict mode continues to
+      hard-fail software-dev missions missing `contracts/`, or silently starts passing
+      them. C-001 tries to bound this ("no change to the pass/fail boundary... not
+      already implied by FR-002's dedup") but that clause is circular — any direction
+      chosen can be described as "implied by the dedup" — so it does not actually
+      constrain the choice. If an implementer resolves toward `missing_optional`
+      (treating the artifacts.optional declaration as authoritative), `accept` would
+      stop blocking on missing `contracts/` for every software-dev mission, which is
+      substantively the same relief #3016 asks for (make the convention non-blocking /
+      configurable) — landed here, silently, as a side effect of a "reporting-only"
+      dedup, exactly the drift the Non-Goals section says is out of scope ("#3016 ...
+      out of scope; This mission fixes what the check says, not what it enforces").
+    remediation: >
+      State the resolution direction explicitly in FR-002 (or as a new constraint next
+      to C-001): the reconciliation must preserve the more restrictive/blocking
+      severity when a token is declared in both lists (i.e. `path_violations` wins,
+      `missing_optional` drops the now-redundant entry) — matching the outcome that
+      is neutral with respect to #3016 (enforcement stays exactly as strict as today).
+      Add this as an explicit acceptance scenario asserting `AcceptanceSummary.ok` is
+      unchanged (still False) for the exact fixture used today, so a reviewer or CI
+      test can catch a regression toward the non-blocking resolution.
+
+  - id: SPEC-GOV-002
+    lens: Non-goal boundary discipline (mission-derived)
+    severity: 4
+    title: FR-002's dedup fix is code-side and mission-type-generic, but the spec's investigation (Key Entities, Verification Notes) checked only software-dev's contracts/ — research/mission.yaml has an identical, unacknowledged, untested dual declaration for data/
+    evidence:
+      - artifact: "spec.md § Key Entities (lines 272-276), § Verification Notes (lines 338-343) — both state/imply contracts/ in software-dev/mission.yaml is the source of the dual declaration, with no mention of any other mission type"
+      - code: "src/specify_cli/missions/research/mission.yaml:126-145 — `paths.data: \"data/\"` and `artifacts.optional` both declare `data/` for the same resolved location (verified programmatically: normalized token \"data\" is a member of both sets)"
+      - code: "src/specify_cli/acceptance/summary_core.py:129-148 and src/specify_cli/acceptance/__init__.py:585-595 — both functions run unconditionally for every mission type, so today's #3085 double-report defect (and whatever FR-002's fix does) already applies to research's data/ token exactly as it does to software-dev's contracts/"
+    claim: >
+      The spec's own investigation ("Key Entities", "Verification Notes") frames the
+      dual-declaration defect as a `software-dev`/`contracts/`-specific fact, and only
+      cites `src/specify_cli/missions/software-dev/mission.yaml` and its
+      `packs/built-in/` twin as evidence. But `evaluate_path_conventions` and
+      `_missing_artifacts` are mission-type-agnostic — they read whatever
+      `mission.config.artifacts`/`mission.config.paths` declare — and
+      `research/mission.yaml` independently declares `data/` under both
+      `artifacts.optional` and `paths.data` for the identical resolved location. This
+      means: (a) the pre-existing #3085 double-report defect this mission fixes already
+      reproduces for research missions missing `data/`, not just software-dev missions
+      missing `contracts/`, and the mission's own defect description is incomplete; and
+      (b) whatever code-side reconciliation FR-002 lands will change research-mission
+      `accept` behavior too, silently, with zero test coverage or acknowledgment — no
+      pinned test, fixture, or Success Criterion mentions `research` or `data/`. Given
+      SPEC-GOV-001's finding that the resolution direction itself is unspecified, this
+      compounds: research missions get an unreviewed, untested pass/fail-boundary
+      change riding on a fix scoped and verified against only one of four mission
+      types.
+    remediation: >
+      Either (a) explicitly widen FR-002/Key Entities to acknowledge the pattern is
+      mission-type-generic, add a second fixture/test using the research mission type's
+      `data/` dual declaration (mirroring FR-007's fixture), and confirm the same
+      resolution direction applies there with an explicit acceptance scenario; or (b) if
+      the mission intends to scope the code-side fix narrowly (e.g. only reconciling
+      when invoked for software-dev), state that constraint explicitly in C-001/C-002
+      and explain why research's identical-shaped defect is deliberately left
+      unfixed/out of scope for this mission (with a follow-up ledger/issue reference).
+      Silence on this is the actual gap — either choice is fine, but the spec must make
+      one and test it.
+
+  - id: SPEC-GOV-003
+    lens: Non-goal boundary discipline (mission-derived) / Scope
+    severity: 2
+    title: Non-Goals' "#2330 — out of scope; not touched by any requirement above" is not backed by an explicit guard against the one place this mission's own design decision could touch #2330's exact complaint
+    evidence:
+      - artifact: "spec.md § Non-Goals (line 322): \"#2330 — out of scope; not touched by any requirement above.\""
+      - artifact: "spec.md § User Story 3 Acceptance Scenarios (lines 145-155) — scoped explicitly to \"default (strict) mode\"/format_errors(), not the --lenient warning path"
+      - artifact: "tracer-design-decisions.md lines 23-33 — WP3's design keeps the mkdir -p suggestion and \"rank[s] --lenient first with a note\", implemented \"via a mode-parameter\""
+      - code: "src/specify_cli/validators/paths.py:44-59 (format_warnings, used under --lenient) vs. :61-78 (format_errors, strict mode) — both currently read from the SAME shared `self.suggestions` list built once by suggest_directory_creation"
+    claim: >
+      Issue #2330 explicitly names, as one of its own complaints, that "[e]ven with
+      --lenient the path-convention warning and the mkdir -p ... suggestion still
+      print, which is noise / actively misleading" for non-Python repos — i.e. the
+      exact `suggestions` content this mission's Story 3 is reworking (ranking
+      --lenient first, adding a note) for the strict-mode message. Because
+      `format_warnings()` (the lenient-mode print #2330 is about) and `format_errors()`
+      (the strict-mode print Story 3 targets) both currently draw from the same
+      `PathValidationResult.suggestions` list, an implementation of FR-005's "mode-
+      parameter" approach that touches the shared suggestions builder (rather than only
+      the trailing prose in `format_errors()`) risks also changing the lenient-mode
+      warning text — the exact surface #2330 is about. The spec's Acceptance Scenarios
+      are careful to say "default (strict) mode" throughout, which likely keeps this
+      mission clear of #2330 in practice, but there is no explicit edge case or
+      constraint pinning `format_warnings()`'s output as unchanged, so the Non-Goals
+      claim is asserted rather than demonstrated.
+    remediation: >
+      Add one edge case (alongside the existing "--json output" and "strict_metadata is
+      true but path is build/repo path" edge cases) stating explicitly:
+      "format_warnings()'s lenient-mode output (used under --lenient) is unchanged by
+      this mission — only format_errors()'s strict-mode message and --help text
+      change." This turns the current implicit boundary into a checkable constraint and
+      removes any ambiguity for the WP3 implementer about the shared `suggestions`
+      list.

@@ -45,6 +45,7 @@ __all__ = [
     "_bundle_root_for_json",
     "_project_charter_json_block",
     "_project_directive_entries",
+    "_project_directive_entries_with_source",
 ]
 
 
@@ -137,10 +138,21 @@ def _project_charter_json_block(repo_root: Path) -> dict[str, object]:
     return block
 
 
-def _load_project_directives(
+def _load_project_directives_with_source(
     repo_root: Path,
     load_directives_config: Callable[[Path], DirectivesConfig],
-) -> tuple[dict[str, object], list[str]]:
+) -> tuple[dict[str, object], list[str], str | None]:
+    """Resolve project directive IDs **and** the resolution-level
+    ``directives_source`` provenance from a *single* governance resolution.
+
+    ``directives_source`` is ``GovernanceResolution.metadata["directives_source"]``
+    (e.g. ``"catalog_fallback+project_local"``) — the branch that resolved the
+    directive set. It is distinct from the per-entry ``source`` each directive
+    entry carries (``"project"``/``"builtin"``/``"org"`` artifact origin); the
+    two answer different questions. Returns ``None`` for the source on any
+    resolver failure — provenance-unavailable is itself an operator signal, and
+    the broad-except degrade sites stay out of scope here (C-002).
+    """
     try:
         directives_cfg = load_directives_config(repo_root)
     except Exception:  # noqa: BLE001 - fall through to resolver/catalog path
@@ -155,8 +167,32 @@ def _load_project_directives(
 
         resolution = resolve_project_governance(repo_root)
     except Exception:  # noqa: BLE001 - keep any directly-loaded directive IDs
-        return local_by_id, list(dict.fromkeys(directive_ids))
-    return local_by_id, list(dict.fromkeys(list(resolution.directives) + directive_ids))
+        return local_by_id, list(dict.fromkeys(directive_ids)), None
+    # ``metadata`` is always present on a real ``GovernanceResolution``; the
+    # ``getattr``/``isinstance`` guard only tolerates duck-typed resolver stubs
+    # in existing seam tests that omit it.
+    metadata = getattr(resolution, "metadata", None)
+    directives_source = metadata.get("directives_source") if isinstance(metadata, dict) else None
+    return (
+        local_by_id,
+        list(dict.fromkeys(list(resolution.directives) + directive_ids)),
+        directives_source,
+    )
+
+
+def _load_project_directives(
+    repo_root: Path,
+    load_directives_config: Callable[[Path], DirectivesConfig],
+) -> tuple[dict[str, object], list[str]]:
+    """Backward-compatible 2-tuple wrapper over
+    :func:`_load_project_directives_with_source`.
+
+    Existing seam tests pin this arity; the resolution-``directives_source``
+    variant threads provenance to the JSON payload builder without a second
+    ``resolve_project_governance`` call.
+    """
+    local_by_id, directive_ids, _ = _load_project_directives_with_source(repo_root, load_directives_config)
+    return local_by_id, directive_ids
 
 
 def _maybe_build_doctrine_service(repo_root: Path) -> _doctrine_service_module.DoctrineService | None:
@@ -182,12 +218,12 @@ def _local_directive_entry(directive_id: str, local: object) -> dict[str, object
 _EMPTY_ORG_CHARTER: dict[str, object] = {"present": False, "packs": []}
 
 
-def _project_directive_entries(repo_root: Path) -> list[dict[str, object]]:
-    """Return every directive ID that the project-governance resolver exposes."""
-    from charter.activation.sync import load_directives_config
-
-    local_by_id, directive_ids = _load_project_directives(repo_root, load_directives_config)
-    service = _maybe_build_doctrine_service(repo_root)
+def _assemble_directive_entries(
+    directive_ids: list[str],
+    local_by_id: dict[str, object],
+    service: _doctrine_service_module.DoctrineService | None,
+) -> list[dict[str, object]]:
+    """Build the per-directive ``all_directives`` entries from resolved IDs."""
     entries: list[dict[str, object]] = []
     for directive_id in directive_ids:
         local = local_by_id.get(directive_id)
@@ -198,4 +234,27 @@ def _project_directive_entries(repo_root: Path) -> list[dict[str, object]]:
             entries.append({"id": directive_id, "source": "builtin"})
             continue
         entries.extend(_pd.collect_typed_artifacts(service.directives, [directive_id], kind="directive"))
+    return entries
+
+
+def _project_directive_entries_with_source(
+    repo_root: Path,
+) -> tuple[list[dict[str, object]], str | None]:
+    """Return the project directive entries **and** the resolution-level
+    ``directives_source`` provenance from a single governance resolution.
+
+    The JSON payload builder (``build_charter_context_json``) consumes this so
+    both ``all_directives`` and the top-level ``directives_source`` key come from
+    ONE ``resolve_project_governance`` call — never two per payload.
+    """
+    from charter.activation.sync import load_directives_config
+
+    local_by_id, directive_ids, directives_source = _load_project_directives_with_source(repo_root, load_directives_config)
+    service = _maybe_build_doctrine_service(repo_root)
+    return _assemble_directive_entries(directive_ids, local_by_id, service), directives_source
+
+
+def _project_directive_entries(repo_root: Path) -> list[dict[str, object]]:
+    """Return every directive ID that the project-governance resolver exposes."""
+    entries, _ = _project_directive_entries_with_source(repo_root)
     return entries

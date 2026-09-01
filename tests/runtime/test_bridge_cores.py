@@ -747,7 +747,14 @@ def test_check_cli_guards_propagates_unregistered_mission_family_error(
     ``_check_cli_guards`` itself -- not merely out of an isolated,
     unwired ``evaluate_guards_strict`` call."""
 
-    def _fake_gather(feature_dir: Path, *, mission_family: str, step_id: str, legacy_step_id: str | None = None) -> Any:
+    def _fake_gather(
+        feature_dir: Path,
+        *,
+        mission_family: str,
+        step_id: str,
+        legacy_step_id: str | None = None,
+        repo_root: Path | None = None,
+    ) -> Any:
         return ArtifactPresenceSnapshot(
             present_artifacts=frozenset(),
             status_facts={},
@@ -759,3 +766,67 @@ def test_check_cli_guards_propagates_unregistered_mission_family_error(
     monkeypatch.setattr(rb._io_seam, "gather_artifact_presence", _fake_gather)
     with pytest.raises(cores.UnregisteredMissionFamilyError):
         rb._check_cli_guards("review", tmp_path)
+
+
+# ---------------------------------------------------------------------------
+# 10. evaluate_guards_strict — blocking_artifact_names dispatch branch
+#     (WP01, FR-001/FR-002/FR-006, #3704 Part 1)
+# ---------------------------------------------------------------------------
+#
+# Once ``_GUARD_TABLES`` misses (``snapshot.mission_family`` is unregistered),
+# ``evaluate_guards_strict`` now branches on ``snapshot.blocking_artifact_names``:
+# ``None`` (no manifest reachable at any tier) keeps the existing strict raise;
+# a real (possibly empty) ``frozenset`` is genuinely evaluated by comparing it
+# against ``snapshot.present_artifacts``, restoring the None-vs-frozenset()
+# distinction SPEC-FRESH-001 requires (bare falsiness would silently collapse
+# it, since ``frozenset()`` is falsy).
+
+
+def test_evaluate_guards_strict_still_raises_when_blocking_artifact_names_is_none() -> None:
+    """FR-002 outcome 1 / AC-3 / C-001 -- unchanged: an unregistered family
+    with NO manifest reachable at any tier (``blocking_artifact_names is
+    None``) still fails closed via the strict raise, exactly as before this
+    WP's new branch existed."""
+    snapshot = ArtifactPresenceSnapshot(
+        present_artifacts=frozenset(),
+        status_facts={},
+        mission_family="totally-unregistered-family",
+        step_id="whatever",
+        blocking_artifact_names=None,
+    )
+
+    with pytest.raises(cores.UnregisteredMissionFamilyError):
+        cores.evaluate_guards_strict(snapshot)
+
+
+def test_evaluate_guards_strict_returns_empty_when_blocking_set_is_subset_of_present() -> None:
+    """FR-002 outcome 2: a real, EMPTY ``frozenset`` (manifest resolved,
+    nothing blocking at this step) must be reached via genuine evaluation --
+    not a swallowed exception -- and return ``[]``. This is the crux of the
+    None-vs-frozenset() distinction: ``if not snapshot.blocking_artifact_names``
+    would treat this identically to the ``None`` case above; ``is None`` does
+    not."""
+    snapshot = ArtifactPresenceSnapshot(
+        present_artifacts=frozenset(),
+        status_facts={},
+        mission_family="totally-unregistered-family",
+        step_id="whatever",
+        blocking_artifact_names=frozenset(),
+    )
+
+    assert cores.evaluate_guards_strict(snapshot) == []
+
+
+def test_evaluate_guards_strict_reports_blocking_artifacts_not_yet_present() -> None:
+    """FR-002 outcome 3: a non-empty ``blocking_artifact_names`` whose members
+    are NOT a subset of ``present_artifacts`` returns a non-empty failure list
+    naming the missing artifact(s)."""
+    snapshot = ArtifactPresenceSnapshot(
+        present_artifacts=frozenset({"already-here.md"}),
+        status_facts={},
+        mission_family="totally-unregistered-family",
+        step_id="whatever",
+        blocking_artifact_names=frozenset({"already-here.md", "still-missing.md"}),
+    )
+
+    assert cores.evaluate_guards_strict(snapshot) == ["still-missing.md"]
