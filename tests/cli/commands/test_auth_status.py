@@ -346,6 +346,32 @@ class TestAuthStatusCommand:
         assert "at_xyz_ignore" not in result.stdout
         assert "rt_xyz_ignore" not in result.stdout
 
+    def test_authenticated_path_renders_bracket_markup_in_email_name_and_team(self):
+        session = _make_session(
+            email="alice[/]@example.com",
+            name="Alice [/] Developer",
+            teams=[
+                Team(
+                    id="tm_acme",
+                    name="Acme [/] Corp",
+                    role="admin",
+                    is_private_teamspace=True,
+                )
+            ],
+        )
+        mock_storage = _mock_storage_returning(session, backend="file")
+        with patch(
+            "specify_cli.auth.secure_storage.SecureStorage.from_environment",
+            return_value=mock_storage,
+        ):
+            reset_token_manager()
+            result = runner.invoke(app, ["status"])
+
+        assert result.exit_code == 0, result.stdout
+        assert "User: alice[/]@example.com (Alice [/] Developer)" in _flat(result.stdout)
+        assert "- Acme [/] Corp (admin)" in _flat(result.stdout)
+        assert "MarkupError" not in result.stdout
+
     def test_authenticated_path_strips_terminal_controls_from_saas_identity_bytes(self):
         """Hostile SaaS identity fields cannot emit terminal control bytes (#700)."""
         safe_name = "Zoë Ölafsdóttir 日本語 🐱"
@@ -378,33 +404,6 @@ class TestAuthStatusCommand:
         assert b"\x1b" not in emitted
         assert b"[2J" not in emitted
         assert b"]0;x" not in emitted
-
-    def test_authenticated_path_renders_bracket_markup_in_email_name_and_team(self):
-        session = _make_session(
-            email="alice[/]@example.com",
-            name="Alice [/] Developer",
-            teams=[
-                Team(
-                    id="tm_acme",
-                    name="Acme [/] Corp",
-                    role="admin",
-                    is_private_teamspace=True,
-                )
-            ],
-        )
-        mock_storage = _mock_storage_returning(session, backend="file")
-
-        with patch(
-            "specify_cli.auth.secure_storage.SecureStorage.from_environment",
-            return_value=mock_storage,
-        ):
-            reset_token_manager()
-            result = runner.invoke(app, ["status"])
-
-        assert result.exit_code == 0, result.stdout
-        assert "User: alice[/]@example.com (Alice [/] Developer)" in _flat(result.stdout)
-        assert "- Acme [/] Corp (admin)" in _flat(result.stdout)
-        assert "MarkupError" not in result.stdout
 
     def test_authenticated_path_renders_bracket_markup_in_email_only_identity(self):
         session = _make_session(email="alice[/]@example.com", name="")

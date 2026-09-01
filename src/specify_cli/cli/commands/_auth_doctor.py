@@ -354,10 +354,7 @@ def _auth_verdict_finding(
         severity="critical" if auth_verdict.state == "fail" else "warn",
         summary=f"Session health not confirmed: {auth_verdict.evidence}",
         remediation_command=auth_verdict.remediation,
-        remediation_description=(
-            "The access token could not be confirmed valid; re-authenticate or "
-            "re-run with --server to probe the live session."
-        ),
+        remediation_description=("The access token could not be confirmed valid; re-authenticate or re-run with --server to probe the live session."),
     )
 
 
@@ -625,9 +622,7 @@ def _render_findings_section(report: DoctorReport, console: Console) -> None:
         for finding in report.findings:
             color = severity_color[finding.severity]
             console.print(
-                f"  [[{color}]{finding.severity}[/{color}]] "
-                f"{escape(sanitize_terminal_text(finding.id))}: "
-                f"{escape(sanitize_terminal_text(finding.summary))}"
+                f"  [[{color}]{finding.severity}[/{color}]] {escape(sanitize_terminal_text(finding.id))}: {escape(sanitize_terminal_text(finding.summary))}"
             )
             if finding.remediation_command is not None:
                 description = (
@@ -725,8 +720,8 @@ def _render_server_status(status: ServerSessionStatus) -> None:
     """Render the optional server-session block in human output."""
     console.print("[bold]Server Session[/bold]")
     if status.active:
-        sid = sanitize_terminal_text(status.session_id or UNKNOWN_DISPLAY)
-        console.print(f"  Status:  [green]active[/green] (session: {escape(sid)})")
+        sid = status.session_id or UNKNOWN_DISPLAY
+        console.print(f"  Status:  [green]active[/green] (session: {sid})")
     else:
         reason = status.error or "unknown"
         if reason == "re-authenticate":
@@ -736,10 +731,7 @@ def _render_server_status(status: ServerSessionStatus) -> None:
             # names the resolved-config source and may contain a literal
             # `[sync]`-shaped substring (#182) — unescaped, Rich markup
             # either drops the bracketed text or raises MarkupError.
-            console.print(
-                "  Status:  [yellow]check failed[/yellow] — "
-                f"{escape(sanitize_terminal_text(reason))}"
-            )
+            console.print(f"  Status:  [yellow]check failed[/yellow] — {escape(reason)}")
     console.print()
 
 

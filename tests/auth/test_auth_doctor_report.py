@@ -37,8 +37,8 @@ from rich.console import Console
 
 from specify_cli.auth.server_target import OverrideMode, ResolvedServerTarget, SAAS_URL_ENV_VAR
 from specify_cli.auth.session import StoredSession, Team
-from specify_cli.cli.commands import auth as auth_commands
 from specify_cli.cli.commands import _auth_doctor
+from specify_cli.cli.commands import auth as auth_commands
 from specify_cli.cli.commands._auth_doctor import (
     DoctorReport,
     ServerSessionStatus,
@@ -140,9 +140,7 @@ def _capture_render(report: DoctorReport) -> str:
 
 def test_renders_authenticated_no_findings(monkeypatch: pytest.MonkeyPatch) -> None:
     """Healthy state renders all sections with a confirmed ``ok`` verdict."""
-    session = _make_session(
-        refresh_token_expires_at=now_utc() + timedelta(days=30)
-    )
+    session = _make_session(refresh_token_expires_at=now_utc() + timedelta(days=30))
     _patch_state(monkeypatch, session=session)
 
     report = assemble_report()
@@ -168,15 +166,38 @@ def test_renders_authenticated_no_findings(monkeypatch: pytest.MonkeyPatch) -> N
     assert "No problems detected." in rendered
 
 
+def test_hostile_session_display_values_render_literally(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Session-file strings must not be interpreted as Rich markup (#737)."""
+    session = _make_session(refresh_token_expires_at=now_utc() + timedelta(days=30))
+    _patch_state(monkeypatch, session=session)
+    report = assemble_report()
+    assert report.session is not None
+    report = replace(
+        report,
+        session=replace(
+            report.session,
+            user_email="user[/]example.test",
+            session_id="session[/]id",
+            storage_backend="file[/]backend",
+        ),
+    )
+
+    rendered = _capture_render(report)
+
+    assert "user[/]example.test" in rendered
+    assert "session[/]id" in rendered
+    assert "Unknown (file[/]backend)" in rendered
+
+
 def test_doctor_impl_strips_terminal_controls_from_emitted_identity_bytes(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """The live doctor renderer never writes SaaS control sequences (#700)."""
     safe_identity = "Zoë Ölafsdóttir 日本語 🐱"
     hostile_suffix = "\x1b[2J\x1b]0;x\x07\x1b"
-    session = _make_session(
-        refresh_token_expires_at=now_utc() + timedelta(days=30)
-    )
+    session = _make_session(refresh_token_expires_at=now_utc() + timedelta(days=30))
     session.email = f"{safe_identity}{hostile_suffix}"
     session.session_id = f"session{hostile_suffix}"
     _patch_state(monkeypatch, session=session)
@@ -187,11 +208,7 @@ def test_doctor_impl_strips_terminal_controls_from_emitted_identity_bytes(
         Console(file=buf, width=120, record=False, force_terminal=False),
     )
 
-    exit_code = doctor_impl(
-        json_output=False,
-        unstick_lock=False,
-        stuck_threshold=60.0,
-    )
+    exit_code = doctor_impl(json_output=False, unstick_lock=False, stuck_threshold=60.0)
 
     emitted = buf.getvalue().encode("utf-8")
     assert exit_code == 0
@@ -229,33 +246,6 @@ def test_doctor_shell_strips_terminal_controls_from_unexpected_error(
     assert raised.value.exit_code == 2
     assert "Zoë Ölafsdóttir 日本語 🐱".encode() in emitted
     assert b"\x1b" not in emitted
-
-
-def test_hostile_session_display_values_render_literally(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    """Session-file strings must not be interpreted as Rich markup (#737)."""
-    session = _make_session(
-        refresh_token_expires_at=now_utc() + timedelta(days=30)
-    )
-    _patch_state(monkeypatch, session=session)
-    report = assemble_report()
-    assert report.session is not None
-    report = replace(
-        report,
-        session=replace(
-            report.session,
-            user_email="user[/]example.test",
-            session_id="session[/]id",
-            storage_backend="file[/]backend",
-        ),
-    )
-
-    rendered = _capture_render(report)
-
-    assert "user[/]example.test" in rendered
-    assert "session[/]id" in rendered
-    assert "Unknown (file[/]backend)" in rendered
 
 
 def test_expired_access_valid_refresh_local_is_unknown(
@@ -306,9 +296,7 @@ def test_expired_access_valid_refresh_with_live_server_probe_is_ok(
     session = replace(session, access_token_expires_at=now_utc() - timedelta(minutes=1))
     _patch_state(monkeypatch, session=session)
 
-    report = assemble_report(
-        server_probe=ServerSessionStatus(active=True, session_id="s1")
-    )
+    report = assemble_report(server_probe=ServerSessionStatus(active=True, session_id="s1"))
 
     assert report.auth_verdict.state == "ok"
     assert not any(f.id == "F-008" for f in report.findings)
@@ -331,9 +319,7 @@ def test_renders_unauthenticated(monkeypatch: pytest.MonkeyPatch) -> None:
 
 def test_renders_stuck_lock_finding(monkeypatch: pytest.MonkeyPatch) -> None:
     """Lock record 120 s old ⇒ F-003 critical; exit 1."""
-    session = _make_session(
-        refresh_token_expires_at=now_utc() + timedelta(days=30)
-    )
+    session = _make_session(refresh_token_expires_at=now_utc() + timedelta(days=30))
     # Force the holder_host to match local socket so F-007 doesn't fire.
     import socket
 
@@ -348,9 +334,7 @@ def test_renders_stuck_lock_finding(monkeypatch: pytest.MonkeyPatch) -> None:
 
     report = assemble_report(stuck_threshold_s=60.0)
 
-    assert any(
-        f.id == "F-003" and f.severity == "critical" for f in report.findings
-    )
+    assert any(f.id == "F-003" and f.severity == "critical" for f in report.findings)
     assert compute_exit_code(report.findings) == 1
 
 
@@ -373,9 +357,7 @@ def test_runs_under_three_seconds(monkeypatch: pytest.MonkeyPatch) -> None:
     The default path reads only local files, so the whole pipeline runs
     well inside the ceiling without any simulated scan delay.
     """
-    session = _make_session(
-        refresh_token_expires_at=now_utc() + timedelta(days=30)
-    )
+    session = _make_session(refresh_token_expires_at=now_utc() + timedelta(days=30))
     _patch_state(monkeypatch, session=session)
 
     started = time.monotonic()
@@ -390,9 +372,7 @@ def test_renders_held_fresh_lock(monkeypatch: pytest.MonkeyPatch) -> None:
     """Fresh held lock ⇒ section renders holder PID, age, host; no F-003."""
     import socket
 
-    session = _make_session(
-        refresh_token_expires_at=now_utc() + timedelta(days=30)
-    )
+    session = _make_session(refresh_token_expires_at=now_utc() + timedelta(days=30))
     lock = LockRecord(
         schema_version=1,
         pid=42,
@@ -413,9 +393,7 @@ def test_renders_held_fresh_lock(monkeypatch: pytest.MonkeyPatch) -> None:
 
 def test_nfs_holder_finding(monkeypatch: pytest.MonkeyPatch) -> None:
     """F-007 fires when the lock holder host differs from the local hostname."""
-    session = _make_session(
-        refresh_token_expires_at=now_utc() + timedelta(days=30)
-    )
+    session = _make_session(refresh_token_expires_at=now_utc() + timedelta(days=30))
     lock = LockRecord(
         schema_version=1,
         pid=42,
@@ -432,9 +410,7 @@ def test_nfs_holder_finding(monkeypatch: pytest.MonkeyPatch) -> None:
 
 def test_json_output_schema(monkeypatch: pytest.MonkeyPatch) -> None:
     """``--json`` payload validates against ``data-model.md`` §5 schema."""
-    session = _make_session(
-        refresh_token_expires_at=now_utc() + timedelta(days=30)
-    )
+    session = _make_session(refresh_token_expires_at=now_utc() + timedelta(days=30))
     _patch_state(monkeypatch, session=session)
 
     report = assemble_report()
@@ -540,6 +516,7 @@ async def test_check_server_session_active(monkeypatch: pytest.MonkeyPatch) -> N
 
     # _check_server_session imports get_token_manager locally from specify_cli.auth
     import specify_cli.auth as _auth_module
+
     monkeypatch.setattr(_auth_module, "get_token_manager", lambda: mock_tm)
 
     with (
@@ -571,6 +548,7 @@ async def test_check_server_session_401(monkeypatch: pytest.MonkeyPatch) -> None
     mock_client.get = AsyncMock(return_value=mock_response)
 
     import specify_cli.auth as _auth_module
+
     monkeypatch.setattr(_auth_module, "get_token_manager", lambda: mock_tm)
 
     with (
@@ -602,6 +580,7 @@ async def test_check_server_session_network_error(monkeypatch: pytest.MonkeyPatc
     mock_client.get = AsyncMock(side_effect=httpx.ConnectError("connection refused"))
 
     import specify_cli.auth as _auth_module
+
     monkeypatch.setattr(_auth_module, "get_token_manager", lambda: mock_tm)
 
     with (
@@ -629,9 +608,7 @@ async def test_check_server_session_split_brain_fails_closed(
     home = tmp_path / "split-brain-home"
     home.mkdir()
     monkeypatch.setenv("SPEC_KITTY_HOME", str(home))
-    (home / "config.toml").write_text(
-        '[sync]\nserver_url = "https://configured.example.com"\n', encoding="utf-8"
-    )
+    (home / "config.toml").write_text('[sync]\nserver_url = "https://configured.example.com"\n', encoding="utf-8")
     monkeypatch.setenv(SAAS_URL_ENV_VAR, "https://env-override.example.com")
 
     session = _make_session(refresh_token_expires_at=now_utc() + timedelta(days=30))
@@ -645,6 +622,7 @@ async def test_check_server_session_split_brain_fails_closed(
             return "tok"
 
     import specify_cli.auth as _auth_module
+
     monkeypatch.setattr(_auth_module, "get_token_manager", lambda: _TmWithAccessToken())
 
     with patch(
@@ -671,6 +649,7 @@ async def test_check_server_session_refresh_expired(monkeypatch: pytest.MonkeyPa
     mock_tm.get_access_token = AsyncMock(side_effect=RefreshTokenExpiredError("expired"))
 
     import specify_cli.auth as _auth_module
+
     monkeypatch.setattr(_auth_module, "get_token_manager", lambda: mock_tm)
 
     result = await _check_server_session()
@@ -691,13 +670,11 @@ async def test_check_server_session_refresh_lock_timeout_uses_safe_message(
 
     mock_tm = AsyncMock()
     mock_tm.get_access_token = AsyncMock(
-        side_effect=RefreshLockTimeoutError(
-            "Refresh token replay detected and no newer local token is available. "
-            "Run `spec-kitty auth login` if this persists."
-        )
+        side_effect=RefreshLockTimeoutError("Refresh token replay detected and no newer local token is available. Run `spec-kitty auth login` if this persists.")
     )
 
     import specify_cli.auth as _auth_module
+
     monkeypatch.setattr(_auth_module, "get_token_manager", lambda: mock_tm)
 
     result = await _check_server_session()
@@ -717,6 +694,7 @@ async def test_check_server_session_session_invalid(monkeypatch: pytest.MonkeyPa
     mock_tm.get_access_token = AsyncMock(side_effect=SessionInvalidError("invalidated"))
 
     import specify_cli.auth as _auth_module
+
     monkeypatch.setattr(_auth_module, "get_token_manager", lambda: mock_tm)
 
     result = await _check_server_session()
@@ -736,6 +714,7 @@ async def test_check_server_session_generic_access_token_failure_no_class_name(
     mock_tm.get_access_token = AsyncMock(side_effect=RuntimeError("boom"))
 
     import specify_cli.auth as _auth_module
+
     monkeypatch.setattr(_auth_module, "get_token_manager", lambda: mock_tm)
 
     result = await _check_server_session()
@@ -761,10 +740,7 @@ class _FakeTokenManagerWithSession:
         return self._session
 
     async def get_access_token(self) -> str:  # pragma: no cover - guarded against by tests
-        raise AssertionError(
-            "get_access_token() must not be called on a known issuer/server "
-            "mismatch (#253) — that path refreshes and can clear the session."
-        )
+        raise AssertionError("get_access_token() must not be called on a known issuer/server mismatch (#253) — that path refreshes and can clear the session.")
 
 
 def _fake_target(resolved: str) -> ResolvedServerTarget:
@@ -784,9 +760,8 @@ async def test_check_server_session_issuer_mismatch_skips_refresh(
     session.issuer_url = "https://old.example.com"
 
     import specify_cli.auth as _auth_module
-    monkeypatch.setattr(
-        _auth_module, "get_token_manager", lambda: _FakeTokenManagerWithSession(session)
-    )
+
+    monkeypatch.setattr(_auth_module, "get_token_manager", lambda: _FakeTokenManagerWithSession(session))
     monkeypatch.setattr(
         _auth_doctor,
         "resolve_server_target",
@@ -814,9 +789,8 @@ async def test_check_server_session_issuer_matches_proceeds_normally(
             return "tok"
 
     import specify_cli.auth as _auth_module
-    monkeypatch.setattr(
-        _auth_module, "get_token_manager", lambda: _TmMatchingIssuer(session)
-    )
+
+    monkeypatch.setattr(_auth_module, "get_token_manager", lambda: _TmMatchingIssuer(session))
     monkeypatch.setattr(
         _auth_doctor,
         "resolve_server_target",
@@ -853,6 +827,7 @@ async def test_check_server_session_no_issuer_proceeds_normally(
             return "tok"
 
     import specify_cli.auth as _auth_module
+
     monkeypatch.setattr(_auth_module, "get_token_manager", lambda: _TmNoIssuer(session))
     monkeypatch.setattr(
         _auth_doctor,
@@ -917,9 +892,7 @@ def test_render_server_status_escapes_bracketed_mismatch_reason() -> None:
     status = ServerSessionStatus(
         active=False,
         error=(
-            "Session is for https://old.example.com; config.toml "
-            "[sync].server_url now points at https://team.spec-kitty.ai — "
-            "run spec-kitty auth login --force"
+            "Session is for https://old.example.com; config.toml [sync].server_url now points at https://team.spec-kitty.ai — run spec-kitty auth login --force"
         ),
     )
     buf = io.StringIO()
@@ -949,9 +922,7 @@ def test_doctor_impl_server_false_no_outbound_call(
     """server=False must not call asyncio.run or _check_server_session."""
     import asyncio
 
-    session = _make_session(
-        refresh_token_expires_at=now_utc() + timedelta(days=30)
-    )
+    session = _make_session(refresh_token_expires_at=now_utc() + timedelta(days=30))
     _patch_state(monkeypatch, session=session)
 
     asyncio_run_called = []
@@ -977,9 +948,7 @@ def test_doctor_impl_server_true_renders_active(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """server=True + active session → output contains 'active' and session id."""
-    session = _make_session(
-        refresh_token_expires_at=now_utc() + timedelta(days=30)
-    )
+    session = _make_session(refresh_token_expires_at=now_utc() + timedelta(days=30))
     _patch_state(monkeypatch, session=session)
 
     fake_status = ServerSessionStatus(active=True, session_id="s1")
@@ -1015,9 +984,7 @@ def test_doctor_impl_server_true_renders_active(
 def test_doctor_impl_server_true_renders_unknown_session_id(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    session = _make_session(
-        refresh_token_expires_at=now_utc() + timedelta(days=30)
-    )
+    session = _make_session(refresh_token_expires_at=now_utc() + timedelta(days=30))
     _patch_state(monkeypatch, session=session)
 
     fake_status = ServerSessionStatus(active=True, session_id=None)
@@ -1053,9 +1020,7 @@ def test_doctor_impl_server_true_renders_reauthenticate(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """server=True + 401 → output contains 're-authenticate' guidance."""
-    session = _make_session(
-        refresh_token_expires_at=now_utc() + timedelta(days=30)
-    )
+    session = _make_session(refresh_token_expires_at=now_utc() + timedelta(days=30))
     _patch_state(monkeypatch, session=session)
 
     fake_status = ServerSessionStatus(active=False, error="re-authenticate")
@@ -1092,9 +1057,7 @@ def test_doctor_impl_server_true_json_includes_server_session(
     capsys: pytest.CaptureFixture[str],
 ) -> None:
     """server=True + --json → payload includes server_session key."""
-    session = _make_session(
-        refresh_token_expires_at=now_utc() + timedelta(days=30)
-    )
+    session = _make_session(refresh_token_expires_at=now_utc() + timedelta(days=30))
     _patch_state(monkeypatch, session=session)
 
     fake_status = ServerSessionStatus(active=True, session_id="s2")
@@ -1126,9 +1089,7 @@ def test_default_doctor_output_has_server_hint(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """Default auth doctor output ends with the --server hint line."""
-    session = _make_session(
-        refresh_token_expires_at=now_utc() + timedelta(days=30)
-    )
+    session = _make_session(refresh_token_expires_at=now_utc() + timedelta(days=30))
     _patch_state(monkeypatch, session=session)
 
     report = assemble_report()
@@ -1141,9 +1102,7 @@ def test_server_doctor_output_no_hint(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """auth doctor --server output does NOT show the hint."""
-    session = _make_session(
-        refresh_token_expires_at=now_utc() + timedelta(days=30)
-    )
+    session = _make_session(refresh_token_expires_at=now_utc() + timedelta(days=30))
     _patch_state(monkeypatch, session=session)
 
     report = assemble_report()
