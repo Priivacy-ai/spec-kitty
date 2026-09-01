@@ -162,6 +162,14 @@ WP02_PATH_TOKEN_ONLY_REFERRERS: tuple[str, ...] = (
     "tests/architectural/test_no_dead_doctrine_paths.py",
 )
 
+WP02_CONTEXT_SOURCES_CONSOLIDATION_REFERRERS = frozenset(
+    {
+        "docs/api/agent_profiles/human-in-charge.md",
+        "docs/architecture/doctrine-kinds.md",
+    }
+)
+
+
 def _git_show(rel_path: str, base_commit: str) -> str:
     """Return historical content for *rel_path* at WP02's pre-rename base.
 
@@ -178,6 +186,31 @@ def _git_show(rel_path: str, base_commit: str) -> str:
         check=True,
     )
     return result.stdout
+
+
+def _context_sources_consolidation_expected(rel_path: str, old_lines: list[str]) -> list[str]:
+    text = "\n".join(old_lines)
+    text = text.replace(_OLD_GLOSSARY_PATH, "context/charter.md")
+    if rel_path == "docs/api/agent_profiles/human-in-charge.md":
+        text = text.replace(
+            "(`context-sources.doctrine-layers` is empty)",
+            "(the profile declares no `directive-references` / `tactic-references`)",
+        )
+    if rel_path == "docs/architecture/doctrine-kinds.md":
+        text = text.replace(
+            '  context-sources: "<AgentContextSources | null>"\n',
+            "",
+        )
+        text = text.replace(
+            "The four unexpanded nested value objects (`context-sources`, `collaboration`,",
+            "The three unexpanded nested value objects (`collaboration`,",
+        )
+        text = text.replace(
+            "its `context-sources` pull in the\n"
+            "paradigm/directive/tactic/procedure/styleguide layers plus specific directives",
+            "its `directive-references` name specific directives",
+        )
+    return text.splitlines()
 
 
 def _flip_path_token(line: str, *, allow_source_topology: bool) -> str:
@@ -247,6 +280,14 @@ def test_wp02_referrer_diffs_are_exactly_the_path_token() -> None:
     for rel_path in WP02_PATH_TOKEN_ONLY_REFERRERS:
         old_lines = _git_show(rel_path, base_commit).splitlines()
         new_lines = (REPO_ROOT / rel_path).read_text(encoding="utf-8").splitlines()
+        if rel_path in WP02_CONTEXT_SOURCES_CONSOLIDATION_REFERRERS:
+            expected_lines = _context_sources_consolidation_expected(rel_path, old_lines)
+            if new_lines == expected_lines:
+                continue
+            violations.append(
+                f"{rel_path}: diff is not the sanctioned context-sources consolidation"
+            )
+            continue
         if len(old_lines) != len(new_lines):
             violations.append(f"{rel_path}: line count changed ({len(old_lines)} -> {len(new_lines)})")
             continue
