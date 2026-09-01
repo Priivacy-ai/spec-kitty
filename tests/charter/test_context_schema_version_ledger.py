@@ -93,10 +93,16 @@ class TestContextSchemaVersionStamped:
         _assert_stamped_and_declared(payload)
 
     def test_non_bootstrap_action_carries_stamped_version(self, project: Path) -> None:
+        """REVERSED (WP02, #3596, ADR 2026-08-21-1-charter-gate-predicate-inversion,
+        reversal A). ``tasks`` is a DRG-declared ``action:software-dev/tasks``
+        node and now resolves ``bootstrap``, not ``compact`` — the ledger
+        superset guard must hold for the delivering payload shape too. Do NOT
+        restore the old ``compact`` assertion.
+        """
         payload = build_charter_context_json(
             project, action="tasks", mission_type="software-dev"
         )
-        assert payload["mode"] == "compact"
+        assert payload["mode"] == "bootstrap"
         _assert_stamped_and_declared(payload)
 
 

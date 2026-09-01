@@ -151,6 +151,8 @@ def test_hosted_remote_urls_parse_to_slug_and_host(origin: str, expected: tuple[
         "file:///srv/git/widget.git",  # file scheme
         "/home/dev/clones/widget.git",  # local-path origin of a test clone
         "git@github.com:single-segment",  # no owner segment
+        "C:/Users/dev/repo",  # Windows drive-letter path, not an SCP-like remote
+        "c:\\Users\\dev\\repo",  # same, lowercase drive letter and backslashes
     ],
 )
 def test_non_hosted_remotes_have_nothing_to_ask_about(origin: str) -> None:

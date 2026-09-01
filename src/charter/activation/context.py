@@ -119,6 +119,38 @@ BOOTSTRAP_ACTIONS: frozenset[str] = frozenset({"specify", "plan", "implement", "
 NONE_LABEL = "(none)"
 
 
+def _action_node_declared(bundle: _ActionDoctrineBundle, action: str) -> bool:
+    """FR-001 (#3596, ADR 2026-08-21-1-charter-gate-predicate-inversion).
+
+    Node-URN membership predicate -- NOT an empty-grain check.
+    ``resolve_context`` already degrades an undeclared node to empty grain,
+    and action nodes are activation-filter-exempt while their ``scope``-edge
+    targets are not; a declared-but-activation-starved node therefore
+    legitimately yields ``True`` (the caller then renders ``bootstrap`` with
+    possibly empty typed arrays -- this is correct, not a bug).
+
+    ``bundle.merged`` is the single per-call DRG carrier (NFR-001 -- no
+    second load, no memoization); it is ``None`` exactly when the mission
+    type was unresolved (typeless), which must always yield ``False``
+    (``compact``, FR-003).  ``bundle.mission`` mirrors the type used to
+    resolve the bundle (``resolved_type or ""`` -- see
+    ``_load_action_doctrine_bundle`` in
+    ``charter.activation.action_doctrine_bundle``),
+    so reusing it here keeps the membership test on the exact node the
+    bundle was resolved against.
+
+    Kept in this module (rather than alongside ``_ActionDoctrineBundle`` in
+    ``charter.activation.action_doctrine_bundle``) because it is WP02's owned-files
+    boundary (``rc3-charter-gate-predicate-inversion``, #3596): both
+    consumers (``build_charter_context`` / ``build_charter_context_json``
+    below) live here, and this predicate is inseparable from the two gate
+    sites it backs.
+    """
+    return bundle.merged is not None and (
+        f"action:{bundle.mission}/{action}" in bundle.merged.node_urns()
+    )
+
+
 def build_charter_context(
     repo_root: Path,
     *,
@@ -251,7 +283,41 @@ def build_charter_context(
             return missing_pack_diagnostic + "\n\n" + text
         return text
 
-    if normalized not in BOOTSTRAP_ACTIONS:
+    state_bundle = _prepare_context_state(repo_root, normalized, depth)
+
+    # WP11 (T060/B-3) — compute the bundle BEFORE the depth-tier branch so it
+    # is delivered on EVERY load; the old order returned compact before it existed.
+    # FR-001/FR-004 (rc3-charter-gate-predicate-inversion WP02, #3596): the
+    # bundle is now resolved for EVERY action -- bootstrap (fast-path) actions
+    # already needed it to render their grain; non-bootstrap actions now pay
+    # the same single graph load (NFR-001, no memoization -- see the ADR) so
+    # the node-URN membership predicate below can test the actually-declared
+    # DRG action node instead of the coarse BOOTSTRAP_ACTIONS set. This does
+    # NOT depend on charter.md/charter.yaml presence (it reads only the DRG +
+    # org/project doctrine), so it is safe to resolve ahead of the
+    # charter-presence gate below.
+    doctrine_bundle = _resolve_action_bundle(
+        repo_root,
+        action=normalized,
+        effective_depth=state_bundle.effective_depth,
+        org_root=org_root,
+        mission_type=mission_type,
+        feature_dir=feature_dir,
+    )
+
+    # FR-001/FR-002: the 4-token fast path always renders bootstrap without
+    # consulting the predicate (AC-1, unchanged). Every other action gates on
+    # node-URN membership -- NOT empty-grain (a declared-but-activation-starved
+    # node legitimately renders bootstrap with empty typed arrays; see
+    # `_action_node_declared`'s docstring). An undeclared action returns HERE,
+    # before the charter-presence gate below -- preserving the pre-fix
+    # semantics that a non-bootstrap action's compact governance render never
+    # depended on charter.md/charter.yaml existing (``_non_bootstrap_context_result``
+    # sources project directives from ``.kittify/config.yaml``/charter.yaml
+    # directly and degrades gracefully when absent).
+    if normalized not in BOOTSTRAP_ACTIONS and not _action_node_declared(
+        doctrine_bundle, normalized
+    ):
         return _non_bootstrap_context_result(
             repo_root,
             normalized,
@@ -261,21 +327,12 @@ def build_charter_context(
             augment=_augment,
         )
 
-    state_bundle = _prepare_context_state(repo_root, normalized, depth)
-
+    # From here the action WILL deliver grain (fast-path or a declared node),
+    # so the charter-presence gate applies -- matching the pre-fix ordering
+    # for bootstrap actions (this is a NEW dependency for a declared
+    # non-fast-path action, since it now reaches the same rendering path).
     if not charter_yaml_path.exists() and not charter_path.exists():
         return _missing_charter_context_result(normalized, state_bundle, augment=_augment)
-
-    # WP11 (T060/B-3) — compute the bundle BEFORE the depth-tier branch so it
-    # is delivered on EVERY load; the old order returned compact before it existed.
-    doctrine_bundle = _resolve_action_bundle(
-        repo_root,
-        action=normalized,
-        effective_depth=state_bundle.effective_depth,
-        org_root=org_root,
-        mission_type=mission_type,
-        feature_dir=feature_dir,
-    )
 
     if state_bundle.effective_depth < _MIN_EFFECTIVE_DEPTH:
         # Steady-state load: deliver via the widened compact rail (T061/FR-010).
@@ -460,14 +517,7 @@ def build_charter_context_json(
         )
     ]
 
-    if normalized not in BOOTSTRAP_ACTIONS:
-        # WP11 (B-6) — non-bootstrap actions carry no action grain; ruled OUT
-        # explicitly (empty typed arrays), not an early-return before a bundle.
-        payload["mode"] = "compact"
-        return payload
-
     state_bundle = _prepare_context_state(repo_root, normalized, depth)
-    payload["mode"] = "bootstrap"
     # WP11 (T060/B-3) — no depth<minimum early return: the ``--json`` half of
     # every-load delivery (where SC-001/002 are measured) delivers at every depth.
 
@@ -479,6 +529,12 @@ def build_charter_context_json(
     # (see ``charter.activation.action_doctrine_bundle``); calling
     # ``_load_action_doctrine_bundle`` directly here bypassed that widening
     # entirely and always resolved at most one org pack.
+    #
+    # FR-001/FR-004 (rc3-charter-gate-predicate-inversion WP02, #3596): the
+    # bundle is resolved BEFORE the mode decision -- once (NFR-001, no
+    # memoization) -- so a non-fast-path action can be tested for node-URN
+    # membership instead of being ruled out by the coarse BOOTSTRAP_ACTIONS
+    # set before a bundle ever existed.
     bundle = _resolve_action_bundle(
         repo_root,
         action=normalized,
@@ -487,6 +543,21 @@ def build_charter_context_json(
         mission_type=mission_type,
         feature_dir=feature_dir,
     )
+
+    # FR-001/FR-002: the 4-token fast path always delivers bootstrap without
+    # consulting the predicate (AC-1, unchanged). Every other action gates on
+    # node-URN membership -- NOT empty-grain (see
+    # `_action_node_declared`'s docstring for the activation-starved case).
+    if normalized not in BOOTSTRAP_ACTIONS and not _action_node_declared(
+        bundle, normalized
+    ):
+        # WP11 (B-6) — non-bootstrap, undeclared actions carry no action
+        # grain; ruled OUT explicitly (empty typed arrays), not an
+        # early-return before a bundle -- the bundle above already resolved.
+        payload["mode"] = "compact"
+        return payload
+
+    payload["mode"] = "bootstrap"
     service = bundle.service
     # WP15 progressive disclosure (default cadence): DTOs carry ``references[]``
     # (T081); ``requires``-reachable is inline/eager, ``suggests``-reached is

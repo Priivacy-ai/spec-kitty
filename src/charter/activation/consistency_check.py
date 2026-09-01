@@ -2,10 +2,13 @@
 
 from __future__ import annotations
 
+import contextvars
 import json
+from collections.abc import Callable, Iterator
+from contextlib import contextmanager
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, TypeVar
 
 from ruamel.yaml import YAML
 
@@ -25,6 +28,7 @@ from charter.activation.pack_manager import YAML_KEY_MAP, CharterPackManager
 if TYPE_CHECKING:  # pragma: no cover -- static-typing only, see lazy-import note below.
     from charter.drg import DRGEdge, DRGGraph
     from charter.offering.directives.models import Directive
+    from charter.offering.directives.repository import DirectiveRepository
 
 __all__ = [
     "run_consistency_check",
@@ -972,6 +976,212 @@ def _check_graph_kind_parity(
 
 
 # ---------------------------------------------------------------------------
+# Shared gate resources (T009, #3808): one DRG load + one DoctrineService
+# build per ``run_consistency_check`` invocation, shared by the three
+# DRG-backed always-on gates below (``_check_unreconciled_tensions`` /
+# ``_check_enforcement_lattice`` / ``_check_decision_documentation_on_implement``)
+# instead of each independently calling ``load_validated_graph()`` (and, for
+# the latter two, ``_build_doctrine_service()``) -- the DRG loaded 3x per run
+# before this WP.
+# ---------------------------------------------------------------------------
+
+
+@dataclass
+class _GateResources:
+    """Per-``run_consistency_check`` cache: the DRG graph + ``DoctrineService``
+    directives, each loaded/built at most once and shared by the three
+    DRG-backed gates below (#3808 dedup).
+
+    A load/build FAILURE is memoized too, not just the success case -- so a
+    failing first gate does not trigger a second (or third) physical load
+    attempt for the next gate that needs the same resource; "loaded once"
+    holds on both the pass and the fail arm. Every subsequent
+    :meth:`full_drg`/:meth:`directives` call within the SAME cache instance
+    re-raises the identical exception object rather than re-attempting the
+    load -- filesystem state cannot drift mid-``run_consistency_check``, so
+    replaying the first outcome is exactly what re-attempting would have
+    produced anyway, just without the second/third physical call.
+    """
+
+    repo_root: Path
+    pack_context: PackContext
+    _full_drg_loaded: bool = False
+    _full_drg: DRGGraph | None = None
+    _full_drg_error: Exception | None = None
+    _directives_loaded: bool = False
+    _directives: DirectiveRepository | None = None
+    _directives_error: Exception | None = None
+
+    def full_drg(self) -> DRGGraph:
+        """Return the validated DRG graph, loading it at most once."""
+        if not self._full_drg_loaded:
+            self._full_drg_loaded = True
+            from charter.activation._drg_helpers import load_validated_graph  # noqa: PLC0415
+
+            try:
+                self._full_drg = load_validated_graph(self.repo_root)
+            except Exception as exc:  # noqa: BLE001  # memoized; re-raised below to every caller in this run.
+                self._full_drg_error = exc
+        if self._full_drg_error is not None:
+            raise self._full_drg_error
+        if self._full_drg is None:  # pragma: no cover -- guarded by the load-or-store-error branch above.
+            raise RuntimeError(
+                "_GateResources.full_drg: unreachable -- neither a graph nor an error was recorded."
+            )
+        return self._full_drg
+
+    def directives(self) -> DirectiveRepository:
+        """Return the ``DoctrineService.directives`` repository, built at most once."""
+        if not self._directives_loaded:
+            self._directives_loaded = True
+            from charter.activation.doctrine_service_builder import _build_doctrine_service  # noqa: PLC0415
+
+            try:
+                self._directives = _build_doctrine_service(
+                    self.repo_root, org_roots=list(self.pack_context.org_roots)
+                ).directives
+            except Exception as exc:  # noqa: BLE001  # memoized; re-raised below to every caller in this run.
+                self._directives_error = exc
+        if self._directives_error is not None:
+            raise self._directives_error
+        if self._directives is None:  # pragma: no cover -- guarded by the build-or-store-error branch above.
+            raise RuntimeError(
+                "_GateResources.directives: unreachable -- neither directives nor an error was recorded."
+            )
+        return self._directives
+
+
+#: Active per-``run_consistency_check`` :class:`_GateResources`, established by
+#: :func:`_gate_resources_scope` and consulted by :func:`_resolve_full_drg` /
+#: :func:`_resolve_directives`. ``None`` outside that scope -- the default
+#: (unshared, load-directly) behavior every scan_* function already had.
+_GATE_RESOURCES: contextvars.ContextVar[_GateResources | None] = contextvars.ContextVar(
+    "_charter_consistency_check_gate_resources", default=None
+)
+
+
+@contextmanager
+def _gate_resources_scope(ctx: ProjectContext) -> Iterator[None]:
+    """Establish one shared :class:`_GateResources` for the DRG-backed gates
+    ``run_consistency_check`` is about to call (#3808 T009).
+
+    Scoped strictly to this context manager's lifetime: :func:`_resolve_full_drg`
+    and :func:`_resolve_directives` consult the active cache ONLY while inside
+    this ``with`` block, so ``scan_unreconciled_tensions`` /
+    ``scan_enforcement_lattice_violations`` /
+    ``scan_decision_documentation_scoped_on_implement`` called directly --
+    ``charter activate``'s tension warning (FR-010), or this module's own
+    scan_* unit tests -- are completely unaffected and keep loading
+    independently, exactly as before.
+    """
+    resources = _GateResources(
+        repo_root=ctx.require_repo_root(), pack_context=ctx.require_pack_context()
+    )
+    token = _GATE_RESOURCES.set(resources)
+    try:
+        yield
+    finally:
+        _GATE_RESOURCES.reset(token)
+
+
+def _resolve_full_drg(repo_root: Path) -> DRGGraph:
+    """Load the validated DRG graph, reusing the active :class:`_GateResources`
+    cache when ``run_consistency_check`` has established one (#3808);
+    otherwise loads directly -- unchanged standalone behavior for scan_*
+    callers outside ``run_consistency_check``.
+
+    When the cache is active the ``repo_root`` argument is not re-read -- the
+    scope's DRG is returned. Safe because every gate in a ``_gate_resources_scope``
+    derives from one ``ctx`` (same ``repo_root``); revisit if a caller ever passes
+    a divergent ``repo_root`` into a scan while a scope is active.
+    """
+    resources = _GATE_RESOURCES.get()
+    if resources is not None:
+        return resources.full_drg()
+    from charter.activation._drg_helpers import load_validated_graph  # noqa: PLC0415
+
+    return load_validated_graph(repo_root)
+
+
+def _resolve_directives(repo_root: Path, pack_context: PackContext) -> DirectiveRepository:
+    """Build the ``DoctrineService.directives`` repository, reusing the active
+    :class:`_GateResources` cache when established (#3808); otherwise builds
+    directly -- unchanged standalone behavior for scan_* callers outside
+    ``run_consistency_check``.
+
+    When the cache is active the ``repo_root``/``pack_context`` arguments are not
+    re-read -- the scope's directives are returned. Safe for the same one-``ctx``
+    reason as ``_resolve_full_drg``.
+    """
+    resources = _GATE_RESOURCES.get()
+    if resources is not None:
+        return resources.directives()
+    from charter.activation.doctrine_service_builder import _build_doctrine_service  # noqa: PLC0415
+
+    # Explicit local annotation (not a bare `return ...`): under this file's
+    # `charter.*` mypy override (pyproject.toml [[tool.mypy.overrides]],
+    # follow_imports="skip"), `_build_doctrine_service(...).directives`
+    # resolves to Any at the call site -- see `_GateResources.directives`'s
+    # same pattern above, where storing through an annotated field has the
+    # same Any-narrowing effect. A bare `return` here would trip
+    # mypy's `no-any-return` (this module carries zero pre-existing mypy
+    # findings; this narrows the value instead of suppressing the check).
+    directives: DirectiveRepository = _build_doctrine_service(
+        repo_root, org_roots=list(pack_context.org_roots)
+    ).directives
+    return directives
+
+
+_GateFindingT = TypeVar("_GateFindingT")
+
+
+def _run_fail_closed_gate(
+    scan: Callable[[], list[_GateFindingT]],
+    target: list[_GateFindingT],
+    verification_errors: list[str],
+    suggestions: list[str],
+    *,
+    message_stem: str,
+) -> None:
+    """Shared fail-closed shape backing the three DRG-backed consistency gates
+    (#3808 T010).
+
+    ``_check_unreconciled_tensions`` / ``_check_enforcement_lattice`` /
+    ``_check_decision_documentation_on_implement`` each ran the IDENTICAL
+    ``try: target.extend(scan()) except Exception -> append to
+    (verification_errors, suggestions)`` shape, differing only in *scan*'s
+    thunk, the *target* list being populated, and the *message_stem* naming
+    which check failed. Collapsed here WITHOUT changing any gate's distinct
+    failure literals: every caller supplies its own verbatim *message_stem*
+    (e.g. ``"tension reconciliation"``, ``"enforcement lattice"``,
+    ``"decision-documentation-on-implement gate"``); the ``{type(exc).__name__}:
+    {exc}`` interpolation and the "Regenerate graph.yaml / run 'spec-kitty
+    charter resynthesize' and retry." suggestion tail were ALREADY
+    byte-identical across all three call sites pre-refactor, so sharing them
+    here changes no gate's verdict.
+
+    Whether *target*'s findings fold into ``ConsistencyReport.coherent`` is
+    NOT a parameter of this wrapper -- that fold is computed once, explicitly,
+    in ``run_consistency_check``'s final boolean expression (the single
+    source of truth for coherence; see ``NFR-001`` there for why
+    ``unreconciled_tensions`` is excluded while the other two are included).
+    Threading a second "fold flag" through here would duplicate that
+    decision in two places with no shared enforcement between them --  a
+    latent-drift risk this refactor deliberately avoids introducing.
+    """
+    try:
+        target.extend(scan())
+    except Exception as exc:  # noqa: BLE001  # fail-closed signal below, not a silent pass.
+        verification_errors.append(
+            f"drg: Could not verify {message_stem} ({type(exc).__name__}: {exc})."
+        )
+        suggestions.append(
+            f"drg: Could not verify {message_stem} ({type(exc).__name__}: {exc}). "
+            f"Regenerate graph.yaml / run 'spec-kitty charter resynthesize' and retry."
+        )
+
+
+# ---------------------------------------------------------------------------
 # Tension scan (T025/T026/T027, FR-009/FR-010)
 # ---------------------------------------------------------------------------
 #
@@ -1085,11 +1295,9 @@ def scan_unreconciled_tensions(ctx: ProjectContext) -> list[TensionFinding]:
             ``ConsistencyReport.verification_errors``, never treat a raised
             exception the same as a legitimately empty result).
     """
-    from charter.activation._drg_helpers import load_validated_graph  # noqa: PLC0415
-
     repo_root = ctx.require_repo_root()
     pack_context = ctx.require_pack_context()
-    full_drg = load_validated_graph(repo_root)
+    full_drg = _resolve_full_drg(repo_root)
 
     active_urns = _build_tension_active_urns(full_drg, pack_context)
     candidate_pairs = _tension_candidate_pairs(full_drg, active_urns)
@@ -1112,24 +1320,20 @@ def _check_unreconciled_tensions(
 ) -> None:
     """FR-009: fail-closed wrapper around :func:`scan_unreconciled_tensions`.
 
-    Mirrors ``_check_graph_kind_parity``'s fail-closed shape exactly: a DRG
-    load/traversal failure is a genuine "could not verify" condition and
-    lands in *verification_errors*, never a silent empty
+    A DRG load/traversal failure is a genuine "could not verify" condition
+    and lands in *verification_errors*, never a silent empty
     *unreconciled_tensions* masquerading as "checked, found nothing"
-    (contracts/tension-finding.md, Error case).
+    (contracts/tension-finding.md, Error case). Shares its fail-closed shape
+    with the other two DRG-backed gates via :func:`_run_fail_closed_gate`
+    (#3808 T010) -- only the *message_stem* below is this gate's own.
     """
-    try:
-        unreconciled_tensions.extend(scan_unreconciled_tensions(ctx))
-    except Exception as exc:  # noqa: BLE001  # fail-closed signal below, not a silent pass.
-        verification_errors.append(
-            f"drg: Could not verify tension reconciliation "
-            f"({type(exc).__name__}: {exc})."
-        )
-        suggestions.append(
-            f"drg: Could not verify tension reconciliation "
-            f"({type(exc).__name__}: {exc}). Regenerate graph.yaml / run "
-            f"'spec-kitty charter resynthesize' and retry."
-        )
+    _run_fail_closed_gate(
+        lambda: scan_unreconciled_tensions(ctx),
+        unreconciled_tensions,
+        verification_errors,
+        suggestions,
+        message_stem="tension reconciliation",
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -1184,13 +1388,11 @@ def scan_enforcement_lattice_violations(ctx: ProjectContext) -> list[str]:
         Exception: Propagates any DRG/doctrine load failure untouched --
             callers MUST fail closed (see :func:`_check_enforcement_lattice`).
     """
-    from charter.activation._drg_helpers import load_validated_graph  # noqa: PLC0415
-    from charter.activation.doctrine_service_builder import _build_doctrine_service  # noqa: PLC0415
     from charter.offering.directives.models import Enforcement  # noqa: PLC0415
 
     repo_root = ctx.require_repo_root()
     pack_context = ctx.require_pack_context()
-    full_drg = load_validated_graph(repo_root)
+    full_drg = _resolve_full_drg(repo_root)
 
     active_urns = _build_tension_active_urns(full_drg, pack_context)
     edges = _active_reconciles_tension_edges(full_drg, active_urns)
@@ -1209,9 +1411,7 @@ def scan_enforcement_lattice_violations(ctx: ProjectContext) -> list[str]:
     # config *stems* (charter.activation.pack_context._read_activated_directives), which
     # do not match a Directive's canonical `.id` -- using that wrapper here
     # would silently empty the lookup for every directive endpoint.
-    directives = _build_doctrine_service(
-        repo_root, org_roots=list(pack_context.org_roots)
-    ).directives
+    directives = _resolve_directives(repo_root, pack_context)
     violations: list[str] = []
     for edge in directive_edges:
         reconciler = directives.get(_urn_bare_id(edge.source))
@@ -1257,20 +1457,17 @@ def _check_enforcement_lattice(
     nothing." Unlike the advisory tension scan, a non-empty result here IS
     folded into ``ConsistencyReport.coherent`` -- a lattice violation is a
     genuine doctrine-authoring defect, not a competing-doctrine signal for
-    the operator to weigh.
+    the operator to weigh. Shares its fail-closed shape with the other two
+    DRG-backed gates via :func:`_run_fail_closed_gate` (#3808 T010) -- only
+    the *message_stem* below is this gate's own.
     """
-    try:
-        enforcement_lattice_violations.extend(scan_enforcement_lattice_violations(ctx))
-    except Exception as exc:  # noqa: BLE001  # fail-closed signal below, not a silent pass.
-        verification_errors.append(
-            f"drg: Could not verify enforcement lattice "
-            f"({type(exc).__name__}: {exc})."
-        )
-        suggestions.append(
-            f"drg: Could not verify enforcement lattice "
-            f"({type(exc).__name__}: {exc}). Regenerate graph.yaml / run "
-            f"'spec-kitty charter resynthesize' and retry."
-        )
+    _run_fail_closed_gate(
+        lambda: scan_enforcement_lattice_violations(ctx),
+        enforcement_lattice_violations,
+        verification_errors,
+        suggestions,
+        message_stem="enforcement lattice",
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -1348,15 +1545,13 @@ def scan_decision_documentation_scoped_on_implement(ctx: ProjectContext) -> list
             callers MUST fail closed (see
             :func:`_check_decision_documentation_on_implement`).
     """
-    from charter.activation._drg_helpers import load_validated_graph  # noqa: PLC0415
     from charter.activation.context_state import _MIN_EFFECTIVE_DEPTH  # noqa: PLC0415
-    from charter.activation.doctrine_service_builder import _build_doctrine_service  # noqa: PLC0415
     from charter.offering.directives.models import Enforcement  # noqa: PLC0415
     from charter.offering.drg.query import resolve_context  # noqa: PLC0415
 
     repo_root = ctx.require_repo_root()
     pack_context = ctx.require_pack_context()
-    full_drg = load_validated_graph(repo_root)
+    full_drg = _resolve_full_drg(repo_root)
 
     resolved = resolve_context(
         full_drg, _IMPLEMENT_ACTION_URN, depth=_MIN_EFFECTIVE_DEPTH
@@ -1367,9 +1562,7 @@ def scan_decision_documentation_scoped_on_implement(ctx: ProjectContext) -> list
     if not directive_urns:
         return []
 
-    directives = _build_doctrine_service(
-        repo_root, org_roots=list(pack_context.org_roots)
-    ).directives
+    directives = _resolve_directives(repo_root, pack_context)
 
     violations: list[str] = []
     for urn in directive_urns:
@@ -1411,22 +1604,17 @@ def _check_decision_documentation_on_implement(
     *decision_documentation_on_implement_violations* masquerading as
     "checked, found nothing." A non-empty result IS folded into
     ``ConsistencyReport.coherent`` -- a genuine doctrine-authoring defect,
-    not an advisory signal.
+    not an advisory signal. Shares its fail-closed shape with the other two
+    DRG-backed gates via :func:`_run_fail_closed_gate` (#3808 T010) -- only
+    the *message_stem* below is this gate's own.
     """
-    try:
-        decision_documentation_on_implement_violations.extend(
-            scan_decision_documentation_scoped_on_implement(ctx)
-        )
-    except Exception as exc:  # noqa: BLE001  # fail-closed signal below, not a silent pass.
-        verification_errors.append(
-            f"drg: Could not verify decision-documentation-on-implement gate "
-            f"({type(exc).__name__}: {exc})."
-        )
-        suggestions.append(
-            f"drg: Could not verify decision-documentation-on-implement gate "
-            f"({type(exc).__name__}: {exc}). Regenerate graph.yaml / run "
-            f"'spec-kitty charter resynthesize' and retry."
-        )
+    _run_fail_closed_gate(
+        lambda: scan_decision_documentation_scoped_on_implement(ctx),
+        decision_documentation_on_implement_violations,
+        verification_errors,
+        suggestions,
+        message_stem="decision-documentation-on-implement gate",
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -1499,28 +1687,34 @@ def run_consistency_check(ctx: ProjectContext) -> ConsistencyReport:
         # verification_errors -> coherent=False, matching the explicit path and
         # keeping this surface aligned with the always-on ``charter activate``
         # warning (SC-001).
-        _check_unreconciled_tensions(
-            ctx, unreconciled_tensions, verification_errors, suggestions
-        )
-        # FR-002: the enforcement lattice gate is likewise always-on -- it
-        # reuses the same activation read as the tension scan just above
-        # (scan_enforcement_lattice_violations resolves activation from
-        # ``ctx`` directly) and is well-defined under implicit all-active.
-        # Unlike tensions, a lattice violation IS folded into ``coherent``.
-        _check_enforcement_lattice(
-            ctx, enforcement_lattice_violations, verification_errors, suggestions
-        )
-        # FR-004: the decision-documentation-on-implement gate is likewise
-        # always-on -- it resolves ``implement``'s delivered bundle straight
-        # from the DRG (not project activation state), so it is equally
-        # well-defined under implicit all-active. A violation IS folded into
-        # ``coherent``.
-        _check_decision_documentation_on_implement(
-            ctx,
-            decision_documentation_on_implement_violations,
-            verification_errors,
-            suggestions,
-        )
+        #
+        # T009 (#3808): the three calls below share ONE DRG load (and, for
+        # the latter two, one DoctrineService build) via the
+        # ``_gate_resources_scope`` cache -- down from three independent
+        # loads pre-refactor.
+        with _gate_resources_scope(ctx):
+            _check_unreconciled_tensions(
+                ctx, unreconciled_tensions, verification_errors, suggestions
+            )
+            # FR-002: the enforcement lattice gate is likewise always-on -- it
+            # reuses the same activation read as the tension scan just above
+            # (scan_enforcement_lattice_violations resolves activation from
+            # ``ctx`` directly) and is well-defined under implicit all-active.
+            # Unlike tensions, a lattice violation IS folded into ``coherent``.
+            _check_enforcement_lattice(
+                ctx, enforcement_lattice_violations, verification_errors, suggestions
+            )
+            # FR-004: the decision-documentation-on-implement gate is likewise
+            # always-on -- it resolves ``implement``'s delivered bundle straight
+            # from the DRG (not project activation state), so it is equally
+            # well-defined under implicit all-active. A violation IS folded into
+            # ``coherent``.
+            _check_decision_documentation_on_implement(
+                ctx,
+                decision_documentation_on_implement_violations,
+                verification_errors,
+                suggestions,
+            )
         return ConsistencyReport(
             coherent=not (
                 enforcement_lattice_violations
@@ -1558,18 +1752,22 @@ def run_consistency_check(ctx: ProjectContext) -> ConsistencyReport:
     _check_graph_kind_parity(
         ctx, raw_activated_by_kind, graph_kind_gaps, verification_errors, suggestions
     )
-    _check_unreconciled_tensions(
-        ctx, unreconciled_tensions, verification_errors, suggestions
-    )
-    _check_enforcement_lattice(
-        ctx, enforcement_lattice_violations, verification_errors, suggestions
-    )
-    _check_decision_documentation_on_implement(
-        ctx,
-        decision_documentation_on_implement_violations,
-        verification_errors,
-        suggestions,
-    )
+    # T009 (#3808): as in the implicit-all-active branch above, these three
+    # calls share ONE DRG load (and one DoctrineService build) via the
+    # ``_gate_resources_scope`` cache.
+    with _gate_resources_scope(ctx):
+        _check_unreconciled_tensions(
+            ctx, unreconciled_tensions, verification_errors, suggestions
+        )
+        _check_enforcement_lattice(
+            ctx, enforcement_lattice_violations, verification_errors, suggestions
+        )
+        _check_decision_documentation_on_implement(
+            ctx,
+            decision_documentation_on_implement_violations,
+            verification_errors,
+            suggestions,
+        )
 
     # NFR-001: unreconciled_tensions is deliberately excluded from this
     # reduction -- a tension finding is additive/advisory, never a

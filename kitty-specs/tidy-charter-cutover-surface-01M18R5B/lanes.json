@@ -1,0 +1,70 @@
+{
+  "version": 1,
+  "mission_slug": "tidy-charter-cutover-surface-01M18R5B",
+  "mission_id": "01M18R5BMJSQBT1ZN68WSR4X6Q",
+  "mission_branch": "kitty/mission-tidy-charter-cutover-surface-01M18R5B",
+  "target_branch": "spec/tidy-charter-cutover-surface",
+  "lanes": [
+    {
+      "lane_id": "lane-a",
+      "wp_ids": [
+        "WP01"
+      ],
+      "write_scope": [
+        "tests/architectural/test_no_stale_charter_path_literals.py"
+      ],
+      "predicted_surfaces": [],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-b",
+      "wp_ids": [
+        "WP02"
+      ],
+      "write_scope": [
+        "src/charter/activation/packs/default.yaml",
+        "tests/doctrine/test_activation_squad_lenses.py"
+      ],
+      "predicted_surfaces": [],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-c",
+      "wp_ids": [
+        "WP03"
+      ],
+      "write_scope": [
+        "src/charter/activation/consistency_check.py",
+        "tests/charter/test_consistency_check.py"
+      ],
+      "predicted_surfaces": [],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-d",
+      "wp_ids": [
+        "WP04"
+      ],
+      "write_scope": [
+        ".gitignore",
+        "src/charter/activation/synthesizer/manifest.py",
+        "src/charter/bundle.py",
+        "tests/charter/test_synthesis_provenance_paths.py"
+      ],
+      "predicted_surfaces": [
+        "artifact-rendering",
+        "dashboard",
+        "tracker-integration"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    }
+  ],
+  "computed_at": "2026-08-30T20:40:15.864958+00:00",
+  "computed_from": "dependency_graph+ownership",
+  "planning_artifact_wps": [],
+  "planning_commit_sha": "00d0a9179e6f4da8891774b9e456c4e5675f1dc8"
+}

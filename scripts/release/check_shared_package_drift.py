@@ -6,7 +6,6 @@ from __future__ import annotations
 import argparse
 import importlib.metadata
 import json
-import re
 from collections.abc import Callable, Iterable
 from pathlib import Path
 
@@ -25,29 +24,6 @@ PACKAGES = (
 )
 RETIRED_PACKAGES = ("spec-kitty-runtime",)
 INSTALLED_DRIFT_REMEDIATION = "Run `uv sync --extra test --extra lint` before collecting release evidence."
-# Sanctioned direct references (controller-qa fix round on #58, PROGRAM.md
-# §2's wheel-installability exception): pinned-rev git dependencies on the
-# shared packages, on github.com (programme planning issue #31). They
-# carry no specifier, so they are accepted only for the CLI's own constraints,
-# not a downstream consumer's exact pin.
-_SANCTIONED_SHARED_GIT_URLS = {
-    package: re.compile(
-        rf"^git\+https://github\.com/spec-kitty/EXPERIMENTAL-{package}@[0-9a-f]{{40}}$"
-    )
-    for package in PACKAGES
-}
-
-
-def _is_sanctioned_shared_git_requirement(req: Requirement, *, exact_required: bool) -> bool:
-    return (
-        not exact_required
-        and req.name in _SANCTIONED_SHARED_GIT_URLS
-        and req.url is not None
-        and bool(_SANCTIONED_SHARED_GIT_URLS[req.name].match(req.url))
-        and not req.specifier
-    )
-
-
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--pyproject", default="pyproject.toml")
@@ -109,7 +85,7 @@ def exact_pin(raw: str) -> str | None:
 def requirement_contains_version(raw: str, version: str) -> bool:
     req = parse_requirement(raw)
     if req.url:
-        return _is_sanctioned_shared_git_requirement(req, exact_required=False)
+        return False
     if not req.specifier:
         return True
     return req.specifier.contains(Version(version), prereleases=True)
@@ -152,12 +128,6 @@ def extract_constraints(
             continue
         package = canonical[name]
         if req.url:
-            if _is_sanctioned_shared_git_requirement(req, exact_required=exact_required):
-                if package in constraints:
-                    issues.append(f"{req.name}: duplicate dependency entries found")
-                else:
-                    constraints[package] = raw
-                continue
             issues.append(f"{req.name}: direct references are forbidden ({raw})")
             continue
         pinned = exact_pin(raw)

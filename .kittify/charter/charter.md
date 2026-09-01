@@ -347,9 +347,10 @@ The former `2.x` branch was merged into `main` when the SaaS transformation reac
 **All changes must land on `main` through a pull request. Direct pushes to `main` are never allowed — not for mission merges, hotfixes, doc updates, or any other reason.**
 
 Nothing on GitHub enforces this workflow: there is no branch protection or required
-review, and the leftover `.github/workflows/` YAML has been deleted (pre-programme
-GitHub Actions cruft; PROGRAM.md §2, planning#57). The binding process is
-the programme planning repository's `PROGRAM.md` §5–§9.
+review. The leftover workflow files still run and post check results, but nothing
+requires them to pass — a failing run has no power to block a PR. The binding process is
+[`EXPERIMENTAL-spec-kitty-planning/PROGRAM.md`](https://github.com/spec-kitty/EXPERIMENTAL-spec-kitty-planning/blob/main/PROGRAM.md)
+§5–§9.
 
 ### Agent Push Authorization (binding)
 

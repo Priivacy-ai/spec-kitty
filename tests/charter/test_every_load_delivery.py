@@ -195,19 +195,48 @@ class TestJsonEveryLoadDelivery:
         assert payload.get("toolguides"), "steady-state --json must carry toolguides"
 
     def test_json_non_bootstrap_action_is_explicitly_ruled_out(self, project: Path) -> None:
-        """T060 site 3 (B-6): non-bootstrap actions carry no action grain.
+        """T060 site 3 (B-6) — REVERSED (WP02, #3596, ADR
+        2026-08-21-1-charter-gate-predicate-inversion, reversal A).
 
-        Ruled *out* explicitly — the empty arrays are a stated decision, not an
-        early-return before a bundle that never existed.
+        ``tasks`` is a DRG-declared ``action:software-dev/tasks`` node
+        (``packs/built-in/action.graph.yaml``); it now delivers its grain
+        instead of being coarsely ruled out by the old
+        ``action in BOOTSTRAP_ACTIONS`` membership test. This assertion was
+        the opposite before the ADR — do NOT restore the old ``compact``/
+        empty-arrays assertion; that re-breaks the fix.
         """
         from charter.activation.context import build_charter_context_json
 
         payload = build_charter_context_json(
             project, action="tasks", mission_type="software-dev"
         )
-        assert payload.get("mode") == "compact"
-        assert payload.get("directives") == []
-        assert payload.get("styleguides") == []
+        assert payload.get("mode") == "bootstrap"
+        assert payload.get("directives"), "declared 'tasks' action must deliver directives"
+
+    @pytest.mark.parametrize("mission_type", ["documentation", "research"])
+    def test_json_retrospect_delivers_for_documentation_and_research(
+        self, project: Path, mission_type: str
+    ) -> None:
+        """AC-3 retrospect half (WP02, #3596, ADR
+        2026-08-21-1-charter-gate-predicate-inversion, reversal A).
+
+        ``action:documentation/retrospect`` and ``action:research/retrospect``
+        are DRG-declared nodes (``packs/built-in/action.graph.yaml``) reached
+        only via direct ``action:<type>/<step>`` URN construction, NOT the
+        ``mission_type -> action requires`` sequence edge (FR-015 — the three
+        ``*/retrospect`` nodes are sequence-orphans yet still deliver). A
+        regression that starves them via a coarse action-name gate must red
+        here.
+        """
+        from charter.activation.context import build_charter_context_json
+
+        payload = build_charter_context_json(
+            project, action="retrospect", mission_type=mission_type
+        )
+        assert payload.get("mode") == "bootstrap"
+        assert payload.get("directives"), (
+            f"declared 'retrospect' action ({mission_type}) must deliver directives"
+        )
 
 
 # ===========================================================================

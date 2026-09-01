@@ -1,0 +1,121 @@
+{
+  "event_count": 28,
+  "last_event_id": "01M1A8E8NVKXQ16QT2TW8CTFRC",
+  "materialized_at": "2026-08-30T21:15:37.531942+00:00",
+  "mission_number": "",
+  "mission_slug": "tidy-charter-cutover-surface-01M18R5B",
+  "mission_type": "software-dev",
+  "summary": {
+    "approved": 0,
+    "blocked": 0,
+    "canceled": 0,
+    "claimed": 0,
+    "done": 4,
+    "for_review": 0,
+    "in_progress": 0,
+    "in_review": 0,
+    "planned": 0
+  },
+  "work_packages": {
+    "WP01": {
+      "actor": "merge",
+      "agent": "claude",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 3,
+      "lane": "done",
+      "last_event_id": "01M1A8E3TESEJCNBY6BZ0WQDB1",
+      "last_transition_at": "2026-08-30T21:15:32.558129+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "WP01 lane-a implemented (b258da5a68)",
+        "opus review",
+        "APPROVE-WITH-FOLLOWUP: strict FP-free AST gate; 3 real doc stragglers -> integration fold (#3818)"
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "APPROVE-WITH-FOLLOWUP: strict FP-free AST gate; 3 real doc stragglers -> integration fold (#3818)",
+        "reviewer": "ATDD",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 683375,
+      "shell_pid_created_at": "1788124312.72"
+    },
+    "WP02": {
+      "actor": "merge",
+      "agent": "claude",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 3,
+      "lane": "done",
+      "last_event_id": "01M1A8E5EKZFT6QJB1D8VX8NZ8",
+      "last_transition_at": "2026-08-30T21:15:34.227370+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "WP02 lane-b implemented (679df8ebfd), red-first proven",
+        "opus review dispatched",
+        "APPROVE #3810: red-first real, minimal fix, 5/5 green"
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "APPROVE #3810: red-first real, minimal fix, 5/5 green",
+        "reviewer": "ATDD",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 678125,
+      "shell_pid_created_at": "1788123942.4"
+    },
+    "WP03": {
+      "actor": "merge",
+      "agent": "claude",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 3,
+      "lane": "done",
+      "last_event_id": "01M1A8E725EDFAH3B74DHMZ4GP",
+      "last_transition_at": "2026-08-30T21:15:35.877101+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "WP03 lane-c implemented (9b4ec6219e)",
+        "opus review",
+        "APPROVE: byte-identical verdicts, DRG load 3->1, no overreach (#3808)"
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "APPROVE: byte-identical verdicts, DRG load 3->1, no overreach (#3808)",
+        "reviewer": "ATDD",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 685520,
+      "shell_pid_created_at": "1788124415.59"
+    },
+    "WP04": {
+      "actor": "merge",
+      "agent": "claude",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 3,
+      "lane": "done",
+      "last_event_id": "01M1A8E8NVKXQ16QT2TW8CTFRC",
+      "last_transition_at": "2026-08-30T21:15:37.531942+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "WP04 lane-d implemented (34bb7cb561)",
+        "opus review",
+        "APPROVE-WITH-RESCOPE: no reproducible writer bug (traced+proven); detection guard + safe gitignore + regression; close #3819 with reclassification note"
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "APPROVE-WITH-RESCOPE: no reproducible writer bug (traced+proven); detection guard + safe gitignore + regression; close #3819 with reclassification note",
+        "reviewer": "ATDD",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 684470,
+      "shell_pid_created_at": "1788124364.29"
+    }
+  }
+}

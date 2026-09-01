@@ -197,26 +197,13 @@ jobs:
       - name: Set up uv
         uses: astral-sh/setup-uv@v8.1.0
 
-      - name: Check out the pinned events source
-        # The CLI still carries git direct references while #828 is blocked.
-        # This bridge installs only the exact events commit the lockfile pins;
-        # it never asks pip to resolve either git direct reference.
-        uses: actions/checkout@v6
-        with:
-          repository: spec-kitty/EXPERIMENTAL-spec-kitty-events
-          ref: c93dbfbf5243330349452a31d05bca2ece26ceea
-          path: .cutover-deps/spec-kitty-events
-          token: ${{ secrets.SK_CI_TOKEN }}
-
       - name: Install the source-only guard environment
         run: |
           python -m pip install --upgrade pip
           uv export --frozen --no-dev --no-hashes \
             --no-emit-package spec-kitty-cli \
             --output-file .cutover-requirements.lock.txt
-          grep -vE ' @ git[+]' .cutover-requirements.lock.txt > .cutover-requirements.pypi.txt
-          python -m pip install -r .cutover-requirements.pypi.txt
-          python -m pip install --no-deps .cutover-deps/spec-kitty-events
+          python -m pip install -r .cutover-requirements.lock.txt
 
       - name: Hydrate base-ref remote-tracking branch if missing
         run: |

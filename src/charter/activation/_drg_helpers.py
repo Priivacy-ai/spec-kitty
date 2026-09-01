@@ -36,9 +36,13 @@ from charter.offering.drg.loader import (
 from charter.offering.drg.merge import merge_three_layers
 from charter.offering.drg.models import DRGEdge, DRGGraph
 from charter.offering.drg.org_pack_loader import OrgDRGFragment
-from charter.offering.drg.validator import assert_valid
+from charter.offering.drg.validator import DRGValidationError, assert_valid, validate_graph
 
 _LOGGER = logging.getLogger(__name__)
+
+
+class DRGProjectValidationError(DRGValidationError):
+    """A merged-graph validation error introduced by the project overlay."""
 
 
 def _resolve_org_root(_repo_root: Path) -> Path | None:
@@ -63,6 +67,7 @@ def load_validated_graph(
     *,
     org_roots: list[Path] | None = None,
     org_fragments: list[OrgDRGFragment] | None = None,
+    project_degrade: bool = False,
 ) -> DRGGraph:
     """Load the built-in + org-chain + project DRG overlay and validate the result.
 
@@ -109,6 +114,9 @@ def load_validated_graph(
             runtime caller. When supplied, fragment edges are folded through
             :func:`charter.offering.drg.merge.merge_three_layers`; when omitted,
             the legacy two-layer merge is byte-behaviourally unchanged.
+        project_degrade: When ``True``, validation errors introduced only by
+            the project overlay raise ``DRGProjectValidationError`` so degrading
+            callers can distinguish them from built-in/org errors.
 
     Returns:
         A validated :class:`DRGGraph`.
@@ -178,7 +186,16 @@ def load_validated_graph(
     )
 
     merged = _fold_final_layers(root_merged, org_fragments, project)
-    assert_valid(merged)
+    try:
+        assert_valid(merged)
+    except DRGValidationError as exc:
+        if project_degrade and project is not None:
+            base_errors = validate_graph(
+                _fold_final_layers(root_merged, org_fragments, None)
+            )
+            if not any(error in base_errors for error in exc.errors):
+                raise DRGProjectValidationError(exc.errors) from exc
+        raise
     return merged
 
 
@@ -212,5 +229,6 @@ def _collapse_duplicate_edge_triples(graph: DRGGraph) -> DRGGraph:
 
 
 __all__ = [
+    "DRGProjectValidationError",
     "load_validated_graph",
 ]

@@ -534,6 +534,35 @@ async def test_check_server_session_active(monkeypatch: pytest.MonkeyPatch) -> N
     assert result.error is None
 
 
+async def test_check_server_session_resolves_target_once(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Issuer diagnostics and the send share one target resolution (#762)."""
+    mock_tm = AsyncMock()
+    mock_tm.get_access_token = AsyncMock(return_value="tok")
+    session = _make_session(refresh_token_expires_at=now_utc() + timedelta(days=30))
+    session.issuer_url = "https://saas.example.com"
+    mock_response = MagicMock(status_code=200)
+    mock_response.json.return_value = {"active": True, "session_id": "abc"}
+    mock_client = AsyncMock()
+    mock_client.__aenter__ = AsyncMock(return_value=mock_client)
+    mock_client.__aexit__ = AsyncMock(return_value=None)
+    mock_client.get = AsyncMock(return_value=mock_response)
+    import specify_cli.auth as _auth_module
+    monkeypatch.setattr(_auth_module, "get_token_manager", lambda: mock_tm)
+    mock_tm.get_current_session = MagicMock(return_value=session)
+    resolutions = 0
+
+    def resolve_once(**_kwargs: object) -> object:
+        nonlocal resolutions
+        resolutions += 1
+        return _fake_target("https://saas.example.com")
+
+    with patch.object(_auth_doctor, "resolve_server_target", resolve_once), patch("httpx.AsyncClient", return_value=mock_client):
+        result = await _check_server_session()
+
+    assert result.active is True
+    assert resolutions == 1
+
+
 async def test_check_server_session_401(monkeypatch: pytest.MonkeyPatch) -> None:
     """GET /api/v1/session-status 401 → ServerSessionStatus(active=False, error='re-authenticate')."""
     mock_tm = AsyncMock()
@@ -651,6 +680,11 @@ async def test_check_server_session_refresh_expired(monkeypatch: pytest.MonkeyPa
     import specify_cli.auth as _auth_module
 
     monkeypatch.setattr(_auth_module, "get_token_manager", lambda: mock_tm)
+    monkeypatch.setattr(
+        _auth_doctor,
+        "resolve_server_target",
+        lambda **_kwargs: _fake_target("https://saas.example.com"),
+    )
 
     result = await _check_server_session()
 
@@ -676,6 +710,11 @@ async def test_check_server_session_refresh_lock_timeout_uses_safe_message(
     import specify_cli.auth as _auth_module
 
     monkeypatch.setattr(_auth_module, "get_token_manager", lambda: mock_tm)
+    monkeypatch.setattr(
+        _auth_doctor,
+        "resolve_server_target",
+        lambda **_kwargs: _fake_target("https://saas.example.com"),
+    )
 
     result = await _check_server_session()
 
@@ -696,6 +735,11 @@ async def test_check_server_session_session_invalid(monkeypatch: pytest.MonkeyPa
     import specify_cli.auth as _auth_module
 
     monkeypatch.setattr(_auth_module, "get_token_manager", lambda: mock_tm)
+    monkeypatch.setattr(
+        _auth_doctor,
+        "resolve_server_target",
+        lambda **_kwargs: _fake_target("https://saas.example.com"),
+    )
 
     result = await _check_server_session()
 
@@ -716,6 +760,11 @@ async def test_check_server_session_generic_access_token_failure_no_class_name(
     import specify_cli.auth as _auth_module
 
     monkeypatch.setattr(_auth_module, "get_token_manager", lambda: mock_tm)
+    monkeypatch.setattr(
+        _auth_doctor,
+        "resolve_server_target",
+        lambda **_kwargs: _fake_target("https://saas.example.com"),
+    )
 
     result = await _check_server_session()
 
@@ -852,9 +901,14 @@ async def test_check_server_session_no_issuer_proceeds_normally(
     assert result.active is True
 
 
-def test_server_issuer_mismatch_error_none_when_session_missing() -> None:
+def test_server_issuer_mismatch_error_none_when_session_missing(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     """No session at all ⇒ no mismatch to report (the ordinary NotAuthenticatedError path decides)."""
     tm = _FakeTokenManagerWithSession(None)
+    monkeypatch.setattr(
+        _auth_doctor, "resolve_server_target", lambda: _fake_target("https://team.spec-kitty.ai")
+    )
     assert _server_issuer_mismatch_error(tm) is None
 
 

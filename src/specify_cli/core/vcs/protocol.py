@@ -14,7 +14,6 @@ from typing import Protocol, runtime_checkable
 from .types import (
     ChangeInfo,
     ConflictInfo,
-    SyncResult,
     VCSBackend,
     VCSCapabilities,
     WorkspaceCreateResult,
@@ -121,20 +120,6 @@ class VCSProtocol(Protocol):
     # =========================================================================
     # Synchronization Operations (Core - Required)
     # =========================================================================
-
-    def sync_workspace(self, workspace_path: Path) -> SyncResult:
-        """
-        Synchronize workspace with upstream changes.
-
-        This operation fetches and rebases, conflicts block the operation.
-
-        Args:
-            workspace_path: Path to the workspace to sync
-
-        Returns:
-            SyncResult with status, conflicts, and changes integrated
-        """
-        ...
 
     def is_workspace_stale(self, workspace_path: Path) -> bool:
         """

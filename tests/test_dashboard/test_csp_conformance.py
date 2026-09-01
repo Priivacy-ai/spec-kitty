@@ -35,7 +35,9 @@ _INLINE_HANDLER_RE = re.compile(r"\son[a-z]+\s*=")
 # An executable script is any <script> without a src and without a
 # non-executing type (JSON data islands are inert and CSP-safe).
 _EXECUTABLE_INLINE_SCRIPT_RE = re.compile(r"<script(?![^>]*\bsrc=)(?![^>]*type=\"application/json\")[^>]*>", re.IGNORECASE)
-_REMOTE_ASSET_RE = re.compile(r"<(?:script|link)[^>]+(?:src|href)=\"https?://", re.IGNORECASE)
+# Accepts double- or single-quoted, unquoted, and protocol-relative (`//host`)
+# forms — a bare `https?://` + double-quote match missed all three (#83).
+_REMOTE_ASSET_RE = re.compile(r"<(?:script|link)[^>]+(?:src|href)\s*=\s*['\"]?(?:https?:)?//", re.IGNORECASE)
 
 
 def test_shell_policy_is_the_strict_self_only_csp() -> None:
@@ -96,3 +98,16 @@ def test_offender_patterns_detect_real_violations(pattern: re.Pattern[str], desc
         "remote asset reference": '<script src="https://cdn.example.com/x.js"></script>',
     }
     assert pattern.search(samples[description]), f"{description} pattern failed to detect its sample"
+
+
+@pytest.mark.parametrize(
+    "snippet",
+    [
+        "<script src='https://host/x.js'></script>",
+        "<script src=//host/x.js></script>",
+        "<script src=https://host/x.js></script>",
+    ],
+)
+def test_remote_asset_pattern_detects_quoting_variants(snippet: str) -> None:
+    """Non-vacuity for the #83 widening: each form was previously missed by every guard."""
+    assert _REMOTE_ASSET_RE.search(snippet), f"remote asset pattern failed to detect: {snippet}"
