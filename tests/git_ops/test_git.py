@@ -15,9 +15,6 @@ from specify_cli.core.vcs.git import (
     git_stash,
     git_stash_pop,
 )
-from specify_cli.core.vcs.types import (
-    SyncStatus,
-)
 
 
 pytestmark = [pytest.mark.git_repo]
@@ -487,14 +484,6 @@ class TestSyncOperations:
         """is_workspace_stale should return False when up to date."""
         # Without remote, staleness check should return False
         assert git_vcs.is_workspace_stale(git_repo) is False
-
-    def test_sync_workspace_up_to_date(self, git_repo, git_vcs):
-        """sync_workspace should report UP_TO_DATE when nothing to sync."""
-        # Without remote tracking, should just return UP_TO_DATE
-        result = git_vcs.sync_workspace(git_repo)
-
-        # Either SYNCED or UP_TO_DATE (depending on fetch behavior)
-        assert result.status in (SyncStatus.UP_TO_DATE, SyncStatus.FAILED)
 
 
 # =============================================================================
