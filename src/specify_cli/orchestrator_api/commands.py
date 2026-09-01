@@ -254,10 +254,23 @@ def _fail(command: str, error_code: str, message: str, data: dict | None = None)
     mypy proves any code after a ``_fail(...)`` call is unreachable — callers
     need no sentinel ``raise`` to satisfy their return type.
     """
+    # #3548 (fail-loud / silent-drop, epics #3410/#3549): the retired
+    # ``data or {"message": message}`` expression DROPPED the human-readable
+    # ``message`` whenever a caller passed truthy structured ``data`` — silencing
+    # 16 of 33 call sites, preferentially the most actionable errors. Merge the
+    # explanation INTO the payload so BOTH reach the operator; ``message`` (the
+    # param, the canonical explanation) is guaranteed present and last-wins over
+    # any caller-supplied ``data["message"]``. The two callers that seed their own
+    # ``data["message"]`` (the read-path seam, and the LANE_ALLOCATION_FAILED site
+    # via ``StructuredError.to_dict()``) both pass the identical ``str(exc)`` the
+    # param already carries, so param-wins never destroys distinct information — it
+    # only guarantees the explanation is never dropped. The structured
+    # ``data["error_code"]`` those callers carry is untouched (NFR-003).
+    payload = {**(data or {}), "message": message}
     envelope = make_envelope(
         command=command,
         success=False,
-        data=data or {"message": message},
+        data=payload,
         error_code=error_code,
     )
     _emit(envelope)

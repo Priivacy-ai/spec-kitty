@@ -517,7 +517,7 @@ function renderKanban(lanes, weightedPercentage) {
         <div class="status-card agents">
             <div class="status-label">Active Agents</div>
             <div class="status-value">${agents.size}</div>
-            <div class="status-detail">${agents.size > 0 ? Array.from(agents).join(', ') : 'none'}</div>
+            <div class="status-detail">${agents.size > 0 ? Array.from(agents).map(escapeHtml).join(', ') : 'none'}</div>
         </div>
     `;
 
@@ -527,10 +527,10 @@ function renderKanban(lanes, weightedPercentage) {
         return `
         <div class="${cardClass}" role="button">
             <div class="card-header-row">
-                <div class="card-id">${task.id}</div>
+                <div class="card-id">${escapeHtml(task.id)}</div>
                 ${profileAvatarHtml(task)}
             </div>
-            <div class="card-title">${task.title}</div>
+            <div class="card-title">${escapeHtml(task.title)}</div>
             <div class="card-meta">
                 ${task.agent ? `<span class="badge agent">${escapeHtml(task.agent)}</span>` : ''}
                 ${task.agent_profile ? `<span class="badge profile">${escapeHtml(task.agent_profile)}</span>` : ''}
@@ -1137,7 +1137,8 @@ function escapeHtmlAttr(text) {
 // KanbanTaskData actually populates) and renders nothing when a WP has none
 // of them set, so legacy/unassigned cards are unaffected.
 function profileAvatarHtml(task) {
-    const identity = (task.agent_profile || task.role || task.agent || task.assignee || '').trim();
+    const identity = [task.agent_profile, task.role, task.agent, task.assignee]
+        .find(value => typeof value === 'string' && value.trim())?.trim() || '';
     if (!identity) {
         return '';
     }
@@ -1151,7 +1152,7 @@ function profileAvatarHtml(task) {
     }
     const hue = hash % 360;
     const label = escapeHtmlAttr(identity);
-    return `<div class="card-avatar" style="background-color: hsl(${hue}, 55%, 45%)" title="${label}" aria-label="${label}">${escapeHtml(initials)}</div>`;
+    return `<div class="card-avatar" style="--avatar-hue: ${hue}" title="${label}" aria-label="${label}">${escapeHtml(initials)}</div>`;
 }
 
 function showCharter() {

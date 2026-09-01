@@ -429,6 +429,11 @@ def resolve_canonical_root(cwd: Path | None = None) -> Path:
        Otherwise keep walking so an enclosing repo is still found if one exists.
     4. No git marker anywhere up the tree: raise :class:`WorkspaceRootNotFound`.
 
+    ``GIT_CEILING_DIRECTORIES`` uses Git's ceiling semantics: a listed ancestor
+    is still eligible, but discovery never continues above it. This keeps
+    hermetic fixtures isolated from an ambient repository above their temporary
+    root.
+
     Args:
         cwd: Starting directory. Defaults to :func:`Path.cwd`.
 
@@ -439,6 +444,11 @@ def resolve_canonical_root(cwd: Path | None = None) -> Path:
         WorkspaceRootNotFound: when ``cwd`` is not inside a git repo.
     """
     start = (cwd or Path.cwd()).resolve()
+    ceilings = {
+        Path(part).resolve()
+        for part in os.environ.get("GIT_CEILING_DIRECTORIES", "").split(os.pathsep)
+        if part
+    }
 
     for candidate in [start, *start.parents]:
         git_path = candidate / ".git"
@@ -462,6 +472,8 @@ def resolve_canonical_root(cwd: Path | None = None) -> Path:
                 continue
             # Real worktree pointer — follow it back to the main checkout.
             return get_main_repo_root(candidate)
+        if candidate in ceilings:
+            break
 
     raise WorkspaceRootNotFound(start)
 

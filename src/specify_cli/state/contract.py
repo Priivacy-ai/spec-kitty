@@ -167,6 +167,23 @@ STATE_SURFACES: tuple[StateSurface, ...] = (
         creation_trigger="spec-kitty merge",
     ),
     StateSurface(
+        name="charter_lint_report",
+        path_pattern=".kittify/lint-report.json",
+        root=StateRoot.PROJECT,
+        format=StateFormat.JSON,
+        authority=AuthorityClass.LOCAL_RUNTIME,
+        git_class=GitClass.IGNORED,
+        owner_module="charter_runtime/lint/engine",
+        creation_trigger="spec-kitty charter lint",
+        notes=(
+            "Machine-local decay-scan diagnostic; never commit (#3435). "
+            "sync/lint_report_staging.py copies its contents into the "
+            "TRACKED kitty-specs/<mission>/ dossier on record — that staged "
+            "copy is a separate, intentionally-committed artifact, not this "
+            "surface."
+        ),
+    ),
+    StateSurface(
         name="sync_local_commit_state",
         path_pattern=".kittify/sync-state.json",
         root=StateRoot.PROJECT,

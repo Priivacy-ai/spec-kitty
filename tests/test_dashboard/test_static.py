@@ -1,3 +1,4 @@
+import json
 import shutil
 import subprocess
 from pathlib import Path
@@ -57,6 +58,81 @@ def test_dashboard_css_print_media_resets_shell_overflow():
     for selector in ("body", ".container", ".sidebar", ".main-content"):
         assert selector in print_block, f"@media print block must reset {selector}"
     assert "overflow: visible" in print_block
+
+
+def test_render_kanban_escapes_card_fields_and_normalizes_avatar_fallback():
+    """Exercise the real render function, not source-string implementation pins."""
+    if shutil.which("node") is None:
+        pytest.skip("node is required for dashboard.js behavior validation")
+
+    source = DASHBOARD_JS.read_text(encoding="utf-8")
+    render = source[
+        source.index("function renderKanban") : source.index("\nfunction formatLaneName")
+    ]
+    avatar_helpers = source[
+        source.index("function escapeHtml") : source.index("\nfunction showCharter")
+    ]
+    script = f"""
+const elements = new Map();
+global.document = {{
+  createElement: () => ({{
+    _text: '',
+    set textContent(value) {{ this._text = String(value); }},
+    get innerHTML() {{
+      return this._text
+        .replaceAll('&', '&amp;')
+        .replaceAll('<', '&lt;')
+        .replaceAll('>', '&gt;');
+    }},
+  }}),
+  getElementById: (id) => {{
+    if (!elements.has(id)) elements.set(id, {{innerHTML: ''}});
+    return elements.get(id);
+  }},
+  querySelectorAll: () => [],
+}};
+{avatar_helpers}
+{render}
+const hostileId = 'WP01<img src=x onerror="globalThis.__cardPwned=true">';
+const hostileTitle = 'Unsafe <svg onload="globalThis.__cardPwned=true"> title';
+const hostileAgent = '<iframe onload="globalThis.__statusPwned=true">';
+const task = {{
+  id: hostileId,
+  title: hostileTitle,
+  lane: 'planned',
+  agent: hostileAgent,
+  agent_profile: '   ',
+  role: 'reviewer-renata',
+  assignee: '',
+  subtasks_total: 0,
+  subtasks: [],
+}};
+renderKanban({{
+  planned: [task], doing: [], for_review: [], in_review: [], approved: [], done: [],
+}}, null);
+process.stdout.write(JSON.stringify({{
+  board: elements.get('kanban-board').innerHTML,
+  status: elements.get('kanban-status').innerHTML,
+  avatar: profileAvatarHtml(task),
+  absent: profileAvatarHtml({{}}),
+}}));
+"""
+
+    result = subprocess.run(
+        ["node", "-e", script], capture_output=True, text=True, check=False
+    )
+
+    assert result.returncode == 0, result.stderr
+    payload = json.loads(result.stdout)
+    assert "<img" not in payload["board"]
+    assert "<svg" not in payload["board"]
+    assert "&lt;img" in payload["board"]
+    assert "&lt;svg" in payload["board"]
+    assert "<iframe" not in payload["status"]
+    assert "&lt;iframe" in payload["status"]
+    assert 'title="reviewer-renata"' in payload["avatar"]
+    assert ">RR</div>" in payload["avatar"]
+    assert payload["absent"] == ""
 
 
 def test_dashboard_javascript_has_valid_syntax():

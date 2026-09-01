@@ -50,11 +50,11 @@ import os
 import shlex
 import subprocess
 from pathlib import Path
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, cast
 
 from specify_cli.charter_runtime.freshness import compute_freshness
 
-from .result import CharterPreflightCheck, CharterPreflightResult
+from .result import CharterPreflightCheck, CharterPreflightResult, CheckState
 
 if TYPE_CHECKING:  # pragma: no cover — used only for type hints.
     from specify_cli.charter_runtime.freshness import CharterFreshness
@@ -247,7 +247,10 @@ def _build_checks(freshness: CharterFreshness) -> list[CharterPreflightCheck]:
         result.append(
             CharterPreflightCheck(
                 name=layer_key,
-                state=state,  # type: ignore[arg-type]
+                # FreshnessState is a strict subset of CheckState and the fail-closed
+                # "invalid" fallback above is itself a CheckState member, so the cast
+                # narrows an honest value; it is not a suppression.
+                state=cast(CheckState, state),
                 detail=str(detail),
                 remediation=str(remediation) if remediation else None,
             )
@@ -495,7 +498,8 @@ def refresh_references_if_needed(repo_root: Path, cause: str) -> bool:
     """
     from .references_refresh import refresh_references_if_needed as _refresh_references
 
-    return _refresh_references(repo_root, cause)
+    result: bool = _refresh_references(repo_root, cause)
+    return result
 
 
 def _attempt_auto_refresh(

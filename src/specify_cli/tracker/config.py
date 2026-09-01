@@ -7,7 +7,7 @@ import io
 import warnings
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any, ClassVar, Final, cast
+from typing import Any, ClassVar, Final
 
 from ruamel.yaml import YAML
 
@@ -333,7 +333,8 @@ def require_repo_root() -> Path:
     repo_root = locate_project_root(Path.cwd())
     if repo_root is None:
         raise TrackerConfigError("Not inside a spec-kitty project. Run this command from a project with .kittify/.")
-    return cast(Path, repo_root)
+    root: Path = repo_root
+    return root
 
 
 def _config_path(repo_root: Path) -> Path:

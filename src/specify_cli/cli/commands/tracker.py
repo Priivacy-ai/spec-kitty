@@ -11,6 +11,7 @@ from __future__ import annotations
 from contextlib import suppress
 import json
 from pathlib import Path
+from collections.abc import Mapping
 from typing import Any
 
 import typer
@@ -60,6 +61,24 @@ app.add_typer(sync_app, name="sync")
 
 def _print_json(payload: Any) -> None:
     typer.echo(json.dumps(payload, indent=2, sort_keys=True, default=str))
+
+def _echo_saas_sync_summary(label: str, payload: Mapping[str, Any]) -> None:
+    """Render the SaaS sync envelope shared by ``sync pull``/``push``/``run``.
+
+    Status line, the authority used (``identity_path``, #1221), then the
+    ``summary`` counters. One helper so the three commands cannot drift again.
+    """
+    summary = payload.get("summary", {})
+    typer.echo(f"{label} {payload.get('status', 'complete')}")
+    if payload.get("identity_path"):
+        ip = payload["identity_path"]
+        typer.echo(f"- provider: {ip.get('provider', 'unknown')}")
+        typer.echo(f"- type: {ip.get('type', 'unknown')}")
+    typer.echo(f"- total: {summary.get('total', 0)}")
+    typer.echo(f"- succeeded: {summary.get('succeeded', 0)}")
+    typer.echo(f"- failed: {summary.get('failed', 0)}")
+    typer.echo(f"- skipped: {summary.get('skipped', 0)}")
+
 
 
 def _print_ticket_rows(rows: list[dict[str, Any]]) -> None:
@@ -1057,16 +1076,7 @@ def sync_pull_command(
 
         # SaaS envelope format
         if "summary" in payload:
-            summary = payload.get("summary", {})
-            typer.echo(f"Pull {payload.get('status', 'complete')}")
-            if payload.get("identity_path"):
-                ip = payload["identity_path"]
-                typer.echo(f"- provider: {ip.get('provider', 'unknown')}")
-                typer.echo(f"- type: {ip.get('type', 'unknown')}")
-            typer.echo(f"- total: {summary.get('total', 0)}")
-            typer.echo(f"- succeeded: {summary.get('succeeded', 0)}")
-            typer.echo(f"- failed: {summary.get('failed', 0)}")
-            typer.echo(f"- skipped: {summary.get('skipped', 0)}")
+            _echo_saas_sync_summary("Pull", payload)
             if payload.get("has_more"):
                 typer.echo(f"- has_more: yes (next_cursor: {payload.get('next_cursor', 'N/A')})")
         # Local format
@@ -1153,12 +1163,7 @@ def sync_push_command(
 
         # SaaS envelope format
         if "summary" in payload:
-            summary = payload.get("summary", {})
-            typer.echo(f"Push {payload.get('status', 'complete')}")
-            typer.echo(f"- total: {summary.get('total', 0)}")
-            typer.echo(f"- succeeded: {summary.get('succeeded', 0)}")
-            typer.echo(f"- failed: {summary.get('failed', 0)}")
-            typer.echo(f"- skipped: {summary.get('skipped', 0)}")
+            _echo_saas_sync_summary("Push", payload)
         # Local format
         else:
             stats = payload.get("stats", {})
@@ -1200,12 +1205,7 @@ def sync_run_command(
 
         # SaaS envelope format
         if "summary" in payload:
-            summary = payload.get("summary", {})
-            typer.echo(f"Sync run {payload.get('status', 'complete')}")
-            typer.echo(f"- total: {summary.get('total', 0)}")
-            typer.echo(f"- succeeded: {summary.get('succeeded', 0)}")
-            typer.echo(f"- failed: {summary.get('failed', 0)}")
-            typer.echo(f"- skipped: {summary.get('skipped', 0)}")
+            _echo_saas_sync_summary("Sync run", payload)
         # Local format
         else:
             stats = payload.get("stats", {})
