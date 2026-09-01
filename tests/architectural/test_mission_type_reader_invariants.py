@@ -66,7 +66,7 @@ def _norm(value: str | None) -> str | None:
 
 
 def _adapt_seam(meta: dict[str, Any]) -> str | None:
-    from charter.mission_type_key import read_mission_type
+    from charter.activation.mission_type_key import read_mission_type
 
     return _norm(read_mission_type(meta))
 
@@ -89,7 +89,7 @@ def _adapt_get_mission_type(meta: dict[str, Any], tmp_path: Path) -> str | None:
 
 def _adapt_charter_resolve(meta: dict[str, Any], tmp_path: Path) -> str | None:
     """``charter.mission_type_profiles.resolve_mission_type_key`` — file-based."""
-    from charter.mission_type_profiles import resolve_mission_type_key
+    from charter.activation.mission_type_profiles import resolve_mission_type_key
 
     feature_dir = tmp_path / "charter_resolve"
     feature_dir.mkdir(parents=True, exist_ok=True)

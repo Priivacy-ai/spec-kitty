@@ -26,7 +26,7 @@ from typing import Any
 
 import pytest
 
-import charter.context as context_module
+import charter.activation.context as context_module
 from charter.activation.context import build_charter_context_include
 
 
