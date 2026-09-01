@@ -26,12 +26,28 @@ Two invariants motivate the seam (GitHub #2632):
 from __future__ import annotations
 
 import json as _json
+import re
 import weakref
 from typing import IO, Any, ClassVar
 
 from rich.console import Console
 
-__all__ = ["CliConsole", "console", "err_console"]
+__all__ = ["CliConsole", "console", "err_console", "sanitize_terminal_text"]
+
+
+_CSI_SEQUENCE = re.compile(r"(?:\x1b\[|\x9b)[0-?]*[ -/]*[@-~]")
+_OSC_SEQUENCE = re.compile(r"(?:\x1b\]|\x9d)[^\x07\x1b\x9c]*(?:\x07|\x1b\\|\x9c)?")
+
+
+def sanitize_terminal_text(text: str) -> str:
+    """Make untrusted display text inert before it reaches Rich markup parsing.
+
+    CSI and OSC control sequences are removed as complete sequences. Remaining
+    C0 controls are stripped except tab and newline, so a bare escape byte
+    cannot introduce a terminal sequence after rendering.
+    """
+    without_terminal_sequences = _OSC_SEQUENCE.sub("", _CSI_SEQUENCE.sub("", text))
+    return "".join(character for character in without_terminal_sequences if character in "\t\n" or ord(character) >= 0x20)
 
 
 class CliConsole(Console):
