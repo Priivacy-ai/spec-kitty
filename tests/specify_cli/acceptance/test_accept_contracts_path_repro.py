@@ -61,7 +61,7 @@ from typer.testing import CliRunner
 from specify_cli import app as root_app
 from specify_cli.acceptance import collect_feature_summary
 from specify_cli.mission import get_mission_for_feature
-from specify_cli.validators.paths import _normalize_path_token, validate_mission_paths
+from specify_cli.validators.paths import normalize_path_token, validate_mission_paths
 
 pytestmark = [pytest.mark.integration, pytest.mark.git_repo]
 
@@ -176,7 +176,7 @@ def test_assertion2_contracts_surfaces_through_exactly_one_channel(
     summary = collect_feature_summary(repo_root, slug, strict_metadata=True, mutate_matrix=False)
 
     rendered_violations = "\n".join(summary.path_violations)
-    in_optional = any(_normalize_path_token(entry) == "contracts" for entry in summary.optional_missing)
+    in_optional = any(normalize_path_token(entry) == "contracts" for entry in summary.optional_missing)
     in_violations = "contracts" in rendered_violations
 
     assert in_optional != in_violations, (
@@ -223,7 +223,7 @@ def test_assertion3_json_payload_reports_contracts_through_exactly_one_key(tmp_p
     optional_missing = payload["optional_missing"]
     path_violations = payload["path_violations"]
     rendered_violations = "\n".join(path_violations)
-    in_optional = any(_normalize_path_token(entry) == "contracts" for entry in optional_missing)
+    in_optional = any(normalize_path_token(entry) == "contracts" for entry in optional_missing)
     in_violations = "contracts" in rendered_violations
 
     assert in_optional != in_violations, (
