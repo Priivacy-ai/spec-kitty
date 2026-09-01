@@ -889,25 +889,18 @@ _pre_review_test_command_deprecation_emitted = False
 
 
 def _pre_review_gate_filter_groups() -> Mapping[str, tuple[str, ...]] | None:
-    """Test seam: production always returns ``None``.
+    """Compatibility test seam: production always returns ``None``.
 
-    ``None`` is threaded through ``_mt_resolve_scope_source`` into
-    ``resolve_scope_source(..., filter_groups_override=None)``, so
-    ``GateCoverageScopeSource`` derives filter groups from the LIVE
-    ``tests/architectural/_gate_coverage.py`` authority under the gate's own
-    ``repo_root`` (WP01's FR-006 single-source invariant). Integration tests
-    monkeypatch this (and its composite-routing sibling below) to inject a
-    hermetic fixture map — the SAME override seam ``GateCoverageScopeSource``'s
-    census derivation consumes — rather than building a throwaway
-    ``tests/architectural/_gate_coverage.py`` in a fixture repo, which would
-    silently resolve to the REAL repo's cached ``sys.modules`` entry instead
-    (the exact staleness ``GateAuthoritiesUnavailable`` guards against).
+    The workflow-derived scope source was retired. The value is still threaded
+    through ``_mt_resolve_scope_source`` for call-site compatibility, but
+    ``resolve_scope_source`` ignores it and always resolves
+    ``DeclaredCommandScopeSource``.
     """
     return None
 
 
 def _pre_review_gate_composite_routing() -> Mapping[str, pre_review_gate._CompositeRoute] | None:
-    """Test seam sibling to :func:`_pre_review_gate_filter_groups` (see there)."""
+    """Compatibility seam sibling to :func:`_pre_review_gate_filter_groups`."""
     return None
 
 
@@ -1059,8 +1052,8 @@ def _mt_pre_review_gate_with_override_scope(
 ) -> pre_review_gate.GateVerdict:
     """Compose a verdict for an EXPLICIT override scope (FR-004).
 
-    An override IS the test scope, by definition — the census-derived scope
-    (``GateCoverageScopeSource``) never runs for this precedence tier. The non-empty
+    An override IS the test scope, by definition — the resolved scope source
+    never runs for this precedence tier. The non-empty
     tail (head-run -> ``diff_baseline`` -> verdict) is NOT hand-mirrored here
     (pre-merge finding, #572/#1979/#2283: the mirrored copy left its
     ``NEW_FAILURES``/block/force + ``UNVERIFIED_BASELINE`` branches with zero
@@ -1308,17 +1301,13 @@ def _mt_resolve_scope_source(gate_repo_root: Path) -> ScopeSource:
     finding priti-M1 — load-bearing): delegates to WP02's
     ``resolve_scope_source`` factory — the SAME selection authority
     ``baseline.py``'s write-side capture already uses — instead of
-    hard-constructing ``GateCoverageScopeSource`` directly. Without this
-    the head path would stay pinned to ``GateCoverageScopeSource`` while
-    the baseline uses whichever source ``review.test_command`` selects,
-    producing a guaranteed ``SOURCE_MISMATCH`` on every non-pytest review —
-    the exact false-positive this rewire closes.
+    constructing a source independently. Independent construction could let
+    the head and baseline drift, producing a false ``SOURCE_MISMATCH``.
 
-    The two census test seams (:func:`_pre_review_gate_filter_groups` /
+    The two compatibility seams (:func:`_pre_review_gate_filter_groups` /
     :func:`_pre_review_gate_composite_routing`) are threaded through as
-    ``resolve_scope_source``'s ``*_override`` parameters so production still
-    leaves them ``None`` (live authority) and hermetic tests can inject a
-    fixture map — the SAME seam the incumbent used. ``resolve_scope_source``
+    ``resolve_scope_source``'s ``*_override`` parameters; the factory ignores
+    them after the workflow-derived source's retirement. ``resolve_scope_source``
     lives in ``scope_source.py`` and never imports back into this module, so
     no import cycle forms.
     """
