@@ -83,8 +83,8 @@ longer extracts anything from `charter.md` — running it is always a no-op.
 
 A directive you add under the `directives:` section is **additive**: it is unioned onto the
 directive set the project already resolves (the built-in catalog default, charter-activated
-directives, or an explicit `governance.doctrine.selected_directives` selection), never a
-replacement of it. If you set `governance.doctrine.selected_directives`, that list defines the
+directives, or an explicit `governance.charter.selected_directives` selection), never a
+replacement of it. If you set `governance.charter.selected_directives`, that list defines the
 authoritative *base* set; the `directives:` section then layers on top of it additively. The
 resolution branch is now visible: `spec-kitty charter context --action plan --json` exposes a
 top-level `directives_source` (for example `catalog_fallback+project_local` when a project-local
