@@ -13,6 +13,7 @@ Problem:
 These tests validate that CLI status reporting matches actual dashboard state.
 """
 
+import ast
 import pytest
 import subprocess
 import textwrap
@@ -787,6 +788,178 @@ def cleanup_test_dashboards():
     for port in sorted(_reserved_test_ports):
         kill_dashboard_process(port)
     _reserved_test_ports.clear()
+
+
+def _simple_name_bindings(tree: ast.Module) -> dict[str, ast.AST]:
+    bindings: dict[str, ast.AST] = {}
+    for node in ast.walk(tree):
+        if isinstance(node, ast.Assign):
+            for target in node.targets:
+                if isinstance(target, ast.Name):
+                    bindings[target.id] = node.value
+        elif isinstance(node, ast.AnnAssign) and isinstance(node.target, ast.Name) and node.value is not None:
+            bindings[node.target.id] = node.value
+    return bindings
+
+
+def _literal_strings(
+    node: ast.AST,
+    bindings: dict[str, ast.AST],
+    resolving: frozenset[str] = frozenset(),
+) -> list[str]:
+    if isinstance(node, ast.Constant) and isinstance(node.value, str):
+        return [node.value]
+    if isinstance(node, ast.Name) and node.id in bindings and node.id not in resolving:
+        return _literal_strings(bindings[node.id], bindings, resolving | {node.id})
+
+    strings: list[str] = []
+    for child in ast.iter_child_nodes(node):
+        strings.extend(_literal_strings(child, bindings, resolving))
+    return strings
+
+
+def _subprocess_command_strings(call: ast.Call, bindings: dict[str, ast.AST]) -> list[str]:
+    if not isinstance(call.func, ast.Attribute) or call.func.attr not in {
+        "Popen",
+        "call",
+        "check_call",
+        "check_output",
+        "run",
+    }:
+        return []
+    if not isinstance(call.func.value, ast.Name) or call.func.value.id != "subprocess":
+        return []
+    if not call.args:
+        return []
+
+    return _literal_strings(call.args[0], bindings)
+
+
+def _process_sweep_violations(tree: ast.Module) -> list[str]:
+    bindings = _simple_name_bindings(tree)
+    violations: list[str] = []
+    for node in ast.walk(tree):
+        if isinstance(node, ast.Import) and any(alias.name == "psutil" for alias in node.names):
+            violations.append(f"{node.lineno}: psutil import permits machine-wide process iteration")
+        if isinstance(node, ast.ImportFrom) and node.module == "psutil":
+            violations.append(f"{node.lineno}: psutil import permits machine-wide process iteration")
+        if isinstance(node, ast.Attribute) and node.attr == "process_iter":
+            violations.append(f"{node.lineno}: psutil process iteration")
+        if isinstance(node, ast.Call) and isinstance(node.func, ast.Name) and node.func.id == "process_iter":
+            violations.append(f"{node.lineno}: psutil process iteration")
+
+        if not isinstance(node, ast.Call):
+            continue
+
+        command_strings = _subprocess_command_strings(node, bindings)
+        if not command_strings:
+            continue
+
+        command_text = " ".join(command_strings)
+        command_words = command_text.split()
+        broad_tools = {word.rsplit("/", 1)[-1] for word in command_words} & {
+            "pgrep",
+            "killall",
+        }
+        for tool in sorted(broad_tools):
+            violations.append(f"{node.lineno}: broad process kill tool {tool}")
+        if any(command == "ps" and option in {"aux", "-A", "-e", "-ef"} for command, option in zip(command_words, command_words[1:], strict=False)):
+            violations.append(f"{node.lineno}: broad process enumeration")
+        if "run_dashboard_server" in command_text:
+            violations.append(f"{node.lineno}: dashboard process-name subprocess sweep")
+
+    return violations
+
+
+def test_no_process_name_wide_dashboard_kill():
+    """Guard against reintroducing a process-name-wide dashboard sweep (#70)."""
+    source = Path(__file__).read_text(encoding="utf-8")
+    violations = _process_sweep_violations(ast.parse(source))
+
+    assert not violations, (
+        f"This module must not use a process-name-wide dashboard cleanup sweep; scope cleanup to _reserved_test_ports instead (see #70): {violations}"
+    )
+
+
+_MUTATION_DASHBOARD_NAME = "run_" + "dashboard_server"
+_MUTATION_PGREP = "pg" + "rep"
+_MUTATION_KILLALL = "kill" + "all"
+
+
+def _mutation_source(*lines: str) -> str:
+    """Build adversarial snippets without tripping this module's text gate."""
+    return "\n".join(lines)
+
+
+@pytest.mark.parametrize(
+    ("source", "expected_violation"),
+    [
+        ("import psutil\npsutil.process_iter()", "psutil import"),
+        ("import psutil as ps\nps.process_iter()", "psutil import"),
+        ("from psutil import process_iter\nprocess_iter()", "psutil import"),
+        (
+            _mutation_source(
+                "import subprocess",
+                f'subprocess.run(["{_MUTATION_PGREP}", "-f", "{_MUTATION_DASHBOARD_NAME}"])',
+            ),
+            "broad process kill tool pgrep",
+        ),
+        (
+            _mutation_source(
+                "import subprocess",
+                f'command = ["{_MUTATION_PGREP}", "-f", "{_MUTATION_DASHBOARD_NAME}"]',
+                "subprocess.run(command)",
+            ),
+            "broad process kill tool pgrep",
+        ),
+        (
+            _mutation_source(
+                "import subprocess",
+                f'subprocess.run(["sh", "-c", "{_MUTATION_PGREP} -f {_MUTATION_DASHBOARD_NAME}"])',
+            ),
+            "broad process kill tool pgrep",
+        ),
+        (
+            _mutation_source(
+                "import subprocess",
+                f'subprocess.run(["{_MUTATION_KILLALL}", "-f", "{_MUTATION_DASHBOARD_NAME}"])',
+            ),
+            "broad process kill tool killall",
+        ),
+        (
+            _mutation_source(
+                "import subprocess",
+                f'subprocess.run("ps aux | grep {_MUTATION_DASHBOARD_NAME}", shell=True)',
+            ),
+            "broad process enumeration",
+        ),
+        (
+            _mutation_source(
+                "import subprocess",
+                f'subprocess.run(["sh", "-c", "ps aux | grep {_MUTATION_DASHBOARD_NAME}"])',
+            ),
+            "broad process enumeration",
+        ),
+        (
+            _mutation_source(
+                "import subprocess",
+                'result = subprocess.run(["ps", "aux"])',
+                f'"{_MUTATION_DASHBOARD_NAME}" in result.stdout',
+            ),
+            "broad process enumeration",
+        ),
+    ],
+)
+def test_process_sweep_guard_catches_known_mutation(source: str, expected_violation: str):
+    """Prove the guard fails for each process-wide cleanup mechanism from #365."""
+    violations = _process_sweep_violations(ast.parse(source))
+    assert any(expected_violation in violation for violation in violations)
+
+
+def test_process_sweep_guard_allows_port_scoped_cleanup():
+    """Keep the intended lsof-by-reserved-port cleanup outside the blocklist."""
+    source = 'import subprocess\nsubprocess.run(["lsof", "-ti", f":{port}"])'
+    assert not _process_sweep_violations(ast.parse(source))
 
 
 def test_record_dashboard_candidate_gives_new_launch_on_recycled_port_a_fresh_started_at(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
