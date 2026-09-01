@@ -36,6 +36,11 @@ _SLUG = "042-demo"
 _MISSION_ID = "01JMISSIONULID0000000000AA"
 
 
+@pytest.fixture(autouse=True)
+def _hermetic_git_ceiling(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("GIT_CEILING_DIRECTORIES", str(tmp_path))
+
+
 def _init_bare_git_marker(repo_root: Path) -> None:
     """Create the minimal ``.git`` ancestor marker :func:`resolve_canonical_root` needs.
 
