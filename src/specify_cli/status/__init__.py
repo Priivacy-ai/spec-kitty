@@ -151,6 +151,7 @@ from .lane_reader import (
     CanonicalStatusNotFoundError,
     LEGACY_UNINITIALIZED_SENTINEL,
     get_all_wp_lanes,
+    get_all_wp_snapshots,
     get_wp_lane,
     has_event_log,
 )
@@ -170,10 +171,9 @@ from .progress import (
     generate_progress_json,
 )
 from .adapters import (
-    fire_dossier_sync,
+    fire_lifecycle_saas_fanout,
     fire_resolved_binding_fanout,
     fire_saas_fanout,
-    register_dossier_sync_handler,
     register_lifecycle_saas_fanout_handler,
     register_resolved_binding_fanout_handler,
     register_saas_fanout_handler,
@@ -211,6 +211,7 @@ from .lifecycle import (
     derive_mission_lifecycle,
     generate_lifecycle_json,
     is_mission_completed,
+    is_mission_merged,
 )
 from .validate import (
     ValidationResult,
@@ -251,11 +252,13 @@ from .lifecycle_events import (
     emit_reviewer_self_approval,
     emit_wp_created_local,
     has_non_bootstrap_status_history,
+    _resolve_local_actor,
     mission_event_log_path,
     project_event_log_path,
     read_lifecycle_events,
     repo_root_for_lifecycle_log,
 )
+
 # NOTE (WIRE-M2-03, 2026-08-22, rework cycle 2): ``migrate_lifecycle_envelope``
 # (the F2-T1 rewrite entry point) is deliberately NOT promoted onto this
 # facade, even though ``project_event_log_path`` above was. Its bare name is
@@ -304,6 +307,7 @@ from .dup_key_repair import (
     find_duplicate_keys_in_text,
     plan_artifact_repair,
 )
+
 # WP03/WP04 (runtime-state-birth-cutover-all-paths-01KYH654): the cut-over
 # predicate reaches its src/ consumer (``cli.commands.cutover_guard``) through
 # this package surface, not by importing the submodule directly -- the status
@@ -323,6 +327,7 @@ def uninitialized_status_error(mission_slug: str, wp_id: str, feature_dir: Path)
     from .uninitialized_hint import uninitialized_status_error as _uninitialized_status_error
 
     return str(_uninitialized_status_error(mission_slug, wp_id, feature_dir))
+
 
 # WP13 (IC-07c) retired ``COORD_OWNED_STATUS_FILES`` -- the canonical status
 # artifacts (event log + snapshot) frozenset -- onto the single canonical churn
@@ -418,6 +423,7 @@ __all__ = [
     "emit_mission_created_local",
     "emit_mission_reopened",
     "emit_project_initialized",
+    "_resolve_local_actor",
     "emit_reviewer_self_approval",
     "emit_wp_created_local",
     "format_post_mission_events",
@@ -453,6 +459,7 @@ __all__ = [
     "generate_lifecycle_json",
     "generate_progress_json",
     "is_mission_completed",
+    "is_mission_merged",
     "materialize_if_stale",
     "CANONICAL_LANES",
     "DoneEvidence",
@@ -491,7 +498,6 @@ __all__ = [
     "is_dossier_snapshot",
     "merge_event_log_files",
     "merge_event_log_texts",
-    "register_dossier_sync_handler",
     "register_lifecycle_saas_fanout_handler",
     "register_resolved_binding_fanout_handler",
     "register_saas_fanout_handler",
@@ -508,13 +514,14 @@ __all__ = [
     "emit_status_transition",
     "generate_status_view",
     "get_all_wp_lanes",
+    "get_all_wp_snapshots",
     "get_wp_lane",
     "git_operation_in_progress",
     "has_event_log",
     "is_terminal",
     "materialize",
     "materialize_to_json",
-    "fire_dossier_sync",
+    "fire_lifecycle_saas_fanout",
     "fire_resolved_binding_fanout",
     "fire_saas_fanout",
     "WPStatusChangeMetadata",

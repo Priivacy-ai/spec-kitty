@@ -6,7 +6,7 @@ Covers the operator-facing regeneration surface:
 2. regenerate-twice produces byte-identical output (determinism),
 3. ``--check`` against a deliberately corrupted graph reports stale (exit 1).
 
-The committed ``src/doctrine/graph.yaml`` is never mutated: write-mode tests
+The committed ``src/charter/offering/graph.yaml`` is never mutated: write-mode tests
 target a temporary doctrine root assembled from the shipped one.
 """
 
@@ -20,11 +20,11 @@ from typing import TYPE_CHECKING
 import pytest
 from typer.testing import CliRunner
 
-from doctrine.drg.loader import load_built_in_graph
+from charter.offering.drg.loader import load_built_in_graph
 from specify_cli.cli.commands.doctrine import app as doctrine_app
 
 if TYPE_CHECKING:
-    from doctrine.drg.models import DRGGraph
+    from charter.offering.drg.models import DRGGraph
 
 pytestmark = [pytest.mark.unit, pytest.mark.fast]
 
@@ -39,7 +39,7 @@ DOCTRINE_ROOT = Path(__file__).resolve().parents[4] / "packs" / "built-in"
 def _graph_files(doctrine_dir: Path) -> list[Path]:
     """Return the DRG graph source files under *doctrine_dir* (layout-agnostic).
 
-    Mirrors :func:`doctrine.drg.loader.load_graph_or_dir` / the shape of
+    Mirrors :func:`charter.offering.drg.loader.load_graph_or_dir` / the shape of
     :func:`built_in_graph_source`: the ``graph.yaml`` monolith when present,
     otherwise the ``*.graph.yaml`` fragments. This lets per-file byte-identity
     assertions survive the WP05 monolith->fragment flip with no edit (DD-11).
@@ -106,7 +106,7 @@ def _graph_files(doctrine_dir: Path) -> list[Path]:
 #:
 #: 2026-07-31 (mission charter-delivery-finish-context-degod, #3064, post-merge
 #: follow-up): WP03's ``asset:common-charter-scaffold-minimal`` doctrine asset was
-#: relocated to first-class charter-pack status (``src/charter/packs/minimal.yaml``,
+#: relocated to first-class charter-pack status (``src/charter/activation/packs/minimal.yaml``,
 #: applied via ``spec-kitty charter pack apply minimal``) — it is structurally a
 #: charter pack, not a generic doctrine asset. The asset node is gone from the DRG,
 #: reverting the ceiling **22 -> 21**. Full narrative in ``drg-orphan-residual.md``.
@@ -127,7 +127,7 @@ DOCUMENTED_ORPHAN_RESIDUAL = 21
 def _count_orphans(graph: DRGGraph) -> int:
     """Return the number of nodes with no inbound or outbound edge.
 
-    Operates on a loaded :class:`~doctrine.drg.models.DRGGraph` so the caller can
+    Operates on a loaded :class:`~charter.offering.drg.models.DRGGraph` so the caller can
     read *whatever layout is on disk* through the seam (monolith today, fragments
     post-WP05) rather than re-parsing a hardcoded ``graph.yaml`` path.
     """
@@ -151,7 +151,7 @@ def test_check_reports_committed_graph_fresh() -> None:
         doctrine_app, ["regenerate-graph", "--check", "--json"]
     )
     assert result.exit_code == 0, result.output
-    payload = json.loads(result.output)
+    payload = json.loads(result.stdout)
     assert payload["status"] == "fresh"
 
 
@@ -211,7 +211,7 @@ def test_check_detects_stale_graph(
         doctrine_app, ["regenerate-graph", "--check", "--json"]
     )
     assert result.exit_code == 1, result.output
-    payload = json.loads(result.output)
+    payload = json.loads(result.stdout)
     assert payload["status"] == "stale"
 
 

@@ -1,20 +1,20 @@
 """RED-first single-source pickup driver + characterization guard (#2669 WP03).
 
-Covers Rosters D (``charter.activations.ALLOWED_MISSION_TYPES``) and E
-(``charter.synthesizer.interview_mapping._MISSION_IDENTIFIER_ANSWERS``):
+Covers Rosters D (``charter.activation.activations.ALLOWED_MISSION_TYPES``) and E
+(``charter.activation.synthesizer.interview_mapping._MISSION_IDENTIFIER_ANSWERS``):
 
 * ``test_synthetic_mission_type_is_picked_up_by_both_rosters`` — genuine
   RED-first driver (C-008). Runs in an isolated subprocess (its own fresh
   interpreter) that patches ``MissionTypeRepository.default`` to a synthetic
-  ``analysis`` mission-type roster *before* ``charter.activations`` /
-  ``charter.synthesizer.interview_mapping`` are ever imported, so their
+  ``analysis`` mission-type roster *before* ``charter.activation.activations`` /
+  ``charter.activation.synthesizer.interview_mapping`` are ever imported, so their
   module-level derived frozensets are computed against the synthetic roster
   on first (and only) import. Before Rosters D/E are wired to the accessor
   (i.e. while they remain hardcoded literals), this is RED: neither frozenset
   contains ``"analysis"``. After the derivation lands, it is GREEN.
 
   Subprocess isolation is deliberate, not incidental: an in-process
-  ``importlib.reload()`` of ``charter.activations`` rebinds a *new*
+  ``importlib.reload()`` of ``charter.activation.activations`` rebinds a *new*
   ``ActivationEntry`` pydantic class object distinct from the one other
   already-imported charter schema modules (e.g. ``GovernanceConfig`` in
   ``charter/schemas.py``) captured as a field type at their own import time —
@@ -61,7 +61,7 @@ from pathlib import Path
 
 root = Path(sys.argv[1])
 
-from doctrine.missions.mission_type_repository import (
+from charter.offering.missions.mission_type_repository import (
     MissionTypeRepository,
     builtin_mission_type_ids,
 )
@@ -69,8 +69,8 @@ from doctrine.missions.mission_type_repository import (
 MissionTypeRepository.default = classmethod(lambda cls: cls(root))
 builtin_mission_type_ids.cache_clear()
 
-import charter.activations as activations_module
-import charter.synthesizer.interview_mapping as interview_mapping_module
+import charter.activation.activations as activations_module
+import charter.activation.synthesizer.interview_mapping as interview_mapping_module
 
 assert "analysis" in activations_module.ALLOWED_MISSION_TYPES, (
     f"analysis not in ALLOWED_MISSION_TYPES={sorted(activations_module.ALLOWED_MISSION_TYPES)}"
@@ -130,7 +130,7 @@ def test_hyphen_mission_type_resolves_via_underscore_alias() -> None:
     naive hyphen-only derivation dropped the underscore alias, the reorder
     would never trigger and this assertion would fail.
     """
-    from charter.synthesizer.interview_mapping import resolve_sections
+    from charter.activation.synthesizer.interview_mapping import resolve_sections
 
     snapshot = {
         "mission_type": "software-dev",

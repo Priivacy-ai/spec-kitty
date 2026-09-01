@@ -1,7 +1,7 @@
 """``charter status`` must not hand out a clean bill for an incomplete graph.
 
 WP08 re-review fold. The first fold wired
-:func:`doctrine.drg.validate_dangling_references` into ONE of the callers that
+:func:`charter.offering.drg.validate_dangling_references` into ONE of the callers that
 merges the real built-in layer against the operator's real configured packs
 (``doctor doctrine``'s JSON collector) and justified stopping there by calling
 that caller "the one place that holds a graph it can call complete".
@@ -15,7 +15,7 @@ binds to nothing: a machine-readable clean bill for a graph that is not clean.
 That is this mission's own defect class one layer up.
 
 The rule that actually governs the check (now stated on
-:func:`doctrine.drg.validator.validate_dangling_references`) is a predicate on
+:func:`charter.offering.drg.validator.validate_dangling_references`) is a predicate on
 the *merge*, not a uniqueness claim about one call site: **a caller may escalate
 a dangling endpoint to an error exactly when it merged the complete graph.**
 ``charter lint`` is the one caller that must NOT (it merges against a
@@ -127,13 +127,16 @@ def test_collect_org_layer_status_surfaces_a_failed_merge_check(
     it turns "the completeness check crashed" into "no findings", which is the
     same false-clean one level further down.
     """
-    import charter.drg as charter_drg
+    import charter.activation.drg_activation as drg_activation
     from specify_cli.cli.commands.charter import _collect_org_layer_status
 
     def _boom(**_kwargs: object) -> object:
         raise RuntimeError("merge exploded")
 
-    monkeypatch.setattr(charter_drg, "merge_three_layers", _boom)
+    # ``_collect_org_layer_status`` imports ``merge_three_layers`` from
+    # ``charter.activation.drg_activation`` (its re-export site), not from the
+    # ``charter.drg`` facade — patch the module production actually calls.
+    monkeypatch.setattr(drg_activation, "merge_three_layers", _boom)
 
     result = _collect_org_layer_status(tmp_repo_with_org_pack)
 

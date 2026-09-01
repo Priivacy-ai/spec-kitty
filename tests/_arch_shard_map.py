@@ -137,7 +137,6 @@ _ARCH_SHARD_1_FILES: tuple[str, ...] = (
     "tests/architectural/test_session_reaper.py",
     "tests/architectural/test_shared_package_boundary.py",
     "tests/architectural/test_single_mission_surface_resolver.py",
-    "tests/architectural/test_src_filter_coverage.py",
     "tests/architectural/test_status_module_boundary.py",
     "tests/architectural/test_topology_inference_retired.py",
     "tests/architectural/test_unregistered_shim_scanner.py",
@@ -179,7 +178,6 @@ _ARCH_SHARD_2_FILES: tuple[str, ...] = (
     # count (32 vs 33/34) when this file landed, so it lands here.
     "tests/architectural/test_trio_seam_only.py",
     "tests/architectural/test_coord_read_residuals_closeout.py",
-    "tests/architectural/test_coverage_consumer_needs.py",
     "tests/architectural/test_execution_context_parity.py",
     # Added post-data-model.md (new file, mission mission-resolver-port-01KX1C05
     # WP07 #2447 doctrine-phantom guard). shard_2 was tied lightest by file
@@ -216,7 +214,6 @@ _ARCH_SHARD_2_FILES: tuple[str, ...] = (
     # --timeout=240 flags WP12 added to ci-quality.yml's fast-tier jobs
     # stayed present). shard_2 was the lightest by file count (36 vs 37/39)
     # when this file landed, so it lands here.
-    "tests/architectural/test_ci_fast_jobs_have_timeout.py",
     # Added post-data-model.md (new file, mission
     # review-cycle-verdict-seam-rebuild-01KZ2W7W WP16, FR-017/SC-007 — the
     # test-name-truthfulness audit over the touched-union-keyword-matched
@@ -248,7 +245,6 @@ _ARCH_SHARD_3_FILES: tuple[str, ...] = (
     # only one that exists at WP11's landing time) and WP16 carries this exact
     # entry forward into the new seam. This is a recorded out-of-map append to
     # WP16's owned file, not a cross-lane trivial-merge conflict to resolve.
-    "tests/architectural/test_arch_pole_deserialized.py",
     "tests/architectural/test_auth_transport_singleton.py",
     "tests/architectural/test_builtin_override_policy.py",
     "tests/architectural/test_ci_quality_path_filters.py",
@@ -294,7 +290,7 @@ _ARCH_SHARD_3_FILES: tuple[str, ...] = (
     # Added post-data-model.md (new files, mission
     # charter-sole-door-bypass-closure-01KZ3WAA landing-fold gate hardening --
     # the five sole-door durability gates (agent-profile repository, raw
-    # DoctrineService, doctrine.resolver import ban, missions-root hardcode
+    # DoctrineService, charter.offering.resolver import ban, missions-root hardcode
     # ban, ._inner reach-around ban) were never appended to this map when
     # WP04/WP06/WP09 landed them, leaving them selected by zero arch_shard_N
     # marker until the default_fallback hash-bucket auto-cover picked them up

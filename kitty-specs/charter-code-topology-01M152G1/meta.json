@@ -1,0 +1,14 @@
+{
+  "created_at": "2026-08-28T20:55:32.203285+00:00",
+  "flattened": false,
+  "friendly_name": "Charter Code Topology (retire-doctrine-term M2)",
+  "mission_id": "01M152G1KAF9AVTVRPX7JBRD32",
+  "mission_number": null,
+  "mission_slug": "charter-code-topology-01M152G1",
+  "mission_type": "software-dev",
+  "purpose_context": "This mission advances Charter Code Topology (retire-doctrine-term M2) on feat/charter-code-topology so stakeholders can track the work from mission creation onward.",
+  "purpose_tldr": "Charter Code Topology (retire-doctrine-term M2)",
+  "slug": "charter-code-topology-01M152G1",
+  "target_branch": "feat/charter-code-topology",
+  "topology": "single_branch"
+}

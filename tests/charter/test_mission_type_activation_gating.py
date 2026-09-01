@@ -5,7 +5,7 @@ mission added a new gate.** The activation gate it covers — filtering
 ``existing_mission_types()``'s return value (and, downstream, the ``is_registered``
 membership check in ``resolve_mission_type_context()``) to the project's
 activated-mission-type set — already existed, unchanged in substance, before
-this mission touched ``charter.mission_type_profiles``: reverting that module
+this mission touched ``charter.activation.mission_type_profiles``: reverting that module
 to its pre-mission state and re-running this suite still passes (DIRECTIVE_041
 — confirmed: ``7 passed``). There was no missing gate to close, so this module
 must not be read, cited, or summarised as evidence that this mission introduced
@@ -21,7 +21,7 @@ to ``frozenset()`` (empty), NOT the built-in roster and NOT a construction
 raise. The gate this suite pins is therefore binary (filtered vs. not), not the
 three-state contract the other 9 kinds follow:
 
-* T034 — the gate lives entirely in ``charter.mission_type_profiles``, and its
+* T034 — the gate lives entirely in ``charter.activation.mission_type_profiles``, and its
   authoritative implementation is ``existing_mission_types()``'s filtering
   return statement (``sorted(pack_context.activated_mission_types)``), not the
   membership check in ``resolve_mission_type_context()`` that merely consumes
@@ -45,8 +45,8 @@ three-state contract the other 9 kinds follow:
 * T036 — subset-activation regression: a proper subset of activated types
   narrows the result to exactly that subset.
 
-No test in this suite touches ``charter.mission_type_profile_repository``
-(WP06's exclusive ownership) or adds anything to ``charter.resolver.DoctrineService``.
+No test in this suite touches ``charter.activation.mission_type_profile_repository``
+(WP06's exclusive ownership) or adds anything to ``charter.activation.resolver.DoctrineService``.
 """
 
 from __future__ import annotations
@@ -55,12 +55,12 @@ from pathlib import Path
 
 import pytest
 
-from charter.mission_type_profiles import (
+from charter.activation.mission_type_profiles import (
     UnknownMissionTypeError,
     existing_mission_types,
     resolve_mission_type_context,
 )
-from doctrine.missions.mission_type_repository import builtin_mission_type_id_set
+from charter.offering.missions.mission_type_repository import builtin_mission_type_id_set
 
 pytestmark = [pytest.mark.fast]
 

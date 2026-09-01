@@ -5,7 +5,7 @@ doc_status: active
 updated: '2026-07-21'
 related:
   - docs/api/agent_profiles/index.md
-  - docs/context/doctrine.md
+  - docs/context/charter.md
 ---
 
 # Human in Charge — Agent Profile
@@ -22,7 +22,7 @@ When a work package carries the `human-in-charge` profile-id, that WP requires d
 
 ## What it does NOT do
 
-- No doctrine layers are loaded (`context-sources.doctrine-layers` is empty).
+- No doctrine layers are loaded (the profile declares no `directive-references` / `tactic-references`).
 - No directives are applied (`directive-references` is empty).
 - No persona voice or initialization declaration is used — the field is a literal empty string.
 

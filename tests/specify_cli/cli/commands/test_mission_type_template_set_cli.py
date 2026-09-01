@@ -1,7 +1,7 @@
 """CLI tests for the WP01 ``template_set`` atomic cutover.
 
 ``mission-type show`` reads the resolved ``template_set`` mapping through
-:func:`charter.mission_type_profiles.resolve_mission_type_context` -- never
+:func:`charter.activation.mission_type_profiles.resolve_mission_type_context` -- never
 the retired ``MissionType.template_set`` model field (FR-003).
 
 FR-003, NFR-001 (S-C, mission-step-creatability-01KXQA6R WP01).
@@ -166,9 +166,9 @@ def test_show_succeeds_and_reports_real_layer_for_activated_org_type(
     only the built-in-only ``MissionTypeRepository.default()``), so this test
     cannot even reach sites (2)/(3) until site (1) is fixed too.
     """
-    from doctrine.missions.mission_type_repository import MissionTypeRepository
+    from charter.offering.missions.mission_type_repository import MissionTypeRepository
 
-    from charter.pack_context import PackContext
+    from charter.activation.pack_context import PackContext
 
     org_root = tmp_path / "org-pack"
     _write_org_mission_type_yaml(org_root, "qa", action_sequence=["design", "implement"])
@@ -182,7 +182,7 @@ def test_show_succeeds_and_reports_real_layer_for_activated_org_type(
     monkeypatch.chdir(tmp_path)
     MissionTypeRepository.cache_clear()
     try:
-        with patch("charter.pack_context.PackContext.from_config", return_value=pack_context):
+        with patch("charter.activation.pack_context.PackContext.from_config", return_value=pack_context):
             json_result = runner.invoke(mission_type_app, ["show", "qa", "--json"])
             panel_result = runner.invoke(mission_type_app, ["show", "qa"])
     finally:
@@ -234,9 +234,9 @@ def test_show_exits_cleanly_for_activated_org_type_with_empty_action_sequence(
     whose action sequence is empty must exit 1 with a clean error message --
     never an uncaught ``MissionTypeEmptyActionSequenceError`` traceback.
     """
-    from doctrine.missions.mission_type_repository import MissionTypeRepository
+    from charter.offering.missions.mission_type_repository import MissionTypeRepository
 
-    from charter.pack_context import PackContext
+    from charter.activation.pack_context import PackContext
 
     org_root = tmp_path / "org-pack"
     _write_org_mission_type_yaml_no_action_sequence(org_root, "empty-qa")
@@ -250,7 +250,7 @@ def test_show_exits_cleanly_for_activated_org_type_with_empty_action_sequence(
     monkeypatch.chdir(tmp_path)
     MissionTypeRepository.cache_clear()
     try:
-        with patch("charter.pack_context.PackContext.from_config", return_value=pack_context):
+        with patch("charter.activation.pack_context.PackContext.from_config", return_value=pack_context):
             result = runner.invoke(mission_type_app, ["show", "empty-qa"])
     finally:
         MissionTypeRepository.cache_clear()

@@ -103,10 +103,10 @@ class TestLegacyPath:
 
 class TestCanonicalImport:
     def test_string_canonical_import_is_valid(self) -> None:
-        validate_registry({"shims": [_entry(canonical_import="charter.context")]})
+        validate_registry({"shims": [_entry(canonical_import="charter.activation.context")]})
 
     def test_list_canonical_import_is_valid(self) -> None:
-        validate_registry({"shims": [_entry(canonical_import=["charter.context", "charter.bundle"])]})
+        validate_registry({"shims": [_entry(canonical_import=["charter.activation.context", "charter.bundle"])]})
 
     def test_empty_list_canonical_import_raises(self) -> None:
         with pytest.raises(RegistrySchemaError, match="canonical_import"):

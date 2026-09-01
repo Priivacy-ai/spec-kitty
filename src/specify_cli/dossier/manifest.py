@@ -7,7 +7,7 @@ step-aware, reading from mission.yaml state machines.
 **C-001 relocation (mission rc3-charter-gate-predicate-inversion-01M0GGT1,
 WP04 / #3599):** the manifest *schema* -- ``ArtifactClassEnum`` /
 ``ExpectedArtifactSpec`` / ``ExpectedArtifactManifest`` -- moved to
-:mod:`doctrine.missions.expected_artifact_manifest`; this module keeps only
+:mod:`charter.offering.missions.expected_artifact_manifest`; this module keeps only
 the registry (``ManifestRegistry``), which is genuinely ``specify_cli``-owned
 (dossier caching/org-tier policy). The three relocated names are still
 importable from here -- ``ExpectedArtifactManifest.model_validate`` is called
@@ -38,18 +38,18 @@ import logging
 
 if TYPE_CHECKING:
     from charter.missions import MissionTemplateRepository
-    from doctrine.missions import ExpectedArtifactManifest, ExpectedArtifactSpec
+    from charter.offering.missions import ExpectedArtifactManifest, ExpectedArtifactSpec
 
 logger = logging.getLogger(__name__)
 
-#: Names relocated to :mod:`doctrine.missions.expected_artifact_manifest`
+#: Names relocated to :mod:`charter.offering.missions.expected_artifact_manifest`
 #: (C-001) that this module still lazily re-exports for backward
 #: compatibility -- see the module docstring and ``__getattr__`` below.
 _RELOCATED_NAMES = frozenset({"ArtifactClassEnum", "ExpectedArtifactManifest", "ExpectedArtifactSpec"})
 
 
 def __getattr__(name: str) -> Any:
-    """PEP 562 lazy re-export for the classes relocated to ``doctrine.missions``.
+    """PEP 562 lazy re-export for the classes relocated to ``charter.offering.missions``.
 
     Only fires for attribute access this module doesn't otherwise define
     (regular imports/definitions above always win first) -- so
@@ -88,11 +88,11 @@ def _resolve_existing_org_roots(repo_root: Path) -> list[Path]:
     proxy (runtime must reach doctrine through charter — never directly;
     see ``tests/architectural/test_runtime_charter_doctrine_boundary.py``).
     Delegates to the shared
-    :func:`doctrine.drg.org_pack_config.resolve_existing_org_roots` primitive
+    :func:`charter.offering.drg.org_pack_config.resolve_existing_org_roots` primitive
     (#3525 Fold A) rather than re-implementing the filter comprehension —
     the same primitive every other "does this org root exist" consumer now
     routes onto (e.g.
-    ``charter.doctrine_service_builder._self_resolve_existing_org_roots``): a
+    ``charter.activation.doctrine_service_builder._self_resolve_existing_org_roots``): a
     stale/never-fetched ``local_path`` config entry degrades to "no org
     contribution" for this call rather than raising.
     """
@@ -219,7 +219,7 @@ class ManifestRegistry:
         FR-008 (WP05): when *repo_root* is given and resolves to 1+ existing
         configured org roots, an org-pack
         ``<org_root>/<mission_type>/expected-artifacts.yaml`` (see
-        :func:`charter.org_expected_artifacts.resolve_org_expected_artifacts`,
+        :func:`charter.activation.org_expected_artifacts.resolve_org_expected_artifacts`,
         contract C-4) takes precedence over the built-in file, whole-file —
         never field-merged with it. *repo_root* is optional and defaults to
         ``None`` (today's exact behavior: no org lookup, built-in tree only)
@@ -254,7 +254,7 @@ class ManifestRegistry:
                 knows to read an exception note (#3542-A/B fix).
         """
         # C-001 relocation (WP04 / #3599): ``ExpectedArtifactManifest`` now
-        # lives in ``doctrine.missions.expected_artifact_manifest`` -- a
+        # lives in ``charter.offering.missions.expected_artifact_manifest`` -- a
         # lazy, function-local import (not TYPE_CHECKING-only) because the
         # two ``.model_validate(...)`` calls below need the real class at
         # RUNTIME, not just a type annotation. Routed through the charter facade
@@ -268,7 +268,7 @@ class ManifestRegistry:
 
         org_parsed: object | None = None
         if org_roots:
-            from charter.org_expected_artifacts import resolve_org_expected_artifacts  # noqa: PLC0415
+            from charter.activation.org_expected_artifacts import resolve_org_expected_artifacts  # noqa: PLC0415
 
             org_parsed = resolve_org_expected_artifacts(org_roots, mission_type)
 
@@ -287,7 +287,7 @@ class ManifestRegistry:
                 # expected it to take effect, so silently falling back to
                 # None (or worse, to the built-in file, which whole-file
                 # precedence forbids) hides a genuine misconfiguration.
-                # `resolve_org_expected_artifacts` (charter.org_expected_artifacts)
+                # `resolve_org_expected_artifacts` (charter.activation.org_expected_artifacts)
                 # returns only the parsed mapping, not which org_root/file
                 # matched (last-EXISTING-match-wins means it isn't
                 # necessarily the last root in the list either -- only the

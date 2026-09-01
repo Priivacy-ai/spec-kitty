@@ -70,7 +70,7 @@ if TYPE_CHECKING:
     from specify_cli.bulk_edit.gate import DiffCheckResult
     from specify_cli.invocation.record import OpStartedEvent
 
-from charter.context import build_charter_context
+from charter.activation.context import build_charter_context
 from specify_cli.cli.commands.agent.tasks import _collect_status_artifacts
 from specify_cli.cli.commands.implement import implement as top_level_implement
 from specify_cli.cli.selector_resolution import resolve_mission_handle
@@ -852,11 +852,22 @@ def _find_mission_slug(
 
     raw_handle = explicit_mission.strip()
     if repo_root is not None:
-        legacy_dir = _resolve_workflow_read_dir(
-            repo_root=get_main_repo_root(repo_root),
-            mission_slug=raw_handle,
-            kind=MissionArtifactKind.PRIMARY_METADATA,
-        )
+        from specify_cli.missions._read_path_resolver import MissionSelectorAmbiguous
+
+        try:
+            legacy_dir = _resolve_workflow_read_dir(
+                repo_root=get_main_repo_root(repo_root),
+                mission_slug=raw_handle,
+                kind=MissionArtifactKind.PRIMARY_METADATA,
+            )
+        except MissionSelectorAmbiguous as exc:
+            # #450: this short-circuit call runs BEFORE resolve_mission_handle
+            # below, so an ambiguous handle must not propagate uncaught — these
+            # commands have no --json mode, so a plain "Error: ..." + exit 1
+            # (matching this function's other --mission-required error case
+            # above) is the whole fix, mirroring #241's try/except shape.
+            print(f"Error: {exc}")
+            raise typer.Exit(1) from exc
         if legacy_dir.exists():
             # F-001: the candidate resolver canonicalizes mid8/ULID/numeric
             # handles, so the resolved directory's NAME — not the raw operator
@@ -1294,8 +1305,41 @@ def implement(
                 actor=agent,
             )
 
-        _ensure_workspace_materialized(workspace, normalized_wp_id, _create_workspace)
+        # FR-005/#3281 (C-006): a retry over an already-materialized lane
+        # worktree re-enters the allocator's idempotent reuse-path self-heal
+        # instead of the prior bare `workspace.exists: return` short-circuit.
+        from specify_cli.lanes.implement_support import reenter_lane_self_heal
+
+        def _reenter_self_heal() -> None:
+            reenter_lane_self_heal(main_repo_root, mission_slug, normalized_wp_id)
+
+        _ensure_workspace_materialized(workspace, normalized_wp_id, _create_workspace, _reenter_self_heal)
         workspace_path = workspace.worktree_path
+
+        # Seam C-005 (#3281/FR-007): the claim-ancestry gate runs HERE --
+        # POST-materialize (after the self-heal above re-runs the planning-
+        # commit + dependency-tip merges), keyed on the MERGED tip, BEFORE any
+        # claim status event is emitted below. Never move this above
+        # ``_ensure_workspace_materialized`` (or before it in the call
+        # sequence) -- evaluating ancestry against a pre-merge HEAD deadlocks
+        # an already-approved same-mission dependency that simply has not
+        # been merged into this lane's worktree yet.
+        from specify_cli.lanes.implement_support import resolve_claim_ancestry_gate
+
+        # The predicate's dependency-status lookup reads the STATUS event log,
+        # which is a DIFFERENT surface than the PRIMARY ``feature_dir`` above
+        # (WORK_PACKAGE_TASK) for coord-topology missions -- reuse the same
+        # coord-aware resolver ``implement_claim_transition`` below consults.
+        status_feature_dir = _canonical_status_feature_dir(main_repo_root, mission_slug)
+        ancestry = resolve_claim_ancestry_gate(
+            main_repo_root, mission_slug, status_feature_dir, normalized_wp_id, workspace_path
+        )
+        if not ancestry.ok:
+            print(
+                f"Error: cannot claim {normalized_wp_id}: ancestry could not be "
+                f"established after self-heal for: {', '.join(ancestry.missing_refs)}"
+            )
+            raise typer.Exit(1)
 
         subtask_ids = [str(item) for item in wp_meta.subtasks if isinstance(item, str)]
         subtask_cmd = " ".join(subtask_ids) if subtask_ids else "<subtask-ids>"

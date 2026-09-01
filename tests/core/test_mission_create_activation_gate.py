@@ -22,7 +22,7 @@ from pathlib import Path
 
 import pytest
 
-from charter.pack_context import CharterPackConfigError
+from charter.activation.pack_context import CharterPackConfigError
 from specify_cli.core.mission_creation import create_mission_core
 
 pytestmark = [pytest.mark.integration, pytest.mark.git_repo]

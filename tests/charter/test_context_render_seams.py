@@ -1,5 +1,5 @@
 """WP05 (#2532) — focused unit tests for the 5 render seams extracted from
-``charter.context`` into ``charter.context_renderers``: ``template_include``,
+``charter.activation.context`` into ``charter.activation.context_renderers``: ``template_include``,
 ``selection_block``, ``activation_block``, ``bootstrap_text``, and
 ``compact_governance``.
 
@@ -9,7 +9,7 @@ this module pins two things the parity fixture cannot see by construction:
 
 1. **Standalone importability** — each new seam module must be importable as
    the FIRST charter import in a fresh interpreter, without raising, proving
-   the module-load cycle each of them shares with ``charter.context`` (for a
+   the module-load cycle each of them shares with ``charter.activation.context`` (for a
    collaborator that has not yet been relocated) is broken by a
    function-local import rather than a top-level one (data-model.md's
    cycle-dissolution invariant, NFR-001 acyclicity).
@@ -30,15 +30,15 @@ from typing import Any
 
 import pytest
 
-from charter.activations import ActivationEntry
-from charter.context_renderers import (
+from charter.activation.activations import ActivationEntry
+from charter.activation.context_renderers import (
     activation_block,
     bootstrap_text,
     compact_governance,
     selection_block,
     template_include,
 )
-from charter.schemas import DoctrineSelectionConfig
+from charter.activation.schemas import DoctrineSelectionConfig
 
 #: One test in this module (``test_seam_module_imports_standalone_without_
 #: charter_context``) spawns a subprocess to verify standalone importability,
@@ -57,11 +57,11 @@ pytestmark = [pytest.mark.unit]
 @pytest.mark.parametrize(
     "module_name",
     [
-        "charter.context_renderers.template_include",
-        "charter.context_renderers.selection_block",
-        "charter.context_renderers.activation_block",
-        "charter.context_renderers.bootstrap_text",
-        "charter.context_renderers.compact_governance",
+        "charter.activation.context_renderers.template_include",
+        "charter.activation.context_renderers.selection_block",
+        "charter.activation.context_renderers.activation_block",
+        "charter.activation.context_renderers.bootstrap_text",
+        "charter.activation.context_renderers.compact_governance",
     ],
 )
 def test_seam_module_imports_standalone_without_charter_context(
@@ -72,8 +72,8 @@ def test_seam_module_imports_standalone_without_charter_context(
     A subprocess is used (not a plain ``import`` in-process) so the check
     is genuinely independent of whichever charter modules pytest's own
     collection has already warmed into ``sys.modules`` — a top-level
-    ``charter.context`` import inside one of these seams would only show up
-    as a failure here, never in the full suite (where ``charter.context``
+    ``charter.activation.context`` import inside one of these seams would only show up
+    as a failure here, never in the full suite (where ``charter.activation.context``
     is always already loaded by the time these modules import).
 
     ``PYTHONPATH`` is pinned to THIS worktree's ``src/`` (mirroring
@@ -422,7 +422,7 @@ class TestCompactGovernanceSeam:
         """WP03/#3064 contract: ``suppress_project_resolver`` must reach
         ``render_compact_view`` unchanged through BOTH wrapper layers
         (``_render_compact_from_bundle`` -> ``_render_compact_governance``
-        -> ``charter.compact.render_compact_view``) — this is the exact
+        -> ``charter.activation.compact.render_compact_view``) — this is the exact
         seam the reviewer guidance calls out as the highest-risk part of
         this move.
         """
@@ -436,10 +436,10 @@ class TestCompactGovernanceSeam:
             return _FakeView()
 
         monkeypatch.setattr(
-            "charter.compact.render_compact_view", _fake_render_compact_view
+            "charter.activation.compact.render_compact_view", _fake_render_compact_view
         )
         monkeypatch.setattr(
-            "charter.context._load_doctrine_selection",
+            "charter.activation.context._load_doctrine_selection",
             lambda _repo_root: DoctrineSelectionConfig(),
         )
 
@@ -474,10 +474,10 @@ class TestCompactGovernanceSeam:
             return _FakeView()
 
         monkeypatch.setattr(
-            "charter.compact.render_compact_view", _fake_render_compact_view
+            "charter.activation.compact.render_compact_view", _fake_render_compact_view
         )
         monkeypatch.setattr(
-            "charter.context._load_doctrine_selection",
+            "charter.activation.context._load_doctrine_selection",
             lambda _repo_root: DoctrineSelectionConfig(),
         )
 

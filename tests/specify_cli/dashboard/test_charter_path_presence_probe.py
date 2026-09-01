@@ -80,7 +80,7 @@ def test_presence_probe_reports_present_when_only_charter_md_exists(tmp_path: Pa
     to survive charter.md deletion, but that silently regressed the far
     more common opposite case -- a project that has authored charter.md and
     has not yet run ``charter sync``/compile to produce charter.yaml. This
-    mirrors the yaml-or-md presence gate in ``charter.context`` (C-003) and
+    mirrors the yaml-or-md presence gate in ``charter.activation.context`` (C-003) and
     the md-only fallback added to ``_status_collectors.py`` in the same PR.
     """
     _init_git_repo(tmp_path)

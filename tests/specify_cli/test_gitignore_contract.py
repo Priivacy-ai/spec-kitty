@@ -107,7 +107,7 @@ def test_dossier_snapshot_is_feature_rooted_not_project_rooted():
     assert surface.path_pattern == "kitty-specs/<feature>/.kittify/dossiers/<feature>/snapshot-latest.json"
 
     # dossier_parity_baseline is a DIFFERENT artifact at a genuinely
-    # project-rooted physical location (drift_detector.py writes
+    # project-rooted physical location (drift_detector.py (deleted, #274) wrote
     # repo_root/.kittify/dossiers/<slug>/parity-baseline.json) -- confirm this
     # fix did not accidentally move it too.
     baseline = next(s for s in STATE_SURFACES if s.name == "dossier_parity_baseline")

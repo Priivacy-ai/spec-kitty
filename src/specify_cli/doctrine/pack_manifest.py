@@ -6,7 +6,7 @@ replaces the two divergent formats that shipped previously (WP01 / IC-01):
 * per-kind ``artifact_counts`` for org / fetched packs
   (``specify_cli.doctrine.snapshot.write_pack_manifest``), and
 * the enumerated ``artifacts[]`` list of the charter bundle
-  (``charter.synthesizer.manifest.SynthesisManifest``).
+  (``charter.activation.synthesizer.manifest.SynthesisManifest``).
 
 The enumerated shape is promoted to the canonical ``constituents[]`` inventory.
 A charter pack additionally carries a :class:`CharterProfile` block preserving
@@ -18,7 +18,7 @@ Design references:
 * ``kitty-specs/pack-metadata-manifest-unification-01M052PT/data-model.md``
 
 Hashing is delegated to the **single** canonical manifest hasher
-(:func:`charter.synthesizer.manifest.hash_manifest_payload`) — this module
+(:func:`charter.activation.synthesizer.manifest.hash_manifest_payload`) — this module
 never introduces a second SHA-256 implementation (RR-SF2 / T005). The
 ``generated_at`` / ``generated_by`` provenance fields are excluded from both
 the ``manifest_hash`` and the byte-diff assertion so re-generating an unchanged
@@ -30,13 +30,20 @@ from __future__ import annotations
 from collections import Counter
 from collections.abc import Mapping, Sequence
 from pathlib import Path
+from typing import Any
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import (
+    BaseModel,
+    ConfigDict,
+    GetJsonSchemaHandler,
+    SerializerFunctionWrapHandler,
+    model_serializer,
+)
 from ruamel.yaml import YAML
 
-from charter.synthesizer.manifest import SynthesisManifest, hash_manifest_payload
-from charter.synthesizer.synthesize_pipeline import canonical_yaml
-from doctrine.artifact_kinds import ArtifactKind
+from charter.activation.synthesizer.manifest import SynthesisManifest, hash_manifest_payload
+from charter.activation.synthesizer.synthesize_pipeline import canonical_yaml
+from charter.offering.artifact_kinds import ArtifactKind
 
 #: Current unified pack-manifest schema version (DIR-018 shape gate).
 SCHEMA_VERSION = "1"
@@ -49,6 +56,21 @@ HASH_EXCLUDED_FIELDS: frozenset[str] = frozenset(
     {"manifest_hash", "generated_at", "generated_by"}
 )
 
+_FETCHED_PROVENANCE_FIELDS: frozenset[str] = frozenset(
+    {
+        "pack_version",
+        "etag",
+        "source_fingerprint",
+        "source_uses_query",
+        "snapshot_sha256",
+        "artifact_counts",
+    }
+)
+
+_GENERATED_PACK_SOURCE_TYPES: frozenset[str] = frozenset(
+    {"api", "artifactory", "assemble", "git", "https"}
+)
+
 
 class Constituent(BaseModel):
     """One artifact enumerated in a pack manifest (data-model.md § Constituent)."""
@@ -57,7 +79,7 @@ class Constituent(BaseModel):
 
     kind: ArtifactKind
     """Canonical artifact kind — widened from the charter manifest's 3-kind
-    literal to the shared :class:`~doctrine.artifact_kinds.ArtifactKind` so the
+    literal to the shared :class:`~charter.offering.artifact_kinds.ArtifactKind` so the
     built-in pack's kinds pass the shared model (PP-S4)."""
 
     id: str
@@ -80,7 +102,7 @@ class CharterProfile(BaseModel):
     """Charter-only manifest field-set carried on a charter pack (PP-M2).
 
     Carries the **entire** charter-only contract of
-    ``charter.synthesizer.manifest.SynthesisManifest`` so absorption drops no
+    ``charter.activation.synthesizer.manifest.SynthesisManifest`` so absorption drops no
     working field. ``built_in_only`` is load-bearing across the
     ``charter_runtime`` freshness / preflight / lint readers and MUST survive.
     """
@@ -109,18 +131,64 @@ class PackManifest(BaseModel):
     source_url: str | None = None
     source_type: str | None = None
     fetched_at: str | None = None
+    pack_version: str | None = None
+    etag: str | None = None
+    source_fingerprint: str | None = None
+    source_uses_query: bool | None = None
+    snapshot_sha256: str | None = None
+    artifact_counts: dict[str, int] | None = None
     manifest_hash: str | None = None
-    constituents: list[Constituent] = Field(default_factory=list)
+    constituents: list[Constituent] | None = None
     charter: CharterProfile | None = None
+
+    @model_serializer(mode="wrap")
+    def _serialize_manifest(
+        self, handler: SerializerFunctionWrapHandler
+    ) -> dict[str, Any]:
+        """Serialize manifest variants consistently on every Pydantic path."""
+        data: dict[str, Any] = handler(self)
+        for field_name in _FETCHED_PROVENANCE_FIELDS:
+            if data.get(field_name) is not None:
+                continue
+            if (
+                field_name == "pack_version"
+                and self.source_type in _GENERATED_PACK_SOURCE_TYPES
+            ):
+                continue
+            data.pop(field_name, None)
+        if self.constituents is None:
+            data.pop("constituents", None)
+        return data
+
+    @classmethod
+    def __get_pydantic_json_schema__(
+        cls, core_schema: Any, handler: GetJsonSchemaHandler
+    ) -> dict[str, Any]:
+        """Keep the declared serialization schema as strict as validation."""
+        schema = dict(core_schema)
+        if handler.mode == "serialization":
+            schema.pop("serialization", None)
+        return handler(schema)
 
     def sorted_constituents(self) -> list[Constituent]:
         """Return the constituents in canonical ``(kind, id)`` order."""
-        return sort_constituents(self.constituents)
+        return sort_constituents(self.constituents or ())
 
 
 # ---------------------------------------------------------------------------
 # Determinism + hashing
 # ---------------------------------------------------------------------------
+
+
+def _manifest_payload(manifest: PackManifest) -> dict[str, object]:
+    """Return canonical data without leaking fetched-only null fields.
+
+    Built-in and charter manifests keep their historical bytes and hashes.
+    Generated fetched/assembled variants retain an explicit
+    ``pack_version: null`` required by pack recognisability. Non-null
+    provenance is always retained and therefore bound into the manifest hash.
+    """
+    return manifest.model_dump(mode="json")
 
 
 def sort_constituents(constituents: Sequence[Constituent]) -> list[Constituent]:
@@ -131,13 +199,13 @@ def sort_constituents(constituents: Sequence[Constituent]) -> list[Constituent]:
 def compute_pack_manifest_hash(manifest: PackManifest) -> str:
     """Compute ``manifest_hash`` via the single canonical hasher.
 
-    Delegates to :func:`charter.synthesizer.manifest.hash_manifest_payload`
+    Delegates to :func:`charter.activation.synthesizer.manifest.hash_manifest_payload`
     (the one SHA-256 + ``canonical_yaml`` primitive) over every field except
     :data:`HASH_EXCLUDED_FIELDS`. ``mode="json"`` normalizes the
     :class:`ArtifactKind` enum members to their string values so the payload is
     plain data.
     """
-    data = manifest.model_dump(mode="json")
+    data = _manifest_payload(manifest)
     # hash_manifest_payload is untyped (Any) upstream; narrow to the str it returns.
     return str(hash_manifest_payload(data, exclude_keys=HASH_EXCLUDED_FIELDS))
 
@@ -148,9 +216,12 @@ def finalize_pack_manifest(manifest: PackManifest) -> PackManifest:
     Constituents are normalized to canonical ``(kind, id)`` order first so the
     hash and serialized bytes are order-independent of the caller.
     """
-    ordered = manifest.model_copy(
-        update={"constituents": sort_constituents(manifest.constituents)}
+    ordered_constituents = (
+        None
+        if manifest.constituents is None
+        else sort_constituents(manifest.constituents)
     )
+    ordered = manifest.model_copy(update={"constituents": ordered_constituents})
     return ordered.model_copy(
         update={"manifest_hash": compute_pack_manifest_hash(ordered)}
     )
@@ -164,14 +235,17 @@ def finalize_pack_manifest(manifest: PackManifest) -> PackManifest:
 def dump_pack_manifest_bytes(manifest: PackManifest) -> bytes:
     """Serialize *manifest* to deterministic canonical YAML bytes.
 
-    Reuses :func:`charter.synthesizer.synthesize_pipeline.canonical_yaml` (the
+    Reuses :func:`charter.activation.synthesizer.synthesize_pipeline.canonical_yaml` (the
     single source of truth for YAML serialization) so the bytes are stable
     under identical inputs. Constituents are canonically ordered first.
     """
-    ordered = manifest.model_copy(
-        update={"constituents": sort_constituents(manifest.constituents)}
+    ordered_constituents = (
+        None
+        if manifest.constituents is None
+        else sort_constituents(manifest.constituents)
     )
-    serialized: bytes = canonical_yaml(ordered.model_dump(mode="json"))
+    ordered = manifest.model_copy(update={"constituents": ordered_constituents})
+    serialized: bytes = canonical_yaml(_manifest_payload(ordered))
     return serialized
 
 

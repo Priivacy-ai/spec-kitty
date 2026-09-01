@@ -11,12 +11,12 @@ identifying string anywhere: every caller supplies its own ``__file__`` as
 ``anchor_file`` and the relative shape it is looking for as
 ``sibling_relative_path``. Three call sites converge on this primitive:
 ``kernel.paths.get_package_asset_root()``,
-``doctrine.pack_paths._resolve_built_in()``, and
-``doctrine.missions.repository.MissionTemplateRepository.default_missions_root()``
+``charter.offering.pack_paths._resolve_built_in()``, and
+``charter.offering.missions.repository.MissionTemplateRepository.default_missions_root()``
 -- see the mission's ``contracts/kernel-resolution-primitive.md`` for the
 full behavioural contract this implements.
 
-Resolution order (a 3-step collapse of ``doctrine.pack_paths._resolve_built_in``'s
+Resolution order (a 3-step collapse of ``charter.offering.pack_paths._resolve_built_in``'s
 pre-existing *shape* -- see the note below on why its distinct third step does
 not carry over unchanged):
 
@@ -42,7 +42,7 @@ not carry over unchanged):
 
 Note on the pre-existing ``_resolve_built_in`` shape this primitive replaces:
 that function's own step 3 was *not* redundant, because it read
-``files("doctrine").parent`` -- a different path source (installed-package
+``files("charter.offering").parent`` -- a different path source (installed-package
 metadata via :func:`importlib.resources.files`) than a filesystem walk. This
 primitive intentionally has no equivalent, since it must stay
 package-name-agnostic (it only ever receives the caller's own ``__file__``);
@@ -73,7 +73,7 @@ class SiblingPathNotFound(Exception):
 
     Names both what was being sought (``sibling_relative_path``) and the
     anchor it was sought relative to (``anchor_file``), so a caller-facing
-    translation (e.g. ``doctrine.pack_paths.PackRootNotFound``) can still
+    translation (e.g. ``charter.offering.pack_paths.PackRootNotFound``) can still
     produce an informative message.
     """
 

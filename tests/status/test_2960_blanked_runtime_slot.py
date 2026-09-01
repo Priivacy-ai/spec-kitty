@@ -116,7 +116,7 @@ def test_empty_agent_delta_is_noop_in_apply_even_from_legacy_log() -> None:
     """Defense for an already-persisted legacy ``agent: ""`` delta: even when the
     fold receives a delta whose ``agent`` slot is empty (constructed via the wire
     decoder), the reducer treats it as a no-op rather than blanking the slot."""
-    from specify_cli.status.reducer import _apply_annotation_delta
+    from spec_kitty_events.diary import _apply_annotation_delta
 
     state: dict[str, object] = {"lane": str(Lane.IN_PROGRESS), "agent": "claude"}
     # Simulate a legacy on-disk delta carrying an explicit empty string: bypass

@@ -449,7 +449,7 @@ class TestCLISurface:
             assert "mission_id" in item
             assert "number_coerced" in item
             assert "reason" in item
-            assert "mission_id" in item
+            assert set(item.keys()) == {"slug", "action", "mission_id", "number_coerced", "reason"}
 
     def test_summary_counts_coercions(self, tmp_path: Path) -> None:
         specs = tmp_path / "kitty-specs"
