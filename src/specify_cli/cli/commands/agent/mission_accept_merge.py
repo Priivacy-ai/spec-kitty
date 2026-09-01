@@ -145,8 +145,8 @@ def _maybe_auto_retry_in_worktree(
     *,
     push: bool,
     dry_run: bool,
-    keep_branch: bool,
-    keep_worktree: bool,
+    keep_branch: bool | None,
+    keep_worktree: bool | None,
 ) -> None:
     """Re-run merge inside the deterministic mission worktree, then exit.
 
@@ -187,10 +187,14 @@ def _maybe_auto_retry_in_worktree(
         retry_cmd.append("--push")
     if dry_run:
         retry_cmd.append("--dry-run")
-    if keep_branch:
+    if keep_branch is True:
         retry_cmd.append("--keep-branch")
-    if keep_worktree:
+    elif keep_branch is False:
+        retry_cmd.append("--delete-branch")
+    if keep_worktree is True:
         retry_cmd.append("--keep-worktree")
+    elif keep_worktree is False:
+        retry_cmd.append("--remove-worktree")
     retry_cmd.append("--no-auto-retry")
 
     result = subprocess.run(
@@ -208,22 +212,22 @@ def _delegate_to_top_level_merge(
     *,
     push: bool,
     dry_run: bool,
-    keep_branch: bool,
-    keep_worktree: bool,
+    keep_branch: bool | None,
+    keep_worktree: bool | None,
 ) -> None:
     """Delegate to the top-level merge command with agent parameter mapping.
 
-    Agent uses ``--keep-branch``/``--keep-worktree`` (default False); the
-    top-level command uses ``--delete-branch``/``--remove-worktree`` (default
-    True), so the keep flags are inverted here.
+    Unset agent flags remain ``None`` so the top-level retention gate can
+    require an explicit choice. Explicit keep choices invert to the top-level
+    delete/remove flags.
     """
     from specify_cli.cli.commands.agent import mission as _mission
 
     try:
         _mission.top_level_merge(
             strategy=MergeStrategy(strategy),
-            delete_branch=not keep_branch,  # Invert: keep -> delete
-            remove_worktree=not keep_worktree,  # Invert: keep -> remove
+            delete_branch=None if keep_branch is None else not keep_branch,
+            remove_worktree=None if keep_worktree is None else not keep_worktree,
             push=push,
             target_branch=target,  # Note: parameter name differs
             dry_run=dry_run,
@@ -248,8 +252,20 @@ def merge_feature(
     strategy: Annotated[str, typer.Option("--strategy", help="Strategy for the branch-integration step: merge, squash, rebase")] = "merge",
     push: Annotated[bool, typer.Option("--push", help="Publish to origin after the local merge (the operator publish step)")] = False,
     dry_run: Annotated[bool, typer.Option("--dry-run", help="Show actions without executing")] = False,
-    keep_branch: Annotated[bool, typer.Option("--keep-branch", help="Keep mission branch after merge (default: delete)")] = False,
-    keep_worktree: Annotated[bool, typer.Option("--keep-worktree", help="Keep worktree after merge (default: remove)")] = False,
+    keep_branch: Annotated[
+        bool | None,
+        typer.Option(
+            "--keep-branch/--delete-branch",
+            help="Keep or delete mission branch after merge (default: retain-gate choice)",
+        ),
+    ] = None,
+    keep_worktree: Annotated[
+        bool | None,
+        typer.Option(
+            "--keep-worktree/--remove-worktree",
+            help="Keep or remove worktree after merge (default: retain-gate choice)",
+        ),
+    ] = None,
     auto_retry: Annotated[
         bool, typer.Option("--auto-retry/--no-auto-retry", help="Auto-navigate to a deterministic mission worktree if in the wrong location")
     ] = False,
