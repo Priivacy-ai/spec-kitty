@@ -12,10 +12,14 @@ from __future__ import annotations
 
 import pytest
 import typer
+from typer.testing import CliRunner
 
+from specify_cli import app
 from specify_cli.cli.commands.commit_guard_hook_cmd import commit_guard_hook_cli
 
 pytestmark = pytest.mark.fast
+
+runner = CliRunner()
 
 
 def test_commit_guard_hook_cli_exits_zero_on_pass(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -25,6 +29,16 @@ def test_commit_guard_hook_cli_exits_zero_on_pass(monkeypatch: pytest.MonkeyPatc
         commit_guard_hook_cli()
 
     assert excinfo.value.exit_code == 0
+
+
+def test_commit_guard_hook_cli_accepts_argv_through_the_registered_app(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr("specify_cli.policy.commit_guard_hook.main", lambda: 0)
+
+    result = runner.invoke(app, ["commit-guard-hook", ".git/COMMIT_EDITMSG"])
+
+    assert result.exit_code == 0, result.output
 
 
 def test_commit_guard_hook_cli_exits_nonzero_on_violation(monkeypatch: pytest.MonkeyPatch) -> None:
