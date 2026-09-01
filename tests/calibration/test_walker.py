@@ -16,6 +16,7 @@ import pytest
 
 from charter.offering.drg.loader import built_in_graph_source
 from specify_cli.calibration.walker import (
+    _REQUIRED_SCOPE,
     CalibrationFinding,
     EdgeChange,
     walk_mission,
@@ -88,6 +89,92 @@ def test_expected_steps_present(mission_key: str, expected_steps: list[str]) -> 
     findings = walk_mission(mission_key=mission_key, repo_root=_REPO_ROOT)
     step_ids = [f.step_id for f in findings]
     assert step_ids == expected_steps
+
+
+# ---------------------------------------------------------------------------
+# Byte-stability guard: named constants must equal the exact URN literals they
+# replaced. Expected sets are spelled with raw strings so the assertion is
+# independent of the module constants (a constant value drift fails here).
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.parametrize(
+    "key,expected",
+    [
+        (
+            ("software-dev", "action:software-dev/specify"),
+            frozenset({
+                "directive:DIRECTIVE_003",
+                "directive:DIRECTIVE_010",
+                "tactic:requirements-validation-workflow",
+            }),
+        ),
+        (
+            ("software-dev", "action:software-dev/implement"),
+            frozenset({
+                "directive:DIRECTIVE_024",
+                "directive:DIRECTIVE_025",
+                "directive:DIRECTIVE_028",
+                "directive:DIRECTIVE_029",
+                "directive:DIRECTIVE_030",
+                "directive:DIRECTIVE_034",
+                "tactic:acceptance-test-first",
+                "tactic:autonomous-operation-protocol",
+                "tactic:change-apply-smallest-viable-diff",
+                "tactic:quality-gate-verification",
+                "tactic:stopping-conditions",
+                "tactic:tdd-red-green-refactor",
+                "toolguide:efficient-local-tooling",
+            }),
+        ),
+        (
+            # Pins the two re-inlined-constant fixes (DIRECTIVE_010, DIRECTIVE_037),
+            # plus DIRECTIVE_003 (mission governance-at-the-gate WP03, FR-005):
+            # moved off `implement` onto `review` as a REQUIRED positive guard
+            # (no longer a silently-tolerated calibrator-sourced extra).
+            ("software-dev", "action:software-dev/review"),
+            frozenset({
+                "directive:DIRECTIVE_003",
+                "directive:DIRECTIVE_010",
+                "directive:DIRECTIVE_024",
+                "directive:DIRECTIVE_025",
+                "directive:DIRECTIVE_028",
+                "directive:DIRECTIVE_029",
+                "directive:DIRECTIVE_030",
+                "directive:DIRECTIVE_034",
+                "directive:DIRECTIVE_037",
+                "tactic:acceptance-test-first",
+                "tactic:usage-examples-sync",
+                "tactic:quality-gate-verification",
+                "tactic:review-intent-and-risk-first",
+                "tactic:stopping-conditions",
+            }),
+        ),
+        (
+            ("erp-custom", "action:software-dev/implement"),
+            frozenset({
+                "directive:DIRECTIVE_024",
+                "directive:DIRECTIVE_025",
+                "directive:DIRECTIVE_028",
+                "directive:DIRECTIVE_029",
+                "directive:DIRECTIVE_030",
+                "directive:DIRECTIVE_034",
+                "tactic:acceptance-test-first",
+                "tactic:autonomous-operation-protocol",
+                "tactic:change-apply-smallest-viable-diff",
+                "tactic:quality-gate-verification",
+                "tactic:stopping-conditions",
+                "tactic:tdd-red-green-refactor",
+                "toolguide:efficient-local-tooling",
+            }),
+        ),
+    ],
+)
+def test_required_scope_membership_is_byte_stable(
+    key: tuple[str, str], expected: frozenset[str]
+) -> None:
+    """Constant-backed frozensets equal the exact URN literals they replaced."""
+    assert _REQUIRED_SCOPE[key] == expected
 
 
 # ---------------------------------------------------------------------------

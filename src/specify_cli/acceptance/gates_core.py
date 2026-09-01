@@ -471,6 +471,7 @@ def _evaluate_acceptance_matrix(
     from specify_cli.acceptance.matrix import (
         VERDICT_PASS_PENDING_CONSOLIDATION,
         enforce_negative_invariants,
+        populate_criteria_from_review_evidence,
         read_acceptance_matrix,
         validate_matrix_evidence,
         write_acceptance_matrix,
@@ -505,6 +506,28 @@ def _evaluate_acceptance_matrix(
             reason="acceptance-matrix.json is missing",
         )
         return
+
+    if mutate_matrix and getattr(acc_matrix, "criteria", None) is not None:
+        # FR-008 (IC-04, governance-at-the-gate WP04): auto-derive pending
+        # ``code_review`` criterion rows from WP review evidence BEFORE the
+        # verdict is read below -- closes the "criterion rows never
+        # populated" gap (the matrix used to stay scaffolded ``pending``
+        # forever unless an operator hand-invoked ``agent mission
+        # acceptance-verdict``). Design + scope are documented on
+        # :func:`~specify_cli.acceptance.matrix.populate_criteria_from_
+        # review_evidence` itself. ``matrix_dir`` doubles as the WP
+        # status-event read dir here: ``ACCEPTANCE_MATRIX`` and
+        # ``STATUS_STATE`` are both coord-partition kinds that resolve to
+        # the SAME coord surface for this mission (never re-derived
+        # separately). A no-op (unchanged list) when evidence is absent or
+        # incomplete -- diagnose mode (``mutate_matrix=False``) never
+        # mutates, matching the negative-invariants arm below. The
+        # ``getattr`` guard tolerates unit-test doubles (bare
+        # ``SimpleNamespace`` fixtures elsewhere in this module's test
+        # suite) that model only the fields their own test cares about.
+        acc_matrix.criteria = populate_criteria_from_review_evidence(
+            matrix_dir, acc_matrix.criteria
+        )
 
     if acc_matrix.negative_invariants and mutate_matrix:
         # WP04 T023: hand the gate context to the enforcer so a pending invariant
