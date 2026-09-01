@@ -178,19 +178,34 @@ def mission_terminal_verdict(repo_root: Path, mission_slug: str) -> TerminalVerd
 def committed_wp_lane(repo_root: Path, mission_slug: str, wp_id: str) -> str | None:
     """Return the committed PRIMARY-surface lane for *wp_id*, or ``None``.
 
-    ``None`` means the committed status log is genuinely absent on the
-    PRIMARY surface — an in-flight coordination-topology mission whose status
-    lives only on the coordination worktree until merge folds it back onto
-    PRIMARY. The caller (``agent tasks status``'s board, D10/IC-04) falls
-    back to its own coordination-aware read in that case; this is the in-WP01
-    consumer that keeps the module from reading dead ahead of WP02's loop
-    fix (D15).
+    ``None`` means PRIMARY is not the authoritative status surface for this
+    mission, so the caller (``agent tasks status``'s board, D10/IC-04) must
+    fall back to its own coordination-aware read. That is the case whenever
+    the mission is **not merged** — keyed on the committed ``mission_number``
+    (assigned at merge, ``merge/ordering.py``), exactly as
+    :func:`mission_terminal_verdict` keys it (#2947). An in-flight
+    coordination-topology mission's status lives only on the coordination
+    worktree until merge folds it back onto PRIMARY; crucially, its PRIMARY
+    surface may still carry an event log (planning-phase events, or a decoy),
+    so ``has_event_log`` alone is NOT a sound merged-signal — without the
+    ``mission_number`` gate the board would read that PRIMARY decoy and
+    misreport an in-flight WP's lane (e.g. a genuine COORD ``in_progress`` as
+    a stale PRIMARY ``blocked``). ``None`` is also returned when the
+    committed log is genuinely absent on PRIMARY.
 
     "Committed"/"PRIMARY surface" means the current working tree of the
     PRIMARY checkout, not a git ref (see the module docstring's wording
     note) — this reads whatever is on disk there right now.
     """
+    from specify_cli.missions._read_path_resolver import read_primary_meta
     from runtime.next.runtime_bridge_identity import _primary_runtime_feature_dir
+
+    primary_meta, _declares_coordination = read_primary_meta(repo_root, mission_slug)
+    if primary_meta.get("mission_number") is None:
+        # Not merged: PRIMARY is not authoritative (an in-flight mission's
+        # PRIMARY event log, if any, is a planning/decoy log). Defer to the
+        # board's coordination-aware read.
+        return None
 
     feature_dir = _primary_runtime_feature_dir(repo_root, mission_slug)
     if not has_event_log(feature_dir):
