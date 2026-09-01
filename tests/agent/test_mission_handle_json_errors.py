@@ -116,6 +116,65 @@ def test_agent_issue_verdict_json_ambiguous_mission_uses_stdout_envelope(
     assert len(payload["candidates"]) == 2  # golden-count: cardinality-is-contract
 
 
+def test_agent_tasks_status_json_ambiguous_mission_uses_stdout_envelope(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """#241: the read-path resolver family (placement_seam(...).read_dir(...),
+    which _find_mission_slug consults BEFORE resolve_mission_handle) must map
+    an ambiguous handle onto the SAME shared envelope resolve_mission_handle
+    uses for AmbiguousHandleError/MissionNotFoundError — not a bare
+    {"error": str(exc)} from the command's generic exception handler.
+    """
+    _make_repo(tmp_path)
+    _make_mission(tmp_path, "020-charter")
+    _make_mission(tmp_path, "030-charter")
+    monkeypatch.setenv("SPECIFY_REPO_ROOT", str(tmp_path))
+    monkeypatch.chdir(tmp_path)
+
+    result = CliRunner().invoke(
+        agent_app,
+        ["tasks", "status", "--mission", "charter", "--json"],
+    )
+
+    assert result.exit_code == 1
+    assert result.stderr == ""
+    payload = json.loads(result.stdout)
+    assert payload["success"] is False
+    assert payload["error_code"] == "MISSION_AMBIGUOUS_SELECTOR"
+    assert payload["handle"] == "charter"
+    assert payload["candidates"] == ["020-charter", "030-charter"]
+
+
+def test_agent_status_materialize_json_ambiguous_mission_uses_stdout_envelope(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """#241: ``agent status`` commands share the same
+    ``status.py:_find_mission_slug`` read-path resolver as ``tasks_shared``'s
+    copy — the squad's second reproduction (`agent status materialize
+    --mission charter --json`) must resolve to the same shared envelope.
+    """
+    _make_repo(tmp_path)
+    _make_mission(tmp_path, "020-charter")
+    _make_mission(tmp_path, "030-charter")
+    monkeypatch.setenv("SPECIFY_REPO_ROOT", str(tmp_path))
+    monkeypatch.chdir(tmp_path)
+
+    result = CliRunner().invoke(
+        agent_app,
+        ["status", "materialize", "--mission", "charter", "--json"],
+    )
+
+    assert result.exit_code == 1
+    assert result.stderr == ""
+    payload = json.loads(result.stdout)
+    assert payload["success"] is False
+    assert payload["error_code"] == "MISSION_AMBIGUOUS_SELECTOR"
+    assert payload["handle"] == "charter"
+    assert payload["candidates"] == ["020-charter", "030-charter"]
+
+
 def test_implement_json_ambiguous_mission_uses_stdout_envelope(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,

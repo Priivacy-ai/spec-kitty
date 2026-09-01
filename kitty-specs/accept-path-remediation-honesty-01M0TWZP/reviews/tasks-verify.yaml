@@ -1,0 +1,28 @@
+schema: review-verify/v1
+complete: true
+phase: tasks
+results:
+  - id: TASKS-DECOMP-001
+    status: resolved
+    reason: "T010 now states the concrete required section order directly in its 'Required section order' preamble and Steps 1-3 (insert the --lenient sentence immediately after the per-warning loop and BEFORE the if self.suggestions / Required Actions block), removing the old conditional-fallback hedge in favor of a stated rule matching T012's ordering assertion."
+  - id: TASKS-DECOMP-002
+    status: resolved
+    reason: "WP01 T016 extracts artifact_tokens_for_mission(mission) as an exported helper in validators/paths.py (verified live at paths.py:182-192) and WP02 T006/Context now require importing and calling that helper instead of reimplementing the getattr/default recipe, eliminating the second hand-maintained copy."
+  - id: TASKS-DECOMP-003
+    status: resolved
+    reason: "WP02 T009 Step 1's last bullet now states definitively that the --json-consistency assertion (Scenario 4) is not this test's responsibility, and that this test only needs the object-level assertions -- removing the 'confirm which / note if deferred' hedge."
+  - id: TASKS-SEQ-001
+    status: resolved
+    reason: "Each WP's Risks section now carries a full accounting of every owned_files overlap (verified against wps.yaml's globs): WP01 lists WP02/WP03/WP04; WP02 lists WP01/WP03/WP04; WP03 lists WP01/WP02 (correctly omitting WP04, which doesn't overlap it); WP04 lists WP01/WP02 and explicitly notes no overlap with WP03 -- covering all four real overlaps that were previously only partially disclosed."
+  - id: TASKS-VERIFY-001
+    status: resolved
+    reason: "WP04 T014 Assertion 3 now asserts the exactly-one-of property directly on the parsed --json payload's own optional_missing/path_violations keys instead of comparing to Assertion 2's object-level result, and T015 Step 3 requires confirming Assertion 3 independently fails against the pre-WP2 state -- making it genuinely falsifiable rather than structurally guaranteed to pass."
+  - id: TASKS-VERIFY-002
+    status: resolved
+    reason: "WP02 T009 Step 1 now requires the real collect_feature_summary/CLI entry point 'not merely preferred' (drops the mocked-fixture alternative as equally valid), and WP01 T003 Step 3 / T004 Step 4a add direct assertions on missing_paths_feature_relative for both the artifact-tagged and build/repo-root branches, closing the population-gap backstop regardless of WP02's fixture choice."
+  - id: TASKS-VERIFY-003
+    status: resolved
+    reason: "Every WP's Definition of Done (WP01, WP02, WP03, WP04) now includes an explicit full baseline re-run line for the exact 4-location/180-test surface named in plan.md's Baseline honesty section, requiring 0 failed, not merely the 3 named SC-005 pinned tests."
+  - id: TASKS-VERIFY-004
+    status: resolved
+    reason: "WP02 T009 adds Test (d), a dedicated collision-guard test using a synthetic MissionConfig with two distinct tokens sharing a final path segment (docs/contracts vs api/contracts), asserting the artifact_tokens membership filter does not cross-match them -- directly exercising the previously untested defensive behavior."

@@ -16,7 +16,7 @@ from unittest.mock import patch
 import pytest
 
 from specify_cli.cli.commands.agent.workflow import _render_charter_context
-from charter.context import build_charter_context
+from charter.activation.context import build_charter_context
 from runtime.next.prompt_builder import _build_wp_prompt, _governance_context
 
 pytestmark = [pytest.mark.integration, pytest.mark.git_repo]
@@ -186,7 +186,7 @@ class TestPromptBuilderGovernanceContext:
         """Compact governance context builds even when no derived bundle exists on disk.
 
         The derived bundle files (``governance.yaml`` / ``directives.yaml`` /
-        ``metadata.yaml``) are RETIRED (``charter.sync`` header, IC-04):
+        ``metadata.yaml``) are RETIRED (``charter.activation.sync`` header, IC-04):
         ``ensure_charter_bundle_fresh`` no longer writes them, and governance is
         now read straight off the git-tracked charter (``charter.yaml`` /
         ``charter.md``). This test pins the surviving contract — the compact
@@ -222,7 +222,7 @@ class TestPromptBuilderGovernanceContext:
         assert text.strip()
 
     def test_scope_not_found_is_not_swallowed(self, tmp_path: Path) -> None:
-        from charter.scope import CharterScopeNotFound
+        from charter.activation.scope import CharterScopeNotFound
 
         with (
             patch(
@@ -336,7 +336,7 @@ class TestBuildWpPromptForwardsAgentProfile:
         # write_single_lane_manifest stages a meta.json (mission_type=software-dev
         # by convention), which routes _build_wp_prompt through
         # resolve_mission_type_context()'s registration gate (WP04 fail-closed —
-        # see charter.mission_type_profiles._resolve_governance_slot). Activate
+        # see charter.activation.mission_type_profiles._resolve_governance_slot). Activate
         # software-dev so the gate resolves instead of hard-failing.
         kittify = tmp_path / ".kittify"
         kittify.mkdir(exist_ok=True)

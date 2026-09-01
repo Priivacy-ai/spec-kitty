@@ -21,7 +21,7 @@ from pydantic import BaseModel, ConfigDict, Field, ValidationError
 
 # WP02 / FR-012 (C-001): the single boundary-safe mission-type canonicalizer lives
 # in ``charter`` so ``specify_cli`` may consume it without crossing the layer rule.
-from charter.mission_type_key import canonical_mission_type_key
+from charter.activation.mission_type_key import canonical_mission_type_key
 from specify_cli.mission_metadata import load_meta_or_empty
 
 
@@ -153,6 +153,11 @@ class TaskMetadataConfig(BaseModel):
     optional: list[str] = Field(default_factory=list)
 
 
+VALID_PATH_KEYS: frozenset[str] = frozenset({"workspace", "tests", "deliverables", "documentation", "data"})
+"""Canonical path-convention keys (C-005). Single authority reused by MissionConfig validation
+and the project-level ``path_conventions`` override reader."""
+
+
 class MissionConfig(BaseModel):
     """Complete mission configuration schema."""
 
@@ -180,11 +185,10 @@ class MissionConfig(BaseModel):
 
     def model_post_init(self, __context: Any) -> None:  # pragma: no cover - simple warning logic
         """Warn on unknown path convention keys while permitting customization."""
-        valid_path_keys = {"workspace", "tests", "deliverables", "documentation", "data"}
-        unknown_paths = set(self.paths.keys()) - valid_path_keys
+        unknown_paths = set(self.paths.keys()) - VALID_PATH_KEYS
         if unknown_paths:
             warnings.warn(
-                f"Unknown path conventions: {sorted(unknown_paths)}. Known conventions: {sorted(valid_path_keys)}",
+                f"Unknown path conventions: {sorted(unknown_paths)}. Known conventions: {sorted(VALID_PATH_KEYS)}",
                 stacklevel=2,
             )
 

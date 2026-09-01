@@ -28,8 +28,8 @@ from pathlib import Path
 import pytest
 from ruamel.yaml import YAML
 
-from charter.context import build_charter_context
-from charter.profile_resolution import _load_agent_profile, _reset_agent_profile_cache
+from charter.activation.context import build_charter_context
+from charter.activation.profile_resolution import _load_agent_profile, _reset_agent_profile_cache
 from specify_cli.invocation.registry import ProfileRegistry
 
 # This file git-inits ``tmp_path`` via subprocess (build_charter_context needs a

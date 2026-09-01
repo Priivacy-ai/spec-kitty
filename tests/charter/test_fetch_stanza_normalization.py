@@ -3,7 +3,7 @@
 `fetch_stanza_lines` composes the ``When you <clause>, run this command and
 apply the returned rule.`` disclosure line from an arbitrary authored ``when``
 clause. Authored clauses are frequently gerund phrases or full sentences
-(see ``src/doctrine/agent_profile.graph.yaml``, e.g. ``designing or reviewing
+(see ``src/charter/offering/agent_profile.graph.yaml``, e.g. ``designing or reviewing
 significant code changes``, or the ``STATED_DEFAULT_WHEN`` fallback), which
 today are spliced verbatim after ``When you`` and read as ungrammatical --
 e.g. ``When you designing or reviewing significant code changes, run this
@@ -15,18 +15,18 @@ prompt-governance contract keeps matching per rendered stanza, not merely
 somewhere in the whole prompt.
 
 This test is RED before T002's normalization lands in
-``src/charter/context_renderers/fetch_stanza.py``.
+``src/charter/activation/context_renderers/fetch_stanza.py``.
 """
 
 from __future__ import annotations
 
 import pytest
 
-from charter.context_renderers.fetch_stanza import (
+from charter.activation.context_renderers.fetch_stanza import (
     DEFAULT_WHEN_CLAUSE,
     fetch_stanza_lines,
 )
-from charter.progressive_disclosure import STATED_DEFAULT_WHEN
+from charter.activation.progressive_disclosure import STATED_DEFAULT_WHEN
 from tests.specify_cli.next.test_wp_prompt_governance_contract import _WHEN_DOING_RE
 
 pytestmark = [pytest.mark.fast, pytest.mark.unit]
@@ -55,7 +55,7 @@ class TestFetchStanzaWhenClauseGrammaticality:
     """
 
     def test_leading_gerund_clause_is_normalized_and_matches(self) -> None:
-        # Verbatim string authored in src/doctrine/agent_profile.graph.yaml
+        # Verbatim string authored in src/charter/offering/agent_profile.graph.yaml
         # (agent_profile:architect-alphonso -> paradigm:domain-driven-design,
         # relation: suggests).
         clause = "designing or reviewing significant code changes"
@@ -103,7 +103,7 @@ class TestFetchStanzaWhenClauseGrammaticality:
         assert _WHEN_DOING_RE.search(line)
 
     def test_leading_when_prefixed_authored_clause_is_normalized_and_matches(self) -> None:
-        # Verbatim string authored in src/doctrine/agent_profile.graph.yaml
+        # Verbatim string authored in src/charter/offering/agent_profile.graph.yaml
         # (agent_profile:python-pedro -> directive:DIRECTIVE_030, suggests).
         # Authors wrote a redundant leading "when" that would otherwise
         # double into "When you when assessing ...".

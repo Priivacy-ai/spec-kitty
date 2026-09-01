@@ -20,7 +20,7 @@ from typing import Any
 from kernel.clock import now_utc_iso
 from specify_cli.mission_metadata import mission_identity_fields, resolve_mission_identity
 from specify_cli.policy.config import MergeGateConfig
-from specify_cli.status import Lane
+from specify_cli.status_lanes import has_operator_provenance, is_acceptable_ending
 
 
 class GateVerdict(StrEnum):
@@ -147,21 +147,32 @@ def evaluate_merge_gates(
 def _evaluate_evidence_gate(
     feature_dir: Path, wp_ids: list[str], is_blocking: bool,
 ) -> GateResult:
-    """Check that all WPs have reviewer approval in the event log."""
+    """Check that every WP is at an acceptable mission ending in the event log.
+
+    FR-009 merge face: routed through the single acceptable-ending authority
+    (:func:`~specify_cli.status_lanes.is_acceptable_ending`) over the reduced
+    per-WP snapshot lane — ``approved``/``done`` are evidence-complete
+    unconditionally, and a ``canceled`` WP carrying operator-authored provenance
+    (read via :func:`~specify_cli.status_lanes.has_operator_provenance`) is an
+    acceptable ending too, so a legitimately-canceled WP is not reported as
+    missing approval. A synthetic (non-provenance) cancellation still fails here.
+    """
     try:
-        from specify_cli.status import read_events
+        from specify_cli.status import read_events, reduce
 
-        events = read_events(feature_dir)
-        # Find WPs that reached 'approved' lane.
-        approved_wps: set[str] = set()
-        for event in events:
-            data = event if isinstance(event, dict) else event.__dict__
-            if data.get("to_lane") in (Lane.APPROVED, Lane.DONE):
-                wp = data.get("wp_id")
-                if wp:
-                    approved_wps.add(wp)
+        snapshot = reduce(read_events(feature_dir))
+        work_packages = snapshot.work_packages if hasattr(snapshot, "work_packages") else {}
 
-        missing = sorted(set(wp_ids) - approved_wps)
+        missing: list[str] = []
+        for wp_id in wp_ids:
+            wp_snapshot = work_packages.get(wp_id)
+            lane = str(wp_snapshot.get("lane", "")) if isinstance(wp_snapshot, dict) else ""
+            provenance = has_operator_provenance(
+                wp_snapshot if isinstance(wp_snapshot, dict) else None
+            )
+            if not is_acceptable_ending(lane, has_provenance=provenance):
+                missing.append(wp_id)
+        missing.sort()
         if missing:
             return GateResult(
                 gate_name="evidence",
@@ -278,17 +289,31 @@ def _evaluate_dependency_gate(
         snapshot = reduce(read_events(feature_dir))
 
         wp_lanes: dict[str, str] = {}
+        wp_provenance: dict[str, bool] = {}
         if snapshot and hasattr(snapshot, "work_packages"):
             for wp_id_key, wp_data in snapshot.work_packages.items():
-                lane_val = wp_data.get("lane") if isinstance(wp_data, dict) else getattr(wp_data, "lane", None)
+                if isinstance(wp_data, dict):
+                    lane_val = wp_data.get("lane")
+                    wp_provenance[wp_id_key] = has_operator_provenance(wp_data)
+                else:
+                    lane_val = getattr(wp_data, "lane", None)
+                    wp_provenance[wp_id_key] = False
                 if lane_val:
                     wp_lanes[wp_id_key] = str(lane_val)
 
+        # FR-009 merge face: a dependency counts as resolved when it is an
+        # acceptable ending — ``approved``/``done``, OR a ``canceled`` dependency
+        # with operator-authored provenance. Routed through the single
+        # ``is_acceptable_ending`` authority so a canceled-with-provenance
+        # dependency does not strand a surviving dependent at merge (the claim
+        # face is owned by the dependency-readiness gate).
         incomplete_deps: list[str] = []
         for wp_id in wp_ids:
             for dep_id in graph.get(wp_id, []):
                 dep_lane = wp_lanes.get(dep_id, "unknown")
-                if dep_lane not in (Lane.DONE, Lane.APPROVED):
+                if not is_acceptable_ending(
+                    dep_lane, has_provenance=wp_provenance.get(dep_id, False)
+                ):
                     incomplete_deps.append(f"{dep_id} (lane={dep_lane})")
 
         if incomplete_deps:

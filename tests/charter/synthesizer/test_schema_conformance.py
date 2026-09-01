@@ -28,10 +28,10 @@ from collections.abc import Mapping
 
 import pytest
 
-from charter.synthesizer.adapter import AdapterOutput
-from charter.synthesizer.errors import SynthesisSchemaError
-from charter.synthesizer.request import SynthesisRequest, SynthesisTarget
-from charter.synthesizer.synthesize_pipeline import ProvenanceEntry, _assert_schema, run_all
+from charter.activation.synthesizer.adapter import AdapterOutput
+from charter.activation.synthesizer.errors import SynthesisSchemaError
+from charter.activation.synthesizer.request import SynthesisRequest, SynthesisTarget
+from charter.activation.synthesizer.synthesize_pipeline import ProvenanceEntry, _assert_schema, run_all
 
 
 # ---------------------------------------------------------------------------

@@ -4,7 +4,7 @@ description: Glossary context defining where policy, runtime configuration, and 
 doc_status: active
 updated: '2026-04-10'
 related:
-- docs/context/doctrine.md
+- docs/context/charter.md
 - docs/context/execution.md
 - docs/context/governance.md
 - docs/context/identity.md
@@ -96,4 +96,4 @@ Terms describing where policy, runtime configuration, and mission artifacts live
 | **Context** | Configuration & Project Structure |
 | **Status** | candidate |
 | **Applicable to** | `1.x`, `2.x` |
-| **Related terms** | [Project Charter](#project-charter), [Doctrine Catalog](./doctrine.md#doctrine-catalog) |
+| **Related terms** | [Project Charter](#project-charter), [Doctrine Catalog](./charter.md#doctrine-catalog) |

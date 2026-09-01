@@ -2,7 +2,7 @@
 title: Agent Subcommand Reference
 description: Reference for spec-kitty agent subcommands. Learn how agent-only actions like config, status, decision, and retrospect behave in workflows.
 doc_status: active
-updated: '2026-06-15'
+updated: '2026-08-30'
 ---
 # Agent Subcommand Reference
 
@@ -13,6 +13,10 @@ Terminology note:
 - `Mission` = tracked item under `kitty-specs/<mission-slug>/`
 - `Mission Run` = runtime/session instance
 - The `agent feature` command group remains a legacy compatibility alias; tracked-mission selectors are documented canonically as `--mission`
+
+## Ambiguous mission selectors
+
+`agent status` and `agent tasks` commands that resolve `--mission` never guess when a handle matches multiple missions. With `--json`, they emit the shared error envelope (`success: false`, `error_code: "MISSION_AMBIGUOUS_SELECTOR"`, `handle`, and `candidates`) and exit `1`. In human mode, they print the ambiguity diagnostic and exit `2`. The read-path fix in #429 deliberately changed this human-mode case from the earlier generic exit code `1` to `2`, aligning it with the other ambiguous mission-handle resolution path.
 
 ## Getting Started
 
@@ -689,11 +693,16 @@ _Mission lifecycle commands for AI agents_
      spec-kitty agent mission check-prerequisites --json
      spec-kitty agent mission check-prerequisites --mission 020-my-feature
  --paths-only --json
+     spec-kitty agent mission check-prerequisites --mission my-feature
+ --resume-probe --json
 
 ╭─ Options ────────────────────────────────────────────────────────────────────╮
 │ --mission                TEXT  Mission slug (e.g., '020-my-mission')         │
 │ --json                         Output JSON format                            │
 │ --paths-only                   Only output path variables                    │
+│ --resume-probe                 Return structured                             │
+│                                found/not_found/existing/ambiguous/malformed  │
+│                                state for safe specify resume                 │
 │ --include-tasks                Include tasks.md in validation                │
 │ --help           -h            Show this message and exit.                   │
 ╰──────────────────────────────────────────────────────────────────────────────╯
@@ -845,7 +854,7 @@ _Mission lifecycle commands for AI agents_
 │ --json                         Output JSON format                            │
 │ --validate-only                Run all validations without committing.       │
 │                                Reports issues that would block finalization. │
-│ --target-branch          TEXT  Override the canonical merge target branch    │
+│ --target-branch          TEXT  Override the canonical planning target branch │
 │                                read from meta.json. Use this for legacy      │
 │                                missions created before WP07 persisted        │
 │                                target_branch in meta.json, or to correct a   │
@@ -1221,9 +1230,9 @@ _Canonical status management commands_
 
  Examples:
      spec-kitty agent status emit WP01 --to claimed --actor claude
-     spec-kitty agent status emit WP01 --to done --actor claude --evidence-json
- '{"review": {"reviewer": "alice", "verdict": "approved", "reference":
- "PR#1"}}'
+     spec-kitty agent status emit WP01 --to approved --actor claude
+ --review-result-json '{"reviewer": "alice", "verdict": "approved",
+ "reference": "PR#1"}'
      spec-kitty agent status emit WP01 --to in_progress --actor claude --force
  --reason "resuming after crash"
 
@@ -1245,6 +1254,9 @@ _Canonical status management commands_
 │    --evidence-json                       TEXT  JSON string with done         │
 │                                                evidence                      │
 │    --review-ref                          TEXT  Review feedback reference     │
+│    --review-result-json                  TEXT  JSON structured review        │
+│                                                outcome for transitions from  │
+│                                                in_review                     │
 │    --workspace-context                   TEXT  Workspace context identifier  │
 │                                                for claimed->in_progress      │
 │    --subtasks-complete                         Whether required subtasks are │
@@ -1391,22 +1403,22 @@ _Task workflow commands for AI agents_
 │ --help  -h        Show this message and exit.                                │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ╭─ Commands ───────────────────────────────────────────────────────────────────╮
-│ move-task          Move task between lanes (planned → doing → for_review →   │
-│                    approved → done).                                         │
-│ mark-status        Update task checkbox status in tasks.md for one or more   │
-│                    tasks.                                                    │
-│ list-tasks         List tasks with optional lane filtering.                  │
-│ add-history        Append history entry to task activity log.                │
-│ finalize-tasks     Parse tasks.md and inject dependencies into WP            │
-│                    frontmatter.                                              │
-│ map-requirements   Register requirement-to-WP mappings with immediate        │
-│                    validation.                                               │
-│ validate-workflow  Validate task metadata structure and workflow             │
-│                    consistency.                                              │
-│ status             Display kanban status board for all work packages in a    │
-│                    feature.                                                  │
-│ list-dependents    Find all WPs that depend on a given WP (downstream        │
-│                    dependents).                                              │
+│ move-task            Move task between lanes (planned → doing → for_review → │
+│                      approved → done).                                       │
+│ mark-status          Update task checkbox status in tasks.md for one or more │
+│                      tasks.                                                  │
+│ list-tasks           List tasks with optional lane filtering.                │
+│ add-history          Append history entry to task activity log.              │
+│ finalize-tasks       Parse tasks.md and inject dependencies into WP          │
+│                      frontmatter.                                            │
+│ map-requirements     Register requirement-to-WP mappings with immediate      │
+│                      validation.                                             │
+│ validate-workflow    Validate task metadata structure and workflow           │
+│                      consistency.                                            │
+│ status               Display kanban status board for all work packages in a  │
+│                      feature.                                                │
+│ list-dependents      Find all WPs that depend on a given WP (downstream      │
+│                      dependents).                                            │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ```
 
@@ -1497,6 +1509,29 @@ _Task workflow commands for AI agents_
 
 ╭─ Options ────────────────────────────────────────────────────────────────────╮
 │ --lane             TEXT  Filter by lane                                      │
+│ --mission          TEXT  Mission slug                                        │
+│ --json                   Output JSON format                                  │
+│ --help     -h            Show this message and exit.                         │
+╰──────────────────────────────────────────────────────────────────────────────╯
+```
+
+## spec-kitty agent tasks check-terminability
+
+```
+ Usage: spec-kitty agent tasks check-terminability [OPTIONS]
+
+ Advisory scan for work packages that can only be terminated post-integration.
+
+ Warns when a WP's acceptance criteria contain a post-integration trigger
+ phrase (the #3590 trap) — content that cannot be verified in the WP's own
+ diff. This is **advisory only**: it never refuses or fails authoring
+ (FR-008) — it exits 0 even when warnings fire. It does not touch the
+ finalize / lane-compute path (C-005).
+
+ Examples:
+     spec-kitty agent tasks check-terminability --mission my-mission --json
+
+╭─ Options ────────────────────────────────────────────────────────────────────╮
 │ --mission          TEXT  Mission slug                                        │
 │ --json                   Output JSON format                                  │
 │ --help     -h            Show this message and exit.                         │

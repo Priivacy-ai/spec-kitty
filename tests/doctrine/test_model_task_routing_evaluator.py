@@ -34,13 +34,13 @@ _PROFILE_BASE = {
 
 
 def _build_profile(**overrides: object):
-    from doctrine.agent_profiles.profile import AgentProfile
+    from charter.offering.agent_profiles.profile import AgentProfile
 
     return AgentProfile(**_PROFILE_BASE, **overrides)
 
 
 def _build_catalog(document: dict[str, object]):
-    from doctrine.model_task_routing.models import ModelToTaskType
+    from charter.offering.model_task_routing.models import ModelToTaskType
 
     return ModelToTaskType.model_validate(document)
 
@@ -124,7 +124,7 @@ def test_quality_first_ranks_strongest_fit_model() -> None:
     latency) would win. Under ``quality_first`` the strongest-fit model
     must win regardless.
     """
-    from doctrine.model_task_routing.evaluator import evaluate
+    from charter.offering.model_task_routing.evaluator import evaluate
 
     catalog = _build_catalog(_base_document(objective="quality_first"))
     profile = _build_profile()
@@ -145,7 +145,7 @@ def test_tier_constraint_caps_the_winner() -> None:
     entirely -- ``weak-model`` (low tier) must win instead, even though
     it has the weaker task_fit and the objective is quality_first.
     """
-    from doctrine.model_task_routing.evaluator import evaluate
+    from charter.offering.model_task_routing.evaluator import evaluate
 
     catalog = _build_catalog(
         _base_document(
@@ -166,7 +166,7 @@ def test_advisory_emits_both_catalog_and_profile_candidates_with_provenance() ->
     """Under advisory, the catalog pick and the profile's declared model are
     BOTH surfaced as provenance-tagged candidates -- neither is enforced,
     even when they disagree."""
-    from doctrine.model_task_routing.evaluator import evaluate
+    from charter.offering.model_task_routing.evaluator import evaluate
 
     catalog = _build_catalog(_base_document(objective="quality_first"))
     profile = _build_profile(model="human-declared-model")
@@ -184,7 +184,7 @@ def test_advisory_emits_both_catalog_and_profile_candidates_with_provenance() ->
 def test_advisory_with_no_profile_declaration_surfaces_catalog_only() -> None:
     """When the profile has no declared model, only the catalog candidate
     is surfaced -- no phantom profile candidate is fabricated."""
-    from doctrine.model_task_routing.evaluator import evaluate
+    from charter.offering.model_task_routing.evaluator import evaluate
 
     catalog = _build_catalog(_base_document(objective="quality_first"))
     profile = _build_profile()  # no model= override -> preferred_model is None
@@ -198,7 +198,7 @@ def test_no_match_task_type_returns_no_catalog_candidate_without_raising() -> No
     """A task_type absent from every model's task_fit is a "no match" edge
     case (NFR-004): no catalog candidate, no raise. A profile-declared
     model is still surfaced (advisory candidates are independent)."""
-    from doctrine.model_task_routing.evaluator import evaluate
+    from charter.offering.model_task_routing.evaluator import evaluate
 
     catalog = _build_catalog(_base_document(objective="quality_first"))
     profile = _build_profile(model="human-declared-model")
@@ -215,7 +215,7 @@ def test_no_match_task_type_returns_no_catalog_candidate_without_raising() -> No
 
 def test_no_match_and_no_profile_declaration_yields_empty_candidates() -> None:
     """Both catalog and profile miss -> empty candidates tuple, not a raise."""
-    from doctrine.model_task_routing.evaluator import evaluate
+    from charter.offering.model_task_routing.evaluator import evaluate
 
     catalog = _build_catalog(_base_document(objective="quality_first"))
     profile = _build_profile()
@@ -230,7 +230,7 @@ def test_no_match_and_no_profile_declaration_yields_empty_candidates() -> None:
 def test_evaluate_is_deterministic_across_repeated_calls() -> None:
     """NFR-004: same catalog + task_type + profile -> identical recommendation,
     called repeatedly (pure function, no hidden state/caching)."""
-    from doctrine.model_task_routing.evaluator import evaluate
+    from charter.offering.model_task_routing.evaluator import evaluate
 
     catalog = _build_catalog(_base_document(objective="quality_first"))
     profile = _build_profile(model="human-declared-model", effort="high")
@@ -246,7 +246,7 @@ def test_balanced_objective_uses_full_weighted_sum() -> None:
     """Under a non-quality_first objective, the plain weighted sum applies:
     with cost/latency-heavy weights, the cheap low-latency model wins over
     the higher-fit but premium/high-latency model."""
-    from doctrine.model_task_routing.evaluator import evaluate
+    from charter.offering.model_task_routing.evaluator import evaluate
 
     catalog = _build_catalog(_base_document(objective="balanced"))
     profile = _build_profile()

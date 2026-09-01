@@ -199,7 +199,7 @@ def test_synthesize_json_succeeds_past_preflight_when_bundle_complete(tmp_path: 
             "specify_cli.cli.commands.charter._build_synthesis_request",
             return_value=(SimpleNamespace(), SimpleNamespace()),
         ),
-        patch("charter.synthesizer.synthesize", return_value=synth_result),
+        patch("charter.activation.synthesizer.synthesize", return_value=synth_result),
         patch(
             "specify_cli.cli.commands.charter._load_written_artifacts_from_manifest",
             return_value=[],

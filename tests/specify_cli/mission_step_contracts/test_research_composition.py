@@ -16,8 +16,8 @@ in order to dispatch a `research/<action>` invocation actually line up:
    touched while adding the research entries.
 
 These tests intentionally read the live shipped DRG via
-``charter._drg_helpers.load_validated_graph`` and the production resolver
-``doctrine.drg.query.resolve_context`` (mission spec C-007 forbids mocking
+``charter.activation._drg_helpers.load_validated_graph`` and the production resolver
+``charter.offering.drg.query.resolve_context`` (mission spec C-007 forbids mocking
 either surface). The composer's higher-level dispatch surfaces
 (``_dispatch_via_composition``, ``StepContractExecutor.execute``,
 ``ProfileInvocationExecutor.invoke``, ``_load_frozen_template``) are also
@@ -31,9 +31,9 @@ from pathlib import Path
 import pytest
 import yaml
 
-from charter._drg_helpers import load_validated_graph
-from doctrine.drg.query import resolve_context
-from doctrine.missions.step_contracts import MissionStepContractRepository
+from charter.activation._drg_helpers import load_validated_graph
+from charter.offering.drg.query import resolve_context
+from charter.offering.missions.step_contracts import MissionStepContractRepository
 from specify_cli.mission_step_contracts.executor import _ACTION_PROFILE_DEFAULTS
 
 
@@ -89,7 +89,7 @@ EXPECTED_SOFTWARE_DEV_PROFILES: dict[str, str] = {
 def _repo_root() -> Path:
     """Locate the repository root via a delete-stable ``pyproject.toml`` marker.
 
-    Keyed on ``pyproject.toml`` rather than ``src/doctrine/graph.yaml`` so the
+    Keyed on ``pyproject.toml`` rather than ``src/charter/offering/graph.yaml`` so the
     finder survives the WP05 monolith->fragment migration: the shipped
     ``graph.yaml`` is deleted, but ``pyproject.toml`` is not.
     """
@@ -151,7 +151,7 @@ def test_research_doctrine_bundle_resolved(action: str) -> None:
 
     The bundle is the YAML index file at
     ``packs/built-in/missions/research/<action>/index.yaml``. The DRG extractor
-    (``doctrine.drg.migration.extractor``) compiles ``directives``, ``tactics``,
+    (``charter.offering.drg.migration.extractor``) compiles ``directives``, ``tactics``,
     ``styleguides``, ``toolguides``, and ``procedures`` from this file into
     ``scope`` edges from the ``action:research/<action>`` node. If every
     list is empty, the action node has no scoped artifacts and the composer
@@ -196,8 +196,8 @@ def test_research_drg_node_resolves_non_empty_context(action: str) -> None:
     """Each `action:research/<action>` node resolves a non-empty context.
 
     Uses the *real* composition resolver
-    (``doctrine.drg.query.resolve_context``) and the *real*
-    ``charter._drg_helpers.load_validated_graph`` -- neither is mocked
+    (``charter.offering.drg.query.resolve_context``) and the *real*
+    ``charter.activation._drg_helpers.load_validated_graph`` -- neither is mocked
     (mission spec C-007). The depth matches the composer's default
     (``StepContractExecutionContext.resolution_depth = 2``).
     """

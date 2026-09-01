@@ -29,7 +29,6 @@ import click
 import typer
 from specify_cli.cli.console import err_console as _err_console
 
-from specify_cli.context.errors import MissingIdentityError
 from specify_cli.context.mission_resolver import (
     AmbiguousHandleError,
     MissionNotFoundError,
@@ -255,14 +254,4 @@ def resolve_mission_handle(
             _err_console.print(
                 f'[red]Error:[/red] No mission found for handle "{exc.handle}". Check that the handle is correct and that the mission exists in kitty-specs/.'
             )
-        sys.exit(2)
-    except MissingIdentityError as exc:
-        if json_mode:
-            _emit_json_error(
-                error_code="missing_mission_id",
-                message=str(exc),
-                data={"remediation": "spec-kitty migrate backfill-identity"},
-            )
-        else:
-            _err_console.print(f"[red]Error:[/red] {exc}\n[yellow]Remediation:[/yellow] Run `spec-kitty migrate backfill-identity` to fix.")
         sys.exit(2)

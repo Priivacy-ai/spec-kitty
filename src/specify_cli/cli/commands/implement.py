@@ -27,6 +27,7 @@ from specify_cli.mission_metadata import resolve_mission_identity, set_vcs_lock
 from specify_cli.frontmatter import FrontmatterError
 from specify_cli.git import safe_commit
 from specify_cli.git.commit_helpers import (
+    SafeCommitHeadMismatch,
     SafeCommitPathPolicyError,
 )
 from specify_cli.git.protection_policy import ProtectionPolicy
@@ -1318,7 +1319,8 @@ def _ensure_wp_claim_preconditions(status_feature_dir: Path, wp_id: str, declare
     from specify_cli.status import reduce as _reduce_events
     from specify_cli.status import read_events as _read_events
 
-    wp_lanes = {_wp_id: _state.get("lane", Lane.GENESIS) for _wp_id, _state in _reduce_events(_read_events(status_feature_dir)).work_packages.items()}
+    _snapshot = _reduce_events(_read_events(status_feature_dir))
+    wp_lanes = {_wp_id: _state.get("lane", Lane.GENESIS) for _wp_id, _state in _snapshot.work_packages.items()}
     # T012 / Contract 3: reject unseeded WPs BEFORE any workspace
     # allocation. A genesis WP has not been through finalize-tasks; the
     # user must run it first to seed the genesis→planned bootstrap event.
@@ -1328,7 +1330,13 @@ def _ensure_wp_claim_preconditions(status_feature_dir: Path, wp_id: str, declare
         # so programmatic callers catching WorkPackageStartRejected see this
         # path too (review M5).
         raise WorkPackageStartRejected(f"WP {wp_id} is not finalized; run `spec-kitty agent mission finalize-tasks`")
-    dependency_readiness = dependency_readiness_for_wp(wp_id, declared_deps, wp_lanes)
+    # Thread per-dependency provenance so a canceled-with-operator-provenance
+    # dependency counts as resolved (FR-009). `spec-kitty implement WP##` is the
+    # primary claim command (CLAUDE.md: "the only supported way to prepare a
+    # workspace"); collapsing to a lane-only map here would leave the #2945
+    # strand trap open on the main claim path (review REJECT), mirroring the
+    # workflow_executor gate fix.
+    dependency_readiness = dependency_readiness_for_wp(wp_id, declared_deps, wp_lanes, provenance=_snapshot.work_packages)
     if not dependency_readiness.satisfied:
         blocked = ", ".join(dependency_readiness.unsatisfied)
         raise ValueError(f"dependencies_not_satisfied: {wp_id} depends on {blocked}; all dependencies must be approved or done before implementation can start")
@@ -1472,7 +1480,6 @@ def _commit_wp_claim_status(
     wp_id: str,
     wp_file: Path,
     auto_commit: bool | None,
-    placement_ref: CommitTarget | None,
     status_result: Any,
 ) -> None:
     """Auto-commit (or staged-only) side effect for a WP's claimed->'doing'
@@ -1519,14 +1526,23 @@ def _commit_wp_claim_status(
     if config_file.exists():
         files_to_commit.append(config_file.resolve())
 
-    # WP03 / T011 / T012 / D11: the status claim commit routes through
-    # the SAME seam-resolved ``placement_ref`` planning artifacts
-    # resolve to (C-PLACE-1) instead of the forbidden
-    # ``_get_current_branch(repo_root) or planning_branch``
-    # checkout-derived grammar. A resolution failure now FAILS CLOSED
-    # (see ``_resolve_claim_commit_target``) rather than silently
-    # committing to whatever branch is checked out.
-    claim_commit_target = _resolve_claim_commit_target(placement_ref)
+    # #610: every file gathered above is, by construction, primary-surface
+    # (the coord-owned status pair is filtered out above under coord
+    # topology; nothing coord-residue is ever collected here). The claim
+    # commit therefore always targets the PRIMARY write home -- resolved
+    # through the canonical seam (``placement_seam(...).write_target(kind)``,
+    # never a hand-built ``CommitTarget``, per contracts/seam-api.md) --
+    # never the seam-resolved ``placement_ref`` this function used to route
+    # through (which names the COORDINATION branch under coord topology).
+    # Targeting ``placement_ref`` here was the latent bug behind this call
+    # site's ``SafeCommitHeadMismatch``: ``repo_root`` (the primary checkout)
+    # is on the mission's target branch, not the coordination branch, so
+    # asserting HEAD against the coord ref always mismatched -- previously
+    # masked by the very swallow this issue removes. ``WORK_PACKAGE_TASK`` is
+    # a ``_PRIMARY_ARTIFACT_KINDS`` member (like every other kind bundled
+    # above), so its write target is the primary target branch under every
+    # topology.
+    claim_commit_target = placement_seam(repo_root, mission_slug).write_target(MissionArtifactKind.WORK_PACKAGE_TASK)
     try:
         safe_commit(
             repo_root=repo_root,
@@ -1543,6 +1559,15 @@ def _commit_wp_claim_status(
         # partition above prevents this on a correct bundle; reaching here
         # means a coord-owned path leaked into the primary commit and the
         # C-006 guard MUST stay authoritative (never swallowed).
+        raise
+    except SafeCommitHeadMismatch:
+        # #610: a genuine branch-name mismatch is a real defect, not an
+        # "Auto-commit skipped" warning either. The status/lane files above
+        # were already written to disk by the caller before this commit was
+        # attempted, so swallowing this here left the worktree dirty with no
+        # commit to cover it -- exactly what later trips ref_advance.py's
+        # dirty-worktree gate at merge time. Re-raise so the mismatch
+        # surfaces immediately instead of being discovered downstream.
         raise
     except Exception as _commit_exc:  # noqa: BLE001 — non-policy git failures stay soft
         console.print(f"[yellow]Warning:[/yellow] Could not auto-commit lane change: {_commit_exc}")
@@ -1957,13 +1982,18 @@ def implement(
             wp_id=wp_id,
             wp_file=wp_file,
             auto_commit=auto_commit,
-            placement_ref=_placement_ref,
             status_result=status_result,
         )
     except SafeCommitPathPolicyError:
         # #2155 (FR-002 / T011): a wrong-surface guard refusal must NOT be folded
         # into the soft "Could not update WP status" warning — let it propagate so
         # the defect surfaces (the inner handler already re-raised it on purpose).
+        raise
+    except SafeCommitHeadMismatch:
+        # #610: mirrors the SafeCommitPathPolicyError clause above — a genuine
+        # branch-name mismatch must NOT be folded into the soft "Could not
+        # update WP status" warning either (the inner handler already
+        # re-raised it on purpose).
         raise
     except PlacementResolutionRequired:
         # WP03 / D11: a fail-closed placement-resolution refusal must NOT be

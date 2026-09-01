@@ -27,7 +27,7 @@ RETIRED_PACKAGES = ("spec-kitty-runtime",)
 INSTALLED_DRIFT_REMEDIATION = "Run `uv sync --extra test --extra lint` before collecting release evidence."
 # Sanctioned direct references (controller-qa fix round on #58, PROGRAM.md
 # §2's wheel-installability exception): pinned-rev git dependencies on the
-# shared packages, on github.com (EXPERIMENTAL-spec-kitty-planning#31). They
+# shared packages, on github.com (programme planning issue #31). They
 # carry no specifier, so they are accepted only for the CLI's own constraints,
 # not a downstream consumer's exact pin.
 _SANCTIONED_SHARED_GIT_URLS = {

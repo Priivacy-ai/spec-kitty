@@ -52,12 +52,17 @@ import pytest
 
 from mission_runtime import CommitTarget
 from specify_cli.cli.commands.implement import _ensure_planning_artifacts_committed_git
+from specify_cli.lanes.branch_naming import lane_branch_name
+from specify_cli.lanes.implement_support import resolve_claim_ancestry_gate
 from specify_cli.lanes.models import ExecutionLane, LanesManifest
 from specify_cli.lanes.worktree_allocator import (
     PlanningCommitMergeConflictError,
     allocate_lane_worktree,
 )
 from specify_cli.missions._create import ensure_coordination_branch
+from specify_cli.status.models import Lane, StatusEvent
+from specify_cli.status.store import append_event
+from ulid import ULID
 
 pytestmark = [pytest.mark.integration, pytest.mark.git_repo]
 
@@ -270,3 +275,181 @@ def test_sc001_primary_lanes_json_never_lands_on_coord(tmp_path: Path) -> None:
             f"mis-routed onto the coordination branch: {exc}"
         )
     assert worktree_path.exists()
+
+
+# ---------------------------------------------------------------------------
+# T013 backup — #3281 end-to-end: retry re-enters self-heal to establish
+# post-materialize claim ancestry for a late-landing dependency (FR-005/
+# FR-007/C-005). This is a BACKUP integration proof, not the sole one -- the
+# focused unit coverage lives in
+# tests/specify_cli/cli/commands/agent/test_claim_ancestry_gate.py.
+# ---------------------------------------------------------------------------
+
+_ANCESTRY_MISSION_SLUG = "wp-integrity-ancestry-backup-01KZZE00"
+_ANCESTRY_WP_DEP = "WP01"
+_ANCESTRY_WP_SELF = "WP02"
+
+
+def _ancestry_feature_dir(repo: Path) -> Path:
+    return repo / "kitty-specs" / _ANCESTRY_MISSION_SLUG
+
+
+def _write_ancestry_meta_and_lanes(repo: Path) -> None:
+    """Legacy (no ``coordination_branch``) mission -- PRIMARY and STATUS
+    dirs coincide, keeping this backup fixture small (see the unit test's
+    matching helper for the full rationale)."""
+    feature_dir = _ancestry_feature_dir(repo)
+    feature_dir.mkdir(parents=True, exist_ok=True)
+    (feature_dir / "meta.json").write_text(
+        json.dumps(
+            {
+                "mission_id": "01KZZE00ANCESTRYBACKUP0000",
+                "mission_slug": _ANCESTRY_MISSION_SLUG,
+                "mid8": "01kzze00",
+                "mission_type": "software-dev",
+                "target_branch": "main",
+                "created_at": "2026-08-26T00:00:00+00:00",
+                "friendly_name": "ancestry backup test",
+            },
+            indent=2,
+        ),
+        encoding="utf-8",
+    )
+    (feature_dir / "lanes.json").write_text(
+        json.dumps(
+            {
+                "version": 1,
+                "mission_slug": _ANCESTRY_MISSION_SLUG,
+                "mission_id": "01KZZE00ANCESTRYBACKUP0000",
+                "mission_branch": f"kitty/mission-{_ANCESTRY_MISSION_SLUG}",
+                "target_branch": "main",
+                "lanes": [
+                    {
+                        "lane_id": "lane-a",
+                        "wp_ids": [_ANCESTRY_WP_DEP],
+                        "write_scope": ["src/**"],
+                        "predicted_surfaces": ["core"],
+                        "depends_on_lanes": [],
+                        "parallel_group": 0,
+                    },
+                    {
+                        "lane_id": "lane-b",
+                        "wp_ids": [_ANCESTRY_WP_SELF],
+                        "write_scope": ["src/**"],
+                        "predicted_surfaces": ["core"],
+                        "depends_on_lanes": ["lane-a"],
+                        "parallel_group": 1,
+                    },
+                ],
+                "computed_at": "2026-08-26T00:00:00+00:00",
+                "computed_from": "test",
+                "planning_artifact_wps": [],
+                "planning_commit_sha": None,
+            },
+            indent=2,
+        ),
+        encoding="utf-8",
+    )
+    _git(repo, "add", "kitty-specs")
+    _git(repo, "commit", "-q", "-m", "chore: ancestry backup planning artifacts")
+
+
+def _ancestry_manifest(repo: Path) -> LanesManifest:
+    return LanesManifest(
+        version=1,
+        mission_slug=_ANCESTRY_MISSION_SLUG,
+        mission_id="01KZZE00ANCESTRYBACKUP0000",
+        mission_branch=f"kitty/mission-{_ANCESTRY_MISSION_SLUG}",
+        target_branch="main",
+        lanes=[
+            ExecutionLane(
+                lane_id="lane-a",
+                wp_ids=(_ANCESTRY_WP_DEP,),
+                write_scope=("src/**",),
+                predicted_surfaces=("core",),
+                depends_on_lanes=(),
+                parallel_group=0,
+            ),
+            ExecutionLane(
+                lane_id="lane-b",
+                wp_ids=(_ANCESTRY_WP_SELF,),
+                write_scope=("src/**",),
+                predicted_surfaces=("core",),
+                depends_on_lanes=("lane-a",),
+                parallel_group=1,
+            ),
+        ],
+        computed_at="2026-08-26T00:00:00Z",
+        computed_from="test",
+    )
+
+
+def test_3281_retry_reenters_self_heal_to_establish_post_materialize_ancestry(
+    tmp_path: Path,
+) -> None:
+    """End-to-end (backup) proof of the #3281 fix, chaining T008 + T011 + T012:
+
+    1. lane-b is allocated FRESH while its dependency, lane-a, does not exist
+       yet (a realistic ordering -- lane-b's WP was claimable before lane-a's
+       dependency work landed and got approved). The fresh-path dependency
+       merge skips the not-yet-existing lane-a branch with a warning.
+    2. lane-a's branch is then created and its WP is marked APPROVED.
+    3. A RETRY over lane-b's now-EXISTING worktree, through the real
+       ``resolve_claim_ancestry_gate`` (the same shared predicate every claim
+       site calls), re-enters the idempotent self-heal -- which merges
+       lane-a's now-real tip -- and the ancestry check passes. This is the
+       exact #3281 defect: a bare ``workspace.exists`` short-circuit would
+       never have re-run the merge, leaving lane-b claimed without lane-a's
+       code (FR-007's "ancestry-blind claim").
+    """
+    repo = tmp_path / "repo"
+    _init_repo(repo)
+    _write_ancestry_meta_and_lanes(repo)
+    manifest = _ancestry_manifest(repo)
+
+    # Step 1: fresh allocation of lane-b BEFORE lane-a exists.
+    lane_b_worktree, _lane_b_branch = allocate_lane_worktree(
+        repo_root=repo,
+        mission_slug=_ANCESTRY_MISSION_SLUG,
+        wp_id=_ANCESTRY_WP_SELF,
+        lanes_manifest=manifest,
+    )
+    assert lane_b_worktree.exists()
+    assert not (lane_b_worktree / "lane_a_output.txt").exists()
+
+    # Step 2: lane-a's dependency work lands and is approved.
+    lane_a_branch = lane_branch_name(_ANCESTRY_MISSION_SLUG, "lane-a")
+    _git(repo, "branch", lane_a_branch, "main")
+    _git(repo, "checkout", "-q", lane_a_branch)
+    (repo / "lane_a_output.txt").write_text("lane-a code\n", encoding="utf-8")
+    _git(repo, "add", "lane_a_output.txt")
+    _git(repo, "commit", "-q", "-m", "lane-a: write output")
+    _git(repo, "checkout", "-q", "main")
+
+    feature_dir = _ancestry_feature_dir(repo)
+    append_event(
+        feature_dir,
+        StatusEvent(
+            event_id=str(ULID()),
+            mission_slug=_ANCESTRY_MISSION_SLUG,
+            wp_id=_ANCESTRY_WP_DEP,
+            from_lane=Lane.PLANNED,
+            to_lane=Lane.APPROVED,
+            at="2026-08-26T00:00:00+00:00",
+            actor="test",
+            force=False,
+            execution_mode="worktree",
+            mission_id="01KZZE00ANCESTRYBACKUP0000",
+        ),
+    )
+
+    # Step 3: the retry, through the real shared gate.
+    bare = resolve_claim_ancestry_gate(
+        repo, _ANCESTRY_MISSION_SLUG, feature_dir, _ANCESTRY_WP_SELF, lane_b_worktree
+    )
+    assert bare.ok is True, (
+        f"retry must re-enter self-heal and establish ancestry: {bare.missing_refs}"
+    )
+    assert (lane_b_worktree / "lane_a_output.txt").exists(), (
+        "self-heal must have actually merged lane-a's tip into lane-b's worktree"
+    )

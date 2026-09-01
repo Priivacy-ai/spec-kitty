@@ -35,13 +35,13 @@ def evaluate_readiness(
 
 ### Output
 
-A `ReadinessResult`. Always one of the six `ReadinessState` members. **The function never raises** — internal exceptions are converted into `HOST_UNREACHABLE` results with the exception type captured in `details["error"]`.
+A `ReadinessResult`. Always one of the seven `ReadinessState` members. **The function never raises** — internal exceptions are converted into `HOST_UNREACHABLE` results with the exception type captured in `details["error"]`.
 
 ### Check Order (short-circuits on first failure)
 
 1. `is_saas_sync_enabled()` → `ROLLOUT_DISABLED`
 2. Auth lookup → `MISSING_AUTH`
-3. `specify_cli.auth.config.get_saas_base_url()` — if this raises `ConfigurationError` (because `SPEC_KITTY_SAAS_URL` is unset or empty) → `MISSING_HOST_CONFIG`. The returned URL is the value used for reachability in step 4 and for the `HOST_UNREACHABLE` failure message. **This check does not consult `SyncConfig.get_server_url()` — per decision D-5 in `src/specify_cli/auth/config.py`, `SPEC_KITTY_SAAS_URL` is the authoritative host URL surface.**
+3. `specify_cli.auth.config.get_saas_base_url()` — if this raises `ConfigurationError` (because `SPEC_KITTY_SAAS_URL` is unset or empty) → `MISSING_HOST_CONFIG`. Otherwise the resolved target is looked up via `specify_cli.auth.server_target.resolve_server_target(process_wide_override=False)`; if that raises `ServerTargetSplitBrainError` (env and `config.toml` name different hosts with no whole-process override) → `AMBIGUOUS_HOST_CONFIG`, naming both URLs (the env/config split-brain case — `MISSING_HOST_CONFIG`'s remedy is a dead end here, since the env var is already set). Otherwise the resolved URL is the value used for reachability in step 4 and for the `HOST_UNREACHABLE` failure message. **This check does not consult `SyncConfig.get_server_url()` — per decision D-5 in `src/specify_cli/auth/config.py`, `SPEC_KITTY_SAAS_URL` is the authoritative host URL surface.**
 4. (only if `probe_reachability=True`) HEAD probe against the URL from step 3 → `HOST_UNREACHABLE`
 5. (only if `require_mission_binding=True`) binding lookup → `MISSING_MISSION_BINDING`
 6. `READY`
@@ -67,6 +67,7 @@ For every non-`READY` state, the result MUST satisfy:
 | `ROLLOUT_DISABLED` | "Hosted SaaS sync is not enabled on this machine." | "Set `SPEC_KITTY_ENABLE_SAAS_SYNC=1` to opt in." |
 | `MISSING_AUTH` | "No SaaS authentication token is present." | "Run `spec-kitty auth login`." |
 | `MISSING_HOST_CONFIG` | "No SaaS host URL is configured." | "Set `SPEC_KITTY_SAAS_URL` in your environment." |
+| `AMBIGUOUS_HOST_CONFIG` | "SaaS host configuration is ambiguous: `config.toml` names `{configured_server_url}` while `SPEC_KITTY_SAAS_URL` names `{env_server_url}`." | "Reconcile the two: update `config.toml`'s `[sync].server_url` to match, or change/unset `SPEC_KITTY_SAAS_URL`, so both name the same host." |
 | `HOST_UNREACHABLE` | "The configured SaaS host did not respond within 2 seconds." | "Check network connectivity to `{server_url}` and retry." |
 | `MISSING_MISSION_BINDING` | "No tracker binding exists for feature `{feature_slug}`." | "Run `spec-kitty tracker bind` from this repo." |
 

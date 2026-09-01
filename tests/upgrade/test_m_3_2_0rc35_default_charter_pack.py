@@ -18,8 +18,13 @@ import pytest
 pytestmark = pytest.mark.upgrade
 from ruamel.yaml import YAML
 
-from charter.drg import DRGGraph, DRGNode, NodeKind, filter_graph_by_activation
-from charter.pack_context import PackContext
+from charter.drg import (
+    DRGGraph,
+    DRGNode,
+    NodeKind,
+)
+from charter.activation.drg_activation import filter_graph_by_activation
+from charter.activation.pack_context import PackContext
 from specify_cli.upgrade.migrations import m_3_2_0rc35_default_charter_pack
 from specify_cli.upgrade.migrations.m_3_2_0rc35_default_charter_pack import (
     DefaultCharterPackMigration,
