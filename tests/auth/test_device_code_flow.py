@@ -20,6 +20,8 @@ The headline assertions per WP05's acceptance criteria:
 
 from __future__ import annotations
 
+import io
+
 from kernel.clock import UTC, datetime, now_utc, timedelta
 from unittest.mock import AsyncMock, Mock, patch
 
@@ -34,6 +36,7 @@ from specify_cli.auth.errors import (
     NetworkError,
 )
 from specify_cli.auth.flows.device_code import DeviceCodeFlow
+from specify_cli.cli.console import CliConsole
 
 
 pytestmark = [pytest.mark.integration]
@@ -767,6 +770,47 @@ class TestLogin:
 
         joined = "\n".join(progress_lines)
         assert f"{_SAAS}/device?code=ABCD1234" in joined
+
+    @pytest.mark.asyncio
+    async def test_login_sanitizes_device_response_fields(self):
+        """Hostile OAuth device response fields cannot emit terminal controls."""
+        safe_text = "Zoë 日本語 🐱"
+        hostile_suffix = "\x1b[2J\x1b]0;x\x07\x1b"
+        hostile = f"{safe_text}{hostile_suffix}"
+        flow = DeviceCodeFlow(saas_base_url=_SAAS)
+        buffer = io.StringIO()
+        console = CliConsole(
+            file=buffer,
+            width=160,
+            no_color=True,
+            highlight=False,
+        )
+
+        post_routes = {
+            "/oauth/device": _mock_httpx_response(
+                200,
+                _device_response(
+                    device_code=f"dc{hostile_suffix}",
+                    user_code=f"ABCD1234{hostile_suffix}",
+                    verification_uri=f"{_SAAS}/device{hostile}",
+                    verification_uri_complete=f"{_SAAS}/complete{hostile}",
+                ),
+            ),
+            "/oauth/token": _mock_httpx_response(200, _token_response()),
+        }
+        get_routes = {
+            "/api/v1/me": _mock_httpx_response(200, _me_response()),
+        }
+
+        with _install_routed_client(post_routes, get_routes):
+            await flow.login(progress_writer=console.print)
+
+        emitted = buffer.getvalue().encode("utf-8")
+        assert safe_text.encode("utf-8") in emitted
+        assert b"ABCD-1234" in emitted
+        assert b"\x1b" not in emitted
+        assert b"[2J" not in emitted
+        assert b"]0;x" not in emitted
 
     @pytest.mark.asyncio
     async def test_login_with_authorization_pending_then_success(self):
