@@ -51,8 +51,8 @@ origin/main — you never do.
   action-scoped doctrine as you go via `spec-kitty charter context --action <name>`.
 - Read `CLAUDE.md`, `docs/development/pr-landing.md` (maintainer runbook),
   `docs/development/known-friction-points.md` (REQUIRED — the current gotchas),
-  `CONTRIBUTING.md`, `docs/development/testing-parallel.md`, and
-  `docs/development/testing-flakiness.md`.
+  `CONTRIBUTING.md`, `docs/development/testing/testing-parallel.md`, and
+  `docs/development/testing/testing-flakiness.md`.
 - Terminology canon: it's a **Mission**, never a "feature". Run the terminology
   guard before pushing any prose/doctrine:
   `pytest tests/architectural/test_no_legacy_terminology.py`.

@@ -403,8 +403,8 @@ def synthesize_cmd(
                         "schema_version": "1",
                         "command": "agent.retrospect.synthesize",
                         "status": "error",
-                        "outcome": "mission_not_found",
-                        "error": "mission_not_found",
+                        "outcome": "MISSION_NOT_FOUND",
+                        "error": "MISSION_NOT_FOUND",
                         "handle": exc.handle,
                         "next_action": "Check the mission handle or run `spec-kitty agent mission list`.",
                     }
@@ -425,7 +425,7 @@ def synthesize_cmd(
                         "schema_version": "1",
                         "command": "agent.retrospect.synthesize",
                         "status": "error",
-                        "outcome": "ambiguous_mission_handle",
+                        "outcome": "MISSION_AMBIGUOUS_SELECTOR",
                     }
                 )
             )
