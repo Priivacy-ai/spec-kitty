@@ -1,6 +1,6 @@
 """Unit tests for directive schema validation."""
 
-from doctrine.directives.validation import validate_directive
+from charter.offering.directives.validation import validate_directive
 import pytest
 pytestmark = [pytest.mark.fast, pytest.mark.doctrine]
 

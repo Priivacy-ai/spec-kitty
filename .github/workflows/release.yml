@@ -26,7 +26,7 @@ env:
 
 jobs:
   build-release:
-    runs-on: blacksmith-4vcpu-ubuntu-2404
+    runs-on: ubuntu-latest
     env:
       REPO_OWNER: ${{ github.repository_owner }}
       CROSS_REPO_TOKEN: ${{ secrets.SPEC_KITTY_SAAS_READ_TOKEN != '' && secrets.SPEC_KITTY_SAAS_READ_TOKEN || github.token }}
@@ -47,15 +47,15 @@ jobs:
       - name: Set up uv
         uses: astral-sh/setup-uv@v8.1.0
 
-      - name: Setup SSH for private repository access
-        # Purpose: spec-kitty depends on private spec-kitty-events library.
-        # Uses SSH deploy key stored in GitHub Actions secrets.
-        # See docs/development/ssh-deploy-keys.md for setup instructions.
+      - name: Configure private git dependencies
+        env:
+          GH_TOKEN: ${{ secrets.SK_CI_TOKEN }}
         run: |
-          mkdir -p ~/.ssh
-          echo "${{ secrets.SPEC_KITTY_EVENTS_DEPLOY_KEY }}" > ~/.ssh/id_ed25519
-          chmod 600 ~/.ssh/id_ed25519
-          ssh-keyscan github.com >> ~/.ssh/known_hosts
+          if [ -z "$GH_TOKEN" ]; then
+            echo "::error::SK_CI_TOKEN is required to install the pinned private git dependencies."
+            exit 1
+          fi
+          git config --global "url.https://x-access-token:${GH_TOKEN}@github.com/.insteadOf" "https://github.com/"
         shell: bash
 
       - name: Install tooling
@@ -211,22 +211,26 @@ jobs:
 
           # Count tracked doctrine files in source. Release tests can mutate the
           # checkout, so use the tracked tree as the source of truth here too.
-          # Apply the SAME exclusions the wheel build applies (pyproject.toml
-          # [tool.hatch.build.targets.wheel].exclude): src/doctrine/hatch_build.py
-          # and the nested src/doctrine/pyproject.toml are dormant standalone-wheel
-          # build scaffolding (#3163, ADR 2026-08-02-1), deliberately NOT shipped in
-          # the runtime wheel -- counting them as doctrine payload falsely fails this
-          # gate (they are tracked, so appear in `git ls-files`, but never in the wheel).
-          SOURCE_DOCTRINE_COUNT=$(git ls-files src/doctrine ':!src/doctrine/hatch_build.py' ':!src/doctrine/pyproject.toml' | wc -l | tr -d ' ')
+          #
+          # Path re-homed (charter-code-topology-01M152G1, S5): the former
+          # src/doctrine package relocated to src/charter/offering (S2a), so this
+          # payload check now counts that tree / the wheel's charter/offering/
+          # extraction path. The prior src/doctrine/hatch_build.py +
+          # src/doctrine/pyproject.toml exclusions are gone too -- the dormant,
+          # never-built spec-kitty-doctrine wheel groundwork they described
+          # (src/charter/offering/hatch_build.py + .../pyproject.toml) was DELETED
+          # outright per MAP-BUILD, not merely excluded, so there is nothing left
+          # under src/charter/offering to exclude from this count.
+          SOURCE_DOCTRINE_COUNT=$(git ls-files src/charter/offering | wc -l | tr -d ' ')
           echo "Source doctrine file count: $SOURCE_DOCTRINE_COUNT"
 
-          WHEEL_DOCTRINE_COUNT=$(find /tmp/wheel_check/doctrine -type f 2>/dev/null | wc -l | tr -d ' ')
+          WHEEL_DOCTRINE_COUNT=$(find /tmp/wheel_check/charter/offering -type f 2>/dev/null | wc -l | tr -d ' ')
           echo "Wheel doctrine file count: $WHEEL_DOCTRINE_COUNT"
 
-          SOURCE_SKILL_COUNT=$(git ls-files src/doctrine/skills | grep '/SKILL\.md$' | wc -l | tr -d ' ')
+          SOURCE_SKILL_COUNT=$(git ls-files src/charter/offering/skills | grep '/SKILL\.md$' | wc -l | tr -d ' ')
           echo "Source bundled skill count: $SOURCE_SKILL_COUNT"
 
-          WHEEL_SKILL_COUNT=$(find /tmp/wheel_check/doctrine/skills -path '*/SKILL.md' -type f 2>/dev/null | wc -l | tr -d ' ')
+          WHEEL_SKILL_COUNT=$(find /tmp/wheel_check/charter/offering/skills -path '*/SKILL.md' -type f 2>/dev/null | wc -l | tr -d ' ')
           echo "Wheel bundled skill count: $WHEEL_SKILL_COUNT"
 
           if [ "$SOURCE_DOCTRINE_COUNT" -ne "$WHEEL_DOCTRINE_COUNT" ]; then
@@ -238,7 +242,7 @@ jobs:
 
           if [ "$SOURCE_SKILL_COUNT" -ne "$WHEEL_SKILL_COUNT" ]; then
             echo "::error::Bundled skill count mismatch! Source: $SOURCE_SKILL_COUNT, Wheel: $WHEEL_SKILL_COUNT"
-            echo "::error::The wheel must ship every canonical SKILL.md under doctrine/skills."
+            echo "::error::The wheel must ship every canonical SKILL.md under charter/offering/skills."
             exit 1
           fi
 
@@ -288,7 +292,7 @@ jobs:
     name: Verify downstream consumer compatibility
     needs: build-release
     if: ${{ github.event_name != 'workflow_dispatch' || inputs.skip_downstream != true }}
-    runs-on: blacksmith-4vcpu-ubuntu-2404
+    runs-on: ubuntu-latest
     env:
       REPO_OWNER: ${{ github.repository_owner }}
       CROSS_REPO_TOKEN: ${{ secrets.SPEC_KITTY_SAAS_READ_TOKEN != '' && secrets.SPEC_KITTY_SAAS_READ_TOKEN || github.token }}
@@ -352,7 +356,7 @@ jobs:
     name: Publish to PyPI
     needs: [build-release, downstream-consumer-verify]
     if: ${{ always() && needs.build-release.result == 'success' && (needs.downstream-consumer-verify.result == 'success' || (github.event_name == 'workflow_dispatch' && inputs.skip_downstream == true)) }}
-    runs-on: blacksmith-4vcpu-ubuntu-2404
+    runs-on: ubuntu-latest
     permissions:
       contents: write
       id-token: write
@@ -417,7 +421,7 @@ jobs:
     name: Verify PyPI exact install
     needs: publish-pypi
     if: ${{ always() && needs.publish-pypi.result == 'success' }}
-    runs-on: blacksmith-4vcpu-ubuntu-2404
+    runs-on: ubuntu-latest
     steps:
       - name: Check out repository
         uses: actions/checkout@v6

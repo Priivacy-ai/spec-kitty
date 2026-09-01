@@ -30,12 +30,12 @@ from typing import TYPE_CHECKING
 
 import pytest
 
-from doctrine.drg.loader import built_in_graph_source, load_built_in_graph
-from doctrine.drg.migration.extractor import extract_artifact_edges
-from doctrine.drg.models import NodeKind
+from charter.offering.drg.loader import built_in_graph_source, load_built_in_graph
+from charter.offering.drg.migration.extractor import extract_artifact_edges
+from charter.offering.drg.models import NodeKind
 
 if TYPE_CHECKING:
-    from doctrine.drg.models import DRGGraph, DRGNode
+    from charter.offering.drg.models import DRGGraph, DRGNode
 
 pytestmark = [pytest.mark.doctrine, pytest.mark.fast, pytest.mark.corpus]
 
@@ -95,7 +95,7 @@ class TestFragmentPresenceControlsResolution:
         assert (fragments_dir / _FRAGMENT_NAME).is_file()
 
         monkeypatch.setattr(
-            "doctrine.drg.loader.built_in_graph_source", lambda: fragments_dir
+            "charter.offering.drg.loader.built_in_graph_source", lambda: fragments_dir
         )
         graph = load_built_in_graph()
         assert _pack_node(graph) is not None
@@ -118,7 +118,7 @@ class TestFragmentPresenceControlsResolution:
         )
 
         monkeypatch.setattr(
-            "doctrine.drg.loader.built_in_graph_source", lambda: fragments_dir
+            "charter.offering.drg.loader.built_in_graph_source", lambda: fragments_dir
         )
         graph = load_built_in_graph()
         assert _pack_node(graph) is None, (

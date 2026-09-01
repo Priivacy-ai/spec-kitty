@@ -44,3 +44,5 @@ references:
     id: DIRECTIVE_034
   - type: styleguide
     id: testing-principles
+  - type: styleguide
+    id: quadruple-a-test-format

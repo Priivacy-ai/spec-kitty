@@ -17,9 +17,9 @@ import yaml
 from pydantic import ValidationError
 from ulid import ULID
 
-from doctrine.pack_paths import built_in_root
+from charter.offering.pack_paths import built_in_root
 from specify_cli.doctrine.pack_descriptor import PackDescriptor
-from doctrine.drg.org_pack_config import (
+from charter.offering.drg.org_pack_config import (
     _BUILTIN_PACK_ID,
     OrgPackConfig,
     PackRegistry,

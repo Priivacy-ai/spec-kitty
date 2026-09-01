@@ -1,0 +1,120 @@
+# review-findings/v1 — canonical format for lens-session and fresh-sweep output.
+schema: review-findings/v1
+complete: true
+phase: plan
+lens_group: fresh
+mission: accept-path-remediation-honesty-01M0TWZP
+findings:
+  - id: PLAN-FRESH-001
+    lens: structural-root-cause (debugger-debbie / directive 032 conceptual-alignment)
+    severity: 3
+    title: "WP2's revised token-normalization rule names a helper that cannot perform the operation it is credited with"
+    evidence:
+      - artifact: "plan.md § WP2 — stop double-reporting, \"Token normalization\" bullet, lines 428-449"
+      - code: "src/specify_cli/validators/paths.py:128-130 (`_normalize_path_token` = `str(token).strip().strip(\"/\")`, pure slash-strip, no relative-path computation)"
+      - code: "src/specify_cli/acceptance/summary_core.py:110-148 (`evaluate_path_conventions` only ever sees `path_result.missing_paths`, project_root-relative strings post-WP1 — it has no access to WP1's internal `full_path`/`candidate` Path objects)"
+    claim: >
+      The revision replaced the pre-fix basename-comparison rule (`Path(missing_path_entry).name`,
+      well-defined) with a new rule: "re-derive its `feature_dir`-relative form ... via the
+      module-local helper pattern already present in `validators/paths.py`
+      (`_normalize_path_token` — strip + `strip(\"/\")`)". But `_normalize_path_token` only
+      strips whitespace/slashes from a string; it cannot turn a project_root-relative resolved
+      string (e.g. "kitty-specs/<slug>/contracts/") into a feature_dir-relative one (e.g.
+      "contracts/") — that requires an actual relative-path computation (stripping the
+      feature_dir prefix, e.g. `Path(x).relative_to(...)`), which is not named anywhere in the
+      plan and is not available to `evaluate_path_conventions` from any value WP1 hands back
+      (only the already-resolved, project_root-relative `missing_paths` strings are visible to
+      it). An implementer following this bullet literally has no defined way to actually perform
+      the "re-derive its feature_dir-relative form" step; a naive implementation (e.g. just
+      slash-stripping the resolved string without stripping the feature_dir prefix) would compare
+      "contracts" against "kitty-specs/<slug>/contracts" and never match, silently defeating
+      FR-002's dedup for the exact fixture this mission exists to fix.
+    remediation: >
+      Either (a) have WP1 additionally expose a feature_dir-relative candidate string alongside
+      `missing_paths` (e.g. a new `PathValidationResult` field, computed trivially in
+      `validate_mission_paths`'s existing loop where `candidate`/artifact-tagging is already
+      known), so WP2's comparison consumes a value that is actually feature_dir-relative already
+      and only needs `_normalize_path_token`'s slash-strip; or (b) spell out the concrete
+      relative-path computation `evaluate_path_conventions` must perform against
+      `planning_read_dir` before applying `_normalize_path_token`, rather than implying the strip
+      helper alone accomplishes the re-derivation.
+
+  - id: PLAN-FRESH-002
+    lens: trace-based-observability (directive 003 decision-documentation precision)
+    severity: 2
+    title: "WP3's NFR-003 CI-enforcement claim names the wrong job; the actual enforcing job is explicitly excluded from the one cited"
+    evidence:
+      - artifact: "plan.md § WP3 — honest remediation text..., \"Covers\" line (NFR-003 bullet)"
+      - code: ".github/workflows/ci-quality.yml:1886 (`tests/architectural/test_no_legacy_terminology.py` invoked only inside `fast-tests-docs`, gated on the `docs` path filter or `push`)"
+      - code: "tests/architectural/test_no_legacy_terminology.py:24 (`pytestmark = [pytest.mark.architectural, pytest.mark.git_repo, pytest.mark.docs_scoped]` — no `fast`/`integration` marker)"
+      - code: ".github/workflows/ci-quality.yml ~1917-1919 (comment on `integration-tests-core-misc`: \"the `architectural` shard was extracted to the standalone always-on `arch-adversarial` job ... do NOT re-add it here\")"
+    claim: >
+      The plan states NFR-003 is "independently enforced by
+      `tests/architectural/test_no_legacy_terminology.py`, part of the `core_misc` job that this
+      diff's `governance`/`acceptance` filter membership already triggers per Gate set above."
+      This is factually wrong on the specific mechanism: the test carries only
+      `architectural`/`git_repo`/`docs_scoped` markers, so `fast-tests-core-misc`
+      (`-m "fast and ..."`) and `integration-tests-core-misc` (which an in-repo comment says
+      explicitly excludes architectural-marked tests, having moved them to the standalone
+      always-on `arch-adversarial` job) never select it. It is literally invoked by path only
+      inside `fast-tests-docs` (gated on the `docs` filter, which this diff does not touch) and
+      is otherwise picked up only by `arch-adversarial`'s unconditional, filter-independent
+      marker selection. The practical outcome (NFR-003 is still checked pre-merge, via
+      `arch-adversarial`, which is always-on) is not actually broken, but the plan's own "Gate
+      set" section — which explicitly prides itself on being "derived by reading
+      `.github/workflows/ci-quality.yml` on this checkout... not recalled from memory" — never
+      lists `arch-adversarial` among the jobs it says "therefore run," and the one job it does
+      name for this specific test does not run it.
+    remediation: >
+      Correct the WP3 "Covers" NFR-003 citation to name `arch-adversarial` (always-on,
+      unconditional, sharded by `arch_shard_1/2/3` markers) as the job that actually runs
+      `test_no_legacy_terminology.py`, and add it to the "Job names that therefore run" list in
+      the Gate set section for completeness, rather than attributing enforcement to
+      `governance`/`acceptance` filter membership feeding into `core_misc`.
+
+  - id: PLAN-FRESH-003
+    lens: bisection-and-timeline (line-citation precision)
+    severity: 1
+    title: "WP2 Propagation-mechanism paragraph cites `summary_core.py:147` for the `if strict_metadata:` condition, but that line is the branch's return statement — the condition itself is line 146"
+    evidence:
+      - artifact: "plan.md § WP2, \"Propagation mechanism\" bullet: \"**The mutation fires ONLY inside the `if strict_metadata:` branch** of `evaluate_path_conventions` (`summary_core.py:147`)\""
+      - code: "src/specify_cli/acceptance/summary_core.py:146 (`if strict_metadata:`) vs. :147 (`return [path_result.format_errors() or _PATH_CONVENTIONS_NOT_SATISFIED], None`)"
+    claim: >
+      This citation was added by the fix commit (it did not exist in the pre-fix plan) alongside
+      a correct restatement of the same line number in WP3's section, where citing :147 is
+      accurate because that is where `.format_errors(` is actually called (confirmed via
+      `grep -rn '\.format_errors(' src/`). In the WP2 paragraph, however, the citation is
+      attached specifically to "the `if strict_metadata:` branch," i.e. the branch condition,
+      which is one line earlier at :146. A minor, purely-citation off-by-one; the described
+      behavior (mutation gated on the strict branch) is otherwise correct.
+    remediation: >
+      Change the WP2 Propagation-mechanism citation from `summary_core.py:147` to
+      `summary_core.py:146` (or cite the range `:146-147` to cover both the condition and its
+      body) so it points at the `if strict_metadata:` condition itself.
+
+  - id: PLAN-FRESH-004
+    lens: differential-matrix (cross-artifact field-name consistency)
+    severity: 3
+    title: "WP4 assertion 3 and the Test-strategy table check a JSON field named `missing_optional`, which does not exist — the real field/JSON key is `optional_missing`"
+    evidence:
+      - artifact: "plan.md § WP4 — red-first tests..., \"Assertions\" item 3: \"confirming `missing_optional` and `path_violations` in the JSON payload...\""
+      - artifact: "plan.md § Test strategy per Acceptance Scenario, US2 row 4: \"(`--json` internal consistency) | WP2 + WP4 | WP4 fixture assertion 3\""
+      - code: "src/specify_cli/acceptance/__init__.py:430 (`\"optional_missing\": self.optional_missing,` inside `AcceptanceSummary.to_dict()`)"
+      - code: "src/specify_cli/cli/commands/accept.py:796 (`print(json.dumps(_with_advisories(summary.to_dict(), ...)))` — this is the literal `--json` payload)"
+    claim: >
+      spec.md's own Acceptance Scenario 4 of User Story 2 already uses the wrong name
+      (`missing_optional` instead of the actual dataclass field / JSON key `optional_missing`),
+      and this plan's WP4 section — written and left untouched by this revision, sitting
+      immediately after WP2's heavily-rewritten section which correctly and consistently uses
+      `optional_missing` throughout — repeats the same error rather than catching it. A WP4
+      implementer who follows the plan's literal wording and writes a `--json` assertion
+      checking for a `missing_optional` key would be asserting against a key that is never
+      present in the real payload (confirmed: `to_dict()` emits `"optional_missing"`), producing
+      an immediately-broken test rather than a genuine FR-002-Edge-Case/Scenario-4 check.
+    remediation: >
+      Correct "`missing_optional` and `path_violations` in the JSON payload" to "`optional_missing`
+      and `path_violations` in the JSON payload" in WP4's Assertions item 3 (and flag the same
+      terminology slip in spec.md's Acceptance Scenario 4 / Edge Cases for a future spec
+      correction pass, since the plan inherits it verbatim).
+
+findings_count: 4

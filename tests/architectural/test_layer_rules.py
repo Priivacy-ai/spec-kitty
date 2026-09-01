@@ -3,10 +3,15 @@
 These tests enforce the dependency direction documented in
 docs/architecture/00_landscape/README.md:
 
-    kernel (root) <- doctrine <- charter <- glossary/runtime <- specify_cli
+    kernel (root) <- charter <- glossary/runtime/mission_runtime <- specify_cli
 
 A violation here means a package imports from a package it should not.
 See ADR 2026-03-27-1 for rationale.
+
+Note (charter-code-topology-01M152G1, S5): the former top-level ``doctrine``
+layer was dropped from the landscape. ``src/doctrine`` relocated to
+``src/charter/offering`` (S2a); the offering/activation split is an
+intra-``charter`` sub-package boundary now, not a separate landscape layer.
 
 ---
 
@@ -71,8 +76,12 @@ _SRC = Path(__file__).resolve().parents[2] / "src"
 
 # Layer names as defined in the `landscape` fixture in conftest.py.
 # Keep this in sync with that fixture; both lists must agree.
+#
+# "doctrine" was dropped (charter-code-topology-01M152G1, S5): src/doctrine
+# relocated to src/charter/offering (S2a), so the collapsed chain is
+# kernel <- charter <- glossary/runtime/mission_runtime <- specify_cli.
 _DEFINED_LAYERS: frozenset[str] = frozenset(
-    ["kernel", "doctrine", "charter", "glossary", "runtime", "mission_runtime", "specify_cli"]
+    ["kernel", "charter", "glossary", "runtime", "mission_runtime", "specify_cli"]
 )
 
 # ---------------------------------------------------------------------------
@@ -239,17 +248,6 @@ class TestLayerCoverage:
 class TestKernelIsolation:
     """kernel must not import from any other landscape container."""
 
-    def test_kernel_does_not_import_doctrine(self, evaluable, landscape):
-        (
-            LayerRule()
-            .based_on(landscape)
-            .layers_that()
-            .are_named("kernel")
-            .should_not()
-            .access_layers_that()
-            .are_named("doctrine")
-        ).assert_applies(evaluable)
-
     def test_kernel_does_not_import_charter(self, evaluable, landscape):
         (
             LayerRule()
@@ -273,40 +271,26 @@ class TestKernelIsolation:
         ).assert_applies(evaluable)
 
 
-# --- Invariant 2: doctrine depends only on kernel ---
-
-
-class TestDoctrineIsolation:
-    """doctrine must not import from specify_cli or charter."""
-
-    def test_doctrine_does_not_import_specify_cli(self, evaluable, landscape):
-        (
-            LayerRule()
-            .based_on(landscape)
-            .layers_that()
-            .are_named("doctrine")
-            .should_not()
-            .access_layers_that()
-            .are_named("specify_cli")
-        ).assert_applies(evaluable)
-
-    def test_doctrine_does_not_import_charter(self, evaluable, landscape):
-        (
-            LayerRule()
-            .based_on(landscape)
-            .layers_that()
-            .are_named("doctrine")
-            .should_not()
-            .access_layers_that()
-            .are_named("charter")
-        ).assert_applies(evaluable)
+# --- Invariant 2 (retired): "doctrine depends only on kernel" ---
+#
+# Dropped (charter-code-topology-01M152G1, S5): ``src/doctrine`` relocated
+# to ``src/charter/offering`` (S2a) and is no longer a top-level landscape
+# layer, so a ``LayerRule`` naming a "doctrine" layer would error against the
+# collapsed ``landscape`` fixture (the layer node no longer exists). The
+# invariant this class enforced (no upward imports from the former doctrine
+# package) is now covered intra-package by
+# ``test_charter_offering_does_not_import_activation.py`` plus the ordinary
+# ``TestCharterBoundary`` rule below, which already proves the whole
+# ``charter`` layer (including ``charter.offering``) does not import
+# ``specify_cli``.
 
 
 # --- Invariant 3: charter boundary ---
 
 
 class TestCharterBoundary:
-    """charter may import doctrine + kernel only. No specify_cli imports."""
+    """charter (including the former-doctrine ``charter.offering`` sub-package)
+    may import kernel only. No specify_cli imports."""
 
     def test_charter_does_not_import_specify_cli(self, evaluable, landscape):
         (
@@ -413,17 +397,17 @@ def _non_canonical_instances(objs: Iterable[object], canonical: type) -> list[st
 class TestUnifiedMissionStepBoundary:
     """WP01 (mission charter-doctrine-mission-type-configuration-01KSWJVX).
 
-    After the unification, the legacy ``doctrine.mission_step_contracts``
+    After the unification, the legacy ``charter.offering.mission_step_contracts``
     subpackage is gone. The unified :class:`MissionStep` model lives at
-    ``doctrine.missions.models``; the legacy step-contract types relocate
-    to ``doctrine.missions.step_contracts``. Charter modules import from
+    ``charter.offering.missions.models``; the legacy step-contract types relocate
+    to ``charter.offering.missions.step_contracts``. Charter modules import from
     ``doctrine.*`` directly (allowed: charter sits above doctrine in the
     dependency stack); the runtime layer reaches doctrine artifacts
     through the charter facades whenever possible.
     """
 
     def test_legacy_subpackage_is_gone(self) -> None:
-        """The legacy ``doctrine.mission_step_contracts`` import path must
+        """The legacy ``charter.offering.mission_step_contracts`` import path must
         not resolve. WP01 retired this subpackage; any code importing it
         would silently shadow the unified model and reintroduce the
         fragmentation that this WP eliminated.
@@ -440,13 +424,13 @@ class TestUnifiedMissionStepBoundary:
         package behaviour). We therefore rely solely on the source-file
         existence check as the authoritative gate.
         """
-        legacy = Path(__file__).resolve().parents[2] / "src" / "doctrine" / "mission_step_contracts"
+        legacy = Path(__file__).resolve().parents[2] / "src" / "charter" / "offering" / "mission_step_contracts"
         forbidden_source_files = ("__init__.py", "models.py", "repository.py")
         present = [name for name in forbidden_source_files if (legacy / name).exists()]
         assert not present, (
             f"Legacy subpackage source files present after WP01: {present}. "
-            "Use doctrine.missions.models.MissionStep (unified) or "
-            "doctrine.missions.step_contracts (legacy contract types) instead."
+            "Use charter.offering.missions.models.MissionStep (unified) or "
+            "charter.offering.missions.step_contracts (legacy contract types) instead."
         )
 
     def test_unified_model_resolves_at_new_location(self) -> None:
@@ -461,8 +445,8 @@ class TestUnifiedMissionStepBoundary:
         were ever wired to a decoy/duplicate class (see
         ``test_plant_and_catch_wrong_mission_step_wiring`` below).
         """
-        from doctrine.missions.mission_step_repository import MissionStepRepository
-        from doctrine.missions.models import MissionStep
+        from charter.offering.missions.mission_step_repository import MissionStepRepository
+        from charter.offering.missions.models import MissionStep
 
         resolved = MissionStepRepository.default().resolve_all_for_mission_type(
             "software-dev"
@@ -479,12 +463,12 @@ class TestUnifiedMissionStepBoundary:
 
     def test_legacy_contract_types_resolve_at_new_location(self) -> None:
         """The relocated legacy step-contract types are BOTH importable at
-        ``doctrine.missions.step_contracts`` AND the exact classes the
+        ``charter.offering.missions.step_contracts`` AND the exact classes the
         shipped ``*.step-contract.yaml`` loader actually instantiates
         (FR-011) — not merely same-named classes at a pinned literal
         module path.
         """
-        from doctrine.missions.step_contracts import (
+        from charter.offering.missions.step_contracts import (
             DelegatesTo,
             MissionStepContract,
             MissionStepContractRepository,
@@ -529,7 +513,7 @@ class TestUnifiedMissionStepBoundary:
         class _DecoyMissionStep:
             """Same-named decoy — proves identity/usage checks have teeth."""
 
-        from doctrine.missions.models import MissionStep
+        from charter.offering.missions.models import MissionStep
 
         offenders = _non_canonical_instances([_DecoyMissionStep()], MissionStep)
         assert offenders, (

@@ -38,7 +38,7 @@ _REPO_ROOT = Path(__file__).resolve().parents[2]
 
 def _load_lint_module() -> ModuleType:
     """Load the structural-lint asset by file path (it is not a package)."""
-    from doctrine.service import DoctrineService
+    from charter.offering.service import DoctrineService
 
     asset_path = DoctrineService().assets.resolve_path("common-docs-structural-lint")
     spec = importlib.util.spec_from_file_location(

@@ -1,0 +1,96 @@
+{
+  "event_count": 35,
+  "last_event_id": "01M0PWC82PQ4602JK6KE5T1AQF",
+  "materialized_at": "2026-08-23T08:39:14.262051+00:00",
+  "mission_number": "",
+  "mission_slug": "doctrine-drg-silent-drop-boundary-01M0PE7E",
+  "mission_type": "",
+  "summary": {
+    "approved": 0,
+    "blocked": 0,
+    "canceled": 0,
+    "claimed": 0,
+    "done": 5,
+    "for_review": 0,
+    "in_progress": 0,
+    "in_review": 0,
+    "planned": 0
+  },
+  "work_packages": {
+    "WP01": {
+      "actor": "merge",
+      "agent": "claude",
+      "force_count": 0,
+      "lane": "done",
+      "last_event_id": "01M0PWC1DPBXFZV7RFR41A5AK5",
+      "last_transition_at": "2026-08-23T08:39:07.446389+00:00",
+      "review_result": {
+        "reference": "Review PASS; matrix triaged (incl #3525)",
+        "reviewer": "ATDD",
+        "verdict": "approved"
+      },
+      "shell_pid": 3974396,
+      "shell_pid_created_at": "1787467529.6"
+    },
+    "WP02": {
+      "actor": "merge",
+      "agent": "claude",
+      "force_count": 0,
+      "lane": "done",
+      "last_event_id": "01M0PWC354K4CNFCSC87S9119Y",
+      "last_transition_at": "2026-08-23T08:39:09.220367+00:00",
+      "review_result": {
+        "reference": "Review passed: context-sources removed + 25 migrated (grep empty), all consumers updated. Golden 3-edge delta ledgered (pedro/034 requires+suggests diamond eager-wins; daisy toolguides suggests), 0 removed - C-006 golden-diff test pins vs frozen before-edges. Divergent-user fixture exercises real data-moving branch; snapshot proves no id lost; extra=forbid fail-loud. renata binding re-homed to supply-chain tactic rationale. SC-011 rewritten to exact 12-file intersection (stronger). DIR-009 done (CHANGELOG+pyproject rc4+m_3_3_1). 760 passed/1 skip, ruff clean, mypy no new issues. Nit: 2 SKILL.md prose stale (non-blocking).",
+        "reviewer": "ATDD",
+        "verdict": "approved"
+      },
+      "shell_pid": 3984675,
+      "shell_pid_created_at": "1787468051.37"
+    },
+    "WP03": {
+      "actor": "merge",
+      "agent": "claude",
+      "force_count": 0,
+      "lane": "done",
+      "last_event_id": "01M0PWC4SC8HGEX1NJR8G4T84B",
+      "last_transition_at": "2026-08-23T08:39:10.892323+00:00",
+      "review_result": {
+        "reference": "Review PASS: built-in e2e pin + org-tier extraction (imports constant) + validator.py post-merge fail-loud parity, merge WARN intact, 7+496 tests green, scope clean",
+        "reviewer": "ATDD",
+        "verdict": "approved"
+      },
+      "shell_pid": 3988727,
+      "shell_pid_created_at": "1787468212.94"
+    },
+    "WP04": {
+      "actor": "merge",
+      "agent": "claude",
+      "force_count": 0,
+      "lane": "done",
+      "last_event_id": "01M0PWC6E1MVF9H51K3W5MPNZ6",
+      "last_transition_at": "2026-08-23T08:39:12.577906+00:00",
+      "review_result": {
+        "reference": "Review passed: org_fragments threaded at both callers (executor.py:368 + action_doctrine_bundle.py:194 via load_org_drg strict=False); _drg_helpers seam + :245 DoctrineService seam untouched; valid fragment-only pack node reaches merged DRG via both paths (red-first confirmed); no-double-fold n==1 node+edge asserted in both tests; warning honesty verified; WP03 assert_governance_scope_resolves wired post-merge at both callers; README refreshed. ruff+mypy --strict clean, terminology guard green, 167 targeted tests pass.",
+        "reviewer": "ATDD",
+        "verdict": "approved"
+      },
+      "shell_pid": 4033885,
+      "shell_pid_created_at": "1787470282.04"
+    },
+    "WP05": {
+      "actor": "merge",
+      "agent": "claude",
+      "force_count": 0,
+      "lane": "done",
+      "last_event_id": "01M0PWC82PQ4602JK6KE5T1AQF",
+      "last_transition_at": "2026-08-23T08:39:14.262051+00:00",
+      "review_result": {
+        "reference": "Review passed: class-b internal delivery via real WP04 executor seam (_load_graph_degrading_malformed_org_pack threads org_fragments; not a bypass), class-a pack#2 fold proven (URN directive:MINIMAL_ORG_2_MARKER + provenance org:minimal-org-2 + fragment-order assertion + negative control), 3 misconfigs raise (OrgDRGConflictError/OrgPackSchemaError x2 with fault-naming messages) vs graphless warn; G10 fixtures fragment-only; #3530 closing condition evidenced",
+        "reviewer": "ATDD",
+        "verdict": "approved"
+      },
+      "shell_pid": 4079241,
+      "shell_pid_created_at": "1787472596.72"
+    }
+  }
+}

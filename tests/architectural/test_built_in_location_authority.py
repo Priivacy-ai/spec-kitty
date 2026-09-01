@@ -2,8 +2,8 @@
 
 Mission ``doctrine-built-in-seam-consolidation-01KYW3TX`` centralizes "where does
 built-in kind K live" and "where is the built-in root" into exactly two
-callables in :mod:`doctrine.pack_paths` -- :func:`~doctrine.pack_paths.built_in_dir`
-and :func:`~doctrine.pack_paths.built_in_root`. WP01 created the authorities;
+callables in :mod:`charter.offering.pack_paths` -- :func:`~charter.offering.pack_paths.built_in_dir`
+and :func:`~charter.offering.pack_paths.built_in_root`. WP01 created the authorities;
 WP02/WP03/WP05 rerouted every production reader onto them; WP04 (this file)
 drops the fail-open ``DoctrineService.built_in_root`` param that made the old
 nested shape constructable, and makes the single-authority invariant a CI gate
@@ -32,8 +32,8 @@ three independent contract clauses:
   an *existing* directory, asserted **through** :func:`resolve_pack_root`
   (never a raw repo-relative ``.exists()`` -- cf. #3036, survives the future
   wheel-split). The derived complement ``{mission_step_contract, template,
-  anti_pattern}`` -- computed from :attr:`~doctrine.artifact_kinds.ArtifactKind.has_built_in_content_dir`,
-  never hand-listed -- raises :class:`~doctrine.pack_paths.BuiltInContentDirNotAvailable`.
+  anti_pattern}`` -- computed from :attr:`~charter.offering.artifact_kinds.ArtifactKind.has_built_in_content_dir`,
+  never hand-listed -- raises :class:`~charter.offering.pack_paths.BuiltInContentDirNotAvailable`.
 * **C3.3 / NFR-003 -- anti-vacuity.** The shipped ``agent_profiles`` set
   resolved through the authority is non-empty, so a stale/misconfigured root
   fails loudly instead of passing vacuously (the exact latent false-green this
@@ -41,7 +41,7 @@ three independent contract clauses:
 
 Known pre-existing exemption (read before extending ``_KNOWN_JOIN_ALLOWLIST``)
 --------------------------------------------------------------------------------
-``src/charter/kind_vocabulary.py``'s ``_scan_roots`` iterates ``org_roots`` and
+``src/charter/activation/kind_vocabulary.py``'s ``_scan_roots`` iterates ``org_roots`` and
 joins ``root / kind.plural / "built-in"`` -- syntactically a filesystem join
 (C3.1's third limb), but *semantically* it is the **ORG tier's** own legacy
 nested-pack contract (``<org_root>/<plural>/built-in``, documented in-file:
@@ -65,10 +65,10 @@ fold, #3204) fall into two rationale classes, neither of which is a
 
 1. **Layer-boundary / import-avoidance sibling-shape sites.** ``kernel`` sits
    *below* ``doctrine`` (``kernel <- doctrine <- charter <- specify_cli``,
-   C-004) and cannot import ``doctrine.pack_paths`` at all --
+   C-004) and cannot import ``charter.offering.pack_paths`` at all --
    ``src/kernel/paths.py``'s own module docstring states these functions "have
    no spec-kitty-specific dependencies". ``specify_cli/runtime/agent_commands.py``
-   *could* import ``doctrine.pack_paths`` (the layer allows it) but
+   *could* import ``charter.offering.pack_paths`` (the layer allows it) but
    deliberately does not, to avoid triggering doctrine's heavy validation
    imports on every CLI startup (see its own module docstring: "Uses import
    metadata rather than ``import doctrine``"). It instead consumes
@@ -78,13 +78,13 @@ fold, #3204) fall into two rationale classes, neither of which is a
    independently-typed per-module literal onto this one authority) -- as the
    ``sibling_relative_path`` input to
    :func:`kernel.sibling_paths.resolve_installed_sibling`, a *different*,
-   domain-agnostic primitive than the ``doctrine.pack_paths`` authority this
+   domain-agnostic primitive than the ``charter.offering.pack_paths`` authority this
    gate protects. Consuming an imported constant by plain-name reference is
    not a ``/``-join, so this site never trips the AST scan below regardless of
    its line number -- it needs no allowlist entry.
-   ``doctrine.missions.repository.MissionTemplateRepository.default_missions_root``
+   ``charter.offering.missions.repository.MissionTemplateRepository.default_missions_root``
    (formerly a peer convergent call site of this same primitive) was
-   re-pointed by the same WP02 onto :func:`doctrine.pack_paths.built_in_missions_root`
+   re-pointed by the same WP02 onto :func:`charter.offering.pack_paths.built_in_missions_root`
    -- a join that lives inside the authority file itself -- so it no longer
    performs its own sibling-resolution walk or needs a class-1 exemption
    either.
@@ -126,7 +126,9 @@ _REPO_ROOT = Path(__file__).resolve().parents[2]
 
 #: The single-authority module: only file permitted to construct a built-in
 #: path join (both `built_in_dir` and `built_in_root` live here -- C2.1/C3.1).
-_AUTHORITY_FILE = Path("src/doctrine/pack_paths.py")
+#: Relocated from ``src/doctrine/pack_paths.py`` by
+#: charter-code-topology-01M152G1 (MAP-000 / CR-06).
+_AUTHORITY_FILE = Path("src/charter/offering/pack_paths.py")
 
 #: Narrow, exact (file, lineno) allowlist for known pre-existing non-authority
 #: joins -- see the module docstring "Known pre-existing exemption" section
@@ -135,7 +137,7 @@ _AUTHORITY_FILE = Path("src/doctrine/pack_paths.py")
 #: built-in-tier reconstruction.
 _KNOWN_JOIN_ALLOWLIST: frozenset[tuple[Path, int]] = frozenset(
     {
-        # src/charter/kind_vocabulary.py::_org_scan_dirs -- org-tier legacy
+        # src/charter/activation/kind_vocabulary.py::_org_scan_dirs -- org-tier legacy
         # nested-pack join (`flat / "built-in"`), NOT a built-in-tier
         # reconstruction. See module docstring.
         # FRESHENED 2026-08-11 (#3317 landing): the join was extracted out of
@@ -164,11 +166,17 @@ _KNOWN_JOIN_ALLOWLIST: frozenset[tuple[Path, int]] = frozenset(
         # paragraph documenting the nested-org styleguide activation gap,
         # pushing the (unchanged) `flat / "built-in"` join from line 269 to
         # line 283; the join itself remains unchanged.
-        (Path("src/charter/kind_vocabulary.py"), 283),
+        # FRESHENED 2026-08-19 (#3490/#3426/#2981 landing, single-authority-
+        # resolution-parity M1): `_org_scan_dirs` gained the recursion-authority
+        # rewrite and an operator-authorized precedence-widening docstring, and
+        # DROPPED the "Known residual (tracked #3426)" paragraph now that #3426
+        # is fixed by this mission. M2's relocation docstring then pushes the
+        # unchanged `flat / "built-in"` join down from line 269 to line 283.
+        (Path("src/charter/activation/kind_vocabulary.py"), 283),
         # src/kernel/paths.py::_MISSION_ASSETS_SIBLING_PATTERN -- a relative
         # SHAPE constant (input to kernel.sibling_paths.resolve_installed_sibling),
         # not a filesystem join against a concrete root. kernel cannot import
-        # doctrine.pack_paths (layer boundary, C-004). See module docstring
+        # charter.offering.pack_paths (layer boundary, C-004). See module docstring
         # class 1.
         (Path("src/kernel/paths.py"), 88),
         # (formerly src/kernel/paths.py:130 -- _find_relocated_missions_ancestor
@@ -181,7 +189,7 @@ _KNOWN_JOIN_ALLOWLIST: frozenset[tuple[Path, int]] = frozenset(
         # to kernel.paths.MISSION_ASSETS_SIBLING_PATTERN by plain-name
         # reference (no `/` join at this site at all) and retired
         # default_missions_root's own sibling-resolution walk in favor of
-        # doctrine.pack_paths.built_in_missions_root -- a join that lives
+        # charter.offering.pack_paths.built_in_missions_root -- a join that lives
         # inside the authority file itself. Removed 2026-08-05.)
         # (formerly src/specify_cli/runtime/agent_commands.py:93 --
         # _MISSIONS_SIBLING_PATTERN. Mission
@@ -201,17 +209,26 @@ _KNOWN_JOIN_ALLOWLIST: frozenset[tuple[Path, int]] = frozenset(
         # joins against a caller-supplied `repo_root` (a local dev checkout
         # to copy FROM), not this installation's own built-in tier. See
         # module docstring class 2.
-        (Path("src/specify_cli/template/manager.py"), 52),
+        # FRESHENED (charter-code-topology-01M152G1 landing): line 52 -> 53,
+        # a doctrine-relocation comment (R-12) was added directly above this
+        # join; the join itself is unchanged.
+        (Path("src/specify_cli/template/manager.py"), 53),
         # src/specify_cli/template/manager.py::get_local_repo_root::_is_template_root --
         # content-sniffs a caller-supplied `override_path`/checkout root, not
         # this installation's own built-in tier. See module docstring class 2.
-        (Path("src/specify_cli/template/manager.py"), 165),
-        # src/charter/neutrality/lint.py::_default_scan_roots -- scans a
+        # FRESHENED (charter-code-topology-01M152G1 landing): line 165 -> 166;
+        # the sibling AGENTS.md sniff line above it now reads
+        # `src/charter/offering/templates/AGENTS.md` (relocated from
+        # `src/doctrine/templates/`), pushing this join down one line.
+        (Path("src/specify_cli/template/manager.py"), 166),
+        # src/charter/activation/neutrality/lint.py::_default_scan_roots -- scans a
         # caller-supplied `repo_root` (tmp_path-rooted in tests; see
         # tests/charter/test_neutrality_lint.py::test_default_scan_roots_include_relocated_builtin_missions),
         # not this installation's own built-in tier. See module docstring
         # class 2.
-        (Path("src/charter/neutrality/lint.py"), 353),
+        # FRESHENED (charter-activation-split-01M16ZSE M2b landing): line 362 -> 379;
+        # behaviour-preserving, same caller-supplied-root join.
+        (Path("src/charter/activation/neutrality/lint.py"), 379),
     }
 )
 
@@ -236,7 +253,7 @@ def _is_built_in_root_call(node: ast.AST) -> bool:
     """Return whether *node* is a bare ``built_in_root()`` call (no args).
 
     Covers both ``built_in_root()`` (``ast.Name`` callee, the normal
-    ``from doctrine.pack_paths import built_in_root`` import shape) and
+    ``from charter.offering.pack_paths import built_in_root`` import shape) and
     ``<module-or-obj>.built_in_root()`` (``ast.Attribute`` callee). The
     sanctioned bare-root seam is legitimate on its own (C3.1b); joining its
     result with ``/`` to reconstruct a per-kind path is the drift this limb
@@ -350,7 +367,7 @@ def test_no_builtin_path_joins_outside_pack_paths_authority(
     if violations:
         details = "\n".join(f"  {path}: lines {lines}" for path, lines in sorted(violations.items()))
         pytest.fail(
-            "Found built-in path join(s) outside the doctrine.pack_paths authority.\n"
+            "Found built-in path join(s) outside the charter.offering.pack_paths authority.\n"
             "Route through built_in_dir(kind) (per-kind) or built_in_root() (bare root)\n"
             'instead of composing resolve_pack_root("built-in") / ... or <path> / "built-in"\n'
             "locally -- that reintroduces a scattered, fail-open resolver "
@@ -368,9 +385,11 @@ def test_negative_bite_direct_and_variable_indirected_joins_are_caught() -> None
     one direct ``resolve_pack_root("built-in") / …`` join, one
     variable-indirected join. Both must be flagged.
     """
-    direct_source = "from doctrine.pack_paths import resolve_pack_root\n\ndef sneaky_direct(kind):\n    return resolve_pack_root('built-in') / kind.plural\n"
+    direct_source = (
+        "from charter.offering.pack_paths import resolve_pack_root\n\ndef sneaky_direct(kind):\n    return resolve_pack_root('built-in') / kind.plural\n"
+    )
     indirected_source = (
-        "from doctrine.pack_paths import resolve_pack_root\n"
+        "from charter.offering.pack_paths import resolve_pack_root\n"
         "\n"
         "def sneaky_indirected(kind):\n"
         "    root = resolve_pack_root('built-in')\n"
@@ -388,7 +407,9 @@ def test_negative_bite_direct_and_variable_indirected_joins_are_caught() -> None
 
     # And the permitted forms must NOT be flagged (proves the gate is
     # join-only, not a constant-scan -- C3.1b).
-    bare_root_call_source = "from doctrine.pack_paths import resolve_pack_root\n\ndef permitted_bare_root_call():\n    return resolve_pack_root('built-in')\n"
+    bare_root_call_source = (
+        "from charter.offering.pack_paths import resolve_pack_root\n\ndef permitted_bare_root_call():\n    return resolve_pack_root('built-in')\n"
+    )
     bare_marker_source = "def permitted_bare_marker(layer):\n    return {'built-in': 'built-in', 'org': 'org'}.get(layer, layer)\n"
     assert not _find_builtin_joins(ast.parse(bare_root_call_source))
     assert not _find_builtin_joins(ast.parse(bare_marker_source))
@@ -401,13 +422,15 @@ def test_negative_bite_built_in_root_call_joins_are_caught() -> None:
     ``resolve_pack_root("built-in")`` -- it is reusing the *sanctioned*
     ``built_in_root()`` seam and then joining a per-kind segment onto it
     locally, e.g. ``built_in_root() / kind.plural``, instead of calling
-    :func:`doctrine.pack_paths.built_in_dir`. Both the direct and
+    :func:`charter.offering.pack_paths.built_in_dir`. Both the direct and
     variable-indirected shapes must be flagged, while a bare
     ``built_in_root()`` call -- the sanctioned form itself -- must stay
     permitted (mirrors the ``resolve_pack_root("built-in")`` proof above).
     """
-    direct_source = "from doctrine.pack_paths import built_in_root\n\ndef sneaky_direct(kind):\n    return built_in_root() / kind.plural\n"
-    indirected_source = "from doctrine.pack_paths import built_in_root\n\ndef sneaky_indirected(kind):\n    root = built_in_root()\n    return root / kind.plural\n"
+    direct_source = "from charter.offering.pack_paths import built_in_root\n\ndef sneaky_direct(kind):\n    return built_in_root() / kind.plural\n"
+    indirected_source = (
+        "from charter.offering.pack_paths import built_in_root\n\ndef sneaky_indirected(kind):\n    root = built_in_root()\n    return root / kind.plural\n"
+    )
     attribute_call_source = "from doctrine import pack_paths\n\ndef sneaky_attribute_call(kind):\n    return pack_paths.built_in_root() / kind.plural\n"
 
     direct_hits = _find_builtin_joins(ast.parse(direct_source))
@@ -419,7 +442,7 @@ def test_negative_bite_built_in_root_call_joins_are_caught() -> None:
     assert attribute_hits, "Attribute-call join (mod.built_in_root() / ...) must be flagged"
 
     # The sanctioned bare call itself -- with no join -- must stay permitted.
-    bare_built_in_root_source = "from doctrine.pack_paths import built_in_root\n\ndef permitted_bare_built_in_root():\n    return built_in_root()\n"
+    bare_built_in_root_source = "from charter.offering.pack_paths import built_in_root\n\ndef permitted_bare_built_in_root():\n    return built_in_root()\n"
     assert not _find_builtin_joins(ast.parse(bare_built_in_root_source))
 
 

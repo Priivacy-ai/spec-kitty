@@ -10,7 +10,7 @@ pytestmark = [pytest.mark.integration]
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 LEGACY_DIRNAME = "agent" + "-" + "profiles"
-LEGACY_PATH = REPO_ROOT / "src" / "doctrine" / LEGACY_DIRNAME
+LEGACY_PATH = REPO_ROOT / "src" / "charter" / "offering" / LEGACY_DIRNAME
 ACTIVE_CODEBASE_PATHS: tuple[Path, ...] = (
     REPO_ROOT / "src",
     REPO_ROOT / "tests",

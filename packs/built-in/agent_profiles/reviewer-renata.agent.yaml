@@ -14,33 +14,6 @@ capabilities:
 routing-priority: 50
 max-concurrent-tasks: 8
 
-context-sources:
-  doctrine-layers:
-    - paradigms
-    - directives
-    - tactics
-    - toolguides
-  directives:
-    - "001"
-    - "024"
-    - "030"
-    - "032"
-    - "041"
-    - "051"
-  tactics:
-    - code-review-incremental
-    - language-driven-design
-    - reverse-speccing
-    - test-scaffolding-as-design-smell
-    - supply-chain-install-safety
-  additional:
-    - behaviour-driven-development-paradigm
-    - review-checklist
-    - security-guidelines
-    - performance-benchmarks
-    - bdd-scenario-lifecycle-procedure
-    - adversarial-evidence-disposition
-
 purpose: >
   Evaluate code, designs, and specifications for correctness, quality, security,
   and adherence to standards. Reviewer Renata provides structured, actionable feedback
@@ -73,10 +46,6 @@ collaboration:
     - approval-record
     - security-findings
   operating-procedures:
-    - code-review-checklist
-    - security-review-process
-    - reverse-speccing
-    - language-driven-design-review
     - adversarial-squad-deployment
   canonical-verbs:
     - review

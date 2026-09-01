@@ -28,7 +28,7 @@ the traversal is not simply refusing every ``requires`` target.
 
 from __future__ import annotations
 
-from doctrine.drg.models import DRGEdge, DRGGraph, DRGNode, NodeKind, Relation
+from charter.offering.drg.models import DRGEdge, DRGGraph, DRGNode, NodeKind, Relation
 
 #: Seed action node for the fixture's action channel.
 ACTION_URN = "action:demo/build"

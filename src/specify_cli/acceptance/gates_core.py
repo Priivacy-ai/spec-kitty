@@ -1,11 +1,10 @@
 #!/usr/bin/env python3
-"""Pure(ish) lane-gate and workflow-evidence checks for the acceptance package.
+"""Pure(ish) lane-gate checks for the acceptance package.
 
 WP04 (coord-authority-trio-degod-01KX7094) / T022: extracted from
-``acceptance/__init__.py`` to bring ``_check_lane_gates`` (CC19) and
-``_check_workflow_run_evidence`` under the S3776 <=15 complexity gate without
-changing behaviour. This module owns the deterministic lane/branch/matrix
-evaluation and the workflow-evidence detection; the executor
+``acceptance/__init__.py`` to bring ``_check_lane_gates`` (CC19) under the
+S3776 <=15 complexity gate without changing behaviour. This module owns the
+deterministic lane/branch/matrix evaluation; the executor
 (``acceptance.collect_feature_summary`` / ``perform_acceptance``) stays the
 thin I/O-and-wiring layer.
 
@@ -27,7 +26,6 @@ boundary. Do not "simplify" this into a top-level import.
 
 from __future__ import annotations
 
-import re
 from collections.abc import Mapping
 from dataclasses import dataclass
 from pathlib import Path
@@ -36,7 +34,7 @@ from typing import TYPE_CHECKING, Any
 from mission_runtime import TopologySurface
 from specify_cli.acceptance.execution_context import GateSurfaceRefMismatch
 from specify_cli.core.subtask_rows import iter_unchecked_subtask_rows
-from specify_cli.core.vcs.git import merge_base_changed_files
+from specify_cli.status_lanes import is_acceptable_ending
 from specify_cli.task_utils import run_git
 
 if TYPE_CHECKING:
@@ -45,18 +43,14 @@ if TYPE_CHECKING:
         GateExecutionContext,
     )
 
-# Mirrors ``specify_cli.acceptance._ACCEPTED_READY_LANES``. Duplicated here
-# (rather than imported) because it is a tiny, immutable, non-monkeypatched
-# value-level constant — importing it back from the package would require the
-# same deferred-lookup indirection as the collaborators above for zero benefit.
-_ACCEPTED_READY_LANES = frozenset({"approved", "done"})
+# WP02 (mission-completion-terminal-state): the former ``_ACCEPTED_READY_LANES``
+# copy is retired onto the single acceptable-ending authority
+# (``specify_cli.status_lanes.is_acceptable_ending``, FR-005 / directive 044).
 
-# Mirrors ``specify_cli.acceptance.TASKS_FILE`` — see the note on
-# ``_ACCEPTED_READY_LANES`` above; same rationale.
+# Mirrors ``specify_cli.acceptance.TASKS_FILE`` — a tiny, immutable,
+# non-monkeypatched value-level constant kept local to avoid the deferred-lookup
+# indirection the cross-module collaborators above require, for zero benefit.
 _TASKS_FILE = "tasks.md"
-
-WORKFLOW_EVIDENCE_FILE = "workflow-evidence.md"
-WORKFLOW_RUN_URL_RE = re.compile(r"https://github\.com/[\w.-]+/[\w.-]+/actions/runs/\d+\b")
 
 
 @dataclass
@@ -82,31 +76,56 @@ def _all_work_packages_terminal(lanes: Mapping[str, list[str]]) -> bool:
     tracked = any(wp_ids for wp_ids in lanes.values())
     if not tracked:
         return False
+    # Routed through the single acceptable-ending authority at
+    # ``has_provenance=False`` (this lane-only view carries no provenance):
+    # behavior-identical to the retired ``_ACCEPTED_READY_LANES`` membership —
+    # ``approved``/``done`` are terminal-ready, every other lane (``canceled``
+    # included) is not. Provenance-aware terminality is decided by the caller
+    # (``collect_feature_summary``) and threaded via
+    # :func:`_normalized_unchecked_tasks`'s ``all_packages_acceptable`` override.
     return not any(
-        wp_ids for lane, wp_ids in lanes.items() if lane not in _ACCEPTED_READY_LANES
+        wp_ids
+        for lane, wp_ids in lanes.items()
+        if not is_acceptable_ending(lane, has_provenance=False)
     )
 
 
 def _normalized_unchecked_tasks(
     unchecked_tasks: list[str],
     lanes: Mapping[str, list[str]],
+    *,
+    all_packages_acceptable: bool | None = None,
 ) -> list[str]:
     """Apply FR-009 + the ``tasks.md missing`` normalization to unchecked tasks.
 
     FR-009 (#2085a): unchecked-tasks completion derives from WP terminal status.
-    When every tracked WP is approved/done, the work landed through the lane
-    lifecycle, so the redundant ``tasks.md`` checkbox bookkeeping is not
+    When every tracked WP is at an acceptable ending, the work landed through the
+    lane lifecycle, so the redundant ``tasks.md`` checkbox bookkeeping is not
     required — unticked checkboxes must not strand a finished mission. A mission
     with a non-terminal WP (e.g. ``in_review`` / ``for_review``) still reports
     its unchecked items. The ``[<tasks.md> missing]`` sentinel is also dropped
     (it is surfaced separately via the missing-artifacts gate).
+
+    ``all_packages_acceptable`` (WP02) is the provenance-aware override: the
+    lane-only :func:`_all_work_packages_terminal` cannot see whether a
+    ``canceled`` WP carries operator provenance, so ``collect_feature_summary``
+    — which holds the per-WP provenance — passes the authoritative decision here.
+    When ``None`` (the two-arg call shape retained for the characterization
+    suite), the lane-only fallback is used, preserving prior behavior exactly.
+    A canceled-with-operator-provenance mission therefore no longer strands on
+    unticked checkboxes (FR-001).
 
     The acceptance-MATRIX gate (C-010) is untouched: it remains the genuine
     verification surface — this normalization only governs the checkbox gate.
     """
     if unchecked_tasks == [f"{_TASKS_FILE} missing"]:
         return []
-    if _all_work_packages_terminal(lanes):
+    terminal = (
+        all_packages_acceptable
+        if all_packages_acceptable is not None
+        else _all_work_packages_terminal(lanes)
+    )
+    if terminal:
         return []
     return unchecked_tasks
 
@@ -132,7 +151,7 @@ def _append_skipped_lane_checks(
         ("negative_invariants", "Negative invariant execution"),
         ("acceptance_matrix_verdict", "Acceptance matrix verdict evaluation"),
     ]
-    for check, label in checks[0 if include_matrix_presence else 1:]:
+    for check, label in checks[0 if include_matrix_presence else 1 :]:
         skipped_checks.append(
             AcceptanceCheckDiagnostic(
                 check=check,
@@ -191,10 +210,7 @@ def _evaluate_branch_gate(
 
     meta_target_branch = _acceptance_pkg._target_branch_for_feature(feature_dir)
     if meta_target_branch and meta_target_branch != lanes_manifest.target_branch:
-        message = (
-            "Acceptance target branch mismatch: "
-            f"meta.json targets {meta_target_branch}, lanes.json targets {lanes_manifest.target_branch}"
-        )
+        message = f"Acceptance target branch mismatch: meta.json targets {meta_target_branch}, lanes.json targets {lanes_manifest.target_branch}"
         activity_issues.append(message)
         blocked_checks.append(AcceptanceCheckDiagnostic(check="mission_branch", detail=message))
         _append_skipped_lane_checks(
@@ -233,9 +249,7 @@ def _evaluate_branch_gate(
     return True
 
 
-def _acceptance_gate_context(
-    repo_root: Path, feature_dir: Path, *, branch: str | None = None
-) -> GateExecutionContext:
+def _acceptance_gate_context(repo_root: Path, feature_dir: Path, *, branch: str | None = None) -> GateExecutionContext:
     """Build the ACCEPT-phase :class:`GateExecutionContext` for the acceptance matrix.
 
     The ONE gate-context construction door for the acceptance-matrix gate (GEC-1 /
@@ -337,9 +351,7 @@ def _record_ref_mismatch_cannot_evaluate(
         f"ref={exc.expected_ref}]"
     )
     activity_issues.append(detail)
-    blocked_checks.append(
-        AcceptanceCheckDiagnostic(check="acceptance_matrix_cannot_evaluate", detail=detail)
-    )
+    blocked_checks.append(AcceptanceCheckDiagnostic(check="acceptance_matrix_cannot_evaluate", detail=detail))
     _append_skipped_lane_checks(skipped_checks, reason=exc.error_code)
 
 
@@ -371,9 +383,7 @@ def _acceptance_matrix_read_dir(repo_root: Path, feature_dir: Path) -> Path:
     return _acceptance_gate_context(repo_root, feature_dir).surface
 
 
-def _matrix_surface_cannot_hold(
-    context: GateExecutionContext, repo_root: Path, feature_dir: Path
-) -> CannotEvaluate | None:
+def _matrix_surface_cannot_hold(context: GateExecutionContext, repo_root: Path, feature_dir: Path) -> CannotEvaluate | None:
     """GEC-5 / C2: refuse when the coord-homed matrix is judged on a PRIMARY stamp.
 
     A stamp is not permission: when the acceptance matrix's declared home is
@@ -398,9 +408,7 @@ def _matrix_surface_cannot_hold(
 
     from mission_runtime import MissionArtifactKind
 
-    home = declared_home_surface(
-        repo_root, feature_dir.name, MissionArtifactKind.ACCEPTANCE_MATRIX
-    )
+    home = declared_home_surface(repo_root, feature_dir.name, MissionArtifactKind.ACCEPTANCE_MATRIX)
     return context.surface_cannot_hold(home)
 
 
@@ -411,14 +419,9 @@ def _record_matrix_cannot_evaluate(
     blocked_checks: list[AcceptanceCheckDiagnostic],
 ) -> None:
     """Record the cannot-evaluate outcome, naming the surface + ref it refused on (C6)."""
-    detail = (
-        f"Acceptance matrix cannot be evaluated ({cannot.reason.value}): "
-        f"{cannot.detail} [surface={cannot.surface_kind.value} ref={cannot.ref}]"
-    )
+    detail = f"Acceptance matrix cannot be evaluated ({cannot.reason.value}): {cannot.detail} [surface={cannot.surface_kind.value} ref={cannot.ref}]"
     activity_issues.append(detail)
-    blocked_checks.append(
-        AcceptanceCheckDiagnostic(check="acceptance_matrix_cannot_evaluate", detail=detail)
-    )
+    blocked_checks.append(AcceptanceCheckDiagnostic(check="acceptance_matrix_cannot_evaluate", detail=detail))
     _append_skipped_lane_checks(skipped_checks, reason=cannot.reason.value)
 
 
@@ -446,6 +449,7 @@ def _evaluate_acceptance_matrix(
     from specify_cli.acceptance.matrix import (
         VERDICT_PASS_PENDING_CONSOLIDATION,
         enforce_negative_invariants,
+        populate_criteria_from_review_evidence,
         read_acceptance_matrix,
         validate_matrix_evidence,
         write_acceptance_matrix,
@@ -454,9 +458,7 @@ def _evaluate_acceptance_matrix(
     context = _acceptance_gate_context(repo_root, feature_dir, branch=branch)
     ref_mismatch = _assert_ref_agreement(context)
     if ref_mismatch is not None:
-        _record_ref_mismatch_cannot_evaluate(
-            ref_mismatch, activity_issues, skipped_checks, blocked_checks
-        )
+        _record_ref_mismatch_cannot_evaluate(ref_mismatch, activity_issues, skipped_checks, blocked_checks)
         return
 
     cannot = _matrix_surface_cannot_hold(context, repo_root, feature_dir)
@@ -481,14 +483,34 @@ def _evaluate_acceptance_matrix(
         )
         return
 
+    if mutate_matrix and getattr(acc_matrix, "criteria", None) is not None:
+        # FR-008 (IC-04, governance-at-the-gate WP04): auto-derive pending
+        # ``code_review`` criterion rows from WP review evidence BEFORE the
+        # verdict is read below -- closes the "criterion rows never
+        # populated" gap (the matrix used to stay scaffolded ``pending``
+        # forever unless an operator hand-invoked ``agent mission
+        # acceptance-verdict``). Design + scope are documented on
+        # :func:`~specify_cli.acceptance.matrix.populate_criteria_from_
+        # review_evidence` itself. ``matrix_dir`` doubles as the WP
+        # status-event read dir here: ``ACCEPTANCE_MATRIX`` and
+        # ``STATUS_STATE`` are both coord-partition kinds that resolve to
+        # the SAME coord surface for this mission (never re-derived
+        # separately). A no-op (unchanged list) when evidence is absent or
+        # incomplete -- diagnose mode (``mutate_matrix=False``) never
+        # mutates, matching the negative-invariants arm below. The
+        # ``getattr`` guard tolerates unit-test doubles (bare
+        # ``SimpleNamespace`` fixtures elsewhere in this module's test
+        # suite) that model only the fields their own test cares about.
+        acc_matrix.criteria = populate_criteria_from_review_evidence(
+            matrix_dir, acc_matrix.criteria
+        )
+
     if acc_matrix.negative_invariants and mutate_matrix:
         # WP04 T023: hand the gate context to the enforcer so a pending invariant
         # whose subject cannot exist on this surface defers (NI-3/C4) instead of
         # reporting a false still_present, and a freshly judged result is stamped
         # with the surface + ref it was established against (NI-1 provenance).
-        acc_matrix.negative_invariants = enforce_negative_invariants(
-            repo_root, acc_matrix.negative_invariants, context=context
-        )
+        acc_matrix.negative_invariants = enforce_negative_invariants(repo_root, acc_matrix.negative_invariants, context=context)
     elif acc_matrix.negative_invariants:
         skipped_checks.append(
             AcceptanceCheckDiagnostic(
@@ -560,9 +582,7 @@ def _check_lane_gates(
     if lanes_manifest is None:
         return
 
-    should_continue = _evaluate_branch_gate(
-        lanes_manifest, feature_dir, branch, activity_issues, skipped_checks, blocked_checks
-    )
+    should_continue = _evaluate_branch_gate(lanes_manifest, feature_dir, branch, activity_issues, skipped_checks, blocked_checks)
     if not should_continue:
         return
 
@@ -579,87 +599,6 @@ def _check_lane_gates(
 
 def _git_ref_exists(repo_root: Path, ref: str) -> bool:
     return bool(run_git(["rev-parse", "--verify", "--quiet", ref], cwd=repo_root, check=False).returncode == 0)
-
-
-def _changed_workflow_files(repo_root: Path, feature_dir: Path, branch: str | None) -> list[str]:
-    """Return workflow files changed by the current mission branch."""
-    from specify_cli import acceptance as _acceptance_pkg
-
-    target_branch = _acceptance_pkg._target_branch_for_feature(feature_dir)
-    if not target_branch or branch == target_branch:
-        return []
-
-    base_ref = target_branch if _git_ref_exists(repo_root, target_branch) else f"origin/{target_branch}"
-    if not _git_ref_exists(repo_root, base_ref):
-        return []
-
-    changed = merge_base_changed_files(
-        repo_root, base_ref, pathspec=".github/workflows", diff_filter="AMR"
-    )
-    return sorted({line.strip() for line in changed if line.strip()})
-
-
-def _workflow_evidence_missing(feature_dir: Path) -> bool:
-    evidence_path = feature_dir / WORKFLOW_EVIDENCE_FILE
-    if not evidence_path.is_file():
-        return True
-    text = evidence_path.read_text(encoding="utf-8", errors="replace")
-    if not text.strip():
-        return True
-    return WORKFLOW_RUN_URL_RE.search(text) is None and not _contains_workflow_run_id(text)
-
-
-def _contains_workflow_run_id(text: str) -> bool:
-    """Return True when evidence text includes a standalone GitHub Actions run id."""
-
-    for raw_line in text.splitlines():
-        normalized = _normalize_workflow_evidence_line(raw_line)
-        if normalized is None:
-            continue
-        remainder = _extract_workflow_run_remainder(normalized)
-        if remainder is None:
-            continue
-        if remainder.isdigit() and len(remainder) >= 5:
-            return True
-    return False
-
-
-def _normalize_workflow_evidence_line(raw_line: str) -> str | None:
-    normalized = " ".join(raw_line.strip().lower().split())
-    if not normalized:
-        return None
-    for prefix in ("successful ", "github actions "):
-        if normalized.startswith(prefix):
-            normalized = normalized[len(prefix) :]
-    return normalized
-
-
-def _extract_workflow_run_remainder(normalized: str) -> str | None:
-    if normalized.startswith("run id"):
-        remainder = normalized[len("run id") :]
-    elif normalized.startswith("run"):
-        remainder = normalized[len("run") :]
-    else:
-        return None
-    remainder = remainder.lstrip()
-    if remainder[:1] in ":#-":
-        remainder = remainder[1:].lstrip()
-    return remainder
-
-
-def _check_workflow_run_evidence(
-    repo_root: Path,
-    feature_dir: Path,
-    branch: str | None,
-    activity_issues: list[str],
-) -> None:
-    changed = _changed_workflow_files(repo_root, feature_dir, branch)
-    if changed and _workflow_evidence_missing(feature_dir):
-        activity_issues.append(
-            "Workflow run evidence required: this mission changes "
-            + ", ".join(changed)
-            + f". Add a successful real GitHub Actions run ID or URL to {feature_dir.name}/{WORKFLOW_EVIDENCE_FILE}."
-        )
 
 
 __all__: list[str] = []

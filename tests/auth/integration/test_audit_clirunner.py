@@ -146,8 +146,8 @@ class TestLegacyClassAudit:
         - ``tests/auth/stress/``
 
         It does NOT scan the rest of ``tests/`` — older dirs (e.g.
-        ``tests/sync/tracker/``) have legacy compatibility shims that
-        are out of scope for WP11.
+        ``tests/tracker/``) have legacy compatibility shims that are out of
+        scope for WP11.
         """
         offenders: list[tuple[Path, str]] = []
 

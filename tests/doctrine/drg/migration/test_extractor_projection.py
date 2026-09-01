@@ -24,14 +24,17 @@ from typing import Any
 
 import pytest
 
-from doctrine.drg.loader import load_built_in_graph
-from doctrine.drg.migration.extractor import extract_mission_type_edges, generate_graph
-from doctrine.drg.migration.hand_authored_overlay import (
+from charter.offering.drg.loader import load_built_in_graph
+from charter.offering.drg.migration.extractor import (
+    extract_mission_type_edges,
+    generate_graph,
+)
+from charter.offering.drg.migration.hand_authored_overlay import (
     HAND_AUTHORED_EDGES,
     generate_reference_graph_with_overlay,
 )
-from doctrine.drg.models import Relation
-from doctrine.missions.mission_step_repository import MissionStepRepository
+from charter.offering.drg.models import Relation
+from charter.offering.missions.mission_step_repository import MissionStepRepository
 from tests.doctrine._builtin_inventory import (
     pure_builtin_node_count,
     shipped_builtin_node_count,
@@ -40,7 +43,7 @@ from tests.doctrine._builtin_inventory import (
 pytestmark = [pytest.mark.doctrine, pytest.mark.fast, pytest.mark.corpus]
 
 _REPO_ROOT: Path = Path(__file__).resolve().parents[4]
-DOCTRINE_ROOT: Path = _REPO_ROOT / "src" / "doctrine"
+DOCTRINE_ROOT: Path = _REPO_ROOT / "src" / "charter" / "offering"
 
 #: HISTORICAL LEDGER (#3234). The node/edge counts below are now DERIVED from the
 #: ``packs/built-in`` filesystem inventory (see ``_EXPECTED_NODE_COUNT`` at the end
@@ -532,7 +535,9 @@ DOCTRINE_ROOT: Path = _REPO_ROOT / "src" / "doctrine"
 #:     ``frontend-freddy``, ``python-pedro``, ``java-jenny``,
 #:     ``architect-alphonso``). Every new edge is an inline-``references``
 #:     ``requires`` edge minted from each profile's own
-#:     ``context-sources.directives`` (all 7 add ``"051"``) and/or
+#:     ``directive-references`` (all 7 add ``"051"``; formerly authored on the
+#:     retired ``context-sources.directives`` surface, consolidated in entry
+#:     (21)) and/or
 #:     ``tactic-references`` (``reviewer-renata`` and 5 implementation/support
 #:     profiles add ``supply-chain-install-safety`` and/or
 #:     ``dependency-hygiene``, per-profile applicability) -- no new node, no
@@ -590,6 +595,76 @@ DOCTRINE_ROOT: Path = _REPO_ROOT / "src" / "doctrine"
 #:     ``_PROFILE_UNREACHABLE``, ``_PROFILE_RESCUES`` moves) is ledgered in
 #:     ``tests/doctrine/drg/test_reachability.py`` and
 #:     ``docs/plans/doctrine/delivery-reachability-wiring-table.md``.
+#: (20) Mission #3604 (WP07, ``extract_governance_profile_scope_edges``): mints
+#:     ZERO new nodes -- every ``selected_*`` target it walks was already minted
+#:     by an earlier ``generate_graph`` pass (its own docstring's contract,
+#:     enforced since #3629 by ``assert_governance_scope_edges_resolve``). It
+#:     adds exactly 39 new ``mission_type --scope--> {directive,tactic,paradigm,
+#:     styleguide,toolguide,procedure,agent_profile,mission_step_contract}``
+#:     edges -- one per non-empty ``selected_*`` entry across the four built-in
+#:     ``governance-profile.yaml`` files -- ALL of relation ``scope``, never
+#:     ``requires``/``suggests`` (distinct from entries (16)-(18)'s
+#:     inline-``references`` ``requires`` edges, which this pass does not
+#:     touch). The moved ``RELATION_DESCRIPTIONS`` / ``docs/architecture/
+#:     doctrine-relationships.md`` count is ``scope`` 165 -> 204 (action-sourced
+#:     165 UNCHANGED, mission_type-sourced 0 -> 39; verified live against
+#:     ``load_built_in_graph()``: 204 total scope edges, 165 action-sourced /
+#:     39 mission_type-sourced by source-node kind).
+#:     This entry deliberately does NOT restate a full composed pure/shipped
+#:     node+edge total the way entries (16)-(19) do: ``requires``/``suggests``
+#:     also moved between entry (19)'s ending state and the live graph (live:
+#:     ``requires`` 332, ``suggests`` 451), but neither move is attributable to
+#:     this pass -- ``extract_governance_profile_scope_edges`` emits ``scope``
+#:     edges exclusively -- so composing a single before/after node+edge total
+#:     here would silently fold in unrelated intervening changes, exactly the
+#:     drift entry (19) itself flagged as out of its own scope to reconcile.
+#:     The ``scope`` 165 -> 204 move is the complete, attributable claim this
+#:     entry makes.
+#: (21) Mission ``doctrine-drg-silent-drop-boundary-01M0PE7E`` (WP02, #3629 p1):
+#:     the retired ``context-sources.*`` bare-string profile surface was removed
+#:     from the model + schema, and ``extract_artifact_edges`` now projects
+#:     ``agent_profile`` edges from the canonical top-level ``*-references``
+#:     surface: ``directive-references -> requires`` (replacing the retired
+#:     ``context-sources.directives`` loop), ``tactic-references -> requires``
+#:     (unchanged), and the newly-added ``toolguide-references`` /
+#:     ``styleguide-references -> suggests`` projections. The ATTRIBUTABLE golden
+#:     delta, measured as the per-``agent_profile:*`` edge-set diff of a fresh
+#:     regeneration against the pre-consolidation committed graph, is exactly
+#:     THREE new edges, ZERO new nodes, and ZERO overlay change:
+#:       * ``agent_profile:python-pedro --requires--> directive:DIRECTIVE_034``.
+#:         pedro authors ``034`` in ``directive-references`` (the retired
+#:         ``context-sources.directives`` list omitted it -- the sole shipped
+#:         divergence), so the canonical projection now mints it. ``034`` was
+#:         ALREADY an overlay ``suggests`` target for pedro, so it becomes a
+#:         ``requires``+``suggests`` DIAMOND -- consistent with pedro's existing
+#:         ``030``/``041`` diamonds -- and ``progressive_disclosure`` delivers it
+#:         EAGER (requires precedence). This is the DELIBERATE, ledgered pedro/034
+#:         decision (post-plan squad F4/F5): full uniform canonical projection
+#:         with the overlay left intact -- NOT a pedro-specific extractor
+#:         exclusion (a special-case hack) and NOT an overlay edit; the delivered
+#:         artefact set is unchanged (``034`` was already action-scoped-delivered
+#:         at implement/review), only the profile-channel edge relation on ``034``
+#:         is now ``requires`` rather than a ``when``-conditioned ``suggests``.
+#:       * ``agent_profile:diagram-daisy --suggests--> toolguide:mermaid-
+#:         diagramming`` and ``--suggests--> toolguide:plantuml-diagramming``.
+#:         diagram-daisy is the only shipped profile authoring
+#:         ``toolguide-references``; the new ``toolguide-references -> suggests``
+#:         projection mints them. Both toolguides were ALREADY profile-reachable
+#:         via ``daisy --requires--> USE_C4_MODEL_TECHNIQUES --suggests-->`` (the
+#:         family-C overlay, entry (11)), so ``_PROFILE_RESCUES`` /
+#:         ``_PROFILE_UNREACHABLE`` in ``tests/doctrine/drg/test_reachability.py``
+#:         are UNCHANGED (measured) -- the direct edges add a second path to
+#:         already-reachable nodes. No shipped profile authors
+#:         ``styleguide-references``, so that projection is exercised only by the
+#:         divergent fixture in
+#:         ``tests/doctrine/agent_profiles/test_context_sources_migration.py``.
+#:     Relation histogram: ``requires`` +1, ``suggests`` +2, ``scope``
+#:     UNCHANGED. ``HAND_AUTHORED_NODES``/``HAND_AUTHORED_EDGES`` UNCHANGED (no
+#:     overlay content touched). No new node -> no new orphan; ``mermaid``/
+#:     ``plantuml`` gain a pure inbound edge but are not members of this module's
+#:     frozen orphan sets (they are reachability-set members only). The C-006
+#:     golden-diff -- "the per-``agent_profile:*`` edge-set diff is empty except
+#:     this ledgered delta" -- is pinned by ``test_context_sources_migration.py``.
 #: Node count DERIVED from the ``packs/built-in`` inventory (#3234), not frozen: a
 #: fresh ``generate_graph`` (pure, no overlay) must produce exactly one node per
 #: shipped source file across the file-backed kinds, plus the structurally-derived
@@ -760,39 +835,52 @@ _NOT_A_TRAVERSAL_TARGET: frozenset[str] = frozenset({"agent_profile:human-in-cha
 #: times, and the styleguide is a distribution-surface concern, not a
 #: pack-authoring one. Corrected so the standard is applied once: record
 #: relationships that exist, refuse to invent ones that do not.
-_ACTIVATED_BUT_ORPHANED: frozenset[str] = frozenset(
+# Ledger (kind-complete-cascade-orphan-wiring-01M0FQCD, WP02, #3009 RESIDUAL --
+# the move that drives this tracked-defect set to EMPTY, C-003):
+#   * The four family-D artefacts -- ``styleguide:given-when-then-authoring``,
+#     ``toolguide:gherkin`` (both from DIRECTIVE_034), ``toolguide:sonar`` (from
+#     DIRECTIVE_030) and ``styleguide:quadruple-a-test-format`` (from
+#     DIRECTIVE_041) -- were PROMOTED from hand-authored overlay ``suggests``
+#     edges to their owning directive's own ``references`` frontmatter. The
+#     extractor now mints a real inbound edge for each in the PURE graph, so they
+#     are no longer orphans at all: they leave BOTH this set and
+#     ``_ORPHANS_RESOLVED_BY_OVERLAY`` (the overlay no longer resolves them --
+#     the overlay edges were deleted, the frontmatter edges took their place,
+#     byte-identically). See ``TestResidualOrphanWiring`` and the promoted
+#     directive YAMLs.
+#   * ``styleguide:deployable-skill-authoring`` -- the sole source-less member --
+#     leaves for the new ``_DIRECT_ACTIVATION_ONLY`` disposition (FR-008). It is
+#     still a pure orphan (no defensible source, no invented edge -- C-003), so
+#     it stays in ``_INTENTIONAL_ORPHANS`` via that bucket; it simply stops being
+#     counted as tracked #3009 debt.
+# Net: ``_ACTIVATED_BUT_ORPHANED`` -5 (4 promoted + 1 direct-only) -> empty; the
+# #3009 residual is closed. This set is now the empty floor the "must only ever
+# SHRINK" invariant always aimed at -- a new member may be added only with an
+# issue reference and a defensible-source audit.
+_ACTIVATED_BUT_ORPHANED: frozenset[str] = frozenset()
+
+#: **Direct-activation-only disposition (#3009 residual, mission
+#: kind-complete-cascade-orphan-wiring-01M0FQCD, WP02, FR-008).**
+#: ``styleguide:deployable-skill-authoring`` is charter-ACTIVATED yet has no
+#: defensible source artefact to carry an inbound edge: the onboarding procedure
+#: mentions "skill" zero times, and the styleguide is a distribution-surface
+#: concern, not a pack-authoring one (see the ``_ACTIVATED_BUT_ORPHANED`` header's
+#: closing paragraph, which already refused to invent an edge for it). It is
+#: therefore recorded here as *direct-activation-only*: it is reached by charter
+#: activation directly (``charter activate styleguide deployable-skill-authoring``),
+#: never by a cascade or an action/profile traversal, and inventing a guessed edge
+#: to green-wash it is explicitly refused (C-003). It stays a pure orphan (a member
+#: of ``_INTENTIONAL_ORPHANS``) but leaves the tracked-defect
+#: ``_ACTIVATED_BUT_ORPHANED`` set, which this mission drives to empty.
+_DIRECT_ACTIVATION_ONLY: frozenset[str] = frozenset(
     {
         "styleguide:deployable-skill-authoring",
-        # Ledger (writing-comms/diagramming activation, commit 9a99801f1, #3009):
-        # the four family-D BDD/testing artefacts the writing-comms charter set
-        # activated. Each is still wired only by the family-D overlay (they stay in
-        # _ORPHANS_RESOLVED_BY_OVERLAY) yet remain unreachable from any action or
-        # profile traversal root -- activating them cascades to nothing. Tracked as
-        # #3009 debt until real inbound edges are authored (the deferred A2
-        # orphan-wiring doctrine mission), NOT green-washed away here.
-        "styleguide:quadruple-a-test-format",
-        "styleguide:given-when-then-authoring",
-        "toolguide:sonar",
-        "toolguide:gherkin",
-        # Ledger (writing-comms/diagramming activation, commit 9a99801f1, #3009):
-        # the reconcile-change-scope-tensions hub directive graduated here from
-        # _AWAITING_REFERENCES (its only edges were the hand-authored
-        # ``reconciles_tension`` overlay edges; it became charter-ACTIVATED, and
-        # once id_normalizer folds its slug to the node URN it was detected as
-        # an activated pure orphan).
-        #
-        # Ledger (19) (drg-reachability-metric-wiring-01KZS5VR, WP01, #3009
-        # point 3) RETIRES that status: ``directive:DIRECTIVE_024``/
-        # ``DIRECTIVE_025 --suggests--> RECONCILE_CHANGE_SCOPE_TENSIONS``
-        # (edges 2/3) are now real, extractor-minted edges, so
-        # ``directive:RECONCILE_CHANGE_SCOPE_TENSIONS`` is no longer a pure
-        # orphan -- removed from this set (and from
-        # _ORPHANS_RESOLVED_BY_OVERLAY). See ledger entry (19); this is a
-        # SHRINK of the tracked #3009 defect set (C-003).
     }
 )
 
 #: Every node a PURE ``generate_graph`` run leaves incident to no edge.
+#: CURRENT total is 22 (see the WP02 ledger paragraph at the end of this block);
+#: the arithmetic that follows is the historical trail that reached the prior 26.
 #: 17 + 3 + 1 + 5 = 26 (was 17 + 5 + 1 + 6 = 29 before ledger entry (19)
 #: (drg-reachability-metric-wiring-01KZS5VR, WP01, #3009 point 3): three URNs
 #: leave -- ``directive:RECONCILE_CHANGE_SCOPE_TENSIONS`` leaves
@@ -813,34 +901,45 @@ _ACTIVATED_BUT_ORPHANED: frozenset[str] = frozenset(
 #: ``_EXPECTED_ORPHAN_COUNT`` pinned 32; the difference is ledger entries (6) and (7)
 #: -- one deletion and eight wirings -- and is now a consequence of the membership
 #: rather than the whole contract.
+#: Ledger (kind-complete-cascade-orphan-wiring-01M0FQCD, WP02, #3009 residual):
+#: the pure-orphan total moves 26 -> 22. The four promoted family-D artefacts
+#: gain real frontmatter inbound edges and leave the orphan set entirely (-4);
+#: ``deployable-skill-authoring`` merely changes bucket (``_ACTIVATED_BUT_ORPHANED``
+#: -> ``_DIRECT_ACTIVATION_ONLY``) and stays an orphan. New composition:
+#: 17 + 3 + 1 + 0 + 1 = 22 (``_EDGELESS_BY_CONSTRUCTION`` + ``_AWAITING_REFERENCES``
+#: + ``_NOT_A_TRAVERSAL_TARGET`` + ``_ACTIVATED_BUT_ORPHANED`` (now empty) +
+#: ``_DIRECT_ACTIVATION_ONLY``).
 _INTENTIONAL_ORPHANS: frozenset[str] = (
     _EDGELESS_BY_CONSTRUCTION
     | _AWAITING_REFERENCES
     | _NOT_A_TRAVERSAL_TARGET
     | _ACTIVATED_BUT_ORPHANED
+    | _DIRECT_ACTIVATION_ONLY
 )
 
-#: The pure-extractor figure (26) and the shipped-graph figure (21) differ by
-#: exactly these five, and by nothing else: the hand-authored overlay
+#: The pure-extractor figure (22) and the shipped-graph figure (21) differ by
+#: exactly this ONE node, and by nothing else: the hand-authored overlay
 #: (``doctrine.drg.migration.hand_authored_overlay``) carries edges the
-#: extractor has no frontmatter mechanism to mint, and they land on these nodes.
+#: extractor has no frontmatter mechanism to mint, and the sole survivor lands on
+#: ``asset:common-docs-structural-lint`` (``asset.graph.yaml`` ships ``edges: []``
+#: so an asset can never be an edge source in the pure graph).
 #: (Ledger entry (15) removed ``directive:USE_C4_MODEL_TECHNIQUES`` from this set --
 #: it gained a real extractor edge, so the overlay no longer resolves it. Ledger
 #: entry (19) removed ``directive:RECONCILE_CHANGE_SCOPE_TENSIONS``,
 #: ``directive:DISCIPLINED_REFACTORING`` and ``directive:USE_MUTATION_TESTING_TO_
 #: VALIDATE_TEST_QUALITY`` for the same reason -- each gained a real curated-table
-#: extractor edge, so the overlay no longer resolves it; the overlay edges that
-#: used to wire them are still present and still counted in
-#: ``HAND_AUTHORED_EDGES``, they simply no longer determine orphan status.)
+#: extractor edge. Ledger (kind-complete-cascade-orphan-wiring-01M0FQCD, WP02,
+#: #3009 residual) removed the four family-D artefacts
+#: (``styleguide:given-when-then-authoring``, ``toolguide:gherkin``,
+#: ``toolguide:sonar``, ``styleguide:quadruple-a-test-format``): their overlay
+#: ``suggests`` edges were DELETED and re-authored byte-identically in directive
+#: frontmatter, so they gain a real pure-graph inbound edge and cease to be
+#: orphans -- the overlay no longer determines (or even carries) their status. -4.
 #: Naming them keeps the two figures related by a stated cause instead of by two
 #: independent magic numbers that could drift apart unnoticed.
 _ORPHANS_RESOLVED_BY_OVERLAY: frozenset[str] = frozenset(
     {
         "asset:common-docs-structural-lint",
-        "styleguide:quadruple-a-test-format",
-        "styleguide:given-when-then-authoring",
-        "toolguide:sonar",
-        "toolguide:gherkin",
     }
 )
 
@@ -974,6 +1073,7 @@ class TestDRGZeroDelta:
             _AWAITING_REFERENCES,
             _NOT_A_TRAVERSAL_TARGET,
             _ACTIVATED_BUT_ORPHANED,
+            _DIRECT_ACTIVATION_ONLY,
         )
         assert sum(len(part) for part in parts) == len(_INTENTIONAL_ORPHANS), (
             "the orphan buckets overlap -- a URN is filed under two reasons"
@@ -1006,6 +1106,61 @@ class TestDRGZeroDelta:
         # equivalent of regenerate-graph --check). Assert their sizes agree exactly
         # (non-frozen) plus the floor.
         assert len(regenerated.edges) == len(shipped.edges) >= len(shipped.nodes)
+
+
+#: The four #3009-residual orphans that get a real frontmatter inbound edge this
+#: mission (kind-complete-cascade-orphan-wiring-01M0FQCD, WP02, FR-007). Each was
+#: a hand-authored overlay ``suggests`` edge sourced at its owning directive; the
+#: promotion moves that authority into the directive's own ``references``
+#: frontmatter so the edge exists in the PURE extractor graph, not only the
+#: overlay. ``(source directive, target)`` pairs:
+_RESIDUAL_FRONTMATTER_PROMOTIONS: frozenset[tuple[str, str]] = frozenset(
+    {
+        ("directive:DIRECTIVE_034", "styleguide:given-when-then-authoring"),
+        ("directive:DIRECTIVE_034", "toolguide:gherkin"),
+        ("directive:DIRECTIVE_030", "toolguide:sonar"),
+        ("directive:DIRECTIVE_041", "styleguide:quadruple-a-test-format"),
+    }
+)
+
+
+@pytest.mark.doctrine
+class TestResidualOrphanWiring:
+    """#3009 residual: 4 overlay edges promoted to source frontmatter, 1 direct-only.
+
+    ATDD red-first (WP02/T006): both assertions are RED on the planning base
+    (the 4 targets have zero inbound edges in the pure graph; the fifth is still
+    filed under the tracked-defect ``_ACTIVATED_BUT_ORPHANED`` set). They go
+    green once the promotions land in directive frontmatter (T007/T008) and the
+    ledger records ``deployable-skill-authoring`` direct-activation-only (T010).
+    """
+
+    def test_promoted_targets_have_a_pure_graph_inbound_edge(self, tmp_path: Path) -> None:
+        """FR-007: each promoted target is de-orphaned in the PURE extractor
+        graph (no overlay), sourced from its owning directive's frontmatter with
+        the expected ``(source, target)`` pair -- not merely *some* inbound edge."""
+        graph = generate_graph(DOCTRINE_ROOT, tmp_path / "graph.yaml")
+        inbound_pairs = {(edge.source, edge.target) for edge in graph.edges}
+        missing = sorted(
+            pair for pair in _RESIDUAL_FRONTMATTER_PROMOTIONS if pair not in inbound_pairs
+        )
+        assert not missing, (
+            "these #3009-residual orphans still lack a pure-graph frontmatter "
+            "inbound edge from their owning directive (promotion did not take "
+            f"effect): {missing}"
+        )
+
+    def test_deployable_skill_authoring_is_direct_activation_only(self) -> None:
+        """FR-008: the source-less fifth orphan is recorded direct-activation-only
+        and has LEFT the tracked-defect ``_ACTIVATED_BUT_ORPHANED`` set (never
+        given a guessed edge -- C-003)."""
+        urn = "styleguide:deployable-skill-authoring"
+        assert urn in _DIRECT_ACTIVATION_ONLY
+        assert urn not in _ACTIVATED_BUT_ORPHANED, (
+            "deployable-skill-authoring must move OUT of the tracked-defect "
+            "_ACTIVATED_BUT_ORPHANED set into the direct-activation-only "
+            "disposition, not sit in both"
+        )
 
 
 @pytest.mark.doctrine

@@ -242,7 +242,7 @@ def test_should_dispatch_via_composition_uses_live_lookup_for_normalize(
     from runtime.next import runtime_bridge as rb
 
     monkeypatch.setattr(
-        "charter.mission_type_profiles.resolve_mission_type_context",
+        "charter.activation.mission_type_profiles.resolve_mission_type_context",
         lambda repo_root, *, mission_type=None, feature_dir=None: SimpleNamespace(
             action_sequence=["patched-action"]
         ),
@@ -392,7 +392,7 @@ def test_resolve_runtime_contract_for_step_looks_up_by_contract_ref(
     seen_refs: list[str] = []
 
     monkeypatch.setattr(
-        "doctrine.missions.step_contracts.MissionStepContractRepository",
+        "charter.offering.missions.step_contracts.MissionStepContractRepository",
         lambda *, project_dir, org_dirs=None: object(),
     )
 
@@ -459,7 +459,7 @@ def test_resolve_runtime_contract_for_step_uses_live_lookup_for_normalize(
 
     monkeypatch.setattr(rb, "_normalize_action_for_composition", _fake_normalize)
     monkeypatch.setattr(
-        "doctrine.missions.step_contracts.MissionStepContractRepository",
+        "charter.offering.missions.step_contracts.MissionStepContractRepository",
         lambda *, project_dir, org_dirs=None: object(),
     )
     sentinel = object()
@@ -621,7 +621,7 @@ def test_composition_dispatch_inputs_short_circuits_when_action_in_charter_seque
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:
     monkeypatch.setattr(
-        "charter.mission_type_profiles.resolve_mission_type_context",
+        "charter.activation.mission_type_profiles.resolve_mission_type_context",
         lambda repo_root, *, mission_type=None, feature_dir=None: SimpleNamespace(
             action_sequence=["specify", "plan", "tasks", "implement", "review"]
         ),
@@ -630,6 +630,39 @@ def test_composition_dispatch_inputs_short_circuits_when_action_in_charter_seque
         repo_root=tmp_path, run_dir=tmp_path, mission="software-dev", step_id="specify", action="specify"
     )
     assert (profile, contract) == (None, None)
+
+
+def test_composition_dispatch_inputs_resolves_frozen_binding_when_no_action_default_exists(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    """#397 regression: a custom mission type (e.g. an org-pack ``qa`` mission)
+    can resolve a charter action sequence that includes an action with NO
+    entry in ``StepContractExecutor._ACTION_PROFILE_DEFAULTS`` (that table is
+    built-in-missions-only). The short-circuit to ``(None, None)`` must NOT
+    fire for such an action -- it must fall through to the frozen template's
+    explicit ``agent-profile`` binding, or the executor can never resolve a
+    profile hint and blocks with "profile_hint is required when no action
+    default exists"."""
+    monkeypatch.setattr(
+        "charter.activation.mission_type_profiles.resolve_mission_type_context",
+        lambda repo_root, *, mission_type=None, feature_dir=None: SimpleNamespace(
+            action_sequence=["discovery", "test_strategy"]
+        ),
+    )
+    run_dir = tmp_path / "run"
+    _write_frozen_template(
+        run_dir,
+        mission_key="qa",
+        steps=[{"id": "discovery", "title": "Discovery", "agent_profile": "researcher-robbie"}],
+    )
+
+    profile, contract = composition._composition_dispatch_inputs(
+        repo_root=tmp_path, run_dir=run_dir, mission="qa", step_id="discovery", action="discovery"
+    )
+
+    assert profile == "researcher-robbie"
+    assert contract is not None
+    assert contract.id == "custom:qa:discovery"
 
 
 def test_composition_dispatch_inputs_uses_live_lookup_for_resolution_helpers(
@@ -645,12 +678,12 @@ def test_composition_dispatch_inputs_uses_live_lookup_for_resolution_helpers(
     def _raise_unknown(
         repo_root: Path, *, mission_type: str | None = None, feature_dir: Path | None = None
     ) -> SimpleNamespace:
-        from charter.mission_type_profiles import UnknownMissionTypeError
+        from charter.activation.mission_type_profiles import UnknownMissionTypeError
 
         raise UnknownMissionTypeError(mission_type)
 
     monkeypatch.setattr(
-        "charter.mission_type_profiles.resolve_mission_type_context", _raise_unknown
+        "charter.activation.mission_type_profiles.resolve_mission_type_context", _raise_unknown
     )
 
     calls: list[str] = []
@@ -725,7 +758,14 @@ def test_check_composed_action_guard_delegates_to_cores_and_io(
 ) -> None:
     from runtime.next.runtime_bridge_io import ArtifactPresenceSnapshot
 
-    def _fake_gather(feature_dir: Path, *, mission_family: str, step_id: str, legacy_step_id: str | None = None) -> Any:
+    def _fake_gather(
+        feature_dir: Path,
+        *,
+        mission_family: str,
+        step_id: str,
+        legacy_step_id: str | None = None,
+        repo_root: Path | None = None,
+    ) -> Any:
         return ArtifactPresenceSnapshot(
             present_artifacts=frozenset(),
             status_facts={},
@@ -752,7 +792,14 @@ def test_check_composed_action_guard_uses_live_lookup_for_should_advance_wp_step
 
     captured: dict[str, Any] = {}
 
-    def _fake_gather(feature_dir: Path, *, mission_family: str, step_id: str, legacy_step_id: str | None = None) -> Any:
+    def _fake_gather(
+        feature_dir: Path,
+        *,
+        mission_family: str,
+        step_id: str,
+        legacy_step_id: str | None = None,
+        repo_root: Path | None = None,
+    ) -> Any:
         return ArtifactPresenceSnapshot(
             present_artifacts=frozenset(),
             status_facts={},
@@ -790,7 +837,14 @@ def test_check_composed_action_guard_warns_for_unregistered_mission_family(
 
     from runtime.next.runtime_bridge_io import ArtifactPresenceSnapshot
 
-    def _fake_gather(feature_dir: Path, *, mission_family: str, step_id: str, legacy_step_id: str | None = None) -> Any:
+    def _fake_gather(
+        feature_dir: Path,
+        *,
+        mission_family: str,
+        step_id: str,
+        legacy_step_id: str | None = None,
+        repo_root: Path | None = None,
+    ) -> Any:
         return ArtifactPresenceSnapshot(
             present_artifacts=frozenset(),
             status_facts={},
@@ -820,7 +874,14 @@ def test_check_composed_action_guard_does_not_thread_wp_advance_ready_for_non_wp
 
     captured: dict[str, Any] = {}
 
-    def _fake_gather(feature_dir: Path, *, mission_family: str, step_id: str, legacy_step_id: str | None = None) -> Any:
+    def _fake_gather(
+        feature_dir: Path,
+        *,
+        mission_family: str,
+        step_id: str,
+        legacy_step_id: str | None = None,
+        repo_root: Path | None = None,
+    ) -> Any:
         return ArtifactPresenceSnapshot(
             present_artifacts=frozenset(),
             status_facts={},
@@ -962,9 +1023,18 @@ def test_dispatch_via_composition_uses_live_lookup_for_check_composed_action_gua
     from runtime.next import runtime_bridge as rb
 
     calls: list[str] = []
+    repo_roots_seen: list[Path | None] = []
 
-    def _spy_guard(action: str, feature_dir: Path, *, mission: str = "software-dev", legacy_step_id: str | None = None) -> list[str]:
+    def _spy_guard(
+        action: str,
+        feature_dir: Path,
+        *,
+        mission: str = "software-dev",
+        legacy_step_id: str | None = None,
+        repo_root: Path | None = None,
+    ) -> list[str]:
         calls.append(action)
+        repo_roots_seen.append(repo_root)
         return ["patched-failure"]
 
     monkeypatch.setattr(rb, "_check_composed_action_guard", _spy_guard)
@@ -986,6 +1056,10 @@ def test_dispatch_via_composition_uses_live_lookup_for_check_composed_action_gua
 
     assert calls == ["specify"]
     assert failures == ["patched-failure"]
+    # #3704 WP03: the live-lookup dispatch path must thread the caller's
+    # ``repo_root`` through to ``_check_composed_action_guard`` unchanged --
+    # not merely swallow it, since this is exactly the seam WP03 threaded.
+    assert repo_roots_seen == [tmp_path]
 
 
 def test_dispatch_via_composition_warns_on_unresolved_delegation_candidates(

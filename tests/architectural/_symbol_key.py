@@ -23,9 +23,9 @@ Honest downscope (C-001, load-bearing)
 ---------------------------------------
 There is no single correct key tier. A pure-content key ``(bare_name,
 body_hash)`` re-blinds the T004 no-false-negative invariant for byte-identical
-same-name re-exports (the ``ArtifactKind`` trio: ``doctrine.directives`` /
-``doctrine.procedures`` / ``doctrine.tactics`` each do
-``from doctrine.artifact_kinds import ArtifactKind``). A module_path-bearing
+same-name re-exports (the ``ArtifactKind`` trio: ``charter.offering.directives`` /
+``charter.offering.procedures`` / ``charter.offering.tactics`` each do
+``from charter.offering.artifact_kinds import ArtifactKind``). A module_path-bearing
 key forfeits relocation tolerance for every entry that carries it. This module
 therefore implements a **two-tier, live-classified** key (D-1):
 

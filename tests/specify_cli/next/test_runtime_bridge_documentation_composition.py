@@ -71,16 +71,16 @@ def test_documentation_in_composed_actions(tmp_path: Path) -> None:
     # mock_repo already exposes the ``.get(id)`` interface the roster needs.
     mock_resolve_layered = MagicMock(return_value=mock_repo)
 
-    fake_module = types.ModuleType("doctrine.missions.mission_type_repository")
+    fake_module = types.ModuleType("charter.offering.missions.mission_type_repository")
     fake_module.resolve_layered_mission_types = mock_resolve_layered  # type: ignore[attr-defined]
 
-    saved = sys.modules.get("doctrine.missions.mission_type_repository")
-    sys.modules["doctrine.missions.mission_type_repository"] = fake_module
+    saved = sys.modules.get("charter.offering.missions.mission_type_repository")
+    sys.modules["charter.offering.missions.mission_type_repository"] = fake_module
     try:
-        from charter.mission_type_profiles import resolve_mission_type_context
+        from charter.activation.mission_type_profiles import resolve_mission_type_context
 
         with patch(
-            "charter.mission_type_profiles.existing_mission_types",
+            "charter.activation.mission_type_profiles.existing_mission_types",
             return_value=["documentation", "plan", "research", "software-dev"],
         ):
             result = resolve_mission_type_context(
@@ -88,9 +88,9 @@ def test_documentation_in_composed_actions(tmp_path: Path) -> None:
             ).action_sequence
     finally:
         if saved is None:
-            sys.modules.pop("doctrine.missions.mission_type_repository", None)
+            sys.modules.pop("charter.offering.missions.mission_type_repository", None)
         else:
-            sys.modules["doctrine.missions.mission_type_repository"] = saved
+            sys.modules["charter.offering.missions.mission_type_repository"] = saved
 
     assert set(result) == frozenset(_DOC_ACTIONS)
 

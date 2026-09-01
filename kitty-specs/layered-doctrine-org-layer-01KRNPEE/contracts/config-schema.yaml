@@ -54,7 +54,7 @@ properties:
                         - "/opt/company/doctrine/compliance/"
                     source_type:
                       type: string
-                      enum: ["git", "https", "api"]
+                      enum: ["git", "https", "artifactory", "api"]
                       description: >
                         The type of remote source used by 'doctrine fetch'. Optional;
                         omit if the pack is provisioned externally (e.g., by IT or
@@ -65,11 +65,14 @@ properties:
                         Remote URL for the doctrine source. Required if source_type
                         is set.
                         For 'git': SSH or HTTPS git remote URL.
-                        For 'https': URL to a tarball or zip bundle.
+                        For 'https': URL to a tarball or zip bundle; JFrog item
+                        URLs containing /artifactory/<repo>/<item> are detected.
+                        For 'artifactory': explicit JFrog item URL using that path.
                         For 'api': Base URL of the HTTP API server.
                       examples:
                         - "git@internal.example.com:security/security-doctrine.git"
                         - "https://releases.example.com/doctrine/bundle-v1.2.0.tar.gz"
+                        - "https://jfrog.example.com/artifactory/doctrine-local/pack.tar.gz"
                         - "https://governance.internal.example.com/doctrine/v1"
                     ref:
                       type: string
@@ -108,7 +111,7 @@ properties:
                   Prefer Form A (packs list) for new configurations.
               source_type:
                 type: string
-                enum: ["git", "https", "api"]
+                enum: ["git", "https", "artifactory", "api"]
               url:
                 type: string
               ref:

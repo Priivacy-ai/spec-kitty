@@ -5,7 +5,7 @@ This module is the rendering half of the WP09 feature. It:
 1. Honours ``SPEC_KITTY_NO_UPGRADE_CHECK=1`` opt-out (checked on every call).
 2. Reads / writes a per-user cache at ``~/.cache/spec-kitty/upgrade-check.json``
    (POSIX) or ``%LOCALAPPDATA%\\spec-kitty\\upgrade-check.json`` (Windows).
-3. Probes GitHub Releases via :mod:`upgrade_probe` only when the cache is missing or stale.
+3. Probes PyPI via :mod:`upgrade_probe` only when the cache is missing or stale.
 4. Suppresses identical-channel notices within the cache TTL window (AC #4).
 5. Emits a single-line dim notice via Rich's ``Console.print``.
 
@@ -21,8 +21,8 @@ JSON read, one freshness check, and one ``console.print``.
 The notifier **never raises** to the caller. All exceptions inside the
 function are caught at the boundary; see :func:`maybe_emit_upgrade_notice`.
 
-This module applies the **secure-design-checklist** tactic to the release
-metadata surface — see :mod:`upgrade_probe` for the full audit.
+This module applies the **secure-design-checklist** tactic to the new external
+surface (the PyPI probe) — see :mod:`upgrade_probe` for the full audit.
 """
 
 from __future__ import annotations
@@ -182,10 +182,8 @@ def _is_fresh(
 
 _NOTICE_TEMPLATES: dict[UpgradeChannel, str] = {
     UpgradeChannel.ALREADY_CURRENT: ("[dim]spec-kitty-cli {version} — you are on the latest supported version.[/dim]"),
-    UpgradeChannel.AHEAD_OF_PYPI: ("[dim]spec-kitty-cli {version} — build is ahead of the latest GitHub release ({latest}). No upgrade required.[/dim]"),
-    UpgradeChannel.NO_UPGRADE_PATH: (
-        "[dim]spec-kitty-cli {version} — this build is not a current spec-kitty/EXPERIMENTAL-spec-kitty GitHub Release. Install the pinned private release.[/dim]"
-    ),
+    UpgradeChannel.AHEAD_OF_PYPI: ("[dim]spec-kitty-cli {version} — build is ahead of the latest PyPI release ({latest}). No upgrade required.[/dim]"),
+    UpgradeChannel.NO_UPGRADE_PATH: ("[dim]spec-kitty-cli {version} — installed from a non-PyPI build/channel. No PyPI upgrade path is available.[/dim]"),
     # UPGRADE_AVAILABLE intentionally emits no no-upgrade notice; the existing
     # upgrade nag owns that user-facing path.
     # UNKNOWN intentionally emits no notice (contract: "do not block on inability to probe").
@@ -238,7 +236,7 @@ def maybe_emit_upgrade_notice(
 
     1. Returns ``False`` immediately if ``SPEC_KITTY_NO_UPGRADE_CHECK=1``.
     2. Loads the cache; if fresh and pinned to ``cli_version``, uses it.
-    3. Otherwise probes GitHub Releases (via :func:`upgrade_probe.probe_pypi`).
+    3. Otherwise probes PyPI (via :func:`upgrade_probe.probe_pypi`).
     4. Suppresses the notice if the previous cache entry within TTL was the
        same channel AND the channel is ALREADY_CURRENT (anti-noise rule).
     5. Renders the notice via ``console.print``.

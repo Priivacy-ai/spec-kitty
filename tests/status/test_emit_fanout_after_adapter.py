@@ -1,15 +1,13 @@
 """Regression test: emit_status_transition fan-out works end-to-end.
 
 After P1.3 the status package no longer imports from sync; SaaS fan-out
-and dossier-sync triggers are routed through registered adapters. This
-test guards against the failure mode where the registry pattern silently
-drops fan-out.
+is routed through registered adapters. This test guards against the
+failure mode where the registry pattern silently drops fan-out.
 
 Cases covered:
 1. A registered SaaS handler receives the fan-out from emit_status_transition.
-2. A registered dossier-sync handler likewise fires.
-3. An empty registry degrades to a logged no-op (handlers=0 breadcrumb).
-4. A failing handler does not block canonical persistence.
+2. An empty registry degrades to a logged no-op (handlers=0 breadcrumb).
+3. A failing handler does not block canonical persistence.
 
 (The former "importing specify_cli.sync registers the handlers" bootstrap
 case died with the sync transport, issue #5; production registrants return
@@ -71,33 +69,6 @@ class TestFanOutPreservation:
             assert call["to_lane"] == "claimed"
             assert call["actor"] == "test-actor"
             assert call["mission_slug"] == "test-feature"
-        finally:
-            adapters.reset_handlers()
-
-    def test_dossier_sync_fires_when_handler_registered(self, feature_dir: Path, tmp_path: Path) -> None:
-        """Registering a dossier-sync handler causes emit_status_transition to call it."""
-        adapters.reset_handlers()
-        captured: list[tuple] = []
-
-        def fake_dossier(fd: Path, slug: str, repo: Path) -> None:
-            captured.append((fd, slug, repo))
-
-        adapters.register_dossier_sync_handler(fake_dossier)
-
-        try:
-            _seed_planned(feature_dir, "WP01")
-            emit_status_transition(
-                TransitionRequest(
-                    feature_dir=feature_dir,
-                    mission_slug="test-feature",
-                    wp_id="WP01",
-                    to_lane="claimed",
-                    actor="test-actor",
-                    repo_root=tmp_path,
-                )
-            )
-            assert len(captured) == 1
-            assert captured[0][1] == "test-feature"
         finally:
             adapters.reset_handlers()
 

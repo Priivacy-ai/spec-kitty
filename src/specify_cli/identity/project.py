@@ -27,7 +27,7 @@ from pathlib import Path
 from typing import Any
 from uuid import NAMESPACE_URL, UUID, uuid4, uuid5
 
-from rich.console import Console
+from specify_cli.cli.console import err_console, sanitize_terminal_text
 from ruamel.yaml import YAML
 
 logger = logging.getLogger(__name__)
@@ -181,6 +181,18 @@ def derive_project_slug(repo_root: Path) -> str:
 
     Attempts to extract repo name from git remote origin URL.
     Falls back to directory name if no remote is configured.
+
+    Uses the transport view (``git remote get-url``, which applies any
+    global ``url.<base>.insteadOf`` rewrite) rather than the raw configured
+    URL on purpose, triaged against spec-kitty#113: #111's raw-config
+    criterion is for sites that consume the URL's *host* (forge admission
+    in ``zeitgeist_client/repo_identity.py``). This function only ever
+    consumes the URL's trailing path segment (the repo name) via
+    ``url.split("/")[-1]``, and ``insteadOf`` is a pure prefix substitution
+    — it can rewrite the host but can never alter what comes after the
+    matched prefix. There is no rewrite shape that changes the slug this
+    derives, so the raw-config swap #111 needed here would be a no-op
+    dressed up as a fix.
 
     Args:
         repo_root: Path to repository root
@@ -694,5 +706,5 @@ def _warn_in_memory(reason: str = "Config not writable") -> None:
     sends them to ``chmod`` when the fix is a YAML error — the misdirected-cause
     class this mission has been closing elsewhere (#3030).
     """
-    console = Console(stderr=True)
-    console.print(f"[yellow]Warning: {reason}; using in-memory identity[/yellow]")
+    console = err_console
+    console.print(f"[yellow]Warning: {sanitize_terminal_text(reason)}; using in-memory identity[/yellow]")

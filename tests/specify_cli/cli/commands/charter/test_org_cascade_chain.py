@@ -536,7 +536,7 @@ class TestGraphlessOrgPackDegradesGracefully:
             project_root, [("graphless-pack", "org-packs/graphless-pack")]
         )
 
-        with caplog.at_level(logging.WARNING, logger="charter._drg_helpers"):
+        with caplog.at_level(logging.WARNING, logger="charter.activation._drg_helpers"):
             result = _activate(
                 project_root,
                 "--cascade",
@@ -622,7 +622,7 @@ class TestGraphlessPackWithFragmentEdgeIsInvisibleToCascade:
             project_root, [("fragment-only-pack", "org-packs/fragment-only-pack")]
         )
 
-        with caplog.at_level(logging.WARNING, logger="charter._drg_helpers"):
+        with caplog.at_level(logging.WARNING, logger="charter.activation._drg_helpers"):
             result = _activate(
                 project_root,
                 "--cascade",

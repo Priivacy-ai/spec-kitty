@@ -3,8 +3,8 @@
 charter-sole-door-bypass-closure-01KZ3WAA WP03 (FR-002). WP03 migrated
 ``_doctrine_collect.py``'s 4 diagnostic sites (``_collect_profile_health``,
 ``_collect_glossary_pack_health``, ``_collect_doctrine_collisions``,
-``_build_selection_block``) from raw ``doctrine.service.DoctrineService(...)``
-construction onto ``charter.resolver.DoctrineService(inner, pack_context=None)``
+``_build_selection_block``) from raw ``charter.offering.service.DoctrineService(...)``
+construction onto ``charter.activation.resolver.DoctrineService(inner, pack_context=None)``
 -- the sanctioned unfiltered-diagnostic construction shape (data-model.md
 "unfiltered-diagnostic contract"). The WP03 task file names the exact risk
 this file guards against: "a plain activation-aware swap compiles and looks
@@ -18,7 +18,7 @@ Two distinct regressions are guarded here:
 
 1. The nine gated *properties* (``paradigms`` .. ``glossary_packs``) must
    return the identical, full catalog under ``pack_context=None`` that a
-   raw, unwrapped ``doctrine.service.DoctrineService`` would expose -- even
+   raw, unwrapped ``charter.offering.service.DoctrineService`` would expose -- even
    for a project where SOME packs are genuinely deactivated (a real
    ``PackContext`` that WOULD narrow the result if it were used instead).
 2. The two raw-*repository* accessors (``agent_profile_repository``,
@@ -38,8 +38,8 @@ from unittest.mock import MagicMock
 
 import pytest
 
-from charter.pack_context import PackContext
-from charter.resolver import DoctrineService
+from charter.activation.pack_context import PackContext
+from charter.activation.resolver import DoctrineService
 
 pytestmark = pytest.mark.fast
 
@@ -99,7 +99,7 @@ def _mock_inner() -> MagicMock:
 def _raw_projection(inner: object, kind: str) -> dict[str, object]:
     """Independently compute the id-keyed dict a raw, unwrapped service's
     catalog for *kind* projects to -- WITHOUT calling any
-    ``charter.resolver.DoctrineService`` code, so the comparison below is a
+    ``charter.activation.resolver.DoctrineService`` code, so the comparison below is a
     real check, not a tautological self-comparison (the exact MAJOR 3 defect
     WP01's cycle-1 review found and required fixed elsewhere in this
     mission).

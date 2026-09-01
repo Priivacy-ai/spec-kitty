@@ -32,7 +32,7 @@ encode the contract that:
 6. The two directive namespaces — charter-extracted `DIR-NNN` (auto-emitted
    by `spec-kitty charter sync` into `.kittify/charter/directives.yaml`)
    and doctrine-catalog `DIRECTIVE_NNN` (hand-authored in
-   `src/doctrine/directives/built-in/*.directive.yaml`) — must be
+   `src/charter/offering/directives/built-in/*.directive.yaml`) — must be
    cross-linked when one cites the other, so the resolver can surface the
    right body regardless of which ID the citation used.
 
@@ -56,8 +56,8 @@ from unittest.mock import patch
 
 import pytest
 
-from charter.context import build_charter_context
-from charter.scope import CharterScopeNotFound
+from charter.activation.context import build_charter_context
+from charter.activation.scope import CharterScopeNotFound
 from runtime.next.prompt_builder import _build_wp_prompt, _governance_context
 from tests.lane_test_utils import write_single_lane_manifest
 
@@ -146,15 +146,15 @@ subtasks: [T001, T002]
 agent: claude
 agent_profile: python-pedro
 role: implementer
-authoritative_surface: src/doctrine/service.py
-owned_files: [src/doctrine/service.py]
+authoritative_surface: src/charter/offering/service.py
+owned_files: [src/charter/offering/service.py]
 execution_mode: code_change
 history: []
 ---
 # WP01 — Reconcile shipped vs built-in terminology
 
 Replace literal ``shipped`` path strings with ``built-in`` across
-``src/doctrine/`` and update tests accordingly.
+``src/charter/offering/`` and update tests accordingly.
 """
 
 
@@ -168,8 +168,8 @@ subtasks: [T003]
 agent: claude
 agent_profile: reviewer-renata
 role: reviewer
-authoritative_surface: src/doctrine/service.py
-owned_files: [src/doctrine/service.py]
+authoritative_surface: src/charter/offering/service.py
+owned_files: [src/charter/offering/service.py]
 execution_mode: code_change
 history: []
 ---
@@ -478,7 +478,7 @@ class TestProfileDirectivesSurfacedInWpPrompt:
     def test_python_pedro_directive_010_referenced_in_implement_prompt(
         self, project_with_implement_wp: tuple[Path, Path, str]
     ) -> None:
-        """python-pedro's profile (`src/doctrine/agent_profiles/built-in/`
+        """python-pedro's profile (`src/charter/offering/agent_profiles/built-in/`
         `python-pedro.agent.yaml`) declares directive 010 (Specification Fidelity).
         The implement WP whose frontmatter selects python-pedro MUST surface
         DIRECTIVE_010 in the prompt: either the rule body verbatim or a fetch
@@ -621,7 +621,7 @@ class TestProfileDirectivesSurfacedInWpPrompt:
         the doctrine-catalog namespace (`DIRECTIVE_NNN`), not the charter-extracted
         namespace (`DIR-NNN`). The two namespaces exist today; the contract is that
         profile-cited directives use the catalog form so the agent can locate the
-        body at `src/doctrine/directives/built-in/<id>.directive.yaml`.
+        body at `src/charter/offering/directives/built-in/<id>.directive.yaml`.
         """
         repo_root, feature_dir, mission_slug = project_with_implement_wp
         prompt = _build_wp_prompt(
@@ -834,7 +834,7 @@ class TestCharterContextResolverCompleteness:
         """When `build_charter_context` is called with `profile=` set, it MUST resolve
         the agent profile's `directive-references` and either embed their bodies or
         emit fetch commands. The `profile=` kwarg exists in the signature today
-        (line 73 of `src/charter/context.py`) but is unused (`_ = profile`). The
+        (line 73 of `src/charter/activation/context.py`) but is unused (`_ = profile`). The
         contract is that the kwarg becomes load-bearing.
         """
         repo_root, _feature_dir, _mission_slug = project_with_implement_wp
@@ -1008,10 +1008,10 @@ class TestGovernanceContextUsesMonorepoAwarePath:
         # module imports build_with_scope (after the fix it will).
         assert hasattr(_pb, "build_with_scope"), (
             "runtime.next.prompt_builder MUST import build_with_scope "
-            "from charter.scope_router to enable monorepo CharterScope "
+            "from charter.activation.scope_router to enable monorepo CharterScope "
             "resolution (HIGH-1 / FR-010). Currently build_charter_context "
             "is called directly, bypassing CharterScope.resolve. "
-            "Fix: add 'from charter.scope_router import build_with_scope' to "
+            "Fix: add 'from charter.activation.scope_router import build_with_scope' to "
             "prompt_builder.py and route _governance_context through it."
         )
 
@@ -1023,7 +1023,7 @@ class TestGovernanceContextUsesMonorepoAwarePath:
             r: Path, f: Path, **kwargs  # type: ignore[no-untyped-def]
         ):
             calls.append((r, f))
-            from charter.context import build_charter_context  # noqa: PLC0415
+            from charter.activation.context import build_charter_context  # noqa: PLC0415
             return build_charter_context(r, **kwargs)
 
         with patch(
@@ -1120,7 +1120,7 @@ class TestPerStanzaWhenDoingGrammaticality:
     anywhere in the prompt. That is not the real guarantee — every rendered
     stanza must individually be grammatical and match the closed lead-in
     set. This is the per-stanza authority the fetch-stanza normalization
-    fix (``charter.context_renderers.fetch_stanza._normalize_when_clause``)
+    fix (``charter.activation.context_renderers.fetch_stanza._normalize_when_clause``)
     is pinned against; see also
     ``tests/charter/test_fetch_stanza_normalization.py`` for the isolated
     unit coverage of the normalization helper itself (gerund clauses, full
@@ -1128,13 +1128,13 @@ class TestPerStanzaWhenDoingGrammaticality:
 
     Scope note (WP01/#3082 discovery, flagged rather than silently
     absorbed): ``section:*`` selector stanzas are rendered by a SEPARATE,
-    hand-rolled composer — ``charter.context_renderers.section_bodies.
+    hand-rolled composer — ``charter.activation.context_renderers.section_bodies.
     _render_fetch_stanza`` / ``CRITICAL_SECTION_WHEN_CLAUSES`` — that does
     NOT go through ``fetch_stanza.fetch_stanza_lines`` and pre-dates this
     mission. Two of its authored clauses ("prepare a WP for review",
     "perform a terminology cutover") do not match the closed lead-in set
     either, but fixing that duplicate choke point is outside WP01's
-    authoritative surface (``src/charter/context_renderers/fetch_stanza.py``
+    authoritative surface (``src/charter/activation/context_renderers/fetch_stanza.py``
     only); ``section_bodies.py`` is not in WP01's owned files. This check is
     scoped to the fetch_stanza.py-owned selector kinds (directive, tactic,
     styleguide, toolguide, procedure, paradigm, mission_step_contract,

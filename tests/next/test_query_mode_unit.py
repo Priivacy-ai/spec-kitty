@@ -577,6 +577,7 @@ class TestQueryCurrentStateErrorPaths:
         snapshot.completed_steps = []
         snapshot.pending_decisions = {}
         snapshot.decisions = {}
+        snapshot.issued_step_id = None
         snapshot.template_path = str(tmp_path / "template.yaml")
         snapshot.policy_snapshot = MagicMock()
 

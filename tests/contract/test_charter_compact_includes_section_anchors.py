@@ -9,7 +9,7 @@ prose body of each section may be elided. Issue #790 traced bad agent
 behaviour to compact mode silently dropping these identifiers.
 
 This contract test is intentionally surface-level: it pins the
-:func:`charter.compact.render_compact_view` API against a hand-written
+:func:`charter.activation.compact.render_compact_view` API against a hand-written
 bootstrap view of each fixture charter. We do not exercise the full DRG
 loader here -- that is covered by the integration suite. The bootstrap
 view is computed from the fixture text using the same anchor extractor
@@ -23,7 +23,7 @@ from pathlib import Path
 
 import pytest
 
-from charter.compact import (
+from charter.activation.compact import (
     CompactView,
     extract_section_anchors,
     render_compact_view,

@@ -1,0 +1,50 @@
+# review-verify/v1 — canonical format for fix-verification output.
+schema: review-verify/v1
+complete: true
+phase: plan
+results:
+  - id: PLAN-FRESH-001
+    status: resolved
+    reason: >-
+      WP1 now adds a concretely-named `missing_paths_feature_relative` field,
+      populated inside `validate_mission_paths`'s existing loop (paths.py:194-208,
+      where `feature_dir`/`candidate`/artifact-tagging are in scope) directly from
+      the pre-resolution declared token for the artifact-tagged branch, and WP2's
+      dedup now normalizes both sides against that new field instead of implying
+      `_normalize_path_token` performs a project_root-to-feature_dir-relative
+      conversion; hand-deriving the software-dev/contracts fixture confirms bare
+      "contracts" (from `_missing_artifacts`) correctly matches the new field's
+      "contracts" entry (from `_normalize_path_token("contracts/")`), both via
+      ordinary slash-stripping only.
+  - id: PLAN-FRESH-002
+    status: resolved
+    reason: >-
+      WP3's NFR-003 citation and the Gate set's "Job names that therefore run" list
+      both now name `arch-adversarial` as the job enforcing
+      `test_no_legacy_terminology.py`; independently verified against
+      .github/workflows/ci-quality.yml that `arch-adversarial` is always-on
+      (no dorny filter `if:`), selects via markers including `architectural`/
+      `git_repo` (which the test file's own `pytestmark` at line 25 carries), while
+      `integration-tests-core-misc`'s matrix comment (lines ~1917-1919) confirms the
+      architectural shard was deliberately extracted out of it.
+  - id: PLAN-FRESH-003
+    status: resolved
+    reason: >-
+      WP2's Propagation-mechanism citation now reads "summary_core.py:146-147, the
+      condition at :146 and its body at :147", matching the live file (line 146 is
+      `if strict_metadata:`, line 147 is the `return [path_result.format_errors()...`
+      statement), and WP3's separate `:147` citation for the `.format_errors(` call
+      was left untouched and is itself still accurate.
+  - id: PLAN-FRESH-004
+    status: resolved
+    reason: >-
+      WP4 Assertion 3 and its surrounding text now say `optional_missing` (matching
+      the real JSON key confirmed at acceptance/__init__.py:430's `to_dict()`), the
+      Test-strategy table row (US2 scenario 4) makes no field-name claim at all, and
+      a full grep of plan.md's remaining `missing_optional` occurrences (lines 499,
+      529, 663) confirms each is a legitimate reference to the real Python variable/
+      parameter name `missing_optional` (verified live at
+      acceptance/__init__.py:594-595,1049,1115 and summary_core.py:153,159-160), not
+      a JSON-field claim — including line 663, which explicitly flags spec.md's own
+      inherited `missing_optional` wording as the (out-of-scope) error rather than
+      repeating it as fact.

@@ -42,13 +42,13 @@ import pytest
 from ruamel.yaml import YAML
 from typer.testing import CliRunner
 
-from charter.activation_engine import promote_activations
-from charter.invocation_context import ProjectContext
-from charter.pack_manager import CharterPackManager
+from charter.activation.activation_engine import promote_activations
+from charter.activation.invocation_context import ProjectContext
+from charter.activation.pack_manager import CharterPackManager
 from specify_cli.charter_runtime.freshness import compute_freshness
 from specify_cli.cli.commands.charter import charter_app
 
-from charter.charter_yaml_io import update_charter_yaml_section
+from charter.activation.charter_yaml_io import update_charter_yaml_section
 
 from tests.specify_cli.charter_preflight._fixtures import (
     init_git_repo,
@@ -147,8 +147,8 @@ def _seed_project_graph(repo: Path) -> Path:
 
     Matches ``test_freshness_activation_visibility.py``'s own local helper:
     a bare ``schema_version``/``nodes``/``edges`` document is REJECTED by
-    ``doctrine.drg.models.DRGGraph`` (``generated_at``/``generated_by`` are
-    required) once ``charter.consistency_check``'s graph-kind-parity check
+    ``charter.offering.drg.models.DRGGraph`` (``generated_at``/``generated_by`` are
+    required) once ``charter.activation.consistency_check``'s graph-kind-parity check
     pydantic-validates it via ``load_validated_graph``.
     """
     graph_path = repo / ".kittify" / "doctrine" / "graph.yaml"
@@ -493,10 +493,10 @@ def test_promote_activations_migration_path_triggers_no_synthesis(
 ) -> None:
     """``promote_activations`` (upgrade migration + ``org_charter`` union) never synthesizes.
 
-    Structural by construction (``charter.activation_engine`` never imports
+    Structural by construction (``charter.activation.activation_engine`` never imports
     ``specify_cli`` -- C-001) -- this test locks that invariant in behavior,
     not just by inspection: the write path taken by ``spec-kitty upgrade``'s
-    ``m_unify_charter_activation`` migration and ``doctrine.org_charter``'s
+    ``m_unify_charter_activation`` migration and ``charter.offering.org_charter``'s
     ``required_*`` union both funnel through this exact function.
     """
     mock_generate, mock_synthesize = _patch_synthesis_spies(monkeypatch)
