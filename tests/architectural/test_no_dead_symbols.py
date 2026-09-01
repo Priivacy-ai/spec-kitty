@@ -1521,9 +1521,11 @@ _CATEGORY_C_SCOPE_SOURCE_FACTORY_CONSTRUCTED: frozenset[SymbolKey] = frozenset(
         # imported by concrete name outside scope_source.py by design).
         # Content-hash re-pin (#380): the class body survived the workflow
         # coverage-source retirement, still same-module-constructed only.
+        # Content-hash re-pin (#596): malformed configured quoting now
+        # degrades to the port's ``None`` signal.
         # specify_cli.review.scope_source::DeclaredCommandScopeSource
         SymbolKey(
-            "DeclaredCommandScopeSource", "2d2989e4a5e20940ac0a14f3f6d0ff24202cfd0f0bcbaecdb98dd63efd88e76f", source_module="specify_cli.review.scope_source"
+            "DeclaredCommandScopeSource", "dcf6a67ac352d8086fc140ddfe4562c3319709924a256170f1cf237ee0fb989c", source_module="specify_cli.review.scope_source"
         ),
         # specify_cli.review.scope_source::FileScopeBreakdown -- the return
         # value of injected narrowing sources' scope_breakdown(); consumed
