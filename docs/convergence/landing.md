@@ -1,3 +1,8 @@
+---
+doc_status: active
+updated: '2026-08-27'
+---
+
 | sha | kind | disposition | evidence | one-line rationale |
 |---|---|---|---|---|
 | 9248683b5 | fix | obsolete | Current tree has no `src/specify_cli/cli/commands/sync.py`; 2.0 decision `HIC-EPHEMERAL-TEAM-STATUS-2026-08-25.md` deletes CLI-to-SaaS sync transport. | The tracker-egress doctor renderer lived only in the deleted sync command surface. |
