@@ -64,10 +64,7 @@ def _fail_missing_test_extra(console: object) -> None:
     remediation = _missing_test_extra_remediation()
     diagnostic = {
         "diagnostic_code": str(diagnostic_code),
-        "message": (
-            "pytest is not importable from the active Python interpreter. "
-            f"Run `{remediation}` to install pytest into that interpreter, then retry."
-        ),
+        "message": (f"pytest is not importable from the active Python interpreter. Run `{remediation}` to install pytest into that interpreter, then retry."),
         "remediation": remediation,
     }
     console.print(  # type: ignore[attr-defined]
@@ -95,9 +92,7 @@ def _missing_test_extra_remediation() -> str:
     runtime: InstalledCliRuntime = detect_runtime()
     if runtime.install_method != InstallMethod.UV_TOOL:
         return "uv sync --extra test"
-    cmd: RemediationCommand = plan_remediation(
-        runtime, RemediationIntent.REINSTALL_WITH_TEST, target_version=get_version()
-    )
+    cmd: RemediationCommand = plan_remediation(runtime, RemediationIntent.REINSTALL_WITH_TEST, target_version=get_version())
     try:
         rendered: str = cmd.render(runtime.platform)
         return rendered
@@ -305,8 +300,7 @@ def _evaluate_issue_matrix(
 
     if not discover_issue_references(feature_dir):
         console.print(  # type: ignore[attr-defined]
-            "  [green]✓[/green]  Issue matrix: not_applicable "
-            "(mission declares zero canonical issue references)"
+            "  [green]✓[/green]  Issue matrix: not_applicable (mission declares zero canonical issue references)"
         )
         return "not_applicable"
 
@@ -321,10 +315,7 @@ def _evaluate_issue_matrix(
             {
                 "type": "issue_matrix_violation",
                 "diagnostic_code": str(MissionReviewDiagnostic.ISSUE_MATRIX_MISSING),
-                "message": (
-                    "issue-matrix is required in post-merge mode when "
-                    "canonical issue references exist"
-                ),
+                "message": ("issue-matrix is required in post-merge mode when canonical issue references exist"),
             }
         )
         return False
@@ -345,8 +336,7 @@ def _evaluate_issue_matrix(
             )
     else:
         console.print(  # type: ignore[attr-defined]
-            f"  [green]✓[/green]  Issue matrix: "
-            f"{len(matrix_result.rows)} row(s) validated"
+            f"  [green]✓[/green]  Issue matrix: {len(matrix_result.rows)} row(s) validated"
         )
     return True
 
@@ -423,10 +413,7 @@ def review_mission(
     # post-merge mission whose coordination worktree has been consolidated away.
     from mission_runtime import MissionArtifactKind, coord_read_dir_for
 
-    issue_matrix_dir = (
-        coord_read_dir_for(repo_root, mission_slug, MissionArtifactKind.ISSUE_MATRIX)
-        or feature_dir
-    )
+    issue_matrix_dir = coord_read_dir_for(repo_root, mission_slug, MissionArtifactKind.ISSUE_MATRIX) or feature_dir
     issue_matrix_present = _evaluate_issue_matrix(
         feature_dir=issue_matrix_dir,
         review_mode=review_mode,
@@ -434,9 +421,7 @@ def review_mission(
         findings=findings,
     )
     mission_exception_present: bool | Literal["not_applicable"] = (
-        (feature_dir / "mission-exception.md").exists()
-        if review_mode is MissionReviewMode.POST_MERGE
-        else "not_applicable"
+        (feature_dir / "mission-exception.md").exists() if review_mode is MissionReviewMode.POST_MERGE else "not_applicable"
     )
     write_review_report(
         feature_dir,

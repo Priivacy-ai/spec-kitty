@@ -79,11 +79,7 @@ def _make_uv_runtime(
 
     resolved_tool_dir = tool_dir if tool_dir is not None else Path("/home/user/.local/share/uv/tools")
     resolved_platform: Literal["posix", "windows"] = "windows" if platform == "windows" else "posix"
-    resolved_reqs: tuple[object, ...] = (
-        requirements
-        if requirements is not None
-        else (UvRequirement(name="spec-kitty-cli"),)
-    )
+    resolved_reqs: tuple[object, ...] = requirements if requirements is not None else (UvRequirement(name="spec-kitty-cli"),)
 
     return InstalledCliRuntime(
         install_method=InstallMethod.UV_TOOL,
@@ -278,13 +274,7 @@ def test_review_lightweight_modern_null_baseline_exits_nonzero(
     assert "verdict: fail" in report_text
     assert "LIGHTWEIGHT_REVIEW_MISSING_BASELINE" in result.output
     assert "LIGHTWEIGHT_REVIEW_MISSING_BASELINE" in report_text
-    assert (
-        "  - id: gate_2\n"
-        "    name: dead_code_scan\n"
-        "    command: spec-kitty review (internal gate 2)\n"
-        "    exit_code: 1\n"
-        "    result: fail"
-    ) in report_text
+    assert ("  - id: gate_2\n    name: dead_code_scan\n    command: spec-kitty review (internal gate 2)\n    exit_code: 1\n    result: fail") in report_text
 
 
 def test_dead_code_baseline_missing_is_hard_failure(tmp_path: Path) -> None:
@@ -539,10 +529,7 @@ def test_uv_tool_remediation_preserves_custom_bin_dir(
     )
 
     result = review_mod._missing_test_extra_remediation()  # noqa: SLF001
-    assert result == (
-        "UV_TOOL_DIR=/opt/uv-t UV_TOOL_BIN_DIR=/opt/bin uv tool install --force "
-        "--with pytest spec-kitty-cli"
-    )
+    assert result == ("UV_TOOL_DIR=/opt/uv-t UV_TOOL_BIN_DIR=/opt/bin uv tool install --force --with pytest spec-kitty-cli")
 
 
 def test_uv_tool_remediation_preserves_receipt_python(
@@ -558,14 +545,11 @@ def test_uv_tool_remediation_preserves_receipt_python(
     tool_dir = Path("/opt/uv")
     monkeypatch.setattr(
         "specify_cli.cli.commands.review.detect_runtime",
-        lambda: _make_uv_runtime(
-            tool_dir=tool_dir, is_default_tool_dir=False, python="3.13"
-        ),
+        lambda: _make_uv_runtime(tool_dir=tool_dir, is_default_tool_dir=False, python="3.13"),
     )
 
     assert review_mod._missing_test_extra_remediation() == (  # noqa: SLF001
-        f"UV_TOOL_DIR={tool_dir!s} uv tool install --force --python 3.13 "
-        "--with pytest spec-kitty-cli"
+        f"UV_TOOL_DIR={tool_dir!s} uv tool install --force --python 3.13 --with pytest spec-kitty-cli"
     )
 
 
@@ -581,9 +565,7 @@ def test_uv_tool_remediation_uses_powershell_env_prefix_on_windows(
     tool_dir = tmp_path / "tool dir"  # has a space
     monkeypatch.setattr(
         "specify_cli.cli.commands.review.detect_runtime",
-        lambda: _make_uv_runtime(
-            tool_dir=tool_dir, is_default_tool_dir=False, platform="windows"
-        ),
+        lambda: _make_uv_runtime(tool_dir=tool_dir, is_default_tool_dir=False, platform="windows"),
     )
 
     # render("windows") raises ValueError (CHK028) → note fallback carrying the
@@ -629,9 +611,7 @@ def test_uv_tool_remediation_quotes_specifier_receipt(
     )
 
     remediation = review_mod._missing_test_extra_remediation()  # noqa: SLF001
-    assert remediation == (
-        "UV_TOOL_DIR=/opt/uv-t uv tool install --force --with pytest spec-kitty-cli==3.2.0rc25"
-    )
+    assert remediation == ("UV_TOOL_DIR=/opt/uv-t uv tool install --force --with pytest spec-kitty-cli==3.2.0rc25")
 
 
 def test_uv_tool_remediation_omits_uv_tool_dir_for_default_tool_dir(
@@ -709,9 +689,7 @@ def test_check_env_skew_fail_closed_emits_clean_message_not_tuple_repr(
 
     assert result.exit_code == 1, result.output
 
-    diagnostic_line = next(
-        line for line in result.output.splitlines() if line.startswith("{")
-    )
+    diagnostic_line = next(line for line in result.output.splitlines() if line.startswith("{"))
     diagnostic = json.loads(diagnostic_line)
 
     assert diagnostic["message"] == expected_message
