@@ -29,7 +29,7 @@ from pathlib import Path
 import pytest
 from pydantic import ValidationError
 
-from charter.activation.pack_paths import built_in_root
+from charter.offering.pack_paths import built_in_root
 from charter.offering.agent_profiles import AgentProfile, AgentProfileRepository
 from specify_cli.upgrade.migrations.m_3_3_1_context_sources_consolidation import (
     consolidate_profile_context_sources,

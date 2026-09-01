@@ -769,7 +769,7 @@ def _emit_operating_procedure_edges(
     ``resolve_operating_procedure_entries`` is the single authority for "does
     this entry resolve to a procedure node".
     """
-    from doctrine.agent_profiles.operating_procedures import (
+    from charter.offering.agent_profiles.operating_procedures import (
         collect_operating_procedure_entries,
         node_universe,
         resolve_operating_procedure_entries,

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import contextlib
 import json
 import subprocess
 from pathlib import Path
@@ -13,7 +14,6 @@ from ulid import ULID
 
 from specify_cli.cli.commands.agent.mission import CommitToBranchResult, app
 from specify_cli.coordination.commit_router import CommitRouterResult
-from specify_cli.core.checkout_identity import CheckoutIdentity, Intent
 
 pytestmark = [pytest.mark.integration, pytest.mark.git_repo]
 
@@ -717,11 +717,25 @@ class TestCreateFeatureCommand:
 class TestCheckPrerequisitesCommand:
     """Tests for check-prerequisites command."""
 
+    @patch(
+        "specify_cli.cli.commands.agent.mission.get_current_branch",
+        return_value="main",
+    )
+    @patch(
+        "specify_cli.cli.commands.agent.mission_check_prerequisites._resolve_feature_target_branch",
+        return_value="main",
+    )
     @patch("specify_cli.cli.commands.agent.mission.locate_project_root")
     @patch("specify_cli.cli.commands.agent.mission._find_feature_directory")
     @patch("specify_cli.cli.commands.agent.mission.validate_feature_structure")
     def test_validates_prerequisites_json_output(
-        self, mock_validate: Mock, mock_find: Mock, mock_locate: Mock, tmp_path: Path
+        self,
+        mock_validate: Mock,
+        mock_find: Mock,
+        mock_locate: Mock,
+        mock_get_current_branch: Mock,
+        mock_resolve_target_branch: Mock,
+        tmp_path: Path,
     ):
         """Should validate prerequisites and output JSON format."""
         # Setup
@@ -830,11 +844,25 @@ class TestCheckPrerequisitesCommand:
         assert "Warnings:" in result.stdout
         assert "Missing recommended directory: checklists/" in result.stdout
 
+    @patch(
+        "specify_cli.cli.commands.agent.mission.get_current_branch",
+        return_value="main",
+    )
+    @patch(
+        "specify_cli.cli.commands.agent.mission_check_prerequisites._resolve_feature_target_branch",
+        return_value="main",
+    )
     @patch("specify_cli.cli.commands.agent.mission.locate_project_root")
     @patch("specify_cli.cli.commands.agent.mission._find_feature_directory")
     @patch("specify_cli.cli.commands.agent.mission.validate_feature_structure")
     def test_paths_only_flag_json(
-        self, mock_validate: Mock, mock_find: Mock, mock_locate: Mock, tmp_path: Path
+        self,
+        mock_validate: Mock,
+        mock_find: Mock,
+        mock_locate: Mock,
+        mock_get_current_branch: Mock,
+        mock_resolve_target_branch: Mock,
+        tmp_path: Path,
     ):
         """Should output only paths when --paths-only flag is used."""
         # Setup
@@ -1236,29 +1264,10 @@ requirement_refs:
                 "specify_cli.cli.commands.agent.mission._show_branch_context",
                 return_value=(None, "main"),
             ),
-            # ``finalize-tasks`` enforces write-ownership via
-            # ``resolve_checkout_identity(Path.cwd(), Intent.WRITE)`` — it refuses
-            # unless the invoking checkout owns its canonical target. That reads
-            # the AMBIENT checkout, not the mocked ``locate_project_root``: green
-            # in a ``main`` CI checkout (its ``.git`` is a directory → self-owned),
-            # but a linked worktree (``.git`` is a pointer file → foreign) is
-            # refused with CHECKOUT_WRITE_OWNERSHIP_REFUSED. Pin a self-owned
-            # identity so the test is deterministic regardless of the worktree it
-            # runs in. This only removes the incidental ownership gate so the
-            # requirement-refs parse under test is reachable — the ownership-refusal
-            # behaviour itself is guarded separately by
-            # ``tests/specify_cli/core/test_checkout_identity.py`` (and the
-            # architectural fail-closed single-channel tests), which this pin does
-            # not weaken.
-            patch(
-                "specify_cli.cli.commands.agent.mission_finalize.resolve_checkout_identity",
-                return_value=CheckoutIdentity(
-                    invoking_root=tmp_path,
-                    canonical_target=tmp_path,
-                    is_owner=True,
-                    intent=Intent.WRITE,
-                ),
-            ),
+            # ``finalize-tasks`` resolves write ownership from the ambient
+            # checkout, not the mocked project root. The fixture root is the
+            # canonical target, so running there makes the test deterministic.
+            contextlib.chdir(tmp_path),
             patch(
                 "specify_cli.coordination.commit_router.commit_for_mission",
                 return_value=CommitRouterResult(

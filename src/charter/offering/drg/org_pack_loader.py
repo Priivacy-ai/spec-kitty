@@ -672,7 +672,7 @@ def _collect_governance_scope_edges(pack_root: Path) -> list[_ProjectedOrgDRGEdg
     (heavier) migration extractor into every consumer; org-pack loading is not a
     hot path.
     """
-    from doctrine.drg.org_governance import (  # noqa: PLC0415 — lazy: keeps the migration extractor off this module's import surface (org-pack load is cold)
+    from charter.offering.drg.org_governance import (  # noqa: PLC0415 — lazy: keeps the migration extractor off this module's import surface (org-pack load is cold)
         collect_org_governance_scope_edges,
     )
 

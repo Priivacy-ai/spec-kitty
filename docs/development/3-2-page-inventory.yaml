@@ -1172,6 +1172,12 @@
   owning_workstream: none
   current_target: true
   notes: null
+- path: docs/api/auth-whoami-output.md
+  tag: current
+  divio_type: none
+  owning_workstream: none
+  current_target: true
+  notes: null
 - path: docs/api/batch-api-contract.md
   tag: current
   divio_type: reference
@@ -2097,6 +2103,12 @@
   current_target: true
   notes: null
 - path: docs/contracts/index.md
+  tag: current
+  divio_type: none
+  owning_workstream: none
+  current_target: true
+  notes: null
+- path: docs/convergence/interim-ci-producer.md
   tag: current
   divio_type: none
   owning_workstream: none
@@ -4311,6 +4323,12 @@
   current_target: true
   notes: null
 - path: docs/plans/investigations/issue-1111-analysis.md
+  tag: current
+  divio_type: none
+  owning_workstream: none
+  current_target: true
+  notes: null
+- path: docs/plans/investigations/issue-797-events-tracker-fork-census.md
   tag: current
   divio_type: none
   owning_workstream: none

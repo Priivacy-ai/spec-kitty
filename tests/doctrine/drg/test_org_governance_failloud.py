@@ -164,7 +164,7 @@ class TestOrgGovernanceScopeEdgeMinting:
     def test_org_loader_mints_scope_edge_for_selection(self, tmp_path: Path) -> None:
         """``load_org_pack`` projects a ``selected_*`` entry into a
         ``mission_type --scope--> <artifact>`` fragment edge (T014)."""
-        from doctrine.drg.org_pack_loader import load_org_pack
+        from charter.offering.drg.org_pack_loader import load_org_pack
 
         pack_root = tmp_path / "pack"
         _write_org_pack(pack_root, [_VALID_PROFILE])
@@ -186,7 +186,7 @@ class TestOrgGovernanceScopeEdgeMinting:
         """A fictional ``selected_*`` is still minted -- it becomes a dangling
         scope edge in the fragment, which the merged-graph validation (not a
         pre-merge single-pack read) then raises on."""
-        from doctrine.drg.org_pack_loader import load_org_pack
+        from charter.offering.drg.org_pack_loader import load_org_pack
 
         pack_root = tmp_path / "pack"
         _write_org_pack(pack_root, [_FICTIONAL_PROFILE])

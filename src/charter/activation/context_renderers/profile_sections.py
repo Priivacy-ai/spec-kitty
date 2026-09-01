@@ -80,6 +80,10 @@ _PROFILE_TOOLGUIDES_HEADER_TPL = "Profile-Cited Toolguides ({profile_id}):"
 # inline citation list, so the header reads "Resolved" rather than "Cited".
 _PROFILE_PROCEDURES_HEADER_TPL = "Profile-Resolved Procedures ({profile_id}):"
 _PROFILE_CODE_CHANGE_WHEN = "are about to apply a code change"
+_STYLEGUIDE_TOOLGUIDE_POINTER_ONLY_REASON = (
+    "Styleguide and toolguide bodies vary in shape and are fetched on demand "
+    "under the NFR-001 token budget."
+)
 
 # --- WP01: suggests-delivery render policy (C4) -----------------------------
 # The NodeKind values the profile channel delivers when it reaches an artefact
@@ -575,6 +579,16 @@ def _render_profile_tactics(
     )
 
 
+_PROFILE_SECTION_RENDERERS = (
+    _render_profile_directives,
+    _render_profile_tactics,
+    render_profile_styleguides,
+    render_profile_toolguides,
+    render_profile_procedures,
+    render_profile_suggested_doctrine,
+)
+
+
 def _render_profile_sections(
     profile: AgentProfile | None,
     service: object,
@@ -590,24 +604,9 @@ def _render_profile_sections(
     """
     if profile is None:
         return ""
-    section_renderers = (
-        _render_profile_directives,
-        _render_profile_tactics,
-        render_profile_styleguides,
-        render_profile_toolguides,
-        render_profile_procedures,
-        # WP01 (doctrine-delivery-activation-01KYQVQK): the channel-resolved
-        # ``suggests``-delivery section — the profile channel now follows
-        # ``suggests``, delivering the #3063 A–E families (paradigm/tactic/…) as
-        # ``when``-labelled links. Distinct from the C-007 deferral of
-        # schema-attested INLINE citation of asset/anti-pattern/paradigm kinds:
-        # this delivers what the CHANNEL reaches, as ``render_profile_procedures``
-        # already does.
-        render_profile_suggested_doctrine,
-    )
     blocks = [
         "\n".join(lines)
-        for renderer in section_renderers
+        for renderer in _PROFILE_SECTION_RENDERERS
         if (lines := renderer(profile, service))
     ]
     return "\n\n".join(blocks)
