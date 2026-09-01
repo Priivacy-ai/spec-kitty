@@ -385,7 +385,7 @@ def _charter_bundle_name_bindings(tree: ast.Module) -> dict[str, str]:
        blind spot from (1): a local alias never touches ``charter.bundle`` at
        all, so the import-based resolution above cannot see it, yet the
        presence-gate shape it feeds is identical. Two real, live sites
-       (``src/charter/sync.py`` / ``src/charter/pack_manager.py``) use exactly
+       (``src/charter/activation/sync.py`` / ``src/charter/activation/pack_manager.py``) use exactly
        this form.
     """
     bindings: dict[str, str] = {}

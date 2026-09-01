@@ -1,4 +1,4 @@
-"""Unit tests for ``charter.activation_engine.promote_activations`` (WP06, T022).
+"""Unit tests for ``charter.activation.activation_engine.promote_activations`` (WP06, T022).
 
 ``promote_activations`` is the append-only promotion primitive shared by the
 config-seeded migration + interview command (WP07) and the org-pack
@@ -15,7 +15,7 @@ Covers:
   key preserves all-built-ins-active (the caller-supplied ``default_ids`` are
   unioned into the plan before the promoted IDs are appended) rather than
   writing a bare restrictive list. Pinned against
-  ``charter.pack_context.PackContext.from_config``'s three-state absent-key
+  ``charter.activation.pack_context.PackContext.from_config``'s three-state absent-key
   contract so a ~19-built-in drop regression would fail this test.
 - T022(c): this module carries no ``specify_cli`` import (layer rule,
   C-001) — a static AST guard, matching the style of the other layer-rule
@@ -30,8 +30,8 @@ from typing import Any
 import pytest
 from ruamel.yaml import YAML
 
-from charter.activation_engine import ActivationPlan, promote_activations
-from charter.pack_context import PackContext
+from charter.activation.activation_engine import ActivationPlan, promote_activations
+from charter.activation.pack_context import PackContext
 
 pytestmark = pytest.mark.unit
 

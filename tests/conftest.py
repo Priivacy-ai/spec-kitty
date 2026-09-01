@@ -453,7 +453,7 @@ def _isolate_global_encoding_provenance(
 ) -> None:
     """Keep relative charter provenance writes inside each test sandbox.
 
-    ``charter._io`` intentionally routes non-mission inputs to the relative
+    ``charter.activation._io`` intentionally routes non-mission inputs to the relative
     ``.kittify/encoding-provenance/global.jsonl`` sink.  Tests commonly load
     absolute files from ``tmp_path`` while pytest's process CWD remains the
     source checkout; under xdist those otherwise append the same ignored
@@ -462,7 +462,7 @@ def _isolate_global_encoding_provenance(
     the production resolver unchanged, and CLI subprocesses retain their own
     project CWD.
     """
-    import charter._io as charter_io
+    import charter.activation._io as charter_io
 
     original_route = charter_io._route_provenance_path
     isolated_sink = tmp_path / ".kittify" / "encoding-provenance" / "global.jsonl"

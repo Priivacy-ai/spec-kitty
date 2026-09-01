@@ -21,7 +21,7 @@ These tests assert resolution via two independent, non-fakeable routes:
    (:func:`charter.offering.drg.query.resolve_transitive_refs`) starting from an
    activated directive -- proves the graph edge exists, not just that a
    string appears somewhere.
-2. The real charter compiler (:func:`charter.compiler.compile_charter`)
+2. The real charter compiler (:func:`charter.activation.compiler.compile_charter`)
    against the project's own interview answers and a real
    ``charter.offering.service.DoctrineService`` rooted at ``src/doctrine`` -- proves
    the resolved reference carries the tactic's actual body (``purpose``),
@@ -35,8 +35,8 @@ from pathlib import Path
 
 import pytest
 
-from charter.compiler import compile_charter
-from charter.interview import read_interview_answers
+from charter.activation.compiler import compile_charter
+from charter.activation.interview import read_interview_answers
 from charter.offering.drg.loader import load_built_in_graph
 from charter.offering.drg.models import DRGGraph, Relation
 from charter.offering.drg.query import resolve_transitive_refs

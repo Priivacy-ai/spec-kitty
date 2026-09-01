@@ -12,7 +12,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from pathlib import Path
 
-from charter.resolver import (
+from charter.activation.resolver import (
     GovernanceResolutionError,
     resolve_project_governance,
 )

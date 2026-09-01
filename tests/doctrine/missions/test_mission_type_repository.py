@@ -429,7 +429,7 @@ def _builtin_mission_types_dir() -> Path:
 
 @dataclass(frozen=True)
 class _StubPackContext:
-    """Minimal structural stand-in for ``charter.pack_context.PackContext``.
+    """Minimal structural stand-in for ``charter.activation.pack_context.PackContext``.
 
     Mirrors ``tests/doctrine/missions/test_mission_step_resolver.py``'s own
     ``_StubPackContext`` -- satisfies ``_PackContextLike`` (``pack_roots``,

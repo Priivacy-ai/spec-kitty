@@ -247,7 +247,7 @@ def dangling_endpoints(graph: DRGGraph) -> list[DRGEdge]:
 
     Structured SSOT for "dangling edge" detection (charter-synthesize-
     reconciliation WP01, amendment #3). Both :func:`validate_dangling_references`
-    (string formatting, above) and ``charter.synthesizer.reconcile``
+    (string formatting, above) and ``charter.activation.synthesizer.reconcile``
     (preserved-vs-new-emit provenance classification) consume this so
     "dangling" has exactly one definition, never a second re-implementation.
 
@@ -266,7 +266,7 @@ def duplicate_edge_triples(graph: DRGGraph) -> list[DRGEdge]:
 
     Structured SSOT for "duplicate edge" detection (charter-synthesize-
     reconciliation WP01, amendment #3). Both :func:`_validate_duplicate_edges`
-    (string formatting, below) and ``charter.synthesizer.reconcile``
+    (string formatting, below) and ``charter.activation.synthesizer.reconcile``
     (preserved-vs-new-emit provenance classification) consume this so
     "duplicate" has exactly one definition. Returns the second-and-later
     occurrence of each repeated triple, in graph edge order -- mirrors the

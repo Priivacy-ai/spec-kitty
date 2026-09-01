@@ -39,13 +39,13 @@ from specify_cli.charter_runtime.freshness import (
     compute_freshness,
 )
 from charter.bundle import BUNDLE_CONTENT_HASH_FILES, compute_bundle_content_hash
-from charter.synthesizer import (
+from charter.activation.synthesizer import (
     FixtureAdapter,
     SynthesisRequest,
     SynthesisTarget,
     synthesize,
 )
-from charter.synthesizer.resynthesize_pipeline import run as resynthesize_run
+from charter.activation.synthesizer.resynthesize_pipeline import run as resynthesize_run
 
 
 pytestmark = [pytest.mark.fast]

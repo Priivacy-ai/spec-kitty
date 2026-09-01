@@ -8,7 +8,7 @@ These tests assert two facts on the *real* shipped DRG:
    ``StepContractExecutionContext.resolution_depth`` defaults to.
 
 The mission spec (C-007) explicitly forbids mocking
-``charter._drg_helpers.load_validated_graph`` or
+``charter.activation._drg_helpers.load_validated_graph`` or
 ``charter.offering.drg.query.resolve_context`` in real-runtime tests. These tests
 read the on-disk graph and call the production resolver directly.
 """
@@ -19,7 +19,7 @@ from pathlib import Path
 
 import pytest
 
-from charter._drg_helpers import load_validated_graph
+from charter.activation._drg_helpers import load_validated_graph
 from charter.offering.drg.query import resolve_context
 
 # The 5 advancing research actions covered by the mission-runtime sidecar.

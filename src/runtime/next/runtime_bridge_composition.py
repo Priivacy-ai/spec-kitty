@@ -179,7 +179,7 @@ def _should_dispatch_via_composition(
     # without it skip directly to the custom widening path.
     if repo_root is not None:
         try:
-            from charter.mission_type_profiles import (  # noqa: PLC0415
+            from charter.activation.mission_type_profiles import (  # noqa: PLC0415
                 resolve_mission_type_context,
             )
 
@@ -335,7 +335,7 @@ def _composition_dispatch_inputs(
 
     if (mission, action) in _ACTION_PROFILE_DEFAULTS:
         try:
-            from charter.mission_type_profiles import (  # noqa: PLC0415
+            from charter.activation.mission_type_profiles import (  # noqa: PLC0415
                 resolve_mission_type_context,
             )
 

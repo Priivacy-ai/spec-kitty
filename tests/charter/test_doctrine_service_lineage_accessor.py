@@ -17,8 +17,8 @@ from unittest.mock import MagicMock
 
 import pytest
 
-from charter.pack_context import PackContext
-from charter.resolver import DoctrineService
+from charter.activation.pack_context import PackContext
+from charter.activation.resolver import DoctrineService
 from charter.offering.agent_profiles import AgentProfileRepository
 from charter.offering.service import DoctrineService as InnerDoctrineService
 

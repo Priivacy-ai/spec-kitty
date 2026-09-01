@@ -150,7 +150,7 @@ from typing import TYPE_CHECKING, Any
 from kernel.clock import now_utc_iso
 
 if TYPE_CHECKING:
-    from charter.invocation_context import OperationalContext as OperationalContextT
+    from charter.activation.invocation_context import OperationalContext as OperationalContextT
 
 from runtime.next._internal_runtime import (
     DiscoveryContext,
@@ -664,6 +664,9 @@ def _finalized_task_board_override_step(
     This is intentionally narrow: it only overrides stale early runtime phases
     after a mission already has tasks.md, finalized WP files, and canonical WP
     lane state. It does not reorder non-finalized mission DAG execution.
+    A board whose WPs all reach acceptable endings reports ``accept``; ``done``
+    remains reserved for a board whose reduced lanes are all done, so an
+    operator-canceled WP is never reported as done.
     """
     if progress is None:
         return None
@@ -684,51 +687,53 @@ def _finalized_task_board_override_step(
     if _find_first_wp_by_lane(feature_dir, "in_review", status_dir=status_dir) is not None:
         return "blocked:review_in_progress"
 
-    acceptable_endings = _count_acceptable_wp_endings(
+    done_endings, acceptable_endings = _count_wp_endings(
         feature_dir,
         status_dir=status_dir,
     )
-    done = int(progress.get("done_wps", 0) or 0)
-    if done == total:
-        return "done"
     if acceptable_endings == total:
-        return "accept"
+        return "done" if done_endings == total else "accept"
     return "blocked:no_actionable_wp"
 
 
-def _count_acceptable_wp_endings(
+def _reduced_wp_lane(wp_snapshot: Mapping[str, Any] | None) -> str:
+    """Return the canonical lane slot from a reduced WP snapshot."""
+    if wp_snapshot is None:
+        return str(Lane.UNINITIALIZED)
+    return str(wp_snapshot.get("lane", Lane.GENESIS))
+
+
+def _count_wp_endings(
     feature_dir: Path,
     *,
     status_dir: Path | None = None,
-) -> int:
-    """Count WP files whose reduced lane is an acceptable mission ending."""
+) -> tuple[int, int]:
+    """Count WP files whose reduced lanes are done and acceptable endings."""
     tasks_dir = feature_dir / "tasks"
     if not tasks_dir.is_dir():
-        return 0
+        return 0, 0
 
     lane_read_dir = status_dir if status_dir is not None else feature_dir
     try:
         wp_snapshots = get_all_wp_snapshots(lane_read_dir)
     except CanonicalStatusNotFoundError:
-        return 0
+        return 0, 0
 
     acceptable_endings = 0
+    done_endings = 0
     for wp_file in sorted(tasks_dir.glob(TASKS_GLOB)):
         wp_match = re.match(r"(WP\d+)", wp_file.stem)
         wp_id = wp_match.group(1) if wp_match else wp_file.stem
         wp_snapshot = wp_snapshots.get(wp_id)
-        lane = (
-            wp_snapshot.get("lane", Lane.GENESIS)
-            if wp_snapshot is not None
-            else Lane.UNINITIALIZED
-        )
+        lane = _reduced_wp_lane(wp_snapshot)
+        if lane == str(Lane.DONE):
+            done_endings += 1
         if is_acceptable_ending(
-            str(lane),
+            lane,
             has_provenance=has_operator_provenance(wp_snapshot),
         ):
             acceptable_endings += 1
-    return acceptable_endings
-
+    return done_endings, acceptable_endings
 
 def _should_advance_wp_step(step_id: str, feature_dir: Path) -> bool:
     """Check if all WPs are done for this phase, meaning we should advance.
@@ -752,11 +757,7 @@ def _should_advance_wp_step(step_id: str, feature_dir: Path) -> bool:
         wp_match = re.match(r"(WP\d+)", wp_file.stem)
         wp_id = wp_match.group(1) if wp_match else wp_file.stem
         wp_snapshot = wp_snapshots.get(wp_id)
-        raw_lane = (
-            Lane(wp_snapshot.get("lane", Lane.GENESIS))
-            if wp_snapshot is not None
-            else Lane.UNINITIALIZED
-        )
+        raw_lane = _reduced_wp_lane(wp_snapshot)
         try:
             state = wp_state_for(raw_lane)
         except ValueError:

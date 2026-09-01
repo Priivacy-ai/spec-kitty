@@ -24,12 +24,12 @@ from __future__ import annotations
 
 import pytest
 
-from charter.context_renderers.profile_sections import (
+from charter.activation.context_renderers.profile_sections import (
     _PROFILE_SUGGESTS_DELIVERED_KINDS,
     _render_profile_sections,
     render_profile_suggested_doctrine,
 )
-from charter.progressive_disclosure import (
+from charter.activation.progressive_disclosure import (
     STATED_DEFAULT_WHEN,
     partition_delivery,
     profile_channel_references,
@@ -352,7 +352,7 @@ def test_delivered_kind_with_no_projectable_reference_is_skipped() -> None:
 
     ``reached`` is normally derived from a real graph walk, so every delivered
     artefact has an inbound edge from within ``reached ∪ seeds`` by
-    construction (see :func:`~charter.progressive_disclosure.profile_channel_references`).
+    construction (see :func:`~charter.activation.progressive_disclosure.profile_channel_references`).
     This fixture decouples the two on purpose -- the fake channel reports a
     tactic as reached even though the (edgeless) graph carries no path to it
     -- to exercise two per-kind guards in the same pass: every non-tactic kind

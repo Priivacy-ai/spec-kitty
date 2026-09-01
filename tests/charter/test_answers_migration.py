@@ -14,7 +14,7 @@ concerns, five tests:
   ``test_answers_migration_preserves_selected_assets_and_template_set``,
   ``test_answers_migration_changes_only_frozen_target_bytes``,
   ``test_answers_migration_failure_restores_preimage``).
-* ``charter.interview.write_interview_answers``'s ``fail_closed_on_
+* ``charter.activation.interview.write_interview_answers``'s ``fail_closed_on_
   regression`` opt-in -- a merge-then-guard serializer that preserves keys
   ``CharterInterview`` does not model and refuses to persist a change that
   would drop an answer or reset a known selection to empty
@@ -29,7 +29,7 @@ from pathlib import Path
 import pytest
 from ruamel.yaml import YAML
 
-from charter.interview import (
+from charter.activation.interview import (
     InterviewAnswersRegressionError,
     read_interview_answers,
     write_interview_answers,
@@ -216,7 +216,7 @@ def test_migration_skips_rename_when_both_legacy_and_canonical_keys_present(
     not be renamed: blindly renaming ``doctrine:`` -> ``charter:`` would
     produce two top-level ``charter:`` mapping keys, which the safe YAML
     loader rejects as a duplicate key. The migration mirrors
-    ``charter.sync.apply_legacy_governance_selection_key_compat``'s
+    ``charter.activation.sync.apply_legacy_governance_selection_key_compat``'s
     prefer-canonical behavior by leaving the file untouched instead."""
     content = "mission: software-dev\nprofile: minimal\n\ndoctrine:\n  template_set: legacy-set\n\ncharter:\n  template_set: canonical-set\n"
     path = _write_fixture(tmp_path, content)

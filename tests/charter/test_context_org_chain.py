@@ -4,7 +4,7 @@
 Root cause (see this WP's own review finding, SPEC-ARCH-002, and
 ``spec.md`` User Story 4's "Corrected scope" note): the truncation is not
 JSON-only. ``build_charter_context`` already routed through the
-self-resolving wrapper ``charter.action_doctrine_bundle._resolve_action_bundle``
+self-resolving wrapper ``charter.activation.action_doctrine_bundle._resolve_action_bundle``
 — but that wrapper only widens to the full org-pack chain when its caller
 passes ``org_root=None``; an *explicit* (already-truncated) ``org_root`` is
 honoured verbatim and never widens. ``build_charter_context_json`` had a
@@ -32,7 +32,7 @@ proven present, mirroring ``tests/specify_cli/mission_step_contracts/
 test_executor.py``'s ``write_org_tier_step_contract_fixture``/
 ``write_second_org_pack_fixture`` chain-fixture pattern (that module proves
 the analogous #3525 DRG-merge fix at the executor seam; this module proves
-FR-002's caller-level fix at the ``charter.context`` public API seam).
+FR-002's caller-level fix at the ``charter.activation.context`` public API seam).
 """
 
 from __future__ import annotations
@@ -44,7 +44,7 @@ from unittest.mock import patch
 
 import pytest
 
-from charter.context import build_charter_context, build_charter_context_json
+from charter.activation.context import build_charter_context, build_charter_context_json
 from charter.offering.drg.loader import load_graph_or_dir
 
 pytestmark = pytest.mark.fast
@@ -181,7 +181,7 @@ def _render_both(repo_root: Path, tmp_path: Path) -> tuple[str, dict[str, object
     chain."""
     mock_built_in = _isolated_built_in_graph(tmp_path)
     with patch(
-        "charter._drg_helpers.load_built_in_graph",
+        "charter.activation._drg_helpers.load_built_in_graph",
         return_value=mock_built_in,
     ):
         text_result = build_charter_context(
@@ -427,7 +427,7 @@ class TestContextCliTwoPackChain:
 
         mock_built_in = _isolated_built_in_graph(tmp_path)
         with patch(
-            "charter._drg_helpers.load_built_in_graph",
+            "charter.activation._drg_helpers.load_built_in_graph",
             return_value=mock_built_in,
         ):
             runner = CliRunner()

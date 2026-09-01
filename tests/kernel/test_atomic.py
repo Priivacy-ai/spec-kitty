@@ -141,7 +141,7 @@ class TestAtomicWriteImport:
         assert callable(aw)
 
     def test_importable_via_charter(self) -> None:
-        from charter.context import build_charter_context
+        from charter.activation.context import build_charter_context
         assert callable(build_charter_context)
 
 

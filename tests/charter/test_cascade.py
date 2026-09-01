@@ -1,4 +1,4 @@
-"""Unit tests for ``charter.cascade`` (WP11, T052).
+"""Unit tests for ``charter.activation.cascade`` (WP11, T052).
 
 Covers the pure cascade engine:
 
@@ -17,7 +17,7 @@ from __future__ import annotations
 
 import pytest
 
-from charter.cascade import (
+from charter.activation.cascade import (
     REFERENCE_RELATIONS,
     CascadeScope,
     DeactivationPlan,

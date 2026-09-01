@@ -1,8 +1,8 @@
 """CR-02 compat shim: `spec-kitty doctrine` CLI group -> canonical
 `spec-kitty charter` (mission `charter-code-topology-01M152G1` S4).
 
-Precedent for every CR shim in this mission: `charter.sync` CR-01
-(`src/charter/sync.py:245-311`) -- read-both / canonical-wins / warn-once.
+Precedent for every CR shim in this mission: `charter.activation.sync` CR-01
+(`src/charter/activation/sync.py:245-311`) -- read-both / canonical-wins / warn-once.
 CR-02 is a CLI-surface variant of that shape: the legacy group still WORKS
 (delegates to the exact same implementation) and warns; it is additionally
 hidden from top-level `--help` so it stops advertising itself as the

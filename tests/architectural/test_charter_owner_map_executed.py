@@ -47,37 +47,28 @@ def _repo_root() -> Path:
 _REPO_ROOT = _repo_root()
 _DOCTRINE_MD_PATH = _REPO_ROOT / "docs" / "context" / "charter.offering.md"
 _CHARTER_MD_PATH = _REPO_ROOT / "docs" / "context" / "charter.md"
+# The reachable EXP integration commit directly before the #854 port's WP01
+# changes. It is the same pre-port authority used by WP02's referrer guard.
+_WP01_BASE_COMMIT = "73609a064a444fbec6d1bd45d350574151017e1d"
 
 
 @functools.lru_cache(maxsize=1)
 def _resolve_wp01_base_commit() -> str | None:
-    """The point M1 branched from, resolved dynamically as the mission's true
-    base on its lane (``git merge-base upstream/main HEAD``).
+    """Return WP01's reachable pre-port EXP integration base.
 
-    Originally pinned to WP01's recorded literal base SHA
-    (``7b0c2d3ed53cd47ad50e4f75da84c7b9ca4c3044``,
-    tasks/WP01-glossary-quartet-parity.md frontmatter `base_commit`). But a
-    squash-merge onto a landing PR rewrites history and orphans any commit
-    pinned before the squash, so that SHA is unreachable post-squash --
-    ``git cat-file -e`` fails and the H4 diff below silently skips in EVERY
-    landed checkout, leaving the verify-no-op guard toothless. Resolving the
-    merge-base restores real teeth (same convention as
-    ``tests/glossary/test_canonical_promotion.py``'s
-    ``_resolve_wp02_base_commit`` and ``_home_pin_gate.py``'s ``HISTORY_REF``).
-
-    Returns ``None`` if ``upstream/main`` cannot be resolved locally (e.g. a
-    shallow clone with no ``upstream`` remote) -- callers skip rather than
-    false-red, consistent with ``_git_diff_is_empty``'s shallow-clone guard.
+    The old recorded upstream SHA was orphaned by the landing squash, while
+    ``upstream/main`` is not configured in EXP clones. This stable EXP commit
+    preserves the H4 comparison and still permits shallow-checkout skips.
     """
     result = subprocess.run(
-        ["git", "merge-base", "upstream/main", "HEAD"],
+        ["git", "cat-file", "-e", f"{_WP01_BASE_COMMIT}^{{commit}}"],
         cwd=_REPO_ROOT,
         capture_output=True,
         text=True,
     )
     if result.returncode != 0:
         return None
-    return result.stdout.strip()
+    return _WP01_BASE_COMMIT
 
 
 #: ``context-state.json`` is deliberately excluded here (see module
@@ -106,6 +97,11 @@ def _git_diff_is_empty(repo_root: Path, base_commit: str, path: Path) -> bool | 
         capture_output=True,
     )
     return result.returncode == 0
+
+
+def test_wp01_base_is_resolvable_from_exp_history() -> None:
+    """H4 must retain teeth in an ordinary EXP checkout without ``upstream``."""
+    assert _resolve_wp01_base_commit() is not None
 
 
 # ---------------------------------------------------------------------------
@@ -150,9 +146,7 @@ def test_h4_verify_no_op_files_unchanged_by_m1(target: Path) -> None:
     base_commit = _resolve_wp01_base_commit()
     if base_commit is None:
         pytest.skip(
-            "WP01 base commit (merge-base upstream/main HEAD) not resolvable in "
-            "this checkout (likely a shallow clone / no upstream remote) -- "
-            "cannot verify H4 no-op via git diff"
+            "WP01 EXP integration base not resolvable in this checkout (likely a shallow clone / no upstream remote) -- cannot verify H4 no-op via git diff"
         )
     is_empty = _git_diff_is_empty(_REPO_ROOT, base_commit, target)
     if is_empty is None:

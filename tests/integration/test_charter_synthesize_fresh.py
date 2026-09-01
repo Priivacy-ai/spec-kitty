@@ -17,7 +17,7 @@ from pathlib import Path
 import pytest
 from typer.testing import CliRunner
 
-from charter.synthesizer.manifest import load_yaml, verify_manifest_hash
+from charter.activation.synthesizer.manifest import load_yaml, verify_manifest_hash
 from specify_cli.cli.commands.charter import app as charter_app
 
 
