@@ -32,6 +32,7 @@ duplicated here.
 
 from __future__ import annotations
 
+import shlex
 import tempfile
 from dataclasses import dataclass
 from functools import cached_property
@@ -298,7 +299,8 @@ class DeclaredCommandScopeSource:
 
     def test_command(self) -> list[str] | None:
         """The runnable, fully-substituted, shell-ready argv — or ``None`` when
-        ``review.test_command`` is unset (FR-012).
+        ``review.test_command`` is unset (FR-012) or malformed (unbalanced
+        quoting).
 
         Reads the same config surface ``baseline._get_test_command`` reads
         (FR-011) — no new config key is invented.
@@ -316,8 +318,8 @@ class DeclaredCommandScopeSource:
         semantics — matching what :func:`run_configured_command` already
         gives every OTHER configured-command consumer in this codebase.
         Falls back to ``None`` (visible ``NO_COVERAGE``, never a crash — the
-        port's own invariant) when the platform has no POSIX shell to hand
-        this argv to.
+        port's own invariant) when the template is malformed or the platform
+        has no POSIX shell to hand this argv to.
         """
         from specify_cli.configured_command import (
             ConfiguredCommandUnsupported,
@@ -329,10 +331,11 @@ class DeclaredCommandScopeSource:
         if not command_template:
             return None
         try:
+            shlex.split(command_template)
             return build_shell_command_with_substitutions(
                 command_template, {"output_file": self._output_file}
             )
-        except ConfiguredCommandUnsupported:
+        except (ValueError, ConfiguredCommandUnsupported):
             return None
 
     def file_to_scope(self, _path: str) -> tuple[str, ...]:
