@@ -20,7 +20,7 @@ from pathlib import Path
 import pytest
 
 from charter.activation.cascade import (
-    REFERENCE_RELATIONS,
+    _REFERENCE_RELATIONS,
     CascadeScope,
     DeactivationPlan,
     NoCascadeReport,
@@ -184,7 +184,7 @@ def test_reference_relations_include_scope_and_instantiates() -> None:
             Relation.INSTANTIATES,
         }
     )
-    assert expected == REFERENCE_RELATIONS
+    assert expected == _REFERENCE_RELATIONS
 
 
 def test_tension_vocabulary_excluded_from_reference_relations() -> None:
@@ -203,7 +203,7 @@ def test_tension_vocabulary_excluded_from_reference_relations() -> None:
         frozenset(
             {Relation.IN_TENSION_WITH, Relation.RECONCILES_TENSION, Relation.REJECTS}
         )
-        & REFERENCE_RELATIONS
+        & _REFERENCE_RELATIONS
         == frozenset()
     )
 
