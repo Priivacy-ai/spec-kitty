@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import re
-import tomllib
 from pathlib import Path
 from typing import Any
 
@@ -206,17 +205,13 @@ def test_release_readiness_cutover_guard_avoids_git_direct_references() -> None:
     assert "pip install -e ." not in job_dump
     assert "git+https" not in job_dump
 
-    checkout = next(step for step in job["steps"] if step.get("name") == "Check out the pinned events source")
-    pyproject = tomllib.loads((ROOT / "pyproject.toml").read_text(encoding="utf-8"))
-    events_dependency = next(dependency for dependency in pyproject["project"]["dependencies"] if dependency.startswith("spec-kitty-events @ "))
-    pinned_rev = re.search(r"@([0-9a-f]{40})$", events_dependency)
-    assert pinned_rev is not None
-    assert checkout["with"]["ref"] == pinned_rev.group(1)
+    assert all(step.get("name") != "Check out the pinned events source" for step in job["steps"])
 
     install = next(step for step in job["steps"] if step.get("name") == "Install the source-only guard environment")
     assert "uv export --frozen --no-dev" in install["run"]
+    assert "grep -vE ' @ git[+]'" in install["run"]
     assert "python -m pip install -r .cutover-requirements.pypi.txt" in install["run"]
-    assert "python -m pip install --no-deps .cutover-deps/spec-kitty-events" in install["run"]
+    assert ".cutover-deps/spec-kitty-events" not in job_dump
 
     guard = next(step for step in job["steps"] if step.get("name") == "Run cutover guard (fail-closed on any un-cut-over mission)")
     assert "PYTHONPATH=src" in guard["run"]
