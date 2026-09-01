@@ -22,6 +22,7 @@ from specify_cli.acceptance import (
     resolve_acceptance_actor,
 )
 from specify_cli.acceptance.matrix import AcceptanceMatrixParseError
+from specify_cli.config.path_conventions import PathConventionsConfigError
 from specify_cli.core.paths import assert_safe_path_segment
 from specify_cli.migration.runtime_state_cutover import MissingMissionIdError
 from specify_cli.migration.verdict_provenance_backfill import stranded_verdict_findings
@@ -464,13 +465,6 @@ def _print_acceptance_summary(summary: AcceptanceSummary) -> None:
 
     _print_acceptance_warnings(summary)
 
-    if summary.optional_missing:
-        console.print(
-            "\n[yellow]Optional artifacts missing:[/yellow] "
-            + ", ".join(summary.optional_missing)
-        )
-        console.print()
-
 
 def _print_acceptance_result(result: AcceptanceResult) -> None:
     console.print(
@@ -606,6 +600,12 @@ def _collect_summary_with_optional_repair(
             strict_metadata=strict_metadata,
             mutate_matrix=mutate_matrix,
         )
+    except PathConventionsConfigError as exc:
+        # A malformed ``project.path_conventions`` section is a fail-closed operator
+        # config error (SC-007). Surface it as a clean accept blocking verdict through
+        # the command's ``except AcceptanceError`` handler (exit 1) rather than letting
+        # the typed exception reach typer as a raw traceback.
+        raise AcceptanceError(str(exc)) from exc
     except ArtifactEncodingError:
         if not normalize_encoding:
             raise
@@ -631,7 +631,11 @@ def accept(
     actor: str | None = typer.Option(None, "--actor", help="Name to record as the acceptance actor"),
     test: list[str] = typer.Option([], "--test", help="Validation command executed (repeatable)", show_default=False),
     json_output: bool = typer.Option(False, "--json", help="Emit JSON instead of formatted text"),
-    lenient: bool = typer.Option(False, "--lenient", help="Skip strict metadata validation"),
+    lenient: bool = typer.Option(
+        False,
+        "--lenient",
+        help="Skip strict metadata validation and downgrade missing path-convention checks to warnings",
+    ),
     no_commit: bool = typer.Option(False, "--no-commit", help="Report acceptance readiness without writing metadata or status changes"),
     diagnose: bool = typer.Option(False, "--diagnose", help="Diagnose acceptance blockers without writing metadata or matrix artifacts"),
     allow_fail: bool = typer.Option(False, "--allow-fail", help="Return checklist even when issues remain"),

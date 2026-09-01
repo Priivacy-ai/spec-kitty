@@ -21,7 +21,7 @@ satisfy to reach `approved`/`done`. The verdict vocabulary, JSON schema, and
 `in-mission` semantics for the issue matrix are **already documented** in
 [`ERROR_CODES.md`](../../../src/specify_cli/cli/commands/review/ERROR_CODES.md)
 and
-[`spec-kitty-mission-review/SKILL.md`](../../../src/doctrine/skills/spec-kitty-mission-review/SKILL.md) —
+[`spec-kitty-mission-review/SKILL.md`](../../../src/charter/offering/skills/spec-kitty-mission-review/SKILL.md) —
 this page cites them rather than restating them.
 
 ## Environment hygiene before review/PR
@@ -97,36 +97,6 @@ Resolve a skew warning the same way as any other lock drift:
 ```bash
 uv sync --frozen --all-extras
 ```
-
-## Running the CI residual selection locally
-
-CI runs an always-on `unit-contract-residual` job
-(`.github/workflows/ci-quality.yml`) that selects tests marked `unit` or
-`contract` which carry no other routed runnable marker -- the authoring-
-taxonomy residual (mission `ci-suite-map-bind`, closes #2034). Previously
-there was no way to run this exact selection locally before pushing, so a
-marker-orphan failure only ever surfaced in CI.
-
-Run it locally with:
-
-```bash
-spec-kitty review --check-residual
-```
-
-This skips the mission-scoped review gates and instead runs the CI
-residual `-m` selection over `tests/` locally, exiting with pytest's return
-code (`--mission` is not required for this flag). The `-m` expression is
-**read live** from the `unit-contract-residual` job in
-`.github/workflows/ci-quality.yml` at run time -- it is never hand-copied
-into the CLI, so a future change to the CI selector is picked up
-automatically on the next run with no risk of drift (NFR-002). The
-`_test_env_check` marker parser is pinned to `_gate_coverage`'s parser by
-`test_env_check_marker_parser_agrees_with_gate_coverage_live`, so the two
-readers of that `-m` expression cannot silently diverge.
-
-> **Note:** `--check-residual` runs the selection **serially** (plain
-> `pytest -m ...`), not with CI's parallel `-n auto --dist loadfile`. It
-> selects exactly the same tests as CI but takes longer to finish locally.
 
 ## Pre-review regression gate (`move-task --to for_review`)
 
@@ -280,7 +250,7 @@ re-authored), and the `in-mission` semantics (accepted at per-WP `approved`,
 **rejected on the mission `done` transition**) are already documented in
 [`ERROR_CODES.md`](../../../src/specify_cli/cli/commands/review/ERROR_CODES.md)
 and the Gate 4 section of
-[`spec-kitty-mission-review/SKILL.md`](../../../src/doctrine/skills/spec-kitty-mission-review/SKILL.md)
+[`spec-kitty-mission-review/SKILL.md`](../../../src/charter/offering/skills/spec-kitty-mission-review/SKILL.md)
 (C-008) — see those two for the full vocabulary and worked examples. This
 section covers only the genuinely-absent operational half: how a reference
 is *discovered*, and how a verdict is *recorded*.
@@ -325,8 +295,9 @@ aggregator's exemption is draft-*flag*-only -- not title-based -- so a
 **non-draft** PR that still carries a WIP prefix is a contradiction the gate
 rejects by design: requesting review while WIP-titled must not pass. To land,
 either drop the `WIP` / `[WIP]` prefix from the title, or keep the PR in draft
-until it is ready. (See the `DRAFT_GATED_JOBS` note in
-[`.github/workflows/ci-quality.yml`](../../../.github/workflows/ci-quality.yml).)
+until it is ready. (See the `DRAFT_GATED_JOBS` note that used to live in
+`.github/workflows/ci-quality.yml`, deleted per PROGRAM.md §2 / planning#57 —
+this repo runs no GitHub Actions.)
 
 ## PR body style: consumer-focused BLUF
 

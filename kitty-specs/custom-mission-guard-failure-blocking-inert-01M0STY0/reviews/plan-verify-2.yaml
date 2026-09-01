@@ -1,0 +1,23 @@
+schema: review-verify/v1
+complete: true
+phase: plan
+results:
+  - id: PLAN-FRESH-001
+    status: resolved
+    reason: >
+      tracer-tooling-friction.md's first entry now attributes the match to SK-65 alone
+      ("matches SK-65's milder variant — warned, stalled, then completed, JSON payload
+      returned") and separately names SK-63 as the more-severe non-completing sibling this
+      occurrence did NOT reproduce ("nor SK-63's more severe non-completing sibling (prints
+      its success JSON but then never exits or commits at all)"); this matches the ledger
+      verbatim — SK-63 (~line 4812) hangs forever after printing its success JSON without
+      committing, SK-65 (~line 4880) stalled ~95s then exited successfully, and SK-70's own
+      comparison text (~line 487, "SK-63 at least returns its JSON before hanging") confirms
+      SK-63 is the non-completing sibling, not a milder co-match.
+  - id: PLAN-FRESH-002
+    status: resolved
+    reason: >
+      plan.md's "Coverage budget note" (line 389) now reads "...see \"Gate set for this
+      mission\" § \"Coverage-floored shards\" above" and the "Coverage-floored shards" bullet
+      is confirmed at line 307, well before the note at line 388-389 in the same document, so
+      the directional pointer is now accurate.

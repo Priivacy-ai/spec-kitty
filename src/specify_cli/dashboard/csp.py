@@ -6,9 +6,8 @@ D2 replaces the current zero-CSP posture (no ``Content-Security-Policy``,
 constant policy string and one shared helper, applied uniformly to every
 route rather than only the HTML-serving ones (D2.md §6 decision 6).
 
-This is defense-in-depth, not the primary control: the primary control is
-that :mod:`specify_cli.render` never emits raw HTML from markdown content in
-the first place. Even if that grammar allow-list were somehow defeated,
+This is defense-in-depth, not the primary control: dashboard routes must not
+emit untrusted raw HTML. Even if an input-encoding defect were introduced,
 ``script-src 'self'`` with no ``'unsafe-inline'``/``'unsafe-eval'`` means an
 injected inline ``<script>`` still could not execute (D2.md §4 rows D3-D4).
 """

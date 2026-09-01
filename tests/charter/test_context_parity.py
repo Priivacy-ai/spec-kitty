@@ -1,4 +1,4 @@
-"""T017 (WP04, #2532) — non-trivial byte-parity baseline for ``charter.context``.
+"""T017 (WP04, #2532) — non-trivial byte-parity baseline for ``charter.activation.context``.
 
 Captured **after** WP01/WP02/WP03 land (Decision 10 / Decision 8 in
 ``research.md``): the corpus below traverses the three behaviour-bearing
@@ -47,12 +47,12 @@ from unittest.mock import patch
 
 import pytest
 
-from charter.context import (
+from charter.activation.context import (
     build_charter_context,
     build_charter_context_include,
     build_charter_context_json,
 )
-from doctrine.agent_profiles import AgentProfile
+from charter.offering.agent_profiles import AgentProfile
 
 pytestmark = [pytest.mark.fast]
 
@@ -199,16 +199,16 @@ class TestBootstrapCorpusParity:
         doctrine_root = _empty_doctrine_root(tmp_path)
         profile = _ghost_directive_profile()
 
-        from charter.profile_resolution import _reset_agent_profile_cache
+        from charter.activation.profile_resolution import _reset_agent_profile_cache
 
         _reset_agent_profile_cache()
         with (
             patch(
-                "charter.context._default_agent_profile_repository",
+                "charter.activation.context._default_agent_profile_repository",
                 return_value=_GhostProfileRepo(profile),
             ),
             patch(
-                "charter.catalog.resolve_doctrine_root",
+                "charter.activation.catalog.resolve_doctrine_root",
                 return_value=doctrine_root,
             ),
             # Post-relocation (mission relocate-builtin-doctrine-packs) the built-in
@@ -224,26 +224,26 @@ class TestBootstrapCorpusParity:
             #
             # Mission doctrine-built-in-seam-consolidation-01KYW3TX (WP01) routed the
             # directive repository's default through the ``built_in_dir(kind)``
-            # authority in ``doctrine.pack_paths`` (the join now lives there, not in
+            # authority in ``charter.offering.pack_paths`` (the join now lives there, not in
             # ``repository.py``), so the old ``...repository.resolve_pack_root`` patch
             # target no longer exists on this module. WP02 routed
-            # ``charter.catalog``'s own per-kind joins through the same
+            # ``charter.activation.catalog``'s own per-kind joins through the same
             # ``built_in_dir(kind)`` authority (removing its ``resolve_pack_root``
-            # import entirely), so the old ``charter.catalog.resolve_pack_root``
+            # import entirely), so the old ``charter.activation.catalog.resolve_pack_root``
             # patch target no longer exists there either. Patching
-            # ``charter.catalog.built_in_dir`` (all kinds -> under the empty root)
-            # and ``doctrine.directives.repository.built_in_dir`` directly (rather
-            # than ``doctrine.pack_paths.resolve_pack_root``) reproduces the exact
+            # ``charter.activation.catalog.built_in_dir`` (all kinds -> under the empty root)
+            # and ``charter.offering.directives.repository.built_in_dir`` directly (rather
+            # than ``charter.offering.pack_paths.resolve_pack_root``) reproduces the exact
             # same resolved paths scoped to only these two bindings, without
             # over-capturing every OTHER repository's built-in resolution in the same
             # render (paradigms/procedures/etc. still resolve their real built-in
             # content for this test).
             patch(
-                "charter.catalog.built_in_dir",
+                "charter.activation.catalog.built_in_dir",
                 side_effect=lambda kind: doctrine_root / kind.plural,
             ),
             patch(
-                "doctrine.directives.repository.built_in_dir",
+                "charter.offering.directives.repository.built_in_dir",
                 return_value=doctrine_root / "directives",
             ),
         ):
@@ -261,7 +261,7 @@ class TestBootstrapCorpusParity:
         doctrine_root = _empty_doctrine_root(tmp_path)
         profile = _ghost_directive_profile()
 
-        from charter.profile_resolution import _reset_agent_profile_cache
+        from charter.activation.profile_resolution import _reset_agent_profile_cache
 
         _reset_agent_profile_cache()
         state_path = tmp_path / ".kittify" / "charter" / "context-state.json"
@@ -269,11 +269,11 @@ class TestBootstrapCorpusParity:
 
         with (
             patch(
-                "charter.context._default_agent_profile_repository",
+                "charter.activation.context._default_agent_profile_repository",
                 return_value=_GhostProfileRepo(profile),
             ),
             patch(
-                "charter.catalog.resolve_doctrine_root",
+                "charter.activation.catalog.resolve_doctrine_root",
                 return_value=doctrine_root,
             ),
         ):

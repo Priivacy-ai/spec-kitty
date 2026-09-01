@@ -1,13 +1,13 @@
 """No :class:`NodeKind` may vanish at a kind-dispatch boundary (WP03, FR-003/SC-002).
 
-Two sites dispatch on :class:`~doctrine.drg.models.NodeKind` and drop what they
+Two sites dispatch on :class:`~charter.offering.drg.models.NodeKind` and drop what they
 do not name:
 
 ===========================================  ==============  ============
 Site                                         Shape           Kinds lost
 ===========================================  ==============  ============
-``doctrine.drg.query.resolve_transitive_refs``  16 buckets filled, 10 read out   6
-``charter.context._classify_artifact_urns``     4 branches, no ``else``          12
+``charter.offering.drg.query.resolve_transitive_refs``  16 buckets filled, 10 read out   6
+``charter.activation.context._classify_artifact_urns``     4 branches, no ``else``          12
 ===========================================  ==============  ============
 
 Both figures were re-derived by execution on this branch. **The two drops differ
@@ -56,7 +56,7 @@ They are not the same defect wearing two hats:
 Pinned behaviourally, not by code shape (#2532)
 -----------------------------------------------
 `#2532 <https://github.com/Priivacy-ai/spec-kitty/issues/2532>`_ decomposes
-``src/charter/context.py``, so the missing ``else`` lives inside a module about
+``src/charter/activation/context.py``, so the missing ``else`` lives inside a module about
 to be split apart. Every assertion below is therefore written against
 *observable outcomes* — "this kind survives the round trip", "an unruled kind
 raises" — and never against the presence of a branch, a line number, or a
@@ -74,9 +74,9 @@ from typing import cast
 
 import pytest
 
-from doctrine.drg.loader import load_graph_or_dir
-from doctrine.drg.models import DRGGraph, DRGNode, NodeKind, Relation
-from doctrine.drg.query import ResolveTransitiveRefsResult, resolve_transitive_refs
+from charter.offering.drg.loader import load_graph_or_dir
+from charter.offering.drg.models import DRGGraph, DRGNode, NodeKind, Relation
+from charter.offering.drg.query import ResolveTransitiveRefsResult, resolve_transitive_refs
 from tests.doctrine._builtin_inventory import shipped_builtin_node_count
 
 pytestmark = [pytest.mark.doctrine, pytest.mark.fast, pytest.mark.corpus]
@@ -185,7 +185,7 @@ def _every_id_readable_from(result: ResolveTransitiveRefsResult) -> set[str]:
 
 
 # ---------------------------------------------------------------------------
-# Site 1 -- doctrine.drg.query.resolve_transitive_refs
+# Site 1 -- charter.offering.drg.query.resolve_transitive_refs
 # ---------------------------------------------------------------------------
 
 
@@ -241,7 +241,7 @@ def test_named_buckets_and_per_kind_view_agree() -> None:
     """The legacy named fields and the per-kind view are one truth, not two.
 
     Callers still construct this result with named keyword arguments only
-    (``charter.compiler``, ``charter.reference_resolver``). If the per-kind
+    (``charter.activation.compiler``, ``charter.activation.reference_resolver``). If the per-kind
     view did not reflect those, closing the drop here would open a fresh one
     for anyone who reads the new surface.
     """
@@ -279,7 +279,7 @@ def test_anti_pattern_reachable_in_the_shipped_graph_survives() -> None:
 
 
 # ---------------------------------------------------------------------------
-# Site 2 -- charter.context._classify_artifact_urns
+# Site 2 -- charter.activation.context._classify_artifact_urns
 # ---------------------------------------------------------------------------
 
 
@@ -290,7 +290,7 @@ def test_action_bundle_rules_on_every_node_kind() -> None:
     verdict and this goes red — which is the only difference between an
     exclusion and an oversight.
     """
-    from charter.context import action_bundle_bucket
+    from charter.activation.context import action_bundle_bucket
 
     unruled = []
     for kind in NodeKind:
@@ -314,7 +314,7 @@ def test_action_bundle_projects_exactly_the_delivered_slots() -> None:
     projected set must equal the *stated* set exactly, so a future kind cannot
     be smuggled in unstated; only the stated set grew from four to six.
     """
-    from charter.context import action_bundle_bucket
+    from charter.activation.context import action_bundle_bucket
 
     projected = {
         kind: action_bundle_bucket(kind)
@@ -339,7 +339,7 @@ def test_unruled_kind_is_loud_at_the_action_bundle_boundary() -> None:
     total today would still pass ``test_action_bundle_rules_on_every_node_kind``
     while the runtime path silently swallowed anything outside it.
     """
-    from charter.context import action_bundle_bucket
+    from charter.activation.context import action_bundle_bucket
 
     with pytest.raises(LookupError, match="future_kind"):
         action_bundle_bucket(cast(NodeKind, _FutureNodeKind.FUTURE))
@@ -353,8 +353,7 @@ def test_classify_artifact_urns_propagates_the_loud_error() -> None:
     declaration currently lives. ``#2532`` may relocate either; it cannot make
     this pass with the drop reopened.
     """
-    from charter import context as context_module
-
+    from charter.activation import context as context_module
     class _UnruledNode:
         kind = _FutureNodeKind.FUTURE
 
@@ -424,7 +423,7 @@ def test_the_legacy_field_table_covers_every_named_field() -> None:
     """
     from dataclasses import fields
 
-    from doctrine.drg.query import _KIND_BY_LEGACY_FIELD, ResolveTransitiveRefsResult
+    from charter.offering.drg.query import _KIND_BY_LEGACY_FIELD, ResolveTransitiveRefsResult
 
     named = {f.name for f in fields(ResolveTransitiveRefsResult)} - {"unresolved", "by_kind"}
 

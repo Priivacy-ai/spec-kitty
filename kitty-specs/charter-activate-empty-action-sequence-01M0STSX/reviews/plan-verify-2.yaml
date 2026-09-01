@@ -1,0 +1,25 @@
+schema: review-verify/v1
+complete: true
+phase: plan
+results:
+  - id: PLAN-FRESH-001
+    status: resolved
+    reason: >-
+      The ATDD Sequencing opening paragraph (lines 366-377) now scopes the RED
+      requirement to commit 1's tests and commit 2's unit-level extends test,
+      and explicitly calls out commit 2's CLI-level AC4 test as a documented
+      GREEN exception "not part of C-011's RED signal for commit 2" — matching
+      commit 2's own body detail (lines 429-433) and the Project Structure
+      line's "AC4 GREEN-at-commit-2", with no remaining contradiction.
+  - id: PLAN-FRESH-002
+    status: resolved
+    reason: >-
+      The Project Structure tree comment (lines 525-527) now reads
+      "AC1-2 RED-first; AC3 stays covered by existing healthy-path CLI tests +
+      a new unit-level regression case, no new CLI test; AC4
+      GREEN-at-commit-2", and commit 2's own body (lines 425-428) was
+      corrected from "unlike AC1-3" to the same accurate AC1-2/AC3 split; both
+      match spec.md's Acceptance Scenarios 1-2 (AC1-2, covered by commit 1's
+      CLI test) vs Scenario 3 (AC3, existing CLI coverage plus commit 1's new
+      unit-level regression case). A repo-wide grep for "AC1-3"/"AC1–3" finds
+      no remaining instance of the overclaim.

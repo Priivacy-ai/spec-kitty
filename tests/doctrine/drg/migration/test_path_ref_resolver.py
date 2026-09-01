@@ -1,4 +1,4 @@
-"""Unit tests for doctrine.drg.migration.extractor._resolve_path_ref (T027).
+"""Unit tests for charter.offering.drg.migration.extractor._resolve_path_ref (T027).
 
 Covers:
 - Each of the 6 resolvable path patterns (hit cases).
@@ -17,19 +17,19 @@ from pathlib import Path
 
 import pytest
 
-from doctrine.drg.loader import built_in_graph_source
-from doctrine.drg.migration.extractor import (
+from charter.offering.drg.loader import built_in_graph_source
+from charter.offering.drg.migration.extractor import (
     _PATH_KIND_PATTERNS,  # noqa: PLC2701 – internal tested deliberately
     _resolve_path_ref,  # noqa: PLC2701 – internal tested deliberately
     extract_artifact_edges,
     generate_graph,
 )
-from doctrine.drg.models import Relation
-from doctrine.drg.validator import validate_graph
+from charter.offering.drg.models import Relation
+from charter.offering.drg.validator import validate_graph
 
 pytestmark = [pytest.mark.doctrine, pytest.mark.fast, pytest.mark.corpus]
 
-DOCTRINE_ROOT = Path(__file__).resolve().parents[4] / "src" / "doctrine"
+DOCTRINE_ROOT = Path(__file__).resolve().parents[4] / "src" / "charter" / "offering"
 
 
 # ---------------------------------------------------------------------------
@@ -42,27 +42,27 @@ class TestResolvePathRefHitPatterns:
 
     def test_tactic_built_in_flat(self) -> None:
         result = _resolve_path_ref(
-            "src/doctrine/tactics/built-in/tdd-red-green-refactor.tactic.yaml"
+            "src/charter/offering/tactics/built-in/tdd-red-green-refactor.tactic.yaml"
         )
         assert result == ("tactic", "tdd-red-green-refactor")
 
     def test_tactic_built_in_subdirectory(self) -> None:
         """Tactic under a sub-directory resolves by filename stem only."""
         result = _resolve_path_ref(
-            "src/doctrine/tactics/built-in/testing/acceptance-test-first.tactic.yaml"
+            "src/charter/offering/tactics/built-in/testing/acceptance-test-first.tactic.yaml"
         )
         assert result == ("tactic", "acceptance-test-first")
 
     def test_paradigm_built_in(self) -> None:
         result = _resolve_path_ref(
-            "src/doctrine/paradigms/built-in/domain-driven-design.paradigm.yaml"
+            "src/charter/offering/paradigms/built-in/domain-driven-design.paradigm.yaml"
         )
         assert result == ("paradigm", "domain-driven-design")
 
     def test_directive_built_in_normalised(self) -> None:
         """Directive IDs must be normalised to DIRECTIVE_NNN form."""
         result = _resolve_path_ref(
-            "src/doctrine/directives/built-in/030-test-and-typecheck-quality-gate.directive.yaml"
+            "src/charter/offering/directives/built-in/030-test-and-typecheck-quality-gate.directive.yaml"
         )
         # artifact_to_urn normalises during edge building; _resolve_path_ref returns raw stem
         assert result is not None
@@ -73,44 +73,44 @@ class TestResolvePathRefHitPatterns:
 
     def test_styleguide_built_in(self) -> None:
         result = _resolve_path_ref(
-            "src/doctrine/styleguides/built-in/testing-principles.styleguide.yaml"
+            "src/charter/offering/styleguides/built-in/testing-principles.styleguide.yaml"
         )
         assert result == ("styleguide", "testing-principles")
 
     def test_toolguide_built_in(self) -> None:
         result = _resolve_path_ref(
-            "src/doctrine/toolguides/built-in/maven-review-checks.toolguide.yaml"
+            "src/charter/offering/toolguides/built-in/maven-review-checks.toolguide.yaml"
         )
         assert result == ("toolguide", "maven-review-checks")
 
     def test_procedure_built_in(self) -> None:
         result = _resolve_path_ref(
-            "src/doctrine/procedures/built-in/some-workflow.procedure.yaml"
+            "src/charter/offering/procedures/built-in/some-workflow.procedure.yaml"
         )
         assert result == ("procedure", "some-workflow")
 
     def test_agent_profile_built_in(self) -> None:
         result = _resolve_path_ref(
-            "src/doctrine/agent_profiles/built-in/java-jenny.agent.yaml"
+            "src/charter/offering/agent_profiles/built-in/java-jenny.agent.yaml"
         )
         assert result == ("agent_profile", "java-jenny")
 
     def test_paradigm_built_in_subdirectory(self) -> None:
         """A paradigm nested under a sub-directory resolves by filename stem only."""
         result = _resolve_path_ref(
-            "src/doctrine/paradigms/built-in/category/event-sourcing.paradigm.yaml"
+            "src/charter/offering/paradigms/built-in/category/event-sourcing.paradigm.yaml"
         )
         assert result == ("paradigm", "event-sourcing")
 
     def test_toolguide_built_in_subdirectory(self) -> None:
         result = _resolve_path_ref(
-            "src/doctrine/toolguides/built-in/ci/github-actions.toolguide.yaml"
+            "src/charter/offering/toolguides/built-in/ci/github-actions.toolguide.yaml"
         )
         assert result == ("toolguide", "github-actions")
 
     def test_styleguide_built_in_subdirectory(self) -> None:
         result = _resolve_path_ref(
-            "src/doctrine/styleguides/built-in/lang/python-style.styleguide.yaml"
+            "src/charter/offering/styleguides/built-in/lang/python-style.styleguide.yaml"
         )
         assert result == ("styleguide", "python-style")
 
@@ -123,7 +123,7 @@ class TestResolvePathRefHitPatterns:
 class TestResolvePathRefFlattenedHome:
     """The flattened ``packs/built-in/<kind>/…`` home (inner ``built-in`` dropped)
     resolves to the *same* ``(kind, stem)`` pair as the legacy
-    ``src/doctrine/<kind>/built-in/…`` home — the URN is keyed on the stem, not
+    ``src/charter/offering/<kind>/built-in/…`` home — the URN is keyed on the stem, not
     the prefix, so the graph is prefix-invariant (T017)."""
 
     def test_tactic_flattened_flat(self) -> None:
@@ -202,14 +202,14 @@ class TestResolvePathRefMissPatterns:
         assert _resolve_path_ref("docs/host-surface-parity.md") is None
 
     def test_doctrine_skills_readme_returns_none(self) -> None:
-        """skills/README.md matches src/doctrine/ but is not a recognised artifact kind."""
-        assert _resolve_path_ref("src/doctrine/skills/README.md") is None
+        """skills/README.md matches src/charter/offering/ but is not a recognised artifact kind."""
+        assert _resolve_path_ref("src/charter/offering/skills/README.md") is None
 
     def test_proposed_agent_profile_returns_none(self) -> None:
         """_proposed profiles are NOT built-in; they must not produce edges."""
         assert (
             _resolve_path_ref(
-                "src/doctrine/agent_profiles/_proposed/python-implementer.agent.yaml"
+                "src/charter/offering/agent_profiles/_proposed/python-implementer.agent.yaml"
             )
             is None
         )
@@ -428,14 +428,14 @@ class TestGraphWithStyleguideEdges:
 
         Post-WP03 (doctrine-tension-edges-01KY1WPC): "regenerated" means pure
         extraction plus the enumerable hand-authored overlay
-        (``doctrine.drg.migration.hand_authored_overlay``) — a bare
+        (``charter.offering.drg.migration.hand_authored_overlay``) — a bare
         regeneration can never mint the hand-authored tension/reconciliation/
         rejection edges or anti-pattern nodes (C-005), so it would never match
         the committed source even when nothing is actually stale.
         """
         import hashlib  # noqa: PLC0415 – local import to keep test self-contained
 
-        from doctrine.drg.migration.hand_authored_overlay import (  # noqa: PLC0415
+        from charter.offering.drg.migration.hand_authored_overlay import (  # noqa: PLC0415
             write_reference_graph_with_overlay,
         )
 

@@ -1,0 +1,48 @@
+schema: review-refute/v1
+complete: true
+phase: spec
+batch: 1
+verdicts:
+- id: SPEC-GOV-001
+  verdict: confirmed
+  reason: 'Verified spec.md lines 60-62 and 232 cite the exact absolute operator-local paths quoted; this
+    checkout is a real git repo on branch fix/cascade-asset-silent-drop-3705 with origin https://github.com/Priivacy-ai/spec-kitty.git
+    and HEAD commit ''spec: real spec for cascade-asset-silent-drop (#3705)'', and the cited paths live
+    outside the repo tree under the sibling SK-missions meta-directory, so the claim of a permanent public-PR
+    path leak is accurate.'
+- id: SPEC-GOV-002
+  verdict: confirmed
+  reason: Confirmed SC-005 (lines 289-291) is the only SC lacking a 'verified by <test/mechanism>' clause
+    or CI-checkable anchor (SC-001 to SC-004 and SC-006 all name or clearly imply an automated pytest
+    verifier), and ~/.hermes/skills/pr-prep/SKILL.md's PR-body step is generic (consumer impact, architecture,
+    test evidence, issue link) with no instruction to cross-reference spec FR/C items or ADR citations,
+    so no downstream mechanism is named to verify FR-006/C-003/SC-005.
+- id: SPEC-ARCH-001
+  verdict: confirmed
+  reason: Verified CascadeScope.selects (cascade.py line 178) returns True for any kind when is_all=True,
+    and both cascade_activation_targets (bucket = activated if scope.selects(ref.kind) else skipped) and
+    deactivation_plan (candidates.add gated on scope.selects) route solely through this predicate; FR-002's
+    'new field' language and Edge Case 3 only explicitly address the skipped_by_scope confusion for non-all
+    scopes, never the --cascade-all/activated-bucket path this finding describes, so the risk is real
+    and not structurally closed by the spec text.
+- id: SPEC-ARCH-002
+  verdict: confirmed
+  reason: FR-001 literally offers two implementation shapes (extend _referenced_artifacts or add 'a sibling
+    helper called alongside it'), and _referenced_artifacts's own docstring frames its kind-membership
+    test at cascade.py:291-292 as the sole authority ('One membership test - no per-specific-kind branch');
+    nothing in FR-001 requires a sibling helper to delegate to that same predicate rather than reimplement
+    it, so the duplication risk is a genuine, unclosed ambiguity.
+- id: SPEC-VERIFY-001
+  verdict: confirmed
+  reason: Verified NoCascadeReport.has_skipped (cascade.py:408-410) evaluates only any(self.skipped.values()),
+    and _render_no_cascade_warning (activate.py:404) returns before rendering anything when has_skipped
+    is False; FR-005 adds a new field but never updates this guard, and User Story 2's only Independent
+    Test fixture reuses User Story 1's mixed activatable-plus-kind-filtered fixture, so a kind-filtered-only
+    source under no-cascade is an untested, unguarded silent-drop path exactly as claimed.
+- id: SPEC-VERIFY-002
+  verdict: confirmed
+  reason: Verified the three existing line shapes are pinned literal f-strings in activate.py (Cascade-activated,
+    Skipped (out of scope), the no-cascade Warning) and restated as fixed strings in spec.md's Reflexivity
+    edge case, while FR-003/FR-005/FR-008 describe the new kind-filtered line only via content constraints
+    with no literal string or shared-rendering-helper requirement pinned anywhere in spec.md, so two implementers
+    could genuinely diverge on wording.

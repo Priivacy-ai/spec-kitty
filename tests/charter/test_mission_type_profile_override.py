@@ -4,7 +4,7 @@ Pins the FR-011 / C-005 contract: a project overrides a mission type's
 governance by dropping
 ``.kittify/doctrine/mission_types/<type>/governance-profile.yaml`` — resolved
 through the *existing* ``doctrine/base.py`` builtin → org → project overlay
-(field-merge + :class:`~doctrine.base.DoctrineLayerCollisionWarning`), **not** a
+(field-merge + :class:`~charter.offering.base.DoctrineLayerCollisionWarning`), **not** a
 bespoke second merge.  Covers:
 
 * the ``id == mission_type`` overlay invariant (model + shipped profiles);
@@ -24,13 +24,13 @@ from pathlib import Path
 import pytest
 from ruamel.yaml import YAML
 
-from charter.mission_type_profile_repository import MissionTypeProfileRepository
-from charter.mission_type_profiles import (
+from charter.activation.mission_type_profile_repository import MissionTypeProfileRepository
+from charter.activation.mission_type_profiles import (
     MissionTypeProfile,
     resolve_mission_type_context,
 )
-from doctrine.base import DoctrineLayerCollisionWarning
-from doctrine.missions.mission_type_repository import builtin_mission_type_ids
+from charter.offering.base import DoctrineLayerCollisionWarning
+from charter.offering.missions.mission_type_repository import builtin_mission_type_ids
 
 pytestmark = [pytest.mark.unit, pytest.mark.git_repo]
 

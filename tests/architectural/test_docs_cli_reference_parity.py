@@ -19,8 +19,8 @@ references to non-existent profile subcommands (FR-017).
 
 The :func:`test_doctrine_source_snippets_are_registered` guard (FR-011/FR-012)
 scans all ``spec-kitty …`` command snippets inside bash fences in the doctrine
-SOURCE (``src/doctrine/skills/**/*.md``,
-``src/doctrine/missions/mission-steps/**/*.md``) and asserts every extracted
+SOURCE (``src/charter/offering/skills/**/*.md``,
+``src/charter/offering/missions/mission-steps/**/*.md``) and asserts every extracted
 command path is a registered Typer surface.  Catches ``HARD`` drift (nonexistent
 command/group) introduced by skills and mission-step prompts; does NOT catch
 behavioral drift (e.g. a missing required flag whose absence triggers a resolver
@@ -199,6 +199,17 @@ def test_deprecated_paths_classified(reference_text: str, agent_reference_text: 
     )
 
 
+def test_retired_check_residual_option_is_absent(reference_text: str) -> None:
+    """The unreachable residual flag must not survive in help or docs."""
+    from typer.testing import CliRunner
+
+    result = CliRunner().invoke(_build_live_app(), ["review", "--help"])
+
+    assert result.exit_code == 0, result.output
+    assert "--check-residual" not in result.output
+    assert "--check-residual" not in reference_text
+
+
 # ---------------------------------------------------------------------------
 # FR-018: skill-doc / CLI parity guard for ``agent profile`` subcommands.
 # ---------------------------------------------------------------------------
@@ -208,7 +219,7 @@ def test_deprecated_paths_classified(reference_text: str, agent_reference_text: 
 #: agent copies under ``.claude/`` etc. propagate from it on upgrade, so they
 #: are intentionally out of scope here per C-006).
 _SKILL_DOCS = (
-    _REPO_ROOT / "src" / "doctrine" / "skills" / "ad-hoc-profile-load" / "SKILL.md",
+    _REPO_ROOT / "src" / "charter" / "offering" / "skills" / "ad-hoc-profile-load" / "SKILL.md",
 )
 
 #: Match ``spec-kitty agent profile <sub>`` where ``<sub>`` is a command token
@@ -275,8 +286,8 @@ def test_skill_docs_profile_subcommands_are_registered() -> None:
 #: propagate from SOURCE on ``spec-kitty upgrade`` and must not be separately
 #: maintained.
 _DOCTRINE_SOURCE_GLOBS: tuple[str, ...] = (
-    "src/doctrine/skills/**/*.md",
-    "src/doctrine/missions/mission-steps/**/*.md",
+    "src/charter/offering/skills/**/*.md",
+    "src/charter/offering/missions/mission-steps/**/*.md",
 )
 
 #: Ratchet allow-list.  Start empty after WP07 lands all 15 SOURCE fixes.

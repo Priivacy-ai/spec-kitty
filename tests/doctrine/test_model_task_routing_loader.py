@@ -13,7 +13,7 @@ Covers the non-fatal envelope required by the spec:
 
 Also asserts the package-data resolution contract shared with WP05: the
 loader's default path resolves to exactly
-``src/doctrine/model_task_routing/catalog/model-to-task_type.yaml`` via
+``src/charter/offering/model_task_routing/catalog/model-to-task_type.yaml`` via
 ``importlib.resources`` -- no "activation convention", no registry
 lookup.
 """
@@ -141,7 +141,7 @@ def _write_catalog(tmp_path: Path, content: str, name: str = "catalog.yaml") -> 
 
 
 def test_valid_catalog_loads_and_validates(tmp_path: Path) -> None:
-    from doctrine.model_task_routing.loader import load
+    from charter.offering.model_task_routing.loader import load
 
     catalog_path = _write_catalog(tmp_path, VALID_MINIMAL_CATALOG)
 
@@ -154,7 +154,7 @@ def test_valid_catalog_loads_and_validates(tmp_path: Path) -> None:
 
 
 def test_missing_catalog_returns_none(tmp_path: Path) -> None:
-    from doctrine.model_task_routing.loader import load
+    from charter.offering.model_task_routing.loader import load
 
     missing_path = tmp_path / "does-not-exist.yaml"
 
@@ -162,7 +162,7 @@ def test_missing_catalog_returns_none(tmp_path: Path) -> None:
 
 
 def test_whole_file_invalid_yaml_returns_none(tmp_path: Path) -> None:
-    from doctrine.model_task_routing.loader import load
+    from charter.offering.model_task_routing.loader import load
 
     catalog_path = _write_catalog(tmp_path, WHOLE_FILE_INVALID_YAML)
 
@@ -170,7 +170,7 @@ def test_whole_file_invalid_yaml_returns_none(tmp_path: Path) -> None:
 
 
 def test_empty_file_returns_none(tmp_path: Path) -> None:
-    from doctrine.model_task_routing.loader import load
+    from charter.offering.model_task_routing.loader import load
 
     catalog_path = _write_catalog(tmp_path, "")
 
@@ -183,7 +183,7 @@ def test_malformed_entry_raises_validation_error_not_swallowed(
     """A schema-invalid *entry* is a different failure mode than a
     whole-file-invalid document: it must not be silently absorbed into
     the loader's non-fatal envelope."""
-    from doctrine.model_task_routing.loader import load
+    from charter.offering.model_task_routing.loader import load
 
     catalog_path = _write_catalog(tmp_path, MALFORMED_ENTRY_CATALOG)
 
@@ -192,7 +192,7 @@ def test_malformed_entry_raises_validation_error_not_swallowed(
 
 
 def test_stale_catalog_is_flagged_not_dropped(tmp_path: Path) -> None:
-    from doctrine.model_task_routing.loader import load
+    from charter.offering.model_task_routing.loader import load
 
     catalog_path = _write_catalog(tmp_path, STALE_CATALOG)
 
@@ -203,7 +203,7 @@ def test_stale_catalog_is_flagged_not_dropped(tmp_path: Path) -> None:
 
 
 def test_catalog_without_freshness_policy_is_never_stale(tmp_path: Path) -> None:
-    from doctrine.model_task_routing.loader import load
+    from charter.offering.model_task_routing.loader import load
 
     catalog_path = _write_catalog(tmp_path, VALID_MINIMAL_CATALOG)
 
@@ -217,12 +217,12 @@ def test_default_path_resolves_via_package_data_not_activation() -> None:
     """Shared contract with WP05: the default catalog path is exactly
     package data resolved via importlib.resources -- no activation
     registry, no ArtifactKind lookup."""
-    from doctrine.model_task_routing.loader import default_catalog_path
+    from charter.offering.model_task_routing.loader import default_catalog_path
 
     resolved = default_catalog_path()
 
     assert resolved.parts[-4:] == (
-        "doctrine",
+        "offering",
         "model_task_routing",
         "catalog",
         "model-to-task_type.yaml",
@@ -234,7 +234,7 @@ def test_load_with_no_argument_resolves_the_shipped_catalog() -> None:
     load() with no override resolves the default package-data path and
     returns the parsed catalog (non-fatal, never raises). Proves WP01's
     default path and WP05's catalog location agree."""
-    from doctrine.model_task_routing.loader import load
+    from charter.offering.model_task_routing.loader import load
 
     result = load()
     assert result is not None
@@ -259,7 +259,7 @@ def test_shipped_catalog_never_expires(monkeypatch: pytest.MonkeyPatch) -> None:
     ``datetime.now(UTC)`` call, so the freeze point is ``loader_mod.now_utc``
     itself rather than a subclassed ``datetime.now``.
     """
-    from doctrine.model_task_routing import loader as loader_mod
+    from charter.offering.model_task_routing import loader as loader_mod
     from kernel.clock import UTC, datetime
 
     monkeypatch.setattr(loader_mod, "now_utc", lambda: datetime(2099, 1, 1, tzinfo=UTC))

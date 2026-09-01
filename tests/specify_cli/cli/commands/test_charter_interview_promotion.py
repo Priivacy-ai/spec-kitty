@@ -1,7 +1,7 @@
 """End-to-end CLI test: `spec-kitty charter interview` promotes selections (WP07, T024, FR-007).
 
 Proves the wiring between the `charter interview` command and
-``charter.activation_engine.promote_activations`` (via
+``charter.activation.activation_engine.promote_activations`` (via
 ``m_unify_charter_activation.resolve_selected_id_to_stem`` /
 ``load_default_pack_ids``) — the captured `selected_paradigms` /
 `selected_directives` must be append-promoted into

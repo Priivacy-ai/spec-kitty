@@ -11,15 +11,6 @@ capabilities:
 routing-priority: 85
 max-concurrent-tasks: 3
 
-context-sources:
-  doctrine-layers:
-    - architectural-guidelines
-    - design-principles
-  directives:
-    - arch-001
-  additional:
-    - system-design-handbook
-
 specialization:
   primary-focus: System architecture and component design
   secondary-awareness: Infrastructure patterns and deployment strategies

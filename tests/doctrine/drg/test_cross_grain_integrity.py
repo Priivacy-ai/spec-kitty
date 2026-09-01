@@ -3,16 +3,16 @@
 A mission type's governance is the union of its *type grain*
 (``governance-profile.yaml`` ``selected_*``) and its *action grain* (the
 union of every ``actions/<action>/index.yaml``, WP02's
-:func:`charter.action_grain.aggregate_action_grain`). A single artifact URN
+:func:`charter.activation.action_grain.aggregate_action_grain`). A single artifact URN
 MUST appear in **at most one** grain — a double declaration is a
 construction-time error
-(:class:`charter.mission_type_profiles.CrossGrainDoubleDeclarationError`),
+(:class:`charter.activation.mission_type_profiles.CrossGrainDoubleDeclarationError`),
 never a silent de-duplication (FR-013).
 
 This is the **load-bearing** enforcer for that invariant (ADR
 2026-07-14-2's Enduring-verification: FR-013's home is a doctrine-module +
 integration test with a non-vacuity twin). The resolver's lazy raise
-(``charter.mission_type_profiles.resolve_mission_type_context``, WP03) is
+(``charter.activation.mission_type_profiles.resolve_mission_type_context``, WP03) is
 only a fast-fail path; this gate is the regression-protection surface,
 exercised against the real shipped tree on every run.
 
@@ -20,7 +20,7 @@ T012 (gate)
 -----------
 For every shipped mission type: the union of the real type grain and the
 real action grain must not raise. This is exactly WP02's IC-11 dup-scan
-(:func:`charter.action_grain.scan_builtin_cross_grain_duplicates`) — that
+(:func:`charter.activation.action_grain.scan_builtin_cross_grain_duplicates`) — that
 helper **is** the assertion; this test does not re-implement the
 union/collision check (C-002).
 
@@ -64,19 +64,19 @@ from pathlib import Path
 
 import pytest
 
-from charter.action_grain import aggregate_action_grain, scan_builtin_cross_grain_duplicates
-from charter.mission_type_profiles import (
+from charter.activation.action_grain import aggregate_action_grain, scan_builtin_cross_grain_duplicates
+from charter.activation.mission_type_profiles import (
     CrossGrainDoubleDeclarationError,
     ResolvedGovernance,
     _profile_type_grain,
 )
-from charter.mission_type_profile_repository import MissionTypeProfileRepository
-from doctrine.missions.mission_type_repository import builtin_mission_type_ids
+from charter.activation.mission_type_profile_repository import MissionTypeProfileRepository
+from charter.offering.missions.mission_type_repository import builtin_mission_type_ids
 
 pytestmark = [pytest.mark.doctrine, pytest.mark.fast, pytest.mark.corpus]
 
 #: The shipped missions root: ``packs/built-in/missions`` (relocated from
-#: ``src/doctrine/missions`` by mission
+#: ``src/charter/offering/missions`` by mission
 #: doctrine-consumer-surface-missions-extraction-01KZ6G6H, FR-005).
 #: Path-derived from this file (mirrors ``test_shipped_graph_valid.py``'s
 #: ``SHIPPED_GRAPH`` constant) rather than a shared fixture, per the

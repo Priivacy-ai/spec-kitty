@@ -31,6 +31,8 @@ import logging
 from pathlib import Path
 from typing import TYPE_CHECKING, Literal
 
+from kernel.doctrine_root import LEGACY_DOCTRINE_DIRNAME
+
 if TYPE_CHECKING:
     from specify_cli.context.mission_resolver import ResolvedMission
 
@@ -183,8 +185,28 @@ def _feature_dir(repo_root: Path, mission_slug: str) -> Path:
 _GLOSSARY_BASE = Path(".kittify") / "glossary"
 #: Base path for project-local DRG overlay.
 _DRG_BASE = Path(".kittify") / "drg"
-#: Base path for project-local doctrine artifacts.
-_DOCTRINE_BASE = Path(".kittify") / "doctrine"
+#: Base path for project-local doctrine artifacts. CR-07 (mission
+#: ``charter-code-topology-01M152G1`` S4): this producer only ever WRITES
+#: (``mkdir`` + create) into this base -- an M3 concern (the actual data
+#: move + write-side cutover to ``.kittify/charter-packs``), not M2's
+#: read-side dual-root reader (``kernel.doctrine_root``). Composed from the
+#: single shared ``LEGACY_DOCTRINE_DIRNAME`` source rather than a re-spelled
+#: ``"doctrine"`` literal so a census over that constant finds this site too.
+_DOCTRINE_BASE = Path(".kittify") / LEGACY_DOCTRINE_DIRNAME
+
+#: CR-05 (mission ``charter-code-topology-01M152G1`` S4): the canonical
+#: ``target_urn`` scheme prefix this producer emits for newly-synthesized
+#: artifacts, replacing the retired ``doctrine:`` prefix. ``target_urn`` is
+#: an intentionally opaque, unconstrained identifier string everywhere it is
+#: consumed (``ProposalAppliedPayload.target_urn: str`` -- no format/prefix
+#: validation; see ``specify_cli.retrospective.events``) -- the durable
+#: event-log contract this CR must honor is therefore satisfied by
+#: construction: events already written with the legacy ``doctrine:`` prefix
+#: keep parsing exactly as before, and this producer only changes what NEW
+#: events look like going forward. Do not confuse with the 2-part DRG node
+#: URN space (``charter/offering/drg/merge.py``/``models.py``), which is a
+#: separate, unrelated URN scheme this CR explicitly does not touch.
+_TARGET_URN_SCHEME = "charter"
 
 
 def _assert_within(base: Path, target: Path) -> Path:
@@ -406,7 +428,7 @@ def _apply_synthesize(
     with artifact_path.open("w", encoding="utf-8") as fh:
         fh.write(payload.body)
 
-    target_urn = f"doctrine:{kind_slug}:{payload.artifact_id}"
+    target_urn = f"{_TARGET_URN_SCHEME}:{kind_slug}:{payload.artifact_id}"
     return target_urn, str(artifact_path)
 
 
@@ -660,7 +682,7 @@ def _plan_application(proposal: Proposal) -> PlannedApplication:
         (SynthesizeDirectivePayload, SynthesizeTacticPayload, SynthesizeProcedurePayload),
     ):
         kind_slug = payload.kind.replace("synthesize_", "")
-        targets = [f"doctrine:{kind_slug}:{payload.artifact_id}"]
+        targets = [f"{_TARGET_URN_SCHEME}:{kind_slug}:{payload.artifact_id}"]
         diff_preview = f"synthesize {kind_slug} {payload.artifact_id!r}"
     else:
         targets = ["unknown"]

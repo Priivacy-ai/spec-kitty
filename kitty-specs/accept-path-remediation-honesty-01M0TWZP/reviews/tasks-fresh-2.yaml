@@ -1,0 +1,53 @@
+schema: review-findings/v1
+complete: true
+phase: tasks
+lens_group: fresh2
+mission: accept-path-remediation-honesty-01M0TWZP
+findings:
+  - id: TASKS-FRESH2-001
+    lens: debugger-debbie / hypothesis-driven-debugging (does the mock actually reach the code path it claims to guard)
+    severity: 4
+    title: WP02 T009 Test (d)'s monkeypatched `SimpleNamespace` is only specified to carry `missing_paths_feature_relative`, but `evaluate_path_conventions` has two earlier guards (`missing_paths` truthiness, then `format_errors()`) that must also be satisfied before the dedup mutation code ever runs — leaving (d-ii), the sub-case TASKS-FRESH-003 added specifically as "the genuine regression guard," able to pass without ever exercising the membership filter
+    evidence:
+      - artifact: "tasks/WP02-stop-double-reporting.md § Subtask T009, step 4: \"Build it by monkeypatching `specify_cli.acceptance.summary_core.validate_mission_paths` ... returning a `SimpleNamespace` with a pre-set `missing_paths_feature_relative`\" — followed by an explicit \"but ... must be real lists\" / \"only needs to be non-empty\" list of extra mock requirements that names `mission.config.artifacts.optional`/`.required` and `mission.config.paths`, and conspicuously does not mention `path_result.missing_paths` or `path_result.format_errors`"
+      - code: "src/specify_cli/acceptance/summary_core.py:135-147 — `path_result = validate_mission_paths(...)`; `if not path_result.missing_paths: return [], None`; then, only inside `if strict_metadata:`, `return [path_result.format_errors() or _PATH_CONVENTIONS_NOT_SATISFIED], None` — both `missing_paths` (must be truthy) and `format_errors` (must be callable) are read from `path_result` before the dedup mutation WP02's T006 inserts into this same branch ever runs"
+      - code: "tests/specify_cli/acceptance/test_acceptance_cores.py:236-245 — the sibling `TestEvaluatePathConventions` tests this WP is told to \"match the convention\" of always set BOTH `missing_paths=[...]` and `format_errors=lambda: ...` on the mocked `SimpleNamespace`, not `missing_paths_feature_relative` alone"
+    claim: >
+      A `SimpleNamespace` built with only `missing_paths_feature_relative` set (as T009 step 4 literally
+      instructs) has no `missing_paths` attribute at all, so `if not path_result.missing_paths:` raises
+      `AttributeError` before the dedup code is reached — the test cannot even run as specified. The
+      likely fix path is copying the sibling class's fuller pattern (`missing_paths=[...],
+      format_errors=lambda: ...`), but T009's own explicit "must have" list for this mock (real
+      `artifacts.optional`/`.required`, non-empty `mission.config.paths`) omits both attributes, so an
+      implementer following the letter of the instructions has no signal they are required. Worse than the
+      crash case: if an implementer supplies `missing_paths` as some other falsy-but-present value (e.g.
+      forgets it needs to be non-empty rather than omitting it, or copies it as `[]` by habit from an
+      unrelated fixture), `evaluate_path_conventions` returns `[], None` at the first guard, before ever
+      touching `optional_missing_to_dedup` — the parameter is never mutated, so it stays equal to whatever
+      was passed in. For Test (d-ii) specifically (`optional_missing_to_dedup=["build-secrets"]`, asserted
+      to stay `== ["build-secrets"]` — i.e. "unchanged" is the PASSING outcome), this early return produces
+      the exact same "unchanged" result as a correctly-working membership filter would. TASKS-FRESH-003's
+      whole point in adding (d-ii) was to make it "the actual filter-presence regression guard" — the one
+      sub-case that flips if the `artifact_tokens` membership filter is removed or bypassed. An
+      under-specified mock that never reaches the dedup code at all defeats that purpose silently: the test
+      can go green for the wrong reason (early-return no-op) instead of the right one (filter correctly
+      excludes a non-artifact-tagged token), and nothing in T009's text would catch an implementer building
+      exactly this broken mock, since the crash case (missing `missing_paths` entirely) is the only failure
+      mode likely to be noticed during implementation.
+    remediation: >
+      Add the two missing requirements explicitly to T009 step 4's mock-construction instructions, next to
+      the existing "must be real lists" / "only needs to be non-empty" bullets: the monkeypatched
+      `SimpleNamespace` must also set `missing_paths` to a non-empty placeholder list (e.g. `["placeholder"]`
+      — its content is irrelevant to Test (d), only its truthiness matters for the first guard) and
+      `format_errors` to a callable returning any string (e.g. `lambda: "placeholder"`), matching the
+      sibling `TestEvaluatePathConventions` convention referenced in the same paragraph. Additionally,
+      require that Test (d)'s implementation explicitly asserts the dedup mutation actually ran (e.g. by
+      also checking `optional_missing_to_dedup` is not simply untouched-because-short-circuited — for
+      instance, pairing (d-ii)'s "stays unchanged" assertion with a companion case in the same test that is
+      known to flip, so a reviewer can distinguish "filter correctly excluded it" from "the function never
+      got there") rather than relying solely on an equality check that a no-op early return would also
+      satisfy.
+
+# Sanity check: .venv/bin/spec-kitty agent mission finalize-tasks --mission
+# accept-path-remediation-honesty-01M0TWZP --validate-only --json still reports
+# "result": "validation_passed" on this checkout (re-run during this review pass).

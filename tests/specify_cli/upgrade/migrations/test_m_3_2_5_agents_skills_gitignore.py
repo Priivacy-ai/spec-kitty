@@ -18,12 +18,14 @@ land them in the repo.
 
 from __future__ import annotations
 
+import os
 import subprocess
 from kernel.clock import now_utc
 from pathlib import Path
 
 import pytest
 
+from specify_cli.gitignore_manager import GitignorePathError
 from specify_cli.upgrade.metadata import ProjectMetadata
 from specify_cli.upgrade.migrations import auto_discover_migrations
 from specify_cli.upgrade.migrations.m_3_2_5_agents_skills_gitignore_backfill import (
@@ -115,6 +117,20 @@ def test_detect_false_when_both_entries_present(tmp_path: Path) -> None:
     _write_gitignore(tmp_path, _SKILLS_ROOT_ENTRY, _MANIFEST_ENTRY)
 
     assert AgentsSkillsGitignoreBackfillMigration().detect(tmp_path) is False
+
+
+def test_detect_rejects_symlinked_gitignore(tmp_path: Path) -> None:
+    """detect() must not follow a .gitignore that is a symlink (issue #626)."""
+    _init_git_repo(tmp_path)
+    outside_target = tmp_path.parent / f"outside-target-{os.getpid()}.txt"
+    outside_target.write_text("do-not-touch\n")
+    (tmp_path / ".gitignore").symlink_to(outside_target)
+
+    try:
+        with pytest.raises(GitignorePathError):
+            AgentsSkillsGitignoreBackfillMigration().detect(tmp_path)
+    finally:
+        outside_target.unlink(missing_ok=True)
 
 
 def test_detect_accepts_wholesale_agents_variant(tmp_path: Path) -> None:

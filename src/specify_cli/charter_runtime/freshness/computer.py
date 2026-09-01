@@ -74,7 +74,7 @@ All sub-objects are always present in the result; ``state="missing"`` is the
 default when a file is absent.
 
 LD-3 routing (FR-013 / WP07): the synthesis manifest is loaded through the
-``charter.synthesizer.manifest`` public read API (``load_yaml`` + the canonical
+``charter.activation.synthesizer.manifest`` public read API (``load_yaml`` + the canonical
 ``MANIFEST_PATH`` constant); the doctrine graph path is anchored to
 ``charter.bundle.DOCTRINE_DIR``. This consumes the chokepoint module's
 read-only surface without invoking ``ensure_charter_bundle_fresh``'s
@@ -91,14 +91,14 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Literal
 
 if TYPE_CHECKING:
-    from charter.synthesizer.manifest import SynthesisManifest
+    from charter.activation.synthesizer.manifest import SynthesisManifest
 
 from ruamel.yaml import YAML
 
 # LD-3 chokepoint imports are kept LAZY (inside
 # ``_load_synthesis_manifest_via_chokepoint``) to preserve NFR-003 latency.
-# Eagerly importing ``charter.bundle`` / ``charter.synthesizer.manifest``
-# at module-load time pulls in the full ``doctrine.service``,
+# Eagerly importing ``charter.bundle`` / ``charter.activation.synthesizer.manifest``
+# at module-load time pulls in the full ``charter.offering.service``,
 # ``jsonschema``, and ``rfc3987_syntax`` graph (>500 ms) onto the
 # ``spec-kitty next`` startup hot path. The architectural intent of LD-3
 # (consume reads through the chokepoint API, not raw YAML loads) is
@@ -187,7 +187,7 @@ _BUNDLE_FILES = (_CHARTER_YAML_FILENAME,)
 
 def _synthesis_manifest_path(repo_root: Path) -> Path:
     """Return the canonical synthesis manifest path via lazy chokepoint import."""
-    from charter.synthesizer.manifest import MANIFEST_PATH  # noqa: PLC0415
+    from charter.activation.synthesizer.manifest import MANIFEST_PATH  # noqa: PLC0415
 
     return repo_root / MANIFEST_PATH
 
@@ -197,11 +197,11 @@ def _doctrine_graph_path(repo_root: Path) -> Path:
 
     Both the doctrine dir and the graph filename are resolved lazily to keep
     this ``specify_cli`` module from eagerly importing the heavy
-    ``charter.synthesizer`` package at load time (LD-3 discipline). The graph
-    filename is single-sourced from the leaf ``charter.synthesizer._constants``.
+    ``charter.activation.synthesizer`` package at load time (LD-3 discipline). The graph
+    filename is single-sourced from the leaf ``charter.activation.synthesizer._constants``.
     """
     from charter.bundle import DOCTRINE_DIR  # noqa: PLC0415
-    from charter.synthesizer._constants import (  # noqa: PLC0415
+    from charter.activation.synthesizer._constants import (  # noqa: PLC0415
         GRAPH_FILENAME as _GRAPH_FILENAME,
     )
 
@@ -240,7 +240,7 @@ def _safe_load_yaml(path: Path) -> dict[str, object] | None:
 def _load_synthesis_manifest_via_chokepoint(repo_root: Path) -> SynthesisManifest | None:
     """Load the synthesis manifest through the chokepoint's read API.
 
-    Routes through ``charter.synthesizer.manifest.load_yaml`` (the canonical
+    Routes through ``charter.activation.synthesizer.manifest.load_yaml`` (the canonical
     typed reader) instead of an ad-hoc YAML parse. Returns ``None`` when the
     manifest is absent or fails validation — preserves the pre-WP07
     "missing/unreadable → None" fallback semantics that ``compute_freshness``
@@ -258,7 +258,7 @@ def _load_synthesis_manifest_via_chokepoint(repo_root: Path) -> SynthesisManifes
         return None
     # NFR-003: defer the chokepoint import until first call so module-import
     # of ``charter_freshness`` stays off the ``spec-kitty next`` hot path.
-    from charter.synthesizer.manifest import load_yaml as _chokepoint_load_manifest  # noqa: PLC0415
+    from charter.activation.synthesizer.manifest import load_yaml as _chokepoint_load_manifest  # noqa: PLC0415
     try:
         return _chokepoint_load_manifest(manifest_path)
     except Exception:  # noqa: BLE001 — manifest validation/parse errors are non-fatal here
@@ -370,7 +370,7 @@ def _compute_synthesized_drg(
     synced_bundle: FreshnessSubState,
 ) -> FreshnessSubState:
     # LD-3: synthesis manifest and graph reads are routed through the
-    # chokepoint module's public surface (``charter.synthesizer.manifest``
+    # chokepoint module's public surface (``charter.activation.synthesizer.manifest``
     # for the typed manifest; ``charter.bundle.DOCTRINE_DIR`` for the graph
     # location). No direct ``_safe_load_yaml`` reads of either file from this
     # module — see module docstring for the FR-013 routing contract.

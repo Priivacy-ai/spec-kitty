@@ -9,6 +9,14 @@ Event envelope format (one JSON line, sorted keys):
 
 The payload is validated by the Pydantic model before serialization.
 
+After the local JSONL append succeeds, both events are also offered on the
+same best-effort ``event.publish`` fan-out path already used by
+``WPStatusChanged``/``MissionCreated`` (``status.fire_lifecycle_saas_fanout``
+→ ``specify_cli.status.zeitgeist_bridge``). Fan-out is fire-and-forget: a
+relay outage, missing credential, or codec rejection is logged and dropped,
+never raised, and can never roll back or affect the local write that already
+happened above it.
+
 Defaults applied when the IndexEntry doesn't supply a value:
     - ``phase``:        ``entry.origin_flow.value.upper()``   (e.g. "CHARTER")
     - ``run_id``:       ``decision_id``                       (no run context in V1)
@@ -26,6 +34,7 @@ from __future__ import annotations
 
 from mission_runtime import MissionArtifactKind, placement_seam
 import json
+import logging
 from pathlib import Path
 from typing import Literal
 
@@ -37,6 +46,7 @@ from specify_cli.events import sanitize_event_for_log
 from spec_kitty_events.decisionpoint import (
     DECISION_POINT_OPENED,
     DECISION_POINT_RESOLVED,
+    DECISIONPOINT_SCHEMA_VERSION,
     DecisionPointOpenedInterviewPayload,
     DecisionPointResolvedInterviewPayload,
 )
@@ -50,6 +60,8 @@ __all__ = [
     "emit_decision_opened",
     "emit_decision_resolved",
 ]
+
+logger = logging.getLogger(__name__)
 
 _EVENTS_FILENAME = "status.events.jsonl"
 _MISSION_TYPE = "software-dev"  # default; V1 always software-dev
@@ -100,6 +112,43 @@ def _append_raw_event(events_path: Path, event_dict: dict) -> int:  # type: igno
     # Count non-empty lines (proxy for Lamport clock value)
     with events_path.open("r", encoding="utf-8") as fh:
         return sum(1 for ln in fh if ln.strip())
+
+
+def _queue_decision_fanout(
+    events_path: Path,
+    event_dict: dict,  # type: ignore[type-arg]
+    *,
+    mission_slug: str,
+) -> None:
+    """Best-effort ``event.publish`` fan-out for an already-persisted decision event.
+
+    Mirrors ``lifecycle_events.py``'s ``_queue_lifecycle_event_if_enabled``: this
+    is called only AFTER :func:`_append_raw_event` has returned, so a relay
+    outage or codec rejection can never affect the canonical local write.
+    ``fire_lifecycle_saas_fanout`` and every handler behind it already catch
+    and log their own failures; the ``except`` here is one more belt against
+    a defect in that chain reaching this seam, matching every other slot
+    wrapper in ``zeitgeist_bridge.py`` (e.g. ``lifecycle_moment_handler``) --
+    never let fan-out raise into a decision-emission caller.
+    """
+    from specify_cli.status import fire_lifecycle_saas_fanout
+
+    envelope = {
+        "event_id": event_dict["event_id"],
+        "event_type": event_dict["event_type"],
+        "aggregate_id": mission_slug,
+        "schema_version": DECISIONPOINT_SCHEMA_VERSION,
+        "timestamp": event_dict["at"],
+        "payload": event_dict["payload"],
+    }
+    try:
+        fire_lifecycle_saas_fanout(envelope=envelope, log_path=events_path)
+    except Exception:
+        logger.warning(
+            "Zeitgeist fan-out failed for %s; canonical decision log unaffected",
+            event_dict["event_type"],
+            exc_info=True,
+        )
 
 
 # ---------------------------------------------------------------------------
@@ -163,7 +212,10 @@ def emit_decision_opened(
         "event_type": DECISION_POINT_OPENED,
         "payload": json.loads(payload.model_dump_json()),
     }
-    return _append_raw_event(_events_path(repo_root, mission_slug), event_dict)
+    events_path = _events_path(repo_root, mission_slug)
+    line_count = _append_raw_event(events_path, event_dict)
+    _queue_decision_fanout(events_path, event_dict, mission_slug=mission_slug)
+    return line_count
 
 
 def emit_decision_resolved(
@@ -242,4 +294,7 @@ def emit_decision_resolved(
         "event_type": DECISION_POINT_RESOLVED,
         "payload": json.loads(payload.model_dump_json()),
     }
-    return _append_raw_event(_events_path(repo_root, mission_slug), event_dict)
+    events_path = _events_path(repo_root, mission_slug)
+    line_count = _append_raw_event(events_path, event_dict)
+    _queue_decision_fanout(events_path, event_dict, mission_slug=mission_slug)
+    return line_count

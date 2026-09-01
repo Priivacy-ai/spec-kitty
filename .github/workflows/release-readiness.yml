@@ -39,7 +39,7 @@ permissions:
 
 jobs:
   check-readiness:
-    runs-on: blacksmith-4vcpu-ubuntu-2404
+    runs-on: ubuntu-latest
     if: ${{ !contains(github.event.pull_request.labels.*.name, 'pr:deferred') && !contains(github.event.pull_request.labels.*.name, 'pr:skip-ci') }}
     steps:
       - name: Check out repository
@@ -176,7 +176,7 @@ jobs:
   #     to hold — an unregistered check can be ignored by a merge button.
   # ---------------------------------------------------------------------------
   cutover-guard:
-    runs-on: blacksmith-4vcpu-ubuntu-2404
+    runs-on: ubuntu-latest
     if: >-
       github.event_name == 'pull_request' &&
       !contains(github.event.pull_request.labels.*.name, 'pr:deferred') &&
@@ -192,11 +192,31 @@ jobs:
         with:
           python-version: '3.12'
           cache: 'pip'
+          cache-dependency-path: uv.lock
 
-      - name: Install spec-kitty (editable)
+      - name: Set up uv
+        uses: astral-sh/setup-uv@v8.1.0
+
+      - name: Check out the pinned events source
+        # The CLI still carries git direct references while #828 is blocked.
+        # This bridge installs only the exact events commit the lockfile pins;
+        # it never asks pip to resolve either git direct reference.
+        uses: actions/checkout@v6
+        with:
+          repository: spec-kitty/EXPERIMENTAL-spec-kitty-events
+          ref: c93dbfbf5243330349452a31d05bca2ece26ceea
+          path: .cutover-deps/spec-kitty-events
+          token: ${{ secrets.SK_CI_TOKEN }}
+
+      - name: Install the source-only guard environment
         run: |
           python -m pip install --upgrade pip
-          pip install -e .
+          uv export --frozen --no-dev --no-hashes \
+            --no-emit-package spec-kitty-cli \
+            --output-file .cutover-requirements.lock.txt
+          grep -vE ' @ git[+]' .cutover-requirements.lock.txt > .cutover-requirements.pypi.txt
+          python -m pip install -r .cutover-requirements.pypi.txt
+          python -m pip install --no-deps .cutover-deps/spec-kitty-events
 
       - name: Hydrate base-ref remote-tracking branch if missing
         run: |
@@ -208,4 +228,8 @@ jobs:
 
       - name: Run cutover guard (fail-closed on any un-cut-over mission)
         run: |
-          spec-kitty cutover-guard --base-ref "origin/${{ github.base_ref }}"
+          PYTHONPATH=src python - <<'PY'
+          from specify_cli.cli.commands.cutover_guard import cutover_guard
+
+          cutover_guard(base_ref="origin/${{ github.base_ref }}")
+          PY

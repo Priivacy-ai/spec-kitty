@@ -44,8 +44,14 @@ from unittest.mock import MagicMock, patch
 import pytest
 
 from specify_cli.cli.commands.agent import tasks, tasks_move_task, tasks_verdict_persistence
-from specify_cli.cli.commands.agent.tasks_move_task import _MoveTaskState
+from specify_cli.cli.commands.agent.tasks_move_task import (
+    _MoveTaskState,
+    _binding_role_for_lane,
+    _mt_approval_policy_metadata,
+    _mt_hop_policy_metadata,
+)
 from specify_cli.status import Lane, ReviewResult, ReviewResultLookup, StatusEvent, append_event
+from specify_cli.status.resolved_binding import ResolvedBinding
 
 pytestmark = pytest.mark.fast
 
@@ -153,6 +159,47 @@ def test_c001_pre_gate_not_consulted_when_auto_commit_resolves_false(
         tasks_move_task._mt_resolve_targets(st, ports=ports)
     skip_mock.assert_not_called()
     assert st.skip_target_branch_commit is False
+
+
+@pytest.mark.parametrize(
+    ("to", "expected_action"),
+    [
+        ("doing", "implement"),
+        ("for_review", "implement"),
+        ("in_review", "review"),
+        ("approved", "review"),
+        ("done", "review"),
+    ],
+)
+def test_mt_resolve_targets_dispatch_binding_action_by_target(
+    tmp_path: Path, to: str, expected_action: str
+) -> None:
+    """FR-006 (red-first, T1): the dispatch-binding ``action`` resolution
+    table. Brownfield gap: an APPROVED (or DONE) target used to resolve
+    ``action="implement"`` (only ``IN_REVIEW`` resolved ``"review"``), so the
+    reviewer's binding for an approve stamped the WRONG profile/model onto
+    ``_mt_approval_policy_metadata``'s ``policy_metadata`` sidecar. Every
+    other target's resolution is unchanged (regression guard)."""
+    st = _make_state(to=to)
+    ports = MagicMock()
+    ports.coord.feature_write_dir.side_effect = _StopFlow
+    with (
+        patch(f"{_TASKS}.locate_project_root", return_value=tmp_path),
+        patch(f"{_TASKS}._emit_sparse_session_warning"),
+        patch(f"{_TASKS}.get_auto_commit_default", return_value=False),
+        patch(f"{_TASKS}._find_mission_slug", return_value="034-feature"),
+        patch(
+            f"{_TASKS}._ensure_target_branch_checked_out",
+            return_value=(tmp_path, "main"),
+        ),
+        patch(
+            "specify_cli.cli.commands.agent.workflow._resolve_dispatch_binding"
+        ) as binding_mock,
+        pytest.raises(_StopFlow),
+    ):
+        tasks_move_task._mt_resolve_targets(st, ports=ports)
+    binding_mock.assert_called_once()
+    assert binding_mock.call_args.kwargs["action"] == expected_action
 
 
 def test_patched_decide_transition_intercepts_run_decision() -> None:
@@ -518,8 +565,20 @@ def test_mt_fire_override_persist_forwards_to_verdict_seam() -> None:
 # --- _persist_approved_review_cycle / persist_rejected_review_cycle_for_rollback (site 3) ---
 
 
-def test_persist_approved_review_cycle_noop_when_no_prior_cycle(tmp_path: Path) -> None:
-    """No prior event-sourced verdict -> no-op (first-ever approval, FR-001).
+def test_persist_approved_review_cycle_writes_first_pass_when_no_prior_cycle(
+    tmp_path: Path,
+) -> None:
+    """FR-007 (T2, governance-at-the-gate WP04) — INVERTED from the retired
+    ``test_persist_approved_review_cycle_noop_when_no_prior_cycle`` pin.
+
+    Brownfield gap this closes: a genuine first-pass approval (no prior
+    event-sourced verdict slot at all) used to be an unconditional no-op, so
+    it authored NO ``review-cycle-N.md`` evidence artifact (SC-006). It now
+    WRITES an ``approved`` cycle through the already verdict-symmetric
+    ``create_rejected_review_cycle(..., verdict="approved")`` writer — the
+    SAME writer the stale-rejection flip (:544/:563 below) already used —
+    carrying a non-null ``reproduction_command`` (SC-006's "at least a
+    reproduction_command").
 
     WP05 (verdict-seam-write-unification-01KZ9Q35, T023): the "is the current
     verdict a rejection" probe was repointed from ``latest_review_artifact_
@@ -534,6 +593,33 @@ def test_persist_approved_review_cycle_noop_when_no_prior_cycle(tmp_path: Path) 
         patch(
             f"{_VERDICT_SEAM}.event_sourced_review_result",
             return_value=ReviewResultLookup(slot_present=False, result=None),
+        ),
+        patch(f"{_VERDICT_SEAM}.create_rejected_review_cycle") as create_mock,
+    ):
+        tasks_verdict_persistence._persist_approved_review_cycle(st, ports)
+    create_mock.assert_called_once()
+    call_kwargs = create_mock.call_args.kwargs
+    assert call_kwargs["verdict"] == "approved"
+    assert call_kwargs["reproduction_command"]
+    assert "WP01" in call_kwargs["reproduction_command"]
+    assert "--to approved" in call_kwargs["reproduction_command"]
+
+
+def test_persist_approved_review_cycle_noop_on_malformed_slot(tmp_path: Path) -> None:
+    """Unchanged fail-safe: a damaged/malformed event-sourced slot
+    (``slot_present=True, result=None``) stays a no-op -- distinct from a
+    genuine first-pass (``slot_present=False``) — the reader already fails
+    closed rather than fabricate a verdict, and this writer must not paper
+    over that ambiguity with a synthesized approval write."""
+    st = _make_state(to="approved")
+    st.main_repo_root = tmp_path
+    st.mission_slug = "034-feature"
+    st.task_id = "WP01"
+    ports = MagicMock()
+    with (
+        patch(
+            f"{_VERDICT_SEAM}.event_sourced_review_result",
+            return_value=ReviewResultLookup(slot_present=True, result=None),
         ),
         patch(f"{_VERDICT_SEAM}.create_rejected_review_cycle") as create_mock,
     ):
@@ -662,6 +748,160 @@ def test_finalize_plan_delegates_approved_persist() -> None:
         tasks_move_task._mt_finalize_plan(st, ports)
     rollback_mock.assert_not_called()
     approved_mock.assert_called_once_with(st, ports)
+
+
+# --- WP04 (governance-at-the-gate) T1/T2 — approve-gate evidence capture ----
+
+
+def test_finalize_plan_never_rebuilds_plan_for_forward_approve() -> None:
+    """Deliberate NON-widening (see ``_mt_finalize_plan``'s own note): a
+    forward ``in_review -> approved`` edge must NOT trigger the
+    ``build_transition_plan`` rebuild, even though ``old_lane == IN_REVIEW``.
+
+    An earlier attempt widened this trigger and threaded
+    ``st.plan_review_result.reference`` into ``emit_review_ref`` — but that
+    value can diverge from the ``hop_review_result`` ``_mt_emit_transitions``
+    independently selects on the non-durably-persisted approval path,
+    tripping ``_check_review_result_consistency``'s "review_ref must match
+    review_result.reference" guard (caught by the REAL CLI integration test
+    ``tests/integration/test_review_cycle_rejection_only.py::
+    test_approving_a_rejected_wp_writes_no_verdict_artifact`` — a FAKE-ports
+    orchestration test never exercises that guard). FR-006's ``review_ref``
+    is instead derived per-hop in ``_mt_hop_review_ref``, directly from the
+    SAME object used as ``review_result`` — this test pins the NON-rebuild
+    half of that fix."""
+    st = _make_state(to="approved")
+    st.target_lane = Lane.APPROVED
+    st.old_lane = Lane.IN_REVIEW
+    st.resolved_feedback_source = None
+    st.decision = cast(
+        Any,
+        SimpleNamespace(
+            plan=SimpleNamespace(canonical_lane="approved"),
+            evidence_dict=None,
+            note_text=None,
+            planned_rollback=False,
+            arbiter_forward=False,
+            done_override_note=False,
+        ),
+    )
+    ports = MagicMock()
+    with (
+        patch(f"{tasks_move_task.__name__}.build_transition_plan") as build_mock,
+        patch(f"{tasks_move_task.__name__}._persist_approved_review_cycle"),
+    ):
+        tasks_move_task._mt_finalize_plan(st, ports)
+    build_mock.assert_not_called()
+    assert st.emit_plan is st.decision.plan
+
+
+class TestMtHopReviewRef:
+    """FR-006 (red-first, T1): ``_mt_hop_review_ref`` derives ``review_ref``
+    from the SAME ``hop_review_result`` object used as the request's
+    ``review_result`` — guaranteeing ``_check_review_result_consistency``
+    can never see a mismatch."""
+
+    def test_plan_level_ref_wins_when_set(self) -> None:
+        """A backward/rollback hop's plan-level ``emit_review_ref`` always
+        wins, unchanged from the pre-WP04 behavior."""
+        rr = ReviewResult(reviewer="claude", verdict="rejected", reference="other-ref")
+        assert (
+            tasks_move_task._mt_hop_review_ref("plan-ref", Lane.PLANNED, rr)
+            == "plan-ref"
+        )
+
+    def test_derives_from_hop_review_result_for_approved(self) -> None:
+        rr = ReviewResult(
+            reviewer="reviewer-renata", verdict="approved", reference="approval:WP01"
+        )
+        assert (
+            tasks_move_task._mt_hop_review_ref(None, Lane.APPROVED, rr) == "approval:WP01"
+        )
+
+    def test_derives_from_hop_review_result_for_done(self) -> None:
+        rr = ReviewResult(reviewer="claude", verdict="approved", reference="done:WP01")
+        assert tasks_move_task._mt_hop_review_ref(None, Lane.DONE, rr) == "done:WP01"
+
+    def test_none_for_untouched_lane(self) -> None:
+        rr = ReviewResult(reviewer="claude", verdict="approved", reference="x")
+        assert tasks_move_task._mt_hop_review_ref(None, Lane.CLAIMED, rr) is None
+
+    def test_none_when_hop_review_result_absent(self) -> None:
+        assert tasks_move_task._mt_hop_review_ref(None, Lane.APPROVED, None) is None
+
+
+class TestBindingRoleForLane:
+    """FR-006 (T1): ``_binding_role_for_lane`` grows an APPROVED/DONE arm."""
+
+    def test_claimed_is_implementer(self) -> None:
+        assert _binding_role_for_lane(Lane.CLAIMED) == "implementer"
+
+    def test_in_review_is_reviewer(self) -> None:
+        assert _binding_role_for_lane(Lane.IN_REVIEW) == "reviewer"
+
+    def test_approved_is_reviewer(self) -> None:
+        assert _binding_role_for_lane(Lane.APPROVED) == "reviewer"
+
+    def test_done_is_reviewer(self) -> None:
+        assert _binding_role_for_lane(Lane.DONE) == "reviewer"
+
+    def test_planned_is_none(self) -> None:
+        assert _binding_role_for_lane(Lane.PLANNED) is None
+
+
+class TestApprovalPolicyMetadata:
+    """FR-006 (red-first, T1): the APPROVED/DONE hop's ``policy_metadata``
+    sidecar — non-null, carrying ``tool``/``profile``/``model``/``shell_pid``,
+    shaped like ``build_claim_policy_metadata`` (a flat dict of primitives)."""
+
+    def test_populates_tool_profile_model_shell_pid(self) -> None:
+        st = _make_state(to="approved", shell_pid="4242")
+        st.request = cast(Any, SimpleNamespace(effective_reviewer="reviewer-renata"))
+        st.resolved_binding = ResolvedBinding(
+            agent_profile="reviewer-renata", model="claude-sonnet-5"
+        )
+        metadata = _mt_approval_policy_metadata(st)
+        assert metadata == {
+            "tool": "reviewer-renata",
+            "profile": "reviewer-renata",
+            "model": "claude-sonnet-5",
+            "shell_pid": "4242",
+        }
+
+    def test_non_null_even_with_no_binding_or_request(self) -> None:
+        """SC-006: the sidecar is ALWAYS present (never omitted) — an absent
+        binding/request degrades to explicit ``None`` fields, not a missing
+        dict."""
+        st = _make_state(to="approved", agent="claude")
+        st.request = None
+        st.resolved_binding = None
+        metadata = _mt_approval_policy_metadata(st)
+        assert metadata == {"tool": "claude", "profile": None, "model": None}
+        assert "shell_pid" not in metadata
+
+    def test_tool_falls_back_through_reviewer_agent_actor(self) -> None:
+        st = _make_state(to="approved")
+        st.request = None
+        st.reviewer = None
+        st.agent = None
+        st.actor = "user"
+        st.resolved_binding = None
+        metadata = _mt_approval_policy_metadata(st)
+        assert metadata["tool"] == "user"
+
+    def test_mt_hop_policy_metadata_routes_approved_and_done(self) -> None:
+        st = _make_state(to="approved", agent="claude")
+        st.request = None
+        st.resolved_binding = None
+        for target in (Lane.APPROVED, Lane.DONE):
+            metadata = _mt_hop_policy_metadata(st, target)
+            assert metadata is not None
+            assert metadata["tool"] == "claude"
+
+    def test_mt_hop_policy_metadata_none_for_untouched_lanes(self) -> None:
+        st = _make_state(to="doing")
+        assert _mt_hop_policy_metadata(st, Lane.IN_REVIEW) is None
+        assert _mt_hop_policy_metadata(st, Lane.PLANNED) is None
 
 
 def test_finalize_plan_delegates_rollback_persist(tmp_path: Path) -> None:

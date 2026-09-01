@@ -136,14 +136,7 @@ def test_refresh_returns_source_and_never_appends() -> None:
         "synthetic.mod_a": frozenset({"Foo"}),
         "synthetic.mod_b": frozenset({"Bar"}),
     }
-    source = (
-        "_CATEGORY_TEST = frozenset(\n"
-        "    {\n"
-        "        # synthetic.mod_a::Foo\n"
-        f'        SymbolKey("Foo", "{_OLD_HASH}"),\n'
-        "    }\n"
-        ")\n"
-    )
+    source = f'_CATEGORY_TEST = frozenset(\n    {{\n        # synthetic.mod_a::Foo\n        SymbolKey("Foo", "{_OLD_HASH}"),\n    }}\n)\n'
 
     rewritten = refresh(corpus, decls, {}, source)
 
@@ -287,13 +280,7 @@ def test_module_path_recovery_is_comment_independent() -> None:
         "    }\n"
         ")\n"
     )
-    no_comment_source = (
-        "_CATEGORY_TEST = frozenset(\n"
-        "    {\n"
-        f'        SymbolKey("Foo", "{_OLD_HASH}", source_module="synthetic.mod_a"),\n'
-        "    }\n"
-        ")\n"
-    )
+    no_comment_source = f'_CATEGORY_TEST = frozenset(\n    {{\n        SymbolKey("Foo", "{_OLD_HASH}", source_module="synthetic.mod_a"),\n    }}\n)\n'
 
     for source in (canonical_source, garbled_comment_source, no_comment_source):
         entries = parse_allowlist_entries(source)
@@ -322,7 +309,7 @@ def test_real_tree_refreshes_without_unrecoverable_provenance() -> None:
         _walk_modules,
     )
 
-    decls, path_to_dotted, path_to_tree, corpus = _walk_modules()
+    decls, _all_literal_decls, path_to_dotted, path_to_tree, corpus = _walk_modules()
     per_symbol, star = _imports_by_target(path_to_dotted, path_to_tree)
     source = _THIS_SOURCE.read_text(encoding="utf-8")
 
@@ -387,9 +374,7 @@ def _decide_barename_only(entry: AllowlistEntry, still_dead: list[DeadLocation])
     if not bare_matches:
         return RefreshDecision(entry, Outcome.DANGLING, bare_matches, (), None)
     chosen = bare_matches[0]
-    new_hash = next(
-        loc.new_hash for loc in still_dead if loc.bare_name == entry.bare_name and loc.module_path == chosen
-    )
+    new_hash = next(loc.new_hash for loc in still_dead if loc.bare_name == entry.bare_name and loc.module_path == chosen)
     return RefreshDecision(entry, Outcome.REFRESH, bare_matches, bare_matches, new_hash)
 
 
@@ -471,9 +456,7 @@ def test_regression_fails_against_barename_only_stub_for_the_right_reason() -> N
     assert "synthetic.mod_e::Solo" not in stub_offenders, "stub admits a dead symbol — the vector under test"
 
     # (c) the stub's candidate set is un-narrowed (differs only in the narrowing step).
-    stub_foo = next(
-        _decide_barename_only(e, still_dead) for e in parse_allowlist_entries(_T009_SOURCE) if e.bare_name == "Foo"
-    )
+    stub_foo = next(_decide_barename_only(e, still_dead) for e in parse_allowlist_entries(_T009_SOURCE) if e.bare_name == "Foo")
     real_foo = next(d for d in plan_refresh(corpus, decls, {}, _T009_SOURCE) if d.entry.bare_name == "Foo")
     assert real_foo.narrowed == ("synthetic.mod_a",)
     assert stub_foo.narrowed != ("synthetic.mod_a",)
@@ -538,13 +521,7 @@ def test_ac3_collision_tier_refresh_preserves_module_path_in_source() -> None:
         "synthetic.dup_a": frozenset({"Dup"}),
         "synthetic.dup_b": frozenset({"Dup"}),
     }
-    source = (
-        "_CATEGORY_TEST = frozenset(\n"
-        "    {\n"
-        f'        SymbolKey("Dup", "{_OLD_HASH}", module_path="synthetic.dup_a"),\n'
-        "    }\n"
-        ")\n"
-    )
+    source = f'_CATEGORY_TEST = frozenset(\n    {{\n        SymbolKey("Dup", "{_OLD_HASH}", module_path="synthetic.dup_a"),\n    }}\n)\n'
 
     rewritten = refresh(corpus, decls, {}, source)
     entries = parse_allowlist_entries(rewritten)
@@ -583,8 +560,7 @@ def test_content_tier_entry_needing_collision_tier_escalates_end_to_end() -> Non
     assert len(decisions) == 1  # golden-count: cardinality-is-contract
     decision = decisions[0]
     assert decision.outcome == Outcome.NEEDS_MODULE_PATH, (
-        "a content-tier entry whose target needs collision-tier keying must "
-        "escalate, never REFRESH an ineffective content-tier hash"
+        "a content-tier entry whose target needs collision-tier keying must escalate, never REFRESH an ineffective content-tier hash"
     )
     assert decision.new_hash is None
 

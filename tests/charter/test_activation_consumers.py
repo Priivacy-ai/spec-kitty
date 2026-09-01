@@ -2,7 +2,7 @@
 #2843).
 
 Five-consumer regression net (NFR-002) for the four ``charter.*`` callers of
-``charter.drg.filter_graph_by_activation`` (the executor consumer, T009, is
+``charter.activation.drg_activation.filter_graph_by_activation`` (the executor consumer, T009, is
 covered separately in
 ``tests/specify_cli/mission_step_contracts/test_executor_activation.py``):
 
@@ -46,13 +46,13 @@ from unittest.mock import patch
 import pytest
 from ruamel.yaml import YAML
 
-from charter.compiler import _resolve_transitive_reference_graph
-from charter.consistency_check import _check_drg_cross_kind_refs
-from charter.context import _load_action_doctrine_bundle
-from charter.invocation_context import ProjectContext
-from charter.pack_context import _BUILTIN_ARTIFACT_KINDS, PackContext
-from charter.reference_resolver import resolve_references_transitively
-from doctrine.drg.models import DRGGraph, DRGNode, NodeKind
+from charter.activation.compiler import _resolve_transitive_reference_graph
+from charter.activation.consistency_check import _check_drg_cross_kind_refs
+from charter.activation.context import _load_action_doctrine_bundle
+from charter.activation.invocation_context import ProjectContext
+from charter.activation.pack_context import _BUILTIN_ARTIFACT_KINDS, PackContext
+from charter.activation.reference_resolver import resolve_references_transitively
+from charter.offering.drg.models import DRGGraph, DRGNode, NodeKind
 
 pytestmark = [pytest.mark.unit]
 
@@ -160,7 +160,7 @@ def test_reference_resolver_populated_stem_retains_directive_node() -> None:
 
 
 def test_compiler_closure_none_path_matches_no_filter_at_all(tmp_path: Path) -> None:
-    from charter.catalog import resolve_doctrine_root
+    from charter.activation.catalog import resolve_doctrine_root
 
     doctrine_root = resolve_doctrine_root()
 
@@ -195,7 +195,7 @@ def test_compiler_closure_populated_stem_retains_directive_node(tmp_path: Path) 
     there) through the same gate. On merge-base the populated stem drops the
     node before the closure walk starts, so the seeded id never reaches the
     ``directives`` bucket. After WP01 it does."""
-    from charter.catalog import resolve_doctrine_root
+    from charter.activation.catalog import resolve_doctrine_root
 
     ctx = _pack_context(
         activated_directives=frozenset({_REAL_DIRECTIVE_STEM}), repo_root=tmp_path
@@ -230,8 +230,8 @@ def test_cross_kind_refs_none_path_matches_no_filter_at_all(tmp_path: Path) -> N
     """Structural identity at the gate: with every per-kind field ``None``
     (default-allow), ``filter_graph_by_activation`` must be a no-op, so the
     check's report is unaffected by having gone through the gate at all."""
-    from charter._drg_helpers import load_validated_graph
-    from charter.drg import filter_graph_by_activation
+    from charter.activation._drg_helpers import load_validated_graph
+    from charter.activation.drg_activation import filter_graph_by_activation
 
     full_drg = load_validated_graph(tmp_path)
     # Full kind set the gate itself recognizes (``_SINGULAR_TO_PLURAL``'s
@@ -240,7 +240,7 @@ def test_cross_kind_refs_none_path_matches_no_filter_at_all(tmp_path: Path) -> N
     # Restricting ``activated_kinds`` to anything narrower would drop
     # unrelated nodes/edges via the KIND-level gate, producing a false
     # mismatch unrelated to the per-ID stem/canonical fix under test.
-    from charter.drg import _SINGULAR_TO_PLURAL
+    from charter.activation.drg_activation import _SINGULAR_TO_PLURAL
 
     # ``mission_step_contract`` nodes gate on ``activated_mission_types`` (a
     # SEPARATE axis from ``activated_kinds`` — see ``filter_graph_by_activation``
@@ -355,7 +355,7 @@ def _action_graph() -> DRGGraph:
 def test_context_bundle_none_path_matches_no_filter_at_all(tmp_path: Path) -> None:
     graph = _action_graph()
 
-    with patch("charter._drg_helpers.load_validated_graph", return_value=graph):
+    with patch("charter.activation._drg_helpers.load_validated_graph", return_value=graph):
         unfiltered = _load_action_doctrine_bundle(
             repo_root=tmp_path,
             action="implement",
@@ -386,7 +386,7 @@ def test_context_bundle_populated_stem_retains_directive_node(tmp_path: Path) ->
         activated_directives=frozenset({_REAL_DIRECTIVE_STEM}), repo_root=tmp_path
     )
 
-    with patch("charter._drg_helpers.load_validated_graph", return_value=graph):
+    with patch("charter.activation._drg_helpers.load_validated_graph", return_value=graph):
         bundle = _load_action_doctrine_bundle(
             repo_root=tmp_path,
             action="implement",

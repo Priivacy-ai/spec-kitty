@@ -1,0 +1,383 @@
+schema: review-findings/v1
+complete: true
+phase: spec
+lens_group: confirmed
+mission: cascade-asset-silent-drop-01M0RME0
+findings:
+- id: SPEC-GOV-001
+  lens: public-repo
+  severity: 2
+  title: Spec cites private, operator-local absolute paths that will not resolve for
+    any external reader of the merged public PR
+  evidence:
+  - artifact: spec.md § Clarifications (lines 60-62)
+  - artifact: spec.md § C-005 (line 232)
+  claim: 'This checkout''s spec.md is already committed on the mission branch of the
+    public `Priivacy-ai/spec-kitty` repo (confirmed via `git log --oneline -3` showing
+    "spec: real spec for cascade-asset-silent-drop (#3705)" and `git remote -v` pointing
+    at the public GitHub origin). Two places in the spec cite absolute filesystem
+    paths under `/home/jeroennouws/dev/SK-missions/` — the operator''s private, non-repo,
+    multi-issue mission-orchestration meta-directory (verified: `git ls-files` on
+    this checkout shows no `SPEC-KITTY-LEDGER.md` or `_readiness/` tracked anywhere
+    in the spec-kitty repo; `ls /home/jeroennouws/dev/SK-missions/` shows this is
+    a sibling directory of per-issue-numbered workspaces, e.g. `1058`, `3086`, `3384`...`3705`,
+    none of which are part of the public repo). Once this spec merges, these two citations
+    become permanent public content that (a) exposes the operator''s OS username (`jeroennouws`)
+    and the internal directory layout of a private multi-repo orchestration tool,
+    and (b) point to files no external reader — including a future contributor or
+    a different operator''s machine — can ever dereference, undermining C-005''s own
+    claim that "this has been verified" against a citable source.
+
+    '
+  remediation: 'Before this spec is used as the canonical planning record for implementation,
+    strip the absolute local paths from both citations. For the readiness-probe citation
+    (line 61), either drop the path entirely (the operator-confirmation parenthetical
+    already carries the load-bearing fact) or replace it with a repo-relative reference
+    if the probe is copied into the mission''s own `kitty-specs/.../research/` directory.
+    For the SK-76 citation (C-005, line 232), cite the ledger entry by ID only ("Ledger
+    entry SK-76") without the absolute path, or reference a repo-relative/public copy
+    if one exists.
+
+    '
+- id: SPEC-GOV-002
+  lens: process-gate-vs-functional-requirement
+  severity: 3
+  title: FR-006/C-003/SC-005's PR-body-citation gate has no named verifier or verification
+    mechanism, unlike every other SC
+  evidence:
+  - artifact: spec.md § FR-006 (line 211)
+  - artifact: spec.md § C-003 (line 230)
+  - artifact: spec.md § SC-005 (lines 289-291)
+  - code: '~/.hermes/skills/pr-prep/SKILL.md (grepped for ADR/spec.md/FR-/C-0 cross-reference
+      instructions: none found)'
+  claim: 'FR-006/C-003/SC-005 are explicitly and correctly self-labelled as a mission-completion/process
+    gate distinct from the runtime-behavior ACs (FR-006: "checked at PR-open time,
+    not a runtime behavior"; C-003 Category: "Process" vs. "Technical" for every other
+    constraint) — so the mission-derived lens''s core question (is it appropriate
+    for a spec to gate on this at all) is already answered by the spec''s own phrasing
+    and is not itself a defect. The gap is one level down: SC-001 through SC-004 and
+    SC-006 each name a concrete test or assertion that verifies them ("verified by
+    a red-first test...", "verified by a single test exercising both commands...").
+    SC-005 names no verifier at all — just "Fails if the PR is opened without that
+    citation," with no statement of who checks this (the implementer self-attesting
+    at PR-open, the pre-merge squad, the accept gate?) or when. A scan of `~/.hermes/skills/pr-prep/SKILL.md`
+    (the canonical PR-body-authoring skill referenced by `sk-implement`) found no
+    generic mechanism that reads a mission''s spec.md for FR/C items like this one
+    and surfaces them into the PR body checklist — so satisfying SC-005 currently
+    depends entirely on whichever agent drafts the PR body having read and retained
+    this one spec''s Clarifications section. Because FR-006 is placed in the same
+    Functional Requirements table as the seven runtime FRs (FR-001–FR-005, FR-007,
+    FR-008), and the charter''s ATDD-First Discipline (C-011) binds WP-level red-first
+    tests to FRs delivering "user-observable behaviour," a plan/tasks-phase reader
+    could either (a) try to manufacture a nonsensical red-first test for FR-006, or
+    (b) silently drop it from task decomposition because it does not fit the WP+test
+    pattern — the exact "lost by mission close" failure the spec''s own Clarifications
+    section (line 47) says it is trying to avoid.
+
+    '
+  remediation: 'Add one sentence to FR-006 (or a new short subsection) explicitly
+    routing this requirement to a named downstream mechanism — e.g. "verified by the
+    pre-merge review squad / accept gate checking the PR body for the ADR citation
+    before operator merge, not by a work package or automated test" — so the plan/tasks
+    phase knows not to create a WP or red-first test for it, and so a specific reviewer
+    step (not "whoever remembers") is on the hook for SC-005 at mission close.
+
+    '
+- id: SPEC-ARCH-001
+  lens: mission-derived (single-shared-seam verification) / Contracts
+  severity: 3
+  title: CascadeScope.selects() is kind-agnostic under --cascade all; nothing in the
+    spec guards the new dropped-node data from being routed through it
+  evidence:
+  - artifact: spec.md § FR-002 (thread dropped nodes through CascadeActivationResult),
+      § FR-007 (deactivation-side symmetry), § Edge Case 3 ("regardless of scope")
+  - code: 'src/charter/cascade.py:178 — CascadeScope.selects: `return self.is_all
+      or kind in self.kinds` (True for ANY kind when is_all=True; it has no knowledge
+      of CHARTER_ACTIVATABLE_KINDS)'
+  - code: 'src/charter/cascade.py:373-374 — cascade_activation_targets: `bucket =
+      activated if scope.selects(ref.kind) else skipped` (existing scope-gated bucketing
+      loop)'
+  - code: 'src/charter/cascade.py:533 — deactivation_plan: `for ref in _referenced_artifacts(graph,
+      target_urn): if scope.selects(ref.kind): candidates.add(ref.urn)` (existing
+      scope-gated candidate loop)'
+  claim: 'FR-001 asks _referenced_artifacts (or a sibling helper) to also return the
+    nodes it currently drops via the bare `continue` at cascade.py:292 (kind in {template,
+    asset}). FR-002 and FR-007 then require this dropped set to be threaded into new
+    fields on CascadeActivationResult and DeactivationPlan. The two existing call
+    sites that would naturally be extended to populate those fields (cascade_activation_targets''s
+    activated/skipped bucketing loop at line 373-374, and deactivation_plan''s candidate
+    loop at line 533) both gate on `scope.selects(ref.kind)` — and `selects()` returns
+    True unconditionally for `--cascade all` (is_all=True short-circuits before the
+    kind check). If an implementer threads the new dropped-node list through either
+    of these existing loops (e.g. by merging it back into the same iterable as the
+    activatable refs, which is the more copy-paste-natural extension of the current
+    code), a template/asset node under `--cascade all` would land in `activated` or
+    `candidates` and actually be (de)activated — a functional reversal of the C-001
+    exclusion at runtime, not merely a rendering bug, even though CHARTER_ACTIVATABLE_KINDS
+    itself is never edited. Edge Case 3 states the general requirement in prose ("regardless
+    of scope... it must be reported as kind-filtered") but never points at this specific
+    code mechanism, so the guardrail is advisory, not structural.
+
+    '
+  remediation: 'Add an explicit constraint (or a plan-time implementation note under
+    FR-001/FR-007) stating that kind-filtered/dropped nodes must be collected and
+    threaded to their new result fields via a path that never passes through CascadeScope.selects()
+    or the existing activated/skipped_by_scope/candidates bucketing loops — they populate
+    the new field directly, independent of scope. Add a test asserting that under
+    `--cascade all` specifically (the scope value that masks this bug, since is_all=True
+    selects everything), a kind-filtered node never appears in `activated`, `skipped_by_scope`,
+    or `deactivate`/`candidates` — only in the new field.
+
+    '
+- id: SPEC-ARCH-002
+  lens: mission-derived (single-shared-seam verification) / Canonical source (DIRECTIVE_044)
+  severity: 3
+  title: FR-001's "sibling helper" option invites a second, parallel implementation
+    of the CHARTER_ACTIVATABLE_KINDS exclusion test
+  evidence:
+  - artifact: spec.md § FR-001 ("this function (or a sibling helper called alongside
+      it) to also return the dropped nodes"), § Key Entities ("Kind-filtered node")
+  - code: 'src/charter/cascade.py:266-295 — _referenced_artifacts: single forward-closure
+      loop over `reachable`, with the exclusion test `if kind not in CHARTER_ACTIVATABLE_KINDS:
+      continue` at line 291-292'
+  claim: 'FR-001 explicitly offers two equally-valid implementation shapes: (1) change
+    _referenced_artifacts''s own return contract so a single pass over `reachable`
+    yields both partitions (activatable refs and dropped/kind-filtered nodes), or
+    (2) add a "sibling helper called alongside it." Option (2), if implemented as
+    its own traversal (re-running _forward_reference_closure and re-testing `kind
+    not in CHARTER_ACTIVATABLE_KINDS`), duplicates the exclusion predicate that today
+    lives in exactly one place (cascade.py:291-292). Two independently-maintained
+    copies of "what counts as kind-filtered" can drift (e.g. a future edit to CHARTER_ACTIVATABLE_KINDS
+    or to the pre-existing `_kind_of is None` filter that only updates one copy) —
+    the parallel-authority pattern DIRECTIVE_044 (cited in this review''s own profile,
+    architect-alphonso.agent.yaml) requires converging on a single canonical surface
+    for. The mission''s own premise (FR-001/002/005/007, C-002) rests on "one shared
+    collection point feeding three dataclasses"; leaving the collection mechanism
+    itself underspecified between a single-pass and a duplicated-pass implementation
+    undercuts that premise for whichever WP author picks option (2).
+
+    '
+  remediation: 'Tighten FR-001 to require the single-pass shape: _referenced_artifacts''s
+    existing loop over `reachable` (cascade.py:266-295) is the one place that classifies
+    a node''s kind against CHARTER_ACTIVATABLE_KINDS, and it returns both partitions
+    (or a second output list populated in the same loop) rather than being duplicated.
+    If a "sibling helper" is still permitted for API-ergonomics reasons, require it
+    to call a single shared kind-classification predicate (not reimplement the `kind
+    not in CHARTER_ACTIVATABLE_KINDS` test) so there is exactly one place in the codebase
+    that decides kind-filtered-vs-activatable.
+
+    '
+- id: SPEC-VERIFY-001
+  lens: silent-success (NFR-001) / mission-derived edge-case interaction
+  severity: 4
+  title: The no-cascade path's own early-return guard (`has_skipped`) can silently
+    swallow the new kind-filtered lines FR-005 adds
+  evidence:
+  - artifact: spec.md § FR-005, § Key Entities (NoCascadeReport), § NFR-001
+  - code: src/charter/cascade.py:404-410 (NoCascadeReport.has_skipped property, `return
+      any(self.skipped.values())`)
+  - code: 'src/specify_cli/cli/commands/charter/activate.py:404-405 (`if not report.has_skipped:
+      return`, guards the ENTIRE _render_no_cascade_warning body)'
+  claim: 'FR-005 says NoCascadeReport should "gain an equivalent new field alongside
+    `skipped`" for kind-filtered nodes. But `_render_no_cascade_warning` (activate.py:383-417)
+    gates its whole body on `report.has_skipped`, and `has_skipped` (cascade.py:407-410)
+    is defined as `any(self.skipped.values())` — it inspects ONLY the existing `skipped`
+    dict, not the new field. Verified directly: `has_skipped` has exactly one definition
+    and one call site (activate.py:404), confirmed by grep. If a source''s ONLY outgoing
+    reference-relation edges are kind-filtered (asset/template) — no activatable-kind
+    refs at all — and the operator runs `charter activate <kind> <id>` with no `--cascade`,
+    then `report.skipped` stays empty, `has_skipped` is False, and the function returns
+    at line 405 before it ever reaches the loop that would render the new kind-filtered
+    lines. This reproduces the exact silent-drop bug #3705 reports, just relocated
+    one level up into the guard clause — which is precisely the corner NFR-001 ("never
+    a bare None/0/silently-swallowed branch") exists to close. No FR, NFR, or Acceptance
+    Scenario in the spec covers this case: User Story 2''s only Independent Test and
+    Acceptance Scenario use a MIXED source (one activatable ref + one asset ref),
+    so the existing activatable-kind ref keeps `has_skipped` True and masks the gap
+    in that fixture. FR-004 gives an explicit "zero activatable targets" requirement
+    for the cascade-report path (User Story 1) but there is no equivalent requirement
+    stated for the no-cascade-warning path (User Story 2).
+
+    '
+  remediation: 'Add an explicit requirement (either extend FR-005 or add an FR-005a)
+    that `NoCascadeReport.has_skipped` (or the equivalent gate in `_render_no_cascade_warning`)
+    must also evaluate True when kind-filtered nodes are present even if `skipped`
+    is empty — e.g. redefine `has_skipped` to check both fields, or replace the guard
+    with an explicit "anything to report" check across both dicts. Add a fixture/test:
+    a source whose ONLY referenced nodes are kind-filtered (no activatable refs),
+    run with no `--cascade`, and assert the kind-filtered line still renders (not
+    silence).
+
+    '
+- id: SPEC-VERIFY-002
+  lens: mission-derived — testability of "distinct wording"
+  severity: 3
+  title: FR-003/FR-005/FR-008's "labelled distinctly" requirement has no pinned literal
+    string, unlike the three existing line shapes it must be distinct from
+  evidence:
+  - artifact: spec.md § FR-003, § FR-005, § FR-008, § Edge Cases (Reflexivity item)
+  - code: 'src/specify_cli/cli/commands/charter/activate.py:326-328 (`[cyan]Cascade-activated[/cyan]:
+      ...`), :336-338 (`[dim]Skipped (out of scope)[/dim]: ...`), :413-417 (`[yellow]Warning[/yellow]:
+      referenced ... was not activated (no --cascade).` + `[yellow]Hint[/yellow]:
+      ...`)'
+  claim: 'The existing three line shapes the spec requires distinctness from are pinned
+    as exact literal strings in code (verified above) and are named as fixed strings
+    in spec.md''s own Reflexivity edge case (`Cascade-activated:`, `Warning: ... was
+    not activated (no --cascade)`, `Skipped (out of scope)`, `Skipped (shared artifact)`).
+    The NEW line FR-003 / FR-005 / FR-008 require has no equivalent fixed string or
+    tag anywhere in spec.md — only content constraints ("states the kind is not charter-activatable,"
+    "never phrased as a warning/error/failure," "distinct... never the same wording").
+    Two implementers could both satisfy the letter of FR-003 with genuinely different,
+    non-comparable wording (e.g. `[magenta]Not cascaded[/magenta]: template/x (kind
+    not charter-activatable)` vs. `[white]Skipped (non-activatable kind)[/white]:
+    template/x`) — the second arguably fails to literally state "not charter-activatable"
+    while still plausibly reading as compliant. User Story 3''s Acceptance Scenario
+    partially constrains this ("language consistent with the activation-side rendering")
+    across FR-003/FR-005/FR-007, but does not resolve the cross-WP risk that FR-003,
+    FR-005, and FR-007 could each independently coin a label before that consistency
+    check catches the drift.
+
+    '
+  remediation: 'Either (a) pin a canonical label/tag for the new line in spec.md (as
+    the three existing shapes are pinned in code and named in the Reflexivity edge
+    case), so plan/tasks inherits one literal string all three call sites implement,
+    or (b) explicitly defer the exact wording to the plan phase but add a single FR
+    requiring one shared rendering helper (not three independently-worded call sites)
+    so the "distinct label" is defined once and reused, removing the risk of divergent
+    wording across FR-003/FR-005/FR-007.
+
+    '
+- id: SPEC-VERIFY-003
+  lens: falsifiability / mission-derived edge-case interaction
+  severity: 2
+  title: FR-004's literal trigger condition is broader than its motivating scenario
+    and also fires for pure scope-narrowing, with no scenario/test for that variant
+  evidence:
+  - artifact: spec.md § FR-004, § SC-002, § Edge Cases (item 3, scope-narrowing)
+  - code: src/charter/cascade.py:371-379 (cascade_activation_targets partitions refs
+      into `activated` vs `skipped_by_scope` by `scope.selects`)
+  claim: 'FR-004 triggers "when `cascade_activation_targets` resolves at least one
+    referenced node but zero of them land in `activated`." That condition is satisfied
+    not only by the mission''s motivating case (all referenced nodes are kind-filtered)
+    but also by a source whose referenced nodes are ALL activatable-kind but excluded
+    by a narrow `--cascade <scope>` (e.g. `--cascade tactic` on a source that only
+    references a `directive`) — a pure scope-narrowing case with zero kind-filtered
+    nodes involved. SC-002''s test and User Story 1 Scenario 2 both construct only
+    the kind-filtered-only case; there is no scenario/test anywhere in the spec for
+    the scope-narrowing-only case, so it is unclear whether FR-004''s "zero activatable
+    targets" line is meant to also fire there (where per-node `Skipped (out of scope)`
+    lines already communicate the same information) or whether the condition should
+    be narrowed to require at least one kind-filtered node specifically.
+
+    '
+  remediation: 'Either tighten FR-004''s trigger to require the zero-`activated` result
+    include at least one kind-filtered node (not merely at least one referenced node),
+    or add an explicit Acceptance Scenario/test asserting the intended behavior for
+    the pure scope-narrowing case so an implementer does not have to guess.
+
+    '
+- id: SPEC-VERIFY-004
+  lens: baseline honesty
+  severity: 2
+  title: Spec's Success Criteria drive extensive new pytest work but never acknowledge
+    the pre-existing known-red baseline
+  evidence:
+  - artifact: spec.md § SC-001, § SC-004, § SC-006
+  - artifact: CLAUDE.md § Test-run baseline-red gotcha (project root)
+  claim: 'SC-001 requires a "red-first test that fails on today''s main," SC-004 requires
+    an existing test to "continue to pass unmodified," and SC-006 requires that no
+    existing console-line assertion changes. All three depend on running the test
+    suite and correctly distinguishing red caused by this mission''s change from red
+    that predates it. Searched spec.md for any reference to the known-red baseline
+    (`#3284`, "known-failing," "baseline", "pre-existing") — none found; the only
+    "pre-existing" hits are unrelated (referring to the pre-existing scope-skip bucket
+    and the pre-existing kind filter). The project''s own CLAUDE.md documents a ~23-test/2-error
+    known-red baseline and a mandatory classify-before-attributing protocol that "applies
+    to every agent, incl. dispatched subagents." A work-package implementer reading
+    spec.md''s Success Criteria in isolation (without independently pulling CLAUDE.md''s
+    baseline-red section into view) has no signal inside the mission artifact itself
+    that a broad `pytest` run will show unrelated red, and could misjudge SC-004/SC-006
+    compliance for a WP that only touched the cascade seam.
+
+    '
+  remediation: 'Add one sentence to the Success Criteria section (or as a preamble
+    note) directing test verification for SC-001/SC-004/SC-006 to run scoped to `tests/charter/test_cascade.py`
+    and the relevant CLI command tests, and to classify any other red observed against
+    the known-red baseline per CLAUDE.md''s Test-run baseline-red gotcha before treating
+    it as this mission''s regression.
+
+    '
+- id: SPEC-VERIFY-005
+  lens: falsifiability
+  severity: 2
+  title: NFR-001 through NFR-004 carry no explicit "Fails if" criterion anywhere in
+    the spec, unlike every User Story and SC
+  evidence:
+  - artifact: spec.md § Non-Functional Requirements (NFR-001..NFR-004)
+  - artifact: spec.md § User Story 1/2/3 FAILS if clauses, § SC-001..SC-006 Fails
+      if clauses
+  claim: 'Every User Story (1-3) closes with an explicit "**FAILS if**:" clause and
+    every SC-001 through SC-006 closes with an explicit "**Fails if**" clause, but
+    none of NFR-001, NFR-002, NFR-003, or NFR-004 states its own falsification condition
+    — they are phrased as "must" statements only. NFR-003 and NFR-004 are effectively
+    subsumed by SC-003 and the Reflexivity edge case respectively, but NFR-001 (the
+    silent-success bar) and NFR-002 (the no-truncation bar) have no SC or Acceptance
+    Scenario that maps onto them one-to-one. SPEC-VERIFY-001 above demonstrates this
+    is not merely stylistic: NFR-001''s silent-path prohibition has a real, un-caught
+    corner (the `has_skipped` guard) precisely because nothing in the spec forces
+    an implementer or reviewer to write a falsifiable check against NFR-001 directly.
+
+    '
+  remediation: 'Add a "Fails if" line to each of NFR-001..NFR-004 stating the concrete
+    observable condition that would constitute non-compliance (e.g., for NFR-001:
+    "Fails if any new collection/render path can produce a caller-visible `None`/empty
+    result for a source that in fact reached a kind-filtered node, with no corresponding
+    report").
+
+    '
+- id: SPEC-VERIFY-006
+  lens: verify — citation accuracy
+  severity: 1
+  title: FR-005's citation of `_render_no_cascade_warning` (activate.py:383-416) omits
+    the function's last line, which is the single global recovery-hint print central
+    to FR-005's own concern
+  evidence:
+  - artifact: spec.md § FR-005 ("`_render_no_cascade_warning` (`src/specify_cli/cli/commands/charter/activate.py:383-416`)")
+  - code: 'src/specify_cli/cli/commands/charter/activate.py:383-417 (function spans
+      through line 417: `console.print(f"[yellow]Hint[/yellow]: {report.recovery_hint}")`;
+      next def (`run_full_synthesize`) starts at line 420)'
+  claim: 'Verified by reading the file directly: `_render_no_cascade_warning` runs
+    from line 383 through line 417, not 416. The omitted line 417 is the one place
+    the "re-run with --cascade" recovery hint is actually printed — the exact mechanism
+    FR-005 says must not be reused for the kind-filtered line. Confirmed the recovery-hint
+    print is unconditional once the function passes its `has_skipped` guard (SPEC-VERIFY-001),
+    i.e. it currently fires once per call, not per rendered line, which matters for
+    how an implementer scopes the "don''t reuse the hint" fix.
+
+    '
+  remediation: 'Correct the citation to `activate.py:383-417` so the range includes
+    the Hint print line FR-005 is reasoning about.
+
+    '
+- id: SPEC-VERIFY-007
+  lens: verify — citation accuracy
+  severity: 1
+  title: FR-007's citation of `_render_cascade_deactivation` (deactivate.py:133-186)
+    omits the entire `skipped_shared` render loop it says the new field renders "alongside"
+  evidence:
+  - artifact: spec.md § FR-007 ("`_render_cascade_deactivation` (`src/specify_cli/cli/commands/charter/deactivate.py:133-186`)")
+  - code: src/specify_cli/cli/commands/charter/deactivate.py:133-194 (function spans
+      through line 194; `for skip in plan.skipped_shared:` loop is at lines 190-194;
+      next def `deactivate_cmd` starts at line 197, confirmed via grep -n)
+  claim: 'Verified by grep and direct read: `_render_cascade_deactivation` runs from
+    line 133 through line 194, not 186. The cited range 133-186 stops before the `for
+    urn in plan.deactivate:` loop even finishes and entirely excludes the `for skip
+    in plan.skipped_shared:` loop (lines 190-194) — the structural analog FR-007 explicitly
+    says the new kind-filtered rendering belongs "alongside." An implementer skimming
+    only the cited range would not see the code the FR is describing.
+
+    '
+  remediation: 'Correct the citation to `deactivate.py:133-194` so the range includes
+    the `skipped_shared` render loop FR-007 references.
+
+    '

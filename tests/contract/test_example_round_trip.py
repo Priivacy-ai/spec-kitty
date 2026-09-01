@@ -272,10 +272,10 @@ _LEGACY_CONTRACT_ALLOWLIST: frozenset[str] = frozenset(
 # ---------------------------------------------------------------------------
 _INLINE_NEGATIVE_FIXTURES: list[tuple[str, str, str, str, str | None]] = [
     # Sanity: a pydantic model with a required field, given an empty dict.
-    # Uses doctrine.drg.models.DRGNode (always available; part of core doctrine).
+    # Uses charter.offering.drg.models.DRGNode (always available; part of core doctrine).
     (
         "<inline:sanity-negative-fixture>",
-        "doctrine.drg.models.DRGNode",
+        "charter.offering.drg.models.DRGNode",
         "invalid",
         "{}",  # Missing required fields -> ValidationError
         None,
