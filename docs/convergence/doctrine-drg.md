@@ -1,3 +1,8 @@
+---
+doc_status: active
+updated: '2026-08-27'
+---
+
 | sha | kind | disposition | evidence | one-line rationale |
 |---|---|---|---|---|
 | 358c081c4 | feat | applies | Current line has no `src/doctrine/agent_profiles/operating_procedures.py` and no `resolve_operating_procedure_entries` symbol (`rg` finds none); `src/doctrine/drg/migration/extractor.py:333` and `:469` still hand-pin `agent_profile:doctrine-daphne` and `agent_profile:researcher-robbie` procedure edges while `src/doctrine/agent_profiles/profile.py:161` still accepts `operating_procedures`. | The operating-procedures field is still not validated/data-driven into the DRG, so the old validate-and-derive fix targets a live defect. |
