@@ -43,7 +43,7 @@ FAST_TIER_MARKERS = (fast or unit) and not slow and not e2e and not integration 
 PARALLEL_UNSAFE_MARKERS = not stress and not timing
 
 test-fast: ## Run fast tier of the typical blast-radius dirs (target <2 min)
-	env -u FORCE_COLOR NO_COLOR=1 PWHEADLESS=1 uv run pytest $(FAST_TIER_DIRS) \
+	env -u FORCE_COLOR NO_COLOR=1 PWHEADLESS=1 uv run --frozen pytest $(FAST_TIER_DIRS) \
 	  -m "$(FAST_TIER_MARKERS)" -n auto --dist loadfile -p no:cacheprovider -q
 
 # Keep make test-full green in under 30 minutes on main. Re-measure if a
@@ -57,13 +57,13 @@ TEST_FULL_STATUS := .test-full-status
 
 test-full: ## Run everything: one parallel pass + serial marker passes
 	@rm -f $(TEST_FULL_STATUS)
-	env -u FORCE_COLOR NO_COLOR=1 PWHEADLESS=1 uv run pytest tests/ \
+	env -u FORCE_COLOR NO_COLOR=1 PWHEADLESS=1 uv run --frozen pytest tests/ \
 	  -m "$(PARALLEL_UNSAFE_MARKERS)" -n auto --dist loadfile -p no:cacheprovider -q || touch $(TEST_FULL_STATUS)
 	# Serial passes: the two parallel-unsafe marker families, mirroring the
 	# stress-tests-serial / timing-nfr-serial CI jobs (--timeout guards a hung
 	# fork/process from stalling the lane indefinitely).
-	env -u FORCE_COLOR NO_COLOR=1 PWHEADLESS=1 uv run pytest tests/ \
+	env -u FORCE_COLOR NO_COLOR=1 PWHEADLESS=1 uv run --frozen pytest tests/ \
 	  -m "stress and not windows_ci" -n0 --timeout=240 --timeout-method=signal -q || touch $(TEST_FULL_STATUS)
-	env -u FORCE_COLOR NO_COLOR=1 PWHEADLESS=1 uv run pytest tests/ \
+	env -u FORCE_COLOR NO_COLOR=1 PWHEADLESS=1 uv run --frozen pytest tests/ \
 	  -m timing -n0 --timeout=240 --timeout-method=signal -q || touch $(TEST_FULL_STATUS)
 	@if [ -f $(TEST_FULL_STATUS) ]; then rm -f $(TEST_FULL_STATUS); exit 1; fi
