@@ -435,8 +435,7 @@ def _atomic_write_claudeignore(path: Path, content: str) -> None:
                     raise OSError(f"temporary file beside {path} accepted zero bytes")
                 remaining = remaining[written:]
         finally:
-            with contextlib.suppress(OSError):
-                os.close(fd)
+            os.close(fd)
         # Replace only after the fd is closed. An open fd from os.open carries no
         # FILE_SHARE_DELETE on Windows, so it blocks MoveFileExW there -- replacing
         # while the fd was still open failed every .claudeignore write on that
