@@ -55,8 +55,8 @@ def test_uv_present_and_pyproject_present_resolves_to_uv_run(
 
     command = resolve_pytest_command(["--junitxml=out.xml", "-q"], repo_root=tmp_path)
 
-    assert command[:4] == ["uv", "run", "--project", str(tmp_path)]
-    assert command[4:7] == ["python", "-m", "pytest"]
+    assert command[:5] == ["uv", "run", "--frozen", "--project", str(tmp_path)]
+    assert command[5:8] == ["python", "-m", "pytest"]
     assert command[-2:] == ["--junitxml=out.xml", "-q"]
 
 

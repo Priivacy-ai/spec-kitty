@@ -8,24 +8,24 @@ help: ## Show available targets
 
 dev-setup: ## Sync deps and install all slash commands for configured agents
 	uv sync --frozen --all-extras
-	uv run spec-kitty doctor skills --fix
+	uv run --frozen spec-kitty doctor skills --fix
 
 lint: ## Run ruff linter
-	uv run ruff check src/
+	uv run --frozen ruff check src/
 
 # Convenience only -- the enforced copy of this check lives in
 # tests/architectural/test_ruff_format_enforcement.py (part of `make
 # test-full`), so a red gate is never silent regardless of whether anyone
 # runs this target locally (#558).
 format-check: ## Run ruff formatter check on the whole repo (issue #473's gate)
-	uv run ruff format --check .
+	uv run --frozen ruff format --check .
 
 convergence-census: ## Fetch upstream and report convergence dispositions
 	git fetch old
-	uv run python scripts/convergence/census_status.py
+	uv run --frozen python scripts/convergence/census_status.py
 
 typecheck: ## Run targeted mypy strict type checking
-	uv run mypy --strict src/specify_cli/runtime/agent_commands.py
+	uv run --frozen mypy --strict src/specify_cli/runtime/agent_commands.py
 
 # The subsystem directories an implementer's blast radius typically covers
 # (see AGENTS.md "Test policy"). `make test-fast` is a baseline, not a

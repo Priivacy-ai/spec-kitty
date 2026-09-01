@@ -32,8 +32,8 @@ jobs:
         run: uv sync --frozen --all-extras
       - name: Run ruff checks
         run: |
-          uv run ruff check .
-          uv run ruff format --check .
+          uv run --frozen ruff check .
+          uv run --frozen ruff format --check .
 
   build-wheel:
     name: Build wheel
