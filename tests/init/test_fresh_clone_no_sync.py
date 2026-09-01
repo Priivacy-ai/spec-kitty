@@ -118,7 +118,7 @@ def _clear_resolver_cache() -> None:
 
 def test_build_charter_context_auto_syncs_on_fresh_clone(tmp_path: Path) -> None:
     """FR-004 reader: ``build_charter_context`` resolves the tracked charter.yaml."""
-    from charter.context import build_charter_context
+    from charter.activation.context import build_charter_context
 
     repo_root = _fresh_clone_fixture(tmp_path).resolve()
     _clear_resolver_cache()
@@ -144,7 +144,7 @@ def test_resolve_project_charter_path_auto_syncs_on_fresh_clone(tmp_path: Path) 
 
 def test_load_governance_config_auto_syncs_on_fresh_clone(tmp_path: Path) -> None:
     """FR-004 reader: ``load_governance_config`` reads charter.yaml's governance section."""
-    from charter.sync import load_governance_config
+    from charter.activation.sync import load_governance_config
 
     repo_root = _fresh_clone_fixture(tmp_path).resolve()
     _clear_resolver_cache()
@@ -184,7 +184,7 @@ def test_no_importerror_or_repo_errors_on_fresh_clone(tmp_path: Path) -> None:
     """Sanity check: readers do not raise ``NotInsideRepositoryError`` on a
     well-formed fresh clone, and we do not hit import-time breakage.
     """
-    from charter.context import build_charter_context
+    from charter.activation.context import build_charter_context
     from charter.resolution import (
         GitCommonDirUnavailableError,
         NotInsideRepositoryError,

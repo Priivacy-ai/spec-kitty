@@ -3,11 +3,11 @@
 Reachability is a **membership** contract, not a cardinality one: a newly
 unreachable activated artefact fails a set-equality naming *itself*, where a
 count could only nudge an integer. The two channels are measured by two
-different traversals, both **called** from :mod:`doctrine.drg.reachability` (no
+different traversals, both **called** from :mod:`charter.offering.drg.reachability` (no
 walk is reimplemented here):
 
 * **action channel** — :func:`action_channel_reachable`, which calls
-  :func:`doctrine.drg.query.resolve_context`. Pinned at ``d=1`` (compact, the
+  :func:`charter.offering.drg.query.resolve_context`. Pinned at ``d=1`` (compact, the
   steady state, the stricter measure) and ``d=2`` (bootstrap). The measured
   spread between them is exactly 7 nodes (R-2).
 * **profile channel** — :func:`profile_channel_reachable`, a distinct
@@ -35,14 +35,14 @@ from pathlib import Path
 
 import pytest
 
-from charter import pack_context
-from charter.pack_context import (
+from charter.activation import pack_context
+from charter.activation.pack_context import (
     charter_activated_urns,
 )
-from doctrine.drg.loader import load_built_in_graph
-from doctrine.drg.models import DRGGraph, NodeKind, Relation
-from doctrine.drg.query import resolve_context
-from doctrine.drg.reachability import (
+from charter.offering.drg.loader import load_built_in_graph
+from charter.offering.drg.models import DRGGraph, NodeKind, Relation
+from charter.offering.drg.query import resolve_context
+from charter.offering.drg.reachability import (
     PROFILE_CHANNEL_RELATIONS,
     action_channel_reachable,
     action_seed_urns,
@@ -709,7 +709,7 @@ def _activated() -> frozenset[str]:
 def _raw_activated_map() -> Mapping[str, list[str]]:
     """The activation store in its raw *store* form (pre-normalization).
 
-    Reuses ``charter.pack_context``'s own charter-pointer resolution — the exact
+    Reuses ``charter.activation.pack_context``'s own charter-pointer resolution — the exact
     path :func:`charter_activated_urns` reads — so the WP06 partition sees the
     same store the runtime does. The store form is what makes the C-009
     ``not_a_node`` slugs visible (e.g. ``directive:025-boy-scout-rule``); the
@@ -889,7 +889,7 @@ class TestSixEdgesReachabilityWiring:
     """T003 (WP01, mission drg-reachability-metric-wiring-01KZS5VR, #3009 point 3).
 
     Behavioral, red-first reach assertions for the six curated edges
-    (``_CURATED_ARTIFACT_EDGES``, ``src/doctrine/drg/migration/extractor.py``) —
+    (``_CURATED_ARTIFACT_EDGES``, ``src/charter/offering/drg/migration/extractor.py``) —
     each proves a reachability TRANSITION via the canonical helpers, not a
     frozenset-literal edit (the real ATDD artifact per the contract's
     anti-requirements: set-equality alone does not force these edges to exist).

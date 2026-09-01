@@ -29,8 +29,8 @@ from pathlib import Path
 
 from ruamel.yaml import YAML
 
-from charter.synthesizer.manifest import hash_content_bytes
-from doctrine.artifact_kinds import ArtifactKind
+from charter.activation.synthesizer.manifest import hash_content_bytes
+from charter.offering.artifact_kinds import ArtifactKind
 
 from .pack_manifest import (
     Constituent,

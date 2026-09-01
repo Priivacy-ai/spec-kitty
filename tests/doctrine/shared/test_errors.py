@@ -1,4 +1,4 @@
-"""Tests for doctrine.shared.errors — inline-reference rejection helpers.
+"""Tests for charter.offering.shared.errors — inline-reference rejection helpers.
 
 Targets mutation-prone areas:
 - reject_inline_refs: artifact_id fallback ("?"), forbidden_field assignment,
@@ -17,12 +17,12 @@ from pathlib import Path
 
 import pytest
 
-from doctrine.shared.errors import (
+from charter.offering.shared.errors import (
     build_migration_hint,
     reject_inline_refs,
     reject_inline_refs_in_procedure_steps,
 )
-from doctrine.shared.exceptions import InlineReferenceRejectedError
+from charter.offering.shared.exceptions import InlineReferenceRejectedError
 
 pytestmark = [pytest.mark.fast, pytest.mark.doctrine]
 

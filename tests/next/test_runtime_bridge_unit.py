@@ -1028,6 +1028,24 @@ class TestWPStepHelpers:
         assert _should_advance_wp_step("implement", feature_dir) is True
         assert _should_advance_wp_step("review", feature_dir) is True
 
+    def test_unknown_reduced_lane_blocks_instead_of_raising(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        feature_dir = tmp_path / "feature"
+        tasks_dir = feature_dir / "tasks"
+        tasks_dir.mkdir(parents=True)
+        (feature_dir / "tasks.md").write_text("# Tasks\n", encoding="utf-8")
+        (tasks_dir / "WP01.md").write_text(
+            "---\nwork_package_id: WP01\ntitle: WP01 task\n---\n# WP01\n",
+            encoding="utf-8",
+        )
+
+        from runtime.next import runtime_bridge
+
+        monkeypatch.setattr(runtime_bridge, "get_all_wp_snapshots", lambda _: {"WP01": {"lane": "unknown"}})
+        assert runtime_bridge._count_wp_endings(feature_dir)[1] == 0
+        assert runtime_bridge._should_advance_wp_step("implement", feature_dir) is False
+
 
 # ---------------------------------------------------------------------------
 # Atomic task step tests

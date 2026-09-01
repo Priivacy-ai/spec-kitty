@@ -1,0 +1,65 @@
+schema: review-findings/v1
+complete: true
+phase: spec
+lens_group: fresh
+mission: custom-mission-guard-failure-blocking-inert-01M0STY0
+findings:
+  - id: SPEC-FRESH2-001
+    lens: conceptual-alignment
+    severity: 3
+    title: >-
+      AC-9's Given clause for scenario (a) attributes required_artifacts_for's
+      empty result solely to required_by_step, silently ignoring required_always
+    evidence:
+      - artifact: "spec.md § AC-9 (User Story 2 Acceptance Scenarios), lines 201-204"
+      - code: "src/specify_cli/runtime/resolver.py:653-654 — `specs = [*manifest.required_always, *manifest.required_by_step.get(step, [])]; return [spec.path_pattern for spec in specs if spec.blocking]`"
+    claim: >-
+      AC-9 scenario (a) reads: "`qa` with a manifest present ... whose
+      `required_by_step` for that step is empty or contains only `blocking:
+      false` entries, so `required_artifacts_for` returns `[]`." This causal
+      claim is incomplete/incorrect: `required_artifacts_for` combines
+      `required_always` with `required_by_step[step]` before filtering on
+      `blocking` (resolver.py:653-654) — an empty/non-blocking
+      `required_by_step[step]` is NOT sufficient on its own to guarantee an
+      empty result if `manifest.required_always` contains any `blocking: true`
+      entry. A WP author building AC-9's test fixture strictly from this Given
+      clause (leaving `required_always` populated with a blocking entry while
+      only emptying `required_by_step` for the target step) would produce a
+      manifest where `required_artifacts_for(step)` is actually non-empty,
+      contradicting the AC's own "so `required_artifacts_for` returns `[]`"
+      assertion and invalidating the scenario's intended present-manifest/
+      empty-blocking-set premise — the fixture would silently test the wrong
+      thing (a real block, not a genuine pass with `frozenset()`).
+    remediation: >-
+      Extend AC-9(a)'s Given clause to also require `required_always` to be
+      empty or contain only `blocking: false` entries (e.g. "... whose
+      `required_always` and `required_by_step` for that step are each either
+      empty or contain only `blocking: false` entries, so
+      `required_artifacts_for` returns `[]`"), or simplify by dropping the
+      structural breakdown entirely and stating the postcondition directly:
+      "a manifest present whose declared requirements yield `[]` from
+      `required_artifacts_for` for that step (regardless of which bucket)."
+
+  - id: SPEC-FRESH2-002
+    lens: code-review-incremental
+    severity: 2
+    title: FR-006's cited line range for the reused tier-check is off by one against live source
+    evidence:
+      - artifact: "spec.md § FR-006, lines 377-379"
+      - code: "src/runtime/next/runtime_bridge_io.py:891-892 — `config = MissionTemplateRepository.default().get_expected_artifacts(mission_family)` / `if config is None:`"
+    claim: >-
+      FR-006 cites the "exact same tier-checking `config is None` ...
+      logic FR-004/FR-005 already have to run for `_presence_filenames_for`"
+      at `runtime_bridge_io.py:892-893`. In the current live source the
+      `config = MissionTemplateRepository.default().get_expected_artifacts(...)`
+      assignment is at line 891 and `if config is None:` is at line 892 — the
+      cited range is one line off (892-893 cites the `if config is None:`
+      line plus the line after it, `return frozenset()`, rather than the
+      assignment+check pair the prose describes). Every other new file:line
+      citation introduced by this round (runtime_bridge_cores.py:354,
+      runtime_bridge_cores.py:693-695, runtime_bridge_io.py:900,
+      runtime_bridge.py:751/1538/1549/1608/1643,
+      runtime_bridge_composition.py:429/502/626,
+      specify_cli/runtime/resolver.py:46/58-66/555-576/634-654) was verified
+      exact against live source; only this one is off.
+    remediation: 'Correct the citation to `runtime_bridge_io.py:891-892`.'

@@ -124,7 +124,7 @@ class TestResynthesizeHappyPath:
         mock_result = _make_mock_result()
 
         with patch("specify_cli.cli.commands.charter.find_repo_root", return_value=tmp_path), patch(
-            "charter.synthesizer.resynthesize_pipeline.run",
+            "charter.activation.synthesizer.resynthesize_pipeline.run",
             return_value=mock_result,
         ):
             result = runner.invoke(
@@ -145,7 +145,7 @@ class TestResynthesizeHappyPath:
         mock_result = _make_mock_result()
 
         with patch("specify_cli.cli.commands.charter.find_repo_root", return_value=tmp_path), patch(
-            "charter.synthesizer.resynthesize_pipeline.run",
+            "charter.activation.synthesizer.resynthesize_pipeline.run",
             return_value=mock_result,
         ):
             result = runner.invoke(
@@ -171,7 +171,7 @@ class TestResynthesizeHappyPath:
         mock_result = _make_mock_result(is_noop=True, matched_form="drg_urn")
 
         with patch("specify_cli.cli.commands.charter.find_repo_root", return_value=tmp_path), patch(
-            "charter.synthesizer.resynthesize_pipeline.run",
+            "charter.activation.synthesizer.resynthesize_pipeline.run",
             return_value=mock_result,
         ):
             result = runner.invoke(
@@ -192,7 +192,7 @@ class TestResynthesizeHappyPath:
         mock_result = _make_mock_result(is_noop=True, matched_form="drg_urn")
 
         with patch("specify_cli.cli.commands.charter.find_repo_root", return_value=tmp_path), patch(
-            "charter.synthesizer.resynthesize_pipeline.run",
+            "charter.activation.synthesizer.resynthesize_pipeline.run",
             return_value=mock_result,
         ):
             result = runner.invoke(
@@ -241,10 +241,10 @@ class TestResynthesizeErrorPaths:
         """Unresolved selector → exit code 2 (contracts/topic-selector.md §2.2)."""
         _write_interview_answers(tmp_path)
 
-        from charter.synthesizer.errors import TopicSelectorUnresolvedError
+        from charter.activation.synthesizer.errors import TopicSelectorUnresolvedError
 
         with patch("specify_cli.cli.commands.charter.find_repo_root", return_value=tmp_path), patch(
-            "charter.synthesizer.resynthesize_pipeline.run",
+            "charter.activation.synthesizer.resynthesize_pipeline.run",
             side_effect=TopicSelectorUnresolvedError(
                 raw="bogus:nonexistent",
                 candidates=("tactic:how-we-apply-directive-003 (distance=5)",),
@@ -269,10 +269,10 @@ class TestResynthesizeErrorPaths:
         """Unresolved selector renders 'Cannot resolve --topic' panel."""
         _write_interview_answers(tmp_path)
 
-        from charter.synthesizer.errors import TopicSelectorUnresolvedError
+        from charter.activation.synthesizer.errors import TopicSelectorUnresolvedError
 
         with patch("specify_cli.cli.commands.charter.find_repo_root", return_value=tmp_path), patch(
-            "charter.synthesizer.resynthesize_pipeline.run",
+            "charter.activation.synthesizer.resynthesize_pipeline.run",
             side_effect=TopicSelectorUnresolvedError(
                 raw="bogus:nonexistent",
                 candidates=(),
@@ -299,12 +299,12 @@ class TestResynthesizeErrorPaths:
         """Unresolved selector: no files written to .kittify/."""
         _write_interview_answers(tmp_path)
 
-        from charter.synthesizer.errors import TopicSelectorUnresolvedError
+        from charter.activation.synthesizer.errors import TopicSelectorUnresolvedError
 
         doctrine_dir = tmp_path / ".kittify" / "doctrine"
 
         with patch("specify_cli.cli.commands.charter.find_repo_root", return_value=tmp_path), patch(
-            "charter.synthesizer.resynthesize_pipeline.run",
+            "charter.activation.synthesizer.resynthesize_pipeline.run",
             side_effect=TopicSelectorUnresolvedError(
                 raw="bogus:nonexistent",
                 candidates=(),
@@ -347,7 +347,7 @@ class TestResynthesizeErrorPaths:
         _write_interview_answers(tmp_path)
 
         with patch("specify_cli.cli.commands.charter.find_repo_root", return_value=tmp_path), patch(
-            "charter.synthesizer.resynthesize_pipeline.run",
+            "charter.activation.synthesizer.resynthesize_pipeline.run",
             side_effect=FileNotFoundError("No prior synthesis manifest"),
         ):
             result = runner.invoke(

@@ -8,7 +8,7 @@ from __future__ import annotations
 
 import pytest
 
-from charter.evidence.code_reader import CodeReadingCollector, CodeReadingError
+from charter.activation.evidence.code_reader import CodeReadingCollector, CodeReadingError
 
 
 # ---------------------------------------------------------------------------

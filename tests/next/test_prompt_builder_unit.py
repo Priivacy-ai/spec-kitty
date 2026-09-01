@@ -8,8 +8,8 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from charter.compiler import compile_charter, write_compiled_charter
-from charter.interview import apply_answer_overrides, default_interview
+from charter.activation.compiler import compile_charter, write_compiled_charter
+from charter.activation.interview import apply_answer_overrides, default_interview
 from tests._factories import provision_test_charter
 from tests.lane_test_utils import write_single_lane_manifest
 from runtime.next.prompt_builder import (
@@ -556,7 +556,7 @@ class TestGovernanceContext:
 
     @pytest.mark.fast
     def test_scope_not_found_is_not_swallowed(self, feature_dir: Path) -> None:
-        from charter.scope import CharterScopeNotFound
+        from charter.activation.scope import CharterScopeNotFound
 
         with (
             patch(

@@ -13,12 +13,14 @@ from unittest.mock import Mock, patch
 
 import pytest
 
-from charter.mission_type_profiles import ResolvedMissionType
+from charter.activation.mission_type_profiles import ResolvedMissionType
 from specify_cli.runtime.resolver import (
     ResolutionResult,
     ResolutionTier,
     TemplateConfigurationError,
+    required_artifacts_for,
     resolve_command,
+    resolve_configured_artifact_name,
     resolve_configured_template,
     resolve_mission,
     resolve_template,
@@ -602,7 +604,7 @@ class TestResolutionPrecedence:
 class TestMissionScopedOverrideParity:
     """FR-001 / SC-002 (up-org-template-fsm-01M06F9K, WP01).
 
-    ``doctrine.resolver._resolve_asset`` (the doctrine-layer "sole door",
+    ``charter.offering.resolver._resolve_asset`` (the doctrine-layer "sole door",
     used by ``charter list`` / ``show-origin``) has always probed a
     mission-scoped override at
     ``.kittify/overrides/missions/{mission}/{subdir}/{name}`` before the
@@ -623,16 +625,16 @@ class TestMissionScopedOverrideParity:
     ) -> None:
         """A mission-scoped override resolves at ``ResolutionTier.OVERRIDE``
         through ``specify_cli.runtime.resolver``, with ``(path, tier)``
-        identical to ``doctrine.resolver``'s resolution of the same fixture.
+        identical to ``charter.offering.resolver``'s resolution of the same fixture.
 
         Before FR-001 lands, ``specify_cli.runtime.resolver.resolve_template``
         raises ``FileNotFoundError`` on this fixture (it only probes the
         flat, non-mission-scoped override path) while
-        ``doctrine.resolver.resolve_template`` already resolves it at
+        ``charter.offering.resolver.resolve_template`` already resolves it at
         ``ResolutionTier.OVERRIDE`` -- the exact regression documented by
         User Story 2's Independent Test.
         """
-        import doctrine.resolver as doctrine_resolver
+        import charter.offering.resolver as doctrine_resolver
 
         project = tmp_path / "project"
         mission_scoped_path = _create_file(
@@ -1420,7 +1422,7 @@ class TestOrgTierResolution:
             result = resolve_template("spec-template.md", project, "software-dev")
 
         assert len(caught) == 1  # golden-count: cardinality-is-contract
-        assert "Invalid doctrine.org config" in str(caught[0].message)
+        assert "Invalid org-pack config" in str(caught[0].message)
         assert result.tier == ResolutionTier.PACKAGE_DEFAULT
         assert result.path == pkg_template
 
@@ -1430,7 +1432,7 @@ class TestOrgTierResolution:
         it does out of resolve_org_roots itself. A blanket
         ``except Exception`` around resolve_org_roots() would silently
         regress this."""
-        from doctrine.drg.org_pack_config import OrgPackSubdirEscapeError
+        from charter.offering.drg.org_pack_config import OrgPackSubdirEscapeError
 
         project = tmp_path / "project"
         pack_root = tmp_path / "org-pack"
@@ -1458,11 +1460,11 @@ class TestOrgTierResolution:
         self, tmp_path: Path
     ) -> None:
         """Position-parity spot check: given the identical org-pack fixture,
-        ``specify_cli.runtime.resolver`` and ``doctrine.resolver`` resolve
+        ``specify_cli.runtime.resolver`` and ``charter.offering.resolver`` resolve
         the same ``(path, tier)`` -- mirroring
         ``TestMissionScopedOverrideParity``'s parity discipline for the org
         tier."""
-        import doctrine.resolver as doctrine_resolver
+        import charter.offering.resolver as doctrine_resolver
 
         project = tmp_path / "project"
         project.mkdir()
@@ -1488,3 +1490,62 @@ class TestOrgTierResolution:
             doctrine_result.path,
             doctrine_result.tier.name,
         )
+
+
+# ---------------------------------------------------------------------------
+# Manifest-schema error boundary parity (planning#249)
+# ---------------------------------------------------------------------------
+
+
+class TestExpectedArtifactManifestSchemaErrorBoundary:
+    """A schema-invalid ``expected-artifacts.yaml`` must fail loud through
+    ``ManifestSchemaError`` -- the same domain-error shape
+    ``specify_cli.dossier.manifest.ManifestRegistry.load_manifest`` raises
+    for its own manifest-load boundary -- rather than leaking the raw
+    ``pydantic.ValidationError`` this seam's ``try`` block used to swallow
+    into a bare ``False``/``None`` (squad finding on #233, this issue)."""
+
+    _TYPO_FIXTURE_PATH = Path(__file__).parent.parent / "dossier" / "fixtures" / "expected_artifacts_typo.yaml"
+
+    def _patch_schema_invalid_manifest(self, monkeypatch: pytest.MonkeyPatch, origin: str) -> None:
+        import ruamel.yaml
+
+        import charter.missions as charter_missions
+        from charter.offering.missions.repository import ConfigResult
+
+        content = self._TYPO_FIXTURE_PATH.read_text(encoding="utf-8")
+        parsed = ruamel.yaml.YAML(typ="safe").load(content)
+
+        class _FakeRepository:
+            def get_expected_artifacts(self, mission: str) -> ConfigResult | None:
+                return ConfigResult(content=content, origin=origin, parsed=parsed)
+
+        class _FakeMissionTemplateRepository:
+            @classmethod
+            def default(cls) -> _FakeRepository:
+                return _FakeRepository()
+
+        monkeypatch.setattr(charter_missions, "MissionTemplateRepository", _FakeMissionTemplateRepository)
+
+    def test_resolve_configured_artifact_name_raises_manifest_schema_error(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        from pydantic import ValidationError
+
+        from specify_cli.dossier.manifest import ManifestSchemaError
+
+        distinctive_origin = "doctrine/typo-fixture/expected-artifacts.yaml"
+        self._patch_schema_invalid_manifest(monkeypatch, origin=distinctive_origin)
+
+        with pytest.raises(ManifestSchemaError) as exc_info:
+            resolve_configured_artifact_name("input.spec.main", "typo-fixture")
+
+        assert exc_info.value.mission_type == "typo-fixture"
+        assert exc_info.value.origin == distinctive_origin
+        assert isinstance(exc_info.value.__cause__, ValidationError)
+
+    def test_required_artifacts_for_raises_manifest_schema_error(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        from specify_cli.dossier.manifest import ManifestSchemaError
+
+        self._patch_schema_invalid_manifest(monkeypatch, origin="test-fixture")
+
+        with pytest.raises(ManifestSchemaError):
+            required_artifacts_for("specify", "typo-fixture")

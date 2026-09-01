@@ -289,7 +289,7 @@ def _repo_root_for_lifecycle_log(log_path: Path | None) -> Path | None:
     if log_path is None:
         return None
     try:
-        return resolve_canonical_root(log_path.parent)
+        return Path(resolve_canonical_root(log_path.parent))
     except WorkspaceRootNotFound:
         return None
 
@@ -427,30 +427,20 @@ def build_saas_lifecycle_queue_event(
     }
 
 
-def _build_saas_lifecycle_event(
+def fanout_lifecycle_event_hosted(
     envelope: Mapping[str, Any],
     *,
-    log_path: Path | None = None,
-) -> dict[str, Any] | None:
-    """Return a SaaS-materializable lifecycle event for the scoped outbox.
+    log_path: Path | None,
+) -> None:
+    """Offer a persisted lifecycle *envelope* to registered hosted adapters.
 
-    Local lifecycle JSONL intentionally keeps its local-first shape. The SaaS
-    queue, however, must carry the same canonical envelope fields as normal
-    sync events or live ingress rejects the batch.
+    This is the explicit hosted-effect half of lifecycle emission. It never
+    writes the local JSONL log; callers that need the traditional composed
+    behavior should continue to use :func:`append_lifecycle_event`.
     """
     from specify_cli.status.adapters import fire_lifecycle_saas_fanout
 
     fire_lifecycle_saas_fanout(envelope=envelope, log_path=log_path)
-    return None
-
-
-def _queue_lifecycle_event_if_enabled(
-    envelope: Mapping[str, Any],
-    *,
-    log_path: Path | None = None,
-) -> None:
-    """Best-effort SaaS outbox fan-out for canonical lifecycle events."""
-    _build_saas_lifecycle_event(envelope, log_path=log_path)
 
 
 def _match_lifecycle_event(
@@ -491,7 +481,7 @@ def has_lifecycle_event(
     )
 
 
-def append_lifecycle_event(
+def persist_lifecycle_event_local(
     log_path: Path,
     event_type: str,
     payload: Mapping[str, Any],
@@ -503,7 +493,7 @@ def append_lifecycle_event(
     dedup_keys: Mapping[str, Any] | None = None,
     mission_slug: str | None = None,
 ) -> dict[str, Any] | None:
-    """Append a lifecycle event to *log_path* unless an idempotent match exists.
+    """Persist a lifecycle event locally without invoking hosted adapters.
 
     Returns the persisted event envelope, or ``None`` when the append was
     skipped because an event with the same ``(event_type, dedup_keys)``
@@ -550,7 +540,40 @@ def append_lifecycle_event(
     except OSError as exc:
         logger.warning("Could not persist %s event to %s: %s", event_type, log_path, exc)
         return None
-    _queue_lifecycle_event_if_enabled(envelope, log_path=log_path)
+    return envelope
+
+
+def append_lifecycle_event(
+    log_path: Path,
+    event_type: str,
+    payload: Mapping[str, Any],
+    *,
+    aggregate_id: str,
+    aggregate_type: str,
+    project_uuid: str | None = None,
+    project_slug: str | None = None,
+    dedup_keys: Mapping[str, Any] | None = None,
+    mission_slug: str | None = None,
+) -> dict[str, Any] | None:
+    """Persist locally, then offer the same envelope to hosted fan-out.
+
+    This preserves the historical composed behavior for existing callers.
+    Local persistence remains authoritative: a skipped or failed local write
+    returns ``None`` and does not invoke a hosted adapter.
+    """
+    envelope = persist_lifecycle_event_local(
+        log_path,
+        event_type,
+        payload,
+        aggregate_id=aggregate_id,
+        aggregate_type=aggregate_type,
+        project_uuid=project_uuid,
+        project_slug=project_slug,
+        dedup_keys=dedup_keys,
+        mission_slug=mission_slug,
+    )
+    if envelope is not None:
+        fanout_lifecycle_event_hosted(envelope, log_path=log_path)
     return envelope
 
 
@@ -705,7 +728,7 @@ def emit_mission_created_local(
     )
 
 
-def emit_artifact_phase(
+def emit_artifact_phase_local(
     feature_dir: Path,
     *,
     event_type: str,
@@ -719,7 +742,7 @@ def emit_artifact_phase(
     project_slug: str | None = None,
     at: str | None = None,
 ) -> dict[str, Any] | None:
-    """Append a Specify/Plan/Tasks lifecycle event for the mission.
+    """Persist a Specify/Plan/Tasks phase locally without hosted fan-out.
 
     Started and completed events dedupe on
     ``(event_type, mission_slug, artifact_path)`` when an artifact path is
@@ -785,7 +808,7 @@ def emit_artifact_phase(
         dedup["artifact_path"] = artifact_path
 
     log_path = mission_event_log_path(feature_dir)
-    return append_lifecycle_event(
+    return persist_lifecycle_event_local(
         log_path,
         event_type,
         payload,
@@ -796,6 +819,48 @@ def emit_artifact_phase(
         dedup_keys=dedup,
         mission_slug=mission_slug,
     )
+
+
+def emit_artifact_phase(
+    feature_dir: Path,
+    *,
+    event_type: str,
+    mission_slug: str,
+    mission_number: int | None = None,
+    actor: str = "cli",
+    artifact_path: str | None = None,
+    summary: str | None = None,
+    wp_count: int | None = None,
+    project_uuid: str | None = None,
+    project_slug: str | None = None,
+    at: str | None = None,
+) -> dict[str, Any] | None:
+    """Persist and fan out a Specify/Plan/Tasks lifecycle event.
+
+    Existing callers retain their composed local-write-plus-hosted-fan-out
+    behavior. Callers with their own hosted authority decision should use
+    :func:`emit_artifact_phase_local` and later submit the returned envelope
+    to :func:`fanout_lifecycle_event_hosted` with the mission log path.
+    """
+    envelope = emit_artifact_phase_local(
+        feature_dir,
+        event_type=event_type,
+        mission_slug=mission_slug,
+        mission_number=mission_number,
+        actor=actor,
+        artifact_path=artifact_path,
+        summary=summary,
+        wp_count=wp_count,
+        project_uuid=project_uuid,
+        project_slug=project_slug,
+        at=at,
+    )
+    if envelope is not None:
+        fanout_lifecycle_event_hosted(
+            envelope,
+            log_path=mission_event_log_path(feature_dir),
+        )
+    return envelope
 
 
 def emit_wp_created_local(
@@ -1126,10 +1191,12 @@ __all__ = [
     "MISSION_EVENTS_FILENAME",
     "project_event_log_path",
     "mission_event_log_path",
+    "fanout_lifecycle_event_hosted",
     "append_lifecycle_event",
     "has_lifecycle_event",
     "emit_project_initialized",
     "emit_mission_created_local",
+    "emit_artifact_phase_local",
     "emit_artifact_phase",
     "emit_wp_created_local",
     "emit_reviewer_self_approval",

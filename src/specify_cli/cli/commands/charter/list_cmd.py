@@ -9,9 +9,9 @@ from specify_cli.cli.console import CliConsole
 from specify_cli.cli.console import console
 from rich.table import Table
 
-from charter.invocation_context import ProjectContext
-from charter.kind_vocabulary import CHARTER_KIND_TOKENS
-from charter.pack_manager import AvailableArtifact, CharterPackManager
+from charter.activation.invocation_context import ProjectContext
+from charter.activation.kind_vocabulary import CHARTER_KIND_TOKENS
+from charter.activation.pack_manager import AvailableArtifact, CharterPackManager
 from charter.resolution import ResolutionTier
 from charter.template_catalog import TemplateRef, TierRoot, discover_templates
 
@@ -33,7 +33,7 @@ charter_list_app = typer.Typer(
 )
 
 #: Display order for the charter kinds. Derived from the canonical charter kind
-#: universe (:data:`doctrine.artifact_kinds.CHARTER_KIND_TOKENS`, WP01) so this
+#: universe (:data:`charter.offering.artifact_kinds.CHARTER_KIND_TOKENS`, WP01) so this
 #: surface never re-declares the kind set (R-009 / CC-4). The ``template`` kind
 #: (FR-025) is *not* in ``CHARTER_KIND_TOKENS`` — it is resolved specially
 #: (mission-qualified IDs, WP18) and appended to the ``--all`` listing below.

@@ -71,7 +71,7 @@ def _git_initial_commit(repo: Path) -> None:
 def _write_minimal_interview(repo: Path) -> None:
     """Place a minimal interview answers.yaml so charter generate can run.
 
-    The interview file shape is what ``charter.interview.read_interview_answers``
+    The interview file shape is what ``charter.activation.interview.read_interview_answers``
     parses. We supply only the fields ``compile_charter`` consults.
     """
     interview_dir = repo / ".kittify" / "charter" / "interview"

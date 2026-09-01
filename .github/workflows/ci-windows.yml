@@ -5,10 +5,14 @@ on:
   push:
     branches: [main]
 
+permissions:
+  contents: read
+  pull-requests: read
+
 jobs:
   changes:
     name: Detect Windows-critical changes
-    runs-on: blacksmith-4vcpu-ubuntu-2404
+    runs-on: ubuntu-latest
     if: ${{ !contains(github.event.pull_request.labels.*.name, 'pr:deferred') && !contains(github.event.pull_request.labels.*.name, 'pr:skip-ci') }}
     outputs:
       windows_critical: ${{ steps.filter.outputs.windows_critical }}
@@ -61,7 +65,7 @@ jobs:
       ${{ (needs.changes.outputs.windows_critical == 'true' || github.event_name == 'push')
       && !contains(github.event.pull_request.labels.*.name, 'pr:deferred')
       && !contains(github.event.pull_request.labels.*.name, 'pr:skip-ci') }}
-    runs-on: blacksmith-4vcpu-windows-2025
+    runs-on: windows-latest
     timeout-minutes: 20
     env:
       PYTHONUTF8: "1"
@@ -82,8 +86,22 @@ jobs:
           python -m pip install --upgrade pip pipx
           python -m pipx ensurepath
 
+      - name: Configure private git dependencies
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.SK_CI_TOKEN }}
+        run: |
+          if [ -z "$GH_TOKEN" ]; then
+            echo "::error::SK_CI_TOKEN is required to install the pinned private git dependencies."
+            exit 1
+          fi
+          git config --global "url.https://x-access-token:${GH_TOKEN}@github.com/.insteadOf" "https://github.com/"
+
       - name: Install spec-kitty-cli (editable) + test deps
         shell: bash
+        env:
+          TMP: ${{ runner.temp }}
+          TEMP: ${{ runner.temp }}
         run: |
           pipx install --editable . --force
           pipx inject spec-kitty-cli pytest pytest-cov pytest-asyncio pytest-timeout respx pytestarch

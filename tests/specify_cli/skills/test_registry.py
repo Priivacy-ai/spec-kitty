@@ -120,7 +120,7 @@ def test_get_skill_not_found(tmp_path: Path) -> None:
 
 
 def test_from_local_repo(tmp_path: Path) -> None:
-    skills_root = tmp_path / "src" / "doctrine" / "skills"
+    skills_root = tmp_path / "src" / "charter" / "offering" / "skills"
     skills_root.mkdir(parents=True)
     _make_skill(skills_root, "local-skill")
 

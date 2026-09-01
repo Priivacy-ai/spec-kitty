@@ -16,15 +16,26 @@ A previous state of PR #1395 shipped the rule as configuration only:
 
 This guard pins the enforcement so neither regression can recur:
 
-1. ``ci-quality.yml`` has a banned-API ruff step that runs ``--select TID251`` and is
-   NOT ``continue-on-error`` (it gates the build).
-2. ``pyproject.toml`` has no whole-directory ``tests/**`` ``per-file-ignore`` that lists
+1. ``pyproject.toml`` has no whole-directory ``tests/**`` ``per-file-ignore`` that lists
    ``TID251`` (the scope hole stays closed).
-3. Functionally, with the repository's real ruff config, an unannotated raw
+2. Functionally, with the repository's real ruff config, an unannotated raw
    ``hashlib.sha256`` in a *formerly-exempt* directory (``tests/charter/``) is flagged,
    while the same call carrying ``# noqa: TID251`` is allowed.
-4. The production ``src/**`` tree has no file-level TID251 exemptions, so Gap-5
+3. The production ``src/**`` tree has no file-level TID251 exemptions, so Gap-5
    ``click.exceptions.*`` usage is enforced even in raw-SHA owner files.
+
+Retired (planning#57): point (1) of the original four-point list — "the sole
+CI ruff step must run ``--select TID251`` and not be ``continue-on-error``" —
+was verified LIVE against ``.github/workflows/ci-quality.yml``, the leftover
+pre-programme GitHub Actions YAML deleted per PROGRAM.md §2. GitHub Actions'
+``continue-on-error: true`` was the only mechanism that could ever make this
+rule advisory-only; a local ``make lint`` / ``uv run ruff check`` has no
+equivalent knob, so with no workflow YAML left to parse, that check (and its
+``_lint_job_steps()`` helper) has no remaining subject matter and was removed
+with the file. Enforcement itself is unaffected: TID251 is selected in
+``[tool.ruff.lint]`` (below) with no ``exit-zero``/advisory escape, so running
+ruff at all — locally or however this programme now gates merges — enforces
+it; points (2)-(4) below never depended on the workflow file and stay.
 """
 
 from __future__ import annotations
@@ -35,49 +46,11 @@ import tomllib
 from pathlib import Path
 
 import pytest
-import yaml
 
 pytestmark = [pytest.mark.architectural]
 
 _REPO_ROOT = Path(__file__).resolve().parents[2]
 _PYPROJECT = _REPO_ROOT / "pyproject.toml"
-_WORKFLOW = _REPO_ROOT / ".github" / "workflows" / "ci-quality.yml"
-
-
-def _lint_job_steps() -> list[dict]:
-    data = yaml.safe_load(_WORKFLOW.read_text(encoding="utf-8"))
-    jobs = data.get("jobs", {})
-    assert "lint" in jobs, "ci-quality.yml must define a `lint` job"
-    return jobs["lint"].get("steps", [])
-
-
-def test_ci_has_enforced_tid251_gate() -> None:
-    """A non-advisory CI step must run ruff with --select TID251 (F1)."""
-    enforced = [
-        step
-        for step in _lint_job_steps()
-        if "--select TID251" in str(step.get("run", ""))
-        and step.get("continue-on-error", False) is not True
-    ]
-    assert enforced, (
-        "No ENFORCED `ruff check ... --select TID251` step found in the lint job. "
-        "TID251 must gate the build (no continue-on-error), per ADR 2026-05-28-1 "
-        "Decision Outcome ('automated enforcement rather than convention')."
-    )
-
-
-def test_advisory_ruff_step_is_not_the_only_tid251_surface() -> None:
-    """The advisory full-ruff report must not be mistaken for enforcement.
-
-    Guards against silently reverting the enforced gate to advisory-only by
-    deleting the dedicated step and relying on the ``continue-on-error`` report.
-    """
-    runs = [str(s.get("run", "")) for s in _lint_job_steps()]
-    advisory_only = any(
-        "ruff check src tests" in r and "--select TID251" not in r for r in runs
-    )
-    # The advisory report may exist, but it must be accompanied by the enforced gate.
-    assert not advisory_only or any("--select TID251" in r for r in runs)
 
 
 def test_no_whole_dir_tid251_exemption_for_tests() -> None:
@@ -174,6 +147,23 @@ def test_annotated_sha256_is_allowed() -> None:
         f"`# noqa: TID251` did not suppress the ban.\nstdout:\n{proc.stdout}\n"
         f"stderr:\n{proc.stderr}"
     )
+
+
+def test_retired_subsystem_imports_are_flagged() -> None:
+    """The #795 retired-subsystem bans must bite through Ruff TID251."""
+    dotted = chr(46)
+    retired_sync = dotted.join(("specify_cli", "sync"))
+    retired_delivery = dotted.join(("specify_cli", "delivery"))
+    proc = _ruff_probe(
+        f"import {retired_sync}\nfrom specify_cli import {retired_delivery.split(dotted, 1)[1]}\n",
+        "src/specify_cli/_retired_subsystem_probe.py",
+    )
+    assert proc.returncode != 0, (
+        "Ruff did not flag retired subsystem imports.\n"
+        f"stdout:\n{proc.stdout}\nstderr:\n{proc.stderr}"
+    )
+    assert retired_sync in proc.stdout
+    assert retired_delivery in proc.stdout
 
 
 def test_click_exceptions_probe_in_src_is_flagged() -> None:

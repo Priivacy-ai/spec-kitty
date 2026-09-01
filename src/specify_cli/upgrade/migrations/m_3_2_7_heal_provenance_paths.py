@@ -1,7 +1,7 @@
 """Migration: heal absolute built-in-pack ``source_path`` provenance to portable tokens.
 
-Companion to the T011/T012/T013 emit-side fix (``doctrine.provenance.
-to_portable_source_path``, routed through ``charter.compiler.
+Companion to the T011/T012/T013 emit-side fix (``charter.offering.provenance.
+to_portable_source_path``, routed through ``charter.activation.compiler.
 _doctrine_yaml_reference`` and ``specify_cli.tool_surface.profiles.
 projection._manifest_source_path``): a project that compiled its charter or
 projected its agent-profile manifest *before* that fix committed an
@@ -18,7 +18,7 @@ converges to zero further changes (C-MIG-1).
 Only entries the FIXED emit path would itself have tokenized are healed:
 
 - Catalog references whose ``kind`` is NOT ``"template_set"`` -- the mission-
-  template reference (``charter.compiler._template_reference``) is a
+  template reference (``charter.activation.compiler._template_reference``) is a
   deliberately excluded normalizer caller (still routes through
   ``_trim_source_path``, which returns a post-relocation mission.yaml path
   UNCHANGED, i.e. still absolute). Healing that entry here would just get
@@ -28,7 +28,7 @@ Only entries the FIXED emit path would itself have tokenized are healed:
   distinct, deliberately excluded carrier that stays repo-relative via
   ``_paths.relativize_under_root``, untouched by this migration).
 
-Within that scope, only paths that ``doctrine.provenance.is_built_in_pack_path``
+Within that scope, only paths that ``charter.offering.provenance.is_built_in_pack_path``
 classifies as built-in are rewritten -- an out-of-tree absolute source (a
 legitimate, if unusual, local-support/org override) is preserved as-is,
 matching the normalizer's own class-(c) behaviour.
@@ -106,7 +106,7 @@ def _catalog_references(charter_path: Path) -> list[dict[str, Any]]:
     if not charter_path.exists():
         return []
 
-    from charter.charter_yaml_io import load_charter_yaml  # noqa: PLC0415 -- lazy (C-002)
+    from charter.activation.charter_yaml_io import load_charter_yaml  # noqa: PLC0415 -- lazy (C-002)
 
     document = load_charter_yaml(charter_path)
     catalog = document.get("catalog") if hasattr(document, "get") else None
@@ -136,7 +136,7 @@ def _heal_catalog(project_path: Path, charter_path: Path, dry_run: bool) -> list
     if not healable:
         return []
 
-    from charter.charter_yaml_io import load_charter_yaml, update_charter_yaml_section  # noqa: PLC0415
+    from charter.activation.charter_yaml_io import load_charter_yaml, update_charter_yaml_section  # noqa: PLC0415
 
     changes: list[str] = []
     document = load_charter_yaml(charter_path)

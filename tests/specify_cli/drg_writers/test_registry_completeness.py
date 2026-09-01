@@ -24,8 +24,8 @@ from __future__ import annotations
 import pytest
 from pydantic import Field
 
-from doctrine.drg.migration import extractor
-from doctrine.drg.models import DRGEdge, DRGGraph, DRGNode, NodeKind, Relation
+from charter.offering.drg.migration import extractor
+from charter.offering.drg.models import DRGEdge, DRGGraph, DRGNode, NodeKind, Relation
 from specify_cli.drg_writers.registry import (
     DOCUMENT_WRITERS,
     MAPPING_WRITERS,
