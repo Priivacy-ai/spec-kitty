@@ -156,7 +156,7 @@ _TASKS_STATUS_CMD: tuple[str, ...] = (  # WP07 (wave2) — 23 symbols (#2816: +g
 # WP05 (wave2): grown to 75 via WP09, +1 (_binding_role_for_lane) = 76,
 # -1 (_mt_pre_review_gate_verdict retired, WP04) = 75, +1 (#2573 human
 # status observer) = 76, +1 (#3590 WP01 _mt_hop_reason_source) = 77 on the
-# experimental convergence base (whose seam retains later native symbols).
+# experimental convergence base, then +4 (#3578 rollback-signal quartet) = 81.
 _TASKS_MOVE_TASK: tuple[str, ...] = (
     # (#2513/#2160: +uncheck/clear-markers/reset-rollback; #2573: +gate
     # skip-reason pair; WP07 #2649: +param-object + commit/uncheck degod helpers;
@@ -228,6 +228,12 @@ _TASKS_MOVE_TASK: tuple[str, ...] = (
     "_mt_plan_review_result",
     "_mt_rollback_subtasks_reset",
     "_mt_shell_pid_baseline",
+    # #3578 (M4 operator-signal sweep): the rollback-to-``planned`` operator
+    # signal — summary value object + builder + JSON/human emitters.
+    "_RollbackResetSummary",
+    "_mt_build_rollback_summary",
+    "_mt_apply_rollback_signal",
+    "_mt_rollback_signal_lines",
     "_mt_execute",
     "_mt_output",
     "_do_move_task",
@@ -338,10 +344,7 @@ SYMBOL_TO_MODULE: dict[str, str] = {}
 for _module_name, _symbols in _SEAM_GROUPS.items():
     for _symbol in _symbols:
         if _symbol in SYMBOL_TO_MODULE:
-            raise AssertionError(
-                f"symbol {_symbol!r} claimed by both {SYMBOL_TO_MODULE[_symbol]!r} "
-                f"and {_module_name!r} — seam groups must be disjoint."
-            )
+            raise AssertionError(f"symbol {_symbol!r} claimed by both {SYMBOL_TO_MODULE[_symbol]!r} and {_module_name!r} — seam groups must be disjoint.")
         SYMBOL_TO_MODULE[_symbol] = _module_name
 
 #: Non-callable natively-defined symbols per seam that the callable-based
@@ -363,11 +366,7 @@ def _native_module_defs(module_name: str) -> set[str]:
     production source rather than trusted on faith.
     """
     module = _SEAM_MODULES[module_name]
-    callable_defs = {
-        name
-        for name, obj in vars(module).items()
-        if getattr(obj, "__module__", None) == module.__name__ and callable(obj)
-    }
+    callable_defs = {name for name, obj in vars(module).items() if getattr(obj, "__module__", None) == module.__name__ and callable(obj)}
     return callable_defs | set(_EXTRA_NON_CALLABLE_NATIVE_DEFS.get(module_name, frozenset()))
 
 
@@ -386,10 +385,7 @@ def test_tasks_binding_is_seam_object(symbol: str, module_name: str) -> None:
     ``<residual_module>.<symbol>`` — a genuine identity re-export, not a
     coincidental native redefinition on ``tasks``."""
     seam_module = _SEAM_MODULES[module_name]
-    assert hasattr(tasks, symbol), (
-        f"tasks.{symbol} no longer resolves — a re-export from {module_name} "
-        "was dropped."
-    )
+    assert hasattr(tasks, symbol), f"tasks.{symbol} no longer resolves — a re-export from {module_name} was dropped."
     assert getattr(tasks, symbol) is getattr(seam_module, symbol), (
         f"tasks.{symbol} is NOT the same object as {module_name}.{symbol} — "
         "the compat re-export is a copy, not an identity re-export (breaks "
@@ -413,8 +409,7 @@ def test_guard_symbol_is_genuinely_native_to_its_seam(symbol: str, module_name: 
     attributed to the wrong seam) that a bare identity check alone would not
     reliably surface."""
     assert symbol in _native_module_defs(module_name), (
-        f"{symbol!r} is mapped to {module_name!r} in the guard but is not "
-        f"natively defined there — check SYMBOL_TO_MODULE / the seam group."
+        f"{symbol!r} is mapped to {module_name!r} in the guard but is not natively defined there — check SYMBOL_TO_MODULE / the seam group."
     )
 
 
@@ -433,10 +428,7 @@ def test_guard_keyset_is_superset_of_all_six_seams_native_defs() -> None:
 
     guard_keys = set(SYMBOL_TO_MODULE)
     missing = union_of_native_defs - guard_keys
-    assert not missing, (
-        "Symbols natively defined in a seam module but missing from the "
-        f"consolidated compat guard: {sorted(missing)}"
-    )
+    assert not missing, f"Symbols natively defined in a seam module but missing from the consolidated compat guard: {sorted(missing)}"
     assert union_of_native_defs <= guard_keys
 
 
@@ -448,7 +440,7 @@ def test_no_required_symbol_duplicated_in_survey() -> None:
     assert total_declared == len(SYMBOL_TO_MODULE)
 
 
-def test_guard_covers_full_163_symbol_surface() -> None:
+def test_guard_covers_full_167_symbol_surface() -> None:
     """Traceability pin: the guard's total symbol count matches the sum of
     the 6 seams' counts recorded in the seam files' own docstrings at
     authoring time (8 + 15 + 20 + 21 + 65 + 13 = 142). A change here is
@@ -553,7 +545,11 @@ def test_guard_covers_full_163_symbol_surface() -> None:
     ``_mt_approval_policy_metadata`` and ``_mt_hop_review_ref`` — the
     APPROVED/DONE approval-gate policy_metadata sidecar builder and the
     per-hop review_ref resolver that derives from the SAME hop_review_result
-    object used as review_result (tasks_move_task 81 -> 83): 163 -> 165."""
+    object used as review_result (tasks_move_task 81 -> 83): 163 -> 165.
+    #3578 (M4 operator-signal sweep) then added the four rollback-to-
+    ``planned`` signal symbols — ``_RollbackResetSummary``,
+    ``_mt_build_rollback_summary``, ``_mt_apply_rollback_signal`` and
+    ``_mt_rollback_signal_lines`` (tasks_move_task 83 -> 87): 165 -> 169."""
     # TODO(under-investigation, operator-flagged): the operator doubts this
     # consolidated compat guard earns its ROI. Every seam-local symbol addition
     # costs a three-part edit — register in the per-seam tuple, add an identity
@@ -561,4 +557,4 @@ def test_guard_covers_full_163_symbol_surface() -> None:
     # low incremental regression-catch value over the identity-re-export guard
     # alone. Revisit whether the golden-count ratchet should be relaxed or
     # dropped (see M4 #3578 integration, which paid this tax for 4 helpers).
-    assert len(SYMBOL_TO_MODULE) == 165  # golden-count: cardinality-is-contract
+    assert len(SYMBOL_TO_MODULE) == 169  # golden-count: cardinality-is-contract

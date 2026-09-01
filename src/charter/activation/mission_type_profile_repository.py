@@ -39,7 +39,7 @@ from pathlib import Path
 
 from charter.activation.mission_type_profiles import MissionTypeProfile
 from charter.offering.base import BaseDoctrineRepository
-from charter.offering.missions.repository import MissionTemplateRepository
+from charter.offering.pack_paths import built_in_missions_root as _pack_paths_built_in_missions_root
 
 __all__ = ["MissionTypeProfileRepository", "builtin_missions_root"]
 
@@ -53,27 +53,20 @@ _PROJECT_OVERRIDE_PARTS: tuple[str, ...] = (".kittify", "doctrine", "mission_typ
 
 
 def builtin_missions_root() -> Path:
-    """Shipped profiles root: ``src/charter/offering/missions``.
+    """Shipped profiles root: ``packs/built-in/missions``.
 
-    Thin delegate (FR-004) onto the ONE promoted missions-root authority,
-    :meth:`~charter.offering.missions.repository.MissionTemplateRepository.default_missions_root`
-    — this accessor is not a second, co-equal path-hardcode. The delegation
-    is layer-rule-clean (charter → doctrine, no ``specify_cli``) and
-    byte-identical in the return value: :meth:`default_missions_root` is
-    itself ``importlib.resources``-based (wheel-safe), which the previous
-    ``Path(__file__)``-relative literal here was not. Full convergence onto the
-    promoted ``pack_paths`` missions authority
-    (``charter.offering.pack_paths.built_in_missions_root``) is a tracked follow-up
-    (#3575), now unblocked — #3091 relocated the missions tree into
-    ``packs/built-in`` and ``pack_paths`` exposes ``built_in_missions_root()`` —
-    and is explicitly NOT claimed by this delegation.
+    Thin delegate (FR-004, #3575) directly onto the one canonical
+    :func:`~charter.offering.pack_paths.built_in_missions_root` authority.
+    Unlike ``MissionTemplateRepository.default_missions_root()``, this
+    accessor returns the joined path without performing the repository
+    existence check.
 
     Public module-level accessor (#2668) so cross-module consumers (e.g.
     ``charter.activation.action_grain``, ``charter.activation.mission_type_profiles``) no longer
     need to reach into :class:`MissionTypeProfileRepository`'s private
     ``_default_built_in_dir`` classmethod.
     """
-    return MissionTemplateRepository.default_missions_root()
+    return _pack_paths_built_in_missions_root()
 
 
 class MissionTypeProfileRepository(BaseDoctrineRepository[MissionTypeProfile]):
@@ -118,7 +111,7 @@ class MissionTypeProfileRepository(BaseDoctrineRepository[MissionTypeProfile]):
 
     @staticmethod
     def _default_built_in_dir() -> Path:
-        """Shipped profiles root: ``src/charter/offering/missions``.
+        """Shipped profiles root: ``packs/built-in/missions``.
 
         Delegates to the public module-level :func:`builtin_missions_root`
         (#2668) — kept as a thin classmethod wrapper so the existing

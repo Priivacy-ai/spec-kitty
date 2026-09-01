@@ -1279,23 +1279,10 @@ _CATEGORY_C_MERGE_DECOMP_SHIM_REEXPORT_2057: frozenset[SymbolKey] = frozenset(
         SymbolKey(
             "_already_baked", "42470ebca7e82026542624079c0cbafeaa3a5dc53ca3a653b2a4c196492bd93c", source_module="specify_cli.merge.ordering"
         ),  # specify_cli.merge.ordering::_already_baked
-        # specify_cli.merge.ordering::_compute_next_mission_number_or_none
-        SymbolKey(
-            "_compute_next_mission_number_or_none", "a1b9c06e3368d481c463b2c09a7a9055923219ddc4de8cd33d6d52bc5f73182d", source_module="specify_cli.merge.ordering"
-        ),
         # specify_cli.merge.ordering::_is_assigned_mission_number
         SymbolKey("_is_assigned_mission_number", "4da9f3fde4e20df83693697787af0a7ef0e4399b21c99bd102b9b3a899e34fe1", source_module="specify_cli.merge.ordering"),
         # specify_cli.merge.ordering::_mark_mission_number_baked
         SymbolKey("_mark_mission_number_baked", "aa2e64b018e1d7ecc47f73211c291d16934d659b8f4b07b472e200225d99e72b", source_module="specify_cli.merge.ordering"),
-        # specify_cli.merge.ordering::_write_mission_number_to_branch (body_hash
-        # refreshed lifecycle-gate-execution-context: body edited, key is
-        # content-tier and body-sensitive by design -- see _symbol_key.py
-        # "Body-sensitivity" note; still a seam-internal helper, zero cross-file
-        # src/ caller)
-        # specify_cli.merge.ordering::_write_mission_number_to_branch
-        SymbolKey(
-            "_write_mission_number_to_branch", "38e9704c5b132c12d81d3be921a257f0e340f58264fba5909703bb088b523fc2", source_module="specify_cli.merge.ordering"
-        ),
         SymbolKey(
             "check_push_safety", "893124ff3029dec30c538fd54577881f4afa05002067b4f1033ce550f52e0460", source_module="specify_cli.merge.push_preflight"
         ),  # specify_cli.merge.push_preflight::check_push_safety
