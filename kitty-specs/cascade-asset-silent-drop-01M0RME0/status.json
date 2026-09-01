@@ -1,0 +1,118 @@
+{
+  "event_count": 25,
+  "last_event_id": "01M0SDWCN21WNC40REKB1FJ32W",
+  "materialized_at": "2026-08-24T08:23:37.890279+00:00",
+  "mission_number": "",
+  "mission_slug": "cascade-asset-silent-drop-01M0RME0",
+  "mission_type": "software-dev",
+  "summary": {
+    "approved": 4,
+    "blocked": 0,
+    "canceled": 0,
+    "claimed": 0,
+    "done": 0,
+    "for_review": 0,
+    "in_progress": 0,
+    "in_review": 0,
+    "planned": 0
+  },
+  "work_packages": {
+    "WP01": {
+      "actor": "claude",
+      "agent": "claude",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 2,
+      "lane": "approved",
+      "last_event_id": "01M0RXREEN8WKPYPDVDNQYM4X2",
+      "last_transition_at": "2026-08-24T03:41:51.445037+00:00",
+      "model": "__resolved_model_absent__",
+      "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "WP01 diff b39bfb6b8..ab6e24623 src/ tests/; revert test verified RED; shard 2520 passed/28 skipped/0 failed; 0 findings",
+        "reviewer": "reviewer-renata",
+        "verdict": "approved"
+      },
+      "role": "implementer",
+      "shell_pid": 948862,
+      "shell_pid_created_at": "1787541991.74",
+      "subtasks": {
+        "T001": "done",
+        "T002": "done",
+        "T003": "done",
+        "T004": "done",
+        "T005": "done",
+        "T006": "done",
+        "T007": "done"
+      }
+    },
+    "WP02": {
+      "actor": "claude",
+      "agent": "claude",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 2,
+      "lane": "approved",
+      "last_event_id": "01M0RZNQC6QMWABJ66C9DSZCTJ",
+      "last_transition_at": "2026-08-24T04:15:19.430367+00:00",
+      "model": "__resolved_model_absent__",
+      "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "WP02 diff ab6e24623..HEAD; revert test 3/5 RED; mutation test proved SC-007 guard non-vacuous; charter 2520/0fail, fast-tests-cli 3105/0fail; 0 findings",
+        "reviewer": "reviewer-renata",
+        "verdict": "approved"
+      },
+      "role": "implementer",
+      "shell_pid": 1147543,
+      "shell_pid_created_at": "1787543945.47"
+    },
+    "WP03": {
+      "actor": "claude",
+      "agent": "claude",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 2,
+      "lane": "approved",
+      "last_event_id": "01M0S18WKB0VGS4N7WAMQQT4EC",
+      "last_transition_at": "2026-08-24T04:43:15.947748+00:00",
+      "model": "__resolved_model_absent__",
+      "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "WP03 diff d3990721f..HEAD; revert 3/3 RED; charter 2520/0fail cli 3109/0fail; 0 findings; NAMED SCOPE WIDENING: Hint-gate condition report.skipped vs has_skipped, reachability verified TRUE, assertions not red-first pinned",
+        "reviewer": "reviewer-renata",
+        "verdict": "approved"
+      },
+      "role": "implementer",
+      "shell_pid": 1384852,
+      "shell_pid_created_at": "1787545786.63"
+    },
+    "WP04": {
+      "actor": "claude",
+      "agent": "claude",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 3,
+      "lane": "approved",
+      "last_event_id": "01M0SDWCN21WNC40REKB1FJ32W",
+      "last_transition_at": "2026-08-24T08:23:37.890279+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "SK-69: single_branch topology has no lane branch to diff -- work committed directly on target_branch (ATDD ddc9d1d33, impl 2ee12551b). Same-lane restamp recording the implementer identity WP04 never got (claimed via 'status emit' rather than 'spec-kitty next', so the claim-seam resolved-binding annotation WP01-WP03 carry was never emitted). No lane change."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "WP04 diff f815c81a2..f35ac8a28; ATDD ddc9d1d33 revert->RED verified; charter 2521 passed/0 failed cov 90.94%; cli 3110 passed/0 failed (1 pre-existing terminal-width flake test_glossary_validate::test_human_output_shows_valid reproduced identically with WP04 files reverted); 0 findings; C-002 closes despite flat list[str] shape per plan.md:242-259 pre-implementation mandate; NAMED SCOPE WIDENING: test annotations -> click.testing.Result, 8 pre-existing mypy errors -> 0",
+        "reviewer": "reviewer-renata",
+        "verdict": "approved"
+      },
+      "role": "implementer",
+      "subtasks": {
+        "T017": "done",
+        "T018": "done",
+        "T019": "done",
+        "T020": "done",
+        "T021": "done"
+      }
+    }
+  }
+}

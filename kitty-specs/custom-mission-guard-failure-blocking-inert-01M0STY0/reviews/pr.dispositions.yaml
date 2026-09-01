@@ -1,0 +1,56 @@
+# Orchestrator dispositions for the pre-merge (PHASE=pr) squad. Nothing here is silently dropped.
+schema: review-dispositions/v1
+complete: true
+phase: pr
+mission: custom-mission-guard-failure-blocking-inert-01M0STY0
+dispositions:
+  - id: pr-merged-001
+    severity: 4
+    disposition: fixed
+    detail: >
+      Confirmed by R3 refute, routed to a fresh implementer (never a lens or the refuter), fixed in
+      two commits with the red-first test committed first (fb2c2142f) ahead of the fix (a4ec387eb).
+      Anchored verification (pr.verify.yaml) reproduced ManifestSchemaError at both tiers
+      independently and confirmed the happy path is unchanged. Full scope 1161 passed / 0 failed.
+
+  - id: pr-fresh-001
+    severity: 3
+    disposition: accepted-deferred
+    reason: >
+      REAL and correctly filed. The model_validate -> except ValidationError -> synthesize origin ->
+      raise ManifestSchemaError pattern is now hand-duplicated across three modules
+      (src/specify_cli/dossier/manifest.py, src/specify_cli/runtime/resolver.py,
+      src/runtime/next/runtime_bridge_io.py) and the copies have already drifted. Charter Standing
+      Order #5 ("close defect classes by construction") argues for extracting a shared helper.
+
+      DEFERRED rather than folded in, for three reasons, stated so the deferral is auditable:
+      (1) The concrete defect this mission was opened on is FIXED and verified three ways; this
+          finding is about preventing a FOURTH future recurrence, not about a live defect.
+      (2) The unification would edit src/specify_cli/dossier/manifest.py, which is OUTSIDE this
+          mission's blast radius and absent from its diff. Charter's change-scope reconciliation
+          makes Locality of Change the brake on growing the file set.
+      (3) It would land AFTER the pre-merge squad completed, so the structural change would ship
+          without squad review. Shipping unreviewed refactoring to mitigate a future-risk finding
+          is the worse trade.
+      Recorded in SPEC-KITTY-LEDGER.md and named in the PR body so a maintainer sees it rather
+      than it living only in this trail.
+
+  - id: WP03-F1
+    severity: 3
+    disposition: accepted-with-mitigation
+    detail: >
+      _bridge_oracle.py's spies do not assert on repo_root, so the parity oracle cannot catch an
+      omitted threading. Coverage verified live in TestAC8RepoRootThreadedThroughDnDependencyGate;
+      mitigation is a cross-reference comment (2fc5626dd) naming that class as the sole pin so a
+      future editor knows what deleting it removes. Recording repo_root on GuardCall was rejected
+      as disproportionate: it expands the oracle's data model and risks rippling into parity
+      assertions.
+
+  - id: WP04-F1
+    severity: 2
+    disposition: accepted
+    reason: >
+      T027's "advancing" half does not discriminate the fix -- it passes with WP01 reverted, as the
+      author honestly reported and two reviewers independently confirmed. The BLOCKING half carries
+      AC-10's non-vacuity and was proven RED under revert. The advancing half retains value as a
+      "does not spuriously re-block" smoke check. Not worth a fix round at severity 2.

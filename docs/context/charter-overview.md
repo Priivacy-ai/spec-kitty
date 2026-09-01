@@ -81,6 +81,17 @@ directly. There is no separate sync step: the next `charter context` call reads 
 `charter sync` still exists for canonical-root resolution and back-compat call sites, but it no
 longer extracts anything from `charter.md` — running it is always a no-op.
 
+A directive you add under the `directives:` section is **additive**: it is unioned onto the
+directive set the project already resolves (the built-in catalog default, charter-activated
+directives, or an explicit `governance.charter.selected_directives` selection), never a
+replacement of it. If you set `governance.charter.selected_directives`, that list defines the
+authoritative *base* set; the `directives:` section then layers on top of it additively. The
+resolution branch is now visible: `spec-kitty charter context --action plan --json` exposes a
+top-level `directives_source` (for example `catalog_fallback+project_local` when a project-local
+directive is merged onto the catalog default, or `catalog_fallback` for a bare project), and the
+human-readable `charter context` output prints a diagnostic when project-local directives are
+merged or when the catalog-default fallback is used.
+
 For partial regeneration of a specific directive or tactic without touching unrelated artifacts:
 
 ```bash

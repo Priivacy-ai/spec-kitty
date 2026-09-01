@@ -41,13 +41,14 @@ from charter.resolution import ResolutionResult, ResolutionTier
 from specify_cli.core.paths import assert_safe_path_segment
 
 if TYPE_CHECKING:
-    from charter.offering.missions import ExpectedArtifactManifest
+    from charter.missions import ExpectedArtifactManifest
 
 __all__ = [
     "ResolutionResult",
     "ResolutionTier",
     "TemplateConfigurationError",
     "TemplateURNError",
+    "required_artifacts_for",
     "resolve_command",
     "resolve_configured_artifact_name",
     "resolve_configured_template",
@@ -530,25 +531,28 @@ def resolve_configured_template(
         ) from exc
 
 
-def _load_expected_artifact_manifest(mission_type: str) -> ExpectedArtifactManifest | None:
+def _load_expected_artifact_manifest(
+    mission_type: str, repo_root: Path | None = None
+) -> ExpectedArtifactManifest | None:
     """Load and validate *mission_type*'s expected-artifacts manifest (read-only).
 
     Consumes :meth:`charter.missions.MissionTemplateRepository.get_expected_artifacts`
     -- the single per-type filename authority (FR-009) -- without modifying
-    ``doctrine/missions/repository.py``. Built-in/project tier only (no org
-    lookup; matches :meth:`~specify_cli.dossier.manifest.ManifestRegistry.load_manifest`'s
-    default, repo-root-less behavior), which is sufficient for the four
-    built-in mission types this seam guarantees byte-compatible output for
-    (NFR-003). Returns ``None`` when the doctrine tree has no manifest for
-    *mission_type* (unregistered/custom type -- degrades gracefully, mirrors
-    ``ManifestRegistry.load_manifest``).
+    ``charter.offering.missions.repository``. Returns ``None`` when neither
+    tier has a manifest for *mission_type* (unregistered/custom type --
+    degrades gracefully, mirrors ``ManifestRegistry.load_manifest``).
+
+    When *repo_root* is given and resolves to one or more existing configured
+    org roots, an org-pack
+    ``<org_root>/missions/<mission_type>/expected-artifacts.yaml`` takes
+    precedence over the built-in file, whole-file -- never field-merged with
+    it. *repo_root* is optional and defaults to ``None`` (no org lookup,
+    built-in tree only).
 
     Raises:
-        ManifestSchemaError: If a manifest exists for *mission_type* but
-            fails schema validation -- names the origin file and chains the
-            underlying :class:`pydantic.ValidationError` as ``__cause__``,
-            the same domain-error shape ``ManifestRegistry.load_manifest``
-            raises for its own manifest-load boundary.
+        ManifestSchemaError: If a found manifest fails schema validation. The
+            error carries a branch-specific origin and chains the underlying
+            :class:`pydantic.ValidationError` as ``__cause__``.
     """
     from pydantic import ValidationError  # noqa: PLC0415
 
@@ -558,18 +562,40 @@ def _load_expected_artifact_manifest(mission_type: str) -> ExpectedArtifactManif
     )
     from specify_cli.dossier.manifest import ManifestSchemaError  # noqa: PLC0415
 
+    org_roots = _resolve_existing_org_roots_for_manifest(repo_root)
+    if org_roots:
+        from charter.activation.org_expected_artifacts import (  # noqa: PLC0415
+            resolve_org_expected_artifacts,
+        )
+
+        org_parsed = resolve_org_expected_artifacts(org_roots, mission_type)
+        if org_parsed is not None:
+            try:
+                return ExpectedArtifactManifest.model_validate(org_parsed)
+            except ValidationError as exc:
+                origin = (
+                    f"org-tier expected-artifacts.yaml for mission type {mission_type!r} "
+                    f"(no single source file path available; checked org roots: "
+                    f"{', '.join(str(root) for root in org_roots)})"
+                )
+                raise ManifestSchemaError(mission_type, origin) from exc
+
     config = MissionTemplateRepository.default().get_expected_artifacts(mission_type)
     if config is None:
         return None
     try:
         return ExpectedArtifactManifest.model_validate(config.parsed)
     except ValidationError as exc:
-        # Same domain-error boundary as `ManifestRegistry.load_manifest`
-        # (specify_cli.dossier.manifest) -- a schema-invalid
-        # expected-artifacts.yaml must fail loud with the origin file and
-        # cause attached, never leak the raw pydantic exception type across
-        # this module's boundary (squad finding on #233, planning#249).
         raise ManifestSchemaError(mission_type, config.origin) from exc
+
+
+def _resolve_existing_org_roots_for_manifest(repo_root: Path | None) -> list[Path]:
+    """Return existing configured org doctrine roots for *repo_root*, or ``[]``."""
+    if repo_root is None:
+        return []
+    from charter.drg import resolve_existing_org_roots  # noqa: PLC0415
+
+    return [root / "missions" for root in resolve_existing_org_roots(repo_root)]
 
 
 def resolve_configured_artifact_name(
@@ -581,8 +607,7 @@ def resolve_configured_artifact_name(
     Twins :func:`resolve_configured_template`'s per-type filename seam
     without adding a second filename authority (squad §S2): the mapping is
     projected from ``expected-artifacts.yaml``'s ``path_pattern`` (via
-    :func:`charter.missions.project_artifact_name_set`, the runtime->charter->
-    doctrine facade),
+    :func:`charter.offering.missions.project_artifact_name_set`),
     never from :attr:`~charter.offering.missions.models.MissionStepTemplateRef.template_file`.
 
     Args:
@@ -630,7 +655,9 @@ def resolve_configured_artifact_name(
     return mapped_filename
 
 
-def required_artifacts_for(step: str, mission_type: str = "software-dev") -> list[str]:
+def required_artifacts_for(
+    step: str, mission_type: str = "software-dev", repo_root: Path | None = None
+) -> list[str]:
     """Return the blocking artifact filenames required at *step* (FR-009).
 
     Combines ``required_always`` with ``required_by_step[step]`` (mirroring
@@ -641,6 +668,9 @@ def required_artifacts_for(step: str, mission_type: str = "software-dev") -> lis
     Args:
         step: Mission step id (e.g. ``"specify"``, ``"plan"``).
         mission_type: Mission-type id (default ``"software-dev"``).
+        repo_root: Project root to resolve org-pack overrides for (FR-008),
+            or ``None`` (default) for built-in-tree-only resolution --
+            forwarded to :func:`_load_expected_artifact_manifest` unchanged.
 
     Returns:
         Blocking filenames for *step*, or an empty list when *mission_type*
@@ -651,7 +681,7 @@ def required_artifacts_for(step: str, mission_type: str = "software-dev") -> lis
             manifest but it fails schema validation -- see
             :func:`_load_expected_artifact_manifest`.
     """
-    manifest = _load_expected_artifact_manifest(mission_type)
+    manifest = _load_expected_artifact_manifest(mission_type, repo_root=repo_root)
     if manifest is None:
         return []
     specs = [*manifest.required_always, *manifest.required_by_step.get(step, [])]

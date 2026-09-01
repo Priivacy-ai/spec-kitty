@@ -28,12 +28,28 @@ from specify_cli.workspace.root_resolver import (
 
 pytestmark = [pytest.mark.unit, pytest.mark.git_repo]
 
+
 @pytest.fixture(autouse=True)
 def _clear_cache():
     """Ensure the module-level cache is empty for each test."""
     _reset_cache()
     yield
     _reset_cache()
+
+
+@pytest.fixture()
+def no_git_ancestry_inside_tmp_path(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """Keep an ambient ancestor checkout out of the non-repo test."""
+    boundary = tmp_path.resolve()
+    real_resolve_canonical_root = resolve_canonical_root
+
+    def bounded_resolve_canonical_root(cwd: Path | None = None) -> Path:
+        resolved = real_resolve_canonical_root(cwd)
+        if resolved == boundary or boundary in resolved.parents:
+            return resolved
+        raise WorkspaceRootNotFound((cwd or Path.cwd()).resolve())
+
+    monkeypatch.setitem(globals(), "resolve_canonical_root", bounded_resolve_canonical_root)
 
 
 def _git(cwd: Path, *args: str) -> str:
@@ -115,7 +131,11 @@ def test_coord_worktree_feature_dir_is_not_rewritten_to_primary(tmp_path: Path) 
     assert canonicalize_feature_dir(coord_feature_dir) != primary_feature_dir
 
 
-def test_non_git_directory_raises(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+def test_non_git_directory_raises(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    no_git_ancestry_inside_tmp_path: None,
+) -> None:
     plain = tmp_path / "no-git"
     plain.mkdir()
     monkeypatch.setenv("GIT_CEILING_DIRECTORIES", str(tmp_path))

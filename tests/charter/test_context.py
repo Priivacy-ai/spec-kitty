@@ -690,7 +690,15 @@ class TestBuildContextV2:
             payload = build_charter_context_json(tmp_path, action="plan", depth=1)
 
         assert payload["directives"] == []
-        assert [entry["id"] for entry in payload["all_directives"]] == ["DIR-001", "DIR-002"]
+        # WP01 (#3728) made project-local directives ADDITIVE: DIR-001/DIR-002
+        # now UNION onto the resolved catalog base instead of replacing it, so
+        # they are the appended tail and every base id survives (SC-001). The
+        # retired pre-#3728 replace behaviour asserted equality to just the two
+        # locals — do NOT restore it.
+        all_ids = [entry["id"] for entry in payload["all_directives"]]
+        assert all_ids[-2:] == ["DIR-001", "DIR-002"]
+        assert len(all_ids) > 2  # base preserved, not collapsed to the two locals
+        assert payload["directives_source"] == "catalog_fallback+project_local"
         # FR-006 (charter-pack-usage-journey WP03): present/path/bytes key on
         # the authoritative charter.yaml; charter.md's own presence/path are
         # the secondary display fields.

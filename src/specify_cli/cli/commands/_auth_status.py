@@ -43,7 +43,7 @@ from rich.markup import escape
 
 from kernel.clock import UTC, datetime, now_utc
 
-from specify_cli.cli.console import console
+from specify_cli.cli.console import console, sanitize_terminal_text
 
 from specify_cli.auth import get_token_manager
 from specify_cli.auth.session import StoredSession
@@ -112,9 +112,9 @@ def status_impl() -> None:
     console.print()
 
     _print_storage_backend(session)
-    console.print(f"  Session ID:     {session.session_id}")
+    console.print(f"  Session ID:     {escape(sanitize_terminal_text(session.session_id))}")
     console.print(f"  Last used:      {_format_iso(session.last_used_at)}")
-    console.print(f"  Auth method:    {escape(format_auth_method(session.auth_method))}")
+    console.print(f"  Auth method:    {escape(sanitize_terminal_text(format_auth_method(session.auth_method)))}")
 
 
 # ---------------------------------------------------------------------------
@@ -131,10 +131,10 @@ def _print_banner(verdict: HealthVerdict) -> None:
 def _print_identity(session: StoredSession) -> None:
     """Print the authenticated user's identity block."""
     if session.name and session.name != session.email:
-        console.print(f"  User:           {escape(session.email)} ({escape(session.name)})")
+        console.print(f"  User:           {escape(sanitize_terminal_text(session.email))} ({escape(sanitize_terminal_text(session.name))})")
     else:
-        console.print(f"  User:           {escape(session.email)}")
-    console.print(f"  User ID:        {session.user_id}")
+        console.print(f"  User:           {escape(sanitize_terminal_text(session.email))}")
+    console.print(f"  User ID:        {escape(sanitize_terminal_text(session.user_id))}")
 
 
 def _print_teams(session: StoredSession) -> None:
@@ -151,7 +151,7 @@ def _print_teams(session: StoredSession) -> None:
         if is_default:
             marker_parts.append("default")
         marker = f" [dim]({', '.join(marker_parts)})[/dim]" if marker_parts else ""
-        console.print(f"    - {escape(team.name)} ({team.role}){marker}")
+        console.print(f"    - {escape(sanitize_terminal_text(team.name))} ({escape(sanitize_terminal_text(team.role))}){marker}")
 
 
 def _print_token_expiry(session: StoredSession) -> None:
@@ -176,8 +176,8 @@ def _print_token_expiry(session: StoredSession) -> None:
 
 def _print_storage_backend(session: StoredSession) -> None:
     """Print the storage backend with a user-friendly label."""
-    label = escape(format_storage_backend(session.storage_backend))
-    console.print(f"  Storage:        {label}")
+    label = format_storage_backend(session.storage_backend)
+    console.print(f"  Storage:        {escape(sanitize_terminal_text(label))}")
 
 
 # ---------------------------------------------------------------------------

@@ -1,0 +1,114 @@
+schema: review-findings/v1
+complete: true
+phase: tasks
+lens_group: fresh
+mission: accept-path-remediation-honesty-01M0TWZP
+findings:
+  - id: TASKS-FRESH-001
+    lens: debugger-debbie / dual-system-divergence-mapping (spec-vs-implementation grounding)
+    severity: 3
+    title: WP02 T009 Test (d)'s instructions describe passing a `path_result` into `evaluate_path_conventions`, but the live function has no such parameter
+    evidence:
+      - artifact: "tasks/WP02-stop-double-reporting.md § Subtask T009, step 4 (\"Call `evaluate_path_conventions(..., optional_missing_to_dedup=[...])` with an `optional_missing` list containing ... and a `path_result.missing_paths_feature_relative` containing `api/contracts`'s resolved token\")"
+      - code: "src/specify_cli/acceptance/summary_core.py:110-117 (`evaluate_path_conventions(mission, repo_root, feature_dir, planning_read_dir, *, strict_metadata: bool)` — no `path_result` parameter; `path_result` is a local variable computed internally at line ~137 via its own call to `validate_mission_paths(...)`)"
+    claim: >
+      T009's Test (d) instructions read as though `path_result.missing_paths_feature_relative` is an
+      injectable input alongside `optional_missing_to_dedup` when calling `evaluate_path_conventions(...)`.
+      Confirmed against the live function signature that this is not possible: `evaluate_path_conventions`
+      takes `mission, repo_root, feature_dir, planning_read_dir, *, strict_metadata` and computes its own
+      `path_result` internally by calling `validate_mission_paths`. To make `path_result.missing_paths_feature_relative`
+      contain the specific synthetic values the test needs (`api/contracts`'s placeholder token, with
+      `docs/contracts` absent from it), an implementer must either (a) build a real-enough `Mission`/`MissionConfig`
+      whose `.config.paths`/`.config.artifacts` cause `validate_mission_paths` to genuinely produce that
+      field's content when invoked for real, or (b) monkeypatch `validate_mission_paths` itself (the pattern
+      the sibling `TestEvaluatePathConventions` class already uses per this WP's own prior-round evidence).
+      Neither mechanism is named. The subtask conflates the desired *outcome* of the internal computation
+      with an *input* to the call, which is exactly the kind of gap the same lens group already flagged once
+      this mission (TASKS-DECOMP-001, now fixed) for WP03/T010 — a WP file that describes a concrete step
+      an implementer literally cannot execute as written, discoverable only by attempting the code and
+      hitting a `TypeError` or a fixture that never produces the described `path_result` state.
+    remediation: >
+      Rewrite T009 step 4 to name the actual mechanism: either (a) state explicitly that the synthetic
+      `MissionConfig` must declare `api/contracts` under `mission.config.paths` (and NOT under
+      `artifacts.optional`/`.required`) with the directory absent on disk, and `docs/contracts` under
+      `artifacts.optional` only (not under `paths`, so `validate_mission_paths` never processes it directly)
+      — so that a real, unmocked `evaluate_path_conventions` call genuinely produces
+      `missing_paths_feature_relative == ["api/contracts"]` — or (b) state explicitly that
+      `validate_mission_paths` is monkeypatched (matching `TestEvaluatePathConventions`'s existing
+      convention) to return a `SimpleNamespace`/`PathValidationResult` with `missing_paths_feature_relative`
+      pre-set. Do not describe `path_result` as though it is passed into the call.
+
+  - id: TASKS-FRESH-002
+    lens: canonical-source-unification / version-governance (plan.md as the settled contract vs. the corrected tasks-phase files)
+    severity: 3
+    title: plan.md's WP4 "Assertions" text (and the WP1/WP2 rows of its revert-test summary table) still describe the pre-fix test designs that this revision's own tasks files explicitly reject or extend, leaving the "settled contract" internally contradicted by its own downstream artifacts
+    evidence:
+      - artifact: "plan.md § WP4 — red-first tests..., \"Assertions\" item 3: \"confirming `optional_missing` and `path_violations` in the JSON payload reflect the same single-severity resolution as the console/summary-object path — no format-specific drift\""
+      - artifact: "tasks/WP04-red-first-tests.md § Context, Assertion 3: \"This is deliberately NOT 'assert the JSON matches the object-level result' ... a JSON-vs-object comparison would pass identically whether or not WP2's dedup fix is present ... it would not be a genuine red-first test for FR-002/Scenario 4.\""
+      - artifact: "reviews/tasks.confirmed.yaml § TASKS-VERIFY-001 (confirmed, sev 4) — the finding that produced WP04's corrected Assertion 3 wording; its remediation explicitly said 'Update plan.md's test-strategy table row for US2/Scenario 4 accordingly if the assertion's mechanics change' — the mechanics did change, plan.md's prose was not updated"
+      - artifact: "plan.md § Red-first / revert discipline — summary table, WP1 row (no mention of the `missing_paths_feature_relative` assertions T003/T004 now carry) and WP2 row (no mention of Test (d), the collision guard) — both added to the tasks files by this same revision per TASKS-VERIFY-002/004"
+    claim: >
+      The review brief frames spec.md and plan.md as "the settled contract" the WP files operationalize.
+      plan.md's own WP4 section still spells out Assertion 3 using literally the same "JSON reflects the
+      same resolution as the console/summary-object path" framing that WP04's corrected task file now
+      explicitly names and rejects as non-falsifiable (the exact defect TASKS-VERIFY-001, sev 4, described).
+      A reader who consults plan.md for "the real design" — which the tasks-phase files are supposed to
+      match, not silently diverge from — gets the wrong, already-refuted assertion design, while WP04's
+      task file (correctly) does something else without flagging that it deviates from plan.md's literal
+      text. The same staleness pattern repeats more mildly in the revert-test summary table: WP1's row
+      omits the newly-added `missing_paths_feature_relative` assertions (TASKS-VERIFY-002's fix) and WP2's
+      row omits Test (d) (TASKS-VERIFY-004's fix), so the table under-describes what the actual WP files
+      now require. None of this makes the WP files themselves wrong — they govern implementation and are
+      correct — but it leaves the upstream "settled contract" silently stale rather than reconciled,
+      contrary to the charter's version-governance rule that a stale copy is "confidently wrong, not merely
+      lower-quality."
+    remediation: >
+      Update plan.md's WP4 "Assertions" item 3 to match WP04's corrected, independently-falsifiable
+      wording (assert directly on the parsed JSON payload's own `optional_missing`/`path_violations` keys,
+      not by comparison to the object-level result), and add one line to the WP1 and WP2 rows of the
+      revert-test summary table noting the `missing_paths_feature_relative` assertions and the Test (d)
+      collision guard respectively — or, if plan.md is intentionally frozen post-gate, add an explicit
+      note at the top of the affected WP04 section pointing back to this deviation so a reviewer diffing
+      plan.md against the WP files understands it is a deliberate, tracked correction, not an unflagged drift.
+
+  - id: TASKS-FRESH-003
+    lens: debugger-debbie / matrix-maker (divergence-matrix completeness — does the added test actually falsify the mechanism it claims to guard)
+    severity: 3
+    title: WP02 T009's new Test (d), added specifically to close TASKS-VERIFY-004's "no collision test for the artifact_tokens membership filter" gap, cannot actually distinguish an implementation that has the membership filter from one that omits it — the gap remains open under a different name
+    evidence:
+      - artifact: "tasks/WP02-stop-double-reporting.md § Subtask T009, step 4: fixture uses an artifact token `docs/contracts` vs. a non-artifact, build/repo-root declared path `api/contracts`, asserting they do not cross-match"
+      - code: "src/specify_cli/validators/paths.py:198-202 — branch selection itself is `elif _normalize_path_token(declared[key]) in artifact_tokens: ... else: full_path = project_root / candidate` — i.e. a declared token is only ever routed to the build/repo-root (`else:`) branch when its OWN normalized value is NOT a member of `artifact_tokens`"
+      - code: "src/specify_cli/validators/paths.py (WP01's T002 population rule) — the build/repo-root branch's placeholder value appended to `missing_paths_feature_relative` is `_normalize_path_token(resolved)`, and `resolved` reduces to the same declared token (mod trailing slash) for the no-`path_prefix` case, so its normalized form is identical to the value already excluded from `artifact_tokens` by the branch-selection check above"
+      - artifact: "reviews/tasks.confirmed.yaml § TASKS-VERIFY-004 claim: \"a naive basename/full-list comparison (skipping the artifact_tokens membership filter entirely) would produce the identical pass/fail result ... because there is no second, colliding token present\" — the remediation's own proposed fixture (adopted verbatim into T009 step 4) is itself such a non-colliding pair once full-token (non-basename) comparison is used"
+    claim: >
+      Because `validate_mission_paths`'s branch selection (`paths.py:198`) uses the SAME membership check
+      ( `_normalize_path_token(declared[key]) in artifact_tokens` ) to decide whether a token goes to the
+      artifact-tagged branch or the build/repo-root (`else:`) branch, any token that ends up in the
+      build/repo-root branch is, by construction, guaranteed to NOT be a member of `artifact_tokens` — and
+      its placeholder value in `missing_paths_feature_relative` inherits that same normalized string. This
+      means a build/repo-root placeholder entry (like `api/contracts` in Test (d)) can *never* collide with
+      `artifact_tokens`, with or without WP02's `artifact_tokens` membership-filter step present in the
+      dedup logic — the filter is a no-op for this category of entry. Test (d) therefore passes identically
+      whether the implementation includes the membership filter or omits it entirely (as long as full-token,
+      not basename-only, string comparison is used) — it only distinguishes full-token comparison from
+      basename-only comparison, a different (also real, but different) failure mode than the one
+      TASKS-VERIFY-004 named ("skipping the artifact_tokens membership filter entirely"). The genuine
+      collision case the membership filter guards against requires the ABSOLUTE-path branch specifically
+      (`if candidate.is_absolute():` is checked BEFORE the artifact_tokens elif, so an absolute declared
+      path like `/contracts` can normalize to a string, e.g. `"contracts"`, that IS a member of
+      `artifact_tokens` even though it took the non-artifact code path) — a case no test in WP01-WP04
+      constructs. TASKS-VERIFY-004 (sev 2, confirmed) is therefore not actually closed by this revision;
+      it now merely appears closed, which is a worse state for a future maintainer than the original,
+      visibly-open gap.
+    remediation: >
+      Replace or supplement Test (d)'s fixture with one that exercises the absolute-path branch: a declared
+      path token that is absolute (e.g. `/contracts`) whose normalized form (`_normalize_path_token`
+      strips only leading/trailing slashes, so `/contracts` -> `contracts`) collides with a genuinely
+      artifact-tagged token (e.g. `contracts` declared under `artifacts.optional` and, separately, under
+      `paths.deliverables` as `contracts/`, producing a real `missing_paths_feature_relative` entry
+      `"contracts"` for the artifact-tagged token) plus the absolute path's own placeholder entry
+      (`_normalize_path_token("/contracts")` == `"contracts"` too). Assert the membership filter does NOT
+      let the absolute-path placeholder spuriously validate a dedup it shouldn't, i.e. construct the case
+      where removing the `artifact_tokens` recomputation would change the outcome versus keeping it. If no
+      such case can be constructed cheaply, say so explicitly in T009 rather than leaving a fixture that
+      cannot fail under the regression it claims to guard.
