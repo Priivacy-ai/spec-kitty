@@ -124,7 +124,7 @@ def _missions_root(doctrine_root: Path) -> Path:
     * The ``doctrine`` **package** root (``src/doctrine``,
       :func:`_is_doctrine_package_root`) no longer carries missions data
       (only the 11 ``.py`` logic modules remain there) — resolved via
-      :meth:`~doctrine.missions.repository.MissionTemplateRepository.default_missions_root`,
+      :meth:`~charter.offering.missions.repository.MissionTemplateRepository.default_missions_root`,
       the missions-root authority (not :func:`built_in_root`: joining a
       segment onto that bare-root seam locally is the exact drift
       ``test_no_builtin_path_joins_outside_pack_paths_authority`` forbids;
@@ -151,12 +151,12 @@ def _missions_root(doctrine_root: Path) -> Path:
 #: subdirectory (``<kind>/testing/foo.tactic.yaml``) resolve to the same stem.
 #:
 #: **Two path shapes are matched (relocate-builtin-doctrine-packs).** The flatten
-#: (WP03) moved artifact *files* from ``src/doctrine/<kind>/built-in/`` to the
+#: (WP03) moved artifact *files* from ``src/charter/offering/<kind>/built-in/`` to the
 #: flattened ``packs/built-in/<kind>/``, but the ``references:`` path strings
 #: authored *inside* the styleguide/toolguide YAML were deliberately **not**
 #: rewritten (that move was a pure ``git mv`` — no in-file edits). Those strings
 #: are the actual input :func:`_resolve_path_ref` reads, so the legacy
-#: ``src/doctrine/<kind>/built-in/`` branch is load-bearing: dropping it would
+#: ``src/charter/offering/<kind>/built-in/`` branch is load-bearing: dropping it would
 #: silently lose every reference-derived ``suggests`` edge and shrink the shipped
 #: graph. The flattened ``packs/built-in/<kind>/`` branch (inner ``built-in``
 #: dropped) resolves any reference authored in the new home. A path string
@@ -171,12 +171,12 @@ def _missions_root(doctrine_root: Path) -> Path:
 def _kind_path_pattern(kind_dir: str, extension: str) -> re.Pattern[str]:
     """Compile a dual-home path-ref pattern for one artifact *kind_dir*.
 
-    Matches both the legacy ``src/doctrine/<kind_dir>/built-in/…`` home (the
+    Matches both the legacy ``src/charter/offering/<kind_dir>/built-in/…`` home (the
     format the shipped ``references:`` strings still carry) and the flattened
     ``packs/built-in/<kind_dir>/…`` home (inner ``built-in`` dropped), capturing
     the subdir-stripped filename stem (``*extension*`` = e.g. ``tactic``).
     """
-    home = rf"(?:src/doctrine/{kind_dir}/built-in|packs/built-in/{kind_dir})"
+    home = rf"(?:src/charter/offering/{kind_dir}/built-in|packs/built-in/{kind_dir})"
     return re.compile(rf"{home}/(?:.+/)?([^/]+)\.{extension}\.yaml$")
 
 
@@ -195,11 +195,11 @@ def _resolve_path_ref(path_str: str) -> tuple[str, str] | None:
     """Return ``(kind, raw_id)`` for a raw path-string reference, or ``None``.
 
     Styleguide and toolguide ``references`` fields carry plain file paths such as
-    ``src/doctrine/tactics/built-in/tdd-red-green-refactor.tactic.yaml`` (legacy
+    ``src/charter/offering/tactics/built-in/tdd-red-green-refactor.tactic.yaml`` (legacy
     home, still authored in the shipped YAML) or
     ``packs/built-in/tactics/tdd-red-green-refactor.tactic.yaml`` (flattened
     home).  This helper maps such a path to the canonical ``(kind, raw_id)`` pair
-    that :func:`doctrine.drg.migration.id_normalizer.artifact_to_urn` can resolve
+    that :func:`charter.offering.drg.migration.id_normalizer.artifact_to_urn` can resolve
     into a full URN — the two homes resolve to the same pair.
 
     Only **built-in** artifact paths (either home) are matched; URLs, glossary
@@ -215,7 +215,7 @@ def _resolve_path_ref(path_str: str) -> tuple[str, str] | None:
         ``(kind, raw_id)`` where *raw_id* is the filename stem (stripped of any
         subdirectory prefix and kind extension).  For directives the caller must
         pass *raw_id* through
-        :func:`doctrine.drg.migration.id_normalizer.artifact_to_urn` for
+        :func:`charter.offering.drg.migration.id_normalizer.artifact_to_urn` for
         ``DIRECTIVE_NNN`` normalisation.  Returns ``None`` if the path does not
         match any known pattern.
     """
@@ -1222,7 +1222,7 @@ def _iter_mission_type_data(
 ) -> Iterator[tuple[str, dict[str, Any], Path]]:
     """Yield ``(id, data, path)`` for each shipped mission-type YAML.
 
-    Canonical discovery source for the ``src/doctrine/missions/mission_types/``
+    Canonical discovery source for the ``src/charter/offering/missions/mission_types/``
     surface: both :func:`_discover_mission_type_nodes` (nodes) and
     :func:`extract_mission_type_edges` (edges) consume it so the glob is defined
     once. Files without an ``id`` or that fail to parse are skipped.
@@ -1247,7 +1247,7 @@ def _discover_mission_type_nodes(
     """Register a ``mission_type`` node for each shipped mission-type YAML.
 
     Mirrors :func:`_discover_built_in_artifact_nodes`: one node per
-    ``src/doctrine/missions/mission_types/*.yaml`` file, ``urn=mission_type:<id>``,
+    ``src/charter/offering/missions/mission_types/*.yaml`` file, ``urn=mission_type:<id>``,
     labelled with the file's ``display_name``. Edges from each mission_type to
     its ``action_sequence`` steps are emitted by
     :func:`extract_mission_type_edges`, so ``_KIND_MAP`` now carries a
@@ -1339,7 +1339,7 @@ def _resolve_action_sequence(
     non-sequence steps).
 
     Mirrors the transitional fallback in
-    :func:`~doctrine.missions.mission_type_repository._inject_projected_fields`:
+    :func:`~charter.offering.missions.mission_type_repository._inject_projected_fields`:
     an empty projection -- mission types whose steps are not yet annotated
     with ``sequence_index``/``in_action_sequence`` (pending WP05) -- falls
     back to the still-authored raw YAML ``action_sequence`` so the shipped
@@ -1417,7 +1417,7 @@ def extract_governance_profile_scope_edges(doctrine_root: Path) -> list[DRGEdge]
 
     Every ``selected_*`` entry is a **bare id** (a plain string, not a
     ``{type, id, when?, reason?}`` reference dict), so the target URN is built
-    directly via :func:`~doctrine.drg.migration.id_normalizer.artifact_to_urn`
+    directly via :func:`~charter.offering.drg.migration.id_normalizer.artifact_to_urn`
     rather than routed through :func:`_reference_edge_kwargs` (which expects a
     reference *dict* to pull optional ``when``/``reason`` metadata from --
     metadata a bare string never carries).
@@ -1484,7 +1484,7 @@ def assert_governance_scope_edges_resolve(
     fictional id in any ``selected_*`` list (a typo, a renamed/removed
     artifact) reached no error at all: :func:`generate_graph`'s own
     calibration-target loop (the ``all_urns``-driven ``_ensure_node`` pass
-    after :func:`~doctrine.drg.migration.calibrator.calibrate_surfaces`)
+    after :func:`~charter.offering.drg.migration.calibrator.calibrate_surfaces`)
     silently minted a phantom node for it instead, fabricating a real-looking
     DRG node + edge pair for a governance selection that names nothing.
 
@@ -1526,14 +1526,14 @@ def extract_template_instantiation_edges(
     For each shipped mission-type YAML, resolve its steps through the same
     builtin-only :meth:`MissionStepRepository.resolve_all_for_mission_type`
     seam :func:`extract_mission_type_edges` uses, then walk
-    :func:`~doctrine.missions.step_projection.iter_template_refs` -- the
+    :func:`~charter.offering.missions.step_projection.iter_template_refs` -- the
     **sole traversal** of ``MissionStep.template`` (C-003) -- rather than
     re-checking ``step.template`` independently here.
 
     Each ``(step, template_ref)`` pair mints:
 
     - a mission-qualified ``template:<mission_type>/<template_file>`` node
-      (via :func:`doctrine.template_catalog.template_urn`), deduplicated by
+      (via :func:`charter.offering.template_catalog.template_urn`), deduplicated by
       URN (two steps in the same mission type never share a template file
       today, but a future one might);
     - one :attr:`Relation.INSTANTIATES` edge from the step's own
@@ -1584,7 +1584,7 @@ def generate_graph(
     """Compose extraction + calibration into a validated ``graph.yaml``.
 
     Args:
-        doctrine_root: Path to ``src/doctrine/``.
+        doctrine_root: Path to ``src/charter/offering/``.
         output_path: Locates the output *directory* (``output_path.parent``).
             The graph is written there as per-kind ``<kind>.graph.yaml``
             fragments and any ``graph.yaml`` monolith in that directory is

@@ -664,7 +664,7 @@ def _collect_governance_scope_edges(pack_root: Path) -> list[_ProjectedOrgDRGEdg
     ``mission_type:<type> --scope--> <artifact>`` projection edges so an
     org-tier selection reaches the merged DRG rather than being silently unread
     (WP03 / T014). An unresolved selection is minted as a dangling scope edge,
-    which :func:`doctrine.drg.validator.validate_dangling_references` (via
+    which :func:`charter.offering.drg.validator.validate_dangling_references` (via
     ``assert_valid`` in :func:`charter._drg_helpers.load_validated_graph`) then
     raises on -- no dedicated governance-scope guard is required.
 
