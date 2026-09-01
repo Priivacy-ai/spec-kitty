@@ -1,4 +1,4 @@
-"""The Zeitgeist moment handler at the status fan-out seam (E3, EXPERIMENTAL-spec-kitty#8).
+"""The Zeitgeist moment handler at the status fan-out seam (E3, Priivacy-ai/spec-kitty#8).
 
 One fire-and-forget ``event.publish`` per status moment, replacing the sync
 package's import-time registration as the default occupant of the
@@ -281,6 +281,26 @@ def _normalise_evidence(evidence: Any) -> Any:
     }
 
 
+def _first_non_printable_attr(attrs: Mapping[str, str]) -> tuple[str, list[str]] | None:
+    """Find the first attr value the decode-seam control-character guard would reject.
+
+    ``to_zeitgeist_attrs`` (spec-kitty-events, pinned 8.2.0) applies no
+    printability check of its own — only ``from_zeitgeist_attrs`` does
+    (``_reject_control_characters``, Priivacy-ai/spec-kitty-events#64, fix in
+    flight as events#104). Free-text decision prose (``question``/``options``
+    on open, ``final_answer``/``rationale`` on resolve) can therefore reach
+    this seam carrying control characters — a pasted ANSI escape sequence is
+    routine — that every consumer's decode will reject. Using the same
+    ``str.isprintable()`` predicate here turns that otherwise-silent
+    decode-side drop into a producer-side warning.
+    """
+    for key, value in attrs.items():
+        bad = sorted({f"U+{ord(ch):04X}" for ch in value if not ch.isprintable()})
+        if bad:
+            return key, bad
+    return None
+
+
 def _broadcast_moment(
     payload: BaseModel,
     envelope: Event,
@@ -309,11 +329,24 @@ def _broadcast_moment(
         logger.warning("Zeitgeist moment %s not broadcast: %s", event_type, exc)
         return
 
+    non_printable = _first_non_printable_attr(attrs)
+    if non_printable is not None:
+        key, bad_chars = non_printable
+        logger.warning(
+            "Zeitgeist moment %s not broadcast: attr %r contains non-printable "
+            "characters %s (every consumer's from_zeitgeist_attrs decode would "
+            "reject this; dropped here instead — see Priivacy-ai/spec-kitty-events#64)",
+            event_type,
+            key,
+            bad_chars,
+        )
+        return
+
     # One Git deadline for this whole broadcast: credential resolution,
     # presence's canonical identity, and the focus capability lookup below
     # each used to open their OWN fresh 2.0s `repo_identity.Deadline`,
     # stacking three independent budgets under the fan-out seam's 10s bound
-    # (EXPERIMENTAL-spec-kitty#203). Sharing one here bounds all of this
+    # (Priivacy-ai/spec-kitty#203). Sharing one here bounds all of this
     # broadcast's Git work to one budget, the same reasoning
     # `repo_identity.identity()`'s own docstring gives for not deriving
     # repo/branch/commit separately.
@@ -421,7 +454,7 @@ def _refresh_liveness(
     ``deadline`` is the ``repo_identity.Deadline`` this broadcast already
     opened for credential resolution — threaded through here and into the
     focus lookup below so this whole broadcast shares one Git budget
-    (EXPERIMENTAL-spec-kitty#203) rather than each stage opening its own.
+    (Priivacy-ai/spec-kitty#203) rather than each stage opening its own.
 
     Same fire-and-forget discipline as the moment: drop-no-retry per frame,
     every failure logged and swallowed here so the fan-out slot stays
@@ -489,7 +522,7 @@ def _resolve_focus_capability(cwd: Path, *, deadline: Deadline) -> str | None:
     """The checkout's ``focus``-kind capability JWT, or ``None`` to stay silent.
 
     ``deadline`` shares this broadcast's one Git budget
-    (EXPERIMENTAL-spec-kitty#203) instead of letting this lookup open its
+    (Priivacy-ai/spec-kitty#203) instead of letting this lookup open its
     own fresh one. Imported here for the same reason as every other
     transport-chain import: resolution pulls httpx, which the status package
     must not pay for at import time.
@@ -506,7 +539,7 @@ def _resolve_credentials(cwd: Path, *, deadline: Deadline) -> StoredCredential |
     admission pre-flight + capability mint against Team Kitty, else a stored
     negative answer. Every way it can fail resolves to ``None`` plus its own
     debug log — none of them raise here. ``deadline`` shares this
-    broadcast's one Git budget (EXPERIMENTAL-spec-kitty#203) rather than
+    broadcast's one Git budget (Priivacy-ai/spec-kitty#203) rather than
     opening a fresh one here.
     """
     from specify_cli.zeitgeist_client.resolution import resolve_credentials  # noqa: PLC0415

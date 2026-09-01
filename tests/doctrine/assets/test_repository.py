@@ -1,4 +1,4 @@
-"""Tests for :class:`doctrine.assets.repository.AssetRepository` (WP04).
+"""Tests for :class:`charter.offering.assets.repository.AssetRepository` (WP04).
 
 An asset identifier must resolve to a filesystem path across the built-in,
 organisation and project tiers, fail-closed. These tests pin the three traps
@@ -16,12 +16,12 @@ from pathlib import Path
 import pytest
 from ruamel.yaml import YAML
 
-from doctrine.assets.repository import (
+from charter.offering.assets.repository import (
     AssetNotFoundError,
     AssetPathEscapeError,
     AssetRepository,
 )
-from doctrine.base import DoctrineLayerCollisionWarning
+from charter.offering.base import DoctrineLayerCollisionWarning
 
 pytestmark = [pytest.mark.fast, pytest.mark.doctrine, pytest.mark.corpus]
 

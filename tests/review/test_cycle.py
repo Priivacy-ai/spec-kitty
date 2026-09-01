@@ -20,6 +20,7 @@ from specify_cli.git.protection_policy import ProtectionPolicy
 from specify_cli.review.cycle import (
     CreatedRejectedReviewCycle,
     ReviewCycleError,
+    VerdictPersistenceOutcome,
     build_review_cycle_pointer,
     create_rejected_review_cycle,
     resolve_review_cycle_pointer,
@@ -1135,6 +1136,9 @@ def test_create_rejected_review_cycle_raises_when_commit_fails(
     artifact_path = tasks_dir / "WP01-core" / "review-cycle-1.md"
     assert router.calls == [artifact_path]
     assert created.artifact_path == artifact_path
+    assert created.persistence.classification == "persistence_failed"
+    assert created.persistence.reason == "commit_error"
+    retained_bytes = artifact_path.read_bytes()
 
     # An immediate retry with the SAME feedback, now with a working commit
     # router, succeeds cleanly and lands at the NEXT cycle number -- the
@@ -1152,8 +1156,11 @@ def test_create_rejected_review_cycle_raises_when_commit_fails(
         reviewer_agent="reviewer-renata",
         commit_router=RealCoordCommitRouter(),
     )
-    assert retried.artifact_path == tasks_dir / "WP01-core" / "review-cycle-2.md"
-    assert retried.artifact.cycle_number == 2
+    assert retried.artifact_path == artifact_path
+    assert retried.artifact.cycle_number == 1
+    assert retried.artifact_path.read_bytes() == retained_bytes
+    assert retried.persistence.classification == "durable"
+    assert retried.persistence.verdict_durably_persisted
 
 
 @dataclass
@@ -1194,7 +1201,7 @@ class _RaisingCommitRouter:
         raise RuntimeError("simulated raise-based commit failure (not ReviewCycleError)")
 
 
-def test_raise_based_commit_failure_rolls_back_artifact_and_propagates(
+def test_raise_based_commit_failure_retains_artifact_and_returns_failure(
     tmp_path: Path,
 ) -> None:
     """Landing-pass fold (#2697 shape): a raise-based commit failure --
@@ -1225,30 +1232,27 @@ def test_raise_based_commit_failure_rolls_back_artifact_and_propagates(
 
     router = _RaisingCommitRouter()
 
-    with pytest.raises(RuntimeError, match="simulated raise-based commit failure"):
-        create_rejected_review_cycle(
-            main_repo_root=repo,
-            mission_slug="001-mission",
-            wp_id="WP01",
-            wp_slug="WP01-core",
-            feedback_source=feedback,
-            reviewer_agent="reviewer-renata",
-            commit_router=router,
-        )
+    created = create_rejected_review_cycle(
+        main_repo_root=repo,
+        mission_slug="001-mission",
+        wp_id="WP01",
+        wp_slug="WP01-core",
+        feedback_source=feedback,
+        reviewer_agent="reviewer-renata",
+        commit_router=router,
+    )
 
     # The router WAS invoked once, with the written artifact path -- the
     # failure is real, not swallowed.
     artifact_path = tasks_dir / "WP01-core" / "review-cycle-1.md"
     assert router.calls == [artifact_path]
-    # The failed write is rolled back -- no orphaned artifact survives, even
-    # though the failure was a bare raise rather than a ReviewCycleError.
-    assert not artifact_path.exists(), (
-        "a raise-based commit failure must roll back its write -- an orphaned, "
-        "uncommitted artifact would permanently strand a phantom 'latest' verdict"
+    assert artifact_path.exists()
+    assert created.persistence.classification == "persistence_failed"
+    assert created.persistence.reason == "commit_exception"
+    assert created.persistence.evidence_ref == (
+        "kitty-specs/001-mission/tasks/WP01-core/review-cycle-1.md"
     )
-    assert not list((tasks_dir / "WP01-core").glob("review-cycle-*.md")), (
-        "no review-cycle-*.md should survive a rolled-back commit failure"
-    )
+    assert not created.persistence.verdict_durably_persisted
 
 
 def test_validation_failure_after_write_leaves_no_orphaned_artifact(
@@ -1669,3 +1673,698 @@ def test_create_rejected_review_cycle_invokes_commit_artifact_at_most_once(
         "recording one verdict must invoke commit_artifact at most once "
         f"(observed {router.invocation_count} invocations)"
     )
+
+
+def test_persistence_outcome_rejects_contradictory_states() -> None:
+    with pytest.raises(ValueError, match="true durability flag"):
+        VerdictPersistenceOutcome(
+            classification="durable",
+            verdict_durably_persisted=False,
+            evidence_ref="kitty-specs/m/tasks/WP01/review-cycle-1.md",
+            destination_ref="main",
+            reason=None,
+            message="not actually durable",
+        )
+    with pytest.raises(ValueError, match="durable outcome requires"):
+        VerdictPersistenceOutcome(
+            classification="durable",
+            verdict_durably_persisted=True,
+            evidence_ref=None,
+            destination_ref="main",
+            reason=None,
+            message="durable",
+        )
+    with pytest.raises(ValueError, match="must not carry"):
+        VerdictPersistenceOutcome(
+            classification="durable",
+            verdict_durably_persisted=True,
+            evidence_ref="kitty-specs/m/tasks/WP01/review-cycle-1.md",
+            destination_ref="main",
+            reason="contradiction",
+            message="durable but contradictory",
+        )
+    with pytest.raises(ValueError, match="non-durable outcome requires"):
+        VerdictPersistenceOutcome(
+            classification="persistence_failed",
+            verdict_durably_persisted=False,
+            evidence_ref="kitty-specs/m/tasks/WP01/review-cycle-1.md",
+            destination_ref="main",
+            reason=None,
+            message="failed",
+        )
+    with pytest.raises(ValueError, match="only durable"):
+        VerdictPersistenceOutcome(
+            classification="busy",
+            verdict_durably_persisted=True,
+            evidence_ref=None,
+            destination_ref=None,
+            reason="queue_timeout",
+            message="busy",
+        )
+
+
+def test_committed_without_destination_readback_is_failure_and_retained(
+    tmp_path: Path,
+) -> None:
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    _init_repo(repo)
+    tasks_dir = repo / "kitty-specs" / "001-mission" / "tasks"
+    tasks_dir.mkdir(parents=True)
+    (tasks_dir / "WP01-core.md").write_text("# WP01\n", encoding="utf-8")
+    subprocess.run(["git", "add", "-A"], cwd=repo, check=True, capture_output=True)
+    subprocess.run(["git", "commit", "-m", "seed"], cwd=repo, check=True, capture_output=True)
+    _unprotect_main(repo)
+    feedback = tmp_path / "feedback.md"
+    feedback.write_text("**Issue**: not really committed.\n", encoding="utf-8")
+
+    created = create_rejected_review_cycle(
+        main_repo_root=repo,
+        mission_slug="001-mission",
+        wp_id="WP01",
+        wp_slug="WP01-core",
+        feedback_source=feedback,
+        reviewer_agent="reviewer-renata",
+        commit_router=_CountingCommitRouter(),
+    )
+
+    assert created.artifact_path.exists()
+    assert created.persistence.classification == "persistence_failed"
+    assert created.persistence.reason == "destination_readback_missing"
+    assert not created.persistence.verdict_durably_persisted
+
+
+def test_committed_with_mismatched_destination_bytes_is_failure(tmp_path: Path) -> None:
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    _init_repo(repo)
+    with patch(
+        "specify_cli.review.cycle._read_artifact_at_ref",
+        return_value=b"different committed bytes",
+    ):
+        created = create_rejected_review_cycle(
+            main_repo_root=repo,
+            mission_slug="001-mission",
+            wp_id="WP01",
+            wp_slug="WP01-core",
+            body="local evidence bytes",
+            reviewer_agent="reviewer-renata",
+            commit_router=_CountingCommitRouter(),
+        )
+
+    assert created.persistence.classification == "persistence_failed"
+    assert created.persistence.reason == "destination_readback_mismatch"
+    assert created.artifact_path.exists()
+
+
+@dataclass
+class _TimeoutCommitRouter(_FailingCommitRouter):
+    def commit_artifact(
+        self,
+        mission: MissionHandle,
+        paths: Sequence[Path],
+        message: str,
+        *,
+        kind: MissionArtifactKind,
+        policy: ProtectionPolicy,
+    ) -> CommitArtifactResult:
+        self.calls.extend(paths)
+        raise TimeoutError("simulated commit timeout")
+
+
+def test_commit_timeout_is_typed_failure_with_retained_bytes(tmp_path: Path) -> None:
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    _init_repo(repo)
+    created = create_rejected_review_cycle(
+        main_repo_root=repo,
+        mission_slug="001-mission",
+        wp_id="WP01",
+        wp_slug="WP01-core",
+        body="timeout evidence",
+        reviewer_agent="reviewer-renata",
+        commit_router=_TimeoutCommitRouter(),
+    )
+
+    assert created.persistence.classification == "persistence_failed"
+    assert created.persistence.reason == "commit_timeout"
+    assert created.artifact_path.read_text(encoding="utf-8").endswith("timeout evidence")
+
+
+def test_real_commit_is_durable_only_after_exact_ref_readback(tmp_path: Path) -> None:
+    from specify_cli.agent_tasks_ports import RealCoordCommitRouter
+
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    _init_repo(repo)
+    tasks_dir = repo / "kitty-specs" / "001-mission" / "tasks"
+    tasks_dir.mkdir(parents=True)
+    (tasks_dir / "WP01-core.md").write_text("# WP01\n", encoding="utf-8")
+    subprocess.run(["git", "add", "-A"], cwd=repo, check=True, capture_output=True)
+    subprocess.run(["git", "commit", "-m", "seed"], cwd=repo, check=True, capture_output=True)
+    _unprotect_main(repo)
+    feedback = tmp_path / "feedback.md"
+    feedback.write_text("**Issue**: proven at destination.\n", encoding="utf-8")
+
+    created = create_rejected_review_cycle(
+        main_repo_root=repo,
+        mission_slug="001-mission",
+        wp_id="WP01",
+        wp_slug="WP01-core",
+        feedback_source=feedback,
+        reviewer_agent="reviewer-renata",
+        commit_router=RealCoordCommitRouter(),
+    )
+
+    assert created.persistence == VerdictPersistenceOutcome(
+        classification="durable",
+        verdict_durably_persisted=True,
+        evidence_ref="kitty-specs/001-mission/tasks/WP01-core/review-cycle-1.md",
+        destination_ref="main",
+        reason=None,
+        message="Review-cycle evidence is committed and verified at main.",
+    )
+
+
+def test_nonidentical_retry_does_not_adopt_retained_record(tmp_path: Path) -> None:
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    _init_repo(repo)
+    tasks_dir = repo / "kitty-specs" / "001-mission" / "tasks"
+    tasks_dir.mkdir(parents=True)
+    (tasks_dir / "WP01-core.md").write_text("# WP01\n", encoding="utf-8")
+    subprocess.run(["git", "add", "-A"], cwd=repo, check=True, capture_output=True)
+    subprocess.run(["git", "commit", "-m", "seed"], cwd=repo, check=True, capture_output=True)
+    _unprotect_main(repo)
+
+    first = create_rejected_review_cycle(
+        main_repo_root=repo,
+        mission_slug="001-mission",
+        wp_id="WP01",
+        wp_slug="WP01-core",
+        body="first body",
+        reviewer_agent="reviewer-renata",
+        commit_router=_FailingCommitRouter(),
+    )
+    second = create_rejected_review_cycle(
+        main_repo_root=repo,
+        mission_slug="001-mission",
+        wp_id="WP01",
+        wp_slug="WP01-core",
+        body="different body",
+        reviewer_agent="reviewer-renata",
+        commit_router=_FailingCommitRouter(),
+    )
+
+    assert first.artifact_path.name == "review-cycle-1.md"
+    assert second.artifact_path.name == "review-cycle-2.md"
+
+
+def test_cycle_writer_never_acquires_verdict_save_queue(tmp_path: Path) -> None:
+    from specify_cli.agent_tasks_ports import RealCoordCommitRouter
+
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    _init_repo(repo)
+    tasks_dir = repo / "kitty-specs" / "001-mission" / "tasks"
+    tasks_dir.mkdir(parents=True)
+    (tasks_dir / "WP01-core.md").write_text("# WP01\n", encoding="utf-8")
+    subprocess.run(["git", "add", "-A"], cwd=repo, check=True, capture_output=True)
+    subprocess.run(["git", "commit", "-m", "seed"], cwd=repo, check=True, capture_output=True)
+    _unprotect_main(repo)
+    with patch(
+        "specify_cli.review.verdict_commit_queue.acquire_verdict_save_queue",
+        side_effect=AssertionError("cycle.py must not acquire the verdict queue"),
+    ):
+        local = create_rejected_review_cycle(
+            main_repo_root=repo,
+            mission_slug="001-mission",
+            wp_id="WP01",
+            wp_slug="WP01-core",
+            body="local-only evidence",
+            reviewer_agent="reviewer-renata",
+        )
+        retained = create_rejected_review_cycle(
+            main_repo_root=repo,
+            mission_slug="001-mission",
+            wp_id="WP01",
+            wp_slug="WP01-core",
+            body="automatic retained evidence",
+            reviewer_agent="reviewer-renata",
+            commit_router=_FailingCommitRouter(),
+        )
+        retried = create_rejected_review_cycle(
+            main_repo_root=repo,
+            mission_slug="001-mission",
+            wp_id="WP01",
+            wp_slug="WP01-core",
+            body="automatic retained evidence",
+            reviewer_agent="reviewer-renata",
+            commit_router=RealCoordCommitRouter(),
+        )
+
+    assert local.persistence.classification == "local_only"
+    assert local.persistence.reason == "no_auto_commit"
+    assert retained.persistence.classification == "persistence_failed"
+    assert retried.persistence.classification == "durable"
+    assert retried.artifact_path == retained.artifact_path
+
+
+@dataclass
+class _FixedStatusCommitRouter:
+    status: str
+    invocation_count: int = 0
+
+    def feature_write_dir(self, mission: MissionHandle) -> Path:
+        raise AssertionError("feature_write_dir is not used")
+
+    def commit_status(
+        self, request: TransitionRequest, *, capability: GuardCapability
+    ) -> CommitStatusResult:
+        raise AssertionError("commit_status is not used")
+
+    def commit_artifact(
+        self,
+        mission: MissionHandle,
+        paths: Sequence[Path],
+        message: str,
+        *,
+        kind: MissionArtifactKind,
+        policy: ProtectionPolicy,
+    ) -> CommitArtifactResult:
+        self.invocation_count += 1
+        return CommitArtifactResult(
+            status=self.status,
+            placement_ref="main",
+            diagnostic=f"simulated {self.status}",
+        )
+
+
+@pytest.mark.parametrize(
+    ("status", "reason"),
+    [
+        ("unchanged", "unchanged_unverified"),
+        ("no_op_wrong_surface", "wrong_surface"),
+    ],
+)
+def test_unverified_router_noops_are_failures_with_retained_evidence(
+    tmp_path: Path, status: str, reason: str
+) -> None:
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    _init_repo(repo)
+    router = _FixedStatusCommitRouter(status=status)
+
+    created = create_rejected_review_cycle(
+        main_repo_root=repo,
+        mission_slug="001-mission",
+        wp_id="WP01",
+        wp_slug="WP01-core",
+        body=f"evidence for {status}",
+        reviewer_agent="reviewer-renata",
+        commit_router=router,
+    )
+
+    assert created.artifact_path.exists()
+    assert created.persistence.classification == "persistence_failed"
+    assert created.persistence.reason == reason
+    assert not created.persistence.verdict_durably_persisted
+
+
+def test_identical_already_committed_retry_is_idempotently_durable(
+    tmp_path: Path,
+) -> None:
+    from specify_cli.agent_tasks_ports import RealCoordCommitRouter
+
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    _init_repo(repo)
+    tasks_dir = repo / "kitty-specs" / "001-mission" / "tasks"
+    tasks_dir.mkdir(parents=True)
+    (tasks_dir / "WP01-core.md").write_text("# WP01\n", encoding="utf-8")
+    subprocess.run(["git", "add", "-A"], cwd=repo, check=True, capture_output=True)
+    subprocess.run(["git", "commit", "-m", "seed"], cwd=repo, check=True, capture_output=True)
+    _unprotect_main(repo)
+    first = create_rejected_review_cycle(
+        main_repo_root=repo,
+        mission_slug="001-mission",
+        wp_id="WP01",
+        wp_slug="WP01-core",
+        body="same evidence",
+        reviewer_agent="reviewer-renata",
+        commit_router=RealCoordCommitRouter(),
+    )
+    retained_bytes = first.artifact_path.read_bytes()
+    router = _FixedStatusCommitRouter(status="error")
+
+    retried = create_rejected_review_cycle(
+        main_repo_root=repo,
+        mission_slug="001-mission",
+        wp_id="WP01",
+        wp_slug="WP01-core",
+        body="same evidence",
+        reviewer_agent="reviewer-renata",
+        commit_router=router,
+    )
+
+    assert retried.artifact_path == first.artifact_path
+    assert retried.artifact_path.read_bytes() == retained_bytes
+    assert retried.persistence.classification == "durable"
+    assert router.invocation_count == 0
+    assert not (first.artifact_path.parent / "review-cycle-2.md").exists()
+
+
+def test_ambiguous_identical_pending_records_fail_without_guessing(tmp_path: Path) -> None:
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    _init_repo(repo)
+    first = create_rejected_review_cycle(
+        main_repo_root=repo,
+        mission_slug="001-mission",
+        wp_id="WP01",
+        wp_slug="WP01-core",
+        body="same evidence",
+        reviewer_agent="reviewer-renata",
+    )
+    duplicate = first.artifact_path.parent / "review-cycle-2.md"
+    duplicate.write_bytes(first.artifact_path.read_bytes())
+
+    with pytest.raises(ReviewCycleError, match="Multiple identical pending"):
+        create_rejected_review_cycle(
+            main_repo_root=repo,
+            mission_slug="001-mission",
+            wp_id="WP01",
+            wp_slug="WP01-core",
+            body="same evidence",
+            reviewer_agent="reviewer-renata",
+            commit_router=_FixedStatusCommitRouter(status="error"),
+        )
+
+
+def test_real_commit_preserves_unrelated_partially_staged_state(tmp_path: Path) -> None:
+    from specify_cli.agent_tasks_ports import RealCoordCommitRouter
+
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    _init_repo(repo)
+    tasks_dir = repo / "kitty-specs" / "001-mission" / "tasks"
+    tasks_dir.mkdir(parents=True)
+    (tasks_dir / "WP01-core.md").write_text("# WP01\n", encoding="utf-8")
+    unrelated = repo / "unrelated.txt"
+    unrelated.write_text("base\n", encoding="utf-8")
+    subprocess.run(["git", "add", "-A"], cwd=repo, check=True, capture_output=True)
+    subprocess.run(["git", "commit", "-m", "seed"], cwd=repo, check=True, capture_output=True)
+    _unprotect_main(repo)
+    unrelated.write_text("staged\n", encoding="utf-8")
+    subprocess.run(["git", "add", "unrelated.txt"], cwd=repo, check=True)
+    unrelated.write_text("worktree\n", encoding="utf-8")
+    untracked = repo / "notes.tmp"
+    untracked.write_text("leave me alone\n", encoding="utf-8")
+    before_cached = subprocess.run(
+        ["git", "diff", "--cached", "--", "unrelated.txt"],
+        cwd=repo,
+        check=True,
+        capture_output=True,
+    ).stdout
+    before_worktree = subprocess.run(
+        ["git", "diff", "--", "unrelated.txt"],
+        cwd=repo,
+        check=True,
+        capture_output=True,
+    ).stdout
+
+    created = create_rejected_review_cycle(
+        main_repo_root=repo,
+        mission_slug="001-mission",
+        wp_id="WP01",
+        wp_slug="WP01-core",
+        body="preserve unrelated state",
+        reviewer_agent="reviewer-renata",
+        commit_router=RealCoordCommitRouter(),
+    )
+
+    assert created.persistence.classification == "persistence_failed"
+    assert created.persistence.reason == "commit_error"
+    assert created.artifact_path.exists()
+    assert subprocess.run(
+        ["git", "diff", "--cached", "--", "unrelated.txt"],
+        cwd=repo,
+        check=True,
+        capture_output=True,
+    ).stdout == before_cached
+    assert subprocess.run(
+        ["git", "diff", "--", "unrelated.txt"],
+        cwd=repo,
+        check=True,
+        capture_output=True,
+    ).stdout == before_worktree
+    assert untracked.read_bytes() == b"leave me alone\n"
+
+
+def test_automatic_adoption_never_runs_git_while_feature_lock_is_held(
+    tmp_path: Path,
+) -> None:
+    from specify_cli.status import locking as status_locking
+
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    _init_repo(repo)
+    original_popen = subprocess.Popen
+    seen_git: list[tuple[str, ...]] = []
+    violations: list[tuple[str, ...]] = []
+
+    def guarded_popen(*args: object, **kwargs: object) -> subprocess.Popen[bytes]:
+        command_value = kwargs.get("args", args[0] if args else ())
+        command = tuple(str(part) for part in command_value)  # type: ignore[union-attr]
+        if command and command[0] == "git":
+            seen_git.append(command)
+            if status_locking._get_thread_locks():
+                violations.append(command)
+        return original_popen(*args, **kwargs)  # type: ignore[arg-type]
+
+    with patch("subprocess.Popen", guarded_popen):
+        retained = create_rejected_review_cycle(
+            main_repo_root=repo,
+            mission_slug="001-mission",
+            wp_id="WP01",
+            wp_slug="WP01-core",
+            body="lock boundary evidence",
+            reviewer_agent="reviewer-renata",
+            commit_router=_FailingCommitRouter(),
+        )
+        retried = create_rejected_review_cycle(
+            main_repo_root=repo,
+            mission_slug="001-mission",
+            wp_id="WP01",
+            wp_slug="WP01-core",
+            body="lock boundary evidence",
+            reviewer_agent="reviewer-renata",
+            commit_router=_FailingCommitRouter(),
+        )
+
+    assert retained.artifact_path == retried.artifact_path
+    assert any("show" in command for command in seen_git), seen_git
+    assert violations == []
+
+
+@pytest.mark.parametrize("artifact_state", ["untracked", "staged", "partially_staged"])
+def test_retained_artifact_retry_preserves_unrelated_state(
+    tmp_path: Path, artifact_state: str
+) -> None:
+    from specify_cli.agent_tasks_ports import RealCoordCommitRouter
+
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    _init_repo(repo)
+    tasks_dir = repo / "kitty-specs" / "001-mission" / "tasks"
+    tasks_dir.mkdir(parents=True)
+    (tasks_dir / "WP01-core.md").write_text("# WP01\n", encoding="utf-8")
+    unrelated = repo / "unrelated.txt"
+    unrelated.write_text("base\n", encoding="utf-8")
+    subprocess.run(["git", "add", "-A"], cwd=repo, check=True, capture_output=True)
+    subprocess.run(["git", "commit", "-m", "seed"], cwd=repo, check=True, capture_output=True)
+    _unprotect_main(repo)
+    retained = create_rejected_review_cycle(
+        main_repo_root=repo,
+        mission_slug="001-mission",
+        wp_id="WP01",
+        wp_slug="WP01-core",
+        body="retry this exact evidence",
+        reviewer_agent="reviewer-renata",
+        commit_router=_FailingCommitRouter(),
+    )
+    if artifact_state in {"staged", "partially_staged"}:
+        subprocess.run(
+            ["git", "add", str(retained.artifact_path.relative_to(repo))],
+            cwd=repo,
+            check=True,
+        )
+    if artifact_state == "partially_staged":
+        artifact_text = retained.artifact_path.read_text(encoding="utf-8")
+        retained.artifact_path.write_text(
+            "".join(
+                "reviewed_at: '2099-01-01T00:00:00+00:00'\n"
+                if line.startswith("reviewed_at:")
+                else line
+                for line in artifact_text.splitlines(keepends=True)
+            ),
+            encoding="utf-8",
+        )
+        validate_review_artifact_file(retained.artifact_path)
+
+    unrelated.write_text("worktree-only\n", encoding="utf-8")
+    untracked = repo / "notes.tmp"
+    untracked.write_text("leave untouched\n", encoding="utf-8")
+    before_unrelated_diff = subprocess.run(
+        ["git", "diff", "--", "unrelated.txt"],
+        cwd=repo,
+        check=True,
+        capture_output=True,
+    ).stdout
+    before_artifact = retained.artifact_path.read_bytes()
+    artifact_rel = retained.artifact_path.relative_to(repo).as_posix()
+    before_artifact_status = subprocess.run(
+        ["git", "status", "--porcelain=v1", "--", artifact_rel],
+        cwd=repo,
+        check=True,
+        capture_output=True,
+        text=True,
+    ).stdout
+    expected_prefix = {
+        "untracked": "??",
+        "staged": "A ",
+        "partially_staged": "AM",
+    }[artifact_state]
+    assert before_artifact_status.startswith(expected_prefix), before_artifact_status
+
+    retried = create_rejected_review_cycle(
+        main_repo_root=repo,
+        mission_slug="001-mission",
+        wp_id="WP01",
+        wp_slug="WP01-core",
+        body="retry this exact evidence",
+        reviewer_agent="reviewer-renata",
+        commit_router=RealCoordCommitRouter(),
+    )
+
+    assert retried.artifact_path == retained.artifact_path
+    assert retried.artifact_path.read_bytes() == before_artifact
+    assert retried.persistence.classification == "durable"
+    shown = subprocess.run(
+        [
+            "git",
+            "show",
+            f"main:{retried.artifact_path.relative_to(repo).as_posix()}",
+        ],
+        cwd=repo,
+        check=True,
+        capture_output=True,
+    ).stdout
+    assert shown == before_artifact
+    assert subprocess.run(
+        ["git", "diff", "--", "unrelated.txt"],
+        cwd=repo,
+        check=True,
+        capture_output=True,
+    ).stdout == before_unrelated_diff
+    assert untracked.read_bytes() == b"leave untouched\n"
+
+
+@pytest.mark.parametrize("artifact_state", ["staged", "partially_staged"])
+def test_retained_artifact_retry_preserves_unrelated_staged_index_on_refusal(
+    tmp_path: Path, artifact_state: str
+) -> None:
+    from specify_cli.agent_tasks_ports import RealCoordCommitRouter
+
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    _init_repo(repo)
+    tasks_dir = repo / "kitty-specs" / "001-mission" / "tasks"
+    tasks_dir.mkdir(parents=True)
+    (tasks_dir / "WP01-core.md").write_text("# WP01\n", encoding="utf-8")
+    unrelated = repo / "unrelated.txt"
+    unrelated.write_text("base\n", encoding="utf-8")
+    subprocess.run(["git", "add", "-A"], cwd=repo, check=True, capture_output=True)
+    subprocess.run(["git", "commit", "-m", "seed"], cwd=repo, check=True, capture_output=True)
+    _unprotect_main(repo)
+    retained = create_rejected_review_cycle(
+        main_repo_root=repo,
+        mission_slug="001-mission",
+        wp_id="WP01",
+        wp_slug="WP01-core",
+        body="retained staged evidence",
+        reviewer_agent="reviewer-renata",
+        commit_router=_FailingCommitRouter(),
+    )
+    artifact_rel = retained.artifact_path.relative_to(repo).as_posix()
+    subprocess.run(["git", "add", artifact_rel], cwd=repo, check=True)
+    if artifact_state == "partially_staged":
+        artifact_text = retained.artifact_path.read_text(encoding="utf-8")
+        retained.artifact_path.write_text(
+            "".join(
+                "reviewed_at: '2099-01-01T00:00:00+00:00'\n"
+                if line.startswith("reviewed_at:")
+                else line
+                for line in artifact_text.splitlines(keepends=True)
+            ),
+            encoding="utf-8",
+        )
+    unrelated.write_text("staged unrelated\n", encoding="utf-8")
+    subprocess.run(["git", "add", "unrelated.txt"], cwd=repo, check=True)
+    unrelated.write_text("worktree unrelated\n", encoding="utf-8")
+    untracked = repo / "notes.tmp"
+    untracked.write_text("untracked unrelated\n", encoding="utf-8")
+
+    before_cached = subprocess.run(
+        ["git", "diff", "--cached", "--", "unrelated.txt", artifact_rel],
+        cwd=repo,
+        check=True,
+        capture_output=True,
+    ).stdout
+    before_worktree = subprocess.run(
+        ["git", "diff", "--", "unrelated.txt", artifact_rel],
+        cwd=repo,
+        check=True,
+        capture_output=True,
+    ).stdout
+    before_bytes = retained.artifact_path.read_bytes()
+    before_status = subprocess.run(
+        ["git", "status", "--porcelain=v1", "--", "unrelated.txt", artifact_rel, "notes.tmp"],
+        cwd=repo,
+        check=True,
+        capture_output=True,
+    ).stdout
+
+    retried = create_rejected_review_cycle(
+        main_repo_root=repo,
+        mission_slug="001-mission",
+        wp_id="WP01",
+        wp_slug="WP01-core",
+        body="retained staged evidence",
+        reviewer_agent="reviewer-renata",
+        commit_router=RealCoordCommitRouter(),
+    )
+
+    assert retried.artifact_path == retained.artifact_path
+    assert retried.artifact_path.read_bytes() == before_bytes
+    assert retried.persistence.classification == "persistence_failed"
+    assert retried.persistence.reason == "commit_error"
+    assert not (retained.artifact_path.parent / "review-cycle-2.md").exists()
+    assert subprocess.run(
+        ["git", "diff", "--cached", "--", "unrelated.txt", artifact_rel],
+        cwd=repo,
+        check=True,
+        capture_output=True,
+    ).stdout == before_cached
+    assert subprocess.run(
+        ["git", "diff", "--", "unrelated.txt", artifact_rel],
+        cwd=repo,
+        check=True,
+        capture_output=True,
+    ).stdout == before_worktree
+    assert subprocess.run(
+        ["git", "status", "--porcelain=v1", "--", "unrelated.txt", artifact_rel, "notes.tmp"],
+        cwd=repo,
+        check=True,
+        capture_output=True,
+    ).stdout == before_status

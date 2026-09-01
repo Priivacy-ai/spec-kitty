@@ -33,6 +33,7 @@ the fix (the CLI hook + config/override wiring lives in ``tasks_move_task.py``):
    ``SOURCE_MISMATCH``, also a warn, never a hard block (FR-009/FR-011,
    mission ``scopesource-gate-followup-01KY6S9P`` WP04).
 """
+
 from __future__ import annotations
 
 import contextlib
@@ -43,9 +44,10 @@ import sys
 import tempfile
 import time
 from collections.abc import Callable, Iterator, Mapping, Sequence
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from enum import StrEnum
 from pathlib import Path
+from typing import Protocol
 
 from kernel.paths import to_posix
 from specify_cli.paths import get_runtime_root
@@ -57,6 +59,11 @@ from specify_cli.review.baseline import (
     _extract_junit_output_path,
     _parse_junit_xml,
     diff_baseline,
+)
+from specify_cli.review.gate_budget import (
+    BudgetClassification,
+    ScopeBudgetAssessment,
+    assess_scope_budget,
 )
 from specify_cli.review.scope_source import (
     _JUNIT_ARTIFACT_FILENAME,
@@ -193,10 +200,7 @@ class ScopeResult:
         if self.empty_cone_composite_dirs:
             dirs = ", ".join(self.empty_cone_composite_dirs)
             return f"unmapped composite dir(s) with no test cone_roots — unverified (SC-007): {dirs}"
-        return (
-            "excluded scope — unverified: every changed file landed only in a catch-all "
-            "group (core_misc/e2e/any_src) or matched no dorny group at all"
-        )
+        return "excluded scope — unverified: every changed file landed only in a catch-all group (core_misc/e2e/any_src) or matched no dorny group at all"
 
     @classmethod
     def from_override(cls, targets: tuple[str, ...]) -> ScopeResult:
@@ -227,6 +231,7 @@ class HeadRunState(StrEnum):
     CANCELLED = "cancelled"
     LAUNCH_FAILED = "launch_failed"
     INCOMPLETE_OUTPUT = "incomplete_output"
+    NOT_STARTED = "not_started"
 
 
 @dataclass(frozen=True)
@@ -240,6 +245,7 @@ class HeadRunResult:
     state: HeadRunState = HeadRunState.COMPLETED
     stdout: str = ""
     stderr: str = ""
+    observed_elapsed_seconds: float | None = None
 
 
 _SCOPED_RUN_LOCK_FILENAME = "pre-review-gate-run.lock"
@@ -317,6 +323,7 @@ def _scoped_run_lock(*, acquire_timeout: float | None = None) -> Iterator[None]:
 
 _ProgressCallback = Callable[[float], None]
 _ProcessWait = Callable[[subprocess.Popen[str], float], tuple[str, str]]
+_ElapsedObserver = Callable[[float], None]
 
 
 def _default_process_wait(process: subprocess.Popen[str], timeout: float) -> tuple[str, str]:
@@ -339,9 +346,7 @@ def _signal_owned_process_tree(
     *,
     force: bool,
     platform: str | None = None,
-    windows_tree_kill: Callable[[Sequence[str]], subprocess.CompletedProcess[str]] = (
-        _run_windows_taskkill
-    ),
+    windows_tree_kill: Callable[[Sequence[str]], subprocess.CompletedProcess[str]] = (_run_windows_taskkill),
 ) -> None:
     """Signal only the process group created for this runner-owned child."""
     platform = platform or os.name
@@ -398,14 +403,18 @@ def _observe_process(
     progress_callback: _ProgressCallback | None,
     monotonic: Callable[[], float],
     wait: _ProcessWait,
+    elapsed_observer: _ElapsedObserver | None = None,
 ) -> tuple[HeadRunState, str, str]:
     """Drain, observe, and clean up one runner-owned process."""
     started_at = monotonic()
     deadline = started_at + timeout
     while True:
-        remaining = deadline - monotonic()
+        now = monotonic()
+        remaining = deadline - now
         if remaining <= 0:
             stdout, stderr = _terminate_and_reap(process, wait=wait)
+            if elapsed_observer is not None:
+                elapsed_observer(now - started_at)
             return HeadRunState.TIMED_OUT, stdout, stderr
         try:
             stdout, stderr = wait(process, min(_HEAD_RUN_HEARTBEAT_INTERVAL, remaining))
@@ -414,6 +423,8 @@ def _observe_process(
             now = monotonic()
             if now >= deadline:
                 stdout, stderr = _terminate_and_reap(process, wait=wait)
+                if elapsed_observer is not None:
+                    elapsed_observer(now - started_at)
                 return HeadRunState.TIMED_OUT, stdout, stderr
             if progress_callback is not None:
                 progress_callback(now - started_at)
@@ -484,6 +495,7 @@ def run_scoped_tests_at_head(
         )
 
     env = _gate_run_env()
+    observed_elapsed: list[float] = []
 
     with tempfile.TemporaryDirectory() as tmp_dir:
         junit_path = Path(tmp_dir) / _JUNIT_ARTIFACT_FILENAME
@@ -504,6 +516,7 @@ def run_scoped_tests_at_head(
                     progress_callback=progress_callback,
                     monotonic=monotonic,
                     wait=wait,
+                    elapsed_observer=observed_elapsed.append,
                 )
         except OSError as exc:
             return HeadRunResult(
@@ -520,6 +533,7 @@ def run_scoped_tests_at_head(
                 state=state,
                 stdout=stdout,
                 stderr=stderr,
+                observed_elapsed_seconds=(observed_elapsed[-1] if observed_elapsed else float(timeout)),
             )
         if state is HeadRunState.CANCELLED:
             return HeadRunResult(
@@ -535,10 +549,7 @@ def run_scoped_tests_at_head(
             return HeadRunResult(
                 ran=False,
                 returncode=process.returncode,
-                error=(
-                    f"no JUnit XML produced by the scoped run (exit={process.returncode}); "
-                    f"stderr tail: {stderr[-_STDERR_TAIL_CHARS:]}"
-                ),
+                error=(f"no JUnit XML produced by the scoped run (exit={process.returncode}); stderr tail: {stderr[-_STDERR_TAIL_CHARS:]}"),
                 state=HeadRunState.INCOMPLETE_OUTPUT,
                 stdout=stdout,
                 stderr=stderr,
@@ -583,6 +594,33 @@ class GateOutcome(StrEnum):
     SOURCE_MISMATCH = "source_mismatch"  # FR-009/FR-011: baseline/head ScopeSource identity differs -> warn
     TIMED_OUT = "timed_out"
     CANCELLED = "cancelled"
+    SCOPE_OVERSIZED = "scope_oversized"
+
+
+@dataclass(frozen=True)
+class ScopeAssessed:
+    """Renderer-neutral notification that deterministic preflight completed."""
+
+    assessment: ScopeBudgetAssessment
+
+
+@dataclass(frozen=True)
+class Heartbeat:
+    """Renderer-neutral liveness notification from the candidate-head run."""
+
+    phase: str
+    observed_elapsed_seconds: float
+
+
+GateStatusEvent = ScopeAssessed | Heartbeat
+
+
+class GateStatusObserver(Protocol):
+    """Presentation-neutral consumer of typed gate status events."""
+
+    def __call__(self, event: GateStatusEvent) -> None:
+        """Observe one ordered event without affecting the gate verdict."""
+        ...
 
 
 @dataclass(frozen=True)
@@ -595,6 +633,64 @@ class GateVerdict:
     new_failures: tuple[BaselineFailure, ...] = ()
     pre_existing_failures: tuple[BaselineFailure, ...] = ()
     run_state: HeadRunState = HeadRunState.COMPLETED
+    budget_assessment: ScopeBudgetAssessment | None = None
+    classification_candidate: bool = False
+    observed_elapsed_seconds: float | None = None
+
+
+def _progress_observer(
+    progress_callback: _ProgressCallback | None,
+    status_observer: GateStatusObserver | None,
+) -> _ProgressCallback | None:
+    """Compose the incumbent float callback with typed renderer-neutral events."""
+    if progress_callback is None and status_observer is None:
+        return None
+
+    def _observe(elapsed: float) -> None:
+        if progress_callback is not None:
+            progress_callback(elapsed)
+        if status_observer is not None:
+            status_observer(Heartbeat(phase="candidate_head", observed_elapsed_seconds=elapsed))
+
+    return _observe
+
+
+def _unknown_timeout_reason(
+    reason: str | None,
+    assessment: ScopeBudgetAssessment,
+    observed_elapsed_seconds: float | None,
+) -> str:
+    """Build immutable-policy diagnostic evidence for an unknown timeout."""
+    elapsed = observed_elapsed_seconds
+    elapsed_text = "unavailable" if elapsed is None else f"{elapsed:.3f}s"
+    targets = ", ".join(assessment.scope_identity.normalized_targets) or "(empty)"
+    prefix = f"{reason}; " if reason else ""
+    return (
+        f"{prefix}budget classification unknown; scope identity "
+        f"{assessment.scope_identity.value}; normalized targets: {targets}; configured "
+        f"budget: {assessment.effective_budget_seconds:g}s; monotonic observed elapsed: "
+        f"{elapsed_text}; lane remains unchanged. This is a classification candidate "
+        "for a reviewed metadata update; runtime policy was not modified."
+    )
+
+
+def _finalize_budget_evidence(
+    verdict: GateVerdict,
+    assessment: ScopeBudgetAssessment,
+    observed_elapsed_seconds: float | None = None,
+) -> GateVerdict:
+    """Attach one assessment and, only for unknown timeout, candidate evidence."""
+    is_candidate = verdict.outcome is GateOutcome.TIMED_OUT and assessment.classification is BudgetClassification.UNKNOWN
+    reason = verdict.reason
+    if is_candidate:
+        reason = _unknown_timeout_reason(reason, assessment, observed_elapsed_seconds)
+    return replace(
+        verdict,
+        reason=reason,
+        budget_assessment=assessment,
+        classification_candidate=is_candidate,
+        observed_elapsed_seconds=observed_elapsed_seconds,
+    )
 
 
 def _classify_current_failures(
@@ -642,6 +738,7 @@ def _run_raw_command(
     progress_callback: _ProgressCallback | None,
     monotonic: Callable[[], float],
     wait: _ProcessWait,
+    elapsed_observer: _ElapsedObserver | None = None,
 ) -> tuple[HeadRunState, RawRunResult | None, str | None]:
     """Run ``command`` under the SAME process-lifecycle machinery
     :func:`run_scoped_tests_at_head` uses (launch/observe/lock/reap), but
@@ -671,6 +768,7 @@ def _run_raw_command(
                 progress_callback=progress_callback,
                 monotonic=monotonic,
                 wait=wait,
+                elapsed_observer=elapsed_observer,
             )
     except OSError as exc:
         return HeadRunState.LAUNCH_FAILED, None, _launch_failed_error(exc)
@@ -700,6 +798,7 @@ def _evaluate_via_scope_source(
     monotonic: Callable[[], float],
     wait: _ProcessWait,
     scope_source: ScopeSource,
+    elapsed_observer: _ElapsedObserver | None = None,
 ) -> GateVerdict:
     """T011/FR-010/FR-011/FR-012: drive the head run + parse through the
     injected port instead of the hardcoded pytest/JUnit path
@@ -747,6 +846,7 @@ def _evaluate_via_scope_source(
         progress_callback=progress_callback,
         monotonic=monotonic,
         wait=wait,
+        elapsed_observer=elapsed_observer,
     )
     if state is HeadRunState.TIMED_OUT:
         return GateVerdict(outcome=GateOutcome.TIMED_OUT, scope=scope, reason=error, run_state=state)
@@ -762,18 +862,11 @@ def _evaluate_via_scope_source(
 
     failures = scope_source.parse_results(raw)
     head_identity = scope_source_identity(scope_source, raw)
-    if (
-        baseline is not None
-        and baseline.source_identity != UNKNOWN_SOURCE_IDENTITY
-        and baseline.source_identity != head_identity
-    ):
+    if baseline is not None and baseline.source_identity != UNKNOWN_SOURCE_IDENTITY and baseline.source_identity != head_identity:
         return GateVerdict(
             outcome=GateOutcome.SOURCE_MISMATCH,
             scope=scope,
-            reason=(
-                f"baseline captured under {baseline.source_identity}; head ran under "
-                f"{head_identity} — failure identities are not comparable"
-            ),
+            reason=(f"baseline captured under {baseline.source_identity}; head ran under {head_identity} — failure identities are not comparable"),
         )
     return _classify_current_failures(failures, scope=scope, baseline=baseline)
 
@@ -788,6 +881,7 @@ def evaluate_with_scope(
     monotonic: Callable[[], float] = time.monotonic,
     wait: _ProcessWait = _default_process_wait,
     scope_source: ScopeSource | None = None,
+    status_observer: GateStatusObserver | None = None,
 ) -> GateVerdict:
     """The shared verdict tail: run ``scope`` at head, diff vs. ``baseline``.
 
@@ -823,50 +917,94 @@ def evaluate_with_scope(
     injects a ``scope_source``, by design, since an override IS the test
     scope.
     """
+    assessment = assess_scope_budget(scope.test_targets, timeout)
+    if status_observer is not None:
+        status_observer(ScopeAssessed(assessment=assessment))
+
+    if assessment.classification is BudgetClassification.OVERSIZED:
+        return GateVerdict(
+            outcome=GateOutcome.SCOPE_OVERSIZED,
+            scope=scope,
+            reason=(
+                "validation did not start because the selected scope is explicitly "
+                f"oversized for the {assessment.effective_budget_seconds:g}s budget; "
+                f"{assessment.guidance}"
+            ),
+            run_state=HeadRunState.NOT_STARTED,
+            budget_assessment=assessment,
+        )
+
+    combined_progress = _progress_observer(progress_callback, status_observer)
     if scope_source is None:
         if scope.is_empty:
-            return GateVerdict(outcome=GateOutcome.NO_COVERAGE, scope=scope, reason=scope.describe_empty_reason())
+            return _finalize_budget_evidence(
+                GateVerdict(outcome=GateOutcome.NO_COVERAGE, scope=scope, reason=scope.describe_empty_reason()),
+                assessment,
+            )
 
         run_result = run_scoped_tests_at_head(
             scope.test_targets,
             repo_root=repo_root,
             timeout=timeout,
-            progress_callback=progress_callback,
+            progress_callback=combined_progress,
             monotonic=monotonic,
             wait=wait,
         )
         if run_result.state is HeadRunState.TIMED_OUT:
-            return GateVerdict(
-                outcome=GateOutcome.TIMED_OUT,
-                scope=scope,
-                reason=run_result.error,
-                run_state=run_result.state,
+            return _finalize_budget_evidence(
+                GateVerdict(
+                    outcome=GateOutcome.TIMED_OUT,
+                    scope=scope,
+                    reason=run_result.error,
+                    run_state=run_result.state,
+                ),
+                assessment,
+                run_result.observed_elapsed_seconds,
             )
         if run_result.state is HeadRunState.CANCELLED:
-            return GateVerdict(
-                outcome=GateOutcome.CANCELLED,
-                scope=scope,
-                reason=run_result.error,
-                run_state=run_result.state,
+            return _finalize_budget_evidence(
+                GateVerdict(
+                    outcome=GateOutcome.CANCELLED,
+                    scope=scope,
+                    reason=run_result.error,
+                    run_state=run_result.state,
+                ),
+                assessment,
+                run_result.observed_elapsed_seconds,
             )
         if not run_result.ran:
-            return GateVerdict(
-                outcome=GateOutcome.NO_COVERAGE,
-                scope=scope,
-                reason=f"scoped test run did not complete: {run_result.error}",
-                run_state=run_result.state,
+            return _finalize_budget_evidence(
+                GateVerdict(
+                    outcome=GateOutcome.NO_COVERAGE,
+                    scope=scope,
+                    reason=f"scoped test run did not complete: {run_result.error}",
+                    run_state=run_result.state,
+                ),
+                assessment,
+                run_result.observed_elapsed_seconds,
             )
-        return _classify_current_failures(run_result.current_failures, scope=scope, baseline=baseline)
+        return _finalize_budget_evidence(
+            _classify_current_failures(run_result.current_failures, scope=scope, baseline=baseline),
+            assessment,
+            run_result.observed_elapsed_seconds,
+        )
 
-    return _evaluate_via_scope_source(
+    observed_elapsed: list[float] = []
+    verdict = _evaluate_via_scope_source(
         scope,
         repo_root=repo_root,
         baseline=baseline,
         timeout=timeout,
-        progress_callback=progress_callback,
+        progress_callback=combined_progress,
         monotonic=monotonic,
         wait=wait,
         scope_source=scope_source,
+        elapsed_observer=observed_elapsed.append,
+    )
+    return _finalize_budget_evidence(
+        verdict,
+        assessment,
+        observed_elapsed[-1] if observed_elapsed else None,
     )
 
 
@@ -898,9 +1036,7 @@ def _scope_result_from_source(scope_source: ScopeSource, changed_files: Sequence
     )
 
 
-def _scope_result_from_breakdown(
-    scope_source: ScopeBreakdownSource, changed_files: Sequence[str]
-) -> ScopeResult:
+def _scope_result_from_breakdown(scope_source: ScopeBreakdownSource, changed_files: Sequence[str]) -> ScopeResult:
     """Aggregate a narrowing source's per-file
     :class:`~specify_cli.review.scope_source.FileScopeBreakdown` contributions
     into a full :class:`ScopeResult`.
@@ -943,6 +1079,7 @@ def evaluate_pre_review_gate(
     monotonic: Callable[[], float] = time.monotonic,
     wait: _ProcessWait = _default_process_wait,
     scope_source: ScopeSource,
+    status_observer: GateStatusObserver | None = None,
 ) -> GateVerdict:
     """Compose scope derivation + the shared head-run/verdict tail.
 
@@ -969,4 +1106,5 @@ def evaluate_pre_review_gate(
         monotonic=monotonic,
         wait=wait,
         scope_source=scope_source,
+        status_observer=status_observer,
     )

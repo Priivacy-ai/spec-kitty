@@ -8,16 +8,16 @@ from pathlib import Path
 
 import pytest
 
-from charter.synthesizer.errors import (
+from charter.activation.synthesizer.errors import (
     GeneratedArtifactLoadError,
     GeneratedArtifactMissingError,
 )
-from charter.synthesizer.evidence import CodeSignals, CorpusEntry, CorpusSnapshot, EvidenceBundle
-from charter.synthesizer.generated_artifact_adapter import GeneratedArtifactAdapter
-from charter.synthesizer.provenance import load_yaml as load_provenance
-from charter.synthesizer.request import SynthesisRequest, SynthesisTarget, _evidence_to_jsonable
-from charter.synthesizer.resynthesize_pipeline import run as resynthesize_run
-from charter.synthesizer.orchestrator import synthesize
+from charter.activation.synthesizer.evidence import CodeSignals, CorpusEntry, CorpusSnapshot, EvidenceBundle
+from charter.activation.synthesizer.generated_artifact_adapter import GeneratedArtifactAdapter
+from charter.activation.synthesizer.provenance import load_yaml as load_provenance
+from charter.activation.synthesizer.request import SynthesisRequest, SynthesisTarget, _evidence_to_jsonable
+from charter.activation.synthesizer.resynthesize_pipeline import run as resynthesize_run
+from charter.activation.synthesizer.orchestrator import synthesize
 
 
 pytestmark = [pytest.mark.unit]

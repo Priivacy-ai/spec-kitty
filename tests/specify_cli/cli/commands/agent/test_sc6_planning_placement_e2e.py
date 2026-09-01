@@ -38,6 +38,7 @@ second finalize. The re-run assertion pins that this no longer wedges.
 
 from __future__ import annotations
 
+import hashlib
 import json
 import subprocess
 from dataclasses import dataclass
@@ -137,9 +138,7 @@ _TOPOLOGIES = [
 
 
 def _git(repo: Path, *args: str) -> subprocess.CompletedProcess[str]:
-    return subprocess.run(
-        ["git", *args], cwd=repo, check=True, capture_output=True, text=True
-    )
+    return subprocess.run(["git", *args], cwd=repo, check=True, capture_output=True, text=True)
 
 
 def _parse_json_from_output(output: str) -> dict[str, object]:
@@ -179,9 +178,7 @@ def _write_spec(feature_dir: Path) -> None:
 
 
 def _write_tasks_md(feature_dir: Path, wp_ids: list[str]) -> None:
-    sections = "\n".join(
-        f"## Work Package {wp}\n\n**Dependencies**: None\n" for wp in wp_ids
-    )
+    sections = "\n".join(f"## Work Package {wp}\n\n**Dependencies**: None\n" for wp in wp_ids)
     (feature_dir / "tasks.md").write_text(f"# Tasks\n\n{sections}\n", encoding="utf-8")
 
 
@@ -241,20 +238,29 @@ def _scaffold_mission(repo: Path, topology: _Topology) -> tuple[str, Path, str]:
     # write-surface-coherence the planning artifact lands on the primary
     # target_branch for every topology, so the placement_ref the assertion
     # targets is resolved with TASKS_INDEX.
-    placement = resolve_placement_only(
-        repo, mission_dirname, kind=MissionArtifactKind.TASKS_INDEX
-    )
+    placement = resolve_placement_only(repo, mission_dirname, kind=MissionArtifactKind.TASKS_INDEX)
     # FR-001b: the coord-vs-primary decision reads the STORED topology, not a
     # per-ref enum on the placement.
     routes_coord = routes_through_coordination(resolve_topology(repo, mission_dirname))
     assert routes_coord is topology.expected_routes_coord, (
-        f"{topology.name}: expected routes_through_coordination="
-        f"{topology.expected_routes_coord}, got {routes_coord}"
+        f"{topology.name}: expected routes_through_coordination={topology.expected_routes_coord}, got {routes_coord}"
     )
     return mission_dirname, feature_dir, placement.ref
 
 
-def _run_finalize(repo: Path, mission_slug: str) -> Result:
+def _run_finalize(
+    repo: Path,
+    mission_slug: str,
+    *,
+    validate_only: bool = False,
+    target_branch: str | None = None,
+) -> Result:
+    args = ["finalize-tasks", "--mission", mission_slug]
+    if validate_only:
+        args.append("--validate-only")
+    if target_branch is not None:
+        args.extend(["--target-branch", target_branch])
+    args.append("--json")
     with (
         patch(
             "specify_cli.cli.commands.agent.mission.locate_project_root",
@@ -267,9 +273,31 @@ def _run_finalize(repo: Path, mission_slug: str) -> Result:
     ):
         return runner.invoke(
             app,
-            ["finalize-tasks", "--mission", mission_slug, "--json"],
+            args,
             catch_exceptions=False,
         )
+
+
+def _repo_snapshot(repo: Path) -> tuple[object, ...]:
+    """Return bytes, refs, index, HEAD, and status for mutation assertions."""
+    files: list[tuple[str, str]] = []
+    for path in sorted(repo.rglob("*")):
+        if not path.is_file() or ".git" in path.relative_to(repo).parts:
+            continue
+        # File-integrity oracle, not charter content hashing.
+        digest = hashlib.sha256(path.read_bytes()).hexdigest()  # noqa: TID251
+        files.append((path.relative_to(repo).as_posix(), digest))
+    refs = _git(repo, "show-ref").stdout
+    index_tree = _git(repo, "write-tree").stdout
+    status = _git(repo, "status", "--porcelain=v2", "--untracked-files=all").stdout
+    symbolic_head = subprocess.run(
+        ["git", "symbolic-ref", "--quiet", "HEAD"],
+        cwd=repo,
+        capture_output=True,
+        text=True,
+        check=False,
+    ).stdout
+    return tuple(files), refs, index_tree, status, symbolic_head
 
 
 @pytest.fixture(autouse=True)
@@ -297,9 +325,7 @@ def test_sc6_finalize_lands_on_resolved_placement_no_catch22(
     repo.assert_is_spec_kitty_project()
     repo.assert_target_is_protected()
 
-    mission_slug, _feature_dir, placement_ref = _scaffold_mission(
-        repo.repo_root, topology
-    )
+    mission_slug, _feature_dir, placement_ref = _scaffold_mission(repo.repo_root, topology)
 
     result = _run_finalize(repo.repo_root, mission_slug)
 
@@ -308,17 +334,12 @@ def test_sc6_finalize_lands_on_resolved_placement_no_catch22(
         # with feature-branch guidance — NOT landed, and NOT routed through the
         # coordination worktree (the planning→coord transit is removed, C-005).
         assert result.exit_code != 0, (
-            f"[{topology.name}] finalize must REFUSE a planning commit to the "
-            f"protected target_branch (FR-008), got exit 0:\n{result.output}"
+            f"[{topology.name}] finalize must REFUSE a planning commit to the protected target_branch (FR-008), got exit 0:\n{result.output}"
         )
         lowered = result.output.lower()
-        assert "feature branch" in lowered, (
-            f"[{topology.name}] refusal must name the feature-branch remedy "
-            f"(FR-008):\n{result.output}"
-        )
+        assert "feature branch" in lowered, f"[{topology.name}] refusal must name the feature-branch remedy (FR-008):\n{result.output}"
         assert "coordination worktree" not in lowered, (
-            f"[{topology.name}] refusal must NOT advise the coordination worktree "
-            f"(C-005 — planning never transits coord):\n{result.output}"
+            f"[{topology.name}] refusal must NOT advise the coordination worktree (C-005 — planning never transits coord):\n{result.output}"
         )
         # The protected target carries NO finalize commit (the refusal landed
         # nothing).
@@ -329,28 +350,16 @@ def test_sc6_finalize_lands_on_resolved_placement_no_catch22(
             text=True,
             check=True,
         ).stdout
-        assert "Add tasks for feature" not in log, (
-            f"[{topology.name}] a refused planning commit must NOT land on the "
-            f"protected target {placement_ref!r}:\n{log}"
-        )
+        assert "Add tasks for feature" not in log, f"[{topology.name}] a refused planning commit must NOT land on the protected target {placement_ref!r}:\n{log}"
         return
 
-    assert result.exit_code == 0, (
-        f"[{topology.name}] finalize-tasks refused / failed (exit "
-        f"{result.exit_code}); the catch-22 is NOT killed:\n{result.output}"
-    )
+    assert result.exit_code == 0, f"[{topology.name}] finalize-tasks refused / failed (exit {result.exit_code}); the catch-22 is NOT killed:\n{result.output}"
     payload = _parse_json_from_output(result.output)
-    assert payload.get("result") == "success", (
-        f"[{topology.name}] unexpected finalize result: {payload}"
-    )
+    assert payload.get("result") == "success", f"[{topology.name}] unexpected finalize result: {payload}"
 
     # No refusal-to-nowhere and no missing-spec misfire leaked into the output.
-    assert "switch to the lane branch" not in result.output.lower(), (
-        f"[{topology.name}] refusal-to-nowhere leaked into finalize output"
-    )
-    assert "spec.md not found" not in result.output, (
-        f"[{topology.name}] finalize falsely reported spec.md missing"
-    )
+    assert "switch to the lane branch" not in result.output.lower(), f"[{topology.name}] refusal-to-nowhere leaked into finalize output"
+    assert "spec.md not found" not in result.output, f"[{topology.name}] finalize falsely reported spec.md missing"
 
     # The tasks commit landed on the RESOLVED placement ref (the primary feature
     # target_branch) — assert a commit with the finalize message exists there.
@@ -361,10 +370,148 @@ def test_sc6_finalize_lands_on_resolved_placement_no_catch22(
         text=True,
         check=True,
     ).stdout
-    assert "Add tasks for feature" in log, (
-        f"[{topology.name}] tasks commit not found on resolved placement "
-        f"{placement_ref!r}:\n{log}"
+    assert "Add tasks for feature" in log, f"[{topology.name}] tasks commit not found on resolved placement {placement_ref!r}:\n{log}"
+
+
+def test_pr_bound_finalize_preserves_planning_branch_and_protected_merge_target(
+    protected_target_repo: ProtectedTargetRepo,  # noqa: F811
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """#2938: validate read-only, then finalize on planning branch, not main."""
+    repo = protected_target_repo
+    topology = _TOPOLOGIES[0]
+    assert isinstance(topology, _Topology)
+    mission_slug, feature_dir, _placement_ref = _scaffold_mission(repo.repo_root, topology)
+    planning_branch = "op/sc6-pr-bound-planning"
+    _git(repo.repo_root, "checkout", "-q", "-b", planning_branch)
+
+    meta_path = feature_dir / "meta.json"
+    meta = json.loads(meta_path.read_text(encoding="utf-8"))
+    meta.update(
+        {
+            "pr_bound": True,
+            "slug": mission_slug,
+            "friendly_name": "SC6 PR-bound planning",
+            "mission_type": "software-dev",
+            "created_at": "2026-07-26T00:00:00+00:00",
+        }
     )
+    meta_path.write_text(json.dumps(meta) + "\n", encoding="utf-8")
+    _git(repo.repo_root, "add", meta_path.relative_to(repo.repo_root).as_posix())
+    _git(repo.repo_root, "commit", "-q", "-m", "mark mission PR-bound")
+
+    monkeypatch.chdir(repo.repo_root)
+    before_validate_only = _repo_snapshot(repo.repo_root)
+    ambiguous = _run_finalize(repo.repo_root, mission_slug, validate_only=True)
+    assert ambiguous.exit_code == 1, ambiguous.output
+    assert "PR_BOUND_PLANNING_BRANCH_REQUIRED" in ambiguous.output
+    assert _repo_snapshot(repo.repo_root) == before_validate_only
+
+    validation = _run_finalize(
+        repo.repo_root,
+        mission_slug,
+        validate_only=True,
+        target_branch=planning_branch,
+    )
+    assert validation.exit_code == 0, validation.output
+    assert _repo_snapshot(repo.repo_root) == before_validate_only
+
+    protected_tip_before = _git(repo.repo_root, "rev-parse", "main").stdout.strip()
+    result = _run_finalize(repo.repo_root, mission_slug, target_branch=planning_branch)
+
+    assert result.exit_code == 0, result.output
+    assert _parse_json_from_output(result.output).get("result") == "success"
+    assert _git(repo.repo_root, "rev-parse", "main").stdout.strip() == protected_tip_before
+    assert "Add tasks for feature" in _git(repo.repo_root, "log", "--oneline", "-10", planning_branch).stdout
+    normalized_meta = json.loads(meta_path.read_text(encoding="utf-8"))
+    assert normalized_meta["target_branch"] == planning_branch
+    assert normalized_meta["merge_target_branch"] == "main"
+    wp_text = (feature_dir / "tasks" / "WP01-task.md").read_text(encoding="utf-8")
+    assert f"planning_base_branch: {planning_branch}" in wp_text
+    assert "merge_target_branch: main" in wp_text
+
+    rerun = _run_finalize(repo.repo_root, mission_slug)
+    assert rerun.exit_code == 0, rerun.output
+    rerun_meta = json.loads(meta_path.read_text(encoding="utf-8"))
+    assert rerun_meta["target_branch"] == planning_branch
+    assert rerun_meta["merge_target_branch"] == "main"
+
+
+def test_pr_bound_recovery_refuses_foreign_meta_delta_before_any_mutation(
+    protected_target_repo: ProtectedTargetRepo,  # noqa: F811
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """#2938: recovery must not mix its branch contract with a foreign write."""
+    repo = protected_target_repo
+    topology = _TOPOLOGIES[0]
+    assert isinstance(topology, _Topology)
+    mission_slug, feature_dir, _placement_ref = _scaffold_mission(repo.repo_root, topology)
+    planning_branch = "op/sc6-pr-bound-foreign-delta"
+    _git(repo.repo_root, "checkout", "-q", "-b", planning_branch)
+
+    meta_path = feature_dir / "meta.json"
+    meta = json.loads(meta_path.read_text(encoding="utf-8"))
+    meta.update(
+        {
+            "pr_bound": True,
+            "slug": mission_slug,
+            "friendly_name": "SC6 PR-bound foreign delta",
+            "mission_type": "software-dev",
+            "created_at": "2026-07-26T00:00:00+00:00",
+        }
+    )
+    meta_path.write_text(json.dumps(meta) + "\n", encoding="utf-8")
+    _git(repo.repo_root, "add", meta_path.relative_to(repo.repo_root).as_posix())
+    _git(repo.repo_root, "commit", "-q", "-m", "mark mission PR-bound")
+
+    meta["vcs"] = "git"
+    meta["vcs_locked_at"] = "2026-08-22T00:00:00+00:00"
+    meta_path.write_text(json.dumps(meta) + "\n", encoding="utf-8")
+    monkeypatch.chdir(repo.repo_root)
+    before = _repo_snapshot(repo.repo_root)
+
+    result = _run_finalize(repo.repo_root, mission_slug, target_branch=planning_branch)
+
+    assert result.exit_code == 1, result.output
+    assert "foreign meta.json changes" in result.output
+    assert _repo_snapshot(repo.repo_root) == before
+
+
+def test_pr_bound_recovery_refuses_linked_worktree_metadata_write(
+    protected_target_repo: ProtectedTargetRepo,  # noqa: F811
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """#2938: a linked worktree cannot rewrite primary branch metadata."""
+    repo = protected_target_repo
+    topology = _TOPOLOGIES[0]
+    assert isinstance(topology, _Topology)
+    mission_slug, feature_dir, _placement_ref = _scaffold_mission(repo.repo_root, topology)
+    meta_path = feature_dir / "meta.json"
+    meta = json.loads(meta_path.read_text(encoding="utf-8"))
+    meta["pr_bound"] = True
+    meta_path.write_text(json.dumps(meta) + "\n", encoding="utf-8")
+    _git(repo.repo_root, "add", meta_path.relative_to(repo.repo_root).as_posix())
+    _git(repo.repo_root, "commit", "-q", "-m", "mark mission PR-bound")
+
+    planning_branch = "op/sc6-linked-recovery"
+    linked = repo.repo_root.parent / "linked-recovery"
+    _git(
+        repo.repo_root,
+        "worktree",
+        "add",
+        "-q",
+        "-b",
+        planning_branch,
+        str(linked),
+    )
+    monkeypatch.chdir(linked)
+    before = _repo_snapshot(repo.repo_root)
+
+    result = _run_finalize(repo.repo_root, mission_slug, target_branch=planning_branch)
+
+    assert result.exit_code == 1, result.output
+    assert "CHECKOUT_WRITE_OWNERSHIP_REFUSED" in result.output
+    assert _repo_snapshot(repo.repo_root) == before
 
 
 @pytest.mark.parametrize("topology", _TOPOLOGIES, ids=lambda t: t.name)
@@ -381,9 +528,7 @@ def test_sc6_finalize_is_idempotent_on_rerun(
     the refusal is itself idempotent (nothing lands, no wedge).
     """
     repo = protected_target_repo
-    mission_slug, _feature_dir, _placement_ref = _scaffold_mission(
-        repo.repo_root, topology
-    )
+    mission_slug, _feature_dir, _placement_ref = _scaffold_mission(repo.repo_root, topology)
 
     first = _run_finalize(repo.repo_root, mission_slug)
     second = _run_finalize(repo.repo_root, mission_slug)
@@ -392,32 +537,13 @@ def test_sc6_finalize_is_idempotent_on_rerun(
         # Deterministic refusal: both runs refuse with feature-branch guidance and
         # never wedge.
         for label, run in (("first", first), ("second", second)):
-            assert run.exit_code != 0, (
-                f"[{topology.name}] {label} finalize must refuse the protected "
-                f"target (FR-008), got exit 0:\n{run.output}"
-            )
-            assert "feature branch" in run.output.lower(), (
-                f"[{topology.name}] {label} refusal must name the feature-branch "
-                f"remedy:\n{run.output}"
-            )
-            assert "PLANNING_BRANCH_NOT_PERSISTED" not in run.output, (
-                f"[{topology.name}] {label} refusal wedged on "
-                f"PLANNING_BRANCH_NOT_PERSISTED:\n{run.output}"
-            )
+            assert run.exit_code != 0, f"[{topology.name}] {label} finalize must refuse the protected target (FR-008), got exit 0:\n{run.output}"
+            assert "feature branch" in run.output.lower(), f"[{topology.name}] {label} refusal must name the feature-branch remedy:\n{run.output}"
+            assert "PLANNING_BRANCH_NOT_PERSISTED" not in run.output, f"[{topology.name}] {label} refusal wedged on PLANNING_BRANCH_NOT_PERSISTED:\n{run.output}"
         return
 
-    assert first.exit_code == 0, (
-        f"[{topology.name}] first finalize failed:\n{first.output}"
-    )
-    assert second.exit_code == 0, (
-        f"[{topology.name}] finalize RE-RUN wedged (F-001 idempotency regression) "
-        f"(exit {second.exit_code}):\n{second.output}"
-    )
-    assert "PLANNING_BRANCH_NOT_PERSISTED" not in second.output, (
-        f"[{topology.name}] re-run raised PLANNING_BRANCH_NOT_PERSISTED:\n"
-        f"{second.output}"
-    )
+    assert first.exit_code == 0, f"[{topology.name}] first finalize failed:\n{first.output}"
+    assert second.exit_code == 0, f"[{topology.name}] finalize RE-RUN wedged (F-001 idempotency regression) (exit {second.exit_code}):\n{second.output}"
+    assert "PLANNING_BRANCH_NOT_PERSISTED" not in second.output, f"[{topology.name}] re-run raised PLANNING_BRANCH_NOT_PERSISTED:\n{second.output}"
     payload = _parse_json_from_output(second.output)
-    assert payload.get("result") == "success", (
-        f"[{topology.name}] re-run did not report success: {payload}"
-    )
+    assert payload.get("result") == "success", f"[{topology.name}] re-run did not report success: {payload}"

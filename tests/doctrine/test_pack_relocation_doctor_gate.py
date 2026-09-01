@@ -7,7 +7,7 @@ Three non-fakeable acceptance surfaces for the relocation (NFR-006 / NFR-002):
   ``org_drg`` errors, no skipped glossary packs, and the shipped glossary term
   count matches the source pack. A profiles-only gate would miss
   ``glossary_packs`` / ``assets`` degradation, so the whole report is asserted.
-* **Charter catalog non-empty** — ``charter.catalog.load_doctrine_catalog()``
+* **Charter catalog non-empty** — ``charter.activation.catalog.load_doctrine_catalog()``
   returns non-empty built-in sets for the 7 catalog kinds. ``doctor`` does NOT
   exercise the catalog, so a missed ``catalog.py`` repoint slips through every
   other gate; this is the dedicated guard.
@@ -33,8 +33,8 @@ from unittest.mock import patch
 import pytest
 from typer.testing import CliRunner
 
-from charter.catalog import load_doctrine_catalog
-from doctrine.glossary_packs import GlossaryPackRepository
+from charter.activation.catalog import load_doctrine_catalog
+from charter.offering.glossary_packs import GlossaryPackRepository
 from specify_cli.cli.commands.doctor import app as doctor_app
 from tests.doctrine._builtin_inventory import (
     builtin_glossary_term_count,
@@ -165,7 +165,7 @@ def test_clean_install_resolves_full_built_in_graph(
             str(python),
             "-c",
             (
-                "from doctrine.drg.loader import load_built_in_graph; "
+                "from charter.offering.drg.loader import load_built_in_graph; "
                 "g = load_built_in_graph(); "
                 "print(len(g.nodes), len(g.edges))"
             ),

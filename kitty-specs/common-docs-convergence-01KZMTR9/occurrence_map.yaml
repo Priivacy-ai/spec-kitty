@@ -334,3 +334,12 @@ moves:
   - { from: ["docs/plans/initiatives/next-mission-mappings/README.md"], to: "RETIRE", reason: "#3324: duplicate next-mission-mappings redirect stub retired (canonical lives at docs/plans/next-mission-mappings/index.md)" }
   - { from: ["docs/plans/saas-hosted-sync-domain-plan.md"], to: "docs/plans/domains/saas-hosted-sync-domain-plan.md", reason: "docs-plans-tier3-closeout: domain plan migrated into the docs/plans/domains/ cluster" }
   - { from: ["docs/plans/doctrine-charter-domain-plan.md"], to: "docs/plans/domains/doctrine-charter-domain-plan.md", reason: "docs-plans-tier3-closeout: domain plan migrated into the docs/plans/domains/ cluster" }
+
+  # charter-authority-flip-01M14RB3 landing pass (#3664): M1's OC-40 doc-path
+  # rename (doctrine->charter governing-term flip). docs/context/doctrine.md ->
+  # docs/context/charter.md is not in the WP02 redirect baseline
+  # (redirect_baseline_urls.json has no context/doctrine.html entry), so this
+  # captures it on-spine only for the reverse rename-reconcile gate (NFR-005) --
+  # same as the WP02/#3324 blocks above; regen stays a no-op / redirect_map.yaml
+  # stays fresh.
+  - { from: ["docs/context/doctrine.md"], to: "docs/context/charter.md", reason: "charter-authority-flip-01M14RB3 M1/OC-40: doctrine->charter governing-term flip; 43 referrers re-pointed (path token only)." }

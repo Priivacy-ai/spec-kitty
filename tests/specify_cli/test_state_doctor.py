@@ -141,6 +141,35 @@ def test_surfaces_cover_all_state_surfaces(tmp_path):
     assert report_names == registry_names
 
 
+def test_historical_sync_surfaces_report_as_deprecated(tmp_path):
+    """The doctor report renders historical sync residue as deprecated."""
+    from specify_cli.state.contract import AuthorityClass
+
+    report = check_state_roots(tmp_path)
+    surfaces_by_name = {check.surface.name: check for check in report.surfaces}
+    historical_names = {
+        "lamport_clock",
+        "active_queue_scope",
+        "sync_daemon_control",
+        "legacy_queue",
+        "scoped_queue",
+        "project_sync_store",
+        "project_sync_egress_lock",
+        "project_sync_layout_generation",
+        "project_sync_layout_generation_lock",
+        "project_sync_layout_generation_marker",
+        "project_sync_migration_reports",
+    }
+    for name in historical_names:
+        check = surfaces_by_name[name]
+        assert check.surface.authority is AuthorityClass.DEPRECATED
+        assert check.surface.deprecated is True
+
+    tracker_cache = surfaces_by_name["tracker_cache"]
+    assert tracker_cache.surface.authority is AuthorityClass.AUTHORITATIVE
+    assert tracker_cache.surface.deprecated is False
+
+
 # ---------------------------------------------------------------------------
 # Regression: Issue 1 -- Feature surfaces must detect presence via parent walk
 # ---------------------------------------------------------------------------

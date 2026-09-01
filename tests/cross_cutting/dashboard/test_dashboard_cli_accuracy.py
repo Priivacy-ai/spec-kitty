@@ -14,22 +14,32 @@ These tests validate that CLI status reporting matches actual dashboard state.
 """
 
 import ast
-import json
-import os
-import signal
-import socket
-import subprocess
-import time
-from pathlib import Path
-from tempfile import TemporaryDirectory
-from urllib.error import URLError
-from urllib.request import urlopen
-
 import pytest
+import subprocess
+import textwrap
+import time
+from contextlib import contextmanager
+from pathlib import Path
+from tempfile import TemporaryDirectory, mkstemp
+from collections.abc import Iterator
+import signal
+import os
+import socket
+import sys
+from urllib.request import urlopen
+from urllib.error import URLError
+import json
 
+import kernel.clock as clock_module
+from kernel.clock import FrozenClock, now_epoch
+from filelock import FileLock
 from tests.test_isolation_helpers import get_venv_python
 
 pytestmark = pytest.mark.git_repo
+
+_DASHBOARD_TEST_MANIFEST_ENV = "SPEC_KITTY_DASHBOARD_TEST_MANIFEST"
+_DASHBOARD_TEST_MANIFEST_FILENAME = "dashboard-test-processes.json"
+_DASHBOARD_TEST_MANIFEST_STALE_SECONDS = 10 * 60
 
 
 def is_dashboard_accessible(port: int, timeout: float = 2.0) -> bool:
@@ -61,7 +71,11 @@ def run_dashboard_cli(
     env = os.environ.copy()
     env.pop("PYTHONPATH", None)
     command = [str(get_venv_python()), "-m", "specify_cli.__init__", *args]
-    return subprocess.run(
+    dashboard_port = _extract_dashboard_port(args)
+    if dashboard_port is not None:
+        _record_dashboard_candidate(dashboard_port, cwd)
+
+    result = subprocess.run(
         command,
         cwd=cwd,
         capture_output=True,
@@ -69,12 +83,36 @@ def run_dashboard_cli(
         timeout=timeout,
         env=env,
     )
+    if dashboard_port is not None and is_dashboard_accessible(dashboard_port, timeout=0.3):
+        _record_dashboard_candidate(dashboard_port, cwd, pids=_process_ids_for_port(dashboard_port))
+    return result
+
+
+def _extract_dashboard_port(args: tuple[str, ...]) -> int | None:
+    if not args or args[0] != "dashboard" or "--kill" in args:
+        return None
+    try:
+        index = args.index("--port")
+        return int(args[index + 1])
+    except (ValueError, IndexError):
+        return None
 
 
 def port_has_listener(port: int) -> bool:
     """Return whether a process is listening on the given port."""
     result = subprocess.run(["lsof", "-ti", f":{port}"], capture_output=True, text=True, check=False)
     return bool(result.stdout.strip())
+
+
+def _process_ids_for_port(port: int) -> list[int]:
+    result = subprocess.run(["lsof", "-ti", f":{port}"], capture_output=True, text=True, check=False)
+    pids = []
+    for raw_pid in result.stdout.splitlines():
+        try:
+            pids.append(int(raw_pid.strip()))
+        except ValueError:
+            continue
+    return pids
 
 
 def wait_for_port_state(port: int, *, occupied: bool, timeout: float = 2.0, interval: float = 0.1) -> bool:
@@ -126,17 +164,177 @@ def kill_dashboard_process(port: int):
     """Kill any dashboard process running on the given port."""
     try:
         # Find process using the port
-        result = subprocess.run(["lsof", "-ti", f":{port}"], capture_output=True, text=True, check=False)
-        if result.stdout.strip():
-            pids = result.stdout.strip().split("\n")
+        pids = _process_ids_for_port(port)
+        if pids:
             for pid in pids:
                 try:
-                    os.kill(int(pid), signal.SIGTERM)
+                    os.kill(pid, signal.SIGTERM)
                 except Exception:
                     pass
             wait_for_port_state(port, occupied=False, timeout=1.5)
     except Exception:
         pass
+
+
+def _dashboard_test_manifest_path() -> Path:
+    override = os.environ.get(_DASHBOARD_TEST_MANIFEST_ENV)
+    if override:
+        return Path(override)
+
+    xdg_cache_home = os.environ.get("XDG_CACHE_HOME")
+    cache_root = Path(xdg_cache_home) if xdg_cache_home else Path.home() / ".cache"
+    return cache_root / "spec-kitty" / _DASHBOARD_TEST_MANIFEST_FILENAME
+
+
+def _load_dashboard_test_manifest(manifest_path: Path | None = None) -> list[dict[str, object]]:
+    path = manifest_path or _dashboard_test_manifest_path()
+    try:
+        payload = json.loads(path.read_text(encoding="utf-8"))
+    except Exception:
+        return []
+    return payload if isinstance(payload, list) else []
+
+
+def _write_dashboard_test_manifest(entries: list[dict[str, object]], manifest_path: Path | None = None) -> None:
+    path = manifest_path or _dashboard_test_manifest_path()
+    path.parent.mkdir(parents=True, exist_ok=True)
+    fd, raw_tmp_path = mkstemp(dir=path.parent, prefix=f".{path.name}.", suffix=".tmp")
+    tmp_path = Path(raw_tmp_path)
+    try:
+        with os.fdopen(fd, "w", encoding="utf-8") as handle:
+            json.dump(entries, handle, sort_keys=True)
+            handle.write("\n")
+        os.replace(tmp_path, path)
+    except BaseException:
+        try:
+            os.close(fd)
+        except OSError:
+            pass
+        try:
+            tmp_path.unlink()
+        except OSError:
+            pass
+        raise
+
+
+@contextmanager
+def _dashboard_manifest_lock(manifest_path: Path | None = None) -> Iterator[None]:
+    path = manifest_path or _dashboard_test_manifest_path()
+    path.parent.mkdir(parents=True, exist_ok=True)
+    lock_path = path.with_name(f".{path.name}.lock")
+    with FileLock(str(lock_path)):
+        yield
+
+
+def _manifest_ints(value: object) -> set[int]:
+    if not isinstance(value, list):
+        return set()
+
+    ints: set[int] = set()
+    for raw_value in value:
+        if isinstance(raw_value, bool):
+            continue
+        if isinstance(raw_value, int):
+            ints.add(raw_value)
+        elif isinstance(raw_value, str):
+            try:
+                ints.add(int(raw_value))
+            except ValueError:
+                continue
+    return ints
+
+
+def _manifest_float(value: object) -> float | None:
+    if isinstance(value, bool):
+        return None
+    if isinstance(value, (int, float)):
+        return float(value)
+    if isinstance(value, str):
+        try:
+            return float(value)
+        except ValueError:
+            return None
+    return None
+
+
+def _record_dashboard_candidate(
+    port: int,
+    project_dir: Path,
+    *,
+    pids: list[int] | None = None,
+    manifest_path: Path | None = None,
+) -> None:
+    path = manifest_path or _dashboard_test_manifest_path()
+    with _dashboard_manifest_lock(path):
+        entries = _load_dashboard_test_manifest(path)
+        started_at = now_epoch()
+        current_listener_pids = set(_process_ids_for_port(port))
+        updated = []
+        for entry in entries:
+            if entry.get("port") == port:
+                previous_pids = _manifest_ints(entry.get("pids"))
+                previous_started_at = _manifest_float(entry.get("started_at"))
+                # Only the same process still listening on this port proves this
+                # is a continuation rather than a fresh launch on a recycled
+                # port -- carry the original started_at forward in that one
+                # case; otherwise this is a new launch and gets a fresh clock
+                # reading so the stale-age gate cannot fire on it prematurely.
+                if previous_pids and previous_pids & current_listener_pids and previous_started_at is not None:
+                    started_at = previous_started_at
+                continue
+            updated.append(entry)
+        updated.append(
+            {
+                "pids": pids or [],
+                "port": port,
+                "project_dir": str(project_dir.resolve()),
+                "started_at": started_at,
+            }
+        )
+        _write_dashboard_test_manifest(updated, path)
+
+
+def _cleanup_stale_dashboard_manifest_entries(
+    *,
+    max_age_seconds: float = _DASHBOARD_TEST_MANIFEST_STALE_SECONDS,
+    manifest_path: Path | None = None,
+) -> int:
+    """Reap only stale dashboard test ports recorded by this module."""
+    path = manifest_path or _dashboard_test_manifest_path()
+    with _dashboard_manifest_lock(path):
+        now = now_epoch()
+        retained = []
+        killed = 0
+
+        for entry in _load_dashboard_test_manifest(path):
+            port = entry.get("port")
+            started_at = _manifest_float(entry.get("started_at"))
+            if not isinstance(port, int) or isinstance(port, bool) or started_at is None:
+                continue
+
+            if now - started_at < max_age_seconds:
+                retained.append(entry)
+                continue
+
+            if not port_has_listener(port):
+                continue
+
+            if not is_dashboard_accessible(port, timeout=0.3):
+                continue
+
+            manifest_pids = _manifest_ints(entry.get("pids"))
+            if manifest_pids and manifest_pids.isdisjoint(_process_ids_for_port(port)):
+                continue
+
+            kill_dashboard_process(port)
+            killed += 1
+
+        if retained:
+            _write_dashboard_test_manifest(retained, path)
+        else:
+            path.unlink(missing_ok=True)
+
+        return killed
 
 
 class TestDashboardCLIStatusReporting:
@@ -569,6 +767,17 @@ class TestDashboardCleanup:
                 assert not is_dashboard_accessible(test_port, timeout=1.0), "Dashboard should not be accessible after --kill"
 
 
+# Module-level cleanup: reap only stale dashboard ports this module recorded.
+@pytest.fixture(autouse=True, scope="module")
+def cleanup_stale_dashboard_manifest_entries():
+    """Cleanup orphaned dashboard processes without a process-name-wide sweep."""
+    _cleanup_stale_dashboard_manifest_entries()
+
+    yield
+
+    _cleanup_stale_dashboard_manifest_entries()
+
+
 # Per-test cleanup: Kill dashboards on specific test ports
 @pytest.fixture(autouse=True, scope="function")
 def cleanup_test_dashboards():
@@ -593,7 +802,11 @@ def _simple_name_bindings(tree: ast.Module) -> dict[str, ast.AST]:
     return bindings
 
 
-def _literal_strings(node: ast.AST, bindings: dict[str, ast.AST], resolving: frozenset[str] = frozenset()) -> list[str]:
+def _literal_strings(
+    node: ast.AST,
+    bindings: dict[str, ast.AST],
+    resolving: frozenset[str] = frozenset(),
+) -> list[str]:
     if isinstance(node, ast.Constant) and isinstance(node.value, str):
         return [node.value]
     if isinstance(node, ast.Name) and node.id in bindings and node.id not in resolving:
@@ -644,7 +857,10 @@ def _process_sweep_violations(tree: ast.Module) -> list[str]:
 
         command_text = " ".join(command_strings)
         command_words = command_text.split()
-        broad_tools = {word.rsplit("/", 1)[-1] for word in command_words} & {"pgrep", "killall"}
+        broad_tools = {word.rsplit("/", 1)[-1] for word in command_words} & {
+            "pgrep",
+            "killall",
+        }
         for tool in sorted(broad_tools):
             violations.append(f"{node.lineno}: broad process kill tool {tool}")
         if any(command == "ps" and option in {"aux", "-A", "-e", "-ef"} for command, option in zip(command_words, command_words[1:], strict=False)):
@@ -656,16 +872,9 @@ def _process_sweep_violations(tree: ast.Module) -> list[str]:
 
 
 def test_no_process_name_wide_dashboard_kill():
-    """Guard against reintroducing a process-name-wide dashboard sweep (#70).
-
-    A process-name pattern match against every PID on the machine catches
-    sibling pytest-xdist workers' live dashboards under `--dist loadfile` too,
-    so cleanup must stay scoped to the ports this worker itself reserved.
-    """
+    """Guard against reintroducing a process-name-wide dashboard sweep (#70)."""
     source = Path(__file__).read_text(encoding="utf-8")
-    tree = ast.parse(source)
-
-    violations = _process_sweep_violations(tree)
+    violations = _process_sweep_violations(ast.parse(source))
 
     assert not violations, (
         f"This module must not use a process-name-wide dashboard cleanup sweep; scope cleanup to _reserved_test_ports instead (see #70): {violations}"
@@ -678,15 +887,30 @@ def test_no_process_name_wide_dashboard_kill():
         ("import psutil\npsutil.process_iter()", "psutil import"),
         ("import psutil as ps\nps.process_iter()", "psutil import"),
         ("from psutil import process_iter\nprocess_iter()", "psutil import"),
-        ('import subprocess\nsubprocess.run(["pgrep", "-f", "run_dashboard_server"])', "broad process kill tool pgrep"),
+        (
+            'import subprocess\nsubprocess.run(["pgrep", "-f", "run_dashboard_server"])',
+            "broad process kill tool pgrep",
+        ),
         (
             'import subprocess\ncommand = ["pgrep", "-f", "run_dashboard_server"]\nsubprocess.run(command)',
             "broad process kill tool pgrep",
         ),
-        ('import subprocess\nsubprocess.run(["sh", "-c", "pgrep -f run_dashboard_server"])', "broad process kill tool pgrep"),
-        ('import subprocess\nsubprocess.run(["killall", "-f", "run_dashboard_server"])', "broad process kill tool killall"),
-        ('import subprocess\nsubprocess.run("ps aux | grep run_dashboard_server", shell=True)', "broad process enumeration"),
-        ('import subprocess\nsubprocess.run(["sh", "-c", "ps aux | grep run_dashboard_server"])', "broad process enumeration"),
+        (
+            'import subprocess\nsubprocess.run(["sh", "-c", "pgrep -f run_dashboard_server"])',
+            "broad process kill tool pgrep",
+        ),
+        (
+            'import subprocess\nsubprocess.run(["killall", "-f", "run_dashboard_server"])',
+            "broad process kill tool killall",
+        ),
+        (
+            'import subprocess\nsubprocess.run("ps aux | grep run_dashboard_server", shell=True)',
+            "broad process enumeration",
+        ),
+        (
+            'import subprocess\nsubprocess.run(["sh", "-c", "ps aux | grep run_dashboard_server"])',
+            "broad process enumeration",
+        ),
         (
             'import subprocess\nresult = subprocess.run(["ps", "aux"])\n"run_dashboard_server" in result.stdout',
             "broad process enumeration",
@@ -703,6 +927,161 @@ def test_process_sweep_guard_allows_port_scoped_cleanup():
     """Keep the intended lsof-by-reserved-port cleanup outside the blocklist."""
     source = 'import subprocess\nsubprocess.run(["lsof", "-ti", f":{port}"])'
     assert not _process_sweep_violations(ast.parse(source))
+
+
+def test_record_dashboard_candidate_gives_new_launch_on_recycled_port_a_fresh_started_at(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    """A fresh launch on a recycled port must not inherit the old occupant's started_at.
+
+    Regression for the squad pass-2 MAJOR on PR#523: recording port 61999 at
+    an old instant, then re-recording the same port later for a live,
+    unrelated process, must not leave the old ``started_at`` in place --
+    that is exactly what disarmed the stale-age gate.
+    """
+    manifest = tmp_path / "manifest.json"
+    port = 61999
+    old_instant = clock_module.datetime.fromtimestamp(1_000_000.0, tz=clock_module.UTC)
+    new_instant = clock_module.datetime.fromtimestamp(1_001_200.0, tz=clock_module.UTC)
+    module = sys.modules[__name__]
+
+    monkeypatch.setattr(clock_module, "DEFAULT_CLOCK", FrozenClock(instant=old_instant))
+    monkeypatch.setattr(module, "_process_ids_for_port", lambda _port: [1111])
+    _record_dashboard_candidate(port, tmp_path / "old-project", pids=[1111], manifest_path=manifest)
+
+    monkeypatch.setattr(clock_module, "DEFAULT_CLOCK", FrozenClock(instant=new_instant))
+    monkeypatch.setattr(module, "_process_ids_for_port", lambda _port: [4242])
+    _record_dashboard_candidate(port, tmp_path / "new-project", pids=[4242], manifest_path=manifest)
+
+    [entry] = _load_dashboard_test_manifest(manifest)
+    assert entry["started_at"] == 1_001_200.0
+    assert entry["pids"] == [4242]
+
+
+def test_record_dashboard_candidate_keeps_started_at_when_same_process_still_listens(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    """Re-recording a port whose listener is unchanged must keep the original started_at."""
+    manifest = tmp_path / "manifest.json"
+    port = 61999
+    original_instant = clock_module.datetime.fromtimestamp(1_000_000.0, tz=clock_module.UTC)
+    later_instant = clock_module.datetime.fromtimestamp(1_000_030.0, tz=clock_module.UTC)
+    module = sys.modules[__name__]
+
+    monkeypatch.setattr(clock_module, "DEFAULT_CLOCK", FrozenClock(instant=original_instant))
+    monkeypatch.setattr(module, "_process_ids_for_port", lambda _port: [5555])
+    _record_dashboard_candidate(port, tmp_path / "project", pids=[5555], manifest_path=manifest)
+
+    monkeypatch.setattr(clock_module, "DEFAULT_CLOCK", FrozenClock(instant=later_instant))
+    _record_dashboard_candidate(port, tmp_path / "project", pids=[5555], manifest_path=manifest)
+
+    [entry] = _load_dashboard_test_manifest(manifest)
+    assert entry["started_at"] == 1_000_000.0
+    assert entry["pids"] == [5555]
+
+
+@pytest.mark.stress
+@pytest.mark.non_sandbox
+def test_concurrent_record_dashboard_candidate_updates_do_not_lose_entries(tmp_path: Path) -> None:
+    """Concurrent manifest recorders must serialize their read-modify-write updates."""
+    manifest = tmp_path / "manifest.json"
+    ports = (61991, 61992)
+    ready_paths = [tmp_path / f"ready-{port}" for port in ports]
+    start_path = tmp_path / "start"
+    worker = textwrap.dedent(
+        """
+        import importlib
+        import sys
+        import time
+        from pathlib import Path
+
+        manifest = Path(sys.argv[1])
+        port = int(sys.argv[2])
+        ready = Path(sys.argv[3])
+        start = Path(sys.argv[4])
+        module = importlib.import_module("tests.cross_cutting.dashboard.test_dashboard_cli_accuracy")
+        original_load = module._load_dashboard_test_manifest
+
+        def delayed_load(path):
+            entries = original_load(path)
+            time.sleep(0.1)
+            return entries
+
+        module._load_dashboard_test_manifest = delayed_load
+        module._process_ids_for_port = lambda _port: []
+        ready.write_text("", encoding="utf-8")
+        deadline = time.monotonic() + 10
+        while not start.exists():
+            if time.monotonic() >= deadline:
+                raise TimeoutError("worker did not receive the start signal")
+            time.sleep(0.01)
+        module._record_dashboard_candidate(port, start.parent, pids=[port], manifest_path=manifest)
+        """
+    )
+    commands = [[sys.executable, "-c", worker, str(manifest), str(port), str(ready), str(start_path)] for port, ready in zip(ports, ready_paths, strict=True)]
+    processes = [subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE) for command in commands]
+
+    try:
+        deadline = time.monotonic() + 10
+        while not all(path.exists() for path in ready_paths):
+            if time.monotonic() >= deadline:
+                raise TimeoutError("workers did not become ready")
+            time.sleep(0.01)
+        start_path.write_text("", encoding="utf-8")
+        for process in processes:
+            _, stderr = process.communicate(timeout=10)
+            assert process.returncode == 0, stderr.decode(encoding="utf-8", errors="replace")
+    finally:
+        for process in processes:
+            if process.poll() is None:
+                process.terminate()
+        for process in processes:
+            if process.poll() is None:
+                process.wait(timeout=2)
+
+    entries = _load_dashboard_test_manifest(manifest)
+    assert _manifest_ints([entry["port"] for entry in entries]) == set(ports)
+
+
+def test_stale_manifest_reaper_kills_only_old_recorded_dashboard(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    manifest = tmp_path / "manifest.json"
+    fresh_port = 61001
+    stale_port = 61002
+    killed_ports = []
+    now = clock_module.datetime.fromtimestamp(2_000.0, tz=clock_module.UTC)
+
+    monkeypatch.setattr(clock_module, "DEFAULT_CLOCK", FrozenClock(instant=now))
+    module = sys.modules[__name__]
+    monkeypatch.setattr(module, "port_has_listener", lambda port: port in {fresh_port, stale_port})
+    monkeypatch.setattr(module, "_process_ids_for_port", lambda port: [111] if port == fresh_port else [222])
+    monkeypatch.setattr(module, "is_dashboard_accessible", lambda port, timeout=0.3: port in {fresh_port, stale_port})
+    monkeypatch.setattr(module, "kill_dashboard_process", lambda port: killed_ports.append(port))
+    _write_dashboard_test_manifest(
+        [
+            {
+                "pids": [111],
+                "port": fresh_port,
+                "project_dir": str(tmp_path / "fresh"),
+                "started_at": 1999.0,
+            },
+            {
+                "pids": [222],
+                "port": stale_port,
+                "project_dir": str(tmp_path / "stale"),
+                "started_at": 1000.0,
+            },
+        ],
+        manifest,
+    )
+
+    killed = _cleanup_stale_dashboard_manifest_entries(max_age_seconds=60, manifest_path=manifest)
+
+    assert killed == 1
+    assert killed_ports == [stale_port]
+    assert _load_dashboard_test_manifest(manifest) == [
+        {
+            "pids": [111],
+            "port": fresh_port,
+            "project_dir": str(tmp_path / "fresh"),
+            "started_at": 1999.0,
+        }
+    ]
 
 
 def test_dashboard_with_symlinked_kitty_specs():

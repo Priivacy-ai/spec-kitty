@@ -74,8 +74,8 @@ from typing import Literal
 import typer
 from rich.table import Table
 
-from charter.mission_type_key import canonical_mission_type_key
-from charter.mission_type_profiles import existing_mission_types
+from charter.activation.mission_type_key import canonical_mission_type_key
+from charter.activation.mission_type_profiles import existing_mission_types
 from charter.missions import MissionTemplateRepository, resolve_layered_mission_types
 from specify_cli.core.constants import KITTY_SPECS_DIR
 from specify_cli.core.paths import load_meta_fail_closed
@@ -163,7 +163,7 @@ def _resolve_layered_roster(repo_root: Path) -> Mapping[str, object]:
     that ``--fail-on activated-unresolvable`` would turn into a spurious CI
     failure. Resolved ONCE per audit run (NFR-004), not once per mission.
     """
-    from charter.pack_context import PackContext  # noqa: PLC0415 — lazy; avoids circular
+    from charter.activation.pack_context import PackContext  # noqa: PLC0415 — lazy; avoids circular
 
     pack_context = PackContext.from_config(repo_root)
     mission_types_dirs = (MissionTemplateRepository.default_missions_root() / "mission_types",)

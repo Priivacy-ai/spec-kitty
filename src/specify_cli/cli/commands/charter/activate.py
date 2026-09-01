@@ -8,15 +8,15 @@ Wiring (R-011-D, Contracts C3.2/C3.3, C1.5)
 This is the live caller that finally wires the WP10 plan/commit engine and the
 WP11 scoped cascade engine into the CLI surface:
 
-* ``--cascade`` is parsed through :meth:`charter.cascade.CascadeScope.parse`
+* ``--cascade`` is parsed through :meth:`charter.activation.cascade.CascadeScope.parse`
   (WP11) into a real scope value object — it is **never** collapsed to a bool
   (Contract C3.3). Absence of ``--cascade`` routes through
-  :func:`charter.cascade.referenced_but_not_cascaded` so the operator is warned
+  :func:`charter.activation.cascade.referenced_but_not_cascaded` so the operator is warned
   about referenced-but-skipped artifacts (FR-013).
-* In-scope cascade targets (:func:`charter.cascade.cascade_activation_targets`)
-  are activated through the same :class:`~charter.pack_manager.CharterPackManager`
+* In-scope cascade targets (:func:`charter.activation.cascade.cascade_activation_targets`)
+  are activated through the same :class:`~charter.activation.pack_manager.CharterPackManager`
   seam as the direct activation, and rendered per kind (FR-014).
-* :class:`charter.pack_context.CharterPackConfigError` is caught and surfaced as
+* :class:`charter.activation.pack_context.CharterPackConfigError` is caught and surfaced as
   a clean exit-1 with its diagnostic code + remediation, before any mutation
   (FR-035 fail-closed, C1.5).
 """
@@ -31,22 +31,22 @@ import typer
 from rich.console import Console
 from specify_cli.cli.console import console
 
-from charter.cascade import (
+from charter.activation.cascade import (
     CascadeScope,
     cascade_activation_targets,
     referenced_but_not_cascaded,
 )
-from charter.catalog import resolve_doctrine_root
-from charter.invocation_context import ProjectContext
-from charter.kind_vocabulary import (
+from charter.activation.catalog import resolve_doctrine_root
+from charter.activation.invocation_context import ProjectContext
+from charter.activation.kind_vocabulary import (
     ArtifactKind,
     MissionTypeNotAnArtifactKind,
     UnknownArtifactIdError,
     resolve_artifact_urn,
     resolve_config_id,
 )
-from charter.pack_context import CharterPackConfigError, PackContext
-from charter.pack_manager import YAML_KEY_MAP, CharterPackManager
+from charter.activation.pack_context import CharterPackConfigError, PackContext
+from charter.activation.pack_manager import YAML_KEY_MAP, CharterPackManager
 
 from specify_cli.cli.commands.charter._layer_roots import (
     resolve_layer_roots,
@@ -172,7 +172,7 @@ def _emit_step_removal_warnings(kind: str, artifact_id: str, repo_root: Path) ->
     )
 
     try:
-        from charter.mission_type_profiles import (  # noqa: PLC0415
+        from charter.activation.mission_type_profiles import (  # noqa: PLC0415
             UnknownMissionTypeError,
             resolve_mission_type_context,
         )
@@ -293,7 +293,7 @@ def _render_cascade_activation(
     ID, not the raw DRG ID as a lossy fallback). Previously this call carried
     NO org roots at all.
     """
-    from charter._drg_helpers import load_validated_graph  # noqa: PLC0415
+    from charter.activation._drg_helpers import load_validated_graph  # noqa: PLC0415
 
     org_roots = resolve_org_root_chain(repo_root)
     graph = load_validated_graph(repo_root, org_roots=org_roots)
@@ -336,7 +336,7 @@ def _render_cascade_activation(
 def _render_tension_warnings(repo_root: Path) -> None:
     """Surface unreconciled tension findings as activate-time warnings (FR-010).
 
-    Calls the SAME scan :func:`charter.consistency_check.scan_unreconciled_tensions`
+    Calls the SAME scan :func:`charter.activation.consistency_check.scan_unreconciled_tensions`
     that ``spec-kitty charter pack consistency-check`` uses (single canonical
     authority, contracts/tension-finding.md SC-001) so this warning and that
     JSON surface can never render a tension pair differently.
@@ -358,7 +358,7 @@ def _render_tension_warnings(repo_root: Path) -> None:
     surface (``ConsistencyReport.verification_errors``), which every project
     can run explicitly on demand.
     """
-    from charter.consistency_check import scan_unreconciled_tensions  # noqa: PLC0415
+    from charter.activation.consistency_check import scan_unreconciled_tensions  # noqa: PLC0415
 
     try:
         scan_ctx = ProjectContext.from_repo(repo_root)
@@ -387,7 +387,7 @@ def _render_no_cascade_warning(
     org-pack ``requires``/``suggests`` edge is invisible to this warning
     unless the DRG it walks actually contains org-pack nodes (FR-001 AC5).
     """
-    from charter._drg_helpers import load_validated_graph  # noqa: PLC0415
+    from charter.activation._drg_helpers import load_validated_graph  # noqa: PLC0415
 
     org_roots = resolve_org_root_chain(repo_root)
     graph = load_validated_graph(repo_root, org_roots=org_roots)

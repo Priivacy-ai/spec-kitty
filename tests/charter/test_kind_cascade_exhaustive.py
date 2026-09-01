@@ -9,15 +9,15 @@ behaviour it shouldn't. It also carries the **direct** regression test for
 (WP07) cannot see because it filters via a comprehension, not a lookup table.
 
 Covered surfaces (one test class per owned module):
-- ``charter.context._render_generic_artifact_include`` (T022, headline)
-- ``charter.pack_manager`` (``YAML_KEY_MAP``, ``_PROJECT_KIND_DIRS``,
+- ``charter.activation.context._render_generic_artifact_include`` (T022, headline)
+- ``charter.activation.pack_manager`` (``YAML_KEY_MAP``, ``_PROJECT_KIND_DIRS``,
   ``_ID_FIELD_BY_KIND``) (T023)
-- ``charter.kind_vocabulary`` (``_PROJECT_KIND_DIRS``, ``_ID_FIELD_BY_KIND``,
+- ``charter.activation.kind_vocabulary`` (``_PROJECT_KIND_DIRS``, ``_ID_FIELD_BY_KIND``,
   ``resolve_artifact_urn`` / ``resolve_config_id``) (T023)
-- ``charter.synthesizer.project_drg`` (``_node_kind_for``,
+- ``charter.activation.synthesizer.project_drg`` (``_node_kind_for``,
   ``emit_project_layer``) (T024)
-- ``charter.consistency_check`` (re-exported ``YAML_KEY_MAP``) (T024)
-- ``charter._activation_render`` (``_singular_kind``, ``_infer_kind``) (T024)
+- ``charter.activation.consistency_check`` (re-exported ``YAML_KEY_MAP``) (T024)
+- ``charter.activation._activation_render`` (``_singular_kind``, ``_infer_kind``) (T024)
 - ``specify_cli.cli.commands.charter.list_cmd`` (``_KIND_ORDER``) (T025)
 """
 
@@ -28,26 +28,26 @@ from types import SimpleNamespace
 
 import pytest
 
-import charter.context as context_mod
-from charter._activation_render import _infer_kind, _singular_kind
-from charter.context_renderers import template_include as template_include_mod
-from charter.consistency_check import YAML_KEY_MAP as CONSISTENCY_YAML_KEY_MAP
-from charter.kind_vocabulary import (
+import charter.activation.context as context_mod
+from charter.activation._activation_render import _infer_kind, _singular_kind
+from charter.activation.context_renderers import template_include as template_include_mod
+from charter.activation.consistency_check import YAML_KEY_MAP as CONSISTENCY_YAML_KEY_MAP
+from charter.activation.kind_vocabulary import (
     UnknownArtifactIdError,
     _ID_FIELD_BY_KIND as KV_ID_FIELD_BY_KIND,
     _PROJECT_KIND_DIRS as KV_PROJECT_KIND_DIRS,
     resolve_artifact_urn,
     resolve_config_id,
 )
-from charter.pack_manager import (
+from charter.activation.pack_manager import (
     YAML_KEY_MAP,
     _ID_FIELD_BY_KIND as PM_ID_FIELD_BY_KIND,
     _PROJECT_KIND_DIRS as PM_PROJECT_KIND_DIRS,
 )
-from charter.synthesizer.project_drg import _node_kind_for, emit_project_layer
-from charter.synthesizer.request import SynthesisTarget
-from doctrine.artifact_kinds import ArtifactKind, _NON_AUGMENTATION_ELIGIBLE_KINDS
-from doctrine.drg.models import DRGGraph
+from charter.activation.synthesizer.project_drg import _node_kind_for, emit_project_layer
+from charter.activation.synthesizer.request import SynthesisTarget
+from charter.offering.artifact_kinds import ArtifactKind, _NON_AUGMENTATION_ELIGIBLE_KINDS
+from charter.offering.drg.models import DRGGraph
 from specify_cli.cli.commands.charter.list_cmd import _KIND_ORDER
 
 pytestmark = [pytest.mark.unit]
@@ -66,7 +66,7 @@ class TestContextGenericArtifactIncludeExcludesNonBareProbeableKinds:
 
     This is a comprehension filter, not a lookup-table crash — the WP07
     totality guard cannot see it. It must exclude every member of
-    :data:`doctrine.artifact_kinds._NON_AUGMENTATION_ELIGIBLE_KINDS`
+    :data:`charter.offering.artifact_kinds._NON_AUGMENTATION_ELIGIBLE_KINDS`
     (currently ``TEMPLATE`` and ``ASSET``), not just a private
     ``is not ArtifactKind.TEMPLATE`` check.
     """
@@ -90,7 +90,7 @@ class TestContextGenericArtifactIncludeExcludesNonBareProbeableKinds:
         # ``context_renderers/template_include.py``; it resolves its three
         # collaborators through ITS OWN module globals (bare name
         # references), so the patch target must follow the code, not stay
-        # on ``charter.context`` (which merely re-exports these names for
+        # on ``charter.activation.context`` (which merely re-exports these names for
         # FR-009 test-import preservation and the orchestrator's own calls).
         monkeypatch.setattr(
             template_include_mod, "_render_directive_include", _fake_directive_include

@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import pytest
 
-from charter.invocation_context import (
+from charter.activation.invocation_context import (
     ContextPreconditionError,
     build_operational_context,
 )

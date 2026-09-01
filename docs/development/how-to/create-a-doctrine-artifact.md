@@ -8,7 +8,7 @@ type: how-to
 related:
 - docs/architecture/doctrine-kinds.md
 - docs/architecture/doctrine-relationships.md
-- docs/context/doctrine.md
+- docs/context/charter.md
 - docs/guides/how-to/governance/synthesize-doctrine.md
 - docs/guides/how-to/governance/setup-governance.md
 - docs/development/how-to/review-gates.md
