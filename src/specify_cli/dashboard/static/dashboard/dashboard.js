@@ -416,6 +416,21 @@ function loadOverview() {
     progressBar.appendChild(progressFill);
     completedCard.appendChild(progressBar);
 
+    const nextAction = feature.next_action;
+    const nextActionEl = nextAction ? (() => {
+        const el = document.createElement('div');
+        el.className = 'next-action-callout';
+        const icon = document.createElement('span');
+        icon.className = 'next-action-icon';
+        icon.textContent = '▶';
+        const label = document.createElement('strong');
+        label.textContent = 'Next step:';
+        const command = document.createElement('code');
+        command.textContent = nextAction;
+        el.append(icon, document.createTextNode(' '), label, document.createTextNode(' '), command);
+        return el;
+    })() : null;
+
     const artifactsHeading = document.createElement('h3');
     artifactsHeading.style.marginTop = '30px';
     artifactsHeading.style.marginBottom = '15px';
@@ -436,7 +451,10 @@ function loadOverview() {
         artifactsGrid.appendChild(item);
     });
 
-    overviewContent.replaceChildren(header, statusSummary, artifactsHeading, artifactsGrid);
+    const overviewChildren = [header, statusSummary];
+    if (nextActionEl) overviewChildren.push(nextActionEl);
+    overviewChildren.push(artifactsHeading, artifactsGrid);
+    overviewContent.replaceChildren(...overviewChildren);
 }
 
 function loadKanban() {
@@ -499,7 +517,7 @@ function renderKanban(lanes, weightedPercentage) {
         <div class="status-card agents">
             <div class="status-label">Active Agents</div>
             <div class="status-value">${agents.size}</div>
-            <div class="status-detail">${agents.size > 0 ? Array.from(agents).join(', ') : 'none'}</div>
+            <div class="status-detail">${agents.size > 0 ? Array.from(agents).map(escapeHtml).join(', ') : 'none'}</div>
         </div>
     `;
 
@@ -508,8 +526,11 @@ function renderKanban(lanes, weightedPercentage) {
         const cardClass = isInReview ? 'card in-review' : 'card';
         return `
         <div class="${cardClass}" role="button">
-            <div class="card-id">${task.id}</div>
-            <div class="card-title">${task.title}</div>
+            <div class="card-header-row">
+                <div class="card-id">${escapeHtml(task.id)}</div>
+                ${profileAvatarHtml(task)}
+            </div>
+            <div class="card-title">${escapeHtml(task.title)}</div>
             <div class="card-meta">
                 ${task.agent ? `<span class="badge agent">${escapeHtml(task.agent)}</span>` : ''}
                 ${task.agent_profile ? `<span class="badge profile">${escapeHtml(task.agent_profile)}</span>` : ''}
@@ -1101,6 +1122,39 @@ function escapeHtml(text) {
     return div.innerHTML;
 }
 
+// escapeHtml() only escapes `&`/`<`/`>` (correct for text-node content, its
+// only other use in this file); a bare `"` from an untrusted identity string
+// would still break out of a double-quoted attribute, so this adds the one
+// extra replacement needed to use escaped text safely inside `attr="..."`.
+function escapeHtmlAttr(text) {
+    return escapeHtml(text).replace(/"/g, '&quot;');
+}
+
+// Small deterministic "identicon" for the WP card's currently-assigned
+// profile (issue #647 Phase 1) — colored circle + initials derived from a
+// hash of the identity string, no image upload/storage involved. Falls back
+// through agent_profile -> role -> agent -> assignee (the identity fields
+// KanbanTaskData actually populates) and renders nothing when a WP has none
+// of them set, so legacy/unassigned cards are unaffected.
+function profileAvatarHtml(task) {
+    const identity = [task.agent_profile, task.role, task.agent, task.assignee]
+        .find(value => typeof value === 'string' && value.trim())?.trim() || '';
+    if (!identity) {
+        return '';
+    }
+    const words = identity.trim().split(/[\s_-]+/).filter(Boolean);
+    const initials = (words.length > 1 ? words.slice(0, 2).map(w => w[0]) : [identity[0], identity[1] || ''])
+        .join('')
+        .toUpperCase();
+    let hash = 0;
+    for (let i = 0; i < identity.length; i++) {
+        hash = (hash * 31 + identity.charCodeAt(i)) >>> 0;
+    }
+    const hue = hash % 360;
+    const label = escapeHtmlAttr(identity);
+    return `<div class="card-avatar" style="--avatar-hue: ${hue}" title="${label}" aria-label="${label}">${escapeHtml(initials)}</div>`;
+}
+
 function showCharter() {
     if (!isCharterView && currentPage !== 'charter') {
         lastNonCharterPage = currentPage;
@@ -1318,11 +1372,16 @@ function updateFeatureListSilent(features) {
     }
     updateSidebarState();
 
-    // Detect artifact changes and reload overview if artifacts changed
+    // Refresh every value rendered by the overview. Lifecycle markers can
+    // change without changing artifacts (for example merge or acceptance).
     if (currentPage === 'overview' && oldFeature && feature) {
-        const oldArtifacts = JSON.stringify(oldFeature.artifacts);
-        const newArtifacts = JSON.stringify(feature.artifacts);
-        if (oldArtifacts !== newArtifacts) {
+        const overviewState = item => JSON.stringify({
+            artifacts: item.artifacts,
+            next_action: item.next_action,
+            mission_status: item.mission_status,
+            kanban_stats: item.kanban_stats,
+        });
+        if (overviewState(oldFeature) !== overviewState(feature)) {
             loadOverview();
         }
     }

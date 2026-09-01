@@ -64,13 +64,13 @@ if TYPE_CHECKING:
     # WP02 (charter-sole-door-bypass-closure-01KZ3WAA, FR-001), narrowed by
     # the landing-fold regression fix (defect 1): this alias previously
     # admitted EITHER the activation-*gated* ``dict`` from
-    # ``charter.resolver.DoctrineService.agent_profiles`` OR the raw
+    # ``charter.activation.resolver.DoctrineService.agent_profiles`` OR the raw
     # ``AgentProfileRepository`` from ``.agent_profile_repository``, on the
     # theory that both shapes only ever see ``.get(profile_id)`` calls here.
     # That theory was wrong: ``profile.sentinel`` (read inside
     # ``_get_hic_marker``) is a *structural* property, not an
     # activation-gated one -- exactly like ``get_provenance()``, which is why
-    # ``charter.resolver.DoctrineService`` gives callers
+    # ``charter.activation.resolver.DoctrineService`` gives callers
     # ``agent_profile_repository`` / ``raw_repository()`` in the first place.
     # A project that narrows ``activated_agent_profiles`` to exclude
     # ``human-in-charge`` silently lost the 👤 marker when a gated dict was
@@ -740,11 +740,11 @@ def _st_render_human(st: _StatusState, ports: TasksPorts) -> None:
     if _needs_profile_lookup:
         try:
             # WP02 (charter-sole-door-bypass-closure-01KZ3WAA, FR-001): routed
-            # through ``charter.resolver.DoctrineService`` instead of
+            # through ``charter.activation.resolver.DoctrineService`` instead of
             # constructing ``AgentProfileRepository`` directly. The comment
             # this replaces named a "runtime -> charter -> doctrine boundary
             # ratchet" concern; R3 (research.md) confirms that ratchet only
-            # scans MODULE-LEVEL ``from doctrine.*`` imports, and both the old
+            # scans MODULE-LEVEL ``from charter.offering.*`` imports, and both the old
             # direct-construction import and this factory import are
             # function-local, so the gate does not trip either way -- the
             # concern does not reappear.
@@ -761,7 +761,7 @@ def _st_render_human(st: _StatusState, ports: TasksPorts) -> None:
             # the 👤 human-in-charge marker on any project that narrows
             # ``activated_agent_profiles`` to a set excluding
             # ``human-in-charge``.
-            from charter.doctrine_service_builder import (  # noqa: PLC0415
+            from charter.activation.doctrine_service_builder import (  # noqa: PLC0415
                 build_activation_aware_doctrine_service,
             )
 
@@ -772,7 +772,7 @@ def _st_render_human(st: _StatusState, ports: TasksPorts) -> None:
             # Genuinely-absent-module case only: ``charter`` is first-party
             # and ships in the same wheel, so this can only fire under a
             # broken/partial install. Any other failure here -- most
-            # notably ``charter.pack_context.CharterPackConfigError`` raised
+            # notably ``charter.activation.pack_context.CharterPackConfigError`` raised
             # by ``PackContext.from_config()`` for a malformed
             # ``.kittify/config.yaml`` -- MUST propagate to ``_do_status``'s
             # outer ``except Exception as e`` handler and surface as a
@@ -885,7 +885,7 @@ def _get_hic_marker(
     ``AgentProfileRepository`` -- rather than ``.agent_profiles``, the
     activation-*gated* dict. ``profile.sentinel`` below is a structural
     property, not an activation-gated one (exactly like
-    ``get_provenance()``, which is why ``charter.resolver.DoctrineService``
+    ``get_provenance()``, which is why ``charter.activation.resolver.DoctrineService``
     exposes ``agent_profile_repository`` in the first place); reading the
     gated dict silently dropped the 👤 marker on any project that narrows
     ``activated_agent_profiles`` to a set excluding ``human-in-charge``.
@@ -897,17 +897,17 @@ def _get_hic_marker(
         profile_repo = repo
         if profile_repo is None:
             # WP02 (charter-sole-door-bypass-closure-01KZ3WAA, FR-001): routed
-            # through ``charter.resolver.DoctrineService`` rather than
+            # through ``charter.activation.resolver.DoctrineService`` rather than
             # constructing ``AgentProfileRepository`` directly. As with the
             # sibling call site (``_st_render_human``), the removed comment's
             # "boundary ratchet" concern is confirmed a red herring (R3,
             # research.md): the existing gate only scans module-level
-            # ``from doctrine.*`` imports, and this import is function-local,
+            # ``from charter.offering.*`` imports, and this import is function-local,
             # same as the construction it replaces. All 8 production callers
             # in this module always pass ``repo=`` explicitly (built once per
             # render in ``_st_render_human``), so this self-resolving fallback
             # only fires for direct/external callers (e.g. unit tests).
-            from charter.doctrine_service_builder import (  # noqa: PLC0415
+            from charter.activation.doctrine_service_builder import (  # noqa: PLC0415
                 build_activation_aware_doctrine_service,
             )
 
@@ -923,7 +923,7 @@ def _get_hic_marker(
         # (``_st_render_human``): ``charter`` is first-party and ships in the
         # same wheel, so this can only fire under a broken/partial install.
         # Any other failure -- most notably
-        # ``charter.pack_context.CharterPackConfigError`` for a malformed
+        # ``charter.activation.pack_context.CharterPackConfigError`` for a malformed
         # ``.kittify/config.yaml`` -- MUST propagate to the caller rather
         # than degrade this marker to a silent "" (FR-002's fail-closed
         # contract).

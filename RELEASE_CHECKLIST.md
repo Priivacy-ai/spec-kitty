@@ -5,13 +5,6 @@ Use this checklist for releases from `main`.
 > `main` is the primary release line and publishes both GitHub releases and PyPI packages.
 > `1.x-maintenance` is deprecated overall, reserved for critical maintenance only, and should not receive new PyPI releases.
 > Historical 2.x release notes remain in Git tags and changelog history; new stable and prerelease 3.x releases ship from `main`.
->
-> **No GitHub Actions in this programme.** The pre-programme `.github/workflows/` YAML
-> (including `release.yml` and `release-readiness.yml`) has been deleted (PROGRAM.md §2,
-> planning#57). Every step below that names a GitHub Actions job, check, or workflow file
-> describes historical/pre-programme mechanics — see AGENTS.md § PyPI Release. Run the
-> equivalent commands locally and record the evidence in the release PR instead of waiting
-> on CI to run them.
 
 ## Pre-Release Preparation
 
@@ -27,12 +20,16 @@ Use this checklist for releases from `main`.
 
 ### Release-Line Sanity
 
+- **P3.4b prerequisite:** `.github/workflows/release.yml` and
+  `release-readiness.yml` are deliberately deferred to the P3.4b release-topology
+  sibling. Land that sibling before relying on this checklist's automated
+  publishing or Release Readiness Check steps.
 - [ ] Confirm the default branch is `main`.
 - [ ] Confirm `1.x-maintenance` exists and is marked maintenance-only.
 - [ ] Confirm open PRs are targeted intentionally:
   - New product work should target `main`.
   - Maintenance-only fixes should target `1.x-maintenance`.
-- [ ] Confirm PyPI Trusted Publishing is configured for `spec-kitty-cli` (historically checked against `.github/workflows/release.yml`, which has been deleted — see the note at the top of this file).
+- [ ] Confirm PyPI Trusted Publishing is configured for `spec-kitty-cli` against `.github/workflows/release.yml`.
 
 ### Code Quality
 
@@ -156,22 +153,28 @@ gh pr create --base main --title "Release X.Y.Z" --fill
 
 ### 4. Wait for CI and Review
 
-- [ ] The `Release Readiness Check` and `CI Quality` GitHub Actions jobs these bullets
-  historically named no longer exist (`.github/workflows/` deleted, planning#57) — instead,
-  record locally-run equivalents (Code Quality section above) and their pass/fail evidence
-  in the PR.
-- [ ] Confirm shared-package drift against the current SaaS consumer pins using
-  `scripts/release/check_shared_package_drift.py` (see Code Quality above), since the
-  `Check Shared Package Drift` workflow job no longer exists.
-- [ ] The PR satisfies the active repository policy (`PROGRAM.md` §5–§9) — nothing on
-  GitHub enforces this; the merge agent's review is the gate.
+- [ ] `Release Readiness Check` passes for release metadata.
+- [ ] `CI Quality` passes for tests, wheel build, lockfile, exact install, and
+  SaaS consumer compatibility evidence or has explicitly accepted non-blocking failures with
+  issue links.
+- [ ] `Check Shared Package Drift` passes against the current SaaS consumer
+  pins.
+- [ ] `Protect Main Branch` is expected to pass for the eventual merge or
+  tagged release commit path.
 - [ ] Maintainer approval is recorded.
 - [ ] Any release-note or install-doc feedback is resolved.
 
-### 5. Hand Off the Release PR
+### 5. Merge the Release PR
 
-- [ ] Do not merge it manually. The programme merge agent merges with a merge
-      commit after the `PROGRAM.md` §5–§9 gates pass.
+- [ ] Use a merge strategy that leaves a PR marker in the main-branch commit
+      message so the `Protect Main Branch` workflow can verify provenance.
+      Today that means squash-merge for release PRs; do not use `--rebase`
+      unless the protection workflow has been updated to recognize rebased PR
+      commits.
+
+```bash
+gh pr merge --squash --delete-branch
+```
 
 ### 6. Tag the Release from `main`
 
@@ -192,31 +195,36 @@ git push origin vX.Y.ZaN
 If this release depends on a newly pinned shared package, release that upstream
 package first, verify it is installable from PyPI, and only then tag the CLI.
 
-### 7. Publish Manually
+### 7. Monitor Automated Publishing
 
-There is no automated publishing workflow in this programme — `.github/workflows/release.yml`
-has been deleted (PROGRAM.md §2, planning#57). Perform each of the following steps locally
-and record the evidence in the release PR/issue instead of watching a GitHub Actions run:
-
-- [ ] Run tests (`pytest tests/ -v`).
-- [ ] Validate release metadata (`python scripts/release/validate_release.py --mode branch --tag-pattern "v*.*.*"`).
-- [ ] Check shared-package drift (`scripts/release/check_shared_package_drift.py`).
-- [ ] Prove exact wheel installability with plain `pip` (`scripts/release/check_exact_install.py`).
-- [ ] Validate candidate compatibility against the SaaS consumer contract (`scripts/release/check_candidate_consumer_compat.py`).
-- [ ] Build distributions (`python -m build`) and create the GitHub release (`gh release create` or equivalent).
-- [ ] Publish to PyPI.
-- [ ] Verify exact installability from PyPI with no local wheel.
+- [ ] Watch `.github/workflows/release.yml`:
+  ```bash
+  gh run watch
+  ```
+- [ ] Verify the workflow:
+  - runs tests
+  - validates release metadata
+  - checks shared-package drift
+  - proves exact wheel installability with plain `pip`
+  - validates candidate compatibility against the SaaS consumer contract
+  - builds distributions
+  - publishes after tag-time release checks pass
+  - creates the GitHub release
+  - publishes to PyPI
+  - verifies exact installability from PyPI with no local wheel
 - [ ] Confirm release-candidate hygiene was already recorded before the tag:
   live canary and cross-repo end-to-end suites are required pre-release
   operator evidence, not tag-time publish workflow jobs.
 - [ ] If this is a prerelease, confirm GitHub marks the release as `Pre-release`.
-- [ ] Verify publication succeeded separately from branch health — a successful
-  PyPI/GitHub release proves publication only; it does not prove that `main` is
-  green.
-- [ ] Re-run the local test/quality/drift commands above against the released commit
-  and record the results (or every known failure, with an issue link) before using
-  the release as launch-gate evidence — there is no CI Quality / Check Shared
-  Package Drift workflow to query for this.
+- [ ] Verify the publishing workflow result separately from branch health.
+  A successful PyPI/GitHub release proves publication only; it does not prove
+  that `main` is green.
+- [ ] Verify CI Quality, Check Shared Package Drift, and other release evidence
+  checks on the released commit are green, or record every failing check with an
+  issue link before using the release as launch-gate evidence:
+  ```bash
+  gh run list --commit "$(git rev-parse HEAD)" --limit 20
+  ```
 - [ ] Verify the GitHub release payload:
   ```bash
   gh release view vX.Y.Z
@@ -291,4 +299,4 @@ If a critical issue is discovered after release:
 
 ---
 
-**Last Updated**: 2026-04-21
+**Last Updated**: 2026-08-31

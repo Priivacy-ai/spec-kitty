@@ -349,8 +349,7 @@ The former `2.x` branch was merged into `main` when the SaaS transformation reac
 Nothing on GitHub enforces this workflow: there is no branch protection or required
 review, and the leftover `.github/workflows/` YAML has been deleted (pre-programme
 GitHub Actions cruft; PROGRAM.md §2, planning#57). The binding process is
-[`EXPERIMENTAL-spec-kitty-planning/PROGRAM.md`](https://github.com/spec-kitty/EXPERIMENTAL-spec-kitty-planning/blob/main/PROGRAM.md)
-§5–§9.
+the programme planning repository's `PROGRAM.md` §5–§9.
 
 ### Agent Push Authorization (binding)
 

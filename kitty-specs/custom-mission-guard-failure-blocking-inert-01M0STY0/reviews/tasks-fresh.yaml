@@ -1,0 +1,105 @@
+schema: review-findings/v1
+complete: true
+phase: tasks
+lens_group: fresh
+mission: custom-mission-guard-failure-blocking-inert-01M0STY0
+findings:
+  - id: TASKS-FRESH-001
+    lens: New technical claims unverified (T017b's own proposed test techniques, verified against live source)
+    severity: 4
+    title: >-
+      T017b's first suggested verification technique ("flip the org-declared artifact's presence and
+      observe guard_failures change") is structurally impossible for the software-dev scenario T017b
+      itself specifies, because a `_GUARD_TABLES`-registered family never consults `blocking_artifact_names`
+    evidence:
+      - artifact: >-
+          tasks/WP03-repo-root-call-site-convergence.md T017b: "...asserting resolve_org_roots (or the
+          org-tier manifest it resolves) is consulted with the real, non-None repo_root specifically
+          through the runtime_bridge.py:1643 call site -- e.g. by flipping the org-declared blocking
+          artifact's on-disk presence and observing guard_failures change accordingly, or by patching
+          resolve_org_roots/resolve_org_expected_artifacts and asserting the real repo_root value in
+          the call arguments..."
+      - code: >-
+          src/runtime/next/runtime_bridge_cores.py:693-695 -- `evaluate_guards_strict`'s dispatch:
+          `guard_table_entry = _GUARD_TABLES.get(snapshot.mission_family)`; `if guard_table_entry is
+          None: raise ...`; `return guard_table_entry(snapshot)` -- for "software-dev" this returns
+          `_evaluate_software_dev_guards(snapshot)` directly. WP01's new `blocking_artifact_names is
+          None` branch (T004) is only reached in the `guard_table_entry is None` arm -- i.e. only for
+          families OUTSIDE `_GUARD_TABLES`. software-dev is IN `_GUARD_TABLES` (line ~679), so the new
+          branch, and therefore `blocking_artifact_names`/the org-tier manifest, is never consulted for it.
+      - code: >-
+          src/runtime/next/runtime_bridge_cores.py:618-630 -- `_evaluate_software_dev_guards` dispatches
+          purely on `step_id` (`SPEC_ARTIFACT`/`PLAN_ARTIFACT` presence, `_evaluate_cli_tasks_guard`,
+          `_evaluate_composed_tasks_guard`, `_evaluate_wp_iteration_guard`); it never reads
+          `snapshot.blocking_artifact_names` or anything org-tier-derived.
+      - artifact: >-
+          tasks/WP04-regression-sweep-and-nfr002-docs.md's own Goal section (unchanged by this fix, but
+          confirms the design intent): "the FR-001 fallback only activates when
+          `_GUARD_TABLES.get(family)` is `None`, structurally unreachable for any of the four [built-in
+          families]" (NFR-001/FR-009 byte-compat requirement).
+    claim: >-
+      T017b (added this fix round to close TASKS-VERIFY-001's severity-4 gap) offers two alternative
+      techniques to prove `resolve_org_roots` is invoked with a real `repo_root` through the software-dev
+      -scoped CLI pre-check call site (`runtime_bridge.py:1643`). The first -- flipping the org-declared
+      blocking artifact's on-disk presence and observing `guard_failures` change -- cannot work for the
+      software-dev family this subtask specifies: `evaluate_guards_strict` short-circuits to
+      `_GUARD_TABLES["software-dev"]` (`_evaluate_software_dev_guards`) before it ever reaches the new
+      `blocking_artifact_names`-consulting branch WP01 built, and `_evaluate_software_dev_guards` never
+      reads that field at all -- this is precisely what makes NFR-001's "byte-identical behavior for the
+      4 built-in families" claim true. So no matter what the org-tier manifest says or whether the
+      declared artifact is present or absent, `guard_failures` for a software-dev mission is completely
+      unaffected by it; a WP-implementing agent who follows this first suggested technique literally will
+      either produce a test that fails for the wrong reason (asserting a `guard_failures` change that
+      never happens) or, if written loosely, a vacuous test that passes regardless of whether `repo_root`
+      was genuinely threaded to `resolve_org_roots` -- exactly the kind of self-validating-nothing gate
+      the charter's Standing Order #4/#5 and DIRECTIVE_030 warn against. Only the second technique
+      (patching `resolve_org_roots`/`resolve_org_expected_artifacts` and asserting the real `repo_root`
+      argument, driven through `_dn_dependency_gate` rather than a leaf-function-direct call) is actually
+      viable for this scenario, but T017b presents both as equally valid ("e.g. ... or ...") without
+      flagging that the first is unusable here.
+    remediation: >-
+      Drop the "flip the org-declared artifact's presence and observe guard_failures change" option from
+      T017b's software-dev scenario (it is a false lead for a `_GUARD_TABLES`-registered family), or
+      explicitly note that this technique only applies to T017's custom-family case (where
+      `evaluate_guards_strict` genuinely dispatches through the new `is None`/`frozenset` branch) and that
+      T017b's software-dev case MUST use the patch-and-assert-call-arguments technique instead, since
+      software-dev's guard evaluation never consults the org-tier-derived `blocking_artifact_names` field
+      regardless of what `resolve_org_roots` resolves.
+  - id: TASKS-FRESH-002
+    lens: Broken cross-references / consistency with already-PASSED spec.md (AC-8)
+    severity: 2
+    title: T017b's software-dev test scenario does not literally satisfy AC-8's "a custom mission family" Given clause, and this substitution is never reconciled against the spec text
+    evidence:
+      - artifact: >-
+          spec.md AC-8: "**Given** the CLI/WP-iteration dispatch path (`_dn_dependency_gate`,
+          `runtime_bridge.py`, ~line 1538-1643, ...) runs **a custom mission family** with an org-tier
+          manifest and no built-in manifest, **When** the guard is evaluated, **Then** `resolve_org_roots`
+          is invoked with the real, non-`None` `repo_root`..."
+      - artifact: >-
+          tasks/WP03-repo-root-call-site-convergence.md T017b: "Add a second AC-8 test case, scoped to
+          the `software-dev` family so it actually reaches the CLI pre-check call site T017 structurally
+          cannot..."
+      - code: >-
+          src/runtime/next/runtime_bridge.py:1642 -- `get_mission_type(feature_dir) ==
+          MISSION_TYPE_SOFTWARE_DEV` gates the ~1643 call site to software-dev only, so "a custom mission
+          family" (AC-8's literal subject) can never reach it -- confirmed live, matching T017's own
+          "structurally cannot reach" note.
+    claim: >-
+      AC-8, as literally worded in the already-PASSED spec.md, names one scenario subject ("a custom
+      mission family") for both cited call sites (~1608 and ~1643). T017b — added specifically to close
+      the CLI pre-check call site's test gap — necessarily substitutes the `software-dev` family instead,
+      because the ~1643 site is structurally software-dev-only (T017's own note in this same fix round
+      says as much). This substitution is the only way to close the coverage gap, but it is never flagged
+      as a spec-wording tension: tasks.md/WP03 label T017b an "AC-8 test case" without noting that AC-8's
+      literal Given clause cannot be satisfied by a custom family at this call site, and is only satisfied
+      by generalizing "a custom mission family" to "any family exercising this call site." A strict
+      traceability audit (Requirements Coverage Summary still lists AC-8 as "WP03 -- resolve_org_roots
+      invoked with real repo_root", singular) would not surface that AC-8's own scenario text and its
+      closing test now disagree on mission-family type.
+    remediation: >-
+      Add one sentence to T017b (or the Requirements Coverage Summary's AC-8 row) explicitly noting that
+      AC-8's "custom mission family" wording is read generically here — the ~1643 call site is
+      software-dev-scoped by design (#3407 M3), so AC-8's intent (repo_root is genuinely threaded, not
+      left as a dropped default) is satisfied via the only family that can structurally reach that site;
+      T017 covers the custom-family half of AC-8's literal scenario at the ~1608 site. This is a
+      documentation/traceability fix only, not a code or test-design change.

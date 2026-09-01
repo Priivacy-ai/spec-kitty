@@ -34,7 +34,7 @@ import plantuml_invoke  # noqa: E402
 
 pytestmark = pytest.mark.unit
 
-_BENIGN = "@startyaml\ntitle Benign Control\nprofile_id: \"x\"\nrole: \"y\"\n@endyaml\n"
+_BENIGN = '@startyaml\ntitle Benign Control\nprofile_id: "x"\nrole: "y"\n@endyaml\n'
 _EXTERNAL_INCLUDE = "@startuml\n!include http://127.0.0.1:59777/leak\nBob -> Alice\n@enduml\n"
 
 
@@ -55,21 +55,19 @@ _docker = pytest.mark.skipif(not _docker_available(), reason="docker unavailable
 
 
 @_docker
-def test_benign_diagram_renders_under_sandbox_isolation(tmp_path: Path) -> None:
+def test_benign_diagram_renders_under_sandbox_isolation() -> None:
     """Control: a benign diagram renders fine — so refusal below is selective, not blanket."""
     jar = _ensure_jar()
     pins = plantuml_invoke.load_pins()
-    svg = plantuml_invoke.render_startyaml(_BENIGN, workdir=tmp_path, jar_path=jar, pins=pins)
+    svg = plantuml_invoke.render_startyaml(_BENIGN, workdir=_REPO_ROOT, jar_path=jar, pins=pins)
     assert svg.strip() and not plantuml_invoke.svg_is_error(svg)
     assert b"Benign Control" in svg
 
 
 @_docker
-def test_external_include_is_refused_under_sandbox_isolation(tmp_path: Path) -> None:
+def test_external_include_is_refused_under_sandbox_isolation() -> None:
     """A diagram referencing an EXTERNAL resource fails closed — external content never emitted."""
     jar = _ensure_jar()
     pins = plantuml_invoke.load_pins()
     with pytest.raises(plantuml_invoke.PlantumlRenderError):
-        plantuml_invoke.render_startyaml(
-            _EXTERNAL_INCLUDE, workdir=tmp_path, jar_path=jar, pins=pins
-        )
+        plantuml_invoke.render_startyaml(_EXTERNAL_INCLUDE, workdir=_REPO_ROOT, jar_path=jar, pins=pins)

@@ -1022,6 +1022,12 @@
   owning_workstream: none
   current_target: true
   notes: null
+- path: docs/adr/3.x/2026-08-28-1-project-path-convention-override-precedes-doctrine.md
+  tag: current
+  divio_type: none
+  owning_workstream: none
+  current_target: true
+  notes: null
 - path: docs/adr/3.x/README.md
   tag: current
   divio_type: none
@@ -1161,6 +1167,12 @@
   current_target: true
   notes: null
 - path: docs/api/agent_profiles/reviewer-renata.md
+  tag: current
+  divio_type: none
+  owning_workstream: none
+  current_target: true
+  notes: null
+- path: docs/api/auth-whoami-output.md
   tag: current
   divio_type: none
   owning_workstream: none
@@ -1466,6 +1478,12 @@
   owning_workstream: none
   current_target: true
   notes: null
+- path: docs/architecture/charter-backend-service-future.md
+  tag: current
+  divio_type: none
+  owning_workstream: none
+  current_target: true
+  notes: null
 - path: docs/architecture/charter-pack-usage-journey.md
   tag: current
   divio_type: none
@@ -1631,6 +1649,12 @@
 - path: docs/architecture/pip-vs-pipx-vs-uv.md
   tag: current
   divio_type: explanation
+  owning_workstream: none
+  current_target: true
+  notes: null
+- path: docs/architecture/profile-load-reliability.md
+  tag: current
+  divio_type: none
   owning_workstream: none
   current_target: true
   notes: null
@@ -1934,6 +1958,12 @@
   owning_workstream: none
   current_target: true
   notes: null
+- path: docs/context/charter.md
+  tag: current
+  divio_type: none
+  owning_workstream: none
+  current_target: true
+  notes: null
 - path: docs/context/configuration-project-structure.md
   tag: current
   divio_type: none
@@ -1943,12 +1973,6 @@
 - path: docs/context/contextive-glossaries.md
   tag: current
   divio_type: how-to
-  owning_workstream: none
-  current_target: true
-  notes: null
-- path: docs/context/doctrine.md
-  tag: current
-  divio_type: none
   owning_workstream: none
   current_target: true
   notes: null
@@ -2079,6 +2103,12 @@
   current_target: true
   notes: null
 - path: docs/contracts/index.md
+  tag: current
+  divio_type: none
+  owning_workstream: none
+  current_target: true
+  notes: null
+- path: docs/convergence/interim-ci-producer.md
   tag: current
   divio_type: none
   owning_workstream: none
@@ -4244,6 +4274,12 @@
   owning_workstream: none
   current_target: true
   notes: null
+- path: docs/plans/investigations/2026-08-declared-but-inert-doctrine-seams.md
+  tag: current
+  divio_type: none
+  owning_workstream: none
+  current_target: true
+  notes: null
 - path: docs/plans/investigations/2026-08-pack-level-metadata-manifest.md
   tag: current
   divio_type: none
@@ -4287,6 +4323,12 @@
   current_target: true
   notes: null
 - path: docs/plans/investigations/issue-1111-analysis.md
+  tag: current
+  divio_type: none
+  owning_workstream: none
+  current_target: true
+  notes: null
+- path: docs/plans/investigations/issue-797-events-tracker-fork-census.md
   tag: current
   divio_type: none
   owning_workstream: none

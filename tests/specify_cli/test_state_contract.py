@@ -212,6 +212,7 @@ def test_runtime_gitignore_entries_exact():
         ".kittify/dossiers/",
         ".kittify/encoding-provenance/",
         ".kittify/events/",
+        ".kittify/lint-report.json",
         ".kittify/logs/",
         ".kittify/merge-state.json",
         ".kittify/migrations/",
@@ -472,7 +473,6 @@ def test_section_e_sync_surfaces_present():
     expected = {
         "sync_config",
         "sync_credentials",
-        "credential_lock",
         "lamport_clock",
         "active_queue_scope",
         "legacy_queue",
@@ -481,6 +481,59 @@ def test_section_e_sync_surfaces_present():
     }
     missing = expected - names
     assert not missing, f"Missing Section E surfaces: {missing}"
+
+
+def test_credential_lock_surface_is_removed():
+    """The credential store locks its own file, not a lockfile sidecar."""
+    assert all(surface.name != "credential_lock" for surface in STATE_SURFACES)
+    assert all(
+        surface.path_pattern != "~/.spec-kitty/credentials.lock"
+        for surface in STATE_SURFACES
+    )
+
+
+def test_section_e_historical_sync_rows_are_fully_tombstoned():
+    """Historical sync rows are deprecated and excluded from live authorities."""
+    surfaces_by_name = {s.name: s for s in STATE_SURFACES}
+    historical_names = {
+        "lamport_clock",
+        "active_queue_scope",
+        "sync_daemon_control",
+        "legacy_queue",
+        "scoped_queue",
+        "project_sync_store",
+        "project_sync_egress_lock",
+        "project_sync_layout_generation",
+        "project_sync_layout_generation_lock",
+        "project_sync_layout_generation_marker",
+        "project_sync_migration_reports",
+    }
+    for name in historical_names:
+        surface = surfaces_by_name[name]
+        assert surface.authority is AuthorityClass.DEPRECATED
+        assert surface.deprecated is True
+        assert surface.owner_module == "legacy"
+        assert surface.creation_trigger == "historical"
+        assert surface.to_dict()["authority"] == AuthorityClass.DEPRECATED.value
+        assert surface.to_dict()["deprecated"] is True
+
+    live_authorities = {
+        AuthorityClass.AUTHORITATIVE,
+        AuthorityClass.LOCAL_RUNTIME,
+    }
+    authority_names = {
+        authority: {surface.name for surface in get_surfaces_by_authority(authority)}
+        for authority in live_authorities
+    }
+    assert all(
+        name not in names
+        for names in authority_names.values()
+        for name in historical_names
+    )
+    tracker_cache = surfaces_by_name["tracker_cache"]
+    assert tracker_cache.authority is AuthorityClass.AUTHORITATIVE
+    assert tracker_cache.deprecated is False
+    assert tracker_cache.name in authority_names[AuthorityClass.AUTHORITATIVE]
 
 
 def test_section_f_global_runtime_present():

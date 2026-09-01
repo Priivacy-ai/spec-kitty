@@ -1,0 +1,13 @@
+schema: review-verify/v1
+complete: true
+phase: tasks
+results:
+  - id: TASKS-DECOMP-001
+    status: resolved
+    reason: WP01's Definition of Done and Reviewer Guidance both now carry an explicit FR-006 item stating the built-in-types gate is satisfied by construction (empty-action-sequence-only trigger; built-ins always resolve non-empty per mission_type_profiles.py's action_sequence construction), naming the locking suite (tests/runtime/test_runtime_seam.py) and mirroring the C-006 explicit-decision precedent, matching remediation option (b) with real reasoning rather than a bare mention.
+  - id: TASKS-DECOMP-002
+    status: resolved
+    reason: T001's instructions and DoD item 1 now both name tracer-approach.md as the durable location for the recorded baseline table, and that file already exists in the mission directory and matches the tracer-*.md convention plan.md's Documentation section documents, so no new inconsistency was introduced.
+  - id: TASKS-VERIFY-002
+    status: resolved
+    reason: wps.yaml now carries a comment immediately above requirement_refs explaining SC-004's absence via upstream defect #2991 and the _REF_FIND_PATTERN regex cause, matching the cited precedent's substance and phrasing (including the "not an oversight" / "do not clean it up" framing), and the file still parses as valid YAML (python3 yaml.safe_load succeeded).

@@ -1,7 +1,7 @@
 """Unit tests for the unified :class:`MissionStep` model (WP01, FR-011).
 
 These tests pin the spec-required fields and validation rules of the
-canonical :class:`doctrine.missions.models.MissionStep` introduced by
+canonical :class:`charter.offering.missions.models.MissionStep` introduced by
 mission ``charter-doctrine-mission-type-configuration-01KSWJVX``:
 
 * The three ``step_type`` discriminant values (``agent``,
@@ -19,7 +19,7 @@ from __future__ import annotations
 import pytest
 from pydantic import ValidationError
 
-from doctrine.missions.models import IDENTIFIER_PATTERN, MissionStep
+from charter.offering.missions.models import IDENTIFIER_PATTERN, MissionStep
 
 
 pytestmark = pytest.mark.fast

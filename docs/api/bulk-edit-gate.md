@@ -51,7 +51,7 @@ exceptions:
 - path: "<file path or glob>"
   action: <do_not_change | manual_review | rename | rename_if_user_visible>
   reason: "<why this path deviates from its category verdict>"
-  # Optional. Dot-separated YAML field path, e.g. "context-sources.tactics".
+  # Optional. Dot-separated YAML field path, e.g. "specialization-context.languages".
   field_path: "<field>"
 ```
 
@@ -67,7 +67,7 @@ optional. No other keys are accepted.
 `path`, instead of overriding the whole file's verdict. It exists for the case
 where a governed file carries both fields that must not change and fields that
 must — for example an agent profile whose `directive-references` must stay
-fixed while `context-sources.directives` in the *same* file migrates.
+fixed while `specialization-context.languages` in the *same* file migrates.
 
 When `field_path` is present the file's category-level action still governs the
 whole file; the reviewer-facing diff check *additionally* records that this one

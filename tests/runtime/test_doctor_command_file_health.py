@@ -2,8 +2,12 @@
 
 Covers the version-marker head-scan logic introduced when the marker
 moved from line 1 (legacy) to immediately after the YAML frontmatter
-(new layout).  These tests pin the contract that:
+(new layout), plus the routing to the user-global command directory
+(canonical since the ``3.1.2_globalize_commands`` migration — see #1794).
+These tests pin the contract that:
 
+- Command files are looked up at the agent's global command directory
+  (``get_global_command_dir``), not the project-local one.
 - A correct marker is recognized whether it sits on line 1 or on line 4
   (after a ``---\\ndescription: ...\\n---`` frontmatter block).
 - A stale marker (different version) yields a warning.
@@ -31,36 +35,40 @@ def _bootstrap_project(tmp_path: Path, agent_root: str = ".claude", subdir: str 
     kittify.mkdir(parents=True, exist_ok=True)
     agent_key = agent_root.lstrip(".")
     (kittify / "config.yaml").write_text(
-        "project:\n"
-        "  uuid: test-uuid-1234\n"
-        "agents:\n"
-        "  available:\n"
-        f"    - {agent_key}\n",
+        f"project:\n  uuid: test-uuid-1234\nagents:\n  available:\n    - {agent_key}\n",
         encoding="utf-8",
     )
-    (tmp_path / agent_root / subdir).mkdir(parents=True, exist_ok=True)
     return tmp_path
 
 
+def _global_dir(tmp_path: Path, agent_root: str = ".claude") -> Path:
+    """The fake user-global command dir a patched get_global_command_dir resolves to."""
+    return tmp_path / "_global_commands" / agent_root.lstrip(".")
+
+
+def _patch_global_command_dir(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    """Route get_global_command_dir to a tmp_path-scoped dir, keyed by agent."""
+    monkeypatch.setattr(
+        "specify_cli.runtime.agent_commands.get_global_command_dir",
+        lambda agent_key: tmp_path / "_global_commands" / agent_key,
+    )
+
+
 def _write_full_consumer_file_set(
-    project: Path,
+    tmp_path: Path,
     *,
     factory,
     agent_root: str = ".claude",
-    subdir: str = "commands",
 ) -> None:
     """Write every consumer command file using *factory(command, is_prompt) -> str*."""
     from specify_cli.shims.registry import CLI_DRIVEN_COMMANDS, PROMPT_DRIVEN_COMMANDS
 
-    target_dir = project / agent_root / subdir
+    target_dir = _global_dir(tmp_path, agent_root)
+    target_dir.mkdir(parents=True, exist_ok=True)
     for command in PROMPT_DRIVEN_COMMANDS:
-        (target_dir / f"spec-kitty.{command}.md").write_text(
-            factory(command, True), encoding="utf-8"
-        )
+        (target_dir / f"spec-kitty.{command}.md").write_text(factory(command, True), encoding="utf-8")
     for command in CLI_DRIVEN_COMMANDS:
-        (target_dir / f"spec-kitty.{command}.md").write_text(
-            factory(command, False), encoding="utf-8"
-        )
+        (target_dir / f"spec-kitty.{command}.md").write_text(factory(command, False), encoding="utf-8")
 
 
 def _current_marker() -> str:
@@ -99,23 +107,17 @@ def _legacy_layout_shim() -> str:
 def _new_layout_prompt() -> str:
     """Prompt-driven file: long body + frontmatter + marker after frontmatter."""
     body_lines = [f"Body line {i}" for i in range(60)]
-    return (
-        "---\n"
-        "description: Demo prompt\n"
-        "---\n"
-        f"{_current_marker()}\n"
-        + "\n".join(body_lines)
-        + "\n"
-    )
+    return f"---\ndescription: Demo prompt\n---\n{_current_marker()}\n" + "\n".join(body_lines) + "\n"
 
 
-def test_new_layout_shim_passes_health_check(tmp_path: Path) -> None:
+def test_new_layout_shim_passes_health_check(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    _patch_global_command_dir(monkeypatch, tmp_path)
     project = _bootstrap_project(tmp_path)
 
     def factory(command: str, is_prompt: bool) -> str:
         return _new_layout_prompt() if is_prompt else _new_layout_shim()
 
-    _write_full_consumer_file_set(project, factory=factory)
+    _write_full_consumer_file_set(tmp_path, factory=factory)
     issues = check_command_file_health(project)
     # No version-marker warnings, no missing-file errors, no length warnings
     marker_issues = [i for i in issues if "version marker" in i["issue"]]
@@ -124,8 +126,9 @@ def test_new_layout_shim_passes_health_check(tmp_path: Path) -> None:
     assert length_issues == [], f"unexpected length warnings: {length_issues}"
 
 
-def test_legacy_layout_shim_still_passes(tmp_path: Path) -> None:
+def test_legacy_layout_shim_still_passes(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """Backwards-compat: line-1 marker is still considered healthy."""
+    _patch_global_command_dir(monkeypatch, tmp_path)
     project = _bootstrap_project(tmp_path)
 
     def factory(command: str, is_prompt: bool) -> str:
@@ -134,25 +137,21 @@ def test_legacy_layout_shim_still_passes(tmp_path: Path) -> None:
             return f"{_current_marker()}\n" + "\n".join(body_lines) + "\n"
         return _legacy_layout_shim()
 
-    _write_full_consumer_file_set(project, factory=factory)
+    _write_full_consumer_file_set(tmp_path, factory=factory)
     issues = check_command_file_health(project)
     marker_issues = [i for i in issues if "version marker" in i["issue"]]
     assert marker_issues == [], f"legacy marker not recognized: {marker_issues}"
 
 
-def test_stale_marker_emits_warning(tmp_path: Path) -> None:
+def test_stale_marker_emits_warning(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    _patch_global_command_dir(monkeypatch, tmp_path)
     project = _bootstrap_project(tmp_path)
 
     def factory(command: str, is_prompt: bool) -> str:
         stale = "<!-- spec-kitty-command-version: 0.0.1-stale -->"
         if is_prompt:
             body_lines = [f"Body line {i}" for i in range(60)]
-            return (
-                "---\n"
-                "description: Demo prompt\n"
-                "---\n"
-                f"{stale}\n" + "\n".join(body_lines) + "\n"
-            )
+            return f"---\ndescription: Demo prompt\n---\n{stale}\n" + "\n".join(body_lines) + "\n"
         return (
             "---\n"
             "description: Demo command\n"
@@ -165,7 +164,7 @@ def test_stale_marker_emits_warning(tmp_path: Path) -> None:
             "`spec-kitty agent action implement $ARGUMENTS --agent claude`\n"
         )
 
-    _write_full_consumer_file_set(project, factory=factory)
+    _write_full_consumer_file_set(tmp_path, factory=factory)
     issues = check_command_file_health(project)
     marker_issues = [i for i in issues if "version marker" in i["issue"]]
     assert marker_issues, "expected at least one stale-marker warning"
@@ -173,7 +172,8 @@ def test_stale_marker_emits_warning(tmp_path: Path) -> None:
         assert issue["severity"] == "warning"
 
 
-def test_missing_file_emits_error(tmp_path: Path) -> None:
+def test_missing_file_emits_error(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    _patch_global_command_dir(monkeypatch, tmp_path)
     project = _bootstrap_project(tmp_path)
     issues = check_command_file_health(project)
     # No files written → every consumer command should report missing
@@ -184,12 +184,13 @@ def test_missing_file_emits_error(tmp_path: Path) -> None:
 
 
 def test_unreadable_file_emits_error(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    _patch_global_command_dir(monkeypatch, tmp_path)
     project = _bootstrap_project(tmp_path)
 
     def factory(command: str, is_prompt: bool) -> str:
         return _new_layout_prompt() if is_prompt else _new_layout_shim()
 
-    _write_full_consumer_file_set(project, factory=factory)
+    _write_full_consumer_file_set(tmp_path, factory=factory)
 
     real_read_text = Path.read_text
 
@@ -204,14 +205,13 @@ def test_unreadable_file_emits_error(tmp_path: Path, monkeypatch: pytest.MonkeyP
     assert unreadable, "expected an unreadable error for the patched file"
 
 
-def test_unknown_agent_root_skipped(tmp_path: Path) -> None:
+def test_unknown_agent_root_skipped(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """When an agent root has no AGENT_DIR_TO_KEY mapping, it's skipped silently."""
+    _patch_global_command_dir(monkeypatch, tmp_path)
     project = _bootstrap_project(tmp_path)
     # Create a fake agent dir with no key mapping; doctor must not crash on it.
     (project / ".bogus" / "commands").mkdir(parents=True)
-    (project / ".bogus" / "commands" / "spec-kitty.implement.md").write_text(
-        _new_layout_shim(), encoding="utf-8"
-    )
+    (project / ".bogus" / "commands" / "spec-kitty.implement.md").write_text(_new_layout_shim(), encoding="utf-8")
     # Should still report missing for the configured agent without crashing
     issues = check_command_file_health(project)
     bogus_issues = [i for i in issues if i["agent"] == "bogus"]
@@ -233,66 +233,65 @@ def test_returns_empty_when_imports_fail(monkeypatch: pytest.MonkeyPatch, tmp_pa
     assert check_command_file_health(tmp_path) == []
 
 
-def test_short_shim_under_threshold(tmp_path: Path) -> None:
+def test_short_shim_under_threshold(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """A 9-line non-empty shim (frontmatter + marker + 3 instructions + CLI call) is OK."""
+    _patch_global_command_dir(monkeypatch, tmp_path)
     project = _bootstrap_project(tmp_path)
 
     def factory(command: str, is_prompt: bool) -> str:
         return _new_layout_prompt() if is_prompt else _new_layout_shim()
 
-    _write_full_consumer_file_set(project, factory=factory)
+    _write_full_consumer_file_set(tmp_path, factory=factory)
     issues = check_command_file_health(project)
     # Specifically: no shim should hit the "non-empty lines" length warning.
-    length_issues = [
-        i for i in issues
-        if "non-empty lines" in i["issue"] and "thin shim" in i["issue"]
-    ]
-    assert length_issues == [], (
-        f"new-layout shims (8 non-empty lines) must stay under the 15-line "
-        f"threshold; got: {length_issues}"
-    )
+    length_issues = [i for i in issues if "non-empty lines" in i["issue"] and "thin shim" in i["issue"]]
+    assert length_issues == [], f"new-layout shims (8 non-empty lines) must stay under the 15-line threshold; got: {length_issues}"
 
 
-def test_oversized_shim_emits_warning(tmp_path: Path) -> None:
+def test_oversized_shim_emits_warning(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """A bloated shim (>=15 non-empty lines) raises a length warning."""
+    _patch_global_command_dir(monkeypatch, tmp_path)
     project = _bootstrap_project(tmp_path)
-    bloated = (
-        "---\n"
-        "description: Demo command\n"
-        "---\n"
-        f"{_current_marker()}\n"
-        + "\n".join([f"extra body line {i}" for i in range(20)])
-        + "\n"
-    )
+    bloated = f"---\ndescription: Demo command\n---\n{_current_marker()}\n" + "\n".join([f"extra body line {i}" for i in range(20)]) + "\n"
 
     def factory(command: str, is_prompt: bool) -> str:
         return _new_layout_prompt() if is_prompt else bloated
 
-    _write_full_consumer_file_set(project, factory=factory)
+    _write_full_consumer_file_set(tmp_path, factory=factory)
     issues = check_command_file_health(project)
-    length_issues = [
-        i for i in issues if "thin shim" in i["issue"]
-    ]
+    length_issues = [i for i in issues if "thin shim" in i["issue"]]
     assert length_issues, "expected length warning for oversized shim"
 
 
-def test_short_prompt_emits_warning(tmp_path: Path) -> None:
-    """A prompt-driven file under 50 non-empty lines raises a length warning."""
+def test_globalized_project_with_empty_local_dir_is_healthy(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """Regression for #1794: a project-local .claude/commands/ left behind by the
+    3.1.2_globalize_commands migration (dir present, spec-kitty files removed)
+    must not be reported as 15 missing files when the global dir is healthy."""
+    _patch_global_command_dir(monkeypatch, tmp_path)
     project = _bootstrap_project(tmp_path)
-    short_prompt = (
-        "---\n"
-        "description: Tiny prompt\n"
-        "---\n"
-        f"{_current_marker()}\n"
-        "Just a few lines.\n"
-    )
+    local_dir = project / ".claude" / "commands"
+    local_dir.mkdir(parents=True)  # the migration removes files; the dir often remains
+    assert not list(local_dir.glob("spec-kitty.*"))
+
+    def factory(command: str, is_prompt: bool) -> str:
+        return _new_layout_prompt() if is_prompt else _new_layout_shim()
+
+    _write_full_consumer_file_set(tmp_path, factory=factory)
+    issues = check_command_file_health(project)
+    assert issues == []
+    assert not list(local_dir.glob("spec-kitty.*"))
+
+
+def test_short_prompt_emits_warning(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """A prompt-driven file under 50 non-empty lines raises a length warning."""
+    _patch_global_command_dir(monkeypatch, tmp_path)
+    project = _bootstrap_project(tmp_path)
+    short_prompt = f"---\ndescription: Tiny prompt\n---\n{_current_marker()}\nJust a few lines.\n"
 
     def factory(command: str, is_prompt: bool) -> str:
         return short_prompt if is_prompt else _new_layout_shim()
 
-    _write_full_consumer_file_set(project, factory=factory)
+    _write_full_consumer_file_set(tmp_path, factory=factory)
     issues = check_command_file_health(project)
-    length_issues = [
-        i for i in issues if "prompt-driven" in i["issue"]
-    ]
+    length_issues = [i for i in issues if "prompt-driven" in i["issue"]]
     assert length_issues, "expected length warning for tiny prompt"

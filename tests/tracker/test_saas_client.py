@@ -424,6 +424,33 @@ class TestPush:
 
         assert actual_key == expected_key
 
+    def test_project_root_is_resolved_so_a_relative_root_is_not_cwd_dependent(
+        self,
+        tmp_path: Path,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        """A relative ``project_root`` must resolve to the same absolute path
+        (and therefore the same idempotency digest) regardless of which
+        directory the process happened to be run from (#314): storing the
+        raw ``Path(project_root)`` made ``_content_digest`` cwd-dependent."""
+        from kernel.clock import now_utc
+
+        project_dir = tmp_path / "proj"
+        project_dir.mkdir()
+        monkeypatch.chdir(tmp_path)
+        frozen = now_utc()
+        monkeypatch.setattr("specify_cli.tracker.saas_client.now_utc", lambda: frozen)
+
+        relative_client = SaaSTrackerClient(timeout=5.0, project_root=Path("proj"))
+        absolute_client = SaaSTrackerClient(timeout=5.0, project_root=project_dir)
+
+        assert relative_client._project_root == project_dir.resolve()
+        assert relative_client._project_root.is_absolute()
+        payload = {"provider": "jira", "project_slug": "proj-1", "items": [{"title": "Bug"}]}
+        relative_digest = relative_client._content_digest(relative_client._PUSH_PATH, payload)
+        absolute_digest = absolute_client._content_digest(absolute_client._PUSH_PATH, payload)
+        assert relative_digest == absolute_digest
+
     @patch("specify_cli.tracker.saas_client.httpx.Client")
     def test_push_idempotency_key_changes_with_payload(self, mock_cls: MagicMock, client: SaaSTrackerClient) -> None:
         mock_http = MagicMock()
@@ -884,6 +911,27 @@ class TestConstructorDefaults:
             sync_config=mock_sync_config,
         )
         assert c._credential_store is mock_credential_store
+
+    @pytest.mark.parametrize(("exception", "reason"), [(RuntimeError, "symlink loop"), (OSError, "cwd removed")])
+    def test_project_root_resolution_failures_are_client_errors(
+        self,
+        tmp_path: Path,
+        monkeypatch: pytest.MonkeyPatch,
+        exception: type[BaseException],
+        reason: str,
+    ) -> None:
+        project_root = tmp_path / "proj"
+
+        def unresolved_path(self: Path) -> Path:
+            raise exception(reason)
+
+        monkeypatch.setattr(Path, "resolve", unresolved_path)
+
+        with pytest.raises(SaaSTrackerClientError, match="Cannot resolve project root") as exc_info:
+            SaaSTrackerClient(project_root=project_root)
+
+        assert exc_info.value.error_code == "project_root_resolution_failed"
+        assert exc_info.value.details == {"project_root": str(project_root), "reason": reason}
 
 
 # ---------------------------------------------------------------------------

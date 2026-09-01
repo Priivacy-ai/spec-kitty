@@ -2,7 +2,7 @@
 
 WP12 — the join. These are **behavioural** assertions on the *resolved URN set*
 that a real mission of each type surfaces through the single charter-mediated
-seam (:func:`charter.mission_type_profiles.resolve_mission_type_context`).
+seam (:func:`charter.activation.mission_type_profiles.resolve_mission_type_context`).
 They deliberately do **not** ratchet on code shape — they assert on the doctrine a
 mission would actually be governed by.
 
@@ -24,12 +24,12 @@ The four contract obligations (C5 / resolution-and-enforcement.md):
 
 The denylist is the software-dev *implement*-action doctrine — TDD/git-flow
 governance that is meaningless for a documentation, research, or plan mission.
-It is homed **only** in ``src/doctrine/missions/software-dev/actions/implement/index.yaml``;
+It is homed **only** in ``src/charter/offering/missions/software-dev/actions/implement/index.yaml``;
 this test pins that it never leaks into the other three domains.
 
 WP03 wired the live action-grain union into ``bundle.governance`` itself (lazily,
 behind a ``cached_property`` thunk — accessing ``.governance`` now triggers the
-real ``charter.action_grain.aggregate_action_grain`` union, covering EVERY
+real ``charter.activation.action_grain.aggregate_action_grain`` union, covering EVERY
 action the mission type ships, not just a probe subset). WP05 reconciled this
 test onto that single source (C-002 / FR-006): ``_resolve_union`` used to
 independently re-union ``load_action_index`` over a probe action list — a
@@ -47,13 +47,13 @@ from pathlib import Path
 
 import pytest
 
-from charter.mission_type_profiles import (
+from charter.activation.mission_type_profiles import (
     ResolvedGovernance,
     UnknownMissionTypeError,
     resolve_mission_type_context,
 )
-from doctrine.missions.action_index import ActionIndex, load_action_index
-from doctrine.missions.repository import MissionTemplateRepository
+from charter.offering.missions.action_index import ActionIndex, load_action_index
+from charter.offering.missions.repository import MissionTemplateRepository
 
 pytestmark = [pytest.mark.fast, pytest.mark.doctrine, pytest.mark.corpus]
 
@@ -87,9 +87,9 @@ def _provision_all_builtin_mission_types(tmp_path: Path) -> None:
 # ---------------------------------------------------------------------------
 
 #: On-disk root of the shipped mission doctrine (``packs/built-in/missions``,
-#: relocated from ``src/doctrine/missions`` by mission
+#: relocated from ``src/charter/offering/missions`` by mission
 #: doctrine-consumer-surface-missions-extraction-01KZ6G6H, FR-005). The
-#: retired ``Path(doctrine.missions.__file__).resolve().parent`` construction
+#: retired ``Path(charter.offering.missions.__file__).resolve().parent`` construction
 #: would resolve to the now data-less ``.py``-only package directory instead.
 MISSIONS_ROOT: Path = MissionTemplateRepository.default_missions_root()
 
@@ -127,7 +127,7 @@ _SHARED_PROBE_ACTIONS: tuple[str, ...] = (
 
 #: The software-dev-only governance denylist, expressed as canonical URNs. Every
 #: entry is authored **only** in
-#: ``src/doctrine/missions/software-dev/actions/implement/index.yaml`` and is
+#: ``src/charter/offering/missions/software-dev/actions/implement/index.yaml`` and is
 #: nonsensical for a docs/research/plan mission (TDD, git-flow branching,
 #: refactoring/bug-fix procedures).
 SOFTWARE_DEV_ONLY_DENYLIST: frozenset[str] = frozenset(
@@ -185,7 +185,7 @@ def _resolve_union(mission_type: str, *, repo_root: Path) -> set[str]:
     Reads ``resolve_mission_type_context(...).governance`` directly — post-WP03
     that property already carries the FR-013 union of the type grain
     (``governance-profile.yaml``) with the FULL action grain (every action the
-    mission type ships, via :func:`charter.action_grain.aggregate_action_grain`),
+    mission type ships, via :func:`charter.activation.action_grain.aggregate_action_grain`),
     not a probe subset. This is the single production union (C-002); no second,
     independent ``load_action_index`` loop is performed here.
     """

@@ -6,7 +6,7 @@ right after apply+compile), ``_resolve_directives_selection`` catalog-fell-back
 to the FULL built-in catalog instead of the operator's config-activated set —
 the same set the doctrine-layer ``DoctrineService`` wrapper filters
 ``paradigms``/``procedures``/``agent_profiles`` by via
-:class:`~charter.pack_context.PackContext`.
+:class:`~charter.activation.pack_context.PackContext`.
 
 This module pins the three-state contract (``pack_context.py:144``) for the
 empty-selection branch of ``_resolve_directives_selection``/
@@ -37,7 +37,7 @@ from types import SimpleNamespace
 
 import pytest
 
-from charter.resolver import resolve_project_governance
+from charter.activation.resolver import resolve_project_governance
 
 pytestmark = pytest.mark.fast
 
@@ -56,7 +56,7 @@ def _write_charter_files(
     """Write governance/directives bodies into ``charter.yaml``'s sections.
 
     Mirrors ``tests/charter/test_resolver.py``'s ``_write_charter_files``:
-    ``resolve_project_governance`` reads ``charter.sync.load_governance_config``
+    ``resolve_project_governance`` reads ``charter.activation.sync.load_governance_config``
     / ``load_directives_config``, which source ``charter.yaml``'s
     ``governance:`` / ``directives:`` sections directly. Writes at the
     CANONICAL root (``charter.resolution.resolve_canonical_repo_root(root)``),
@@ -120,7 +120,7 @@ def _patch_catalog(monkeypatch: pytest.MonkeyPatch) -> None:
     assert "resolved to the activated set, not the catalog" unambiguously.
     """
     monkeypatch.setattr(
-        "charter.resolver.load_doctrine_catalog",
+        "charter.activation.resolver.load_doctrine_catalog",
         lambda: SimpleNamespace(
             paradigms=frozenset(),
             directives=_CATALOG_DEFAULT_DIRECTIVES,

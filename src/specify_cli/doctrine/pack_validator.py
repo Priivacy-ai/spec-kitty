@@ -70,7 +70,7 @@ __all__ = [
 # Plural artifact kinds that carry the augmentation vocabulary.
 #
 # FR-030 single-source: derived from
-# ``doctrine.drg.org_pack_loader.augmentation_plural_kinds()`` rather than a
+# ``charter.offering.drg.org_pack_loader.augmentation_plural_kinds()`` rather than a
 # second hand-synced table. Adding an augmentation-eligible kind is a one-line
 # change at that single source and both the loader auto-emitter and this
 # validator pick it up. Coverage is the full augmentation-eligible set:
@@ -79,9 +79,9 @@ __all__ = [
 # mission_step_contracts, mission_types — FR-028, FR-032).
 # ---------------------------------------------------------------------------
 
-from doctrine.artifact_kinds import ArtifactKind
-from doctrine.drg.org_pack_loader import augmentation_plural_kinds
-from doctrine.pack_paths import BuiltInContentDirNotAvailable, PackRootNotFound, built_in_dir
+from charter.offering.artifact_kinds import ArtifactKind
+from charter.offering.drg.org_pack_loader import augmentation_plural_kinds
+from charter.offering.pack_paths import BuiltInContentDirNotAvailable, PackRootNotFound, built_in_dir
 
 _AUGMENTATION_PLURAL_KINDS: frozenset[str] = augmentation_plural_kinds()
 FragmentIntent = dict[str, dict[str, tuple[dict[str, str], Path]]]
@@ -118,7 +118,7 @@ class ValidationIssue:
     * ``drg_root_graph_missing`` — the pack's ``drg/`` directory contains one
       or more ``*.graph.yaml`` fragments but the pack root has no top-level
       ``*.graph.yaml`` — the runtime
-      (``src/charter/_drg_helpers.py:load_validated_graph``) reads only the
+      (``src/charter/activation/_drg_helpers.py:load_validated_graph``) reads only the
       pack root, never ``drg/`` fragments, so this pack's DRG content is not
       consumed as authored.
     * ``not_found`` / ``parse_error`` / ``advisory`` — structural categories.
@@ -171,15 +171,15 @@ def _artifact_schema_registry() -> dict[str, tuple[str, type[BaseModel]]]:
     Imported lazily to avoid loading the heavy doctrine package at module
     import time (keeps ``--help`` snappy).
     """
-    from doctrine.agent_profiles.profile import AgentProfile
-    from doctrine.assets.models import AssetManifest
-    from doctrine.directives.models import Directive
-    from doctrine.missions.step_contracts import MissionStepContract
-    from doctrine.paradigms.models import Paradigm
-    from doctrine.procedures.models import Procedure
-    from doctrine.styleguides.models import Styleguide
-    from doctrine.tactics.models import Tactic
-    from doctrine.toolguides.models import Toolguide
+    from charter.offering.agent_profiles.profile import AgentProfile
+    from charter.offering.assets.models import AssetManifest
+    from charter.offering.directives.models import Directive
+    from charter.offering.missions.step_contracts import MissionStepContract
+    from charter.offering.paradigms.models import Paradigm
+    from charter.offering.procedures.models import Procedure
+    from charter.offering.styleguides.models import Styleguide
+    from charter.offering.tactics.models import Tactic
+    from charter.offering.toolguides.models import Toolguide
 
     return {
         "directives": ("*.directive.yaml", Directive),
@@ -358,7 +358,7 @@ def validate_pack(pack_dir: Path, *, check_drg_root: bool = True) -> ValidationR
     :func:`_check_drg_root_graph_missing` — a pack whose DRG content lives
     only under ``drg/*.graph.yaml`` fragments with no pack-root
     ``*.graph.yaml`` is flagged, since the runtime
-    (``src/charter/_drg_helpers.py:load_validated_graph``) reads only the
+    (``src/charter/activation/_drg_helpers.py:load_validated_graph``) reads only the
     pack root. Callers that know their own output can never produce that
     mismatch shape (e.g. ``pack_assembler.assemble_pack``'s internal
     round-trip check) pass ``check_drg_root=False``.
@@ -539,8 +539,8 @@ def _validate_drg(
     advisories: list[ValidationIssue] = []
 
     try:
-        from doctrine.drg.loader import DRGLoadError, load_built_in_graph, load_graph
-        from doctrine.drg.models import DRGGraphSchemaError
+        from charter.offering.drg.loader import DRGLoadError, load_built_in_graph, load_graph
+        from charter.offering.drg.models import DRGGraphSchemaError
     except ModuleNotFoundError:  # pragma: no cover - doctrine package always present
         return errors, advisories
 
@@ -656,7 +656,7 @@ def _check_drg_root_graph_missing(
 ) -> list[ValidationIssue]:
     """Warn when DRG content lives only under drg/ with no pack-root graph.
 
-    The runtime (src/charter/_drg_helpers.py:load_validated_graph) reads a
+    The runtime (src/charter/activation/_drg_helpers.py:load_validated_graph) reads a
     pack-root *.graph.yaml, never drg/ fragments — see spec.md
     Clarification 3 / sibling mission #3384. Fires only when drg/ contains
     at least one *.graph.yaml fragment AND the pack root has none; a pack
@@ -679,7 +679,7 @@ def _check_drg_root_graph_missing(
             message=(
                 "DRG content exists only under drg/*.graph.yaml with no "
                 "pack-root *.graph.yaml. The runtime "
-                "(src/charter/_drg_helpers.py:load_validated_graph) reads "
+                "(src/charter/activation/_drg_helpers.py:load_validated_graph) reads "
                 "the pack root directly, not drg/ fragments — this pack's "
                 "DRG content will not be read as authored."
             ),
@@ -759,7 +759,7 @@ def _check_asset_path_containment(
     """Reuse the shared containment primitive to enforce path safety.
 
     Delegates to
-    :func:`doctrine.drg.org_pack_config.resolve_relative_path_within_root` —
+    :func:`charter.offering.drg.org_pack_config.resolve_relative_path_within_root` —
     the same primitive :meth:`OrgPackConfig.effective_root` uses for
     ``subdir`` containment — rather than a sixth hand-rolled
     resolve-then-``relative_to`` implementation.
@@ -768,7 +768,7 @@ def _check_asset_path_containment(
     contains a ``..`` component, or resolves (symlink-aware) outside
     *assets_root*; ``None`` when containment holds.
     """
-    from doctrine.drg.org_pack_config import (
+    from charter.offering.drg.org_pack_config import (
         OrgPackSubdirEscapeError,
         resolve_relative_path_within_root,
     )
@@ -861,18 +861,18 @@ def _check_profile_skipped_diagnostics(
     (AC-5).
 
     Construction seam: ``AgentProfileRepository`` is built directly, on
-    purpose — NOT routed through ``doctrine.service.DoctrineService``. This
+    purpose — NOT routed through ``charter.offering.service.DoctrineService``. This
     call site validates an arbitrary ``pack_dir`` (a pack under authoring,
     not this repo's own doctrine layer), so it needs an explicit
     ``org_roots`` override; the sole-door architectural gate
     (``tests/architectural/test_charter_sole_door_doctrine_service.py``)
-    bans raw ``doctrine.service.DoctrineService`` construction outside
-    ``charter.doctrine_service_builder``, and that builder's public entry
+    bans raw ``charter.offering.service.DoctrineService`` construction outside
+    ``charter.activation.doctrine_service_builder``, and that builder's public entry
     point (``build_activation_aware_doctrine_service``) takes only
     ``repo_root`` and self-resolves ``org_roots`` — it cannot target an
     arbitrary pack directory. The gate's documented escape hatch,
-    constructing ``charter.resolver.DoctrineService`` directly, requires an
-    *already-built* raw inner ``doctrine.service.DoctrineService``, which is
+    constructing ``charter.activation.resolver.DoctrineService`` directly, requires an
+    *already-built* raw inner ``charter.offering.service.DoctrineService``, which is
     the very construction the gate forbids here. Direct
     ``AgentProfileRepository`` construction is therefore the correct seam;
     do not "fix" this back to a ``DoctrineService`` wrapper.
@@ -887,7 +887,7 @@ def _check_profile_skipped_diagnostics(
     silently degraded, since this diagnostic's whole purpose is reporting
     profile-load problems rather than a best-effort collision lookup.
     """
-    from doctrine.agent_profiles.repository import AgentProfileRepository
+    from charter.offering.agent_profiles.repository import AgentProfileRepository
 
     try:
         repo = AgentProfileRepository(org_dirs=[pack_dir / "agent_profiles"])
@@ -1142,11 +1142,11 @@ def _collect_fragment_edge_intent(
     with augmentation intent). Best-effort: unparseable fragments are skipped
     (``_validate_drg`` surfaces those load errors).
     """
-    from doctrine.drg.models import Relation
+    from charter.offering.drg.models import Relation
 
     try:
-        from doctrine.drg.loader import DRGLoadError, load_graph
-        from doctrine.drg.models import DRGGraphSchemaError
+        from charter.offering.drg.loader import DRGLoadError, load_graph
+        from charter.offering.drg.models import DRGGraphSchemaError
     except ModuleNotFoundError:  # pragma: no cover - doctrine always present
         return {}
 
@@ -1274,7 +1274,7 @@ def _intent_aware_collision_messages_from_edges(
 #: kinds. Derived from the single source in ``org_pack_loader`` (FR-030) so the
 #: fragment-edge intent pass never re-declares the kind set.
 def _build_singular_to_plural() -> dict[str, str]:
-    from doctrine.drg.org_pack_loader import AUGMENTATION_ELIGIBLE_KINDS
+    from charter.offering.drg.org_pack_loader import AUGMENTATION_ELIGIBLE_KINDS
 
     return dict(AUGMENTATION_ELIGIBLE_KINDS)
 

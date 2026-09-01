@@ -287,7 +287,17 @@ class SaaSTrackerClient:
         monotonic_clock: Callable[[], float] | None = None,
         jitter_randbelow: Callable[[int], int] | None = None,
     ) -> None:
-        self._project_root = Path(project_root) if project_root is not None else None
+        if project_root is None:
+            self._project_root = None
+        else:
+            try:
+                self._project_root = Path(project_root).resolve()
+            except (OSError, RuntimeError) as exc:
+                raise SaaSTrackerClientError(
+                    f"Cannot resolve project root {project_root}: {exc}",
+                    error_code="project_root_resolution_failed",
+                    details={"project_root": str(project_root), "reason": str(exc)},
+                ) from exc
         # Canonical server-target authority (#2146, re-homed from the deleted
         # sync config in issue #5): resolve the URL we will actually hit —
         # folding in SPEC_KITTY_SAAS_URL precedence — instead of the raw
@@ -386,9 +396,11 @@ class SaaSTrackerClient:
         via the sync bridge helpers at the top of this module. No direct
         filesystem or credential-store access.
 
-        **The per-project consent gate lives here** (#3030 FR-029), at the one
-        chokepoint all ten endpoints and the operation poller pass through, so a
-        new endpoint method cannot be added without inheriting it. It runs
+        **The per-project consent gate** (#3030 FR-029) is enforced by
+        :meth:`_enforce_tracker_egress_consent`, called both here and at
+        ``_request_with_retry``'s own entry — the two reachable entry points
+        all ten endpoints and the operation poller pass through, so a new
+        endpoint method cannot be added without inheriting it. It runs
         *before* the token is fetched: a refusal must not depend on auth state,
         must not mint a token for a project that may not transmit, and must be
         reported as a consent decision rather than as an authentication failure.
@@ -397,7 +409,7 @@ class SaaSTrackerClient:
         which is the ``saas_client/`` package's gate; the two are adjacent here by
         accident of numbering): this module remains on the legacy
         ``httpx.Client(...)`` instantiation pattern because 130+
-        downstream tests (under ``tests/sync/tracker/``) patch
+        downstream tests (under ``tests/tracker/``) patch
         ``specify_cli.tracker.saas_client.httpx.Client`` directly. The
         architectural test in
         ``tests/architectural/test_auth_transport_singleton.py``
@@ -406,9 +418,7 @@ class SaaSTrackerClient:
         target for the next migration wave (sync, websocket, and
         widen-mode SaaS).
         """
-        verdict = self._current_tracker_egress_verdict()
-        if verdict.refused:
-            raise TrackerEgressRefusedError(verdict.message)
+        self._enforce_tracker_egress_consent()
 
         access_token = _fetch_access_token_sync()
         if access_token is None:
@@ -674,9 +684,7 @@ class SaaSTrackerClient:
         wedge every future resend permanently — only resends within the same
         window.
         """
-        verdict = self._current_tracker_egress_verdict()
-        if verdict.refused:
-            raise TrackerEgressRefusedError(verdict.message)
+        self._enforce_tracker_egress_consent()
         access_token = _fetch_access_token_sync()
         if access_token is None:
             raise _unauthenticated_error("No valid access token. Run `spec-kitty auth login` to authenticate.")
@@ -783,6 +791,21 @@ class SaaSTrackerClient:
             destination=EgressDestination.HOSTED_SERVICE,
             identifiers=TRACKER_EGRESS_IDENTIFIER_KINDS,
         )
+
+    def _enforce_tracker_egress_consent(self) -> None:
+        """Raise :class:`TrackerEgressRefusedError` when Channel 2 refuses.
+
+        The single implementation of the per-project consent gate (#3030
+        FR-029). Called from both ``_request`` and ``_request_with_retry`` —
+        each is an entry point a caller can reach directly, and each must
+        refuse *before* fetching/minting a token for a project that may not
+        transmit (#458: previously each call site duplicated the
+        ``verdict``/``raise`` pair textually instead of sharing one
+        implementation).
+        """
+        verdict = self._current_tracker_egress_verdict()
+        if verdict.refused:
+            raise TrackerEgressRefusedError(verdict.message)
 
     @staticmethod
     def _required_operation_id(response: httpx.Response) -> str:

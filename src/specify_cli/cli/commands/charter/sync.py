@@ -15,7 +15,7 @@ from specify_cli.cli.commands.charter._common import _emit_error, _resolve_chart
 import specify_cli.cli.commands.charter as _charter_pkg
 
 if TYPE_CHECKING:
-    from charter.sync import SyncResult
+    from charter.activation.sync import SyncResult
 
 __all__ = ["sync"]
 
@@ -46,7 +46,7 @@ def _emit_sync_human_result(result: SyncResult) -> None:
     this call fails loudly here too, naming the recovery path, instead of
     exiting 0.
 
-    Since the IC-04 triad retirement, ``charter.sync.sync()`` is a pure
+    Since the IC-04 triad retirement, ``charter.activation.sync.sync()`` is a pure
     staleness reporter — ``synced`` is always ``False`` and ``files_written``
     always empty — so ``result.synced`` being ``True`` here would only occur
     under a future repair-mode remedy for #3045.
@@ -76,7 +76,7 @@ def sync(
     json_output: bool = typer.Option(False, "--json", help="Output JSON"),
 ) -> None:
     """Sync charter.md to structured YAML config files."""
-    from charter.sync import sync as sync_charter
+    from charter.activation.sync import sync as sync_charter
 
     try:
         repo_root = _charter_pkg.find_repo_root()

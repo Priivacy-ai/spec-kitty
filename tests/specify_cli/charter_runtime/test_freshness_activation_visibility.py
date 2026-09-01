@@ -3,7 +3,7 @@
 manifest-v2.md).
 
 History: the synthesized-drg-stale-refresh mission's WP03 wired
-``charter.consistency_check.run_consistency_check`` into
+``charter.activation.consistency_check.run_consistency_check`` into
 ``computer._compute_synthesized_drg`` as a SEPARATE config<->derived
 activation-parity signal, because ``charter activate``/``deactivate`` wrote
 to ``.kittify/config.yaml`` (``activated_*``), which was NOT one of the four
@@ -107,7 +107,7 @@ def test_compute_freshness_never_calls_consistency_check(
     imports ``run_consistency_check`` independently, ``compute_freshness``
     itself never invokes it — the read-path is decoupled from the retired
     parity guard entirely, not merely stripped of its own private helper."""
-    import charter.consistency_check as consistency_check_module
+    import charter.activation.consistency_check as consistency_check_module
 
     def _must_not_be_called(*args: object, **kwargs: object) -> None:
         raise AssertionError(

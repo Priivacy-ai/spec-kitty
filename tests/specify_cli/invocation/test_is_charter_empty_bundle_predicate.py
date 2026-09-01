@@ -44,7 +44,7 @@ from ruamel.yaml import YAML
 from typer import Typer
 from typer.testing import CliRunner
 
-from charter.pack_context import PackContext
+from charter.activation.pack_context import PackContext
 from specify_cli import app as cli_app
 from specify_cli.cli.commands.charter import charter_app
 from specify_cli.invocation.empty_charter import (
@@ -196,7 +196,7 @@ def test_journey2_apply_minimal_without_compile_still_falls_back_not_router_no_m
     config_path = tmp_path / ".kittify" / "config.yaml"
     written = YAML(typ="safe").load(config_path.read_text(encoding="utf-8"))
     # Fixture-realism guard: the real `minimal` pack declares no
-    # `activated_agent_profiles` key at all (src/charter/packs/minimal.yaml) --
+    # `activated_agent_profiles` key at all (src/charter/activation/packs/minimal.yaml) --
     # confirm the produced config carries no such key, so this scenario truly
     # exercises the three-state `None` (not a stand-in `frozenset()`).
     assert "activated_agent_profiles" not in written
@@ -358,7 +358,7 @@ def test_perf_spy_bounds_from_config_and_bundle_stat_calls(tmp_path: Path) -> No
         patch.object(Path, "exists", _spying_exists),
         patch.object(empty_charter_module.PackContext, "from_config", _spying_from_config),
         patch(
-            "charter.pack_context.charter_activated_urns",
+            "charter.activation.pack_context.charter_activated_urns",
             side_effect=AssertionError("is_charter_empty must not load charter_activated_urns (#3118 fold)"),
         ) as urn_load_spy,
     ):

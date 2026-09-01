@@ -16,8 +16,10 @@ import httpx
 import pytest
 from kernel.clock import now_utc, timedelta
 
+from specify_cli.auth import reset_token_manager
 from specify_cli.auth.errors import ConfigurationError, NetworkError, RefreshTokenExpiredError
 from specify_cli.auth.session import StoredSession, Team
+from specify_cli.auth.token_manager import TokenManager
 from specify_cli.saas_client import (
     AuthContext,
     SaasAuthError,
@@ -247,12 +249,14 @@ def test_load_auth_context_raises_when_file_has_empty_url(tmp_path: Path, monkey
 def test_load_auth_context_from_file(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.delenv("SPEC_KITTY_SAAS_TOKEN", raising=False)
     monkeypatch.delenv("SPEC_KITTY_SAAS_URL", raising=False)
+    monkeypatch.delenv("SPEC_KITTY_TEAM_SLUG", raising=False)
     auth_dir = tmp_path / ".kittify"
     auth_dir.mkdir()
-    (auth_dir / "saas-auth.json").write_text(json.dumps({"token": "file-token", "saas_url": "https://file-url.example"}))
+    (auth_dir / "saas-auth.json").write_text(json.dumps({"token": "file-token", "saas_url": "https://file-url.example", "team_slug": "file-team"}))
     ctx = load_auth_context(repo_root=tmp_path)
     assert ctx.token == "file-token"
     assert ctx.saas_url == "https://file-url.example"
+    assert ctx.team_slug == "file-team"
 
 
 def test_load_auth_context_cannot_distinguish_repo_tier_kitty_env_from_real_env(
@@ -343,13 +347,21 @@ def _oauth_session(*, expires_in: int = 900, access_token: str = "access-v1") ->
     )
 
 
-def _bridge_env(monkeypatch: pytest.MonkeyPatch, manager: Any) -> None:
+def _bridge_env(
+    monkeypatch: pytest.MonkeyPatch,
+    manager: Any,
+    *,
+    env_server_url: str | None = None,
+    configured_server_url: str | None = None,
+) -> None:
     """Aim the bridge at a scripted manager and a fixed server target.
 
     The bridge resolves both seams through this module's own lazy helpers,
     so patching here reaches every caller of ``load_auth_context`` without
     touching the real session store or ``specify_cli.auth`` globals.
-    ``manager=None`` stands in for an unusable session store."""
+    ``manager=None`` stands in for an unusable session store. ``env_server_url``
+    / ``configured_server_url`` mirror ``ResolvedServerTarget``'s real fields
+    (#300) so ``_saas_source_name`` has something to inspect."""
     if manager is None:
         monkeypatch.setattr(saas_auth_module, "_token_manager", _raise_unavailable)
     else:
@@ -357,6 +369,9 @@ def _bridge_env(monkeypatch: pytest.MonkeyPatch, manager: Any) -> None:
 
     class _Target:
         resolved_server_url = "https://team.example"
+
+    _Target.env_server_url = env_server_url  # type: ignore[attr-defined]
+    _Target.configured_server_url = configured_server_url  # type: ignore[attr-defined]
 
     monkeypatch.setattr(saas_auth_module, "_resolved_server_target", lambda: _Target())
 
@@ -444,19 +459,24 @@ def test_no_session_at_all_falls_through_to_the_refusal(tmp_path: Path, monkeypa
         load_auth_context(repo_root=tmp_path)
 
 
-def test_explicit_url_pairs_with_the_session_token(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, _no_env_auth: None) -> None:
-    """SPEC_KITTY_SAAS_URL stays authoritative for the target when it is set;
-    the session only ever supplies the missing bearer."""
+def test_oauth_bridge_uses_the_resolved_target_not_a_stale_env_copy(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, _no_env_auth: None) -> None:
+    """The OAuth-bridged saas_url must come from ``_resolved_server_target``,
+    never from a separately-read copy of ``SPEC_KITTY_SAAS_URL`` — even
+    though the two usually agree in practice, since ``resolve_server_target``
+    already puts env over config itself (``server_target.py:151``).
+
+    ``SPEC_KITTY_SAAS_URL`` is set here to a value that differs from
+    ``_bridge_env``'s target double (``https://team.example``) specifically
+    so the assertion below discriminates: it fails if the bridge falls back
+    to reading the env var directly instead of trusting the resolved target.
+    Proven by mutation: reintroducing #206's pass-1 bug
+    (``saas_url=url or bridged.saas_url`` at ``auth.py:82``) prefers the env
+    copy whenever it is set, which this would now catch (#235)."""
     monkeypatch.setenv("SPEC_KITTY_SAAS_URL", "https://env.example")
     _bridge_env(monkeypatch, _ScriptedSessionManager(_oauth_session()))
 
-    class _Target:
-        resolved_server_url = "https://env.example"
-
-    monkeypatch.setattr(saas_auth_module, "_resolved_server_target", lambda: _Target())
-
     ctx = load_auth_context(repo_root=tmp_path)
-    assert ctx.saas_url == "https://env.example"
+    assert ctx.saas_url == "https://team.example"
     assert ctx.token == "access-v1"
 
 
@@ -471,6 +491,39 @@ def test_repo_auth_file_url_cannot_redirect_the_oauth_session_token(tmp_path: Pa
     ctx = load_auth_context(repo_root=tmp_path)
     assert ctx.saas_url == "https://team.example"
     assert ctx.token == "oauth-secret-token"
+
+
+def test_repo_auth_file_team_slug_cannot_scope_the_oauth_session_token(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    _no_env_auth: None,
+) -> None:
+    """A checkout-controlled auth file may not choose the team scope of the
+    user's personal OAuth session bearer (#765)."""
+    auth_dir = tmp_path / ".kittify"
+    auth_dir.mkdir()
+    (auth_dir / "saas-auth.json").write_text(json.dumps({"team_slug": "attacker-team"}))
+    _bridge_env(monkeypatch, _ScriptedSessionManager(_oauth_session()))
+
+    ctx = load_auth_context(repo_root=tmp_path)
+    assert ctx.saas_url == "https://team.example"
+    assert ctx.token == "access-v1"
+    assert ctx.team_slug is None
+
+
+def test_env_team_slug_can_scope_the_oauth_session_token(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    _no_env_auth: None,
+) -> None:
+    """The operator-controlled environment remains the supported way to choose
+    a team when the OAuth bridge supplies the bearer."""
+    monkeypatch.setenv("SPEC_KITTY_TEAM_SLUG", "operator-team")
+    _bridge_env(monkeypatch, _ScriptedSessionManager(_oauth_session()))
+
+    ctx = load_auth_context(repo_root=tmp_path)
+    assert ctx.token == "access-v1"
+    assert ctx.team_slug == "operator-team"
 
 
 def test_server_target_that_cannot_resolve_falls_through_to_the_refusal(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, _no_env_auth: None) -> None:
@@ -489,14 +542,16 @@ def test_server_target_that_cannot_resolve_falls_through_to_the_refusal(tmp_path
 
 
 def test_split_brain_server_target_falls_through_to_the_refusal(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, _no_env_auth: None) -> None:
-    """#117 finding 3: the OAuth bridge is a no-human-in-the-loop,
+    """#117 finding 3 / #306: the OAuth bridge is a no-human-in-the-loop,
     bearer-token-bearing caller of ``resolve_server_target``. When
     ``[sync].server_url`` and ``SPEC_KITTY_SAAS_URL`` name *different* hosts
     with no whole-process override, the real resolver (not mocked here)
-    must raise ``ServerTargetSplitBrainError`` — which the bridge's own
-    broad ``except Exception`` degrades to ``None`` — rather than silently
+    must raise ``ServerTargetSplitBrainError`` — rather than silently
     minting the OAuth session's bearer token against the env-overridden
-    host."""
+    host. The bridge re-raises it as a distinct ``SaasAuthError`` naming
+    both URLs instead of folding it into the generic "run auth login"
+    refusal: login already succeeded on a split-brain machine (FR-005), so
+    that remedy is a no-op loop (#306)."""
     home = tmp_path / "split-brain-home"
     home.mkdir()
     monkeypatch.setenv("SPEC_KITTY_HOME", str(home))
@@ -506,8 +561,10 @@ def test_split_brain_server_target_falls_through_to_the_refusal(tmp_path: Path, 
     manager = _ScriptedSessionManager(_oauth_session())
     monkeypatch.setattr(saas_auth_module, "_token_manager", lambda: manager)
 
-    with pytest.raises(SaasAuthError, match="auth login"):
+    with pytest.raises(SaasAuthError, match="split-brain") as excinfo:
         load_auth_context(repo_root=tmp_path)
+    assert "legit-team-kitty.example.com" in str(excinfo.value)
+    assert "attacker.example.com" in str(excinfo.value)
     # The bridge never reached the session store: resolution failed first.
     assert manager.session_reads == 0
 
@@ -556,6 +613,49 @@ def test_session_issuer_mismatch_is_refused_not_paired(tmp_path: Path, monkeypat
         load_auth_context(repo_root=tmp_path)
 
 
+def test_session_issuer_mismatch_names_the_default_endpoint_source(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, _no_env_auth: None) -> None:
+    """#300: the refusal names *where* the resolved URL came from, matching
+    ``format_saas_mismatch_warning``'s wording — and drops the backticks
+    around the remedy that the sibling message never had."""
+    session = _oauth_session()
+    session.issuer_url = "https://other.example"
+    _bridge_env(monkeypatch, _ScriptedSessionManager(session))
+
+    with pytest.raises(
+        SaasAuthError,
+        match=r"Session is for https://other\.example; the default endpoint now points at https://team\.example — run spec-kitty auth login --force",
+    ):
+        load_auth_context(repo_root=tmp_path)
+
+
+def test_session_issuer_mismatch_names_the_env_var_source(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, _no_env_auth: None) -> None:
+    """#300: when the resolved target came from ``SPEC_KITTY_SAAS_URL``, the
+    refusal names that env var, not a generic "the resolved server"."""
+    session = _oauth_session()
+    session.issuer_url = "https://other.example"
+    _bridge_env(monkeypatch, _ScriptedSessionManager(session), env_server_url="https://team.example")
+
+    with pytest.raises(
+        SaasAuthError,
+        match=r"Session is for https://other\.example; SPEC_KITTY_SAAS_URL now points at https://team\.example — run spec-kitty auth login --force",
+    ):
+        load_auth_context(repo_root=tmp_path)
+
+
+def test_session_issuer_mismatch_names_the_config_source(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, _no_env_auth: None) -> None:
+    """#300: when the resolved target came from ``config.toml``, the refusal
+    names that source."""
+    session = _oauth_session()
+    session.issuer_url = "https://other.example"
+    _bridge_env(monkeypatch, _ScriptedSessionManager(session), configured_server_url="https://team.example")
+
+    with pytest.raises(
+        SaasAuthError,
+        match=r"Session is for https://other\.example; config\.toml \[sync\]\.server_url now points at https://team\.example — run spec-kitty auth login --force",
+    ):
+        load_auth_context(repo_root=tmp_path)
+
+
 def test_session_issuer_matching_target_is_paired(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, _no_env_auth: None) -> None:
     """A session recorded against the same server the target resolves to
     (modulo a trailing slash) is paired normally — no false-positive refusal."""
@@ -589,6 +689,36 @@ def test_env_token_wins_and_never_consults_the_session(tmp_path: Path, monkeypat
     ctx = load_auth_context(repo_root=tmp_path)
     assert ctx.token == "service-token"
     assert manager.session_reads == 0
+
+
+def test_bridge_seams_are_real_and_unpatched(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """#236: every test above patches ``_token_manager`` and
+    ``_resolved_server_target`` before exercising the bridge, so the lazy
+    imports those two helpers wrap (``from specify_cli.auth import
+    get_token_manager``, ``from specify_cli.auth.server_target import
+    resolve_server_target``) never actually run in this suite — and
+    ``_oauth_session_context``'s bare ``except Exception`` would swallow a
+    broken import into a silent ``None``, reinstating #198's P0 with the
+    whole suite green. This test calls the three seams unpatched, against an
+    isolated empty ``SPEC_KITTY_HOME``."""
+    home = tmp_path / "empty-home"
+    home.mkdir()
+    monkeypatch.setenv("SPEC_KITTY_HOME", str(home))
+    monkeypatch.setenv("SPEC_KITTY_SAAS_URL", "https://team.example")
+    monkeypatch.delenv("SPEC_KITTY_SAAS_TOKEN", raising=False)
+    reset_token_manager()
+    try:
+        manager = saas_auth_module._token_manager()
+        assert isinstance(manager, TokenManager)
+        assert manager.get_current_session() is None  # empty store, no crash
+
+        target = saas_auth_module._resolved_server_target()
+        assert target.resolved_server_url == "https://team.example"
+
+        # No stored session anywhere: the bridge degrades to None, not a raise.
+        assert saas_auth_module._oauth_session_context() is None
+    finally:
+        reset_token_manager()
 
 
 # ---------------------------------------------------------------------------
@@ -708,6 +838,31 @@ def test_404_maps_to_saas_not_found_error() -> None:
     with pytest.raises(SaasNotFoundError) as exc_info:
         client.get_audience_default("m-1")
     assert exc_info.value.status_code == 404
+
+
+def test_request_error_maps_to_saas_client_error() -> None:
+    """A non-timeout transport failure (e.g. connection refused) maps to SaasClientError."""
+    mock_http = MagicMock(spec=httpx.Client)
+    mock_http.get.side_effect = httpx.ConnectError("boom")
+    client = SaasClient("http://test", "tok", team_slug="my-team", _http=mock_http)
+    with pytest.raises(SaasClientError, match="failed") as exc_info:
+        client.get_audience_default("m-1")
+    assert not isinstance(exc_info.value, SaasTimeoutError)
+
+
+def test_500_maps_to_generic_saas_client_error() -> None:
+    """A non-401/403/404 error status falls through to the generic SaasClientError branch."""
+    mock_resp = MagicMock(spec=httpx.Response)
+    mock_resp.status_code = 500
+    mock_resp.is_success = False
+    mock_resp.text = "Internal Server Error"
+    mock_http = MagicMock(spec=httpx.Client)
+    mock_http.get.return_value = mock_resp
+    client = SaasClient("http://test", "tok", team_slug="my-team", _http=mock_http)
+    with pytest.raises(SaasClientError) as exc_info:
+        client.get_audience_default("m-1")
+    assert not isinstance(exc_info.value, (SaasAuthError, SaasNotFoundError, SaasTimeoutError))
+    assert exc_info.value.status_code == 500
 
 
 # ---------------------------------------------------------------------------

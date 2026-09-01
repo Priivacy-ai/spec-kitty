@@ -1,6 +1,6 @@
 """Pydantic models for glossary seed file schema validation.
 
-Follows the doctrine pattern (``src/doctrine/directives/models.py``):
+Follows the doctrine pattern (``src/charter/offering/directives/models.py``):
 ``ConfigDict(frozen=True, extra="forbid")`` with ``@field_validator``
 for domain invariants.
 """
