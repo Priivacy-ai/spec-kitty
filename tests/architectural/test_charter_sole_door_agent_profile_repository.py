@@ -195,6 +195,7 @@ AGENT_PROFILE_EXCLUSIONS: tuple[ContentDescriptor, ...] = (
             "through the factory."
         ),
     ),
+    ContentDescriptor(
         rel_path="src/specify_cli/doctrine/pack_validator.py",
         qualname="_check_profile_skipped_diagnostics",
         token_substring="AgentProfileRepository (",
