@@ -25,26 +25,36 @@ investigate-squad-findings.md, R-WP01-a and R-WP01-b):
    registry, so a NEW corpus reader (or one silently un-marked) forces a
    conscious update here rather than reopening #3008 for that module.
 
-Retired (planning#57): Gate-0/Gate-1 presence (the six ``test_corpus_globs_*``
-/ ``test_fast_tests_corpus_*`` checks above) were verified LIVE against the
-real ``.github/workflows/ci-quality.yml`` — the leftover pre-programme GitHub
-Actions YAML deleted per PROGRAM.md §2. With no workflow YAML left to parse,
-those checks (and their shared ``_load_workflow()`` helper) have no remaining
-subject matter and were removed with the file. The marker-completeness half
-(R-WP01-a: the curated registry, its non-emptiness floor, and the
-``pytest.ini`` registration check) never read a workflow file and stays.
+The restored interim ``ci-quality.yml`` removes Gate 0 entirely by running on
+every pull request and main push, so corpus-only changes cannot silently skip
+the producer. The marker-completeness half below stays unchanged.
 """
 
 from __future__ import annotations
 
 import re
 from pathlib import Path
+from typing import Any
 
 import pytest
+import yaml
 
 pytestmark = pytest.mark.architectural
 
 _REPO_ROOT = Path(__file__).resolve().parents[2]
+_CI_QUALITY = _REPO_ROOT / ".github" / "workflows" / "ci-quality.yml"
+
+
+def _load_workflow() -> dict[str, Any]:
+    return yaml.safe_load(_CI_QUALITY.read_text(encoding="utf-8"))
+
+
+def test_corpus_changes_trigger_reduced_ci_quality_live() -> None:
+    workflow = _load_workflow()
+    on_section = workflow.get("on") or workflow[True]
+
+    for event in ("pull_request", "push"):
+        assert "paths" not in on_section[event]
 
 # The authoritative corpus glob set (T001 on.paths / T002 dorny filter) --
 # discrete lines only: GitHub `on.paths` does not support `{a,b}` brace
@@ -91,7 +101,7 @@ _CORPUS_DATA_ROOTS = (
 # to exclude modules whose only "corpus" signal is a synthetic tmp_path
 # construction, a literal error-message string assertion, or a stale
 # pre-relocation path that no longer resolves to any real content on disk
-# (e.g. `src/doctrine/<kind>/built-in/` -- doctrine content kinds other than
+# (e.g. `src/charter/offering/<kind>/built-in/` -- doctrine content kinds other than
 # `skills`/`templates` relocated to `packs/built-in/<kind>/`; several
 # compliance tests were never updated and now glob a directory that no
 # longer exists -- vacuously passing, a pre-existing staleness bug outside
@@ -100,9 +110,11 @@ _CORPUS_DATA_ROOTS = (
 _CORPUS_MARKED_MODULES = frozenset(
     {
         "tests/architectural/test_bare_prose_corpus_ratchet.py",
+        "tests/architectural/test_transition_guard_shrink_only.py",
         "tests/charter/synthesizer/test_manifest.py",
         "tests/architectural/test_pack_manifest_no_author_edit.py",
         "tests/contract/test_example_round_trip.py",
+        "tests/doctrine/agent_profiles/test_context_sources_migration.py",
         "tests/doctrine/agent_profiles/test_doctrine_daphne_canonical_structure.py",
         "tests/doctrine/agent_profiles/test_profile_resolution.py",
         "tests/doctrine/agent_profiles/test_register_overlay.py",
@@ -110,6 +122,7 @@ _CORPUS_MARKED_MODULES = frozenset(
         "tests/doctrine/assets/test_repository.py",
         "tests/doctrine/drg/migration/test_extractor.py",
         "tests/doctrine/drg/migration/test_extractor_projection.py",
+        "tests/doctrine/drg/migration/test_governance_scope_e2e.py",
         "tests/doctrine/drg/migration/test_path_ref_resolver.py",
         "tests/doctrine/drg/test_builtin_graph_seam.py",
         "tests/doctrine/drg/test_c4_and_anti_pattern_topology.py",
@@ -120,6 +133,7 @@ _CORPUS_MARKED_MODULES = frozenset(
         "tests/doctrine/drg/test_mission_type_nodes.py",
         "tests/doctrine/drg/test_model_strictness_roundtrip.py",
         "tests/doctrine/drg/test_org_drg_bridge.py",
+        "tests/doctrine/drg/test_org_governance_failloud.py",
         "tests/doctrine/drg/test_profile_suggests_delivery.py",
         "tests/doctrine/drg/test_reachability.py",
         "tests/doctrine/drg/test_regen_roundtrip.py",

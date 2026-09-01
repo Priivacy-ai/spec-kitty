@@ -22,8 +22,8 @@ from pathlib import Path
 
 import pytest
 
-from doctrine.drg import org_pack_config
-from doctrine.drg.org_pack_config import OrgPackConfig, OrgPackEnvVarUnsetError
+from charter.offering.drg import org_pack_config
+from charter.offering.drg.org_pack_config import OrgPackConfig, OrgPackEnvVarUnsetError
 from kernel.env_expand import UnresolvedEnvTokenError
 
 pytestmark = [pytest.mark.fast, pytest.mark.doctrine]

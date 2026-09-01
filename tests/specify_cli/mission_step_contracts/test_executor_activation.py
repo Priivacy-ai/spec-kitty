@@ -17,7 +17,7 @@ unresolved; a directive the gate retains resolves to its canonical URN.
 Real corpus stem/canonical pair reused from WP01's characterization test
 (``tests/charter/test_drg_activation_gate.py``): the config stem
 ``001-architectural-integrity-standard`` resolves (via
-``charter.kind_vocabulary.resolve_artifact_urn``) to the canonical
+``charter.activation.kind_vocabulary.resolve_artifact_urn``) to the canonical
 ``directive:DIRECTIVE_001``.
 
 RED-on-merge-base reasoning (NFR-002 attribution, no dual-branch runtime
@@ -53,8 +53,8 @@ from unittest.mock import patch
 import pytest
 from ruamel.yaml import YAML
 
-from charter.pack_context import PackContext
-from doctrine.missions.step_contracts import MissionStepContractRepository
+from charter.activation.pack_context import PackContext
+from charter.offering.missions.step_contracts import MissionStepContractRepository
 from specify_cli.mission_step_contracts.executor import (
     StepContractExecutionContext,
     StepContractExecutionResult,
@@ -176,7 +176,7 @@ def _run_directive_composer(
     *,
     pack_context: PackContext | None,
 ) -> StepContractExecutionResult:
-    with patch("charter.pack_context.PackContext.from_config", return_value=pack_context):
+    with patch("charter.activation.pack_context.PackContext.from_config", return_value=pack_context):
         return StepContractExecutor(
             repo_root=repo_root,
             contract_repository=contract_repo,
@@ -240,7 +240,7 @@ def test_none_activation_matches_no_filter_at_all(tmp_path: Path) -> None:
         repo_root, contract_repo, pack_context=none_per_kind_ctx
     )
 
-    with patch("charter.pack_context.PackContext.from_config", return_value=None):
+    with patch("charter.activation.pack_context.PackContext.from_config", return_value=None):
         no_pack_context_at_all = StepContractExecutor(
             repo_root=repo_root,
             contract_repository=contract_repo,
@@ -299,7 +299,7 @@ def test_org_tier_directive_visible_pre_filter_and_excluded_when_deactivated(
 
     def _run(*, directives_activated: bool) -> StepContractExecutionResult:
         with patch(
-            "charter.pack_context.PackContext.from_config",
+            "charter.activation.pack_context.PackContext.from_config",
             return_value=_pack(directives_activated=directives_activated),
         ):
             return StepContractExecutor(

@@ -51,7 +51,7 @@ _KNOWN_ACTION_SEQUENCES: dict[str, list[str]] = {
 def _mock_resolve_mission_type_context(
     repo_root: object, *, mission_type: str | None = None, feature_dir: object = None
 ) -> SimpleNamespace:
-    from charter.mission_type_profiles import UnknownMissionTypeError
+    from charter.activation.mission_type_profiles import UnknownMissionTypeError
 
     result = _KNOWN_ACTION_SEQUENCES.get(mission_type)
     if result is None:
@@ -67,7 +67,7 @@ def _mock_charter_resolve(monkeypatch: pytest.MonkeyPatch) -> None:
     The MissionTypeRepository is provided by a later WP; this fixture patches it for
     all tests in this module.
     """
-    import charter.mission_type_profiles as _cmt
+    import charter.activation.mission_type_profiles as _cmt
 
     monkeypatch.setattr(
         _cmt,

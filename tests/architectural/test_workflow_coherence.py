@@ -17,16 +17,10 @@ parsed model as the marker invariant (``_gate_coverage.WorkflowModel``):
            (Decision 8 two-authority rule; ``quarantine-visibility`` stays out of
            the blocking set, C-005)
 
-Retired (planning#57): this programme's ``.github/workflows/*.yml`` were the
-leftover pre-programme GitHub Actions YAML deleted per PROGRAM.md §2 ("All
-private. No GitHub Actions... Nothing on GitHub enforces anything"). The
-"live" half of this module asserted each relation above against those five
-real files (``_ci_quality_model`` / ``_quality_gate_run_text`` /
-``_decision_step`` / ``_tracked_paths`` and the ten ``test_*_live`` functions
-that used them) — with no workflow YAML left on disk to parse, that half has
-no remaining subject matter and was removed with the files, the same norm
-this repo's ``_gate_coverage.py`` already applied when ``drift-detector.yml``
-was retired.
+The interim convergence topology restores ``ci-windows.yml`` and a reduced
+``ci-quality.yml``. The live checks below re-open the subset of the former
+relations that those two files can support; the old five-workflow suite-model
+relations remain retired until the deferred topology workflows are restored.
 
 WHAT REMAINS: the pure relation primitives below (``needs_declaration_violations``,
 ``unconsumed_filter_groups``, ``glob_is_live``, ``critical_path_backed_by``,
@@ -41,6 +35,7 @@ from __future__ import annotations
 
 import fnmatch
 import re
+import subprocess
 from typing import TYPE_CHECKING
 
 import pytest
@@ -61,6 +56,61 @@ _QUOTED_RE = re.compile(r'"([\w-]+)"')
 # ---------------------------------------------------------------------------
 # Pure relation primitives (fault-injection substrate).
 # ---------------------------------------------------------------------------
+
+
+def _tracked_paths() -> set[str]:
+    result = subprocess.run(
+        ["git", "ls-files", "--cached", "--others", "--exclude-standard"],
+        cwd=gc.REPO_ROOT,
+        capture_output=True,
+        text=True,
+        check=True,
+    )
+    return set(result.stdout.splitlines())
+
+
+def test_needs_result_reads_are_declared_live() -> None:
+    """FR-003a: no phantom ``needs.<job>.result`` read in a restored workflow."""
+    for name in gc.WORKFLOW_FILES:
+        model = gc.load_workflow_model(gc.WORKFLOWS_DIR / name)
+        violations = needs_declaration_violations(model)
+        assert not violations, f"{name}:\n" + "\n".join(violations)
+
+
+def test_every_restored_filter_group_is_consumed_live() -> None:
+    """FR-003b: every named filter group gates at least one job."""
+    for name in gc.WORKFLOW_FILES:
+        model = gc.load_workflow_model(gc.WORKFLOWS_DIR / name)
+        unconsumed = unconsumed_filter_groups(model)
+        assert not unconsumed, f"{name}: unconsumed filter groups {sorted(unconsumed)}"
+
+
+def test_every_restored_filter_glob_is_live() -> None:
+    """FR-003c: no restored filter glob names a nonexistent tracked path."""
+    tracked = _tracked_paths()
+    for name in gc.WORKFLOW_FILES:
+        model = gc.load_workflow_model(gc.WORKFLOWS_DIR / name)
+        dead = [
+            (group, glob)
+            for group, globs in model.filter_groups.items()
+            for glob in globs
+            if not glob_is_live(glob, tracked)
+        ]
+        assert not dead, f"{name}: dead filter globs {dead}"
+
+
+def test_pytest_workflow_set_equals_model_allowlist_live() -> None:
+    """FR-008: every discovered pytest workflow is intentionally modeled."""
+    assert gc.discover_pytest_workflows() == frozenset(gc.WORKFLOW_FILES)
+
+
+def test_reduced_quality_gate_has_no_literal_result_reads_live() -> None:
+    """FR-003d: the reduced gate consumes the complete needs context as JSON."""
+    model = gc.load_workflow_model(gc.WORKFLOWS_DIR / "ci-quality.yml")
+    text = (gc.WORKFLOWS_DIR / "ci-quality.yml").read_text(encoding="utf-8")
+
+    assert model.needs_result_reads["quality-gate"] == frozenset()
+    assert "NEEDS_JSON: ${{ toJSON(needs) }}" in text
 
 
 def needs_declaration_violations(model: gc.WorkflowModel) -> list[str]:

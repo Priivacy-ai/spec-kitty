@@ -20,7 +20,7 @@ from tests.mocked_env import setup_mocked_env
 
 pytestmark = [pytest.mark.doctrine, pytest.mark.fast]
 REPO_ROOT = Path(__file__).resolve().parents[2]
-SKILLS_ROOT = REPO_ROOT / "src" / "doctrine" / "skills"
+SKILLS_ROOT = REPO_ROOT / "src" / "charter" / "offering" / "skills"
 SKILL = SKILLS_ROOT / "spk-doctrine-show-me" / "SKILL.md"
 
 
@@ -232,7 +232,7 @@ def test_installed_skill_carries_portable_sources_and_themes(
 )
 def test_bundled_theme_matches_canonical_template(filename: str) -> None:
     bundled = SKILL.parent / "assets" / filename
-    canonical = REPO_ROOT / "src" / "doctrine" / "templates" / "diagrams" / "themes" / filename
+    canonical = REPO_ROOT / "src" / "charter" / "offering" / "templates" / "diagrams" / "themes" / filename
     assert bundled.read_bytes() == canonical.read_bytes()
 
 
@@ -249,10 +249,10 @@ def test_bundled_guide_matches_canonical_toolguide(filename: str) -> None:
 @pytest.mark.parametrize(
     "relative_path",
     [
-        "src/doctrine/skills/spec-kitty/SKILL.md",
-        "src/doctrine/skills/spk-mission-specify/SKILL.md",
-        "src/doctrine/skills/spk-mission-plan/SKILL.md",
-        "src/doctrine/skills/spk-admin-dashboard/SKILL.md",
+        "src/charter/offering/skills/spec-kitty/SKILL.md",
+        "src/charter/offering/skills/spk-mission-specify/SKILL.md",
+        "src/charter/offering/skills/spk-mission-plan/SKILL.md",
+        "src/charter/offering/skills/spk-admin-dashboard/SKILL.md",
         "packs/built-in/missions/mission-steps/software-dev/specify/prompt.md",
         "packs/built-in/missions/mission-steps/software-dev/plan/prompt.md",
         "packs/built-in/missions/mission-steps/plan/specify/prompt.md",

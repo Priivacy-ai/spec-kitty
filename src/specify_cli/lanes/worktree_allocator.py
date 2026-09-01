@@ -19,6 +19,8 @@ from __future__ import annotations
 
 from mission_runtime import MissionArtifactKind, placement_seam
 import subprocess
+from dataclasses import dataclass
+from enum import Enum
 from pathlib import Path
 
 from specify_cli.coordination import register_lane_sparse_checkout
@@ -28,6 +30,32 @@ from specify_cli.lanes.branch_naming import lane_branch_name, resolve_mid8, work
 from specify_cli.lanes.merge import _ensure_merge_driver_git_config, _make_merge_env
 from specify_cli.lanes.models import ExecutionLane, LanesManifest
 from specify_cli.mission_metadata import load_meta
+
+
+class LaneTopology(Enum):
+    """The derived-parent source for a lane allocation."""
+
+    COORD = "coord"
+    LEGACY = "legacy"
+
+
+class LaneAllocationRoute(Enum):
+    """The closed set of routes that can allocate or recover a lane worktree."""
+
+    FRESH_COORD = "fresh_coord"
+    FRESH_LEGACY = "fresh_legacy"
+    REUSE = "reuse"
+    CRASH_RECOVERY = "crash_recovery"
+
+
+@dataclass(frozen=True)
+class LaneBaseDecision:
+    """The parent-ref decision returned by the lane-allocation seam."""
+
+    parent_ref: str
+    base_honored: bool
+    route: LaneAllocationRoute
+    topology: LaneTopology
 
 
 class DirtyWorktreeError(Exception):
@@ -55,14 +83,8 @@ class DependencyLaneMergeConflictError(StructuredError):
         self.lane_id = lane_id
         self.dep_lane_id = dep_lane_id
         self.dep_branch = dep_branch
-        self.next_step = (
-            f"merge {dep_branch!r} into lane {lane_id!r} manually, resolve the "
-            f"conflicts, commit, then re-run the implement command for this WP."
-        )
-        super().__init__(
-            f"cannot auto-merge dependency lane {dep_lane_id!r} ({dep_branch}) "
-            f"into lane {lane_id!r}: the merge conflicts. {self.next_step}"
-        )
+        self.next_step = f"merge {dep_branch!r} into lane {lane_id!r} manually, resolve the conflicts, commit, then re-run the implement command for this WP."
+        super().__init__(f"cannot auto-merge dependency lane {dep_lane_id!r} ({dep_branch}) into lane {lane_id!r}: the merge conflicts. {self.next_step}")
 
     def to_dict(self) -> dict[str, object]:
         payload = super().to_dict()
@@ -147,10 +169,7 @@ class PlanningCommitMergeConflictError(StructuredError):
             "manually, resolve the conflicts, commit, then re-run the implement "
             "command for this WP."
         )
-        super().__init__(
-            f"cannot auto-merge the recorded planning commit {planning_commit_sha!r} "
-            f"into lane {lane_id!r}: the merge conflicts. {self.next_step}"
-        )
+        super().__init__(f"cannot auto-merge the recorded planning commit {planning_commit_sha!r} into lane {lane_id!r}: the merge conflicts. {self.next_step}")
 
     def to_dict(self) -> dict[str, object]:
         payload = super().to_dict()
@@ -160,9 +179,7 @@ class PlanningCommitMergeConflictError(StructuredError):
         return payload
 
 
-def predict_lane_worktree(
-    repo_root: Path, mission_slug: str, lane_id: str
-) -> tuple[Path, str]:
+def predict_lane_worktree(repo_root: Path, mission_slug: str, lane_id: str) -> tuple[Path, str]:
     """The ONE lane-worktree placement decision (path + branch), read-only.
 
     Both the write authority (:func:`allocate_lane_worktree`) and read-only
@@ -177,9 +194,7 @@ def predict_lane_worktree(
     would append ``-{mid8}`` and rename every existing lane worktree.
     """
     branch = lane_branch_name(mission_slug, lane_id)
-    worktree_path = _worktree_path(
-        repo_root, mission_slug, mission_id=None, lane_id=lane_id
-    )
+    worktree_path = _worktree_path(repo_root, mission_slug, mission_id=None, lane_id=lane_id)
     return worktree_path, branch
 
 
@@ -233,7 +248,9 @@ def _guard_base_honorable(
 
 
 def _resolve_lane_parent(
-    base: str | None, coordination_branch: str | None, mission_branch: str,
+    base: str | None,
+    coordination_branch: str | None,
+    mission_branch: str,
 ) -> str:
     """Return the parent ref a freshly-created lane branches from (D1/C-005).
 
@@ -246,6 +263,73 @@ def _resolve_lane_parent(
     if base is not None:
         return base
     return coordination_branch if coordination_branch is not None else mission_branch
+
+
+def _guard_route_base(
+    base: str | None,
+    route: LaneAllocationRoute,
+    wp_id: str,
+    *,
+    lane: ExecutionLane | None,
+    planning_sha: str | None,
+    repo_root: Path | None,
+) -> None:
+    """Dispatch an allocation route to its applicable base-refusal triggers."""
+
+    if route is LaneAllocationRoute.REUSE:
+        _guard_base_honorable(base, "reuse", wp_id)
+        return
+    if route is LaneAllocationRoute.CRASH_RECOVERY:
+        _guard_base_honorable(base, "crash_recovery", wp_id)
+        return
+    _guard_base_honorable(
+        base,
+        "detached_base",
+        wp_id,
+        planning_sha=planning_sha,
+        repo_root=repo_root,
+    )
+    _guard_base_honorable(base, "dependency_lane", wp_id, lane=lane)
+
+
+def resolve_lane_base_or_refuse(
+    *,
+    base: str | None,
+    route: LaneAllocationRoute,
+    coordination_branch: str | None,
+    mission_branch: str,
+    wp_id: str,
+    lane: ExecutionLane | None = None,
+    planning_sha: str | None = None,
+    repo_root: Path | None = None,
+) -> LaneBaseDecision:
+    """Resolve a lane parent ref, or refuse a base the route cannot honor.
+
+    This is the sole parent-ref decision point for lane allocation. ``None``
+    preserves the topology-derived parent. An explicit base replaces that parent
+    only on an honorable fresh route; reuse, crash recovery, dependency-bearing,
+    and detached-base routes raise before creation side effects.
+    """
+
+    _guard_route_base(
+        base,
+        route,
+        wp_id,
+        lane=lane,
+        planning_sha=planning_sha,
+        repo_root=repo_root,
+    )
+    topology = LaneTopology.COORD if coordination_branch is not None else LaneTopology.LEGACY
+    return LaneBaseDecision(
+        parent_ref=_resolve_lane_parent(
+            base,
+            coordination_branch,
+            mission_branch,
+        ),
+        base_honored=base is not None,
+        route=route,
+        topology=topology,
+    )
 
 
 def allocate_lane_worktree(
@@ -308,9 +392,7 @@ def allocate_lane_worktree(
     """
     lane = lanes_manifest.lane_for_wp(wp_id)
     if lane is None:
-        raise LaneNotFoundError(
-            f"{wp_id} is not assigned to any execution lane in lanes.json"
-        )
+        raise LaneNotFoundError(f"{wp_id} is not assigned to any execution lane in lanes.json")
 
     # Placement (path + branch) comes from the single predict seam — the write
     # authority and the read-only mirrors must never diverge on this decision.
@@ -318,23 +400,25 @@ def allocate_lane_worktree(
 
     if worktree_path.exists():
         # FL1 (D3): an existing lane worktree cannot be re-parented onto a
-        # newly-supplied base — raise BEFORE any reuse side effects below.
-        _guard_base_honorable(base, "reuse", wp_id)
+        # newly-supplied base — the seam refuses BEFORE reuse side effects.
+        resolve_lane_base_or_refuse(
+            base=base,
+            route=LaneAllocationRoute.REUSE,
+            coordination_branch=None,
+            mission_branch=lanes_manifest.mission_branch,
+            wp_id=wp_id,
+        )
         # Reuse existing lane worktree — validate it is clean first.
         _validate_worktree_clean(worktree_path, lane.lane_id)
         # FR-009 (#2993) reuse-path self-heal: a lane created before this fix
         # (or before a later finalize-tasks re-run recorded a newer SHA) picks
         # up the recorded planning commit here. Idempotent no-op once merged.
-        _merge_recorded_planning_commit(
-            repo_root, worktree_path, lane.lane_id, lanes_manifest.planning_commit_sha
-        )
+        _merge_recorded_planning_commit(repo_root, worktree_path, lane.lane_id, lanes_manifest.planning_commit_sha)
         # #1684 reuse-path catch-up: a dependency lane may have been approved
         # *after* this worktree was created. Merge any newly-approved dep tips
         # so the dependent lane sees them. Idempotent: already-merged tips are
         # ancestors and skip.
-        _merge_dependency_lane_tips(
-            repo_root, worktree_path, mission_slug, lane, lanes_manifest
-        )
+        _merge_dependency_lane_tips(repo_root, worktree_path, mission_slug, lane, lanes_manifest)
         return worktree_path, branch
 
     # #1348 (WP04): pick the parent branch.
@@ -365,8 +449,14 @@ def allocate_lane_worktree(
     # that the branch is "already checked out" in the now-gone worktree.
     if _branch_exists(repo_root, branch):
         # FL2 (D3): a branch that already exists (worktree dir gone) cannot
-        # be re-parented by re-attaching — raise BEFORE the prune/re-attach.
-        _guard_base_honorable(base, "crash_recovery", wp_id)
+        # be re-parented by re-attaching — the seam refuses BEFORE recovery.
+        resolve_lane_base_or_refuse(
+            base=base,
+            route=LaneAllocationRoute.CRASH_RECOVERY,
+            coordination_branch=coordination_branch,
+            mission_branch=lanes_manifest.mission_branch,
+            wp_id=wp_id,
+        )
         subprocess.run(
             ["git", "worktree", "prune"],
             cwd=str(repo_root),
@@ -379,72 +469,106 @@ def allocate_lane_worktree(
         # a recovered coord-topology lane worktree must not re-leak
         # status.events.jsonl / status.json (Scenario 2).
         _register_sparse_checkout_if_coord(
-            worktree_path, mission_slug, coordination_branch, short_id,
+            worktree_path,
+            mission_slug,
+            coordination_branch,
+            short_id,
         )
         # FR-009 (#2993) crash-recovery self-heal: mirrors the reuse-path call
         # below — a re-attached lane picks up the recorded planning commit too.
-        _merge_recorded_planning_commit(
-            repo_root, worktree_path, lane.lane_id, lanes_manifest.planning_commit_sha
-        )
-        _merge_dependency_lane_tips(
-            repo_root, worktree_path, mission_slug, lane, lanes_manifest
-        )
+        _merge_recorded_planning_commit(repo_root, worktree_path, lane.lane_id, lanes_manifest.planning_commit_sha)
+        _merge_dependency_lane_tips(repo_root, worktree_path, mission_slug, lane, lanes_manifest)
         return worktree_path, branch
 
-    # FL4 (FR-010): a base detached from the recorded planning commit cannot
-    # be merged without --allow-unrelated-histories — a PRE-CREATE guard
-    # (before either branch below creates the lane worktree/branch) so a
-    # failure leaves nothing half-created (atomicity; applies to both the
-    # coord and legacy routes).
-    _guard_base_honorable(
-        base, "detached_base", wp_id,
-        planning_sha=lanes_manifest.planning_commit_sha, repo_root=repo_root,
-    )
-
+    # Fresh routes resolve their parent through the single seam before either
+    # creation helper runs. Detached-base and dependency refusals therefore
+    # leave no half-created lane, and no route computes a parent ref inline.
     if coordination_branch is not None:
-        # FL3 (D2/FR-009): a dependency-bearing lane cannot honor an
-        # explicit base without re-parenting its coord-descended dependency
-        # tips (the M8 seam) — raise BEFORE the branch/worktree side effects.
-        _guard_base_honorable(base, "dependency_lane", wp_id, lane=lane)
+        decision = resolve_lane_base_or_refuse(
+            base=base,
+            route=LaneAllocationRoute.FRESH_COORD,
+            coordination_branch=coordination_branch,
+            mission_branch=lanes_manifest.mission_branch,
+            wp_id=wp_id,
+            lane=lane,
+            planning_sha=lanes_manifest.planning_commit_sha,
+            repo_root=repo_root,
+        )
         _ensure_branch_exists(
-            repo_root, coordination_branch, lanes_manifest.target_branch,
+            repo_root,
+            coordination_branch,
+            lanes_manifest.target_branch,
         )
-        # D1/C-005: base fully REPLACES coordination_branch as the parent
-        # when supplied; base=None reproduces the prior coord-parent
-        # behaviour exactly.
-        parent = _resolve_lane_parent(
-            base, coordination_branch, lanes_manifest.mission_branch,
+        _create_lane_worktree(
+            repo_root,
+            worktree_path,
+            branch,
+            decision.parent_ref,
         )
-        _create_lane_worktree(repo_root, worktree_path, branch, parent)
         # Register the sparse-checkout policy so the lane filesystem does
         # NOT contain status.events.jsonl / status.json. Only meaningful
         # when we have a mid8; new-topology missions always do because
         # WP03 mints the coord branch only when mission_id is present.
         _register_sparse_checkout_if_coord(
-            worktree_path, mission_slug, coordination_branch, short_id,
+            worktree_path,
+            mission_slug,
+            coordination_branch,
+            short_id,
         )
     else:
-        # Legacy path: parent on base when supplied, else the mission_branch
-        # field (C-005 — #1684 preserved byte-for-byte when base is None).
-        mission_branch = _resolve_lane_parent(base, None, lanes_manifest.mission_branch)
-        _ensure_mission_branch(repo_root, mission_branch, lanes_manifest.target_branch)
-        _create_lane_worktree(repo_root, worktree_path, branch, mission_branch)
+        decision = resolve_lane_base_or_refuse(
+            base=base,
+            route=LaneAllocationRoute.FRESH_LEGACY,
+            coordination_branch=None,
+            mission_branch=lanes_manifest.mission_branch,
+            wp_id=wp_id,
+            lane=lane,
+            planning_sha=lanes_manifest.planning_commit_sha,
+            repo_root=repo_root,
+        )
+        _ensure_mission_branch(
+            repo_root,
+            decision.parent_ref,
+            lanes_manifest.target_branch,
+        )
+        _create_lane_worktree(
+            repo_root,
+            worktree_path,
+            branch,
+            decision.parent_ref,
+        )
 
     # FR-009 (#2993) / ADR 2026-07-29-1: merge the recorded finalize-tasks
     # planning-artifact commit into the freshly created lane, on top of its
     # coordination_branch / mission_branch parentage (never in place of it —
     # see the ADR's coord-descent guard). A no-op when the manifest predates
     # this field (backward compatible).
-    _merge_recorded_planning_commit(
-        repo_root, worktree_path, lane.lane_id, lanes_manifest.planning_commit_sha
-    )
+    #
+    # FR-006/#3281 (T010): fresh-path atomicity, scoped. A conflict here is
+    # not itself catastrophic — the merge helper already aborts the
+    # half-merge before raising (the worktree's tree is clean, never left
+    # conflicted) — but without this, the just-created worktree stays
+    # registered with nothing further ever touching it: a bare retry would
+    # hit ``worktree_path.exists()`` above and take the REUSE route, which
+    # re-runs this exact merge and fails identically forever. Removing the
+    # worktree (branch intentionally kept — see below) makes a retry take
+    # the CRASH-RECOVERY route instead, which re-attaches and re-runs the
+    # same idempotent self-heal, so the operator's manual fix (per the
+    # error's own ``next_step``) is picked up on the next attempt.
+    try:
+        _merge_recorded_planning_commit(repo_root, worktree_path, lane.lane_id, lanes_manifest.planning_commit_sha)
+    except PlanningCommitMergeConflictError:
+        # Only the WORKTREE is removed, not the branch: a retry then resolves
+        # via the crash-recovery path above (branch exists, worktree dir
+        # gone), which re-attaches and re-merges rather than needing this
+        # function to duplicate that recovery logic.
+        _remove_lane_worktree(repo_root, worktree_path)
+        raise
 
     # #1684 fresh-path propagation: merge approved dependency-lane tips on top
     # of the chosen base (coordination or legacy mission branch) so the
     # dependent lane sees sibling code.
-    _merge_dependency_lane_tips(
-        repo_root, worktree_path, mission_slug, lane, lanes_manifest
-    )
+    _merge_dependency_lane_tips(repo_root, worktree_path, mission_slug, lane, lanes_manifest)
 
     return worktree_path, branch
 
@@ -515,8 +639,11 @@ def _merge_recorded_planning_commit(
     env = _make_merge_env()
     merge = subprocess.run(
         [
-            "git", "merge", "--no-edit",
-            "-m", f"Merge recorded planning-artifact commit into {lane_id} (FR-009)",
+            "git",
+            "merge",
+            "--no-edit",
+            "-m",
+            f"Merge recorded planning-artifact commit into {lane_id} (FR-009)",
             planning_commit_sha,
         ],
         cwd=str(worktree_path),
@@ -536,7 +663,8 @@ def _merge_recorded_planning_commit(
 
 
 def _ordered_dependency_lanes(
-    lane: ExecutionLane, lanes_manifest: LanesManifest,
+    lane: ExecutionLane,
+    lanes_manifest: LanesManifest,
 ) -> list[ExecutionLane]:
     """Resolve a lane's ``depends_on_lanes`` ids to lane objects, in merge order.
 
@@ -548,14 +676,16 @@ def _ordered_dependency_lanes(
     skipped (defensive — ``compute_lanes`` only emits real lane ids).
     """
     by_id = {dep_lane.lane_id: dep_lane for dep_lane in lanes_manifest.lanes}
-    resolved = [
-        by_id[dep_id] for dep_id in lane.depends_on_lanes if dep_id in by_id
-    ]
+    resolved = [by_id[dep_id] for dep_id in lane.depends_on_lanes if dep_id in by_id]
     return sorted(resolved, key=lambda dep: (dep.parallel_group, dep.lane_id))
 
 
 def _create_branch_from(
-    repo_root: Path, branch: str, parent: str, *, label: str = "branch",
+    repo_root: Path,
+    branch: str,
+    parent: str,
+    *,
+    label: str = "branch",
 ) -> None:
     """Create ``branch`` pointing at ``parent`` (no worktree), or raise.
 
@@ -569,10 +699,7 @@ def _create_branch_from(
         text=True,
     )
     if result.returncode != 0:
-        raise RuntimeError(
-            f"Failed to create {label} {branch} from {parent}: "
-            f"{result.stderr.strip()}"
-        )
+        raise RuntimeError(f"Failed to create {label} {branch} from {parent}: {result.stderr.strip()}")
 
 
 def _current_head(worktree_path: Path) -> str | None:
@@ -678,8 +805,11 @@ def _merge_dependency_lane_tips(
             continue
         merge = subprocess.run(
             [
-                "git", "merge", "--no-edit",
-                "-m", f"Merge dependency lane {dep_lane.lane_id} into {lane.lane_id}",
+                "git",
+                "merge",
+                "--no-edit",
+                "-m",
+                f"Merge dependency lane {dep_lane.lane_id} into {lane.lane_id}",
                 dep_branch,
             ],
             cwd=str(worktree_path),
@@ -706,9 +836,7 @@ def _merge_dependency_lane_tips(
                     capture_output=True,
                     text=True,
                 )
-            raise DependencyLaneMergeConflictError(
-                lane.lane_id, dep_lane.lane_id, dep_branch
-            )
+            raise DependencyLaneMergeConflictError(lane.lane_id, dep_lane.lane_id, dep_branch)
 
 
 def _register_sparse_checkout_if_coord(
@@ -738,7 +866,8 @@ def _register_sparse_checkout_if_coord(
 
 
 def _read_coordination_branch(
-    repo_root: Path, mission_slug: str,
+    repo_root: Path,
+    mission_slug: str,
 ) -> str | None:
     """Return the ``coordination_branch`` field from ``meta.json``.
 
@@ -755,9 +884,7 @@ def _read_coordination_branch(
     # checkout where ``meta.json`` lives post-#2106 (the coord husk has none / a
     # STATUS-only one) — never the coord-aware resolver (which would need the very
     # answer this read produces).
-    meta_dir = placement_seam(repo_root, mission_slug).read_dir(
-        MissionArtifactKind.PRIMARY_METADATA
-    )
+    meta_dir = placement_seam(repo_root, mission_slug).read_dir(MissionArtifactKind.PRIMARY_METADATA)
     data = load_meta(meta_dir, on_malformed="none")
     if data is None:
         return None
@@ -768,7 +895,9 @@ def _read_coordination_branch(
 
 
 def _ensure_branch_exists(
-    repo_root: Path, branch: str, fallback_parent: str,
+    repo_root: Path,
+    branch: str,
+    fallback_parent: str,
 ) -> None:
     """Create ``branch`` from ``fallback_parent`` if it does not exist.
 
@@ -796,18 +925,15 @@ def _validate_worktree_clean(worktree_path: Path, lane_id: str) -> None:
         text=True,
     )
     if result.returncode != 0:
-        raise RuntimeError(
-            f"git status failed in {worktree_path}: {result.stderr.strip()}"
-        )
+        raise RuntimeError(f"git status failed in {worktree_path}: {result.stderr.strip()}")
     if result.stdout.strip():
-        raise DirtyWorktreeError(
-            f"Lane {lane_id} worktree at {worktree_path} has uncommitted changes. "
-            f"Commit or stash before starting the next WP."
-        )
+        raise DirtyWorktreeError(f"Lane {lane_id} worktree at {worktree_path} has uncommitted changes. Commit or stash before starting the next WP.")
 
 
 def _ensure_mission_branch(
-    repo_root: Path, mission_branch: str, target_branch: str,
+    repo_root: Path,
+    mission_branch: str,
+    target_branch: str,
 ) -> None:
     """Create the mission integration branch if it doesn't exist.
 
@@ -817,12 +943,18 @@ def _ensure_mission_branch(
     if _branch_exists(repo_root, mission_branch):
         return
     _create_branch_from(
-        repo_root, mission_branch, target_branch, label="mission branch",
+        repo_root,
+        mission_branch,
+        target_branch,
+        label="mission branch",
     )
 
 
 def _create_lane_worktree(
-    repo_root: Path, worktree_path: Path, branch: str, base_branch: str,
+    repo_root: Path,
+    worktree_path: Path,
+    branch: str,
+    base_branch: str,
 ) -> None:
     """Create a git worktree for a lane branch."""
     worktree_path.parent.mkdir(parents=True, exist_ok=True)
@@ -834,14 +966,13 @@ def _create_lane_worktree(
         text=True,
     )
     if result.returncode != 0:
-        raise RuntimeError(
-            f"Failed to create lane worktree at {worktree_path}: "
-            f"{result.stderr.strip()}"
-        )
+        raise RuntimeError(f"Failed to create lane worktree at {worktree_path}: {result.stderr.strip()}")
 
 
 def _recover_lane_worktree(
-    repo_root: Path, worktree_path: Path, existing_branch: str,
+    repo_root: Path,
+    worktree_path: Path,
+    existing_branch: str,
 ) -> None:
     """Recreate worktree from existing branch (recovery mode).
 
@@ -861,7 +992,37 @@ def _recover_lane_worktree(
         text=True,
     )
     if result.returncode != 0:
-        raise RuntimeError(
-            f"Failed to recover worktree at {worktree_path}: "
-            f"{result.stderr.strip()}"
-        )
+        raise RuntimeError(f"Failed to recover worktree at {worktree_path}: {result.stderr.strip()}")
+
+
+def _remove_lane_worktree(repo_root: Path, worktree_path: Path) -> None:
+    """Remove a just-created lane worktree (fresh-path atomicity, FR-006/#3281/T010).
+
+    Sibling to :func:`_create_lane_worktree` / :func:`_recover_lane_worktree`.
+    Used ONLY on a fresh-path :func:`_merge_recorded_planning_commit` conflict:
+    that merge helper already aborts the half-merge (the worktree's tree is
+    clean, never left conflicted) before raising, so a targeted
+    ``git worktree remove`` is enough — no heavy rollback machinery is built
+    here (deliberately scoped per the post-plan squad's LOW-severity
+    disposition for FR-006). ``--force`` is used defensively (e.g. a
+    just-registered sparse-checkout config file) even though the tree is
+    expected clean.
+
+    Only the WORKTREE registration is removed; the branch is intentionally
+    left intact so a retry resolves via :func:`allocate_lane_worktree`'s
+    crash-recovery route (branch exists, worktree dir gone) rather than this
+    helper duplicating that recovery logic.
+
+    Best-effort: a removal failure is reported to stderr but does not raise
+    or shadow the caller's original :class:`PlanningCommitMergeConflictError`
+    — leaving a worktree registered is a secondary, recoverable-by-operator
+    hygiene concern, never the primary failure this WP fixes.
+    """
+    result = subprocess.run(
+        ["git", "worktree", "remove", "--force", str(worktree_path)],
+        cwd=str(repo_root),
+        capture_output=True,
+        text=True,
+    )
+    if result.returncode != 0:
+        print(f"Warning: failed to remove leftover lane worktree {worktree_path} after a planning-commit merge conflict: {result.stderr.strip()}")

@@ -361,10 +361,9 @@ def _load_gate_coverage_module(repo_root: Path) -> ModuleType:
 def _default_filter_groups(repo_root: Path) -> dict[str, tuple[str, ...]]:
     """Live ``group -> globs`` map, straight from ``aggregate_filter_groups()``.
 
-    ``load_workflow_models()`` reads ``.github/workflows/*.yml`` off disk
-    (``WORKFLOWS_DIR``). This programme's repos carry no GitHub Actions
-    (PROGRAM.md §2, planning#57): that directory is gone here, so the read
-    raises ``OSError`` (``FileNotFoundError`` in practice). That is the SAME
+    ``load_workflow_models()`` reads the restored suite-running workflow off
+    disk (``WORKFLOWS_DIR``). If that authority is missing, the read raises
+    ``OSError`` (``FileNotFoundError`` in practice). That is the SAME
     "authority missing" condition ``_load_gate_coverage_module`` already
     guards against for an unimportable/cross-repo module — folded into the
     identical :class:`GateAuthoritiesUnavailable` signal so it degrades the

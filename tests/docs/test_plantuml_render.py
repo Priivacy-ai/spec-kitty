@@ -60,10 +60,7 @@ def test_code_block_regex_matches_any_class_convention() -> None:
 def test_prose_and_inline_mention_of_startyaml_is_not_a_fence() -> None:
     # A page that only *mentions* @startyaml in prose / inline <code> must render
     # unchanged and must NOT trip the fail-closed leftover check.
-    page = (
-        "<html><body><p>The <code>@startyaml</code> diagram is generated.</p>"
-        "<p>See the @startyaml block below.</p></body></html>"
-    )
+    page = "<html><body><p>The <code>@startyaml</code> diagram is generated.</p><p>See the @startyaml block below.</p></body></html>"
     assert plantuml_render.render_html(page, workdir=_REPO_ROOT) == page
 
 
@@ -84,11 +81,11 @@ def test_accessible_svg_sets_role_aria_and_title() -> None:
 
 
 @_docker
-def test_unusual_code_class_still_renders(tmp_path: Path) -> None:
+def test_unusual_code_class_still_renders() -> None:
     # The exact DocFX-build failure mode: a class the old strict regex missed
     # (extra highlighter token) is now recovered by content and rendered.
     _ensure_jar()
-    out = plantuml_render.render_html(_page("lang-plantuml hljs", "Weird Class"), workdir=tmp_path)
+    out = plantuml_render.render_html(_page("lang-plantuml hljs", "Weird Class"), workdir=_REPO_ROOT)
     assert "<svg" in out and 'aria-label="Weird Class"' in out
     assert "@startyaml" not in out  # fully consumed
 
@@ -102,10 +99,10 @@ def test_mermaid_block_is_untouched() -> None:
 
 
 @_docker
-def test_round_trip_renders_svg_with_exact_literal_alt(tmp_path: Path) -> None:
+def test_round_trip_renders_svg_with_exact_literal_alt() -> None:
     _ensure_jar()
     for cls in ("lang-plantuml", "language-plantuml"):
-        out = plantuml_render.render_html(_page(cls, "Round Trip Alpha"), workdir=tmp_path)
+        out = plantuml_render.render_html(_page(cls, "Round Trip Alpha"), workdir=_REPO_ROOT)
         assert "<svg" in out and 'role="img"' in out
         assert 'aria-label="Round Trip Alpha"' in out  # exact literal title, not generic
         assert "@startyaml" not in out  # fence fully consumed
@@ -113,9 +110,9 @@ def test_round_trip_renders_svg_with_exact_literal_alt(tmp_path: Path) -> None:
 
 
 @_docker
-def test_two_diagrams_get_distinct_alt(tmp_path: Path) -> None:
+def test_two_diagrams_get_distinct_alt() -> None:
     _ensure_jar()
     two = _page("lang-plantuml", "Alpha One") + _page("language-plantuml", "Beta Two")
-    out = plantuml_render.render_html(two, workdir=tmp_path)
+    out = plantuml_render.render_html(two, workdir=_REPO_ROOT)
     assert 'aria-label="Alpha One"' in out
     assert 'aria-label="Beta Two"' in out

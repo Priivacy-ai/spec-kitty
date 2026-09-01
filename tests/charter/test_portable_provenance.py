@@ -1,7 +1,7 @@
 """Portable provenance integration tests (T016, C-PRV-1..6).
 
 Exercises the normalizer at BOTH real emit call sites -- the charter catalog
-(``charter.compiler._doctrine_yaml_reference``) and the agent-profile
+(``charter.activation.compiler._doctrine_yaml_reference``) and the agent-profile
 projection manifest (``specify_cli.tool_surface.profiles.projection.
 _manifest_source_path``) -- plus the two deliberately-excluded callers
 (the mission-template reference and the manifest ``output_path`` field),
@@ -15,8 +15,8 @@ from pathlib import Path
 
 import pytest
 
-from charter.compiler import CharterReference, CompiledCharter, compile_charter
-from charter.interview import default_interview
+from charter.activation.compiler import CharterReference, CompiledCharter, compile_charter
+from charter.activation.interview import default_interview
 
 pytestmark = [pytest.mark.unit]
 
@@ -84,7 +84,7 @@ class TestExcludedCallersByteUnchanged:
 
         assert template_refs, "expected a template_set reference in compiled catalog"
         source_path = template_refs[0].source_path
-        # Post-relocation, the mission.yaml source has no "src/doctrine/"
+        # Post-relocation, the mission.yaml source has no "src/charter/offering/"
         # marker for _trim_source_path to trim on, so it is returned
         # UNCHANGED -- i.e. still the full absolute path, never a token.
         assert Path(source_path).is_absolute()

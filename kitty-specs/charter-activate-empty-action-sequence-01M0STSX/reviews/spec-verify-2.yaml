@@ -1,0 +1,29 @@
+schema: review-verify/v1
+complete: true
+phase: spec
+results:
+  - id: SPEC-FRESH-001
+    status: resolved
+    reason: >-
+      The "Required fixture shape" bullet now names both real helpers with
+      exact, re-verified line numbers (_write_layered_mission_type_yaml at
+      tests/charter/test_mission_type_profiles.py:449, confirmed no `extends`
+      parameter; _write_org_pack_config at :846, confirmed it only writes
+      .kittify/config.yaml) and adds an explicit "Extends-fallback fixture
+      gap" note stating _write_layered_mission_type_yaml has no `extends`
+      param and that a repo-wide grep for "extends" returns zero matches
+      (re-confirmed live), flagging the AC4/FR-005 gap as plan-phase work.
+  - id: SPEC-FRESH-002
+    status: resolved
+    reason: >-
+      The cascade Edge Case bullet was rewritten to state the accurate,
+      code-verified reason mission-type is unreachable via --cascade: as
+      source, ArtifactKind.from_operator_token("mission-type") raises
+      MissionTypeNotAnArtifactKind so _source_urn() returns None and
+      activate_cmd skips _render_cascade_activation; as target, NodeKind DOES
+      carry a MISSION_TYPE member (correcting the original finding's stale
+      claim) but ArtifactKind has no mission_type member so cascade.py's
+      _kind_of() returns None for mission_type: URNs and _referenced_artifacts
+      drops them before the CHARTER_ACTIVATABLE_KINDS filter — all re-verified
+      against the live checkout and consistent with C-003's single-call-site
+      claim.

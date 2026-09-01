@@ -22,14 +22,14 @@ from __future__ import annotations
 
 import pytest
 
-from charter.context_renderers.profile_sections import (
+from charter.activation.context_renderers.profile_sections import (
     _PROFILE_PROCEDURES_HEADER_TPL,
     _PROFILE_STYLEGUIDES_HEADER_TPL,
     _PROFILE_TOOLGUIDES_HEADER_TPL,
     _render_profile_sections,
 )
-from doctrine.agent_profiles import AgentProfile, AgentProfileRepository
-from doctrine.service import DoctrineService
+from charter.offering.agent_profiles import AgentProfile, AgentProfileRepository
+from charter.offering.service import DoctrineService
 
 pytestmark = pytest.mark.fast
 

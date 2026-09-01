@@ -1,7 +1,7 @@
 """Helpers for assembling the ``org_charter`` JSON block surfaced by ``charter context --json``.
 
 This module lives in ``specify_cli`` (the highest layer) and is responsible
-for materialising the data structure that :func:`charter.context.build_charter_context_json`
+for materialising the data structure that :func:`charter.activation.context.build_charter_context_json`
 embeds under the ``org_charter`` key.
 
 Architectural note

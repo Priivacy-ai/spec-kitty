@@ -52,17 +52,9 @@ The name-level completeness here is complementary to the set-level orphan
 route oracle (``test_ci_collection_completeness.py``): that pins every test's marker SET reaches a
 gate; this pins every registered marker NAME has a routing home (Decision 4).
 
-Retired (planning#57): the ROUTED-BY-MARKER claim above was verified LIVE
-against the real ``.github/workflows/*.yml`` (``_gate_coverage.load_gates()``
-+ ``routed_marker_names()``) — those five files were the leftover
-pre-programme GitHub Actions YAML deleted per PROGRAM.md §2. With no workflow
-YAML left to parse, the live-routing tests and their ``_live_routed()``/
-``_reachable_by_path_markers()``/``_residual_gate()`` helpers have no
-remaining subject matter and were removed with the files; the collection-free
-structural rules, the grammar-divergence guard, and the fault-injection tests
-that build their OWN fixture gate set (``test_faultinjection_derouted_unit_reds``,
-``test_faultinjection_residual_missing_routed_marker_reds``) never depended on
-the real files and stay.
+The interim convergence topology restores only the ``windows_ci`` marker gate.
+The live routing check below re-opens that subset; the former multi-marker
+routing ledger remains retired with the deferred suite-topology workflows.
 """
 
 from __future__ import annotations
@@ -239,6 +231,11 @@ def _live_registered() -> set[str]:
     return set(gc.registered_markers())
 
 
+def test_restored_windows_ci_marker_is_routed_live() -> None:
+    """The restored direct suite runner positively selects ``windows_ci``."""
+    assert gc.routed_marker_names(gc.load_gates()) == frozenset({"windows_ci"})
+
+
 def test_ci_invisible_keys_are_registered_live() -> None:
     """Reverse containment on live data: no stale ledger entry."""
     assert set(CI_INVISIBLE) <= _live_registered()
@@ -323,5 +320,4 @@ def test_faultinjection_residual_missing_routed_marker_reds() -> None:
     runnable = {"fast", "integration", "git_repo"}
     missing = runnable - negated
     assert missing == {"fast"}, missing
-
 

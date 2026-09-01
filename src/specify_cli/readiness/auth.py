@@ -1,8 +1,8 @@
 """Readiness auth probe (WS2, issue Priivacy-ai/spec-kitty#1094).
 
-Translates the existing ``_auth_recovery.detect_logged_out_with_connected_teamspace``
-read-only detector plus ``TokenManager.is_authenticated`` into one of the
-authoritative ``AuthStatus`` values consumed by the readiness coordinator.
+Translates the canonical ``TokenManager.session_assessment`` plus the existing
+``_auth_recovery.detect_logged_out_with_connected_teamspace`` read-only detector
+into one of the authoritative ``AuthStatus`` values consumed by readiness.
 
 Contract:
 
@@ -16,12 +16,19 @@ Contract:
 
 Resolution order:
 
-1. If a valid session is reachable (``TokenManager.is_authenticated`` is true),
-   return ``(AUTHENTICATED, None)``.
-2. Otherwise consult ``detect_logged_out_with_connected_teamspace(repo_root)``:
+1. If a completed, usable session is reachable (canonical
+   ``TokenManager.session_assessment``), return ``(AUTHENTICATED, None)``.
+2. Otherwise — including when the assessment did not complete, or raised —
+   consult ``detect_logged_out_with_connected_teamspace(repo_root)``. A
+   failed or inconclusive assessment is not authentication and does not by
+   itself make the probe give up; it degrades to "not authenticated" the
+   same way the historical Boolean contract did, and the Teamspace detector
+   still gets to render its own verdict:
    - Returns a non-empty handle → ``(LOGGED_OUT_IN_TEAMSPACE, handle)``.
    - Returns ``None`` → ``(NOT_IN_TEAMSPACE, None)``.
-3. Any exception inside the resolution path → ``(UNKNOWN, None)``.
+3. Any exception outside that resolution (acquiring a ``TokenManager`` at
+   all, or the detector itself raising) → ``(UNKNOWN, None)`` — reserved for
+   the catastrophic failure path.
 
 Tracking issue: https://github.com/Priivacy-ai/spec-kitty/issues/1094
 """
@@ -63,14 +70,16 @@ def probe_auth_status(
             return (AuthStatus.UNKNOWN, None)
 
         try:
-            authenticated = bool(tm.is_authenticated)
-        except Exception:  # noqa: BLE001 — defensive
+            assessment = tm.session_assessment
+            authenticated = assessment.completed and assessment.usable_session is True
+        except Exception:  # noqa: BLE001 — defensive; degrades to not-authenticated
             authenticated = False
 
         if authenticated:
             return (AuthStatus.AUTHENTICATED, None)
 
-        # Step 2: logged-out — does the repo show a connected Teamspace?
+        # Step 2: not authenticated (or inconclusive) — does the repo show a
+        # connected Teamspace?
         from specify_cli.cli.commands._auth_recovery import (  # noqa: PLC0415 — lazy
             detect_logged_out_with_connected_teamspace,
         )

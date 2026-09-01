@@ -21,12 +21,12 @@ from pathlib import Path
 
 import pytest
 
-from charter.context import (
+from charter.activation.context import (
     _ActionDoctrineBundle,
     _load_references,
     _render_bootstrap_text,
 )
-from charter.context_renderers.reference_pointers import (
+from charter.activation.context_renderers.reference_pointers import (
     _REFERENCE_POINTER_FLOOR,
     _REFERENCE_POINTER_LIMIT,
     _filter_references_for_action,
@@ -147,7 +147,7 @@ def test_render_bootstrap_dead_renderer_is_deleted() -> None:
     render path reachable only from tests is an instance of this mission's own
     thesis, so it is deleted. The live renderer is ``_render_bootstrap_text``.
     """
-    import charter.context as context_module
+    import charter.activation.context as context_module
 
     assert not hasattr(context_module, "_render_bootstrap"), (
         "_render_bootstrap is a test-only dead render path with a second "

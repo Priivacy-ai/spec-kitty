@@ -21,8 +21,8 @@ import pytest
 from pydantic import ValidationError
 from ruamel.yaml import YAML
 
-from charter.synthesizer.errors import ManifestIntegrityError
-from charter.synthesizer.manifest import (
+from charter.activation.synthesizer.errors import ManifestIntegrityError
+from charter.activation.synthesizer.manifest import (
     ManifestArtifactEntry,
     SynthesisManifest,
     compute_manifest_hash,
@@ -32,8 +32,8 @@ from charter.synthesizer.manifest import (
     verify,
     verify_manifest_hash,
 )
-from charter.synthesizer.path_guard import PathGuard
-from charter.synthesizer.synthesize_pipeline import canonical_yaml
+from charter.activation.synthesizer.path_guard import PathGuard
+from charter.activation.synthesizer.synthesize_pipeline import canonical_yaml
 
 
 # ---------------------------------------------------------------------------

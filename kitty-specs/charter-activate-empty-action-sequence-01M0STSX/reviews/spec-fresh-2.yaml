@@ -1,0 +1,53 @@
+schema: review-findings/v1
+complete: true
+phase: spec
+lens_group: fresh
+mission: charter-activate-empty-action-sequence-01M0STSX
+findings:
+  - id: SPEC-FRESH2-001
+    lens: architectural-integrity
+    severity: 2
+    title: Rewritten cascade edge case proves exhaustiveness only for the --cascade path, not for the sibling promote_activations() write chokepoint into the same activation lists
+    evidence:
+      - artifact: "spec.md § Edge Cases (\"What happens to cascade-activated targets...\")"
+      - artifact: "spec.md § Domain Language (\"Activation-time (write) path\" — asserts the flow is entered through activate_cmd, which delegates to CharterPackManager.activate()\")"
+      - code: "src/charter/activation_engine.py:21-33 (promote_activations docstring: \"a second, append-only entry point onto the same commit_plan chokepoint, used by the config-seeded migration and the interview command (WP07) and by the org-pack required_* union (WP04) to promote an arbitrary {yaml_key: [config-stem ids]} set in one pass\")"
+      - code: "src/specify_cli/upgrade/migrations/m_unify_charter_activation.py:76-85 (_PROMOTABLE_KINDS explicitly excludes mission-type, with a comment calling it \"the mission-type outlier\")"
+      - code: "src/specify_cli/doctrine/org_charter.py:85-95 (REQUIRED_KIND_FIELDS has no mission_types entry, so org-pack required_* union cannot promote into mission_type_activations)"
+    claim: >
+      This revision replaced the prior one-paragraph cascade edge case with a
+      long, carefully-cited proof that a mission-type can be neither a
+      cascade source nor a cascade target, concluding "C-003's single call
+      site inside activate_cmd ... is already exhaustive — no cascade-path
+      gate is needed." That conclusion is true for the --cascade CLI path,
+      but the spec never addresses (or even mentions) promote_activations(),
+      a structurally separate, already-existing entry point onto the same
+      commit_plan() write chokepoint that CharterPackManager.activate() also
+      uses. I verified by reading the three current promote_activations()
+      call sites (org_charter.py's required_* union, interview.py's
+      selection promotion, and m_unify_charter_activation.py's
+      answers-only migration) that none of them can reach
+      mission_type_activations today — mission-type is explicitly excluded
+      from each kind list. So there is no live bug. But the spec's own
+      Domain Language section flatly states the write path is "entered
+      through activate_cmd" as if that were the only route into
+      mission_type_activations, and the newly-expanded edge case sets a high
+      bar of proof for one write path while leaving a second, code-confirmed
+      write chokepoint into the identical list completely unexamined. A
+      later change that widens REQUIRED_KIND_FIELDS or _PROMOTABLE_KINDS to
+      include mission-type (plausible — 8 of 9 other kinds already support
+      required_<kind> promotion) would silently reopen this exact bug class
+      through promote_activations, bypassing the new gate this mission adds
+      only in activate_cmd, and NFR-001's "100% of activation attempts"
+      claim would then be false without any test catching it.
+    remediation: >
+      Either (a) add one sentence to the Edge Cases cascade paragraph (or a
+      new bullet) noting promote_activations() as a second, currently-inert
+      write chokepoint onto mission_type_activations, explicitly out of
+      scope because no current caller can route a mission-type through it,
+      or (b) narrow the "already exhaustive" claim to "exhaustive over the
+      direct-activation and --cascade paths" so it doesn't read as a
+      blanket guarantee over every way mission_type_activations can be
+      written, and let the plan phase decide whether a defense-in-depth
+      check on the promote_activations chokepoint is worth a follow-on
+      ledger entry.

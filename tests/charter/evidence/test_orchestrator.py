@@ -10,7 +10,7 @@ from pathlib import Path
 import pytest
 import ruamel.yaml
 
-from charter.evidence.orchestrator import (    EvidenceOrchestrator,
+from charter.activation.evidence.orchestrator import (    EvidenceOrchestrator,
     EvidenceResult,
     load_url_list_from_config,
 )
@@ -29,7 +29,7 @@ def _synthesis_manifest_guard() -> Iterator[Path]:
 
     ``charter synthesize`` writes ``.kittify/charter/synthesis-manifest.yaml`` at a
     path fixed relative to the resolved repo root — no CLI flag exposes a target
-    override (see ``src/charter/synthesizer/manifest.py::MANIFEST_PATH``), so this
+    override (see ``src/charter/activation/synthesizer/manifest.py::MANIFEST_PATH``), so this
     test cannot simply redirect the write to a ``tmp_path`` sandbox. It guards the
     on-disk bytes instead: snapshot before, restore in a ``finally`` block after —
     so a future regression that reintroduces a real-manifest write (or any

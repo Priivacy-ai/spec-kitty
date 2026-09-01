@@ -6,7 +6,7 @@ import pytest
 
 from ruamel.yaml import YAML
 
-from charter.interview import (
+from charter.activation.interview import (
     MINIMAL_QUESTION_ORDER,
     QUESTION_ORDER,
     _existing_directives_from,
@@ -146,7 +146,7 @@ def test_load_packaged_defaults_returns_empty_when_resource_is_missing(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     monkeypatch.setattr(
-        "charter.interview.importlib.resources.files",
+        "charter.activation.interview.importlib.resources.files",
         lambda package: (_ for _ in ()).throw(FileNotFoundError("missing")),
     )
 
@@ -173,7 +173,7 @@ def test_load_packaged_defaults_returns_empty_on_invalid_yaml(
             assert encoding == "utf-8"
             return "answers: ["
 
-    monkeypatch.setattr("charter.interview.importlib.resources.files", lambda package: StubResource())
+    monkeypatch.setattr("charter.activation.interview.importlib.resources.files", lambda package: StubResource())
 
     defaults = _load_packaged_defaults()
 
@@ -193,7 +193,7 @@ def test_load_packaged_defaults_returns_empty_when_yaml_is_not_mapping(
             assert encoding == "utf-8"
             return "- not-a-mapping\n"
 
-    monkeypatch.setattr("charter.interview.importlib.resources.files", lambda package: StubResource())
+    monkeypatch.setattr("charter.activation.interview.importlib.resources.files", lambda package: StubResource())
 
     defaults = _load_packaged_defaults()
 

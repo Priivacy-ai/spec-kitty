@@ -86,7 +86,7 @@ def charter_resynthesize(  # noqa: C901
 
         spec-kitty charter resynthesize --topic directive:DIRECTIVE_003
     """
-    from charter.synthesizer.errors import (
+    from charter.activation.synthesizer.errors import (
         SynthesisError,
         TopicSelectorUnresolvedError,
         render_error_panel,
@@ -145,7 +145,7 @@ def charter_resynthesize(  # noqa: C901
         if topic is None:
             raise TaskCliError("Pass --topic <selector> or use --list-topics.")
 
-        from charter.synthesizer.resynthesize_pipeline import run as resynthesize_run
+        from charter.activation.synthesizer.resynthesize_pipeline import run as resynthesize_run
 
         result = resynthesize_run(
             request=request,

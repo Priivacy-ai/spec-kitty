@@ -36,7 +36,7 @@ _REMEDIATION_BODY = (
 
 def _raise_charter_config_error(**_kwargs: object) -> None:
     """Stand-in for ``create_mission_core`` that fails the charter-pack gate."""
-    from charter.pack_context import CharterPackConfigError
+    from charter.activation.pack_context import CharterPackConfigError
 
     raise CharterPackConfigError(_REMEDIATION_BODY)
 
@@ -59,6 +59,7 @@ def _run_core_phase_json(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> dic
             friendly_name=None,
             purpose_tldr=None,
             purpose_context=None,
+            pr_bound=False,
             force_recreate_coordination_branch=False,
             owned_checkout=None,
             json_output=True,
@@ -67,30 +68,21 @@ def _run_core_phase_json(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> dic
     return emitted
 
 
-def test_json_envelope_carries_remediation_body(
-    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
-) -> None:
+def test_json_envelope_carries_remediation_body(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
     # FR-010 / US5 AC1: the remediation prose must reach the --json envelope.
     envelope = _run_core_phase_json(monkeypatch, tmp_path)
     serialized = repr(envelope)
-    assert _REMEDIATION_BODY in serialized, (
-        "remediation body dropped from --json envelope; "
-        f"got only: {serialized}"
-    )
+    assert _REMEDIATION_BODY in serialized, f"remediation body dropped from --json envelope; got only: {serialized}"
 
 
-def test_json_envelope_exposes_stable_error_code(
-    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
-) -> None:
+def test_json_envelope_exposes_stable_error_code(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
     # The stable machine code accompanies the body so scripted callers can
     # branch on it (NFR-007-style stable error_code contract).
     envelope = _run_core_phase_json(monkeypatch, tmp_path)
     assert envelope.get("error_code") == "CHARTER_PACK_CONFIG_INVALID"
 
 
-def test_json_envelope_error_is_not_bare_code(
-    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
-) -> None:
+def test_json_envelope_error_is_not_bare_code(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
     # Regression guard: the pre-fix generic funnel emitted {"error":
     # "CHARTER_PACK_CONFIG_INVALID"} (str(exc) == code), dropping the body.
     envelope = _run_core_phase_json(monkeypatch, tmp_path)
