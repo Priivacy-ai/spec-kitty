@@ -75,6 +75,27 @@ def _counting_wrapper(original: object) -> tuple[object, list[object]]:
     return _wrapped, calls
 
 
+def _write_malformed_project_drg(project: Path) -> None:
+    overlay = project / ".kittify" / "doctrine" / "bad.graph.yaml"
+    overlay.parent.mkdir(parents=True)
+    overlay.write_text(
+        """\
+        schema_version: '1.0'
+        generated_at: STATIC
+        generated_by: test
+        nodes:
+        - urn: action:software-dev/customstep
+          kind: action
+          label: customstep
+        edges:
+        - source: action:software-dev/customstep
+          target: directive:does-not-exist
+          relation: requires
+        """,
+        encoding="utf-8",
+    )
+
+
 class TestResolveActionBundleSingleLoad:
     """Precheck (NFR-001): ``_resolve_action_bundle`` loads the DRG once."""
 
@@ -116,6 +137,34 @@ class TestActionGateSingleLoad:
             f"must resolve the DRG exactly once (NFR-001, no memoization); "
             f"observed {len(calls)} loads"
         )
+
+
+class TestMalformedProjectDrgDegrades:
+    def test_malformed_project_drg_degrades_plain_text_context(self, project: Path) -> None:
+        from charter.activation.context import build_charter_context
+
+        _write_malformed_project_drg(project)
+
+        result = build_charter_context(
+            project,
+            action="tasks",
+            mission_type="software-dev",
+        )
+
+        assert result.mode == "compact"
+
+    def test_malformed_project_drg_degrades_json_context(self, project: Path) -> None:
+        from charter.activation.context import build_charter_context_json
+
+        _write_malformed_project_drg(project)
+
+        payload = build_charter_context_json(
+            project,
+            action="tasks",
+            mission_type="software-dev",
+        )
+
+        assert payload["mode"] == "compact"
 
 
 class TestBootstrapActionsSingleDefinitionSite:
