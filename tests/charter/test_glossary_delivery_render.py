@@ -13,7 +13,7 @@ import pytest
 
 from charter.context import _ActionDoctrineBundle
 from charter.context_renderers.bootstrap_text import _render_action_doctrine_lines
-from doctrine.glossary_packs.models import GlossaryPack, GlossaryTerm
+from charter.offering.glossary_packs.models import GlossaryPack, GlossaryTerm
 
 pytestmark = [pytest.mark.fast]
 

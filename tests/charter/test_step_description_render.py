@@ -17,8 +17,8 @@ from charter.context_renderers.artifact_bodies import (
     _format_inline_tactic_body,
 )
 from charter.context_renderers.profile_sections import format_inline_named_body
-from doctrine.procedures.models import ProcedureStep
-from doctrine.tactics.models import TacticStep
+from charter.offering.procedures.models import ProcedureStep
+from charter.offering.tactics.models import TacticStep
 
 pytestmark = [pytest.mark.fast]
 

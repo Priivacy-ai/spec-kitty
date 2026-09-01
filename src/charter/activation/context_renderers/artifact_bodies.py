@@ -62,7 +62,7 @@ def _format_inline_glossary_body(pack: object) -> list[str]:
     (name) -- and **never** its ``definition`` (NFR-001 token budget) -- and a
     ``--include glossary-pack:<id>`` fetch stanza so an agent can pull the full
     definitions on demand. Defensive ``getattr`` keeps the renderer decoupled
-    from the concrete :class:`~doctrine.glossary_packs.models.GlossaryPack` shape.
+    from the concrete :class:`~charter.offering.glossary_packs.models.GlossaryPack` shape.
     """
     pack_id = str(getattr(pack, "id", "") or "")
     body_lines: list[str] = [f"    - {pack_id}"]

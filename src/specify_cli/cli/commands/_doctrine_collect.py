@@ -439,13 +439,13 @@ def _run_operating_procedures_check(report: DoctrineHealthReport) -> None:
     ``org_drg["operating_procedures_unresolved"]`` finding (present-and-empty on
     a healthy tree). Read-only; never raises ``doctor doctrine``.
     """
-    from doctrine.agent_profiles.operating_procedures import (
+    from charter.offering.agent_profiles.operating_procedures import (
         collect_operating_procedure_entries,
         node_universe,
         resolve_operating_procedure_entries,
     )
-    from doctrine.drg.loader import load_built_in_graph
-    from doctrine.pack_paths import built_in_root
+    from charter.offering.drg.loader import load_built_in_graph
+    from charter.offering.pack_paths import built_in_root
 
     org_drg = report.org_drg
     if not isinstance(org_drg, dict):  # pragma: no cover — always a dict

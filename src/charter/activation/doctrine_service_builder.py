@@ -116,7 +116,7 @@ def _build_doctrine_service(
     #3176 (WP02): callers may also supply *agent_profile_overlay_dir* to point
     the inner service's agent-profile project overlay at an arbitrary path
     (e.g. ``.kittify/agent_profiles``). Like *org_roots*, it is passed into
-    :class:`~doctrine.service.DoctrineService` **only when set**, so
+    :class:`~charter.offering.service.DoctrineService` **only when set**, so
     charter-internal callers that omit it see byte-identical kwargs (NFR-002).
     """
     from charter.offering.service import DoctrineService
