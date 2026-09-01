@@ -191,6 +191,21 @@ class TestRemoveWpStatusEntries:
         assert "symlink" in errors[0]
         assert real_file.read_text() == "kitty-specs/**/tasks/*.md\n"  # untouched
 
+    def test_vanishing_symlink_is_still_rejected(self, tmp_path: Path, monkeypatch) -> None:
+        gitignore = tmp_path / ".gitignore"
+        gitignore.symlink_to(tmp_path / "does-not-exist")
+
+        def readlink_raises(*args, **kwargs):
+            raise FileNotFoundError(f"simulated vanished symlink: {args}")
+
+        monkeypatch.setattr(os, "readlink", readlink_raises)
+
+        changes, errors = remove_wp_status_entries(gitignore)
+
+        assert changes == []
+        assert len(errors) == 1
+        assert "symlink" in errors[0]
+
 
 class TestMigration:
     """Migration wrapper behavior."""
@@ -236,6 +251,20 @@ class TestMigration:
             gitignore.symlink_to(missing_target)
         except OSError:
             pytest.skip("symlinks not supported on this filesystem")
+
+        migration = RemoveWpStatusGitignoreRuleMigration()
+        can_apply, msg = migration.can_apply(tmp_path)
+        assert can_apply is False
+        assert "symlink" in msg
+
+    def test_can_apply_rejects_vanishing_symlink(self, tmp_path: Path, monkeypatch) -> None:
+        gitignore = tmp_path / ".gitignore"
+        gitignore.symlink_to(tmp_path / "does-not-exist")
+
+        def readlink_raises(*args, **kwargs):
+            raise FileNotFoundError(f"simulated vanished symlink: {args}")
+
+        monkeypatch.setattr(os, "readlink", readlink_raises)
 
         migration = RemoveWpStatusGitignoreRuleMigration()
         can_apply, msg = migration.can_apply(tmp_path)

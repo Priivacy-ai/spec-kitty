@@ -535,6 +535,19 @@ class TestClaudeignoreSymlinkSafety:
         with pytest.raises(ClaudeignorePathError):
             migration.apply(tmp_path, dry_run=False)
 
+    def test_vanishing_symlink_is_still_rejected(self, tmp_path: Path, monkeypatch) -> None:
+        missing_target = tmp_path.parent / f"missing-claudeignore-target-{os.getpid()}.txt"
+        (tmp_path / ".claudeignore").symlink_to(missing_target)
+
+        def readlink_raises(*args, **kwargs):
+            raise FileNotFoundError(f"simulated vanished symlink: {args}")
+
+        monkeypatch.setattr(os, "readlink", readlink_raises)
+
+        migration = ProvisionKittyEnvMigration()
+        with pytest.raises(ClaudeignorePathError):
+            migration.apply(tmp_path, dry_run=False)
+
     def test_normal_claudeignore_write_survives_symlink_guard(self, tmp_path: Path) -> None:
         """Sanity check: a regular (non-symlink) .claudeignore still works."""
         migration = ProvisionKittyEnvMigration()

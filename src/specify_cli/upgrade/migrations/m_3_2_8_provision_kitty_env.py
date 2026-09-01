@@ -352,7 +352,13 @@ def _reject_claudeignore_symlink(path: Path) -> None:
     so the guard and the use are the same syscall.
     """
     if path.is_symlink():
-        target = os.readlink(path)
+        try:
+            target = os.readlink(path)
+        except OSError as exc:
+            raise ClaudeignorePathError(
+                f".claudeignore is a symlink; refusing to read or write through it: {path} "
+                f"(could not resolve target: {exc})"
+            ) from exc
         raise ClaudeignorePathError(
             f".claudeignore is a symlink to {target!r}; refusing to read or write through it: {path}"
         )
