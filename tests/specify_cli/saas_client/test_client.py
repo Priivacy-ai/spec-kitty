@@ -131,6 +131,22 @@ def test_load_auth_context_raises_when_no_url(monkeypatch: pytest.MonkeyPatch) -
         load_auth_context()
 
 
+def test_load_auth_context_env_token_no_url_names_env_and_config_only(monkeypatch: pytest.MonkeyPatch) -> None:
+    """#290: an env-supplied token's "no URL" remedy must name only
+    SPEC_KITTY_SAAS_URL and config.toml's [sync].server_url — never
+    .kittify/saas-auth.json's saas_url, which #237 already refuses to pair
+    with an env-supplied token."""
+    monkeypatch.setenv("SPEC_KITTY_SAAS_TOKEN", "test-token")
+    monkeypatch.delenv("SPEC_KITTY_SAAS_URL", raising=False)
+    with pytest.raises(SaasAuthError) as exc_info:
+        load_auth_context()
+    message = str(exc_info.value)
+    assert "SPEC_KITTY_SAAS_URL" in message
+    assert "[sync].server_url" in message
+    assert "never paired with .kittify/saas-auth.json" in message
+    assert 'provide "saas_url" in .kittify/saas-auth.json' not in message
+
+
 def test_load_auth_context_env_token_ignores_file_url(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """#237: an env-supplied token must not be redirected by a checkout's
     ``.kittify/saas-auth.json`` saas_url. With no SPEC_KITTY_SAAS_URL and no
@@ -249,6 +265,20 @@ def test_load_auth_context_raises_when_file_has_no_url(tmp_path: Path, monkeypat
     (auth_dir / "saas-auth.json").write_text(json.dumps({"token": "file-token"}))
     with pytest.raises(SaasAuthError, match="SaaS URL not configured"):
         load_auth_context(repo_root=tmp_path)
+
+
+def test_load_auth_context_file_token_no_url_still_names_file(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """#290: the file-token "no URL" remedy is unchanged by the env-token
+    branch above — naming the file's own saas_url is still a fair remedy on
+    this path, since #237's trust boundary never applied to it."""
+    monkeypatch.delenv("SPEC_KITTY_SAAS_TOKEN", raising=False)
+    monkeypatch.delenv("SPEC_KITTY_SAAS_URL", raising=False)
+    auth_dir = tmp_path / ".kittify"
+    auth_dir.mkdir()
+    (auth_dir / "saas-auth.json").write_text(json.dumps({"token": "file-token"}))
+    with pytest.raises(SaasAuthError) as exc_info:
+        load_auth_context(repo_root=tmp_path)
+    assert '"saas_url" in .kittify/saas-auth.json' in str(exc_info.value)
 
 
 def test_load_auth_context_raises_when_file_has_empty_url(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
