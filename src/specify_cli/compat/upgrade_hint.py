@@ -115,6 +115,12 @@ _HINT_TABLE: dict[InstallMethod, tuple[str | None, str | None]] = {
     ),
 }
 
+_DEGRADED_PROFILE_NOTE = (
+    "The configured distribution profile could not be loaded. Fix its "
+    "spec_kitty.distribution_profile entry point before upgrading; no upgrade "
+    "command is shown because the package source is unknown."
+)
+
 # Eagerly validate all table entries at import time so misconfiguration is
 # caught before any runtime call.
 for _method, (_cmd, _note) in _HINT_TABLE.items():
@@ -162,9 +168,19 @@ def build_upgrade_hint(
         RemediationIntent,
         plan_remediation,
     )
-    from specify_cli.distribution import resolve_distribution_profile
+    from specify_cli.distribution import (
+        is_degraded_distribution_profile,
+        resolve_distribution_profile,
+    )
 
     profile = resolve_distribution_profile()
+    if is_degraded_distribution_profile(profile):
+        return UpgradeHint(
+            install_method=install_method,
+            command=None,
+            note=_DEGRADED_PROFILE_NOTE,
+        )
+
     package_name = profile.package_name if package is None else package
 
     runtime = detect_runtime()

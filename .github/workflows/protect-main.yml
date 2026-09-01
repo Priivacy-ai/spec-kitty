@@ -26,10 +26,12 @@ on:
 
 permissions:
   contents: read
+  # Needed to resolve a pushed commit's PR association (rebase-merge detection).
+  pull-requests: read
 
 jobs:
   check-merge-compliance:
-    runs-on: blacksmith-4vcpu-ubuntu-2404
+    runs-on: ubuntu-latest
     steps:
       - name: Check out repository
         uses: actions/checkout@v6
@@ -40,6 +42,8 @@ jobs:
         env:
           HEAD_COMMIT_MESSAGE: ${{ github.event.head_commit.message }}
           HEAD_COMMITTER_NAME: ${{ github.event.head_commit.committer.name }}
+          HEAD_SHA: ${{ github.event.head_commit.id }}
+          GH_TOKEN: ${{ github.token }}
         run: |
           # Skip check for repository initialization (first commit)
           if [[ "${{ github.event.before }}" == "0000000000000000000000000000000000000000" ]]; then
@@ -69,11 +73,29 @@ jobs:
             exit 0
           fi
 
-          # Check if this is a squash/rebase merge. GitHub appends the PR
-          # number as an end-of-subject suffix; issue references in prose do
+          # Check if this is a squash merge. GitHub appends the PR number as an
+          # end-of-subject suffix on squash merges; issue references in prose do
           # not count as PR merge evidence.
           if [[ "$COMMIT_SUBJECT" =~ \(#[0-9]+\)$ ]]; then
-            echo "✅ Commit is from a squash/rebase merge (PR reference suffix)"
+            echo "✅ Commit is from a squash merge (PR reference suffix)"
+            exit 0
+          fi
+
+          # Check if this is a rebase-and-merge (an intentional convention here).
+          # Rebase merge replays the PR's own commits verbatim -- no "(#PR)"
+          # suffix, and the committer is the original author -- so the commit is
+          # indistinguishable from a direct push by content alone. The reliable
+          # signal is the commit's PR association: a rebase-merged commit belongs
+          # to a pull request that was merged into main; a genuine direct push
+          # does not. MERGED_PR_FOR_HEAD may be pre-supplied (tests inject it);
+          # otherwise resolve it from the commits->pulls API.
+          MERGED_PR_FOR_HEAD="${MERGED_PR_FOR_HEAD:-}"
+          if [[ -z "$MERGED_PR_FOR_HEAD" && -n "${HEAD_SHA:-}" ]]; then
+            PULLS_JSON="$(gh api "repos/${{ github.repository }}/commits/${HEAD_SHA}/pulls" 2>/dev/null || echo '[]')"
+            MERGED_PR_FOR_HEAD="$(echo "$PULLS_JSON" | jq -r 'first(.[] | select(.merged_at != null and .base.ref == "main") | .number) // empty')"
+          fi
+          if [[ -n "$MERGED_PR_FOR_HEAD" ]]; then
+            echo "✅ Commit belongs to merged PR #${MERGED_PR_FOR_HEAD} into main (rebase merge)"
             exit 0
           fi
 

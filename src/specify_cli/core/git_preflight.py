@@ -223,6 +223,11 @@ def run_git_preflight(
                 )
             return result
 
+    # Transport view is intentional here, not an oversight: only the exit
+    # code is consulted (never the URL value) to warn that "fetch/push
+    # steps may be skipped" — a push/fetch-facing question, not identity.
+    # #111's raw-config criterion applies to identity/slug sites only;
+    # triaged and left as-is in spec-kitty#113.
     origin_check = _run_git(root, ["remote", "get-url", "origin"])
     if origin_check.returncode != 0:
         result.warnings.append(

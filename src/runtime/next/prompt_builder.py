@@ -20,15 +20,15 @@ from typing import TYPE_CHECKING
 if TYPE_CHECKING:
     from runtime.next._internal_runtime.workflow_schema import WorkflowSequence
 
-from charter.context import build_charter_context
-from charter.pack_context import CharterPackConfigError
-from charter.scope import CharterScopeConflict, CharterScopeNotFound
-from charter.scope_router import build_with_scope
-from charter.mission_type_profiles import (
+from charter.activation.context import build_charter_context
+from charter.activation.pack_context import CharterPackConfigError
+from charter.activation.scope import CharterScopeConflict, CharterScopeNotFound
+from charter.activation.scope_router import build_with_scope
+from charter.activation.mission_type_profiles import (
     UnknownMissionTypeError,
     resolve_mission_type_context,
 )
-from charter.resolver import GovernanceResolutionError, resolve_project_governance
+from charter.activation.resolver import GovernanceResolutionError, resolve_project_governance
 from runtime.next._tmp_namespace import prompt_tmp_dir
 from specify_cli.core.paths import get_feature_target_branch
 from specify_cli.runtime.resolver import resolve_command
@@ -325,7 +325,7 @@ def _mission_type_governance_lines(repo_root: Path, feature_dir: Path) -> list[s
 def _mission_type_governance_payload(repo_root: Path, feature_dir: Path) -> str | None:
     """Resolve mission-type-scoped governance for a WP prompt (WP08, FR-011).
 
-    The mission-type resolver (``charter.mission_type_profiles.resolve_mission_type_context``)
+    The mission-type resolver (``charter.activation.mission_type_profiles.resolve_mission_type_context``)
     runs FIRST so the documentation / research / plan default selections
     fill any gaps the project + org layers leave empty.  The hard-fail
     contract (:class:`UnknownMissionTypeError`) is intentionally NOT
@@ -368,13 +368,13 @@ def _governance_context(
     Falls back to compact governance rendering if charter artifacts are missing.
 
     When *feature_dir* is supplied, charter resolution is monorepo-aware:
-    :func:`charter.scope_router.build_with_scope` resolves the nearest
+    :func:`charter.activation.scope_router.build_with_scope` resolves the nearest
     enclosing charter for *feature_dir* before building context.  For
     single-project repos (no ``charter_scopes:`` configured) this is a
     pass-through — the resolved scope root equals *repo_root* and the
     output is byte-identical to the previous behaviour (NFR-001 binding).
     When *feature_dir* is ``None``, the call falls back to
-    :func:`charter.context.build_charter_context` with *repo_root* directly,
+    :func:`charter.activation.context.build_charter_context` with *repo_root* directly,
     preserving backward compat with callers that do not yet supply the arg.
 
     When *profile* is supplied (typically the WP frontmatter
@@ -384,7 +384,7 @@ def _governance_context(
     preserves the prior byte-identical output (NFR-005 contract from WP03).
 
     HIGH-1 (post-merge remediation cycle 1): routes through
-    :func:`charter.scope_router.build_with_scope` when *feature_dir* is
+    :func:`charter.activation.scope_router.build_with_scope` when *feature_dir* is
     provided so monorepo operators get the nearest-enclosing charter, not
     always the root-project charter.
     """

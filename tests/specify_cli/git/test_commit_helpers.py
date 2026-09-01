@@ -100,6 +100,114 @@ def test_safe_commit_happy_path(lane_repo: Path) -> None:
     assert "WP01: add alpha" in log
 
 
+def _install_warn_mode_guard_hook(repo: Path, warning_text: str) -> None:
+    """Install a pre-commit hook that mimics the spec-kitty commit guard in
+    warn mode (``commit_guard_hook.py``): it prints a ``[spec-kitty guard]
+    WARNING: ...`` line to stderr but exits 0 so the commit still succeeds.
+    """
+    hooks_dir = repo / ".git" / "hooks"
+    hooks_dir.mkdir(parents=True, exist_ok=True)
+    hook_path = hooks_dir / "pre-commit"
+    hook_path.write_text(
+        f"#!/bin/sh\necho '[spec-kitty guard] WARNING: {warning_text}' 1>&2\nexit 0\n",
+        encoding="utf-8",
+    )
+    hook_path.chmod(0o755)
+
+
+def test_safe_commit_surfaces_warn_mode_guard_warning_on_success(
+    lane_repo: Path,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """Issue #3580: a warn-mode commit-guard warning must reach the operator
+    even though the commit succeeds.
+
+    ``git commit`` is invoked with ``capture_output=True``; before the fix,
+    the captured stdout/stderr were only inspected on the *failure* path, so
+    a pre-commit hook's warn-mode warning (printed during a successful
+    commit) was silently discarded -- the operator only saw a bare success
+    message. This asserts the warning text reaches the operator-visible
+    logging channel (`specify_cli.git.commit_helpers`, WARNING level) on a
+    successful commit, and that warn-mode semantics are preserved: the
+    commit still succeeds.
+    """
+    warning_text = "WP03 touched files outside owned_files: docs/notes.md"
+    _install_warn_mode_guard_hook(lane_repo, warning_text)
+
+    target = lane_repo / "alpha.txt"
+    target.write_text("alpha v1\n", encoding="utf-8")
+
+    with caplog.at_level("WARNING", logger="specify_cli.git.commit_helpers"):
+        result = safe_commit(
+            repo_root=lane_repo,
+            worktree_root=lane_repo,
+            destination_ref="kitty/mission-test-01ABCDEF",
+            message="WP01: add alpha",
+            paths=(target,),
+        )
+
+    # Warn-mode still commits -- the defect is the swallowed signal, not the
+    # commit outcome.
+    assert isinstance(result, CommitResult)
+    assert len(result.sha) == 40
+
+    warning_records = [r for r in caplog.records if r.levelname == "WARNING"]
+    surfaced = "\n".join(record.getMessage() for record in warning_records)
+    assert "[spec-kitty guard] WARNING:" in surfaced
+    assert warning_text in surfaced
+    # Over-surfacing regression guard: exactly one WARNING for the one guard
+    # hook line -- git's own routine commit summary (stdout: "[branch sha]
+    # message", "N files changed", ...) must NOT ride along on the WARNING
+    # channel merged with the guard's stderr content.
+    assert len(warning_records) == 1, (
+        f"expected exactly one WARNING record for the guard's stderr output, "
+        f"got {len(warning_records)}: {[r.getMessage() for r in warning_records]!r}"
+    )
+    assert "file changed" not in surfaced, (
+        "git's routine stdout commit summary leaked into the WARNING channel"
+    )
+
+
+def test_safe_commit_does_not_warn_on_routine_successful_commit(
+    lane_repo: Path,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """Regression for the #3580 fix over-surfacing (review BLOCKER): a plain
+    successful commit with NO pre-commit hook installed must never emit a
+    WARNING on the ``specify_cli.git.commit_helpers`` logger.
+
+    ``git commit`` always writes a routine summary to stdout on success
+    (``[branch sha] message``, ``N files changed``, ``create mode ...``).
+    The first #3580 fix merged stdout+stderr into one ``combined`` string and
+    logged it at WARNING whenever it was non-empty on a successful commit --
+    which fired on *every* commit (there is no hook here, so the only output
+    is git's own routine stdout summary), defeating the purpose of surfacing
+    the genuine warn-mode guard warning. This test has no hook installed, so
+    it is red against the pre-fix code (which warns on git's routine stdout
+    summary) and green once WARNING is gated on non-empty stderr instead.
+    """
+    target = lane_repo / "alpha.txt"
+    target.write_text("alpha v1\n", encoding="utf-8")
+
+    with caplog.at_level("DEBUG", logger="specify_cli.git.commit_helpers"):
+        result = safe_commit(
+            repo_root=lane_repo,
+            worktree_root=lane_repo,
+            destination_ref="kitty/mission-test-01ABCDEF",
+            message="WP01: add alpha",
+            paths=(target,),
+        )
+
+    assert isinstance(result, CommitResult)
+    assert len(result.sha) == 40
+
+    warning_records = [r for r in caplog.records if r.levelname == "WARNING"]
+    assert warning_records == [], (
+        "a routine successful commit with no pre-commit hook must not emit "
+        f"any WARNING records; got {[r.getMessage() for r in warning_records]!r}"
+    )
+
+
 def test_safe_commit_accepts_realpath_under_symlinked_worktree(lane_repo: Path, tmp_path: Path) -> None:
     """Absolute paths resolved via the real path still normalize under a symlinked worktree."""
     repo_alias = tmp_path / "repo-alias"
@@ -172,11 +280,16 @@ def test_safe_commit_protected_branch(tmp_path: Path) -> None:
     assert err.worktree_root == repo
     assert err.commit_message == "WP01: add alpha"
     message = str(err)
-    # safe_commit has no MissionArtifactKind to branch on, so it states the
-    # decision rule (tasks/ exists vs not) instead of a single command --
-    # both remedies must be copy-pasteable (#255 fix-round-2).
-    assert "spec-kitty agent mission finalize-tasks --mission <mission_slug> --target-branch <feature-branch>" in message
-    assert "spec-kitty agent mission create <mission_slug> --start-branch <feature-branch>" in message
+    # planning#261: safe_commit is mission-agnostic (no mission_slug in
+    # scope), so the message states only what it knows -- the destination is
+    # protected -- and leaves the mission-lifecycle remedy (finalize-tasks /
+    # mission create) to the mission-aware caller (commit_router.py).
+    assert "protected branch" in message
+    assert "'main'" in message
+    assert "SPEC_KITTY_ALLOW_PROTECTED_BRANCH_COMMITS=1" in message
+    assert "pass a capability" not in message
+    assert "feature branch" in message
+    assert "mission" not in message
     assert "spec-kitty mission create --start-branch" not in message
 
 

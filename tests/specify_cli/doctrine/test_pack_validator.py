@@ -406,7 +406,7 @@ class TestIntentAwareCollision:
     """WP06 precedence table — `enhances` / `overrides` advisory + error logic.
 
     Tests assume the live shipped doctrine is on disk (the worktree's
-    ``src/doctrine/.../built-in`` tree). The shared fixture
+    ``src/charter/offering/.../built-in`` tree). The shared fixture
     :data:`_BUILT_IN_TACTIC_ID` points at a known built-in. When the shipped
     root cannot be resolved the intent-aware pass degrades to a no-op and the
     tests skip themselves explicitly.
@@ -414,7 +414,7 @@ class TestIntentAwareCollision:
 
     def _has_built_in_doctrine(self) -> bool:
         try:
-            from charter.catalog import resolve_doctrine_root
+            from charter.activation.catalog import resolve_doctrine_root
         except ModuleNotFoundError:
             return False
         try:
@@ -894,7 +894,7 @@ class TestProfileSkippedDiagnostics:
         directly rather than hand-rolling a second skip-detection heuristic.
 
         Patches the source location the helper's lazy, function-local import
-        binds to (``doctrine.agent_profiles.repository.AgentProfileRepository``
+        binds to (``charter.offering.agent_profiles.repository.AgentProfileRepository``
         — matching this file's existing precedent of lazy in-function
         imports, and what ``scripts/check_patch_targets.py`` expects). This
         assertion is non-vacuous: it fails if the call is removed or replaced
@@ -905,7 +905,7 @@ class TestProfileSkippedDiagnostics:
         agent_profiles_dir.mkdir()
 
         with patch(
-            "doctrine.agent_profiles.repository.AgentProfileRepository.skipped_profiles"
+            "charter.offering.agent_profiles.repository.AgentProfileRepository.skipped_profiles"
         ) as mock_skipped_profiles:
             mock_skipped_profiles.return_value = []
             issues = _check_profile_skipped_diagnostics(tmp_path, set())
@@ -1020,17 +1020,17 @@ class TestProfileSkippedDiagnostics:
         same seam.
 
         Patches ``built_in_dir`` at the binding the repository's own
-        constructor calls (``doctrine.agent_profiles.repository.built_in_dir``
+        constructor calls (``charter.offering.agent_profiles.repository.built_in_dir``
         — the module ``AgentProfileRepository._default_built_in_dir``
         actually imported it into), so this fires regardless of which
         construction path calls into the repository (PR-M-002 routes that
         construction through ``DoctrineService``, which does not change
         this seam).
         """
-        from doctrine.pack_paths import PackRootNotFound
+        from charter.offering.pack_paths import PackRootNotFound
 
         with patch(
-            "doctrine.agent_profiles.repository.built_in_dir",
+            "charter.offering.agent_profiles.repository.built_in_dir",
             side_effect=PackRootNotFound("built-in"),
         ):
             issues = _check_profile_skipped_diagnostics(tmp_path, set())
@@ -1048,10 +1048,10 @@ class TestProfileSkippedDiagnostics:
         points), which is the concrete failure the finding describes — a
         raw traceback instead of the promised ``{"ok": ...}`` JSON.
         """
-        from doctrine.pack_paths import PackRootNotFound
+        from charter.offering.pack_paths import PackRootNotFound
 
         with patch(
-            "doctrine.agent_profiles.repository.built_in_dir",
+            "charter.offering.agent_profiles.repository.built_in_dir",
             side_effect=PackRootNotFound("built-in"),
         ):
             result = validate_pack(tmp_path)
@@ -1065,7 +1065,7 @@ class TestDrgRootGraphMissing:
     """FR-004: ``pack validate`` gains an additive check that fires when a
     pack's DRG content lives only under ``drg/*.graph.yaml`` fragments with
     no pack-root ``*.graph.yaml`` — the shape the runtime
-    (``src/charter/_drg_helpers.py:load_validated_graph``) never reads
+    (``src/charter/activation/_drg_helpers.py:load_validated_graph``) never reads
     (see sibling mission #3384). Keyed off pack *content*, via the same
     exact ``*.graph.yaml`` glob ``_validate_drg`` already uses, so it is
     consistent by construction (AC-5).

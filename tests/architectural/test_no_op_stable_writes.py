@@ -120,7 +120,7 @@ def _synthesize_unchanged_pack(repo_root: Path, run_id: str) -> None:
     Every governed run carries a fresh ``run_id`` (as every real invocation
     does) but identical semantic inputs — exactly the no-op case #1912 guards.
     """
-    from charter.synthesizer import (
+    from charter.activation.synthesizer import (
         FixtureAdapter,
         SynthesisRequest,
         SynthesisTarget,

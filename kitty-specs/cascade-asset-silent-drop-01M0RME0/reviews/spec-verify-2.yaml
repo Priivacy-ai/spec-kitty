@@ -1,0 +1,25 @@
+schema: review-verify/v1
+complete: true
+phase: spec
+results:
+  - id: SPEC-FRESH-001
+    status: resolved
+    reason: >-
+      Added Acceptance Scenario 4 to User Story 1 (spec.md lines 98-104) exercising the exact
+      pure-scope-narrowing case (all referenced nodes activatable-kind, zero kind-filtered,
+      excluded only by --cascade <scope>) and added the matching negative clause to the FAILS-if
+      list, giving an implementer a concrete red-first test obligation for FR-004's narrowed
+      trigger condition, per the remediation.
+  - id: SPEC-FRESH-002
+    status: resolved
+    reason: >-
+      The Test-run scope note (spec.md lines 292-298) was retitled "SC-001-004, SC-006" and its
+      body now says "verify these five test-verified Success Criteria" with SC-005 explicitly
+      called out as excluded (PR-body check, not a test), which broadens the scoped-test-run
+      guidance to cover SC-002/SC-003 exactly as the remediation's first option requested.
+  - id: SPEC-FRESH-003
+    status: resolved
+    reason: >-
+      C-006's citation now reads src/charter/cascade.py:180, and live-code verification
+      (cat -n src/charter/cascade.py) confirms line 180 is exactly `return self.is_all or kind
+      in self.kinds` (line 178 is the def signature, 179 the docstring), matching the quoted code.

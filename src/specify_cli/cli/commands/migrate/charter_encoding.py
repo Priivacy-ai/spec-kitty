@@ -3,7 +3,7 @@
 ``spec-kitty migrate charter-encoding`` walks every existing mission's charter
 content (``kitty-specs/*/charter/*.{yaml,md,txt}`` and
 ``.kittify/charter/*.{yaml,md,txt}``), detects the encoding of each file via
-the WP06 chokepoint (``charter._io.load_charter_file``), and either:
+the WP06 chokepoint (``charter.activation._io.load_charter_file``), and either:
 
 - Skips the file (already pure UTF-8; idempotency pre-check passes).
 - Normalizes the file to UTF-8 in-place with a provenance record.
@@ -145,7 +145,7 @@ def _scan_file(path: Path, *, dry_run: bool) -> _FileRecord:
         return _FileRecord(path=path, action="already-utf8")
 
     # Delegate to the WP06 chokepoint for detection + provenance.
-    from charter._io import CharterEncodingError, load_charter_file  # noqa: PLC0415
+    from charter.activation._io import CharterEncodingError, load_charter_file  # noqa: PLC0415
 
     try:
         content = load_charter_file(path, unsafe=False)
@@ -228,7 +228,7 @@ def run_charter_encoding_migration(
             continue
 
         # File needs attention — run through the chokepoint.
-        from charter._io import CharterEncodingError, load_charter_file  # noqa: PLC0415
+        from charter.activation._io import CharterEncodingError, load_charter_file  # noqa: PLC0415
 
         try:
             content = load_charter_file(path, unsafe=False)

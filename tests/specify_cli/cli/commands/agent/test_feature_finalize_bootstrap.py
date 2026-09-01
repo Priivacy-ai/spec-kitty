@@ -132,7 +132,6 @@ def _common_patches(tmp_path: Path, mission_slug: str = "060-test-feature") -> d
             return_value=_fake_commit_result
         ),
         f"{MODULE}.run_command": MagicMock(return_value=(0, "abc1234", "")),
-        "specify_cli.status.fire_dossier_sync": MagicMock(),
         f"{MODULE}.validate_ownership": MagicMock(
             return_value=MagicMock(passed=True, warnings=[], errors=[]),
         ),

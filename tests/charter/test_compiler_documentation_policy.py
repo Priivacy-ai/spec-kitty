@@ -7,8 +7,8 @@ generated ``charter.md`` Project Directives section, mirroring ``risk_boundaries
 (FR-001), while an absent answer emits no directive line (FR-002). Closes #2153.
 """
 
-from charter.compiler import compile_charter
-from charter.interview import apply_answer_overrides, default_interview
+from charter.activation.compiler import compile_charter
+from charter.activation.interview import apply_answer_overrides, default_interview
 import pytest
 
 pytestmark = pytest.mark.fast

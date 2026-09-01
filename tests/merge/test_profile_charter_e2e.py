@@ -11,17 +11,17 @@ from typer.testing import CliRunner
 
 import pytest
 
-from doctrine.service import DoctrineService
+from charter.offering.service import DoctrineService
 from specify_cli.cli.commands.charter import app
-from charter.catalog import DoctrineCatalog
-from charter.compiler import compile_charter, write_compiled_charter
+from charter.activation.catalog import DoctrineCatalog
+from charter.activation.compiler import compile_charter, write_compiled_charter
 
-from charter.interview import (
+from charter.activation.interview import (
     LocalSupportDeclaration,
     apply_answer_overrides,
     default_interview,
 )
-from charter.resolver import resolve_governance_for_profile
+from charter.activation.resolver import resolve_governance_for_profile
 
 runner = CliRunner()
 pytestmark = [pytest.mark.non_sandbox, pytest.mark.integration, pytest.mark.git_repo]
@@ -207,8 +207,8 @@ def test_profile_aware_charter_compilation_resolves_transitive_references(
 
     # Load the fixture graph explicitly so resolve_governance_for_profile
     # does not attempt to read the installed doctrine package.
-    from doctrine.drg.loader import load_graph, merge_layers
-    from doctrine.drg.validator import assert_valid
+    from charter.offering.drg.loader import load_graph, merge_layers
+    from charter.offering.drg.validator import assert_valid
 
     drg = merge_layers(load_graph(built_in_root / "graph.yaml"), None)
     assert_valid(drg)
@@ -226,8 +226,8 @@ def test_profile_aware_charter_compilation_resolves_transitive_references(
     # the binding there.
     #
     # The compiler resolves the *built-in DRG graph* through a SECOND,
-    # deliberately-separate seam: ``doctrine.drg.loader.load_built_in_graph``
-    # (via ``built_in_graph_source`` -> ``files("doctrine")``). That seam does
+    # deliberately-separate seam: ``charter.offering.drg.loader.load_built_in_graph``
+    # (via ``built_in_graph_source`` -> ``files("charter.offering")``). That seam does
     # NOT consult ``resolve_doctrine_root`` -- doctrine sits below charter in
     # the dependency graph (C-004) and must not import upward. Without patching
     # it, the compiler's transitive walk loads the *installed* package graph,
@@ -235,10 +235,10 @@ def test_profile_aware_charter_compilation_resolves_transitive_references(
     # recorded as an unresolved reference. Patch it to the same synthetic graph
     # the resolver used so both seams agree.
     with patch(
-        "charter.compiler.resolve_doctrine_root",
+        "charter.activation.compiler.resolve_doctrine_root",
         return_value=built_in_root,
     ), patch(
-        "doctrine.drg.loader.load_built_in_graph",
+        "charter.offering.drg.loader.load_built_in_graph",
         return_value=drg,
     ):
         compiled = compile_charter(

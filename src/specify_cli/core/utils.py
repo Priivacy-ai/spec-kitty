@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import contextlib
 import errno
 import os
 import tempfile
@@ -9,7 +10,7 @@ import shutil
 import sys
 from collections.abc import Sequence
 from pathlib import Path
-from stat import S_ISDIR, S_ISREG
+from stat import S_IMODE, S_ISDIR, S_ISREG
 
 
 #: Errnos that mean **absent** (or "not the kind of thing that could ever be a
@@ -21,6 +22,7 @@ from stat import S_ISDIR, S_ISREG
 #: ``stat()`` must not also change how genuinely absent-like failures are
 #: classified — only make ``EACCES`` observable instead of silently swallowed.
 _ABSENT_ERRNOS = frozenset({errno.ENOENT, errno.ENOTDIR, errno.EBADF, errno.ELOOP})
+_WRITE_BITS = 0o222
 
 
 def safe_is_dir(path: Path) -> bool:
@@ -156,12 +158,22 @@ def write_text_within_directory(path: Path, content: str, *, root: Path, encodin
     safe_path = ensure_within_directory(path, root)
     safe_path.parent.mkdir(parents=True, exist_ok=True)
 
+    existing_mode: int | None = None
+    if safe_is_file(safe_path):
+        existing_mode = S_IMODE(safe_path.stat().st_mode)
+        safe_path.chmod(existing_mode | _WRITE_BITS)
+
     fd, temp_path = tempfile.mkstemp(dir=safe_path.parent, prefix=f".{safe_path.name}.", suffix=".tmp")
     try:
         with os.fdopen(fd, "w", encoding=encoding, newline="") as handle:
             handle.write(content)
         Path(temp_path).replace(safe_path)
+        if existing_mode is not None:
+            safe_path.chmod(existing_mode)
     except Exception:
+        if existing_mode is not None:
+            with contextlib.suppress(OSError):
+                safe_path.chmod(existing_mode)
         Path(temp_path).unlink(missing_ok=True)
         raise
     return safe_path

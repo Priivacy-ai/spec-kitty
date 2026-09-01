@@ -696,7 +696,7 @@ def test_revert_committed_verdict_write_targets_coord_ref_under_coord_topology(
         mission_slug=ctx.slug,
     )
     signal = VerdictDurabilitySignal(
-        durably_persisted=True,
+        outcome=created.persistence,
         artifact_path=created.artifact_path,
         cycle_number=created.artifact.cycle_number,
     )

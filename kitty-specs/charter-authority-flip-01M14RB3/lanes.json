@@ -1,0 +1,115 @@
+{
+  "version": 1,
+  "mission_slug": "charter-authority-flip-01M14RB3",
+  "mission_id": "01M14RB3T2MTSH18M2JMW6WKBH",
+  "mission_branch": "kitty/mission-charter-authority-flip-01M14RB3",
+  "target_branch": "feat/charter-authority-flip",
+  "lanes": [
+    {
+      "lane_id": "lane-a",
+      "wp_ids": [
+        "WP01"
+      ],
+      "write_scope": [
+        ".kittify/glossaries/spec_kitty_core.yaml",
+        "docs/context/configuration-project-structure.md",
+        "docs/context/doctrine.md",
+        "docs/context/governance.md",
+        "docs/context/orchestration.md",
+        "packs/built-in/glossary_packs/spec-kitty-core.glossary-pack.yaml"
+      ],
+      "predicted_surfaces": [],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-c",
+      "wp_ids": [
+        "WP03"
+      ],
+      "write_scope": [
+        ".kittify/charter/charter.yaml",
+        "src/charter/interview.py",
+        "src/charter/org_pack_discovery.py",
+        "src/charter/resolver.py",
+        "src/charter/schemas.py",
+        "src/charter/sync.py",
+        "src/specify_cli/cli/commands/charter/_status_collectors.py"
+      ],
+      "predicted_surfaces": [],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-b",
+      "wp_ids": [
+        "WP02"
+      ],
+      "write_scope": [
+        "docs/adr/3.x/2026-07-21-1-in-tension-with-drg-edge.md",
+        "docs/adr/3.x/2026-08-22-2-retire-doctrine-term-charter-is-the-canonical-vocabulary.md",
+        "docs/api/agent_profiles/architect-alphonso.md",
+        "docs/api/agent_profiles/curator-carla.md",
+        "docs/api/agent_profiles/debugger-debbie.md",
+        "docs/api/agent_profiles/designer-dagmar.md",
+        "docs/api/agent_profiles/doctrine-daphne.md",
+        "docs/api/agent_profiles/frontend-freddy.md",
+        "docs/api/agent_profiles/generic-agent.md",
+        "docs/api/agent_profiles/human-in-charge.md",
+        "docs/api/agent_profiles/implementer-ivan.md",
+        "docs/api/agent_profiles/java-jenny.md",
+        "docs/api/agent_profiles/node-norris.md",
+        "docs/api/agent_profiles/paula-patterns.md",
+        "docs/api/agent_profiles/planner-priti.md",
+        "docs/api/agent_profiles/python-pedro.md",
+        "docs/api/agent_profiles/randy-reducer.md",
+        "docs/api/agent_profiles/researcher-robbie.md",
+        "docs/api/agent_profiles/retrospective-facilitator.md",
+        "docs/api/agent_profiles/reviewer-renata.md",
+        "docs/architecture/doctrine-kinds.md",
+        "docs/development/3-2-docs-retrieval-index.yaml",
+        "docs/development/3-2-page-inventory.yaml",
+        "docs/development/how-to/create-a-doctrine-artifact.md",
+        "docs/plans/doctrine/org-doctrine-layer-architecture-review.md",
+        "docs/plans/engineering-notes/drg-completeness-2843-research.md",
+        "docs/plans/initiatives/2026-04-mission-nomenclature-reconciliation/README.md",
+        "docs/plans/refactor/slice-f-mission-debrief.md",
+        "docs/reports/test-sanitation/assertive-test-suite-sanitation-01KZME3P/dispositions.yaml",
+        "docs/reports/test-sanitation/assertive-test-suite-sanitation-01KZME3P/dispositions/WP13.yaml",
+        "src/doctrine/README.md",
+        "src/doctrine/directives/README.md",
+        "src/doctrine/paradigms/README.md",
+        "src/doctrine/schemas/README.md",
+        "src/doctrine/tactics/README.md",
+        "src/doctrine/templates/README.md",
+        "tests/architectural/test_no_dead_doctrine_paths.py",
+        "tests/glossary/test_canonical_promotion.py"
+      ],
+      "predicted_surfaces": [],
+      "depends_on_lanes": [
+        "lane-a"
+      ],
+      "parallel_group": 1
+    },
+    {
+      "lane_id": "lane-d",
+      "wp_ids": [
+        "WP04"
+      ],
+      "write_scope": [
+        "tests/architectural/test_no_legacy_terminology.py"
+      ],
+      "predicted_surfaces": [],
+      "depends_on_lanes": [
+        "lane-a",
+        "lane-b",
+        "lane-c"
+      ],
+      "parallel_group": 2
+    }
+  ],
+  "computed_at": "2026-08-28T18:29:42.324596+00:00",
+  "computed_from": "dependency_graph+ownership",
+  "planning_artifact_wps": [],
+  "planning_commit_sha": "126fc0cf494a956d4103ad03698d0507641607d3"
+}

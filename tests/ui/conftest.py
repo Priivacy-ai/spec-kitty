@@ -12,6 +12,8 @@ suite with additional dashboard e2e coverage.
 from __future__ import annotations
 
 import os
+import re
+import subprocess
 import sys
 from kernel.clock import now_utc_iso
 from pathlib import Path
@@ -27,6 +29,7 @@ from specify_cli.status import (
     append_event,
     emit_inner_state_changed,
 )
+
 
 # ---------------------------------------------------------------------------
 # Playwright browser cache vs. per-worker HOME isolation (WP04, tests/conftest.py)
@@ -78,18 +81,57 @@ def _default_playwright_browsers_path() -> Path:
     return home / ".cache" / "ms-playwright"
 
 
+def _expected_chromium_headless_shell_dir(browsers_path: Path) -> Path | None:
+    """The exact build dir this installed Playwright launches headless Chromium from.
+
+    ``chromium.launch(headless=True)`` with no ``channel`` override (this suite's
+    default, via pytest-playwright) resolves to the ``chromium-headless-shell``
+    build, not the plain ``chromium`` one — confirmed by reproducing the launch
+    error directly (issue #84). Rather than reimplementing Playwright's own
+    revision/host-platform resolution, ask its CLI: ``playwright install --dry-run
+    chromium`` only reads local registry metadata and prints install locations, no
+    download. Returns ``None`` on any failure to read it, so the caller can fall
+    back to the previous glob-based check instead of hard-failing collection.
+    """
+    env = {**os.environ, "PLAYWRIGHT_BROWSERS_PATH": str(browsers_path)}
+    try:
+        result = subprocess.run(
+            [sys.executable, "-m", "playwright", "install", "--dry-run", "chromium"],
+            capture_output=True,
+            text=True,
+            timeout=15,
+            env=env,
+        )
+    except (OSError, subprocess.TimeoutExpired):
+        return None
+    if result.returncode != 0:
+        return None
+    match = re.search(
+        r"chromium-headless-shell[^\n]*\n\s*Install location:\s*(\S+)",
+        result.stdout,
+    )
+    return Path(match.group(1)) if match else None
+
+
 def _chromium_is_installed() -> bool:
-    """True if a Playwright Chromium build is present on disk.
+    """True if the exact Playwright Chromium build this version launches is present.
 
     A bare full-suite ``pytest tests/`` from a dev who ran ``uv sync`` but not
     ``playwright install chromium`` would otherwise HARD-ERROR on the ``page``
     fixture's browser launch. We skip these e2e tests gracefully instead. CI is
     unaffected — the dedicated ``ui-e2e.yml`` job always installs Chromium first.
+
+    Checks the *exact* lockfile-pinned build directory (see
+    ``_expected_chromium_headless_shell_dir``) rather than accepting any
+    ``chromium-*`` directory: a stale cache from an older Playwright pin used to
+    satisfy a bare glob and then HARD-ERROR mid-suite at browser launch instead of
+    skipping (issue #84).
     """
-    browsers_path = os.environ.get("PLAYWRIGHT_BROWSERS_PATH") or str(
-        _default_playwright_browsers_path()
-    )
-    return any(Path(browsers_path).glob("chromium-*"))
+    browsers_path = Path(os.environ.get("PLAYWRIGHT_BROWSERS_PATH") or str(_default_playwright_browsers_path()))
+    expected_dir = _expected_chromium_headless_shell_dir(browsers_path)
+    if expected_dir is not None:
+        return expected_dir.is_dir()
+    return any(browsers_path.glob("chromium-*"))
 
 
 def pytest_collection_modifyitems(config: pytest.Config, items: list[pytest.Item]) -> None:
@@ -99,8 +141,7 @@ def pytest_collection_modifyitems(config: pytest.Config, items: list[pytest.Item
         return
     ui_dir = Path(__file__).parent
     skip = pytest.mark.skip(
-        reason="Playwright Chromium not installed — run `playwright install chromium` "
-        "(or exclude with `-m 'not e2e'`). CI's ui-e2e job installs it."
+        reason="Playwright Chromium not installed — run `playwright install chromium` (or exclude with `-m 'not e2e'`). CI's ui-e2e job installs it."
     )
     for item in items:
         try:
@@ -108,6 +149,7 @@ def pytest_collection_modifyitems(config: pytest.Config, items: list[pytest.Item
         except ValueError:
             continue  # not a tests/ui/ item — leave it alone
         item.add_marker(skip)
+
 
 # ---------------------------------------------------------------------------
 # Synthetic WP identity — the exact values the e2e test asserts against.
@@ -123,9 +165,7 @@ WP_AGENT_MODEL = "claude-opus-4-6"
 WP_AGENT_PROFILE = "implementer-ivan"
 WP_AGENT_ROLE = "implementer"
 WP_PROMPT_BODY = (
-    "This is the synthetic prompt body used by the Playwright "
-    "kanban-to-modal regression test (mission "
-    "playwright-ui-e2e-bootstrap-01KWX72W, issue #1008)."
+    "This is the synthetic prompt body used by the Playwright kanban-to-modal regression test (mission playwright-ui-e2e-bootstrap-01KWX72W, issue #1008)."
 )
 
 
@@ -182,7 +222,7 @@ role: {WP_AGENT_ROLE}
     )
 
 
-def _seed_event_log(feature_dir: Path) -> None:
+def _seed_event_log(feature_dir: Path, repo_root: Path) -> None:
     """Seed canonical lane and resolved-agent events for the synthetic WP.
 
     `dashboard/scanner.py::_process_wp_file` resolves a WP's lane either via
@@ -216,22 +256,24 @@ def _seed_event_log(feature_dir: Path) -> None:
         ),
         actor=WP_AGENT_TOOL,
         mission_slug=MISSION_SLUG,
+        repo_root=repo_root,
     )
 
 
 @pytest.fixture
-def synthetic_project_root(tmp_path: Path) -> Path:
+def synthetic_project_root(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
     """A temp project root with one synthetic mission/WP the scanner can read.
 
     Hermetic: no real `~/.spec-kitty`, no network, no git repository — just
     the `kitty-specs/<mission>/tasks/WP01.md` + `status.events.jsonl` layout
     `dashboard/scanner.py` needs to list the mission and populate its kanban.
     """
+    monkeypatch.setenv("GIT_CEILING_DIRECTORIES", str(tmp_path))
     feature_dir = tmp_path / "kitty-specs" / MISSION_SLUG
     tasks_dir = feature_dir / "tasks"
     tasks_dir.mkdir(parents=True)
     _write_wp_frontmatter(tasks_dir)
-    _seed_event_log(feature_dir)
+    _seed_event_log(feature_dir, tmp_path)
     return tmp_path
 
 
@@ -262,9 +304,7 @@ def dashboard(synthetic_project_root: Path) -> dict[str, str]:
     (`server.py:150`, `daemon=True`), so it dies with the pytest process
     rather than needing an early stop.
     """
-    actual_port, _pid = start_dashboard(
-        synthetic_project_root, port=0, background_process=False
-    )
+    actual_port, _pid = start_dashboard(synthetic_project_root, port=0, background_process=False)
     return {
         "base_url": f"http://127.0.0.1:{actual_port}",
         "agent": WP_AGENT_TOOL,

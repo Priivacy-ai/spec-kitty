@@ -143,7 +143,7 @@ def test_walker_ignores_non_violating_imports(tmp_path: Path) -> None:
         "from __future__ import annotations\n"
         "\n"
         "import specify_client\n"
-        "from doctrine.artifact_kinds import ArtifactKind\n"
+        "from charter.offering.artifact_kinds import ArtifactKind\n"
         "from . import sibling\n"
         "\n"
         "# import specify_cli  <- a comment, not an import\n"

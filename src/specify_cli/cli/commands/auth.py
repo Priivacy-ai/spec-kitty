@@ -21,7 +21,8 @@ from __future__ import annotations
 import asyncio
 
 import typer
-from specify_cli.cli.console import console
+from rich.markup import escape
+from specify_cli.cli.console import console, sanitize_terminal_text
 
 app = typer.Typer(name="auth", help="Authenticate with spec-kitty SaaS.")
 
@@ -130,7 +131,8 @@ def doctor(
             server=server,
         )
     except Exception as exc:  # noqa: BLE001 - doctor converts unexpected failures to exit code 2
-        console.print(f"[red]Internal error during doctor: {exc}[/red]")
+        message = escape(sanitize_terminal_text(str(exc)))
+        console.print(f"[red]Internal error during doctor: {message}[/red]")
         raise typer.Exit(2) from exc
     raise typer.Exit(exit_code)
 
