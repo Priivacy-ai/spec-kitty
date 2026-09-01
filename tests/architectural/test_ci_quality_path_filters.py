@@ -1,20 +1,10 @@
 """Architectural guards for CI path-filter ownership.
 
-Retired (planning#57): the ~24 LIVE checks formerly in this module (path-filter
-membership, job run-script content, marker-route shape, security-scan
-pipefail, result-gate absence, etc.) asserted these invariants against the
-real ``.github/workflows/ci-quality.yml`` / ``doctrine-charter-tests.yml`` —
-the leftover pre-programme GitHub Actions YAML deleted per PROGRAM.md §2.
-With no workflow YAML left to parse, that half (and its now-unused
-``_load_workflow``/``_path_filters``/``_job_run_script``/``_job``/
-``_glob_matches``/``_shell_array`` helpers and ``_WORKFLOW``/
-``_DOCTRINE_CHARTER_WORKFLOW``/``_CORE_MISC_CAUSAL_NODE``/``_LEGACY_CORE_MISC``/
-``_CORE_MISC_REPLACEMENT_JOBS`` constants) has no remaining subject matter and
-was removed with the file. The two self-contained checks below never read a
-real workflow — one discovers quarantine markers over a synthetic ``tmp_path``
-tree, the other feeds a synthetic ``jobs`` mapping to the pure
-``_find_result_gated_jobs`` relation — and stay as non-fakeable evidence that
-those two relations still work.
+The restored interim ``ci-quality.yml`` deliberately has no path filter: the
+five-job producer is small enough to run on every pull request and main push.
+The live checks below bind that trigger shape and stock-runner contract; the
+old full-matrix path-filter relations remain retired with the deferred module
+workflows.
 """
 
 from __future__ import annotations
@@ -25,8 +15,33 @@ from pathlib import Path
 from typing import Any
 
 import pytest
+import yaml
 
 pytestmark = pytest.mark.architectural
+
+_REPO_ROOT = Path(__file__).resolve().parents[2]
+_CI_QUALITY = _REPO_ROOT / ".github" / "workflows" / "ci-quality.yml"
+
+
+def _load_workflow() -> dict[str, Any]:
+    return yaml.safe_load(_CI_QUALITY.read_text(encoding="utf-8"))
+
+
+def test_reduced_ci_quality_runs_without_path_filters_live() -> None:
+    workflow = _load_workflow()
+    on_section = workflow.get("on") or workflow[True]
+
+    for event in ("pull_request", "push"):
+        assert "paths" not in on_section[event]
+
+
+def test_reduced_ci_quality_uses_stock_runners_live() -> None:
+    workflow = _load_workflow()
+    text = _CI_QUALITY.read_text(encoding="utf-8")
+
+    assert {job["runs-on"] for job in workflow["jobs"].values()} == {"ubuntu-latest"}
+    assert "blacksmith" not in text.lower()
+    assert "runner-group" not in text.lower()
 
 
 def _is_direct_pytest_quarantine_marker(node: ast.AST) -> bool:

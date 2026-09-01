@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
 """Generate YAML JSON-Schema files from Pydantic models.
 
-The Pydantic models in ``src/doctrine/*/models.py`` are the **single source
-of truth**. This script derives the YAML schema files that live in
-``src/doctrine/schemas/`` and are used by ``jsonschema`` validators at
-runtime and in tests.
+The Pydantic models in ``src/charter/offering/*/models.py`` are the **single
+source of truth**. This script derives the YAML schema files that live in
+``src/charter/offering/schemas/`` and are used by ``jsonschema`` validators
+at runtime and in tests.
 
 Usage::
 
@@ -31,7 +31,7 @@ from ruamel.yaml import YAML
 # Registry: maps schema filename stem → (model class path, metadata, overrides)
 # ---------------------------------------------------------------------------
 
-SCHEMA_DIR = Path(__file__).resolve().parent.parent / "src" / "doctrine" / "schemas"
+SCHEMA_DIR = Path(__file__).resolve().parent.parent / "src" / "charter" / "offering" / "schemas"
 
 # ---------------------------------------------------------------------------
 # The four `<kind>_reference.type` enums.
@@ -137,7 +137,7 @@ def register_custom(stem: str, generator: Any) -> None:
 # --- Paradigm ---
 register(
     "paradigm",
-    "doctrine.paradigms.models",
+    "charter.offering.paradigms.models",
     "Paradigm",
     "Paradigm",
     "Minimal schema for doctrine paradigms.",
@@ -184,7 +184,7 @@ def _tactic_fixups(schema: dict) -> dict:
 
 register(
     "tactic",
-    "doctrine.tactics.models",
+    "charter.offering.tactics.models",
     "Tactic",
     "Tactic",
     "Minimal schema for reusable behavior tactics.",
@@ -213,7 +213,7 @@ def _directive_fixups(schema: dict) -> dict:
 
 register(
     "directive",
-    "doctrine.directives.models",
+    "charter.offering.directives.models",
     "Directive",
     "Directive",
     "Schema for governance directives with optional enrichment fields.",
@@ -246,7 +246,7 @@ def _procedure_fixups(schema: dict) -> dict:
 
 register(
     "procedure",
-    "doctrine.procedures.models",
+    "charter.offering.procedures.models",
     "Procedure",
     "Procedure",
     "Schema for doctrine procedures — reusable orchestrated workflows.",
@@ -265,7 +265,7 @@ register(
 # named properties, which is what made `--check` report this schema stale: the
 # committed schema instead pins the *specific* structural contract the
 # common-docs styleguide's block must satisfy
-# (`src/doctrine/styleguides/built-in/common-docs.styleguide.yaml`), because the
+# (`src/charter/offering/styleguides/built-in/common-docs.styleguide.yaml`), because the
 # `docs_structural_lint.py` asset that reads it (`_require_markers`,
 # `assets/built-in/docs_structural_lint.py`) parses `point_in_time_markers` as a
 # list of `{frontmatter_field, frontmatter_value}` objects and raises
@@ -364,7 +364,7 @@ def _styleguide_fixups(schema: dict) -> dict:
 
 register(
     "styleguide",
-    "doctrine.styleguides.models",
+    "charter.offering.styleguides.models",
     "Styleguide",
     "Styleguide",
     "Minimal schema for doctrine styleguides.",
@@ -374,7 +374,7 @@ register(
 # --- Toolguide ---
 register(
     "toolguide",
-    "doctrine.toolguides.models",
+    "charter.offering.toolguides.models",
     "Toolguide",
     "Toolguide",
     "Minimal schema for doctrine toolguides.",
@@ -398,7 +398,7 @@ def _mission_fixups(schema: dict) -> dict:
 
 register(
     "mission",
-    "doctrine.missions.models",
+    "charter.offering.missions.models",
     "Mission",
     "Mission",
     "Minimal schema for doctrine mission definitions.",
@@ -438,7 +438,7 @@ def _model_task_fixups(schema: dict) -> dict:
 
 register(
     "model-to-task_type",
-    "doctrine.model_task_routing.models",
+    "charter.offering.model_task_routing.models",
     "ModelToTaskType",
     "Model-to-Task Type Mapping",
     "Catalog of model capabilities, costs, and routing policy for task assignment.",
@@ -542,7 +542,7 @@ def _agent_profile_fixups(schema: dict) -> dict:
 
 register(
     "agent-profile",
-    "doctrine.agent_profiles.schema_models",
+    "charter.offering.agent_profiles.schema_models",
     "AgentProfileSchema",
     "Agent Profile",
     "Rich agent profile schema with 6-section structure for spec-kitty doctrine framework",
@@ -563,7 +563,7 @@ def _generate_import_candidate_schema() -> dict:
     """
     import importlib
 
-    mod = importlib.import_module("doctrine.import_candidates.models")
+    mod = importlib.import_module("charter.offering.import_candidates.models")
     legacy_cls = mod.LegacyImportCandidate
     curation_cls = mod.CurationImportCandidate
 

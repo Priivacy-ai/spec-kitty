@@ -186,6 +186,13 @@ def refresh_target_branch_tracking_ref(
 
     If the checkout has no ``origin`` remote, the function returns a
     successful status with ``attempted=False``.
+
+    Deliberately the transport view (``git remote get-url``, not
+    ``git config --get``): the very next step is a ``git fetch`` through
+    this same remote, so "where would this push/fetch actually go" is the
+    correct question, not the checkout's raw configured URL. #111's
+    raw-config criterion is for identity/slug sites; this one is
+    push-facing and was triaged and left as-is in spec-kitty#113.
     """
     remote = _git(repo_root, ["remote", "get-url", remote_name])
     if remote.returncode != 0:

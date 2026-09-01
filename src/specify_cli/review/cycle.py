@@ -9,6 +9,7 @@ ReviewResult derivation.
 from __future__ import annotations
 
 from kernel.clock import UTC_SECOND_TIMESTAMP_FORMAT, now_utc
+from kernel.git_topology import GitTopologyError
 from mission_runtime import MissionArtifactKind, placement_seam
 from specify_cli.agent_tasks_ports import (
     CommitArtifactResult,
@@ -23,11 +24,15 @@ import subprocess
 import time
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Literal
+from typing import Literal, TypeAlias
 
 from specify_cli.review.artifacts import (
     AffectedFile,
     ReviewCycleArtifact,
+)
+from specify_cli.review.verdict_commit_queue import (
+    DEFAULT_VERDICT_SAVE_TIMEOUT_SECONDS,
+    verdict_save_queue_is_held,
 )
 from specify_cli.status import (
     ReviewResult,
@@ -204,6 +209,41 @@ class ReviewCycleError(ValueError):
     """Raised when a review-cycle invariant cannot be satisfied."""
 
 
+DurabilityClassification: TypeAlias = Literal[
+    "durable", "busy", "persistence_failed", "local_only"
+]
+
+
+@dataclass(frozen=True)
+class VerdictPersistenceOutcome:
+    """Evidence-persistence fact returned to verdict orchestration.
+
+    This value deliberately contains no verdict.  Review-cycle Markdown is
+    evidence; the event history remains the sole current-verdict authority.
+    """
+
+    classification: DurabilityClassification
+    verdict_durably_persisted: bool
+    evidence_ref: str | None
+    destination_ref: str | None
+    reason: str | None
+    message: str
+
+    def __post_init__(self) -> None:
+        if self.classification == "durable":
+            if not self.verdict_durably_persisted:
+                raise ValueError("durable outcome requires a true durability flag")
+            if not self.evidence_ref or not self.destination_ref:
+                raise ValueError("durable outcome requires evidence and destination refs")
+            if self.reason is not None:
+                raise ValueError("durable outcome must not carry a failure reason")
+        else:
+            if self.verdict_durably_persisted:
+                raise ValueError("only durable outcomes may set the durability flag")
+            if not self.reason:
+                raise ValueError("non-durable outcome requires a stable reason")
+
+
 @dataclass(frozen=True)
 class ReviewCyclePointerParts:
     """Validated canonical review-cycle pointer segments."""
@@ -242,6 +282,7 @@ class CreatedRejectedReviewCycle:
     pointer: str
     artifact: ReviewCycleArtifact
     review_result: ReviewResult
+    persistence: VerdictPersistenceOutcome
     warnings: tuple[str, ...] = ()
 
 
@@ -541,49 +582,16 @@ def _commit_review_cycle_artifact(
     artifact_path: Path,
     cycle_number: int,
     verdict: str,
-) -> bool:
-    """Best-effort commit of a written review-cycle artifact (D-PLAN-11/T026).
+) -> VerdictPersistenceOutcome:
+    """Persist evidence through the existing router and verify its Git ref.
 
-    T004/#2697: reuses the SAME ``commit_artifact`` port capability
-    ``tasks_mark_status.py``/``tasks_map_requirements.py`` already call — no
-    new commit/staging mechanism. ``review-cycle-N.md`` is ADR 2026-08-03-1's
-    ``REVIEW_CYCLE`` kind, so this call passes ``kind=REVIEW_CYCLE``. This
-    ``kind`` argument is SEPARATE from ``_review_cycle_wp_dir``'s own
-    directory resolution (which deliberately still resolves
-    ``WORK_PACKAGE_TASK`` — see that function's docstring): the commit
-    router's ``_group_files_by_partition`` re-classifies each committed file
-    by its OWN path-derived kind and overrides whatever kind the caller
-    passes.
-
-    **WP05 (verdict-seam-write-unification-01KZ9Q35, T026/D-PLAN-11)
-    DEMOTE**: with every verdict reader now on the event authority
-    (``status.event_sourced_review_result`` — this mission's reader
-    collapse), this per-file ``.md`` commit is no longer the authoritative
-    durable act; ``status.emit.emit_status_transition``'s ``review_result``
-    append is (contracts/verdict-durability-write.md G1/NFR-004). A
-    non-``"committed"`` result — including exhausted contention retries — is
-    now a logged **WARNING**, never a raised ``ReviewCycleError``: this
-    function returns ``False`` instead. The retry loop is KEPT as
-    best-effort-render defense-in-depth (a transient index-lock contention
-    still gets a few bounded retries before giving up), but is no longer
-    *authoritative* machinery — the caller no longer unwinds (unlinks) the
-    just-written artifact on a failed/incomplete commit, since an
-    uncommitted-but-written ``.md`` is tolerated now that it is not the
-    verdict's authority. Returns ``True`` iff the artifact was durably
-    committed.
-
-    T042 (FR-002 mechanism, shared with WP11): ``CommitRouterResult.status``
-    is a closed four-value ``Literal`` that collapses any git-level failure
-    (including an ``index.lock`` collision) to ``"error"`` with no signal
-    distinguishing "lost a race for the index" from "the commit failed for
-    some other reason." The buildable form uses the EXISTING public probe
-    ``specify_cli.status.views.git_operation_in_progress`` (whose
-    ``_GIT_OP_MARKERS`` already include ``"index.lock"``): on a
-    ``status == "error"`` result, retry the SAME ``commit_artifact`` call,
-    bounded, ONLY when the probe corroborates a git operation is genuinely in
-    progress right now. This retry loop lives ENTIRELY outside T041's
-    ``feature_status_lock`` scope (NFR-006 forbids holding an inter-process
-    lock across a ``git`` subprocess invocation).
+    No router status alone is durable proof.  A ``committed`` result becomes
+    durable only when ``git show <placement-ref>:<evidence-ref>`` returns the
+    exact local bytes.  Other result statuses become typed failures while the
+    complete artifact remains available for an identical retry.  The legacy
+    short retry on a corroborated Git-operation marker is preserved, entirely
+    outside ``feature_status_lock``; checkout-wide queue ownership belongs to
+    WP04 and is intentionally absent from this function.
     """
     message = (
         f"chore: Record review-cycle-{cycle_number} ({verdict}) for {wp_id} on "
@@ -601,8 +609,43 @@ def _commit_review_cycle_artifact(
             kind=MissionArtifactKind.REVIEW_CYCLE,
             policy=policy,
         )
+        evidence_ref = _evidence_ref(main_repo_root, artifact_path)
+        destination_ref = result.placement_ref or placement_seam(
+            main_repo_root, mission_slug
+        ).write_target(MissionArtifactKind.REVIEW_CYCLE).ref
         if result.status == "committed":
-            return True
+            destination_bytes = _read_artifact_at_ref(
+                main_repo_root, destination_ref, evidence_ref
+            )
+            local_bytes = artifact_path.read_bytes()
+            if destination_bytes == local_bytes:
+                return VerdictPersistenceOutcome(
+                    classification="durable",
+                    verdict_durably_persisted=True,
+                    evidence_ref=evidence_ref,
+                    destination_ref=destination_ref,
+                    reason=None,
+                    message=(
+                        "Review-cycle evidence is committed and verified at "
+                        f"{destination_ref}."
+                    ),
+                )
+            reason = (
+                "destination_readback_missing"
+                if destination_bytes is None
+                else "destination_readback_mismatch"
+            )
+            return VerdictPersistenceOutcome(
+                classification="persistence_failed",
+                verdict_durably_persisted=False,
+                evidence_ref=evidence_ref,
+                destination_ref=destination_ref,
+                reason=reason,
+                message=(
+                    "Commit router reported committed, but exact evidence bytes "
+                    f"were not verified at {destination_ref}."
+                ),
+            )
 
         contending = result.status == "error" and git_operation_in_progress(main_repo_root)
         if not contending or attempt >= _COMMIT_CONTENTION_MAX_ATTEMPTS:
@@ -617,9 +660,164 @@ def _commit_review_cycle_artifact(
                     exhausted_contention_retries=contending,
                 ),
             )
-            return False
+            reason = {
+                "unchanged": "unchanged_unverified",
+                "no_op_wrong_surface": "wrong_surface",
+                "error": "commit_error",
+            }.get(result.status, "commit_failed")
+            return VerdictPersistenceOutcome(
+                classification="persistence_failed",
+                verdict_durably_persisted=False,
+                evidence_ref=evidence_ref,
+                destination_ref=destination_ref,
+                reason=reason,
+                message=_commit_failure_message(
+                    wp_id=wp_id,
+                    mission_slug=mission_slug,
+                    cycle_number=cycle_number,
+                    artifact_path=artifact_path,
+                    result=result,
+                    exhausted_contention_retries=contending,
+                ),
+            )
         time.sleep(_COMMIT_CONTENTION_RETRY_SLEEP_SECONDS)
         attempt += 1
+
+
+def _evidence_ref(main_repo_root: Path, artifact_path: Path) -> str:
+    """Return the stable repository-relative evidence path."""
+    try:
+        return artifact_path.resolve().relative_to(main_repo_root.resolve()).as_posix()
+    except ValueError as exc:
+        raise ReviewCycleError(
+            f"Review-cycle artifact is outside the repository: {artifact_path}"
+        ) from exc
+
+
+def _read_artifact_at_ref(
+    main_repo_root: Path, destination_ref: str, evidence_ref: str
+) -> bytes | None:
+    """Read exact evidence bytes from the governed Git ref, if present."""
+    completed = subprocess.run(
+        ["git", "show", f"{destination_ref}:{evidence_ref}"],
+        cwd=main_repo_root,
+        capture_output=True,
+        check=False,
+    )
+    return completed.stdout if completed.returncode == 0 else None
+
+
+def _canonical_affected_files(
+    affected_files: list[AffectedFile],
+) -> tuple[tuple[str, str | None], ...]:
+    return tuple(sorted((item.path, item.line_range) for item in affected_files))
+
+
+@dataclass(frozen=True)
+class _RetainedReviewCycleCandidate:
+    artifact: ReviewCycleArtifact
+    path: Path
+    local_bytes: bytes
+
+
+def _local_matching_retained_review_cycles(
+    *,
+    mission_slug: str,
+    wp_id: str,
+    sub_artifact_dir: Path,
+    reviewer_agent: str,
+    affected_files: list[AffectedFile],
+    body: str,
+) -> tuple[_RetainedReviewCycleCandidate, ...]:
+    """Enumerate matching local evidence while the caller holds the short lock.
+
+    This helper is filesystem-only by contract. Placement resolution and Git
+    reachability checks happen after the caller releases ``feature_status_lock``.
+    """
+    wanted_affected = _canonical_affected_files(affected_files)
+    matches: list[_RetainedReviewCycleCandidate] = []
+    for candidate_path in sorted(sub_artifact_dir.glob("review-cycle-*.md")):
+        try:
+            candidate = validate_review_artifact_file(candidate_path)
+        except ValueError:
+            continue
+        if (
+            candidate.mission_slug != mission_slug
+            or candidate.wp_id != wp_id
+            or candidate.reviewer_agent != (reviewer_agent or "unknown")
+            or candidate.body != body
+            or _canonical_affected_files(candidate.affected_files) != wanted_affected
+        ):
+            continue
+        matches.append(
+            _RetainedReviewCycleCandidate(
+                artifact=candidate,
+                path=candidate_path,
+                local_bytes=candidate_path.read_bytes(),
+            )
+        )
+    return tuple(matches)
+
+
+def _allocate_and_write_review_cycle_while_locked(
+    *,
+    mission_slug: str,
+    wp_id: str,
+    sub_artifact_dir: Path,
+    reviewer_agent: str,
+    affected_files: list[AffectedFile],
+    body: str,
+) -> tuple[ReviewCycleArtifact, Path, str]:
+    """Allocate, write, and validate with an already-held status lock."""
+    cycle_n = ReviewCycleArtifact.next_cycle_number(sub_artifact_dir)
+    filename = _validate_review_cycle_filename(f"review-cycle-{cycle_n}.md")
+    artifact = ReviewCycleArtifact(
+        cycle_number=cycle_n,
+        wp_id=wp_id,
+        mission_slug=mission_slug,
+        reviewer_agent=reviewer_agent or "unknown",
+        reviewed_at=now_utc().strftime(UTC_SECOND_TIMESTAMP_FORMAT),
+        affected_files=affected_files,
+        body=body,
+    )
+    validate_review_artifact(artifact)
+
+    artifact_path = sub_artifact_dir / filename
+    try:
+        artifact.write(artifact_path)
+        validate_review_artifact_file(artifact_path)
+    except ReviewCycleError:
+        artifact_path.unlink(missing_ok=True)
+        raise
+    return artifact, artifact_path, filename
+
+
+def _in_queue_status_lock_timeout(main_repo_root: Path) -> float:
+    """Bound the status-lock wait only when the verdict-save queue is held.
+
+    The unbounded-hang hazard the bound closes (#3773 item 1) exists solely on
+    the queue-held path: while a caller owns the checkout-wide verdict queue, an
+    indefinitely-blocked ``feature_status_lock`` acquisition would wedge every
+    other verdict save in the checkout. There, a ``FeatureStatusLockTimeoutError``
+    is caught and translated into the truthful ``verdict_durably_persisted: false``
+    busy envelope by ``_persist_review_cycle_with_queue``.
+
+    Off the queue (the ``--no-auto-commit`` and ``local_only`` feedback paths)
+    that translation does not apply, so bounding there would only turn a rare
+    contention into an envelope-less error; those paths keep the historical
+    unbounded (``-1``) wait instead.
+
+    A ``main_repo_root`` that does not resolve to a Git checkout (the local-only
+    feedback path can run outside one) cannot own the checkout-wide queue at all
+    -- ``verdict_save_queue_is_held`` raises ``GitTopologyError`` there rather
+    than returning ``False`` -- so it is treated identically to "not held": the
+    historical unbounded wait, never a crash inside the allocator.
+    """
+    try:
+        queue_held = verdict_save_queue_is_held(main_repo_root)
+    except GitTopologyError:
+        return -1.0
+    return DEFAULT_VERDICT_SAVE_TIMEOUT_SECONDS if queue_held else -1.0
 
 
 def _allocate_and_write_review_cycle_locked(
@@ -656,9 +854,10 @@ def _allocate_and_write_review_cycle_locked(
     deliberately narrowed to (cycle-number-allocation + artifact-write) only,
     not the wider (artifact, status-event) pair, which would require
     restructuring the caller's control flow and is out of this WP's reach.
-    ``feature_status_lock`` is thread-reentrant (a thread-local depth
-    counter), so a caller that already holds it may safely call in without
-    deadlocking.
+    Callers must not wrap this helper in another status-lock scope: resolving
+    the lock path itself consults Git before acquisition. Code that already
+    owns the lock uses :func:`_allocate_and_write_review_cycle_while_locked`
+    so no nested setup subprocess can run inside the critical section.
 
     T043: a write or post-write-validation failure unlinks the just-written
     file WHILE STILL HOLDING the lock (the ``try/except`` is nested inside
@@ -666,29 +865,135 @@ def _allocate_and_write_review_cycle_locked(
     observe the orphan mid-cleanup and mistake it for a legitimate prior
     cycle.
     """
-    with feature_status_lock(main_repo_root, mission_slug):
-        cycle_n = ReviewCycleArtifact.next_cycle_number(sub_artifact_dir)
-        filename = _validate_review_cycle_filename(f"review-cycle-{cycle_n}.md")
-        artifact = ReviewCycleArtifact(
-            cycle_number=cycle_n,
-            wp_id=wp_id,
+    with feature_status_lock(
+        main_repo_root,
+        mission_slug,
+        timeout=_in_queue_status_lock_timeout(main_repo_root),
+    ):
+        return _allocate_and_write_review_cycle_while_locked(
             mission_slug=mission_slug,
+            wp_id=wp_id,
+            sub_artifact_dir=sub_artifact_dir,
             reviewer_agent=reviewer_agent or "unknown",
-            reviewed_at=now_utc().strftime(UTC_SECOND_TIMESTAMP_FORMAT),
             affected_files=affected_files,
             body=body,
         )
-        validate_review_artifact(artifact)
 
-        artifact_path = sub_artifact_dir / filename
-        try:
-            artifact.write(artifact_path)
-            validate_review_artifact_file(artifact_path)
-        except ReviewCycleError:
-            artifact_path.unlink(missing_ok=True)
-            raise
 
-    return artifact, artifact_path, filename
+def _adopt_or_allocate_review_cycle_locked(
+    *,
+    main_repo_root: Path,
+    mission_slug: str,
+    wp_id: str,
+    sub_artifact_dir: Path,
+    reviewer_agent: str,
+    affected_files: list[AffectedFile],
+    body: str,
+) -> tuple[ReviewCycleArtifact, Path, str, bool]:
+    """Adopt identical retained evidence or allocate a new record.
+
+    Local enumeration/allocation and final candidate revalidation use the
+    short mission status lock. Placement and ``git show`` execute between
+    those critical sections, never inside either one. WP04 owns the one
+    checkout-wide verdict queue lease around this non-acquiring operation.
+    """
+    destination_ref = placement_seam(main_repo_root, mission_slug).write_target(
+        MissionArtifactKind.REVIEW_CYCLE
+    ).ref
+    with feature_status_lock(
+        main_repo_root,
+        mission_slug,
+        timeout=_in_queue_status_lock_timeout(main_repo_root),
+    ):
+        candidates = _local_matching_retained_review_cycles(
+            mission_slug=mission_slug,
+            wp_id=wp_id,
+            sub_artifact_dir=sub_artifact_dir,
+            reviewer_agent=reviewer_agent,
+            affected_files=affected_files,
+            body=body,
+        )
+        if not candidates:
+            artifact, artifact_path, filename = (
+                _allocate_and_write_review_cycle_while_locked(
+                    mission_slug=mission_slug,
+                    wp_id=wp_id,
+                    sub_artifact_dir=sub_artifact_dir,
+                    reviewer_agent=reviewer_agent,
+                    affected_files=affected_files,
+                    body=body,
+                )
+            )
+            return artifact, artifact_path, filename, False
+
+    pending: list[_RetainedReviewCycleCandidate] = []
+    committed: list[_RetainedReviewCycleCandidate] = []
+    for candidate in candidates:
+        evidence_ref = _evidence_ref(main_repo_root, candidate.path)
+        destination_bytes = _read_artifact_at_ref(
+            main_repo_root, destination_ref, evidence_ref
+        )
+        if destination_bytes is None:
+            pending.append(candidate)
+        elif destination_bytes == candidate.local_bytes:
+            committed.append(candidate)
+
+    if len(pending) > 1:
+        names = ", ".join(candidate.path.name for candidate in pending)
+        raise ReviewCycleError(
+            "Multiple identical pending review-cycle records are ambiguous: " + names
+        )
+    selected = (
+        pending[0]
+        if pending
+        else max(committed, key=lambda candidate: candidate.artifact.cycle_number)
+        if committed
+        else None
+    )
+
+    with feature_status_lock(
+        main_repo_root,
+        mission_slug,
+        timeout=_in_queue_status_lock_timeout(main_repo_root),
+    ):
+        refreshed = _local_matching_retained_review_cycles(
+            mission_slug=mission_slug,
+            wp_id=wp_id,
+            sub_artifact_dir=sub_artifact_dir,
+            reviewer_agent=reviewer_agent,
+            affected_files=affected_files,
+            body=body,
+        )
+        original_snapshot = {
+            candidate.path: candidate.local_bytes for candidate in candidates
+        }
+        refreshed_snapshot = {
+            candidate.path: candidate.local_bytes for candidate in refreshed
+        }
+        if refreshed_snapshot != original_snapshot:
+            raise ReviewCycleError(
+                "Retained review-cycle candidates changed during adoption; retry "
+                "the verdict save instead of guessing."
+            )
+        if selected is None:
+            artifact, artifact_path, filename = (
+                _allocate_and_write_review_cycle_while_locked(
+                    mission_slug=mission_slug,
+                    wp_id=wp_id,
+                    sub_artifact_dir=sub_artifact_dir,
+                    reviewer_agent=reviewer_agent,
+                    affected_files=affected_files,
+                    body=body,
+                )
+            )
+            return artifact, artifact_path, filename, False
+
+    return (
+        selected.artifact,
+        selected.path,
+        selected.path.name,
+        selected in committed,
+    )
 
 
 def create_rejected_review_cycle(
@@ -704,14 +1009,15 @@ def create_rejected_review_cycle(
     verdict: Literal["approved", "rejected"] = "rejected",
     commit_router: CoordCommitRouter | None = None,
 ) -> CreatedRejectedReviewCycle:
-    """Create, validate, and (optionally) commit a review-cycle artifact.
+    """Create or adopt evidence and return a typed persistence outcome.
 
     ``verdict`` defaults to ``"rejected"`` so every pre-existing caller keeps
     behaving unchanged (C-002 / backward compatibility). ``commit_router`` is
     optional for the same reason: callers that do not thread a commit
-    capability keep today's write-only, uncommitted behavior. The production
-    ``move-task`` call site MUST supply it — T004/#2697 durability is only
-    real when the caller opts in.
+    capability receive an explicit ``local_only`` outcome. Automatic callers
+    adopt identical retained evidence before allocating a new cycle. This
+    function never acquires the checkout-wide verdict queue; WP04 invokes it
+    while holding the sole lease.
 
     Exactly one of ``feedback_source`` / ``body`` must be supplied:
 
@@ -779,20 +1085,59 @@ def create_rejected_review_cycle(
     # under ``feature_status_lock`` — see
     # ``_allocate_and_write_review_cycle_locked``'s docstring for the exact
     # scope and why the commit call below must stay outside it.
-    artifact, artifact_path, filename = _allocate_and_write_review_cycle_locked(
-        main_repo_root=main_repo_root,
-        mission_slug=safe_mission_slug,
-        wp_id=safe_wp_id,
-        sub_artifact_dir=sub_artifact_dir,
-        reviewer_agent=reviewer_agent,
-        affected_files=parsed_affected,
-        body=resolved_body,
-    )
+    if commit_router is None:
+        artifact, artifact_path, filename = _allocate_and_write_review_cycle_locked(
+            main_repo_root=main_repo_root,
+            mission_slug=safe_mission_slug,
+            wp_id=safe_wp_id,
+            sub_artifact_dir=sub_artifact_dir,
+            reviewer_agent=reviewer_agent,
+            affected_files=parsed_affected,
+            body=resolved_body,
+        )
+        already_committed = False
+    else:
+        artifact, artifact_path, filename, already_committed = (
+            _adopt_or_allocate_review_cycle_locked(
+                main_repo_root=main_repo_root,
+                mission_slug=safe_mission_slug,
+                wp_id=safe_wp_id,
+                sub_artifact_dir=sub_artifact_dir,
+                reviewer_agent=reviewer_agent,
+                affected_files=parsed_affected,
+                body=resolved_body,
+            )
+        )
     pointer = build_review_cycle_pointer(safe_mission_slug, safe_wp_slug, filename)
 
-    if commit_router is not None:
+    evidence_ref = _evidence_ref(main_repo_root, artifact_path)
+    governed_destination_ref = placement_seam(
+        main_repo_root, safe_mission_slug
+    ).write_target(MissionArtifactKind.REVIEW_CYCLE).ref
+    if commit_router is None:
+        persistence = VerdictPersistenceOutcome(
+            classification="local_only",
+            verdict_durably_persisted=False,
+            evidence_ref=evidence_ref,
+            destination_ref=None,
+            reason="no_auto_commit",
+            message="Review-cycle evidence was written locally without auto-commit.",
+        )
+    elif already_committed:
+        persistence = VerdictPersistenceOutcome(
+            classification="durable",
+            verdict_durably_persisted=True,
+            evidence_ref=evidence_ref,
+            destination_ref=governed_destination_ref,
+            reason=None,
+            message=(
+                "Identical review-cycle evidence was already committed and verified at "
+                f"{governed_destination_ref}."
+            ),
+        )
+    else:
         try:
-            _commit_review_cycle_artifact(
+            persistence = _commit_review_cycle_artifact(
                 commit_router,
                 main_repo_root=main_repo_root,
                 mission_slug=safe_mission_slug,
@@ -801,42 +1146,35 @@ def create_rejected_review_cycle(
                 cycle_number=artifact.cycle_number,
                 verdict=verdict,
             )
-        except Exception:
-            # M2 (adversarial squad, PR #3156): an INFRASTRUCTURE failure in
-            # the commit attempt itself (a raw exception from the router /
-            # mission-resolution layer -- e.g. ``MissionSelectorAmbiguous`` or
-            # an ``OSError`` from the underlying git invocation) must not
-            # leave an orphaned, uncommitted artifact on disk. Without this
-            # rollback, a rejection retry hits the content-identity guard
-            # against its own orphan ("duplicates a prior review-cycle
-            # artifact") and is refused forever, while an approval retry
-            # short-circuits at the "latest.verdict != rejected" no-op check
-            # (the orphan's verdict is already "approved") and silently
-            # reports success despite the write never being committed. The
-            # failure state must be "no artifact", not "uncommitted
-            # artifact", so a caller can simply retry the same operation.
-            # This unlink is deliberately OUTSIDE ``feature_status_lock``
-            # (T041) — each concurrent writer already holds a DISTINCT,
-            # serialized-allocation ``artifact_path`` by the time it reaches
-            # this line, so no racing writer can ever observe or be confused
-            # by another writer's own orphan cleanup.
-            #
-            # WP05 (verdict-seam-write-unification-01KZ9Q35, T026/D-PLAN-11)
-            # NARROWED this except's practical scope (not its shape):
-            # ``_commit_review_cycle_artifact`` no longer raises
-            # ``ReviewCycleError`` for a non-``"committed"`` result (that is
-            # now a best-effort WARNING returning ``False`` -- the ``.md``
-            # commit is demoted, no longer the authoritative durable act).
-            # This ``except Exception`` therefore now only ever fires for a
-            # genuine infra exception the router/mission-resolution layer
-            # raises directly (the ``MissionSelectorAmbiguous``/``OSError``
-            # case above), which is a distinct, more severe failure than "the
-            # commit attempt completed but returned a non-committed status" —
-            # out of T026's best-effort-render scope, so still rolled back and
-            # re-raised, matching the pre-existing convention: a rollback must
-            # never silently swallow the triggering failure.
-            artifact_path.unlink(missing_ok=True)
-            raise
+        except Exception as exc:
+            destination_bytes = _read_artifact_at_ref(
+                main_repo_root, governed_destination_ref, evidence_ref
+            )
+            if destination_bytes == artifact_path.read_bytes():
+                persistence = VerdictPersistenceOutcome(
+                    classification="durable",
+                    verdict_durably_persisted=True,
+                    evidence_ref=evidence_ref,
+                    destination_ref=governed_destination_ref,
+                    reason=None,
+                    message=(
+                        "Commit raised after persistence, but exact evidence was "
+                        f"verified at {governed_destination_ref}."
+                    ),
+                )
+            else:
+                reason = "commit_timeout" if isinstance(exc, TimeoutError) else "commit_exception"
+                persistence = VerdictPersistenceOutcome(
+                    classification="persistence_failed",
+                    verdict_durably_persisted=False,
+                    evidence_ref=evidence_ref,
+                    destination_ref=governed_destination_ref,
+                    reason=reason,
+                    message=(
+                        f"Review-cycle commit raised {type(exc).__name__}: {exc}. "
+                        f"Evidence is retained at {evidence_ref}."
+                    ),
+                )
 
     review_result = ReviewResult(
         reviewer=artifact.reviewer_agent,
@@ -859,4 +1197,5 @@ def create_rejected_review_cycle(
         pointer=pointer,
         artifact=artifact,
         review_result=review_result,
+        persistence=persistence,
     )

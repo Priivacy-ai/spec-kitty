@@ -4,22 +4,22 @@ Canonical home for :class:`SchemaUtilities`. The kernel layer is the lowest
 architectural layer (per ADR 2026-03-27-1, ``kernel ← doctrine ← charter ←
 specify_cli``); ``SchemaUtilities`` is a generic JSON-Schema helper that does
 not belong behind a charter facade because it is not doctrine-domain logic —
-it merely loads schema files packaged under ``doctrine.schemas``.
+it merely loads schema files packaged under ``charter.offering.schemas``.
 
 Promotion rationale (mission ``charter-mediated-doctrine-selection-01KRTZCA``,
 WP07): ``src/specify_cli/bulk_edit/occurrence_map.py`` is the only runtime
 consumer. Routing it through a charter facade would model a generic helper as
 doctrine-domain surface; promoting to kernel keeps the boundary honest.
 
-The doctrine subpackage ``doctrine.shared.schema_utils`` re-exports
+The doctrine subpackage ``charter.offering.shared.schema_utils`` re-exports
 :class:`SchemaUtilities` from this module so existing doctrine internals
 (``directives.validation``, ``tactics.validation``, etc.) continue to import
 from their historical path without churn.
 
-This module reads files via ``importlib.resources`` (``doctrine.schemas``)
+This module reads files via ``importlib.resources`` (``charter.offering.schemas``)
 in installed wheels and falls back to a relative filesystem path in dev
 checkouts. The resource lookup does NOT import the ``doctrine`` Python
-package — ``importlib.resources.files("doctrine.schemas")`` only requires the
+package — ``importlib.resources.files("charter.offering.schemas")`` only requires the
 package to be importable as a resource container, and in practice the schema
 directory is colocated with the doctrine sources. This preserves the kernel
 layer invariant (no top-level imports of ``doctrine``).
@@ -38,7 +38,7 @@ from ruamel.yaml import YAML
 class SchemaUtilities:
     """Utilities for loading and caching JSON Schemas packaged with doctrine.
 
-    All schemas live in ``src/doctrine/schemas/`` and follow the naming
+    All schemas live in ``src/charter/offering/schemas/`` and follow the naming
     convention ``<artifact-type>.schema.yaml`` (e.g. ``directive.schema.yaml``).
 
     Usage::
@@ -85,15 +85,16 @@ def _resolve_schema_path(filename: str) -> Path:
         Resolved :class:`~pathlib.Path` to the schema file.
     """
     try:
-        resource = files("doctrine.schemas")
+        resource = files("charter.offering.schemas")
         if hasattr(resource, "joinpath"):
             return Path(str(resource.joinpath(filename)))
         return Path(str(resource)) / filename
     except (ModuleNotFoundError, AttributeError, TypeError):
-        # Dev-checkout fallback: schemas live two levels up under doctrine/schemas/.
-        # This module lives at src/kernel/schema_utils.py and the schemas
-        # directory is at src/doctrine/schemas/.
-        return Path(__file__).resolve().parent.parent / "doctrine" / "schemas" / filename
+        # Dev-checkout fallback: schemas live two levels up under
+        # charter/offering/schemas/. This module lives at
+        # src/kernel/schema_utils.py and the schemas directory is at
+        # src/charter/offering/schemas/.
+        return Path(__file__).resolve().parent.parent / "charter" / "offering" / "schemas" / filename
 
 
 __all__ = ["SchemaUtilities"]

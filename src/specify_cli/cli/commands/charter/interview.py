@@ -42,12 +42,12 @@ __all__ = ["interview"]
 def _promote_interview_selections(repo_root: Path, interview_data: Any) -> list[str]:
     """Append-promote captured interview selections into ``config.activated_<kind>`` (FR-007).
 
-    Only the three roots :class:`~charter.interview.CharterInterview` actually
+    Only the three roots :class:`~charter.activation.interview.CharterInterview` actually
     captures (directives, tactics, paradigms) are promoted here — a project's
     ``answers.yaml`` may separately carry hand-authored non-root selections
     (e.g. ``selected_styleguides``); those are the config-seeded migration's
     job (``m_unify_charter_activation``, T023), not this per-interview-run
-    wiring. Routes through the shared :func:`charter.activation_engine.promote_activations`
+    wiring. Routes through the shared :func:`charter.activation.activation_engine.promote_activations`
     primitive (WP06) — the same append-only, absent-key-built-in-safe seam the
     migration uses — reusing (not duplicating) the WP01 ID-form resolver and
     the default-pack loader via ``m_unify_charter_activation`` (T023's sibling
@@ -59,14 +59,14 @@ def _promote_interview_selections(repo_root: Path, interview_data: Any) -> list[
     when there is nothing to surface).
 
     Write target (consolidate-charter-bundle WP02): resolved via
-    :func:`charter.pack_manager.resolve_activation_write_target` — a
+    :func:`charter.activation.pack_manager.resolve_activation_write_target` — a
     migrated project (``config.yaml`` carries a ``charter:`` pointer)
     promotes into ``charter.yaml``; a legacy/un-migrated project promotes
     into ``config.yaml`` directly (unchanged pre-relocation behavior).
     """
-    from charter.activation_engine import promote_activations
-    from charter.catalog import resolve_doctrine_root
-    from charter.pack_manager import resolve_activation_write_target
+    from charter.activation.activation_engine import promote_activations
+    from charter.activation.catalog import resolve_doctrine_root
+    from charter.activation.pack_manager import resolve_activation_write_target
     from charter.drg import ArtifactKind
 
     from specify_cli.upgrade.migrations.m_unify_charter_activation import (
@@ -145,7 +145,7 @@ def interview(  # noqa: C901
     ),
 ) -> None:
     """Capture charter interview answers for later generation."""
-    from charter.interview import (
+    from charter.activation.interview import (
         MINIMAL_QUESTION_ORDER,
         QUESTION_ORDER,
         QUESTION_PROMPTS,

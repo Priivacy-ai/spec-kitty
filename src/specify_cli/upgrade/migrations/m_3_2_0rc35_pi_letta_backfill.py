@@ -11,7 +11,7 @@ from __future__ import annotations
 import logging
 from pathlib import Path
 
-from specify_cli.gitignore_manager import GitignoreManager
+from specify_cli.gitignore_manager import GitignoreManager, read_ignore_file_text
 
 from ..registry import MigrationRegistry
 from .base import BaseMigration, MigrationResult
@@ -89,12 +89,7 @@ class PiLettaBackfillMigration(BaseMigration):
             return False
 
         # Check for missing gitignore entries.
-        gitignore_path = project_path / ".gitignore"
-        gitignore_text = (
-            gitignore_path.read_text(encoding="utf-8")
-            if gitignore_path.exists()
-            else ""
-        )
+        gitignore_text = read_ignore_file_text(project_path / ".gitignore")
         for agent_key in pi_letta_configured:
             entry = _AGENT_GITIGNORE_ENTRIES[agent_key]
             if entry not in gitignore_text:
@@ -132,11 +127,7 @@ class PiLettaBackfillMigration(BaseMigration):
             if agent_key not in configured:
                 continue
 
-            gitignore_text = (
-                (project_path / ".gitignore").read_text(encoding="utf-8")
-                if (project_path / ".gitignore").exists()
-                else ""
-            )
+            gitignore_text = read_ignore_file_text(project_path / ".gitignore")
             if entry in gitignore_text:
                 continue
 

@@ -455,9 +455,35 @@ def _guard_agent_ownership(req: MoveTaskRequest) -> RefuseExit1 | None:
         "   If not, you may be modifying the wrong WP!",
         "",
     )
-    return RefuseExit1(
+    error = (
         f"Agent mismatch: {req.task_id} is assigned to '{req.current_agent}', "
-        f"not '{req.agent}'. Use --force to override.",
+        f"not '{req.agent}'. Use --force to override."
+    )
+    target_lane = resolve_lane_alias(req.target_lane)
+    current_lane = resolve_lane_alias(req.old_lane)
+    # The command is still attempting a rejection-verdict save when a
+    # concurrent winner has already advanced the lane to ``planned``.
+    is_rejection_save = target_lane == Lane.PLANNED and req.feedback_provided
+    is_approval_save = target_lane in _APPROVAL_LANES
+    diagnostic = None
+    if req.auto_commit and (is_rejection_save or is_approval_save):
+        # Preserve the ownership policy and exit code while making this
+        # verdict-command refusal causal and machine-verifiable.
+        diagnostic = {
+            "result": "error",
+            "code": "ownership_refusal",
+            "error": error,
+            "current_lane": current_lane,
+            "requested_lane": target_lane,
+            "assigned_agent": req.current_agent,
+            "requesting_agent": req.agent,
+            "verdict_durably_persisted": False,
+            "evidence_ref": None,
+            "destination_ref": None,
+        }
+    return RefuseExit1(
+        error,
+        diagnostic=diagnostic,
         console_warning=warning,
     )
 

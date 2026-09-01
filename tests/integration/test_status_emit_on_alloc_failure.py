@@ -37,9 +37,6 @@ def _disable_status_side_effects(monkeypatch: pytest.MonkeyPatch) -> None:
 
     monkeypatch.setenv("SPEC_KITTY_ALLOW_PROTECTED_BRANCH_COMMITS", "1")
     monkeypatch.setattr(status_emit, "_saas_fan_out", lambda *args, **kwargs: None)
-    monkeypatch.setattr(status_emit, "fire_dossier_sync", lambda *args, **kwargs: None)
-
-
 def _create_meta(feature_dir: Path) -> Path:
     feature_dir.mkdir(parents=True, exist_ok=True)
     meta_path = feature_dir / "meta.json"

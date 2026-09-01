@@ -165,12 +165,12 @@ Available template sets: `software-dev-default`, `plan-default`, `documentation-
 
 If your repository already publishes governance outside `.kittify/` — for example
 `spec/constitution.md` — keep that document in place and reference it from `charter.yaml` rather
-than duplicating it. Declare it under `governance.doctrine.governance_references` (the
+than duplicating it. Declare it under `governance.charter.governance_references` (the
 interview's equivalent question writes into this same section):
 
 ```yaml
 governance:
-  doctrine:
+  charter:
     governance_references:
       - spec/constitution.md
 ```

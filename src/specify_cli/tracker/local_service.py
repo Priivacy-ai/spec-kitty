@@ -143,8 +143,8 @@ class LocalTrackerService:
         *,
         provider: str,
         workspace: str,
-        doctrine_mode: str,
-        doctrine_field_owners: dict[str, str],
+        ownership_mode: str,
+        ownership_field_owners: dict[str, str],
         credentials: dict[str, str],
     ) -> TrackerProjectConfig:
         # FR-011 site A1: load the committed config first and carry its `egress` (and
@@ -161,8 +161,8 @@ class LocalTrackerService:
         config = TrackerProjectConfig(
             provider=normalized_provider,
             workspace=workspace,
-            doctrine_mode=doctrine_mode,
-            doctrine_field_owners=dict(doctrine_field_owners),
+            ownership_mode=ownership_mode,
+            ownership_field_owners=dict(ownership_field_owners),
             egress=committed.egress,
             _extra=dict(committed._extra),
         )
@@ -206,8 +206,16 @@ class LocalTrackerService:
             "configured": True,
             "provider": config.provider,
             "workspace": config.workspace,
-            "doctrine_mode": config.doctrine_mode,
-            "field_owners": config.doctrine_field_owners,
+            # CR-03 (mission `charter-code-topology-01M152G1` S4): canonical
+            # key is `ownership_mode`. `doctrine_mode` is kept alongside it
+            # (same value, not a warning) because this dict is a MACHINE
+            # payload (`tracker status --json`) -- a downstream-contract
+            # output surface, not a config-file read -- so an external
+            # consumer still keyed on the old field name is not silently
+            # broken by this rename.
+            "ownership_mode": config.ownership_mode,
+            "doctrine_mode": config.ownership_mode,
+            "field_owners": config.ownership_field_owners,
             "db_path": str(db_path),
             "issue_count": len(issues),
             "mapping_count": len(mappings),
@@ -391,7 +399,7 @@ class LocalTrackerService:
                 credentials=credentials,
             )
 
-        mode_name = (config.doctrine_mode or "external_authoritative").strip().lower()
+        mode_name = (config.ownership_mode or "external_authoritative").strip().lower()
         if mode_name == OwnershipMode.EXTERNAL_AUTHORITATIVE.value:
             policy = OwnershipPolicy.external_authoritative()
         elif mode_name == OwnershipMode.SPEC_KITTY_AUTHORITATIVE.value:
@@ -399,7 +407,7 @@ class LocalTrackerService:
         else:
             field_owners = {
                 field: FieldOwner(owner)
-                for field, owner in config.doctrine_field_owners.items()
+                for field, owner in config.ownership_field_owners.items()
                 if owner in {item.value for item in FieldOwner}
             }
             policy = OwnershipPolicy.split(field_owners=field_owners, default_owner=FieldOwner.SHARED)

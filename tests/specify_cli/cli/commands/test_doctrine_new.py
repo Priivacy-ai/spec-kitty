@@ -134,11 +134,11 @@ def test_new_asset_scaffolds_where_project_resolver_reads(tmp_path: Path) -> Non
     This is the headline WP03 assertion — before the kind-vocabulary hoist the
     command exited 2 (``asset`` was rejected two dicts upstream). The stub must
     land under the *same* project-tier directory the resolver reads, which is
-    the single authority ``doctrine.artifact_kinds.PROJECT_KIND_DIRS[ASSET]``.
+    the single authority ``charter.offering.artifact_kinds.PROJECT_KIND_DIRS[ASSET]``.
     DoctrineService's round-trip over that same authority is WP04's
     (``tests/doctrine/test_service.py``); here we assert only the written path.
     """
-    from doctrine.artifact_kinds import PROJECT_KIND_DIRS, ArtifactKind
+    from charter.offering.artifact_kinds import PROJECT_KIND_DIRS, ArtifactKind
 
     project = _make_project_root(tmp_path)
 

@@ -154,7 +154,7 @@ def test_transactional_emit_fans_out_only_after_commit(
     mock_saas_sink: Any,
 ) -> None:
     _seed_planned_on_coord(repo)
-    event = emit_status_transition_transactional(_request(repo), sync_dossier=False)
+    event = emit_status_transition_transactional(_request(repo))
 
     assert mock_saas_sink.call_count == 1
     assert mock_saas_sink.last_kwargs["metadata"].causation_id == event.event_id
@@ -186,7 +186,7 @@ def test_transactional_claim_and_binding_use_one_atomic_stream_append(
 
     monkeypatch.setattr(status_store, "_append_serialized_atomic", _capture)
 
-    emit_status_transition_transactional(request, sync_dossier=False)
+    emit_status_transition_transactional(request)
 
     assert len(appended_units) == 1  # golden-count: cardinality-is-contract
     assert [payload.get("kind", "transition") for payload in appended_units[0]] == [
@@ -231,7 +231,6 @@ def test_production_implement_lifecycle_persists_two_hops_and_binding_atomically
             agent_profile="python-pedro",
             model="claude-opus-4-6",
         ),
-        sync_dossier=False,
     )
 
     assert len(appended_units) == 1  # golden-count: cardinality-is-contract
@@ -249,7 +248,7 @@ def test_transactional_read_targets_coordination_branch(repo: Path) -> None:
         agent="claude",
         assignee="implementer",
     )
-    event = emit_status_transition_transactional(request, sync_dossier=False)
+    event = emit_status_transition_transactional(request)
 
     events = read_events_transactional(
         feature_dir=repo / "kitty-specs" / MISSION_DIRNAME,
@@ -288,7 +287,7 @@ def test_review_gate_reads_subtask_annotations_from_unmaterialized_coord_branch(
     _seed_planned_on_coord(repo)
     request = _request(repo)
     request.annotation_delta = WPInnerStateDelta(subtasks={"T001": Status.DONE})
-    emit_status_transition_transactional(request, sync_dossier=False)
+    emit_status_transition_transactional(request)
 
     from specify_cli.status import TransitionRequest
     from specify_cli.status import emit as status_emit
@@ -526,7 +525,7 @@ def test_transactional_emit_skips_fanout_when_commit_rolls_back(
     _git(repo, "config", "core.hooksPath", str(hooks_dir))
 
     with pytest.raises(BookkeepingCommitFailed):
-        emit_status_transition_transactional(_request(repo), sync_dossier=False)
+        emit_status_transition_transactional(_request(repo))
 
     assert mock_saas_sink.call_count == 0
     # The coord branch still carries only the seed (genesis->planned); the
@@ -549,7 +548,7 @@ def test_transactional_emit_fails_closed_when_coordination_branch_missing(
     _git(repo, "branch", "-D", COORD_BRANCH)
 
     with pytest.raises(BookkeepingWorktreeMissing):
-        emit_status_transition_transactional(_request(repo), sync_dossier=False)
+        emit_status_transition_transactional(_request(repo))
 
     assert mock_saas_sink.call_count == 0
     assert not (repo / "kitty-specs" / MISSION_DIRNAME / "status.events.jsonl").exists()
@@ -607,7 +606,7 @@ def test_transactional_emit_fails_closed_on_malformed_meta(
     )
 
     with pytest.raises(MissionMetaReadError, match="Malformed JSON"):
-        emit_status_transition_transactional(_request(repo), sync_dossier=False)
+        emit_status_transition_transactional(_request(repo))
 
     assert mock_saas_sink.call_count == 0
     assert not (repo / "kitty-specs" / MISSION_DIRNAME / "status.events.jsonl").exists()
@@ -671,7 +670,7 @@ def test_transactional_batch_rejects_request_without_any_feature_dir(repo: Path)
     with pytest.raises(
         TypeError, match="requires feature_dir/mission_dir, mission_slug, and wp_id"
     ):
-        emit_status_transition_batch_transactional([request], sync_dossier=False)
+        emit_status_transition_batch_transactional([request])
 
 
 def test_transactional_batch_same_wp_under_coord_topology_does_not_misfire(
@@ -710,7 +709,6 @@ def test_transactional_batch_same_wp_under_coord_topology_does_not_misfire(
 
     events = emit_status_transition_batch_transactional(
         [_coord_request("claimed"), _coord_request("in_progress")],
-        sync_dossier=False,
     )
 
     assert [e.to_lane for e in events] == [Lane.CLAIMED, Lane.IN_PROGRESS]
@@ -840,9 +838,7 @@ def test_transactional_emit_fail_closed_surface_refusal_stays_structured(
     _materialize_coord_root_without_mission_dir(repo)
 
     with pytest.raises(BookkeepingWorktreeMissing):
-        emit_status_transition_transactional(
-            _canonical_slug_request(repo), sync_dossier=False
-        )
+        emit_status_transition_transactional(_canonical_slug_request(repo))
 
 
 # ---------------------------------------------------------------------------

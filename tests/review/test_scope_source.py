@@ -50,7 +50,7 @@ def test_port_declares_exactly_the_repo_shape_methods() -> None:
     assert port_methods == {"test_command", "file_to_scope", "parse_results", "parse_mode"}
 
 
-def test_declared_command_reads_configured_command(tmp_path: Path) -> None:
+def test_declared_command_test_command_returns_shlex_split_of_configured_command(tmp_path: Path) -> None:
     _write_config(tmp_path, test_command="./run-tests.sh --ci")
 
     assert DeclaredCommandScopeSource(repo_root=tmp_path).test_command() == [

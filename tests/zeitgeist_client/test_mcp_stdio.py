@@ -177,7 +177,10 @@ async def test_watch_tool_with_no_repo_argument_uses_the_checkout_derived_key(st
 
 
 async def test_status_tool_with_no_repo_argument_reports_a_tool_error_without_a_derivable_checkout(
-    state_root: Path, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    state_root: Path,
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    no_git_ancestry_inside_tmp_path: None,
 ) -> None:
     monkeypatch.chdir(tmp_path)  # not a git checkout at all
     server = mcp_stdio.build_server()
@@ -251,6 +254,36 @@ async def test_no_repo_argument_reads_the_real_checkout_own_credential_end_to_en
     assert not result.isError
     assert result.structuredContent["repo"] == "github.com/acme/widget"
     assert result.structuredContent["presence"][0]["session_ref"] == "g" * 12
+    assert managed_stream_double.received_headers[0].get("X-Zeitgeist-Capability") == "team-a-cred"
+
+
+async def test_watch_tool_with_no_repo_argument_reads_the_real_checkout_own_credential_end_to_end(
+    state_root: Path, managed_stream_double, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The watch-side twin of ``test_no_repo_argument_reads_the_real_checkout_own_credential_end_to_end``:
+    a REAL checkout (origin ``https://github.com/acme/widget.git``), the
+    credential its bridge would have auto-minted under
+    ``github.com/acme/widget``, and a ``zeitgeist_watch`` call naming no repo
+    at all — exercising :func:`resolution.store_key_for_checkout` itself
+    rather than monkeypatching it, the seam
+    ``test_watch_tool_with_no_repo_argument_uses_the_checkout_derived_key``
+    stubs out."""
+    checkout = _checkout_with_origin(
+        tmp_path / "server" / "acme" / "widget.git",
+        tmp_path / "work" / "acme" / "widget",
+        "https://github.com/acme/widget.git",
+    )
+    credentials.store(repo="github.com/acme/widget", relay_url=managed_stream_double.url, token="team-a-cred", token_kind="shared_team")
+    managed_stream_double.push_frame(_frame(seq=1, frame=_presence(session_ref="h" * 12)))
+    managed_stream_double.close_stream()
+
+    monkeypatch.chdir(checkout)
+    server = mcp_stdio.build_server()
+    async with create_connected_server_and_client_session(server) as client:
+        result = await client.call_tool("zeitgeist_watch", {"timeout_s": 2.0})
+    assert not result.isError
+    assert result.structuredContent["repo"] == "github.com/acme/widget"
+    assert result.structuredContent["frames"][0]["payload"]["actor"]["session_ref"] == "h" * 12
     assert managed_stream_double.received_headers[0].get("X-Zeitgeist-Capability") == "team-a-cred"
 
 

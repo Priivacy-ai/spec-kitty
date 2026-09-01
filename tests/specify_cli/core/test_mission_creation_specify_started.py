@@ -23,7 +23,7 @@ from unittest.mock import patch
 
 import pytest
 
-from charter.mission_type_profiles import ResolvedMissionType
+from charter.activation.mission_type_profiles import ResolvedMissionType
 from specify_cli.core.mission_creation import create_mission_core
 from specify_cli.runtime.resolver import TemplateConfigurationError
 
@@ -98,7 +98,6 @@ def test_mission_create_appends_mission_created_and_specify_started(tmp_path: Pa
         patch(f"{_CORE_MODULE}.is_worktree_context", return_value=False),
         patch(f"{_CORE_MODULE}.is_git_repo", return_value=True),
         patch(f"{_CORE_MODULE}.get_current_branch", return_value="main"),
-        patch("specify_cli.status.fire_dossier_sync"),
         patch(f"{_CORE_MODULE}._commit_feature_file"),
     ):
         result = create_mission_core(tmp_path, "lifecycle-stream-1067", **_mission_summary("lifecycle-stream-1067"))
@@ -125,7 +124,6 @@ def test_mission_create_specify_started_payload_references_spec_md(tmp_path: Pat
         patch(f"{_CORE_MODULE}.is_worktree_context", return_value=False),
         patch(f"{_CORE_MODULE}.is_git_repo", return_value=True),
         patch(f"{_CORE_MODULE}.get_current_branch", return_value="main"),
-        patch("specify_cli.status.fire_dossier_sync"),
         patch(f"{_CORE_MODULE}._commit_feature_file"),
     ):
         result = create_mission_core(tmp_path, "lifecycle-stream-1067", **_mission_summary("lifecycle-stream-1067"))
@@ -149,7 +147,6 @@ def test_mission_create_specify_started_is_idempotent(tmp_path: Path) -> None:
         patch(f"{_CORE_MODULE}.is_worktree_context", return_value=False),
         patch(f"{_CORE_MODULE}.is_git_repo", return_value=True),
         patch(f"{_CORE_MODULE}.get_current_branch", return_value="main"),
-        patch("specify_cli.status.fire_dossier_sync"),
         patch(f"{_CORE_MODULE}._commit_feature_file"),
     ):
         first = create_mission_core(tmp_path, "lifecycle-stream-1067", **_mission_summary("lifecycle-stream-1067"))
@@ -195,7 +192,7 @@ def test_template_configuration_failure_emits_no_lifecycle_events(tmp_path: Path
         patch(f"{_CORE_MODULE}.is_git_repo", return_value=True),
         patch(f"{_CORE_MODULE}.get_current_branch", return_value="main"),
         patch(
-            "charter.mission_type_profiles.resolve_mission_type_context",
+            "charter.activation.mission_type_profiles.resolve_mission_type_context",
             return_value=invalid_context,
         ),
         pytest.raises(TemplateConfigurationError),

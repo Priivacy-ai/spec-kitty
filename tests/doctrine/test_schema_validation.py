@@ -10,7 +10,7 @@ from jsonschema import Draft202012Validator  # type: ignore[import-untyped]
 
 pytestmark = [pytest.mark.doctrine, pytest.mark.fast]
 
-SCHEMA_DIR = Path(__file__).resolve().parents[2] / "src" / "doctrine" / "schemas"
+SCHEMA_DIR = Path(__file__).resolve().parents[2] / "src" / "charter" / "offering" / "schemas"
 FIXTURE_DIR = Path(__file__).resolve().parent / "fixtures"
 
 SCHEMA_FILES = {

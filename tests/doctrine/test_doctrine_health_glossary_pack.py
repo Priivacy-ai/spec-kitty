@@ -36,7 +36,7 @@ import pytest
 from ruamel.yaml import YAML
 from typer.testing import CliRunner
 
-from doctrine.glossary_packs import GlossaryPackRepository
+from charter.offering.glossary_packs import GlossaryPackRepository
 from specify_cli.cli.commands._doctrine_collect import (
     _collect_glossary_pack_health,
     _parse_skipped_glossary_pack_warning,

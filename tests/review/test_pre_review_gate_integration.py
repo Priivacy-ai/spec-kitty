@@ -80,12 +80,18 @@ from specify_cli.cli.commands.agent.tasks_move_task import _do_move_task, _MoveT
 from specify_cli.core.commit_guard import GuardCapability
 from specify_cli.review import pre_review_gate
 from specify_cli.review.baseline import BaselineFailure, BaselineTestResult
+from specify_cli.review.gate_budget import BudgetClassification
+from specify_cli.review.gate_bindings import (
+    GateCoverage,
+    resolve_gate_bindings_for_transition,
+)
 from specify_cli.status.models import Lane, StatusEvent, TransitionRequest
 from specify_cli.status.store import append_event
 from specify_cli.status.reducer import materialize
 from specify_cli.status.store import read_events
 from specify_cli.workspace.context import ResolvedWorkspace
 from tests._factories import provision_test_charter
+from tests.lane_test_utils import write_mission_meta
 from tests.mocked_env import setup_mocked_env
 from tests.specify_cli.cli.commands.agent.test_tasks_ports import (
     FakeFsReader,
@@ -101,6 +107,48 @@ from tests.specify_cli.cli.commands.agent.test_tasks_ports import (
 pytestmark = [pytest.mark.git_repo]
 
 _MISSION = "test-pre-review-gate"
+
+
+@pytest.mark.fast
+@pytest.mark.parametrize("route", ["derived", "override"])
+def test_budget_assessment_precedes_launch_on_both_engine_routes(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, route: str) -> None:
+    """Derived and explicit-override scopes share the authoritative preflight."""
+    launched = False
+
+    def _launch(*args: object, **kwargs: object) -> object:
+        nonlocal launched
+        launched = True
+        raise AssertionError("oversized scope must refuse before launch")
+
+    monkeypatch.setattr(pre_review_gate, "_launch_scoped_process", _launch)
+    if route == "derived":
+
+        class _DerivedArchitecturalSource:
+            def file_to_scope(self, path: str) -> tuple[str, ...]:
+                del path
+                return ("tests/architectural",)
+
+            def test_command(self) -> list[str]:
+                return [sys.executable, "-c", "raise SystemExit(0)"]
+
+            def parse_results(self, raw: object) -> tuple[BaselineFailure, ...]:
+                del raw
+                return ()
+
+        source = _DerivedArchitecturalSource()
+        verdict = pre_review_gate.evaluate_pre_review_gate(["src/example.py"], repo_root=tmp_path, baseline=None, scope_source=source)
+    else:
+        verdict = pre_review_gate.evaluate_with_scope(
+            pre_review_gate.ScopeResult.from_override(("tests/architectural",)),
+            repo_root=tmp_path,
+            baseline=None,
+        )
+
+    assert launched is False
+    assert verdict.outcome.value == "scope_oversized"
+    assert verdict.budget_assessment is not None
+    assert verdict.budget_assessment.classification is BudgetClassification.OVERSIZED
+
 
 # ---------------------------------------------------------------------------
 # Synthetic filter-group / composite-routing fixtures — mirror WP01's own
@@ -216,12 +264,20 @@ def _build_wp_file(
     tasks_dir = feature_dir / "tasks"
     tasks_dir.mkdir(parents=True, exist_ok=True)
     (tmp_path / ".kittify").mkdir(exist_ok=True)
+    write_mission_meta(feature_dir, mission_type="software-dev")
     # Post `resolution-activation-foundation`: the pre-review gate resolves its
     # owning `mission_step_contract:software-dev/review` via charter activation.
     # A bare project has no activations, so the gate degrades to `no_coverage`
     # (never blocks). Seed the default activations via the production provisioner
     # so the gate has real coverage to enforce.
     provision_test_charter(tmp_path)
+    binding = resolve_gate_bindings_for_transition(
+        tmp_path,
+        "software-dev",
+        "in_progress->for_review",
+    )
+    assert binding.coverage is GateCoverage.ACTIVE, binding.reason
+    assert [item.handler for item in binding.active] == ["spec-kitty-pre-review"]
     wp_file = tasks_dir / f"{wp_id}-test.md"
     wp_file.write_text(
         f"---\n"

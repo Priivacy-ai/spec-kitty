@@ -963,7 +963,7 @@ class TestCollectFeatureSummaryWiring:
         monkeypatch.setattr(acceptance_module, "_planning_read_dir", lambda *_a, **_k: feature_dir)
         monkeypatch.setattr(acceptance_module, "_find_unchecked_tasks", lambda _f: [])
         monkeypatch.setattr(acceptance_module, "_check_needs_clarification", lambda _files: [])
-        monkeypatch.setattr(acceptance_module, "_missing_artifacts", lambda _fd: ([], []))
+        monkeypatch.setattr(acceptance_module, "_missing_artifacts", lambda *_a: ([], []))
         monkeypatch.setattr(acceptance_module, "get_mission_for_feature", lambda _fd: (_ for _ in ()).throw(acceptance_module.MissionError("no mission.yaml")))
         monkeypatch.setattr(acceptance_module, "_check_lane_gates", lambda *_a, **_k: None)
         return feature_dir, {}
@@ -1081,7 +1081,7 @@ class TestCollectFeatureSummaryWiring:
         monkeypatch.setattr(acceptance_module, "_planning_read_dir", lambda *_a, **_k: primary_dir)
         monkeypatch.setattr(acceptance_module, "_find_unchecked_tasks", lambda _f: [])
         monkeypatch.setattr(acceptance_module, "_check_needs_clarification", lambda _files: [])
-        monkeypatch.setattr(acceptance_module, "_missing_artifacts", lambda _fd: ([], []))
+        monkeypatch.setattr(acceptance_module, "_missing_artifacts", lambda *_a: ([], []))
         monkeypatch.setattr(acceptance_module, "get_mission_for_feature", lambda _fd: (_ for _ in ()).throw(acceptance_module.MissionError("no mission.yaml")))
 
         lane_gate_calls: list[Path] = []

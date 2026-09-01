@@ -22,6 +22,10 @@ Error codes used:
   PREFLIGHT_FAILED            -- preflight checks failed (for merge-mission)
   CONTRACT_VERSION_MISMATCH   -- provider version is below MIN_PROVIDER_VERSION
   UNSUPPORTED_STRATEGY        -- merge strategy not implemented
+  ANCESTRY_NOT_ESTABLISHED    -- #3281/FR-007: the recorded planning commit or an
+                                 approved dependency lane's tip is not (yet) a git
+                                 ancestor of the claimed workspace's HEAD, even
+                                 after self-heal re-ran the reuse-path merges
 """
 
 from __future__ import annotations
@@ -60,26 +64,80 @@ import click
 from typer import core as typer_core
 from typer.core import TyperGroup
 
-# Typer 0.26+ vendors click as typer._click; exceptions from that module are
-# distinct from the standalone click package's exceptions. We need to catch both
-# so that _JSONErrorGroup works regardless of the installed typer version.
-try:
-    from typer import _click as _typer_click_module  # type: ignore[attr-defined]
-
-    _CLICK_USAGE_ERRORS: tuple[type, ...] = (
-        click.UsageError,
-        _typer_click_module.exceptions.UsageError,
-    )
-    _CLICK_ABORTS: tuple[type, ...] = (click.Abort, _typer_click_module.exceptions.Abort)
-except ImportError:
-    _CLICK_USAGE_ERRORS = (click.UsageError,)
-    _CLICK_ABORTS = (click.Abort,)
+# Typer 0.26+ vendors click as ``typer._click``; exceptions raised by that copy
+# are distinct classes from the standalone ``click`` package's, so every catch
+# below must name both.  The vendored module's surface is itself a moving
+# target: 0.26.x exposed ``exceptions.Abort``/``exceptions.Exit``, while 0.27.x
+# exposes only ``exceptions.UsageError`` and raises typer's own public
+# ``typer.Abort``/``typer.Exit`` instead (spec-kitty#713).  Every class is
+# therefore resolved with ``getattr`` and a ``None`` default — never as an
+# eagerly evaluated default expression such as ``getattr(m, "Abort",
+# m.exceptions.Abort)``, which raised ``AttributeError`` at import time — and
+# typer's stable public ``typer.Abort``/``typer.Exit`` are always included.
 
 
-_CLICK = typer_core._click if hasattr(typer_core, "_click") else typer_core.click
-_USAGE_ERROR = getattr(_CLICK, "UsageError", _CLICK.exceptions.UsageError)
-_ABORT = getattr(_CLICK, "Abort", _CLICK.exceptions.Abort)
-_EXIT = getattr(_CLICK, "Exit", _CLICK.exceptions.Exit)
+def _vendored_click_exception(name: str) -> type[BaseException] | None:
+    """Return ``typer._click``'s exception class ``name``, or ``None`` if absent.
+
+    Looks in the vendored ``exceptions`` submodule first, then the package
+    root, and never touches an attribute it has not confirmed exists.
+    """
+    module = getattr(typer_core, "_click", None)
+    if module is None:
+        return None
+    for holder in (getattr(module, "exceptions", None), module):
+        candidate = getattr(holder, name, None) if holder is not None else None
+        if isinstance(candidate, type) and issubclass(candidate, BaseException):
+            return candidate
+    return None
+
+
+def _exception_classes(*candidates: type[BaseException] | None) -> tuple[type[BaseException], ...]:
+    """Deduplicate ``candidates`` into an ``except``-clause tuple, dropping ``None``."""
+    classes: list[type[BaseException]] = []
+    for candidate in candidates:
+        if candidate is not None and candidate not in classes:
+            classes.append(candidate)
+    return tuple(classes)
+
+
+_CLICK_USAGE_ERRORS = _exception_classes(click.UsageError, _vendored_click_exception("UsageError"))
+_CLICK_ABORTS = _exception_classes(click.Abort, typer.Abort, _vendored_click_exception("Abort"))
+# ``typer.Exit`` is click's ``Exit`` on typer <= 0.25 and typer's own class on
+# >= 0.26, so it covers the standalone-click spelling in both eras (TID251).
+_EXIT = _exception_classes(typer.Exit, _vendored_click_exception("Exit"))
+
+
+def _vendored_click_exception(name: str) -> type[BaseException] | None:
+    """Return ``typer._click``'s exception class ``name``, or ``None`` if absent.
+
+    Looks in the vendored ``exceptions`` submodule first, then the package
+    root, and never touches an attribute it has not confirmed exists.
+    """
+    module = getattr(typer_core, "_click", None)
+    if module is None:
+        return None
+    for holder in (getattr(module, "exceptions", None), module):
+        candidate = getattr(holder, name, None) if holder is not None else None
+        if isinstance(candidate, type) and issubclass(candidate, BaseException):
+            return candidate
+    return None
+
+
+def _exception_classes(*candidates: type[BaseException] | None) -> tuple[type[BaseException], ...]:
+    """Deduplicate ``candidates`` into an ``except``-clause tuple, dropping ``None``."""
+    classes: list[type[BaseException]] = []
+    for candidate in candidates:
+        if candidate is not None and candidate not in classes:
+            classes.append(candidate)
+    return tuple(classes)
+
+
+_CLICK_USAGE_ERRORS = _exception_classes(click.UsageError, _vendored_click_exception("UsageError"))
+_CLICK_ABORTS = _exception_classes(click.Abort, typer.Abort, _vendored_click_exception("Abort"))
+# ``typer.Exit`` is click's ``Exit`` on typer <= 0.25 and typer's own class on
+# >= 0.26, so it covers the standalone-click spelling in both eras (TID251).
+_EXIT = _exception_classes(typer.Exit, _vendored_click_exception("Exit"))
 
 
 class _JSONErrorGroup(TyperGroup):
@@ -240,6 +298,24 @@ def _fail(command: str, error_code: str, message: str, data: dict | None = None)
 def _fail_wp_not_found(cmd: str, wp: str, mission: str) -> NoReturn:
     """The ONE ``WP_NOT_FOUND`` emission (S1192 5×; locks error-surface parity)."""
     _fail(cmd, "WP_NOT_FOUND", f"Work package '{wp}' not found in {mission}")
+
+
+def _parse_policy_or_fail(cmd: str, policy: str) -> dict:
+    """Parse+validate a ``--policy`` JSON string, or ``_fail`` (NoReturn) on invalid JSON.
+
+    The ONE ``POLICY_VALIDATION_FAILED`` emission (WP03/#3281 campsite): before
+    this extraction, ``start_implementation``'s required-policy parse and
+    ``transition``'s two (required + optional) policy-parse blocks each
+    duplicated the identical try/``parse_and_validate_policy``/except/``_fail``
+    shape. Folding them into one call keeps ``transition`` at its pre-WP03
+    complexity (14) after this WP adds the post-materialize ancestry gate,
+    rather than pushing it over the Sonar S3776/Ruff C901 ceiling of 15.
+    """
+    try:
+        policy_obj = parse_and_validate_policy(policy)
+    except ValueError as exc:
+        _fail(cmd, "POLICY_VALIDATION_FAILED", str(exc))
+    return policy_to_dict(policy_obj)
 
 
 def _get_main_repo_root() -> Path:
@@ -770,7 +846,11 @@ def list_ready(
         if state.progress_bucket() != "not_started":
             continue
 
-        readiness = dependency_readiness_for_wp(wp_id, deps, wp_lanes)
+        # Advisory display parity (FR-009): a canceled-with-operator-provenance
+        # dependency is a documented removal, so surface its dependent as ready
+        # rather than blocked. `wp_states` is the reduced snapshot already read
+        # above, so this reuses the authoritative provenance with no extra I/O.
+        readiness = dependency_readiness_for_wp(wp_id, deps, wp_lanes, provenance=wp_states)
 
         ready_wps.append(
             {
@@ -851,7 +931,52 @@ def _lane_base_ref(main_repo_root: Path, mission: str, manifest: object) -> str:
         return str(getattr(manifest, "mission_branch", "") or resolve_primary_branch(main_repo_root))
 
 
-def _lane_assignment_or_legacy(main_repo_root: Path, mission: str, wp: str) -> tuple[LanesManifest, ExecutionLane] | _StartWorkspace:
+def _enforce_claim_ancestry(
+    cmd: str,
+    main_repo_root: Path,
+    mission: str,
+    mission_dir: Path,
+    wp: str,
+    workspace_path: Path,
+) -> None:
+    """POST-materialize claim-ancestry gate (C-WP03/FR-007/C-005) -- the ONE
+    call site shared by both of THIS module's claim paths
+    (``start_implementation``'s composite and ``transition``'s raw
+    ``--to claimed``), boundary-leak fix: the allocator's reuse-path self-heal
+    already reached ``orchestrator_api`` via ``_resolve_start_workspace``
+    (always calls ``allocate_lane_worktree``), but the ancestry GATE did not.
+
+    Delegates the predicate + self-heal-retry contract to
+    :func:`specify_cli.lanes.implement_support.resolve_claim_ancestry_gate` --
+    the same shared helper the CLI seam (``workflow.py``'s ``implement()``)
+    calls -- so this module and the CLI can never independently diverge on
+    the ancestry decision. Fails with the structured ``ANCESTRY_NOT_ESTABLISHED``
+    envelope (never a bare exception) so an external orchestrator gets the
+    same contract every other claim-time refusal here already provides.
+    """
+    from specify_cli.lanes.implement_support import resolve_claim_ancestry_gate
+
+    result = resolve_claim_ancestry_gate(main_repo_root, mission, mission_dir, wp, workspace_path)
+    if result.ok:
+        return
+    _fail(
+        cmd,
+        "ANCESTRY_NOT_ESTABLISHED",
+        (
+            f"cannot claim {wp}: ancestry could not be established after "
+            f"self-heal for: {', '.join(result.missing_refs)}"
+        ),
+        {
+            **_mission_identity_payload(mission_dir),
+            "wp_id": wp,
+            "missing_refs": list(result.missing_refs),
+        },
+    )
+
+
+def _lane_assignment_or_legacy(
+    main_repo_root: Path, mission: str, wp: str
+) -> tuple[LanesManifest, ExecutionLane] | _StartWorkspace:
     """Shared prologue of the two workspace resolvers (ONE fallback grammar).
 
     Returns the ``(manifest, lane)`` pair when ``wp`` is lane-assigned;
@@ -1038,13 +1163,7 @@ def start_implementation(
         _fail(cmd, "POLICY_METADATA_REQUIRED", "--policy is required for start-implementation")
         return
 
-    try:
-        policy_obj = parse_and_validate_policy(policy)
-    except ValueError as exc:
-        _fail(cmd, "POLICY_VALIDATION_FAILED", str(exc))
-        return
-
-    policy_dict = policy_to_dict(policy_obj)
+    policy_dict = _parse_policy_or_fail(cmd, policy)
 
     main_repo_root = _get_main_repo_root()
     mission_dir = _resolve_mission_dir_or_fail(cmd, main_repo_root, mission)
@@ -1058,17 +1177,30 @@ def start_implementation(
     from specify_cli.status import reduce
     from specify_cli.status import read_events
 
-    wp_lanes = {wp_id: state.get("lane", Lane.PLANNED) for wp_id, state in reduce(read_events(mission_dir)).work_packages.items()}
+    # Reduce once off the same (coord-aware) status surface the lane map already
+    # reads, so the provenance map threaded into the gate is consistent with the
+    # lanes it decides against.
+    _snapshot = reduce(read_events(mission_dir))
+    wp_lanes = {
+        wp_id: state.get("lane", Lane.PLANNED)
+        for wp_id, state in _snapshot.work_packages.items()
+    }
     # Only gate the not-yet-started claim transition. Re-invoking start-implementation
     # on a WP that is already in_progress/for_review/.../approved is a no-op resume
     # in the lifecycle layer and must not be rejected just because a dependency later
     # regressed out of approved/done.
     _self_lane = wp_state_for(wp_lanes.get(wp, Lane.PLANNED)).lane
     if _self_lane in (Lane.PLANNED, Lane.CLAIMED):
+        # Thread per-dependency provenance (FR-009): start-implementation is the
+        # external-API CLAIM gate (mutating planned→claimed→in_progress), the
+        # equivalent of implement.py's `_ensure_wp_claim_preconditions`. Without
+        # this a dependent of a canceled-with-operator-provenance WP reproduces
+        # the #2945 strand on the orchestrator-api claim path.
         dependency_readiness = dependency_readiness_for_wp(
             wp,
             parse_wp_dependencies(wp_path),
             wp_lanes,
+            provenance=_snapshot.work_packages,
         )
         if not dependency_readiness.satisfied:
             blocked = ", ".join(dependency_readiness.unsatisfied)
@@ -1095,6 +1227,12 @@ def start_implementation(
     workspace_path = start_ws.workspace_path
     prompt_path = str(wp_path)
 
+    # Seam C-005 (#3281/FR-007): POST-materialize, after allocation/self-heal
+    # above, BEFORE the claim transition below emits any status event. Never
+    # move this above ``_resolve_start_workspace`` -- see
+    # ``_enforce_claim_ancestry``'s docstring for the deadlock hazard.
+    _enforce_claim_ancestry(cmd, main_repo_root, mission, mission_dir, wp, Path(workspace_path))
+
     try:
         start_result = start_implementation_status(
             feature_dir=mission_dir,
@@ -1106,7 +1244,6 @@ def start_implementation(
             repo_root=main_repo_root,
             policy_metadata=policy_dict,
             ensure_sync_daemon=False,
-            sync_dossier=False,
         )
     except WorkPackageClaimConflict as exc:
         _fail(
@@ -1200,7 +1337,6 @@ def start_review(
             repo_root=main_repo_root,
             policy_metadata=policy_dict,
             ensure_sync_daemon=False,
-            sync_dossier=False,
         )
     except WorkPackageClaimConflict as exc:
         _fail(
@@ -1342,20 +1478,10 @@ def transition(
                 f"--policy is required when transitioning to '{to_lane}'",
             )
             return
-        try:
-            policy_obj = parse_and_validate_policy(policy)
-            policy_dict = policy_to_dict(policy_obj)
-        except ValueError as exc:
-            _fail(cmd, "POLICY_VALIDATION_FAILED", str(exc))
-            return
+        policy_dict = _parse_policy_or_fail(cmd, policy)
     elif policy:
         # Optional policy for non-run-affecting lanes
-        try:
-            policy_obj = parse_and_validate_policy(policy)
-            policy_dict = policy_to_dict(policy_obj)
-        except ValueError as exc:
-            _fail(cmd, "POLICY_VALIDATION_FAILED", str(exc))
-            return
+        policy_dict = _parse_policy_or_fail(cmd, policy)
 
     evidence: dict | None = None
     if evidence_json is not None:
@@ -1387,6 +1513,16 @@ def transition(
 
     if to_lane == Lane.FOR_REVIEW:
         _enforce_for_review_commit_gate(cmd, main_repo_root, mission, mission_dir, wp, force)
+    elif to_lane == Lane.CLAIMED:
+        # Seam C-005 (#3281/FR-007): early-return-equivalent for every OTHER
+        # target lane -- this predicate only ever runs for a raw `--to
+        # claimed` transition. Allocates/self-heals the lane workspace
+        # (mirrors start_implementation's own `_resolve_start_workspace`
+        # call) and enforces ancestry BEFORE the `claimed` event below.
+        claim_ws = _resolve_start_workspace(cmd, main_repo_root, mission, mission_dir, wp)
+        _enforce_claim_ancestry(
+            cmd, main_repo_root, mission, mission_dir, wp, Path(claim_ws.workspace_path)
+        )
 
     from specify_cli.coordination.status_transition import emit_status_transition_transactional
     from specify_cli.status import TransitionError
@@ -1412,7 +1548,6 @@ def transition(
                 policy_metadata=policy_dict,
             ),
             ensure_sync_daemon=False,
-            sync_dossier=False,
         )
     except TransitionError as exc:
         _fail(cmd, "TRANSITION_REJECTED", str(exc))

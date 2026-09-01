@@ -21,7 +21,7 @@ amendments:
 8. The amendment #3 sentinel-coercion unit test for ``_coerce_cli_bool``.
 
 Real behavior throughout: every scenario drives the actual
-``charter.synthesizer.synthesize`` / ``reconcile_synthesis`` machinery
+``charter.activation.synthesizer.synthesize`` / ``reconcile_synthesis`` machinery
 against a real ``tmp_path`` repo with the canonical ``FixtureAdapter``
 (inputs-hash-keyed against ``tests/charter/fixtures/synthesizer/``). Only
 the interview-answers -> ``SynthesisRequest`` derivation
@@ -47,16 +47,16 @@ import pytest
 from ruamel.yaml import YAML
 from typer.testing import CliRunner
 
-from charter.synthesizer import FixtureAdapter, SynthesisRequest, SynthesisTarget, synthesize
-from charter.synthesizer.manifest import (
+from charter.activation.synthesizer import FixtureAdapter, SynthesisRequest, SynthesisTarget, synthesize
+from charter.activation.synthesizer.manifest import (
     MANIFEST_PATH,
     ManifestArtifactEntry,
     finalize_manifest,
     load_yaml as load_manifest,
 )
-from charter.synthesizer.provenance import load_yaml as load_provenance
-from charter.synthesizer.reconcile import SynthesizeMode
-from charter.synthesizer.synthesize_pipeline import canonical_yaml
+from charter.activation.synthesizer.provenance import load_yaml as load_provenance
+from charter.activation.synthesizer.reconcile import SynthesizeMode
+from charter.activation.synthesizer.synthesize_pipeline import canonical_yaml
 from specify_cli.cli.commands.charter import charter_app
 from specify_cli.cli.commands.charter.synthesize import _coerce_cli_bool
 

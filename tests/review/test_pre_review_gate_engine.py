@@ -28,6 +28,7 @@ import pytest
 from specify_cli.review import baseline as baseline_module
 from specify_cli.review import pre_review_gate
 from specify_cli.review.baseline import BaselineFailure, BaselineTestResult
+from specify_cli.review.gate_budget import BudgetClassification, ScopeBudgetAssessment, ScopeIdentity
 from specify_cli.review.pre_review_gate import (
     GateOutcome,
     HeadRunResult,
@@ -140,6 +141,160 @@ class _NarrowingScopeSource:
             )
         _total, _passed, _failed, _skipped, failures = _parse_junit_xml(artifact)
         return tuple(failures)
+
+
+# ---------------------------------------------------------------------------
+# Mission pre-review-gate-operator-flow WP02: budget-authoritative engine seam
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.fast
+def test_oversized_override_refuses_before_process_launch(monkeypatch: pytest.MonkeyPatch) -> None:
+    """The explicit-override route refuses an exact oversized atom pre-launch."""
+
+    def _launch_boom(*args: object, **kwargs: object) -> object:
+        raise AssertionError("oversized scope must not create a process")
+
+    monkeypatch.setattr(pre_review_gate, "_launch_scoped_process", _launch_boom)
+    events: list[object] = []
+
+    verdict = pre_review_gate.evaluate_with_scope(
+        ScopeResult.from_override(("tests/architectural",)),
+        repo_root=_DUMMY_ROOT,
+        baseline=None,
+        status_observer=events.append,
+    )
+
+    assert verdict.outcome.value == "scope_oversized"
+    assert verdict.run_state.value == "not_started"
+    assert verdict.budget_assessment is not None
+    assert verdict.budget_assessment.classification is BudgetClassification.OVERSIZED
+    assert verdict.classification_candidate is False
+    assert len(events) == 1
+    assert isinstance(events[0], pre_review_gate.ScopeAssessed)
+
+
+@pytest.mark.fast
+def test_unknown_scope_runs_and_emits_typed_scope_then_heartbeat(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Unknown metadata is advisory: the incumbent runner still executes."""
+    callbacks: list[object] = []
+
+    def _run(*args: object, **kwargs: object) -> HeadRunResult:
+        progress = kwargs["progress_callback"]
+        assert callable(progress)
+        progress(31.25)
+        return HeadRunResult(ran=True)
+
+    monkeypatch.setattr(pre_review_gate, "run_scoped_tests_at_head", _run)
+    verdict = pre_review_gate.evaluate_with_scope(
+        ScopeResult.from_override(("tests/review/test_small.py",)),
+        repo_root=_DUMMY_ROOT,
+        baseline=_make_baseline(),
+        status_observer=callbacks.append,
+    )
+
+    assert verdict.outcome is GateOutcome.NO_NEW_FAILURES
+    assert verdict.budget_assessment is not None
+    assert verdict.budget_assessment.classification is BudgetClassification.UNKNOWN
+    assert isinstance(callbacks[0], pre_review_gate.ScopeAssessed)
+    assert callbacks[1] == pre_review_gate.Heartbeat(phase="candidate_head", observed_elapsed_seconds=31.25)
+
+
+@pytest.mark.fast
+def test_unknown_timeout_is_classification_candidate_with_separate_elapsed(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Only an unknown timeout carries immutable-policy follow-up evidence."""
+    monkeypatch.setattr(
+        pre_review_gate,
+        "run_scoped_tests_at_head",
+        lambda *args, **kwargs: HeadRunResult(
+            ran=False,
+            error="timed out",
+            state=HeadRunState.TIMED_OUT,
+            observed_elapsed_seconds=12.75,
+        ),
+    )
+
+    verdict = pre_review_gate.evaluate_with_scope(
+        ScopeResult.from_override(("tests/review/test_small.py",)),
+        repo_root=_DUMMY_ROOT,
+        baseline=None,
+        timeout=10,
+    )
+
+    assert verdict.outcome is GateOutcome.TIMED_OUT
+    assert verdict.classification_candidate is True
+    assert verdict.observed_elapsed_seconds == 12.75
+    assert verdict.budget_assessment is not None
+    assert verdict.budget_assessment.effective_budget_seconds == 10.0
+    assert verdict.budget_assessment.scope_identity.value in (verdict.reason or "")
+    assert "lane remains unchanged" in (verdict.reason or "")
+    assert "reviewed metadata update" in (verdict.reason or "")
+
+
+@pytest.mark.fast
+def test_bounded_timeout_is_not_a_classification_candidate(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A timeout cannot auto-promote already-bounded deterministic metadata."""
+    bounded = ScopeBudgetAssessment(
+        classification=BudgetClassification.BOUNDED,
+        scope_identity=ScopeIdentity(
+            normalized_targets=("tests/review/test_small.py",),
+            policy_namespace="spec-kitty.pre-review-budget/v1",
+            value="budget-v1:sha256:bounded-fixture",
+        ),
+        effective_budget_seconds=10,
+        matched_rule_id="bounded-fixture",
+        evidence="synthetic bounded acceptance fixture",
+        guidance="run",
+    )
+    monkeypatch.setattr(pre_review_gate, "assess_scope_budget", lambda *args: bounded)
+    monkeypatch.setattr(
+        pre_review_gate,
+        "run_scoped_tests_at_head",
+        lambda *args, **kwargs: HeadRunResult(
+            ran=False,
+            error="timed out",
+            state=HeadRunState.TIMED_OUT,
+            observed_elapsed_seconds=12.75,
+        ),
+    )
+
+    verdict = pre_review_gate.evaluate_with_scope(
+        ScopeResult.from_override(("tests/review/test_small.py",)),
+        repo_root=_DUMMY_ROOT,
+        baseline=None,
+        timeout=10,
+    )
+
+    assert verdict.outcome is GateOutcome.TIMED_OUT
+    assert verdict.classification_candidate is False
+    assert verdict.observed_elapsed_seconds == 12.75
+
+
+def test_bounded_fixture_completes_under_incumbent_runner() -> None:
+    """Source-controlled bounded metadata permits a real candidate run."""
+    target = "tests/review/test_gate_budget.py::test_identity_matches_pinned_vector"
+
+    verdict = pre_review_gate.evaluate_with_scope(
+        ScopeResult.from_override((target,)),
+        repo_root=_DUMMY_ROOT,
+        baseline=_make_baseline(),
+        timeout=30,
+    )
+
+    assert verdict.outcome is GateOutcome.NO_NEW_FAILURES
+    assert verdict.run_state is HeadRunState.COMPLETED
+    assert verdict.budget_assessment is not None
+    assert verdict.budget_assessment.classification is BudgetClassification.BOUNDED
+    assert verdict.budget_assessment.scope_identity.normalized_targets == (target,)
+    assert verdict.budget_assessment.effective_budget_seconds == 30
+    assert verdict.budget_assessment.matched_rule_id == "spec-kitty-gate-budget-pinned-vector"
+    assert verdict.classification_candidate is False
 
 
 # ---------------------------------------------------------------------------

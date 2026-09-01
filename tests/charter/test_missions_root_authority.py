@@ -1,14 +1,14 @@
 """Equality regression proving the missions-root hardcode consolidation (FR-004).
 
 Mission ``charter-sole-door-bypass-closure-01KZ3WAA`` / WP06. Before this WP,
-3 sites independently constructed the shipped ``src/doctrine/missions`` root:
+3 sites independently constructed the shipped ``src/charter/offering/missions`` root:
 
-1. ``charter.mission_type_profile_repository.builtin_missions_root()`` — a
+1. ``charter.activation.mission_type_profile_repository.builtin_missions_root()`` — a
    ``Path(__file__).resolve().parents[1] / "doctrine" / "missions"`` literal.
 2. ``specify_cli.runtime.home.get_package_asset_root()``'s ``dev_roots``
    fallback tuple — a ``Path(__file__).parents[2] / "doctrine" / "missions"``
    literal.
-3. ``doctrine.missions.repository.MissionTemplateRepository.default_missions_root()``
+3. ``charter.offering.missions.repository.MissionTemplateRepository.default_missions_root()``
    — the ``importlib.resources``-based, wheel-safe implementation.
 
 WP06 retargets (1) and (2) onto (3) as the ONE promoted authority, per
@@ -16,7 +16,7 @@ plan.md's Project Structure notes. ``builtin_missions_root()`` becomes a thin
 delegate (not a second co-equal authority); ``home.py``'s ``dev_roots``
 fallback calls the same authority.
 
-Full convergence onto ``doctrine.pack_paths.built_in_dir`` remains deferred to
+Full convergence onto ``charter.offering.pack_paths.built_in_dir`` remains deferred to
 GitHub issue #3091 (``pack_paths`` has no ``missions/`` content directory
 today, per research.md D1) — this WP does NOT claim that convergence, and
 these tests do not exercise it.
@@ -29,8 +29,8 @@ from pathlib import Path
 
 import pytest
 
-from charter.mission_type_profile_repository import builtin_missions_root
-from doctrine.missions.repository import MissionTemplateRepository
+from charter.activation.mission_type_profile_repository import builtin_missions_root
+from charter.offering.missions.repository import MissionTemplateRepository
 from specify_cli.runtime import home as home_module
 
 pytestmark = [pytest.mark.unit]

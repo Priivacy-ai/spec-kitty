@@ -75,7 +75,6 @@ def _create_mission(repo: Path, slug: str) -> Path:
         patch(f"{_CORE_MODULE}.is_worktree_context", return_value=False),
         patch(f"{_CORE_MODULE}.is_git_repo", return_value=True),
         patch(f"{_CORE_MODULE}.get_current_branch", return_value="main"),
-        patch("specify_cli.status.fire_dossier_sync"),
     ):
         result = create_mission_core(repo, slug, **_summary(slug))
     feature_dir: Path = result.feature_dir

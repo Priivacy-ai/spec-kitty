@@ -34,6 +34,7 @@ from typing import TYPE_CHECKING, Any
 from mission_runtime import TopologySurface
 from specify_cli.acceptance.execution_context import GateSurfaceRefMismatch
 from specify_cli.core.subtask_rows import iter_unchecked_subtask_rows
+from specify_cli.status_lanes import is_acceptable_ending
 from specify_cli.task_utils import run_git
 
 if TYPE_CHECKING:
@@ -42,14 +43,13 @@ if TYPE_CHECKING:
         GateExecutionContext,
     )
 
-# Mirrors ``specify_cli.acceptance._ACCEPTED_READY_LANES``. Duplicated here
-# (rather than imported) because it is a tiny, immutable, non-monkeypatched
-# value-level constant — importing it back from the package would require the
-# same deferred-lookup indirection as the collaborators above for zero benefit.
-_ACCEPTED_READY_LANES = frozenset({"approved", "done"})
+# WP02 (mission-completion-terminal-state): the former ``_ACCEPTED_READY_LANES``
+# copy is retired onto the single acceptable-ending authority
+# (``specify_cli.status_lanes.is_acceptable_ending``, FR-005 / directive 044).
 
-# Mirrors ``specify_cli.acceptance.TASKS_FILE`` — see the note on
-# ``_ACCEPTED_READY_LANES`` above; same rationale.
+# Mirrors ``specify_cli.acceptance.TASKS_FILE`` — a tiny, immutable,
+# non-monkeypatched value-level constant kept local to avoid the deferred-lookup
+# indirection the cross-module collaborators above require, for zero benefit.
 _TASKS_FILE = "tasks.md"
 
 
@@ -76,29 +76,56 @@ def _all_work_packages_terminal(lanes: Mapping[str, list[str]]) -> bool:
     tracked = any(wp_ids for wp_ids in lanes.values())
     if not tracked:
         return False
-    return not any(wp_ids for lane, wp_ids in lanes.items() if lane not in _ACCEPTED_READY_LANES)
+    # Routed through the single acceptable-ending authority at
+    # ``has_provenance=False`` (this lane-only view carries no provenance):
+    # behavior-identical to the retired ``_ACCEPTED_READY_LANES`` membership —
+    # ``approved``/``done`` are terminal-ready, every other lane (``canceled``
+    # included) is not. Provenance-aware terminality is decided by the caller
+    # (``collect_feature_summary``) and threaded via
+    # :func:`_normalized_unchecked_tasks`'s ``all_packages_acceptable`` override.
+    return not any(
+        wp_ids
+        for lane, wp_ids in lanes.items()
+        if not is_acceptable_ending(lane, has_provenance=False)
+    )
 
 
 def _normalized_unchecked_tasks(
     unchecked_tasks: list[str],
     lanes: Mapping[str, list[str]],
+    *,
+    all_packages_acceptable: bool | None = None,
 ) -> list[str]:
     """Apply FR-009 + the ``tasks.md missing`` normalization to unchecked tasks.
 
     FR-009 (#2085a): unchecked-tasks completion derives from WP terminal status.
-    When every tracked WP is approved/done, the work landed through the lane
-    lifecycle, so the redundant ``tasks.md`` checkbox bookkeeping is not
+    When every tracked WP is at an acceptable ending, the work landed through the
+    lane lifecycle, so the redundant ``tasks.md`` checkbox bookkeeping is not
     required — unticked checkboxes must not strand a finished mission. A mission
     with a non-terminal WP (e.g. ``in_review`` / ``for_review``) still reports
     its unchecked items. The ``[<tasks.md> missing]`` sentinel is also dropped
     (it is surfaced separately via the missing-artifacts gate).
+
+    ``all_packages_acceptable`` (WP02) is the provenance-aware override: the
+    lane-only :func:`_all_work_packages_terminal` cannot see whether a
+    ``canceled`` WP carries operator provenance, so ``collect_feature_summary``
+    — which holds the per-WP provenance — passes the authoritative decision here.
+    When ``None`` (the two-arg call shape retained for the characterization
+    suite), the lane-only fallback is used, preserving prior behavior exactly.
+    A canceled-with-operator-provenance mission therefore no longer strands on
+    unticked checkboxes (FR-001).
 
     The acceptance-MATRIX gate (C-010) is untouched: it remains the genuine
     verification surface — this normalization only governs the checkbox gate.
     """
     if unchecked_tasks == [f"{_TASKS_FILE} missing"]:
         return []
-    if _all_work_packages_terminal(lanes):
+    terminal = (
+        all_packages_acceptable
+        if all_packages_acceptable is not None
+        else _all_work_packages_terminal(lanes)
+    )
+    if terminal:
         return []
     return unchecked_tasks
 

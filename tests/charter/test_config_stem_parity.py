@@ -9,7 +9,7 @@ procedures) from the compiled reference set + graph, invisibly.
 
 This module:
 
-- **T001/T002**: confirms ``charter.kind_vocabulary.resolve_artifact_urn`` is
+- **T001/T002**: confirms ``charter.activation.kind_vocabulary.resolve_artifact_urn`` is
   the correct stem→canonical resolver (reject-not-drop via
   ``UnknownArtifactIdError``) — no new resolver logic is introduced here; this
   is a reuse-and-pin, not a reimplementation (see module docstring history in
@@ -33,13 +33,13 @@ from pathlib import Path
 import pytest
 from ruamel.yaml import YAML
 
-from charter.catalog import resolve_doctrine_root
-from charter.kind_vocabulary import (
+from charter.activation.catalog import resolve_doctrine_root
+from charter.activation.kind_vocabulary import (
     UnknownArtifactIdError,
     resolve_artifact_urn,
     resolve_config_id,
 )
-from doctrine.artifact_kinds import ArtifactKind
+from charter.offering.artifact_kinds import ArtifactKind
 
 pytestmark = [pytest.mark.unit]
 
@@ -77,7 +77,7 @@ def _load_config(repo_root: Path) -> dict[str, object]:
     ``activated_*`` mirror is no longer consulted. The function name is kept
     for call-site stability; every consumer reads ``activated_*`` keys.
     """
-    from charter.pack_context import resolve_charter_yaml_pointer
+    from charter.activation.pack_context import resolve_charter_yaml_pointer
 
     yaml = YAML(typ="safe")
     config_path = repo_root / ".kittify" / "config.yaml"
