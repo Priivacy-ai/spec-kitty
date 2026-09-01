@@ -106,7 +106,21 @@ def test_every_exclude_entry_still_genuinely_reformats() -> None:
         check=False,
     )
     reformatted = {line.removeprefix("Would reformat: ").strip() for line in proc.stdout.splitlines() if line.startswith("Would reformat: ")}
-    already_clean = [entry for entry in entries if entry not in reformatted]
+    unformattable = {
+        line.removeprefix("error: Failed to format ").split(":", 1)[0].strip() for line in proc.stderr.splitlines() if line.startswith("error: Failed to format ")
+    }
+    assert not unformattable, (
+        f"{len(unformattable)} exclude entries cannot be checked by "
+        f"`ruff format`: {sorted(unformattable)[:20]}"
+        f"{'...' if len(unformattable) > 20 else ''}. This is not evidence "
+        "that they are formatted; remove the invalid entry or use a "
+        "formatter that supports it.\nruff stderr:\n"
+        f"{proc.stderr}"
+    )
+    assert proc.returncode in (0, 1), (
+        f"`ruff format --check` failed before the clean-entry inference could be made.\nreturn code: {proc.returncode}\nruff stderr:\n{proc.stderr}"
+    )
+    already_clean = [entry for entry in entries if entry not in reformatted and entry not in unformattable]
     assert not already_clean, (
         f"{len(already_clean)} exclude entries are already formatted and no "
         f"longer need the exclusion: {already_clean[:20]}"
@@ -114,3 +128,48 @@ def test_every_exclude_entry_still_genuinely_reformats() -> None:
         "`[tool.ruff.format].exclude`.\nruff stderr:\n"
         f"{proc.stderr}"
     )
+
+
+def test_unformattable_exclude_entry_is_not_reported_as_clean(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A formatter error must not be mistaken for a successful clean check."""
+    monkeypatch.setattr(sys.modules[__name__], "_load_exclude_list", lambda: ["README.md"])
+    monkeypatch.setattr(
+        subprocess,
+        "run",
+        lambda *_args, **_kwargs: subprocess.CompletedProcess(
+            args=[],
+            returncode=2,
+            stdout="",
+            stderr=("error: Failed to format README.md: Markdown formatting is experimental, enable preview mode.\n"),
+        ),
+    )
+
+    with pytest.raises(AssertionError) as caught:
+        test_every_exclude_entry_still_genuinely_reformats()
+
+    failure = str(caught.value)
+    assert "cannot be checked by `ruff format`" in failure
+    assert "README.md" in failure
+    assert "already formatted" not in failure
+
+
+def test_unexpected_ruff_failure_is_not_reported_as_clean(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Any other ruff failure is reported as a failed check, not cleanliness."""
+    monkeypatch.setattr(sys.modules[__name__], "_load_exclude_list", lambda: ["example.py"])
+    monkeypatch.setattr(
+        subprocess,
+        "run",
+        lambda *_args, **_kwargs: subprocess.CompletedProcess(
+            args=[],
+            returncode=2,
+            stdout="",
+            stderr="error: Internal ruff failure\n",
+        ),
+    )
+
+    with pytest.raises(AssertionError, match="failed before the clean-entry inference"):
+        test_every_exclude_entry_still_genuinely_reformats()
