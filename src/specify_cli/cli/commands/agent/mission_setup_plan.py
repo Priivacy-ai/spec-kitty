@@ -667,7 +667,14 @@ def _commit_plan_if_substantive(
     from specify_cli.cli.commands.agent import mission as _mission
     from specify_cli.missions._substantive import is_committed, is_substantive
 
-    if is_substantive(plan_file, "plan"):
+    # Decision 5 (#3832): thread the SAME upstream-resolved ``plan_template``
+    # into the now-mission-type-aware ``is_substantive`` call rather than
+    # re-resolving the mission type independently at this call site.
+    # ``project_dir=repo_root`` (#3830 FIX-1) lets an undeclared mission type
+    # still pass via a PACK-PROVIDED declaration, resolved through the same
+    # seam that resolved ``plan_template`` itself.
+    mission_type = getattr(plan_template, "mission", None) or "software-dev"
+    if is_substantive(plan_file, "plan", mission_type=mission_type, project_dir=repo_root):
         commit_result = _mission._commit_to_branch(plan_file, mission_slug, "plan", repo_root, target_branch, json_output)
         try:
             from specify_cli.status import emit_artifact_phase, PLAN_COMPLETED
@@ -688,19 +695,49 @@ def _commit_plan_if_substantive(
         is_pristine=_is_plan_pristine(plan_file, plan_template),
         committed=is_committed(plan_file, repo_root),
     )
+    # T007 (#3832): the scaffold/blocked-reason messages below read their
+    # container heading / primary field / example peer field from the SAME
+    # Decision 1/2 declaration ``is_substantive`` uses, instead of carrying
+    # their own independently-maintained "Technical Context"/"Language/Version"
+    # literals (TASKS-FRESH-001) — so a research/plan/pack-declared-type
+    # operator sees guidance naming their own type's real fields.
+    # ``project_dir=repo_root`` (#3830 FIX-1) reaches the same pack-provided
+    # declaration ``is_substantive`` above just checked.
+    from specify_cli.missions._substantive import (
+        describe_plan_field_requirements,
+        describe_technical_context_gap,
+    )
+
+    _field_info = describe_plan_field_requirements(mission_type, project_dir=repo_root)
+    # FR-013 (#1896): name the offending Technical Context format.
+    _plan_gap = describe_technical_context_gap(
+        plan_file.read_text(encoding="utf-8"), mission_type, project_dir=repo_root
+    )
+
+    if _field_info is None:
+        # #3830 severity-4 compounding-diagnostic fix: no field declaration
+        # exists anywhere (built-in or pack-provided) for this mission
+        # type — the REAL cause (``_plan_gap``, always non-None here — see
+        # ``describe_technical_context_gap``) leads the message, instead of
+        # being demoted to a trailing "Detail:" clause behind a hardcoded
+        # "Technical Context"/"Language/Version" literal naming fields this
+        # mission type's template may not even contain.
+        blocked_reason = _plan_gap or f"No field declaration is registered for mission type {mission_type!r}."
+        if not json_output:
+            console.print(f"[yellow]Plan not committed:[/yellow] {blocked_reason}")
+        return None, blocked_reason, False
+
+    _heading, _primary_field, _example_peer = _field_info
+
     if scaffold_only:
         if not json_output:
-            console.print(f"[cyan]→[/cyan] Plan scaffolded at {plan_file}; populate Technical Context and re-run setup-plan.")
+            console.print(f"[cyan]→[/cyan] Plan scaffolded at {plan_file}; populate {_heading} and re-run setup-plan.")
         return None, None, True
 
-    # FR-013 (#1896): name the offending Technical Context format.
-    from specify_cli.missions._substantive import describe_technical_context_gap
-
-    _plan_gap = describe_technical_context_gap(plan_file.read_text(encoding="utf-8"))
     blocked_reason = (
-        "plan.md content is not substantive yet; populate Technical Context with real "
-        "values (Language/Version plus at least one peer field, such as Primary "
-        "Dependencies) — not template placeholders — and re-run setup-plan to commit."
+        f"plan.md content is not substantive yet; populate {_heading} with real "
+        f"values ({_primary_field} plus at least one peer field, such as {_example_peer}) — "
+        "not template placeholders — and re-run setup-plan to commit."
     )
     if _plan_gap is not None:
         blocked_reason = f"{blocked_reason} Detail: {_plan_gap}"
@@ -1068,7 +1105,17 @@ def setup_plan(
 
         from specify_cli.missions._substantive import is_substantive
 
-        plan_is_substantive = is_substantive(plan_file, "plan")
+        # Decision 5 (#3832): reuse the single upstream-resolved
+        # ``plan_template`` (already in scope from ``_resolve_plan_template``
+        # above) rather than re-resolving the mission type independently.
+        # ``project_dir=repo_root`` (#3830 FIX-1): reach a pack-provided
+        # declaration through the same seam that resolved ``plan_template``.
+        plan_is_substantive = is_substantive(
+            plan_file,
+            "plan",
+            mission_type=getattr(plan_template, "mission", None) or "software-dev",
+            project_dir=repo_root,
+        )
         plan_commit_result, plan_blocked_reason, plan_scaffold_only = _commit_plan_if_substantive(
             plan_file,
             feature_dir,
