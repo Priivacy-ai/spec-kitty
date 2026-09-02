@@ -1,0 +1,8 @@
+schema: review-verify/v1
+complete: true
+phase: spec
+round: 3
+results:
+  - id: SPEC-FRESH2-001
+    status: resolved
+    reason: FR-006 now explicitly scopes its "unchanged from today" priority tiebreak to canonical-verb-vs-canonical-verb only, states routing_priority does NOT survive as a tiebreaker among 2+ domain-keyword-tier-only candidates, and cross-references FR-007/AC-4/SC-006 for that case, matching FR-007's ROUTER_AMBIGUOUS requirement; no stale echo of the old claim survives elsewhere in spec.md.
