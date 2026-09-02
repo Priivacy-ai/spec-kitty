@@ -1,7 +1,7 @@
 {
-  "event_count": 1,
-  "last_event_id": "01M1HQH1C9QABTMNMT9P4K5A6Q",
-  "materialized_at": "2026-09-02T18:53:58.025347+00:00",
+  "event_count": 2,
+  "last_event_id": "01M1HQH1J6BDGMM7052WE727S6",
+  "materialized_at": "2026-09-02T18:53:58.214653+00:00",
   "mission_number": "",
   "mission_slug": "design-phase-orchestrator-api-01M1HE6M",
   "mission_type": "software-dev",
@@ -14,7 +14,7 @@
     "for_review": 0,
     "in_progress": 0,
     "in_review": 0,
-    "planned": 1
+    "planned": 2
   },
   "work_packages": {
     "WP01": {
@@ -23,6 +23,13 @@
       "lane": "planned",
       "last_event_id": "01M1HQH1C9QABTMNMT9P4K5A6Q",
       "last_transition_at": "2026-09-02T18:53:58.025347+00:00"
+    },
+    "WP02": {
+      "actor": "finalize-tasks",
+      "force_count": 0,
+      "lane": "planned",
+      "last_event_id": "01M1HQH1J6BDGMM7052WE727S6",
+      "last_transition_at": "2026-09-02T18:53:58.214653+00:00"
     }
   }
 }
