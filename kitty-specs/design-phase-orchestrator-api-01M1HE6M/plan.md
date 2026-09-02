@@ -546,7 +546,7 @@ verbs to the 10 that exist today. Versioning discipline:
     verbs uniformly because every new verb is added to the SAME `app =
     typer.Typer(...)` instance and reuses the SAME `_fail`/`_emit`/
     `make_envelope` helpers (confirmed by reading the `start-review` verb as
-    the pattern precedent, `commands.py:1286-1360`) — no new gate machinery
+    the pattern precedent, `commands.py:1380-1465`) — no new gate machinery
     is needed for the 11 new verbs; `tests/specify_cli/orchestrator_api/
     test_commands_fail_closed.py` and `test_typed_error_fail_closed.py`
     extend to cover them (NFR-002/SC-004).

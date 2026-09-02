@@ -65,7 +65,7 @@ work packages entirely through orchestrator-api, matching FR-001/002/003.
 Per spec Clarification 1 (do not re-derive): `specify`/`plan`/`tasks` on
 the host CLI (`src/specify_cli/cli/commands/lifecycle.py:129,212,266`) are
 already thin shims delegating to `agent_feature.create_mission`
-(`mission_create.py:627`), `agent_feature.setup_plan`
+(`mission_create.py:631`), `agent_feature.setup_plan`
 (`mission_setup_plan.py:1097`), `agent_feature.finalize_tasks`
 (`mission_finalize.py:3075`) — all three already accept `json_output: bool`
 and skip the interactive interview path when `json_output=True`.
@@ -91,7 +91,7 @@ before implementing; matching the real host-CLI `--json` contract (not an
 internal implementation detail one layer beneath it) is Acceptance
 Scenario 1's own bar.
 
-**Pattern precedent**: follow `start-review` (`commands.py:1286-1360`)
+**Pattern precedent**: follow `start-review` (`commands.py:1380-1465`)
 byte-for-byte in structure — `--policy` required-and-validated first
 (`POLICY_METADATA_REQUIRED` / `POLICY_VALIDATION_FAILED` via
 `_parse_policy_or_fail`), mission resolution via
@@ -276,7 +276,7 @@ WP03/04/05/06/08 (not necessarily their implementation), per this repo's
 ownership-map-leeway standing order.
 
 Additionally: this WP's `specify` verb calls `agent_feature.create_mission`
-(`mission_create.py:627`, read-path caller only — this WP does not edit
+(`mission_create.py:631`, read-path caller only — this WP does not edit
 `mission_create.py`), which **PR #3826** also touched directly — a
 behavioural (not file-ownership) rebase risk. **PR #3826 has already
 merged into `main`** (this mission's branch has not yet rebased onto it),

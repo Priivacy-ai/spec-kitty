@@ -551,7 +551,7 @@ reviewer (or `sk-review`) can audit these without re-deriving them:
    `specify`/`plan`/`tasks` on the host CLI
    (`src/specify_cli/cli/commands/lifecycle.py:129,212,266`) are already thin
    shims delegating to `agent_feature.create_mission`
-   (`mission_create.py:627`), `agent_feature.setup_plan`
+   (`mission_create.py:631`), `agent_feature.setup_plan`
    (`mission_setup_plan.py:1097`), `agent_feature.finalize_tasks`
    (`mission_finalize.py:3075`) — all three already accept `json_output:
    bool` and skip the interactive interview path when `json_output=True`
@@ -677,7 +677,7 @@ reviewer (or `sk-review`) can audit these without re-deriving them:
      self-documenting `data` field names rather than a verbatim re-export of
      an internal function's dict (e.g. `start-implementation`/
      `start-review`'s `wp_id`/`from_lane`/`to_lane`,
-     `commands.py:1258-1266,1352-1360`). `answer-decision`'s `data` carries
+     `commands.py:1353-1355,1447-1449`). `answer-decision`'s `data` carries
      NO equivalent of the CLI's second extra key, `answer` (the submitted
      answer text) — that echo is intentionally omitted because the host
      already possesses the value it submitted; see the Key Entities "Run
@@ -723,8 +723,8 @@ reviewer (or `sk-review`) can audit these without re-deriving them:
    hold against the code as it stands. Verified (grep `sync_dossier`/
    `ensure_sync_daemon` call sites in `commands.py` and their downstream
    engines):
-   - `start-implementation` and `start-review` (`commands.py:1239-1240,
-     1333-1334`) and `transition` (`commands.py:1516-1517`) all explicitly
+   - `start-implementation` (`commands.py:1332-1333`) and `start-review`
+     (`commands.py:1426-1427`) and `transition` (`commands.py:1609-1610`) all explicitly
      pass `ensure_sync_daemon=False, sync_dossier=False` to
      `start_implementation_status`/`start_review_status`/
      `emit_status_transition_transactional` — `status/emit.py`'s

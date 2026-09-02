@@ -74,10 +74,10 @@ overlap with **PR #3826** (`pr/3131-merge-retention`, touched
 `commands.py`'s merge-mission area and `mission_create.py`) — different
 functions from what this mission's WPs add, but the same physical file.
 **PR #3826 merged into `main` on 2026-09-02**, and this mission's own
-branch (`feat/design-phase-orchestrator-api-3837`) has not yet rebased
-onto that merge as of this tasks phase — an implementer picking up any
-affected WP should be aware `commands.py`'s merge-mission area and
-`mission_create.py` already carry #3826's changes on `main`. WP03 also
+branch has since merged that commit in (`0753bbffa`) — an implementer
+picking up any affected WP should be aware `commands.py`'s merge-mission
+area and `mission_create.py` already carry #3826's changes on this
+branch. WP03 also
 calls into `agent_feature.create_mission` (touched directly by #3826)
 and `agent_feature.setup_plan` (`mission_setup_plan.py`, edited directly
 by **PR #3836**, `fix/custom-mission-type-second-class-3830`, still open)
