@@ -93,12 +93,14 @@ decision. See "Clarifications / Decision Records" below.
 **Independent Test**: Reproduce one of the ledger's verified misroute cases (a request whose
 tokens match a canonical verb for one profile AND a domain keyword for a higher-`routing_priority`
 profile). Before the fix: the domain-keyword profile wins with `confidence: domain_keyword`, Op
-opened. After the fix: the canonical-verb profile wins (or, if no canonical verb matched at all
-and only one lone domain-keyword candidate exists, the router raises `ROUTER_AMBIGUOUS` instead
-of auto-selecting it — and if no canonical verb matched at all and two or more domain-keyword
-candidates exist, the router likewise raises `ROUTER_AMBIGUOUS` regardless of their
-`routing_priority` spread, per FR-007's generalization, AC-4/SC-006 — instead of auto-selecting
-the higher-priority candidate as it does today).
+opened. After the fix: the canonical-verb profile wins whenever a verb-tier candidate exists at
+all — this cross-tier case is FR-006 and is unaffected by the narrowing below. When no canonical
+verb matched anywhere in the request (an empty verb tier — the no-competition case, not what
+SK-08 reported), the router falls back to the pre-existing keyword-tier selection unchanged: a
+lone domain-keyword candidate still auto-selects, and two-or-more domain-keyword candidates still
+resolve by `routing_priority` (highest wins) — `ROUTER_AMBIGUOUS` raises only if those
+keyword-tier candidates are genuinely tied at the top `routing_priority` (FR-007, narrowed by
+operator ruling; see "Clarifications / Decision Records" item 6).
 
 **Acceptance Scenarios**:
 
@@ -110,9 +112,12 @@ the higher-priority candidate as it does today).
    outrank a canonical-verb candidate.
 2. **Given** a request whose tokens match no canonical verb for any profile, but match exactly
    one profile's domain keyword (the "lone/weak" case), **When** `dispatch` routes the request
-   without `--profile`, **Then** the router raises `RouterAmbiguityError` (`ROUTER_AMBIGUOUS`,
-   exit 1, no Op opened) instead of auto-selecting that profile — mirroring today's tied
-   canonical-verb behavior, closing the asymmetry.
+   without `--profile`, **Then** the router auto-selects that profile with
+   `confidence: "domain_keyword"` and opens the real Op as normal — this is the pre-WP03,
+   no-competition behavior an operator ruling restored after the first WP03 landing briefly made
+   it ambiguous (see `reviews/wp03.ruling.md` and "Clarifications / Decision Records" item 6); a
+   lone domain-keyword match, by itself, is not SK-08's reported defect (contrast Acceptance
+   Scenario 1, the cross-tier competition case FR-006 fixes).
 3. **Given** the same lone-domain-keyword request as above, **When** the operator supplies an
    explicit `--profile <id>`, **Then** routing succeeds exactly as before (explicit hints bypass
    the router entirely and are unaffected by this change).
@@ -120,9 +125,12 @@ the higher-priority candidate as it does today).
    MORE profiles' domain keywords (zero verb-tier candidates, multiple keyword-tier candidates —
    e.g. profile B at `routing_priority` 80 and profile C at `routing_priority` 10, both
    keyword-only), **When** `dispatch` routes the request without `--profile`, **Then** the router
-   raises `RouterAmbiguityError` (`ROUTER_AMBIGUOUS`) regardless of the `routing_priority` spread
-   between B and C — the pre-existing priority-based auto-select no longer applies once there are
-   zero verb-tier candidates (FR-007).
+   auto-selects the higher-`routing_priority` candidate (profile B) — the pre-existing
+   priority-based auto-select applies exactly as it did before WP03, because an empty verb tier
+   means there is no verb-vs-keyword competition for FR-006 to resolve (FR-007, narrowed by
+   operator ruling; see "Clarifications / Decision Records" item 6). `ROUTER_AMBIGUOUS` raises in
+   this zero-verb-tier scenario only when the keyword-tier candidates are genuinely TIED at the
+   top `routing_priority` (e.g. B and C both at `routing_priority` 80) — see SC-006.
 5. **Given** `tk-watch`'s existing `TK_WATCH_PROFILE` / `--profile` pin workaround for SK-08,
    **When** this fix lands, **Then** the pin continues to work unmodified (it uses the
    explicit-hint path, untouched by this change) and becomes unnecessary as an SK-08 workaround
@@ -170,10 +178,10 @@ the higher-priority candidate as it does today).
 | FR-003 | Dry-run passes a falsy `invocation_id` into the glossary chokepoint scan | As an operator, I want the chokepoint's `TermCandidateObserved` write gate (already present, keyed on truthy `invocation_id`) to actually engage under dry-run, so the non-obvious existing write path is closed, not merely the visible Op write. | High | Open |
 | FR-004 | Dry-run JSON payload shape | As a consumer, I want a `"status": "dry_run"` payload reusing the existing `InvocationPayload` field set (minus `invocation_id` and `close_contract`) so the shape is familiar and the "nothing was opened" property is unambiguous. | High | Open |
 | FR-005 | `alternatives` field on `RouterDecision`, threaded to both dry-run and real dispatch payloads | As a consumer, I want the router's already-computed candidate list exposed (minus the winner) on every successful route — dry-run or real — so I can judge routing confidence myself. | High | Open |
-| FR-006 | SK-08 rerank: canonical-verb candidates outrank domain-keyword-only candidates | As an agent relying on `dispatch` for governance context, I want a canonical-verb match to always beat a domain-keyword match regardless of `routing_priority`, so the profile whose directives I load actually matches the request's own verb. "Regardless of `routing_priority`" applies only cross-tier (a canonical-verb candidate beats a domain-keyword candidate no matter their `routing_priority` values). `routing_priority` continues to break ties WITHIN the canonical-verb tier ONLY — between two canonical-verb candidates — unchanged from today's behavior; it is only removed as a way for a domain-keyword candidate to outrank a canonical-verb one. `routing_priority` does **not** survive as a tiebreaker between two-or-more domain-keyword-tier candidates considered in isolation (i.e. when zero verb-tier candidates are present): that scenario is governed exclusively by FR-007 — see FR-007, AC-4 (User Story 3), and SC-006 — which requires `ROUTER_AMBIGUOUS` regardless of the `routing_priority` spread among those keyword-tier candidates. `tests/specify_cli/invocation/test_router.py::test_router_priority_tiebreaker_selects_higher_priority` (a canonical-verb-vs-canonical-verb priority tiebreak) must keep passing unmodified. | High | Open |
-| FR-007 | SK-08 rerank: a lone/weak domain-keyword-only match is ambiguous, not confident | As an agent, I want a single unopposed domain-keyword hit to fail closed (`ROUTER_AMBIGUOUS`) like a tied canonical-verb match does today, instead of silently opening an Op under the wrong profile. This generalizes beyond the single-candidate case: whenever zero verb-tier candidates exist, the router MUST raise `ROUTER_AMBIGUOUS` regardless of how many domain-keyword-tier candidates there are or how their `routing_priority` values compare — a priority spread among keyword-tier-only candidates is exactly the kind of unconfident, canonical-verb-unbacked resolution this requirement exists to close, so the existing priority-based auto-select no longer applies once there are zero verb-tier candidates. See FR-006, which scopes the surviving intra-tier `routing_priority` tiebreak to canonical-verb-vs-canonical-verb candidates only — FR-006's tiebreak does NOT extend to the keyword-tier-only candidates this requirement governs. Also see AC-4 (User Story 3) and SC-006 for the concrete 2+-keyword-tier-candidates test obligation. | High | Open |
+| FR-006 | SK-08 rerank: canonical-verb candidates outrank domain-keyword-only candidates | As an agent relying on `dispatch` for governance context, I want a canonical-verb match to always beat a domain-keyword match regardless of `routing_priority`, so the profile whose directives I load actually matches the request's own verb. "Regardless of `routing_priority`" applies only cross-tier (a canonical-verb candidate beats a domain-keyword candidate no matter their `routing_priority` values). `routing_priority` continues to break ties WITHIN the canonical-verb tier ONLY — between two canonical-verb candidates — unchanged from today's behavior; it is only removed as a way for a domain-keyword candidate to outrank a canonical-verb one. `routing_priority` DOES continue to apply as a tiebreaker between two-or-more domain-keyword-tier candidates considered in isolation (i.e. when zero verb-tier candidates are present) — this is the pre-WP03, no-competition case, explicitly out of SK-08's reported scope; see FR-007 (narrowed by operator ruling, `reviews/wp03.ruling.md`) — `ROUTER_AMBIGUOUS` raises in that case only on a genuine tie at the top `routing_priority` among those keyword-tier candidates, not merely because the verb tier is empty. `tests/specify_cli/invocation/test_router.py::test_router_priority_tiebreaker_selects_higher_priority` (a canonical-verb-vs-canonical-verb priority tiebreak) must keep passing unmodified. | High | Open |
+| FR-007 | SK-08 rerank: an empty verb tier falls back to pre-existing keyword-tier selection (narrowed by operator ruling) | As an agent, I want the empty-verb-tier case — a request that carries no canonical verb at all — to behave exactly as it did before WP03. Because `route()`'s `candidates` list is fully partitioned into the canonical-verb tier and the domain-keyword tier (every candidate carries exactly one of the two `_confidence` values), an empty verb tier means the selection pool is exactly the keyword tier. A unique keyword-tier candidate auto-selects, unchanged and NOT ambiguous. Two-or-more keyword-tier candidates resolve by `routing_priority` (highest wins), regardless of the priority spread between them. `ROUTER_AMBIGUOUS` raises in this zero-verb-tier case only when the keyword-tier candidates are genuinely TIED at the top `routing_priority` — the same tie-only condition that already governed the canonical-verb tier before this mission. **This narrows the mission's original FR-007 draft**, which required `ROUTER_AMBIGUOUS` on ANY empty verb tier regardless of priority spread or tie; an operator ruling reverted that broader draft after it broke a shipped, deliberately-documented test (`tests/specify_cli/invocation/test_writing_comms_routing.py::test_diagram_as_code_still_routes_to_diagram_daisy`) by making every unique domain-keyword-only profile ambiguous — see "Clarifications / Decision Records" item 6 and `reviews/wp03.ruling.md` for the full rationale, including the two alternatives considered and rejected. See FR-006, which governs the separate cross-tier case (verb tier non-empty, unaffected by this narrowing). | High | Open |
 | FR-008 | `--dry-run --profile` interaction | As a consumer combining an explicit profile hint with `--dry-run`, I want `router_confidence: "exact"` and `alternatives: []`, matching real dispatch's explicit-hint behavior minus the writes. | Medium | Open |
-| FR-009 | Dry-run error-path behavior (`ROUTER_AMBIGUOUS` vs `ROUTER_NO_MATCH` / `ProfileNotFoundError`) | As a consumer, I want `--dry-run` to turn `ROUTER_AMBIGUOUS` into a reportable `"status": "dry_run"` payload (candidates as `alternatives`, no winner) since that is exactly the ambiguity-probing signal the issue asks for, while `ROUTER_NO_MATCH` and `ProfileNotFoundError` continue to raise/exit 1 as today, since there is no partial signal worth reporting in those cases. The candidate dicts `route()` raises inside `RouterAmbiguityError` for `ROUTER_AMBIGUOUS` must also carry a `confidence`/`_confidence` key — sourced the same way the winning-candidate dicts already are elsewhere in `route()` — so `alternatives` can be built from `err.candidates` on this branch without omitting the `confidence` field the Key Entities contract requires on every entry. **This obligation is not scoped to the one `ROUTER_AMBIGUOUS` raise site that exists in `route()` today (the post-tiebreaker "still ambiguous" raise): it applies to EVERY `RouterAmbiguityError` raised anywhere in `route()` for `ROUTER_AMBIGUOUS`, including any new or restructured raise sites WP3 (FR-006/FR-007) introduces for the lone-candidate case (AC-2) and the 2+-keyword-tier-candidates case (AC-4).** This is a shared-contract point between WP1 and WP3: WP1 lands first and can only fix the raise site that exists at WP1 time (the post-tiebreaker raise); WP3, landing after WP1, inherits the same confidence-key obligation for whatever new `ROUTER_AMBIGUOUS` raise(s) its restructuring of `route()` introduces — a WP3 implementation must not reintroduce the pre-FR-009 candidate-dict shape (`profile_id`/`action`/`match_reason` only) on its own raise sites. | High | Open |
+| FR-009 | Dry-run error-path behavior (`ROUTER_AMBIGUOUS` vs `ROUTER_NO_MATCH` / `ProfileNotFoundError`) | As a consumer, I want `--dry-run` to turn `ROUTER_AMBIGUOUS` into a reportable `"status": "dry_run"` payload (candidates as `alternatives`, no winner) since that is exactly the ambiguity-probing signal the issue asks for, while `ROUTER_NO_MATCH` and `ProfileNotFoundError` continue to raise/exit 1 as today, since there is no partial signal worth reporting in those cases. The candidate dicts `route()` raises inside `RouterAmbiguityError` for `ROUTER_AMBIGUOUS` must also carry a `confidence`/`_confidence` key — sourced the same way the winning-candidate dicts already are elsewhere in `route()` — so `alternatives` can be built from `err.candidates` on this branch without omitting the `confidence` field the Key Entities contract requires on every entry. **This obligation is not scoped to the one `ROUTER_AMBIGUOUS` raise site that exists in `route()` today (the post-tiebreaker "still ambiguous" raise): it applies to EVERY `RouterAmbiguityError` raised anywhere in `route()` for `ROUTER_AMBIGUOUS`, including WP3's (FR-006/FR-007) restructured version of that same raise site.** (Per the operator ruling narrowing FR-007 — see "Clarifications / Decision Records" item 6 — neither the lone-candidate case (AC-2) nor the differing-priority multi-candidate case (AC-4's main scenario) raises `ROUTER_AMBIGUOUS` at all: both auto-select. WP3's restructured raise site is reached only by a genuine top-priority tie — either among canonical-verb candidates, as before, or among keyword-tier candidates when the verb tier is empty, the narrowed AC-4 tie sub-case.) This is a shared-contract point between WP1 and WP3: WP1 lands first and can only fix the raise site that exists at WP1 time (the post-tiebreaker raise); WP3, landing after WP1, inherits the same confidence-key obligation for its restructured version of that raise site — a WP3 implementation must not reintroduce the pre-FR-009 candidate-dict shape (`profile_id`/`action`/`match_reason` only) there. | High | Open |
 | FR-010 | Dry-run under empty-charter fallback | As a consumer probing an unconfigured project, I want dry-run to surface `empty_charter_fallback: true` and the generic-agent routing signal, exactly mirroring real dispatch's read-only fallback path. | Medium | Open |
 | FR-011 | `cli-do-output.md` contract doc updated with the `dry_run` status branch | As a future contributor reading the JSON-output contract, I want the `--dry-run` shape and the new `alternatives` field documented alongside the existing `"status": "open"` branch. | Medium | Open |
 
@@ -190,7 +198,7 @@ the higher-priority candidate as it does today).
 | ID | Title | Constraint | Category | Priority | Status |
 |----|-------|------------|----------|----------|--------|
 | C-001 | ATDD-first per work package (charter C-011, binding) | Each of WP1 (dry-run + payload shape), WP2 (`alternatives`), and WP3 (SK-08 rerank) requires its own failing-first test pinning user-observable behavior (e.g. "no new file under `kitty-ops/` after a `--dry-run` call," "no new line appended to any `kitty-ops/*.jsonl`," "canonical-verb candidate wins regardless of `routing_priority`"), committed as its own commit BEFORE the implementation commit for that WP. | Process | High | Open |
-| C-002 | WP3 lands as its own commit, distinct from WP1/WP2 | The SK-08 rerank (FR-006/FR-007) must land as its own commit/diff boundary, distinct from the additive dry-run and `alternatives` work, per operator decision. This is NOT guaranteed to be a conflict-free `git revert <wp3-sha>` target independent of WP2: WP2 (FR-005, `alternatives`) and WP3 (FR-006/FR-007, the rerank) both edit the same statements inside `route()` — the `if len(candidates) == 1:` single-candidate return and the `routing_priority` tiebreaker block — so reverting WP3 alone may require reverting or hand-resolving WP2's `alternatives` edits to those same lines. The achievable property is "own commit, auditable and cherry-pickable in isolation," not "independently, cleanly revertible regardless of WP2." **WP1/WP3 shared-contract note**: WP3's restructuring of `route()` also creates new/restructured `RouterAmbiguityError` raise sites (the lone-candidate case, AC-2, and the 2+-keyword-tier-candidates case, AC-4) that did not exist when WP1 fixed the confidence-key gap on the one raise site current code has — see FR-009's amendment for the resulting obligation on WP3's own raise sites. | Technical | High | Open |
+| C-002 | WP3 lands as its own commit, distinct from WP1/WP2 | The SK-08 rerank (FR-006/FR-007) must land as its own commit/diff boundary, distinct from the additive dry-run and `alternatives` work, per operator decision. This is NOT guaranteed to be a conflict-free `git revert <wp3-sha>` target independent of WP2: WP2 (FR-005, `alternatives`) and WP3 (FR-006/FR-007, the rerank) both edit the same statements inside `route()` — the `if len(candidates) == 1:` single-candidate return and the `routing_priority` tiebreaker block — so reverting WP3 alone may require reverting or hand-resolving WP2's `alternatives` edits to those same lines. The achievable property is "own commit, auditable and cherry-pickable in isolation," not "independently, cleanly revertible regardless of WP2." **WP1/WP3 shared-contract note**: WP3's restructuring of `route()` produces one restructured `RouterAmbiguityError` raise site — the post-tiebreaker "still ambiguous" raise, now also reachable via a genuine top-priority tie among keyword-tier candidates when the verb tier is empty (per the operator ruling narrowing FR-007; see "Clarifications / Decision Records" item 6) — in a form that did not exist when WP1 fixed the confidence-key gap on the one raise site current code has. Neither the lone-candidate case (AC-2) nor the differing-priority multi-candidate case (AC-4's main scenario) raises at all; both auto-select. See FR-009's amendment for the resulting obligation on WP3's raise site. | Technical | High | Open |
 | C-003 | No `contract_version`/semver envelope discipline in this mission | `dispatch`'s JSON payload has never carried a `contract_version` field; this mission does not introduce one. That unification effort belongs to orchestrator-api's separate, larger contract-versioning work and is explicitly out of scope here. | Technical | Medium | Open |
 | C-004 | `tk-watch`'s `--profile` pin is out of scope to modify | `tk-watch`'s existing `TK_WATCH_PROFILE`/`--profile` pin workaround (`~/.hermes/skills/tk-watch/references/remediation-brief.md`) is a related but out-of-scope caller. This mission does not touch `tk-watch`'s code; FR-006/FR-007 make the pin unnecessary as an SK-08 workaround specifically, but the pin remains functionally correct and is left in place. | Business | Medium | Open |
 | C-005 | Bulk-edit / occurrence-classification gate does not apply | This mission does not rename or migrate any existing identifier, path, or key across the codebase — it adds a flag, a field, and a selection-rule fix. No bulk-edit occurrence classification is triggered. | Technical | Low | Open |
@@ -247,15 +255,22 @@ the higher-priority candidate as it does today).
   A, not profile B — verified by a regression test built from one of the ledger's documented
   probe requests.
 - **SC-005**: On a lone/weak domain-keyword-only match with no competing canonical-verb match,
-  real `dispatch` (without `--profile`) exits 1 with `error_code: "ROUTER_AMBIGUOUS"` and opens
-  no Op — verified by an automated test asserting no new `kitty-ops/` file appears after the
-  call.
+  real `dispatch` (without `--profile`) auto-selects that profile with `confidence:
+  "domain_keyword"` and opens the Op normally, exit 0 — verified by an automated test asserting
+  the Op opens under the expected profile, NOT that `error_code: "ROUTER_AMBIGUOUS"` is raised.
+  This is the pre-WP03, no-competition behavior an operator ruling restored
+  (`reviews/wp03.ruling.md`); a lone domain-keyword match is not itself SK-08's reported defect
+  (contrast SC-004, the cross-tier competition case FR-006 fixes).
 - **SC-006**: On a request with zero verb-tier candidates and two or more domain-keyword-tier
-  candidates at different `routing_priority` values, real `dispatch` (without `--profile`) exits
-  1 with `error_code: "ROUTER_AMBIGUOUS"` and opens no Op, regardless of the `routing_priority`
-  spread between the candidates — verified by an automated test asserting no new `kitty-ops/`
-  file appears after the call (mirrors SC-005 for FR-007's generalized zero-verb-tier,
-  2+-keyword-tier-candidates case, AC-4).
+  candidates at DIFFERENT `routing_priority` values, real `dispatch` (without `--profile`)
+  auto-selects the higher-`routing_priority` candidate — the pre-existing priority-based
+  auto-select applies unchanged, since an empty verb tier means there is no cross-tier competition
+  for FR-006 to resolve — verified by an automated test asserting the Op opens under the
+  higher-priority profile. When those keyword-tier candidates are instead genuinely TIED at the
+  top `routing_priority`, real `dispatch` exits 1 with `error_code: "ROUTER_AMBIGUOUS"` and opens
+  no Op — verified by an automated test asserting no new `kitty-ops/` file appears after that
+  tied-priority call (mirrors FR-007's narrowed tie-only condition and AC-4's corrected
+  scenario).
 
 ## Clarifications / Decision Records
 
@@ -298,6 +313,40 @@ settled — not open questions for the review squad or a future reader to re-lit
    novel to this mission — and is not mitigated further here (e.g. no mid-mission routing-version
    pin is introduced); a caller wanting a stable profile across a mission's lifetime should pass
    an explicit `--profile` hint, which this fix does not affect.
+6. **WP03's SK-08 rerank was narrowed by an operator ruling after the first landing
+   (`48d17c872`), and FR-006/FR-007 above reflect the narrowed (final) requirement, not the
+   original WP03 landing.** Full text: `reviews/wp03.ruling.md`.
+   - **What changed and why.** The first WP03 landing made two behavioral changes to `route()`:
+     (1) a canonical-verb-tier candidate always beats a domain-keyword-tier candidate cross-tier,
+     regardless of `routing_priority`; and (2) an EMPTY verb tier made `route()` unconditionally
+     raise `ROUTER_AMBIGUOUS`, discarding the pre-existing priority-based auto-select. The
+     operator ruled that **change #1 stays** (it is FR-006, and is exactly the competition case
+     SK-08 and #3840 both describe: a domain keyword outranking the request's own verb) and
+     **change #2 is reverted** (implemented in `ee522cf8a`). Change #2 altered the
+     *no-competition* case — a request carrying no canonical verb at all — which was never the
+     reported defect, and its over-reach was demonstrated concretely: it broke a shipped,
+     deliberately-documented test,
+     `tests/specify_cli/invocation/test_writing_comms_routing.py::test_diagram_as_code_still_routes_to_diagram_daisy`,
+     whose own docstring states `chart` is a diagram-daisy domain-keyword-tier signal (folded
+     from `collaboration.canonical_verbs`), unique across the shipped set, with no competing
+     canonical verb. Under change #2, that unique keyword became ambiguous — every profile
+     relying on a unique domain keyword with no canonical-verb backup would have started
+     demanding disambiguation on requests that route correctly today.
+   - **Alternatives considered and rejected** (from the ruling): (a) *keep the stricter rule and
+     update the test* — safer in the abstract, and aligned with #3840's remark that consumers
+     should apply their own confidence threshold, but rejected because it changes behavior far
+     beyond SK-08's reported scope and breaks working routing that was never the defect; (b)
+     *reclassify profile-level `collaboration.canonical-verbs` into the verb tier* — arguably the
+     more principled reading, since the tier is literally named `canonical_verb` and these are
+     declared canonical verbs, but rejected because it reverses a deliberate, already-documented
+     design decision (folding those verbs into the L3 keyword signal) and changes tier
+     classification for every shipped profile — a bigger change than this mission's scope.
+   - **Binding end state.** An empty verb tier restores pre-WP03 behavior: a unique
+     keyword-tier candidate auto-selects; multiple keyword-tier candidates resolve by
+     `routing_priority` (highest wins); `ROUTER_AMBIGUOUS` raises only on a genuine tie at the top
+     `routing_priority`. Profile-level `collaboration.canonical-verbs` remain in the keyword tier
+     (not reclassified). `test_diagram_as_code_still_routes_to_diagram_daisy` must pass
+     **unmodified** — it is the acceptance signal for this ruling, not an incidental test.
 
 ## Blast Radius / Files Touched *(informative — for the plan phase)*
 
