@@ -1,0 +1,102 @@
+# review-findings/v1 — confirmed findings only (R3 output: merged findings with verdict=confirmed)
+schema: review-findings/v1
+complete: true
+phase: tasks
+lens_group: confirmed
+mission: custom-mission-type-second-class-citizens-01M1FQXD
+findings:
+- id: TASKS-ORDER-001
+  lens: campsite-clean-as-subtask-correctness / phasing
+  severity: 3
+  title: wps.yaml leaves WP02/WP03 with dependencies:[] despite plan.md's explicit 'campsite-clean precedes
+    all three' sequencing, with no documented reconciliation
+  evidence:
+  - artifact: plan.md §Suggested Work Package Sequencing, lines 753-758 (diagram) and lines 766-767
+  - artifact: 'plan.md line 766: "**Sequential work**: the campsite-clean comment fix precedes all three
+      (small, low-risk, behavior-preserving per Standing Order #2''s tidy-first sequencing)."'
+  - artifact: 'wps.yaml lines 4, 29, 50: dependencies: [] on WP01, WP02, WP03 respectively'
+  - artifact: 'tasks/WP02-loud-fallback.md and tasks/WP03-substantive-gate.md: no mention of "campsite"
+      anywhere in either file'
+  - artifact: 'tasks/WP01-composition-dispatch.md T001 ("Campsite-clean: correct the stale C-008 comments")
+      — the fix is folded entirely inside WP01, not exposed as a mission-level prerequisite artifact'
+  - artifact: 'each WP''s frontmatter branch_strategy: "...this mission ships as a single branch/one PR..."
+      (single_branch topology, confirmed in all three tasks/WP0*.md files) — so WP-level commit order
+      on the shared branch is not otherwise fixed by branch isolation'
+  - code: src/runtime/next/runtime_bridge_composition.py:127
+  - code: src/runtime/next/runtime_bridge.py:1777-1779
+  claim: 'plan.md''s own "Suggested Work Package Sequencing" diagram draws the campsite-clean comment
+    fix as a single upstream node feeding all three WPs, and the accompanying prose is explicit and mission-wide:
+    "the campsite-clean comment fix precedes all three." wps.yaml/tasks.md implement this by folding the
+    fix into WP01''s T001 only, and leave `dependencies: []` on WP02 and WP03 — i.e., nothing in the task
+    artifacts stops WP02 or WP03''s implementer/reviewer from starting and merging commits onto the shared
+    single branch before WP01''s T001 campsite-clean commit lands. Because this mission is single-branch/single-PR
+    (not per-WP branches), that ordering is not incidentally guaranteed by branch isolation either — it
+    depends entirely on orchestration discipline that the task artifacts do not encode. WP01''s T001,
+    taken alone, does satisfy "distinct, behavior-preserving step that precedes the functional change"
+    locally for WP01. And the fold-into-WP01 decision is independently justified by real owned_files overlap:
+    a hypothetical 4th "campsite-clean" WP would have to own runtime_bridge_composition.py, which WP01
+    must also own for its functional fix — so a 4th WP is not a viable overlap-free alternative, and WP02/WP03
+    are not domain-appropriate hosts since §Campsite-Clean Scope found zero qualifying debt in either
+    of their file sets. Charter Standing Order #2 itself frames campsite-clean at "mission/WP" granularity,
+    which supports a WP-local reading over a strict mission-wide gate. What is missing is the reconciliation:
+    nothing in wps.yaml, tasks.md, or WP02/WP03''s own files records the decision to treat plan.md''s
+    mission-wide "precedes all three" as satisfied by WP01-local sequencing alone, or protects against
+    WP02/WP03 commits landing ahead of WP01''s T001 on the shared branch.
+
+    '
+  remediation: 'Add a short explicit note — in wps.yaml''s WP02/WP03 entries or in each WP''s "Why this
+    WP exists" section — recording the reconciliation: state that plan.md''s mission-wide campsite-clean-precedes-all-three
+    intent is satisfied by WP01''s T001 alone because §Campsite-Clean Scope found no qualifying debt in
+    WP02''s or WP03''s file sets, and therefore no cross-WP dependency edge is required for correctness;
+    but also add one operational instruction — either a dependencies: ["WP01"]-style gate if the orchestrator
+    can express it, or failing that, an explicit coordination note instructing whoever dispatches WP02/WP03
+    to confirm WP01''s T001 has already landed on fix/custom-mission-type-second-class-3830 first — so
+    the single-branch commit history actually matches plan.md''s stated sequencing instead of relying
+    on incidental dispatch order.
+
+    '
+- id: TASKS-COVER-001
+  lens: FR-004 traceability correctness under the SPLIT verdict
+  severity: 3
+  title: FR-004 appears in wps.yaml/tasks.md requirement_refs with no machine- or human-visible marker
+    distinguishing 'traceable, descoped, NOT implemented' from the genuinely-implemented FRs it sits beside
+  evidence:
+  - artifact: wps.yaml § WP02 requirement_refs
+  - artifact: 'tasks.md § Work Package WP02 ("**Requirement Refs**: FR-004, FR-005, NFR-002")'
+  - artifact: tasks/WP02-loud-fallback.md § T006, § Definition of Done
+  - artifact: plan.md § "#3831 Split Verdict — Consequence for Scope" (FR-004 descoped)
+  - code: 'src/specify_cli/requirement_mapping.py:485-496 (compute_coverage: ''mapped_functional'' is
+      set membership only — a ref counts as ''mapped'' the instant any WP lists it in requirement_refs,
+      with no concept of implemented vs. traceability-only)'
+  claim: 'WP02''s prompt body is internally unambiguous that FR-004 must not be implemented — stated three
+    times. That mitigates in-WP implementer risk. But the two machine-generated/mechanical artifacts a
+    downstream reader is most likely to consult in isolation — wps.yaml''s requirement_refs list and tasks.md''s
+    rendered "**Requirement Refs**: FR-004, FR-005, NFR-002" line — present FR-004 with the exact same
+    shape as FR-005 (genuinely implemented in the same WP) and every other FR in the mission. Neither
+    carries any annotation marking FR-004 as descoped/traceability-only. The mechanical FR-coverage validator
+    itself only computes "mapped" vs "unmapped" by set membership — it does not distinguish "mapped by
+    an implementing WP" from "mapped by a WP that explicitly declines to implement it" — so any future
+    automated coverage report, a post-merge mission-review pass, or a human skimming tasks.md/wps.yaml
+    alone has a concrete path to conclude FR-004 shipped, contradicting plan.md''s binding SPLIT verdict.
+
+    '
+  remediation: 'Add a YAML comment directly beside the FR-004 entry in wps.yaml''s WP02
+
+    requirement_refs list (comments are stripped by the YAML parser so this does not
+
+    change compute_coverage''s mechanical behavior), e.g.:
+
+    `- "FR-004"  # descoped — traceability only, NOT implemented; see plan.md §"#3831 Split Verdict" and
+    WP02 T006`,
+
+    and mirror the same comment in tasks/WP02-loud-fallback.md''s frontmatter
+
+    requirement_refs list. File a follow-up tooling gap asking finalize-tasks'' tasks.md
+
+    renderer to carry forward such inline-comment annotations (or a parallel
+
+    requirement_status map) into the generated table row, so the descope survives into
+
+    the one artifact most likely to be read in isolation.
+
+    '

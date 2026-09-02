@@ -1,0 +1,24 @@
+# review-verify/v1 — canonical format for fix-verification output.
+schema: review-verify/v1
+complete: true
+phase: tasks
+results:
+  - id: TASKS-FRESH2-001
+    status: resolved
+    reason: >
+      T007 now explicitly directs describe_technical_context_gap to dispatch its
+      diagnostic string by the declared shape (a/b/c), reusing T003-T005's shape-detector
+      sub-results instead of re-running the bold-field-only regex, and T008 adds a required
+      shape-dispatch negative fixture (plan's Problem Decomposition or research's Data
+      Sources populated while the peer is not) asserting the message names the field that
+      actually failed, which is concrete enough to force an implementer to build the
+      shape-aware dispatch rather than a naive label-only substitution.
+  - id: TASKS-FRESH2-002
+    status: resolved
+    reason: >
+      A dated sub-entry was appended to tracer-tooling-friction.md without disturbing the
+      prior SK-132 entry, a correctly-numbered SK-133 ledger entry (marked "reported by a
+      subagent") was added to SPEC-KITTY-LEDGER.md matching the existing format, all three
+      WP files (WP01/WP02/WP03) now carry a YAML comment directly above branch_strategy
+      warning against a non-validate-only finalize-tasks re-run, and a live re-run of
+      finalize-tasks --validate-only --json still returns "validation_passed".
