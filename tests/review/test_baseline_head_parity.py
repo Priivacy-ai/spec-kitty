@@ -110,11 +110,7 @@ def _build_declared_command_repo(tmp_path: Path, *, script_name: str, script_bod
     repo = tmp_path / f"declared-command-repo-{script_name}"
     _init_git_repo(repo)
     _write_file(repo, script_name, script_body)
-    test_command = (
-        f"{sys.executable} {script_name} --junitxml={{output_file}}"
-        if script_name.endswith("junit.py")
-        else f"{sys.executable} {script_name}"
-    )
+    test_command = f"{sys.executable} {script_name} --junitxml={{output_file}}" if script_name.endswith("junit.py") else f"{sys.executable} {script_name}"
     _write_file(repo, ".kittify/config.yaml", f"review:\n  test_command: {test_command!r}\n")
     _git_commit_all(repo, "base commit with a declared test command")
     return repo
@@ -198,7 +194,8 @@ def _make_move_task_state(**overrides: Any) -> tmt._MoveTaskState:
 
 
 def test_scope_source_resolves_from_planning_root_not_lane_worktree(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """#3611: capture-time and head-time selection must share ONE root.
 
@@ -219,9 +216,7 @@ def test_scope_source_resolves_from_planning_root_not_lane_worktree(
     ``SOURCE_MISMATCH`` check never even gets to compare (each side computes
     an identity from an incomparable, wrongly-selected source).
     """
-    main_repo_root = _build_declared_command_repo(
-        tmp_path, script_name="write_junit.py", script_body=_JUNIT_SCRIPT
-    )
+    main_repo_root = _build_declared_command_repo(tmp_path, script_name="write_junit.py", script_body=_JUNIT_SCRIPT)
 
     # `_build_declared_command_repo` commits script + config together in a
     # single commit, so there is no pre-config commit to branch a lane
@@ -232,7 +227,9 @@ def test_scope_source_resolves_from_planning_root_not_lane_worktree(
     lane_worktree = tmp_path / "lane-worktree-3611"
     subprocess.run(
         ["git", "worktree", "add", "-b", "lane/wp04-3611", str(lane_worktree), "main"],
-        cwd=main_repo_root, check=True, capture_output=True,
+        cwd=main_repo_root,
+        check=True,
+        capture_output=True,
     )
     (lane_worktree / ".kittify" / "config.yaml").unlink()
 
@@ -254,8 +251,7 @@ def test_scope_source_resolves_from_planning_root_not_lane_worktree(
 
     head_source = tmt._mt_resolve_scope_source(inputs.scope_source_root)
     assert isinstance(head_source, DeclaredCommandScopeSource), (
-        "head-side selection must match capture-time selection (SAME root), "
-        f"got {type(head_source).__name__} instead"
+        f"head-side selection must match capture-time selection (SAME root), got {type(head_source).__name__} instead"
     )
 
     verdict = evaluate_pre_review_gate(
@@ -270,5 +266,7 @@ def test_scope_source_resolves_from_planning_root_not_lane_worktree(
 
     subprocess.run(
         ["git", "worktree", "remove", str(lane_worktree), "--force"],
-        cwd=main_repo_root, check=False, capture_output=True,
+        cwd=main_repo_root,
+        check=False,
+        capture_output=True,
     )

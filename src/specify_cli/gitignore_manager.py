@@ -176,11 +176,7 @@ def is_gitignore_path_ignored(project_path: Path, relative_path: str) -> bool | 
 def _has_git_control_path(project_path: Path) -> bool:
     """Return whether this path or an ancestor has Git control metadata."""
     return any(
-        candidate.joinpath(".git").is_file()
-        or (
-            candidate.joinpath(".git").is_dir()
-            and candidate.joinpath(".git", "HEAD").is_file()
-        )
+        candidate.joinpath(".git").is_file() or (candidate.joinpath(".git").is_dir() and candidate.joinpath(".git", "HEAD").is_file())
         for candidate in (project_path, *project_path.parents)
     )
 
@@ -216,15 +212,8 @@ def _tracked_git_paths(project_path: Path, root_path: str) -> tuple[str, ...]:
         raise GitignorePathError(f"Could not inspect tracked paths under {root_path}: {exc}") from exc
     if result.returncode != 0:
         detail = result.stderr.decode("utf-8", errors="replace").strip()
-        raise GitignorePathError(
-            f"Could not inspect tracked paths under {root_path}"
-            + (f": {detail}" if detail else "")
-        )
-    return tuple(
-        path.decode("utf-8", errors="surrogateescape")
-        for path in result.stdout.split(b"\0")
-        if path
-    )
+        raise GitignorePathError(f"Could not inspect tracked paths under {root_path}" + (f": {detail}" if detail else ""))
+    return tuple(path.decode("utf-8", errors="surrogateescape") for path in result.stdout.split(b"\0") if path)
 
 
 def is_gitignore_root_effectively_ignored(
@@ -263,9 +252,7 @@ def is_gitignore_root_effectively_ignored(
     try:
         content = read_ignore_file_text(project_path / ".gitignore")
     except UnicodeError as exc:
-        raise GitignorePathError(
-            f"{project_path / '.gitignore'} is not valid UTF-8; refusing to decode it"
-        ) from exc
+        raise GitignorePathError(f"{project_path / '.gitignore'} is not valid UTF-8; refusing to decode it") from exc
     if not content:
         return False
 
@@ -283,6 +270,8 @@ def is_gitignore_root_effectively_ignored(
     if verdict is None:
         raise GitignorePathError("Git could not verify the managed root ignore state")
     return verdict
+
+
 @dataclass
 class AgentDirectory:
     """Represents a single agent's directory that needs protection."""
