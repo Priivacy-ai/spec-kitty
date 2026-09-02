@@ -125,4 +125,7 @@ def resolve_generic_fallback(repo_root: Path, request_text: str) -> RouterDecisi
         action=_derive_fallback_action(request_text),
         confidence="generic_fallback",
         match_reason=_MATCH_REASON,
+        # WP2/#3840: this path never calls route() at all -- it short-circuits
+        # before the router runs, so there are no candidates to report.
+        alternatives=[],
     )
