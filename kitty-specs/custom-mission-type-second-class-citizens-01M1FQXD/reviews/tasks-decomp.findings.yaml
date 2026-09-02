@@ -1,0 +1,12 @@
+# review-findings/v1 — canonical format for lens-session and fresh-sweep output.
+schema: review-findings/v1
+complete: true             # flip to true ONLY at the very end, after the yaml self-check passes
+phase: tasks
+lens_group: decomp
+mission: custom-mission-type-second-class-citizens-01M1FQXD
+findings: []
+# No findings. WP01, WP02, and WP03 are each single-concern and reviewable; WP03's
+# 10-subtask size (the mission's own hard maximum) was investigated in depth against the
+# mission-specific lens (WP03 size/complexity ceiling) and judged NOT to require a split —
+# see the accompanying review summary for the full reasoning, evidence, and the specific
+# candidate seam that was tested and rejected.

@@ -1,0 +1,21 @@
+# review-verify/v1 — canonical format for fix-verification output.
+schema: review-verify/v1
+complete: true               # flipped to true after the yaml self-check passed
+phase: tasks
+results:                    # one entry for EVERY finding in the findings file
+  - id: TASKS-ORDER-001
+    status: resolved
+    reason: WP02 and WP03's "Why this WP exists" sections now carry a real reconciliation
+      note (dependencies:[] is deliberate because §Campsite-Clean Scope found zero
+      qualifying debt in either WP's file set) plus a binding operational instruction to
+      confirm WP01's T001 has landed on fix/custom-mission-type-second-class-3830 before
+      starting WP02/WP03 commits, addressing the single-branch ordering risk the finding
+      identified.
+  - id: TASKS-COVER-001
+    status: resolved
+    reason: wps.yaml's WP02 FR-004 entry and WP02-loud-fallback.md's frontmatter both now
+      carry a matching inline comment marking FR-004 descoped/traceability-only,
+      finalize-tasks --validate-only --json still returns "validation_passed" when
+      re-run against the current checkout, and the renderer's inability to carry the
+      distinction into tasks.md is genuinely recorded as SK-132 in both
+      SPEC-KITTY-LEDGER.md and tracer-tooling-friction.md in each file's existing format.
