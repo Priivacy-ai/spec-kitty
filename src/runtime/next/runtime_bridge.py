@@ -1794,8 +1794,9 @@ def _dn_composition_dispatch(ctx: DecideNextContext) -> Decision | None:
     invocation_id chain (host harness interprets it); a structured guard
     failure surface (Decision.kind=blocked, guard_failures populated) is
     used in lieu of a Python traceback when the executor raises
-    `StepContractExecutionError`. C-008 hard-guards this on
-    `mission == "software-dev"`; every other mission falls through (returns
+    `StepContractExecutionError`. C-008 gates this on `action_sequence`
+    membership for the resolved mission type -- any mission type, not just
+    `software-dev`; a step outside its own sequence falls through (returns
     ``None``) to composition unchanged so decision-materialize runs the
     runtime planner next.
     """
