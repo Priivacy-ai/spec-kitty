@@ -94,7 +94,11 @@
       "plan",
       "tasks",
       "check-prerequisites",
-      "record-analysis"
+      "record-analysis",
+      "open-decision",
+      "resolve-decision",
+      "defer-decision",
+      "cancel-decision"
     ],
     "forbidden_commands": [
       "feature-state",
@@ -140,7 +144,13 @@
       "RECORD_ANALYSIS_MALFORMED_CARRIER",
       "RECORD_ANALYSIS_WRITE_NOT_CONFIRMED",
       "RECORD_ANALYSIS_VERDICT_UNRELIABLE",
-      "DIRTY_WORKTREE"
+      "DIRTY_WORKTREE",
+      "INVALID_ORIGIN_FLOW",
+      "DECISION_MISSING_STEP_OR_SLOT",
+      "DECISION_ALREADY_CLOSED",
+      "DECISION_NOT_FOUND",
+      "DECISION_TERMINAL_CONFLICT",
+      "DECISION_EVENT_REPAIR_FAILED"
     ],
     "forbidden_error_codes": [
       "FEATURE_NOT_FOUND",
