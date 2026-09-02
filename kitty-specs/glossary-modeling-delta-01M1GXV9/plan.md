@@ -8,12 +8,12 @@
 
 ## Технический контекст
 
-**Формат**: Markdown-инструкции Codex skills  
-**Основные зависимости**: существующие `spk-doctrine-glossary` и `spec-kitty-glossary-context`  
-**Хранилище**: N/A  
-**Проверка**: skill validator, doctrine skill-pack tests, три синтетических поведенческих smoke-сценария  
-**Целевая платформа**: Codex skills на поддерживаемых платформах  
-**Тип изменения**: узкое обновление существующих instruction artifacts  
+**Формат**: Markdown-инструкции Codex skills
+**Основные зависимости**: существующие `spk-doctrine-glossary` и `spec-kitty-glossary-context`
+**Хранилище**: N/A
+**Проверка**: skill validator, doctrine skill-pack tests, три синтетических поведенческих smoke-сценария
+**Целевая платформа**: Codex skills на поддерживаемых платформах
+**Тип изменения**: узкое обновление существующих instruction artifacts
 **Ограничение размера**: не более двух продуктовых `SKILL.md`, без нового runtime-кода и нового skill
 
 ## Проверка charter

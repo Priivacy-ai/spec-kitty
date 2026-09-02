@@ -4,7 +4,7 @@ description: "Пакет работ для усиления glossary skills пр
 
 # Пакеты работ: усиление glossary skills проверкой модели
 
-**Входы**: `spec.md`, `plan.md`  
+**Входы**: `spec.md`, `plan.md`
 **Организация**: один атомарный пакет; публичный route и detailed workflow не разделяются между исполнителями.
 
 ## Индекс подзадач
@@ -25,8 +25,8 @@ description: "Пакет работ для усиления glossary skills пр
 
 **Независимая проверка**: три синтетических запроса демонстрируют требуемое поведение; validators и targeted tests проходят; diff остаётся в разрешённом scope.
 
-**Prompt**: `tasks/WP01-model-pressure-test.md`  
-**Требования**: FR-001–FR-006, NFR-001–NFR-003, C-001–C-004  
+**Prompt**: `tasks/WP01-model-pressure-test.md`
+**Требования**: FR-001–FR-006, NFR-001–NFR-003, C-001–C-004
 **Зависимости**: нет.
 
 ### Включённые подзадачи
