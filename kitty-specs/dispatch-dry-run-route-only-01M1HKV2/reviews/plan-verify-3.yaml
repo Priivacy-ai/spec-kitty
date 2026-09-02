@@ -1,0 +1,13 @@
+schema: review-verify/v1
+complete: true
+phase: plan
+results:
+  - id: PLAN-FRESH2-001
+    status: resolved
+    reason: tracer-approach.md's "No PR split" bullet (lines 39-43) now reads "1 CHANGELOG.md entry (WP3, per \"Downstream/external consumer impact\")", matching plan.md's four other Blast Radius restatements (Scale/Scope L65, Seam table L109, PR shape L556, Project Structure L605).
+  - id: PLAN-FRESH2-002
+    status: resolved
+    reason: both Gate Set rows (markdown lint L285, architecture/docs consistency L286) now carry an explicit "The new WP3 CHANGELOG.md entry is also in scope" clause; verified independently that CHANGELOG.md is a real repo-root symlink to docs/changelog/CHANGELOG.md (`ls -la`), that path is tracked at docs/development/3-2-page-inventory.yaml:1859, and no ignores entry in .markdownlint-cli2.jsonc excludes it, so both claims are factually grounded, not just asserted.
+  - id: PLAN-FRESH2-003
+    status: resolved
+    reason: the executor.py Seam table row (plan.md L102) now states the relocation "requires adding RouterAmbiguityError to executor.py's existing ... import block (currently InvalidModeForEvidenceError, InvocationError, UndeterminedModeForEvidenceError only)" and lists it as a new import in the New-vs-existing column; verified src/specify_cli/invocation/executor.py:36-40 currently imports exactly those three names and lacks RouterAmbiguityError, confirming the flag is factually warranted.
