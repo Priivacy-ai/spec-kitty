@@ -650,6 +650,36 @@ def test_composition_dispatch_inputs_resolves_profile_even_when_action_in_charte
     assert profile == "reviewer-renata"
 
 
+@pytest.mark.parametrize(
+    ("mission", "step_id", "action"),
+    [
+        ("software-dev", "specify", "specify"),
+        ("research", "scoping", "scoping"),
+        ("documentation", "discover", "discover"),
+    ],
+)
+def test_composition_dispatch_inputs_builtin_types_unaffected(
+    mission: str, step_id: str, action: str, tmp_path: Path
+) -> None:
+    """Blast Radius (plan.md): software-dev/research/documentation resolve
+    ``profile_hint`` via ``_ACTION_PROFILE_DEFAULTS`` exactly as before --
+    unaffected by the FR-001/FR-003 fix. None of their canonical steps set
+    ``agent_profile`` on the frozen template, so ``_resolve_step_agent_profile``
+    still resolves to ``None`` for them (the same value the removed early
+    return also produced for these actions) -- ``StepContractExecutor.
+    _resolve_profile_hint``'s built-ins-only table is the unaffected
+    fallback. Driven live against this repo's actual doctrine data
+    (repo_root=_REPO_ROOT, no mocking)."""
+    profile, _contract = composition._composition_dispatch_inputs(
+        repo_root=_REPO_ROOT,
+        run_dir=tmp_path,  # no frozen template -- matches every real first-touch dispatch
+        mission=mission,
+        step_id=step_id,
+        action=action,
+    )
+    assert profile is None
+
+
 def test_composition_dispatch_inputs_uses_live_lookup_for_resolution_helpers(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:
@@ -1060,6 +1090,37 @@ def test_dispatch_via_composition_surfaces_unexpected_exception_as_structured_fa
     assert failures is not None
     assert "composition crashed for software-dev/specify" in failures[0]
     assert "ValueError" in failures[0]
+
+
+def test_dispatch_via_composition_plan_mission_keeps_distinct_step_contract_error(
+    tmp_path: Path,
+) -> None:
+    """Blast Radius (plan.md, User Story 1 AC4, SC-001a): `plan` is NOT a
+    beneficiary of the FR-001/FR-003 fix -- dispatching an action in
+    `plan`'s own action_sequence must still raise the pre-existing, distinct
+    ``StepContractExecutionError("No step contract found for mission/action
+    plan/<action>")``, never ``profile_hint is required`` and no other
+    newly-introduced behavior. Driven through the REAL charter/executor
+    stack (repo_root=_REPO_ROOT, no mocking) against this repo's actual
+    doctrine data: `plan` is a built-in mission type with no registered step
+    contract for any of its actions (registering one is out of scope, per
+    plan.md), so the executor's own ``get_by_action`` miss fires before
+    ``_resolve_profile_hint`` is ever reached."""
+    failures = composition._dispatch_via_composition(
+        repo_root=_REPO_ROOT,
+        mission="plan",
+        action="specify",
+        actor="implementer-ivan",
+        profile_hint=None,
+        request_text=None,
+        mode_of_work=None,
+        feature_dir=tmp_path,
+    )
+
+    assert failures is not None
+    assert len(failures) == 1
+    assert "No step contract found for mission/action plan/specify" in failures[0]
+    assert "profile_hint is required" not in failures[0]
 
 
 def test_dispatch_via_composition_uses_live_lookup_for_check_composed_action_guard(
