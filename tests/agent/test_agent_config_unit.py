@@ -37,6 +37,29 @@ class TestCorruptYaml:
         assert "config.yaml" in str(exc_info.value)
 
 
+class TestNonMappingConfigShape:
+    def test_non_mapping_top_level_raises_agent_config_error(
+        self, tmp_path: Path
+    ) -> None:
+        """A ``config.yaml`` whose top-level YAML content is a bare scalar
+        (valid YAML, not a mapping) previously crashed with a bare
+        ``AttributeError: 'str' object has no attribute 'get'`` from the
+        unguarded ``data.get("agents")`` call -- same defect class as ledger
+        SK-16 (``charter status --json``'s leaked-exception bug). It must
+        instead fail closed with a controlled ``AgentConfigError``, matching
+        the sibling raise for a YAML parse error two lines above."""
+        _write_config(tmp_path, "just-a-plain-string-not-a-mapping\n")
+
+        with pytest.raises(AgentConfigError) as exc_info:
+            load_agent_config(tmp_path)
+
+        message = str(exc_info.value)
+        assert "has no attribute" not in message, (
+            f"leaked a raw AttributeError instead of a controlled diagnostic: {message}"
+        )
+        assert "config.yaml" in message
+
+
 class TestUnknownAgentKey:
     def test_unknown_agent_reported(self, tmp_path: Path) -> None:
         """Unknown agent key should be explicitly reported."""
