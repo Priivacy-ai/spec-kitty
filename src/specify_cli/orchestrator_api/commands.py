@@ -26,24 +26,34 @@ Error codes used:
                                  approved dependency lane's tip is not (yet) a git
                                  ancestor of the claimed workspace's HEAD, even
                                  after self-heal re-ran the reuse-path merges
+  MISSION_ALREADY_EXISTS      -- specify: the delegate mission-creation call failed
+                                 with a duplicate/no-op-commit signature (WP03)
+  MISSION_CREATE_FAILED       -- specify: mission creation failed for a reason
+                                 other than a detected duplicate (WP03)
+  PLAN_SETUP_FAILED           -- plan: the delegate plan-scaffold call failed and
+                                 carried no more specific error_code of its own (WP03)
+  TASKS_FINALIZE_FAILED       -- tasks: the delegate finalize-tasks call failed and
+                                 carried no more specific error_code of its own (WP03)
 """
 
 from __future__ import annotations
 
+import contextlib
+import io
 import json
 import re
 import uuid
 from kernel.clock import now_utc_stamp
 from pathlib import Path
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, NoReturn
+from typing import TYPE_CHECKING, Any, NoReturn
 
 if TYPE_CHECKING:
     from specify_cli.lanes.models import ExecutionLane, LanesManifest
 
 import typer
 
-from mission_runtime import CommitTarget
+from mission_runtime import CommitTarget, MissionTopology
 from specify_cli.core.contract_gate import validate_outbound_payload
 from specify_cli.core.errors import PlacementResolutionRequired
 from specify_cli.mission_metadata import resolve_mission_identity
@@ -1838,6 +1848,286 @@ def merge_mission(
         success=True,
         data=data,
     )
+    _emit(envelope)
+
+
+# ── specify / plan / tasks (WP03) ────────────────────────────────────────
+#
+# Thin, in-process adapters over the SAME JSON-mode service functions the
+# host CLI's own ``specify``/``plan``/``tasks`` shims
+# (``specify_cli.cli.commands.lifecycle``) already delegate to. NEVER shell
+# out to the host CLI: each verb captures the delegate's single ``--json``
+# stdout line, then re-emits it (enriched for ``specify``, raw for
+# ``plan``/``tasks``) inside the canonical orchestrator-api envelope.
+
+
+def _extract_json_payload(raw_output: str) -> dict[str, Any] | None:
+    """Parse the one JSON object a delegate command printed to its stdout.
+
+    Mirrors ``lifecycle._create_mission_for_specify_json``'s own line-scan
+    (first line starting with ``{`` that parses as a JSON object) rather than
+    assuming line 1 verbatim -- tolerant of incidental non-JSON stdout noise
+    from the delegate without duplicating its parsing logic wholesale.
+    """
+    for line in raw_output.splitlines():
+        stripped = line.strip()
+        if not stripped.startswith("{"):
+            continue
+        try:
+            payload = json.loads(stripped)
+        except json.JSONDecodeError:
+            continue
+        if isinstance(payload, dict):
+            return payload
+    return None
+
+
+# Markers observed in ``create_mission``'s own bare-exception message when a
+# second ``specify`` targets a slug/mid8 pairing that already produced an
+# identical on-disk mission: the retry's meta.json/spec.md scaffold is
+# byte-identical to what is already committed, so the underlying
+# ``safe_commit`` sees an empty changeset and raises a plain ``RuntimeError``
+# with no ``error_code`` of its own (verified against production behavior --
+# see the WP03 tracer entry). This surface classifies that established
+# failure into a stable, structured code instead of letting it flatten to a
+# generic one.
+_MISSION_DUPLICATE_MARKERS = ("nothing to commit", "empty changeset", "already exists")
+
+
+def _classify_specify_create_error(
+    payload: dict[str, Any] | None, raw_output: str
+) -> tuple[str, str, dict[str, Any]]:
+    """Classify a failed ``specify`` delegate call into ``(error_code, message, data)``.
+
+    A typed upstream ``error_code`` (e.g. ``CharterPackConfigError``,
+    ``CoordinationBranchDiverged``) is trusted verbatim. A bare
+    ``{"error": ...}`` payload (``MissionCreationError`` / a generic
+    ``RuntimeError``) is pattern-matched against the known duplicate-mission
+    signature; anything else falls back to a generic, still-structured code
+    -- never a bare exception/traceback (this repo's dominant failure mode).
+    """
+    if payload is None:
+        message = raw_output.strip() or "mission creation failed"
+        return "MISSION_CREATE_FAILED", message, {"raw_output": raw_output}
+    message = str(payload.get("error") or payload.get("message") or "mission creation failed")
+    error_code = payload.get("error_code")
+    if error_code:
+        return str(error_code), message, payload
+    lowered = message.lower()
+    if any(marker in lowered for marker in _MISSION_DUPLICATE_MARKERS):
+        return "MISSION_ALREADY_EXISTS", message, payload
+    return "MISSION_CREATE_FAILED", message, payload
+
+
+def _classify_delegate_error(
+    payload: dict[str, Any] | None,
+    raw_output: str,
+    *,
+    fallback_code: str,
+    fallback_message: str,
+) -> tuple[str, str, dict[str, Any]]:
+    """Classify a failed ``plan``/``tasks`` delegate call, trusting any typed
+    ``error_code`` the delegate already carries and falling back to a
+    verb-specific structured code otherwise -- never a bare exception.
+    """
+    if payload is None:
+        message = raw_output.strip() or fallback_message
+        return fallback_code, message, {"raw_output": raw_output}
+    message = str(payload.get("error") or payload.get("message") or fallback_message)
+    error_code = payload.get("error_code")
+    if error_code:
+        return str(error_code), message, payload
+    return fallback_code, message, payload
+
+
+# ── Command 10: specify ──────────────────────────────────────────────────
+
+
+@app.command(name="specify")
+def specify(
+    mission: str = typer.Option(..., "--mission", help=_HELP_MISSION_SLUG),
+    mission_type: str = typer.Option(..., "--mission-type", help="Mission type (e.g., software-dev)"),
+    topology: MissionTopology | None = typer.Option(
+        None,
+        "--topology",
+        help=(
+            "Create-time mission shape: single_branch | lanes | coord | "
+            "lanes_with_coord. Default: context-derived (matches the host "
+            "CLI's own --topology default)."
+        ),
+    ),
+    policy: str = typer.Option(None, "--policy", help=_HELP_POLICY),
+) -> None:
+    """Create a mission scaffold, matching the host CLI's enriched ``specify --json`` contract.
+
+    In-process only (FR-001): calls
+    ``specify_cli.cli.commands.lifecycle._create_mission_for_specify_json``,
+    the SAME enrichment step the host CLI's ``--json`` path runs (adds
+    ``scaffold_only``/``spec_state``/``next_action``/``next_step`` on top of
+    ``agent_feature.create_mission``'s raw payload) -- never the unenriched
+    payload one layer beneath it.
+    """
+    cmd = "specify"
+
+    if not policy:
+        _fail(cmd, "POLICY_METADATA_REQUIRED", "--policy is required for specify")
+        return
+    _parse_policy_or_fail(cmd, policy)
+
+    from specify_cli.cli.commands.lifecycle import _create_mission_for_specify_json
+
+    capture = io.StringIO()
+    try:
+        with contextlib.redirect_stdout(capture):
+            _create_mission_for_specify_json(mission, mission_type, topology)
+    except typer.Exit:
+        raw_output = capture.getvalue()
+        payload = _extract_json_payload(raw_output)
+        error_code, message, error_data = _classify_specify_create_error(payload, raw_output)
+        _fail(cmd, error_code, message, error_data)
+        return
+
+    raw_output = capture.getvalue()
+    payload = _extract_json_payload(raw_output)
+    if payload is None:
+        _fail(
+            cmd,
+            "MISSION_CREATE_FAILED",
+            "specify produced no parseable JSON payload",
+            {"raw_output": raw_output},
+        )
+        return
+    validate_outbound_payload(payload, "orchestrator_api")
+    envelope = make_envelope(command=cmd, success=True, data=payload)
+    _emit(envelope)
+
+
+# ── Command 11: plan ─────────────────────────────────────────────────────
+
+
+@app.command(name="plan")
+def plan(
+    mission: str = typer.Option(..., "--mission", help=_HELP_MISSION_SLUG),
+    policy: str = typer.Option(None, "--policy", help=_HELP_POLICY),
+) -> None:
+    """Scaffold plan.md for a mission -- an unenriched pass-through of ``setup_plan``.
+
+    FR-002 / Clarification 1: deliberately asymmetric with ``specify`` -- the
+    host CLI's own ``--json`` path returns ``agent_feature.setup_plan``'s raw
+    dict verbatim (``lifecycle.py`` adds no enrichment here), so this verb
+    does the same. Do not add fields ``setup_plan`` does not already return.
+    """
+    cmd = "plan"
+
+    if not policy:
+        _fail(cmd, "POLICY_METADATA_REQUIRED", "--policy is required for plan")
+        return
+    _parse_policy_or_fail(cmd, policy)
+
+    main_repo_root = _get_main_repo_root()
+    mission_dir = _resolve_mission_dir_or_fail(cmd, main_repo_root, mission)
+
+    from specify_cli.cli.commands.agent import mission as agent_feature
+
+    capture = io.StringIO()
+    try:
+        with contextlib.redirect_stdout(capture):
+            agent_feature.setup_plan(feature=mission, json_output=True)
+    except typer.Exit:
+        raw_output = capture.getvalue()
+        payload = _extract_json_payload(raw_output)
+        error_code, message, error_data = _classify_delegate_error(
+            payload,
+            raw_output,
+            fallback_code="PLAN_SETUP_FAILED",
+            fallback_message="plan scaffolding failed",
+        )
+        _fail(cmd, error_code, message, error_data)
+        return
+
+    raw_output = capture.getvalue()
+    payload = _extract_json_payload(raw_output)
+    if payload is None:
+        _fail(
+            cmd,
+            "PLAN_SETUP_FAILED",
+            "plan produced no parseable JSON payload",
+            {"raw_output": raw_output},
+        )
+        return
+    # ``setup_plan``'s own payload already carries ``mission_slug`` (verified
+    # against production); ``setdefault`` is a structural no-op belt-and-brace
+    # here -- this is NOT business-payload enrichment (T011's asymmetry bar),
+    # it fills the ONE transport-contract identity field
+    # (``upstream_contract.json``'s ``required_payload_fields``) every
+    # orchestrator-api response must carry, using the already-resolved input
+    # identity -- never overwriting a delegate-supplied value.
+    payload.setdefault("mission_slug", _mission_identity_payload(mission_dir)["mission_slug"])
+    validate_outbound_payload(payload, "orchestrator_api")
+    envelope = make_envelope(command=cmd, success=True, data=payload)
+    _emit(envelope)
+
+
+# ── Command 12: tasks ────────────────────────────────────────────────────
+
+
+@app.command(name="tasks")
+def tasks(
+    mission: str = typer.Option(..., "--mission", help=_HELP_MISSION_SLUG),
+    policy: str = typer.Option(None, "--policy", help=_HELP_POLICY),
+) -> None:
+    """Finalize WP task metadata -- an unenriched pass-through of ``finalize_tasks``.
+
+    FR-003 / Clarification 1: same deliberate asymmetry as ``plan`` -- the
+    host CLI's own ``--json`` path returns ``agent_feature.finalize_tasks``'s
+    raw dict verbatim, so this verb does the same.
+    """
+    cmd = "tasks"
+
+    if not policy:
+        _fail(cmd, "POLICY_METADATA_REQUIRED", "--policy is required for tasks")
+        return
+    _parse_policy_or_fail(cmd, policy)
+
+    main_repo_root = _get_main_repo_root()
+    mission_dir = _resolve_mission_dir_or_fail(cmd, main_repo_root, mission)
+
+    from specify_cli.cli.commands.agent import mission as agent_feature
+
+    capture = io.StringIO()
+    try:
+        with contextlib.redirect_stdout(capture):
+            agent_feature.finalize_tasks(feature=mission, json_output=True)
+    except typer.Exit:
+        raw_output = capture.getvalue()
+        payload = _extract_json_payload(raw_output)
+        error_code, message, error_data = _classify_delegate_error(
+            payload,
+            raw_output,
+            fallback_code="TASKS_FINALIZE_FAILED",
+            fallback_message="tasks finalization failed",
+        )
+        _fail(cmd, error_code, message, error_data)
+        return
+
+    raw_output = capture.getvalue()
+    payload = _extract_json_payload(raw_output)
+    if payload is None:
+        _fail(
+            cmd,
+            "TASKS_FINALIZE_FAILED",
+            "tasks produced no parseable JSON payload",
+            {"raw_output": raw_output},
+        )
+        return
+    # finalize_tasks' raw payload does NOT carry ``mission_slug`` (verified
+    # against production) -- unlike ``plan``, this is a genuine gap the
+    # transport contract's ``required_payload_fields`` requires filling. Same
+    # non-enrichment rationale as ``plan`` above: fills the one identity field
+    # from the already-resolved input, adds nothing else.
+    payload.setdefault("mission_slug", _mission_identity_payload(mission_dir)["mission_slug"])
+    validate_outbound_payload(payload, "orchestrator_api")
+    envelope = make_envelope(command=cmd, success=True, data=payload)
     _emit(envelope)
 
 
