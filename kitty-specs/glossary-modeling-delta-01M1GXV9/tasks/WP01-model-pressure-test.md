@@ -29,10 +29,11 @@ subtasks:
 agent: null
 history:
 - 2026-09-02 created
-authoritative_surface: src/doctrine/skills/
+- 2026-09-02 implemented and verified locally
+authoritative_surface: src/charter/offering/skills/
 owned_files:
-- src/doctrine/skills/spk-doctrine-glossary/SKILL.md
-- src/doctrine/skills/spec-kitty-glossary-context/SKILL.md
+- src/charter/offering/skills/spk-doctrine-glossary/SKILL.md
+- src/charter/offering/skills/spec-kitty-glossary-context/SKILL.md
 execution_mode: instruction_change
 role: implementer
 tags:
@@ -76,3 +77,11 @@ Baseline должен показать, какой из требуемых ме�
 - `tests/doctrine/test_spk_skill_pack.py` проходит.
 - Scope scan подтверждает только два разрешённых продуктовых файла.
 - Diff короткий, не дублирует existing authority и не содержит внешнего framework boilerplate.
+
+## Результат локальной проверки
+
+- Failing-first baseline: четыре ожидаемых признака отсутствовали.
+- Повторный smoke: четыре ожидаемых признака присутствуют.
+- `quick_validate.py`: оба skill-файла валидны.
+- `tests/doctrine/test_spk_skill_pack.py`: `6 passed`.
+- Product scope: изменены только два файла из `owned_files`.

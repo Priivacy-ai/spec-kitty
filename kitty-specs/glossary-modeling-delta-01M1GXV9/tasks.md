@@ -33,13 +33,18 @@ description: "Пакет работ для усиления glossary skills пр
 
 T001 Зафиксировать failing-first/snapshot baseline трёх синтетических smoke-сценариев до изменения skills
 
-T002 Добавить короткий route в `src/doctrine/skills/spk-doctrine-glossary/SKILL.md`
+T002 Добавить короткий route в `src/charter/offering/skills/spk-doctrine-glossary/SKILL.md`
 
-T003 Добавить conditional model pressure-test в `src/doctrine/skills/spec-kitty-glossary-context/SKILL.md`
+T003 Добавить conditional model pressure-test в `src/charter/offering/skills/spec-kitty-glossary-context/SKILL.md`
 
 T004 Повторить те же smoke-сценарии и подтвердить code cross-check, edge scenario и ADR gate
 
 T005 Запустить validator обоих skills, `tests/doctrine/test_spk_skill_pack.py` и scope scan
+
+### Фактический статус
+
+- T001–T004 выполнены: failing-first baseline не находил требуемые механизмы, повторный smoke подтвердил все три.
+- T005 выполнена: оба validators прошли, targeted tests — `6 passed`, scope scan — два разрешённых продуктовых файла.
 
 ### Риски и меры
 

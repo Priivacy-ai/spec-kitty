@@ -18,7 +18,7 @@
 
 ## Проверка charter
 
-- Один canonical source: изменения только в `src/doctrine/skills/`; глобальные проекции не редактируются.
+- Один canonical source: изменения только в `src/charter/offering/skills/`; глобальные проекции не редактируются.
 - Терминологическая целостность: новые проверки дополняют существующие concepts/aliases/conflicts/semantic drift.
 - ATDD: до изменения инструкций фиксируются три наблюдаемых smoke-сценария; после изменения каждый обязан пройти.
 - Узкий scope: runtime glossary, registry, CLI, templates и ADR-документы не меняются.
@@ -30,11 +30,11 @@
 
 ### 1. Публичная маршрутизация
 
-В `src/doctrine/skills/spk-doctrine-glossary/SKILL.md` добавить короткий маршрут: когда запрос не только курирует термины, но и уточняет доменную модель, detailed workflow должен применить model pressure-test. Публичный skill не дублирует подробные инструкции.
+В `src/charter/offering/skills/spk-doctrine-glossary/SKILL.md` добавить короткий маршрут: когда запрос не только курирует термины, но и уточняет доменную модель, detailed workflow должен применить model pressure-test. Публичный skill не дублирует подробные инструкции.
 
 ### 2. Подробный model pressure-test
 
-В `src/doctrine/skills/spec-kitty-glossary-context/SKILL.md` добавить компактный раздел, применяемый только при уточнении модели или спорного термина:
+В `src/charter/offering/skills/spec-kitty-glossary-context/SKILL.md` добавить компактный раздел, применяемый только при уточнении модели или спорного термина:
 
 1. Проверить существенное утверждение по доступным типам, API и тестам; при отсутствии evidence назвать его гипотезой.
 2. Проверить неоднозначный термин одним конкретным граничным сценарием и уточнить definition/boundary/relation при расхождении.
@@ -50,7 +50,7 @@
 ## Структура изменения
 
 ```text
-src/doctrine/skills/
+src/charter/offering/skills/
 ├── spk-doctrine-glossary/SKILL.md
 └── spec-kitty-glossary-context/SKILL.md
 

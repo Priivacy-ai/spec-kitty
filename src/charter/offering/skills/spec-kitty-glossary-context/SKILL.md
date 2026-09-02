@@ -4,7 +4,8 @@ description: >-
   Curate and apply canonical terminology across Spec Kitty missions.
   Triggers: "update the glossary", "use canonical terms", "check terminology",
   "add a term", "fix term drift", "glossary conflicts", "resolve ambiguity",
-  "review terminology consistency".
+  "review terminology consistency", "shape a domain model",
+  "validate domain language against code".
   Does NOT handle: runtime loop advancement, setup or repair requests,
   agent configuration, or direct code implementation tasks.
 ---
@@ -247,6 +248,44 @@ definition, or defer. Custom definitions emit both a
 
 **Expected outcome:** The glossary reflects intended terminology and runtime-
 blocking conflicts are resolved.
+
+---
+
+## Step 3A: Pressure-Test Domain Model Terms When Needed
+
+Use this step when the task is shaping a domain model or a term is ambiguous,
+contested, or load-bearing. Skip it for an already canonical, uncontroversial
+usage correction.
+
+### Cross-check code evidence
+
+Identify the model claim being made, then inspect the relevant domain types,
+API contracts, and tests before accepting it. Name the surfaces checked and
+report concrete mismatches. If code evidence is unavailable, label the claim
+as a hypothesis rather than presenting it as confirmed.
+
+### Challenge the term with a concrete edge scenario
+
+Choose at least one small concrete edge scenario that could expose ambiguity.
+State the expected behavior, then check whether the proposed definition,
+boundary, or relationship explains it. If not, refine the model instead of
+adding more terminology around the mismatch.
+
+### Apply the ADR gate
+
+Recommend an ADR only when all three conditions are true:
+
+1. The decision is hard to reverse.
+2. The decision is surprising without context.
+3. There is a real trade-off between plausible alternatives.
+
+If any condition is false, keep the rationale in the glossary, spec, or plan.
+When an ADR already covers the decision, update or reference it instead of
+creating a duplicate.
+
+**Expected outcome:** The term is supported by available code evidence,
+survives a concrete edge scenario, and creates an ADR only for a decision that
+passes all three conditions.
 
 ---
 
