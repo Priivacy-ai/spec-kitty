@@ -291,6 +291,20 @@ advance the loop the same way `spec-kitty next --answer <value>
 --decision-id <id> --agent <name> --result <success|failed|blocked>` already
 does, via orchestrator-api instead of the host CLI.
 
+`answer-decision` is a COMPOSITE verb, matching what the real CLI invocation
+above always does in one pass (`--answer` hard-requires `--result`,
+`next_cmd.py:_validate_result_and_answer`; the same call then performs both
+steps, `next_cmd.py:213-221` then `next_cmd.py:246-248`): (1)
+`runtime_bridge.answer_decision_via_runtime` persists the answer against the
+`decision_id` (auto-resolved or explicit) and returns nothing usable as a
+response payload; then (2) `decide_next` (`src/runtime/next/decision.py:413`,
+delegating to `runtime_bridge.decide_next_via_runtime`) advances the DAG
+using `answer-decision`'s own `--result` and returns the next-step
+`Decision` — the same object `_print_decision` renders as the `next --json`
+envelope. `answer-decision` never performs only step (1); a decision answer
+with no DAG advance is not a state the real CLI can produce, so this verb
+does not model it either.
+
 **Why this priority**: This is the literal ask of GitHub issue #3837 — "a
 decision-resolution verb covering the `DecisionKind` cases
 (`runtime/next/decision.py`)" — and, per Clarification 3, a DISTINCT
@@ -308,8 +322,14 @@ workflow defines a blocking `AuditStep` (or a `PromptStep` with
 `spec-kitty next --json`, then calling the new `answer-decision`
 orchestrator-api verb and asserting (a) the run-snapshot's
 `pending_decisions` no longer contains the answered `decision_id`, and (b)
-the returned envelope's `data` matches what `spec-kitty next --answer ...
---json` would have returned for the same call — verified against the
+the returned envelope's `data` carries the persisted-answer confirmation
+(`data.answered_decision_id`) AND is byte-identical, field-for-field, to
+what `spec-kitty next --answer ... --json` would have returned for the same
+call on every `Decision.to_dict()`-derived key (`kind`, `step_id`,
+`decision_id`, `prompt_file`, etc. — see Clarification 3, Mechanism B, for
+why `answered_decision_id` itself is a self-documenting orchestrator-api
+field name rather than the CLI's terser `answered` key, and is additive on
+top of that shape, not a substitute for it) — verified against the
 run-snapshot store on disk, not just the envelope.
 
 **Acceptance Scenarios**:
@@ -322,8 +342,15 @@ run-snapshot store on disk, not just the envelope.
    `--policy` (`--decision-id` omitted — exactly one decision is pending,
    auto-resolved exactly as `next_cmd.py:_handle_answer` auto-resolves it
    when `len(pending) == 1`), **Then** it returns `success: true` with
-   `data.answered_decision_id` naming the audit decision, and the
-   run-snapshot's `pending_decisions` no longer contains that id.
+   `data.answered_decision_id` naming the audit decision (`decision_id`
+   persisted by step (1), `answer_decision_via_runtime`), the
+   run-snapshot's `pending_decisions` no longer contains that id, AND
+   (per the composite design above) `data` ALSO carries the full
+   `Decision.to_dict()` shape from step (2)'s `decide_next` call for
+   whatever follows the resolved audit checkpoint — `answered_decision_id`
+   is always a sibling field alongside that shape, never a replacement for
+   it (see Acceptance Scenario 3, which exercises the same envelope from
+   the `kind`/next-step side).
 2. **Given** a mission run with more than one entry in
    `pending_decisions`, **When** the host calls `answer-decision` without
    `--decision-id`, **Then** the verb rejects with a structured
@@ -339,7 +366,12 @@ run-snapshot store on disk, not just the envelope.
    --answer ... --json` returns for the following step — including the
    resulting `kind` (`step`/`decision_required`/`blocked`/`terminal`), so
    the host can chain directly into its next action without a separate
-   query call.
+   query call — PLUS the `answered_decision_id` sibling field from
+   Acceptance Scenario 1 naming the `input:<key>` decision this call just
+   persisted (the two are the same envelope shape viewed from opposite
+   angles: AC1 asserts the persisted-answer confirmation, this scenario
+   asserts the next-step parity fields; a real response carries both at
+   once).
 4. **Given** a `--decision-id` that does not match any entry in the current
    run's `pending_decisions` (e.g. already answered, or naming a different
    step), **When** the host calls `answer-decision`, **Then** it rejects
@@ -464,7 +496,7 @@ run-snapshot store on disk, not just the envelope.
 
 - **Design-phase envelope**: the same canonical JSON response envelope (`make_envelope`) already used by the 10 existing orchestrator-api verbs — `command`, `success`, `data`, and on failure `error_code`/`error`. No new envelope shape is introduced; new verbs reuse it.
 - **Decision moment (Mechanism A, `OriginFlow`-scoped)**: an entry in a mission's decision ledger (`decisions/index.json`), keyed by `decision_id`, carrying `origin` (one of `OriginFlow.CHARTER`/`SPECIFY`/`PLAN`), `status` (open/resolved/deferred/cancelled), and the question/answer payload — unchanged in shape by this mission, only newly reachable via `open-decision`/`resolve-decision`/`defer-decision`/`cancel-decision`.
-- **Run decision (Mechanism B, `DecisionKind.decision_required`)**: an entry in a mission RUN's `pending_decisions` map (a run-snapshot store read via `_internal_runtime.engine._read_snapshot`, distinct from `decisions/index.json`), keyed by `decision_id` in the form `audit:<step_id>` (blocking audit checkpoint) or `input:<key>` (missing required input), carrying `question` and `options`. Not `OriginFlow`-scoped — can occur at any DAG step in any mission phase. Resolved by `answer-decision` (FR-013) the same way `spec-kitty next --answer` resolves it today (`runtime_bridge.answer_decision_via_runtime`).
+- **Run decision (Mechanism B, `DecisionKind.decision_required`)**: an entry in a mission RUN's `pending_decisions` map (a run-snapshot store read via `_internal_runtime.engine._read_snapshot`, distinct from `decisions/index.json`), keyed by `decision_id` in the form `audit:<step_id>` (blocking audit checkpoint) or `input:<key>` (missing required input), carrying `question` and `options`. Not `OriginFlow`-scoped — can occur at any DAG step in any mission phase. Resolved by `answer-decision` (FR-013) the same way `spec-kitty next --answer --result <...>` resolves it today — which is itself a COMPOSITE of two engine calls, not one: (1) `runtime_bridge.answer_decision_via_runtime` persists the answer (returns nothing usable as a response payload), then (2) `decide_next` (`src/runtime/next/decision.py:413`, delegating to `runtime_bridge.decide_next_via_runtime`) advances the DAG using the verb's own `--result` and returns the next-step `Decision`. `answer-decision`'s response `data` is `Decision.to_dict()` from call (2) — carrying `kind`/`step_id`/`decision_id`/`prompt_file`/etc. for whatever comes next — with one additional sibling field, `answered_decision_id`, set to the `decision_id` persisted in call (1) (see User Story 5 AC1/AC3 for the response-shape contract).
 - **Analysis report artifact**: `kitty-specs/<slug>/analysis-report.md`, written by `record_analysis` today and by `record-analysis` under this mission — the ground truth `record-analysis` must re-read (and correlate with THIS call via `generated_at` freshness — NFR-004) to determine its own success.
 - **Design-phase status snapshot**: the read-only aggregate (`current_phase`, `next_action`, `open_decisions`) returned by the new `design-status` verb, reduced from the mission's event log and decision ledger the same way `list-ready` reduces WP state — never persisted, never mutating.
 
@@ -567,13 +599,37 @@ reviewer (or `sk-review`) can audit these without re-deriving them:
      **any** mission phase — not limited to charter/specify/plan. It is
      resolved today only via `spec-kitty next --answer <value> --decision-id
      <id> --agent <name> --result <success|failed|blocked>`
-     (`src/specify_cli/cli/commands/next_cmd.py:923-1000`, `_handle_answer`
+     (`src/specify_cli/cli/commands/next_cmd.py:923-1018`, `_handle_answer`
      — auto-resolves `--decision-id` when exactly one decision is pending by
      reading `_internal_runtime.engine._read_snapshot(run_ref.run_dir)
      .pending_decisions`, then calls `runtime_bridge.answer_decision_via_
      runtime(...)`, `src/runtime/next/runtime_bridge.py:2587-2662`), which
      writes into a **run-snapshot store** — a completely separate
-     persistence layer from `decisions/index.json`.
+     persistence layer from `decisions/index.json`. **`_handle_answer` is
+     only HALF of what the real `--answer` invocation does.** `--answer`
+     hard-requires `--result` (`_validate_result_and_answer`,
+     `next_cmd.py:743-750`), and the SAME CLI call (`next_cmd.py:213-221`
+     then `next_cmd.py:246-248`) ALWAYS follows the persisted answer with a
+     second, separate call, `decide_next` (`src/runtime/next/decision.py:413`,
+     delegating to `runtime_bridge.decide_next_via_runtime`,
+     `runtime_bridge.py:2191`), which advances the DAG using `--result` and
+     returns the next-step `Decision`. `_print_decision`
+     (`next_cmd.py:910-919`) then prints `decision.to_dict()` with two extra
+     keys, `answered` and `answer`, merged in flatly. **`answer-decision`
+     (FR-013) wraps BOTH calls**, matching the real CLI's always-both-calls
+     behavior (see User Story 5), and returns `Decision.to_dict()` from the
+     `decide_next` call with one added field, `answered_decision_id` —
+     `answer-decision`'s own self-documenting name for the same bookkeeping
+     the CLI's terser `answered` key carries, following the existing
+     orchestrator-api convention of curated, self-documenting `data` field
+     names rather than a verbatim re-export of an internal function's dict
+     (e.g. `start-implementation`/`start-review`'s `wp_id`/`from_lane`/
+     `to_lane`, `commands.py:1258-1266,1352-1360`). The "SAME shape" parity
+     User Story 5 AC3 / the Independent Test / SC-007 require is scoped to
+     the `Decision.to_dict()`-derived next-step fields (`kind`, `step_id`,
+     `decision_id`, `prompt_file`, etc.), which ARE byte-identical to what
+     `next --answer --json` emits for those keys — not to the bookkeeping
+     key's literal name.
 
    GitHub issue #3837 literally asks for "a decision-resolution verb
    covering the `DecisionKind` cases (`runtime/next/decision.py`)" — that is
@@ -735,8 +791,13 @@ reviewer (or `sk-review`) can audit these without re-deriving them:
   verified by an integration test that drives a fixture mission run to a
   `decision_required` state, calls `answer-decision`, and confirms (a) the
   run-snapshot's `pending_decisions` no longer contains the answered
-  `decision_id`, and (b) the resulting envelope matches what
-  `spec-kitty next --answer ... --json` returns for the identical call —
+  `decision_id`, and (b) the resulting envelope carries both the
+  persisted-answer confirmation (`data.answered_decision_id`) and, on every
+  `Decision.to_dict()`-derived key (`kind`, `step_id`, `decision_id`,
+  `prompt_file`, etc.), matches what `spec-kitty next --answer ... --json`
+  returns for the identical call — proving `answer-decision` performed BOTH
+  engine calls the real CLI performs (`answer_decision_via_runtime` then
+  `decide_next`/`decide_next_via_runtime`), not only the persist step —
   never invoking `spec-kitty next` directly.
 
 ---
@@ -751,9 +812,14 @@ change set):
 - `src/specify_cli/orchestrator_api/envelope.py` — `CONTRACT_VERSION` bump +
   changelog comment
 - `src/runtime/next/runtime_bridge.py` (`answer_decision_via_runtime`,
-  `get_or_start_run`, `_read_snapshot`) — the engine `answer-decision`
-  (FR-013) wraps; likely read-only reuse, no changes expected, but the plan
-  phase should confirm no new public surface is needed there
+  `decide_next_via_runtime`, `get_or_start_run`, `_read_snapshot`) and
+  `src/runtime/next/decision.py` (`decide_next`) — the two-call engine
+  `answer-decision` (FR-013) wraps: `answer_decision_via_runtime` persists
+  the answer, then `decide_next`/`decide_next_via_runtime` (passing the
+  verb's own `--result`) advances the DAG and produces the next-step
+  `Decision` that becomes `data`; likely read/advance reuse, no engine
+  changes expected, but the plan phase should confirm no new public surface
+  is needed there
 - `docs/api/orchestrator-api.md` — new verb documentation
 - `src/charter/offering/skills/spec-kitty-orchestrator-api-operator/
   references/host-boundary-rules.md` — Boundary Decision Matrix gains
