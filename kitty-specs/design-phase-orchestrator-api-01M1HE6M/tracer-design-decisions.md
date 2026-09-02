@@ -80,3 +80,34 @@ full `record_analysis` call in an explicit, enforced timeout. The choice between
 left to WP04's implementer (not frozen at plan time — an implementation-detail call, not an
 architecture decision) as long as the artifact re-read + freshness correlation (NFR-004(a))
 is the actual success signal either way. See plan.md section (j) for the full mechanism.
+
+## 4. WP01 T002 — `next_cmd.py:425` type-suppression resolved by narrowing (2026-09-02)
+
+**Resolution chosen: NARROW**, not justify-and-keep. Read
+`write_paired_completion`'s signature (`src/specify_cli/invocation/lifecycle.py:315-322`):
+its `phase` parameter is declared `phase: ProfileInvocationPhase`, where
+`ProfileInvocationPhase = Literal["started", "completed", "failed"]`
+(`src/specify_cli/invocation/record.py:241`). The local `phase` variable in
+`_pair_previous_lifecycle_record` (`next_cmd.py:415-419`) was annotated plain `str` even
+though both branches only ever assign it one of the literal string values `"completed"` /
+`"failed"` — a strict subset of `ProfileInvocationPhase` — so the mismatch was a
+type-annotation gap, not a genuine runtime incompatibility.
+
+**Fix**: annotated the local variable with the function's own canonical type,
+`phase: ProfileInvocationPhase = "completed"` (importing `ProfileInvocationPhase` from its
+canonical source `specify_cli.invocation.record`, added to the function's existing local
+import block alongside `write_paired_completion` et al.), and deleted the bare
+`# type: ignore[arg-type]` comment on the `write_paired_completion(..., phase=phase, ...)`
+call entirely. No behavioural change — the two assigned values are unchanged string
+literals; only the declared type became precise enough for mypy to verify the call
+without a suppression. This closes the class WP02 flagged (a public, module-level
+function must not carry forward a private module's un-investigated suppression).
+
+**Re-confirmed spot-check of `orchestrator_api/commands.py` / `envelope.py`** (plan.md
+§ (g)'s own spot-check, re-run at WP01's actual implementation time since plan time has
+passed): `envelope.py` read in full (210 lines) — zero `# noqa` / `# type: ignore`
+anywhere, including `make_envelope`, `parse_and_validate_policy`, `policy_to_dict`, and
+the `CONTRACT_VERSION` changelog block (lines 19-28). `commands.py`'s `start-review`
+verb (lines 1379-1460, the exact precedent function cited in plan.md § (e) item 13) read
+in full — also clean, no suppressions. **The spot-check still holds** — no intervening
+commit introduced a suppression in either file's cited surface.
