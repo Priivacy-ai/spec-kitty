@@ -1,0 +1,148 @@
+# review-findings/v1 — canonical format for lens-session and fresh-sweep output.
+schema: review-findings/v1
+complete: true
+phase: plan
+lens_group: fit
+mission: custom-mission-type-second-class-citizens-01M1FQXD
+findings:
+  - id: PLAN-FIT-001
+    lens: deferred-questions-closure
+    severity: 4
+    title: "research's checked-field set silently narrows spec.md's binding 3-field list to 2, contradicting NFR-004's explicit anti-subset text"
+    evidence:
+      - artifact: "spec.md § Decision 3 (BINDING) and NFR-004"
+      - artifact: "plan.md § Blast Radius table, `research` row (line 308) and § Architectural Gate Non-Vacuity table, `research` row (line 384)"
+      - artifact: "research.md § R4.1 table, `research` row (line 183)"
+      - code: "packs/built-in/missions/research/templates/research-plan-template.md:9-22,56 (`## Research Context` containing `**Research Question**:`; `## Methodology` at L22 with no direct bold-field/table content of its own, only nested `### Research Design`/`### Data Sources`/`### Analysis Framework`)"
+    claim: >
+      spec.md's Decision 3 (BINDING) and NFR-004 both name THREE parallel scaffolded
+      fields for `research` — "Research Context, Methodology, Data Sources" — and
+      NFR-004 explicitly warns the check must use "ALL of their own actually-scaffolded
+      fields — not a convenient subset". plan.md's Blast Radius table and Architectural
+      Gate Non-Vacuity table (and research.md's R4.1 declaration table they draw from)
+      instead design the check around only TWO fields — "Research Question" (a bold
+      sub-field inside `## Research Context`, not "Research Context" itself) as primary,
+      and "Data Sources" as peer — silently dropping "Methodology" from the checked set
+      entirely. Verified against the real template: `## Methodology` (L22) has no bold-field
+      or table content of its own before its first `###` subheading, so it genuinely cannot
+      be checked the way `_has_substantive_technical_context` checks a container's own bold
+      fields — but neither plan.md nor research.md ever says this out loud. The artifacts
+      state a different field set than spec.md's binding text without reconciling or
+      justifying the discrepancy, which is precisely the "narrowing without acknowledging why
+      spec's premise doesn't hold" defect class ruling #1 already caught and reversed once in
+      this mission's own spec phase (for `plan`'s four fields).
+    remediation: >
+      Add an explicit reconciliation note to plan.md's Decision 1 or Decision 3: state that
+      spec.md's Decision 3 names "Research Context, Methodology, Data Sources" but that
+      `## Methodology`'s own immediate body scaffolds no checkable field (only nested
+      subsections), so the design substitutes "Research Question" (Research Context's own
+      primary bold field) as primary and "Data Sources" as peer, and does NOT independently
+      check "Methodology" — mirroring the correction pattern ruling #1 required for `plan`'s
+      field-shape claim. If this substitution is not acceptable, escalate back to spec.md to
+      correct NFR-004's field list before the plan is treated as settling this deferred
+      question.
+
+  - id: PLAN-FIT-002
+    lens: deferred-questions-closure
+    severity: 4
+    title: "Decision 3(c)'s nested-heading detector conflates two different nesting shapes (repeatable-instance vs. specifically-named sibling), risking an always-fail or wrong-scope check for research's Data Sources"
+    evidence:
+      - artifact: "plan.md § Decision 3(c) (lines ~172-181): \"a field counts as substantive if at least one `###` heading exists nested under the field's declared `##`/`###` container with non-placeholder content in its body\""
+      - artifact: "reviews/spec.ruling.md § SPEC-FRESH2-001 remediation note on the nested-heading scan ('Decisions needs the nested-heading scan already being specified for research's `### Data Sources`... Extend that scan's scope; do not invent a second one.')"
+      - code: "packs/built-in/missions/research/templates/research-plan-template.md:22,24,56,73 (`## Methodology` at L22 contains THREE sibling `###` headings — `### Research Design` L24, `### Data Sources` L56, `### Analysis Framework` L73 — each independently named)"
+      - code: "packs/built-in/missions/plan/templates/plan-plan-skeleton.md:53,63 (`## Decisions` at L53 contains repeatable, homogeneously-named `### Decision D-N` instances, of which L63 `### Decision D-1` is the first)"
+    claim: >
+      Decision 3(c) states one unified rule for the "nested third-level heading" shape:
+      substantive iff at least one `###` heading nested under "the field's declared
+      container" has non-placeholder content. For `plan`'s "Decisions" field this is
+      correct — `## Decisions` genuinely contains only repeatable, homogeneous
+      `### Decision D-N` instances, so "any populated one" is the right semantics. For
+      `research`'s "Data Sources" field, applying the SAME rule is ambiguous and, under
+      either reading, wrong: (a) if "the field's declared container" is Data Sources' own
+      heading (`### Data Sources`), there is no further-nested heading inside it at all
+      (its body is plain bulleted content) — the check as literally stated would ALWAYS
+      FAIL, directly violating NFR-005's requirement that the gate be demonstrably capable
+      of PASSING for research when faithfully populated; (b) if "the field's declared
+      container" is instead the shared outer `## Methodology` heading, the check as stated
+      ("at least one `###` heading nested under it") would be satisfied by content in
+      `### Research Design` or `### Analysis Framework` alone, even when `### Data Sources`
+      itself is empty/placeholder-only — silently checking the wrong section, not "Data
+      Sources" specifically. Neither reading is what "Data Sources must be substantive"
+      requires. This is exactly the per-shape detection design work spec.md deferred to the
+      plan phase (Deferred Question 3) and ruling #1 already flagged as needing precision
+      ("state which shape each field actually has... the mechanism dispatches on shape") —
+      the plan phase's answer does not correctly generalize across the two nested-heading
+      cases it claims to cover with one detector.
+    remediation: >
+      Split Decision 3(c) into its two distinct cases explicitly: (1) a "repeatable instance"
+      variant (plan's Decisions) where the container IS the field, and ANY populated
+      same-shaped nested `###` instance satisfies it; (2) a "specifically-named sibling"
+      variant (research's Data Sources) where the container is a DIFFERENT, shared heading
+      (`## Methodology`) holding multiple differently-named nested `###` siblings, and the
+      detector must locate the ONE nested heading whose label matches the declared field name
+      ("Data Sources") and check only that heading's own body — not any sibling's. State this
+      distinction as the design decision (not as new regex), and update the per-type
+      declaration (Decision 1) to record which of the two nested-heading sub-shapes each
+      field uses.
+
+  - id: PLAN-FIT-003
+    lens: architecture-blast-radius
+    severity: 3
+    title: "FR-005's 'loud, CLI-visible fallback' fix mechanism is left as an unresolved 'e.g.', with no verified existing canonical signal surface for the module it touches"
+    evidence:
+      - artifact: "plan.md § Architecture — Seam Mapping, #3831 row (line 78): \"Make the existing fallback signal CLI-visible (e.g. routed through the same console/error-surface machinery other loud CLI signals in this codebase use)\""
+      - code: "src/specify_cli/mission.py:1-25 (module imports: no `rich`/`console`/`typer` import anywhere in the file — `warnings.warn` at :802 is the only signal mechanism this module has today)"
+      - code: "src/specify_cli/acceptance/__init__.py:1206, src/specify_cli/cli/commands/mission_type.py:190, src/specify_cli/core/worktree.py:664 (the three call sites of `get_mission_for_feature`; only one is a CLI command module — `acceptance/__init__.py` and `core/worktree.py` are not)"
+    claim: >
+      FR-005 requires `get_mission_for_feature`'s software-dev fallback to become visible
+      "in normal CLI operation" (spec.md FR-005/SC-004). plan.md's Architecture — Seam
+      Mapping table states this will be done by routing through "the same console/
+      error-surface machinery other loud CLI signals in this codebase use" — but never
+      identifies what that machinery actually is, nor verifies it is reachable from
+      `mission.py`. Verified: `mission.py` has zero console/rich/typer dependency today
+      (pure pydantic/logic module), and `get_mission_for_feature` is called from three
+      structurally different call sites, only one of which (`mission_type.py`) is itself a
+      CLI command with an obvious console to print to — `acceptance/__init__.py` and
+      `core/worktree.py` are not. Unlike every other seam in this plan (which names a
+      concrete existing function/pattern to extend — `PromptStep.agent_profile`,
+      `resolve_org_expected_artifacts`, `_has_substantive_technical_context`), FR-005's fix
+      names no concrete existing mechanism, meaning the WP implementer must invent the
+      loud-signal surface from scratch — in tension with this mission's own stated
+      single-canonical-authority discipline (C-001/C-002 and the charter's "reconcile,
+      don't duplicate" principle) and likely to produce a call-site-specific, ad hoc
+      solution rather than a reused pattern.
+    remediation: >
+      Before this WP starts, plan.md (or a WP-scoped addendum) should identify a concrete
+      existing loud-signal mechanism this codebase already uses for exactly this kind of
+      deep-module operator-visible warning (e.g. a shared logging-to-console bridge, a
+      custom warnings.formatwarning override wired into the CLI entrypoint, or an explicit
+      `console.print` call added at the one CLI call site while the other two non-CLI call
+      sites are documented as out of FR-005's "CLI operation" scope) — and state which of
+      the three call sites the fix is actually expected to make visible, rather than leaving
+      "the same machinery" unnamed.
+
+  - id: PLAN-FIT-004
+    lens: architecture-blast-radius
+    severity: 2
+    title: "C-002's canonical org-tier reuse mandate isn't carried into the FR-004 follow-up issue description, risking the eventual bridge work inventing a third org-tier-walking mechanism"
+    evidence:
+      - artifact: "spec.md § C-002 (\"the FR-004 org-tier change... must reconcile with, not duplicate, the existing org-tier pattern already used by resolve_org_expected_artifacts... reuse resolve_existing_org_roots/the same org-roots precedence convention rather than inventing a third org-tier-walking mechanism\")"
+      - artifact: "research.md § R3, follow-up issue Scope paragraph (lines ~142-152) — describes the three-schema reconciliation problem but never mentions `resolve_existing_org_roots` or the org-roots precedence convention C-002 mandates"
+      - artifact: "plan.md line 71 (\"Per the charter's single-canonical-authority principle and C-001/C-002, no new pattern or dependency is invented anywhere this mission touches\") — a blanket statement made while FR-004 itself is descoped, without noting C-002 will still bind whichever future mission picks up the follow-up"
+    claim: >
+      Because the SPLIT verdict descopes FR-004 from this mission, C-002's specific
+      "reuse resolve_existing_org_roots, don't invent a third mechanism" mandate never
+      gets exercised in this mission's own deliverables — that part is fine. But the
+      follow-up issue description research.md hands off for a future mission to file
+      (§R3) is the one artifact that needs to carry C-002's constraint forward, since that
+      future mission will not automatically re-derive it from this mission's spec.md. As
+      written, the follow-up scope paragraph names the three schemas to reconcile but says
+      nothing about reusing the existing org-roots precedence convention — leaving a real
+      opening for that later mission to re-invent an org-tier-walking mechanism, which is
+      exactly the single-canonical-authority violation this whole mission exists to close.
+    remediation: >
+      Add one sentence to research.md § R3's follow-up-issue scope paragraph: the eventual
+      bridge must reuse `resolve_existing_org_roots`/the existing org-roots precedence
+      convention (per C-002) rather than walking the org tier a third way, so the
+      constraint travels with the tracked issue rather than living only in this mission's
+      own (closed) spec.md.

@@ -1,0 +1,32 @@
+schema: review-refute/v1
+complete: true             # flip to true ONLY at the very end, after the yaml self-check passes
+phase: plan
+batch: 1
+verdicts:                   # one entry for EVERY finding in your batch -- no omissions
+  - id: PLAN-FIT-001
+    verdict: confirmed
+    reason: Verified against research-plan-template.md (## Research Context L9, ## Methodology L22 with no bold-field/table content of its own before its first ### subheading) that plan.md/research.md check only Research Question + Data Sources while spec.md Decision 3/NFR-004 bindingly name three fields (Research Context, Methodology, Data Sources), and no reconciliation note exists anywhere in plan.md (grepped "Methodology" -- only one unrelated hit).
+  - id: PLAN-FIT-002
+    verdict: confirmed
+    reason: Decision 3(c)'s single rule ("at least one ### heading nested under the field's declared container") is genuinely ambiguous for Data Sources -- per research.md's own declaration the field's container IS the ### Data Sources heading itself, which has no further-nested ### heading in its body (verified against the template), so the literal rule as stated would always fail, while plan's Decisions repeatable-instance case needs the opposite semantics -- the plan never distinguishes the two shapes.
+  - id: PLAN-FIT-003
+    verdict: confirmed
+    reason: Verified mission.py has zero rich/console/typer imports and get_mission_for_feature's only signal is warnings.warn at line 802, and of the three call sites only mission_type.py:190 is a CLI command module (acceptance/__init__.py has no console/rich/typer import and core/worktree.py is core logic) -- plan.md's seam-mapping row names no concrete mechanism, just an unresolved "e.g.".
+  - id: PLAN-FIT-004
+    verdict: confirmed
+    reason: Grepped resolve_existing_org_roots and "org-roots precedence" across research.md/plan.md/spec.md -- the term appears only in spec.md's C-002, never in research.md's R3 follow-up-issue scope paragraph that a future mission would actually read, confirming the constraint is not carried forward.
+  - id: PLAN-SEQ-001
+    verdict: confirmed
+    reason: Verified _dn_composition_dispatch and its stale C-008 docstring live in src/runtime/next/runtime_bridge.py (not runtime_bridge_composition.py), which is absent from plan.md's declared #3830 file set (§Project Structure) and from research.md entirely, contradicting the Blast Radius note's claim of "strictly inside the touched file, no file-set growth".
+  - id: PLAN-VERIFY-001
+    verdict: confirmed
+    reason: Confirmed plan.md's Architectural Gate Non-Vacuity table gives the qa row a "malformed/missing/unresolvable template" negative fixture (an error/fail-closed path) instead of the "unfilled/placeholder-only scaffold" shape every other row uses and that spec.md's NFR-005 and plan.md's own ATDD-First row for the same FR cluster both require, an internal contradiction within plan.md itself.
+  - id: PLAN-VERIFY-002
+    verdict: confirmed
+    reason: "Verified runtime_bridge_composition.py:318-329 live -- removing the early return-None-None branch (FR-001's fix) makes success+in-sequence, success+not-in-sequence, and exception-then-pass all converge on the same fallthrough call at line 331+, and no Decision or ATDD-First row in plan.md names any actual mechanism (narrower exception type, re-raise, distinct signal) that would make a genuine resolution failure distinguishable, despite Architecture/Summary prose asserting the separation is achieved."
+  - id: PLAN-VERIFY-003
+    verdict: confirmed
+    reason: Verified the live critical_paths array (ci-quality.yml:3370-3399) contains the two specific entries 'src/specify_cli/dashboard/handlers/*' and 'src/specify_cli/dashboard/scanner.py' (not a blanket dashboard/* entry), a separate 'src/charter/offering/*' entry beyond 'src/charter/*', and tasks_move_task.py/tasks_verdict_persistence.py under cli/commands/agent/ rather than review/ -- research.md's §R5 paraphrase misquotes all three.
+  - id: PLAN-VERIFY-004
+    verdict: confirmed
+    reason: Verified charter.md's Pre-existing Failure Reporting Rule (line 488) requires the filed issue to include "the command run, the relevant failure summary, and why the agent believes the failures are pre-existing" -- plan.md's §Baseline Discipline item 2 restates only "gets filed as its own GitHub issue" with none of that content requirement carried forward.

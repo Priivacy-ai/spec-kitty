@@ -1,0 +1,42 @@
+schema: review-findings/v1
+complete: true
+phase: plan
+lens_group: seq
+mission: custom-mission-type-second-class-citizens-01M1FQXD
+findings:
+  - id: PLAN-SEQ-001
+    lens: Campsite-clean scope / write-scope disjointness
+    severity: 3
+    title: "Campsite-clean comment fix instructs touching a second, undeclared file (runtime_bridge.py) while claiming zero file-set growth"
+    evidence:
+      - artifact: "plan.md §Blast Radius, 'Drift note carried forward from spec.md' (lines 313-319): '...if anything, the comment itself is a candidate for a one-line correction as part of the FR-001 WP's own touched-area cleanup (Boy Scout Rule, strictly inside the touched file, no file-set growth).'"
+      - artifact: "plan.md §Campsite-Clean Scope (lines 329-334): 'the stale \"hard-guarded on mission == software-dev\" comments on `_should_dispatch_via_composition` and `_dn_composition_dispatch` (noted above) are domain-matched ... Correct them as part of the campsite-clean commit (comment-only, behavior-preserving).'"
+      - artifact: "plan.md §Project Structure (lines 513-520): the declared #3830 file set is only `src/runtime/next/runtime_bridge_composition.py` and `src/specify_cli/mission_step_contracts/executor.py`; `src/runtime/next/runtime_bridge.py` never appears anywhere in plan.md or research.md."
+      - code: "src/runtime/next/runtime_bridge_composition.py:150 defines `_should_dispatch_via_composition`, whose stale header comment ('C-008: dispatch is hard-guarded on mission == software-dev') is at src/runtime/next/runtime_bridge_composition.py:127 — this one IS inside the declared file."
+      - code: "src/runtime/next/runtime_bridge.py:1767 defines `_dn_composition_dispatch`; its own docstring at src/runtime/next/runtime_bridge.py:1775-1777 makes the identical stale claim ('C-008 hard-guards this on `mission == \"software-dev\"`; every other mission falls through...'). This function and its docstring live in `runtime_bridge.py`, NOT in `runtime_bridge_composition.py` or `executor.py`."
+    claim: >
+      The plan instructs the campsite-clean commit to correct two stale docstrings, on two
+      functions that live in two different files. `_should_dispatch_via_composition`'s
+      comment is inside the declared #3830 file set (`runtime_bridge_composition.py`), but
+      `_dn_composition_dispatch`'s docstring is in `src/runtime/next/runtime_bridge.py`, a
+      file that is never listed in §Project Structure's C-003 file-set enumeration, never
+      mentioned in §Architecture — Seam Mapping, and never mentioned in research.md. The
+      plan's own §Blast Radius text asserts this correction is "strictly inside the touched
+      file, no file-set growth" — that statement is factually incorrect given the second
+      docstring's real location. A WP implementer following the plan literally either (a)
+      skips the `_dn_composition_dispatch` half of the instruction because the file isn't in
+      the declared set, leaving one of the two stale comments plan.md explicitly flagged as
+      misleading uncorrected, or (b) edits an undeclared file without any plan-level
+      acknowledgment that this grows the touched-file set beyond C-003's disjoint
+      enumeration — either way this is unresolved ambiguity a WP author has to resolve
+      themselves rather than one the plan settled.
+    remediation: >
+      Add `src/runtime/next/runtime_bridge.py` to plan.md §Project Structure's #3830 file
+      list (annotated as "campsite-clean comment fix only, no functional change"), and
+      correct §Blast Radius's drift note to say the campsite-clean commit touches two files
+      (`runtime_bridge_composition.py` and `runtime_bridge.py`), not one — replacing "strictly
+      inside the touched file, no file-set growth" with an accurate statement that this is a
+      small, explicitly-scoped two-file, comment-only extension justified by Boy Scout Rule
+      + Locality of Change (both docstrings describe the exact composition-dispatch behavior
+      this mission changes).
+findings_count: 1
