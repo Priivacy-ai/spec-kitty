@@ -43,8 +43,10 @@ from __future__ import annotations
 import json
 import subprocess
 from pathlib import Path
+from typing import Any, cast
 
 import pytest
+from click.testing import Result
 from typer.testing import CliRunner
 
 from specify_cli.orchestrator_api.commands import app
@@ -112,7 +114,7 @@ def _init_repo(tmp_path: Path) -> Path:
     return repo
 
 
-def _run(repo: Path, args: list[str]):
+def _run(repo: Path, args: list[str]) -> Result:
     """Invoke the real orchestrator-api ``app`` with cwd pinned at ``repo``.
 
     ``specify``/``plan``/``tasks`` resolve their project root and mission dir
@@ -131,11 +133,11 @@ def _run(repo: Path, args: list[str]):
         os.chdir(prev_cwd)
 
 
-def _envelope(result) -> dict:
-    return json.loads(result.output.strip().split("\n")[0])
+def _envelope(result: Result) -> dict[str, Any]:
+    return cast("dict[str, Any]", json.loads(result.output.strip().split("\n")[0]))
 
 
-def _specify(repo: Path, mission_slug: str, *, mission_type: str = "software-dev") -> dict:
+def _specify(repo: Path, mission_slug: str, *, mission_type: str = "software-dev") -> dict[str, Any]:
     result = _run(
         repo,
         [
@@ -214,6 +216,10 @@ def test_plan_scaffolds_plan_md_as_raw_pass_through(tmp_path: Path) -> None:
     plan_file = Path(data["plan_file"])
     assert plan_file.name == "plan.md"
     assert plan_file.exists()
+    # Transport-contract identity field (upstream_contract.json's
+    # required_payload_fields) -- filled from the resolved input, not
+    # business-payload enrichment (see commands.py comment).
+    assert data["mission_slug"] == mission_slug
     # Unenriched pass-through: no specify-only fields leaked onto plan's data.
     assert "scaffold_only" in data  # setup_plan's OWN field, not specify's enrichment
     assert "spec_state" not in data
@@ -273,6 +279,9 @@ def test_tasks_finalizes_wp_manifest_as_raw_pass_through(tmp_path: Path) -> None
     # Real finalize_tasks() shape — WP count + modified-WP roster.
     assert data["wp_count"] == 1
     assert data["modified_wps"] == ["WP01"]
+    # Same transport-contract identity fill as plan (finalize_tasks' raw
+    # payload genuinely lacks mission_slug -- verified against production).
+    assert data["mission_slug"] == mission_slug
     # Unenriched pass-through: no specify-only fields leaked here either.
     assert "scaffold_only" not in data
     assert "spec_state" not in data
@@ -284,7 +293,7 @@ def test_tasks_finalizes_wp_manifest_as_raw_pass_through(tmp_path: Path) -> None
 
 
 def test_specify_twice_for_same_slug_fails_closed_with_structured_error(
-    tmp_path: Path,
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     """Second ``specify`` call for the identical slug must NOT succeed silently
     and must NOT propagate a bare exception/traceback — it must fail closed
@@ -292,13 +301,32 @@ def test_specify_twice_for_same_slug_fails_closed_with_structured_error(
     byte-identical (never a silent overwrite).
 
     Ground truth (verified during implementation by direct invocation): a
-    second ``create_mission`` call for the same slug within the same mid8
-    time-bucket regenerates byte-identical scaffold content, so the
-    underlying ``safe_commit`` sees an empty changeset and raises — this is
-    the "already-established duplicate-mission error" the WP prompt refers
-    to; classifying it into a stable ``error_code`` (rather than letting the
-    bare ``{"error": ...}`` propagate uncoded) is this WP's job.
+    second ``create_mission`` call for the same slug that regenerates
+    byte-identical scaffold content (same minted ``mission_id`` -> same
+    ``mid8`` -> same directory, same ``created_at``) makes the underlying
+    ``safe_commit`` see an empty changeset and raise -- this is the
+    "already-established duplicate-mission error" the WP prompt refers to;
+    classifying it into a stable ``error_code`` (rather than letting the bare
+    ``{"error": ...}`` propagate uncoded) is this WP's job.
+
+    ``mission_id`` is minted from a real ULID (``str(ULID())``,
+    ``mission_creation.py:666``), whose first-8-char ``mid8`` prefix is
+    timestamp-derived at ~256ms granularity -- colliding it by real-time
+    proximity alone was observed to be FLAKY (two back-to-back calls through
+    the full create_mission pipeline, with real git I/O between them, land in
+    different 256ms buckets often enough to matter). Freeze both entropy
+    sources the scaffold content depends on (``ULID`` mint + ``created_at``)
+    so the collision is deterministic on every run, not a timing bet.
     """
+    from ulid import ULID
+
+    frozen_mission_id = ULID()
+    monkeypatch.setattr("specify_cli.core.mission_creation.ULID", lambda: frozen_mission_id)
+    monkeypatch.setattr(
+        "specify_cli.core.mission_creation.now_utc_iso",
+        lambda: "2026-01-01T00:00:00+00:00",
+    )
+
     repo = _init_repo(tmp_path)
 
     first = _specify(repo, "wp03-scenario4")

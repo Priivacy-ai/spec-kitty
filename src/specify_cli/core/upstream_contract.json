@@ -89,7 +89,10 @@
       "transition",
       "append-history",
       "accept-mission",
-      "merge-mission"
+      "merge-mission",
+      "specify",
+      "plan",
+      "tasks"
     ],
     "forbidden_commands": [
       "feature-state",
@@ -123,7 +126,11 @@
       "SAFE_COMMIT_NOT_A_WORKTREE",
       "SAFE_COMMIT_PROTECTED_BRANCH",
       "SAFE_COMMIT_PATH_POLICY",
-      "SAFE_COMMIT_RECOVERY_FAILED"
+      "SAFE_COMMIT_RECOVERY_FAILED",
+      "MISSION_ALREADY_EXISTS",
+      "MISSION_CREATE_FAILED",
+      "PLAN_SETUP_FAILED",
+      "TASKS_FINALIZE_FAILED"
     ],
     "forbidden_error_codes": [
       "FEATURE_NOT_FOUND",
