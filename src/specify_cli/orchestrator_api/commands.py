@@ -60,6 +60,27 @@ Error codes used:
   DIRTY_WORKTREE               -- record-analysis: pre-existing uncommitted changes
                                  block the write (classified from the delegate
                                  preflight's own structured payload; WP04)
+  INVALID_ORIGIN_FLOW          -- open-decision: FR-012 scope guard -- --origin is
+                                 outside {charter, specify, plan}, rejected BEFORE
+                                 the decisions/service.py layer is ever called (WP05)
+  DECISION_MISSING_STEP_OR_SLOT -- open-decision: neither --step-id nor --slot-key
+                                 supplied (propagated verbatim from
+                                 decisions/service.py's DecisionError; WP05)
+  DECISION_ALREADY_CLOSED      -- open-decision: a matching logical-key entry
+                                 already exists in a terminal state (propagated
+                                 verbatim from DecisionError; WP05)
+  DECISION_NOT_FOUND           -- resolve/defer/cancel-decision: --decision-id is
+                                 not present in the mission's ledger (propagated
+                                 verbatim from DecisionError; WP05)
+  DECISION_TERMINAL_CONFLICT   -- resolve/defer/cancel-decision: the decision is
+                                 already terminal with a DIFFERENT outcome/payload
+                                 than requested -- the terminal-transition rejection
+                                 (propagated verbatim from DecisionError, same code
+                                 the host-CLI ``decision_app`` subcommands raise for
+                                 this case; WP05)
+  DECISION_EVENT_REPAIR_FAILED -- open-decision (idempotent-open path): the missing
+                                 DecisionPointOpened event could not be re-emitted
+                                 (propagated verbatim from DecisionError; WP05)
 """
 
 from __future__ import annotations
@@ -80,6 +101,7 @@ from typing import TYPE_CHECKING, Any, NoReturn
 if TYPE_CHECKING:
     from specify_cli.analysis_report import AnalysisReportResult
     from specify_cli.core.paths import RetentionDecision
+    from specify_cli.decisions.models import OriginFlow
     from specify_cli.lanes.models import ExecutionLane, LanesManifest
 
 import typer
@@ -2762,6 +2784,315 @@ def record_analysis(
     elif write_outcome.raised is not None:
         failure_data["underlying_call_error"] = str(write_outcome.raised)
     _fail(cmd, error_code, message, failure_data)
+
+
+# ── Commands 15-18: open/resolve/defer/cancel-decision (Mechanism A) ────────
+#
+# WP05: OriginFlow-keyed decisions/index.json ledger verbs (FR-006/007/008/
+# 009, FR-012, C-001/003). Wrap ``decisions/service.py``'s four pure
+# functions 1:1 -- the SAME functions the host-CLI ``spec-kitty agent
+# decision open|resolve|defer|cancel`` subcommands call
+# (``cli/commands/decision.py``). Deliberately do NOT reuse
+# ``decision.py``'s own ``_open_response_to_dict``/``_terminal_response_to_dict``/
+# ``_handle_decision_error`` helpers -- those are CLI-layer presentation code;
+# this WP shapes its own ``data`` dict independently and translates
+# ``DecisionError`` into this module's ``_fail``/``make_envelope`` shape,
+# matching how ``start-review`` independently shapes its own response rather
+# than reusing ``next_cmd.py``'s print helpers.
+#
+# Mechanism A only (spec Clarification 3): unrelated to WP08's
+# ``answer-decision`` (run-snapshot ``pending_decisions``, no ``OriginFlow``
+# concept at all) -- FR-012's ``INVALID_ORIGIN_FLOW`` guard below must NEVER
+# be applied to that verb.
+
+_HELP_DECISION_ID = "Decision ledger entry ID (ULID)"
+_HELP_ORIGIN_FLOW = "Origin flow: charter | specify | plan"
+_HELP_RATIONALE_REQUIRED = "Explanation of why (required)"
+_HELP_RESOLVED_BY = "Identity of the resolving/deferring/canceling party (falls back to --actor)"
+
+
+def _validate_origin_flow_or_fail(cmd: str, origin: str) -> OriginFlow:
+    """Validate ``--origin`` against ``OriginFlow``'s three members (FR-012).
+
+    Rejects BEFORE calling into ``decisions/service.py`` -- an invalid origin
+    must never reach the service layer and be silently accepted or
+    misfiled. Deliberately a DIFFERENT error_code than the host CLI's own
+    ``--flow`` validation (which reuses ``DecisionErrorCode.MISSING_STEP_OR_SLOT``
+    for this case, ``decision.py`` ``cmd_open`` -- a confusing reused code
+    this WP does not propagate): FR-012 is an orchestrator-api-specific scope
+    guard with its own dedicated code.
+
+    Only ``open-decision`` calls this helper (T026): ``resolve``/``defer``/
+    ``cancel``-decision operate on an EXISTING ``decision_id`` whose origin
+    was already validated at open time, and their
+    ``decisions/service.py`` functions take no ``origin_flow`` parameter at
+    all (confirmed from ``resolve_decision``/``defer_decision``/
+    ``cancel_decision``'s own signatures) -- wiring this guard into those
+    verbs would be inventing a flag their service layer does not need.
+    """
+    from specify_cli.decisions.models import OriginFlow as _OriginFlow
+
+    try:
+        return _OriginFlow(origin)
+    except ValueError:
+        valid = ", ".join(flow.value for flow in _OriginFlow)
+        _fail(
+            cmd,
+            "INVALID_ORIGIN_FLOW",
+            f"Invalid --origin value {origin!r}. Must be one of: {valid}",
+            {"origin": origin, "valid_values": valid},
+        )
+
+
+def _parse_decision_options_or_fail(cmd: str, options: str | None) -> tuple[str, ...]:
+    """Parse ``--options`` (a JSON array string, matching the host CLI's own
+    ``cmd_open`` flag shape, ``decision.py``) or ``_fail`` (NoReturn) on
+    malformed input.
+    """
+    if options is None:
+        return ()
+    try:
+        raw = json.loads(options)
+    except json.JSONDecodeError as exc:
+        _fail(
+            cmd,
+            "USAGE_ERROR",
+            f"--options must be a valid JSON array string, got: {options!r}",
+            {"options": options, "parse_error": str(exc)},
+        )
+    if not isinstance(raw, list):
+        _fail(
+            cmd,
+            "USAGE_ERROR",
+            "--options must be a JSON array (list), got a non-list value",
+            {"options": options},
+        )
+    return tuple(str(item) for item in raw)
+
+
+@app.command(name="open-decision")
+def open_decision(  # noqa: PLR0913
+    mission: str = typer.Option(..., "--mission", help=_HELP_MISSION_SLUG),
+    origin: str = typer.Option(..., "--origin", help=_HELP_ORIGIN_FLOW),
+    input_key: str = typer.Option(..., "--input-key", help="The input key this decision governs"),
+    question: str = typer.Option(..., "--question", help="Human-readable question text"),
+    step_id: str = typer.Option(None, "--step-id", help="Interview step identifier"),
+    slot_key: str = typer.Option(None, "--slot-key", help="Slot key (use when step_id unavailable)"),
+    options: str = typer.Option(None, "--options", help="Candidate answers as a JSON array string"),
+    actor: str = typer.Option(..., "--actor", help=_HELP_ACTOR),
+    policy: str = typer.Option(None, "--policy", help=_HELP_POLICY),
+) -> None:
+    """Open a new Decision Moment ledger entry, or return idempotently if one
+    already exists (FR-006). Wraps ``decisions/service.py.open_decision`` 1:1.
+    """
+    cmd = "open-decision"
+
+    if not policy:
+        _fail(cmd, "POLICY_METADATA_REQUIRED", "--policy is required for open-decision")
+        return
+    _parse_policy_or_fail(cmd, policy)
+
+    origin_flow = _validate_origin_flow_or_fail(cmd, origin)
+    parsed_options = _parse_decision_options_or_fail(cmd, options)
+
+    main_repo_root = _get_main_repo_root()
+    mission_dir = _resolve_mission_dir_or_fail(cmd, main_repo_root, mission)
+
+    from specify_cli.decisions.service import DecisionError
+    from specify_cli.decisions.service import open_decision as _svc_open_decision
+
+    try:
+        resp = _svc_open_decision(
+            main_repo_root,
+            mission,
+            origin_flow=origin_flow,
+            input_key=input_key,
+            question=question,
+            options=parsed_options,
+            step_id=step_id,
+            slot_key=slot_key,
+            actor=actor,
+        )
+    except DecisionError as exc:
+        _fail(cmd, exc.code.value, str(exc), exc.details)
+        return
+
+    data = {
+        **_mission_identity_payload(mission_dir),
+        "decision_id": resp.decision_id,
+        "status": "open",
+        "idempotent": resp.idempotent,
+        "artifact_path": resp.artifact_path,
+        "event_lamport": resp.event_lamport,
+    }
+    validate_outbound_payload(data, "orchestrator_api")
+    envelope = make_envelope(command=cmd, success=True, data=data)
+    _emit(envelope)
+
+
+@app.command(name="resolve-decision")
+def resolve_decision(  # noqa: PLR0913
+    mission: str = typer.Option(..., "--mission", help=_HELP_MISSION_SLUG),
+    decision_id: str = typer.Option(..., "--decision-id", help=_HELP_DECISION_ID),
+    final_answer: str = typer.Option(..., "--final-answer", help="The chosen answer (non-empty)"),
+    other_answer: bool = typer.Option(False, "--other-answer", help="True if answer is a write-in"),
+    rationale: str = typer.Option(None, "--rationale", help="Explanation of the choice"),
+    resolved_by: str = typer.Option(None, "--resolved-by", help=_HELP_RESOLVED_BY),
+    actor: str = typer.Option(..., "--actor", help=_HELP_ACTOR),
+    policy: str = typer.Option(None, "--policy", help=_HELP_POLICY),
+) -> None:
+    """Resolve a decision with a concrete final answer (FR-007). Wraps
+    ``decisions/service.py.resolve_decision`` 1:1.
+
+    Terminal-transition rejection (Edge Cases, spec.md): resolving an
+    already-terminal decision with a DIFFERENT outcome/payload is NOT
+    pre-checked here -- it is the service layer's own
+    ``DecisionError(TERMINAL_CONFLICT)``, propagated verbatim, matching the
+    host-CLI ``decision_app resolve`` subcommand's own error code. A
+    redundant pre-check here could drift from the service layer's own
+    validation.
+    """
+    cmd = "resolve-decision"
+
+    if not policy:
+        _fail(cmd, "POLICY_METADATA_REQUIRED", "--policy is required for resolve-decision")
+        return
+    _parse_policy_or_fail(cmd, policy)
+
+    main_repo_root = _get_main_repo_root()
+    mission_dir = _resolve_mission_dir_or_fail(cmd, main_repo_root, mission)
+
+    from specify_cli.decisions.service import DecisionError
+    from specify_cli.decisions.service import resolve_decision as _svc_resolve_decision
+
+    try:
+        resp = _svc_resolve_decision(
+            main_repo_root,
+            mission,
+            decision_id,
+            final_answer=final_answer,
+            other_answer=other_answer,
+            rationale=rationale,
+            resolved_by=resolved_by,
+            actor=actor,
+        )
+    except DecisionError as exc:
+        _fail(cmd, exc.code.value, str(exc), exc.details)
+        return
+
+    data = {
+        **_mission_identity_payload(mission_dir),
+        "decision_id": resp.decision_id,
+        "status": resp.status.value,
+        "terminal_outcome": resp.terminal_outcome,
+        "idempotent": resp.idempotent,
+        "event_lamport": resp.event_lamport,
+    }
+    validate_outbound_payload(data, "orchestrator_api")
+    envelope = make_envelope(command=cmd, success=True, data=data)
+    _emit(envelope)
+
+
+@app.command(name="defer-decision")
+def defer_decision(
+    mission: str = typer.Option(..., "--mission", help=_HELP_MISSION_SLUG),
+    decision_id: str = typer.Option(..., "--decision-id", help=_HELP_DECISION_ID),
+    rationale: str = typer.Option(..., "--rationale", help=_HELP_RATIONALE_REQUIRED),
+    resolved_by: str = typer.Option(None, "--resolved-by", help=_HELP_RESOLVED_BY),
+    actor: str = typer.Option(..., "--actor", help=_HELP_ACTOR),
+    policy: str = typer.Option(None, "--policy", help=_HELP_POLICY),
+) -> None:
+    """Defer a decision for later resolution (FR-008). Wraps
+    ``decisions/service.py.defer_decision`` 1:1.
+    """
+    cmd = "defer-decision"
+
+    if not policy:
+        _fail(cmd, "POLICY_METADATA_REQUIRED", "--policy is required for defer-decision")
+        return
+    _parse_policy_or_fail(cmd, policy)
+
+    main_repo_root = _get_main_repo_root()
+    mission_dir = _resolve_mission_dir_or_fail(cmd, main_repo_root, mission)
+
+    from specify_cli.decisions.service import DecisionError
+    from specify_cli.decisions.service import defer_decision as _svc_defer_decision
+
+    try:
+        resp = _svc_defer_decision(
+            main_repo_root,
+            mission,
+            decision_id,
+            rationale=rationale,
+            resolved_by=resolved_by,
+            actor=actor,
+        )
+    except DecisionError as exc:
+        _fail(cmd, exc.code.value, str(exc), exc.details)
+        return
+
+    data = {
+        **_mission_identity_payload(mission_dir),
+        "decision_id": resp.decision_id,
+        "status": resp.status.value,
+        "terminal_outcome": resp.terminal_outcome,
+        "idempotent": resp.idempotent,
+        "event_lamport": resp.event_lamport,
+    }
+    validate_outbound_payload(data, "orchestrator_api")
+    envelope = make_envelope(command=cmd, success=True, data=data)
+    _emit(envelope)
+
+
+@app.command(name="cancel-decision")
+def cancel_decision(
+    mission: str = typer.Option(..., "--mission", help=_HELP_MISSION_SLUG),
+    decision_id: str = typer.Option(..., "--decision-id", help=_HELP_DECISION_ID),
+    rationale: str = typer.Option(..., "--rationale", help=_HELP_RATIONALE_REQUIRED),
+    resolved_by: str = typer.Option(None, "--resolved-by", help=_HELP_RESOLVED_BY),
+    actor: str = typer.Option(..., "--actor", help=_HELP_ACTOR),
+    policy: str = typer.Option(None, "--policy", help=_HELP_POLICY),
+) -> None:
+    """Cancel a decision (deemed no longer relevant) (FR-009). Wraps
+    ``decisions/service.py.cancel_decision`` 1:1.
+    """
+    cmd = "cancel-decision"
+
+    if not policy:
+        _fail(cmd, "POLICY_METADATA_REQUIRED", "--policy is required for cancel-decision")
+        return
+    _parse_policy_or_fail(cmd, policy)
+
+    main_repo_root = _get_main_repo_root()
+    mission_dir = _resolve_mission_dir_or_fail(cmd, main_repo_root, mission)
+
+    from specify_cli.decisions.service import DecisionError
+    from specify_cli.decisions.service import cancel_decision as _svc_cancel_decision
+
+    try:
+        resp = _svc_cancel_decision(
+            main_repo_root,
+            mission,
+            decision_id,
+            rationale=rationale,
+            resolved_by=resolved_by,
+            actor=actor,
+        )
+    except DecisionError as exc:
+        _fail(cmd, exc.code.value, str(exc), exc.details)
+        return
+
+    data = {
+        **_mission_identity_payload(mission_dir),
+        "decision_id": resp.decision_id,
+        "status": resp.status.value,
+        "terminal_outcome": resp.terminal_outcome,
+        "idempotent": resp.idempotent,
+        "event_lamport": resp.event_lamport,
+    }
+    validate_outbound_payload(data, "orchestrator_api")
+    envelope = make_envelope(command=cmd, success=True, data=data)
+    _emit(envelope)
 
 
 __all__ = ["app"]
