@@ -13,6 +13,9 @@ requirement_refs:
 planning_base_branch: fix/expected-artifacts-loader-unification
 merge_target_branch: fix/expected-artifacts-loader-unification
 branch_strategy: Planning artifacts for this mission were generated on fix/expected-artifacts-loader-unification. During /spec-kitty.implement this WP may branch from a dependency-specific base, but completed changes must merge back into fix/expected-artifacts-loader-unification unless the human explicitly redirects the landing branch.
+base_branch: kitty/mission-expected-artifacts-loader-unification-01M1C9VQ
+base_commit: cdc1a87de874f3eb887063cab2c903f4cdc536e6
+created_at: '2026-08-31T17:39:09.029842+00:00'
 subtasks:
 - T001
 - T002
