@@ -929,6 +929,7 @@ def safe_commit(  # noqa: C901 -- sequential validation gates; splitting harms r
     message: str,
     paths: tuple[Path, ...],
     capability: GuardCapability = GuardCapability.STANDARD,
+    effective_root: Path | None = None,
 ) -> CommitResult:
     """Commit ``paths`` to ``destination_ref`` inside ``worktree_root``.
 
@@ -1248,10 +1249,10 @@ def safe_commit(  # noqa: C901 -- sequential validation gates; splitting harms r
             from specify_cli.sync.local_commit import emit_local_commit  # noqa: PLC0415
 
             emit_local_commit(
-                repo_root=repo_root,
+                repo_root=effective_root or repo_root,
                 git_hash=new_sha,
                 mission_id=_derive_mission_id(mission_specs_files),
-                build_id=_get_current_build_id(repo_root),
+                build_id=_get_current_build_id(effective_root or repo_root),
                 changed_files=mission_specs_files,
                 committed_at=now_utc_iso(),
             )

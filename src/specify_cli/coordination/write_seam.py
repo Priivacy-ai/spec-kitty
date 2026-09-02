@@ -221,7 +221,7 @@ class WriteSeamResult:
 
 
 def _probe_write_target(
-    repo_root: Path, mission_slug: str, kind: MissionArtifactKind
+    repo_root: Path, mission_slug: str, kind: MissionArtifactKind, *, effective_root: Path | None = None,
 ) -> CommitTarget | Exception:
     """Probe routability via the seam; return the resolved target, or the
     caught exception on an unroutable target.
@@ -239,7 +239,9 @@ def _probe_write_target(
     a THIRD resolution call.
     """
     try:
-        return placement_seam(repo_root, mission_slug).write_target(kind)
+        return placement_seam(
+            repo_root, mission_slug, **({"effective_root": effective_root} if effective_root is not None else {}),
+        ).write_target(kind)
     except _UNROUTABLE_EXCEPTIONS as exc:
         return exc
 
@@ -424,6 +426,7 @@ def write_artifact(
     stage: Callable[[], tuple[Path, ...]] | None = None,
     target_branch: str | None = None,
     primary_paths_created_this_invocation: frozenset[Path] | None = None,
+    effective_root: Path | None = None,
 ) -> WriteSeamResult:
     """Write mission artifact ``kind`` through the ONE write seam.
 
@@ -469,13 +472,15 @@ def write_artifact(
     if files is not None and stage is not None:
         raise WriteSeamUsageError(_MATERIALIZATION_USAGE_ERROR_BOTH)
 
-    probed = _probe_write_target(repo_root, mission_slug, kind)
+    probed = _probe_write_target(
+        repo_root, mission_slug, kind, **({"effective_root": effective_root} if effective_root is not None else {}),
+    )
     if isinstance(probed, Exception):
         return _refused_result(mission_slug=mission_slug, kind=kind, entry_id=entry_id, cause=probed)
 
     materialized_files = _materialize_files(files, stage)
 
-    if is_post_consolidation_write_target(repo_root, mission_slug, kind, probed):
+    if effective_root is None and is_post_consolidation_write_target(repo_root, mission_slug, kind, probed):
         return _commit_post_consolidation_write(
             repo_root=repo_root,
             resolved=probed,
@@ -493,6 +498,7 @@ def write_artifact(
         kind=kind,
         primary_paths_created_this_invocation=primary_paths_created_this_invocation,
         target_branch=target_branch,
+        **({"effective_root": effective_root} if effective_root is not None else {}),
     )
     return WriteSeamResult(
         status=result.status,

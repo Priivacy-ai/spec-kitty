@@ -413,6 +413,7 @@ def write_and_commit_acceptance_matrix(
     entry_id: str,
     message: str,
     policy: ProtectionPolicyLike | None = None,
+    effective_root: Path | None = None,
 ) -> WriteSeamResult:
     """Write ``acceptance-matrix.json`` and commit it through the WP03 write seam.
 
@@ -467,6 +468,7 @@ def write_and_commit_acceptance_matrix(
         policy=resolved_policy,
         entry_id=entry_id,
         primary_paths_created_this_invocation=frozenset({matrix_path}),
+        effective_root=effective_root,
     )
 
 
@@ -487,6 +489,7 @@ def scaffold_acceptance_matrix(
     home_dir: Path | None = None,
     repo_root: Path | None = None,
     policy: ProtectionPolicyLike | None = None,
+    effective_root: Path | None = None,
 ) -> Path | None:
     """Author a minimal, schema-valid ``acceptance-matrix.json`` for a feature.
 
@@ -602,9 +605,12 @@ def scaffold_acceptance_matrix(
             entry_id="finalize-scaffold",
             message=f"chore({mission_slug}): scaffold acceptance-matrix",
             policy=policy,
+            **({"effective_root": effective_root} if effective_root is not None else {}),
         )
         if result.status in ("committed", "unchanged"):
             return path
+        if effective_root is not None:
+            raise RuntimeError(result.diagnostic or "Owned acceptance matrix write failed.")
         # FR-011 zero-write refusal (or a genuine commit error): never fall
         # back to a bare PRIMARY write here — that is exactly the silent
         # degrade this fix retires. The caller treats ``None`` as "nothing

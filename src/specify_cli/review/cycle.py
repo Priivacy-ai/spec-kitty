@@ -79,6 +79,7 @@ def _review_cycle_wp_dir(
     wp_slug: str,
     *,
     kind: MissionArtifactKind = MissionArtifactKind.WORK_PACKAGE_TASK,
+    effective_root: Path | None = None,
 ) -> Path:
     """Return the ``tasks/<wp>`` dir a review-cycle artifact reads/writes,
     on disk.
@@ -180,7 +181,7 @@ def _review_cycle_wp_dir(
     #2646/#2697/#2275). ``MissionSelectorAmbiguous`` propagates unchanged (no
     silent pick — C-009).
     """
-    seam = placement_seam(repo_root, mission_slug)
+    seam = placement_seam(repo_root, mission_slug, effective_root=effective_root)
     if kind is MissionArtifactKind.REVIEW_CYCLE:
         # Function-local import: avoids a module-load cycle between
         # review/cycle.py and the coordination/missions modules (the same
@@ -582,6 +583,7 @@ def _commit_review_cycle_artifact(
     artifact_path: Path,
     cycle_number: int,
     verdict: str,
+    effective_root: Path | None = None,
 ) -> VerdictPersistenceOutcome:
     """Persist evidence through the existing router and verify its Git ref.
 
@@ -597,8 +599,13 @@ def _commit_review_cycle_artifact(
         f"chore: Record review-cycle-{cycle_number} ({verdict}) for {wp_id} on "
         f"{mission_slug}"
     )
-    mission = MissionHandle(repo_root=main_repo_root, mission_slug=mission_slug)
+    mission = MissionHandle(
+        repo_root=main_repo_root,
+        mission_slug=mission_slug,
+        effective_root=effective_root,
+    )
     policy = ProtectionPolicy.resolve(main_repo_root)
+    operation_root = effective_root or main_repo_root
 
     attempt = 1
     while True:
@@ -609,13 +616,13 @@ def _commit_review_cycle_artifact(
             kind=MissionArtifactKind.REVIEW_CYCLE,
             policy=policy,
         )
-        evidence_ref = _evidence_ref(main_repo_root, artifact_path)
+        evidence_ref = _evidence_ref(operation_root, artifact_path)
         destination_ref = result.placement_ref or placement_seam(
-            main_repo_root, mission_slug
+            main_repo_root, mission_slug, effective_root=effective_root
         ).write_target(MissionArtifactKind.REVIEW_CYCLE).ref
         if result.status == "committed":
             destination_bytes = _read_artifact_at_ref(
-                main_repo_root, destination_ref, evidence_ref
+                operation_root, destination_ref, evidence_ref
             )
             local_bytes = artifact_path.read_bytes()
             if destination_bytes == local_bytes:
@@ -894,6 +901,7 @@ def _adopt_or_allocate_review_cycle_locked(
     affected_files: list[AffectedFile],
     body: str,
     reproduction_command: str | None = None,
+    effective_root: Path | None = None,
 ) -> tuple[ReviewCycleArtifact, Path, str, bool]:
     """Adopt identical retained evidence or allocate a new record.
 
@@ -902,9 +910,10 @@ def _adopt_or_allocate_review_cycle_locked(
     those critical sections, never inside either one. WP04 owns the one
     checkout-wide verdict queue lease around this non-acquiring operation.
     """
-    destination_ref = placement_seam(main_repo_root, mission_slug).write_target(
-        MissionArtifactKind.REVIEW_CYCLE
-    ).ref
+    operation_root = effective_root or main_repo_root
+    destination_ref = placement_seam(
+        main_repo_root, mission_slug, effective_root=effective_root
+    ).write_target(MissionArtifactKind.REVIEW_CYCLE).ref
     with feature_status_lock(
         main_repo_root,
         mission_slug,
@@ -935,9 +944,9 @@ def _adopt_or_allocate_review_cycle_locked(
     pending: list[_RetainedReviewCycleCandidate] = []
     committed: list[_RetainedReviewCycleCandidate] = []
     for candidate in candidates:
-        evidence_ref = _evidence_ref(main_repo_root, candidate.path)
+        evidence_ref = _evidence_ref(operation_root, candidate.path)
         destination_bytes = _read_artifact_at_ref(
-            main_repo_root, destination_ref, evidence_ref
+            operation_root, destination_ref, evidence_ref
         )
         if destination_bytes is None:
             pending.append(candidate)
@@ -1016,6 +1025,7 @@ def create_rejected_review_cycle(
     verdict: Literal["approved", "rejected"] = "rejected",
     commit_router: CoordCommitRouter | None = None,
     reproduction_command: str | None = None,
+    effective_root: Path | None = None,
 ) -> CreatedRejectedReviewCycle:
     """Create or adopt evidence and return a typed persistence outcome.
 
@@ -1069,7 +1079,13 @@ def create_rejected_review_cycle(
     # caller-derived, kind-blind join. This fixes both this direct
     # site AND the move-task ``--review-feedback-file`` caller (which passes
     # no pre-resolved dir), from this one edit.
-    sub_artifact_dir = _review_cycle_wp_dir(main_repo_root, safe_mission_slug, safe_wp_slug)
+    operation_root = effective_root or main_repo_root
+    sub_artifact_dir = _review_cycle_wp_dir(
+        main_repo_root,
+        safe_mission_slug,
+        safe_wp_slug,
+        effective_root=effective_root,
+    )
 
     if feedback_source is not None:
         if not feedback_source.exists():
@@ -1124,13 +1140,14 @@ def create_rejected_review_cycle(
                 affected_files=parsed_affected,
                 body=resolved_body,
                 reproduction_command=reproduction_command,
+                effective_root=effective_root,
             )
         )
     pointer = build_review_cycle_pointer(safe_mission_slug, safe_wp_slug, filename)
 
-    evidence_ref = _evidence_ref(main_repo_root, artifact_path)
+    evidence_ref = _evidence_ref(operation_root, artifact_path)
     governed_destination_ref = placement_seam(
-        main_repo_root, safe_mission_slug
+        main_repo_root, safe_mission_slug, effective_root=effective_root
     ).write_target(MissionArtifactKind.REVIEW_CYCLE).ref
     if commit_router is None:
         persistence = VerdictPersistenceOutcome(
@@ -1163,10 +1180,11 @@ def create_rejected_review_cycle(
                 artifact_path=artifact_path,
                 cycle_number=artifact.cycle_number,
                 verdict=verdict,
+                effective_root=effective_root,
             )
         except Exception as exc:
             destination_bytes = _read_artifact_at_ref(
-                main_repo_root, governed_destination_ref, evidence_ref
+                operation_root, governed_destination_ref, evidence_ref
             )
             if destination_bytes == artifact_path.read_bytes():
                 persistence = VerdictPersistenceOutcome(
