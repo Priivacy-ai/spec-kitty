@@ -10,7 +10,7 @@ from __future__ import annotations
 import json
 import os
 from pathlib import Path
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, NoReturn
 
 import typer
 from specify_cli.cli.console import console
@@ -24,7 +24,11 @@ from specify_cli.invocation.errors import (
     ProfileNotFoundError,
     RouterAmbiguityError,
 )
-from specify_cli.invocation.executor import InvocationPayload, ProfileInvocationExecutor
+from specify_cli.invocation.executor import (
+    InvocationPayload,
+    ProfileInvocationExecutor,
+    build_ambiguous_dry_run_payload,
+)
 from specify_cli.invocation.modes import ModeOfWork, derive_mode
 from specify_cli.invocation.propagator import InvocationSaaSPropagator
 from specify_cli.invocation.registry import ProfileRegistry
@@ -158,6 +162,24 @@ def render_open_hint_task_execution(payload: InvocationPayload) -> None:
     console.print("[dim]Unclosed Ops are reported by `spec-kitty doctor ops` and swept to 'abandoned' when stale.[/dim]")
 
 
+def _emit_routing_error_and_exit(e: RouterAmbiguityError) -> NoReturn:
+    """Build and emit the one exit-1 structured routing-error JSON shape.
+
+    Shared by both the invoke()-path handler and the dry-run-path's non-
+    ROUTER_AMBIGUOUS branch (extracted so the two never hand-duplicate this
+    construction and silently drift apart).
+    """
+    error_obj = {
+        "error": "routing_failed",
+        "error_code": e.error_code,
+        "message": str(e),
+        "candidates": e.candidates,
+        "suggestion": e.suggestion,
+    }
+    typer.echo(json.dumps(error_obj), err=True)
+    raise typer.Exit(1) from e
+
+
 def profile_not_found_routing(error: ProfileNotFoundError) -> None:
     """Emit structured routing error JSON, then exit 1."""
     typer.echo(
@@ -183,20 +205,46 @@ def _dispatch_impl(
     *,
     repo_root: Path,
     executor: ProfileInvocationExecutor,
+    dry_run: bool = False,
 ) -> None:
-    """Open a standalone Op and emit either JSON or rich console output."""
+    """Open a standalone Op and emit either JSON or rich console output.
+
+    ``dry_run=True`` (FR-001) is a SECOND, separate try/except scoped only to
+    ``executor.dry_run(...)`` -- kept distinct from the invoke()-path
+    try/except below, never merged with it. Python ``except`` selects by
+    exception type, not a boolean: ROUTER_AMBIGUOUS and ROUTER_NO_MATCH are
+    the *same* exception type (``RouterAmbiguityError``, distinguished only
+    by ``e.error_code``), so the two paths' different policies for
+    ROUTER_AMBIGUOUS (exit 0 with a payload here; exit 1 on invoke()) cannot
+    share one ``except`` clause across two call sites.
+    """
+    if dry_run:
+        try:
+            payload = executor.dry_run(request, profile_hint=profile_hint, actor=_detect_actor())
+        except RouterAmbiguityError as e:
+            if e.error_code == "ROUTER_AMBIGUOUS":
+                # FR-009: exit 0 with the ambiguous dry-run payload, alternatives populated.
+                typer.echo(json.dumps(build_ambiguous_dry_run_payload(request, e)))
+                return
+            # ROUTER_NO_MATCH: "no partial signal worth reporting" — same
+            # exit-1 shape real dispatch already produces.
+            _emit_routing_error_and_exit(e)
+        except ProfileNotFoundError as e:
+            # Dead/defensive branch: route()'s Level-1 explicit-hint branch
+            # already catches ProfileNotFoundError internally and re-raises
+            # it as RouterAmbiguityError(error_code="PROFILE_NOT_FOUND")
+            # before it would ever reach this call site — mirrors the
+            # existing pragma-no-cover dead branch on the invoke()-path
+            # handler below. Kept for defense-in-depth, not because it fires.
+            profile_not_found_routing(e)
+            return  # pragma: no cover — handler always raises typer.Exit
+        typer.echo(json.dumps(payload.to_dry_run_dict([])))
+        return
+
     try:
         payload = executor.invoke(request, profile_hint=profile_hint, actor=_detect_actor(), mode_of_work=mode)
     except RouterAmbiguityError as e:
-        error_obj = {
-            "error": "routing_failed",
-            "error_code": e.error_code,
-            "message": str(e),
-            "candidates": e.candidates,
-            "suggestion": e.suggestion,
-        }
-        typer.echo(json.dumps(error_obj), err=True)
-        raise typer.Exit(1) from e
+        _emit_routing_error_and_exit(e)
     except ProfileNotFoundError as e:
         profile_not_found_routing(e)
         return  # pragma: no cover — handler always raises typer.Exit
@@ -230,12 +278,19 @@ def dispatch(
         help="Optional profile ID. Bypasses the router — use when the request is ambiguous.",
     ),
     json_output: bool = typer.Option(False, "--json", help="Output JSON payload"),
+    dry_run: bool = typer.Option(
+        False,
+        "--dry-run",
+        help="Route the request and return the routing signal without opening an Op or writing anything.",
+    ),
 ) -> None:
     """Dispatch a request to a governed Op.
 
     Uses ActionRouter by default. Pass --profile to bypass routing when the
     request verb is ambiguous. Opens an Op record; the caller closes it with the
-    real outcome.
+    real outcome. Pass --dry-run to get the routing signal only -- no Op is
+    opened, no kitty-ops/ file is written, no glossary event is persisted, and
+    nothing is submitted to the SaaS propagator.
     """
     repo_root = _get_repo_root()
     executor = _build_executor(repo_root)
@@ -246,4 +301,5 @@ def dispatch(
         json_output,
         repo_root=repo_root,
         executor=executor,
+        dry_run=dry_run,
     )

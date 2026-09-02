@@ -36,6 +36,7 @@ from specify_cli.invocation.empty_charter import resolve_generic_fallback
 from specify_cli.invocation.errors import (
     InvalidModeForEvidenceError,
     InvocationError,
+    RouterAmbiguityError,
     UndeterminedModeForEvidenceError,
 )
 from specify_cli.invocation.modes import ModeOfWork
@@ -229,12 +230,14 @@ class InvocationPayload:
         for k, v in kwargs.items():
             setattr(self, k, v)
 
-    def to_dict(self) -> dict[str, object]:
+    def _serialize_slots(self, *, exclude: frozenset[str]) -> dict[str, object]:
+        """Shared field-serialization walk used by both ``to_dict`` and
+        ``to_dry_run_dict`` -- one branchy walk, two exclude sets, so the two
+        JSON-shape builders can never drift on how a slot gets serialized.
+        """
         result: dict[str, object] = {}
         for s in self.__slots__:
-            # mode_of_work shapes the close contract below but is not part of
-            # the serialized payload surface (contracts/cli-do-output.md).
-            if s == "mode_of_work":
+            if s in exclude:
                 continue
             # Use getattr default so callers that omit glossary_observations
             # (e.g. tests constructing InvocationPayload directly) get None
@@ -253,11 +256,77 @@ class InvocationPayload:
                 result[s] = dataclasses.asdict(val)
             else:
                 result[s] = val
+        return result
+
+    def to_dict(self) -> dict[str, object]:
+        # mode_of_work shapes the close contract below but is not part of
+        # the serialized payload surface (contracts/cli-do-output.md).
+        result = self._serialize_slots(exclude=frozenset({"mode_of_work"}))
         # FR-002 / contracts/cli-do-output.md: invoke() leaves the Op open;
         # every JSON payload carries the explicit close contract.
         result["status"] = "open"
         result["close_contract"] = build_close_contract(self.invocation_id, getattr(self, "mode_of_work", None))
         return result
+
+    def to_dry_run_dict(self, alternatives: list[dict[str, str]]) -> dict[str, object]:
+        """FR-004/Key-Entities: the dry-run success envelope.
+
+        Reuses ``InvocationPayload``'s field set minus ``invocation_id`` (no
+        Op was opened) and ``mode_of_work``/``close_contract`` (nothing to
+        close), plus a terminal ``"status": "dry_run"`` and the
+        already-computed ``alternatives`` list threaded through as a
+        parameter -- WP1 always passes ``[]`` here (this payload has no
+        ``alternatives`` field of its own yet; WP2 adds one and reads it off
+        ``self`` directly instead of via this parameter).
+        """
+        result = self._serialize_slots(exclude=frozenset({"mode_of_work", "invocation_id"}))
+        result["status"] = "dry_run"
+        result["alternatives"] = alternatives
+        return result
+
+
+def build_ambiguous_dry_run_payload(request_text: str, err: RouterAmbiguityError) -> dict[str, object]:  # noqa: ARG001
+    """FR-009: the dedicated payload shape for the ``ROUTER_AMBIGUOUS`` dry-run
+    branch -- a deliberate, narrow exception to reusing ``InvocationPayload``.
+
+    No winner was resolved on this branch (``route()`` raised before returning
+    a decision), so no governance context, no recommendation, no glossary scan
+    tied to a winning profile exists to report. ``InvocationPayload``'s
+    ``profile_id``/``action`` slots stay non-Optional (``mypy --strict``) for
+    every other caller; forcing ``str | None`` through them to accommodate
+    this one branch would ripple an ``Optional`` into the real-dispatch
+    success contract for no benefit (plan.md "Two JSON shapes on the dry-run
+    path"). This is colocated beside ``InvocationPayload.to_dry_run_dict``
+    rather than living in ``dispatch.py`` so both dry-run shape sources stay
+    visibly adjacent for the next maintainer -- it is not a second competing
+    canonical payload type, just the one place the contract legitimately has
+    no winner to describe.
+
+    ``request_text`` is accepted for call-site symmetry with
+    ``to_dry_run_dict`` (``dispatch.py`` calls both as
+    ``builder(request, ...)``) and reserved for a future audit-trail echo;
+    spec.md's Key Entities contract for this branch does not include it in
+    the returned shape, so it is not read here.
+    """
+    return {
+        "status": "dry_run",
+        "profile_id": None,
+        "action": None,
+        "router_confidence": "ambiguous",
+        "alternatives": [
+            {
+                "profile_id": c["profile_id"],
+                "action": c["action"],
+                # FR-009: router.py's ROUTER_AMBIGUOUS raise site now carries a
+                # confidence key on every candidate dict -- guaranteed present,
+                # not defensively .get()'d, so a future regression there is
+                # loud (KeyError), not silently swallowed.
+                "confidence": c["confidence"],
+                "match_reason": c["match_reason"],
+            }
+            for c in err.candidates
+        ],
+    }
 
 
 class ProfileInvocationExecutor:
@@ -425,6 +494,111 @@ class ProfileInvocationExecutor:
             router_confidence=router_confidence,
             glossary_observations=bundle,
             mode_of_work=record.mode_of_work,
+            recommendation=recommendation,
+            empty_charter_fallback=empty_charter_fallback,
+        )
+
+    def dry_run(
+        self,
+        request_text: str,
+        profile_hint: str | None = None,
+        actor: str = "unknown",
+    ) -> InvocationPayload:
+        """Route the request and assemble governance context; write NOTHING.
+
+        A sibling of :meth:`invoke`, not a boolean flag threaded through it:
+        mirrors only ``invoke()``'s read half (routing resolution, the
+        advisory model-routing recommendation, governance-context assembly,
+        the glossary scan) and never reaches its write half at all. This
+        method body never mints or passes a truthy ``invocation_id`` --
+        FR-003's structural guarantee, not a runtime ``if`` guard: it calls
+        ``chokepoint.run(request_text, invocation_id="", ...)``, an explicit
+        falsy value, so ``GlossaryChokepoint._build_event_context``'s
+        existing ``if not invocation_id: return None`` gate (chokepoint.py,
+        unchanged by this mission) suppresses the persisted
+        ``TermCandidateObserved`` write before it is ever attempted. This
+        method never calls ``self._writer.write_started``,
+        ``self._writer.write_glossary_observation``, or
+        ``self._propagator.submit`` anywhere in its body.
+
+        ``RouterAmbiguityError`` propagates unchanged out of ``route()`` --
+        no internal catch, exactly as ``invoke()`` does today -- covering all
+        three of its error codes (``ROUTER_AMBIGUOUS``, ``ROUTER_NO_MATCH``,
+        and, on the explicit-``profile_hint`` branch, ``PROFILE_NOT_FOUND``).
+        A literal ``ProfileNotFoundError`` never reaches this method's
+        caller: ``route()``'s explicit-hint branch already catches it
+        internally and re-raises it as
+        ``RouterAmbiguityError(error_code="PROFILE_NOT_FOUND")`` first.
+        """
+        # 1. Resolve (profile_id, action) -- mirrors invoke()'s step 1 exactly,
+        # up to (not including) the invocation_id mint and the write half.
+        router_confidence: str | None = None
+        empty_charter_fallback = False
+        if profile_hint is not None:
+            profile = self._registry.resolve(profile_hint)  # raises ProfileNotFoundError
+            action = self._derive_action_from_request(request_text, profile.role)
+            # FR-008 (spec.md Acceptance Scenario 2): the dry-run payload
+            # contract pins "exact" for the explicit-hint branch, matching
+            # ActionRouter.route()'s own Level-1 explicit-hint confidence
+            # value. This intentionally does NOT mirror invoke()'s own
+            # explicit-hint branch, which bypasses route() entirely at the
+            # executor level and leaves router_confidence None there — a
+            # pre-existing invoke()-only quirk this WP does not touch.
+            router_confidence = "exact"
+        elif self._router is not None:
+            fallback_decision = resolve_generic_fallback(self._repo_root, request_text)
+            result: RouterDecision = fallback_decision or self._router.route(request_text)
+            profile = self._registry.resolve(result.profile_id)
+            action = result.action
+            router_confidence = result.confidence
+            empty_charter_fallback = fallback_decision is not None
+        else:
+            raise RuntimeError("No profile_hint and no router configured. Use 'spec-kitty dispatch \"<request>\" --profile <profile>' or supply a router.")
+
+        # FR-004: advisory model-routing recommendation, non-fatal (NFR-002/C-001).
+        recommendation = _compute_recommendation(profile, action)
+
+        # 2. Assemble governance context (mark_loaded=False — critical, and
+        # already read-only, same call as invoke()'s).
+        ctx_result = build_charter_context(
+            self._repo_root,
+            profile=profile.profile_id,
+            action=action,
+            mark_loaded=False,
+            suppress_project_resolver=empty_charter_fallback,
+        )
+        ctx_hash = hashlib.sha256(ctx_result.text.encode()).hexdigest()[:16]  # noqa: TID251 - production raw SHA-256 owner
+        ctx_available = ctx_result.mode != "missing"
+
+        # 2a. Glossary chokepoint scan — FR-003's structural guarantee: an
+        # explicit falsy invocation_id, never a minted ULID, so the existing
+        # gate at chokepoint.py suppresses the persisted write. The in-memory
+        # scan itself still runs (read-only, safe) -- only the persisted
+        # TermCandidateObserved write is suppressed.
+        from glossary.chokepoint import GlossaryChokepoint, GlossaryObservationBundle
+
+        try:
+            if self._chokepoint is None:
+                self._chokepoint = GlossaryChokepoint(self._repo_root)
+            bundle = self._chokepoint.run(request_text, invocation_id="", actor_id=actor)
+        except Exception as _exc:  # noqa: BLE001
+            logger.warning("glossary chokepoint outer exception (dry_run): %r", _exc)
+            bundle = GlossaryObservationBundle(matched_urns=(), high_severity=(), all_conflicts=(), tokens_checked=0, duration_ms=0.0, error_msg=repr(_exc))
+
+        # No write_started, no write_glossary_observation, no
+        # propagator.submit, no invocation_id minted anywhere above -- this
+        # is dry_run()'s entire reason to exist.
+        return InvocationPayload(
+            invocation_id="",
+            profile_id=profile.profile_id,
+            profile_friendly_name=profile.name,
+            action=action,
+            governance_context_text=ctx_result.text,
+            governance_context_hash=ctx_hash,
+            governance_context_available=ctx_available,
+            router_confidence=router_confidence,
+            glossary_observations=bundle,
+            mode_of_work=None,
             recommendation=recommendation,
             empty_charter_fallback=empty_charter_fallback,
         )
