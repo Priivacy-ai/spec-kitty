@@ -51,6 +51,7 @@ from specify_cli.runtime.resolver import TemplateConfigurationError
 pytestmark = [pytest.mark.unit, pytest.mark.fast]
 
 _DEFAULT_TEMPLATE_SET = object()
+_REPO_ROOT = Path(__file__).resolve().parents[5]
 _PRE_MISSION_GOLDEN = (
     Path(__file__).resolve().parents[4]
     / "fixtures"
@@ -85,11 +86,11 @@ def _resolved_mission_type(
     )
 
 
-def _resolution(path: Path) -> ResolutionResult:
+def _resolution(path: Path, *, mission: str = "software-dev") -> ResolutionResult:
     return ResolutionResult(
         path=path,
         tier=ResolutionTier.OVERRIDE,
-        mission="software-dev",
+        mission=mission,
     )
 
 
@@ -672,7 +673,13 @@ def _invoke_matrix_case(  # noqa: C901 - acceptance fixture encodes the binding 
     else:
         mp.setattr(seam, "_resolve_plan_template", lambda *_a, **_k: _resolution(template))
 
-    def _is_substantive(path: Path, artifact_type: str) -> bool:
+    def _is_substantive(
+        path: Path,
+        artifact_type: str,
+        *,
+        mission_type: str = "software-dev",
+        project_dir: Path | None = None,
+    ) -> bool:
         if artifact_type == "spec":
             return bool(case.get("spec_substantive", True))
         assert path == plan_file
@@ -1587,6 +1594,294 @@ def test_setup_plan_resolves_template_context_from_primary_planning_surface(
     assert resolved.mission_type == "software-dev"
     assert coord_dir != primary_dir
     assert not (coord_dir / "meta.json").exists()
+
+
+# ---------------------------------------------------------------------------
+# WP03 / #3832 (FR-006/FR-008): template-derived substantive gate driven
+# through the REAL ``setup_plan`` entry point (not a white-box call to
+# ``is_substantive``) — T001's RED-FIRST reproduction plus T008's
+# message-content / shape-dispatch entry-point assertions.
+# ---------------------------------------------------------------------------
+
+# The synthetic ``example-custom`` custom-type "test-plan-template.md"
+# fixture -- matches
+# ``tests/specify_cli/missions/test_substantive_gate_formats.py``'s
+# ``_EXAMPLE_CUSTOM_REAL`` constant. Renamed from "qa" (#3830 FIX-2): core
+# must not carry a field declaration for an org-tier pack it has never
+# seen, and "qa" is the one real custom mission type this whole mission was
+# built from -- so no fixture may squat that name. This type's field
+# declaration is now supplied via a pack-provided
+# ``plan-field-declaration.yaml`` (#3830 FIX-1), not a core dict entry --
+# see ``_write_example_custom_pack_declaration`` below.
+_EXAMPLE_CUSTOM_PLAN_REAL = """# Test Plan: Checkout flow
+
+## Summary
+
+Verify the checkout flow end to end.
+
+## Test Items
+
+**Primary Item**: Checkout API happy path
+**Secondary Item**: Payment retries
+
+## Environments
+
+**Target OS**: Ubuntu 22.04, macOS 14
+
+## Test-Data Strategy
+
+Use synthetic card numbers from the sandbox test suite.
+
+## Suite Breakdown
+
+Smoke, regression, load.
+
+## Tooling
+
+pytest, k6
+
+## Schedule
+
+Sprint 42
+
+## Responsibilities
+
+QA guild owns execution.
+
+## Traceability-Matrix Skeleton
+
+Linked to REQ-118.
+"""
+
+
+def _wire_real_setup_plan_gate(
+    monkeypatch: pytest.MonkeyPatch,
+    *,
+    primary_dir: Path,
+    mission_type: str,
+    template_src: Path,
+    tmp_path: Path,
+) -> tuple[dict[str, object], list[Path]]:
+    """Wire ``setup_plan`` end to end with the REAL substantive gate live.
+
+    Only the surrounding I/O (feature-dir resolution, spec gate, lifecycle
+    events, documentation wiring, the dossier sync effect, and the final git
+    commit) is stubbed — ``is_substantive`` / ``describe_technical_context_gap``
+    / ``describe_plan_field_requirements`` all run for real, matching T001's
+    "through the pre-existing entry point, not a white-box unit call"
+    instruction.
+    """
+    from specify_cli.cli.commands.agent import mission as mission_mod
+
+    captured: dict[str, object] = {}
+    commit_calls: list[Path] = []
+    original_build_result = seam._build_setup_plan_result
+
+    def _capturing_build_result(**kwargs: object) -> seam.SetupPlanLocalOutcome:
+        captured.update(kwargs)
+        return original_build_result(**kwargs)
+
+    def _resolve_configured(
+        artifact_kind: str,
+        project_dir: Path,
+        resolved: ResolvedMissionType,
+    ) -> ResolutionResult:
+        assert resolved.mission_type == mission_type
+        return _resolution(template_src, mission=mission_type)
+
+    def _fake_commit_to_branch(file_path: Path, *_a: object, **_k: object) -> object:
+        commit_calls.append(file_path)
+        return SimpleNamespace(status="committed", commit_hash="deadbeef", diagnostic=None)
+
+    monkeypatch.setattr(seam, "_resolve_setup_plan_feature_dir", lambda *a, **k: primary_dir)
+    monkeypatch.setattr(seam, "_evaluate_spec_gate", lambda *a, **k: (None, None))
+    monkeypatch.setattr(seam, "_emit_spec_plan_phase_events", lambda *a, **k: None)
+    monkeypatch.setattr(seam, "_run_documentation_wiring", lambda *a, **k: (None, []))
+    monkeypatch.setattr(hosted_effects, "_trigger_dossier_sync", lambda *a, **k: None)
+    monkeypatch.setattr(mission_mod, "locate_project_root", lambda: tmp_path)
+    monkeypatch.setattr(mission_mod, "_enforce_git_preflight", lambda *a, **k: None)
+    monkeypatch.setattr(mission_mod, "_show_branch_context", lambda *a, **k: ("main", "main"))
+    monkeypatch.setattr(mission_mod, "get_current_branch", lambda _root: "main")
+    monkeypatch.setattr(mission_mod, "_planning_read_dir", lambda *a, **k: primary_dir)
+    monkeypatch.setattr(
+        seam,
+        "resolve_mission_type_context",
+        lambda repo_root, *, mission_type: _resolved_mission_type(mission_type=mission_type),
+    )
+    monkeypatch.setattr(mission_mod, "resolve_configured_template", _resolve_configured)
+    monkeypatch.setattr(mission_mod, "_commit_to_branch", _fake_commit_to_branch)
+    monkeypatch.setattr(seam, "_build_setup_plan_result", _capturing_build_result)
+
+    return captured, commit_calls
+
+
+def _write_example_custom_pack_declaration(repo_root: Path) -> None:
+    """#3830 FIX-1: an ``example-custom`` pack-provided plan field
+    declaration, resolved via the OVERRIDE tier of the SAME
+    ``resolve_template`` seam that resolves the mission type's own plan
+    template (``repo_root`` here IS the resolver's ``project_dir``)."""
+    declaration_dir = repo_root / ".kittify" / "overrides" / "missions" / "example-custom" / "templates"
+    declaration_dir.mkdir(parents=True, exist_ok=True)
+    (declaration_dir / "plan-field-declaration.yaml").write_text(
+        "primary:\n"
+        "  kind: bold_field\n"
+        "  heading: Test Items\n"
+        "  label: Primary Item\n"
+        "peers:\n"
+        "  - kind: any_bold_field\n"
+        "    heading: Environments\n",
+        encoding="utf-8",
+    )
+
+
+def test_setup_plan_example_custom_type_plan_is_substantive_when_faithfully_populated(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    """RED-FIRST (T001, #3832 FR-006/FR-008; re-targeted #3830 FIX-1): a
+    faithfully-populated plan.md for a genuinely CUSTOM (non-built-in)
+    mission type -- whose field declaration is shipped by the mission
+    type's OWN pack, not a core dict entry -- must be recognised as
+    substantive, even though its own template has no ``## Technical
+    Context`` heading at all (User Story 3, AC1-8, SC-003).
+
+    Before FIX-1, an undeclared/pack-only custom type could NEVER pass this
+    gate no matter what a pack shipped -- reproducing the exact
+    "second-class citizen" defect this mission is named for. This test
+    proves the pack-provided declaration seam reaches the real ``setup-plan``
+    entry point, not just a white-box unit call.
+    """
+    mission_slug = "001-example-custom-mission"
+    primary_dir = tmp_path / "kitty-specs" / mission_slug
+    primary_dir.mkdir(parents=True)
+    (primary_dir / "meta.json").write_text('{"mission_type":"example-custom"}', encoding="utf-8")
+    (primary_dir / "spec.md").write_text("substantive spec", encoding="utf-8")
+
+    template_src = tmp_path / "test-plan-template.md"
+    template_src.write_text(_EXAMPLE_CUSTOM_PLAN_REAL, encoding="utf-8")
+    _write_example_custom_pack_declaration(tmp_path)
+
+    captured, commit_calls = _wire_real_setup_plan_gate(
+        monkeypatch,
+        primary_dir=primary_dir,
+        mission_type="example-custom",
+        template_src=template_src,
+        tmp_path=tmp_path,
+    )
+
+    seam.setup_plan(feature=mission_slug, json_output=True)
+
+    assert captured["plan_is_substantive"] is True
+    assert captured["plan_blocked_reason"] is None
+    assert commit_calls == [primary_dir / "plan.md"]
+
+
+def test_setup_plan_research_type_blocked_reason_names_research_fields(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    """T008 message-content assertion (TASKS-FRESH-001): the real ``setup-plan``
+    ``blocked_reason`` for a non-software-dev type names THAT type's own
+    primary field and does NOT carry the "Technical Context"/"Language/Version"
+    literals — proving T007's generalization reaches the operator-facing
+    message, not just the boolean gate.
+    """
+    mission_slug = "001-research-mission"
+    primary_dir = tmp_path / "kitty-specs" / mission_slug
+    primary_dir.mkdir(parents=True)
+    (primary_dir / "meta.json").write_text('{"mission_type":"research"}', encoding="utf-8")
+    (primary_dir / "spec.md").write_text("substantive spec", encoding="utf-8")
+
+    # research's own unfilled scaffold, read live (not hand-copied) so a
+    # future template edit that drifts from the declaration shows up here.
+    research_template = _REPO_ROOT / "packs" / "built-in" / "missions" / "research" / "templates" / "research-plan-template.md"
+    template_text = research_template.read_text(encoding="utf-8")
+    template_src = tmp_path / "research-plan-template.md"
+    template_src.write_text(template_text, encoding="utf-8")
+    # Started editing but not yet substantive: plan.md must differ from
+    # ``template_src`` byte-for-byte, otherwise ``is_pristine_scaffold``
+    # routes this through the FR-009 "first happy-path scaffold write"
+    # success path instead of the "populated but insufficient" blocked path
+    # this test targets.
+    (primary_dir / "plan.md").write_text(
+        template_text + "\nStarted editing but the fields below still aren't real.\n",
+        encoding="utf-8",
+    )
+
+    captured, commit_calls = _wire_real_setup_plan_gate(
+        monkeypatch,
+        primary_dir=primary_dir,
+        mission_type="research",
+        template_src=template_src,
+        tmp_path=tmp_path,
+    )
+
+    seam.setup_plan(feature=mission_slug, json_output=True)
+
+    assert captured["plan_is_substantive"] is False
+    blocked_reason = captured["plan_blocked_reason"]
+    assert isinstance(blocked_reason, str)
+    assert "Research Question" in blocked_reason
+    assert "Technical Context" not in blocked_reason
+    assert "Language/Version" not in blocked_reason
+    assert not commit_calls
+
+
+def test_setup_plan_undeclared_type_blocked_reason_leads_with_real_cause(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    """RED-FIRST (#3830 severity-4 compounding diagnostic bug,
+    ``mission_setup_plan.py:833-843``): a mission type with NO field
+    declaration anywhere (built-in or pack-provided) must have the REAL
+    cause -- "no field declaration is registered" -- as the PRIMARY
+    blocked-reason message, not demoted to a trailing "Detail:" clause
+    behind a hardcoded, inapplicable
+    "Technical Context"/"Language/Version"/"Primary Dependencies" literal.
+
+    Before this fix: an operator on a genuinely undeclared custom type was
+    told to "populate Technical Context with real values (Language/Version
+    plus at least one peer field, such as Primary Dependencies)" -- fields
+    their template does not even contain -- with the real explanation
+    buried after "Detail:".
+    """
+    mission_slug = "001-undeclared-mission"
+    primary_dir = tmp_path / "kitty-specs" / mission_slug
+    primary_dir.mkdir(parents=True)
+    (primary_dir / "meta.json").write_text('{"mission_type":"never-declared-anywhere"}', encoding="utf-8")
+    (primary_dir / "spec.md").write_text("substantive spec", encoding="utf-8")
+
+    template_src = tmp_path / "undeclared-plan-template.md"
+    template_src.write_text("# Plan\n\nSome scaffold content.\n", encoding="utf-8")
+    # Non-pristine (differs from the scaffold) so this exercises the
+    # "populated" path, not the separate FR-009 scaffold_only path.
+    (primary_dir / "plan.md").write_text(
+        "# Plan\n\nSome scaffold content.\n\nStarted editing this real plan.\n",
+        encoding="utf-8",
+    )
+
+    captured, commit_calls = _wire_real_setup_plan_gate(
+        monkeypatch,
+        primary_dir=primary_dir,
+        mission_type="never-declared-anywhere",
+        template_src=template_src,
+        tmp_path=tmp_path,
+    )
+
+    seam.setup_plan(feature=mission_slug, json_output=True)
+
+    assert captured["plan_is_substantive"] is False
+    blocked_reason = captured["plan_blocked_reason"]
+    assert isinstance(blocked_reason, str)
+    assert blocked_reason.startswith("No field declaration is registered for mission type")
+    assert "never-declared-anywhere" in blocked_reason
+    # The hardcoded, inapplicable fallback literals must NOT appear anywhere
+    # -- not as the primary message, and not demoted to a "Detail:" clause.
+    assert "Technical Context" not in blocked_reason
+    assert "Language/Version" not in blocked_reason
+    assert "Primary Dependencies" not in blocked_reason
+    assert "Detail:" not in blocked_reason
+    assert not commit_calls
 
 
 @pytest.mark.parametrize(

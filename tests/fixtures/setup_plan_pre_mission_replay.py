@@ -84,7 +84,7 @@ def _invoke(case: dict[str, object]) -> ReplayResult:  # noqa: C901
     )
     emitted: list[dict[str, object]] = []
 
-    def _is_substantive(path: Path, kind: str) -> bool:
+    def _is_substantive(path: Path, kind: str, *, mission_type: str = "software-dev") -> bool:
         if kind == "spec":
             return bool(case.get("spec_substantive", True))
         assert path == plan_file
