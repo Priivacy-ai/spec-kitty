@@ -1,0 +1,23 @@
+schema: review-refute/v1
+complete: true
+phase: spec
+batch: 1
+verdicts:
+  - id: SPEC-GOV-001
+    verdict: confirmed
+    reason: "Code confirms WP2's per-RouterDecision alternatives= additions and WP3's tier rerank both land in the same statements (router.py:343-351 single-candidate return, :353-370 priority tiebreak), and the charter's singular \"a DRAFT pull request\" plus sk-implement's \"one PR per mission\" mean C-002's literal \"reverted independently\" (clean git revert) is not achievable as worded."
+  - id: SPEC-ARCH-001
+    verdict: confirmed
+    reason: "router.py:372-385's ROUTER_AMBIGUOUS raise builds candidate dicts with only profile_id/action/match_reason (no confidence/_confidence key, unlike the dicts built at :308-339), and errors.py's RouterAmbiguityError stores whatever shape it is given — so the dry-run alternatives contract's confidence field cannot be populated from that branch as specified."
+  - id: SPEC-ARCH-002
+    verdict: confirmed
+    reason: "FR-006/AC-1's \"regardless of routing_priority\" is stated with no explicit cross-tier-only scoping, and tests/specify_cli/invocation/test_router.py:344-366's test_router_priority_tiebreaker_selects_higher_priority is a real, currently-passing same-tier (both canonical_verb) priority tiebreak the spec never says must survive unchanged."
+  - id: SPEC-ARCH-003
+    verdict: confirmed
+    reason: "FR-007, AC-2, and the User Story 3 Independent Test are all textually scoped to \"exactly one\"/\"lone\" domain-keyword candidate; the 2+-keyword-tier-candidates-with-zero-verb-tier-candidates case is never mentioned anywhere in spec.md, and today's routing_priority tiebreak (router.py:344-370) would silently auto-select in that case with no signal either way from the spec."
+  - id: SPEC-ARCH-004
+    verdict: confirmed
+    reason: "A repo-wide grep of spec.md for in-flight/concurrent/consistency/reflexivity language returns nothing, and ActionRouter.route()'s own docstring (router.py:191-198) confirms it is a pure, stateless function re-evaluated per call, so the cross-call routing-consistency risk during WP3's landing is genuinely unaddressed anywhere in the spec."
+  - id: SPEC-VERIFY-001
+    verdict: confirmed
+    reason: "chokepoint.py's _build_event_context keys mission_id on invocation_id and events.py's get_event_log_path folds that straight into the filename, while executor.py:307 mints a fresh ULID on every invoke() call — so there is no single fixed-name \"store\" for SC-002's line-count check to target, unlike SC-001's directory-tree-snapshot technique for kitty-ops (which has a genuine shared growing file, ops-index.jsonl, that glossary events lacks)."
