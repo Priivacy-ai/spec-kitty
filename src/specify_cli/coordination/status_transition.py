@@ -70,6 +70,7 @@ class _TransactionIdentity:
     meta_exists: bool
     coordination_branch: str | None
     transaction_meta_exists: bool
+    primary_root: Path | None = None
 
 
 def _repo_root_for_feature(feature_dir: Path, repo_root: Path | None) -> Path:
@@ -755,13 +756,21 @@ def _identity_for_request(request: TransitionRequest) -> _TransactionIdentity:
     # #1737 / F-007: anchor the transaction identity on the CWD-invariant
     # canonical primary feature dir resolved through the facade, instead of
     # trusting the (CWD-dependent, existence-gated) canonicalize redirect alone.
-    canonical_feature_dir = canonicalize_feature_dir(raw_feature_dir)
-    interim_repo_root = _repo_root_for_feature(canonical_feature_dir, request.repo_root)
-    canonical_repo_root = _canonical_repo_root(canonical_feature_dir, interim_repo_root)
-    feature_dir = _canonical_primary_feature_dir(
-        canonical_repo_root, mission_slug, fallback=canonical_feature_dir
-    )
-    repo_root = request.repo_root or canonical_repo_root
+    primary_root = None
+    if request.effective_root is not None:
+        from specify_cli.core.owned_mission import resolve_owned_mission
+
+        primary_root = _repo_root_for_feature(raw_feature_dir, request.repo_root)
+        owned = resolve_owned_mission(primary_root, request.effective_root, mission_slug)
+        feature_dir, repo_root = owned.directory, owned.root
+    else:
+        canonical_feature_dir = canonicalize_feature_dir(raw_feature_dir)
+        interim_repo_root = _repo_root_for_feature(canonical_feature_dir, request.repo_root)
+        canonical_repo_root = _canonical_repo_root(canonical_feature_dir, interim_repo_root)
+        feature_dir = _canonical_primary_feature_dir(
+            canonical_repo_root, mission_slug, fallback=canonical_feature_dir
+        )
+        repo_root = request.repo_root or canonical_repo_root
 
     # FR-007: fail-closed reader routing. Malformed meta surfaces typed
     # MissionMetaReadError instead of raw ValueError.
@@ -802,15 +811,26 @@ def _identity_for_request(request: TransitionRequest) -> _TransactionIdentity:
         coordination_branch=coord_branch,
     )
     transaction_dir_name = _transaction_dir_name(mission_slug, effective_mid8)
+    if request.effective_root is not None:
+        from mission_runtime import MissionArtifactKind, resolve_placement_only
+
+        assert primary_root is not None
+        destination_ref = resolve_placement_only(
+            primary_root, mission_slug, kind=MissionArtifactKind.STATUS_STATE,
+            effective_root=request.effective_root,
+        ).ref
+    else:
+        destination_ref = _resolve_write_target(repo_root, mission_slug, coord_branch)
     return _TransactionIdentity(
         repo_root=repo_root,
         feature_dir=feature_dir,
         mission_id=effective_mission_id,
         mid8=effective_mid8,
-        destination_ref=_resolve_write_target(repo_root, mission_slug, coord_branch),
+        destination_ref=destination_ref,
         meta_exists=meta_exists,
         coordination_branch=coord_branch,
         transaction_meta_exists=(feature_dir.parent / transaction_dir_name / "meta.json").exists(),
+        primary_root=primary_root,
     )
 
 
@@ -854,7 +874,12 @@ def _prepare_event(
         # coord-topology mission) without ever attempting recovery.
         from specify_cli.missions._read_path_resolver import resolve_subtasks_gate_dir  # noqa: PLC0415
 
-        subtasks_dir = resolve_subtasks_gate_dir(feature_dir, request.repo_root, mission_slug)
+        subtasks_dir = resolve_subtasks_gate_dir(
+            feature_dir,
+            request.repo_root,
+            mission_slug,
+            effective_root=request.effective_root,
+        )
         subtasks_complete = _emit._infer_subtasks_complete(
             subtasks_dir,
             request.wp_id,
@@ -1162,6 +1187,7 @@ def read_events_transactional(
     feature_dir: Path,
     mission_slug: str,
     repo_root: Path | None = None,
+    effective_root: Path | None = None,
 ) -> list[StatusEvent]:
     """Read status events from the same target transactional writes use."""
     identity = _identity_for_request(
@@ -1172,6 +1198,7 @@ def read_events_transactional(
             to_lane=Lane.PLANNED,
             actor="status-read",
             repo_root=repo_root,
+            effective_root=effective_root,
         )
     )
     return _read_events_from_transaction_target(identity, mission_slug)
@@ -1321,6 +1348,10 @@ def emit_status_transition_transactional(
     # assignment as an incompatible redefinition (T055, #2675).
     event: StatusEvent | None
     if not _transaction_topology_available(identity, mission_slug):
+        if request.effective_root is not None:
+            from mission_runtime import ActionContextError
+
+            raise ActionContextError("OWNED_TRANSACTION_UNAVAILABLE", "Owned mission requires transactional status metadata.")
         # WP04/FR-004 (rows 7-8): coord topology commits to the coord worktree;
         # coord-less topologies keep the primary-uncommitted write path. The
         # coord-vs-primary decision lives in _emit_via_non_transactional_fallback.
@@ -1338,13 +1369,14 @@ def emit_status_transition_transactional(
     # documented and NOT written into any mission_id event field.
     _txn_mission_id = identity.mission_id or f"legacy-{mission_slug}"
     with BookkeepingTransaction.acquire(
-        repo_root=identity.repo_root,
+        repo_root=identity.primary_root or identity.repo_root,
         mission_id=_txn_mission_id,
         mission_slug=mission_slug,
         mid8=identity.mid8,
         destination_ref=identity.destination_ref,
         operation=operation or f"status transition {request.wp_id}",
         capability=capability,
+        effective_root=identity.repo_root if identity.primary_root is not None else None,
     ) as txn:
         # WP04: identity.mission_id is now str | None; None means no ULID (legacy).
         # The old .startswith("legacy-") sentinel is replaced by the None check.
@@ -1439,6 +1471,7 @@ def emit_inner_state_changed_transactional(
     repo_root: Path | None = None,
     operation: str | None = None,
     capability: GuardCapability = GuardCapability.STANDARD,
+    effective_root: Path | None = None,
 ) -> InnerStateChanged:
     """Persist AND commit one off-axis ``InnerStateChanged`` annotation (FR-007).
 
@@ -1455,6 +1488,8 @@ def emit_inner_state_changed_transactional(
     lane transition. Its annotation therefore commits there too. Stored
     ``SINGLE_BRANCH`` and genuinely flat/legacy missions still delegate to the
     uncommitted ``emit_inner_state_changed`` for byte-identical no-op parity.
+    An explicitly owned checkout instead requires a transaction and never
+    falls back to an uncommitted write or another checkout.
     The narrow :func:`_lanes_annotation_transaction_available` predicate reads
     the stored topology before consulting transaction availability, avoiding
     the over-broad legacy-meta arm that previously made a flat mission look
@@ -1486,8 +1521,14 @@ def emit_inner_state_changed_transactional(
         wp_id=wp_id,
         actor=actor,
         repo_root=repo_root,
+        effective_root=effective_root,
     )
     identity = _identity_for_request(request)
+
+    if effective_root is not None and not _transaction_topology_available(identity, mission_slug):
+        from mission_runtime import ActionContextError
+
+        raise ActionContextError("OWNED_TRANSACTION_UNAVAILABLE", "Owned annotation requires transactional status metadata.")
 
     def _uncommitted_emit() -> InnerStateChanged:
         return _emit.emit_inner_state_changed(
@@ -1501,7 +1542,8 @@ def emit_inner_state_changed_transactional(
         )
 
     if (
-        identity.coordination_branch is None
+        effective_root is None
+        and identity.coordination_branch is None
         and not _lanes_annotation_transaction_available(identity, mission_slug)
     ):
         return _uncommitted_emit()
@@ -1518,19 +1560,22 @@ def emit_inner_state_changed_transactional(
     _txn_mission_id = identity.mission_id or f"legacy-{mission_slug}"
     try:
         with BookkeepingTransaction.acquire(
-            repo_root=identity.repo_root,
+            repo_root=identity.primary_root or identity.repo_root,
             mission_id=_txn_mission_id,
             mission_slug=mission_slug,
             mid8=identity.mid8,
             destination_ref=identity.destination_ref,
             operation=operation or f"inner-state annotation {wp_id}",
             capability=capability,
+            **({"effective_root": identity.repo_root} if effective_root is not None else {}),
         ) as txn:
             txn.append_events([annotation])
             txn.defer_outbound(
                 _deferred_resolved_binding_fan_out(annotation, mission_slug)
             )
     except BookkeepingWorktreeMissing:
+        if effective_root is not None:
+            raise
         # #3460: the coord worktree could not be materialized (e.g. a declared
         # ``coordination_branch`` that was deleted or never created). This
         # annotation is auxiliary — degrade to the uncommitted primary write
