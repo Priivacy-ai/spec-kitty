@@ -267,7 +267,10 @@ def test_broken_gitdir_pointer_is_broken_pointer(git_repo: Path, tmp_path: Path)
     # point it at a gitdir that does not exist.
     git_file = worktree / ".git"
     assert git_file.is_file()
-    git_file.write_text("gitdir: /nonexistent/path/.git/worktrees/to-corrupt-wt\n")
+    # Git marks this pointer hidden on Windows; update without recreating it.
+    with git_file.open("r+", encoding="utf-8") as pointer:
+        pointer.write("gitdir: /nonexistent/path/.git/worktrees/to-corrupt-wt\n")
+        pointer.truncate()
 
     claim = resolve_ownership_claim(worktree, resolved_primary=git_repo)
 
