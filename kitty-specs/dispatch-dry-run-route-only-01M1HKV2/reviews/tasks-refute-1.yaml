@@ -1,0 +1,20 @@
+schema: review-refute/v1
+complete: true
+phase: tasks
+batch: 1
+verdicts:
+  - id: TASKS-DECOMP-001
+    verdict: confirmed
+    reason: WP01 T005 step 2 tells implementers to add the dry-run branch "exactly as shown in Context above", whose code block calls payload.to_dry_run_dict(payload.alternatives), but T002 step 2 explicitly forbids adding an alternatives slot to InvocationPayload for this WP and executor.py's InvocationPayload.__slots__ (lines 213-224) has no alternatives member, so following T005 literally raises AttributeError.
+  - id: TASKS-DECOMP-002
+    verdict: confirmed
+    reason: A live grep for "RouterDecision(" across the tree finds five construction sites (router.py:262,345,365; empty_charter.py:123; tests/specify_cli/invocation/test_invocation_e2e.py:781), the fifth being a MagicMock fixture missing an alternatives kwarg against a frozen dataclass with no defaults, and that test file is absent from WP02's owned_files in both wps.yaml and the WP02 frontmatter, making T008's "grep confirms exactly 4" validation gate false as written.
+  - id: TASKS-DECOMP-003
+    verdict: confirmed
+    reason: WP02's "alternatives is never None" enforcement argument and its Risks-section mypy-strict guarantee are scoped only to the real frozen RouterDecision dataclass, but the DoD ties the same "never renders as None" guarantee to SC-003 (which governs the InvocationPayload/JSON output level), and executor.py confirms InvocationPayload's __init__(**kwargs) plus to_dict()'s getattr(self, s, None) fallback (already exercised by test_dispatch_recommendation.py's _sample_payload omitting a slot without error) would silently serialize alternatives as null if a T009 construction site were missed, a gap WP02 never flags.
+  - id: TASKS-DECOMP-004
+    verdict: refuted
+    reason: T007 step 1 bullet 4 already states explicitly, in parentheses, that "WP01 already fixed this raise site's candidate-dict shape — this test re-confirms it holds through WP02's edits ... it does not re-implement the fix," and step 3 attributes the RED failure to the missing alternatives field, so the artifact already states what the finding claims is missing.
+  - id: TASKS-VERIFY-001
+    verdict: confirmed
+    reason: FR-008 and FR-010 are both in WP01's requirement_refs and both have dedicated Definition-of-Done checkboxes, but T001's enumerated RED-first test list (six named tests plus one each in test_dispatch_recommendation.py and test_chokepoint.py) names no test for the --dry-run --profile combo or the empty-charter-fallback dry-run behavior, and none of Reviewer Guidance's five bullets asks the reviewer to verify FR-008/FR-010 trace to a named T001 test.

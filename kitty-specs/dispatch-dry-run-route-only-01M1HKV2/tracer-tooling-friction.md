@@ -42,3 +42,50 @@ scratchpad-plus-cp pattern above. A future mission dispatched under the same "wo
 checkout, not the isolated worktree" instruction should expect this same friction and go
 straight to the scratchpad-draft + `cp`-into-place pattern for any file write, and single-command
 `cd <path> && <non-git tool>` chains for any read/list/CLI-invocation need.
+
+## Tasks-phase entry (2026-09-02)
+
+**`spec-kitty agent mission finalize-tasks --validate-only` hard-rejects any WP `owned_files`
+entry under `kitty-specs/`**, error code `INVALID_WP_OWNED_FILES_KITTY_SPECS`. WP1's real,
+plan.md-specified touch point `kitty-specs/do-dispatch-open-op-lifecycle-01KTSJ2H/contracts/
+cli-do-output.md` (FR-011's hand-edited JSON-output contract doc) cannot be declared as an
+`owned_files` glob in either `wps.yaml` or the WP prompt frontmatter — both surfaces are
+checked, and both must have the entry removed before `--validate-only` passes. This is a real,
+reproducible constraint (confirmed twice: once via `wps.yaml` alone, then again after removing
+it from `wps.yaml` only — the WP prompt file's own frontmatter `owned_files` list independently
+tripped the same rejection until also edited), not a one-off.
+
+**Resolution used**: removed the `kitty-specs/...cli-do-output.md` path from `owned_files` in
+both `wps.yaml` and `tasks/WP01-*.md`'s frontmatter, while leaving the actual edit instruction
+(FR-011's contract-doc update) in WP01's subtask body — the ownership-declaration constraint
+narrows what `wps.yaml`/frontmatter can *record*, not what the WP actually does. Added an
+explicit note in WP01's prompt (Subtask T006) explaining the gap so a future implementer or
+reviewer does not read the missing `owned_files` entry as "this WP doesn't touch that file."
+
+**Why this is worth flagging rather than silently working around**: `kitty-specs/` is presumably
+excluded from `owned_files` because it is planning-artifact territory, resolved to the primary
+partition rather than a WP's execution worktree — reasonable in general. But this mission's own
+`plan.md` (already reviewed and PASSED) explicitly lists a `kitty-specs/...` file in its Blast
+Radius as a file a work package touches, with no caveat that it falls outside the ownership
+model. A plan-phase author following plan.md's own file list into `wps.yaml` verbatim hits this
+rejection with no advance warning in the plan or in `tasks-outline`'s prompt template. Consider
+either documenting this constraint in `tasks-outline`'s prompt.md (so a future planner doesn't
+have to discover it by trial and error against `finalize-tasks`) or teaching `plan.md`'s Blast
+Radius convention to flag `kitty-specs/`-rooted touch points as "edited, not owned" explicitly.
+
+## Analyze-phase entry (2026-09-02)
+
+**`record-analysis` fell back to `verdict: unknown` on a malformed input, not the tracked
+SK-06/#3133 shape but adjacent to it.** During the fix round for finding I1, a re-recorded
+analysis report omitted the required `analysis-findings/v1` YAML carrier frontmatter (only
+Markdown body, no `schema`/`findings`/`counts`/`verdict_hint` block). `record-analysis`
+accepted the input without erroring and persisted `verdict: unknown` to
+`analysis-report.md` on disk (commit `2ee2bb702`) — silently, with a `0` exit code, no
+warning that the carrier was missing. This is distinct from SK-06 (an *explicitly ready*,
+well-formed report silently downgraded to `unknown`) since the input here was genuinely
+malformed — but the failure mode is the same shape a reader would have to catch by
+re-reading the artifact on disk rather than trusting the CLI's success exit. Re-recording
+with the carrier block present produced the correct `verdict: ready` (commit `5c2b418cb`).
+Worth a `record-analysis` hardening note upstream: reject/warn on a missing carrier rather
+than silently defaulting to `unknown`, so this class of self-inflicted mistake surfaces
+immediately instead of requiring a disk read to catch.
