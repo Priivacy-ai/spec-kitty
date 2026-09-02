@@ -16,7 +16,8 @@ requirement_refs:
 - C-002
 - C-003
 - C-004
-tracker_refs: []
+tracker_refs:
+- spk-glossary-9v0
 planning_base_branch: codex/glossary-modeling-delta
 merge_target_branch: codex/glossary-modeling-delta
 subtasks:
