@@ -122,7 +122,11 @@ from specify_cli.core.commit_guard import GuardCapability
 from specify_cli.core.constants import KITTY_SPECS_DIR
 from specify_cli.core.env import first_set_sync_disable_env
 from specify_cli.core.paths import assert_safe_path_segment, is_worktree_context
-from specify_cli.core.owned_mission import OwnedMission, require_unstaged_index, resolve_owned_mission
+from specify_cli.core.owned_mission import (
+    OwnedMission,
+    require_unstaged_index,
+    resolve_owned_mission,
+)
 from specify_cli.core.vcs.git import git_merge_base, merge_base_changed_files
 from specify_cli.mission_metadata import resolve_mission_identity
 from specify_cli.review import pre_review_gate
@@ -2806,16 +2810,30 @@ def _mt_emit_runtime_state(st: _MoveTaskState, ports: TasksPorts) -> None:
     if delta.is_empty():
         return
     owned = getattr(st, "owned", None)
-    emitter = emit_inner_state_changed_transactional if st.resolved_auto_commit else emit_inner_state_changed
-    emitter(
-        st.feature_dir,
-        st.task_id,
-        delta,
-        actor=st.final_hop_actor or st.actor,
-        mission_slug=st.mission_slug,
-        repo_root=st.main_repo_root,
-        **({"effective_root": owned.root} if owned else {}),
+    emitter = (
+        emit_inner_state_changed_transactional
+        if st.resolved_auto_commit
+        else emit_inner_state_changed
     )
+    if owned is not None:
+        emitter(
+            st.feature_dir,
+            st.task_id,
+            delta,
+            actor=st.final_hop_actor or st.actor,
+            mission_slug=st.mission_slug,
+            repo_root=st.main_repo_root,
+            effective_root=owned.root,
+        )
+    else:
+        emitter(
+            st.feature_dir,
+            st.task_id,
+            delta,
+            actor=st.final_hop_actor or st.actor,
+            mission_slug=st.mission_slug,
+            repo_root=st.main_repo_root,
+        )
 
 
 def _mt_persist_wp_file(st: _MoveTaskState, ports: TasksPorts) -> None:
