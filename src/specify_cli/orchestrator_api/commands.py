@@ -34,6 +34,32 @@ Error codes used:
                                  carried no more specific error_code of its own (WP03)
   TASKS_FINALIZE_FAILED       -- tasks: the delegate finalize-tasks call failed and
                                  carried no more specific error_code of its own (WP03)
+  CHECK_PREREQUISITES_FAILED  -- check-prerequisites: the delegate validation call
+                                 failed and carried no more specific error_code of
+                                 its own (WP04)
+  RECORD_ANALYSIS_EMPTY_BODY  -- record-analysis: --input-file/stdin body was empty
+                                 (WP04)
+  RECORD_ANALYSIS_INPUT_FILE_NOT_FOUND -- record-analysis: --input-file could not
+                                 be read (WP04)
+  RECORD_ANALYSIS_MALFORMED_CARRIER -- record-analysis: the submitted body carried
+                                 a present-but-invalid analysis-findings/v1 carrier
+                                 (WP04)
+  RECORD_ANALYSIS_WRITE_NOT_CONFIRMED -- record-analysis: no analysis-report.md
+                                 generated AFTER this call's start timestamp was
+                                 found on disk -- the write did not happen (or could
+                                 not be confirmed), regardless of the underlying
+                                 call's own return/raise/hang behavior (NFR-004 /
+                                 SK-93 / WP04)
+  RECORD_ANALYSIS_VERDICT_UNRELIABLE -- record-analysis: a write WAS confirmed
+                                 (fresh generated_at) but the re-read verdict is not
+                                 a trustworthy match for this call -- either it
+                                 diverges from the submitted verdict, or the
+                                 submitted verdict was itself `unknown` (no valid
+                                 carrier); `unknown` is NEVER reported as success
+                                 (SK-06 / #3133 / WP04)
+  DIRTY_WORKTREE               -- record-analysis: pre-existing uncommitted changes
+                                 block the write (classified from the delegate
+                                 preflight's own structured payload; WP04)
 """
 
 from __future__ import annotations
@@ -42,13 +68,17 @@ import contextlib
 import io
 import json
 import re
+import subprocess
+import threading
 import uuid
-from kernel.clock import now_utc_stamp
+from kernel.clock import now_utc_iso, now_utc_stamp
 from pathlib import Path
 from dataclasses import dataclass
+from collections.abc import Callable
 from typing import TYPE_CHECKING, Any, NoReturn
 
 if TYPE_CHECKING:
+    from specify_cli.analysis_report import AnalysisReportResult
     from specify_cli.core.paths import RetentionDecision
     from specify_cli.lanes.models import ExecutionLane, LanesManifest
 
@@ -262,6 +292,15 @@ _MISSION_NOT_FOUND_MESSAGE = "Mission '{mission}' not found in kitty-specs/"
 _HELP_WP_ID = "Work package ID"
 _HELP_ACTOR = "Actor identity"
 _HELP_POLICY = "Policy metadata JSON (required)"
+_HELP_ANALYZER_AGENT = "Agent name that produced the analysis report"
+
+# WP04 / NFR-004 / SK-93: the enforced wall-clock bound record-analysis's
+# underlying write path (write_analysis_report + the best-effort commit) is
+# run under -- Thread.join(timeout=...) actually returns control to the
+# caller even if the worker thread is still running (a REAL bound; see
+# `_run_write_with_timeout`). Module-level so tests can monkeypatch it down
+# for a fast, genuine hang proof (T020).
+_RECORD_ANALYSIS_TIMEOUT_SECONDS = 10.0
 
 
 def _transition_requires_policy(lane: str) -> bool:
@@ -2249,6 +2288,480 @@ def tasks(
     validate_outbound_payload(payload, "orchestrator_api")
     envelope = make_envelope(command=cmd, success=True, data=payload)
     _emit(envelope)
+
+
+# ── Command 13: check-prerequisites ─────────────────────────────────────────
+
+
+def _classify_check_prerequisites_error(
+    payload: dict[str, Any] | None, raw_output: str
+) -> tuple[str, str, dict[str, Any]]:
+    """Classify a failed ``check-prerequisites`` delegate call.
+
+    The host CLI's own detection-failure payload carries
+    ``error_code: "FEATURE_CONTEXT_UNRESOLVED"`` (``mission_check_prerequisites.py``)
+    -- a feature-named code that must NEVER cross onto the orchestrator-api
+    surface verbatim (Terminology Canon; ``upstream_contract.json``'s
+    ``forbidden_error_codes`` bans the sibling ``FEATURE_NOT_FOUND``/
+    ``FEATURE_NOT_READY`` for the identical reason). This is the ONE place
+    that code is translated to this file's canonical ``MISSION_NOT_FOUND`` --
+    every other typed ``error_code`` the delegate carries is trusted verbatim,
+    mirroring ``_classify_delegate_error``.
+    """
+    if payload is None:
+        message = raw_output.strip() or "check-prerequisites failed"
+        return "CHECK_PREREQUISITES_FAILED", message, {"raw_output": raw_output}
+    message = str(payload.get("error") or payload.get("message") or "check-prerequisites failed")
+    error_code = payload.get("error_code")
+    if error_code == "FEATURE_CONTEXT_UNRESOLVED":
+        return "MISSION_NOT_FOUND", message, payload
+    if error_code:
+        return str(error_code), message, payload
+    return "CHECK_PREREQUISITES_FAILED", message, payload
+
+
+@app.command(name="check-prerequisites")
+def check_prerequisites(
+    mission: str = typer.Option(..., "--mission", help=_HELP_MISSION_SLUG),
+    include_tasks: bool = typer.Option(
+        False,
+        "--include-tasks",
+        help="Include tasks.md validation (matches the host CLI's own --include-tasks default)",
+    ),
+) -> None:
+    """Read-only mission-prerequisite context for ``/spec-kitty.analyze`` (FR-004).
+
+    C-002: this verb supplies context ONLY -- it never performs `analyze`'s
+    cross-artifact reasoning itself (mirrors ``start-review``'s "cannot
+    perform WP implementation itself" pattern). No ``--policy`` is required
+    (read-only, per spec Edge Cases: "Read-only verbs (check-prerequisites,
+    design-status) do not require --policy").
+
+    In-process only (FR-001-style parity): calls the host CLI's OWN
+    ``check_prerequisites`` Typer command function
+    (``mission_check_prerequisites.py:498``) directly -- the exact
+    established pattern WP03's ``plan``/``tasks`` verbs already use for a
+    registered ``agent mission`` Typer command (``setup_plan``/
+    ``finalize_tasks`` are registered identically:
+    ``app.command(...)(func)`` in ``mission.py``), so field-parity with
+    ``agent mission check-prerequisites --json --include-tasks`` is
+    guaranteed by construction rather than by re-deriving
+    ``validate_feature_structure``'s shaping logic a second time.
+    """
+    cmd = "check-prerequisites"
+
+    main_repo_root = _get_main_repo_root()
+    # Existence gate FIRST via the coord-aware read seam (consistent
+    # MISSION_NOT_FOUND envelope shared with every other read endpoint in
+    # this module) -- the delegate below is only reached for a mission that
+    # is already known to exist.
+    mission_dir = _resolve_mission_dir_or_fail(cmd, main_repo_root, mission)
+
+    from specify_cli.cli.commands.agent.mission_check_prerequisites import (
+        check_prerequisites as _host_check_prerequisites,
+    )
+
+    capture = io.StringIO()
+    try:
+        with contextlib.redirect_stdout(capture):
+            _host_check_prerequisites(feature=mission, json_output=True, include_tasks=include_tasks)
+    except typer.Exit:
+        raw_output = capture.getvalue()
+        payload = _extract_json_payload(raw_output)
+        error_code, message, error_data = _classify_check_prerequisites_error(payload, raw_output)
+        _fail(cmd, error_code, message, error_data)
+        return
+
+    raw_output = capture.getvalue()
+    payload = _extract_json_payload(raw_output)
+    if payload is None:
+        _fail(
+            cmd,
+            "CHECK_PREREQUISITES_FAILED",
+            "check-prerequisites produced no parseable JSON payload",
+            {"raw_output": raw_output},
+        )
+        return
+    # validate_feature_structure()'s own shape does not carry ``mission_slug``
+    # (verified against production) -- same transport-contract identity fill
+    # as ``plan``/``tasks`` above, never business-payload enrichment.
+    payload.setdefault("mission_slug", _mission_identity_payload(mission_dir)["mission_slug"])
+    validate_outbound_payload(payload, "orchestrator_api")
+    envelope = make_envelope(command=cmd, success=True, data=payload)
+    _emit(envelope)
+
+
+# ── Command 14: record-analysis ─────────────────────────────────────────────
+
+
+@dataclass
+class _TimedWriteOutcome:
+    """Outcome of a timeout-bounded call to the underlying write path (SK-93).
+
+    ``completed`` is set by the worker thread itself in a ``finally`` block
+    (never inferred from ``Thread.is_alive()`` after ``join`` -- a TOCTOU-safe
+    signal). NEITHER field drives ``record-analysis``'s ``success`` verdict --
+    that is determined SOLELY by re-reading the artifact off disk afterward;
+    this dataclass exists only to enrich the failure envelope's diagnostic
+    ``data`` (e.g. surfacing whether the underlying call raised or is still
+    running in a leaked daemon thread).
+    """
+
+    completed: bool = False
+    result: AnalysisReportResult | None = None
+    raised: Exception | None = None
+
+
+def _run_write_with_timeout(
+    fn: Callable[[], AnalysisReportResult], *, timeout_seconds: float
+) -> _TimedWriteOutcome:
+    """Run ``fn`` bounded by ``timeout_seconds`` in a daemon worker thread.
+
+    A REAL enforced bound (NFR-004(b) / T020): ``Thread.join(timeout=...)``
+    returns control to the caller once ``timeout_seconds`` elapses regardless
+    of whether the worker thread has finished -- this is not a decorative
+    ``try/except TimeoutError`` that never actually fires (Python offers no
+    safe thread-kill primitive, so a still-running worker is left as a leaked
+    daemon thread, never blocking process exit). Never re-raises: any
+    exception the underlying call raises is captured as diagnostic data, not
+    propagated -- ``record-analysis``'s success determination never depends
+    on whether this call raised, returned, or is still hanging (SK-93).
+    """
+    outcome = _TimedWriteOutcome()
+
+    def _worker() -> None:
+        try:
+            outcome.result = fn()
+        except Exception as exc:  # noqa: BLE001 -- deliberately broad: captures
+            # ANY failure from the underlying write path (including a test
+            # double's injected raise) as diagnostic data. Never re-raised;
+            # the re-read off disk is the sole success signal (SK-93).
+            outcome.raised = exc
+        finally:
+            outcome.completed = True
+
+    thread = threading.Thread(target=_worker, daemon=True)
+    thread.start()
+    thread.join(timeout=timeout_seconds)
+    return outcome
+
+
+@dataclass(frozen=True)
+class _AnalysisReportReread:
+    """The re-read artifact state -- the SOLE success signal (SK-93)."""
+
+    path: Path
+    verdict: str | None
+    generated_at: str | None
+
+
+def _reread_analysis_report(path: Path) -> _AnalysisReportReread | None:
+    """Re-read ``analysis-report.md`` off disk, or ``None`` if absent.
+
+    Never trusts the write call's own return/raise/hang behavior (SK-93) --
+    this reads whatever landed on disk, if anything, after the write
+    attempt returned or the enforced timeout fired.
+    """
+    if not path.exists():
+        return None
+    from specify_cli.frontmatter import FrontmatterError, FrontmatterManager
+
+    try:
+        frontmatter, _body = FrontmatterManager().read(path)
+    except FrontmatterError:
+        return _AnalysisReportReread(path=path, verdict=None, generated_at=None)
+    verdict = frontmatter.get("verdict")
+    generated_at = frontmatter.get("generated_at")
+    return _AnalysisReportReread(
+        path=path,
+        verdict=str(verdict) if verdict is not None else None,
+        generated_at=str(generated_at) if generated_at is not None else None,
+    )
+
+
+def _is_strictly_after(candidate_iso: str, reference_iso: str) -> bool:
+    """True if ``candidate_iso`` is a strictly later instant than ``reference_iso``.
+
+    Parses both through :func:`kernel.clock.parse_iso` (the single wall-clock
+    door, C-008) rather than comparing raw strings -- an explicit, honest
+    comparison instead of relying on ISO-8601 lexicographic-ordering luck.
+    """
+    from kernel.clock import parse_iso
+
+    try:
+        return parse_iso(candidate_iso) > parse_iso(reference_iso)
+    except ValueError:
+        return False
+
+
+def _read_record_analysis_body(input_file: str) -> str:
+    """Read the analysis report body from ``--input-file``, or stdin for ``-``.
+
+    Mirrors the host CLI's own ``record_analysis``'s ``--input-file`` flag
+    semantics exactly (``mission_record_analysis.py``).
+    """
+    if input_file == "-":
+        import sys
+
+        return sys.stdin.read()
+    return Path(input_file).read_text(encoding="utf-8")
+
+
+def _classify_record_analysis_failure(
+    *,
+    submitted_verdict: str,
+    reread: _AnalysisReportReread | None,
+    call_start: str,
+) -> tuple[str, str]:
+    """Classify a ``record-analysis`` failure into a structured ``(error_code, message)``.
+
+    Distinguishes "write did not happen" (no artifact re-read confirms a
+    fresh write after ``call_start`` -- SC-005(c)'s stale-but-matching-verdict
+    shape included) from "write happened, signal was noise" (a confirmed
+    fresh write whose verdict is not trustworthy -- either it disagrees with
+    what THIS call submitted, or the submission itself carried no valid
+    carrier and computed to ``unknown``, SK-06/#3133) -- never collapsed into
+    one generic code (T018 step 3).
+    """
+    from specify_cli.analysis_report import VERDICT_UNKNOWN
+
+    write_confirmed = (
+        reread is not None
+        and reread.generated_at is not None
+        and _is_strictly_after(reread.generated_at, call_start)
+    )
+    if not write_confirmed:
+        return "RECORD_ANALYSIS_WRITE_NOT_CONFIRMED", (
+            "record-analysis could not confirm a fresh write: no "
+            "analysis-report.md with a generated_at timestamp later than "
+            "this call's start was found on disk."
+        )
+    if submitted_verdict == VERDICT_UNKNOWN:
+        return "RECORD_ANALYSIS_VERDICT_UNRELIABLE", (
+            "The submitted analysis report carried no valid "
+            "analysis-findings/v1 carrier, so no reliable verdict could be "
+            "recorded (verdict: unknown is never reported as success)."
+        )
+    return "RECORD_ANALYSIS_VERDICT_UNRELIABLE", (
+        f"analysis-report.md was written but its verdict "
+        f"({reread.verdict if reread else None!r}) does not match the "
+        f"submitted verdict ({submitted_verdict!r})."
+    )
+
+
+def _do_record_analysis_write(
+    *,
+    write_feature_dir: Path,
+    main_repo_root: Path,
+    body: str,
+    agent: str | None,
+    mission_slug: str,
+) -> AnalysisReportResult:
+    """The underlying write path: ``write_analysis_report`` + a best-effort commit.
+
+    Option (a) from plan.md § (j) (NFR-004(b)'s explicitly offered
+    mitigation): calls ``write_analysis_report``/``commit_for_mission``
+    directly rather than going through ``record_analysis``'s full CLI
+    wrapper, so ``record_analysis``'s own unbounded
+    ``trigger_feature_dossier_sync_if_enabled`` tail
+    (``mission_record_analysis.py:384-388``, bounded only against a *raised*
+    exception via ``contextlib.suppress(Exception)`` -- NOT against a *hang*)
+    is never invoked at all. This function itself additionally runs under
+    :func:`_run_write_with_timeout` as defense-in-depth against any OTHER
+    hang (e.g. a wedged git subprocess inside ``commit_for_mission``).
+    """
+    from specify_cli.analysis_report import write_analysis_report
+
+    result = write_analysis_report(
+        feature_dir=write_feature_dir,
+        repo_root=main_repo_root,
+        body=body,
+        analyzer_agent=agent,
+    )
+
+    # Best-effort commit -- mirrors mission_record_analysis.py's own narrowed
+    # exception set (WP03/#3128 there): a commit failure (e.g. a protected
+    # target ref) never undoes the write already on disk.
+    with contextlib.suppress(subprocess.CalledProcessError, OSError, RuntimeError, ValueError):
+        from mission_runtime import MissionArtifactKind
+        from specify_cli.coordination.commit_router import commit_for_mission
+        from specify_cli.core.paths import get_feature_target_branch
+        from specify_cli.git.protection_policy import ProtectionPolicy
+
+        commit_for_mission(
+            repo_root=main_repo_root,
+            mission_slug=mission_slug,
+            files=(result.path,),
+            message=f"docs(record-analysis): record analysis report for mission {mission_slug}",
+            policy=ProtectionPolicy.resolve(main_repo_root),
+            kind=MissionArtifactKind.ANALYSIS_REPORT,
+            target_branch=get_feature_target_branch(main_repo_root, mission_slug),
+        )
+    return result
+
+
+@app.command(name="record-analysis")
+def record_analysis(
+    mission: str = typer.Option(..., "--mission", help=_HELP_MISSION_SLUG),
+    input_file: str = typer.Option(
+        "-",
+        "--input-file",
+        help="Markdown report path, or '-' to read the report body from stdin",
+    ),
+    agent: str | None = typer.Option(None, "--agent", help=_HELP_ANALYZER_AGENT),
+    policy: str = typer.Option(None, "--policy", help=_HELP_POLICY),
+) -> None:
+    """Persist an ``/spec-kitty.analyze`` report, verified against disk (FR-005).
+
+    NFR-004 / SK-93 (verified): a subprocess/call-level success signal
+    (return code, "did not raise") is UNTRUSTWORTHY -- SK-93 documented
+    ``record-analysis`` reporting a false timeout FAILURE after a write had
+    already genuinely succeeded. This verb instead:
+
+    1. Captures ``now_utc_iso()`` immediately before invoking the write path.
+    2. Calls ``write_analysis_report``/``commit_for_mission`` directly
+       (bypassing ``record_analysis``'s own unbounded dossier-sync trigger
+       entirely -- option (a), plan.md § (j)), under an enforced
+       :func:`_run_write_with_timeout` bound as defense-in-depth.
+    3. Re-reads ``analysis-report.md`` off disk unconditionally afterward.
+       ``success: true`` ONLY if BOTH (a) the re-read ``verdict`` matches
+       what THIS call submitted, AND (b) the re-read ``generated_at`` is
+       STRICTLY LATER than the call-start timestamp -- a verdict-string
+       match alone is never sufficient (distinguishes a genuine fresh write
+       from a stale, coincidentally-matching pre-existing artifact).
+
+    SK-06 / #3133: an ``unknown`` verdict (no valid ``analysis-findings/v1``
+    carrier in the submitted body) is NEVER reported as ``success: true``,
+    even when the write genuinely, freshly succeeds -- silently writing
+    ``verdict: unknown`` for an explicitly-intended report is this repo's
+    dominant failure mode and this verb refuses to propagate it as success.
+
+    A mutating verb: ``--policy`` is required (``POLICY_METADATA_REQUIRED``
+    pattern, matching ``specify``/``plan``/``tasks``).
+    """
+    cmd = "record-analysis"
+
+    if not policy:
+        _fail(cmd, "POLICY_METADATA_REQUIRED", "--policy is required for record-analysis")
+        return
+    _parse_policy_or_fail(cmd, policy)
+
+    main_repo_root = _get_main_repo_root()
+    mission_dir = _resolve_mission_dir_or_fail(cmd, main_repo_root, mission)
+    mission_slug = _mission_identity_payload(mission_dir)["mission_slug"]
+
+    try:
+        body = _read_record_analysis_body(input_file)
+    except OSError as exc:
+        _fail(
+            cmd,
+            "RECORD_ANALYSIS_INPUT_FILE_NOT_FOUND",
+            f"Could not read --input-file {input_file!r}: {exc}",
+            {"mission_slug": mission_slug},
+        )
+        return
+    if not body.strip():
+        _fail(cmd, "RECORD_ANALYSIS_EMPTY_BODY", "Analysis report body is empty", {"mission_slug": mission_slug})
+        return
+
+    from specify_cli.analysis_report import VERDICT_UNKNOWN, FindingsCarrierError, parse_structured_findings
+
+    try:
+        structured = parse_structured_findings(body)
+    except FindingsCarrierError as exc:
+        _fail(cmd, "RECORD_ANALYSIS_MALFORMED_CARRIER", str(exc), {"mission_slug": mission_slug})
+        return
+    submitted_verdict = structured.verdict if structured is not None else VERDICT_UNKNOWN
+
+    from specify_cli.cli.commands.agent.mission_feature_resolution import _kind_for_artifact
+    from specify_cli.cli.commands.agent.mission_record_analysis import (
+        _enforce_analysis_report_write_preflight,
+        _require_record_analysis_placement,
+        _resolve_record_analysis_placement_ref,
+    )
+    from mission_runtime import placement_seam
+
+    placement_ref = _resolve_record_analysis_placement_ref(main_repo_root, mission_dir)
+    try:
+        placement_ref = _require_record_analysis_placement(placement_ref, mission_slug=mission_slug)
+    except PlacementResolutionRequired as exc:
+        _fail(cmd, "PLACEMENT_RESOLUTION_REQUIRED", str(exc), {"mission_slug": mission_slug})
+        return
+
+    capture = io.StringIO()
+    try:
+        with contextlib.redirect_stdout(capture):
+            _enforce_analysis_report_write_preflight(
+                main_repo_root, json_output=True, placement_ref=placement_ref, mission_slug=mission_slug
+            )
+    except typer.Exit:
+        raw_output = capture.getvalue()
+        payload = _extract_json_payload(raw_output)
+        error_code, message, error_data = _classify_delegate_error(
+            payload,
+            raw_output,
+            fallback_code="DIRTY_WORKTREE",
+            fallback_message="record-analysis dirty-tree preflight failed",
+        )
+        error_data.setdefault("mission_slug", mission_slug)
+        _fail(cmd, error_code, message, error_data)
+        return
+
+    write_feature_dir = placement_seam(main_repo_root, mission_slug).read_dir(_kind_for_artifact("spec"))
+
+    # Step 1 (NFR-004 / SK-93): the call-start timestamp, captured
+    # IMMEDIATELY before invoking the write path -- everything above this
+    # line is preflight/validation, not "the underlying write call".
+    call_start = now_utc_iso()
+
+    def _do_write() -> AnalysisReportResult:
+        return _do_record_analysis_write(
+            write_feature_dir=write_feature_dir,
+            main_repo_root=main_repo_root,
+            body=body,
+            agent=agent,
+            mission_slug=mission_slug,
+        )
+
+    write_outcome = _run_write_with_timeout(_do_write, timeout_seconds=_RECORD_ANALYSIS_TIMEOUT_SECONDS)
+
+    # Step 3 (NFR-004 / SK-93): unconditional re-read -- the SOLE success
+    # signal, regardless of whether the call above returned, raised, or is
+    # still hanging in a leaked daemon thread.
+    report_path = write_feature_dir / "analysis-report.md"
+    reread = _reread_analysis_report(report_path)
+
+    write_confirmed = (
+        reread is not None
+        and reread.generated_at is not None
+        and _is_strictly_after(reread.generated_at, call_start)
+    )
+    success = write_confirmed and submitted_verdict != VERDICT_UNKNOWN and reread is not None and reread.verdict == submitted_verdict
+
+    if success and reread is not None:
+        data = {
+            "mission_slug": mission_slug,
+            "path": str(reread.path),
+            "verdict": reread.verdict,
+            "generated_at": reread.generated_at,
+        }
+        validate_outbound_payload(data, "orchestrator_api")
+        envelope = make_envelope(command=cmd, success=True, data=data)
+        _emit(envelope)
+        return
+
+    error_code, message = _classify_record_analysis_failure(
+        submitted_verdict=submitted_verdict, reread=reread, call_start=call_start
+    )
+    failure_data: dict[str, Any] = {"mission_slug": mission_slug, "submitted_verdict": submitted_verdict}
+    if reread is not None:
+        failure_data["reread_verdict"] = reread.verdict
+        failure_data["reread_generated_at"] = reread.generated_at
+    if not write_outcome.completed:
+        failure_data["underlying_call_timed_out"] = True
+    elif write_outcome.raised is not None:
+        failure_data["underlying_call_error"] = str(write_outcome.raised)
+    _fail(cmd, error_code, message, failure_data)
 
 
 __all__ = ["app"]
