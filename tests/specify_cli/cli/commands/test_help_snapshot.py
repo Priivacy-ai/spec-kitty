@@ -55,6 +55,17 @@ def test_normalize_help_strips_box_and_collapses_whitespace() -> None:
     ]
 
 
+def test_normalize_help_strips_windows_safe_box_corners() -> None:
+    raw = "\n".join(
+        [
+            "┌─ Options ─┐",
+            "│ --flag  Do a thing │",
+            "└──────────────────┘",
+        ]
+    )
+    assert normalize_help(raw) == ["Options", "--flag Do a thing"]
+
+
 @pytest.mark.parametrize("columns", ["40", "100", "200"])
 def test_force_wide_help_console_is_width_invariant(
     columns: str, monkeypatch: pytest.MonkeyPatch
