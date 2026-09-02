@@ -399,6 +399,7 @@ globals()["_list_wp_branch_" + KITTY_SPECS_DIR.replace("-", "_") + "_changes"] =
 from specify_cli.cli.commands.agent.tasks_move_task import (
     _MoveTaskArgs as _MoveTaskArgs,
     _MoveTaskState as _MoveTaskState,
+    _PostTransitionSideEffectFailure as _PostTransitionSideEffectFailure,
     # coord-commit-integrity (#2861, FR-005): the lane->binding-role map helper
     # extracted from the duplicated role maps at the move-task emit seam joins
     # the family surface like every other native move-task def (identity
@@ -457,7 +458,10 @@ from specify_cli.cli.commands.agent.tasks_move_task import (
     _mt_hop_review_result as _mt_hop_review_result,
     _mt_issue_matrix_facts as _mt_issue_matrix_facts,
     _mt_output as _mt_output,
+    _mt_matches_owned_file as _mt_matches_owned_file,
+    _mt_owned_file_patterns as _mt_owned_file_patterns,
     _mt_persist_wp_file as _mt_persist_wp_file,
+    _mt_post_transition_diagnostic as _mt_post_transition_diagnostic,
     _mt_pre_review_block_enabled as _mt_pre_review_block_enabled,
     _mt_pre_review_changed_files as _mt_pre_review_changed_files,
     _mt_pre_review_dirty_paths as _mt_pre_review_dirty_paths,
@@ -477,13 +481,17 @@ from specify_cli.cli.commands.agent.tasks_move_task import (
     # (the identity re-export the compat guard's superset invariant requires).
     _mt_resolve_current_agent as _mt_resolve_current_agent,
     _mt_resolve_feedback as _mt_resolve_feedback,
+    _mt_owned_workspace as _mt_owned_workspace,
+    _mt_preflight_owned_request as _mt_preflight_owned_request,
     _mt_resolve_pre_review_workspace as _mt_resolve_pre_review_workspace,
+    _mt_resolve_owned_review_base as _mt_resolve_owned_review_base,
     # fix(review): the --reviewer resolution shared by the rejected
     # review-cycle artifact's frontmatter and the structured ReviewResult
     # derivation joins the family surface like every other native move-task
     # def (the compat guard's superset invariant requires it).
     _mt_resolve_reviewer_identity as _mt_resolve_reviewer_identity,
     _mt_resolve_targets as _mt_resolve_targets,
+    _mt_require_owned_implementation as _mt_require_owned_implementation,
     _mt_review_config_section as _mt_review_config_section,
     _mt_run_decision as _mt_run_decision,
     _mt_run_pre_review_gate as _mt_run_pre_review_gate,
@@ -736,6 +744,16 @@ def move_task(
             ),
         ),
     ] = False,
+    owned_checkout: Annotated[
+        Path | None,
+        typer.Option(
+            "--owned-checkout",
+            help=(
+                "Use an owned single_branch checkout for the local review lifecycle "
+                "(active sync, force/skip, done, and arbiter modes unsupported)."
+            ),
+        ),
+    ] = None,
 ) -> None:
     """Move task between lanes (planned → doing → for_review → approved → done).
 
@@ -783,6 +801,7 @@ def move_task(
             auto_commit=auto_commit,
             json_output=json_output,
             skip_pre_review_gate=skip_pre_review_gate,
+            owned_checkout=owned_checkout,
         )
     )
 
@@ -844,6 +863,11 @@ def mark_status(
     status: Annotated[str, typer.Option("--status", help="Status: done/pending")],
     mission: Annotated[str | None, typer.Option("--mission", help="Mission slug")] = None,
 
+    owned_checkout: Annotated[
+        Path | None,
+        typer.Option("--owned-checkout", help="Explicit single-branch checkout root."),
+    ] = None,
+
     auto_commit: Annotated[
         bool | None, typer.Option("--auto-commit/--no-auto-commit", help="Automatically commit tasks.md changes to target branch (default: from project config)")
     ] = None,
@@ -877,6 +901,7 @@ def mark_status(
         mission=mission,
         auto_commit=auto_commit,
         json_output=json_output,
+        owned_checkout=owned_checkout,
     )
 
 

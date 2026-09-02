@@ -851,6 +851,9 @@ def _validate_worktree_state(
     behind_commits_touch_only_planning_artifacts: Callable[[Path, str, str], bool],
     filter_runtime_state_paths: Callable[[str], str],
     list_wp_branch_specs_changes_for_guard: Callable[..., list[str]],
+    workspace_override: ResolvedWorkspace | None = None,
+    review_base_ref: str | None = None,
+    check_kitty_specs: bool = True,
 ) -> tuple[bool, list[str]] | None:
     """Check 2 (software-dev): worktree currency + commit gates.
 
@@ -865,10 +868,13 @@ def _validate_worktree_state(
     # in tests that mock surrounding state), fall through to the legacy
     # worktree-existence checks below rather than hard-failing.
     workspace: ResolvedWorkspace | None
-    try:
-        workspace = resolve_workspace_for_wp(main_repo_root, mission_slug, wp_id)
-    except (ValueError, FileNotFoundError):
-        workspace = None
+    if workspace_override is not None:
+        workspace = workspace_override
+    else:
+        try:
+            workspace = resolve_workspace_for_wp(main_repo_root, mission_slug, wp_id)
+        except (ValueError, FileNotFoundError):
+            workspace = None
 
     if workspace is not None and workspace.resolution_kind == "repo_root":
         return True, []
@@ -890,7 +896,7 @@ def _validate_worktree_state(
     # track. In the lane-only model this is usually the mission branch.
     target_branch = get_feature_target_branch(repo_root, mission_slug)
 
-    check_branch = review_currency_check_branch(
+    check_branch = review_base_ref or review_currency_check_branch(
         main_repo_root=main_repo_root,
         mission_slug=mission_slug,
         target_branch=target_branch,
@@ -926,16 +932,17 @@ def _validate_worktree_state(
     if no_commit is not None:
         return False, no_commit
 
-    contamination = _check_kitty_specs_contamination(
-        worktree_path=worktree_path,
-        check_branch=check_branch,
-        feature_dir=feature_dir,
-        wp_id=wp_id,
-        target_lane=target_lane,
-        list_wp_branch_specs_changes_for_guard=list_wp_branch_specs_changes_for_guard,
-    )
-    if contamination is not None:
-        return False, contamination
+    if check_kitty_specs:
+        contamination = _check_kitty_specs_contamination(
+            worktree_path=worktree_path,
+            check_branch=check_branch,
+            feature_dir=feature_dir,
+            wp_id=wp_id,
+            target_lane=target_lane,
+            list_wp_branch_specs_changes_for_guard=list_wp_branch_specs_changes_for_guard,
+        )
+        if contamination is not None:
+            return False, contamination
 
     return None
 
@@ -947,6 +954,10 @@ def _validate_ready_for_review(
     force: bool,
     target_lane: str = "for_review",
     *,
+    effective_root: Path | None = None,
+    workspace_override: ResolvedWorkspace | None = None,
+    review_base_ref: str | None = None,
+    check_kitty_specs: bool = True,
     get_main_repo_root: Callable[[Path], Path],
     get_mission_type: Callable[[Path], str],
     get_feature_target_branch: Callable[[Path, str], str],
@@ -997,7 +1008,9 @@ def _validate_ready_for_review(
         placement_seam,
     )
 
-    feature_dir = placement_seam(main_repo_root, mission_slug).read_dir(
+    feature_dir = placement_seam(
+        main_repo_root, mission_slug, effective_root=effective_root
+    ).read_dir(
         MissionArtifactKind.RESEARCH
     )
 
@@ -1007,7 +1020,7 @@ def _validate_ready_for_review(
     # Check 1: Uncommitted research artifacts in planning repo (applies to ALL missions)
     # Research artifacts live in kitty-specs/ which is in the planning repo, not worktrees
     research_guidance = _validate_research_artifacts(
-        main_repo_root=main_repo_root,
+        main_repo_root=effective_root or main_repo_root,
         feature_dir=feature_dir,
         mission_slug=mission_slug,
         wp_id=wp_id,
@@ -1033,6 +1046,9 @@ def _validate_ready_for_review(
             behind_commits_touch_only_planning_artifacts=behind_commits_touch_only_planning_artifacts,
             filter_runtime_state_paths=filter_runtime_state_paths,
             list_wp_branch_specs_changes_for_guard=list_wp_branch_specs_changes_for_guard,
+            workspace_override=workspace_override,
+            review_base_ref=review_base_ref,
+            check_kitty_specs=check_kitty_specs,
         )
         if worktree_result is not None:
             return worktree_result

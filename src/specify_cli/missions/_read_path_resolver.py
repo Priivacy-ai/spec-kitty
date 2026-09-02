@@ -1465,7 +1465,13 @@ def resolve_planning_read_dir(
     return candidate_feature_dir_for_mission(repo_root, mission_slug, resolver=resolver)
 
 
-def resolve_subtasks_gate_dir(feature_dir: Path, repo_root: Path | None, mission_slug: str) -> Path:
+def resolve_subtasks_gate_dir(
+    feature_dir: Path,
+    repo_root: Path | None,
+    mission_slug: str,
+    *,
+    effective_root: Path | None = None,
+) -> Path:
     """Resolve the PRIMARY mission dir the subtask-completeness gate reads ``tasks.md`` from.
 
     The single canonical seam (closes #2574) for the "resolve PRIMARY
@@ -1499,6 +1505,12 @@ def resolve_subtasks_gate_dir(feature_dir: Path, repo_root: Path | None, mission
             primary_root = resolve_canonical_root(feature_dir)
         except WorkspaceRootNotFound:
             return feature_dir
+    if effective_root is not None:
+        from mission_runtime import placement_seam
+
+        return placement_seam(
+            primary_root, mission_slug, effective_root=effective_root
+        ).read_dir(MissionArtifactKind.TASKS_INDEX)
     # resolve_planning_read_dir is defined in this same module, so its
     # declared `-> Path` return type is visible to mypy directly (no
     # follow_imports=skip boundary crossed here) — a cast was redundant

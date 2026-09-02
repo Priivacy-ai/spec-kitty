@@ -1521,6 +1521,7 @@ def resolve_placement_only(
     *,
     kind: MissionArtifactKind,
     resolver: MissionResolver | None = None,
+    effective_root: Path | None = None,
 ) -> CommitTarget:
     """Resolve the placement :class:`CommitTarget` for a mission artifact ``kind``.
 
@@ -1586,6 +1587,15 @@ def resolve_placement_only(
             the current checkout (FR-006 refuse-with-recovery; code
             ``CONSOLIDATED_CONTENT_ABSENT``).
     """
+    if effective_root is not None:
+        context = mission_context_for(repo_root, mission_slug, resolver=resolver, effective_root=effective_root)
+        if context.topology is not MissionTopology.SINGLE_BRANCH:
+            raise ActionContextError("OWNED_TOPOLOGY_UNSUPPORTED", "Explicit placement requires single_branch.")
+        target = context.artifact(kind).commit_target
+        if target is None:
+            raise ActionContextError("OWNED_ARTIFACT_UNSUPPORTED", f"Artifact {kind.value} has no commit target.")
+        return target
+
     from specify_cli.core.paths import get_feature_target_branch
     from specify_cli.missions._read_path_resolver import (
         MissionSelectorAmbiguous,
@@ -1710,6 +1720,7 @@ class PlacementSeam:
 
     repo_root: Path
     mission_slug: str
+    effective_root: Path | None = None
 
     def write_target(self, kind: MissionArtifactKind) -> CommitTarget:
         """Return the :class:`CommitTarget` a write of ``kind`` must commit to.
@@ -1718,7 +1729,10 @@ class PlacementSeam:
         docstring. Never constructs ``CommitTarget(ref=<current_checkout>)``
         (the forbidden-for-callers grammar, contracts/seam-api.md).
         """
-        return resolve_placement_only(self.repo_root, self.mission_slug, kind=kind)
+        return resolve_placement_only(
+            self.repo_root, self.mission_slug, kind=kind,
+            effective_root=self.effective_root,
+        )
 
     def read_dir(self, kind: MissionArtifactKind) -> Path:
         """Return the directory a read of ``kind`` resolves to.
@@ -1770,7 +1784,10 @@ class PlacementSeam:
             )
             return retrospective_dir
 
-        return resolve_artifact_surface(self.repo_root, self.mission_slug, kind).path
+        return resolve_artifact_surface(
+            self.repo_root, self.mission_slug, kind,
+            effective_root=self.effective_root,
+        ).path
 
 
 @dataclass(frozen=True)
@@ -1854,6 +1871,7 @@ def declared_read_surface(
     kind: MissionArtifactKind,
     *,
     resolver: MissionResolver | None = None,
+    effective_root: Path | None = None,
 ) -> TopologySurface:
     """The intrinsic, materialization-BLIND declared home for a read of ``kind``.
 
@@ -1885,7 +1903,11 @@ def declared_read_surface(
     """
     if is_primary_artifact_kind(kind):
         return TopologySurface.PRIMARY
-    topology = resolve_topology(repo_root, mission_slug, resolver=resolver)
+    topology = (
+        resolve_topology(repo_root, mission_slug, resolver=resolver)
+        if effective_root is None
+        else mission_context_for(repo_root, mission_slug, resolver=resolver, effective_root=effective_root).topology
+    )
     if routes_through_coordination(topology):
         return TopologySurface.COORD
     return TopologySurface.PRIMARY
@@ -2027,6 +2049,7 @@ def resolve_artifact_surface(
     kind: MissionArtifactKind,
     *,
     resolver: MissionResolver | None = None,
+    effective_root: Path | None = None,
 ) -> ResolvedSurface:
     """Resolve the affirmative read/write surface for a mission artifact ``kind``.
 
@@ -2059,6 +2082,12 @@ def resolve_artifact_surface(
         MissionSelectorAmbiguous: When ``mission_slug`` is an ambiguous handle
             (propagated from handle canonicalization — no silent pick).
     """
+    if effective_root is not None:
+        context = mission_context_for(repo_root, mission_slug, resolver=resolver, effective_root=effective_root)
+        if context.topology is not MissionTopology.SINGLE_BRANCH:
+            raise ActionContextError("OWNED_TOPOLOGY_UNSUPPORTED", "Explicit placement requires single_branch.")
+        return ResolvedSurface(path=context.artifact(kind).read_dir, surface_kind=TopologySurface.PRIMARY)
+
     from specify_cli.core.paths import get_main_repo_root
     from specify_cli.missions._read_path_resolver import resolve_planning_read_dir
 
@@ -2195,7 +2224,7 @@ def resolve_create_time_write_target(planning_branch: str) -> CommitTarget:
     return CommitTarget(ref=planning_branch)
 
 
-def placement_seam(repo_root: Path, mission_slug: str) -> PlacementSeam:
+def placement_seam(repo_root: Path, mission_slug: str, *, effective_root: Path | None = None) -> PlacementSeam:
     """Construct the placement seam for one mission operation (T001 entry point).
 
     Asserts the P-1 partition invariant (T002) before returning the seam: the
@@ -2208,7 +2237,7 @@ def placement_seam(repo_root: Path, mission_slug: str) -> PlacementSeam:
     :func:`~mission_runtime.artifacts.artifact_home_for`.
     """
     assert_partition_invariant()
-    return PlacementSeam(repo_root=repo_root, mission_slug=mission_slug)
+    return PlacementSeam(repo_root=repo_root, mission_slug=mission_slug, effective_root=effective_root)
 
 
 def resolve_action_context(
