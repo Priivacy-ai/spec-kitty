@@ -1,0 +1,39 @@
+schema: review-findings/v1
+complete: true
+phase: tasks
+lens_group: fresh
+mission: dispatch-dry-run-route-only-01M1HKV2
+findings:
+  - id: TASKS-FRESH2-001
+    lens: "fresh sweep post-fix (round 2)"
+    severity: 3
+    title: "WP01 Reviewer Guidance still demands a nonexistent T001 pytest trace for NFR-001"
+    evidence:
+      - artifact: "tasks/WP01-dispatch-dry-run-flag-payload-shape.md § Reviewer Guidance (last bullet)"
+      - artifact: "tasks/WP01-dispatch-dry-run-flag-payload-shape.md § Subtask T001, steps 1-3 (full list of new tests)"
+      - artifact: "spec.md § Non-Functional Requirements, NFR-001"
+    claim: >
+      This round's fix correctly split WP01's Reviewer Guidance closing paragraph into a
+      "genuinely pytest-testable" bucket that must trace to a named T001 test, and an
+      exempted bucket (FR-011, NFR-002, NFR-003, C-006) that does not need one — each
+      exemption is justified by a concrete reason (FR-011 is a docs gate, NFR-002/NFR-003
+      are spec.md-stated "considered and absent" scope notes, C-006 is a reviewer-scope
+      clarification). NFR-001 ("Dry-run adds no meaningful latency over real dispatch") was
+      left in the "traces to a named, committed T001 test" bucket, but grepping WP01's full
+      T001 step list (steps 1-3, all ~10 named tests) shows zero tests touch latency,
+      timing, or performance — NFR-001's own spec.md text describes it as a purely
+      analytical/structural argument ("dominated by the same governance-context computation
+      real dispatch already performs... can only make dry-run faster, never slower"), i.e.
+      the exact same "considered and absent" shape as NFR-002 and NFR-003, which this same
+      revision correctly exempted. NFR-001 needed the identical treatment and did not get
+      it, so a reviewer following this WP's own Reviewer Guidance verbatim will either
+      reject the WP for a missing test that was never supposed to exist, or waste a review
+      cycle hunting for one.
+    remediation: >
+      Move NFR-001 out of the "traces to a named, committed T001 test" list and into the
+      exempted bucket alongside NFR-002/NFR-003, with a one-line rationale matching theirs
+      (e.g. "NFR-001 is a structural/analytical claim — dry-run strictly omits work real
+      dispatch performs, so no dedicated latency test is expected"). Alternatively, if a
+      latency-comparison test is actually intended, add a named T001 subtask step for it and
+      reference that test name explicitly, the same way FR-008/FR-010 are named.
+# If you have no findings, write: findings: []

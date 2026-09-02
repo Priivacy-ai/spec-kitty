@@ -1,0 +1,18 @@
+schema: review-verify/v1
+complete: true
+phase: tasks
+results:
+  - id: TASKS-FRESH2-001
+    status: resolved
+    reason: >-
+      Commit 4b4b33dc2 moved NFR-001 out of the "traces to a named T001 test" list (line
+      526) into the exempted bucket (line 532) with a rationale — "dry-run strictly omits
+      work real dispatch performs, so no dedicated latency test is expected" — that
+      mirrors spec.md's own NFR-001 text (dominated by governance-context computation
+      real dispatch already performs; can only be faster, never slower) and matches the
+      "considered and absent" shape of the NFR-002/NFR-003 exemptions it sits beside;
+      cross-checking T001's full step 1-3 test list (write-nothing, glossary-suppression,
+      payload-shape, profile-hint confidence, empty-charter fallback, ambiguous,
+      no-match/unknown-profile, no-SaaS-submit, recommendation-model pin, chokepoint pin)
+      confirms zero tests touch latency/timing/performance, so the exemption is
+      substantively correct, not merely cosmetic.
