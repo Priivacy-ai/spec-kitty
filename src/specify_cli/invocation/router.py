@@ -348,27 +348,81 @@ class ActionRouter:
                 "No profile matched. Use 'spec-kitty dispatch \"<request>\" --profile <id>' or run 'spec-kitty profiles list'.",
             )
 
-        if len(candidates) == 1:
-            c = candidates[0]
+        # ------------------------------------------------------------------
+        # WP3/#3840 (FR-006, SK-08 rerank -- narrowed by operator ruling on
+        # top of the original WP03 commit): partition candidates into the
+        # canonical-verb tier and the domain-keyword tier BEFORE any
+        # priority-based selection. A canonical-verb candidate always beats
+        # a domain-keyword candidate, regardless of routing_priority --
+        # routing_priority only continues to break ties WITHIN the
+        # canonical-verb tier (unchanged from today). This is the
+        # competition case SK-08 actually reported
+        # (SPEC-KITTY-LEDGER.md:2727): a lone/weak domain-keyword candidate
+        # outranking the request's own canonical-verb match.
+        #
+        # When the verb tier is EMPTY there is no verb-vs-keyword
+        # competition to resolve -- the request's tokens carried no
+        # canonical verb at all. That no-competition case is out of SK-08's
+        # reported scope: it falls back to the pre-existing (pre-WP03)
+        # selection pool of every candidate, which -- since the verb tier is
+        # empty -- is exactly the keyword tier. A unique keyword-tier
+        # candidate still auto-selects there, and routing_priority still
+        # breaks ties among multiple keyword-tier candidates, exactly as
+        # before this fix. A real shipped profile depends on this:
+        # `chart` is a diagram-daisy domain-keyword-tier signal (folded from
+        # collaboration.canonical_verbs), unique across the shipped set,
+        # with no competing canonical-verb candidate -- see
+        # test_writing_comms_routing.py::test_diagram_as_code_still_routes_to_diagram_daisy.
+        # ------------------------------------------------------------------
+        verb_tier = [c for c in candidates if c["_confidence"] == "canonical_verb"]
+
+        def _priority(candidate: dict[str, str]) -> int:
+            p = self._registry.get(candidate["profile_id"])
+            return getattr(p, "routing_priority", 0) if p is not None else 0
+
+        # Selection pool: the verb tier when it is non-empty (cross-tier
+        # competition always resolves in the verb tier's favor); otherwise
+        # the full candidate list, which is exactly the keyword tier when
+        # the verb tier is empty (candidates only ever carry
+        # "canonical_verb" or "domain_keyword" confidence -- the two tiers
+        # partition `candidates` completely).
+        selection_pool = verb_tier if verb_tier else candidates
+
+        if len(selection_pool) == 1:
+            c = selection_pool[0]
             return RouterDecision(
                 profile_id=c["profile_id"],
                 action=c["action"],
                 confidence=c["_confidence"],  # type: ignore[arg-type]
                 match_reason=c["match_reason"],
-                # WP2/#3840: only one candidate existed -- nothing lost.
-                alternatives=[],
+                # WP2/#3840 (FR-005, SC-003) + WP3/#3840 (FR-006): every
+                # non-winning candidate from the FULL candidates list --
+                # verb-tier and keyword-tier losers alike.
+                alternatives=[
+                    {
+                        "profile_id": other["profile_id"],
+                        "action": other["action"],
+                        "confidence": other["_confidence"],
+                        "match_reason": other["match_reason"],
+                    }
+                    for other in candidates
+                    if other is not c
+                ],
             )
 
         # ------------------------------------------------------------------
-        # Tiebreaker: routing_priority (higher wins)
+        # Tiebreaker: routing_priority (higher wins) -- WITHIN the selection
+        # pool only. When the verb tier is non-empty this is WITHIN the
+        # canonical-verb tier ONLY (FR-006), unchanged from today's
+        # intra-tier behavior; a domain-keyword candidate never enters this
+        # comparison regardless of its routing_priority. When the verb tier
+        # is empty this is within the keyword tier, exactly as it was
+        # before WP03 (no competition to resolve, so the pre-existing
+        # priority-based selection applies unchanged).
         # ------------------------------------------------------------------
-        def _priority(candidate: dict[str, str]) -> int:
-            p = self._registry.get(candidate["profile_id"])
-            return getattr(p, "routing_priority", 0) if p is not None else 0
-
-        sorted_candidates = sorted(candidates, key=_priority, reverse=True)
-        top_priority = _priority(sorted_candidates[0])
-        top_candidates = [c for c in sorted_candidates if _priority(c) == top_priority]
+        sorted_pool = sorted(selection_pool, key=_priority, reverse=True)
+        top_priority = _priority(sorted_pool[0])
+        top_candidates = [c for c in sorted_pool if _priority(c) == top_priority]
 
         if len(top_candidates) == 1:
             c = top_candidates[0]
@@ -394,7 +448,12 @@ class ActionRouter:
                 ],
             )
 
-        # Still ambiguous after tiebreaker
+        # Still ambiguous after the tiebreaker: genuinely tied at the top
+        # priority within the selection pool -- either two-or-more tied
+        # canonical-verb candidates (unchanged from today), or two-or-more
+        # tied keyword-tier candidates when the verb tier is empty
+        # (unchanged from pre-WP03: this is a real tie, not merely "zero
+        # verb-tier candidates present").
         raise RouterAmbiguityError(
             request_text,
             "ROUTER_AMBIGUOUS",
