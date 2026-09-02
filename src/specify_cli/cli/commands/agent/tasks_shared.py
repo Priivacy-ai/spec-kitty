@@ -431,7 +431,14 @@ def _resolve_git_common_dir(main_repo_root: Path) -> Path:
     return common_dir
 
 
-def _check_unchecked_subtasks(repo_root: Path, mission_slug: str, wp_id: str, _force: bool) -> list[str]:
+def _check_unchecked_subtasks(
+    repo_root: Path,
+    mission_slug: str,
+    wp_id: str,
+    _force: bool,
+    *,
+    effective_root: Path | None = None,
+) -> list[str]:
     """Return *wp_id*'s incomplete subtask ids, read from the reduced snapshot.
 
     The subtask **roster** (which task ids belong to ``wp_id``) is the authored
@@ -472,7 +479,9 @@ def _check_unchecked_subtasks(repo_root: Path, mission_slug: str, wp_id: str, _f
     # WP04 / FR-006: the authored WP roster is TASKS_INDEX and therefore lives
     # on the primary partition. Dynamic completion is STATUS_STATE and follows
     # the topology-routed status surface instead.
-    feature_dir = placement_seam(main_repo_root, mission_slug).read_dir(
+    feature_dir = placement_seam(
+        main_repo_root, mission_slug, effective_root=effective_root
+    ).read_dir(
         MissionArtifactKind.TASKS_INDEX
     )
     if not (feature_dir / "tasks").is_dir():
@@ -485,9 +494,14 @@ def _check_unchecked_subtasks(repo_root: Path, mission_slug: str, wp_id: str, _f
     roster = authored_subtask_roster(feature_dir, wp_id)
     if not roster:
         return []
-    from specify_cli.coordination import resolve_status_surface
+    if effective_root is not None:
+        status_dir = placement_seam(
+            main_repo_root, mission_slug, effective_root=effective_root
+        ).read_dir(MissionArtifactKind.STATUS_STATE)
+    else:
+        from specify_cli.coordination import resolve_status_surface
 
-    status_dir = resolve_status_surface(main_repo_root, mission_slug).parent
+        status_dir = resolve_status_surface(main_repo_root, mission_slug).parent
     return unchecked_subtask_ids_from_snapshot(status_dir, wp_id, roster)
 
 
@@ -497,6 +511,11 @@ def _validate_ready_for_review(
     wp_id: str,
     force: bool,
     target_lane: str = "for_review",
+    *,
+    effective_root: Path | None = None,
+    workspace_override: object | None = None,
+    review_base_ref: str | None = None,
+    check_kitty_specs: bool = True,
 ) -> tuple[bool, list[str]]:
     """Validate that WP is ready for review by checking for uncommitted changes.
 
@@ -518,6 +537,10 @@ def _validate_ready_for_review(
         wp_id,
         force,
         target_lane=target_lane,
+        effective_root=effective_root,
+        workspace_override=workspace_override,
+        review_base_ref=review_base_ref,
+        check_kitty_specs=check_kitty_specs,
         get_main_repo_root=_tasks.get_main_repo_root,
         get_mission_type=_tasks.get_mission_type,
         get_feature_target_branch=_tasks.get_feature_target_branch,

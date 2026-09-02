@@ -22,13 +22,15 @@ from __future__ import annotations
 import json
 import subprocess
 from pathlib import Path
+from typing import Annotated
 
 import typer
 from specify_cli.cli.console import console
 
-from mission_runtime import MissionArtifactKind
+from mission_runtime import ActionContextError, MissionArtifactKind
 from specify_cli.coordination.commit_router import CommitRouterResult, commit_for_mission
 from specify_cli.core.constants import KITTY_SPECS_DIR
+from specify_cli.core.owned_mission import OwnedMission, require_unstaged_index, resolve_owned_mission
 from specify_cli.git.protection_policy import ProtectionPolicy
 from specify_cli.task_utils import find_repo_root
 
@@ -98,6 +100,21 @@ def _payload(
 # ---------------------------------------------------------------------------
 
 
+def _resolve_commit_inputs(
+    repo_root: Path, files: list[Path], mission: str | None,
+    owned_checkout: Path | None, target_branch: str | None,
+) -> tuple[str | None, list[Path], OwnedMission | None]:
+    """Resolve and validate the complete commit batch before any mutation."""
+    mission_slug = _derive_mission_slug(str(files[0]) if files else None, mission)
+    if owned_checkout is not None:
+        owned = resolve_owned_mission(repo_root, owned_checkout, mission_slug, target_override=target_branch)
+        abs_files = owned.files(files)
+        require_unstaged_index(owned)
+        return owned.slug, abs_files, owned
+    abs_files = [(repo_root / path).resolve() if not path.is_absolute() else path.resolve() for path in files]
+    return mission_slug, abs_files, None
+
+
 def spec_commit_command(
     files: list[Path] = typer.Argument(
         ...,
@@ -125,6 +142,7 @@ def spec_commit_command(
         ),
     ),
     json_output: bool = typer.Option(False, "--json", help="Output JSON."),
+    owned_checkout: Annotated[Path | None, typer.Option("--owned-checkout", help="Explicit single-branch checkout root.")] = None,
 ) -> None:
     """Commit spec artifacts to the mission's resolved placement.
 
@@ -140,11 +158,7 @@ def spec_commit_command(
     """
     try:
         repo_root = _current_repo_root()
-
-        # Normalise file paths.
-        abs_files: list[Path] = []
-        for f in files:
-            abs_files.append((repo_root / f).resolve() if not f.is_absolute() else f.resolve())
+        mission_slug, abs_files, owned = _resolve_commit_inputs(repo_root, files, mission, owned_checkout, target_branch)
 
         # #2739 B11: reject directory arguments early with a clear, files-only
         # message. git stages a directory's files, but the safe-commit backstop
@@ -161,10 +175,6 @@ def spec_commit_command(
                 f"{listed}. Pass the specific files to commit instead.",
             )
             raise typer.Exit(1)
-
-        # Derive mission slug.
-        first_path_arg = str(files[0]) if files else None
-        mission_slug = _derive_mission_slug(first_path_arg, mission)
         if not mission_slug:
             _err(
                 json_output,
@@ -188,6 +198,7 @@ def spec_commit_command(
             # topology — no planning→coord transit.
             kind=MissionArtifactKind.SPEC,
             target_branch=target_branch,
+            effective_root=owned.root if owned else None,
         )
 
         if result.status == "committed":
@@ -252,6 +263,13 @@ def spec_commit_command(
 
     except typer.Exit:
         raise
+    except ActionContextError as exc:
+        payload = {**_payload(success=False, error=str(exc)), "error_code": exc.code}
+        if json_output:
+            print(json.dumps(payload))
+        else:
+            console.print(f"[red]{exc.code}:[/red] {exc}")
+        raise typer.Exit(1) from exc
     except (RuntimeError, ValueError, subprocess.CalledProcessError) as exc:
         payload = _payload(success=False, error=str(exc))
         if json_output:

@@ -91,6 +91,7 @@ def test_move_task_args_field_set_matches_pre_extraction_signature() -> None:
         "model",
         "profile",
         "invocation_id",
+        "owned_checkout",
     }
     assert set(_MoveTaskArgs.__dataclass_fields__) == expected
 

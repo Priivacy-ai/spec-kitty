@@ -171,6 +171,7 @@ def commit_for_mission(
     kind: MissionArtifactKind,
     primary_paths_created_this_invocation: frozenset[Path] | None = None,
     target_branch: str | None = None,
+    effective_root: Path | None = None,
 ) -> CommitRouterResult:
     """Commit a mission artifact to its kind-aware resolved placement.
 
@@ -215,7 +216,7 @@ def commit_for_mission(
     single-partition batch (the common case) still resolves placement exactly
     once and issues exactly one commit (INV: no fast-path regression).
     """
-    groups = _group_files_by_partition(repo_root, files, mission_slug, kind=kind)
+    groups = [(kind, files)] if effective_root is not None else _group_files_by_partition(repo_root, files, mission_slug, kind=kind)
 
     if len(groups) <= 1:
         effective_kind, effective_files = groups[0] if groups else (kind, files)
@@ -228,6 +229,7 @@ def commit_for_mission(
             kind=effective_kind,
             primary_paths_created_this_invocation=primary_paths_created_this_invocation,
             target_branch=target_branch,
+            **({"effective_root": effective_root} if effective_root is not None else {}),
         )
 
     # Split-and-commit (contract (a), pinned by T004): a mixed-partition batch
@@ -260,6 +262,7 @@ def _commit_partition_group(
     kind: MissionArtifactKind,
     primary_paths_created_this_invocation: frozenset[Path] | None = None,
     target_branch: str | None = None,
+    effective_root: Path | None = None,
 ) -> CommitRouterResult:
     """Commit ONE single-partition file group to its resolved placement.
 
@@ -269,7 +272,10 @@ def _commit_partition_group(
     ``kind`` — :func:`_group_files_by_partition` guarantees this; this helper
     does not re-validate it (single responsibility: resolve + commit one group).
     """
-    placement: CommitTarget = resolve_placement_only(repo_root, mission_slug, kind=kind)
+    if effective_root is None:
+        placement = resolve_placement_only(repo_root, mission_slug, kind=kind)
+    else:
+        placement = resolve_placement_only(repo_root, mission_slug, kind=kind, effective_root=effective_root)
 
     # FR-003 / C-005 / NFR-004: derive coord-vs-primary routing from the ONE
     # kind-aware ``placement`` (the single authority), not a second predicate.
@@ -281,9 +287,10 @@ def _commit_partition_group(
     # branch — i.e. only coordination kinds materialise the coord worktree (C-001).
     # A primary kind therefore NEVER routes to coordination even under coord
     # topology — this removes the planning→coord arm (write-surface-coherence WP02).
-    primary_target = _resolve_mission_target_branch(repo_root, mission_slug)
+    primary_target = placement.ref if effective_root is not None else _resolve_mission_target_branch(repo_root, mission_slug)
     use_coord = (
-        routes_through_coordination(resolve_topology(repo_root, mission_slug))
+        effective_root is None
+        and routes_through_coordination(resolve_topology(repo_root, mission_slug))
         and placement.ref != primary_target
     )
 
@@ -353,7 +360,7 @@ def _commit_partition_group(
         )
     else:
         # Flattened or unprotected primary: commit directly.
-        worktree_root, commit_paths = repo_root, files
+        worktree_root, commit_paths = effective_root or repo_root, files
 
     if not commit_paths:
         # #2739 B16 / #2694: distinguish a genuine no-op (artifact present +
@@ -404,6 +411,7 @@ def _commit_partition_group(
             target=placement,
             message=message,
             paths=commit_paths,
+            **({"effective_root": effective_root} if effective_root is not None else {}),
         )
     except subprocess.CalledProcessError as exc:
         stderr = getattr(exc, "stderr", "") or ""

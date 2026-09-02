@@ -249,7 +249,9 @@ def _evaluate_branch_gate(
     return True
 
 
-def _acceptance_gate_context(repo_root: Path, feature_dir: Path, *, branch: str | None = None) -> GateExecutionContext:
+def _acceptance_gate_context(
+    repo_root: Path, feature_dir: Path, *, branch: str | None = None, effective_root: Path | None = None,
+) -> GateExecutionContext:
     """Build the ACCEPT-phase :class:`GateExecutionContext` for the acceptance matrix.
 
     The ONE gate-context construction door for the acceptance-matrix gate (GEC-1 /
@@ -282,12 +284,14 @@ def _acceptance_gate_context(repo_root: Path, feature_dir: Path, *, branch: str 
     # monkeypatch of ``read_target_branch_from_meta`` stays visible — see the module
     # docstring's cross-module note.
     ref = branch or _acceptance_pkg._target_branch_for_feature(feature_dir) or "HEAD"
+    scope: dict[str, Any] = {"effective_root": effective_root} if effective_root is not None else {}
     return build_gate_execution_context(
         repo_root,
         feature_dir.name,
         MissionArtifactKind.ACCEPTANCE_MATRIX,
         phase=LifecyclePhase.ACCEPT,
         ref=ref,
+        **scope,
     )
 
 
@@ -383,7 +387,9 @@ def _acceptance_matrix_read_dir(repo_root: Path, feature_dir: Path) -> Path:
     return _acceptance_gate_context(repo_root, feature_dir).surface
 
 
-def _matrix_surface_cannot_hold(context: GateExecutionContext, repo_root: Path, feature_dir: Path) -> CannotEvaluate | None:
+def _matrix_surface_cannot_hold(
+    context: GateExecutionContext, repo_root: Path, feature_dir: Path, *, effective_root: Path | None = None,
+) -> CannotEvaluate | None:
     """GEC-5 / C2: refuse when the coord-homed matrix is judged on a PRIMARY stamp.
 
     A stamp is not permission: when the acceptance matrix's declared home is
@@ -408,7 +414,11 @@ def _matrix_surface_cannot_hold(context: GateExecutionContext, repo_root: Path, 
 
     from mission_runtime import MissionArtifactKind
 
-    home = declared_home_surface(repo_root, feature_dir.name, MissionArtifactKind.ACCEPTANCE_MATRIX)
+    scope: dict[str, Any] = {"effective_root": effective_root} if effective_root is not None else {}
+    home = declared_home_surface(
+        repo_root, feature_dir.name, MissionArtifactKind.ACCEPTANCE_MATRIX,
+        **scope,
+    )
     return context.surface_cannot_hold(home)
 
 
@@ -434,6 +444,7 @@ def _evaluate_acceptance_matrix(
     *,
     mutate_matrix: bool,
     branch: str | None = None,
+    effective_root: Path | None = None,
 ) -> None:
     """Read/enforce/validate the acceptance matrix once the branch gate passed.
 
@@ -455,13 +466,14 @@ def _evaluate_acceptance_matrix(
         write_acceptance_matrix,
     )
 
-    context = _acceptance_gate_context(repo_root, feature_dir, branch=branch)
+    scope = {"effective_root": effective_root} if effective_root is not None else {}
+    context = _acceptance_gate_context(repo_root, feature_dir, branch=branch, **scope)
     ref_mismatch = _assert_ref_agreement(context)
     if ref_mismatch is not None:
         _record_ref_mismatch_cannot_evaluate(ref_mismatch, activity_issues, skipped_checks, blocked_checks)
         return
 
-    cannot = _matrix_surface_cannot_hold(context, repo_root, feature_dir)
+    cannot = _matrix_surface_cannot_hold(context, repo_root, feature_dir, **scope)
     if cannot is not None:
         _record_matrix_cannot_evaluate(cannot, activity_issues, skipped_checks, blocked_checks)
         return
@@ -576,6 +588,7 @@ def _check_lane_gates(
     blocked_checks: list[AcceptanceCheckDiagnostic],
     *,
     mutate_matrix: bool = True,
+    effective_root: Path | None = None,
 ) -> None:
     """Enforce lane-based acceptance gates and acceptance matrix."""
     lanes_manifest = _resolve_lanes_manifest_or_stop(feature_dir, activity_issues, skipped_checks, blocked_checks)
@@ -594,6 +607,7 @@ def _check_lane_gates(
         blocked_checks,
         mutate_matrix=mutate_matrix,
         branch=branch,
+        **({"effective_root": effective_root} if effective_root is not None else {}),
     )
 
 

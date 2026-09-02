@@ -330,10 +330,11 @@ FLOOR_MARGIN = 2
 # ``mission_type._commit_flattened_meta`` (commit-the-flatten leg) and
 # ``load_meta_or_empty`` in ``retrospective_terminus._primary_target_branch``
 # (the retrospective degrade-ref). On the EXP lineage the integrated census is
-# 154 after merge-retention adds two routed reads; floor 150 is the lowest
-# permitted value within the four-site margin (``150 <= 150 < 154``).
+# 154 after merge-retention adds two routed reads. Explicit-owned-checkout adds
+# one canonical metadata read, raising live to 155; floor 151 is the lowest
+# permitted value within the four-site margin (``151 <= 151 < 155``).
 ROUTED_LOAD_META_FLOOR_MARGIN = 4
-ROUTED_LOAD_META_FLOOR = 150
+ROUTED_LOAD_META_FLOOR = 152
 
 
 # --------------------------------------------------------------------------- #
