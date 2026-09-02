@@ -92,7 +92,9 @@
       "merge-mission",
       "specify",
       "plan",
-      "tasks"
+      "tasks",
+      "check-prerequisites",
+      "record-analysis"
     ],
     "forbidden_commands": [
       "feature-state",
@@ -130,7 +132,15 @@
       "MISSION_ALREADY_EXISTS",
       "MISSION_CREATE_FAILED",
       "PLAN_SETUP_FAILED",
-      "TASKS_FINALIZE_FAILED"
+      "TASKS_FINALIZE_FAILED",
+      "PLACEMENT_RESOLUTION_REQUIRED",
+      "CHECK_PREREQUISITES_FAILED",
+      "RECORD_ANALYSIS_EMPTY_BODY",
+      "RECORD_ANALYSIS_INPUT_FILE_NOT_FOUND",
+      "RECORD_ANALYSIS_MALFORMED_CARRIER",
+      "RECORD_ANALYSIS_WRITE_NOT_CONFIRMED",
+      "RECORD_ANALYSIS_VERDICT_UNRELIABLE",
+      "DIRTY_WORKTREE"
     ],
     "forbidden_error_codes": [
       "FEATURE_NOT_FOUND",

@@ -204,6 +204,16 @@ def _build_mission(repo: Path, slug: str) -> tuple[str, Path]:
     tasks_envelope = _envelope(tasks_result)
     assert tasks_envelope["success"] is True, tasks_envelope
 
+    # Every phase transition leaves the tree clean before the next one starts
+    # (matching a real orchestrator's own commit-between-phases workflow) --
+    # `tasks` leaves its own bookkeeping residue (e.g. `.kittify/sync-state.json`)
+    # uncommitted, which is unrelated to record-analysis's OWN dirty-tree guard
+    # (SK-114) and must not be mistaken for it.
+    status = _git(repo, "status", "--porcelain").stdout
+    if status.strip():
+        _git(repo, "add", "-A")
+        _git(repo, "commit", "-m", "post-tasks bookkeeping")
+
     return mission_slug, feature_dir
 
 
@@ -440,6 +450,10 @@ def test_record_analysis_sc005c_stale_matching_verdict_reports_failure(
         "# Stale pre-existing report\n"
     )
     (feature_dir / "analysis-report.md").write_text(stale_content, encoding="utf-8")
+    # Commit the pre-seeded stale artifact so the ONLY thing exercised here is
+    # the re-read/correlate logic -- not an incidental dirty-tree refusal.
+    _git(repo, "add", "-A")
+    _git(repo, "commit", "-m", "pre-seed stale analysis report")
 
     def _fails_before_writing(**_kwargs: Any) -> Any:
         raise RuntimeError("simulated early-exit failure before write_analysis_report")
