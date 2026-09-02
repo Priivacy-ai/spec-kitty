@@ -247,3 +247,37 @@ def test_tasks_invalid_policy_is_structured_not_bare() -> None:
     envelope = json.loads(result.output.strip().split("\n")[0])
     assert envelope["success"] is False
     assert envelope["error_code"] == "POLICY_VALIDATION_FAILED"
+
+
+# ---------------------------------------------------------------------------
+# WP04 (design-phase-orchestrator-api-01M1HE6M / T015): record-analysis
+# fail-closed policy gates. Pure in-process CliRunner invocations -- the
+# --policy check runs BEFORE any mission resolution (matching
+# specify/plan/tasks above), so no mission fixture / _get_main_repo_root
+# patch is needed. ``check-prerequisites`` is deliberately absent here: it is
+# a read-only verb and takes no --policy at all (spec Edge Cases).
+# ---------------------------------------------------------------------------
+
+
+def test_record_analysis_missing_policy_is_structured_not_bare() -> None:
+    result = runner.invoke(
+        app,
+        ["record-analysis", "--mission", "wp04-missing-policy"],
+        catch_exceptions=False,
+    )
+
+    envelope = json.loads(result.output.strip().split("\n")[0])
+    assert envelope["success"] is False
+    assert envelope["error_code"] == "POLICY_METADATA_REQUIRED"
+
+
+def test_record_analysis_invalid_policy_is_structured_not_bare() -> None:
+    result = runner.invoke(
+        app,
+        ["record-analysis", "--mission", "wp04-invalid-policy", "--policy", "{}"],
+        catch_exceptions=False,
+    )
+
+    envelope = json.loads(result.output.strip().split("\n")[0])
+    assert envelope["success"] is False
+    assert envelope["error_code"] == "POLICY_VALIDATION_FAILED"
