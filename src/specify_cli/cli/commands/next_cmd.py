@@ -355,6 +355,7 @@ def _pair_previous_lifecycle_record(
         read_lifecycle_records,
         write_paired_completion,
     )
+    from specify_cli.invocation.record import ProfileInvocationPhase
     from specify_cli.mission_metadata import resolve_mission_identity
 
     repo_root_path = Path(str(repo_root)) if not isinstance(repo_root, Path) else repo_root
@@ -413,7 +414,7 @@ def _pair_previous_lifecycle_record(
         return
 
     if result == "success":
-        phase: str = "completed"
+        phase: ProfileInvocationPhase = "completed"
         reason: str | None = None
     else:
         phase = "failed"
@@ -422,7 +423,7 @@ def _pair_previous_lifecycle_record(
     write_paired_completion(
         repo_root_path,
         started=started,
-        phase=phase,  # type: ignore[arg-type]
+        phase=phase,
         reason=reason,
     )
 
