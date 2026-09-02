@@ -89,13 +89,23 @@ def _render_empty_charter_warning(payload: InvocationPayload) -> None:
     )
 
 
-def _render_rich_payload(payload: InvocationPayload) -> None:
-    """Rich console output for profile/action/context."""
+def _render_payload_capsule(payload: InvocationPayload, *, show_invocation_id: bool) -> None:
+    """Shared rich-console capsule body: profile/action/context/warnings.
+
+    Factored out of ``_render_rich_payload`` (WP01-002 fix) so the real
+    (Op-opening) path and the ``--dry-run`` success path (``show_invocation_id
+    =False`` -- no Op was opened, nothing to report an id for) render
+    identical governance content without hand-duplicating it. Extraction is
+    behavior-preserving for the real path: ``_render_rich_payload`` below
+    calls this with ``show_invocation_id=True`` in the exact same order as
+    before.
+    """
     console.print(f"[bold green]Profile:[/bold green] {payload.profile_friendly_name} ({payload.profile_id})")
     console.print(f"[bold]Action:[/bold] {payload.action}")
     if payload.router_confidence:
         console.print(f"[dim]Router confidence:[/dim] {payload.router_confidence}")
-    console.print(f"[dim]Invocation ID:[/dim] {payload.invocation_id}")
+    if show_invocation_id:
+        console.print(f"[dim]Invocation ID:[/dim] {payload.invocation_id}")
     _render_empty_charter_warning(payload)
     observations = payload.glossary_observations
     if observations is not None and observations.high_severity:
@@ -123,6 +133,50 @@ def _render_rich_payload(payload: InvocationPayload) -> None:
         console.print(Panel(payload.governance_context_text, title="Governance Context", expand=False))
     else:
         console.print("[yellow]Governance context unavailable.[/yellow] Run 'spec-kitty charter synthesize'.")
+
+
+def _render_rich_payload(payload: InvocationPayload) -> None:
+    """Rich console output for profile/action/context (real dispatch, OPEN Op)."""
+    _render_payload_capsule(payload, show_invocation_id=True)
+
+
+def _render_dry_run_rich_payload(payload: InvocationPayload) -> None:
+    """Rich console output for the ``--dry-run`` success path (WP01-002 fix).
+
+    Mirrors ``_render_rich_payload`` minus ``invocation_id`` -- no Op was
+    opened, so there is nothing to report an id for
+    (contracts/cli-do-output.md's ``--dry-run`` success shape). Also prints
+    ``alternatives`` when non-empty (WP2/#3840, FR-005) so a human running
+    ``--dry-run`` without ``--json`` sees the same routing-confidence signal
+    a machine consumer gets from the JSON payload.
+    """
+    _render_payload_capsule(payload, show_invocation_id=False)
+    if payload.alternatives:
+        console.print(f"[dim]Alternatives considered ({len(payload.alternatives)}):[/dim]")
+        for alt in payload.alternatives:
+            console.print(f"  - {alt['profile_id']} ({alt['action']}, {alt['confidence']})")
+    console.print("[dim]Dry run — no Op opened, nothing written.[/dim]")
+
+
+def _render_dry_run_ambiguous_rich(payload: dict[str, object]) -> None:
+    """Rich console output for the ``ROUTER_AMBIGUOUS`` dry-run branch (WP01-002 fix).
+
+    This is the ``FR-009`` exit-0 "no winner" shape built by
+    ``build_ambiguous_dry_run_payload`` -- a plain dict, not an
+    ``InvocationPayload`` (no profile was resolved, so no governance
+    context/recommendation exists to report; see that function's own
+    docstring). Respects ``json_output`` the same way the plain-success
+    dry-run branch does, for the same reason: this is still an exit-0
+    "success-shaped" outcome (FR-009's deliberate UI-probing affordance),
+    not an error.
+    """
+    console.print("[yellow]Routing is ambiguous[/yellow] — no single winner (router_confidence: ambiguous).")
+    alternatives = payload.get("alternatives")
+    if isinstance(alternatives, list) and alternatives:
+        console.print(f"[dim]Candidates considered ({len(alternatives)}):[/dim]")
+        for alt in alternatives:
+            console.print(f"  - {alt['profile_id']} ({alt['action']}, {alt['confidence']}) — {alt['match_reason']}")
+    console.print("[dim]Dry run — no Op opened, nothing written. Use --profile <id> to disambiguate.[/dim]")
 
 
 def _format_recommendation(recommendation: RoutingRecommendation) -> str:
@@ -223,8 +277,15 @@ def _dispatch_impl(
             payload = executor.dry_run(request, profile_hint=profile_hint, actor=_detect_actor())
         except RouterAmbiguityError as e:
             if e.error_code == "ROUTER_AMBIGUOUS":
-                # FR-009: exit 0 with the ambiguous dry-run payload, alternatives populated.
-                typer.echo(json.dumps(build_ambiguous_dry_run_payload(request, e)))
+                # FR-009: exit 0 with the ambiguous dry-run payload, alternatives
+                # populated. WP01-002 fix: this is still an exit-0
+                # "success-shaped" outcome, so it respects json_output the
+                # same way the plain-success dry-run branch below does.
+                ambiguous_payload = build_ambiguous_dry_run_payload(request, e)
+                if json_output:
+                    typer.echo(json.dumps(ambiguous_payload))
+                else:
+                    _render_dry_run_ambiguous_rich(ambiguous_payload)
                 return
             # ROUTER_NO_MATCH: "no partial signal worth reporting" — same
             # exit-1 shape real dispatch already produces.
@@ -238,7 +299,10 @@ def _dispatch_impl(
             # handler below. Kept for defense-in-depth, not because it fires.
             profile_not_found_routing(e)
             return  # pragma: no cover — handler always raises typer.Exit
-        typer.echo(json.dumps(payload.to_dry_run_dict([])))
+        if json_output:
+            typer.echo(json.dumps(payload.to_dry_run_dict()))
+            return
+        _render_dry_run_rich_payload(payload)
         return
 
     try:
