@@ -245,14 +245,27 @@ def _mission_routes_through_coordination(repo_root: Path, feature: str, *, effec
     resolution edge case — NFR-003 / C-004), exactly as the canonical
     ``cli/commands/agent/mission.py`` routing site relies on.
     """
-    from mission_runtime import mission_context_for, resolve_topology, routes_through_coordination
-
-    topology = (
-        resolve_topology(repo_root, feature)
-        if effective_root is None
-        else mission_context_for(repo_root, feature, effective_root=effective_root).topology
+    from mission_runtime import (
+        MissionArtifactKind,
+        TopologySurface,
+        resolve_topology,
+        routes_through_coordination,
     )
-    return routes_through_coordination(topology)
+
+    if effective_root is None:
+        return routes_through_coordination(resolve_topology(repo_root, feature))
+
+    from specify_cli.acceptance.execution_context import declared_home_surface
+
+    return (
+        declared_home_surface(
+            repo_root,
+            feature,
+            MissionArtifactKind.ACCEPTANCE_MATRIX,
+            effective_root=effective_root,
+        )
+        is TopologySurface.COORD
+    )
 
 
 def _accept_dirty_gate(
