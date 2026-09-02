@@ -394,6 +394,18 @@ verbs to the 10 that exist today. Versioning discipline:
      (`test_commands_fail_closed.py`, `test_fail_message_preserved.py`,
      `test_transition_subtask_gate.py`, `test_typed_error_fail_closed.py`)
      re-run to confirm NFR-001 (zero change to the 10 existing verbs).
+     Directory placement alone does not select the five new files into
+     either job that collects this directory: `fast-tests-core-misc`'s
+     specify-cli-rest shard runs `-m "fast and not windows_ci and not
+     regression"` (`ci-quality.yml:1793`) and `integration-tests-core-misc`'s
+     mirrored shard runs `-m 'not windows_ci and (git_repo or integration or
+     architectural) and not timing and not regression'`, so each new file
+     must carry an explicit `pytestmark` matching the existing four files'
+     convention — `pytest.mark.fast` for pure in-process verb tests, or
+     `[pytest.mark.integration, pytest.mark.git_repo]` for any that do real
+     git-repo/fixture-mission I/O, mirroring `test_transition_subtask_gate.py`
+     (`pytestmark = [pytest.mark.integration, pytest.mark.git_repo]`) against
+     the other three's `pytestmark = [pytest.mark.fast]`.
    - `tests/specify_cli/cli/commands/test_next_answer_effective_root.py`,
      `test_next_fail_closed.py`, `test_next_owned_commit_guard.py`,
      `test_next_typed_error_passthrough.py` — the existing `next_cmd.py`
