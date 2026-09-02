@@ -1559,6 +1559,8 @@ def emit_inner_state_changed_transactional(
     # f"legacy-{slug}" worktree-lock identifier ONLY — never persisted to an event.
     _txn_mission_id = identity.mission_id or f"legacy-{mission_slug}"
     try:
+        from specify_cli.core.owned_mission import effective_root_kwargs
+
         with BookkeepingTransaction.acquire(
             repo_root=identity.primary_root or identity.repo_root,
             mission_id=_txn_mission_id,
@@ -1567,7 +1569,9 @@ def emit_inner_state_changed_transactional(
             destination_ref=identity.destination_ref,
             operation=operation or f"inner-state annotation {wp_id}",
             capability=capability,
-            **({"effective_root": identity.repo_root} if effective_root is not None else {}),
+            **effective_root_kwargs(
+                identity.repo_root if effective_root is not None else None
+            ),
         ) as txn:
             txn.append_events([annotation])
             txn.defer_outbound(

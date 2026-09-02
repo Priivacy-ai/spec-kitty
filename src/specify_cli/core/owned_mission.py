@@ -5,6 +5,7 @@ from __future__ import annotations
 import subprocess
 from dataclasses import dataclass
 from pathlib import Path
+from typing import TypedDict
 
 from mission_runtime import ActionContextError
 from specify_cli.context.mission_resolver import AmbiguousHandleError, MissionNotFoundError, resolve_mission
@@ -32,6 +33,15 @@ class OwnedMission:
                 raise ActionContextError("OWNED_MISSION_PATH_REFUSED", f"Path is outside the selected mission: {path}")
             resolved.append(candidate)
         return resolved
+
+
+class _EffectiveRootKwargs(TypedDict, total=False):
+    effective_root: Path
+
+
+def effective_root_kwargs(root: Path | None) -> _EffectiveRootKwargs:
+    """Preserve omitted-keyword call shapes while keeping ``**kwargs`` typed."""
+    return {"effective_root": root} if root is not None else {}
 
 
 def resolve_owned_mission(

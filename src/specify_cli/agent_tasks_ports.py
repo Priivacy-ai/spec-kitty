@@ -45,6 +45,7 @@ from rich.console import Console
 
 from mission_runtime import MissionArtifactKind, placement_seam
 from specify_cli.core.commit_guard import GuardCapability
+from specify_cli.core.owned_mission import effective_root_kwargs
 from specify_cli.core.paths import locate_project_root
 from specify_cli.coordination.commit_router import (
     CommitRouterResult,
@@ -374,7 +375,7 @@ class RealCoordCommitRouter:
                 policy,
                 kind=kind,
                 target_branch=self._target_branch,
-                **({"effective_root": mission.effective_root} if mission.effective_root is not None else {}),
+                **effective_root_kwargs(mission.effective_root),
             )
         else:
             result = self._commit_fn(
@@ -384,7 +385,7 @@ class RealCoordCommitRouter:
                 message,
                 policy,
                 kind=kind,
-                **({"effective_root": mission.effective_root} if mission.effective_root is not None else {}),
+                **effective_root_kwargs(mission.effective_root),
             )
         return CommitArtifactResult(
             status=result.status,
