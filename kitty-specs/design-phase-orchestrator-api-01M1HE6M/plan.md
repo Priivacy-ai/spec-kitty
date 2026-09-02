@@ -216,8 +216,8 @@ Why this location and not the alternatives:
   real, on-point
   precedent for a CLI-layer module calling into `runtime.next`. As of this
   plan, `orchestrator_api/commands.py` has **zero** such imports (confirmed:
-  `commands.py:32-66`'s import block contains no `runtime.next` or
-  `runtime` reference) — WP08 introduces the first one, following
+  `commands.py:32-66`'s import block contains no `runtime.next` (or bare
+  `src/runtime/`) reference) — WP08 introduces the first one, following
   `next_cmd.py`'s established pattern rather than inventing a new one.
   Together, these two precedents cover both edges the seam's placement
   needs: `runtime.next` modules already import `specify_cli.*` freely (the
@@ -409,7 +409,25 @@ verbs to the 10 that exist today. Versioning discipline:
      modules — `tests/specify_cli/next/test_runtime_bridge.py` and
      `test_runtime_bridge_dispatch.py` already test `runtime_bridge.py`
      from this same directory — and it exercises both the CLI caller and,
-     once WP08 lands, the orchestrator-api caller.
+     once WP08 lands, the orchestrator-api caller. Directory placement
+     alone does not select a test into either coverage-emitting job (see
+     item 4 below): both `fast-tests-next` and `integration-tests-next`
+     additionally filter collection by pytest marker, and the sibling
+     precedent files carry an explicit `pytestmark` rather than relying on
+     location (`test_runtime_bridge.py:19` — `pytestmark =
+     pytest.mark.fast`; `test_runtime_bridge_dispatch.py:29` — `pytestmark
+     = [pytest.mark.unit, pytest.mark.fast]`). WP02's shared test module
+     does real file I/O (mission-events.jsonl, the issuance-lifecycle-record
+     store) driven through `next_cmd --answer` against real fixture
+     missions — this does not qualify as `fast` under this repo's own
+     definition (`pytest.ini:25`, "no subprocess/git overhead"), so it must
+     instead carry `pytestmark = pytest.mark.integration` (add
+     `pytest.mark.git_repo` too if the fixture-mission setup ends up doing
+     a real `git init`, matching the `test_runtime_bridge_composition.py` /
+     `test_next_output_preservation.py` precedent for other fixture-mission,
+     real-file-I/O tests in this same directory) so
+     `integration-tests-next`'s `-m '... and (git_repo or integration)'`
+     filter selects it.
    - `tests/architectural/` — targeted run of `test_shared_package_boundary.py`
      (verified: it enforces *negative import* boundaries for retired
      packages via AST scan across `src/{specify_cli,runtime,charter,doctrine,
@@ -437,10 +455,21 @@ verbs to the 10 that exist today. Versioning discipline:
    the SC-008 shared regression test to `tests/specify_cli/next/` rather
    than `tests/specify_cli/cli/commands/` (which is scanned only by the
    `slow-tests` job's `--cov=specify_cli --cov=charter --cov=doctrine`,
-   `ci-quality.yml:3063-3066`, never `src/runtime/next`). WP02's task file
-   must land the shared test at the corrected location so the diff-coverage
-   gate has real coverage to evaluate the new module against, not just a
-   passing test in the wrong place.
+   `ci-quality.yml:3063-3066`, never `src/runtime/next`). Directory
+   placement is necessary but not sufficient: both coverage-emitting jobs
+   additionally filter collection by pytest marker — `fast-tests-next` runs
+   `-m "fast and not windows_ci"`; `integration-tests-next` runs `-m
+   '${{ matrix.shard }} and not windows_ci and (git_repo or integration)'`
+   (`ci-quality.yml:2794`), where the shard half of that expression is
+   auto-applied by `tests/conftest.py::_apply_shard_markers` but
+   `git_repo`/`integration` is not. WP02's task file must therefore also
+   mark the new module `pytestmark = pytest.mark.integration` (add
+   `pytest.mark.git_repo` too if it needs a real git repo fixture) — the
+   real-file-I/O shape of this test (event log + lifecycle-record store
+   reads/writes) does not qualify as `fast` per `pytest.ini:25`'s
+   definition, so an unmarked or `fast`-marked module would land in the
+   right directory but stay invisible to both coverage-emitting jobs and
+   the diff-coverage gate would then see zero coverage for the new lines.
 5. **Kernel coverage ≥90%** — does **NOT** apply. Verified against
    `.github/workflows/module-kernel.yml` (`--cov=src/kernel`, floor 90.0)
    and `ci-quality.yml`'s `kernel-tests` job (`ci-quality.yml:1085-1090`):
@@ -765,13 +794,13 @@ operator to weigh, not a decision I am making unilaterally):
 | WP | Covers | Depends on | Can run in parallel with |
 |----|--------|------------|---------------------------|
 | WP01 | Campsite-clean (g) + baseline-red snapshot (f) | — | — (must land first; tiny) |
-| WP02 | FR-014 — extract `next_invocation_lifecycle.py` seam; `next_cmd.py` call sites become thin callers; shared regression test (SC-008), landed at `tests/specify_cli/next/test_next_invocation_lifecycle_seam.py` so `diff-coverage`'s enforced `src/runtime/next/*` gate (Gate Set item 4) has real coverage to evaluate | WP01 | WP03, WP04, WP05, WP06 (all independent of the seam) |
+| WP02 | FR-014 — extract `next_invocation_lifecycle.py` seam; `next_cmd.py` call sites become thin callers; shared regression test (SC-008), landed at `tests/specify_cli/next/test_next_invocation_lifecycle_seam.py` with `pytestmark = pytest.mark.integration` (add `pytest.mark.git_repo` if the fixture-mission setup does a real `git init`) so `diff-coverage`'s enforced `src/runtime/next/*` gate (Gate Set item 4) has real coverage to evaluate | WP01 | WP03, WP04, WP05, WP06 (all independent of the seam) |
 | WP03 | FR-001/FR-002/FR-003 — `specify`/`plan`/`tasks` verbs (thin shims over `agent_feature.create_mission`/`setup_plan`/`finalize_tasks`) | WP01 | WP02, WP04, WP05, WP06 |
 | WP04 | FR-004/FR-005 — `check-prerequisites`/`record-analysis`, including the NFR-004 artifact-verification mechanism (j) | WP01 | WP02, WP03, WP05, WP06 |
 | WP05 | FR-006–FR-009/FR-012 — `open-decision`/`resolve-decision`/`defer-decision`/`cancel-decision` + `OriginFlow` guard (Mechanism A) | WP01 | WP02, WP03, WP04, WP06 |
 | WP06 | FR-010 — `design-status` (narrow read-only reduction, per Clarification 6 — does NOT delegate to `resolve_next_workflow_action` or `decide_next`) | WP01 | WP02, WP03, WP04, WP05 |
 | WP07 | FR-011 — `CONTRACT_VERSION` bump to 1.4.0 + changelog comment | WP03, WP04, WP05, WP06, WP08 (must name every verb landed so far) | — (naturally lands after the verb WPs; see note below) |
-| WP08 | FR-013 — `answer-decision` (Mechanism B), full event/lifecycle parity (SC-007); extends WP02's shared `tests/specify_cli/next/test_next_invocation_lifecycle_seam.py` (not a new/rewritten test file) with the orchestrator-api path | **WP02 (hard dependency — cannot start until the seam exists)** | WP03, WP04, WP05, WP06 (independent of those) |
+| WP08 | FR-013 — `answer-decision` (Mechanism B), full event/lifecycle parity (SC-007); extends WP02's shared `tests/specify_cli/next/test_next_invocation_lifecycle_seam.py` (not a new/rewritten test file, and keeps WP02's `pytestmark`) with the orchestrator-api path | **WP02 (hard dependency — cannot start until the seam exists)** | WP03, WP04, WP05, WP06 (independent of those) |
 | WP09 | SC-006 — `docs/api/orchestrator-api.md`, `host-boundary-rules.md` Boundary Decision Matrix, `CHANGELOG.md` | WP03, WP04, WP05, WP06, WP07, WP08 (documents the landed behavior, not the planned behavior) | — (naturally lands last) |
 
 **Sequencing summary**: WP01 first (tiny, unblocks everything). WP02
@@ -828,9 +857,15 @@ tests/
 │                                                 # regression test; placed here (matching the
 │                                                 # existing test_runtime_bridge.py /
 │                                                 # test_runtime_bridge_dispatch.py precedent for
-│                                                 # other src/runtime/next/ modules) so fast-tests-next
-│                                                 # / integration-tests-next collect it and it counts
-│                                                 # toward the enforced diff-coverage src/runtime/next/*
+│                                                 # other src/runtime/next/ modules) AND marked
+│                                                 # `pytestmark = pytest.mark.integration` (add
+│                                                 # `pytest.mark.git_repo` if it needs a real git
+│                                                 # repo fixture) — directory alone does not select
+│                                                 # it into fast-tests-next / integration-tests-next;
+│                                                 # both jobs also filter by marker, and this test's
+│                                                 # real file I/O is not `fast`-eligible. Correct
+│                                                 # placement + marker together make it count toward
+│                                                 # the enforced diff-coverage src/runtime/next/*
 │                                                 # gate (Gate Set item 4)
 └── specify_cli/cli/commands/
     └── test_next_*.py                 # existing — re-run for behaviour preservation (C-005)
@@ -885,9 +920,11 @@ WP03,WP04,WP05,WP06,WP07,WP08 all complete ──> WP09 (docs)
   functional dependency — `answer-decision` imports
   `next_invocation_lifecycle.py`, which does not exist until WP02 lands).
 - **Integration tests**: the SC-008 shared regression test
-  (`tests/specify_cli/next/test_next_invocation_lifecycle_seam.py` — see
-  Gate Set item 4 and § Project Structure for why this location, not
-  `tests/specify_cli/cli/commands/`) is written RED against the CLI
+  (`tests/specify_cli/next/test_next_invocation_lifecycle_seam.py`, marked
+  `pytestmark = pytest.mark.integration` — see Gate Set item 4 and
+  § Project Structure for why this location and marker, not
+  `tests/specify_cli/cli/commands/` or an unmarked/`fast`-marked module) is
+  written RED against the CLI
   path in WP02 (proving the seam is behaviour-preserving for `next_cmd.py`),
   then EXTENDED (not rewritten) by WP08 to add the orchestrator-api
   `answer-decision` path — both paths exercised by the same shared
