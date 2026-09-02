@@ -325,7 +325,7 @@ FLOOR_MARGIN = 2
 # ``pytest tests/architectural/test_inline_meta_read_gate.py::test_routed_load_meta_floor``
 # on the integrated PR tip.
 ROUTED_LOAD_META_FLOOR_MARGIN = 4
-ROUTED_LOAD_META_FLOOR = 147
+ROUTED_LOAD_META_FLOOR = 150
 
 
 # --------------------------------------------------------------------------- #
