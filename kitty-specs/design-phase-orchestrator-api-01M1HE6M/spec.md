@@ -57,10 +57,17 @@ filesystem, not just the envelope.
    for the requested slug, **When** the external host calls the `specify`
    orchestrator-api verb with `--mission-type`, `--topology` (optional) and
    `--policy`, **Then** the command returns `success: true` with `data`
-   containing the mission slug, mission directory path, and `spec.md` path,
-   and `kitty-specs/<slug>/spec.md` exists on disk with the placeholder
-   template content (matching what `agent_feature.create_mission(...,
-   json_output=True)` already produces for the host CLI's `--json` path).
+   containing the mission slug, mission directory path, `spec.md` path, and
+   the four scaffold-state fields `scaffold_only`, `spec_state`,
+   `next_action`, `next_step` — matching the ENRICHED shape
+   `_create_mission_for_specify_json` produces
+   (`src/specify_cli/cli/commands/lifecycle.py:66-92`, itself wrapping
+   `_with_specify_scaffold_state`, `lifecycle.py:51-58`), which is the actual
+   host-CLI `--json` contract for `specify` — NOT the raw
+   `agent_feature.create_mission(..., json_output=True)` payload alone (see
+   Clarification 1: `plan`/`tasks` really are unenriched pass-throughs of
+   their `agent_feature.*` calls, but `specify` is not). `kitty-specs/<slug>/
+   spec.md` exists on disk with the placeholder template content.
 2. **Given** a mission already scaffolded via `specify`, **When** the host
    calls the `plan` orchestrator-api verb with `--mission` and `--policy`,
    **Then** the command returns `success: true` with `data.plan_path`
@@ -84,11 +91,15 @@ filesystem, not just the envelope.
 
 An external host wants to drive the `analyze` design phase the same way it
 drives everything else — but `analyze`'s cross-artifact reasoning is an LLM
-prompt template (`.kittify/overrides/missions/software-dev/command-templates/
-analyze.md`), not a deterministic engine spec-kitty can run server-side. The
-host needs (a) a query verb that hands back the same prerequisite/context data
-the host CLI's `check-prerequisites --json --include-tasks` surfaces today, so
-its own calling agent can perform the analysis, and (b) a record verb that
+prompt template (canonical source:
+`packs/built-in/missions/mission-steps/software-dev/analyze/prompt.md`; NOT
+the project-local `.kittify/overrides/missions/software-dev/
+command-templates/analyze.md` copy, which has independently drifted from the
+canonical source — see Clarification #2), not a deterministic engine
+spec-kitty can run server-side. The host needs (a) a query verb that hands
+back the same prerequisite/context data the host CLI's `agent mission
+check-prerequisites --json --include-tasks --mission <slug>` surfaces today,
+so its own calling agent can perform the analysis, and (b) a record verb that
 persists that agent's finished analysis report exactly as `record_analysis`
 does today — with a result the host can actually trust, unlike the raw
 subprocess exit code.
@@ -99,10 +110,11 @@ signal contract right is the highest-risk part of this mission and blocks
 Kitty Desktop's design-phase pipeline from being end-to-end orchestrator-api-
 only.
 
-**Independent Test**: Can be fully tested by calling the `analyze-context`
-verb against a mission mid-tasks-phase and asserting its envelope carries the
-same prerequisite/task data as `check-prerequisites --json --include-tasks`;
-then calling `analyze-record` with a fabricated analysis report body and
+**Independent Test**: Can be fully tested by calling the new
+`check-prerequisites` orchestrator-api verb against a mission mid-tasks-phase
+and asserting its envelope carries the same prerequisite/task data as the
+host CLI's `agent mission check-prerequisites --json --include-tasks
+--mission <slug>`; then calling `record-analysis` with a fabricated analysis report body and
 asserting `analysis-report.md` is written with the submitted verdict,
 independent of whatever the underlying event-emitting write path's own exit
 behaviour does.
@@ -110,32 +122,67 @@ behaviour does.
 **Acceptance Scenarios**:
 
 1. **Given** a mission with a finalized `tasks/` manifest, **When** the host
-   calls the `analyze-context` orchestrator-api verb with `--mission`,
+   calls the `check-prerequisites` orchestrator-api verb with `--mission`,
    **Then** it returns `success: true` with `data` containing the same
-   prerequisite and task-listing fields the host CLI's `agent mission-run
-   check-prerequisites --json --include-tasks` already returns for that
-   mission — this verb performs no analysis reasoning itself, only assembles
-   the context an external agent needs to perform it.
+   prerequisite and task-listing fields the host CLI's `agent mission
+   check-prerequisites --json --include-tasks --mission <slug>` (canonical
+   source: `packs/built-in/missions/mission-steps/software-dev/analyze/
+   prompt.md`, NOT the drifted `.kittify/overrides/...` project copy — see
+   Clarification #2) already returns for that mission — this verb performs
+   no analysis reasoning itself, only assembles the context an external
+   agent needs to perform it.
 2. **Given** the calling agent has produced an analysis report body,
-   **When** the host calls the `analyze-record` orchestrator-api verb with
+   **When** the host calls the `record-analysis` orchestrator-api verb with
    `--mission`, `--input-file` (or an inline body), `--agent`, and
    `--policy`, **Then** on success the envelope's `success: true` is derived
    from re-reading `kitty-specs/<slug>/analysis-report.md` off disk and
-   confirming its `verdict` field matches what was submitted — NOT from
-   trusting the underlying `record_analysis` subprocess/call's raw
-   return value or exit code (see NFR-004 / SK-93 below).
-3. **Given** the underlying write path exits non-zero or times out (the
-   SK-93 pattern: `record_analysis` observed exiting 124 while
-   `analysis-report.md` had, in fact, already been written correctly with
-   `verdict: ready`), **When** `analyze-record` re-reads the artifact and
-   finds it correctly written with the submitted verdict, **Then** the verb
-   reports `success: true` — the artifact on disk is the source of truth, not
-   the subprocess outcome.
-4. **Given** the underlying write path exits non-zero AND the artifact was
-   NOT written (a genuine failure), **When** `analyze-record` re-reads and
-   finds no matching artifact, **Then** the verb reports `success: false`
-   with a structured `error_code` distinguishing "write did not happen" from
-   "write happened, signal was noise."
+   confirming BOTH (a) its `verdict` field matches what was submitted AND
+   (b) its `generated_at` frontmatter timestamp is later than this call's
+   own start time (freshness correlation — NFR-004) — NOT from trusting
+   whether the underlying `record_analysis` in-process call returned
+   normally, raised, or a raised exception was swallowed (see NFR-004 /
+   SK-93 below).
+3. **Given** the underlying write path raises an exception that is swallowed
+   before reaching this verb (the SK-93 pattern: `record_analysis` observed
+   exiting 124 under an operator-imposed `bash timeout 300` wrapper — not a
+   Python-level exit code — while `analysis-report.md` had, in fact, already
+   been written correctly with `verdict: ready`), **When** `record-analysis`
+   re-reads the artifact and finds it correctly written with the submitted
+   verdict AND a fresh `generated_at`, **Then** the verb reports
+   `success: true` — the artifact on disk is the source of truth, not
+   whether the underlying call raised, returned, or hung.
+4. **Given** the underlying write path fails AND the artifact was NOT
+   (re)written for this call (a genuine failure — e.g. one of
+   `mission_record_analysis.py`'s early-exit branches at lines 228-292:
+   dirty worktree, unresolved placement, empty body — returns/raises before
+   `write_analysis_report` is ever reached), **When** `record-analysis`
+   re-reads and finds no matching FRESH artifact, **Then** the verb reports
+   `success: false` with a structured `error_code` distinguishing "write did
+   not happen" from "write happened, signal was noise."
+5. **Given** a STALE `analysis-report.md` already exists on disk from a
+   PRIOR call, and its `verdict` happens to coincidentally match the CURRENT
+   submission's verdict (a real risk, not a contrived one — `ready` and
+   `blocked` are the only two live values), but THIS call's underlying write
+   genuinely failed before reaching `write_analysis_report` (one of the
+   early-exit branches above), **When** `record-analysis` re-reads the
+   artifact, **Then** its `generated_at` timestamp predates this call's
+   start time, and the verb reports `success: false` — verdict-string
+   equality alone is NEVER sufficient evidence of this call's success.
+6. **Given** `analysis-report.md` currently holds verdict `blocked` from a
+   prior call whose exit signal was ambiguous, **When** `record-analysis` is
+   called again with a DIFFERENT verdict `ready`, **Then** the call is
+   treated as a fresh, independently-verified write attempt — the re-read
+   check compares against `ready` (this call's submission) and this call's
+   own start-time freshness bound, not against the stale `blocked` value —
+   and reports `success`/`failure` based on whether `ready` actually landed.
+7. **Given** `record_analysis`'s dossier-sync trigger
+   (`trigger_feature_dossier_sync_if_enabled`, wrapped only in
+   `contextlib.suppress(Exception)`, which does not bound a hang) never
+   returns within `record-analysis`'s enforced time bound (NFR-004(b)),
+   **When** the host calls `record-analysis`, **Then** the call still
+   returns (never hangs the orchestrator-api process indefinitely), with
+   `success` determined by re-reading the artifact exactly as in Scenarios
+   2-3, not by whether the dossier-sync trigger ever completed.
 
 ---
 
@@ -166,16 +213,16 @@ produce.
 **Acceptance Scenarios**:
 
 1. **Given** a mission mid-`specify` phase, **When** the host calls the
-   `decision-open` orchestrator-api verb with `--mission`, `--origin
+   `open-decision` orchestrator-api verb with `--mission`, `--origin
    specify`, the question payload, and `--policy`, **Then** it returns
    `success: true` with `data.decision_id`, and the decision is persisted in
    the mission's decision ledger with `status: open`.
-2. **Given** an open decision id, **When** the host calls `decision-resolve`
+2. **Given** an open decision id, **When** the host calls `resolve-decision`
    with `--mission`, `--decision-id`, an answer payload, and `--policy`,
    **Then** it returns `success: true` with `data.status: resolved`, and the
    ledger entry's status is updated on disk.
-3. **Given** an open decision id, **When** the host calls `decision-defer` or
-   `decision-cancel`, **Then** the corresponding `defer_decision` /
+3. **Given** an open decision id, **When** the host calls `defer-decision` or
+   `cancel-decision`, **Then** the corresponding `defer_decision` /
    `cancel_decision` service function is invoked and the ledger reflects the
    new status, with the same structured-error behavior as the host-CLI
    `decision_app` subcommands for invalid transitions (e.g. resolving an
@@ -195,6 +242,8 @@ An external host wants a `list-ready`-equivalent query for the design
 pipeline: "what design phase is this mission in, what's the next actionable
 step, are there open decisions blocking it" — without triggering any state
 transition, mirroring `list-ready`'s read-only, event-log-reduction pattern.
+The verb is named **`design-status`** (matching `mission-state`'s existing
+noun-phrase query-verb style and mirroring `list-ready`'s naming pattern).
 
 **Why this priority**: Every WP-loop-driving host needs a status view before
 it acts; the design pipeline needs the same, and its absence would force a
@@ -202,7 +251,7 @@ host to infer phase state indirectly from artifact presence/absence, which is
 exactly the kind of undocumented inference `host-boundary-rules.md` warns
 against.
 
-**Independent Test**: Can be fully tested by calling the new status/query
+**Independent Test**: Can be fully tested by calling the new `design-status`
 verb against missions in different design-phase states (fresh, mid-plan,
 tasks finalized, analyze pending, open decision blocking) and asserting the
 returned `current_phase` / `next_action` / `open_decisions` fields match the
@@ -211,21 +260,103 @@ mission's actual on-disk state.
 **Acceptance Scenarios**:
 
 1. **Given** a mission with only `spec.md` scaffolded, **When** the host
-   calls the design-phase status/query verb with `--mission`, **Then** it
+   calls the `design-status` verb with `--mission`, **Then** it
    returns `success: true` with `data.current_phase: "specify"` (or
    equivalent) and `data.next_action` naming the `plan` verb.
 2. **Given** a mission with an open, unresolved decision moment, **When** the
-   host calls the status/query verb, **Then** `data.open_decisions` lists
+   host calls `design-status`, **Then** `data.open_decisions` lists
    that decision's id and origin flow, and `data.next_action` indicates
    resolution is required before the phase can advance.
 3. **Given** a mission whose `tasks/` is finalized and `analysis-report.md`
-   does not yet exist, **When** the host calls the status/query verb,
+   does not yet exist, **When** the host calls `design-status`,
    **Then** `data.current_phase` indicates `analyze` is the next actionable
-   phase and `data.next_action` names the `analyze-context` verb.
-4. This verb performs no state transition and no event emission — calling it
-   repeatedly against an unchanged mission returns byte-identical
+   phase and `data.next_action` names the `check-prerequisites` verb.
+4. `design-status` performs no state transition and no event emission —
+   calling it repeatedly against an unchanged mission returns byte-identical
    `current_phase`/`next_action` fields, exactly as repeated `list-ready`
    calls do today for WP state.
+
+---
+
+### User Story 5 - External host resolves a `spec-kitty next` control-loop decision (blocking-audit checkpoint or missing required input) at any DAG step (Priority: P1)
+
+An external host is driving a mission through the `spec-kitty next` control
+loop (e.g. an implementation or review step, or a design-phase step whose
+workflow defines an audit checkpoint) and the loop returns
+`kind: "decision_required"` — a blocking audit checkpoint
+(`decision_id: "audit:<step_id>"`) or a missing required input
+(`decision_id: "input:<key>"`) — for the CURRENT DAG step, at ANY mission
+phase, not only charter/specify/plan. It wants to answer that decision and
+advance the loop the same way `spec-kitty next --answer <value>
+--decision-id <id> --agent <name> --result <success|failed|blocked>` already
+does, via orchestrator-api instead of the host CLI.
+
+**Why this priority**: This is the literal ask of GitHub issue #3837 — "a
+decision-resolution verb covering the `DecisionKind` cases
+(`runtime/next/decision.py`)" — and, per Clarification 3, a DISTINCT
+mechanism from User Story 3's `OriginFlow`-scoped interview decisions.
+Without it, an external host hits a `decision_required` envelope from
+`spec-kitty next --json` (e.g. at a blocking audit checkpoint mid-DAG) with
+no orchestrator-api-compliant way to unblock it, forcing exactly the
+host-CLI crossing `host-boundary-rules.md` forbids. Folded into this
+mission's scope per the operator's standing instruction and C-004 (no
+follow-up issues; phase larger scope inside this one mission).
+
+**Independent Test**: Can be fully tested against a fixture mission whose
+workflow defines a blocking `AuditStep` (or a `PromptStep` with
+`requires_inputs`), driving it to a `decision_required` state via
+`spec-kitty next --json`, then calling the new `answer-decision`
+orchestrator-api verb and asserting (a) the run-snapshot's
+`pending_decisions` no longer contains the answered `decision_id`, and (b)
+the returned envelope's `data` matches what `spec-kitty next --answer ...
+--json` would have returned for the same call — verified against the
+run-snapshot store on disk, not just the envelope.
+
+**Acceptance Scenarios**:
+
+1. **Given** a mission run whose current DAG step is a blocking `AuditStep`
+   (`spec-kitty next --json` returns `kind: "decision_required"`,
+   `decision_id: "audit:<step_id>"`, `options: ["approve", "reject"]`),
+   **When** the host calls the `answer-decision` orchestrator-api verb with
+   `--mission`, `--agent`, `--result success`, `--answer approve`, and
+   `--policy` (`--decision-id` omitted — exactly one decision is pending,
+   auto-resolved exactly as `next_cmd.py:_handle_answer` auto-resolves it
+   when `len(pending) == 1`), **Then** it returns `success: true` with
+   `data.answered_decision_id` naming the audit decision, and the
+   run-snapshot's `pending_decisions` no longer contains that id.
+2. **Given** a mission run with more than one entry in
+   `pending_decisions`, **When** the host calls `answer-decision` without
+   `--decision-id`, **Then** the verb rejects with a structured
+   `error_code` (e.g. `AMBIGUOUS_PENDING_DECISION`) listing the pending ids
+   — mirroring `next_cmd.py`'s own "Multiple pending decisions... Use
+   --decision-id" rejection — rather than guessing which one to answer.
+3. **Given** a `PromptStep` with an unmet `requires_inputs` entry
+   (`spec-kitty next --json` returns `kind: "decision_required"`,
+   `decision_id: "input:<key>"`), **When** the host calls `answer-decision`
+   with `--mission`, `--agent`, `--result success`, `--decision-id
+   "input:<key>"`, `--answer <value>`, and `--policy`, **Then** it returns
+   `success: true`, and `data` carries the SAME shape `spec-kitty next
+   --answer ... --json` returns for the following step — including the
+   resulting `kind` (`step`/`decision_required`/`blocked`/`terminal`), so
+   the host can chain directly into its next action without a separate
+   query call.
+4. **Given** a `--decision-id` that does not match any entry in the current
+   run's `pending_decisions` (e.g. already answered, or naming a different
+   step), **When** the host calls `answer-decision`, **Then** it rejects
+   with a structured `error_code` (e.g. `DECISION_NOT_PENDING`) rather than
+   silently no-oping or answering the wrong decision.
+5. **Given** no decision is currently pending for the mission run (the DAG
+   is at a plain `step`/`blocked`/`terminal` state), **When** the host calls
+   `answer-decision`, **Then** it rejects with a structured `error_code`
+   (e.g. `NO_PENDING_DECISION`) — never a silent `success: true` no-op.
+6. This mechanism is independent of `OriginFlow`/FR-012's scope guard:
+   `answer-decision` operates on the run-snapshot's `pending_decisions`
+   (Mechanism B, Clarification 3), not the `decisions/index.json` ledger
+   (Mechanism A) — a mission whose current phase has no `OriginFlow` member
+   (`tasks`, `analyze`) can still have a pending `decision_required` moment
+   (e.g. a blocking audit checkpoint on a `tasks`- or `analyze`-phase DAG
+   step) and `answer-decision` resolves it normally; FR-012's
+   `INVALID_ORIGIN_FLOW` rejection does not apply to this verb.
 
 ---
 
@@ -236,28 +367,59 @@ mission's actual on-disk state.
   `_resolve_mission_dir_or_fail`'s existing pattern for the WP-loop verbs),
   never a bare traceback or a silent empty-success envelope.
 - What happens when `--policy` is omitted on a verb that mutates state
-  (`specify`, `plan`, `tasks`, `analyze-record`, `decision-open`,
-  `decision-resolve`, `decision-defer`, `decision-cancel`)? → rejected with
-  `POLICY_METADATA_REQUIRED`, exactly as `start-implementation` and
-  `start-review` already reject a missing `--policy` today. Read-only verbs
-  (`analyze-context`, the status/query verb) do not require `--policy`,
-  mirroring `list-ready`'s existing no-policy contract.
-- What happens when `analyze-record` is called twice with the same verdict
+  (`specify`, `plan`, `tasks`, `record-analysis`, `open-decision`,
+  `resolve-decision`, `defer-decision`, `cancel-decision`,
+  `answer-decision`)? → rejected with `POLICY_METADATA_REQUIRED`, exactly as
+  `start-implementation` and `start-review` already reject a missing
+  `--policy` today. Read-only verbs (`check-prerequisites`, `design-status`)
+  do not require `--policy`, mirroring `list-ready`'s existing no-policy
+  contract.
+- What happens when `record-analysis` is called twice with the SAME verdict
   (idempotent retry after an SK-93-style false-failure signal)? → the second
   call re-reads the artifact, finds it already correctly written, and returns
   `success: true` without attempting a duplicate write that could corrupt
   state — never a silent double-write and never a hard failure on "nothing
-  changed."
+  changed." See NFR-004's freshness requirement: this is distinguished from
+  the stale-artifact case below by correlating the re-read against THIS
+  call, not merely against the submitted verdict value.
+- What happens when `record-analysis` is called with a DIFFERENT verdict
+  than what `analysis-report.md` currently holds on disk (e.g. a first call
+  intended `blocked`, the exit signal was ambiguous, and the retry submits
+  `ready`)? → the call is treated as a fresh, independently-verified write
+  attempt — the re-read check compares against the NEW submission, not the
+  stale prior value on disk — and reports `success`/`failure` based on
+  whether the new value actually landed. It is never treated as a conflict
+  against the previously-recorded verdict.
+- What happens when `analysis-report.md` already exists on disk from a PRIOR
+  call whose verdict happens to coincidentally match the CURRENT submission,
+  but the current call's underlying write genuinely failed before reaching
+  `write_analysis_report` (e.g. the dirty-worktree preflight, an unresolved
+  placement, or an empty-body check short-circuited it)? → `record-analysis`
+  reports `success: false`. Comparing the submitted `verdict` string alone
+  is NOT sufficient (`ready`/`blocked` are the only two live values, so a
+  coincidental match on retry is a real risk, not a contrived one) — see
+  NFR-004's freshness/idempotency requirement.
+- What happens when the underlying write path `record-analysis` wraps
+  (`record_analysis`'s call into `write_analysis_report` followed by
+  `trigger_feature_dossier_sync_if_enabled`) HANGS indefinitely rather than
+  returning a bad exit code (the majority SK-93 failure shape — see NFR-004
+  and Clarification 5)? → `record-analysis`'s invocation of the underlying
+  write path is time-bounded at the orchestrator-api layer itself, so the
+  call still returns (with `success` determined by re-reading the artifact)
+  rather than hanging the orchestrator-api process forever.
 - What happens when a mission already mid-flight (e.g. already in `analyze`,
   already has open WPs in the implementation loop) exists at the moment this
   contract surface ships? → nothing about its existing state or transitions
   changes; the new verbs are purely additive callers of the same underlying
   service functions the host CLI already calls for that mission. See NFR-001.
-- What happens when `decision-resolve` is called with a `--decision-id` that
+- What happens when `resolve-decision` is called with a `--decision-id` that
   is already `resolved` or `cancelled` (terminal)? → rejected with the same
   structured error the host-CLI `decision_app resolve` subcommand already
   raises for an invalid terminal-state transition, not silently accepted as a
-  no-op success.
+  no-op success. (This is the `OriginFlow`-ledger mechanism, Clarification 3
+  Mechanism A — distinct from `answer-decision`'s run-snapshot mechanism,
+  Mechanism B, whose own not-pending/ambiguous/no-pending edge cases are
+  covered in User Story 5's Acceptance Scenarios 2, 4, and 5.)
 
 ## Requirements *(mandatory)*
 
@@ -268,15 +430,16 @@ mission's actual on-disk state.
 | FR-001 | `specify` orchestrator-api verb | As an external host, I want to scaffold a new mission via orchestrator-api so that I never shell the host CLI to create a mission. | High | Open |
 | FR-002 | `plan` orchestrator-api verb | As an external host, I want to scaffold `plan.md` via orchestrator-api so that plan creation stays inside the orchestrator-api contract. | High | Open |
 | FR-003 | `tasks` (finalize) orchestrator-api verb | As an external host, I want to finalize a mission's work-package manifest via orchestrator-api so that task finalization stays inside the contract. | High | Open |
-| FR-004 | `analyze-context` orchestrator-api verb (query) | As an external host, I want the same prerequisite/task context `check-prerequisites --json --include-tasks` returns, via orchestrator-api, so that my calling agent can perform cross-artifact analysis without a host-CLI call. | High | Open |
-| FR-005 | `analyze-record` orchestrator-api verb | As an external host, I want to persist my agent's finished analysis report via orchestrator-api, with a trustworthy success signal, so that I know the report actually landed regardless of the underlying subprocess's exit behavior. | High | Open |
-| FR-006 | `decision-open` orchestrator-api verb | As an external host, I want to open a charter/specify/plan decision moment via orchestrator-api so that decision tracking stays inside the contract. | Medium | Open |
-| FR-007 | `decision-resolve` orchestrator-api verb | As an external host, I want to resolve an open decision via orchestrator-api so that I can unblock a phase without the host CLI. | Medium | Open |
-| FR-008 | `decision-defer` orchestrator-api verb | As an external host, I want to defer a decision via orchestrator-api so that a decision can be revisited later without blocking the current phase. | Medium | Open |
-| FR-009 | `decision-cancel` orchestrator-api verb | As an external host, I want to cancel a decision via orchestrator-api so that a no-longer-relevant decision is removed from the active ledger. | Medium | Open |
-| FR-010 | Design-phase status/query verb | As an external host, I want a `list-ready`-equivalent read-only status view of the design pipeline so that I know the current phase, next action, and any blocking open decisions before I act. | High | Open |
+| FR-004 | `check-prerequisites` orchestrator-api verb (query) | As an external host, I want the same prerequisite/task context the host CLI's `agent mission check-prerequisites --json --include-tasks` returns, via orchestrator-api, so that my calling agent can perform cross-artifact analysis without a host-CLI call. | High | Open |
+| FR-005 | `record-analysis` orchestrator-api verb | As an external host, I want to persist my agent's finished analysis report via orchestrator-api, with a trustworthy success signal, so that I know the report actually landed regardless of the underlying subprocess's exit behavior. | High | Open |
+| FR-006 | `open-decision` orchestrator-api verb | As an external host, I want to open a charter/specify/plan decision moment via orchestrator-api so that decision tracking stays inside the contract. | Medium | Open |
+| FR-007 | `resolve-decision` orchestrator-api verb | As an external host, I want to resolve an open decision via orchestrator-api so that I can unblock a phase without the host CLI. | Medium | Open |
+| FR-008 | `defer-decision` orchestrator-api verb | As an external host, I want to defer a decision via orchestrator-api so that a decision can be revisited later without blocking the current phase. | Medium | Open |
+| FR-009 | `cancel-decision` orchestrator-api verb | As an external host, I want to cancel a decision via orchestrator-api so that a no-longer-relevant decision is removed from the active ledger. | Medium | Open |
+| FR-010 | `design-status` orchestrator-api verb | As an external host, I want a `list-ready`-equivalent read-only status view of the design pipeline so that I know the current phase, next action, and any blocking open decisions before I act. | High | Open |
 | FR-011 | `CONTRACT_VERSION` bump to 1.4.0 | As an external host, I want a versioned contract bump that documents the new verbs so that I can detect capability via `contract-version` the same way I detect existing verbs. | High | Open |
-| FR-012 | Decision-resolution origin-flow scope guard | As an external host, I want the decision-resolution verbs to reject an origin outside `{charter, specify, plan}` so that I never silently misfile a decision under a flow that has no `OriginFlow` member. | Medium | Open |
+| FR-012 | `OriginFlow`-decision origin-flow scope guard (Mechanism A only — see Clarification 3) | As an external host, I want `open-decision`/`resolve-decision`/`defer-decision`/`cancel-decision` to reject an origin outside `{charter, specify, plan}` so that I never silently misfile a decision under a flow that has no `OriginFlow` member. Does NOT apply to `answer-decision` (FR-013, Mechanism B), which has no `OriginFlow` concept. | Medium | Open |
+| FR-013 | `answer-decision` orchestrator-api verb (`DecisionKind.decision_required` resolution) | As an external host, I want to answer a `spec-kitty next` control-loop `decision_required` moment (a blocking audit checkpoint or a missing required input) at ANY DAG step, via orchestrator-api, so that I can unblock the mission run without shelling `spec-kitty next --answer`. | High | Open |
 
 ### Non-Functional Requirements
 
@@ -285,7 +448,7 @@ mission's actual on-disk state.
 | NFR-001 | Additive-only contract change | The 10 existing `orchestrator_api/commands.py` verbs (`contract-version`, `mission-state`, `list-ready`, `resolve-workspace`, `start-implementation`, `start-review`, `transition`, `append-history`, `accept-mission`, `merge-mission`) and `MIN_PROVIDER_VERSION` ("0.1.0") are unchanged in behavior, request shape, and response shape. A mission already mid-flight in any phase (including one already in `analyze` or with open WPs in the implementation loop) observes zero change to its existing state-transition contract — the new verbs are additive callers of the same underlying service functions the host CLI already calls. | Compatibility | High | Open |
 | NFR-002 | No silent success | No new verb may return `success: true` on a 0-count/no-op operation it did not actually perform, write `unknown` in place of a real field value, or swallow an underlying exception into a bare `None`/empty envelope. Every failure path returns a structured `error_code` with a human-readable `error` message, exactly matching the existing `_fail(cmd, error_code, message, ...)` pattern used throughout `commands.py`. | Reliability | High | Open |
 | NFR-003 | Pre-existing test baseline | `main` carries ~23 known-red tests already tracked as issue #3284. New test module(s) added under `tests/specify_cli/orchestrator_api/` for this mission's verbs must be green on introduction; #3284's pre-existing reds are not this mission's concern to fix and no new issue is opened for them. | Testability | Medium | Open |
-| NFR-004 | Artifact-verified success for event-emitting wraps | Any orchestrator-api verb that wraps an event-emitting host-CLI call (in this mission: `analyze-record` wrapping `record_analysis`) MUST determine `success` by re-reading the artifact/state the call was supposed to produce (the `analysis-report.md` file and/or `status.events.jsonl`) rather than trusting the underlying call's raw exit code or return value. This generalizes the SK-93 finding: `record-analysis` was observed exiting 124 (timeout, with a "project sync store is locked" warning) after `analysis-report.md` had, in fact, already been written correctly with `verdict: ready` — exit code is not evidence in either direction on this call chain, and this NFR is the standing principle any future event-emitting wrap in this mission or later ones must also follow. | Reliability | High | Open |
+| NFR-004 | Artifact-verified, time-bounded success for event-emitting wraps | `record-analysis` invokes `record_analysis`'s underlying write path **in-process** (every existing orchestrator-api verb does the same — zero non-git subprocess usage in `commands.py` — so there is no subprocess exit code to distrust; a bare in-process call either returns normally or raises). `record-analysis` MUST (a) determine `success` by re-reading the artifact/state the call was supposed to produce (`analysis-report.md`, correlated with THIS call per the freshness requirement below — not merely a `verdict`-string match) rather than trusting whether the underlying call returned normally, raised, or a raised exception was swallowed; and (b) TIME-BOUND its invocation of the underlying write path at the orchestrator-api layer itself (an explicit, enforced timeout around the call, or excluding/short-circuiting `trigger_feature_dossier_sync_if_enabled` from the in-process wrap and calling `write_analysis_report`/`commit_for_mission` directly) so that an unbounded hang in the dossier-sync trigger (wrapped only in `contextlib.suppress(Exception)`, `mission_record_analysis.py:384-388`, which catches a raised exception but does NOT bound a hang) cannot block the orchestrator-api call forever. **Freshness/idempotency**: the re-read MUST correlate the artifact with THIS call specifically — e.g. record a call-start timestamp before invoking the write path and require the re-read `analysis-report.md`'s `generated_at` frontmatter field (`src/specify_cli/analysis_report.py:505-524`) to be later than it, and/or compare a hash of the submitted report body/findings against what was persisted — not merely that the terminal `verdict` string (`ready`/`blocked` are the only two live values) happens to match; a STALE `analysis-report.md` left by a prior call whose verdict coincidentally matches the current submission, while THIS call's write genuinely failed before reaching `write_analysis_report` (there are multiple early-exit failure branches — dirty worktree, unresolved placement, empty body — before the write, `mission_record_analysis.py:228-292`), MUST report `success: false`. This generalizes the SK-93 finding: `record-analysis` was observed exiting 124 (timeout, with a "project sync store is locked" warning — that exit code was an OPERATOR-imposed `bash timeout 300` wrapper around the CLI invocation, not anything the in-process Python call itself produces, per `SPEC-KITTY-LEDGER.md`'s SK-93 entry) after `analysis-report.md` had, in fact, already been written correctly with `verdict: ready`. Exit code/return value is not evidence in either direction on this call chain, and a silent hang is the majority documented SK-93 failure shape (3 of 4 first-hand occurrences), not a clean bad-exit-code return — this NFR is the standing principle any future event-emitting wrap in this mission or later ones must also follow. | Reliability | High | Open |
 | NFR-005 | Envelope/policy-provenance parity | Every new mutating verb accepts and validates `--policy` using the existing `parse_and_validate_policy` / `policy_to_dict` path, and every new verb's response uses the existing `make_envelope(command=..., success=..., data=...)` shape, with `validate_outbound_payload` applied to `data` before emission — matching `start-implementation`/`start-review`/`transition` byte-for-byte in structure. | Consistency | High | Open |
 
 ### Constraints
@@ -293,59 +456,135 @@ mission's actual on-disk state.
 | ID | Title | Constraint | Category | Priority | Status |
 |----|-------|------------|----------|----------|--------|
 | C-001 | No `spec-kitty-events` / `spec-kitty-tracker` changes | This mission touches neither the `spec-kitty-events` nor `spec-kitty-tracker` external PyPI packages. Both are true external dependencies (declared in `pyproject.toml`, resolved via `uv sync`), not vendored in this repo, and there is no reference to `spec-kitty-events` anywhere in `orchestrator_api/` or `envelope.py` today. Any FR that would require touching either package is out of scope for this spec. | Technical | High | Open |
-| C-002 | No server-side analysis reasoning | Spec-kitty MUST NOT gain a verb that performs the `analyze` cross-artifact reasoning itself. `analyze.md` is an LLM prompt template; the reasoning happens client-side in the calling agent, exactly as spec-kitty cannot perform WP implementation itself in `start-implementation`/`start-review`. `analyze-context` supplies context only; `analyze-record` persists a finished report only. | Technical | High | Open |
-| C-003 | Decision-resolution scope bounded to `OriginFlow` members | The decision-resolution verbs cover exactly the `OriginFlow` cases that exist today: `charter`, `specify`, `plan`. `tasks` and `analyze` have no decision-moment concept in the current `OriginFlow` enum and this mission does not add one. | Technical | Medium | Open |
-| C-004 | Single PR, no follow-up issues | This mission's default PR shape is one PR covering the full scope (specify/plan/tasks verbs, decision-resolution verbs, analyze-context/analyze-record verbs, status/query verb, contract-version bump, docs) — every part of the issue #3837 ask belongs in this mission's scope, not deferred to a follow-up issue. The PR body must carry `Closes #3837`. | Process | High | Open |
+| C-002 | No server-side analysis reasoning | Spec-kitty MUST NOT gain a verb that performs the `analyze` cross-artifact reasoning itself. `analyze.md` is an LLM prompt template; the reasoning happens client-side in the calling agent, exactly as spec-kitty cannot perform WP implementation itself in `start-implementation`/`start-review`. `check-prerequisites` supplies context only; `record-analysis` persists a finished report only. | Technical | High | Open |
+| C-003 | `open`/`resolve`/`defer`/`cancel`-decision scope bounded to `OriginFlow` members (Mechanism A only) | `open-decision`/`resolve-decision`/`defer-decision`/`cancel-decision` (FR-006–FR-009) cover exactly the `OriginFlow` cases that exist today: `charter`, `specify`, `plan`. `tasks` and `analyze` have no `OriginFlow` member and this mission does not add one. This constraint does NOT bound `answer-decision` (FR-013, Mechanism B, Clarification 3) — that verb resolves `DecisionKind.decision_required` run-loop decisions, which are not `OriginFlow`-scoped and can occur at any DAG step in any phase. | Technical | Medium | Open |
+| C-004 | Single PR, no follow-up issues | This mission's default PR shape is one PR covering the full scope (specify/plan/tasks verbs, `OriginFlow`-decision verbs, `answer-decision` (FR-013), check-prerequisites/record-analysis verbs, `design-status` verb, contract-version bump, docs) — every part of the issue #3837 ask belongs in this mission's scope, not deferred to a follow-up issue. The PR body must carry `Closes #3837`. | Process | High | Open |
 
 ### Key Entities
 
 - **Design-phase envelope**: the same canonical JSON response envelope (`make_envelope`) already used by the 10 existing orchestrator-api verbs — `command`, `success`, `data`, and on failure `error_code`/`error`. No new envelope shape is introduced; new verbs reuse it.
-- **Decision moment**: an entry in a mission's decision ledger (`decisions/index.json`), keyed by `decision_id`, carrying `origin` (one of `OriginFlow.CHARTER`/`SPECIFY`/`PLAN`), `status` (open/resolved/deferred/cancelled), and the question/answer payload — unchanged in shape by this mission, only newly reachable via orchestrator-api.
-- **Analysis report artifact**: `kitty-specs/<slug>/analysis-report.md`, written by `record_analysis` today and by `analyze-record` under this mission — the ground truth `analyze-record` must re-read to determine its own success (NFR-004).
-- **Design-phase status snapshot**: the read-only aggregate (`current_phase`, `next_action`, `open_decisions`) returned by the new status/query verb, reduced from the mission's event log and decision ledger the same way `list-ready` reduces WP state — never persisted, never mutating.
+- **Decision moment (Mechanism A, `OriginFlow`-scoped)**: an entry in a mission's decision ledger (`decisions/index.json`), keyed by `decision_id`, carrying `origin` (one of `OriginFlow.CHARTER`/`SPECIFY`/`PLAN`), `status` (open/resolved/deferred/cancelled), and the question/answer payload — unchanged in shape by this mission, only newly reachable via `open-decision`/`resolve-decision`/`defer-decision`/`cancel-decision`.
+- **Run decision (Mechanism B, `DecisionKind.decision_required`)**: an entry in a mission RUN's `pending_decisions` map (a run-snapshot store read via `_internal_runtime.engine._read_snapshot`, distinct from `decisions/index.json`), keyed by `decision_id` in the form `audit:<step_id>` (blocking audit checkpoint) or `input:<key>` (missing required input), carrying `question` and `options`. Not `OriginFlow`-scoped — can occur at any DAG step in any mission phase. Resolved by `answer-decision` (FR-013) the same way `spec-kitty next --answer` resolves it today (`runtime_bridge.answer_decision_via_runtime`).
+- **Analysis report artifact**: `kitty-specs/<slug>/analysis-report.md`, written by `record_analysis` today and by `record-analysis` under this mission — the ground truth `record-analysis` must re-read (and correlate with THIS call via `generated_at` freshness — NFR-004) to determine its own success.
+- **Design-phase status snapshot**: the read-only aggregate (`current_phase`, `next_action`, `open_decisions`) returned by the new `design-status` verb, reduced from the mission's event log and decision ledger the same way `list-ready` reduces WP state — never persisted, never mutating.
 
 ## Clarifications / Decision Records
 
 Persisted verbatim from the pre-spec readiness investigation so a later
 reviewer (or `sk-review`) can audit these without re-deriving them:
 
-1. **Surface-only confirmation.** `specify`/`plan`/`tasks` on the host CLI
+1. **Surface-only confirmation — with one payload-shape correction.**
+   `specify`/`plan`/`tasks` on the host CLI
    (`src/specify_cli/cli/commands/lifecycle.py:129,212,266`) are already thin
    shims delegating to `agent_feature.create_mission`
    (`mission_create.py:627`), `agent_feature.setup_plan`
    (`mission_setup_plan.py:1097`), `agent_feature.finalize_tasks`
    (`mission_finalize.py:3075`) — all three already accept `json_output:
    bool` and skip the interactive interview path when `json_output=True`
-   (`lifecycle.py:178-193,238-262`). Decision resolution is the strongest
-   precedent: `src/specify_cli/decisions/service.py` exposes `open_decision`
-   (:260), `resolve_decision` (:528), `defer_decision` (:575),
-   `cancel_decision` (:612) as pure functions, already wrapped 1:1 by
+   (`lifecycle.py:178-193,238-262`). **Correction:** `plan` and `tasks`
+   really are unenriched pass-throughs — `lifecycle.py:219,273` call
+   `agent_feature.setup_plan(..., json_output=json_output)` /
+   `agent_feature.finalize_tasks(..., json_output=json_output)` directly and
+   return their raw JSON payload. `specify` is NOT: when `json_output=True`,
+   `lifecycle.py:161-162` routes through `_create_mission_for_specify_json`
+   (`lifecycle.py:66-92`), which captures `agent_feature.create_mission`'s
+   stdout and re-emits it through `_with_specify_scaffold_state`
+   (`lifecycle.py:51-58`) — adding `scaffold_only`, `spec_state`,
+   `next_action`, `next_step` before the host CLI's `--json` caller ever
+   sees it. FR-001's new `specify` verb targets this ENRICHED shape (calling
+   `_create_mission_for_specify_json` or an equivalent enrichment step
+   in-process), not the raw `create_mission` payload — matching the real
+   host-CLI `--json` contract rather than an internal implementation detail
+   one layer beneath it. Decision resolution is the strongest precedent:
+   `src/specify_cli/decisions/service.py` exposes `open_decision` (:260),
+   `resolve_decision` (:528), `defer_decision` (:575), `cancel_decision`
+   (:612) as pure functions, already wrapped 1:1 by
    `src/specify_cli/cli/commands/decision.py`'s `decision_app`. This mission
    is surface work over an existing engine, not new engine work.
 
-2. **`analyze` precedent choice.** `analyze` is the one genuine exception —
-   it has no deterministic engine to wrap; the cross-artifact reasoning
-   happens client-side in the calling agent via the
+2. **`analyze` precedent choice — re-anchored on the canonical source.**
+   `analyze` is the one genuine exception — it has no deterministic engine to
+   wrap; the cross-artifact reasoning happens client-side in the calling
+   agent via a prompt template. **Canonical source correction:** the
+   authoritative template is
+   `packs/built-in/missions/mission-steps/software-dev/analyze/prompt.md`
+   (per AGENTS.md's "Edit SOURCE files, NOT agent copies" rule and
+   DIRECTIVE_044), which runs `spec-kitty agent mission check-prerequisites
+   --json --include-tasks --mission <mission-slug>` (registered as the
+   `agent mission` Typer group, `src/specify_cli/cli/commands/agent/
+   __init__.py:23`; confirmed by the command's own docstring examples,
+   `mission_check_prerequisites.py:519-521`) — **not** the project-local
    `.kittify/overrides/missions/software-dev/command-templates/analyze.md`
-   prompt template, not inside spec-kitty. **Resolution (adopted, FR-004 /
-   FR-005 / C-002): mirror `start-review`'s pattern** — a context/query verb
-   (`analyze-context`, mirroring `agent mission-run check-prerequisites
-   --json --include-tasks`) plus a record verb (`analyze-record`, wrapping
+   copy, which has independently drifted from the canonical source
+   (`agent mission-run check-prerequisites` — there is no `mission-run`
+   command group anywhere in the CLI — plus stale
+   `constitution`/`/memory/constitution.md` terminology and stale
+   `mission_dir`/field names where the canonical source says `charter`/
+   `/charter/charter.md` and `feature_dir`/`target_branch`/`base_branch`).
+   This spec cites the canonical source throughout; the `.kittify/overrides`
+   drift is a pre-existing defect this investigation surfaced, is out of
+   this mission's scope to fix, and is flagged here (rather than silently
+   treated as authoritative) so a later reviewer can ledger it separately.
+   **Resolution (adopted, FR-004 / FR-005 / C-002): mirror `start-review`'s
+   pattern** — a context/query verb (`check-prerequisites`, mirroring
+   `agent mission check-prerequisites --json --include-tasks --mission
+   <slug>`) plus a record verb (`record-analysis`, wrapping
    `record_analysis`, `src/specify_cli/cli/commands/agent/
    mission_record_analysis.py:228`). A server-side "do the analysis" verb is
    explicitly rejected — spec-kitty cannot perform the reasoning, exactly as
    it cannot perform WP implementation itself in `start-implementation`/
    `start-review`.
 
-3. **Decision-resolution scope boundary.** `DecisionKind`
-   (`src/runtime/next/decision.py:64-68`: `step`, `decision_required`,
-   `blocked`, `terminal`, `query`) and `OriginFlow`
-   (`src/specify_cli/decisions/models.py:36-41`: `charter`, `specify`,
-   `plan` only — no `tasks`/`analyze` member) together mean the
-   decision-resolution verbs' real scope is charter/specify/plan decision
-   moments only (FR-006–FR-009, C-003, FR-012). `tasks` and `analyze` do not
-   have decision moments to resolve; this is a scope boundary, not an
-   oversight, and is not silently implied to cover broader ground.
+3. **Decision resolution is TWO distinct mechanisms — this spec now covers
+   BOTH.** An earlier draft of this Clarification treated `DecisionKind`
+   member names as if they were a superset check against `OriginFlow`
+   members and concluded the gap was "a scope boundary, not an oversight."
+   That was wrong: `DecisionKind` values (`step`/`decision_required`/
+   `blocked`/`terminal`/`query`, `src/runtime/next/decision.py:64-68`) are
+   envelope *kinds* emitted by the `spec-kitty next` control loop, not
+   origin flows, and they are **not** bounded to charter/specify/plan.
+   Correcting the record:
+
+   - **Mechanism A — `OriginFlow`-scoped interview decisions** (unchanged
+     from the original draft, covered by FR-006–FR-009 / C-003 / FR-012):
+     `src/specify_cli/decisions/service.py` exposes `open_decision` (:260),
+     `resolve_decision` (:528), `defer_decision` (:575), `cancel_decision`
+     (:612), persisting into a mission's `decisions/index.json` ledger,
+     keyed by `origin` — one of `OriginFlow.CHARTER`/`SPECIFY`/`PLAN`
+     (`src/specify_cli/decisions/models.py:36-41`; no `tasks`/`analyze`
+     member). These are widen-enabled *interview questions* raised by the
+     `specify`/`plan` command flows. Real, useful, narrow — but not what
+     GitHub issue #3837 is asking for by name.
+   - **Mechanism B — `DecisionKind.decision_required` run-loop decisions**
+     (NEW, added to this spec's scope by FR-013 / User Story 5 below): the
+     `spec-kitty next` control loop's DAG-based planner
+     (`src/runtime/next/_internal_runtime/planner.py:420-434` — a blocking
+     audit checkpoint, `decision_id="audit:<step_id>"` — and `:458-476` — a
+     missing required input, `decision_id="input:<key>"`; a third site,
+     `:381-399`, re-emits an already-pending decision read off
+     `snapshot.pending_decisions` before DAG traversal even runs) emits a
+     `kind="decision_required"` `NextDecision` for **any** DAG step, in
+     **any** mission phase — not limited to charter/specify/plan. It is
+     resolved today only via `spec-kitty next --answer <value> --decision-id
+     <id> --agent <name> --result <success|failed|blocked>`
+     (`src/specify_cli/cli/commands/next_cmd.py:923-1000`, `_handle_answer`
+     — auto-resolves `--decision-id` when exactly one decision is pending by
+     reading `_internal_runtime.engine._read_snapshot(run_ref.run_dir)
+     .pending_decisions`, then calls `runtime_bridge.answer_decision_via_
+     runtime(...)`, `src/runtime/next/runtime_bridge.py:2587-2662`), which
+     writes into a **run-snapshot store** — a completely separate
+     persistence layer from `decisions/index.json`.
+
+   GitHub issue #3837 literally asks for "a decision-resolution verb
+   covering the `DecisionKind` cases (`runtime/next/decision.py`)" — that is
+   Mechanism B, and an earlier draft of this spec shipped only Mechanism A
+   while asserting the gap was deliberate. Per the operator's standing
+   instruction (deferring scope to a follow-up issue is not available; if
+   scope is larger than it looks, phase it inside this one mission — C-004),
+   this spec's scope is EXTENDED to cover Mechanism B via the new
+   `answer-decision` verb (FR-013, User Story 5). Both mechanisms are real,
+   distinct, and now covered: FR-006–FR-009/C-003/FR-012 for Mechanism A,
+   FR-013 for Mechanism B. Neither replaces the other.
 
 4. **Contract-version bump rationale.** `envelope.py`'s inline changelog
    documents 1.2.0 ("added read-only `resolve-workspace`... Purely
@@ -359,25 +598,94 @@ reviewer (or `sk-review`) can audit these without re-deriving them:
    release is explicitly rejected and does not apply to this contract
    surface.
 
-5. **Lock-storm inheritance + SK-93 artifact-verification requirement.**
-   `SPEC_KITTY_SYNC_MINIMAL_IMPORT=1` lock-storm exposure is real but
-   **pre-existing** (ledger SK-65, SK-72, SK-93 in
-   `SPEC-KITTY-LEDGER.md`) and already applies to every event-emitting
-   orchestrator-api command today (`start-implementation`, `transition`,
-   `append-history`, `merge-mission`). The design-phase verbs **inherit**
-   this exposure; they do not introduce a new instance of the problem.
+5. **Lock-storm exposure is real but NOT currently carried by any existing
+   orchestrator-api verb — corrected from an earlier blanket claim; SK-93
+   artifact-verification requirement.** `SPEC_KITTY_SYNC_MINIMAL_IMPORT=1`
+   lock-storm exposure (ledger SK-65, SK-72, SK-93 in
+   `SPEC-KITTY-LEDGER.md`) is real, but an earlier draft of this
+   Clarification asserted it "already applies to every event-emitting
+   orchestrator-api command today" naming `start-implementation`,
+   `transition`, `append-history`, `merge-mission` — that claim does not
+   hold against the code as it stands. Verified (grep `sync_dossier`/
+   `ensure_sync_daemon` call sites in `commands.py` and their downstream
+   engines):
+   - `start-implementation` and `start-review` (`commands.py:1239-1240,
+     1333-1334`) and `transition` (`commands.py:1516-1517`) all explicitly
+     pass `ensure_sync_daemon=False, sync_dossier=False` to
+     `start_implementation_status`/`start_review_status`/
+     `emit_status_transition_transactional` — `status/emit.py`'s
+     `if sync_dossier and repo_root is not None: fire_dossier_sync(...)`
+     gate (the exact SK-93 dossier body-upload path) is skipped entirely.
+   - `append-history` calls `emit_inner_state_changed`
+     (`status/emit.py:981`), which has NO `sync_dossier` parameter at all
+     and never calls `fire_dossier_sync` in its body — there is no
+     dossier-sync call path to opt out of.
+   - `merge-mission`'s WP-done/approved bookkeeping
+     (`merge/done_bookkeeping.py:285,440`) also explicitly passes
+     `ensure_sync_daemon=False, sync_dossier=False` to
+     `emit_status_transition_transactional`.
+   **None of the 10 existing orchestrator-api verbs is demonstrated to carry
+   the SK-93 dossier-sync exposure today** — each either opts out via
+   `sync_dossier=False` or calls an engine with no dossier-sync path at all.
+   The exposure is real but LATENT: it would apply to any future verb (in
+   this mission or later) that wraps a call defaulting `sync_dossier=True`
+   or omitting an opt-out. That is exactly `record_analysis`
+   (`mission_record_analysis.py:384-388`): its dossier-sync trigger
+   (`trigger_feature_dossier_sync_if_enabled`) has NO `sync_dossier`-style
+   opt-out parameter today, wrapped only in `contextlib.suppress(Exception)`
+   — which suppresses a raised exception but does not bound a hang.
+   `record-analysis` is therefore the one new verb in this mission that
+   genuinely inherits the exposure, not by generic pattern-matching against
+   the 10 existing verbs' behavior, but because its underlying function
+   lacks the opt-out the other 9 engines already have. A planning-phase
+   consideration worth recording: `record_analysis` could gain the same
+   `sync_dossier=False`-style opt-out as an alternative or complement to
+   NFR-004's artifact-reread + time-bound requirements.
    **SK-93 is the concrete AC-shaping fact carried forward**: `record-
-   analysis` was observed exiting 124 (timeout) with a "project sync store
-   is locked" warning **after the work had actually succeeded** —
+   analysis` was observed exiting 124 under an OPERATOR-imposed `bash
+   timeout 300` wrapper around the CLI invocation (not a Python-level exit
+   code the in-process call itself produces) with a "project sync store is
+   locked" warning **after the work had actually succeeded** —
    `analysis-report.md` was independently re-read from disk after the
    failing-looking exit and found correctly written with `verdict: ready`.
-   Exit code is not evidence in either direction on this call chain.
-   Therefore (NFR-004): any orchestrator-api verb wrapping `record_analysis`
-   (and, by the same principle, any other event-emitting wrap this mission
-   or a later one adds) MUST verify success via the artifact/state it
-   actually wrote rather than trusting a bare exit code or subprocess return
-   value. This is a concrete, testable acceptance criterion (User Story 2,
-   Acceptance Scenarios 2–3; NFR-004), not prose alone.
+   Exit code is not evidence in either direction on this call chain, and a
+   silent hang (not a clean bad-exit-code return) was the majority
+   documented SK-93 failure shape. Therefore (NFR-004): `record-analysis`
+   MUST verify success via the artifact/state it actually wrote (correlated
+   with THIS call via freshness, not a bare `verdict` match) rather than
+   trusting whether the underlying call returned, raised, or hung, AND MUST
+   time-bound its invocation of the underlying write path so a hang cannot
+   block the orchestrator-api process forever — the same principle any
+   future event-emitting wrap in this mission or later ones must also
+   follow. This is a concrete, testable acceptance criterion (User Story 2,
+   Acceptance Scenarios 2–3 and 5–7; NFR-004), not prose alone.
+
+6. **FR-010 (`design-status`) candidate-authority citation.** Unlike every
+   other FR in this mission, an earlier draft of FR-010 cited no underlying
+   engine. Two existing engines are candidate reuse targets and were
+   evaluated: (a) `src/runtime/next/_internal_runtime/planner.py`'s
+   `resolve_next_workflow_action` — a lightweight, side-effect-free
+   `(mission_dir, current_action) -> next_action` lookup over the workflow
+   action graph (`meta.json::workflow_id`), exercised today via
+   `runtime_bridge_engine.resolve_workflow_for_mission`; and (b) the fuller
+   DAG-based `decide_next`/`_resolve_next_unified_step` engine (same
+   package) that backs `spec-kitty next --json` query mode
+   (`runtime_bridge.query_current_state`) and is `decision_required`-aware.
+   **Decision (deliberate, not an oversight): `design-status` does NOT
+   delegate to either.** Both existing engines return a WP-loop/run-state
+   shaped payload (`action`, `wp_id`, `prompt_file`) rather than FR-010's
+   four design-phase fields (`current_phase`, `next_action` naming a VERB,
+   `open_decisions`); and `decide_next`'s query path materializes/reads a
+   runtime run (`get_or_start_run`) as a side effect this mission does not
+   want a read-only status verb depending on. `design-status` instead
+   defines a narrower, design-phase-only reduction over on-disk artifact
+   presence (`spec.md`/`plan.md`/`tasks/` finalization/`analysis-report.md`)
+   and the `decisions/index.json` ledger — the same shape of deliberate
+   narrowing `list-ready` already applies (reducing WP state without
+   invoking the full FSM transition validators). This citation and
+   rationale is recorded here so a plan-phase author does not have to
+   re-derive it, and so a hand-rolled reduction is a documented choice, not
+   an unexamined drift risk (DIRECTIVE_044).
 
 ## Success Criteria *(mandatory)*
 
@@ -385,8 +693,8 @@ reviewer (or `sk-review`) can audit these without re-deriving them:
 
 - **SC-001**: An external host can complete an entire design-phase pipeline —
   scaffold a mission (`specify`), scaffold its plan (`plan`), finalize its
-  work packages (`tasks`), and record a finished analysis (`analyze-context`
-  + `analyze-record`) — using only orchestrator-api verbs, with zero shelled
+  work packages (`tasks`), and record a finished analysis (`check-prerequisites`
+  + `record-analysis`) — using only orchestrator-api verbs, with zero shelled
   host-CLI calls, verified by an end-to-end integration test that never
   invokes `spec-kitty specify`/`plan`/`tasks`/`agent mission record-analysis`
   directly.
@@ -400,16 +708,36 @@ reviewer (or `sk-review`) can audit these without re-deriving them:
 - **SC-004**: 100% of the new verbs' failure paths return a structured
   `error_code` (never a bare exception, traceback, or empty/`unknown`
   success envelope) — verified by a negative-path test per new verb.
-- **SC-005**: `analyze-record`'s success determination is independently
-  verified by test to be artifact-derived — a test that simulates a
-  non-zero/timeout exit from the underlying `record_analysis` call while the
-  artifact was in fact written correctly must still observe `success: true`
-  from `analyze-record` (SK-93 regression guard).
-- **SC-006**: `docs/api/orchestrator-api.md` documents every new verb with
-  the same level of detail (request shape, response shape, error codes) as
-  the existing 10 verbs, and `host-boundary-rules.md`'s Boundary Decision
+- **SC-005**: `record-analysis`'s success determination is independently
+  verified by test to be artifact-derived and time-bounded — (a) a test that
+  simulates a swallowed/raised exception from the underlying write path
+  while the artifact was in fact written correctly (with a fresh
+  `generated_at`) must still observe `success: true` from `record-analysis`
+  (SK-93 regression guard); (b) a test that simulates the underlying write
+  path HANGING (never returning) must observe `record-analysis` still
+  returning within its enforced time bound, rather than hanging the caller
+  indefinitely — the majority documented SK-93 failure shape, not only the
+  bad-exit-code shape; and (c) a test with a STALE `analysis-report.md` on
+  disk whose verdict coincidentally matches the new submission but whose
+  `generated_at` predates this call must observe `success: false`
+  (SPEC-VERIFY-001 regression guard).
+- **SC-006**: `docs/api/orchestrator-api.md` documents every new verb —
+  `specify`, `plan`, `tasks`, `check-prerequisites`, `record-analysis`,
+  `open-decision`, `resolve-decision`, `defer-decision`, `cancel-decision`,
+  `design-status`, and `answer-decision` (FR-013) — by that literal name,
+  with the same level of detail (request shape, response shape, error codes)
+  as the existing 10 verbs, and `host-boundary-rules.md`'s Boundary Decision
   Matrix is updated with design-phase rows so the doc no longer implies an
   external host must cross into host-CLI territory to drive design phases.
+- **SC-007**: An external host can resolve a `spec-kitty next` control-loop
+  `decision_required` moment — a blocking-audit checkpoint OR a missing
+  required input — for a DAG step in ANY mission phase via `answer-decision`,
+  verified by an integration test that drives a fixture mission run to a
+  `decision_required` state, calls `answer-decision`, and confirms (a) the
+  run-snapshot's `pending_decisions` no longer contains the answered
+  `decision_id`, and (b) the resulting envelope matches what
+  `spec-kitty next --answer ... --json` returns for the identical call —
+  never invoking `spec-kitty next` directly.
 
 ---
 
@@ -422,6 +750,10 @@ change set):
 - `src/specify_cli/orchestrator_api/commands.py` — new commands
 - `src/specify_cli/orchestrator_api/envelope.py` — `CONTRACT_VERSION` bump +
   changelog comment
+- `src/runtime/next/runtime_bridge.py` (`answer_decision_via_runtime`,
+  `get_or_start_run`, `_read_snapshot`) — the engine `answer-decision`
+  (FR-013) wraps; likely read-only reuse, no changes expected, but the plan
+  phase should confirm no new public surface is needed there
 - `docs/api/orchestrator-api.md` — new verb documentation
 - `src/charter/offering/skills/spec-kitty-orchestrator-api-operator/
   references/host-boundary-rules.md` — Boundary Decision Matrix gains
