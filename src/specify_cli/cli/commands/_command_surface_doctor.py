@@ -736,6 +736,26 @@ def _configured_tool_keys(project_path: Path) -> list[str]:
     return sorted(set(load_agent_config(project_path).available))
 
 
+def _configured_tool_keys_or_exit(project_path: Path, json_output: bool) -> list[str]:
+    """Load configured tool keys, translating a config load failure to exit 2.
+
+    Mirrors :func:`_load_skills_state_or_exit`'s ``AgentConfigError`` handling
+    (the sibling ``doctor skills`` command) so a non-mapping
+    ``.kittify/config.yaml`` produces the documented ``config_error`` JSON
+    envelope instead of an uncaught traceback (OP-FRESH-001).
+    """
+    from specify_cli.core.agent_config import AgentConfigError
+
+    try:
+        return _configured_tool_keys(project_path)
+    except AgentConfigError as exc:
+        if json_output:
+            console.print_json(json.dumps(_json_error("config_error", str(exc)), indent=2))
+            raise typer.Exit(2) from exc
+        console.print(f"[red]Error:[/red] {exc}")
+        raise typer.Exit(2) from exc
+
+
 def _print_tool_surface_human(outcome: object) -> None:
     """Render a compact human summary of a tool-surface outcome."""
     from specify_cli.tool_surface.service import ToolSurfaceOutcome
@@ -859,7 +879,7 @@ def run_tool_surfaces_audit(
 
     outcome = run_tool_surfaces(
         project_path,
-        _configured_tool_keys(project_path),
+        _configured_tool_keys_or_exit(project_path, json_output),
         tool_filter=tool,
         kinds=kinds or None,
         fix=fix,
