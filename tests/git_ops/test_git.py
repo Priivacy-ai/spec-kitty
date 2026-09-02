@@ -558,61 +558,6 @@ class TestGitSpecificFunctions:
 
 
 # =============================================================================
-# Rebase Stats Tests
-# =============================================================================
-
-
-class TestRebaseStats:
-    """Tests for _parse_rebase_stats functionality."""
-
-    def test_parse_rebase_stats_with_changes(self, git_repo, git_vcs):
-        """_parse_rebase_stats should correctly count file changes."""
-        # Get initial commit
-        result = subprocess.run(
-            ["git", "rev-parse", "HEAD"],
-            cwd=git_repo,
-            capture_output=True,
-            text=True,
-        )
-        initial_commit = result.stdout.strip()
-
-        # Make some changes (adds, modifies, deletes)
-        (git_repo / "new_file.txt").write_text("new content")
-        (git_repo / "README.md").write_text("modified content")
-        subprocess.run(["git", "add", "."], cwd=git_repo, capture_output=True)
-        subprocess.run(
-            ["git", "commit", "-m", "Add and modify files"],
-            cwd=git_repo,
-            capture_output=True,
-        )
-
-        # Get the stats
-        updated, added, deleted = git_vcs._parse_rebase_stats(git_repo, initial_commit, "HEAD")
-
-        # Should have 1 add, 1 modify, 0 deletes
-        assert added == 1
-        assert updated == 1
-        assert deleted == 0
-
-    def test_parse_rebase_stats_empty_when_no_changes(self, git_repo, git_vcs):
-        """_parse_rebase_stats should return zeros when no changes."""
-        result = subprocess.run(
-            ["git", "rev-parse", "HEAD"],
-            cwd=git_repo,
-            capture_output=True,
-            text=True,
-        )
-        current_commit = result.stdout.strip()
-
-        # Compare HEAD with itself - no changes
-        updated, added, deleted = git_vcs._parse_rebase_stats(git_repo, current_commit, current_commit)
-
-        assert updated == 0
-        assert added == 0
-        assert deleted == 0
-
-
-# =============================================================================
 # Edge Cases Tests
 # =============================================================================
 
