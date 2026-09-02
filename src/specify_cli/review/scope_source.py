@@ -332,9 +332,7 @@ class DeclaredCommandScopeSource:
             return None
         try:
             shlex.split(command_template)
-            return build_shell_command_with_substitutions(
-                command_template, {"output_file": self._output_file}
-            )
+            return build_shell_command_with_substitutions(command_template, {"output_file": self._output_file})
         except (ValueError, ConfiguredCommandUnsupported):
             return None
 

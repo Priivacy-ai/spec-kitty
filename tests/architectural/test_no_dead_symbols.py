@@ -1516,12 +1516,12 @@ _CATEGORY_C_SCOPE_SOURCE_FACTORY_CONSTRUCTED: frozenset[SymbolKey] = frozenset(
         # exclusively via resolve_scope_source() (same-module); consumed
         # cross-module only structurally, through the ScopeSource port (never
         # imported by concrete name outside scope_source.py by design).
-        # Content-hash re-pin (issue #3612 and #596): the declared command is
-        # shell-wrapped with output-file substitution, while malformed quoting
-        # degrades to the port's ``None`` signal.
+        # Content-hash re-pin (issues #3612, #596, and #1050): the declared
+        # command is shell-wrapped with output-file substitution, while
+        # malformed quoting degrades to the port's ``None`` signal.
         # specify_cli.review.scope_source::DeclaredCommandScopeSource
         SymbolKey(
-            "DeclaredCommandScopeSource", "b250aef82854cb000e8adf6d86302b3753a2794da44a315032a0364f4cc44605", source_module="specify_cli.review.scope_source"
+            "DeclaredCommandScopeSource", "155d75fd455536027af7f33395ca73ca9d28f0f028dd486b855c55ecc2b988b6", source_module="specify_cli.review.scope_source"
         ),
         # specify_cli.review.scope_source::FileScopeBreakdown -- the return
         # value of injected narrowing sources' scope_breakdown(); consumed
