@@ -111,3 +111,26 @@ the `CONTRACT_VERSION` changelog block (lines 19-28). `commands.py`'s `start-rev
 verb (lines 1379-1460, the exact precedent function cited in plan.md § (e) item 13) read
 in full — also clean, no suppressions. **The spot-check still holds** — no intervening
 commit introduced a suppression in either file's cited surface.
+
+## 5. WP02 — shared-test path correction: `tests/specify_cli/next/`, not
+`tests/specify_cli/cli/commands/`
+
+Decision #1 above (and its "Consequence" paragraph) names the shared regression test's
+path as `tests/specify_cli/cli/commands/test_next_invocation_lifecycle_seam.py`. WP02's
+own task file (`tasks/WP02-fr014-seam-extraction.md`, the authoritative WP contract —
+`create_intent` / `owned_files`) instead pins
+`tests/specify_cli/next/test_next_invocation_lifecycle_seam.py`, with an explicit
+rationale: "lands in the right directory (`tests/specify_cli/next/`, matching the
+`test_runtime_bridge.py` / `test_runtime_bridge_dispatch.py` precedent for other
+`src/runtime/next/` top-level modules)". WP02 followed the task file, not decision #1's
+path — and confirmed empirically why the task file's path is the correct one: only
+`tests/specify_cli/next/` (alongside `tests/next/` and `tests/runtime/`) is one of the
+three roots `integration-tests-next` actually runs and diff-coverage-instruments for
+`src/runtime/next/*` (`.github/workflows/ci-quality.yml`); `tests/specify_cli/cli/
+commands/` is a disjoint CI root (the `specify-cli-rest` shard) that neither selects
+`next_shard_N`-marked tests nor feeds this WP's `--cov=src/runtime/next` critical-path
+gate. Had the file landed at decision #1's originally-stated path, it would have been
+invisible to the diff-coverage gate this WP is specifically gated on (see the tooling
+-friction entry on the `next` shard-registry completeness gate). Recorded here so WP08 —
+which imports `assert_lifecycle_seam_effects` from this file unmodified — looks in the
+right place rather than re-deriving decision #1's now-superseded path.
