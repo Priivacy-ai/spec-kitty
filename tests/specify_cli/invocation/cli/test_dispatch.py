@@ -616,3 +616,111 @@ def test_dry_run_unknown_profile_still_raises(tmp_path: Path) -> None:
     error_obj = json.loads(result.output)
     assert error_obj["error"] == "routing_failed"
     assert error_obj["error_code"] == "PROFILE_NOT_FOUND"
+
+
+# ---------------------------------------------------------------------------
+# WP2/#3840 — RouterDecision.alternatives threaded onto real dispatch too
+# (FR-005, SC-003), and the WP01-002 review finding: --dry-run must respect
+# --json/no --json parity with real dispatch (cli-do-output.md's own
+# `[--json]` optional-bracket notation), instead of always emitting raw JSON.
+# ---------------------------------------------------------------------------
+
+
+def _tiebreak_registry() -> MagicMock:
+    """implementer-fixture wins via routing_priority (pre-WP03); reviewer-fixture
+    loses via a domain-keyword-only match on a token ("gizmo") that is not in
+    CANONICAL_VERB_MAP, so it is a genuine domain_keyword candidate, not
+    verb-shadowed."""
+    return _make_mock_registry(
+        [
+            {
+                "profile_id": "implementer-fixture",
+                "role_value": "implementer",
+                "routing_priority": 80,
+                "domain_keywords": [],
+            },
+            {
+                "profile_id": "reviewer-fixture",
+                "role_value": "reviewer",
+                "routing_priority": 10,
+                "domain_keywords": ["gizmo"],
+            },
+        ]
+    )
+
+
+def test_dispatch_real_alternatives_nonempty_on_two_candidate_tiebreak(tmp_path: Path) -> None:
+    """SC-003 (WP2/#3840): real (non-dry-run) dispatch --json on a two-candidate
+    request also threads a non-empty alternatives list -- proving the field
+    threads onto the real dispatch path, not only dry-run."""
+    project = _setup_project(tmp_path)
+    _write_configured_charter(project)
+    result = _run_with_registry(
+        project,
+        ["dispatch", "implement and gizmo the module", "--json"],
+        _tiebreak_registry(),
+    )
+
+    assert result.exit_code == 0, result.output
+    envelope = json.loads(result.output)
+    assert envelope["profile_id"] == "implementer-fixture"
+    assert envelope["alternatives"]
+    alt = envelope["alternatives"][0]
+    assert alt["profile_id"] == "reviewer-fixture"
+    assert alt["confidence"] == "domain_keyword"
+    assert alt["action"]
+    assert alt["match_reason"]
+
+
+def test_dry_run_without_json_renders_rich_output_not_raw_json(tmp_path: Path) -> None:
+    """WP01-002 review finding: --dry-run without --json must render the rich
+    console capsule (parity with real dispatch's json_output branch), not
+    raw JSON -- cli-do-output.md's own `[--json]` optional-bracket notation
+    implies a non-JSON mode exists."""
+    project = _setup_project(tmp_path)
+    _write_configured_charter(project)
+    result = _run_with_registry(
+        project,
+        ["dispatch", "implement the payment module", "--dry-run"],
+        _implementer_registry(),
+    )
+
+    assert result.exit_code == 0, result.output
+    assert "Profile:" in result.output
+    assert "Dry run" in result.output
+    with pytest.raises(json.JSONDecodeError):
+        json.loads(result.output)
+
+
+def test_dry_run_with_json_still_emits_json_envelope(tmp_path: Path) -> None:
+    """WP01-002 regression guard: --dry-run --json keeps emitting the raw JSON
+    envelope (unchanged from WP01) once the branch starts reading json_output."""
+    project = _setup_project(tmp_path)
+    _write_configured_charter(project)
+    result = _run_with_registry(
+        project,
+        ["dispatch", "implement the payment module", "--dry-run", "--json"],
+        _implementer_registry(),
+    )
+
+    assert result.exit_code == 0, result.output
+    envelope = json.loads(result.output)
+    assert envelope["status"] == "dry_run"
+
+
+def test_dry_run_ambiguous_without_json_renders_rich_output(tmp_path: Path) -> None:
+    """WP01-002 extends to the ROUTER_AMBIGUOUS dry-run branch too -- also an
+    exit-0 "success-shaped" payload (FR-009), so it must respect json_output
+    the same way the plain-success branch does."""
+    project = _setup_project(tmp_path)
+    _write_configured_charter(project)
+    result = _run_with_registry(
+        project,
+        ["dispatch", "implement the feature", "--dry-run"],
+        _tied_implementers_registry(),
+    )
+
+    assert result.exit_code == 0, result.output
+    assert "ambiguous" in result.output.lower()
+    with pytest.raises(json.JSONDecodeError):
+        json.loads(result.output)

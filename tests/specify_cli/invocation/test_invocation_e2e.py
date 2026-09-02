@@ -783,6 +783,7 @@ def test_invoke_router_branch_unchanged_with_action_hint(tmp_path: Path) -> None
         action=router_action,
         confidence="canonical_verb",
         match_reason="test fixture",
+        alternatives=[],
     )
 
     with patch(

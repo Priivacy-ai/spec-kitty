@@ -210,6 +210,13 @@ class InvocationPayload:
     mode_of_work: str | None
     recommendation: RoutingRecommendation | None
     empty_charter_fallback: bool
+    # WP2/#3840 (FR-005): the already-computed losing candidates from
+    # RouterDecision.alternatives, threaded onto both invoke() and dry_run()
+    # payloads. Unlike RouterDecision (a real frozen dataclass), this class's
+    # **kwargs __init__ enforces no required-constructor-argument guarantee
+    # for this slot -- see to_dry_run_dict()'s explicit fail-fast guard below,
+    # which is the real backstop at this layer.
+    alternatives: list[dict[str, str]]
 
     __slots__ = (
         "invocation_id",
@@ -224,6 +231,7 @@ class InvocationPayload:
         "mode_of_work",
         "recommendation",
         "empty_charter_fallback",
+        "alternatives",
     )
 
     def __init__(self, **kwargs: object) -> None:
@@ -268,20 +276,34 @@ class InvocationPayload:
         result["close_contract"] = build_close_contract(self.invocation_id, getattr(self, "mode_of_work", None))
         return result
 
-    def to_dry_run_dict(self, alternatives: list[dict[str, str]]) -> dict[str, object]:
+    def to_dry_run_dict(self) -> dict[str, object]:
         """FR-004/Key-Entities: the dry-run success envelope.
 
         Reuses ``InvocationPayload``'s field set minus ``invocation_id`` (no
         Op was opened) and ``mode_of_work``/``close_contract`` (nothing to
-        close), plus a terminal ``"status": "dry_run"`` and the
-        already-computed ``alternatives`` list threaded through as a
-        parameter -- WP1 always passes ``[]`` here (this payload has no
-        ``alternatives`` field of its own yet; WP2 adds one and reads it off
-        ``self`` directly instead of via this parameter).
+        close), plus a terminal ``"status": "dry_run"``. ``alternatives`` is
+        read directly off ``self`` (WP2/#3840) -- WP1's original signature
+        took it as a parameter because the field did not exist yet on this
+        class; now that it does, the parameter is redundant and has been
+        dropped (``dispatch.py``'s sole call site updated to match).
+
+        Fail-fast guard (WP2 Context/T009 step 5, required, not optional):
+        unlike ``RouterDecision`` (a real frozen dataclass with no default,
+        so ``mypy --strict`` catches a missed ``alternatives=`` kwarg at
+        every production construction site), ``InvocationPayload.__init__``
+        accepts arbitrary ``**kwargs`` and enforces nothing -- a construction
+        site that omits ``alternatives=`` would otherwise silently serialize
+        ``"alternatives": null`` here instead of failing loudly. This guard
+        is intentionally scoped to THIS method only, never ``to_dict()``:
+        ``to_dict()`` is the generic whole-``__slots__`` serializer that
+        ``tests/invocation/test_dispatch_recommendation.py``'s
+        ``_sample_payload()`` fixture depends on staying permissive for
+        slots it omits (WP01-owned, not touched by this WP).
         """
+        if getattr(self, "alternatives", None) is None:
+            raise RuntimeError("InvocationPayload.alternatives was not set -- a construction site is missing alternatives=")
         result = self._serialize_slots(exclude=frozenset({"mode_of_work", "invocation_id"}))
         result["status"] = "dry_run"
-        result["alternatives"] = alternatives
         return result
 
 
@@ -378,6 +400,10 @@ class ProfileInvocationExecutor:
         # 1. Resolve (profile_id, action)
         router_confidence: str | None = None
         empty_charter_fallback = False
+        # WP2/#3840 (FR-005): the explicit-hint branch below never calls
+        # route(), so there are no candidates to report -- [] unless the
+        # router branch below overwrites it with RouterDecision.alternatives.
+        alternatives: list[dict[str, str]] = []
         if profile_hint is not None:
             profile = self._registry.resolve(profile_hint)  # raises ProfileNotFoundError
             # FR-009/FR-010/FR-011/EDGE-005: when caller supplies a truthy action_hint,
@@ -399,6 +425,7 @@ class ProfileInvocationExecutor:
             action = result.action
             router_confidence = result.confidence
             empty_charter_fallback = fallback_decision is not None
+            alternatives = result.alternatives  # WP2/#3840 (FR-005)
         else:
             raise RuntimeError("No profile_hint and no router configured. Use 'spec-kitty dispatch \"<request>\" --profile <profile>' or supply a router.")
 
@@ -496,6 +523,7 @@ class ProfileInvocationExecutor:
             mode_of_work=record.mode_of_work,
             recommendation=recommendation,
             empty_charter_fallback=empty_charter_fallback,
+            alternatives=alternatives,  # WP2/#3840 (FR-005)
         )
 
     def dry_run(
@@ -534,6 +562,10 @@ class ProfileInvocationExecutor:
         # up to (not including) the invocation_id mint and the write half.
         router_confidence: str | None = None
         empty_charter_fallback = False
+        # WP2/#3840 (FR-005/FR-008): the explicit-hint branch below never
+        # calls route(), so there are no candidates to report -- [] unless
+        # the router branch below overwrites it with RouterDecision.alternatives.
+        alternatives: list[dict[str, str]] = []
         if profile_hint is not None:
             profile = self._registry.resolve(profile_hint)  # raises ProfileNotFoundError
             action = self._derive_action_from_request(request_text, profile.role)
@@ -552,6 +584,7 @@ class ProfileInvocationExecutor:
             action = result.action
             router_confidence = result.confidence
             empty_charter_fallback = fallback_decision is not None
+            alternatives = result.alternatives  # WP2/#3840 (FR-005)
         else:
             raise RuntimeError("No profile_hint and no router configured. Use 'spec-kitty dispatch \"<request>\" --profile <profile>' or supply a router.")
 
@@ -601,6 +634,7 @@ class ProfileInvocationExecutor:
             mode_of_work=None,
             recommendation=recommendation,
             empty_charter_fallback=empty_charter_fallback,
+            alternatives=alternatives,  # WP2/#3840 (FR-005)
         )
 
     def complete_invocation(
