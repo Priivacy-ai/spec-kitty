@@ -293,17 +293,30 @@ does, via orchestrator-api instead of the host CLI.
 
 `answer-decision` is a COMPOSITE verb, matching what the real CLI invocation
 above always does in one pass (`--answer` hard-requires `--result`,
-`next_cmd.py:_validate_result_and_answer`; the same call then performs both
-steps, `next_cmd.py:213-221` then `next_cmd.py:246-248`): (1)
+`next_cmd.py:_validate_result_and_answer`; the same call then performs, in
+order, `next_cmd.py:213-221`, `next_cmd.py:244-246`, `next_cmd.py:248-250`,
+`next_cmd.py:251-258`, and — conditionally — `next_cmd.py:263-269`): (1)
 `runtime_bridge.answer_decision_via_runtime` persists the answer against the
 `decision_id` (auto-resolved or explicit) and returns nothing usable as a
-response payload; then (2) `decide_next` (`src/runtime/next/decision.py:413`,
-delegating to `runtime_bridge.decide_next_via_runtime`) advances the DAG
-using `answer-decision`'s own `--result` and returns the next-step
-`Decision` — the same object `_print_decision` renders as the `next --json`
-envelope. `answer-decision` never performs only step (1); a decision answer
-with no DAG advance is not a state the real CLI can produce, so this verb
-does not model it either.
+response payload; (2) the equivalent of `_pair_previous_lifecycle_record`
+pairs the previous issuance's `started` lifecycle record BEFORE the DAG
+advances; (3) `decide_next` (`src/runtime/next/decision.py:413`, delegating
+to `runtime_bridge.decide_next_via_runtime`) advances the DAG using
+`answer-decision`'s own `--result` and returns the next-step `Decision` —
+the same object `_print_decision` renders as the `next --json` envelope;
+(4) the equivalent of `_emit_mission_next_invoked` writes a
+`MissionNextInvoked` entry into the mission's event log
+(`mission-events.jsonl`); and (5), whenever the resulting
+`decision.kind == "step"`, the equivalent of `_write_issuance_lifecycle_record`
+writes a new issuance `started` lifecycle record. **Per operator ruling
+SPEC-FRESH2-001 (see Clarification 7), steps (2), (4), and (5) are REQUIRED,
+not optional or deferred** — `answer-decision` reaches them through a shared
+seam extracted from `next_cmd.py` (FR-014), the same functions the host
+CLI's own `--answer` handling calls, never by inlining or duplicating that
+logic into the orchestrator-api layer. `answer-decision` never performs only
+step (1); a decision answer with no DAG advance and no event/lifecycle
+bookkeeping is not a state the real CLI can produce, so this verb does not
+model it either.
 
 **Why this priority**: This is the literal ask of GitHub issue #3837 — "a
 decision-resolution verb covering the `DecisionKind` cases
@@ -321,16 +334,24 @@ workflow defines a blocking `AuditStep` (or a `PromptStep` with
 `requires_inputs`), driving it to a `decision_required` state via
 `spec-kitty next --json`, then calling the new `answer-decision`
 orchestrator-api verb and asserting (a) the run-snapshot's
-`pending_decisions` no longer contains the answered `decision_id`, and (b)
-the returned envelope's `data` carries the persisted-answer confirmation
+`pending_decisions` no longer contains the answered `decision_id`; (b) the
+returned envelope's `data` carries the persisted-answer confirmation
 (`data.answered_decision_id`) AND is byte-identical, field-for-field, to
 what `spec-kitty next --answer ... --json` would have returned for the same
 call on every `Decision.to_dict()`-derived key (`kind`, `step_id`,
 `decision_id`, `prompt_file`, etc. — see Clarification 3, Mechanism B, for
 why `answered_decision_id` itself is a self-documenting orchestrator-api
 field name rather than the CLI's terser `answered` key, and is additive on
-top of that shape, not a substitute for it) — verified against the
-run-snapshot store on disk, not just the envelope.
+top of that shape, not a substitute for it — and for why `data` carries no
+equivalent of the CLI's `answer` key); (c) the mission's event log
+(`mission-events.jsonl`) gained the same `MissionNextInvoked`-equivalent
+entry that call would have written; and (d) whenever the resulting
+decision's `kind == "step"`, an issuance `started` lifecycle record was
+written, matching what the same CLI call would have produced — (c) and (d)
+reached via the shared seam FR-014 extracts, per operator ruling
+SPEC-FRESH2-001 (see Clarification 7) — verified against the run-snapshot
+store, the mission event log, and the lifecycle-record store on disk, not
+just the envelope.
 
 **Acceptance Scenarios**:
 
@@ -346,7 +367,7 @@ run-snapshot store on disk, not just the envelope.
    persisted by step (1), `answer_decision_via_runtime`), the
    run-snapshot's `pending_decisions` no longer contains that id, AND
    (per the composite design above) `data` ALSO carries the full
-   `Decision.to_dict()` shape from step (2)'s `decide_next` call for
+   `Decision.to_dict()` shape from step (3)'s `decide_next` call for
    whatever follows the resolved audit checkpoint — `answered_decision_id`
    is always a sibling field alongside that shape, never a replacement for
    it (see Acceptance Scenario 3, which exercises the same envelope from
@@ -389,6 +410,25 @@ run-snapshot store on disk, not just the envelope.
    (e.g. a blocking audit checkpoint on a `tasks`- or `analyze`-phase DAG
    step) and `answer-decision` resolves it normally; FR-012's
    `INVALID_ORIGIN_FLOW` rejection does not apply to this verb.
+7. **Given** the same blocking `AuditStep` scenario as Acceptance Scenario 1,
+   with a PRIOR issuance's `started` lifecycle record still open (not yet
+   paired), **When** the host calls `answer-decision`, **Then**, in addition
+   to the run-snapshot and `Decision.to_dict()` parity already asserted in
+   Acceptance Scenario 1, all three of the host CLI's own `--answer`
+   lifecycle/event-log side effects occur, reached through the shared seam
+   extracted from `next_cmd.py` (FR-014, per operator ruling
+   SPEC-FRESH2-001 / Clarification 7) — never inlined or reimplemented
+   inside the orchestrator-api layer: (a) the prior issuance's `started`
+   lifecycle record is paired with a completed/failed record BEFORE the DAG
+   advances (equivalent of `_pair_previous_lifecycle_record`); (b) the
+   mission's event log (`mission-events.jsonl`) gains a
+   `MissionNextInvoked`-equivalent entry for this call; and (c), because the
+   resolved audit checkpoint advances the DAG to a `kind == "step"`
+   decision, a new `started` issuance lifecycle record is written for that
+   step (equivalent of `_write_issuance_lifecycle_record`). A mission driven
+   entirely through `answer-decision` calls is therefore indistinguishable,
+   in its event log and lifecycle-record history, from the same mission
+   driven through `spec-kitty next --answer`.
 
 ---
 
@@ -471,7 +511,8 @@ run-snapshot store on disk, not just the envelope.
 | FR-010 | `design-status` orchestrator-api verb | As an external host, I want a `list-ready`-equivalent read-only status view of the design pipeline so that I know the current phase, next action, and any blocking open decisions before I act. | High | Open |
 | FR-011 | `CONTRACT_VERSION` bump to 1.4.0 | As an external host, I want a versioned contract bump that documents the new verbs so that I can detect capability via `contract-version` the same way I detect existing verbs. | High | Open |
 | FR-012 | `OriginFlow`-decision origin-flow scope guard (Mechanism A only — see Clarification 3) | As an external host, I want `open-decision`/`resolve-decision`/`defer-decision`/`cancel-decision` to reject an origin outside `{charter, specify, plan}` so that I never silently misfile a decision under a flow that has no `OriginFlow` member. Does NOT apply to `answer-decision` (FR-013, Mechanism B), which has no `OriginFlow` concept. | Medium | Open |
-| FR-013 | `answer-decision` orchestrator-api verb (`DecisionKind.decision_required` resolution) | As an external host, I want to answer a `spec-kitty next` control-loop `decision_required` moment (a blocking audit checkpoint or a missing required input) at ANY DAG step, via orchestrator-api, so that I can unblock the mission run without shelling `spec-kitty next --answer`. | High | Open |
+| FR-013 | `answer-decision` orchestrator-api verb (`DecisionKind.decision_required` resolution, WITH full CLI event/lifecycle-log parity — depends on FR-014) | As an external host, I want to answer a `spec-kitty next` control-loop `decision_required` moment (a blocking audit checkpoint or a missing required input) at ANY DAG step, via orchestrator-api, so that I can unblock the mission run without shelling `spec-kitty next --answer` — and so that the call performs the SAME lifecycle-pairing, mission-event-log, and issuance-lifecycle side effects the real CLI `--answer` invocation performs (per operator ruling SPEC-FRESH2-001 / Clarification 7), not only the two engine calls, reached through the shared seam FR-014 extracts from `next_cmd.py`. | High | Open |
+| FR-014 | Extract shared next-invocation lifecycle/event-log seam (prerequisite for FR-013) | As a maintainer, I want the `_pair_previous_lifecycle_record`, `_emit_mission_next_invoked` (mission event-log write), and `_write_issuance_lifecycle_record` side effects currently inlined in `next_cmd.py`'s `--answer` handling extracted into a shared module both the host CLI and orchestrator-api call, so that `answer-decision` (FR-013) can reach them without inlining CLI-layer helpers into the orchestrator-api layer or duplicating logic that would drift from the CLI's own copy. Sequenced BEFORE FR-013 in the plan/tasks phases (C-005). | High | Open |
 
 ### Non-Functional Requirements
 
@@ -491,12 +532,13 @@ run-snapshot store on disk, not just the envelope.
 | C-002 | No server-side analysis reasoning | Spec-kitty MUST NOT gain a verb that performs the `analyze` cross-artifact reasoning itself. `analyze.md` is an LLM prompt template; the reasoning happens client-side in the calling agent, exactly as spec-kitty cannot perform WP implementation itself in `start-implementation`/`start-review`. `check-prerequisites` supplies context only; `record-analysis` persists a finished report only. | Technical | High | Open |
 | C-003 | `open`/`resolve`/`defer`/`cancel`-decision scope bounded to `OriginFlow` members (Mechanism A only) | `open-decision`/`resolve-decision`/`defer-decision`/`cancel-decision` (FR-006–FR-009) cover exactly the `OriginFlow` cases that exist today: `charter`, `specify`, `plan`. `tasks` and `analyze` have no `OriginFlow` member and this mission does not add one. This constraint does NOT bound `answer-decision` (FR-013, Mechanism B, Clarification 3) — that verb resolves `DecisionKind.decision_required` run-loop decisions, which are not `OriginFlow`-scoped and can occur at any DAG step in any phase. | Technical | Medium | Open |
 | C-004 | Single PR, no follow-up issues | This mission's default PR shape is one PR covering the full scope (specify/plan/tasks verbs, `OriginFlow`-decision verbs, `answer-decision` (FR-013), check-prerequisites/record-analysis verbs, `design-status` verb, contract-version bump, docs) — every part of the issue #3837 ask belongs in this mission's scope, not deferred to a follow-up issue. The PR body must carry `Closes #3837`. | Process | High | Open |
+| C-005 | Seam extraction sequencing and behaviour preservation (FR-014 before FR-013) | Per operator ruling SPEC-FRESH2-001 (Clarification 7), FR-014's seam extraction MUST be planned and implemented before FR-013's `answer-decision` verb, which depends on it. The host CLI's existing `next_cmd.py` call sites for `_pair_previous_lifecycle_record`, `_emit_mission_next_invoked`, and `_write_issuance_lifecycle_record` become callers of the extracted seam — a behaviour-preserving refactor with zero change to the host CLI's own observable event-log or lifecycle-record output — covered by a shared regression test that fails if EITHER caller (the host CLI's `next --answer` or orchestrator-api's `answer-decision`) stops writing the mission-event-log entry or the lifecycle records (SC-008). | Process | High | Open |
 
 ### Key Entities
 
 - **Design-phase envelope**: the same canonical JSON response envelope (`make_envelope`) already used by the 10 existing orchestrator-api verbs — `command`, `success`, `data`, and on failure `error_code`/`error`. No new envelope shape is introduced; new verbs reuse it.
 - **Decision moment (Mechanism A, `OriginFlow`-scoped)**: an entry in a mission's decision ledger (`decisions/index.json`), keyed by `decision_id`, carrying `origin` (one of `OriginFlow.CHARTER`/`SPECIFY`/`PLAN`), `status` (open/resolved/deferred/cancelled), and the question/answer payload — unchanged in shape by this mission, only newly reachable via `open-decision`/`resolve-decision`/`defer-decision`/`cancel-decision`.
-- **Run decision (Mechanism B, `DecisionKind.decision_required`)**: an entry in a mission RUN's `pending_decisions` map (a run-snapshot store read via `_internal_runtime.engine._read_snapshot`, distinct from `decisions/index.json`), keyed by `decision_id` in the form `audit:<step_id>` (blocking audit checkpoint) or `input:<key>` (missing required input), carrying `question` and `options`. Not `OriginFlow`-scoped — can occur at any DAG step in any mission phase. Resolved by `answer-decision` (FR-013) the same way `spec-kitty next --answer --result <...>` resolves it today — which is itself a COMPOSITE of two engine calls, not one: (1) `runtime_bridge.answer_decision_via_runtime` persists the answer (returns nothing usable as a response payload), then (2) `decide_next` (`src/runtime/next/decision.py:413`, delegating to `runtime_bridge.decide_next_via_runtime`) advances the DAG using the verb's own `--result` and returns the next-step `Decision`. `answer-decision`'s response `data` is `Decision.to_dict()` from call (2) — carrying `kind`/`step_id`/`decision_id`/`prompt_file`/etc. for whatever comes next — with one additional sibling field, `answered_decision_id`, set to the `decision_id` persisted in call (1) (see User Story 5 AC1/AC3 for the response-shape contract).
+- **Run decision (Mechanism B, `DecisionKind.decision_required`)**: an entry in a mission RUN's `pending_decisions` map (a run-snapshot store read via `_internal_runtime.engine._read_snapshot`, distinct from `decisions/index.json`), keyed by `decision_id` in the form `audit:<step_id>` (blocking audit checkpoint) or `input:<key>` (missing required input), carrying `question` and `options`. Not `OriginFlow`-scoped — can occur at any DAG step in any mission phase. Resolved by `answer-decision` (FR-013) the same way `spec-kitty next --answer --result <...>` resolves it today — which is itself a COMPOSITE of two engine calls PLUS three lifecycle/event-log side effects, not the two engine calls alone (per operator ruling SPEC-FRESH2-001; see Clarification 7): (1) `runtime_bridge.answer_decision_via_runtime` persists the answer (returns nothing usable as a response payload); (2) the equivalent of `_pair_previous_lifecycle_record` pairs the previous issuance's `started` lifecycle record BEFORE the DAG advances; (3) `decide_next` (`src/runtime/next/decision.py:413`, delegating to `runtime_bridge.decide_next_via_runtime`) advances the DAG using the verb's own `--result` and returns the next-step `Decision`; (4) the equivalent of `_emit_mission_next_invoked` writes a `MissionNextInvoked` entry into the mission's event log; and (5), whenever the resulting `decision.kind == "step"`, the equivalent of `_write_issuance_lifecycle_record` writes a new issuance `started` lifecycle record. Steps (2), (4), and (5) are reached through a shared seam extracted from `next_cmd.py` (FR-014) that both the host CLI and orchestrator-api call — never inlined or duplicated into the orchestrator-api layer. `answer-decision`'s response `data` is `Decision.to_dict()` from call (3) — carrying `kind`/`step_id`/`decision_id`/`prompt_file`/etc. for whatever comes next — with one additional sibling field, `answered_decision_id`, set to the `decision_id` persisted in call (1) (see User Story 5 AC1/AC3 for the response-shape contract). `data` carries NO equivalent of the CLI's second extra key, `answer` (the submitted answer text, echoed back by `_print_decision`'s `d["answer"] = answer` at `next_cmd.py:915`): that echo is intentionally OMITTED because the host already possesses the value it submitted in its own request — unlike `answered_decision_id`, which can name an auto-resolved `decision_id` the host did not already know when `--decision-id` was omitted (see Clarification 3, Mechanism B).
 - **Analysis report artifact**: `kitty-specs/<slug>/analysis-report.md`, written by `record_analysis` today and by `record-analysis` under this mission — the ground truth `record-analysis` must re-read (and correlate with THIS call via `generated_at` freshness — NFR-004) to determine its own success.
 - **Design-phase status snapshot**: the read-only aggregate (`current_phase`, `next_action`, `open_decisions`) returned by the new `design-status` verb, reduced from the mission's event log and decision ledger the same way `list-ready` reduces WP state — never persisted, never mutating.
 
@@ -572,7 +614,7 @@ reviewer (or `sk-review`) can audit these without re-deriving them:
    member names as if they were a superset check against `OriginFlow`
    members and concluded the gap was "a scope boundary, not an oversight."
    That was wrong: `DecisionKind` values (`step`/`decision_required`/
-   `blocked`/`terminal`/`query`, `src/runtime/next/decision.py:64-68`) are
+   `blocked`/`terminal`/`query`, `src/runtime/next/decision.py:63-67`) are
    envelope *kinds* emitted by the `spec-kitty next` control loop, not
    origin flows, and they are **not** bounded to charter/specify/plan.
    Correcting the record:
@@ -606,30 +648,46 @@ reviewer (or `sk-review`) can audit these without re-deriving them:
      runtime(...)`, `src/runtime/next/runtime_bridge.py:2587-2662`), which
      writes into a **run-snapshot store** — a completely separate
      persistence layer from `decisions/index.json`. **`_handle_answer` is
-     only HALF of what the real `--answer` invocation does.** `--answer`
+     only PART of what the real `--answer` invocation does.** `--answer`
      hard-requires `--result` (`_validate_result_and_answer`,
      `next_cmd.py:743-750`), and the SAME CLI call (`next_cmd.py:213-221`
-     then `next_cmd.py:246-248`) ALWAYS follows the persisted answer with a
+     then `next_cmd.py:248-250`) ALWAYS follows the persisted answer with a
      second, separate call, `decide_next` (`src/runtime/next/decision.py:413`,
      delegating to `runtime_bridge.decide_next_via_runtime`,
      `runtime_bridge.py:2191`), which advances the DAG using `--result` and
-     returns the next-step `Decision`. `_print_decision`
+     returns the next-step `Decision`. In the SAME pass, the SAME CLI call
+     also pairs the previous issuance's lifecycle record BEFORE `decide_next`
+     (`_pair_previous_lifecycle_record`, `next_cmd.py:244-246`) and, after
+     `decide_next`, writes the mission event log entry
+     (`_emit_mission_next_invoked`, `next_cmd.py:251-258`) and, whenever the
+     resulting decision's `kind == "step"`, a new issuance `started`
+     lifecycle record (`_write_issuance_lifecycle_record`,
+     `next_cmd.py:263-269`). `_print_decision`
      (`next_cmd.py:910-919`) then prints `decision.to_dict()` with two extra
      keys, `answered` and `answer`, merged in flatly. **`answer-decision`
-     (FR-013) wraps BOTH calls**, matching the real CLI's always-both-calls
-     behavior (see User Story 5), and returns `Decision.to_dict()` from the
-     `decide_next` call with one added field, `answered_decision_id` —
-     `answer-decision`'s own self-documenting name for the same bookkeeping
-     the CLI's terser `answered` key carries, following the existing
-     orchestrator-api convention of curated, self-documenting `data` field
-     names rather than a verbatim re-export of an internal function's dict
-     (e.g. `start-implementation`/`start-review`'s `wp_id`/`from_lane`/
-     `to_lane`, `commands.py:1258-1266,1352-1360`). The "SAME shape" parity
-     User Story 5 AC3 / the Independent Test / SC-007 require is scoped to
-     the `Decision.to_dict()`-derived next-step fields (`kind`, `step_id`,
-     `decision_id`, `prompt_file`, etc.), which ARE byte-identical to what
-     `next --answer --json` emits for those keys — not to the bookkeeping
-     key's literal name.
+     (FR-013) wraps ALL of this** — both engine calls AND the three
+     lifecycle/event-log side effects, reached through the shared seam
+     FR-014 extracts from `next_cmd.py` (per operator ruling
+     SPEC-FRESH2-001; full rationale in Clarification 7) — matching the real
+     CLI's always-does-all-of-it behavior (see User Story 5), and returns
+     `Decision.to_dict()` from the `decide_next` call with one added field,
+     `answered_decision_id` — `answer-decision`'s own self-documenting name
+     for the same bookkeeping the CLI's terser `answered` key carries,
+     following the existing orchestrator-api convention of curated,
+     self-documenting `data` field names rather than a verbatim re-export of
+     an internal function's dict (e.g. `start-implementation`/
+     `start-review`'s `wp_id`/`from_lane`/`to_lane`,
+     `commands.py:1258-1266,1352-1360`). `answer-decision`'s `data` carries
+     NO equivalent of the CLI's second extra key, `answer` (the submitted
+     answer text) — that echo is intentionally omitted because the host
+     already possesses the value it submitted; see the Key Entities "Run
+     decision" bullet for the full response-shape contract. The "SAME
+     shape" parity User Story 5 AC3 / the Independent Test / SC-007 require
+     is scoped to the `Decision.to_dict()`-derived next-step fields (`kind`,
+     `step_id`, `decision_id`, `prompt_file`, etc.), which ARE byte-identical
+     to what `next --answer --json` emits for those keys — not to the
+     bookkeeping key's literal name — and now additionally requires the
+     event-log and lifecycle-record parity described above (SC-007(c)).
 
    GitHub issue #3837 literally asks for "a decision-resolution verb
    covering the `DecisionKind` cases (`runtime/next/decision.py`)" — that is
@@ -743,6 +801,64 @@ reviewer (or `sk-review`) can audit these without re-deriving them:
    re-derive it, and so a hand-rolled reduction is a documented choice, not
    an unexamined drift risk (DIRECTIVE_044).
 
+7. **Operator ruling — `answer-decision` requires event/lifecycle-log
+   parity, reached via an extracted shared seam (SPEC-FRESH2-001).** A
+   fresh-sweep review round found that FR-013's two-engine-call composite
+   design (User Story 5, Clarification 3 Mechanism B) omitted three side
+   effects the real `spec-kitty next --answer ...` invocation always
+   performs in the same pass: `_pair_previous_lifecycle_record` (before
+   `decide_next`), and, after `decide_next`, `_emit_mission_next_invoked`
+   (writes a `MissionNextInvoked` entry into the mission's event log) and
+   `_write_issuance_lifecycle_record` (writes a `started` lifecycle record
+   whenever the resulting decision is `kind == "step"`). None of the three
+   live inside the engine layer (`runtime_bridge.py`, `decision.py`) the
+   original design wrapped — they are CLI-command-layer orchestration in
+   `next_cmd.py`. A WP built strictly from the original FR/Scope-Notes
+   surface would have produced an `answer-decision` verb whose JSON
+   response looked byte-identical to the CLI's while silently failing to
+   advance the mission's event log or lifecycle store — an observable
+   divergence between a mission driven via the host CLI and one driven via
+   orchestrator-api.
+
+   **The operator ruled: require the three side effects, reached through a
+   seam extracted from `next_cmd.py` that BOTH the host CLI and
+   orchestrator-api call — not by inlining or duplicating the calls into
+   the orchestrator-api layer** (FR-014). Rationale, recorded here so a
+   plan-phase author does not have to re-derive it:
+
+   - *The issue's own premise.* #3837 exists because external hosts driving
+     design phases today must shell the host CLI, which the boundary rules
+     forbid. A verb that returns the right-looking JSON while failing to
+     advance the event and lifecycle logs does not remove that need — it
+     replaces a documented boundary violation with a silent behavioural
+     divergence, which is worse because nothing surfaces it.
+   - *Self-consistency within this mission.* This mission also specifies a
+     `design-status` query verb (FR-010) that READS the mission event log.
+     An `answer-decision` that does not write to that log makes the mission
+     internally incoherent: its own status verb would under-report progress
+     driven through its own answer verb.
+   - *Silent success is this repository's named dominant failure mode*
+     (charter; spec-kitty overlay §1a; issues #3133, #3212, #3282, #3336).
+     A code path that reports success while omitting part of its work is
+     that class exactly.
+   - *Why extract rather than inline.* Inlining would put orchestrator-api
+     code in reach of CLI-layer helpers — an architecture violation caught
+     at implementation time — and would duplicate logic that then drifts
+     from the CLI's own copy. Extraction costs a refactor work package
+     (FR-014); the operator accepted that cost explicitly.
+
+   **Scope consequence:** this enlarges the mission. FR-014 (seam
+   extraction) is a new functional requirement, sequenced BEFORE FR-013 in
+   the plan and tasks phases (C-005) — the plan/tasks phases must carry a
+   dedicated work package for it. The host CLI's own `next_cmd.py` call
+   sites become callers of the extracted seam: a behaviour-preserving
+   refactor (C-005), covered by a shared test that fails if either caller
+   (the host CLI or orchestrator-api) stops writing the event-log entry or
+   the lifecycle records (SC-008). See User Story 5's updated
+   composite-design description, the Key Entities "Run decision" bullet,
+   Acceptance Scenario 7, and SC-007(c)/SC-008 for where this requirement
+   is pinned down as testable acceptance coverage.
+
 ## Success Criteria *(mandatory)*
 
 ### Measurable Outcomes
@@ -791,14 +907,29 @@ reviewer (or `sk-review`) can audit these without re-deriving them:
   verified by an integration test that drives a fixture mission run to a
   `decision_required` state, calls `answer-decision`, and confirms (a) the
   run-snapshot's `pending_decisions` no longer contains the answered
-  `decision_id`, and (b) the resulting envelope carries both the
+  `decision_id`; (b) the resulting envelope carries both the
   persisted-answer confirmation (`data.answered_decision_id`) and, on every
   `Decision.to_dict()`-derived key (`kind`, `step_id`, `decision_id`,
   `prompt_file`, etc.), matches what `spec-kitty next --answer ... --json`
-  returns for the identical call — proving `answer-decision` performed BOTH
-  engine calls the real CLI performs (`answer_decision_via_runtime` then
-  `decide_next`/`decide_next_via_runtime`), not only the persist step —
-  never invoking `spec-kitty next` directly.
+  returns for the identical call; and (c) the mission's event log and
+  lifecycle-record store show the SAME `MissionNextInvoked`-equivalent
+  entry and issuance/pairing lifecycle records that call would have
+  produced (per operator ruling SPEC-FRESH2-001 / Clarification 7 / FR-014)
+  — proving `answer-decision` performed BOTH engine calls the real CLI
+  performs (`answer_decision_via_runtime` then
+  `decide_next`/`decide_next_via_runtime`) AND the three lifecycle/event-log
+  side effects (`_pair_previous_lifecycle_record`,
+  `_emit_mission_next_invoked`, `_write_issuance_lifecycle_record`
+  equivalents), not only the persist-and-advance steps — never invoking
+  `spec-kitty next` directly.
+- **SC-008**: A shared regression test (per FR-014 / C-005) fails if EITHER
+  caller of the extracted lifecycle/event-log seam — the host CLI's
+  `spec-kitty next --answer ...` or orchestrator-api's `answer-decision` —
+  stops writing the mission's `MissionNextInvoked` event-log entry, the
+  paired-previous-issuance lifecycle record, or the new issuance `started`
+  lifecycle record; proving the seam extraction (FR-014) is
+  behaviour-preserving for the host CLI and load-bearing, not incidental,
+  for `answer-decision` (FR-013).
 
 ---
 
@@ -813,13 +944,25 @@ change set):
   changelog comment
 - `src/runtime/next/runtime_bridge.py` (`answer_decision_via_runtime`,
   `decide_next_via_runtime`, `get_or_start_run`, `_read_snapshot`) and
-  `src/runtime/next/decision.py` (`decide_next`) — the two-call engine
+  `src/runtime/next/decision.py` (`decide_next`) — the two ENGINE calls
   `answer-decision` (FR-013) wraps: `answer_decision_via_runtime` persists
   the answer, then `decide_next`/`decide_next_via_runtime` (passing the
   verb's own `--result`) advances the DAG and produces the next-step
   `Decision` that becomes `data`; likely read/advance reuse, no engine
   changes expected, but the plan phase should confirm no new public surface
   is needed there
+- `src/specify_cli/cli/commands/next_cmd.py` (`_pair_previous_lifecycle_record`
+  at `next_cmd.py:333`, `_emit_mission_next_invoked` at `next_cmd.py:863`,
+  `_write_issuance_lifecycle_record` at `next_cmd.py:430`) — the THREE
+  lifecycle/event-log side effects FR-014 extracts into a shared seam so
+  `answer-decision` (FR-013) can call them too, per operator ruling
+  SPEC-FRESH2-001 (Clarification 7); the plan phase determines the exact
+  target module for the extracted seam — a location both `next_cmd.py` and
+  `src/specify_cli/orchestrator_api/commands.py` can import without
+  orchestrator-api reaching into CLI-command-layer code (this repo's
+  `CLAUDE.md` already treats `src/runtime/next/` as the canonical runtime
+  home under the Shared Package Boundary) — and updates `next_cmd.py`'s own
+  call sites to call through it (behaviour-preserving, C-005)
 - `docs/api/orchestrator-api.md` — new verb documentation
 - `src/charter/offering/skills/spec-kitty-orchestrator-api-operator/
   references/host-boundary-rules.md` — Boundary Decision Matrix gains
