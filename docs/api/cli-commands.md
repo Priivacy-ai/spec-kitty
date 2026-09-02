@@ -1111,6 +1111,8 @@ _Dispatch a request to a governed Op (canonical surface)._
 │ --profile          TEXT  Optional profile ID. Bypasses the router — use when │
 │                          the request is ambiguous.                           │
 │ --json                   Output JSON payload                                 │
+│ --dry-run                Route the request and return the routing signal     │
+│                          without opening an Op or writing anything.          │
 │ --help     -h            Show this message and exit.                         │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ```
