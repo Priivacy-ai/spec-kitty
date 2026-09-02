@@ -25,12 +25,14 @@ kept honest.
 
 ## Docs site publication source
 
-> **Temporary publication gap (3.2.6 convergence).** `docs.spec-kitty.ai` is
-> deployed by `.github/workflows/docs-pages.yml` from upstream `main`, not from
-> this EXPERIMENTAL fork. Between the first promotion to upstream and the
-> workflow-restoration child landing, the public site can remain stale. This is
-> accepted for 3.2.6; the owner announcement covers the gap, and the
-> workflow-restoration child is the follow-up.
+> `docs.spec-kitty.ai` is intentionally deployed from the promotion-only
+> upstream repository (`Priivacy-ai/spec-kitty`) by
+> `.github/workflows/docs-pages.yml`. This EXPERIMENTAL repository is the
+> source of the promoted tree, but it does not claim the custom domain: its
+> Pages workflow skips when Pages is unavailable and its deployment guard
+> accepts only upstream `main`. Documentation merged here reaches the public
+> site through the controller's promotion loop, as ratified for the public
+> 3.2.6 release and recorded in the programme's fork-reconciliation policy.
 
 ## See also
 
