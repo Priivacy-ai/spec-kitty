@@ -16,6 +16,7 @@ Arguments
 Options
 * --status TEXT Status: done/pending [required]
 --mission TEXT Mission slug
+--owned-checkout PATH Explicit single-branch checkout root.
 --auto-commit --no-auto-commit Automatically commit tasks.md changes to target branch (default: from project config)
 --json Output JSON format
 --help -h Show this message and exit.
