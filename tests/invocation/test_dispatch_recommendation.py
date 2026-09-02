@@ -459,3 +459,34 @@ def test_render_rich_payload_includes_recommendation_line(capsys: pytest.Capture
     captured = capsys.readouterr()
     assert "model-alpha" in captured.out
     assert "code-review" in captured.out
+
+
+# ---------------------------------------------------------------------------
+# WP1/#3840 — the advisory recommendation still populates under --dry-run.
+# dry_run() mirrors build_charter_context(..., mark_loaded=False) exactly as
+# invoke() does (already read-only), so this is a pin, not new plumbing.
+# ---------------------------------------------------------------------------
+
+
+def test_dry_run_cli_recommendation_present_for_audit_verb_real_catalog(tmp_path: Path) -> None:
+    """CLI-level proof against the REAL shipped catalog: reviewer-fixture's
+    default canonical verb ("audit" -> "quality-audit") is covered by the
+    catalog, and the recommendation surfaces identically whether or not
+    --dry-run is passed."""
+    project = _setup_project(tmp_path)
+    with (
+        patch("specify_cli.cli.commands.dispatch.find_repo_root", return_value=project),
+        patch("specify_cli.invocation.executor.build_charter_context", return_value=_COMPACT_CTX),
+    ):
+        result = runner.invoke(
+            cli_app,
+            ["dispatch", "review the diff", "--profile", "reviewer-fixture", "--dry-run", "--json"],
+        )
+
+    assert result.exit_code == 0, result.output
+    envelope = json.loads(result.output)
+    assert envelope["status"] == "dry_run"
+    assert envelope["action"] == "audit"
+    assert envelope["recommendation"] is not None
+    assert envelope["recommendation"]["task_type"] == "quality-audit"
+    assert envelope["recommendation"]["candidates"]

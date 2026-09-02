@@ -395,3 +395,224 @@ def test_dispatch_empty_charter_still_routes_despite_empty_mission_type_activati
     assert envelope["profile_id"] == "generic-agent"
     assert envelope["router_confidence"] == "generic_fallback"
     assert envelope["empty_charter_fallback"] is True
+
+
+# ---------------------------------------------------------------------------
+# WP1/#3840 — `dispatch --dry-run` flag + payload shape
+#
+# Correctness property this section exists for: a dry-run call writes
+# NOTHING -- no kitty-ops/ file, no ops-index.jsonl line, no
+# .kittify/events/glossary/*.jsonl file, no SaaS propagator submit. Every
+# absence is proven by a directory/file-count snapshot, never inferred from
+# the returned payload alone (silent success is this repo's dominant failure
+# mode -- SPEC-KITTY-LEDGER.md).
+# ---------------------------------------------------------------------------
+
+
+def _tied_implementers_registry() -> MagicMock:
+    """Two implementer profiles, equal routing_priority, no domain keywords.
+
+    Mirrors tests/specify_cli/invocation/test_router.py's
+    test_router_ambiguity_two_profiles_same_score fixture shape -- both
+    candidates tie on the canonical-verb match, so route() raises
+    ROUTER_AMBIGUOUS after the priority tiebreaker fails to separate them.
+    """
+    return _make_mock_registry(
+        [
+            {
+                "profile_id": "implementer-a",
+                "role_value": "implementer",
+                "routing_priority": 50,
+                "domain_keywords": [],
+            },
+            {
+                "profile_id": "implementer-b",
+                "role_value": "implementer",
+                "routing_priority": 50,
+                "domain_keywords": [],
+            },
+        ]
+    )
+
+
+def _snapshot_dir(path: Path) -> list[str]:
+    """Sorted file-name listing of *path*, or [] if it does not exist.
+
+    Treats "directory absent" and "directory present but empty" as the same
+    unchanged state (SC-002's explicit requirement).
+    """
+    if not path.exists():
+        return []
+    return sorted(p.name for p in path.iterdir())
+
+
+def test_dry_run_writes_nothing_to_kitty_ops(tmp_path: Path) -> None:
+    """SC-001: N dry-run calls leave kitty-ops/ byte-identical (file count +
+    ops-index.jsonl line count)."""
+    project = _setup_project(tmp_path)
+    _write_configured_charter(project)
+    ops_dir = project / EVENTS_DIR
+    index_path = ops_dir / "ops-index.jsonl"
+    before_files = _snapshot_dir(ops_dir)
+    before_index_lines = index_path.read_text(encoding="utf-8").splitlines() if index_path.exists() else []
+
+    for _ in range(3):
+        result = _run_with_registry(
+            project,
+            ["dispatch", "implement the payment module", "--dry-run", "--json"],
+            _implementer_registry(),
+        )
+        assert result.exit_code == 0, result.output
+
+    after_files = _snapshot_dir(ops_dir)
+    after_index_lines = index_path.read_text(encoding="utf-8").splitlines() if index_path.exists() else []
+    assert after_files == before_files
+    assert after_index_lines == before_index_lines
+
+
+def test_dry_run_suppresses_glossary_event_write(tmp_path: Path) -> None:
+    """SC-002: dry-run on unrecognized tokens writes no glossary event file.
+
+    The fixture project ships no `.kittify/glossaries/*.yaml` seed, so every
+    token in the request is unrecognized by the index -- the exact scenario
+    that would persist a TermCandidateObserved event under real dispatch.
+    The in-memory scan still runs (glossary_observations is populated); only
+    the persisted write is suppressed.
+    """
+    project = _setup_project(tmp_path)
+    _write_configured_charter(project)
+    glossary_events_dir = project / ".kittify" / "events" / "glossary"
+    before = _snapshot_dir(glossary_events_dir)
+
+    envelope: dict[str, Any] = {}
+    for _ in range(3):
+        result = _run_with_registry(
+            project,
+            ["dispatch", "implement the frobnicator payment module", "--dry-run", "--json"],
+            _implementer_registry(),
+        )
+        assert result.exit_code == 0, result.output
+        envelope = json.loads(result.output)
+
+    after = _snapshot_dir(glossary_events_dir)
+    assert after == before
+    assert envelope["glossary_observations"] is not None
+    assert envelope["glossary_observations"]["tokens_checked"] > 0
+
+
+def test_dry_run_does_not_submit_to_saas_propagator(tmp_path: Path) -> None:
+    """Third named suppressed-write surface: the SaaS propagator's submit()
+    is never called across N --dry-run invocations."""
+    project = _setup_project(tmp_path)
+    _write_configured_charter(project)
+    mock_propagator = MagicMock()
+    with (
+        patch("specify_cli.cli.commands.dispatch.find_repo_root", return_value=project),
+        patch("specify_cli.cli.commands.dispatch.ProfileRegistry", return_value=_implementer_registry()),
+        patch("specify_cli.cli.commands.dispatch.InvocationSaaSPropagator", return_value=mock_propagator),
+        patch("specify_cli.invocation.executor.build_charter_context", return_value=_COMPACT_CTX),
+    ):
+        for _ in range(3):
+            result = runner.invoke(cli_app, ["dispatch", "implement the payment module", "--dry-run", "--json"])
+            assert result.exit_code == 0, result.output
+
+    mock_propagator.submit.assert_not_called()
+
+
+def test_dry_run_payload_shape(tmp_path: Path) -> None:
+    """Dry-run payload carries status/profile_id/action/router_confidence,
+    and drops invocation_id/close_contract entirely (nothing to close)."""
+    project = _setup_project(tmp_path)
+    envelope = _invoke_json(
+        project,
+        ["dispatch", "implement the feature", "--profile", "implementer-fixture", "--dry-run", "--json"],
+    )
+    assert envelope["status"] == "dry_run"
+    assert "invocation_id" not in envelope
+    assert "close_contract" not in envelope
+    assert envelope["profile_id"] == "implementer-fixture"
+    assert envelope["action"]
+    assert envelope["router_confidence"] == "exact"
+
+
+def test_dry_run_profile_hint_returns_exact_confidence(tmp_path: Path) -> None:
+    """FR-008: --dry-run --profile <id> mirrors real dispatch's explicit-hint
+    behavior minus the writes -- router_confidence exact, alternatives empty."""
+    project = _setup_project(tmp_path)
+    envelope = _invoke_json(
+        project,
+        ["dispatch", "implement the feature", "--profile", "implementer-fixture", "--dry-run", "--json"],
+    )
+    assert envelope["router_confidence"] == "exact"
+    assert envelope["alternatives"] == []
+
+
+def test_dry_run_under_empty_charter_fallback(tmp_path: Path) -> None:
+    """FR-010: --dry-run under a wholly-empty charter surfaces the same
+    generic-agent fallback signal as real dispatch (research.md Decision 2/3)."""
+    project = _setup_project(tmp_path)
+
+    envelope = _invoke_json(project, ["dispatch", "implement the payment module", "--dry-run", "--json"])
+
+    assert envelope["status"] == "dry_run"
+    assert envelope["profile_id"] == "generic-agent"
+    assert envelope["router_confidence"] == "generic_fallback"
+    assert envelope["action"] == "implement"
+    assert envelope["empty_charter_fallback"] is True
+
+
+def test_dry_run_ambiguous_returns_dry_run_payload_not_exit_1(tmp_path: Path) -> None:
+    """FR-009: --dry-run on a ROUTER_AMBIGUOUS request does NOT raise -- it
+    exits 0 with profile_id/action null, router_confidence "ambiguous", and
+    every tied candidate in `alternatives` (each carrying a confidence key)."""
+    project = _setup_project(tmp_path)
+    _write_configured_charter(project)
+    result = _run_with_registry(
+        project,
+        ["dispatch", "implement the feature", "--dry-run", "--json"],
+        _tied_implementers_registry(),
+    )
+
+    assert result.exit_code == 0, result.output
+    envelope = json.loads(result.output)
+    assert envelope["status"] == "dry_run"
+    assert envelope["profile_id"] is None
+    assert envelope["action"] is None
+    assert envelope["router_confidence"] == "ambiguous"
+    candidate_ids = {c["profile_id"] for c in envelope["alternatives"]}
+    assert candidate_ids == {"implementer-a", "implementer-b"}
+    for candidate in envelope["alternatives"]:
+        assert candidate["confidence"]
+
+
+def test_dry_run_no_match_still_raises(tmp_path: Path) -> None:
+    """FR-009: ROUTER_NO_MATCH still exits 1 under --dry-run -- no partial
+    signal worth reporting."""
+    project = _setup_project(tmp_path)
+    _write_configured_charter(project)
+    result = _run_with_registry(
+        project,
+        ["dispatch", "help me", "--dry-run", "--json"],
+        _implementer_registry(),
+    )
+
+    assert result.exit_code == 1
+    error_obj = json.loads(result.output)
+    assert error_obj["error"] == "routing_failed"
+    assert error_obj["error_code"] == "ROUTER_NO_MATCH"
+
+
+def test_dry_run_unknown_profile_still_raises(tmp_path: Path) -> None:
+    """FR-009: an unknown --profile still exits 1 under --dry-run -- there is
+    no profile to describe."""
+    project = _setup_project(tmp_path)
+
+    result = _run(
+        project,
+        ["dispatch", "implement", "--profile", "nonexistent-profile", "--dry-run", "--json"],
+    )
+
+    assert result.exit_code == 1
+    error_obj = json.loads(result.output)
+    assert error_obj["error"] == "routing_failed"
+    assert error_obj["error_code"] == "PROFILE_NOT_FOUND"

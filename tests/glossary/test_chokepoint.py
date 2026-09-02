@@ -248,6 +248,34 @@ def test_unknown_term_emits_candidate_event_for_profile_invocation(tmp_path: Pat
 
 
 # ---------------------------------------------------------------------------
+# WP1/#3840 — dispatch --dry-run's FR-003 structural guarantee relies on this
+# existing gate (chokepoint.py:221) without changing it: pin it directly.
+# ---------------------------------------------------------------------------
+
+
+def test_build_event_context_falsy_invocation_id_returns_none(tmp_path: Path) -> None:
+    """A falsy (empty-string) invocation_id short-circuits event-context
+    construction before any write is attempted -- the gate dispatch's new
+    dry_run() path relies on structurally."""
+    cp = GlossaryChokepoint(tmp_path)
+    assert cp._build_event_context(invocation_id="", actor_id="codex") is None
+
+
+def test_run_with_falsy_invocation_id_never_emits_candidate_event(tmp_path: Path) -> None:
+    """End-to-end pin at the run() entry point: a falsy invocation_id
+    suppresses TermCandidateObserved emission even for a genuinely
+    unrecognized term (mirrors test_unknown_term_emits_candidate_event_for_
+    profile_invocation above, with invocation_id="" instead of a truthy id)."""
+    cp = _chokepoint_with_store(_make_store(), repo_root=tmp_path)
+
+    with patch("glossary.events.emit_term_candidate_observed") as emit_mock:
+        bundle = cp.run("frobnicator", invocation_id="", actor_id="codex")
+
+    assert bundle.error_msg is None
+    emit_mock.assert_not_called()
+
+
+# ---------------------------------------------------------------------------
 # T014-5: _load_index() is idempotent — two calls return same object
 # ---------------------------------------------------------------------------
 

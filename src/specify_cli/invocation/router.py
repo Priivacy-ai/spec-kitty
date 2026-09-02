@@ -378,6 +378,11 @@ class ActionRouter:
                     "profile_id": c["profile_id"],
                     "action": c["action"],
                     "match_reason": c["match_reason"],
+                    # FR-009: sourced from the same _confidence value computed
+                    # above during the verb/keyword match passes -- so
+                    # build_ambiguous_dry_run_payload can build `alternatives`
+                    # from err.candidates without a schema mismatch.
+                    "confidence": c["_confidence"],
                 }
                 for c in top_candidates
             ],
