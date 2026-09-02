@@ -324,8 +324,11 @@ FLOOR_MARGIN = 2
 # the four-site margin (``147 <= 147 < 151``). Measured directly via
 # ``pytest tests/architectural/test_inline_meta_read_gate.py::test_routed_load_meta_floor``
 # on the integrated PR tip.
+# RAISED 2026-09-02 (#3843): explicit-owned-checkout routing adds genuine
+# canonical metadata reads. Live rises to 155; floor raised to 152 to preserve
+# the established three-below-live gap (``151 <= 152 < 155``).
 ROUTED_LOAD_META_FLOOR_MARGIN = 4
-ROUTED_LOAD_META_FLOOR = 150
+ROUTED_LOAD_META_FLOOR = 152
 
 
 # --------------------------------------------------------------------------- #

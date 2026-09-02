@@ -6,10 +6,12 @@ import json
 import os
 import shutil
 from pathlib import Path
+from types import SimpleNamespace
 
 import pytest
 from typer.testing import CliRunner
 
+from specify_cli.cli.commands.agent import tasks_move_task as move_task_module
 from specify_cli.cli.commands.agent.tasks import app as tasks_app
 from tests.integration.test_explicit_checkout_commands import (
     SLUG,
@@ -22,6 +24,28 @@ from tests.integration.test_explicit_checkout_commands import (
 
 __all__ = ["checkouts"]
 pytestmark = [pytest.mark.integration, pytest.mark.git_repo]
+
+
+def test_owned_gate_baseline_reads_selected_mission_directory(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    mission = tmp_path / "kitty-specs" / SLUG
+    wp = mission / "tasks" / "WP01-test.md"
+    captured: list[Path] = []
+    monkeypatch.setattr(
+        move_task_module.BaselineTestResult,
+        "load",
+        lambda path: captured.append(path),
+    )
+    state = SimpleNamespace(
+        owned=SimpleNamespace(root=tmp_path),
+        wp=SimpleNamespace(path=wp),
+        feature_dir=mission,
+    )
+
+    move_task_module._mt_resolve_gate_baseline(state)
+
+    assert captured == [mission / "tasks" / "WP01-test" / "baseline-tests.json"]
 
 
 @pytest.fixture
