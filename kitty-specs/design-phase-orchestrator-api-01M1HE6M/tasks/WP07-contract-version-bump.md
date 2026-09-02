@@ -25,6 +25,7 @@ execution_mode: code_change
 model: ''
 owned_files:
 - src/specify_cli/orchestrator_api/envelope.py
+- tests/specify_cli/orchestrator_api/test_contract_version.py
 role: implementer
 tags: []
 tracker_refs: []
@@ -90,10 +91,30 @@ names is authentically RED before this WP's change.
    `record-analysis`, `open-decision`, `resolve-decision`,
    `defer-decision`, `cancel-decision`, `design-status`,
    `answer-decision`).
-2. Confirm RED on `planning_base_branch` (fails: version string is still
+2. Since this test only inspects an in-memory Typer response
+   (`contract-version --json`) and re-reads `envelope.py`'s own changelog
+   comment text — no fixture-mission, no real git operations — mark it
+   `pytestmark = [pytest.mark.fast]`, matching `test_commands_fail_closed.py`'s
+   convention (`pytest.ini:25`). This is what makes `fast-tests-core-misc`'s
+   specify-cli-rest shard (`-m "fast and not windows_ci and not
+   regression"`) collect it; without a marker, neither `fast-tests-core-misc`
+   nor `integration-tests-core-misc` (`-m 'not windows_ci and (git_repo or
+   integration or architectural) and not timing and not regression'`) will
+   collect the file. If extending an existing file rather than creating a
+   new one, PRESERVE that file's existing `pytestmark` — do not re-derive
+   or overwrite it.
+3. Confirm RED on `planning_base_branch` (fails: version string is still
    `"1.3.0"`, changelog comment does not yet mention the new verbs).
 
-**Files**: existing or new file under `tests/specify_cli/orchestrator_api/` (small addition, ~20-40 lines — reuse an existing contract-version test file if one already exists rather than creating a new one).
+**Files**: `tests/specify_cli/orchestrator_api/test_contract_version.py`
+(new, ~20-40 lines) — grep `tests/specify_cli/orchestrator_api/` first for
+an existing `test_contract_version.py`-style file covering
+`contract-version`; reuse and extend it (preserving its `pytestmark`)
+instead of creating a new file if one already exists. Either way this path
+is WP07's declared test-file ownership — enforced via this WP's own
+frontmatter `owned_files` (the field the commit-guard ownership check
+reads at implementation time), also mirrored in `wps.yaml`'s
+`owned_files` for consistency.
 
 **Validation**: fails on `planning_base_branch`.
 
@@ -141,6 +162,8 @@ rebase-risk note applies to this WP.
 ## Definition of Done
 
 - [ ] RED commit: version/verb-list test fails on `planning_base_branch`.
+- [ ] `pytestmark = pytest.mark.fast` on the test file (new or extended;
+      preserved, not re-derived, if the file already existed).
 - [ ] `CONTRACT_VERSION` = `"1.4.0"`, changelog comment names all 11 new verbs.
 - [ ] `MIN_PROVIDER_VERSION` unchanged (`"0.1.0"`).
 - [ ] Existing envelope/contract-version test coverage green.

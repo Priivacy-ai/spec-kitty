@@ -326,10 +326,14 @@ Write-Scope note). This WP ALSO owns
 `tests/specify_cli/next/test_next_invocation_lifecycle_seam.py`, shared
 with WP02 — that overlap is exempt from the ownership check via the
 WP02→WP08 dependency edge (sequential pair, not concurrent), not via
-`codebase-wide`. Sequence the MERGE of this WP against WP03/04/05/06 and
-against #3826 — but note this WP's merge additionally has a HARD
-prerequisite (WP02 merged first), unlike WP03-06's soft merge-ordering
-recommendation.
+`codebase-wide`. **PR #3826 merged into `main` on 2026-09-02**; this
+mission's branch has not yet rebased onto that merge as of this tasks
+phase, so `commands.py`'s merge-mission area on `main` already carries
+#3826's changes. Sequence the MERGE of this WP against WP03/04/05/06,
+and re-verify `commands.py` against `main`'s current state (not the
+now-stale #3826-still-open assumption) — but note this WP's merge
+additionally has a HARD prerequisite (WP02 merged first), unlike
+WP03-06's soft merge-ordering recommendation.
 
 ## Definition of Done
 

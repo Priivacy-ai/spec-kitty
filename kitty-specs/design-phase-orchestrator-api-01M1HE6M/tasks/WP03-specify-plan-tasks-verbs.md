@@ -254,12 +254,15 @@ in `tracer-tooling-friction.md`.
 ## Write-Scope / Adjacent Open PRs (state per WP, do not omit)
 
 `orchestrator_api/commands.py` is a **same-file overlap** with **PR #3826**
-(`pr/3131-merge-retention`), which touches `commands.py`'s merge-mission
+(`pr/3131-merge-retention`), which touched `commands.py`'s merge-mission
 area (`merge_mission`/`_execute_lane_merge`/`_build_merge_preflight`) —
-different functions from this WP's additions, but the same physical file:
-a real rebase-risk if #3826 lands first and this mission's branch needs to
-rebase onto a `commands.py` that has moved underneath it, even though the
-touched functions don't overlap. This WP is additionally marked
+different functions from this WP's additions, but the same physical file.
+**PR #3826 merged into `main` on 2026-09-02**; this mission's own branch
+(`feat/design-phase-orchestrator-api-3837`) has not yet rebased onto that
+merge as of this tasks phase, so `commands.py`'s merge-mission area on
+`main` already differs from this branch even though the touched functions
+don't overlap — implementers should be aware of that state rather than
+treating it as a future "if #3826 lands" contingency. This WP is additionally marked
 `scope: codebase-wide` in its own frontmatter (see Note below) because it
 is one of five WPs (WP03/04/05/06/08) that concurrently add new
 `@app.command` functions to this same file — the ownership validator's
@@ -274,10 +277,13 @@ ownership-map-leeway standing order.
 
 Additionally: this WP's `specify` verb calls `agent_feature.create_mission`
 (`mission_create.py:627`, read-path caller only — this WP does not edit
-`mission_create.py`), which **PR #3826** also touches directly — a
-behavioural (not file-ownership) rebase risk: if #3826 changes
-`create_mission`'s signature or behavior before this mission merges, this
-WP's thin wrapper may need a rebase-time fix. This WP's `plan` verb calls
+`mission_create.py`), which **PR #3826** also touched directly — a
+behavioural (not file-ownership) rebase risk. **PR #3826 has already
+merged into `main`** (this mission's branch has not yet rebased onto it),
+so this WP's `create_mission`/`setup_plan` wrapper assumptions should be
+re-verified against `main`'s current state at implementation time — this
+is a check due now, not a future contingency deferred to "if #3826
+lands." This WP's `plan` verb calls
 `agent_feature.setup_plan` (`mission_setup_plan.py:1097`), which **PR
 #3836** (`fix/custom-mission-type-second-class-3830`) edits directly —
 same category of behavioural rebase risk. Neither PR edits
@@ -304,9 +310,11 @@ Run: `spec-kitty agent action implement WP03 --agent <name>`
   `_create_mission_for_specify_json` shape — re-read Clarification 1
   before implementing, this is explicitly the one place this mission's
   spec corrected an earlier draft's wrong assumption.
-- **Same-file merge collision** with WP04/05/06/08 and with PR #3826 — see
-  Write-Scope note above; coordinate merge order explicitly rather than
-  discovering the conflict at merge time.
+- **Same-file merge collision** with WP04/05/06/08, and same-file overlap
+  with the now-merged PR #3826 — see Write-Scope note above; coordinate
+  merge order explicitly rather than discovering the conflict at merge
+  time, and re-verify `commands.py`'s merge-mission area against `main`'s
+  current state (which already carries #3826) before merging.
 
 ## Reviewer Guidance
 

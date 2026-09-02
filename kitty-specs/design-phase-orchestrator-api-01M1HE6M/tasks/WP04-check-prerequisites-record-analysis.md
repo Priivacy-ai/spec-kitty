@@ -295,8 +295,12 @@ equality alone is never sufficient evidence.
 additive, non-overlapping functions, all mutually independent per
 plan.md's parallel-lane design) — this WP is marked `scope: codebase-wide`
 for the same reason WP03 is (see WP03's Write-Scope note for the full
-mechanism explanation; not repeated here). Sequence the MERGE of this WP
-against WP03/05/06/08 and against #3826 explicitly.
+mechanism explanation; not repeated here). **PR #3826 merged into `main`
+on 2026-09-02**; this mission's branch has not yet rebased onto that
+merge as of this tasks phase, so `commands.py`'s merge-mission area on
+`main` already carries #3826's changes. Sequence the MERGE of this WP
+against WP03/05/06/08 explicitly, and re-verify `commands.py` against
+`main`'s current state (not the now-stale #3826-still-open assumption).
 
 ## Definition of Done
 

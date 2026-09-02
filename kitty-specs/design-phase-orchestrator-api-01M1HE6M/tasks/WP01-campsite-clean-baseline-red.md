@@ -67,7 +67,7 @@ deliverables, both plan-time-scoped in `plan.md`:
   functions FR-014 (WP02) is about to promote to public, module-level
   surface: `_pair_previous_lifecycle_record` (`next_cmd.py:333-429`)
   contains an un-investigated `# type: ignore[arg-type]` suppression at
-  `next_cmd.py:424`, on the `phase=phase` argument passed into
+  `next_cmd.py:425`, on the `phase=phase` argument passed into
   `write_paired_completion(...)`. The other two functions WP02 extracts
   (`_emit_mission_next_invoked` at `next_cmd.py:863`,
   `_write_issuance_lifecycle_record` at `next_cmd.py:430`) are already
@@ -116,7 +116,7 @@ just "some tests are red" — a later WP's reviewer must be able to diff
 their own local run against this snapshot without re-running #3284's
 investigation.
 
-## Subtask T002: Resolve or justify the `next_cmd.py:424` type suppression
+## Subtask T002: Resolve or justify the `next_cmd.py:425` type suppression
 
 **Purpose**: `_pair_previous_lifecycle_record` becomes a public,
 module-level function in WP02 (`next_invocation_lifecycle.py`). A bare,
@@ -214,7 +214,7 @@ WP02 (which depends on this WP and touches the same file) carries the
 - [ ] Any non-#3284-matching failure reported as its own GitHub issue per
       the charter's Pre-existing Failure Reporting Rule, BEFORE being
       treated as baseline.
-- [ ] `next_cmd.py:424`'s type suppression resolved (narrowed) or justified
+- [ ] `next_cmd.py:425`'s type suppression resolved (narrowed) or justified
       (inline rationale comment) — never carried forward silently.
 - [ ] `mypy --strict src/specify_cli/cli/commands/next_cmd.py` passes.
 - [ ] `tracer-design-decisions.md` records the T002 resolution and the

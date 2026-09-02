@@ -196,8 +196,12 @@ regression.
 (merge-mission area) and with sibling WPs WP03/WP04/WP05/WP08 (mutually
 independent per plan.md's parallel-lane design); marked
 `scope: codebase-wide` for the same reason as WP03/WP04/WP05 (see WP03's
-Write-Scope note for the full mechanism explanation). Sequence the MERGE
-of this WP against its siblings and against #3826.
+Write-Scope note for the full mechanism explanation). **PR #3826 merged
+into `main` on 2026-09-02**; this mission's branch has not yet rebased
+onto that merge as of this tasks phase, so `commands.py`'s merge-mission
+area on `main` already carries #3826's changes. Sequence the MERGE of
+this WP against its siblings, and re-verify `commands.py` against
+`main`'s current state (not the now-stale #3826-still-open assumption).
 
 ## Definition of Done
 

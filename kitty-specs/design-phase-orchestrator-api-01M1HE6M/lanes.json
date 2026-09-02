@@ -44,7 +44,8 @@
         "WP07"
       ],
       "write_scope": [
-        "src/specify_cli/orchestrator_api/envelope.py"
+        "src/specify_cli/orchestrator_api/envelope.py",
+        "tests/specify_cli/orchestrator_api/test_contract_version.py"
       ],
       "predicted_surfaces": [
         "api",

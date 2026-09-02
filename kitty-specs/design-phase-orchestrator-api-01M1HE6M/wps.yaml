@@ -153,6 +153,7 @@ work_packages:
       - WP08
     owned_files:
       - "src/specify_cli/orchestrator_api/envelope.py"
+      - "tests/specify_cli/orchestrator_api/test_contract_version.py"
     requirement_refs:
       - FR-011
       - NFR-001
