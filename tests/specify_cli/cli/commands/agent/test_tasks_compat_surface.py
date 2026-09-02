@@ -169,12 +169,17 @@ _TASKS_MOVE_TASK: tuple[str, ...] = (
     "_default_move_task_ports",
     "_MoveTaskState",
     "_MoveTaskArgs",
+    "_PostTransitionSideEffectFailure",
     "_mt_warn_worktree_kitty_specs",
+    "_mt_preflight_owned_request",
     "_mt_resolve_targets",
     "_mt_resolve_feedback",
     "_mt_build_request",
     "_lane_deliverable_paths",
     "_drop_lane_coord_residue",
+    "_mt_owned_file_patterns",
+    "_mt_matches_owned_file",
+    "_mt_require_owned_implementation",
     "_mt_commit_lane_deliverables",
     "_mt_complete_deferred_for_review_readiness",
     "_mt_gather_review_facts",
@@ -218,6 +223,8 @@ _TASKS_MOVE_TASK: tuple[str, ...] = (
     "_mt_emit_runtime_state",
     "_mt_reassignment_binding_fields",
     "_mt_resolve_current_agent",
+    "_mt_owned_workspace",
+    "_mt_resolve_owned_review_base",
     "_mt_hop_policy_metadata",
     # governance-at-the-gate WP04 (#3682, FR-006, IC-04): the APPROVED/DONE
     # hop's policy_metadata sidecar builder and the per-hop review_ref
@@ -236,6 +243,7 @@ _TASKS_MOVE_TASK: tuple[str, ...] = (
     "_mt_rollback_signal_lines",
     "_mt_execute",
     "_mt_output",
+    "_mt_post_transition_diagnostic",
     "_do_move_task",
     "_coord_status_events_path",
     "_status_event_result_fields",
@@ -557,4 +565,4 @@ def test_guard_covers_full_167_symbol_surface() -> None:
     # low incremental regression-catch value over the identity-re-export guard
     # alone. Revisit whether the golden-count ratchet should be relaxed or
     # dropped (see M4 #3578 integration, which paid this tax for 4 helpers).
-    assert len(SYMBOL_TO_MODULE) == 169  # golden-count: cardinality-is-contract
+    assert len(SYMBOL_TO_MODULE) == 177  # golden-count: cardinality-is-contract
