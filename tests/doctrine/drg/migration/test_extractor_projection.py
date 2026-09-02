@@ -919,7 +919,7 @@ _INTENTIONAL_ORPHANS: frozenset[str] = (
 
 #: The pure-extractor figure (22) and the shipped-graph figure (21) differ by
 #: exactly this ONE node, and by nothing else: the hand-authored overlay
-#: (``doctrine.drg.migration.hand_authored_overlay``) carries edges the
+#: (``charter.offering.drg.migration.hand_authored_overlay``) carries edges the
 #: extractor has no frontmatter mechanism to mint, and the sole survivor lands on
 #: ``asset:common-docs-structural-lint`` (``asset.graph.yaml`` ships ``edges: []``
 #: so an asset can never be an edge source in the pure graph).

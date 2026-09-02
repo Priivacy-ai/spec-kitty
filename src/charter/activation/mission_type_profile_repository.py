@@ -128,10 +128,6 @@ class MissionTypeProfileRepository(BaseDoctrineRepository[MissionTypeProfile]):
     def _glob(self) -> str:
         return _GOVERNANCE_PROFILE_GLOB
 
-    def _project_scan(self, project_dir: Path) -> list[Path]:
-        """Recurse into per-type subdirectories for project overrides."""
-        return sorted(project_dir.rglob(self._glob))
-
     def _key(self, obj: MissionTypeProfile) -> str:
         """Key on the overlay identity (``id == mission_type`` invariant)."""
         return obj.id

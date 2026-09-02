@@ -65,6 +65,10 @@ import json
 
 from pydantic import BaseModel, ConfigDict, field_validator
 
+from charter.offering.artifact_kinds import (
+    CHARTER_ACTIVATABLE_PLURAL_TO_SINGULAR,
+    CHARTER_ACTIVATABLE_SINGULAR_TO_PLURAL,
+)
 from charter.offering.missions.mission_type_repository import builtin_mission_type_id_set
 
 __all__ = [
@@ -175,25 +179,20 @@ _ALLOWED_KINDS: frozenset[str] = frozenset(
 #: pattern set by every other fetch stanza (``directive:...``,
 #: ``tactic:...``).  Accepting both forms keeps the validator strict on
 #: typos while remaining ergonomic for operators.
-_SINGULAR_TO_PLURAL_KIND: dict[str, str] = {
-    "directive": "directives",
-    "tactic": "tactics",
-    "styleguide": "styleguides",
-    "toolguide": "toolguides",
-    "paradigm": "paradigms",
-    "procedure": "procedures",
-    "agent_profile": "agent_profiles",
-    "mission_step_contract": "mission_step_contracts",
-    "glossary_pack": "glossary_packs",
-    "anti_pattern": "anti_patterns",
-}
+#:
+#: Derived (not restated) from the single charter-activatable kind authority
+#: :data:`doctrine.artifact_kinds.CHARTER_ACTIVATABLE_SINGULAR_TO_PLURAL`
+#: (FR-004) — the 10 activatable kinds including ``anti_pattern`` (C-003/FR-005).
+#: The prior hand-copied literal was value-identical to the derived map, so this
+#: collapse is behaviour-preserving here while making drift structurally
+#: impossible (the two ``_activation_render`` copies had drifted two kinds
+#: behind — #2981).
+_SINGULAR_TO_PLURAL_KIND: dict[str, str] = CHARTER_ACTIVATABLE_SINGULAR_TO_PLURAL
 
 
 #: Inverse lookup: canonical plural -> singular form used when rendering
-#: the ``--include <kind>:<id>`` fetch selector.
-_PLURAL_TO_SINGULAR_KIND: dict[str, str] = {
-    plural: singular for singular, plural in _SINGULAR_TO_PLURAL_KIND.items()
-}
+#: the ``--include <kind>:<id>`` fetch selector. Derived from the same authority.
+_PLURAL_TO_SINGULAR_KIND: dict[str, str] = CHARTER_ACTIVATABLE_PLURAL_TO_SINGULAR
 
 
 def normalize_artifact_kind(kind: str | None) -> str | None:

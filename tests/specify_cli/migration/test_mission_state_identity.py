@@ -15,7 +15,6 @@ false-green on ``--audit`` (both modes re-anchor to the primary and read it at
 
 FR-009 manifest honesty (T014): the canonicalization manifest enumerates every
 touched field, **including removed fields**.
-
 Landing-pass coherence fold (#3567 review): ``repair_repo`` itself was UNGATED
 -- the guard above was wired only into the CLI shell
 (``_mission_state_doctor.py::_refuse_foreign_lane_fix``), so its second caller
@@ -34,10 +33,10 @@ from pathlib import Path
 
 import pytest
 
+from specify_cli.core.checkout_identity import FailClosedRefusal
 from specify_cli.migration.canonicalization import MigrationContext
 from specify_cli.migration.mission_state import (
     CheckoutDisagreement,
-    FailClosedRefusal,
     MissionStateWriteRefused,
     _rule_strip_legacy_keys,
     audit_invocation_disagreement,

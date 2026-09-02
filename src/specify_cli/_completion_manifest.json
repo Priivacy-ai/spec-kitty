@@ -231,7 +231,7 @@
      "deprecated": false,
      "commands": {
       "emit": {
-       "help": "Emit a status transition event for a work package.\n\nRecords a lane transition in the canonical event log, validates the\ntransition against the state machine, materializes a snapshot, and\nupdates legacy compatibility views.\n\nExamples:\n    spec-kitty agent status emit WP01 --to claimed --actor claude\n    spec-kitty agent status emit WP01 --to done --actor claude --evidence-json '{\"review\": {\"reviewer\": \"alice\", \"verdict\": \"approved\", \"reference\": \"PR#1\"}}'\n    spec-kitty agent status emit WP01 --to in_progress --actor claude --force --reason \"resuming after crash\"",
+       "help": "Emit a status transition event for a work package.\n\nRecords a lane transition in the canonical event log, validates the\ntransition against the state machine, materializes a snapshot, and\nupdates legacy compatibility views.\n\nExamples:\n    spec-kitty agent status emit WP01 --to claimed --actor claude\n    spec-kitty agent status emit WP01 --to approved --actor claude --review-result-json '{\"reviewer\": \"alice\", \"verdict\": \"approved\", \"reference\": \"PR#1\"}'\n    spec-kitty agent status emit WP01 --to in_progress --actor claude --force --reason \"resuming after crash\"",
        "hidden": false,
        "deprecated": false
       },

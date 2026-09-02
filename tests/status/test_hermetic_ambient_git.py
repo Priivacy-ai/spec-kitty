@@ -76,7 +76,9 @@ def _read_only_ancestor_git(host: Path) -> Iterator[Path]:
 def test_pinning_stops_resolution_at_the_sandbox_root(tmp_path: Path) -> None:
     """With an ambient repo above, pinning keeps lock resolution local (#142)."""
     host = tmp_path / "ambient-checkout"
-    (host / ".git").mkdir(parents=True)
+    git_dir = host / ".git"
+    git_dir.mkdir(parents=True)
+    (git_dir / "HEAD").write_text("ref: refs/heads/main\n", encoding="utf-8")
     project = host / "checkout" / "kitty-specs" / "demo-mission"
     project.mkdir(parents=True)
 

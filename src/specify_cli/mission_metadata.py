@@ -21,6 +21,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Literal, TypedDict
 
+from charter.activation.mission_type_key import read_mission_type
 from specify_cli.core.atomic import atomic_write
 from specify_cli.core.paths import safe_mission_slug
 from kernel.clock import now_utc_iso
@@ -213,7 +214,14 @@ def mission_identity_fields(
     if not resolved_number:
         slug_number = mission_number_from_slug(resolved_slug)
         resolved_number = str(slug_number) if slug_number is not None else ""
-    resolved_type = str(mission_type or "").strip() or "software-dev"
+    # rc3 M5 (FR-003/AC-3): the identity payload carries the mission's TRUE type
+    # or neutral typeless ("") — it does NOT re-mask a typeless/legacy-only
+    # mission back to "software-dev". This normalizer is on the machine-facing
+    # read/serialize path (context/status/acceptance/merge/decision payloads);
+    # re-defaulting here would silently defeat the reader convergence one layer
+    # downstream (and regress a pre-backfill legacy-only mission from its real
+    # type to software-dev). Callers degrade on typeless at their own boundary.
+    resolved_type = str(mission_type or "").strip()
     return {
         "mission_slug": resolved_slug,
         "mission_number": resolved_number,
@@ -252,7 +260,12 @@ def resolve_mission_identity(feature_dir: Path) -> MissionIdentity:
     raw_slug = meta.get("mission_slug") or meta.get("slug")
     raw_slug_str = str(raw_slug) if raw_slug is not None else None
     resolved_slug = safe_mission_slug(raw_slug_str, feature_dir.name)
-    resolved_type = str(meta.get("mission_type") or meta.get("mission") or "").strip() or "software-dev"
+    # rc3 M5 (FR-002/FR-003): canonical field only via the one shared reader —
+    # the legacy `mission` fallback and the silent `software-dev` default are
+    # retired. A typeless mission resolves to "" (neutral); callers degrade at
+    # their own boundary. The machine-facing `mission_identity_fields` normalizer
+    # (above) no longer re-masks that neutral result to "software-dev" either.
+    resolved_type = read_mission_type(meta) or ""
 
     return MissionIdentity(
         mission_slug=resolved_slug,

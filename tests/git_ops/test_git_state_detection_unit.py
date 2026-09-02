@@ -30,7 +30,7 @@ def _init_repo(tmp_path: Path) -> tuple[Path, Path]:
     feature_dir = repo / "kitty-specs" / FEATURE_SLUG
     feature_dir.mkdir(parents=True, exist_ok=True)
     (feature_dir / "meta.json").write_text(
-        '{"mission": "software-dev", "target_branch": "main"}\n',
+        '{"mission_type": "software-dev", "target_branch": "main"}\n',
         encoding="utf-8",
     )
     write_single_lane_manifest(feature_dir, wp_ids=(WP_ID,))

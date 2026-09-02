@@ -310,9 +310,12 @@ def test_action_bundle_projects_exactly_the_delivered_slots() -> None:
     FR-009/FR-011) reverses that verdict for PROCEDURE and ASSET**: a resolved
     procedure/asset is executing-agent context no other charter surface
     delivers on the action path (the criterion recorded at
-    ``_ACTION_BUNDLE_SLOT_BY_KIND``). The guard's intent is unchanged -- the
-    projected set must equal the *stated* set exactly, so a future kind cannot
-    be smuggled in unstated; only the stated set grew from four to six.
+    ``_ACTION_BUNDLE_SLOT_BY_KIND``). **WP01 (deliver-loaded-doctrine,
+    FR-001/FR-002) adds GLOSSARY_PACK** on the same criterion -- an activated,
+    graph-reachable glossary pack delivers its term surfaces + a fetch pointer.
+    The guard's intent is unchanged -- the projected set must equal the *stated*
+    set exactly, so a future kind cannot be smuggled in unstated; the stated set
+    grew from four to six (WP10) to seven (WP01).
     """
     from charter.activation.context import action_bundle_bucket
 
@@ -329,6 +332,7 @@ def test_action_bundle_projects_exactly_the_delivered_slots() -> None:
         NodeKind.TOOLGUIDE: "toolguides",
         NodeKind.PROCEDURE: "procedures",
         NodeKind.ASSET: "assets",
+        NodeKind.GLOSSARY_PACK: "glossary_packs",
     }
 
 

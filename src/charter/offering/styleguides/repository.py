@@ -56,10 +56,6 @@ class StyleguideRepository(BaseDoctrineRepository[Styleguide]):
     def _pre_validate(self, data: dict[str, Any], yaml_file: Path) -> None:
         reject_styleguide_inline_refs(data, file_path=str(yaml_file))
 
-    def _project_scan(self, project_dir: Path) -> list[Path]:
-        """Recursive scan — styleguides may live in subdirectories."""
-        return sorted(project_dir.rglob(self._glob))
-
     def _merge(self, built_in: Styleguide, project_data: dict[str, Any]) -> Styleguide:
         merged = {**built_in.model_dump(exclude_defaults=True), **project_data}
         return Styleguide.model_validate(merged)

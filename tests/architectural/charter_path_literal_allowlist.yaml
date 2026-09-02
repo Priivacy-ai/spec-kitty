@@ -419,3 +419,17 @@ charter_path_literals:
   clause: "b"
   token: "return bool ( ( repo_root / CHARTER_MD ) . exists ( ) )"
   rationale: "Mission charter-preflight-missing-charter-advisory-01M050PD (#3498/#2831): called only after _is_optional_missing_charter_stack has required canonical states source=missing, synced=missing, DRG=missing|built_in_only; reads charter.md only to choose advisory copy. Stale/invalid/other partial residue blocks regardless of prose presence, so this is informational selection, not a presence/authority gate."
+- file: src/specify_cli/charter_runtime/freshness/computer.py
+  qualname: <module>
+  line: 236
+  literal: "charter.md"
+  clause: "a"
+  token: "_READABLE_CHARTER_FILENAME ="
+  rationale: "Same deliberate non-import as its _CHARTER_YAML_FILENAME sibling above: importing charter.bundle.CHARTER_MD here would invert the charter->specify_cli dependency direction this module exists on the specify_cli side of."
+- file: src/specify_cli/charter_runtime/freshness/computer.py
+  qualname: _missing_charter_source_detail
+  line: 281
+  literal: "charter.md"
+  clause: "b"
+  token: "if ( repo_root / _CHARTER_DIR / _READABLE_CHARTER_FILENAME ) . exists ( ) :"
+  rationale: "MESSAGE SELECTION, never presence: this branch only picks F1 vs F2 wording for a state already decided as missing by the charter.yaml authority above. #2831's reporter has charter.md alone and was told 'this project has no charter at all'; test_charter_source_missing_detail_names_charter_md_for_the_2831_shape pins that the verdict stays missing and the remediation unchanged, so this can never drift into a presence decision."

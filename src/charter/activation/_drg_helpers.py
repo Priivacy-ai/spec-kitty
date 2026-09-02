@@ -141,12 +141,13 @@ def load_validated_graph(
             root_merged = merge_layers(root_merged, load_graph_or_dir(root))
             continue
         # A configured, on-disk org root with NO root-level DRG graph
-        # contributes no charter-DRG layer. Degrade it to "no org DRG layer"
-        # instead of crashing the whole load with `DRGLoadError: No DRG graph
-        # files found`, so cascade activation from a pack that carries only
-        # doctrine artifacts still works and one graphless pack no longer takes
-        # its healthy sibling roots down. This is the durable per-root-degrade
-        # sliver of the superseded #3401, retargeted to the #3387 org model.
+        # contributes no charter-DRG layer via this loop. Degrade it to "no
+        # root-graph layer" instead of crashing the whole load with
+        # `DRGLoadError: No DRG graph files found`, so activation from a pack
+        # that carries only doctrine artifacts still works and one graphless
+        # pack no longer takes its healthy sibling roots down. This is the
+        # durable per-root-degrade sliver of the superseded #3401, retargeted
+        # to the #3387 org model.
         #
         # SCOPE (post DRG read-path bridge). Charter runtime callers can read
         # two org shapes: root-level `*.graph.yaml` here, and
@@ -204,7 +205,22 @@ def _fold_final_layers(
     org_fragments: list[OrgDRGFragment] | None,
     project: DRGGraph | None,
 ) -> DRGGraph:
-    """Fold project and optional org fragments without forking edge identity."""
+    """Fold the project overlay onto *root_merged*, routing the org fragment
+    layer through the existing three-layer merge when fragments are supplied.
+
+    When *org_fragments* is non-empty, the org ``requires``/``suggests`` edges
+    are folded via :func:`charter.offering.drg.merge.merge_three_layers`, reusing its
+    endpoint-resolution + cross-fragment edge dedup verbatim (C-002 — no forked
+    canonicalisation). The built-in+root-graph merge is the ``built_in`` base
+    and the project overlay is passed through, so ``merge_three_layers`` applies
+    it with project > org > built-in precedence exactly as the diagnostic path
+    does.
+
+    When *org_fragments* is omitted / ``None`` / ``[]``, this is
+    byte-behaviourally identical to the pre-bridge path
+    (``merge_layers(root_merged, project)``) so build-time and no-fragment
+    callers are unaffected (FR-003).
+    """
     if org_fragments:
         merged = merge_three_layers(
             built_in=root_merged, org_fragments=org_fragments, project=project
@@ -214,7 +230,31 @@ def _fold_final_layers(
 
 
 def _collapse_duplicate_edge_triples(graph: DRGGraph) -> DRGGraph:
-    """Collapse exact duplicate edges produced by dual root/fragment folding."""
+    """Collapse exact-duplicate ``(source, target, relation)`` edge triples,
+    keeping the first occurrence.
+
+    The bridge composes two folding mechanisms — ``merge_layers`` for an org
+    pack's root-level ``*.graph.yaml`` (folded into the ``built_in`` base) and
+    ``merge_three_layers`` for its ``drg/fragment.yaml`` edges. A pack that
+    declares the SAME edge in BOTH shapes (spec Edge Case 1), or a fragment that
+    restates an edge already present in the built-in DRG, therefore presents one
+    canonical triple from two mechanisms. ``_OrgEdgeCollector`` only dedups
+    org-vs-org, so the restatement reaches the merged graph a second time and
+    ``assert_valid`` — which treats a repeated triple as an error — rejects the
+    load.
+
+    This guard collapses such triples using the graph's OWN identity notion: the
+    ``(source, target, relation)`` triple that ``_OrgEdgeCollector`` and
+    ``charter.offering.drg.validator`` already treat as one edge. It introduces no new
+    edge-identity or canonicalisation notion (C-002 — endpoint resolution and
+    org-edge identity stay owned by ``merge_three_layers``; this only removes an
+    exact restatement the *layered composition* produced). Keeping the first
+    occurrence preserves built-in/root-graph provenance, matching the collector's
+    own "first contribution wins" rule. It runs ONLY on the fragment
+    (``merge_three_layers``) path, so the diagnostic ``merge_three_layers``
+    callers and the no-fragment ``merge_layers`` path are untouched (NFR-001 /
+    FR-003).
+    """
     seen: set[tuple[str, str, str]] = set()
     deduped: list[DRGEdge] = []
     for edge in graph.edges:

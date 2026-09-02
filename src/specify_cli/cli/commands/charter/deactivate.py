@@ -31,6 +31,7 @@ from specify_cli.cli.console import console
 from charter.activation.activation_engine import NoActivationRestrictionsError
 from charter.activation.cascade import CascadeScope, deactivation_plan
 from charter.activation.catalog import resolve_doctrine_root
+from charter.activation.drg_activation import load_org_drg
 from charter.activation.invocation_context import ProjectContext
 from charter.activation.kind_vocabulary import (
     UnknownArtifactIdError,
@@ -153,7 +154,11 @@ def _render_cascade_deactivation(
     from charter.activation._drg_helpers import load_validated_graph  # noqa: PLC0415
 
     org_roots = resolve_org_root_chain(repo_root)
-    graph = load_validated_graph(repo_root, org_roots=org_roots)
+    graph = load_validated_graph(
+        repo_root,
+        org_roots=org_roots,
+        org_fragments=load_org_drg(repo_root, strict=False),
+    )
     active = _active_urns(manager, ctx_project, layer_roots, org_roots)
     plan = deactivation_plan(graph, target_urn, scope, active_urns=active)
     doctrine_root = resolve_doctrine_root()

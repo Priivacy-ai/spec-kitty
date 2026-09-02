@@ -88,6 +88,14 @@ class TestMapRequirementsIndividual:
         mock_slug.return_value = "001-test"
         mock_branch.return_value = (tmp_path, "main")
         feature_dir = _setup_feature(tmp_path)
+        # rc3 M5 (FR-002/FR-003): resolve_mission_identity no longer defaults a
+        # typeless/absent meta.json to "software-dev" -- give the fixture an
+        # explicit canonical mission_type so the identity payload assertion
+        # below exercises a real software-dev mission, not the neutral case.
+        (feature_dir / "meta.json").write_text(
+            json.dumps({"mission_type": "software-dev", "slug": "001-test"}),
+            encoding="utf-8",
+        )
 
         result = runner.invoke(
             tasks_app,
@@ -216,6 +224,14 @@ class TestMapRequirementsBatch:
         mock_slug.return_value = "001-test"
         mock_branch.return_value = (tmp_path, "main")
         feature_dir = _setup_feature(tmp_path)
+        # rc3 M5 (FR-002/FR-003): resolve_mission_identity no longer defaults a
+        # typeless/absent meta.json to "software-dev" -- give the fixture an
+        # explicit canonical mission_type so the identity payload assertion
+        # below exercises a real software-dev mission, not the neutral case.
+        (feature_dir / "meta.json").write_text(
+            json.dumps({"mission_type": "software-dev", "slug": "001-test"}),
+            encoding="utf-8",
+        )
 
         batch = json.dumps({"WP01": ["FR-001", "FR-002"], "WP02": ["FR-003"]})
         result = runner.invoke(tasks_app, ["map-requirements", "--batch", batch, "--json"])
@@ -579,8 +595,10 @@ class TestFinalizeTasksWithFrontmatterRefs:
         mock_find: Mock,
         mock_locate: Mock,
         tmp_path: Path,
+        monkeypatch: pytest.MonkeyPatch,
     ):
         mock_locate.return_value = tmp_path
+        monkeypatch.setenv("GIT_CEILING_DIRECTORIES", str(tmp_path))
 
         feature_dir = tmp_path / "kitty-specs" / "001-test"
         tasks_dir = feature_dir / "tasks"
@@ -637,8 +655,10 @@ class TestFinalizeTasksWithFrontmatterRefs:
         mock_find: Mock,
         mock_locate: Mock,
         tmp_path: Path,
+        monkeypatch: pytest.MonkeyPatch,
     ):
         mock_locate.return_value = tmp_path
+        monkeypatch.setenv("GIT_CEILING_DIRECTORIES", str(tmp_path))
 
         feature_dir = tmp_path / "kitty-specs" / "001-test"
         tasks_dir = feature_dir / "tasks"

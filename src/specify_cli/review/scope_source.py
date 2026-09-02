@@ -33,7 +33,9 @@ duplicated here.
 from __future__ import annotations
 
 import shlex
+import tempfile
 from dataclasses import dataclass
+from functools import cached_property
 from pathlib import Path
 from typing import TYPE_CHECKING, Protocol, TypeGuard, runtime_checkable
 
@@ -270,24 +272,70 @@ class DeclaredCommandScopeSource:
 
     repo_root: Path
 
+    @cached_property
+    def _output_file(self) -> Path:
+        """This instance's OWN artifact path for a configured ``{output_file}``
+        placeholder (issue #3612 fix).
+
+        Computed once per instance (cached) and used both by
+        :meth:`test_command` (substituted into the rendered command) and by
+        :meth:`_resolved_artifact_path` (read back after the run) — the SAME
+        instance drives one capture-or-head run end to end, so there is no
+        risk of the two disagreeing. Lives in a fresh private tempdir so a
+        baseline capture and a concurrent head run (each its own
+        ``DeclaredCommandScopeSource`` instance) never collide on the same
+        path, regardless of which flag name the operator's command uses for
+        its own output-file argument (``--junitxml=``, ``--report=``, ...) —
+        unlike the prior argv-sniffing (:func:`_extract_junit_output_path`),
+        which only ever recognized a literal ``--junitxml=`` prefix.
+
+        Note: accessing this property creates the tempdir immediately (even
+        if the run never writes into it) — a small, deliberately-accepted
+        per-run leak rather than complicating this frozen dataclass with
+        explicit teardown; the OS temp directory is reclaimed independently
+        of this process.
+        """
+        return Path(tempfile.mkdtemp(prefix="spec-kitty-declared-cmd-")) / "output.xml"
+
     def test_command(self) -> list[str] | None:
-        """``shlex.split(review.test_command)``, or ``None`` when unset (FR-012)
-        or malformed (unbalanced quoting).
+        """The runnable, fully-substituted, shell-ready argv — or ``None`` when
+        ``review.test_command`` is unset (FR-012) or malformed (unbalanced
+        quoting).
 
         Reads the same config surface ``baseline._get_test_command`` reads
-        (FR-011) — no new config key is invented. Per the ``ScopeSource``
-        port's own contract, this never raises for an environmental
-        problem — a bad config value degrades to the same ``None`` no-config
-        signal rather than propagating ``shlex``'s ``ValueError``.
+        (FR-011) — no new config key is invented.
+
+        Issue #3612 fix: previously this returned a bare
+        ``shlex.split(command_template)`` — a configured ``{output_file}``
+        placeholder was never substituted (stayed a literal 8-character
+        token), and ``$VAR``/``~`` in the template were never shell-expanded
+        (no shell was ever involved in running it). Both are fixed together
+        via :func:`build_shell_command_with_substitutions`, which renders
+        ``{output_file}`` -> :attr:`_output_file` through the same
+        quote-aware scanner ``run_configured_command_template`` uses
+        (``configured_command.py``), then wraps the result in ``["sh",
+        "-c", ...]`` so the configured command gets real POSIX shell
+        semantics — matching what :func:`run_configured_command` already
+        gives every OTHER configured-command consumer in this codebase.
+        Falls back to ``None`` (visible ``NO_COVERAGE``, never a crash — the
+        port's own invariant) when the template is malformed or the platform
+        has no POSIX shell to hand this argv to.
         """
+        from specify_cli.configured_command import (
+            ConfiguredCommandUnsupported,
+            build_shell_command_with_substitutions,
+        )
         from specify_cli.review.baseline import _get_test_command
 
         command_template, _output_format = _get_test_command(self.repo_root)
         if not command_template:
             return None
         try:
-            return shlex.split(command_template)
-        except ValueError:
+            shlex.split(command_template)
+            return build_shell_command_with_substitutions(
+                command_template, {"output_file": self._output_file}
+            )
+        except (ValueError, ConfiguredCommandUnsupported):
             return None
 
     def file_to_scope(self, _path: str) -> tuple[str, ...]:
@@ -299,6 +347,30 @@ class DeclaredCommandScopeSource:
         positional calls through the ``ScopeSource`` port are unaffected.
         """
         return ()
+
+    def _resolved_artifact_path(self, raw: RawRunResult) -> Path | None:
+        """The JUnit artifact for THIS run, or ``None`` (issue #3612).
+
+        Prefers ``raw.output_artifact_path`` — the runner's own argv-sniffing
+        (:func:`_extract_junit_output_path`), which still recognizes a
+        literal ``--junitxml=<path>`` token, and is also how a caller
+        (including existing direct-injection tests) can hand this source a
+        precomputed artifact without going through :meth:`test_command` at
+        all. Falls back to :attr:`_output_file` — THIS instance's own
+        ``{output_file}`` substitution target — for the case the sniffing
+        cannot see into: :meth:`test_command` now wraps the rendered command
+        in ``["sh", "-c", ...]`` (issue #3612's shell-expansion fix), so no
+        individual argv element starts with ``--junitxml=`` any more even
+        when the rendered shell string contains it. Without this fallback, a
+        real declared-command run that DID produce its artifact would
+        misreport ``"text"`` mode purely because sniffing can no longer
+        reach into the wrapped shell string.
+        """
+        if raw.output_artifact_path is not None and raw.output_artifact_path.exists():
+            return raw.output_artifact_path
+        if self._output_file.exists():
+            return self._output_file
+        return None
 
     def parse_mode(self, raw: RawRunResult) -> str:
         """The parse *strategy* this source uses — a STABLE, outcome-invariant
@@ -321,9 +393,7 @@ class DeclaredCommandScopeSource:
         failure-EXTRACTION concern owned by :meth:`parse_results`, never the
         strategy label. (Mission scopesource-gate-followup landing fold.)
         """
-        if raw.output_artifact_path is not None and raw.output_artifact_path.exists():
-            return "junit_xml"
-        return "text"
+        return "junit_xml" if self._resolved_artifact_path(raw) is not None else "text"
 
     def parse_results(self, raw: RawRunResult) -> tuple[BaselineFailure, ...]:
         """Parse the declared command's own output into per-failure identities.
@@ -340,7 +410,7 @@ class DeclaredCommandScopeSource:
         if self.parse_mode(raw) == "junit_xml":
             from specify_cli.review.baseline import _parse_junit_xml
 
-            artifact = raw.output_artifact_path
+            artifact = self._resolved_artifact_path(raw)
             assert artifact is not None  # guaranteed by parse_mode's own "junit_xml" branch
             _total, _passed, _failed, _skipped, failures = _parse_junit_xml(artifact)
             return tuple(failures)

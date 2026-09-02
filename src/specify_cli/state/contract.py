@@ -4,6 +4,8 @@ from dataclasses import dataclass
 from enum import StrEnum
 from typing import Any
 
+from specify_cli.core.constants import WORKTREES_DIR
+
 _NEXT_INTERNAL_RUNTIME_OWNER = "next/_internal_runtime"
 _CHARTER_SYNTHESIS_OWNER = "charter synthesizer write pipeline"
 _CHARTER_SYNTHESIS_TRIGGER = "spec-kitty charter synthesize"
@@ -394,6 +396,28 @@ STATE_SURFACES: tuple[StateSurface, ...] = (
         owner_module="invocation/writer",
         creation_trigger="profile-invocation start (index append)",
         notes=("Machine-local reverse-scan performance cache; never commit. Durable records live in kitty-ops/<op_id>.jsonl."),
+    ),
+    StateSurface(
+        name="worktrees_root",
+        path_pattern=f"{WORKTREES_DIR}/",
+        root=StateRoot.PROJECT,
+        format=StateFormat.DIRECTORY,
+        authority=AuthorityClass.LOCAL_RUNTIME,
+        git_class=GitClass.IGNORED,
+        owner_module="core/worktree",
+        creation_trigger="mission worktree creation (WORKTREES_DIR)",
+        notes=(
+            "Execution worktrees root: every mission worktree is a full "
+            "checkout under .worktrees/<slug>-<mid8>. Must be gitignored in "
+            "the main checkout -- an unignored root shows as permanent "
+            "untracked dirt and a stray `git add -A` stages entire nested "
+            "checkouts. Historically only migration 0.13.1 excluded it (via "
+            "the local-only .git/info/exclude), so projects initialised "
+            "since then had no coverage; registering it here makes init "
+            "emit it through get_runtime_gitignore_entries(), and the "
+            "3.2.6rc3_worktrees_gitignore_backfill migration heals "
+            "existing projects (#3689)."
+        ),
     ),
     StateSurface(
         name="shared_skills_projection",

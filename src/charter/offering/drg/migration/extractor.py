@@ -763,7 +763,7 @@ def _emit_operating_procedure_edges(
     Kept in its own helper (its own profile walk) so
     :func:`extract_artifact_edges` complexity is unchanged (NFR-004); the second
     walk is 16 small files. The field harvest is delegated to
-    :func:`~doctrine.agent_profiles.operating_procedures.collect_operating_procedure_entries`
+    :func:`~charter.offering.agent_profiles.operating_procedures.collect_operating_procedure_entries`
     (the single authority, also read by the architectural gate and ``doctor
     doctrine``) so the three consumers cannot diverge on the falsy-entry policy;
     ``resolve_operating_procedure_entries`` is the single authority for "does

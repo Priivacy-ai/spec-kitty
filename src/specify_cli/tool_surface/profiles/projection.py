@@ -16,6 +16,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
+from charter.activation.doctrine_service_builder import _build_activation_aware_doctrine_service
 from charter.profiles import AgentProfile, AgentProfileRepository
 from charter.provenance import to_portable_source_path
 
@@ -65,7 +66,12 @@ def _manifest_source_path(source_path: Path | None, project_root: Path) -> str |
     """
     if source_path is None:
         return None
-    return to_portable_source_path(source_path, project_root=project_root)
+    # ``to_portable_source_path`` is typed ``-> str`` at its ``doctrine.provenance``
+    # definition, but the ``charter.provenance`` re-export widens it to ``Any``
+    # for mypy; pin the declared type back on a local so ``--strict`` sees the
+    # concrete ``str`` return (no suppression).
+    portable: str = to_portable_source_path(source_path, project_root=project_root)
+    return portable
 
 
 def _source_hash(source_path: Path | None) -> str | None:
@@ -81,9 +87,22 @@ def default_profile_repository(project_root: Path) -> AgentProfileRepository:
     """Build the standard repository for ``project_root``.
 
     Built-in profiles always load from package data. Project overlay profiles
-    load from ``.kittify/agent_profiles/`` when that directory exists; it is
-    passed through unconditionally because the repository treats a missing
-    ``project_dir`` gracefully (no overlay).
+    load from ``.kittify/agent_profiles/`` (``_PROJECT_PROFILE_SUBDIR``) when
+    that directory exists; the repository treats a missing overlay gracefully
+    (no project layer).
+
+    The base repository is now obtained through the sanctioned builder
+    ``charter.doctrine_service_builder._build_activation_aware_doctrine_service``
+    with ``org_roots=[]`` (C-008: an org-free base — see the call site) and
+    ``agent_profile_overlay_dir=project_root / _PROJECT_PROFILE_SUBDIR``
+    (the #3176 builder overlay seam, WP02). That seam resolves the inner
+    ``doctrine.service.DoctrineService``'s agent-profile project overlay at
+    ``.kittify/agent_profiles`` — the path the builder's default
+    ``resolve_project_root`` candidates (``.kittify/doctrine`` / ``src/doctrine``
+    / ``doctrine``) never reach — so every seeded ``.kittify/agent_profiles/
+    *.agent.yaml`` stays visible with ``project`` provenance. ``specify_cli``
+    consuming the ``charter`` builder is the correct dependency direction
+    (C-001); the param lives in ``charter``/``doctrine``.
 
     The **charter-activation-admitted** org-pack profiles are then merged on top
     of the project layer (#2166). They are obtained exclusively through WP02's
@@ -91,40 +110,22 @@ def default_profile_repository(project_root: Path) -> AgentProfileRepository:
     gate, so a *de-activated* org profile never reaches the host surface. A raw
     ``org_dirs=`` splice is intentionally NOT used here: it would bypass the gate
     and surface declared-but-de-activated profiles (C-008).
-
-    **NOT migrated onto ``charter.activation.resolver.DoctrineService.agent_profile_repository``
-    (charter-sole-door-bypass-closure-01KZ3WAA WP02/T008 -- confirmed blocker,
-    surfaced per C-002 rather than silently worked around or silently left
-    as-is).** FR-001 named this site as an in-scope migration target, but the
-    factory's ``agent_profile_repository`` accessor is built from a
-    ``charter.offering.service.DoctrineService`` whose own project-overlay directory is
-    derived exclusively from ``charter.activation._doctrine_paths.resolve_project_root``'s
-    three fixed candidates (``.kittify/doctrine``, ``src/doctrine``,
-    ``doctrine``) -- none of which is ``.kittify/agent_profiles``
-    (``_PROJECT_PROFILE_SUBDIR`` above). There is no parameter on the factory's
-    one sanctioned builder (``charter.activation.doctrine_service_builder.
-    build_activation_aware_doctrine_service``) to point its inner project
-    directory at an arbitrary caller-chosen path. Empirically confirmed: a
-    literal migration (constructing the base repository via the factory
-    instead of ``AgentProfileRepository(project_dir=project_dir)`` above) makes
-    ``build_activation_aware_doctrine_service(tmp_path).agent_profile_repository``
-    silently drop every ``.kittify/agent_profiles/*.agent.yaml`` project
-    profile -- breaking the project-overlay assertions in
-    ``tests/specify_cli/tool_surface/profiles/test_projection.py``,
-    ``test_projection_collision_precedence.py``, and
-    ``test_projection_org_visibility.py`` (all three seed
-    ``.kittify/agent_profiles`` and assert the seeded profile is visible
-    through this exact function). Closing this gap correctly requires either
-    (a) a builder-level change letting a caller override the project-overlay
-    directory (out of WP02's owned files -- that surface belongs to WP01's
-    already-approved ``charter.activation.doctrine_service_builder``/``charter.activation.resolver``),
-    or (b) an explicit, reasoned exclusion of this site from FR-001's count,
-    mirroring the existing C-006 ``.kittify/profiles`` carve-out. Left
-    unmigrated pending that operator/architect decision; do not attempt a
-    speculative fix here without one.
     """
-    project_dir = project_root / _PROJECT_PROFILE_SUBDIR
-    repo = AgentProfileRepository(project_dir=project_dir)
+    # ``org_roots=[]`` is load-bearing for C-008: the base repository must carry
+    # NO org layer, because org profiles enter EXCLUSIVELY through the
+    # activation-gated ``_merge_activated_org_profiles`` below. The public
+    # ``build_activation_aware_doctrine_service`` self-resolves org roots
+    # (FR-008), which would pre-populate the base with *unfiltered* org
+    # profiles — the very raw-``org_dirs`` splice this function forbids, letting
+    # de-activated org profiles leak onto the host surface. The private builder
+    # with an explicit empty ``org_roots`` suppresses that self-resolution while
+    # still threading the ``agent_profile_overlay_dir`` seam that reaches
+    # ``.kittify/agent_profiles`` (#3176).
+    repo = _build_activation_aware_doctrine_service(
+        project_root,
+        org_roots=[],
+        agent_profile_overlay_dir=project_root / _PROJECT_PROFILE_SUBDIR,
+    ).agent_profile_repository
     _merge_activated_org_profiles(repo, project_root)
     return repo
 

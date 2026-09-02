@@ -77,7 +77,7 @@ def find_repo_root(start: Path | None = None, *, stop: Path | None = None) -> Pa
     for candidate in [current, *current.parents]:
         git_path = candidate / ".git"
 
-        if git_path.is_dir():
+        if git_path.is_dir() and (git_path / "HEAD").is_file():
             return get_main_repo_root(candidate)
 
         if git_path.is_file():

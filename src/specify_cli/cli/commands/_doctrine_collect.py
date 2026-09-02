@@ -58,6 +58,7 @@ __all__ = [
     "_count_pack_artifacts",
     "_collect_profile_health",
     "_run_cross_grain_check",
+    "_run_operating_procedures_check",
     "_attach_pack_health",
     "_build_pack_entries",
     "_collect_doctrine_collisions",
@@ -421,6 +422,69 @@ def _run_cross_grain_check(report: DoctrineHealthReport) -> None:
         org_drg["cross_grain_collisions"] = [
             {"kind": exc.kind, "artifact": exc.artifact}
         ]
+
+
+def _run_operating_procedures_check(report: DoctrineHealthReport) -> None:
+    """Fold the built-in ``operating-procedures`` resolution scan into *report*.
+
+    Every ``collaboration.operating-procedures`` entry on a built-in agent
+    profile must resolve to a real ``procedure:`` DRG node. This surfaces the
+    ones that do not (fictional or wrong-kind) so the diagnostic is discoverable
+    outside the architectural gate. Scope is built-in only (C-006): org/project
+    tiers are guarded at edge-emission time, not hard-failed here.
+
+    Mirrors :func:`_run_cross_grain_check`'s fail-loud pattern — a non-empty set
+    appends to ``org_drg["errors"]`` (so ``DoctrineHealthReport.healthy`` reports
+    unhealthy) and always records a structured
+    ``org_drg["operating_procedures_unresolved"]`` finding (present-and-empty on
+    a healthy tree). Read-only; never raises ``doctor doctrine``.
+    """
+    from charter.offering.agent_profiles.operating_procedures import (
+        collect_operating_procedure_entries,
+        node_universe,
+        resolve_operating_procedure_entries,
+    )
+    from charter.offering.drg.loader import load_built_in_graph
+    from charter.offering.artifact_kinds import ArtifactKind
+    from charter.offering.pack_paths import built_in_dir
+
+    org_drg = report.org_drg
+    if not isinstance(org_drg, dict):  # pragma: no cover — always a dict
+        return
+    try:
+        procedure_urns, urns_by_kind = node_universe(load_built_in_graph().nodes)
+        entries = collect_operating_procedure_entries(
+            built_in_dir(ArtifactKind.AGENT_PROFILE)
+        )
+        unresolved = resolve_operating_procedure_entries(
+            entries, procedure_urns, urns_by_kind
+        )
+    except Exception as exc:  # noqa: BLE001 — diagnostics must never crash
+        existing = org_drg.get("errors")
+        errors = list(existing) if isinstance(existing, list) else []
+        errors.append(f"operating-procedures scan error: {exc}")
+        org_drg["errors"] = errors
+        return
+
+    org_drg["operating_procedures_unresolved"] = [
+        {
+            "profile_id": u.profile_id,
+            "entry": u.entry,
+            "reason": u.reason,
+            "resolved_kind": u.resolved_kind,
+        }
+        for u in unresolved
+    ]
+    if unresolved:
+        noun = "entry" if len(unresolved) == 1 else "entries"
+        message = (
+            f"{len(unresolved)} built-in operating-procedures {noun} resolve to "
+            "no procedure node (fictional or wrong-kind)"
+        )
+        existing = org_drg.get("errors")
+        errors = list(existing) if isinstance(existing, list) else []
+        errors.append(message)
+        org_drg["errors"] = errors
 
 
 def _attach_pack_health(

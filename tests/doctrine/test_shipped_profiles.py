@@ -502,6 +502,7 @@ class TestShippedProfilesContextSources:
         )
 
 
+@pytest.mark.performance
 class TestShippedProfilesPerformance:
     """Performance gate: loading all shipped profiles must complete quickly."""
 

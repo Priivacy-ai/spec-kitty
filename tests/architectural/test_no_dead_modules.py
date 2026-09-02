@@ -262,6 +262,11 @@ _CATEGORY_1_AUTO_DISCOVERED_MIGRATIONS: frozenset[str] = frozenset(
         # @MigrationRegistry.register; never statically imported by runtime
         # code. Same sibling shape as the two backfills above.
         "specify_cli.upgrade.migrations.m_3_2_5_agents_skills_gitignore_backfill",
+        # 3.2.6rc3 .worktrees/ gitignore backfill migration (#3689):
+        # auto-discovered via pkgutil.iter_modules + @MigrationRegistry.register;
+        # never statically imported by runtime code. Same sibling shape as the
+        # gitignore backfills above.
+        "specify_cli.upgrade.migrations.m_3_2_6rc3_worktrees_gitignore_backfill",
         # 3.2.6rc3 blanket-.cursor/ gitignore narrowing migration (#2498):
         # auto-discovered via pkgutil.iter_modules + @MigrationRegistry.register;
         # never statically imported by runtime code. Same sibling shape as the
@@ -472,8 +477,6 @@ _CATEGORY_7_GRANDFATHERED_ORPHANS: frozenset[str] = frozenset(
         # src/ callers. TODO(triage): #925 owns wire-or-prune disposition.
         "charter.parser",
         "charter.activation.template_resolver",
-        "charter.offering.discovery_recursion",
-        "charter.offering.drg.project_scan",
         # sync.admission_operations: REMOVED (issue-5-delete-sync-transport,
         # 2026-08-25). The module was deleted outright with the sync transport;
         # its #3262 WP11 wiring consumer no longer exists, so there is nothing

@@ -232,6 +232,35 @@ def test_bundle_file_lists_stay_in_sync() -> None:
     assert tuple(_BUNDLE_FILES) == ("charter.yaml",)
 
 
+def test_legacy_bundle_file_lists_stay_in_sync() -> None:
+    """The reader's ``_LEGACY_BUNDLE_FILENAMES`` must equal the canonical
+    migration-owned constant.
+
+    WP05 (review-cycle-1.md Issue 2) mirrors — deliberately does NOT
+    import — ``m_unify_charter_activation_finalize.LEGACY_BUNDLE_FILENAMES``:
+    importing that migration module pulls the ``MigrationRegistry`` onto
+    this module's hot import path (NFR-003), the same cost
+    ``test_bundle_file_lists_stay_in_sync`` above avoids for
+    ``_BUNDLE_FILES``/``BUNDLE_CONTENT_HASH_FILES``. This test imports the
+    canonical constant here — in the test file only, never in
+    ``computer.py`` — so the two four-file lists cannot silently drift
+    apart (e.g. a fifth legacy file discovered, or a rename) without a loud
+    failure, following the exact precedent set by the ``_BUNDLE_FILES`` pin.
+    """
+    from specify_cli.charter_runtime.freshness.computer import _LEGACY_BUNDLE_FILENAMES
+    from specify_cli.upgrade.migrations.m_unify_charter_activation_finalize import (
+        LEGACY_BUNDLE_FILENAMES,
+    )
+
+    assert set(_LEGACY_BUNDLE_FILENAMES) == set(LEGACY_BUNDLE_FILENAMES)
+    assert set(_LEGACY_BUNDLE_FILENAMES) == {
+        "governance.yaml",
+        "directives.yaml",
+        "metadata.yaml",
+        "references.yaml",
+    }
+
+
 def test_returns_three_sub_objects(tmp_path: Path) -> None:
     """The result always exposes all three layers."""
     result = compute_freshness(tmp_path)
@@ -244,7 +273,167 @@ def test_returns_three_sub_objects(tmp_path: Path) -> None:
 def test_charter_source_missing_when_charter_yaml_absent(tmp_path: Path) -> None:
     result = compute_freshness(tmp_path)
     assert result.charter_source.state == "missing"
-    assert result.charter_source.remediation == "spec-kitty charter sync"
+    # WP02 (#2831 P0): `charter sync` never writes (src/charter/sync.py:18) so
+    # it could never clear this state. `charter generate --no-from-interview`
+    # is proven effective (missing -> fresh) against a realistic legacy-bundle
+    # fixture — see contracts/remediation-effectiveness.md C-EFF-1/C-EFF-7 and
+    # tests/architectural/test_remediation_effectiveness.py.
+    assert result.charter_source.remediation == "spec-kitty charter generate --no-from-interview"
+    # charter-preflight-remediation WP05 (FR-005, out-of-map edit to this
+    # WP02 file — narrow, consequence-of-computer.py-change only): F1 ("no
+    # charter at all") must be distinguishable from F2 (legacy bundle
+    # present, no charter.yaml) even though both report state="missing".
+    assert result.charter_source.detail == (
+        "no charter.yaml and no legacy charter bundle files; this project "
+        "has no charter at all"
+    )
+    assert result.synced_bundle.detail == result.charter_source.detail
+
+
+def test_charter_source_missing_reads_as_legacy_bundle_present_for_f2(
+    tmp_path: Path,
+) -> None:
+    """FR-005 / WP05: a legacy-bundle project (governance.yaml /
+    directives.yaml / metadata.yaml / references.yaml present, no
+    charter.yaml — F2) still reports state="missing" (unchanged, WP05 does
+    not add a new state value), but its ``detail`` must read differently
+    from F1's — the operator has a charter, just not in the required form.
+    """
+    charter_dir = tmp_path / ".kittify" / "charter"
+    charter_dir.mkdir(parents=True, exist_ok=True)
+    for name in ("governance.yaml", "directives.yaml", "metadata.yaml", "references.yaml"):
+        (charter_dir / name).write_text("schema_version: '1'\n", encoding="utf-8")
+
+    result = compute_freshness(tmp_path)
+
+    assert result.charter_source.state == "missing"
+    assert result.charter_source.detail is not None
+    assert "no charter at all" not in result.charter_source.detail
+    assert "legacy charter bundle" in result.charter_source.detail
+    assert result.charter_source.detail == (
+        "no charter.yaml, but legacy charter bundle files "
+        "(governance.yaml/directives.yaml/metadata.yaml/references.yaml) "
+        "are present; this project has a charter, just not in the "
+        "required form"
+    )
+    # synced_bundle mirrors charter_source's F1/F2 answer rather than
+    # recomputing it (both inspect the same charter.yaml absence).
+    assert result.synced_bundle.detail == result.charter_source.detail
+
+
+def test_charter_source_missing_detail_names_charter_md_for_the_2831_shape(
+    tmp_path: Path,
+) -> None:
+    """#2831's ACTUAL reported shape: ``charter.md`` present, nothing else.
+
+    The issue reads *"despite it existing at .kittify/charter/charter.md"*, and
+    its central complaint is that every diagnostic reported healthy while the
+    gate refused. Before this, that operator got the F1 text — "this project has
+    no charter at all" — because ``charter.md`` was absent from
+    ``_LEGACY_BUNDLE_FILENAMES``, so the most common legacy shape of all was
+    misclassified as *no charter*.
+
+    Pinned as its own case rather than folded into the four-file F2 test: those
+    fixtures seed only the ``.yaml`` files, so they stayed green throughout and
+    could never have caught this. The gate's *verdict* is deliberately unchanged
+    — still ``missing``, still remediable by ``charter generate`` — because
+    charter.yaml remains the required form. Only the sentence changes, from a
+    false one to a true one.
+    """
+    charter_dir = tmp_path / ".kittify" / "charter"
+    charter_dir.mkdir(parents=True, exist_ok=True)
+    (charter_dir / "charter.md").write_text("# Project Charter\n", encoding="utf-8")
+
+    result = compute_freshness(tmp_path)
+
+    assert result.charter_source.state == "missing"
+    detail = result.charter_source.detail
+    assert detail is not None
+    assert "no charter at all" not in detail, (
+        "charter.md is present — telling the operator they have no charter is the "
+        "diagnostic-vs-reality contradiction #2831 reported"
+    )
+    assert detail == (
+        "no charter.yaml, but a legacy charter bundle file (charter.md) "
+        "is present; this project has a charter, just not in the "
+        "required form"
+    )
+    # The exit stays open: naming the shape correctly must not cost the operator
+    # the remediation that provably clears it.
+    assert result.charter_source.remediation == "spec-kitty charter generate --no-from-interview"
+    assert result.synced_bundle.detail == detail
+
+
+def test_charter_source_missing_detail_true_for_single_stray_legacy_file(
+    tmp_path: Path,
+) -> None:
+    """WP05 cycle 2 (review-cycle-1.md Issue 1 — BLOCKING): a lone stray
+    legacy file (a plausible real state — a leftover from a partially
+    completed migration, a hand-edit, or a project mid-upgrade) must NOT be
+    reported as if all four legacy files were present. ``_legacy_bundle_present``
+    returns True on ANY of the four files existing, so a fixed four-file
+    claim overclaims here — a confidently-wrong inventory of the operator's
+    own ``.kittify/charter/`` directory. This is a red-first regression: it
+    fails against the cycle-1 implementation, which always named all four
+    files regardless of what was actually on disk.
+    """
+    charter_dir = tmp_path / ".kittify" / "charter"
+    charter_dir.mkdir(parents=True, exist_ok=True)
+    (charter_dir / "references.yaml").write_text("schema_version: '1'\n", encoding="utf-8")
+
+    result = compute_freshness(tmp_path)
+
+    assert result.charter_source.state == "missing"
+    detail = result.charter_source.detail
+    assert detail is not None
+    assert detail == (
+        "no charter.yaml, but a legacy charter bundle file (references.yaml) "
+        "is present; this project has a charter, just not in the required form"
+    )
+    # The three files NOT on disk must not be named as present.
+    for absent_name in ("governance.yaml", "directives.yaml", "metadata.yaml"):
+        assert absent_name not in detail
+
+
+def test_charter_source_missing_detail_true_for_two_of_four_legacy_files(
+    tmp_path: Path,
+) -> None:
+    """WP05 cycle 2 (review-cycle-1.md Issue 1): a 2-of-4 partial bundle must
+    name only the two files actually present, not the two that are absent."""
+    charter_dir = tmp_path / ".kittify" / "charter"
+    charter_dir.mkdir(parents=True, exist_ok=True)
+    (charter_dir / "directives.yaml").write_text("schema_version: '1'\n", encoding="utf-8")
+    (charter_dir / "references.yaml").write_text("schema_version: '1'\n", encoding="utf-8")
+
+    result = compute_freshness(tmp_path)
+
+    assert result.charter_source.state == "missing"
+    detail = result.charter_source.detail
+    assert detail is not None
+    assert detail == (
+        "no charter.yaml, but legacy charter bundle files "
+        "(directives.yaml/references.yaml) are present; this project has a "
+        "charter, just not in the required form"
+    )
+    for absent_name in ("governance.yaml", "metadata.yaml"):
+        assert absent_name not in detail
+
+
+def test_charter_source_missing_detail_differs_between_f1_and_f2(tmp_path: Path) -> None:
+    """A single-file regression pin: the F1 and F2 ``detail`` strings must
+    never collapse back to the same (or both-empty) text — that would
+    silently reintroduce the FR-005 gap this WP closes."""
+    f1_result = compute_freshness(tmp_path)
+
+    f2_path = tmp_path / "f2-sibling"
+    charter_dir = f2_path / ".kittify" / "charter"
+    charter_dir.mkdir(parents=True, exist_ok=True)
+    (charter_dir / "governance.yaml").write_text("schema_version: '1'\n", encoding="utf-8")
+    f2_result = compute_freshness(f2_path)
+
+    assert f1_result.charter_source.detail
+    assert f2_result.charter_source.detail
+    assert f1_result.charter_source.detail != f2_result.charter_source.detail
 
 
 def test_charter_source_fresh_when_charter_yaml_parses(tmp_path: Path) -> None:
@@ -261,7 +450,76 @@ def test_charter_source_invalid_when_unparseable(tmp_path: Path) -> None:
     _seed_charter_yaml(tmp_path, body="not: [valid: yaml: at: all")
     result = compute_freshness(tmp_path)
     assert result.charter_source.state == "invalid"
-    assert result.charter_source.remediation == "spec-kitty charter sync"
+    # WP02 (#2831 P0): `charter sync` never writes and could never clear this
+    # state either. `charter generate` looked like the best available next
+    # step (it is the doctrinally-intended remediation per
+    # charter/bundle.py:199's docstring), but T008's empirical investigation
+    # found NO command in the current codebase that can repair syntactically
+    # broken YAML in one step — every write path merges into the existing
+    # file via a round-trip parse, so it requires the file to already parse.
+    # WP03 acted on this finding: `invalid` is now a declared exemption-set
+    # member (C-EFF-2, out-of-map edit to this WP02 file — narrow,
+    # consequence-of-computer.py-change only) and emits `remediation=None`
+    # rather than a command proven ineffective; `detail` still explains why.
+    assert result.charter_source.remediation is None
+    assert "cannot be parsed" in (result.charter_source.detail or "")
+
+
+def test_charter_source_invalid_when_empty_mapping(tmp_path: Path) -> None:
+    """H5 (#2831 HIGH finding): ``charter.yaml: {}`` parses cleanly as YAML
+    but is not a charter bundle by any consumer's standard (no
+    ``schema_version``, no ``catalog``) — it must not read ``fresh``.
+    Before this fix, ``_safe_load_yaml`` accepted any mapping including the
+    empty one, so preflight greenlit a charter no other consumer would
+    accept.
+    """
+    _seed_charter_yaml(tmp_path, body="{}\n")
+    result = compute_freshness(tmp_path)
+    assert result.charter_source.state == "invalid"
+    assert result.charter_source.remediation is None
+    assert "bundle contract" in (result.charter_source.detail or "")
+
+
+@pytest.mark.parametrize("schema_version", ["1.0.0", "3.0.0", "not-a-version"])
+def test_charter_source_invalid_when_schema_version_unsupported(
+    tmp_path: Path, schema_version: str
+) -> None:
+    """H5 (#2831 HIGH finding): a ``schema_version`` this build's bundle
+    contract does not understand (a pre-inversion ``1.0.0`` shape, a
+    hypothetical future major, or a non-semver string) parses cleanly but
+    must not read ``fresh`` — only the ``"2.x.x"`` series this build's
+    ``charter.schemas.CharterYaml``/``charter.bundle.SCHEMA_VERSION``
+    actually supports may pass.
+    """
+    _seed_charter_yaml(tmp_path, body=f"schema_version: '{schema_version}'\ncatalog: {{}}\n")
+    result = compute_freshness(tmp_path)
+    assert result.charter_source.state == "invalid"
+    assert result.charter_source.remediation is None
+
+
+def test_charter_source_fresh_when_schema_version_is_supported_minor_bump(
+    tmp_path: Path,
+) -> None:
+    """A forward-compatible minor/patch bump within the supported major
+    series (``2.x.x``) still reads ``fresh`` — H5 tightens on the
+    UNSUPPORTED-major/malformed case only, not on any deviation from the
+    exact seeded ``2.0.0`` string."""
+    _seed_charter_yaml(tmp_path, body=_CHARTER_YAML_BODY.replace("2.0.0", "2.1.0"))
+    result = compute_freshness(tmp_path)
+    assert result.charter_source.state == "fresh"
+
+
+def test_synced_bundle_stale_when_charter_source_invalid_via_unsupported_schema(
+    tmp_path: Path,
+) -> None:
+    """H5 corollary: ``synced_bundle`` cascades the same way it already does
+    for unparseable YAML — an unsupported ``schema_version`` makes
+    ``charter_source`` ``invalid``, which cascades to ``synced_bundle``
+    ``stale`` (never independently ``fresh``)."""
+    _seed_charter_yaml(tmp_path, body="{}\n")
+    result = compute_freshness(tmp_path)
+    assert result.charter_source.state == "invalid"
+    assert result.synced_bundle.state == "stale"
 
 
 def test_charter_source_never_reachable_as_stale() -> None:

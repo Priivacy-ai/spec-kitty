@@ -1382,7 +1382,12 @@ def test_2534_no_binding_arm_never_touches_internal_gate_coverage(tmp_path: Path
     from specify_cli.cli.commands.agent import tasks_move_task as tmt
     from specify_cli.review.gate_bindings import GateBindingResolution, GateCoverage
 
-    inputs = tmt._TransitionGateInputs(worktree_path=None, changed_files=("src/example.py",), gate_repo_root=tmp_path)
+    inputs = tmt._TransitionGateInputs(
+        worktree_path=None,
+        changed_files=("src/example.py",),
+        gate_repo_root=tmp_path,
+        scope_source_root=tmp_path,
+    )
     not_activated = GateBindingResolution(
         coverage=GateCoverage.NOT_ACTIVATED,
         edge_key="in_progress->for_review",

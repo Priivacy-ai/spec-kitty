@@ -21,7 +21,7 @@ from pydantic import BaseModel, ConfigDict, Field, ValidationError
 
 # WP02 / FR-012 (C-001): the single boundary-safe mission-type canonicalizer lives
 # in ``charter`` so ``specify_cli`` may consume it without crossing the layer rule.
-from charter.activation.mission_type_key import canonical_mission_type_key
+from charter.activation.mission_type_key import read_mission_type
 from specify_cli.mission_metadata import load_meta_or_empty
 
 
@@ -546,18 +546,14 @@ def get_mission_by_name(mission_name: str, kittify_dir: Path | None = None) -> M
 def _canonical_meta_mission_type(meta: dict[str, Any]) -> str | None:
     """Return the canonical mission-type key recorded in ``meta``, or ``None``.
 
-    Reads the canonical ``mission_type`` field first, then the legacy ``mission``
-    field, routing each through the single boundary-safe canonicalizer
-    (WP02 / FR-012). Non-string values (malformed metadata) and blank values are
-    treated as absent — the result is ``None`` (typeless), never a substituted
-    ``software-dev`` default (FR-001 / FR-003a).
+    Thin delegate to the one shared runtime reader
+    :func:`charter.mission_type_key.read_mission_type` (rc3 M5, FR-001). Reads
+    **only** the canonical ``mission_type`` field — the legacy ``mission`` field
+    is no longer consulted (FR-002, legacy-resolution retirement). A typeless /
+    absent / blank / non-string value yields ``None``, never a substituted
+    ``software-dev`` default (FR-003).
     """
-    for field in ("mission_type", "mission"):
-        raw = meta.get(field)
-        key = canonical_mission_type_key(raw if isinstance(raw, str) else None)
-        if key is not None:
-            return key
-    return None
+    return read_mission_type(meta)
 
 
 def get_mission_type(feature_dir: Path) -> str:

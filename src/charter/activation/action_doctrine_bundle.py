@@ -21,7 +21,7 @@ from __future__ import annotations
 
 import logging
 from collections.abc import Mapping
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
 from typing import TYPE_CHECKING
 
@@ -59,6 +59,11 @@ class _ActionDoctrineBundle:
     procedure_ids: list[str]
     asset_ids: list[str]
     service: _doctrine_service_module.DoctrineService
+    # WP01 (deliver-loaded-doctrine, FR-001/FR-002): glossary-pack ids delivered
+    # to the ``glossary_packs`` slot, mirroring ``procedure_ids``/``asset_ids``.
+    # Defaulted (not a trailing required field) so the pre-existing bundle
+    # constructors that predate the glossary slot stay valid byte-for-byte.
+    glossary_pack_ids: list[str] = field(default_factory=list)
     # WP15 (progressive disclosure, out-of-map): the resolved DRG and the
     # traversal roots, carried so the JSON entrypoint can render each artefact's
     # ``references[]`` and split the requires-eager / suggests-linked cadence
@@ -260,6 +265,7 @@ def _load_action_doctrine_bundle(
         toolguide_ids=list(ids_by_slot.get("toolguides", ())),
         procedure_ids=list(ids_by_slot.get("procedures", ())),
         asset_ids=list(ids_by_slot.get("assets", ())),
+        glossary_pack_ids=list(ids_by_slot.get("glossary_packs", ())),
         service=_build_doctrine_service(
             repo_root,
             org_roots=org_roots if org_roots else ([org_root] if org_root else None),

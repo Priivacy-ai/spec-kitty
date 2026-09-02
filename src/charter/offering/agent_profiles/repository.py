@@ -19,6 +19,7 @@ from pydantic import ValidationError
 from ruamel.yaml import YAML
 from ruamel.yaml.error import YAMLError
 
+from charter.offering.discovery_recursion import overlay_scan_is_recursive
 from charter.offering.artifact_kinds import ArtifactKind
 from charter.offering.drg.loader import DRGLoadError, load_built_in_graph
 from charter.offering.drg.models import DRGGraph, NodeKind, Relation
@@ -343,14 +344,22 @@ class AgentProfileRepository:
             recursive=True,
         )
 
-        # Org packs, then project, overlay onto the same store in order.
+        # Org packs, then project, overlay onto the same store in order. Org and
+        # project overlay discovery is recursive via the single doctrine
+        # recursion authority (unconditional per C-001), matching the built-in
+        # layer above so a nested `agent_profiles/<sub>/x.agent.yaml` is not
+        # silently dropped (#3490). This was the third, separate recursion
+        # divergence site (org/project were `recursive=False` while built-in was
+        # `True`); it now reads the same authority the base loader and the
+        # charter resolver consult.
+        overlay_recursive = overlay_scan_is_recursive(ArtifactKind.AGENT_PROFILE)
         for org_dir in self._org_dirs:
             self._load_layer(
                 yaml,
                 directory=org_dir,
                 layer="org",
                 built_in_profiles=built_in_profiles,
-                recursive=False,
+                recursive=overlay_recursive,
             )
 
         if self._project_dir is not None:
@@ -359,7 +368,7 @@ class AgentProfileRepository:
                 directory=self._project_dir,
                 layer="project",
                 built_in_profiles=built_in_profiles,
-                recursive=False,
+                recursive=overlay_recursive,
             )
 
     def _load_layer(

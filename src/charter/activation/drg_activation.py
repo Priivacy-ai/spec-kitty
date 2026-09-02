@@ -31,6 +31,7 @@ import logging
 from pathlib import Path
 
 from charter.offering.api import ArtifactKind
+from charter.offering.artifact_kinds import CHARTER_ACTIVATABLE_SINGULAR_TO_PLURAL
 from charter.offering.drg.merge import merge_three_layers
 from charter.offering.drg.models import DRGGraph
 from charter.offering.drg.org_pack_config import load_pack_registry
@@ -208,18 +209,7 @@ def load_org_drg(
 #: prefix (e.g. ``"directive"``) back to its plural form (e.g.
 #: ``"directives"``) so the activation filter can check membership in
 #: :attr:`PackContext.activated_kinds`.
-_SINGULAR_TO_PLURAL: dict[str, str] = {
-    "directive": "directives",
-    "tactic": "tactics",
-    "styleguide": "styleguides",
-    "toolguide": "toolguides",
-    "paradigm": "paradigms",
-    "procedure": "procedures",
-    "agent_profile": "agent_profiles",
-    "mission_step_contract": "mission_step_contracts",
-    "glossary_pack": "glossary_packs",
-    "anti_pattern": "anti_patterns",
-}
+_SINGULAR_TO_PLURAL = CHARTER_ACTIVATABLE_SINGULAR_TO_PLURAL
 
 
 #: Per-kind ``PackContext`` field names for per-artifact-ID gate (FR-038, WP08).

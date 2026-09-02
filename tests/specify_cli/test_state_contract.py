@@ -221,6 +221,7 @@ def test_runtime_gitignore_entries_exact():
         ".kittify/skills-manifest.json",
         ".kittify/sync-state.json",
         ".kittify/workspaces/",
+        ".worktrees/",
         "kitty-ops/ops-index.jsonl",
         # FIX-M2-05: FEATURE-rooted leg -- the dossier SNAPSHOT is nested
         # inside each mission's own kitty-specs/<feature>/ tree, a different

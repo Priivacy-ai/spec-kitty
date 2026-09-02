@@ -116,11 +116,11 @@ class ValidationIssue:
       failure), surfaced here so ``pack validate`` reports it without a
       separate ``spec-kitty doctor doctrine --json`` invocation.
     * ``drg_root_graph_missing`` — the pack's ``drg/`` directory contains one
-      or more ``*.graph.yaml`` fragments but the pack root has no top-level
-      ``*.graph.yaml`` — the runtime
-      (``src/charter/activation/_drg_helpers.py:load_validated_graph``) reads only the
-      pack root, never ``drg/`` fragments, so this pack's DRG content is not
-      consumed as authored.
+      or more ``*.graph.yaml`` fragments but the pack has no top-level
+      ``*.graph.yaml`` **and** no ``drg/fragment.yaml`` — the runtime
+      (``src/charter/activation/_drg_helpers.py:load_validated_graph``) reads pack-root
+      ``*.graph.yaml`` and ``drg/fragment.yaml``, so a ``drg/*.graph.yaml``
+      graph fragment is the one DRG shape no runtime path consumes.
     * ``not_found`` / ``parse_error`` / ``advisory`` — structural categories.
     """
 
@@ -357,11 +357,12 @@ def validate_pack(pack_dir: Path, *, check_drg_root: bool = True) -> ValidationR
     ``check_drg_root`` (FR-004, default ``True``): when ``True``, also runs
     :func:`_check_drg_root_graph_missing` — a pack whose DRG content lives
     only under ``drg/*.graph.yaml`` fragments with no pack-root
-    ``*.graph.yaml`` is flagged, since the runtime
-    (``src/charter/activation/_drg_helpers.py:load_validated_graph``) reads only the
-    pack root. Callers that know their own output can never produce that
-    mismatch shape (e.g. ``pack_assembler.assemble_pack``'s internal
-    round-trip check) pass ``check_drg_root=False``.
+    ``*.graph.yaml`` and no ``drg/fragment.yaml`` is flagged, since the runtime
+    (``src/charter/activation/_drg_helpers.py:load_validated_graph``) reads pack-root
+    ``*.graph.yaml`` and ``drg/fragment.yaml`` but never ``drg/*.graph.yaml``.
+    Callers that know their own output can never produce that mismatch shape
+    (e.g. ``pack_assembler.assemble_pack``'s internal round-trip check) pass
+    ``check_drg_root=False``.
     """
     errors: list[ValidationIssue] = []
     advisories: list[ValidationIssue] = []
@@ -654,15 +655,31 @@ def _check_drg_root_graph_missing(
     pack_dir: Path,
     drg_dir: Path,
 ) -> list[ValidationIssue]:
-    """Warn when DRG content lives only under drg/ with no pack-root graph.
+    """Flag the one DRG shape no runtime path reads: ``drg/*.graph.yaml``.
 
-    The runtime (src/charter/activation/_drg_helpers.py:load_validated_graph) reads a
-    pack-root *.graph.yaml, never drg/ fragments — see spec.md
-    Clarification 3 / sibling mission #3384. Fires only when drg/ contains
-    at least one *.graph.yaml fragment AND the pack root has none; a pack
-    with neither, or with a pack-root graph present, produces no issue.
-    Uses the identical glob string _validate_drg uses (:521) so the two
-    scans are consistent by construction (AC-5).
+    The runtime (``src/charter/activation/_drg_helpers.py:load_validated_graph``) reads a
+    pack-root ``*.graph.yaml`` **and** ``drg/fragment.yaml`` (the latter folded
+    via the DRG read-path bridge, mission ``drg-read-path-bridge-01M0CHVZ``,
+    #3573). A ``drg/*.graph.yaml`` graph fragment is read by neither path, so it
+    is genuinely-unread DRG content. This finding fires when ``drg/`` contains at
+    least one ``*.graph.yaml`` fragment AND the pack root has no ``*.graph.yaml``.
+
+    A coexisting ``drg/fragment.yaml`` does **not** suppress the finding: the
+    fragment's ``requires``/``suggests`` edges do cascade, but a
+    ``drg/*.graph.yaml`` graph document is a *distinct* shape the fragment does
+    not express and no runtime path reads, so the author still needs the signal.
+    The validator and the runtime graphless-warning answer different questions —
+    the runtime warning fires when a pack contributes *nothing* to cascade (so a
+    fragment satisfies it), while this finding fires when a *specific*
+    ``drg/*.graph.yaml`` document goes unread (independent of the fragment). They
+    are not mirror predicates.
+
+    This does not contradict the runtime (C-001 / NFR-003): the finding never
+    claims ``drg/fragment.yaml`` is unread — a ``fragment.yaml``-only pack ships
+    no ``drg/*.graph.yaml`` and so never matches this glob (SC-003 / US3 AC1).
+    The message states the real runtime read-set and drops the earlier false
+    blanket "not drg/ fragments" claim. Uses the identical glob string
+    ``_validate_drg`` uses so the two scans are consistent by construction (AC-5).
     """
     if not drg_dir.is_dir():
         return []
@@ -677,11 +694,12 @@ def _check_drg_root_graph_missing(
             artifact_id=None,
             file=str(pack_dir),
             message=(
-                "DRG content exists only under drg/*.graph.yaml with no "
-                "pack-root *.graph.yaml. The runtime "
+                "DRG content exists under drg/*.graph.yaml with no pack-root "
+                "*.graph.yaml. The runtime "
                 "(src/charter/activation/_drg_helpers.py:load_validated_graph) reads "
-                "the pack root directly, not drg/ fragments — this pack's "
-                "DRG content will not be read as authored."
+                "pack-root *.graph.yaml and drg/fragment.yaml; drg/*.graph.yaml "
+                "graph fragments are the unread shape — this pack's "
+                "drg/*.graph.yaml content will not be read as authored."
             ),
             category="drg_root_graph_missing",
         )

@@ -37,6 +37,7 @@ from charter.activation.cascade import (
     referenced_but_not_cascaded,
 )
 from charter.activation.catalog import resolve_doctrine_root
+from charter.activation.drg_activation import load_org_drg
 from charter.activation.invocation_context import ProjectContext
 from charter.activation.kind_vocabulary import (
     ArtifactKind,
@@ -341,7 +342,11 @@ def _render_cascade_activation(
     from charter.activation._drg_helpers import load_validated_graph  # noqa: PLC0415
 
     org_roots = resolve_org_root_chain(repo_root)
-    graph = load_validated_graph(repo_root, org_roots=org_roots)
+    graph = load_validated_graph(
+        repo_root,
+        org_roots=org_roots,
+        org_fragments=load_org_drg(repo_root, strict=False),
+    )
     result = cascade_activation_targets(graph, source_urn, scope)
     doctrine_root = resolve_doctrine_root()
 
@@ -468,7 +473,11 @@ def _render_no_cascade_warning(
     from charter.activation._drg_helpers import load_validated_graph  # noqa: PLC0415
 
     org_roots = resolve_org_root_chain(repo_root)
-    graph = load_validated_graph(repo_root, org_roots=org_roots)
+    graph = load_validated_graph(
+        repo_root,
+        org_roots=org_roots,
+        org_fragments=load_org_drg(repo_root, strict=False),
+    )
     report = referenced_but_not_cascaded(graph, source_urn)
     if not report.has_skipped:
         return

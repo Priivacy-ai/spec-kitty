@@ -43,7 +43,7 @@ from charter.drg import (
     resolve_existing_org_roots,
     resolve_org_dirs,
 )
-from charter.activation.drg_activation import filter_graph_by_activation
+from charter.activation.drg_activation import filter_graph_by_activation, load_org_drg
 from charter.mission_steps import MissionStepContract, MissionStepContractRepository
 from specify_cli.mission_metadata import resolve_mission_identity
 
@@ -288,11 +288,24 @@ def _activated_msc_urns(
     activation. An explicit *graph_loader* override (test doubles) is called
     exactly as before — single ``repo_root`` argument, no org-roots
     threading — so existing overrides are unaffected.
+
+    DRG read-path bridge (mission ``drg-read-path-bridge-01M0CHVZ``, WP02): the
+    production default additionally threads ``org_fragments=load_org_drg(
+    repo_root, strict=False)`` so a ``mission_step_contract`` node (and its
+    ``requires``/``suggests`` edges) authored only in an org pack's
+    ``drg/fragment.yaml`` is visible to gate-binding activation too — mirroring
+    the ``activate``/``deactivate`` cascade call sites (D4). ``strict=False``
+    keeps the diagnostic ``load_org_drg`` default untouched (NFR-001); the
+    no-org-pack path is unchanged (``load_org_drg`` returns ``[]``).
     """
     graph = (
         graph_loader(repo_root)
         if graph_loader is not None
-        else load_validated_graph(repo_root, org_roots=resolve_existing_org_roots(repo_root))
+        else load_validated_graph(
+            repo_root,
+            org_roots=resolve_existing_org_roots(repo_root),
+            org_fragments=load_org_drg(repo_root, strict=False),
+        )
     )
     pack = (pack_resolver or _resolve_pack_context)(repo_root)
     if pack is not None:

@@ -2,6 +2,7 @@
 Enhanced verify_setup implementation for spec-kitty.
 """
 
+from charter.activation.mission_type_key import read_mission_type
 from specify_cli.core.constants import KITTY_SPECS_DIR
 import logging
 import subprocess
@@ -23,14 +24,11 @@ def _resolve_mission_from_feature(feature_dir: Path) -> str | None:
 
     Returns the mission string or ``None`` when no meta.json exists or is malformed.
     """
+    # rc3 M5 (FR-002): canonical field only via the one shared reader — the
+    # legacy `mission` fallback is retired.
     meta = load_meta_or_empty(feature_dir)
     if meta:
-        mission_type = str(meta.get("mission_type", "")).strip()
-        if mission_type:
-            return mission_type
-        legacy_mission = str(meta.get("mission", "")).strip()
-        if legacy_mission:
-            return legacy_mission
+        return read_mission_type(meta)
     return None
 
 

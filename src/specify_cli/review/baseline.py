@@ -18,6 +18,7 @@ import json
 import logging
 import subprocess
 import tempfile
+import time
 import xml.etree.ElementTree as ET
 from collections.abc import Iterator, Sequence
 from contextlib import contextmanager
@@ -478,39 +479,61 @@ def _run_command_for_baseline(command: list[str], *, cwd: Path) -> RawRunResult:
     locatable at all; without it, ``raw.output_artifact_path.exists()``
     would check a path relative to the wrong directory regardless of when
     ``parse_results`` runs. Absolute ``--junitxml`` paths are used as-is.
+
+    Issue #3612 fast-follow (regression review finding, post-#3612):
+    ``DeclaredCommandScopeSource.test_command()`` now renders a ``["sh",
+    "-c", "export ...; <command>"]`` COMPOUND statement (the #3612 shell +
+    ``{output_file}`` fix) — ``sh`` forks the real command as its OWN child,
+    so a bare ``subprocess.run(..., timeout=...)`` here would SIGKILL only
+    ``sh`` on timeout, orphaning the real command as a grandchild that keeps
+    running (with its cwd inside the baseline worktree) after
+    ``_baseline_worktree``'s ``finally`` removes that very worktree out from
+    under it. Delegates to the head runner's OWN tested scoped-launch +
+    reap machinery (:func:`pre_review_gate._run_raw_command`, itself
+    ``_launch_scoped_process`` + ``_observe_process``) instead of
+    hand-replicating ``start_new_session``/``os.killpg`` here — one
+    group-safe launcher for both capture and head, so they cannot re-drift.
+    Lazy import: ``pre_review_gate.py`` imports FROM this module at its own
+    top level (``CAPTURE_BASELINE_TIMEOUT_SECONDS``, ``_parse_junit_xml``,
+    ...), so a module-level import here would be a two-way cycle.
     """
+    from specify_cli.review.pre_review_gate import HeadRunState, _default_process_wait, _run_raw_command
+
     junit_path = _extract_junit_output_path(command)
     if junit_path is not None and not junit_path.is_absolute():
         junit_path = cwd / junit_path
-    try:
-        result = subprocess.run(
-            command,
-            cwd=str(cwd),
-            capture_output=True,
-            text=True,
-            check=False,
-            timeout=CAPTURE_BASELINE_TIMEOUT_SECONDS,
-        )
-    except subprocess.TimeoutExpired:
+
+    state, raw, error = _run_raw_command(
+        command,
+        repo_root=cwd,
+        timeout=CAPTURE_BASELINE_TIMEOUT_SECONDS,
+        progress_callback=None,
+        monotonic=time.monotonic,
+        wait=_default_process_wait,
+    )
+    if state is HeadRunState.TIMED_OUT:
         return RawRunResult(
             returncode=-1,
             stdout="",
             stderr=f"baseline command timed out after {CAPTURE_BASELINE_TIMEOUT_SECONDS}s",
             output_artifact_path=junit_path,
         )
-    except OSError as exc:
+    if state is HeadRunState.CANCELLED:
         return RawRunResult(
             returncode=-1,
             stdout="",
-            stderr=f"baseline command failed to execute: {exc}",
+            stderr=f"baseline command cancelled: {error}",
             output_artifact_path=junit_path,
         )
-    return RawRunResult(
-        returncode=result.returncode,
-        stdout=result.stdout,
-        stderr=result.stderr,
-        output_artifact_path=junit_path,
-    )
+    if state is HeadRunState.LAUNCH_FAILED:
+        return RawRunResult(
+            returncode=-1,
+            stdout="",
+            stderr=f"baseline command failed to execute: {error}",
+            output_artifact_path=junit_path,
+        )
+    assert raw is not None  # guaranteed by _run_raw_command for every non-{TIMED_OUT,CANCELLED,LAUNCH_FAILED} state
+    return raw
 
 
 def _capture_baseline_via_scope_source(
@@ -556,6 +579,37 @@ def _capture_baseline_via_scope_source(
         failures = tuple(scope_source.parse_results(raw))
         source_identity = scope_source_identity(scope_source, raw)
 
+    # Issue #3612 (refuse-not-store): a "text"-mode run with NO parseable
+    # per-failure identity and a clean (zero) exit is genuinely ambiguous —
+    # unlike GateCoverageScopeSource (always junit_xml, always a REAL parsed
+    # count) or a text-mode run that ended non-zero (parse_results always
+    # surfaces at least one whole-run failure for that case, never empty),
+    # this specific combination cannot distinguish "a suite of zero tests
+    # ran cleanly" from "the declared command produced nothing this capture
+    # could verify at all". Storing it as total=0/passed=0/failed=0 would be
+    # a FABRICATED clean baseline — refuse to store it; the sentinel makes
+    # the gate treat it as UNVERIFIED_BASELINE instead of verified-clean.
+    if not failures and source_identity.rsplit("/", 1)[-1] == "text":
+        logger.warning(
+            "Declared test command exited cleanly but produced no verifiable "
+            "output (no JUnit artifact, no parseable failure line) for %s; "
+            "refusing to store an ambiguous zero-failure baseline.",
+            wp_id,
+        )
+        return _make_sentinel(wp_id, base_branch, base_commit)
+
+    # NOTE (issue #3612, documented rather than redesigned — see PR notes):
+    # total/passed below are DERIVED from the failure count, not real suite
+    # counts. Unlike the legacy config-driven path (_capture_baseline_via_config,
+    # which parses REAL total/passed/skipped out of JUnit XML), the
+    # ScopeSource.parse_results() port only returns per-failure identities —
+    # it has no channel to report suite size. A junit_xml-mode declared
+    # command with a real artifact DOES have real total/passed/skipped
+    # available (parse_results computes them internally) but they are
+    # discarded before reaching here. Fixing this fully would mean widening
+    # the ScopeSource port (an optional richer-capability refinement, the
+    # same pattern as ScopeBreakdownSource) — out of scope for this fix;
+    # flagged for a follow-up rather than silently left unexplained.
     result = BaselineTestResult(
         wp_id=wp_id,
         captured_at=now_utc_stamp(),
@@ -625,7 +679,8 @@ def _find_repo_root(start: Path) -> Path | None:
     """Walk up from start until we find a .git directory or file."""
     current = start.resolve()
     for _ in range(20):  # limit depth
-        if (current / ".git").exists():
+        git_path = current / ".git"
+        if git_path.is_file() or (git_path.is_dir() and (git_path / "HEAD").is_file()):
             return current
         parent = current.parent
         if parent == current:

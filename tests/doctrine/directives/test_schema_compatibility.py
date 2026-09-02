@@ -71,7 +71,16 @@ class TestDirectiveSchemaCompatibility:
                 "Run directive test suite",
             ],
             "references": [
-                {"type": "toolguide", "id": "git-agent-commit-signing"},
+                # Exercises the optional curated edge metadata (``when``/``reason``)
+                # carried symmetrically with the DRG edge the extractor mints
+                # (#3009 residual, mission kind-complete-cascade-orphan-wiring
+                # -01M0FQCD): a defensible relationship can live in frontmatter.
+                {
+                    "type": "toolguide",
+                    "id": "git-agent-commit-signing",
+                    "when": "signing an agent commit",
+                    "reason": "the toolguide documents the signing workflow",
+                },
             ],
             "integrity_rules": [
                 "Existing minimal directives must remain valid.",

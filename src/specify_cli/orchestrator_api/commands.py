@@ -50,7 +50,7 @@ from specify_cli.mission_metadata import resolve_mission_identity
 from specify_cli.status import wp_state_for
 from specify_cli.status import Lane
 from specify_cli.status import ReviewResult
-from specify_cli.status import event_verdicts
+from specify_cli.status import parse_review_result_json
 
 from .envelope import (
     CONTRACT_VERSION,
@@ -910,38 +910,17 @@ class _StartWorkspace:
 
 
 def _lane_base_ref(main_repo_root: Path, mission: str, manifest: object) -> str:
-    """The ref the lane was parented on — the base for the commit gate.
+    """Back-compat delegator to the hoisted single base-ref authority.
 
-    Uses the canonical placement authority (`resolve_placement_only`) — the same
-    one the native review gate consults — which resolves to the coordination
-    branch under coord topology. On the coord path this PR targets, both gates
-    therefore agree on the base. The fallback ordering differs for legacy
-    missions: this gate falls back to the manifest's mission_branch then the repo
-    default, whereas the native gate prefers the workspace context's base_branch;
-    the commit-existence check (`rev-list <base>..HEAD` count > 0) is robust to
-    that difference as long as the base is an ancestor of HEAD, which holds for
-    both.
+    The lane-base resolution now lives with the shared ``for_review`` gate
+    (:func:`specify_cli.lanes.for_review_gate.resolve_lane_base_ref`) so the gate
+    leaf and this surface's workspace resolvers consult ONE implementation. Kept
+    as a module-level name for the two workspace resolvers below (and existing
+    callers) that already reference it.
     """
-    from mission_runtime import (
-        ActionContextError,
-        MissionArtifactKind,
-        resolve_placement_only,
-    )
+    from specify_cli.lanes.for_review_gate import resolve_lane_base_ref
 
-    try:
-        # base-ref read under coord topology — coord kind preserves G-2
-        # (write-surface-coherence WP02 / T031 site 4): the lane-base gate compares
-        # against the coordination BASE ref under coord topology. STATUS_STATE keeps
-        # the coord ref; a primary kind would read the primary ref as the base and
-        # corrupt the gate's `rev-list <base>..HEAD` ancestry check.
-        return str(resolve_placement_only(main_repo_root, mission, kind=MissionArtifactKind.STATUS_STATE).ref)
-    except ActionContextError:
-        # Never return an empty ref: the commit gate runs `git rev-list <base>..HEAD`,
-        # and an empty base silently degrades to an unreliable HEAD..HEAD. Fall back to
-        # the manifest's mission_branch, or the repo default branch as a last resort.
-        from specify_cli.core.git_ops import resolve_primary_branch
-
-        return str(getattr(manifest, "mission_branch", "") or resolve_primary_branch(main_repo_root))
+    return resolve_lane_base_ref(main_repo_root, mission, manifest)
 
 
 def _enforce_claim_ancestry(
@@ -1391,66 +1370,35 @@ def start_review(
 def _enforce_for_review_commit_gate(cmd: str, main_repo_root: Path, mission: str, mission_dir: Path, wp: str, force: bool) -> None:
     """Reject an in_progress->for_review transition that has no commit on the lane.
 
-    Applies the SAME "commits beyond base" check the native ``move-task`` gate
-    uses (``lanes._git.lane_has_commit_beyond_base``) so "done without a commit"
-    is impossible through the orchestrator-api too. No-ops when bypassed
-    (``--force``) or when the gate does not apply (no lanes.json, or the WP is
-    not in any lane — e.g. planning-artifact WPs). Fails closed with
-    ``TRANSITION_REJECTED`` when a lane WP has no implementation commit.
+    Thin orchestrator adapter over the shared, surface-neutral gate leaf
+    (:func:`specify_cli.lanes.for_review_gate.evaluate_for_review_gate`): the leaf
+    decides (returning a :class:`GateDecision`) and THIS surface renders the
+    envelope ``_fail`` from that decision. The envelope (``NoReturn``) never
+    leaks into the leaf, so ``agent status emit`` (WP09) can consume the same
+    gate and render its own CLI error. No-ops when bypassed (``--force``) or when
+    the gate does not apply (no lanes.json, or the WP is not in any lane).
     """
-    if force:
-        return
-    from specify_cli.lanes._git import lane_has_commit_beyond_base
-    from specify_cli.lanes.worktree_allocator import predict_lane_worktree
+    from specify_cli.lanes.for_review_gate import (
+        GateDecision,
+        evaluate_for_review_gate,
+    )
 
-    # Legacy/non-lane arm ⇒ guard exempt: only lane WPs carry a lane branch to
-    # check commits on (the composed legacy workspace is discarded).
-    assignment = _lane_assignment_or_legacy(main_repo_root, mission, wp)
-    if isinstance(assignment, _StartWorkspace):
-        return
-    manifest, lane = assignment
-
-    worktree, lane_branch = predict_lane_worktree(main_repo_root, mission, lane.lane_id)
-    base_ref = _lane_base_ref(main_repo_root, mission, manifest)
-    if not worktree.exists() or not lane_has_commit_beyond_base(worktree, base_ref):
+    decision: GateDecision = evaluate_for_review_gate(
+        main_repo_root, mission, wp, force=force
+    )
+    if not decision.passed:
         _fail(
             cmd,
             "TRANSITION_REJECTED",
-            (
-                f"{wp} cannot move to for_review: no implementation commit on lane "
-                f"{lane.lane_id} ({lane_branch}) beyond "
-                f"{base_ref}. Commit the work in the lane worktree first, or pass "
-                "--force if there is genuinely nothing to commit."
-            ),
-            {**_mission_identity_payload(mission_dir), "wp_id": wp, "lane_id": lane.lane_id},
+            decision.reason,
+            {
+                **_mission_identity_payload(mission_dir),
+                "wp_id": wp,
+                "lane_id": decision.lane_id,
+            },
         )
 
 
-def _parse_review_result_json(raw: str) -> ReviewResult:
-    """Parse the external review outcome accepted by the transition command."""
-    try:
-        parsed = json.loads(raw)
-    except json.JSONDecodeError as exc:
-        raise ValueError(f"Invalid JSON in --review-result-json: {exc}") from exc
-    if not isinstance(parsed, dict):
-        raise ValueError("--review-result-json must decode to a JSON object")
-
-    reviewer = parsed.get("reviewer")
-    verdict = parsed.get("verdict")
-    reference = parsed.get("reference")
-    if not all(isinstance(value, str) and value.strip() for value in (reviewer, verdict, reference)):
-        raise ValueError("--review-result-json requires non-empty reviewer, verdict, and reference strings")
-    if verdict not in event_verdicts():
-        raise ValueError("--review-result-json verdict must be 'approved' or 'changes_requested'")
-    feedback_path = parsed.get("feedback_path")
-    if feedback_path is not None and not isinstance(feedback_path, str):
-        raise ValueError("--review-result-json feedback_path must be a string")
-    return ReviewResult(
-        reviewer=reviewer,
-        verdict=verdict,
-        reference=reference,
-        feedback_path=feedback_path,
-    )
 
 
 @app.command(name="transition")
@@ -1511,7 +1459,7 @@ def transition(
     review_result: ReviewResult | None = None
     if review_result_json is not None:
         try:
-            review_result = _parse_review_result_json(review_result_json)
+            review_result = parse_review_result_json(review_result_json)
         except ValueError as exc:
             _fail(cmd, "USAGE_ERROR", str(exc))
             return

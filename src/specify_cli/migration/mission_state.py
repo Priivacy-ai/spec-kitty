@@ -29,6 +29,11 @@ from packaging.version import Version
 from pydantic import BaseModel, ConfigDict
 
 from specify_cli.core.atomic import atomic_write
+from specify_cli.core.checkout_identity import (
+    FailClosedRefusal,
+    Intent,
+    resolve_checkout_identity,
+)
 from specify_cli.core.paths import (
     WorkspaceRootNotFound,
     assert_safe_path_segment,
@@ -537,65 +542,73 @@ def _anchor_repair_root(repo_root: Path, *, scan_root: Path | None) -> Path:
     return canonical
 
 
-@dataclass(frozen=True)
-class FailClosedRefusal:
-    """Minimal fail-closed refusal value for mission-state primary writes."""
-
-    refusal_path: Path
-    invoking_path: Path
-
-    def message(self) -> str:
-        return (
-            "Refusing mission-state repair from a foreign lane worktree; "
-            f"primary checkout is {self.refusal_path}, invoked from {self.invoking_path}."
-        )
+# ---------------------------------------------------------------------------
+# Checkout-identity reconciliation (WP04, FR-004; #3051/#3541)
+#
+# ``_anchor_repair_root`` above **deliberately** keeps the #2320 primary
+# status-home: a ``--fix`` write always lands on the primary checkout's
+# ``kitty-specs/<slug>`` regardless of CWD. That canonicalization is correct —
+# but when it is triggered from a *foreign* lane worktree it must not happen
+# **silently**. The squad surfaced the tension (#3129/#3051): the same
+# collapse-to-primary is both the deliberate #2320 anchor AND, when unannounced,
+# a defect. Resolution: preserve the primary target, add checkout-identity
+# awareness so a foreign-lane ``--fix`` fails closed, and an ``--audit`` reports
+# the honest invoking-checkout-vs-primary disagreement rather than a false-green
+# produced by reading the redirected primary path at both ends.
+# ---------------------------------------------------------------------------
 
 
 class MissionStateWriteRefused(MissionStateRepairError):
-    """Fail-closed refusal of a foreign-lane ``--fix`` canonicalization."""
+    """Fail-closed refusal of a foreign-lane ``--fix`` canonicalization.
+
+    Carries the WP01 :class:`FailClosedRefusal` value object (the single
+    write-refusal seam). ``str(exc)`` is ``refusal.message()``, which names the
+    primary ``canonical_target`` verbatim, so the operator sees exactly which
+    checkout the invocation declined to canonicalize.
+    """
 
     def __init__(self, refusal: FailClosedRefusal) -> None:
         super().__init__(refusal.message())
         self.refusal = refusal
 
 
-def _linked_worktree_primary(cwd: Path) -> Path | None:
-    git_file = cwd / ".git"
-    if not git_file.is_file():
-        return None
-    try:
-        content = git_file.read_text(encoding="utf-8").strip()
-    except OSError:
-        return None
-    prefix = "gitdir:"
-    if not content.startswith(prefix):
-        return None
-    gitdir = Path(content[len(prefix) :].strip())
-    parts = gitdir.parts
-    try:
-        git_index = parts.index(".git")
-        worktrees_index = git_index + 1
-        if parts[worktrees_index] != "worktrees":
-            return None
-    except (ValueError, IndexError):
-        return None
-    return Path(*parts[:git_index]).resolve()
-
-
 def enforce_primary_write_ownership(cwd: Path, resolved_root: Path) -> None:
-    """Fail closed when a foreign lane would silently canonicalize the primary."""
-    primary = _linked_worktree_primary(cwd.resolve())
-    if primary is None:
+    """Fail closed when a foreign lane would silently canonicalize the primary.
+
+    ``resolved_root`` is the already-re-anchored ``--fix`` write target (the
+    #2320 primary). Consulting the WP01 guard with :data:`Intent.WRITE`:
+
+    * When the guard's ``canonical_target`` differs from ``resolved_root`` the
+      invocation is writing to a checkout it owns (or to an explicitly supplied
+      root that is *not* this invocation's re-anchored primary) — proceed
+      silently. This keeps owner ``--fix`` and explicit ``repo_root=`` callers
+      (tests, fixtures) unaffected.
+    * When ``canonical_target == resolved_root`` **and** the invoking checkout
+      does not own it (a foreign lane worktree pointing at that primary), raise
+      :class:`MissionStateWriteRefused` naming the primary — never a silent
+      canonicalization.
+
+    An owner invocation (``cwd`` *is* the primary) has ``is_owner`` true, so
+    :meth:`CheckoutIdentity.write_refusal` returns ``None`` and this is a no-op.
+    """
+    identity = resolve_checkout_identity(cwd, Intent.WRITE)
+    if identity.canonical_target != resolved_root:
         return
-    if primary == resolved_root.resolve():
-        raise MissionStateWriteRefused(
-            FailClosedRefusal(refusal_path=primary, invoking_path=cwd.resolve())
-        )
+    refusal = identity.write_refusal()
+    if refusal is not None:
+        raise MissionStateWriteRefused(refusal)
 
 
 @dataclass(frozen=True)
 class CheckoutDisagreement:
-    """One invoking-checkout-vs-primary mission-state mismatch."""
+    """One honest invoking-checkout-vs-primary mission-state mismatch.
+
+    ``invoking_sha256`` / ``primary_sha256`` are the SHA-256 of the artifact in
+    the invoking checkout and the primary respectively; ``None`` means the
+    artifact is absent on that side. A row exists only when the two differ, so a
+    populated list is exactly the disagreement an ``--audit`` from a foreign lane
+    must surface instead of a false-green.
+    """
 
     mission_slug: str
     artifact: str
@@ -615,21 +628,29 @@ _DISAGREEMENT_ARTIFACTS: tuple[str, ...] = (STATUS_FILENAME, EVENTS_FILENAME)
 
 
 def _artifact_sha256(path: Path) -> str | None:
+    """SHA-256 of ``path``'s bytes, or ``None`` when it is absent/unreadable."""
     try:
-        return hashlib.sha256(path.read_bytes()).hexdigest()  # noqa: TID251
+        data = path.read_bytes()
     except OSError:
         return None
+    return hashlib.sha256(data).hexdigest()  # noqa: TID251 - content-identity checksum only
 
 
 def _compare_checkout_mission_state(
     invoking_root: Path, primary_root: Path, *, mission: str | None
 ) -> list[CheckoutDisagreement]:
+    """Return the honest per-artifact mismatches between two checkouts.
+
+    Compares ``kitty-specs/<slug>/status.json`` and ``status.events.jsonl`` in
+    the invoking checkout against the primary. A disagreement is recorded when
+    the two sides' content SHA differs (including one side being absent).
+    """
     invoking_specs = invoking_root / "kitty-specs"
     primary_specs = primary_root / "kitty-specs"
     slugs: set[str] = set()
     for specs_root in (invoking_specs, primary_specs):
         if specs_root.is_dir():
-            slugs.update(path.name for path in specs_root.iterdir() if path.is_dir())
+            slugs.update(p.name for p in specs_root.iterdir() if p.is_dir())
     if mission is not None:
         slugs &= {mission}
 
@@ -653,12 +674,28 @@ def _compare_checkout_mission_state(
 def audit_invocation_disagreement(
     cwd: Path, resolved_root: Path, *, mission: str | None = None
 ) -> list[CheckoutDisagreement]:
-    """Report invoking-checkout-vs-primary disagreement for ``--audit``."""
-    invoking_root = cwd.resolve()
-    primary = _linked_worktree_primary(invoking_root)
-    if primary is None or primary != resolved_root.resolve():
+    """Report the invoking-checkout-vs-primary disagreement for ``--audit``.
+
+    The false-green this removes: from a foreign lane the audit root is
+    re-anchored to the primary, so the engine reads the primary at *both* ends
+    and reports agreement. Here the invoking checkout is resolved **directly**
+    from its own ``.git`` via the WP01 guard (:data:`Intent.PRIMARY_READ`, which
+    never flips the target) and its own mission state is compared against the
+    primary ``resolved_root``.
+
+    Returns ``[]`` when the invoking checkout *is* the primary (``resolved_root``
+    == ``invoking_root``) or when ``resolved_root`` is not this invocation's
+    re-anchored primary (explicit-root / fixture callers) — there is no
+    cross-checkout read to disagree about in those cases.
+    """
+    identity = resolve_checkout_identity(cwd, Intent.PRIMARY_READ)
+    if identity.invoking_root == resolved_root:
         return []
-    return _compare_checkout_mission_state(invoking_root, primary, mission=mission)
+    if identity.canonical_target != resolved_root:
+        return []
+    return _compare_checkout_mission_state(
+        identity.invoking_root, resolved_root, mission=mission
+    )
 
 
 def repair_repo(
@@ -2040,6 +2077,12 @@ def _rule_normalize_lanes(
     _default_force_and_mode(new_row, new_actions)
 
     canonical = _build_canonical_row(new_row, ctx.mission_id)
+    # FR-009 manifest honesty: ``_build_canonical_row`` is an allowlist, so any
+    # field present on the normalized row but absent from the canonical shape is
+    # dropped. Enumerate those removals so the manifest lists every field the
+    # repair touches — including removed fields — not just renames/normalizations.
+    for dropped in sorted(set(new_row) - set(canonical)):
+        new_actions.append(f"removed_field:{dropped}")
     try:
         StatusEvent.from_dict(canonical)
     except Exception as exc:
@@ -2467,10 +2510,13 @@ __all__ = [
     # and the seam itself was pruned as dead collateral (issue #116); any new
     # cross-module consumer of these internals would need a fresh seam, not a
     # direct import.
+    "CheckoutDisagreement",
     "MissionStateDryRunError",
     "MissionStateRepairError",
+    "MissionStateWriteRefused",
     "TeamspaceDryRunReport",
     "audit_invocation_disagreement",
+    "enforce_primary_write_ownership",
     "rebuild_mission_event_log",
     "repair_duplicate_key_artifacts",
     "repair_repo",

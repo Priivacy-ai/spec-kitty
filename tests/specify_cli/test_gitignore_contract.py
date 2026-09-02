@@ -77,6 +77,7 @@ def test_contract_runtime_entries_complete():
     assert ".kittify/runtime/" in entries
     assert ".kittify/events/" in entries
     assert ".kittify/dossiers/" in entries
+    assert ".worktrees/" in entries  # execution-worktrees root (#3689)
     # FIX-M2-05: the FEATURE-rooted leg -- the dossier SNAPSHOT is nested
     # inside each mission's own kitty-specs/<feature>/ tree (save_snapshot()
     # writes feature_dir/.kittify/dossiers/<slug>/…), a DIFFERENT physical
@@ -246,3 +247,19 @@ def test_derived_views_dir_is_gitignored():
 
     entries = get_runtime_gitignore_entries()
     assert ".kittify/derived/" in entries, entries
+
+
+def test_gitignore_manager_protects_worktrees_root(tmp_path: Path) -> None:
+    """Fresh init gitignores the execution-worktrees root (#3689).
+
+    Historically only the <0.13.1 migration excluded ``.worktrees/`` (via the
+    local-only ``.git/info/exclude``), so every project initialised since
+    then showed ``?? .worktrees/`` after its first mission worktree.
+    """
+    from specify_cli.gitignore_manager import GitignoreManager
+
+    manager = GitignoreManager(tmp_path)
+    manager.protect_all_agents()
+
+    content = (tmp_path / ".gitignore").read_text()
+    assert ".worktrees/" in content

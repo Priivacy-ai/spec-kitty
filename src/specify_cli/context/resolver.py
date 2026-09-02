@@ -20,6 +20,7 @@ from specify_cli.context.errors import (
     MissingIdentityError,
     WorkPackageNotFoundError,
 )
+from charter.activation.mission_type_key import read_mission_type
 from specify_cli.context.models import MissionContext
 from specify_cli.context.store import load_context as _load_context
 from specify_cli.context.store import save_context
@@ -91,7 +92,7 @@ def _read_meta_json(feature_dir: Path, repo_root: Path) -> dict[str, str]:
     identity = mission_identity_fields(
         str(data.get("mission_slug") or data.get("slug") or feature_dir.name),
         str(data.get("mission_number") or data.get("feature_number") or "").strip() or None,
-        str(data.get("mission_type") or data.get("mission") or "").strip() or None,
+        read_mission_type(data),  # rc3 M5 (FR-002): canonical field only; legacy retired
     )
 
     return {

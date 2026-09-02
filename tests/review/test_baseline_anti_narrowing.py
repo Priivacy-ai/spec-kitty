@@ -21,6 +21,7 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
+from specify_cli.review import pre_review_gate
 from specify_cli.review.baseline import BaselineFailure, _capture_baseline_via_scope_source, capture_baseline
 from specify_cli.review.scope_source import RawRunResult
 
@@ -50,19 +51,54 @@ class _StubScopeSource:
 
 def _make_wp_dir(tmp_path: Path) -> tuple[Path, Path, Path]:
     """Set up a minimal fake repo structure (mirrors test_baseline.py's own
-    helper -- subprocess is fully mocked below, so a real ``.git`` is not
-    needed, only a directory :func:`_find_repo_root` will recognise)."""
+    helper -- subprocess is fully mocked below, so only the structural
+    ``.git/HEAD`` marker needed by :func:`_find_repo_root` is created)."""
     repo = tmp_path / "repo"
-    (repo / ".git").mkdir(parents=True)
+    git_dir = repo / ".git"
+    git_dir.mkdir(parents=True)
+    (git_dir / "HEAD").write_text("ref: refs/heads/main\n", encoding="utf-8")
     feature_dir = repo / "kitty-specs" / "anti-narrow-test"
     (feature_dir / "tasks" / "WPXX-test").mkdir(parents=True)
     return repo, feature_dir, feature_dir / "tasks" / "WPXX-test"
 
 
+class _FakeLaunchedProcess:
+    """Minimal ``Popen`` double: enough surface for the group-safe launcher
+    (``pre_review_gate._launch_scoped_process`` / ``_observe_process``,
+    issue #3612 fast-follow) to drive without a real subprocess."""
+
+    def __init__(self, command: Sequence[str], on_launch: list[list[str]]) -> None:
+        on_launch.append(list(command))
+        self.pid = 424242
+        self.returncode = 0
+
+    def communicate(self, timeout: float | None = None) -> tuple[str, str]:
+        del timeout
+        return "", ""
+
+    def terminate(self) -> None:
+        pass
+
+    def kill(self) -> None:
+        pass
+
+    def poll(self) -> int | None:
+        return self.returncode
+
+
 def test_baseline_command_runs_whole_declared_command_without_narrowing(tmp_path: Path) -> None:
-    """The exact argv ``subprocess.run`` receives for the baseline test run
+    """The exact argv the scoped launcher receives for the baseline test run
     must equal ``scope_source.test_command()`` verbatim -- no
-    ``scope.test_targets`` appended, unlike the head diff-time run."""
+    ``scope.test_targets`` appended, unlike the head diff-time run.
+
+    Issue #3612 fast-follow: baseline capture's test-command invocation now
+    runs through the SAME group-safe launcher the head runner uses
+    (``pre_review_gate._launch_scoped_process`` -> ``subprocess.Popen``),
+    not a bare ``subprocess.run`` -- so the interception point for the
+    ACTUAL test command is ``Popen``, not ``run`` (``run`` is still used for
+    the surrounding git plumbing: ``rev-parse``/``worktree add``/``remove``,
+    unaffected by this fix and still faked below).
+    """
     repo, feature_dir, _wp_task_dir = _make_wp_dir(tmp_path)
     declared_command = ["custom-runner", "--flag-a", "--flag-b"]
     stub = _StubScopeSource(declared_command)
@@ -74,14 +110,15 @@ def test_baseline_command_runs_whole_declared_command_without_narrowing(tmp_path
         result.returncode = 0
         result.stdout = "abc1234def5\n"
         result.stderr = ""
-        if isinstance(cmd, list) and cmd[:2] == ["git", "rev-parse"]:
-            return result
-        if isinstance(cmd, list) and cmd[:2] == ["git", "worktree"]:
-            return result
-        seen_commands.append(list(cmd))
         return result
 
-    with patch("subprocess.run", side_effect=fake_run):
+    def fake_popen(command: Sequence[str], **_kwargs: object) -> _FakeLaunchedProcess:
+        return _FakeLaunchedProcess(command, seen_commands)
+
+    with (
+        patch("subprocess.run", side_effect=fake_run),
+        patch.object(pre_review_gate.subprocess, "Popen", side_effect=fake_popen),
+    ):
         result = capture_baseline(
             worktree_path=repo,
             base_branch="main",

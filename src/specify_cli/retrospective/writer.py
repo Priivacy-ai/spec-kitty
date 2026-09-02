@@ -19,6 +19,7 @@ from typing import Any, Literal
 from ruamel.yaml import YAML
 
 from kernel.yaml_io import write_mapping_atomic
+from charter.activation.mission_type_key import read_mission_type
 from specify_cli.core.constants import RETROSPECTIVE_FILENAME
 from specify_cli.retrospective.schema import (
     GenActor,
@@ -417,7 +418,7 @@ def _dict_to_gen_record(data: dict[str, Any]) -> GenRetrospectiveRecord:
         mission_slug=data.get("mission_slug", ""),
         mission_number=data.get("mission_number"),
         friendly_name=data.get("friendly_name", ""),
-        mission_type=data.get("mission_type", ""),
+        mission_type=read_mission_type(data) or "",  # rc3 M5 (FR-001): shared reader parity
         target_branch=data.get("target_branch", ""),
         created_at=data.get("created_at", ""),
         created_by=_dict_to_actor(data.get("created_by", {"kind": "runtime", "id": "unknown"})),

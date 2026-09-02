@@ -391,8 +391,11 @@ class TestJsonEntryPointParity:
         assert json.loads(rendered) == payload
 
         # Well-shaped governance payload (keys, not frozen catalog contents).
-        for key in ("directives", "tactics", "styleguides", "toolguides"):
+        # ``procedures`` is a first-class typed array (#3389); ``assets`` is
+        # deliberately NOT a top-level array (asset stays reference-only, #3037).
+        for key in ("directives", "tactics", "styleguides", "toolguides", "procedures"):
             assert key in payload, f"bootstrap payload missing '{key}' key"
+        assert "assets" not in payload, "asset stays reference-only — no top-level array"
 
 
 # ---------------------------------------------------------------------------

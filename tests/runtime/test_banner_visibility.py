@@ -27,16 +27,16 @@ def _clean_agent_env(monkeypatch: pytest.MonkeyPatch) -> None:
     ("argv", "expected"),
     [
         (["init"], True),
-        (["--version"], True),
-        (["-v"], True),
+        (["--version"], False),
+        (["-v"], False),
         (["merge", "--feature", "001-test"], False),
         (["research"], False),
         (["agent", "feature", "check-prerequisites", "--json"], False),
     ],
 )
 @pytest.mark.usefixtures("_clean_agent_env")
-def test_banner_scope_is_limited_to_init_and_version(argv: list[str], expected: bool) -> None:
-    """ASCII art should be limited to init and version invocations."""
+def test_banner_scope_is_limited_to_init(argv: list[str], expected: bool) -> None:
+    """ASCII art should be limited to init invocations."""
     # Arrange — argv and expected supplied by parametrize
     # Assumption check
     assert isinstance(argv, list)
@@ -71,16 +71,15 @@ def test_banner_is_suppressed_for_agent_runtime_markers(
     assert helpers._should_render_banner_for_invocation(["init"]) is False
 
 
-def test_version_callback_renders_banner(monkeypatch: pytest.MonkeyPatch) -> None:
-    """--version should still render the banner before printing version text."""
+def test_version_callback_does_not_render_banner(monkeypatch: pytest.MonkeyPatch) -> None:
+    """--version should print copyable version text without a banner."""
     # Arrange
     calls: list[bool] = []
 
     def _fake_show_banner(*, force: bool = False) -> None:
         calls.append(force)
 
-    # version_callback imports show_banner locally from specify_cli.cli.helpers,
-    # so patch at the source module rather than on cli_module's namespace.
+    # Keep a sentinel on the banner authority to prove the callback never reaches it.
     monkeypatch.setattr("specify_cli.cli.helpers.show_banner", _fake_show_banner)
     # Assumption check
     assert calls == []
@@ -88,4 +87,4 @@ def test_version_callback_renders_banner(monkeypatch: pytest.MonkeyPatch) -> Non
     with pytest.raises(typer.Exit):
         cli_module.version_callback(True)
 
-    assert calls == [True]
+    assert calls == []

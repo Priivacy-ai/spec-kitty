@@ -81,6 +81,7 @@ from ._doctrine_collect import (  # noqa: E402
     _build_selection_block,
     _collect_doctrine_collisions,
     _run_cross_grain_check,
+    _run_operating_procedures_check,
 )
 from ._doctrine_collect import (  # noqa: E402
     _build_pack_entries as _build_pack_entries,
@@ -1175,6 +1176,11 @@ def doctrine_check(
     # (C-003: the ``__all__`` re-add in ``charter.activation.action_grain`` needs a real
     # ``src`` caller, and this is it).
     _run_cross_grain_check(report)
+
+    # Operating-procedures resolution scan (M3): every built-in
+    # ``operating-procedures`` entry must resolve to a real procedure node.
+    # Folded in before ``exit_code`` is derived, same as the cross-grain scan.
+    _run_operating_procedures_check(report)
 
     # WP09 T050 / FR-018: the Selections diagnostic is independent of whether
     # org packs are configured, so build it for both branches.

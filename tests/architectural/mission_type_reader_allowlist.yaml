@@ -1,0 +1,108 @@
+# Encoded, rationale-bearing exemptions for the FR-010 mission-type READER gate
+# (tests/architectural/test_mission_type_reader_invariants.py, rc3 M5).
+#
+# SCOPE: this allow-list governs the mission-type FIELD-SEMANTICS invariant — no
+# in-scope reader module may read the retired legacy `mission` field or carry a
+# silent `software-dev` mission-type fallback. It is DISTINCT from
+# `inline_meta_read_allowlist.yaml`, which governs a different invariant (raw
+# `json.loads` of meta.json bypassing the canonical load_meta authority, the
+# #2477-#2480 FR-009 sites — already exempted there; not duplicated here).
+#
+# This is an allow-list of ENCODED EXEMPTIONS, never a silent path-exclude
+# (AC-3, AC-6). Every entry MUST carry `path`, `issue`, and `rationale`; the
+# gate asserts issue + rationale are present. `kinds` selects the exempted
+# invariant: `legacy` (a `mission`-field read) and/or `default` (a
+# `"software-dev"` literal).
+
+# --- Scanned-module exemptions (consumed by the FR-010 source-scan) ---
+exemptions:
+  - path: src/specify_cli/mission.py
+    kinds: [default]
+    issue: "#3598 / C-006"
+    rationale: >-
+      The `"software-dev"` literals in mission.py are the deliberate
+      TEMPLATE-selection default in `get_mission_for_feature` (line ~776
+      coalesce) and the `get_mission_by_name`/`kittify_dir/missions/software-dev`
+      path fallback (C-006), NOT a mission-type resolution default. The reader
+      itself (`get_mission_type` / `_canonical_meta_mission_type`) already
+      returns the neutral typeless value (FR-003) — the template boundary
+      coalesces AFTER the reader, per the caller-handles-typeless design. The
+      reader's correctness is guarded separately by the Part-A parity registry,
+      so exempting the literal scan here does not weaken the reader invariant.
+
+  - path: src/specify_cli/upgrade/feature_meta.py
+    kinds: [default]
+    issue: "#3598"
+    rationale: >-
+      `infer_mission` is an INFERENCE-on-upgrade writer: for a mission whose
+      meta.json predates the mission_type field, it heuristically assigns
+      "research" (research/ dir present) else "software-dev", then _set_if_blank
+      persists it. This is a write/backfill default, not a runtime reader — the
+      canonical typed backfill is `spec-kitty migrate backfill-mission-type` (M0),
+      which resolves by governance profile. Changing infer_mission's upgrade
+      default is a separate upgrade-behavior decision, out of M5's reader scope.
+
+  - path: src/specify_cli/cli/commands/agent/mission_check_prerequisites.py
+    kinds: [default]
+    issue: "#3598 / #3410"
+    rationale: >-
+      The reader itself is canonical: line 359 reads `str(meta["mission_type"])`
+      with NO legacy `mission` fallback and NO resolution default. The
+      `"software-dev"` literal at line 364 is a BEHAVIORAL branch key, not a
+      type default — `mission_type != "software-dev"` selects which mission types
+      must clear the extra spec-substantiveness gate before
+      `spec_committed_and_substantive` is true (software-dev specs are held to the
+      substantiveness bar; other types are not). Removing the literal would change
+      the prerequisite policy, not the reader. In IN_SCOPE_READER_MODULES so the
+      no-legacy invariant on line 359 is enforced; the default-kind is exempted
+      for the policy comparison only.
+
+# --- Domain-exempt readers (intentionally NOT in IN_SCOPE_READER_MODULES) ---
+# These read a `mission`/`mission_type` field but are NOT runtime mission-type
+# resolvers, so they are deliberately excluded from the scanned set rather than
+# exempted. Recorded here for traceability (not consumed by the gate).
+domain_exempt_notes:
+  - path: src/specify_cli/cli/commands/_mission_type_audit.py
+    issue: "#3598"
+    rationale: >-
+      The census/audit tool reads BOTH `mission_type` and legacy `mission` BY
+      DESIGN — its whole job is to classify legacy-only missions as a distinct
+      `legacy-key-only` bucket for the backfill. Field-awareness is the feature.
+  - path: src/charter/interview.py
+    issue: "#3598"
+    rationale: >-
+      Reads `data.get("mission")` from the INTERVIEW form payload (self.mission),
+      not a mission's meta.json `mission_type`. Interview-domain input, not a
+      runtime meta reader.
+  - path: src/specify_cli/migration/mission_state.py
+    issue: "#3598 / census row M"
+    rationale: >-
+      Line ~1617 `meta["mission_type"] = str(meta.get("mission_type") or
+      meta.get("mission") or "software-dev")` is a legacy->canonical backfill
+      WRITE inside a frozen migration step (reads legacy `mission` by design to
+      synthesize the canonical field). The operator-facing typed backfill is M0's
+      `spec-kitty migrate backfill-mission-type`; this internal migration write is
+      frozen. Not in IN_SCOPE_READER_MODULES (a backfill write, not a runtime
+      resolver) — recorded here for census completeness (AC-7).
+  - path: src/specify_cli/core/mission_creation.py
+    issue: "#3598 / census completeness"
+    rationale: >-
+      The `"software-dev"` literals (lines 623 `selected_mission_type = mission or
+      "software-dev"`, 704 `meta.setdefault(_META_KEY_MISSION_TYPE, ...)`, and 822/835
+      `mission_type=str(meta.get(_META_KEY_MISSION_TYPE) or mission or "software-dev")`
+      as call-site args) are all CREATE-time write defaults — the value stamped into
+      a NEW mission's meta/event when the operator gives no explicit `--mission-type`
+      (`mission` here is the create param, not the legacy field). `emit_mission_created_local`
+      is imported here (line 813), not defined; lines 822/835 are its call arguments.
+      Same class as feature_meta.infer_mission. Not a runtime resolver; recorded for
+      census completeness (AC-7).
+  - path: src/specify_cli/upgrade/migrations/m_0_13_0_research_csv_schema_check.py
+    issue: "#3598 / census completeness"
+    rationale: >-
+      Lines 57 and 114 read `meta.get("mission") != "research"` — a legacy `mission`
+      field read inside a FROZEN migration that, by design, inspects pre-migration
+      meta.json (which predates the canonical `mission_type` field) to decide whether
+      a legacy research mission needs the CSV schema check. Reading the legacy field
+      is correct for a frozen migration operating on old projects; it is not a runtime
+      resolver. Same class as migration/mission_state.py. Not in IN_SCOPE_READER_MODULES;
+      recorded here for census completeness (AC-7).

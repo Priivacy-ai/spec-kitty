@@ -218,14 +218,39 @@ def _render_generic_artifact_include(
     return matches[0][1]
 
 
+def _format_inline_glossary_pack_body(pack: object) -> list[str]:
+    """Render a glossary pack's description + term list for ``--include`` (FR-006).
+
+    Defensive ``getattr`` access keeps the renderer decoupled from the concrete
+    :class:`~doctrine.glossary_packs.models.GlossaryPack` shape and total across
+    optional fields.
+    """
+    lines: list[str] = []
+    description = getattr(pack, "description", None)
+    if description:
+        lines.append(f"  {description}")
+    for term in getattr(pack, "terms", None) or []:
+        surface = getattr(term, "surface", "")
+        definition = getattr(term, "definition", "")
+        lines.append(f"  - {surface}: {definition}")
+    return lines
+
+
 def _render_doctrine_artifact_include(
     service: object,
     kind: str,
     identifier: str,
 ) -> str | None:
     """Render non-directive/tactic doctrine artifacts addressed by ``--include``."""
+    from charter.offering.artifact_kinds import CHARTER_ACTIVATABLE_KINDS
 
     renderers = {
+        "glossary_pack": (
+            "glossary_packs",
+            "Glossary pack",
+            "id",
+            _format_inline_glossary_pack_body,
+        ),
         "paradigm": (
             "paradigms",
             "Paradigm",
@@ -265,6 +290,17 @@ def _render_doctrine_artifact_include(
     }
     renderer = renderers.get(kind)
     if renderer is None:
+        # FR-006 / SC-003: a charter-activatable kind with no dedicated inline
+        # renderer (notably ``anti_pattern``, which ships no standalone artifact
+        # files — its nodes live inside graph fragments) is still a RECOGNISED
+        # selector kind: resolve it to the standard not-found rather than
+        # returning ``None``, which the caller turns into the "Unsupported
+        # --include selector kind" error. Recognition is derived from the single
+        # charter-activatable kind authority so a future kind cannot silently
+        # become "unsupported". Non-activatable kinds (``template``, ``asset``)
+        # still return ``None`` -> unsupported.
+        if kind in {member.value for member in CHARTER_ACTIVATABLE_KINDS}:
+            raise ValueError(f"No {kind} found for selector '{kind}:{identifier}'.")
         return None
 
     repo_attr, label, title_attr, body_formatter = renderer

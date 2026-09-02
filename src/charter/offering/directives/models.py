@@ -81,12 +81,24 @@ class Enforcement(StrEnum):
 
 
 class DirectiveReference(BaseModel):
-    """Cross-artifact reference within a directive."""
+    """Cross-artifact reference within a directive.
+
+    ``when``/``reason`` are optional curated edge metadata carried symmetrically
+    with the DRG edge the extractor mints from this reference
+    (:class:`doctrine.drg.models.DRGEdge`): ``when`` is the activation trigger and
+    ``reason`` the rationale. They exist so a defensible relationship can live in
+    source-artifact frontmatter (single canonical authority) rather than the
+    hand-authored overlay — the #3009 residual promotions
+    (mission ``kind-complete-cascade-orphan-wiring-01M0FQCD``). Both default to
+    ``None`` so every pre-existing ``{type, id}`` reference is unchanged.
+    """
 
     model_config = ConfigDict(frozen=True, extra="forbid")
 
     type: ArtifactKind
     id: str
+    when: str | None = None
+    reason: str | None = None
 
 
 class Directive(BaseModel):

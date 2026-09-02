@@ -1067,9 +1067,6 @@ _CATEGORY_C_ORG_DOCTRINE_CLOSEOUT: frozenset[SymbolKey] = frozenset(
             "DeactivationPlan", "ea81133908c5385ae013a8057ac7f863386247ba90b64e212b54be895d7e1615", source_module="charter.activation.cascade"
         ),  # charter.activation.cascade::DeactivationPlan
         SymbolKey(
-            "REFERENCE_RELATIONS", "923c7531fa07a59396d69e256ee38a05448b62f4d75cde08c9fbaa932376a8ca", source_module="charter.activation.cascade"
-        ),  # charter.activation.cascade::REFERENCE_RELATIONS
-        SymbolKey(
             "ReferencedArtifact", "80d3c02ebae2c466ff75be630ecfd259036be62ea0a1394dbab6503f75414afc", source_module="charter.activation.cascade"
         ),  # charter.activation.cascade::ReferencedArtifact
         SymbolKey(
@@ -1519,13 +1516,12 @@ _CATEGORY_C_SCOPE_SOURCE_FACTORY_CONSTRUCTED: frozenset[SymbolKey] = frozenset(
         # exclusively via resolve_scope_source() (same-module); consumed
         # cross-module only structurally, through the ScopeSource port (never
         # imported by concrete name outside scope_source.py by design).
-        # Content-hash re-pin (#380): the class body survived the workflow
-        # coverage-source retirement, still same-module-constructed only.
-        # Content-hash re-pin (#596): malformed configured quoting now
+        # Content-hash re-pin (issue #3612 and #596): the declared command is
+        # shell-wrapped with output-file substitution, while malformed quoting
         # degrades to the port's ``None`` signal.
         # specify_cli.review.scope_source::DeclaredCommandScopeSource
         SymbolKey(
-            "DeclaredCommandScopeSource", "dcf6a67ac352d8086fc140ddfe4562c3319709924a256170f1cf237ee0fb989c", source_module="specify_cli.review.scope_source"
+            "DeclaredCommandScopeSource", "b250aef82854cb000e8adf6d86302b3753a2794da44a315032a0364f4cc44605", source_module="specify_cli.review.scope_source"
         ),
         # specify_cli.review.scope_source::FileScopeBreakdown -- the return
         # value of injected narrowing sources' scope_breakdown(); consumed
@@ -1904,16 +1900,6 @@ _CATEGORY_D_CHARTER_CODE_TOPOLOGY_RELOCATION_FORWARD_API: frozenset[SymbolKey] =
 # their wire-or-prune disposition.
 _CATEGORY_E_CHARTER_ACTIVATION_SPLIT_FORWARD_API: frozenset[SymbolKey] = frozenset(
     {
-        SymbolKey(
-            "overlay_scan_is_recursive",
-            "74c0f3834ccd993ee796cd659396e51009a34ffe926429bc26455a7b956ca140",
-            source_module="charter.offering.discovery_recursion",
-        ),
-        SymbolKey(
-            "walk_project_agent_profile_nodes",
-            "4b668328c6da91ec93c4cbac7e0ffc17a0febd9c71a9e654fe069d1c7362b0a0",
-            source_module="charter.offering.drg.project_scan",
-        ),
         SymbolKey(
             "merge_three_layers",
             "a474c1190d82c971ec43ab922f13e85ca488cea98ff3b56d1e077f386ab89b90",

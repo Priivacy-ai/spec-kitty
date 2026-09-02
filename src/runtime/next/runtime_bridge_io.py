@@ -973,7 +973,7 @@ def _resolve_org_manifest_mapping(
         resolve_org_expected_artifacts,
     )
 
-    org_roots = [root / "missions" for root in resolve_existing_org_roots(repo_root)]
+    org_roots = resolve_existing_org_roots(repo_root)
     if not org_roots:
         return None, []
     # `charter.*` is `follow_imports = "skip"` in [tool.mypy] (pyproject.toml)

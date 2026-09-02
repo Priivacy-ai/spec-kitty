@@ -307,11 +307,25 @@ def pytest_collection_modifyitems(items: list[pytest.Item]) -> None:
     # SPEC_KITTY_RUN_QUARANTINE=1 opt-in (no hosted CI lane schedules it today).
     apply_quarantine_skip = not quarantine_opted_in(os.environ)
     skip_quarantine = quarantine_skip_mark()
+    # Performance chokepoint (env-gated, mirrors quarantine). A single-shot
+    # wall-clock budget test is cold-start / shared-runner bound, so it is held
+    # out of every normal PR/blocking run — it can never turn main red or block
+    # an unrelated PR. The proper out-of-band harness (Monte-Carlo
+    # iterate-and-aggregate, off the PR path) is tracked in #3595; it sets
+    # SPEC_KITTY_RUN_PERFORMANCE=1 to run these for real.
+    apply_performance_skip = os.environ.get("SPEC_KITTY_RUN_PERFORMANCE") != "1"
+    skip_performance = pytest.mark.skip(
+        reason="performance: single-shot wall-clock budget test held out of "
+        "normal runs (cold-start/runner-bound). Set SPEC_KITTY_RUN_PERFORMANCE=1 "
+        "to run it; the out-of-band perf harness is tracked in #3595."
+    )
     for item in items:
         if item.get_closest_marker("windows_ci") and sys.platform != "win32":
             item.add_marker(skip_windows)
         if apply_quarantine_skip and item.get_closest_marker(QUARANTINE_MARKER):
             item.add_marker(skip_quarantine)
+        if apply_performance_skip and item.get_closest_marker("performance"):
+            item.add_marker(skip_performance)
         _apply_shard_markers(item)
     _fail_on_wall_clock_assertions(items)
 

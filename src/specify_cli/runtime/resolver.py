@@ -595,7 +595,7 @@ def _resolve_existing_org_roots_for_manifest(repo_root: Path | None) -> list[Pat
         return []
     from charter.drg import resolve_existing_org_roots  # noqa: PLC0415
 
-    return [root / "missions" for root in resolve_existing_org_roots(repo_root)]
+    return resolve_existing_org_roots(repo_root)
 
 
 def resolve_configured_artifact_name(

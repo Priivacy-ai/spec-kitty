@@ -44,10 +44,15 @@ from charter.activation.pack_manager import (
     _ID_FIELD_BY_KIND as PM_ID_FIELD_BY_KIND,
     _PROJECT_KIND_DIRS as PM_PROJECT_KIND_DIRS,
 )
+from charter.activation.cascade import CascadeScope, cascade_activation_targets
 from charter.activation.synthesizer.project_drg import _node_kind_for, emit_project_layer
 from charter.activation.synthesizer.request import SynthesisTarget
-from charter.offering.artifact_kinds import ArtifactKind, _NON_AUGMENTATION_ELIGIBLE_KINDS
-from charter.offering.drg.models import DRGGraph
+from charter.offering.artifact_kinds import (
+    CHARTER_ACTIVATABLE_KINDS,
+    ArtifactKind,
+    _NON_AUGMENTATION_ELIGIBLE_KINDS,
+)
+from charter.offering.drg.models import DRGEdge, DRGGraph, DRGNode, NodeKind, Relation
 from specify_cli.cli.commands.charter.list_cmd import _KIND_ORDER
 
 pytestmark = [pytest.mark.unit]
@@ -257,3 +262,68 @@ class TestListCmdKindOrderExcludesNewKinds:
     def test_kind_order_excludes_template_and_asset(self):
         for token in _NEW_KIND_TOKENS:
             assert token not in _KIND_ORDER
+
+
+# ---------------------------------------------------------------------------
+# T004 (WP01, #2829): the cascade candidate filter is driven by the canonical
+# CHARTER_ACTIVATABLE_KINDS set — template/asset never flow through as cascade
+# candidates while every activatable kind does. ADR 2026-08-20-1.
+# ---------------------------------------------------------------------------
+
+
+def _one_of_each_kind_graph(source_urn: str, relation: Relation) -> DRGGraph:
+    """A source referencing exactly one node of every ArtifactKind via *relation*.
+
+    Each ``ArtifactKind`` member shares its value with the matching ``NodeKind``
+    member, so a well-formed ``<kind>:ex-<kind>`` URN node exists for each. The
+    cascade must admit exactly the ``CHARTER_ACTIVATABLE_KINDS`` and drop the two
+    non-activatable kinds (``template``, ``asset``).
+    """
+    nodes = [DRGNode(urn=source_urn, kind=NodeKind.AGENT_PROFILE)]
+    edges: list[DRGEdge] = []
+    for kind in ArtifactKind:
+        target = f"{kind.value}:ex-{kind.value}"
+        nodes.append(DRGNode(urn=target, kind=NodeKind(kind.value)))
+        edges.append(DRGEdge(source=source_urn, target=target, relation=relation))
+    return DRGGraph(
+        schema_version="1.0",
+        generated_at="2026-08-20T00:00:00+00:00",
+        generated_by="test-kind-complete-filter",
+        nodes=nodes,
+        edges=edges,
+    )
+
+
+class TestCascadeCandidateFilterIsCharterActivatableDriven:
+    """The cascade candidate filter is ``kind in CHARTER_ACTIVATABLE_KINDS``.
+
+    A self-mutation-style guard: a source references one node of *every*
+    ``ArtifactKind`` through a followed relation; the activated buckets must equal
+    exactly the ``CHARTER_ACTIVATABLE_KINDS`` value set — proving ``template`` and
+    ``asset`` (the two non-activatable kinds) never flow through while every
+    activatable kind does. Driven by the canonical set, not a per-kind literal.
+    """
+
+    def test_requires_edges_admit_exactly_the_activatable_kinds(self) -> None:
+        graph = _one_of_each_kind_graph("agent_profile:filter-src", Relation.REQUIRES)
+        result = cascade_activation_targets(
+            graph, "agent_profile:filter-src", CascadeScope.all()
+        )
+        assert set(result.activated) == {kind.value for kind in CHARTER_ACTIVATABLE_KINDS}
+        assert ArtifactKind.TEMPLATE.value not in result.activated
+        assert ArtifactKind.ASSET.value not in result.activated
+        # Every activatable kind flows through (no silent drop).
+        for kind in CHARTER_ACTIVATABLE_KINDS:
+            assert kind.value in result.activated
+
+    def test_scope_edges_are_followed_and_filtered_identically(self) -> None:
+        # SCOPE joined the followed set (T002); candidacy is filtered by the same
+        # canonical membership test regardless of which followed relation reached
+        # the node.
+        graph = _one_of_each_kind_graph("agent_profile:scope-src", Relation.SCOPE)
+        result = cascade_activation_targets(
+            graph, "agent_profile:scope-src", CascadeScope.all()
+        )
+        assert set(result.activated) == {kind.value for kind in CHARTER_ACTIVATABLE_KINDS}
+        assert ArtifactKind.TEMPLATE.value not in result.activated
+        assert ArtifactKind.ASSET.value not in result.activated

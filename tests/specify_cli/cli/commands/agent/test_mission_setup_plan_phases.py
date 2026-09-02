@@ -254,45 +254,47 @@ def test_resolve_plan_template_uses_context_and_configured_seam(monkeypatch: pyt
     assert calls == [("plan", tmp_path, context)]
 
 
-def test_resolve_plan_template_accepts_supported_legacy_mission_field(
+def test_resolve_plan_template_rejects_legacy_only_mission_field(
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,
 ) -> None:
-    """Legacy metadata is typed configuration, not the meta-less fallback."""
+    """Legacy-only metadata is typeless post-retirement, not typed configuration.
+
+    rc3 M5 (FR-002, ADR 2026-08-22-1) retires the legacy ``mission`` field from
+    every mission-type reader; only the canonical ``mission_type`` field is
+    read. A meta.json carrying *only* the legacy ``mission`` key therefore
+    resolves to a typeless mission and can no longer reach a configured plan
+    template as a resolved legacy type -- it must fail closed with guidance to
+    backfill ``mission_type`` (``spec-kitty migrate backfill-mission-type``),
+    never silently fall back to a guessed template.
+    """
     from specify_cli.cli.commands.agent import mission as mission_mod
 
     feature_dir = tmp_path / "kitty-specs" / "001-legacy-meta"
     feature_dir.mkdir(parents=True)
     (feature_dir / "meta.json").write_text('{"mission":"software-dev"}', encoding="utf-8")
-    context = _resolved_mission_type()
-    template_src = tmp_path / "configured-plan-source.md"
-    template_src.write_text("CONFIGURED", encoding="utf-8")
-    context_calls: list[str] = []
 
-    def _context(_repo_root: Path, *, mission_type: str) -> ResolvedMissionType:
-        context_calls.append(mission_type)
-        return context
-
-    monkeypatch.setattr(seam, "resolve_mission_type_context", _context)
+    monkeypatch.setattr(
+        seam,
+        "resolve_mission_type_context",
+        lambda *_a, **_k: pytest.fail("typeless legacy-only meta reached mission-type context resolution"),
+    )
     monkeypatch.setattr(
         mission_mod,
         "resolve_template",
-        lambda *_a, **_k: pytest.fail("legacy metadata reached the meta-less fallback"),
+        lambda *_a, **_k: pytest.fail("typeless legacy-only meta reached the meta-less fallback"),
     )
     monkeypatch.setattr(
         mission_mod,
         "resolve_configured_template",
-        lambda artifact_kind, project_dir, resolved: (
-            _resolution(template_src)
-            if (artifact_kind, project_dir, resolved) == ("plan", tmp_path, context)
-            else pytest.fail("configured resolver received the wrong authority")
-        ),
+        lambda *_a, **_k: pytest.fail("typeless legacy-only meta reached the configured resolver"),
     )
 
-    result = seam._resolve_plan_template(tmp_path, feature_dir)
+    with pytest.raises(TemplateConfigurationError) as exc_info:
+        seam._resolve_plan_template(tmp_path, feature_dir)
 
-    assert result.path == template_src
-    assert context_calls == ["software-dev"]
+    assert "non-blank string field 'mission_type'" in str(exc_info.value)
+    assert "backfill-mission-type" in str(exc_info.value)
 
 
 def test_resolve_plan_template_preserves_missing_meta_legacy_boundary(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:

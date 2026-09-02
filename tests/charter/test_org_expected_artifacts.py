@@ -29,13 +29,14 @@ _LOGGER_NAME = "charter.activation.org_expected_artifacts"
 
 
 def _write_org_expected_artifacts(org_root: Path, mission_type: str, data: dict) -> None:
-    """Write ``<org_root>/<mission_type>/expected-artifacts.yaml``.
+    """Write ``<org_root>/missions/<mission_type>/expected-artifacts.yaml``.
 
     Raw-root shape (C-4): unlike ``resolve_org_dirs`` consumers, this is a
-    direct ``<org_root>/<mission_type>/`` join — no fixed ``subdir`` segment,
-    since ``mission_type`` varies per call.
+    direct ``<org_root>/missions/<mission_type>/`` join — no fixed ``subdir``
+    segment beyond the built-in-mirroring ``missions/`` anchor, since
+    ``mission_type`` varies per call.
     """
-    target_dir = org_root / mission_type
+    target_dir = org_root / "missions" / mission_type
     target_dir.mkdir(parents=True, exist_ok=True)
     yaml = YAML()
     yaml.default_flow_style = False
@@ -59,6 +60,64 @@ class TestResolveOrgExpectedArtifactsEmptyCases:
             "research",
             {"schema_version": "1.0", "mission_type": "research", "manifest_version": "1"},
         )
+        assert resolve_org_expected_artifacts([org_root], "software-dev") is None
+
+    def test_file_at_corrected_missions_anchor_is_found(self, tmp_path: Path) -> None:
+        """FR-001/NFR-001 RED-first pin: a pack laid out at the corrected,
+        built-in-mirroring anchor (``<org_root>/missions/<mission_type>/``)
+        must be found. Constructed directly rather than via
+        ``_write_org_expected_artifacts`` -- that helper still writes to the
+        old, pre-fix path at this point in the sequence (T003 fixes it
+        later), so routing through it here would make this test's RED/GREEN
+        state depend on a helper change that hasn't landed yet.
+        """
+        org_root = tmp_path / "org-pack"
+        target_dir = org_root / "missions" / "software-dev"
+        target_dir.mkdir(parents=True)
+        yaml = YAML()
+        yaml.default_flow_style = False
+        with (target_dir / "expected-artifacts.yaml").open("w") as fh:
+            yaml.dump(
+                {
+                    "schema_version": "1.0",
+                    "mission_type": "software-dev",
+                    "manifest_version": "corrected-anchor",
+                },
+                fh,
+            )
+
+        result = resolve_org_expected_artifacts([org_root], "software-dev")
+
+        assert result is not None
+        assert result["manifest_version"] == "corrected-anchor"
+
+    def test_file_only_at_old_anchor_returns_none(self, tmp_path: Path) -> None:
+        """FR-003/SC-004 RED-first pin: a pack laid out ONLY at the old,
+        pre-fix anchor (``<org_root>/<mission_type>/``, no ``missions/``
+        segment) must resolve to ``None`` post-fix -- the old location has
+        zero possible existing consumers (C-002, no sibling-fallback) and is
+        not kept reachable. Constructed directly rather than via
+        ``_write_org_expected_artifacts`` -- that helper is corrected to the
+        new anchor in this same file (T003), so routing this old-anchor case
+        through it would make the fixture track whatever path the helper
+        currently writes to instead of pinning the specific old path this
+        test exists to prove is unreachable.
+        """
+        org_root = tmp_path / "org-pack"
+        target_dir = org_root / "software-dev"
+        target_dir.mkdir(parents=True)
+        yaml = YAML()
+        yaml.default_flow_style = False
+        with (target_dir / "expected-artifacts.yaml").open("w") as fh:
+            yaml.dump(
+                {
+                    "schema_version": "1.0",
+                    "mission_type": "software-dev",
+                    "manifest_version": "old-anchor-only",
+                },
+                fh,
+            )
+
         assert resolve_org_expected_artifacts([org_root], "software-dev") is None
 
 
@@ -157,7 +216,7 @@ class TestResolveOrgExpectedArtifactsMalformedFile:
 
     def test_malformed_yaml_file_treated_as_no_match(self, tmp_path: Path) -> None:
         org_root = tmp_path / "org-pack"
-        target_dir = org_root / "software-dev"
+        target_dir = org_root / "missions" / "software-dev"
         target_dir.mkdir(parents=True)
         (target_dir / "expected-artifacts.yaml").write_text(
             "schema_version: [unterminated flow seq\n", encoding="utf-8"
@@ -167,7 +226,7 @@ class TestResolveOrgExpectedArtifactsMalformedFile:
 
     def test_non_mapping_yaml_content_treated_as_no_match(self, tmp_path: Path) -> None:
         org_root = tmp_path / "org-pack"
-        target_dir = org_root / "software-dev"
+        target_dir = org_root / "missions" / "software-dev"
         target_dir.mkdir(parents=True)
         (target_dir / "expected-artifacts.yaml").write_text(
             "- just\n- a\n- list\n", encoding="utf-8"
@@ -185,7 +244,7 @@ class TestResolveOrgExpectedArtifactsMalformedFile:
         reopened for under NFR-002 (see ``resolve_org_dirs``).
         """
         org_root = tmp_path / "org-pack"
-        target_dir = org_root / "software-dev"
+        target_dir = org_root / "missions" / "software-dev"
         target_dir.mkdir(parents=True)
         bad_file = target_dir / "expected-artifacts.yaml"
         bad_file.write_text("schema_version: [unterminated flow seq\n", encoding="utf-8")
@@ -203,7 +262,7 @@ class TestResolveOrgExpectedArtifactsMalformedFile:
         self, tmp_path: Path, caplog: pytest.LogCaptureFixture
     ) -> None:
         org_root = tmp_path / "org-pack"
-        target_dir = org_root / "software-dev"
+        target_dir = org_root / "missions" / "software-dev"
         target_dir.mkdir(parents=True)
         bad_file = target_dir / "expected-artifacts.yaml"
         bad_file.write_text("- just\n- a\n- list\n", encoding="utf-8")
@@ -256,7 +315,7 @@ class TestResolveOrgExpectedArtifactsMalformedFile:
                 "manifest_version": "good-match",
             },
         )
-        malformed_dir = second_root / "software-dev"
+        malformed_dir = second_root / "missions" / "software-dev"
         malformed_dir.mkdir(parents=True)
         (malformed_dir / "expected-artifacts.yaml").write_text(
             "schema_version: [unterminated flow seq\n", encoding="utf-8"

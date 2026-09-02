@@ -29,6 +29,7 @@ from ..scanner import (
     scan_feature_kanban,
 )
 from .base import DashboardHandler
+from charter.activation.mission_type_key import read_mission_type
 from specify_cli.upgrade.legacy_detector import is_legacy_format
 from specify_cli.mission import MissionError, get_mission_by_name
 
@@ -66,8 +67,11 @@ def _resolve_active_mission_context(project_path: Path) -> tuple[dict[str, objec
     meta = active_feature.get("meta")
     if not isinstance(meta, dict):
         meta = {}
-    mission_value = meta.get("mission", "software-dev")
-    feature_mission_type = mission_value if isinstance(mission_value, str) else str(mission_value)
+    # rc3 M5 (FR-005): resolve the canonical mission_type via the one shared
+    # reader — drops the legacy `mission` read and the silent `software-dev`
+    # default. A typeless mission yields "" here and surfaces as "Unknown (…)"
+    # below, rather than being masked as software-dev.
+    feature_mission_type = read_mission_type(meta) or ""
     feature_name = _string_field(active_feature, "name")
     try:
         kittify_dir = project_path / ".kittify"

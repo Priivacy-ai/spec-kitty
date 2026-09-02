@@ -105,6 +105,15 @@ from .verdict_vocab import (
     is_approved,
     to_event_verdict,
 )
+from .review_result_parse import (
+    # WP08 (worktree-root-resolution, FR-010/FR-011): promoted onto the facade
+    # so both verdict surfaces (``orchestrator-api transition`` and ``agent
+    # status emit``) validate ``--review-result-json`` through the SAME parser
+    # WITHOUT a direct ``specify_cli.status.review_result_parse`` import
+    # (test_status_module_boundary.py). Depends only on .models/.verdict_vocab,
+    # both imported above -- no cycle.
+    parse_review_result_json,
+)
 from .transition_context import (
     TransitionContext,
 )
@@ -360,6 +369,10 @@ __all__ = [
     # ``post_merge/review_artifact_consistency.py`` can resolve it through
     # the facade instead of re-implementing the decode locally (C-002).
     "review_result_from_state",
+    # WP08 (worktree-root-resolution, FR-010/FR-011): the canonical
+    # ``--review-result-json`` parser, promoted onto the facade so both verdict
+    # surfaces validate through it without a direct submodule import.
+    "parse_review_result_json",
     "AgentAssignment",
     "CurrentWpState",
     "actor_identity_str",

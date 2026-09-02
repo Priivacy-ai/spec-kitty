@@ -38,6 +38,8 @@ from pydantic import BaseModel, ValidationError
 from ruamel.yaml import YAML
 from ruamel.yaml.error import YAMLError
 
+from charter.offering.artifact_kinds import ArtifactKind
+from charter.offering.discovery_recursion import overlay_scan_is_recursive
 from charter.offering.shared.scoping import applies_to_languages_match, normalize_languages
 
 T = TypeVar("T", bound=BaseModel)
@@ -151,12 +153,41 @@ class BaseDoctrineRepository(ABC, Generic[T]):
         return obj.id  # type: ignore[attr-defined, no-any-return]
 
     def _project_scan(self, project_dir: Path) -> list[Path]:
-        """Return the project YAML files to load. Default: non-recursive glob.
+        """Return the org/project overlay YAML files to load.
 
-        Override with ``rglob`` for repos that support subdirectories in the
-        project layer (e.g. ``styleguides/writing/*.styleguide.yaml``).
+        Recursion is sourced from the single doctrine recursion authority
+        (:func:`doctrine.discovery_recursion.overlay_scan_is_recursive`),
+        unconditional per C-001, so org/project overlays discover nested
+        artifacts with the same completeness as the built-in tier's ``rglob``
+        (:meth:`_load_built_in_items`). The kind-specific ``self._glob`` (C-002)
+        means a recursive walk never captures ``.provenance/*.yaml`` sidecars or
+        ``.md`` files. Subclasses no longer override this to add ``rglob`` — the
+        authority is the single source both loader and resolver share.
         """
-        return sorted(project_dir.glob(self._glob))
+        recursive = overlay_scan_is_recursive(self._overlay_scan_kind())
+        scan = (
+            project_dir.rglob(self._glob)
+            if recursive
+            else project_dir.glob(self._glob)
+        )
+        return sorted(scan)
+
+    def _overlay_scan_kind(self) -> ArtifactKind | None:
+        """Resolve this repository's :class:`ArtifactKind` from its glob pattern.
+
+        Each canonical kind carries a unique :attr:`ArtifactKind.glob_pattern`
+        (e.g. ``*.tactic.yaml``), so ``self._glob`` identifies the kind without a
+        second per-repo kind declaration. Returns ``None`` when the glob is not a
+        canonical pattern (a test stub or a future non-enum kind); the recursion
+        authority treats ``None`` as the same unconditional recursive policy
+        (C-001), so an unmapped repository still recurses. Kept as a live call
+        into the authority — not a hardcoded ``True`` — so the parity gate can
+        falsify a reintroduced per-kind divergence.
+        """
+        for kind in ArtifactKind:
+            if kind.glob_pattern and kind.glob_pattern == self._glob:
+                return kind
+        return None
 
     def _include_item(self, obj: T) -> bool:
         """Return whether a loaded asset applies to the active language scope."""

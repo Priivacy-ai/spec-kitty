@@ -291,6 +291,15 @@ _ACTION_UNREACHABLE_D1: frozenset[str] = frozenset(
         "procedure:event-storming-discovery",
         "procedure:migrate-project-guidance-to-spec-kitty-charter",
         "styleguide:adversarial-squad-cadence",
+        # ``deployable-skill-authoring`` stays action-unreachable at BOTH depths
+        # (and profile-unreachable). Mission kind-complete-cascade-orphan-wiring
+        # -01M0FQCD (WP02, #3009 residual) records it *direct-activation-only*: it
+        # has no defensible source artefact, so no inbound edge was invented
+        # (C-003); it is reached by charter activation directly, never by a
+        # traversal. It therefore remains in every unreachable set here unchanged
+        # -- the promotion of the four family-D siblings to frontmatter left the
+        # SHIPPED graph byte-identical, so no reachability pin moves this mission.
+        # (See ``_DIRECT_ACTIVATION_ONLY`` in test_extractor_projection.py.)
         "styleguide:deployable-skill-authoring",
         "styleguide:java-conventions",
         "styleguide:mutation-aware-test-design",
@@ -936,8 +945,10 @@ class TestSixEdgesReachabilityWiring:
     def test_spike_timebox_policy_is_profile_reachable_via_researcher_robbie(
         self, graph: DRGGraph
     ) -> None:
-        """Edge 5: ``agent_profile:researcher-robbie --requires--> spike-timebox-
-        policy``, robbie's structured ``operating-procedures`` field entry."""
+        """``agent_profile:researcher-robbie --requires--> spike-timebox-policy``,
+        data-driven from robbie's ``operating-procedures`` field (M3: the former
+        curated hand-pin was retired once the field became a first-class edge
+        source — the edge persists, now derived)."""
         reach = profile_channel_reachable(graph, agent_profile_seed_urns(graph))
         assert "procedure:spike-timebox-policy" in reach
 

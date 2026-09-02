@@ -492,8 +492,8 @@ def _write_org_pack_config(repo_root: Path, *, packs: list[tuple[str, Path]]) ->
 
 
 def _write_org_manifest(org_root: Path, mission_type: str, data: dict) -> None:
-    """Write ``<org_root>/<mission_type>/expected-artifacts.yaml`` (raw-root shape)."""
-    target_dir = org_root / mission_type
+    """Write ``<org_root>/missions/<mission_type>/expected-artifacts.yaml`` (raw-root shape)."""
+    target_dir = org_root / "missions" / mission_type
     target_dir.mkdir(parents=True, exist_ok=True)
     yaml = YAML()
     yaml.default_flow_style = False
@@ -661,7 +661,15 @@ class TestRebaselineOrgAwareness:
         snapshot_path = _record_old_form_snapshot(feature_dir, slug)
 
         org_root = tmp_path / "org-pack"
-        malformed_dir = org_root / "software-dev"
+        # Constructed directly rather than via `_write_org_manifest` -- that
+        # helper YAML-dumps a well-formed mapping, so it cannot express this
+        # fixture's malformed content anyway. Pinning the corrected
+        # `missions/<type>/` anchor here (mirroring the equivalent repair in
+        # `tests/charter/test_org_expected_artifacts.py`, commit 0c554ca65)
+        # keeps this test's fixture independent of any future retarget of
+        # `_write_org_manifest`, instead of coupling to it only to be
+        # stranded again the next time that helper's join changes.
+        malformed_dir = org_root / "missions" / "software-dev"
         malformed_dir.mkdir(parents=True, exist_ok=True)
         # Malformed: not a YAML mapping (unbalanced flow sequence) — this must
         # not raise; it must degrade to "no org override for this pack".
