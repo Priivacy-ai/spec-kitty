@@ -1547,10 +1547,9 @@ class _TransitionGateInputs:
     roots (issue #3611 fix): ``gate_repo_root`` is where the scoped test
     subprocess actually RUNS (the worktree, when one exists — the run must
     execute against the code under review); ``scope_source_root`` is where
-    ``ScopeSource`` SELECTION happens and is always ``st.main_repo_root`` —
-    the SAME root ``implement_capture_baseline`` passes to
-    ``resolve_scope_source`` at capture time
-    (``workflow_executor.py``'s ``resolve_scope_source(main_repo_root)``).
+    ``ScopeSource`` SELECTION happens. Flagless calls keep ``st.main_repo_root``
+    — the SAME root ``implement_capture_baseline`` uses — while explicit owned
+    calls use the selected owned checkout where their planning inputs live.
     Resolving selection from ``gate_repo_root`` (the worktree) instead let a
     lane worktree whose checked-out ``.kittify/config.yaml`` lacks
     ``review.test_command`` silently diverge from the planning root's
@@ -1859,7 +1858,7 @@ def _mt_resolve_transition_gate_inputs(
         worktree_path=worktree_path,
         changed_files=changed_files,
         gate_repo_root=worktree_path or st.main_repo_root,
-        scope_source_root=st.repo_root,
+        scope_source_root=st.repo_root if st.owned is not None else st.main_repo_root,
     )
     return inputs, dirty_before
 
