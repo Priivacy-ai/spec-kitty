@@ -88,6 +88,15 @@ work package.*
   `resolve-decision`, `defer-decision`, `cancel-decision`, `design-status`,
   `answer-decision`) all use `mission`, matching the existing 10 verbs'
   convention. PASS.
+- **C-002 (no server-side analysis reasoning)** — `record-analysis` is a thin
+  caller of the existing `record_analysis`/`write_analysis_report` write
+  path (see § (j)); it persists an analysis verdict the caller already
+  computed, it does not compute or reason about the analysis itself. PASS.
+- **C-003 (OriginFlow-bounded decision-verb scope)** — the four decision
+  verbs (`open-decision`/`resolve-decision`/`defer-decision`/
+  `cancel-decision`, WP05) are gated by the `OriginFlow` guard (Mechanism A,
+  see Work Package Breakdown), keeping their scope to OriginFlow-issued
+  decisions only, matching C-003's bound. PASS.
 
 No constitution violations requiring the Complexity Tracking table below —
 left empty deliberately.
@@ -180,19 +189,40 @@ Why this location and not the alternatives:
   (`next_step`, `provide_decision_answer`, `start_mission_run`), not an
   extension point for next-command-layer orchestration helpers.
 - **`src/runtime/next/` top level, alongside `runtime_bridge.py` /
-  `decision.py`, IS the right precedent**: both of those top-level modules
-  already freely import from `specify_cli.*` domain modules — confirmed:
-  `decision.py:33` imports `specify_cli.mission_metadata.mission_identity_fields`,
+  `decision.py`, IS the right precedent for the MODULE'S placement**: both
+  of those top-level modules already freely import from `specify_cli.*`
+  domain modules — confirmed: `decision.py:33` imports
+  `specify_cli.mission_metadata.mission_identity_fields`,
   `decision.py:188` imports `specify_cli.mission_v1.events.read_events` (the
   READ counterpart of the very `emit_event` call `_emit_mission_next_invoked`
   needs to call), `runtime_bridge.py:319` imports
   `specify_cli.mission_metadata.resolve_mission_identity` (the exact function
   `_pair_previous_lifecycle_record`/`_write_issuance_lifecycle_record`
-  already use). This establishes clean precedent: `src/runtime/next/`
-  top-level modules import CLI-domain primitives (`invocation.lifecycle`,
-  `mission_v1.events`, `mission_metadata`) as needed; they are not confined
-  to a narrower "pure engine" surface. Placing the seam here is consistent
-  with existing layering, not a new pattern.
+  already use). This establishes clean precedent for `runtime.next → specify_cli`
+  imports (the direction the seam module itself needs). It does NOT, by
+  itself, establish precedent for the reverse direction WP08 introduces —
+  `orchestrator_api/commands.py` importing FROM `runtime.next`. That
+  precedent exists elsewhere and separately: `next_cmd.py` (a CLI-layer
+  command module, the same architectural tier as `orchestrator_api/commands.py`)
+  already imports `runtime.next` directly today — confirmed:
+  `next_cmd.py:51` (module-level `from runtime.next._runtime_pkg_notice
+  import maybe_emit_runtime_pkg_notice`), `next_cmd.py:67` (inside
+  `decide_next`, `from runtime.next.decision import decide_next as
+  _decide_next`), `next_cmd.py:195` (`from runtime.next.runtime_bridge
+  import MissionNotFoundError as _MissionNotFoundError`, inline import),
+  `next_cmd.py:817` (`from runtime.next.runtime_bridge import
+  MissionNotFoundError`), `next_cmd.py:984` (`from
+  runtime.next._internal_runtime.engine import _read_snapshot`). This is the
+  real, on-point
+  precedent for a CLI-layer module calling into `runtime.next`. As of this
+  plan, `orchestrator_api/commands.py` has **zero** such imports (confirmed:
+  `commands.py:32-66`'s import block contains no `runtime.next` or
+  `runtime` reference) — WP08 introduces the first one, following
+  `next_cmd.py`'s established pattern rather than inventing a new one.
+  Together, these two precedents cover both edges the seam's placement
+  needs: `runtime.next` modules already import `specify_cli.*` freely (the
+  module's own placement), and a CLI-layer command module already imports
+  `runtime.next` directly (the calling direction WP08 needs).
 - **`answer-decision` (FR-013) will import `runtime_bridge.py` and
   `decision.py` from this same `src/runtime/next/` top level anyway** (for
   `answer_decision_via_runtime`, `decide_next_via_runtime`, `decide_next`) —
@@ -214,6 +244,41 @@ src/runtime/next/next_invocation_lifecycle.py
 Signatures are carried over verbatim from the current `next_cmd.py`
 functions (same parameters, same best-effort/fail-closed semantics) so the
 extraction is a pure move, not a redesign.
+
+**SC-008 shared regression test helper (pinned contract, WP02 deliverable,
+reused unmodified in shape by WP08)**: the three signatures above are the
+extracted seam's own contract. The shared TEST helper that verifies their
+side effects needs its own, separate, named contract so WP02 (authored
+first) and WP08 (extends it) build compatible scaffolding rather than merely
+similar scaffolding — the exact SC-008 drift failure mode this test exists
+to prevent. WP02 authors a module-level helper:
+
+```
+assert_lifecycle_seam_effects(feature_dir, repo_root, mission_slug, run_action) -> None
+```
+
+- `run_action` is a zero-arg callable that performs the action under test —
+  a `next_cmd` `--answer` invocation in WP02's own test, an
+  orchestrator-api `answer-decision` call in WP08's extension — the helper
+  itself is agnostic to which caller invoked the seam.
+- After calling `run_action()`, the helper reads `mission-events.jsonl` via
+  `specify_cli.mission_v1.events.read_events` and asserts a
+  `MissionNextInvoked` entry was appended (the `_emit_mission_next_invoked`
+  side effect).
+- It also reads the issuance-lifecycle-record store via
+  `specify_cli.invocation.lifecycle.read_lifecycle_records` and asserts
+  both (a) the previous `started` record was paired to a completion record
+  (the `_pair_previous_lifecycle_record` side effect) and (b) a NEW
+  `started` record was written (the `_write_issuance_lifecycle_record` side
+  effect).
+- It raises (via a plain `assert`, consistent with this repo's pytest-native
+  style) on the first missing/mismatched effect, rather than returning a
+  bool, so a failing case points directly at which of the three seam
+  functions regressed.
+
+WP02's task file must land this helper (in the shared test module, see § (e)
+Gate Set item 3 below) as the deliverable WP08 is contractually bound to
+import and reuse — not re-derive — for its own extension.
 
 ---
 
@@ -335,10 +400,16 @@ verbs to the 10 that exist today. Versioning discipline:
      `--answer` test surface, re-run against WP02's refactor to confirm
      behaviour preservation (C-005).
    - A NEW shared regression test module (WP02 authors first, WP08 extends —
-     see "(a)/SC-008" and the ATDD table below) — proposed location
-     `tests/specify_cli/cli/commands/test_next_invocation_lifecycle_seam.py`
-     (co-located with the other `next_cmd`-adjacent tests, since it exercises
-     both the CLI caller and, once WP08 lands, the orchestrator-api caller).
+     see "(a)/SC-008" and the ATDD table below) — location
+     `tests/specify_cli/next/test_next_invocation_lifecycle_seam.py` (moved
+     off the originally-considered `tests/specify_cli/cli/commands/`
+     location; see item 4 below for why, and § Project Structure /
+     § Parallel Work Analysis for the consistent restatement). This matches
+     the existing convention for testing other `src/runtime/next/` top-level
+     modules — `tests/specify_cli/next/test_runtime_bridge.py` and
+     `test_runtime_bridge_dispatch.py` already test `runtime_bridge.py`
+     from this same directory — and it exercises both the CLI caller and,
+     once WP08 lands, the orchestrator-api caller.
    - `tests/architectural/` — targeted run of `test_shared_package_boundary.py`
      (verified: it enforces *negative import* boundaries for retired
      packages via AST scan across `src/{specify_cli,runtime,charter,doctrine,
@@ -348,33 +419,87 @@ verbs to the 10 that exist today. Versioning discipline:
      `test_runtime_charter_doctrine_boundary.py` (adjacent boundary
      coverage, cheap to include given WP02 adds a new `src/runtime/next/`
      module).
-4. **Kernel coverage ≥90%** — does **NOT** apply. Verified against
-   `.github/workflows/module-kernel.yml` (`--cov=src/kernel`, floor 90.0) and
-   `ci-quality.yml`'s `kernel-tests` job: the gate is scoped exactly to
-   `src/kernel/`, which this mission does not touch at all.
-5. **Mission-loader coverage ≥90%** — does **NOT** apply. Verified against
-   `ci-quality.yml`'s `mission-loader-coverage` job
-   (`--cov=src/specify_cli/mission_loader`, `--cov-fail-under=90`,
-   `tests/unit/mission_loader/ tests/integration/test_mission_run_command.py`):
-   this mission touches `orchestrator_api/`, `runtime/next/`, and
-   `cli/commands/next_cmd.py`, none of which is `src/specify_cli/
-   mission_loader/`.
-6. `commitlint` (`commitlint.config.cjs` present at repo root) — standard
+4. **`diff-coverage` (critical-path, ENFORCED, 90% floor)** — **APPLIES**.
+   `ci-quality.yml`'s `diff-coverage` job (`ci-quality.yml:3358` step
+   "diff-coverage (critical-path, enforced)") lists `'src/runtime/next/*'`
+   as a `critical_paths` entry (`ci-quality.yml:3391`) and runs
+   `diff-cover ... --fail-under=90 --include "${critical_paths[@]}"`
+   (`ci-quality.yml:3422-3425`); `diff-coverage` is itself a required member
+   of the blocking `quality-gate.needs` list (`ci-quality.yml:4276,4281`).
+   WP02's new `src/runtime/next/next_invocation_lifecycle.py` is therefore
+   subject to a hard 90%-of-changed-lines floor. The job consumes coverage
+   XML produced by `--cov=src/runtime/next`, which only two jobs emit:
+   `fast-tests-next` (`ci-quality.yml:1430`, scans `tests/next/
+   tests/specify_cli/next/ tests/runtime/`) and `integration-tests-next`
+   (`ci-quality.yml:2757-2794`, same three-path scope). A test asserting
+   the new module's behavior only counts toward this gate if it is
+   collected from one of those three roots — this is why item 3 above moved
+   the SC-008 shared regression test to `tests/specify_cli/next/` rather
+   than `tests/specify_cli/cli/commands/` (which is scanned only by the
+   `slow-tests` job's `--cov=specify_cli --cov=charter --cov=doctrine`,
+   `ci-quality.yml:3063-3066`, never `src/runtime/next`). WP02's task file
+   must land the shared test at the corrected location so the diff-coverage
+   gate has real coverage to evaluate the new module against, not just a
+   passing test in the wrong place.
+5. **Kernel coverage ≥90%** — does **NOT** apply. Verified against
+   `.github/workflows/module-kernel.yml` (`--cov=src/kernel`, floor 90.0)
+   and `ci-quality.yml`'s `kernel-tests` job (`ci-quality.yml:1085-1090`):
+   the job's own trigger is gated on the `kernel` changes-filter group
+   (`src/kernel/**`, `tests/kernel/**` only, `ci-quality.yml:443-445`) —
+   this mission touches neither path, so the job does not even run for this
+   mission's PR, and the coverage floor itself is scoped exactly to
+   `src/kernel/`, which this mission does not touch at all. Both the
+   trigger and the scope correctly exclude this mission — unlike items 6
+   and 10 below.
+6. **Mission-loader coverage ≥90%** — **RUNS**, not "does not apply."
+   Correction from an earlier draft of this item: the `mission-loader-coverage`
+   job's own `if:` condition (`ci-quality.yml:1451-1454`) is
+   `needs.changes.outputs.next == 'true' || ...core_misc... || ...platform...`,
+   and this mission's `next` changes-filter output is TRUE — WP02 adds
+   `src/runtime/next/next_invocation_lifecycle.py`, which matches the
+   `next` filter group's own `'src/runtime/next/**'` pattern
+   (`ci-quality.yml:305`). The job therefore runs. Its coverage floor
+   (`--cov=src/specify_cli/mission_loader --cov-fail-under=90`,
+   `tests/unit/mission_loader/ tests/integration/test_mission_run_command.py`,
+   `ci-quality.yml:1461-1467`) is scoped to a package this mission does not
+   touch, so it is **expected to pass trivially** (unchanged absolute
+   coverage of an untouched package) — same "runs, applies, passes
+   trivially" shape as item 11 (Contextive) below, not a "does not apply"
+   case.
+7. `commitlint` (`commitlint.config.cjs` present at repo root) — standard
    commit-message gate, applies to every commit this mission makes.
-7. Markdown lint (`.markdownlint-cli2.jsonc` present) — applies to
+8. Markdown lint (`.markdownlint-cli2.jsonc` present) — applies to
    `docs/api/orchestrator-api.md` and `host-boundary-rules.md` edits (WP09).
-8. Architecture/docs consistency — WP09's doc updates are cross-checked
+9. Architecture/docs consistency — WP09's doc updates are cross-checked
    against the actual verb behavior landed in WP03–WP08 (not written from
    the spec alone).
-9. Doctrine schema freshness — does **NOT** apply; no doctrine schema is
-   touched (see "(c) Generated Artifacts").
-10. Contextive glossary — does **NOT** apply; no new domain terminology (see
-    "(c) Generated Artifacts").
-11. TID251 banned-API — applies repo-wide per `pyproject.toml`'s ruff config
+10. Doctrine schema freshness — **RUNS**, not "does not apply." Correction
+    from an earlier draft of this item: the "[ENFORCED] Verify generated
+    doctrine schemas are up to date" step (`ci-quality.yml:656`, `uv run
+    python scripts/generate_schemas.py --check`) lives inside the `lint`
+    job, which has **no path filter at all** — it is `if:
+    !contains(labels, 'pr:deferred') && !contains(labels, 'pr:skip-ci')`
+    only (`ci-quality.yml:618`), unconditional on every PR, by deliberate
+    design (the step's own inline comment: "a freshness gate behind a
+    paths filter is the same silence #2957 is about"). It therefore runs
+    on this mission's PR regardless of path. It is **expected to pass
+    trivially**: this mission touches no Pydantic schema model under
+    `src/charter/offering/` (see "(c) Generated Artifacts") — its
+    unchanged in-memory regeneration will match the committed schema
+    files. Same "runs, applies, passes trivially" shape as items 6 and 11.
+11. Contextive glossary — **RUNS** (the check step at `ci-quality.yml:851`
+    is gated on the diff touching `src/specify_cli/**`, among other paths,
+    `ci-quality.yml:863-869` — this mission's changes match) but is
+    **expected to pass trivially**: no `docs/context/*.md` or
+    `.kittify/traceability/contextive-map.yaml` change is needed, because no
+    new domain terminology is introduced (see "(c) Generated Artifacts").
+    Applicability (does this gate execute) and outcome (does it pass) are
+    distinct — this item is about the latter.
+12. TID251 banned-API — applies repo-wide per `pyproject.toml`'s ruff config
     (enforced across the entire `tests/` tree); any new test using a banned
     API needs an inline `# noqa: TID251 — <justification>`, not a blanket
     exemption.
-12. Typer JSON error surface — the existing pattern
+13. Typer JSON error surface — the existing pattern
     (`_fail(cmd, error_code, message, ...)` → structured envelope, never a
     bare Typer/Click traceback) already covers `orchestrator_api/commands.py`
     verbs uniformly because every new verb is added to the SAME `app =
@@ -384,20 +509,20 @@ verbs to the 10 that exist today. Versioning discipline:
     is needed for the 11 new verbs; `tests/specify_cli/orchestrator_api/
     test_commands_fail_closed.py` and `test_typed_error_fail_closed.py`
     extend to cover them (NFR-002/SC-004).
-13. `patch()` target validation — **no dedicated named gate found** in this
-    repo (searched `tests/architectural/` and `pyproject.toml` for a
-    patch-target-validation rule by name; found only unrelated
-    `patch_seam_control` fixtures under a different test). If new tests use
-    `unittest.mock.patch`, standard discipline applies (patch the name at its
-    point of use, not at its definition site) but this is **unconfirmed** as
-    an automated gate — flagged here rather than silently assumed.
-14. Bandit — repo-wide security-lint gate; applies to new code the same as
+14. `patch()` target validation — **ENFORCED**. `ci-quality.yml:943`'s
+    "[ENFORCED] Validate patch() target strings (closes #394)" step runs
+    `scripts/check_patch_targets.py`, in the same always-on `lint` job as
+    the TID251/Bandit/pip-audit steps items 12/15/16 cite. New test code in
+    WP02–WP08 using `unittest.mock.patch(...)` must use a resolvable dotted
+    target string (patch the name at its point of use, not at its
+    definition site) to pass this gate.
+15. Bandit — repo-wide security-lint gate; applies to new code the same as
     everywhere else; no new subprocess/eval/pickle usage is introduced by
     this mission (NFR-004 explicitly keeps `record-analysis`'s wrap
     in-process).
-15. `pip-audit` — repo-wide dependency-audit gate; no new dependency is added
+16. `pip-audit` — repo-wide dependency-audit gate; no new dependency is added
     by this mission (see next line), so no new finding surface is expected.
-16. `uv.lock` freshness — **no dependency change expected.** This mission
+17. `uv.lock` freshness — **no dependency change expected.** This mission
     adds zero new third-party packages (typer/pytest/etc. are already
     dependencies); `uv.lock` should be byte-identical before/after except for
     routine `pyproject.toml` version-string housekeeping if any (none
@@ -444,12 +569,25 @@ Findings from a quick pass at plan time:
 
 - `next_cmd.py` is a large module (900+ lines) with several long, deeply
   commented functions (`decide_next`, `_handle_answer`) directly adjacent to
-  the three functions FR-014 extracts. **No lint/type/test debt was found
-  directly IN the three functions being extracted** (`_pair_previous_lifecycle_record`,
-  `_emit_mission_next_invoked`, `_write_issuance_lifecycle_record`) — they
-  are already narrowly scoped, individually documented, and covered by the
+  the three functions FR-014 extracts. One of the three DOES carry live
+  debt: `_pair_previous_lifecycle_record` (`next_cmd.py:333-429`) contains an
+  un-investigated type suppression at `next_cmd.py:424` —
+  `phase=phase,  # type: ignore[arg-type]` inside its `write_paired_completion(...)`
+  call. The other two (`_emit_mission_next_invoked`, `_write_issuance_lifecycle_record`)
+  are clean — narrowly scoped, individually documented, and covered by the
   existing `test_next_answer_effective_root.py` /
-  `test_next_owned_commit_guard.py` surface. The module-level size of
+  `test_next_owned_commit_guard.py` surface. Because these three functions
+  are being promoted to a public, module-level API (see § (a)), WP01 folds a
+  one-line investigation/fix of `next_cmd.py:424`'s suppression: either
+  narrow `phase`'s type so the suppression is no longer needed, or — if
+  `write_paired_completion`'s `phase` parameter is genuinely typed narrower
+  than the local `phase: str` this function computes and a real narrowing is
+  non-trivial — replace the bare `# type: ignore[arg-type]` with a
+  justification comment per this repo's `CLAUDE.md` code-style rule
+  ("narrowly-scoped, individually-justified suppressions... must carry an
+  inline rationale"). WP01's own task file must record which of the two it
+  did; carrying the suppression forward silently is not acceptable now that
+  the function becomes public surface. The module-level size of
   `next_cmd.py` itself is a pre-existing characteristic not localized to the
   functions this mission moves, so it is NOT folded in here (would violate
   Locality of Change / turn WP01 into a grab-bag).
@@ -459,14 +597,15 @@ Findings from a quick pass at plan time:
   — `start-review`, the envelope helpers, `CONTRACT_VERSION`'s changelog
   block).
 
-**Conclusion**: no domain-matched debt worth folding was found in the three
-touched files' specific functions at plan time. WP01 is therefore scoped
-narrowly to: (1) the baseline-red snapshot from "(f)" above, and (2) if the
-WP01 author's own closer read (which has more time than this plan-time pass)
-finds a genuine, narrowly-scoped debt item directly in one of the three
-files' touched functions, fold it there with a one-line rationale — do not
-invent filler cleanup to justify the WP's existence. State explicitly in
-WP01's own task file if nothing was found, rather than silently skipping the
+**Conclusion**: one domain-matched debt item WAS found (the `next_cmd.py:424`
+type suppression above) and is folded into WP01. WP01 is therefore scoped
+to: (1) the `next_cmd.py:424` fix/justification, (2) the baseline-red
+snapshot from "(f)" above, and (3) if the WP01 author's own closer read
+(which has more time than this plan-time pass) finds any further genuine,
+narrowly-scoped debt item directly in one of the three files' touched
+functions, fold it there with a one-line rationale — do not invent filler
+cleanup to justify the WP's existence. State explicitly in WP01's own task
+file exactly what was found and fixed, rather than silently skipping the
 standing order.
 
 ---
@@ -531,7 +670,7 @@ explicitly per the task instructions, rather than silently ignored.
    `mission_record_analysis.py:228-292`) is worth reusing rather than
    reimplementing, wraps the ENTIRE `record_analysis` call in an explicit,
    enforced timeout (e.g. a thread-based or signal-based bound) at the
-   orchestrator-api layer. The WP08-adjacent implementer decides between (a)
+   orchestrator-api layer. The WP04 implementer decides between (a)
    and (b) based on how much of `record_analysis`'s preflight logic is
    reusable without the dossier-sync tail; either satisfies NFR-004(b). This
    plan does not pre-decide between them — that is an implementation-detail
@@ -626,13 +765,13 @@ operator to weigh, not a decision I am making unilaterally):
 | WP | Covers | Depends on | Can run in parallel with |
 |----|--------|------------|---------------------------|
 | WP01 | Campsite-clean (g) + baseline-red snapshot (f) | — | — (must land first; tiny) |
-| WP02 | FR-014 — extract `next_invocation_lifecycle.py` seam; `next_cmd.py` call sites become thin callers; shared regression test (SC-008) | WP01 | WP03, WP04, WP05, WP06 (all independent of the seam) |
+| WP02 | FR-014 — extract `next_invocation_lifecycle.py` seam; `next_cmd.py` call sites become thin callers; shared regression test (SC-008), landed at `tests/specify_cli/next/test_next_invocation_lifecycle_seam.py` so `diff-coverage`'s enforced `src/runtime/next/*` gate (Gate Set item 4) has real coverage to evaluate | WP01 | WP03, WP04, WP05, WP06 (all independent of the seam) |
 | WP03 | FR-001/FR-002/FR-003 — `specify`/`plan`/`tasks` verbs (thin shims over `agent_feature.create_mission`/`setup_plan`/`finalize_tasks`) | WP01 | WP02, WP04, WP05, WP06 |
 | WP04 | FR-004/FR-005 — `check-prerequisites`/`record-analysis`, including the NFR-004 artifact-verification mechanism (j) | WP01 | WP02, WP03, WP05, WP06 |
 | WP05 | FR-006–FR-009/FR-012 — `open-decision`/`resolve-decision`/`defer-decision`/`cancel-decision` + `OriginFlow` guard (Mechanism A) | WP01 | WP02, WP03, WP04, WP06 |
 | WP06 | FR-010 — `design-status` (narrow read-only reduction, per Clarification 6 — does NOT delegate to `resolve_next_workflow_action` or `decide_next`) | WP01 | WP02, WP03, WP04, WP05 |
 | WP07 | FR-011 — `CONTRACT_VERSION` bump to 1.4.0 + changelog comment | WP03, WP04, WP05, WP06, WP08 (must name every verb landed so far) | — (naturally lands after the verb WPs; see note below) |
-| WP08 | FR-013 — `answer-decision` (Mechanism B), full event/lifecycle parity (SC-007) | **WP02 (hard dependency — cannot start until the seam exists)** | WP03, WP04, WP05, WP06 (independent of those) |
+| WP08 | FR-013 — `answer-decision` (Mechanism B), full event/lifecycle parity (SC-007); extends WP02's shared `tests/specify_cli/next/test_next_invocation_lifecycle_seam.py` (not a new/rewritten test file) with the orchestrator-api path | **WP02 (hard dependency — cannot start until the seam exists)** | WP03, WP04, WP05, WP06 (independent of those) |
 | WP09 | SC-006 — `docs/api/orchestrator-api.md`, `host-boundary-rules.md` Boundary Decision Matrix, `CHANGELOG.md` | WP03, WP04, WP05, WP06, WP07, WP08 (documents the landed behavior, not the planned behavior) | — (naturally lands last) |
 
 **Sequencing summary**: WP01 first (tiny, unblocks everything). WP02
@@ -684,8 +823,16 @@ docs/
 
 tests/
 ├── specify_cli/orchestrator_api/      # NEW test modules per WP03–WP06,WP08 + existing 4 re-run
+├── specify_cli/next/
+│   └── test_next_invocation_lifecycle_seam.py   # NEW (WP02, extended WP08) — SC-008 shared
+│                                                 # regression test; placed here (matching the
+│                                                 # existing test_runtime_bridge.py /
+│                                                 # test_runtime_bridge_dispatch.py precedent for
+│                                                 # other src/runtime/next/ modules) so fast-tests-next
+│                                                 # / integration-tests-next collect it and it counts
+│                                                 # toward the enforced diff-coverage src/runtime/next/*
+│                                                 # gate (Gate Set item 4)
 └── specify_cli/cli/commands/
-    ├── test_next_invocation_lifecycle_seam.py   # NEW (WP02, extended WP08) — SC-008 shared regression test
     └── test_next_*.py                 # existing — re-run for behaviour preservation (C-005)
 ```
 
@@ -738,7 +885,9 @@ WP03,WP04,WP05,WP06,WP07,WP08 all complete ──> WP09 (docs)
   functional dependency — `answer-decision` imports
   `next_invocation_lifecycle.py`, which does not exist until WP02 lands).
 - **Integration tests**: the SC-008 shared regression test
-  (`test_next_invocation_lifecycle_seam.py`) is written RED against the CLI
+  (`tests/specify_cli/next/test_next_invocation_lifecycle_seam.py` — see
+  Gate Set item 4 and § Project Structure for why this location, not
+  `tests/specify_cli/cli/commands/`) is written RED against the CLI
   path in WP02 (proving the seam is behaviour-preserving for `next_cmd.py`),
   then EXTENDED (not rewritten) by WP08 to add the orchestrator-api
   `answer-decision` path — both paths exercised by the same shared
