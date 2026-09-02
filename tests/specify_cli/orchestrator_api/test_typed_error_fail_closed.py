@@ -475,3 +475,150 @@ def test_record_analysis_missing_input_file_is_structured_not_bare(tmp_path: Pat
     envelope = json.loads(result.output.strip().split("\n")[0])
     assert envelope["success"] is False
     assert envelope["error_code"] == "RECORD_ANALYSIS_INPUT_FILE_NOT_FOUND"
+
+
+# ---------------------------------------------------------------------------
+# WP05 (design-phase-orchestrator-api-01M1HE6M / T027): open-decision/
+# resolve-decision/defer-decision/cancel-decision typed-error fidelity, per
+# verb -- same MISSION_NOT_FOUND-against-nonexistent-mission pattern as
+# plan/tasks/check-prerequisites/record-analysis above. These reuse the
+# SAME shared ``_resolve_mission_dir_or_fail`` seam (unmodified by WP05), so
+# the coverage here confirms the new verbs are wired to it correctly rather
+# than re-proving the seam itself.
+# ---------------------------------------------------------------------------
+
+_WP05_POLICY = json.dumps(
+    {
+        "orchestrator_id": "test-orch",
+        "orchestrator_version": "0.0.1",
+        "agent_family": "claude",
+        "approval_mode": "full_auto",
+        "sandbox_mode": "workspace_write",
+        "network_mode": "none",
+        "dangerous_flags": [],
+    }
+)
+
+
+def test_open_decision_against_nonexistent_mission_emits_mission_not_found(
+    tmp_path: Path,
+) -> None:
+    repo_root = tmp_path / "repo"
+    (repo_root / "kitty-specs").mkdir(parents=True)
+
+    with patch.object(orch, "_get_main_repo_root", return_value=repo_root):
+        result = runner.invoke(
+            app,
+            [
+                "open-decision",
+                "--mission",
+                "999-does-not-exist",
+                "--origin",
+                "specify",
+                "--input-key",
+                "k",
+                "--question",
+                "q?",
+                "--step-id",
+                "s1",
+                "--actor",
+                "test-agent",
+                "--policy",
+                _WP05_POLICY,
+            ],
+            catch_exceptions=False,
+        )
+
+    envelope = json.loads(result.output.strip().split("\n")[0])
+    assert envelope["success"] is False
+    assert envelope["error_code"] == "MISSION_NOT_FOUND"
+
+
+def test_resolve_decision_against_nonexistent_mission_emits_mission_not_found(
+    tmp_path: Path,
+) -> None:
+    repo_root = tmp_path / "repo"
+    (repo_root / "kitty-specs").mkdir(parents=True)
+
+    with patch.object(orch, "_get_main_repo_root", return_value=repo_root):
+        result = runner.invoke(
+            app,
+            [
+                "resolve-decision",
+                "--mission",
+                "999-does-not-exist",
+                "--decision-id",
+                "01ARZ3NDEKTSV4RRFFQ69G5FAV",
+                "--final-answer",
+                "5",
+                "--actor",
+                "test-agent",
+                "--policy",
+                _WP05_POLICY,
+            ],
+            catch_exceptions=False,
+        )
+
+    envelope = json.loads(result.output.strip().split("\n")[0])
+    assert envelope["success"] is False
+    assert envelope["error_code"] == "MISSION_NOT_FOUND"
+
+
+def test_defer_decision_against_nonexistent_mission_emits_mission_not_found(
+    tmp_path: Path,
+) -> None:
+    repo_root = tmp_path / "repo"
+    (repo_root / "kitty-specs").mkdir(parents=True)
+
+    with patch.object(orch, "_get_main_repo_root", return_value=repo_root):
+        result = runner.invoke(
+            app,
+            [
+                "defer-decision",
+                "--mission",
+                "999-does-not-exist",
+                "--decision-id",
+                "01ARZ3NDEKTSV4RRFFQ69G5FAV",
+                "--rationale",
+                "need more info",
+                "--actor",
+                "test-agent",
+                "--policy",
+                _WP05_POLICY,
+            ],
+            catch_exceptions=False,
+        )
+
+    envelope = json.loads(result.output.strip().split("\n")[0])
+    assert envelope["success"] is False
+    assert envelope["error_code"] == "MISSION_NOT_FOUND"
+
+
+def test_cancel_decision_against_nonexistent_mission_emits_mission_not_found(
+    tmp_path: Path,
+) -> None:
+    repo_root = tmp_path / "repo"
+    (repo_root / "kitty-specs").mkdir(parents=True)
+
+    with patch.object(orch, "_get_main_repo_root", return_value=repo_root):
+        result = runner.invoke(
+            app,
+            [
+                "cancel-decision",
+                "--mission",
+                "999-does-not-exist",
+                "--decision-id",
+                "01ARZ3NDEKTSV4RRFFQ69G5FAV",
+                "--rationale",
+                "no longer relevant",
+                "--actor",
+                "test-agent",
+                "--policy",
+                _WP05_POLICY,
+            ],
+            catch_exceptions=False,
+        )
+
+    envelope = json.loads(result.output.strip().split("\n")[0])
+    assert envelope["success"] is False
+    assert envelope["error_code"] == "MISSION_NOT_FOUND"
