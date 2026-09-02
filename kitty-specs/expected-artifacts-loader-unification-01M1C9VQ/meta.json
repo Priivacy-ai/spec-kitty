@@ -12,5 +12,7 @@
   "purpose_tldr": "One canonical loader for expected-artifacts manifests, and a corrupt org manifest fails loudly instead of silently vanishing.",
   "slug": "expected-artifacts-loader-unification-01M1C9VQ",
   "target_branch": "fix/expected-artifacts-loader-unification",
-  "topology": "coord"
+  "topology": "coord",
+  "vcs": "git",
+  "vcs_locked_at": "2026-08-31T17:39:03.015602+00:00"
 }
