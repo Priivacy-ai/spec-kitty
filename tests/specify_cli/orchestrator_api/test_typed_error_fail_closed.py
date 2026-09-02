@@ -317,3 +317,161 @@ def test_tasks_against_nonexistent_mission_emits_mission_not_found(tmp_path: Pat
     envelope = json.loads(result.output.strip().split("\n")[0])
     assert envelope["success"] is False
     assert envelope["error_code"] == "MISSION_NOT_FOUND"
+
+
+# ---------------------------------------------------------------------------
+# WP04 (design-phase-orchestrator-api-01M1HE6M / T015): check-prerequisites/
+# record-analysis typed-error fidelity. Kept ``fast`` (no real git I/O): the
+# mission fixture below carries no ``.git`` dir, so record-analysis's
+# dirty-tree preflight no-ops (``is_git_repo`` is False) and both verbs reach
+# their mission-resolution / body-validation logic directly. Real end-to-end
+# artifact-verification proof lives in
+# ``test_check_prerequisites_record_analysis.py``.
+# ---------------------------------------------------------------------------
+
+_WP04_MISSION_SLUG = "wp04-typed-error-mission"
+
+
+def _seed_wp04_mission(tmp_path: Path) -> tuple[Path, Path]:
+    """A minimal, real (non-git) mission dir carrying spec/plan/tasks."""
+    repo_root = tmp_path / "repo"
+    mission_dir = repo_root / "kitty-specs" / _WP04_MISSION_SLUG
+    mission_dir.mkdir(parents=True)
+    meta = {
+        "mission_slug": _WP04_MISSION_SLUG,
+        "slug": _WP04_MISSION_SLUG,
+        "mission_number": None,
+        "mission_type": "software-dev",
+        "target_branch": "main",
+        "status_phase": 2,
+    }
+    (mission_dir / "meta.json").write_text(
+        json.dumps(meta, indent=2, sort_keys=True) + "\n", encoding="utf-8"
+    )
+    (mission_dir / "spec.md").write_text("# Spec\n", encoding="utf-8")
+    (mission_dir / "plan.md").write_text("# Plan\n", encoding="utf-8")
+    (mission_dir / "tasks.md").write_text("# Tasks\n", encoding="utf-8")
+    return repo_root, mission_dir
+
+
+def test_check_prerequisites_against_nonexistent_mission_emits_mission_not_found(
+    tmp_path: Path,
+) -> None:
+    repo_root = tmp_path / "repo"
+    (repo_root / "kitty-specs").mkdir(parents=True)
+
+    with patch.object(orch, "_get_main_repo_root", return_value=repo_root):
+        result = runner.invoke(
+            app,
+            ["check-prerequisites", "--mission", "999-does-not-exist"],
+            catch_exceptions=False,
+        )
+
+    envelope = json.loads(result.output.strip().split("\n")[0])
+    assert envelope["success"] is False
+    assert envelope["error_code"] == "MISSION_NOT_FOUND"
+
+
+def test_record_analysis_against_nonexistent_mission_emits_mission_not_found(
+    tmp_path: Path,
+) -> None:
+    repo_root = tmp_path / "repo"
+    (repo_root / "kitty-specs").mkdir(parents=True)
+
+    with patch.object(orch, "_get_main_repo_root", return_value=repo_root):
+        result = runner.invoke(
+            app,
+            [
+                "record-analysis",
+                "--mission",
+                "999-does-not-exist",
+                "--policy",
+                json.dumps(
+                    {
+                        "orchestrator_id": "test-orch",
+                        "orchestrator_version": "0.0.1",
+                        "agent_family": "claude",
+                        "approval_mode": "full_auto",
+                        "sandbox_mode": "workspace_write",
+                        "network_mode": "none",
+                        "dangerous_flags": [],
+                    }
+                ),
+            ],
+            catch_exceptions=False,
+        )
+
+    envelope = json.loads(result.output.strip().split("\n")[0])
+    assert envelope["success"] is False
+    assert envelope["error_code"] == "MISSION_NOT_FOUND"
+
+
+def test_record_analysis_empty_body_is_structured_not_bare(tmp_path: Path) -> None:
+    """Malformed input (an empty submitted report body) fails closed with a
+    structured, distinct error_code -- never a bare exception."""
+    repo_root, _mission_dir = _seed_wp04_mission(tmp_path)
+    empty_file = tmp_path / "empty-report.md"
+    empty_file.write_text("   \n", encoding="utf-8")
+
+    with patch.object(orch, "_get_main_repo_root", return_value=repo_root):
+        result = runner.invoke(
+            app,
+            [
+                "record-analysis",
+                "--mission",
+                _WP04_MISSION_SLUG,
+                "--input-file",
+                str(empty_file),
+                "--policy",
+                json.dumps(
+                    {
+                        "orchestrator_id": "test-orch",
+                        "orchestrator_version": "0.0.1",
+                        "agent_family": "claude",
+                        "approval_mode": "full_auto",
+                        "sandbox_mode": "workspace_write",
+                        "network_mode": "none",
+                        "dangerous_flags": [],
+                    }
+                ),
+            ],
+            catch_exceptions=False,
+        )
+
+    envelope = json.loads(result.output.strip().split("\n")[0])
+    assert envelope["success"] is False
+    assert envelope["error_code"] == "RECORD_ANALYSIS_EMPTY_BODY"
+
+
+def test_record_analysis_missing_input_file_is_structured_not_bare(tmp_path: Path) -> None:
+    """A nonexistent --input-file fails closed with a structured error_code."""
+    repo_root, _mission_dir = _seed_wp04_mission(tmp_path)
+
+    with patch.object(orch, "_get_main_repo_root", return_value=repo_root):
+        result = runner.invoke(
+            app,
+            [
+                "record-analysis",
+                "--mission",
+                _WP04_MISSION_SLUG,
+                "--input-file",
+                str(tmp_path / "does-not-exist.md"),
+                "--policy",
+                json.dumps(
+                    {
+                        "orchestrator_id": "test-orch",
+                        "orchestrator_version": "0.0.1",
+                        "agent_family": "claude",
+                        "approval_mode": "full_auto",
+                        "sandbox_mode": "workspace_write",
+                        "network_mode": "none",
+                        "dangerous_flags": [],
+                    }
+                ),
+            ],
+            catch_exceptions=False,
+        )
+
+    envelope = json.loads(result.output.strip().split("\n")[0])
+    assert envelope["success"] is False
+    assert envelope["error_code"] == "RECORD_ANALYSIS_INPUT_FILE_NOT_FOUND"
