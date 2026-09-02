@@ -1,0 +1,103 @@
+schema: review-findings/v1
+complete: true
+phase: spec
+lens_group: fresh2
+mission: design-phase-orchestrator-api-01M1HE6M
+findings:
+  - id: SPEC-FRESH2-001
+    lens: debugger-debbie (structural root-cause / dual-system divergence)
+    severity: 4
+    title: "answer-decision's composite design omits the event-emission and lifecycle-record side effects the real --answer CLI call performs in the same 'one pass'"
+    evidence:
+      - artifact: "spec.md § User Story 5 intro (~L293-306): 'answer-decision is a COMPOSITE verb, matching what the real CLI invocation above always does in one pass ... (1) answer_decision_via_runtime ... then (2) decide_next ... returns the next-step Decision'"
+      - artifact: "spec.md § Clarification 3, Mechanism B (~L606-625): '`answer-decision` (FR-013) wraps BOTH calls, matching the real CLI's always-both-calls behavior'"
+      - artifact: "spec.md § Scope Notes (~L810-822): lists only `runtime_bridge.py` (`answer_decision_via_runtime`, `decide_next_via_runtime`, `get_or_start_run`, `_read_snapshot`) and `decision.py` (`decide_next`) as the touch points 'the two-call engine answer-decision (FR-013) wraps'"
+      - artifact: "spec.md § SC-007 (~L783-793): independent test only asserts `pending_decisions` no longer contains the id and Decision.to_dict()-key parity — no assertion on the event log or lifecycle log"
+      - code: "src/specify_cli/cli/commands/next_cmd.py:244-246 — `_pair_previous_lifecycle_record(...)` runs before `decide_next`, in the same real `--answer` invocation, writing a paired completed/failed lifecycle record"
+      - code: "src/specify_cli/cli/commands/next_cmd.py:248-258 — after `decide_next`, `_emit_mission_next_invoked(...)` emits a `MissionNextInvoked` event into `mission-events.jsonl`"
+      - code: "src/specify_cli/cli/commands/next_cmd.py:263-269 — `_write_issuance_lifecycle_record(...)` writes a `started` lifecycle record for the issued action whenever `decision.kind == \"step\"` (the common case an `answer-decision` chains into per AC3)"
+      - code: "grep for `MissionNextInvoked`, `_write_issuance_lifecycle_record`, `_pair_previous_lifecycle_record`, `write_started`, `write_paired_completion` across src/runtime/next/ and src/specify_cli/orchestrator_api/ returns zero hits — none of these three side effects live inside `answer_decision_via_runtime`, `decide_next`, or `decide_next_via_runtime`; they are CLI-command-layer orchestration in next_cmd.py, not engine internals"
+    claim: >
+      The twice-fixed composite-verb design (User Story 5 intro and Clarification 3,
+      Mechanism B) correctly identifies that the real `spec-kitty next --answer
+      --result ...` invocation makes two ENGINE calls
+      (`answer_decision_via_runtime` then `decide_next`), and correctly derives the
+      response shape (`Decision.to_dict()` + `answered_decision_id`) from that. But
+      "the real CLI invocation... always does in one pass" is more than those two
+      engine calls: in the same CLI command function, next_cmd.py also runs
+      `_pair_previous_lifecycle_record` (before `decide_next`) and, after `decide_next`,
+      `_emit_mission_next_invoked` (writes to the mission's event log) and
+      `_write_issuance_lifecycle_record` (writes a `started` lifecycle record whenever
+      the resulting decision is `kind="step"` — the case AC3 exercises: "the host
+      can chain directly into its next action"). None of these three functions live
+      inside the engine layer the spec's composite design and Scope Notes enumerate
+      as what `answer-decision` "wraps." A WP built strictly from this FR/Scope-Notes
+      surface (and verified only by SC-007's stated independent test, which checks
+      `pending_decisions` and `Decision.to_dict()` field parity but nothing about the
+      event or lifecycle logs) would produce an `answer-decision` verb whose JSON
+      response looks byte-identical to the CLI's, while silently failing to advance the
+      mission's `mission-events.jsonl` event log or the invocation lifecycle store —
+      an observable divergence between a mission driven via the host CLI and one driven
+      via orchestrator-api, for a mission-observability surface (`design-status`'s own
+      Key Entities definition says it is "reduced from the mission's event log and
+      decision ledger") this very mission introduces alongside `answer-decision`.
+    remediation: >
+      Extend FR-013 / User Story 5's composite design (and the Scope Notes touch-points
+      list) to explicitly account for `_pair_previous_lifecycle_record`,
+      `_emit_mission_next_invoked`, and `_write_issuance_lifecycle_record` — either by
+      requiring `answer-decision` to also invoke them (or orchestrator-api-appropriate
+      equivalents) so the event/lifecycle logs stay complete for orchestrator-api-driven
+      missions, or by explicitly stating this omission is a deliberate scope boundary
+      (with a rationale a plan-phase author doesn't have to re-derive, matching this
+      spec's own documented-decision convention elsewhere, e.g. Clarification 6). Add an
+      acceptance scenario / SC-007 assertion that pins whichever choice is made, so ATDD
+      coverage doesn't silently skip this divergence.
+
+  - id: SPEC-FRESH2-002
+    lens: debugger-debbie (dual-system divergence mapping)
+    severity: 3
+    title: "The CLI's second bookkeeping key (`answer`, the submitted answer text) is acknowledged but never accounted for in answer-decision's response contract"
+    evidence:
+      - artifact: "spec.md § Clarification 3, Mechanism B (~L617-618): '`_print_decision` (`next_cmd.py:910-919`) then prints `decision.to_dict()` with two extra keys, `answered` and `answer`, merged in flatly.'"
+      - artifact: "spec.md § Clarification 3 (~L621-624) and § Key Entities 'Run decision' bullet (~L499): both describe `answer-decision`'s response as 'Decision.to_dict() ... with one added field, answered_decision_id ... for the same bookkeeping the CLI's terser answered key carries' — only the `answered` key is mapped; `answer` is never mentioned again"
+      - code: "src/specify_cli/cli/commands/next_cmd.py:913-915 — `d[\"answered\"] = answered_id; d[\"answer\"] = answer` — two keys are merged in, not one"
+    claim: >
+      The spec itself correctly discovers (Clarification 3) that the real CLI's JSON
+      output for `--answer` carries TWO extra keys beyond `Decision.to_dict()`:
+      `answered` (the decision id) and `answer` (the submitted answer value, echoed
+      back verbatim). The composite-verb redesign renames and carries forward only
+      the first (`answered` → `answered_decision_id`) and is silent on the second —
+      not "intentionally dropped, here's why," just absent from every place the
+      response shape is defined (Key Entities, Clarification 3, User Story 5 AC1/AC3,
+      SC-007). A WP implementer has no documented answer to "does `answer-decision`'s
+      `data` echo the submitted answer text the way the CLI does?" — a real ambiguity
+      in an FR the spec otherwise treats as fully pinned down after two review rounds.
+    remediation: >
+      Add one sentence to the Clarification 3 / Key Entities response-shape
+      description stating explicitly whether `answer-decision`'s `data` carries an
+      equivalent to the CLI's `answer` key (e.g. as a second sibling field, or
+      folded into `answered_decision_id`'s documentation as "intentionally omitted
+      because the host already possesses the value it submitted") — closing the same
+      kind of shape ambiguity this FR was already revised once to fix for
+      `answered_decision_id` itself.
+
+  - id: SPEC-FRESH2-003
+    lens: debugger-debbie (trace-based observability / citation precision)
+    severity: 2
+    title: "Line-range citation `next_cmd.py:246-248` does not point at the `decide_next` call it's cited for"
+    evidence:
+      - artifact: "spec.md § User Story 5 intro (~L295-297): 'the same call then performs both steps, `next_cmd.py:213-221` then `next_cmd.py:246-248`'"
+      - artifact: "spec.md § Clarification 3, Mechanism B (~L611-614): repeats the identical citation, 'the SAME CLI call (`next_cmd.py:213-221` then `next_cmd.py:246-248`) ALWAYS follows the persisted answer with a second, separate call, `decide_next`'"
+      - code: "src/specify_cli/cli/commands/next_cmd.py:246-248 is `)` (closing paren of the unrelated `_pair_previous_lifecycle_record` call), a blank line, and the opening `decision = decide_next(` — the actual `decide_next(...)` call spans next_cmd.py:248-250"
+    claim: >
+      Both citations of the second composite-call step point at lines 246-248, but
+      the `decide_next(...)` call they're meant to anchor actually spans 248-250 —
+      246-248 mostly covers the tail of the preceding, unrelated
+      `_pair_previous_lifecycle_record(...)` call. This is a small but real citation
+      drift of exactly the kind this spec's own two prior fix rounds have been
+      correcting (per the first sweep's FR-013 engine-citation fix) — a reviewer or
+      plan-phase author following the line reference to verify the composite design
+      lands one call too early.
+    remediation: >
+      Correct both occurrences of `next_cmd.py:246-248` to `next_cmd.py:248-250` (the
+      actual `decision = decide_next(...)` call).

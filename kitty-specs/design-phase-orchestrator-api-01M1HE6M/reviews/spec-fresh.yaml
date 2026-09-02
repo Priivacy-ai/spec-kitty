@@ -1,0 +1,56 @@
+schema: review-findings/v1
+complete: true
+phase: spec
+lens_group: fresh
+mission: design-phase-orchestrator-api-01M1HE6M
+findings:
+  - id: SPEC-FRESH-001
+    lens: debugger-debbie (structural-root-cause / code-truth verification)
+    severity: 4
+    title: FR-013's own engine-wrap citation omits the `decide_next` call that AC3/SC-007 require it to make
+    evidence:
+      - artifact: "spec.md § Key Entities — 'Run decision (Mechanism B, ...)': \"Resolved by `answer-decision` (FR-013) the same way `spec-kitty next --answer` resolves it today (`runtime_bridge.answer_decision_via_runtime`).\""
+      - artifact: "spec.md § Scope Notes: lists only `src/runtime/next/runtime_bridge.py` (`answer_decision_via_runtime`, `get_or_start_run`, `_read_snapshot`) as the engine `answer-decision` (FR-013) wraps."
+      - artifact: "spec.md § User Story 5, Acceptance Scenario 3: \"`data` carries the SAME shape `spec-kitty next --answer ... --json` returns for the following step — including the resulting `kind` (`step`/`decision_required`/`blocked`/`terminal`)\""
+      - artifact: "spec.md § User Story 5, Independent Test: \"the returned envelope's `data` matches what `spec-kitty next --answer ... --json` would have returned for the same call\"; § SC-007 repeats the same full-parity requirement."
+      - code: "src/specify_cli/cli/commands/next_cmd.py:213-221 — `--answer` first calls `_maybe_handle_answer`/`_handle_answer`, which calls ONLY `runtime_bridge.answer_decision_via_runtime(...)` (returns `None`, writes the answer only); THEN, separately, if `result is not None` (line ~226), the SAME CLI invocation calls `decide_next(agent, mission_slug, result, repo_root, ...)` (`next_cmd.py:246-248`) — a second, distinct call into `src/runtime/next/decision.py:413` (`decide_next`), which delegates to `runtime_bridge.decide_next_via_runtime` (a different function, never named in the spec) and returns the `Decision` object whose `.to_dict()` (`decision.py:135-165`) produces the `kind`/`step_id`/`decision_id`/`prompt_file`/... shape that `_print_decision` actually emits as JSON."
+      - code: "src/specify_cli/cli/commands/next_cmd.py:743-750 (`_validate_result_and_answer`) — `--answer` requires `--result` unconditionally ('--answer requires --result because query mode is read-only'), so every real `next --answer` call ALWAYS also performs the `decide_next` DAG-advance step; there is no CLI path where answering a decision returns without it."
+      - code: "src/runtime/next/runtime_bridge.py:2587-2655 (`answer_decision_via_runtime`) — confirmed to have no return value used for a response payload; it only persists the answer via `runtime_provide_decision_answer`."
+    claim: >
+      FR-013 / User Story 5's acceptance criteria (AC3, the Independent Test, and
+      SC-007) require `answer-decision` to return the same `kind`/next-step envelope
+      shape that a real `spec-kitty next --answer ... --json` call returns — but
+      that shape is produced ONLY by a second, separate engine call
+      (`decide_next` in `src/runtime/next/decision.py`, delegating to
+      `runtime_bridge.decide_next_via_runtime`), not by
+      `answer_decision_via_runtime` alone. The spec's own description of what
+      FR-013 wraps (the Key Entities bullet and the Scope Notes touch-point list)
+      names only `runtime_bridge.answer_decision_via_runtime` (plus
+      `get_or_start_run`/`_read_snapshot`) and never mentions `decide_next` /
+      `decide_next_via_runtime` anywhere in the FR-013 material — that function is
+      cited only once in the whole spec, in Clarification 6, and there strictly in
+      relation to the UNRELATED FR-010 `design-status` verb. A plan/implementation
+      phase that follows the spec's own citation would build `answer-decision` as a
+      thin wrap over `answer_decision_via_runtime` alone: it would satisfy AC1,
+      AC2, AC4, AC5 and AC6 (which only ever reference `data.answered_decision_id`
+      / pending-decision bookkeeping) but silently fail AC3, the Independent Test,
+      and SC-007, which are the scenarios that actually assert full envelope
+      parity with `spec-kitty next --answer ... --json`. This is exactly the class
+      of gap the fix round's own Clarification 3 rewrite was meant to close (it
+      corrected an earlier draft's incomplete trace of the `DecisionKind` code
+      path) — but the correction stopped one call short of the real composite
+      `--answer` + `--result` flow.
+    remediation: >
+      Add `src/runtime/next/decision.py` (`decide_next`) and
+      `runtime_bridge.decide_next_via_runtime` to FR-013's cited engine surface
+      (Key Entities' Run-decision bullet and the Scope Notes touch-point list),
+      and state explicitly in FR-013 / User Story 5 that `answer-decision` is a
+      composite verb performing BOTH steps `next --answer` performs today:
+      (1) `answer_decision_via_runtime` to persist the answer, then (2)
+      `decide_next`/`decide_next_via_runtime` (passing the verb's own
+      `--result`) to advance the DAG and obtain the next-step `Decision`, whose
+      `.to_dict()` becomes (or is merged into) `data`. Also resolve whether
+      `data.answered_decision_id` (AC1/AC2) is a field ADDED ON TOP of the full
+      `Decision.to_dict()` shape or a distinct minimal response used only when no
+      further step data applies — AC1 and AC3 currently describe two different
+      response shapes without saying how they relate.
