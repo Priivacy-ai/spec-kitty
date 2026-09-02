@@ -41,7 +41,7 @@ _HELP_CONSOLE_WIDTH = 10_000
 # explicit size unchanged only when BOTH dimensions are set (see module docstring).
 _HELP_CONSOLE_HEIGHT = 100
 
-_BOX_DRAWING = re.compile(r"[│╭╮╰╯─]")
+_BOX_DRAWING = re.compile(r"[│┌┐└┘╭╮╰╯─]")
 _INTERNAL_WHITESPACE = re.compile(r"\s+")
 
 
