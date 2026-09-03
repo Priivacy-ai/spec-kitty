@@ -85,6 +85,10 @@ For non-obvious runtime behaviour an operator may encounter:
 │                                                        validating.           │
 │                                                        [default:             │
 │                                                        no-normalize-encodin… │
+│ --owned-checkout                                 PATH  Explicit owned        │
+│                                                        checkout for a        │
+│                                                        single-branch         │
+│                                                        mission.              │
 │ --help                -h                               Show this message and │
 │                                                        exit.                 │
 ╰──────────────────────────────────────────────────────────────────────────────╯
@@ -4758,16 +4762,17 @@ _Emit the open-Ops reminder for the Claude Code Stop hook._
 │                           [required]                                         │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ╭─ Options ────────────────────────────────────────────────────────────────────╮
-│ *  --message        -m      TEXT  Commit message. [required]                 │
-│    --mission                TEXT  Mission slug (e.g. '001-my-mission'). When │
-│                                   omitted, the slug is derived from the      │
-│                                   first file argument's kitty-specs/<slug>/  │
-│                                   path.                                      │
-│    --target-branch          TEXT  Short primary branch name used for the     │
-│                                   post-commit ff-advance (WP09 / FR-010).    │
-│                                   Optional.                                  │
-│    --json                         Output JSON.                               │
-│    --help           -h            Show this message and exit.                │
+│ *  --message         -m      TEXT  Commit message. [required]                │
+│    --mission                 TEXT  Mission slug (e.g. '001-my-mission').     │
+│                                    When omitted, the slug is derived from    │
+│                                    the first file argument's                 │
+│                                    kitty-specs/<slug>/ path.                 │
+│    --target-branch           TEXT  Short primary branch name used for the    │
+│                                    post-commit ff-advance (WP09 / FR-010).   │
+│                                    Optional.                                 │
+│    --json                          Output JSON.                              │
+│    --owned-checkout          PATH  Explicit single-branch checkout root.     │
+│    --help            -h            Show this message and exit.               │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ```
 
