@@ -1152,8 +1152,8 @@ def _resolve_expected_artifacts_slot(
     # actual `dict[str, Any]` return type is invisible here too. The cast
     # documents the type `model_dump()` actually returns at runtime -- mypy
     # is not wrong about the code, only blind to it through this boundary
-    # (mirrors the identical rationale on `_resolve_org_manifest_mapping` in
-    # `runtime.next.runtime_bridge_io`).
+    # (mirrors the identical rationale on
+    # `charter.activation.manifest_loader._resolve_existing_org_roots`).
     return cast("_ExpectedArtifactsManifest", manifest.model_dump())
 
 
