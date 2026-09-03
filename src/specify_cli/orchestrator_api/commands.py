@@ -2913,7 +2913,7 @@ def record_analysis(
 
     if success and reread is not None:
         data = {
-            "mission_slug": mission_slug,
+            **_mission_identity_payload(mission_dir),
             "path": str(reread.path),
             "verdict": reread.verdict,
             "generated_at": reread.generated_at,

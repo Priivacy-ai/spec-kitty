@@ -498,6 +498,12 @@ def test_record_analysis_persists_and_verifies_via_reread(tmp_path: Path) -> Non
     report_path = feature_dir / "analysis-report.md"
     assert report_path.exists()
     assert Path(data["path"]) == report_path
+    # Fold-in review finding: record-analysis's success payload must carry
+    # the SAME mission identity block every other mission-scoped verb
+    # includes (_mission_identity_payload), so a host can key on
+    # mission_number/mission_type without a second lookup.
+    assert data["mission_type"] == "software-dev"
+    assert "mission_number" in data
 
 
 # ---------------------------------------------------------------------------
