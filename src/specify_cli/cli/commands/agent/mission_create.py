@@ -377,25 +377,48 @@ def _resolve_default_topology_phase(
     current_branch: str | None,
     pr_bound: bool,
 ) -> MissionTopology:
-    """Derive the create-time topology default from branch/pr-bound context (#2581).
+    """Derive the create-time topology default from branch/pr-bound context (#2581, #2533).
 
-    An explicit ``--topology`` always wins. Otherwise: PR-bound missions and
-    missions created on the repository's primary branch keep the historical
-    ``coord`` default (a coordination branch is minted). A mission created on
-    a non-primary feature/fork branch without ``--pr-bound`` defaults to
-    ``single_branch`` instead — minting a coordination branch there just to
-    have the operator manually flatten it is the exact friction #2581 closes.
+    An explicit ``--topology`` always wins. Otherwise the default keys on
+    *topology honesty* (INV-2): a coordination topology is minted only when
+    coordination routing is actually reachable, never as pure overhead.
+
+    - ``--pr-bound`` missions consult :func:`coord_topology_reachable` — coord
+      is reachable iff ``primary_protected or current_is_primary``. A pr-bound
+      mission on an **unprotected** primary target (e.g. created with
+      ``--start-branch <feature-branch>``) therefore defaults to
+      ``single_branch``, eliminating the stranded coord branch behind the #2533
+      split-brain. Protection is keyed on the **primary TARGET branch**
+      (``ProtectionPolicy`` + ``resolve_primary_branch``), NOT the current
+      checkout (the tripwire in ``test_mission_create.py`` proves this).
+    - A non-pr-bound mission created on the repository's primary branch keeps the
+      historical ``coord`` default; one created on a non-primary feature/fork
+      branch defaults to ``single_branch`` — minting a coordination branch there
+      just to have the operator manually flatten it is the friction #2581 closes.
     """
     if explicit_topology is not None:
         return explicit_topology
-    if pr_bound:
-        return MissionTopology.COORD
+    # Fail-safe: without a resolvable repo/checkout we cannot key on target
+    # protection, so keep the historical ``coord`` default. Hoisted ahead of the
+    # pr-bound arm because that arm now needs a resolvable ``repo_root`` to read
+    # the primary target branch's protection.
     if repo_root is None or current_branch is None:
         return MissionTopology.COORD
 
     from specify_cli.core.git_ops import resolve_primary_branch
 
     primary_branch = resolve_primary_branch(repo_root)
+    if pr_bound:
+        from specify_cli.coordination.surface_authority import coord_topology_reachable
+        from specify_cli.git.protection_policy import ProtectionPolicy
+
+        primary_protected = ProtectionPolicy.resolve(repo_root).is_protected(primary_branch)
+        current_is_primary = current_branch == primary_branch
+        return (
+            MissionTopology.COORD
+            if coord_topology_reachable(pr_bound, primary_protected, current_is_primary)
+            else MissionTopology.SINGLE_BRANCH
+        )
     if current_branch == primary_branch:
         return MissionTopology.COORD
     return MissionTopology.SINGLE_BRANCH
