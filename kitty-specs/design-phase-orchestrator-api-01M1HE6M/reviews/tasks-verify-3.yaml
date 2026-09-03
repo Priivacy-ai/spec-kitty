@@ -1,0 +1,10 @@
+schema: review-verify/v1
+complete: true
+phase: tasks
+results:
+  - id: TASKS-FRESH2-001
+    status: resolved
+    reason: tasks.md mission-note 3 (line 50) now reads "dependency graph below", matching the actual layout where the per-WP Dependencies fields appear after the notes block.
+  - id: TASKS-FRESH2-002
+    status: resolved
+    reason: WP07-contract-version-bump.md T033 step 2 (line 97) now prescribes `pytestmark = [pytest.mark.fast]`, the list form that literally matches test_commands_fail_closed.py:39.

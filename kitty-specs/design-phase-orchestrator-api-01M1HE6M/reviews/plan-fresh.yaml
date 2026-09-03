@@ -1,0 +1,105 @@
+schema: review-findings/v1
+complete: true
+phase: plan
+lens_group: fresh
+mission: design-phase-orchestrator-api-01M1HE6M
+findings:
+  - id: PLAN-FRESH-001
+    lens: ci-gate-verification
+    severity: 3
+    title: >-
+      Relocating the SC-008 shared test to tests/specify_cli/next/ makes it
+      collectible by the coverage-emitting jobs but the plan never states the
+      pytest marker required for either job to actually select it
+    evidence:
+      - artifact: "plan.md § (e) Gate Set item 4 (lines ~422-443) and item 3
+          (lines ~402-412); § Project Structure tree (lines ~826-834); WP02
+          row of the Work Package Breakdown table"
+      - code: ".github/workflows/ci-quality.yml:1430 — fast-tests-next runs
+          `pytest tests/next/ tests/specify_cli/next/ tests/runtime/ -m \"fast
+          and not windows_ci\" ... --cov=src/runtime/next` — collection is
+          filtered by the `fast` marker, not merely by directory."
+      - code: ".github/workflows/ci-quality.yml:2757-2799 — integration-tests-next
+          runs the same three paths with `-m '${{ matrix.shard }} and not
+          windows_ci and (git_repo or integration)' ... --cov=src/runtime/next`
+          — collection additionally requires the `git_repo` or `integration`
+          marker; the `next_shard_N` half of that expression is auto-applied
+          by `tests/conftest.py::_apply_shard_markers`, but `git_repo`/
+          `integration` is not."
+      - code: "tests/specify_cli/next/test_runtime_bridge.py:19 —
+          `pytestmark = pytest.mark.fast`; tests/specify_cli/next/
+          test_runtime_bridge_dispatch.py:29 — `pytestmark = [pytest.mark.unit,
+          pytest.mark.fast]` — the two existing sibling files the plan cites
+          as precedent both carry an explicit marker; directory placement
+          alone does not select them into either coverage-emitting job."
+      - code: "pytest.ini:25 — `fast: pure-logic tests with no subprocess/git
+          overhead (sub-second per test)`. The new shared helper reads
+          mission-events.jsonl and the issuance-lifecycle-record store off
+          disk and drives a `next_cmd --answer` invocation (WP02) / an
+          orchestrator-api call (WP08) through real fixture missions, which
+          is very unlikely to qualify as `fast` under this repo's own
+          definition — meaning the realistic marker is `integration` or
+          `git_repo`, collected only by integration-tests-next, not
+          fast-tests-next."
+    claim: >-
+      Gate Set item 4 and the Project Structure/WP02 table entry argue that
+      moving the SC-008 shared test from tests/specify_cli/cli/commands/ to
+      tests/specify_cli/next/ is what makes it "count toward the enforced
+      diff-coverage src/runtime/next/* gate," because that is the directory
+      fast-tests-next and integration-tests-next scan. That is necessary but
+      not sufficient: both jobs additionally filter collection by pytest
+      marker (`fast` for fast-tests-next; `git_repo` or `integration` for
+      integration-tests-next, on top of an auto-applied shard marker). The
+      plan never instructs WP02 to mark the new test module with one of
+      these markers. If WP02's author takes the plan's own framing at face
+      value — "right directory ⇒ counted" — and lands the file unmarked (or
+      with a marker that doesn't match either filter, e.g. no pytestmark at
+      all), the module will be correctly located but invisible to both
+      coverage-emitting jobs. `diff-coverage`'s enforced 90%-of-changed-lines
+      floor on `src/runtime/next/*` would then see zero coverage for the new
+      `next_invocation_lifecycle.py` lines and fail — the exact CI-gate
+      failure item 4 is written to prevent, just one layer later (marker
+      instead of directory).
+    remediation: >-
+      Add one sentence to Gate Set item 4 and the WP02 breakdown-table entry
+      stating the required marker(s) explicitly, e.g.: "WP02's shared test
+      module must carry `pytestmark = [pytest.mark.integration]` (or
+      `git_repo`, matching the fixture-mission/real-file-I/O shape the
+      helper needs) so integration-tests-next's `-m '... and (git_repo or
+      integration)'` filter selects it — the shard marker is auto-applied by
+      tests/conftest.py, but the git_repo/integration marker is not." If a
+      `fast`-eligible variant is feasible, say so instead; either way, name
+      the marker so WP02 does not have to rediscover the requirement from a
+      red diff-coverage job.
+  - id: PLAN-FRESH-002
+    lens: citation-precision
+    severity: 1
+    title: >-
+      "No runtime reference" claim in the FR-014 precedent argument is
+      technically false as literally worded (a `mission_runtime` import
+      exists), though the substantive point it supports still holds
+    evidence:
+      - artifact: "plan.md § (a) FR-014 Target Module Decision, the
+          `orchestrator_api/commands.py` precedent paragraph: '...confirmed:
+          `commands.py:32-66`'s import block contains no `runtime.next` or
+          `runtime` reference...'"
+      - code: "src/specify_cli/orchestrator_api/commands.py:47 — `from
+          mission_runtime import CommitTarget` — a real import inside the
+          cited 32-66 line range whose module name contains the substring
+          `runtime`, from the unrelated top-level `src/mission_runtime/`
+          package (distinct from `src/runtime/next/`)."
+    claim: >-
+      The parenthetical says the import block contains "no ... `runtime`
+      reference," but it does contain one (`mission_runtime`, an unrelated
+      package). The underlying argument — that `commands.py` has zero
+      imports of `runtime.next` specifically, so WP08 introduces the first
+      one — remains true (verified separately via a repo-wide grep for
+      `runtime.next`/`from runtime`/`import runtime` in the file, which
+      returns nothing). This is a wording imprecision, not a substantive
+      error, but a future reader spot-checking the "no runtime reference"
+      phrase verbatim will find a counter-example.
+    remediation: >-
+      Tighten the phrase to "no `runtime.next` (or bare `src/runtime/`)
+      reference" so it doesn't read as a claim about the substring "runtime"
+      generally, which `mission_runtime` (an unrelated package) trivially
+      contradicts.

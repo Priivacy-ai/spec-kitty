@@ -1,0 +1,14 @@
+schema: review-verify/v1
+complete: true
+phase: tasks
+results:
+  - id: TASKS-DECOMP-001
+    status: resolved
+    reason: >-
+      WP07-contract-version-bump.md T033 now states explicit
+      `pytestmark = pytest.mark.fast` for a new test file (naming
+      fast-tests-core-misc's specify-cli-rest shard as the collecting CI job)
+      and explicitly requires preserving the existing file's pytestmark
+      unchanged on the extend-existing-file branch, with a matching
+      Definition of Done checkbox; wps.yaml's WP07 owned_files now lists
+      tests/specify_cli/orchestrator_api/test_contract_version.py.

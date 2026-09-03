@@ -1,0 +1,53 @@
+schema: review-findings/v1
+complete: true
+phase: tasks
+mission: design-phase-orchestrator-api-01M1HE6M
+source: reviews/tasks.merged.yaml, verdicts from reviews/tasks-refute-1.yaml
+findings:
+  - id: TASKS-DECOMP-001
+    lens: mission-derived (marker/job coverage)
+    severity: 3
+    title: "WP07's T033 test permits an ambiguous marker-less new test file"
+    evidence:
+      - artifact: "tasks/WP07-contract-version-bump.md § Subtask T033, Files line"
+      - code: "kitty-specs/design-phase-orchestrator-api-01M1HE6M/tasks/WP07-contract-version-bump.md:96"
+      - artifact: "wps.yaml § WP07.owned_files (lists only src/specify_cli/orchestrator_api/envelope.py, no test file)"
+    claim: >
+      WP07's T033 subtask instructs the implementer to "Add (or extend, if
+      tests/specify_cli/orchestrator_api/ already has a test_contract_version.py-style
+      file covering contract-version — grep first) a test asserting
+      CONTRACT_VERSION == '1.4.0' and the changelog comment names". The Files line
+      reads "existing or new file under tests/specify_cli/orchestrator_api/ ...
+      reuse an existing contract-version test file if one already exists rather
+      than creating a new one" — i.e. a NEW test file is an explicitly permitted
+      outcome. Unlike every other WP in this mission that adds a test file (WP02
+      at line 209, WP03 at line 145, WP04 at line 161, WP05 at line 138, WP06 at
+      line 113, WP08 at line 188 — all verified above), WP07's task file states
+      NO pytestmark and NO target CI job anywhere for this test, for either the
+      "new file" or "extend existing file" branch. This is exactly the
+      decomposition-defect class this mission's own Gate Set (e) and issue #3241
+      describe: a test can sit in the right directory
+      (tests/specify_cli/orchestrator_api/, correctly scoped into the
+      specify-cli-rest / integration-tests-core-misc shards per
+      ci-quality.yml:1699-1710) and still never be selected into either
+      fast-tests-core-misc (`-m "fast and not windows_ci and not regression"`,
+      ci-quality.yml:1794) or integration-tests-core-misc (`-m 'not windows_ci and
+      (git_repo or integration or architectural) and not timing and not
+      regression'`, ci-quality.yml:2068) if it carries no marker at all — an
+      unmarked test matches neither filter and is silently never collected by
+      CI. wps.yaml's WP07 entry compounds this: `owned_files` lists only
+      `envelope.py`, so even the "new file" branch has no declared file-ownership
+      row, unlike WP03/WP04/WP05/WP06's `owned_files` entries which each list
+      their new test file explicitly.
+    remediation: >
+      Add an explicit marker instruction to WP07's T033 (mirroring WP02–WP06/WP08's
+      pattern): since the test only inspects an in-memory Typer response
+      (`contract-version --json`) and re-reads envelope.py's own changelog
+      comment text — no fixture-mission, no real git operations — state that it
+      should carry `pytestmark = pytest.mark.fast` (matching
+      test_commands_fail_closed.py's convention for pure in-process verb tests,
+      per Gate Set (e) item 3), collected by fast-tests-core-misc's
+      specify-cli-rest shard. If reusing an existing test_contract_version.py-style
+      file, state that the existing file's marker must be preserved, not
+      re-derived. If a new file is created, add it to WP07's `owned_files` in
+      wps.yaml.

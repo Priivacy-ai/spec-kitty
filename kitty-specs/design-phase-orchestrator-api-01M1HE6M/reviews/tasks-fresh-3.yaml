@@ -1,0 +1,62 @@
+schema: review-findings/v1
+complete: true
+phase: tasks
+lens_group: fresh
+mission: design-phase-orchestrator-api-01M1HE6M
+round: 3
+findings:
+  - id: TASKS-FRESH3-001
+    lens: debugger-debbie / trace-based-observability (does every precise code citation actually point at the claimed line)
+    severity: 2
+    title: "WP01 cites `next_cmd.py:424` for the un-investigated `# type: ignore[arg-type]` suppression three separate times, but the suppression is actually on line 425"
+    evidence:
+      - artifact: "tasks/WP01-campsite-clean-baseline-red.md line 70 — 'contains an un-investigated `# type: ignore[arg-type]` suppression at `next_cmd.py:424`, on the `phase=phase` argument passed into `write_paired_completion(...)`.'"
+      - artifact: "tasks/WP01-campsite-clean-baseline-red.md line 119 — '## Subtask T002: Resolve or justify the `next_cmd.py:424` type suppression'"
+      - artifact: "tasks/WP01-campsite-clean-baseline-red.md line 217 — '- [ ] `next_cmd.py:424`'s type suppression resolved (narrowed) or justified (inline rationale comment) — never carried forward silently.'"
+      - code: "src/specify_cli/cli/commands/next_cmd.py — `grep -n 'type: ignore\\[arg-type\\]'` returns exactly one hit: `425:        phase=phase,  # type: ignore[arg-type]`. Line 424 is a blank line inside the function body (between the `if result == \"success\":` branch computation and the `write_paired_completion(...)` call)."
+    claim: >
+      This is a real, live-CLI-verifiable off-by-one in a precise single-line citation, repeated three
+      times as though it were an exact pinpoint (a subtask title, an inline prose reference, and a
+      Definition-of-Done checklist item all cite ":424"). It survived the tasks-finalize commit and two
+      prior fix rounds untouched (WP01's file has zero diff in the round-3 working-tree changes). Impact is
+      low because T002 Step 1's own broader instruction ("Read `next_cmd.py:333-429`") correctly spans the
+      real line 425, and any implementer grepping for `type: ignore[arg-type]` in that range will find the
+      suppression regardless of the wrong pinpoint — so this would not cause rework, only a few seconds of
+      "huh, line 424 is blank" friction for whoever reads the citation literally.
+    remediation: >
+      Change all three `next_cmd.py:424` citations in WP01 to `next_cmd.py:425`.
+
+  - id: TASKS-FRESH3-002
+    lens: debugger-debbie / dual-system-divergence-mapping (does the planning artifact's description of external repo state still match live reality)
+    severity: 3
+    title: "PR #3826, described throughout tasks.md and WP03/WP04/WP05/WP06/WP08 as an 'adjacent open PR' carrying a same-file rebase-risk against `orchestrator_api/commands.py` (and a behavioural rebase-risk against `mission_create.py`/`create_mission` for WP03), has already MERGED into `main` — and this mission's own `planning_base_branch` (`feat/design-phase-orchestrator-api-3837`, currently checked out HEAD) is exactly one commit behind `origin/main`, i.e. it does NOT yet include that merge"
+    evidence:
+      - artifact: "kitty-specs/design-phase-orchestrator-api-01M1HE6M/tasks.md mission-level note #3 — 'Additionally, `orchestrator_api/commands.py` has a real, same-file rebase-risk against **PR #3826** (`pr/3131-merge-retention`, touches `commands.py`'s merge-mission area and `mission_create.py`) ... See each affected WP's own \"Write-Scope / Adjacent Open PRs\" section for the per-WP detail.'"
+      - artifact: "tasks/WP03-specify-plan-tasks-verbs.md § Write-Scope — 'this WP's `specify` verb calls `agent_feature.create_mission` ... which **PR #3826** also touches directly — a behavioural (not file-ownership) rebase risk: if #3826 changes `create_mission`'s signature or behavior before this mission merges, this WP's thin wrapper may need a rebase-time fix.'"
+      - artifact: "tasks/WP04-check-prerequisites-record-analysis.md, WP05-decision-ledger-verbs.md, WP06-design-status-verb.md, WP08-answer-decision-verb.md § Write-Scope — each independently states 'same-file overlap with **PR #3826** (merge-mission area)' in future-conditional framing ('Sequence the MERGE of this WP against ... #3826')."
+      - command: "`gh pr view 3826 --json state,mergedAt,baseRefName` → `{\"state\":\"MERGED\",\"mergedAt\":\"2026-09-02T18:40:10Z\",\"baseRefName\":\"main\"}` — merged into `main` today, ~14 minutes before this mission's own `lanes.json.computed_at` (`2026-09-02T18:53:59.659316+00:00`)."
+      - command: "`gh pr view 3826 --json mergeCommit -q .mergeCommit.oid` → `87d851382fc50cd789ba542b28dbc4bc0fb37618`; `git log --oneline origin/main -1` → `87d851382 fix(merge-retention): fold pre-merge squad findings (#3131)` (same commit — that IS the tip of `origin/main`); `git merge-base HEAD origin/main` → `7b6c9f4fadf3f551e578f2c7176b8f134b38daaa`, which is HEAD's own commit — i.e. HEAD is a strict ancestor of `origin/main`, exactly one commit (the #3826 merge) behind."
+    claim: >
+      Every citation of #3826 in this tasks phase is written as a hypothetical, still-pending event —
+      'if #3826 lands first', 'adjacent open PR', 'Sequence the MERGE of this WP against ... #3826'. That
+      framing was accurate when originally written, but PR #3826 merged into `main` earlier today, and the
+      mission's own working branch has not picked up that merge. This is exactly the kind of externally-
+      verifiable staleness the review brief calls out (the mission-level note itself models the right
+      instinct with its own "Live-CLI-verified discrepancy" language for the lane-collapse finding, but
+      that same live-verification wasn't re-run against PR state after the three hand-edit rounds). Two
+      concrete consequences: (1) WP01 (the mission's designated "campsite-clean" / baseline-establishing
+      WP) has no step instructing a rebase of `feat/design-phase-orchestrator-api-3837` onto the now-current
+      `main` before establishing the baseline-red snapshot — so WP01's snapshot, if run today, would be
+      taken against a branch already one merge behind reality. (2) WP03's own text says the `create_mission`
+      behavioural-drift risk should be treated as a live thing to check ("if #3826 changes `create_mission`'s
+      signature or behavior... this WP's thin wrapper may need a rebase-time fix") — that check is now due
+      immediately, not deferred to some future rebase, since the change has already landed on `main`.
+    remediation: >
+      Either (a) add an explicit rebase-onto-`main` step to WP01 (or a new T000-style prerequisite) that
+      picks up #3826's merge before the baseline-red snapshot is taken, and re-verify at that point whether
+      `create_mission`/`setup_plan`'s actual signatures still match WP03's assumptions; or (b) if the
+      mission's `planning_base_branch` is deliberately pinned and rebasing is explicitly out of scope for
+      the tasks phase (an operator/orchestrator call, not a tasks-authoring default), reword the #3826
+      references from future-conditional ("if #3826 lands first", "adjacent open PR") to past-tense/current
+      ("PR #3826 merged into main on 2026-09-02; this mission's branch has not yet rebased onto it") so a
+      reviewer or implementer does not treat it as still-pending when picking up the WP.

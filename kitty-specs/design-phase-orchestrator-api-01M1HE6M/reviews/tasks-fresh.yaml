@@ -1,0 +1,99 @@
+schema: review-findings/v1
+complete: true
+phase: tasks
+lens_group: fresh
+mission: design-phase-orchestrator-api-01M1HE6M
+findings:
+  - id: TASKS-FRESH-001
+    lens: debugger-debbie (structural-root-cause / code-truth verification)
+    severity: 4
+    title: >-
+      WP07's just-applied review fix updated wps.yaml's owned_files but not
+      the WP07 task file's own frontmatter (the field the commit-guard
+      ownership check actually reads) — the new test file is undeclared to
+      the one enforcement path that matters
+    evidence:
+      - artifact: >-
+          `wps.yaml` (post-fix), WP07 entry: `owned_files: [
+          "src/specify_cli/orchestrator_api/envelope.py",
+          "tests/specify_cli/orchestrator_api/test_contract_version.py" ]`
+          — the review fix (diff vs commit a2164a702) added the new test
+          file here.
+      - artifact: >-
+          `tasks/WP07-contract-version-bump.md` YAML frontmatter (unchanged
+          by the fix): `owned_files:\n- src/specify_cli/orchestrator_api/envelope.py`
+          — still only ONE entry. The fix touched this file's BODY text
+          (the T033 "Files" line now says "Either way this path is WP07's
+          declared test-file ownership (`wps.yaml`'s `owned_files`)") but
+          left the file's own frontmatter `owned_files:` list untouched.
+      - artifact: >-
+          `tasks.md` (generated, "Do not edit directly"), WP07 section:
+          `**Owned Files**: src/specify_cli/orchestrator_api/envelope.py`
+          — also still only one entry; not regenerated after the wps.yaml
+          edit.
+      - artifact: >-
+          `lanes.json`, `lane-b.write_scope`: `["src/specify_cli/orchestrator_api/envelope.py"]`
+          only — computed before the fix and likewise not refreshed.
+      - code: >-
+          `src/specify_cli/policy/commit_guard.py:59` docstring: "owned_files:
+          Glob patterns from WP frontmatter." — confirms the enforcement
+          input is the WP prompt file's OWN frontmatter, not `wps.yaml`.
+      - code: >-
+          `src/specify_cli/workspace/context.py:530-552`
+          (`resolve_active_wp_for_branch`) resolves the active WP's task
+          file via `_find_wp_file(planning_dir / "tasks", active_wp_id)`
+          then calls `read_authored_wp_frontmatter(wp_path)` and returns
+          `owned_files=list(metadata.owned_files)` straight from that
+          file's frontmatter — `wps.yaml` is never consulted on this path.
+      - code: >-
+          `src/specify_cli/policy/commit_guard_hook.py:96-131`
+          (`_detect_ownership_scope`) is what the installed git
+          pre-commit hook calls on every commit to obtain
+          `ownership_scope.owned_files`, which
+          `commit_guard.validate_staged_files` then checks staged files
+          against (`commit_guard.py:109-113`, `_matches_any_glob`).
+      - code: >-
+          `src/specify_cli/policy/config.py:40` — `CommitGuardConfig.mode`
+          defaults to `"warn"` (repo-wide, no override found in
+          `.kittify/charter/charter.yaml`), so a scope mismatch currently
+          downgrades to a printed `[spec-kitty guard] WARNING:` rather than
+          blocking the commit (`commit_guard.py:120-123`) — but the
+          contradiction between wps.yaml/tasks.md's claim ("this path is
+          WP07's declared test-file ownership") and the actually-enforced
+          frontmatter is real and live, not hypothetical, and would hard
+          block the commit the moment this repo (or any downstream fork)
+          tightens `commit_guard.mode` to `"block"`.
+    claim: >
+      The review fix that added `tests/specify_cli/orchestrator_api/test_contract_version.py`
+      to WP07 touched exactly one of the (at least) four places that must
+      agree on WP07's file ownership — `wps.yaml` — and left the other
+      three stale: the WP07 task file's own YAML frontmatter `owned_files:`
+      list (the field the ownership/commit-guard machinery actually reads
+      at implementation time, per `commit_guard.py`'s own docstring and
+      `resolve_active_wp_for_branch`'s file-read path), `tasks.md`'s
+      generated per-WP "Owned Files" summary line, and `lanes.json`'s
+      `lane-b.write_scope`. The WP07 body text's own claim — "this path is
+      WP07's declared test-file ownership (`wps.yaml`'s `owned_files`)" —
+      is misleading: `wps.yaml` is NOT the source the runtime ownership
+      guard consults; the WP's own frontmatter is, and that frontmatter
+      still only declares `envelope.py`. In today's `mode: warn` config
+      this produces a spurious `ACTIVE_WP_OWNERSHIP` scope-violation
+      warning on the exact commit T033 instructs the implementer to make
+      (staging the new test file); under `mode: block` (the CLI's own
+      stricter option, not enabled by default but one config edit away)
+      it would outright block that commit. This is exactly the "fix that
+      introduced an inconsistency elsewhere" class the review brief flags
+      — the fix is incomplete, not wrong in direction.
+    remediation: >
+      Add `tests/specify_cli/orchestrator_api/test_contract_version.py` to
+      WP07's own frontmatter `owned_files:` list in
+      `tasks/WP07-contract-version-bump.md` (the field that actually
+      matters at implementation time), regenerate `tasks.md`'s WP07 "Owned
+      Files" line from the corrected `wps.yaml`/WP file (or hand-edit it to
+      match, since `finalize-tasks` was not re-run for this fix), and
+      recompute or hand-patch `lanes.json`'s `lane-b.write_scope` to include
+      the new path so the lane's write-scope record matches what WP07 will
+      actually touch. Correct the WP07 body's citation from "`wps.yaml`'s
+      `owned_files`" to "this WP's own frontmatter `owned_files`" (or cite
+      both, now that they're kept in sync) so it doesn't mis-point a future
+      reader at the wrong source of truth.
