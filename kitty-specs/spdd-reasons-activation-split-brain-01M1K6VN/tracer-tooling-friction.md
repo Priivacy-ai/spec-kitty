@@ -22,12 +22,21 @@ the two named architectural gates this mission's own NFR-005/plan.md section (f)
 to — runs unconditionally in CI's always-on architectural pole on every PR regardless of path, per its own
 header comment. **WP05's edits to these two files will trip this gate.**
 
-**Not resolved by this session**: no code, test, or exception-list change was made to work around this. WP05's
-prompt file (`tasks/WP05-docs-activation-authority.md`) instructs the implementing agent to make the FR-009
-edits as specified, record this same finding, and state explicitly in the PR description that this specific
-test is an expected, known red for this reason — an operator decision (extend the exception list? move the
-contract docs to a non-frozen location? accept a permanent narrow exception?) is needed, not a unilateral
-pick by an implementing agent.
+**Update — RESOLVED by operator ruling (tasks phase R4, `reviews/tasks.ruling.md`), not escalated further**:
+the operator ruled from precedent (`charter-authority-flip-01M14RB3`, cited directly in
+`tests/architectural/test_archive_root_byte_identical.py`'s own module docstring — "the correction belongs
+in the live mission dossier, not the archive") that this is not a genuine tension needing a case-by-case
+operator pick each time it recurs: the two frozen contract docs
+(`kitty-specs/spdd-reasons-doctrine-pack-01KQC4AX/contracts/activation.md`,
+`.../charter-context.md`) stay byte-identical, never edited. The FR-009 correction they would have carried
+is instead written to a NEW file under this mission's own live dossier —
+`kitty-specs/spdd-reasons-activation-split-brain-01M1K6VN/contracts-activation-authority-update.md` — an
+ADD relative to `_MISSION_BASE_REV`, so the gate never fires against WP05's own edits. WP05's prompt file
+(`tasks/WP05-docs-activation-authority.md`) was rewritten this round (R4) to reflect this: it no longer
+instructs editing either frozen file, and its Definition of Done requires
+`pytest tests/architectural/test_archive_root_byte_identical.py -q` to pass CLEAN before WP05's work is
+committed, not to be reported as an expected red. Re-run live during this R4 fix round: 2 passed, zero
+changes under `kitty-specs/spdd-reasons-doctrine-pack-01KQC4AX/contracts/`.
 
 ## 2. `tasks.md` has zero freeform-prose capacity — several mission-brief-required statements had to live in WP prompt bodies instead
 

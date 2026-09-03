@@ -1,6 +1,6 @@
 ---
 work_package_id: WP05
-title: 'Docs: contracts/activation.md, contracts/charter-context.md, docs/context/charter.md'
+title: 'Docs: docs/context/charter.md + a new mission-dossier contracts-authority update (NFR-002-safe relocation)'
 dependencies:
 - WP01
 - WP02
@@ -16,19 +16,19 @@ subtasks:
 history: []
 agent_profile: scribe-sally
 authoritative_surface: docs/context/
-create_intent: []
+create_intent:
+- kitty-specs/spdd-reasons-activation-split-brain-01M1K6VN/contracts-activation-authority-update.md
 execution_mode: planning_artifact
 model: ''
 owned_files:
 - docs/context/charter.md
-- kitty-specs/spdd-reasons-doctrine-pack-01KQC4AX/contracts/activation.md
-- kitty-specs/spdd-reasons-doctrine-pack-01KQC4AX/contracts/charter-context.md
+- kitty-specs/spdd-reasons-activation-split-brain-01M1K6VN/contracts-activation-authority-update.md
 role: documentarian
 tags: []
 tracker_refs: []
 ---
 
-# WP05 — Correct the stated activation authority in docs and contract files
+# WP05 — Correct the stated activation authority in `docs/context/charter.md`; relocate the contract-doc correction into this mission's own live dossier
 
 ## ⚡ Do This First: Load Agent Profile
 
@@ -42,12 +42,11 @@ If no profile is specified, run `spec-kitty agent profile list` and select the b
 
 ---
 
-## ⚠️ READ THIS BEFORE STARTING — TWO REAL TOOLING TENSIONS FOUND FOR THIS WP, NEITHER SILENTLY RESOLVED
+## ⚠️ READ THIS BEFORE STARTING — one tooling note (exemption path), one ruled tension (relocation, not escalation)
 
 This WP's own file scope was investigated ahead of time (during tasks authoring) against two specific
-hazards the mission brief named. **Both investigations are recorded here so the implementer does not have
-to rediscover them, and BOTH must be surfaced again in the PR description — do not silently work around
-either.**
+hazards the mission brief named. Both investigations are recorded here so the implementer does not have to
+rediscover them.
 
 ### 1. `finalize-tasks`'s `owned_files`-under-`kitty-specs/` rejection (ledger SK-146) — a real, working
    exemption path WAS found; use it, but confirm it live before trusting this note
@@ -57,84 +56,101 @@ either.**
 `kitty-specs/` or `docs/` prefix (`src/specify_cli/cli/commands/agent/mission_parsing.py`'s
 `_is_confined_planning_wp`/`_invalid_mission_specs_owned_files`, read in full for this WP's authoring).
 This WP's frontmatter is set accordingly: `execution_mode: "planning_artifact"`, and `owned_files` is
-exactly `docs/context/charter.md` (under `docs/`) plus the two contract docs (under `kitty-specs/`) — no
+exactly `docs/context/charter.md` (under `docs/`) plus **this mission's own new
+`contracts-activation-authority-update.md`** (under `kitty-specs/spdd-reasons-activation-split-brain-01M1K6VN/`
+— this mission's own live dossier, not the frozen `spdd-reasons-doctrine-pack-01KQC4AX` archive) — no
 `src/`/`tests/` path is mixed in, which is required for the exemption to apply (a mislabeled
-`planning_artifact` WP that ALSO owns a non-planning path is NOT exempted, by design). **`finalize-tasks
---validate-only` was run against exactly this shape during this review round and passed cleanly — zero
-`owned_files`-under-`kitty-specs/` rejections for this WP.** No separate authoring-report artifact records
-this; the result is stated here directly. Re-run the command live yourself (before you start editing) to
-confirm the same result in your own workspace — per Reviewer Guidance below, this live re-run is expected
-regardless of what this note says. If your own `--validate-only` run shows a DIFFERENT result than stated
-here, STOP and record what actually happened in
+`planning_artifact` WP that ALSO owns a non-planning path is NOT exempted, by design). **Re-run
+`finalize-tasks --validate-only` live yourself (before you start editing) against this corrected
+`owned_files` shape** — do not trust a prior round's result for the OLD `owned_files` shape (the two
+frozen contract-doc paths), since the set has changed this round. If your own `--validate-only` run shows a
+rejection, STOP and record what actually happened in
 `kitty-specs/spdd-reasons-activation-split-brain-01M1K6VN/tracer-tooling-friction.md` (create it if
 absent) rather than hand-editing `wps.yaml`/frontmatter to route around it.
 
-### 2. `tests/architectural/test_archive_root_byte_identical.py` — a REAL, CONFIRMED conflict with FR-009,
-   NOT resolved by this WP, escalate to the operator
+### 2. `tests/architectural/test_archive_root_byte_identical.py` — RULED, not escalated: relocate, don't edit
+   the frozen files
+
+**Prior-round framing (superseded by the operator ruling, `reviews/tasks.ruling.md`):** an earlier version
+of this WP instructed editing `kitty-specs/spdd-reasons-doctrine-pack-01KQC4AX/contracts/activation.md` and
+`.../charter-context.md` directly and escalating the resulting `test_archive_root_byte_identical.py` CI red
+to the operator as an unresolved tension between FR-009 and NFR-002. **That escalation is overruled.** The
+operator ruling settles this from precedent: a sibling mission (`charter-authority-flip-01M14RB3`) hit the
+identical trap and resolved it by ADDing new content under its OWN mission's archive dir
+(`kitty-specs/charter-authority-flip-01M14RB3/`) rather than editing the frozen file — see this gate's own
+module docstring, which documents the precedent directly: *"Editing an archived artifact to 'fix' a stale
+line is forbidden... the correction belongs in the live mission dossier, not the archive."*
 
 This architectural gate (module docstring: "Archive-root byte-identity gate... `kitty-specs/` — archived
 mission dossiers... must not touch a single byte of any file that already existed under those roots at the
 mission base") compares the working tree against a FIXED historical commit (`_MISSION_BASE_REV =
-"fc4acaa897"`, from an unrelated mission, `charter-authority-flip-01M14RB3`) and fails if any file that
-existed under `kitty-specs/` (among other roots) AT THAT REVISION is modified — ADD-only is allowed, Modify
-or Delete of a pre-existing file is a real violation. **Confirmed by direct `git show` for this WP's
-authoring**: both `kitty-specs/spdd-reasons-doctrine-pack-01KQC4AX/contracts/activation.md` and
+"fc4acaa897"`) and fails if any file that existed under `kitty-specs/` (among other roots) AT THAT REVISION
+is modified — ADD-only is allowed, Modify or Delete of a pre-existing file is a real violation. **Confirmed
+by direct `git show`**: both `kitty-specs/spdd-reasons-doctrine-pack-01KQC4AX/contracts/activation.md` and
 `.../charter-context.md` ALREADY EXISTED at `fc4acaa897`, and neither is in this test's
-`_APPEND_ONLY_SPINE_EXCEPTIONS` whitelist (which names exactly one file, an unrelated rename-reconcile
-spine). **This means FR-009's required edits to these two contract docs WILL trip
-`test_archive_root_byte_identical.py` in CI's always-on architectural pole** — even though this test is
-NOT one of the two named architectural gates this mission's own NFR-005/plan.md section (f) scopes local
-verification to, it still runs unconditionally on every PR (per its own header: "the always-on
-arch-adversarial job on EVERY push/PR regardless of path").
+`_APPEND_ONLY_SPINE_EXCEPTIONS` whitelist — so editing either one directly WOULD trip the gate.
 
-**Do NOT resolve this tension yourself by**: editing `test_archive_root_byte_identical.py`'s exception list
-(out of this mission's file scope, and belongs to a different mission's naming — extending it unilaterally
-is a real, undiscussed policy change); silently dropping the two contract-doc edits from FR-009's scope;
-or silently proceeding as if the conflict doesn't exist.
+**The corrected scope (T018 below) never touches either frozen file.** Both stay byte-identical to their
+archived state; this WP does not read them for edit purposes at all beyond citation-checking the new
+mission-dossier file's cross-reference pointers. The corrected activation-authority content that a prior
+round would have written into those two contract docs is instead written to a NEW file — new path, never
+existing before — under THIS mission's own live dossier
+(`kitty-specs/spdd-reasons-activation-split-brain-01M1K6VN/contracts-activation-authority-update.md`, an ADD
+relative to `_MISSION_BASE_REV`, so the gate never fires against this WP's own edits). **Do NOT resolve this
+by**: editing `test_archive_root_byte_identical.py`'s exception list (out of this mission's file scope, and
+belongs to a different mission's naming — extending it unilaterally is a real, undiscussed policy change);
+or editing either frozen contract doc "just this once."
 
-**What TO do**: make the edits FR-009 requires (Subtask T018 below) so the mission's actual documentation
-deliverable is real and reviewable, but:
-1. Record this finding in `kitty-specs/spdd-reasons-activation-split-brain-01M1K6VN/tracer-tooling-friction.md`
-   (create it if absent — this file is explicitly not one of the four NFR-002 immutable roots, and per this
-   mission's own Standing Order #3 the friction itself is what gets recorded here even though tracer files
-   are normally orchestrator-seeded).
-2. State plainly in the PR description that `test_archive_root_byte_identical.py` is expected to fail (or
-   already known to fail, if you run it locally and confirm) against this mission's diff specifically
-   because of these two contract-doc edits, and that this is a genuine, unresolved tension between FR-009
-   (which requires the edits) and NFR-002's archive-root freeze (which forbids them) that needs an operator
-   decision — NOT a mistake to quietly fix by picking a side.
-3. Do not mark this WP's CI as unconditionally green if this specific test fails for this specific reason —
-   name it explicitly as the one known, expected red, distinct from any other regression.
+**What TO do (Subtask T018 below)**:
+1. Run `pytest tests/architectural/test_archive_root_byte_identical.py -q` BEFORE committing this WP's work,
+   against a `git status`/`git diff` that shows ZERO changes under
+   `kitty-specs/spdd-reasons-doctrine-pack-01KQC4AX/contracts/` — confirm it passes clean. Under the
+   corrected scope this test should never fire for this WP's own edits; a failure here means the scope was
+   not followed and must be fixed before committing, not reported as an expected red.
+2. Record the relocation decision (not an unresolved tension — a settled ruling) in
+   `kitty-specs/spdd-reasons-activation-split-brain-01M1K6VN/tracer-tooling-friction.md` (create it if
+   absent), naming the new file's path and the two frozen originals it supersedes/points to.
 
 ## Objective
 
-Update `contracts/activation.md`, `contracts/charter-context.md`, and `docs/context/charter.md`'s three
-glossary entries (plus add a new `activated_<kind>` entry) to state the corrected, current activation
-authority (`activated_<kind>` via `PackContext`/INV-2 resolution) instead of the stale `governance.yaml`/
-`directives.yaml`/`selected_<kind>`-as-sole-authority framing (FR-009). No ATDD test applies to this WP
-(SC-005 explicitly exempts docs from a red-first test) — verified by review at PR time instead.
+Update `docs/context/charter.md`'s three glossary entries (plus add a new `activated_<kind>` entry) to
+state the corrected, current activation authority (`activated_<kind>` via `PackContext`/INV-2 resolution)
+instead of the stale `governance.yaml`/`directives.yaml`/`selected_<kind>`-as-sole-authority framing
+(FR-009). The equivalent correction that FR-009 requires for `contracts/activation.md` and
+`contracts/charter-context.md` is written to a NEW file under this mission's own live dossier —
+`kitty-specs/spdd-reasons-activation-split-brain-01M1K6VN/contracts-activation-authority-update.md` — that
+states the corrected facts and points back at the two frozen originals, per the operator ruling
+(`reviews/tasks.ruling.md`): **restore any pre-existing archived file byte-identical and relocate the new
+material into this mission's own live dossier**, mirroring the precedent
+`tests/architectural/test_archive_root_byte_identical.py`'s own module docstring documents
+(`charter-authority-flip-01M14RB3`, "the correction belongs in the live mission dossier, not the archive").
+No ATDD test applies to this WP (SC-005 explicitly exempts docs from a red-first test) — verified by review
+at PR time instead.
 
 ## Context
 
-Both contract docs (read in full for this WP's authoring, see excerpts below) predate the IC-04
-triad-retirement — they still name `governance.yaml`/`directives.yaml` as the read target, files already
-retired independent of this mission. `docs/context/charter.md` (frontmatter `doc_status: active`, `updated:
-'2026-08-28'` — the repo's canonical, actively-maintained Terminology-Canon glossary) currently defines
-`selected_<kind>` as ITSELF the activation mechanism in three places, with `activated_<kind>`/`PackContext`
-appearing nowhere in the document — directly contradicting this mission's corrected premise (spec FR-009).
+Both frozen contract docs (read in full for this WP's authoring — you still need to read them to know what
+they currently say, even though you will not edit them) predate the IC-04 triad-retirement — they still
+name `governance.yaml`/`directives.yaml` as the read target, files already retired independent of this
+mission. `docs/context/charter.md` (frontmatter `doc_status: active`, `updated: '2026-08-28'` — the repo's
+canonical, actively-maintained Terminology-Canon glossary) currently defines `selected_<kind>` as ITSELF the
+activation mechanism in three places, with `activated_<kind>`/`PackContext` appearing nowhere in the
+document — directly contradicting this mission's corrected premise (spec FR-009). `docs/context/charter.md`
+is edited in place as before (T017, unchanged from prior rounds) — it is not under any frozen archive root
+and NFR-002 does not apply to it.
 
 **One-PR-shape note**: this WP is sequenced LAST (depends on WP01/WP02/WP03) specifically so the doc text
 describes the FINAL, merged shape rather than an interim one (plan.md, "Phasing into Work Packages," WP5).
-Do not start T018 until you can read WP01/WP02/WP03's actual landed behavior, not merely this prompt's
+Do not start T017/T018 until you can read WP01/WP02/WP03's actual landed behavior, not merely this prompt's
 description of intended behavior — re-verify against the live code one more time before writing the doc
 prose, per this mission's own citation-discipline rule (it has HALTed twice on citation drift already).
 
 ### Markdown lint
 
-Both contract docs and `docs/context/charter.md` are Markdown; `markdownlint-cli2` runs against changed
-Markdown files (plan.md section f) — run it locally before finalizing if available, or at minimum confirm
-your edits preserve the existing heading/table structure and do not introduce trailing whitespace or
-inconsistent list markers.
+`docs/context/charter.md` and the new mission-dossier file are both Markdown; `markdownlint-cli2` runs
+against changed Markdown files (plan.md section f) — run it locally before finalizing if available, or at
+minimum confirm your edits preserve the existing heading/table structure and do not introduce trailing
+whitespace or inconsistent list markers.
 
 ## Subtask T017: `docs/context/charter.md` — 3 corrected entries + 1 new entry
 
@@ -187,97 +203,133 @@ required_&lt;kind&gt;" entries, and add a new `activated_<kind>` entry, per FR-0
 `#global-selection`, `#charter-mediated-selection`, `#selected-kind--required-kind` elsewhere in the file
 to confirm anchor text still matches if you changed any heading).
 
-## Subtask T018: `contracts/activation.md` and `contracts/charter-context.md`
+## Subtask T018: a NEW mission-dossier file supersedes/corrects the two frozen contract docs (neither is edited)
 
-**Purpose**: Update both contract docs to state the new source of truth and the new failure modes
-(FR-004/FR-005), per FR-009.
+**Purpose**: FR-009 requires the activation-authority facts in `contracts/activation.md` and
+`contracts/charter-context.md` to be corrected. Per the operator ruling, that correction is delivered by
+ADDING a new file to this mission's own live dossier rather than editing either frozen contract doc (both
+already existed at `test_archive_root_byte_identical.py`'s `_MISSION_BASE_REV`, so an edit to either is a
+real NFR-002 violation — confirmed by `git show`, see the tooling note above).
 
-**Steps — `kitty-specs/spdd-reasons-doctrine-pack-01KQC4AX/contracts/activation.md`** (41 lines, read in
-full for this WP's authoring):
-1. **Output section** — unchanged in substance (the four-selector disjunction is still correct); no edit
-   needed unless WP01's final implementation changed the selector set (it should not have — FR-001/Decision
-   Record 1 preserve the four selectors verbatim).
-2. **Failure modes section** — currently states "Missing `.kittify/charter/`: returns `False`," "Malformed
-   governance.yaml: raises," "No paradigms section in governance.yaml: returns `False`." Rewrite to name
-   the ACTUAL new source and failure modes per WP01's implementation: missing `.kittify/config.yaml` →
-   `False` (FR-004's explicit, evidence-based carve-out — state it as deliberate, not full `PackContext`
-   parity); malformed `.kittify/config.yaml` OR a dangling/malformed `charter:` pointer target → raises
-   (FR-005); no `activated_*` keys present at all → `None` per-kind → treated as "all built-ins available"
-   (matching the disjunction's own "selector satisfied" semantics for an absent key, per this mission's
-   FR-001(d)) — this is a NEW failure-mode row relative to the old contract's "no paradigms section →
-   False," since under `PackContext`'s three-state semantics an absent section is NOT the same outcome as
-   an explicitly-empty one.
-3. **Performance section** — currently "Reads at most two YAML files (`governance.yaml`, `directives.yaml`).
-   Must complete in <50ms typical." Rewrite: "Reads at most two YAML files (`.kittify/config.yaml`, and the
-   pointed `.kittify/charter/charter.yaml` when INV-2's `charter:` pointer is present). Must complete in
-   <50ms typical" — same file COUNT, corrected file NAMES.
-4. **Tests (acceptance) table** — rewrite each "Charter selection" column entry to name the
-   `.kittify/config.yaml`/`activated_*`-based fixture shape instead of an unqualified "selected" framing;
-   add a new row for the explicit-empty-vs-absent distinction (mirroring FR-002's fixture matrix / this
-   mission's WP01 parity test) since the old table's 7 cases predate the three-state semantics entirely.
+**Do NOT edit, in this subtask or anywhere else in this WP**:
+`kitty-specs/spdd-reasons-doctrine-pack-01KQC4AX/contracts/activation.md` or
+`kitty-specs/spdd-reasons-doctrine-pack-01KQC4AX/contracts/charter-context.md`. Read both in full (you need
+their current content to write the correction against), but do not open either in an editor with intent to
+save a change. `git status`/`git diff` scoped to
+`kitty-specs/spdd-reasons-doctrine-pack-01KQC4AX/contracts/` must show ZERO changes when this subtask is
+done.
 
-**Steps — `kitty-specs/spdd-reasons-doctrine-pack-01KQC4AX/contracts/charter-context.md`** (33 lines, read
-in full for this WP's authoring):
-1. **"Implementation seam" section** — currently names `src/doctrine/spdd_reasons/charter_context.py` as
-   the helper's home and `src/charter/context.py`'s `_append_action_doctrine_lines()` (line 537) as the call
-   site. **Already re-verified for this WP's authoring, live**: the real function is
+**Steps**:
+1. Read both frozen contract docs in full (`kitty-specs/spdd-reasons-doctrine-pack-01KQC4AX/contracts/activation.md`,
+   41 lines; `.../charter-context.md`, 33 lines) so the new file's corrections are grounded in what they
+   currently, actually say — not a paraphrase from this prompt.
+2. Create `kitty-specs/spdd-reasons-activation-split-brain-01M1K6VN/contracts-activation-authority-update.md`
+   (a NEW path — this file must not already exist; if it does, something is wrong, stop and investigate
+   rather than overwriting). Open with a short header stating plainly: this file supersedes/corrects the
+   activation-authority facts in the two frozen contract docs below (link both by their real repo-relative
+   paths) because those files are under a byte-frozen archive root
+   (`tests/architectural/test_archive_root_byte_identical.py`) and cannot be edited directly; this file is
+   the live, current-authority pointer a future reader should trust over the frozen originals for the facts
+   named here.
+3. Write the SAME corrected content a prior round would have put directly into
+   `contracts/activation.md`'s **Failure modes**, **Performance**, and **Tests (acceptance table)**
+   sections, each as its own clearly-labeled subsection of the new file, structured so a reader can tell
+   which frozen section each subsection corrects:
+   - **Failure modes** (corrects `contracts/activation.md`'s "Missing `.kittify/charter/`: returns `False`,"
+     "Malformed governance.yaml: raises," "No paradigms section in governance.yaml: returns `False`" rows):
+     name the ACTUAL source and failure modes per WP01's landed implementation — missing
+     `.kittify/config.yaml` → `False` (FR-004's explicit, evidence-based carve-out — state it as
+     deliberate, not full `PackContext` parity); malformed `.kittify/config.yaml` OR a dangling/malformed
+     `charter:` pointer target → raises (FR-005); no `activated_*` keys present at all → `None` per-kind →
+     treated as "all built-ins available" (per FR-001(d)) — a NEW failure-mode row relative to the frozen
+     doc's "no paradigms section → False," since under `PackContext`'s three-state semantics an absent
+     section is NOT the same outcome as an explicitly-empty one.
+   - **Performance** (corrects `contracts/activation.md`'s "Reads at most two YAML files (`governance.yaml`,
+     `directives.yaml`). Must complete in <50ms typical."): "Reads at most two YAML files
+     (`.kittify/config.yaml`, and the pointed `.kittify/charter/charter.yaml` when INV-2's `charter:`
+     pointer is present). Must complete in <50ms typical" — same file COUNT, corrected file NAMES.
+   - **Tests (acceptance) table** (corrects `contracts/activation.md`'s 7-case table, which predates the
+     three-state semantics): name the `.kittify/config.yaml`/`activated_*`-based fixture shape instead of
+     the old unqualified "selected" framing, and add a row for the explicit-empty-vs-absent distinction
+     (mirroring FR-002's fixture matrix / this mission's WP01 parity test).
+4. Add an **Implementation seam** subsection (corrects `contracts/charter-context.md`'s "Implementation
+   seam" section, which names the stale `src/doctrine/spdd_reasons/charter_context.py` +
+   `src/charter/context.py`'s `_append_action_doctrine_lines()`): re-verify live, immediately before
+   writing this section (it may have shifted since this prompt was authored), that the real function is
    `append_spdd_reasons_guidance(lines, mission, action)`, defined in
-   `src/charter/offering/spdd_reasons/charter_context.py:59` and re-exported from
-   `src/charter/offering/spdd_reasons/__init__.py`. Its real call site is
-   `src/charter/activation/context_renderers/bootstrap_text.py:333` (inside a module under
-   `charter.activation.context_renderers`, not `src/charter/context.py` — that file/module no longer
-   exists at that path or does not contain this call). Update the contract to name both the correct module
-   path and the correct call site — re-confirm the exact line number one more time immediately before
-   editing (it may have shifted again since this note was written), and prefer citing by symbol
+   `src/charter/offering/spdd_reasons/charter_context.py` and re-exported from
+   `src/charter/offering/spdd_reasons/__init__.py`, with its real call site inside
+   `src/charter/activation/context_renderers/bootstrap_text.py` (a module under
+   `charter.activation.context_renderers`, not `src/charter/context.py`, which no longer contains this
+   call). Name both the correct module path and the correct call site; prefer citing by symbol
    (`append_spdd_reasons_guidance`, `bootstrap_text.py`'s doctrine-bundle rendering block) over a bare line
-   number where possible, per this mission's citation-discipline rule.
-2. **"Behavior change"/"Inactive guarantee" sections** — the byte-identical-when-inactive contract is
-   unaffected by this mission (a pure read-path fix, C-002) and needs no substantive change, but re-verify
-   the cited test file (`tests/charter/test_charter_context_spdd_reasons.py`) still contains the described
-   "inactive baseline" fixture after WP04's triage — it should (WP04 does not remove
-   `TestCharterContextInactive`).
-3. No change needed to "JSON shape (unchanged)" or "Performance" sections unless WP01/02/03's actual
-   implementation changed a budget number (it should not have).
+   number, per this mission's citation-discipline rule.
+5. Add a short **Unaffected by this mission** subsection noting: `contracts/charter-context.md`'s "Behavior
+   change"/"Inactive guarantee" sections (the byte-identical-when-inactive contract, unaffected — a pure
+   read-path fix, C-002) and "JSON shape (unchanged)" — re-verify the cited test file
+   (`tests/charter/test_charter_context_spdd_reasons.py`) still contains the described "inactive baseline"
+   fixture after WP04's triage (it should — WP04 does not remove `TestCharterContextInactive`) and state
+   that confirmation in this subsection rather than silently assuming it.
+6. Close with a short **Pointer** section repeating both frozen originals' paths and a one-line note that
+   they remain byte-identical to their archived state by design (NFR-002) — this file is the corrected
+   reading, not a replacement artifact that retires them.
 
-**Files**: `kitty-specs/spdd-reasons-doctrine-pack-01KQC4AX/contracts/activation.md` (~20-30 lines edited),
-`kitty-specs/spdd-reasons-doctrine-pack-01KQC4AX/contracts/charter-context.md` (~5-10 lines edited)
-**Validation**: Read the diff against the live `activation.py`/`context.py` (or wherever the seam actually
-lives now) to confirm the doc no longer contradicts shipped behavior — "a doc/code disagreement is a doc
-defect" (charter, Documentation structure section).
+**Files**: `kitty-specs/spdd-reasons-activation-split-brain-01M1K6VN/contracts-activation-authority-update.md`
+(new, ~60-100 lines)
+**Validation**: Read the new file's content against the live `activation.py`/`bootstrap_text.py` (or
+wherever the seam actually lives now) to confirm it does not contradict shipped behavior — "a doc/code
+disagreement is a doc defect" (charter, Documentation structure section) applies to this new file exactly
+as it would to an edited one. Then run `git status`/`git diff` scoped to
+`kitty-specs/spdd-reasons-doctrine-pack-01KQC4AX/contracts/` and confirm it is empty, and run
+`pytest tests/architectural/test_archive_root_byte_identical.py -q` and confirm it passes clean — do this
+BEFORE committing this WP's work, not after.
 
 ## Definition of Done
 
 - `docs/context/charter.md`'s three named entries are corrected and a new `activated_<kind>` entry exists,
   cross-linked; `updated:` frontmatter bumped.
-- `contracts/activation.md` and `contracts/charter-context.md` no longer name the retired
-  `governance.yaml`/`directives.yaml` files as the read target, and state FR-004/FR-005's actual failure
-  modes.
-- The SK-146 exemption path was confirmed live (or, if it behaved differently, the discrepancy was recorded
-  in `tracer-tooling-friction.md`, not silently routed around).
-- The `test_archive_root_byte_identical.py` conflict is recorded in `tracer-tooling-friction.md` and stated
-  explicitly in the PR description as an unresolved, operator-facing tension — not silently fixed or
-  silently ignored.
+- `kitty-specs/spdd-reasons-activation-split-brain-01M1K6VN/contracts-activation-authority-update.md` exists
+  (new file), states the corrected FR-004/FR-005 failure modes, performance section, acceptance-table
+  shape, and implementation-seam citation that would otherwise have gone into `contracts/activation.md`/
+  `contracts/charter-context.md`, and points back at both frozen originals by path.
+- `kitty-specs/spdd-reasons-doctrine-pack-01KQC4AX/contracts/activation.md` and `.../charter-context.md` are
+  BYTE-IDENTICAL to their state before this WP — confirmed via `git status`/`git diff` scoped to
+  `kitty-specs/spdd-reasons-doctrine-pack-01KQC4AX/contracts/` showing zero changes.
+- `pytest tests/architectural/test_archive_root_byte_identical.py -q` was actually run against this WP's
+  finished diff and passes clean — not merely assumed, and not reported as an expected/known red.
+- The SK-146 exemption path was confirmed live against the CORRECTED `owned_files` shape (the new
+  mission-dossier path, not the two frozen contract-doc paths) via `finalize-tasks --validate-only` (or, if
+  it behaved differently, the discrepancy was recorded in `tracer-tooling-friction.md`, not silently routed
+  around).
+- The relocation decision (new file supersedes the two frozen contract docs) is recorded in
+  `tracer-tooling-friction.md`, naming the new file's path and the two originals it points back to.
 
 ## Risks
 
 - **Silent drift-fix**: "correcting" a stale citation by guessing at the current line number instead of
   re-reading the live file reproduces this mission's own two prior citation-drift HALTs — always re-read
   before citing.
-- **Treating the archive-root conflict as this WP's to resolve**: editing `test_archive_root_byte_identical.py`
-  or its exception list is explicitly OUT OF SCOPE for this WP — flag, do not fix.
+- **Editing a frozen file "just this once"**: touching either
+  `kitty-specs/spdd-reasons-doctrine-pack-01KQC4AX/contracts/activation.md` or `.../charter-context.md`,
+  even a whitespace-only or "obviously safe" edit, is a real NFR-002 violation this round exists to avoid —
+  if you find yourself with an open diff against either file, stop and move that content into the new
+  mission-dossier file instead.
+- **Treating the archive-root gate itself as this WP's to fix**: editing
+  `test_archive_root_byte_identical.py` or its exception list is explicitly OUT OF SCOPE for this WP.
 - **Losing cross-references**: renaming or restructuring a glossary entry's heading without updating every
   other entry's `[Term](#anchor)` reference elsewhere in `docs/context/charter.md` silently breaks intra-doc
   navigation.
 
 ## Reviewer Guidance
 
-- Confirm `tracer-tooling-friction.md` actually exists and actually names the archive-root gate conflict,
-  with the exact test file path and the exact two contract-doc paths.
-- Confirm the PR description states the expected `test_archive_root_byte_identical.py` failure explicitly,
-  distinct from any other CI red.
-- Spot-check one or two citations in the rewritten contract docs against the live source they describe.
-- Confirm this WP's `owned_files`/`execution_mode: planning_artifact` shape actually passed
-  `finalize-tasks --validate-only` in practice (ask for the command output), not merely assumed from this
-  prompt's SK-146 note.
+- Confirm `tracer-tooling-friction.md` actually exists and actually names the relocation decision, with the
+  new file's path and the two frozen originals it supersedes.
+- Confirm `git status`/`git diff` scoped to `kitty-specs/spdd-reasons-doctrine-pack-01KQC4AX/contracts/`
+  shows zero changes, and that the PR description states `test_archive_root_byte_identical.py` was run and
+  passed — not reported as an expected/known CI red (that framing is superseded this round).
+- Spot-check one or two citations in the new mission-dossier file against the live source they describe.
+- Confirm this WP's `owned_files`/`execution_mode: planning_artifact` shape (the corrected set: `docs/
+  context/charter.md` plus the new mission-dossier path) actually passed `finalize-tasks --validate-only`
+  in practice (ask for the command output), not merely assumed from this prompt's SK-146 note.
 
 Implementation command: `spec-kitty agent action implement WP05 --agent claude`

@@ -99,15 +99,14 @@ work_packages:
     agent: "claude"
 
   - id: WP05
-    title: "Docs: contracts/activation.md, contracts/charter-context.md, docs/context/charter.md"
+    title: "Docs: docs/context/charter.md + a new mission-dossier contracts-authority update (NFR-002-safe relocation)"
     dependencies:
       - WP01
       - WP02
       - WP03
     owned_files:
       - "docs/context/charter.md"
-      - "kitty-specs/spdd-reasons-doctrine-pack-01KQC4AX/contracts/activation.md"
-      - "kitty-specs/spdd-reasons-doctrine-pack-01KQC4AX/contracts/charter-context.md"
+      - "kitty-specs/spdd-reasons-activation-split-brain-01M1K6VN/contracts-activation-authority-update.md"
     requirement_refs:
       - FR-009
     cross_cutting: true
