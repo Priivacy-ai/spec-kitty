@@ -228,23 +228,37 @@ def _classify_artifact_urns(
     result: a seed URN is unconditionally "visited" by
     :func:`~charter.offering.drg.query.walk_edges` (it is a start node), so
     unioning the closure's raw output into ``artifact_urns`` with no
-    reachability check let an activated-but-unscoped directive leak into
-    every action's delivered set regardless of whether that action's own DRG
-    resolution ever reaches it -- the FR-005 (``DIRECTIVE_003`` onto
-    ``implement``) and #883 (cross-mission-type) leaks. *``action_urn``* (new,
-    optional, trailing) lets the caller identify the resolving action so the
-    closure's result can be bounded to what is actually reachable within
-    THAT action's own scope, reusing
-    :func:`~charter.offering.drg.query.resolve_context`'s own
-    ``Relation.SCOPE``-then-``{REQUIRES, SUGGESTS}`` definition of "scope"
-    (:func:`~charter.offering.drg.query.walk_edges`) rather than inventing a
-    second one. Callers that supply no ``action_urn`` (this module's own
-    direct-call test fixtures) get the conservative fallback: the closure
-    widens no further than the caller's already-resolved ``artifact_urns`` --
-    fail closed, never fail open.
+    ownership check let a directive SCOPED TO A DIFFERENT ACTION leak into
+    every action's delivered set regardless of whether the graph's own
+    author ever placed it there -- the FR-005 (``DIRECTIVE_003``, scoped
+    onto ``plan``/``review``/etc, leaking onto ``implement``) and #883
+    (``DIRECTIVE_001``, scoped onto ``software-dev/implement``, leaking onto
+    ``documentation/implement``) leaks.
+
+    The gate is NOT "must be reachable within the resolving action's own
+    ``resolve_context``-style scope walk": that reading was tried first and
+    it broke ``tests/charter/test_context.py``'s
+    ``test_selected_directive_closure_contributes_action_context`` and
+    ``test_org_required_primary_kinds_contribute_to_prompt``, both of which
+    are pre-existing, load-bearing, and explicitly documented ("Selected
+    directives contribute their DRG closure even without action-scope
+    edges") -- a directive nobody has scoped to ANY action at all (a fully
+    "floating" catalog entry, activated project-wide) is meant to widen
+    into whichever action resolves it, precisely because no graph author
+    claimed it for somewhere else. The two failure classes are
+    distinguished by ownership, not reachability: *``action_urn``* (new,
+    optional, trailing) lets the caller identify the resolving action so a
+    closure result can be excluded exactly when some OTHER action's
+    ``Relation.SCOPE`` edge claims it (checked via a direct edge lookup, not
+    a walk) -- never merely because this action's own scope walk does not
+    happen to reach it. A closure result with zero scope owners anywhere in
+    the graph is never excluded on ownership grounds. Callers that supply no
+    ``action_urn`` (this module's own direct-call test fixtures) get the
+    conservative fallback: exclude any closure result that has ANY scope
+    owner at all (fail closed on the ambiguous case, never fail open).
     """
     from charter.offering.drg.models import Relation
-    from charter.offering.drg.query import resolve_transitive_refs, walk_edges
+    from charter.offering.drg.query import resolve_transitive_refs
 
     # selected_tactics / selected_paradigms have no three-state exclusion
     # guard anywhere in this function (only project_directives does, below) --
@@ -264,32 +278,38 @@ def _classify_artifact_urns(
     )
     artifact_urns = set(artifact_urns)
 
-    # Scope gate: bound the closure's result to what is actually reachable
-    # within the resolving action's own scope -- see the docstring above.
-    # Mirrors resolve_context's OWN two SEPARATE walks (one REQUIRES-only,
-    # one SUGGESTS-only) rather than a single walk over both relations at
-    # once: a combined walk lets a path cross from a `suggests` hop onto a
-    # `requires` hop (e.g. a scoped directive SUGGESTS a paradigm that itself
-    # REQUIRES an unrelated, unscoped directive) and call that "in scope" --
-    # a relation-mixing leak `resolve_context` itself never allows, since
-    # each of its own two walks follows only its own relation end to end.
-    if action_urn is not None:
-        scoped_artifacts = walk_edges(merged, {action_urn}, {Relation.SCOPE}, max_depth=1)
-        scoped_artifacts.discard(action_urn)
-        in_scope_urns = (
-            scoped_artifacts
-            | walk_edges(merged, scoped_artifacts, {Relation.REQUIRES})
-            | walk_edges(merged, scoped_artifacts, {Relation.SUGGESTS})
-        )
-    else:
-        in_scope_urns = set(artifact_urns)
-
     closure_urns: set[str] = set()
     closure_urns.update(f"directive:{directive_id}" for directive_id in selected_closure.directives)
     closure_urns.update(f"tactic:{tactic_id}" for tactic_id in selected_closure.tactics)
     closure_urns.update(f"styleguide:{styleguide_id}" for styleguide_id in selected_closure.styleguides)
     closure_urns.update(f"toolguide:{toolguide_id}" for toolguide_id in selected_closure.toolguides)
-    artifact_urns.update(closure_urns & in_scope_urns)
+
+    if closure_urns:
+        # Scope gate: exclude a closure result exactly when it is scope-owned
+        # by a DIFFERENT action -- see the docstring above for why this is
+        # ownership, not reachability. Built as a direct SCOPE-edge lookup
+        # (every action URN that scopes each target), never a walk: ownership
+        # is a one-hop fact, not a transitive-closure question. Gated behind
+        # a non-empty closure so a minimal stub ``merged`` (some callers only
+        # implement ``get_node``) is never asked for ``.edges`` when there is
+        # nothing to gate.
+        scope_owners: dict[str, set[str]] = {}
+        for edge in merged.edges:
+            if edge.relation is Relation.SCOPE:
+                scope_owners.setdefault(edge.target, set()).add(edge.source)
+
+        def _owned_by_a_different_action(urn: str) -> bool:
+            owners = scope_owners.get(urn)
+            if not owners:
+                return False
+            if action_urn is None:
+                # No resolving action identified -- can't confirm any owner
+                # IS this action, so fail closed: treat every owned URN as
+                # foreign.
+                return True
+            return bool(owners - {action_urn})
+
+        artifact_urns.update(urn for urn in closure_urns if not _owned_by_a_different_action(urn))
 
     slots = _empty_slot_map()
     for urn in sorted(artifact_urns):
