@@ -554,6 +554,80 @@ def test_cancel_decision_nonexistent_decision_id_is_structured_not_bare(
 
 
 # ---------------------------------------------------------------------------
+# WP06-002 (review finding, severity 1) -- the exact bad-mission +
+# empty-rationale interleaving the WP05-001 dispatch asked to be tested:
+# ``_validate_rationale_or_fail`` (commands.py) runs BEFORE
+# ``_resolve_mission_dir_or_fail`` in both defer-decision/cancel-decision,
+# mirroring the host CLI's own cmd_defer/cmd_cancel ordering (decision.py)
+# -- so a nonexistent --mission paired with an empty --rationale must
+# still surface DECISION_MISSING_STEP_OR_SLOT, never MISSION_NOT_FOUND.
+# Previously only verified by live CliRunner reproduction outside the
+# committed suite; pinned here so a future reordering of the checks in
+# commands.py is caught by the suite rather than requiring code-reading.
+# ---------------------------------------------------------------------------
+
+
+def test_defer_decision_nonexistent_mission_and_empty_rationale_rejects_on_rationale_first(
+    tmp_path: Path,
+) -> None:
+    repo = _init_repo(tmp_path)
+
+    result = _run(
+        repo,
+        [
+            "defer-decision",
+            "--mission",
+            "999-does-not-exist",
+            "--decision-id",
+            "01ARZ3NDEKTSV4RRFFQ69G5FAV",
+            "--rationale",
+            "",
+            "--actor",
+            "test-agent",
+            "--policy",
+            _POLICY,
+        ],
+    )
+    envelope = _envelope(result)
+
+    assert envelope["success"] is False, envelope
+    # Rationale validation fires BEFORE mission resolution -- the rejection
+    # is DECISION_MISSING_STEP_OR_SLOT, never MISSION_NOT_FOUND, exactly
+    # mirroring the host CLI's own pre-mission-resolution rationale guard.
+    assert envelope["error_code"] == "DECISION_MISSING_STEP_OR_SLOT"
+
+
+def test_cancel_decision_nonexistent_mission_and_empty_rationale_rejects_on_rationale_first(
+    tmp_path: Path,
+) -> None:
+    repo = _init_repo(tmp_path)
+
+    result = _run(
+        repo,
+        [
+            "cancel-decision",
+            "--mission",
+            "999-does-not-exist",
+            "--decision-id",
+            "01ARZ3NDEKTSV4RRFFQ69G5FAV",
+            "--rationale",
+            "",
+            "--actor",
+            "test-agent",
+            "--policy",
+            _POLICY,
+        ],
+    )
+    envelope = _envelope(result)
+
+    assert envelope["success"] is False, envelope
+    # Rationale validation fires BEFORE mission resolution -- the rejection
+    # is DECISION_MISSING_STEP_OR_SLOT, never MISSION_NOT_FOUND, exactly
+    # mirroring the host CLI's own pre-mission-resolution rationale guard.
+    assert envelope["error_code"] == "DECISION_MISSING_STEP_OR_SLOT"
+
+
+# ---------------------------------------------------------------------------
 # Acceptance Scenario 4 -- FR-012: OriginFlow scope guard
 # ---------------------------------------------------------------------------
 
