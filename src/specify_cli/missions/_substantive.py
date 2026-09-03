@@ -538,6 +538,12 @@ _PLAN_FIELD_DECLARATIONS: Final[dict[str, _PlanFieldDeclaration]] = {
 # resolved through the identical seam, scoped to the identical mission/tier,
 # as the template it describes.
 #
+# Org precedence for this asset is deliberately first-declared-root-wins
+# (``resolve_template``'s org loop returns on the first configured org root
+# that has the file) -- consistent with the ``plan-template.md`` it rides
+# alongside, and deliberately UNLIKE ``expected-artifacts.yaml``, which
+# resolves last-match across configured org roots.
+#
 # Core-shipped types (the four keys above) are checked FIRST and never touch
 # this seam in the common path — they keep their declarations exactly where
 # they live today (NFR-003: no behaviour change for existing types).
