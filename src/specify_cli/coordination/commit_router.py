@@ -40,6 +40,7 @@ from mission_runtime import (
     routes_through_coordination,
 )
 from specify_cli.coordination.coherence import is_coord_residue_churn
+from specify_cli.core.owned_mission import effective_root_kwargs
 from specify_cli.git import safe_commit
 
 
@@ -233,7 +234,7 @@ def commit_for_mission(
             kind=effective_kind,
             primary_paths_created_this_invocation=primary_paths_created_this_invocation,
             target_branch=target_branch,
-            **({"effective_root": effective_root} if effective_root is not None else {}),
+            **effective_root_kwargs(effective_root),
         )
 
     # Split-and-commit (contract (a), pinned by T004): a mixed-partition batch
@@ -382,7 +383,7 @@ def _commit_partition_group(
             target=placement,
             message=message,
             paths=commit_paths,
-            **({"effective_root": effective_root} if effective_root is not None else {}),
+            **effective_root_kwargs(effective_root),
         )
     except subprocess.CalledProcessError as exc:
         stderr = getattr(exc, "stderr", "") or ""

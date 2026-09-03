@@ -56,6 +56,7 @@ from mission_runtime import (
     declared_read_surface,
     resolve_artifact_surface,
 )
+from specify_cli.core.owned_mission import effective_root_kwargs
 
 
 class LifecyclePhase(enum.IntEnum):
@@ -264,7 +265,7 @@ def declared_home_surface(
     """
     return declared_read_surface(
         repo_root, mission_slug, kind, resolver=resolver,
-        **({"effective_root": effective_root} if effective_root is not None else {}),
+        **effective_root_kwargs(effective_root),
     )
 
 
@@ -334,7 +335,7 @@ def build_gate_execution_context(
     """
     resolved = resolve_artifact_surface(
         repo_root, mission_slug, kind, resolver=resolver,
-        **({"effective_root": effective_root} if effective_root is not None else {}),
+        **effective_root_kwargs(effective_root),
     )
     return GateExecutionContext(
         surface=resolved.path,

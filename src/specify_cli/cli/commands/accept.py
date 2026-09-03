@@ -26,7 +26,12 @@ from specify_cli.acceptance import (
 from specify_cli.acceptance.matrix import AcceptanceMatrixParseError
 from specify_cli.config.path_conventions import PathConventionsConfigError
 from specify_cli.core.paths import assert_safe_path_segment
-from specify_cli.core.owned_mission import OwnedMission, require_unstaged_index, resolve_owned_mission
+from specify_cli.core.owned_mission import (
+    OwnedMission,
+    effective_root_kwargs,
+    require_unstaged_index,
+    resolve_owned_mission,
+)
 from specify_cli.migration.runtime_state_cutover import MissingMissionIdError
 from specify_cli.migration.verdict_provenance_backfill import stranded_verdict_findings
 from specify_cli.upgrade.pre30_guard import Pre30LayoutError
@@ -143,7 +148,7 @@ def _coord_worktree_root(repo_root: Path, mission_slug: str, *, effective_root: 
         resolve_artifact_surface,
     )
 
-    scope: dict[str, Any] = {"effective_root": effective_root} if effective_root is not None else {}
+    scope: dict[str, Any] = effective_root_kwargs(effective_root)
     resolved = resolve_artifact_surface(
         repo_root, mission_slug, MissionArtifactKind.ACCEPTANCE_MATRIX,
         **scope,
@@ -206,14 +211,14 @@ def _coord_status_feature_dir(repo_root: Path, mission_slug: str, *, effective_r
     # ``primary_feature_dir_for_mission``).
     assert_safe_path_segment(mission_slug)
 
-    scope: dict[str, Any] = {"effective_root": effective_root} if effective_root is not None else {}
+    scope: dict[str, Any] = effective_root_kwargs(effective_root)
     resolved = resolve_artifact_surface(
         repo_root, mission_slug, MissionArtifactKind.STATUS_STATE,
         **scope,
     )
     if resolved.surface_kind is not TopologySurface.COORD:
         return None
-    return placement_seam(repo_root, mission_slug, **({"effective_root": effective_root} if effective_root is not None else {})).read_dir(
+    return placement_seam(repo_root, mission_slug, **effective_root_kwargs(effective_root)).read_dir(
         MissionArtifactKind.STATUS_STATE
     )
 
@@ -231,7 +236,7 @@ def _coord_dirty_paths(repo_root: Path, mission_slug: str, *, effective_root: Pa
     against that surface instead.
     """
     worktree_root = _coord_worktree_root(
-        repo_root, mission_slug, **({"effective_root": effective_root} if effective_root is not None else {}),
+        repo_root, mission_slug, **effective_root_kwargs(effective_root),
     )
     if worktree_root is None:
         return []
@@ -310,7 +315,7 @@ def _stamp_birth_cutover_for_accept(repo_root: Path, mission_slug: str, *, effec
     # ``resolve_planning_read_dir``'s PRIMARY leg applies before composing).
     from mission_runtime import MissionArtifactKind, placement_seam
 
-    scope = {"effective_root": effective_root} if effective_root is not None else {}
+    scope = effective_root_kwargs(effective_root)
     feature_dir = placement_seam(repo_root, mission_slug, **scope).read_dir(
         MissionArtifactKind.PRIMARY_METADATA
     )
@@ -447,7 +452,7 @@ def _commit_residual_acceptance_artifacts(repo_root: Path, mission_slug: str, *,
     independently (never a single cross-worktree commit, which git cannot do).
     """
     coord_dirty = _coord_dirty_paths(
-        repo_root, mission_slug, **({"effective_root": effective_root} if effective_root is not None else {}),
+        repo_root, mission_slug, **effective_root_kwargs(effective_root),
     )
     primary_dirty = _primary_dirty_paths(repo_root, mission_slug)
     if not coord_dirty and not primary_dirty:
@@ -628,7 +633,7 @@ def _collect_summary_with_optional_repair(
     the flag is off, the error propagates unchanged so the pre-existing default
     error path is preserved untouched.
     """
-    scope = {"effective_root": effective_root} if effective_root is not None else {}
+    scope = effective_root_kwargs(effective_root)
     try:
         return collect_feature_summary(
             repo_root,
