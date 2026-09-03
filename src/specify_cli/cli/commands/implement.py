@@ -6,7 +6,7 @@ import functools
 import json
 import re
 import subprocess
-from collections.abc import Callable
+from collections.abc import Callable, Iterable
 from io import StringIO
 from pathlib import Path
 from typing import TYPE_CHECKING, Annotated, Any, NamedTuple
@@ -44,6 +44,7 @@ from specify_cli.coordination.coherence import (
     is_self_bookkeeping_churn,
     is_status_state_path,
 )
+from specify_cli.coordination.surface_resolver import is_under_worktrees_segment
 from specify_cli.lanes.implement_support import create_lane_workspace
 from specify_cli.lanes.persistence import require_lanes_json
 from specify_cli.coordination.status_transition import emit_status_transition_transactional
@@ -1472,6 +1473,34 @@ def _emit_blocked_on_alloc_failure(
         console.print(f"[yellow]Warning:[/yellow] Could not emit blocked transition after alloc failure: {_blocked_exc}")
 
 
+def _primary_surface_status_paths(
+    artifacts: Iterable[Path], *, routes_through_coord: bool
+) -> list[Path]:
+    """Filter collected status artifacts for a PRIMARY-root claim-commit bundle.
+
+    #2155 / #3784 invariant: NO ``.worktrees/``-nested path may enter a
+    primary-root ``safe_commit`` bundle. On coord topology ``feature_dir`` is
+    the coordination worktree, so every coord-owned artifact
+    ``_collect_status_artifacts`` returns — ``status.events.jsonl``,
+    ``status.json``, AND ``tasks.md`` — lives under ``.worktrees/``. The
+    ``is_status_state_path`` check alone drops only the two STATUS_STATE files
+    and lets the coord-worktree ``tasks.md`` (a ``TASKS_INDEX`` kind) survive,
+    tripping the ``SafeCommitPathPolicyError`` guard (#3784). Excluding ANY
+    ``is_under_worktrees_segment`` path keeps the invariant whole; dropping the
+    coord ``tasks.md`` from the CLAIM commit is correct — at claim time it is
+    unchanged and the primary copy was already committed at finalize. On
+    flat/legacy missions these artifacts are canonical on PRIMARY and stay.
+    """
+    resolved = [path.resolve() for path in artifacts]
+    if not routes_through_coord:
+        return resolved
+    return [
+        path
+        for path in resolved
+        if not (is_status_state_path(path) or is_under_worktrees_segment(path))
+    ]
+
+
 def _commit_wp_claim_status(
     *,
     repo_root: Path,
@@ -1502,24 +1531,24 @@ def _commit_wp_claim_status(
     commit_msg = f"chore: {wp_id} claimed for implementation"
     meta_file = feature_dir / "meta.json"
     config_file = repo_root / ".kittify" / "config.yaml"
-    # #2155 (FR-002 / T011): bundle ONLY primary-surface artifacts into
-    # the primary-root claim commit. The status transition was already
-    # committed to the coordination branch by
-    # ``start_implementation_status`` (the transactional emitter); under
-    # coord topology the coord-owned status files (events.jsonl /
-    # status.json) resolved by ``_collect_status_artifacts`` live UNDER
-    # ``.worktrees/``, so staging them from the primary root trips the
-    # #1887 ``SafeCommitPathPolicyError`` guard — which the former broad
-    # ``except`` swallowed as an "Auto-commit skipped" warning, leaving
-    # the feature branch dirty (the surviving #2155 residual). The
-    # canonical ``MissionArtifactKind.STATUS_STATE`` check (WP13 retired the
-    # former ``COORD_OWNED_STATUS_FILES`` frozenset onto this single-source
-    # kind classifier) drops those files on coord topology only; on a
-    # flat/legacy mission they ARE canonical on PRIMARY and stay in the bundle.
-    if routes_through_coordination(resolve_topology(repo_root, mission_slug)):
-        status_paths = [path.resolve() for path in _collect_status_artifacts(feature_dir) if not is_status_state_path(path)]
-    else:
-        status_paths = [path.resolve() for path in _collect_status_artifacts(feature_dir)]
+    # #2155 (FR-002 / T011) + #3784: bundle ONLY primary-surface artifacts
+    # into the primary-root claim commit. The status transition was already
+    # committed to the coordination branch by ``start_implementation_status``
+    # (the transactional emitter); under coord topology every coord-owned
+    # artifact ``_collect_status_artifacts`` returns (events.jsonl /
+    # status.json / the coord-worktree ``tasks.md``) lives UNDER
+    # ``.worktrees/``, so staging it from the primary root trips the #1887
+    # ``SafeCommitPathPolicyError`` guard. ``_primary_surface_status_paths``
+    # drops ANY ``.worktrees/``-nested path on coord topology (the
+    # ``is_status_state_path`` check alone let ``tasks.md`` — a TASKS_INDEX
+    # kind — survive, the #3784 residual); on a flat/legacy mission these
+    # artifacts ARE canonical on PRIMARY and stay in the bundle.
+    status_paths = _primary_surface_status_paths(
+        _collect_status_artifacts(feature_dir),
+        routes_through_coord=routes_through_coordination(
+            resolve_topology(repo_root, mission_slug)
+        ),
+    )
     files_to_commit = [wp_file.resolve(), *status_paths]
     if meta_file.exists():
         files_to_commit.append(meta_file.resolve())

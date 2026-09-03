@@ -304,3 +304,58 @@ class TestEnsurePlanningArtifactsRoutesThroughPlacementRef:
         source = inspect.getsource(implement_module)
         assert "coord_branch if coord_branch else planning_branch" not in source
         assert "str(coord_branch) if coord_branch else planning_branch" not in source
+
+
+class TestPrimarySurfaceStatusPaths:
+    """#3784: ``_primary_surface_status_paths`` keeps the #2155 invariant that
+    NO ``.worktrees/``-nested path enters a primary-root ``safe_commit`` bundle.
+
+    The former inline filter dropped only the STATUS_STATE files
+    (``is_status_state_path``) and let the coord-worktree ``tasks.md`` (a
+    ``TASKS_INDEX`` kind) survive; the helper now excludes ANY
+    ``is_under_worktrees_segment`` path on coord topology. On a flat/legacy
+    mission every collected artifact is canonical on PRIMARY and stays.
+    """
+
+    def test_coord_drops_worktrees_nested_tasks_md_and_status_files(
+        self, tmp_path: Path
+    ) -> None:
+        from specify_cli.cli.commands.implement import _primary_surface_status_paths
+
+        wt = tmp_path / ".worktrees" / "slug-coord" / "kitty-specs" / "slug"
+        wt.mkdir(parents=True)
+        events = wt / "status.events.jsonl"
+        status = wt / "status.json"
+        tasks_md = wt / "tasks.md"
+        for f in (events, status, tasks_md):
+            f.write_text("x", encoding="utf-8")
+
+        kept = _primary_surface_status_paths(
+            [events, status, tasks_md], routes_through_coord=True
+        )
+
+        # Every coord-owned artifact is under .worktrees/ -> nothing survives.
+        assert kept == []
+
+    def test_flat_topology_keeps_all_collected_artifacts(
+        self, tmp_path: Path
+    ) -> None:
+        from specify_cli.cli.commands.implement import _primary_surface_status_paths
+
+        feature_dir = tmp_path / "kitty-specs" / "slug"
+        feature_dir.mkdir(parents=True)
+        events = feature_dir / "status.events.jsonl"
+        status = feature_dir / "status.json"
+        tasks_md = feature_dir / "tasks.md"
+        for f in (events, status, tasks_md):
+            f.write_text("x", encoding="utf-8")
+
+        kept = _primary_surface_status_paths(
+            [events, status, tasks_md], routes_through_coord=False
+        )
+
+        assert {p.resolve() for p in kept} == {
+            events.resolve(),
+            status.resolve(),
+            tasks_md.resolve(),
+        }
