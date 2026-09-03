@@ -663,3 +663,75 @@ class TestPackProvidedDeclarationOrgTier:
         reason = describe_technical_context_gap(_EXAMPLE_CUSTOM_REAL, "never-declared", project_dir=project)
         assert reason is not None
         assert "no field declaration is registered" in reason.lower()
+
+
+# ---------------------------------------------------------------------------
+# #3832 fold: a pack-provided plan-field-declaration.yaml that is present
+# but unreadable, mis-encoded, or carries an unknown key must fail LOUD via
+# _PackDeclarationError -- parity with expected-artifacts.yaml's
+# extra="forbid" posture -- rather than being silently ignored or crashing
+# with an unguarded OSError/UnicodeDecodeError.
+# ---------------------------------------------------------------------------
+
+
+class TestPackDeclarationFailsLoud:
+    def test_unknown_optional_key_raises_pack_declaration_error(self, tmp_path: Path) -> None:
+        """A typo'd optional key (``labell`` instead of ``label``) on a
+        ``bold_field`` entry must raise, not be silently dropped by
+        ``dict.get`` and leave the field looking valid but mislabelled."""
+        from specify_cli.missions._substantive import (
+            _PackDeclarationError,
+            _plan_field_declaration_from_yaml,
+        )
+
+        path = tmp_path / "plan-field-declaration.yaml"
+        path.write_text(
+            "primary:\n"
+            "  kind: bold_field\n"
+            "  heading: Test Items\n"
+            "  label: Primary Item\n"
+            "  labell: typo\n"
+            "peers:\n"
+            "  - kind: any_bold_field\n"
+            "    heading: Environments\n",
+            encoding="utf-8",
+        )
+
+        with pytest.raises(_PackDeclarationError, match="unknown key"):
+            _plan_field_declaration_from_yaml(path)
+
+    def test_unknown_top_level_key_raises_pack_declaration_error(self, tmp_path: Path) -> None:
+        """A typo'd top-level key (anything besides 'primary'/'peers') must raise."""
+        from specify_cli.missions._substantive import (
+            _PackDeclarationError,
+            _plan_field_declaration_from_yaml,
+        )
+
+        path = tmp_path / "plan-field-declaration.yaml"
+        path.write_text(
+            "primary:\n"
+            "  kind: table_field\n"
+            "  heading: Test Items\n"
+            "peers:\n"
+            "  - kind: any_bold_field\n"
+            "    heading: Environments\n"
+            "extra_top_level_key: oops\n",
+            encoding="utf-8",
+        )
+
+        with pytest.raises(_PackDeclarationError, match="unknown top-level key"):
+            _plan_field_declaration_from_yaml(path)
+
+    def test_mis_encoded_file_raises_pack_declaration_error(self, tmp_path: Path) -> None:
+        """A file that cannot be decoded as UTF-8 must raise
+        ``_PackDeclarationError``, not an unguarded ``UnicodeDecodeError``."""
+        from specify_cli.missions._substantive import (
+            _PackDeclarationError,
+            _plan_field_declaration_from_yaml,
+        )
+
+        path = tmp_path / "plan-field-declaration.yaml"
+        path.write_bytes(b"primary:\n  kind: bold_field\n  heading: \xff\xfe invalid utf-8\n")
+
+        with pytest.raises(_PackDeclarationError, match="could not be read"):
+            _plan_field_declaration_from_yaml(path)
