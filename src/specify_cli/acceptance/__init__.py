@@ -13,6 +13,7 @@ from typing import Any
 
 from kernel.paths import to_posix
 from specify_cli.core.agent_config import get_auto_commit_default
+from specify_cli.core.owned_mission import effective_root_kwargs
 from specify_cli.core.paths import load_meta_fail_closed, read_target_branch_from_meta
 from specify_cli.decisions.models import DecisionStatus
 from specify_cli.decisions.store import load_index
@@ -316,7 +317,7 @@ def _accept_dirty_gate(
     ]
     return _filter_coordination_residue(
         git_dirty, repo_root=repo_root, feature=feature,
-        **({"effective_root": effective_root} if effective_root is not None else {}),
+        **effective_root_kwargs(effective_root),
     )
 
 
@@ -344,7 +345,7 @@ def _filter_coordination_residue(
     from specify_cli.coordination.coherence import is_coord_residue_churn
 
     if not _mission_routes_through_coordination(
-        repo_root, feature, **({"effective_root": effective_root} if effective_root is not None else {}),
+        repo_root, feature, **effective_root_kwargs(effective_root),
     ):
         return dirty_lines
     return [line for line in dirty_lines if not is_coord_residue_churn(_porcelain_dirty_path(line), mission_slug=feature)]
@@ -611,7 +612,7 @@ def _iter_work_packages(repo_root: Path, feature: str, *, effective_root: Path |
     # the PRIMARY surface (where they live), not the materialized -coord husk
     # whose tasks/ dir is absent (closeout N+1 — debbie §3).
     feature_path = _wp_tasks_read_dir(
-        repo_root, feature, **({"effective_root": effective_root} if effective_root is not None else {}),
+        repo_root, feature, **effective_root_kwargs(effective_root),
     )
     tasks_dir = feature_path / "tasks"
     if not tasks_dir.exists():
@@ -824,7 +825,7 @@ def normalize_feature_encoding(repo_root: Path, feature: str, *, effective_root:
     # §3). ``_planning_read_dir`` resolves the PRIMARY surface via the same
     # kind-aware seam; behavior-neutral for a FLATTENED mission.
     feature_dir = _planning_read_dir(
-        repo_root, feature, **({"effective_root": effective_root} if effective_root is not None else {}),
+        repo_root, feature, **effective_root_kwargs(effective_root),
     )
     if not feature_dir.exists():
         return []
@@ -986,7 +987,7 @@ def _planning_read_dir(repo_root: Path, feature: str, *, effective_root: Path | 
     # ``Any``; the annotation re-narrows it (the method IS typed ``-> Path``) so the
     # chokepoint return is not an ``Any`` leak — matching ``mission.py::_planning_read_dir``.
     read_dir: Path = placement_seam(
-        repo_root, feature, **({"effective_root": effective_root} if effective_root is not None else {}),
+        repo_root, feature, **effective_root_kwargs(effective_root),
     ).read_dir(kinds[_spec_file()])
     return read_dir
 
@@ -1029,7 +1030,7 @@ def _wp_tasks_read_dir(repo_root: Path, feature: str, *, effective_root: Path | 
             "against its current partition (closeout N+1 / data-model.md)."
         )
     read_dir: Path = placement_seam(
-        repo_root, feature, **({"effective_root": effective_root} if effective_root is not None else {}),
+        repo_root, feature, **effective_root_kwargs(effective_root),
     ).read_dir(MissionArtifactKind.WORK_PACKAGE_TASK)
     return read_dir
 
@@ -1071,7 +1072,7 @@ def _primary_anchor_feature_dir(
     from mission_runtime import MissionArtifactKind, placement_seam
 
     primary_candidate: Path = placement_seam(
-        repo_root, feature, **({"effective_root": effective_root} if effective_root is not None else {}),
+        repo_root, feature, **effective_root_kwargs(effective_root),
     ).read_dir(MissionArtifactKind.PRIMARY_METADATA)
     if primary_candidate.exists():
         return primary_candidate
@@ -1145,7 +1146,7 @@ def collect_feature_summary(
     # the ``PRIMARY_METADATA`` home, not a specific artifact's content.
     from mission_runtime import MissionArtifactKind, placement_seam
 
-    scope = {"effective_root": effective_root} if effective_root is not None else {}
+    scope = effective_root_kwargs(effective_root)
     read_feature_dir = placement_seam(repo_root, feature, **scope).read_dir(MissionArtifactKind.PRIMARY_METADATA)
     feature_dir = _primary_anchor_feature_dir(repo_root, feature, read_feature_dir, **scope)
     tasks_dir = feature_dir / "tasks"

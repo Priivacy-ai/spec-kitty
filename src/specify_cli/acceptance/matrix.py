@@ -19,6 +19,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Any, TypeVar
 
 from specify_cli.configured_command import ConfiguredCommandUnsupported, run_configured_command
+from specify_cli.core.owned_mission import effective_root_kwargs
 from specify_cli.mission_metadata import mission_identity_fields, resolve_mission_identity
 
 if TYPE_CHECKING:
@@ -605,7 +606,7 @@ def scaffold_acceptance_matrix(
             entry_id="finalize-scaffold",
             message=f"chore({mission_slug}): scaffold acceptance-matrix",
             policy=policy,
-            **({"effective_root": effective_root} if effective_root is not None else {}),
+            **effective_root_kwargs(effective_root),
         )
         if result.status in ("committed", "unchanged"):
             return path
