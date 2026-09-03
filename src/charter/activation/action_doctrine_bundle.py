@@ -33,6 +33,7 @@ if TYPE_CHECKING:
 from charter.activation.catalog import load_doctrine_catalog
 from charter.activation.org_pack_discovery import _read_org_required_selections
 from charter.activation.profile_resolution import _normalize_directive_id
+from charter.offering.drg.models import NodeKind
 
 __all__ = [
     "_ActionDoctrineBundle",
@@ -54,21 +55,59 @@ def _catalog_default_or_activated(
     ``None`` (key genuinely absent -- covers BOTH a wholly-absent
     ``pack_context`` and a supplied ``PackContext`` whose field is ``None``;
     callers collapse those two to the same argument before calling this)
-    resolves to the catalog-backed "all built-ins" default -- NEVER an empty
-    set, per the union/exclusion boundary invariant this WP exists to
-    enforce. ``frozenset()`` (explicit, present, empty) and any non-empty
-    frozenset pass through verbatim, preserved distinctly from the
-    catalog-default case: this is the one state that stays empty (explicit
-    "exclude everything"), and it is only ever reachable when a real
-    ``PackContext`` is supplied with that field explicitly set. Directive-
-    specific stem-to-canonical normalization (``_normalize_directive_id``) is
-    each caller's own job, applied on top of this helper's result -- not
-    every kind needs it (tactics/paradigms have no stem-vs-canonical
-    distinction; see the WP's Union/Exclusion Boundary Audit).
+    resolves to the ``catalog_default`` argument -- NEVER an empty set, per
+    the union/exclusion boundary invariant this WP exists to enforce.
+    ``frozenset()`` (explicit, present, empty) and any non-empty frozenset
+    pass through verbatim, preserved distinctly from the catalog-default
+    case: this is the one state that stays empty (explicit "exclude
+    everything"), and it is only ever reachable when a real ``PackContext``
+    is supplied with that field explicitly set. Directive-specific
+    stem-to-canonical normalization (``_normalize_directive_id``) is each
+    caller's own job, applied on top of this helper's result -- not every
+    kind needs it (tactics/paradigms have no stem-vs-canonical distinction;
+    see the WP's Union/Exclusion Boundary Audit).
+
+    ``catalog_default`` (WP02 ruling 2, ``reviews/wp02.ruling-2.md``): the
+    caller passes ``_graph_and_catalog_default_ids`` below -- the ACTIVE DRG
+    graph being resolved against, unioned with the real built-in catalog --
+    never a bare ``load_doctrine_catalog()`` call. Binding "all built-ins"
+    to a hardcoded real catalog is what made a mocked/injected graph and the
+    real allowlist disagree (#883, the org-pack-chain regression): a
+    fictional or org-authored id genuinely present in the graph being
+    resolved was excluded for not being in a catalog the graph was never
+    asked to match. Unioning rather than replacing keeps a graph that omits
+    a kind entirely (a directive-only test fixture with zero tactic/paradigm
+    nodes) still widening to the full real catalog for that kind -- WP02's
+    own ``test_activated_tactics_and_paradigms_absent_widen_to_full_catalog``
+    depends on exactly this.
     """
     if activated is None:
         return set(catalog_default)
     return set(activated)
+
+
+def _graph_and_catalog_default_ids(
+    graph: DRGGraph, kind: NodeKind, catalog_default: frozenset[str]
+) -> frozenset[str]:
+    """The "all built-ins" default for one artifact *kind* (WP02 ruling 2).
+
+    Union of *catalog_default* (``load_doctrine_catalog()``'s real built-in
+    set for *kind*) with every *kind*-node bare id the ACTIVE *graph* itself
+    carries. In production the merged graph already contains the real
+    catalog as its built-in layer, so this union is a no-op there --
+    behaviour is unchanged. Under an injected or mocked graph (test
+    fixtures) or one augmented with org-pack content, the union additionally
+    admits ids the graph declares but the real catalog does not ship,
+    closing the #883 / org-pack-chain allowlist collision without ever
+    narrowing below the real catalog (see ``_catalog_default_or_activated``'s
+    docstring for why narrowing would break WP02's own T007 step 5 fixture).
+    """
+    graph_ids = {
+        node.urn.split(":", 1)[1]
+        for node in graph.nodes
+        if node.kind is kind and ":" in node.urn
+    }
+    return frozenset(graph_ids | catalog_default)
 
 
 @dataclass(frozen=True)
@@ -214,56 +253,6 @@ def _load_action_doctrine_bundle(
         mission_type=mission_type, feature_dir=feature_dir
     )
 
-    # WP02 (Decision Record 2, FR-006/007/008/014): project_directives /
-    # selected_tactics / selected_paradigms are re-derived from
-    # pack_context.activated_* instead of the stale
-    # governance.charter.selected_* (_load_doctrine_selection). A
-    # wholly-absent pack_context collapses to the SAME "no filter configured"
-    # state as a supplied PackContext whose field is None -- both resolve to
-    # the catalog-backed "all built-ins" default, never empty sets (see
-    # _catalog_default_or_activated and
-    # tests/charter/test_activation_consumers.py's
-    # *_none_path_matches_no_filter_at_all regression net). Converted ONCE,
-    # here, before any consumption site (roots below, _classify_artifact_urns)
-    # iterates it.
-    catalog = load_doctrine_catalog()
-    activated_directives_arg = (
-        pack_context.activated_directives if pack_context is not None else None
-    )
-    project_directives = {
-        _normalize_directive_id(d)
-        for d in _catalog_default_or_activated(activated_directives_arg, catalog.directives)
-    }
-    activated_tactics_arg = pack_context.activated_tactics if pack_context is not None else None
-    selected_tactics = _catalog_default_or_activated(activated_tactics_arg, catalog.tactics)
-    activated_paradigms_arg = (
-        pack_context.activated_paradigms if pack_context is not None else None
-    )
-    selected_paradigms = _catalog_default_or_activated(activated_paradigms_arg, catalog.paradigms)
-
-    # Preserve the org-pack required_<kind> union (Decision Record 2's
-    # confirmed-legitimate, separate concept) onto the activated_*-derived
-    # set above -- never onto the retired selected_* set. Applies even when
-    # the project side is an EXPLICIT empty activated_directives (spec Edge
-    # Cases): "explicitly empty" means the project contributes nothing, not
-    # that the union step itself is skipped.
-    org_required = _read_org_required_selections(repo_root)
-    # MANDATORY (TASKS-FRESH2-001, severity 4): normalize each org-required
-    # directive entry before it joins project_directives -- required_directives:
-    # is legitimately authored in either stem or canonical form (verified live,
-    # tests/charter/test_answers_inert_and_org_union.py::
-    # TestOrgRequiredIdFormNormalizedBeforePromotion), while the DRG's
-    # artifact_id and load_doctrine_catalog().directives are canonical-only.
-    # Skipping this would reproduce Decision Record 2's own silent-exclusion
-    # mechanism via the org-required path.
-    project_directives |= {_normalize_directive_id(d) for d in org_required["directives"]}
-    # Tactics/paradigms have no stem-vs-canonical distinction anywhere in this
-    # repo's authoring convention (verified live -- no _normalize_tactic_id/
-    # _normalize_paradigm_id exists in src/) -- the raw org-required entry IS
-    # already canonical; see the Union/Exclusion Boundary Audit (boundary 4).
-    selected_tactics |= set(org_required["tactics"])
-    selected_paradigms |= set(org_required["paradigms"])
-
     # The DRG load honours the built-in + org + project three-layer overlay
     # (WP07 T034; charter-internal callers pass org_root=None for two layers).
     # A project authoring a doctrine artifact without a sibling ``*.graph.yaml``
@@ -288,6 +277,76 @@ def _load_action_doctrine_bundle(
             # FR-032, FR-035 (WP08): apply activation filter before resolving context.
             if pack_context is not None:
                 merged = filter_graph_by_activation(merged, pack_context)
+
+            # WP02 (Decision Record 2, FR-006/007/008/014): project_directives /
+            # selected_tactics / selected_paradigms are re-derived from
+            # pack_context.activated_* instead of the stale
+            # governance.charter.selected_* (_load_doctrine_selection). A
+            # wholly-absent pack_context collapses to the SAME "no filter
+            # configured" state as a supplied PackContext whose field is
+            # None -- both resolve to the "all built-ins" default, never
+            # empty sets (see _catalog_default_or_activated and
+            # tests/charter/test_activation_consumers.py's
+            # *_none_path_matches_no_filter_at_all regression net).
+            #
+            # WP02 ruling 2 (reviews/wp02.ruling-2.md): "all built-ins" now
+            # resolves from THIS resolution's own active graph (``merged``,
+            # already activation-filtered above) unioned with the real
+            # built-in catalog -- never a bare load_doctrine_catalog() call
+            # alone -- via _graph_and_catalog_default_ids. Computed here,
+            # after ``merged`` exists and before any consumption site (roots
+            # below, _classify_artifact_urns) iterates it; the typeless-
+            # mission branch below never loads a graph and never consumes
+            # these three names, so nothing needs them precomputed earlier.
+            catalog = load_doctrine_catalog()
+            activated_directives_arg = (
+                pack_context.activated_directives if pack_context is not None else None
+            )
+            project_directives = {
+                _normalize_directive_id(d)
+                for d in _catalog_default_or_activated(
+                    activated_directives_arg,
+                    _graph_and_catalog_default_ids(merged, NodeKind.DIRECTIVE, catalog.directives),
+                )
+            }
+            activated_tactics_arg = (
+                pack_context.activated_tactics if pack_context is not None else None
+            )
+            selected_tactics = _catalog_default_or_activated(
+                activated_tactics_arg,
+                _graph_and_catalog_default_ids(merged, NodeKind.TACTIC, catalog.tactics),
+            )
+            activated_paradigms_arg = (
+                pack_context.activated_paradigms if pack_context is not None else None
+            )
+            selected_paradigms = _catalog_default_or_activated(
+                activated_paradigms_arg,
+                _graph_and_catalog_default_ids(merged, NodeKind.PARADIGM, catalog.paradigms),
+            )
+
+            # Preserve the org-pack required_<kind> union (Decision Record 2's
+            # confirmed-legitimate, separate concept) onto the activated_*-derived
+            # set above -- never onto the retired selected_* set. Applies even when
+            # the project side is an EXPLICIT empty activated_directives (spec Edge
+            # Cases): "explicitly empty" means the project contributes nothing, not
+            # that the union step itself is skipped.
+            org_required = _read_org_required_selections(repo_root)
+            # MANDATORY (TASKS-FRESH2-001, severity 4): normalize each org-required
+            # directive entry before it joins project_directives -- required_directives:
+            # is legitimately authored in either stem or canonical form (verified live,
+            # tests/charter/test_answers_inert_and_org_union.py::
+            # TestOrgRequiredIdFormNormalizedBeforePromotion), while the DRG's
+            # artifact_id and load_doctrine_catalog().directives are canonical-only.
+            # Skipping this would reproduce Decision Record 2's own silent-exclusion
+            # mechanism via the org-required path.
+            project_directives |= {_normalize_directive_id(d) for d in org_required["directives"]}
+            # Tactics/paradigms have no stem-vs-canonical distinction anywhere in this
+            # repo's authoring convention (verified live -- no _normalize_tactic_id/
+            # _normalize_paradigm_id exists in src/) -- the raw org-required entry IS
+            # already canonical; see the Union/Exclusion Boundary Audit (boundary 4).
+            selected_tactics |= set(org_required["tactics"])
+            selected_paradigms |= set(org_required["paradigms"])
+
             action_urn = f"action:{resolved_type}/{action}"
             resolved = resolve_context(merged, action_urn, depth=effective_depth)
             ids_by_slot = _classify_artifact_urns(
