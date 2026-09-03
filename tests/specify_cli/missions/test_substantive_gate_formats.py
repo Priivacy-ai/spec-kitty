@@ -629,3 +629,37 @@ class TestPackProvidedDeclarationOrgTier:
             assert (
                 _is_plan_substantive_for_type(_EXAMPLE_CUSTOM_REAL, "never-declared", project_dir=project) is False
             )
+
+    def test_mission_agnostic_legacy_tier_declaration_is_ignored(self, tmp_path: Path) -> None:
+        """#3832 fold: ``resolve_template`` tiers 1b/2/5 (override, legacy,
+        global) are mission-agnostic -- a ``plan-field-declaration.yaml`` at
+        one of those tiers is NOT scoped to any single mission type, so
+        honouring it would gate EVERY undeclared custom type's plan against
+        one type's fields. Only a mission-scoped hit (path containing
+        ``/missions/{mission_type}/``) is a genuine declaration. Here a
+        legacy-tier file (``.kittify/templates/plan-field-declaration.yaml``)
+        resolves but must be ignored, so an undeclared type still fails
+        closed via the ordinary undeclared-gap path."""
+        project = tmp_path / "project"
+        legacy_templates = project / ".kittify" / "templates"
+        legacy_templates.mkdir(parents=True)
+        (legacy_templates / "plan-field-declaration.yaml").write_text(
+            "primary:\n"
+            "  kind: bold_field\n"
+            "  heading: Test Items\n"
+            "  label: Primary Item\n"
+            "peers:\n"
+            "  - kind: any_bold_field\n"
+            "    heading: Environments\n",
+            encoding="utf-8",
+        )
+
+        from specify_cli.missions._substantive import _pack_provided_declaration
+
+        assert _pack_provided_declaration("never-declared", project) is None
+        assert (
+            _is_plan_substantive_for_type(_EXAMPLE_CUSTOM_REAL, "never-declared", project_dir=project) is False
+        )
+        reason = describe_technical_context_gap(_EXAMPLE_CUSTOM_REAL, "never-declared", project_dir=project)
+        assert reason is not None
+        assert "no field declaration is registered" in reason.lower()
