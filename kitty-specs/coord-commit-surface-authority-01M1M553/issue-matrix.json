@@ -1,0 +1,89 @@
+{
+  "rows": {
+    "#2116": {
+      "evidence_ref": "tasks.py degod closed; tasks_transition_core.py extracted",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "#2116 (see spec)",
+      "verdict": "verified-already-fixed",
+      "wp": null
+    },
+    "#2160": {
+      "evidence_ref": "Follow-up: parent epic #2160 stays open; this mission delivers the create/spec-commit/task-command surface-authority slice (WP01-04).",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "#2160 (see spec)",
+      "verdict": "deferred-with-followup",
+      "wp": null
+    },
+    "#2300": {
+      "evidence_ref": "Fixed by WP03 (1e4c88e4): task commands consult shared authoritative-surface rule; tests/specify_cli/cli/commands/agent/test_tasks_surface_authority.py",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "#2300 (see spec)",
+      "verdict": "fixed",
+      "wp": "WP03"
+    },
+    "#2533": {
+      "evidence_ref": "Fixed by WP02 (aef06329): create-time topology honesty; regression tests/regression/test_coord_topology_no_strand.py",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "#2533 (see spec)",
+      "verdict": "fixed",
+      "wp": "WP02"
+    },
+    "#2739": {
+      "evidence_ref": "closed 2026-09-03; B16-c2 disproven/folded; PR #3851 merged",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "#2739 (see spec)",
+      "verdict": "verified-already-fixed",
+      "wp": null
+    },
+    "#2816": {
+      "evidence_ref": "event-sourcing cutover shipped; context for mark-status event-log-only",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "#2816 (see spec)",
+      "verdict": "verified-already-fixed",
+      "wp": null
+    },
+    "#3851": {
+      "evidence_ref": "commit-boundary integrity PR merged",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "#3851 (see spec)",
+      "verdict": "verified-already-fixed",
+      "wp": null
+    }
+  },
+  "schema_version": 1
+}
