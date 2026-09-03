@@ -3610,14 +3610,25 @@ pages:
     - {slug: "spec-kitty-ops-undo", text: "spec-kitty ops undo", level: 2}
     - {slug: "spec-kitty-orchestrator-api", text: "spec-kitty orchestrator-api", level: 2}
     - {slug: "spec-kitty-orchestrator-api-accept-mission", text: "spec-kitty orchestrator-api accept-mission", level: 2}
+    - {slug: "spec-kitty-orchestrator-api-answer-decision", text: "spec-kitty orchestrator-api answer-decision", level: 2}
     - {slug: "spec-kitty-orchestrator-api-append-history", text: "spec-kitty orchestrator-api append-history", level: 2}
+    - {slug: "spec-kitty-orchestrator-api-cancel-decision", text: "spec-kitty orchestrator-api cancel-decision", level: 2}
+    - {slug: "spec-kitty-orchestrator-api-check-prerequisites", text: "spec-kitty orchestrator-api check-prerequisites", level: 2}
     - {slug: "spec-kitty-orchestrator-api-contract-version", text: "spec-kitty orchestrator-api contract-version", level: 2}
+    - {slug: "spec-kitty-orchestrator-api-defer-decision", text: "spec-kitty orchestrator-api defer-decision", level: 2}
+    - {slug: "spec-kitty-orchestrator-api-design-status", text: "spec-kitty orchestrator-api design-status", level: 2}
     - {slug: "spec-kitty-orchestrator-api-list-ready", text: "spec-kitty orchestrator-api list-ready", level: 2}
     - {slug: "spec-kitty-orchestrator-api-merge-mission", text: "spec-kitty orchestrator-api merge-mission", level: 2}
     - {slug: "spec-kitty-orchestrator-api-mission-state", text: "spec-kitty orchestrator-api mission-state", level: 2}
+    - {slug: "spec-kitty-orchestrator-api-open-decision", text: "spec-kitty orchestrator-api open-decision", level: 2}
+    - {slug: "spec-kitty-orchestrator-api-plan", text: "spec-kitty orchestrator-api plan", level: 2}
+    - {slug: "spec-kitty-orchestrator-api-record-analysis", text: "spec-kitty orchestrator-api record-analysis", level: 2}
+    - {slug: "spec-kitty-orchestrator-api-resolve-decision", text: "spec-kitty orchestrator-api resolve-decision", level: 2}
     - {slug: "spec-kitty-orchestrator-api-resolve-workspace", text: "spec-kitty orchestrator-api resolve-workspace", level: 2}
+    - {slug: "spec-kitty-orchestrator-api-specify", text: "spec-kitty orchestrator-api specify", level: 2}
     - {slug: "spec-kitty-orchestrator-api-start-implementation", text: "spec-kitty orchestrator-api start-implementation", level: 2}
     - {slug: "spec-kitty-orchestrator-api-start-review", text: "spec-kitty orchestrator-api start-review", level: 2}
+    - {slug: "spec-kitty-orchestrator-api-tasks", text: "spec-kitty orchestrator-api tasks", level: 2}
     - {slug: "spec-kitty-orchestrator-api-transition", text: "spec-kitty orchestrator-api transition", level: 2}
     - {slug: "spec-kitty-plan", text: "spec-kitty plan", level: 2}
     - {slug: "spec-kitty-plugin", text: "spec-kitty plugin", level: 2}
@@ -3882,6 +3893,18 @@ pages:
     - {slug: "required-flags", text: "Required Flags", level: 2}
     - {slug: "lane-model-for-orchestrators", text: "Lane Model for Orchestrators", level: 2}
     - {slug: "acceptance-payload", text: "Acceptance Payload", level: 2}
+    - {slug: "design-phase-commands", text: "Design-Phase Commands", level: 2}
+    - {slug: "specify", text: "specify", level: 3}
+    - {slug: "plan", text: "plan", level: 3}
+    - {slug: "tasks", text: "tasks", level: 3}
+    - {slug: "check-prerequisites", text: "check-prerequisites", level: 3}
+    - {slug: "record-analysis", text: "record-analysis", level: 3}
+    - {slug: "open-decision", text: "open-decision", level: 3}
+    - {slug: "resolve-decision", text: "resolve-decision", level: 3}
+    - {slug: "defer-decision", text: "defer-decision", level: 3}
+    - {slug: "cancel-decision", text: "cancel-decision", level: 3}
+    - {slug: "design-status", text: "design-status", level: 3}
+    - {slug: "answer-decision", text: "answer-decision", level: 3}
     - {slug: "example-commands", text: "Example Commands", level: 2}
     - {slug: "start-implementation", text: "Start implementation", level: 3}
     - {slug: "resolve-an-existing-workspace-read-only-contract-1-2-0", text: "Resolve an existing workspace (read-only, contract >= 1.2.0)", level: 3}
