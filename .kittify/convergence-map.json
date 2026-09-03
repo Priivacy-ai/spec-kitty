@@ -181,7 +181,7 @@
     },
     {
       "census_commit_count": 4,
-      "classification": "CONFLICT+strip (f9f806ed3 sync env shim \u2192 drop)",
+      "classification": "CONFLICT+strip (f9f806ed3 sync env shim → drop)",
       "commits": [
         "0ba09d2e641c6c3f0729bcec6a530ce6f2cb71b6",
         "457a2bfe45f302a43b9dea8130654bdf27be813e",
@@ -260,7 +260,7 @@
       "disposition": "SUPERSEDED",
       "evidence": "https://github.com/spec-kitty/EXPERIMENTAL-spec-kitty/issues/803#issuecomment-5471949715",
       "id": "PR#3623",
-      "summary": "PR#3623 M7 ExecutionMode\u2192WorkProductKind"
+      "summary": "PR#3623 M7 ExecutionMode→WorkProductKind"
     },
     {
       "census_commit_count": 4,
@@ -298,7 +298,7 @@
     },
     {
       "census_commit_count": 6,
-      "classification": "CONFLICT(partly)+strip (3ebfd1c01 sync emitter \u2192 drop)",
+      "classification": "CONFLICT(partly)+strip (3ebfd1c01 sync emitter → drop)",
       "commits": [
         "1763bf2ae326afee1d3ca338bedffba59959f875",
         "3ebfd1c01e9796d8ad357f249639ec3495b7e421",
@@ -350,7 +350,7 @@
       "disposition": "PORT",
       "evidence": "https://github.com/spec-kitty/EXPERIMENTAL-spec-kitty/issues/803#issuecomment-5471949715",
       "id": "PR#3659",
-      "summary": "PR#3659 consolidated community PRs #3630\u2013#3646"
+      "summary": "PR#3659 consolidated community PRs #3630–#3646"
     },
     {
       "census_commit_count": 1,
@@ -434,7 +434,7 @@
       "disposition": "PORT",
       "evidence": "https://github.com/spec-kitty/EXPERIMENTAL-spec-kitty/issues/803#issuecomment-5471949715",
       "id": "PR#3667",
-      "summary": "PR#3667 consolidated community fixes: 14\u00d7 HTTPS pack-fetch hardening + dashboard avatars + print CSS + runtime constant"
+      "summary": "PR#3667 consolidated community fixes: 14× HTTPS pack-fetch hardening + dashboard avatars + print CSS + runtime constant"
     },
     {
       "census_commit_count": 1,
@@ -909,7 +909,7 @@
       "disposition": "PORT",
       "evidence": "https://github.com/spec-kitty/EXPERIMENTAL-spec-kitty/issues/803#issuecomment-5471949715",
       "id": "PR#3800",
-      "summary": "PR#3800 M2 relocate src/doctrine \u2192 src/charter/offering (2b5335cf8; 261 R + 128 M + `src/doctrine.py` shim)"
+      "summary": "PR#3800 M2 relocate src/doctrine → src/charter/offering (2b5335cf8; 261 R + 128 M + `src/doctrine.py` shim)"
     },
     {
       "census_commit_count": 4,
@@ -980,7 +980,7 @@
     },
     {
       "census_commit_count": 64,
-      "classification": "PORT by execution (reverse-apply absent on all 64; none touch \u00a75; 33 machine-portable landed in-PR; 31 manual re-port follow-up issue \u2014 29 conflicted at pristine main + fc9a556855/0bb98b340a which import resolve_merge_retention defined only in the conflicted a62762c6a4)",
+      "classification": "PORT by execution (reverse-apply absent on all 64; none touch §5; 33 machine-portable landed in-PR; 31 manual re-port follow-up issue — 29 conflicted at pristine main + fc9a556855/0bb98b340a which import resolve_merge_retention defined only in the conflicted a62762c6a4)",
       "commits": [
         "7e32a7de57b09ef960ad76def5f7971b4e720b7f",
         "aedd276f8eec89ca5f22f664c3a1b8b2516df878",
@@ -1387,6 +1387,52 @@
       "evidence": "https://github.com/spec-kitty/EXPERIMENTAL-spec-kitty/issues/1026",
       "id": "profile-load-followups-patch-equivalent",
       "summary": "Profile-load follow-ups already present on EXP main"
+    },
+    {
+      "census_commit_count": 36,
+      "classification": "PORT by execution (reverse-apply absent on all 36; none touch §5; 11 machine-portable landed in-PR; 25 manual re-port follow-up on #1065 — 24 conflicted at PR head + 1 upstream-only tests/sync surface)",
+      "commits": [
+        "32c69d5db98a3e50dea1d5b69de440ccea161520",
+        "e64b661eda5d3aa5cd3b3ca653b2e8d45e0ab651",
+        "d9995cbc7f1848d771be8c6bd2d9ae784451575a",
+        "248618e31b3c3346f2ad18a364d02a4c3900c0f6",
+        "935301306d56c62f5951e7b7fc26042c54d5c08c",
+        "c7b7ff5f21134c37af53a408e730f62f0269acbf",
+        "7a2b2e1ec6e2648e44b0032f3622e51d9d271118",
+        "545e8e302f833d376084fce7a385ffa01726a941",
+        "d79e93942d70000263b460ef8e02bab9ae69618d",
+        "59679a1d8f2163e1b6ad53d33e7c50d7434bedf6",
+        "058945088876041cd1f4ce4f2a3471e95b4b6202",
+        "9a53cc63793451a7b99509b29b29a503ff5bc85c",
+        "7637ca33d2edb9e8b93e9680409759d2e50a3701",
+        "27c9062bb1d4a01ce400505014d7a582d8b2bcba",
+        "bb842568ef2884e4599c7e7f00a78b2ee0193d0f",
+        "fe41936f1295fa11695635bd5853e789e7eb4437",
+        "6589a515c9e6ce0ae20b7e2ffc594066c737fe8a",
+        "e7a3fbf10c85dc6b566e93e62c488ce0dfe3deb0",
+        "552b2931c8feb84b035438afe81890d5f755456e",
+        "625e9b854aa073c675821e29f373ed3d8b471690",
+        "823dcb42baac09dbfd57803af76f0058c3916251",
+        "c49264614ffa27a73d9e0b6b5436180ccdc5a9a7",
+        "03552057aae2eac19612fed9720bc7318d0801d5",
+        "9d582495f02a8bcd485108ee5fa3af52aec800c6",
+        "8418533b7f3486653ccd7825324a9d78d8119b90",
+        "f66e9ac10f0a8d53744e56afb9b1a66a2d62c2f0",
+        "f37e4076a23361046b54bb54d29c8981c8ae1491",
+        "7c2c37846d6614022427aa92ea20fdd37813cd67",
+        "a2735817f4d7b291ed2dfb0318c034e5df9f520a",
+        "84f69b0589343bd43b140ff969350ed9a9070f66",
+        "a567ddde5a23dc80ff44d151b0ba05e2f76477e7",
+        "d03571ff9c3ea39e15773422f21c1c2a1b4dceb2",
+        "ff65ab9de65bbf362e8c200b7d31e2d2af5367a5",
+        "2bd52663cb9fa08d610050e923712bc9f94d6cdb",
+        "c6ed4e7d6187551e0495ca8c004bfb8d4bcfe25d",
+        "d8da8cb1cb569995b76242bdd09d2dbd34bb7297"
+      ],
+      "disposition": "PORT",
+      "evidence": "https://github.com/spec-kitty/EXPERIMENTAL-spec-kitty/issues/803#issuecomment-5530878766",
+      "id": "census-0903-catchup-port-0903-pm",
+      "summary": "Daily catch-up PM cohort 09-03 (66a240c44..d8da8cb1c): commit-boundary integrity batch (#3784/#2693/#3716/#2739), mypy-shim ci retarget + lint pass (#3847 residual), charter command honesty (#3816/#2940/#3435), release-DAG docs, charter list --json + config.yaml guard class, explicit owned-checkout landing extension"
     }
   ],
   "evidence": "https://github.com/spec-kitty/EXPERIMENTAL-spec-kitty/issues/803#issuecomment-5471949715",
