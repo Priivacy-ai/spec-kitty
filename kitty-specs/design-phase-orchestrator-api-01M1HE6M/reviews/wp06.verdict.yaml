@@ -1,0 +1,145 @@
+schema: wp-verdict/v1
+complete: true
+wp_id: WP06
+mission: design-phase-orchestrator-api-01M1HE6M
+verdict: approved
+summary: >
+  Re-review of the WP06 rework (commits ca816bd7a, d51c76b9f) against the
+  severity-4 rejection in this same file's prior verdict. I independently
+  reproduced the original defect at the pre-rework commit before trusting
+  any claim: with commands.py rolled back to 2ed1c543c and HEAD's new test
+  overlaid, a real tasks-finalized mission with its trailing bootstrap
+  "planned" event cleanly dropped whole-line (the exact byte-offset shape
+  coordination/transaction.py:922-943's `_rollback` produces, not a
+  mid-line JSON tear) returns `success: true, current_phase: "plan"` --
+  silently wrong, no error, matching the rejected verdict's own live
+  reproduction exactly. At HEAD, the same construction is rejected closed:
+  `design-status` raises through the same `DESIGN_STATUS_EVENT_LOG_UNREADABLE`
+  path the mid-line tear already used, via a new `_check_no_snapshot_drift`
+  (commands.py:3229-3259) that compares the freshly-reduced
+  `snapshot.work_packages` key set against `status.json`'s persisted
+  `work_packages` key set -- when status.json (materialized on every
+  successful event append per status/emit.py's pipeline step 6, not merely
+  once at finalize-tasks time, which I verified by grep) names a WP id the
+  fresh reduction lost, that is drift, and the verb fails closed instead of
+  guessing. Red-first re-derived exactly as claimed: reverting only
+  commands.py's production change gives 1 failed / 22 passed across
+  test_design_status.py + test_decision_verbs.py; restoring gives 23/23,
+  with the pre-existing mid-line-tear test still green throughout. I pushed
+  past the fix per the dispatch's instruction and traced whether a
+  clean truncation that drops a lane-transition event but leaves every WP
+  id present could still slip a wrong current_phase past this check: it
+  cannot, because `_reduce_design_status` (commands.py:3287-3322) only ever
+  consumes `bool(snapshot.work_packages)` (via `_tasks_are_finalized`) plus
+  three on-disk file-existence checks (`spec.md`/`plan.md`/
+  `analysis-report.md`) -- no other event-log granularity (lane, WP status
+  value, event ordering) feeds `current_phase`/`next_action` today, so a
+  truncation that preserves the WP-id set cannot change the verb's output
+  regardless of what else it drops. The defect class is genuinely closed
+  for design-status's actual current contract, not merely narrowed --
+  though this closure is contingent on that narrow field set (noted as
+  WP06-R-003 below, non-blocking). WP06-002's two already-green tests are
+  legitimate: I reran them against WP05's own pre-WP06-001 commit (d3d9efc9c)
+  and confirmed the `_validate_rationale_or_fail`-before-`_resolve_mission_dir_or_fail`
+  ordering they pin was already correct and already shipped -- they document
+  pre-existing behaviour per the reviewer's own optional remediation, not
+  vacuous coverage of something this rework changed. Gates (ruff, mypy
+  --strict, check_patch_targets.py 5259/5259, test_json_group_typer_surface.py
+  5/5), Clarification-6 grep (all four hits are comment/docstring only),
+  envelope.py and upstream_contract.json (zero diff), and 1063 tests passed
+  with 0 failures across tests/specify_cli/status, tests/specify_cli/decisions,
+  tests/specify_cli/orchestrator_api, tests/specify_cli/coordination, and
+  tests/contract/test_orchestrator_api.py (a superset of the mission's own
+  targeted directories) -- all re-run live, none merely trusted. Two
+  non-blocking findings below concern documentation/evidence completeness
+  in the fix's own docstring, not functional defects: both fail closed
+  correctly today via existing exception handling even in the scenario each
+  describes. Approved.
+findings:
+  - id: WP06-R-001
+    severity: 2
+    title: "_check_no_snapshot_drift's docstring overclaims status.json's write-path atomicity -- the rollback-restore path writes it non-atomically, though the code still fails closed"
+    evidence:
+      - code: "src/specify_cli/orchestrator_api/commands.py:3229-3236 (_check_no_snapshot_drift docstring: \"status.json is written by status/reducer.py::materialize via tmp-then-rename atomic replace... there is no torn-read hazard on THIS side of the comparison\")"
+      - code: "src/specify_cli/coordination/transaction.py:952-956 (_rollback step 2: `self._snapshot_path.write_bytes(self._pre_emit_snapshot_bytes)` -- a direct, non-atomic write, NOT routed through reducer.py::materialize's tmp-then-rename)"
+    claim: >
+      status.json actually has two distinct writers with two distinct
+      durability properties: reducer.py::materialize (tmp-write +
+      os.replace, genuinely atomic, verified directly at reducer.py:842-848)
+      and BookkeepingTransaction._rollback's direct write_bytes() call
+      (transaction.py:952-956), which truncates-and-writes in place with no
+      tmp+rename step. If a process is killed mid-write_bytes on the
+      rollback-restore path, status.json could be left with a truncated,
+      syntactically-invalid JSON body -- the "no torn-read hazard on THIS
+      side" claim in the new docstring is therefore not accurate for all of
+      status.json's writers, only for the materialize() one. In practice
+      this does not produce a wrong current_phase: _check_no_snapshot_drift's
+      own try/except (OSError, json.JSONDecodeError) already catches a torn
+      status.json and raises StoreError -- the same fail-closed outcome --
+      so there is no live defect, only an inaccurate evidence trail a future
+      maintainer could rely on incorrectly (e.g. to justify skipping the
+      JSONDecodeError guard as "unnecessary" since status.json is "always
+      atomic").
+    remediation: >
+      Correct the docstring to name both writers explicitly and state that
+      the JSONDecodeError/OSError catch (not status.json's atomicity) is
+      what makes the rollback-restore's non-atomic write safe to read here.
+      Optionally, for defense-in-depth consistency, route
+      BookkeepingTransaction._rollback's status.json restore through the
+      same tmp-write + os.replace pattern reducer.py::materialize already
+      uses, rather than write_bytes() directly.
+  - id: WP06-R-002
+    severity: 1
+    title: "Inode-replacement ruling's writer enumeration doesn't mention the spec-kitty-event-log git merge driver, though its conclusion still holds on independent inspection"
+    evidence:
+      - code: "src/specify_cli/orchestrator_api/commands.py:3199-3208 (\"every writer mutates the file's content in place through the SAME inode -- append_event opens in 'a' mode, _rollback opens in 'ab' mode\")"
+      - code: "src/specify_cli/status/event_log_merge.py:97 (merge_event_log_files: `with target.open(\"w\", encoding=\"utf-8\") as handle`, a third writer of status.events.jsonl-shaped content, not named in the docstring's enumeration)"
+    claim: >
+      The docstring's claim that append_event and _rollback are the only
+      two writers is incomplete: the spec-kitty-event-log git merge driver
+      (event_log_merge.py:82-97, wired via .gitattributes for
+      status.events.jsonl) also writes event-log content. I traced this
+      independently and confirmed the conclusion still holds -- per
+      cli/commands/merge_driver.py:113's own comment, git materializes
+      %O/%A/%B as sibling TEMP files before invoking the driver, so this
+      write lands on a git-managed temp path, not the live mission
+      directory's status.events.jsonl; git's own checkout mechanism applies
+      the result afterward, outside this codebase's control and outside a
+      live design-status read's concurrency window. So the ruling is
+      correct, but the stated evidence ("every writer... two...") is a
+      narrower list than the codebase actually contains, which could
+      mislead a future reader auditing this claim without doing the same
+      trace.
+    remediation: >
+      Optional, non-blocking: broaden the docstring to say "every DIRECT
+      writer of the live status.events.jsonl path" (naming append_event and
+      _rollback) and add one sentence noting the merge-driver write operates
+      on git-materialized temp paths, not this file, so it is out of scope
+      for this specific reader-hazard analysis.
+  - id: WP06-R-003
+    severity: 2
+    title: "The drift check's completeness is contingent on design-status's current narrow field set, not a general guarantee against clean truncation"
+    evidence:
+      - code: "src/specify_cli/orchestrator_api/commands.py:3287-3322 (_reduce_design_status: current_phase/next_action derive ONLY from spec.md/plan.md/analysis-report.md existence plus bool(snapshot.work_packages) via _tasks_are_finalized; no other event-log field is consulted)"
+      - code: "src/specify_cli/orchestrator_api/commands.py:3248-3259 (_check_no_snapshot_drift: compares only the WP-id KEY SET, not any other field of the reduced snapshot)"
+    claim: >
+      I confirmed a clean truncation that drops a lane-transition event (or
+      any other WP-internal field) while leaving every WP id present is NOT
+      currently reachable to produce a wrong current_phase, because
+      design-status never reads anything more granular than "is this WP id
+      present at all" from the event log. This closes the defect class for
+      design-status's actual, current output contract. But the closure is a
+      property of what design-status happens to expose today, not a
+      general-purpose torn-log defense: if a future change widens
+      design-status's fields (e.g. to surface per-WP lane or a
+      finer-grained "which subtasks of tasks/ are finalized" signal) without
+      re-examining this check, the same silently-wrong-snapshot class could
+      reopen for the new field, unguarded by _check_no_snapshot_drift's
+      WP-id-set-only comparison.
+    remediation: >
+      Add a one-line note to _check_no_snapshot_drift's docstring stating
+      the guarantee is scoped to the WP-id-presence signal design-status
+      currently consumes, and that any future field added to
+      _reduce_design_status sourced from finer event-log detail must be
+      re-examined against this same clean-truncation hazard before being
+      trusted.

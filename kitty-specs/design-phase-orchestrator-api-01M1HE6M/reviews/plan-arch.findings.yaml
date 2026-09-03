@@ -1,0 +1,84 @@
+schema: review-findings/v1
+complete: true
+phase: plan
+lens_group: arch
+mission: design-phase-orchestrator-api-01M1HE6M
+findings:
+  - id: PLAN-ARCH-001
+    lens: "Gate Set completeness (CI coverage contract)"
+    severity: 4
+    title: "WP02's proposed test location is never measured by the only CI jobs that scope coverage to src/runtime/next, tripping the enforced diff-coverage critical-path gate"
+    evidence:
+      - artifact: "plan.md § (e) Gate Set, item 3 (SC-008 shared regression test location) and § Project Structure (tests/ tree)"
+      - code: ".github/workflows/ci-quality.yml:1414-1436 (fast-tests-next job: pytest over tests/next/ tests/specify_cli/next/ tests/runtime/ only, with --cov=src/runtime/next)"
+      - code: ".github/workflows/ci-quality.yml:2757-2792 (integration-tests-next job, matrix shards next_shard_1..3: same three-path scope, same --cov=src/runtime/next)"
+      - code: ".github/workflows/ci-quality.yml:3305-3376 (diff-coverage job, critical-path step 'ENFORCED' with --fail-under=90; 'src/runtime/next/*' is a critical_paths entry)"
+      - code: "src/specify_cli/orchestrator_api/commands.py, tests/specify_cli/cli/commands/ — the slow-tests job that runs this directory uses --cov=specify_cli --cov=charter --cov=doctrine only (ci-quality.yml:3063-3066), which never includes src/runtime/next either"
+    claim: >
+      Plan §(e) item 3 places the new SC-008 shared regression test at
+      `tests/specify_cli/cli/commands/test_next_invocation_lifecycle_seam.py`. §(e)
+      explicitly checked and correctly excluded the kernel-coverage and
+      mission-loader-coverage per-package gates as not applicable to this mission, but
+      did not check the diff-coverage critical-path gate, which DOES apply:
+      `src/runtime/next/*` — the exact new module's path (WP02 adds
+      `next_invocation_lifecycle.py` there) — is one of the enforced critical_paths
+      entries, gated at 90% new-line coverage with a hard `exit 1` on failure. The
+      only two CI jobs that pass `--cov=src/runtime/next` (fast-tests-next,
+      integration-tests-next) run pytest exclusively over `tests/next/`,
+      `tests/specify_cli/next/`, and `tests/runtime/` — never
+      `tests/specify_cli/cli/commands/`, where the plan puts the new test. Every other
+      job that does execute `tests/specify_cli/cli/commands/` (the slow-tests job)
+      scopes coverage to `specify_cli`/`charter`/`doctrine`, never `runtime`.
+      pytest-cov's `--cov=<path>` argument restricts what gets measured/reported per
+      job, so a job outside that scope contributes zero coverage entries for
+      `src/runtime/next/next_invocation_lifecycle.py` even when it executes that code
+      indirectly through `next_cmd.py`. Because diff-cover merges the uploaded
+      coverage-*.xml artifacts, the new module — ~100% new lines in a critical path —
+      will appear uncovered in the aggregate, and the enforced diff-coverage step will
+      fail. This blocks the mission's single mandated PR (spec C-004: one PR, no
+      follow-up issues) unless caught before WP02's test is written.
+    remediation: >
+      In plan §(e), name the diff-coverage critical-path gate explicitly alongside the
+      kernel/mission-loader gates already discussed, and pick one concrete fix: (a)
+      also collect the shared regression test (or an equivalent import-and-exercise
+      test for `next_invocation_lifecycle.py`) under one of `tests/next/`,
+      `tests/specify_cli/next/`, or `tests/runtime/` so fast-tests-next /
+      integration-tests-next pick it up with `--cov=src/runtime/next` in scope, or (b)
+      extend fast-tests-next's / integration-tests-next's path lists to include
+      `tests/specify_cli/cli/commands/` (confirming this doesn't disturb the
+      `next_shard_*` marker partitioning in integration-tests-next's matrix). Record
+      the choice in plan §(e) item 3 so WP02's author doesn't discover the failure only
+      after opening the PR.
+  - id: PLAN-ARCH-002
+    lens: "FR-014 target-module evidentiary claims"
+    severity: 2
+    title: "Precedent citations for the seam's placement support module placement, not the actually-new orchestrator_api→runtime.next import direction they're offered to justify"
+    evidence:
+      - artifact: "plan.md § (a) FR-014 Seam Extraction — Target Module Decision, final bullet under 'Why this location and not the alternatives' ('src/runtime/next/ top level... IS the right precedent')"
+      - code: "src/specify_cli/orchestrator_api/commands.py:32-66 (full import block: zero references to runtime.next / runtime_bridge / decision; the only 'runtime'-named import is `from mission_runtime import CommitTarget`, a distinct top-level package at src/mission_runtime/, per pyproject.toml:149's packages list)"
+      - code: "src/specify_cli/cli/commands/next_cmd.py:51,67,195,817,984,1002 (next_cmd.py — a different CLI-command module — already imports runtime.next.decision / runtime.next.runtime_bridge / runtime.next._internal_runtime.engine directly)"
+      - code: "src/runtime/next/decision.py:33,188; src/runtime/next/runtime_bridge.py:319 (the plan's actual citations — all runtime.next → specify_cli.*, the reverse direction)"
+    claim: >
+      The plan's precedent argument for where to put the new seam module cites
+      decision.py:33, decision.py:188, and runtime_bridge.py:319 — all three verified
+      exact (module and specify_cli-domain-primitive imports made BY runtime.next top
+      -level modules). That is the opposite direction from the new edge WP08 actually
+      introduces: `orchestrator_api/commands.py` importing FROM `runtime.next`
+      (`runtime_bridge.py`, `decision.py`, and the new seam module). Grepping
+      commands.py's own import block confirms it has zero existing imports from
+      runtime.next today — WP08 is the first time this specific module reaches into
+      that layer, a fact the plan doesn't state directly. The real, on-point precedent
+      for a CLI-command-layer module reaching into runtime.next already exists
+      (next_cmd.py does exactly this, and so do several other specify_cli modules —
+      workflow.py, implement.py, mission_loader/*), fully supporting the placement
+      decision, but it isn't the evidence the plan cites. The conclusion (this
+      placement is architecturally sound) is still correct — this is an evidentiary
+      precision gap, not a wrong decision.
+    remediation: >
+      In plan §(a), add a sentence citing next_cmd.py's existing direct imports of
+      `runtime.next.decision` / `runtime.next.runtime_bridge` (e.g.
+      next_cmd.py:67,195,817,984,1002) as the precedent for a CLI-layer module calling
+      into runtime.next directly, and state explicitly that
+      `orchestrator_api/commands.py` has no such import today — WP08 introduces it for
+      the first time, which is expected and ruling-mandated (FR-013/Mechanism B) but
+      should be named rather than left implicit.

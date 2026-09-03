@@ -1,0 +1,7 @@
+schema: review-verify/v1
+complete: true
+phase: spec
+results:
+  - id: SPEC-FRESH-001
+    status: resolved
+    reason: FR-013's Key Entities, Scope Notes, Clarification 3, and User Story 5 (body, all 6 ACs, Independent Test, SC-007) now consistently cite decide_next (decision.py:413) and decide_next_via_runtime (runtime_bridge.py:2191) alongside answer_decision_via_runtime (runtime_bridge.py:2587) as a composite two-call design, and resolve the answered_decision_id/Decision.to_dict() ambiguity into one coherent shape (Decision.to_dict() from call 2 plus a sibling answered_decision_id field from call 1) verified against the actual _print_decision code (next_cmd.py:910-919, which flatly merges answered/answer keys, matching the spec's own description).

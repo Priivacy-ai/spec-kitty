@@ -1,0 +1,56 @@
+schema: review-findings/v1
+complete: true
+phase: plan
+lens_group: fresh-2
+mission: design-phase-orchestrator-api-01M1HE6M
+findings:
+  - id: PLAN-FRESH2-001
+    lens: ci-gate-scoping
+    severity: 3
+    title: >-
+      New WP03–WP08 orchestrator-api verb test files are never told to carry
+      a pytest marker, the same "directory placement alone is not enough"
+      trap the plan just fixed for WP02/WP08's shared seam test
+    evidence:
+      - artifact: "plan.md § (e) Gate Set, item 3, first bullet (`tests/specify_cli/orchestrator_api/` — all new verb tests land here...)"
+      - artifact: "plan.md § (e) Gate Set, item 3, fourth bullet + item 4 (the just-fixed WP02 seam-test marker prescription, ~30 lines of explicit `pytestmark` guidance)"
+      - code: ".github/workflows/ci-quality.yml:1717 (comment: fast-tests-core-misc partitions specify-cli-rest by paths/ignore_args, \"not by pytest marker\" — but the pytest invocation itself still filters)"
+      - code: ".github/workflows/ci-quality.yml:1793 — fast-tests-core-misc's specify-cli-rest shard runs `-m \"fast and not windows_ci and not regression\"`"
+      - code: "tests/specify_cli/orchestrator_api/test_commands_fail_closed.py:39, test_fail_message_preserved.py:25, test_typed_error_fail_closed.py:38 — `pytestmark = [pytest.mark.fast]`"
+      - code: "tests/specify_cli/orchestrator_api/test_transition_subtask_gate.py:32 — `pytestmark = [pytest.mark.integration, pytest.mark.git_repo]`"
+      - code: ".github/workflows/ci-quality.yml:4276-4297 — fast-tests-core-misc is a required member of `quality-gate.needs`"
+    claim: >-
+      The plan's Gate Set item 3 first bullet says new WP03–WP06/WP08 verb
+      test files (`test_specify_plan_tasks_verbs.py`,
+      `test_check_prerequisites_record_analysis.py`, `test_decision_verbs.py`,
+      `test_design_status.py`, `test_answer_decision.py`) simply "land here"
+      in `tests/specify_cli/orchestrator_api/` — with no mention of a pytest
+      marker requirement. But `tests/specify_cli/orchestrator_api/` is
+      collected by `fast-tests-core-misc` (specify-cli-rest shard) and
+      `integration-tests-core-misc`, and BOTH filter collection by pytest
+      marker (`-m "fast and not windows_ci and not regression"` /
+      an integration-style filter), exactly the same two-jobs-filter-by-
+      marker shape the plan just spent ~30 lines fixing for WP02/WP08's
+      seam test three paragraphs later in the same Gate Set item. All four
+      EXISTING files in that same directory already carry an explicit
+      `pytestmark` (three `fast`, one `[integration, git_repo]`), so the
+      precedent is real and immediately visible — but the plan states it
+      nowhere for the five NEW verb test files, unlike its now-careful
+      treatment of the seam test. Because `fast-tests-core-misc` is a
+      required, blocking `quality-gate` member, an unmarked or
+      wrong-marker new test file would not fail CI — it would simply never
+      be collected, silently passing the gate with zero coverage of the new
+      verb's failure paths (exactly the "silent success" failure class the
+      operator ruling on FR-013/FR-014 exists to prevent, applied here to
+      the mission's own WP tests rather than to `answer-decision` itself).
+    remediation: >-
+      Add one sentence to Gate Set item 3's first bullet (and/or the WP03–
+      WP08 rows in the Work Package Breakdown table) instructing each new
+      `tests/specify_cli/orchestrator_api/test_*.py` file to carry an
+      explicit `pytestmark` matching the existing four files' established
+      convention (`pytest.mark.fast` for pure in-process verb tests;
+      `[pytest.mark.integration, pytest.mark.git_repo]` for any that do real
+      git-repo/fixture-mission I/O, mirroring
+      `test_transition_subtask_gate.py`) — so each new file is deliberately
+      chosen, not defaulted into invisibility by `fast-tests-core-misc` /
+      `integration-tests-core-misc`'s marker filters.

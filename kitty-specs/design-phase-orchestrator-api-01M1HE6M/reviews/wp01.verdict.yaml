@@ -1,0 +1,56 @@
+schema: wp-verdict/v1
+complete: true
+wp_id: WP01
+mission: design-phase-orchestrator-api-01M1HE6M
+verdict: approved
+summary: >
+  WP01's substance is sound and independently reproducible: the type-suppression
+  removal in next_cmd.py:415-419 is a genuine annotation-narrowing (verified against
+  write_paired_completion's real ProfileInvocationPhase = Literal["started","completed",
+  "failed"] signature in invocation/lifecycle.py:319 and invocation/record.py:241, and
+  against write_paired_completion's own runtime guard at lifecycle.py:329-330 which
+  already rejects "started" — the removed ignore comment was masking nothing real), the
+  diff touches only next_cmd.py plus the two tracer files (no grab-bag, no drive-by
+  reformat), and every claimed gate result reproduces exactly under targeted re-runs
+  (mypy --strict clean, ruff check clean, 36 passed across the four test_next_* files
+  plus orchestrator_api/, and the architectural pair at 12 passed matching the tracer
+  entry verbatim). The one real gap is procedural, not substantive: the DoD's explicit
+  "two commits" requirement (baseline-snapshot, then T002 fix) collapsed into a single
+  combined commit 7a996ce7b because of the tool-outage handoff described by the
+  orchestrator. The baseline data itself is present, durable, and independently
+  reproducible in tracer-tooling-friction.md, so the DoD's functional intent (a
+  findable, honest baseline for later WPs) is met even though the commit-granularity
+  checklist item literally is not — filed as a moderate finding rather than a rejection
+  trigger, per instructions not to suppress it.
+findings:
+  - id: WP01-001
+    severity: 3
+    title: DoD's "two commits" requirement collapsed into one combined commit
+    evidence:
+      - code: "git log --oneline shows a single commit 7a996ce7b for both T001 (tracer snapshot) and T002 (type-narrowing fix)"
+      - code: "kitty-specs/design-phase-orchestrator-api-01M1HE6M/tasks/WP01-campsite-clean-baseline-red.md:225"
+    claim: >
+      The WP01 contract's Definition of Done explicitly lists "Two commits:
+      baseline-snapshot commit, then the T002 fix commit" as a checklist item, and the
+      ATDD Note (WP01-campsite-clean-baseline-red.md:196-199) states the intended
+      purpose: letting a later reviewer/bisector separate "here is the honest starting
+      point" from "here is the change" at the commit level. Because of the documented
+      shell-tool outage, the orchestrator committed both the T001 tracer-snapshot
+      content and the T002 code fix together in one commit. Since history rewriting is
+      forbidden here, this cannot be repaired by re-committing. The functional content
+      (exact counts + node ids in tracer-tooling-friction.md, the resolution rationale
+      in tracer-design-decisions.md) is present, durable, and reproducible — verified
+      independently by re-running all three targeted shards and getting identical
+      counts (13 + 23 = 36 passed for the non-architectural pair; 12 passed for the
+      architectural pair) — so the DoD's substance (an honest, findable baseline for
+      WP02-WP09) is met. Only the git-history separation the checklist literally asks
+      for is missing.
+    remediation: >
+      No code or content change is required — the baseline is genuinely usable as-is.
+      Record in tracer-design-decisions.md (or this WP's review notes) that the
+      baseline-snapshot and T002-fix landed as one combined commit due to the
+      tool-outage handoff, so later WPs/reviewers know to cite tracer-tooling-friction.md
+      directly rather than expecting a separate baseline-only commit to diff against.
+      If a future mission needs a hard git-level bisection point for a similarly
+      combined WP, split at the next available commit boundary rather than rewriting
+      this one.

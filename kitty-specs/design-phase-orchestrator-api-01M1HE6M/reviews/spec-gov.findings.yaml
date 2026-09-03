@@ -1,0 +1,157 @@
+# review-findings/v1 — canonical format for lens-session and fresh-sweep output.
+schema: review-findings/v1
+complete: true
+phase: spec
+lens_group: gov
+mission: design-phase-orchestrator-api-01M1HE6M
+findings:
+  - id: SPEC-GOV-001
+    lens: Single-PR / fold-in-scope (C-004) + Scope
+    severity: 5
+    title: Decision-resolution FRs cover the wrong "decision" concept — the issue's actual DecisionKind ask is not addressed
+    evidence:
+      - artifact: "spec.md § User Story 3, Clarification 3, FR-006–FR-009, C-003, FR-012"
+      - code: "src/runtime/next/decision.py:64-68 (DecisionKind: step, decision_required, blocked, terminal, query)"
+      - code: "src/runtime/next/_internal_runtime/planner.py:388-397,417-432,461-470 (decision_required fires for DAG pending_decisions, blocking-audit checkpoints \"audit:<step_id>\", and missing-required-input decisions \"input:<key>\" — none of these are OriginFlow-scoped)"
+      - code: "src/specify_cli/cli/commands/next_cmd.py:133-155,932-1000 (the actual resolution path for a DecisionKind.decision_required envelope is `spec-kitty next --answer --decision-id ...`, reading `_internal_runtime.engine._read_snapshot(...).pending_decisions` — a run-state snapshot store)"
+      - code: "src/specify_cli/decisions/service.py:260-330 (open_decision persists into `decisions/index.json` via `_store.load_index(mission_dir)` — a completely separate ledger from the runtime run-snapshot above)"
+      - code: "src/specify_cli/decisions/models.py:36-41 (OriginFlow: charter, specify, plan only)"
+    claim: >
+      GitHub issue #3837 asks for "a decision-resolution verb covering the DecisionKind
+      cases (runtime/next/decision.py)" — i.e. resolving the `spec-kitty next` control
+      loop's `decision_required` envelope, which fires for blocking-audit checkpoints
+      and missing-required-input decisions at ANY DAG step (not limited to
+      charter/specify/plan), and is resolved today only via `spec-kitty next --answer
+      --decision-id ...` against a runtime run-snapshot store. The spec instead wraps
+      `decisions/service.py`'s `open_decision`/`resolve_decision`/`defer_decision`/
+      `cancel_decision`, which operate on a *different* persistence layer
+      (`decisions/index.json`) scoped to `OriginFlow` (charter/specify/plan interview
+      questions only) — a real, useful, but distinct mechanism. Clarification 3 asserts
+      this narrowing is "a scope boundary, not an oversight" by citing `DecisionKind`'s
+      member list side-by-side with `OriginFlow`'s, but `DecisionKind` members
+      (`step`/`decision_required`/`blocked`/`terminal`/`query`) are envelope *kinds*, not
+      origin flows, and the code shows `decision_required` is NOT bounded to
+      charter/specify/plan. As written, this mission would ship FR-006–FR-009 / FR-012,
+      close #3837 (C-004: single-PR, no follow-up issues), and still leave the literal
+      ask — orchestrator-api resolution of a `next`-loop `decision_required` moment for
+      an audit checkpoint or a missing required input in ANY phase — completely
+      uncovered, with the spec's own text framing that gap as already resolved.
+    remediation: >
+      Either (a) extend this spec's scope to add an orchestrator-api verb wrapping the
+      `next --answer` resolution path (sourced from `_internal_runtime.engine._read_snapshot`
+      / `pending_decisions`, mirroring `next_cmd.py:_handle_answer`) so the actual
+      `DecisionKind.decision_required` cases the issue names are reachable via
+      orchestrator-api — this is the C-004-compliant default; or (b) if this class of
+      decision is deliberately being left to a later mission, get that scope cut
+      explicitly confirmed by the operator (not silently framed as "not an oversight"
+      against a mismatched premise) and rewrite Clarification 3 to state plainly that
+      `DecisionKind`/`next --answer` resolution and `OriginFlow`/`decisions/service.py`
+      resolution are two distinct mechanisms, only the second of which this mission
+      covers.
+
+  - id: SPEC-GOV-002
+    lens: Terminology
+    severity: 3
+    title: New verb names invert the established VERB-NOUN naming convention with no precedent
+    evidence:
+      - artifact: "spec.md § FR-004–FR-009 (analyze-context, analyze-record, decision-open, decision-resolve, decision-defer, decision-cancel)"
+      - code: "src/specify_cli/orchestrator_api/commands.py:1102,1141,1286,1409,1593,1680,1781 (existing mutating verbs: resolve-workspace, start-implementation, start-review, transition, append-history, accept-mission, merge-mission — all VERB-first, NOUN-second)"
+      - code: "src/specify_cli/cli/commands/decision.py:213,306,349,397 (host CLI is a `decision` Typer group with verb SUBcommands open/resolve/defer/cancel — group-then-verb, a different shape than a flat orchestrator-api verb name)"
+    claim: >
+      Every existing mutating orchestrator-api verb (bar the query-style `list-ready`/
+      `contract-version`/`mission-state`) follows VERB-NOUN order:
+      resolve-workspace, start-implementation, start-review, append-history,
+      accept-mission, merge-mission. The spec's `decision-open`/`decision-resolve`/
+      `decision-defer`/`decision-cancel` invert this to NOUN-VERB — a naming scheme with
+      no sibling precedent in the flat orchestrator-api verb space, produced by literally
+      flattening the host CLI's `decision <verb>` Typer group rather than following the
+      orchestrator-api's own convention. `analyze-context` and `analyze-record` are
+      likewise ambiguous under the same lens, and `analyze-context` additionally implies
+      the verb performs analysis, which directly contradicts C-002 ("this verb performs
+      no analysis reasoning itself").
+    remediation: >
+      Rename to VERB-NOUN siblings, e.g. `open-decision` / `resolve-decision` /
+      `defer-decision` / `cancel-decision`, and rename `analyze-context` to something
+      that does not imply server-side reasoning (e.g. mirror the CLI command it wraps:
+      `check-prerequisites` or `analysis-prerequisites`), keeping `record-analysis`
+      (mirroring `record_analysis`) as the write verb's name.
+
+  - id: SPEC-GOV-003
+    lens: Terminology
+    severity: 3
+    title: FR-010's status/query verb has no concrete name anywhere in the spec
+    evidence:
+      - artifact: "spec.md § FR-010 (\"Design-phase status/query verb\"), User Story 4 Acceptance Scenarios 1-4 (all say \"the design-phase status/query verb\", never a literal verb string)"
+      - artifact: "spec.md § FR-001–FR-009, FR-011 (every sibling FR names a literal verb in its title: `specify`, `plan`, `tasks`, `analyze-context`, `analyze-record`, `decision-open`, etc.)"
+    claim: >
+      Unlike every other FR in this spec, FR-010 never commits to a literal verb name —
+      it is described only as "the design-phase status/query verb" throughout the FR
+      table, User Story 4, and the Acceptance Scenarios. This is the one FR where a
+      failing-first ATDD test (charter C-011) cannot be written directly from the spec:
+      the WP implementer must invent a name mid-plan or mid-WP, with no terminology
+      review possible at spec time and a real risk it lands with an inconsistent shape
+      relative to the sibling verbs (compounding SPEC-GOV-002).
+    remediation: >
+      Name the verb explicitly in the spec (e.g. `design-status` or `mission-status`,
+      matching `mission-state`'s existing noun-phrase query-verb style) and use that
+      literal name consistently across FR-010's title, User Story 4's acceptance
+      scenarios, and SC references.
+
+  - id: SPEC-GOV-004
+    lens: Ledger
+    severity: 3
+    title: Clarification 5's blanket SK-93 exposure claim contradicts the code for at least 2 of the 4 verbs it names
+    evidence:
+      - artifact: "spec.md § Clarification 5 (\"already applies to every event-emitting orchestrator-api command today (start-implementation, transition, append-history, merge-mission)\")"
+      - code: "src/specify_cli/orchestrator_api/commands.py:1239-1240,1333-1334,1516-1517 (start-implementation, start-review, and transition all pass `ensure_sync_daemon=False, sync_dossier=False`)"
+      - code: "src/specify_cli/status/emit.py:814,973 (`if sync_dossier and repo_root is not None:` — dossier sync, the exact SK-93 body-upload path, is skipped entirely when `sync_dossier=False`)"
+      - code: "SPEC-KITTY-LEDGER.md:1194-1197 (SK-93's call chain is specifically `sync/dossier_pipeline.py::_prepare_bodies -> sync/body_upload.py -> ... -> sync/layout_generation.py::execute_write`, i.e. the dossier body-upload path gated by `sync_dossier`)"
+    claim: >
+      Clarification 5 states the SK-65/72/93 lock-storm exposure "already applies to
+      every event-emitting orchestrator-api command today" and names
+      start-implementation, transition, append-history, and merge-mission as already
+      exposed. The code shows start-implementation, start-review, and transition
+      explicitly opt OUT of the dossier body-upload path (`sync_dossier=False`) that
+      SK-93 documents — so at least 2 of the 4 named commands are not demonstrated to
+      carry that exposure today. The Clarification's accuracy matters because it is used
+      to justify NFR-004's design (artifact-reread verification) as the general pattern;
+      the ledger and the code both suggest a `sync_dossier=False`-style opt-out is also a
+      live design option worth considering for `record_analysis`/`analyze-record` during
+      planning, which the current framing forecloses without discussion.
+    remediation: >
+      Correct Clarification 5 to state precisely which named verbs are actually shown to
+      carry dossier-sync exposure (grep `ensure_sync_daemon`/`sync_dossier` call sites)
+      rather than a blanket "every event-emitting command" claim, and note during
+      planning whether `record_analysis` (which has no `sync_dossier` parameter today,
+      per `mission_record_analysis.py:228`) could gain the same opt-out as an
+      alternative or complement to NFR-004's artifact-reread verification.
+
+  - id: SPEC-GOV-005
+    lens: Directive (canonical-sources / accuracy of existing-code representation)
+    severity: 4
+    title: FR-001's specify-verb AC conflates two different JSON payload shapes as if they are the same canonical output
+    evidence:
+      - artifact: "spec.md § FR-001 Acceptance Scenario 1 (\"matching what agent_feature.create_mission(..., json_output=True) already produces for the host CLI's --json path\"), Clarification 1"
+      - code: "src/specify_cli/cli/commands/lifecycle.py:66-89 (_create_mission_for_specify_json wraps agent_feature.create_mission(json_output=True), captures its stdout, and re-emits it through _with_specify_scaffold_state before it ever reaches the host CLI's --json caller)"
+      - code: "src/specify_cli/cli/commands/lifecycle.py:51-58 (_with_specify_scaffold_state adds `scaffold_only`, `spec_state`, `next_action`, `next_step` fields not present in agent_feature.create_mission's raw payload)"
+      - code: "src/specify_cli/cli/commands/lifecycle.py:162 (the specify() CLI command calls _create_mission_for_specify_json, NOT agent_feature.create_mission directly, when json_output=True)"
+    claim: >
+      FR-001's AC and Clarification 1 assert `specify`/`plan`/`tasks` are "already thin
+      shims" whose JSON output is `agent_feature.create_mission(..., json_output=True)`'s
+      raw payload — true for `plan`/`tasks` (verified: they pass `json_output` straight
+      through with no wrapper), but false for `specify`: the actual host-CLI `--json`
+      path runs through `_create_mission_for_specify_json`, which captures
+      `create_mission`'s stdout and enriches it with `scaffold_only`/`spec_state`/
+      `next_action`/`next_step` before the host CLI ever returns it. The spec's own AC
+      text says the new verb's `data` should match "what agent_feature.create_mission(...,
+      json_output=True) already produces for the host CLI's --json path" — but those are
+      two different shapes in the real code, and the AC doesn't say which one is
+      authoritative. A literal implementation against the raw `create_mission` output
+      would diverge from the host CLI's actual `--json` contract the AC claims to mirror.
+    remediation: >
+      Update FR-001 AC-1 and Clarification 1 to name `_create_mission_for_specify_json`'s
+      enriched shape (including `scaffold_only`, `spec_state`, `next_action`,
+      `next_step`) as the target the new `specify` verb's `data` must match, or state
+      explicitly that the new verb intentionally targets the raw
+      `agent_feature.create_mission` shape instead and why that diverges from the host
+      CLI's `--json` output.

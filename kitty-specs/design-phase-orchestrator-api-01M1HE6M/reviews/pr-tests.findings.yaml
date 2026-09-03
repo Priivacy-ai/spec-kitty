@@ -1,0 +1,106 @@
+schema: review-findings/v1
+complete: true
+phase: pr
+lens_group: tests
+mission: design-phase-orchestrator-api-01M1HE6M
+findings:
+  - id: PR-TESTS-001
+    lens: error paths exercised
+    severity: 3
+    title: specify/plan/tasks delegate-failure fallback error codes have zero test coverage
+    evidence:
+      - code: "src/specify_cli/orchestrator_api/commands.py:2090-2113 (_classify_specify_create_error, MISSION_CREATE_FAILED fallback)"
+      - code: "src/specify_cli/orchestrator_api/commands.py:2235,2246 (plan(), PLAN_SETUP_FAILED)"
+      - code: "src/specify_cli/orchestrator_api/commands.py:2300,2311 (tasks(), TASKS_FINALIZE_FAILED)"
+      - code: "tests/specify_cli/orchestrator_api/test_specify_plan_tasks_verbs.py:163-345 (only 4 tests: 3 happy-path pass-through, 1 MISSION_ALREADY_EXISTS duplicate-slug)"
+    claim: >
+      `specify`/`plan`/`tasks` each classify a failed delegate call two ways: trust a
+      typed `error_code` the delegate already carries, or fall back to a verb-specific
+      generic code (`MISSION_CREATE_FAILED`, `PLAN_SETUP_FAILED`, `TASKS_FINALIZE_FAILED`)
+      when the delegate raised `typer.Exit` with no parseable/typed payload.
+      `test_specify_plan_tasks_verbs.py` contains exactly 4 tests: 3 happy-path
+      pass-through checks and 1 failure test that only exercises the
+      `MISSION_ALREADY_EXISTS` duplicate-marker classification (a different branch of
+      `_classify_specify_create_error`). No test ever drives `plan()` or `tasks()` down
+      their `except typer.Exit` branch, and no test drives `specify()`'s generic
+      (non-duplicate, no-payload) fallback. A regression that broke the fallback
+      classification (e.g. dropped the `except typer.Exit` handler, or always returned
+      `success=True` on a delegate raise) would pass this suite untouched — confirmed
+      by inspection of every `def test_` in the file (grep -n "^def test_"
+      tests/specify_cli/orchestrator_api/test_specify_plan_tasks_verbs.py lists only the
+      4 named above).
+    remediation: >
+      Add one failure test per verb: monkeypatch the delegate
+      (`agent_feature.setup_plan` / `agent_feature.finalize_tasks` /
+      `_create_mission_for_specify_json`) to raise `typer.Exit(1)` with stdout that
+      contains no parseable `{...}` JSON, and assert the orchestrator-api verb reports
+      `success: false` with the verb's own fallback `error_code`
+      (`PLAN_SETUP_FAILED`/`TASKS_FINALIZE_FAILED`/`MISSION_CREATE_FAILED`), never a bare
+      exception.
+
+  - id: PR-TESTS-002
+    lens: error paths exercised
+    severity: 3
+    title: "check-prerequisites' Terminology Canon translation (FEATURE_CONTEXT_UNRESOLVED -> MISSION_NOT_FOUND) is untested"
+    evidence:
+      - code: "src/specify_cli/orchestrator_api/commands.py:2330-2354 (_classify_check_prerequisites_error)"
+      - code: "tests/specify_cli/orchestrator_api/test_check_prerequisites_record_analysis.py:247-306 (only field-parity and missing-mission tests)"
+    claim: >
+      `_classify_check_prerequisites_error`'s own docstring calls out that the host
+      CLI's `mission_check_prerequisites.py` emits a feature-named error code,
+      `FEATURE_CONTEXT_UNRESOLVED`, which "must NEVER cross onto the orchestrator-api
+      surface verbatim (Terminology Canon...)" and is translated to the canonical
+      `MISSION_NOT_FOUND` — this is the ONE call site in the whole module that performs
+      this translation. No test in `test_check_prerequisites_record_analysis.py` drives
+      the delegate into raising `FEATURE_CONTEXT_UNRESOLVED` to confirm the translation
+      fires; `test_check_prerequisites_missing_mission_fails_closed` (the only failure
+      test for this verb) reaches `MISSION_NOT_FOUND` through the earlier
+      `_resolve_mission_dir_or_fail` gate, never through this classify function at all.
+      A future edit that dropped or mis-ordered this branch (leaking the forbidden
+      `FEATURE_CONTEXT_UNRESOLVED` code onto the public contract — exactly the class of
+      regression `upstream_contract.json`'s `forbidden_error_codes` exists to prevent)
+      would pass this suite silently.
+    remediation: >
+      Add a test that gets past the mission-existence gate (a real mission dir must
+      exist) but makes the delegate `check_prerequisites` call itself raise
+      `typer.Exit` with a `{"error_code": "FEATURE_CONTEXT_UNRESOLVED", ...}` payload
+      (e.g. monkeypatch `mission_check_prerequisites.check_prerequisites` or seed a
+      mission-dir shape that trips the delegate's own resolution failure), and assert
+      the orchestrator-api envelope reports `error_code == "MISSION_NOT_FOUND"`, not
+      `FEATURE_CONTEXT_UNRESOLVED`.
+
+  - id: PR-TESTS-003
+    lens: error paths exercised
+    severity: 3
+    title: record-analysis's PLACEMENT_RESOLUTION_REQUIRED, DIRTY_WORKTREE and RECORD_ANALYSIS_MALFORMED_CARRIER fail-closed branches have zero test coverage
+    evidence:
+      - code: "src/specify_cli/orchestrator_api/commands.py:2706 (RECORD_ANALYSIS_MALFORMED_CARRIER)"
+      - code: "src/specify_cli/orchestrator_api/commands.py:2721 (PLACEMENT_RESOLUTION_REQUIRED)"
+      - code: "src/specify_cli/orchestrator_api/commands.py:2730-2740 (DIRTY_WORKTREE fallback)"
+      - code: "tests/specify_cli/orchestrator_api/test_check_prerequisites_record_analysis.py:309-470 (5 record-analysis tests: persists-and-verifies, never-reports-unknown-verdict, SC-005a/b/c)"
+    claim: >
+      `record_analysis()` has 3 fail-closed branches ahead of the write itself: a
+      malformed findings-carrier body (`parse_structured_findings` raising
+      `FindingsCarrierError` -> `RECORD_ANALYSIS_MALFORMED_CARRIER`), an unresolvable
+      write placement (`PlacementResolutionRequired` -> `PLACEMENT_RESOLUTION_REQUIRED`),
+      and a dirty pre-existing worktree caught by the write preflight
+      (`DIRTY_WORKTREE` fallback). The 5 `test_record_analysis_*` tests in this file all
+      submit well-formed carrier bodies against clean worktrees with resolvable
+      placement — none of the three preflight branches is reached by any test. A
+      regression that broke carrier-parsing error surfacing, placement-resolution
+      refusal, or the dirty-worktree preflight (e.g. silently proceeding to write
+      against a dirty tree) would slip through this suite.
+    remediation: >
+      Add three targeted tests: (1) submit a body whose YAML frontmatter is malformed
+      (unparseable carrier) and assert `RECORD_ANALYSIS_MALFORMED_CARRIER`; (2)
+      monkeypatch `_require_record_analysis_placement` to raise
+      `PlacementResolutionRequired` and assert `PLACEMENT_RESOLUTION_REQUIRED`; (3)
+      leave real uncommitted changes in the worktree before calling `record-analysis`
+      and assert the preflight refuses with `DIRTY_WORKTREE` (or the delegate's own
+      typed code, per `_classify_delegate_error`'s trust-typed-code-first contract).
+
+findings_meta:
+  baseline_confirmed: "404 passed, 2 skipped, 0 failed (tests/specify_cli/orchestrator_api/ tests/specify_cli/next/ tests/runtime/next/ tests/contract/test_orchestrator_api.py)"
+  sc008_dual_caller_verified: true
+  design_status_clean_truncation_verified: true
+  marker_ci_collection_verified: true
