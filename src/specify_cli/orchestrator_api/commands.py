@@ -501,18 +501,22 @@ def _resolve_mission_dir(main_repo_root: Path, mission_slug: str) -> Path | None
 def _resolve_mission_dir_or_fail(command: str, main_repo_root: Path, mission_slug: str) -> Path:
     """Resolve the mission status dir, emitting the correct failure envelope on a miss.
 
-    PR-BOUNDARY-002: single seam consumed by every mission-scoped
-    orchestrator-api endpoint -- 17 call sites as of the design-phase
-    mission (a snapshot count; re-derive with
-    ``grep -c '_resolve_mission_dir_or_fail(cmd' commands.py`` rather than
-    trusting this number, which will itself drift the next time a verb is
-    added), several of which are MUTATING verbs (``record-analysis``,
-    ``open-decision``/``resolve-decision``/``defer-decision``/
-    ``cancel-decision``/``answer-decision``), not only reads. Supersedes the
-    original "all 8 read endpoints" framing, which was both undercounted
-    and miscategorized once this mission added its own mutating call
-    sites. The invariant that matters is structural, not numeric: every
-    mission-scoped endpoint routes through this ONE seam, avoiding one
+    PR-BOUNDARY-002: this is the ONE seam every mission-scoped
+    orchestrator-api endpoint routes through to resolve an EXISTING
+    mission's directory -- reads and MUTATING verbs alike
+    (``record-analysis``, ``open-decision``/``resolve-decision``/
+    ``defer-decision``/``cancel-decision``/``answer-decision``), not only
+    reads. Deliberately NOT documented as a call-site count: a hardcoded
+    number in this docstring has drifted twice already (an original "all 8
+    read endpoints" framing, both undercounted and miscategorized once this
+    mission added mutating call sites; then a "17 call sites" snapshot whose
+    own suggested verification grep matched its own quoted example text and
+    undercounted the true count by one). The invariant that matters is
+    structural, not numeric, and is asserted directly -- re-derived from the
+    live AST on every run, so it cannot silently drift the way a number in
+    prose does -- by
+    ``tests/specify_cli/orchestrator_api/test_resolve_mission_dir_or_fail_invariant.py``:
+    every mission-scoped endpoint routes through this ONE seam, avoiding one
     divergent existence-resolution pattern per call site:
 
     * a typed :class:`StatusReadPathNotFound` (coord topology + stale/unaddressable
@@ -2388,8 +2392,10 @@ _FEATURE_CONTEXT_UNRESOLVED = "FEATURE_CONTEXT_UNRESOLVED"
 
 
 def _sanitize_forbidden_error_code(value: Any, forbidden: str, replacement: str) -> Any:
-    """Recursively replace every occurrence of *forbidden* as a VALUE with
-    *replacement*, at any depth of nested dicts/lists (PR-TESTS-002).
+    """Recursively replace every occurrence of *forbidden* with *replacement*,
+    at any depth of nested dicts/lists (PR-TESTS-002), including as a dict
+    KEY and as a SUBSTRING of a larger string -- not only a whole-value
+    match.
 
     ``_classify_check_prerequisites_error`` translates the top-level
     ``error_code`` correctly, but the raw delegate ``payload`` it also
@@ -2401,13 +2407,28 @@ def _sanitize_forbidden_error_code(value: Any, forbidden: str, replacement: str)
     key) closes the leak at whatever nesting level it appears, matching the
     "no forbidden token anywhere in the serialized response" bar this fix's
     regression test asserts.
+
+    A verifier (PR-TESTS-002 residual) defeated an earlier whole-value-only,
+    values-only version of this function two ways: the forbidden token as a
+    dict KEY (never visited -- only ``.items()`` VALUES were recursed), and
+    the forbidden token as a SUBSTRING of a longer string (an exact ``==``
+    match against the whole string never fires). Both are closed here: keys
+    are sanitized by substring replacement exactly like values, and string
+    values use ``str.replace`` (containment) rather than ``==`` (whole-value
+    equality), so a forbidden token embedded in a larger string is scrubbed
+    without needing the whole string to equal it.
     """
     if isinstance(value, dict):
-        return {k: _sanitize_forbidden_error_code(v, forbidden, replacement) for k, v in value.items()}
+        return {
+            (_sanitize_forbidden_error_code(k, forbidden, replacement) if isinstance(k, str) else k): (
+                _sanitize_forbidden_error_code(v, forbidden, replacement)
+            )
+            for k, v in value.items()
+        }
     if isinstance(value, list):
         return [_sanitize_forbidden_error_code(v, forbidden, replacement) for v in value]
-    if value == forbidden:
-        return replacement
+    if isinstance(value, str) and forbidden in value:
+        return value.replace(forbidden, replacement)
     return value
 
 
@@ -3283,9 +3304,10 @@ def cancel_decision(
 # sibling field, ``answered_decision_id`` (the ``decision_id`` persisted by
 # step 1) -- ``answer-decision``'s own self-documenting name for the CLI's
 # terser ``answered`` key. ``data`` carries NO ``answer`` key: the CLI's
-# second extra key (the echoed submitted answer, ``next_cmd.py:915``) is
-# intentionally OMITTED per SPEC-FRESH2-002's resolution -- the host already
-# possesses the value it submitted in its own request.
+# second extra key (the echoed submitted answer, the ``d["answer"] = answer``
+# assignment inside ``next_cmd.py``'s ``_print_decision``) is intentionally
+# OMITTED per SPEC-FRESH2-002's resolution -- the host already possesses the
+# value it submitted in its own request.
 #
 # FR-012 does NOT apply here (spec Acceptance Scenario 6): this mechanism
 # operates on the run-snapshot, not ``decisions/index.json`` -- a mission
@@ -3417,7 +3439,7 @@ def answer_decision(
     from runtime.next.runtime_bridge_engine import _read_snapshot
     from specify_cli.mission import get_mission_type
 
-    # Mirrors ``next_cmd.py:975-1005`` (``_handle_answer``) exactly: the
+    # Mirrors ``next_cmd.py``'s ``_handle_answer`` exactly: the
     # PRIMARY-partition read (never the coord-only husk) so ``mission_type``
     # comes from the real ``meta.json``.
     feature_dir = _placement_seam(main_repo_root, mission).read_dir(
