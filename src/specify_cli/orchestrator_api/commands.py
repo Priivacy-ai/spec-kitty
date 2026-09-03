@@ -2870,6 +2870,34 @@ def _parse_decision_options_or_fail(cmd: str, options: str | None) -> tuple[str,
     return tuple(str(item) for item in raw)
 
 
+def _validate_rationale_or_fail(cmd: str, rationale: str) -> None:
+    """Reject an empty/whitespace-only ``--rationale`` BEFORE the service
+    layer is ever called (WP05-001 review fix).
+
+    Mirrors the host CLI's OWN ``cmd_defer``/``cmd_cancel`` guard verbatim
+    (``decision.py:341-348``/``391-398``): identical emptiness check
+    (``not rationale.strip()``), identical reused
+    ``DecisionErrorCode.MISSING_STEP_OR_SLOT`` code (already registered in
+    ``upstream_contract.json`` -- no new code needed), identical
+    ``{"field": "rationale"}`` details shape and message text. Pre-fix,
+    neither ``defer_decision``/``cancel_decision`` NOR
+    ``decisions/service.py``'s own ``_terminal_command`` performed this
+    check, so an empty rationale was silently accepted and persisted to the
+    ledger on disk -- a live-reproduced behavioural fork from the host CLI
+    (WP05 review finding WP05-001).
+    """
+    if rationale.strip():
+        return
+    from specify_cli.decisions.models import DecisionErrorCode
+
+    _fail(
+        cmd,
+        DecisionErrorCode.MISSING_STEP_OR_SLOT.value,
+        "--rationale must be a non-empty string",
+        {"field": "rationale"},
+    )
+
+
 @app.command(name="open-decision")
 def open_decision(  # noqa: PLR0913
     mission: str = typer.Option(..., "--mission", help=_HELP_MISSION_SLUG),
@@ -3011,6 +3039,7 @@ def defer_decision(
         _fail(cmd, "POLICY_METADATA_REQUIRED", "--policy is required for defer-decision")
         return
     _parse_policy_or_fail(cmd, policy)
+    _validate_rationale_or_fail(cmd, rationale)
 
     main_repo_root = _get_main_repo_root()
     mission_dir = _resolve_mission_dir_or_fail(cmd, main_repo_root, mission)
@@ -3062,6 +3091,7 @@ def cancel_decision(
         _fail(cmd, "POLICY_METADATA_REQUIRED", "--policy is required for cancel-decision")
         return
     _parse_policy_or_fail(cmd, policy)
+    _validate_rationale_or_fail(cmd, rationale)
 
     main_repo_root = _get_main_repo_root()
     mission_dir = _resolve_mission_dir_or_fail(cmd, main_repo_root, mission)
