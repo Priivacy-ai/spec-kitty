@@ -35,18 +35,22 @@ class (operator ruling, ``reviews/tasks.ruling.md``):
 A seventh, follow-on case closes a latent defect WP02's own fix above exposed
 (operator ruling, ``reviews/wp02.ruling.md``):
 
-7. ``test_activated_directive_outside_action_scope_is_not_delivered`` --
+7. ``test_activated_directive_scoped_to_another_action_is_not_delivered`` --
    ``_classify_artifact_urns`` used ``project_directives`` for two jobs at
    once: the exclusion-guard allowlist (correctly ``None -> all built-ins``)
    AND the seed set for the ``requires``/``suggests`` closure walk, whose
-   result was unioned into the delivered set with NO scope-reachability
-   check. A directive genuinely ``activated_*`` but never scoped (directly or
-   transitively) onto the resolving action must not leak into that action's
-   delivered set merely for being a member of the (possibly catalog-wide)
-   ``project_directives`` set -- this is the same mechanism that broke
+   result was unioned into the delivered set with NO ownership check. A
+   directive genuinely ``activated_*`` but ``scope``-owned by a DIFFERENT
+   action must not leak into the resolving action's delivered set merely for
+   being a member of the (possibly catalog-wide) ``project_directives`` set
+   -- this is the same mechanism that broke
    ``tests/charter/test_directive_003_implement_to_review.py`` (FR-005) and
    ``tests/charter/test_context.py::test_action_doctrine_keys_off_meta_json_not_template_set``
-   (#883).
+   (#883). (A directive scoped onto NO action at all is a DIFFERENT,
+   intentionally-permitted case -- see
+   ``tests/charter/test_context.py::TestBuildContextV2::test_selected_directive_closure_contributes_action_context``,
+   which requires exactly that widening; the gate excludes on ownership by
+   ANOTHER action, never on the absence of this action's own ownership.)
 
 Design note on FR-014's call boundary: this fixture is deliberately built
 against :func:`_classify_artifact_urns` directly rather than through the full
@@ -451,34 +455,46 @@ def test_direct_activated_directives_stem_form_is_normalized(tmp_path: Path) -> 
 # ---------------------------------------------------------------------------
 
 
-def test_activated_directive_outside_action_scope_is_not_delivered(
+def test_activated_directive_scoped_to_another_action_is_not_delivered(
     tmp_path: Path,
 ) -> None:
     """RED against the ungated closure walk (pre-scope-gate WP02 code).
 
     ``project_directives`` (via ``activated_directives``) contains BOTH
-    ``DIRECTIVE_038`` (scoped directly onto the resolving action) and
-    ``DIRECTIVE_010`` (activated project-wide, but scoped onto NO action --
-    a standalone node with no ``scope``/``requires``/``suggests`` edge to or
-    from the action at all). Both are DRG-reachable *as nodes* (the graph
-    carries them), so the exclusion-guard allowlist alone cannot tell them
-    apart -- only a scope-reachability check can.
+    ``DIRECTIVE_038`` (scoped directly onto the resolving ``implement``
+    action) and ``DIRECTIVE_010`` (activated project-wide, but scoped ONLY
+    onto a DIFFERENT action, ``review`` -- exactly the FR-005/#883 leak
+    shape: a directive some other part of the graph explicitly claims, not
+    a directive nobody has claimed at all). Both are DRG-reachable *as
+    nodes* (the graph carries them), so the exclusion-guard allowlist alone
+    cannot tell them apart -- only an ownership check can.
 
     Without the scope gate, ``resolve_transitive_refs``'s closure walk seeds
     from ``project_directives`` directly, and ``walk_edges`` marks every seed
-    URN "visited" unconditionally (it is a start node) -- regardless of the
-    resolving action's own scope. ``_classify_artifact_urns`` then unions
-    that visited set into ``artifact_urns` with no reachability check, so
-    ``DIRECTIVE_010`` reaches the exclusion guard, passes it (it IS a member
-    of ``project_directives``), and lands in ``directive_ids`` -- leaked.
-    This is exactly the FR-005 (``DIRECTIVE_003`` onto ``implement``) and
-    #883 (cross-mission-type) leak shape, reproduced hermetically.
+    URN "visited" unconditionally (it is a start node) -- regardless of which
+    action owns it. ``_classify_artifact_urns`` then unions that visited set
+    into ``artifact_urns`` with no ownership check, so ``DIRECTIVE_010``
+    reaches the exclusion guard, passes it (it IS a member of
+    ``project_directives``), and lands in ``implement``'s ``directive_ids``
+    -- leaked. This is exactly the FR-005 (``DIRECTIVE_003`` scoped onto
+    ``plan``/``review``/etc, leaking onto ``implement``) and #883
+    (``DIRECTIVE_001`` scoped onto ``software-dev/implement``, leaking onto
+    ``documentation/implement``) leak shape, reproduced hermetically.
     """
+    action_review_urn = f"action:{_MISSION_TYPE}/review"
     graph = _scoped_action_graph(f"directive:{_DIRECTIVE_038_CANONICAL}")
-    # Add the unscoped directive as a bare node -- no edge connects it to the
-    # action, to any scoped artifact, or to anything else in the graph.
+    # DIRECTIVE_010 is scoped onto a DIFFERENT action (review), never onto
+    # implement -- the resolving action in this test.
+    graph.nodes.append(DRGNode(urn=action_review_urn, kind=NodeKind.ACTION))
     graph.nodes.append(
         DRGNode(urn=f"directive:{_DIRECTIVE_010_CANONICAL}", kind=NodeKind.DIRECTIVE)
+    )
+    graph.edges.append(
+        DRGEdge(
+            source=action_review_urn,
+            target=f"directive:{_DIRECTIVE_010_CANONICAL}",
+            relation=Relation.SCOPE,
+        )
     )
     pack_context = _pack_context(
         activated_directives=frozenset(
@@ -500,7 +516,48 @@ def test_activated_directive_outside_action_scope_is_not_delivered(
         "the directly-scoped, activated directive must still be delivered"
     )
     assert _DIRECTIVE_010_CANONICAL not in bundle.directive_ids, (
-        "an activated directive scoped onto NO action must not leak into "
-        f"implement's delivered set via the closure seed alone; delivered "
-        f"directives were: {sorted(bundle.directive_ids)}"
+        "an activated directive scoped onto a DIFFERENT action (review) must "
+        f"not leak into implement's delivered set via the closure seed alone; "
+        f"delivered directives were: {sorted(bundle.directive_ids)}"
+    )
+
+
+def test_activated_directive_scoped_to_no_action_still_widens(tmp_path: Path) -> None:
+    """A directive scoped onto NO action at all is the INTENTIONALLY
+    permitted widening case (distinct from case 7 above), pinned here so a
+    future scope-gate change cannot silently over-narrow back to "must be
+    reachable within my own scope walk" -- the reading this WP's own follow-
+    on report tried first and reverted, because it broke
+    ``tests/charter/test_context.py``'s
+    ``test_selected_directive_closure_contributes_action_context`` and
+    ``test_org_required_primary_kinds_contribute_to_prompt`` (both pre-
+    existing, both explicitly documented as "contribute their DRG closure
+    even without action-scope edges").
+    """
+    graph = _scoped_action_graph(f"directive:{_DIRECTIVE_038_CANONICAL}")
+    # DIRECTIVE_010 is a bare node -- scoped onto NO action anywhere.
+    graph.nodes.append(
+        DRGNode(urn=f"directive:{_DIRECTIVE_010_CANONICAL}", kind=NodeKind.DIRECTIVE)
+    )
+    pack_context = _pack_context(
+        activated_directives=frozenset(
+            {_DIRECTIVE_038_STEM, "010-specification-fidelity-requirement"}
+        ),
+        repo_root=tmp_path,
+    )
+
+    with patch("charter.activation._drg_helpers.load_validated_graph", return_value=graph):
+        bundle = _load_action_doctrine_bundle(
+            repo_root=tmp_path,
+            action=_ACTION,
+            effective_depth=2,
+            mission_type=_MISSION_TYPE,
+            pack_context=pack_context,
+        )
+
+    assert _DIRECTIVE_038_CANONICAL in bundle.directive_ids
+    assert _DIRECTIVE_010_CANONICAL in bundle.directive_ids, (
+        "an activated directive scoped onto NO action at all must still "
+        "widen into the resolving action's delivered set -- nobody else "
+        f"claims it; delivered directives were: {sorted(bundle.directive_ids)}"
     )
