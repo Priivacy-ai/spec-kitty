@@ -17,6 +17,10 @@ Guards (each was RED-first, now GREEN — the defect is fixed):
   hint (a primary/planning artifact never routes to coordination). Both surfaces
   now name the two real remedies: create/check out a non-protected feature branch
   (``--start-branch``) or set ``SPEC_KITTY_ALLOW_PROTECTED_BRANCH_COMMITS=1``.
+  (squad) ``no_op_wrong_surface`` has three producers and only ONE of them is
+  about a protected branch; the feature-branch/env-hatch remedies are now
+  scoped to that producer (``policy.is_protected(result.placement_ref)``)
+  instead of padding every wrong-surface refusal.
 
 * **B03** — a ``committed:false`` success now carries a machine-readable
   ``reason`` (``no_op_already_committed`` / ``no_op_no_changes``), so a caller can
@@ -216,6 +220,60 @@ def test_b01_protected_refusal_drops_impossible_hint_and_names_env_hatch(
     assert _ENV_HATCH.lower() in message, (
         "The protected-primary refusal does not name the "
         f"{_ENV_HATCH} operator hatch — one of the two real remedies (#2739 B01)."
+    )
+
+
+def test_b01_non_protected_wrong_surface_omits_protected_primary_remedies(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """#2739 B01 (squad) — a ``no_op_wrong_surface`` NOT caused by a protected
+    branch must not be padded with the feature-branch/env-hatch remedies.
+
+    ``no_op_wrong_surface`` has three producers in ``commit_for_mission``: the
+    protected-primary refusal (whose own diagnostic already names the two real
+    remedies), ``_paths_uncommitted_in_primary`` (#2739 B16), and
+    ``_any_path_absent`` (the artifact is missing at the resolved placement).
+    Only the protected-primary refusal is actually about a protected branch;
+    this drives the ``_any_path_absent`` producer — a missing artifact on an
+    UNPROTECTED feature branch — and asserts the resulting error carries no
+    feature-branch / env-hatch remedy text, since there is no protection
+    problem to remedy.
+    """
+    monkeypatch.delenv(_ENV_HATCH, raising=False)
+    repo = build_protected_target_repo(tmp_path)
+    _git(repo.repo_root, "checkout", "-b", "feat/b01-missing")
+
+    slug = "b01-missing-artifact"
+    feature_dir = _seed_mission(
+        repo.repo_root, slug, target_branch="feat/b01-missing", coord=False
+    )
+    missing = feature_dir / "never-written.md"  # never created on disk
+
+    monkeypatch.setattr(
+        "specify_cli.cli.commands.spec_commit_cmd._current_repo_root",
+        lambda: repo.repo_root,
+    )
+
+    result = CliRunner().invoke(
+        _make_app(),
+        [str(missing), "-m", "spec: missing", "--mission", slug, "--json"],
+    )
+
+    assert result.exit_code == 1, result.output
+    payload = json.loads(result.output)
+    assert payload.get("success") is False, payload
+    message = str(payload.get("error", "")).lower()
+    assert message, f"expected an error message in the refusal payload: {payload!r}"
+
+    assert _START_BRANCH_REMEDY not in message, (
+        "A non-protected wrong-surface refusal (missing artifact) must not "
+        "carry the protected-primary feature-branch remedy — there is no "
+        f"protection problem here (#2739 B01 squad). Message: {message!r}"
+    )
+    assert _ENV_HATCH.lower() not in message, (
+        "A non-protected wrong-surface refusal (missing artifact) must not "
+        "carry the protected-primary env-hatch remedy — there is no "
+        f"protection problem here (#2739 B01 squad). Message: {message!r}"
     )
 
 
