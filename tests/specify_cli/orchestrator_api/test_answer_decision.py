@@ -625,3 +625,131 @@ def test_answer_decision_field_parity_with_host_cli_next_answer(tmp_path: Path) 
 
     assert orch_data["answered_decision_id"] == "audit:audit_gate"
     assert "answer" not in orch_data
+
+
+# ---------------------------------------------------------------------------
+# WP08-001 (fold-in review finding, severity 3) -- ``--result`` enum
+# validation, host-CLI parity. Pre-fix, ``answer-decision`` only checked
+# ``result is None`` (``RESULT_REQUIRED``); any out-of-enum string (not in
+# ``next_cmd.py``'s own ``_VALID_RESULTS = ("success", "failed", "blocked")``,
+# ``next_cmd.py:53``) was silently accepted, the DAG still advanced, and
+# ``pair_previous_lifecycle_record`` wrote the garbage value into the
+# lifecycle record's ``reason`` field -- a live behavioural fork from the
+# host CLI's own ``_validate_result_and_answer`` (``next_cmd.py:610-613``),
+# which rejects it with exit 1 BEFORE ``_maybe_handle_answer``/
+# ``_handle_answer`` ever runs (i.e. before decision auto-resolve, before
+# any persistence).
+# ---------------------------------------------------------------------------
+
+
+def _run_next_raw(repo_root: Path, args: list[str]) -> Result:
+    """Invoke the real host CLI's ``next`` command with raw args (no forced
+    ``--result``, unlike ``_next`` above) -- ground truth for the host CLI's
+    OWN literal validation behaviour.
+    """
+    import os
+
+    prev_cwd = Path.cwd()
+    os.chdir(repo_root)
+    try:
+        return runner.invoke(cli_app, ["next", *args])
+    finally:
+        os.chdir(prev_cwd)
+
+
+def test_host_cli_rejects_invalid_result_before_no_pending_decision(tmp_path: Path) -> None:
+    """Ground truth: the host CLI's own ordering for an invalid ``--result``
+    COMBINED with a second, independently-true error condition (no pending
+    decision to answer). ``_validate_result_and_answer`` (``next_cmd.py``
+    line 610-613) runs before ``_maybe_handle_answer``'s decision
+    auto-resolve (which would otherwise raise "No pending decisions..."),
+    so the enum rejection wins -- this is the exact ordering
+    ``answer-decision`` must reproduce.
+    """
+    mission_slug = "wp08-001-cli-ground-truth"
+    mission_type = "wp08-input-mission-6"
+    repo_root = _scaffold_project(
+        tmp_path, mission_slug=mission_slug, mission_type=mission_type, mission_id="01HWP08001CLIULID00000009"
+    )
+    _write_input_requiring_mission(repo_root, mission_type)
+    agent = "wp08-agent"
+
+    issued = _next(repo_root, agent, mission_slug)
+    assert issued["kind"] == "step"  # plain step_one, no decision pending yet
+
+    result = _run_next_raw(
+        repo_root,
+        ["--agent", agent, "--mission", mission_slug, "--answer", "yes", "--result", "bogus", "--json"],
+    )
+    assert result.exit_code == 1
+    assert "must be one of" in result.output
+    assert "No pending decisions" not in result.output
+
+
+def test_answer_decision_invalid_result_rejected(tmp_path: Path) -> None:
+    """WP08-001: an out-of-enum ``--result`` must be rejected with a
+    dedicated ``INVALID_RESULT`` error_code, never silently accepted.
+    """
+    mission_slug = "wp08-001-invalid-result"
+    mission_type = "wp08-input-mission-7"
+    repo_root = _scaffold_project(
+        tmp_path, mission_slug=mission_slug, mission_type=mission_type, mission_id="01HWP08001INVULID00000010"
+    )
+    _write_input_requiring_mission(repo_root, mission_type)
+    agent = "wp08-agent"
+
+    issued = _next(repo_root, agent, mission_slug)
+    assert issued["kind"] == "step"
+
+    result = _run_answer_decision(
+        repo_root,
+        [
+            "--mission", mission_slug,
+            "--agent", agent,
+            "--result", "bogus",
+            "--answer", "yes",
+            "--policy", _POLICY,
+        ],
+    )
+    envelope = _envelope(result)
+    assert envelope["success"] is False
+    assert envelope["error_code"] == "INVALID_RESULT"
+
+
+def test_answer_decision_invalid_result_fires_before_no_pending_decision(tmp_path: Path) -> None:
+    """Interleaving/ordering proof (WP08-001): the SAME fixture shape as
+    ``test_answer_decision_no_pending_decision`` (which raises
+    ``NO_PENDING_DECISION`` for a VALID ``--result``) combined with an
+    INVALID ``--result`` must still produce ``INVALID_RESULT`` -- mirroring
+    the host CLI's own ordering (proven by
+    ``test_host_cli_rejects_invalid_result_before_no_pending_decision``
+    above): the enum check runs BEFORE decision-resolution/auto-resolve,
+    never after it. A fix that validates the enum only after attempting
+    decision resolution would surface ``NO_PENDING_DECISION`` here instead
+    -- the wrong error from the wrong point in the call sequence.
+    """
+    mission_slug = "wp08-001-ordering"
+    mission_type = "wp08-input-mission-8"
+    repo_root = _scaffold_project(
+        tmp_path, mission_slug=mission_slug, mission_type=mission_type, mission_id="01HWP08001ORDULID00000011"
+    )
+    _write_input_requiring_mission(repo_root, mission_type)
+    agent = "wp08-agent"
+
+    issued = _next(repo_root, agent, mission_slug)
+    assert issued["kind"] == "step"
+
+    result = _run_answer_decision(
+        repo_root,
+        [
+            "--mission", mission_slug,
+            "--agent", agent,
+            "--result", "bogus",
+            "--answer", "yes",
+            "--policy", _POLICY,
+        ],
+    )
+    envelope = _envelope(result)
+    assert envelope["success"] is False
+    assert envelope["error_code"] == "INVALID_RESULT"
+    assert envelope["error_code"] != "NO_PENDING_DECISION"
