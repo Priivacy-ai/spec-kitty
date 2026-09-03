@@ -55,11 +55,19 @@ from __future__ import annotations
 
 import logging
 from pathlib import Path
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from specify_cli.retrospective.schema import ProvenanceKind
 
 logger = logging.getLogger(__name__)
 
 
-def _persist_retrospective(repo_root: Path, mission_slug: str) -> None:
+def _persist_retrospective(
+    repo_root: Path,
+    mission_slug: str,
+    provenance_kind: ProvenanceKind = "runtime_post_completion",
+) -> None:
     """Persist any pending retrospective to its durable PRIMARY home.
 
     Routes through the post-merge terminus, which resolves the durable home via
@@ -80,7 +88,11 @@ def _persist_retrospective(repo_root: Path, mission_slug: str) -> None:
         run_retrospective_postcondition,
     )
 
-    run_retrospective_postcondition(mission_slug=mission_slug, repo_root=repo_root)
+    run_retrospective_postcondition(
+        mission_slug=mission_slug,
+        repo_root=repo_root,
+        provenance_kind=provenance_kind,
+    )
 
 
 def _destroy_coordination_worktree(
@@ -116,6 +128,7 @@ def teardown_coordination_topology(
     mid8: str,
     *,
     persist: bool = True,
+    provenance_kind: ProvenanceKind = "runtime_post_completion",
 ) -> bool:
     """Persist the retrospective, then destroy the coordination worktree.
 
@@ -137,6 +150,11 @@ def teardown_coordination_topology(
             then a documented no-op and persist still runs.
         persist: When ``False``, skip the persist leg (e.g. callers that have
             already persisted, or paths with no retrospective semantics).
+        provenance_kind: Provenance to stamp on a freshly captured retrospective
+            (#3716). The ``mission close --discard`` leg passes
+            ``"runtime_abandoned"`` so an abandoned mission is not tagged with
+            completion provenance; the default (``runtime_post_completion``)
+            preserves the merge/close-completion behaviour.
 
     Returns:
         ``True`` when the destroy leg succeeded (or no-op'd cleanly), ``False``
@@ -149,7 +167,7 @@ def teardown_coordination_topology(
     """
     if persist:
         # OUTSIDE the destroy swallow — persist-before-destroy (FR-005).
-        _persist_retrospective(repo_root, mission_slug)
+        _persist_retrospective(repo_root, mission_slug, provenance_kind)
 
     if not mid8:
         # Legacy / never-coordinated mission: nothing to destroy. Persist (above)

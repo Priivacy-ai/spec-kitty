@@ -218,6 +218,13 @@ _ACCOUNTED_SITES: dict[tuple[str, str], tuple[int, str]] = {
     # mission_id is handled explicitly below (raises a typed
     # VerdictRevertError), so this read itself is deliberately silent.
     ("src/specify_cli/cli/commands/agent/tasks_verdict_persistence.py", "_resolve_revert_commit_worktree"): (1, "silent-by-contract"),
+    # #3716: the discard flatten's commit leg reads meta.json only to resolve the
+    # primary `target_branch` for the commit; `allow_missing=True,
+    # on_malformed="none"` keeps it deliberately silent — a missing/malformed meta
+    # falls back to the current branch and the leg is fail-open-but-loud (warns,
+    # never aborts an otherwise-successful discard), so a fail-closed read would be
+    # wrong here.
+    ("src/specify_cli/cli/commands/mission_type.py", "_commit_flattened_meta"): (1, "silent-by-contract"),
     ("src/specify_cli/cli/commands/mission_type.py", "_delete_legacy_coordination_branch"): (1, "silent-by-contract"),
     ("src/specify_cli/cli/commands/mission_type.py", "_expected_discard_branches"): (1, "silent-by-contract"),
     ("src/specify_cli/cli/commands/mission_type.py", "_read_mission_mid8"): (1, "silent-by-contract"),

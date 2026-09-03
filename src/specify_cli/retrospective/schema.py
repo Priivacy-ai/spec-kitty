@@ -467,6 +467,7 @@ _EVIDENCE_ID_RE = re.compile(r"^e-\d{3,}$")
 ProvenanceKind = Literal[
     "runtime_post_completion",
     "runtime_strict_gate",
+    "runtime_abandoned",
     "explicit_create",
     "backfill",
     "synthesize_fabricate",

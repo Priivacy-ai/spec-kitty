@@ -23,10 +23,13 @@ from __future__ import annotations
 import contextlib
 import logging
 from pathlib import Path
-from typing import Literal
+from typing import TYPE_CHECKING, Literal
 
 from specify_cli.core.constants import RETROSPECTIVE_FILENAME
 from specify_cli.mission_metadata import load_meta_or_empty
+
+if TYPE_CHECKING:
+    from specify_cli.retrospective.schema import ProvenanceKind
 
 logger = logging.getLogger(__name__)
 
@@ -51,6 +54,7 @@ def run_retrospective_postcondition(
     *,
     mission_slug: str,
     repo_root: Path,
+    provenance_kind: ProvenanceKind = "runtime_post_completion",
 ) -> None:
     """Run the post-merge retrospective postcondition check.
 
@@ -66,6 +70,11 @@ def run_retrospective_postcondition(
     Args:
         mission_slug: The mission slug (e.g. ``"017-my-feature"``).
         repo_root: Absolute path to the repository root (primary checkout).
+        provenance_kind: Provenance to stamp on a freshly captured record
+            (#3716). The ``mission close --discard`` leg passes
+            ``"runtime_abandoned"`` so an abandoned mission is not tagged with
+            completion provenance; the default keeps the merge/close-completion
+            behaviour (``runtime_post_completion``).
 
     Note:
         ``run_terminus`` (the old dead-code stub in the lifecycle module) is
@@ -106,6 +115,7 @@ def run_retrospective_postcondition(
                 mission_slug=mission_slug,
                 feature_dir=feature_dir,
                 repo_root=repo_root,
+                provenance_kind=provenance_kind,
             )
         except Exception as exc:  # noqa: BLE001 — fail-open: record but don't abort
             logger.warning(
@@ -140,6 +150,22 @@ def run_retrospective_postcondition(
 # ---------------------------------------------------------------------------
 
 
+def _primary_target_branch(feature_dir: Path) -> str | None:
+    """Return the mission's PRIMARY ``target_branch`` from ``meta.json``, or None.
+
+    Used as a fail-closed-avoiding degrade ref for the bookkeeping commit (#3716):
+    a legacy mission whose ``meta.json`` is missing/malformed or lacks
+    ``target_branch`` yields ``None`` (unchanged pre-#3716 behaviour — the commit
+    then raises-and-warns rather than silently degrading to a null ref).
+    """
+    data = load_meta_or_empty(feature_dir)
+    if isinstance(data, dict):
+        target = str(data.get("target_branch") or "").strip()
+        if target:
+            return target
+    return None
+
+
 def _resolve_mission_id(feature_dir: Path) -> str:
     """Return the ULID mission_id from meta.json, or empty string for legacy missions."""
     # T034 — use the canonical feature_dir path (already resolved by the caller);
@@ -156,14 +182,22 @@ def _invoke_capture(
     mission_slug: str,
     feature_dir: Path,
     repo_root: Path,
+    provenance_kind: ProvenanceKind = "runtime_post_completion",
 ) -> None:
     """Delegate to the runtime-bridge capture implementation (T032).
 
-    Reuses ``_run_retrospective_learning_capture`` from
-    ``runtime.next.runtime_bridge`` — does NOT duplicate the implementation.
-    ``block_on_failure=False`` keeps the merge fail-open.
+    Reuses ``_run_retrospective_learning_capture`` from the
+    ``runtime.next.runtime_bridge_retrospective`` seam — does NOT duplicate the
+    implementation. ``block_on_failure=False`` keeps the merge/close fail-open.
+
+    The seam is imported directly (rather than through the thin
+    ``runtime_bridge`` compat delegate) so the ``provenance_kind`` override
+    (#3716) reaches the facilitator: the delegate's signature is a fixed
+    five-kwarg forward that cannot carry the new argument. The seam's own
+    intra-cluster calls still route through the live ``runtime_bridge`` lookup,
+    so per-symbol monkeypatch observation is unchanged.
     """
-    from runtime.next.runtime_bridge import (  # noqa: PLC0415
+    from runtime.next.runtime_bridge_retrospective import (  # noqa: PLC0415
         _run_retrospective_learning_capture,
     )
 
@@ -173,6 +207,7 @@ def _invoke_capture(
         feature_dir=feature_dir,
         repo_root=repo_root,
         block_on_failure=False,
+        provenance_kind=provenance_kind,
     )
 
 
@@ -241,6 +276,16 @@ def _commit_captured_retrospective(
     # caller must not abort the merge/close.
     from specify_cli.git.bookkeeping_commit import commit_merge_bookkeeping  # noqa: PLC0415
 
+    # #3716: on the ``mission close --discard`` leg the coordination context is
+    # being torn down, so ``resolve_write_target_or_degrade`` fails closed and —
+    # with no degrade ref — the retrospective commit degrades, leaving the durable
+    # event log + retrospective.yaml uncommitted. Supply the mission's PRIMARY
+    # ``target_branch`` as the degrade path so the commit lands on the primary
+    # surface (never the now-deleted coordination branch). Consulted ONLY when
+    # placement resolution genuinely fails; the merge path (which resolves) is
+    # unaffected.
+    degrade_ref = _primary_target_branch(feature_dir)
+
     try:
         commit_merge_bookkeeping(
             repo_root=repo_root,
@@ -248,6 +293,7 @@ def _commit_captured_retrospective(
             mission_slug=mission_slug,
             message=f"chore({mission_slug}): capture mission retrospective",
             paths=paths,
+            branch=degrade_ref,
         )
         logger.debug("committed retrospective bookkeeping for mission %s", mission_slug)
     except Exception as exc:  # noqa: BLE001 — fail-open: report but never abort merge/close
