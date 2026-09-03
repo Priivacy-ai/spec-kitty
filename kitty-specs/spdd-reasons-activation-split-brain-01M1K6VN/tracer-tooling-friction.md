@@ -164,3 +164,31 @@ a structured way to record "this constraint is satisfied by omission, not owned 
 "this WP delivers this requirement") would close this traceability gap without requiring a hand-edit of a
 tool-generated field. This is the same class of gap as friction item 2 above (`tasks.md` has zero freeform-
 prose capacity) — a generated-artifact expressiveness ceiling, not a bug in the generator's own logic.
+
+## WP04 — pre-review regression gate budget mismatch under real environment load
+
+`spec-kitty agent tasks move-task WP04 --to for_review` runs an internal pre-review
+regression gate over a broader scope than the WP file's own validation scope:
+`tests/charter, tests/doctrine, tests/specify_cli/charter_freshness,
+tests/specify_cli/charter_lint, tests/specify_cli/charter_preflight`, under a fixed
+300s budget. Two consecutive attempts both timed out at exactly ~300.00s elapsed
+(`budget-v1:sha256:a4e0088a...`, scope identity unchanged between attempts).
+
+This is a structural budget/scope mismatch, not attempt-to-attempt contention luck:
+this WP's own manually-run, uncontended scoped gate (`tests/charter/` +
+`tests/architectural/test_charter_offering_does_not_import_activation.py` +
+`tests/architectural/test_no_dead_symbols.py` — a strict *subset* of the pre-review
+gate's scope) already takes 632-634s on a clean environment (per this mission's own
+documented clean-baseline figure), i.e. more than double the gate's 300s budget
+*before* adding `tests/doctrine` and the three `tests/specify_cli/charter_*`
+directories on top. The gate cannot realistically complete within 300s for this
+scope regardless of concurrent load.
+
+**Resolution used**: `--skip-pre-review-gate` (a first-class, documented CLI flag
+distinct from `--force` on the roster/subtask-completeness gate, which stays
+forbidden) — backed by this WP's own fresh, clean, manually-run scoped-gate evidence
+(`1 failed [SK-162], 2572 passed, 25 skipped in 634.41s`, captured post-commit with
+no concurrent edits) for the exact scope the WP file specifies. Flagging for
+whoever owns the pre-review gate's budget config: either the 300s default needs
+raising for the `tests/charter`+`tests/doctrine`+`charter_*` scope class, or that
+scope needs to shrink to something the fixed budget can actually complete.
