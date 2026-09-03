@@ -10,8 +10,15 @@ from time import perf_counter
 import pytest
 
 from specify_cli.core.contract_gate import ContractViolationError, validate_outbound_payload
+from tests.architectural.test_archive_root_byte_identical import _ARCHIVE_ROOTS
 
 pytestmark = pytest.mark.fast
+
+# Repo-relative location of the live contract-shape pin target (SK-154). Kept
+# as a module constant so the class guard below (which must never regress to
+# an archive-root path — see NFR-002 vs. this test's contradiction) checks the
+# actual value in force, not a hand-duplicated copy of it.
+_PLANNING_ARTIFACT_RELATIVE = Path("docs") / "contracts" / "upstream-3.0.0-shape.json"
 
 
 def _valid_envelope() -> dict[str, object]:
@@ -55,13 +62,44 @@ def _valid_orchestrator_api() -> dict[str, object]:
 
 
 def test_vendored_contract_matches_planning_artifact() -> None:
-    planning_artifact = Path(__file__).resolve().parents[3] / "kitty-specs" / "064-complete-mission-identity-cutover" / "contracts" / "upstream-3.0.0-shape.json"
+    # Pin target is docs/contracts/upstream-3.0.0-shape.json, NOT the mission
+    # 064 archive copy at kitty-specs/064-complete-mission-identity-cutover/
+    # contracts/upstream-3.0.0-shape.json (SK-154). The archived copy is a
+    # byte-frozen admission snapshot: tests/architectural/
+    # test_archive_root_byte_identical.py (NFR-002) forbids any non-ADD change
+    # to a file that already existed under kitty-specs/ at a mission's base
+    # rev. This contract shape is a must-track-forever pin that later missions
+    # legitimately extend (new verbs/error codes) as the upstream surface
+    # grows, which directly contradicts a byte-freeze — the two gates cannot
+    # both hold if the pin target lives inside an archive root. Repointing at
+    # a live, non-archived copy resolves the contradiction without weakening
+    # either gate: docs/contracts/ already hosts the repo's other living,
+    # cross-mission contract artifacts (contract-registry.yaml). Do not point
+    # this back at the mission 064 archive copy; that reopens SK-154.
+    planning_artifact = Path(__file__).resolve().parents[3] / _PLANNING_ARTIFACT_RELATIVE
     vendored_artifact = files("specify_cli.core").joinpath("upstream_contract.json")
 
     vendored = json.loads(vendored_artifact.read_text(encoding="utf-8"))
     assert vendored == json.loads(planning_artifact.read_text(encoding="utf-8"))
     assert vendored["_source_saas_admission_commit"] == "29cc20c6ca5d61784af6f8b973a36131e69103af"
     assert vendored["_source_saas_admission_contract_sha256"] == "fe3a9f8d2563e3a9df386cd911ea858fd6a48913eb14c5b39d579b26bf3a4b35"
+
+
+def test_planning_artifact_pin_target_is_outside_every_archive_root() -> None:
+    """Class guard for SK-154: a must-track-forever pin target must never sit
+    under a byte-frozen archive root (tests/architectural/
+    test_archive_root_byte_identical.py, NFR-002), or the two gates
+    contradict each other again the next time this contract shape grows.
+
+    Non-vacuous: flip ``_PLANNING_ARTIFACT_RELATIVE`` back to a
+    ``kitty-specs/...`` path (as SK-154 originally had it) and this fails.
+    """
+    pin_target = _PLANNING_ARTIFACT_RELATIVE.as_posix() + "/"
+    violating_roots = [root for root in _ARCHIVE_ROOTS if pin_target.startswith(root)]
+    assert not violating_roots, (
+        f"contract pin target {_PLANNING_ARTIFACT_RELATIVE.as_posix()!r} lives under "
+        f"archive root(s) {violating_roots!r} — this reopens SK-154"
+    )
 
 
 @pytest.mark.parametrize(
