@@ -406,10 +406,12 @@ class TestAC1AC2ComposedActionGuardOrgTierConvergence:
 
 # ---------------------------------------------------------------------------
 # AC-8 -- ``resolve_org_roots`` (via ``resolve_existing_org_roots``, the
-# primitive ``_resolve_org_manifest_mapping`` actually calls) is invoked
-# with the real, non-``None`` ``repo_root`` the enclosing function already
-# holds -- at BOTH of ``_dn_dependency_gate``'s two distinct
-# ``_check_cli_guards`` call sites.
+# primitive the manifest-loader authority's org-tier resolution calls --
+# routed here through ``charter.activation.manifest_loader.load_manifest``,
+# not the retired ``_resolve_org_manifest_mapping`` this comment used to
+# name, #3847) is invoked with the real, non-``None`` ``repo_root`` the
+# enclosing function already holds -- at BOTH of ``_dn_dependency_gate``'s
+# two distinct ``_check_cli_guards`` call sites.
 # ---------------------------------------------------------------------------
 
 _CUSTOM_ORG_ONLY_FAMILY = "custom-onboarding-mission"
@@ -481,11 +483,19 @@ class TestAC8RepoRootThreadedThroughDnDependencyGate:
             current_step_id="implement",
         )
 
-        from charter import drg as charter_drg
+        # #3847: the org-root resolution this AC exercises now happens
+        # exclusively through `charter.activation.manifest_loader`'s cached
+        # authority (`_presence_filenames_for` -> `load_manifest`), which
+        # lazily imports `resolve_existing_org_roots` directly from its
+        # origin module (`charter.offering.drg.org_pack_config`) -- NOT
+        # through the `charter.drg` re-export the now-deleted
+        # `_resolve_org_manifest_mapping` used to call. Spy on the origin
+        # module so the patch is visible to that lazy import.
+        from charter.offering.drg import org_pack_config as charter_org_pack_config
 
-        real_resolve_existing_org_roots = charter_drg.resolve_existing_org_roots
+        real_resolve_existing_org_roots = charter_org_pack_config.resolve_existing_org_roots
         spy = MagicMock(side_effect=real_resolve_existing_org_roots)
-        monkeypatch.setattr(charter_drg, "resolve_existing_org_roots", spy)
+        monkeypatch.setattr(charter_org_pack_config, "resolve_existing_org_roots", spy)
 
         rb._dn_dependency_gate(ctx)
 
@@ -537,11 +547,19 @@ class TestAC8RepoRootThreadedThroughDnDependencyGate:
             current_step_id="specify",
         )
 
-        from charter import drg as charter_drg
+        # #3847: the org-root resolution this AC exercises now happens
+        # exclusively through `charter.activation.manifest_loader`'s cached
+        # authority (`_presence_filenames_for` -> `load_manifest`), which
+        # lazily imports `resolve_existing_org_roots` directly from its
+        # origin module (`charter.offering.drg.org_pack_config`) -- NOT
+        # through the `charter.drg` re-export the now-deleted
+        # `_resolve_org_manifest_mapping` used to call. Spy on the origin
+        # module so the patch is visible to that lazy import.
+        from charter.offering.drg import org_pack_config as charter_org_pack_config
 
-        real_resolve_existing_org_roots = charter_drg.resolve_existing_org_roots
+        real_resolve_existing_org_roots = charter_org_pack_config.resolve_existing_org_roots
         spy = MagicMock(side_effect=real_resolve_existing_org_roots)
-        monkeypatch.setattr(charter_drg, "resolve_existing_org_roots", spy)
+        monkeypatch.setattr(charter_org_pack_config, "resolve_existing_org_roots", spy)
 
         rb._dn_dependency_gate(ctx)
 

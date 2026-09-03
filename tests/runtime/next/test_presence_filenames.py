@@ -124,3 +124,261 @@ class TestPresenceFilenamesRoutesThroughAuthority:
         _presence_filenames_for("software-dev")
 
         assert calls == [("software-dev", None)]
+
+
+# ---------------------------------------------------------------------------
+# #3847: characterize the `blocking_artifact_names` None-vs-frozenset
+# tri-state (C-002, #3729) through the REAL entry point
+# `gather_artifact_presence`, for every input class the planned dedup of
+# `_expected_artifacts_manifest_resolves` (reuse the cached `load_manifest`
+# authority instead of its own uncached `_resolve_org_manifest_mapping` +
+# bare built-in read) must preserve byte-exact. Characterization
+# (green-stays-green before AND after the dedup) -- not a regression pin for
+# a bug, per the module docstring's framing.
+# ---------------------------------------------------------------------------
+
+_TRISTATE_VALID_FAMILY = "tristate-valid-family"
+_TRISTATE_VALID_STEP = "tristate-step"
+_TRISTATE_VALID_YAML = f"""\
+schema_version: "1.0"
+mission_type: "{_TRISTATE_VALID_FAMILY}"
+manifest_version: "1"
+required_always: []
+required_by_step:
+  {_TRISTATE_VALID_STEP}:
+    - artifact_key: "output.tristate.main"
+      artifact_class: "output"
+      path_pattern: "tristate-artifact.md"
+      blocking: true
+optional_always: []
+"""
+
+# Mirrors TestGatherArtifactPresenceRaisesManifestSchemaErrorAtBothTiers's
+# built-in fixture shape (tests/runtime/next/test_pertype_presence_gate.py):
+# `not_a_real_field` trips `ExpectedArtifactManifest`'s `extra="forbid"`.
+_TRISTATE_SCHEMA_INVALID_FAMILY = "tristate-schema-invalid-family"
+_TRISTATE_SCHEMA_INVALID_YAML = f"""\
+schema_version: "1.0"
+mission_type: "{_TRISTATE_SCHEMA_INVALID_FAMILY}"
+manifest_version: "1"
+not_a_real_field: true
+"""
+
+_TRISTATE_MALFORMED_ORG_FAMILY = "tristate-malformed-org-family"
+_TRISTATE_MALFORMED_ORG_YAML = "schema_version: [unterminated flow seq\n"
+
+
+def _write_tristate_org_pack_config(repo_root: Path, *, packs: list[tuple[str, Path]]) -> None:
+    """Canonical ``charter_packs.org.packs`` shape (CR-04)."""
+    config_dir = repo_root / ".kittify"
+    config_dir.mkdir(parents=True, exist_ok=True)
+    lines = ["charter_packs:", "  org:", "    packs:"]
+    for name, local_path in packs:
+        lines.append(f"      - name: {name}")
+        lines.append(f"        local_path: {local_path}")
+    (config_dir / "config.yaml").write_text("\n".join(lines) + "\n", encoding="utf-8")
+
+
+def _write_tristate_org_manifest(org_root: Path, mission_type: str, yaml_text: str) -> None:
+    target_dir = org_root / "missions" / mission_type
+    target_dir.mkdir(parents=True, exist_ok=True)
+    (target_dir / "expected-artifacts.yaml").write_text(yaml_text, encoding="utf-8")
+
+
+@pytest.fixture
+def _tristate_valid_family_repo(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    from charter.missions import MissionTemplateRepository
+
+    missions_root = tmp_path / "missions-root-tristate-valid"
+    family_dir = missions_root / _TRISTATE_VALID_FAMILY
+    family_dir.mkdir(parents=True)
+    (family_dir / "expected-artifacts.yaml").write_text(_TRISTATE_VALID_YAML, encoding="utf-8")
+    monkeypatch.setattr(
+        MissionTemplateRepository,
+        "default",
+        classmethod(lambda cls: MissionTemplateRepository(missions_root)),
+    )
+
+
+@pytest.fixture
+def _tristate_schema_invalid_family_repo(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    from charter.missions import MissionTemplateRepository
+
+    missions_root = tmp_path / "missions-root-tristate-schema-invalid"
+    family_dir = missions_root / _TRISTATE_SCHEMA_INVALID_FAMILY
+    family_dir.mkdir(parents=True)
+    (family_dir / "expected-artifacts.yaml").write_text(
+        _TRISTATE_SCHEMA_INVALID_YAML, encoding="utf-8"
+    )
+    monkeypatch.setattr(
+        MissionTemplateRepository,
+        "default",
+        classmethod(lambda cls: MissionTemplateRepository(missions_root)),
+    )
+
+
+class TestTristateCharacterizationThroughGatherArtifactPresence:
+    """#3847: pin ``ArtifactPresenceSnapshot.blocking_artifact_names``'s
+    None-vs-frozenset tri-state, plus the raise behavior, for all four input
+    classes -- exercised through ``gather_artifact_presence`` (the real
+    entry), not the helper in isolation. Must stay green both before and
+    after the dedup change."""
+
+    def setup_method(self) -> None:
+        from charter.activation.manifest_loader import clear_cache
+
+        clear_cache()
+
+    def teardown_method(self) -> None:
+        from charter.activation.manifest_loader import clear_cache
+
+        clear_cache()
+
+    def test_absent_at_both_tiers_yields_none(self, tmp_path: Path) -> None:
+        from runtime.next.runtime_bridge_io import gather_artifact_presence
+
+        feature_dir = tmp_path / "feature-absent"
+        feature_dir.mkdir()
+
+        snapshot = gather_artifact_presence(
+            feature_dir,
+            mission_family="totally-unregistered-tristate-family",
+            step_id="whatever",
+        )
+
+        assert snapshot.blocking_artifact_names is None
+
+    def test_present_and_valid_yields_real_frozenset(
+        self, tmp_path: Path, _tristate_valid_family_repo: None
+    ) -> None:
+        from runtime.next.runtime_bridge_io import gather_artifact_presence
+
+        feature_dir = tmp_path / "feature-valid"
+        feature_dir.mkdir()
+
+        snapshot = gather_artifact_presence(
+            feature_dir,
+            mission_family=_TRISTATE_VALID_FAMILY,
+            step_id=_TRISTATE_VALID_STEP,
+        )
+
+        assert snapshot.blocking_artifact_names is not None
+        assert isinstance(snapshot.blocking_artifact_names, frozenset)
+        assert snapshot.blocking_artifact_names == frozenset({"tristate-artifact.md"})
+
+    def test_present_and_malformed_org_manifest_raises(self, tmp_path: Path) -> None:
+        from charter.offering.missions.repository import MalformedManifestError
+        from runtime.next.runtime_bridge_io import gather_artifact_presence
+
+        project_root = tmp_path / "project-malformed"
+        project_root.mkdir()
+        org_root = tmp_path / "org-pack-malformed"
+        _write_tristate_org_manifest(
+            org_root, _TRISTATE_MALFORMED_ORG_FAMILY, _TRISTATE_MALFORMED_ORG_YAML
+        )
+        _write_tristate_org_pack_config(project_root, packs=[("acme", org_root)])
+        feature_dir = tmp_path / "feature-malformed"
+        feature_dir.mkdir()
+
+        with pytest.raises(MalformedManifestError):
+            gather_artifact_presence(
+                feature_dir,
+                mission_family=_TRISTATE_MALFORMED_ORG_FAMILY,
+                step_id="whatever",
+                repo_root=project_root,
+            )
+
+    def test_present_and_schema_invalid_raises_manifest_schema_error(
+        self, tmp_path: Path, _tristate_schema_invalid_family_repo: None
+    ) -> None:
+        from charter.activation.manifest_loader import ManifestSchemaError
+        from runtime.next.runtime_bridge_io import gather_artifact_presence
+
+        feature_dir = tmp_path / "feature-schema-invalid"
+        feature_dir.mkdir()
+
+        with pytest.raises(ManifestSchemaError) as exc_info:
+            gather_artifact_presence(
+                feature_dir,
+                mission_family=_TRISTATE_SCHEMA_INVALID_FAMILY,
+                step_id="whatever",
+            )
+
+        assert exc_info.value.mission_type == _TRISTATE_SCHEMA_INVALID_FAMILY
+
+
+# ---------------------------------------------------------------------------
+# #3847 dedup: the org-tier manifest read must happen exactly ONCE per
+# `gather_artifact_presence` call on the org happy path -- today it happens
+# twice (`_presence_filenames_for` via the cached `load_manifest` authority,
+# then again via `_expected_artifacts_manifest_resolves`'s own uncached
+# `_resolve_org_manifest_mapping`). RED before the dedup (2 reads), GREEN
+# after (1 read) -- pinned to #3847.
+# ---------------------------------------------------------------------------
+
+_DEDUP_ORG_FAMILY = "dedup-org-happy-path-family"
+_DEDUP_ORG_STEP = "dedup-step"
+_DEDUP_ORG_YAML = f"""\
+schema_version: "1.0"
+mission_type: "{_DEDUP_ORG_FAMILY}"
+manifest_version: "org-1"
+required_always: []
+required_by_step:
+  {_DEDUP_ORG_STEP}:
+    - artifact_key: "output.dedup.main"
+      artifact_class: "output"
+      path_pattern: "dedup-artifact.md"
+      blocking: true
+optional_always: []
+"""
+
+
+class TestExpectedArtifactsOrgReadDedup:
+    def setup_method(self) -> None:
+        from charter.activation.manifest_loader import clear_cache
+
+        clear_cache()
+
+    def teardown_method(self) -> None:
+        from charter.activation.manifest_loader import clear_cache
+
+        clear_cache()
+
+    @pytest.mark.regression
+    def test_org_manifest_read_exactly_once_per_gather_call(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        import charter.activation.org_expected_artifacts as org_expected_artifacts_module
+        from runtime.next.runtime_bridge_io import gather_artifact_presence
+
+        project_root = tmp_path / "project-dedup"
+        project_root.mkdir()
+        org_root = tmp_path / "org-pack-dedup"
+        _write_tristate_org_manifest(org_root, _DEDUP_ORG_FAMILY, _DEDUP_ORG_YAML)
+        _write_tristate_org_pack_config(project_root, packs=[("acme", org_root)])
+        feature_dir = tmp_path / "feature-dedup"
+        feature_dir.mkdir()
+
+        calls: list[str] = []
+        original = org_expected_artifacts_module.resolve_org_expected_artifacts
+
+        def _counting(org_roots: list[Path], mission_type: str) -> object:
+            calls.append(mission_type)
+            return original(org_roots, mission_type)
+
+        monkeypatch.setattr(
+            org_expected_artifacts_module, "resolve_org_expected_artifacts", _counting
+        )
+
+        snapshot = gather_artifact_presence(
+            feature_dir,
+            mission_family=_DEDUP_ORG_FAMILY,
+            step_id=_DEDUP_ORG_STEP,
+            repo_root=project_root,
+        )
+
+        assert snapshot.blocking_artifact_names == frozenset({"dedup-artifact.md"})
+        assert len(calls) == 1, (
+            f"expected the org-tier manifest read exactly once per "
+            f"gather_artifact_presence call (#3847 dedup), got {len(calls)}"
+        )
