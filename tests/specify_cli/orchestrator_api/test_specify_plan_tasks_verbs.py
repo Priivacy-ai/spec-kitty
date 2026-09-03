@@ -81,6 +81,125 @@ _SUBSTANTIVE_SPEC = """# Spec — WP03 verbs
 A user does the thing via the orchestrator-api.
 """
 
+# Fold-in review finding -- the exact ``data`` key-set each verb's success
+# envelope re-emits verbatim from its host-CLI delegate (docs/api/
+# orchestrator-api.md's "Design-Phase Commands" section: ``specify`` =
+# ``agent_feature.create_mission``'s raw payload plus the enrichment
+# ``scaffold_only``/``spec_state``/``next_action``/``next_step``; ``plan`` =
+# ``agent_feature.setup_plan``'s raw payload verbatim, ``mission_slug``
+# filled in only if absent; ``tasks`` = ``agent_feature.finalize_tasks``'s
+# raw payload verbatim, ``mission_slug`` always filled in). Captured against
+# a real, live invocation (NOT re-derived from the implementation) so a
+# future delegate ``--json`` shape change trips this test instead of
+# silently mutating the versioned 1.4.0 external contract.
+_SPECIFY_SUCCESS_DATA_KEYS = frozenset(
+    {
+        "BASE_BRANCH",
+        "BRANCH_MATCHES_TARGET",
+        "CURRENT_BRANCH",
+        "EXPECTED_BASE_BRANCH",
+        "EXPECTED_TARGET_BRANCH",
+        "MERGE_TARGET_BRANCH",
+        "NOW_UTC_ISO",
+        "PLANNING_BASE_BRANCH",
+        "TARGET_BRANCH",
+        "base_branch",
+        "branch_context",
+        "branch_matches_target",
+        "branch_strategy_summary",
+        "coordination_branch",
+        "coordination_branch_created",
+        "created_at",
+        "created_files",
+        "current_branch",
+        "feature_dir",
+        "friendly_name",
+        "merge_target_branch",
+        "meta_file",
+        "mission_id",
+        "mission_number",
+        "mission_slug",
+        "mission_type",
+        "next_action",
+        "next_step",
+        "origin_binding",
+        "plan_guard",
+        "planning_base_branch",
+        "purpose_context",
+        "purpose_tldr",
+        "requires_agent_authoring",
+        "result",
+        "runtime_vars",
+        "scaffold_only",
+        "slug",
+        "spec_file",
+        "spec_kitty_version",
+        "spec_state",
+        "target_branch",
+        "topology",
+        "uncommitted_artifacts",
+        "write_mode",
+    }
+)
+
+_PLAN_SUCCESS_DATA_KEYS = frozenset(
+    {
+        "BASE_BRANCH",
+        "BRANCH_MATCHES_TARGET",
+        "CURRENT_BRANCH",
+        "EXPECTED_BASE_BRANCH",
+        "EXPECTED_TARGET_BRANCH",
+        "MERGE_TARGET_BRANCH",
+        "NOW_UTC_ISO",
+        "PLANNING_BASE_BRANCH",
+        "TARGET_BRANCH",
+        "base_branch",
+        "branch_context",
+        "branch_matches_target",
+        "branch_strategy_summary",
+        "current_branch",
+        "feature_dir",
+        "merge_target_branch",
+        "mission_slug",
+        "phase_complete",
+        "plan_file",
+        "plan_substantive",
+        "planning_base_branch",
+        "result",
+        "runtime_vars",
+        "scaffold_only",
+        "spec_file",
+        "spec_kitty_version",
+        "target_branch",
+    }
+)
+
+_TASKS_SUCCESS_DATA_KEYS = frozenset(
+    {
+        "bootstrap",
+        "commit_created",
+        "commit_hash",
+        "commit_hashes",
+        "dependencies_parsed",
+        "files_committed",
+        "lanes",
+        "mission_slug",
+        "modified_wps",
+        "ownership_warnings",
+        "post_integration_acceptance_warnings",
+        "preserved_wps",
+        "requirement_extraction_warnings",
+        "requirement_refs_parsed",
+        "result",
+        "spec_kitty_version",
+        "target_branch_override",
+        "tasks_dir",
+        "unchanged_wps",
+        "updated_wp_count",
+        "wp_count",
+    }
+)
+
 
 def _git(repo: Path, *args: str) -> subprocess.CompletedProcess[str]:
     return subprocess.run(
@@ -494,3 +613,65 @@ def test_tasks_delegate_typer_exit_with_no_json_falls_back_to_tasks_finalize_fai
 
     assert envelope["success"] is False, envelope
     assert envelope["error_code"] == "TASKS_FINALIZE_FAILED"
+
+
+# ---------------------------------------------------------------------------
+# Fold-in review finding -- pin the pass-through data shape
+# ---------------------------------------------------------------------------
+
+
+def test_specify_plan_tasks_success_data_key_shape_is_pinned(tmp_path: Path) -> None:
+    """``specify``/``plan``/``tasks`` re-emit their host-CLI delegate's
+    ``--json`` dict verbatim as the versioned 1.4.0 contract ``data`` --
+    nothing pins that shape to the contract version, so a delegate
+    ``--json`` change would otherwise silently mutate the external contract
+    with no test ever failing. Assert the exact key-SET (not values -- git
+    branch names/timestamps/hashes are environment-dependent) each verb's
+    success ``data`` carries, so a future field added/removed/renamed on
+    either delegate trips this test.
+    """
+    repo = _init_repo(tmp_path)
+    created = _specify(repo, "wp03-pin-shape")
+    assert created["success"] is True, created
+    mission_slug = created["data"]["mission_slug"]
+
+    assert set(created["data"].keys()) == _SPECIFY_SUCCESS_DATA_KEYS
+
+    spec_file = Path(created["data"]["spec_file"])
+    spec_file.write_text(_SUBSTANTIVE_SPEC, encoding="utf-8")
+    _git(repo, "add", "-A")
+    _git(repo, "commit", "-m", "substantive spec")
+
+    plan_result = _run(repo, ["plan", "--mission", mission_slug, "--policy", _POLICY])
+    plan_envelope = _envelope(plan_result)
+    assert plan_envelope["success"] is True, plan_envelope
+    assert set(plan_envelope["data"].keys()) == _PLAN_SUCCESS_DATA_KEYS
+
+    feature_dir = Path(created["data"]["feature_dir"])
+    tasks_dir = feature_dir / "tasks"
+    tasks_dir.mkdir(exist_ok=True)
+    (tasks_dir / "WP01-task.md").write_text(
+        "---\n"
+        "work_package_id: WP01\n"
+        "title: Test WP01\n"
+        "dependencies: []\n"
+        "requirement_refs: [FR-001]\n"
+        "subtasks: []\n"
+        "owned_files:\n"
+        "  - src/module_wp01/**\n"
+        "authoritative_surface: src/module_wp01/\n"
+        "execution_mode: code_change\n"
+        "---\n\n# WP01\n\n## Activity Log\n",
+        encoding="utf-8",
+    )
+    (feature_dir / "tasks.md").write_text(
+        "# Tasks\n\n## Work Package WP01\n\n**Dependencies**: None\n",
+        encoding="utf-8",
+    )
+    _git(repo, "add", "-A")
+    _git(repo, "commit", "-m", "seed tasks")
+
+    tasks_result = _run(repo, ["tasks", "--mission", mission_slug, "--policy", _POLICY])
+    tasks_envelope = _envelope(tasks_result)
+    assert tasks_envelope["success"] is True, tasks_envelope
+    assert set(tasks_envelope["data"].keys()) == _TASKS_SUCCESS_DATA_KEYS

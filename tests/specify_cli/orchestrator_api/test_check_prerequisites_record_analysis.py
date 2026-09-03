@@ -289,6 +289,67 @@ def test_check_prerequisites_field_parity_with_host_cli(tmp_path: Path) -> None:
     assert data["valid"] is True
 
 
+# Fold-in review finding -- ``check-prerequisites`` re-emits the host CLI
+# delegate's ``validate_feature_structure`` dict verbatim as the versioned
+# 1.4.0 contract ``data`` (docs/api/orchestrator-api.md's "check-
+# prerequisites" section: "the host CLI's own ``validate_feature_structure``
+# shape, with ``mission_slug`` filled in"). Nothing pins that shape to the
+# contract version, so a delegate shape change would otherwise silently
+# mutate the external contract with no test ever failing. Captured against a
+# real, live invocation (NOT re-derived from the implementation).
+_CHECK_PREREQUISITES_SUCCESS_DATA_KEYS = frozenset(
+    {
+        "AVAILABLE_DOCS",
+        "BASE_BRANCH",
+        "BRANCH_MATCHES_TARGET",
+        "CURRENT_BRANCH",
+        "EXPECTED_BASE_BRANCH",
+        "EXPECTED_TARGET_BRANCH",
+        "FEATURE_DIR",
+        "MERGE_TARGET_BRANCH",
+        "NOW_UTC_ISO",
+        "PLANNING_BASE_BRANCH",
+        "TARGET_BRANCH",
+        "artifact_dirs",
+        "artifact_files",
+        "available_docs",
+        "base_branch",
+        "branch_context",
+        "branch_matches_target",
+        "branch_strategy_summary",
+        "current_branch",
+        "errors",
+        "merge_target_branch",
+        "mission_slug",
+        "paths",
+        "planning_base_branch",
+        "runtime_vars",
+        "spec_kitty_version",
+        "target_branch",
+        "valid",
+        "warnings",
+    }
+)
+
+
+def test_check_prerequisites_success_data_key_shape_is_pinned(tmp_path: Path) -> None:
+    """Pin the exact key-SET (not values -- git branch names/timestamps are
+    environment-dependent) so a future field added/removed/renamed on the
+    host CLI's ``validate_feature_structure`` delegate trips this test.
+    """
+    repo = _init_repo(tmp_path)
+    mission_slug, _feature_dir = _build_mission(repo, "wp04-pin-shape")
+
+    result = _run(
+        repo,
+        ["check-prerequisites", "--mission", mission_slug, "--include-tasks"],
+    )
+    envelope = _envelope(result)
+
+    assert envelope["success"] is True, envelope
+    assert set(envelope["data"].keys()) == _CHECK_PREREQUISITES_SUCCESS_DATA_KEYS
+
+
 def test_check_prerequisites_missing_mission_fails_closed(tmp_path: Path) -> None:
     repo = _init_repo(tmp_path)
 
