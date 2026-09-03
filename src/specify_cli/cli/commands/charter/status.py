@@ -14,6 +14,7 @@ from typing import Any
 import typer
 from rich.table import Table
 
+from charter.activation.evidence.orchestrator import ConfigShapeError
 from specify_cli.task_utils import TaskCliError
 
 from specify_cli.cli.commands.charter._app import (
@@ -306,7 +307,11 @@ def status(  # noqa: C901
             if sub.get("remediation"):
                 console.print(f"    [dim]Run: {sub['remediation']}[/dim]")
 
-    except TaskCliError as e:
+    except (TaskCliError, ConfigShapeError) as e:
+        # ConfigShapeError (a corrupt/non-mapping .kittify/config.yaml, ledger
+        # SK-16) is a controlled, expected diagnostic -- treated the same as
+        # TaskCliError, not routed through the generic "Unexpected error"
+        # branch below.
         _emit_error(console, json_output=json_output, message=str(e))
         raise typer.Exit(code=1) from e
     except Exception as e:
