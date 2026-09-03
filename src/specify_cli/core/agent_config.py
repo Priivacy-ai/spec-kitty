@@ -79,10 +79,7 @@ def load_agent_config(repo_root: Path) -> AgentConfig:
     # not a silent default, so the operator learns their config is corrupt
     # instead of getting an unexplained "no agents configured".
     if not isinstance(data, dict):
-        raise AgentConfigError(
-            f"Invalid config shape in {config_file}: expected a YAML mapping "
-            f"at the top level, got {type(data).__name__}"
-        )
+        raise AgentConfigError(f"Invalid config shape in {config_file}: expected a YAML mapping at the top level, got {type(data).__name__}")
 
     agents_data = data.get("agents") or data.get("tools") or {}
 

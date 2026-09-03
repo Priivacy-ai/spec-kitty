@@ -98,10 +98,7 @@ def _mission_summary(slug: str) -> dict[str, str]:
     return {
         "friendly_name": title.title(),
         "purpose_tldr": f"Deliver {title} cleanly for the team.",
-        "purpose_context": (
-            f"This mission delivers {title} so product and engineering can move "
-            "forward with a clear outcome and shared understanding."
-        ),
+        "purpose_context": (f"This mission delivers {title} so product and engineering can move forward with a clear outcome and shared understanding."),
     }
 
 
@@ -207,12 +204,9 @@ def test_pending_origin_bind_leaves_clean_tree_after_create(tmp_path: Path) -> N
     # The committed meta.json on HEAD (not just the working copy) carries the
     # origin ticket — proving the SECOND commit actually landed the bind, not
     # merely that nothing changed after step 8.5.
-    committed_meta = _git(
-        tmp_path, "show", f"HEAD:{meta_file.relative_to(tmp_path)}"
-    ).stdout
+    committed_meta = _git(tmp_path, "show", f"HEAD:{meta_file.relative_to(tmp_path)}").stdout
     assert "origin_ticket" in committed_meta, (
-        "HEAD's committed meta.json does not carry the origin_ticket subtree — "
-        "the post-bind commit did not land the write it was meant to capture."
+        "HEAD's committed meta.json does not carry the origin_ticket subtree — the post-bind commit did not land the write it was meant to capture."
     )
 
 
@@ -257,7 +251,4 @@ def test_pending_origin_bind_failure_does_not_trigger_extra_commit(
     status_lines = _git(tmp_path, "status", "--porcelain").stdout.splitlines()
     meta_rel = str(meta_file.relative_to(tmp_path))
     meta_status_lines = [line for line in status_lines if line[3:].strip() == meta_rel]
-    assert not meta_status_lines, (
-        f"a failed origin bind left meta.json uncommitted: {meta_status_lines!r}. "
-        f"Full git status --porcelain:\n{status_lines!r}"
-    )
+    assert not meta_status_lines, f"a failed origin bind left meta.json uncommitted: {meta_status_lines!r}. Full git status --porcelain:\n{status_lines!r}"
