@@ -449,3 +449,58 @@ def test_design_status_clean_whole_line_truncation_fails_closed_not_silently_wro
     # Never silently reported as "tasks/ unfinalized" (current_phase: "plan")
     # -- the failure envelope carries no current_phase field at all.
     assert "current_phase" not in envelope["data"]
+
+
+# ---------------------------------------------------------------------------
+# Fold-in review finding -- a corrupted decisions/index.json must fail
+# closed with the SAME structured DESIGN_STATUS_EVENT_LOG_UNREADABLE
+# envelope the torn status.events.jsonl shapes above already produce, never
+# a bare traceback. ``_open_decisions`` -> ``decisions.store.load_index``
+# (inside ``design_status``'s ``try``/``except StoreError`` block) can raise
+# ``json.JSONDecodeError`` (malformed JSON text) or a pydantic
+# ``ValidationError`` (JSON-valid but schema-invalid) -- NEITHER of which is
+# a ``StoreError``, so pre-fix both propagated un-enveloped.
+# ---------------------------------------------------------------------------
+
+
+def test_design_status_malformed_decisions_index_json_fails_closed(tmp_path: Path) -> None:
+    repo = _init_repo(tmp_path)
+    mission_slug, feature_dir = _build_spec_only_mission(repo, "wp06-corrupt-index-a")
+
+    opened = _open_decision(repo, mission_slug)
+    assert opened["success"] is True, opened
+
+    index_path = feature_dir / "decisions" / "index.json"
+    assert index_path.exists()
+    index_path.write_text("{not valid json", encoding="utf-8")
+
+    envelope = _design_status(repo, mission_slug)
+
+    assert envelope["success"] is False, envelope
+    assert envelope["error_code"] == "DESIGN_STATUS_EVENT_LOG_UNREADABLE"
+    assert "current_phase" not in envelope["data"]
+
+
+def test_design_status_schema_invalid_decisions_index_fails_closed(tmp_path: Path) -> None:
+    """JSON-valid but schema-invalid (``version`` outside the ``Literal[1]``
+    the model declares) -- the pydantic ``ValidationError`` branch, distinct
+    from the malformed-JSON-text branch above.
+    """
+    repo = _init_repo(tmp_path)
+    mission_slug, feature_dir = _build_spec_only_mission(repo, "wp06-corrupt-index-b")
+
+    opened = _open_decision(repo, mission_slug)
+    assert opened["success"] is True, opened
+
+    index_path = feature_dir / "decisions" / "index.json"
+    assert index_path.exists()
+    index_path.write_text(
+        json.dumps({"version": 2, "mission_id": "some-mission-id", "entries": []}),
+        encoding="utf-8",
+    )
+
+    envelope = _design_status(repo, mission_slug)
+
+    assert envelope["success"] is False, envelope
+    assert envelope["error_code"] == "DESIGN_STATUS_EVENT_LOG_UNREADABLE"
+    assert "current_phase" not in envelope["data"]
