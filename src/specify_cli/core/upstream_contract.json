@@ -98,7 +98,8 @@
       "open-decision",
       "resolve-decision",
       "defer-decision",
-      "cancel-decision"
+      "cancel-decision",
+      "design-status"
     ],
     "forbidden_commands": [
       "feature-state",
@@ -150,7 +151,8 @@
       "DECISION_ALREADY_CLOSED",
       "DECISION_NOT_FOUND",
       "DECISION_TERMINAL_CONFLICT",
-      "DECISION_EVENT_REPAIR_FAILED"
+      "DECISION_EVENT_REPAIR_FAILED",
+      "DESIGN_STATUS_EVENT_LOG_UNREADABLE"
     ],
     "forbidden_error_codes": [
       "FEATURE_NOT_FOUND",
