@@ -52,6 +52,25 @@ A seventh, follow-on case closes a latent defect WP02's own fix above exposed
    which requires exactly that widening; the gate excludes on ownership by
    ANOTHER action, never on the absence of this action's own ownership.)
 
+An eighth, second follow-on case closes a second, independent latent defect the
+first follow-on's fix exposed (operator ruling 2, ``reviews/wp02.ruling-2.md``):
+
+8. ``test_activated_directive_present_only_in_active_graph_still_delivered`` --
+   the exclusion-guard allowlist's "None -> all built-ins" default (job 1,
+   ruling 1 declared this correct and untouched) was bound to a hardcoded
+   ``load_doctrine_catalog()`` call -- the real, installed built-in catalog --
+   rather than to the graph actually being resolved against. A directive
+   genuinely present in the ACTIVE graph (an injected/mocked graph in a test,
+   or a graph augmented with org-pack content in production) but absent from
+   the real catalog was excluded even when directly scoped to the resolving
+   action, purely because the catalog and the graph disagreed about what "all
+   built-ins" means. This is exactly the #883 regression's own root cause
+   (``DIRECTIVE_100``, fictional, scoped directly to ``documentation/implement``
+   in a mocked graph) reproduced hermetically here, plus
+   ``tests/charter/test_context_org_chain.py``'s five failures (an org-pack
+   directive, real but not catalog-shipped, scoped directly to the action in
+   the real merge pipeline) -- both closed by the same fix.
+
 Design note on FR-014's call boundary: this fixture is deliberately built
 against :func:`_classify_artifact_urns` directly rather than through the full
 :func:`_load_action_doctrine_bundle` pipeline. Going through the full pipeline
@@ -560,4 +579,58 @@ def test_activated_directive_scoped_to_no_action_still_widens(tmp_path: Path) ->
         "an activated directive scoped onto NO action at all must still "
         "widen into the resolving action's delivered set -- nobody else "
         f"claims it; delivered directives were: {sorted(bundle.directive_ids)}"
+    )
+
+
+# ---------------------------------------------------------------------------
+# 8. Operator ruling 2 (reviews/wp02.ruling-2.md) -- "None -> all built-ins"
+#    must resolve from the ACTIVE graph being resolved against, not a
+#    hardcoded real-catalog call. A directive genuinely present in the graph
+#    (a mocked/injected graph, or one augmented with org-pack content) but
+#    absent from the real built-in catalog must still be admitted when it is
+#    directly scoped to the resolving action.
+# ---------------------------------------------------------------------------
+
+_FICTIONAL_DIRECTIVE_ID = "FICTIONAL_DIRECTIVE_NOT_IN_REAL_CATALOG"
+
+
+def test_activated_directive_present_only_in_active_graph_still_delivered(
+    tmp_path: Path,
+) -> None:
+    """RED against catalog-sourced default resolution (pre-ruling-2 code).
+
+    ``pack_context.activated_directives`` is absent (``None``), so
+    ``project_directives`` resolves via the "all built-ins" default.
+    ``_FICTIONAL_DIRECTIVE_ID`` is directly ``scope``-owned by the resolving
+    ``implement`` action in this fixture's graph, but does not exist anywhere
+    in the real, installed built-in catalog (verified live against this WP's
+    other cases, which all deliberately use real ids per NFR-001 -- this one
+    deliberately does NOT, to isolate the catalog-vs-graph source collision).
+
+    Without ruling 2's fix, ``project_directives``'s default is
+    ``load_doctrine_catalog().directives`` alone (the real ~34-id catalog),
+    which does not contain ``_FICTIONAL_DIRECTIVE_ID`` -- the exclusion-guard
+    allowlist then drops it even though it is directly scoped to
+    ``implement`` and genuinely present in the graph being resolved. This is
+    the exact #883 / ``test_context_org_chain.py`` defect shape, reproduced
+    hermetically.
+    """
+    graph = _scoped_action_graph(f"directive:{_FICTIONAL_DIRECTIVE_ID}")
+    pack_context = _pack_context(repo_root=tmp_path)  # activated_directives=None
+
+    with patch("charter.activation._drg_helpers.load_validated_graph", return_value=graph):
+        bundle = _load_action_doctrine_bundle(
+            repo_root=tmp_path,
+            action=_ACTION,
+            effective_depth=2,
+            mission_type=_MISSION_TYPE,
+            pack_context=pack_context,
+        )
+
+    assert _FICTIONAL_DIRECTIVE_ID in bundle.directive_ids, (
+        "a directive directly scoped to the resolving action, genuinely "
+        "present in the active graph but absent from the real built-in "
+        "catalog, must still be delivered under the unconfigured 'all "
+        f"built-ins' default; delivered directives were: "
+        f"{sorted(bundle.directive_ids)}"
     )
