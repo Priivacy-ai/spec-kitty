@@ -622,6 +622,15 @@ def _pack_provided_declaration(mission_type: str, project_dir: Path) -> _PlanFie
         resolution = resolve_template(_PACK_DECLARATION_ASSET_NAME, project_dir, mission=mission_type)
     except FileNotFoundError:
         return None
+    # resolve_template's tiers 1b/2/5 (global override, legacy, global
+    # non-mission) are mission-agnostic -- a single global
+    # plan-field-declaration.yaml at one of those tiers would otherwise gate
+    # EVERY undeclared mission type's plan against one type's fields. Only a
+    # mission-scoped hit (tiers 1a/3/4/6, all of which include
+    # "/missions/{mission_type}/" in the resolved path) is a genuine
+    # declaration for this mission type.
+    if f"/missions/{mission_type}/" not in resolution.path.as_posix():
+        return None
     return _plan_field_declaration_from_yaml(resolution.path)
 
 
