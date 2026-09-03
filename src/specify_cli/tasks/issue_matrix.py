@@ -47,6 +47,8 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, NamedTuple
 
+from specify_cli.core.owned_mission import effective_root_kwargs
+
 if TYPE_CHECKING:
     from specify_cli.coordination.write_seam import ProtectionPolicyLike, WriteSeamResult
 
@@ -394,7 +396,7 @@ def scaffold_issue_matrix(
         policy=policy,
         actor="finalize-scaffold",
         target_branch=target_branch,
-        **({"effective_root": effective_root} if effective_root is not None else {}),
+        **effective_root_kwargs(effective_root),
     )
     if result.status in ("committed", "unchanged"):
         # ``issue_matrix_dir`` was resolved BEFORE the write and is unaffected

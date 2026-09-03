@@ -33,6 +33,7 @@ from typing import TYPE_CHECKING, Any
 
 from mission_runtime import TopologySurface
 from specify_cli.acceptance.execution_context import GateSurfaceRefMismatch
+from specify_cli.core.owned_mission import effective_root_kwargs
 from specify_cli.core.subtask_rows import iter_unchecked_subtask_rows
 from specify_cli.status_lanes import is_acceptable_ending
 from specify_cli.task_utils import run_git
@@ -284,7 +285,7 @@ def _acceptance_gate_context(
     # monkeypatch of ``read_target_branch_from_meta`` stays visible — see the module
     # docstring's cross-module note.
     ref = branch or _acceptance_pkg._target_branch_for_feature(feature_dir) or "HEAD"
-    scope: dict[str, Any] = {"effective_root": effective_root} if effective_root is not None else {}
+    scope: dict[str, Any] = effective_root_kwargs(effective_root)
     return build_gate_execution_context(
         repo_root,
         feature_dir.name,
@@ -414,7 +415,7 @@ def _matrix_surface_cannot_hold(
 
     from mission_runtime import MissionArtifactKind
 
-    scope: dict[str, Any] = {"effective_root": effective_root} if effective_root is not None else {}
+    scope: dict[str, Any] = effective_root_kwargs(effective_root)
     home = declared_home_surface(
         repo_root, feature_dir.name, MissionArtifactKind.ACCEPTANCE_MATRIX,
         **scope,
@@ -466,7 +467,7 @@ def _evaluate_acceptance_matrix(
         write_acceptance_matrix,
     )
 
-    scope = {"effective_root": effective_root} if effective_root is not None else {}
+    scope = effective_root_kwargs(effective_root)
     context = _acceptance_gate_context(repo_root, feature_dir, branch=branch, **scope)
     ref_mismatch = _assert_ref_agreement(context)
     if ref_mismatch is not None:
@@ -607,7 +608,7 @@ def _check_lane_gates(
         blocked_checks,
         mutate_matrix=mutate_matrix,
         branch=branch,
-        **({"effective_root": effective_root} if effective_root is not None else {}),
+        **effective_root_kwargs(effective_root),
     )
 
 

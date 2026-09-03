@@ -12,6 +12,7 @@ from typing import TYPE_CHECKING, Any, cast
 
 from kernel.clock import UTC_SECOND_TIMESTAMP_FORMAT as TIMESTAMP_FORMAT
 from kernel.clock import now_utc_stamp
+from specify_cli.core.owned_mission import effective_root_kwargs
 from specify_cli.core.paths import get_main_repo_root, locate_project_root
 from specify_cli.mission_metadata import load_meta as _load_meta_canonical
 
@@ -583,7 +584,7 @@ def locate_work_package(
     # instead of the kind-blind ``resolve_planning_read_dir``.
     main_root = get_main_repo_root(repo_root)
     placement = placement_seam(
-        main_root, feature, **({"effective_root": effective_root} if effective_root is not None else {}),
+        main_root, feature, **effective_root_kwargs(effective_root),
     )
     feature_path = placement.read_dir(
         MissionArtifactKind.WORK_PACKAGE_TASK
