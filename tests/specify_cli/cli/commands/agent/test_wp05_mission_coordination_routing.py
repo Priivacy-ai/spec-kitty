@@ -79,14 +79,20 @@ def test_planning_commit_worktree_coord_kind_attempts_coord_worktree(
     write-surface-coherence WP03 / T014: the helper is partition-aware. A
     coordination-partition kind (e.g. ``ACCEPTANCE_MATRIX``) under coord topology
     falls past the kind short-circuit and reaches the
-    ``routes_through_coordination`` branch. With no resolvable mid8 the helper
-    degrades to the main checkout (C-004 safety), but the coord branch MUST be
-    taken — proven by spying that ``_safe_load_meta`` (only reached past the
-    predicate) is consulted. (Exemplar swapped from ``ANALYSIS_REPORT``, which
-    FR-003 re-homed to PRIMARY, to a still-COORD kind so this coord-routing
-    coverage survives the re-home.)
+    ``routes_through_coordination`` branch. The coord branch MUST be taken — proven
+    by spying that ``_resolve_mid8`` (only reached past the predicate) is consulted.
+    (Exemplar swapped from ``ANALYSIS_REPORT``, which FR-003 re-homed to PRIMARY, to
+    a still-COORD kind so this coord-routing coverage survives the re-home.)
+
+    coord-commit-surface-authority WP04 (DD-3 / INV-3): the former assertion observed
+    "coord branch taken" via the SILENT mid8-None → main-checkout fallback. That
+    fallback is now a fail-loud :class:`CoordWorktreeResolutionError` (no silent
+    misroute), which STILL proves the coord branch was reached and ``_resolve_mid8``
+    consulted — now via the raise rather than a degraded return.
     """
     from mission_runtime import MissionArtifactKind
+
+    from specify_cli.coordination.commit_router import CoordWorktreeResolutionError
 
     _patch_topology(monkeypatch, coord=True)
     artifact = tmp_path / "kitty-specs" / "001-demo" / "acceptance-matrix.json"
@@ -101,15 +107,17 @@ def test_planning_commit_worktree_coord_kind_attempts_coord_worktree(
 
     monkeypatch.setattr(commit_router_mod, "_resolve_mid8", _spy_resolve_mid8)
 
-    worktree, paths = commit_router_mod._planning_commit_worktree(
-        tmp_path, "001-demo", (artifact,), kind=MissionArtifactKind.ACCEPTANCE_MATRIX
-    )
-    # mid8 unresolvable → degrades to main checkout, but the coord branch WAS taken.
+    # mid8 unresolvable on a coord-routed coord-partition kind → fail loud (INV-3),
+    # never a silent primary fallback. The raise itself proves the coord branch was
+    # taken (the predicate passed and _resolve_mid8 was consulted).
+    with pytest.raises(CoordWorktreeResolutionError):
+        commit_router_mod._planning_commit_worktree(
+            tmp_path, "001-demo", (artifact,), kind=MissionArtifactKind.ACCEPTANCE_MATRIX
+        )
     assert consulted == ["001-demo"], (
         "the COORDINATION branch of routes_through_coordination was not taken — "
         "_resolve_mid8 (past the predicate) was never consulted"
     )
-    assert worktree == tmp_path  # degraded fallback (no mid8)
 
 
 def test_planning_commit_worktree_primary_kind_short_circuits_under_coord(
