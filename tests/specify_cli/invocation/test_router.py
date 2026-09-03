@@ -552,11 +552,23 @@ def test_router_ambiguous_candidates_carry_confidence_key() -> None:
 
     err = exc_info.value
     assert err.error_code == "ROUTER_AMBIGUOUS"
+    # PR-TESTS-001 (pre-merge squad, mission dispatch-dry-run-route-only-01M1HKV2):
+    # pin the collection to non-empty/exact-size BEFORE the loop below, mirroring
+    # test_two_plus_domain_keyword_candidates_tied_priority_still_ambiguous's
+    # set-equality guard -- otherwise a future regression that empties
+    # err.candidates while keeping error_code == "ROUTER_AMBIGUOUS" would pass
+    # this loop vacuously.
+    candidate_ids = {c["profile_id"] for c in err.candidates}
+    assert candidate_ids == {"implementer-a", "implementer-b"}
     for candidate in err.candidates:
         assert "confidence" in candidate
 
     dry_run_payload = build_ambiguous_dry_run_payload("implement the feature", err)
-    for alt in dry_run_payload["alternatives"]:
+    alternatives = dry_run_payload["alternatives"]
+    assert isinstance(alternatives, list)
+    # Same vacuity guard for the dry-run-payload mirror of err.candidates.
+    assert len(alternatives) == 2
+    for alt in alternatives:
         assert "confidence" in alt
 
 

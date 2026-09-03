@@ -99,11 +99,29 @@ def _render_payload_capsule(payload: InvocationPayload, *, show_invocation_id: b
     behavior-preserving for the real path: ``_render_rich_payload`` below
     calls this with ``show_invocation_id=True`` in the exact same order as
     before.
+
+    Also prints ``alternatives`` when non-empty (WP2/#3840, FR-005; PR-BOUNDARY-002
+    pre-merge finding), so BOTH the real (Op-opening) console path and the
+    ``--dry-run`` console path show the same routing-confidence signal a
+    machine consumer already gets from either path's ``--json`` envelope --
+    previously only the dry-run renderer printed this block, an unforced
+    asymmetry with no basis in cli-do-output.md (which is silent on
+    rich-console alternatives for either path). Read via ``getattr`` with a
+    default, same as ``_render_empty_charter_warning`` above and for the same
+    reason: ``InvocationPayload.__init__`` only sets keys callers pass, so
+    payloads built without the kwarg (e.g. pre-WP2 test fixtures such as
+    tests/invocation/test_dispatch_recommendation.py's ``_sample_payload``)
+    must not raise ``AttributeError`` here.
     """
     console.print(f"[bold green]Profile:[/bold green] {payload.profile_friendly_name} ({payload.profile_id})")
     console.print(f"[bold]Action:[/bold] {payload.action}")
     if payload.router_confidence:
         console.print(f"[dim]Router confidence:[/dim] {payload.router_confidence}")
+    alternatives = getattr(payload, "alternatives", None)
+    if alternatives:
+        console.print(f"[dim]Alternatives considered ({len(alternatives)}):[/dim]")
+        for alt in alternatives:
+            console.print(f"  - {alt['profile_id']} ({alt['action']}, {alt['confidence']})")
     if show_invocation_id:
         console.print(f"[dim]Invocation ID:[/dim] {payload.invocation_id}")
     _render_empty_charter_warning(payload)
@@ -145,16 +163,13 @@ def _render_dry_run_rich_payload(payload: InvocationPayload) -> None:
 
     Mirrors ``_render_rich_payload`` minus ``invocation_id`` -- no Op was
     opened, so there is nothing to report an id for
-    (contracts/cli-do-output.md's ``--dry-run`` success shape). Also prints
-    ``alternatives`` when non-empty (WP2/#3840, FR-005) so a human running
-    ``--dry-run`` without ``--json`` sees the same routing-confidence signal
-    a machine consumer gets from the JSON payload.
+    (contracts/cli-do-output.md's ``--dry-run`` success shape). ``alternatives``
+    rendering (WP2/#3840, FR-005) now lives in the shared
+    ``_render_payload_capsule`` body itself (PR-BOUNDARY-002), so both this
+    and ``_render_rich_payload`` print it identically -- no standalone block
+    needed here any more.
     """
     _render_payload_capsule(payload, show_invocation_id=False)
-    if payload.alternatives:
-        console.print(f"[dim]Alternatives considered ({len(payload.alternatives)}):[/dim]")
-        for alt in payload.alternatives:
-            console.print(f"  - {alt['profile_id']} ({alt['action']}, {alt['confidence']})")
     console.print("[dim]Dry run — no Op opened, nothing written.[/dim]")
 
 
