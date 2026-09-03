@@ -217,6 +217,44 @@ def test_open_decision_creates_open_ledger_entry(tmp_path: Path) -> None:
     assert entry["input_key"] == "team_size"
 
 
+def test_open_decision_unregistered_decision_error_code_falls_back_never_leaks(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """PR-CONTRACT-002 (severity 2): a ``DecisionError`` whose ``code.value``
+    is NOT registered in ``upstream_contract.json``'s ``allowed_error_codes``
+    must never reach the public ``error_code`` field verbatim. Drives this
+    via ``DecisionErrorCode.VERIFY_DRIFT`` (dormant in production today, but
+    exactly the currently-unregistered member this finding is about) so the
+    test exercises the REAL guard code path, not a synthetic stand-in code.
+    """
+    from specify_cli.decisions.models import DecisionErrorCode
+    from specify_cli.decisions.service import DecisionError
+
+    repo = _init_repo(tmp_path)
+    mission_slug, _feature_dir = _build_mission(repo, "wp05-contract002")
+
+    import specify_cli.decisions.service as decisions_service_module
+
+    def _raises_unregistered_code(*_args: Any, **_kwargs: Any) -> Any:
+        raise DecisionError(
+            DecisionErrorCode.VERIFY_DRIFT,
+            details={"decision_id": "some-decision"},
+            message="simulated verify-drift failure",
+        )
+
+    monkeypatch.setattr(decisions_service_module, "open_decision", _raises_unregistered_code)
+
+    envelope = _open_decision(repo, mission_slug)
+
+    assert envelope["success"] is False, envelope
+    # Never the raw, unregistered code -- the guard's contract-registered
+    # fallback instead.
+    assert envelope["error_code"] == "DECISION_OPERATION_FAILED", envelope
+    assert envelope["error_code"] != DecisionErrorCode.VERIFY_DRIFT.value
+    # The real code is preserved as diagnostic data, not silently dropped.
+    assert envelope["data"]["unregistered_error_code"] == DecisionErrorCode.VERIFY_DRIFT.value
+
+
 def test_open_decision_is_idempotent_for_the_same_logical_key(tmp_path: Path) -> None:
     repo = _init_repo(tmp_path)
     mission_slug, _feature_dir = _build_mission(repo, "wp05-scenario1b")

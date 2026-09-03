@@ -46,6 +46,7 @@ from pathlib import Path
 from typing import Any, cast
 
 import pytest
+import typer
 from click.testing import Result
 from typer.testing import CliRunner
 
@@ -385,3 +386,105 @@ def test_specify_twice_for_same_slug_fails_closed_with_structured_error(tmp_path
     # The first mission directory is untouched.
     assert feature_dir.exists()
     assert (feature_dir / "meta.json").read_text(encoding="utf-8") == meta_before
+
+
+# ---------------------------------------------------------------------------
+# PR-TESTS-001 (severity 3, R3-confirmed genuine coverage gap; production
+# verified correct by the refuter's own independent repro): specify/plan/
+# tasks' delegate-failure fallback codes (MISSION_CREATE_FAILED/
+# PLAN_SETUP_FAILED/TASKS_FINALIZE_FAILED) had ZERO test coverage -- the
+# only existing failure test (Scenario 4 above) exercises a DIFFERENT
+# branch (the duplicate-marker pattern match), never the generic
+# ``except typer.Exit`` fallback any of the three verbs falls back to when
+# the delegate raises with no parseable/typed JSON payload on stdout.
+# ---------------------------------------------------------------------------
+
+
+def test_specify_delegate_typer_exit_with_no_json_falls_back_to_mission_create_failed(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """specify()'s generic (non-duplicate, no-payload) fallback branch --
+    distinct from ``test_specify_twice_for_same_slug_fails_closed_with_
+    structured_error`` above, which drives the DUPLICATE-marker branch of
+    the SAME classify function, never this one.
+    """
+    repo = _init_repo(tmp_path)
+
+    import specify_cli.cli.commands.lifecycle as lifecycle_module
+
+    def _raises_non_json(mission: str, mission_type: str, topology: object) -> None:
+        print("totally not json, a bare stderr-shaped failure")
+        raise typer.Exit(1)
+
+    monkeypatch.setattr(lifecycle_module, "_create_mission_for_specify_json", _raises_non_json)
+
+    envelope = _specify(repo, "wp03-tests001-specify")
+
+    assert envelope["success"] is False, envelope
+    assert envelope["error_code"] == "MISSION_CREATE_FAILED"
+
+
+def test_plan_delegate_typer_exit_with_no_json_falls_back_to_plan_setup_failed(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """plan()'s ``except typer.Exit`` fallback branch -- never previously
+    driven by any test in this suite (grep confirms zero hits for
+    ``PLAN_SETUP_FAILED`` anywhere under ``tests/``)."""
+    repo = _init_repo(tmp_path)
+    created = _specify(repo, "wp03-tests001-plan")
+    assert created["success"] is True, created
+    mission_slug = created["data"]["mission_slug"]
+
+    spec_file = Path(created["data"]["spec_file"])
+    spec_file.write_text(_SUBSTANTIVE_SPEC, encoding="utf-8")
+    _git(repo, "add", "-A")
+    _git(repo, "commit", "-m", "substantive spec")
+
+    import specify_cli.cli.commands.agent.mission as agent_mission_module
+
+    def _raises_non_json(*, feature: str, json_output: bool) -> None:
+        print("totally not json, a bare stderr-shaped failure")
+        raise typer.Exit(1)
+
+    monkeypatch.setattr(agent_mission_module, "setup_plan", _raises_non_json)
+
+    result = _run(repo, ["plan", "--mission", mission_slug, "--policy", _POLICY])
+    envelope = _envelope(result)
+
+    assert envelope["success"] is False, envelope
+    assert envelope["error_code"] == "PLAN_SETUP_FAILED"
+
+
+def test_tasks_delegate_typer_exit_with_no_json_falls_back_to_tasks_finalize_failed(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """tasks()'s ``except typer.Exit`` fallback branch -- never previously
+    driven by any test in this suite (grep confirms zero hits for
+    ``TASKS_FINALIZE_FAILED`` anywhere under ``tests/``)."""
+    repo = _init_repo(tmp_path)
+    created = _specify(repo, "wp03-tests001-tasks")
+    assert created["success"] is True, created
+    mission_slug = created["data"]["mission_slug"]
+
+    spec_file = Path(created["data"]["spec_file"])
+    spec_file.write_text(_SUBSTANTIVE_SPEC, encoding="utf-8")
+    _git(repo, "add", "-A")
+    _git(repo, "commit", "-m", "substantive spec")
+
+    plan_result = _run(repo, ["plan", "--mission", mission_slug, "--policy", _POLICY])
+    plan_envelope = _envelope(plan_result)
+    assert plan_envelope["success"] is True, plan_envelope
+
+    import specify_cli.cli.commands.agent.mission as agent_mission_module
+
+    def _raises_non_json(*, feature: str, json_output: bool) -> None:
+        print("totally not json, a bare stderr-shaped failure")
+        raise typer.Exit(1)
+
+    monkeypatch.setattr(agent_mission_module, "finalize_tasks", _raises_non_json)
+
+    result = _run(repo, ["tasks", "--mission", mission_slug, "--policy", _POLICY])
+    envelope = _envelope(result)
+
+    assert envelope["success"] is False, envelope
+    assert envelope["error_code"] == "TASKS_FINALIZE_FAILED"

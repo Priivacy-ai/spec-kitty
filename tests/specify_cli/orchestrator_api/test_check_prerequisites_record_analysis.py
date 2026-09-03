@@ -50,6 +50,7 @@ from pathlib import Path
 from typing import Any, cast
 
 import pytest
+import typer
 from click.testing import Result
 from typer.testing import CliRunner
 
@@ -301,6 +302,151 @@ def test_check_prerequisites_missing_mission_fails_closed(tmp_path: Path) -> Non
     assert envelope["error_code"] == "MISSION_NOT_FOUND"
 
 
+def test_check_prerequisites_translates_forbidden_code_in_nested_payload_too(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """PR-TESTS-002 (severity 4, R3-confirmed LIVE defect, not merely
+    untested): ``_classify_check_prerequisites_error`` translates the
+    delegate's forbidden ``error_code: "FEATURE_CONTEXT_UNRESOLVED"`` to the
+    canonical ``MISSION_NOT_FOUND`` at the envelope's TOP level -- but the
+    raw delegate payload it also returns (spread verbatim into ``data``)
+    still carried the SAME forbidden string, untranslated, under its own
+    nested ``error_code`` key. Gets past the mission-existence gate (a real
+    mission dir must exist), then makes the delegate itself raise with a
+    real production-shaped ``FEATURE_CONTEXT_UNRESOLVED`` payload (mirroring
+    ``mission_check_prerequisites._build_setup_plan_detection_error``'s own
+    shape) -- proving the translation now covers the WHOLE payload, not
+    just the field this function happens to return first.
+    """
+    repo = _init_repo(tmp_path)
+    mission_slug, _feature_dir = _build_mission(repo, "wp04-scenario-tests002")
+
+    import specify_cli.cli.commands.agent.mission_check_prerequisites as host_module
+
+    def _raises_feature_context_unresolved(
+        *, feature: str | None, json_output: bool, include_tasks: bool = False
+    ) -> None:
+        payload = {
+            "error_code": "FEATURE_CONTEXT_UNRESOLVED",
+            "mission_flag": feature,
+            "error": "simulated feature-context resolution failure",
+            "remediation": "Re-run with --mission <slug>",
+        }
+        print(json.dumps(payload))
+        raise typer.Exit(1)
+
+    monkeypatch.setattr(host_module, "check_prerequisites", _raises_feature_context_unresolved)
+
+    result = _run(repo, ["check-prerequisites", "--mission", mission_slug])
+    envelope = _envelope(result)
+
+    assert envelope["success"] is False, envelope
+    assert envelope["error_code"] == "MISSION_NOT_FOUND"
+    assert envelope["data"]["error_code"] == "MISSION_NOT_FOUND", envelope
+
+    # Assert on the WHOLE serialized envelope, not just the two fields above
+    # -- the forbidden string must not survive anywhere, at any nesting
+    # depth, so the next leak through a DIFFERENT nested field is caught too.
+    serialized = json.dumps(envelope)
+    assert "FEATURE_CONTEXT_UNRESOLVED" not in serialized, serialized
+
+
+# ---------------------------------------------------------------------------
+# PR-CONTRACT-001 (host-CLI parity, severity 3, R3-confirmed live-reproduced
+# defect): record-analysis's dirty-worktree preflight must run BEFORE body
+# validation, matching the host CLI's own ordering exactly. This is the
+# THIRD instance of the "check in the right place but the wrong order" class
+# in this mission (after WP05-001/WP08-001) -- ``_host_record_analysis_
+# error_code`` below is a reusable, verb-agnostic helper (not hand-rolled
+# per-test as the first two instances were): it drives the SAME on-disk
+# fixture through the host CLI's OWN ``record_analysis`` function and
+# returns its ``error_code``, so any future record-analysis ordering test
+# (or a similarly-shaped verb) can assert parity against real host-CLI
+# behavior instead of a hand-copied expectation. A full production-code
+# "closed by construction" guard (e.g. a shared preflight-order descriptor
+# consumed by both callers) was judged infeasible within this diff: the
+# mission's mutating verbs each have a structurally DIFFERENT preflight
+# shape (record-analysis's body-read + dirty-tree pair vs.
+# defer/cancel-decision's --rationale check vs. answer-decision's --result
+# check) with no common ordering primitive to extract without forcing an
+# artificial abstraction over otherwise-unrelated validation logic for a
+# class with only 3 known instances -- this test-level parity harness is
+# the pragmatic mitigation instead.
+# ---------------------------------------------------------------------------
+
+
+def _host_record_analysis_error_code(
+    repo: Path, mission_slug: str, body: str, *, tmp_path: Path, agent: str = "test-agent"
+) -> str:
+    """Invoke the host CLI's OWN ``record_analysis`` (``mission_record_analysis.py``)
+    directly against *repo* and return its ``error_code`` -- ground truth for
+    ordering-parity assertions, mirroring ``test_check_prerequisites_field_
+    parity_with_host_cli``'s established "call the real host function, don't
+    re-derive its shape" precedent. Callers are expected to pass a failure
+    fixture (this helper asserts the call raises ``typer.Exit``).
+    """
+    import contextlib
+    import io
+    import os
+
+    from specify_cli.cli.commands.agent.mission_record_analysis import (
+        record_analysis as host_record_analysis,
+    )
+
+    input_file = tmp_path / "host-record-analysis-body.md"
+    input_file.write_text(body, encoding="utf-8")
+
+    prev_cwd = Path.cwd()
+    os.chdir(repo)
+    capture = io.StringIO()
+    try:
+        with contextlib.redirect_stdout(capture), pytest.raises(typer.Exit):
+            host_record_analysis(
+                feature=mission_slug,
+                input_file=str(input_file),
+                analyzer_agent=agent,
+                json_output=True,
+            )
+    finally:
+        os.chdir(prev_cwd)
+    payload = json.loads(capture.getvalue().strip().split("\n")[0])
+    return str(payload["error_code"])
+
+
+def test_record_analysis_dirty_worktree_wins_over_empty_body_matching_host_cli(
+    tmp_path: Path,
+) -> None:
+    """PR-CONTRACT-001: under a SIMULTANEOUS dirty-worktree + empty-body
+    condition, orchestrator-api's ``record-analysis`` must report the SAME
+    first ``error_code`` the host CLI reports for the identical on-disk
+    state -- ``DIRTY_WORKTREE``, never ``RECORD_ANALYSIS_EMPTY_BODY`` (which
+    is what a body-validated-before-preflight ordering would surface
+    instead). Ground-truthed against the REAL host CLI function (not a
+    hand-copied expectation) via ``_host_record_analysis_error_code``.
+    """
+    repo = _init_repo(tmp_path)
+    mission_slug, _feature_dir = _build_mission(repo, "wp04-contract001-ordering")
+
+    # Dirty the tree with one untracked, non-bookkeeping file -- real dirt
+    # neither surface's residue-churn allowlist would filter out.
+    (repo / "untracked-dirty-marker.txt").write_text("dirt\n", encoding="utf-8")
+    status = _git(repo, "status", "--porcelain").stdout
+    assert "untracked-dirty-marker.txt" in status, "fixture setup failed to dirty the tree"
+
+    orch_envelope = _record_analysis(repo, mission_slug, "", tmp_path=tmp_path)
+    assert orch_envelope["success"] is False, orch_envelope
+    assert orch_envelope["error_code"] == "DIRTY_WORKTREE", orch_envelope
+
+    host_error_code = _host_record_analysis_error_code(
+        repo, mission_slug, "", tmp_path=tmp_path
+    )
+    assert host_error_code == "DIRTY_WORKTREE"
+
+    # The parity assertion itself: both surfaces agree on the SAME first
+    # error_code for the SAME on-disk state.
+    assert orch_envelope["error_code"] == host_error_code
+
+
 # ---------------------------------------------------------------------------
 # Acceptance Scenario 2 -- record-analysis: ordinary success path
 # ---------------------------------------------------------------------------
@@ -468,3 +614,80 @@ def test_record_analysis_sc005c_stale_matching_verdict_reports_failure(
     # "ready") must NOT have been treated as sufficient evidence.
     on_disk = (feature_dir / "analysis-report.md").read_text(encoding="utf-8")
     assert "2001-01-01T00:00:00+00:00" in on_disk
+
+
+# ---------------------------------------------------------------------------
+# PR-TESTS-003 (severity 3, R3-confirmed genuine coverage gap; production
+# verified correct by the refuter's own independent repro): record-analysis's
+# three preflight fail-closed branches ahead of the write itself --
+# ``RECORD_ANALYSIS_MALFORMED_CARRIER``, ``PLACEMENT_RESOLUTION_REQUIRED``,
+# and ``DIRTY_WORKTREE`` -- had zero test coverage. The five pre-existing
+# ``test_record_analysis_*`` tests all submit well-formed carriers against
+# clean, resolvable worktrees; none of these three branches was reached.
+# ---------------------------------------------------------------------------
+
+
+def test_record_analysis_malformed_carrier_fails_closed(tmp_path: Path) -> None:
+    """An unparseable ``analysis-findings/v1`` carrier (opening ``---`` with
+    no closing ``---``) must surface ``RECORD_ANALYSIS_MALFORMED_CARRIER``,
+    never propagate a bare parse exception or silently write anyway."""
+    repo = _init_repo(tmp_path)
+    mission_slug, feature_dir = _build_mission(repo, "wp04-tests003-carrier")
+
+    malformed_body = "---\nschema: analysis-findings/v1\nfindings: [\n"
+    envelope = _record_analysis(repo, mission_slug, malformed_body, tmp_path=tmp_path)
+
+    assert envelope["success"] is False, envelope
+    assert envelope["error_code"] == "RECORD_ANALYSIS_MALFORMED_CARRIER", envelope
+    assert not (feature_dir / "analysis-report.md").exists()
+
+
+def test_record_analysis_placement_resolution_required_fails_closed(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """An unresolvable write placement (``PlacementResolutionRequired``) must
+    surface ``PLACEMENT_RESOLUTION_REQUIRED`` -- a typed-exception pass-
+    through, never a bare crash or a silent fall-through to the write."""
+    repo = _init_repo(tmp_path)
+    mission_slug, feature_dir = _build_mission(repo, "wp04-tests003-placement")
+
+    import specify_cli.cli.commands.agent.mission_record_analysis as host_ra_module
+    from specify_cli.core.errors import PlacementResolutionRequired
+
+    def _raises_placement_required(placement_ref: object, *, mission_slug: str) -> object:
+        raise PlacementResolutionRequired(
+            f"simulated unresolvable placement for mission {mission_slug!r}"
+        )
+
+    monkeypatch.setattr(
+        host_ra_module, "_require_record_analysis_placement", _raises_placement_required
+    )
+
+    envelope = _record_analysis(repo, mission_slug, _CARRIER_READY, tmp_path=tmp_path)
+
+    assert envelope["success"] is False, envelope
+    assert envelope["error_code"] == "PLACEMENT_RESOLUTION_REQUIRED", envelope
+    assert not (feature_dir / "analysis-report.md").exists()
+
+
+def test_record_analysis_dirty_worktree_fails_closed_with_well_formed_body(
+    tmp_path: Path,
+) -> None:
+    """A pre-existing dirty worktree must refuse with ``DIRTY_WORKTREE`` even
+    with an otherwise well-formed, non-empty body -- isolated from
+    PR-CONTRACT-001's ordering fix (which also covers the dirty+EMPTY-body
+    combination) by submitting a genuinely valid carrier here, so this test
+    exercises the dirty-tree preflight branch specifically, not the
+    ordering question."""
+    repo = _init_repo(tmp_path)
+    mission_slug, feature_dir = _build_mission(repo, "wp04-tests003-dirty")
+
+    (repo / "untracked-dirty-marker.txt").write_text("dirt\n", encoding="utf-8")
+    status = _git(repo, "status", "--porcelain").stdout
+    assert "untracked-dirty-marker.txt" in status, "fixture setup failed to dirty the tree"
+
+    envelope = _record_analysis(repo, mission_slug, _CARRIER_READY, tmp_path=tmp_path)
+
+    assert envelope["success"] is False, envelope
+    assert envelope["error_code"] == "DIRTY_WORKTREE", envelope
+    assert not (feature_dir / "analysis-report.md").exists()
