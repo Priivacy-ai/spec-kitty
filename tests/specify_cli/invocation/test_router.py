@@ -7,11 +7,16 @@ from __future__ import annotations
 
 import shutil
 from pathlib import Path
+from typing import TYPE_CHECKING, Any
 from unittest.mock import MagicMock, patch
 
 import pytest
 
 from specify_cli.invocation.errors import RouterAmbiguityError
+
+if TYPE_CHECKING:  # EXP-side typing adaptation (PR #1066): annotation-only import
+    from specify_cli.invocation.registry import ProfileRegistry
+
 from specify_cli.invocation.router import (
     CANONICAL_VERB_MAP,
     STOP_WORDS,
@@ -30,7 +35,7 @@ pytestmark = [pytest.mark.unit, pytest.mark.fast]
 FIXTURES_DIR = Path(__file__).parent / "fixtures" / "profiles"
 
 
-def _make_registry(tmp_path: Path, profiles: list[str] | None = None):
+def _make_registry(tmp_path: Path, profiles: list[str] | None = None) -> ProfileRegistry:
     """Build a ProfileRegistry from the fixture profiles directory.
 
     Args:
@@ -55,7 +60,7 @@ def _make_registry(tmp_path: Path, profiles: list[str] | None = None):
     return ProfileRegistry(tmp_path)
 
 
-def _make_mock_registry(profile_specs: list[dict]) -> MagicMock:
+def _make_mock_registry(profile_specs: list[dict[str, Any]]) -> MagicMock:
     """Build a lightweight mock ProfileRegistry returning synthetic profiles.
 
     Each dict in *profile_specs* should have:
