@@ -8,8 +8,10 @@ requirement_refs:
 - NFR-002
 planning_base_branch: fix/custom-mission-type-second-class-3830
 merge_target_branch: fix/custom-mission-type-second-class-3830
-# DO NOT re-run 'finalize-tasks' without --validate-only for this mission -- its branch_strategy generator is topology-blind (see tracer-tooling-friction.md / SPEC-KITTY-LEDGER.md SK-133) and will silently overwrite this hand-corrected single_branch text. If a non-validate-only run is unavoidable, immediately re-apply this exact branch_strategy text afterward.
 branch_strategy: Planning artifacts for this mission were generated on fix/custom-mission-type-second-class-3830; this mission ships as a single branch/one PR onto that existing branch (topology single_branch) — completed changes must merge back into fix/custom-mission-type-second-class-3830, never a dependency-specific or per-WP branch.
+base_branch: kitty/mission-custom-mission-type-second-class-citizens-01M1FQXD
+base_commit: 979b31591312ae46ed9556c6c0a93b04717783f3
+created_at: '2026-09-02T11:26:35.297497+00:00'
 subtasks:
 - T001
 - T002
