@@ -99,7 +99,8 @@
       "resolve-decision",
       "defer-decision",
       "cancel-decision",
-      "design-status"
+      "design-status",
+      "answer-decision"
     ],
     "forbidden_commands": [
       "feature-state",
@@ -152,7 +153,11 @@
       "DECISION_NOT_FOUND",
       "DECISION_TERMINAL_CONFLICT",
       "DECISION_EVENT_REPAIR_FAILED",
-      "DESIGN_STATUS_EVENT_LOG_UNREADABLE"
+      "DESIGN_STATUS_EVENT_LOG_UNREADABLE",
+      "RESULT_REQUIRED",
+      "NO_PENDING_DECISION",
+      "AMBIGUOUS_PENDING_DECISION",
+      "DECISION_NOT_PENDING"
     ],
     "forbidden_error_codes": [
       "FEATURE_NOT_FOUND",
