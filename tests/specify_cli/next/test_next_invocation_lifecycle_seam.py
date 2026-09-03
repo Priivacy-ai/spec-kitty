@@ -644,3 +644,112 @@ class TestSeamFunctionsFailClosedBranches:
         emit_mission_next_invoked(
             "agent", "success", "no-such-mission", tmp_path, decision
         )
+
+
+# ---------------------------------------------------------------------------
+# WP08 extension (design-phase-orchestrator-api-01M1HE6M): the orchestrator-
+# api ``answer-decision`` verb (FR-013) is the SECOND caller of this seam.
+# SC-008 requires ONE shared regression test that fails if EITHER caller --
+# the host CLI's ``next --answer`` above, or this verb -- stops writing the
+# mission-events log or the issuance-lifecycle-record store. Reuses
+# ``assert_lifecycle_seam_effects`` UNMODIFIED (WP02's own deliverable) and
+# the SAME fixture-mission builders above (three-step, input-requiring --
+# see their docstrings for why a single ``--answer``-equivalent call alone
+# never exercises all three seam functions with a real, observable delta,
+# and why a bare follow-up call is needed in the SAME ``run_action`` closure
+# to genuinely pair the record the answer call just issued).
+# ---------------------------------------------------------------------------
+
+_WP08_POLICY = json.dumps(
+    {
+        "orchestrator_id": "test-orch",
+        "orchestrator_version": "0.0.1",
+        "agent_family": "claude",
+        "approval_mode": "full_auto",
+        "sandbox_mode": "workspace_write",
+        "network_mode": "none",
+        "dangerous_flags": [],
+    }
+)
+
+
+class TestAnswerDecisionLifecycleSeamEffects:
+    """Drives the real orchestrator-api ``answer-decision`` verb (WP08's own
+    T036 RED signal: this command does not exist on ``orchestrator_api.
+    commands.app`` until T037/T038 land it -- a genuine Typer "no such
+    command" RED, not a vacuous assertion).
+    """
+
+    def test_answer_decision_path_pairs_and_issues_through_the_shared_seam(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        from specify_cli.orchestrator_api.commands import app as orchestrator_app
+
+        mission_slug = "042-lifecycle-seam-feature-wp08"
+        repo_root = _scaffold_project(
+            tmp_path, mission_slug=mission_slug, mission_type=_MISSION_TYPE
+        )
+        _write_three_step_input_mission(repo_root, mission_type=_MISSION_TYPE)
+        monkeypatch.chdir(repo_root)
+        feature_dir = repo_root / "kitty-specs" / mission_slug
+        agent = "wp08-seam-test"
+
+        # --- setup: reach a real pending `decision_required`, outside the
+        # measured window -- identical shape to the CLI-path test above.
+        issue_step_one = runner.invoke(
+            cli_app,
+            ["next", "--agent", agent, "--mission", mission_slug, "--result", "success", "--json"],
+        )
+        assert issue_step_one.exit_code == 0, issue_step_one.output
+        assert json.loads(issue_step_one.stdout)["kind"] == "step"
+
+        reveal_decision = runner.invoke(
+            cli_app,
+            ["next", "--agent", agent, "--mission", mission_slug, "--result", "success", "--json"],
+        )
+        assert reveal_decision.exit_code == 0, reveal_decision.output
+        decision_payload = json.loads(reveal_decision.stdout)
+        assert decision_payload["kind"] == "decision_required"
+        decision_id = decision_payload["decision_id"]
+        assert decision_id == "input:approval"
+
+        # --- run_action: the orchestrator-api `answer-decision` call under
+        # test, followed by the SAME bare advancing call the CLI-path test
+        # above uses to pair the record `answer-decision` itself issues (see
+        # `_write_three_step_input_mission`'s docstring for why one call
+        # alone cannot exercise both a pairing AND a new `started` write).
+        def run_action() -> None:
+            answer_result = runner.invoke(
+                orchestrator_app,
+                [
+                    "answer-decision",
+                    "--mission",
+                    mission_slug,
+                    "--agent",
+                    agent,
+                    "--result",
+                    "success",
+                    "--answer",
+                    "yes",
+                    "--decision-id",
+                    decision_id,
+                    "--policy",
+                    _WP08_POLICY,
+                ],
+            )
+            assert answer_result.exit_code == 0, answer_result.output
+            envelope = json.loads(answer_result.output.strip().split("\n")[0])
+            assert envelope["success"] is True, envelope
+            answered_data = envelope["data"]
+            assert answered_data["kind"] == "step"
+            assert answered_data["answered_decision_id"] == decision_id
+            assert "answer" not in answered_data
+
+            advance_result = runner.invoke(
+                cli_app,
+                ["next", "--agent", agent, "--mission", mission_slug, "--result", "success", "--json"],
+            )
+            assert advance_result.exit_code == 0, advance_result.output
+            assert json.loads(advance_result.stdout)["kind"] == "step"
+
+        assert_lifecycle_seam_effects(feature_dir, repo_root, mission_slug, run_action)
