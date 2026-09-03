@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import subprocess
 from dataclasses import dataclass
 from pathlib import Path
 from typing import TypedDict
@@ -10,7 +9,10 @@ from typing import TypedDict
 from mission_runtime import ActionContextError
 from specify_cli.context.mission_resolver import AmbiguousHandleError, MissionNotFoundError, resolve_mission
 from specify_cli.core.checkout_ownership import error_for_claim, resolve_ownership_claim
+from specify_cli.core.git_ops import get_current_branch
 from specify_cli.core.paths import load_meta_fail_closed
+from specify_cli.core.utils import ensure_within_directory
+from specify_cli.git.commit_helpers import _staged_tree_is_empty
 from specify_cli.git.protection_policy import ProtectionPolicy
 
 
@@ -28,10 +30,15 @@ class OwnedMission:
         """Validate the complete batch before any staging or file mutation."""
         resolved = []
         for path in paths:
-            candidate = (self.root / path).resolve() if not path.is_absolute() else path.resolve()
-            if ".." in path.parts or not candidate.is_relative_to(self.directory):
+            candidate = self.root / path if not path.is_absolute() else path
+            if ".." in path.parts:
                 raise ActionContextError("OWNED_MISSION_PATH_REFUSED", f"Path is outside the selected mission: {path}")
-            resolved.append(candidate)
+            try:
+                resolved.append(ensure_within_directory(candidate, self.directory))
+            except ValueError as exc:
+                raise ActionContextError(
+                    "OWNED_MISSION_PATH_REFUSED", f"Path is outside the selected mission: {path}"
+                ) from exc
         return resolved
 
 
@@ -60,17 +67,16 @@ def resolve_owned_mission(
     except (MissionNotFoundError, AmbiguousHandleError) as exc:
         raise ActionContextError("FEATURE_CONTEXT_UNRESOLVED", str(exc)) from exc
     directory = mission.feature_dir.resolve()
-    if not directory.is_relative_to(root / "kitty-specs"):
-        raise ActionContextError("OWNED_MISSION_PATH_REFUSED", "Mission directory escapes the selected checkout.")
+    try:
+        ensure_within_directory(directory, root / "kitty-specs")
+    except ValueError as exc:
+        raise ActionContextError("OWNED_MISSION_PATH_REFUSED", "Mission directory escapes the selected checkout.") from exc
     meta = load_meta_fail_closed(directory)
     if meta is None or meta.get("topology") != "single_branch" or meta.get("coordination_branch"):
         raise ActionContextError("OWNED_TOPOLOGY_UNSUPPORTED", "--owned-checkout currently requires single_branch.")
-    branch = subprocess.run(
-        ["git", "symbolic-ref", "--quiet", "--short", "HEAD"], cwd=root,
-        capture_output=True, text=True, encoding="utf-8", check=False,
-    )
+    current = get_current_branch(root)
     target = str(meta.get("target_branch") or "")
-    if branch.returncode or not target or branch.stdout.strip() != target or (
+    if current is None or not target or current != target or (
         target_override is not None and target_override != target
     ):
         raise ActionContextError("OWNED_BRANCH_REFUSED", "The current branch and mission target must match; detached HEAD is unsupported.")
@@ -83,9 +89,6 @@ def resolve_owned_mission(
 
 def require_unstaged_index(context: OwnedMission) -> None:
     """Refuse pre-existing staged changes instead of temporarily stashing them."""
-    result = subprocess.run(
-        ["git", "diff", "--cached", "--quiet"], cwd=context.root,
-        capture_output=True, check=False,
-    )
-    if result.returncode:
+    # _staged_tree_is_empty is the canonical staged-tree authority (commit_helpers).
+    if not _staged_tree_is_empty(context.root):
         raise ActionContextError("OWNED_INDEX_REFUSED", "The selected checkout must have no staged changes before this operation.")
