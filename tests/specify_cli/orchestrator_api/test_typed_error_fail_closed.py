@@ -655,3 +655,42 @@ def test_design_status_against_nonexistent_mission_emits_mission_not_found(
     envelope = json.loads(result.output.strip().split("\n")[0])
     assert envelope["success"] is False
     assert envelope["error_code"] == "MISSION_NOT_FOUND"
+
+
+# ---------------------------------------------------------------------------
+# WP08 (design-phase-orchestrator-api-01M1HE6M / T041): answer-decision
+# typed-error fidelity -- same MISSION_NOT_FOUND-against-nonexistent-mission
+# pattern as every mutating verb above. Confirms answer-decision is wired to
+# the SAME shared ``_resolve_mission_dir_or_fail`` seam (existence gate FIRST,
+# before any run-snapshot resolution) rather than re-proving the seam itself.
+# ---------------------------------------------------------------------------
+
+
+def test_answer_decision_against_nonexistent_mission_emits_mission_not_found(
+    tmp_path: Path,
+) -> None:
+    repo_root = tmp_path / "repo"
+    (repo_root / "kitty-specs").mkdir(parents=True)
+
+    with patch.object(orch, "_get_main_repo_root", return_value=repo_root):
+        result = runner.invoke(
+            app,
+            [
+                "answer-decision",
+                "--mission",
+                "999-does-not-exist",
+                "--agent",
+                "test-agent",
+                "--answer",
+                "approve",
+                "--result",
+                "success",
+                "--policy",
+                _WP05_POLICY,
+            ],
+            catch_exceptions=False,
+        )
+
+    envelope = json.loads(result.output.strip().split("\n")[0])
+    assert envelope["success"] is False
+    assert envelope["error_code"] == "MISSION_NOT_FOUND"

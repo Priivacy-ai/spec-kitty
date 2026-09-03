@@ -86,6 +86,14 @@ Error codes used:
                                  ledger SK-131) while deriving the tasks/-finalized
                                  signal; NEVER silently reported as "not finalized"
                                  (WP06)
+  RESULT_REQUIRED              -- answer-decision: --result is required alongside
+                                 --answer (WP08)
+  NO_PENDING_DECISION          -- answer-decision: no run-snapshot pending_decisions
+                                 entry exists to answer (WP08)
+  AMBIGUOUS_PENDING_DECISION   -- answer-decision: more than one pending decision
+                                 and --decision-id was omitted (WP08)
+  DECISION_NOT_PENDING         -- answer-decision: --decision-id does not match any
+                                 entry in the current run's pending_decisions (WP08)
 """
 
 from __future__ import annotations
@@ -3126,6 +3134,192 @@ def cancel_decision(
         "idempotent": resp.idempotent,
         "event_lamport": resp.event_lamport,
     }
+    validate_outbound_payload(data, "orchestrator_api")
+    envelope = make_envelope(command=cmd, success=True, data=data)
+    _emit(envelope)
+
+
+# ---------------------------------------------------------------------------
+# Command: answer-decision (WP08, FR-013, Mechanism B, full event/lifecycle
+# parity)
+#
+# Resolves a ``spec-kitty next`` control-loop ``decision_required`` moment (a
+# blocking ``AuditStep`` checkpoint OR a ``PromptStep`` with an unmet
+# ``requires_inputs`` entry) -- the run-snapshot's ``pending_decisions`` map
+# (``_internal_runtime.engine._read_snapshot``), distinct from the
+# ``decisions/index.json`` ledger the four verbs above operate on (Mechanism
+# A, spec Clarification 3). Matches exactly what the real CLI invocation
+# ``spec-kitty next --answer <value> --decision-id <id> --agent <name>
+# --result <success|failed|blocked>`` does in one pass (``next_cmd.py:
+# 213-269``), never just the two engine calls:
+#
+#   1. ``runtime_bridge.answer_decision_via_runtime`` persists the answer
+#      against the (auto-resolved or explicit) ``decision_id``.
+#   2. ``pair_previous_lifecycle_record`` pairs the previous issuance's
+#      ``started`` lifecycle record BEFORE the DAG advances.
+#   3. ``decide_next`` (the ENGINE call, ``runtime.next.decision``, NOT part
+#      of WP02's seam) advances the DAG using THIS call's own ``--result``.
+#   4. ``emit_mission_next_invoked`` appends a ``MissionNextInvoked`` entry
+#      to the mission event log.
+#   5. ``write_issuance_lifecycle_record`` writes a new issuance ``started``
+#      record -- ONLY when the resulting ``decision.kind == "step"``.
+#
+# Per operator ruling SPEC-FRESH2-001 (``kitty-specs/design-phase-
+# orchestrator-api-01M1HE6M/reviews/spec.ruling.md``), steps 2/4/5 are
+# REQUIRED, reached EXCLUSIVELY through WP02's extracted seam
+# (``runtime.next.next_invocation_lifecycle``) -- never inlined, never
+# reimplemented here. A verb performing only steps 1+3 (the two engine
+# calls) is precisely the silent-success regression the ruling exists to
+# prevent (SC-007/SC-008).
+#
+# Response shape: ``data`` is ``Decision.to_dict()`` from step 3 (byte-
+# identical, field-for-field, to ``next --answer ... --json``) PLUS one
+# sibling field, ``answered_decision_id`` (the ``decision_id`` persisted by
+# step 1) -- ``answer-decision``'s own self-documenting name for the CLI's
+# terser ``answered`` key. ``data`` carries NO ``answer`` key: the CLI's
+# second extra key (the echoed submitted answer, ``next_cmd.py:915``) is
+# intentionally OMITTED per SPEC-FRESH2-002's resolution -- the host already
+# possesses the value it submitted in its own request.
+#
+# FR-012 does NOT apply here (spec Acceptance Scenario 6): this mechanism
+# operates on the run-snapshot, not ``decisions/index.json`` -- a mission
+# whose current phase has no ``OriginFlow`` member (``tasks``, ``analyze``)
+# can still have a pending ``decision_required`` moment, and this verb
+# resolves it normally. Do NOT apply the ``INVALID_ORIGIN_FLOW`` guard here.
+# ---------------------------------------------------------------------------
+
+_HELP_ANSWER_AGENT = "Agent/actor identity performing this call (required)"
+_HELP_ANSWER_VALUE = "The answer value to persist for the pending decision"
+_HELP_ANSWER_RESULT = (
+    "Outcome of the current issuance: success | failed | blocked "
+    "(required alongside --answer)"
+)
+_HELP_ANSWER_DECISION_ID = (
+    "Run-snapshot pending decision id to answer (auto-resolved when omitted "
+    "and exactly one decision is pending)"
+)
+
+
+@app.command(name="answer-decision")
+def answer_decision(
+    mission: str = typer.Option(..., "--mission", help=_HELP_MISSION_SLUG),
+    agent: str = typer.Option(..., "--agent", help=_HELP_ANSWER_AGENT),
+    answer: str = typer.Option(..., "--answer", help=_HELP_ANSWER_VALUE),
+    result: str = typer.Option(None, "--result", help=_HELP_ANSWER_RESULT),
+    decision_id: str = typer.Option(None, "--decision-id", help=_HELP_ANSWER_DECISION_ID),
+    policy: str = typer.Option(None, "--policy", help=_HELP_POLICY),
+) -> None:
+    """Resolve a ``spec-kitty next`` ``decision_required`` moment (FR-013,
+    Mechanism B) with full CLI event/lifecycle-log parity (FR-014, operator
+    ruling SPEC-FRESH2-001). See the module comment block above this
+    function for the full five-step composite and the response-shape
+    contract.
+    """
+    cmd = "answer-decision"
+
+    if not policy:
+        _fail(cmd, "POLICY_METADATA_REQUIRED", "--policy is required for answer-decision")
+        return
+    _parse_policy_or_fail(cmd, policy)
+
+    if result is None:
+        _fail(
+            cmd,
+            "RESULT_REQUIRED",
+            "--result is required alongside --answer for answer-decision",
+        )
+        return
+
+    main_repo_root = _get_main_repo_root()
+    # Existence gate FIRST via the coord-aware read seam (consistent
+    # MISSION_NOT_FOUND envelope shared with every other read/write endpoint
+    # in this module) -- the runtime resolution below is only reached for a
+    # mission already known to exist.
+    _resolve_mission_dir_or_fail(cmd, main_repo_root, mission)
+
+    from mission_runtime import MissionArtifactKind as _MissionArtifactKind
+    from mission_runtime import placement_seam as _placement_seam
+    from runtime.next._internal_runtime.engine import _read_snapshot
+    from runtime.next.decision import decide_next
+    from runtime.next.next_invocation_lifecycle import (
+        emit_mission_next_invoked,
+        pair_previous_lifecycle_record,
+        write_issuance_lifecycle_record,
+    )
+    from runtime.next.runtime_bridge import answer_decision_via_runtime, get_or_start_run
+    from specify_cli.mission import get_mission_type
+
+    # Mirrors ``next_cmd.py:975-1005`` (``_handle_answer``) exactly: the
+    # PRIMARY-partition read (never the coord-only husk) so ``mission_type``
+    # comes from the real ``meta.json``.
+    feature_dir = _placement_seam(main_repo_root, mission).read_dir(
+        _MissionArtifactKind.PRIMARY_METADATA
+    )
+    mission_type = get_mission_type(feature_dir)
+    run_ref = get_or_start_run(mission, main_repo_root, mission_type)
+
+    resolved_decision_id = decision_id
+    if resolved_decision_id is None:
+        # Auto-resolve exactly as ``next_cmd.py:_handle_answer`` does.
+        snapshot = _read_snapshot(Path(run_ref.run_dir))
+        pending = snapshot.pending_decisions
+        if len(pending) == 0:
+            _fail(cmd, "NO_PENDING_DECISION", "No pending decisions to answer")
+            return
+        if len(pending) == 1:
+            resolved_decision_id = next(iter(pending.keys()))
+        else:
+            pending_ids = sorted(pending.keys())
+            _fail(
+                cmd,
+                "AMBIGUOUS_PENDING_DECISION",
+                "Multiple pending decisions ("
+                + ", ".join(pending_ids)
+                + "). Use --decision-id to specify which one.",
+                {"pending_decision_ids": pending_ids},
+            )
+            return
+    else:
+        # An explicit --decision-id not currently pending (already answered,
+        # or naming a different step) must never be silently no-op'd or
+        # answer the wrong decision.
+        snapshot = _read_snapshot(Path(run_ref.run_dir))
+        if resolved_decision_id not in snapshot.pending_decisions:
+            _fail(
+                cmd,
+                "DECISION_NOT_PENDING",
+                f"Decision {resolved_decision_id!r} is not currently pending "
+                f"for mission {mission!r}",
+                {"decision_id": resolved_decision_id},
+            )
+            return
+
+    # --- Step 1: persist the answer. ---
+    answer_decision_via_runtime(mission, resolved_decision_id, answer, agent, main_repo_root)
+
+    # --- Step 2 (WP02 seam, REQUIRED, BEFORE the DAG advances): pair the
+    # previous issuance's `started` lifecycle record. ---
+    pair_previous_lifecycle_record(agent, mission, result, main_repo_root)
+
+    # --- Step 3 (ENGINE call, NOT part of WP02's seam): advance the DAG. ---
+    decision = decide_next(agent, mission, result, main_repo_root)
+
+    # --- Step 4 (WP02 seam, REQUIRED, AFTER decide_next returns): emit the
+    # mission event log entry. ---
+    emit_mission_next_invoked(agent, result, mission, main_repo_root, decision)
+
+    # --- Step 5 (WP02 seam, REQUIRED, conditional on kind == "step"): write
+    # the new issuance lifecycle record. ---
+    if decision.kind == "step":
+        write_issuance_lifecycle_record(agent, mission, main_repo_root, decision)
+
+    data = decision.to_dict()
+    # Sibling field (SPEC-FRESH2-002): the persisted-answer confirmation,
+    # self-documenting per this repo's own curated-field-name convention --
+    # never a substitute for the full Decision.to_dict() shape above, and
+    # deliberately NOT the CLI's terser `answered` key. No `answer` echo key
+    # is set here (the host already possesses the value it submitted).
+    data["answered_decision_id"] = resolved_decision_id
     validate_outbound_payload(data, "orchestrator_api")
     envelope = make_envelope(command=cmd, success=True, data=data)
     _emit(envelope)

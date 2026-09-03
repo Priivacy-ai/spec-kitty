@@ -494,3 +494,33 @@ def test_resolve_decision_nonexistent_decision_id_is_structured_not_bare(
     envelope = json.loads(result.output.strip().split("\n")[0])
     assert envelope["success"] is False
     assert envelope["error_code"] == "DECISION_NOT_FOUND"
+
+
+# ---------------------------------------------------------------------------
+# WP08 (design-phase-orchestrator-api-01M1HE6M): ``answer-decision``'s own
+# ``--policy`` fail-closed gate -- same pattern as the WP05 decision verbs
+# above (the policy check runs BEFORE any mission resolution, so no mission
+# fixture is needed).
+# ---------------------------------------------------------------------------
+
+
+def test_answer_decision_missing_policy_is_structured_not_bare() -> None:
+    result = runner.invoke(
+        app,
+        [
+            "answer-decision",
+            "--mission",
+            "wp08-missing-policy",
+            "--agent",
+            "test-agent",
+            "--answer",
+            "approve",
+            "--result",
+            "success",
+        ],
+        catch_exceptions=False,
+    )
+
+    envelope = json.loads(result.output.strip().split("\n")[0])
+    assert envelope["success"] is False
+    assert envelope["error_code"] == "POLICY_METADATA_REQUIRED"
