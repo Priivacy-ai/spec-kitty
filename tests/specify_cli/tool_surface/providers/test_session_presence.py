@@ -15,15 +15,38 @@ from specify_cli.tool_surface.providers.session_presence import (
     hook_definition,
     rule_definition,
 )
+from specify_cli.session_presence.content import (
+    SECTION_OPEN,
+    SessionPresenceContent,
+)
 from specify_cli.tool_surface.status import (
     STATE_MISSING,
     STATE_NOT_APPLICABLE,
     STATE_PRESENT,
+    STATE_STALE,
 )
 
 import pytest
 
 pytestmark = [pytest.mark.unit, pytest.mark.fast]
+
+
+def _installed_version() -> str:
+    from importlib.metadata import version
+
+    return version("spec-kitty-cli")
+
+
+def _write_orientation(target: Path, *, version: str) -> None:
+    """Write a full orientation block stamped at ``version`` to ``target``."""
+    target.parent.mkdir(parents=True, exist_ok=True)
+    block = SessionPresenceContent(
+        version=version,
+        project_slug="unknown",
+        health="healthy",
+        available_version=None,
+    ).render()
+    target.write_text(block, encoding="utf-8")
 
 
 def test_provider_satisfies_reporting_protocol() -> None:
@@ -230,3 +253,125 @@ def test_remove_context_file_deletes_section(tmp_path: Path) -> None:
     assert provider.probe(instance).state == STATE_PRESENT
     assert provider.remove(instance) is True
     assert provider.probe(instance).state == STATE_MISSING
+
+
+# ---------------------------------------------------------------------------
+# Stale orientation refresh (#2265)
+# ---------------------------------------------------------------------------
+
+
+def test_probe_reports_stale_when_context_file_version_outdated(tmp_path: Path) -> None:
+    """A present-but-outdated orientation block must probe as STATE_STALE.
+
+    #2265: the block is stamped at init time and left untouched by upgrade, so
+    an already-up-to-date project keeps a version string that contradicts the
+    live SessionStart hook. The provider must detect the version mismatch.
+    """
+    (tmp_path / ".claude").mkdir()
+    provider = SessionPresenceProvider()
+    instance = provider.expand(context_file_definition(), "claude", tmp_path)[0]
+    _write_orientation(tmp_path / ".claude" / "CLAUDE.md", version="0.0.1-legacy")
+
+    status = provider.probe(instance)
+
+    assert status.state == STATE_STALE
+    assert status.findings, "a stale surface must carry a finding"
+    assert status.findings[0].repair_command is not None
+
+
+def test_probe_current_version_is_present_not_stale(tmp_path: Path) -> None:
+    """An orientation block already at the installed version must not churn."""
+    (tmp_path / ".claude").mkdir()
+    provider = SessionPresenceProvider()
+    instance = provider.expand(context_file_definition(), "claude", tmp_path)[0]
+    _write_orientation(tmp_path / ".claude" / "CLAUDE.md", version=_installed_version())
+
+    assert provider.probe(instance).state == STATE_PRESENT
+
+
+def test_probe_present_when_version_unparseable(tmp_path: Path) -> None:
+    """A present block with no parseable version stamp is left alone, not churned."""
+    (tmp_path / ".claude").mkdir()
+    provider = SessionPresenceProvider()
+    instance = provider.expand(context_file_definition(), "claude", tmp_path)[0]
+    # Marker present (so it counts as present) but no ``**Spec Kitty v...**`` stamp.
+    (tmp_path / ".claude" / "CLAUDE.md").write_text(
+        f"{SECTION_OPEN}\nhand-edited, no version stamp\n<!-- /spec-kitty:orientation -->\n",
+        encoding="utf-8",
+    )
+
+    assert provider.probe(instance).state == STATE_PRESENT
+
+
+def test_repair_rewrites_stale_context_file_to_current_version(tmp_path: Path) -> None:
+    """repair() must action STATE_STALE and rewrite the block to the installed version."""
+    (tmp_path / ".claude").mkdir()
+    provider = SessionPresenceProvider()
+    instance = provider.expand(context_file_definition(), "claude", tmp_path)[0]
+    target = tmp_path / ".claude" / "CLAUDE.md"
+    _write_orientation(target, version="0.0.1-legacy")
+
+    status = provider.probe(instance)
+    assert status.state == STATE_STALE
+
+    result = provider.repair(tmp_path, [status])
+
+    assert result.repaired
+    assert not result.failed
+    text = target.read_text(encoding="utf-8")
+    assert f"**Spec Kitty v{_installed_version()}**" in text
+    assert "0.0.1-legacy" not in text
+    assert text.count(SECTION_OPEN) == 1, "the block must be replaced in place, not duplicated"
+    assert provider.probe(instance).state == STATE_PRESENT
+
+
+def test_probe_ignores_version_stamp_outside_managed_block(tmp_path: Path) -> None:
+    """A stray '**Spec Kitty v...**' outside the block must not fool staleness.
+
+    Squad F1: the version parse is scoped to the marker-delimited managed block,
+    so a pasted example or a second stamp elsewhere in the file cannot be read
+    as the managed version (false-stale churn or false-fresh).
+    """
+    (tmp_path / ".claude").mkdir()
+    provider = SessionPresenceProvider()
+    instance = provider.expand(context_file_definition(), "claude", tmp_path)[0]
+    target = tmp_path / ".claude" / "CLAUDE.md"
+    current_block = SessionPresenceContent(
+        version=_installed_version(),
+        project_slug="unknown",
+        health="healthy",
+        available_version=None,
+    ).render()
+    # A stale-looking stamp lives OUTSIDE the managed block (user prose); the
+    # managed block itself is current.
+    target.write_text(
+        "# My project notes\nWe pinned **Spec Kitty v0.0.1-legacy** last year.\n\n"
+        + current_block,
+        encoding="utf-8",
+    )
+
+    assert provider.probe(instance).state == STATE_PRESENT
+
+
+def test_probe_reports_stale_for_rule_surface(tmp_path: Path) -> None:
+    """RULE-kind orientation surfaces (.cursor/rules, .kiro/steering) also refresh.
+
+    Squad F2: rule/steering files are written by the same Markdown family and
+    carry the identical version stamp, so they must not be left latently stale.
+    """
+    (tmp_path / ".cursor").mkdir()
+    provider = SessionPresenceProvider()
+    instance = provider.expand(rule_definition(), "cursor", tmp_path)[0]
+    assert instance.definition.kind == ToolSurfaceKind.RULE
+    _write_orientation(instance.path, version="0.0.1-legacy")
+
+    status = provider.probe(instance)
+    assert status.state == STATE_STALE
+
+    result = provider.repair(tmp_path, [status])
+    assert result.repaired
+    assert not result.failed
+    text = instance.path.read_text(encoding="utf-8")
+    assert f"**Spec Kitty v{_installed_version()}**" in text
+    assert "0.0.1-legacy" not in text
+    assert provider.probe(instance).state == STATE_PRESENT
