@@ -899,6 +899,13 @@ transition — it never invokes the WP-loop or `next` engines.
 | `AMBIGUOUS_PENDING_DECISION` | answer-decision | More than one pending decision and `--decision-id` was omitted |
 | `DECISION_NOT_PENDING` | answer-decision | `--decision-id` does not match any entry in the current run's pending decisions |
 | `DESIGN_STATUS_EVENT_LOG_UNREADABLE` | design-status | `status.events.jsonl` could not be read cleanly (torn/truncated line, or a detected drift against `status.json`) while deriving the tasks-finalized signal |
+| `WP_NOT_FOUND` | resolve-workspace, start-implementation, start-review, transition, append-history | Work package ID does not exist in the mission |
+| `PREFLIGHT_FAILED` | merge-mission | Preflight checks failed before merge (target-branch/git-state errors, or a `RuntimeError` from the lane-consolidation step) |
+| `UNSUPPORTED_STRATEGY` | merge-mission | Requested `--strategy` is not one of `merge`, `squash`, `rebase` |
+| `LANE_ALLOCATION_FAILED` | start-implementation, transition | Lane worktree allocation failed (dirty reuse, a dependency-lane consolidation conflict, or an unhonorable base) |
+| `ANCESTRY_NOT_ESTABLISHED` | start-implementation, transition | The recorded planning commit or an approved dependency lane's tip is not (yet) a git ancestor of the claimed workspace's HEAD, even after self-heal re-ran the reuse-path merges |
+| `SAFE_COMMIT_PATH_POLICY` | append-history | Safe commit refused to stage a path under `.worktrees/` from the primary repo root before mutating the index |
+| `STATUS_READ_PATH_NOT_FOUND` | all mission-scoped commands | Coord topology with a stale/unaddressable primary surface (fail-closed read-path guard fired; carries coord/primary candidates) |
 
 ---
 
