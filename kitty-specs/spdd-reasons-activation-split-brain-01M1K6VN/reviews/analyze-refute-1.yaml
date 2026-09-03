@@ -1,0 +1,112 @@
+schema_version: 1
+artifact_type: review-refute
+phase: analyze
+batch: 1
+complete: true
+verdicts:
+- finding_id: ANALYZE-COVER-001
+  verdict: confirmed
+  rationale: >-
+    Read the full live class TestCharterContextActive (tests/charter/test_charter_context_spdd_reasons.py:246-345)
+    and _write_governance (lines 43-64), plus tests/charter/conftest.py in full. _write_governance only ever
+    merges into `.kittify/charter/charter.yaml`'s `governance:` key and never touches `.kittify/config.yaml`;
+    confirmed. The only autouse fixture in tests/charter/conftest.py (_git_init_tmp_path) merely runs
+    `git init` on tmp_path — it does not write any config.yaml, and there is no other conftest.py under
+    tests/charter/ that would. test_performance_under_2s_active (line 324-344) calls
+    `_write_governance(tmp_path, "doctrine:\n  selected_paradigms:\n    - structured-prompt-driven-development\n...")`
+    then asserts `is_spdd_reasons_active(tmp_path) is True` for all 5 actions. Read the CURRENT
+    src/charter/offering/spdd_reasons/activation.py live: `_governance_selects_pack` reads
+    `governance.get("charter")` falling back to `governance.get("doctrine")` — this is exactly what the
+    fixture writes, so the test passes today. Read WP01's task file (T004 Objective + step 1.a): the
+    rewrite replaces this governance/doctrine read entirely with a read of `.kittify/config.yaml`'s
+    `activated_*` keys, with an explicit FR-004 pin — absent `.kittify/config.yaml` -> `False`. The fixture
+    never writes config.yaml, so post-WP01 the assertion `is is True` will fail — a genuine regression, not
+    a hypothetical. Cross-checked WP04's "Bucket 1 — kept" claim (tasks/WP04-triage-pinning-tests.md
+    lines 211-214): it says TestCharterContextActive gates "via direct construction (not charter.yaml
+    fixtures)" and needs "no fixture change expected" — true for the other 7 test methods in the class
+    (they call append_spdd_reasons_guidance directly and never touch is_spdd_reasons_active or charter.yaml
+    at all), false for this one, which is the only method in the class that both writes a charter.yaml
+    fixture and calls is_spdd_reasons_active. One inexactness in the finding's own prose: it says "6 of 7"
+    sibling methods use direct construction, but the class actually has 8 test methods total (7 direct +
+    this 1), not 7 total — a minor miscount that does not affect the substance of the claim, which is
+    fully verified against live code. Line citations (323-344 vs actual 324-344) are off by one but point
+    at the same method. Verdict stands: CONFIRMED, and this is the highest-severity, best-evidenced finding
+    in the batch.
+- finding_id: ANALYZE-VERIFY-001
+  verdict: confirmed
+  rationale: >-
+    Verified live: spec.md's Constraints table (line 522) labels the PR-body/Closes-#3838 requirement
+    "C-004", while the SAME spec.md file, one row above (line 511, NFR-003) and inside C-001's own row text
+    (line 519, "C-004 layering is never violated"), uses "C-004" to mean the charter.offering->charter.activation
+    import ban — a genuine same-document overload, not merely a cross-file one. Confirmed the layering-gate
+    sense is an established, pre-existing repo-wide nickname: docs/changelog/CHANGELOG.md line 27 says "A new
+    architectural gate enforces charter.offering never imports the charter activation/mutation layer
+    (C-004)"; docs/adr/3.x/2026-08-22-2-retire-doctrine-term-charter-is-the-canonical-vocabulary.md uses "the
+    C-004 architectural gate" (~line 104-105) and "the C-004 offer<->activate invariant" (~line 205). Grepped
+    plan.md and tasks/WP01-activation-rewrite-parity-test.md: every "C-004" usage there (plan.md:19,42,52,136,
+    146,150,345,457; WP01:70,360,407) is in the layering-gate sense, never the PR-body sense. tasks.md:10
+    lists WP01's requirement_refs including "C-004" with no disambiguation, so a reviewer reading only
+    tasks.md/WP01 in isolation could reasonably misread which C-004 is meant. This is a real, concretely
+    evidenced overloaded-ID collision.
+- finding_id: ANALYZE-COVER-002
+  verdict: confirmed
+  rationale: >-
+    Read WP01's T002 step 4 and T004 step 2 in full. T002 step 4's only same-process mutation fixture
+    "rewrite[s] .kittify/config.yaml on disk with activated_paradigms: [...]" directly — it never mutates a
+    separate pointed-at charter.yaml. T004 step 2 offers two cache-key options: (i) compose the key from
+    BOTH config.yaml's mtime and the resolved pointer target's mtime, or (ii) retire caching entirely.
+    Grepped "pointer" across the WP01 file: the two-pointer-shape matrix (config.yaml-direct vs
+    config.yaml-with-charter-pointer) is used only for the static state/kind/pointer-shape assertions in
+    T002 step 2, never combined with the same-process-mutation fixture in step 4. So if an implementer
+    picks option (i) but keys only off config.yaml's own mtime (omitting the pointer target's mtime), no
+    fixture in this WP would catch a same-process edit to the POINTED-AT charter.yaml failing to invalidate
+    the cache — exactly the finding's claim, and exactly this repo's own dogfood shape (its .kittify/config.yaml
+    points via `charter:` to .kittify/charter/charter.yaml).
+- finding_id: ANALYZE-GOV-001
+  verdict: confirmed
+  rationale: >-
+    Read analysis-report.md's "## Verdict" section (lines 282-292) in full: it names a specific fixture
+    location (sibling to WP02 T007 step 6), a specific example value
+    (`activated_directives: frozenset({"024-locality-of-change"})`), and a specific audit-table sentence to
+    add — well past a one-line Recommendation. Read packs/built-in/missions/mission-steps/software-dev/analyze/prompt.md
+    live: the Operating Constraints section (line 20) is explicitly NON-REMEDIATING ("Do not modify
+    spec.md/plan.md/tasks.md/WP files/source code... Offer an optional remediation plan only after the
+    report is persisted"), the canonical findings table (line 151) has a terse Recommendation column example
+    ("Merge phrasing; keep clearer version"), and remediation offering is gated to an interactive step 9
+    ("Should all of these findings be addressed... I can suggest concrete remediation edits"). The Verdict
+    section's prescriptive detail is a genuine template-conformance deviation, though — as the finding itself
+    concedes — no edits were applied and the severity (2) matches a nit rather than a charter violation.
+    Confirmed as written.
+- finding_id: ANALYZE-COVER-003
+  verdict: confirmed
+  rationale: >-
+    Read analysis-report.md's Investigation (a) line (line 90): "C-001/C-002/C-003/C-006 are satisfied
+    structurally (by what the WPs do NOT touch...) and are not orphaned." Grepped C-003/C-005/C-006 across
+    tasks.md and every tasks/WP0*.md file: none of WP01/WP02/WP03/WP04/WP05's structured `requirement_refs`
+    frontmatter lists C-003, C-005, or C-006 (WP01's list is FR-001..FR-005, NFR-001..003, C-001, C-002,
+    C-004 only — confirmed by direct read of the frontmatter). C-003 appears exactly once anywhere in the
+    tasks corpus, in WP01's Context prose ("is exactly why the parity test (T002) is mandatory, not optional
+    (C-003)"). C-005 appears exactly once, also prose-only. C-006 appears zero times in tasks.md or any
+    tasks/WP0*.md file. And C-003's actual text (spec.md line 521: "Parity test is mandatory... FR-002's
+    parity test... is a required deliverable") is a positive requirement satisfied by an affirmative
+    deliverable, unlike C-001/C-002/C-006 which are genuinely satisfied by omission (no schema change, no
+    relocation) — so grouping C-003 into the "satisfied structurally by what the WPs do NOT touch" sentence
+    is a real mischaracterization, independent of the separate traceability-metadata gap. Confirmed.
+- finding_id: ANALYZE-COVER-004
+  verdict: confirmed
+  rationale: >-
+    Read src/charter/activation/resolver.py's resolve_governance_for_profile (line 878 on) live: it builds
+    `directives` via `_merge_unique(profile_directives, interview.selected_directives)` — reading
+    `interview.selected_directives`, never `PackContext.activated_*` — the same defect shape as the three
+    named consumers. Grepped all callers repo-wide: only src/charter/__init__.py's lazy re-export
+    (__getattr__ table + __all__) and three test files (tests/charter/test_resolver.py,
+    tests/charter/test_alias_deleted_regression.py, tests/merge/test_profile_charter_e2e.py) reference it —
+    zero production call sites under src/, confirmed. Read WP03's full "Union/Exclusion Boundary Audit"
+    section (tasks/WP03-resolver-activated-base.md lines 143-186): all 4 enumerated boundaries concern
+    `_resolve_directive_base`/`resolve_project_governance`'s directive/paradigm bases — resolve_governance_for_profile
+    is not named anywhere in it. Read spec.md's Non-Goals (lines 570-575): explicitly scopes the mission to
+    "the three named in the issue and confirmed here (is_spdd_reasons_active, _load_action_doctrine_bundle,
+    and... resolve_project_governance/_resolve_directive_base)" and separately carves out
+    collect_governance_diagnostics by name but not resolve_governance_for_profile. The finding's own
+    characterization (flagged for completeness, not a live defect, no code change required) matches what
+    was verified. Confirmed.

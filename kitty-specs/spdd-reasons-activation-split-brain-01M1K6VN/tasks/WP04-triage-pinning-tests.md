@@ -65,8 +65,8 @@ GREEN-after and assume RED-before.
 **FR-010's own three-bucket triage (verified against the live test files for this WP, not copied from the
 mission brief without re-checking):**
 
-### Bucket 3 — fixture-construction mechanism rewrite (8 methods named by FR-010, one additional found
-during this WP's own re-verification — 9 total)
+### Bucket 3 — fixture-construction mechanism rewrite (8 methods named by FR-010, two additional found
+during this WP's own re-verification plus the analyze-phase review — 10 total)
 
 All 8 write ONLY `.kittify/charter/charter.yaml`'s `governance:`/`directives:` sections via `save_charter_yaml`
 or the local `_write_governance`/`_write_directives` helpers, and never write a `.kittify/config.yaml` at
@@ -195,6 +195,27 @@ discrepancy:**
    WP01's equivalent coverage. Either is acceptable; do NOT silently leave it red or silently delete it
    without a rationale comment in the diff.
 
+**A second additional bucket-3 case, found by the analyze-phase review squad (ANALYZE-COVER-001, severity
+4) — not among FR-010's named 8, and distinct from item 9 above:**
+
+10. `tests/charter/test_charter_context_spdd_reasons.py`, class `TestCharterContextActive`,
+    `test_performance_under_2s_active` — calls `_write_governance(tmp_path, "doctrine:\n  selected_paradigms:\n
+    - structured-prompt-driven-development\n  selected_directives: []\n  available_tools: []\n")` (writing
+    ONLY `.kittify/charter/charter.yaml`'s `governance:` section — `_write_governance`'s own body, confirmed
+    live, never touches `.kittify/config.yaml`), then asserts `is_spdd_reasons_active(tmp_path) is True`
+    inside a loop over all 5 `ACTIONS`. Under WP01's FR-004 pin (absent `.kittify/config.yaml` -> `False`),
+    this fixture has no `.kittify/config.yaml` at all, so the assertion breaks once WP01's rewrite lands —
+    the "Bucket 1 — kept" paragraph below's blanket claim that `TestCharterContextActive` needs "no fixture
+    change expected" is false for this one method (re-verified live by reading the class in full: every
+    OTHER method in `TestCharterContextActive` genuinely does gate via direct construction and is
+    unaffected; this is the sole exception). Mirror items 1-8's exact pattern: rewrite the
+    `_write_governance` call to null out `selected_paradigms` (write `selected_paradigms: []`, not
+    `[structured-prompt-driven-development]`) and ALSO write `.kittify/config.yaml`'s
+    `activated_paradigms: [structured-prompt-driven-development]`. Do not leave
+    `structured-prompt-driven-development` in the `governance:`/`doctrine:` write. The assertion
+    (`is_spdd_reasons_active(tmp_path) is True`, run once per action in the `ACTIONS` loop) is UNCHANGED.
+    Confirm RED-before/GREEN-after per the same blocking-gate discipline as items 1-8.
+
 ### Bucket 2 — assertions that encode the bug itself, flipped
 
 Re-verify against the live files for this WP whether any assertion beyond the bucket-3 methods above
@@ -212,7 +233,11 @@ assertions.
 
 `TestCharterContextInactive`/`TestCharterContextActive` (both in `test_charter_context_spdd_reasons.py`)
 gate on `is_spdd_reasons_active` returning `False`/`True` respectively via direct construction (not
-`charter.yaml` fixtures) — re-verify they still pass unmodified once WP01 lands; no fixture change expected.
+`charter.yaml` fixtures) — **with one confirmed exception**:
+`TestCharterContextActive::test_performance_under_2s_active` is bucket-3 item 10 above, not bucket 1 — it
+uses a `charter.yaml` fixture (`_write_governance`) rather than direct construction, and its fixture must
+be rewritten. Every OTHER method in both classes genuinely gates via direct construction — re-verify they
+still pass unmodified once WP01 lands; no fixture change expected for those.
 `TestActivateResolvesNoAnswersEdit`/`TestDeactivateDropsNoAnswersEdit` (in
 `test_activate_resolves_no_answers_edit.py`) do not call `is_spdd_reasons_active` at all (confirmed by
 reading the file) — unaffected, no change. `tests/charter/test_answers_inert_and_org_union.py`'s
@@ -236,12 +261,12 @@ pytest.mark.doctrine]`; `test_answers_inert_and_org_union.py` keeps `[pytest.mar
 pytest.mark.doctrine]`. This WP only edits fixture-construction bodies and specific assertions inside
 existing test methods — it does not add new test files or change any file's `pytestmark`.
 
-## Subtask T014: Rewrite the 5 `TestActivation`/`TestParadigmRoundTrip`/`TestSelectedTacticsRoundTrip` bucket-3 fixtures (items 1-7 above)
+## Subtask T014: Rewrite the `TestActivation`/`TestParadigmRoundTrip`/`TestSelectedTacticsRoundTrip`/`TestCharterContextActive` bucket-3 fixtures (items 1-7 and 10 above)
 
 **Purpose**: Commit each rewritten fixture + its (unchanged) assertion as its own red-first change
 (C-011): RED against WP01's OLD body, GREEN once WP01's rewrite is available in this workspace.
 
-**Steps**: For each of items 1-7 in Context above, rewrite the fixture-construction to write
+**Steps**: For each of items 1-7 and 10 in Context above, rewrite the fixture-construction to write
 `.kittify/config.yaml`'s `activated_*` key(s) AND null out the specific SPDD-relevant legacy selector as
 described (never leave the real id in the legacy `governance:`/`directives:` write), run the test against
 WP01's pre-implementation `activation.py` (check out its prior commit temporarily or reason from the git
@@ -250,7 +275,7 @@ blocking gate, not an observational note: if a rewritten fixture is NOT actually
 pre-implementation body, the fixture rewrite is WRONG — a legacy selector was almost certainly left
 un-nulled — and must be corrected before this subtask is done.**
 
-**Files**: `tests/charter/test_charter_context_spdd_reasons.py` (~7 method bodies edited)
+**Files**: `tests/charter/test_charter_context_spdd_reasons.py` (~8 method bodies edited)
 **Validation**: `pytest tests/charter/test_charter_context_spdd_reasons.py -v` — all green against WP01's
 final body.
 
@@ -284,7 +309,7 @@ delete-with-rationale) to `test_malformed_governance_raises`.
    independently by WP01/WP02/WP03 in their workspaces; if this WP runs in a workspace that already has
    WP01 merged, capture your own fresh baseline against WP01's landed state before this WP's own changes,
    so you have a clean before/after for THIS WP's diff specifically).
-3. Commit each bucket-3 fixture rewrite as its own red-first commit (or one combined commit covering all 9,
+3. Commit each bucket-3 fixture rewrite as its own red-first commit (or one combined commit covering all 10,
    with the PR description stating each was individually confirmed red-before/green-after) — your call on
    commit granularity, but the red-before/green-after confirmation must be real, not assumed.
 
@@ -294,16 +319,16 @@ flips.
 
 ## Definition of Done
 
-- All 9 identified bucket-3 fixtures (8 named by FR-010 + item 9 found during this WP's own
-  re-verification) write `.kittify/config.yaml`'s `activated_*` keys and pass against WP01's rewritten
-  `is_spdd_reasons_active`.
-- Each of items 1-8's rewritten fixtures had its specific SPDD-relevant legacy `governance:`/`directives:`
-  selector nulled out (not merely optionally kept), and was confirmed RED against WP01's pre-rewrite body
-  before being confirmed GREEN. **This is a blocking gate, not an observational note**: a fixture that is
-  GREEN on BOTH the OLD and NEW `is_spdd_reasons_active` body is a bug-preserving test, not a red-first
-  regression test, and the fixture rewrite must be corrected (re-null the legacy selector) before this WP
-  is considered done — do not mark T014/T015 complete on a fixture only confirmed GREEN-after, without a
-  genuine RED-before.
+- All 10 identified bucket-3 fixtures (8 named by FR-010 + items 9 and 10 found during this WP's own
+  re-verification and the analyze-phase review, ANALYZE-COVER-001) write `.kittify/config.yaml`'s
+  `activated_*` keys and pass against WP01's rewritten `is_spdd_reasons_active`.
+- Each of items 1-8 and 10's rewritten fixtures had its specific SPDD-relevant legacy
+  `governance:`/`directives:` selector nulled out (not merely optionally kept), and was confirmed RED
+  against WP01's pre-rewrite body before being confirmed GREEN. **This is a blocking gate, not an
+  observational note**: a fixture that is GREEN on BOTH the OLD and NEW `is_spdd_reasons_active` body is a
+  bug-preserving test, not a red-first regression test, and the fixture rewrite must be corrected (re-null
+  the legacy selector) before this WP is considered done — do not mark T014/T015 complete on a fixture only
+  confirmed GREEN-after, without a genuine RED-before.
 - No Bucket-1 (kept) test's behavior changed.
 - Any genuine Bucket-2 flip found is stated explicitly in the diff/PR description.
 - The scoped gate set (`tests/charter/` + the two named architectural files) passes.
@@ -323,15 +348,16 @@ flips.
 
 ## Reviewer Guidance
 
-- For each of the 9 bucket-3 methods, ask for concrete evidence (a saved RED-run + GREEN-run, or two git
-  diffs) that the rewrite was actually red-first, not merely claimed. **Reject the WP if any of items 1-8's
-  fixtures was not actually RED against WP01's pre-implementation body** — a fixture that is GREEN on both
-  the old and new `is_spdd_reasons_active` body is a bug-preserving test (the OLD-body legacy selector was
-  left un-nulled), not a regression test, and must be sent back for correction before this WP can be
+- For each of the 10 bucket-3 methods, ask for concrete evidence (a saved RED-run + GREEN-run, or two git
+  diffs) that the rewrite was actually red-first, not merely claimed. **Reject the WP if any of items 1-8 or
+  10's fixtures was not actually RED against WP01's pre-implementation body** — a fixture that is GREEN on
+  both the old and new `is_spdd_reasons_active` body is a bug-preserving test (the OLD-body legacy selector
+  was left un-nulled), not a regression test, and must be sent back for correction before this WP can be
   approved.
-- For each of items 1-8, confirm the diff actually shows the legacy `governance:`/`directives:` selector
-  nulled out (e.g. `selected_paradigms: []`, not the real id) alongside the new `.kittify/config.yaml`
-  write — not merely the `config.yaml` write added on top of an untouched legacy write.
+- For each of items 1-8 and 10, confirm the diff actually shows the legacy `governance:`/`directives:`
+  selector nulled out (e.g. `selected_paradigms: []`, not the real id) alongside the new
+  `.kittify/config.yaml` write — not merely the `config.yaml` write added on top of an untouched legacy
+  write.
 - Confirm item 9's disposition (re-pin vs. delete) carries a rationale comment, per the charter's Test
   remediation discipline ("judge the test, not git-blame").
 - Confirm no fixture rewrite silently changed the id/paradigm/tactic under test.

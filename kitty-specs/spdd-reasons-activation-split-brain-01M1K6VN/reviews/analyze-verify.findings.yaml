@@ -1,0 +1,111 @@
+schema_version: 1
+artifact_type: review-findings
+phase: analyze
+group: verify
+complete: true
+findings:
+- id: ANALYZE-VERIFY-001
+  severity: 3
+  category: traceability / overloaded-term ambiguity
+  summary: >-
+    Independently re-checking Finding A2 (spec.md's local Constraint row C-004, "PR body must
+    cite `Closes #3838`", has no WP subtask/DoD line assigning ownership) surfaced a term
+    collision the analysis-report.md's Investigation (a) traceability sweep did not flag, which
+    makes A2's real-world risk higher than the "low" severity / "unlikely to be missed in
+    practice" framing suggests. The token "C-004" is genuinely overloaded across this mission's
+    own artifact set: spec.md's own Constraints table assigns "C-004" to the PR-body/Closes-#3838
+    requirement, while the SAME token is also a pre-existing, project-wide architectural-gate
+    nickname (the `charter.offering -> charter.activation` import ban, documented repo-wide in
+    `docs/changelog/CHANGELOG.md` and multiple `docs/adr/3.x/*.md` files predating this mission)
+    that plan.md, WP01, WP02, and WP03 all use extensively and correctly in that unrelated sense
+    -- and even spec.md's own NFR-003 row title ("C-004 architectural gate stays green with
+    non-vacuous coverage") uses "C-004" in that same layering-gate sense, one row above its own
+    Constraints table's differently-scoped C-004 row. tasks.md's WP01 frontmatter lists
+    `requirement_refs: [... C-001, C-002, C-004]` -- read in isolation, a reviewer could
+    reasonably (but incorrectly) conclude WP01 satisfies spec's C-004 (the PR-body requirement),
+    when WP01's own body text (`tasks/WP01-activation-rewrite-parity-test.md:70,360,407`) shows
+    every "C-004" reference there is to the unrelated layering gate, not the PR-body requirement.
+    This is exactly the class of defect the charter's own "overloaded terms `primary`/`merge`/
+    `routing` -- footgun" entries exist to guard against (AGENTS.md, Terminology Canon section),
+    applied here to a mission-local requirement ID colliding with an established project-wide
+    label -- and it was not caught by the analyze pass's own Investigation (a) (FR/NFR
+    traceability) or its citation-verification table, both of which check file:line code facts
+    but neither of which cross-checks requirement-ID reuse against pre-existing project
+    vocabulary.
+  evidence: >-
+    analysis-report.md's Investigation (a) section (silent on this collision) and Finding A2's
+    text; spec.md:519 (Constraints table row "C-001 | C-004 layering is never violated |
+    No code change under `src/charter/offering/` may import `charter.activation`..."),
+    spec.md:511 (NFR-003 title "C-004 architectural gate stays green with non-vacuous
+    coverage"), spec.md:522 (Constraints table row "C-004 | PR body must cite `Closes #3838`"
+    -- the actual PR-body constraint, one local-ID slot away from the row that reuses the same
+    token in the layering-gate sense at spec.md:519/511); plan.md:19,42,52,136,146,150,345,457
+    (all use "C-004" to mean the layering gate, consistent with the pre-existing project-wide
+    label, confirmed against `docs/changelog/CHANGELOG.md:29-30` and
+    `docs/adr/3.x/2026-08-22-2-retire-doctrine-term-charter-is-the-canonical-vocabulary.md:105,205`,
+    which establish "C-004" as an already-existing repo-wide gate nickname predating this
+    mission); tasks.md:10 (WP01's `Requirement Refs: ... C-001, C-002, C-004`);
+    tasks/WP01-activation-rewrite-parity-test.md:70,360,407 (WP01's own "C-004" usages, all in
+    the layering-gate sense, none addressing the PR-body requirement); grep confirms zero
+    mentions of "NFR-004" and zero mentions of "Closes #3838"/"PR body" anywhere in tasks.md or
+    tasks/WP0*.md, independently reproducing the report's own A2 finding.
+  remediation: >-
+    Two independent fixes, either sufficient on its own: (1) rename spec.md's local Constraints-
+    table row currently labeled "C-004" (PR body must cite `Closes #3838`) to a non-colliding ID
+    that does not reuse the established project-wide "C-004" architectural-gate nickname (e.g.
+    renumber the local Constraints table so the PR-body item lands on an ID like C-007, or adopt
+    a distinct prefix for process-only constraints so they cannot collide with a `src/`-code
+    architectural-gate label); (2) independently of the rename, add the ownership line A2 already
+    recommends (a mission-close-out/PR-prep step, or an explicit "delegated to `mission-wrap-up-
+    sequence`" note mirroring FR-009/SC-005's pattern) for NFR-004/C-004, and have that note
+    explicitly disambiguate from the layering-gate "C-004" so a PR-time reviewer scanning WP01's
+    frontmatter does not mistake WP01's unrelated "C-004" references for coverage of the PR-body
+    requirement.
+findings_summary_of_verification:
+- claim: "Finding A1 (WP02 boundary 1 has no direct-path stem-form fixture)"
+  verdict: CONFIRMED
+  method: >-
+    Read all 6 steps of WP02's T007 in full
+    (tasks/WP02-action-doctrine-bundle-activated-derivation.md:292-357) and T009 step 1's
+    illustrative normalization code (:393-420). Step 2 (FR-007) and step 3 (FR-008) use
+    already-canonical ids (`DIRECTIVE_038`/`DIRECTIVE_010`); step 4 (FR-014) tests an explicit
+    empty list, no id form involved; step 5 (tactics/paradigms-absent sibling) never touches
+    `activated_directives`; step 6 (org-required stem-form fixture, TASKS-FRESH2-001) explicitly
+    leaves `activated_directives` absent/`None` so its stem-form id reaches `project_directives`
+    only through the org-required-union path (boundary 3), never the direct
+    `pack_context.activated_directives` path (boundary 1). No T007 step supplies a stem-form id
+    via the direct path. Cross-checked WP03's T011 step 6
+    (tasks/WP03-resolver-activated-base.md, Subtask T011 step 6) and confirmed it DOES exercise
+    the structurally identical direct-path boundary with a stem-form id, validating the report's
+    contrast claim.
+- claim: "Finding A2 (NFR-004/C-004 orphaned from any WP)"
+  verdict: CONFIRMED
+  method: >-
+    Grepped tasks.md and all 5 tasks/WP0*.md files for "NFR-004", "C-004", "Closes #3838", "PR
+    body" -- zero hits for NFR-004 anywhere; the only "C-004" hits are the unrelated
+    layering-gate usages documented in ANALYZE-VERIFY-001 above. No WP subtask or
+    Definition-of-Done line assigns ownership of either requirement. See ANALYZE-VERIFY-001 for
+    why this gap's practical risk is understated by the report's "low" framing.
+- claim: "Verdict computation (blocked, for 1 HIGH + 1 LOW) matches `compute_verdict_from_findings`"
+  verdict: CONFIRMED, no bug
+  method: >-
+    Read `src/specify_cli/analysis_report.py:70` (`_BLOCKING_SEVERITIES = frozenset({"high",
+    "critical"})`) and `:422-426` (`compute_verdict_from_findings`: "if any(finding.get
+    ('severity') in _BLOCKING_SEVERITIES ...): return VERDICT_BLOCKED"). One HIGH finding (A1)
+    is sufficient to force `blocked` regardless of the LOW finding (A2) -- exactly what
+    analysis-report.md's YAML front-matter and closing "Verdict" section state. No mismatch.
+- claim: "No citation drift found (report's own ~24-citation table)"
+  verdict: CONFIRMED via an independent, disjoint sample
+  method: >-
+    Re-verified 11 citations NOT in the report's own table, chosen per the assignment's
+    suggested sample: spec.md Summary/Decision Record 1 (`activation.py:61`,
+    `compiler.py:365-367`, `pack_context.py:207`, `sync.py:321`,
+    `action_doctrine_bundle.py:216` filter_graph_by_activation call,
+    `drg_activation.py:433` `_node_is_activated`'s `activated_kinds` check,
+    `compiler.py:153-240` `_resolve_config_activated_roots`/`_CONFIG_ACTIVATION_FIELDS`'s 7
+    fields); the live-reproduction dogfood-charter citations (`.kittify/charter/charter.yaml`
+    lines 20-22, 1545, 1616-1617, 1718); WP05's `docs/context/charter.md` "~line 256-386"
+    range and the three named glossary entries' actual line numbers (256, 268/272, 378/382) and
+    frontmatter (`doc_status: active`, `updated: '2026-08-28'` at lines 4-5). All 11 held up
+    exactly against the live checkout -- no drift found in this disjoint sample either,
+    reinforcing (not merely repeating) the report's own conclusion.

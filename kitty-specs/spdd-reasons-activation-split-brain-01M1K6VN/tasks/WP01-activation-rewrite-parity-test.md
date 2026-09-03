@@ -223,6 +223,20 @@ against `PackContext.from_config()`'s real `activated_*` fields, committed RED f
    `activated_paradigms: [structured-prompt-driven-development]`, call again in the same process (no
    interpreter restart), and assert the second call returns `True` (reflecting the mutation) — this is the
    direct regression test for T004's cache-key fix.
+4a. **Second same-process mutation fixture — pointer-target mutation (analyze-phase Finding ANALYZE-COVER-002,
+   severity 3)**: step 4 above only mutates `.kittify/config.yaml` directly (the non-pointer/legacy shape) —
+   never the pointed-at `charter.yaml` file — so a cache-key implementation that composes its key from only
+   `config.yaml`'s own mtime (omitting the resolved pointer target's mtime) would go uncaught, even though
+   this is precisely THIS repo's own dogfood shape (a `charter:` pointer from `.kittify/config.yaml` to
+   `.kittify/charter/charter.yaml`, where the real `activated_*` keys live — see NFR-004's reflexivity
+   claim). Construct a pointer-present `config.yaml` (a `charter: <path-to-charter.yaml>` string key) whose
+   pointed-at `charter.yaml` initially has `activated_paradigms: []`. Call `is_spdd_reasons_active(tmp_path)`
+   once (expect `False`). Then mutate ONLY the pointed-at `charter.yaml`'s `activated_paradigms` field on
+   disk (rewrite it to `[structured-prompt-driven-development]`), leaving `.kittify/config.yaml` itself
+   completely untouched. Call `is_spdd_reasons_active(tmp_path)` again in the same process (no interpreter
+   restart) and assert the second call returns `True`, reflecting the pointer-target mutation. This fixture
+   is the direct regression test for whichever cache-key option (T004 step 2) is chosen, specifically for
+   the pointer-target-mtime component step 4's fixture cannot exercise.
 5. **Why every fixture in this test is RED on `main` today, concretely**: `is_spdd_reasons_active`'s
    current body never reads `.kittify/config.yaml` or any `activated_*` key at all — it reads
    `.kittify/charter/charter.yaml`'s `governance:`/`directives:` sections exclusively (see
@@ -249,10 +263,13 @@ against `PackContext.from_config()`'s real `activated_*` fields, committed RED f
    fails against that shape too, which is exactly why it must exist as its own case rather than being
    assumed covered by the three-state matrix in steps 2-3.
 
-**Files**: `tests/charter/test_spdd_reasons_activation_parity.py` (~180-230 lines including T001's slice)
+**Files**: `tests/charter/test_spdd_reasons_activation_parity.py` (~200-250 lines including T001's slice and
+step 4a's pointer-target mutation fixture)
 **Validation**: `pytest tests/charter/test_spdd_reasons_activation_parity.py -v` — every non-`absent_config`
-case, including the step-6 non-list fixture, is RED before T004 (asserts a raise that does not happen on the
-old body) and GREEN after T004's fail-loud type check lands, per C-011.
+case, including the step-6 non-list fixture and step 4a's pointer-target mutation fixture, is RED before
+T004 (step 4a asserts the second call reflects the pointer-target mutation, which cannot happen before
+T004's cache-key fix lands; step 6 asserts a raise that does not happen on the old body) and GREEN after
+T004's cache-key fix and fail-loud type check land, per C-011.
 
 ## Subtask T003: Confirm FR-004's carve-out reachability claim (read-only verification)
 
@@ -389,10 +406,19 @@ stays green, as a distinct final verification step (not merely "tests passed").
 - The FR-004 absent-config pin and FR-005 fail-loud behavior are both covered by tests and pass, including
   FR-004's own falsifiable Acceptance Criterion through the real `apply_spdd_blocks_for_project` entry
   point (T001 step 4) — not merely `is_spdd_reasons_active(tmp_path) is False` in isolation.
-- The cache-key fix is implemented (either option) and T002's same-process mutation case passes.
+- The cache-key fix is implemented (either option) and BOTH of T002's same-process mutation cases pass —
+  step 4's direct `.kittify/config.yaml` mutation and step 4a's pointer-target `charter.yaml` mutation
+  (analyze-phase Finding ANALYZE-COVER-002).
 - A present-but-non-list `activated_paradigms`/`activated_directives`/`activated_tactics` value raises
   (TASKS-FRESH2-002), covered by T002 step 6's fixture, committed RED first and GREEN after T004.
 - Baseline diff shows no newly-red node-id outside this mission's own intentionally-flipped tests.
+- **Traceability note (analyze-phase Finding ANALYZE-COVER-003)**: T002 (the parity test) is this WP's
+  concrete delivery of spec.md's Constraint C-003 ("Parity test is mandatory, not optional") — an
+  affirmative deliverable, not a "satisfied by omission" constraint like C-001/C-002/C-006 — and T001 (the
+  baseline-capture subtask) is this WP's concrete delivery of NFR-005/C-005 ("Pre-existing red baseline is
+  not this mission's to fix"), even though structured `requirement_refs` frontmatter (a generated field,
+  out of scope for a hand-edit per this mission's own reflexive-failure clause) does not currently list
+  either C-003 or C-005 on this WP.
 
 ## Risks
 
@@ -401,9 +427,9 @@ stays green, as a distinct final verification step (not merely "tests passed").
   for `or set()`, `or frozenset()`, and bare `if activated_` truthiness checks before considering T004
   done.
 - **Cache-key omission**: forgetting the cache-key fix (or picking cache retirement without confirming the
-  `<50ms` budget still holds) would leave T002's same-process mutation case failing silently if that
-  specific assertion is accidentally skipped in a partial test run — always run the full parity file, not
-  a `-k` filtered subset, before declaring T004 done.
+  `<50ms` budget still holds) would leave one or both of T002's same-process mutation cases (step 4, step
+  4a) failing silently if that specific assertion is accidentally skipped in a partial test run — always
+  run the full parity file, not a `-k` filtered subset, before declaring T004 done.
 - **C-004 violation**: any accidental `from charter.activation import ...` (even inside a docstring-adjacent
   comment meant as an example) risks a reviewer or future editor copy-pasting it into real code — keep the
   rewrite's imports to `ruamel.yaml`, stdlib, and `activation.py`'s own existing constants only.

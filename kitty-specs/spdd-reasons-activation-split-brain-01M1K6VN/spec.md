@@ -519,7 +519,7 @@ not — `_resolve_directive_base` returns `doctrine.selected_directives` verbati
 | C-001 | C-004 layering is never violated | No code change under `src/charter/offering/` may import `charter.activation` in any form (absolute, relative, `from . import`) — this is the entire reason the fix takes the "caller-resolves, narrow-compat-read" shape (Decision Record 1) instead of importing `PackContext` directly. | Technical | High | Open |
 | C-002 | No charter.yaml/config.yaml schema or write-path change | This mission is a pure read-path fix. No new field is added to `CharterYaml`, `GovernanceConfig`, or `config.yaml`'s schema; `write_compiled_charter`'s byte-preservation of the `governance:` section is not touched; `spec-kitty charter sync` remains a pure staleness reporter. Confirmed no migration is required (NFR-004). | Technical | High | Open |
 | C-003 | Parity test is mandatory, not optional | FR-002's parity test against `PackContext.from_config()` is a required deliverable of this mission, not a nice-to-have — per the operator's explicit instruction, its absence would let the two implementations drift apart again silently, reproducing the exact defect class this mission exists to close. | Process | High | Open |
-| C-004 | PR body must cite `Closes #3838` | Per the charter's Issue Closure Linkage requirement, the eventual PR body must carry `Closes #3838`. | Process | High | Open |
+| PROC-001 | PR body must cite `Closes #3838` | Per the charter's Issue Closure Linkage requirement, the eventual PR body must carry `Closes #3838`. Renamed from a prior "C-004" label (analyze-phase Findings A2/ANALYZE-VERIFY-001): this mission-local constraint ID collided with the pre-existing, project-wide "C-004" architectural-gate nickname (the `charter.offering -> charter.activation` layering ban — see NFR-003 and Constraint C-001 above, both correctly using "C-004" in that unrelated, established sense). The finding's own suggested replacement, "C-007", was checked live during this rename and found to ALSO already be taken within this same mission's artifacts, in a third, different sense — the charter's own global `__all__` Declaration Convention (`.kittify/charter/charter.md`, "binding per C-007"), correctly cited as-is in this spec's own FR-003 row title and in WP01/WP02/WP03's "`__all__` / C-007 disposition" sections. Rather than trade one C-series collision for another, this row adopts a distinct, non-`C-NNN` prefix (`PROC-001`, matching this row's own "Process" category) so it can never collide with the project-wide `C-NNN` constraint registry (`.kittify/charter/charter.md` — C-004, C-007, C-011 and others) referenced throughout this mission's own artifacts. This requirement, together with NFR-004 (stating the reflexivity/SPDD-flip in the PR body), is satisfied at PR-preparation time by the mission's standard close-out procedure (`mission-wrap-up-sequence`, charter Code Quality section), not by a dedicated WP task — the same explicit-delegation pattern FR-009/SC-005 uses ("reviewed at PR time instead"); neither requirement needs a WP subtask or Definition-of-Done line of its own. | Process | High | Open |
 | C-005 | Pre-existing red baseline is not this mission's to fix | `main` carries known-red tests tracked as issue #3284. This mission does not attempt to fix them and does not open a new issue for them; any red observed during this mission's own test runs is classified against that baseline first. | Process | Medium | Open |
 | C-006 | No relocation of `charter.offering.spdd_reasons` (Option B, out of scope) | The module boundary the `charter-code-topology` mission established is not reopened by this mission. `is_spdd_reasons_active`'s public import path (`charter.offering.spdd_reasons.is_spdd_reasons_active`, and the `charter.spdd_reasons` facade for `apply_spdd_blocks_for_project`) is unchanged. | Technical | Medium | Open |
 
@@ -582,8 +582,17 @@ The following are explicitly OUT OF SCOPE for this mission:
   only forwards `resolution.diagnostics`/`exc.issues`, never `.directives`/`.paradigms`, so it
   is fixed by FR-011 as a side effect — see Decision Record 3. With that fifth site named,
   every reader of `governance.charter.selected_*` found during this spec's own review (Decision
-  Records 2 and 3) is either fixed by this mission or confirmed display-only above — not a
-  residual, unaudited category.
+  Records 2 and 3) is either fixed by this mission, confirmed display-only above, or named as a
+  known-dormant exception below — not a residual, unaudited-and-unacknowledged category.
+- **`resolve_governance_for_profile`** (`src/charter/activation/resolver.py`, same file WP03 edits) —
+  found by the analyze-phase review squad (ANALYZE-COVER-004, severity 2) as a sixth,
+  structurally-identical `governance.charter.selected_*`-adjacent reader: it builds
+  `GovernanceResolution.directives` via `_merge_unique(profile_directives, interview.selected_directives)`,
+  entirely bypassing `PackContext.activated_*` — the same defect shape Decision Records 1-3 found and
+  fixed elsewhere in this module, but confirmed live to have ZERO production call sites under `src/`
+  today (only `src/charter/__init__.py`'s re-export and test files reference it). It is a known-dormant
+  instance of the same defect class, not a live defect this mission fixes — named here explicitly so a
+  future change that wires a real caller to it does not silently reintroduce the bug unaudited.
 
 ## Success Criteria *(mandatory)*
 

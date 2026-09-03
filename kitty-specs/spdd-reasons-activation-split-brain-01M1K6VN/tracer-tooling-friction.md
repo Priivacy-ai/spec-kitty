@@ -131,3 +131,36 @@ proceed through `agent action implement` unblocked. No file under WP02's `owned_
 `src/charter/activation/context_renderers/delivery_table.py`,
 `tests/charter/test_action_bundle_delivery.py`, `tests/charter/test_action_doctrine_bundle_activation.py`)
 was touched.
+
+## 4. `wps.yaml`/`tasks/WP0*.md` structured `requirement_refs` frontmatter has no room for a "satisfied by omission" or affirmative-deliverable-without-a-dedicated-line constraint (confirmed during R4 fix round, 2026-09-03, ANALYZE-COVER-003)
+
+The analyze-phase review squad (`reviews/analyze.merged.yaml`, `ANALYZE-COVER-003`, severity 2, confirmed
+unrefuted in `reviews/analyze-refute-1.yaml`) found that spec.md's Constraints C-003 ("Parity test is
+mandatory, not optional") and C-005 ("Pre-existing red baseline is not this mission's to fix") are each
+delivered by a real WP subtask (WP01's T002 and T001, respectively) but appear in NO WP's structured
+`requirement_refs` frontmatter — only WP01's own prose (Context/Definition of Done sections) states the
+connection, and even that existed only as a single one-off mention before this R4 fix round. C-006 ("No
+relocation of `charter.offering.spdd_reasons`") does not appear anywhere in `tasks.md` or any
+`tasks/WP0*.md` file, not even in prose — it is a scope-boundary constraint satisfied entirely by what no
+WP does, with no natural WP to attach it to.
+
+**Per this fix round's HARD CONSTRAINT (reflexive-failure clause)**: `wps.yaml` and every `tasks/WP0*.md`
+file's YAML frontmatter block (including `requirement_refs`) is off-limits to hand-edit — it is
+tool-generated, and `finalize-tasks` is the only sanctioned writer. There is no CLI-exposed way, at this
+fix round's disposal, to add C-003/C-005 to WP01's structured `requirement_refs` list, or to add a
+scope-boundary-only constraint like C-006 to any WP's `requirement_refs` (there is no WP it could
+legitimately claim as its own "own file" without misrepresenting authorship of a satisfied-by-omission
+constraint).
+
+**Handled instead**: WP01's prose body (Definition of Done) now states explicitly that T002 delivers C-003
+and T001 delivers C-005, naming the frontmatter-field gap as the reason this isn't also reflected in
+`requirement_refs`. C-006 is left undocumented in any WP's structured metadata — genuinely satisfied by
+omission (no WP touches `charter.offering.spdd_reasons`'s module boundary), and spec.md's own Non-Goals
+section already states this out-of-scope carve-out explicitly, so the substance is not lost even though no
+WP's frontmatter carries the ID.
+
+**Flagged for whoever next touches `wps.yaml`/`generate_tasks_md_from_manifest`/the WP frontmatter schema**:
+a structured way to record "this constraint is satisfied by omission, not owned by any WP" (distinct from
+"this WP delivers this requirement") would close this traceability gap without requiring a hand-edit of a
+tool-generated field. This is the same class of gap as friction item 2 above (`tasks.md` has zero freeform-
+prose capacity) — a generated-artifact expressiveness ceiling, not a bug in the generator's own logic.

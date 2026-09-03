@@ -166,7 +166,17 @@ Boundaries, enumerated:
    `activated_directives`'s entries verbatim, un-normalized, while `PackContext.activated_directives` is
    proven live to legitimately store stem-form ids (same proof cited in T012's fix above). T012 step 1 now
    applies `_normalize_directive_id` to every entry before it becomes the base, backed by T011 step 6's
-   red-first fixture (RED against the unmodified `resolver.py`, GREEN after T012).
+   red-first fixture (RED against the unmodified `resolver.py`, GREEN after T012). **Caveat, mirroring the
+   honesty WP02's boundary 4 shows for tactics/paradigms**: `_normalize_directive_id`
+   (`profile_resolution.py:203-220`) closes the stem-vs-canonical *form* gap only — read live, its final
+   fallback for input matching neither `DIRECTIVE_NNN` nor a numeric-prefixed stem is `return
+   raw.upper().replace("-", "_")`, which never raises. A genuinely-unrecognizable (not merely stem-form)
+   `activated_directives` entry still produces some string and becomes part of `resolve_project_governance`'s
+   returned `.directives`, with no error raised anywhere in this boundary. Whether that bogus id is later
+   caught depends on the consumer (e.g. `resolve_transitive_refs`'s "unresolved, never raises" contract
+   elsewhere in this mission's other WPs silently drops an unresolvable id rather than erroring). This is a
+   pre-existing gap in `_normalize_directive_id`'s own contract, predating this mission; this WP does not
+   regress it and closing catalog-membership validation is out of this WP's scope.
 2. **The union of `doctrine.selected_directives` onto the `activated_*`-derived base** (T012 step 1,
    mirroring `_resolve_directives_selection`'s existing union shape) — **already correct, fails loud**:
    `doctrine.selected_directives` is validated against `valid_ids` (`doctrine_catalog.directives` ∪
