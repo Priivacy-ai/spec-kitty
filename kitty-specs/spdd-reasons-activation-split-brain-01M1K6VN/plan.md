@@ -208,41 +208,82 @@ live signatures read for this plan, not assumed:
    is preserved by unioning it onto the `activated_*`-derived set instead of onto
    `_load_doctrine_selection`'s retired `selected_*` output.
 3. **`delivery_table.py` (FR-006/014) — same signature, three-state-aware body, ALL consumption
-   sites named.** `_classify_artifact_urns` (`delivery_table.py`, function `_classify_artifact_urns`)
-   already takes `project_directives: set[str]` positionally from its one caller inside
+   sites named, for ALL THREE re-derived values.** `_classify_artifact_urns`
+   (`delivery_table.py`, function `_classify_artifact_urns`) already takes `project_directives:
+   set[str]` positionally, plus `selected_tactics: set[str] | None = None` and
+   `selected_paradigms: set[str] | None = None` as keyword defaults, from its one caller inside
    `action_doctrine_bundle.py`; no signature change is needed at the call boundary, only the type
    of what flows through it (a `frozenset[str] | None` sentinel-preserving value instead of an
-   always-plain `set[str]`). Re-reading the live file for this plan shows the re-derived
-   `project_directives` value is consumed at **three** sites, not one, and the design commitment
-   below covers all three explicitly:
+   always-plain `set[str]`, **for all three of `project_directives`, `selected_tactics`, and
+   `selected_paradigms`** — confirmed as genuinely three-state by reading `pack_context.py`'s
+   dataclass: `activated_directives`/`activated_tactics`/`activated_paradigms` are each
+   `frozenset[str] | None = None` with the identical "`None` = all built-ins / `frozenset()` =
+   explicit empty / non-empty = explicit set" docstring). Re-reading the live files for this plan
+   shows each of the three re-derived values is consumed at multiple sites, and the design
+   commitment below covers all of them explicitly:
    - `delivery_table.py`'s `start_urns` set-comprehension (`start_urns = {f"directive:{directive_id}"
      for directive_id in project_directives}`) — unconditional iteration, no `None`-guard today.
    - `delivery_table.py`'s exclusion guard inside `_classify_artifact_urns`'s node loop (today:
      `if node.kind is NodeKind.DIRECTIVE and project_directives and artifact_id not in
      project_directives` — bare truthiness, cannot distinguish `None` from `frozenset()`).
-   - `action_doctrine_bundle.py`'s `roots` tuple construction (`roots = (action_urn, *(f"directive:{d}"
-     for d in project_directives), ...)`) — the same unconditional iteration over the same value,
-     in the caller module.
+   - `delivery_table.py:211-212`, inside `_classify_artifact_urns` itself: `selected_tactics =
+     selected_tactics or set()` / `selected_paradigms = selected_paradigms or set()` — the exact
+     `x or set()` bare-truthiness idiom section (b) forbids for the parity-test oracle, feeding
+     `start_urns.update(...)` for both kinds two lines later (`delivery_table.py:214-215`).
+   - `action_doctrine_bundle.py`'s `roots` tuple construction (`action_doctrine_bundle.py:230-235`):
+     `roots = (action_urn, *(f"directive:{d}" for d in project_directives), *(f"tactic:{t}" for t
+     in selected_tactics), *(f"paradigm:{p}" for p in selected_paradigms))` — three unconditional
+     generator expressions over the same three values, in the caller module, with **no
+     `None`-guard on any of them**: an unconverted `None` on either `selected_tactics` or
+     `selected_paradigms` raises `TypeError: 'NoneType' object is not iterable` here, before
+     `_classify_artifact_urns` (and its `or set()` lines) is ever reached.
 
    **Chosen shape**: mirror the established pattern `resolver.py`'s `_resolve_directive_base`
-   already uses for this exact three-state value (see item 4 below) — branch on
-   `activated_directives is None` **once**, at the point in `action_doctrine_bundle.py` where
-   `project_directives` is assigned from `pack_context.activated_directives` (replacing the
-   current `_load_doctrine_selection`-derived assignment per FR-006), and convert `None` to a
-   concrete value there (either the built-in catalog default or an explicit empty set, matching
-   FR-001(d)'s "None = all built-ins" semantics) **before** the value is ever iterated — never let
-   `None` reach `start_urns`'s comprehension, the exclusion guard, or `roots`'s construction as a
-   live sentinel. This single early-conversion point replaces the "only the guard changes"
-   framing entirely: `start_urns`'s comprehension and `roots`'s construction need no `None`-guard
-   of their own because they never receive `None`; the exclusion guard's own change is still
-   `is not None` (never bare truthiness) to correctly treat an explicit `frozenset()` — the value
-   the early conversion step preserves distinctly from "all built-ins" — as "exclude everything"
-   per FR-014.
-   - **WP2 test fixture (new, distinct from FR-014's explicit-empty fixture)**: a case with
-     `activated_directives` **absent** (`None`, not `[]`) on the `pack_context`, exercising
-     `_load_action_doctrine_bundle` and `_classify_artifact_urns` end-to-end, asserting no
-     `TypeError` and the "all built-ins" delivery outcome — committed red-first per section (i) so
-     this crash path is caught before implementation, not discovered at review/CI time.
+   already uses for this exact three-state value (see item 4 below) — branch on `is None`
+   **once per value**, at the point in `action_doctrine_bundle.py` where `project_directives`,
+   `selected_tactics`, and `selected_paradigms` are each assigned from
+   `pack_context.activated_directives`/`.activated_tactics`/`.activated_paradigms` (replacing the
+   current `_load_doctrine_selection`-derived assignments per FR-006), and convert `None` to a
+   concrete value there — **before** any of the three values is ever iterated — never let `None`
+   reach `start_urns`'s comprehension/`.update()` calls, the exclusion guard, or `roots`'s
+   construction as a live sentinel:
+   - For `project_directives`: convert `None` to either the built-in catalog default or an
+     explicit empty set, matching FR-001(d)'s "None = all built-ins" semantics — the exclusion
+     guard has a catalog-backed way to materialize "all built-ins" as concrete directive IDs.
+   - For `selected_tactics`/`selected_paradigms`: convert `None` to an **explicit empty set**.
+     This is the defensible default here specifically because it is *not* symmetric with
+     directives — unlike the directive exclusion guard, there is no catalog enumeration available
+     at this call site to materialize "all built-ins" as concrete tactic/paradigm IDs for
+     closure-widening seeds. An empty set means "no additional closure-widening seed from this
+     kind," which is the correct degrade-safe behavior when a project has never configured that
+     kind, not a silent under-seed of a kind the project actually selected.
+
+   This single early-conversion point replaces the "only the guard changes" framing entirely, for
+   all three values: `start_urns`'s comprehension/`.update()` calls and `roots`'s construction
+   need no `None`-guard of their own because they never receive `None`. The exclusion guard's own
+   change is still `is not None` (never bare truthiness) to correctly treat an explicit
+   `frozenset()` — the value the early conversion step preserves distinctly from "all built-ins"
+   — as "exclude everything" per FR-014 (directives only; FR-014 does not extend to
+   tactics/paradigms exclusion semantics). Once `selected_tactics`/`selected_paradigms` are
+   converted at the source in `action_doctrine_bundle.py`, the `selected_tactics or set()` /
+   `selected_paradigms or set()` lines at `delivery_table.py:211-212` become dead/defense-in-depth
+   code, not the load-bearing conversion — they may be removed, or kept as a documented no-op
+   guard against a future caller that bypasses the early-conversion assignment; either way, section
+   (m)'s "three-state preserved" claim for `selected_tactics`/`selected_paradigms` is backed by
+   this design step, not by `delivery_table.py:211-212` alone.
+   - **WP2 test fixtures (new, distinct from FR-014's explicit-empty fixture)**:
+     - `activated_directives` **absent** (`None`, not `[]`) on the `pack_context`, exercising
+       `_load_action_doctrine_bundle` and `_classify_artifact_urns` end-to-end, asserting no
+       `TypeError` and the "all built-ins" delivery outcome — committed red-first per section (i) so
+       this crash path is caught before implementation, not discovered at review/CI time.
+     - **New sibling fixture**: `activated_tactics`/`activated_paradigms` **absent** (`None`) on
+       the `pack_context` (extending or mirroring the `project_directives`-absent fixture above),
+       exercising `_load_action_doctrine_bundle` end-to-end through `roots`'s construction and
+       `_classify_artifact_urns`, asserting no `TypeError` and non-degraded closure widening (the
+       empty-set default does not spuriously narrow delivery relative to today's behavior) —
+       committed red-first per section (i), since this is the specific `TypeError` crash path
+       PLAN-FRESH-001 identified as untested by FR-007/FR-008/FR-014 (none of which exercise a
+       `None` `activated_tactics`/`activated_paradigms` case).
    - **`tests/charter/test_action_bundle_delivery.py` (WP2 scope, PLAN-GOV-001)**: this existing
      file calls `_classify_artifact_urns` directly at four sites (the two single-line calls
      `result = context._classify_artifact_urns(resolved.artifact_urns, graph, set())` and
@@ -550,7 +591,7 @@ merely a spec requirement to satisfy later:
 | `activation.py`'s rewritten `is_spdd_reasons_active`, absent `.kittify/config.yaml` | — | Returns the explicitly-pinned safe default `False` (FR-004), with a code comment stating this is a deliberate carve-out from full parity, not an oversight |
 | `activation.py`'s rewritten body, malformed `config.yaml` YAML or a dangling/unreadable `charter:` pointer | — | **Raises** (FR-005), matching `PackContext.from_config`'s `CharterPackConfigError`/YAML-loader-exception behavior — never a silent `False`/`True` |
 | `action_doctrine_bundle.py`'s re-derived `project_directives`/`selected_tactics`/`selected_paradigms` | Returns the `activated_*`-derived set (three-state preserved) unioned with org-required ids | An explicitly-empty `activated_directives: []` must exclude everything (FR-014) — never silently collapse to "no filter" via bare truthiness; this is itself the silent-success defect class being closed, not a new one being introduced |
-| `delivery_table.py`'s `_classify_artifact_urns` exclusion guard, `start_urns` construction, and `action_doctrine_bundle.py`'s `roots` construction (all three named in section (a) item 3) | Filters/seeds against the three-state-aware set; `None` is converted to a concrete value once at assignment in `action_doctrine_bundle.py`, before any of the three sites iterates it | Same three-state distinction as above — `None` (all built-ins) and `frozenset()` (explicit empty) must never be conflated, at any of the three consumption sites, not only the exclusion guard |
+| `delivery_table.py`'s `_classify_artifact_urns` exclusion guard, `start_urns` construction/`.update()` calls, its now-dead/defense-in-depth `selected_tactics or set()`/`selected_paradigms or set()` lines, and `action_doctrine_bundle.py`'s `roots` construction (all consumption sites, for all three values, named in section (a) item 3) | Filters/seeds against the three-state-aware set; for each of `project_directives`, `selected_tactics`, `selected_paradigms`, `None` is converted to a concrete value once at assignment in `action_doctrine_bundle.py`, before any consumption site iterates it — directives to the catalog-backed "all built-ins" default, tactics/paradigms to an explicit empty set (no catalog enumeration available at that call site; section (a) item 3 states this rationale) | Same three-state distinction as above, for all three values — `None` (all built-ins, or for tactics/paradigms, "no widening seed") and `frozenset()` (explicit empty) must never be conflated, at any consumption site, not only the directive exclusion guard |
 | `resolver.py`'s `_resolve_directive_base`/`resolve_project_governance` | Returns `activated_*`-derived base, unioned with any non-empty `selected_*` | `activated_directives is None` (key absent, unconfigured project) already falls through to the existing catalog-fallback diagnostic (preserved verbatim, not touched by this mission) — this is the pre-existing, non-silent third branch, unchanged |
 
 Every row above either raises or returns an explicitly-named, tested default — no row this mission
@@ -576,7 +617,10 @@ phase should follow, not the WPs themselves):
    existing file's four direct `_classify_artifact_urns(..., set())` call sites must be updated
    to pass `None` instead, preserving their original "no filter" intent under the new
    `is not None` guard (see section (a) item 3) — distinct from FR-014's own new explicit-empty
-   test, and from FR-010's separate three-pinning-file triage in WP4 below.
+   test, and from FR-010's separate three-pinning-file triage in WP4 below. **Also includes the
+   new `activated_tactics`/`activated_paradigms`-absent fixture** (section (a) item 3), sibling to
+   the `project_directives`-absent fixture, asserting no `TypeError` through `roots`'s
+   construction and non-degraded closure widening.
 3. **WP3 — `resolver.py`** (FR-011, FR-012, FR-013). Independent of WP1 and WP2 (different file,
    different consumers). Can run in parallel with both.
 4. **WP4 — Triage the three pinning test files** (FR-010). **Depends on WP1**: the bucket-3
