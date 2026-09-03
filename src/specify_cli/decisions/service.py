@@ -555,7 +555,22 @@ def resolve_decision(
 
     Returns:
         DecisionTerminalResponse
+
+    Raises:
+        DecisionError(MISSING_STEP_OR_SLOT): if ``final_answer`` is empty or
+            whitespace-only. Rejected here, in the ONE shared authority both
+            the host CLI's ``cmd_resolve`` (``cli/commands/decision.py``) and
+            the orchestrator-api's ``resolve-decision`` verb
+            (``orchestrator_api/commands.py``) call directly -- so this check
+            cannot drift between callers the way the analogous ``rationale``
+            emptiness check (duplicated per-caller for defer/cancel) can.
     """
+    if not final_answer.strip():
+        raise DecisionError(
+            code=DecisionErrorCode.MISSING_STEP_OR_SLOT,
+            details={"field": "final_answer"},
+            message="final_answer must be a non-empty string",
+        )
     return _terminal_command(
         repo_root,
         mission_slug,
