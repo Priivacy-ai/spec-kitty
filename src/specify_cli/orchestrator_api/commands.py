@@ -117,19 +117,20 @@ from kernel.clock import now_utc_iso, now_utc_stamp
 from pathlib import Path
 from dataclasses import dataclass
 from collections.abc import Callable
-from typing import TYPE_CHECKING, Any, NoReturn
+from typing import TYPE_CHECKING, Any, NoReturn, cast
 
 if TYPE_CHECKING:
     from specify_cli.analysis_report import AnalysisReportResult
     from specify_cli.core.paths import RetentionDecision
     from specify_cli.decisions.models import OriginFlow
+    from specify_cli.decisions.service import DecisionError
     from specify_cli.lanes.models import ExecutionLane, LanesManifest
     from specify_cli.status import StatusSnapshot
 
 import typer
 
 from mission_runtime import CommitTarget, MissionTopology
-from specify_cli.core.contract_gate import validate_outbound_payload
+from specify_cli.core.contract_gate import is_allowed_error_code, validate_outbound_payload
 from specify_cli.core.errors import PlacementResolutionRequired
 from specify_cli.mission_metadata import resolve_mission_identity
 from specify_cli.status import wp_state_for
@@ -389,6 +390,50 @@ def _fail_wp_not_found(cmd: str, wp: str, mission: str) -> NoReturn:
     _fail(cmd, "WP_NOT_FOUND", f"Work package '{wp}' not found in {mission}")
 
 
+# PR-CONTRACT-002 (severity 2): a fallback for the ONE case the allow-list
+# guard below exists to catch -- a ``DecisionError`` whose ``code.value`` is
+# NOT registered in ``upstream_contract.json``'s ``allowed_error_codes``
+# (e.g. ``DecisionErrorCode.VERIFY_DRIFT``, dormant today but reachable the
+# moment ``decisions/service.py`` starts raising it). Itself contract-
+# registered (see ``upstream_contract.json``), so the guard's own fallback
+# can never re-trigger the same violation it exists to prevent.
+_DECISION_UNREGISTERED_CODE_FALLBACK = "DECISION_OPERATION_FAILED"
+
+
+def _fail_from_decision_error(cmd: str, exc: DecisionError) -> NoReturn:
+    """Fail from a ``DecisionError``, guarding against an unregistered
+    ``exc.code.value`` reaching the public ``error_code`` field verbatim.
+
+    open/resolve/defer/cancel-decision each catch ``DecisionError`` and, pre-
+    fix, trusted ``exc.code.value`` unconditionally -- correct for the six
+    ``DecisionErrorCode`` members ``decisions/service.py`` actually raises
+    today (all six ARE contract-registered), but structurally unsafe: NOTHING
+    at runtime cross-checked the propagated code against
+    ``upstream_contract.json``'s ``allowed_error_codes`` allow-list, and the
+    static ``TestAllowedErrorCodes`` regex check
+    (``tests/contract/test_orchestrator_api.py``) only sees a literal quoted
+    string passed directly as ``_fail``'s second argument -- a variable
+    expression like ``exc.code.value`` is invisible to it. A future code
+    path raising the currently-dormant ``DecisionErrorCode.VERIFY_DRIFT``
+    (unregistered) -- or any other not-yet-registered member added later --
+    would silently emit a CI-invisible contract violation. This is the ONE place that
+    membership check happens; an unregistered code degrades to the
+    registered ``_DECISION_UNREGISTERED_CODE_FALLBACK`` code instead of
+    leaking through, with the real code preserved as diagnostic ``data`` for
+    debugging (never silently dropped, never exposed as the public
+    ``error_code``).
+    """
+    code = exc.code.value
+    if is_allowed_error_code("orchestrator_api", code):
+        _fail(cmd, code, str(exc), exc.details)
+    _fail(
+        cmd,
+        _DECISION_UNREGISTERED_CODE_FALLBACK,
+        str(exc),
+        {**exc.details, "unregistered_error_code": code},
+    )
+
+
 def _parse_policy_or_fail(cmd: str, policy: str) -> dict:
     """Parse+validate a ``--policy`` JSON string, or ``_fail`` (NoReturn) on invalid JSON.
 
@@ -456,7 +501,19 @@ def _resolve_mission_dir(main_repo_root: Path, mission_slug: str) -> Path | None
 def _resolve_mission_dir_or_fail(command: str, main_repo_root: Path, mission_slug: str) -> Path:
     """Resolve the mission status dir, emitting the correct failure envelope on a miss.
 
-    Single seam consumed by all 8 read endpoints (avoids 8 divergent patches):
+    PR-BOUNDARY-002: single seam consumed by every mission-scoped
+    orchestrator-api endpoint -- 17 call sites as of the design-phase
+    mission (a snapshot count; re-derive with
+    ``grep -c '_resolve_mission_dir_or_fail(cmd' commands.py`` rather than
+    trusting this number, which will itself drift the next time a verb is
+    added), several of which are MUTATING verbs (``record-analysis``,
+    ``open-decision``/``resolve-decision``/``defer-decision``/
+    ``cancel-decision``/``answer-decision``), not only reads. Supersedes the
+    original "all 8 read endpoints" framing, which was both undercounted
+    and miscategorized once this mission added its own mutating call
+    sites. The invariant that matters is structural, not numeric: every
+    mission-scoped endpoint routes through this ONE seam, avoiding one
+    divergent existence-resolution pattern per call site:
 
     * a typed :class:`StatusReadPathNotFound` (coord topology + stale/unaddressable
       primary) surfaces the resolver's real ``error_code`` plus the
@@ -2327,6 +2384,33 @@ def tasks(
 # ── Command 13: check-prerequisites ─────────────────────────────────────────
 
 
+_FEATURE_CONTEXT_UNRESOLVED = "FEATURE_CONTEXT_UNRESOLVED"
+
+
+def _sanitize_forbidden_error_code(value: Any, forbidden: str, replacement: str) -> Any:
+    """Recursively replace every occurrence of *forbidden* as a VALUE with
+    *replacement*, at any depth of nested dicts/lists (PR-TESTS-002).
+
+    ``_classify_check_prerequisites_error`` translates the top-level
+    ``error_code`` correctly, but the raw delegate ``payload`` it also
+    returns (spread verbatim into the envelope's ``data``) still carries its
+    OWN ``error_code`` key with the untranslated forbidden value -- a leak
+    of the terminology-canon-forbidden string one level down, in the SAME
+    response whose top-level ``error_code`` claims to have translated it.
+    Sanitizing recursively (not just the payload's top-level ``error_code``
+    key) closes the leak at whatever nesting level it appears, matching the
+    "no forbidden token anywhere in the serialized response" bar this fix's
+    regression test asserts.
+    """
+    if isinstance(value, dict):
+        return {k: _sanitize_forbidden_error_code(v, forbidden, replacement) for k, v in value.items()}
+    if isinstance(value, list):
+        return [_sanitize_forbidden_error_code(v, forbidden, replacement) for v in value]
+    if value == forbidden:
+        return replacement
+    return value
+
+
 def _classify_check_prerequisites_error(
     payload: dict[str, Any] | None, raw_output: str
 ) -> tuple[str, str, dict[str, Any]]:
@@ -2340,15 +2424,23 @@ def _classify_check_prerequisites_error(
     ``FEATURE_NOT_READY`` for the identical reason). This is the ONE place
     that code is translated to this file's canonical ``MISSION_NOT_FOUND`` --
     every other typed ``error_code`` the delegate carries is trusted verbatim,
-    mirroring ``_classify_delegate_error``.
+    mirroring ``_classify_delegate_error``. The translation is applied to the
+    WHOLE returned payload (``_sanitize_forbidden_error_code``), not just the
+    top-level ``error_code`` this function returns as its first tuple
+    element -- the untranslated payload's own nested ``error_code`` key was
+    leaking the forbidden string into ``data.error_code`` (PR-TESTS-002).
     """
     if payload is None:
         message = raw_output.strip() or "check-prerequisites failed"
         return "CHECK_PREREQUISITES_FAILED", message, {"raw_output": raw_output}
     message = str(payload.get("error") or payload.get("message") or "check-prerequisites failed")
     error_code = payload.get("error_code")
-    if error_code == "FEATURE_CONTEXT_UNRESOLVED":
-        return "MISSION_NOT_FOUND", message, payload
+    if error_code == _FEATURE_CONTEXT_UNRESOLVED:
+        sanitized = cast(
+            "dict[str, Any]",
+            _sanitize_forbidden_error_code(payload, _FEATURE_CONTEXT_UNRESOLVED, "MISSION_NOT_FOUND"),
+        )
+        return "MISSION_NOT_FOUND", message, sanitized
     if error_code:
         return str(error_code), message, payload
     return "CHECK_PREREQUISITES_FAILED", message, payload
@@ -2684,29 +2776,22 @@ def record_analysis(
     mission_dir = _resolve_mission_dir_or_fail(cmd, main_repo_root, mission)
     mission_slug = _mission_identity_payload(mission_dir)["mission_slug"]
 
-    try:
-        body = _read_record_analysis_body(input_file)
-    except OSError as exc:
-        _fail(
-            cmd,
-            "RECORD_ANALYSIS_INPUT_FILE_NOT_FOUND",
-            f"Could not read --input-file {input_file!r}: {exc}",
-            {"mission_slug": mission_slug},
-        )
-        return
-    if not body.strip():
-        _fail(cmd, "RECORD_ANALYSIS_EMPTY_BODY", "Analysis report body is empty", {"mission_slug": mission_slug})
-        return
-
-    from specify_cli.analysis_report import VERDICT_UNKNOWN, FindingsCarrierError, parse_structured_findings
-
-    try:
-        structured = parse_structured_findings(body)
-    except FindingsCarrierError as exc:
-        _fail(cmd, "RECORD_ANALYSIS_MALFORMED_CARRIER", str(exc), {"mission_slug": mission_slug})
-        return
-    submitted_verdict = structured.verdict if structured is not None else VERDICT_UNKNOWN
-
+    # PR-CONTRACT-001 (host-CLI parity, R3-confirmed live ordering fork):
+    # placement resolution + the dirty-worktree preflight run BEFORE the
+    # body is read/validated -- matching the host CLI's own
+    # ``mission_record_analysis.record_analysis`` ordering EXACTLY
+    # (placement -> dirty-tree preflight -> THEN ``body = sys.stdin.read()``,
+    # mission_record_analysis.py's ``record_analysis`` function). Pre-fix,
+    # this verb read/validated the body FIRST, so an identical on-disk state
+    # (dirty tree + empty/malformed body) reported a DIFFERENT first
+    # error_code than the host CLI for the same request -- this is the
+    # THIRD instance of that ordering-fork class in this mission (after
+    # WP05-001/WP08-001). See ``tests/specify_cli/orchestrator_api/
+    # test_check_prerequisites_record_analysis.py``'s
+    # ``_host_record_analysis_error_code`` helper and its docstring
+    # for the reusable, verb-agnostic parity-test pattern added alongside
+    # this fix (and for why a production-code "by construction" ordering
+    # guard was judged infeasible within this diff, not silently skipped).
     from specify_cli.cli.commands.agent.mission_feature_resolution import _kind_for_artifact
     from specify_cli.cli.commands.agent.mission_record_analysis import (
         _enforce_analysis_report_write_preflight,
@@ -2740,6 +2825,29 @@ def record_analysis(
         error_data.setdefault("mission_slug", mission_slug)
         _fail(cmd, error_code, message, error_data)
         return
+
+    try:
+        body = _read_record_analysis_body(input_file)
+    except OSError as exc:
+        _fail(
+            cmd,
+            "RECORD_ANALYSIS_INPUT_FILE_NOT_FOUND",
+            f"Could not read --input-file {input_file!r}: {exc}",
+            {"mission_slug": mission_slug},
+        )
+        return
+    if not body.strip():
+        _fail(cmd, "RECORD_ANALYSIS_EMPTY_BODY", "Analysis report body is empty", {"mission_slug": mission_slug})
+        return
+
+    from specify_cli.analysis_report import VERDICT_UNKNOWN, FindingsCarrierError, parse_structured_findings
+
+    try:
+        structured = parse_structured_findings(body)
+    except FindingsCarrierError as exc:
+        _fail(cmd, "RECORD_ANALYSIS_MALFORMED_CARRIER", str(exc), {"mission_slug": mission_slug})
+        return
+    submitted_verdict = structured.verdict if structured is not None else VERDICT_UNKNOWN
 
     write_feature_dir = placement_seam(main_repo_root, mission_slug).read_dir(_kind_for_artifact("spec"))
 
@@ -2954,7 +3062,7 @@ def open_decision(  # noqa: PLR0913
             actor=actor,
         )
     except DecisionError as exc:
-        _fail(cmd, exc.code.value, str(exc), exc.details)
+        _fail_from_decision_error(cmd, exc)
         return
 
     data = {
@@ -3017,7 +3125,7 @@ def resolve_decision(  # noqa: PLR0913
             actor=actor,
         )
     except DecisionError as exc:
-        _fail(cmd, exc.code.value, str(exc), exc.details)
+        _fail_from_decision_error(cmd, exc)
         return
 
     data = {
@@ -3069,7 +3177,7 @@ def defer_decision(
             actor=actor,
         )
     except DecisionError as exc:
-        _fail(cmd, exc.code.value, str(exc), exc.details)
+        _fail_from_decision_error(cmd, exc)
         return
 
     data = {
@@ -3121,7 +3229,7 @@ def cancel_decision(
             actor=actor,
         )
     except DecisionError as exc:
-        _fail(cmd, exc.code.value, str(exc), exc.details)
+        _fail_from_decision_error(cmd, exc)
         return
 
     data = {
@@ -3296,14 +3404,17 @@ def answer_decision(
 
     from mission_runtime import MissionArtifactKind as _MissionArtifactKind
     from mission_runtime import placement_seam as _placement_seam
-    from runtime.next._internal_runtime.engine import _read_snapshot
     from runtime.next.decision import decide_next
     from runtime.next.next_invocation_lifecycle import (
+        AmbiguousPendingDecisionError,
+        NoPendingDecisionError,
         emit_mission_next_invoked,
         pair_previous_lifecycle_record,
+        resolve_pending_decision_id,
         write_issuance_lifecycle_record,
     )
     from runtime.next.runtime_bridge import answer_decision_via_runtime, get_or_start_run
+    from runtime.next.runtime_bridge_engine import _read_snapshot
     from specify_cli.mission import get_mission_type
 
     # Mirrors ``next_cmd.py:975-1005`` (``_handle_answer``) exactly: the
@@ -3314,33 +3425,35 @@ def answer_decision(
     )
     mission_type = get_mission_type(feature_dir)
     run_ref = get_or_start_run(mission, main_repo_root, mission_type)
+    run_dir = Path(run_ref.run_dir)
 
-    resolved_decision_id = decision_id
-    if resolved_decision_id is None:
-        # Auto-resolve exactly as ``next_cmd.py:_handle_answer`` does.
-        snapshot = _read_snapshot(Path(run_ref.run_dir))
-        pending = snapshot.pending_decisions
-        if len(pending) == 0:
-            _fail(cmd, "NO_PENDING_DECISION", "No pending decisions to answer")
+    if decision_id is None:
+        # Auto-resolve through the ONE shared seam (PR-BOUNDARY-001):
+        # ``runtime.next.next_invocation_lifecycle.resolve_pending_decision_id``
+        # is the same zero/one/many branch ``next_cmd.py``'s ``_handle_answer``
+        # now also calls -- no more independently-maintained duplicate here.
+        try:
+            resolved_decision_id = resolve_pending_decision_id(run_dir, None)
+        except NoPendingDecisionError as exc:
+            _fail(cmd, "NO_PENDING_DECISION", str(exc))
             return
-        if len(pending) == 1:
-            resolved_decision_id = next(iter(pending.keys()))
-        else:
-            pending_ids = sorted(pending.keys())
+        except AmbiguousPendingDecisionError as exc:
             _fail(
                 cmd,
                 "AMBIGUOUS_PENDING_DECISION",
-                "Multiple pending decisions ("
-                + ", ".join(pending_ids)
-                + "). Use --decision-id to specify which one.",
-                {"pending_decision_ids": pending_ids},
+                str(exc),
+                {"pending_decision_ids": exc.pending_ids},
             )
             return
     else:
         # An explicit --decision-id not currently pending (already answered,
         # or naming a different step) must never be silently no-op'd or
-        # answer the wrong decision.
-        snapshot = _read_snapshot(Path(run_ref.run_dir))
+        # answer the wrong decision. Orchestrator-api-only guard (the host
+        # CLI's own ``_handle_answer`` performs no equivalent check) -- reads
+        # via the same ``runtime_bridge_engine`` concentration seam as the
+        # auto-resolve path above, never ``_internal_runtime.engine`` directly.
+        resolved_decision_id = decision_id
+        snapshot = _read_snapshot(run_dir)
         if resolved_decision_id not in snapshot.pending_decisions:
             _fail(
                 cmd,

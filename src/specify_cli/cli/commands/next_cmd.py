@@ -824,25 +824,22 @@ def _handle_answer(
         mission_type = get_mission_type(feature_dir)
         run_ref = runtime_bridge.get_or_start_run(mission_slug, repo_root_path, mission_type)
 
-        # If no decision_id provided, try to auto-resolve
+        # If no decision_id provided, try to auto-resolve via the ONE shared
+        # seam (PR-BOUNDARY-001): the same zero/one/many branch
+        # orchestrator-api's ``answer_decision`` now also calls -- no more
+        # independently-maintained duplicate here.
         if decision_id is None:
-            from runtime.next._internal_runtime.engine import _read_snapshot
+            from runtime.next.next_invocation_lifecycle import (
+                AmbiguousPendingDecisionError,
+                NoPendingDecisionError,
+                resolve_pending_decision_id,
+            )
 
-            snapshot = _read_snapshot(Path(run_ref.run_dir))
-            pending = snapshot.pending_decisions
-
-            if len(pending) == 0:
-                print("Error: No pending decisions to answer", file=sys.stderr)
-                raise typer.Exit(1)
-            elif len(pending) == 1:
-                decision_id = next(iter(pending.keys()))
-            else:
-                pending_ids = sorted(pending.keys())
-                print(
-                    f"Error: Multiple pending decisions ({', '.join(pending_ids)}). Use --decision-id to specify which one.",
-                    file=sys.stderr,
-                )
-                raise typer.Exit(1)
+            try:
+                decision_id = resolve_pending_decision_id(Path(run_ref.run_dir), None)
+            except (NoPendingDecisionError, AmbiguousPendingDecisionError) as exc:
+                print(f"Error: {exc}", file=sys.stderr)
+                raise typer.Exit(1) from exc
 
         runtime_bridge.answer_decision_via_runtime(
             mission_slug,
