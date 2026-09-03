@@ -824,7 +824,7 @@ def test_lenient_downgrades_path_conventions_to_warning(
     assert any("expects" in warning for warning in lenient.warnings)
 
 
-def _software_dev_fake_mission() -> "object":
+def _software_dev_fake_mission() -> object:
     from types import SimpleNamespace
 
     return SimpleNamespace(
@@ -918,11 +918,13 @@ def test_malformed_override_fails_closed(feature_repo: Path, mission_slug: str) 
     _set_path_conventions(feature_repo, "not-a-mapping")
 
     fake_mission = _software_dev_fake_mission()
-    with patch("specify_cli.acceptance.get_mission_for_feature", return_value=fake_mission):
-        with pytest.raises(PathConventionsConfigError, match="must be a mapping"):
-            acc.collect_feature_summary(
-                feature_repo, mission_slug, strict_metadata=True, mutate_matrix=False
-            )
+    with (
+        patch("specify_cli.acceptance.get_mission_for_feature", return_value=fake_mission),
+        pytest.raises(PathConventionsConfigError, match="must be a mapping"),
+    ):
+        acc.collect_feature_summary(
+            feature_repo, mission_slug, strict_metadata=True, mutate_matrix=False
+        )
 
 
 # --- Direct canonical-surface unit coverage (restored from #2167 review) -----
