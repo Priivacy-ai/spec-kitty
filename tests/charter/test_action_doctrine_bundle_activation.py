@@ -32,6 +32,22 @@ class (operator ruling, ``reviews/tasks.ruling.md``):
    with no org pack involved -- boundary 1 in the WP's own Union/Exclusion
    Boundary Audit, distinct from case 5's boundary 3.
 
+A seventh, follow-on case closes a latent defect WP02's own fix above exposed
+(operator ruling, ``reviews/wp02.ruling.md``):
+
+7. ``test_activated_directive_outside_action_scope_is_not_delivered`` --
+   ``_classify_artifact_urns`` used ``project_directives`` for two jobs at
+   once: the exclusion-guard allowlist (correctly ``None -> all built-ins``)
+   AND the seed set for the ``requires``/``suggests`` closure walk, whose
+   result was unioned into the delivered set with NO scope-reachability
+   check. A directive genuinely ``activated_*`` but never scoped (directly or
+   transitively) onto the resolving action must not leak into that action's
+   delivered set merely for being a member of the (possibly catalog-wide)
+   ``project_directives`` set -- this is the same mechanism that broke
+   ``tests/charter/test_directive_003_implement_to_review.py`` (FR-005) and
+   ``tests/charter/test_context.py::test_action_doctrine_keys_off_meta_json_not_template_set``
+   (#883).
+
 Design note on FR-014's call boundary: this fixture is deliberately built
 against :func:`_classify_artifact_urns` directly rather than through the full
 :func:`_load_action_doctrine_bundle` pipeline. Going through the full pipeline
@@ -426,3 +442,65 @@ def test_direct_activated_directives_stem_form_is_normalized(tmp_path: Path) -> 
     assert f"directive:{_DIRECTIVE_024_CANONICAL}" in bundle.roots
     assert f"directive:{_DIRECTIVE_024_STEM}" not in bundle.roots
     assert _DIRECTIVE_024_CANONICAL in bundle.directive_ids
+
+
+# ---------------------------------------------------------------------------
+# 7. Operator ruling (reviews/wp02.ruling.md) -- scope-gate the closure walk.
+#    An activated-but-unscoped directive must not leak into an action's
+#    delivered set (the FR-005/#883-shaped defect this WP's own fix exposed).
+# ---------------------------------------------------------------------------
+
+
+def test_activated_directive_outside_action_scope_is_not_delivered(
+    tmp_path: Path,
+) -> None:
+    """RED against the ungated closure walk (pre-scope-gate WP02 code).
+
+    ``project_directives`` (via ``activated_directives``) contains BOTH
+    ``DIRECTIVE_038`` (scoped directly onto the resolving action) and
+    ``DIRECTIVE_010`` (activated project-wide, but scoped onto NO action --
+    a standalone node with no ``scope``/``requires``/``suggests`` edge to or
+    from the action at all). Both are DRG-reachable *as nodes* (the graph
+    carries them), so the exclusion-guard allowlist alone cannot tell them
+    apart -- only a scope-reachability check can.
+
+    Without the scope gate, ``resolve_transitive_refs``'s closure walk seeds
+    from ``project_directives`` directly, and ``walk_edges`` marks every seed
+    URN "visited" unconditionally (it is a start node) -- regardless of the
+    resolving action's own scope. ``_classify_artifact_urns`` then unions
+    that visited set into ``artifact_urns` with no reachability check, so
+    ``DIRECTIVE_010`` reaches the exclusion guard, passes it (it IS a member
+    of ``project_directives``), and lands in ``directive_ids`` -- leaked.
+    This is exactly the FR-005 (``DIRECTIVE_003`` onto ``implement``) and
+    #883 (cross-mission-type) leak shape, reproduced hermetically.
+    """
+    graph = _scoped_action_graph(f"directive:{_DIRECTIVE_038_CANONICAL}")
+    # Add the unscoped directive as a bare node -- no edge connects it to the
+    # action, to any scoped artifact, or to anything else in the graph.
+    graph.nodes.append(
+        DRGNode(urn=f"directive:{_DIRECTIVE_010_CANONICAL}", kind=NodeKind.DIRECTIVE)
+    )
+    pack_context = _pack_context(
+        activated_directives=frozenset(
+            {_DIRECTIVE_038_STEM, "010-specification-fidelity-requirement"}
+        ),
+        repo_root=tmp_path,
+    )
+
+    with patch("charter.activation._drg_helpers.load_validated_graph", return_value=graph):
+        bundle = _load_action_doctrine_bundle(
+            repo_root=tmp_path,
+            action=_ACTION,
+            effective_depth=2,
+            mission_type=_MISSION_TYPE,
+            pack_context=pack_context,
+        )
+
+    assert _DIRECTIVE_038_CANONICAL in bundle.directive_ids, (
+        "the directly-scoped, activated directive must still be delivered"
+    )
+    assert _DIRECTIVE_010_CANONICAL not in bundle.directive_ids, (
+        "an activated directive scoped onto NO action must not leak into "
+        f"implement's delivered set via the closure seed alone; delivered "
+        f"directives were: {sorted(bundle.directive_ids)}"
+    )
