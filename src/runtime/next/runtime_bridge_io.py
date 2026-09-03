@@ -84,7 +84,7 @@ import tempfile
 from collections.abc import Callable, Mapping
 from dataclasses import dataclass
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, TypedDict, cast
+from typing import TYPE_CHECKING, Any, TypedDict
 
 import yaml
 from mission_runtime import CommitTarget
@@ -948,62 +948,32 @@ def _presence_filenames_for(
     return frozenset(name_set.values())
 
 
-def _resolve_org_manifest_mapping(
-    mission_family: str, repo_root: Path | None
-) -> tuple[Mapping[str, Any] | None, list[Path]]:
-    """Return ``(mapping, org_roots)`` for *mission_family*'s org-tier
-    ``expected-artifacts.yaml``: the resolved mapping (or ``None`` when
-    *repo_root* is ``None``, resolves no existing org roots, or no org root has
-    a matching file), paired with the list of existing org roots that were
-    checked (``[]`` whenever the mapping is ``None``).
-
-    The ``org_roots`` are returned alongside the mapping so a caller that must
-    raise ``ManifestSchemaError`` can name the roots it checked in the origin
-    string, identically to resolver.py's org-tier construction, instead of
-    re-deriving them.
-
-    Shared by :func:`_presence_filenames_for` and
-    :func:`_expected_artifacts_manifest_resolves` so both consult the exact
-    same org-tier precedence (FR-008) rather than each re-deriving it.
-    """
-    if repo_root is None:
-        return None, []
-    from charter.drg import resolve_existing_org_roots  # noqa: PLC0415
-    from charter.activation.org_expected_artifacts import (  # noqa: PLC0415
-        resolve_org_expected_artifacts,
-    )
-
-    org_roots = resolve_existing_org_roots(repo_root)
-    if not org_roots:
-        return None, []
-    # `charter.*` is `follow_imports = "skip"` in [tool.mypy] (pyproject.toml)
-    # so unrelated pre-existing strict debt elsewhere in the charter package
-    # isn't walked by every importer's mypy run; that also erases
-    # `resolve_org_expected_artifacts`'s real `Mapping[str, Any] | None`
-    # return type to plain `Any` at this call boundary. The cast documents
-    # the type this function actually returns at runtime.
-    mapping = cast("Mapping[str, Any] | None", resolve_org_expected_artifacts(org_roots, mission_family))
-    return mapping, cast("list[Path]", org_roots)
-
-
 def _expected_artifacts_manifest_resolves(mission_family: str, repo_root: Path | None) -> bool:
     """True when an expected-artifacts manifest resolves for *mission_family*
     at either tier -- org first (FR-008), built-in fallback.
 
     The single per-:func:`gather_artifact_presence`-call source for
     ``ArtifactPresenceSnapshot.blocking_artifact_names``'s ``None`` vs. real
-    ``frozenset`` distinction (SPEC-FRESH-001) -- reuses the exact same
-    tier-checking logic :func:`_presence_filenames_for` runs internally,
-    factored out via :func:`_resolve_org_manifest_mapping` so the two
-    functions share one source of truth.
+    ``frozenset`` distinction (SPEC-FRESH-001, C-002).
+
+    **WP-dedup (#3847) note:** this used to re-read the manifest itself via
+    its own uncached ``_resolve_org_manifest_mapping`` (org tier) plus a bare
+    built-in-tier presence check -- independent of, and redundant with,
+    :func:`_presence_filenames_for`'s manifest load earlier in the same
+    :func:`gather_artifact_presence` call. It now reuses the SAME cached
+    authority :func:`_presence_filenames_for` already delegates to
+    (:func:`charter.activation.manifest_loader.load_manifest`), so the org
+    file (and the built-in tier) is read at most once per call instead of
+    twice. The tri-state contract is unchanged: ``load_manifest`` returns
+    ``None`` for genuine absence at both tiers (-> ``False`` here), a real
+    manifest for a valid, present manifest (-> ``True``), and raises
+    ``ManifestSchemaError``/``MalformedManifestError`` for a present-but-bad
+    manifest -- identical to the exceptions the old org/built-in reads
+    raised, just surfaced here instead of (redundantly) re-derived.
     """
-    org_mapping, _ = _resolve_org_manifest_mapping(mission_family, repo_root)
-    if org_mapping is not None:
-        return True
+    from charter.activation.manifest_loader import load_manifest  # noqa: PLC0415
 
-    from charter.offering.missions import MissionTemplateRepository  # noqa: PLC0415
-
-    return MissionTemplateRepository.default().get_expected_artifacts(mission_family) is not None
+    return load_manifest(mission_family, repo_root=repo_root) is not None
 
 
 @dataclass(frozen=True)
