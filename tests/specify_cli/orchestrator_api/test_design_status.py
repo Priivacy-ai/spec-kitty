@@ -378,3 +378,74 @@ def test_design_status_torn_event_log_fails_closed_not_silently_wrong(tmp_path: 
     # Never silently reported as "tasks/ unfinalized" (a plausible-but-wrong
     # snapshot) -- the failure envelope carries no current_phase field at all.
     assert "current_phase" not in envelope["data"]
+
+
+def test_design_status_clean_whole_line_truncation_fails_closed_not_silently_wrong(
+    tmp_path: Path,
+) -> None:
+    """WP06-001 (review finding, severity 4): a CLEAN record-boundary
+    truncation -- the trailing bootstrap ``planned`` event line dropped
+    WHOLE, not torn mid-JSON -- is the ACTUAL shape
+    ``coordination/transaction.py``'s ``_rollback`` produces
+    (``fh.truncate(self._pre_emit_size)``, a byte-offset captured before the
+    append began; the file is append-only, so truncating to that offset
+    always lands on a line boundary). Every remaining line is still valid
+    JSON, so ``read_events``/``StoreError`` never fires and the mid-line
+    torn-read defense above (which DOES catch a half-written JSON object)
+    never engages.
+
+    Live-reproduced pre-fix: dropping the trailing ``planned`` event line
+    whole from a real tasks-finalized mission's ``status.events.jsonl``
+    made ``design-status`` return ``success: true``,
+    ``current_phase: "plan"``, ``next_action: "tasks"`` -- silently WRONG
+    (the mission genuinely has WP01 finalized), with no error and no hint
+    anything is wrong. This is the "plausible-but-wrong snapshot" failure
+    class this WP's own commit message and docstring claim to prevent, for
+    the ONE concrete corruption mechanism (SK-131's cited
+    ``transaction.py`` rollback) this WP was built to defend against.
+
+    Fixed behaviour: a structural drift check compares the freshly
+    event-log-derived ``work_packages`` set against ``status.json``'s own
+    persisted set (the SAME ``SNAPSHOT_DRIFT`` concept ``status/store.py``
+    already names for ``doctor mission-state --fix``, issue #1782, reused
+    here rather than inventing a parallel one) -- when the persisted record
+    knows about a WP the fresh reduction no longer sees, that is drift
+    evidence, not "unfinalized", and the verb fails closed with the SAME
+    structured ``DESIGN_STATUS_EVENT_LOG_UNREADABLE`` code the mid-line tear
+    already uses.
+    """
+    repo = _init_repo(tmp_path)
+    mission_slug, feature_dir = _build_tasks_finalized_mission(repo, "wp06-clean-trunc")
+    events_path = feature_dir / "status.events.jsonl"
+    assert events_path.exists()
+    assert (feature_dir / "status.json").exists(), (
+        "finalize-tasks's own bootstrap_canonical_state must have "
+        "materialized status.json for this drift check to have a "
+        "persisted record to compare against"
+    )
+
+    # Precondition: BEFORE truncation, design-status correctly sees WP01
+    # as finalized.
+    before = _design_status(repo, mission_slug)
+    assert before["success"] is True, before
+    assert before["data"]["current_phase"] == "tasks"
+
+    # A CLEAN whole-line drop of the trailing event -- the SAME shape
+    # `_rollback`'s `fh.truncate(self._pre_emit_size)` produces (a byte
+    # offset captured before the append, always landing on a line
+    # boundary): every remaining line still parses as valid JSON.
+    original = events_path.read_text(encoding="utf-8")
+    lines = original.splitlines()
+    assert lines, "fixture must carry at least one bootstrapped WP event"
+    truncated_content = "\n".join(lines[:-1])
+    if truncated_content:
+        truncated_content += "\n"
+    events_path.write_text(truncated_content, encoding="utf-8")
+
+    envelope = _design_status(repo, mission_slug)
+
+    assert envelope["success"] is False, envelope
+    assert envelope["error_code"] == "DESIGN_STATUS_EVENT_LOG_UNREADABLE"
+    # Never silently reported as "tasks/ unfinalized" (current_phase: "plan")
+    # -- the failure envelope carries no current_phase field at all.
+    assert "current_phase" not in envelope["data"]
