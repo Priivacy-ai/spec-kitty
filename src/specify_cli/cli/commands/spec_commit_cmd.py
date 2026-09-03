@@ -7,15 +7,14 @@ command (which is mission-blind), this command derives the mission slug from a
 boundary, and routes the commit through
 :func:`~specify_cli.coordination.commit_router.commit_for_mission`.
 
-On a protected primary the coordination worktree is materialised on demand
-(the same canonical ``CoordinationWorkspace.resolve()`` path used by the
-planning loop), so the spec commit lands on the coordination branch instead of
-tripping the guard (materialize-then-retry).
+SPEC is a PRIMARY/planning artifact, so it lands on the mission's primary
+target branch for every topology and NEVER routes through coordination
+(write-surface-coherence WP02/WP03). On a PROTECTED primary the commit is
+therefore refused — not silently transited to a coord worktree — with the two
+real remedies: create/check out a non-protected feature branch, or set the
+``SPEC_KITTY_ALLOW_PROTECTED_BRANCH_COMMITS`` operator hatch (#2739 B01).
 
 Design basis: WP02 / IC-02 / ADR ``2026-06-21-1``.
-
-C-001: reuses the canonical materialiser, no new materialiser.
-#1718: materialisation happens at this commit boundary, not at read time.
 """
 
 from __future__ import annotations
@@ -32,6 +31,25 @@ from specify_cli.coordination.commit_router import CommitRouterResult, commit_fo
 from specify_cli.core.constants import KITTY_SPECS_DIR
 from specify_cli.git.protection_policy import ProtectionPolicy
 from specify_cli.task_utils import find_repo_root
+
+
+# ---------------------------------------------------------------------------
+# Remedy vocabulary (#2739 B01)
+# ---------------------------------------------------------------------------
+#
+# A primary/planning artifact NEVER routes to coordination, so the retired
+# "materialise the coordination worktree and retry" hint can never succeed. The
+# TWO real remedies for a protected-primary refusal are named once here and
+# reused by the runtime refusal handler (the ``--help`` docstring restates them
+# literally — a docstring cannot interpolate a constant).
+_ENV_HATCH = "SPEC_KITTY_ALLOW_PROTECTED_BRANCH_COMMITS"
+_PROTECTED_PRIMARY_REMEDIES = (
+    "Two remedies:\n"
+    "  1. Create or check out a non-protected feature branch and commit there: "
+    "'spec-kitty agent mission create --start-branch <feature-branch>'.\n"
+    f"  2. Allow the commit on the current (protected) branch by setting "
+    f"{_ENV_HATCH}=1."
+)
 
 
 # ---------------------------------------------------------------------------
@@ -74,6 +92,7 @@ def _payload(
     commit_hash: str | None = None,
     error: str | None = None,
     diagnostic: str | None = None,
+    reason: str | None = None,
 ) -> dict[str, object]:
     result: dict[str, object] = {
         "result": "success" if success else "error",
@@ -88,6 +107,8 @@ def _payload(
         result["error"] = error
     if diagnostic is not None:
         result["diagnostic"] = diagnostic
+    if reason is not None:
+        result["reason"] = reason
     return result
 
 
@@ -126,9 +147,15 @@ def spec_commit_command(
 ) -> None:
     """Commit spec artifacts to the mission's resolved placement.
 
-    On a protected primary the coordination worktree is materialised on demand
-    so the commit lands on the coordination branch (materialize-then-retry).
-    On an unprotected or flattened primary the commit is direct.
+    SPEC is a primary/planning artifact: it lands on the mission's primary target
+    branch for every topology. On an unprotected or flattened primary the commit
+    is direct. On a PROTECTED primary the commit is refused (there is no fallback
+    surface); recover by either creating/checking out a non-protected feature
+    branch ('spec-kitty agent mission create --start-branch <feature-branch>') or
+    setting SPEC_KITTY_ALLOW_PROTECTED_BRANCH_COMMITS=1 to commit on the current
+    branch.
+
+    Pass individual FILES, not directories.
     """
     try:
         repo_root = _current_repo_root()
@@ -137,6 +164,22 @@ def spec_commit_command(
         abs_files: list[Path] = []
         for f in files:
             abs_files.append((repo_root / f).resolve() if not f.is_absolute() else f.resolve())
+
+        # #2739 B11: reject directory arguments early with a clear, files-only
+        # message. git stages a directory's files, but the safe-commit backstop
+        # compares literally against the requested path (the directory), so a
+        # directory arg would otherwise abort with the opaque "staging area
+        # contains unexpected paths" error. Fail fast with actionable guidance.
+        directory_args = [f for f in abs_files if f.is_dir()]
+        if directory_args:
+            listed = ", ".join(str(d) for d in directory_args)
+            _err(
+                json_output,
+                "spec-commit takes individual file paths, not directories. "
+                f"Received director{'ies' if len(directory_args) > 1 else 'y'}: "
+                f"{listed}. Pass the specific files to commit instead.",
+            )
+            raise typer.Exit(1)
 
         # Derive mission slug.
         first_path_arg = str(files[0]) if files else None
@@ -183,24 +226,25 @@ def spec_commit_command(
                     console.print(f"[dim]Commit: {result.commit_hash[:7]}[/dim]")
 
         elif result.status == "unchanged":
-            payload = _payload(success=True, committed=False, placement_ref=result.placement_ref)
+            # #2739 B03: a committed:false success must carry a machine-readable
+            # reason so a caller can tell "nothing to do" from "silently wrong".
+            payload = _payload(
+                success=True,
+                committed=False,
+                placement_ref=result.placement_ref,
+                reason=result.reason or "no_op",
+            )
             if json_output:
                 print(json.dumps(payload, indent=2))
             else:
                 console.print("[dim]Spec artifact(s) unchanged, no commit needed[/dim]")
 
         elif result.status == "no_op_wrong_surface":
-            # T008: actionable refusal — tell the operator what happened and how to recover.
-            recovery_cmd = (
-                f"spec-kitty spec-commit --mission {mission_slug} "
-                f"-m '{message}' <files>"
-            )
+            # T008 / #2739 B01: actionable refusal. A primary/planning artifact
+            # never routes to coordination, so the retired coord-worktree retry
+            # hint is un-followable — surface the TWO real remedies instead.
             diag = result.diagnostic or "Artifact absent at resolved placement."
-            actionable = (
-                f"{diag}\n"
-                f"To retry after materialising the coordination worktree, run:\n"
-                f"  {recovery_cmd}"
-            )
+            actionable = f"{diag}\n{_PROTECTED_PRIMARY_REMEDIES}"
             payload = _payload(
                 success=False,
                 error=actionable,
