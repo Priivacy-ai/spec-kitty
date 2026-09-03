@@ -9,6 +9,9 @@
   "purpose_context": "This mission advances Custom mission types are second-class citizens on fix/custom-mission-type-second-class-3830 so stakeholders can track the work from mission creation onward.",
   "purpose_tldr": "Custom mission types are second-class citizens",
   "slug": "custom-mission-type-second-class-citizens-01M1FQXD",
+  "status_phase": "1",
   "target_branch": "fix/custom-mission-type-second-class-3830",
-  "topology": "single_branch"
+  "topology": "single_branch",
+  "vcs": "git",
+  "vcs_locked_at": "2026-09-02T11:23:36.942073+00:00"
 }
