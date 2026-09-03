@@ -1,0 +1,14 @@
+{
+  "created_at": "2026-09-03T08:41:09.186065+00:00",
+  "flattened": false,
+  "friendly_name": "SPDD/REASONS activation split-brain",
+  "mission_id": "01M1K6VNA08KVJQ1C32JB639XE",
+  "mission_number": null,
+  "mission_slug": "spdd-reasons-activation-split-brain-01M1K6VN",
+  "mission_type": "software-dev",
+  "purpose_context": "This mission advances SPDD/REASONS activation split-brain on fix/spdd-reasons-activation-split-brain-3838 so stakeholders can track the work from mission creation onward.",
+  "purpose_tldr": "SPDD/REASONS activation split-brain",
+  "slug": "spdd-reasons-activation-split-brain-01M1K6VN",
+  "target_branch": "fix/spdd-reasons-activation-split-brain-3838",
+  "topology": "single_branch"
+}
