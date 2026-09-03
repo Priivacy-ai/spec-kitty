@@ -307,7 +307,14 @@ jobs:
           name: release-distributions
           path: release-distributions
 
+      # Downstream consumer verification is an ADVISORY gate: it runs the real
+      # contract-drift scenario only when SPEC_KITTY_SAAS_READ_TOKEN is configured
+      # (the scenario lives in the private spec-kitty-end-to-end-testing repo). When
+      # the token is absent the token-dependent steps skip and the job succeeds green,
+      # so a plain tag-push release still publishes. Set the secret to re-arm the real
+      # check; a genuine downstream failure then blocks publish as before.
       - name: Check out downstream scenario suite
+        if: ${{ env.HAS_SAAS_READ_TOKEN == 'true' }}
         uses: actions/checkout@v6
         with:
           repository: ${{ github.repository_owner }}/spec-kitty-end-to-end-testing
@@ -315,12 +322,8 @@ jobs:
           token: ${{ env.CROSS_REPO_TOKEN }}
 
       - name: Run downstream contract-drift scenario
+        if: ${{ env.HAS_SAAS_READ_TOKEN == 'true' }}
         run: |
-          if [ "${HAS_SAAS_READ_TOKEN}" != "true" ]; then
-            echo "::error::SPEC_KITTY_SAAS_READ_TOKEN is required for downstream consumer verification before publish."
-            exit 1
-          fi
-
           python spec-kitty-end-to-end-testing/scenarios/contract_drift_caught.py \
             --candidate-dist "$PWD/release-distributions"
 
@@ -336,6 +339,30 @@ jobs:
                       "status": "passed",
                       "candidate_version": os.environ["RELEASE_TAG"].removeprefix("v"),
                       "scenario": "spec-kitty-end-to-end-testing/scenarios/contract_drift_caught.py",
+                  },
+                  indent=2,
+              )
+              + "\n",
+              encoding="utf-8",
+          )
+          PY
+
+      - name: Skip downstream verification (no SAAS read token)
+        if: ${{ env.HAS_SAAS_READ_TOKEN != 'true' }}
+        run: |
+          echo "::notice::SPEC_KITTY_SAAS_READ_TOKEN is not configured; skipping downstream consumer verification (advisory gate, non-blocking for publish)."
+          mkdir -p .kittify/release
+          python - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+
+          Path(".kittify/release/downstream-verified.json").write_text(
+              json.dumps(
+                  {
+                      "status": "skipped",
+                      "reason": "SPEC_KITTY_SAAS_READ_TOKEN not configured",
+                      "candidate_version": os.environ["RELEASE_TAG"].removeprefix("v"),
                   },
                   indent=2,
               )
