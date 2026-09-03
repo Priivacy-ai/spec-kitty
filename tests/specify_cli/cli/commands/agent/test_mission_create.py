@@ -453,7 +453,21 @@ def test_create_on_primary_branch_still_defaults_to_coord(tmp_path: Path) -> Non
 
 
 def test_create_pr_bound_on_non_primary_branch_still_defaults_to_coord(tmp_path: Path) -> None:
-    """Non-regression: ``--pr-bound`` keeps the ``coord`` default even off the primary branch."""
+    """Tripwire (WP02/#2533): ``--pr-bound`` keeps ``coord`` when the primary TARGET is protected.
+
+    FROZEN — this MUST stay green. The checkout is a non-primary feature branch
+    (``feature/my-fix``) but the primary target resolves to ``main``, which is in
+    the default protected set. ``_resolve_default_topology_phase`` keys
+    ``coord_topology_reachable`` on the **primary-target** protection, NOT the
+    checkout, so ``coord_topology_reachable(pr_bound=True, primary_protected=True,
+    current_is_primary=False)`` is ``True`` → ``coord``.
+
+    If this test FLIPS to ``single_branch`` you keyed on the current checkout
+    (unprotected) instead of the primary target (protected) — that is the bug this
+    tripwire guards against; fix the keying, do not relax the assertion. The
+    complementary "unprotected target → single_branch" case is proven by
+    ``tests/regression/test_coord_topology_no_strand.py``.
+    """
     _init_repo(tmp_path)
 
     runner = CliRunner()
