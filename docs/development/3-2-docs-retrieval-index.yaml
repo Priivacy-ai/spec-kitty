@@ -9489,6 +9489,7 @@ pages:
     abstract: "Operator-facing roadmap for the 3.2.x milestone: the epic dependency spine, degod/unshim wave status, milestone census, exit criteria, and watch items."
     anchors:
     - {slug: "intent-of-3-2-x", text: "Intent of 3.2.x", level: 2}
+    - {slug: "addendum-2026-09-03-3-2-6-release-dag-fully-discharged-3692-closed", text: "Addendum 2026-09-03 — 3.2.6 release DAG fully discharged (#3692 closed)", level: 2}
     - {slug: "addendum-2026-08-12-release-posture-refresh-ci-green-except-the-standing-sonar-backlog", text: "Addendum 2026-08-12 — release-posture refresh (CI green except the standing Sonar backlog)", level: 2}
     - {slug: "addendum-2026-07-30-verified-status-re-read-spine-re-anchoring", text: "Addendum 2026-07-30 — verified status re-read + spine re-anchoring", level: 2}
     - {slug: "addendum-2026-08-01-write-path-topology-scoping-gap-design-spike-3129", text: "Addendum 2026-08-01 — write-path topology scoping gap (design-spike #3129)", level: 2}

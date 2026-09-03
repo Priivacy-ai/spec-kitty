@@ -2,7 +2,7 @@
 title: '3.2.x Executive Overview'
 description: 'Executive/stakeholder synthesis of 3.2.x goals and progress since the 3.2.4 release — from a PO, C-suite, and customer point of view.'
 doc_status: active
-updated: '2026-07-30'
+updated: '2026-09-03'
 related:
 - docs/changelog/3.2.x.md
 - docs/plans/3-2-x-milestone-roadmap.md
@@ -34,7 +34,10 @@ Since 3.2.4 we shipped one full release (3.2.5) and have a rich sixth (3.2.6) in
 has single sources of truth, our governance layer now genuinely drives the product, and
 our doctrine is becoming independently shippable. Two honest caveats: **3.2.6 is not yet
 releasable** (our release gate is red by policy — see [Risk](#release-readiness--risk-candid)),
-and the *remaining* work is small and well-understood rather than open-ended.
+and the *remaining* work is small and well-understood rather than open-ended. *(Update
+2026-09-03: the first caveat has since cleared — 3.2.6's release-blocking bug book is fully
+discharged and the milestone is code-complete; see [Release readiness &
+risk](#release-readiness--risk-candid).)*
 
 ## What 3.2.x is for (in business terms)
 
@@ -90,6 +93,21 @@ to stand alone as an independent package, and the last real gap is making our go
 layer the single, stable entry point that external adopters build against.
 
 ## Release readiness & risk (candid)
+
+> **Update 2026-09-03 — the release-blocking book is now empty.** The 3.2.6 release
+> DAG (tracker #3692) is fully discharged: all twenty release-critical bugs across
+> mission-completion, review-verdict, merge/retention, accept-portability,
+> commit-boundary, upgrade, charter/doctrine, and diagnostic clusters have landed, and
+> #3692 is closed. The milestone stands at 66 closed / 0 remaining work items, and no
+> open PR gates the tag. The "not tag-ready / CI red 10+ runs" posture below was written
+> 2026-07-30 and is **superseded** on the functional axis — the classification question it
+> named resolved in the milestone's favour (see the milestone roadmap's
+> [2026-08-12](3-2-x-milestone-roadmap.md#addendum-2026-08-12--release-posture-refresh-ci-green-except-the-standing-sonar-backlog)
+> and [2026-09-03](3-2-x-milestone-roadmap.md#addendum-2026-09-03--326-release-dag-fully-discharged-3692-closed)
+> addenda). What remains is the standing SonarCloud maintainability backlog, tracked
+> separately as scoped cycle debt, not a release-blocking regression.
+
+*Historical posture (2026-07-30), retained for context:*
 
 - **3.2.6 is not tag-ready.** Our mainline CI has been red for 10+ consecutive runs. This
   is **partly by design** — our policy is that mainline honestly reflects known
