@@ -368,3 +368,18 @@ def test_perf_spy_bounds_from_config_and_bundle_stat_calls(tmp_path: Path) -> No
     assert len(bundle_exists_calls) <= 1
     assert from_config_call_count <= 1
     urn_load_spy.assert_not_called()
+
+
+def test_charter_bundle_path_matches_canonical_bundle_constant() -> None:
+    """Drift guard (second-opinion NOTE): ``empty_charter``'s local bundle-path
+    literal must equal the canonical ``charter.bundle.CHARTER_YAML``. The copy is a
+    deliberate fast-path literal (avoids importing ``charter.bundle``'s pydantic
+    machinery on the hot dispatch net), so this pins the two in sync — a future
+    relocation of ``CHARTER_YAML`` would otherwise silently misfire the
+    generic-fallback net while ``is_charter_empty`` still read the stale path.
+    """
+    from charter.bundle import CHARTER_YAML
+
+    from specify_cli.invocation import empty_charter
+
+    assert empty_charter._CHARTER_BUNDLE_PATH == CHARTER_YAML
