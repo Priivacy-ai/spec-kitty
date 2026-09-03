@@ -254,3 +254,44 @@ Also fixed in the same round: the ownership lookup was first built unconditional
 -- a minimal `_StubGraph` test double that implements only `get_node`, not `.edges`. Gated the lookup
 construction behind `if closure_urns:` so a caller whose closure seed is empty (e.g. an explicit empty
 `project_directives` with no tactics/paradigms) never touches `.edges` at all.
+
+## 8. WP02 follow-on, ruling 2 — the allowlist's "None -> all built-ins" default was bound to a
+hardcoded catalog call, not the graph actually being resolved against
+
+Ruling 1's scope-gate (friction items 5-7) fixed the SEED-side conflation (job 2, the closure walk).
+A second, independent collision remained on the ALLOWLIST side (job 1), which ruling 1 declared
+correct and left untouched -- and correctly so, in isolation: the "None -> all built-ins" semantics
+themselves were never wrong. What was wrong was the SOURCE OF "all built-ins" itself:
+`_load_action_doctrine_bundle` called `load_doctrine_catalog()` -- the real, installed built-in
+catalog, a fixed ~34-directive set independent of whatever graph was actually being resolved
+against. `test_action_doctrine_keys_off_meta_json_not_template_set` (#883) patches
+`load_validated_graph` to return a synthetic mock graph containing a fictional `DIRECTIVE_100`, but
+never mocks where the catalog default comes from -- so the graph is synthetic while the allowlist
+stays real, and the two silently disagree about what "all built-ins" means. This was invisible while
+`project_directives` was always empty (pre-mission); the mission's own re-derivation to a real,
+non-empty catalog default surfaced it. The same root cause independently broke all five tests in
+`tests/charter/test_context_org_chain.py` (a REAL org-pack directive, genuinely merged into the
+graph, but never shipped in the real built-in catalog) -- discovered by the operator running the
+baseline against the TRUE mission base (`4b6b9c6b3`) rather than trusting a comparison against this
+WP's own first commit, which had already introduced the regression from its very first commit and so
+made it look pre-existing.
+
+**Fix**: `_graph_and_catalog_default_ids` -- the "all built-ins" default for one kind is the UNION of
+the real catalog with that kind's own node ids in the ACTIVE (already activation-filtered) merged
+graph, never a bare catalog call and never a pure graph-replaces-catalog swap. The union half matters
+independently of the #883/org-chain fix: WP02's own
+`test_activated_tactics_and_paradigms_absent_widen_to_full_catalog` uses a directive-only mock graph
+with ZERO tactic/paradigm nodes and still requires the full real catalog (124 tactics / 13 paradigms)
+to widen in for those two kinds -- a pure "graph replaces catalog" reading (the ruling's own wording,
+read literally, without checking this WP's own existing tests first) would have broken it. Checked
+this BEFORE implementing, not after: traced the mock graph's exact node set for that test, confirmed
+it carries zero tactic/paradigm nodes, and confirmed empirically (by running the union design) that
+all of WP02's own 9 tests, the new ruling-2 fixture, and the four ruling-2 acceptance signals hold
+simultaneously.
+
+**Baseline-attribution flag for future rounds of this same fix**: comparing a "did I cause this"
+question against your OWN prior commit, rather than the TRUE mission base, silently reclassifies a
+regression you introduced as "pre-existing" the moment you've made a second commit on top of the
+first -- the second commit's baseline check trivially passes against the first commit, which already
+carried the defect. Always diff against the mission's true base commit (here, `4b6b9c6b3`, the commit
+immediately before this mission's own first change), not the tip of your own branch, however recent.
