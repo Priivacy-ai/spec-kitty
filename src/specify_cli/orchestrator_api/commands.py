@@ -130,6 +130,7 @@ if TYPE_CHECKING:
 import typer
 
 from mission_runtime import CommitTarget, MissionTopology
+from runtime.next.decision import VALID_RESULT_VALUES
 from specify_cli.core.contract_gate import is_allowed_error_code, validate_outbound_payload
 from specify_cli.core.errors import PlacementResolutionRequired
 from specify_cli.mission_metadata import resolve_mission_identity
@@ -3329,16 +3330,13 @@ _HELP_ANSWER_DECISION_ID = (
     "and exactly one decision is pending)"
 )
 
-# Mirrors the host CLI's own ``_VALID_RESULTS`` verbatim (``next_cmd.py:53``).
-# Kept as an independent literal (not imported from ``next_cmd``) matching
-# this WP's own established pattern of shaping its own validation rather
-# than reusing CLI-layer presentation helpers (see
-# ``_validate_rationale_or_fail``'s docstring, WP05-001) -- the host CLI
-# itself already carries a second, independent definition of this same set
-# (``runtime.next._internal_runtime.engine.ResultType``), so a third
-# independent literal here is consistent with, not a new instance of, that
-# existing duplication.
-_VALID_ANSWER_RESULTS: tuple[str, ...] = ("success", "failed", "blocked")
+# Single canonical source, shared with the host CLI's own
+# ``next_cmd._VALID_RESULTS`` (``next_cmd.py:51``) and mirroring
+# ``runtime.next._internal_runtime.engine.ResultType``: both CLI-facing
+# validators import ``VALID_RESULT_VALUES`` from ``runtime.next.decision``
+# instead of each keeping an independent literal copy (fold-in review
+# finding: this was previously a THIRD independent copy of the same enum).
+_VALID_ANSWER_RESULTS: tuple[str, ...] = VALID_RESULT_VALUES
 
 
 def _validate_answer_result_or_fail(cmd: str, result: str) -> None:

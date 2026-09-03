@@ -48,9 +48,8 @@ from specify_cli.core.paths import (
     locate_project_root,
 )
 from runtime.next._runtime_pkg_notice import maybe_emit_runtime_pkg_notice
+from runtime.next.decision import VALID_RESULT_VALUES as _VALID_RESULTS
 
-
-_VALID_RESULTS = ("success", "failed", "blocked")
 _Command = TypeVar("_Command", bound=Callable[..., Any])
 
 
