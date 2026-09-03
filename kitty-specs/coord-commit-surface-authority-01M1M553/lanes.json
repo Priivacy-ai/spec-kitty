@@ -1,0 +1,88 @@
+{
+  "version": 1,
+  "mission_slug": "coord-commit-surface-authority-01M1M553",
+  "mission_id": "01M1M553KBAKPAZPXVN89TDAZD",
+  "mission_branch": "kitty/mission-coord-commit-surface-authority-01M1M553",
+  "target_branch": "fix/coord-commit-surface-authority",
+  "lanes": [
+    {
+      "lane_id": "lane-a",
+      "wp_ids": [
+        "WP01"
+      ],
+      "write_scope": [
+        "src/specify_cli/coordination/surface_authority.py",
+        "tests/coordination/test_surface_authority.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-b",
+      "wp_ids": [
+        "WP02"
+      ],
+      "write_scope": [
+        "src/specify_cli/cli/commands/agent/mission_create.py",
+        "src/specify_cli/core/mission_creation.py",
+        "tests/regression/test_coord_topology_no_strand.py",
+        "tests/specify_cli/cli/commands/agent/test_mission_create.py"
+      ],
+      "predicted_surfaces": [
+        "api"
+      ],
+      "depends_on_lanes": [
+        "lane-a"
+      ],
+      "parallel_group": 1
+    },
+    {
+      "lane_id": "lane-c",
+      "wp_ids": [
+        "WP03"
+      ],
+      "write_scope": [
+        "src/specify_cli/cli/commands/agent/tasks_map_requirements.py",
+        "src/specify_cli/cli/commands/agent/tasks_mark_status.py",
+        "src/specify_cli/cli/commands/agent/tasks_move_task.py",
+        "src/specify_cli/cli/commands/agent/tasks_shared.py",
+        "tests/specify_cli/cli/commands/agent/test_tasks_surface_authority.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering"
+      ],
+      "depends_on_lanes": [
+        "lane-a"
+      ],
+      "parallel_group": 1
+    },
+    {
+      "lane_id": "lane-d",
+      "wp_ids": [
+        "WP04"
+      ],
+      "write_scope": [
+        "src/specify_cli/coordination/commit_router.py",
+        "tests/coordination/test_commit_router_fail_loud.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "workspace"
+      ],
+      "depends_on_lanes": [
+        "lane-a"
+      ],
+      "parallel_group": 1
+    }
+  ],
+  "computed_at": "2026-09-03T18:07:33.886223+00:00",
+  "computed_from": "dependency_graph+ownership",
+  "planning_artifact_wps": [],
+  "planning_commit_sha": "3a6c59a1ba7d92ed254b25fd248c535e12910dbe"
+}

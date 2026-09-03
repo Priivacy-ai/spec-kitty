@@ -1,0 +1,18 @@
+id,decision,finding,method,evidence_ref,verdict
+E-001,D-001,pr_bound short-circuits topology to COORD before the primary-branch check; protection/start-branch never consulted,code-trace,src/specify_cli/cli/commands/agent/mission_create.py:373-401,confirmed
+E-002,D-001,coord worktree path and branch derived per-mission from slug+mid8 of the mission's own meta.json,code-trace,src/specify_cli/coordination/commit_router.py:257-292;coordination/workspace.py:204-228,confirmed
+E-003,D-001,no single helper maps {topology,protected-primary,start/current-branch} to surface+skip/refuse verdict,code-trace+grep,tasks_shared.py:317-373;tasks_transition_core.py,confirmed
+E-004,D-002,protected-main coord spec-commit refuses exit 1 with real remedy; no false success,black-box-repro,temp repo b16repro (main primary),confirmed-no-repro
+E-005,D-002,unprotected-trunk coord spec-commit lands on primary (committed:true,placement_ref:trunk); writes correctly attributed,black-box-repro,temp repo b16repro2 (trunk primary),confirmed
+E-006,D-002,coord branches are stranded labels; BB's label sits on the Add-meta-AA trunk commit (appearance of contamination; no misrouted write),black-box-repro,git graph b16repro2 (sk init/Add meta AA/Add meta BB/coord writes),confirmed
+E-007,D-002,B16-clause-2 as filed (misrouted write/false success/cross-contaminated writes) does not reproduce; folds into #2533,synthesis,E-004+E-005+E-006,resolved-no-repro
+E-008,D-002,residual hazard: _resolve_mid8 returns None -> silent primary fallback (missing/short meta.json); distinct from B16-c2,code-trace,src/specify_cli/coordination/commit_router.py:700-701;722-741,confirmed
+E-009,D-003,move-task skips (exit 0) via not-skip gate on the refusal,code-trace,tasks_move_task.py:388-414;tasks_transition_core.py:412-414,confirmed
+E-010,D-003,map-requirements refuses (exit 1) with no skip pre-gate,code-trace,tasks_map_requirements.py:199-206,confirmed
+E-011,D-003,(SUPERSEDED by E-012) initial mis-read: mark-status "swallows failure as warning"; the warn path _ms_commit is actually dead in the flow,code-trace,tasks_mark_status.py:147-172;216-246,superseded
+E-012,D-003,mark-status _ms_commit is DEAD in flow (_do_mark_status never calls it; only tasks.py:814 compat-shim + 2 unit tests) — event-log-only since #2816,source-adjudication,tasks_mark_status.py:421-459 vs :216-246,confirmed
+E-013,D-003,move-task skip is CORRECT coord deferral not a drop (coord status transition authoritative; suppresses commit protection would refuse),code-trace,tasks_shared.py:353-373 docstring,confirmed
+E-014,D-001,helper must live in coordination/ not cli/ (coordination never imports cli; grep empty) — else coordination->cli inversion,squad-architect+implementer,src/specify_cli/coordination/*,confirmed
+E-015,D-002,DD-2 must key on primary-TARGET protection; tripwire test locks pr-bound-on-feature-branch(target=main)->coord,squad-architect,tests/specify_cli/cli/commands/agent/test_mission_create.py:455,confirmed
+E-016,D-004,DD-3 covers only 1 of ~4 silent primary-fallback sites in commit_router,squad-debugger+implementer+reviewer,commit_router.py:700-711;939-954,confirmed
+E-017,D-001,golden ledger must add genuine-no-op->exit-0 rows + map no_op_wrong_surface->Refuse,squad-debugger+reviewer,contracts/authoritative-surface.md ledger,confirmed
