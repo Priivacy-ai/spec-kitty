@@ -310,6 +310,86 @@ def test_resolve_decision_marks_resolved_and_persists(tmp_path: Path) -> None:
 
 
 # ---------------------------------------------------------------------------
+# Fold-in review finding -- resolve-decision rejects an empty/whitespace-only
+# --final-answer BEFORE the ledger is ever mutated, mirroring the WP05-001
+# emptiness rejection defer-decision/cancel-decision already get for
+# --rationale (see the WP05-001 block below). Fixed at the SHARED
+# ``decisions/service.py.resolve_decision`` authority both this verb and the
+# host CLI's ``spec-kitty agent decision resolve`` subcommand call directly,
+# so parity holds by construction rather than by duplicated per-caller
+# guards.
+# ---------------------------------------------------------------------------
+
+
+def test_resolve_decision_empty_final_answer_rejected_no_ledger_mutation(tmp_path: Path) -> None:
+    repo = _init_repo(tmp_path)
+    mission_slug, feature_dir = _build_mission(repo, "resolve-empty-final-answer")
+    opened = _open_decision(repo, mission_slug)
+    decision_id = opened["data"]["decision_id"]
+
+    result = _run(
+        repo,
+        [
+            "resolve-decision",
+            "--mission",
+            mission_slug,
+            "--decision-id",
+            decision_id,
+            "--final-answer",
+            "",
+            "--actor",
+            "test-agent",
+            "--policy",
+            _POLICY,
+        ],
+    )
+    envelope = _envelope(result)
+
+    assert envelope["success"] is False, envelope
+    assert envelope["error_code"] == "DECISION_MISSING_STEP_OR_SLOT"
+
+    index = _read_index(feature_dir)
+    entry = _entry_for(index, decision_id)
+    assert entry["status"] == "open"
+    assert entry["final_answer"] is None
+
+
+def test_resolve_decision_whitespace_only_final_answer_rejected_no_ledger_mutation(
+    tmp_path: Path,
+) -> None:
+    repo = _init_repo(tmp_path)
+    mission_slug, feature_dir = _build_mission(repo, "resolve-ws-final-answer")
+    opened = _open_decision(repo, mission_slug)
+    decision_id = opened["data"]["decision_id"]
+
+    result = _run(
+        repo,
+        [
+            "resolve-decision",
+            "--mission",
+            mission_slug,
+            "--decision-id",
+            decision_id,
+            "--final-answer",
+            "   ",
+            "--actor",
+            "test-agent",
+            "--policy",
+            _POLICY,
+        ],
+    )
+    envelope = _envelope(result)
+
+    assert envelope["success"] is False, envelope
+    assert envelope["error_code"] == "DECISION_MISSING_STEP_OR_SLOT"
+
+    index = _read_index(feature_dir)
+    entry = _entry_for(index, decision_id)
+    assert entry["status"] == "open"
+    assert entry["final_answer"] is None
+
+
+# ---------------------------------------------------------------------------
 # Acceptance Scenario 3 -- defer-decision / cancel-decision
 # ---------------------------------------------------------------------------
 
