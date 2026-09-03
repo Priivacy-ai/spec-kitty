@@ -2,7 +2,9 @@
 
 from __future__ import annotations
 
+import json
 from pathlib import Path
+from typing import Any
 
 import typer
 from specify_cli.cli.console import CliConsole
@@ -15,6 +17,7 @@ from charter.activation.pack_manager import AvailableArtifact, CharterPackManage
 from charter.resolution import ResolutionTier
 from charter.template_catalog import TemplateRef, TierRoot, discover_templates
 
+from specify_cli.cli.commands.charter._common import _emit_error
 from specify_cli.cli.commands.charter._layer_roots import resolve_layer_roots
 
 __all__ = ["charter_list_app"]
@@ -147,6 +150,18 @@ def list_cmd(
             "template kind. Supersedes --show-available."
         ),
     ),
+    json_output: bool = typer.Option(
+        False,
+        "--json",
+        help=(
+            "Output JSON. Every kind row always carries an 'available' key "
+            "and the payload always carries a top-level 'templates' key — "
+            "both are null unless requested (available: null without "
+            "--show-available/--all; templates: null without --all) rather "
+            "than absent, so callers can rely on key presence and branch on "
+            "the value instead of on which flags were passed."
+        ),
+    ),
     repo_root: Path = typer.Option(Path("."), hidden=True),
 ) -> None:
     """List activated doctrine artifacts for each charter kind.
@@ -156,6 +171,19 @@ def list_cmd(
     layer — and appends the mission-scoped ``template`` kind (FR-025). Org and
     project doctrine roots are resolved here (in ``specify_cli``) and passed to
     the lower layers as data (C-008).
+
+    ``--json`` emits the same rows the human table shows, reusing the exact
+    same ``CharterPackManager`` / ``discover_templates`` calls rather than
+    re-deriving anything. Errors reuse the shared ``_emit_error`` envelope
+    (``{"result": "error", "success": false, "error": message}``).
+
+    Key presence is unconditional (OP-CONTRACT-003): each row in
+    ``payload["kinds"]`` always carries an ``available`` key, and
+    ``payload`` always carries a top-level ``templates`` key. Both are
+    ``null`` — never absent — when the corresponding flag wasn't passed
+    (``available`` needs ``--show-available``/``--all``; ``templates`` needs
+    ``--all``), mirroring the existing ``activated: null`` "not applicable"
+    convention used for the all-built-ins state.
     """
     # --all implies and supersedes --show-available (it is a richer, layer-aware
     # availability view).
@@ -176,6 +204,10 @@ def list_cmd(
         header = "Available (all layers)" if all_layers else "Available (not activated)"
         table.add_column(header, style="dim")
 
+    # ``--json`` rows mirror the table rows exactly, built from the same
+    # manager calls in the same loop -- serialization, not re-derivation.
+    json_rows: list[dict[str, Any]] = []
+
     for kind in _KIND_ORDER:
         value = activated_map.get(kind)
         if value is None:
@@ -184,6 +216,15 @@ def list_cmd(
             activated_str = "[yellow](Nothing activated — explicit restriction)[/yellow]"
         else:
             activated_str = ", ".join(sorted(value))
+
+        json_row: dict[str, Any] = {
+            "kind": kind,
+            "activated": sorted(value) if value is not None else None,
+            # OP-CONTRACT-003: always present, not conditionally absent --
+            # null (not merely unset) when --show-available/--all wasn't
+            # passed, so callers can rely on key presence.
+            "available": None,
+        }
 
         if show_available:
             activated_set = value or frozenset()
@@ -205,18 +246,42 @@ def list_cmd(
                         ctx, kind, layer_roots=layer_roots
                     )
                 except ValueError as exc:
-                    console.print(f"[red]Error:[/red] {exc}")
+                    _emit_error(console, json_output=json_output, message=str(exc))
                     raise typer.Exit(1) from exc
                 available_str = _render_available(entries, activated_set)
+                not_activated_entries = sorted(
+                    (
+                        (e.artifact_id, e.layer)
+                        for e in entries
+                        if e.artifact_id not in activated_set
+                    ),
+                    key=lambda pair: (pair[0], pair[1]),
+                )
+                json_row["available"] = [
+                    {"artifact_id": aid, "layer": layer}
+                    for aid, layer in not_activated_entries
+                ]
             else:
                 available = manager.list_available(ctx, kind)
                 not_activated = sorted(available - activated_set) if available else []
                 available_str = (
                     ", ".join(not_activated) if not_activated else "[dim]—[/dim]"
                 )
+                json_row["available"] = not_activated
             table.add_row(kind, activated_str, available_str)
         else:
             table.add_row(kind, activated_str)
+
+        json_rows.append(json_row)
+
+    # OP-CONTRACT-003: "templates" is always present, not conditionally
+    # absent -- null (not merely unset) without --all, so callers can rely
+    # on key presence.
+    payload: dict[str, Any] = {
+        "result": "success",
+        "kinds": json_rows,
+        "templates": None,
+    }
 
     # FR-025: the template kind is mission-scoped and has no activation list, so
     # it only appears in the layer-aware (--all) availability view.
@@ -228,6 +293,19 @@ def list_cmd(
             "[dim](mission-scoped — not separately activated)[/dim]",
             _render_templates(template_refs),
         )
+        payload["templates"] = [
+            {
+                "template_id": ref.template_id,
+                "mission": ref.mission,
+                "name": ref.name,
+                "tier": ref.tier.value,
+            }
+            for ref in template_refs
+        ]
+
+    if json_output:
+        print(json.dumps(payload, indent=2))
+        return
 
     # The layer-aware view is intentionally wide (IDs + per-layer tags); render
     # it at a generous fixed width so artifact IDs are never word-wrapped into
