@@ -174,6 +174,7 @@ class TestRunRetrospectivePostcondition:
             feature_dir=feature_dir,
             repo_root=tmp_path,
             block_on_failure=False,
+            provenance_kind="runtime_post_completion",
         )
 
     def test_mission_id_resolved_from_meta_json(self, tmp_path: Path) -> None:
