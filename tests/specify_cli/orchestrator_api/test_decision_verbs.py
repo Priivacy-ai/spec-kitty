@@ -343,6 +343,217 @@ def test_cancel_decision_marks_canceled_and_persists(tmp_path: Path) -> None:
 
 
 # ---------------------------------------------------------------------------
+# WP05-001 (review finding, severity 3) -- defer-decision/cancel-decision
+# reject an empty/whitespace-only --rationale BEFORE the service layer is
+# ever called, mirroring the host CLI's own cmd_defer/cmd_cancel guard
+# (decision.py:341-348/391-398) verbatim. Pre-fix this silently succeeded
+# and persisted the empty rationale to the ledger -- these negative-path
+# tests assert BOTH the structured rejection AND that no ledger mutation
+# occurs (the decision stays "open", never advances to a terminal status).
+# ---------------------------------------------------------------------------
+
+
+def test_defer_decision_empty_rationale_rejected_no_ledger_mutation(tmp_path: Path) -> None:
+    repo = _init_repo(tmp_path)
+    mission_slug, feature_dir = _build_mission(repo, "wp05-001-defer-empty")
+    opened = _open_decision(repo, mission_slug)
+    decision_id = opened["data"]["decision_id"]
+
+    result = _run(
+        repo,
+        [
+            "defer-decision",
+            "--mission",
+            mission_slug,
+            "--decision-id",
+            decision_id,
+            "--rationale",
+            "",
+            "--actor",
+            "test-agent",
+            "--policy",
+            _POLICY,
+        ],
+    )
+    envelope = _envelope(result)
+
+    assert envelope["success"] is False, envelope
+    assert envelope["error_code"] == "DECISION_MISSING_STEP_OR_SLOT"
+
+    index = _read_index(feature_dir)
+    entry = _entry_for(index, decision_id)
+    assert entry["status"] == "open"
+    assert entry["rationale"] is None
+
+
+def test_defer_decision_whitespace_only_rationale_rejected_no_ledger_mutation(
+    tmp_path: Path,
+) -> None:
+    repo = _init_repo(tmp_path)
+    mission_slug, feature_dir = _build_mission(repo, "wp05-001-defer-ws")
+    opened = _open_decision(repo, mission_slug)
+    decision_id = opened["data"]["decision_id"]
+
+    result = _run(
+        repo,
+        [
+            "defer-decision",
+            "--mission",
+            mission_slug,
+            "--decision-id",
+            decision_id,
+            "--rationale",
+            "   ",
+            "--actor",
+            "test-agent",
+            "--policy",
+            _POLICY,
+        ],
+    )
+    envelope = _envelope(result)
+
+    assert envelope["success"] is False, envelope
+    assert envelope["error_code"] == "DECISION_MISSING_STEP_OR_SLOT"
+
+    index = _read_index(feature_dir)
+    entry = _entry_for(index, decision_id)
+    assert entry["status"] == "open"
+    assert entry["rationale"] is None
+
+
+def test_cancel_decision_empty_rationale_rejected_no_ledger_mutation(tmp_path: Path) -> None:
+    repo = _init_repo(tmp_path)
+    mission_slug, feature_dir = _build_mission(repo, "wp05-001-cancel-empty")
+    opened = _open_decision(repo, mission_slug)
+    decision_id = opened["data"]["decision_id"]
+
+    result = _run(
+        repo,
+        [
+            "cancel-decision",
+            "--mission",
+            mission_slug,
+            "--decision-id",
+            decision_id,
+            "--rationale",
+            "",
+            "--actor",
+            "test-agent",
+            "--policy",
+            _POLICY,
+        ],
+    )
+    envelope = _envelope(result)
+
+    assert envelope["success"] is False, envelope
+    assert envelope["error_code"] == "DECISION_MISSING_STEP_OR_SLOT"
+
+    index = _read_index(feature_dir)
+    entry = _entry_for(index, decision_id)
+    assert entry["status"] == "open"
+    assert entry["rationale"] is None
+
+
+def test_cancel_decision_whitespace_only_rationale_rejected_no_ledger_mutation(
+    tmp_path: Path,
+) -> None:
+    repo = _init_repo(tmp_path)
+    mission_slug, feature_dir = _build_mission(repo, "wp05-001-cancel-ws")
+    opened = _open_decision(repo, mission_slug)
+    decision_id = opened["data"]["decision_id"]
+
+    result = _run(
+        repo,
+        [
+            "cancel-decision",
+            "--mission",
+            mission_slug,
+            "--decision-id",
+            decision_id,
+            "--rationale",
+            "\t\n  ",
+            "--actor",
+            "test-agent",
+            "--policy",
+            _POLICY,
+        ],
+    )
+    envelope = _envelope(result)
+
+    assert envelope["success"] is False, envelope
+    assert envelope["error_code"] == "DECISION_MISSING_STEP_OR_SLOT"
+
+    index = _read_index(feature_dir)
+    entry = _entry_for(index, decision_id)
+    assert entry["status"] == "open"
+    assert entry["rationale"] is None
+
+
+# ---------------------------------------------------------------------------
+# WP05-002 (review finding, severity 1) -- DECISION_NOT_FOUND coverage for
+# defer-decision/cancel-decision (previously exercised only via
+# resolve-decision, though the wiring is identical -- documents parity in
+# the test suite rather than relying on code-reading to infer it).
+# ---------------------------------------------------------------------------
+
+
+def test_defer_decision_nonexistent_decision_id_is_structured_not_bare(
+    tmp_path: Path,
+) -> None:
+    repo = _init_repo(tmp_path)
+    mission_slug, _feature_dir = _build_mission(repo, "wp05-002-defer-not-found")
+
+    result = _run(
+        repo,
+        [
+            "defer-decision",
+            "--mission",
+            mission_slug,
+            "--decision-id",
+            "01ARZ3NDEKTSV4RRFFQ69G5FAV",
+            "--rationale",
+            "need more info",
+            "--actor",
+            "test-agent",
+            "--policy",
+            _POLICY,
+        ],
+    )
+    envelope = _envelope(result)
+
+    assert envelope["success"] is False, envelope
+    assert envelope["error_code"] == "DECISION_NOT_FOUND"
+
+
+def test_cancel_decision_nonexistent_decision_id_is_structured_not_bare(
+    tmp_path: Path,
+) -> None:
+    repo = _init_repo(tmp_path)
+    mission_slug, _feature_dir = _build_mission(repo, "wp05-002-cancel-not-found")
+
+    result = _run(
+        repo,
+        [
+            "cancel-decision",
+            "--mission",
+            mission_slug,
+            "--decision-id",
+            "01ARZ3NDEKTSV4RRFFQ69G5FAV",
+            "--rationale",
+            "no longer relevant",
+            "--actor",
+            "test-agent",
+            "--policy",
+            _POLICY,
+        ],
+    )
+    envelope = _envelope(result)
+
+    assert envelope["success"] is False, envelope
+    assert envelope["error_code"] == "DECISION_NOT_FOUND"
+
+
+# ---------------------------------------------------------------------------
 # Acceptance Scenario 4 -- FR-012: OriginFlow scope guard
 # ---------------------------------------------------------------------------
 
