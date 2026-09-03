@@ -1,0 +1,243 @@
+phase: pr
+step: R3-refute
+findings:
+  - id: PR-BOUNDARY-001
+    verdict: CONFIRMED
+    severity_original: 3
+    severity_final: 3
+    rationale: >
+      Citations check out exactly. Confirmed commands.py:3299 contains
+      `from runtime.next._internal_runtime.engine import _read_snapshot`
+      inside `answer_decision`, and `git diff $(git merge-base main HEAD)..HEAD`
+      shows this import (and the surrounding auto-resolve branch) is new code
+      added by this mission's WP08 commit (b2b99d8a3), not inherited debt.
+      Read `runtime_bridge_engine.py`'s module docstring and
+      `tests/runtime/test_bridge_engine.py`'s `_ENGINE_PLANNER_PRIVATE_NAMES`
+      guard myself: the guard is real and does enumerate `_read_snapshot` as
+      one of the six concentrated names, but its architecture-guard walk is
+      scoped to `src/runtime/next/*.py` only (verified via
+      `_SRC_RUNTIME_NEXT = .../src/runtime/next` in the test file) -- both
+      `commands.py` (orchestrator_api) and `next_cmd.py` (cli/commands) live
+      outside that tree, so neither is caught, exactly as claimed. The
+      three-way pending-decision split (zero/one/many) in commands.py:3316-3335
+      is a verbatim duplicate of next_cmd.py:829-841's own branch. Real,
+      independently-maintained duplication of parity-critical logic; behavior
+      is correct today (mirrors the host CLI exactly), so this is architectural
+      debt/hazard, not a live wrong-behavior bug -- severity 3 (bounded blast
+      radius, unguarded hazard) stands as assigned.
+    evidence: >
+      `git diff $(git merge-base main HEAD)..HEAD -- src/specify_cli/orchestrator_api/commands.py`
+      shows the `from runtime.next._internal_runtime.engine import _read_snapshot`
+      import at (new) line 3299 was added by this mission. `grep -n "_read_snapshot\|_internal_runtime.engine" commands.py`
+      confirms it appears only once (3299) with two call sites (3321, 3343).
+      Read `tests/runtime/test_bridge_engine.py` lines 1-80: architecture guard
+      walks `Path(__file__).resolve().parents[2] / "src" / "runtime" / "next"`
+      only -- commands.py and next_cmd.py are both outside that path.
+  - id: PR-BOUNDARY-002
+    verdict: CONFIRMED
+    severity_original: 2
+    severity_final: 2
+    rationale: >
+      Verified directly: `grep -c "_resolve_mission_dir_or_fail(cmd" commands.py`
+      returns 17 (matches the finding's count), and the docstring at line 459
+      literally reads "Single seam consumed by all 8 read endpoints (avoids 8
+      divergent patches)" (cited range 456-461 is off by ~3 lines from the
+      exact string's line 459, but the text itself matches verbatim). Several
+      of the 17 call sites are genuinely mutating verbs (record-analysis,
+      open/resolve/defer/cancel/answer-decision), not reads, confirming the
+      docstring's "8 read endpoints" framing is both undercounted and
+      miscategorized. This is doc drift with no runtime effect -- cosmetic/
+      consistency issue, severity 2 as assigned.
+    evidence: >
+      `grep -n "_resolve_mission_dir_or_fail(cmd" src/specify_cli/orchestrator_api/commands.py`
+      lists 17 call sites (lines 1301-3609). `grep -n "Single seam consumed by all 8 read endpoints" commands.py`
+      -> line 459, text matches exactly.
+  - id: PR-CONTRACT-001
+    verdict: CONFIRMED
+    severity_original: 3
+    severity_final: 3
+    rationale: >
+      Independently reproduced from my own script (not the finding's own
+      test), driving BOTH surfaces against the identical real on-disk state:
+      built a real mission via the orchestrator-api specify/plan/tasks verbs,
+      dirtied the tree with one untracked file, then called (1) the
+      orchestrator-api `record-analysis` app and (2) the host CLI's own
+      `mission_record_analysis.record_analysis` function directly, both with
+      an empty --input-file. Orchestrator-api returned
+      `RECORD_ANALYSIS_EMPTY_BODY`; the host CLI returned `DIRTY_WORKTREE`
+      with `dirty_paths: ["untracked-dirty-marker.txt"]` -- for the same
+      on-disk state, confirming the ordering fork exactly as claimed. Citations
+      match live code: commands.py's record_analysis body-read/empty-check
+      (line ~2687-2699) and carrier-parse (~2703-2706) genuinely run before
+      placement resolution (~2711-2719) and the dirty-worktree preflight
+      (~2723-2740); the host CLI's mission_record_analysis.py genuinely runs
+      placement + `_enforce_analysis_report_write_preflight` (274-286) before
+      `body = sys.stdin.read()` (291-293).
+      Severity: re-graded and kept at 3, not raised to 4, on the following
+      argument -- in BOTH orderings the operation correctly refuses to write
+      (no data is ever written on a dirty tree with an empty body); this is
+      not a fail-open where fail-closed was specified, and it does not ship a
+      wrong result. The defect is real and exactly the class the ruling's
+      full-lifecycle-parity mandate cares about, and it is the third instance
+      after WP05-001/WP08-001, which argues for urgency -- but its blast
+      radius is bounded to which *error_code* an external orchestrator sees
+      under one specific simultaneous-failure condition (dirty tree AND empty
+      body), not to whether the write is safely refused. That is squarely "a
+      real defect with bounded blast radius... an unguarded hazard" (the rubric's
+      3), not "silently wrong behaviour" (the rubric's 4) -- nothing is silent
+      here, both surfaces loudly refuse and report a real error_code, just a
+      different one.
+    evidence: >
+      Repro script (built a real mission, dirtied tree, empty stdin body via
+      both surfaces): orchestrator-api output
+      `{"success": false, "error_code": "RECORD_ANALYSIS_EMPTY_BODY", ...}`;
+      host CLI output
+      `{"success": false, "error_code": "DIRTY_WORKTREE", "dirty_paths": ["untracked-dirty-marker.txt"], ...}`.
+      Same on-disk state, same call, different first error_code -- live-confirmed.
+  - id: PR-CONTRACT-002
+    verdict: CONFIRMED
+    severity_original: 2
+    severity_final: 2
+    rationale: >
+      Verified `DecisionErrorCode.VERIFY_DRIFT = "DECISION_VERIFY_DRIFT"` at
+      models.py:62 is declared but `grep -n "DecisionErrorCode\." service.py`
+      shows only 6 other members raised (MISSION_NOT_FOUND x3,
+      EVENT_REPAIR_FAILED x4, MISSING_STEP_OR_SLOT, ALREADY_CLOSED,
+      NOT_FOUND, TERMINAL_CONFLICT) -- VERIFY_DRIFT is never raised, confirmed
+      dormant. Confirmed absent from `upstream_contract.json`'s
+      `orchestrator_api.allowed_error_codes` via direct JSON load (also
+      confirmed `forbidden_error_codes` is only `['FEATURE_NOT_FOUND',
+      'FEATURE_NOT_READY']` -- unrelated). Confirmed the four decision verbs'
+      `except DecisionError as exc: _fail(cmd, exc.code.value, str(exc), exc.details)`
+      pattern exists (found at lines 2956, 3019, 3071, 3123 -- note: the
+      finding cites 2938-2945/3000-3007/3057-3064/3109-3116, each ~15-18
+      lines earlier than the real `except` block; the code IS present and
+      matches the claim verbatim, just at drifted line numbers, likely from
+      edits after the finding was authored). Confirmed
+      `tests/contract/test_orchestrator_api.py::TestAllowedErrorCodes::test_literal_failure_codes_are_contract_allowed`
+      uses a regex `_fail\(\s*[^,]+,\s*["\']([A-Z0-9_]+)["\']` that only
+      matches literal string arguments -- `exc.code.value` is a variable
+      expression, so this static check structurally cannot see runtime-
+      propagated decision codes. All correct and currently unreachable/latent
+      -- severity 2 (latent-but-unreachable) as assigned; kept.
+    evidence: >
+      `grep -n "DecisionErrorCode\." src/specify_cli/decisions/service.py`
+      -- no VERIFY_DRIFT hit. `python3 -c "import json; d=json.load(open('src/specify_cli/core/upstream_contract.json'));
+      print(d['orchestrator_api']['allowed_error_codes'])"` does not contain
+      DECISION_VERIFY_DRIFT. `grep -n "except DecisionError as exc:" commands.py`
+      -> 2956, 3019, 3071, 3123 (finding cites 2938/3000/3057/3109, off by
+      ~15-18 lines but same content confirmed present).
+  - id: PR-TESTS-001
+    verdict: CONFIRMED
+    severity_original: 3
+    severity_final: 3
+    rationale: >
+      Confirmed zero coverage across the WHOLE tests/ tree, not just the
+      named file: `grep -rln "PLAN_SETUP_FAILED\|TASKS_FINALIZE_FAILED" tests/`
+      and `grep -rln "MISSION_CREATE_FAILED" tests/` both return no hits
+      anywhere in the repo. Then independently reproduced the uncovered
+      branches myself (not the finding's own test): built a real mission,
+      monkeypatched `specify_cli.cli.commands.agent.mission.setup_plan` and
+      `.finalize_tasks` to raise `typer.Exit(1)` with non-JSON stdout, and
+      called the real `plan`/`tasks` orchestrator-api verbs. Both correctly
+      returned `success: false` with `PLAN_SETUP_FAILED` /
+      `TASKS_FINALIZE_FAILED` respectively -- no crash, no false success.
+      This directly answers the prompt's "verify the unreached branch isn't
+      also wrong": it isn't. Genuine coverage gap, correct production
+      behavior today -- severity 3 (missing regression test on a live path)
+      as assigned; kept.
+    evidence: >
+      Repro output: plan() -> `{"success": false, "error_code": "PLAN_SETUP_FAILED", "data": {"raw_output": "totally not json...", ...}}`;
+      tasks() -> `{"success": false, "error_code": "TASKS_FINALIZE_FAILED", ...}`.
+      Zero-coverage grep across tests/ tree confirmed no hits for either
+      fallback code or MISSION_CREATE_FAILED anywhere.
+  - id: PR-TESTS-002
+    verdict: CONFIRMED
+    severity_original: 3
+    severity_final: 4
+    rationale: >
+      Confirmed the coverage gap: grepped every test file that mentions
+      FEATURE_CONTEXT_UNRESOLVED (14 files) and checked each -- none call the
+      orchestrator-api's `check_prerequisites()`; the only hit close to it
+      (`tests/agent/test_agent_feature.py`) imports `app` from
+      `specify_cli.cli.commands.agent.mission`, i.e. tests the HOST CLI
+      directly, never the orchestrator-api translation. Then I independently
+      reproduced the branch myself: monkeypatched
+      `mission_check_prerequisites.check_prerequisites` to raise
+      `typer.Exit(1)` with a real production-shaped payload
+      (`{"error_code": "FEATURE_CONTEXT_UNRESOLVED", ...}`, matching the exact
+      shape `_build_setup_plan_detection_error` genuinely emits per
+      mission_check_prerequisites.py:425-430) and called the real
+      orchestrator-api `check-prerequisites` verb.
+      RAISING SEVERITY 3->4: this reproduction surfaced a genuine LIVE defect
+      beyond what the finding claimed. The top-level `envelope["error_code"]`
+      IS correctly translated to `MISSION_NOT_FOUND` -- but
+      `_classify_check_prerequisites_error` returns the RAW, untouched
+      delegate `payload` as its third tuple element, which `_fail` spreads
+      verbatim into `data`. Since the raw payload's own key is
+      `"error_code": "FEATURE_CONTEXT_UNRESOLVED"`, that exact forbidden
+      string leaks unmodified into `envelope["data"]["error_code"]` in the
+      SAME response whose top-level error_code was "correctly" translated.
+      This is not hypothetical/future -- it happens on every real
+      FEATURE_CONTEXT_UNRESOLVED delegate failure TODAY. I confirmed no
+      existing check would catch it: `upstream_contract.json`'s
+      `orchestrator_api.forbidden_error_codes` is only
+      `['FEATURE_NOT_FOUND', 'FEATURE_NOT_READY']` (does not even list
+      FEATURE_CONTEXT_UNRESOLVED) and is checked only against the top-level
+      `envelope["error_code"]` in
+      `tests/contract/test_orchestrator_api.py::TestMissionNotFoundError`;
+      `forbidden_payload_fields` (`['feature_slug']`) checks dict KEY names,
+      not values, so a value of "FEATURE_CONTEXT_UNRESOLVED" nested under the
+      legitimate key `error_code` is invisible to it. The function's own
+      docstring says this code "must NEVER cross onto the orchestrator-api
+      surface verbatim (Terminology Canon...)" -- it does, silently, today.
+      That is exactly the rubric-4 bar: silently wrong behaviour on a live
+      code path, not merely an untested one.
+    evidence: >
+      Repro output:
+      `{"success": false, "error_code": "MISSION_NOT_FOUND", "data": {"valid": false, "error_code": "FEATURE_CONTEXT_UNRESOLVED", "error": "simulated feature-context resolution failure", "message": "..."}}`
+      -- top-level error_code correctly says MISSION_NOT_FOUND while
+      data.error_code still literally says FEATURE_CONTEXT_UNRESOLVED.
+      `python3 -c "import json; d=json.load(open('src/specify_cli/core/upstream_contract.json')); print(d['orchestrator_api']['forbidden_error_codes'], d['orchestrator_api']['forbidden_payload_fields'])"`
+      -> `['FEATURE_NOT_FOUND', 'FEATURE_NOT_READY'] ['feature_slug']` --
+      neither would catch this leak. Confirmed the real production payload
+      shape at src/specify_cli/cli/commands/agent/mission_check_prerequisites.py:424-430
+      (`_build_setup_plan_detection_error(..., error_code="FEATURE_CONTEXT_UNRESOLVED", ...)`)
+      matches what I mocked. Not documented as intentional anywhere: grepped
+      spec.md/plan.md/reviews/spec.ruling.md for FEATURE_CONTEXT_UNRESOLVED,
+      no hits.
+  - id: PR-TESTS-003
+    verdict: CONFIRMED
+    severity_original: 3
+    severity_final: 3
+    rationale: >
+      Confirmed zero coverage across the whole tests/ tree for
+      RECORD_ANALYSIS_MALFORMED_CARRIER and PLACEMENT_RESOLUTION_REQUIRED
+      through the orchestrator-api surface: the only other hits
+      (test_record_analysis_placement.py) exercise the HOST CLI's
+      `_require_record_analysis_placement` raising `PlacementResolutionRequired`
+      directly, never the orchestrator-api `record_analysis()` verb's own
+      classify/`_fail` translation of it. Independently reproduced two of the
+      three branches myself (distinct from the finding's own script): (1)
+      clean tree + malformed YAML carrier body -> orchestrator-api correctly
+      returned `RECORD_ANALYSIS_MALFORMED_CARRIER` with the real YAML parse
+      error message; (2) dirty tree + a NON-empty, well-formed body (isolating
+      this from the PR-CONTRACT-001 ordering fork) -> orchestrator-api
+      correctly returned `DIRTY_WORKTREE` with the real dirty_paths list. Both
+      confirm production is correct when these branches ARE reached in
+      isolation. The third (PLACEMENT_RESOLUTION_REQUIRED) I did not drive
+      live but read directly: commands.py's
+      `except PlacementResolutionRequired as exc: _fail(cmd, "PLACEMENT_RESOLUTION_REQUIRED", str(exc), {"mission_slug": mission_slug})`
+      is a trivial typed-exception pass-through matching the exact working
+      pattern I already verified for MALFORMED_CARRIER and DIRTY_WORKTREE, so
+      I have no first-hand basis to doubt it and no reason to raise severity
+      on it. Real, live-path coverage gap; production correct where checked --
+      severity 3 as assigned; kept.
+    evidence: >
+      Repro output: malformed-carrier scenario ->
+      `{"success": false, "error_code": "RECORD_ANALYSIS_MALFORMED_CARRIER", "data": {"message": "Invalid YAML in analysis-findings carrier: ..."}}`;
+      dirty-tree-with-good-body scenario ->
+      `{"success": false, "error_code": "DIRTY_WORKTREE", "data": {"dirty_paths": ["untracked-dirty.txt"], ...}}`.
+      Both driven via a real mission built through the orchestrator-api
+      specify/plan/tasks verbs, not via the finding's own test file.
+complete: true

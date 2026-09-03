@@ -1,0 +1,117 @@
+schema: review-findings/v1
+complete: true
+phase: plan
+lens_group: gov
+mission: design-phase-orchestrator-api-01M1HE6M
+findings:
+  - id: PLAN-GOV-001
+    lens: Campsite scope
+    severity: 3
+    title: "Plan's campsite-clean 'no debt found' claim is contradicted by an existing `# type: ignore` inside one of the three functions WP02 extracts"
+    evidence:
+      - artifact: "plan.md § (g) Campsite-Clean Scope (WP01)"
+      - code: "src/specify_cli/cli/commands/next_cmd.py:424"
+    claim: >
+      plan.md § (g) states, about the exact three functions FR-014/WP02 extracts
+      (`_pair_previous_lifecycle_record`, `_emit_mission_next_invoked`,
+      `_write_issuance_lifecycle_record`): "No lint/type/test debt was found
+      directly IN the three functions being extracted... they are already
+      narrowly scoped, individually documented." This is checkable and false for
+      one of the three: `_pair_previous_lifecycle_record` spans
+      `next_cmd.py:333-429` and contains a live suppression at
+      `next_cmd.py:424` — `phase=phase,  # type: ignore[arg-type]` — inside the
+      `write_paired_completion(...)` call. The plan's own spot-check sentence
+      immediately after ("orchestrator_api/commands.py and envelope.py: both
+      already pass ruff/mypy clean... spot-checked: no # noqa/# type: ignore in
+      the functions...") is explicitly scoped to the OTHER two touched files,
+      not next_cmd.py, so this is not merely an ambiguous phrasing — the
+      next_cmd.py paragraph makes the stronger, and wrong, "no debt found"
+      claim about the three functions specifically. Standing Order #2
+      (campsite cleaning) requires domain-matched debt found directly in
+      functions a WP is about to touch/move to be folded into the opening
+      campsite-clean commit with a one-line rationale; this plan's own
+      diligence pass missed a concrete instance sitting in the exact function
+      WP02 is about to relocate to a new, public, module-level API surface
+      (per plan.md § (a), these functions become "a shared contract, not
+      private `_`-prefixed CLI helpers" — exactly the kind of promotion where
+      an un-investigated type suppression is worth a second look before it
+      becomes public-surface debt).
+    remediation: >
+      Correct plan.md § (g)'s next_cmd.py paragraph to acknowledge the
+      `# type: ignore[arg-type]` at next_cmd.py:424 inside
+      `_pair_previous_lifecycle_record`, and either (a) fold a one-line,
+      behaviour-preserving fix/removal of the suppression into WP01 if the
+      WP01 author's closer read confirms it is addressable, or (b) explicitly
+      record why it is being carried forward unresolved (e.g. genuine mypy
+      false positive on `write_paired_completion`'s `phase` parameter type)
+      so WP02's author does not have to re-discover and re-litigate it while
+      also doing the seam extraction.
+
+  - id: PLAN-GOV-002
+    lens: MISSION-DERIVED LENS — gate-set completeness and correctness
+    severity: 2
+    title: "Gate Set item 10 says the Contextive glossary gate 'does NOT apply', but the CI job's own path filter matches this mission's touched files and the check step will actually run"
+    evidence:
+      - artifact: "plan.md § (e) Gate Set, item 10"
+      - code: ".github/workflows/ci-quality.yml:851-872"
+    claim: >
+      plan.md § (e) item 10 reads: "Contextive glossary — does NOT apply; no
+      new domain terminology (see '(c) Generated Artifacts')." But the actual
+      CI step ("[ENFORCED] Check Contextive glossary files are up-to-date",
+      ci-quality.yml:851) is gated only on whether the diff touches
+      `glossary/**`, `src/specify_cli/**`, `src/charter/**`, or
+      `.kittify/traceability/**` (ci-quality.yml:863-869) — and this mission's
+      own WP breakdown modifies `src/specify_cli/cli/commands/next_cmd.py` and
+      `src/specify_cli/orchestrator_api/{commands.py,envelope.py}`, all under
+      `src/specify_cli/**`. So the check WILL execute (`uv run python
+      scripts/generate_contextive_glossaries.py check`, ci-quality.yml:872),
+      not be skipped — it is functionally expected to pass trivially (the
+      generator's source of truth is `docs/context/*.md` +
+      `.kittify/traceability/contextive-map.yaml`, neither of which this
+      mission touches, per `scripts/generate_contextive_glossaries.py:1-14`),
+      but "does NOT apply" mischaracterizes an active, running enforcement
+      gate as an inapplicable one. This is exactly the distinction the
+      mission-derived lens asks to be checked (gate applicability vs. gate
+      outcome), and it sits next to the plan's correctly-scoped "does NOT
+      apply" claims for items 4/5 (kernel/mission-loader coverage floors,
+      which genuinely are path-scoped away from this mission's files) —
+      making the item-10 wording read as the same category of claim when it
+      is not.
+    remediation: >
+      Reword plan.md § (e) item 10 to: "Contextive glossary check RUNS (this
+      mission's diff matches the `src/specify_cli/**` path filter,
+      ci-quality.yml:863-869) but is expected to pass trivially — the new
+      verb names require no `docs/context/*.md` or
+      `.kittify/traceability/contextive-map.yaml` change (see '(c) Generated
+      Artifacts'), which is what the check actually verifies." This keeps the
+      plan's underlying conclusion (no glossary work needed) but stops a WP09
+      author or reviewer from believing the gate is skipped and therefore
+      not worth watching if a genuinely new domain term slips in later.
+
+  - id: PLAN-GOV-003
+    lens: Scope
+    severity: 1
+    title: "Constitution/Charter Check and Gate Set cite C-001/C-004/C-005 by ID repeatedly but never cite C-002 or C-003 by ID, though both bound this mission's scope"
+    evidence:
+      - artifact: "plan.md § Constitution / Charter Check; § (e) Gate Set; § (l) PR Shape Assessment"
+      - artifact: "spec.md § Constraints, C-002 (no server-side analysis reasoning), C-003 (open/resolve/defer/cancel-decision scope bounded to OriginFlow members)"
+    claim: >
+      spec.md defines five constraints (C-001 through C-005). Plan.md
+      substantively honours C-002 (WP04's `record-analysis`/
+      `check-prerequisites` design only persists/supplies context, adding no
+      reasoning) and C-003 (WP05's table row explicitly names "OriginFlow
+      guard (Mechanism A)", matching C-003's OriginFlow-bounded scope) — but
+      never cites either constraint by its C-002/C-003 ID anywhere in the
+      plan, while C-001, C-004, and C-005 are each named and discussed at
+      length in multiple sections. This asymmetry is a minor traceability gap
+      for a tasks-phase author or reviewer scanning the plan for constraint
+      coverage — it is not a substantive scope violation, since the described
+      technical approach already complies with both constraints.
+    remediation: >
+      Add one line each to the Constitution / Charter Check section
+      explicitly naming C-002 ("record-analysis/check-prerequisites persist
+      and supply context only, no server-side reasoning — PASS") and C-003
+      ("open/resolve/defer/cancel-decision cover exactly the OriginFlow
+      members charter/specify/plan, matching Mechanism A — PASS") so the
+      constraint-to-plan mapping is complete and a later reader does not have
+      to infer compliance from the WP table alone.
