@@ -11,6 +11,7 @@
 ## Rich output (additions/changes)
 
 - Governance capsule unchanged (profile, action, confidence, invocation id, glossary warnings, governance context).
+- ADDED (mission dispatch-dry-run-route-only-01M1HKV2, PR-BOUNDARY-002): when the router considered other candidates, an `Alternatives considered (N):` block lists each losing `RouterDecision` candidate (profile, action, confidence) -- the same `alternatives` list already carried in this command's `--json` envelope (see the JSON section below), now also rendered on the rich-console path. Previously only `--dry-run`'s rich renderer printed this block; this closes that unforced console/JSON asymmetry.
 - REMOVED: `Op record written — commit it: git add kitty-ops/<id>.jsonl`
 - ADDED: close contract block:
   ```

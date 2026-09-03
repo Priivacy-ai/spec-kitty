@@ -672,6 +672,30 @@ def test_dispatch_real_alternatives_nonempty_on_two_candidate_tiebreak(tmp_path:
     assert alt["match_reason"]
 
 
+def test_dispatch_real_alternatives_render_in_rich_console_output(tmp_path: Path) -> None:
+    """PR-BOUNDARY-002 (mission dispatch-dry-run-route-only-01M1HKV2): the real
+    (Op-opening) rich-console path must render ``RouterDecision.alternatives``
+    on a two-candidate tiebreak too, matching what a machine consumer already
+    sees in the same call's ``--json`` envelope (see
+    test_dispatch_real_alternatives_nonempty_on_two_candidate_tiebreak). Before
+    the fix, only the ``--dry-run`` rich renderer printed this block --
+    plain ``spec-kitty dispatch "<request>"`` silently dropped it, an unforced
+    asymmetry the pre-merge squad's structural-coherence lens caught."""
+    project = _setup_project(tmp_path)
+    _write_configured_charter(project)
+    result = _run_with_registry(
+        project,
+        ["dispatch", "implement and gizmo the module"],
+        _tiebreak_registry(),
+    )
+
+    assert result.exit_code == 0, result.output
+    assert "Profile:" in result.output
+    assert "Alternatives considered (1):" in result.output
+    assert "reviewer-fixture" in result.output
+    assert "domain_keyword" in result.output
+
+
 def test_dry_run_without_json_renders_rich_output_not_raw_json(tmp_path: Path) -> None:
     """WP01-002 review finding: --dry-run without --json must render the rich
     console capsule (parity with real dispatch's json_output branch), not
