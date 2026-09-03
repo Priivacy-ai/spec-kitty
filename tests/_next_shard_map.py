@@ -123,6 +123,10 @@ _RUNTIME_SHARD_2_FILES: tuple[str, ...] = (
     "tests/runtime/test_resolver_unit.py",
 )
 _RUNTIME_SHARD_3_FILES: tuple[str, ...] = (
+    # 2026-09-03 (PR #1066 convergence port): upstream's next-committed-state
+    # authority WP01 landed here without its conflicted WP02 sibling, so the
+    # new test file registers now, mirroring upstream's own shard-3 row.
+    "tests/runtime/next/test_committed_authority.py",
     "tests/runtime/test_bootstrap_unit.py",
     "tests/runtime/test_bootstrap_version_fallback.py",
     "tests/runtime/test_bridge_engine.py",
