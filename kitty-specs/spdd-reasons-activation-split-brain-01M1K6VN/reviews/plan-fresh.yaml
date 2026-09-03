@@ -1,0 +1,65 @@
+schema: review-findings/v1
+complete: true
+phase: plan
+lens_group: fresh
+mission: spdd-reasons-activation-split-brain-01M1K6VN
+findings:
+  - id: PLAN-FRESH-001
+    lens: structural-completeness (Debugger Debbie / divergence-mapping)
+    severity: 4
+    title: >
+      The fix round's "ALL consumption sites named" remediation for the three-state
+      project_directives/selected_tactics/selected_paradigms triple only actually names and
+      fixes project_directives; selected_tactics/selected_paradigms carry the identical
+      bare-truthiness idiom and an unguarded iteration site the plan never mentions, one of
+      which will crash with TypeError.
+    evidence:
+      - artifact: "plan.md § (a) item 3, \"Chosen shape\": \"branch on `activated_directives is None` **once**, at the point in `action_doctrine_bundle.py` where `project_directives` is assigned ... and convert `None` to a concrete value there ... **before** the value is ever iterated — never let `None` reach `start_urns`'s comprehension, the exclusion guard, or `roots`'s construction as a live sentinel.\" — this conversion commitment is stated only for `project_directives`/`activated_directives`; `selected_tactics`/`selected_paradigms` are never named as needing the same early-conversion treatment anywhere in section (a)."
+      - artifact: "plan.md § (m) design-commitment table row for `delivery_table.py`/`action_doctrine_bundle.py` claims: \"Returns the `activated_*`-derived set (three-state preserved) unioned with org-required ids\" for `project_directives`/`selected_tactics`/`selected_paradigms` together (row is keyed to all three), and states `None` is \"converted to a concrete value once at assignment in `action_doctrine_bundle.py`, before any of the three sites iterates it\" — but the plan's own three-site enumeration in § (a) item 3 lists only `project_directives`'s three consumption points, not any belonging to `selected_tactics`/`selected_paradigms`. The table's claim of three-state preservation for all three re-derived values is not backed by a corresponding design step for two of them."
+      - artifact: "spec.md FR-006: \"`project_directives`/`selected_tactics`/`selected_paradigms` (`action_doctrine_bundle.py:189-191`) ... must instead be derived from `pack_context.activated_directives`/`activated_tactics`/`activated_paradigms`\" — commits all three to the same `pack_context.activated_*` re-derivation, which is a `frozenset[str] | None` three-state field for all three kinds (see next citation), not just for directives."
+      - code: "src/charter/activation/pack_context.py:150,158,167 — `activated_directives: frozenset[str] | None = None`, `activated_tactics: frozenset[str] | None = None`, `activated_paradigms: frozenset[str] | None = None` — all three fields are genuinely three-state (`None` is the real, common default for an unconfigured kind), confirmed by reading the dataclass directly."
+      - code: "src/charter/activation/context_renderers/delivery_table.py:211-212 — `selected_tactics = selected_tactics or set()` / `selected_paradigms = selected_paradigms or set()`, inside `_classify_artifact_urns` itself. This is exactly the `x or set()` bare-truthiness idiom plan.md § (b) explicitly forbids for the parity-test oracle (\"The oracle formula MUST NOT use Python's `x or set()` idiom — that idiom coerces `None` ... through the same falsy path as an *explicit* `[]`\") and that § (a) item 3 was written specifically to eliminate for `project_directives`. It survives, unaddressed, two lines below the `start_urns` comprehension the fix round's own diff analyzed line-by-line."
+      - code: "src/charter/activation/action_doctrine_bundle.py:233-234 — `roots = (action_urn, *(f\"directive:{d}\" for d in project_directives), *(f\"tactic:{t}\" for t in selected_tactics), *(f\"paradigm:{p}\" for p in selected_paradigms))`. If `selected_tactics`/`selected_paradigms` are re-derived per FR-006 as raw three-state `pack_context.activated_tactics`/`.activated_paradigms` values (mirroring how `project_directives` is derived from `activated_directives`, per plan.md § (a) item 2's stated symmetry), any project with an absent (`None`) `activated_tactics` or `activated_paradigms` key — the ordinary \"all built-ins\" case per FR-001(d)'s own three-state semantics, and not a rare shape — makes this generator expression iterate `None` directly, raising `TypeError: 'NoneType' object is not iterable` *before* execution ever reaches `_classify_artifact_urns`'s internal `or set()` safety net (line 211-212 runs inside the callee, `roots` is built in the caller, earlier in the same function body, lines 230-235)."
+    claim: >
+      This fix round closed PLAN-VERIFY-002 by naming and mechanically fixing the three
+      consumption sites of `project_directives` (the `start_urns` comprehension, the exclusion
+      guard, and `roots`'s directive generator) via a single early `None`-to-concrete-value
+      conversion at assignment in `action_doctrine_bundle.py`. But FR-006/Decision Record 2
+      require `selected_tactics` and `selected_paradigms` to be re-derived from
+      `pack_context.activated_tactics`/`.activated_paradigms` the same way — and those two
+      fields are just as genuinely three-state as `activated_directives` (confirmed against
+      `pack_context.py`'s dataclass). The plan's own design commitment (§ a item 3) and its
+      claim in § (m) that three-state is "preserved" for all three re-derived values are not
+      backed by any corresponding fix for `selected_tactics`/`selected_paradigms`: (1) they
+      still flow into `_classify_artifact_urns`'s `x or set()` lines — the exact idiom plan.md
+      itself calls out as forbidden elsewhere in the same document — silently collapsing "all
+      built-ins" (`None`) into "nothing" for closure-widening, a live instance of Decision
+      Record 2's own "softer failure" (silent under-seeding) class, just for tactics/paradigms
+      instead of directives, and untested by FR-007/FR-008/FR-014 (none of which exercise a
+      `None` `activated_tactics`/`activated_paradigms` case); and (2) `roots`'s tactic/paradigm
+      generator expressions in `action_doctrine_bundle.py` have no `None`-guard at all — an
+      unconverted `None` there crashes with `TypeError` before `_classify_artifact_urns` is
+      ever called, on any project that simply never set `activated_tactics`/`activated_paradigms`
+      (an ordinary, not edge-case, shape). If implementation follows plan.md's design literally
+      — converting only `project_directives` at assignment, and reading `activated_tactics`/
+      `activated_paradigms` straight into `selected_tactics`/`selected_paradigms` as FR-006
+      requires — this mission ships a crash regression on `roots` construction for any
+      partially-configured project, exactly the class of bug this mission exists to close, in
+      the same function, in the same PR.
+    remediation: >
+      Extend plan.md § (a) item 3's "chosen shape" (the single early-conversion-at-assignment
+      pattern) explicitly to `selected_tactics`/`selected_paradigms`: when `action_doctrine_bundle.py`
+      assigns them from `pack_context.activated_tactics`/`.activated_paradigms`, convert `None`
+      to a concrete value there too (empty set is the defensible default for closure-widening
+      seeds, since — unlike the directive exclusion guard — there is no catalog enumeration
+      available at this call site to materialize "all built-ins" as concrete tactic/paradigm
+      IDs; state that rationale explicitly rather than leaving it implicit), before `roots` or
+      `_classify_artifact_urns` ever iterates them. Once converted at the source, the now-dead
+      `selected_tactics or set()` / `selected_paradigms or set()` lines inside
+      `_classify_artifact_urns` should be removed (or left as a documented defense-in-depth
+      no-op, not the load-bearing conversion the plan's design implies is done elsewhere).
+      Add a WP2 fixture (or extend the existing FR-006/None fixture) covering
+      `activated_tactics`/`activated_paradigms` absent (`None`) end-to-end through
+      `_load_action_doctrine_bundle`, asserting no `TypeError` and non-degraded closure
+      widening — mirroring the `project_directives`-absent fixture the fix round already added,
+      which currently has no tactics/paradigms counterpart.
