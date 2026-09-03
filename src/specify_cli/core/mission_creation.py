@@ -176,7 +176,7 @@ def render_tasks_readme_content(planning_branch: str) -> str:
 
 
 def _commit_feature_file(
-    file_path: Path,
+    file_paths: tuple[Path, ...],
     mission_slug: str,
     artifact_type: str,
     repo_root: Path,
@@ -184,16 +184,23 @@ def _commit_feature_file(
     worktree_root: Path | None = None,
     create_time_target: CommitTarget | None = None,
 ) -> None:
-    """Commit a single planning artifact to its seam-resolved primary home.
+    """Commit one or more create-owned artifacts in ONE transactional commit.
 
     This is a slim, typer-free version of the ``_commit_to_branch`` helper
     in the CLI module. It delegates straight to ``safe_commit`` with no
     try/except of its own, so it raises on BOTH a hard git failure and an
     empty changeset (``safe_commit`` itself raises ``RuntimeError`` when
     there is nothing to commit -- it does NOT silently no-op). Callers that
-    know their changeset is always non-empty (e.g. the FR-001 ``meta.json``
-    commit call sites, where the file genuinely differs from HEAD at create
+    know their changeset is always non-empty (e.g. the FR-001 create-scaffold
+    commit call site, where the files genuinely differ from HEAD at create
     time) can safely treat any raise here as a hard failure.
+
+    #2693: ``file_paths`` is a tuple so the whole create-owned generated set
+    (``meta.json`` + ``status.events.jsonl`` + ``tasks/README.md`` +
+    ``tasks/.gitkeep``) lands in a SINGLE commit rather than committing
+    ``meta.json`` alone and leaving the rest untracked. ``safe_commit`` stages
+    exactly these paths, so the commit is transactionally complete over the
+    set the caller owns.
 
     coord-primary-partition-lock WP02 (T007 / C-001 / C-006): the commit
     destination is derived from ``placement_seam(...).write_target(SPEC)``,
@@ -225,7 +232,7 @@ def _commit_feature_file(
         worktree_root=effective_worktree,
         target=seam_target,
         message=commit_msg,
-        paths=(file_path,),
+        paths=file_paths,
         capability=GuardCapability.STANDARD,
     )
 
@@ -794,29 +801,15 @@ def _create_mission_core_impl(
     from specify_cli.mission_metadata import set_documentation_state, write_meta
 
     write_meta(feature_dir, meta)
-    # FR-001 (#3673): do NOT suppress -- a hard git failure here must raise
-    # so ``create_mission_core``'s existing rollback
-    # (``_restore_git_state_after_failed_create``) fires. ``_commit_feature_file``
-    # does NOT no-op on an empty changeset -- it calls ``safe_commit`` directly,
-    # which itself RAISES on an empty changeset (see its docstring). That path
-    # is safe here because ``meta.json`` genuinely differs from HEAD at create
-    # time, so the commit is non-empty on the real paths. NFR-001: re-raise
-    # with step context so the error names the failing step, not just the raw
-    # underlying git error text.
-    try:
-        _commit_feature_file(
-            meta_file,
-            mission_slug_formatted,
-            "meta",
-            resolved_root,
-            worktree_root=effective_root,
-            create_time_target=create_time_target,
-        )
-    except Exception as exc:
-        raise RuntimeError(f"meta.json commit failed: {exc}") from exc
 
     # ------------------------------------------------------------------
     # 7. Documentation state (if applicable)
+    #
+    # #2693: ``set_documentation_state`` rewrites ``meta.json`` on disk, so it
+    # runs BEFORE the single transactional scaffold commit (step 8.5) that
+    # stages ``meta.json``; otherwise the doc-state write would be left
+    # uncommitted. There is no separate commit here — the whole create-owned
+    # generated set commits exactly once, after the event-emission leg below.
     # ------------------------------------------------------------------
     if mission == "documentation":
         meta.setdefault(_META_KEY_MISSION_TYPE, "documentation")
@@ -830,25 +823,16 @@ def _create_mission_core_impl(
                 "coverage_percentage": 0.0,
             }
             set_documentation_state(feature_dir, doc_state)
-        # FR-001 (#3673): identical fix, second call site -- not partial to
-        # the primary mission-type branch (Acceptance Scenario 4). NFR-001:
-        # re-raise with step context (see the primary call site above for the
-        # full rationale on why the empty-changeset path is not a concern
-        # here).
-        try:
-            _commit_feature_file(
-                meta_file,
-                mission_slug_formatted,
-                "meta",
-                resolved_root,
-                worktree_root=effective_root,
-                create_time_target=create_time_target,
-            )
-        except Exception as exc:
-            raise RuntimeError(f"meta.json commit failed: {exc}") from exc
 
     # ------------------------------------------------------------------
     # 8. Event emission
+    #
+    # #2693: this leg MUTATES ``status.events.jsonl`` (it is initialised empty
+    # at scaffold time), so it MUST run BEFORE the transactional scaffold commit
+    # (step 8.5) — pre-fix the sole commit ran first and left the freshly-written
+    # event log untracked. Emission stays a pre-commit step so the committed
+    # ``status.events.jsonl`` already carries the ``MissionCreated`` /
+    # ``SpecifyStarted`` events.
     #
     # Local canonical persistence MUST happen before any SaaS fan-out so
     # downstream dashboards and TeamSpace can replay a mission's full
@@ -935,6 +919,44 @@ def _create_mission_core_impl(
             mission_slug_formatted,
             _phase_evt_exc,
         )
+
+    # ------------------------------------------------------------------
+    # 8.5 Transactional scaffold commit (#2693)
+    #
+    # ONE commit stages the full create-owned generated set: ``meta.json`` (+
+    # any documentation-state write from step 7), the canonical
+    # ``status.events.jsonl`` mutated by the event-emission leg ABOVE, and the
+    # ``tasks/`` scaffold (``README.md`` + ``.gitkeep``). Pre-#2693 this leg
+    # committed ``meta.json`` alone and reported the mission complete while
+    # leaving ``status.events.jsonl`` and the ``tasks/`` scaffold untracked and
+    # undisclosed. ``spec.md`` is deliberately EXCLUDED (#846): it is scaffolded
+    # empty here and committed later by ``/spec-kitty.specify`` once it holds
+    # substantive content — the CLI discloses it as an uncommitted artifact in
+    # the ``--json`` envelope so it is never untracked AND undisclosed.
+    #
+    # FR-001 (#3673): do NOT suppress — a hard git failure must raise so
+    # ``create_mission_core``'s rollback
+    # (``_restore_git_state_after_failed_create``) fires. ``_commit_feature_file``
+    # calls ``safe_commit`` directly (no empty-changeset no-op); every path here
+    # genuinely differs from HEAD at create time, so the commit is non-empty.
+    # NFR-001: re-raise with step context naming the failing step.
+    # ------------------------------------------------------------------
+    try:
+        _commit_feature_file(
+            (
+                meta_file,
+                feature_dir / "status.events.jsonl",
+                tasks_readme,
+                tasks_dir / ".gitkeep",
+            ),
+            mission_slug_formatted,
+            "scaffold",
+            resolved_root,
+            worktree_root=effective_root,
+            create_time_target=create_time_target,
+        )
+    except Exception as exc:
+        raise RuntimeError(f"meta.json commit failed: {exc}") from exc
 
     # Dossier sync (fire-and-forget via registered adapter)
     # SaaS fan-out is already handled by emit_mission_created_local above —
