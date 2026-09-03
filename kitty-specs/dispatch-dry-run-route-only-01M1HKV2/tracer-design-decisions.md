@@ -50,3 +50,27 @@ rerank lands. This is accepted as inherent to any bug fix to `router.py`'s selec
 novel to this mission — and is not mitigated further (no mid-mission routing-version pin is
 introduced). A caller wanting a stable profile across a mission's lifetime should pass an
 explicit `--profile` hint, which this fix does not affect.
+
+## Decision 6: dry-run/`alternatives` contract documentation relocated out of the archived mission dossier (NFR-002)
+
+WP1's original `cli-do-output.md` edit (hand-editing the archived
+`do-dispatch-open-op-lifecycle-01KTSJ2H` mission's contract doc — plan.md's "No `contracts/`
+subdirectory is warranted" call, and two independent pre-merge reviewers who found 250+
+`kitty-specs/*/contracts/` precedents defensible) was overruled post-review by
+`tests/architectural/test_archive_root_byte_identical.py`
+(`test_no_preexisting_archived_file_was_modified`): the four archive roots (`kitty-specs/`
+included) are byte-frozen for any file that pre-existed at the gate's mission-base revision,
+regardless of convention or in-repo precedent — the gate is the authority, not the precedent.
+`do-dispatch-open-op-lifecycle-01KTSJ2H/contracts/cli-do-output.md` predates this mission, so it
+is frozen. The gate's own violation message names the fix: "corrections belong in the live
+mission dossier, not the archive."
+
+Resolution: the archived file was restored byte-identical to `origin/main` (verified via an
+empty `git diff origin/main -- <path>`), and the `--dry-run`/`alternatives` documentation moved
+to this mission's own live dossier at `contracts/cli-dispatch-dry-run-output.md`, written
+self-contained so a reader does not need the archived doc to understand the `--dry-run` payload.
+`src/specify_cli/invocation/executor.py`'s three `contracts/cli-do-output.md` citations
+(`build_close_contract`, `to_dict`) were left pointing at the archived doc unchanged: all three
+describe the close-contract / `"status": "open"` shape, which the archived doc still correctly
+documents — only the *new* `--dry-run` material had to move, not the citation to
+still-correct pre-existing content.
