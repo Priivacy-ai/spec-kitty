@@ -204,6 +204,17 @@ def current_cmd(
         for caught in caught_warnings:
             if issubclass(caught.category, UserWarning) and "using software-dev as default" in str(caught.message):
                 console.print(f"[yellow]Warning:[/yellow] {caught.message}")
+            else:
+                # #3831 fold: `catch_warnings(record=True)` captures EVERY
+                # warning raised inside the block, not just the fallback one
+                # this command specifically surfaces above — anything else
+                # was previously dropped on the floor. Re-emit it through the
+                # normal warnings machinery so it still reaches whatever
+                # filter/handler the caller has configured, instead of being
+                # silently swallowed by this command's own capture.
+                warnings.warn_explicit(
+                    caught.message, caught.category, caught.filename, caught.lineno
+                )
         context = f"Mission: {mission_slug}"
 
     except MissionNotFoundError as exc:
