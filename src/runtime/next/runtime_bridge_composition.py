@@ -346,10 +346,22 @@ def _composition_dispatch_inputs(
     """
     try:
         from charter.activation.mission_type_profiles import (  # noqa: PLC0415
+            UnknownMissionTypeError,
             resolve_mission_type_context,
         )
 
         resolve_mission_type_context(repo_root, mission_type=mission)
+    except UnknownMissionTypeError:
+        # Expected on the happy path: any non-charter-activated custom
+        # mission type raises this (the normal #3830 frozen-template path),
+        # so it is not a genuine resolution failure and must not be logged
+        # at ERROR (that would fire on every dispatch for a custom type).
+        # Debug-only so it is still diagnosable on demand.
+        logger.debug(
+            "mission type %r is not charter-activated; profile_hint "
+            "resolves via the frozen-template path",
+            mission,
+        )
     except Exception:
         # Genuine resolution failure (e.g. a malformed org pack) — logged so
         # it is diagnosable, distinguished from the ordinary success case
