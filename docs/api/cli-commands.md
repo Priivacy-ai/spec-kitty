@@ -540,6 +540,14 @@ _List activated doctrine artifacts by kind._
 │                             the built-in, org, and project layers (annotated │
 │                             by source layer), including the template kind.   │
 │                             Supersedes --show-available.                     │
+│ --json                      Output JSON. Every kind row always carries an    │
+│                             'available' key and the payload always carries a │
+│                             top-level 'templates' key — both are null unless │
+│                             requested (available: null without               │
+│                             --show-available/--all; templates: null without  │
+│                             --all) rather than absent, so callers can rely   │
+│                             on key presence and branch on the value instead  │
+│                             of on which flags were passed.                   │
 │ --help            -h        Show this message and exit.                      │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ```
@@ -2585,14 +2593,34 @@ _Search tracker issues via the hosted read path_
 │                                                            squash.           │
 │ --delete-branch        --keep-branch                       Delete lane       │
 │                                                            branches after    │
-│                                                            merge             │
-│                                                            [default:         │
-│                                                            delete-branch]    │
+│                                                            merge. Unset (the │
+│                                                            default) defers   │
+│                                                            to the mission's  │
+│                                                            meta.json         │
+│                                                            retention policy  │
+│                                                            (#3131), falling  │
+│                                                            back to delete    │
+│                                                            when no policy is │
+│                                                            recorded. Passing │
+│                                                            either flag       │
+│                                                            explicitly always │
+│                                                            wins over the     │
+│                                                            mission's policy. │
 │ --remove-worktree      --keep-worktree                     Remove lane       │
 │                                                            worktrees after   │
-│                                                            merge             │
-│                                                            [default:         │
-│                                                            remove-worktree]  │
+│                                                            merge. Unset (the │
+│                                                            default) defers   │
+│                                                            to the mission's  │
+│                                                            meta.json         │
+│                                                            retention policy  │
+│                                                            (#3131), falling  │
+│                                                            back to remove    │
+│                                                            when no policy is │
+│                                                            recorded. Passing │
+│                                                            either flag       │
+│                                                            explicitly always │
+│                                                            wins over the     │
+│                                                            mission's policy. │
 │ --push                                                     Publish to origin │
 │                                                            after the local   │
 │                                                            merge (the        │
@@ -4385,9 +4413,15 @@ _Emit the open-Ops reminder for the Claude Code Stop hook._
 
  Commit spec artifacts to the mission's resolved placement.
 
- On a protected primary the coordination worktree is materialised on demand
- so the commit lands on the coordination branch (materialize-then-retry).
- On an unprotected or flattened primary the commit is direct.
+ SPEC is a primary/planning artifact: it lands on the mission's primary target
+ branch for every topology. On an unprotected or flattened primary the commit
+ is direct. On a PROTECTED primary the commit is refused (there is no fallback
+ surface); recover by either creating/checking out a non-protected feature
+ branch ('spec-kitty agent mission create --start-branch <feature-branch>') or
+ setting SPEC_KITTY_ALLOW_PROTECTED_BRANCH_COMMITS=1 to commit on the current
+ branch.
+
+ Pass individual FILES, not directories.
 
 ╭─ Arguments ──────────────────────────────────────────────────────────────────╮
 │ *    files      FILES...  Spec artifacts to commit (absolute or relative     │
@@ -4448,16 +4482,6 @@ _Emit the open-Ops reminder for the Claude Code Stop hook._
 ## spec-kitty sync
 
 _Synchronization commands_
-
-> **Inactive by default (opt-in).** As of the `sync-deactivate-by-default`
-> mission the legacy local-sync surface is **inactive on a bare install** — no
-> sync daemon is spawned and no events are emitted. The `sync` command group
-> stays registered, but when sync is not armed the subcommands report inactive
-> / no-op rather than doing work. Opt in by setting
-> `SPEC_KITTY_ENABLE_SAAS_SYNC=1` (and give per-project consent with
-> `spec-kitty sync opt-in`). `SPEC_KITTY_SYNC_DISABLE` /
-> `SPEC_KITTY_SYNC_MINIMAL_IMPORT` force it back off (disable wins). See
-> [Environment Variables § Sync activation precedence](environment-variables.md#sync-activation-precedence).
 
 ```
  Usage: spec-kitty sync [OPTIONS] COMMAND [ARGS]...
