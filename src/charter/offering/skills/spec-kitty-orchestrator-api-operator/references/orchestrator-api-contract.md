@@ -898,6 +898,7 @@ transition — it never invokes the WP-loop or `next` engines.
 | `NO_PENDING_DECISION` | answer-decision | No pending decisions to answer |
 | `AMBIGUOUS_PENDING_DECISION` | answer-decision | More than one pending decision and `--decision-id` was omitted |
 | `DECISION_NOT_PENDING` | answer-decision | `--decision-id` does not match any entry in the current run's pending decisions |
+| `DECISION_OPERATION_FAILED` | open-decision, resolve-decision, defer-decision, cancel-decision | A decision-ledger operation failed for a reason without a more specific registered code |
 | `DESIGN_STATUS_EVENT_LOG_UNREADABLE` | design-status | `status.events.jsonl` could not be read cleanly (torn/truncated line, or a detected drift against `status.json`) while deriving the tasks-finalized signal |
 | `WP_NOT_FOUND` | resolve-workspace, start-implementation, start-review, transition, append-history | Work package ID does not exist in the mission |
 | `PREFLIGHT_FAILED` | merge-mission | Preflight checks failed before merge (target-branch/git-state errors, or a `RuntimeError` from the lane-consolidation step) |
