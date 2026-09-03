@@ -26,7 +26,7 @@ from specify_cli.mission_metadata import load_meta
 from specify_cli.missions._read_path_resolver import resolve_feature_dir_for_mission
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Annotated, Any
+from typing import TYPE_CHECKING, Annotated, Any
 
 import typer
 from mission_runtime import MissionArtifactKind, placement_seam
@@ -43,6 +43,9 @@ from specify_cli.mission import (
     get_mission_for_feature,
     list_available_missions,
 )
+
+if TYPE_CHECKING:
+    from specify_cli.retrospective.schema import ProvenanceKind
 
 app = typer.Typer(
     name="mission-type",
@@ -611,6 +614,10 @@ def close_cmd(
         # Flatten: drop the now-dangling coordination_branch marker so subsequent
         # commands for this mission don't trip CoordinationBranchDeleted (#2120).
         _flatten_discarded_mission(feature_dir)
+        # #3716: the flatten is the LAST mutating write on the discard path and
+        # previously had no commit leg, leaving ``meta.json`` modified-uncommitted
+        # after a discard that reported success. Commit it to the PRIMARY surface.
+        _commit_flattened_meta(repo_root, feature_dir, mission_slug)
         console.print(f"[green]✓[/green] Mission {mission_slug} discarded.")
     else:
         # Teardown the coordination worktree. Routes through the shared
@@ -649,7 +656,11 @@ def _discard_mission(
     # Remove ALL worktrees BEFORE deleting their branches (#2120): a branch that
     # is checked out in a worktree cannot be `git branch -D`'d, so the prior
     # branch-first order silently leaked the coordination/lane branches.
-    _teardown_coordination_worktree(repo_root, mission_slug, mid8_value)
+    # #3716: this is the abandonment leg — the retrospective the teardown persists
+    # must carry ``runtime_abandoned`` provenance, not completion provenance.
+    _teardown_coordination_worktree(
+        repo_root, mission_slug, mid8_value, provenance_kind="runtime_abandoned"
+    )
     if lanes_manifest is not None:
         _remove_lane_worktrees(repo_root, mission_slug, lanes_manifest)
         _delete_lane_branches(repo_root, mission_slug, lanes_manifest)
@@ -834,6 +845,80 @@ def _flatten_discarded_mission(feature_dir: Path) -> None:
         flatten_coordination_metadata(feature_dir)
 
 
+def _meta_has_uncommitted_changes(repo_root: Path, meta_path: Path) -> bool:
+    """Return ``True`` when ``meta_path`` differs from HEAD or is untracked.
+
+    Fail-open helper (never raises): a git failure or an absent file reports
+    "not dirty" so the tolerant commit leg simply no-ops.
+    """
+    if not meta_path.exists():
+        return False
+    from specify_cli.core.git_ops import run_command
+
+    rel = str(meta_path)
+    resolved_root = repo_root.resolve()
+    if meta_path.is_absolute():
+        with contextlib.suppress(ValueError):
+            rel = str(meta_path.resolve().relative_to(resolved_root))
+    ret, out, _ = run_command(
+        ["git", "status", "--porcelain", "--", rel],
+        capture=True,
+        check_return=False,
+        cwd=repo_root,
+    )
+    return ret == 0 and bool(out.strip())
+
+
+def _commit_flattened_meta(
+    repo_root: Path, feature_dir: Path, mission_slug: str
+) -> None:
+    """Commit the discard flatten's ``meta.json`` write to the PRIMARY surface (#3716).
+
+    ``_flatten_discarded_mission`` is the last mutating write on the discard path
+    and (pre-#3716) had no commit leg, so ``mission close --discard`` reported
+    success while leaving ``M kitty-specs/<slug>/meta.json`` uncommitted. Route
+    the write through the ONE sanctioned bookkeeping-commit surface (the same
+    ``commit_merge_bookkeeping`` the retrospective terminus uses).
+
+    The mission is now flattened to single-branch, so the destination is the
+    PRIMARY ``target_branch`` — NEVER the coordination branch, which the discard
+    already DELETED. That target is also supplied as the degrade ref so the commit
+    still lands on the primary surface if placement resolution fails closed
+    (the failure mode the discard teardown surfaces, #3716 nuance).
+
+    Tolerant: a legacy/no-op meta (nothing changed, or no ``meta.json``) is a
+    silent no-op. Fail-open-but-loud: a commit failure is WARNED, never raised —
+    a bookkeeping hiccup must not turn a completed discard into an error.
+    """
+    meta_path = feature_dir / "meta.json"
+    if not _meta_has_uncommitted_changes(repo_root, meta_path):
+        return
+
+    from specify_cli.git.bookkeeping_commit import commit_merge_bookkeeping
+
+    meta = load_meta(feature_dir, allow_missing=True, on_malformed="none")
+    target_branch = (
+        str(meta.get("target_branch") or "").strip() if isinstance(meta, dict) else ""
+    ) or None
+
+    try:
+        commit_merge_bookkeeping(
+            repo_root=repo_root,
+            worktree_root=repo_root,
+            mission_slug=mission_slug,
+            message=f"chore({mission_slug}): flatten discarded mission metadata",
+            paths=(meta_path,),
+            branch=target_branch,
+        )
+    except Exception as exc:  # noqa: BLE001 — fail-open: warn, never abort discard
+        console.print(
+            f"[yellow]Warning:[/yellow] discard of {mission_slug} flattened "
+            f"meta.json but could not commit it ({exc}). Commit it manually: "
+            f"git -C {repo_root} add {meta_path} && git -C {repo_root} commit "
+            f"-m 'chore({mission_slug}): flatten discarded mission metadata'"
+        )
+
+
 def _confirm_discard(mission_slug: str, *, force: bool) -> None:
     if force:
         return
@@ -886,7 +971,13 @@ def _delete_legacy_coordination_branch(repo_root: Path, meta_path: Path) -> None
         console.print(f"  Deleted coordination branch {coord_branch}")
 
 
-def _teardown_coordination_worktree(repo_root: Path, mission_slug: str, mid8_value: str) -> None:
+def _teardown_coordination_worktree(
+    repo_root: Path,
+    mission_slug: str,
+    mid8_value: str,
+    *,
+    provenance_kind: ProvenanceKind = "runtime_post_completion",
+) -> None:
     if not mid8_value:
         return
     # Route through the shared ``teardown_coordination_topology`` seam (FR-004):
@@ -894,10 +985,15 @@ def _teardown_coordination_worktree(repo_root: Path, mission_slug: str, mid8_val
     # coordination worktree (persist-before-destroy, FR-005). The destroy leg is
     # best-effort inside the seam; we report success/failure from the on-disk
     # ``is_present`` truth so the operator sees whether manual cleanup is needed.
+    # ``provenance_kind`` stamps the captured retrospective — the discard leg
+    # passes ``"runtime_abandoned"`` (#3716) so an abandoned mission is not tagged
+    # with completion provenance.
     from specify_cli.coordination.teardown import teardown_coordination_topology
     from specify_cli.coordination.workspace import CoordinationWorkspace
 
-    teardown_coordination_topology(repo_root, mission_slug, mid8_value)
+    teardown_coordination_topology(
+        repo_root, mission_slug, mid8_value, provenance_kind=provenance_kind
+    )
     if CoordinationWorkspace.is_present(repo_root, mission_slug, mid8_value):
         console.print(
             "[yellow]Warning:[/yellow] coordination worktree still "

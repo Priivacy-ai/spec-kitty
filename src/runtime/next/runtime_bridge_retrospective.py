@@ -397,6 +397,7 @@ def _run_retrospective_learning_capture(
     feature_dir: Path,
     repo_root: Path,
     block_on_failure: bool,
+    provenance_kind: ProvenanceKind | None = None,
 ) -> None:
     """Run the policy-driven retrospective capture path.
 
@@ -404,16 +405,26 @@ def _run_retrospective_learning_capture(
     record and emit canonical RetrospectiveCaptured/CaptureFailed events, but do
     not hold mission completion hostage. Strict projects opt into blocking by
     policy via timing=before_completion + failure_policy=block.
+
+    ``provenance_kind`` lets a caller stamp a non-default provenance on the
+    captured record (#3716): the ``mission close --discard`` leg passes
+    ``"runtime_abandoned"`` so an abandoned mission is not tagged with completion
+    provenance. When ``None`` the kind is derived from ``block_on_failure`` as
+    before (``runtime_strict_gate`` under the strict gate, else
+    ``runtime_post_completion``).
     """
     # Deferred, live lookup back into ``runtime_bridge`` so a
     # monkeypatch.setattr(runtime_bridge, "_build_retrospective_facilitator_callback", …)
     # is still observed — see module docstring §retrospective-pair risk.
     from runtime.next import runtime_bridge as _rb  # noqa: PLC0415
 
+    resolved_provenance: ProvenanceKind = provenance_kind or (
+        "runtime_strict_gate" if block_on_failure else "runtime_post_completion"
+    )
     callback = _rb._build_retrospective_facilitator_callback(
         mission_slug=mission_slug,
         repo_root=repo_root,
-        provenance_kind="runtime_strict_gate" if block_on_failure else "runtime_post_completion",
+        provenance_kind=resolved_provenance,
     )
     try:
         callback(mission_id=mission_id, feature_dir=feature_dir, repo_root=repo_root)
