@@ -44,6 +44,29 @@ class TestDirectiveRepository:
         assert by_full is not None
         assert by_num.id == by_full.id
 
+    def test_get_by_slug_stem(self, tmp_directive_dir: Path) -> None:
+        """get() accepts the file-stem slug the ``--json`` surface advertises.
+
+        #3816: ``charter context --action <x> --json`` enumerates directive IDs
+        as their file-stem slug (``999-test-directive``); the repository lookup
+        must resolve that exact identifier or the advertised ID is a dead end.
+        """
+        repo = DirectiveRepository(built_in_dir=tmp_directive_dir)
+        directive = repo.get("999-test-directive")
+        assert directive is not None
+        assert directive.id == "DIRECTIVE_999"
+
+    def test_get_slug_numeric_full_return_same(self, tmp_directive_dir: Path) -> None:
+        """Slug / numeric / full ID all resolve the same directive (#3816 parity)."""
+        repo = DirectiveRepository(built_in_dir=tmp_directive_dir)
+        by_slug = repo.get("999-test-directive")
+        by_num = repo.get("999")
+        by_full = repo.get("DIRECTIVE_999")
+        assert by_slug is not None
+        assert by_num is not None
+        assert by_full is not None
+        assert by_slug.id == by_num.id == by_full.id == "DIRECTIVE_999"
+
     def test_malformed_yaml_skipped_with_warning(self, tmp_path: Path) -> None:
         """Malformed YAML files are skipped, not crash."""
         shipped = tmp_path / "built-in"

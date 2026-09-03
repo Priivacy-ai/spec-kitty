@@ -1,7 +1,17 @@
 """Normalize directive IDs between slug and DIRECTIVE_NNN formats.
 
-Reuses the same algorithm as ``src/charter/context.py:_normalize_directive_id``
-but exposed as a standalone, importable module for the DRG migration pipeline.
+This module is the single canonical directive-id normalization authority. It is
+consumed by the DRG migration pipeline, by ``DirectiveRepository`` id resolution
+(so ``--include directive:<slug>`` resolves at parity with the ``--json`` surface,
+#3816), and by the activation-gate membership test in
+``charter.activation.resolver.DoctrineService.directives``.
+
+One lock-step copy is intentionally retained: ``charter.activation.
+profile_resolution._normalize_directive_id`` keeps a private duplicate of this
+algorithm for a documented import-cycle reason. ``charter.activation.
+context_renderers.artifact_bodies._format_profile_directive_code`` is a related
+but distinct helper — a numeric-only *display* formatter for profile directive
+refs whose input domain never includes slugs — and is deliberately not folded in.
 """
 
 from __future__ import annotations
