@@ -7,8 +7,6 @@ from pathlib import Path
 from typing import TypedDict
 
 from mission_runtime import ActionContextError
-from specify_cli.context.mission_resolver import AmbiguousHandleError, MissionNotFoundError, resolve_mission
-from specify_cli.core.checkout_ownership import error_for_claim, resolve_ownership_claim
 from specify_cli.core.git_ops import get_current_branch
 from specify_cli.core.paths import load_meta_fail_closed
 from specify_cli.core.utils import ensure_within_directory
@@ -55,6 +53,18 @@ def resolve_owned_mission(
     primary: Path, checkout: Path, handle: str | None, *, target_override: str | None = None,
 ) -> OwnedMission:
     """Validate ownership before reading mission data; never fall back to primary."""
+    # Imported lazily: both mission_resolver (via the specify_cli.context package) and
+    # checkout_ownership (via specify_cli.ownership.workspace_strategy) pull the status
+    # orchestration + workspace packages at module scope. owned_mission is cold-imported
+    # by task_utils.support (37 CLI command modules), so module-level imports here break
+    # the status-free cold-import boundary (#1461). They are used only in this function.
+    from specify_cli.context.mission_resolver import (
+        AmbiguousHandleError,
+        MissionNotFoundError,
+        resolve_mission,
+    )
+    from specify_cli.core.checkout_ownership import error_for_claim, resolve_ownership_claim
+
     claim = resolve_ownership_claim(checkout, resolved_primary=primary)
     error = error_for_claim(claim)
     if error is not None:
