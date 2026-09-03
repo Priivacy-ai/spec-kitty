@@ -137,6 +137,20 @@ bare truthiness — this correctly treats an explicit `frozenset()` as "exclude 
 the early-conversion step preserves distinctly from "all built-ins" by never overwriting an explicit
 `frozenset()` with the catalog default.
 
+**Existing out-of-scope test this fix must keep GREEN (verified live, currently passing):**
+`tests/charter/test_activation_consumers.py::test_context_bundle_none_path_matches_no_filter_at_all`
+(one of four `*_none_path_matches_no_filter_at_all` sibling tests in that file, covering
+`resolve_references_transitively`, `_resolve_transitive_reference_graph`, `_check_drg_cross_kind_refs`, and
+this WP's own `_load_action_doctrine_bundle`) asserts that calling `_load_action_doctrine_bundle` with
+`pack_context=None` produces `directive_ids` byte-identical to calling it with a `PackContext` whose
+`activated_directives=None` — i.e. "wholly-absent `pack_context`" and "`PackContext` present but its
+field is `None`" are the SAME "no filter at all" state, both resolving to the full catalog-derived set.
+This file is not in this WP's (or any WP's) `owned_files` and needs NO code change — it already encodes
+the correct convention — but a naive reading of "keep today's degrade-gracefully behavior" for the
+`pack_context is None` branch (empty sets) would silently break it. T009 step 1 above is written to keep
+this test green by construction; T010 re-runs it explicitly as a named gate, not merely via the generic
+baseline-diff.
+
 **One-PR-shape / baseline-capture note**: same as WP01 — this mission ships as one PR; capture your OWN
 baseline in your own workspace before touching any file (identical command, see WP01's Context section),
 independently of whether WP01/WP03 have already captured theirs in their own workspaces.
@@ -275,22 +289,31 @@ after this edit is combined with T009's guard change (run it again after T009 to
 1. In `_load_action_doctrine_bundle` (`action_doctrine_bundle.py`), replace the
    `doctrine_selection.selected_*`-derived assignments with:
    ```python
+   directives_arg = pack_context.activated_directives if pack_context is not None else None
    project_directives = (
-       {_normalize_directive_id(d) for d in pack_context.activated_directives}
-       if pack_context is not None and pack_context.activated_directives is not None
-       else (set(load_doctrine_catalog().directives) if pack_context is not None and pack_context.activated_directives is None else set())
+       {_normalize_directive_id(d) for d in directives_arg}
+       if directives_arg is not None
+       else set(load_doctrine_catalog().directives)
    )
    ```
    (illustrative shape only — design the actual conditional however reads cleanest, e.g. a small private
-   helper; the REQUIRED behavior is: `pack_context is None` → keep today's degrade-gracefully behavior
-   (empty sets, matching the pre-existing `pack_context: PackContext | None = None` default-argument
-   contract for callers that never supply one); `activated_directives is None` → catalog default (ALL
-   built-in directive ids); `activated_directives == frozenset()` → empty set (explicit exclude-everything,
-   preserved distinctly); `activated_directives` non-empty → that set, normalized via
-   `_normalize_directive_id` exactly as before. Apply the identical three-branch shape to
+   helper; the REQUIRED behavior is: a wholly-absent `pack_context` (`pack_context is None`) MUST be
+   treated IDENTICALLY to a supplied `PackContext` whose `activated_directives` is `None` — both collapse
+   to the SAME "no filter configured" state and resolve to the catalog default (ALL built-in directive
+   ids), never empty sets. There is no separate "`pack_context is None` → degrade-gracefully empty sets"
+   branch; that would silently narrow a wholly-absent activation input to "nothing activated," the exact
+   defect class this mission exists to eliminate, and it collides with the already-green
+   `test_context_bundle_none_path_matches_no_filter_at_all` regression test (`tests/charter/
+   test_activation_consumers.py`, see Context section) which asserts `pack_context=None` and
+   `pack_context` with `activated_directives=None` produce byte-identical `directive_ids`.
+   `activated_directives == frozenset()` (an EXPLICIT, present `PackContext` with an empty set) → empty
+   set (explicit exclude-everything, preserved distinctly — this is the one state that stays empty, and
+   only reachable when a real `PackContext` is supplied); `activated_directives` non-empty → that set,
+   normalized via `_normalize_directive_id` exactly as before. Apply the identical shape to
    `selected_tactics`/`selected_paradigms` from `pack_context.activated_tactics`/`.activated_paradigms`,
-   with `load_doctrine_catalog().tactics`/`.paradigms` as the `None`-case default (never an empty set for
-   that case — see the Context section's chokepoint note).
+   with `load_doctrine_catalog().tactics`/`.paradigms` as the default for BOTH the wholly-absent-
+   `pack_context` case and the present-but-`None`-field case alike (never an empty set for either — see
+   the Context section's chokepoint note).
 2. Preserve the org-pack `required_<kind>` union — **precise finding from reading
    `org_pack_discovery.py` in full for this WP**: `_load_doctrine_selection(repo_root)` (the function
    `_load_action_doctrine_bundle` currently calls) already internally unions every org pack's
@@ -342,10 +365,18 @@ green against the finished diff.
 **Steps**:
 1. `pytest tests/charter/ tests/architectural/test_charter_offering_does_not_import_activation.py
    tests/architectural/test_no_dead_symbols.py -q` — diff against T006's baseline.
-2. `ruff check src/charter/activation/action_doctrine_bundle.py
+2. **Named collision gate (do not rely on step 1's baseline-diff alone to catch this):** explicitly
+   re-run `pytest tests/charter/test_activation_consumers.py -k none_path_matches_no_filter_at_all -v`
+   and confirm all FOUR `*_none_path_matches_no_filter_at_all` tests are GREEN, in particular
+   `test_context_bundle_none_path_matches_no_filter_at_all` (this WP's own consumer,
+   `_load_action_doctrine_bundle`). This file is out of `owned_files` and untouched by this WP's diff, but
+   T009's `pack_context is None` handling can silently flip it red if the catalog-default collapse
+   (Context section) is not implemented exactly as specified — verify it live, do not assume the generic
+   node-id diff would surface it clearly enough on its own.
+3. `ruff check src/charter/activation/action_doctrine_bundle.py
    src/charter/activation/context_renderers/delivery_table.py tests/charter/test_action_doctrine_bundle_activation.py
    tests/charter/test_action_bundle_delivery.py` and the `--select TID251` pass on the same paths.
-3. Commit the implementation (T009's changes) as a separate commit from T007/T008's red-first test commits,
+4. Commit the implementation (T009's changes) as a separate commit from T007/T008's red-first test commits,
    per C-011. T008's four-call-site edit may be folded into either the red-first commit (it is a test-only
    change preserving intent) or the implementation commit — your call; state which you chose in the PR
    description.
@@ -378,11 +409,25 @@ green against the finished diff.
 - **Org-required union onto the wrong base**: unioning `required_<kind>` onto the retired `selected_*` set
   instead of the new `activated_*`-derived set would silently regress FR-006's own explicit requirement —
   re-read Decision Record 2's Scenario 3 before finalizing.
+- **`pack_context is None` treated as a separate "degrade-gracefully empty sets" branch**: this is the
+  same narrowing-of-`None` defect class this mission exists to eliminate, just relocated from a field-level
+  read to the whole-argument level. It would flip the already-green, out-of-`owned_files`
+  `tests/charter/test_activation_consumers.py::test_context_bundle_none_path_matches_no_filter_at_all` red
+  (and, by the same logic, is a live risk for its three siblings covering the other consumers) because that
+  test asserts `pack_context=None` and `pack_context` with `activated_directives=None` must produce
+  identical output. `pack_context is None` MUST collapse to the same catalog-default path as
+  `activated_directives is None` — see Context section and T009 step 1. T010 step 2 re-runs this test
+  explicitly as a named gate.
 
 ## Reviewer Guidance
 
 - Confirm the tactics/paradigms-absent fixture (T007 step 5) actually fails when run against the
   pre-implementation code — ask for the RED-run output.
+- Confirm `pack_context is None` resolves to the SAME catalog-default outcome as a supplied `PackContext`
+  whose `activated_directives`/`activated_tactics`/`activated_paradigms` are `None` — not a separate
+  empty-set branch — by reading the diff's actual conditional, and confirm
+  `tests/charter/test_activation_consumers.py`'s four `*_none_path_matches_no_filter_at_all` tests were
+  actually re-run green (T010 step 2), not merely assumed covered by the generic baseline diff.
 - Confirm the org-required union is unioned onto the `activated_*`-derived base, not the retired
   `selected_*` set, by reading the diff's actual assignment order.
 - Cross-check this WP's `None`-handling against WP01's and WP03's for the identical semantic rule (the
