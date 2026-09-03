@@ -719,34 +719,53 @@ def test_materialise_coord_worktree_rejects_primary_kind(tmp_path: Path) -> None
 
 
 def test_materialise_coord_worktree_allows_coord_kind(tmp_path: Path) -> None:
-    """A COORD kind passes the guard (degrades to primary on unresolvable mid8).
+    """A COORD kind passes the PRIMARY-kind guard and reaches its coord surface.
 
     The complement of the guard test: a coordination kind (``ACCEPTANCE_MATRIX``)
-    must NOT trip the guard. Exemplar swapped from ``ANALYSIS_REPORT`` (re-homed
-    PRIMARY by FR-003 — it would now correctly TRIP the guard) to a still-COORD
-    kind so the "coord kind passes the guard" coverage survives the re-home. With
-    no resolvable mid8 in a bare ``tmp_path`` the helper degrades to the primary
-    checkout (C-004 safety) — proving the guard did not fire and the COORD path
-    proceeded.
+    must NOT trip :class:`PrimaryKindReachedCoordStagingError`. Exemplar swapped from
+    ``ANALYSIS_REPORT`` (re-homed PRIMARY by FR-003 — it would now correctly TRIP the
+    guard) to a still-COORD kind so the "coord kind passes the guard" coverage
+    survives the re-home.
+
+    coord-commit-surface-authority WP04 (DD-3 / INV-3): the former assertion observed
+    "guard did not fire" via the SILENT mid8-None → primary fallback. That fallback
+    is now a fail-loud :class:`CoordWorktreeResolutionError` (no silent misroute), so
+    this test drives a HEALTHY coord path (resolvable mid8 + resolvable worktree)
+    instead — proving the PRIMARY-kind guard did not fire and the COORD path
+    proceeded to its coordination surface.
     """
     from mission_runtime import CommitTarget
+    from specify_cli.coordination import commit_router
     from specify_cli.coordination.commit_router import _materialise_coord_worktree
 
     artifact = tmp_path / "kitty-specs" / "001-write-surface" / "acceptance-matrix.json"
     artifact.parent.mkdir(parents=True)
     artifact.write_text("{}\n", encoding="utf-8")
     coord_placement = CommitTarget(ref="kitty/mission-write-surface-01KVTVZS3A4B5C6D")
+    coord_worktree = tmp_path / ".worktrees" / "coord"
+    staged = coord_worktree / "kitty-specs" / "001-write-surface" / "acceptance-matrix.json"
 
-    worktree_root, paths = _materialise_coord_worktree(
-        tmp_path,
-        "001-write-surface",
-        coord_placement,
-        (artifact,),
-        kind=MissionArtifactKind.ACCEPTANCE_MATRIX,
-    )
-    # No mid8 ⇒ degrades to the primary checkout, but the guard did NOT raise.
-    assert worktree_root == tmp_path
-    assert paths == (artifact,)
+    with (
+        patch.object(commit_router, "_resolve_mid8", return_value="01KVTVZS"),
+        patch(
+            "specify_cli.coordination.workspace.CoordinationWorkspace.resolve",
+            return_value=coord_worktree,
+        ),
+        patch.object(
+            commit_router, "_stage_artifacts_in_coord_worktree", return_value=[staged]
+        ),
+    ):
+        worktree_root, paths = _materialise_coord_worktree(
+            tmp_path,
+            "001-write-surface",
+            coord_placement,
+            (artifact,),
+            kind=MissionArtifactKind.ACCEPTANCE_MATRIX,
+        )
+
+    # The PRIMARY-kind guard did NOT raise, and the coord kind reached its coord surface.
+    assert worktree_root == coord_worktree
+    assert paths == (staged,)
 
 
 def test_coord_staging_keeps_matrices_but_skips_rehomed_analysis_report(
