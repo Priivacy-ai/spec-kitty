@@ -78,6 +78,14 @@ def coord_mission(tmp_path: Path) -> Path:
     _git(repo, "config", "user.email", "t@example.com")
     _git(repo, "config", "user.name", "Test")
     _git(repo, "config", "commit.gpgsign", "false")
+    # A real spec-kitty project gitignores its own sync-state frame (see e.g.
+    # ``test_accept_residual_partition.py``); without this, the whole-tree
+    # porcelain assertion below would spuriously trip on the offline queue's
+    # ambient ``.kittify/sync-state.json`` local write, which is unrelated to
+    # the #3716 defect under test.
+    (repo / ".gitignore").write_text(
+        ".worktrees/\n.kittify/sync-state.json\n", encoding="utf-8"
+    )
 
     fdir = repo / "kitty-specs" / SLUG
     fdir.mkdir(parents=True)
@@ -162,7 +170,18 @@ def test_close_discard_commits_meta_flatten(
     coord_mission: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     """Defect 1: after ``--discard`` reports success, its own ``meta.json``
-    flatten is committed — ``meta.json`` is NOT left dirty.
+    flatten is committed — the WHOLE working tree is clean, not just
+    ``meta.json`` in isolation.
+
+    (squad) Strengthened from a ``meta.json``-only check to a whole-tree
+    ``git status --porcelain`` empty assertion: the retrospective the discard
+    path persists (``retrospective.yaml``, pinned by
+    ``test_teardown_seam_persist_before_destroy``) is written to the SAME
+    working tree by the SAME command invocation, so a narrower check that
+    only inspects ``meta.json`` would miss an uncommitted retrospective write
+    landing alongside it. A real spec-kitty project's own ambient
+    ``.kittify/sync-state.json`` is gitignored by the fixture above so it
+    cannot produce a false positive here.
     """
     repo = coord_mission
     monkeypatch.chdir(repo)
@@ -170,10 +189,11 @@ def test_close_discard_commits_meta_flatten(
     _run_discard(repo)
 
     dirty = _porcelain_paths(repo)
-    meta_rel = f"kitty-specs/{SLUG}/meta.json"
-    assert meta_rel not in dirty, (
-        "issue #3716 defect 1: `mission close --discard` reported success but left "
-        f"its own meta.json flatten uncommitted. git status --porcelain: {dirty!r}"
+    assert dirty == [], (
+        "issue #3716 defect 1 (squad-strengthened): `mission close --discard` "
+        "reported success but left the working tree dirty — either its own "
+        "meta.json flatten, or the retrospective it persists alongside it, is "
+        f"uncommitted. git status --porcelain: {dirty!r}"
     )
 
 

@@ -48,6 +48,22 @@ harness) and the REAL ``_collect_status_artifacts`` / product
 ``_primary_surface_status_paths`` filter / ``safe_commit`` production surfaces —
 no stubbed router, no patched resolver. GREEN today (defect fixed); it fails again
 only if the coord ``.worktrees/`` exclusion regresses.
+
+PROVENANCE NOTE (squad correction): step (a)/(b) below feed
+``_collect_status_artifacts`` the COORD ``feature_dir`` directly to force a
+``.worktrees/``-nested ``tasks.md`` into the candidate list and exercise the
+``is_under_worktrees_segment`` filter clause. The live production caller,
+``implement._commit_wp_claim_status``, never does this: ``implement()``
+resolves its own ``feature_dir`` via
+``placement_seam(repo_root, mission_slug).read_dir(MissionArtifactKind.SPEC)``
+— a PRIMARY-partition kind that is topology-blind and never returns the coord
+worktree (the #2453 coord-husk-shadows-primary fix) — so
+``_collect_status_artifacts`` is never invoked on a coord directory through
+that sole call path, and the ``is_under_worktrees_segment`` clause is
+defensive there, not reachable. This test exercises the filter helper in
+isolation over a genuinely coord-sourced artifact list (still built from real
+production functions, no stubs) — it does NOT reconstruct the live caller's
+own inputs.
 """
 
 from __future__ import annotations
@@ -178,10 +194,17 @@ def test_coord_surface_tasks_md_never_reaches_primary_safe_commit_bundle(
         "bundle"
     )
 
-    # --- Rebuild the PRIMARY-surface bundle EXACTLY as the live coord claim-commit
-    # caller does (implement._commit_wp_claim_status): collect status artifacts from
-    # the (coord) feature_dir and run the PRODUCT ``_primary_surface_status_paths``
-    # filter with ``routes_through_coord=True`` (this mission's genuine topology). ---
+    # --- Exercise the ``_primary_surface_status_paths`` filter helper in
+    # isolation (squad correction — see module docstring PROVENANCE NOTE): the
+    # live caller (``implement._commit_wp_claim_status``) resolves its
+    # ``feature_dir`` via the PRIMARY-partition placement seam and so never
+    # collects status artifacts from the coord worktree itself. Collecting
+    # from ``ctx.coord_feature_dir`` here is a DELIBERATE deviation to force a
+    # ``.worktrees/``-nested ``tasks.md`` into the candidate list, so the
+    # ``is_under_worktrees_segment`` clause — defensive/unreachable through
+    # the real caller — is still exercised directly against the PRODUCT
+    # filter (``routes_through_coord=True``, this mission's genuine
+    # topology), using real (non-stubbed) production functions throughout. ---
     _materialize(ctx.coord_feature_dir)  # status.json now exists alongside the log
     collected = _collect_status_artifacts(ctx.coord_feature_dir)
     assert coord_tasks_md.resolve() in {p.resolve() for p in collected}, (
