@@ -2252,6 +2252,27 @@ def specify(
             {"raw_output": raw_output},
         )
         return
+    # Belt-and-brace, matching ``plan``/``tasks``/``check_prerequisites``
+    # (~2320/2383/2536): ``_create_mission_for_specify_json``'s own payload
+    # already carries ``mission_slug`` (verified against production), so this
+    # is a structural no-op on the normal path -- NOT business-payload
+    # enrichment, it fills the ONE transport-contract identity field
+    # (``upstream_contract.json``'s ``required_payload_fields``) every
+    # orchestrator-api response must carry, only when the delegate omits it.
+    #
+    # Deliberately NOT a plain ``setdefault("mission_slug", mission)``: the
+    # raw ``mission`` input is the PRE-mid8-suffix handle
+    # (``mission_dir_name`` appends ``-<mid8>`` at creation --
+    # ``lanes/branch_naming.py:488``), so it is not itself the canonical
+    # slug once the mission exists on disk. Only resolve (and pay the extra
+    # disk lookup) in the fallback branch, using the SAME
+    # ``_mission_identity_payload(mission_dir)["mission_slug"]`` the siblings
+    # read post-resolution -- the real, mid8-suffixed value -- rather than a
+    # guess that could be wrong. Never overwrites a delegate-supplied value.
+    if "mission_slug" not in payload:
+        main_repo_root = _get_main_repo_root()
+        mission_dir = _resolve_mission_dir_or_fail(cmd, main_repo_root, mission)
+        payload["mission_slug"] = _mission_identity_payload(mission_dir)["mission_slug"]
     validate_outbound_payload(payload, "orchestrator_api")
     envelope = make_envelope(command=cmd, success=True, data=payload)
     _emit(envelope)

@@ -185,6 +185,52 @@ def test_specify_creates_mission_with_enriched_scaffold_state(tmp_path: Path) ->
     assert (feature_dir / "meta.json").exists()
 
 
+def test_specify_success_data_carries_mission_slug_even_if_delegate_omits_it(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Fold-in review finding: unlike ``plan``/``tasks``/
+    ``check_prerequisites`` (each ``setdefault``s ``mission_slug`` from the
+    resolved mission identity), ``specify`` relied entirely on the delegate
+    payload carrying the field -- a delegate payload missing it would
+    otherwise reach ``validate_outbound_payload`` and raise an un-enveloped
+    ``ContractViolationError`` on the success path.
+
+    Drives the REAL mission creation (so the mid8-suffixed canonical slug
+    genuinely exists on disk) but strips ``mission_slug`` from the
+    intercepted JSON payload before it reaches ``specify()``, forcing the
+    fallback resolution path -- and asserting that fallback recovers the
+    real, mid8-suffixed slug, not the raw pre-suffix ``--mission`` input.
+    """
+    import contextlib
+    import io
+
+    repo = _init_repo(tmp_path)
+
+    import specify_cli.cli.commands.lifecycle as lifecycle_module
+
+    real_create = lifecycle_module._create_mission_for_specify_json
+
+    def _omit_mission_slug(mission: str, mission_type: str, topology: object) -> None:
+        inner_capture = io.StringIO()
+        with contextlib.redirect_stdout(inner_capture):
+            real_create(mission, mission_type, topology)
+        payload = json.loads(inner_capture.getvalue().strip().split("\n")[0])
+        del payload["mission_slug"]
+        print(json.dumps(payload))
+
+    monkeypatch.setattr(lifecycle_module, "_create_mission_for_specify_json", _omit_mission_slug)
+
+    envelope = _specify(repo, "wp03-missing-slug")
+
+    assert envelope["success"] is True, envelope
+    data = envelope["data"]
+    assert data["mission_slug"].startswith("wp03-missing-slug-")
+    # The real, mid8-suffixed slug -- not the raw pre-suffix --mission input.
+    assert data["mission_slug"] != "wp03-missing-slug"
+    feature_dir = Path(data["feature_dir"])
+    assert (feature_dir / "meta.json").exists()
+
+
 # ---------------------------------------------------------------------------
 # Acceptance Scenario 2 — plan: unenriched pass-through of setup_plan
 # ---------------------------------------------------------------------------
