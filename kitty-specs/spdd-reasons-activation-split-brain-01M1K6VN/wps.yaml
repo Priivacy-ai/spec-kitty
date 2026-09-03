@@ -1,0 +1,120 @@
+work_packages:
+  - id: WP01
+    title: "activation.py rewrite + mandatory parity test"
+    dependencies: []
+    owned_files:
+      - "src/charter/offering/spdd_reasons/activation.py"
+      - "tests/charter/test_spdd_reasons_activation_parity.py"
+    requirement_refs:
+      - FR-001
+      - FR-002
+      - FR-003
+      - FR-004
+      - FR-005
+      - NFR-001
+      - NFR-002
+      - NFR-003
+      - C-001
+      - C-002
+      - C-004
+    cross_cutting: true
+    subtasks:
+      - T001
+      - T002
+      - T003
+      - T004
+      - T005
+    prompt_file: "tasks/WP01-activation-rewrite-parity-test.md"
+    agent_profile: "implementer-ivan"
+    role: "implementer"
+    agent: "claude"
+
+  - id: WP02
+    title: "action_doctrine_bundle.py + delivery_table.py re-derivation from activated_*"
+    dependencies: []
+    owned_files:
+      - "src/charter/activation/action_doctrine_bundle.py"
+      - "src/charter/activation/context_renderers/delivery_table.py"
+      - "tests/charter/test_action_bundle_delivery.py"
+      - "tests/charter/test_action_doctrine_bundle_activation.py"
+    requirement_refs:
+      - FR-006
+      - FR-007
+      - FR-008
+      - FR-014
+      - NFR-001
+      - NFR-002
+    cross_cutting: true
+    subtasks:
+      - T006
+      - T007
+      - T008
+      - T009
+      - T010
+    prompt_file: "tasks/WP02-action-doctrine-bundle-activated-derivation.md"
+    agent_profile: "implementer-ivan"
+    role: "implementer"
+    agent: "claude"
+
+  - id: WP03
+    title: "resolver.py directive-base + paradigm-base re-derivation from activated_*"
+    dependencies: []
+    owned_files:
+      - "src/charter/activation/resolver.py"
+      - "tests/charter/test_resolver_activation_parity.py"
+    requirement_refs:
+      - FR-011
+      - FR-012
+      - FR-013
+      - NFR-001
+      - NFR-002
+    cross_cutting: true
+    subtasks:
+      - T011
+      - T012
+      - T013
+    prompt_file: "tasks/WP03-resolver-activated-base.md"
+    agent_profile: "implementer-ivan"
+    role: "implementer"
+    agent: "claude"
+
+  - id: WP04
+    title: "Triage the three pinning test files against WP01's rewrite"
+    dependencies:
+      - WP01
+    owned_files:
+      - "tests/charter/test_charter_context_spdd_reasons.py"
+      - "tests/charter/test_activate_resolves_no_answers_edit.py"
+      - "tests/charter/test_answers_inert_and_org_union.py"
+    requirement_refs:
+      - FR-010
+    cross_cutting: true
+    subtasks:
+      - T014
+      - T015
+      - T016
+    prompt_file: "tasks/WP04-triage-pinning-tests.md"
+    agent_profile: "implementer-ivan"
+    role: "implementer"
+    agent: "claude"
+
+  - id: WP05
+    title: "Docs: contracts/activation.md, contracts/charter-context.md, docs/context/charter.md"
+    dependencies:
+      - WP01
+      - WP02
+      - WP03
+    owned_files:
+      - "docs/context/charter.md"
+      - "kitty-specs/spdd-reasons-doctrine-pack-01KQC4AX/contracts/activation.md"
+      - "kitty-specs/spdd-reasons-doctrine-pack-01KQC4AX/contracts/charter-context.md"
+    requirement_refs:
+      - FR-009
+    cross_cutting: true
+    subtasks:
+      - T017
+      - T018
+    prompt_file: "tasks/WP05-docs-activation-authority.md"
+    agent_profile: "scribe-sally"
+    role: "documentarian"
+    agent: "claude"
