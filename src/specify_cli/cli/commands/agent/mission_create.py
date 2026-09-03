@@ -565,6 +565,20 @@ def _build_create_payload(result: MissionCreationResult) -> dict[str, object]:
         "meta_file": str(meta_file),
         "created_at": str(result.meta.get("created_at", "")),
         "created_files": [str(spec_file), str(meta_file), str(tasks_readme)],
+        # #2693: spec.md is scaffolded empty and left uncommitted on purpose
+        # (#846) — it is committed later by /spec-kitty.specify once it holds
+        # substantive content. Disclose it as a structured uncommitted artifact
+        # (with the command responsible for committing it) so a generated file
+        # is never both untracked in the working tree AND undisclosed to the
+        # caller. meta.json, status.events.jsonl, and the tasks/ scaffold are
+        # committed transactionally at create time, so they are NOT listed here.
+        "uncommitted_artifacts": [
+            {
+                "path": str(spec_file),
+                "reason": ("Scaffolded empty at create time; populated and committed with substantive content later (#846)."),
+                "responsible_command": "/spec-kitty.specify",
+            }
+        ],
         "write_mode": "update_existing_files",
         "scaffold_only": True,
         "requires_agent_authoring": True,

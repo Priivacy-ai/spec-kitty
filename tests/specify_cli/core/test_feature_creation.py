@@ -714,27 +714,27 @@ def test_meta_json_commit_noop_does_not_raise(tmp_path: Path) -> None:
     assert meta_file.exists()
 
 
-def test_meta_json_commit_hard_failure_raises_at_documentation_call_site(
+def test_meta_json_commit_hard_failure_raises_for_documentation_mission(
     tmp_path: Path,
 ) -> None:
-    """FR-001 Acceptance Scenario 4 (mission_creation.py:792-793): the fix is
-    not partial to the primary mission-type branch -- the ``documentation``
-    mission-type's second ``meta.json`` commit call site must raise
-    identically on a hard git failure.
+    """FR-001 Acceptance Scenario 4: the hard-failure guard is not partial to
+    the primary mission-type branch -- a ``documentation`` mission-type creation
+    must raise identically on a hard git failure at the scaffold commit.
 
-    ``_commit_feature_file`` is mocked with ``side_effect=[None, boom]``: the
-    first call (line 768, unconditional for every mission type) succeeds so
-    execution reaches the ``documentation``-only branch; the second call
-    (line 793) is the one that raises. A single always-raising mock would
-    raise at line 768 first and never actually exercise line 792-793.
+    #2693 collapsed the create commit legs into ONE transactional scaffold
+    commit (``meta.json`` + ``status.events.jsonl`` + ``tasks/README.md`` +
+    ``tasks/.gitkeep``) that runs after the ``documentation``-only
+    ``set_documentation_state`` write, so ``meta.json`` carries the doc state.
+    There is now a single ``_commit_feature_file`` call site, so a single
+    always-raising mock exercises it directly.
 
-    Revert sensitivity: reverting the fix (re-wrapping line 792-793's
-    ``_commit_feature_file`` call in ``contextlib.suppress(Exception)``)
-    swallows the second call's ``RuntimeError`` silently, ``create_mission_core``
-    returns normally, and ``pytest.raises`` below fails with "DID NOT RAISE".
+    Revert sensitivity: re-wrapping the scaffold ``_commit_feature_file`` call in
+    ``contextlib.suppress(Exception)`` swallows the ``RuntimeError`` silently,
+    ``create_mission_core`` returns normally, and ``pytest.raises`` below fails
+    with "DID NOT RAISE".
     """
     _init_git_repo(tmp_path)
-    boom = RuntimeError("meta.json commit failed: documentation state commit rejected")
+    boom = RuntimeError("documentation state commit rejected")
 
     with (
         patch(f"{_CORE_MODULE}.locate_project_root", return_value=tmp_path),
@@ -742,7 +742,7 @@ def test_meta_json_commit_hard_failure_raises_at_documentation_call_site(
         patch(f"{_CORE_MODULE}.is_git_repo", return_value=True),
         patch(f"{_CORE_MODULE}.get_current_branch", return_value="main"),
         patch("specify_cli.status.fire_dossier_sync"),
-        patch(f"{_CORE_MODULE}._commit_feature_file", side_effect=[None, boom]),
+        patch(f"{_CORE_MODULE}._commit_feature_file", side_effect=boom),
         pytest.raises(RuntimeError, match="documentation state commit rejected"),
     ):
         create_mission_core(
