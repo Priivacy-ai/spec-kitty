@@ -140,6 +140,75 @@ def _offending_imports(path: Path) -> list[str]:
 _ADAPTER_WRAPPER_NAME = {"_resolve_workflow_for_mission": "resolve_workflow_for_mission"}
 
 
+# PR-BOUNDARY-001 (design-phase-orchestrator-api-01M1HE6M pre-merge review):
+# the original ``_sibling_modules()`` walk covers only ``src/runtime/next/``
+# itself, so it could never catch either of the two REAL offending call
+# sites this finding identified -- both live one layer up, in CLI-adjacent
+# modules that reach into the six concentrated privates directly instead of
+# routing through this adapter or the ``next_invocation_lifecycle`` seam:
+#
+#   * ``next_cmd.py``'s ``_handle_answer`` (the host CLI's own pending-
+#     decision auto-resolve -- pre-existing debt)
+#   * ``orchestrator_api/commands.py``'s ``answer_decision`` (WP08 -- new
+#     code introduced by this mission that mirrored the CLI's bypass rather
+#     than closing it)
+#
+# Named explicitly (not a recursive repo-wide walk, which would risk
+# unrelated false positives elsewhere in a large codebase) -- these are the
+# two established CLI-layer entry points this concentration seam exists to
+# protect. Both were fixed to route through ``next_invocation_lifecycle.
+# resolve_pending_decision_id`` / ``runtime_bridge_engine._read_snapshot``
+# as part of this same fix, so the guard below closes the class by
+# construction: a future direct import in either file fails this test.
+_CLI_ADJACENT_MODULES = (
+    Path(__file__).resolve().parents[2]
+    / "src"
+    / "specify_cli"
+    / "cli"
+    / "commands"
+    / "next_cmd.py",
+    Path(__file__).resolve().parents[2]
+    / "src"
+    / "specify_cli"
+    / "orchestrator_api"
+    / "commands.py",
+)
+
+
+def test_no_sibling_module_accesses_engine_planner_privates() -> None:
+    """No module outside this adapter reaches into the six concentrated
+    ``_internal_runtime.engine``/``.planner`` privates directly (FR-013).
+
+    Scope: every top-level sibling under ``src/runtime/next/`` PLUS the two
+    named CLI-adjacent modules in ``_CLI_ADJACENT_MODULES`` (the widened
+    scope from PR-BOUNDARY-001 -- see the comment above that tuple).
+    """
+    offenders: list[str] = []
+    for path in _sibling_modules():
+        offenders.extend(_offending_imports(path))
+    for path in _CLI_ADJACENT_MODULES:
+        offenders.extend(_offending_imports(path))
+    assert not offenders, (
+        "Module(s) outside the runtime_bridge_engine concentration seam "
+        "import _internal_runtime.engine/.planner privates directly "
+        "(route through runtime_bridge_engine or next_invocation_lifecycle "
+        "instead):\n" + "\n".join(offenders)
+    )
+
+
+def test_adapter_defines_all_six_engine_planner_wrappers() -> None:
+    """Non-vacuousness check: the "no sibling reaches in" assertion above is
+    only meaningful if the adapter itself still wraps all 6 concentrated
+    names -- guards against it passing for the wrong reason (e.g. the
+    adapter silently dropping a wrapper)."""
+    for name in _ENGINE_PLANNER_PRIVATE_NAMES:
+        wrapper_name = _ADAPTER_WRAPPER_NAME.get(name, name)
+        assert hasattr(engine_adapter, wrapper_name), (
+            f"runtime_bridge_engine no longer defines a wrapper for {name!r} "
+            f"(expected attribute {wrapper_name!r})"
+        )
+
+
 
 
 # ---------------------------------------------------------------------------

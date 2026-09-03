@@ -9,7 +9,11 @@ from time import perf_counter
 
 import pytest
 
-from specify_cli.core.contract_gate import ContractViolationError, validate_outbound_payload
+from specify_cli.core.contract_gate import (
+    ContractViolationError,
+    is_allowed_error_code,
+    validate_outbound_payload,
+)
 
 pytestmark = pytest.mark.fast
 
@@ -209,3 +213,22 @@ def test_gate_validates_quickly() -> None:
     elapsed = perf_counter() - started_at
 
     assert elapsed < 0.05
+
+
+# ---------------------------------------------------------------------------
+# PR-CONTRACT-002 -- is_allowed_error_code (the runtime allow-list guard)
+# ---------------------------------------------------------------------------
+
+
+def test_is_allowed_error_code_true_for_registered_code() -> None:
+    assert is_allowed_error_code("orchestrator_api", "MISSION_NOT_FOUND") is True
+
+
+def test_is_allowed_error_code_false_for_unregistered_code() -> None:
+    assert is_allowed_error_code("orchestrator_api", "TOTALLY_MADE_UP_CODE") is False
+
+
+def test_is_allowed_error_code_false_for_unknown_context() -> None:
+    """Fails closed: an unknown context has no ``allowed_error_codes``
+    section, so nothing is trusted as allowed."""
+    assert is_allowed_error_code("no_such_context", "MISSION_NOT_FOUND") is False
