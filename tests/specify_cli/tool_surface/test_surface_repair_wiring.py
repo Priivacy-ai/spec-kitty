@@ -146,6 +146,41 @@ def test_upgrade_with_yes_does_not_overwrite_drifted(tmp_path: Path) -> None:
     )
 
 
+def test_upgrade_refreshes_stale_orientation_block_same_version(tmp_path: Path) -> None:
+    """``upgrade`` refreshes a stale ``.claude/CLAUDE.md`` version stamp (#2265).
+
+    Reproduces the exact repro: a project already at the current version whose
+    orientation block still carries an older init-time version. The always-on
+    surface-repair leg must rewrite the block to the installed version even on
+    the "already up to date" path — not only when a version-gated migration
+    happens to fire.
+    """
+    import re
+
+    _init_claude_project(tmp_path)
+    # Prime the up-to-date path so the wiring marker exists and no migrations pend.
+    first = run_spec_kitty("upgrade", "--yes", cwd=tmp_path)
+    assert first.returncode == 0, first.stderr
+
+    claude_md = tmp_path / ".claude" / "CLAUDE.md"
+    original = claude_md.read_text(encoding="utf-8")
+    assert "<!-- spec-kitty:orientation -->" in original, "init must stamp an orientation block"
+
+    # Degrade only the version stamp, leaving the block markers intact so the
+    # in-place section rewrite is exercised.
+    staled = re.sub(r"\*\*Spec Kitty v[^*]+\*\*", "**Spec Kitty v0.0.1-legacy**", original, count=1)
+    assert staled != original, "test setup must actually change the version stamp"
+    claude_md.write_text(staled, encoding="utf-8")
+
+    second = run_spec_kitty("upgrade", "--yes", cwd=tmp_path)
+    assert second.returncode == 0, second.stderr
+
+    refreshed = claude_md.read_text(encoding="utf-8")
+    assert "0.0.1-legacy" not in refreshed, "stale version stamp must be refreshed"
+    assert "**Spec Kitty v" in refreshed
+    assert refreshed.count("<!-- spec-kitty:orientation -->") == 1, "block must not be duplicated"
+
+
 def test_second_upgrade_is_idempotent(tmp_path: Path) -> None:
     """A second consecutive ``upgrade`` reports zero changes (FR-008/NFR-006)."""
     _init_claude_project(tmp_path)
