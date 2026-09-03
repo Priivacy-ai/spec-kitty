@@ -1,0 +1,132 @@
+# review-findings/v1 — canonical format for lens-session and fresh-sweep output.
+schema: review-findings/v1
+complete: true
+phase: spec
+lens_group: gov
+mission: spdd-reasons-activation-split-brain-01M1K6VN
+findings:
+  - id: SPEC-GOV-001
+    lens: Decision Record fidelity (mission-derived)
+    severity: 4
+    title: Non-Goals carve-out names only one other selected_* consumer and misses a third, materially-activation-decision reader in resolver.py
+    evidence:
+      - artifact: "spec.md § Non-Goals / Out of Scope, last bullet (lines ~420-426): \"A general audit of every other consumer of governance.charter.selected_* ... beyond the two named in the issue and confirmed here ... load_governance_config/DoctrineSelectionConfig have other, non-activation-decision consumers (e.g. rendering the charter-level 'Global Selections' block in _render_selection_block) ... is not touched by this mission.\""
+      - artifact: "spec.md § Decision Record 2 (lines 139-209) — the spec's own methodology for this exact question (fold-in vs. carve-out), applied thoroughly to action_doctrine_bundle.py but never re-applied to resolver.py"
+      - code: "src/charter/activation/resolver.py:673-676 and 716-732 (_resolve_directive_base): when doctrine.selected_directives (the same stale governance.charter.selected_* section) is non-empty, it is returned verbatim as the resolved directive set, source=\"charter\" — PackContext.from_config(repo_root).activated_directives is consulted ONLY when selected_directives is empty. This does not merely exclude/under-seed like the two documented consumers; it can fully replace activated_* with a stale snapshot."
+      - code: "src/charter/activation/resolver.py:831-832 (resolve_project_governance): `selected_paradigms = list(doctrine.selected_paradigms)` — paradigms have NO activated_* fallback at all; the field is unconditionally sourced from the stale authored section."
+      - code: "src/charter/activation/resolver.py:594-595 — GovernanceResolution's own docstring: \"Resolved governance activation result.\" (the function's output is self-described as an activation result, not a selection-display artifact)."
+      - code: "src/runtime/next/prompt_builder.py:428-437 (_legacy_governance_context) — calls resolve_project_governance(repo_root) and renders \"Governance: ... Directives: ...\" directly into agent-facing bootstrap text when the primary charter-context path raises or is in \"missing\" mode."
+      - code: "src/charter/activation/context_json.py:141-262 (_load_project_directives_with_source / _project_directive_entries_with_source) — resolve_project_governance's `directives` and `directives_source` feed the `--json` charter-context payload's `all_directives`/`directives_source` keys, i.e. exactly the machine-consumable governance-panel surface the issue's own \"Impact\" paragraph names (\"Downstream consumers that render governance state (e.g. a doctrine/charter panel)\")."
+      - code: "src/charter/activation/compact.py:292-315 (_resolve_governance_summary) and src/specify_cli/runtime/doctor.py:129-145 (check_governance_resolution) — two further callers of resolve_project_governance rendering its paradigms/directives into agent- and operator-facing output."
+    claim: >
+      The mission-derived lens requires verifying the Non-Goals carve-out against real code, not
+      the spec's own summary of it. Decision Record 2 does this rigorously for
+      action_doctrine_bundle.py (reads the module in full, distinguishes the legitimate
+      org-required-union role from the illegitimate activation-gating role, and folds in only
+      the latter). The Non-Goals section does NOT apply the same rigor to the other
+      consumers of the identical governance.charter.selected_* section: it names exactly one
+      (_render_selection_block, verified independently in this review to be display-only,
+      additive text under "Global Selections" — that part of the carve-out holds up) and then
+      asserts, without evidence, that this is the complete remaining set
+      ("beyond the two named in the issue and confirmed here"). It is not. `resolve_project_governance`
+      in `charter/activation/resolver.py` reads the same stale section for what its own class
+      (`GovernanceResolution`) is docstring-labeled an "activation result," prioritizes the stale
+      `selected_directives` over `activated_directives` outright when non-empty (no
+      exclusion-only or under-seeding softness — a full override), sources `paradigms`
+      from `selected_paradigms` with zero activated_* fallback path at all, and its output is
+      consumed by four real surfaces: the runtime prompt builder's legacy governance fallback
+      (agent-facing bootstrap text), the `--json` charter-context payload's `all_directives`
+      field (the exact downstream-panel scenario the issue's own Impact paragraph describes),
+      the compact governance summary, and the `doctor` governance-resolution check. This is
+      squarely inside the issue's own "and anything else currently reading selected_* for
+      activation decisions" clause and is not a display-only case like `_render_selection_block`.
+      Because the spec's FR-006/FR-007/FR-008 only fix `action_doctrine_bundle.py`, and FR-001
+      only fixes `is_spdd_reasons_active`, this consumer survives the mission unfixed and
+      un-mentioned — the PR will close #3838 while leaving a third, code-verified instance of
+      the same defect class live, including in the one surface (the JSON governance payload)
+      the issue explicitly cites as the impact case.
+    remediation: >
+      Before tasks/plan phase: apply Decision Record 2's own methodology to
+      `resolve_project_governance`/`_resolve_directive_base` — read `resolver.py` in full,
+      determine whether its `selected_*`-first priority (directives) and `selected_*`-only
+      sourcing (paradigms) are activation decisions (they are, per the evidence above) or a
+      legitimately separate concept, and either (a) fold in a Decision Record 3 + FR that
+      re-derives `_resolve_directive_base`'s base set and `resolve_project_governance`'s
+      paradigms from `activated_*` the same way FR-006 does for `action_doctrine_bundle.py`
+      (with `selected_*` retained only as an additive project-local layer, mirroring the
+      existing "union onto the base, never replace" pattern already used for
+      `directives_cfg.directives`), or (b) if the operator explicitly decides this resolver is
+      out of scope for this issue, add an explicit, evidenced Non-Goals bullet naming it (not a
+      silent omission) with the reasoning for exclusion — per the mission's own binding
+      standing order against deferring found-in-scope defects to a follow-up without a stated
+      reason.
+
+  - id: SPEC-GOV-002
+    lens: Terminology
+    severity: 3
+    title: Spec does not reconcile with the canonical "Global Selection" glossary entry, which currently defines selected_<kind> as itself the activation mechanism
+    evidence:
+      - artifact: "docs/context/charter.md frontmatter: doc_status: active, updated: '2026-08-28' (current, not a stale historical snapshot)"
+      - artifact: "docs/context/charter.md § Charter-Mediated Selection (~lines 256-266): \"the project / org charter is the sole authority that decides which doctrine artifacts apply to a given mission run ... runtime asks charter for the activated set rather than reaching into doctrine directly.\""
+      - artifact: "docs/context/charter.md § Global Selection (~lines 268-276): \"Selection mode in which the charter declares an artifact is *always* active for every WP prompt regardless of action or mission type. Expressed via selected_<kind>: [<id>, ...] on the project charter ...\" — Status: canonical, Applicable to: 2.x"
+      - artifact: "docs/context/charter.md § selected_<kind> / required_<kind> (~lines 378-386): defines the field-naming convention purely in terms of Global Selection, with no mention of activated_<kind> or PackContext anywhere in the document"
+      - artifact: "spec.md § Summary (lines 8-25) and Key Entities (lines 384-392): asserts activated_* is \"the real, current activation authority\" and that selected_* is \"explicitly retired as an activation source ... but still read for activation by is_spdd_reasons_active (the bug)\", citing only compiler.py's own docstring as authority"
+      - artifact: "spec.md FR-009 (line 358): the only doc-update requirement, scoped to kitty-specs/spdd-reasons-doctrine-pack-01KQC4AX/contracts/activation.md and contracts/charter-context.md — does not mention docs/context/charter.md"
+    claim: >
+      The repo's canonical, actively-maintained glossary document (`docs/context/charter.md`,
+      self-described as "The canonical Terminology-Canon entry for the governing charter
+      term"; every relevant entry marked Status: canonical) currently defines
+      `selected_<kind>` as ITSELF the mechanism by which "the charter declares an artifact is
+      *always* active" (Global Selection), and its sibling "Charter-Mediated Selection" entry
+      states the charter is "the sole authority that decides which doctrine artifacts apply."
+      `activated_<kind>` / `PackContext` do not appear anywhere in this document. This directly
+      contradicts the spec's foundational premise (sourced only from `compile_charter`'s code
+      docstring) that `selected_*` is retired as an activation source in favor of
+      `activated_*`. Whichever side is correct in shipped behavior, the charter's own
+      Documentation Structure standing order states "a doc/code disagreement is a doc defect"
+      and DIRECTIVE_048 (version-governance) requires citing the current canonical version of a
+      versioned artifact — the spec cites only the code docstring and never surfaces or
+      reconciles this actively-maintained, contradicting canonical glossary page, and FR-009's
+      doc-update scope does not include it. Left as-is, this mission will ship code whose
+      correct new behavior is flatly contradicted by the still-"canonical," recently-updated
+      glossary that a future reader (human or agent, including one following DIRECTIVE_049
+      self-introduction guidance) would consult to understand what "selected" vs. "activated"
+      means in this codebase.
+    remediation: >
+      Add an FR (or extend FR-009) requiring `docs/context/charter.md`'s "Global Selection,"
+      "Charter-Mediated Selection," and "selected_<kind> / required_<kind>" entries to be
+      updated to state the corrected, current activation authority (`activated_<kind>` via
+      `PackContext`/INV-2 resolution), with `selected_<kind>` reclassified in the glossary as
+      the authoring/interview-record concept the compiler docstring already describes it as —
+      and add (or update) an `activated_<kind>` glossary entry so the concept this mission
+      makes authoritative has a canonical definition at all. Flag the drift explicitly rather
+      than silently picking code over docs, per AGENTS.md's own "if the charter and this file
+      ever disagree ... flag the drift instead of picking silently" rule (the same principle
+      applied here to docs/context vs. code).
+
+  - id: SPEC-GOV-003
+    lens: Scope
+    severity: 2
+    title: NFR-002's edited-module list names four modules no FR actually specifies editing
+    evidence:
+      - artifact: "spec.md NFR-002 (line 366): \"tests/architectural/test_no_dead_symbols.py must pass for every module this mission edits (activation.py, compiler.py, bootstrap_text.py, action_doctrine_bundle.py, org_pack_discovery.py, sync.py, template_renderer.py)\""
+      - artifact: "spec.md FR-001..FR-010 (lines 350-359): FR-001/FR-003/FR-005 edit only activation.py; FR-006 edits only action_doctrine_bundle.py; FR-004 only requires verifying call sites (bootstrap_text.py:332, apply_spdd_blocks_for_project, command_renderer.py, asset_generator.py), not editing them; FR-009 edits two contracts/*.md docs, not src; no FR names compiler.py, org_pack_discovery.py, sync.py, or template_renderer.py as an edit target"
+    claim: >
+      NFR-002 lists seven src modules as "edited by this mission," but the FR table commits
+      only two src modules to an actual edit (activation.py, action_doctrine_bundle.py). The
+      other five (compiler.py, bootstrap_text.py, org_pack_discovery.py, sync.py,
+      template_renderer.py) appear in NFR-002's gate list but in no FR's stated change. This
+      looks like the readiness probe's broader "blast radius" list (which explicitly named
+      these as candidate edit targets, not confirmed ones) carried into NFR-002 without being
+      pared to what Decision Records 1/2 actually settled on editing. A plan/tasks-phase agent
+      following the FR table alone would not touch these five files; one reading NFR-002 as a
+      literal edit manifest could unnecessarily open them looking for a change to make,
+      or conversely worry the dead-code gate is unsatisfiable for files it never touches (the
+      gate is vacuously satisfied for an unedited file, but the spec doesn't say so).
+    remediation: >
+      Trim NFR-002's file list to the modules the FR table actually commits to editing
+      (activation.py, action_doctrine_bundle.py), or, if plan-phase design is expected to touch
+      any of the other five (e.g. threading a new re-derivation helper through
+      org_pack_discovery.py), say so explicitly in the relevant FR (most likely FR-006) rather
+      than only in the NFR's gate list — so the touched-file set is stated once, unambiguously,
+      in the requirements that drive the change, not inferred from the gate that checks it.
