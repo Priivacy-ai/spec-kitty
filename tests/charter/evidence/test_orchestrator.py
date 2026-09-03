@@ -10,7 +10,9 @@ from pathlib import Path
 import pytest
 import ruamel.yaml
 
-from charter.activation.evidence.orchestrator import (    EvidenceOrchestrator,
+from charter.activation.evidence.orchestrator import (
+    ConfigShapeError,
+    EvidenceOrchestrator,
     EvidenceResult,
     load_url_list_from_config,
 )
@@ -94,6 +96,45 @@ def test_url_list_assembled(tmp_path: Path) -> None:
 
 def test_load_url_list_absent(tmp_path: Path) -> None:
     assert load_url_list_from_config(tmp_path) == ()
+
+
+def test_load_url_list_non_mapping_config_raises_config_shape_error(
+    tmp_path: Path,
+) -> None:
+    """SK-16 (corrected shape): a non-mapping top-level ``config.yaml`` must
+    fail closed with a controlled diagnostic -- not raise a bare
+    ``AttributeError``, and not silently succeed either.
+
+    ``config.yaml`` is normally a mapping, but a corrupted or hand-edited file
+    can carry a bare scalar (e.g. a plain string) at the top level. Before the
+    original SK-16 guard, ``config.get("charter")`` raised
+    ``AttributeError: 'str' object has no attribute 'get'`` -- this propagated
+    uncaught through ``EvidenceOrchestrator.collect()`` into ``charter status
+    --json``'s broad ``except Exception`` handler, leaking the raw exception
+    message as the structured envelope's ``"error"`` field.
+
+    A follow-up fix made the guard return ``()`` instead -- but that converts
+    a fail-closed diagnostic gap into a fully silent success: ``charter status
+    --json`` then exits 0 with a normal success envelope on a corrupted
+    config file, indistinguishable from a project with no configured URLs.
+    The ledger's own SK-16 entry says the pre-fix behaviour "fails closed...
+    this is *not* a silent success" -- only the *leaked exception text* was
+    the defect, not the fail-closed outcome. So the correct fix raises a
+    typed, message-carrying exception instead of either extreme.
+    """
+    kittify = tmp_path / ".kittify"
+    kittify.mkdir()
+    (kittify / "config.yaml").write_text(
+        "just-a-plain-string-not-a-mapping\n", encoding="utf-8"
+    )
+    with pytest.raises(ConfigShapeError) as excinfo:
+        load_url_list_from_config(tmp_path)
+    message = str(excinfo.value)
+    assert "has no attribute" not in message, (
+        f"leaked a raw AttributeError instead of a controlled diagnostic: {message}"
+    )
+    assert "config.yaml" in message
+    assert "str" in message
 
 
 def test_load_url_list_present(tmp_path: Path) -> None:

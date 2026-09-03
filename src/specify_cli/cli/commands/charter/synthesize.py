@@ -11,6 +11,7 @@ import json
 from typing import Any
 
 import typer
+from charter.activation.evidence.orchestrator import ConfigShapeError
 from charter.bundle import CHARTER_YAML
 from kernel.errors import KittyInternalConsistencyError
 from specify_cli.cli.console import err_console
@@ -552,7 +553,11 @@ def charter_synthesize(  # noqa: C901
                 "warnings": warnings_collected + [f"SynthesisError: {e}"],
             }, indent=2, sort_keys=True))
         raise typer.Exit(code=1) from e
-    except TaskCliError as e:
+    except (TaskCliError, ConfigShapeError) as e:
+        # ConfigShapeError (a corrupt/non-mapping .kittify/config.yaml, ledger
+        # SK-16) is a controlled, expected diagnostic -- treated the same as
+        # TaskCliError, not routed through the generic "Unexpected error"
+        # branch below.
         if json_output:
             print(json.dumps({
                 "result": "failure",

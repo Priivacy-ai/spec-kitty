@@ -8,6 +8,7 @@ from specify_cli.cli.console import err_console
 from rich.panel import Panel
 from rich.text import Text
 
+from charter.activation.evidence.orchestrator import ConfigShapeError
 from specify_cli.task_utils import TaskCliError
 
 from specify_cli.cli.commands.charter._app import (
@@ -222,7 +223,11 @@ def charter_resynthesize(  # noqa: C901
     except FileNotFoundError as e:
         _emit_error(console, json_output=json_output, message=str(e))
         raise typer.Exit(code=1) from e
-    except TaskCliError as e:
+    except (TaskCliError, ConfigShapeError) as e:
+        # ConfigShapeError (a corrupt/non-mapping .kittify/config.yaml, ledger
+        # SK-16) is a controlled, expected diagnostic -- treated the same as
+        # TaskCliError, not routed through the generic "Unexpected error"
+        # branch below.
         _emit_error(console, json_output=json_output, message=str(e))
         raise typer.Exit(code=1) from e
     except Exception as e:
