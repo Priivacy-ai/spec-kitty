@@ -351,6 +351,38 @@ def test_check_prerequisites_translates_forbidden_code_in_nested_payload_too(
     assert "FEATURE_CONTEXT_UNRESOLVED" not in serialized, serialized
 
 
+def test_sanitize_forbidden_error_code_scrubs_dict_keys_and_substrings() -> None:
+    """PR-TESTS-002 residual (severity 3): the prior sanitizer recursed
+    dict/list VALUES only and matched the forbidden token by whole-value
+    ``==``, so a verifier defeated the "no forbidden token anywhere in the
+    serialized envelope" claim two ways it never covered: the token as a
+    dict KEY, and the token embedded as a SUBSTRING of a longer string.
+    Neither shape needs the full CLI plumbing to prove -- both are direct
+    properties of :func:`_sanitize_forbidden_error_code` -- so this asserts
+    against the function itself rather than round-tripping through a real
+    delegate failure a second time.
+    """
+    from specify_cli.orchestrator_api.commands import _sanitize_forbidden_error_code
+
+    forbidden = "FEATURE_CONTEXT_UNRESOLVED"
+    replacement = "MISSION_NOT_FOUND"
+
+    # Shape 1: the forbidden token as a dict KEY (the old sanitizer only
+    # ever recursed ``.items()`` VALUES, so a key never got visited).
+    key_shape = {forbidden: "some value", "nested": {forbidden: ["x"]}}
+    sanitized_keys = _sanitize_forbidden_error_code(key_shape, forbidden, replacement)
+    assert forbidden not in json.dumps(sanitized_keys), sanitized_keys
+    assert sanitized_keys == {replacement: "some value", "nested": {replacement: ["x"]}}
+
+    # Shape 2: the forbidden token as a SUBSTRING of a larger string (the
+    # old sanitizer matched with ``value == forbidden``, an exact
+    # whole-string match that a longer string embedding the token defeats).
+    substring_shape = {"message": f"error: {forbidden}_v2 occurred while resolving"}
+    sanitized_substring = _sanitize_forbidden_error_code(substring_shape, forbidden, replacement)
+    assert forbidden not in json.dumps(sanitized_substring), sanitized_substring
+    assert sanitized_substring == {"message": f"error: {replacement}_v2 occurred while resolving"}
+
+
 # ---------------------------------------------------------------------------
 # PR-CONTRACT-001 (host-CLI parity, severity 3, R3-confirmed live-reproduced
 # defect): record-analysis's dirty-worktree preflight must run BEFORE body
