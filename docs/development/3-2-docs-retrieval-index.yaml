@@ -3770,6 +3770,7 @@ pages:
     - {slug: "location", text: "Location", level: 3}
     - {slug: "format", text: "Format", level: 3}
     - {slug: "custom-missions", text: "Custom Missions", level: 3}
+    - {slug: "plan-field-declaration-plan-field-declaration-yaml", text: "Plan-field declaration (`plan-field-declaration.yaml`)", level: 3}
     - {slug: "mission-comparison", text: "Mission Comparison", level: 2}
     - {slug: "authoring-custom-missions", text: "Authoring Custom Missions", level: 2}
     - {slug: "yaml-shape", text: "YAML shape", level: 3}

@@ -2,7 +2,7 @@
 title: Mission Types Reference
 description: Reference for Spec Kitty mission types (software-dev, research, documentation, and plan). Learn how blueprints define phases, step bindings, and custom workflows.
 doc_status: active
-updated: '2026-07-20'
+updated: '2026-09-03'
 related:
 - docs/api/configuration.md
 ---
@@ -229,6 +229,67 @@ You can create custom missions by:
 3. Optionally adding custom templates
 
 Custom missions appear as options during `/spec-kitty.specify`.
+
+### Plan-field declaration (`plan-field-declaration.yaml`)
+
+The plan-substantiveness gate (`spec-kitty setup-plan` / `mission create`'s auto-commit
+check) decides whether a mission's `plan.md` is real content or an unedited scaffold.
+For the four built-in mission types this check is built in. For a **custom mission
+type shipped by a pack**, the pack must additionally ship a `plan-field-declaration.yaml`
+file next to its `plan-template.md`, in the same `missions/<mission-key>/templates/`
+directory. It resolves through the same override → legacy → org → global-mission →
+global → package-default tier chain used for every other mission-type template asset —
+but note this asset is only honoured from a **mission-scoped** tier (the resolved path
+must contain `missions/<mission-key>/`); a hit at one of the mission-agnostic tiers
+(global override, legacy) is ignored (see below). Without this file, a custom
+type's plan is **fail-closed** — reported as non-substantive with an "no field
+declaration is registered" reason — never silently treated as passing.
+
+The file declares one **primary** field (must be substantive) plus a non-empty list of
+**peer** fields (at least one must be substantive). Each field entry is a mapping with a
+`kind` key selecting one of four shapes:
+
+| `kind` | Checks | Keys (beyond common `kind`/`heading`) |
+| --- | --- | --- |
+| `bold_field` | A specific `**Label**: value` line under `## heading` | `label` (required, str), `sub_list_valued` (optional, bool, default `false` — set when the field's value is itself a bulleted sub-list) |
+| `any_bold_field` | Any bold-labelled line under `## heading`, optionally excluding one label | `exclude_label` (optional, str — skip this label when scanning for a substantive peer), `example_label` (optional, str — used only in diagnostic messages) |
+| `table_field` | A Markdown table directly under `## heading` | (none) |
+| `nested_heading_field` | A nested `### heading` structure under the parent `## heading` | `sub_shape` (required, one of `repeatable` \| `named_sibling`), `child_label` (required, str) |
+
+Every entry also requires a non-blank `heading` (the `##` section the field's presence
+check reads). Unknown keys anywhere in the file — a typo'd optional key, or a top-level
+key outside `primary`/`peers` — fail loud with a diagnosable error rather than being
+silently ignored.
+
+Worked example, mirroring `software-dev`'s own Technical Context shape:
+
+```yaml
+primary:
+  kind: bold_field
+  heading: Technical Context
+  label: Language/Version
+
+peers:
+  - kind: bold_field
+    heading: Technical Context
+    label: Testing
+  - kind: any_bold_field
+    heading: Technical Context
+    exclude_label: Language/Version
+  - kind: table_field
+    heading: Problem Decomposition
+  - kind: nested_heading_field
+    heading: Decisions
+    sub_shape: repeatable
+    child_label: "Decision D-"
+```
+
+Org-pack precedence for this asset is deliberately **first-declared-root-wins** —
+consistent with the `plan-template.md` it rides alongside — unlike
+`expected-artifacts.yaml`, which resolves last-match. A `plan-field-declaration.yaml`
+that resolves through a **mission-agnostic** tier (the global override or legacy tiers,
+which are not scoped to any one mission type) is ignored, so it can never accidentally
+gate an unrelated, undeclared mission type's plan.
 
 ---
 
