@@ -3768,6 +3768,8 @@ def design_status(
     mission_dir = _resolve_mission_dir_or_fail(cmd, main_repo_root, mission)
     planning_dir = _planning_read_dir(main_repo_root, mission)
 
+    from pydantic import ValidationError
+
     from specify_cli.status import StoreError
 
     try:
@@ -3777,6 +3779,22 @@ def design_status(
             cmd,
             "DESIGN_STATUS_EVENT_LOG_UNREADABLE",
             f"status.events.jsonl could not be read cleanly for mission {mission!r}: {exc}",
+            {"mission_slug": mission, "error": str(exc)},
+        )
+        return
+    except (json.JSONDecodeError, ValidationError) as exc:
+        # ``_open_decisions`` -> ``decisions.store.load_index`` reads
+        # ``decisions/index.json`` inside the SAME reduction this ``try``
+        # guards -- a hand-corrupted index raises malformed-JSON
+        # (``json.JSONDecodeError``) or schema-invalid
+        # (pydantic ``ValidationError``), neither of which is a
+        # ``StoreError``. Reuse the SAME typed STORE error envelope the
+        # torn-``status.events.jsonl`` shapes above already produce, rather
+        # than letting either exception escape un-enveloped.
+        _fail(
+            cmd,
+            "DESIGN_STATUS_EVENT_LOG_UNREADABLE",
+            f"decisions/index.json could not be read cleanly for mission {mission!r}: {exc}",
             {"mission_slug": mission, "error": str(exc)},
         )
         return
