@@ -296,6 +296,7 @@ def _load_action_doctrine_bundle(
                 project_directives,
                 selected_tactics,
                 selected_paradigms,
+                action_urn=action_urn,
             )
             # WP15: carry the graph + traversal roots for progressive disclosure.
             # Roots mirror ``_classify_artifact_urns``: the action node plus the

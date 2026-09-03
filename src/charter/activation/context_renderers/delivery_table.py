@@ -196,6 +196,7 @@ def _classify_artifact_urns(
     project_directives: set[str] | None,
     selected_tactics: set[str] | None = None,
     selected_paradigms: set[str] | None = None,
+    action_urn: str | None = None,
 ) -> Mapping[str, tuple[str, ...]]:
     """Partition resolved artifact URNs into a slot-keyed mapping.
 
@@ -217,9 +218,33 @@ def _classify_artifact_urns(
     ``None`` seeds no directive start URNs below (same as an empty set would
     -- the seeding step is orthogonal to the exclusion guard's own
     ``is not None`` semantics further down) and never crashes on iteration.
+
+    Follow-on fix (operator ruling, ``reviews/wp02.ruling.md``):
+    ``project_directives``/``selected_tactics``/``selected_paradigms`` serve
+    TWO different jobs here -- the exclusion-guard allowlist just below
+    (correctly ``None -> all built-ins``: an unconfigured project permits
+    everything) and the SEED set for the ``requires``/``suggests`` closure
+    walk (``selected_closure``). Those jobs must not share one unscoped
+    result: a seed URN is unconditionally "visited" by
+    :func:`~charter.offering.drg.query.walk_edges` (it is a start node), so
+    unioning the closure's raw output into ``artifact_urns`` with no
+    reachability check let an activated-but-unscoped directive leak into
+    every action's delivered set regardless of whether that action's own DRG
+    resolution ever reaches it -- the FR-005 (``DIRECTIVE_003`` onto
+    ``implement``) and #883 (cross-mission-type) leaks. *``action_urn``* (new,
+    optional, trailing) lets the caller identify the resolving action so the
+    closure's result can be bounded to what is actually reachable within
+    THAT action's own scope, reusing
+    :func:`~charter.offering.drg.query.resolve_context`'s own
+    ``Relation.SCOPE``-then-``{REQUIRES, SUGGESTS}`` definition of "scope"
+    (:func:`~charter.offering.drg.query.walk_edges`) rather than inventing a
+    second one. Callers that supply no ``action_urn`` (this module's own
+    direct-call test fixtures) get the conservative fallback: the closure
+    widens no further than the caller's already-resolved ``artifact_urns`` --
+    fail closed, never fail open.
     """
     from charter.offering.drg.models import Relation
-    from charter.offering.drg.query import resolve_transitive_refs
+    from charter.offering.drg.query import resolve_transitive_refs, walk_edges
 
     # selected_tactics / selected_paradigms have no three-state exclusion
     # guard anywhere in this function (only project_directives does, below) --
@@ -238,10 +263,33 @@ def _classify_artifact_urns(
         relations={Relation.REQUIRES, Relation.SUGGESTS},
     )
     artifact_urns = set(artifact_urns)
-    artifact_urns.update(f"directive:{directive_id}" for directive_id in selected_closure.directives)
-    artifact_urns.update(f"tactic:{tactic_id}" for tactic_id in selected_closure.tactics)
-    artifact_urns.update(f"styleguide:{styleguide_id}" for styleguide_id in selected_closure.styleguides)
-    artifact_urns.update(f"toolguide:{toolguide_id}" for toolguide_id in selected_closure.toolguides)
+
+    # Scope gate: bound the closure's result to what is actually reachable
+    # within the resolving action's own scope -- see the docstring above.
+    # Mirrors resolve_context's OWN two SEPARATE walks (one REQUIRES-only,
+    # one SUGGESTS-only) rather than a single walk over both relations at
+    # once: a combined walk lets a path cross from a `suggests` hop onto a
+    # `requires` hop (e.g. a scoped directive SUGGESTS a paradigm that itself
+    # REQUIRES an unrelated, unscoped directive) and call that "in scope" --
+    # a relation-mixing leak `resolve_context` itself never allows, since
+    # each of its own two walks follows only its own relation end to end.
+    if action_urn is not None:
+        scoped_artifacts = walk_edges(merged, {action_urn}, {Relation.SCOPE}, max_depth=1)
+        scoped_artifacts.discard(action_urn)
+        in_scope_urns = (
+            scoped_artifacts
+            | walk_edges(merged, scoped_artifacts, {Relation.REQUIRES})
+            | walk_edges(merged, scoped_artifacts, {Relation.SUGGESTS})
+        )
+    else:
+        in_scope_urns = set(artifact_urns)
+
+    closure_urns: set[str] = set()
+    closure_urns.update(f"directive:{directive_id}" for directive_id in selected_closure.directives)
+    closure_urns.update(f"tactic:{tactic_id}" for tactic_id in selected_closure.tactics)
+    closure_urns.update(f"styleguide:{styleguide_id}" for styleguide_id in selected_closure.styleguides)
+    closure_urns.update(f"toolguide:{toolguide_id}" for toolguide_id in selected_closure.toolguides)
+    artifact_urns.update(closure_urns & in_scope_urns)
 
     slots = _empty_slot_map()
     for urn in sorted(artifact_urns):
