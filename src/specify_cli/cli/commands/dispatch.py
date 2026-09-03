@@ -306,12 +306,12 @@ def _dispatch_impl(
             # exit-1 shape real dispatch already produces.
             _emit_routing_error_and_exit(e)
         except ProfileNotFoundError as e:
-            # Dead/defensive branch: route()'s Level-1 explicit-hint branch
-            # already catches ProfileNotFoundError internally and re-raises
-            # it as RouterAmbiguityError(error_code="PROFILE_NOT_FOUND")
-            # before it would ever reach this call site — mirrors the
-            # existing pragma-no-cover dead branch on the invoke()-path
-            # handler below. Kept for defense-in-depth, not because it fires.
+            # LIVE branch: the executor's explicit-hint path calls
+            # registry.resolve(profile_hint) directly (NOT via route()), so a
+            # bad --profile raises the literal ProfileNotFoundError here.
+            # Guarded by test_dry_run_unknown_profile_still_raises. (route()
+            # runs only on the no-hint branch, where a miss surfaces as
+            # RouterAmbiguityError(error_code="PROFILE_NOT_FOUND") instead.)
             profile_not_found_routing(e)
             return  # pragma: no cover — handler always raises typer.Exit
         if json_output:
