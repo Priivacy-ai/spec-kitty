@@ -46,7 +46,6 @@ from charter.activation.context_renderers.artifact_bodies import (
     _format_inline_styleguide_body,
     _format_inline_tactic_body,
     _format_inline_toolguide_body,
-    _format_profile_directive_code,
 )
 from charter.activation.context_renderers.section_bodies import render_critical_section_include
 
@@ -135,12 +134,20 @@ def _render_directive_include(directives: ArtifactRepository[Any], identifier: s
 
     Takes the ``directives`` repository directly (not the whole service) —
     that is the only attribute this renderer needs (WP04 typing pass).
+
+    The identifier is handed to the repository verbatim: ``DirectiveRepository.get``
+    owns id normalization through the single canonical authority
+    (:func:`charter.offering.drg.migration.id_normalizer.normalize_directive_id`),
+    so the slug the ``--json`` surface advertises (``025-boy-scout-rule``), the
+    numeric shorthand, and the canonical ``DIRECTIVE_NNN`` form all resolve
+    here at parity with the ``tactic:`` / ``agent-profile:`` selectors (#3816).
+    The header echoes the resolved canonical ``id`` rather than the raw input.
     """
 
-    directive_id = _format_profile_directive_code(identifier)
-    directive = directives.get(directive_id)
+    directive = directives.get(identifier)
     if directive is None:
         raise ValueError(f"No directive found for selector '{selector}'.")
+    directive_id = getattr(directive, "id", identifier)
     title = getattr(directive, "title", directive_id)
     return "\n".join(
         [

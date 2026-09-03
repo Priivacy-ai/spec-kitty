@@ -47,6 +47,7 @@ from charter.activation.sync import (
     load_directives_config,
     load_governance_config,
 )
+from charter.offering.drg.migration.id_normalizer import normalize_directive_id
 from charter.offering.missions.repository import MissionTemplateRepository
 
 # FR-003: the ONLY import of ``charter.offering.resolver``'s tier functions in the
@@ -231,13 +232,32 @@ class DoctrineService:
 
     @property
     def directives(self) -> dict[str, Directive]:
-        """Return directives dict, filtered by ``activated_directives`` when set."""
+        """Return directives dict, filtered by ``activated_directives`` when set.
+
+        Directives are the sole gated kind whose two identity spaces diverge:
+        items are keyed by their canonical ``id`` (``DIRECTIVE_025``) while
+        ``activated_directives`` stores the file-stem **slug**
+        (``025-boy-scout-rule``), exactly as ``config.yaml`` and the ``--json``
+        surface speak it. Membership must therefore compare on one normalized
+        form — via the single canonical authority
+        (:func:`~charter.offering.drg.migration.id_normalizer.normalize_directive_id`) —
+        or every directive is silently dropped whenever activation is configured
+        (#3816 sibling; every other gated kind has ``id == slug`` so its
+        comparison already coincides).
+        """
         all_directives: dict[str, Directive] = {
             item.id: item for item in self._inner.directives.list_all()
         }
         pack_ctx: PackContext | None = object.__getattribute__(self, "_pack_context")
         if pack_ctx is not None and pack_ctx.activated_directives is not None:
-            return {k: v for k, v in all_directives.items() if k in pack_ctx.activated_directives}
+            # Compare both sides in canonical space: the activated set speaks
+            # slugs and the item keys speak ``DIRECTIVE_NNN``. ``normalize_directive_id``
+            # is idempotent on an already-canonical id, so this only adds the
+            # slug→canonical bridge and never disturbs a matching pair.
+            activated = {normalize_directive_id(slug) for slug in pack_ctx.activated_directives}
+            return {
+                k: v for k, v in all_directives.items() if normalize_directive_id(k) in activated
+            }
         return all_directives
 
     @property
