@@ -410,7 +410,9 @@ spec-kitty orchestrator-api open-decision \
 | `--actor` | yes | Actor identity. |
 | `--policy` | yes | Policy metadata JSON. |
 
-Response `data`: mission identity fields, `decision_id`, `status` (`"open"`),
+Response `data`: mission identity fields (`mission_slug` / `mission_number` /
+`mission_type` — no `mission_id`, unlike the Canonical Mission Identity
+payload shape documented above), `decision_id`, `status` (`"open"`),
 `idempotent`, `artifact_path`, `event_lamport`.
 
 Error codes: `POLICY_METADATA_REQUIRED`, `POLICY_VALIDATION_FAILED`,
@@ -448,7 +450,9 @@ spec-kitty orchestrator-api resolve-decision \
 | `--actor` | yes | Actor identity. |
 | `--policy` | yes | Policy metadata JSON. |
 
-Response `data`: mission identity fields, `decision_id`, `status`
+Response `data`: mission identity fields (`mission_slug` / `mission_number` /
+`mission_type` — no `mission_id`, unlike the Canonical Mission Identity
+payload shape documented above), `decision_id`, `status`
 (`"resolved"`), `terminal_outcome`, `idempotent`, `event_lamport`.
 
 Error codes: `POLICY_METADATA_REQUIRED`, `POLICY_VALIDATION_FAILED`,
@@ -482,7 +486,9 @@ spec-kitty orchestrator-api defer-decision \
 | `--actor` | yes | Actor identity. |
 | `--policy` | yes | Policy metadata JSON. |
 
-Response `data`: mission identity fields, `decision_id`, `status`
+Response `data`: mission identity fields (`mission_slug` / `mission_number` /
+`mission_type` — no `mission_id`, unlike the Canonical Mission Identity
+payload shape documented above), `decision_id`, `status`
 (`"deferred"`), `terminal_outcome`, `idempotent`, `event_lamport`.
 
 Error codes: `POLICY_METADATA_REQUIRED`, `POLICY_VALIDATION_FAILED`,
@@ -533,7 +539,9 @@ Request:
 spec-kitty orchestrator-api design-status --mission 090-orchestrator-driven-mission
 ```
 
-Response `data`: mission identity fields, `current_phase` (`specify` \|
+Response `data`: mission identity fields (`mission_slug` / `mission_number` /
+`mission_type` — no `mission_id`, unlike the Canonical Mission Identity
+payload shape documented above), `current_phase` (`specify` \|
 `plan` \| `tasks` \| `analyze`), `next_action` (the verb the host should
 call next, or `null` once the design phase is complete; overridden to
 `resolve-decision` whenever any decision is open, regardless of phase),
