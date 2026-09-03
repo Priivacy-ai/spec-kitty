@@ -102,6 +102,7 @@ tests/charter/
 ├── test_charter_context_spdd_reasons.py         # FR-010 triage (bucket 3: 6 fixture-rewrites)
 ├── test_activate_resolves_no_answers_edit.py    # FR-010 triage (bucket 3: 1 fixture-rewrite)
 ├── test_answers_inert_and_org_union.py          # FR-010 triage (assertion-intent review only)
+├── test_action_bundle_delivery.py               # WP2 scope: 4 call sites (`_classify_artifact_urns(..., set())`) updated to pass `None`
 ├── test_spdd_reasons_activation_parity.py       # NEW — FR-002 mandatory parity test
 ├── test_action_doctrine_bundle_activation.py    # NEW or existing-file addition — FR-007/008/014
 └── test_resolver_activation_parity.py           # NEW or existing-file addition — FR-012/013
@@ -138,7 +139,7 @@ the MAP-GATE topology (C-004):
 |---|---|---|---|
 | `src/charter/offering/spdd_reasons/activation.py` | `charter.offering` | FR-001/003/004/005 | Full-body rewrite: replace `_compute_active`/`_governance_selects_pack`/`_directives_select_pack` with a raw, `charter.activation`-import-free `activated_*` read |
 | `src/charter/activation/action_doctrine_bundle.py` | `charter.activation` | FR-006 | Re-derive `project_directives`/`selected_tactics`/`selected_paradigms` (lines 189-191) from `pack_context.activated_*` instead of `_load_doctrine_selection`'s `selected_*` |
-| `src/charter/activation/context_renderers/delivery_table.py` | `charter.activation` | FR-006/014 | `_classify_artifact_urns`'s exclusion guard (line 238) becomes three-state-aware (`is not None` instead of bare truthiness) |
+| `src/charter/activation/context_renderers/delivery_table.py` | `charter.activation` | FR-006/014 | `_classify_artifact_urns`'s exclusion guard becomes three-state-aware (`is not None` instead of bare truthiness); `None` is converted to a concrete value once at assignment in `action_doctrine_bundle.py` (item 3 below) so it never reaches `start_urns`'s comprehension or the exclusion guard as a live sentinel |
 | `src/charter/activation/resolver.py` | `charter.activation` | FR-011/012/013 | `_resolve_directive_base` (line 675) and `resolve_project_governance` (line 815, the `selected_paradigms = list(doctrine.selected_paradigms)` at line 848) re-derive their base from `PackContext.activated_directives`/`.activated_paradigms`, unioning `selected_*` on top |
 | `docs/context/charter.md` + 2 `contracts/*.md` | docs | FR-009 | Update the stated activation authority |
 
@@ -166,6 +167,36 @@ live signatures read for this plan, not assumed:
    This is a second, independent implementation of INV-2's *reading* half — not a reimport of
    `PackContext` itself — which is exactly why FR-002's parity test is load-bearing (section b):
    nothing but that test proves the two independent readers stay in agreement.
+
+   **Explicit carve-out, mirroring FR-004's precedent (re-verified against the live
+   `compiler.py` for this plan, not assumed from the spec's summary):** this replication
+   deliberately tracks `PackContext.from_config`'s raw, unconditional per-kind semantics (absent
+   key → `None` → "all built-ins," independent of any other kind's state) — **not**
+   `compile_charter`'s full delivered authority. Reading `compiler.py`'s
+   `_resolve_config_activated_roots`/`_stems` (the function immediately following the
+   `compile_charter` docstring spec.md's Summary quotes) shows it applies an additional
+   `project_configured` gate (FR-018, a prior, deliberate fix): once a project has set ANY of the
+   seven `activated_<kind>` fields (`_CONFIG_ACTIVATION_FIELDS` — directives, paradigms, tactics,
+   styleguides, toolguides, procedures, agent_profiles) anywhere in its activation source, an
+   OTHER, still-absent `activated_<kind>` key no longer falls back to "all built-ins" — it
+   resolves to `frozenset()` instead. `is_spdd_reasons_active`'s rewrite, as specified by
+   FR-001(d) ("applies the existing three-state per-kind semantics... verbatim, matching
+   `PackContext._read_list_key`'s contract") and Decision Record 1 (which explicitly scopes the
+   replication to `PackContext`'s raw per-ID resolution — the same Decision Record already
+   carves `activated_kinds`'s coarse gate out of scope on identical reasoning, "faithful to the
+   authority this spec's Summary actually cites"), does **not** apply this gate: on a project
+   that has activated some but not all SPDD-relevant kinds, this mission's rewritten function and
+   `compile_charter`'s real delivered set can disagree on whether the omitted kind counts as "all
+   built-ins" or "nothing." Reopening FR-001/Decision Record 1's chosen replication boundary is
+   out of scope for this fix round (this round fixes plan.md's fidelity to the spec it was
+   scoped against, not the spec's own scope choices); this plan instead states the gap as an
+   explicit, evidence-based carve-out — the same treatment FR-004 gives the absent-config-file
+   case — so a future reader (or a later mission, if the `project_configured` gate is judged a
+   real gap after all) has a named starting point rather than an implicit, undocumented
+   divergence. **No fixture is added to section (b)'s matrix for this carve-out**: the matrix
+   pins `PackContext`'s raw semantics per FR-002's own mandate, and a `project_configured`-gate
+   fixture would test behavior this mission's chosen replication boundary explicitly does not
+   claim to match.
 2. **`action_doctrine_bundle.py` (FR-006) — no new plumbing.** Confirmed by reading
    `_load_action_doctrine_bundle`'s real signature (`action_doctrine_bundle.py:142-152`):
    `pack_context: PackContext | None = None` is **already** a parameter, populated by
@@ -176,13 +207,59 @@ live signatures read for this plan, not assumed:
    org-pack `required_<kind>` union (Decision Record 2's confirmed-legitimate separate concept)
    is preserved by unioning it onto the `activated_*`-derived set instead of onto
    `_load_doctrine_selection`'s retired `selected_*` output.
-3. **`delivery_table.py` (FR-006/014) — same signature, three-state-aware body.**
-   `_classify_artifact_urns` (`delivery_table.py:193`) already takes `project_directives: set[str]`
-   positionally from its one caller inside `action_doctrine_bundle.py`; no signature change is
-   needed at the call boundary, only the type of what flows through it (a `frozenset[str] | None`
-   sentinel-preserving value instead of an always-plain `set[str]`) and the guard at line 238,
-   which today does `if node.kind is NodeKind.DIRECTIVE and project_directives and artifact_id
-   not in project_directives` (bare truthiness — cannot distinguish `None` from `frozenset()`).
+3. **`delivery_table.py` (FR-006/014) — same signature, three-state-aware body, ALL consumption
+   sites named.** `_classify_artifact_urns` (`delivery_table.py`, function `_classify_artifact_urns`)
+   already takes `project_directives: set[str]` positionally from its one caller inside
+   `action_doctrine_bundle.py`; no signature change is needed at the call boundary, only the type
+   of what flows through it (a `frozenset[str] | None` sentinel-preserving value instead of an
+   always-plain `set[str]`). Re-reading the live file for this plan shows the re-derived
+   `project_directives` value is consumed at **three** sites, not one, and the design commitment
+   below covers all three explicitly:
+   - `delivery_table.py`'s `start_urns` set-comprehension (`start_urns = {f"directive:{directive_id}"
+     for directive_id in project_directives}`) — unconditional iteration, no `None`-guard today.
+   - `delivery_table.py`'s exclusion guard inside `_classify_artifact_urns`'s node loop (today:
+     `if node.kind is NodeKind.DIRECTIVE and project_directives and artifact_id not in
+     project_directives` — bare truthiness, cannot distinguish `None` from `frozenset()`).
+   - `action_doctrine_bundle.py`'s `roots` tuple construction (`roots = (action_urn, *(f"directive:{d}"
+     for d in project_directives), ...)`) — the same unconditional iteration over the same value,
+     in the caller module.
+
+   **Chosen shape**: mirror the established pattern `resolver.py`'s `_resolve_directive_base`
+   already uses for this exact three-state value (see item 4 below) — branch on
+   `activated_directives is None` **once**, at the point in `action_doctrine_bundle.py` where
+   `project_directives` is assigned from `pack_context.activated_directives` (replacing the
+   current `_load_doctrine_selection`-derived assignment per FR-006), and convert `None` to a
+   concrete value there (either the built-in catalog default or an explicit empty set, matching
+   FR-001(d)'s "None = all built-ins" semantics) **before** the value is ever iterated — never let
+   `None` reach `start_urns`'s comprehension, the exclusion guard, or `roots`'s construction as a
+   live sentinel. This single early-conversion point replaces the "only the guard changes"
+   framing entirely: `start_urns`'s comprehension and `roots`'s construction need no `None`-guard
+   of their own because they never receive `None`; the exclusion guard's own change is still
+   `is not None` (never bare truthiness) to correctly treat an explicit `frozenset()` — the value
+   the early conversion step preserves distinctly from "all built-ins" — as "exclude everything"
+   per FR-014.
+   - **WP2 test fixture (new, distinct from FR-014's explicit-empty fixture)**: a case with
+     `activated_directives` **absent** (`None`, not `[]`) on the `pack_context`, exercising
+     `_load_action_doctrine_bundle` and `_classify_artifact_urns` end-to-end, asserting no
+     `TypeError` and the "all built-ins" delivery outcome — committed red-first per section (i) so
+     this crash path is caught before implementation, not discovered at review/CI time.
+   - **`tests/charter/test_action_bundle_delivery.py` (WP2 scope, PLAN-GOV-001)**: this existing
+     file calls `_classify_artifact_urns` directly at four sites (the two single-line calls
+     `result = context._classify_artifact_urns(resolved.artifact_urns, graph, set())` and
+     `delivered = context._classify_artifact_urns(resolved.artifact_urns, filtered, set())`,
+     appearing four times across the file) passing a **bare `set()`** literal for
+     `project_directives` and asserting the reachable directive IS delivered — i.e. asserting
+     today's bare-truthiness "empty set == no filter" behavior. Under the corrected
+     `is not None` guard, an explicit empty `set()` now means "exclude everything" (FR-014), which
+     would flip all four assertions from delivering the directive to excluding it — breaking four
+     currently-green tests that were never intended to test the explicit-empty-excludes-everything
+     case. **WP2 must update these four call sites to pass `None` instead of a bare `set()`**,
+     preserving each test's original intent ("no project-directive scoping applied" — the
+     "all built-ins/no filter" sentinel), which is the correct three-state value for that intent
+     under the new semantics. This is distinct from FR-014's own new test, which intentionally
+     asserts the opposite (explicit `frozenset()`/`set()` excludes everything) — the two fixture
+     values must not be conflated: `None` means "no filter" here, `frozenset()`/`set()` means
+     "filter to nothing" in FR-014's test, and both must keep meaning that after this WP.
 4. **`resolver.py` (FR-011) — already a direct `PackContext.from_config` caller.**
    `_resolve_directive_base` (`resolver.py:675`) already calls
    `PackContext.from_config(repo_root).activated_directives` (line 730) — but only inside the
@@ -209,13 +286,21 @@ naming convention to the three existing pinning files already read for this plan
 
 **What it compares**: the rewritten `is_spdd_reasons_active(repo_root)`'s boolean output against
 a **hand-computed disjunction** of `PackContext.from_config(repo_root)`'s three `activated_*`
-fields for the same `repo_root` — `PARADIGM_ID in (pack_context.activated_paradigms or set())`,
-`{TACTIC_FILL_ID, TACTIC_REVIEW_ID} & (pack_context.activated_tactics or set())`, and
-`any(_is_directive_038-equivalent match against pack_context.activated_directives or set())` —
-i.e. the same four-selector disjunction `is_spdd_reasons_active`'s own docstring already states,
-evaluated independently against `PackContext`'s real fields rather than against
-`is_spdd_reasons_active`'s own internals (a test that imported `is_spdd_reasons_active`'s helper
-functions to build the comparison would not be a parity test — it would be tautological).
+fields for the same `repo_root`. The oracle formula MUST NOT use Python's `x or set()` idiom —
+that idiom coerces `None` (absent key) through the same falsy path as an *explicit* `[]`,
+collapsing two of the three states this section's own semantics (and item 1's four-step
+replication above) require staying distinct. The correct, three-state-preserving oracle is:
+`pack_context.activated_paradigms is None or PARADIGM_ID in pack_context.activated_paradigms`,
+`pack_context.activated_tactics is None or bool({TACTIC_FILL_ID, TACTIC_REVIEW_ID} &
+pack_context.activated_tactics)`, and `pack_context.activated_directives is None or
+any(_is_directive_038-equivalent match against pack_context.activated_directives)` — i.e. an
+absent per-kind key (`is None`) evaluates as "selector satisfied" ("all built-ins" includes the
+SPDD-relevant id), matching item 1's stated semantics and the codebase-wide `None` = "all
+built-ins" contract (`pack_context.py`'s `_read_list_key`, `drg_activation.py`'s
+`_node_is_activated`). This is the same four-selector disjunction `is_spdd_reasons_active`'s own
+docstring already states, evaluated independently against `PackContext`'s real fields rather than
+against `is_spdd_reasons_active`'s own internals (a test that imported `is_spdd_reasons_active`'s
+helper functions to build the comparison would not be a parity test — it would be tautological).
 
 **Fixture matrix** (FR-002's mandate, three states × three kinds × pointer-present/absent):
 
@@ -313,7 +398,7 @@ as the fix working as intended, not as unreviewed scope creep.
 | TID251 | **Covered above** (folded into the enforced-lint row) | — |
 | Typer JSON error surface | **N/A** | No CLI surface change (Non-Goals: "no new CLI command, flag, or user-facing surface") |
 | `patch()` target validation | **Relevant if new tests patch** | FR-002/007/008/012/013's new tests are fixture-based (`tmp_path` + real `PackContext.from_config`/`is_spdd_reasons_active` calls per the Independent Test sections), not mock-patch-based by default; if implementation introduces any `unittest.mock.patch`, target-string validation applies — flagged for implementation-time awareness, not asserted as definitely needed |
-| Bandit | **Labeled `[ENFORCED]` in CI but runs with `continue-on-error: true` and is not in the `has_failures` output set feeding `quality-gate`'s blocking check** | Effectively informational in the current CI wiring despite its label; no `src/` change in this mission introduces subprocess/eval/hardcoded-secret patterns Bandit flags, so no findings are expected regardless |
+| Bandit | **Yes — a real, blocking gate** | Re-verified against the live `.github/workflows/ci-quality.yml`: the `[ENFORCED] Run Bandit security scan` step (`id: bandit`) sets `continue-on-error: true`, but unlike ruff/mypy (genuinely advisory — they only populate a `has_failures` output consumed by the non-blocking `lint-feedback` PR-comment job), a later step in the same `lint` job, `[ENFORCED] Fail job if security checks failed`, explicitly reads `steps.bandit.outcome` and `exit 1`s if it is not `"success"`. `continue-on-error: true` here only lets later artifact-upload steps still run — it does not make Bandit non-blocking. Since `quality-gate`'s own `needs:` list includes `lint`, a Bandit finding fails `lint` and therefore blocks `quality-gate`/merge. Substantive conclusion unchanged: no `src/` change in this mission introduces subprocess/eval/hardcoded-secret patterns Bandit flags, so no findings are expected regardless — but that conclusion now rests on "the gate would catch it if it fired," not on "the gate is informational anyway" |
 | pip-audit | **N/A for this mission's diff** | No dependency change (`uv.lock` untouched); pip-audit scans the resolved dependency set, unaffected by a read-path code change |
 | `uv.lock` freshness | **N/A** | No dependency added/removed/version-changed by this mission |
 | **SonarCloud** | **Excluded — does not run on pull requests** | Per the mission brief's explicit instruction |
@@ -465,7 +550,7 @@ merely a spec requirement to satisfy later:
 | `activation.py`'s rewritten `is_spdd_reasons_active`, absent `.kittify/config.yaml` | — | Returns the explicitly-pinned safe default `False` (FR-004), with a code comment stating this is a deliberate carve-out from full parity, not an oversight |
 | `activation.py`'s rewritten body, malformed `config.yaml` YAML or a dangling/unreadable `charter:` pointer | — | **Raises** (FR-005), matching `PackContext.from_config`'s `CharterPackConfigError`/YAML-loader-exception behavior — never a silent `False`/`True` |
 | `action_doctrine_bundle.py`'s re-derived `project_directives`/`selected_tactics`/`selected_paradigms` | Returns the `activated_*`-derived set (three-state preserved) unioned with org-required ids | An explicitly-empty `activated_directives: []` must exclude everything (FR-014) — never silently collapse to "no filter" via bare truthiness; this is itself the silent-success defect class being closed, not a new one being introduced |
-| `delivery_table.py`'s `_classify_artifact_urns` exclusion guard | Filters directives against the three-state-aware set | Same three-state distinction as above — `None` (all built-ins) and `frozenset()` (explicit empty) must never be conflated at the point of use |
+| `delivery_table.py`'s `_classify_artifact_urns` exclusion guard, `start_urns` construction, and `action_doctrine_bundle.py`'s `roots` construction (all three named in section (a) item 3) | Filters/seeds against the three-state-aware set; `None` is converted to a concrete value once at assignment in `action_doctrine_bundle.py`, before any of the three sites iterates it | Same three-state distinction as above — `None` (all built-ins) and `frozenset()` (explicit empty) must never be conflated, at any of the three consumption sites, not only the exclusion guard |
 | `resolver.py`'s `_resolve_directive_base`/`resolve_project_governance` | Returns `activated_*`-derived base, unioned with any non-empty `selected_*` | `activated_directives is None` (key absent, unconfigured project) already falls through to the existing catalog-fallback diagnostic (preserved verbatim, not touched by this mission) — this is the pre-existing, non-silent third branch, unchanged |
 
 Every row above either raises or returns an explicitly-named, tested default — no row this mission
@@ -487,6 +572,11 @@ phase should follow, not the WPs themselves):
 2. **WP2 — `action_doctrine_bundle.py` + `delivery_table.py`** (FR-006, FR-007, FR-008, FR-014).
    Independent of WP1 (different files, different `PackContext` consumption path — already
    parameterized, no shared code with `activation.py`'s rewrite). Can run in parallel with WP1.
+   **Scope also includes `tests/charter/test_action_bundle_delivery.py`** (PLAN-GOV-001): this
+   existing file's four direct `_classify_artifact_urns(..., set())` call sites must be updated
+   to pass `None` instead, preserving their original "no filter" intent under the new
+   `is not None` guard (see section (a) item 3) — distinct from FR-014's own new explicit-empty
+   test, and from FR-010's separate three-pinning-file triage in WP4 below.
 3. **WP3 — `resolver.py`** (FR-011, FR-012, FR-013). Independent of WP1 and WP2 (different file,
    different consumers). Can run in parallel with both.
 4. **WP4 — Triage the three pinning test files** (FR-010). **Depends on WP1**: the bucket-3
