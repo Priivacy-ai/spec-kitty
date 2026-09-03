@@ -5440,7 +5440,7 @@ pages:
     divio_type: "none"
     abstract: "Canonical changelog for the Spec Kitty CLI and templates, following Keep a Changelog and Semantic Versioning, with added, breaking, and fixed entries per release."
     anchors:
-    - {slug: "unreleased-3-2-6rc5", text: "[Unreleased] - 3.2.6rc5", level: 2}
+    - {slug: "3-2-6-2026-09-03", text: "[3.2.6] - 2026-09-03", level: 2}
     - {slug: "breaking-removed", text: "💥 Breaking / 🗑️ Removed", level: 3}
     - {slug: "added", text: "✨ Added", level: 3}
     - {slug: "changed", text: "♻️ Changed", level: 3}
@@ -6067,6 +6067,34 @@ pages:
     - {slug: "three-surfaces-one-goal-and-how-they-connect", text: "Three surfaces, one goal — and how they connect", level: 2}
     - {slug: "authoring-a-new-cycle", text: "Authoring a new cycle", level: 2}
     - {slug: "declared-cycles", text: "Declared cycles", level: 2}
+  - path: "docs/changelog/release-notes-3.2.6.md"
+    title: "Release notes — 3.2.6"
+    divio_type: "reference"
+    abstract: "Consolidated 3.2.6 release notes: the stabilization release hardening fail-loud honesty across the workflow, plus orchestrator-api 1.4.0 for external-host design pipelines."
+    anchors:
+    - {slug: "install-upgrade", text: "Install / upgrade", level: 2}
+    - {slug: "breaking-changes", text: "💥 Breaking changes", level: 2}
+    - {slug: "governance-charter-doctrine-packs", text: "Governance, charter & doctrine packs", level: 3}
+    - {slug: "sync-tracker-auth", text: "Sync, tracker & auth", level: 3}
+    - {slug: "missions-gates-lifecycle", text: "Missions, gates & lifecycle", level: 3}
+    - {slug: "internal-apis-automation-contracts", text: "Internal APIs & automation contracts", level: 3}
+    - {slug: "spec-kitty-s-own-ci-contributors-only", text: "Spec Kitty's own CI (contributors only)", level: 3}
+    - {slug: "added", text: "✨ Added", level: 2}
+    - {slug: "orchestrator-api-external-hosts", text: "orchestrator-api & external hosts", level: 3}
+    - {slug: "explicit-worktree-owned-lifecycle", text: "Explicit worktree-owned lifecycle", level: 3}
+    - {slug: "charter-doctrine-packs", text: "Charter, doctrine & packs", level: 3}
+    - {slug: "missions-lifecycle", text: "Missions & lifecycle", level: 3}
+    - {slug: "sync-tracker-operator-config", text: "Sync, tracker & operator config", level: 3}
+    - {slug: "cli-ux", text: "CLI UX", level: 3}
+    - {slug: "fixed", text: "🐛 Fixed", level: 2}
+    - {slug: "startup-correctness", text: "Startup & correctness", level: 3}
+    - {slug: "status-honesty-success-that-was-actually-broken", text: "Status honesty — \"success\" that was actually broken", level: 3}
+    - {slug: "merge-retention", text: "Merge & retention", level: 3}
+    - {slug: "commit-boundary-workspace-integrity", text: "Commit-boundary & workspace integrity", level: 3}
+    - {slug: "charter-doctrine-gates", text: "Charter, doctrine & gates", level: 3}
+    - {slug: "sync-tracker-auth-2", text: "Sync, tracker & auth", level: 3}
+    - {slug: "upgrade-migrations", text: "Upgrade & migrations", level: 3}
+    - {slug: "changed", text: "♻️ Changed", level: 2}
   - path: "docs/changelog/release-notes-3.2.6rc1.md"
     title: "Release notes — 3.2.6rc1 (internal Release Candidate)"
     divio_type: "reference"

@@ -13,7 +13,9 @@ All notable changes to the Spec Kitty CLI and templates are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [3.2.6] - 2026-09-01
+## [3.2.6] - 2026-09-03
+
+_The stabilization release: fail-loud honesty across the workflow, plus `orchestrator-api` 1.4.0 opening the full design pipeline to external hosts. Consolidated operator-facing notes: [release-notes-3.2.6.md](release-notes-3.2.6.md)._
 
 ### 💥 Breaking / 🗑️ Removed
 
