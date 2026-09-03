@@ -184,6 +184,89 @@ independently of whether WP01/WP03 have already captured theirs in their own wor
   "action_bundle_gate"]` (confirmed live) — unaffected; you are changing the guard's truthiness test, not
   its signature or exported surface.
 
+## Union/Exclusion Boundary Audit (operator ruling, tasks phase R4 — binding acceptance requirement)
+
+Three consecutive review rounds each found a distinct instance of ONE class of defect: an absent or
+un-normalized identifier silently collapsing to a wrong value instead of the correct one, at a union or
+exclusion boundary, with no fixture pinning the failure. The operator ruling
+(`reviews/tasks.ruling.md`) requires this WP's acceptance to state the invariant explicitly and enumerate
+**every** union/exclusion boundary this WP's files touch — not only the two boundaries where findings
+happened to land — confirming for each whether it canonicalizes its inputs or fails loud.
+
+**The invariant** (binding for every boundary below): every directive, tactic and paradigm identifier is
+canonicalized at the moment it enters a union, and every union and exclusion boundary either canonicalizes
+its inputs or fails loud. An identifier whose form cannot be canonicalized is an error, never a
+silently-excluded entry. Absent input resolves to the documented catalog default, never to an empty set.
+
+**A precondition fact, verified live and load-bearing for every boundary below**: directives have a
+genuine stem-vs-canonical distinction (`_normalize_directive_id`, `profile_resolution.py:203-216`, folds a
+stem like `024-locality-of-change` to `DIRECTIVE_024`) because built-in directive files are authored with a
+numeric-prefixed filename stem (`packs/built-in/directives/024-locality-of-change.directive.yaml`) whose
+`id:` field is the DIFFERENT canonical form (`id: DIRECTIVE_024`). **Tactics and paradigms have NO such
+distinction** — verified live by reading every built-in tactic/paradigm file's `id:` field (e.g.
+`packs/built-in/tactics/adversarial-qa-handoff.tactic.yaml`'s `id: adversarial-qa-handoff`,
+`packs/built-in/paradigms/atomic-design.paradigm.yaml`'s `id: atomic-design`) — the filename stem AND the
+canonical `id:` field are the SAME slug string for every built-in tactic/paradigm, and no
+`_normalize_tactic_id`/`_normalize_paradigm_id` function (or any sibling) exists anywhere in `src/`
+(grepped live, zero results). This is a fact this WP's fixes below rely on, not an assumption of symmetry
+with directives — a tactic/paradigm id is already in its one and only canonical form the moment it is
+authored, so "canonicalize" is a no-op for those two kinds; "fails loud" reduces to whatever validation
+already exists for catalog membership (out of scope for this WP — see WP03's own boundary list for where
+paradigm-membership validation lives).
+
+Boundaries, enumerated:
+
+1. **`project_directives` derivation from `pack_context.activated_directives`** (T009 step 1,
+   `action_doctrine_bundle.py`) — `directives_arg` entries pass through
+   `{_normalize_directive_id(d) for d in directives_arg}`; absent (`None`) converts to
+   `set(load_doctrine_catalog().directives)`, never an empty set. **Already correct by this round's own
+   design** (fixed by the prior round per this WP's Context section; T009 step 1's illustrative code
+   already shows the normalization comprehension).
+2. **`selected_tactics`/`selected_paradigms` derivation from `pack_context.activated_tactics`/
+   `.activated_paradigms`** (T009 step 1) — no normalization call (per the precondition fact above, none
+   is needed: tactic/paradigm ids have no stem-vs-canonical distinction to fold); absent (`None`) converts
+   to `load_doctrine_catalog().tactics`/`.paradigms`, never an empty set (the Context section's chokepoint
+   note is explicit that an explicit empty set here would be "the exact softer failure this WP exists to
+   close, relocated rather than fixed"). **Already correct by this round's own design** (fixed by the prior
+   round).
+3. **The org-required union onto `project_directives`** (T009 step 2, `"directives"` entries from
+   `_read_org_required_selections`) — **FIXED this round (TASKS-FRESH2-001, severity 4)**: T009 step 2 now
+   explicitly instructs normalizing each entry via `_normalize_directive_id` before the union, backed by a
+   red-first fixture in T007 step 6 proven to fail against the pre-this-round T009 text. This was the
+   literal severity-4 finding this round exists to fix.
+4. **The org-required union onto `selected_tactics`/`selected_paradigms`** (T009 step 2, `"tactics"`/
+   `"paradigms"` entries from `_read_org_required_selections`) — **out of scope / vacuously satisfied**: per
+   the precondition fact above, tactic/paradigm ids have no stem-vs-canonical distinction anywhere in this
+   repo's authoring convention, so there is nothing for a normalizer to fold — the raw
+   `_read_org_required_selections(...)["tactics"]`/`["paradigms"]` string IS already the canonical id. T009
+   step 2's existing instruction to union these two kinds' entries directly (unlike `"directives"`, which
+   now normalizes first) is therefore correct as written, not an oversight. (This boundary does not
+   currently fail loud for a genuinely-invalid, not-in-catalog tactic/paradigm id — e.g. a typo — but that
+   is a catalog-*membership* validation gap, not an identifier-*form*-canonicalization gap the invariant
+   above addresses; no such validation exists on `main` today for the pre-existing `selected_tactics`/
+   `selected_paradigms` path either, so this WP does not regress anything by leaving it unvalidated.)
+5. **`delivery_table.py`'s exclusion guard** (`project_directives is not None and artifact_id not in
+   project_directives`) — `artifact_id` comes from the DRG node's own URN (`urn.split(":", 1)[1]`), and DRG
+   directive nodes are canonical-only (verified: `load_doctrine_catalog().directives` and every
+   `packs/built-in/directives/*.directive.yaml`'s `id:` field are `DIRECTIVE_NNN` form). **Already correct,
+   contingent on boundaries 1 and 3 above**: once `project_directives` is fully normalized at every entry
+   point that feeds it (both fixed/confirmed above), this guard compares canonical-to-canonical. The guard's
+   own `is not None` shape (vs. bare truthiness) is unchanged by this round — it was already fixed by the
+   prior round per T009 step 3.
+6. **`start_urns` construction** (`f"directive:{d}"` for `d in project_directives`, plus the
+   `f"tactic:{t}"`/`f"paradigm:{p}"` equivalents) and **`roots` tuple construction**
+   (`action_doctrine_bundle.py:230-235`) — same reasoning as boundary 5: both consume `project_directives`/
+   `selected_tactics`/`selected_paradigms` only after boundaries 1-4's conversions have already run, so by
+   construction they only ever see already-canonical (directives) or already-canonical-by-authoring-fact
+   (tactics/paradigms) values. **Already correct, contingent on boundaries 1-4 above.**
+
+**Reviewer Guidance addition**: confirm boundaries 1, 2, 5, and 6 above by reading the diff's actual
+conversion/assignment order (not merely trusting this table); confirm boundary 3's new normalization call
+and its T007-step-6 fixture were actually run RED against the pre-this-round T009 text (ask for the RED-run
+output); confirm boundary 4's "vacuously satisfied" claim by spot-checking that no `_normalize_tactic_id`/
+`_normalize_paradigm_id` function was silently introduced or silently assumed — this WP does not need one
+and should not add one.
+
 ## Subtask T006: Baseline capture
 
 **Purpose**: Capture this WP's own pre-mission baseline (section g), in this WP's own workspace, before any
@@ -196,13 +279,15 @@ tests/architectural/test_no_dead_symbols.py -q`); save the full failing node-id 
 **Files**: none changed
 **Validation**: Baseline list captured and classified per CLAUDE.md's three categories.
 
-## Subtask T007: Red-first tests — FR-007, FR-008, FR-014, plus this WP's own tactics/paradigms-absent fixture
+## Subtask T007: Red-first tests — FR-007/FR-008/FR-014, the tactics/paradigms-absent fixture, and the org-required normalization fixture (TASKS-FRESH2-001)
 
-**Purpose**: Commit four red-first regression tests before any implementation change (C-011): the
+**Purpose**: Commit five red-first regression tests before any implementation change (C-011): the
 directive-allowlist silent-drop (FR-007), this repo's own dogfood closure-starvation shape (FR-008), the
-explicit-empty-`activated_directives`-excludes-everything case (FR-014), and the plan-added
+explicit-empty-`activated_directives`-excludes-everything case (FR-014), the plan-added
 `activated_tactics`/`activated_paradigms`-absent sibling fixture (plan.md section (a) item 3, required
-because none of FR-007/008/014 exercise a `None` `activated_tactics`/`activated_paradigms` case).
+because none of FR-007/008/014 exercise a `None` `activated_tactics`/`activated_paradigms` case), and the
+stem-form org-required-directive normalization fixture (TASKS-FRESH2-001, required because none of the
+other four cases exercise the org-required union path at all).
 
 **Steps**:
 1. Create `tests/charter/test_action_doctrine_bundle_activation.py` with `pytestmark = [pytest.mark.fast]`.
@@ -251,9 +336,28 @@ because none of FR-007/008/014 exercise a `None` `activated_tactics`/`activated_
    before") would pass on BOTH the buggy `main` behavior and a correct catalog-widened fix, proving
    nothing** — this is the exact severity-4 bug-preserving-test defect class that HALTed this mission's
    plan phase twice (`PLAN-FRESH-001`/`PLAN-FRESH2-001`). Do not weaken this assertion to a vaguer form.
+6. **Org-required stem-form directive normalization (TASKS-FRESH2-001)** — register an org pack (mirror
+   `tests/charter/test_action_doctrine_bundle_org_fragment.py`'s `_register_pack` mechanism: write
+   `.kittify/config.yaml`'s `doctrine.org.packs: [{name, local_path}]` pointing at a temp org-pack
+   directory) whose `org-charter.yaml` declares `required_directives: [001-architectural-integrity-standard]`
+   — the same stem-form id `tests/charter/test_answers_inert_and_org_union.py`'s
+   `TestOrgRequiredIdFormNormalizedBeforePromotion` class uses and proves is a legitimate org-pack authoring
+   shape (read that class live to match its real fixture-construction mechanism, not merely this
+   description) — referencing a real, DRG-reachable built-in directive (`DIRECTIVE_001`) available to this
+   fixture's DRG. Leave `activated_directives` absent/`None` on the project side, so `project_directives`'s
+   only content comes from this org-required union. Assert `_load_action_doctrine_bundle`'s resulting
+   bundle's `directive_ids` includes the CANONICAL `DIRECTIVE_001` form, and that `roots`/`start_urns`
+   contain `directive:DIRECTIVE_001` — never the raw stem string `001-architectural-integrity-standard` in
+   either place.
+   **Why this MUST fail on the current (pre-this-round) T009 text**: unioning the raw, un-normalized stem
+   string onto `project_directives` means the set contains `"001-architectural-integrity-standard"`, not
+   `"DIRECTIVE_001"` — `"DIRECTIVE_001" not in project_directives` is `True`, so `delivery_table.py`'s
+   exclusion guard drops the directive from `directive_ids`, and `roots`'s `f"directive:{d}"` construction
+   emits the unresolvable stem-form URN instead of the canonical one. The fixture passes once T009 step 2's
+   normalization instruction (below) is implemented.
 
-**Files**: `tests/charter/test_action_doctrine_bundle_activation.py` (new, ~220-260 lines)
-**Validation**: `pytest tests/charter/test_action_doctrine_bundle_activation.py -v` — all four cases RED
+**Files**: `tests/charter/test_action_doctrine_bundle_activation.py` (new, ~260-300 lines)
+**Validation**: `pytest tests/charter/test_action_doctrine_bundle_activation.py -v` — all five cases RED
 against the unmodified `action_doctrine_bundle.py`/`delivery_table.py`.
 
 ## Subtask T008: Update `test_action_bundle_delivery.py`'s four `set()` call sites to `None` (PLAN-GOV-001)
@@ -337,6 +441,49 @@ after this edit is combined with T009's guard change (run it again after T009 to
    another use of `doctrine_selection` you missed, keep `_load_doctrine_selection` for that other use and
    union `_read_org_required_selections` alongside it instead of removing the call — note the deviation
    from this prompt's assumption in the PR description if so.
+
+   **MANDATORY normalization step for the `"directives"` entries (TASKS-FRESH2-001 remediation, severity 4
+   — read this before writing the union) — apply `_normalize_directive_id` to EACH entry of
+   `_read_org_required_selections(repo_root)["directives"]` BEFORE unioning it onto the
+   `activated_*`-derived `project_directives` set from step 1, exactly the same way step 1 already
+   normalizes `pack_context.activated_directives`'s own entries.** On `main` today, org-required directive
+   ids get this normalization "for free" because `_load_doctrine_selection` unions them into
+   `selected_directives` BEFORE `_load_action_doctrine_bundle`'s single `_normalize_directive_id`
+   comprehension runs over the combined set (`action_doctrine_bundle.py:189`, the exact line this step
+   replaces) — removing `_load_doctrine_selection` from the call chain (as this step does) removes that
+   free normalization point too, and nothing in the plan text above replaces it. `required_directives:` is
+   proven, live, to be legitimately authored in STEM form (not only canonical `DIRECTIVE_NNN`) —
+   `tests/charter/test_answers_inert_and_org_union.py::TestOrgRequiredIdFormNormalizedBeforePromotion`
+   round-trips `required_directives: [DIRECTIVE_001]`/`[001-architectural-integrity-standard]` through a
+   sibling promotion pipeline and asserts both forms are legitimate org-pack authoring shapes — while the
+   DRG's `artifact_id` (what `delivery_table.py`'s exclusion guard and `roots`'s `f"directive:{d}"`
+   construction compare/emit against) and `load_doctrine_catalog().directives` are canonical-only
+   (`DIRECTIVE_NNN`), verified live. Skipping this normalization would union a raw stem-form string into
+   `project_directives`, and `delivery_table.py`'s exclusion guard (`artifact_id not in project_directives`)
+   would then silently exclude that legitimately org-required, DRG-reachable directive — reproducing
+   Decision Record 2's own "silent incorrect exclusion" mechanism via the org-required path, the exact
+   defect class this mission exists to close (see the invariant in this WP's Definition of Done). Do this
+   normalization for `"directives"` ONLY — do **not** apply `_normalize_directive_id` (a directive-specific
+   normalizer) to the `"tactics"`/`"paradigms"` entries; see the Union/Exclusion Boundary Audit section
+   below for why that boundary is vacuously satisfied instead.
+
+   **Required red-first fixture for T007 (add as a fifth case, alongside FR-007/FR-008/FR-014/the
+   tactics-paradigms-absent sibling — T007 currently exercises the org-required union path NOT AT ALL)**:
+   register an org pack (mirror `tests/charter/test_action_doctrine_bundle_org_fragment.py`'s
+   `_register_pack`/config-registration mechanism — write `.kittify/config.yaml`'s
+   `doctrine.org.packs: [{name, local_path}]` pointing at a temp org-pack directory) whose
+   `org-charter.yaml` declares `required_directives: [001-architectural-integrity-standard]` — the same
+   stem-form id `TestOrgRequiredIdFormNormalizedBeforePromotion` uses, confirmed live as a legitimate
+   authoring shape, adjusted to reference a real DRG-reachable built-in directive id available to this
+   fixture's DRG. Assert `_load_action_doctrine_bundle`'s resulting bundle's `directive_ids` includes the
+   CANONICAL `DIRECTIVE_001` form (not the raw stem string), and that `roots`/`start_urns` carry
+   `directive:DIRECTIVE_001` (not `directive:001-architectural-integrity-standard`). **This fixture MUST
+   FAIL against the current (pre-this-fix) T009 text**: unioning the raw, un-normalized stem string onto
+   `project_directives` means `"DIRECTIVE_001" not in project_directives` (the set instead contains
+   `"001-architectural-integrity-standard"`) — `delivery_table.py`'s exclusion guard would drop the
+   directive from `directive_ids`, and `roots`'s `f"directive:{d}"` construction would emit the
+   unresolvable stem-form URN instead of the canonical one. The fixture passes once the normalization step
+   above is implemented.
 3. In `delivery_table.py`'s `_classify_artifact_urns`, change the exclusion guard from
    `if node.kind is NodeKind.DIRECTIVE and project_directives and artifact_id not in project_directives:`
    to `if node.kind is NodeKind.DIRECTIVE and project_directives is not None and artifact_id not in
@@ -386,16 +533,26 @@ green against the finished diff.
 
 ## Definition of Done
 
-- `tests/charter/test_action_doctrine_bundle_activation.py` exists with four red-first-then-green cases
-  (FR-007, FR-008, FR-014, and the plan-added tactics/paradigms-absent sibling fixture), `pytest.mark.fast`.
+- `tests/charter/test_action_doctrine_bundle_activation.py` exists with five red-first-then-green cases
+  (FR-007, FR-008, FR-014, the plan-added tactics/paradigms-absent sibling fixture, and the org-required
+  stem-form normalization fixture, TASKS-FRESH2-001), `pytest.mark.fast`.
 - `tests/charter/test_action_bundle_delivery.py`'s four `set()` call sites now pass `None`; all its
   existing tests remain green.
 - `_load_action_doctrine_bundle` derives `project_directives`/`selected_tactics`/`selected_paradigms` from
-  `pack_context.activated_*` with the org-required union preserved on top.
+  `pack_context.activated_*` with the org-required union preserved on top, and each org-required
+  `"directives"` entry is normalized via `_normalize_directive_id` before it joins that union
+  (TASKS-FRESH2-001).
 - `_classify_artifact_urns`'s exclusion guard is `is not None`, never bare truthiness.
 - `None` is converted to a concrete (catalog-default or explicit-empty) value once, at assignment in
   `_load_action_doctrine_bundle`, before any consumption site iterates it.
 - `test_no_dead_symbols.py` and the C-004 gate both pass.
+- **Union/exclusion boundary invariant (operator ruling, tasks phase R4)**: every directive, tactic and
+  paradigm identifier is canonicalized at the moment it enters a union, and every union and exclusion
+  boundary either canonicalizes its inputs or fails loud. An identifier whose form cannot be canonicalized
+  is an error, never a silently-excluded entry. Absent input resolves to the documented catalog default,
+  never to an empty set. Every union/exclusion boundary this WP owns is enumerated, boundary by boundary,
+  in the "Union/Exclusion Boundary Audit" section below — the R5a verifier confirms each one individually,
+  not in aggregate.
 
 ## Risks
 

@@ -140,6 +140,61 @@ Record 3 — it only forwards `resolution.diagnostics`/`exc.issues`, never `.dir
 directly, so this WP's fix reaches it as a side effect through `resolve_project_governance`'s corrected
 output; do not add a separate test or code path for it.
 
+## Union/Exclusion Boundary Audit (operator ruling, tasks phase R4 — binding acceptance requirement)
+
+Three consecutive review rounds each found a distinct instance of ONE class of defect: an absent or
+un-normalized identifier silently collapsing to a wrong value instead of the correct one, at a union or
+exclusion boundary, with no fixture pinning the failure. The operator ruling (`reviews/tasks.ruling.md`)
+requires this WP's acceptance to state the invariant explicitly and enumerate **every** union/exclusion
+boundary this WP's files touch, confirming for each whether it canonicalizes its inputs or fails loud.
+
+**The invariant** (binding for every boundary below): every directive, tactic and paradigm identifier is
+canonicalized at the moment it enters a union, and every union and exclusion boundary either canonicalizes
+its inputs or fails loud. An identifier whose form cannot be canonicalized is an error, never a
+silently-excluded entry. Absent input resolves to the documented catalog default, never to an empty set.
+
+**Precondition fact (shared with WP02's identical audit, re-verified live for this WP)**: directives have a
+stem-vs-canonical distinction (`_normalize_directive_id`); tactics and paradigms do not — no
+`_normalize_tactic_id`/`_normalize_paradigm_id` exists anywhere in `src/`, and every built-in tactic/
+paradigm file's filename stem and canonical `id:` field are the identical slug string. This is load-bearing
+for boundary 3 below.
+
+Boundaries, enumerated:
+
+1. **`_resolve_directive_base`'s `PackContext.activated_directives` base** — **FIXED this round**, found
+   during this audit (not a pre-existing literal finding): the pre-audit `else`-branch logic returned
+   `activated_directives`'s entries verbatim, un-normalized, while `PackContext.activated_directives` is
+   proven live to legitimately store stem-form ids (same proof cited in T012's fix above). T012 step 1 now
+   applies `_normalize_directive_id` to every entry before it becomes the base, backed by T011 step 6's
+   red-first fixture (RED against the unmodified `resolver.py`, GREEN after T012).
+2. **The union of `doctrine.selected_directives` onto the `activated_*`-derived base** (T012 step 1,
+   mirroring `_resolve_directives_selection`'s existing union shape) — **already correct, fails loud**:
+   `doctrine.selected_directives` is validated against `valid_ids` (`doctrine_catalog.directives` ∪
+   `directives_cfg.directives`'s local ids, both canonical-form sets) BEFORE the union — `missing = sorted(d
+   for d in doctrine.selected_directives if d not in valid_ids)` raises `GovernanceResolutionError` for any
+   entry not already in canonical form (verified live, `resolver.py:716-726`, unchanged by this WP). A
+   stem-form `doctrine.selected_directives` entry does not silently drop — it raises before the union ever
+   runs. This is "fails loud," not "canonicalizes," and the invariant accepts either.
+3. **`resolve_project_governance`'s new `PackContext.activated_paradigms` base** (T012 step 2, added fresh
+   by this WP — there is no `activated_*` paradigm read on `main` today) — **out of scope / vacuously
+   satisfied**: per the precondition fact above, paradigm ids have no stem-vs-canonical distinction in this
+   repo's authoring convention (the built-in `id:` field IS the filename-stem slug), so there is no
+   alternate form for a normalizer to fold — `activated_paradigms`'s raw entries are already canonical by
+   construction. No `_normalize_paradigm_id` call is needed or added.
+4. **The union of `doctrine.selected_paradigms` onto the new paradigm base** (T012 step 2) — **already
+   correct, fails loud**: `_validate_paradigm_selection` (the EXISTING call already in
+   `resolve_project_governance`, unchanged by this WP) raises `GovernanceResolutionError` for any
+   `selected_paradigms` entry not present in `doctrine_catalog.paradigms` (verified live,
+   `resolver.py:616-629`). A garbled/invalid paradigm id does not silently drop — it raises.
+
+**Reviewer Guidance addition**: confirm boundary 1's normalization was actually added to the `else`-branch
+return (not merely to the catalog-fallback branch, which is already canonical and would make the fix look
+complete while leaving the load-bearing branch untouched); confirm T011 step 6's fixture was actually run
+RED against the pre-this-round `resolver.py` (ask for the RED-run output); confirm boundaries 3/4's
+"vacuously satisfied"/"already fails loud" claims by spot-checking that no new normalizer was silently
+introduced for paradigms and that `_validate_paradigm_selection`'s existing call site was not accidentally
+removed or weakened while adding the new paradigm-base logic.
+
 ## Subtask T011: Baseline capture + red-first FR-012/FR-013 tests
 
 **Purpose**: Capture this WP's baseline (section g) and commit FR-012's directive-base-override test and
@@ -173,10 +228,22 @@ FR-013's paradigms-zero-fallback test, both RED first against the unmodified `re
    already agree (mirrors User Story 1 Scenario 3 / User Story 3 Scenario 3). This case is expected to be
    GREEN on `main` already (a regression guard against the fix over-correcting), not a red-first case —
    state this explicitly in the test's docstring, same discipline as WP01's T001.
+6. **Stem-form `activated_directives` normalization case (found during this round's boundary audit,
+   Union/Exclusion Boundary Audit section below)** — construct a `tmp_path` charter where
+   `doctrine.selected_directives` is EMPTY (so `_resolve_directive_base`'s activation branch is the one
+   that fires) and `activated_directives` includes a directive in STEM form (e.g.
+   `001-architectural-integrity-standard`, the same id `TestOrgRequiredIdFormNormalizedBeforePromotion`
+   proves is a legitimate authoring shape for `activated_directives`). Assert
+   `resolve_project_governance(tmp_path).directives` contains the CANONICAL `DIRECTIVE_001` form, not the
+   raw stem string.
+   **Why RED on `main` today**: `_resolve_directive_base`'s activation branch (`return
+   sorted(activated_directives), "activation"`) returns `PackContext.activated_directives`'s entries
+   verbatim, un-normalized — the resolved `directives` list on `main` contains the literal string
+   `"001-architectural-integrity-standard"`, not `"DIRECTIVE_001"`.
 
-**Files**: `tests/charter/test_resolver_activation_parity.py` (new, ~150-180 lines)
-**Validation**: `pytest tests/charter/test_resolver_activation_parity.py -v` — FR-012/FR-013 cases RED
-against the unmodified `resolver.py`; the agreement case(s) already GREEN.
+**Files**: `tests/charter/test_resolver_activation_parity.py` (new, ~180-210 lines)
+**Validation**: `pytest tests/charter/test_resolver_activation_parity.py -v` — FR-012/FR-013 cases and the
+step-6 normalization case RED against the unmodified `resolver.py`; the agreement case(s) already GREEN.
 
 ## Subtask T012: Implementation — invert the directive-base priority, add the paradigm-base read
 
@@ -194,6 +261,27 @@ against the unmodified `resolver.py`; the agreement case(s) already GREEN.
    `"charter"` alone when only one did — your call on the exact label string; the load-bearing behavior is
    the union, not the label spelling. Whatever you choose, keep it distinct from `_resolve_directives_selection`'s
    own `"{base_source}+project_local"` label so a diagnostic reader can tell which union layer added what).
+
+   **New normalization fix found during this round's boundary audit (Union/Exclusion Boundary Audit section
+   below) — NOT part of the existing `else`-branch logic, add it as part of "reusing" that branch**: the
+   existing `else` branch's `return sorted(activated_directives), "activation"` line returns
+   `PackContext.activated_directives`'s entries VERBATIM, un-normalized. `PackContext.activated_directives`
+   is proven live (`tests/charter/test_answers_inert_and_org_union.py::TestOrgRequiredIdFormNormalizedBeforePromotion`,
+   `ctx.activated_directives` after promotion contains the STEM `001-architectural-integrity-standard`, not
+   the canonical `DIRECTIVE_001`) to legitimately store STEM-form ids — `pack_context.py`'s
+   `_read_activated_directives`/`_read_list_key` never normalizes at read time either (verified live). Apply
+   `_normalize_directive_id` (already imported one file over by WP02's identical fix; import it from
+   `charter.activation.profile_resolution` here too) to every entry BEFORE it becomes the base — both in the
+   `activated_directives is None` catalog-fallback branch's return (`sorted(doctrine_catalog.directives)` is
+   already canonical, so this is a no-op there, but keep the call site uniform) and, load-bearingly, in the
+   `activated_directives` non-empty branch (`return sorted(activated_directives), "activation"` →
+   normalize each entry first, then sort). Without this, an un-normalized stem-form id in this WP's own
+   corrected base would flow into `GovernanceResolution.directives`, and a downstream consumer that looks
+   the id up against a canonical-keyed store (e.g. `context_json.py`'s `_assemble_directive_entries` →
+   `collect_typed_artifacts`, one of T013's five named consumers) would silently produce a degraded stub
+   entry (raw id, no title/description, mislabeled `"source": "builtin"`) instead of the real directive —
+   the same defect class this mission exists to close, reached through a path this round's own boundary
+   audit found rather than one that shipped in a prior round's diff.
 2. Add a NEW paradigm-base resolution (a small private helper mirroring `_resolve_directive_base`'s shape,
    or inlined directly into `resolve_project_governance` — your call) that reads
    `PackContext.from_config(repo_root).activated_paradigms` with the identical three-state guard
@@ -241,16 +329,24 @@ needed at any of them.
 
 ## Definition of Done
 
-- `tests/charter/test_resolver_activation_parity.py` exists, `pytest.mark.fast`, FR-012/FR-013 committed
-  RED first, both GREEN after T012.
+- `tests/charter/test_resolver_activation_parity.py` exists, `pytest.mark.fast`, FR-012/FR-013 and the
+  stem-form normalization case (T011 step 6) committed RED first, all GREEN after T012.
 - `_resolve_directive_base` no longer short-circuits on non-empty `doctrine.selected_directives`; it
-  computes the `activated_*`-derived base first and unions `selected_directives` onto it.
+  computes the `activated_*`-derived base first (normalizing each `activated_directives` entry via
+  `_normalize_directive_id`) and unions `selected_directives` onto it.
 - `resolve_project_governance` reads `PackContext.from_config(repo_root).activated_paradigms` as the
   paradigm base, unioning `doctrine.selected_paradigms` onto it.
 - Both the directive and paradigm "already agree" cases are unchanged from `main`'s current behavior
   (verified, not merely asserted).
 - The five named consumers require zero code changes; `test_no_dead_symbols.py` and the C-004 gate stay
   green.
+- **Union/exclusion boundary invariant (operator ruling, tasks phase R4)**: every directive, tactic and
+  paradigm identifier is canonicalized at the moment it enters a union, and every union and exclusion
+  boundary either canonicalizes its inputs or fails loud. An identifier whose form cannot be canonicalized
+  is an error, never a silently-excluded entry. Absent input resolves to the documented catalog default,
+  never to an empty set. Every union/exclusion boundary this WP owns is enumerated, boundary by boundary,
+  in the "Union/Exclusion Boundary Audit" section above — the R5a verifier confirms each one individually,
+  not in aggregate.
 
 ## Risks
 

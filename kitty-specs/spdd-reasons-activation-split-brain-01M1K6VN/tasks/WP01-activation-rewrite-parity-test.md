@@ -234,10 +234,25 @@ against `PackContext.from_config()`'s real `activated_*` fields, committed RED f
    matrix. The oracle expects `True` for those fixtures. This is a real, structural RED — not a
    coincidence of one fixture's values — verify it by actually running this test against the pre-rewrite
    body before starting T004.
+6. **Non-list `activated_*` value regression fixture (TASKS-FRESH2-002 remediation)**: add one fixture per
+   kind where `.kittify/config.yaml`'s `activated_<kind>` key is PRESENT but its value is a bare scalar —
+   e.g. `activated_paradigms: structured-prompt-driven-development` — rather than a one-item list. Assert
+   `is_spdd_reasons_active(tmp_path)` raises (the same module-local fail-loud exception T004 step (c)/(e)
+   already raise for a malformed YAML file / dangling pointer target), not that it returns a boolean.
+   **Why RED on `main` today, concretely, and RED again on a naive (unguarded) T004 implementation**: on
+   `main`, this fixture is RED for the same structural reason as step 5's cases — the old body never reads
+   `activated_*` at all, so it returns `False` unconditionally instead of raising. Separately, this fixture
+   is ALSO the direct regression pin for a *partially*-correct T004 rewrite that implements the three-state
+   absent/`[]`/non-empty semantics but omits the present-but-non-list type check: such an implementation
+   would iterate the scalar string character-by-character (Python happily iterates a `str` in a `for entry
+   in raw` loop) and silently build a nonsense one-letter-per-entry set instead of raising — this fixture
+   fails against that shape too, which is exactly why it must exist as its own case rather than being
+   assumed covered by the three-state matrix in steps 2-3.
 
-**Files**: `tests/charter/test_spdd_reasons_activation_parity.py` (~180-220 lines including T001's slice)
+**Files**: `tests/charter/test_spdd_reasons_activation_parity.py` (~180-230 lines including T001's slice)
 **Validation**: `pytest tests/charter/test_spdd_reasons_activation_parity.py -v` — every non-`absent_config`
-case is RED before T004, GREEN after.
+case, including the step-6 non-list fixture, is RED before T004 (asserts a raise that does not happen on the
+old body) and GREEN after T004's fail-loud type check lands, per C-011.
 
 ## Subtask T003: Confirm FR-004's carve-out reachability claim (read-only verification)
 
@@ -289,6 +304,20 @@ plan.md section (h) — no separate campsite-clean commit), and turn T001/T002's
       (`frozenset()`); key present non-empty → the set of ids. **Do not use `x or set()` anywhere in this
       path** — that idiom is the exact truthiness-collapse bug class this WP exists to avoid reintroducing
       (see the parity test's own oracle discipline in T002, and the cross-WP chokepoint note in Context).
+      **Explicit fail-loud type check (TASKS-FRESH2-002 remediation)**: `_read_list_key`'s real contract
+      (verified live, `pack_context.py:609-615` — `if not isinstance(raw, list): raise _config_error(...)`)
+      is not only the three absent/`[]`/non-empty states over a *list-shaped* value — it ALSO raises when a
+      key is PRESENT but its value is not a `list` at all (e.g. an authoring mistake like
+      `activated_paradigms: structured-prompt-driven-development`, a bare scalar instead of a one-item
+      list). Add the identical check to this replicated read: for each of `activated_paradigms`/
+      `activated_directives`/`activated_tactics`, once the key is looked up in the parsed mapping, if it is
+      present AND its value is not a `list`, raise (the same module-local fail-loud exception step (c)/(e)
+      already raise for a malformed/dangling pointer target) — never fall through to a bare `for entry in
+      raw` loop, which would iterate a `str` character-by-character and silently produce a nonsense
+      one-letter-per-entry set instead of the intended fail-loud `CharterPackConfigError`-equivalent
+      (NFR-001 forbids exactly this "unexplained silent result for an error condition"). This check must run
+      BEFORE the three-state branch above, since a present-non-list value is neither "absent" nor a valid
+      `[]`/non-empty list.
    e. Malformed top-level YAML in `config.yaml` OR the pointed `charter.yaml` → propagate (raise), never a
       silent `False`/`True` (FR-005).
    f. Preserve `_is_directive_038` (the numeric-hint + case-insensitive matching logic) verbatim — this is
@@ -361,6 +390,8 @@ stays green, as a distinct final verification step (not merely "tests passed").
   FR-004's own falsifiable Acceptance Criterion through the real `apply_spdd_blocks_for_project` entry
   point (T001 step 4) — not merely `is_spdd_reasons_active(tmp_path) is False` in isolation.
 - The cache-key fix is implemented (either option) and T002's same-process mutation case passes.
+- A present-but-non-list `activated_paradigms`/`activated_directives`/`activated_tactics` value raises
+  (TASKS-FRESH2-002), covered by T002 step 6's fixture, committed RED first and GREEN after T004.
 - Baseline diff shows no newly-red node-id outside this mission's own intentionally-flipped tests.
 
 ## Risks
