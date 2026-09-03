@@ -235,11 +235,7 @@ _MATRIX: list[tuple[str, list[str] | None, bool]] = []
 _MATRIX_IDS: list[str] = []
 for _key, _target_id, _variant_label in _KIND_VARIANTS:
     for _state_label, _state_value in _STATES:
-        _value: list[str] | None
-        if _state_value == "TARGET":
-            _value = [_target_id]
-        else:
-            _value = _state_value  # type: ignore[assignment]
+        _value: list[str] | None = [_target_id] if _state_value == "TARGET" else _state_value  # type: ignore[assignment]
         for _pointer_label, _pointer_flag in _POINTER_SHAPES:
             _MATRIX.append((_key, _value, _pointer_flag))
             _MATRIX_IDS.append(f"{_variant_label}-{_state_label}-{_pointer_label}")
