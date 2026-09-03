@@ -18,6 +18,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Literal, Protocol
 
 if TYPE_CHECKING:
+    from charter.activation.context import CharterContextResult
     from charter.profiles import AgentProfile
     from charter.model_routing import RoutingRecommendation
     from glossary.chokepoint import (
@@ -351,6 +352,32 @@ def build_ambiguous_dry_run_payload(request_text: str, err: RouterAmbiguityError
     }
 
 
+@dataclasses.dataclass(frozen=True)
+class _RoutingResolution:
+    """Read-only routing-resolution + governance-context result.
+
+    Shared return shape for ``ProfileInvocationExecutor._resolve_routing_and_context``,
+    the helper both ``invoke()`` and ``dry_run()`` call to eliminate their
+    duplicated read-only wiring (PR-BOUNDARY-001). Carries ONLY the read
+    half: resolved profile/action, the advisory model-routing recommendation,
+    the assembled governance context, and the glossary chokepoint scan
+    result. It carries NOTHING from the write half -- no started-record
+    construction, no writer/propagator calls -- those stay in ``invoke()``
+    only, entirely after the duplicated region this type replaces.
+    """
+
+    profile: AgentProfile
+    action: str
+    router_confidence: str | None
+    empty_charter_fallback: bool
+    alternatives: list[dict[str, str]]
+    recommendation: RoutingRecommendation | None
+    ctx_result: CharterContextResult
+    ctx_hash: str
+    ctx_available: bool
+    bundle: GlossaryObservationBundle
+
+
 class ProfileInvocationExecutor:
     """Single execution primitive for all profile-governed invocations.
 
@@ -397,87 +424,36 @@ class ProfileInvocationExecutor:
         """
         invocation_id = _new_ulid()  # uses codebase-standard ulid library
 
-        # 1. Resolve (profile_id, action)
-        router_confidence: str | None = None
-        empty_charter_fallback = False
-        # WP2/#3840 (FR-005): the explicit-hint branch below never calls
-        # route(), so there are no candidates to report -- [] unless the
-        # router branch below overwrites it with RouterDecision.alternatives.
-        alternatives: list[dict[str, str]] = []
-        if profile_hint is not None:
-            profile = self._registry.resolve(profile_hint)  # raises ProfileNotFoundError
-            # FR-009/FR-010/FR-011/EDGE-005: when caller supplies a truthy action_hint,
-            # use it verbatim; otherwise fall back to the legacy role-default-verb
-            # derivation. Truthiness (not `is not None`) means empty-string falls back.
-            action = action_hint or self._derive_action_from_request(request_text, profile.role)
-            router_confidence = None  # caller supplied explicit hint
-        elif self._router is not None:
-            # WP02/#3064: pre-check the composite empty-charter predicate BEFORE
-            # routing. resolve_generic_fallback returns a RouterDecision only when
-            # the charter is wholly empty (Decision 2/3, research.md); otherwise it
-            # returns None and route() runs exactly as before. This does NOT touch
-            # ProfileRegistry or the shared activation gate -- explicit --profile
-            # (the branch above) is never affected by this pre-check.
-            fallback_decision = resolve_generic_fallback(self._repo_root, request_text)
-            # route() returns RouterDecision or raises RouterAmbiguityError (never returns error)
-            result: RouterDecision = fallback_decision or self._router.route(request_text)
-            profile = self._registry.resolve(result.profile_id)
-            action = result.action
-            router_confidence = result.confidence
-            empty_charter_fallback = fallback_decision is not None
-            alternatives = result.alternatives  # WP2/#3840 (FR-005)
-        else:
-            raise RuntimeError("No profile_hint and no router configured. Use 'spec-kitty dispatch \"<request>\" --profile <profile>' or supply a router.")
+        # 1-2a. Resolve (profile_id, action), the advisory model-routing
+        # recommendation, the governance context, and the glossary scan --
+        # PR-BOUNDARY-001: shared read-only wiring, see
+        # _resolve_routing_and_context()'s docstring for exactly what it
+        # does and does not do.
+        resolution = self._resolve_routing_and_context(
+            request_text,
+            profile_hint,
+            actor,
+            invocation_id=invocation_id,
+            action_hint=action_hint,
+            explicit_hint_router_confidence=None,  # invoke()'s explicit-hint branch leaves this None
+        )
+        profile = resolution.profile
+        action = resolution.action
+        router_confidence = resolution.router_confidence
+        empty_charter_fallback = resolution.empty_charter_fallback
+        alternatives = resolution.alternatives
+        recommendation = resolution.recommendation
+        ctx_result = resolution.ctx_result
+        ctx_hash = resolution.ctx_hash
+        ctx_available = resolution.ctx_available
+        bundle = resolution.bundle
 
-        # FR-004: advisory model-routing recommendation, non-fatal (NFR-002/C-001).
-        recommendation = _compute_recommendation(profile, action)
         catalog_candidate = (
             recommendation.catalog_candidate if recommendation is not None else None
         )
         durable_model_id = (
             catalog_candidate.model_id if catalog_candidate is not None else None
         )
-
-        # 2. Assemble governance context (mark_loaded=False — critical)
-        # NEVER pass mark_loaded=True here — would corrupt context-state.json
-        # and break the specify/plan first-load detection.
-        # WP03/#3064: thread the already-known empty-charter-fallback signal
-        # through as suppress_project_resolver so the compact governance
-        # block does not merge the project catalog-fallback directive canon
-        # (research.md Decision 4 — see charter/compact.py:render_compact_view
-        # for the full rationale). A declared, bounded, out-of-map coupled
-        # edit to charter/context.py (owned by WP06) — no other caller of
-        # build_charter_context passes this kwarg, so behaviour there is
-        # unchanged.
-        ctx_result = build_charter_context(
-            self._repo_root,
-            profile=profile.profile_id,
-            action=action,
-            mark_loaded=False,
-            suppress_project_resolver=empty_charter_fallback,
-        )
-        ctx_hash = hashlib.sha256(ctx_result.text.encode()).hexdigest()[:16]  # noqa: TID251 - production raw SHA-256 owner
-        ctx_available = ctx_result.mode != "missing"
-
-        # 2a. Run glossary chokepoint scan (T016/T017)
-        # Severity routing: bundle.high_severity = HIGH only; bundle.all_conflicts = all severities.
-        # This routing is performed inside GlossaryChokepoint._run_inner() (WP02 code).
-        # Exception guard: any failure returns an error-bundle; the invocation always continues.
-        from glossary.chokepoint import GlossaryChokepoint, GlossaryObservationBundle
-
-        try:
-            if self._chokepoint is None:
-                self._chokepoint = GlossaryChokepoint(self._repo_root)
-            bundle = self._chokepoint.run(
-                request_text,
-                invocation_id=invocation_id,
-                actor_id=actor,
-            )
-        except Exception as _exc:  # noqa: BLE001
-            import logging as _logging
-
-            _logging.getLogger(__name__).warning("glossary chokepoint outer exception (invocation_id=%r): %r", invocation_id, _exc)
-            bundle = GlossaryObservationBundle(matched_urns=(), high_severity=(), all_conflicts=(), tokens_checked=0, duration_ms=0.0, error_msg=repr(_exc))
 
         # 3. Write started record (raises InvocationWriteError on fs failure)
         started_at = now_utc_iso()
@@ -526,6 +502,137 @@ class ProfileInvocationExecutor:
             alternatives=alternatives,  # WP2/#3840 (FR-005)
         )
 
+    def _resolve_routing_and_context(
+        self,
+        request_text: str,
+        profile_hint: str | None,
+        actor: str,
+        *,
+        invocation_id: str,
+        action_hint: str | None = None,
+        explicit_hint_router_confidence: str | None = None,
+    ) -> _RoutingResolution:
+        """Read-only routing-resolution + governance-context wiring shared by
+        ``invoke()`` and ``dry_run()`` (PR-BOUNDARY-001).
+
+        Resolves ``(profile, action)``, computes the FR-004 advisory
+        model-routing recommendation, assembles the governance context
+        (``mark_loaded=False`` — never poisons first-load state), and runs
+        the glossary chokepoint scan. Returns a :class:`_RoutingResolution`.
+
+        Deliberately does NOT: mint an ``invocation_id`` (the caller supplies
+        one), construct an ``OpStartedEvent``, call
+        ``self._writer.write_started``/``write_glossary_observation``, or
+        call ``self._propagator.submit``. All of that write-side behaviour
+        stays in ``invoke()`` only, entirely after this helper returns — so
+        this extraction cannot couple the write path to ``dry_run()``.
+
+        ``invocation_id`` is passed straight through to the glossary
+        chokepoint call: ``invoke()`` passes its freshly-minted ULID;
+        ``dry_run()`` passes ``""``, the explicit falsy value that
+        structurally suppresses the persisted ``TermCandidateObserved``
+        write via ``GlossaryChokepoint``'s own
+        ``if not invocation_id: return None`` gate (chokepoint.py, untouched
+        by this extraction) — FR-003's guarantee, not a runtime ``if`` added
+        here.
+
+        ``action_hint``/``explicit_hint_router_confidence`` capture the one
+        real behavioural difference between the two callers' explicit-hint
+        branches: ``invoke()`` accepts an optional caller-supplied
+        ``action_hint`` (empty string treated as not supplied, EDGE-005) and
+        leaves ``router_confidence`` at ``None``; ``dry_run()`` has no
+        ``action_hint`` parameter of its own (so it always passes ``None``,
+        and ``action_hint or self._derive_action_from_request(...)`` reduces
+        to the plain derivation call) and pins ``router_confidence`` to
+        ``"exact"`` (FR-008 / spec.md Acceptance Scenario 2) — a deliberate,
+        pre-existing asymmetry this extraction preserves rather than resolves.
+        """
+        router_confidence: str | None = None
+        empty_charter_fallback = False
+        # WP2/#3840 (FR-005): the explicit-hint branch below never calls
+        # route(), so there are no candidates to report -- [] unless the
+        # router branch below overwrites it with RouterDecision.alternatives.
+        alternatives: list[dict[str, str]] = []
+        if profile_hint is not None:
+            profile = self._registry.resolve(profile_hint)  # raises ProfileNotFoundError
+            # FR-009/FR-010/FR-011/EDGE-005: when caller supplies a truthy action_hint,
+            # use it verbatim; otherwise fall back to the legacy role-default-verb
+            # derivation. Truthiness (not `is not None`) means empty-string falls back.
+            action = action_hint or self._derive_action_from_request(request_text, profile.role)
+            router_confidence = explicit_hint_router_confidence
+        elif self._router is not None:
+            # WP02/#3064: pre-check the composite empty-charter predicate BEFORE
+            # routing. resolve_generic_fallback returns a RouterDecision only when
+            # the charter is wholly empty (Decision 2/3, research.md); otherwise it
+            # returns None and route() runs exactly as before. This does NOT touch
+            # ProfileRegistry or the shared activation gate -- explicit --profile
+            # (the branch above) is never affected by this pre-check.
+            fallback_decision = resolve_generic_fallback(self._repo_root, request_text)
+            # route() returns RouterDecision or raises RouterAmbiguityError (never returns error)
+            result: RouterDecision = fallback_decision or self._router.route(request_text)
+            profile = self._registry.resolve(result.profile_id)
+            action = result.action
+            router_confidence = result.confidence
+            empty_charter_fallback = fallback_decision is not None
+            alternatives = result.alternatives  # WP2/#3840 (FR-005)
+        else:
+            raise RuntimeError("No profile_hint and no router configured. Use 'spec-kitty dispatch \"<request>\" --profile <profile>' or supply a router.")
+
+        # FR-004: advisory model-routing recommendation, non-fatal (NFR-002/C-001).
+        recommendation = _compute_recommendation(profile, action)
+
+        # 2. Assemble governance context (mark_loaded=False — critical)
+        # NEVER pass mark_loaded=True here — would corrupt context-state.json
+        # and break the specify/plan first-load detection.
+        # WP03/#3064: thread the already-known empty-charter-fallback signal
+        # through as suppress_project_resolver so the compact governance
+        # block does not merge the project catalog-fallback directive canon
+        # (research.md Decision 4 — see charter/compact.py:render_compact_view
+        # for the full rationale). A declared, bounded, out-of-map coupled
+        # edit to charter/context.py (owned by WP06) — no other caller of
+        # build_charter_context passes this kwarg, so behaviour there is
+        # unchanged.
+        ctx_result = build_charter_context(
+            self._repo_root,
+            profile=profile.profile_id,
+            action=action,
+            mark_loaded=False,
+            suppress_project_resolver=empty_charter_fallback,
+        )
+        ctx_hash = hashlib.sha256(ctx_result.text.encode()).hexdigest()[:16]  # noqa: TID251 - production raw SHA-256 owner
+        ctx_available = ctx_result.mode != "missing"
+
+        # 2a. Run glossary chokepoint scan (T016/T017)
+        # Severity routing: bundle.high_severity = HIGH only; bundle.all_conflicts = all severities.
+        # This routing is performed inside GlossaryChokepoint._run_inner() (WP02 code).
+        # Exception guard: any failure returns an error-bundle; the invocation always continues.
+        from glossary.chokepoint import GlossaryChokepoint, GlossaryObservationBundle
+
+        try:
+            if self._chokepoint is None:
+                self._chokepoint = GlossaryChokepoint(self._repo_root)
+            bundle = self._chokepoint.run(
+                request_text,
+                invocation_id=invocation_id,
+                actor_id=actor,
+            )
+        except Exception as _exc:  # noqa: BLE001
+            logger.warning("glossary chokepoint outer exception (invocation_id=%r): %r", invocation_id, _exc)
+            bundle = GlossaryObservationBundle(matched_urns=(), high_severity=(), all_conflicts=(), tokens_checked=0, duration_ms=0.0, error_msg=repr(_exc))
+
+        return _RoutingResolution(
+            profile=profile,
+            action=action,
+            router_confidence=router_confidence,
+            empty_charter_fallback=empty_charter_fallback,
+            alternatives=alternatives,
+            recommendation=recommendation,
+            ctx_result=ctx_result,
+            ctx_hash=ctx_hash,
+            ctx_available=ctx_available,
+            bundle=bundle,
+        )
+
     def dry_run(
         self,
         request_text: str,
@@ -535,13 +642,14 @@ class ProfileInvocationExecutor:
         """Route the request and assemble governance context; write NOTHING.
 
         A sibling of :meth:`invoke`, not a boolean flag threaded through it:
-        mirrors only ``invoke()``'s read half (routing resolution, the
-        advisory model-routing recommendation, governance-context assembly,
-        the glossary scan) and never reaches its write half at all. This
-        method body never mints or passes a truthy ``invocation_id`` --
-        FR-003's structural guarantee, not a runtime ``if`` guard: it calls
-        ``chokepoint.run(request_text, invocation_id="", ...)``, an explicit
-        falsy value, so ``GlossaryChokepoint._build_event_context``'s
+        calls the same read-only ``_resolve_routing_and_context()`` helper
+        ``invoke()`` uses (routing resolution, the advisory model-routing
+        recommendation, governance-context assembly, the glossary scan) and
+        never reaches ``invoke()``'s write half at all. This method body
+        never mints or passes a truthy ``invocation_id`` -- FR-003's
+        structural guarantee, not a runtime ``if`` guard: it calls
+        ``_resolve_routing_and_context(..., invocation_id="", ...)``, an
+        explicit falsy value, so ``GlossaryChokepoint._build_event_context``'s
         existing ``if not invocation_id: return None`` gate (chokepoint.py,
         unchanged by this mission) suppresses the persisted
         ``TermCandidateObserved`` write before it is ever attempted. This
@@ -558,83 +666,38 @@ class ProfileInvocationExecutor:
         internally and re-raises it as
         ``RouterAmbiguityError(error_code="PROFILE_NOT_FOUND")`` first.
         """
-        # 1. Resolve (profile_id, action) -- mirrors invoke()'s step 1 exactly,
-        # up to (not including) the invocation_id mint and the write half.
-        router_confidence: str | None = None
-        empty_charter_fallback = False
-        # WP2/#3840 (FR-005/FR-008): the explicit-hint branch below never
-        # calls route(), so there are no candidates to report -- [] unless
-        # the router branch below overwrites it with RouterDecision.alternatives.
-        alternatives: list[dict[str, str]] = []
-        if profile_hint is not None:
-            profile = self._registry.resolve(profile_hint)  # raises ProfileNotFoundError
-            action = self._derive_action_from_request(request_text, profile.role)
-            # FR-008 (spec.md Acceptance Scenario 2): the dry-run payload
-            # contract pins "exact" for the explicit-hint branch, matching
-            # ActionRouter.route()'s own Level-1 explicit-hint confidence
-            # value. This intentionally does NOT mirror invoke()'s own
-            # explicit-hint branch, which bypasses route() entirely at the
-            # executor level and leaves router_confidence None there — a
-            # pre-existing invoke()-only quirk this WP does not touch.
-            router_confidence = "exact"
-        elif self._router is not None:
-            fallback_decision = resolve_generic_fallback(self._repo_root, request_text)
-            result: RouterDecision = fallback_decision or self._router.route(request_text)
-            profile = self._registry.resolve(result.profile_id)
-            action = result.action
-            router_confidence = result.confidence
-            empty_charter_fallback = fallback_decision is not None
-            alternatives = result.alternatives  # WP2/#3840 (FR-005)
-        else:
-            raise RuntimeError("No profile_hint and no router configured. Use 'spec-kitty dispatch \"<request>\" --profile <profile>' or supply a router.")
-
-        # FR-004: advisory model-routing recommendation, non-fatal (NFR-002/C-001).
-        recommendation = _compute_recommendation(profile, action)
-
-        # 2. Assemble governance context (mark_loaded=False — critical, and
-        # already read-only, same call as invoke()'s).
-        ctx_result = build_charter_context(
-            self._repo_root,
-            profile=profile.profile_id,
-            action=action,
-            mark_loaded=False,
-            suppress_project_resolver=empty_charter_fallback,
+        # FR-008 (spec.md Acceptance Scenario 2): the dry-run payload
+        # contract pins "exact" for the explicit-hint branch, matching
+        # ActionRouter.route()'s own Level-1 explicit-hint confidence value.
+        # This intentionally does NOT mirror invoke()'s own explicit-hint
+        # branch, which bypasses route() entirely at the executor level and
+        # leaves router_confidence None there — a pre-existing invoke()-only
+        # quirk this WP does not touch.
+        resolution = self._resolve_routing_and_context(
+            request_text,
+            profile_hint,
+            actor,
+            invocation_id="",
+            explicit_hint_router_confidence="exact",
         )
-        ctx_hash = hashlib.sha256(ctx_result.text.encode()).hexdigest()[:16]  # noqa: TID251 - production raw SHA-256 owner
-        ctx_available = ctx_result.mode != "missing"
-
-        # 2a. Glossary chokepoint scan — FR-003's structural guarantee: an
-        # explicit falsy invocation_id, never a minted ULID, so the existing
-        # gate at chokepoint.py suppresses the persisted write. The in-memory
-        # scan itself still runs (read-only, safe) -- only the persisted
-        # TermCandidateObserved write is suppressed.
-        from glossary.chokepoint import GlossaryChokepoint, GlossaryObservationBundle
-
-        try:
-            if self._chokepoint is None:
-                self._chokepoint = GlossaryChokepoint(self._repo_root)
-            bundle = self._chokepoint.run(request_text, invocation_id="", actor_id=actor)
-        except Exception as _exc:  # noqa: BLE001
-            logger.warning("glossary chokepoint outer exception (dry_run): %r", _exc)
-            bundle = GlossaryObservationBundle(matched_urns=(), high_severity=(), all_conflicts=(), tokens_checked=0, duration_ms=0.0, error_msg=repr(_exc))
 
         # No write_started, no write_glossary_observation, no
         # propagator.submit, no invocation_id minted anywhere above -- this
         # is dry_run()'s entire reason to exist.
         return InvocationPayload(
             invocation_id="",
-            profile_id=profile.profile_id,
-            profile_friendly_name=profile.name,
-            action=action,
-            governance_context_text=ctx_result.text,
-            governance_context_hash=ctx_hash,
-            governance_context_available=ctx_available,
-            router_confidence=router_confidence,
-            glossary_observations=bundle,
+            profile_id=resolution.profile.profile_id,
+            profile_friendly_name=resolution.profile.name,
+            action=resolution.action,
+            governance_context_text=resolution.ctx_result.text,
+            governance_context_hash=resolution.ctx_hash,
+            governance_context_available=resolution.ctx_available,
+            router_confidence=resolution.router_confidence,
+            glossary_observations=resolution.bundle,
             mode_of_work=None,
-            recommendation=recommendation,
-            empty_charter_fallback=empty_charter_fallback,
-            alternatives=alternatives,  # WP2/#3840 (FR-005)
+            recommendation=resolution.recommendation,
+            empty_charter_fallback=resolution.empty_charter_fallback,
+            alternatives=resolution.alternatives,  # WP2/#3840 (FR-005)
         )
 
     def complete_invocation(
