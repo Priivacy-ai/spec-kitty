@@ -117,7 +117,7 @@ resolution (INV-2, `_load_charter_activation_source`, `pack_context.py:557-585`)
 **`activated_kinds` (a separate, coarse per-KIND gate on `PackContext`, consulted by the DRG
 activation filter `_node_is_activated`, `drg_activation.py:433`) is deliberately out of scope
 for this rewrite**: `compile_charter`'s own `activated_*`-authority resolution
-(`_resolve_config_activated_roots`, `compiler.py:153-226`) does not consult it either, so
+(`_resolve_config_activated_roots`, `compiler.py:153-240`) does not consult it either, so
 FR-001's per-ID-only algorithm below is faithful to the authority this spec's Summary actually
 cites — a future reader (or a later mission) should not "fix" this omission into a new
 divergence from `compile_charter`'s real behavior.
@@ -156,10 +156,10 @@ this spec: `src/charter/activation/action_doctrine_bundle.py`,
 `src/charter/activation/org_pack_discovery.py`, `src/charter/activation/sync.py`.
 
 **Finding: this is the same defect class, proven by two independent mechanisms in
-`_load_action_doctrine_bundle` (`action_doctrine_bundle.py:142-260`), not one.**
+`_load_action_doctrine_bundle` (`action_doctrine_bundle.py:142-280`), not one.**
 
 `doctrine_selection = _load_doctrine_selection(repo_root)` (line 185) resolves through
-`org_pack_discovery.py:178-222` → `sync.py:321` `load_governance_config`, which reads
+`org_pack_discovery.py:178-223` → `sync.py:321` `load_governance_config`, which reads
 `charter.yaml`'s `governance.charter.selected_*` — **the identical section**
 `is_spdd_reasons_active` reads, confirmed byte-for-byte the same schema field
 (`charter.activation.schemas.CharterYaml.governance.charter`). `_load_doctrine_selection` then
@@ -200,7 +200,7 @@ But the *project-authored* half of `doctrine_selection` — the part sourced fro
    all `[]` — so `start_urns` is **empty** and the closure-widening these fields exist to
    provide contributes nothing at all, despite ~9 directives, dozens of tactics, and several
    paradigms being genuinely activated. Read `resolve_transitive_refs`
-   (`src/charter/offering/drg/query.py:331-380`) and `walk_edges`: a start URN whose node is
+   (`src/charter/offering/drg/query.py:331-405`) and `walk_edges`: a start URN whose node is
    absent from the (already activation-filtered) graph is recorded in an `unresolved` list
    and silently dropped — never raised — so the reverse case (a stale `selected_*` entry
    naming something since deactivated) degrades gracefully rather than crashing, but still
