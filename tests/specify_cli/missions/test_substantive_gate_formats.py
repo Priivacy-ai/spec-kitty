@@ -734,3 +734,37 @@ class TestPackDeclarationFailsLoud:
 
         with pytest.raises(_PackDeclarationError, match="could not be read"):
             _plan_field_declaration_from_yaml(path)
+
+
+# ---------------------------------------------------------------------------
+# #3830/#3832 fold: parity guard between the built-in mission types that ship
+# a ``plan.md`` artifact and the built-in ``_PLAN_FIELD_DECLARATIONS`` table.
+# A future 5th built-in mission type that requires a plan.md but forgets to
+# register its own declaration would otherwise silently fail the gate closed
+# with no signal at authoring time -- this test fails loud instead, at the
+# same commit that adds the new type's mission.yaml.
+# ---------------------------------------------------------------------------
+
+
+def _builtin_mission_types_requiring_plan_md() -> set[str]:
+    """Directory names under ``src/specify_cli/missions/`` whose ``mission.yaml``
+    declares ``plan.md`` as a required artifact."""
+    import yaml
+
+    missions_root = _REPO_ROOT / "src" / "specify_cli" / "missions"
+    types: set[str] = set()
+    for mission_dir in missions_root.iterdir():
+        mission_yaml = mission_dir / "mission.yaml"
+        if not mission_yaml.is_file():
+            continue
+        raw = yaml.safe_load(mission_yaml.read_text(encoding="utf-8"))
+        required = (raw or {}).get("artifacts", {}).get("required", [])
+        if "plan.md" in required:
+            types.add(mission_dir.name)
+    return types
+
+
+def test_plan_field_declarations_cover_every_builtin_plan_md_type() -> None:
+    """Every built-in mission type that ships a ``plan.md`` artifact must have
+    a registered ``_PLAN_FIELD_DECLARATIONS`` entry -- no silent gap."""
+    assert set(_PLAN_FIELD_DECLARATIONS) == _builtin_mission_types_requiring_plan_md()
