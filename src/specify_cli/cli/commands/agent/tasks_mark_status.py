@@ -16,12 +16,20 @@ decision core and does NOT route through ``move_task``'s ``decide_transition``
 (the deferred #2300 unification, guarded structurally by the coreless
 non-import gate).
 
-**C-001 divergence wiring**: ``mark_status`` sits on the REFUSE arm — when
-auto-commit resolves on, ``_ms_resolve_context`` refuses exit-1 through
-``_tasks._protected_branch_status_commit_error`` with NO
-``_skip_target_branch_commit`` pre-gate (that skip-exit-0 pre-gate is
-``move_task``-only). The wiring moved untouched; the coord harness refuse-arm
-case (harness label T005) pins it end-to-end. ``mark_status`` also owns the
+**Commit contract (frozen no-commit — #2816 / #2300 WP03)**: ``mark_status`` is
+event-log-only. Since #2816 canonical completion is appended through the status
+event writer (``_ms_emit_subtask_state``); ``_do_mark_status`` never routes
+through ``commit_for_mission`` and NEVER commits a task artifact — so it has
+neither a ``_skip_target_branch_commit`` pre-gate (that skip-exit-0 pre-gate is
+``move_task``-only) NOR the ``_protected_branch_status_commit_error`` refuse gate
+(``_ms_resolve_context`` explicitly retires it: "the former protected-primary
+artifact commit refusal does not apply"). ``--auto-commit`` is a compatibility
+input with no commit behind it. The dead ``_ms_commit`` helper below is a
+compat-shim/test-only symbol — it is defined for the frozen ``tasks.<name>``
+re-export surface but is NOT reachable from ``_do_mark_status`` (reviving a
+commit path here is a #2816 regression, structurally guarded by
+``test_surface_authority_goldens.test_row3_mark_status_is_event_log_only_no_commit``
+and ``test_tasks_surface_authority`` WP03). ``mark_status`` also owns the
 no-IDs error byte case (research.md D3, routed through Render by WP04) — the
 ``_ms_report_none_resolved`` emission moved verbatim.
 
@@ -262,7 +270,13 @@ def _ms_report_none_resolved(st: _MarkStatusState) -> None:
 
 
 def _ms_commit(st: _MarkStatusState, ports: TasksPorts) -> None:
-    """Auto-commit the ``tasks.md`` mutation through the coord ``commit_artifact`` port.
+    """DEAD compat-shim (event-log-only since #2816) — NOT reachable from ``_do_mark_status``.
+
+    Retained only for the frozen ``tasks.<name>`` compat re-export surface and the
+    unit tests that exercise it directly; the live ``mark-status`` flow
+    (``_ms_apply_updates`` → ``_ms_emit_subtask_state``) writes completion to the
+    event log and commits nothing. Do NOT re-wire ``_do_mark_status`` through this
+    (that would undo the #2816 event-sourcing cutover — a #2300 WP03 regression).
 
     ``tasks.md`` is TASKS_INDEX (primary): route the commit through the coord WRITE
     ``commit_artifact`` capability (over the canonical ``commit_for_mission`` entry
