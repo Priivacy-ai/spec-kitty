@@ -88,6 +88,13 @@ Error codes used:
                                  (WP06)
   RESULT_REQUIRED              -- answer-decision: --result is required alongside
                                  --answer (WP08)
+  INVALID_RESULT                -- answer-decision: --result is not one of the host
+                                 CLI's {success, failed, blocked} enum
+                                 (next_cmd.py:53,610-613), rejected BEFORE decision
+                                 resolution/persistence -- mirrors the host CLI's
+                                 own ``_validate_result_and_answer`` verbatim,
+                                 including its call-sequence position
+                                 (WP08-001 fold-in fix)
   NO_PENDING_DECISION          -- answer-decision: no run-snapshot pending_decisions
                                  entry exists to answer (WP08)
   AMBIGUOUS_PENDING_DECISION   -- answer-decision: more than one pending decision
@@ -3199,6 +3206,57 @@ _HELP_ANSWER_DECISION_ID = (
     "and exactly one decision is pending)"
 )
 
+# Mirrors the host CLI's own ``_VALID_RESULTS`` verbatim (``next_cmd.py:53``).
+# Kept as an independent literal (not imported from ``next_cmd``) matching
+# this WP's own established pattern of shaping its own validation rather
+# than reusing CLI-layer presentation helpers (see
+# ``_validate_rationale_or_fail``'s docstring, WP05-001) -- the host CLI
+# itself already carries a second, independent definition of this same set
+# (``runtime.next._internal_runtime.engine.ResultType``), so a third
+# independent literal here is consistent with, not a new instance of, that
+# existing duplication.
+_VALID_ANSWER_RESULTS: tuple[str, ...] = ("success", "failed", "blocked")
+
+
+def _validate_answer_result_or_fail(cmd: str, result: str) -> None:
+    """Reject a ``--result`` value outside {success, failed, blocked}
+    (WP08-001 fold-in review fix, severity 3).
+
+    Mirrors the host CLI's own ``_validate_result_and_answer`` guard
+    (``next_cmd.py:610-613``) verbatim: identical condition
+    (``result not in _VALID_RESULTS``), identical message shape
+    (``"--result must be one of {...}, got '{result}'"``), and identical
+    POSITION in the call sequence -- called AFTER the mission-existence gate
+    (``_resolve_mission_dir_or_fail``, this verb's analogue of the host
+    CLI's ``_resolve_mission_slug``) but BEFORE any decision
+    resolution/auto-resolve or persistence (``get_or_start_run``,
+    ``_read_snapshot``, ``answer_decision_via_runtime``,
+    ``pair_previous_lifecycle_record``, ``decide_next``) -- exactly where
+    the host CLI's own ``_validate_result_and_answer`` runs relative to
+    ``_maybe_handle_answer``/``_handle_answer`` (``next_step``,
+    ``next_cmd.py:195-220``). Pre-fix, an invalid ``--result`` fell through
+    to whatever the decision-resolution logic produced (e.g.
+    ``NO_PENDING_DECISION`` for a mission with no pending decision) instead
+    of being rejected outright -- silently advancing the DAG when a pending
+    decision DID exist, with the garbage value persisted into the lifecycle
+    record's ``reason`` field by ``pair_previous_lifecycle_record``.
+
+    A DIFFERENT dedicated error_code than the host CLI's own check (which
+    is untyped -- a bare stderr print, no error_code at all): matches this
+    module's own precedent (``INVALID_ORIGIN_FLOW`` vs. the host CLI's
+    reused ``DecisionErrorCode.MISSING_STEP_OR_SLOT`` for ``--flow``) of
+    minting a dedicated, typed code for an orchestrator-api-specific
+    validation surface rather than propagating an untyped CLI print.
+    """
+    if result in _VALID_ANSWER_RESULTS:
+        return
+    _fail(
+        cmd,
+        "INVALID_RESULT",
+        f"--result must be one of {_VALID_ANSWER_RESULTS}, got '{result}'",
+        {"result": result, "valid_values": list(_VALID_ANSWER_RESULTS)},
+    )
+
 
 @app.command(name="answer-decision")
 def answer_decision(
@@ -3236,6 +3294,14 @@ def answer_decision(
     # in this module) -- the runtime resolution below is only reached for a
     # mission already known to exist.
     _resolve_mission_dir_or_fail(cmd, main_repo_root, mission)
+
+    # WP08-001: --result enum validation runs HERE -- after the
+    # mission-existence gate above (this verb's analogue of the host CLI's
+    # ``_resolve_mission_slug``), but BEFORE any decision resolution or
+    # persistence below (mirrors ``next_cmd.py``'s own ordering: mission
+    # resolution -> ``_validate_result_and_answer`` -> ``_maybe_handle_
+    # answer``). See ``_validate_answer_result_or_fail``'s docstring.
+    _validate_answer_result_or_fail(cmd, result)
 
     from mission_runtime import MissionArtifactKind as _MissionArtifactKind
     from mission_runtime import placement_seam as _placement_seam
