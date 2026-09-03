@@ -1,0 +1,41 @@
+# review-findings/v1 — canonical format for lens-session and fresh-sweep output.
+schema: review-findings/v1
+complete: true
+phase: tasks
+lens_group: decomp
+mission: spdd-reasons-activation-split-brain-01M1K6VN
+findings:
+  - id: TASKS-DECOMP-001
+    lens: decomp (single-concern / one-PR-shape reviewability)
+    severity: 2
+    title: "WP01 points to WP05 for \"the final call on the one-PR-shape decision\", but WP05 never addresses it"
+    evidence:
+      - artifact: "tasks/WP01-activation-rewrite-parity-test.md § Context, \"One-PR-shape note\" paragraph"
+      - artifact: "tasks/WP05-docs-activation-authority.md (full file: Objective, Context, T017, T018, Definition of Done, Risks, Reviewer Guidance)"
+      - artifact: "plan.md § \"PR shape\" (lines ~675-685)"
+    claim: >
+      WP01's Context section states: "This WP's diff is the largest single-file change ... but is
+      self-contained and narrowly scoped ... it does not by itself make the aggregate diff
+      unreviewable in one sitting; see WP05 for the final call on the one-PR-shape decision." WP05
+      was read in full for this review and contains no mention of one-PR-shape, diff size,
+      reviewability, or a "final call" anywhere in its Objective, Context, subtasks (T017/T018),
+      Definition of Done, Risks, or Reviewer Guidance sections — its entire content is about the
+      SK-146 owned_files exemption and the test_archive_root_byte_identical.py conflict. The actual
+      "final call" on one-PR-shape already lives in plan.md's "PR shape" section ("a size a single
+      reviewer can hold in one sitting ... This plan does not find cause to recommend a per-WP-PR
+      split; if the orchestrator/operator's own review-time judgment ... disagrees ... that split
+      decision belongs to them at that point"), which WP01 itself correctly cites two sentences
+      earlier in the same note ("(plan.md, \"PR shape\")"). The "see WP05" pointer is therefore a
+      dangling forward-reference: a reviewer who follows WP01's own instruction to check WP05 for
+      the final call will find nothing there, even though the real answer (already decided, with
+      rationale, in plan.md) was one sentence away in the same paragraph. This does not change what
+      gets implemented (plan.md's call stands on its own), but it is exactly the citation-drift
+      failure mode this mission's own charter and prior HALTs (PLAN-FRESH-001/PLAN-FRESH2-001) warn
+      against, now self-inflicted between two WP-authoring artifacts in the same tasks phase.
+    remediation: >
+      Either (a) delete the dangling "see WP05 for the final call" clause from WP01's Context
+      section since plan.md's "PR shape" section already is the final call and is already cited in
+      the same sentence, or (b) if WP05 is meant to carry an operator-facing summary/restatement of
+      the one-PR-shape decision (as its "sequenced last, describes final state" framing in plan.md
+      might suggest), add a short paragraph to WP05 doing so and pointing back to plan.md's "PR
+      shape" section as the source of record.

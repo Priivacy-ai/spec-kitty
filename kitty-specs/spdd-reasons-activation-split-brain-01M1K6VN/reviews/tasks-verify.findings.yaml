@@ -1,0 +1,91 @@
+schema: review-findings/v1
+complete: true
+phase: tasks
+lens_group: verify
+mission: spdd-reasons-activation-split-brain-01M1K6VN
+findings:
+  - id: TASKS-VERIFY-001
+    lens: bug-preserving-test hunt
+    severity: 4
+    title: "WP04's bucket-3 fixture rewrites explicitly permit/mandate keeping the OLD governance:/directives: write, which makes the rewritten fixtures pass on WP01's OLD body too (not red-first)"
+    evidence:
+      - artifact: "tasks/WP04-triage-pinning-tests.md § Context, item 1 (test_paradigm_selected_returns_true)"
+      - artifact: "tasks/WP04-triage-pinning-tests.md § Context, item 7 (test_tactic_only_selection_round_trips_to_governance_and_activates)"
+      - artifact: "tasks/WP04-triage-pinning-tests.md § Context, item 8 (test_config_sourced_compile_keeps_spdd_active)"
+      - code: "src/charter/offering/spdd_reasons/activation.py:96-134 (_compute_active/_governance_selects_pack/_directives_select_pack — the OLD body; reads ONLY .kittify/charter/charter.yaml's governance:/directives: sections, never .kittify/config.yaml, verified live)"
+      - code: "tests/charter/test_charter_context_spdd_reasons.py:128-138 (test_paradigm_selected_returns_true's _write_governance call — writes governance: {doctrine: {selected_paradigms: [structured-prompt-driven-development]}}, verified live)"
+      - code: "tests/charter/test_activate_resolves_no_answers_edit.py:196-198 (test_config_sourced_compile_keeps_spdd_active asserts \"DIRECTIVE_038\" in interview.selected_directives before compiling that same selection into charter.yaml's governance: section, verified live)"
+    claim: >
+      WP04's own text tells the implementer, for item 1: "Keep the governance: write too
+      (or drop it) — your call; the load-bearing addition is the config.yaml write, since
+      that is what the new function actually reads." For item 7 it goes further and mandates
+      keeping it: "Keep the existing compiled.markdown/governance.charter.selected_tactics
+      assertions unchanged — only the final is_spdd_reasons_active precondition changes."
+      Item 8 similarly keeps the charter.yaml write, which is populated from this repo's own
+      dogfood interview.selected_directives (confirmed live to already contain DIRECTIVE_038).
+      But the OLD (pre-WP01) is_spdd_reasons_active body never reads .kittify/config.yaml at
+      all — it reads ONLY charter.yaml's governance:/directives: sections (confirmed live,
+      _compute_active calls only _governance_selects_pack/_directives_select_pack against the
+      charter.yaml dict). If the implementer follows the "keep it" option WP04 offers (or the
+      mandate in item 7/8), the rewritten fixture returns True on the OLD body purely from the
+      retained governance:/directives: content — the new config.yaml write is never actually
+      exercised as the thing making the assertion pass. The result is a test that passes on
+      BOTH the pre-fix and post-fix implementation: it never distinguishes the buggy behavior
+      from the fixed one, which is the exact bug-preserving-test class that HALTed this
+      mission's plan phase twice (PLAN-FRESH-001/PLAN-FRESH2-001), now recurring inside the
+      tasks phase's own WP04 instructions. This risk applies to all 8-9 bucket-3 methods (items
+      1-8 in WP04's Context section), since each instructs "ALSO write config.yaml" while
+      leaving the pre-existing governance:/directives: write either explicitly optional-to-keep
+      or explicitly mandated-to-keep. T014/T015's own "confirm RED... do not merely assert
+      GREEN-after and assume RED-before" instruction is the right discipline, but the WP gives
+      the implementer no signal that choosing "keep" for these specific items will make that
+      RED check fail, nor what to do if it does.
+    remediation: >
+      Rewrite WP04's Context section for every bucket-3 item (1 through 8) to MANDATE removing
+      (or fully zeroing out, for the specific selector under test) the legacy governance:/
+      directives: content in the rewritten fixture — never offer "keep it, your call" as an
+      equivalent option, and correct item 7/8's explicit "keep it unchanged" instruction to
+      instead null out just the SPDD-relevant selector (paradigm/tactic/directive) from the
+      governance: write while keeping any other unrelated round-trip assertions (e.g. item 8's
+      compiled.markdown checks) on their own separate, unaffected fixture state. Elevate
+      T014/T015's "confirm RED" step from an observational note to a blocking gate: if a
+      rewritten fixture is not actually RED against WP01's pre-implementation body, the fixture
+      rewrite itself is wrong (still leaking the old read path) and must be corrected before the
+      WP is considered done — state this explicitly in the Definition of Done and Reviewer
+      Guidance sections.
+
+  - id: TASKS-VERIFY-002
+    lens: "catalog verify"
+    severity: 4
+    title: "FR-004's own falsifiable Acceptance Criterion (a test through the real apply_spdd_blocks_for_project entry point) is not assigned to any subtask in any WP"
+    evidence:
+      - artifact: "spec.md FR-004 row: \"Acceptance criterion (falsifiable): a regression test asserting apply_spdd_blocks_for_project(text, repo_root) strips REASONS template blocks when repo_root has no .kittify/config.yaml on disk, run through a real entry point (command_renderer.py's apply_spdd_blocks_for_project, exercised via the command_installer.install/spec-kitty init path or an equivalent direct call with a repo_root lacking .kittify/config.yaml) — RED against a hypothetical naive PackContext-parity rewrite ... GREEN after FR-004's pin.\""
+      - artifact: "tasks/WP01-activation-rewrite-parity-test.md § Subtask T001 — only asserts is_spdd_reasons_active(tmp_path) is False for an absent .kittify/config.yaml; never calls apply_spdd_blocks_for_project"
+      - code: "src/charter/offering/spdd_reasons/template_renderer.py:179 (apply_spdd_blocks_for_project — the real entry point FR-004's AC names)"
+      - code: "tests/prompts/test_prompt_fragment_rendering.py:95 (the only existing test calling apply_spdd_blocks_for_project with a bare repo_root — but repo_root=None, testing an unmatched-marker-raise case, not an absent-.kittify/config.yaml-with-real-repo_root case)"
+    claim: >
+      FR-004 states its Acceptance Criterion explicitly and calls it "falsifiable": a test
+      exercising apply_spdd_blocks_for_project (the real template-stripping entry point, or the
+      spec-kitty init call path that reaches it) with a repo_root that has no
+      .kittify/config.yaml, asserting REASONS blocks are stripped — distinct from merely
+      asserting is_spdd_reasons_active(tmp_path) is False in isolation. No subtask across WP01
+      through WP05 assigns this test. WP01's T001 (the only subtask touching FR-004) tests only
+      the primitive is_spdd_reasons_active directly, never apply_spdd_blocks_for_project. WP04's
+      kept Bucket-1 tests (TestCharterContextInactive) call append_spdd_reasons_guidance behind
+      a manual is_spdd_reasons_active gate inside the test body, not the real
+      apply_spdd_blocks_for_project consumer function. The only existing test that does call
+      apply_spdd_blocks_for_project directly (tests/prompts/test_prompt_fragment_rendering.py's
+      test_project_wrapper_rejects_unmatched_end_marker) passes repo_root=None and asserts an
+      unrelated UnmatchedReasonsBlockError case — it does not exercise the absent-config-file
+      path FR-004's AC names. This is an FR whose own explicit, falsifiable AC has no assigned
+      coverage in the tasks breakdown.
+    remediation: >
+      Add a subtask (or extend WP01's T001/T002) that constructs a tmp_path repo_root with no
+      .kittify/config.yaml, calls apply_spdd_blocks_for_project(template_text, repo_root)
+      directly (the "equivalent direct call" FR-004's AC explicitly allows in lieu of the full
+      spec-kitty init path), and asserts the REASONS template blocks are stripped from the
+      output — committed alongside T001's is_spdd_reasons_active(tmp_path) is False pin so both
+      halves of FR-004's stated contract (the primitive's return value AND the real consumer's
+      observable behavior) are covered.
+
+# If you have no findings, write: findings: []
