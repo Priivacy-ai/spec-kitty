@@ -164,3 +164,51 @@ a structured way to record "this constraint is satisfied by omission, not owned 
 "this WP delivers this requirement") would close this traceability gap without requiring a hand-edit of a
 tool-generated field. This is the same class of gap as friction item 2 above (`tasks.md` has zero freeform-
 prose capacity) — a generated-artifact expressiveness ceiling, not a bug in the generator's own logic.
+
+## 5. WP02 follow-on (operator ruling, `reviews/wp02.ruling.md`) — combining `{REQUIRES, SUGGESTS}` in
+one `walk_edges` call lets scope leak across a relation-type switch `resolve_context` itself never allows
+
+A first scope-gate implementation computed "reachable within the resolving action's own scope" as a
+single `walk_edges(merged, scoped_artifacts, {Relation.REQUIRES, Relation.SUGGESTS})` call. This still
+left `DIRECTIVE_003` leaking onto `implement` (FR-005 stayed red) even after the gate landed:
+`directive:DIRECTIVE_025` (scoped to `implement`) `suggests` `paradigm:brownfield-onboarding`, which
+itself `requires` `directive:DIRECTIVE_003` — a suggests-then-requires chain. `resolve_context` (this
+module's own sibling, the thing the ruling says to reuse rather than invent new scoping logic) never
+allows this: it runs `required = walk_edges(..., {REQUIRES})` and `suggested = walk_edges(...,
+{SUGGESTS})` as two SEPARATE calls, each restricted to its own relation for the whole walk, so a
+suggests-edge can never hand off to a requires-edge mid-path. Traced with a manual BFS-with-parent-
+pointers repro script before touching the fix (see the WP02-follow-on report for the printed path:
+`['directive:DIRECTIVE_025', 'paradigm:brownfield-onboarding', 'directive:DIRECTIVE_003']`). **Fix**:
+two separate `walk_edges` calls (one `{REQUIRES}`, one `{SUGGESTS}`), unioned, mirroring
+`resolve_context`'s own structure exactly instead of one combined-relation call. Flag for future
+scope-gate work: "reuse the existing scope primitive" is easy to get subtly wrong by reusing the
+*edges* (`walk_edges`) but not the *shape* (two separate single-relation walks) the sibling function
+actually uses.
+
+## 6. A ruling's acceptance bar named two tests as fixable by one described mechanism; only one of the
+two was actually reachable by that mechanism — confirmed empirically, not assumed
+
+The ruling states the scope-gate fix (job 2: bound the closure-seed union by scope) makes BOTH
+`test_directive_003_implement_to_review.py`'s FR-005 case and `test_context.py`'s
+`test_action_doctrine_keys_off_meta_json_not_template_set` (#883) pass unmodified. Empirically: FR-005
+does, #883 does not. `test_action_doctrine_keys_off_meta_json_not_template_set`'s own `_LEAK_GRAPH_YAML`
+fixture scopes a fictional `DIRECTIVE_100` id (not shipped anywhere in `packs/built-in/directives/`)
+directly onto the `documentation/implement` action node. That id fails `_classify_artifact_urns`'s
+EXCLUSION-GUARD allowlist check (job 1, `project_directives`) once `project_directives` is the catalog
+default (34 real built-in ids, confirmed via `load_doctrine_catalog().directives`) — a mechanism
+entirely independent of the closure walk (job 2) the ruling assigns as this fix's scope, and one the
+ruling explicitly declares correct/unchanged. Verified by direct production-path instrumentation (a
+temporary debug `print` inside `_load_action_doctrine_bundle`, removed before commit) showing
+`project_directives` has exactly 34 entries and does not include `DIRECTIVE_100`, independent of any
+`resolve_doctrine_root` patch the test applies (that patch only affects `template_sets` loading, not
+`built_in_dir()`-sourced directive/tactic/paradigm catalogs — traced live in
+`src/charter/activation/catalog.py` and `src/charter/offering/pack_paths.py`). Widening
+`project_directives` at the production call site with the action's own directly-resolved directive ids
+(the only alternative found that would pass this specific test) was rejected: it would exempt ANY
+directly-graph-scoped directive from the allowlist regardless of whether a real project explicitly
+deactivated it, reintroducing exactly the "silent widening" defect class Decision Record 2 / FR-006-008
+exist to close, and directly contradicting
+`tests/charter/test_action_bundle_delivery.py::test_classify_skips_unresolvable_urn_and_out_of_scope_directive`'s
+own load-bearing assertion (a directly-scoped directive not in a non-empty `project_directives` MUST be
+excluded). Flagged BLOCKED for operator review in the WP02-follow-on report rather than silently edited
+or routed around.
