@@ -59,11 +59,13 @@ either.**
 This WP's frontmatter is set accordingly: `execution_mode: "planning_artifact"`, and `owned_files` is
 exactly `docs/context/charter.md` (under `docs/`) plus the two contract docs (under `kitty-specs/`) — no
 `src/`/`tests/` path is mixed in, which is required for the exemption to apply (a mislabeled
-`planning_artifact` WP that ALSO owns a non-planning path is NOT exempted, by design). **The tasks-authoring
-session ran `finalize-tasks --validate-only` against exactly this shape and confirmed it does NOT reject
-these `owned_files` entries** — see this mission's own `tasks/` authoring report for the observed command
-output. If your own `--validate-only` run (before you start editing) shows a DIFFERENT result than that,
-STOP and record what actually happened in
+`planning_artifact` WP that ALSO owns a non-planning path is NOT exempted, by design). **`finalize-tasks
+--validate-only` was run against exactly this shape during this review round and passed cleanly — zero
+`owned_files`-under-`kitty-specs/` rejections for this WP.** No separate authoring-report artifact records
+this; the result is stated here directly. Re-run the command live yourself (before you start editing) to
+confirm the same result in your own workspace — per Reviewer Guidance below, this live re-run is expected
+regardless of what this note says. If your own `--validate-only` run shows a DIFFERENT result than stated
+here, STOP and record what actually happened in
 `kitty-specs/spdd-reasons-activation-split-brain-01M1K6VN/tracer-tooling-friction.md` (create it if
 absent) rather than hand-editing `wps.yaml`/frontmatter to route around it.
 

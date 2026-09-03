@@ -72,61 +72,107 @@ All 8 write ONLY `.kittify/charter/charter.yaml`'s `governance:`/`directives:` s
 or the local `_write_governance`/`_write_directives` helpers, and never write a `.kittify/config.yaml` at
 all — so under WP01's rewrite, every one of them hits the FR-004 absent-config-file path and returns
 `False` unconditionally, breaking their `True`-asserting expectations. Each needs its fixture-construction
-mechanism rewritten to ALSO (or instead) write `.kittify/config.yaml`'s `activated_paradigms`/
-`activated_directives`/`activated_tactics` keys (a `charter:` pointer is optional — direct-on-config.yaml
-is simplest for these), while preserving the exact selector under test:
+mechanism rewritten to write `.kittify/config.yaml`'s `activated_paradigms`/`activated_directives`/
+`activated_tactics` keys (a `charter:` pointer is optional — direct-on-config.yaml is simplest for these)
+AND to null out the specific SPDD-relevant selector in the legacy `governance:`/`directives:` write (see
+the Red-first discipline note below — never leave the real id in the legacy write), while preserving the
+exact selector under test:
 
 **`tests/charter/test_charter_context_spdd_reasons.py`, class `TestActivation`** (all currently use
 `_write_governance`/`_write_directives`, which write only `charter.yaml`):
 
+**Red-first discipline for every item below (binding, re-verified against the live pre-fix
+`is_spdd_reasons_active` for this WP): `activation.py`'s OLD body (`_compute_active`/
+`_governance_selects_pack`/`_directives_select_pack`, confirmed live) reads ONLY `charter.yaml`'s
+`governance:`/`directives:` sections — it never reads `.kittify/config.yaml`. If a rewritten fixture below
+leaves the real selector id (the paradigm/tactic/directive under test) anywhere in the legacy
+`governance:`/`directives:` write, the OLD body will still return `True` from that legacy content alone,
+regardless of what `.kittify/config.yaml` says — the rewritten fixture would then pass on BOTH the OLD and
+NEW body, which is not a red-first regression test. Every item below therefore MANDATES nulling out the
+specific SPDD-relevant selector from the legacy write (not merely offering it as an option) — leaving
+unrelated, non-SPDD content in the same section is fine where a test has other assertions that depend on
+it.**
+
 1. `test_paradigm_selected_returns_true` — currently writes `governance:` `selected_paradigms:
-   [structured-prompt-driven-development]`. Rewrite: ALSO write `.kittify/config.yaml` with
-   `activated_paradigms: [structured-prompt-driven-development]`. Keep the `governance:` write too (or
-   drop it) — your call; the load-bearing addition is the `config.yaml` write, since that is what the new
-   function actually reads. Assertion (`is_spdd_reasons_active(tmp_path) is True`) is UNCHANGED.
-2. `test_only_tactic_fill_returns_true` — mirror with `activated_tactics: [reasons-canvas-fill]`.
-3. `test_only_tactic_review_returns_true` — mirror with `activated_tactics: [reasons-canvas-review]`.
-4. `test_only_directive_038_returns_true` — mirror with `activated_directives: [DIRECTIVE_038]`.
+   [structured-prompt-driven-development]` via `_write_governance`. Rewrite: change the `_write_governance`
+   call to write `selected_paradigms: []` (null out the real id — leaving it there is what would make the
+   OLD body pass regardless of the new write) and ALSO write `.kittify/config.yaml` with
+   `activated_paradigms: [structured-prompt-driven-development]`. Do NOT leave
+   `structured-prompt-driven-development` in the `governance:` write. Assertion
+   (`is_spdd_reasons_active(tmp_path) is True`) is UNCHANGED.
+2. `test_only_tactic_fill_returns_true` — mirror item 1's pattern exactly: null out `selected_tactics` in
+   the `_write_governance` call (write `selected_tactics: []`, not `[reasons-canvas-fill]`) and ALSO write
+   `.kittify/config.yaml` with `activated_tactics: [reasons-canvas-fill]`. Do not leave
+   `reasons-canvas-fill` in the `governance:` write.
+3. `test_only_tactic_review_returns_true` — mirror item 1's pattern exactly: null out `selected_tactics`
+   (write `[]`, not `[reasons-canvas-review]`) and ALSO write `.kittify/config.yaml` with
+   `activated_tactics: [reasons-canvas-review]`. Do not leave `reasons-canvas-review` in the `governance:`
+   write.
+4. `test_only_directive_038_returns_true` — mirror item 1's pattern exactly: null out `selected_directives`
+   (write `[]`, not `[DIRECTIVE_038]`) and ALSO write `.kittify/config.yaml` with
+   `activated_directives: [DIRECTIVE_038]`. Do not leave `DIRECTIVE_038` in the `governance:` write.
 5. `test_directive_038_via_directives_yaml` — currently writes DIRECTIVE_038 via `_write_directives`'s
-   `directives:` entry-list form (testing the numeric-hint/entry-list matching path). Rewrite: write
-   `.kittify/config.yaml`'s `activated_directives: [DIRECTIVE_038]` (or the numeric-hint slug form
-   `038-structured-prompt-boundary`, to keep testing the `_is_directive_038` matching-logic variant this
-   test's name implies — your call which slug form, but state which in a comment since the test name
-   references `directives_yaml` specifically).
+   `directives:` entry-list form (testing the numeric-hint/entry-list matching path against the OLD
+   `_directives_select_pack`). Rewrite: change the `_write_directives` call to write an empty
+   `directives: []` (or drop the `_write_directives` call entirely) — do not leave the `DIRECTIVE_038`
+   entry in `charter.yaml`'s `directives:` section, since `_directives_select_pack` reads exactly that list
+   and would return `True` from it alone. ALSO write `.kittify/config.yaml`'s
+   `activated_directives: [DIRECTIVE_038]` (or the numeric-hint slug form `038-structured-prompt-boundary`,
+   to keep testing the `_is_directive_038` matching-logic variant this test's name implies — your call
+   which slug form, but state which in a comment since the test name references `directives_yaml`
+   specifically).
 
 **`tests/charter/test_charter_context_spdd_reasons.py`, class `TestParadigmRoundTrip`**:
 
 6. `test_paradigm_in_governance_activates_pack` — currently builds a `GovernanceConfig`/`DoctrineSelectionConfig`
    with `selected_paradigms=["structured-prompt-driven-development"]` and writes it via `save_charter_yaml`
-   into `charter.yaml`'s `governance:` section only. Rewrite: ALSO write `.kittify/config.yaml`'s
-   `activated_paradigms: [structured-prompt-driven-development]`. Consider renaming/re-commenting the class
-   docstring's "governance.yaml" framing to reflect the corrected source if you touch it — optional, not
-   required for this WP's pass/fail.
+   into `charter.yaml`'s `governance:` section only. Rewrite: change the `DoctrineSelectionConfig` to
+   `selected_paradigms=[]` (null out the real id — the OLD body's `_governance_selects_pack` reads exactly
+   this field) and ALSO write `.kittify/config.yaml`'s
+   `activated_paradigms: [structured-prompt-driven-development]`. Do not leave
+   `structured-prompt-driven-development` in the `governance:` write. Consider renaming/re-commenting the
+   class docstring's "governance.yaml" framing to reflect the corrected source if you touch it — optional,
+   not required for this WP's pass/fail.
 
 **`tests/charter/test_charter_context_spdd_reasons.py`, class `TestSelectedTacticsRoundTrip`**:
 
 7. `test_tactic_only_selection_round_trips_to_governance_and_activates` — this test already builds a full
    `PackContext(... activated_tactics=frozenset({"reasons-canvas-fill"}) ...)` in step 1 and feeds it
-   to `compile_charter`. Its FINAL step writes only `charter.yaml`'s `governance:` section (via
-   `save_charter_yaml`) and then asserts `is_spdd_reasons_active(tmp_path) is True`. Rewrite: after writing
-   `charter.yaml`, ALSO write `tmp_path/.kittify/config.yaml`'s `activated_tactics: [reasons-canvas-fill]`
-   — mirroring the SAME `pack_context.activated_tactics` value already used to compile, so the test stays
-   a genuine end-to-end round-trip (compile → markdown → re-extracted governance → NOW ALSO the real
-   `activated_*` source the fixed function reads) rather than losing coverage of the compile step. Keep the
-   existing `compiled.markdown`/`governance.charter.selected_tactics` assertions unchanged — only the final
-   `is_spdd_reasons_active` precondition changes.
+   to `compile_charter`. Step 3 (verified live) builds a `governance` object from `compiled.selected_tactics`
+   and asserts `"reasons-canvas-fill" in governance.charter.selected_tactics` — KEEP that assertion and the
+   earlier `compiled.markdown`/`compiled.selected_tactics` assertions from step 2 exactly as they are; they
+   are about the compile round-trip, not about `is_spdd_reasons_active`, and are unaffected by this rewrite.
+   Step 4 currently writes that SAME `governance` object (still carrying `reasons-canvas-fill`) into
+   `charter.yaml`'s `governance:` section and then asserts `is_spdd_reasons_active(tmp_path) is True`.
+   Rewrite step 4 only: write a version of the governance section to `charter.yaml` with `selected_tactics`
+   nulled out (`[]`) instead of the real compiled value — leaving `reasons-canvas-fill` in the on-disk
+   `governance:` section would make the OLD body's `_governance_selects_pack` return `True` from that
+   alone, regardless of `config.yaml`. ALSO write `tmp_path/.kittify/config.yaml`'s
+   `activated_tactics: [reasons-canvas-fill]` — mirroring the SAME `pack_context.activated_tactics` value
+   already used to compile, so the test stays a genuine end-to-end round-trip (compile → markdown →
+   re-extracted governance [step 3's own, untouched assertion] → NOW the real `activated_*` source the
+   fixed function actually reads) while staying red-first against the OLD body.
 
 **`tests/charter/test_activate_resolves_no_answers_edit.py`, class `TestSpddActivationDoesNotFlip`**:
 
 8. `test_config_sourced_compile_keeps_spdd_active` — this test uses `PackContext.from_config(REPO_ROOT)`
    (THIS repo's own real dogfood `.kittify/`, not `tmp_path`) to compile a charter, then writes the
    compiled governance selection into `tmp_path/.kittify/charter/charter.yaml` and asserts
-   `is_spdd_reasons_active(tmp_path) is True`. Rewrite: after writing `charter.yaml`, ALSO write
-   `tmp_path/.kittify/config.yaml` mirroring `pack_context.activated_paradigms`/`.activated_directives`/
-   `.activated_tactics` (the SAME `pack_context` object already loaded from `REPO_ROOT` in this test) —
-   i.e. serialize those three frozensets into `tmp_path`'s own `config.yaml` before the final assertion.
-   This keeps the test's real intent (this repo's own dogfood shape does not flip to SPDD-inactive under
-   the config-sourced switch) meaningful under the new source of truth.
+   `is_spdd_reasons_active(tmp_path) is True`. The test's own sanity assertion
+   (`assert "DIRECTIVE_038" in interview.selected_directives`) checks raw interview data and is UNCHANGED
+   by this rewrite. Rewrite the `GovernanceConfig`/`DoctrineSelectionConfig` construction that feeds the
+   `charter.yaml` write: null out the four SPDD-relevant selectors specifically —
+   `selected_paradigms` with `structured-prompt-driven-development` removed, `selected_tactics` with
+   `reasons-canvas-fill`/`reasons-canvas-review` removed, `selected_directives` with `DIRECTIVE_038`
+   removed — while leaving any other, unrelated ids from the real dogfood interview/compiled data in
+   place unchanged. This repo's own real charter is very likely SPDD-active today (that is the exact bug
+   this mission fixes), so leaving those specific ids in the on-disk `governance:` write would let the OLD
+   body pass regardless of `config.yaml`'s content. ALSO write `tmp_path/.kittify/config.yaml` mirroring
+   `pack_context.activated_paradigms`/`.activated_directives`/`.activated_tactics` (the SAME `pack_context`
+   object already loaded from `REPO_ROOT` in this test) — i.e. serialize those three frozensets into
+   `tmp_path`'s own `config.yaml` before the final assertion. This keeps the test's real intent (this
+   repo's own dogfood shape does not flip to SPDD-inactive under the config-sourced switch) meaningful
+   under the new source of truth, while staying genuinely red-first against the OLD body.
 
 **Additional bucket-3-shaped case found during THIS WP's own re-verification, beyond FR-010's named 8 —
 flag this explicitly in the PR description, do not silently fold it into the count without noting the
@@ -196,10 +242,13 @@ existing test methods — it does not add new test files or change any file's `p
 (C-011): RED against WP01's OLD body, GREEN once WP01's rewrite is available in this workspace.
 
 **Steps**: For each of items 1-7 in Context above, rewrite the fixture-construction to write
-`.kittify/config.yaml`'s `activated_*` key(s) as described, run the test against WP01's pre-implementation
-`activation.py` (confirm RED — if WP01 has already merged in your workspace, check out its prior commit
-temporarily or reason from the git history diff to confirm), then confirm GREEN against WP01's rewritten
-body.
+`.kittify/config.yaml`'s `activated_*` key(s) AND null out the specific SPDD-relevant legacy selector as
+described (never leave the real id in the legacy `governance:`/`directives:` write), run the test against
+WP01's pre-implementation `activation.py` (check out its prior commit temporarily or reason from the git
+history diff to confirm), then confirm GREEN against WP01's rewritten body. **This RED-before check is a
+blocking gate, not an observational note: if a rewritten fixture is NOT actually RED against WP01's
+pre-implementation body, the fixture rewrite is WRONG — a legacy selector was almost certainly left
+un-nulled — and must be corrected before this subtask is done.**
 
 **Files**: `tests/charter/test_charter_context_spdd_reasons.py` (~7 method bodies edited)
 **Validation**: `pytest tests/charter/test_charter_context_spdd_reasons.py -v` — all green against WP01's
@@ -210,8 +259,11 @@ final body.
 **Purpose**: Complete the bucket-3 rewrite for the file outside `test_charter_context_spdd_reasons.py`, and
 resolve the additional case found during this WP's own re-verification.
 
-**Steps**: Apply item 8's fixture rewrite to `test_activate_resolves_no_answers_edit.py`. Apply item 9's
-disposition (re-pin or delete-with-rationale) to `test_malformed_governance_raises`.
+**Steps**: Apply item 8's fixture rewrite to `test_activate_resolves_no_answers_edit.py`, then confirm RED
+against WP01's pre-implementation body before confirming GREEN — the same blocking gate as T014: if item
+8's rewritten fixture is not actually RED against the OLD body, a legacy selector was left un-nulled and
+the rewrite must be corrected before this subtask is done. Apply item 9's disposition (re-pin or
+delete-with-rationale) to `test_malformed_governance_raises`.
 
 **Files**: `tests/charter/test_activate_resolves_no_answers_edit.py` (~1 method body edited),
 `tests/charter/test_charter_context_spdd_reasons.py` (item 9, 1 method)
@@ -245,7 +297,13 @@ flips.
 - All 9 identified bucket-3 fixtures (8 named by FR-010 + item 9 found during this WP's own
   re-verification) write `.kittify/config.yaml`'s `activated_*` keys and pass against WP01's rewritten
   `is_spdd_reasons_active`.
-- Each rewritten fixture was confirmed RED against WP01's pre-rewrite body before being confirmed GREEN.
+- Each of items 1-8's rewritten fixtures had its specific SPDD-relevant legacy `governance:`/`directives:`
+  selector nulled out (not merely optionally kept), and was confirmed RED against WP01's pre-rewrite body
+  before being confirmed GREEN. **This is a blocking gate, not an observational note**: a fixture that is
+  GREEN on BOTH the OLD and NEW `is_spdd_reasons_active` body is a bug-preserving test, not a red-first
+  regression test, and the fixture rewrite must be corrected (re-null the legacy selector) before this WP
+  is considered done — do not mark T014/T015 complete on a fixture only confirmed GREEN-after, without a
+  genuine RED-before.
 - No Bucket-1 (kept) test's behavior changed.
 - Any genuine Bucket-2 flip found is stated explicitly in the diff/PR description.
 - The scoped gate set (`tests/charter/` + the two named architectural files) passes.
@@ -266,7 +324,14 @@ flips.
 ## Reviewer Guidance
 
 - For each of the 9 bucket-3 methods, ask for concrete evidence (a saved RED-run + GREEN-run, or two git
-  diffs) that the rewrite was actually red-first, not merely claimed.
+  diffs) that the rewrite was actually red-first, not merely claimed. **Reject the WP if any of items 1-8's
+  fixtures was not actually RED against WP01's pre-implementation body** — a fixture that is GREEN on both
+  the old and new `is_spdd_reasons_active` body is a bug-preserving test (the OLD-body legacy selector was
+  left un-nulled), not a regression test, and must be sent back for correction before this WP can be
+  approved.
+- For each of items 1-8, confirm the diff actually shows the legacy `governance:`/`directives:` selector
+  nulled out (e.g. `selected_paradigms: []`, not the real id) alongside the new `.kittify/config.yaml`
+  write — not merely the `config.yaml` write added on top of an untouched legacy write.
 - Confirm item 9's disposition (re-pin vs. delete) carries a rationale comment, per the charter's Test
   remediation discipline ("judge the test, not git-blame").
 - Confirm no fixture rewrite silently changed the id/paradigm/tactic under test.

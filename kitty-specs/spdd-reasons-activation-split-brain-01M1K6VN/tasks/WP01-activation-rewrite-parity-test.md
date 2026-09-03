@@ -96,7 +96,7 @@ and WP03's for the identical semantic rule before approving.
 **One-PR-shape note:** this mission ships as one PR across all 5 WPs (plan.md, "PR shape"). This WP's
 diff is the largest single-file change (a full-body rewrite of a ~200-line module) but is self-contained
 and narrowly scoped to one function/module — it does not by itself make the aggregate diff unreviewable
-in one sitting; see WP05 for the final call on the one-PR-shape decision.
+in one sitting.
 
 **Baseline capture (plan.md section (g), mandatory prerequisite — do this BEFORE any other subtask):**
 Before touching `activation.py`'s body, run the exact scoped baseline command from plan.md section (f)/(g)
@@ -167,10 +167,29 @@ pin as a red-first test, per C-011.
    `PackContext` parity — commit it before T004's rewrite so the rewrite's own correctness against this
    pinned case is verified by a pre-existing assertion, not asserted after the fact. State this explicitly
    in the test's docstring/comment: this is a **pin**, not a red-on-main regression, and say why.
+4. **FR-004's own falsifiable Acceptance Criterion, through the real entry point (spec.md FR-004 row) —
+   add this as a second test in the same file, distinct from step 2's assertion:** given a `tmp_path` with
+   no `.kittify/config.yaml` on disk, call `apply_spdd_blocks_for_project(template_text, tmp_path)`
+   directly (`src/charter/offering/spdd_reasons/template_renderer.py:179`, real signature
+   `apply_spdd_blocks_for_project(template_text: str, repo_root: Path | None) -> str` — re-verify this
+   line number against the live file before citing it) with a `template_text` that contains a real
+   `spdd:reasons-block:start`/`spdd:reasons-block:end` marker pair (import `REASONS_BLOCK_START`/
+   `REASONS_BLOCK_END` from the same module, or inline the literal marker comment strings — the function's
+   own fast path skips the activation read entirely when no marker is present in `template_text`, so a
+   marker-free fixture would not exercise this AC at all). Assert the returned text has the block's marker
+   lines AND content stripped entirely (matches what `process_spdd_blocks(template_text, active=False)`
+   produces) — this is the spec's own "equivalent direct call" allowance, distinct from step 2's
+   `is_spdd_reasons_active(tmp_path) is False` pin, which exercises the activation helper in isolation
+   rather than the real template-stripping entry point FR-004's AC names. Same pin/not-red-on-main
+   rationale as step 3 applies here too (the old body already returns `False`/strips blocks for an absent
+   `.kittify/charter/` directory) — state that in this test's docstring/comment as well. This test lives in
+   the same file and inherits the file's module-level `pytestmark = [pytest.mark.fast, pytest.mark.doctrine]`
+   — no separate marker declaration needed; it is collected by the same `fast-tests-charter` /
+   `doctrine-charter-tests.yml` CI jobs named in the Marker discipline section above.
 
-**Files**: `tests/charter/test_spdd_reasons_activation_parity.py` (new, ~30 lines for this subtask's slice)
-**Validation**: `pytest tests/charter/test_spdd_reasons_activation_parity.py -k absent_config -v` — passes
-against both the old and new body (by design, per the note above).
+**Files**: `tests/charter/test_spdd_reasons_activation_parity.py` (new, ~45 lines for this subtask's slice)
+**Validation**: `pytest tests/charter/test_spdd_reasons_activation_parity.py -k "absent_config or apply_spdd_blocks" -v`
+— both pass against the old and new body (by design, per the notes above).
 
 ## Subtask T002: The parity test — the mandatory, load-bearing artifact (FR-002)
 
@@ -275,6 +294,20 @@ plan.md section (h) — no separate campsite-clean commit), and turn T001/T002's
    f. Preserve `_is_directive_038` (the numeric-hint + case-insensitive matching logic) verbatim — this is
       matching logic, not a source-of-truth question, and is explicitly out of scope to change (spec Edge
       Cases).
+   g. **Second carve-out, symmetric with (a)'s FR-004 carve-out — also needs a named code comment:** the
+      rewritten body deliberately does NOT apply `compile_charter`'s `project_configured` gate
+      (`src/charter/activation/compiler.py`'s `_resolve_config_activated_roots`, re-verify the exact line
+      span against the live file before citing it — currently `compiler.py:101-179`, covering
+      `_CONFIG_ACTIVATION_FIELDS` through the `project_configured` check). That gate means: once a project
+      has set ANY of the seven `activated_<kind>` fields anywhere in its activation source,
+      `compile_charter`'s real delivered authority stops treating an OTHER, still-absent `activated_<kind>`
+      key as "all built-ins" — it resolves to `frozenset()` instead. This WP's replication tracks
+      `PackContext.from_config`'s raw, unconditional per-kind semantics instead, per Decision Record 1's
+      scope boundary (plan.md section (a) item 1, "Explicit carve-out, mirroring FR-004's precedent").
+      Add a code comment on the rewritten `is_spdd_reasons_active` (or its module docstring) stating this
+      divergence explicitly and citing Decision Record 1, so a future reader has a named starting point
+      rather than an implicit, undocumented gap — the same treatment step (a) above gives the FR-004
+      absent-config-file carve-out.
 2. **Cache-key fix (FR-001(e))**: the current per-process cache is keyed on `.kittify/charter/charter.yaml`'s
    mtime alone — the old single-file assumption. Pick one of the two documented options and state which in
    a code comment: (i) compose the cache key from BOTH `.kittify/config.yaml`'s mtime and the resolved
@@ -324,7 +357,9 @@ stays green, as a distinct final verification step (not merely "tests passed").
   `activated_*` via the raw INV-2 replication described above.
 - `__all__` declared on `activation.py`; `test_no_dead_symbols.py` passes.
 - `test_charter_offering_does_not_import_activation.py` passes with zero violations.
-- The FR-004 absent-config pin and FR-005 fail-loud behavior are both covered by tests and pass.
+- The FR-004 absent-config pin and FR-005 fail-loud behavior are both covered by tests and pass, including
+  FR-004's own falsifiable Acceptance Criterion through the real `apply_spdd_blocks_for_project` entry
+  point (T001 step 4) — not merely `is_spdd_reasons_active(tmp_path) is False` in isolation.
 - The cache-key fix is implemented (either option) and T002's same-process mutation case passes.
 - Baseline diff shows no newly-red node-id outside this mission's own intentionally-flipped tests.
 
