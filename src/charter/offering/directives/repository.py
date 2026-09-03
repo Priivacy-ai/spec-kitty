@@ -16,6 +16,7 @@ from typing import Any
 from ruamel.yaml import YAML
 
 from charter.offering.artifact_kinds import ArtifactKind
+from charter.offering.drg.migration.id_normalizer import normalize_directive_id
 from charter.offering.pack_paths import built_in_dir
 from charter.offering.base import BaseDoctrineRepository
 from .models import Directive
@@ -56,20 +57,28 @@ class DirectiveRepository(BaseDoctrineRepository[Directive]):
 
     @staticmethod
     def _normalize_id(directive_id: str) -> str:
-        """Normalize directive ID to canonical form.
+        """Normalize a directive identifier to the canonical ``DIRECTIVE_NNN`` form.
 
-        Accepts:
-        - "004" or "4" → "DIRECTIVE_004"
-        - "DIRECTIVE_004" → "DIRECTIVE_004" (pass-through)
+        Delegates to the single canonical authority
+        (:func:`charter.offering.drg.migration.id_normalizer.normalize_directive_id`)
+        so this repository, the ``--include directive:<id>`` selector, and the
+        DRG migration pipeline all resolve identifiers through one algorithm
+        rather than three drifting copies (#3816). Accepts:
+
+        - ``"004"`` / ``"4"`` → ``"DIRECTIVE_004"`` (numeric shorthand)
+        - ``"DIRECTIVE_004"`` → ``"DIRECTIVE_004"`` (pass-through)
+        - ``"025-boy-scout-rule"`` → ``"DIRECTIVE_025"`` (the file-stem slug the
+          ``--json`` / action-index surface advertises)
+        - ``"use-c4-model-techniques"`` → ``"USE_C4_MODEL_TECHNIQUES"`` (a
+          slug-named hub directive, folded to its UPPER_SNAKE ``id:``)
         """
-        if re.match(r"^\d+$", directive_id):
-            return f"DIRECTIVE_{directive_id.zfill(3)}"
-        return directive_id
+        return normalize_directive_id(directive_id)
 
     def get(self, directive_id: str) -> Directive | None:
         """Get directive by ID.
 
-        Accepts both numeric shorthand ("004") and full ID ("DIRECTIVE_004").
+        Accepts numeric shorthand ("004"), full ID ("DIRECTIVE_004"), and the
+        file-stem slug the ``--json`` surface advertises ("025-boy-scout-rule").
         """
         normalized = self._normalize_id(directive_id)
         return self._items.get(normalized)
