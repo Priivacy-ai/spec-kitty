@@ -753,3 +753,76 @@ def test_answer_decision_invalid_result_fires_before_no_pending_decision(tmp_pat
     assert envelope["success"] is False
     assert envelope["error_code"] == "INVALID_RESULT"
     assert envelope["error_code"] != "NO_PENDING_DECISION"
+
+
+# ---------------------------------------------------------------------------
+# Maintainer review fold-in (PR #3855): this module otherwise only asserts
+# response-field parity (``test_answer_decision_field_parity_with_host_cli_
+# next_answer``) and pending-decision clearing -- it never pins that
+# ``answer-decision`` itself actually WROTE the three lifecycle-seam side
+# effects (``pair_previous_lifecycle_record``, ``emit_mission_next_invoked``,
+# ``write_issuance_lifecycle_record``). ``assert_lifecycle_seam_effects`` was
+# purpose-built for exactly this (WP02's own deliverable, spec SC-008) --
+# reused UNMODIFIED here rather than re-implemented, so this module has its
+# own direct regression guard on the seam wiring alongside the rest of its
+# ``answer-decision``-specific coverage.
+# ---------------------------------------------------------------------------
+
+
+def test_answer_decision_pins_lifecycle_seam_side_effects(tmp_path: Path) -> None:
+    """RED if steps 2/4/5 in ``answer_decision`` (``pair_previous_lifecycle_
+    record``, ``emit_mission_next_invoked``, ``write_issuance_lifecycle_
+    record``, ``commands.py`` ~3494/3501/3506) are deleted; GREEN as-is.
+    """
+    from specify_cli.invocation.lifecycle import write_started
+    from tests.specify_cli.next.test_next_invocation_lifecycle_seam import (
+        assert_lifecycle_seam_effects,
+    )
+
+    mission_slug = "wp08-lifecycle-seam-pin"
+    mission_type = "wp08-lifecycle-seam-pin-mission"
+    mission_id = "01HWP08SEAMPINULID0000012"
+    repo_root = _scaffold_project(
+        tmp_path, mission_slug=mission_slug, mission_type=mission_type, mission_id=mission_id
+    )
+    _write_input_requiring_mission(repo_root, mission_type)
+    feature_dir = repo_root / "kitty-specs" / mission_slug
+    agent = "wp08-agent"
+
+    _next(repo_root, agent, mission_slug)  # issue step_one
+    reveal = _next(repo_root, agent, mission_slug)  # reveal collect_input's requirement
+    assert reveal["kind"] == "decision_required"
+    decision_id = reveal["decision_id"]
+    assert decision_id == "input:approval"
+
+    # Seed a PRIOR open `started` record directly (real on-disk I/O, not a
+    # mock) so the single measured `answer-decision` call below is solely
+    # responsible for pairing it -- `step_one`'s own started record was
+    # already paired by the `reveal` call above (every `--result` call pairs
+    # unconditionally, real production behaviour). Same technique as
+    # ``TestAnswerDecisionLifecycleSeamEffects`` in the seam-test module.
+    write_started(
+        repo_root,
+        canonical_action_id="synthetic::prior-open-issuance",
+        agent=agent,
+        mission_id=mission_id,
+    )
+
+    def run_action() -> None:
+        result = _run_answer_decision(
+            repo_root,
+            [
+                "--mission", mission_slug,
+                "--agent", agent,
+                "--result", "success",
+                "--answer", "yes",
+                "--decision-id", decision_id,
+                "--policy", _POLICY,
+            ],
+        )
+        envelope = _envelope(result)
+        assert envelope["success"] is True, envelope
+        assert envelope["data"]["kind"] == "step"
+        assert envelope["data"]["answered_decision_id"] == decision_id
+
+    assert_lifecycle_seam_effects(feature_dir, repo_root, mission_slug, run_action)
