@@ -59,6 +59,17 @@ class DecisionErrorCode(StrEnum):
     TERMINAL_CONFLICT = "DECISION_TERMINAL_CONFLICT"
     NOT_FOUND = "DECISION_NOT_FOUND"
     MISSION_NOT_FOUND = "MISSION_NOT_FOUND"
+    # PR-CONTRACT-002 (design-phase-orchestrator-api-01M1HE6M pre-merge
+    # review): reserved-but-unused -- ``decisions/service.py`` never raises
+    # this member today (its only other reference is the value-only unit
+    # test in ``tests/specify_cli/decisions/test_models.py``), and it is
+    # deliberately NOT in ``upstream_contract.json``'s ``allowed_error_codes``
+    # (unlike the six members above, which all ARE registered). If a future
+    # verify/drift check starts raising it, orchestrator-api's
+    # ``_fail_from_decision_error`` guard (``orchestrator_api/commands.py``)
+    # degrades an unregistered code to a safe, contract-registered fallback
+    # rather than leaking it onto the public API -- so this stays reserved
+    # here without also needing a matching contract entry.
     VERIFY_DRIFT = "DECISION_VERIFY_DRIFT"
 
 
