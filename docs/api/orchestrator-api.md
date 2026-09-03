@@ -798,6 +798,7 @@ Added in contract `1.4.0` (#3837), for the 11 design-phase verbs above:
 - `NO_PENDING_DECISION` — `answer-decision`
 - `AMBIGUOUS_PENDING_DECISION` — `answer-decision`
 - `DECISION_NOT_PENDING` — `answer-decision`
+- `DECISION_OPERATION_FAILED` — `open-decision`, `resolve-decision`, `defer-decision`, `cancel-decision` (fallback when a decision-ledger operation fails for a reason without a more specific registered code)
 
 ## Provider Rules
 
